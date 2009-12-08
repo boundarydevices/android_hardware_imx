@@ -380,7 +380,7 @@ static int gralloc_alloc(alloc_device_t* dev,
                 return -EINVAL;
         }
     } else {
-        alignedw = (w + 63) & ~63;
+        alignedw = (w + 1) & ~1; //(w + 63) & ~63;
         alignedh = (h + 63) & ~63;
         int bpp = 0;
         switch (format) {
