@@ -41,9 +41,8 @@
 #include <sys/stat.h>
 #include <utils/Log.h>
 #include <utils/threads.h>
-#include <utils/MemoryBase.h>
-#include <utils/MemoryHeapBase.h>
-#include <utils/threads.h>
+#include <binder/MemoryBase.h>
+#include <binder/MemoryHeapBase.h>
 #include <ui/CameraHardwareInterface.h>
 #include <ui/Overlay.h>
 
@@ -65,28 +64,36 @@ public:
     virtual sp<IMemoryHeap> getPreviewHeap() const;
     virtual sp<IMemoryHeap> getRawHeap() const;
 
-    virtual status_t    startPreview(preview_callback cb, void* user);
+    virtual void        setCallbacks(notify_callback notify_cb,
+                                     data_callback data_cb,
+                                     data_callback_timestamp data_cb_timestamp,
+                                     void* user);
+
+    virtual void        enableMsgType(int32_t msgType);
+    virtual void        disableMsgType(int32_t msgType);
+    virtual bool        msgTypeEnabled(int32_t msgType);
+
     virtual bool        useOverlay() { return true; }
     virtual status_t    setOverlay(const sp<Overlay> &overlay);
+
+    virtual status_t    startPreview();
     virtual void        stopPreview();
     virtual bool        previewEnabled();
 
-    virtual status_t    startRecording(recording_callback cb, void* user);
+    virtual status_t    startRecording();
     virtual void        stopRecording();
     virtual bool        recordingEnabled();
     virtual void        releaseRecordingFrame(const sp<IMemory>& mem);
 
-    virtual status_t    autoFocus(autofocus_callback, void *user);
-    virtual status_t    takePicture(shutter_callback,
-                                    raw_callback,
-                                    jpeg_callback,
-                                    void* user);
-    virtual status_t    cancelPicture(bool cancel_shutter,
-                                      bool cancel_raw,
-                                      bool cancel_jpeg);
+    virtual status_t    autoFocus();
+    virtual status_t    cancelAutoFocus();
+    virtual status_t    takePicture();
+    virtual status_t    cancelPicture();
     virtual status_t    dump(int fd, const Vector<String16>& args) const;
     virtual status_t    setParameters(const CameraParameters& params);
     virtual CameraParameters  getParameters() const;
+    virtual status_t    sendCommand(int32_t command, int32_t arg1,
+                                    int32_t arg2);
     virtual void release();
 
     static sp<CameraHardwareInterface> createInstance();
@@ -179,16 +186,16 @@ private:
     bool                mPreviewRunning;
     int                 mPreviewFrameSize;
 
-    shutter_callback    mShutterCallback;
-    raw_callback        mRawPictureCallback;
-    jpeg_callback       mJpegPictureCallback;
-    void                *mPictureCallbackCookie;
-    
     // protected by mLock
     sp<Overlay>         mOverlay;
     sp<PreviewThread>   mPreviewThread;
-    preview_callback    mPreviewCallback;
-    void                *mPreviewCallbackCookie;
+
+    notify_callback    mNotifyCb;
+    data_callback      mDataCb;
+    data_callback_timestamp mDataCbTimestamp;
+    void               *mCallbackCookie;
+
+    int32_t             mMsgEnabled;
 
     bool                mCameraOpened;
     bool                mIsTakingPic;;
@@ -196,8 +203,6 @@ private:
     sp<RecordThread>    mRecordThread;
     int 		mRecordFrameSize;
     bool                mRecordRunning;
-    recording_callback  mRecordCallback;
-    void                *mRecordCallbackCookie;
     int                 mCurrentRecordFrame;
     int 		nCameraBuffersQueued;
    
@@ -205,9 +210,6 @@ private:
     sp<MemoryHeapBase>  mVideoHeap;
     sp<MemoryBase>      mVideoBuffer[videoBufferCount];
     int   		mVideoBufferUsing[videoBufferCount];
-
-    autofocus_callback  mAutoFocusCallback;
-    void                *mAutoFocusCallbackCookie;
 
     // only used from PreviewThread
     int                 mCurrentPreviewFrame;
@@ -233,6 +235,9 @@ private:
     static int g_display_lcd;
     static int g_preview_width;
     static int g_preview_height;
+    static int g_recording_width;
+    static int g_recording_height;
+    static int g_recording_level;
 
     //used for taking picture
     static int g_pic_width;
