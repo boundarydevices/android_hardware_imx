@@ -32,6 +32,7 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
+#include <cutils/properties.h>
 
 #if HAVE_ANDROID_OS
 #include <linux/fb.h>
@@ -108,7 +109,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
         const size_t offset = hnd->base - m->framebuffer->base;
         m->info.activate = FB_ACTIVATE_VBL;
         m->info.yoffset = offset / m->finfo.line_length;
-        if (ioctl(m->framebuffer->fd, FBIOPUT_VSCREENINFO, &m->info) == -1) {
+        if (ioctl(m->framebuffer->fd, /*FBIOPUT_VSCREENINFO*/FBIOPAN_DISPLAY, &m->info) == -1) {
             LOGE("FBIOPUT_VSCREENINFO failed");
             m->base.unlock(&m->base, buffer); 
             return -errno;
@@ -164,11 +165,23 @@ int mapFrameBufferLocked(struct private_module_t* module)
     int i=0;
     char name[64];
 
-    while ((fd==-1) && device_template[i]) {
-        snprintf(name, 64, device_template[i], 0);
-        fd = open(name, O_RDWR, 0);
-        i++;
+    char value[PROPERTY_VALUE_MAX];
+    property_get("ro.UI_TVOUT_DISPLAY", value, "");
+    if (strcmp(value, "1") != 0) {
+        while ((fd==-1) && device_template[i]) {
+            snprintf(name, 64, device_template[i], 0);
+            fd = open(name, O_RDWR, 0);
+            i++;
+        }
     }
+    else{
+        while ((fd==-1) && device_template[i]) {
+            snprintf(name, 64, device_template[i], 1);
+            fd = open(name, O_RDWR, 0);
+            i++;
+        }
+    }
+
     if (fd < 0)
         return -errno;
 
