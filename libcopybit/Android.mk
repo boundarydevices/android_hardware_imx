@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifeq ($(BOARD_SOC_TYPE),IMX51_COPYBIT)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -31,3 +32,5 @@ LOCAL_SRC_FILES := 	\
 LOCAL_MODULE := copybit.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).copybit\" -D_LINUX
 include $(BUILD_SHARED_LIBRARY)
+
+endif
