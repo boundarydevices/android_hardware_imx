@@ -433,7 +433,7 @@ static int close_copybit(struct hw_device_t *dev)
     struct copybit_context_t* ctx = (struct copybit_context_t*)dev;
     if (ctx) {
         C2D_STATUS c2dstatus;
-        c2dstatus = c2dDestroyContext(&ctx->c2dctx);
+        c2dstatus = c2dDestroyContext(ctx->c2dctx);
         LOGE("c2dDestroyContext done %d",c2dstatus);  
         close(ctx->mC2D);
         free(ctx);
