@@ -266,7 +266,10 @@ static void image_to_surface(copybit_image_t const *img, C2D_SURFACE_DEF *surfac
     surfaceDef->format = get_format(img->format);
     surfaceDef->width =  img->w;
     surfaceDef->height = img->h;
-    surfaceDef->stride = img->w;
+
+	//make sure stride is 32 pixel aligned
+    surfaceDef->stride = ((img->w + 31) & ~31)*get_pixelbit(surfaceDef->format)>>3;
+
     surfaceDef->buffer = (void *)hnd->phys;
     surfaceDef->host = (void *)hnd->base;
     surfaceDef->flags = C2D_SURFACE_NO_BUFFER_ALLOC;

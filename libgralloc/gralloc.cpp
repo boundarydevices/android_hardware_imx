@@ -380,8 +380,8 @@ static int gralloc_alloc(alloc_device_t* dev,
                 return -EINVAL;
         }
     } else {
-        alignedw = (w + 1) & ~1; //(w + 63) & ~63;
-        alignedh = (h + 63) & ~63;
+        alignedw = (w + 31) & ~31; 
+        alignedh = (h + 31) & ~31;
         int bpp = 0;
         switch (format) {
             case HAL_PIXEL_FORMAT_RGBA_8888:
