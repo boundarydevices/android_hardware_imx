@@ -54,7 +54,6 @@ enum {
 struct copybit_context_t {
     struct copybit_device_t device;
     C2D_CONTEXT c2dctx;
-    int     mC2D;
     int     mCache;
     uint8_t mAlpha;
     uint8_t mRotate;    
@@ -268,7 +267,7 @@ static void image_to_surface(copybit_image_t const *img, C2D_SURFACE_DEF *surfac
     surfaceDef->height = img->h;
 
 	//make sure stride is 32 pixel aligned
-    surfaceDef->stride = ((img->w + 31) & ~31)*get_pixelbit(surfaceDef->format)>>3;
+    surfaceDef->stride = ((img->w + 31) & ~31)*get_pixelbit(img->format)>>3;
 
     surfaceDef->buffer = (void *)hnd->phys;
     surfaceDef->host = (void *)hnd->base;
@@ -434,8 +433,6 @@ static int close_copybit(struct hw_device_t *dev)
     if (ctx) {
         C2D_STATUS c2dstatus;
         c2dstatus = c2dDestroyContext(ctx->c2dctx);
-        LOGE("c2dDestroyContext done %d",c2dstatus);  
-        close(ctx->mC2D);
         free(ctx);
     }
     return 0;
@@ -474,8 +471,7 @@ static int open_copybit(const struct hw_module_t* module, const char* name,
     if (status == 0) {
         *device = &ctx->device.common;
         C2D_STATUS c2dstatus;        
-        c2dstatus = c2dCreateContext(&ctx->c2dctx);
-        LOGE("c2dCreateContext done %d",c2dstatus);                
+        c2dstatus = c2dCreateContext(&ctx->c2dctx);             
     } else {
         close_copybit(&ctx->device.common);
     }

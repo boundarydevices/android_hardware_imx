@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(BOARD_SOC_TYPE),IMX51_COPYBIT)
+ifeq ($(BOARD_SOC_TYPE),IMX51)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -24,7 +24,7 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_C_INCLUDES += hardware/imx51/libgralloc
 LOCAL_C_INCLUDES += external/fsl-linux-amd-gpu/driver/include/private/C2D
 LOCAL_C_INCLUDES += kernel_imx/include
-LOCAL_SHARED_LIBRARIES := liblog libc2d_z430
+LOCAL_SHARED_LIBRARIES := liblog libc2d_z160
 
 LOCAL_SRC_FILES := 	\
 	copybit.cpp
