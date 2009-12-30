@@ -13,6 +13,7 @@
 # limitations under the License.
 
 ifeq ($(BOARD_SOC_TYPE),IMX51)
+ifeq ($(PREBUILT_FSL_IMX_GPU),false)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -22,8 +23,8 @@ include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_C_INCLUDES += hardware/imx51/libgralloc
-LOCAL_C_INCLUDES += external/fsl-linux-amd-gpu/driver/include/private/C2D
 LOCAL_C_INCLUDES += kernel_imx/include
+LOCAL_C_INCLUDES += external/fsl-linux-amd-gpu/driver/include/private/C2D
 LOCAL_SHARED_LIBRARIES := liblog libc2d_z160
 
 LOCAL_SRC_FILES := 	\
@@ -33,4 +34,5 @@ LOCAL_MODULE := copybit.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).copybit\" -D_LINUX
 include $(BUILD_SHARED_LIBRARY)
 
+endif
 endif
