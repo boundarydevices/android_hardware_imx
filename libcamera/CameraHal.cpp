@@ -36,8 +36,15 @@
 #define MIN_HEIGHT          	144
 #define DISPLAY_WIDTH		480	//lcd width
 #define DISPLAY_HEIGHT		640	//lcd height
+
+#ifdef IMX51_3STACK
+#define PREVIEW_WIDTH	    	535	//default preview width
+#define PREVIEW_HEIGHT	    	400	//default preview height
+#else
 #define PREVIEW_WIDTH	    	635	//default preview width
 #define PREVIEW_HEIGHT	    	480	//default preview height
+#endif
+
 #define PREVIEW_FORMAT	    	"yuv422i"
 #define PREVIEW_FRAMERATE   	30
 #define PICTURE_WIDTH   	640 	//default picture width
@@ -683,7 +690,7 @@ if(mIsTakingPic == 0){
     //mParameters.getPreviewSize(&g_preview_height, &g_preview_width);
     g_preview_height = PREVIEW_WIDTH;
     g_preview_width = PREVIEW_HEIGHT;
-    g_display_top = 15;
+    g_display_top = 30;
     g_display_left = (g_display_width - g_preview_width) / 2;
 #else
     //mParameters.getPreviewSize(&g_preview_width, &g_preview_height);
