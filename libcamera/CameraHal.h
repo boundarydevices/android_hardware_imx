@@ -46,6 +46,40 @@
 #include <ui/CameraHardwareInterface.h>
 #include <ui/Overlay.h>
 
+#define FB_DEVICE               "/dev/graphics/fb0"
+#define VIDEO_DEVICE            "/dev/video0"
+#define MIN_WIDTH               176
+#define MIN_HEIGHT              144
+#define DISPLAY_WIDTH           480     //lcd width
+#define DISPLAY_HEIGHT          640     //lcd height
+
+#ifdef IMX51_3STACK
+#define PREVIEW_WIDTH           535     //default preview width
+#define PREVIEW_HEIGHT          400     //default preview height
+#else
+#define PREVIEW_WIDTH           635     //default preview width
+#define PREVIEW_HEIGHT          480     //default preview height
+#endif
+
+#define PREVIEW_FORMAT          "yuv422i"
+#define PREVIEW_FRAMERATE       30
+#define PICTURE_WIDTH           640     //default picture width
+#define PICTURE_HEIGHT          480     //default picture height
+#define PICTURE_FROMAT          V4L2_PIX_FMT_YUV420     //default picture format
+#define RECORDING_WIDTH_NORMAL  352     //default recording width
+#define RECORDING_HEIGHT_NORMAL 288     //default recording height
+#define RECORDING_WIDTH_LOW     176     //default recording width
+#define RECORDING_HEIGHT_LOW    144     //default recording height
+#ifdef  RECORDING_FORMAT_NV12
+#define RECORDING_FORMAT        V4L2_PIX_FMT_NV12    //recording format
+#else
+#define RECORDING_FORMAT        V4L2_PIX_FMT_YUV420  //recording format
+#endif
+#define CAPTURE_BUFFER_NUM      3
+#define LOG_FUNCTION_NAME       LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
+
+#define PARAM_BUFFER 		512
+
 #ifdef USE_FSL_JPEG_ENC
 #include "jpeg_enc_interface.h" 
 #endif
@@ -247,6 +281,12 @@ private:
     //used for recording
     static int g_capture_mode;		//0:low resolution 1:high resolution
     static struct picbuffer buffers[3];
+
+    static const char supportedPictureSizes[];
+    static const char supportedPreviewSizes[];
+    static const char supportedFPS[];
+    static const char supprotedThumbnailSizes[];
+    static const char PARAMS_DELIMITER[];
 
 #ifdef DUMP_CAPTURE_YUV
     static FILE *record_yuvFile;
