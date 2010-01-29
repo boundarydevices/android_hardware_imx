@@ -164,6 +164,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
 {
     snd_pcm_hw_params_t *hardwareParams;
     status_t err;
+    snd_pcm_access_mask_t *mask;
 
     snd_pcm_uframes_t bufferSize = handle->bufferSize;
     unsigned int requestedRate = handle->sampleRate;
@@ -191,13 +192,29 @@ status_t setHardwareParams(alsa_handle_t *handle)
     }
 
     // Set the interleaved read and write format.
-    err = snd_pcm_hw_params_set_access(handle->handle, hardwareParams,
-            SND_PCM_ACCESS_RW_INTERLEAVED);
+    mask = (snd_pcm_access_mask_t *)malloc(snd_pcm_access_mask_sizeof());
+    snd_pcm_access_mask_none(mask);
+    snd_pcm_access_mask_set(mask, SND_PCM_ACCESS_MMAP_INTERLEAVED);
+    snd_pcm_access_mask_set(mask, SND_PCM_ACCESS_MMAP_NONINTERLEAVED);
+    snd_pcm_access_mask_set(mask, SND_PCM_ACCESS_MMAP_COMPLEX);
+    err = snd_pcm_hw_params_set_access_mask(handle->handle, hardwareParams, mask);
+
     if (err < 0) {
-        LOGE("Unable to configure PCM read/write format: %s",
-                snd_strerror(err));
-        goto done;
+        LOGW("Unable to enable MMAP access for PCM: %s", snd_strerror(err));
+        err = snd_pcm_hw_params_set_access(handle->handle, hardwareParams,
+                SND_PCM_ACCESS_RW_INTERLEAVED);
+        if (err < 0) {
+            LOGE("Unable to configure PCM read/write format: %s",
+                    snd_strerror(err));
+            free(mask);
+            goto done;
+        }
+        handle->mmap = 0;
+    } else {
+        handle->mmap = 1;
+        LOGW("enable MMAP access for PCM");
     }
+    free(mask);
 
     err = snd_pcm_hw_params_set_format(handle->handle, hardwareParams,
             handle->format);
@@ -217,8 +234,8 @@ status_t setHardwareParams(alsa_handle_t *handle)
         goto done;
     }
 
-    LOGV("Using %i %s for %s.", handle->channels,
-            handle->channels == 1 ? "channel" : "channels", streamName());
+    LOGV("Using %i %s .", handle->channels,
+            handle->channels == 1 ? "channel" : "channels");
 
     err = snd_pcm_hw_params_set_rate_near(handle->handle, hardwareParams,
             &requestedRate, 0);
@@ -233,7 +250,7 @@ status_t setHardwareParams(alsa_handle_t *handle)
         LOGW("Requested rate (%u HZ) does not match actual rate (%u HZ)",
                 handle->sampleRate, requestedRate);
     else
-        LOGV("Set %s sample rate to %u HZ", stream, requestedRate);
+        LOGV("Set sample rate to %u HZ", requestedRate);
 
     // Make sure we have at least the size we originally wanted
     err = snd_pcm_hw_params_set_buffer_size(handle->handle, hardwareParams,
