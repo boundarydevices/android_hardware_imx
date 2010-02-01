@@ -224,16 +224,16 @@ static int get(struct copybit_device_t *dev, int name)
 /** convert COPYBIT_FORMAT to C2D format */
 static C2D_COLORFORMAT get_format(int format) {
     switch (format) {
-    case COPYBIT_FORMAT_RGBA_8888:     return C2D_COLOR_8888_ABGR;
+	case COPYBIT_FORMAT_RGBA_8888:     return C2D_COLOR_8888_ABGR;    
     case COPYBIT_FORMAT_RGB_565:       return C2D_COLOR_0565;
     case COPYBIT_FORMAT_RGBA_5551:     return C2D_COLOR_5551_RGBA;
     case COPYBIT_FORMAT_RGBA_4444:     return C2D_COLOR_4444_RGBA;
-    case COPYBIT_FORMAT_RGBX_8888:
-    case COPYBIT_FORMAT_RGB_888:
-    case COPYBIT_FORMAT_BGRA_8888:
-    case COPYBIT_FORMAT_YCbCr_422_SP:
-    case COPYBIT_FORMAT_YCbCr_420_SP:
-    default:                           return C2D_COLOR_DUMMY;   
+    case COPYBIT_FORMAT_RGBX_8888:	   return C2D_COLOR_8888_ABGR; //work-around, C2D does not support RGBX
+    case COPYBIT_FORMAT_RGB_888:	   return C2D_COLOR_888; //work-around, C2D supports BGR not RGB in this case
+    case COPYBIT_FORMAT_BGRA_8888:	   return C2D_COLOR_8888;//work-around, C2D supports ARGB not BGRA in this case
+    case COPYBIT_FORMAT_YCbCr_422_SP:  
+    case COPYBIT_FORMAT_YCbCr_420_SP: 
+    default:                           return C2D_COLOR_0565;//work-around, C2D does not support YCbCr   
     }
 }
 
