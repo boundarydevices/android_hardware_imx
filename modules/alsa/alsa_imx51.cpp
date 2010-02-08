@@ -438,14 +438,7 @@ static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 
     for (size_t i = 0; i < ARRAY_SIZE(_defaults); i++) {
 
-        snd_pcm_uframes_t bufferSize = _defaults[i].bufferSize;
-
-        for (size_t b = 1; (bufferSize & ~b) != 0; b <<= 1)
-            bufferSize &= ~b;
-
         _defaults[i].module = module;
-        _defaults[i].bufferSize = bufferSize;
-
         list.push_back(_defaults[i]);
     }
 
