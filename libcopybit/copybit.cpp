@@ -60,6 +60,11 @@ struct copybit_context_t {
     uint32_t mFlags;
 };
 
+/** State information for copybit instance */
+struct copybit_instance_t {
+    int count;
+};
+
 /**
  * Common hardware methods
  */
@@ -229,10 +234,12 @@ static C2D_COLORFORMAT get_format(int format) {
     case COPYBIT_FORMAT_RGBA_5551:     return C2D_COLOR_5551_RGBA;
     case COPYBIT_FORMAT_RGBA_4444:     return C2D_COLOR_4444_RGBA;
     case COPYBIT_FORMAT_RGBX_8888:	   return C2D_COLOR_8888_ABGR; //work-around, C2D does not support RGBX
-    case COPYBIT_FORMAT_RGB_888:	   return C2D_COLOR_888; //work-around, C2D supports BGR not RGB in this case
+    case COPYBIT_FORMAT_RGB_888:
+	   return C2D_COLOR_888; //work-around, C2D supports BGR not RGB in this case
     case COPYBIT_FORMAT_BGRA_8888:	   return C2D_COLOR_8888;//work-around, C2D supports ARGB not BGRA in this case
     case COPYBIT_FORMAT_YCbCr_422_SP:  
-    case COPYBIT_FORMAT_YCbCr_420_SP: 
+    case COPYBIT_FORMAT_YCbCr_420_SP:
+ 
     default:                           return C2D_COLOR_0565;//work-around, C2D does not support YCbCr   
     }
 }
@@ -453,9 +460,20 @@ static int close_copybit(struct hw_device_t *dev)
 {
     struct copybit_context_t* ctx = (struct copybit_context_t*)dev;
     if (ctx) {
+        int fd;
+        copybit_instance_t *ptr;
         C2D_STATUS c2dstatus;
         c2dstatus = c2dDestroyContext(ctx->c2dctx);
         free(ctx);
+
+        fd = open("/sqlite_stmt_journals/copybit.shm", O_RDWR, 0666);
+        if (fd >= 0) {
+                ftruncate(fd, sizeof(copybit_instance_t));
+                ptr = (copybit_instance_t *) mmap(NULL, sizeof(copybit_instance_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+                ptr->count -= 1;
+                close(fd);
+        }  
+
     }
     return 0;
 }
@@ -465,6 +483,36 @@ static int open_copybit(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device)
 {
     int status = -EINVAL;
+    
+    int fd;
+    copybit_instance_t *ptr;
+    fd = open("/sqlite_stmt_journals/copybit.shm", O_RDWR, 0666);
+    if (fd < 0) { 
+        /* create copybit.shm if no this file */
+       fd = open("/sqlite_stmt_journals/copybit.shm", O_RDWR | O_CREAT | O_EXCL, 0666);
+       if(fd < 0)
+       {
+             LOGE("Copybit create copybit.shm file fail");
+             *device = NULL;
+             return status;
+       }
+       ftruncate(fd, sizeof(copybit_instance_t));
+       ptr = (copybit_instance_t *) mmap(NULL, sizeof(copybit_instance_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+       ptr->count = 0;
+    } else {
+        ftruncate(fd, sizeof(copybit_instance_t));
+        ptr = (copybit_instance_t *) mmap(NULL, sizeof(copybit_instance_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (ptr->count >= 2){
+             LOGE("Copybit create new instance fail");
+             *device = NULL;
+             close(fd);             
+             return status;  
+        }
+    }
+    ptr->count += 1; 
+    close(fd);
+
+    
     copybit_context_t *ctx;
     ctx = (copybit_context_t *)malloc(sizeof(copybit_context_t));
     memset(ctx, 0, sizeof(*ctx));
