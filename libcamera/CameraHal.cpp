@@ -726,17 +726,8 @@ if(mIsTakingPic == 0){
     mParameters.getPreviewSize(&width, &height);
     LOGI("Original Preview Width=%d Height=%d", width, height);
 
-    mParameters.getPreviewSize(&width, &height);
-    if( height < 288 ) {
-	g_recording_level = 0;
-	g_recording_width = RECORDING_WIDTH_LOW;
-	g_recording_height = RECORDING_HEIGHT_LOW;
-    } else {
-	g_recording_level = 1;
-	g_recording_width = RECORDING_WIDTH_NORMAL;
-	g_recording_height = RECORDING_HEIGHT_NORMAL;
-    }
-    LOGI("Recording width = %d, Recording height = %d", g_recording_width, g_recording_height);
+    g_recording_width = width;
+    g_recording_height = height;
 
 #ifdef IMX51_3STACK
     //mParameters.getPreviewSize(&g_preview_height, &g_preview_width);
