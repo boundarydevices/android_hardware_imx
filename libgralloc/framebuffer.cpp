@@ -36,6 +36,7 @@
 
 #if HAVE_ANDROID_OS
 #include <linux/fb.h>
+#include <linux/mxcfb.h>
 #endif
 #include <GLES/gl.h>
 
@@ -114,6 +115,10 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
             m->base.unlock(&m->base, buffer); 
             return -errno;
         }
+
+        unsigned int ret;
+        ioctl(m->framebuffer->fd, MXCFB_WAIT_FOR_VSYNC, &ret);
+
         m->currentBuffer = buffer;
         
     } else {
