@@ -294,7 +294,8 @@ static void set_rects(struct copybit_context_t *dev,
                       C2D_RECT *dstRect,
                       const struct copybit_rect_t *dst,
                       const struct copybit_rect_t *src,
-                      const struct copybit_rect_t *scissor) {
+                      const struct copybit_rect_t *scissor,
+                      copybit_image_t const *img) {
     struct copybit_rect_t clip;
     intersect(&clip, scissor, dst);
 
@@ -322,7 +323,10 @@ static void set_rects(struct copybit_context_t *dev,
     MULDIV(&srcRect->x, &srcRect->width, src->r - src->l, W);
     MULDIV(&srcRect->y, &srcRect->height, src->b - src->t, H);
 
-
+    if ((dev->mRotate == 180) || ((dev->mRotate == 270))) {
+        srcRect->y = img->h - (srcRect->y + srcRect->height);
+        srcRect->x = img->w - (srcRect->x + srcRect->width);
+    }
 }
 
 /** do a stretch blit type operation */
@@ -396,8 +400,7 @@ static int stretch_copybit(
 
         while ((status == 0) && region->next(region, &clip)) {          
                 intersect(&clip, &bounds, &clip);
-                set_rects(ctx, &srcRect, &dstRect, dst_rect, src_rect, &clip);
-
+                set_rects(ctx, &srcRect, &dstRect, dst_rect, src_rect, &clip, src);
                 if (srcRect.width<=0 || srcRect.height<=0)
                 {
                         LOGE("srcRect invalid");
