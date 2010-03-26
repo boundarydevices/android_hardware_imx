@@ -611,7 +611,7 @@ static int overlay_init_fbdev(struct overlay_control_context_t *dev)
     struct fb_var_screeninfo fb_var;
     struct mxcfb_gbl_alpha gbl_alpha;
 
-    gbl_alpha.alpha = 128;
+    gbl_alpha.alpha = 255;
     gbl_alpha.enable = 1;
     ret = ioctl(dev->fb_dev, MXCFB_SET_GBL_ALPHA, &gbl_alpha);
     if(ret <0)
