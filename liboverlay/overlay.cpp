@@ -130,6 +130,7 @@ struct overlay_data_context_t {
     int height;
     int32_t format;
     int num_buffer;//Number of buffers for overlay
+    int queue_threshold;
     int buf_size;
     int buf_queued;
     OverlayAllocator *allocator;
@@ -1272,6 +1273,7 @@ int overlay_data_initialize(struct overlay_data_device_t *dev,
         ctx->data_shared->free_tail++;
         pOverlayBuf++;
     }
+    ctx->queue_threshold = OVERLAY_QUEUE_THRESHOLD;
     pthread_mutex_unlock(&ctx->data_shared->obj_lock);
     OVERLAY_LOG_INFO("Overlay init success for Id %d",ctx->data_shared->instance_id);
     
@@ -1329,9 +1331,11 @@ int overlay_data_dequeueBuffer(struct overlay_data_device_t *dev,
             //fetch the buffer handle
             //return the buffer handle
             unsigned int phy_addr = data_shared->free_bufs[data_shared->free_head];
-            OVERLAY_LOG_RUNTIME("Id %d:Have free buffer %d,head %d, phy 0x%x",
+            OVERLAY_LOG_RUNTIME("Id %d:Have free buffer %d,head %d, tail %d,phy 0x%x",
                                 data_shared->instance_id,
-                                data_shared->free_count,data_shared->free_head,
+                                data_shared->free_count,
+                                data_shared->free_head,
+                                data_shared->free_tail,
                                 phy_addr);
             data_shared->free_bufs[data_shared->free_head] = 0;
             data_shared->free_head++;
@@ -1392,17 +1396,37 @@ int overlay_data_queueBuffer(struct overlay_data_device_t *dev,
 
     pthread_mutex_lock(&data_shared->obj_lock);
     //Insert buffer to display buffer queue
-    if(data_shared->queued_count >= ctx->num_buffer) {
-        OVERLAY_LOG_ERR("Error!Id %d:Queued overlay buffer is out of number buffers supported",
-                        data_shared->instance_id);
-        pthread_mutex_unlock(&data_shared->obj_lock);
-        return -EINVAL;
+    if(data_shared->queued_count >= ctx->queue_threshold) {
+        //Wait a buffer be mixered
+        data_shared->wait_buf_flag = 1;
+        //post sempore to notify mixer thread, give mixer thread a chance to free a buffer
+        if(ctx->control_shared) {
+            sem_post(&ctx->control_shared->overlay_sem);
+        }
+        pthread_cond_wait(&data_shared->free_cond, &data_shared->obj_lock);
+        if(data_shared->wait_buf_flag != 0) {
+            OVERLAY_LOG_ERR("Error!Id %d:Queued overlay buffer is out of number buffers supported",
+                    data_shared->instance_id);
+            pthread_mutex_unlock(&data_shared->obj_lock);
+            return -EINVAL;
+
+        }
+        OVERLAY_LOG_RUNTIME("Id %d:Wait a free slot for queue buffer",data_shared->instance_id);
     }
 
     int phy_addr = overlay_buf->phy_addr;
     OVERLAY_LOG_RUNTIME("Id %d:Queue buffer 0x%x at %d,queued count %d",
                         data_shared->instance_id,
                         phy_addr,data_shared->queued_tail,data_shared->queued_count+1);
+
+    //Check whether it is duplicated in the queue
+    for(int i= 0;i < data_shared->queued_count;i++) {
+        if(phy_addr == data_shared->queued_bufs[(data_shared->queued_head+i)%MAX_OVERLAY_BUFFER_NUM]) {
+            OVERLAY_LOG_WARN("Warning!This buffer is duplicated at queue,will be ignored");
+            pthread_mutex_unlock(&data_shared->obj_lock);
+            return -EINVAL;
+        }
+    }
 
     data_shared->queued_bufs[data_shared->queued_tail] = phy_addr;
     data_shared->queued_tail++;
