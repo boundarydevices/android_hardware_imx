@@ -136,7 +136,10 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         // we return a regular buffer which will be memcpy'ed to the main
         // screen when post is called.
         int newUsage = (usage & ~GRALLOC_USAGE_HW_FB) | GRALLOC_USAGE_HW_2D;
-        return gralloc_alloc_buffer(dev, bufferSize, newUsage, pHandle);
+        pthread_mutex_unlock(&m->lock);
+        int ret = gralloc_alloc_buffer(dev, bufferSize, newUsage, pHandle);
+        pthread_mutex_lock(&m->lock);
+        return ret;
     }
 
     if (bufferMask >= ((1LU<<numBuffers)-1)) {
