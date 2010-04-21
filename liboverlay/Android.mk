@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(BOARD_SOC_TYPE),IMX51)
+ifeq ($(BOARD_SOC_TYPE),IMX5X)
 
 LOCAL_PATH := $(call my-dir)
 
