@@ -311,7 +311,9 @@ class OverlayThread: public Thread {
                 if(overlayObj0->mHandle.format == PIXEL_FORMAT_YCbCr_420_SP) {
                     mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
                 }
-                else{
+                else if(overlayObj0->mHandle.format == PIXEL_FORMAT_RGB_565) {
+                    mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
+                }else{
                     OVERLAY_LOG_ERR("Error!Not supported input format %d",overlayObj0->mHandle.format);
                     goto queue_buf_exit;
                 }
@@ -380,7 +382,9 @@ class OverlayThread: public Thread {
                 if(overlayObj1->mHandle.format == PIXEL_FORMAT_YCbCr_420_SP) {
                     mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
                 }
-                else{
+                else if(overlayObj0->mHandle.format == PIXEL_FORMAT_RGB_565) {
+                    mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
+                }else{
                     OVERLAY_LOG_ERR("Error!Obj1 Not supported input format %d",overlayObj1->mHandle.format);
                     goto queue_buf_exit;
                 }
