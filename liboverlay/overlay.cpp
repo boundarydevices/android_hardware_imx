@@ -917,11 +917,12 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     /* check the input params, reject if not supported or invalid */
     switch (format) {
         case PIXEL_FORMAT_RGB_888:
-        case PIXEL_FORMAT_RGB_565:
         case PIXEL_FORMAT_RGBA_8888:
         case PIXEL_FORMAT_YCbCr_422_SP:
             OVERLAY_LOG_ERR("Error!Not a valid format for overlay");
             return NULL;
+        case PIXEL_FORMAT_RGB_565:
+            break;
         case PIXEL_FORMAT_YCbCr_420_SP:
             break;
         case PIXEL_FORMAT_YCbCr_422_I:
