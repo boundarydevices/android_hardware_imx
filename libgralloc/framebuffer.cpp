@@ -164,8 +164,6 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
             m->base.unlock(&m->base, buffer); 
             return -errno;
         }
-        unsigned int ret;
-        ioctl(m->framebuffer->fd, MXCFB_WAIT_FOR_VSYNC, &ret);
 
         #ifdef FSL_EPDC_FB
         if(ctx->partial_update) {
