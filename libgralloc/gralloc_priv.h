@@ -29,6 +29,7 @@
 
 #include <linux/fb.h>
 
+#define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
 /*****************************************************************************/
 
 struct private_module_t;

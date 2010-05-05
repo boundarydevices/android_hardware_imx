@@ -154,7 +154,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
         m->base.lock(&m->base, buffer, 
                 private_module_t::PRIV_USAGE_LOCKED_FOR_POST, 
-                0, 0, m->info.xres, m->info.yres, NULL);
+                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL(m->info.yres), NULL);
 
         const size_t offset = hnd->base - m->framebuffer->base;
         m->info.activate = FB_ACTIVATE_VBL;
@@ -188,15 +188,15 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
         
         m->base.lock(&m->base, m->framebuffer, 
                 GRALLOC_USAGE_SW_WRITE_RARELY, 
-                0, 0, m->info.xres, m->info.yres,
+                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL(m->info.yres),
                 &fb_vaddr);
 
         m->base.lock(&m->base, buffer, 
                 GRALLOC_USAGE_SW_READ_RARELY, 
-                0, 0, m->info.xres, m->info.yres,
+                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL(m->info.yres),
                 &buffer_vaddr);
 
-        memcpy(fb_vaddr, buffer_vaddr, m->finfo.line_length * m->info.yres);
+        memcpy(fb_vaddr, buffer_vaddr, m->finfo.line_length * ALIGN_PIXEL(m->info.yres));
 
         #ifdef FSL_EPDC_FB
         if(ctx->partial_update) {
@@ -292,10 +292,11 @@ int mapFrameBufferLocked(struct private_module_t* module)
     /*
      * Request NUM_BUFFERS screens (at lest 2 for page flipping)
      */
-    info.yres_virtual = info.yres * NUM_BUFFERS;
+    info.yres_virtual = ALIGN_PIXEL(info.yres) * NUM_BUFFERS;
+	info.xres_virtual = ALIGN_PIXEL(info.xres);
     
     #ifdef FSL_EPDC_FB
-    info.yres_virtual = info.yres;
+    info.yres_virtual = ALIGN_PIXEL(info.yres);
 	info.bits_per_pixel = 16;
 	info.grayscale = 0;
 	info.yoffset = 0;
@@ -304,17 +305,17 @@ int mapFrameBufferLocked(struct private_module_t* module)
 
     uint32_t flags = PAGE_FLIP;
     if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
-        info.yres_virtual = info.yres;
+        info.yres_virtual = ALIGN_PIXEL(info.yres);
         flags &= ~PAGE_FLIP;
         LOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
     }
 
-    if (info.yres_virtual < info.yres * 2) {
+    if (info.yres_virtual < ALIGN_PIXEL(info.yres) * 2) {
         // we need at least 2 for page-flipping
-        info.yres_virtual = info.yres;
+        info.yres_virtual = ALIGN_PIXEL(info.yres);
         flags &= ~PAGE_FLIP;
         LOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
-                info.yres_virtual, info.yres*2);
+                info.yres_virtual, ALIGN_PIXEL(info.yres)*2);
     }
 
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
@@ -405,7 +406,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
     module->framebuffer = new private_handle_t(dup(fd), fbSize,
             private_handle_t::PRIV_FLAGS_USES_PMEM);
 
-    module->numBuffers = info.yres_virtual / info.yres;
+    module->numBuffers = info.yres_virtual / ALIGN_PIXEL(info.yres);
     module->bufferMask = 0;
 
     void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
