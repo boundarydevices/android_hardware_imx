@@ -311,6 +311,9 @@ class OverlayThread: public Thread {
                 if(overlayObj0->mHandle.format == PIXEL_FORMAT_YCbCr_420_SP) {
                     mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
                 }
+                else if(overlayObj0->mHandle.format == PIXEL_FORMAT_YCbCr_420_I) {
+                    mIPUInputParam.fmt = v4l2_fourcc('N', 'Y', '1', '2');
+                }
                 else if(overlayObj0->mHandle.format == PIXEL_FORMAT_RGB_565) {
                     mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
                 }else{
@@ -381,6 +384,9 @@ class OverlayThread: public Thread {
 
                 if(overlayObj1->mHandle.format == PIXEL_FORMAT_YCbCr_420_SP) {
                     mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
+                }
+                else if(overlayObj1->mHandle.format == PIXEL_FORMAT_YCbCr_420_I) {
+                    mIPUInputParam.fmt = v4l2_fourcc('N', 'Y', '1', '2');
                 }
                 else if(overlayObj0->mHandle.format == PIXEL_FORMAT_RGB_565) {
                     mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
