@@ -514,6 +514,7 @@ static int bits_per_pixel(int32_t format)
             bits = 32;
             break;
         case PIXEL_FORMAT_YCbCr_420_SP:
+        case PIXEL_FORMAT_YCbCr_420_I:
             bits = 12;
             break;
         default:
@@ -925,7 +926,7 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
             break;
         case PIXEL_FORMAT_YCbCr_420_SP:
             break;
-        case PIXEL_FORMAT_YCbCr_422_I:
+        case PIXEL_FORMAT_YCbCr_420_I:
             break;
         default:
             OVERLAY_LOG_ERR("Error!Not a valid format for overlay");
