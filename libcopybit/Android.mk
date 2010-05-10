@@ -22,7 +22,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_C_INCLUDES += hardware/imx51/libgralloc
+LOCAL_C_INCLUDES += hardware/mx5x/libgralloc
 LOCAL_C_INCLUDES += kernel_imx/include
 LOCAL_C_INCLUDES += external/fsl-linux-amd-gpu/driver/include/private/C2D
 LOCAL_SHARED_LIBRARIES := liblog libcutils libc2d_z160
