@@ -50,26 +50,17 @@
 #define VIDEO_DEVICE            "/dev/video0"
 #define MIN_WIDTH               176
 #define MIN_HEIGHT              144
-#define DISPLAY_WIDTH           480     //lcd width
-#define DISPLAY_HEIGHT          640     //lcd height
 
-#ifdef IMX51_3STACK
-#define PREVIEW_WIDTH           535     //default preview width
-#define PREVIEW_HEIGHT          400     //default preview height
-#else
-#define PREVIEW_WIDTH           635     //default preview width
-#define PREVIEW_HEIGHT          480     //default preview height
-#endif
-
-#define PREVIEW_FORMAT          "yuv422i"
 #define PREVIEW_FRAMERATE       30
 #define PICTURE_WIDTH           640     //default picture width
 #define PICTURE_HEIGHT          480     //default picture height
 #define PICTURE_FROMAT          V4L2_PIX_FMT_YUV420     //default picture format
-#define RECORDING_WIDTH_NORMAL  352     //default recording width
+#define RECORDING_WIDTH_NORMAL  352    //default recording width
 #define RECORDING_HEIGHT_NORMAL 288     //default recording height
 #define RECORDING_WIDTH_LOW     176     //default recording width
 #define RECORDING_HEIGHT_LOW    144     //default recording height
+
+#undef RECORDING_FORMAT_NV12
 #ifdef  RECORDING_FORMAT_NV12
 #define RECORDING_FORMAT        V4L2_PIX_FMT_NV12    //recording format
 #else
@@ -161,32 +152,13 @@ private:
         }
     };
 
-    class RecordThread : public Thread {
-        CameraHal* mHardware;
-    public:
-        RecordThread(CameraHal* hw)
-            : Thread(false), mHardware(hw) { }
-        virtual void onFirstRef() {
-            run("CameraRecordThread", PRIORITY_URGENT_DISPLAY);
-        }
-        virtual bool threadLoop() {
-            mHardware->recordThread();
-            // loop until we need to quit
-            return true;
-        }
-    };
-
     void initDefaultParameters();
     bool initHeapLocked();
 
     int previewThread();
-    int recordThread();
 
     static int beginAutoFocusThread(void *cookie);
     int autoFocusThread();
-
-    static int beginPictureThread(void *cookie);
-    int pictureThread();
 
     int validateSize(int w, int h);
     void* cropImage(unsigned long buffer);
@@ -198,27 +170,28 @@ private:
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
 #endif
 
-    int CameraOpen();
-    int CameraClose();
-    int CameraPreviewConfig(int fd_v4l);
-    int CameraRecordingConfig(int fd_v4l);
-    int CameraStartRecording(int fd_v4l);
-    int CameraTakePicConfig(int fd_v4l);
-    int CameraGetFBInfo(void);
+    int cameraCreate();
+    int cameraDestroy();
+    int cameraPreviewConfig();
+    int cameraPreviewStart();
+    void cameraPreviewStop();
+    int cameraTakePicConfig();
+    int cameraTakePicture();
+    void previewOneFrame();
 
     int fcount;
     mutable Mutex       mLock;
 
     CameraParameters    mParameters;
 
-    sp<MemoryHeapBase>  mHeap;
-    sp<MemoryHeapBase>  mSurfaceFlingerHeap;
-    sp<MemoryHeapBase>  mPictureHeap;
-    sp<MemoryHeapBase>  mRawHeap;
-    sp<MemoryBase>      mSurfaceFlingerBuffer;
-
+    static const int    kPreviewBufferCount = 1;
+    sp<MemoryHeapBase>  mPreviewHeap;
+    sp<MemoryBase>      mPreviewBuffer[kPreviewBufferCount];
+    int                 mPreviewBufferUsing[kPreviewBufferCount];
     bool                mPreviewRunning;
     int                 mPreviewFrameSize;
+    int			mPreviewHeight;
+    int			mPreviewWidth;
 
     // protected by mLock
     sp<Overlay>         mOverlay;
@@ -234,19 +207,22 @@ private:
     bool                mCameraOpened;
     bool                mIsTakingPic;;
 
-    sp<RecordThread>    mRecordThread;
+    int			mPictureHeight;
+    int			mPictureWidth;
+
     int 		mRecordFrameSize;
     bool                mRecordRunning;
     int                 mCurrentRecordFrame;
     int 		nCameraBuffersQueued;
    
-    static const int    videoBufferCount = 3;
+    static const int    kVideoBufferCount = 3;
     sp<MemoryHeapBase>  mVideoHeap;
-    sp<MemoryBase>      mVideoBuffer[videoBufferCount];
-    int   		mVideoBufferUsing[videoBufferCount];
+    sp<MemoryBase>      mVideoBuffer[kVideoBufferCount];
+    int   		mVideoBufferUsing[kVideoBufferCount];
 
     // only used from PreviewThread
     int                 mCurrentPreviewFrame;
+    int 		nOverlayBuffersQueued;
 
     bool previewStopped;
     bool recordStopped;
@@ -257,18 +233,7 @@ private:
     static int g_camera_framerate;
 
     //used for priview
-    static int g_sensor_width;
-    static int g_sensor_height;
-    static int g_sensor_top;
-    static int g_sensor_left;
-    static int g_display_width;
-    static int g_display_height;
-    static int g_display_top;
-    static int g_display_left;
     static int g_rotate;
-    static int g_display_lcd;
-    static int g_preview_width;
-    static int g_preview_height;
     static int g_recording_width;
     static int g_recording_height;
     static int g_recording_level;
