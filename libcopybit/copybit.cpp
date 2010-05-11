@@ -92,6 +92,19 @@ struct copybit_module_t HAL_MODULE_INFO_SYM = {
 };
 
 /*****************************************************************************/
+/** check pixel alpha */
+static bool hasAlpha(int format) {
+    switch (format) {
+    case COPYBIT_FORMAT_RGBA_8888:
+    case COPYBIT_FORMAT_BGRA_8888:
+    case COPYBIT_FORMAT_RGBA_5551:
+    case COPYBIT_FORMAT_RGBA_4444:
+        return true;
+    default:
+        return false;
+    }
+}
+
 /** min of int a, b */
 static inline int min(int a, int b) {
     return (a<b) ? a : b;
@@ -392,9 +405,13 @@ static int stretch_copybit(
 
         c2dSetSrcSurface(ctx->c2dctx, srcSurface);
         c2dSetDstSurface(ctx->c2dctx, dstSurface); 
-
         c2dSetSrcRotate(ctx->c2dctx, ctx->mRotate);
-        c2dSetBlendMode(ctx->c2dctx, C2D_ALPHA_BLEND_SRCOVER);
+
+        if (hasAlpha(src->format) || hasAlpha(dst->format))
+                c2dSetBlendMode(ctx->c2dctx, C2D_ALPHA_BLEND_SRCOVER);
+        else
+                c2dSetBlendMode(ctx->c2dctx, C2D_ALPHA_BLEND_NONE);
+                   
         c2dSetGlobalAlpha(ctx->c2dctx, ctx->mAlpha);  
         c2dSetDither(ctx->c2dctx, (ctx->mFlags & C2D_DITHER) > 0 ? 1:0); 
 
