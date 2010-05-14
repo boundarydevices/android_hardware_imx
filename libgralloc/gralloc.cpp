@@ -130,7 +130,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
 
     const uint32_t bufferMask = m->bufferMask;
     const uint32_t numBuffers = m->numBuffers;
-    const size_t bufferSize = m->finfo.line_length * ALIGN_PIXEL(m->info.yres);
+    const size_t bufferSize = m->finfo.line_length * ALIGN_PIXEL_128(m->info.yres);
     if (numBuffers == 1) {
         // If we have only one buffer, we never use page-flipping. Instead,
         // we return a regular buffer which will be memcpy'ed to the main
@@ -432,7 +432,7 @@ static int gralloc_free(alloc_device_t* dev,
         // free this buffer
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
-        const size_t bufferSize = m->finfo.line_length * ALIGN_PIXEL(m->info.yres);
+        const size_t bufferSize = m->finfo.line_length * ALIGN_PIXEL_128(m->info.yres);
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
     } else { 
