@@ -30,6 +30,9 @@
 #include <linux/fb.h>
 
 #define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
+/** z430 core need 4k aligned memory, since xres has been 32 aligned, make yres
+    to 128 aligned will meet this request for all pixel format (RGB565,RGB888,etc.) */
+#define  ALIGN_PIXEL_128(x)  ((x+ 127) & ~127)
 /*****************************************************************************/
 
 struct private_module_t;
