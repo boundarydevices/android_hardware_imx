@@ -47,29 +47,30 @@
 #include <ui/Overlay.h>
 
 #define FB_DEVICE               "/dev/graphics/fb0"
-#define VIDEO_DEVICE            "/dev/video0"
 #define MIN_WIDTH               176
 #define MIN_HEIGHT              144
 
 #define PREVIEW_FRAMERATE       30
 #define PICTURE_WIDTH           640     //default picture width
 #define PICTURE_HEIGHT          480     //default picture height
-#define PICTURE_FROMAT          V4L2_PIX_FMT_YUV420     //default picture format
+
 #define RECORDING_WIDTH_NORMAL  352    //default recording width
 #define RECORDING_HEIGHT_NORMAL 288     //default recording height
 #define RECORDING_WIDTH_LOW     176     //default recording width
 #define RECORDING_HEIGHT_LOW    144     //default recording height
 
-#undef RECORDING_FORMAT_NV12
-#ifdef  RECORDING_FORMAT_NV12
-#define RECORDING_FORMAT        V4L2_PIX_FMT_NV12    //recording format
-#else
-#define RECORDING_FORMAT        V4L2_PIX_FMT_YUV420  //recording format
-#endif
 #define CAPTURE_BUFFER_NUM      3
 #define LOG_FUNCTION_NAME       LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
+//#define UVC_CAMERA              1
+
 #define PARAM_BUFFER 		512
+
+#ifdef UVC_CAMERA
+#define VIDEO_DEVICE            "/dev/video1"
+#else
+#define VIDEO_DEVICE            "/dev/video0"
+#endif
 
 #ifdef USE_FSL_JPEG_ENC
 #include "jpeg_enc_interface.h" 
@@ -162,15 +163,17 @@ private:
 
     int validateSize(int w, int h);
     void* cropImage(unsigned long buffer);
-    void convertYUYVtoYUV422SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
-#if USE_FSL_JPEG_ENC
+    void convertYUYVtoYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
+#ifndef UVC_CAMERA
     void convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
 #else
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
 #endif
 
-    int cameraCreate();
+    int cameraOpen();
+    int cameraClose();
+
     int cameraDestroy();
     int cameraPreviewConfig();
     int cameraPreviewStart();
@@ -184,15 +187,13 @@ private:
 
     CameraParameters    mParameters;
 
-    static const int    kPreviewBufferCount = 1;
     sp<MemoryHeapBase>  mPreviewHeap;
-    sp<MemoryBase>      mPreviewBuffer[kPreviewBufferCount];
-    int                 mPreviewBufferUsing[kPreviewBufferCount];
+    sp<MemoryBase>      mPreviewBuffer;
     bool                mPreviewRunning;
     int                 mPreviewFrameSize;
-    int			mPreviewHeight;
-    int			mPreviewWidth;
-
+    int                 mRecordHeight;
+    int                 mRecordWidth;
+    int                 mRecordFormat;
     // protected by mLock
     sp<Overlay>         mOverlay;
     sp<PreviewThread>   mPreviewThread;
@@ -207,8 +208,9 @@ private:
     bool                mCameraOpened;
     bool                mIsTakingPic;;
 
-    int			mPictureHeight;
-    int			mPictureWidth;
+    int                 mPictureHeight;
+    int                 mPictureWidth;
+    int                 mPictureFormat;
 
     int 		mRecordFrameSize;
     bool                mRecordRunning;
