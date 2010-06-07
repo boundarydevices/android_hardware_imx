@@ -1037,8 +1037,8 @@ static int overlay_setPosition(struct overlay_control_device_t *dev,
     }
     obj->outX = x;
     obj->outY = y;
-    obj->outW = w;
-    obj->outH = h;
+    obj->outW = w&0xfffffff8;//output width should be 8 pixel alignment
+    obj->outH = h&0xfffffff8;//output height should be 8 pixel alignment
     OVERLAY_LOG_INFO("Overlay pos set: x %d,y %d,w %d,h %d",x,y,w,h);
     //release the overlay obj lock
     pthread_mutex_unlock(&obj->mDataShared->obj_lock);
