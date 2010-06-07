@@ -64,8 +64,8 @@ const char CameraHal::PARAMS_DELIMITER []= ",";
 
 CameraHal::CameraHal()
                   : mParameters(),
-                    mPreviewHeight(0),
-                    mPreviewWidth(0),
+                    mRecordHeight(0),
+                    mRecordWidth(0),
                     mPictureHeight(0),
                     mPictureWidth(0),
                     fcount(6),
@@ -94,12 +94,13 @@ CameraHal::CameraHal()
         mVideoBufferUsing[i] = 0;
     }
 
-    for (i = 0; i < kPreviewBufferCount; i++) {
-        mPreviewBuffer[i] = 0;
-        mPreviewBufferUsing[i] = 0;
+    mPreviewBuffer = 0;
+
+    for (i = 0; i < CAPTURE_BUFFER_NUM; i++) {
+        buffers[i].length = 0;
     }
 
-    cameraCreate();
+    mRecordFormat = mPictureFormat = V4L2_PIX_FMT_YUV420;
 
     initDefaultParameters();
 }
@@ -213,7 +214,7 @@ CameraHal::~CameraHal()
     singleton.clear();
 }
 
-int CameraHal::cameraCreate()
+int CameraHal::cameraOpen()
 {
     int err;
 
@@ -226,25 +227,39 @@ int CameraHal::cameraCreate()
             return -1;
         }
         mCameraOpened = 1;
-        LOGD("Camera Created - Success");
+        LOGD("Camera Opened - Success");
+
     } else
         LOGE ("Camera device has been opened!");
 
     return 0;
 }
 
-
-int CameraHal::cameraDestroy()
+int CameraHal::cameraClose()
 {
-    int err;
-
-    if(mCameraOpened == 1) {
+    LOG_FUNCTION_NAME
+    /* Free buffers firstly */
+    for (int i = 0; i < CAPTURE_BUFFER_NUM; i++) {
+        if (buffers[i].length && (buffers[i].start > 0)) {
+	    munmap(buffers[i].start, buffers[i].length);
+            buffers[i].length = 0;
+	    LOGD("munmap buffers 0x%x\n", buffers[i].start);
+        }
+    }
+    if (camera_device != -1) {
         close(camera_device);
         camera_device = -1;
         mCameraOpened = 0;
-        LOGD("Camera Destroyed - Success");
-    } else
-        LOGE ("Camera device has been closed!");
+    }
+
+    return 0;
+}
+
+int CameraHal::cameraDestroy()
+{
+    int err, i;
+
+    cameraClose();
 
     if (mOverlay != NULL) {
         mOverlay->destroy();
@@ -259,11 +274,16 @@ int CameraHal::cameraTakePicConfig()
     struct v4l2_streamparm parm;
     struct v4l2_format fmt;
     struct v4l2_crop crop;
-    int fd_v4l = camera_device;
+    int fd_v4l;
+
+    if (cameraOpen() < 0)
+         return -1;
+
+    fd_v4l = camera_device;
 
     memset(&fmt, 0, sizeof(fmt));
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.pixelformat = PICTURE_FROMAT;
+    fmt.fmt.pix.pixelformat = mPictureFormat;
     fmt.fmt.pix.width = g_pic_width;
     fmt.fmt.pix.height = g_pic_height;
     fmt.fmt.pix.sizeimage = fmt.fmt.pix.width * fmt.fmt.pix.height * g_still_bpp / 8;
@@ -292,20 +312,54 @@ int CameraHal::cameraPreviewConfig()
     struct v4l2_format fmt;
     struct v4l2_control ctrl;
     struct v4l2_streamparm parm;
-    int fd_v4l = camera_device;
+    int fd_v4l;
+    struct v4l2_fmtdesc vid_fmtdesc;
 
     LOG_FUNCTION_NAME
 
+    if (cameraOpen() < 0)
+        return -1;
+
+    fd_v4l = camera_device;
+
+#ifdef UVC_CAMERA
+    /* Get supported format of UVC camera */
+    memset(&vid_fmtdesc, 0, sizeof(vid_fmtdesc));
+    char *buf_types[] = {"VIDEO_CAPTURE","VIDEO_OUTPUT", "VIDEO_OVERLAY"};
+    char *flags[] = {"uncompressed", "compressed"};
+    for (int i = 0;; i++) {
+        memset(&vid_fmtdesc, 0, sizeof(vid_fmtdesc));
+        vid_fmtdesc.index = i;
+	vid_fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        /* Send the VIDIOC_ENUM_FM ioctl and print the results */
+        if (ioctl(fd_v4l, VIDIOC_ENUM_FMT, &vid_fmtdesc ) == -1)
+            break;
+        /* We got a video format/codec back */
+        LOGD("VIDIOC_ENUM_FMT(%d, %s)\n", vid_fmtdesc.index, buf_types[vid_fmtdesc.type-1]);
+        LOGD( "  type         :%s\n", buf_types[vid_fmtdesc.type-1]);
+        LOGD("  flags        :%s\n", flags[vid_fmtdesc.flags]);
+        LOGD("  description  :%s\n", vid_fmtdesc.description);
+        /* Convert the pixelformat attributes from FourCC into 'human readable' format*/
+        LOGD("  pixelformat  :%c%c%c%c\n",
+                     vid_fmtdesc.pixelformat & 0xFF, (vid_fmtdesc.pixelformat >> 8) & 0xFF,
+                    (vid_fmtdesc.pixelformat >> 16) & 0xFF, (vid_fmtdesc.pixelformat >> 24) & 0xFF);
+        if (vid_fmtdesc.pixelformat == V4L2_PIX_FMT_YUV420) {
+	    mRecordFormat = mPictureFormat = V4L2_PIX_FMT_YUV420;
+	} else
+	    mRecordFormat = mPictureFormat = V4L2_PIX_FMT_YUYV;
+    }/* End of get_supported_video_formats() */
+#endif
+
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.pixelformat = RECORDING_FORMAT;
-    fmt.fmt.pix.width = mPreviewWidth;
-    fmt.fmt.pix.height = mPreviewHeight;
-    fmt.fmt.pix.bytesperline = mPreviewWidth;
+    fmt.fmt.pix.pixelformat = mRecordFormat;
+    fmt.fmt.pix.width = mRecordWidth;
+    fmt.fmt.pix.height = mRecordHeight;
+    fmt.fmt.pix.bytesperline = mRecordWidth;
     fmt.fmt.pix.priv = 0;
     fmt.fmt.pix.sizeimage = 0;
 
     if (ioctl(fd_v4l, VIDIOC_S_FMT, &fmt) < 0) {
-        LOGE("set format failed\n");
+        LOGE("set format failed, format 0x%x\n", mRecordFormat);
         return -1;
     }
 
@@ -320,6 +374,7 @@ int CameraHal::cameraPreviewConfig()
         return -1;
     }
 
+#ifndef UVC_CAMERA
     // Set rotation
     ctrl.id = V4L2_CID_PRIVATE_BASE + 0;
     ctrl.value = g_rotate;
@@ -327,6 +382,7 @@ int CameraHal::cameraPreviewConfig()
         LOGE("set ctrl failed\n");
         return -1;
     }
+#endif
 
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(fd_v4l, VIDIOC_G_FMT, &fmt) < 0)
@@ -459,7 +515,7 @@ void CameraHal::previewOneFrame()
 {
     overlay_buffer_t overlaybuffer;
     struct v4l2_buffer cfilledbuffer;
-    int ret, index, i;
+    int ret, index, i, image_size;
 
     memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -471,12 +527,23 @@ void CameraHal::previewOneFrame()
     }
     nCameraBuffersQueued--;
     index = cfilledbuffer.index;
+
+    image_size = mRecordWidth * mRecordHeight * 3 / 2;
+
+    /* Convert YUYV to YUV420SP and put to mPreviewBuffer */
+    if (mRecordFormat == V4L2_PIX_FMT_YUYV)
+        convertYUYVtoYUV420SP(buffers[cfilledbuffer.index].start,
+                                 (uint8_t *)mPreviewBuffer->pointer(), mRecordWidth, mRecordHeight);
+
     /* Notify overlay of a new frame. */
     if (mOverlay != 0) {
         mOverlay->dequeueBuffer(&overlaybuffer);
         void* address = mOverlay->getBufferAddress(overlaybuffer);
         nOverlayBuffersQueued--;
-        memcpy(address, (void*)buffers[cfilledbuffer.index].start,  mRecordFrameSize);
+	if (mRecordFormat == V4L2_PIX_FMT_YUYV)
+            memcpy(address, mPreviewBuffer->pointer(), image_size);
+	else
+            memcpy(address, (void*)buffers[cfilledbuffer.index].start,  image_size);
         if (mOverlay->queueBuffer(overlaybuffer))
             LOGD("qbuf failed. May be bcos stream was not turned on yet. So try again");
         else
@@ -484,37 +551,47 @@ void CameraHal::previewOneFrame()
     }
 
     if (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
-        for(i = 0 ; i < kPreviewBufferCount; i ++) {
-            if (mPreviewBufferUsing[i] == 0) {
-                memcpy(mPreviewBuffer[i]->pointer(),
-		       (void*)buffers[cfilledbuffer.index].start, mRecordFrameSize);
-                mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffer[i], mCallbackCookie);
-                mPreviewBufferUsing[i] = 0;
-                break;
-            } else
-                LOGD("no Buffer can be used for preview\n");
-        }
+        if (mRecordFormat != V4L2_PIX_FMT_YUYV)
+            memcpy(mPreviewBuffer->pointer(),
+                     (void*)buffers[cfilledbuffer.index].start, image_size);
+        mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffer, mCallbackCookie);
     }
 
+    /* Take picture */
+    if (mIsTakingPic) {
+#ifdef USE_FSL_JPEG_ENC
+        sp<MemoryBase> jpegMemBase = encodeImage((void*)mPreviewBuffer->pointer(), image_size);
+        if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE) {
+            LOGI("==========CAMERA_MSG_COMPRESSED_IMAGE!!!!");
+            mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, jpegMemBase, mCallbackCookie);
+        }
+#endif
+	mIsTakingPic = false;
+    }
     if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
         nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
 
         for(i = 0 ; i < kVideoBufferCount; i ++) {
             if(mVideoBufferUsing[i] == 0) {
-                 memcpy(mVideoBuffer[i]->pointer(),
-		        (void*)buffers[cfilledbuffer.index].start, mRecordFrameSize);
+                if (mRecordFormat == V4L2_PIX_FMT_YUYV)
+                    memcpy(mVideoBuffer[i]->pointer(), mPreviewBuffer->pointer(), image_size);
+                else
+                    memcpy(mVideoBuffer[i]->pointer(),
+		               (void*)buffers[cfilledbuffer.index].start, image_size);
                  mVideoBufferUsing[i] = 1;
                  mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoBuffer[i], mCallbackCookie);
                  break;
-            } else
-                 LOGD("no Buffer can be used for record\n");
+            }
         }
+        if (i == kVideoBufferCount)
+                 LOGD("no Buffer can be used for record\n");
     }
 
     while (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
 	    LOGE("VIDIOC_QBUF Failed.");
     }
     nCameraBuffersQueued++;
+
     return;
 }
 
@@ -551,17 +628,14 @@ status_t CameraHal::startPreview()
         return INVALID_OPERATION;
     }
 
-    cameraPreviewConfig();
+    if (cameraPreviewConfig() < 0)
+        return INVALID_OPERATION;
 
     LOGD("Clear the old preview memory and Init new memory");
     mPreviewHeap.clear();
-    for(i = 0; i < kPreviewBufferCount; i++)
-        mPreviewBuffer[i].clear();
-    mPreviewHeap = new MemoryHeapBase(mRecordFrameSize * kPreviewBufferCount);
-    for(i = 0; i < kPreviewBufferCount; i++) {
-        mPreviewBuffer[i] = new MemoryBase(mPreviewHeap,
-	                       mRecordFrameSize * i, mRecordFrameSize);
-    }
+    mPreviewBuffer.clear();
+    mPreviewHeap = new MemoryHeapBase(mRecordFrameSize);
+    mPreviewBuffer = new MemoryBase(mPreviewHeap, 0, mRecordFrameSize);
 
     cameraPreviewStart();
 
@@ -623,8 +697,10 @@ void CameraHal::cameraPreviewStop()
         if (ioctl(camera_device, VIDIOC_STREAMOFF, &creqbuf.type) == -1) {
             LOGE("VIDIOC_STREAMOFF Failed");
         }
-    }
 
+    /* Close device */
+	cameraClose();
+    }
 //    Mutex::Autolock lock(mLock);
     mPreviewThread.clear();
 }
@@ -747,6 +823,39 @@ status_t CameraHal::cancelAutoFocus()
     return NO_ERROR;
 }
 
+void CameraHal::convertYUYVtoYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height)
+{
+    /* Color space conversion from YUYV to YUV420SP */
+    int src_size = 0, out_size = 0;
+    uint8_t *p;
+    uint8_t *Y, *U, *V;
+
+    src_size = (width * height) << 1 ;//YUY2 4:2:2
+    p = inputBuffer;
+
+    out_size = width * height * 1.5;//YUV 4:2:0
+    Y = outputBuffer;
+    U = Y + width * height;
+    V = U + (width *  height >> 2);
+
+    memset(outputBuffer, 0, out_size);
+    for(int k = 0; k < height; ++k) {
+        for(int j = 0; j < (width >> 1); ++j) {
+            Y[j*2] = p[4*j];
+            Y[j*2+1] = p[4*j+2];
+            if (k %2 == 0) {
+                U[j] = p[4*j+1];
+                V[j] = p[4*j+3];
+            }
+        }
+        p = p + width * 2;
+
+        Y = Y + width;
+        U = U + (width >> 2);
+        V = V + (width >> 2);
+    }
+}
+
 int CameraHal::cameraTakePicture()
 {
 
@@ -795,7 +904,7 @@ int CameraHal::cameraTakePicture()
         return -1;
     }
 
-    LOGD("pictureThread: generated a picture");
+    LOGD("Generated a picture");
 
 #ifdef DUMP_CAPTURE_YUV        
     if(capture_yuvFile) {
@@ -831,17 +940,22 @@ status_t CameraHal::takePicture()
 {
     LOG_FUNCTION_NAME
 
+    /* Camera video capture is used for UVC camera since read function
+       ins't realized on uvc_v4l2 driver, but, read function is called
+       for CSI camera */
+    LOGD("Camera is taking picture!");
+#ifdef UVC_CAMERA
     mIsTakingPic = 1;
-    LOGD("Camera taking picture opened!");
-
-    /* Stop preview, start picture capture, and then restart preview again */
+    mParameters.setPictureSize(mRecordWidth, mRecordHeight);
+#else
+    /* Stop preview, start picture capture, and then restart preview again for CSI camera*/
     cameraPreviewStop();
 
     cameraTakePicture();
 
     cameraPreviewConfig();
     cameraPreviewStart();
-
+#endif
     return NO_ERROR;
 }
 
@@ -879,7 +993,7 @@ status_t CameraHal::setParameters(const CameraParameters& params)
     Mutex::Autolock lock(mLock);
 
     if (!(strcmp(params.getPreviewFormat(), "yuv420sp") == 0) ||
-	(strcmp(params.getPreviewFormat(), "yuv420i") == 0)) {
+	(strcmp(params.getPreviewFormat(), "yuv422i") == 0)) {
         LOGE("Only yuv420 or yuv420i is supported");
         return -1;
     }
@@ -905,7 +1019,9 @@ status_t CameraHal::setParameters(const CameraParameters& params)
 
     mParameters = params;
 
-    mParameters.getPreviewSize(&mPreviewWidth, &mPreviewHeight);
+    mParameters.getPreviewSize(&mRecordWidth, &mRecordHeight);
+    LOGD("mRecordWidth %d, mRecordHeight %d\n", mRecordWidth, mRecordHeight);
+
     mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
     if (!mPictureWidth || !mPictureHeight) {
 	/* This is a hack. MMS APP is not setting the resolution correctly. So hardcoding it. */
@@ -934,7 +1050,7 @@ void CameraHal::release()
 {
     LOG_FUNCTION_NAME
 
-    close(camera_device);
+    cameraClose();
 }
 
 
