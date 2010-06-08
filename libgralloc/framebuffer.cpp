@@ -67,12 +67,17 @@ struct fb_context_t {
 };
 
 #ifdef FSL_EPDC_FB
+#define WAVEFORM_MODE_INIT                      0x0   // Screen goes to white (clears)
+#define WAVEFORM_MODE_DU                        0x1   // Grey->white/grey->black
+#define WAVEFORM_MODE_GC16                      0x2   // High fidelity (flashing)
+#define WAVEFORM_MODE_GC4                       0x3  //
+
 __u32 marker_val = 1;
 static void update_to_display(int left, int top, int width, int height, int wave_mode, int wait_for_complete, int fb_dev)
 {
 	struct mxcfb_update_data upd_data;
 	int retval;
-
+	memset(&upd_data, 0, sizeof(mxcfb_update_data));
 	//upd_data.update_mode = UPDATE_MODE_FULL;
     upd_data.update_mode = UPDATE_MODE_PARTIAL;
 	upd_data.waveform_mode = wave_mode;
