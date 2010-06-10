@@ -49,11 +49,6 @@ JPEG_ENC_UINT32 CameraHal::g_JpegDataLen = 0;//Valid data len of g_JpegData
 JPEG_ENC_UINT8 *CameraHal::g_JpegData = NULL;//Buffer to hold jpeg data
 #endif
 
-#ifdef DUMP_CAPTURE_YUV
-FILE * CameraHal::record_yuvFile = 0;
-FILE * CameraHal::capture_yuvFile = 0;
-#endif
-
 wp<CameraHardwareInterface> CameraHal::singleton;
 
 const char CameraHal::supportedPictureSizes [] = "3280x2464,2560x2048,2048x1536,1600x1200,1280x1024,1152x964,640x480,320x240";
@@ -392,9 +387,11 @@ int CameraHal::cameraPreviewConfig()
         LOGD(" Height = %d \n", fmt.fmt.pix.height);
         LOGD(" Image size = %d\n", fmt.fmt.pix.sizeimage);
         LOGD(" pixelformat = %d\n", fmt.fmt.pix.pixelformat);
-             mRecordFrameSize = fmt.fmt.pix.sizeimage;
     }
 
+    /* mRecordFrameSize is the size of frame size to upper layer,
+       only yuv420sp is supported. */
+    mRecordFrameSize = mRecordWidth * mRecordHeight * 3 / 2;
     return 0;
 }
 
@@ -528,7 +525,7 @@ void CameraHal::previewOneFrame()
     nCameraBuffersQueued--;
     index = cfilledbuffer.index;
 
-    image_size = mRecordWidth * mRecordHeight * 3 / 2;
+    image_size = mRecordFrameSize;
 
     /* Convert YUYV to YUV420SP and put to mPreviewBuffer */
     if (mRecordFormat == V4L2_PIX_FMT_YUYV)
@@ -833,7 +830,7 @@ void CameraHal::convertYUYVtoYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffe
     src_size = (width * height) << 1 ;//YUY2 4:2:2
     p = inputBuffer;
 
-    out_size = width * height * 1.5;//YUV 4:2:0
+    out_size = width * height * 3 / 2;//YUV 4:2:0
     Y = outputBuffer;
     U = Y + width * height;
     V = U + (width *  height >> 2);
@@ -905,13 +902,6 @@ int CameraHal::cameraTakePicture()
     }
 
     LOGD("Generated a picture");
-
-#ifdef DUMP_CAPTURE_YUV        
-    if(capture_yuvFile) {
-        int len = fwrite((void*)buf1, 1, fmt.fmt.pix.sizeimage, capture_yuvFile);
-        LOGI("CameraHal:: WRITE FILE len %d",len);
-    }
-#endif
 
 #ifdef USE_FSL_JPEG_ENC
     sp<MemoryBase> jpegMemBase = encodeImage((void*)buf1, fmt.fmt.pix.sizeimage);
