@@ -946,6 +946,16 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
         int instance = 0;
 
         pthread_mutex_lock(&ctx->control_lock);
+        //Only init v4l as needed
+        if(ctx->overlay_number == 0) {
+             if(overlay_init_v4l(ctx)<0){
+                 OVERLAY_LOG_ERR("Error!init v4l failed");
+                 pthread_mutex_unlock(&ctx->control_lock);
+                 delete overlay;
+                 return NULL;
+             }
+        }
+
         while(instance < MAX_OVERLAY_INSTANCES) {
             if(!ctx->overlay_instance_valid[instance]) {
                 ctx->overlay_instance_valid[instance] = 1;
@@ -1008,8 +1018,10 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
             fill_frame_back(ctx->v4lbuf_addr[i],ctx->v4l_buffers[i].length,
                             ctx->xres,ctx->yres,ctx->outpixelformat);
         }
-        
+    }
 
+    if(ctx->overlay_number == 0) {
+        overlay_deinit_v4l(ctx);
     }
 
     pthread_mutex_unlock(&ctx->control_lock);
@@ -1144,7 +1156,7 @@ static int overlay_control_close(struct hw_device_t *dev)
         
         //Destory all overlay instance here??, 
         //should let it done by user
-
+        //v4l deinit should be called in overlay destory, but here is save also
         overlay_deinit_v4l(ctx);
         overlay_deinit_fbdev(ctx);
 
@@ -1777,10 +1789,11 @@ static int overlay_device_open(const struct hw_module_t* module, const char* nam
             goto err_control_exit;
         }
 
-        if(overlay_init_v4l(dev)<0){
-            OVERLAY_LOG_ERR("Error!init v4l failed");
-            goto err_control_exit;
-        }
+        //Only init v4l as needed
+        //if(overlay_init_v4l(dev)<0){
+        //    OVERLAY_LOG_ERR("Error!init v4l failed");
+        //    goto err_control_exit;
+        //}
         dev->control_shared_fd = create_control_shared_data(&dev->control_shared);
         dev->control_shared_size = dev->control_shared->size;
         if(dev->control_shared_fd < 0 || !dev->control_shared){
