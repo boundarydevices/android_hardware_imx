@@ -20,8 +20,9 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM
-LOCAL_C_INCLUDES += kernel_imx/include
+LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu
+LOCAL_C_INCLUDES += kernel_imx/include \
+		    external/fsl_imx_lib/ipu \
 
 LOCAL_SRC_FILES := 	\
 	allocator.cpp 	\
@@ -32,8 +33,13 @@ LOCAL_SRC_FILES := 	\
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\"
 
+
 ifeq ($(HAVE_FSL_EPDC_FB),true)
 LOCAL_CFLAGS += -DFSL_EPDC_FB
+endif
+
+ifeq ($(HAVE_FSL_IMX_IPU),true)
+LOCAL_CFLAGS += -DSECOND_DISPLAY_SUPPORT
 endif
 
 include $(BUILD_SHARED_LIBRARY)
