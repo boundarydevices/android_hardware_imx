@@ -552,15 +552,18 @@ free_buf_exit:
             if((overlayObj0)&&(overlay_buf0)) {
                 pthread_mutex_lock(&dataShared0->obj_lock);
                 dataShared0->buf_showed++;
-                dataShared0->free_bufs[dataShared0->free_tail] = overlay_buf0;
-                OVERLAY_LOG_RUNTIME("Id %d back buffer to free queue for Overlay Instance 0: 0x%x at %d free_count %d",
-                     dataShared0->instance_id,overlay_buf0,dataShared0->free_tail,dataShared0->free_count+1);
-                dataShared0->free_tail++;
-                dataShared0->free_tail = dataShared0->free_tail%MAX_OVERLAY_BUFFER_NUM;
-                dataShared0->free_count++;
-                if(dataShared0->free_count > dataShared0->num_buffer) {
-                    OVERLAY_LOG_ERR("Error!free_count %d is greater the total number %d",
-                                    dataShared0->free_count,dataShared0->num_buffer);
+                //For push mode, no need to return the buffer back
+                if(dataShared0->overlay_mode == OVERLAY_NORAML_MODE) {
+                    dataShared0->free_bufs[dataShared0->free_tail] = overlay_buf0;
+                    OVERLAY_LOG_RUNTIME("Id %d back buffer to free queue for Overlay Instance 0: 0x%x at %d free_count %d",
+                         dataShared0->instance_id,overlay_buf0,dataShared0->free_tail,dataShared0->free_count+1);
+                    dataShared0->free_tail++;
+                    dataShared0->free_tail = dataShared0->free_tail%MAX_OVERLAY_BUFFER_NUM;
+                    dataShared0->free_count++;
+                    if(dataShared0->free_count > dataShared0->num_buffer) {
+                        OVERLAY_LOG_ERR("Error!free_count %d is greater the total number %d",
+                                        dataShared0->free_count,dataShared0->num_buffer);
+                    }
                 }
 
                 if(dataShared0->wait_buf_flag) {
@@ -578,12 +581,15 @@ free_buf_exit:
             if((overlayObj1)&&(overlay_buf1)) {
                 pthread_mutex_lock(&dataShared1->obj_lock);
                 dataShared1->buf_showed++;
-                dataShared1->free_bufs[dataShared1->free_tail] = overlay_buf1;
-                dataShared1->free_tail++;
-                dataShared1->free_tail = dataShared1->free_tail%MAX_OVERLAY_BUFFER_NUM;
-                dataShared1->free_count++;
-                OVERLAY_LOG_RUNTIME("Id %d back buffer to free queue for Overlay Instance 0: 0x%x free_count %d",
-                     dataShared1->instance_id,overlay_buf1,dataShared1->free_count);
+                //For push mode, no need to return the buffer back
+                if(dataShared1->overlay_mode == OVERLAY_NORAML_MODE) {
+                    dataShared1->free_bufs[dataShared1->free_tail] = overlay_buf1;
+                    dataShared1->free_tail++;
+                    dataShared1->free_tail = dataShared1->free_tail%MAX_OVERLAY_BUFFER_NUM;
+                    dataShared1->free_count++;
+                    OVERLAY_LOG_RUNTIME("Id %d back buffer to free queue for Overlay Instance 0: 0x%x free_count %d",
+                         dataShared1->instance_id,overlay_buf1,dataShared1->free_count);
+                }
 
                 if(dataShared1->wait_buf_flag) {
                     dataShared1->wait_buf_flag = 0;
