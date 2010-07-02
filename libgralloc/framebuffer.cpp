@@ -138,17 +138,17 @@ static void update_to_display(int left, int top, int width, int height, int upda
 	else 
         LOGI("waveform_mode  wrong\n");
 	   
-    if((updatemode & EINK_WAIT_MODE_MASK) == 1)
+    if((updatemode & EINK_WAIT_MODE_MASK) == 0x100)
         wait_for_complete = false;
-    else if((updatemode & EINK_WAIT_MODE_MASK) == 2)    
+    else if((updatemode & EINK_WAIT_MODE_MASK) == 0x200)    
         wait_for_complete = true;
     else 
         LOGI("wait_for_complete  wrong\n");
         
         
-    if((updatemode & EINK_AUTO_MODE_MASK) == 0)
+    if((updatemode & EINK_AUTO_MODE_MASK) == 0x0000)
         auto_update_mode = AUTO_UPDATE_MODE_REGION_MODE;
-    else if((updatemode & EINK_AUTO_MODE_MASK) == 1)    
+    else if((updatemode & EINK_AUTO_MODE_MASK) == 0x1000)    
         auto_update_mode = AUTO_UPDATE_MODE_AUTOMATIC_MODE;
     else 
         LOGI("wait_for_complete  wrong\n");
@@ -203,7 +203,7 @@ static int fb_setSwapInterval(struct framebuffer_device_t* dev,
 }
 
 static int fb_setUpdateRect(struct framebuffer_device_t* dev,
-        int l, int t, int w, int h, int updatemode)
+        int l, int t, int w, int h,int updatemode)
 {
     if (((w|h) <= 0) || ((l|t)<0))
         return -EINVAL;
