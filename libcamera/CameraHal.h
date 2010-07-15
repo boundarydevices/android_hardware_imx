@@ -43,7 +43,7 @@
 #include <utils/threads.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
-#include <ui/CameraHardwareInterface.h>
+#include <camera/CameraHardwareInterface.h>
 #include <ui/Overlay.h>
 
 #define FB_DEVICE               "/dev/graphics/fb0"
