@@ -23,6 +23,7 @@ LOCAL_SRC_FILES:=               \
 LOCAL_CPPFLAGS += -DUSE_FSL_JPEG_ENC -DDUMP_CAPTURE_YUVxx -DCAPTURE_ONLY_TESTxx
 
 LOCAL_SHARED_LIBRARIES:= \
+    libcamera_client \
     libui \
     libutils \
     libcutils \
@@ -32,7 +33,6 @@ LOCAL_SHARED_LIBRARIES:= \
     libc
 
 LOCAL_C_INCLUDES += \
-	kernel_imx/include \
 	frameworks/base/include/binder \
 	frameworks/base/include/ui \
 	frameworks/base/camera/libcameraservice
