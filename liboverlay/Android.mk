@@ -36,8 +36,7 @@ LOCAL_SRC_FILES := \
 		overlay_pmem.cpp
 
 LOCAL_C_INCLUDES := \
-	kernel_imx/include \
-	external/fsl_imx_lib/ipu \
+	external/fsl_imx_lib/ipu
 
 LOCAL_MODULE := overlay.$(TARGET_BOARD_PLATFORM)
 
@@ -54,6 +53,7 @@ LOCAL_SRC_FILES:= \
 LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libutils \
+	libsurfaceflinger \
 	libui
 
 LOCAL_MODULE:= mxc-test-overlays

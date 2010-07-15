@@ -19,10 +19,11 @@
 #include <utils/Log.h>
 
 #include <ui/DisplayInfo.h>
-#include <ui/Surface.h>
-#include <ui/ISurface.h>
 #include <ui/Overlay.h>
-#include <ui/SurfaceComposerClient.h>
+#include <surfaceflinger/Surface.h>
+#include <surfaceflinger/ISurface.h>
+#include <surfaceflinger/ISurfaceComposer.h>
+#include <surfaceflinger/SurfaceComposerClient.h>
 
 #include <fcntl.h>
 #include <stdint.h>
@@ -593,7 +594,7 @@ void *overlay_instance_test(void *arg)
     // now request an overlay
     LOGI("createOverlay()");
     sp<OverlayRef> ref = isurface->createOverlay(overlay_param->w, overlay_param->h,
-                                                 overlay_param->format);
+                                                 overlay_param->format, 0);
     LOGI("createOverlay() AFTER");
     LOGI("new Overlay(ref) start");
     sp<Overlay> overlay = new Overlay(ref);
