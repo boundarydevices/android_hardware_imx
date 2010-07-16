@@ -503,19 +503,19 @@ static int bits_per_pixel(int32_t format)
 {
     int bits = 0;
     switch (format) {
-        case PIXEL_FORMAT_RGB_888:
+        case HAL_PIXEL_FORMAT_RGB_888:
             bits = 24;
             break;
-        case PIXEL_FORMAT_YCbCr_422_SP:
-        case PIXEL_FORMAT_YCbCr_422_I:
-        case PIXEL_FORMAT_RGB_565:
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        case HAL_PIXEL_FORMAT_RGB_565:
             bits = 16;
             break;
-        case PIXEL_FORMAT_RGBA_8888:
+        case HAL_PIXEL_FORMAT_RGBA_8888:
             bits = 32;
             break;
-        case PIXEL_FORMAT_YCbCr_420_SP:
-        case PIXEL_FORMAT_YCbCr_420_I:
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_I:
             bits = 12;
             break;
         default:
@@ -918,16 +918,16 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
     }
     /* check the input params, reject if not supported or invalid */
     switch (format) {
-        case PIXEL_FORMAT_RGB_888:
-        case PIXEL_FORMAT_RGBA_8888:
-        case PIXEL_FORMAT_YCbCr_422_SP:
+        case HAL_PIXEL_FORMAT_RGB_888:
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
             OVERLAY_LOG_ERR("Error!Not a valid format for overlay");
             return NULL;
-        case PIXEL_FORMAT_RGB_565:
+        case HAL_PIXEL_FORMAT_RGB_565:
             break;
-        case PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
             break;
-        case PIXEL_FORMAT_YCbCr_420_I:
+        case HAL_PIXEL_FORMAT_YCbCr_420_I:
             break;
         default:
             OVERLAY_LOG_ERR("Error!Not a valid format for overlay");

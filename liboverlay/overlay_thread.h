@@ -308,13 +308,13 @@ class OverlayThread: public Thread {
                 mIPUInputParam.input_crop_win.win_w = crop_w0;
                 mIPUInputParam.input_crop_win.win_h = crop_h0;
 
-                if(overlayObj0->mHandle.format == PIXEL_FORMAT_YCbCr_420_SP) {
+                if(overlayObj0->mHandle.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
                     mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
                 }
-                else if(overlayObj0->mHandle.format == PIXEL_FORMAT_YCbCr_420_I) {
+                else if(overlayObj0->mHandle.format == HAL_PIXEL_FORMAT_YCbCr_420_I) {
                     mIPUInputParam.fmt = v4l2_fourcc('N', 'Y', '1', '2');
                 }
-                else if(overlayObj0->mHandle.format == PIXEL_FORMAT_RGB_565) {
+                else if(overlayObj0->mHandle.format == HAL_PIXEL_FORMAT_RGB_565) {
                     mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
                 }else{
                     OVERLAY_LOG_ERR("Error!Not supported input format %d",overlayObj0->mHandle.format);
@@ -382,13 +382,13 @@ class OverlayThread: public Thread {
                 mIPUInputParam.input_crop_win.win_h = crop_h1;
 
 
-                if(overlayObj1->mHandle.format == PIXEL_FORMAT_YCbCr_420_SP) {
+                if(overlayObj1->mHandle.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
                     mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
                 }
-                else if(overlayObj1->mHandle.format == PIXEL_FORMAT_YCbCr_420_I) {
+                else if(overlayObj1->mHandle.format == HAL_PIXEL_FORMAT_YCbCr_420_I) {
                     mIPUInputParam.fmt = v4l2_fourcc('N', 'Y', '1', '2');
                 }
-                else if(overlayObj0->mHandle.format == PIXEL_FORMAT_RGB_565) {
+                else if(overlayObj0->mHandle.format == HAL_PIXEL_FORMAT_RGB_565) {
                     mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
                 }else{
                     OVERLAY_LOG_ERR("Error!Obj1 Not supported input format %d",overlayObj1->mHandle.format);
