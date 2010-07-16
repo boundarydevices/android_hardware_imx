@@ -139,10 +139,10 @@ void gen_fill_pattern_yuv(char * buf, int in_width, int in_height,int h_step, in
 
 void gen_fill_pattern(char * buf, int in_width, int in_height,int h_step, int w_step,int32_t format)
 {
-    if(format == PIXEL_FORMAT_RGB_565) {
+    if(format == HAL_PIXEL_FORMAT_RGB_565) {
         gen_fill_pattern_rgb(buf,in_width,in_height,h_step,w_step);
     }
-    else if(format == PIXEL_FORMAT_YCbCr_420_SP) {
+    else if(format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
         gen_fill_pattern_yuv(buf,in_width,in_height,h_step,w_step);
     }
 }
@@ -220,7 +220,7 @@ int main(int argc, char** argv)
 
     overlay_param0.w = 720;
     overlay_param0.h = 576;
-    overlay_param0.format = PIXEL_FORMAT_YCbCr_420_SP;
+    overlay_param0.format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
     overlay_param0.frame_num = 8;
     overlay_param0.crop_x = 0;
     overlay_param0.crop_y = 0;
@@ -236,7 +236,7 @@ int main(int argc, char** argv)
 
     overlay_param1.w = 320;
     overlay_param1.h = 240;
-    overlay_param1.format = PIXEL_FORMAT_YCbCr_420_SP;
+    overlay_param1.format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
     overlay_param1.frame_num = 6;
     overlay_param1.crop_x = 0;
     overlay_param1.crop_y = 0;
