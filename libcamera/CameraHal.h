@@ -45,6 +45,7 @@
 #include <binder/MemoryHeapBase.h>
 #include <camera/CameraHardwareInterface.h>
 #include <ui/Overlay.h>
+#include <dirent.h>
 
 #define FB_DEVICE               "/dev/graphics/fb0"
 #define MIN_WIDTH               176
@@ -56,8 +57,6 @@
 
 #define RECORDING_WIDTH_NORMAL  352    //default recording width
 #define RECORDING_HEIGHT_NORMAL 288     //default recording height
-#define RECORDING_WIDTH_LOW     176     //default recording width
-#define RECORDING_HEIGHT_LOW    144     //default recording height
 
 #define CAPTURE_BUFFER_NUM      3
 #define LOG_FUNCTION_NAME       LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
@@ -65,12 +64,7 @@
 //#define UVC_CAMERA              1
 
 #define PARAM_BUFFER 		512
-
-#ifdef UVC_CAMERA
-#define VIDEO_DEVICE            "/dev/video1"
-#else
-#define VIDEO_DEVICE            "/dev/video0"
-#endif
+#define FILENAME_LENGTH		256
 
 #ifdef USE_FSL_JPEG_ENC
 #include "jpeg_enc_interface.h" 
@@ -163,13 +157,11 @@ private:
 
     int validateSize(int w, int h);
     void* cropImage(unsigned long buffer);
+
     void convertYUYVtoYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
-#ifndef UVC_CAMERA
-    void convertYUYVtoUYVY(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
+    int uvcGetDeviceAndCapability(char *sizes_buf);
+
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
-#else
-    sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
-#endif
 
     int cameraOpen();
     int cameraClose();
@@ -233,20 +225,13 @@ private:
 
     static int camera_device;
     static int g_camera_framerate;
+    static char dev_node[FILENAME_LENGTH];
 
     //used for priview
     static int g_rotate;
-    static int g_recording_width;
-    static int g_recording_height;
-    static int g_recording_level;
-
     //used for taking picture
-    static int g_pic_width;
-    static int g_pic_height;
     static int g_still_bpp;
-
     //used for recording
-    static int g_capture_mode;		//0:low resolution 1:high resolution
     static struct picbuffer buffers[3];
 
     static const char supportedPictureSizes[];
@@ -254,6 +239,8 @@ private:
     static const char supportedFPS[];
     static const char supprotedThumbnailSizes[];
     static const char PARAMS_DELIMITER[];
+
+    static int error_status;
 
 #ifdef DUMP_CAPTURE_YUV
     static FILE *record_yuvFile;
