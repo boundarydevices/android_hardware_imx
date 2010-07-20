@@ -177,7 +177,7 @@ static void update_to_display(int left, int top, int width, int height, int upda
 	while (retval < 0) {
 		/* We have limited memory available for updates, so wait and
 		 * then try again after some updates have completed */
-		sleep(1);
+		usleep(300000);
 		retval = ioctl(fb_dev, MXCFB_SEND_UPDATE, &upd_data);
         LOGI("MXCFB_SEND_UPDATE  retval = 0x%x try again maybe", retval);
 	}
