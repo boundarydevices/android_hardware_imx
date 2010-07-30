@@ -37,6 +37,7 @@ extern "C" {
 #include <cutils/log.h>
 #include <cutils/ashmem.h>
 #include <cutils/atomic.h>
+#include <time.h>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -413,14 +414,20 @@ static int create_data_shared_data(overlay_data_shared_t **shared)
     p->size   = size;
     p->refCnt = 1;
 
-    if (pthread_mutex_init(&p->obj_lock, NULL) != 0) {
+    pthread_mutexattr_t mutex_attr;
+    pthread_mutexattr_init(&mutex_attr);
+    pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED);
+    if (pthread_mutex_init(&p->obj_lock, &mutex_attr) != 0) {
         OVERLAY_LOG_ERR("Error!Failed to Open Overlay Lock!\n");
         munmap(p, size);
         close(fd);
         return -1;
     }
 
-    if (pthread_cond_init(&p->free_cond, NULL) != 0) {
+    pthread_condattr_t cond_attr;
+    pthread_condattr_init(&cond_attr);
+    pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED);
+    if (pthread_cond_init(&p->free_cond, &cond_attr) != 0) {
         OVERLAY_LOG_ERR("Error!Failed to Open Overlay Lock!\n");
         pthread_mutex_destroy(&p->obj_lock);
         munmap(p, size);
@@ -1431,7 +1438,7 @@ int overlay_data_queueBuffer(struct overlay_data_device_t *dev,
         }
         pthread_cond_wait(&data_shared->free_cond, &data_shared->obj_lock);
         if(data_shared->wait_buf_flag != 0) {
-            OVERLAY_LOG_ERR("Error!Id %d:Queued overlay buffer is out of number buffers supported",
+            OVERLAY_LOG_ERR("Error!Id %d:Queued overlay buffer is out of number buffers supported,so dropped",
                     data_shared->instance_id);
             pthread_mutex_unlock(&data_shared->obj_lock);
             return -EINVAL;
