@@ -1405,7 +1405,8 @@ int overlay_data_queueBuffer(struct overlay_data_device_t *dev,
 {
     OVERLAY_LOG_FUNC;;
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
-    if(!dev||!buffer||!ctx->data_shared) {
+    //Push mode, should be a mothod for user to flush all buffer in overlay hal
+    if(!dev||!ctx->data_shared) {
        OVERLAY_LOG_ERR("Error!Invalid parameters for dequeuBuffer");
        return -EINVAL;
     }
@@ -1417,6 +1418,11 @@ int overlay_data_queueBuffer(struct overlay_data_device_t *dev,
     //Cannot be queued twice(not a duplicated node in display buffer queue)
     if(data_shared->overlay_mode != OVERLAY_PUSH_MODE)
     {
+        if(buffer == 0) {
+            OVERLAY_LOG_ERR("Error!Invalid parameters for dequeuBuffer");
+            return -EINVAL;
+        }
+
         overlay_buf = (OVERLAY_BUFFER *)buffer;
         if((overlay_buf < ctx->overlay_buffer)||
            (overlay_buf >= (ctx->overlay_buffer+ctx->num_buffer))) {
@@ -1452,6 +1458,12 @@ int overlay_data_queueBuffer(struct overlay_data_device_t *dev,
     }
     else{
         phy_addr = (unsigned int)buffer;
+        //Push mode, should be a mothod for user to flush all buffer in overlay hal
+        if(buffer == 0) {
+            OVERLAY_LOG_WARN("Flush overlay hal by push null buffer!");
+            pthread_mutex_unlock(&data_shared->obj_lock);
+            return 0;
+        }
     }
 
 
