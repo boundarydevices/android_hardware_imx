@@ -47,6 +47,8 @@
 #include <ui/Overlay.h>
 #include <dirent.h>
 
+#include <semaphore.h>
+
 #define FB_DEVICE               "/dev/graphics/fb0"
 #define MIN_WIDTH               176
 #define MIN_HEIGHT              144
@@ -59,6 +61,8 @@
 #define RECORDING_HEIGHT_NORMAL 288     //default recording height
 
 #define CAPTURE_BUFFER_NUM      3
+#define VIDEO_OUTPUT_BUFFER_NUM	3
+
 #define LOG_FUNCTION_NAME       LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
 //#define UVC_CAMERA              1
@@ -73,9 +77,9 @@
 
 struct picbuffer
 {
-        unsigned char *start;
-        size_t offset;
-        unsigned int length;
+    unsigned char *virt_start;
+    size_t phy_offset;
+    unsigned int length;
 };
 
 namespace android {
@@ -132,16 +136,31 @@ private:
 
     static wp<CameraHardwareInterface> singleton;
 
-    class PreviewThread : public Thread {
+    class PreviewShowFrameThread : public Thread {
         CameraHal* mHardware;
     public:
-        PreviewThread(CameraHal* hw)
+        PreviewShowFrameThread(CameraHal* hw)
             : Thread(false), mHardware(hw) { }
         virtual void onFirstRef() {
-            run("CameraPreviewThread", PRIORITY_URGENT_DISPLAY);
+            run("CameraPreviewShowFrameThread", PRIORITY_URGENT_DISPLAY);
         }
         virtual bool threadLoop() {
-            mHardware->previewThread();
+            mHardware->previewShowFrameThread();
+            // loop until we need to quit
+            return true;
+        }
+    };
+
+    class PreviewCaptureFrameThread : public Thread {
+        CameraHal* mHardware;
+    public:
+        PreviewCaptureFrameThread(CameraHal* hw)
+            : Thread(false), mHardware(hw) { }
+        virtual void onFirstRef() {
+            run("CameraPreviewCaptureFrameThread", PRIORITY_URGENT_DISPLAY);
+        }
+        virtual bool threadLoop() {
+            mHardware->previewCaptureFrameThread();
             // loop until we need to quit
             return true;
         }
@@ -150,10 +169,14 @@ private:
     void initDefaultParameters();
     bool initHeapLocked();
 
-    int previewThread();
+    int previewShowFrameThread();
+    int previewCaptureFrameThread();
 
     static int beginAutoFocusThread(void *cookie);
     int autoFocusThread();
+
+    static int beginPictureThread(void *cookie);
+    int pictureThread();
 
     int validateSize(int w, int h);
     void* cropImage(unsigned long buffer);
@@ -180,15 +203,17 @@ private:
     CameraParameters    mParameters;
 
     sp<MemoryHeapBase>  mPreviewHeap;
-    sp<MemoryBase>      mPreviewBuffer;
+    sp<MemoryBase>      mPreviewBuffers[CAPTURE_BUFFER_NUM]; // used when UVC camera
     bool                mPreviewRunning;
-    int                 mPreviewFrameSize;
     int                 mRecordHeight;
     int                 mRecordWidth;
     int                 mRecordFormat;
+    int                 display_head;
+
     // protected by mLock
     sp<Overlay>         mOverlay;
-    sp<PreviewThread>   mPreviewThread;
+    sp<PreviewShowFrameThread>   mPreviewShowFrameThread;
+    sp<PreviewCaptureFrameThread> mPreviewCaptureFrameThread;
 
     notify_callback    mNotifyCb;
     data_callback      mDataCb;
@@ -198,7 +223,6 @@ private:
     int32_t             mMsgEnabled;
 
     bool                mCameraOpened;
-    bool                mIsTakingPic;;
 
     int                 mPictureHeight;
     int                 mPictureWidth;
@@ -208,15 +232,12 @@ private:
     bool                mRecordRunning;
     int                 mCurrentRecordFrame;
     int 		nCameraBuffersQueued;
-   
-    static const int    kVideoBufferCount = 3;
-    sp<MemoryHeapBase>  mVideoHeap;
-    sp<MemoryBase>      mVideoBuffer[kVideoBufferCount];
-    int   		mVideoBufferUsing[kVideoBufferCount];
 
-    // only used from PreviewThread
-    int                 mCurrentPreviewFrame;
-    int 		nOverlayBuffersQueued;
+    /* These buffers are used to output captured video to upper layer,
+       eg, for to use video encoder */
+    sp<MemoryHeapBase>  mVideoHeap;
+    sp<MemoryBase>      mVideoBuffers[VIDEO_OUTPUT_BUFFER_NUM];
+    int   		mVideoBufferUsing[VIDEO_OUTPUT_BUFFER_NUM];
 
     bool previewStopped;
     bool recordStopped;
@@ -227,12 +248,12 @@ private:
     static int g_camera_framerate;
     static char dev_node[FILENAME_LENGTH];
 
-    //used for priview
     static int g_rotate;
-    //used for taking picture
     static int g_still_bpp;
+
     //used for recording
-    static struct picbuffer buffers[3];
+    struct picbuffer mCaptureBuffers[CAPTURE_BUFFER_NUM];
+    int    buffer_index_maps[CAPTURE_BUFFER_NUM];
 
     static const char supportedPictureSizes[];
     static const char supportedPreviewSizes[];
@@ -240,7 +261,14 @@ private:
     static const char supprotedThumbnailSizes[];
     static const char PARAMS_DELIMITER[];
 
-    static int error_status;
+    int error_status;
+    int queue_head;
+    int dequeue_head;
+    int is_first_buffer;
+    int is_overlay_pushmode;
+
+    sem_t avaiable_show_frame;
+    sem_t avaible_dequeue_frame;
 
 #ifdef DUMP_CAPTURE_YUV
     static FILE *record_yuvFile;
