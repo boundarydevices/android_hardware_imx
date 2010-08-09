@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is the Freescale ALSA module for i.MX51
+# This is the Freescale ALSA module for i.MX5x
 
 ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
@@ -28,14 +28,14 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
   LOCAL_C_INCLUDES += hardware/alsa_sound external/alsa-lib/include
 
-  LOCAL_SRC_FILES:= alsa_imx51.cpp
+  LOCAL_SRC_FILES:= alsa_imx5x.cpp
 
   LOCAL_SHARED_LIBRARIES := \
 	libaudio \
   	libasound \
   	liblog
 
-  LOCAL_MODULE:= alsa.$(TARGET_PRODUCT)
+  LOCAL_MODULE:= alsa.$(TARGET_BOARD_PLATFORM)
 
   include $(BUILD_SHARED_LIBRARY)
 
