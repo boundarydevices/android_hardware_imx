@@ -608,9 +608,17 @@ void CameraHal::previewOneFrame()
 {
     struct v4l2_buffer cfilledbuffer;
     overlay_buffer_t overlaybuffer;
-    int ret, display_index, i, image_size;
+    int ret, display_index, i, image_size, count = 0;
+    struct timespec ts;
 
-    sem_wait(&avaiable_show_frame);
+    /* Use timed wait since captureFrame thread may be exited when waiting for the semaphore */
+    do {
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_nsec +=100000; // 100ms
+    } while ((sem_timedwait(&avaiable_show_frame, &ts) != 0) && !error_status &&  mPreviewRunning);
+
+    if ((mPreviewRunning == 0) || error_status)
+	return;
 
     image_size = mRecordFrameSize;
     display_index = buffer_index_maps[queue_head];
@@ -669,14 +677,7 @@ void CameraHal::previewOneFrame()
     cfilledbuffer.memory = V4L2_MEMORY_MMAP;
     cfilledbuffer.index = display_index;
 
-    ret = ioctl(camera_device, VIDIOC_QUERYBUF, &cfilledbuffer);
-    if (ret < 0) {
-	error_status = -1;
-	LOGE("VIDIOC_QUERYBUF camera device failure, ret=%d", ret);
-	return;
-    }
-
-#ifdef UVC_CAMER
+#ifdef UVC_CAMERA
     ret = ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {
 	LOGE("uvc camera device VIDIOC_QBUF failure, ret=%d", ret);
@@ -684,17 +685,28 @@ void CameraHal::previewOneFrame()
 	return;
     }
 #else
-    while (ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) {
-	LOGE("VIDIOC_QBUF Failed.");
+    ret = ioctl(camera_device, VIDIOC_QUERYBUF, &cfilledbuffer);
+    if (ret < 0) {
+        error_status = -1;
+        LOGE("VIDIOC_QUERYBUF camera device failure, ret=%d", ret);
+        return;
     }
+
+    while ((ret = ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer) < 0) && (count < 10)) {
+	count ++;
+    }
+    if (ret < 0) {
+	LOGE("VIDIOC_QBUF Failure, ret=%d", ret);
+	error_status = -1;
+	return;
+    }
+
 #endif
     nCameraBuffersQueued++;
-
-    sem_post(&avaible_dequeue_frame);
-
     queue_head ++;
     queue_head %= CAPTURE_BUFFER_NUM;
 
+    sem_post(&avaible_dequeue_frame);
 out:
     return;
 }
@@ -731,11 +743,16 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
 int CameraHal::previewCaptureFrameThread()
 {
     struct v4l2_buffer cfilledbuffer;
-    int ret, index;
+    int ret, index, count = 0;
+    struct timespec ts;
 
     if (mPreviewRunning && !error_status) {
 
-	sem_wait(&avaible_dequeue_frame);
+        /* Use timed wait since another thread may be failure when waiting for the semaphore */
+        do {
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_nsec +=100000; // 100ms
+        } while ((sem_timedwait(&avaible_dequeue_frame, &ts) != 0) && !error_status);
 
 	memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
 	cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -751,17 +768,26 @@ int CameraHal::previewCaptureFrameThread()
 	}
 #else
 	/* De-queue the next avaliable buffer in loop since timout is used in driver */
-	while (ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) {
-	    LOGE("VIDIOC_DQBUF Failed in previewCaptureFrameThread!!!");
-	    usleep(1000);
+	while ((ret = ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) &&
+                (count < 10) && mPreviewRunning) {
+	    count ++;
 	}
+
+	if (ret < 0) {
+	    LOGE("Camera VIDIOC_DQBUF failure, ret=%d", ret);
+	    error_status = -1;
+	    return -1;
+	}
+
+	if (mPreviewRunning == 0)
+	    return -1;
 #endif
 	nCameraBuffersQueued--;
 
 	/* Convert YUYV to YUV420SP and put to mPreviewBuffer */
 	if (mRecordFormat == V4L2_PIX_FMT_YUYV) {
 	    convertYUYVtoYUV420SP(mCaptureBuffers[cfilledbuffer.index].virt_start,
-                                 (uint8_t *)mPreviewBuffers[cfilledbuffer.index]->pointer(), mRecordWidth, mRecordHeight);
+				  (uint8_t *)mPreviewBuffers[cfilledbuffer.index]->pointer(), mRecordWidth, mRecordHeight);
 	}
 
 	buffer_index_maps[dequeue_head] = cfilledbuffer.index;
@@ -873,7 +899,7 @@ void CameraHal::cameraPreviewStop()
         }
 
 /* no need to DQBUF before STREAMOFF for UVC camera to improve performance */
-#ifndef UVC_CAMERA
+#if 0
     if (!error_status) {
         memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
