@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifeq ($(HAVE_FSL_IMX_GPU),true)
 ifeq ($(BOARD_SOC_CLASS),IMX5X)
 
 LOCAL_PATH := $(call my-dir)
@@ -31,4 +32,5 @@ LOCAL_MODULE := copybit.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).copybit\" -D_LINUX
 include $(BUILD_SHARED_LIBRARY)
 
+endif
 endif

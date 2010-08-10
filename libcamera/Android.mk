@@ -50,11 +50,9 @@ endif
 ifeq ($(HAVE_FSL_IMX_CODEC),true)
 LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux
 LOCAL_CPPFLAGS += -DUSE_FSL_JPEG_ENC -DDUMP_CAPTURE_YUVxx
-ifeq ($(PREBUILT_FSL_IMX_CODEC),true)	
-    LOCAL_C_INCLUDES += prebuilt/android-arm/fsl_imx_codec/ghdr	
-else
-    LOCAL_C_INCLUDES += external/fsl_imx_codec/fsl_mad_multimedia_codec/ghdr	
-endif
+LOCAL_C_INCLUDES +=	\
+	external/fsl_imx_codec/fsl_mad_multimedia_codec/ghdr \
+	device/fsl/proprietary/codec/ghdr
 endif	
 	
 LOCAL_MODULE:= libcamera
