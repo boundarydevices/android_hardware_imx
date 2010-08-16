@@ -865,6 +865,7 @@ static int overlay_deinit_v4l(struct overlay_control_context_t *dev)
        close(dev->v4l_id);
        dev->v4l_id = 0;
     }
+    dev->video_frames = 0;
     return 0;
 }
 
