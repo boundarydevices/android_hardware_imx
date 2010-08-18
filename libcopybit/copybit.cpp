@@ -344,8 +344,8 @@ static void set_rects(struct copybit_context_t *dev,
     MULDIV(&srcRect->y, &srcRect->height, src->b - src->t, H);
 
     if ((dev->mRotate == 180) || ((dev->mRotate == 270))) {
-        srcRect->y = img->h - (srcRect->y + srcRect->height);
-        srcRect->x = img->w - (srcRect->x + srcRect->width);
+        srcRect->y = src->b - src->t - (srcRect->y + srcRect->height);
+        srcRect->x = src->r - src->l - (srcRect->x + srcRect->width);
     }
 }
 
