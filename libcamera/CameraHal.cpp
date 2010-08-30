@@ -399,6 +399,7 @@ int CameraHal::cameraTakePicConfig()
     parm.parm.capture.timeperframe.numerator = 1;
     parm.parm.capture.timeperframe.denominator = 15;
 #ifndef UVC_CAMERA
+    /* This capturemode value is related to ov3640 driver */
     if (mPictureWidth > 640 || mPictureHeight > 480)
         parm.parm.capture.capturemode = 3;  /* QXGA mode */
     else
@@ -827,7 +828,7 @@ status_t CameraHal::startPreview()
     mPreviewHeap.clear();
     for (i = 0; i< 3; i++)
         mPreviewBuffers[i].clear();
-    mPreviewHeap = new MemoryHeapBase(mRecordFrameSize * 3);
+    mPreviewHeap = new MemoryHeapBase(mRecordFrameSize * VIDEO_OUTPUT_BUFFER_NUM);
     for (i = 0; i < 3; i++)
        mPreviewBuffers[i] = new MemoryBase(mPreviewHeap, mRecordFrameSize * i, mRecordFrameSize);
 
@@ -927,7 +928,6 @@ void CameraHal::cameraPreviewStop()
 //    Mutex::Autolock lock(mLock);
     mPreviewShowFrameThread.clear();
     mPreviewCaptureFrameThread.clear();
-
 }
 
 bool CameraHal::previewEnabled()
@@ -948,8 +948,10 @@ status_t CameraHal::startRecording()
 
     LOGD("Clear the old memory ");
     mVideoHeap.clear();
-    for(i = 0; i < VIDEO_OUTPUT_BUFFER_NUM; i++)
+    for(i = 0; i < VIDEO_OUTPUT_BUFFER_NUM; i++) {
         mVideoBuffers[i].clear();
+        mVideoBufferUsing[i] = 0;
+    }
     LOGD("Init the video Memory %d", mRecordFrameSize);
     mVideoHeap = new MemoryHeapBase(mRecordFrameSize * VIDEO_OUTPUT_BUFFER_NUM);
     for(i = 0; i < VIDEO_OUTPUT_BUFFER_NUM; i++) {
@@ -970,7 +972,6 @@ void CameraHal::stopRecording()
     if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
         LOGD("Preview is still in progress\n");
     }
-    cameraPreviewStop();
 }
 
 bool CameraHal::recordingEnabled()
@@ -1282,7 +1283,7 @@ status_t CameraHal::setParameters(const CameraParameters& params)
     LOGD("mRecordWidth %d, mRecordHeight %d\n", mRecordWidth, mRecordHeight);
 
     mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
-    LOGD("mPictureWidth %d, mPictureHeight %d\n", mRecordWidth, mRecordHeight);
+    LOGD("mPictureWidth %d, mPictureHeight %d\n", mPictureWidth, mPictureHeight);
 
     if (!mPictureWidth || !mPictureHeight) {
         /* This is a hack. MMS APP is not setting the resolution correctly. So hardcoding it. */
