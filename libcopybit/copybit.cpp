@@ -283,7 +283,7 @@ static void Invalid_cache(struct copybit_context_t *dev, copybit_image_t const *
         size = img->h * img->w * (get_pixelbit(img->format)>>3);
         addr.start = (void *)hnd->base;
         addr.end = (void *)(hnd->base + size);
-        ioctl(ctx->mCache, FSLCACHE_IOCFLUSH, &addr);
+        ioctl(ctx->mCache, FSLCACHE_IOCCLEAN, &addr);
 }
 
 /** do convert of image to c2d surface **/
