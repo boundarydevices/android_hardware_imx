@@ -28,7 +28,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 
@@ -44,7 +43,6 @@
 /******************************************************************************/
 #define MAX_SCALE_FACTOR    (8)
 #define MDP_ALPHA_NOP 0xff
-#define SHM_FILE "/copybit.shm"
 /******************************************************************************/
 
 /* mFlags bit define */
@@ -67,10 +65,6 @@ struct copybit_context_t {
     uint32_t mFlags;
 };
 
-/** State information for copybit instance */
-struct copybit_instance_t {
-    int count;
-};
 
 /**
  * Common hardware methods
@@ -473,30 +467,10 @@ static int close_copybit(struct hw_device_t *dev)
 {
     struct copybit_context_t* ctx = (struct copybit_context_t*)dev;
     if (ctx) {
-        int fd;
-        char *shm_path, shm_file[256];
-        copybit_instance_t *ptr;
         C2D_STATUS c2dstatus;
         if (ctx->c2dctx != NULL)
         	c2dstatus = c2dDestroyContext(ctx->c2dctx);
         free(ctx);
-
-        shm_path = getenv("SHM_MOUNTPOINT");
-        if (shm_path == NULL) {
-            LOGE("Failed to get shm mount point\n");
-            return 0;
-        }
-        strcpy(shm_file, shm_path);
-        strcat(shm_file, SHM_FILE);
-
-        fd = open(shm_file, O_RDWR, 0666);
-        if (fd >= 0) {
-                ftruncate(fd, sizeof(copybit_instance_t));
-                ptr = (copybit_instance_t *) mmap(NULL, sizeof(copybit_instance_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-                ptr->count -= 1;
-                close(fd);
-        }  
-
     }
     return 0;
 }
@@ -506,46 +480,7 @@ static int open_copybit(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device)
 {
     int status = -EINVAL;
-    
-    int fd;
-    char *shm_path, shm_file[256];
-
-    shm_path = getenv("SHM_MOUNTPOINT");
-    if (shm_path == NULL) {
-        LOGE("Failed to get shm mount point\n");
-        return status;
-    }
-    strcpy(shm_file, shm_path);
-    strcat(shm_file, SHM_FILE);
-
-    copybit_instance_t *ptr;
-    fd = open(shm_file, O_RDWR, 0666);
-    if (fd < 0) { 
-        /* create copybit.shm if no this file */
-       fd = open(shm_file, O_RDWR | O_CREAT | O_EXCL, 0666);
-       if(fd < 0)
-       {
-             LOGE("Copybit create copybit.shm file fail");
-             *device = NULL;
-             return status;
-       }
-       ftruncate(fd, sizeof(copybit_instance_t));
-       ptr = (copybit_instance_t *) mmap(NULL, sizeof(copybit_instance_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-       ptr->count = 0;
-    } else {
-        ftruncate(fd, sizeof(copybit_instance_t));
-        ptr = (copybit_instance_t *) mmap(NULL, sizeof(copybit_instance_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (ptr->count >= 2){
-             LOGE("Copybit create new instance fail");
-             *device = NULL;
-             close(fd);             
-             return status;  
-        }
-    }
-    ptr->count += 1; 
-    close(fd);
-
-    
+       
     copybit_context_t *ctx;
     ctx = (copybit_context_t *)malloc(sizeof(copybit_context_t));
     memset(ctx, 0, sizeof(*ctx));
