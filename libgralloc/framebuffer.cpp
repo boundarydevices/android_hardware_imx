@@ -159,7 +159,7 @@ static void update_to_display(int left, int top, int width, int height, int upda
 		LOGI("set auto update mode failed.  Error = 0x%x", retval);
 	}    
     
-    upd_data.temp = 0x8; //the temperature is get from wince team
+    upd_data.temp = 24; //the temperature is get from linux team
             
 	upd_data.update_region.left = left;
 	upd_data.update_region.width = width;
