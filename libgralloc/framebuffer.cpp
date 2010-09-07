@@ -886,7 +886,7 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
     //sIPUInputParam.input_crop_win.win_w,
     //sIPUInputParam.input_crop_win.win_h);     
         
-    iIPURet =  mxc_ipu_lib_task_init(&sIPUInputParam,NULL,&sIPUOutputParam,NULL,OP_NORMAL_MODE|TASK_VF_MODE,&sIPUHandle);
+    iIPURet =  mxc_ipu_lib_task_init(&sIPUInputParam,NULL,&sIPUOutputParam,OP_NORMAL_MODE|TASK_VF_MODE,&sIPUHandle);
     if (iIPURet < 0) {
         LOGE("Error!mxc_ipu_lib_task_init failed mIPURet %d!",iIPURet);
         return -1;

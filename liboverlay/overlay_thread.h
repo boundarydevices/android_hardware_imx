@@ -274,7 +274,7 @@ class OverlayThread: public Thread {
                                      mIPUInputParam.input_crop_win.win_w,
                                      mIPUInputParam.input_crop_win.win_h);     
     
-                    mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,NULL,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
+                    mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
                     if (mIPURet < 0) {
                        OVERLAY_LOG_ERR("Error!Copyback(before) mxc_ipu_lib_task_init failed mIPURet %d!",mIPURet);
                        goto queue_buf_exit;
@@ -352,7 +352,7 @@ class OverlayThread: public Thread {
                                  mIPUInputParam.input_crop_win.win_w,
                                  mIPUInputParam.input_crop_win.win_h);     
 
-                mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,NULL,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
+                mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
                 if (mIPURet < 0) {
                    OVERLAY_LOG_ERR("Error!Obj0 mxc_ipu_lib_task_init failed mIPURet %d!",mIPURet);
                    goto queue_buf_exit;
@@ -425,7 +425,7 @@ class OverlayThread: public Thread {
                                  mIPUInputParam.input_crop_win.win_w,
                                  mIPUInputParam.input_crop_win.win_h);     
 
-                mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,NULL,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
+                mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
                 if (mIPURet < 0) {
                    OVERLAY_LOG_ERR("Error!Obj1 mxc_ipu_lib_task_init failed mIPURet %d!",mIPURet);
                    goto queue_buf_exit;
@@ -495,7 +495,7 @@ class OverlayThread: public Thread {
                                      mIPUInputParam.input_crop_win.win_w,
                                      mIPUInputParam.input_crop_win.win_h);     
     
-                    mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,NULL,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
+                    mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
                     if (mIPURet < 0) {
                        OVERLAY_LOG_ERR("Error!Copyback(after) mxc_ipu_lib_task_init failed mIPURet %d!",mIPURet);
                        goto queue_buf_exit;
