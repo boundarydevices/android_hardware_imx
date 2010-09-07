@@ -251,8 +251,8 @@ public:
         //init the crop setting
         mDataShared->crop_x = 0;
         mDataShared->crop_y = 0;
-        mDataShared->crop_w = mHandle.width;
-        mDataShared->crop_h = mHandle.height;
+        mDataShared->crop_w = mHandle.width&0xFFFFFFF8;
+        mDataShared->crop_h = mHandle.height&0xFFFFFFF8;
         mDataShared->num_buffer = mHandle.num_buffer;
         OVERLAY_LOG_INFO("num_buffer %d width %d,height %d,format %d,buf_size %d",
          mHandle.num_buffer,mHandle.width,mHandle.height,
@@ -1056,8 +1056,8 @@ static int overlay_setPosition(struct overlay_control_device_t *dev,
         //output area changed
         obj->out_changed = 1;
     }
-    obj->outX = x;
-    obj->outY = y;
+    obj->outX = x&0xfffffff8;
+    obj->outY = y&0xfffffff8;
     obj->outW = w&0xfffffff8;//output width should be 8 pixel alignment
     obj->outH = h&0xfffffff8;//output height should be 8 pixel alignment
     OVERLAY_LOG_INFO("Overlay pos set: x %d,y %d,w %d,h %d",x,y,w,h);
@@ -1611,10 +1611,10 @@ int overlay_data_setCrop(struct overlay_data_device_t *dev,
                      data_shared->instance_id,x,y,w,h);
     pthread_mutex_lock(&data_shared->obj_lock);
     //Set the  crop setting for the overlay instance
-    data_shared->crop_x = x;
-    data_shared->crop_y = y;
-    data_shared->crop_w = w;
-    data_shared->crop_h = h;
+    data_shared->crop_x = x&0xFFFFFFF8;
+    data_shared->crop_y = y&0xFFFFFFF8;
+    data_shared->crop_w = w&0xFFFFFFF8;
+    data_shared->crop_h = h&0xFFFFFFF8;
     pthread_mutex_unlock(&data_shared->obj_lock);
     return 0;
 }
