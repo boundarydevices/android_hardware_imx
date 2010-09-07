@@ -45,7 +45,7 @@ JPEG_ENC_UINT8 *CameraHal::g_JpegData = NULL;//Buffer to hold jpeg data
 wp<CameraHardwareInterface> CameraHal::singleton;
 
 const char CameraHal::supportedPictureSizes [] = "2048x1536,1600x1200,1024x768,640x480";
-const char CameraHal::supportedPreviewSizes [] = "1280x720,720x576,640x480,320x240";
+const char CameraHal::supportedPreviewSizes [] = "720x576,640x480,320x240";
 const char CameraHal::supportedFPS [] = "30,15,10";
 const char CameraHal::supprotedThumbnailSizes []= "80x60";
 const char CameraHal::PARAMS_DELIMITER []= ",";
@@ -442,8 +442,8 @@ int CameraHal::cameraPreviewConfig()
 
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.pixelformat = mRecordFormat;
-    fmt.fmt.pix.width = mRecordWidth;
-    fmt.fmt.pix.height = mRecordHeight;
+    fmt.fmt.pix.width = mRecordWidth&0xFFFFFFF8;
+    fmt.fmt.pix.height = mRecordHeight&0xFFFFFFF8;
     if (mRecordFormat == V4L2_PIX_FMT_YUV420)
         fmt.fmt.pix.bytesperline = mRecordWidth;
     else if (mRecordFormat == V4L2_PIX_FMT_YUYV)
