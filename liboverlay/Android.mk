@@ -36,7 +36,7 @@ LOCAL_SRC_FILES := \
 		overlay_pmem.cpp
 
 LOCAL_C_INCLUDES := \
-	external/fsl_imx_lib/ipu
+	external/linux-lib/ipu
 
 LOCAL_MODULE := overlay.$(TARGET_BOARD_PLATFORM)
 
