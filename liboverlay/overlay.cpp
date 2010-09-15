@@ -765,7 +765,7 @@ static int overlay_init_v4l(struct overlay_control_context_t *dev)
     	    OVERLAY_LOG_ERR("Error!VIDIOC_CROPCAP getting failed for dev %s",V4L_DEV_NAME);
             return -1;
         }
-
+        dev->video_frames = 0;
 
         struct v4l2_crop crop;
         /* set the image rectangle of the display by 
@@ -1009,7 +1009,13 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
     }
     
     if(instance < MAX_OVERLAY_INSTANCES) {
-        OVERLAY_LOG_INFO("Destory the overlay instance id %d",instance);
+        OVERLAY_LOG_INFO("****Destory the overlay instance id %d",instance);
+        //Flush the buffer in queue
+        overlay_data_shared_t *dataShared = ctx->overlay_intances[instance]->mDataShared;
+        if((dataShared != NULL)&&(dataShared->queued_count > 0)) {
+            OVERLAY_LOG_ERR("Error!Still %d buffer in queue",dataShared->queued_count);
+        }
+
         ctx->overlay_number--;
         ctx->overlay_instance_valid[instance] = 0;
         ctx->overlay_intances[instance] = NULL;
