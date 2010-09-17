@@ -191,6 +191,7 @@ void CameraHal::initDefaultParameters()
     strncat( (char*) tmpBuffer, (const char*) CameraParameters::FLASH_MODE_OFF, PARAM_BUFFER);
     p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
+    p.set(CameraParameters::KEY_ZOOM_SUPPORTED, CameraParameters::TRUE);
 
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
