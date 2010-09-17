@@ -197,7 +197,6 @@ private:
     int cameraTakePicture();
     void previewOneFrame();
 
-    int fcount;
     mutable Mutex       mLock;
 
     CameraParameters    mParameters;
@@ -208,7 +207,6 @@ private:
     int                 mRecordHeight;
     int                 mRecordWidth;
     int                 mRecordFormat;
-    int                 display_head;
 
     // protected by mLock
     sp<Overlay>         mOverlay;
@@ -262,10 +260,11 @@ private:
     static const char PARAMS_DELIMITER[];
 
     int error_status;
-    int queue_head;
+    int display_head;
     int dequeue_head;
     int is_first_buffer;
     int is_overlay_pushmode;
+    int last_display_index;
 
     sem_t avaiable_show_frame;
     sem_t avaible_dequeue_frame;
