@@ -910,7 +910,6 @@ void CameraHal::cameraPreviewStop()
 		usleep(30000);
             }
         }
-	mOverlay = 0;
 
 /* no need to DQBUF before STREAMOFF for UVC camera to improve performance */
 #if 0
@@ -939,8 +938,10 @@ void CameraHal::cameraPreviewStop()
 	cameraClose();
     }
 //    Mutex::Autolock lock(mLock);
-    mPreviewShowFrameThread.clear();
-    mPreviewCaptureFrameThread.clear();
+    if (mPreviewShowFrameThread != 0)
+        mPreviewShowFrameThread.clear();
+    if (mPreviewCaptureFrameThread != 0)
+        mPreviewCaptureFrameThread.clear();
 }
 
 bool CameraHal::previewEnabled()
