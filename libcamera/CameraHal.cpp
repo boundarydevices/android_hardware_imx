@@ -764,7 +764,10 @@ int CameraHal::previewCaptureFrameThread()
         do {
             clock_gettime(CLOCK_REALTIME, &ts);
             ts.tv_nsec +=100000; // 100ms
-        } while ((sem_timedwait(&avaible_dequeue_frame, &ts) != 0) && !error_status);
+        } while ((sem_timedwait(&avaible_dequeue_frame, &ts) != 0) && mPreviewRunning && !error_status);
+
+        if ((mPreviewRunning == 0) || error_status)
+            return -1;
 
 	memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
 	cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
