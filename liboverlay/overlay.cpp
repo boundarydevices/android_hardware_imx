@@ -1052,6 +1052,12 @@ static int overlay_setPosition(struct overlay_control_device_t *dev,
     /* set this overlay's position (talk to the h/w) */
     overlay_object *obj = static_cast<overlay_object *>(overlay);
 
+    if (x <0 || y <0 )
+    {
+        OVERLAY_LOG_ERR ("!!!!Overlay pos set: x %d,y %d,w %d,h %d",x,y,w,h);
+        return 0;
+    }
+
     //fetch the overlay obj lock
     pthread_mutex_lock(&obj->mDataShared->obj_lock);
     if((x!= obj->outX)||
