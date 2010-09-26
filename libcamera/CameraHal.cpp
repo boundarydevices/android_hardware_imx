@@ -84,6 +84,7 @@ CameraHal::CameraHal()
 	mCaptureBuffers[i].length = 0;
     }
 
+    pthread_mutex_init(&mOverlay_sem,NULL);
     is_overlay_pushmode = 0;
 
 #ifdef UVC_CAMERA
@@ -202,9 +203,11 @@ void CameraHal::initDefaultParameters()
 CameraHal::~CameraHal()
 {
     int err = 0;
-    
+
     LOG_FUNCTION_NAME
     LOGD(">>> Release");
+
+    pthread_mutex_destroy(&mOverlay_sem);
 
     cameraDestroy();
 
@@ -339,12 +342,6 @@ int CameraHal::cameraDestroy()
 {
     int err, i;
     cameraClose();
-
-    if (mOverlay != NULL) {
-        mOverlay->destroy();
-        mOverlay = NULL;
-    }
-
     return 0;
 }
 
@@ -649,6 +646,7 @@ void CameraHal::previewOneFrame()
         mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewBuffers[display_index], mCallbackCookie);
     }
 
+    pthread_mutex_lock(&mOverlay_sem);
     /* Notify overlay of a new frame. */
     if (mOverlay != 0) {
     	if (is_overlay_pushmode) {
@@ -673,6 +671,7 @@ void CameraHal::previewOneFrame()
         		    LOGD("queueBuffer failed. May be bcos stream was not turned on yet.");
                 }
                 else{
+                    mOverlay = NULL;
                     LOGE("dequeueBuffer failed. Maybe in destroying!");
                 }
         }
@@ -687,11 +686,13 @@ void CameraHal::previewOneFrame()
     else
         cfilledbuffer.index = display_index;
 
+
 #ifdef UVC_CAMERA
     ret = ioctl(camera_device, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {
 	LOGE("uvc camera device VIDIOC_QBUF failure, ret=%d", ret);
 	error_status = -1;
+    pthread_mutex_unlock(&mOverlay_sem);
 	return;
     }
 #else
@@ -699,6 +700,7 @@ void CameraHal::previewOneFrame()
     if (ret < 0) {
         error_status = -1;
         LOGE("VIDIOC_QUERYBUF camera device failure, ret=%d", ret);
+        pthread_mutex_unlock(&mOverlay_sem);
         return;
     }
 
@@ -708,6 +710,7 @@ void CameraHal::previewOneFrame()
     if (ret < 0) {
 	LOGE("VIDIOC_QBUF Failure, ret=%d", ret);
 	error_status = -1;
+    pthread_mutex_unlock(&mOverlay_sem);
 	return;
     }
 
@@ -717,6 +720,7 @@ void CameraHal::previewOneFrame()
 
     sem_post(&avaible_dequeue_frame);
 out:
+    pthread_mutex_unlock(&mOverlay_sem);
     display_head ++;
     display_head %= CAPTURE_BUFFER_NUM;
     return;
@@ -739,7 +743,9 @@ status_t CameraHal::setOverlay(const sp<Overlay> &overlay)
     Mutex::Autolock lock(mLock);
     if (overlay == NULL)
         LOGE("Trying to set overlay, but overlay is null!");
+    pthread_mutex_lock(&mOverlay_sem);
     mOverlay = overlay;
+    pthread_mutex_unlock(&mOverlay_sem);
 
     is_overlay_pushmode = 0;
 
@@ -858,6 +864,7 @@ status_t CameraHal::startPreview()
        two buffers are queued */
     sem_init(&avaible_dequeue_frame, 0, CAPTURE_BUFFER_NUM - 1);
 
+
     mPreviewCaptureFrameThread = new PreviewCaptureFrameThread(this);
     mPreviewShowFrameThread = new PreviewShowFrameThread(this);
 
@@ -907,16 +914,16 @@ void CameraHal::cameraPreviewStop()
 	sem_destroy(&avaiable_show_frame);
 	sem_destroy(&avaible_dequeue_frame);
 
-        /* Flush to release buffer used in overlay */
-        if (mOverlay != 0) {
-            if (is_overlay_pushmode) {
-                //if (mOverlay->queueBuffer(NULL))
+//        /* Flush to release buffer used in overlay */
+//        if (mOverlay != 0) {
+//            if (is_overlay_pushmode) {
                 //    LOGD("overlay queueBuffer NULL failure");
 		/* FIXME: Cannot use queueBuffer here since overlay may be streamed off,
 		   delay some time here now*/
-		usleep(30000);
-            }
-        }
+//		usleep(30000);
+//                mOverlay = NULL;
+//            }
+//        }
 
 /* no need to DQBUF before STREAMOFF for UVC camera to improve performance */
 #if 0

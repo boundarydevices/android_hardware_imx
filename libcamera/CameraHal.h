@@ -49,6 +49,7 @@
 
 #include <semaphore.h>
 
+
 #define FB_DEVICE               "/dev/graphics/fb0"
 #define MIN_WIDTH               176
 #define MIN_HEIGHT              144
@@ -268,6 +269,7 @@ private:
 
     sem_t avaiable_show_frame;
     sem_t avaible_dequeue_frame;
+    pthread_mutex_t mOverlay_sem;
 
 #ifdef DUMP_CAPTURE_YUV
     static FILE *record_yuvFile;
