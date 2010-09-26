@@ -77,6 +77,8 @@ typedef struct
   int wait_buf_flag;
   unsigned int buf_showed;
   int overlay_mode;
+  int in_destroy;
+  int buf_mixing;
 } overlay_data_shared_t;
 
 typedef struct
@@ -260,8 +262,7 @@ public:
 
     }
     ~overlay_object(){
-        OVERLAY_LOG_FUNC;
-
+        OVERLAY_LOG_INFO("~overlay_object()");
         //???delete this share file;
         destroy_data_shared_data(mHandle.data_shared_fd,mDataShared,true);
  
@@ -441,7 +442,7 @@ static int create_data_shared_data(overlay_data_shared_t **shared)
 
 static void destroy_data_shared_data( int shared_fd, overlay_data_shared_t *shared, bool closefd )
 {
-    OVERLAY_LOG_FUNC;
+    OVERLAY_LOG_INFO("destroy_data_shared_data shared %p closefd %d",shared,closefd);
     if (shared == NULL)
         return;
 
@@ -995,7 +996,7 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
 static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
          overlay_t* overlay) 
 {
-    OVERLAY_LOG_FUNC;
+    OVERLAY_LOG_INFO("overlay_destroyOverlay()");
     overlay_control_context_t *ctx = (overlay_control_context_t *)dev;
     int instance = 0;
     overlay_object *obj = static_cast<overlay_object *>(overlay);
@@ -1010,10 +1011,44 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
     
     if(instance < MAX_OVERLAY_INSTANCES) {
         OVERLAY_LOG_INFO("****Destory the overlay instance id %d",instance);
+        //Set a flag to indicate the overlay_obj is invalid.
         //Flush the buffer in queue
-        overlay_data_shared_t *dataShared = ctx->overlay_intances[instance]->mDataShared;
-        if((dataShared != NULL)&&(dataShared->queued_count > 0)) {
-            OVERLAY_LOG_ERR("Error!Still %d buffer in queue",dataShared->queued_count);
+        overlay_data_shared_t *data_shared = ctx->overlay_intances[instance]->mDataShared;
+        if(data_shared != NULL) {
+            pthread_mutex_lock(&data_shared->obj_lock);
+            data_shared->in_destroy = true;
+            while(data_shared->queued_count > 0) {
+                OVERLAY_LOG_WARN("Warning!destroyOverlay Still %d buffer in queue",
+                                data_shared->queued_count);
+                //Wait a buffer be mixered
+                data_shared->wait_buf_flag = 1;
+                //post sempore to notify mixer thread, give mixer thread a chance to free a buffer
+                if(ctx->control_shared) {
+                    sem_post(&ctx->control_shared->overlay_sem);
+                }
+                pthread_cond_wait(&data_shared->free_cond, &data_shared->obj_lock);
+                if(data_shared->wait_buf_flag != 0) {
+                    OVERLAY_LOG_ERR("Error!cannot make a buffer flushed for destory overlay");
+               }
+            }
+
+            if(data_shared->buf_mixing) {
+                int wait_count = 0;
+                LOGW("Current this overlay is in buf_mixing! Have to wait it done");
+                pthread_mutex_unlock(&data_shared->obj_lock);
+                //Make a sleep for 10ms
+                do{
+                    usleep(2000);
+                    wait_count++;
+                    if(wait_count > 5) {
+                        OVERLAY_LOG_ERR("Error!Still cannot wait the buf mix done!");
+                        break;
+                    }
+                }while (data_shared->buf_mixing);
+            }
+            else{
+                pthread_mutex_unlock(&data_shared->obj_lock);
+            }
         }
 
         ctx->overlay_number--;
@@ -1042,7 +1077,7 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
     pthread_mutex_unlock(&ctx->control_lock);
 
     /* free resources associated with this overlay_t */
-    delete overlay;
+    delete obj;
 }
 
 static int overlay_setPosition(struct overlay_control_device_t *dev,
@@ -1342,6 +1377,15 @@ int overlay_data_dequeueBuffer(struct overlay_data_device_t *dev,
     //in case error condition
     do{
         pthread_mutex_lock(&data_shared->obj_lock);
+
+        //check whether is in destroying
+        if(data_shared->in_destroy){
+           OVERLAY_LOG_ERR("Error!Cannot dequeueBuffer when it is under destroying");
+           *buf = NULL;
+           pthread_mutex_unlock(&data_shared->obj_lock);
+           return -EINVAL;
+        }
+
         //Check the free buffer queue
         if(data_shared->free_count == 0)
         {
@@ -1447,6 +1491,14 @@ int overlay_data_queueBuffer(struct overlay_data_device_t *dev,
 
 
     pthread_mutex_lock(&data_shared->obj_lock);
+    //check whether is in destroying
+    if(data_shared->in_destroy){
+       OVERLAY_LOG_ERR("Error!Cannot queueBuffer when it is under destroying");
+       pthread_mutex_unlock(&data_shared->obj_lock);
+       return -EINVAL;
+    }
+
+
     //Insert buffer to display buffer queue
     if(data_shared->queued_count >= ctx->queue_threshold) {
         //Wait a buffer be mixered
@@ -1838,7 +1890,8 @@ int overlay_data_getBufferCount(struct overlay_data_device_t *dev)
 static int overlay_data_close(struct hw_device_t *dev) 
 {
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
-    OVERLAY_LOG_FUNC;
+    overlay_data_shared_t  *data_shared;
+    OVERLAY_LOG_INFO("overlay_data_close()");
     if (ctx) {
         /* free all resources associated with this device here
          * in particular all pending overlay_buffer_t if needed.
@@ -1847,6 +1900,45 @@ static int overlay_data_close(struct hw_device_t *dev)
          * its file descriptors are not closed (this is the responsibility
          * of the caller).
          */
+        OVERLAY_LOG_INFO("overlay_data_close ctx %p buf_queued %d",ctx,ctx->buf_queued);
+        data_shared = ctx->data_shared;
+
+        if(data_shared != NULL) {
+            pthread_mutex_lock(&data_shared->obj_lock);
+            data_shared->in_destroy = true;
+            while(data_shared->queued_count > 0) {
+                OVERLAY_LOG_WARN("Warning!destroyOverlay Still %d buffer in queue",
+                                data_shared->queued_count);
+                //Wait a buffer be mixered
+                data_shared->wait_buf_flag = 1;
+                //post sempore to notify mixer thread, give mixer thread a chance to free a buffer
+                if(ctx->control_shared) {
+                    sem_post(&ctx->control_shared->overlay_sem);
+                }
+                pthread_cond_wait(&data_shared->free_cond, &data_shared->obj_lock);
+                if(data_shared->wait_buf_flag != 0) {
+                    OVERLAY_LOG_ERR("Error!cannot make a buffer flushed");
+               }
+            }
+
+            if(data_shared->buf_mixing) {
+                int wait_count = 0;
+                LOGW("Current this overlay is in buf_mixing! Have to wait it done");
+                pthread_mutex_unlock(&data_shared->obj_lock);
+                //Make a sleep for 10ms
+                do{
+                    usleep(2000);
+                    wait_count++;
+                    if(wait_count > 5) {
+                        OVERLAY_LOG_ERR("Error!Still cannot wait the buf mix done!");
+                        break;
+                    }
+                }while (data_shared->buf_mixing);
+            }
+            else{
+                pthread_mutex_unlock(&data_shared->obj_lock);
+            }
+        }
 
         //Close the share file for data and control
         close_data_shared_data(ctx);
@@ -1867,6 +1959,7 @@ static int overlay_data_close(struct hw_device_t *dev)
             delete ctx->allocator;
         }
         free(ctx);
+        OVERLAY_LOG_INFO("overlay_data_close exit");
     }
     return 0;
 }
