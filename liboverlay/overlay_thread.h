@@ -54,6 +54,8 @@ class OverlayThread: public Thread {
         int rotation1;
         int crop_x0 = 0,crop_y0 = 0,crop_w0 = 0,crop_h0 = 0;
         int crop_x1 = 0,crop_y1 = 0,crop_w1 = 0,crop_h1 = 0;
+
+
         while(m_dev&&(m_dev->overlay_running)) {
             OVERLAY_LOG_RUNTIME("Overlay thread running pid %d tid %d", getpid(),gettid());
 
@@ -113,6 +115,7 @@ class OverlayThread: public Thread {
                     dataShared0->queued_head ++;
                     dataShared0->queued_head = dataShared0->queued_head%MAX_OVERLAY_BUFFER_NUM;
                     dataShared0->queued_count --;
+                    dataShared0->buf_mixing = true;
                 }       
 
                 //Check whether output area and zorder changing occure, so 
@@ -150,6 +153,7 @@ class OverlayThread: public Thread {
                     dataShared1->queued_head ++;
                     dataShared1->queued_head = dataShared1->queued_head%MAX_OVERLAY_BUFFER_NUM;
                     dataShared1->queued_count --;
+                    dataShared1->buf_mixing = true;
                 }       
 
                 //Check whether output area and zorder changing occure, so 
@@ -571,6 +575,7 @@ free_buf_exit:
                     OVERLAY_LOG_RUNTIME("Id %d Condition signal for Overlay Instance 0",dataShared0->instance_id);
                     pthread_cond_signal(&dataShared0->free_cond);
                 }
+                dataShared0->buf_mixing = false;
                 pthread_mutex_unlock(&dataShared0->obj_lock);
             }
 
@@ -597,6 +602,7 @@ free_buf_exit:
                                         dataShared1->instance_id);
                     pthread_cond_signal(&dataShared1->free_cond);
                 }
+                dataShared1->buf_mixing = false;
                 pthread_mutex_unlock(&dataShared1->obj_lock);
             }
             
