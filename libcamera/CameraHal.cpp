@@ -338,7 +338,6 @@ int CameraHal::cameraClose()
 int CameraHal::cameraDestroy()
 {
     int err, i;
-
     cameraClose();
 
     if (mOverlay != NULL) {
@@ -652,26 +651,31 @@ void CameraHal::previewOneFrame()
 
     /* Notify overlay of a new frame. */
     if (mOverlay != 0) {
-	if (is_overlay_pushmode) {
-	    if (mOverlay->queueBuffer((overlay_buffer_t)mCaptureBuffers[display_index].phy_offset))
-		LOGD("qbuf failed. May be bcos stream was not turned on yet.");
-	    /* For overlay push mode, the second queueBuffer return means last buffer can
-	       be used for capturing next frame */
-	    if (is_first_buffer) {
-		is_first_buffer = 0;
-		last_display_index = display_index;
-		goto out;
-	    }
-	} else {
-            mOverlay->dequeueBuffer(&overlaybuffer);
-            void* address = mOverlay->getBufferAddress(overlaybuffer);
-            if (mRecordFormat == V4L2_PIX_FMT_YUYV)
-                memcpy(address, mPreviewBuffers[display_index]->pointer(), image_size);
-            else
-                memcpy(address, (void*)mCaptureBuffers[display_index].virt_start, image_size);
-            if (mOverlay->queueBuffer(overlaybuffer))
-		LOGD("qbuf failed. May be bcos stream was not turned on yet.");
-	}
+    	if (is_overlay_pushmode) {
+    	    if (mOverlay->queueBuffer((overlay_buffer_t)mCaptureBuffers[display_index].phy_offset))
+    		LOGD("queueBuffer failed. May be bcos stream was not turned on yet.");
+    	    /* For overlay push mode, the second queueBuffer return means last buffer can
+    	       be used for capturing next frame */
+    	    if (is_first_buffer) {
+    		is_first_buffer = 0;
+    		last_display_index = display_index;
+    		goto out;
+    	    }
+    	} else {
+                mOverlay->dequeueBuffer(&overlaybuffer);
+                if(overlaybuffer != 0) {
+                    void* address = mOverlay->getBufferAddress(overlaybuffer);
+                    if (mRecordFormat == V4L2_PIX_FMT_YUYV)
+                        memcpy(address, mPreviewBuffers[display_index]->pointer(), image_size);
+                    else
+                        memcpy(address, (void*)mCaptureBuffers[display_index].virt_start, image_size);
+                    if (mOverlay->queueBuffer(overlaybuffer))
+        		    LOGD("queueBuffer failed. May be bcos stream was not turned on yet.");
+                }
+                else{
+                    LOGE("dequeueBuffer failed. Maybe in destroying!");
+                }
+        }
     }
 
     /* Queue the buffer to camera for coming usage */
