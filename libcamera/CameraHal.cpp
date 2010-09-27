@@ -342,6 +342,11 @@ int CameraHal::cameraDestroy()
 {
     int err, i;
     cameraClose();
+    if (mOverlay != 0)
+    {
+        mOverlay->destroy();
+        mOverlay = NULL;
+    }
     return 0;
 }
 
