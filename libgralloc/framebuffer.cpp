@@ -477,11 +477,11 @@ int mapFrameBufferLocked(struct private_module_t* module)
 	info.xres_virtual = ALIGN_PIXEL(info.xres);
     
     #ifdef FSL_EPDC_FB
-    info.yres_virtual = ALIGN_PIXEL_128(info.yres);
+//    info.yres_virtual = ALIGN_PIXEL_128(info.yres);
 	info.bits_per_pixel = 16;
 	info.grayscale = 0;
 	info.yoffset = 0;
-	info.rotate = FB_ROTATE_UR;
+//	info.rotate = FB_ROTATE_UR;
     #endif
 
     uint32_t flags = PAGE_FLIP;
