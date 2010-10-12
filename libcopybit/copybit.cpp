@@ -408,7 +408,8 @@ static int stretch_copybit(
         c2dSetDstSurface(ctx->c2dctx, dstSurface); 
         c2dSetSrcRotate(ctx->c2dctx, ctx->mRotate);
 
-        if (hasAlpha(src->format) || hasAlpha(dst->format))
+        //if (hasAlpha(src->format) || hasAlpha(dst->format))
+        if (hasAlpha(src->format))
                 c2dSetBlendMode(ctx->c2dctx, C2D_ALPHA_BLEND_SRCOVER);
         else
                 c2dSetBlendMode(ctx->c2dctx, C2D_ALPHA_BLEND_NONE);
