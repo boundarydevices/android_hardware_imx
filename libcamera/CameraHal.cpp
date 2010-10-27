@@ -179,6 +179,14 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
 
+    p.set(CameraParameters::KEY_FOCAL_LENGTH, "4.31");
+    p.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "54.8");
+    p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, "42.5");
+    p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, "0");
+    p.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, "0");
+    p.set(CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION, "0");
+    p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, "0");
+
     memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
     strncat((char*) tmpBuffer, (const char*) CameraParameters::ANTIBANDING_50HZ, PARAM_BUFFER);
     strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, PARAM_BUFFER);
