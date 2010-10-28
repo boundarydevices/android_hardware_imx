@@ -201,7 +201,15 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
     p.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
     p.set(CameraParameters::KEY_ZOOM_SUPPORTED, CameraParameters::TRUE);
-
+    p.set(CameraParameters::KEY_MAX_ZOOM, "1");
+    // default zoom should be 0 as CTS defined
+    p.set(CameraParameters::KEY_ZOOM, "0");
+    //the zoom ratios in 1/100 increments. Ex: a zoom of 3.2x is
+    //returned as 320. The number of elements is {@link
+    //#getMaxZoom} + 1. The list is sorted from small to large. The
+    //first element is always 100. The last element is the zoom
+    //ratio of the maximum zoom value.
+    p.set(CameraParameters::KEY_ZOOM_RATIOS, "100,200");
     if (setParameters(p) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }
@@ -1290,9 +1298,14 @@ status_t CameraHal::setParameters(const CameraParameters& params)
 
     int w, h;
     int framerate;
-
+    int max_zoom,zoom;
     Mutex::Autolock lock(mLock);
-
+    max_zoom = params.getInt(CameraParameters::KEY_MAX_ZOOM);
+    zoom = params.getInt(CameraParameters::KEY_ZOOM);
+    if(zoom > max_zoom){
+	 LOGE("Invalid zoom setting, zoom %d, max zoom %d",zoom,max_zoom);
+        return -1;
+    }
     if (!(strcmp(params.getPreviewFormat(), "yuv420sp") == 0) ||
 	(strcmp(params.getPreviewFormat(), "yuv422i") == 0)) {
         LOGE("Only yuv420 or yuv420i is supported");
