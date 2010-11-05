@@ -64,6 +64,9 @@
 #define CAPTURE_BUFFER_NUM      3
 #define VIDEO_OUTPUT_BUFFER_NUM	3
 
+#define EXIF_MAKENOTE "fsl_makernote"
+#define EXIF_MODEL    "fsl_model"
+
 #define LOG_FUNCTION_NAME       LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
 
 //#define UVC_CAMERA              1
@@ -129,6 +132,7 @@ public:
                                             JPEG_ENC_UINT8 flush, 
                                             void * context, 
                                             JPEG_ENC_MODE enc_mode);
+    void createJpegExifTags(jpeg_enc_object * obj_ptr);
 #endif
 
 private:
@@ -197,6 +201,7 @@ private:
     int cameraTakePicConfig();
     int cameraTakePicture();
     void previewOneFrame();
+    int stringTodegree(char* cAttribute, unsigned long &degree, unsigned long &minute, unsigned long &second); //for the minus the return value will be 1
 
     mutable Mutex       mLock;
 
