@@ -1894,12 +1894,6 @@ encodeframe:
     LOGI("jpeg_enc_encodeframe success");
     // Make an IMemory for each frame
     jpegPtr = new MemoryBase(mJpegImageHeap, 0, g_JpegDataLen);
-	{
-			FILE *fp = fopen("/sdcard/test.jpg","wb");
-			fwrite(mJpegImageHeap->getBase(), 1, mJpegImageHeap->getSize(), fp);
-			fflush(fp);
-			fclose(fp);
-	}
 
 done:
     /* --------------------------------------------
