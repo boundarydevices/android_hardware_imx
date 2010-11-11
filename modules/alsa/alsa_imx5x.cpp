@@ -252,6 +252,13 @@ status_t setHardwareParams(alsa_handle_t *handle)
     else
         LOGV("Set sample rate to %u HZ", requestedRate);
 
+    // get the max buffer size we can set
+    err = snd_pcm_hw_params_get_buffer_size_max(hardwareParams, &bufferSize);
+    if (err < 0) {
+        LOGE("Unable to get max buffer size:  %s", snd_strerror(err));
+        goto done;
+    }
+
     // Make sure we have at least the size we originally wanted
     err = snd_pcm_hw_params_set_buffer_size(handle->handle, hardwareParams,
             bufferSize);
