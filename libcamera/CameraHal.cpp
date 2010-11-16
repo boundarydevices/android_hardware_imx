@@ -327,7 +327,7 @@ int CameraHal::cameraOpen()
     LOG_FUNCTION_NAME
 
     if(mCameraOpened == 0){
-        camera_device = open(dev_node, O_RDWR, 0);
+        camera_device = open(dev_node, O_RDWR|O_NONBLOCK, 0);
         LOGD("dev_node in open:%s\n", dev_node);
         if (camera_device < 0) {
             LOGE ("Could not open the camera device: %s",  strerror(errno) );
@@ -614,6 +614,7 @@ void CameraHal::setCallbacks(notify_callback notify_cb,
 void CameraHal::enableMsgType(int32_t msgType)
 {
     Mutex::Autolock lock(mLock);
+	LOGD("###the mesg enabled is %x###", msgType);
     mMsgEnabled |= msgType;
 }
 
@@ -822,8 +823,9 @@ int CameraHal::previewCaptureFrameThread()
 	}
 #else
 	/* De-queue the next avaliable buffer in loop since timout is used in driver */
-	while ((ret = ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) < 0) &&
-                (count < 10) && mPreviewRunning) {
+	while ((ret = ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) == -1) &&
+                (count < 20000) && mPreviewRunning) {
+        usleep(50);
 	    count ++;
 	}
 
