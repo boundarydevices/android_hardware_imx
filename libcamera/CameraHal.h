@@ -275,6 +275,7 @@ private:
     sem_t avaiable_show_frame;
     sem_t avaible_dequeue_frame;
     pthread_mutex_t mOverlay_sem;
+	bool mPowerLock;
 
 #ifdef DUMP_CAPTURE_YUV
     static FILE *record_yuvFile;

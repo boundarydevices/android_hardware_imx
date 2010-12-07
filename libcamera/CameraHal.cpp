@@ -33,6 +33,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <hardware_legacy/power.h>
+
 
 
 namespace android {
@@ -74,7 +76,8 @@ CameraHal::CameraHal()
                     mRecordRunning(0),
                     mCurrentRecordFrame(0),
                     nCameraBuffersQueued(0),
-                    mVideoHeap(0)
+                    mVideoHeap(0),
+                    mPowerLock(false)
 {
     int i;
 
@@ -866,6 +869,10 @@ status_t CameraHal::startPreview()
         // already running
         return INVALID_OPERATION;
     }
+	 if (!mPowerLock) {
+        acquire_wake_lock (PARTIAL_WAKE_LOCK, "V4LCapture");
+        mPowerLock = true;
+    }
 
     dequeue_head = 0;
     display_head = 0;
@@ -913,6 +920,11 @@ void CameraHal::stopPreview()
     if(mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)
 	    return;
     cameraPreviewStop();
+
+	if (mPowerLock) {
+			release_wake_lock ("V4LCapture");
+			mPowerLock = false;
+	}
 }
 
 void CameraHal::cameraPreviewStop()
