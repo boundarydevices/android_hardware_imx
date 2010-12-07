@@ -996,6 +996,8 @@ static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
 static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
          overlay_t* overlay) 
 {
+    struct timespec timeout;
+    struct timeval tv;
     OVERLAY_LOG_INFO("overlay_destroyOverlay()");
     overlay_control_context_t *ctx = (overlay_control_context_t *)dev;
     int instance = 0;
@@ -1015,6 +1017,8 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
         //Flush the buffer in queue
         overlay_data_shared_t *data_shared = ctx->overlay_intances[instance]->mDataShared;
         if(data_shared != NULL) {
+            //Unlock the control lock incase the dead lock between overlay thread
+            pthread_mutex_unlock(&ctx->control_lock);
             pthread_mutex_lock(&data_shared->obj_lock);
             data_shared->in_destroy = true;
             while(data_shared->queued_count > 0) {
@@ -1026,7 +1030,12 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
                 if(ctx->control_shared) {
                     sem_post(&ctx->control_shared->overlay_sem);
                 }
-                pthread_cond_wait(&data_shared->free_cond, &data_shared->obj_lock);
+                gettimeofday(&tv, (struct timezone *) NULL);
+                timeout.tv_sec = tv.tv_sec;
+                timeout.tv_nsec = (tv.tv_usec + 200000) * 1000L;//200ms
+                //Overlay data close or Overlay destroy may both block in this, so only one can get the condition
+                //Make a time out here.
+                pthread_cond_timedwait(&data_shared->free_cond, &data_shared->obj_lock,&timeout);
                 if(data_shared->wait_buf_flag != 0) {
                     OVERLAY_LOG_ERR("Error!cannot make a buffer flushed for destory overlay");
                }
@@ -1049,6 +1058,8 @@ static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
             else{
                 pthread_mutex_unlock(&data_shared->obj_lock);
             }
+
+            pthread_mutex_lock(&ctx->control_lock);
         }
 
         ctx->overlay_number--;
@@ -1891,6 +1902,9 @@ static int overlay_data_close(struct hw_device_t *dev)
 {
     struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
     overlay_data_shared_t  *data_shared;
+    struct timespec timeout;
+    struct timeval  tv;
+
     OVERLAY_LOG_INFO("overlay_data_close()");
     if (ctx) {
         /* free all resources associated with this device here
@@ -1907,7 +1921,7 @@ static int overlay_data_close(struct hw_device_t *dev)
             pthread_mutex_lock(&data_shared->obj_lock);
             data_shared->in_destroy = true;
             while(data_shared->queued_count > 0) {
-                OVERLAY_LOG_WARN("Warning!destroyOverlay Still %d buffer in queue",
+                OVERLAY_LOG_WARN("Warning!data close Still %d buffer in queue",
                                 data_shared->queued_count);
                 //Wait a buffer be mixered
                 data_shared->wait_buf_flag = 1;
@@ -1915,7 +1929,10 @@ static int overlay_data_close(struct hw_device_t *dev)
                 if(ctx->control_shared) {
                     sem_post(&ctx->control_shared->overlay_sem);
                 }
-                pthread_cond_wait(&data_shared->free_cond, &data_shared->obj_lock);
+                gettimeofday(&tv, (struct timezone *) NULL);
+                timeout.tv_sec = tv.tv_sec;
+                timeout.tv_nsec = (tv.tv_usec + 200000) * 1000L;//200ms
+                pthread_cond_timedwait(&data_shared->free_cond, &data_shared->obj_lock,&timeout);
                 if(data_shared->wait_buf_flag != 0) {
                     OVERLAY_LOG_ERR("Error!cannot make a buffer flushed");
                }

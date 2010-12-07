@@ -105,6 +105,45 @@ class OverlayThread: public Thread {
                 //Fetch one buffer from each overlay instance buffer queue
                 OVERLAY_LOG_RUNTIME("queued_count %d,queued_head %d",
                      dataShared0->queued_count,dataShared0->queued_head);
+
+                //If this overlay is under destroy, just return all buffers in queue
+                //The user should guarantee the buffer all to be flushed before destroy it.
+                if(dataShared0->in_destroy) {
+                     OVERLAY_LOG_INFO("Overlay in destroy,flush queue as queued_count %d,queued_head %d",
+                     dataShared0->queued_count,dataShared0->queued_head);
+                     while(dataShared0->queued_count > 0) {
+                        //fetch the head buffer in queued buffers
+                        overlay_buf0 = dataShared0->queued_bufs[dataShared0->queued_head];
+                        OVERLAY_LOG_RUNTIME("id %d Get queue buffer for Overlay Instance 0: 0x%x queued_count %d",
+                             dataShared0->instance_id,overlay_buf0,dataShared0->queued_count);
+                        dataShared0->queued_bufs[dataShared0->queued_head] = 0;
+                        dataShared0->queued_head ++;
+                        dataShared0->queued_head = dataShared0->queued_head%MAX_OVERLAY_BUFFER_NUM;
+                        dataShared0->queued_count --;
+
+                        //For push mode, no need to return the buffer back
+                        if(dataShared0->overlay_mode == OVERLAY_NORAML_MODE) {
+                            dataShared0->free_bufs[dataShared0->free_tail] = overlay_buf0;
+                            OVERLAY_LOG_RUNTIME("Id %d back buffer to free queue for Overlay Instance 0: 0x%x at %d free_count %d",
+                                 dataShared0->instance_id,overlay_buf0,dataShared0->free_tail,dataShared0->free_count+1);
+                            dataShared0->free_tail++;
+                            dataShared0->free_tail = dataShared0->free_tail%MAX_OVERLAY_BUFFER_NUM;
+                            dataShared0->free_count++;
+                            if(dataShared0->free_count > dataShared0->num_buffer) {
+                                OVERLAY_LOG_ERR("Error!free_count %d is greater the total number %d",
+                                                dataShared0->free_count,dataShared0->num_buffer);
+                            }
+                        }
+
+                        if(dataShared0->wait_buf_flag) {
+                            dataShared0->wait_buf_flag = 0;
+                            OVERLAY_LOG_RUNTIME("Id %d Condition signal for Overlay Instance 0",dataShared0->instance_id);
+                            pthread_cond_signal(&dataShared0->free_cond);
+                        }
+                     }
+                     overlay_buf0 = NULL;
+                }
+
                 if(dataShared0->queued_count > 0) 
                 {
                     //fetch the head buffer in queued buffers
@@ -142,6 +181,47 @@ class OverlayThread: public Thread {
                 OVERLAY_LOG_RUNTIME("Process obj 0 instance_id %d dataShared0 0x%x",
                                     dataShared0->instance_id,dataShared0);
                 pthread_mutex_lock(&dataShared1->obj_lock);
+
+                //If this overlay is under destroy, just return all buffers in queue
+                //The user should guarantee the buffer all to be flushed before destroy it.
+                if(dataShared1->in_destroy) {
+                     OVERLAY_LOG_INFO("Overlay in destroy,flush queue as queued_count %d,queued_head %d",
+                     dataShared1->queued_count,dataShared1->queued_head);
+                     while(dataShared1->queued_count > 0) {
+                        //fetch the head buffer in queued buffers
+                        overlay_buf1 = dataShared1->queued_bufs[dataShared1->queued_head];
+                        OVERLAY_LOG_RUNTIME("id %d Get queue buffer for Overlay Instance 0: 0x%x queued_count %d",
+                             dataShared1->instance_id,overlay_buf1,dataShared1->queued_count);
+                        dataShared1->queued_bufs[dataShared1->queued_head] = 0;
+                        dataShared1->queued_head ++;
+                        dataShared1->queued_head = dataShared1->queued_head%MAX_OVERLAY_BUFFER_NUM;
+                        dataShared1->queued_count --;
+
+                        //For push mode, no need to return the buffer back
+                        if(dataShared1->overlay_mode == OVERLAY_NORAML_MODE) {
+                            dataShared1->free_bufs[dataShared1->free_tail] = overlay_buf1;
+                            OVERLAY_LOG_RUNTIME("Id %d back buffer to free queue for Overlay Instance 0: 0x%x at %d free_count %d",
+                                 dataShared1->instance_id,overlay_buf1,dataShared1->free_tail,dataShared1->free_count+1);
+                            dataShared1->free_tail++;
+                            dataShared1->free_tail = dataShared1->free_tail%MAX_OVERLAY_BUFFER_NUM;
+                            dataShared1->free_count++;
+                            if(dataShared1->free_count > dataShared1->num_buffer) {
+                                OVERLAY_LOG_ERR("Error!free_count %d is greater the total number %d",
+                                                dataShared1->free_count,dataShared1->num_buffer);
+                            }
+                        }
+
+                        if(dataShared1->wait_buf_flag) {
+                            dataShared1->wait_buf_flag = 0;
+                            OVERLAY_LOG_RUNTIME("Id %d Condition signal for Overlay Instance 0",dataShared1->instance_id);
+                            pthread_cond_signal(&dataShared1->free_cond);
+                        }
+
+                     }
+                     overlay_buf1 = NULL;
+                }
+
+
                 //Fetch one buffer from each overlay instance buffer queue
                 if(dataShared1->queued_count > 0) 
                 {
@@ -246,7 +326,7 @@ class OverlayThread: public Thread {
                     mIPUInputParam.input_crop_win.win_h = overlay0_outregion.bottom - overlay0_outregion.top;
                     mIPUInputParam.fmt = m_dev->outpixelformat;
                     mIPUInputParam.user_def_paddr[0] = mLatestQueuedBuf.m.offset;
-    
+
                     //Setting output format
                     //Should align with v4l
                     mIPUOutputParam.fmt = m_dev->outpixelformat;
