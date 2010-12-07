@@ -29,6 +29,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libcutils \
     libbinder \
     libmedia \
+    libhardware_legacy \
     libdl \
     libc
 
