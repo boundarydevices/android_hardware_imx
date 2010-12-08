@@ -186,7 +186,8 @@ private:
     int validateSize(int w, int h);
     void* cropImage(unsigned long buffer);
 
-    void convertYUYVtoYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
+    void convertYUYVtoI420(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
+	void convertI420toYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
     int uvcGetDeviceAndCapability(char *sizes_buf);
 
     sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
@@ -209,6 +210,8 @@ private:
 
     sp<MemoryHeapBase>  mPreviewHeap;
     sp<MemoryBase>      mPreviewBuffers[CAPTURE_BUFFER_NUM]; // used when UVC camera
+    sp<MemoryHeapBase>  mPreviewConvertHeap;
+    sp<MemoryBase>      mPreviewConvertBuffers[CAPTURE_BUFFER_NUM];
     bool                mPreviewRunning;
     int                 mRecordHeight;
     int                 mRecordWidth;
