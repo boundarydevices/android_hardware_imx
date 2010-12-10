@@ -10,9 +10,6 @@
 #include <poll.h>
 #include <linux/input.h>
 #include <utils/Log.h>
-#ifdef SIMULATE_SENSOR
-#include <cutils/properties.h>
-#endif
 #include <cutils/atomic.h>
 
 
@@ -127,7 +124,6 @@ static struct hw_module_methods_t sensors_module_methods = {
     open: sensors_device_open
 };
 
-#ifndef SIMULATE_SENSOR
 static struct sensor_t const sensor_mma7450 = {
 	name: "MMA7450L",
 	vendor: "FSL",
@@ -137,18 +133,6 @@ static struct sensor_t const sensor_mma7450 = {
 	maxRange: 1023,
 	resolution: 2,
 };
-#else
-#define FAKE_SENSOR_FD (128)
-static struct sensor_t const sensor_fake = {
-	name: "FAKESENSOR",
-	vendor: "FSL",
-	version: 2,
-	handle: SENSORS_HANDLE_BASE + 1,
-	type: SENSOR_TYPE_ACCELEROMETER,
-	maxRange: 1023,
-	resolution: 2,
-};
-#endif
 
 struct sensor_handle_t : public native_handle {
     /* add the data fields we need here, for instance: */
@@ -159,16 +143,12 @@ sensor_handle_t sensor_data_handle;
 
 static int get_sensors_list(struct sensors_module_t* module, struct sensor_t const** sensor)
 {
-    #ifndef SIMULATE_SENSOR
-	*sensor = &sensor_mma7450;
-    #else
-    *sensor = &sensor_fake;
-    #endif
+    *sensor = &sensor_mma7450;
 
-	LOGD("sensor name %s, handle %d, type %d",
-		(*sensor)->name, (*sensor)->handle, (*sensor)->type);
+    LOGD("sensor name %s, handle %d, type %d",
+	    (*sensor)->name, (*sensor)->handle, (*sensor)->type);
 
-	return 1; //just one functions
+    return 1; //just one functions
 }
 
 struct sensors_module_t HAL_MODULE_INFO_SYM = {
@@ -230,7 +210,7 @@ static int open_input()
 
 /**
 * Returns a native_handle_t, which will be the parameter to
-* sensors_data_device_t::open_data(). 
+* sensors_data_device_t::open_data().
 * The caller takes ownership of this handle. This is intended to be
 * passed cross processes.
 *
@@ -238,48 +218,34 @@ static int open_input()
 */
 static native_handle_t* open_data_source(struct sensors_control_device_t *dev)
 {
-	LOGD("open_data_source");
+    LOGD("open_data_source");
     memset(&sensor_data_handle, 0, sizeof(sensor_data_handle));
     sensor_data_handle.numFds      = 1;
     sensor_data_handle.numInts     = 0; // extra ints we have in our handle
-    #ifndef SIMULATE_SENSOR
     sensor_data_handle.ctl_fd = open_input();
-    #else
-    sensor_data_handle.ctl_fd = FAKE_SENSOR_FD;
-    #endif
     return &sensor_data_handle;
 }
 
 static int activate(struct sensors_control_device_t *dev, int handle, int enabled)
 {
-	LOGI("active handle %d",handle);
-    #ifndef SIMULATE_SENSOR
+    LOGI("active handle %d",handle);
+
     if (handle != sensor_mma7450.handle)
 	    return -1;
 
     return sensor_mma7450.handle;
-    #else
-    if (handle != sensor_fake.handle){
-        LOGI("active handle %d is not the same as handle %d in sensor",
-             handle,sensor_fake.handle);
-	    return 0;
-     }
-
-    return sensor_fake.handle;
-    #endif
-
 }
 
 static int set_delay(struct sensors_control_device_t *dev, int32_t ms)
 {
-	LOGD("set delay %d ms",ms);
+    LOGD("set delay %d ms",ms);
     return 0;
 }
 
 static int wake(struct sensors_control_device_t *dev)
 {
-	LOGD("sensor wake");
-	return 0;
+    LOGD("sensor wake");
+    return 0;
 }
 
 //data operation //////////////////////
@@ -299,40 +265,27 @@ static sensors_data_t sSensors;
 */
 static int data_open(struct sensors_data_device_t *dev, native_handle_t* nh)
 {
-	int i;
-    int fd;
+    int i, fd;
     fd = ((sensor_handle_t *)nh)->ctl_fd;
-	LOGI("sensor data open FD %d",fd);
-	LMSInit();
-	memset(&sSensors, 0, sizeof(sSensors));
-	sSensors.vector.status = SENSOR_STATUS_ACCURACY_HIGH;
-    #ifndef SIMULATE_SENSOR
-	sInputFD = dup(fd);
-    #else
-    sInputFD = fd;
-    #endif
+    LMSInit();
+    memset(&sSensors, 0, sizeof(sSensors));
+    sSensors.vector.status = SENSOR_STATUS_ACCURACY_HIGH;
+    sInputFD = dup(fd);
 
-	LOGD("sensors_data_open: fd = %d", sInputFD);
-	return 0;
+    LOGD("sensors_data_open: fd = %d", sInputFD);
+    return 0;
 }
-    
+
 static int data_close(struct sensors_data_device_t *dev)
 {
-	LOGI("sensor data close");
-    #ifndef SIMULATE_SENSOR
+    LOGI("sensor data close");
     close(sInputFD);
-    #endif
     sInputFD = -1;
     return 0;
 }
-#ifdef SIMULATE_SENSOR    
-int gEventCount = 0;
-bool gRotation = 0;
-#endif
 
 static int sensor_poll(struct sensors_data_device_t *dev, sensors_data_t* data)
 {
-//static int sensors_data_poll(sensors_data_t* values, uint32_t sensors_of_interest)
     LOGI("sensor_poll");
     struct input_event event;
     int64_t t;
@@ -345,67 +298,7 @@ static int sensor_poll(struct sensors_data_device_t *dev, sensors_data_t* data)
 
     // wait until we get a complete event for an enabled sensor
     while (1) {
-        #ifndef SIMULATE_SENSOR
         nread = read(fd, &event, sizeof(event));
-        #else
-        char value[PROPERTY_VALUE_MAX];
-        bool ratationRequest = 0;
-
-        do{
-            if((gEventCount %4) == 0){
-                sleep(5);//Raise sensor event every 10 seconds
-            }
-            else{
-                break;
-            }
-            property_get("rw.SIMULATE_SENSOR_ROTATION", value, "0");
-            if (strcmp(value, "1") != 0) {
-                ratationRequest = false; 
-            }
-            else
-                ratationRequest = true;
-            LOGI("Polling rotation request %d, older one %d",ratationRequest,ratationRequest);
-        }while (ratationRequest == gRotation);
-
-        if((gEventCount %4) == 0){
-            gRotation = ratationRequest;
-        }
-         
-        nread = sizeof(event);
-        memset(&event, 0 , sizeof(event));
-        if((gEventCount %4) == 0) {
-            LOGI("sensor_poll simulate EV_ABS ABS_X");
-            event.type = EV_ABS;//EV_ABS,EV_SYN
-            event.code = ABS_X;//ABS_X,ABS_Y,ABS_Z
-            if(!gRotation) {
-                event.value = 0;
-            }
-            else{
-                event.value = 128;
-            }
-        }
-        if((gEventCount %4) == 1) {
-            LOGI("sensor_poll simulate EV_ABS ABS_Y");
-            event.type = EV_ABS;//EV_SYN
-            event.code = ABS_Y;//ABS_X,ABS_Y,ABS_Z
-            if(!gRotation) {
-                event.value = -128;
-            }
-            else{
-                event.value = 0;
-            }
-        }
-        if((gEventCount %4) == 2) {
-            LOGI("sensor_poll simulate EV_ABS ABS_Z");
-            event.type = EV_ABS;//EV_SYN
-            event.code = ABS_Z;//ABS_X,ABS_Y,ABS_Z
-            event.value = 0;
-        }
-        if((gEventCount %4) == 3) {
-            event.type = EV_SYN;
-        }
-        gEventCount++;
-        #endif
 
         if (nread == sizeof(event)) {
             uint32_t v;
@@ -434,7 +327,7 @@ static int sensor_poll(struct sensors_data_device_t *dev, sensors_data_t* data)
     }
 }
 
-static int sensors_device_control_close(struct hw_device_t *dev) 
+static int sensors_device_control_close(struct hw_device_t *dev)
 {
     LOGI("sensors_device_control_close");
     struct sensors_control_context_t* ctx = (struct sensors_control_context_t*)dev;
@@ -446,15 +339,15 @@ static int sensors_device_control_close(struct hw_device_t *dev)
     }
     return 0;
 }
- 
-static int sensors_device_data_close(struct hw_device_t *dev) 
+
+static int sensors_device_data_close(struct hw_device_t *dev)
 {
     LOGI("sensors_device_data_close");
     struct sensors_data_context_t* ctx = (struct sensors_data_context_t*)dev;
     if (ctx) {
         /* free all resources associated with this device here
          * in particular all pending sensors_buffer_t if needed.
-         * 
+         *
          * NOTE: sensors_handle_t passed in initialize() is NOT freed and
          * its file descriptors are not closed (this is the responsibility
          * of the caller).
@@ -484,7 +377,7 @@ static int sensors_device_open(const struct hw_module_t* module, const char* nam
         dev->device.common.version = 0;
         dev->device.common.module = const_cast<hw_module_t*>(module);
         dev->device.common.close = sensors_device_control_close;
-        
+
         dev->device.open_data_source = open_data_source;
         dev->device.activate = activate;
         dev->device.set_delay = set_delay;
@@ -504,11 +397,11 @@ static int sensors_device_open(const struct hw_module_t* module, const char* nam
         dev->device.common.version = 0;
         dev->device.common.module = const_cast<hw_module_t*>(module);
         dev->device.common.close = sensors_device_data_close;
-        
+
         dev->device.data_open = data_open;
         dev->device.data_close = data_close;
         dev->device.poll = sensor_poll;
-        
+
         *device = &dev->device.common;
         status = 0;
     }

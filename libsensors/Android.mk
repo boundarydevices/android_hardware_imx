@@ -21,14 +21,20 @@ include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog
-LOCAL_SRC_FILES := sensor.cpp
+
+ifeq ($(SENSOR_MMA8451),true)
+LOCAL_SRC_FILES := mma8451.cpp
+else
+ ifeq ($(SENSOR_MMA7450),true)
+ LOCAL_SRC_FILES := mma7450.cpp
+ else
+ LOCAL_SRC_FILES := fakesensor.cpp
+ endif
+endif
+
 LOCAL_MODULE := sensors.$(TARGET_BOARD_PLATFORM)
 
 LOCAL_SHARED_LIBRARIES += libutils libcutils
-
-ifeq ($(SIMULATE_SENSOR),true)
-LOCAL_CFLAGS += -DSIMULATE_SENSOR
-endif
 
 LOCAL_MODULE_TAGS := eng
 
