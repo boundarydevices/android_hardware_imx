@@ -607,8 +607,17 @@ int mapFrameBufferLocked(struct private_module_t* module)
 	int retval = ioctl(fd, MXCFB_SET_AUTO_UPDATE_MODE, &auto_update_mode);
 	if (retval < 0)
 	{
+	    LOGE("Error! set auto update mode error!\n");
 		return -errno;
 	}
+	
+	int scheme_mode = UPDATE_SCHEME_SNAPSHOT;
+	retval = ioctl(fd, MXCFB_SET_UPDATE_SCHEME, &scheme_mode);
+	if (retval < 0)
+	{
+	    LOGE("Error! set update scheme error!\n");
+		return -errno;
+	}	
 #endif
     int refreshRate = 1000000000000000LLU /
     (
