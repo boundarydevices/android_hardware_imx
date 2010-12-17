@@ -822,19 +822,10 @@ int CameraHal::previewCaptureFrameThread()
 	cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	cfilledbuffer.memory = V4L2_MEMORY_MMAP;
 
-#ifdef UVC_CAMERA
-	/* De-queue the next avaiable buffer */
-	ret = ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer);
-	if (ret < 0) {
-	    LOGE("uvc camera device VIDIOC_DQBUF failure, ret=%d", ret);
-	    error_status = -1;
-	    return -1;
-	}
-#else
 	/* De-queue the next avaliable buffer in loop since timout is used in driver */
 	while ((ret = ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) == -1) &&
                 (count < 20000) && mPreviewRunning) {
-        usleep(50);
+	    usleep(50);
 	    count ++;
 	}
 
@@ -846,7 +837,7 @@ int CameraHal::previewCaptureFrameThread()
 
 	if (mPreviewRunning == 0)
 	    return -1;
-#endif
+
 	nCameraBuffersQueued--;
 
 	/* Convert YUYV to NV12 and put to mPreviewBuffer */
@@ -1253,8 +1244,12 @@ int CameraHal::cameraTakePicture()
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_MMAP;
 
-    /* De-queue the next avaliable buffer */
-    ret = ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer);
+    /* De-queue the next avaliable buffer in loop since timout is used in driver */
+    while ((ret = ioctl(camera_device, VIDIOC_DQBUF, &cfilledbuffer) == -1) &&
+            (count < 20000)) {
+        usleep(50);
+        count ++;
+    }
     if (ret < 0){
         LOGE("VIDIOC_DQBUF Failed!!!");
         error_status = -1;
