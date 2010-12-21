@@ -553,6 +553,21 @@ int mapFrameBufferLocked(struct private_module_t* module)
         info.blue.length    = 8;
         info.transp.offset  = 0;
         info.transp.length  = 0;
+#ifndef FSL_EPDC_FB
+        /*
+         *  set the alpha in pixel
+         *  only when the fb set to 32bit
+         */
+        struct mxcfb_loc_alpha l_alpha;
+        l_alpha.enable = true;
+        l_alpha.alpha_in_pixel = true;
+        if (ioctl(fd, MXCFB_SET_LOC_ALPHA,
+                    &l_alpha) < 0) {
+            printf("Set local alpha failed\n");
+            close(fd);
+            return -errno;
+        }
+#endif
     }
     else{
         /*
@@ -567,6 +582,31 @@ int mapFrameBufferLocked(struct private_module_t* module)
         info.blue.length    = 5;
         info.transp.offset  = 0;
         info.transp.length  = 0;
+
+#ifndef FSL_EPDC_FB
+        /* for the 16bit case, only involke the glb alpha */
+        struct mxcfb_gbl_alpha gbl_alpha;
+
+        gbl_alpha.alpha = 255;
+        gbl_alpha.enable = 1;
+        int ret = ioctl(fd, MXCFB_SET_GBL_ALPHA, &gbl_alpha);
+        if(ret <0)
+        {
+            LOGE("Error!MXCFB_SET_GBL_ALPHA failed!");
+            return -1;
+        }
+
+        struct mxcfb_color_key key;
+        key.enable = 1;
+        key.color_key = 0x00000000; // Black
+        ret = ioctl(fd, MXCFB_SET_CLR_KEY, &key);
+        if(ret <0)
+        {
+            LOGE("Error!Colorkey setting failed for dev ");
+            return -1;
+        }
+#endif
+
     }
 
 

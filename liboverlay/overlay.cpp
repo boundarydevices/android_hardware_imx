@@ -620,8 +620,11 @@ static int overlay_init_fbdev(struct overlay_control_context_t *dev)
     
     int ret = 0;
     struct fb_var_screeninfo fb_var;
-    struct mxcfb_gbl_alpha gbl_alpha;
 
+    //disable the gbl alpha
+
+#if 0
+    struct mxcfb_gbl_alpha gbl_alpha;
     gbl_alpha.alpha = 255;
     gbl_alpha.enable = 1;
     ret = ioctl(dev->fb_dev, MXCFB_SET_GBL_ALPHA, &gbl_alpha);
@@ -642,6 +645,7 @@ static int overlay_init_fbdev(struct overlay_control_context_t *dev)
       OVERLAY_LOG_ERR("Error!Colorkey setting failed for dev %s",FB_DEV_NAME);
       return -1;
     }
+#endif
 
     if ( ioctl(dev->fb_dev, FBIOGET_VSCREENINFO, &fb_var) < 0) {
         OVERLAY_LOG_ERR("Error!VSCREENINFO getting failed for dev %s",FB_DEV_NAME);
