@@ -510,7 +510,8 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
     status_t status = NO_ERROR;
 
     LOGD("route called for devices %08x in mode %d...", devices, mode);
-
+    // below Always noting to do, so we open device every time.
+#if 0
     if (handle->handle && handle->curDev == devices && handle->curMode == mode)
         ; // Nothing to do
     else if (handle->handle && (handle->devices & devices))
@@ -519,7 +520,10 @@ static status_t s_route(alsa_handle_t *handle, uint32_t devices, int mode)
         LOGE("Why are we routing to a device that isn't supported by this object?!?!?!?!");
         status = s_open(handle, devices, mode);
     }
-
+#else
+    setAlsaControls(handle, devices, mode);
+    status = s_open(handle, devices, mode);
+#endif
     return status;
 }
 
