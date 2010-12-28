@@ -41,5 +41,7 @@ ifeq ($(HAVE_FSL_IMX_IPU),true)
 LOCAL_CFLAGS += -DSECOND_DISPLAY_SUPPORT
 endif
 
+LOCAL_MODULE_TAGS := optional
+
 include $(BUILD_SHARED_LIBRARY)
 endif
