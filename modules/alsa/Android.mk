@@ -37,6 +37,8 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
   LOCAL_MODULE:= alsa.$(TARGET_BOARD_PLATFORM)
 
+  LOCAL_MODULE_TAGS := optional
+
   include $(BUILD_SHARED_LIBRARY)
 
 endif
