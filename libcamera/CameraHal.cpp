@@ -2150,12 +2150,23 @@ done:
 
 #endif
 
-extern "C" sp<CameraHardwareInterface> openCameraHardware()
+sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
 {
     LOGD("Opening Freescale Camera HAL\n");
 
     return CameraHal::createInstance();
 }
+
+int HAL_getNumberOfCameras()
+{
+    return 1;
+}
+
+void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
+{
+	return;
+}
+
 
 }; // namespace android
 
