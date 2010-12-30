@@ -36,7 +36,7 @@ LOCAL_SHARED_LIBRARIES:= \
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/binder \
 	frameworks/base/include/ui \
-	frameworks/base/camera/libcameraservice
+	frameworks/base/services/camera/libcameraservice
 
 ifeq ($(BOARD_CAMERA_NV12),true)
     LOCAL_CPPFLAGS += -DRECORDING_FORMAT_NV12
