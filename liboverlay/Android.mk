@@ -56,6 +56,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	libutils \
 	libsurfaceflinger \
+	libsurfaceflinger_client \
+	libbinder \
 	libui
 
 LOCAL_MODULE:= mxc-test-overlays
