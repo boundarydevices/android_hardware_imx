@@ -51,8 +51,16 @@ JPEG_ENC_UINT8 *CameraHal::g_JpegData = NULL;//Buffer to hold jpeg data
 
 wp<CameraHardwareInterface> CameraHal::singleton;
 
+#if defined(CAMERA_SENSOR_OV5642)
+const char CameraHal::supportedPictureSizes [] = "2592x1944,1280x720,720x576,640x480";
+const char CameraHal::supportedPreviewSizes [] = "720x576,640x480,320x240";
+#elif defined(CAMERA_SENSOR_OV5640)
+const char CameraHal::supportedPictureSizes [] = "1920x1080,1280x720,720x576,640x480,320x240";
+const char CameraHal::supportedPreviewSizes [] = "720x576,640x480,320x240";
+#else
 const char CameraHal::supportedPictureSizes [] = "2048x1536,1600x1200,1024x768,640x480";
 const char CameraHal::supportedPreviewSizes [] = "720x576,640x480,320x240";
+#endif
 const char CameraHal::supportedFPS [] = "30,15,10";
 const char CameraHal::supprotedThumbnailSizes []= "0x0,128x128,96x96"; //according to the Gallery thumbnail size
 const char CameraHal::PARAMS_DELIMITER []= ",";
@@ -426,13 +434,34 @@ int CameraHal::cameraTakePicConfig()
 
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     parm.parm.capture.timeperframe.numerator = 1;
-    parm.parm.capture.timeperframe.denominator = 15;
+    parm.parm.capture.timeperframe.denominator = 30;
 #ifndef UVC_CAMERA
-    /* This capturemode value is related to ov3640 driver */
-    if (mPictureWidth > 640 || mPictureHeight > 480)
-        parm.parm.capture.capturemode = 3;  /* QXGA mode */
-    else
+#if defined(CAMERA_SENSOR_OV5642) || defined (CAMERA_SENSOR_OV5640)
+    /* This capturemode value is related to ov5642/ov5640 driver */
+    if (mPictureWidth == 640 && mPictureHeight == 480)
         parm.parm.capture.capturemode = 0;  /* VGA mode */
+    else if (mPictureWidth == 320 && mPictureHeight == 240)
+        parm.parm.capture.capturemode = 1;  /* QVGA mode */
+    else if (mPictureWidth == 720 && mPictureHeight == 576)
+        parm.parm.capture.capturemode = 3;  /* PAL mode */
+    else if (mPictureWidth == 1280 && mPictureHeight == 720)
+        parm.parm.capture.capturemode = 4;  /* 720P mode */
+    else if (mPictureWidth == 1920 && mPictureHeight == 1080)
+        parm.parm.capture.capturemode = 5;  /* 1080P mode */
+    else if (mPictureWidth == 2592 && mPictureHeight == 1944) {
+        parm.parm.capture.timeperframe.denominator = 15; /* Only support 15fps */
+        parm.parm.capture.capturemode = 6;  /* 2592x1944 mode */
+    }
+#else
+    parm.parm.capture.timeperframe.denominator = 15;
+    /* This capturemode value is related to ov3640 driver */
+    if (mPictureWidth == 640 && mPictureHeight == 480)
+        parm.parm.capture.capturemode = 0;  /* VGA mode */
+    else if (mPictureWidth == 1024 && mPictureHeight == 768)
+        parm.parm.capture.capturemode = 2;  /* XGA mode */
+    else if (mPictureWidth == 2048 || mPictureHeight == 1536)
+        parm.parm.capture.capturemode = 3;  /* QXGA mode */
+#endif
 #endif
     if (ioctl(fd_v4l, VIDIOC_S_PARM, &parm) < 0) {
         LOGE("VIDIOC_S_PARM failed\n");
