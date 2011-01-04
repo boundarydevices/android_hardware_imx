@@ -30,7 +30,7 @@ ifeq ($(SIMULATE_SENSOR),true)
 LOCAL_CFLAGS += -DSIMULATE_SENSOR
 endif
 
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
 endif
