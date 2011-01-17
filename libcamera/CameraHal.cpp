@@ -118,7 +118,7 @@ void CameraHal::initDefaultParameters()
 
     p.setPreviewSize(RECORDING_WIDTH_NORMAL, RECORDING_HEIGHT_NORMAL);
     p.setPreviewFrameRate(PREVIEW_FRAMERATE);
-    p.setPreviewFormat("yuv420sp");
+    p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
 
     p.setPictureSize(PICTURE_WIDTH, PICTURE_HEIGHT);
     p.setPictureFormat("jpeg");
@@ -142,7 +142,7 @@ void CameraHal::initDefaultParameters()
     p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, CameraHal::supprotedThumbnailSizes);
 	p.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, "96");
 	p.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, "96");
-
+	p.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, CameraParameters::PIXEL_FORMAT_YUV420SP);
 
     memset(tmpBuffer, '\0', PARAM_BUFFER);
     strncat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_AUTO, PARAM_BUFFER);
