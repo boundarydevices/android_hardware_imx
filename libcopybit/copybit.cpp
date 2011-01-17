@@ -23,8 +23,6 @@
  
 #include <c2d_api.h>
 
-#include <linux/fsl_cache.h>
-
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -276,18 +274,6 @@ static int get_pixelbit(int format) {
     }
 }
 
-/** Invalid cache of the buffer */
-static void Invalid_cache(struct copybit_context_t *dev, copybit_image_t const *img) {
-        int size;
-        struct fsl_cache_addr addr;
-        private_handle_t* hnd = (private_handle_t*)img->handle;
-        struct copybit_context_t* ctx = (struct copybit_context_t*)dev;
-        size = img->h * img->w * (get_pixelbit(img->format)>>3);
-        addr.start = (void *)hnd->base;
-        addr.end = (void *)(hnd->base + size);
-        ioctl(ctx->mCache, FSLCACHE_IOCCLEAN, &addr);
-}
-
 /** do convert of image to c2d surface **/
 static void image_to_surface(copybit_image_t const *img, C2D_SURFACE_DEF *surfaceDef) 
 {
@@ -383,8 +369,6 @@ static int stretch_copybit(
             return -EINVAL;
         }
 
-        Invalid_cache(ctx, src);
-  
         const struct copybit_rect_t bounds = { 0, 0, dst->w, dst->h };
         struct copybit_rect_t clip;
         status = 0;
@@ -511,30 +495,13 @@ static int open_copybit(const struct hw_module_t* module, const char* name,
     ctx->device.stretch = stretch_copybit;
     ctx->mAlpha = MDP_ALPHA_NOP;
     ctx->mFlags |= C2D_ALPHA_BLEND;
-    ctx->mCache = open("/dev/fsl_cache", O_RDWR); 
      
-	status = 0;
-
-    if (ctx->mCache < 0) {
-        status = errno;
-        LOGE("Error opening fsl cache errno=%d (%s)",
-             status, strerror(status));
-        status = -status;        
-    }
-
-    if (status == 0) {
-        C2D_STATUS c2dstatus;        
-        c2dstatus = c2dCreateContext(&ctx->c2dctx);             
-        if (c2dstatus != C2D_STATUS_OK)
-        {
-                close_copybit(&ctx->device.common);
-        }
-        else
-        {
-                *device = &ctx->device.common;            
-        }             
-    } else {
+    C2D_STATUS c2dstatus;
+    c2dstatus = c2dCreateContext(&ctx->c2dctx);
+    if (c2dstatus != C2D_STATUS_OK)
         close_copybit(&ctx->device.common);
-    }
+    else
+        *device = &ctx->device.common;
+
     return status;
 }
