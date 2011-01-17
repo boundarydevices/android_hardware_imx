@@ -316,7 +316,7 @@ static int create_control_shared_data(overlay_control_shared_t **shared)
     p->refCnt = 1;
 
     //Create the sem for control
-    if(sem_init(&p->overlay_sem, 0, 0) != 0){
+    if(sem_init(&p->overlay_sem, 1, 0) != 0){
         OVERLAY_LOG_ERR("Error!init overlay_sem failed");
         munmap(p, size);
         close(fd);
