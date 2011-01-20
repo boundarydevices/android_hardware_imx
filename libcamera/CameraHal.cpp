@@ -58,8 +58,8 @@ const char CameraHal::supportedPreviewSizes [] = "720x576,640x480,320x240";
 const char CameraHal::supportedPictureSizes [] = "1920x1080,1280x720,720x576,640x480,320x240";
 const char CameraHal::supportedPreviewSizes [] = "720x576,640x480,320x240";
 #else
-const char CameraHal::supportedPictureSizes [] = "2048x1536,1600x1200,1024x768,640x480";
-const char CameraHal::supportedPreviewSizes [] = "720x576,640x480,320x240";
+const char CameraHal::supportedPictureSizes [] = "2048x1536,720x576,720x480,640x480,320x240";
+const char CameraHal::supportedPreviewSizes [] = "720x576,720x480,640x480,320x240";
 #endif
 const char CameraHal::supportedFPS [] = "30,15,10";
 const char CameraHal::supprotedThumbnailSizes []= "0x0,128x128,96x96"; //according to the Gallery thumbnail size
@@ -455,11 +455,15 @@ int CameraHal::cameraTakePicConfig()
 #else
     parm.parm.capture.timeperframe.denominator = 15;
     /* This capturemode value is related to ov3640 driver */
-    if (mPictureWidth == 640 && mPictureHeight == 480)
+    if (mPictureWidth == 320 && mPictureHeight == 240)
+        parm.parm.capture.capturemode = 1;  /* QVGA mode */
+	else if (mPictureWidth == 640 && mPictureHeight == 480)
         parm.parm.capture.capturemode = 0;  /* VGA mode */
-    else if (mPictureWidth == 1024 && mPictureHeight == 768)
-        parm.parm.capture.capturemode = 2;  /* XGA mode */
-    else if (mPictureWidth == 2048 || mPictureHeight == 1536)
+    else if (mPictureWidth == 720 && mPictureHeight == 480)
+        parm.parm.capture.capturemode = 4;
+	else if (mPictureWidth == 720 && mPictureHeight == 576)
+        parm.parm.capture.capturemode = 5;
+	else if (mPictureWidth == 2048 || mPictureHeight == 1536)
         parm.parm.capture.capturemode = 3;  /* QXGA mode */
 #endif
 #endif
