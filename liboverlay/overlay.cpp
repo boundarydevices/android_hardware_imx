@@ -839,12 +839,6 @@ static int overlay_init_v4l(struct overlay_control_context_t *dev)
                 return -1;
             }
 
-			//reset the v4l input buffer
-			for (int i = 0; i < (dev->xres * dev->yres); i ++){
-				vir_addr[2*i] = 0;
-				vir_addr[2*i + 1] = 0x80;
-				}
-
             dev->v4lbuf_addr[buf_index] = vir_addr;
             //v4l already init this buffer to black
             //fill the v4l to black;
