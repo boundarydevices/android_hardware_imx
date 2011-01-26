@@ -383,7 +383,10 @@ class OverlayThread: public Thread {
             }
 
             //Mixer the first buffer from overlay instance0 to V4L2 Buffer
-            if(overlay_buf0) {
+            if(overlay_buf0 && (overlayObj0->outX != 0  ||
+                     overlayObj0->outY != 0  ||
+                     overlayObj0->outW != 0  ||
+                     overlayObj0->outH != 0)) {
                 //Setting input format
                 mIPUInputParam.width = overlayObj0->mHandle.width;
                 mIPUInputParam.height = overlayObj0->mHandle.height;
@@ -456,7 +459,10 @@ class OverlayThread: public Thread {
 
             //Check whether we need to do another mixer, based on
             //buffers in overlay instance1's buffer queue
-            if(overlay_buf1) {
+            if(overlay_buf1 && (overlayObj1->outX != 0  ||
+                     overlayObj1->outY != 0  ||
+                     overlayObj1->outW != 0  ||
+                     overlayObj1->outH != 0)) {
                 //Setting input format
                 mIPUInputParam.width = overlayObj1->mHandle.width;
                 mIPUInputParam.height = overlayObj1->mHandle.height;
