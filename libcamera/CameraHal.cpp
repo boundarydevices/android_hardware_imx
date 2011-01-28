@@ -1,8 +1,4 @@
 /*
- *   Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
- */
-
-/*
  * Copyright (C) Texas Instruments - http://www.ti.com/
  *
  * This library is free software; you can redistribute it and/or
@@ -21,6 +17,11 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+/*
+ *   Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ */
+
 /**
 * @file CameraHal.cpp
 *
