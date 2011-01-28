@@ -1,3 +1,5 @@
+/* Copyright (c) 2011 Freescale Semiconductor Inc. */
+
 #define LOG_TAG "Sensor"
 
 #include <hardware/hardware.h>
