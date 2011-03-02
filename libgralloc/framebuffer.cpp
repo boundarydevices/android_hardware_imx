@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+/* Copyright 2010-2011 Freescale Semiconductor Inc. */
+
 #include <sys/mman.h>
 
 #include <dlfcn.h>
@@ -86,6 +88,7 @@ struct fb_context_t {
     int sec_disp_next_buf;
     struct fb_var_screeninfo sec_info;
     struct fb_fix_screeninfo sec_finfo;
+    int sec_rotation;
 #endif
 };
 
@@ -289,6 +292,18 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
         return -EINVAL;
     return 0;
 }
+
+#ifdef SECOND_DISPLAY_SUPPORT
+static int fb_setSecRotation(struct framebuffer_device_t* dev,int secRotation)
+{
+    fb_context_t* ctx = (fb_context_t*)dev;
+    //LOGI("fb_setSecRotation %d",secRotation);
+    if((ctx->sec_rotation != secRotation)&&(ctx->sec_disp_base != 0))      
+       memset((void *)ctx->sec_disp_base, 0, ctx->sec_frame_size*NUM_BUFFERS);
+    ctx->sec_rotation = secRotation;
+    return 0;
+}
+#endif
 #endif
 
 
@@ -358,6 +373,10 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                 LOGI("Switch back to display 0");
                 LOGI("sys.SECOND_DISPLAY_ENABLED Set to 0");
                 property_set("sys.SECOND_DISPLAY_ENABLED", "0");
+                memset((void *)ctx->sec_disp_base, 0, ctx->sec_frame_size*NUM_BUFFERS);
+                //unmap the sec_disp_base
+                munmap((void *)ctx->sec_disp_base, ctx->sec_frame_size*NUM_BUFFERS);
+                ctx->sec_disp_base = 0;
                 //DeInit the second display
                 if(ctx->sec_fp) {
                     int fp_property = open("/sys/class/graphics/fb1/fsl_disp_property",O_RDWR, 0); 
@@ -1000,22 +1019,39 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
     sIPUOutputParam.output_win.pos.y = 0;
     sIPUOutputParam.output_win.win_w = ctx->sec_disp_w;
     sIPUOutputParam.output_win.win_h = ctx->sec_disp_h;
-
-    if((ctx->sec_disp_w > MAX_SEC_DISP_WIDTH)||
-       (ctx->sec_disp_h > MAX_SEC_DISP_HEIGHT)) {
-        sIPUOutputParam.output_win.win_w = MAX_SEC_DISP_WIDTH;
-        if(ctx->sec_disp_h > MAX_SEC_DISP_HEIGHT) {
-            sIPUOutputParam.output_win.win_h = ((ctx->sec_disp_h*MAX_SEC_DISP_WIDTH/ctx->sec_disp_w)>>3)<<3;
+    
+    int output_w = 0;
+    int output_h = 0;
+    //Make sure the output w/h proportion is align with the primary display
+    if((ctx->sec_rotation == 0x0)||(ctx->sec_rotation == 0x3))
+    {
+        if(ctx->sec_disp_w/ctx->sec_disp_h >= ctx->device.width/ctx->device.height){
+            sIPUOutputParam.output_win.win_h = ctx->sec_disp_h > MAX_SEC_DISP_HEIGHT?MAX_SEC_DISP_HEIGHT:ctx->sec_disp_h;
+            sIPUOutputParam.output_win.win_w = ctx->sec_disp_h*ctx->device.width/ctx->device.height;
         }
         else{
-            sIPUOutputParam.output_win.win_h = ctx->sec_disp_h;
-        }
-        if(sIPUOutputParam.output_win.win_w < ctx->sec_disp_w) {
-            sIPUOutputParam.output_win.pos.x = (ctx->sec_disp_w - sIPUOutputParam.output_win.win_w)/2;
+            sIPUOutputParam.output_win.win_w = ctx->sec_disp_w > MAX_SEC_DISP_WIDTH?MAX_SEC_DISP_WIDTH:ctx->sec_disp_w;
+            sIPUOutputParam.output_win.win_h = ctx->sec_disp_w*ctx->device.height/ctx->device.width;
         }
     }
+    else{
+        if(ctx->sec_disp_w/ctx->sec_disp_h >= ctx->device.height/ctx->device.width){
+            sIPUOutputParam.output_win.win_h = ctx->sec_disp_h > MAX_SEC_DISP_HEIGHT?MAX_SEC_DISP_HEIGHT:ctx->sec_disp_h;
+            sIPUOutputParam.output_win.win_w = ctx->sec_disp_h*ctx->device.height/ctx->device.width;
+        }
+        else{
+            sIPUOutputParam.output_win.win_w = ctx->sec_disp_w > MAX_SEC_DISP_WIDTH?MAX_SEC_DISP_WIDTH:ctx->sec_disp_w;
+            sIPUOutputParam.output_win.win_h = ctx->sec_disp_w*ctx->device.width/ctx->device.height;
+        }
+    }
+    sIPUOutputParam.output_win.pos.x = (ctx->sec_disp_w - sIPUOutputParam.output_win.win_w)/2;
+    sIPUOutputParam.output_win.pos.y = (ctx->sec_disp_h - sIPUOutputParam.output_win.win_h)/2;
 
-    sIPUOutputParam.rot = 0;
+
+    //sIPUOutputParam.rot = 0;
+    sIPUOutputParam.rot = ctx->sec_rotation;
+    //LOGI("Sec Rotation %d",ctx->sec_rotation);
+
     sIPUOutputParam.user_def_paddr[0] = ctx->sec_disp_phys + ctx->sec_disp_next_buf*ctx->sec_frame_size;
     //LOGI("Output param: width %d,height %d, pos.x %d, pos.y %d,win_w %d,win_h %d,rot %d",
     //sIPUOutputParam.width,
@@ -1092,6 +1128,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.setUpdateRect = fb_setUpdateRect;
         #endif
         dev->device.compositionComplete = fb_compositionComplete;
+        #ifdef SECOND_DISPLAY_SUPPORT
+        dev->device.setSecRotation = fb_setSecRotation;
+        #endif
 
         private_module_t* m = (private_module_t*)module;
         status = mapFrameBuffer(m);
