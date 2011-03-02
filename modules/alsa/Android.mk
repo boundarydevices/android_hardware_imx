@@ -33,7 +33,8 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   LOCAL_SHARED_LIBRARIES := \
 	libaudio \
   	libasound \
-  	liblog
+  	liblog   \
+    libcutils
 
   LOCAL_MODULE:= alsa.$(TARGET_BOARD_PLATFORM)
 
