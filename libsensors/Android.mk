@@ -15,28 +15,36 @@
 ifeq ($(BOARD_HAS_SENSOR),true)
 LOCAL_PATH := $(call my-dir)
 
-# HAL module implemenation, not prelinked and stored in
-# hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
+ifneq ($(TARGET_SIMULATOR),true)
+
+# HAL module implemenation, not prelinked, and stored in
+# hw/<SENSORS_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog
+LOCAL_MODULE := sensors.$(TARGET_BOARD_PLATFORM)
+LOCAL_MODULE_TAGS := eng
 
+LOCAL_CFLAGS := -DLOG_TAG=\"Sensors\"
 ifeq ($(SENSOR_MMA8451),true)
-LOCAL_SRC_FILES := mma8451.cpp
+LOCAL_CPPFLAGS += -DACCELEROMETER_SENSOR_MMA8451
 else
- ifeq ($(SENSOR_MMA7450),true)
- LOCAL_SRC_FILES := mma7450.cpp
- else
- LOCAL_SRC_FILES := fakesensor.cpp
+ ifeq ($(SENSOR_MMA8450),true)
+ LOCAL_CPPFLAGS += -DACCELEROMETER_SENSOR_MMA8450
  endif
 endif
 
-LOCAL_MODULE := sensors.$(TARGET_BOARD_PLATFORM)
+LOCAL_SRC_FILES := 						\
+				sensors.cpp 			\
+				SensorBase.cpp			\
+				LightSensor.cpp			\
+				AccelSensor.cpp                   \
+                                InputEventReader.cpp
 
-LOCAL_SHARED_LIBRARIES += libutils libcutils
-
-LOCAL_MODULE_TAGS := eng
+LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
 
 include $(BUILD_SHARED_LIBRARY)
-endif
+
+endif # !TARGET_SIMULATOR
+
+endif #
