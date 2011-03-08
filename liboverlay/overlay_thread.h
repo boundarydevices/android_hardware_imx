@@ -18,6 +18,7 @@
 
 #include <utils/threads.h>
 
+
 class OverlayThread: public Thread {
     struct overlay_control_context_t *m_dev;
     struct v4l2_buffer mLatestQueuedBuf;
@@ -25,6 +26,10 @@ class OverlayThread: public Thread {
     ipu_lib_output_param_t mIPUOutputParam; 
     ipu_lib_handle_t            mIPUHandle;
     int mIPURet;
+	unsigned int ClearBufMask;
+	unsigned int DisplayChanged;
+	unsigned int DisplayBufMask;
+
     public:
     OverlayThread(struct overlay_control_context_t *dev)
         : Thread(false),m_dev(dev){
@@ -32,6 +37,9 @@ class OverlayThread: public Thread {
         memset(&mIPUOutputParam,0,sizeof(mIPUOutputParam));
         memset(&mIPUHandle,0,sizeof(mIPUHandle));
         memset(&mLatestQueuedBuf,0,sizeof(mLatestQueuedBuf));
+		ClearBufMask = 0;
+		DisplayBufMask =0;
+		DisplayChanged = 0;
     }
 
     virtual void onFirstRef() {
@@ -267,7 +275,10 @@ class OverlayThread: public Thread {
                       
             //Check whether refill the origin area to black
             if(outchange0||outchange1) {
-                OVERLAY_LOG_RUNTIME("Mixer thread refill the origin area to black");
+				DisplayChanged = 1;
+				ClearBufMask |= DisplayBufMask;
+				DisplayBufMask = 0;
+                OVERLAY_LOG_INFO("Mixer thread refill the origin area to black");
             }
 
             //Check whether need copy back the latest frame to current frame
@@ -301,6 +312,18 @@ class OverlayThread: public Thread {
                 pV4LBuf = &v4lbuf;
             }
 
+            {	//record the displayed mask
+                unsigned int CurBufMask = 1 << (pV4LBuf->index);
+                DisplayBufMask |= CurBufMask;
+                if(DisplayChanged == 1){
+                    if ((ClearBufMask & CurBufMask) != 0){
+                        fill_frame_back(m_dev->v4lbuf_addr[pV4LBuf->index], pV4LBuf->length, m_dev->xres, m_dev->yres, m_dev->outpixelformat);
+                        ClearBufMask &= ~CurBufMask;
+                    }
+                    if (ClearBufMask == 0)
+                        DisplayChanged = 0;
+                }
+            }
 
             OVERLAY_LOG_RUNTIME("DQBUF from v4l 0x%x:index %d, vir 0x%x, phy 0x%x, len %d",
                                 pV4LBuf,pV4LBuf->index,m_dev->v4lbuf_addr[pV4LBuf->index],
