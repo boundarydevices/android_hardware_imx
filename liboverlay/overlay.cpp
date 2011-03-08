@@ -50,6 +50,9 @@ static int bits_per_pixel(int32_t format);
 
 using namespace android;
 
+int fill_frame_back(char * frame,int frame_size, int xres, int yres, unsigned int pixelformat);
+
+
 /*****************************************************************************/
 class OverlayThread;
 class overlay_object;
@@ -271,14 +274,13 @@ public:
 
 #include "overlay_thread.h"
 
+
 /*
 *   Fill the rgb alpha buffer with alpha_val
 */
 static int fill_alpha_buffer(void *alpha_buf, int buf_w,
                              WIN_REGION *fill_region,char alpha_val);
 
-static int fill_frame_back(char * frame, int xres,
-                           int yres, unsigned int pixelformat);
 
 static int overlay_init_fbdev(struct overlay_control_context_t *dev);
 
@@ -556,7 +558,7 @@ static int fill_alpha_buffer(void *alpha_buf, int buf_w,
 }
 
 //pixelformat format for v4l2 setting
-static int fill_frame_back(char * frame,int frame_size, int xres,
+int fill_frame_back(char * frame,int frame_size, int xres,
                            int yres, unsigned int pixelformat)
 {
     int ret = 0;
@@ -1515,7 +1517,8 @@ int overlay_data_queueBuffer(struct overlay_data_device_t *dev,
 
 
     //Insert buffer to display buffer queue
-    if(data_shared->queued_count >= ctx->queue_threshold) {
+    if(data_shared->queued_count >= ctx->queue_threshold ||
+        ((data_shared->queued_count == (ctx->queue_threshold-1))&&(data_shared->buf_mixing == true))) {
         //Wait a buffer be mixered
         data_shared->wait_buf_flag = 1;
         //post sempore to notify mixer thread, give mixer thread a chance to free a buffer
