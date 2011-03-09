@@ -127,6 +127,10 @@ int LightSensor::setIntLux()
     lux = atoi(buf);
     int_ht_lux = lux + mThresholdLux;
     int_lt_lux = lux - mThresholdLux;
+
+    if (int_lt_lux < 0)
+	    int_lt_lux = 0;
+
     DEBUG("Current light is %d lux\n", lux);
 
     /* Set low lux and high interrupt lux for polling */
