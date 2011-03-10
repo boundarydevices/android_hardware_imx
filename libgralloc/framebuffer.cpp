@@ -144,7 +144,6 @@ static void update_to_display(int left, int top, int width, int height, int upda
 	int retval;
 	bool wait_for_complete;
 	int auto_update_mode = AUTO_UPDATE_MODE_REGION_MODE;
-	bool invertenable=false;
 	memset(&upd_data, 0, sizeof(mxcfb_update_data));
 
     LOGI("update_to_display:left=%d, top=%d, width=%d, height=%d updatemode=%d\n", left, top, width, height,updatemode);
@@ -182,24 +181,10 @@ static void update_to_display(int left, int top, int width, int height, int upda
     else 
         LOGI("wait_for_complete  wrong\n");
 
-    struct fb_var_screeninfo info;
-    if (ioctl(fb_dev, FBIOGET_VSCREENINFO, &info) == -1)
-        LOGE("Error!FBIOGET_VSCREENINFO failed");
-        
-    if((updatemode & EINK_INVERT_MODE_MASK) == EINK_INVERT_MODE_NOINVERT)
-    {
-	   info.grayscale = 0;
-	   invertenable = false;
-	}
-	else if((updatemode & EINK_INVERT_MODE_MASK) == EINK_INVERT_MODE_INVERT)
+    if((updatemode & EINK_INVERT_MODE_MASK) == EINK_INVERT_MODE_INVERT)
 	{
-	   info.grayscale = 2;
-	   invertenable   = true;
-    }
-    else
-        LOGI("invert mode wrong\n");
-    if (ioctl(fb_dev, FBIOPUT_VSCREENINFO, &info) == -1) {
-        LOGE("Error!FBIOPUT_VSCREENINFO failed");
+	   upd_data.flags |= EPDC_FLAG_ENABLE_INVERSION;
+       LOGI("invert mode \n");
     }
 
 	retval = ioctl(fb_dev, MXCFB_SET_AUTO_UPDATE_MODE, &auto_update_mode);
@@ -237,13 +222,7 @@ static void update_to_display(int left, int top, int width, int height, int upda
 		}
 	}
 
-	if(invertenable)
-	{
-	   info.grayscale = 0;
-        if (ioctl(fb_dev, FBIOPUT_VSCREENINFO, &info) == -1) {
-            LOGE("Error!FBIOPUT_VSCREENINFO failed");
-        }
-    }
+
 }
 #endif
 
@@ -670,7 +649,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
 		return -errno;
 	}
 	
-	int scheme_mode = UPDATE_SCHEME_SNAPSHOT;
+	int scheme_mode = UPDATE_SCHEME_QUEUE_AND_MERGE;
 	retval = ioctl(fd, MXCFB_SET_UPDATE_SCHEME, &scheme_mode);
 	if (retval < 0)
 	{
