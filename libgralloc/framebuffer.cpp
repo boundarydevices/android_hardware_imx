@@ -135,7 +135,7 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx);
 #define EINK_CONVERT_MODE_CONVERT    0x00000400
 #define EINK_CONVERT_MODE_MASK       0x00000400
 
-#define EINK_DEFAULT_MODE            0x00000044
+#define EINK_DEFAULT_MODE            0x00000004
 
 __u32 marker_val = 1;
 static void update_to_display(int left, int top, int width, int height, int updatemode, int fb_dev)
