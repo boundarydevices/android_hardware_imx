@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ */
+
 #ifndef __CAMERA_MEM__H__
 #define __CAMERA_MEM__H__
 
