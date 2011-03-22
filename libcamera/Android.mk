@@ -17,10 +17,18 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES:=               \
-    CameraHal.cpp
+LOCAL_SRC_FILES:=    \
+	CameraHal.cpp    \
+    Camera_pmem.cpp  \
+	CaptureDeviceInterface.cpp \
+	V4l2CsiDevice.cpp \
+	V4l2CapDeviceBase.cpp  \
+	PostProcessDeviceInterface.cpp \
+	PP_ipulib.cpp    \
+	JpegEncoderInterface.cpp \
+    JpegEncoderSoftware.cpp
 
-LOCAL_CPPFLAGS += -DUSE_FSL_JPEG_ENC -DDUMP_CAPTURE_YUVxx -DCAPTURE_ONLY_TESTxx
+LOCAL_CPPFLAGS +=
 
 LOCAL_SHARED_LIBRARIES:= \
     libcamera_client \
@@ -31,36 +39,27 @@ LOCAL_SHARED_LIBRARIES:= \
     libmedia \
     libhardware_legacy \
     libdl \
-    libc
+    libc \
+	libipu
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/binder \
 	frameworks/base/include/ui \
-	frameworks/base/services/camera/libcameraservice
+	frameworks/base/camera/libcameraservice \
+	external/linux-lib/ipu
 
+ifeq ($(HAVE_FSL_IMX_CODEC),true)
+    LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux
+    LOCAL_CPPFLAGS += -DUSE_FSL_JPEG_ENC
+    LOCAL_C_INCLUDES +=	\
+					external/fsl_imx_codec/fsl_mad_multimedia_codec/ghdr \
+					device/fsl/proprietary/codec/ghdr
+endif
 ifeq ($(BOARD_CAMERA_NV12),true)
     LOCAL_CPPFLAGS += -DRECORDING_FORMAT_NV12
 else
     LOCAL_CPPFLAGS += -DRECORDING_FORMAT_YUV420
 endif
-
-ifeq ($(BOARD_CAMERA_SENSOR_TYPE),OV5642)
-    LOCAL_CFLAGS += -DCAMERA_SENSOR_OV5642
-else
-  ifeq ($(BOARD_CAMERA_SENSOR_TYPE),OV5640)
-    LOCAL_CFLAGS += -DCAMERA_SENSOR_OV5640
-  else
-    LOCAL_CFLAGS += -DCAMERA_SENSOR_OV3640
-  endif
-endif
-
-ifeq ($(HAVE_FSL_IMX_CODEC),true)
-LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux
-LOCAL_CPPFLAGS += -DUSE_FSL_JPEG_ENC -DDUMP_CAPTURE_YUVxx
-LOCAL_C_INCLUDES +=	\
-	external/fsl_imx_codec/fsl_mad_multimedia_codec/ghdr \
-	device/fsl/proprietary/codec/ghdr
-endif	
 	
 LOCAL_MODULE:= libcamera
 

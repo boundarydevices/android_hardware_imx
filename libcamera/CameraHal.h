@@ -1,30 +1,26 @@
 /*
- * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2008 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 /*
- * Copyright (C) Texas Instruments - http://www.ti.com/
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 
-#ifndef ANDROID_HARDWARE_CAMERA_HARDWARE_H
-#define ANDROID_HARDWARE_CAMERA_HARDWARE_H
+#ifndef CAMERA_HAL_BASE_H
+#define CAMERA_HAL_BASE_H
 
 #include <string.h>
 #include <unistd.h>
@@ -33,264 +29,334 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/time.h>
-#include <linux/videodev2.h>
-#include <linux/mxcfb.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <utils/Log.h>
 #include <utils/threads.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
 #include <camera/CameraHardwareInterface.h>
 #include <ui/Overlay.h>
-#include <dirent.h>
-
 #include <semaphore.h>
 
+#include "Camera_pmem.h"
+#include "CaptureDeviceInterface.h"
+#include "PostProcessDeviceInterface.h"
+#include "JpegEncoderInterface.h"
 
-#define FB_DEVICE               "/dev/graphics/fb0"
-#define MIN_WIDTH               176
-#define MIN_HEIGHT              144
-
-#define PREVIEW_FRAMERATE       30
-#define PICTURE_WIDTH           640     //default picture width
-#define PICTURE_HEIGHT          480     //default picture height
-
-#define RECORDING_WIDTH_NORMAL  352    //default recording width
-#define RECORDING_HEIGHT_NORMAL 288     //default recording height
-
-#define CAPTURE_BUFFER_NUM      3
-#define VIDEO_OUTPUT_BUFFER_NUM	3
 
 #define EXIF_MAKENOTE "fsl_makernote"
 #define EXIF_MODEL    "fsl_model"
 
-#define LOG_FUNCTION_NAME       LOGD("%d: %s() Executing...", __LINE__, __FUNCTION__);
+#define CAMER_PARAM_BUFFER_SIZE 512
+#define MAX_QUERY_FMT_TIMES 20
+#define PARAMS_DELIMITER ","
+#define V4LSTREAM_WAKE_LOCK "V4LCapture"
 
-//#define UVC_CAMERA              1
+#define PREVIEW_HEAP_BUF_NUM    5
+#define VIDEO_OUTPUT_BUFFER_NUM 5
+#define POST_PROCESS_BUFFER_NUM 5
+#define TAKE_PIC_QUE_BUF_NUM 5
 
-#define PARAM_BUFFER 		512
-#define FILENAME_LENGTH		256
-
-#ifdef USE_FSL_JPEG_ENC
-#include "jpeg_enc_interface.h" 
-#endif
-#include "CannedJpeg.h"
-
-struct picbuffer
-{
-    unsigned char *virt_start;
-    size_t phy_offset;
-    unsigned int length;
-};
+#define PREVIEW_CAPTURE_BUFFER_NUM 5
+#define PICTURE_CAPTURE_BUFFER_NUM 3
 
 namespace android {
-class CameraHal : public CameraHardwareInterface {
-public:
-    virtual sp<IMemoryHeap> getPreviewHeap() const;
-    virtual sp<IMemoryHeap> getRawHeap() const;
 
-    virtual void        setCallbacks(notify_callback notify_cb,
-                                     data_callback data_cb,
-                                     data_callback_timestamp data_cb_timestamp,
-                                     void* user);
+    typedef enum{
+        CAMERA_HAL_ERR_NONE = 0,
+        CAMERA_HAL_ERR_OPEN_CAPTURE_DEVICE = -1,
+        CAMERA_HAL_ERR_GET_PARAM           = -2,
+        CAMERA_HAL_ERR_BAD_PARAM =-3,
+        CAMERA_HAL_ERR_BAD_ALREADY_RUN = -4,
+        CAMERA_HAL_ERR_INIT = -5,
+        CAMERA_HAL_ERR_ALLOC_BUF =-6,
+        CAMERA_HAL_ERR_PP_NULL = -7
+    }CAMERA_HAL_ERR_RET;
 
-    virtual void        enableMsgType(int32_t msgType);
-    virtual void        disableMsgType(int32_t msgType);
-    virtual bool        msgTypeEnabled(int32_t msgType);
-
-    virtual bool        useOverlay() { return true; }
-    virtual status_t    setOverlay(const sp<Overlay> &overlay);
-
-    virtual status_t    startPreview();
-    virtual void        stopPreview();
-    virtual bool        previewEnabled();
-
-    virtual status_t    startRecording();
-    virtual void        stopRecording();
-    virtual bool        recordingEnabled();
-    virtual void        releaseRecordingFrame(const sp<IMemory>& mem);
-
-    virtual status_t    autoFocus();
-    virtual status_t    cancelAutoFocus();
-    virtual status_t    takePicture();
-    virtual status_t    cancelPicture();
-    virtual status_t    dump(int fd, const Vector<String16>& args) const;
-    virtual status_t    setParameters(const CameraParameters& params);
-    virtual CameraParameters  getParameters() const;
-    virtual status_t    sendCommand(int32_t command, int32_t arg1,
-                                    int32_t arg2);
-    virtual void release();
-
-    static sp<CameraHardwareInterface> createInstance();
-    
-#ifdef USE_FSL_JPEG_ENC   
-    static JPEG_ENC_UINT8 pushJpegOutput(JPEG_ENC_UINT8 ** out_buf_ptrptr,
-                                            JPEG_ENC_UINT32 *out_buf_len_ptr,
-                                            JPEG_ENC_UINT8 flush, 
-                                            void * context, 
-                                            JPEG_ENC_MODE enc_mode);
-    void createJpegExifTags(jpeg_enc_object * obj_ptr);
-#endif
-
-private:
-                        CameraHal();
-    virtual             ~CameraHal();
-
-    static wp<CameraHardwareInterface> singleton;
-
-    class PreviewShowFrameThread : public Thread {
-        CameraHal* mHardware;
+    class CameraHal : public CameraHardwareInterface {
     public:
-        PreviewShowFrameThread(CameraHal* hw)
-            : Thread(false), mHardware(hw) { }
-        virtual void onFirstRef() {
-            run("CameraPreviewShowFrameThread", PRIORITY_URGENT_DISPLAY);
-        }
-        virtual bool threadLoop() {
-            mHardware->previewShowFrameThread();
-            // loop until we need to quit
-            return true;
-        }
+        virtual sp<IMemoryHeap> getPreviewHeap() const;
+        virtual sp<IMemoryHeap> getRawHeap() const;
+
+        virtual void        setCallbacks(notify_callback notify_cb,
+                data_callback data_cb,
+                data_callback_timestamp data_cb_timestamp,
+                void* user);
+
+        virtual void        enableMsgType(int32_t msgType);
+        virtual void        disableMsgType(int32_t msgType);
+        virtual bool        msgTypeEnabled(int32_t msgType);
+
+        virtual bool        useOverlay() { return true; }
+        virtual status_t    setOverlay(const sp<Overlay> &overlay);
+
+        virtual status_t    startPreview();
+        virtual void        stopPreview();
+        virtual bool        previewEnabled();
+
+        virtual status_t    startRecording();
+        virtual void        stopRecording();
+        virtual bool        recordingEnabled();
+        virtual void        releaseRecordingFrame(const sp<IMemory>& mem);
+
+        virtual status_t    autoFocus();
+        virtual status_t    cancelAutoFocus();
+        virtual status_t    takePicture();
+        virtual status_t    cancelPicture();
+        virtual status_t    dump(int fd, const Vector<String16>& args) const;
+        virtual status_t    setParameters(const CameraParameters& params);
+        virtual CameraParameters  getParameters() const;
+        virtual status_t    sendCommand(int32_t command, int32_t arg1,
+                int32_t arg2);
+        virtual void release();
+
+        CAMERA_HAL_ERR_RET setCaptureDevice(sp<CaptureDeviceInterface> capturedevice);
+        CAMERA_HAL_ERR_RET setPostProcessDevice(sp<PostProcessDeviceInterface> postprocessdevice);
+        CAMERA_HAL_ERR_RET setJpegEncoder(sp<JpegEncoderInterface>jpegencoder);
+        CAMERA_HAL_ERR_RET  Init();
+
+        CameraHal();
+        virtual             ~CameraHal();
+
+    private:
+
+        class CaptureFrameThread : public Thread {
+            CameraHal* mHardware;
+        public:
+            CaptureFrameThread(CameraHal* hw)
+                : Thread(false), mHardware(hw) { }
+            virtual void onFirstRef() {
+                run("CaptureFrameThread", PRIORITY_URGENT_DISPLAY);
+            }
+            virtual bool threadLoop() {
+                mHardware->captureframeThread();
+                return true;
+            }
+        };
+
+        class PostProcessThread : public Thread {
+            CameraHal* mHardware;
+        public:
+            PostProcessThread(CameraHal* hw)
+                : Thread(false), mHardware(hw) { }
+            virtual void onFirstRef() {
+                run("PostProcessThread", PRIORITY_URGENT_DISPLAY);
+            }
+            virtual bool threadLoop() {
+                mHardware->postprocessThread();
+                return true;
+            }
+        };
+
+
+        class PreviewShowFrameThread : public Thread {
+            CameraHal* mHardware;
+        public:
+            PreviewShowFrameThread(CameraHal* hw)
+                : Thread(false), mHardware(hw) { }
+            virtual void onFirstRef() {
+                run("CameraPreviewShowFrameThread", PRIORITY_URGENT_DISPLAY);
+            }
+            virtual bool threadLoop() {
+                mHardware->previewshowFrameThread();
+                return true;
+            }
+        };
+
+        class EncodeFrameThread : public Thread {
+            CameraHal* mHardware;
+        public:
+            EncodeFrameThread(CameraHal* hw)
+                : Thread(false), mHardware(hw) { }
+            virtual void onFirstRef() {
+                run("EncodeFrameThread", PRIORITY_URGENT_DISPLAY);
+            }
+            virtual bool threadLoop() {
+                mHardware->encodeframeThread();
+                return true;
+            }
+        };
+
+        class AutoFocusThread : public Thread {
+            CameraHal* mHardware;
+        public:
+            AutoFocusThread(CameraHal* hw)
+                : Thread(false), mHardware(hw) { }
+            virtual void onFirstRef() {
+                run("AutoFocusThread", PRIORITY_URGENT_DISPLAY);
+            }
+            virtual bool threadLoop() {
+                if (mHardware->autoFocusThread()>=0)
+                    return true;
+                else
+                    return false;
+            }
+        };
+
+
+        class TakePicThread : public Thread {
+            CameraHal* mHardware;
+        public:
+            TakePicThread(CameraHal* hw)
+                : Thread(false), mHardware(hw) { }
+            virtual void onFirstRef() {
+                run("TakePicThread", PRIORITY_URGENT_DISPLAY);
+            }
+            virtual bool threadLoop() {
+                if (mHardware->takepicThread()>=0)
+                    return true;
+                else
+                    return false;
+            }
+        };
+
+        void preInit();
+        void postDestroy();
+
+        status_t OpenCaptureDevice();
+        void CloseCaptureDevice();
+
+        CAMERA_HAL_ERR_RET AolLocForInterBuf();
+        void  FreeInterBuf();
+        CAMERA_HAL_ERR_RET InitCameraHalParam();
+        CAMERA_HAL_ERR_RET GetCameraBaseParam(CameraParameters *pParam);
+        CAMERA_HAL_ERR_RET GetPictureExifParam(CameraParameters *pParam);
+        CAMERA_HAL_ERR_RET CameraMiscInit();
+        CAMERA_HAL_ERR_RET CameraMiscDeInit();
+        status_t CameraHALPreviewStart();
+        int captureframeThread();
+        int postprocessThread();
+        int previewshowFrameThread();
+        int encodeframeThread();
+        status_t AllocateRecordVideoBuf();
+
+        status_t CameraHALStartPreview();
+        void     CameraHALStopPreview();
+
+        status_t PreparePreviwBuf();
+        status_t PrepareCaptureDevices();
+        status_t PreparePostProssDevice();
+        status_t PreparePreviwMisc();
+
+        void CameraHALStopThreads();
+        void LockWakeLock();
+
+        void UnLockWakeLock();
+
+        int autoFocusThread();
+        int takepicThread();
+
+        int GetJpegEncoderParam();
+        int NegotiateCaptureFmt(bool TakePicFlag);
+        int cameraHALTakePicture();
+        void CameraHALStopMisc();
+        int PrepareJpegEncoder();
+        void convertNV12toYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
+
+        int stringTodegree(char* cAttribute, unsigned int &degree, unsigned int &minute, unsigned int &second);
+
+        CameraParameters    mParameters;
+        void               *mCallbackCookie;
+        notify_callback    mNotifyCb;
+        data_callback      mDataCb;
+        data_callback_timestamp mDataCbTimestamp;
+
+        sp<CaptureDeviceInterface> mCaptureDevice;
+        sp<PostProcessDeviceInterface> mPPDevice;
+        sp<JpegEncoderInterface> mJpegEncoder;
+
+
+        sp<CaptureFrameThread> mCaptureFrameThread;
+        sp<PostProcessThread>  mPostProcessThread;
+        sp<PreviewShowFrameThread> mPreviewShowFrameThread;
+        sp<EncodeFrameThread> mEncodeFrameThread;
+        sp<AutoFocusThread>mAutoFocusThread;
+        sp<TakePicThread> mTakePicThread;
+
+        mutable Mutex       mLock;
+
+        char *supportedPictureSizes;
+        char *supportedPreviewSizes;
+        char *supportedFPS;
+        char *supprotedThumbnailSizes;
+
+        sp<Overlay>         mOverlay;
+        unsigned int        mMsgEnabled;
+
+        struct capture_config_t mCaptureDeviceCfg;
+        DMA_BUFFER          mCaptureBuffers[PREVIEW_CAPTURE_BUFFER_NUM];
+
+        sp<MemoryHeapBase>  mPreviewHeap;
+        sp<MemoryBase>      mPreviewBuffers[PREVIEW_HEAP_BUF_NUM]; 
+
+        /* the buffer for recorder */
+        unsigned int        mVideoBufNume;
+        sp<MemoryHeapBase>  mVideoHeap;
+        sp<MemoryBase>      mVideoBuffers[VIDEO_OUTPUT_BUFFER_NUM];
+        volatile  int       mVideoBufferUsing[VIDEO_OUTPUT_BUFFER_NUM];
+
+
+        sp<PmemAllocator>   mPmemAllocator;
+        DMA_BUFFER          mPPbuf[POST_PROCESS_BUFFER_NUM];
+        unsigned int        mPPbufNum;
+        pp_input_param_t    mPPInputParam;
+        pp_output_param_t   mPPOutputParam;
+
+        volatile bool       mPreviewRunning;
+        unsigned int        mPreviewFormat;
+        unsigned int 		mPreviewFrameSize;
+        unsigned int        mPreviewCapturedFormat;
+
+        bool                mTakePicFlag;
+        unsigned int        mEncoderSupportedFormat[MAX_QUERY_FMT_TIMES];
+        enc_cfg_param       mJpegEncCfg;
+
+
+        unsigned int        mUvcSpecialCaptureFormat;
+        unsigned int        mCaptureSupportedFormat[MAX_QUERY_FMT_TIMES];
+        unsigned int        mPictureCapturedFormat;
+        unsigned int        mCaptureFrameSize;
+        unsigned int        mCaptureBufNum;
+        bool                mRecordRunning;
+        int                 mCurrentRecordFrame;
+        int 		        nCameraBuffersQueued;
+
+        unsigned int        mPreviewHeapBufNum;
+        unsigned int        mTakePicBufQueNum;
+
+        bool mCameraReady;
+        bool mCaptureDeviceOpen;
+        bool mPPDeviceNeed;
+        bool mPPDeviceNeedForPic;
+        bool mPreviewStopped;
+        bool mRecordStopped;
+        bool mPowerLock;
+
+        int error_status;
+        unsigned int preview_heap_buf_head;
+        unsigned int display_head;
+        unsigned int enc_head;
+        unsigned int dequeue_head;
+        unsigned int is_first_buffer;
+        unsigned int last_display_index;
+        unsigned int pp_in_head;
+        unsigned int pp_out_head;
+        unsigned int buffer_index_maps[PREVIEW_CAPTURE_BUFFER_NUM];
+
+        sem_t avab_show_frame;
+        sem_t avab_dequeue_frame;
+        sem_t avab_enc_frame;
+        sem_t avab_enc_frame_finish;
+        sem_t avab_pp_in_frame;
+        sem_t avab_pp_out_frame;
+
+        pthread_mutex_t mOverlayMutex;
+        pthread_mutex_t mMsgMutex;
+        pthread_mutex_t mPPIOParamMutex;
+
     };
-
-    class PreviewCaptureFrameThread : public Thread {
-        CameraHal* mHardware;
-    public:
-        PreviewCaptureFrameThread(CameraHal* hw)
-            : Thread(false), mHardware(hw) { }
-        virtual void onFirstRef() {
-            run("CameraPreviewCaptureFrameThread", PRIORITY_URGENT_DISPLAY);
-        }
-        virtual bool threadLoop() {
-            mHardware->previewCaptureFrameThread();
-            // loop until we need to quit
-            return true;
-        }
-    };
-
-    void initDefaultParameters();
-    bool initHeapLocked();
-
-    int previewShowFrameThread();
-    int previewCaptureFrameThread();
-
-    static int beginAutoFocusThread(void *cookie);
-    int autoFocusThread();
-
-    static int beginPictureThread(void *cookie);
-    int pictureThread();
-
-    int validateSize(int w, int h);
-    void* cropImage(unsigned long buffer);
-
-    void convertYUYVtoI420(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
-	void convertI420toYUV420SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height);
-    int uvcGetDeviceAndCapability(char *sizes_buf);
-
-    sp<MemoryBase> encodeImage(void *buffer, uint32_t bufflen);
-
-    int cameraOpen();
-    int cameraClose();
-
-    int cameraDestroy();
-    int cameraPreviewConfig();
-    int cameraPreviewStart();
-    void cameraPreviewStop();
-    int cameraTakePicConfig();
-    int cameraTakePicture();
-    void previewOneFrame();
-    int stringTodegree(char* cAttribute, unsigned long &degree, unsigned long &minute, unsigned long &second); //for the minus the return value will be 1
-
-    mutable Mutex       mLock;
-
-    CameraParameters    mParameters;
-
-    sp<MemoryHeapBase>  mPreviewHeap;
-    sp<MemoryBase>      mPreviewBuffers[CAPTURE_BUFFER_NUM]; // used when UVC camera
-    sp<MemoryHeapBase>  mPreviewConvertHeap;
-    sp<MemoryBase>      mPreviewConvertBuffers[CAPTURE_BUFFER_NUM];
-    bool                mPreviewRunning;
-    int                 mRecordHeight;
-    int                 mRecordWidth;
-    int                 mRecordFormat;
-
-    // protected by mLock
-    sp<Overlay>         mOverlay;
-    sp<PreviewShowFrameThread>   mPreviewShowFrameThread;
-    sp<PreviewCaptureFrameThread> mPreviewCaptureFrameThread;
-
-    notify_callback    mNotifyCb;
-    data_callback      mDataCb;
-    data_callback_timestamp mDataCbTimestamp;
-    void               *mCallbackCookie;
-
-    int32_t             mMsgEnabled;
-
-    bool                mCameraOpened;
-
-    int                 mPictureHeight;
-    int                 mPictureWidth;
-    int                 mPictureFormat;
-
-    int 		mRecordFrameSize;
-    bool                mRecordRunning;
-    int                 mCurrentRecordFrame;
-    int 		nCameraBuffersQueued;
-
-    /* These buffers are used to output captured video to upper layer,
-       eg, for to use video encoder */
-    sp<MemoryHeapBase>  mVideoHeap;
-    sp<MemoryBase>      mVideoBuffers[VIDEO_OUTPUT_BUFFER_NUM];
-    int   		mVideoBufferUsing[VIDEO_OUTPUT_BUFFER_NUM];
-
-    bool previewStopped;
-    bool recordStopped;
-    bool doubledPreviewWidth;
-    bool doubledPreviewHeight;
-
-    static int camera_device;
-    static int g_camera_framerate;
-    static char dev_node[FILENAME_LENGTH];
-
-    static int g_rotate;
-    static int g_still_bpp;
-
-    //used for recording
-    struct picbuffer mCaptureBuffers[CAPTURE_BUFFER_NUM];
-    int    buffer_index_maps[CAPTURE_BUFFER_NUM];
-
-    static const char supportedPictureSizes[];
-    static const char supportedPreviewSizes[];
-    static const char supportedFPS[];
-    static const char supprotedThumbnailSizes[];
-    static const char PARAMS_DELIMITER[];
-
-    int error_status;
-    int display_head;
-    int dequeue_head;
-    int is_first_buffer;
-    int is_overlay_pushmode;
-    int last_display_index;
-
-    sem_t avaiable_show_frame;
-    sem_t avaible_dequeue_frame;
-    pthread_mutex_t mOverlay_sem;
-	bool mPowerLock;
-
-#ifdef DUMP_CAPTURE_YUV
-    static FILE *record_yuvFile;
-    static FILE *capture_yuvFile;
-#endif
-
-#ifdef USE_FSL_JPEG_ENC 
-    static JPEG_ENC_UINT32 g_JpegDataSize;//Total size of g_JpegData
-    static JPEG_ENC_UINT32 g_JpegDataLen;//Valid data len of g_JpegData
-    static JPEG_ENC_UINT8 *g_JpegData;//Buffer to hold jpeg data
-#endif
-};
 
 }; // namespace android
 
