@@ -39,6 +39,7 @@ class V4l2CsiDevice : public V4l2CapDeviceBase{
 		CAPTURE_DEVICE_ERR_RET V4l2Open();
 		CAPTURE_DEVICE_ERR_RET V4l2EnumFmt(void *retParam);
 		CAPTURE_DEVICE_ERR_RET V4l2EnumSizeFps(void *retParam);
+		CAPTURE_DEVICE_ERR_RET V4l2SetConfig(struct capture_config_t *pCapcfg);
         CAPTURE_DEVICE_ERR_RET V4l2ConfigInput(struct capture_config_t *pCapcfg);
         CAPTURE_DEVICE_ERR_RET V4l2GetCaptureMode(struct capture_config_t *pCapcfg, unsigned int *pMode); 
         CAPTURE_DEVICE_ERR_RET V4l2SetRot(struct capture_config_t *pCapcfg);
