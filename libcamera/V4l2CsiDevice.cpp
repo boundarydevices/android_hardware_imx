@@ -165,6 +165,86 @@ namespace android{
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
+
+    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2SetConfig(struct capture_config_t *pCapcfg)
+    {
+
+        CAMERA_HAL_LOG_FUNC;
+        if (mCameraDevice <= 0 || pCapcfg == NULL){
+            return CAPTURE_DEVICE_ERR_BAD_PARAM;
+        }
+
+        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        struct v4l2_format fmt;
+        struct v4l2_control ctrl;
+        struct v4l2_streamparm parm;
+
+        V4l2ConfigInput(pCapcfg);
+
+        parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        //hard code here to do a walk around.
+        pCapcfg->tv.numerator = 1;
+        pCapcfg->tv.denominator = 30;
+
+        parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
+        parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
+        ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode));
+        if (ret != CAPTURE_DEVICE_ERR_NONE)
+            return ret;
+
+        if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0) {
+            parm.parm.capture.timeperframe.numerator = 1;
+            parm.parm.capture.timeperframe.denominator = 15;
+            if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0){
+                CAMERA_HAL_ERR("%s:%d  VIDIOC_S_PARM failed\n", __FUNCTION__,__LINE__);
+                CAMERA_HAL_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator, 
+                        parm.parm.capture.timeperframe.denominator);
+                return CAPTURE_DEVICE_ERR_SYS_CALL;
+            }
+        }
+
+
+        fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        fmt.fmt.pix.pixelformat = pCapcfg->fmt;
+
+        fmt.fmt.pix.width = pCapcfg->width&0xFFFFFFF8;
+        fmt.fmt.pix.height = pCapcfg->height&0xFFFFFFF8;
+        if (pCapcfg->fmt == V4L2_PIX_FMT_YUYV)
+            fmt.fmt.pix.bytesperline = fmt.fmt.pix.width * 2;
+        else
+            fmt.fmt.pix.bytesperline = fmt.fmt.pix.width;
+        fmt.fmt.pix.priv = 0;
+        fmt.fmt.pix.sizeimage = 0;
+
+        if (ioctl(mCameraDevice, VIDIOC_S_FMT, &fmt) < 0) {
+            CAMERA_HAL_ERR("set format failed\n");
+            CAMERA_HAL_ERR("pCapcfg->width is %d, pCapcfg->height is %d", pCapcfg->width, pCapcfg->height);
+            CAMERA_HAL_ERR(" Set the Format :%c%c%c%c\n",
+                    pCapcfg->fmt & 0xFF, (pCapcfg->fmt >> 8) & 0xFF,
+                    (pCapcfg->fmt >> 16) & 0xFF, (pCapcfg->fmt >> 24) & 0xFF);
+            return CAPTURE_DEVICE_ERR_SYS_CALL;
+        }
+
+        if(V4l2SetRot(pCapcfg) < 0)
+            return CAPTURE_DEVICE_ERR_SYS_CALL;
+
+        fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        if (ioctl(mCameraDevice, VIDIOC_G_FMT, &parm) < 0) {
+            CAMERA_HAL_ERR("VIDIOC_S_PARM failed\n");
+            return CAPTURE_DEVICE_ERR_SYS_CALL;
+        }else{
+
+            CAMERA_HAL_LOG_RUNTIME(" Width = %d\n", fmt.fmt.pix.width);
+            CAMERA_HAL_LOG_RUNTIME(" Height = %d \n", fmt.fmt.pix.height);
+            CAMERA_HAL_LOG_RUNTIME(" Image size = %d\n", fmt.fmt.pix.sizeimage);
+            CAMERA_HAL_LOG_RUNTIME(" pixelformat = %x\n", fmt.fmt.pix.pixelformat);
+        }
+        pCapcfg->framesize = fmt.fmt.pix.sizeimage;
+        pCapcfg->picture_waite_number = 1; //For uvc, the first frame is ok.
+
+        return CAPTURE_DEVICE_ERR_NONE;
+    }
+
     CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2GetCaptureMode(struct capture_config_t *pCapcfg, unsigned int *pMode){
 
         CAMERA_HAL_LOG_FUNC;
