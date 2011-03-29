@@ -85,7 +85,11 @@ namespace android {
     void CameraHal :: release()
     {
         CAMERA_HAL_LOG_FUNC;
+        Mutex::Autolock lock(mLock);
+
         mCameraReady = false;
+        CameraHALStopPreview();
+        UnLockWakeLock();
         return;
     }
 
@@ -260,9 +264,6 @@ namespace android {
             pictureCnt ++;
 
             if (CaptureSizeFps.tv.denominator/CaptureSizeFps.tv.numerator > 25){
-                pParam->setPreviewSize(CaptureSizeFps.width, CaptureSizeFps.height);
-                pParam->setPreviewFrameRate(CaptureSizeFps.tv.denominator/CaptureSizeFps.tv.numerator );
-                pParam->setPictureSize(CaptureSizeFps.width, CaptureSizeFps.height);
                 if (previewCnt == 0)
                     strncpy((char*) supportedPreviewSizes, TmpStr, CAMER_PARAM_BUFFER_SIZE);
                 else{
@@ -274,7 +275,7 @@ namespace android {
         }
 
         /*hard code here*/
-        strcpy(supportedFPS, "30,15,10");
+        strcpy(supportedFPS, "15,30");
         CAMERA_HAL_LOG_INFO("##The supportedPictureSizes is %s##", supportedPictureSizes);
         CAMERA_HAL_LOG_INFO("##the supportedPreviewSizes is %s##", supportedPreviewSizes);
         CAMERA_HAL_LOG_INFO("##the supportedFPS is %s##", supportedFPS);
@@ -282,6 +283,12 @@ namespace android {
         pParam->set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, supportedPictureSizes);
         pParam->set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, supportedPreviewSizes);
         pParam->set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, supportedFPS);
+        pParam->set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, "(15000,15000),(30000,30000)");
+        pParam->set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "30000,30000");
+
+        pParam->setPreviewSize(640, 480);
+        pParam->setPictureSize(640, 480);
+        pParam->setPreviewFrameRate(30);
 
         return CAMERA_HAL_ERR_NONE;
 
@@ -320,7 +327,7 @@ namespace android {
         char tmpBuffer[CAMER_PARAM_BUFFER_SIZE];
 
         /*hard code here*/
-
+        pParam->set(CameraParameters::KEY_FOCUS_DISTANCES, "24.0,50.0,2147483648.0");
         pParam->setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
         pParam->set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
         pParam->set(CameraParameters::KEY_JPEG_QUALITY, 100);
@@ -328,6 +335,7 @@ namespace android {
         pParam->set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, supprotedThumbnailSizes);
         pParam->set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, "96");
         pParam->set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, "96");
+        pParam->set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "90");
 
         memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
         strncat((char*) tmpBuffer, (const char*) CameraParameters::WHITE_BALANCE_AUTO, CAMER_PARAM_BUFFER_SIZE);
@@ -372,15 +380,7 @@ namespace android {
         pParam->set(CameraParameters::KEY_SUPPORTED_SCENE_MODES, tmpBuffer);
         pParam->set(CameraParameters::KEY_SCENE_MODE, CameraParameters::SCENE_MODE_AUTO);
 
-        memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-        strncat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_AUTO, CAMER_PARAM_BUFFER_SIZE);
-        strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, CAMER_PARAM_BUFFER_SIZE);
-        strncat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_INFINITY, CAMER_PARAM_BUFFER_SIZE);
-        strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, CAMER_PARAM_BUFFER_SIZE);
-        strncat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_MACRO, CAMER_PARAM_BUFFER_SIZE);
-        strncat((char*) tmpBuffer, (const char*) PARAMS_DELIMITER, CAMER_PARAM_BUFFER_SIZE);
-        strncat((char*) tmpBuffer, (const char*) CameraParameters::FOCUS_MODE_FIXED, CAMER_PARAM_BUFFER_SIZE);
-        pParam->set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, tmpBuffer);
+        pParam->set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, CameraParameters::FOCUS_MODE_AUTO);
         pParam->set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_AUTO);
 
         pParam->set(CameraParameters::KEY_FOCAL_LENGTH, "10.001");
@@ -486,7 +486,7 @@ namespace android {
         CAMERA_HAL_LOG_FUNC;
         int w, h;
         int framerate;
-        int max_zoom,zoom;
+        int max_zoom,zoom, max_fps, min_fps;
         char tmp[128];
         Mutex::Autolock lock(mLock);
 
@@ -527,6 +527,13 @@ namespace android {
         CAMERA_HAL_LOG_INFO("##the set frame rate is %d ##", framerate);
         if (framerate >30 || framerate<0 ){
             CAMERA_HAL_ERR("The framerate is not corrected");
+            return BAD_VALUE;
+        }
+
+        params.getPreviewFpsRange(&max_fps, &min_fps);
+        CAMERA_HAL_LOG_INFO("###the fps is %d###", max_fps);
+        if (max_fps < 15000 || min_fps < 15000){
+            CAMERA_HAL_ERR("The fps range from %d to %d is error", min_fps, max_fps);
             return BAD_VALUE;
         }
 
@@ -903,7 +910,7 @@ Pic_out:
 
         //set the make info
         make_info.make_bytes=strlen(EXIF_MAKENOTE);
-        strcpy((char *)makernote_info.makernote, EXIF_MAKENOTE);
+        strcpy((char *)make_info.make, EXIF_MAKENOTE);
         mJpegEncCfg.pMakeInfo = &make_info;
 
         //set makernote info
@@ -1034,20 +1041,30 @@ Pic_out:
         mPPbufNum = POST_PROCESS_BUFFER_NUM;
         mTakePicFlag = false;
 
-        if ((ret = PrepareCaptureDevices()) < 0)
+        if ((ret = PrepareCaptureDevices()) < 0){
+            CAMERA_HAL_ERR("PrepareCaptureDevices error ");
             return ret;
-        if (mPPDeviceNeed){
-            if ((ret = PreparePostProssDevice()) < 0)
-                return ret;
         }
-        if ((ret = PreparePreviwBuf()) < 0)
+        if (mPPDeviceNeed){
+            if ((ret = PreparePostProssDevice()) < 0){
+                CAMERA_HAL_ERR("PreparePostProssDevice error");
+                return ret;
+            }
+        }
+        if ((ret = PreparePreviwBuf()) < 0){
+            CAMERA_HAL_ERR("PreparePreviwBuf error");
             return ret;
+        }
 
-        if ((ret = PreparePreviwMisc()) < 0)
+        if ((ret = PreparePreviwMisc()) < 0){
+            CAMERA_HAL_ERR("PreparePreviwMisc error");
             return ret;
+        }
 
-        if ((ret = CameraHALPreviewStart()) < 0)
+        if ((ret = CameraHALPreviewStart()) < 0){
+            CAMERA_HAL_ERR("CameraHALPreviewStart error");
             return ret;
+        }
         return ret;
     }
     void CameraHal::CameraHALStopPreview()
@@ -1056,6 +1073,9 @@ Pic_out:
         if (mPreviewRunning != 0)	{
             CameraHALStopThreads();
             CameraHALStopMisc();
+            CAMERA_HAL_LOG_INFO("camera hal stop preview done");
+        }else{
+            CAMERA_HAL_LOG_INFO("Camera hal already stop preview");
         }
         return ;
     }
@@ -1118,21 +1138,26 @@ Pic_out:
         if ((ret = OpenCaptureDevice())<0)
             return ret;
 
-        if (mCaptureDevice->DevSetConfig(&mCaptureDeviceCfg) < 0) //set the config and get the captured framesize
+        if (mCaptureDevice->DevSetConfig(&mCaptureDeviceCfg) < 0) {//set the config and get the captured framesize
+            CAMERA_HAL_ERR("Dev config failed");
             return BAD_VALUE;
+        }
         mCaptureFrameSize = mCaptureDeviceCfg.framesize;
 
-        if (mCaptureDevice->DevAllocateBuf(mCaptureBuffers,&CaptureBufNum)< 0)
+        if (mCaptureDevice->DevAllocateBuf(mCaptureBuffers,&CaptureBufNum)< 0){
+            CAMERA_HAL_ERR("capture device allocat buf error");
             return BAD_VALUE;
-
+        }
         if(mCaptureBufNum != CaptureBufNum){
             CAMERA_HAL_LOG_INFO("The driver can only supply %d bufs, but required %d bufs", CaptureBufNum, mCaptureBufNum);
         }
 
         mCaptureBufNum = CaptureBufNum;
 
-        if (mCaptureDevice->DevPrepare()< 0)
+        if (mCaptureDevice->DevPrepare()< 0){
+            CAMERA_HAL_ERR("capture device prepare error");
             return BAD_VALUE;
+        }
         nCameraBuffersQueued = mCaptureBufNum;
 
         return ret;
