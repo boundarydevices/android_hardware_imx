@@ -138,6 +138,18 @@ namespace android{
             mSizeFPSParamIdx = 0;
             ret = CAPTURE_DEVICE_ERR_SET_PARAM;
         }else{
+            //hardcode here for ov3640
+            if (strstr(mInitalDeviceName, "3640") != NULL){
+                LOGD("the sensor  is  mInitalDeviceName");
+                if (vid_frmsize.discrete.width == 1024 && vid_frmsize.discrete.height == 768){
+                    mSizeFPSParamIdx ++;
+                    vid_frmsize.index = mSizeFPSParamIdx;
+                    if (ioctl(mCameraDevice, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize) != 0){
+                        mSizeFPSParamIdx = 0;
+                        ret = CAPTURE_DEVICE_ERR_SET_PARAM;
+                    }
+                }
+            }
             CAMERA_HAL_LOG_RUNTIME("in %s the w %d, h %d", __FUNCTION__,vid_frmsize.discrete.width, vid_frmsize.discrete.height);
             pCapCfg->width  = vid_frmsize.discrete.width;
             pCapCfg->height = vid_frmsize.discrete.height;
@@ -183,8 +195,11 @@ namespace android{
 
         parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         //hard code here to do a walk around.
-        pCapcfg->tv.numerator = 1;
-        pCapcfg->tv.denominator = 30;
+        if(pCapcfg->tv.denominator != 30 && pCapcfg->tv.denominator != 15){
+            pCapcfg->tv.numerator = 1;
+            pCapcfg->tv.denominator = 30;
+        }
+        LOGD("the fps is %d", pCapcfg->tv.denominator);
 
         parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
         parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
