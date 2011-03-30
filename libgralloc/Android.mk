@@ -20,8 +20,9 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu
+LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu libc2d_z430
 LOCAL_C_INCLUDES += external/linux-lib/ipu
+LOCAL_C_INCLUDES += hardware/mx5x/libcopybit
 
 LOCAL_SRC_FILES := 	\
 	allocator.cpp 	\
@@ -30,7 +31,7 @@ LOCAL_SRC_FILES := 	\
 	mapper.cpp
 	
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
-LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\"
+LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX
 
 
 ifeq ($(HAVE_FSL_EPDC_FB),true)
