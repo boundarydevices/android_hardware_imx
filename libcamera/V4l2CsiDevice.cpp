@@ -140,7 +140,7 @@ namespace android{
         }else{
             //hardcode here for ov3640
             if (strstr(mInitalDeviceName, "3640") != NULL){
-                LOGD("the sensor  is  mInitalDeviceName");
+                CAMERA_HAL_LOG_INFO("the sensor  is  mInitalDeviceName");
                 if (vid_frmsize.discrete.width == 1024 && vid_frmsize.discrete.height == 768){
                     mSizeFPSParamIdx ++;
                     vid_frmsize.index = mSizeFPSParamIdx;
@@ -199,7 +199,7 @@ namespace android{
             pCapcfg->tv.numerator = 1;
             pCapcfg->tv.denominator = 30;
         }
-        LOGD("the fps is %d", pCapcfg->tv.denominator);
+        CAMERA_HAL_LOG_RUNTIME("the fps is %d", pCapcfg->tv.denominator);
 
         parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
         parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
@@ -255,7 +255,6 @@ namespace android{
             CAMERA_HAL_LOG_RUNTIME(" pixelformat = %x\n", fmt.fmt.pix.pixelformat);
         }
         pCapcfg->framesize = fmt.fmt.pix.sizeimage;
-        pCapcfg->picture_waite_number = 1; //For uvc, the first frame is ok.
 
         return CAPTURE_DEVICE_ERR_NONE;
     }
@@ -273,7 +272,7 @@ namespace android{
         unsigned int pic_waite_buf_num = 0;
         if ((strstr(mInitalDeviceName, OV5640_NAME_STR) != 0) ||
                 (strstr(mInitalDeviceName, OV5642_NAME_STR) != 0)){
-            pic_waite_buf_num = 2;
+            pic_waite_buf_num = 10;
             if (capturewidth == 640 && captureheight == 480)
                 capturemode = 0;	/* VGA mode */
             else if (capturewidth == 320 && captureheight == 240)
@@ -295,7 +294,7 @@ namespace android{
                 return CAPTURE_DEVICE_ERR_BAD_PARAM;
             }
         }else if(strstr(mInitalDeviceName, OV3640_NAME_STR) != 0){
-            pic_waite_buf_num = 2;
+            pic_waite_buf_num = 10;
             if (capturewidth == 320 && captureheight == 240)
                 capturemode = 1;	/* QVGA mode */
             else if (capturewidth == 640 && captureheight == 480)

@@ -454,7 +454,7 @@ namespace android{
                 CAMERA_HAL_ERR("VIDIOC_QUERYBUF error\n");
                 return CAPTURE_DEVICE_ERR_SYS_CALL;
             } else {
-                CAMERA_HAL_ERR("VIDIOC_QUERYBUF ok\n");
+                CAMERA_HAL_LOG_RUNTIME("VIDIOC_QUERYBUF ok\n");
             }
 
             mCaptureBuffers[i].length = DevBufQue[i].length= buf.length;
@@ -502,7 +502,7 @@ namespace android{
             CAMERA_HAL_ERR("VIDIOC_STREAMON error\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         } else
-            CAMERA_HAL_ERR("VIDIOC_STREAMON ok\n");
+            CAMERA_HAL_LOG_RUNTIME("VIDIOC_STREAMON ok\n");
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
