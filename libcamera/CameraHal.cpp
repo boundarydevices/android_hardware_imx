@@ -889,6 +889,10 @@ Pic_out:
         struct jpeg_enc_datetime_info_t datetime_info;
         struct jpeg_enc_focallength_t focallength_info;
         struct jpeg_enc_gps_param gps_info;
+        JPEG_ENCODER_ROTATION rotate_info;
+        JPEG_ENCODER_WHITEBALANCE whitebalance_info;
+        JPEG_ENCODER_FLASH flash_info;
+        const char * pWhiteBalanceStr, *pFlashStr;
 
         char temp_string[30], gps_datetime_string[11];
         char format[30] = "%Y:%m:%d %k:%M:%S";
@@ -932,6 +936,34 @@ Pic_out:
         memcpy((char *)datetime_info.datetime, temp_string, sizeof(datetime_info.datetime));
         mJpegEncCfg.pDatetimeInfo = &datetime_info;
 
+        rotate_info = (JPEG_ENCODER_ROTATION)mParameters.getInt(CameraParameters::KEY_ROTATION);
+        mJpegEncCfg.RotationInfo = rotate_info; //the android and the jpeg has the same define
+        CAMERA_HAL_LOG_INFO("ratate info is %d", rotate_info);
+
+        pWhiteBalanceStr = mParameters.get(CameraParameters::KEY_WHITE_BALANCE);
+        CAMERA_HAL_LOG_INFO("white balance is %s",pWhiteBalanceStr);
+        if (strcmp(pWhiteBalanceStr, CameraParameters::WHITE_BALANCE_AUTO) == 0){
+            whitebalance_info = WHITEBALANCE_AUTO;
+        }else{
+            whitebalance_info = WHITEBALANCE_MANUAL;
+        }
+        mJpegEncCfg.WhiteBalanceInfo = whitebalance_info;
+
+        pFlashStr = mParameters.get(CameraParameters::KEY_FLASH_MODE);
+        CAMERA_HAL_LOG_INFO("flash mode is %s", pFlashStr);
+        if (strcmp(pFlashStr, CameraParameters::FLASH_MODE_OFF) == 0){
+            flash_info = FLASH_NOT_FIRE;
+        }else if (strcmp(pFlashStr, CameraParameters::FLASH_MODE_AUTO) == 0){
+            flash_info = FLASH_FIRED_AUTO;
+        }else if (strcmp(pFlashStr, CameraParameters::FLASH_MODE_ON) == 0){
+            flash_info = FLASH_FIRED;
+        }else if (strcmp(pFlashStr, CameraParameters::FLASH_MODE_RED_EYE) == 0){
+            flash_info = FLASH_FIRED_RED_EYE_REDUCE;
+        }
+        else if (strcmp(pFlashStr, CameraParameters::FLASH_MODE_TORCH) == 0){
+            flash_info = FLASH_FIRED_COMPULOSORY;
+        }
+        mJpegEncCfg.FlashInfo = flash_info;
 
         cLatitude   = (char *)mParameters.get(CameraParameters::KEY_GPS_LATITUDE);
         cLongtitude = (char *)mParameters.get(CameraParameters::KEY_GPS_LONGITUDE);

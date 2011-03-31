@@ -465,8 +465,8 @@ encodeframe:
         }
 
         CAMERA_HAL_LOG_RUNTIME("jpeg_enc_init success");
-
-        createJpegExifTags(obj_ptr);
+        if(params->mode == JPEG_ENC_THUMB)
+            createJpegExifTags(obj_ptr);
 
         return_val = jpeg_enc_encodeframe(obj_ptr, i_buff,
                 y_buff, u_buff, v_buff);
@@ -573,6 +573,12 @@ done:
 
     void JpegEncoderSoftware::createJpegExifTags(jpeg_enc_object * obj_ptr)
     {
+        CAMERA_HAL_LOG_RUNTIME("version: %s\n", jpege_CodecVersionInfo());
+
+        jpeg_enc_set_exifheaderinfo(obj_ptr, JPEGE_ENC_SET_HEADER_ORIENTATION, (unsigned int)(&(pEncCfgLocal->RotationInfo)));
+        jpeg_enc_set_exifheaderinfo(obj_ptr, JPEGE_ENC_SET_HEADER_WHITEBALANCE, (unsigned int)(&(pEncCfgLocal->WhiteBalanceInfo)));
+        jpeg_enc_set_exifheaderinfo(obj_ptr, JPEGE_ENC_SET_HEADER_FLASH, (unsigned int)(&(pEncCfgLocal->FlashInfo)));
+
         if(pEncCfgLocal->pMakeInfo)
             jpeg_enc_set_exifheaderinfo(obj_ptr, JPEGE_ENC_SET_HEADER_MAKE, (unsigned int)(pEncCfgLocal->pMakeInfo));
         if(pEncCfgLocal->pMakeNote)
