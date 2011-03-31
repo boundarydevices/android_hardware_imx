@@ -46,6 +46,30 @@ namespace android{
 #define TIME_FMT_LENGTH 20
 #define MAX_GPS_PROCESSING_BYTES	256
 
+    typedef enum{
+    ORIENTATION_UNDEFINED = 0,
+    ORIENTATION_NORMAL = 1,
+    ORIENTATION_FLIP_HORIZONTAL = 2,
+    ORIENTATION_ROTATE_180 = 3,
+    ORIENTATION_FLIP_VERTICAL = 4,
+    ORIENTATION_TRANSPOSE = 5,
+    ORIENTATION_ROTATE_90 = 6,
+    ORIENTATION_TRANSVERSE = 7,
+    ORIENTATION_ROTATE_270 = 8
+    }JPEG_ENCODER_ROTATION;
+
+    typedef enum{
+    WHITEBALANCE_AUTO = 0,
+    WHITEBALANCE_MANUAL = 1
+    }JPEG_ENCODER_WHITEBALANCE;
+
+    typedef enum{
+    FLASH_NOT_FIRE = 0x00,
+    FLASH_FIRED    = 0x01,
+    FLASH_FIRED_AUTO = 0x19,
+    FLASH_FIRED_RED_EYE_REDUCE = 0x41,
+    FLASH_FIRED_COMPULOSORY = 0x09
+    }JPEG_ENCODER_FLASH;
 
     typedef enum{
         SOFTWARE_JPEG_ENC = 0,
@@ -66,7 +90,7 @@ namespace android{
     struct jpeg_enc_focallength_t
     {
         unsigned int numerator;
-        unsigned int denominator;	
+        unsigned int denominator;
     };
 
     struct jpeg_enc_make_info_t
@@ -92,8 +116,8 @@ namespace android{
     };
 
     struct jpeg_enc_gps_param{
-        unsigned int version;			//GPSVersionID
-        char latitude_ref[2];		//GPSLatitudeRef: "N " is positive; "S " is negative
+        unsigned int version;//GPSVersionID
+        char latitude_ref[2];//GPSLatitudeRef: "N " is positive; "S " is negative
         char longtitude_ref[2];	//GPSLongtitudeRef: "E " is positive; "W " is negative
         unsigned int latitude_degree[2];//GPSLatitude
         unsigned int latitude_minute[2];
@@ -101,14 +125,14 @@ namespace android{
         unsigned int longtitude_degree[2];//GPSLongitude
         unsigned int longtitude_minute[2];
         unsigned int longtitude_second[2];
-        char altitude_ref;		//GPSAltitudeRef: 0 or 1(negative)
-        unsigned int altitude[2];		//GPSAltitude: unit is meters
-        unsigned int hour[2];			//GPSTimeStamp
+        char altitude_ref;//GPSAltitudeRef: 0 or 1(negative)
+        unsigned int altitude[2];//GPSAltitude: unit is meters
+        unsigned int hour[2];//GPSTimeStamp
         unsigned int minute[2];
         unsigned int seconds[2];
         char processmethod[MAX_GPS_PROCESSING_BYTES]; //GPSProcessingMethod
         char processmethod_bytes;
-        char datestamp[11];		//GPSDateStamp: "YYYY:MM:DD "
+        char datestamp[11];//GPSDateStamp: "YYYY:MM:DD "
     };
 
     typedef struct{
@@ -117,6 +141,9 @@ namespace android{
         unsigned int ThumbWidth;
         unsigned int ThumbHeight;
         unsigned int BufFmt;
+        JPEG_ENCODER_ROTATION RotationInfo;
+        JPEG_ENCODER_WHITEBALANCE WhiteBalanceInfo;
+        JPEG_ENCODER_FLASH FlashInfo;
         struct jpeg_enc_focallength_t *pFoclLength;
         struct jpeg_enc_make_info_t *pMakeInfo;
         struct jpeg_enc_makernote_info_t *pMakeNote;

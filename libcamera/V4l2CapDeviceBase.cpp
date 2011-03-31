@@ -501,8 +501,9 @@ namespace android{
         if (ioctl (mCameraDevice, VIDIOC_STREAMON, &type) < 0) {
             CAMERA_HAL_ERR("VIDIOC_STREAMON error\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
-        } else
+        } else{
             CAMERA_HAL_LOG_RUNTIME("VIDIOC_STREAMON ok\n");
+        }
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
