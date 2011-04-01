@@ -40,7 +40,7 @@
 
 
 namespace android{
-#define MAX_ENC_SUPPORTED_YUV_TYPE  2
+#define MAX_ENC_SUPPORTED_YUV_TYPE  1
 
     class JpegEncoderSoftware : public JpegEncoderInterface{
     public:

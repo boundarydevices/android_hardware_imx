@@ -47,7 +47,6 @@ namespace android{
         pEncObj(NULL)
     {
         mSupportedType[0] = v4l2_fourcc('Y','U','1','2');
-        mSupportedType[1] = v4l2_fourcc('Y','U','Y','V');
     }
 
     JpegEncoderSoftware :: ~JpegEncoderSoftware()
