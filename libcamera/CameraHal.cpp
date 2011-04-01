@@ -725,12 +725,22 @@ namespace android {
         mCaptureBufNum = PICTURE_CAPTURE_BUFFER_NUM;
         mPPbufNum = 1;
         mTakePicFlag = true;
-        mPPDeviceNeedForPic = 0;
+        mPPDeviceNeedForPic = false;
         if ((ret = GetJpegEncoderParam()) < 0)
             return ret;
         if ((ret = NegotiateCaptureFmt(true)) < 0)
             return ret;
-        mCaptureDeviceCfg.fmt = mPictureCapturedFormat;
+
+        if (mPPDeviceNeedForPic){
+            if ((ret = PreparePostProssDevice()) < 0){
+                CAMERA_HAL_ERR("PreparePostProssDevice error");
+                return ret;
+            }
+            if ((ret = PreparePreviwBuf()) < 0){
+                CAMERA_HAL_ERR("PreparePreviwBuf error");
+                return ret;
+            }
+        }
         if ((ret = PrepareCaptureDevices()) < 0)
             return ret;
         if ((ret = PrepareJpegEncoder()) < 0)
@@ -762,10 +772,19 @@ namespace android {
             ret = NO_MEMORY;
             goto Pic_out;
         }
-        Buf_input = mCaptureBuffers[DeQueBufIdx];
+        // do the csc if necessary
+        if (mPPDeviceNeedForPic){
+            mPPInputParam.user_def_paddr = mCaptureBuffers[DeQueBufIdx].phy_offset;
+            mPPOutputParam.user_def_paddr = mPPbuf[0].phy_offset;
+            mPPDevice->PPDeviceInit(&mPPInputParam, &mPPOutputParam);
+            mPPDevice->DoPorcess(&(mCaptureBuffers[DeQueBufIdx]), &(mPPbuf[0]));
+            mPPDevice->PPDeviceDeInit();
+            Buf_input = mPPbuf[0];
+        }else{
+            Buf_input = mCaptureBuffers[DeQueBufIdx];
+        }
+
         Buf_output.virt_start = (unsigned char *)(JpegImageHeap->getBase());
-
-
         CAMERA_HAL_LOG_INFO("Generated a picture");
 
         if (mMsgEnabled & CAMERA_MSG_SHUTTER) {
@@ -805,8 +824,10 @@ Pic_out:
             if (mJpegEncoder->EnumJpegEncParam(SUPPORTED_FMT,&(mEncoderSupportedFormat[i])) < 0)
                 break;
         }
-        if (i == 0)
+        if (i == 0){
+            CAMERA_HAL_ERR("Get the parameters error");
             return UNKNOWN_ERROR;
+        }
         return ret;
     }
     int CameraHal :: NegotiateCaptureFmt(bool TakePicFlag)
@@ -816,27 +837,38 @@ Pic_out:
 
 
         if(TakePicFlag){
-            mPictureCapturedFormat = 0;
+            mPictureEncodeFormat = 0;
             for (i = 0; i < MAX_QUERY_FMT_TIMES; i++){
                 for (j = 0; j < MAX_QUERY_FMT_TIMES; j++){
                     if (mEncoderSupportedFormat[j] == 0)
                         break;
                     if (mCaptureSupportedFormat[i] == mEncoderSupportedFormat[j]){
-                        mPictureCapturedFormat= mCaptureSupportedFormat[i];
+                        mPictureEncodeFormat= mCaptureSupportedFormat[i];
 
-                        CAMERA_HAL_LOG_INFO(" Get the mPictureCapturedFormat :%c%c%c%c\n",
-                                mPictureCapturedFormat & 0xFF, (mPictureCapturedFormat >> 8) & 0xFF,
-                                (mPictureCapturedFormat >> 16) & 0xFF, (mPictureCapturedFormat >> 24) & 0xFF);
+                        CAMERA_HAL_LOG_INFO(" Get the mPictureEncodeFormat :%c%c%c%c\n",
+                                mPictureEncodeFormat & 0xFF, (mPictureEncodeFormat >> 8) & 0xFF,
+                                (mPictureEncodeFormat >> 16) & 0xFF, (mPictureEncodeFormat >> 24) & 0xFF);
                         break;
                     }
                 }
-                if ((mPictureCapturedFormat != 0) || (mCaptureSupportedFormat[i] == 0))
+                if ((mPictureEncodeFormat != 0) || (mCaptureSupportedFormat[i] == 0))
                     break;
             }
-            if (i == MAX_QUERY_FMT_TIMES && j == MAX_QUERY_FMT_TIMES)
-                return UNKNOWN_ERROR;
+            if (mPictureEncodeFormat == 0){
+                mPictureEncodeFormat = mEncoderSupportedFormat[0];
+                mCaptureDeviceCfg.fmt = mCaptureSupportedFormat[0];
+                mPPDeviceNeedForPic = true;
+                CAMERA_HAL_LOG_INFO("Need to do the CSC for Jpeg encoder");
+                CAMERA_HAL_LOG_INFO(" Get the captured format is :%c%c%c%c\n",
+                        mCaptureDeviceCfg.fmt & 0xFF, (mCaptureDeviceCfg.fmt >> 8) & 0xFF,
+                        (mCaptureDeviceCfg.fmt >> 16) & 0xFF, (mCaptureDeviceCfg.fmt >> 24) & 0xFF);
+                CAMERA_HAL_LOG_INFO(" Get the mPictureEncodeFormat :%c%c%c%c\n",
+                        mPictureEncodeFormat & 0xFF, (mPictureEncodeFormat >> 8) & 0xFF,
+                        (mPictureEncodeFormat >> 16) & 0xFF, (mPictureEncodeFormat >> 24) & 0xFF);
+            }else{
+                mCaptureDeviceCfg.fmt = mPictureEncodeFormat;
+            }
         }else{
-
             CAMERA_HAL_LOG_INFO("mPreviewFormat :%c%c%c%c\n",
                     mPreviewFormat & 0xFF, (mPreviewFormat >> 8) & 0xFF,
                     (mPreviewFormat >> 16) & 0xFF, (mPreviewFormat >> 24) & 0xFF);
@@ -901,7 +933,7 @@ Pic_out:
         char * cLatitude, *cLongtitude, *cAltitude,*cTimeStamp;
         double dAltitude;
 
-        mJpegEncCfg.BufFmt = mPictureCapturedFormat;
+        mJpegEncCfg.BufFmt = mPictureEncodeFormat;
         mParameters.getPictureSize((int *)&(mJpegEncCfg.PicWidth), (int *)&(mJpegEncCfg.PicHeight));
         mJpegEncCfg.ThumbWidth = (unsigned int)mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
         mJpegEncCfg.ThumbHeight =(unsigned int)mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
@@ -1200,8 +1232,13 @@ Pic_out:
 
         CAMERA_HAL_LOG_FUNC;
         status_t ret = NO_ERROR;
-        pthread_mutex_lock(&mPPIOParamMutex);
+        unsigned int targetFmt;
+        if (mTakePicFlag)
+            targetFmt = mPictureEncodeFormat;
+        else
+            targetFmt = mPreviewFormat;
 
+        pthread_mutex_lock(&mPPIOParamMutex);
         mPPInputParam.width = mCaptureDeviceCfg.width;
         mPPInputParam.height= mCaptureDeviceCfg.height;
         mPPInputParam.fmt   = mCaptureDeviceCfg.fmt;
@@ -1212,13 +1249,12 @@ Pic_out:
 
         mPPOutputParam.width = mCaptureDeviceCfg.width;
         mPPOutputParam.height= mCaptureDeviceCfg.height;
-        mPPOutputParam.fmt   = mPreviewFormat;
+        mPPOutputParam.fmt   = targetFmt;
         mPPOutputParam.rot   = 0;
         mPPOutputParam.output_win.pos.x = 0;
         mPPOutputParam.output_win.pos.y = 0;
         mPPOutputParam.output_win.win_w = mCaptureDeviceCfg.width;
         mPPOutputParam.output_win.win_h = mCaptureDeviceCfg.height;
-
         pthread_mutex_unlock(&mPPIOParamMutex);
         return ret;
     }
@@ -1247,7 +1283,7 @@ Pic_out:
                 mPreviewBuffers[i] = new MemoryBase(mPreviewHeap, mPreviewFrameSize* i, mPreviewFrameSize);
         }
         /*allocate the buffer for IPU process*/
-        if (mPPDeviceNeed){
+        if (mPPDeviceNeed || mPPDeviceNeedForPic){
             mPmemAllocator = new PmemAllocator(mPPbufNum, mCaptureFrameSize);
 
             if(mPmemAllocator == NULL || mPmemAllocator->err_ret < 0){
@@ -1351,8 +1387,6 @@ Pic_out:
     {
         CAMERA_HAL_LOG_FUNC;
         int PPInIdx = 0, PPoutIdx = 0;
-        pp_input_param_t pp_input;
-        pp_output_param_t pp_output;
         DMA_BUFFER PPInBuf, PPoutBuf;
         struct timespec ts;
 

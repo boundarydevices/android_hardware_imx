@@ -316,7 +316,7 @@ namespace android {
 
         unsigned int        mUvcSpecialCaptureFormat;
         unsigned int        mCaptureSupportedFormat[MAX_QUERY_FMT_TIMES];
-        unsigned int        mPictureCapturedFormat;
+        unsigned int        mPictureEncodeFormat;
         unsigned int        mCaptureFrameSize;
         unsigned int        mCaptureBufNum;
         bool                mRecordRunning;
