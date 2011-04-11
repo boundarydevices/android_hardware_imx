@@ -98,6 +98,7 @@ struct fb_context_t {
     pthread_t thread_id;
     C2D_CONTEXT c2dctx;
     int sec_rotation;
+    int cleancount;
     int mRotate;
 #endif
 };
@@ -1198,7 +1199,8 @@ static int resizeToSecFrameBuffer_c2d(int base,int phys,fb_context_t* ctx)
     c2dSetSrcSurface(ctx->c2dctx, srcSurface);
     c2dSetDstSurface(ctx->c2dctx, dstSurface); 
     c2dSetSrcRotate(ctx->c2dctx, ctx->mRotate);
-    
+
+    c2dSetStretchMode(ctx->c2dctx, C2D_STRETCH_BILINEAR_SAMPLING);
     c2dSetBlendMode(ctx->c2dctx, C2D_ALPHA_BLEND_NONE);         
     c2dSetDither(ctx->c2dctx, 0); 
  
@@ -1228,20 +1230,46 @@ void * secDispShowFrames(void * arg)
             break;
         }
 
-        hnd = reinterpret_cast<private_handle_t const*>(ctx->buffer);
-        m = reinterpret_cast<private_module_t*>(ctx->dev->common.module);
-
-        if(ctx->c2dctx != NULL)
+        char value[PROPERTY_VALUE_MAX];
+        property_get("ro.secfb.disable-overlay", value, "0");
+        if (!strcmp(value, "1"))
         {
-            resizeToSecFrameBuffer_c2d(hnd->base,
-                       m->framebuffer->phys + hnd->base - m->framebuffer->base,
-                       ctx);
+            property_get("media.VIDEO_PLAYING", value, "0");
+        }
+
+        if (strcmp(value, "1") == 0)
+        {
+            if(ctx->cleancount)
+            {
+                sem_post(&ctx->sec_display_end);
+                continue;
+            }
+
+            ctx->cleancount++;
+            memset((void *)ctx->sec_disp_base, 0, ctx->sec_frame_size*NUM_BUFFERS);
         }
         else
         {
-            resizeToSecFrameBuffer(hnd->base,
-                               m->framebuffer->phys + hnd->base - m->framebuffer->base,
-                               ctx);
+           ctx->cleancount = 0;
+        }
+
+        if(!ctx->cleancount)
+        {
+            hnd = reinterpret_cast<private_handle_t const*>(ctx->buffer);
+            m = reinterpret_cast<private_module_t*>(ctx->dev->common.module);
+
+            if(ctx->c2dctx != NULL)
+            {
+                resizeToSecFrameBuffer_c2d(hnd->base,
+                           m->framebuffer->phys + hnd->base - m->framebuffer->base,
+                           ctx);
+            }
+            else
+            {
+                resizeToSecFrameBuffer(hnd->base,
+                                   m->framebuffer->phys + hnd->base - m->framebuffer->base,
+                                   ctx);
+            }
         }
 
         sem_post(&ctx->sec_display_end);
