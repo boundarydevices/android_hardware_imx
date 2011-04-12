@@ -954,7 +954,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     ctx->sec_disp_next_buf = info.yoffset ? 0 : 1;
     ctx->sec_info = info;
     ctx->sec_finfo = finfo;
-
+#if 0
     struct fb_fix_screeninfo fb0_finfo;
     if (ioctl(m->framebuffer->fd, FBIOGET_FSCREENINFO, &fb0_finfo) == -1)
        goto disp_init_error;
@@ -989,8 +989,8 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     fb0_info.transp.length  = 0;
     fb0_info.yres_virtual = ALIGN_PIXEL_128(fb0_info.yres) * NUM_BUFFERS;
 	fb0_info.xres_virtual = fb0_info.xres;
-                        
-    if (ioctl(m->framebuffer->fd, FBIOPUT_VSCREENINFO, &fb0_info) == -1) {
+#endif
+    if (ioctl(m->framebuffer->fd, FBIOPUT_VSCREENINFO, &m->info) == -1) {
         LOGE("Error!Second display FBIOPUT_VSCREENINFO");
         goto disp_init_error;
     }
@@ -1111,9 +1111,9 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
 /** convert HAL_PIXEL_FORMAT to C2D format */
 static C2D_COLORFORMAT get_format(int format) {
     switch (format) {
-	case HAL_PIXEL_FORMAT_BGRA_8888:   return C2D_COLOR_8888_ABGR;    
+	case HAL_PIXEL_FORMAT_BGRA_8888:   return C2D_COLOR_8888;
     case HAL_PIXEL_FORMAT_RGB_565:     return C2D_COLOR_0565;
-    default:                           return C2D_COLOR_0565; 
+    default:                           return C2D_COLOR_0565;
     }
 }
 
@@ -1153,7 +1153,7 @@ static int resizeToSecFrameBuffer_c2d(int base,int phys,fb_context_t* ctx)
         return -EINVAL;
     }
 
-    dstSurfaceDef.format = get_format(ctx->device.format);
+    dstSurfaceDef.format = get_format(HAL_PIXEL_FORMAT_RGB_565);
     dstSurfaceDef.width =  ctx->sec_disp_w;
     dstSurfaceDef.height = ctx->sec_disp_h;
 
