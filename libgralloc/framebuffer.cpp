@@ -42,11 +42,9 @@
 #include <linux/videodev.h>
 #include <sys/mman.h>
 
-#ifdef SECOND_DISPLAY_SUPPORT
 extern "C" {
 #include "mxc_ipu_hl_lib.h" 
 } 
-#endif
 
 #endif
 #include <GLES/gl.h>
@@ -1355,6 +1353,11 @@ int fb_device_open(hw_module_t const* module, const char* name,
             const_cast<int&>(dev->device.maxSwapInterval) = 1;
             *device = &dev->device.common;
         }
+
+#ifndef FSL_EPDC_FB
+	/* initialize the IPU lib IPC */
+	mxc_ipu_lib_ipc_init();
+#endif
     }
     return status;
 }
