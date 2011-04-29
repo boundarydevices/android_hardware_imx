@@ -434,6 +434,15 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                     		LOGI("Error!UNBLANK FB0 failed!\n");
                     	}
 
+                        struct mxcfb_color_key key;
+                        key.enable = 1;
+                        key.color_key = 0x00000000; // Black
+                        LOGI("MXCFB_SET_CLR_KEY");
+                        if( ioctl(m->framebuffer->fd, MXCFB_SET_CLR_KEY, &key) < 0)
+                        {
+                            LOGE("Error!MXCFB_SET_CLR_KEY for fb0");
+                        }
+
                     }
                     
                     close(ctx->sec_fp);
