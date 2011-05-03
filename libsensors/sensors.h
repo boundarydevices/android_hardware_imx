@@ -52,6 +52,16 @@ __BEGIN_DECLS
 #define EVENT_TYPE_ACCEL_X          ABS_X
 #define EVENT_TYPE_ACCEL_Y          ABS_Y
 #define EVENT_TYPE_ACCEL_Z          ABS_Z
+
+#define EVENT_TYPE_YAW              ABS_RX
+#define EVENT_TYPE_PITCH            ABS_RY
+#define EVENT_TYPE_ROLL             ABS_RZ
+#define EVENT_TYPE_ORIENT_STATUS    ABS_WHEEL
+
+#define EVENT_TYPE_MAGV_X           ABS_X
+#define EVENT_TYPE_MAGV_Y           ABS_Y
+#define EVENT_TYPE_MAGV_Z           ABS_Z
+
 #define EVENT_TYPE_LIGHT            ABS_MISC
 
 #if defined(ACCELEROMETER_SENSOR_MMA8451)
@@ -68,6 +78,18 @@ __BEGIN_DECLS
 #define CONVERT_A_X                 (-CONVERT_A)
 #define CONVERT_A_Y                 (CONVERT_A)
 #define CONVERT_A_Z                 (-CONVERT_A)
+
+// conversion of magnetic data to uT units
+#define CONVERT_M                   (1.0f/20.0f)
+#define CONVERT_M_X                 (-CONVERT_M)
+#define CONVERT_M_Y                 (CONVERT_M)
+#define CONVERT_M_Z                 (-CONVERT_M)
+
+/* conversion of orientation data to degree units */
+#define CONVERT_O                   (1.0f/100.0f)
+#define CONVERT_O_Y                 (CONVERT_O)
+#define CONVERT_O_P                 (-CONVERT_O)
+#define CONVERT_O_R                 (CONVERT_O)
 
 #define SENSOR_STATE_MASK           (0x7FFF)
 
