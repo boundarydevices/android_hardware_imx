@@ -35,6 +35,7 @@
 
 #include "LightSensor.h"
 #include "AccelSensor.h"
+#include "MagSensor.h"
 
 /*****************************************************************************/
 
@@ -65,6 +66,14 @@ static const struct sensor_t sSensorList[] = {
           "Freescale Semiconductor Inc.",
           1, SENSORS_ACCELERATION_HANDLE,
           SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 20000, { } },
+        { "MAG3110 3-axis Magnetic field sensor",
+          "Freescale Semiconductor Inc.",
+          1, SENSORS_MAGNETIC_FIELD_HANDLE,
+          SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 100000, { } },
+        { "MAG3110 Orientation sensor",
+          "Freescale Semiconductor Inc.",
+          1, SENSORS_ORIENTATION_HANDLE,
+          SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 100000, { } },
         { "ISL29023 Light sensor",
           "Intersil",
           1, SENSORS_LIGHT_HANDLE,
@@ -91,7 +100,7 @@ struct sensors_module_t HAL_MODULE_INFO_SYM = {
         common: {
                 tag: HARDWARE_MODULE_TAG,
                 version_major: 1,
-                version_minor: 0,
+                version_minor: 1,
                 id: SENSORS_HARDWARE_MODULE_ID,
                 name: "Freescale Sensor module",
                 author: "Freescale Semiconductor Inc.",
@@ -112,7 +121,8 @@ struct sensors_poll_context_t {
 private:
     enum {
         light           = 0,
-        accel             = 1,
+        accel           = 1,
+        mag 		= 2,
         numSensorDrivers,
         numFds,
     };
@@ -126,9 +136,10 @@ private:
     int handleToDriver(int handle) const {
         switch (handle) {
             case ID_A:
+                return accel;
             case ID_M:
             case ID_O:
-                return accel;
+                return mag;
             case ID_L:
                 return light;
         }
@@ -149,6 +160,11 @@ sensors_poll_context_t::sensors_poll_context_t()
     mPollFds[accel].fd = mSensors[accel]->getFd();
     mPollFds[accel].events = POLLIN;
     mPollFds[accel].revents = 0;
+
+    mSensors[mag] = new MagSensor();
+    mPollFds[mag].fd = mSensors[mag]->getFd();
+    mPollFds[mag].events = POLLIN;
+    mPollFds[mag].revents = 0;
 
     int wakeFds[2];
     int result = pipe(wakeFds);
