@@ -56,6 +56,7 @@ private:
     char poll_sysfs_file[PATH_MAX];
     int poll_sysfs_file_len;
     int getPollFile(const char* inputName);
+    int mHwRotation;
     static inline int accel_is_sensor_enabled(uint32_t sensor_type)
     {
         //dummy now......
