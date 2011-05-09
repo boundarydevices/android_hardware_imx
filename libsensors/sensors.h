@@ -41,6 +41,11 @@ __BEGIN_DECLS
 #define ID_P  (4)
 #define ID_GY (5)
 
+#define HWROTATION_0   (0)
+#define HWROTATION_90  (1)
+#define HWROTATION_180 (2)
+#define HWROTATION_270 (3)
+
 /*****************************************************************************/
 
 /*
@@ -81,14 +86,14 @@ __BEGIN_DECLS
 
 // conversion of magnetic data to uT units
 #define CONVERT_M                   (1.0f/20.0f)
-#define CONVERT_M_X                 (-CONVERT_M)
+#define CONVERT_M_X                 (CONVERT_M)
 #define CONVERT_M_Y                 (CONVERT_M)
 #define CONVERT_M_Z                 (-CONVERT_M)
 
 /* conversion of orientation data to degree units */
 #define CONVERT_O                   (1.0f/100.0f)
 #define CONVERT_O_Y                 (CONVERT_O)
-#define CONVERT_O_P                 (-CONVERT_O)
+#define CONVERT_O_P                 (CONVERT_O)
 #define CONVERT_O_R                 (CONVERT_O)
 
 #define SENSOR_STATE_MASK           (0x7FFF)
