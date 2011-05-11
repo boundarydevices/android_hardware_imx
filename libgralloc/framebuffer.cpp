@@ -904,8 +904,8 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     info.blue.length    = 5;
     info.transp.offset  = 0;
     info.transp.length  = 0;
-    info.yres_virtual = info.yres * NUM_BUFFERS;
-	info.xres_virtual = info.xres;
+    info.yres_virtual = ALIGN_PIXEL_128(info.yres) * NUM_BUFFERS;
+    info.xres_virtual = ALIGN_PIXEL(info.xres);
                         
     if (ioctl(sec_fp, FBIOPUT_VSCREENINFO, &info) == -1) {
         LOGE("Error!Second display FBIOPUT_VSCREENINFO");
@@ -1177,7 +1177,7 @@ static int resizeToSecFrameBuffer_c2d(int base,int phys,fb_context_t* ctx)
                 
     if((ctx->mRotate == 0)||(ctx->mRotate == 180))
     {
-        if(ctx->sec_disp_w/ctx->sec_disp_h >= ctx->device.width/ctx->device.height){
+        if(ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.width/ctx->device.height){
             dstRect.width = ctx->sec_disp_h*ctx->device.width/ctx->device.height;
         }
         else{
@@ -1185,7 +1185,7 @@ static int resizeToSecFrameBuffer_c2d(int base,int phys,fb_context_t* ctx)
         }
     }
     else{
-        if(ctx->sec_disp_w/ctx->sec_disp_h >= ctx->device.height/ctx->device.width){
+        if(ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.height/ctx->device.width){
             dstRect.width = ctx->sec_disp_h*ctx->device.height/ctx->device.width;
         }
         else{
@@ -1285,7 +1285,7 @@ void * secDispShowFrames(void * arg)
             ctx->sec_info.yoffset = 0; 
         }
         else{
-            ctx->sec_info.yoffset = ctx->sec_disp_h;
+            ctx->sec_info.yoffset = ctx->sec_info.yres_virtual/NUM_BUFFERS;
         }
 
         ctx->sec_disp_next_buf = !ctx->sec_disp_next_buf;  
