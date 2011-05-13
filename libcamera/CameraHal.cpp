@@ -928,7 +928,7 @@ Pic_out:
         struct jpeg_enc_datetime_info_t datetime_info;
         struct jpeg_enc_focallength_t focallength_info;
         struct jpeg_enc_gps_param gps_info;
-        JPEG_ENCODER_ROTATION rotate_info;
+        int rotate_angle = 0;
         JPEG_ENCODER_WHITEBALANCE whitebalance_info;
         JPEG_ENCODER_FLASH flash_info;
         const char * pWhiteBalanceStr, *pFlashStr;
@@ -975,9 +975,18 @@ Pic_out:
         memcpy((char *)datetime_info.datetime, temp_string, sizeof(datetime_info.datetime));
         mJpegEncCfg.pDatetimeInfo = &datetime_info;
 
-        rotate_info = (JPEG_ENCODER_ROTATION)mParameters.getInt(CameraParameters::KEY_ROTATION);
-        mJpegEncCfg.RotationInfo = rotate_info; //the android and the jpeg has the same define
-        CAMERA_HAL_LOG_INFO("ratate info is %d", rotate_info);
+        rotate_angle = mParameters.getInt(CameraParameters::KEY_ROTATION);
+        if (rotate_angle == 0)
+            mJpegEncCfg.RotationInfo = ORIENTATION_NORMAL; //the android and the jpeg has the same define
+        else if (rotate_angle == 90)
+            mJpegEncCfg.RotationInfo = ORIENTATION_ROTATE_90;
+        else if (rotate_angle = 180)
+            mJpegEncCfg.RotationInfo = ORIENTATION_ROTATE_180;
+        else if (rotate_angle = 270)
+            mJpegEncCfg.RotationInfo = ORIENTATION_ROTATE_270;
+        else
+            mJpegEncCfg.RotationInfo = ORIENTATION_NORMAL;
+        CAMERA_HAL_LOG_INFO("ratate info is %d", rotate_angle);
 
         pWhiteBalanceStr = mParameters.get(CameraParameters::KEY_WHITE_BALANCE);
         CAMERA_HAL_LOG_INFO("white balance is %s",pWhiteBalanceStr);
