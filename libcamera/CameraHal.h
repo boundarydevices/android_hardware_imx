@@ -53,6 +53,7 @@
 #define MAX_QUERY_FMT_TIMES 20
 #define PARAMS_DELIMITER ","
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
+#define MAX_SENSOR_NAME 32
 
 #define PREVIEW_HEAP_BUF_NUM    5
 #define VIDEO_OUTPUT_BUFFER_NUM 5
@@ -326,6 +327,7 @@ namespace android {
         unsigned int        mPreviewHeapBufNum;
         unsigned int        mTakePicBufQueNum;
 
+        char                mCameraSensorName[MAX_SENSOR_NAME];
         bool mCameraReady;
         bool mCaptureDeviceOpen;
         bool mPPDeviceNeed;
