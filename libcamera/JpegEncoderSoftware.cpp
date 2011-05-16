@@ -296,7 +296,7 @@ INT_ERR_RET:
         thumbnail_height = pEncCfgLocal->ThumbHeight;
 
 
-        if (thumbnail_width <= 0 || thumbnail_width <= 0)
+        if (thumbnail_width <= 0 || thumbnail_height<= 0)
             mEncodeThumbnailFlag = false;
 
         g_JpegDataSize = 0;//Total size of g_JpegData

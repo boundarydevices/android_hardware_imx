@@ -722,12 +722,19 @@ namespace android {
         }
         mParameters.getPictureSize((int *)&(mCaptureDeviceCfg.width),(int *)&(mCaptureDeviceCfg.height));
         mCaptureDeviceCfg.tv.numerator = 1;
+        mCaptureDevice->GetDevName(mCameraSensorName);
+        if (strstr(mCameraSensorName, "uvc") == NULL){
+        //according to google's doc getPreviewFrameRate & getPreviewFpsRange should support both.
+        // so here just a walkaround, if the app set the frameRate, will follow this frame rate.
         if (mParameters.getPreviewFrameRate() >= 15)
             mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
         else{
             mParameters.getPreviewFpsRange(&min_fps, &max_fps);
-            CAMERA_HAL_LOG_INFO("###the fps is %d###", max_fps);
+            CAMERA_HAL_LOG_INFO("###start the preview the fps is %d###", max_fps);
             mCaptureDeviceCfg.tv.denominator = max_fps/1000;
+        }
+        }else{
+                mCaptureDeviceCfg.tv.denominator = 15;
         }
         mCaptureBufNum = PICTURE_CAPTURE_BUFFER_NUM;
         mPPbufNum = 1;
@@ -743,13 +750,16 @@ namespace android {
                 CAMERA_HAL_ERR("PreparePostProssDevice error");
                 return ret;
             }
+        }
+        if ((ret = PrepareCaptureDevices()) < 0)
+            return ret;
+
+        if (mPPDeviceNeedForPic){
             if ((ret = PreparePreviwBuf()) < 0){
                 CAMERA_HAL_ERR("PreparePreviwBuf error");
                 return ret;
             }
         }
-        if ((ret = PrepareCaptureDevices()) < 0)
-            return ret;
         if ((ret = PrepareJpegEncoder()) < 0)
             return ret;
 
@@ -980,9 +990,9 @@ Pic_out:
             mJpegEncCfg.RotationInfo = ORIENTATION_NORMAL; //the android and the jpeg has the same define
         else if (rotate_angle == 90)
             mJpegEncCfg.RotationInfo = ORIENTATION_ROTATE_90;
-        else if (rotate_angle = 180)
+        else if (rotate_angle == 180)
             mJpegEncCfg.RotationInfo = ORIENTATION_ROTATE_180;
-        else if (rotate_angle = 270)
+        else if (rotate_angle == 270)
             mJpegEncCfg.RotationInfo = ORIENTATION_ROTATE_270;
         else
             mJpegEncCfg.RotationInfo = ORIENTATION_NORMAL;
@@ -1010,6 +1020,9 @@ Pic_out:
         }
         else if (strcmp(pFlashStr, CameraParameters::FLASH_MODE_TORCH) == 0){
             flash_info = FLASH_FIRED_COMPULOSORY;
+        }
+        else{
+            flash_info = FLASH_NOT_FIRE;
         }
         mJpegEncCfg.FlashInfo = flash_info;
 
@@ -1116,14 +1129,19 @@ Pic_out:
         mParameters.getPreviewSize((int *)&(mCaptureDeviceCfg.width),(int *)&(mCaptureDeviceCfg.height));
         mCaptureDeviceCfg.fmt = mPreviewCapturedFormat;
         mCaptureDeviceCfg.tv.numerator = 1;
+        mCaptureDevice->GetDevName(mCameraSensorName);
+        if (strstr(mCameraSensorName, "uvc") == NULL){
         //according to google's doc getPreviewFrameRate & getPreviewFpsRange should support both.
         // so here just a walkaround, if the app set the frameRate, will follow this frame rate.
         if (mParameters.getPreviewFrameRate() >= 15)
             mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
         else{
             mParameters.getPreviewFpsRange(&min_fps, &max_fps);
-            CAMERA_HAL_LOG_INFO("###start the preview the fps is %d###", max_fps);
+            CAMERA_HAL_LOG_INFO("###start the capture the fps is %d###", max_fps);
             mCaptureDeviceCfg.tv.denominator = max_fps/1000;
+        }
+        }else{
+                mCaptureDeviceCfg.tv.denominator = 15;
         }
         mCaptureBufNum = PREVIEW_CAPTURE_BUFFER_NUM;
         mPPbufNum = POST_PROCESS_BUFFER_NUM;
@@ -1697,7 +1715,6 @@ show_out:
 #define DEFAULT_ERROR_NAME '#'
 #define DEFAULT_ERROR_NAME_str "#"
 #define UVC_NAME "uvc"
-#define MAX_SENSOR_NAME 10
     static CameraInfo sCameraInfo[2];
     static char Camera_name[2][MAX_SENSOR_NAME];
 

@@ -65,6 +65,14 @@ namespace android{
         return ret;
     }
 
+    CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase::GetDevName(char * deviceName){
+        CAMERA_HAL_LOG_FUNC;
+        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        if(NULL == deviceName)
+            return CAPTURE_DEVICE_ERR_BAD_PARAM;
+        strcpy(deviceName, mInitalDeviceName);
+        return ret;
+    }
 
     CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase::DevOpen(){
         CAMERA_HAL_LOG_FUNC;
@@ -363,21 +371,6 @@ namespace android{
 
         V4l2ConfigInput(pCapcfg);
 
-        parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
-        parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
-        ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode));
-        if (ret != CAPTURE_DEVICE_ERR_NONE)
-            return ret;
-
-        if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0) {
-            CAMERA_HAL_ERR("%s:%d  VIDIOC_S_PARM failed\n", __FUNCTION__,__LINE__);
-            CAMERA_HAL_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator, 
-                    parm.parm.capture.timeperframe.denominator);
-            return CAPTURE_DEVICE_ERR_SYS_CALL;
-        }
-
-
         fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         fmt.fmt.pix.pixelformat = pCapcfg->fmt;
 
@@ -398,6 +391,22 @@ namespace android{
                     (pCapcfg->fmt >> 16) & 0xFF, (pCapcfg->fmt >> 24) & 0xFF);
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
+
+        parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
+        parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
+        ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode));
+        if (ret != CAPTURE_DEVICE_ERR_NONE)
+            return ret;
+
+        if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0) {
+            CAMERA_HAL_ERR("%s:%d  VIDIOC_S_PARM failed\n", __FUNCTION__,__LINE__);
+            CAMERA_HAL_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator,
+                    parm.parm.capture.timeperframe.denominator);
+            return CAPTURE_DEVICE_ERR_SYS_CALL;
+        }
+
+
 
         if(V4l2SetRot(pCapcfg) < 0)
             return CAPTURE_DEVICE_ERR_SYS_CALL;
