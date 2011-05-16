@@ -25,6 +25,7 @@
 
 #define CAMAERA_FILENAME_LENGTH     256
 #define MAX_CAPTURE_BUF_QUE_NUM     6
+#define CAMAERA_SENSOR_LENGTH       32
 
 namespace android{
 
@@ -32,6 +33,7 @@ namespace android{
     public:
 
         virtual CAPTURE_DEVICE_ERR_RET SetDevName(char * deviceName);
+        virtual CAPTURE_DEVICE_ERR_RET GetDevName(char * deviceName);
         virtual CAPTURE_DEVICE_ERR_RET DevOpen();
         virtual CAPTURE_DEVICE_ERR_RET EnumDevParam(DevParamType devParamType, void *retParam);
         virtual CAPTURE_DEVICE_ERR_RET DevSetConfig(struct capture_config_t *pCapcfg);
@@ -66,7 +68,7 @@ namespace android{
         virtual CAPTURE_DEVICE_ERR_RET V4l2SetRot(struct capture_config_t *pCapcfg);
 
         char         mCaptureDeviceName[CAMAERA_FILENAME_LENGTH];
-        char         mInitalDeviceName[CAMAERA_FILENAME_LENGTH];
+        char         mInitalDeviceName[CAMAERA_SENSOR_LENGTH];
         int          mCameraDevice;
         unsigned int mFmtParamIdx;
         unsigned int mSizeFPSParamIdx;
