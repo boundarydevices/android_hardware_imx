@@ -580,7 +580,6 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 
     if (err == NO_ERROR) err = setSoftwareParams(handle);
 
-    setAlsaControls(handle, devices, mode);
 
     LOGI("Initialized ALSA %s device %s", stream, devName);
 
