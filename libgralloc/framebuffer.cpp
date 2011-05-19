@@ -543,6 +543,10 @@ static int set_graphics_fb_mode(int fb)
     char fb_modes[256];
     char temp_name[256];
 
+    char value[PROPERTY_VALUE_MAX];
+    property_get("ro.AUTO_CONFIG_DISPLAY", value, "0");
+    if (strcmp(value, "1") != 0)  return 0;
+
     sprintf(temp_name, "/sys/class/graphics/fb%d/modes", fb);
     fp_modes = open(temp_name,O_RDONLY, 0);
     if(fp_modes < 0) {
