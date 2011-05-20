@@ -212,7 +212,7 @@ const char *deviceName(alsa_handle_t *alsa_handle, uint32_t device, int mode, in
 				snd_pcm_info_get_id(pcminfo),
 				snd_pcm_info_get_name(pcminfo));
                 			
-			if(strcmp(snd_pcm_info_get_id(pcminfo),"MXC_SPDIF")==0) {
+			if(strcmp(snd_pcm_info_get_id(pcminfo),"IMX SPDIF mxc spdif-0")==0) {
 			     if(card_device==0)  sprintf(spdifcardname, "hw:0%d", card);
 			     else         		 sprintf(spdifcardname, "hw:%d,%d", card, dev);
 			     havespdifdevice =  true;
