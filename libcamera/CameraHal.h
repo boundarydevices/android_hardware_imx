@@ -76,6 +76,14 @@ namespace android {
         CAMERA_HAL_ERR_PP_NULL = -7
     }CAMERA_HAL_ERR_RET;
 
+	typedef enum{
+        CAMERA_PREVIEW_BACK_REF = 0,
+        CAMERA_PREVIEW_VERT_FLIP = 1,
+        CAMERA_PREVIEW_HORIZ_FLIP = 2,
+        CAMERA_PREVIEW_ROATE_180 = 3,
+        CAMERA_PREVIEW_ROATE_LAST = 3
+	}CAMERA_PREVIEW_ROTATE;
+
     class CameraHal : public CameraHardwareInterface {
     public:
         virtual sp<IMemoryHeap> getPreviewHeap() const;
@@ -117,6 +125,7 @@ namespace android {
         CAMERA_HAL_ERR_RET setPostProcessDevice(sp<PostProcessDeviceInterface> postprocessdevice);
         CAMERA_HAL_ERR_RET setJpegEncoder(sp<JpegEncoderInterface>jpegencoder);
         CAMERA_HAL_ERR_RET  Init();
+        void  setPreviewRotate(CAMERA_PREVIEW_ROTATE previewRotate);
 
         CameraHal();
         virtual             ~CameraHal();
@@ -357,6 +366,7 @@ namespace android {
         pthread_mutex_t mOverlayMutex;
         pthread_mutex_t mMsgMutex;
         pthread_mutex_t mPPIOParamMutex;
+        CAMERA_PREVIEW_ROTATE mPreviewRotate;
 
     };
 
