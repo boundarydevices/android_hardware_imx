@@ -26,6 +26,7 @@
 #include <linux/time.h>
 #include <linux/videodev.h>
 #include <linux/videodev2.h>
+#include <linux/mxc_v4l2.h>
 #include <linux/mxcfb.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -328,7 +329,6 @@ namespace android{
     CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2SetRot(struct capture_config_t *pCapcfg){
 
         CAMERA_HAL_LOG_FUNC;
-        int g_rotate = 0;
         CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
         if (mCameraDevice <= 0 || pCapcfg == NULL){
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
@@ -337,8 +337,18 @@ namespace android{
         struct v4l2_control ctrl;
 
         // Set rotation
-        ctrl.id = V4L2_CID_PRIVATE_BASE + 0;
-        ctrl.value = g_rotate;
+        ctrl.id = V4L2_CID_MXC_ROT;
+        if (pCapcfg->rotate == SENSOR_PREVIEW_BACK_REF)
+            ctrl.value = V4L2_MXC_CAM_ROTATE_NONE;
+        else if (pCapcfg->rotate == SENSOR_PREVIEW_VERT_FLIP)
+            ctrl.value = V4L2_MXC_CAM_ROTATE_VERT_FLIP;
+        else if (pCapcfg->rotate == SENSOR_PREVIEW_HORIZ_FLIP)
+            ctrl.value = V4L2_MXC_CAM_ROTATE_HORIZ_FLIP;
+        else if (pCapcfg->rotate == SENSOR_PREVIEW_ROATE_180)
+            ctrl.value = V4L2_MXC_CAM_ROTATE_180;
+        else
+            ctrl.value = V4L2_MXC_ROTATE_NONE;
+
         if (ioctl(mCameraDevice, VIDIOC_S_CTRL, &ctrl) < 0) {
             CAMERA_HAL_ERR("set ctrl failed\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;

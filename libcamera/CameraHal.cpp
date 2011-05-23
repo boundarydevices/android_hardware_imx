@@ -67,7 +67,8 @@ namespace android {
         mCaptureDeviceOpen(false),
         mPPDeviceNeed(false),
         mPPDeviceNeedForPic(false),
-        mPowerLock(false)
+        mPowerLock(false),
+        mPreviewRotate(CAMERA_PREVIEW_BACK_REF)
     {
         CAMERA_HAL_LOG_FUNC;
         preInit();
@@ -152,6 +153,12 @@ namespace android {
             return ret;
 
         return ret;
+    }
+    void  CameraHal::setPreviewRotate(CAMERA_PREVIEW_ROTATE previewRotate)
+    {
+        CAMERA_HAL_LOG_FUNC;
+        mPreviewRotate = previewRotate;
+        return ;
     }
 
     CAMERA_HAL_ERR_RET  CameraHal :: AolLocForInterBuf()
@@ -1128,6 +1135,7 @@ Pic_out:
         int  max_fps, min_fps;
         mParameters.getPreviewSize((int *)&(mCaptureDeviceCfg.width),(int *)&(mCaptureDeviceCfg.height));
         mCaptureDeviceCfg.fmt = mPreviewCapturedFormat;
+        mCaptureDeviceCfg.rotate = (SENSOR_PREVIEW_ROTATE)mPreviewRotate;
         mCaptureDeviceCfg.tv.numerator = 1;
         mCaptureDevice->GetDevName(mCameraSensorName);
         if (strstr(mCameraSensorName, "uvc") == NULL){
@@ -1810,6 +1818,11 @@ show_out:
 
         if (pCameraHal->Init() < 0)
             return NULL;
+
+        //now the board has only one csi camera sensor, so just do mirror for it
+        if(strstr(SelectedCameraName, "ov") != NULL){
+            pCameraHal->setPreviewRotate(CAMERA_PREVIEW_BACK_REF);
+        }
 
         sp<CameraHardwareInterface> hardware(pCameraHal);
         CAMERA_HAL_LOG_INFO("created the fsl Camera hal");
