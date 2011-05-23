@@ -52,6 +52,14 @@ namespace android {
         FRAME_SIZE_FPS = 1
     }DevParamType;
 
+	typedef enum{
+        SENSOR_PREVIEW_BACK_REF = 0,
+        SENSOR_PREVIEW_VERT_FLIP = 1,
+        SENSOR_PREVIEW_HORIZ_FLIP = 2,
+        SENSOR_PREVIEW_ROATE_180 = 3,
+        SENSOR_PREVIEW_ROATE_LAST = 3
+	}SENSOR_PREVIEW_ROTATE;
+
     struct timeval_fract{
         unsigned int numerator;
         unsigned int denominator;
@@ -64,6 +72,7 @@ namespace android {
         unsigned int framesize;   //out
         unsigned int picture_waite_number;//out
         struct timeval_fract tv;
+		SENSOR_PREVIEW_ROTATE rotate;
     };
 
 
