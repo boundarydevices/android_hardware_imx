@@ -278,6 +278,8 @@ namespace android{
                 capturemode = 0;	/* VGA mode */
             else if (capturewidth == 320 && captureheight == 240)
                 capturemode = 1;	/* QVGA mode */
+            else if (capturewidth == 720 && captureheight == 480)
+                capturemode = 2;	/* PAL mode */
             else if (capturewidth == 720 && captureheight == 576)
                 capturemode = 3;	/* PAL mode */
             else if (capturewidth == 1280 && captureheight == 720)
