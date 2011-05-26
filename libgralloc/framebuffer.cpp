@@ -1199,7 +1199,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     ctx->sec_disp_w = info.xres;
     ctx->sec_disp_h = info.yres;
     ctx->sec_frame_size = fbSize/nr_framebuffers;
-    ctx->sec_disp_next_buf = info.yoffset ? 0 : 1;
+    ctx->sec_disp_next_buf = ((info.yoffset * nr_framebuffers / info.yres_virtual) + 1) % nr_framebuffers;
     ctx->sec_info = info;
     ctx->sec_finfo = finfo;
 #if 0
@@ -1522,14 +1522,8 @@ void * secDispShowFrames(void * arg)
 
         sem_post(&ctx->sec_display_end);
         
-        if(!ctx->sec_disp_next_buf) {
-            ctx->sec_info.yoffset = 0; 
-        }
-        else{
-            ctx->sec_info.yoffset = ctx->sec_info.yres_virtual/nr_framebuffers;
-        }
-
-        ctx->sec_disp_next_buf = !ctx->sec_disp_next_buf;  
+        ctx->sec_info.yoffset = (ctx->sec_info.yres_virtual/nr_framebuffers) * ctx->sec_disp_next_buf;
+        ctx->sec_disp_next_buf = (ctx->sec_disp_next_buf + 1) % nr_framebuffers;
         ctx->sec_info.activate = FB_ACTIVATE_VBL;
 
         ioctl(ctx->sec_fp, FBIOPAN_DISPLAY, &ctx->sec_info);
