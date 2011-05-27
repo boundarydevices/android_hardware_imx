@@ -880,7 +880,7 @@ Pic_out:
             }
             if (mPictureEncodeFormat == 0){
                 mPictureEncodeFormat = mEncoderSupportedFormat[0];
-                mCaptureDeviceCfg.fmt = mCaptureSupportedFormat[0];
+                mCaptureDeviceCfg.fmt = mUvcSpecialCaptureFormat; //For uvc now, IPU only can support yuyv.
                 mPPDeviceNeedForPic = true;
                 CAMERA_HAL_LOG_INFO("Need to do the CSC for Jpeg encoder");
                 CAMERA_HAL_LOG_INFO(" Get the captured format is :%c%c%c%c\n",
