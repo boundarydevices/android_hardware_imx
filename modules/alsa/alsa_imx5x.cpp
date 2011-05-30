@@ -1,7 +1,5 @@
 /* alsa_imx51.cpp
  **
- ** Copyright 2009 Freecale Semiconductor
- **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
  ** You may obtain a copy of the License at
@@ -14,6 +12,8 @@
  ** See the License for the specific language governing permissions and
  ** limitations under the License.
  */
+
+/* Copyright 2010-2011 Freescale Semiconductor Inc. */
 
 #define LOG_TAG "iMX51ALSA"
 #include <utils/Log.h>
@@ -591,6 +591,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 
 static status_t s_close(alsa_handle_t *handle)
 {
+    LOGW("s_close--");
     status_t err = NO_ERROR;
     snd_pcm_t *h = handle->handle;
     handle->handle = 0;
