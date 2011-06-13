@@ -422,7 +422,7 @@ class OverlayThread: public Thread {
                     mIPUInputParam.fmt = v4l2_fourcc('N', 'V', '1', '2');
                 }
                 else if(overlayObj0->mHandle.format == HAL_PIXEL_FORMAT_YCbCr_420_I) {
-                    mIPUInputParam.fmt = v4l2_fourcc('N', 'Y', '1', '2');
+                    mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
                 }
                 else if(overlayObj0->mHandle.format == HAL_PIXEL_FORMAT_RGB_565) {
                     mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
