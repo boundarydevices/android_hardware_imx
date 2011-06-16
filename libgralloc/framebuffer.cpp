@@ -400,6 +400,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                         char overlayStr[32];
                         int blank;
                         int fb2_fp;
+			struct fb_var_screeninfo fb0_var;
 
                         blank = 1;
 
@@ -424,29 +425,54 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
                         memset(overlayStr, 0 ,32);
                         strcpy(overlayStr, "1-layer-fb\n");
-                        LOGI("WRITE 1-layer-fb to fb0/fsl_disp_property");
+                        LOGI("WRITE 1-layer-fb to fb1/fsl_disp_property");
                         write(fp_property, overlayStr, strlen(overlayStr)+1);
                         close(fp_property);
 
-                        blank = FB_BLANK_UNBLANK;
+                        blank = FB_BLANK_POWERDOWN;
                     	if(ioctl(ctx->sec_fp, FBIOBLANK, blank) < 0) {
                     		LOGI("Error!BLANK FB1 failed!\n");
                     	}
+                        blank = FB_BLANK_UNBLANK;
                     	if(ioctl(m->framebuffer->fd, FBIOBLANK, blank) < 0) {
                     		LOGI("Error!UNBLANK FB0 failed!\n");
                     	}
 
-                        struct mxcfb_color_key key;
-                        key.enable = 1;
-                        key.color_key = 0x00000000; // Black
-                        LOGI("MXCFB_SET_CLR_KEY");
-                        if( ioctl(m->framebuffer->fd, MXCFB_SET_CLR_KEY, &key) < 0)
-                        {
-                            LOGE("Error!MXCFB_SET_CLR_KEY for fb0");
-                        }
+			if (ioctl(m->framebuffer->fd, FBIOGET_VSCREENINFO,
+				  &fb0_var) < 0) {
+                            LOGE("Error!Cannot get var info for fb0");
+			}
 
+			if (fb0_var.bits_per_pixel == 32) {
+				struct mxcfb_loc_alpha l_alpha;
+
+				l_alpha.enable = true;
+				l_alpha.alpha_in_pixel = true;
+				if (ioctl(m->framebuffer->fd, MXCFB_SET_LOC_ALPHA,
+				            &l_alpha) < 0) {
+				    LOGE("Error!MXCFB_SET_LOC_ALPHA failed!");
+				}
+			} else {
+				struct mxcfb_gbl_alpha gbl_alpha;
+	                        struct mxcfb_color_key key;
+
+				gbl_alpha.alpha = 255;
+				gbl_alpha.enable = 1;
+				if (ioctl(m->framebuffer->fd, MXCFB_SET_GBL_ALPHA,
+					  &gbl_alpha) < 0) {
+				    LOGE("Error!MXCFB_SET_GBL_ALPHA failed!");
+				}
+
+	                        key.enable = 1;
+	                        key.color_key = 0x00000000; // Black
+	                        LOGI("MXCFB_SET_CLR_KEY");
+	                        if( ioctl(m->framebuffer->fd, MXCFB_SET_CLR_KEY,
+					  &key) < 0)
+	                        {
+	                            LOGE("Error!MXCFB_SET_CLR_KEY for fb0");
+	                        }
+			}
                     }
-                    
                     close(ctx->sec_fp);
                     ctx->sec_fp = 0;
                 }
@@ -1050,7 +1076,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     size_t fbSize = 0;
     int blank;
     void* vaddr = NULL;
-    //struct mxcfb_gbl_alpha gbl_alpha;
+    struct mxcfb_gbl_alpha gbl_alpha;
     struct mxcfb_color_key key; 
     char overlayStr[32];
     int fb2_fp;
@@ -1182,15 +1208,15 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
         LOGE("Error!MXCFB_SET_CLR_KEY");
         goto disp_init_error;
     }
-                            
-    //gbl_alpha.alpha = 255;
-    //gbl_alpha.enable = 1;
-    //LOGI("MXCFB_SET_GBL_ALPHA");
-    //if(ioctl(sec_fp, MXCFB_SET_GBL_ALPHA, &key) <0)
-    //{
-    //    LOGI("Error!MXCFB_SET_GBL_ALPHA error");
-    //    goto disp_init_error;
-    //}
+
+    gbl_alpha.alpha = 255;
+    gbl_alpha.enable = 1;
+    LOGI("MXCFB_SET_GBL_ALPHA");
+    if(ioctl(sec_fp, MXCFB_SET_GBL_ALPHA, &gbl_alpha) <0)
+    {
+        LOGI("Error!MXCFB_SET_GBL_ALPHA error");
+        goto disp_init_error;
+    }
 
     ctx->sec_disp_base = intptr_t(vaddr);
     ctx->sec_disp_phys = intptr_t(finfo.smem_start);
