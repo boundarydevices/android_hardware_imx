@@ -239,6 +239,56 @@ static void update_to_display(int left, int top, int width, int height, int upda
 }
 #endif
 
+
+sem_t * fslwatermark_sem_open()
+{
+    int fd;
+    int ret;
+    sem_t *pSem = NULL;
+    char *shm_path, shm_file[256];
+
+    shm_path = getenv("CODEC_SHM_PATH");      /*the CODEC_SHM_PATH is on a memory map the fs */ 
+
+    if (shm_path == NULL)
+        strcpy(shm_file, "/dev/shm");   /* default path */
+    else
+        strcpy(shm_file, shm_path);
+
+    strcat(shm_file, "/"); 
+    strcat(shm_file, "codec.shm");
+
+    fd = open(shm_file, O_RDWR, 0666);
+    if (fd < 0) { 
+        /* first thread/process need codec protection come here */
+        fd = open(shm_file, O_RDWR | O_CREAT | O_EXCL, 0666);
+       if(fd < 0)
+       {
+           return NULL;
+       }
+       ftruncate(fd, sizeof(sem_t));
+
+       /* map the semaphore variant in the file */ 
+       pSem = (sem_t *)mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+       if((void *)(-1) == pSem)
+       {
+           return NULL;
+       }
+       /* do the semaphore initialization */
+       ret = sem_init(pSem, 0, 1);
+       if(-1 == ret)
+       {
+           return NULL;
+       }
+    }
+    else
+      pSem = (sem_t *)mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    close(fd);
+
+    return pSem;
+}
+
+
 /*****************************************************************************/
 
 static int fb_setSwapInterval(struct framebuffer_device_t* dev,
@@ -1640,6 +1690,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
 	/* initialize the IPU lib IPC */
         if (!no_ipu)
             mxc_ipu_lib_ipc_init();
+
+    fslwatermark_sem_open();
+
     }
     return status;
 }
