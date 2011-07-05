@@ -89,6 +89,7 @@ namespace android {
         virtual sp<IMemoryHeap> getPreviewHeap() const;
         virtual sp<IMemoryHeap> getRawHeap() const;
 
+        virtual status_t setPreviewWindow(const sp<ANativeWindow>& buf) { return 0;};
         virtual void        setCallbacks(notify_callback notify_cb,
                 data_callback data_cb,
                 data_callback_timestamp data_cb_timestamp,
