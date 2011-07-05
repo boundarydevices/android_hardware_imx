@@ -109,7 +109,6 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode, const char *cardname)
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP | \
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES | \
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER | \
-        AudioSystem::DEVICE_OUT_WIRED_HDMI | \
         AudioSystem::DEVICE_OUT_DEFAULT \
 	)
 
@@ -234,13 +233,14 @@ const char *deviceName(alsa_handle_t *alsa_handle, uint32_t device, int mode, in
 		}
 	}
         
-
+/*
     property_get("ro.HDMI_AUDIO_OUTPUT", value, "");
     if((device & AudioSystem::DEVICE_OUT_WIRED_HDMI) && havespdifdevice && (strcmp(value, "1") == 0))
     {
         return spdifcardname;
 
     }else if(havesgtldevice)
+*/
     {
         return sgtlcardname;
     }
