@@ -501,7 +501,10 @@ static int open_copybit(const struct hw_module_t* module, const char* name,
     if (c2dstatus != C2D_STATUS_OK)
         close_copybit(&ctx->device.common);
     else
+    {
         *device = &ctx->device.common;
+        status = 0;
+    }
 
     return status;
 }
