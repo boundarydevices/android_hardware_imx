@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(BOARD_SOC_CLASS),IMX5X)
 LOCAL_PATH := $(call my-dir)
 
 # HAL module implemenation, not prelinked and stored in
@@ -27,7 +26,7 @@ else
 LOCAL_SHARED_LIBRARIES += libc2d_z430
 endif
 LOCAL_C_INCLUDES += external/linux-lib/ipu
-LOCAL_C_INCLUDES += hardware/mx5x/libcopybit
+LOCAL_C_INCLUDES += hardware/imx/mx5x/libcopybit
 
 LOCAL_SRC_FILES := 	\
 	allocator.cpp 	\
@@ -50,4 +49,3 @@ endif
 LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
-endif

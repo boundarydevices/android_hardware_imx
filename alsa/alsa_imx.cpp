@@ -1,4 +1,4 @@
-/* alsa_imx51.cpp
+/* alsa_imx.cpp
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 /* Copyright 2010-2011 Freescale Semiconductor Inc. */
 
-#define LOG_TAG "iMX51ALSA"
+#define LOG_TAG "iMXALSA"
 #include <utils/Log.h>
 
 #include "AudioHardwareALSA.h"
@@ -58,7 +58,7 @@ extern "C" const hw_module_t HAL_MODULE_INFO_SYM = {
     version_major   : 1,
     version_minor   : 0,
     id              : ALSA_HARDWARE_MODULE_ID,
-    name            : "i.MX51 ALSA module",
+    name            : "i.MX ALSA module",
     author          : "Freescale Semiconductor",
     methods         : &s_module_methods,
     dso             : 0,
@@ -86,7 +86,7 @@ static int s_device_open(const hw_module_t* module, const char* name,
 
     *device = &dev->common;
 
-    LOGD("i.MX51 ALSA module opened");
+    LOGD("i.MX ALSA module opened");
 
     return 0;
 }
@@ -105,7 +105,7 @@ static void setDefaultControls(uint32_t devices, int mode, const char *cardname)
 
 typedef void (*AlsaControlSet)(uint32_t devices, int mode, const char *cardname);
 
-#define IMX51_OUT_CODEC_DEFAULT   (\
+#define IMX_OUT_DEFAULT   (\
         AudioSystem::DEVICE_OUT_EARPIECE | \
         AudioSystem::DEVICE_OUT_SPEAKER | \
         AudioSystem::DEVICE_OUT_WIRED_HEADSET | \
@@ -113,12 +113,11 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode, const char *cardname)
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP | \
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES | \
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER | \
+        AudioSystem::DEVICE_OUT_AUX_DIGITAL | \
         AudioSystem::DEVICE_OUT_DEFAULT \
 	)
-#define IMX51_OUT_SPDIF_DEFAULT   (\
-        AudioSystem::DEVICE_OUT_AUX_DIGITAL \
-        )
-#define IMX51_IN_CODEC_DEFAULT    (\
+
+#define IMX_IN_DEFAULT    (\
         AudioSystem::DEVICE_IN_ALL &\
 	~AudioSystem::DEVICE_IN_BLUETOOTH_SCO_HEADSET \
 	)
@@ -126,7 +125,7 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode, const char *cardname)
 static alsa_handle_t _defaults[] = {
     {
         module      : 0,
-        devices     : IMX51_OUT_CODEC_DEFAULT,
+        devices     : IMX_OUT_DEFAULT,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -139,20 +138,7 @@ static alsa_handle_t _defaults[] = {
     },
     {
         module      : 0,
-        devices     : IMX51_OUT_SPDIF_DEFAULT,
-        curDev      : 0,
-        curMode     : 0,
-        handle      : 0,
-        format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
-        channels    : 2,
-        sampleRate  : DEFAULT_SAMPLE_RATE,
-        latency     : 200000, // Desired Delay in usec
-        bufferSize  : 6144, // Desired Number of samples
-        modPrivate  : (void *)&setDefaultControls,
-    },
-    {
-        module      : 0,
-        devices     : IMX51_IN_CODEC_DEFAULT,
+        devices     : IMX_IN_DEFAULT,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
@@ -433,8 +419,8 @@ status_t setHardwareParams(alsa_handle_t *handle)
         LOGV("Setup buffers time near for latency ok %d", latency);
     }
 
-    LOGV("Buffer size: %d", (int)bufferSize);
-    LOGV("Latency: %d", (int)latency);
+    LOGI("Buffer size: %d", (int)bufferSize);
+    LOGI("Latency: %d", (int)latency);
 
     handle->bufferSize = bufferSize;
     handle->latency = latency;
@@ -524,17 +510,21 @@ status_t setSoftwareParams(alsa_handle_t *handle)
 
 void setDefaultControls(uint32_t devices, int mode, const char *cardname)
 {
+
     ALSAControl *ctl = new ALSAControl(cardname);
     LOGD (" setDefaultControls set card :%s",cardname);
-    if(devices & IMX51_OUT_CODEC_DEFAULT)
+    if(devices & IMX_OUT_DEFAULT)
     {
-	if (devices & AudioSystem::DEVICE_OUT_SPEAKER ||
-		devices & AudioSystem::DEVICE_OUT_EARPIECE) {
-        	ctl->set("Speaker Function", "on"); // on
-    	} else {
-        	ctl->set("Speaker Function", "off"); // off
-    	}
-    }
+        if(selecteddevice == DEVICE_SGTL5000)
+        {
+            if (devices & AudioSystem::DEVICE_OUT_SPEAKER ||
+               devices & AudioSystem::DEVICE_OUT_EARPIECE) {
+               ctl->set("Speaker Function", "on"); // on
+             } else {
+               ctl->set("Speaker Function", "off"); // off
+             }
+        }
+     }
 
 #if 0
     if (devices & AudioSystem::DEVICE_OUT_WIRED_HEADSET ||
@@ -557,7 +547,7 @@ void setAlsaControls(alsa_handle_t *handle, uint32_t devices, int mode)
 
 static status_t s_init(alsa_device_t *module, ALSAHandleList &list)
 {
-    LOGD("Initializing devices for IMX51 ALSA module");
+    LOGD("Initializing devices for IMX ALSA module");
 
     list.clear();
 
