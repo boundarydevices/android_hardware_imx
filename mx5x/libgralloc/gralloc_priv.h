@@ -98,15 +98,17 @@ struct private_handle_t {
     int     writeOwner;
     int     phys; // The physical address of that chunk of memory. If using ashmem, set to 0 They don't care
     int     pid;
+    int			usage;
+    int			format;
 
 #ifdef __cplusplus
-    static const int sNumInts = 10;
+    static const int sNumInts = 12;
     static const int sNumFds = 1;
     static const int sMagic = 'pgpu';
 
     private_handle_t(int fd, int size, int flags) :
         fd(fd), magic(sMagic), flags(flags), size(size), offset(0),gpu_fd(-1),
-        base(0), lockState(0), writeOwner(0), phys(0),pid(getpid())
+        base(0), lockState(0), writeOwner(0), phys(0),pid(getpid()),usage(0),format(0)
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
