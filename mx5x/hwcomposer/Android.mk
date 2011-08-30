@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(HAVE_FSL_IMX_GPU),true)
-ifeq ($(BOARD_SOC_CLASS),IMX5X)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -22,23 +20,11 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_C_INCLUDES += hardware/mx5x/libgralloc
-LOCAL_SHARED_LIBRARIES := liblog
-ifeq ($(BOARD_SOC_TYPE),IMX50)
-LOCAL_SHARED_LIBRARIES += libc2d_z160
-else
-LOCAL_SHARED_LIBRARIES += libc2d_z430
-endif
-
-LOCAL_SRC_FILES := 	\
-	copybit.cpp
-	
-LOCAL_MODULE := copybit.$(TARGET_BOARD_PLATFORM)
-LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).copybit\" -D_LINUX
-
+LOCAL_SHARED_LIBRARIES := liblog libEGL libipu libcutils libutils
+LOCAL_SRC_FILES := hwcomposer.cpp BG_device.cpp FG_device.cpp hwc_common.cpp blit_gpu.cpp blit_ipu.cpp output_device.cpp
+LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
+LOCAL_C_INCLUDES += hardware/imx/mx5x/libgralloc
+LOCAL_C_INCLUDES += external/linux-lib/ipu
+LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_MODULE_TAGS := eng
-
 include $(BUILD_SHARED_LIBRARY)
-
-endif
-endif
