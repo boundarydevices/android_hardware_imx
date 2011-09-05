@@ -20,7 +20,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
   include $(CLEAR_VARS)
 
-  LOCAL_PRELINK_MODULE := false
+  LOCAL_PRELINK_MODULE := true
 
   LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 
@@ -36,7 +36,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   	liblog   \
     libcutils
 
-  LOCAL_MODULE:= alsa.$(TARGET_BOARD_PLATFORM)
+  LOCAL_MODULE:= alsa.freescale
 
   LOCAL_MODULE_TAGS := eng
 
