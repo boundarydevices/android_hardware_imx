@@ -1,4 +1,4 @@
-common_imx_dirs := libsensor alsa libcamera
+common_imx_dirs := libsensors alsa libcamera
 mx5x_dirs := $(common_imx_dirs) libgps mx5x/libcopybit mx5x/libgralloc
 mx6_dirs := $(common_imx_dirs) mx6/libgralloc
 
