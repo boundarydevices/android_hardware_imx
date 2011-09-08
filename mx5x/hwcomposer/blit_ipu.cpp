@@ -112,8 +112,8 @@ HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= I420");
     }
     else if((handle->format == HAL_PIXEL_FORMAT_RGB_565) || (handle->format == BLIT_PIXEL_FORMAT_RGB_565)) {
 HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= RGBP");
-       // mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
-        mIPUInputParam.fmt = v4l2_fourcc('N', 'V', '1', '2');
+        mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
+        //mIPUInputParam.fmt = v4l2_fourcc('N', 'V', '1', '2');
     }else{
         HWCOMPOSER_LOG_ERR("Error!Not supported input format %d",handle->format);
         return status;
