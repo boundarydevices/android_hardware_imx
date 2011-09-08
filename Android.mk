@@ -1,5 +1,5 @@
-common_imx_dirs := libsensors alsa libcamera
-mx5x_dirs := $(common_imx_dirs) libgps mx5x/libcopybit mx5x/libgralloc
+common_imx_dirs := libsensors alsa
+mx5x_dirs := $(common_imx_dirs) libgps mx5x/libcopybit mx5x/libgralloc  mx5x/hwcomposer mx5x/libcamera
 mx6_dirs := $(common_imx_dirs) mx6/libgralloc
 
 ifeq ($(TARGET_BOARD_PLATFORM),imx6)
