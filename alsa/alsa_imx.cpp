@@ -113,9 +113,12 @@ typedef void (*AlsaControlSet)(uint32_t devices, int mode, const char *cardname)
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP | \
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_HEADPHONES | \
         AudioSystem::DEVICE_OUT_BLUETOOTH_A2DP_SPEAKER | \
-        AudioSystem::DEVICE_OUT_AUX_DIGITAL | \
         AudioSystem::DEVICE_OUT_DEFAULT \
 	)
+
+#define IMX_OUT_SPDIF    (\
+        AudioSystem::DEVICE_OUT_AUX_DIGITAL \
+    )
 
 #define IMX_IN_DEFAULT    (\
         AudioSystem::DEVICE_IN_ALL &\
@@ -126,6 +129,19 @@ static alsa_handle_t _defaults[] = {
     {
         module      : 0,
         devices     : IMX_OUT_DEFAULT,
+        curDev      : 0,
+        curMode     : 0,
+        handle      : 0,
+        format      : SND_PCM_FORMAT_S16_LE, // AudioSystem::PCM_16_BIT
+        channels    : 2,
+        sampleRate  : DEFAULT_SAMPLE_RATE,
+        latency     : 200000, // Desired Delay in usec
+        bufferSize  : 6144, // Desired Number of samples
+        modPrivate  : (void *)&setDefaultControls,
+    },
+    {
+        module      : 0,
+        devices     : IMX_OUT_SPDIF,
         curDev      : 0,
         curMode     : 0,
         handle      : 0,
