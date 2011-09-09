@@ -88,30 +88,30 @@ static int hwc_check_property(hwc_context_t *dev)
 
     property_get("rw.VIDEO_TVOUT_DISPLAY", value, "");
     if (strcmp(value, "1") == 0) {
-        property_set("rw.VIDEO_OVERLAY_DISPLAY", "0");
+        property_set("sys.VIDEO_OVERLAY_DISPLAY", "0");
         property_set("sys.VIDEO_DISPLAY", "1");
     }
     else
     {
-       property_set("rw.VIDEO_OVERLAY_DISPLAY", "1");
+       property_set("sys.VIDEO_OVERLAY_DISPLAY", "1");
        property_set("sys.VIDEO_DISPLAY", "0");
     }
     property_get("sys.SECOND_DISPLAY_ENABLED", value, "");
     if (strcmp(value, "1") == 0) {
-       property_set("rw.VIDEO_OVERLAY_DISPLAY", "2");
+       property_set("sys.VIDEO_OVERLAY_DISPLAY", "2");
        property_set("sys.VIDEO_DISPLAY", "0");
     } else
     {
-       property_set("rw.VIDEO_OVERLAY_DISPLAY", "1");
+       property_set("sys.VIDEO_OVERLAY_DISPLAY", "1");
        property_set("sys.VIDEO_DISPLAY", "0");
     }
 
-    /*note:rw.VIDEO_OVERLAY_DISPLAY means the overlay will be combined to which display.
+    /*note:sys.VIDEO_OVERLAY_DISPLAY means the overlay will be combined to which display.
      *the default value is 0 and it indicates nothing.
      *if the value is 1 and it indicates combined to display0.
      *if the value is 2 and it indicates combined to display1.
     */
-    property_get("rw.VIDEO_OVERLAY_DISPLAY", value, "");
+    property_get("sys.VIDEO_OVERLAY_DISPLAY", value, "");
     dev->display_mode &= ~(DISPLAY_MODE_OVERLAY_DISP0 | DISPLAY_MODE_OVERLAY_DISP1 |
         				DISPLAY_MODE_OVERLAY_DISP2 | DISPLAY_MODE_OVERLAY_DISP3);
     if (strcmp(value, "1") == 0){
