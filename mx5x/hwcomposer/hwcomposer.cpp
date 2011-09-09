@@ -85,6 +85,27 @@ static int hwc_check_property(hwc_context_t *dev)
     //bool bValue = false;
     char value[10];
     int orignMode = dev->display_mode;
+
+    property_get("rw.VIDEO_TVOUT_DISPLAY", value, "");
+    if (strcmp(value, "1") == 0) {
+        property_set("rw.VIDEO_OVERLAY_DISPLAY", "0");
+        property_set("sys.VIDEO_DISPLAY", "1");
+    }
+    else
+    {
+       property_set("rw.VIDEO_OVERLAY_DISPLAY", "1");
+       property_set("sys.VIDEO_DISPLAY", "0");
+    }
+    property_get("sys.SECOND_DISPLAY_ENABLED", value, "");
+    if (strcmp(value, "1") == 0) {
+       property_set("rw.VIDEO_OVERLAY_DISPLAY", "2");
+       property_set("sys.VIDEO_DISPLAY", "0");
+    } else
+    {
+       property_set("rw.VIDEO_OVERLAY_DISPLAY", "1");
+       property_set("sys.VIDEO_DISPLAY", "0");
+    }
+
     /*note:rw.VIDEO_OVERLAY_DISPLAY means the overlay will be combined to which display.
      *the default value is 0 and it indicates nothing.
      *if the value is 1 and it indicates combined to display0.
