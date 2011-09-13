@@ -126,6 +126,7 @@ HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= RGBP");
 #endif
     mIPUInputParam.user_def_paddr[0] = handle->phys;
     //out_buf should has width and height to be checked with the display_frame.
+//HWCOMPOSER_LOG_ERR("^^^^^^^^in^^paddr=%x^^^^^^left=%d, top=%d, right=%d, bottom=%d", handle->phys, src_crop->left, src_crop->top, src_crop->right, src_crop->bottom);
     mIPUOutputParam.fmt = out_buf->format;//v4l2_fourcc('U', 'Y', 'V', 'Y');
     mIPUOutputParam.show_to_fb = 0;
 //HWCOMPOSER_LOG_RUNTIME("^^^^^^^^out_buf->format= %x, out->phy_addr=%x, in->phys=%x", out_buf->format, out_buf->phy_addr, handle->phys);
@@ -145,7 +146,7 @@ HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= RGBP");
 	    mIPUOutputParam.output_win.win_w = ((disp_frame->right - disp_frame->left) >> 3) << 3;
 	    mIPUOutputParam.output_win.win_h = ((disp_frame->bottom - disp_frame->top) >> 3) << 3;
   	}
-//HWCOMPOSER_LOG_RUNTIME("^^^^^^^^^^^^^^^^right=%d, left=%d, bottom=%d, top=%d", disp_frame->right, disp_frame->left, disp_frame->bottom, disp_frame->top);
+//HWCOMPOSER_LOG_ERR("^^^^^^^^out^^paddr=%x^^^^^^left=%d, top=%d, right=%d, bottom=%d", out_buf->phy_addr, disp_frame->left, disp_frame->top, disp_frame->right, disp_frame->bottom);
     mIPUOutputParam.rot = layer->transform;
     mIPUOutputParam.user_def_paddr[0] = out_buf->phy_addr;
 HWCOMPOSER_LOG_RUNTIME("------mxc_ipu_lib_task_init-----in blit_ipu::blit()------\n");

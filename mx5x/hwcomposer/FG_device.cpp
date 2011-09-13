@@ -281,7 +281,9 @@ HWCOMPOSER_LOG_RUNTIME("-------------FG_device::init()---open fb0-------------")
 		(mbuffers[i]).size = fbSize/DEFAULT_BUFFERS;
 		(mbuffers[i]).virt_addr = (void *)((unsigned long)vaddr + i * (mbuffers[i]).size);
 		(mbuffers[i]).phy_addr = finfo.smem_start + i * (mbuffers[i]).size;
-		(mbuffers[i]).format = m_format;
+		(mbuffers[i]).width = m_width;
+        (mbuffers[i]).height = m_height;
+        (mbuffers[i]).format = m_format;
   	}
 
   	//pthread_mutex_init(&dev->buf_mutex, NULL);
