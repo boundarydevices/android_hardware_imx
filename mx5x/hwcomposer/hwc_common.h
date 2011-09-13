@@ -16,6 +16,8 @@
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
 #include <asm/page.h>
+#include <ui/Rect.h>
+#include <ui/Region.h>
 
 #undef LOG_TAG
 #define LOG_TAG "FslHwcomposer"
@@ -103,6 +105,7 @@ typedef struct{
     int width;
     int height;
     int usage;
+    Region disp_region;
 }hwc_buffer;
 
 class output_device
@@ -115,6 +118,9 @@ public:
 		int getUsage();
 		int getWidth();
 		int getHeight();
+        void setDisplayFrame(hwc_rect_t *disFrame);
+        int needFillBlack(hwc_buffer *buf);
+        void fillBlack(hwc_buffer *buf);
 
 		output_device(const char *dev_name, int usage);
 		virtual ~output_device();
@@ -134,6 +140,9 @@ protected:
 		int m_height;
 		int m_format;
 //		int is_overlay;
+
+        //Region orignRegion;
+        Region currenRegion;
 
 		mutable Mutex mLock;
 		hwc_buffer mbuffers[DEFAULT_BUFFERS];
