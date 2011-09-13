@@ -144,7 +144,7 @@ static int hwc_check_property(hwc_context_t *dev)
 		if(dev->display_mode ^ orignMode) {
 				dev->display_mode_changed = 1;
 		}
-//HWCOMPOSER_LOG_RUNTIME("*********display_mode=%x, display_mode_changed=%d\n", dev->display_mode, dev->display_mode_changed);
+HWCOMPOSER_LOG_RUNTIME("*********display_mode=%x, display_mode_changed=%d\n", dev->display_mode, dev->display_mode_changed);
 		return 0;
 }
 
@@ -173,7 +173,7 @@ static int hwc_modify_property(hwc_context_t *dev, private_handle_t *handle)
 	else if(dev->display_mode & DISPLAY_MODE_OVERLAY_DISP3)
 			handle->usage |= GRALLOC_USAGE_HWC_OVERLAY_DISP3;
 
-//HWCOMPOSER_LOG_RUNTIME("************handle->usage=%x", handle->usage);
+//HWCOMPOSER_LOG_ERR("************handle->usage=%x", handle->usage);
 	return 0;
 }
 
@@ -299,6 +299,24 @@ static int validate_displayFrame(hwc_layer_t *layer)
     return isValid;
 }
 
+static void checkDisplayFrame(struct hwc_context_t *ctx, hwc_layer_t *layer, int usage)
+{
+    output_device *out;
+    int usg;
+    hwc_rect_t *disFrame = &(layer->displayFrame);
+
+    for(int i = 0; i < MAX_OUTPUT_DISPLAY; i++) {
+        if(ctx->m_using[i] && ctx->m_out[i] && (usage & (GRALLOC_USAGE_OVERLAY0_MASK | GRALLOC_USAGE_OVERLAY1_MASK))) {
+            out = ctx->m_out[i];
+            usg = out->getUsage();
+            if(usg & usage) {
+                out->setDisplayFrame(disFrame);
+            }
+        }
+    }//end for
+
+}
+
 static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
 //#if 1
 		//HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_prepare---1>>>>>>>>>>>>>>>>>\n");
@@ -351,7 +369,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
             int retv = 0;
             int m_usage = 0;
             int i_usage = handle->usage & GRALLOC_USAGE_OVERLAY_DISPLAY_MASK;
-            //HWCOMPOSER_LOG_ERR("<<<<<<<<<<<<<<<hwc_prepare---3-3>>>>>>>>>>>>>>>>\n");
+            //HWCOMPOSER_LOG_ERR("<<<<<<<<<<<<<<<hwc_prepare---3-3>>>>>usage=%x>>>i_usage=%x>>>>>>>>\n", handle->usage, i_usage);
             retv = checkOutputDevice(ctx, out_using, i_usage, &m_usage);
             while(retv && m_usage) {
 		        int ruse = 0;
@@ -383,6 +401,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
 		        ctx->m_using[index] = 1;
 		        //setLayerFrame(layer, ctx->m_out[index], ruse);
             }//end while
+            checkDisplayFrame(ctx, layer, i_usage);
 #endif
         }//end for
 #if 1
@@ -487,6 +506,7 @@ static int hwc_set(hwc_composer_device_t *dev,
             int m_usage = 0;
             int i_usage = handle->usage & GRALLOC_USAGE_OVERLAY_DISPLAY_MASK;
     	    HWCOMPOSER_LOG_RUNTIME("==============hwc_set=5==============\n");
+            if(!i_usage) continue;
             do {
     			output_device *outdev = NULL;
     			int index = 0;
@@ -495,6 +515,7 @@ static int hwc_set(hwc_composer_device_t *dev,
                 	outdev = ctx->m_out[index];
                 }
     			if(outdev != NULL) {
+    	    //HWCOMPOSER_LOG_ERR("======hwc_set===retv=%x===i_usage=%x, index=%d\n", retv, i_usage, index);
     				status = bltdev->blit(layer, &(out_buffer[index]));
     				if(status < 0){
     					HWCOMPOSER_LOG_ERR("Error! bltdev->blit() failed!");
