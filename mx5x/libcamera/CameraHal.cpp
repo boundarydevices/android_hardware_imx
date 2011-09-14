@@ -688,6 +688,7 @@ namespace android {
         status_t ret = NO_ERROR;
         Mutex::Autolock lock(mLock);
         //isPreviewFinsh = 0;
+        mEnqueuedBufs = 0;
         if (mPreviewRunning) {
             return NO_ERROR;
         }
@@ -1805,6 +1806,7 @@ Pic_out:
                 }
                 mCaptureBuffers[queue_back_index].buf_state = WINDOW_BUFS_DEQUEUED;
                 nCameraBuffersQueued++;
+                mEnqueuedBufs --;
                 sem_post(&avab_dequeue_frame);
             }else {
                 CAMERA_HAL_ERR("dequeue invalide buffer!!!!");
