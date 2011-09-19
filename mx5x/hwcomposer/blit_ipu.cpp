@@ -95,8 +95,8 @@ HWCOMPOSER_LOG_RUNTIME("^^^^^^^^^^^^^^^blit_ipu::blit()^^^^^^^^^^^^^^^^^^^^^^");
 
     //fill_buffer((char *)(handle->base), handle->size);
 
-	  mIPUInputParam.width = src_crop->right - src_crop->left;
-	  mIPUInputParam.height = src_crop->bottom - src_crop->top;
+	  mIPUInputParam.width = handle->width;//src_crop->right - src_crop->left;
+	  mIPUInputParam.height = handle->height;//src_crop->bottom - src_crop->top;
 	  mIPUInputParam.input_crop_win.pos.x = src_crop->left;
     mIPUInputParam.input_crop_win.pos.y = src_crop->top;
     mIPUInputParam.input_crop_win.win_w = src_crop->right - src_crop->left;

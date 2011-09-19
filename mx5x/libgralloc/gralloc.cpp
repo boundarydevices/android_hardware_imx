@@ -421,6 +421,8 @@ static int gralloc_alloc(alloc_device_t* dev,
 	private_handle_t* hnd = (private_handle_t*)(*pHandle);
 	hnd->usage = usage;
 	hnd->format = format;
+    hnd->width = alignedw;
+    hnd->height = alignedh;
 
     *pStride = alignedw;
     return 0;
