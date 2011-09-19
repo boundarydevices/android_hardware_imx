@@ -774,7 +774,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
 
     fp_cmd = open("/proc/cmdline",O_RDONLY, 0);
     if(fp_cmd < 0) {
-        LOGI("Error! Cannot open /proc/cmdline");
+        LOGI("Error %d! Cannot open /proc/cmdline", fp_cmd);
         goto set_graphics_fb_mode_error;
     }
 
@@ -793,7 +793,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     sprintf(temp_name, "/sys/class/graphics/fb%d/modes", fb);
     fp_modes = open(temp_name,O_RDONLY, 0);
     if(fp_modes < 0) {
-        LOGI("Error! Cannot open %s", temp_name);
+        LOGI("Error %d! Cannot open %s", fp_modes, temp_name);
         goto set_graphics_fb_mode_error;
     }
 
@@ -821,21 +821,25 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
     fp_mode = open(temp_name,O_RDWR, 0);
     if(fp_mode < 0) {
-        LOGI("Error! Cannot open %s", temp_name);
+        LOGI("Error %d! Cannot open %s", fp_mode, temp_name);
         goto set_graphics_fb_mode_error;
     }
 
     memset(fb_mode, 0, sizeof(fb_mode));
     size = read(fp_mode, fb_mode, sizeof(fb_mode));
-    if(size <= 0)
+    if(size < 0)
     {
         LOGI("Error! Cannot read %s", temp_name);
         goto set_graphics_fb_mode_error;
     }
 
-    if(strncmp(fb_mode, disp_mode, strlen(fb_mode)))
+    if(strncmp(fb_mode, disp_mode, strlen(disp_mode)+1))
     {
-        write(fp_mode, disp_mode, strlen(disp_mode)+1);
+        size = write(fp_mode, disp_mode, strlen(disp_mode)+1);
+		if(size <= 0)
+	    {
+	        LOGI("Error! Cannot write %s", temp_name);
+	    }
     }
 
     close(fp_mode); fp_mode = 0;
