@@ -292,6 +292,9 @@ namespace android{
                 pic_waite_buf_num = 5;
                 capturemode = 6;	/* 2592x1944 mode */
             }
+            else if (capturewidth == 176 && captureheight == 144) {
+                capturemode = 7;       /* QCIF mode */
+            }
             else{
                 CAMERA_HAL_ERR("The camera mode is not supported!!!!");
                 return CAPTURE_DEVICE_ERR_BAD_PARAM;
