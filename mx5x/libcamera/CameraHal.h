@@ -275,6 +275,7 @@ namespace android {
         status_t PrepareCaptureBufs();
         volatile bool isCaptureBufsAllocated;
         //volatile bool isPreviewFinsh;
+        status_t convertPreviewFormat(unsigned int *pFormat);
 
         CameraParameters    mParameters;
         void               *mCallbackCookie;

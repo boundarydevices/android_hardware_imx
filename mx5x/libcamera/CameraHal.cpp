@@ -237,10 +237,14 @@ namespace android {
         unsigned int CapPreviewFmt[MAX_QUERY_FMT_TIMES];
         struct capture_config_t CaptureSizeFps;
         int  previewCnt= 0, pictureCnt = 0, i;
+        char previewFmt[20] = {0};
 
         pParam->setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
         pParam->set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, CameraParameters::PIXEL_FORMAT_YUV420SP);
-        pParam->set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, CameraParameters::PIXEL_FORMAT_YUV420SP);
+        strcpy(previewFmt, CameraParameters::PIXEL_FORMAT_YUV420SP);
+        strcat(previewFmt, ",");
+        strcat(previewFmt, CameraParameters::PIXEL_FORMAT_YUV420P);
+        pParam->set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, previewFmt);
 
         //the Camera Open here will not be close immediately, for later preview.
         if (OpenCaptureDevice() < 0)
@@ -503,9 +507,9 @@ namespace android {
             CAMERA_HAL_ERR("Invalid zoom setting, zoom %d, max zoom %d",zoom,max_zoom);
             return BAD_VALUE;
         }
-        if (!(strcmp(params.getPreviewFormat(), "yuv420sp") == 0) ||
-                (strcmp(params.getPreviewFormat(), "yuv422i") == 0)) {
-            CAMERA_HAL_ERR("Only yuv420 or yuv420i is supported");
+        if (!((strcmp(params.getPreviewFormat(), "yuv420sp") == 0) ||
+                (strcmp(params.getPreviewFormat(), "yuv420p") == 0))) {
+            CAMERA_HAL_ERR("Only yuv420sp or yuv420p is supported, but input format is %s", params.getPreviewFormat());
             return BAD_VALUE;
         }
 
@@ -544,6 +548,24 @@ namespace android {
             return BAD_VALUE;
         }
 
+        const char *pFlashStr;
+        pFlashStr = params.get(CameraParameters::KEY_FLASH_MODE);
+        if (strcmp(pFlashStr, CameraParameters::FLASH_MODE_OFF) != 0 && strcmp(pFlashStr, CameraParameters::FLASH_MODE_AUTO) != 0 
+                && strcmp(pFlashStr, CameraParameters::FLASH_MODE_ON) != 0 && strcmp(pFlashStr, CameraParameters::FLASH_MODE_RED_EYE) != 0
+                && strcmp(pFlashStr, CameraParameters::FLASH_MODE_TORCH) != 0) {
+            CAMERA_HAL_ERR("The flash mode is not corrected");
+            return BAD_VALUE;
+        }
+
+        const char *pFocusStr;
+        pFocusStr = params.get(CameraParameters::KEY_FOCUS_MODE);
+        if(strcmp(pFocusStr, CameraParameters::FOCUS_MODE_AUTO) != 0 && strcmp(pFocusStr, CameraParameters::FOCUS_MODE_INFINITY) != 0
+                && strcmp(pFocusStr, CameraParameters::FOCUS_MODE_MACRO) != 0 && strcmp(pFocusStr, CameraParameters::FOCUS_MODE_FIXED) != 0
+                && strcmp(pFocusStr, CameraParameters::FOCUS_MODE_EDOF) != 0 && strcmp(pFocusStr, CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO) != 0) {
+            CAMERA_HAL_ERR("The focus mode is not corrected");
+            return BAD_VALUE;
+        }
+
         mParameters = params;
 
         return NO_ERROR;
@@ -560,7 +582,7 @@ namespace android {
             CAMERA_HAL_ERR("the buf is not null!");
         }
         mNativeWindow = buf;
-        if((mNativeWindow != NULL) && !isCaptureBufsAllocated) {
+        if((mNativeWindow != NULL) && !isCaptureBufsAllocated && mCaptureBufNum) {
             if(PrepareCaptureBufs() < 0) {
                 CAMERA_HAL_ERR("PrepareCaptureBufs()-2 error");
                 return BAD_VALUE;
@@ -600,6 +622,7 @@ namespace android {
                 mNativeWindow->cancelBuffer(mNativeWindow.get(), buf);
             }
         }
+        mCaptureBufNum = 0;
 
         return NO_ERROR;
     }
@@ -1316,12 +1339,35 @@ Pic_out:
 
         return ret;
     }
+
+    status_t CameraHal::convertPreviewFormat(unsigned int *pFormat)
+    {
+        CAMERA_HAL_LOG_FUNC;
+        if(!strcmp(mParameters.getPreviewFormat(), "yuv420p")) {
+            *pFormat = v4l2_fourcc('Y','U','1','2');
+        }
+        else if(!strcmp(mParameters.getPreviewFormat(), "yuv420sp")) {
+            *pFormat = v4l2_fourcc('N','V','1','2');
+        }
+        else {
+            CAMERA_HAL_ERR("Only yuv420sp or yuv420p is supported");
+            return BAD_VALUE;
+        }
+        return NO_ERROR;
+    }
+
     status_t CameraHal::CameraHALStartPreview()
     {
         CAMERA_HAL_LOG_FUNC;
         status_t ret = NO_ERROR;
         int  max_fps, min_fps;
+
         mParameters.getPreviewSize((int *)&(mCaptureDeviceCfg.width),(int *)&(mCaptureDeviceCfg.height));
+
+        if ((ret = convertPreviewFormat(&mPreviewCapturedFormat)) != 0) {
+            return ret;
+        }
+
         mCaptureDeviceCfg.fmt = mPreviewCapturedFormat;
         mCaptureDeviceCfg.rotate = (SENSOR_PREVIEW_ROTATE)mPreviewRotate;
         mCaptureDeviceCfg.tv.numerator = 1;
@@ -1382,6 +1428,7 @@ Pic_out:
         }else{
             CAMERA_HAL_LOG_INFO("Camera hal already stop preview");
         }
+        mCaptureBufNum = 0;
         return ;
     }
 
