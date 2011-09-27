@@ -40,7 +40,7 @@
 #define ATHR_GPSXtra
 #define ATHR_GPSNi
 
-#define  GPS_DEBUG
+//#define  GPS_DEBUG
 #undef	 GPS_DEBUG_TOKEN	/* print out NMEA tokens */
 
 #define  DFR(...)   LOGD(__VA_ARGS__)
