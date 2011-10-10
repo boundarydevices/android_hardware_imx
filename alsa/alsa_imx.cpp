@@ -136,7 +136,7 @@ static alsa_handle_t _defaults[] = {
         channels    : 2,
         sampleRate  : DEFAULT_SAMPLE_RATE,
         latency     : 200000, // Desired Delay in usec
-        bufferSize  : 6144, // Desired Number of samples
+        bufferSize  : 2048, // Desired Number of samples
         modPrivate  : (void *)&setDefaultControls,
     },
     {
@@ -369,12 +369,13 @@ status_t setHardwareParams(alsa_handle_t *handle)
         LOGV("Set sample rate to %u HZ", requestedRate);
 
     // get the max buffer size we can set
+    /* pass cts, don't use the max buffer size,which will add big latency
     err = snd_pcm_hw_params_get_buffer_size_max(hardwareParams, &bufferSize);
     if (err < 0) {
         LOGE("Unable to get max buffer size:  %s", snd_strerror(err));
         goto done;
     }
-
+    */
     // Make sure we have at least the size we originally wanted
     err = snd_pcm_hw_params_set_buffer_size(handle->handle, hardwareParams,
             bufferSize);
@@ -435,8 +436,8 @@ status_t setHardwareParams(alsa_handle_t *handle)
         LOGV("Setup buffers time near for latency ok %d", latency);
     }
 
-    LOGI("Buffer size: %d", (int)bufferSize);
-    LOGI("Latency: %d", (int)latency);
+    LOGW("Buffer size: %d", (int)bufferSize);
+    LOGW("Latency: %d", (int)latency);
 
     handle->bufferSize = bufferSize;
     handle->latency = latency;
