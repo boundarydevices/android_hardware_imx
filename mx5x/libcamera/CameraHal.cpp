@@ -330,6 +330,7 @@ namespace android {
         }
         return ret;
     }
+
     void CameraHal ::CloseCaptureDevice()
     {
         CAMERA_HAL_LOG_FUNC;
@@ -1249,14 +1250,14 @@ Pic_out:
         cAltitude   = (char *)mParameters.get(CameraParameters::KEY_GPS_ALTITUDE);
         cTimeStamp  = (char *)mParameters.get(CameraParameters::KEY_GPS_TIMESTAMP);
 
-        if (cLatitude !=NULL && cLatitude!=NULL && cAltitude!=NULL && cTimeStamp!=NULL){
+        if (cLatitude !=NULL && cLongtitude!=NULL && cAltitude!=NULL && cTimeStamp!=NULL){
 
             gps_info.version=0x02020000;
 
             //latitude: dd/1,mm/1,ss/1
             gps_info.latitude_degree[1]=1;
             gps_info.latitude_minute[1]=1;
-            gps_info.latitude_second[1]=1;
+            gps_info.latitude_second[1]=1000;
             memcpy((char *)gps_info.latitude_ref, (char *)"N ", sizeof(gps_info.latitude_ref));
 
             if (stringTodegree(cLatitude, gps_info.latitude_degree[0],gps_info.latitude_minute[0],gps_info.latitude_second[0])>0){
@@ -1267,10 +1268,10 @@ Pic_out:
             //longtitude: dd/1,mm/1,ss/1
             gps_info.longtitude_degree[1]=1;
             gps_info.longtitude_minute[1]=1;
-            gps_info.longtitude_second[1]=1;
+            gps_info.longtitude_second[1]=1000;
             memcpy((char *)gps_info.longtitude_ref, (char *)"E ", sizeof(gps_info.longtitude_ref));
 
-            if (stringTodegree(cLatitude, gps_info.longtitude_degree[0],gps_info.longtitude_minute[0],gps_info.longtitude_second[0])>0){
+            if (stringTodegree(cLongtitude, gps_info.longtitude_degree[0],gps_info.longtitude_minute[0],gps_info.longtitude_second[0])>0){
                 //the ref is Weston
                 memcpy((char *)gps_info.longtitude_ref, (char *)"W ", sizeof(gps_info.longtitude_ref));
             }
@@ -1995,6 +1996,7 @@ Pic_out:
     int CameraHal::stringTodegree(char* cAttribute, unsigned int &degree, unsigned int &minute, unsigned int &second)
     {
         double dAttribtute;
+        double eAttr;
         long intAttribute;
         int ret  = 0;
         if (cAttribute == NULL){
@@ -2010,11 +2012,18 @@ Pic_out:
         if (intAttribute < 0){
             ret = 1;
             intAttribute *=-1;
+            dAttribtute *=-1;
+            eAttr = dAttribtute - (double)((double)intAttribute/(double)3600.0);
+            eAttr = eAttr * (double)3600.0 *(double)1000.0;
+        }else {
+            eAttr = dAttribtute - (double)((double)intAttribute/(double)3600.0);
+            eAttr = eAttr * (double)3600.0 *(double)1000.0;
         }
 
         second = (unsigned int)(intAttribute%60);
         minute = (unsigned int)((intAttribute%3600-second)/60);
         degree = (unsigned int)(intAttribute/3600);
+        second = (unsigned int)eAttr + second * 1000;
 
         CAMERA_HAL_LOG_RUNTIME("the degree is %u, %u, %u", degree,minute,second);
 
