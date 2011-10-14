@@ -456,7 +456,9 @@ static int getActiveOuputDevice(struct hwc_context_t *ctx)
 static int hwc_set(hwc_composer_device_t *dev,
         hwc_display_t dpy,
         hwc_surface_t sur,
-        hwc_layer_list_t* list)
+        hwc_layer_list_t* list,
+        char refresh,
+        char vRefresh)
 {
 		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=1==============\n");
     struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
@@ -476,12 +478,14 @@ static int hwc_set(hwc_composer_device_t *dev,
 #endif
 		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=2==============\n");
 #if 1 
-    EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
-    if (!sucess) {
-        return HWC_EGL_ERROR;
+    if(refresh) {
+        EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
+        if (!sucess) {
+            return HWC_EGL_ERROR;
+        }
     }
 #endif
-    if(list == NULL || dev == NULL) {
+    if(list == NULL || dev == NULL || !vRefresh) {
     	return 0;
     }
  		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=3==============\n");
