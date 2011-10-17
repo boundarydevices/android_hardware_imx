@@ -43,6 +43,8 @@ struct hwc_context_t {
 
     //the system property for dual display and overlay switch.
     int display_mode;
+    char ui_refresh;
+    char vd_refresh;
 };
 
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
@@ -453,12 +455,20 @@ static int getActiveOuputDevice(struct hwc_context_t *ctx)
 		return num;
 }
 
+static int hwc_setUpdateMode(hwc_composer_device_t *dev, char refresh, char vRefresh)
+{
+    struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
+    if(ctx == NULL) return 0;
+
+    ctx->ui_refresh = refresh;
+    ctx->vd_refresh = vRefresh;
+    return 0;
+}
+
 static int hwc_set(hwc_composer_device_t *dev,
         hwc_display_t dpy,
         hwc_surface_t sur,
-        hwc_layer_list_t* list,
-        char refresh,
-        char vRefresh)
+        hwc_layer_list_t* list)
 {
 		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=1==============\n");
     struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
@@ -478,14 +488,14 @@ static int hwc_set(hwc_composer_device_t *dev,
 #endif
 		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=2==============\n");
 #if 1 
-    if(refresh) {
+    if((ctx == NULL) || (ctx && ctx->ui_refresh)) {
         EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
         if (!sucess) {
             return HWC_EGL_ERROR;
         }
     }
 #endif
-    if(list == NULL || dev == NULL || !vRefresh) {
+    if(list == NULL || dev == NULL || !ctx->vd_refresh) {
     	return 0;
     }
  		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=3==============\n");
@@ -593,6 +603,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 
         dev->device.prepare = hwc_prepare;
         dev->device.set = hwc_set;
+        dev->device.setUpdateMode = hwc_setUpdateMode;
 
         *device = &dev->device.common;
 
