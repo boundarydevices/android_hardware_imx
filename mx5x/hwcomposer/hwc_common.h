@@ -214,7 +214,11 @@ public:
 		static int isIPUDevice(const char *dev_name);
 		static int isGPUDevice(const char *dev_name);
     virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf) = 0;
-		virtual ~blit_device(){}
+		blit_device();
+                virtual ~blit_device(){}
+
+                int m_def_disp_w;
+	        int m_def_disp_h;
 };
 
 //int FG_init(struct output_device *dev);
