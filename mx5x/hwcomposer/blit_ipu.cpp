@@ -153,6 +153,37 @@ HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= RGBP");
 		mIPUOutputParam.output_win.win_w = out_buf->width;
 		mIPUOutputParam.output_win.win_h = out_buf->height;
     }
+    else if(out_buf->width != m_def_disp_w || out_buf->height!= m_def_disp_h){
+            int dst_w = out_buf->width;
+            int dst_h = out_buf->height;
+	    if(dst_w >= dst_h*m_def_disp_w/m_def_disp_h){
+                dst_w = dst_h*m_def_disp_w/m_def_disp_h;
+            }
+            else{
+                dst_h = dst_w*m_def_disp_h/m_def_disp_w;
+            }
+
+            mIPUOutputParam.width = out_buf->width;//disp_frame->right - disp_frame->left;
+	    mIPUOutputParam.height = out_buf->height;//disp_frame->bottom - disp_frame->top;
+            mIPUOutputParam.width = out_buf->width;//disp_frame->right - disp_frame->left;
+	    mIPUOutputParam.height = out_buf->height;//disp_frame->bottom - disp_frame->top;
+	    mIPUOutputParam.output_win.pos.x = (disp_frame->left >> 3) << 3;
+	    mIPUOutputParam.output_win.pos.y = (disp_frame->top >> 3) << 3;
+            mIPUOutputParam.output_win.win_w = ((disp_frame->right - disp_frame->left) >> 3) << 3;
+	    mIPUOutputParam.output_win.win_h = ((disp_frame->bottom - disp_frame->top) >> 3) << 3;
+
+	    mIPUOutputParam.output_win.pos.x = mIPUOutputParam.output_win.pos.x * dst_w / m_def_disp_w;
+	    mIPUOutputParam.output_win.pos.y = mIPUOutputParam.output_win.pos.y * dst_h / m_def_disp_h;
+	    mIPUOutputParam.output_win.win_w = mIPUOutputParam.output_win.win_w * dst_w / m_def_disp_w;
+	    mIPUOutputParam.output_win.win_h = mIPUOutputParam.output_win.win_h * dst_h / m_def_disp_h;
+            mIPUOutputParam.output_win.pos.x += (out_buf->width - dst_w) >> 1;
+            mIPUOutputParam.output_win.pos.y += (out_buf->height - dst_h) >> 1;
+
+            mIPUOutputParam.output_win.pos.x = (mIPUOutputParam.output_win.pos.x >> 3) << 3;
+            mIPUOutputParam.output_win.pos.y = (mIPUOutputParam.output_win.pos.y >> 3) << 3;
+            mIPUOutputParam.output_win.win_w = (mIPUOutputParam.output_win.win_w >> 3) << 3;
+            mIPUOutputParam.output_win.win_h = (mIPUOutputParam.output_win.win_h >> 3) << 3;
+    }
     else {
 	    mIPUOutputParam.width = out_buf->width;//disp_frame->right - disp_frame->left;
 	    mIPUOutputParam.height = out_buf->height;//disp_frame->bottom - disp_frame->top;
@@ -161,6 +192,7 @@ HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= RGBP");
 	    mIPUOutputParam.output_win.win_w = ((disp_frame->right - disp_frame->left) >> 3) << 3;
 	    mIPUOutputParam.output_win.win_h = ((disp_frame->bottom - disp_frame->top) >> 3) << 3;
   	}
+
 //HWCOMPOSER_LOG_ERR("^^^^^^^^out^^paddr=%x^^^^^^left=%d, top=%d, right=%d, bottom=%d", out_buf->phy_addr, disp_frame->left, disp_frame->top, disp_frame->right, disp_frame->bottom);
     mIPUOutputParam.rot = layer->transform;
     mIPUOutputParam.user_def_paddr[0] = out_buf->phy_addr;

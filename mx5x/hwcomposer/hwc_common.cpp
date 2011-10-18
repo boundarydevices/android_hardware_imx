@@ -229,3 +229,31 @@ int output_dev_close(output_device *dev)
   	
   	return 0;
 }
+
+blit_device::blit_device()
+{
+	int fd_def;
+
+        m_def_disp_w = 0;
+        m_def_disp_h = 0;
+
+	fd_def = open(DEFAULT_FB_DEV_NAME, O_RDWR | O_NONBLOCK, 0);
+
+	if(fd_def < 0) {
+          HWCOMPOSER_LOG_ERR("Error! Open fb device %s failed!", DEFAULT_FB_DEV_NAME);
+          return;
+        }
+
+	struct fb_var_screeninfo def_info;
+        if(ioctl(fd_def, FBIOGET_VSCREENINFO, &def_info) < 0) {
+	  HWCOMPOSER_LOG_ERR("Error! FG_device::init VSCREENINFO def getting failed!");
+          return;
+        }
+
+	m_def_disp_w = def_info.xres;
+	m_def_disp_h = def_info.yres;
+
+	close(fd_def);
+
+	return;
+}
