@@ -1,4 +1,3 @@
-
 /*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +12,7 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #ifndef _HWC_FSL_H_
 #define _HWC_FSL_H_
@@ -32,12 +31,14 @@
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
 #include <asm/page.h>
+#include <ui/Rect.h>
+#include <ui/Region.h>
 
 #undef LOG_TAG
 #define LOG_TAG "FslHwcomposer"
 #include <utils/Log.h>
 
-//#define HWCOMPOSER__DEBUG_LOG
+//#define HWCOMPOSER_DEBUG_LOG
 
 #ifdef HWCOMPOSER_DEBUG_LOG
 #define HWCOMPOSER_LOG_RUNTIME(format, ...) LOGI((format), ## __VA_ARGS__)
@@ -119,6 +120,7 @@ typedef struct{
     int width;
     int height;
     int usage;
+    Region disp_region;
 }hwc_buffer;
 
 class output_device
@@ -131,6 +133,9 @@ public:
 		int getUsage();
 		int getWidth();
 		int getHeight();
+        void setDisplayFrame(hwc_rect_t *disFrame);
+        int needFillBlack(hwc_buffer *buf);
+        void fillBlack(hwc_buffer *buf);
 
 		output_device(const char *dev_name, int usage);
 		virtual ~output_device();
@@ -150,6 +155,9 @@ protected:
 		int m_height;
 		int m_format;
 //		int is_overlay;
+
+        //Region orignRegion;
+        Region currenRegion;
 
 		mutable Mutex mLock;
 		hwc_buffer mbuffers[DEFAULT_BUFFERS];
