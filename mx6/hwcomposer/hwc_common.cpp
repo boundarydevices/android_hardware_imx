@@ -1,4 +1,3 @@
-
 /*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +12,7 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 
 #include <hardware/hardware.h>
@@ -31,9 +30,10 @@
 #include "hwc_common.h"
 #include "blit_gpu.h"
 #include "blit_ipu.h"
-extern "C" {
-#include "mxc_ipu_hl_lib.h" 
-}
+#include <linux/ipu.h>
+//extern "C" {
+//#include "mxc_ipu_hl_lib.h" 
+//}
 /*****************************************************************************/
 using namespace android;
 //int hwc_check_property(hwc_context_t *dev)
