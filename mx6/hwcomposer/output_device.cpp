@@ -1,4 +1,3 @@
-
 /*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -101,10 +100,36 @@ HWCOMPOSER_LOG_INFO("output_device::isFGDevice===%s, %s, %s", dev_name, fb_name,
  	return 0;
 }
 
+void output_device::setDisplayFrame(hwc_rect_t *disFrame)
+{
+    if(disFrame == NULL) {
+        HWCOMPOSER_LOG_ERR("Error! output_device::setDisplayFrame invalid parameter!");
+    }
+    Rect disRect(disFrame->left, disFrame->top, disFrame->right, disFrame->bottom);
+    currenRegion.orSelf(disRect);
+}
+
+int output_device::needFillBlack(hwc_buffer *buf)
+{
+    Rect orignBound(buf->disp_region.getBounds());
+    Rect currentBound(currenRegion.getBounds());
+    return currentBound != orignBound;
+}
+
+void output_device::fillBlack(hwc_buffer *buf)
+{
+    if(buf == NULL) {
+        HWCOMPOSER_LOG_ERR("Error! output_device::fillBlack invalid parameter!");
+        return;
+    }
+
+    hwc_fill_frame_back((char *)buf->virt_addr, buf->size, buf->width, buf->height, buf->format);
+}
+
 int output_device::fetch(hwc_buffer *buf)
 {
 	  //int status = -EINVAL;
-    if(m_dev <= 0) {
+    if(m_dev <= 0 || buf == NULL) {
         HWCOMPOSER_LOG_ERR("Error! output_device::fetch invalid parameter! usage=%x", m_usage);
         return -1;
     }
@@ -118,6 +143,12 @@ int output_device::fetch(hwc_buffer *buf)
 	  buf->usage = m_usage;
 	  buf->format = m_format;
 	  //dev->buffer_cur = (dev->buffer_cur + 1) % DEFAULT_BUFFERS;
+      if((m_usage & (GRALLOC_USAGE_OVERLAY0_MASK | GRALLOC_USAGE_OVERLAY1_MASK)) && needFillBlack(&mbuffers[mbuffer_cur])) {
+          fillBlack(&mbuffers[mbuffer_cur]);
+          mbuffers[mbuffer_cur].disp_region = currenRegion;
+      }
+      //orignRegion = currenRegion;
+      currenRegion.clear();
 
 	  return 0;
 }
