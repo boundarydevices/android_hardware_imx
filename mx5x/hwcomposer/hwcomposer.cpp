@@ -543,7 +543,7 @@ static int hwc_set(hwc_composer_device_t *dev,
                 }
                 
     			if(outdev != NULL) {
-                    if(!bufs_state[index] && ctx->m_using[i]) {
+                    if(!bufs_state[index] && ctx->m_using[index]) {
                         outdev->fetch(&out_buffer[index]);
                         bufs_state[index] = 1;
                     }
