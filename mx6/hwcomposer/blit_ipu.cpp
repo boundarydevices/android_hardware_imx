@@ -100,6 +100,26 @@ static void fill_buffer(char *pbuf, int len)
     k = (k+1)%3;
 }
 
+static void dump_ipu_task(struct ipu_task *t)
+{
+    HWCOMPOSER_LOG_ERR("======ipu task=====");
+    HWCOMPOSER_LOG_ERR("input:");
+    HWCOMPOSER_LOG_ERR("\tbuffer: %d", t->input.paddr);
+    HWCOMPOSER_LOG_ERR("\twidth: %d", t->input.width);
+    HWCOMPOSER_LOG_ERR("\theight: %d", t->input.height);
+    HWCOMPOSER_LOG_ERR("\tcrop.w =%d", t->input.crop.w);
+    HWCOMPOSER_LOG_ERR("\tcrop.h =%d", t->input.crop.h);
+    HWCOMPOSER_LOG_ERR("\tcrop.pos.x =%d", t->input.crop.pos.x);
+    HWCOMPOSER_LOG_ERR("\tcrop.pos.y =%d", t->input.crop.pos.y);
+    HWCOMPOSER_LOG_ERR("output:");
+    HWCOMPOSER_LOG_ERR("\twidth: %d", t->output.width);
+    HWCOMPOSER_LOG_ERR("\theight: %d", t->output.height);
+    HWCOMPOSER_LOG_ERR("\tcrop.w =%d", t->output.crop.w);
+    HWCOMPOSER_LOG_ERR("\tcrop.h =%d", t->output.crop.h);
+    HWCOMPOSER_LOG_ERR("\tcrop.pos.x =%d", t->output.crop.pos.x);
+    HWCOMPOSER_LOG_ERR("\tcrop.pos.y =%d", t->output.crop.pos.y);
+}
+
 int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
 {
 	  int status = -EINVAL;
@@ -166,6 +186,7 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
     while(ret != IPU_CHECK_OK && ret > IPU_CHECK_ERR_MIN) {
         ret = ioctl(mIpuFd, IPU_CHECK_TASK, &mTask);
         HWCOMPOSER_LOG_RUNTIME("%s:%d, IPU_CHECK_TASK ret=%d", __FUNCTION__, __LINE__, ret);
+        //dump_ipu_task(&mTask);
         switch(ret) {
             case IPU_CHECK_OK:
                 break;
@@ -182,6 +203,7 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
                 mTask.output.crop.h -= 8;;
                 break;
             default:
+                //dump_ipu_task(&mTask);
                 HWCOMPOSER_LOG_ERR("%s:%d, IPU_CHECK_TASK ret=%d", __FUNCTION__, __LINE__, ret);
                 return status;
         }

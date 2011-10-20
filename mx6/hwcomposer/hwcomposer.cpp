@@ -158,7 +158,7 @@ static int hwc_modify_property(hwc_context_t *dev, private_handle_t *handle)
 
 	if(dev->display_mode & DISPLAY_MODE_OVERLAY_DISP0){
 			handle->usage |= GRALLOC_USAGE_HWC_OVERLAY_DISP0;
-			dev->display_mode &= ~DISPLAY_MODE_OVERLAY_DISP0;
+			//dev->display_mode &= ~DISPLAY_MODE_OVERLAY_DISP0;
 	}
 	else if(dev->display_mode & DISPLAY_MODE_OVERLAY_DISP1)
 			handle->usage |= GRALLOC_USAGE_HWC_OVERLAY_DISP1;
@@ -502,7 +502,6 @@ static int hwc_set(hwc_composer_device_t *dev,
     if(getActiveOuputDevice(ctx) == 0) {return 0;}//eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur); return 0;}
 
     int status = -EINVAL;
-	HWCOMPOSER_LOG_RUNTIME("==============hwc_set=4==============\n");
 	hwc_buffer out_buffer[MAX_OUTPUT_DISPLAY];
     char bufs_state[MAX_OUTPUT_DISPLAY];
     memset(bufs_state, 0, sizeof(bufs_state));
@@ -530,7 +529,6 @@ static int hwc_set(hwc_composer_device_t *dev,
             int retv = 0;
             int m_usage = 0;
             int i_usage = handle->usage & GRALLOC_USAGE_OVERLAY_DISPLAY_MASK;
-    	    HWCOMPOSER_LOG_RUNTIME("==============hwc_set=5==============\n");
             if(!i_usage) continue;
             do {
     			output_device *outdev = NULL;
@@ -543,10 +541,12 @@ static int hwc_set(hwc_composer_device_t *dev,
                 }
                 
     			if(outdev != NULL) {
-                    if(!bufs_state[index] && ctx->m_using[i]) {
+                    if(!bufs_state[index] && ctx->m_using[index]) {
                         outdev->fetch(&out_buffer[index]);
                         bufs_state[index] = 1;
                     }
+                    if(!bufs_state[index])
+                        continue;
     				status = bltdev->blit(layer, &(out_buffer[index]));
     				if(status < 0){
     					HWCOMPOSER_LOG_ERR("Error! bltdev->blit() failed!");
@@ -557,7 +557,6 @@ static int hwc_set(hwc_composer_device_t *dev,
 
 		}//end if
     }//end for
-
     for(int i = 0; i < MAX_OUTPUT_DISPLAY; i++) {
 				if(ctx->m_using[i] && bufs_state[i]) {
 						status = ctx->m_out[i]->post(&out_buffer[i]);
