@@ -353,6 +353,9 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
             /*
              *the private_handle_t should expand to have usage and format member.
             */
+              if(!layer->handle || ((private_handle_t *)layer->handle)->magic != private_handle_t::sMagic) {
+                  continue;//skip NULL pointer and other magic handler
+               }
 		    if (private_handle_t::validate(layer->handle) < 0) {
 	    		//HWCOMPOSER_LOG_ERR("it is not a valide buffer handle\n");
 	    		continue;
