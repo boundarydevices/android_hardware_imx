@@ -226,7 +226,7 @@ HWCOMPOSER_LOG_RUNTIME("-------------FG_device::init()---open fb0-------------")
    // m_top = 0;
     m_width = def_info.xres;//info.xres;
     m_height = def_info.yres;//info.yres;
-    m_format = fourcc('R', 'G', 'B', 'P');//('U', 'Y', 'V', 'Y');
+    m_format = fourcc('U', 'Y', 'V', 'Y');
 
   	info.reserved[0] = def_info.reserved[0];
   	info.reserved[1] = def_info.reserved[0];
