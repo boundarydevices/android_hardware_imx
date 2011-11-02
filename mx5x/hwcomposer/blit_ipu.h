@@ -49,11 +49,16 @@ private:
 		ipu_lib_input_param_t  mIPUInputParam;
     ipu_lib_output_param_t mIPUOutputParam;
     ipu_lib_handle_t       mIPUHandle;
+    unsigned int mRotSize;
+    unsigned int mRotPhyBuffer;
+    void *mRotVirBuffer;
+
 //    int                    mIPURet;
 private:
 		int init();
     int uninit();
-
+    int getPmemBuffer(int size, void **ppVirBuffer, unsigned int *phyBuffer);
+    int returnPmemBuffer(void *pVirBuffer, unsigned int size); 
 		blit_ipu& operator = (blit_ipu& out);
 		blit_ipu(const blit_ipu& out);
 };
