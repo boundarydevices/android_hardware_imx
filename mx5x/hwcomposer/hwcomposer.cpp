@@ -98,8 +98,15 @@ static int hwc_check_property(hwc_context_t *dev)
     }
     property_get("sys.SECOND_DISPLAY_ENABLED", value, "");
     if (strcmp(value, "1") == 0) {
-       property_set("sys.VIDEO_OVERLAY_DISPLAY", "2");
-       property_set("sys.VIDEO_DISPLAY", "0");
+       property_get("ro.secfb.disable-overlay", value, "0");
+       if (strcmp(value, "1") == 0){
+           property_set("sys.VIDEO_OVERLAY_DISPLAY", "0");
+           property_set("sys.VIDEO_DISPLAY", "1");
+       }
+       else{
+           property_set("sys.VIDEO_OVERLAY_DISPLAY", "2");
+           property_set("sys.VIDEO_DISPLAY", "0");
+       }
     } else
     {
        property_set("sys.VIDEO_OVERLAY_DISPLAY", "1");
