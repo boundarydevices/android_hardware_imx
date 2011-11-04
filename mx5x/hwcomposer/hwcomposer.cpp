@@ -80,7 +80,7 @@ static void dump_layer(hwc_layer_t const* l) {
             l->displayFrame.right,
             l->displayFrame.bottom);
 }
-
+static int releaseAllOutput(struct hwc_context_t *ctx);
 static int hwc_check_property(hwc_context_t *dev)
 {
     //bool bValue = false;
@@ -102,6 +102,11 @@ static int hwc_check_property(hwc_context_t *dev)
        if (strcmp(value, "1") == 0){
            property_set("sys.VIDEO_OVERLAY_DISPLAY", "0");
            property_set("sys.VIDEO_DISPLAY", "1");
+
+           property_get("media.VIDEO_PLAYING", value, "0");
+           if (strcmp(value, "0") == 0) {
+               releaseAllOutput(dev);
+           }
        }
        else{
            property_set("sys.VIDEO_OVERLAY_DISPLAY", "2");

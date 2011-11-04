@@ -18,7 +18,7 @@
 #include <sys/ioctl.h>
 #include <hardware/hardware.h>
 //#include <hardware/overlay.h>
-
+#include <cutils/properties.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -161,12 +161,18 @@ int BG_device::uninit()
 {
 	  //int status = -EINVAL;    
     int blank = 1;
+    char value[10];
     HWCOMPOSER_LOG_RUNTIME("---------------BG_device::uninit()------------");
 
     if(ioctl(m_dev, FBIOBLANK, blank) < 0) {
 	    HWCOMPOSER_LOG_ERR("Error!BG_device::uninit BLANK FB2 failed!\n");
         //return -1;
-    }	  
+    }
+    property_get("media.VIDEO_PLAYING", value, "0");
+    if (strcmp(value, "0") == 0) {
+        blank = 0;
+        ioctl(m_dev, FBIOBLANK, blank);
+    }
     munmap((mbuffers[0]).virt_addr, (mbuffers[0]).size * DEFAULT_BUFFERS);
     close(m_dev);
 
