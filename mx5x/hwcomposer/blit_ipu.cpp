@@ -25,6 +25,7 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
+#include <cutils/properties.h>
 
 #include <hardware/hwcomposer.h>
 
@@ -108,6 +109,33 @@ static void fill_buffer(char *pbuf, int len)
 
     k = (k+1)%3;
 }
+//#define FSL_CAMERAHAL_DUMP
+static void blit_dump(char *pBufs, int len)
+{
+#ifdef FSL_CAMERAHAL_DUMP
+            //for test code
+            char value[10] = {0};
+            static int vflg = 0;
+            property_get("rw.blit.test", value, "");
+            if(strcmp(value, "1") == 0) {
+                vflg = 1;
+                property_set("rw.blit.test", "0");
+            }
+            if(vflg){
+                HWCOMPOSER_LOG_ERR("-----------dump-----------");
+                FILE *pf = NULL;
+                pf = fopen("/sdcard/blit_dump.data", "wb");
+                if(pf == NULL) {
+                    HWCOMPOSER_LOG_ERR("open /sdcard/camera_tst.data failed");
+                }
+                else {
+                    fwrite(pBufs, len, 1, pf);
+                    fclose(pf);
+                }
+                vflg = 0;
+            }
+#endif
+}
 
 int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
 {
@@ -118,30 +146,34 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
 	  }
 	  //struct blit_ipu *ipu = (struct blit_ipu *)dev;
 
-HWCOMPOSER_LOG_RUNTIME("^^^^^^^^^^^^^^^blit_ipu::blit()^^^^^^^^^^^^^^^^^^^^^^");
+      HWCOMPOSER_LOG_RUNTIME("^^^^^^^^^^^^^^^blit_ipu::blit()^^^^^^^^^^^^^^^^^^^^^^");
 	  hwc_rect_t *src_crop = &(layer->sourceCrop);
 	  hwc_rect_t *disp_frame = &(layer->displayFrame);
 	  private_handle_t *handle = (private_handle_t *)(layer->handle);
 
     //fill_buffer((char *)(handle->base), handle->size);
 
-	  mIPUInputParam.width = handle->width;//src_crop->right - src_crop->left;
-	  mIPUInputParam.height = handle->height;//src_crop->bottom - src_crop->top;
-	  mIPUInputParam.input_crop_win.pos.x = src_crop->left;
+	mIPUInputParam.width = handle->width;//src_crop->right - src_crop->left;
+	mIPUInputParam.height = handle->height;//src_crop->bottom - src_crop->top;
+	mIPUInputParam.input_crop_win.pos.x = src_crop->left;
     mIPUInputParam.input_crop_win.pos.y = src_crop->top;
     mIPUInputParam.input_crop_win.win_w = src_crop->right - src_crop->left;
     mIPUInputParam.input_crop_win.win_h = src_crop->bottom - src_crop->top;
 
     if(handle->format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
-HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= NV12");
+        HWCOMPOSER_LOG_RUNTIME("handle->format= NV12");
         mIPUInputParam.fmt = v4l2_fourcc('N', 'V', '1', '2');
     }
     else if(handle->format == HAL_PIXEL_FORMAT_YCbCr_420_I) {
-HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= I420");
+        HWCOMPOSER_LOG_RUNTIME("handle->format= I420");
         mIPUInputParam.fmt = v4l2_fourcc('I', '4', '2', '0');
     }
+    else if(handle->format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
+        HWCOMPOSER_LOG_RUNTIME("handle->format= 422P");
+        mIPUInputParam.fmt = v4l2_fourcc('4', '2', '2','P');
+    }
     else if((handle->format == HAL_PIXEL_FORMAT_RGB_565) || (handle->format == BLIT_PIXEL_FORMAT_RGB_565)) {
-HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= RGBP");
+        HWCOMPOSER_LOG_RUNTIME("handle->format= RGBP");
         mIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
         //mIPUInputParam.fmt = v4l2_fourcc('N', 'V', '1', '2');
     }else{
@@ -263,6 +295,7 @@ HWCOMPOSER_LOG_RUNTIME("^^^^^^^^handle->format= RGBP");
     }
 
     mIPUOutputParam.user_def_paddr[0] = out_buf->phy_addr;
+    blit_dump((char *)(handle->base), handle->size);
 HWCOMPOSER_LOG_RUNTIME("------mxc_ipu_lib_task_init-----in blit_ipu::blit()------\n");
     if(out_buf->usage & GRALLOC_USAGE_DISPLAY_MASK)
         status = mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,OP_NORMAL_MODE|TASK_PP_MODE,&mIPUHandle);
