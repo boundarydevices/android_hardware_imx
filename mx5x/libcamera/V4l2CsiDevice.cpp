@@ -202,11 +202,11 @@ namespace android{
         }
         CAMERA_HAL_LOG_RUNTIME("the fps is %d", pCapcfg->tv.denominator);
 
-        parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
-        parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
         ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode));
         if (ret != CAPTURE_DEVICE_ERR_NONE)
             return ret;
+        parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
+        parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
 
         if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0) {
             parm.parm.capture.timeperframe.numerator = 1;
@@ -289,8 +289,10 @@ namespace android{
                 capturemode = 5;	/* 1080P mode */
             }
             else if (capturewidth == 2592 && captureheight == 1944) {
-                pic_waite_buf_num = 5;
+                pic_waite_buf_num = 3;
                 capturemode = 6;	/* 2592x1944 mode */
+                pCapcfg->tv.denominator = 15;
+                pCapcfg->tv.numerator = 1;
             }
             else if (capturewidth == 176 && captureheight == 144) {
                 capturemode = 7;       /* QCIF mode */
