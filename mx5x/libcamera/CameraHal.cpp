@@ -692,6 +692,7 @@ namespace android {
 
             if((handle->phys == 0) || (handle->base == 0) || (handle->size == 0)) {
                  CAMERA_HAL_ERR("%s: dequeue invalide Buffer, phys=%x, base=%x, size=%d", __FUNCTION__, handle->phys, handle->base, handle->size);
+                 mNativeWindow->cancelBuffer(mNativeWindow.get(), buf);
                  break;
             }
 
@@ -830,7 +831,7 @@ namespace android {
         CAMERA_HAL_LOG_FUNC;
         mRecordRunning = false;
 		if (bDerectInput == true) 
-			bDerectInput = false;
+			//bDerectInput = false;
 			sem_post(&avab_enc_frame_finish);
 		}
 
@@ -1850,6 +1851,7 @@ Pic_out:
             if(queue_back_index < mCaptureBufNum) {
                 if(mCaptureDevice->DevQueue(queue_back_index) <0){
                     CAMERA_HAL_ERR("The Capture device queue buf error !!!!");
+                    mNativeWindow->cancelBuffer(mNativeWindow.get(), buf);
                     return INVALID_OPERATION;
                 }
                 mCaptureBuffers[queue_back_index].buf_state = WINDOW_BUFS_DEQUEUED;
@@ -1857,6 +1859,7 @@ Pic_out:
                 mEnqueuedBufs --;
                 sem_post(&avab_dequeue_frame);
             }else {
+                mNativeWindow->cancelBuffer(mNativeWindow.get(), buf);
                 CAMERA_HAL_ERR("dequeue invalide buffer!!!!");
                 return INVALID_OPERATION;
             }
