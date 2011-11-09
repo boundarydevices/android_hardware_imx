@@ -171,6 +171,9 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
     else if(handle->format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
         HWCOMPOSER_LOG_RUNTIME("handle->format= 422P");
         mIPUInputParam.fmt = v4l2_fourcc('4', '2', '2','P');
+    } else if (handle->format == HAL_PIXEL_FORMAT_YV12) {
+        HWCOMPOSER_LOG_RUNTIME("handle->format= 422P");
+        mIPUInputParam.fmt = v4l2_fourcc('Y', 'V', '1','2');
     }
     else if((handle->format == HAL_PIXEL_FORMAT_RGB_565) || (handle->format == BLIT_PIXEL_FORMAT_RGB_565)) {
         HWCOMPOSER_LOG_RUNTIME("handle->format= RGBP");
