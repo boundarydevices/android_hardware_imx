@@ -70,8 +70,8 @@ int BG_device::init()
     
    // m_left = 0;
    // m_top = 0;
-    m_width = 1920;//info.xres;
-    m_height = 1080;//info.yres;
+    m_width = info.xres;
+    m_height = info.yres;
     m_format = fourcc('R', 'G', 'B', 'P');//('U', 'Y', 'V', 'Y');
   	
   	info.reserved[0] = 0;
@@ -83,20 +83,10 @@ int BG_device::init()
   	
   	info.bits_per_pixel = fmt_to_bpp(m_format);
   	info.nonstd = m_format;
-  	info.red.offset = 0;
-  	info.red.length = 0;
-  	info.green.offset = 0;
-  	info.green.length = 0;
-  	info.blue.offset = 0;
-  	info.blue.length = 0;
-  	info.transp.offset = 0;
-  	info.transp.length = 0;	 
-  	
-  	info.xres = m_width;
-  	info.yres = m_height;
+
   	info.yres_virtual = ALIGN_PIXEL_128(info.yres) * DEFAULT_BUFFERS;
   	info.xres_virtual = ALIGN_PIXEL(info.xres);
-  	
+
     if(ioctl(m_dev, FBIOPUT_VSCREENINFO, &info) < 0) {
     	  HWCOMPOSER_LOG_ERR("Error! BG_device::init-2 VSCREENINFO setting failed!");
     	  return -1;    	  
