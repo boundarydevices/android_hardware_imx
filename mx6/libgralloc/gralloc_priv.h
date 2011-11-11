@@ -176,8 +176,8 @@ struct private_handle_t {
         {
             //LOGE("invalid gralloc handle (at %p)", h);
             //LOGE("------------------h=%x", (int)h);
-	    if(h != NULL)
-	        LOGE("h->version=%d, h->numInts=%d, h->numFds=%d, hnd->magic=%x", h->version, h->numInts, h->numFds, hnd->magic);
+	    //if(h != NULL)
+	        //LOGE("h->version=%d, h->numInts=%d, h->numFds=%d, hnd->magic=%x", h->version, h->numInts, h->numFds, hnd->magic);
             return -EINVAL;
         }
         return 0;
