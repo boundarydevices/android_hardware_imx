@@ -262,7 +262,7 @@ int gralloc_lock(gralloc_module_t const* module,
 
     if (new_value & private_handle_t::LOCK_STATE_WRITE) {
         // locking for write, store the tid
-        hnd->writeOwner = gettid();
+        hnd->writeOwner = getpid();
     }
 
     if (usage & (GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK)) {
@@ -305,7 +305,7 @@ int gralloc_unlock(gralloc_module_t const* module,
 
         if (current_value & private_handle_t::LOCK_STATE_WRITE) {
             // locked for write
-            if (hnd->writeOwner == gettid()) {
+            if (hnd->writeOwner == getpid()) {
                 hnd->writeOwner = 0;
                 new_value &= ~private_handle_t::LOCK_STATE_WRITE;
             }
