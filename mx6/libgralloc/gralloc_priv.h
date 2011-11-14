@@ -30,6 +30,7 @@
 #include <linux/fb.h>
 
 #define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
+#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
 /** z430 core need 4k aligned memory, since xres has been 32 aligned, make yres
     to 128 aligned will meet this request for all pixel format (RGB565,RGB888,etc.) */
 #define  ALIGN_PIXEL_128(x)  ((x+ 127) & ~127)
@@ -39,24 +40,27 @@ struct private_module_t;
 struct private_handle_t;
 
 struct private_module_t {
+/** do NOT change the elements below **/
     gralloc_module_t base;
-
     private_handle_t* framebuffer;
-    uint32_t flags;
     uint32_t numBuffers;
     uint32_t bufferMask;
     pthread_mutex_t lock;
     buffer_handle_t currentBuffer;
-    int pmem_master;
-    void* pmem_master_base;
-    unsigned long master_phys;
-
     struct fb_var_screeninfo info;
     struct fb_fix_screeninfo finfo;
+/** do NOT change the elements above **/
+
     float xdpi;
     float ydpi;
     float fps;
 
+    uint32_t flags;
+    int pmem_master;
+    void* pmem_master_base;
+    unsigned long master_phys;
+    alloc_device_t *gpu_device;
+    gralloc_module_t* gralloc_viv;
     enum {
         // flag to indicate we'll post this buffer
         PRIV_USAGE_LOCKED_FOR_POST = 0x80000000
@@ -82,79 +86,32 @@ struct private_handle_t {
         LOCK_STATE_MAPPED    =   1<<30,
         LOCK_STATE_READ_MASK =   0x3FFFFFFF
     };
-
-    // file-descriptors
+/** do NOT change any element below **/
+    int     fd;
     int     magic;
     int     flags;
     int     size;
     int     offset;
     int     base;
-
-    int     pid;
-
-    int     vidNode;
-    int     adjustedSize;
-    int     pool;
-    int     surface;
+    int     phys;
+    int     format;
     int     width;
     int     height;
-    int     format;
-#if !defined(gcdHARDWARE_2D_COMPOSITION)
-    /* 3D composition. */
-    int     resolveVidNode;
-    int     resolveAdjustedSize;
-    int     resolvePool;
-    int     resolveSurface;
-    int     resolveDoneSignal;
-    int     resolveOutstanding;
+    int     pid;
+/** do NOT change any element above **/
+
     int     usage;
-    int     private0; /* Padding */
-#endif
-    /* Out of band */
-    int     phys;
-    int     fd;
-
+    int     lockState;
+    int     writeOwner;
 #ifdef __cplusplus
-
-#if !defined(gcdHARDWARE_2D_COMPOSITION)
-    /* 3D composition. */
-    static const int sNumInts = 23;
-    static const int sNumFds  = 0;
-#else
-    /* 2D hardware composition. */
     static const int sNumInts = 13;
-    static const int sNumFds  = 0;
-#endif
-    static const int sMagic   = 0x3141592;
+    static const int sNumFds = 1;
+    static const int sMagic = 'pgpu';
 
     private_handle_t(int fd, int size, int flags) :
-        magic(sMagic),
-        flags(flags),
-        size(size),
-        offset(0),
-        base(0),
-        pid(getpid()),
-        vidNode(0),
-        adjustedSize(0),
-        pool(0),
-        surface(0),
-        width(0),
-        height(0),
-        format(0),
-#if !defined(gcdHARDWARE_2D_COMPOSITION)
-        /* 3D composition. */
-        resolveVidNode(0),
-        resolveAdjustedSize(0),
-        resolvePool(0),
-        resolveSurface(0),
-        resolveDoneSignal(0),
-        resolveOutstanding(0),
-        usage(0),
-#endif
-        /* Out of band */
-        phys(0),
-        fd(fd)
-
+        fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
+        base(0), lockState(0), writeOwner(0), phys(0),pid(getpid()),
+        format(0), width(0), height(0)
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
@@ -174,10 +131,7 @@ struct private_handle_t {
                 h->numInts != sNumInts || h->numFds != sNumFds ||
                 hnd->magic != sMagic)
         {
-            //LOGE("invalid gralloc handle (at %p)", h);
-            //LOGE("------------------h=%x", (int)h);
-	    //if(h != NULL)
-	        //LOGE("h->version=%d, h->numInts=%d, h->numFds=%d, hnd->magic=%x", h->version, h->numInts, h->numFds, hnd->magic);
+            LOGE("invalid gralloc handle (at %p)", h);
             return -EINVAL;
         }
         return 0;

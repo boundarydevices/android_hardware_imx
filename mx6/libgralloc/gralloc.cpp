@@ -100,14 +100,10 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
         unlock: gralloc_unlock,
     },
     framebuffer: 0,
-    flags: 0,
     numBuffers: 0,
     bufferMask: 0,
     lock: PTHREAD_MUTEX_INITIALIZER,
     currentBuffer: 0,
-    pmem_master: -1,
-    pmem_master_base: 0,
-    master_phys: 0
 };
 
 /*****************************************************************************/
@@ -365,6 +361,14 @@ static int gralloc_alloc(alloc_device_t* dev,
     if (!pHandle || !pStride)
         return -EINVAL;
 
+    private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
+    if(!m)
+        return -EINVAL;
+
+    if (m->gpu_device) {
+       return m->gpu_device->alloc(dev, w, h, format, usage, pHandle, pStride);
+    }
+
     size_t size, alignedw, alignedh;
     if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || 
             format == HAL_PIXEL_FORMAT_YCbCr_422_SP) 
@@ -424,6 +428,14 @@ static int gralloc_alloc(alloc_device_t* dev,
 static int gralloc_free(alloc_device_t* dev,
         buffer_handle_t handle)
 {
+    private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
+    if(!m)
+       return -EINVAL;
+
+    if(m->gpu_device && ((private_handle_t*)handle)->magic != private_handle_t::sMagic) {
+       return m->gpu_device->free(dev, handle);
+    }
+
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -472,6 +484,11 @@ static int gralloc_close(struct hw_device_t *dev)
         /* TODO: keep a list of all buffer_handle_t created, and free them
          * all here.
          */
+        private_module_t* m = reinterpret_cast<private_module_t*>(dev);
+        if(m && m->gpu_device){
+           gralloc_close((struct hw_device_t *)m->gpu_device);
+        }
+
         free(ctx);
     }
     return 0;
@@ -481,6 +498,9 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
     int status = -EINVAL;
+    hw_module_t *hw = const_cast<hw_module_t *>(module);
+    private_module_t* m = reinterpret_cast<private_module_t*>(hw);
+
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
         dev = (gralloc_context_t*)malloc(sizeof(*dev));
@@ -499,7 +519,26 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
 
         *device = &dev->device.common;
         status = 0;
+
+        if(!m->gpu_device)
+        {
+           hw_module_t const* gpu_module;;
+           if (hw_get_module(GRALLOC_VIV_HARDWARE_MODULE_ID, &gpu_module) == 0) {
+              status = gralloc_open(gpu_module, &m->gpu_device);
+              if(status || m->gpu_device){
+                 LOGE("gralloc_device_open: gpu gralloc device open failed!");
+              }
+           }
+        }
     } else {
+
+        m->flags = 0;
+        m->pmem_master = -1;
+        m->pmem_master_base=0;
+        m->master_phys = 0;
+        m->gpu_device = 0;
+        m->gralloc_viv= 0;
+
         status = fb_device_open(module, name, device);
     }
     return status;
