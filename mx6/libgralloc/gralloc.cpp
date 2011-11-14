@@ -365,22 +365,26 @@ static int gralloc_alloc(alloc_device_t* dev,
     if(!m)
         return -EINVAL;
 
-    if (m->gpu_device) {
+    if (m->gpu_device && !(usage & GRALLOC_USAGE_HWC_OVERLAY)) {
        return m->gpu_device->alloc(dev, w, h, format, usage, pHandle, pStride);
     }
 
     size_t size, alignedw, alignedh;
-    if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || 
-            format == HAL_PIXEL_FORMAT_YCbCr_422_SP) 
+    if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || format == HAL_PIXEL_FORMAT_YCbCr_422_I ||
+            format == HAL_PIXEL_FORMAT_YCbCr_422_SP || format == HAL_PIXEL_FORMAT_YCbCr_420_I ||
+        format == HAL_PIXEL_FORMAT_YV12)
     {
         // FIXME: there is no way to return the alignedh
-        alignedw = (w + 1) & ~1; 
+        alignedw = ALIGN_PIXEL_16(w);
+        alignedh = ALIGN_PIXEL_16(h);
         switch (format) {
-            case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-                size = alignedw * h * 2;
-                break;
             case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-                alignedh = (h+1) & ~1;
+            case HAL_PIXEL_FORMAT_YCbCr_422_I:
+                size = alignedw * alignedh * 2;
+                break;
+            case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            case HAL_PIXEL_FORMAT_YCbCr_420_I:
+            case HAL_PIXEL_FORMAT_YV12:
                 size = (alignedw * alignedh) + (w/2 * h/2) * 2;
                 break;
             default:
@@ -420,6 +424,12 @@ static int gralloc_alloc(alloc_device_t* dev,
     if (err < 0) {
         return err;
     }
+
+    private_handle_t* hnd = (private_handle_t*)(*pHandle);
+    hnd->usage = usage;
+    hnd->format = format;
+    hnd->width = alignedw;
+    hnd->height = alignedh;
 
     *pStride = alignedw;
     return 0;
