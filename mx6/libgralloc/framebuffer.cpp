@@ -367,7 +367,7 @@ static int fb_setSecRotation(struct framebuffer_device_t* dev,int secRotation)
 
 static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 {
-    if (private_handle_t::validate(buffer) < 0)
+    if (!buffer)
         return -EINVAL;
 
     fb_context_t* ctx = (fb_context_t*)dev;
@@ -382,9 +382,10 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
     if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
 
+        void *vaddr = NULL;
         m->base.lock(&m->base, buffer, 
                 private_module_t::PRIV_USAGE_LOCKED_FOR_POST, 
-                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL_128(m->info.yres), NULL);
+                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL_128(m->info.yres), &vaddr);
 
         const size_t offset = hnd->base - m->framebuffer->base;
         m->info.activate = FB_ACTIVATE_VBL;
