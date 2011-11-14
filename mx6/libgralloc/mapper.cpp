@@ -95,10 +95,38 @@ static int gralloc_unmap(gralloc_module_t const* module,
 static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER; 
 
 /*****************************************************************************/
+static gralloc_module_t const*gralloc_get(gralloc_module_t const* module, buffer_handle_t handle)
+{
+    hw_module_t const* pModule;
 
+    if(!handle)
+       return NULL;
+
+    if (((private_handle_t*)handle)->magic == private_handle_t::sMagic)
+       return NULL;
+
+    gralloc_module_t *gr = const_cast<gralloc_module_t *>(module);
+    private_module_t* m = reinterpret_cast<private_module_t*>(gr);
+
+    if(m->gralloc_viv)
+        return m->gralloc_viv;
+
+    if(hw_get_module(GRALLOC_VIV_HARDWARE_MODULE_ID, &pModule))
+       return NULL;
+
+    gralloc_module_t const* gralloc_viv = reinterpret_cast<gralloc_module_t const*>(pModule);
+    m->gralloc_viv = (gralloc_module_t*)gralloc_viv;
+
+    return gralloc_viv;
+}
 int gralloc_register_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
+    gralloc_module_t const* gralloc_viv = gralloc_get(module, handle);
+    if(gralloc_viv){
+        return gralloc_viv->registerBuffer(gralloc_viv, handle);
+    }
+
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -124,6 +152,11 @@ int gralloc_register_buffer(gralloc_module_t const* module,
 int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
+    gralloc_module_t const* gralloc_viv = gralloc_get(module, handle);
+    if(gralloc_viv){
+        return gralloc_viv->unregisterBuffer(gralloc_viv, handle);
+    }
+
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -183,6 +216,11 @@ int gralloc_lock(gralloc_module_t const* module,
         int l, int t, int w, int h,
         void** vaddr)
 {
+    gralloc_module_t const* gralloc_viv = gralloc_get(module, handle);
+    if(gralloc_viv){
+        return gralloc_viv->lock(gralloc_viv, handle, usage, l, t, w, h, vaddr);
+    }
+
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
@@ -250,6 +288,11 @@ int gralloc_lock(gralloc_module_t const* module,
 int gralloc_unlock(gralloc_module_t const* module, 
         buffer_handle_t handle)
 {
+    gralloc_module_t const* gralloc_viv = gralloc_get(module, handle);
+    if(gralloc_viv){
+        return gralloc_viv->unlock(gralloc_viv, handle);
+    }
+
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
