@@ -518,6 +518,9 @@ static int hwc_set(hwc_composer_device_t *dev,
     blit_device *bltdev = ctx->blit;
     for (size_t i=0 ; i<list->numHwLayers ; i++){
 		hwc_layer_t *layer = &list->hwLayers[i];
+            if(!layer->handle || ((private_handle_t *)layer->handle)->magic != private_handle_t::sMagic) {
+                continue;
+            }
 	    if (private_handle_t::validate(layer->handle) < 0) {
     		//HWCOMPOSER_LOG_INFO("2--it is not a valide buffer handle\n");
     		continue;
