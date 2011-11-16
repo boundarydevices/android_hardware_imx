@@ -503,7 +503,7 @@ static int hwc_set(hwc_composer_device_t *dev,
 #endif
 		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=2==============\n");
 #if 1 
-    if((ctx == NULL) || (ctx && ctx->ui_refresh)) {
+    if((ctx == NULL) || (ctx && (ctx->ui_refresh || (!ctx->ui_refresh && !ctx->vd_refresh )))) {
         EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
         if (!sucess) {
             return HWC_EGL_ERROR;
