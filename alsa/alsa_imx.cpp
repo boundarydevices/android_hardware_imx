@@ -18,7 +18,7 @@
 #define LOG_TAG "iMXALSA"
 #include <utils/Log.h>
 
-#include "AudioHardwareALSA.h"
+#include <AudioHardwareALSA.h>
 #include <media/AudioRecord.h>
 
 #include <cutils/properties.h>
@@ -35,7 +35,7 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
-namespace android
+namespace android_audio_legacy
 {
 
 static int s_device_open(const hw_module_t*, const char*, hw_device_t**);
