@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifeq (true, false)
 ifeq ($(HAVE_FSL_IMX_GPU),true)
 ifeq ($(BOARD_SOC_CLASS),IMX5X)
 
@@ -40,5 +41,6 @@ LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
 
+endif
 endif
 endif
