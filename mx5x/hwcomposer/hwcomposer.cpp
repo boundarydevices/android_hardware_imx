@@ -15,7 +15,7 @@
 /*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #include <hardware/hardware.h>
-#include <hardware/overlay.h>
+//#include <hardware/overlay.h>
 
 #include <fcntl.h>
 #include <errno.h>
