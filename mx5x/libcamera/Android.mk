@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+ifeq (true, false)
 ifeq ($(BOARD_SOC_CLASS),IMX5X)
 LOCAL_PATH:= $(call my-dir)
 
@@ -68,4 +68,5 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
+endif
 endif
