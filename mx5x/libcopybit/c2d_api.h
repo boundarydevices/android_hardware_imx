@@ -24,6 +24,8 @@
  * \file    c2d_api.h
  * \brief   C2D API
  *//*----------------------------------------------------------------------*/
+
+/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
  
 
 #ifndef __c2d_api_h_

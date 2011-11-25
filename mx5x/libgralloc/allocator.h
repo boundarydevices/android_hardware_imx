@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #ifndef GRALLOC_ALLOCATOR_H_
 #define GRALLOC_ALLOCATOR_H_

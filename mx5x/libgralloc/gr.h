@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+
 #ifndef GR_H_
 #define GR_H_
 
