@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+/* Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+
 #ifndef GRALLOC_PRIV_H_
 #define GRALLOC_PRIV_H_
 

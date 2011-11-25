@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
