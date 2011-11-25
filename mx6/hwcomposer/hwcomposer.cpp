@@ -395,12 +395,12 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
             		return HWC_EGL_ERROR;
 	            }
 	            if(ctx->m_out[index])
-	            		deleteEmtpyIndex(ctx);
+			deleteEmtpyIndex(ctx);
 
 		        status = open_outputDevice(ctx, dev_name, &(ctx->m_out[index]), ruse);//output_dev_open(dev_name, &(ctx->m_out[index]), ruse);
 		        if(status < 0){
-		        	  HWCOMPOSER_LOG_ERR("Error! open output device failed!");
-		        	  continue;
+		            HWCOMPOSER_LOG_ERR("Error! open output device failed!");
+		            continue;
 		        }//end if
 		        out_using[index] = 1;
 		        ctx->m_using[index] = 1;
@@ -458,7 +458,6 @@ static int hwc_set(hwc_composer_device_t *dev,
         hwc_surface_t sur,
         hwc_layer_list_t* list)
 {
-		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=1==============\n");
     struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
     //for (size_t i=0 ; i<list->numHwLayers ; i++) {
     //    dump_layer(&list->hwLayers[i]);
@@ -466,14 +465,14 @@ static int hwc_set(hwc_composer_device_t *dev,
     //hwc_buffer *outBuff[MAX_OUTPUT_DISPLAY];
     //when displayhardware do releas function, it will come here.
     if(ctx && (dpy == NULL) && (sur == NULL) && (list == NULL)) {
-		//close the output device.
-		releaseAllOutput(ctx);
-		//ctx->display_mode_changed = 1;
+	//close the output device.
+	releaseAllOutput(ctx);
+	//ctx->display_mode_changed = 1;
 
-		return 0;
+	return 0;
     }
-		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=2==============\n");
-    ctx->ui_refresh = 1; 
+    ctx->ui_refresh = 1;
+    ctx->vd_refresh = 1;
     if((ctx == NULL) || (ctx && ctx->ui_refresh)) {
         EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
         if (!sucess) {
@@ -483,71 +482,74 @@ static int hwc_set(hwc_composer_device_t *dev,
     if(list == NULL || dev == NULL || !ctx->vd_refresh) {
     	return 0;
     }
- 		//HWCOMPOSER_LOG_RUNTIME("==============hwc_set=3==============\n");
     if(getActiveOuputDevice(ctx) == 0) {return 0;}//eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur); return 0;}
+    HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
 
     int status = -EINVAL;
-	hwc_buffer out_buffer[MAX_OUTPUT_DISPLAY];
+    hwc_buffer out_buffer[MAX_OUTPUT_DISPLAY];
     char bufs_state[MAX_OUTPUT_DISPLAY];
     memset(bufs_state, 0, sizeof(bufs_state));
-	memset(out_buffer, 0, sizeof(out_buffer));
+    memset(out_buffer, 0, sizeof(out_buffer));
     blit_device *bltdev = ctx->blit;
     for (size_t i=0 ; i<list->numHwLayers ; i++){
-		hwc_layer_t *layer = &list->hwLayers[i];
-            if(!layer->handle || ((private_handle_t *)layer->handle)->magic != private_handle_t::sMagic) {
-                continue;
-            }
-	    if (private_handle_t::validate(layer->handle) < 0) {
-    		//HWCOMPOSER_LOG_INFO("2--it is not a valide buffer handle\n");
-    		continue;
-	    }
-
-        if(!validate_displayFrame(layer)) {
+	hwc_layer_t *layer = &list->hwLayers[i];
+        if(!layer->handle || ((private_handle_t *)layer->handle)->magic != private_handle_t::sMagic) {
+    	    HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
             continue;
         }
+	if (private_handle_t::validate(layer->handle) < 0) {
+    	    HWCOMPOSER_LOG_RUNTIME("%s,%d, not a valide buffer handle", __FUNCTION__, __LINE__);
+    	    continue;
+	}
 
-		private_handle_t *handle = (private_handle_t *)(layer->handle);
-		if(handle->usage & GRALLOC_USAGE_HWC_OVERLAY){
+        if(!validate_displayFrame(layer)) {
+    	    HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
+            continue;
+        }
+        HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
+
+	private_handle_t *handle = (private_handle_t *)(layer->handle);
+	if(handle->usage & GRALLOC_USAGE_HWC_OVERLAY){
             int retv = 0;
             int m_usage = 0;
             int i_usage = handle->usage & GRALLOC_USAGE_OVERLAY_DISPLAY_MASK;
             if(!i_usage) continue;
             do {
-    			output_device *outdev = NULL;
-    			int index = 0;
-        		retv = findOutputDevice(ctx, &index, i_usage, &m_usage);
+    		output_device *outdev = NULL;
+    		int index = 0;
+        	retv = findOutputDevice(ctx, &index, i_usage, &m_usage);
                 if((index >= 0) && (index < MAX_OUTPUT_DISPLAY)) {
-                	outdev = ctx->m_out[index];
+                    outdev = ctx->m_out[index];
                 }else {
                     break;
                 }
                 
-    			if(outdev != NULL) {
-                    if(!bufs_state[index] && ctx->m_using[index]) {
-                        outdev->fetch(&out_buffer[index]);
-                        bufs_state[index] = 1;
-                    }
-                    if(!bufs_state[index])
-                        continue;
-    				status = bltdev->blit(layer, &(out_buffer[index]));
-    				if(status < 0){
-    					HWCOMPOSER_LOG_ERR("Error! bltdev->blit() failed!");
-    					continue;
-    				}
-    			}//end if(outdev != NULL)
+    		if(outdev != NULL) {
+			if(!bufs_state[index] && ctx->m_using[index]) {
+				outdev->fetch(&out_buffer[index]);
+				bufs_state[index] = 1;
+			}
+			if(!bufs_state[index])
+				continue;
+			status = bltdev->blit(layer, &(out_buffer[index]));
+			if(status < 0){
+				HWCOMPOSER_LOG_ERR("Error! bltdev->blit() failed!");
+				continue;
+			}
+    		}//end if(outdev != NULL)
             }while(retv);
 
 		}//end if
     }//end for
     for(int i = 0; i < MAX_OUTPUT_DISPLAY; i++) {
-				if(ctx->m_using[i] && bufs_state[i]) {
-						status = ctx->m_out[i]->post(&out_buffer[i]);
-						if(status < 0){
-								HWCOMPOSER_LOG_ERR("Error! output device post buffer failed!");
-								continue;
-						}
-				}
+	if(ctx->m_using[i] && bufs_state[i]) {
+		status = ctx->m_out[i]->post(&out_buffer[i]);
+		if(status < 0){
+			HWCOMPOSER_LOG_ERR("Error! output device post buffer failed!");
+			continue;
 		}
+	}
+    }
     return 0;
 }
 
@@ -594,15 +596,15 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         	  HWCOMPOSER_LOG_ERR("Error! blit_dev_open failed!");
         	  goto err_exit;
         }
-HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_device_open>>>>>>>>>>>>>>>>>\n");
+	HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
         return 0;
 err_exit:
-				if(dev){
-						if(dev->blit) {
-								blit_dev_close(dev->blit);
-						}
-					  free(dev);
-				}
+	if(dev){
+		if(dev->blit) {
+			blit_dev_close(dev->blit);
+		}
+		free(dev);
+	}
 				//status = -EINVAL;
         /****************************************/
     }
