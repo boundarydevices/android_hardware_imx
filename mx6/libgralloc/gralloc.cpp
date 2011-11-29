@@ -537,7 +537,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
            hw_module_t const* gpu_module;;
            if (hw_get_module(GRALLOC_VIV_HARDWARE_MODULE_ID, &gpu_module) == 0) {
               status = gralloc_open(gpu_module, &m->gpu_device);
-              if(status || m->gpu_device){
+              if(status || !m->gpu_device){
                  LOGE("gralloc_device_open: gpu gralloc device open failed!");
               }
            }
