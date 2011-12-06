@@ -482,7 +482,7 @@ static int hwc_set(hwc_composer_device_t *dev,
     if((ctx == NULL) || (ctx && ctx->ui_refresh)) {
         EGLBoolean sucess;
         if(ctx->viv_hwc)
-            sucess = ctx->viv_hwc->set(ctx->viv_hwc, dpy, sur, list);
+            sucess = !ctx->viv_hwc->set(ctx->viv_hwc, dpy, sur, list);
         else
             sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
         if (!sucess) {
