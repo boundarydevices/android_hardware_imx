@@ -44,6 +44,8 @@ struct hwc_context_t {
     int display_mode;
     char ui_refresh;
     char vd_refresh;
+
+    hwc_composer_device_t* viv_hwc;
 };
 
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
@@ -335,6 +337,8 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
 
     struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
     if(ctx) {
+        if(ctx->viv_hwc)
+            ctx->viv_hwc->prepare(ctx->viv_hwc, list);
 	hwc_check_property(ctx);
     } 
     if (list && dev) {
@@ -466,6 +470,8 @@ static int hwc_set(hwc_composer_device_t *dev,
     //when displayhardware do releas function, it will come here.
     if(ctx && (dpy == NULL) && (sur == NULL) && (list == NULL)) {
 	//close the output device.
+        if(ctx->viv_hwc)
+            ctx->viv_hwc->set(ctx->viv_hwc, dpy, sur, list);
 	releaseAllOutput(ctx);
 	//ctx->display_mode_changed = 1;
 
@@ -474,7 +480,11 @@ static int hwc_set(hwc_composer_device_t *dev,
     ctx->ui_refresh = 1;
     ctx->vd_refresh = 1;
     if((ctx == NULL) || (ctx && ctx->ui_refresh)) {
-        EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
+        EGLBoolean sucess;
+        if(ctx->viv_hwc)
+            sucess = ctx->viv_hwc->set(ctx->viv_hwc, dpy, sur, list);
+        else
+            sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
         if (!sucess) {
             return HWC_EGL_ERROR;
         }
@@ -560,6 +570,9 @@ static int hwc_device_close(struct hw_device_t *dev)
     		if(ctx->blit)
     				blit_dev_close(ctx->blit);
         releaseAllOutput(ctx);
+        if(ctx->viv_hwc)
+            hwc_close(ctx->viv_hwc);
+
         free(ctx);
     }
     return 0;
@@ -596,6 +609,18 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         	  HWCOMPOSER_LOG_ERR("Error! blit_dev_open failed!");
         	  goto err_exit;
         }
+
+        const hw_module_t *hwc_module;
+        if(hw_get_module(HWC_VIV_HARDWARE_MODULE_ID,
+                        (const hw_module_t**)&hwc_module) < 0) {
+            HWCOMPOSER_LOG_ERR("Error! hw_get_module viv_hwc failed");
+            goto nor_exit;
+        }
+        if(hwc_open(hwc_module, &(dev->viv_hwc)) != 0) {
+            HWCOMPOSER_LOG_ERR("Error! viv_hwc open failed");
+            goto nor_exit;
+        }
+nor_exit:
 	HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
         return 0;
 err_exit:
