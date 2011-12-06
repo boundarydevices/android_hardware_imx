@@ -962,12 +962,12 @@ namespace android {
             return ret;            
         }
             
-		if (bDerectInput == true) {
-			for(i = 0; i < mVideoBufNume; i++) {
-				mVideoBufferUsing[i] = 0;
-			}
+	if (bDerectInput == true) {
+		for(i = 0; i < mVideoBufNume; i++) {
+			mVideoBufferUsing[i] = 0;
 		}
-		mEncodeLock.unlock();
+	}
+	mEncodeLock.unlock();
         mRecordRunning = true;
 
         return NO_ERROR;
@@ -993,24 +993,19 @@ namespace android {
     void CameraHal::releaseRecordingFrame(const void* mem)
     {
         //CAMERA_HAL_LOG_FUNC;
-        ssize_t offset;
-        size_t  size;
         int index;
-#if 0
-        offset = mem->offset();
-        size   = mem->size();
-        index = offset / size;
 
+        index = ((size_t)mem - (size_t)mVideoMemory->data) / mPreviewFrameSize;
         mVideoBufferUsing[index] = 0;
 
-		if (bDerectInput == true) {
+	if (bDerectInput == true) {
             if(mCaptureBuffers[index].refCount == 0) {
                 CAMERA_HAL_ERR("warning:%s about to release mCaptureBuffers[%d].refcount=%d-", __FUNCTION__, index, mCaptureBuffers[index].refCount);
                 return;
             }
-			putBufferCount(&mCaptureBuffers[index]);
+	putBufferCount(&mCaptureBuffers[index]);
         }
-#endif
+
     }
 
     bool CameraHal::recordingEnabled()
@@ -2269,24 +2264,18 @@ Pic_out:
 
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
-                    //for(i = 0 ; i < mVideoBufNume; i ++) {
-        			//	if(mVideoBufferUsing[i] == 0) {
-        					if (bDerectInput == true) {
-        						memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
-        								(void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
-        					} else {
-        						memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
-        								(void*)EncBuf->virt_start, mPreviewFrameSize);
-        						ret = putBufferCount(EncBuf);
-        					}
-        
-                            mVideoBufferUsing[enc_index] = 1;
-                            mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
-                            break;
-                    //    }
-                    //}
-                    //if (i == mVideoBufNume)
-                    //    CAMERA_HAL_LOG_INFO("no Buffer can be used for record\n");
+                    if (bDerectInput == true) {
+	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+			          (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
+                    } else {
+	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+			          (void*)EncBuf->virt_start, mPreviewFrameSize);
+	                ret = putBufferCount(EncBuf);
+                    }
+
+		    mVideoBufferUsing[enc_index] = 1;
+		    mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
+		    break;
                 }else {
                     ret = putBufferCount(EncBuf);
                 }
