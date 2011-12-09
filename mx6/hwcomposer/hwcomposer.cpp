@@ -44,6 +44,7 @@ struct hwc_context_t {
     int display_mode;
     char ui_refresh;
     char vd_refresh;
+    int second_display;
 
     hwc_composer_device_t* viv_hwc;
 };
@@ -92,17 +93,26 @@ static int hwc_check_property(hwc_context_t *dev)
         property_set("sys.VIDEO_OVERLAY_DISPLAY", "0");
         property_set("sys.VIDEO_DISPLAY", "1");
     }
-    else
+    else if (strcmp(value, "0") == 0)
     {
        property_set("sys.VIDEO_OVERLAY_DISPLAY", "1");
        property_set("sys.VIDEO_DISPLAY", "0");
     }
+
     property_get("sys.SECOND_DISPLAY_ENABLED", value, "");
     if (strcmp(value, "1") == 0) {
        property_set("sys.VIDEO_OVERLAY_DISPLAY", "2");
        property_set("sys.VIDEO_DISPLAY", "0");
-    } else
+       dev->display_mode &= ~(DISPLAY_MODE_OVERLAY_DISP0 | DISPLAY_MODE_OVERLAY_DISP1 |
+                              DISPLAY_MODE_OVERLAY_DISP2 | DISPLAY_MODE_OVERLAY_DISP3);
+       dev->display_mode |= DISPLAY_MODE_OVERLAY_DISP0;
+       dev->display_mode |= DISPLAY_MODE_OVERLAY_DISP2;
+       dev->second_display = 1;
+       return 0;
+    } 
+    else if (strcmp(value, "0") == 0)
     {
+       dev->second_display = 0;
        property_set("sys.VIDEO_OVERLAY_DISPLAY", "1");
        property_set("sys.VIDEO_DISPLAY", "0");
     }
@@ -122,7 +132,7 @@ static int hwc_check_property(hwc_context_t *dev)
         dev->display_mode |= DISPLAY_MODE_OVERLAY_DISP1;
     }
 
-		if (strcmp(value, "3") == 0){
+    if (strcmp(value, "3") == 0){
         dev->display_mode |= DISPLAY_MODE_OVERLAY_DISP2;
     }
     else if (strcmp(value, "4") == 0){
@@ -141,6 +151,7 @@ static int hwc_check_property(hwc_context_t *dev)
     if (strcmp(value, "2") == 0){
         dev->display_mode |= DISPLAY_MODE_DISP2;
     }
+    //HWCOMPOSER_LOG_ERR("************dev->display_mode=%x", dev->display_mode);
 	return 0;
 }
 
@@ -150,8 +161,8 @@ static int hwc_modify_property(hwc_context_t *dev, private_handle_t *handle)
 
     if(dev->display_mode & DISPLAY_MODE_DISP1){
             handle->usage |= GRALLOC_USAGE_HWC_DISP1;
-            //dev->display_mode &= ~DISPLAY_MODE_DISP1;
-			return 0;
+            dev->display_mode &= ~DISPLAY_MODE_DISP1;
+	    //return 0;
     }
 
     if(dev->display_mode & DISPLAY_MODE_DISP2)
@@ -169,7 +180,7 @@ static int hwc_modify_property(hwc_context_t *dev, private_handle_t *handle)
 	else if(dev->display_mode & DISPLAY_MODE_OVERLAY_DISP3)
 			handle->usage |= GRALLOC_USAGE_HWC_OVERLAY_DISP3;
 
-//HWCOMPOSER_LOG_ERR("************handle->usage=%x", handle->usage);
+    //HWCOMPOSER_LOG_ERR("************handle->usage=%x", handle->usage);
 	return 0;
 }
 
@@ -221,7 +232,7 @@ static int findOutputDevice(struct hwc_context_t *ctx, int *index, int usage, in
 		}
 	}
 	if(ufg != NULL)
-		*ufg |= uFlag;
+		*ufg = uFlag;
 
 	return (*ufg) ^ usage;
 }
@@ -250,8 +261,19 @@ static void deleteEmtpyIndex(struct hwc_context_t *ctx)
 	}
 }
 
-static char* getDeviceName(int usage, int *pUse)
+static char* getDeviceName(hwc_context_t *dev, int usage, int *pUse)
 {
+    if(dev->second_display) {
+        if(usage & GRALLOC_USAGE_HWC_OVERLAY_DISP0) {
+            *pUse = GRALLOC_USAGE_HWC_OVERLAY_DISP0;
+            return (char *)FB1_DEV_NAME;
+        }
+        if(usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2) {
+            *pUse = GRALLOC_USAGE_HWC_OVERLAY_DISP2;
+            return (char *)FB3_DEV_NAME;
+        }
+    }
+
     if(usage & GRALLOC_USAGE_HWC_DISP1){
     		*pUse = GRALLOC_USAGE_HWC_DISP1;
     		return (char *)FB2_DEV_NAME;
@@ -264,6 +286,11 @@ static char* getDeviceName(int usage, int *pUse)
         *pUse = GRALLOC_USAGE_HWC_OVERLAY_DISP1;
         return (char *)FB1_DEV_NAME;
     }//end else if
+
+    if(usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2) {
+            *pUse = GRALLOC_USAGE_HWC_OVERLAY_DISP2;
+            return (char *)FB3_DEV_NAME;
+    }
 
     return NULL;
 }
@@ -339,7 +366,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
     if(ctx) {
         if(ctx->viv_hwc)
             ctx->viv_hwc->prepare(ctx->viv_hwc, list);
-	hwc_check_property(ctx);
+	//hwc_check_property(ctx);
     } 
     if (list && dev) {
         for (size_t i=0 ; i<list->numHwLayers ; i++) {
@@ -363,6 +390,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
             	continue;
             }
             HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_prepare---3>usage=%x, phy=%x>>>>>>>>>>>>>>>>\n", handle->usage, handle->phys);
+            hwc_check_property(ctx);
 	    layer->compositionType = HWC_OVERLAY;
 	    //if(handle->usage & GRALLOC_USAGE_HWC_DISP1)
 	    //handle the display frame position for tv out.
@@ -383,7 +411,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
             while(retv && m_usage) {
 		    int ruse = 0;
 		    char *dev_name = NULL;
-		    dev_name = getDeviceName(m_usage, &ruse);
+		    dev_name = getDeviceName(ctx, m_usage, &ruse);
 	            m_usage &= ~ruse;
 	            HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_prepare---4>>>>>>>>>>>>>>>>>\n");
 	            if(dev_name == NULL) {
@@ -528,6 +556,7 @@ static int hwc_set(hwc_composer_device_t *dev,
     		output_device *outdev = NULL;
     		int index = 0;
         	retv = findOutputDevice(ctx, &index, i_usage, &m_usage);
+                i_usage &= ~m_usage;
                 if((index >= 0) && (index < MAX_OUTPUT_DISPLAY)) {
                     outdev = ctx->m_out[index];
                 }else {
