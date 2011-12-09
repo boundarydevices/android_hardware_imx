@@ -70,8 +70,8 @@ int BG_device::init()
     
    // m_left = 0;
    // m_top = 0;
-    m_width = 1920;//info.xres;
-    m_height = 1080;//info.yres;
+    m_width = info.xres;
+    m_height = info.yres;
     m_format = fourcc('R', 'G', 'B', 'P');//('U', 'Y', 'V', 'Y');
   	
   	info.reserved[0] = 0;

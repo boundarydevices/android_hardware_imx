@@ -56,6 +56,7 @@
 #define DEFAULT_FB_DEV_NAME "/dev/graphics/fb0"
 #define FB1_DEV_NAME "/dev/graphics/fb1"
 #define FB2_DEV_NAME "/dev/graphics/fb2"
+#define FB3_DEV_NAME "/dev/graphics/fb3"
 #define V4L_DEV_NAME "/dev/video16"
 #define MAX_OUTPUT_DISPLAY  10
 
@@ -213,8 +214,12 @@ class blit_device{
 public:
 		static int isIPUDevice(const char *dev_name);
 		static int isGPUDevice(const char *dev_name);
-    virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf) = 0;
+    		virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf) = 0;
+		blit_device();
 		virtual ~blit_device(){}
+
+                int m_def_disp_w;
+                int m_def_disp_h;
 };
 
 //int FG_init(struct output_device *dev);
