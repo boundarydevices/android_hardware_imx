@@ -22,6 +22,7 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
+#include <cutils/properties.h>
 
 #include <hardware/hwcomposer.h>
 
@@ -123,6 +124,8 @@ static void dump_ipu_task(struct ipu_task *t)
 int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
 {
 	  int status = -EINVAL;
+          char value[10];
+          int hdmi_full_screen = 0;
 	  if(mIpuFd < 0 || layer == NULL || out_buf == NULL){
 	  	  HWCOMPOSER_LOG_ERR("Error!invalid parameters!");
 	  	  return status;
@@ -170,13 +173,72 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
     mTask.input.paddr = handle->phys;
     //out_buf should has width and height to be checked with the display_frame.
     mTask.output.format = out_buf->format;//v4l2_fourcc('U', 'Y', 'V', 'Y');
-    if(out_buf->usage & GRALLOC_USAGE_DISPLAY_MASK) {
+
+    property_get("sys.HDMI_FULL_SCREEN", value, "");
+    if(strcmp(value, "1") == 0) {
+        hdmi_full_screen = 1;
+    }
+    else {
+        hdmi_full_screen = 0;
+    }
+
+    if(out_buf->usage & GRALLOC_USAGE_DISPLAY_MASK || (hdmi_full_screen && 
+                        (out_buf->usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2))) { 
 	    mTask.output.width = out_buf->width;
 	    mTask.output.height = out_buf->height;
-		mTask.output.crop.pos.x = 0;
-		mTask.output.crop.pos.y = 0;
-		mTask.output.crop.w = out_buf->width;
-		mTask.output.crop.h = out_buf->height;
+	    mTask.output.crop.pos.x = 0;
+	    mTask.output.crop.pos.y = 0;
+	    mTask.output.crop.w = out_buf->width;
+	    mTask.output.crop.h = out_buf->height;
+    }
+    else if((out_buf->usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2) && 
+               (out_buf->width != m_def_disp_w || out_buf->height!= m_def_disp_h)){
+            int def_w,def_h;
+            int dst_w = out_buf->width;
+            int dst_h = out_buf->height;
+
+            mTask.output.width = out_buf->width;//disp_frame->right - disp_frame->left;
+            mTask.output.height = out_buf->height;//disp_frame->bottom - disp_frame->top;
+
+            if(layer->transform == 0 || layer->transform == 3)
+            {
+                 def_w = m_def_disp_w;
+                 def_h = m_def_disp_h;
+
+                 mTask.output.crop.pos.x = (disp_frame->left >> 3) << 3;
+                 mTask.output.crop.pos.y = (disp_frame->top >> 3) << 3;
+                 mTask.output.crop.w = ((disp_frame->right - disp_frame->left) >> 3) << 3;
+                 mTask.output.crop.h = ((disp_frame->bottom - disp_frame->top) >> 3) << 3;
+            }
+            else
+            {
+                 def_w = m_def_disp_h;
+                 def_h = m_def_disp_w;
+
+                 mTask.output.crop.pos.y = (disp_frame->left >> 3) << 3;
+                 mTask.output.crop.pos.x = (disp_frame->top >> 3) << 3;
+                 mTask.output.crop.h = ((disp_frame->right - disp_frame->left) >> 3) << 3;
+                 mTask.output.crop.w = ((disp_frame->bottom - disp_frame->top) >> 3) << 3;
+             }
+             if(dst_w >= dst_h*def_w/def_h){
+                 dst_w = dst_h*def_w/def_h;
+             }
+             else{
+                 dst_h = dst_w*def_h/def_w;
+             }
+
+            mTask.output.crop.pos.x = mTask.output.crop.pos.x * dst_w / def_w;
+            mTask.output.crop.pos.y = mTask.output.crop.pos.y * dst_h / def_h;
+            mTask.output.crop.w = mTask.output.crop.w * dst_w / def_w;
+            mTask.output.crop.h = mTask.output.crop.h * dst_h / def_h;
+            mTask.output.crop.pos.x += (out_buf->width - dst_w) >> 1;
+            mTask.output.crop.pos.y += (out_buf->height - dst_h) >> 1;
+
+            mTask.output.crop.pos.x = (mTask.output.crop.pos.x >> 3) << 3;
+            mTask.output.crop.pos.y = (mTask.output.crop.pos.y >> 3) << 3;
+            mTask.output.crop.w = (mTask.output.crop.w >> 3) << 3;
+            mTask.output.crop.h = (mTask.output.crop.h >> 3) << 3;
+            mTask.output.rotate = layer->transform;
     }
     else {
 	    mTask.output.width = out_buf->width;//disp_frame->right - disp_frame->left;
@@ -185,8 +247,9 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
 	    mTask.output.crop.pos.y = (disp_frame->top >> 3) << 3;
 	    mTask.output.crop.w = ((disp_frame->right - disp_frame->left) >> 3) << 3;
 	    mTask.output.crop.h = ((disp_frame->bottom - disp_frame->top) >> 3) << 3;
-  	}
-    mTask.output.rotate = layer->transform;
+            mTask.output.rotate = layer->transform;
+    }
+    //mTask.output.rotate = layer->transform;
     mTask.output.paddr = out_buf->phy_addr;
     int ret = IPU_CHECK_ERR_INPUT_CROP; 
     
