@@ -32,6 +32,26 @@
 #define DEVICE_DEFAULT    0
 #define DEVICE_SPDIF      1
 #define DEVICE_SGTL5000   2
+#define DEVICE_WM8958     3
+#define DEVICE_HDMI       4
+
+#ifdef  BOARD_IS_SABRELITE
+#define AUDIOCARD_DEVICE_SGTL5000_HIFI "HiFi sgtl5000-0"
+#define AUDIOCARD_DEVICE_WM8958_HIFI "WM8994 HiFi WM8994 AIF1-0"
+#define AUDIOCARD_DEVICE_WM8958_VOICE "WM8994 Voice WM8994 AIF2-1"
+#define AUDIOCARD_DEVICE_WM8958_BT "WM8994 BT WM8994 AIF3-2"
+#define AUDIOCARD_DEVICE_HDMI "IMX HDMI TX mxc-hdmi-soc-0"
+#define AUDIOCARD_DEVICE_SPDIF "IMX SPDIF mxc spdif-0"
+#else
+
+#define AUDIOCARD_DEVICE_SGTL5000_HIFI "SGTL5000 SGTL5000-0"
+#define AUDIOCARD_DEVICE_WM8958_HIFI "WM8994 HiFi WM8994 AIF1-0"
+#define AUDIOCARD_DEVICE_WM8958_VOICE "WM8994 Voice WM8994 AIF2-1"
+#define AUDIOCARD_DEVICE_WM8958_BT "WM8994 BT WM8994 AIF3-2"
+#define AUDIOCARD_DEVICE_HDMI "IMX HDMI TX mxc-hdmi-soc-0"
+#define AUDIOCARD_DEVICE_SPDIF "IMX SPDIF mxc spdif-0"
+#endif
+
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
@@ -45,6 +65,7 @@ static status_t s_open(alsa_handle_t *, uint32_t, int);
 static status_t s_close(alsa_handle_t *);
 static status_t s_route(alsa_handle_t *, uint32_t, int);
 
+char hdmicardname[32];
 char spdifcardname[32];
 char sgtlcardname[32];
 int  selecteddevice ;    
@@ -190,7 +211,8 @@ const char *deviceName(alsa_handle_t *alsa_handle, uint32_t device, int mode, in
     snd_pcm_stream_t stream = direction(alsa_handle);
     bool havespdifdevice = false;
     bool havesgtldevice = false;
-    
+    bool havehdmidevice = false;
+
 	card = -1;
 	if (snd_card_next(&card) < 0 || card < 0) {
 		LOGD("no soundcards found...");
@@ -232,13 +254,19 @@ const char *deviceName(alsa_handle_t *alsa_handle, uint32_t device, int mode, in
 				snd_pcm_info_get_id(pcminfo),
 				snd_pcm_info_get_name(pcminfo));
                 			
-			if(strcmp(snd_pcm_info_get_id(pcminfo),"IMX SPDIF mxc spdif-0")==0) {
+			if(strcmp(snd_pcm_info_get_id(pcminfo),AUDIOCARD_DEVICE_SPDIF)==0) {
 			     if(card_device==0)  sprintf(spdifcardname, "hw:0%d", card);
 			     else         		 sprintf(spdifcardname, "hw:%d,%d", card, dev);
 			     havespdifdevice =  true;
 			}
             
-			if(strcmp(snd_pcm_info_get_id(pcminfo),"SGTL5000 SGTL5000-0")==0) {
+			if(strcmp(snd_pcm_info_get_id(pcminfo),AUDIOCARD_DEVICE_HDMI)==0) {
+			     if(card_device==0)  sprintf(hdmicardname, "hw:0%d", card);
+			     else         		 sprintf(hdmicardname, "hw:%d,%d", card, dev);
+			     havehdmidevice =  true;
+			}
+            
+			if(strcmp(snd_pcm_info_get_id(pcminfo),AUDIOCARD_DEVICE_SGTL5000_HIFI)==0) {
 			     if(card_device==0) sprintf(sgtlcardname, "hw:0%d", card);
 			     else               sprintf(sgtlcardname, "hw:%d,%d", card, dev);
 			     havesgtldevice =  true;                
@@ -255,7 +283,12 @@ const char *deviceName(alsa_handle_t *alsa_handle, uint32_t device, int mode, in
 	}
         
     property_get("ro.HDMI_AUDIO_OUTPUT", value, "");
-    if((device & AudioSystem::DEVICE_OUT_AUX_DIGITAL) && havespdifdevice && (strcmp(value, "1") == 0))
+    if((device & AudioSystem::DEVICE_OUT_AUX_DIGITAL) && havehdmidevice && (strcmp(value, "1") == 0))
+    {
+        selecteddevice = DEVICE_HDMI;
+        return hdmicardname;
+
+    }else if((device & AudioSystem::DEVICE_OUT_AUX_DIGITAL) && havespdifdevice && (strcmp(value, "1") == 0))
     {
         selecteddevice = DEVICE_SPDIF;
         return spdifcardname;
