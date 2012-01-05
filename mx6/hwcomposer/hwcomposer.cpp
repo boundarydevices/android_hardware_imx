@@ -47,6 +47,7 @@ struct hwc_context_t {
     int second_display;
 
     hwc_composer_device_t* viv_hwc;
+    layer_record records[LAYER_RECORD_NUM];
 };
 
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
@@ -81,6 +82,72 @@ static void dump_layer(hwc_layer_t const* l) {
             l->displayFrame.top,
             l->displayFrame.right,
             l->displayFrame.bottom);
+}
+
+/***********************************************************************/
+static void addRecord(hwc_context_t *dev, hwc_layer_list_t* list)
+{
+    int rec_index = 0;
+    if (list && dev) {
+        for(int n=0; n<LAYER_RECORD_NUM; n++) {
+            dev->records[n].handle = NULL;
+            memset(&(dev->records[n].outRect), 0, sizeof(dev->records[n].outRect));
+            dev->records[n].outDev = 0;
+        }
+
+        for (size_t i=0 ; i<list->numHwLayers ; i++) {
+            //dump_layer(&list->hwLayers[i]);
+            //list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
+            hwc_layer_t *layer = &list->hwLayers[i];
+            /*
+             *the private_handle_t should expand to have usage and format member.
+            */
+            if(!layer->handle || ((private_handle_t *)layer->handle)->magic != private_handle_t::sMagic) {
+                continue;//skip NULL pointer and other magic handler
+            }
+            if (private_handle_t::validate(layer->handle) < 0) {
+                //HWCOMPOSER_LOG_ERR("it is not a valide buffer handle\n");
+                continue;
+            }
+            //HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_prepare---2>>>>>>>>>>>>>>>>>\n");
+            //HWCOMPOSER_LOG_ERR("-------hwc_prepare----layer[%d]-----displayID = %d", i, layer->displayId);
+            private_handle_t *handle = (private_handle_t *)(layer->handle);
+            if(!(handle->usage & GRALLOC_USAGE_HWC_OVERLAY)) {
+                //HWCOMPOSER_LOG_ERR("<<<<<<<<<<<<<<<hwc_prepare---usage=%x>>phy=%x>>>>>>>>>>>>>>>\n", handle->usage, handle->phys);
+                continue;
+            }
+
+            if(rec_index >= LAYER_RECORD_NUM) {
+                HWCOMPOSER_LOG_ERR("******************Error:%s, too many video layers");
+                return;
+            }
+            dev->records[rec_index].handle = (void*)(layer->handle);
+            dev->records[rec_index].outRect = layer->displayFrame;
+            dev->records[rec_index].outDev = handle->usage & GRALLOC_USAGE_OVERLAY_DISPLAY_MASK;
+            rec_index ++;
+        }// end for
+    }//end if
+}
+
+static int isRectEqual(hwc_rect_t* hs, hwc_rect_t* hd)
+{
+    return ((hs->left == hd->left) && (hs->top == hd->top)
+            && (hs->right == hd->right) && (hs->bottom == hd->bottom));
+}
+
+static int isInRecord(hwc_context_t *dev, hwc_layer_t *layer)
+{
+    if(dev && layer) {
+        private_handle_t *handle = (private_handle_t *)(layer->handle);
+        for(int i=0; i<LAYER_RECORD_NUM; i++) {
+            if(((int)(dev->records[i].handle) == (int)(layer->handle))
+                      && isRectEqual(&(dev->records[i].outRect), &(layer->displayFrame))
+                      && (dev->records[i].outDev == (handle->usage & GRALLOC_USAGE_OVERLAY_DISPLAY_MASK))) {
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 static int hwc_check_property(hwc_context_t *dev)
@@ -546,6 +613,11 @@ static int hwc_set(hwc_composer_device_t *dev,
         }
         HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
 
+        if(isInRecord(ctx, layer)) {
+            HWCOMPOSER_LOG_RUNTIME("%s,%d, lost frames", __FUNCTION__, __LINE__);
+            continue;
+        }
+
 	private_handle_t *handle = (private_handle_t *)(layer->handle);
 	if(handle->usage & GRALLOC_USAGE_HWC_OVERLAY){
             int retv = 0;
@@ -589,6 +661,8 @@ static int hwc_set(hwc_composer_device_t *dev,
 		}
 	}
     }
+    addRecord(ctx, list);
+
     return 0;
 }
 
