@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/*Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #ifndef _HWC_FSL_H_
 #define _HWC_FSL_H_
@@ -112,6 +112,13 @@ typedef enum {
 #define GRALLOC_USAGE_OVERLAY1_MASK   0x00C00000
 #define GRALLOC_USAGE_DISPLAY_MASK    0x07000000
 #define GRALLOC_USAGE_OVERLAY_DISPLAY_MASK 0x07F00000
+
+#define LAYER_RECORD_NUM      8
+typedef struct {
+    void* handle;
+    hwc_rect_t outRect;
+    int outDev;
+}layer_record;
 
 typedef struct{
     void *virt_addr;
