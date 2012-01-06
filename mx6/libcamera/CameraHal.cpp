@@ -956,12 +956,7 @@ namespace android {
             return ret;
         }
         
-        if((ret = AllocateRecordVideoBuf())<0) {
-            CAMERA_HAL_LOG_INFO("%s: AllocateRecordVideoBuf error\n", __FUNCTION__);
-            mEncodeLock.unlock();
-            return ret;            
-        }
-            
+           
 	if (bDerectInput == true) {
 		for(i = 0; i < mVideoBufNume; i++) {
 			mVideoBufferUsing[i] = 0;
@@ -1725,6 +1720,11 @@ Pic_out:
         nCameraBuffersQueued = mCaptureBufNum;
         isCaptureBufsAllocated = 1;
 
+        if((AllocateRecordVideoBuf())<0) {
+            CAMERA_HAL_LOG_INFO("%s: AllocateRecordVideoBuf error\n", __FUNCTION__);
+            return BAD_VALUE;
+        }
+ 
         return NO_ERROR;
     }
 
