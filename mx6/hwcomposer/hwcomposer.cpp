@@ -613,9 +613,11 @@ static int hwc_set(hwc_composer_device_t *dev,
         }
         HWCOMPOSER_LOG_RUNTIME("%s,%d", __FUNCTION__, __LINE__);
 
+        //when GM do seek, it always queue the same buffer.
+        //so, we can not judge the reduplicated buffer by buffer handle now. 
         if(isInRecord(ctx, layer)) {
             HWCOMPOSER_LOG_RUNTIME("%s,%d, lost frames", __FUNCTION__, __LINE__);
-            continue;
+            //continue;
         }
 
 	private_handle_t *handle = (private_handle_t *)(layer->handle);
