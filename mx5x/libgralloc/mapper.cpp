@@ -14,23 +14,27 @@
  * limitations under the License.
  */
 
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/*Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
+
+#include <linux/android_pmem.h>
 
 #include "gralloc_priv.h"
 
@@ -61,7 +65,9 @@ static int gralloc_map(gralloc_module_t const* module,
         void* mappedAddress = mmap(0, size,
                 PROT_READ|PROT_WRITE, MAP_SHARED, hnd->fd, 0);
         if (mappedAddress == MAP_FAILED) {
-            LOGE("Could not mmap %s", strerror(errno));
+            LOGE("Could not mmap handle %p, fd=%d (%s)",
+                    handle, hnd->fd, strerror(errno));
+            hnd->base = 0;
             return -errno;
         }
         hnd->base = intptr_t(mappedAddress) + hnd->offset;
@@ -226,7 +232,16 @@ int gralloc_lock(gralloc_module_t const* module,
 
     if (new_value & private_handle_t::LOCK_STATE_WRITE) {
         // locking for write, store the tid
-        hnd->writeOwner = getpid();
+        hnd->writeOwner = gettid();
+    }
+
+    // if requesting sw write for non-framebuffer handles, flag for
+    // flushing at unlock
+
+    if ((usage & GRALLOC_USAGE_SW_WRITE_MASK) &&
+            (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) &&
+            !(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
+        hnd->flags |= private_handle_t::PRIV_FLAGS_NEEDS_FLUSH;
     }
 
     if (usage & (GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK)) {
@@ -258,13 +273,25 @@ int gralloc_unlock(gralloc_module_t const* module,
     private_handle_t* hnd = (private_handle_t*)handle;
     int32_t current_value, new_value;
 
+    if (hnd->flags & private_handle_t::PRIV_FLAGS_NEEDS_FLUSH) {
+        struct pmem_region region;
+        int err;
+
+        region.offset = hnd->offset;
+        region.len = hnd->size;
+        err = ioctl(hnd->fd, PMEM_CACHE_FLUSH, &region);
+        LOGE_IF(err < 0, "cannot flush handle %p (offs=%x len=%x)\n",
+                hnd, hnd->offset, hnd->size);
+        hnd->flags &= ~private_handle_t::PRIV_FLAGS_NEEDS_FLUSH;
+    }
+
     do {
         current_value = hnd->lockState;
         new_value = current_value;
 
         if (current_value & private_handle_t::LOCK_STATE_WRITE) {
             // locked for write
-            if (hnd->writeOwner == getpid()) {
+            if (hnd->writeOwner == gettid()) {
                 hnd->writeOwner = 0;
                 new_value &= ~private_handle_t::LOCK_STATE_WRITE;
             }

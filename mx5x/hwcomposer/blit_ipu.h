@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/* Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved. */
 
 #ifndef _BLIT_IPU_H_
 #define _BLIT_IPU_H_
@@ -30,9 +30,10 @@
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
 #include "hwc_common.h"
-extern "C" {
-#include "mxc_ipu_hl_lib.h"
-}
+#include <linux/ipu.h>
+//extern "C" {
+//#include "mxc_ipu_hl_lib.h"
+//}
 /*****************************************************************************/
 
 #define BLIT_PIXEL_FORMAT_RGB_565  209
@@ -42,25 +43,22 @@ class blit_ipu : public blit_device
 public:
     virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf);
 
-		blit_ipu();
-		virtual ~blit_ipu();
+	blit_ipu();
+	virtual ~blit_ipu();
 
 private:
-		ipu_lib_input_param_t  mIPUInputParam;
-    ipu_lib_output_param_t mIPUOutputParam;
-    ipu_lib_handle_t       mIPUHandle;
-    unsigned int mRotSize;
-    unsigned int mRotPhyBuffer;
-    void *mRotVirBuffer;
-
+    struct ipu_task mTask;
+    int mIpuFd;
+	//ipu_lib_input_param_t  mIPUInputParam;
+    //ipu_lib_output_param_t mIPUOutputParam;
+    //ipu_lib_handle_t       mIPUHandle;
 //    int                    mIPURet;
 private:
-		int init();
+	int init();
     int uninit();
-    int getPmemBuffer(int size, void **ppVirBuffer, unsigned int *phyBuffer);
-    int returnPmemBuffer(void *pVirBuffer, unsigned int size); 
-		blit_ipu& operator = (blit_ipu& out);
-		blit_ipu(const blit_ipu& out);
+
+	blit_ipu& operator = (blit_ipu& out);
+	blit_ipu(const blit_ipu& out);
 };
 
 

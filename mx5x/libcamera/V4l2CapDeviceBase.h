@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #ifndef V4L2_CAP_DEVICE_BASE_H
 #define V4L2_CAP_DEVICE_BASE_H
@@ -34,6 +34,7 @@ namespace android{
 
         virtual CAPTURE_DEVICE_ERR_RET SetDevName(char * deviceName);
         virtual CAPTURE_DEVICE_ERR_RET GetDevName(char * deviceName);
+        virtual CAPTURE_DEVICE_ERR_RET GetDevType(CAMERA_TYPE *pType);
         virtual CAPTURE_DEVICE_ERR_RET DevOpen();
         virtual CAPTURE_DEVICE_ERR_RET EnumDevParam(DevParamType devParamType, void *retParam);
         virtual CAPTURE_DEVICE_ERR_RET DevSetConfig(struct capture_config_t *pCapcfg);
@@ -79,6 +80,7 @@ namespace android{
         int          mQueuedBufNum;
         DMA_BUFFER mCaptureBuffers[MAX_CAPTURE_BUF_QUE_NUM];
         struct   capture_config_t mCapCfg;
+        CAMERA_TYPE  mCameraType;
 
     };
 };

@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/* Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #include <hardware/hardware.h>
 
@@ -158,7 +158,7 @@ int FG_device::init()
     int status = -EINVAL;
     int fbSize = 0;
     void *vaddr = NULL;
-HWCOMPOSER_LOG_RUNTIME("---------------FG_device::init()------------");
+    HWCOMPOSER_LOG_RUNTIME("---------------FG_device::init()------------");
     if(m_dev <= 0) {
         HWCOMPOSER_LOG_ERR("Error! FG_device::FG_init() invalid parameter!");
         return -1;
@@ -167,33 +167,26 @@ HWCOMPOSER_LOG_RUNTIME("---------------FG_device::init()------------");
     //fist open fb0 device that it is binded to.
     //it may be modified in mx6x
     int fd_def = -1;
-    int fd_fb1 = -1;
     if(m_usage & GRALLOC_USAGE_HWC_OVERLAY_DISP0) {
-HWCOMPOSER_LOG_RUNTIME("-------------FG_device::init()---open fb0-------------");
+            HWCOMPOSER_LOG_RUNTIME("-------------FG_device::init()---open fb0-------------");
 	    fd_def = open(DEFAULT_FB_DEV_NAME, O_RDWR | O_NONBLOCK, 0);
 	    if(fd_def < 0) {
 	    	  HWCOMPOSER_LOG_ERR("Error! Open fb device %s failed!", DEFAULT_FB_DEV_NAME);
 	    	  return -1;
 	    }
-			fd_fb1 = open(FB1_DEV_NAME, O_RDWR | O_NONBLOCK, 0);
-	    if(fd_fb1 < 0) {
-	    	  HWCOMPOSER_LOG_ERR("Error! Open fb device %s failed!", FB1_DEV_NAME);
-	    	  return -1;
-	    }
-
-  	}
-    else if(m_usage & GRALLOC_USAGE_HWC_OVERLAY_DISP1) {
-	    fd_def = open(FB1_DEV_NAME, O_RDWR | O_NONBLOCK, 0);
+    }
+    else if(m_usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2) {
+            HWCOMPOSER_LOG_RUNTIME("-------------FG_device::init()---open fb2-------------");
+	    fd_def = open(FB2_DEV_NAME, O_RDWR | O_NONBLOCK, 0);
 	    if(fd_def < 0) {
-	    	  HWCOMPOSER_LOG_ERR("Error! Open fb device %s failed!", FB1_DEV_NAME);
+	    	  HWCOMPOSER_LOG_ERR("Error! Open fb device %s failed!", FB2_DEV_NAME);
 	    	  return -1;
 	    }
-			fd_fb1 = open(DEFAULT_FB_DEV_NAME, O_RDWR | O_NONBLOCK, 0);
-	    if(fd_fb1 < 0) {
-	    	  HWCOMPOSER_LOG_ERR("Error! Open fb device %s failed!", DEFAULT_FB_DEV_NAME);
-	    	  return -1;
-	    }
-  	}
+    }
+    else {
+         HWCOMPOSER_LOG_ERR("Error! %s does not support usage=0x%x!", __FUNCTION__, m_usage);
+         return -1;
+    }
   	//it may be modified in mx6x
 
 //    status = overlay_switch(fd_def, fd_fb1, m_dev, m_usage);
@@ -222,8 +215,6 @@ HWCOMPOSER_LOG_RUNTIME("-------------FG_device::init()---open fb0-------------")
     	  return -1;
     }
 
-   // m_left = 0;
-   // m_top = 0;
     m_width = def_info.xres;//info.xres;
     m_height = def_info.yres;//info.yres;
     m_format = fourcc('U', 'Y', 'V', 'Y');
@@ -287,7 +278,6 @@ HWCOMPOSER_LOG_RUNTIME("-------------FG_device::init()---open fb0-------------")
   	//do it after switch fb2 to fb1 or fb0
   	//status = switch_set(fd_def, fd_fb1, m_usage);
   	close(fd_def);
-  	close(fd_fb1);
 
   	mbuffer_count = DEFAULT_BUFFERS;
   	mbuffer_cur = 0;

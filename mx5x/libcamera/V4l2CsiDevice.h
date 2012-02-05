@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #ifndef V4L2_CSI_DEVICE_H
 #define V4L2_CSI_DEVICE_H
@@ -41,7 +41,8 @@ class V4l2CsiDevice : public V4l2CapDeviceBase{
 		CAPTURE_DEVICE_ERR_RET V4l2EnumSizeFps(void *retParam);
 		CAPTURE_DEVICE_ERR_RET V4l2SetConfig(struct capture_config_t *pCapcfg);
         CAPTURE_DEVICE_ERR_RET V4l2ConfigInput(struct capture_config_t *pCapcfg);
-        CAPTURE_DEVICE_ERR_RET V4l2GetCaptureMode(struct capture_config_t *pCapcfg, unsigned int *pMode); 
+        CAPTURE_DEVICE_ERR_RET V4l2GetCaptureMode(struct capture_config_t *pCapcfg, 
+                unsigned int *pMode, struct v4l2_fract *pTimeFrame); 
         CAPTURE_DEVICE_ERR_RET V4l2SetRot(struct capture_config_t *pCapcfg);
 
 		unsigned int mSupportedFmt[ENUM_SUPPORTED_FMT];

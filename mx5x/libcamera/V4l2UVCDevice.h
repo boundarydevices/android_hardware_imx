@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #ifndef V4L2_UVC_DEVICE_H
 #define V4L2_UVC_DEVICE_H
@@ -31,7 +31,7 @@ namespace android{
 
     class V4l2UVCDevice : public V4l2CapDeviceBase{
     public:
-        V4l2UVCDevice(){}
+        V4l2UVCDevice(){mCameraType = CAMERA_TYPE_UVC;}
         ~V4l2UVCDevice(){}
 
     };
