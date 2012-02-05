@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/*Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #ifndef GRALLOC_PRIV_H_
 #define GRALLOC_PRIV_H_
@@ -78,6 +78,7 @@ struct private_handle_t {
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
         PRIV_FLAGS_USES_PMEM   = 0x00000002,
+        PRIV_FLAGS_NEEDS_FLUSH    = 0x00000008,
     };
 
     enum {

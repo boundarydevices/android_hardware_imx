@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/* Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved. */
 
 #include <limits.h>
 #include <unistd.h>
@@ -214,7 +214,7 @@ static int init_pmem_area_locked(private_module_t* m)
                 LOGE("PMEM_GET_PHYS failed (%s)", strerror(-errno));
             } else {
                 m->master_phys = (unsigned long)region.offset;
-				LOGI("PMEM GPU enabled, size:%d, phys base:%x",size,m->master_phys);
+				LOGI("PMEM GPU enabled, size:%d, phys base:%lx",size,m->master_phys);
             }
         }
         m->pmem_master = master_fd;
@@ -368,9 +368,9 @@ static int gralloc_alloc(alloc_device_t* dev,
         return -EINVAL;
 
     size_t size, alignedw, alignedh;
-    if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || format == HAL_PIXEL_FORMAT_YCbCr_422_I || 
+    if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || format == HAL_PIXEL_FORMAT_YCbCr_422_I ||
             format == HAL_PIXEL_FORMAT_YCbCr_422_SP || format == HAL_PIXEL_FORMAT_YCbCr_420_I ||
-	format == HAL_PIXEL_FORMAT_YV12)
+            format == HAL_PIXEL_FORMAT_YV12)
     {
         // FIXME: there is no way to return the alignedh
         alignedw = ALIGN_PIXEL_16(w);
@@ -423,9 +423,9 @@ static int gralloc_alloc(alloc_device_t* dev,
         return err;
     }
 
-	private_handle_t* hnd = (private_handle_t*)(*pHandle);
-	hnd->usage = usage;
-	hnd->format = format;
+    private_handle_t* hnd = (private_handle_t*)(*pHandle);
+    hnd->usage = usage;
+    hnd->format = format;
     hnd->width = alignedw;
     hnd->height = alignedh;
 
@@ -454,7 +454,7 @@ static int gralloc_free(alloc_device_t* dev,
                 struct pmem_region sub = { hnd->offset, hnd->size };
                 int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
                 LOGE_IF(err<0, "PMEM_UNMAP failed (%s), "
-                        "fd=%d, sub.offset=%lu, sub.size=%lu",
+                        "fd=%d, sub.offset=%d, sub.size=%d",
                         strerror(errno), hnd->fd, hnd->offset, hnd->size);
                 if (err == 0) {
                     // we can't deallocate the memory in case of UNMAP failure
@@ -493,6 +493,9 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device)
 {
     int status = -EINVAL;
+    hw_module_t *hw = const_cast<hw_module_t *>(module);
+    private_module_t* m = reinterpret_cast<private_module_t*>(hw);
+
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
         dev = (gralloc_context_t*)malloc(sizeof(*dev));
@@ -512,6 +515,12 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         *device = &dev->device.common;
         status = 0;
     } else {
+
+        m->flags = 0;
+        m->pmem_master = -1;
+        m->pmem_master_base=0;
+        m->master_phys = 0;
+
         status = fb_device_open(module, name, device);
     }
     return status;

@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 #ifndef CAPTURE_DEVICE_INTERFACE_H
@@ -46,6 +46,11 @@ namespace android {
         MOTION_MODE = 0,
         HIGH_QUALITY_MODE = 1
     }CAPTURE_MODE;
+    
+    typedef enum{
+        CAMERA_TYPE_CSI = 0,
+        CAMERA_TYPE_UVC = 1,
+    }CAMERA_TYPE;
 
     typedef enum{
         OUTPU_FMT = 0,
@@ -57,7 +62,8 @@ namespace android {
         SENSOR_PREVIEW_VERT_FLIP = 1,
         SENSOR_PREVIEW_HORIZ_FLIP = 2,
         SENSOR_PREVIEW_ROATE_180 = 3,
-        SENSOR_PREVIEW_ROATE_LAST = 3
+        SENSOR_PREVIEW_ROATE_LAST = 3,
+        SENSOR_PREVIEW_ROATE_INVALID =4
 	}SENSOR_PREVIEW_ROTATE;
 
     struct timeval_fract{
@@ -93,6 +99,7 @@ namespace android {
         virtual CAPTURE_DEVICE_ERR_RET DevStop()=0;
         virtual CAPTURE_DEVICE_ERR_RET DevDeAllocate()=0;
         virtual CAPTURE_DEVICE_ERR_RET DevClose()=0;
+        virtual CAPTURE_DEVICE_ERR_RET GetDevType(CAMERA_TYPE *pType)=0;
 
         virtual ~ CaptureDeviceInterface(){}
     };

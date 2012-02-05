@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 
@@ -36,14 +36,15 @@
 #include <utils/threads.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
-#include <camera/CameraHardwareInterface.h>
-//#include <ui/Overlay.h>
+#include <camera/CameraParameters.h>
+#include <hardware/camera.h>
 #include <semaphore.h>
 
 #include "Camera_pmem.h"
 #include "CaptureDeviceInterface.h"
 #include "PostProcessDeviceInterface.h"
 #include "JpegEncoderInterface.h"
+#include "messageQueue.h"
 
 
 #define EXIF_MAKENOTE "fsl_makernote"
@@ -84,15 +85,22 @@ namespace android {
         CAMERA_PREVIEW_ROATE_LAST = 3
 	}CAMERA_PREVIEW_ROTATE;
 
-    class CameraHal : public CameraHardwareInterface {
+#ifndef container_of
+#define container_of(ptr, type, member) ({                      \
+        const typeof(((type *) 0)->member) *__mptr = (ptr);     \
+        (type *) ((char *) __mptr - (char *)(&((type *)0)->member)); })
+#endif
+
+    class CameraHal {
     public:
         //virtual sp<IMemoryHeap> getPreviewHeap() const;
         virtual sp<IMemoryHeap> getRawHeap() const;
 
-        virtual status_t setPreviewWindow(const sp<ANativeWindow>& buf);
-        virtual void        setCallbacks(notify_callback notify_cb,
-                data_callback data_cb,
-                data_callback_timestamp data_cb_timestamp,
+        virtual status_t setPreviewWindow(struct preview_stream_ops *window);
+        virtual void        setCallbacks(camera_notify_callback notify_cb,
+                camera_data_callback data_cb,
+                camera_data_timestamp_callback data_cb_timestamp,
+                camera_request_memory get_memory,
                 void* user);
 
         virtual void        enableMsgType(int32_t msgType);
@@ -104,21 +112,23 @@ namespace android {
         virtual bool        previewEnabled();
 
 		virtual status_t  storeMetaDataInBuffers(bool enable);
-		virtual int32_t getNumberOfVideoBuffers() const;
-		virtual sp<IMemory> getVideoBuffer(int32_t index) const;
+		//virtual int32_t getNumberOfVideoBuffers() const;
+		//virtual sp<IMemory> getVideoBuffer(int32_t index) const;
 
         virtual status_t    startRecording();
         virtual void        stopRecording();
         virtual bool        recordingEnabled();
-        virtual void        releaseRecordingFrame(const sp<IMemory>& mem);
+        virtual void        releaseRecordingFrame(const void*  mem);
 
         virtual status_t    autoFocus();
         virtual status_t    cancelAutoFocus();
         virtual status_t    takePicture();
         virtual status_t    cancelPicture();
-        virtual status_t    dump(int fd, const Vector<String16>& args) const;
+        virtual status_t    dump(int fd) const;
         virtual status_t    setParameters(const CameraParameters& params);
-        virtual CameraParameters  getParameters() const;
+        virtual status_t    setParameters(const char* params);
+        virtual char*  getParameters() const;
+        void putParameters(char *);
         virtual status_t    sendCommand(int32_t command, int32_t arg1,
                 int32_t arg2);
         virtual void release();
@@ -129,7 +139,7 @@ namespace android {
         CAMERA_HAL_ERR_RET  Init();
         void  setPreviewRotate(CAMERA_PREVIEW_ROTATE previewRotate);
 
-        CameraHal();
+        CameraHal(int cameraid);
         virtual             ~CameraHal();
 
     private:
@@ -143,8 +153,8 @@ namespace android {
                 run("CaptureFrameThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
-                mHardware->captureframeThread();
-                return true;
+                mHardware->captureframeThreadWrapper();
+                return false;
             }
         };
 
@@ -157,8 +167,8 @@ namespace android {
                 run("PostProcessThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
-                mHardware->postprocessThread();
-                return true;
+                mHardware->postprocessThreadWrapper();
+                return false;
             }
         };
 
@@ -172,8 +182,8 @@ namespace android {
                 run("CameraPreviewShowFrameThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
-                mHardware->previewshowFrameThread();
-                return true;
+                mHardware->previewshowFrameThreadWrapper();
+                return false;
             }
         };
 
@@ -186,7 +196,7 @@ namespace android {
                 run("EncodeFrameThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
-                mHardware->encodeframeThread();
+                mHardware->encodeframeThreadWrapper();
                 return true;
             }
         };
@@ -213,14 +223,14 @@ namespace android {
         public:
             TakePicThread(CameraHal* hw)
                 : Thread(false), mHardware(hw) { }
+#if 0
             virtual void onFirstRef() {
                 run("TakePicThread", PRIORITY_URGENT_DISPLAY);
             }
+#endif  
             virtual bool threadLoop() {
-                if (mHardware->takepicThread()>=0)
-                    return true;
-                else
-                    return false;
+                mHardware->takepicThread();
+                return false;
             }
         };
 
@@ -233,8 +243,8 @@ namespace android {
         CAMERA_HAL_ERR_RET AolLocForInterBuf();
         void  FreeInterBuf();
         CAMERA_HAL_ERR_RET InitCameraHalParam();
-        CAMERA_HAL_ERR_RET GetCameraBaseParam(CameraParameters *pParam);
-        CAMERA_HAL_ERR_RET GetPictureExifParam(CameraParameters *pParam);
+        CAMERA_HAL_ERR_RET InitCameraBaseParam(CameraParameters *pParam);
+        CAMERA_HAL_ERR_RET InitPictureExifParam(CameraParameters *pParam);
         CAMERA_HAL_ERR_RET CameraMiscInit();
         CAMERA_HAL_ERR_RET CameraMiscDeInit();
         status_t CameraHALPreviewStart();
@@ -242,6 +252,10 @@ namespace android {
         int postprocessThread();
         int previewshowFrameThread();
         int encodeframeThread();
+        int captureframeThreadWrapper();
+        int postprocessThreadWrapper();
+        int previewshowFrameThreadWrapper();
+        int encodeframeThreadWrapper();
         status_t AllocateRecordVideoBuf();
 
         status_t CameraHALStartPreview();
@@ -275,13 +289,50 @@ namespace android {
         status_t PrepareCaptureBufs();
         volatile bool isCaptureBufsAllocated;
         //volatile bool isPreviewFinsh;
-        status_t convertPreviewFormat(unsigned int *pFormat);
+        status_t convertStringToPreviewFormat(unsigned int *pFormat);
+        status_t convertPreviewFormatToString(char *pStr, int length, unsigned int format);
+        status_t putBufferCount(DMA_BUFFER *pBuf);
+        void getBufferCount(DMA_BUFFER *pBuf);
+        CAMERA_HAL_ERR_RET InitCameraPreviewFormatToParam(int nFmt);
+
+        CMessageQueue mCaptureThreadQueue;
+        CMessageQueue mPreviewThreadQueue;
+        CMessageQueue mPostProcessThreadQueue;
+        CMessageQueue mEncodeThreadQueue;
+
+        mutable Mutex mCaptureLock;
+        mutable Condition mCaptureCondition;
+        //mutable Condition mCaptureStoppedCondition;
+        mutable sem_t mCaptureStoppedCondition;
+        bool mCaptureRunning;
+        bool mExitCaptureThread;
+        mutable Mutex mPreviewLock;
+        mutable Condition mPreviewCondition;
+        //mutable Condition mPreviewStoppedCondition;
+        mutable sem_t mPreviewStoppedCondition;
+        bool mPreviewRunning;
+        bool mExitPreviewThread;
+        mutable Mutex mPostProcessLock;
+        //mutable Condition mPostProcessCondition;
+        mutable sem_t mPostProcessStoppedCondition;
+        //bool mPostProcessRunning;
+        bool mExitPostProcessThread;
+        mutable Mutex mEncodeLock;
+        mutable Condition mEncodeCondition;
+        //mutable Condition mEncodeStoppedCondition;
+        mutable sem_t mEncodeStoppedCondition;
+        //bool mEncodeRunning;
+        bool mExitEncodeThread;
+        mutable sem_t mTakingPicture;
+        bool mWaitForTakingPicture;
+        bool mTakePictureInProcess;
 
         CameraParameters    mParameters;
         void               *mCallbackCookie;
-        notify_callback    mNotifyCb;
-        data_callback      mDataCb;
-        data_callback_timestamp mDataCbTimestamp;
+        camera_notify_callback    mNotifyCb;
+        camera_data_callback      mDataCb;
+        camera_data_timestamp_callback mDataCbTimestamp;
+        camera_request_memory mRequestMemory;
 
         sp<CaptureDeviceInterface> mCaptureDevice;
         sp<PostProcessDeviceInterface> mPPDevice;
@@ -297,24 +348,27 @@ namespace android {
 
         mutable Mutex       mLock;
 
-        char *supportedPictureSizes;
-        char *supportedPreviewSizes;
-        char *supportedFPS;
-        char *supprotedThumbnailSizes;
+        char *mSupportedPictureSizes;
+        char *mSupportedPreviewSizes;
+        char *mSupportedFPS;
+        char *mSupprotedThumbnailSizes;
+        char *mSupportPreviewFormat;
 
-        sp<ANativeWindow>   mNativeWindow;
+        preview_stream_ops_t*   mNativeWindow;
         unsigned int        mMsgEnabled;
 
         struct capture_config_t mCaptureDeviceCfg;
         DMA_BUFFER          mCaptureBuffers[PREVIEW_CAPTURE_BUFFER_NUM];
 
-        sp<MemoryHeapBase>  mPreviewHeap;
-        sp<MemoryBase>      mPreviewBuffers[PREVIEW_HEAP_BUF_NUM]; 
+        //sp<MemoryHeapBase>  mPreviewHeap;
+        camera_memory_t* mPreviewMemory;
+        //sp<MemoryBase>      mPreviewBuffers[PREVIEW_HEAP_BUF_NUM]; 
 
         /* the buffer for recorder */
         unsigned int        mVideoBufNume;
-        sp<MemoryHeapBase>  mVideoHeap;
-        sp<MemoryBase>      mVideoBuffers[VIDEO_OUTPUT_BUFFER_NUM];
+        camera_memory_t* mVideoMemory;
+        //sp<MemoryHeapBase>  mVideoHeap;
+        //sp<MemoryBase>      mVideoBuffers[VIDEO_OUTPUT_BUFFER_NUM];
         volatile  int       mVideoBufferUsing[VIDEO_OUTPUT_BUFFER_NUM];
 		VIDEOFRAME_BUFFER_PHY mVideoBufferPhy[VIDEO_OUTPUT_BUFFER_NUM];
 
@@ -324,8 +378,8 @@ namespace android {
         pp_input_param_t    mPPInputParam;
         pp_output_param_t   mPPOutputParam;
 
-        volatile bool       mPreviewRunning;
-        unsigned int        mPreviewFormat;
+        //volatile bool       mPreviewRunning;
+        unsigned int        mDefaultPreviewFormat;
         unsigned int 		mPreviewFrameSize;
         unsigned int        mPreviewCapturedFormat;
 
@@ -356,7 +410,8 @@ namespace android {
         bool mPreviewStopped;
         bool mRecordStopped;
         bool mPowerLock;
-		bool bDerectInput;
+	bool bDerectInput;
+        int mCameraid;
 
         int error_status;
         unsigned int preview_heap_buf_head;

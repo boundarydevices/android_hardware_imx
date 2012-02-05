@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #include "V4l2UVCDevice.h"
 #include "V4l2CsiDevice.h"
@@ -23,7 +23,7 @@ namespace android{
     extern "C" sp<CaptureDeviceInterface> createCaptureDevice(char *deviceName)
     {
         if(strstr(deviceName, UVC_NAME_STRING)){
-            CAMERA_HAL_LOG_INFO("It is the UVC device");
+            CAMERA_HAL_LOG_INFO("It is the UVC device, name:%s", deviceName);
 
             sp<CaptureDeviceInterface>  device(new V4l2UVCDevice());
             device->SetDevName(deviceName);
