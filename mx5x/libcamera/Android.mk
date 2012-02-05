@@ -11,22 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ifeq (true, false)
+
 ifeq ($(BOARD_SOC_CLASS),IMX5X)
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=    \
-	CameraHal.cpp    \
+    CameraHal.cpp    \
+    CameraModule.cpp \
     Camera_pmem.cpp  \
-	CaptureDeviceInterface.cpp \
-	V4l2CsiDevice.cpp \
-	V4l2CapDeviceBase.cpp  \
-	PostProcessDeviceInterface.cpp \
-	PP_ipulib.cpp    \
-	JpegEncoderInterface.cpp \
-    JpegEncoderSoftware.cpp
+    CaptureDeviceInterface.cpp \
+    V4l2CsiDevice.cpp \
+    V4l2CapDeviceBase.cpp  \
+    PostProcessDeviceInterface.cpp \
+    PP_ipulib.cpp    \
+    JpegEncoderInterface.cpp \
+    JpegEncoderSoftware.cpp \
+    messageQueue.cpp
 
 LOCAL_CPPFLAGS +=
 
@@ -40,33 +42,33 @@ LOCAL_SHARED_LIBRARIES:= \
     libhardware_legacy \
     libdl \
     libc \
-	libipu
+    libipu
 
 LOCAL_C_INCLUDES += \
-	frameworks/base/include/binder \
-	frameworks/base/include/ui \
-	frameworks/base/camera/libcameraservice \
-	external/linux-lib/ipu \
+    frameworks/base/include/binder \
+    frameworks/base/include/ui \
+    frameworks/base/camera/libcameraservice \
+    external/linux-lib/ipu \
     hardware/imx/mx5x/libgralloc
 
 ifeq ($(HAVE_FSL_IMX_CODEC),true)
     LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux
     LOCAL_CPPFLAGS += -DUSE_FSL_JPEG_ENC
     LOCAL_C_INCLUDES +=	\
-					device/fsl/proprietary/codec/ghdr
+         device/fsl/proprietary/codec/ghdr
 endif
 ifeq ($(BOARD_CAMERA_NV12),true)
     LOCAL_CPPFLAGS += -DRECORDING_FORMAT_NV12
 else
     LOCAL_CPPFLAGS += -DRECORDING_FORMAT_YUV420
 endif
-	
-LOCAL_MODULE:= libcamera
+
+LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw	
+LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)
 
 LOCAL_CFLAGS += -fno-short-enums
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
-endif
 endif

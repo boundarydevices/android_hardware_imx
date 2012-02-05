@@ -16,7 +16,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 #ifndef CAMERA_UTILS_H
@@ -25,8 +25,9 @@
 #undef LOG_TAG
 #define LOG_TAG "FslCameraHAL"
 #include <utils/Log.h>
+#include <utils/threads.h>
 
-//#define CAMERA_HAL_DEBUG_LOG
+#define CAMERA_HAL_DEBUG_LOG
 
 #ifdef CAMERA_HAL_DEBUG_LOG
 #define CAMERA_HAL_LOG_RUNTIME(format, ...) LOGI((format), ## __VA_ARGS__)
@@ -49,6 +50,7 @@ namespace android {
     }DMA_ALLOCATE_ERR_RET;
 
     typedef enum{
+        WINDOW_BUFS_INVALID = 0,
         WINDOW_BUFS_DEQUEUED = 1,
         WINDOW_BUFS_QUEUED = 2,
     }WINDOW_BUFS_STATE;
@@ -58,6 +60,8 @@ namespace android {
         size_t phy_offset;
         unsigned int length;
         void *native_buf;
+        Mutex mBufferLock;
+        unsigned int refCount;
         WINDOW_BUFS_STATE buf_state;
     }DMA_BUFFER;
 

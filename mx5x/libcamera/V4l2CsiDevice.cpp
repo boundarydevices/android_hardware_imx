@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #include <string.h>
 #include <unistd.h>
@@ -42,7 +42,7 @@ namespace android{
         mSupportedFmt[0] = v4l2_fourcc('N','V','1','2');
         mSupportedFmt[1] = v4l2_fourcc('Y','U','1','2');
         mSupportedFmt[2] = v4l2_fourcc('Y','U','Y','V');
-
+        mCameraType = CAMERA_TYPE_CSI;
     }
     V4l2CsiDevice :: ~V4l2CsiDevice()
     {
@@ -84,6 +84,7 @@ namespace android{
                     CAMERA_HAL_LOG_RUNTIME("dev_node is %s", dev_node);
                     if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
                         close(fd);
+                        fd = 0;
                         continue;
                     } else if (strstr(vid_chip.match.name, mInitalDeviceName) != 0) {
                         is_found = 1;
@@ -192,6 +193,8 @@ namespace android{
         struct v4l2_control ctrl;
         struct v4l2_streamparm parm;
 
+        memset(&parm, 0, sizeof(struct v4l2_streamparm));
+        memset(&fmt, 0, sizeof(struct v4l2_format));
         V4l2ConfigInput(pCapcfg);
 
         parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -202,11 +205,12 @@ namespace android{
         }
         CAMERA_HAL_LOG_RUNTIME("the fps is %d", pCapcfg->tv.denominator);
 
-        ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode));
-        if (ret != CAPTURE_DEVICE_ERR_NONE)
-            return ret;
         parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
         parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
+        ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode), 
+                &(parm.parm.capture.timeperframe));
+        if (ret != CAPTURE_DEVICE_ERR_NONE)
+            return ret;
 
         if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0) {
             parm.parm.capture.timeperframe.numerator = 1;
@@ -241,11 +245,8 @@ namespace android{
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
 
-        if(V4l2SetRot(pCapcfg) < 0)
-            return CAPTURE_DEVICE_ERR_SYS_CALL;
-
         fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        if (ioctl(mCameraDevice, VIDIOC_G_FMT, &parm) < 0) {
+        if (ioctl(mCameraDevice, VIDIOC_G_FMT, &fmt) < 0) {
             CAMERA_HAL_ERR("VIDIOC_S_PARM failed\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }else{
@@ -260,7 +261,8 @@ namespace android{
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2GetCaptureMode(struct capture_config_t *pCapcfg, unsigned int *pMode){
+    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2GetCaptureMode(struct capture_config_t *pCapcfg, 
+            unsigned int *pMode, struct v4l2_fract *pTimeFrame){
 
         CAMERA_HAL_LOG_FUNC;
         if (mCameraDevice <= 0 || pCapcfg == NULL){
@@ -273,29 +275,48 @@ namespace android{
         unsigned int pic_waite_buf_num = 0;
         if ((strstr(mInitalDeviceName, OV5640_NAME_STR) != 0) ||
                 (strstr(mInitalDeviceName, OV5642_NAME_STR) != 0)){
-            pic_waite_buf_num = 10;
-            if (capturewidth == 640 && captureheight == 480)
+            pic_waite_buf_num = 6;
+            if (capturewidth == 640 && captureheight == 480) {
                 capturemode = 0;	/* VGA mode */
-            else if (capturewidth == 320 && captureheight == 240)
+                pTimeFrame->numerator = 1;
+                pTimeFrame->denominator = 30;
+            }
+            else if (capturewidth == 320 && captureheight == 240) {
                 capturemode = 1;	/* QVGA mode */
-            else if (capturewidth == 720 && captureheight == 480)
+                pTimeFrame->numerator = 1;
+                pTimeFrame->denominator = 30;
+            }
+            else if (capturewidth == 720 && captureheight == 480) {
                 capturemode = 2;	/* PAL mode */
-            else if (capturewidth == 720 && captureheight == 576)
+                pTimeFrame->numerator = 1;
+                pTimeFrame->denominator = 30;
+            }
+            else if (capturewidth == 720 && captureheight == 576) {
                 capturemode = 3;	/* PAL mode */
-            else if (capturewidth == 1280 && captureheight == 720)
+                pTimeFrame->numerator = 1;
+                pTimeFrame->denominator = 30;
+            }
+            else if (capturewidth == 1280 && captureheight == 720) {
                 capturemode = 4;	/* 720P mode */
+                pTimeFrame->numerator = 1;
+                pTimeFrame->denominator = 30;
+            }
             else if (capturewidth == 1920 && captureheight == 1080){
-                pic_waite_buf_num = 5;
+                pic_waite_buf_num = 3;
                 capturemode = 5;	/* 1080P mode */
+                pTimeFrame->numerator = 1;
+                pTimeFrame->denominator = 15;
             }
             else if (capturewidth == 2592 && captureheight == 1944) {
-                pic_waite_buf_num = 3;
+                pic_waite_buf_num =1;
                 capturemode = 6;	/* 2592x1944 mode */
-                pCapcfg->tv.denominator = 15;
-                pCapcfg->tv.numerator = 1;
+                pTimeFrame->numerator = 1;
+                pTimeFrame->denominator = 15;
             }
             else if (capturewidth == 176 && captureheight == 144) {
                 capturemode = 7;       /* QCIF mode */
+                //pTimeFrame->numerator = 1;
+                //pTimeFrame->denominator = 30;
             }
             else{
                 CAMERA_HAL_ERR("The camera mode is not supported!!!!");
@@ -322,6 +343,7 @@ namespace android{
                 return CAPTURE_DEVICE_ERR_BAD_PARAM;
             }
         }else{
+            CAMERA_HAL_ERR("The camera sensor %s not configure!!!!", mInitalDeviceName);
             capturemode = 0;
             pic_waite_buf_num = 0;
         }
@@ -346,13 +368,13 @@ namespace android{
         // Set rotation
         ctrl.id = V4L2_CID_MXC_ROT;
         if (pCapcfg->rotate == SENSOR_PREVIEW_BACK_REF)
-            ctrl.value = V4L2_MXC_CAM_ROTATE_NONE;
+            ctrl.value = V4L2_MXC_ROTATE_NONE;
         else if (pCapcfg->rotate == SENSOR_PREVIEW_VERT_FLIP)
-            ctrl.value = V4L2_MXC_CAM_ROTATE_VERT_FLIP;
+            ctrl.value = V4L2_MXC_ROTATE_VERT_FLIP;
         else if (pCapcfg->rotate == SENSOR_PREVIEW_HORIZ_FLIP)
-            ctrl.value = V4L2_MXC_CAM_ROTATE_HORIZ_FLIP;
+            ctrl.value = V4L2_MXC_ROTATE_HORIZ_FLIP;
         else if (pCapcfg->rotate == SENSOR_PREVIEW_ROATE_180)
-            ctrl.value = V4L2_MXC_CAM_ROTATE_180;
+            ctrl.value = V4L2_MXC_ROTATE_180;
         else
             ctrl.value = V4L2_MXC_ROTATE_NONE;
 

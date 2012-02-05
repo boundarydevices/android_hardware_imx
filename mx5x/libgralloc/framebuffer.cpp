@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* Copyright 2010-2011 Freescale Semiconductor Inc. */
+/* Copyright 2010-2012 Freescale Semiconductor Inc. */
 
 #include <sys/mman.h>
 
@@ -42,13 +42,10 @@
 #include <linux/videodev.h>
 #include <sys/mman.h>
 
-extern "C" {
-#include "mxc_ipu_hl_lib.h" 
-} 
+#include <linux/ipu.h>
 
 #endif
 #include <GLES/gl.h>
-#include <c2d_api.h>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -93,10 +90,12 @@ struct fb_context_t {
     sem_t sec_display_begin;
     sem_t sec_display_end;
     pthread_t thread_id;
-    C2D_CONTEXT c2dctx;
+  //  C2D_CONTEXT c2dctx;
     int sec_rotation;
     int cleancount;
     int mRotate;
+    struct ipu_task mTask;
+    int mIpuFd;
 #endif
 };
 
@@ -368,13 +367,13 @@ static int fb_setSecRotation(struct framebuffer_device_t* dev,int secRotation)
 
 static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 {
-    if (private_handle_t::validate(buffer) < 0)
+    if (!buffer)
         return -EINVAL;
 
     fb_context_t* ctx = (fb_context_t*)dev;
 
     private_handle_t const* hnd = reinterpret_cast<private_handle_t const*>(buffer);
-    private_module_t* m = reinterpret_cast<private_module_t*>(
+	private_module_t* m = reinterpret_cast<private_module_t*>(
             dev->common.module);
     if (m->currentBuffer) {
         m->base.unlock(&m->base, m->currentBuffer);
@@ -383,9 +382,10 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
     if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
 
+        void *vaddr = NULL;
         m->base.lock(&m->base, buffer, 
                 private_module_t::PRIV_USAGE_LOCKED_FOR_POST, 
-                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL_128(m->info.yres), NULL);
+                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL_128(m->info.yres), &vaddr);
 
         const size_t offset = hnd->base - m->framebuffer->base;
         m->info.activate = FB_ACTIVATE_VBL;
@@ -402,7 +402,11 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                 if(mapSecFrameBuffer(ctx)== 0)
                 {    
                     ctx->sec_display_inited = true;
-                    c2dCreateContext(&ctx->c2dctx); 
+               //     c2dCreateContext(&ctx->c2dctx);
+                    ctx->mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
+                    if(ctx->mIpuFd < 0) {
+                        LOGE("%s:%d,open ipu dev failed", __FUNCTION__, __LINE__);
+                    }
 
                     sem_init(&ctx->sec_display_begin, 0, 0);
                     sem_init(&ctx->sec_display_end, 0, 0);
@@ -433,7 +437,8 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                 sem_destroy(&ctx->sec_display_begin);
                 sem_destroy(&ctx->sec_display_end);
                 
-                if (ctx->c2dctx != NULL)c2dDestroyContext(ctx->c2dctx);
+            //    if (ctx->c2dctx != NULL)c2dDestroyContext(ctx->c2dctx);
+                if(ctx->mIpuFd >= 0)close(ctx->mIpuFd);
                 
                 //Set the prop rw.SECOND_DISPLAY_ENABLED to 0
                 LOGI("Switch back to display 0");
@@ -445,12 +450,12 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                 ctx->sec_disp_base = 0;
                 //DeInit the second display
                 if(ctx->sec_fp) {
-                    int fp_property = open("/sys/class/graphics/fb1/fsl_disp_property",O_RDWR, 0); 
+                    int fp_property = open("/sys/class/graphics/fb2/fsl_disp_property",O_RDWR, 0); 
                     if(fp_property >= 0) {
                         char overlayStr[32];
                         int blank;
                         int fb2_fp;
-			struct fb_var_screeninfo fb0_var;
+                        struct fb_var_screeninfo fb0_var;
 
                         blank = 1;
 
@@ -466,7 +471,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                         }
 
                     	if(ioctl(ctx->sec_fp, FBIOBLANK, blank) < 0) {
-                    		LOGI("Error!BLANK FB1 failed!\n");
+                            LOGI("Error!BLANK FB2 failed!\n");
                     	}
                     
                         if(ioctl(m->framebuffer->fd, FBIOBLANK, blank) < 0) {
@@ -475,13 +480,13 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
                         memset(overlayStr, 0 ,32);
                         strcpy(overlayStr, "1-layer-fb\n");
-                        LOGI("WRITE 1-layer-fb to fb1/fsl_disp_property");
+                        LOGI("WRITE 1-layer-fb to fb2/fsl_disp_property");
                         write(fp_property, overlayStr, strlen(overlayStr)+1);
                         close(fp_property);
 
                         blank = FB_BLANK_POWERDOWN;
                     	if(ioctl(ctx->sec_fp, FBIOBLANK, blank) < 0) {
-                    		LOGI("Error!BLANK FB1 failed!\n");
+                            LOGI("Error!BLANK FB2 failed!\n");
                     	}
                         blank = FB_BLANK_UNBLANK;
                     	if(ioctl(m->framebuffer->fd, FBIOBLANK, blank) < 0) {
@@ -836,10 +841,10 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     if(strncmp(fb_mode, disp_mode, strlen(disp_mode)+1))
     {
         size = write(fp_mode, disp_mode, strlen(disp_mode)+1);
-		if(size <= 0)
-	    {
-	        LOGI("Error! Cannot write %s", temp_name);
-	    }
+        if(size <= 0)
+        {
+           LOGI("Error! Cannot write %s", temp_name);
+        }
     }
 
     close(fp_mode); fp_mode = 0;
@@ -1139,9 +1144,9 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
 
     set_graphics_fb_mode(1,1);
 
-    sec_fp = open("/dev/graphics/fb1",O_RDWR, 0);
+    sec_fp = open("/dev/graphics/fb2",O_RDWR, 0);
     if (sec_fp < 0){
-        LOGE("Error!Cannot open the /dev/graphics/fb1 for second display");
+        LOGE("Error!Cannot open the /dev/graphics/fb2 for second display");
         goto disp_init_error;
     }
 
@@ -1161,7 +1166,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     close(fb2_fp);
 
 	if(ioctl(sec_fp, FBIOBLANK, blank) < 0) {
-		LOGI("Error!BLANK FB1 failed!\n");
+		LOGI("Error!BLANK FB2 failed!\n");
         goto disp_init_error;
 	}
 
@@ -1185,7 +1190,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
 
     blank = FB_BLANK_UNBLANK;
 	if(ioctl(sec_fp, FBIOBLANK, blank) < 0) {
-		LOGI("Error!UNBLANK FB1 failed!\n");
+		LOGI("Error!UNBLANK FB2 failed!\n");
         goto disp_init_error;
 	}
 
@@ -1336,106 +1341,90 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
 
 static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
 {
-    ipu_lib_input_param_t sIPUInputParam;   
-    ipu_lib_output_param_t sIPUOutputParam; 
-    ipu_lib_handle_t            sIPUHandle;
-    int iIPURet = 0;
-    memset(&sIPUInputParam,0,sizeof(sIPUInputParam));
-    memset(&sIPUOutputParam,0,sizeof(sIPUOutputParam));
-    memset(&sIPUHandle,0,sizeof(sIPUHandle));
+    private_module_t* m = reinterpret_cast<private_module_t*>(ctx->dev->common.module);
 
-    //Setting input format
-    sIPUInputParam.width = ctx->device.width;
-    sIPUInputParam.height = ctx->device.height;
+    if(ctx->mIpuFd < 0){
+        LOGE("%s:%d, invalid ipu device !!!!", __FUNCTION__, __LINE__);
+        return -EINVAL;
+    }
 
-    sIPUInputParam.input_crop_win.pos.x = 0;
-    sIPUInputParam.input_crop_win.pos.y = 0;  
-    sIPUInputParam.input_crop_win.win_w = ctx->device.width;
-    sIPUInputParam.input_crop_win.win_h = ctx->device.height;
-    sIPUInputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
-    sIPUInputParam.user_def_paddr[0] = phys;
-        
-    //Setting output format
-    //Should align with v4l
-    sIPUOutputParam.fmt = v4l2_fourcc('R', 'G', 'B', 'P');
-    sIPUOutputParam.width = ctx->sec_disp_w;
-    sIPUOutputParam.height = ctx->sec_disp_h;   
-    sIPUOutputParam.show_to_fb = 0;
-    //Output param should be same as input, since no resize,crop
-    sIPUOutputParam.output_win.pos.x = 0;
-    sIPUOutputParam.output_win.pos.y = 0;
-    sIPUOutputParam.output_win.win_w = ctx->sec_disp_w;
-    sIPUOutputParam.output_win.win_h = ctx->sec_disp_h;
+    if(m->info.bits_per_pixel == 32){
+        ctx->mTask.input.format = v4l2_fourcc('B', 'G', 'R', '4');
+    }
+    else {
+        ctx->mTask.input.format = v4l2_fourcc('R', 'G', 'B', 'P');
+    }
+    ctx->mTask.input.width = ctx->device.width;
+    ctx->mTask.input.height = ctx->device.height;
+    ctx->mTask.input.crop.pos.x = 0;
+    ctx->mTask.input.crop.pos.y = 0;
+    ctx->mTask.input.crop.w = ctx->device.width;
+    ctx->mTask.input.crop.h = ctx->device.height;
+    ctx->mTask.input.paddr = phys;
+
+    ctx->mTask.output.format = v4l2_fourcc('R', 'G', 'B', 'P');
+    ctx->mTask.output.width = ctx->sec_disp_w;
+    ctx->mTask.output.height = ctx->sec_disp_h;
+    ctx->mTask.output.crop.w = ctx->sec_disp_w;
+    ctx->mTask.output.crop.h = ctx->sec_disp_h;
     
-    int output_w = 0;
-    int output_h = 0;
-    //Make sure the output w/h proportion is align with the primary display
-    if((ctx->sec_rotation == 0x0)||(ctx->sec_rotation == 0x3))
+    if((ctx->mRotate == 0)||(ctx->mRotate == 180))
     {
-        if(ctx->sec_disp_w/ctx->sec_disp_h >= ctx->device.width/ctx->device.height){
-            sIPUOutputParam.output_win.win_h = ctx->sec_disp_h > MAX_SEC_DISP_HEIGHT?MAX_SEC_DISP_HEIGHT:ctx->sec_disp_h;
-            sIPUOutputParam.output_win.win_w = ctx->sec_disp_h*ctx->device.width/ctx->device.height;
+        if(ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.width/ctx->device.height){
+            ctx->mTask.output.crop.w = ctx->sec_disp_h*ctx->device.width/ctx->device.height;
         }
         else{
-            sIPUOutputParam.output_win.win_w = ctx->sec_disp_w > MAX_SEC_DISP_WIDTH?MAX_SEC_DISP_WIDTH:ctx->sec_disp_w;
-            sIPUOutputParam.output_win.win_h = ctx->sec_disp_w*ctx->device.height/ctx->device.width;
+            ctx->mTask.output.crop.h = ctx->sec_disp_w*ctx->device.height/ctx->device.width;
         }
     }
     else{
-        if(ctx->sec_disp_w/ctx->sec_disp_h >= ctx->device.height/ctx->device.width){
-            sIPUOutputParam.output_win.win_h = ctx->sec_disp_h > MAX_SEC_DISP_HEIGHT?MAX_SEC_DISP_HEIGHT:ctx->sec_disp_h;
-            sIPUOutputParam.output_win.win_w = ctx->sec_disp_h*ctx->device.height/ctx->device.width;
+        if(ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.height/ctx->device.width){
+            ctx->mTask.output.crop.w = ctx->sec_disp_h*ctx->device.height/ctx->device.width;
         }
         else{
-            sIPUOutputParam.output_win.win_w = ctx->sec_disp_w > MAX_SEC_DISP_WIDTH?MAX_SEC_DISP_WIDTH:ctx->sec_disp_w;
-            sIPUOutputParam.output_win.win_h = ctx->sec_disp_w*ctx->device.width/ctx->device.height;
+            ctx->mTask.output.crop.h = ctx->sec_disp_w*ctx->device.width/ctx->device.height;
         }
     }
-    sIPUOutputParam.output_win.pos.x = (ctx->sec_disp_w - sIPUOutputParam.output_win.win_w)/2;
-    sIPUOutputParam.output_win.pos.y = (ctx->sec_disp_h - sIPUOutputParam.output_win.win_h)/2;
 
+    ctx->mTask.output.crop.pos.x = (ctx->sec_disp_w - ctx->mTask.output.crop.w)/2;
+    ctx->mTask.output.crop.pos.y = (ctx->sec_disp_h - ctx->mTask.output.crop.h)/2;
 
-    //sIPUOutputParam.rot = 0;
-    sIPUOutputParam.rot = ctx->sec_rotation;
-    //LOGI("Sec Rotation %d",ctx->sec_rotation);
+    ctx->mTask.output.rotate = ctx->sec_rotation;
+    ctx->mTask.output.paddr = ctx->sec_disp_phys + ctx->sec_disp_next_buf*ctx->sec_frame_size;
 
-    sIPUOutputParam.user_def_paddr[0] = ctx->sec_disp_phys + ctx->sec_disp_next_buf*ctx->sec_frame_size;
-    //LOGI("Output param: width %d,height %d, pos.x %d, pos.y %d,win_w %d,win_h %d,rot %d",
-    //sIPUOutputParam.width,
-    //sIPUOutputParam.height,
-    //sIPUOutputParam.output_win.pos.x,
-    //sIPUOutputParam.output_win.pos.y,
-    //sIPUOutputParam.output_win.win_w,
-    //sIPUOutputParam.output_win.win_h,
-    //sIPUOutputParam.rot);
-                                         
-    //LOGI("Input param: width %d, height %d, fmt %d, crop_win pos x %d, crop_win pos y %d, crop_win win_w %d,crop_win win_h %d",
-    //sIPUInputParam.width,
-    //sIPUInputParam.height,
-    //sIPUInputParam.fmt,
-    //sIPUInputParam.input_crop_win.pos.x,
-    //sIPUInputParam.input_crop_win.pos.y,
-    //sIPUInputParam.input_crop_win.win_w,
-    //sIPUInputParam.input_crop_win.win_h);     
-        
-    iIPURet =  mxc_ipu_lib_task_init(&sIPUInputParam,NULL,&sIPUOutputParam,OP_NORMAL_MODE|TASK_VF_MODE,&sIPUHandle);
-    if (iIPURet < 0) {
-        LOGE("Error!mxc_ipu_lib_task_init failed mIPURet %d!",iIPURet);
-        return -1;
-    }  
-    //LOGI("mxc_ipu_lib_task_init success");
-    iIPURet = mxc_ipu_lib_task_buf_update(&sIPUHandle,phys,sIPUOutputParam.user_def_paddr[0],NULL,NULL,NULL);
-    if (iIPURet < 0) {
-        LOGE("Error!mxc_ipu_lib_task_buf_update failed mIPURet %d!",iIPURet);
-        mxc_ipu_lib_task_uninit(&sIPUHandle);
-        return -1;
+    int status = -EINVAL;
+    int ret = IPU_CHECK_ERR_INPUT_CROP;
+
+    while(ret != IPU_CHECK_OK && ret > IPU_CHECK_ERR_MIN) {
+        ret = ioctl(ctx->mIpuFd, IPU_CHECK_TASK, &ctx->mTask);
+        switch(ret) {
+            case IPU_CHECK_OK:
+                break;
+            case IPU_CHECK_ERR_SPLIT_INPUTW_OVER:
+                ctx->mTask.input.crop.w -= 8;
+                break;
+            case IPU_CHECK_ERR_SPLIT_INPUTH_OVER:
+                ctx->mTask.input.crop.h -= 8;
+                break;
+            case IPU_CHECK_ERR_SPLIT_OUTPUTW_OVER:
+                ctx->mTask.output.crop.w -= 8;
+                break;
+            case IPU_CHECK_ERR_SPLIT_OUTPUTH_OVER:
+                ctx->mTask.output.crop.h -= 8;;
+                break;
+            default:
+                return status;
+        }
     }
-    //LOGI("mxc_ipu_lib_task_buf_update success");
-    mxc_ipu_lib_task_uninit(&sIPUHandle);
+    status = ioctl(ctx->mIpuFd, IPU_QUEUE_TASK, &ctx->mTask);
+    if(status < 0) {
+        LOGE("%s:%d, IPU_QUEUE_TASK failed %d", __FUNCTION__, __LINE__ ,status);
+    }
 
-    return 0;
+    return status;
 }
 
+#if 0
 /** convert HAL_PIXEL_FORMAT to C2D format */
 static C2D_COLORFORMAT get_format(int format) {
     switch (format) {
@@ -1541,7 +1530,7 @@ static int resizeToSecFrameBuffer_c2d(int base,int phys,fb_context_t* ctx)
 
     return 0;
 }
-
+#endif
 void * secDispShowFrames(void * arg)
 {
     private_module_t* m = NULL;
@@ -1585,7 +1574,7 @@ void * secDispShowFrames(void * arg)
         {
             hnd = reinterpret_cast<private_handle_t const*>(ctx->buffer);
             m = reinterpret_cast<private_module_t*>(ctx->dev->common.module);
-
+#if 0
             if(ctx->c2dctx != NULL)
             {
                 resizeToSecFrameBuffer_c2d(hnd->base,
@@ -1593,6 +1582,7 @@ void * secDispShowFrames(void * arg)
                            ctx);
             }
             else
+#endif
             {
                 resizeToSecFrameBuffer(hnd->base,
                                    m->framebuffer->phys + hnd->base - m->framebuffer->base,
@@ -1689,11 +1679,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
             *device = &dev->device.common;
             fbdev = (framebuffer_device_t*) *device;
             fbdev->reserved[0] = nr_framebuffers;
-        }
-
-	/* initialize the IPU lib IPC */
-        if (!no_ipu)
-            mxc_ipu_lib_ipc_init();
+      }
 
     fslwatermark_sem_open();
 

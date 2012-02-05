@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/*Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #ifndef _HWC_FSL_H_
 #define _HWC_FSL_H_
@@ -38,7 +38,7 @@
 #define LOG_TAG "FslHwcomposer"
 #include <utils/Log.h>
 
-//#define HWCOMPOSER__DEBUG_LOG
+//#define HWCOMPOSER_DEBUG_LOG
 
 #ifdef HWCOMPOSER_DEBUG_LOG
 #define HWCOMPOSER_LOG_RUNTIME(format, ...) LOGI((format), ## __VA_ARGS__)
@@ -56,6 +56,7 @@
 #define DEFAULT_FB_DEV_NAME "/dev/graphics/fb0"
 #define FB1_DEV_NAME "/dev/graphics/fb1"
 #define FB2_DEV_NAME "/dev/graphics/fb2"
+#define FB3_DEV_NAME "/dev/graphics/fb3"
 #define V4L_DEV_NAME "/dev/video16"
 #define MAX_OUTPUT_DISPLAY  10
 
@@ -111,6 +112,13 @@ typedef enum {
 #define GRALLOC_USAGE_OVERLAY1_MASK   0x00C00000
 #define GRALLOC_USAGE_DISPLAY_MASK    0x07000000
 #define GRALLOC_USAGE_OVERLAY_DISPLAY_MASK 0x07F00000
+
+#define LAYER_RECORD_NUM      8
+typedef struct {
+    void* handle;
+    hwc_rect_t outRect;
+    int outDev;
+}layer_record;
 
 typedef struct{
     void *virt_addr;
@@ -213,12 +221,12 @@ class blit_device{
 public:
 		static int isIPUDevice(const char *dev_name);
 		static int isGPUDevice(const char *dev_name);
-    virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf) = 0;
+    		virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf) = 0;
 		blit_device();
-                virtual ~blit_device(){}
+		virtual ~blit_device(){}
 
                 int m_def_disp_w;
-	        int m_def_disp_h;
+                int m_def_disp_h;
 };
 
 //int FG_init(struct output_device *dev);

@@ -12,13 +12,13 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/* Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <hardware/hardware.h>
 //#include <hardware/overlay.h>
-#include <cutils/properties.h>
+
 #include <fcntl.h>
 #include <errno.h>
 
@@ -83,10 +83,20 @@ int BG_device::init()
   	
   	info.bits_per_pixel = fmt_to_bpp(m_format);
   	info.nonstd = m_format;
-
+  	info.red.offset = 0;
+  	info.red.length = 0;
+  	info.green.offset = 0;
+  	info.green.length = 0;
+  	info.blue.offset = 0;
+  	info.blue.length = 0;
+  	info.transp.offset = 0;
+  	info.transp.length = 0;	 
+  	
+  	info.xres = m_width;
+  	info.yres = m_height;
   	info.yres_virtual = ALIGN_PIXEL_128(info.yres) * DEFAULT_BUFFERS;
   	info.xres_virtual = ALIGN_PIXEL(info.xres);
-
+  	
     if(ioctl(m_dev, FBIOPUT_VSCREENINFO, &info) < 0) {
     	  HWCOMPOSER_LOG_ERR("Error! BG_device::init-2 VSCREENINFO setting failed!");
     	  return -1;    	  
@@ -151,18 +161,12 @@ int BG_device::uninit()
 {
 	  //int status = -EINVAL;    
     int blank = 1;
-    char value[10];
     HWCOMPOSER_LOG_RUNTIME("---------------BG_device::uninit()------------");
 
     if(ioctl(m_dev, FBIOBLANK, blank) < 0) {
 	    HWCOMPOSER_LOG_ERR("Error!BG_device::uninit BLANK FB2 failed!\n");
         //return -1;
-    }
-    property_get("media.VIDEO_PLAYING", value, "0");
-    if (strcmp(value, "0") == 0) {
-        blank = 0;
-        ioctl(m_dev, FBIOBLANK, blank);
-    }
+    }	  
     munmap((mbuffers[0]).virt_addr, (mbuffers[0]).size * DEFAULT_BUFFERS);
     close(m_dev);
 

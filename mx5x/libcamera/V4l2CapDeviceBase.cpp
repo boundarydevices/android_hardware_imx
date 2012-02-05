@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #include <string.h>
 #include <unistd.h>
@@ -50,6 +50,7 @@ namespace android{
 
     {
         mCaptureDeviceName[0] = '#';
+        memset((void*)&mCapCfg, 0, sizeof(mCapCfg));
     }
 
     V4l2CapDeviceBase :: ~V4l2CapDeviceBase()
@@ -80,6 +81,15 @@ namespace android{
         return V4l2Open(); 
     } 
 
+    CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase::GetDevType(CAMERA_TYPE *pType)
+    {
+        CAMERA_HAL_LOG_FUNC;
+        if(pType == NULL)
+            return CAPTURE_DEVICE_ERR_OPEN;
+        *pType = mCameraType;
+        return CAPTURE_DEVICE_ERR_NONE;
+    }
+
     CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase::EnumDevParam(DevParamType devParamType, void *retParam){
         CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE; 
         CAMERA_HAL_LOG_FUNC;
@@ -98,8 +108,30 @@ namespace android{
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
         }
 
-        mCapCfg = *pCapcfg;
-        return V4l2SetConfig(pCapcfg);
+        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        if(mCapCfg.fmt != pCapcfg->fmt || mCapCfg.width != pCapcfg->width || mCapCfg.height != pCapcfg->height
+                || mCapCfg.tv.denominator/mCapCfg.tv.numerator != pCapcfg->tv.denominator/pCapcfg->tv.numerator) {
+            mCapCfg.fmt = pCapcfg->fmt;
+            mCapCfg.width = pCapcfg->width;
+            mCapCfg.height = pCapcfg->height;
+            mCapCfg.tv.denominator = pCapcfg->tv.denominator;
+            mCapCfg.tv.numerator = pCapcfg->tv.numerator;
+            CAMERA_HAL_LOG_RUNTIME("V4l2SetConfig=width=%d,height=%d", mCapCfg.width, mCapCfg.height);
+            ret = V4l2SetConfig(pCapcfg);
+            if(ret < 0) {
+                return ret;
+            }
+            mCapCfg.rotate = SENSOR_PREVIEW_ROATE_INVALID;
+        }
+
+        if(mCapCfg.rotate != pCapcfg->rotate) {
+            mCapCfg.rotate = pCapcfg->rotate;
+            CAMERA_HAL_LOG_RUNTIME("V4l2SetRot=rotate=%d", mCapCfg.rotate);
+            if(V4l2SetRot(pCapcfg) < 0)
+                return CAPTURE_DEVICE_ERR_SYS_CALL;
+        }
+
+        return ret;
 
     }
 
@@ -224,6 +256,7 @@ namespace android{
                     CAMERA_HAL_LOG_RUNTIME("dev_node is %s", dev_node);
                     if(ioctl(fd, VIDIOC_QUERYCAP, &v4l2_cap) < 0 ) {
                         close(fd);
+                        fd = 0;
                         continue;
                     } else if ((strstr((char *)v4l2_cap.driver, mInitalDeviceName) != 0) &&
                             (v4l2_cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
@@ -231,8 +264,10 @@ namespace android{
                         strcpy(mCaptureDeviceName, dev_node);
                         CAMERA_HAL_LOG_RUNTIME("device name is %s", mCaptureDeviceName);
                         break;
-                    } else
+                    } else {
                         close(fd);
+                        fd = 0;
+                    }
                 }
             }
             if (fd > 0)
