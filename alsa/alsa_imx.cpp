@@ -645,19 +645,6 @@ void setDefaultControls(uint32_t devices, int mode, const char *cardname)
     ALSAControl *ctl = new ALSAControl(cardname);
     LOGD ("setDefaultControls set card: %s",cardname);
 
-    if(devices & IMX_OUT_CODEC_DEFAULT)
-    {
-        if(selecteddevice == DEVICE_SGTL5000)
-        {
-            if (devices & AudioSystem::DEVICE_OUT_SPEAKER ||
-                devices & AudioSystem::DEVICE_OUT_EARPIECE) {
-                ctl->set("Speaker Function", "on"); // on
-            } else {
-                ctl->set("Speaker Function", "off"); // off
-            }
-        }
-    }
-
     if(devices & IMX_IN_CODEC_DEFAULT)
     {
         if(selecteddevice == DEVICE_SGTL5000)
