@@ -757,14 +757,6 @@ namespace android {
             return err;
         }
 
-        err = mNativeWindow->set_usage(mNativeWindow, GRALLOC_USAGE_SW_READ_OFTEN |
-                GRALLOC_USAGE_SW_WRITE_OFTEN | GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HWC_OVERLAY);
-        if(err != 0){
-            CAMERA_HAL_ERR("native_window_set_usage failed:%s(%d)",
-                    strerror(-err), -err);
-            return err;
-        }
-
         int minUndequeueBufs = 0;
         err = mNativeWindow->get_min_undequeued_buffer_count(mNativeWindow,
                 &minUndequeueBufs);
@@ -812,7 +804,8 @@ namespace android {
 
             mCaptureBuffers[i].virt_start = (unsigned char *)handle->base;
             mCaptureBuffers[i].phy_offset = handle->phys;
-            mCaptureBuffers[i].length = handle->size;
+            //Calculate the buffer size, for GPU doesn't reply this value.
+            mCaptureBuffers[i].length =  mCaptureDeviceCfg.width * mCaptureDeviceCfg.height * 3 / 2;
             mCaptureBuffers[i].native_buf = (void *)buf;
             mCaptureBuffers[i].refCount = 0;
             mCaptureBuffers[i].buf_state = WINDOW_BUFS_DEQUEUED;
