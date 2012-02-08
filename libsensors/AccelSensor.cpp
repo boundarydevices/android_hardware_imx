@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Freescale Semiconductor Inc.
+ * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,6 @@
 #include <sys/select.h>
 #include <dlfcn.h>
 #include <cutils/log.h>
-#include <cutils/properties.h>
 
 #include "AccelSensor.h"
 
@@ -36,11 +35,8 @@ AccelSensor::AccelSensor()
       mPendingMask(0),
       mInputReader(32),
       mMinPollDelay(0),
-      mMaxPollDelay(0),
-      mHwRotation(0)
+      mMaxPollDelay(0)
 {
-    char  hwrotBuf[PROPERTY_VALUE_MAX];
-
 #if defined(ACCELEROMETER_SENSOR_MMA8451)
     data_name = "mma8451";
 #elif defined(ACCELEROMETER_SENSOR_MMA8450)
@@ -62,10 +58,22 @@ AccelSensor::AccelSensor()
     mPendingEvents[Accelerometer].type = SENSOR_TYPE_ACCELEROMETER;
     mPendingEvents[Accelerometer].acceleration.status = SENSOR_STATUS_ACCURACY_HIGH;
 
-    /* sensor abs_x/y/z convertion is related to default hardware display orientation
-       property and the chip position/direction of the sensor soldered in the board */
-    property_get("ro.sf.hwrotation", hwrotBuf, "0");
-    mHwRotation = atoi(hwrotBuf) / 90;
+    // read the actual value of all sensors if they're enabled already
+    struct input_absinfo absinfo;
+    short flags = 0;
+
+    if (accel_is_sensor_enabled(SENSOR_TYPE_ACCELEROMETER))  {
+        mEnabled |= 1<<Accelerometer;
+        if (!ioctl(data_fd, EVIOCGABS(EVENT_TYPE_ACCEL_X), &absinfo)) {
+            mPendingEvents[Accelerometer].acceleration.x = absinfo.value * CONVERT_A_X;
+        }
+        if (!ioctl(data_fd, EVIOCGABS(EVENT_TYPE_ACCEL_Y), &absinfo)) {
+            mPendingEvents[Accelerometer].acceleration.y = absinfo.value * CONVERT_A_Y;
+        }
+        if (!ioctl(data_fd, EVIOCGABS(EVENT_TYPE_ACCEL_Z), &absinfo)) {
+            mPendingEvents[Accelerometer].acceleration.z = absinfo.value * CONVERT_A_Z;
+        }
+    }
 }
 
 AccelSensor::~AccelSensor()
@@ -258,50 +266,18 @@ int AccelSensor::readEvents(sensors_event_t* data, int count)
 
 void AccelSensor::processEvent(int code, int value)
 {
-    float temp_x = 0.0f, temp_y = 0.0f, raw_x_ev = 0.0f, raw_y_ev = 0.0f;
-
     switch (code) {
         case EVENT_TYPE_ACCEL_X:
             mPendingMask |= 1<<Accelerometer;
-            temp_x = value * CONVERT_A_X;
-            raw_x_ev = 1;
+            mPendingEvents[Accelerometer].acceleration.x = value * CONVERT_A_X;
             break;
         case EVENT_TYPE_ACCEL_Y:
             mPendingMask |= 1<<Accelerometer;
-            temp_y = value * CONVERT_A_Y;
-            raw_y_ev = 1;
+            mPendingEvents[Accelerometer].acceleration.y = value * CONVERT_A_Y;
             break;
         case EVENT_TYPE_ACCEL_Z:
             mPendingMask |= 1<<Accelerometer;
             mPendingEvents[Accelerometer].acceleration.z = value * CONVERT_A_Z;
-            break;
-    }
-
-    /* Transfer to correct abs_x/y per hw orientation */
-    switch (mHwRotation) {
-        case HWROTATION_0:
-            if (raw_y_ev)
-                mPendingEvents[Accelerometer].acceleration.x = temp_y;
-            if (raw_x_ev)
-                mPendingEvents[Accelerometer].acceleration.y = -temp_x;
-            break;
-        case HWROTATION_90:
-            if (raw_x_ev)
-                mPendingEvents[Accelerometer].acceleration.x = temp_x;
-            if (raw_y_ev)
-                mPendingEvents[Accelerometer].acceleration.y = temp_y;
-            break;
-        case HWROTATION_180:
-            if (raw_y_ev)
-                mPendingEvents[Accelerometer].acceleration.x = -temp_y;
-            if (raw_x_ev)
-                mPendingEvents[Accelerometer].acceleration.y = temp_x;
-            break;
-        case HWROTATION_270:
-            if (raw_x_ev)
-                mPendingEvents[Accelerometer].acceleration.x = -temp_x;
-            if (raw_y_ev)
-                mPendingEvents[Accelerometer].acceleration.y = -temp_y;
             break;
     }
 }
