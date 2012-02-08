@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Freescale Semiconductor Inc.
+ * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +56,6 @@ private:
     char poll_sysfs_file[PATH_MAX];
     int poll_sysfs_file_len;
     int getPollFile(const char* inputName);
-    int mHwRotation;
     static inline int accel_is_sensor_enabled(uint32_t sensor_type)
     {
         //dummy now......
