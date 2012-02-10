@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_LIGHT_SENSOR_H
-#define ANDROID_LIGHT_SENSOR_H
+#ifndef ANDROID_PRESS_SENSOR_H
+#define ANDROID_PRESS_SENSOR_H
 
 #include <stdint.h>
 #include <errno.h>
@@ -27,35 +27,17 @@
 #include "SensorBase.h"
 #include "InputEventReader.h"
 
-#define ISL29023_ALS_CONT_MODE   5
-
 /*****************************************************************************/
 
 struct input_event;
 
-class LightSensor : public SensorBase {
-    int mEnabled;
-    InputEventCircularReader mInputReader;
-    sensors_event_t mPendingEvent;
-    bool mHasPendingEvent;
-    char ls_sysfs_path[PATH_MAX];
-    int ls_sysfs_path_len;
-    float mPreviousLight;
-
+class PressSensor : public SensorBase {
 public:
-            LightSensor();
-    virtual ~LightSensor();
-    virtual int readEvents(sensors_event_t* data, int count);
-    virtual bool hasPendingEvents() const;
-    virtual int setDelay(int32_t handle, int64_t ns);
-    virtual int enable(int32_t handle, int enabled);
+            PressSensor();
+    virtual ~PressSensor();
     virtual void processEvent(int code, int value);
-
-private:
-    int mThresholdLux;
-    int setIntLux();
 };
 
 /*****************************************************************************/
 
-#endif  // ANDROID_LIGHT_SENSOR_H
+#endif  // ANDROID_PRESS_SENSOR_H

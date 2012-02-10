@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2011 Freescale Semiconductor Inc.
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,25 +33,9 @@ struct input_event;
 
 class MagSensor : public SensorBase {
 public:
-            MagSensor();
+    MagSensor();
     virtual ~MagSensor();
-
-    enum {
-        MagneticField   = 0,
-	Orientation = 1,
-        numSensors
-    };
-
-    virtual int setDelay(int32_t handle, int64_t ns);
-    virtual int enable(int32_t handle, int enabled);
-    virtual int readEvents(sensors_event_t* data, int count);
-    void processEvent(int code, int value);
-
-private:
-    uint32_t mEnabled;
-    uint32_t mPendingMask;
-    InputEventCircularReader mInputReader;
-    sensors_event_t mPendingEvents[numSensors];
+    virtual void processEvent(int code, int value);
 };
 
 /*****************************************************************************/
