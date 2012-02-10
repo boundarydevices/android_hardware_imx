@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2011 Freescale Semiconductor Inc.
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@
 #include "LightSensor.h"
 #include "AccelSensor.h"
 #include "MagSensor.h"
+#include "PressSensor.h"
+
 
 /*****************************************************************************/
 
@@ -46,17 +48,20 @@
 #define SENSORS_ACCELERATION     (1<<ID_A)
 #define SENSORS_MAGNETIC_FIELD   (1<<ID_M)
 #define SENSORS_ORIENTATION      (1<<ID_O)
-#define SENSORS_LIGHT            (1<<ID_L)
-#define SENSORS_PROXIMITY        (1<<ID_P)
 #define SENSORS_GYROSCOPE        (1<<ID_GY)
+#define SENSORS_LIGHT            (1<<ID_L)
+#define SENSORS_PRESS            (1<<ID_P)
+#define SENSORS_TEMPERATURE	 (1<<ID_T)
+#define SENSORS_PROXIMITY        (1<<ID_PX)
 
 #define SENSORS_ACCELERATION_HANDLE     0
 #define SENSORS_MAGNETIC_FIELD_HANDLE   1
 #define SENSORS_ORIENTATION_HANDLE      2
-#define SENSORS_LIGHT_HANDLE            3
-#define SENSORS_PROXIMITY_HANDLE        4
-#define SENSORS_GYROSCOPE_HANDLE        5
-
+#define SENSORS_GYROSCOPE_HANDLE        3
+#define SENSORS_LIGHT_HANDLE            4
+#define SENSORS_PRESSURE_HANDLE         5
+#define SENSORS_TEMPERATURE_HANDLE      6
+#define SENSORS_PROXIMITY_HANDLE        7
 
 /*****************************************************************************/
 
@@ -74,6 +79,14 @@ static const struct sensor_t sSensorList[] = {
           "Freescale Semiconductor Inc.",
           1, SENSORS_ORIENTATION_HANDLE,
           SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 100000, { } },
+        { "MPL3115 Pressure sensor",
+          "Freescale Semiconductor Inc.",
+          1, SENSORS_PRESSURE_HANDLE,
+          SENSOR_TYPE_PRESSURE, 1100.0f, CONVERT_PRESSURE, 0.35f, 0, { } },
+        { "MPL3115 Temperature sensor",
+          "Freescale Semiconductor Inc.",
+          1, SENSORS_TEMPERATURE_HANDLE,
+          SENSOR_TYPE_TEMPERATURE, 85.0f, CONVERT_TEMPERATURE, 0.35f, 0, { } },
         { "ISL29023 Light sensor",
           "Intersil",
           1, SENSORS_LIGHT_HANDLE,
@@ -120,9 +133,10 @@ struct sensors_poll_context_t {
 
 private:
     enum {
-        light           = 0,
-        accel           = 1,
-        mag 		= 2,
+        accel           = 0,
+        mag 		= 1,
+        pressure        = 2,
+        light        	= 3,
         numSensorDrivers,
         numFds,
     };
@@ -142,6 +156,9 @@ private:
                 return mag;
             case ID_L:
                 return light;
+            case ID_P:
+            case ID_T:
+                return pressure;
         }
         return -EINVAL;
     }
@@ -151,11 +168,6 @@ private:
 
 sensors_poll_context_t::sensors_poll_context_t()
 {
-    mSensors[light] = new LightSensor();
-    mPollFds[light].fd = mSensors[light]->getFd();
-    mPollFds[light].events = POLLIN;
-    mPollFds[light].revents = 0;
-
     mSensors[accel] = new AccelSensor();
     mPollFds[accel].fd = mSensors[accel]->getFd();
     mPollFds[accel].events = POLLIN;
@@ -165,6 +177,16 @@ sensors_poll_context_t::sensors_poll_context_t()
     mPollFds[mag].fd = mSensors[mag]->getFd();
     mPollFds[mag].events = POLLIN;
     mPollFds[mag].revents = 0;
+
+    mSensors[pressure] = new PressSensor();
+    mPollFds[pressure].fd = mSensors[pressure]->getFd();
+    mPollFds[pressure].events = POLLIN;
+    mPollFds[pressure].revents = 0;
+
+    mSensors[light] = new LightSensor();
+    mPollFds[light].fd = mSensors[light]->getFd();
+    mPollFds[light].events = POLLIN;
+    mPollFds[light].revents = 0;
 
     int wakeFds[2];
     int result = pipe(wakeFds);
@@ -188,8 +210,15 @@ sensors_poll_context_t::~sensors_poll_context_t() {
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
     int index = handleToDriver(handle);
+    int err = 0 ;
+
     if (index < 0) return index;
-    int err =  mSensors[index]->enable(handle, enabled);
+    if(handle == ID_O || handle ==  ID_M){
+        err = mSensors[accel]->enable(ID_A, enabled);
+        if(err)
+            return err;
+    }
+    err |=  mSensors[index]->enable(handle, enabled);
     if (enabled && !err) {
         const char wakeMessage(WAKE_MESSAGE);
         int result = write(mWritePipeFd, &wakeMessage, 1);
@@ -202,6 +231,9 @@ int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
 
     int index = handleToDriver(handle);
     if (index < 0) return index;
+    if(handle == ID_O || handle ==  ID_M)
+        mSensors[accel]->setDelay(ID_A, ns);
+
     return mSensors[index]->setDelay(handle, ns);
 }
 
@@ -215,7 +247,7 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
         for (int i=0 ; count && i<numSensorDrivers ; i++) {
             SensorBase* const sensor(mSensors[i]);
 
-	   if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
+            if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
                 int nb = sensor->readEvents(data, count);
                 if (nb < count) {
                     // no more data for this sensor

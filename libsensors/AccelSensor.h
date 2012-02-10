@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,48 +29,11 @@
 
 /*****************************************************************************/
 
-struct input_event;
-
 class AccelSensor : public SensorBase {
 public:
             AccelSensor();
     virtual ~AccelSensor();
-
-    enum {
-        Accelerometer   = 0,
-        numSensors
-    };
-
-    virtual int setDelay(int32_t handle, int64_t ns);
-    virtual int enable(int32_t handle, int enabled);
-    virtual int readEvents(sensors_event_t* data, int count);
-    void processEvent(int code, int value);
-
-private:
-    uint32_t mEnabled;
-    uint32_t mPendingMask;
-    InputEventCircularReader mInputReader;
-    sensors_event_t mPendingEvents[numSensors];
-    int mMinPollDelay;
-    int mMaxPollDelay;
-    char poll_sysfs_file[PATH_MAX];
-    int poll_sysfs_file_len;
-    int getPollFile(const char* inputName);
-    static inline int accel_is_sensor_enabled(uint32_t sensor_type)
-    {
-        //dummy now......
-        return 1;
-    }
-    static inline int accel_enable_sensor(uint32_t sensor_type)
-    {
-        //dummy now......
-        return 0;
-    }
-    static inline int accel_disable_sensor(uint32_t sensor_type)
-    {
-       //dummy now......
-       return 0;
-    }
+    virtual void  processEvent(int code, int value);
 };
 
 /*****************************************************************************/
