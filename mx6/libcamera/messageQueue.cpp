@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 
@@ -96,7 +96,6 @@ sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout)
 {
     sp<CMessage> result;
     nsecs_t timeoutTime = systemTime() + timeout;
-    
     while(true) {
         Mutex::Autolock _l(mLock);
         nsecs_t now = systemTime();

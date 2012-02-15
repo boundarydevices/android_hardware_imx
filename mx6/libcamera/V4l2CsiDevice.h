@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #ifndef V4L2_CSI_DEVICE_H
 #define V4L2_CSI_DEVICE_H
@@ -36,7 +36,8 @@ class V4l2CsiDevice : public V4l2CapDeviceBase{
         virtual ~V4l2CsiDevice();
     protected:
 		
-		CAPTURE_DEVICE_ERR_RET V4l2Open();
+		CAPTURE_DEVICE_ERR_RET V4l2Open(int cameraId);
+        CAPTURE_DEVICE_ERR_RET V4l2SetSensor(int cameraId);
 		CAPTURE_DEVICE_ERR_RET V4l2EnumFmt(void *retParam);
 		CAPTURE_DEVICE_ERR_RET V4l2EnumSizeFps(void *retParam);
 		CAPTURE_DEVICE_ERR_RET V4l2SetConfig(struct capture_config_t *pCapcfg);

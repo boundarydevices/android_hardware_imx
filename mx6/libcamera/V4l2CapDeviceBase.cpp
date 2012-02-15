@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #include <string.h>
 #include <unistd.h>
@@ -75,10 +75,10 @@ namespace android{
         return ret;
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase::DevOpen(){
+    CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase::DevOpen(int cameraId){
         CAMERA_HAL_LOG_FUNC;
 
-        return V4l2Open(); 
+        return V4l2Open(cameraId); 
     } 
 
     CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase::GetDevType(CAMERA_TYPE *pType)
@@ -221,7 +221,7 @@ namespace android{
         }
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase :: V4l2Open(){
+    CAPTURE_DEVICE_ERR_RET V4l2CapDeviceBase :: V4l2Open(int cameraId){
         CAMERA_HAL_LOG_FUNC;
         int fd = 0, i, j, is_found = 0;
         const char *flags[] = {"uncompressed", "compressed"};
@@ -270,8 +270,9 @@ namespace android{
                     }
                 }
             }
-            if (fd > 0)
+            if (fd > 0){
                 mCameraDevice = fd;
+            }
             else{
                 CAMERA_HAL_ERR("The device name is not correct or the device is error");
                 return CAPTURE_DEVICE_ERR_OPEN;
@@ -625,7 +626,6 @@ namespace android{
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
         *pBufQueIdx = cfilledbuffer.index;
-
         mQueuedBufNum --;
 
         return CAPTURE_DEVICE_ERR_NONE;
@@ -647,7 +647,6 @@ namespace android{
             CAMERA_HAL_ERR("Camera VIDIOC_DQBUF failure, ret=%d", ret);
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
-
         mQueuedBufNum ++;
 
         return CAPTURE_DEVICE_ERR_NONE;
