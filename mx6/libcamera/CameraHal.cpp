@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 
@@ -268,6 +268,12 @@ namespace android {
         CAMERA_HAL_LOG_FUNC;
         CAMERA_HAL_ERR_RET ret = CAMERA_HAL_ERR_NONE;
         mCaptureThreadQueue.postQuitMessage();
+        //Make sure all thread been exit, in case they still
+        //access the message queue
+        mCaptureFrameThread->requestExitAndWait();
+        mPreviewShowFrameThread->requestExitAndWait();
+        mEncodeFrameThread->requestExitAndWait();
+        mTakePicThread->requestExitAndWait();
         pthread_mutex_destroy(&mPPIOParamMutex);
         pthread_mutex_destroy(&mOverlayMutex);
         return ret;
@@ -394,7 +400,7 @@ namespace android {
             return NO_ERROR;
         }
         else if (mCaptureDevice != NULL){
-            if ( mCaptureDevice->DevOpen()<0 )
+            if ( mCaptureDevice->DevOpen(mCameraid)<0 )
                 return INVALID_OPERATION;
             mCaptureDeviceOpen = true;
         }else{
@@ -986,14 +992,13 @@ namespace android {
         index = ((size_t)mem - (size_t)mVideoMemory->data) / mPreviewFrameSize;
         mVideoBufferUsing[index] = 0;
 
-	if (bDerectInput == true) {
+        if (bDerectInput == true) {
             if(mCaptureBuffers[index].refCount == 0) {
                 CAMERA_HAL_ERR("warning:%s about to release mCaptureBuffers[%d].refcount=%d-", __FUNCTION__, index, mCaptureBuffers[index].refCount);
                 return;
             }
-	putBufferCount(&mCaptureBuffers[index]);
+            putBufferCount(&mCaptureBuffers[index]);
         }
-
     }
 
     bool CameraHal::recordingEnabled()
@@ -1891,6 +1896,7 @@ Pic_out:
                 buf = container_of(buf_h, ANativeWindowBuffer, handle);
                 //mNativeWindow->lockBuffer(mNativeWindow.get(), buf);
                 SearchBuffer((void *)buf, &buf_index);
+
                 if(buf_index < mCaptureBufNum) {
                     if(mCaptureDevice->DevQueue(buf_index) <0){
                         CAMERA_HAL_ERR("The Capture device queue buf error !!!!");
@@ -1984,13 +1990,9 @@ Pic_out:
                 break;
             case CMESSAGE_TYPE_QUITE:
                 mExitCaptureThread = 1;
-                if(!mPPDeviceNeed) {
-                    mPreviewThreadQueue.postQuitMessage();
-                    if(mRecordRunning)
-                        mEncodeThreadQueue.postQuitMessage();
-                }else {
-                    mPostProcessThreadQueue.postQuitMessage();
-                }
+                mPreviewThreadQueue.postQuitMessage();
+                mEncodeThreadQueue.postQuitMessage();
+                mPostProcessThreadQueue.postQuitMessage();
                 break;
             default:
                 CAMERA_HAL_ERR("%s: wrong msg type %d", __FUNCTION__, msg->what);
@@ -2258,17 +2260,17 @@ Pic_out:
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     if (bDerectInput == true) {
-	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
-			          (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
+	                    memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+                            (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
                     } else {
-	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
-			          (void*)EncBuf->virt_start, mPreviewFrameSize);
-	                ret = putBufferCount(EncBuf);
+                        memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+                                (void*)EncBuf->virt_start, mPreviewFrameSize);
+                        ret = putBufferCount(EncBuf);
                     }
 
-		    mVideoBufferUsing[enc_index] = 1;
-		    mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
-		    break;
+                    mVideoBufferUsing[enc_index] = 1;
+                    mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
+                break;
                 }else {
                     ret = putBufferCount(EncBuf);
                 }

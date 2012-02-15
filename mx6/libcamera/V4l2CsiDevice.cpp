@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 #include <string.h>
 #include <unistd.h>
@@ -49,7 +49,7 @@ namespace android{
     }
 
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2Open(){
+    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2Open(int cameraId){
         CAMERA_HAL_LOG_FUNC;
         int fd = 0, i, j, is_found = 0;
         const char *flags[] = {"uncompressed", "compressed"};
@@ -69,6 +69,7 @@ namespace android{
             mCameraDevice = open(mCaptureDeviceName, O_RDWR, O_NONBLOCK);
             if (mCameraDevice < 0)
                 return CAPTURE_DEVICE_ERR_OPEN;
+            ret = V4l2SetSensor(cameraId);
         }
         else{
             CAMERA_HAL_LOG_RUNTIME("deviceName is %s", mInitalDeviceName);
@@ -99,14 +100,38 @@ namespace android{
                     }
                 }
             }
-            if (fd > 0)
+            if (fd > 0){
                 mCameraDevice = fd;
+                ret = V4l2SetSensor(cameraId);
+            }
             else{
                 CAMERA_HAL_ERR("The device name is not correct or the device is error");
                 return CAPTURE_DEVICE_ERR_OPEN;
             }
         }
         return ret; 
+    }
+
+    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2SetSensor(int cameraId)
+    {
+        CAMERA_HAL_LOG_FUNC;
+        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        CAMERA_HAL_LOG_INFO("-----set camera sensor %d-----", cameraId);
+#ifdef V4L2_CAMERA_SWITCH
+        if(cameraId >= 2) {
+            CAMERA_HAL_ERR("Error: camerId %d is too big", cameraId);
+            return CAPTURE_DEVICE_ERR_BAD_PARAM;
+        }
+
+        struct v4l2_control ctrl;
+        ctrl.id = V4L2_CID_MXC_SWITCH_CAM;
+        ctrl.value = cameraId;
+        if (ioctl(mCameraDevice, VIDIOC_S_CTRL, &ctrl) < 0) {
+            CAMERA_HAL_ERR("set ctrl switch camera failed\n");
+            return CAPTURE_DEVICE_ERR_SYS_CALL;
+        }
+#endif
+        return ret;
     }
 
     CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2EnumFmt(void *retParam){
