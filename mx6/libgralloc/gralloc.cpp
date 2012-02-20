@@ -368,6 +368,9 @@ static int gralloc_alloc(alloc_device_t* dev,
         return -EINVAL;
 
     if (m->gpu_device && !(usage & GRALLOC_USAGE_HWC_OVERLAY)) {
+       if(format == HAL_PIXEL_FORMAT_YCbCr_420_I)format = HAL_PIXEL_FORMAT_YCbCr_420_P;
+       else if(format == HAL_PIXEL_FORMAT_YCbCr_420_P)format = HAL_PIXEL_FORMAT_YCbCr_420_I;
+
        return m->gpu_device->alloc(dev, w, h, format, usage, pHandle, pStride);
     }
 
