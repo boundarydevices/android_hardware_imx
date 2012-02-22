@@ -1613,6 +1613,7 @@ Pic_out:
                 return ret;
             }
         }
+
         //mPreviewRunning = true;
         return ret;
     }
@@ -1882,35 +1883,19 @@ Pic_out:
         Mutex::Autolock _l(pBuf->mBufferLock);
         pBuf->refCount --;
         if(pBuf->refCount == 0) {
-            if(!mPPDeviceNeed && mNativeWindow != 0 && mCaptureRunning) {
-                unsigned int buf_index = -1;    
-                //queue the v4l2 buf back
-                android_native_buffer_t *buf = NULL;
-                buffer_handle_t *buf_h = NULL;
-                int stride;
-                int err = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h, &stride);
-                if((err != 0) || buf_h == NULL) {
-                    CAMERA_HAL_ERR("%s: dequeueBuffer failed.", __FUNCTION__);
-                    return INVALID_OPERATION;
-                }
-                buf = container_of(buf_h, ANativeWindowBuffer, handle);
-                //mNativeWindow->lockBuffer(mNativeWindow.get(), buf);
-                SearchBuffer((void *)buf, &buf_index);
+            if(!mPPDeviceNeed && mCaptureRunning) {
+                unsigned int buf_index = pBuf - &mCaptureBuffers[0];
 
                 if(buf_index < mCaptureBufNum) {
                     if(mCaptureDevice->DevQueue(buf_index) <0){
                         CAMERA_HAL_ERR("The Capture device queue buf error !!!!");
-                        mNativeWindow->cancel_buffer(mNativeWindow, &buf->handle);
                         return INVALID_OPERATION;
                     }
-                    mCaptureBuffers[buf_index].buf_state = WINDOW_BUFS_DEQUEUED;
                     mCaptureBuffers[buf_index].refCount = 0;
                     nCameraBuffersQueued++;
                     mEnqueuedBufs --;
                     mCaptureThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, buf_index));
                 }else {
-                    mNativeWindow->cancel_buffer(mNativeWindow, &buf->handle);
-                    CAMERA_HAL_ERR("dequeue invalide buffer!!!!");
                     return INVALID_OPERATION;
                 }                  
             }else if(mPPDeviceNeed){
@@ -1974,7 +1959,6 @@ Pic_out:
                     
                     if(mRecordRunning) {
                         getBufferCount(&mCaptureBuffers[bufIndex]);
-                        //CAMERA_HAL_LOG_INFO("%s: post encode message %d", __FUNCTION__, bufIndex);
                         mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
                     }
                 }else {
@@ -2145,9 +2129,13 @@ Pic_out:
     {
         //CAMERA_HAL_LOG_FUNC;
         status_t ret = NO_ERROR;
-        int display_index;
+        int display_index = -1;
         DMA_BUFFER *pInBuf = NULL;
-        
+        android_native_buffer_t *buf = NULL;
+        buffer_handle_t *buf_h = NULL;
+        unsigned int buf_index = -1;
+        int stride = 0, err = 0;
+
         sp<CMessage> msg = mPreviewThreadQueue.waitMessage();
         if(msg == 0) {
             CAMERA_HAL_ERR("%s: get invalide message", __FUNCTION__);
@@ -2161,7 +2149,6 @@ Pic_out:
                     CAMERA_HAL_ERR("%s: get invalide buffer index", __FUNCTION__);
                     return BAD_VALUE;  
                 }
-                                
                 if(!mPPDeviceNeed) {
                     pInBuf = &mCaptureBuffers[display_index];
                 }else {
@@ -2183,15 +2170,30 @@ Pic_out:
                         return BAD_VALUE;
                     }
                     pInBuf->buf_state = WINDOW_BUFS_QUEUED;
-
                     mEnqueuedBufs ++;
                     bufferDump(pInBuf);
                     if (mEnqueuedBufs <= 2) {
                         return NO_ERROR;
                     }
                 } 
-                
-                ret = putBufferCount(pInBuf);                       
+
+                err = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h, &stride);
+                if((err != 0) || buf_h == NULL) {
+                    CAMERA_HAL_ERR("%s: dequeueBuffer failed.", __FUNCTION__);
+                    return INVALID_OPERATION;
+                }
+                buf = container_of(buf_h, ANativeWindowBuffer, handle);
+
+                SearchBuffer((void *)buf, &buf_index);
+
+                if(buf_index >= mCaptureBufNum || (buf_index < 0)) {
+                    mNativeWindow->cancel_buffer(mNativeWindow, &buf->handle);
+                    CAMERA_HAL_ERR("dequeue invalide buffer!!!!");
+                    return INVALID_OPERATION;
+                }
+
+                mCaptureBuffers[buf_index].buf_state = WINDOW_BUFS_DEQUEUED;
+                ret = putBufferCount(&mCaptureBuffers[buf_index]);
                 break;
             case CMESSAGE_TYPE_STOP:
                 CAMERA_HAL_LOG_INFO("%s: preview thread stop", __FUNCTION__);
