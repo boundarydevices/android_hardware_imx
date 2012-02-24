@@ -956,13 +956,14 @@ namespace android {
         }
         
            
-	if (bDerectInput == true) {
-		for(i = 0; i < mVideoBufNume; i++) {
-			mVideoBufferUsing[i] = 0;
-		}
-	}
-	mEncodeLock.unlock();
+        if (bDerectInput == true) {
+            for(i = 0; i < mVideoBufNume; i++) {
+                mVideoBufferUsing[i] = 0;
+            }
+        }
+
         mRecordRunning = true;
+        mEncodeLock.unlock();
 
         return NO_ERROR;
     }
@@ -972,17 +973,14 @@ namespace android {
         CAMERA_HAL_LOG_FUNC;
         
         mEncodeLock.lock();        
-
         if(mRecordRunning) {
             mRecordRunning = false;
             mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_STOP, 0));
             sem_wait(&mEncodeStoppedCondition);
             CAMERA_HAL_LOG_RUNTIME("---%s, after wait--", __FUNCTION__);
         }
-		//if(bDerectInput == true) 
-		//	bDerectInput = false;		                
         mEncodeLock.unlock();
-	}
+    }
 
     void CameraHal::releaseRecordingFrame(const void* mem)
     {
@@ -1879,13 +1877,22 @@ Pic_out:
     {
         if(pBuf == NULL)
             return INVALID_OPERATION;
-            
+
+        unsigned int buf_index = pBuf - &mCaptureBuffers[0];
+
         Mutex::Autolock _l(pBuf->mBufferLock);
+
+        mEncodeLock.lock();
+        if(!mRecordRunning &&  (mVideoBufferUsing[buf_index] == 1)
+                && (pBuf->refCount == 2)) {
+            pBuf->refCount --;
+            mVideoBufferUsing[buf_index] = 0;
+        }
+        mEncodeLock.unlock();
+
         pBuf->refCount --;
         if(pBuf->refCount == 0) {
             if(!mPPDeviceNeed && mCaptureRunning) {
-                unsigned int buf_index = pBuf - &mCaptureBuffers[0];
-
                 if(buf_index < mCaptureBufNum) {
                     if(mCaptureDevice->DevQueue(buf_index) <0){
                         CAMERA_HAL_ERR("The Capture device queue buf error !!!!");
@@ -1958,7 +1965,6 @@ Pic_out:
                     mPreviewThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
                     
                     if(mRecordRunning) {
-                        getBufferCount(&mCaptureBuffers[bufIndex]);
                         mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
                     }
                 }else {
@@ -2259,6 +2265,7 @@ Pic_out:
                     EncBuf = &mPPbuf[enc_index];
                 }
 
+                mEncodeLock.lock();
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     if (bDerectInput == true) {
@@ -2270,17 +2277,18 @@ Pic_out:
                         ret = putBufferCount(EncBuf);
                     }
 
+                    getBufferCount(&mCaptureBuffers[enc_index]);
                     mVideoBufferUsing[enc_index] = 1;
                     mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
-                break;
-                }else {
-                    ret = putBufferCount(EncBuf);
+                    mEncodeLock.unlock();
+                    break;
                 }
+                mEncodeLock.unlock();
                 break;
 
             case CMESSAGE_TYPE_STOP:
                 CAMERA_HAL_LOG_INFO("%s: encode thread stop", __FUNCTION__);
-                //mEncodeThreadQueue.clearMessage();
+                mEncodeThreadQueue.clearMessage();
                 sem_post(&mEncodeStoppedCondition);
                 break;
             case CMESSAGE_TYPE_QUITE:
