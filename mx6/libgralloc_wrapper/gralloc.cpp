@@ -118,6 +118,10 @@ static int gralloc_alloc(alloc_device_t* dev,
         return -EINVAL;
     }
 
+    //Correct android YUV 420 format mess usage by players
+    if(format == HAL_PIXEL_FORMAT_YCbCr_420_I)format = HAL_PIXEL_FORMAT_YCbCr_420_P;
+    else if(format == HAL_PIXEL_FORMAT_YCbCr_420_P)format = HAL_PIXEL_FORMAT_YCbCr_420_I;
+
     return m->gpu_device->alloc(dev, w, h, format, usage, pHandle, pStride);
 }
 
