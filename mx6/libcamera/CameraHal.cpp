@@ -360,7 +360,7 @@ namespace android {
             }
             pictureCnt ++;
 
-            if (CaptureSizeFps.tv.denominator/CaptureSizeFps.tv.numerator > 25){
+            if (CaptureSizeFps.tv.denominator/CaptureSizeFps.tv.numerator >= 15){
                 if (previewCnt == 0)
                     strncpy((char*) mSupportedPreviewSizes, TmpStr, CAMER_PARAM_BUFFER_SIZE);
                 else{
