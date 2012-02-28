@@ -1881,14 +1881,11 @@ Pic_out:
         unsigned int buf_index = pBuf - &mCaptureBuffers[0];
 
         Mutex::Autolock _l(pBuf->mBufferLock);
-
-        mEncodeLock.lock();
         if(!mRecordRunning &&  (mVideoBufferUsing[buf_index] == 1)
                 && (pBuf->refCount == 2)) {
             pBuf->refCount --;
             mVideoBufferUsing[buf_index] = 0;
         }
-        mEncodeLock.unlock();
 
         pBuf->refCount --;
         if(pBuf->refCount == 0) {
@@ -2265,7 +2262,6 @@ Pic_out:
                     EncBuf = &mPPbuf[enc_index];
                 }
 
-                mEncodeLock.lock();
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     if (bDerectInput == true) {
@@ -2280,10 +2276,8 @@ Pic_out:
                     getBufferCount(&mCaptureBuffers[enc_index]);
                     mVideoBufferUsing[enc_index] = 1;
                     mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
-                    mEncodeLock.unlock();
                     break;
                 }
-                mEncodeLock.unlock();
                 break;
 
             case CMESSAGE_TYPE_STOP:
