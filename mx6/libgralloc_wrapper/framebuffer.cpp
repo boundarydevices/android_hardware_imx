@@ -292,13 +292,6 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
         return -errno;
     }
 
-    if(param != NULL) {
-        int blank = FB_BLANK_UNBLANK;
-        if(ioctl(fd, FBIOBLANK, blank) < 0) {
-            LOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
-        }
-    }
-
     struct fb_fix_screeninfo finfo;
     if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) {
         LOGE("<%s,%d> FBIOGET_FSCREENINFO failed", __FUNCTION__, __LINE__);
@@ -535,25 +528,14 @@ static int unMapFrameBuffer(fb_context_t* ctx, struct private_module_t* module)
 {
     int err = 0;
     pthread_mutex_lock(&module->lock);
-
     size_t fbSize = module->framebuffer->size;
     int fd = module->framebuffer->fd;
     void* addr = (void*)(module->framebuffer->base);
+    memset(addr, 0, fbSize);
     munmap(addr, fbSize);
     delete (module->framebuffer);
     module->framebuffer = NULL;
 
-    int blank = 1;
-    if(ioctl(fd, FBIOBLANK, blank) < 0) {
-        LOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
-    }
-
-    if(ctx->mainDisp_fd > 0) {
-        blank = FB_BLANK_UNBLANK;
-        if(ioctl(ctx->mainDisp_fd, FBIOBLANK, blank) < 0) {
-            LOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
-        }
-    }
     close(fd);
     pthread_mutex_unlock(&module->lock);
 
