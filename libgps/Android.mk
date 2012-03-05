@@ -10,7 +10,7 @@ ifneq ($(TARGET_PRODUCT),sim)
         LOCAL_SRC_FILES := athr_gps.c
         LOCAL_SRC_FILES += gps.c
         LOCAL_MODULE := gps.default
-        LOCAL_MODULE_TAGS := eng
+        LOCAL_MODULE_TAGS := optional
         include $(BUILD_SHARED_LIBRARY)
     endif
 endif
