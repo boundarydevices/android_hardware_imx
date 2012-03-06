@@ -1585,6 +1585,11 @@ Pic_out:
         mPPbufNum = POST_PROCESS_BUFFER_NUM;
         mTakePicFlag = false;
 
+        if(mPreviewCapturedFormat)
+                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height*3/2;
+            else
+                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height *2;
+
         if ((ret = PrepareCaptureDevices()) < 0){
             CAMERA_HAL_ERR("PrepareCaptureDevices error ");
             return ret;
@@ -1791,11 +1796,6 @@ Pic_out:
 
         //temply hard code here
         if (mTakePicFlag == 0){
-            if(V4L2_PIX_FMT_NV12)
-                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height*3/2;
-            else 
-                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height *2;
-
             if(mPreviewMemory != NULL) {
                 mPreviewMemory->release(mPreviewMemory);
             }
