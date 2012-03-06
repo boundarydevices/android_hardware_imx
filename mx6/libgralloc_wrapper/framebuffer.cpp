@@ -590,14 +590,12 @@ static int fb_perform(struct gralloc_module_t const* module,
 
         case OPERATE_CODE_CHANGE:
             switch(operation & 0x0fff) {
-                case OPERATE_CODE_CHANGE_RESOLUTION:
-                case OPERATE_CODE_CHANGE_COLORDEPTH:
-		    err = unMapFrameBuffer(ctx, pm);
-		    err = mapFrameBufferWithParam(pm, param);
-		    if(err >= 0) {
-			fb_device_init(pm, ctx);
-		    }
-                    break;
+                case OPERATE_CODE_CHANGE_ROTATION:
+                case OPERATE_CODE_CHANGE_OVERSCAN: {
+		    size_t fbSize = pm->framebuffer->size;
+		    void* addr = (void*)(pm->framebuffer->base);
+		    memset(addr, 0, fbSize);
+                    } break;
                 default:
                     LOGE("<%s, %d> invalide operate code %d!", __FUNCTION__, __LINE__, (int)operation);
                     err = -1;
