@@ -83,6 +83,16 @@ namespace android{
                     if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0)
                         continue;
                     CAMERA_HAL_LOG_RUNTIME("dev_node is %s", dev_node);
+
+                    if (fd > 0){
+                        mCameraDevice = fd;
+                        ret = V4l2SetSensor(cameraId);
+                    }
+                    else{
+                        CAMERA_HAL_ERR("The device name is not correct or the device is error");
+                        return CAPTURE_DEVICE_ERR_OPEN;
+                    }
+
                     if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
                         close(fd);
                         fd = 0;
