@@ -87,7 +87,7 @@ namespace android {
 
         virtual CAPTURE_DEVICE_ERR_RET SetDevName(char * deviceName)=0;
         virtual CAPTURE_DEVICE_ERR_RET GetDevName(char * deviceName)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevOpen()=0;
+        virtual CAPTURE_DEVICE_ERR_RET DevOpen(int cameraId)=0;
         virtual CAPTURE_DEVICE_ERR_RET EnumDevParam(DevParamType devParamType, void *retParam)=0;
         virtual CAPTURE_DEVICE_ERR_RET DevSetConfig(struct capture_config_t *pCapcfg)=0;
         virtual CAPTURE_DEVICE_ERR_RET DevAllocateBuf(DMA_BUFFER *DevBufQue, unsigned int *pBufQueNum)=0;

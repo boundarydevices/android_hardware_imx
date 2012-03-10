@@ -96,7 +96,6 @@ sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout)
 {
     sp<CMessage> result;
     nsecs_t timeoutTime = systemTime() + timeout;
-    
     while(true) {
         Mutex::Autolock _l(mLock);
         nsecs_t now = systemTime();

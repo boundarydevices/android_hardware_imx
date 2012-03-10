@@ -582,17 +582,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
 
         *device = &camera_device->base.common;
 
-        // -------- TI specific stuff --------
-
         camera_device->cameraid = cameraid;
-#if 0
-        if(gCameraProperties.getProperties(cameraid, &properties) < 0)
-        {
-            LOGE("Couldn't get camera properties");
-            rv = -ENOMEM;
-            goto fail;
-        }
-#endif
         SelectedCameraName = Camera_name[sCameraInfo[cameraid].facing];
 
         pCaptureDevice = android::createCaptureDevice(SelectedCameraName);
@@ -607,14 +597,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
             rv = -ENOMEM;
             goto fail;
         }
-#if 0
-        if(properties && (camera->initialize(properties) != android::NO_ERROR))
-        {
-            LOGE("Couldn't initialize camera instance");
-            rv = -ENODEV;
-            goto fail;
-        }
-#endif
+
         if (camera->setCaptureDevice(pCaptureDevice) < 0 ||
                 camera->setPostProcessDevice(pPPDevice) < 0 ||
                 camera->setJpegEncoder(pJpegEncoder) < 0)

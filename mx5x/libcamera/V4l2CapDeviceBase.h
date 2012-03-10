@@ -35,7 +35,7 @@ namespace android{
         virtual CAPTURE_DEVICE_ERR_RET SetDevName(char * deviceName);
         virtual CAPTURE_DEVICE_ERR_RET GetDevName(char * deviceName);
         virtual CAPTURE_DEVICE_ERR_RET GetDevType(CAMERA_TYPE *pType);
-        virtual CAPTURE_DEVICE_ERR_RET DevOpen();
+        virtual CAPTURE_DEVICE_ERR_RET DevOpen(int cameraId);
         virtual CAPTURE_DEVICE_ERR_RET EnumDevParam(DevParamType devParamType, void *retParam);
         virtual CAPTURE_DEVICE_ERR_RET DevSetConfig(struct capture_config_t *pCapcfg);
         virtual CAPTURE_DEVICE_ERR_RET DevAllocateBuf(DMA_BUFFER *DevBufQue, unsigned int *pBufQueNum);
@@ -52,7 +52,7 @@ namespace android{
 
         V4l2CapDeviceBase();
         virtual ~V4l2CapDeviceBase();
-        virtual CAPTURE_DEVICE_ERR_RET V4l2Open();
+        virtual CAPTURE_DEVICE_ERR_RET V4l2Open(int cameraId);
         virtual CAPTURE_DEVICE_ERR_RET V4l2EnumParam(DevParamType devParamType, void *retParam);
         virtual CAPTURE_DEVICE_ERR_RET V4l2EnumFmt(void *retParam);
         virtual CAPTURE_DEVICE_ERR_RET V4l2EnumSizeFps(void *retParam);
