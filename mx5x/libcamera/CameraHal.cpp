@@ -268,6 +268,12 @@ namespace android {
         CAMERA_HAL_LOG_FUNC;
         CAMERA_HAL_ERR_RET ret = CAMERA_HAL_ERR_NONE;
         mCaptureThreadQueue.postQuitMessage();
+        //Make sure all thread been exit, in case they still
+        //access the message queue
+        mCaptureFrameThread->requestExitAndWait();
+        mPreviewShowFrameThread->requestExitAndWait();
+        mEncodeFrameThread->requestExitAndWait();
+        mTakePicThread->requestExitAndWait();
         pthread_mutex_destroy(&mPPIOParamMutex);
         pthread_mutex_destroy(&mOverlayMutex);
         return ret;
@@ -354,7 +360,7 @@ namespace android {
             }
             pictureCnt ++;
 
-            if (CaptureSizeFps.tv.denominator/CaptureSizeFps.tv.numerator > 25){
+            if (CaptureSizeFps.tv.denominator/CaptureSizeFps.tv.numerator >= 15){
                 if (previewCnt == 0)
                     strncpy((char*) mSupportedPreviewSizes, TmpStr, CAMER_PARAM_BUFFER_SIZE);
                 else{
@@ -394,7 +400,7 @@ namespace android {
             return NO_ERROR;
         }
         else if (mCaptureDevice != NULL){
-            if ( mCaptureDevice->DevOpen()<0 )
+            if ( mCaptureDevice->DevOpen(mCameraid)<0 )
                 return INVALID_OPERATION;
             mCaptureDeviceOpen = true;
         }else{
@@ -957,13 +963,14 @@ namespace android {
         }
         
            
-	if (bDerectInput == true) {
-		for(i = 0; i < mVideoBufNume; i++) {
-			mVideoBufferUsing[i] = 0;
-		}
-	}
-	mEncodeLock.unlock();
+        if (bDerectInput == true) {
+            for(i = 0; i < mVideoBufNume; i++) {
+                mVideoBufferUsing[i] = 0;
+            }
+        }
+
         mRecordRunning = true;
+        mEncodeLock.unlock();
 
         return NO_ERROR;
     }
@@ -973,17 +980,14 @@ namespace android {
         CAMERA_HAL_LOG_FUNC;
         
         mEncodeLock.lock();        
-
         if(mRecordRunning) {
             mRecordRunning = false;
             mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_STOP, 0));
             sem_wait(&mEncodeStoppedCondition);
             CAMERA_HAL_LOG_RUNTIME("---%s, after wait--", __FUNCTION__);
         }
-		//if(bDerectInput == true) 
-		//	bDerectInput = false;		                
         mEncodeLock.unlock();
-	}
+    }
 
     void CameraHal::releaseRecordingFrame(const void* mem)
     {
@@ -993,14 +997,13 @@ namespace android {
         index = ((size_t)mem - (size_t)mVideoMemory->data) / mPreviewFrameSize;
         mVideoBufferUsing[index] = 0;
 
-	if (bDerectInput == true) {
+        if (bDerectInput == true) {
             if(mCaptureBuffers[index].refCount == 0) {
                 CAMERA_HAL_ERR("warning:%s about to release mCaptureBuffers[%d].refcount=%d-", __FUNCTION__, index, mCaptureBuffers[index].refCount);
                 return;
             }
-	putBufferCount(&mCaptureBuffers[index]);
+            putBufferCount(&mCaptureBuffers[index]);
         }
-
     }
 
     bool CameraHal::recordingEnabled()
@@ -1589,6 +1592,11 @@ Pic_out:
         mPPbufNum = POST_PROCESS_BUFFER_NUM;
         mTakePicFlag = false;
 
+        if(mPreviewCapturedFormat)
+                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height*3/2;
+            else
+                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height *2;
+
         if ((ret = PrepareCaptureDevices()) < 0){
             CAMERA_HAL_ERR("PrepareCaptureDevices error ");
             return ret;
@@ -1615,6 +1623,7 @@ Pic_out:
                 return ret;
             }
         }
+
         //mPreviewRunning = true;
         return ret;
     }
@@ -1794,11 +1803,6 @@ Pic_out:
 
         //temply hard code here
         if (mTakePicFlag == 0){
-            if(V4L2_PIX_FMT_NV12)
-                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height*3/2;
-            else 
-                mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height *2;
-
             if(mPreviewMemory != NULL) {
                 mPreviewMemory->release(mPreviewMemory);
             }
@@ -1880,38 +1884,29 @@ Pic_out:
     {
         if(pBuf == NULL)
             return INVALID_OPERATION;
-            
+
+        unsigned int buf_index = pBuf - &mCaptureBuffers[0];
+
         Mutex::Autolock _l(pBuf->mBufferLock);
+        if(!mRecordRunning &&  (mVideoBufferUsing[buf_index] == 1)
+                && (pBuf->refCount == 2)) {
+            pBuf->refCount --;
+            mVideoBufferUsing[buf_index] = 0;
+        }
+
         pBuf->refCount --;
         if(pBuf->refCount == 0) {
-            if(!mPPDeviceNeed && mNativeWindow != 0 && mCaptureRunning) {
-                unsigned int buf_index = -1;    
-                //queue the v4l2 buf back
-                android_native_buffer_t *buf = NULL;
-                buffer_handle_t *buf_h = NULL;
-                int stride;
-                int err = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h, &stride);
-                if((err != 0) || buf_h == NULL) {
-                    CAMERA_HAL_ERR("%s: dequeueBuffer failed.", __FUNCTION__);
-                    return INVALID_OPERATION;
-                }
-                buf = container_of(buf_h, ANativeWindowBuffer, handle);
-                //mNativeWindow->lockBuffer(mNativeWindow.get(), buf);
-                SearchBuffer((void *)buf, &buf_index);
+            if(!mPPDeviceNeed && mCaptureRunning) {
                 if(buf_index < mCaptureBufNum) {
                     if(mCaptureDevice->DevQueue(buf_index) <0){
                         CAMERA_HAL_ERR("The Capture device queue buf error !!!!");
-                        mNativeWindow->cancel_buffer(mNativeWindow, &buf->handle);
                         return INVALID_OPERATION;
                     }
-                    mCaptureBuffers[buf_index].buf_state = WINDOW_BUFS_DEQUEUED;
                     mCaptureBuffers[buf_index].refCount = 0;
                     nCameraBuffersQueued++;
                     mEnqueuedBufs --;
                     mCaptureThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, buf_index));
                 }else {
-                    mNativeWindow->cancel_buffer(mNativeWindow, &buf->handle);
-                    CAMERA_HAL_ERR("dequeue invalide buffer!!!!");
                     return INVALID_OPERATION;
                 }                  
             }else if(mPPDeviceNeed){
@@ -1974,8 +1969,6 @@ Pic_out:
                     mPreviewThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
                     
                     if(mRecordRunning) {
-                        getBufferCount(&mCaptureBuffers[bufIndex]);
-                        //CAMERA_HAL_LOG_INFO("%s: post encode message %d", __FUNCTION__, bufIndex);
                         mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
                     }
                 }else {
@@ -1991,13 +1984,9 @@ Pic_out:
                 break;
             case CMESSAGE_TYPE_QUITE:
                 mExitCaptureThread = 1;
-                if(!mPPDeviceNeed) {
-                    mPreviewThreadQueue.postQuitMessage();
-                    if(mRecordRunning)
-                        mEncodeThreadQueue.postQuitMessage();
-                }else {
-                    mPostProcessThreadQueue.postQuitMessage();
-                }
+                mPreviewThreadQueue.postQuitMessage();
+                mEncodeThreadQueue.postQuitMessage();
+                mPostProcessThreadQueue.postQuitMessage();
                 break;
             default:
                 CAMERA_HAL_ERR("%s: wrong msg type %d", __FUNCTION__, msg->what);
@@ -2150,9 +2139,13 @@ Pic_out:
     {
         //CAMERA_HAL_LOG_FUNC;
         status_t ret = NO_ERROR;
-        int display_index;
+        int display_index = -1;
         DMA_BUFFER *pInBuf = NULL;
-        
+        android_native_buffer_t *buf = NULL;
+        buffer_handle_t *buf_h = NULL;
+        unsigned int buf_index = -1;
+        int stride = 0, err = 0;
+
         sp<CMessage> msg = mPreviewThreadQueue.waitMessage();
         if(msg == 0) {
             CAMERA_HAL_ERR("%s: get invalide message", __FUNCTION__);
@@ -2166,7 +2159,6 @@ Pic_out:
                     CAMERA_HAL_ERR("%s: get invalide buffer index", __FUNCTION__);
                     return BAD_VALUE;  
                 }
-                                
                 if(!mPPDeviceNeed) {
                     pInBuf = &mCaptureBuffers[display_index];
                 }else {
@@ -2188,15 +2180,30 @@ Pic_out:
                         return BAD_VALUE;
                     }
                     pInBuf->buf_state = WINDOW_BUFS_QUEUED;
-
                     mEnqueuedBufs ++;
                     bufferDump(pInBuf);
                     if (mEnqueuedBufs <= 2) {
                         return NO_ERROR;
                     }
                 } 
-                
-                ret = putBufferCount(pInBuf);                       
+
+                err = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h, &stride);
+                if((err != 0) || buf_h == NULL) {
+                    CAMERA_HAL_ERR("%s: dequeueBuffer failed.", __FUNCTION__);
+                    return INVALID_OPERATION;
+                }
+                buf = container_of(buf_h, ANativeWindowBuffer, handle);
+
+                SearchBuffer((void *)buf, &buf_index);
+
+                if(buf_index >= mCaptureBufNum || (buf_index < 0)) {
+                    mNativeWindow->cancel_buffer(mNativeWindow, &buf->handle);
+                    CAMERA_HAL_ERR("dequeue invalide buffer!!!!");
+                    return INVALID_OPERATION;
+                }
+
+                mCaptureBuffers[buf_index].buf_state = WINDOW_BUFS_DEQUEUED;
+                ret = putBufferCount(&mCaptureBuffers[buf_index]);
                 break;
             case CMESSAGE_TYPE_STOP:
                 CAMERA_HAL_LOG_INFO("%s: preview thread stop", __FUNCTION__);
@@ -2218,7 +2225,7 @@ Pic_out:
     
     int CameraHal::encodeframeThreadWrapper()
     {
-        CAMERA_HAL_LOG_FUNC;
+        //CAMERA_HAL_LOG_FUNC;
         status_t ret = NO_ERROR;
         while(1) {
             if(mExitEncodeThread) {
@@ -2265,25 +2272,24 @@ Pic_out:
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     if (bDerectInput == true) {
-	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
-			          (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
+	                    memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+                            (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
                     } else {
-	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
-			          (void*)EncBuf->virt_start, mPreviewFrameSize);
-	                ret = putBufferCount(EncBuf);
+                        memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+                                (void*)EncBuf->virt_start, mPreviewFrameSize);
+                        ret = putBufferCount(EncBuf);
                     }
 
-		    mVideoBufferUsing[enc_index] = 1;
-		    mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
-		    break;
-                }else {
-                    ret = putBufferCount(EncBuf);
+                    getBufferCount(&mCaptureBuffers[enc_index]);
+                    mVideoBufferUsing[enc_index] = 1;
+                    mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
+                    break;
                 }
                 break;
 
             case CMESSAGE_TYPE_STOP:
                 CAMERA_HAL_LOG_INFO("%s: encode thread stop", __FUNCTION__);
-                //mEncodeThreadQueue.clearMessage();
+                mEncodeThreadQueue.clearMessage();
                 sem_post(&mEncodeStoppedCondition);
                 break;
             case CMESSAGE_TYPE_QUITE:

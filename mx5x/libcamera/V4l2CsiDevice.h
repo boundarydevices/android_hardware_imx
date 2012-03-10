@@ -36,7 +36,8 @@ class V4l2CsiDevice : public V4l2CapDeviceBase{
         virtual ~V4l2CsiDevice();
     protected:
 		
-		CAPTURE_DEVICE_ERR_RET V4l2Open();
+		CAPTURE_DEVICE_ERR_RET V4l2Open(int cameraId);
+        CAPTURE_DEVICE_ERR_RET V4l2SetSensor(int cameraId);
 		CAPTURE_DEVICE_ERR_RET V4l2EnumFmt(void *retParam);
 		CAPTURE_DEVICE_ERR_RET V4l2EnumSizeFps(void *retParam);
 		CAPTURE_DEVICE_ERR_RET V4l2SetConfig(struct capture_config_t *pCapcfg);
