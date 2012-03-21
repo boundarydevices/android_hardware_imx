@@ -723,7 +723,7 @@ namespace android {
         android_native_buffer_t *buf;
         private_handle_t *handle;
         for(unsigned int i = 0; i < mCaptureBufNum; i++) {
-            //if(mCaptureBuffers[i].buf_state == WINDOW_BUFS_DEQUEUED) {    
+            if(mCaptureBuffers[i].buf_state == WINDOW_BUFS_DEQUEUED) {
                 buf = (android_native_buffer_t *)mCaptureBuffers[i].native_buf;
                 if(mCaptureBuffers[i].virt_start != NULL) {
                     handle = (private_handle_t *)buf->handle;
@@ -732,7 +732,9 @@ namespace android {
                 if(buf != NULL) {
                     mNativeWindow->cancel_buffer(mNativeWindow, &buf->handle);
                 }
-            //}
+            }
+            else
+                continue;
             mCaptureBuffers[i].buf_state = WINDOW_BUFS_INVALID;//WINDOW_BUFS_QUEUED;
             mCaptureBuffers[i].refCount = 0;
             mCaptureBuffers[i].native_buf = NULL;
@@ -2218,11 +2220,10 @@ Pic_out:
     
     int CameraHal::encodeframeThreadWrapper()
     {
-        CAMERA_HAL_LOG_FUNC;
+        //CAMERA_HAL_LOG_FUNC;
         status_t ret = NO_ERROR;
         while(1) {
             if(mExitEncodeThread) {
-                CAMERA_HAL_ERR("%s: encode thread exit normally", __FUNCTION__);
                 return 0;
             }
             ret = encodeframeThread();
