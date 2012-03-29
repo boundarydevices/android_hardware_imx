@@ -1089,8 +1089,6 @@ namespace android {
         unsigned int DeQueBufIdx = 0;
         struct jpeg_encoding_conf JpegEncConf;
         DMA_BUFFER *Buf_input, Buf_output;
-        //sp<MemoryBase> JpegMemBase = NULL;
-        //sp<MemoryHeapBase> JpegImageHeap = NULL;
         camera_memory_t* JpegMemBase = NULL;
         int  max_fps, min_fps;
 
@@ -1141,6 +1139,12 @@ namespace android {
         if ((ret = PrepareJpegEncoder()) < 0)
             return ret;
 
+        JpegMemBase = mRequestMemory(-1, mCaptureFrameSize, 1, NULL);
+        if (JpegMemBase == NULL || JpegMemBase->data == NULL){
+            ret = NO_MEMORY;
+            goto Pic_out;
+        }
+
         if (mCaptureDevice->DevStart()<0){
             CAMERA_HAL_ERR("the capture start up failed !!!!");
             return INVALID_OPERATION;
@@ -1160,12 +1164,6 @@ namespace android {
                 ret = UNKNOWN_ERROR;
                 goto Pic_out;
             }
-        }
-
-        JpegMemBase = mRequestMemory(-1, mCaptureFrameSize, 1, NULL);
-        if (JpegMemBase == NULL || JpegMemBase->data == NULL){
-            ret = NO_MEMORY;
-            goto Pic_out;
         }
 
         // do the csc if necessary
@@ -1195,16 +1193,12 @@ namespace android {
 
 Pic_out:
         freeBuffersToNativeWindow();
-        //JpegMemBase = new MemoryBase(JpegImageHeap, 0, JpegEncConf.output_jpeg_size);
         if ((JpegMemBase != NULL) &&(JpegMemBase->data != NULL) && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
             CAMERA_HAL_LOG_INFO("==========CAMERA_MSG_COMPRESSED_IMAGE==================");
             mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JpegMemBase, 0, NULL, mCallbackCookie);
         }
 
         mCaptureDevice->DevStop();
-        //mCaptureDevice->DevDeAllocate();
-        //freeBuffersToNativeWindow();
-        //CloseCaptureDevice();
 
         if(JpegMemBase) {
             JpegMemBase->release(JpegMemBase);
