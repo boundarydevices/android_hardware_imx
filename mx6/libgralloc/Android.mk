@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifneq (,$(findstring imx,$(TARGET_BOARD_PLATFORM)))
 LOCAL_PATH := $(call my-dir)
 
 # HAL module implemenation, not prelinked and stored in
@@ -43,9 +44,10 @@ LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX
 #endif
 
 ifeq ($(HAVE_FSL_IMX_IPU),true)
-LOCAL_CFLAGS += -DSECOND_DISPLAY_SUPPORT
+LOCAL_CFLAGS += -DFSL_IMX_DISPLAY
 endif
 
 LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
+endif
