@@ -74,7 +74,7 @@ struct fb_context_t {
     int partial_width[20];
     int partial_height[20];
 #endif
-#ifdef SECOND_DISPLAY_SUPPORT
+#ifdef FSL_IMX_DISPLAY
     bool sec_display_inited;
     int sec_fp;
     int sec_disp_w;
@@ -104,7 +104,7 @@ struct fb_context_t {
 static int nr_framebuffers;
 static int no_ipu = 0;
 
-#ifdef SECOND_DISPLAY_SUPPORT
+#ifdef FSL_IMX_DISPLAY
 #define MAX_SEC_DISP_WIDTH (1024)
 #define MAX_SEC_DISP_HEIGHT (1024)
 static int mapSecFrameBuffer(fb_context_t* ctx);
@@ -336,7 +336,7 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
     return 0;
 }
 
-#ifdef SECOND_DISPLAY_SUPPORT
+#ifdef FSL_IMX_DISPLAY
 static int fb_setSecRotation(struct framebuffer_device_t* dev,int secRotation)
 {
     fb_context_t* ctx = (fb_context_t*)dev;
@@ -393,7 +393,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
         m->info.activate = FB_ACTIVATE_VBL;
         m->info.yoffset = offset / m->finfo.line_length;
 
-        #ifdef SECOND_DISPLAY_SUPPORT
+        #ifdef FSL_IMX_DISPLAY
         //Check the prop rw.SECOND_DISPLAY_CONNECTED
         char value[PROPERTY_VALUE_MAX];
      
@@ -467,7 +467,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
             return -errno;
         }
 
-    #ifdef SECOND_DISPLAY_SUPPORT
+    #ifdef FSL_IMX_DISPLAY
         if(ctx->sec_display_inited) sem_wait(&ctx->sec_display_end);
     #endif
 
@@ -1051,7 +1051,7 @@ static int mapFrameBuffer(struct private_module_t* module)
     return err;
 }
 
-#ifdef SECOND_DISPLAY_SUPPORT
+#ifdef FSL_IMX_DISPLAY
 static int mapSecFrameBuffer(fb_context_t* ctx)
 {
     int retCode = 0;
@@ -1497,7 +1497,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.setUpdateRect = fb_setUpdateRect;
         #endif
         dev->device.compositionComplete = fb_compositionComplete;
-        #ifdef SECOND_DISPLAY_SUPPORT
+        #ifdef FSL_IMX_DISPLAY
         dev->device.setSecRotation = fb_setSecRotation;
         #endif
 
