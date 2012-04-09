@@ -1090,6 +1090,8 @@ namespace android {
         struct jpeg_encoding_conf JpegEncConf;
         DMA_BUFFER *Buf_input, Buf_output;
         camera_memory_t* JpegMemBase = NULL;
+        camera_memory_t *RawMemBase = NULL;
+
         int  max_fps, min_fps;
 
         if (mJpegEncoder == NULL){
@@ -1179,13 +1181,40 @@ namespace android {
         }
 
         Buf_output.virt_start = (unsigned char *)(JpegMemBase->data);
-        CAMERA_HAL_LOG_INFO("Generated a picture");
+        CAMERA_HAL_LOG_INFO("Generated a picture with mMsgEnabled 0x%x", mMsgEnabled);
 
         if (mMsgEnabled & CAMERA_MSG_SHUTTER) {
             CAMERA_HAL_LOG_INFO("CAMERA_MSG_SHUTTER");
             mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
         }
 
+        if (mMsgEnabled & CAMERA_MSG_RAW_IMAGE) {
+            CAMERA_HAL_LOG_INFO("CAMERA_MSG_RAW_IMAGE");
+            RawMemBase = mRequestMemory(-1, mCaptureFrameSize, 1, NULL);
+
+            if ( NULL == RawMemBase ) {
+                CAMERA_HAL_LOG_INFO("Raw buffer allocation failed!");
+                ret = UNKNOWN_ERROR;
+                goto Pic_out;
+            }
+            void *dest = RawMemBase->data;
+
+            if (NULL != dest) {
+                void *src = &mCaptureBuffers[DeQueBufIdx];
+                memcpy(dest, src, mCaptureFrameSize);
+            }
+ 
+            mDataCb(CAMERA_MSG_RAW_IMAGE, RawMemBase, 0, NULL, mCallbackCookie);
+
+            RawMemBase->release(RawMemBase);
+        }
+
+        if ( mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY ) {
+            CAMERA_HAL_LOG_INFO("CAMERA_MSG_RAW_IMAGE_NOTIFY");
+            if(mNotifyCb)
+                mNotifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mCallbackCookie);
+        }
+ 
         if (mJpegEncoder->DoEncode(Buf_input,&Buf_output,&JpegEncConf) < 0){
             ret = UNKNOWN_ERROR;
             goto Pic_out;
