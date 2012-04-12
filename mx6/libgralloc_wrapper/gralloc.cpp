@@ -147,6 +147,7 @@ static int gralloc_close(struct hw_device_t *dev)
         private_module_t* m = reinterpret_cast<private_module_t*>(ctx->device.common.module);
         if(m && m->gpu_device){
            gralloc_close((struct hw_device_t *)m->gpu_device);
+           m->gpu_device = NULL;
         }
 
         free(ctx);
