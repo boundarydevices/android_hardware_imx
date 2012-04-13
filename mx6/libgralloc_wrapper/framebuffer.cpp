@@ -69,7 +69,6 @@ struct fb_context_t {
 };
 
 static int nr_framebuffers;
-static int no_ipu = 0;
 
 sem_t * fslwatermark_sem_open()
 {
@@ -347,19 +346,6 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
         info.blue.length    = 8;
         info.transp.offset  = 0;
         info.transp.length  = 0;
-        /*
-         *  set the alpha in pixel
-         *  only when the fb set to 32bit
-         */
-        struct mxcfb_loc_alpha l_alpha;
-        l_alpha.enable = true;
-        l_alpha.alpha_in_pixel = true;
-        if (ioctl(fd, MXCFB_SET_LOC_ALPHA,
-                    &l_alpha) < 0) {
-            LOGE("<%s,%d> set local alpha failed", __FUNCTION__, __LINE__);
-            close(fd);
-            return -errno;
-        }
     }
     else{
         /*
@@ -375,27 +361,6 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
         info.transp.offset  = 0;
         info.transp.length  = 0;
 
-        if (!no_ipu) {
-            /* for the 16bit case, only involke the glb alpha */
-            struct mxcfb_gbl_alpha gbl_alpha;
-
-            gbl_alpha.alpha = 255;
-            gbl_alpha.enable = 1;
-            int ret = ioctl(fd, MXCFB_SET_GBL_ALPHA, &gbl_alpha);
-            if(ret <0) {
-	        LOGE("<%s,%d> Error!MXCFB_SET_GBL_ALPHA failed!", __FUNCTION__, __LINE__);
-	        return -1;
-            }
-
-            struct mxcfb_color_key key;
-            key.enable = 1;
-            key.color_key = 0x00000000; // Black
-            ret = ioctl(fd, MXCFB_SET_CLR_KEY, &key);
-            if(ret <0) {
-	        LOGE("<%s,%d> Error!Colorkey setting failed for dev ", __FUNCTION__, __LINE__);
-	        return -1;
-            }
-        }
     }
     /*
      * Request nr_framebuffers screens (at lest 2 for page flipping)
@@ -664,7 +629,6 @@ int fb_device_open(hw_module_t const* module, const char* name,
         property_get("ro.product.device", value, "");
         if (0 == strcmp(value, "imx50_rdp")) {
             nr_framebuffers = 2;
-            no_ipu = 1;
         }
 
         /* initialize our state here */

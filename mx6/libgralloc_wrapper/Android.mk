@@ -20,13 +20,6 @@ include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu libhardware libutils
-#ifeq ($(BOARD_SOC_TYPE),IMX50)
-#LOCAL_SHARED_LIBRARIES += libc2d_z160
-#else
-#LOCAL_SHARED_LIBRARIES += libc2d_z430
-#endif
-LOCAL_C_INCLUDES += external/linux-lib/ipu
-LOCAL_C_INCLUDES += hardware/imx/mx5x/libcopybit
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
