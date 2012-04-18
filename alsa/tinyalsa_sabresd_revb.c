@@ -48,9 +48,14 @@
 #define MIXER_WM8962_CAPTURE_SWITCH                 "Capture Switch"
 #define MIXER_WM8962_CAPTURE_VOLUME                 "Capture Volume"
 
-#define MIXER_WM8962_INPGAR_IN3R                    "INPGAR IN3R Switch"
-#define MIXER_WM8962_MIXINR_IN3R                    "MIXINR IN3R Switch"
+#define MIXER_WM8962_INPGAR_IN3R_SWITCH             "INPGAR IN3R Switch"
+#define MIXER_WM8962_MIXINR_IN3R_SWITCH             "MIXINR IN3R Switch"
+#define MIXER_WM8962_MIXINR_IN3R_VOLUME             "MIXINR IN3R Volume"
 
+#define MIXER_WM8962_MIXINR_PGA_SWITCH              "MIXINR PGA Switch"
+#define MIXER_WM8962_MIXINR_PGA_VOLUME              "MIXINR PGA Volume"
+
+#define MIXER_WM8962_DIGITAL_CAPTURE_VOLUME         "Digital Capture Volume"
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 #define CARD_IMX_MAIN "wm8962-audio"
 #define CARD_IMX_HDMI "imx-hdmi-soc"
@@ -112,7 +117,7 @@ struct pcm_config pcm_config_mm_out = {
 struct pcm_config pcm_config_mm_in = {
     .channels = 2,
     .rate = MM_FULL_POWER_SAMPLING_RATE,
-    .period_size = SHORT_PERIOD_SIZE,
+    .period_size = SHORT_PERIOD_SIZE * 2,
     .period_count = CAPTURE_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
 };
@@ -190,14 +195,30 @@ struct route_setting mm_main_mic_input[] = {
     {
         .ctl_name = MIXER_WM8962_CAPTURE_VOLUME,
         .intval = 63,
+    },
+    {
+        .ctl_name = MIXER_WM8962_DIGITAL_CAPTURE_VOLUME,
+        .intval = 127,
     },/*
     {
-        .ctl_name = MIXER_WM8962_INPGAR_IN3R,
+        .ctl_name = MIXER_WM8962_INPGAR_IN3R_SWITCH,
         .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8962_MIXINR_PGA_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8962_MIXINR_PGA_VOLUME,
+        .intval = 7,
     },*/
     {
-        .ctl_name = MIXER_WM8962_MIXINR_IN3R,
+        .ctl_name = MIXER_WM8962_MIXINR_IN3R_SWITCH,
         .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8962_MIXINR_IN3R_VOLUME,
+        .intval = 7,
     },
     {
         .ctl_name = NULL,
@@ -220,14 +241,30 @@ struct route_setting mm_hs_mic_input[] = {
     {
         .ctl_name = MIXER_WM8962_CAPTURE_VOLUME,
         .intval = 63,
+    },
+    {
+        .ctl_name = MIXER_WM8962_DIGITAL_CAPTURE_VOLUME,
+        .intval = 127,
     },/*
     {
-        .ctl_name = MIXER_WM8962_INPGAR_IN3R,
+        .ctl_name = MIXER_WM8962_INPGAR_IN3R_SWITCH,
         .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8962_MIXINR_PGA_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8962_MIXINR_PGA_VOLUME,
+        .intval = 7,
     },*/
     {
-        .ctl_name = MIXER_WM8962_MIXINR_IN3R,
+        .ctl_name = MIXER_WM8962_MIXINR_IN3R_SWITCH,
         .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8962_MIXINR_IN3R_VOLUME,
+        .intval = 7,
     },
     {
         .ctl_name = NULL,
@@ -595,6 +632,7 @@ static size_t get_input_buffer_size(uint32_t sample_rate, int format, int channe
     size = (pcm_config_mm_in.period_size * sample_rate) / pcm_config_mm_in.rate;
     size = ((size + 15) / 16) * 16;
 
+    LOGW("get_input_buffer_size size = %d, channel_count = %d",size,channel_count);
     return size * channel_count * sizeof(short);
 }
 
