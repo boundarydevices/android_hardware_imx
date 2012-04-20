@@ -1438,6 +1438,7 @@ gps_state_init( GpsState*  state )
      {
         retry_count++;
         state->fd = open( device, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	usleep (100000);
      } while ((retry_count < 100) && state->fd < 0 && ((errno == EIO) || (errno == EINTR)));
 
     if (state->fd < 0)
