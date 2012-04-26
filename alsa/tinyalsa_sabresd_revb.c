@@ -66,23 +66,25 @@
 #define PORT_SPDIF  6 /*not used*/
 #define PORT_HDMI   0
 
+#define HDMI_PERIOD_SIZE       768
+#define PLAYBACK_HDMI_PERIOD_COUNT      4
 
 /* number of frames per short period (low latency) */
-#define SHORT_PERIOD_SIZE       768
+#define SHORT_PERIOD_SIZE       256
 /* number of short periods in a long period (low power) */
-#define LONG_PERIOD_MULTIPLIER  10
+#define LONG_PERIOD_MULTIPLIER  2
 /* number of frames per long period (low power) */
 #define LONG_PERIOD_SIZE (SHORT_PERIOD_SIZE * LONG_PERIOD_MULTIPLIER)
 /* number of periods for low power playback */
-#define PLAYBACK_LONG_PERIOD_COUNT  2
+#define PLAYBACK_LONG_PERIOD_COUNT  4
 /* number of pseudo periods for low latency playback */
-#define PLAYBACK_SHORT_PERIOD_COUNT 10
+#define PLAYBACK_SHORT_PERIOD_COUNT 4
 /* number of periods for capture */
 #define CAPTURE_PERIOD_COUNT 4
 /* minimum sleep time in out_write() when write threshold is not reached */
 #define MIN_WRITE_SLEEP_US 5000
 
-#define RESAMPLER_BUFFER_FRAMES (SHORT_PERIOD_SIZE * 2)
+#define RESAMPLER_BUFFER_FRAMES (LONG_PERIOD_SIZE * 2)
 #define RESAMPLER_BUFFER_SIZE   (4 * RESAMPLER_BUFFER_FRAMES)
 
 #define DEFAULT_OUT_SAMPLING_RATE 44100
@@ -117,7 +119,7 @@ struct pcm_config pcm_config_mm_out = {
 struct pcm_config pcm_config_mm_in = {
     .channels = 2,
     .rate = MM_FULL_POWER_SAMPLING_RATE,
-    .period_size = SHORT_PERIOD_SIZE * 2,
+    .period_size = LONG_PERIOD_SIZE,
     .period_count = CAPTURE_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
 };
@@ -563,11 +565,11 @@ static int start_output_stream(struct imx_stream_out *out)
         port = PORT_HDMI;
         out->write_flags            = PCM_OUT;
         out->config.rate            = MM_LOW_POWER_SAMPLING_RATE;
-        out->config.period_size     = SHORT_PERIOD_SIZE;
-        out->config.period_count    = PLAYBACK_SHORT_PERIOD_COUNT;
-        out->write_threshold        = SHORT_PERIOD_SIZE * PLAYBACK_SHORT_PERIOD_COUNT;
-        out->config.start_threshold = SHORT_PERIOD_SIZE;
-        out->config.avail_min       = SHORT_PERIOD_SIZE;
+        out->config.period_size     = HDMI_PERIOD_SIZE;
+        out->config.period_count    = PLAYBACK_HDMI_PERIOD_COUNT;
+        out->write_threshold        = HDMI_PERIOD_SIZE * PLAYBACK_HDMI_PERIOD_COUNT;
+        out->config.start_threshold = HDMI_PERIOD_SIZE;
+        out->config.avail_min       = HDMI_PERIOD_SIZE;
     }
     /* default to low power: will be corrected in out_write if necessary before first write to
      * tinyalsa.
@@ -1527,6 +1529,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         ret = start_input_stream(in);
         if (ret == 0)
             in->standby = 0;
+        in->mute_500ms = in->requested_rate * audio_stream_frame_size(&stream->common)/2;
     }
     pthread_mutex_unlock(&adev->lock);
 
@@ -1545,6 +1548,16 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
     if (ret == 0 && adev->mic_mute)
         memset(buffer, 0, bytes);
+ 
+    if (in->mute_500ms > 0) {
+        if(bytes <= in->mute_500ms) {
+                memset(buffer, 0, bytes);
+                in->mute_500ms = in->mute_500ms - bytes;
+        } else {
+                memset(buffer, 0, in->mute_500ms);
+                in->mute_500ms = 0;
+        }
+    }
 
 exit:
     if (ret < 0)
