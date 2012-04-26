@@ -102,7 +102,7 @@ struct imx_stream_in {
     size_t ref_buf_size;
     size_t ref_frames_in;
     int read_status;
-
+    int mute_500ms;
     struct imx_audio_device *dev;
 };
 
