@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/* Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
 
 #ifndef GRALLOC_PRIV_H_
 #define GRALLOC_PRIV_H_
@@ -36,10 +35,6 @@
 /** z430 core need 4k aligned memory, since xres has been 32 aligned, make yres
     to 128 aligned will meet this request for all pixel format (RGB565,RGB888,etc.) */
 #define  ALIGN_PIXEL_128(x)  ((x+ 127) & ~127)
-
-inline size_t roundUpToPageSize(size_t x) {
-    return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
-}
 
 /*****************************************************************************/
 
@@ -63,8 +58,6 @@ struct private_module_t {
     float fps;
 
     uint32_t flags;
-    int pmem_master;
-    void* pmem_master_base;
     unsigned long master_phys;
     alloc_device_t *gpu_device;
     gralloc_module_t* gralloc_viv;
@@ -85,7 +78,7 @@ struct private_handle_t {
 
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
-        PRIV_FLAGS_USES_PMEM   = 0x00000002,
+        PRIV_FLAGS_USES_DRV    = 0x00000002,
     };
 
     enum {
@@ -129,7 +122,7 @@ struct private_handle_t {
     }
 
     bool usesPhysicallyContiguousMemory() {
-        return (flags & PRIV_FLAGS_USES_PMEM) != 0;
+        return (flags & PRIV_FLAGS_USES_DRV) != 0;
     }
 
     static int validate(const native_handle* h) {

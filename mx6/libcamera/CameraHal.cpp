@@ -1704,10 +1704,6 @@ Pic_out:
         CAMERA_HAL_LOG_FUNC;
 
         if(mPPDeviceNeed){
-            for (unsigned int i = 0; i < mPPbufNum; i++){
-                mPmemAllocator->deAllocate(&mPPbuf[i]);
-            }
-            mPmemAllocator = NULL;
         }
         mCaptureDevice->DevStop();
         //mCaptureDevice->DevDeAllocate();
@@ -1842,16 +1838,6 @@ Pic_out:
         }
         /*allocate the buffer for IPU process*/
         if (mPPDeviceNeed || mPPDeviceNeedForPic){
-            mPmemAllocator = new PmemAllocator(mPPbufNum, mCaptureFrameSize);
-
-            if(mPmemAllocator == NULL || mPmemAllocator->err_ret < 0){
-                return NO_MEMORY;
-            }
-            for (i = 0; i < mPPbufNum; i++){
-                if(mPmemAllocator->allocate(&(mPPbuf[i]),mCaptureFrameSize) < 0){
-                    return NO_MEMORY;
-                }
-            }
         }
         return ret;
     }

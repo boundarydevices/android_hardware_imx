@@ -23,7 +23,7 @@ LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libEGL libipu libcutils libutils libui libhardware
 LOCAL_SRC_FILES := hwcomposer.cpp BG_device.cpp FG_device.cpp hwc_common.cpp blit_gpu.cpp blit_ipu.cpp output_device.cpp
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
-LOCAL_C_INCLUDES += hardware/imx/mx6/libgralloc
+LOCAL_C_INCLUDES += hardware/imx/mx6/libgralloc_wrapper
 LOCAL_C_INCLUDES += external/linux-lib/ipu
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_MODULE_TAGS := eng
