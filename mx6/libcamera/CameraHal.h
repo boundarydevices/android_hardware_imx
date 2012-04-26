@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
- */
-
 
 #ifndef CAMERA_HAL_BASE_H
 #define CAMERA_HAL_BASE_H
@@ -40,7 +36,6 @@
 #include <hardware/camera.h>
 #include <semaphore.h>
 
-#include "Camera_pmem.h"
 #include "CaptureDeviceInterface.h"
 #include "PostProcessDeviceInterface.h"
 #include "JpegEncoderInterface.h"
@@ -372,7 +367,6 @@ namespace android {
         volatile  int       mVideoBufferUsing[VIDEO_OUTPUT_BUFFER_NUM];
 		VIDEOFRAME_BUFFER_PHY mVideoBufferPhy[VIDEO_OUTPUT_BUFFER_NUM];
 
-        sp<PmemAllocator>   mPmemAllocator;
         DMA_BUFFER          mPPbuf[POST_PROCESS_BUFFER_NUM];
         unsigned int        mPPbufNum;
         pp_input_param_t    mPPInputParam;

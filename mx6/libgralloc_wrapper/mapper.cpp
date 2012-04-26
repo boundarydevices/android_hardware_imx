@@ -35,9 +35,6 @@
 #include "gralloc_priv.h"
 
 
-// we need this for now because pmem cannot mmap at an offset
-#define PMEM_HACK   1
-
 /* desktop Linux needs a little help with gettid() */
 #if defined(ARCH_X86) && !defined(HAVE_ANDROID_OS)
 #define __KERNEL__

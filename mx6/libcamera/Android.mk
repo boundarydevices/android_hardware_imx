@@ -20,7 +20,6 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:=    \
 	CameraHal.cpp    \
 	CameraModule.cpp \
-    Camera_pmem.cpp  \
 	CaptureDeviceInterface.cpp \
 	V4l2CsiDevice.cpp \
 	V4l2CapDeviceBase.cpp  \
@@ -49,7 +48,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/base/include/ui \
 	frameworks/base/camera/libcameraservice \
 	external/linux-lib/ipu \
-    hardware/imx/mx6/libgralloc
+	hardware/imx/mx6/libgralloc_wrapper
 
 ifeq ($(HAVE_FSL_IMX_CODEC),true)
     LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux

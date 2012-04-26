@@ -39,10 +39,6 @@
 #include "gralloc_priv.h"
 //#include "allocator.h"
 
-#if HAVE_ANDROID_OS
-#include <linux/android_pmem.h>
-#endif
-
 /*****************************************************************************/
 
 struct gralloc_context_t {
@@ -194,8 +190,6 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
     } else {
 
         m->flags = 0;
-        m->pmem_master = -1;
-        m->pmem_master_base=0;
         m->master_phys = 0;
         //m->gpu_device = 0;
         //m->gralloc_viv= 0;
