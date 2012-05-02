@@ -343,7 +343,7 @@ namespace android{
                 pTimeFrame->denominator = 15;
             }
             else if (capturewidth == 2592 && captureheight == 1944) {
-                pic_waite_buf_num =1;
+                pic_waite_buf_num =3;
                 capturemode = 6;	/* 2592x1944 mode */
                 pTimeFrame->numerator = 1;
                 pTimeFrame->denominator = 15;
