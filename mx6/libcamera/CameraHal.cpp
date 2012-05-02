@@ -1158,7 +1158,6 @@ namespace android {
                 ret = UNKNOWN_ERROR;
                 goto Pic_out;
             }
-
             if (++i == mCaptureDeviceCfg.picture_waite_number)
                 break;
 
@@ -1878,6 +1877,14 @@ Pic_out:
             return INVALID_OPERATION;
         
         isCaptureBufsAllocated = 1;
+
+        unsigned int bufIndex = 0;
+        //skip 10 frames when doing preview
+        for (int k = 0; k < 10; k++) {
+            mCaptureDevice->DevDequeue(&bufIndex);
+            mCaptureDevice->DevQueue(bufIndex);
+        }
+
         for(unsigned int i=0; i < mCaptureBufNum; i++) {
             mCaptureThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, i));
         }
