@@ -950,7 +950,7 @@ static status_t s_open(alsa_handle_t *handle, uint32_t devices, int mode)
 
     if(strcmp(handle->devName,AUDIOCARD_DEVICE_HDMI)==0)
     {
-        handle->bufferSize = 7680;
+        handle->bufferSize = 768*8;
         mmap = 0;
     }
     else

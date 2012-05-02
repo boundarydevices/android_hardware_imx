@@ -66,8 +66,9 @@
 #define PORT_SPDIF  6 /*not used*/
 #define PORT_HDMI   0
 
+/*align the definition in kernel for hdmi audio*/
 #define HDMI_PERIOD_SIZE       768
-#define PLAYBACK_HDMI_PERIOD_COUNT      4
+#define PLAYBACK_HDMI_PERIOD_COUNT      8
 
 /* number of frames per short period (low latency) */
 #define SHORT_PERIOD_SIZE       256
