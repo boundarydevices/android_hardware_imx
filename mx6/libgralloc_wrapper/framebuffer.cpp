@@ -220,6 +220,8 @@ static int fb_compositionComplete(struct framebuffer_device_t* dev)
 }
 
 /*****************************************************************************/
+extern int isModeValid(int fb, char* pMode, int len);
+
 static int set_graphics_fb_mode(int fb, struct configParam* param)
 {
     char temp_name[256];
@@ -248,6 +250,45 @@ static int set_graphics_fb_mode(int fb, struct configParam* param)
                         disp_mode++;
                         n = disp_mode - start_index;
                         *(char*)disp_mode = '\0';
+
+                        if(!isModeValid(fb, start_index + 1, n-1)) {
+                            LOGI("Warning: display %d does not support len:%d, %s", fb, n-1, start_index + 1);
+                            memset(fb_mode, 0, sizeof(fb_mode));
+                            memset(temp_name, 0, sizeof(temp_name));
+                            sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
+                            fd_mode = open(temp_name,O_RDWR, 0);
+                            if(fd_mode < 0) {
+                                LOGI("Error %d! Cannot open %s", fd_mode, temp_name);
+                                return -1;
+                            }
+                            strncpy(fb_mode, "mode=", 5);
+                            size = 5;
+                            size += read(fd_mode, fb_mode+size, sizeof(fb_mode)-size);
+                            LOGW("fb_mode is %s", fb_mode);
+                            close(fd_mode);
+
+                            memset(temp_name, 0, sizeof(temp_name));
+                            sprintf(temp_name, "/sys/class/graphics/fb%d/bits_per_pixel", fb);
+                            fd_mode = open(temp_name, O_RDONLY, 0);
+                            if(fd_mode < 0) {
+                                LOGI("Error %d! Cannot open %s", fd_mode, temp_name);
+                                return -1;
+                            }
+                            strncpy(fb_mode+size, "colordepth=", 11);
+                            size += 11;
+                            size += read(fd_mode, fb_mode+size, sizeof(fb_mode)-size);
+                            LOGW("fb_mode is size=%d, %s", size, fb_mode);
+                            close(fd_mode);
+
+                            close(fb_misc);
+                            fb_misc = open("/data/misc/display.conf", O_RDWR | O_TRUNC, 0);
+                            if(fb_misc < 0)
+                                return -1;
+                            write(fb_misc, fb_mode, size);
+                            close(fb_misc);
+                            return -1;
+                        }//end !isModeValid
+
                         memset(temp_name, 0, sizeof(temp_name));
 			sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
 			fd_mode = open(temp_name,O_RDWR, 0);
@@ -256,6 +297,7 @@ static int set_graphics_fb_mode(int fb, struct configParam* param)
 			    return -1;
 			}
                         write(fd_mode, start_index + 1, n);
+                        close(fd_mode);
                         break;
                     }
                     if(*disp_mode == '=') start_index = (char*)disp_mode;
@@ -263,6 +305,7 @@ static int set_graphics_fb_mode(int fb, struct configParam* param)
                 }
             }
         }
+        close(fb_misc);
         return 0;
     }
 
