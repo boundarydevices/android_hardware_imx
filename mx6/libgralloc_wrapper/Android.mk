@@ -24,7 +24,8 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu libhardware libut
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
-	mapper.cpp
+	mapper.cpp      \
+        display_mode.cpp
 	
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX
