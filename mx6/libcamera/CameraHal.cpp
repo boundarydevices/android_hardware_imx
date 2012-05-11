@@ -648,7 +648,7 @@ namespace android {
 
         framerate = params.getPreviewFrameRate();
         CAMERA_HAL_LOG_INFO("##the set frame rate is %d ##", framerate);
-        if (framerate >30 || framerate<0 ){
+        if ((framerate > 30) || (framerate < 0) ){
             CAMERA_HAL_ERR("The framerate is not corrected");
             return BAD_VALUE;
         }
@@ -1102,15 +1102,15 @@ namespace android {
         mCaptureDeviceCfg.tv.numerator = 1;
         mCaptureDevice->GetDevName(mCameraSensorName);
         if (strstr(mCameraSensorName, "uvc") == NULL){
-        //according to google's doc getPreviewFrameRate & getPreviewFpsRange should support both.
-        // so here just a walkaround, if the app set the frameRate, will follow this frame rate.
-        if (mParameters.getPreviewFrameRate() >= 15)
-            mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
-        else{
-            mParameters.getPreviewFpsRange(&min_fps, &max_fps);
-            CAMERA_HAL_LOG_INFO("###start the preview the fps is %d###", max_fps);
-            mCaptureDeviceCfg.tv.denominator = max_fps/1000;
-        }
+            //according to google's doc getPreviewFrameRate & getPreviewFpsRange should support both.
+            // so here just a walkaround, if the app set the frameRate, will follow this frame rate.
+            if (mParameters.getPreviewFrameRate() >= 15)
+                mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
+            else{
+                mParameters.getPreviewFpsRange(&min_fps, &max_fps);
+                CAMERA_HAL_LOG_INFO("###start the preview the fps is %d###", max_fps);
+                mCaptureDeviceCfg.tv.denominator = max_fps/1000;
+            }
         }else{
                 mCaptureDeviceCfg.tv.denominator = 15;
         }
@@ -1593,15 +1593,15 @@ Pic_out:
         mCaptureDeviceCfg.tv.numerator = 1;
         mCaptureDevice->GetDevName(mCameraSensorName);
         if (strstr(mCameraSensorName, "uvc") == NULL){
-        //according to google's doc getPreviewFrameRate & getPreviewFpsRange should support both.
-        // so here just a walkaround, if the app set the frameRate, will follow this frame rate.
-        if (mParameters.getPreviewFrameRate() >= 15)
-            mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
-        else{
-            mParameters.getPreviewFpsRange(&min_fps, &max_fps);
-            CAMERA_HAL_LOG_INFO("###start the capture the fps is %d###", max_fps);
-            mCaptureDeviceCfg.tv.denominator = max_fps/1000;
-        }
+            //according to google's doc getPreviewFrameRate & getPreviewFpsRange should support both.
+            // so here just a walkaround, if the app set the frameRate, will follow this frame rate.
+            if (mParameters.getPreviewFrameRate() >= 15)
+                mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
+            else{
+                mParameters.getPreviewFpsRange(&min_fps, &max_fps);
+                CAMERA_HAL_LOG_INFO("###start the capture the fps is %d###", max_fps);
+                mCaptureDeviceCfg.tv.denominator = max_fps/1000;
+            }
         }else{
                 mCaptureDeviceCfg.tv.denominator = 15;
         }
@@ -1967,6 +1967,7 @@ Pic_out:
                 
         switch(msg->what) {
             case CMESSAGE_TYPE_NORMAL:
+
                 ret = mCaptureDevice->DevDequeue(&bufIndex);
                 //handle the error return.
                 if(ret < 0) {
@@ -2188,6 +2189,8 @@ Pic_out:
                 if (mNativeWindow != 0) {
                     if (mNativeWindow->enqueue_buffer(mNativeWindow, &((android_native_buffer_t * )pInBuf->native_buf)->handle) < 0){
                         CAMERA_HAL_ERR("queueBuffer failed. May be bcos stream was not turned on yet.");
+                        mPreviewThreadQueue.clearMessage();
+                        sem_post(&mPreviewStoppedCondition);
                         return BAD_VALUE;
                     }
                     pInBuf->buf_state = WINDOW_BUFS_QUEUED;
