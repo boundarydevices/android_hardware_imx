@@ -2167,9 +2167,10 @@ Pic_out:
         sp<CMessage> msg = mPreviewThreadQueue.waitMessage();
         if(msg == 0) {
             CAMERA_HAL_ERR("%s: get invalide message", __FUNCTION__);
+            mPreviewRunning = false;
             return BAD_VALUE;            
         }
-                
+
         switch(msg->what) {
             case CMESSAGE_TYPE_NORMAL:
                 display_index = msg->arg0;
@@ -2209,7 +2210,13 @@ Pic_out:
                     if (mEnqueuedBufs <= 2) {
                         return NO_ERROR;
                     }
-                } 
+                }
+                else {
+                    mPreviewRunning = false;
+                    mPreviewThreadQueue.clearMessage();
+                    sem_post(&mPreviewStoppedCondition);
+                    return BAD_VALUE;
+                }
 
                 err = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h, &stride);
                 if((err != 0) || buf_h == NULL) {
