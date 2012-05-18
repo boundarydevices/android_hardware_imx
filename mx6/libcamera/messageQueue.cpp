@@ -57,38 +57,15 @@ CMessageQueue::CMessageQueue()
 
 CMessageQueue::~CMessageQueue()
 {
-        Mutex::Autolock _l(mLock);
-    LIST::iterator curr(mMessages.begin());
-    //sp<CMessage> tmp;
-
-    while(curr != mMessages.end()) {
-        //tmp = *cur;
-        //tmp.clear();
-        mMessages.remove(curr);
-        //tmp.clear();
-        curr ++;
-    }
+    Mutex::Autolock _l(mLock);
+    mMessages.clear();
 }
 
 void CMessageQueue::clearMessage()
 {
     CAMERA_HAL_ERR("-------CMessageQueue::clearMessage--------");
-        Mutex::Autolock _l(mLock);
-        mMessages.clear();
-#if 0
-    LIST::iterator icur(mMessages.begin());
-    LIST::iterator iend(mMessages.end());
-    //sp<CMessage> tmp;
-
-    while(icur != iend) {
-    CAMERA_HAL_ERR("*********CMessageQueue::clearMessage********");
-        //tmp = *cur;
-        //tmp.clear();
-        mMessages.remove(icur);
-        //tmp.clear();i
-        icur ++;
-    }
-#endif 
+    Mutex::Autolock _l(mLock);
+    mMessages.clear();
     mStop = false;
 }
 
