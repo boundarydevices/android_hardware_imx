@@ -984,6 +984,8 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     else
         ret = pcm_write(out->pcm, (void *)buf, out_frames * frame_size);
 
+    if(ret != 0) LOGW("ret %d, pcm write error %s.", ret, pcm_get_error(out->pcm));
+
 exit:
     pthread_mutex_unlock(&out->lock);
 
