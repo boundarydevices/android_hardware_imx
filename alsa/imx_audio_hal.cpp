@@ -52,7 +52,7 @@ static int imx_adev_open(const hw_module_t* module, const char* name,
     /*find the audio hal for different board*/
     property_get("ro.product.device", value, "");
 
-    if(!strcmp(value, "sabresd_6q")) {
+    if(!strcmp(value, "sabresd_6q") || !strcmp(value, "sabresd_6dl")) {
         ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_SABRESD_REVB, &module_audio);
         if(ret)   found = false;
         else {
