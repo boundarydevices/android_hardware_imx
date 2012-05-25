@@ -282,6 +282,8 @@ namespace android {
         void SearchBuffer(void *pNativeBuf, unsigned int *pIndex);
         status_t freeBuffersToNativeWindow();
         status_t PrepareCaptureBufs();
+        status_t updateDirectInput(bool bDirect);
+
         volatile bool isCaptureBufsAllocated;
         //volatile bool isPreviewFinsh;
         status_t convertStringToPreviewFormat(unsigned int *pFormat);
@@ -404,7 +406,7 @@ namespace android {
         bool mPreviewStopped;
         bool mRecordStopped;
         bool mPowerLock;
-	bool bDerectInput;
+        bool bDirectInput;
         int mCameraid;
 
         int error_status;
