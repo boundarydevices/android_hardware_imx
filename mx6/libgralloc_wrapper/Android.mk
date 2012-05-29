@@ -16,6 +16,8 @@ LOCAL_PATH := $(call my-dir)
 
 # HAL module implemenation, not prelinked and stored in
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
+
+ifeq ($(TARGET_HAVE_IMX_GRALLOC),true)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
@@ -26,7 +28,7 @@ LOCAL_SRC_FILES := 	\
 	framebuffer.cpp \
 	mapper.cpp      \
         display_mode.cpp
-	
+
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX
 
@@ -42,3 +44,4 @@ endif
 LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
+endif

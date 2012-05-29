@@ -17,6 +17,7 @@ LOCAL_PATH := $(call my-dir)
 
 # HAL module implemenation, not prelinked and stored in
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
+ifeq ($(TARGET_HAVE_IMX_HWCOMPOSER),true)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
@@ -28,3 +29,4 @@ LOCAL_C_INCLUDES += external/linux-lib/ipu
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_MODULE_TAGS := eng
 include $(BUILD_SHARED_LIBRARY)
+endif
