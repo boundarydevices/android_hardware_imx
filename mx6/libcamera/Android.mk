@@ -15,6 +15,8 @@
 ifeq ($(BOARD_SOC_CLASS),IMX6)
 LOCAL_PATH:= $(call my-dir)
 
+ifeq ($(BOARD_HAVE_IMX_CAMERA),true)
+
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=    \
@@ -73,4 +75,6 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
+endif
+
 endif
