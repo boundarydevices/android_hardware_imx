@@ -93,6 +93,12 @@ namespace android {
         CloseCaptureDevice();
         FreeInterBuf();
         postDestroy();
+        if(mVideoMemory != NULL) {
+            mVideoMemory->release(mVideoMemory);
+        }
+        if(mPreviewMemory != NULL) {
+            mPreviewMemory->release(mPreviewMemory);
+        }
     }
 
     void CameraHal :: release()
