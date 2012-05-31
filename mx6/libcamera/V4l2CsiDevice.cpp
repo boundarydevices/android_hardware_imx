@@ -109,6 +109,7 @@ namespace android{
                         fd = 0;
                     }
                 }
+                closedir(v4l_dir);
             }
             if (fd > 0){
                 mCameraDevice = fd;
