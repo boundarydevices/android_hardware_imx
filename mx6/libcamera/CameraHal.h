@@ -143,28 +143,32 @@ namespace android {
             CameraHal* mHardware;
         public:
             CaptureFrameThread(CameraHal* hw)
-                : Thread(false), mHardware(hw) { }
+                : Thread(false), mHardware(hw), mTID(0)  { }
             virtual void onFirstRef() {
                 run("CaptureFrameThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
+                mTID = gettid();
                 mHardware->captureframeThreadWrapper();
                 return false;
             }
+            int mTID;
         };
 
         class PostProcessThread : public Thread {
             CameraHal* mHardware;
         public:
             PostProcessThread(CameraHal* hw)
-                : Thread(false), mHardware(hw) { }
+                : Thread(false), mHardware(hw), mTID(0)  { }
             virtual void onFirstRef() {
                 run("PostProcessThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
+                mTID = gettid();
                 mHardware->postprocessThreadWrapper();
                 return false;
             }
+            int mTID;
         };
 
 
@@ -172,44 +176,50 @@ namespace android {
             CameraHal* mHardware;
         public:
             PreviewShowFrameThread(CameraHal* hw)
-                : Thread(false), mHardware(hw) { }
+                : Thread(false), mHardware(hw), mTID(0)  { }
             virtual void onFirstRef() {
                 run("CameraPreviewShowFrameThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
+                mTID = gettid();
                 mHardware->previewshowFrameThreadWrapper();
                 return false;
             }
+            int mTID;
         };
 
         class EncodeFrameThread : public Thread {
             CameraHal* mHardware;
         public:
             EncodeFrameThread(CameraHal* hw)
-                : Thread(false), mHardware(hw) { }
+                : Thread(false), mHardware(hw), mTID(0)  { }
             virtual void onFirstRef() {
                 run("EncodeFrameThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
+                mTID = gettid();
                 mHardware->encodeframeThreadWrapper();
                 return true;
             }
+            int mTID;
         };
 
         class AutoFocusThread : public Thread {
             CameraHal* mHardware;
         public:
             AutoFocusThread(CameraHal* hw)
-                : Thread(false), mHardware(hw) { }
+                : Thread(false), mHardware(hw), mTID(0)  { }
             virtual void onFirstRef() {
                 run("AutoFocusThread", PRIORITY_URGENT_DISPLAY);
             }
             virtual bool threadLoop() {
+                mTID = gettid();
                 if (mHardware->autoFocusThread()>=0)
                     return true;
                 else
                     return false;
             }
+            int mTID;
         };
 
 
@@ -217,16 +227,18 @@ namespace android {
             CameraHal* mHardware;
         public:
             TakePicThread(CameraHal* hw)
-                : Thread(false), mHardware(hw) { }
+                : Thread(false), mHardware(hw), mTID(0) { }
 #if 0
             virtual void onFirstRef() {
                 run("TakePicThread", PRIORITY_URGENT_DISPLAY);
             }
 #endif  
             virtual bool threadLoop() {
+                mTID = gettid();
                 mHardware->takepicThread();
                 return false;
             }
+            int mTID;
         };
 
         void preInit();
