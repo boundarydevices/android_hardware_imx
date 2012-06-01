@@ -736,6 +736,8 @@ int fb_device_open(hw_module_t const* module, const char* name,
             dev->priv_m = m;
             dev->mainDisp_fd = m->framebuffer->fd;
             dev->isMainDisp = 1;
+            gralloc_module_t* gr_m = reinterpret_cast<gralloc_module_t*>(m);
+            gr_m->perform = fb_perform;
             fslwatermark_sem_open();
         } else {
             private_module_t* orig_m = (private_module_t*)module;
