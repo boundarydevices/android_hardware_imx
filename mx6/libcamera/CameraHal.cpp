@@ -1683,7 +1683,10 @@ Pic_out:
             CAMERA_HAL_LOG_INFO("%s :capture run", __FUNCTION__);
             mCaptureThreadQueue.postStopMessage();
             mCaptureRunning = false;
-            sem_wait(&mCaptureStoppedCondition);
+            if(gettid()!= mCaptureFrameThread->mTID)
+                sem_wait(&mCaptureStoppedCondition);
+            else
+                CAMERA_HAL_LOG_INFO("Stop CaptureFrameThread in itself");
         }else {
             CAMERA_HAL_LOG_INFO("%s :capture not run", __FUNCTION__);
         }
@@ -1694,7 +1697,10 @@ Pic_out:
         if(mPPDeviceNeed && mPreviewRunning) {
             CAMERA_HAL_LOG_INFO("%s :postprocess run", __FUNCTION__);
             mPostProcessThreadQueue.postStopMessage();
-            sem_wait(&mPostProcessStoppedCondition);
+            if(gettid()!= mPostProcessThread->mTID)
+                sem_wait(&mPostProcessStoppedCondition);
+            else
+                CAMERA_HAL_LOG_INFO("Stop PostProcessThread in itself");
         }
         mPostProcessLock.unlock(); 
 
@@ -1703,7 +1709,10 @@ Pic_out:
             CAMERA_HAL_LOG_INFO("%s :preview run", __FUNCTION__);
             mPreviewThreadQueue.postStopMessage();
             mPreviewRunning = false;
-            sem_wait(&mPreviewStoppedCondition);
+            if(gettid()!= mPreviewShowFrameThread->mTID)
+                sem_wait(&mPreviewStoppedCondition);
+            else
+                CAMERA_HAL_LOG_INFO("Stop PreviewShowThread in itself");
         }else {
             CAMERA_HAL_LOG_INFO("%s :preview not run", __FUNCTION__);
         }
@@ -2167,7 +2176,7 @@ Pic_out:
             }
 #endif                    
     }
-    
+   
     int CameraHal ::previewshowFrameThread()
     {
         //CAMERA_HAL_LOG_FUNC;
