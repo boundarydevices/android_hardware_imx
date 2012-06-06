@@ -64,7 +64,9 @@ namespace android{
 
         if(mCameraDevice > 0)
             return CAPTURE_DEVICE_ERR_ALRADY_OPENED;
-        else if (mCaptureDeviceName[0] != '#'){
+
+#ifdef V4L2_CAMERA_SWITCH
+        if (mCaptureDeviceName[0] != '#'){
             CAMERA_HAL_LOG_RUNTIME("already get the device name %s", mCaptureDeviceName);
             mCameraDevice = open(mCaptureDeviceName, O_RDWR, O_NONBLOCK);
             if (mCameraDevice < 0)
@@ -120,6 +122,25 @@ namespace android{
                 return CAPTURE_DEVICE_ERR_OPEN;
             }
         }
+#else
+        memset((void *)dev_node, 0, CAMAERA_FILENAME_LENGTH);
+        sprintf(dev_node, "/dev/video%d", cameraId);
+        if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0) {
+            CAMERA_HAL_ERR("dev_node %s:cannot be opened", dev_node);
+            return CAPTURE_DEVICE_ERR_OPEN;
+        }
+
+        if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
+            close(fd);
+            CAMERA_HAL_ERR("dev_node %s:cannot get sensor name", dev_node);
+            return CAPTURE_DEVICE_ERR_OPEN;
+        }
+        strcpy(mCaptureDeviceName, dev_node);
+        strcpy(mInitalDeviceName, vid_chip.match.name);
+        CAMERA_HAL_LOG_INFO("device name is %s", mCaptureDeviceName);
+        CAMERA_HAL_LOG_INFO("sensor name is %s", mInitalDeviceName);
+        mCameraDevice = fd;
+#endif
         return ret; 
     }
 
