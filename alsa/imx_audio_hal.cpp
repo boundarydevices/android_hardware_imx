@@ -33,8 +33,7 @@ namespace android_audio_legacy {
 extern "C" {
 
 #define AUDIO_HARDWARE_MODULE_ID_LEGACY   "audio.legacy"
-#define AUDIO_HARDWARE_MODULE_ID_SABRESD_REVA  "audio.sabresd_reva"
-#define AUDIO_HARDWARE_MODULE_ID_SABRESD_REVB  "audio.sabresd_revb"
+#define AUDIO_HARDWARE_MODULE_ID_TINYALSA  "audio.tinyalsa"
 
 struct imx_audio_module {
     struct audio_module module;
@@ -52,18 +51,8 @@ static int imx_adev_open(const hw_module_t* module, const char* name,
     /*find the audio hal for different board*/
     property_get("ro.product.device", value, "");
 
-    if(!strcmp(value, "sabresd_6q") || !strcmp(value, "sabresd_6dl")) {
-        ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_SABRESD_REVB, &module_audio);
-        if(ret)   found = false;
-        else {
-            ret = module_audio->methods->open(module, AUDIO_HARDWARE_INTERFACE,(struct hw_device_t**)device);
-            if(ret)  found = false;
-            else     found = true;
-        }
-    }
-
-    if(!found && !strcmp(value, "sabresd_6q")) {
-        ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_SABRESD_REVA, &module_audio);
+    if(!strcmp(value, "sabresd_6q") || !strcmp(value, "sabresd_6dl") || !strcmp(value, "imx6sl_arm2")) {
+        ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_TINYALSA, &module_audio);
         if(ret)   found = false;
         else {
             ret = module_audio->methods->open(module, AUDIO_HARDWARE_INTERFACE,(struct hw_device_t**)device);

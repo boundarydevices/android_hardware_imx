@@ -39,26 +39,11 @@
 #include <audio_effects/effect_aec.h>
 
 #include "audio_hardware.h"
+#include "config_wm8962.h"
+#include "config_wm8958.h"
+#include "config_hdmi.h"
+#include "config_nullcard.h"
 
-#define MIXER_WM8962_SPEAKER_VOLUME                 "Speaker Volume"
-#define MIXER_WM8962_SPEAKER_SWITCH                 "Speaker Switch"
-#define MIXER_WM8962_HEADPHONE_VOLUME               "Headphone Volume"
-#define MIXER_WM8962_HEADPHONE_SWITCH               "Headphone Switch"
-
-#define MIXER_WM8962_CAPTURE_SWITCH                 "Capture Switch"
-#define MIXER_WM8962_CAPTURE_VOLUME                 "Capture Volume"
-
-#define MIXER_WM8962_INPGAR_IN3R_SWITCH             "INPGAR IN3R Switch"
-#define MIXER_WM8962_MIXINR_IN3R_SWITCH             "MIXINR IN3R Switch"
-#define MIXER_WM8962_MIXINR_IN3R_VOLUME             "MIXINR IN3R Volume"
-
-#define MIXER_WM8962_MIXINR_PGA_SWITCH              "MIXINR PGA Switch"
-#define MIXER_WM8962_MIXINR_PGA_VOLUME              "MIXINR PGA Volume"
-
-#define MIXER_WM8962_DIGITAL_CAPTURE_VOLUME         "Digital Capture Volume"
-/* ALSA cards for IMX, these must be defined according different board / kernel config*/
-#define CARD_IMX_MAIN "wm8962-audio"
-#define CARD_IMX_HDMI "imx-hdmi-soc"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -100,13 +85,14 @@
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
+#define SUPPORT_CARD_NUM        4
 
-
-enum tty_modes {
-    TTY_MODE_OFF,
-    TTY_MODE_VCO,
-    TTY_MODE_HCO,
-    TTY_MODE_FULL
+/*"null_card" must be in the end of this array*/
+struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
+    &wm8958_card,
+    &wm8962_card,
+    &hdmi_card,
+    &null_card,
 };
 
 struct pcm_config pcm_config_mm_out = {
@@ -126,174 +112,10 @@ struct pcm_config pcm_config_mm_in = {
 };
 
 
-#define MIN(x, y) ((x) > (y) ? (y) : (x))
-
-struct route_setting
-{
-    char *ctl_name;
-    int intval;
-    char *strval;
-};
-
-/* These are values that never change */
-struct route_setting defaults[] = {
-    /* general */
-    {
-        .ctl_name = NULL,
-    },
-};
-
-struct route_setting bt_output[] = {
-    {
-        .ctl_name = NULL,
-    },
-};
-
-struct route_setting speaker_output[] = {
-    {
-        .ctl_name = MIXER_WM8962_SPEAKER_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_SPEAKER_VOLUME,
-        .intval = 127,
-    },
-    {
-        .ctl_name = NULL,
-    },
-};
-
-struct route_setting hs_output[] = {
-    {
-        .ctl_name = MIXER_WM8962_HEADPHONE_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_HEADPHONE_VOLUME,
-        .intval = 127,
-    },
-    {
-        .ctl_name = NULL,
-    },
-};
-
-struct route_setting earpiece_output[] = {
-    {
-        .ctl_name = NULL,
-    },
-};
-
-struct route_setting vx_hs_mic_input[] = {
-    {
-        .ctl_name = NULL,
-    },
-};
-
-
-struct route_setting mm_main_mic_input[] = {
-    {
-        .ctl_name = MIXER_WM8962_CAPTURE_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_CAPTURE_VOLUME,
-        .intval = 63,
-    },
-    {
-        .ctl_name = MIXER_WM8962_DIGITAL_CAPTURE_VOLUME,
-        .intval = 127,
-    },/*
-    {
-        .ctl_name = MIXER_WM8962_INPGAR_IN3R_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_PGA_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_PGA_VOLUME,
-        .intval = 7,
-    },*/
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_IN3R_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_IN3R_VOLUME,
-        .intval = 7,
-    },
-    {
-        .ctl_name = NULL,
-    },
-};
-
-
-struct route_setting vx_main_mic_input[] = {
-    {
-        .ctl_name = NULL,
-    },
-};
-
-/*hs_mic exchanged with main mic for sabresd, because the the main is no implemented*/
-struct route_setting mm_hs_mic_input[] = {
-    {
-        .ctl_name = MIXER_WM8962_CAPTURE_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_CAPTURE_VOLUME,
-        .intval = 63,
-    },
-    {
-        .ctl_name = MIXER_WM8962_DIGITAL_CAPTURE_VOLUME,
-        .intval = 127,
-    },/*
-    {
-        .ctl_name = MIXER_WM8962_INPGAR_IN3R_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_PGA_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_PGA_VOLUME,
-        .intval = 7,
-    },*/
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_IN3R_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8962_MIXINR_IN3R_VOLUME,
-        .intval = 7,
-    },
-    {
-        .ctl_name = NULL,
-    },
-};
-
-struct route_setting vx_bt_mic_input[] = {
-    {
-        .ctl_name = NULL,
-    },
-};
-
-
-struct route_setting mm_bt_mic_input[] = {
-    {
-        .ctl_name = NULL,
-    },
-};
-
-
 /**
  * NOTE: when multiple mutexes have to be acquired, always respect the following order:
  *        hw device > in stream > out stream
  */
-
-
 static void select_output_device(struct imx_audio_device *adev);
 static void select_input_device(struct imx_audio_device *adev);
 static int adev_set_voice_volume(struct audio_hw_device *dev, float volume);
@@ -320,6 +142,7 @@ static int set_route_by_array(struct mixer *mixer, struct route_setting *route,
     unsigned int i, j;
 
     if(!mixer) return 0;
+    if(!route) return 0;
     /* Go through the route array and set each value */
     i = 0;
     while (route[i].ctl_name) {
@@ -353,13 +176,15 @@ static void force_all_standby(struct imx_audio_device *adev)
 {
     struct imx_stream_in *in;
     struct imx_stream_out *out;
+    int i;
 
-    if (adev->active_output) {
-        out = adev->active_output;
-        pthread_mutex_lock(&out->lock);
-        do_output_standby(out);
-        pthread_mutex_unlock(&out->lock);
-    }
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        if (adev->active_output[i]) {
+            out = adev->active_output[i];
+            pthread_mutex_lock(&out->lock);
+            do_output_standby(out);
+            pthread_mutex_unlock(&out->lock);
+        }
 
     if (adev->active_input) {
         in = adev->active_input;
@@ -416,6 +241,7 @@ static void select_output_device(struct imx_audio_device *adev)
     int bt_on;
     bool tty_volume = false;
     unsigned int channel;
+    int i;
 
     headset_on      = adev->devices & AUDIO_DEVICE_OUT_WIRED_HEADSET;
     headphone_on    = adev->devices & AUDIO_DEVICE_OUT_WIRED_HEADPHONE;
@@ -454,17 +280,22 @@ static void select_output_device(struct imx_audio_device *adev)
     /*if mode = AUDIO_MODE_IN_CALL*/
     LOGW("headphone %d ,headset %d ,speaker %d, earpiece %d, \n", headphone_on, headset_on, speaker_on, earpiece_on);
     /* select output stage */
-    set_route_by_array(adev->mixer, bt_output, bt_on);
-    set_route_by_array(adev->mixer, hs_output, headset_on | headphone_on);
-    set_route_by_array(adev->mixer, speaker_output, speaker_on);
-    set_route_by_array(adev->mixer, earpiece_output, earpiece_on);
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        set_route_by_array(adev->mixer[i], adev->card_list[i]->bt_output, bt_on);
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        set_route_by_array(adev->mixer[i], adev->card_list[i]->hs_output, headset_on | headphone_on);
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        set_route_by_array(adev->mixer[i], adev->card_list[i]->speaker_output, speaker_on);
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        set_route_by_array(adev->mixer[i], adev->card_list[i]->earpiece_output, earpiece_on);
 
     /* Special case: select input path if in a call, otherwise
        in_set_parameters is used to update the input route
        todo: use sub mic for handsfree case */
     if (adev->mode == AUDIO_MODE_IN_CALL) {
         if (bt_on)
-            set_route_by_array(adev->mixer, vx_bt_mic_input, bt_on);
+            for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                set_route_by_array(adev->mixer[i], adev->card_list[i]->vx_bt_mic_input, bt_on);
         else {
             /* force tx path according to TTY mode when in call */
             switch(adev->tty_mode) {
@@ -489,17 +320,21 @@ static void select_output_device(struct imx_audio_device *adev)
             }
 
             if (headset_on)
-                set_route_by_array(adev->mixer, vx_hs_mic_input, 1);
+                for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                    set_route_by_array(adev->mixer[i], adev->card_list[i]->vx_hs_mic_input, 1);
             else if (headphone_on || earpiece_on || speaker_on)
-                set_route_by_array(adev->mixer, vx_main_mic_input, 1);
+                for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                    set_route_by_array(adev->mixer[i], adev->card_list[i]->vx_main_mic_input, 1);
             else
-                set_route_by_array(adev->mixer, vx_main_mic_input, 0);
+                for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                    set_route_by_array(adev->mixer[i], adev->card_list[i]->vx_main_mic_input, 0);
         }
     }
 }
 
 static void select_input_device(struct imx_audio_device *adev)
 {
+    int i;
     int headset_on = 0;
     int main_mic_on = 0;
     int sub_mic_on = 0;
@@ -521,15 +356,19 @@ static void select_input_device(struct imx_audio_device *adev)
     * both use cases are mutually exclusive.
     */
     if (bt_on)
-        set_route_by_array(adev->mixer, mm_bt_mic_input, 1);
+        for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+            set_route_by_array(adev->mixer[i], adev->card_list[i]->mm_bt_mic_input, 1);
     else {
         /* Select front end */
         if (headset_on)
-            set_route_by_array(adev->mixer, mm_hs_mic_input, 1);
+            for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                set_route_by_array(adev->mixer[i], adev->card_list[i]->mm_hs_mic_input, 1);
         else if (main_mic_on || sub_mic_on)
-            set_route_by_array(adev->mixer, mm_main_mic_input, 1);
+            for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                set_route_by_array(adev->mixer[i], adev->card_list[i]->mm_main_mic_input, 1);
         else
-            set_route_by_array(adev->mixer, mm_main_mic_input, 0);
+            for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                set_route_by_array(adev->mixer[i], adev->card_list[i]->mm_main_mic_input, 0);
     }
 }
 
@@ -537,11 +376,12 @@ static void select_input_device(struct imx_audio_device *adev)
 static int start_output_stream(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    unsigned int card = adev->main_card;
-    unsigned int port = PORT_MM;
+    unsigned int card = 0;
+    unsigned int port = 0;
+    int i;
 
     LOGW("start_output_stream...");
-    adev->active_output = out;
+    adev->active_output[out->out_id] = out;
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         /* FIXME: only works if only one output can be active at a time */
@@ -549,7 +389,19 @@ static int start_output_stream(struct imx_stream_out *out)
     }
     /* S/PDIF takes priority over HDMI audio. In the case of multiple
      * devices, this will cause use of S/PDIF or HDMI only */
-    out->config.rate            = MM_FULL_POWER_SAMPLING_RATE;
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+        if((out->device & AUDIO_DEVICE_OUT_ALL) & adev->card_list[i]->supported_devices) {
+            card = i;
+            port = 0;
+            break;
+        }
+        if(i == MAX_AUDIO_CARD_NUM-1) {
+            LOGE("can not find supported device for %d",out->device);
+            return -EINVAL;
+        }
+    }
+    LOGW("card %d, port %d device %x", card, port, out->device);
+
     out->write_flags            = PCM_OUT | PCM_MMAP;
     out->config.period_size     = LONG_PERIOD_SIZE;
     out->config.period_count    = PLAYBACK_LONG_PERIOD_COUNT;
@@ -557,15 +409,8 @@ static int start_output_stream(struct imx_stream_out *out)
     out->config.start_threshold = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
     out->config.avail_min       = LONG_PERIOD_SIZE;
 
-    if (adev->devices & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) {
-        card = adev->vice_card;
-        port = PORT_SPDIF;
-
-    } else if(adev->devices & AUDIO_DEVICE_OUT_AUX_DIGITAL) {
-        card = adev->vice_card;
-        port = PORT_HDMI;
+    if(out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL) {
         out->write_flags            = PCM_OUT;
-        out->config.rate            = MM_LOW_POWER_SAMPLING_RATE;
         out->config.period_size     = HDMI_PERIOD_SIZE;
         out->config.period_count    = PLAYBACK_HDMI_PERIOD_COUNT;
         out->write_threshold        = HDMI_PERIOD_SIZE * PLAYBACK_HDMI_PERIOD_COUNT;
@@ -584,14 +429,14 @@ static int start_output_stream(struct imx_stream_out *out)
     if (!pcm_is_ready(out->pcm)) {
         LOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm));
         pcm_close(out->pcm);
-        adev->active_output = NULL;
+        adev->active_output[out->out_id] = NULL;
         return -ENOMEM;
     }
 
     if (adev->echo_reference != NULL)
         out->echo_reference = adev->echo_reference;
-
-    out->resampler->reset(out->resampler);
+    if (out->resampler)
+        out->resampler->reset(out->resampler);
 
     return 0;
 }
@@ -662,10 +507,12 @@ static void remove_echo_reference(struct imx_stream_out *out,
 static void put_echo_reference(struct imx_audio_device *adev,
                           struct echo_reference_itfe *reference)
 {
+    int i;
     if (adev->echo_reference != NULL &&
             reference == adev->echo_reference) {
-        if (adev->active_output != NULL)
-            remove_echo_reference(adev->active_output, reference);
+        for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+            if (adev->active_output[i] != NULL)
+                remove_echo_reference(adev->active_output[i], reference);
         release_echo_reference(reference);
         adev->echo_reference = NULL;
     }
@@ -677,21 +524,25 @@ static struct echo_reference_itfe *get_echo_reference(struct imx_audio_device *a
                                                uint32_t sampling_rate)
 {
     put_echo_reference(adev, adev->echo_reference);
-    if (adev->active_output != NULL) {
-        struct audio_stream *stream = &adev->active_output->stream.common;
-        uint32_t wr_channel_count = popcount(stream->get_channels(stream));
-        uint32_t wr_sampling_rate = stream->get_sample_rate(stream);
+    /*only for mixer output, only one output*/
+    if(adev->out_stream_num == 1)
+        if (adev->active_output[0] != NULL &&
+            adev->active_output[0]->config.format == AUDIO_FORMAT_PCM_16_BIT ) {
+            struct audio_stream *stream = &adev->active_output[0]->stream.common;
+            uint32_t wr_channel_count = popcount(stream->get_channels(stream));
+            uint32_t wr_sampling_rate = stream->get_sample_rate(stream);
 
-        int status = create_echo_reference(AUDIO_FORMAT_PCM_16_BIT,
+            int status = create_echo_reference(AUDIO_FORMAT_PCM_16_BIT,
                                            channel_count,
                                            sampling_rate,
                                            AUDIO_FORMAT_PCM_16_BIT,
                                            wr_channel_count,
                                            wr_sampling_rate,
                                            &adev->echo_reference);
-        if (status == 0)
-            add_echo_reference(adev->active_output, adev->echo_reference);
-    }
+            if (status == 0)
+                add_echo_reference(adev->active_output[0], adev->echo_reference);
+        }
+
     return adev->echo_reference;
 }
 
@@ -725,11 +576,13 @@ static int get_playback_delay(struct imx_stream_out *out,
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 {
-    return DEFAULT_OUT_SAMPLING_RATE;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    return out->config.rate;
 }
 
 static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
+    LOGE("out_set_sample_rate %d", rate);
     return 0;
 }
 
@@ -747,16 +600,29 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
 
 static uint32_t out_get_channels(const struct audio_stream *stream)
 {
-    return AUDIO_CHANNEL_OUT_STEREO;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    if(out->config.channels == 1)
+        return AUDIO_CHANNEL_OUT_MONO;
+    else
+        return AUDIO_CHANNEL_OUT_STEREO;
 }
 
 static int out_get_format(const struct audio_stream *stream)
 {
-    return AUDIO_FORMAT_PCM_16_BIT;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    switch(out->config.format) {
+    case PCM_FORMAT_S16_LE:
+         return AUDIO_FORMAT_PCM_16_BIT;
+    case PCM_FORMAT_S32_LE:
+         return AUDIO_FORMAT_PCM_32_BIT;
+    default:
+         return AUDIO_FORMAT_PCM_16_BIT;
+    }
 }
 
 static int out_set_format(struct audio_stream *stream, int format)
 {
+    LOGE("out_set_format %d", format);
     return 0;
 }
 
@@ -771,13 +637,12 @@ static int do_output_standby(struct imx_stream_out *out)
         out->frame_count = 0;
 
         LOGW("do_out_standby...");
-        adev->active_output = 0;
+        adev->active_output[out->out_id] = 0;
 
         /* if in call, don't turn off the output stage. This will
         be done when the call is ended */
         if (adev->mode != AUDIO_MODE_IN_CALL) {
             /* FIXME: only works if only one output can be active at a time */
-            //set_route_by_array(adev->mixer, hs_output, 0);
         }
 
         /* stop writing to echo reference */
@@ -819,6 +684,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     char value[32];
     int ret, val = 0;
     bool force_input_standby = false;
+    bool out_is_active = false;
+    int  i;
 
     parms = str_parms_create_str(kvpairs);
 
@@ -828,7 +695,9 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         pthread_mutex_lock(&adev->lock);
         pthread_mutex_lock(&out->lock);
         if (((adev->devices & AUDIO_DEVICE_OUT_ALL) != val) && (val != 0)) {
-            if (out == adev->active_output) {
+            for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+                if(out == adev->active_output[i]) out_is_active = true;
+            if (out_is_active) {
                 /* a change in output device may change the microphone selection */
                 if (adev->active_input &&
                         adev->active_input->source == AUDIO_SOURCE_VOICE_COMMUNICATION) {
@@ -843,6 +712,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
             }
             adev->devices &= ~AUDIO_DEVICE_OUT_ALL;
             adev->devices |= val;
+            out->device    = val;
             select_output_device(adev);
         }
         pthread_mutex_unlock(&out->lock);
@@ -900,7 +770,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     size_t out_frames = RESAMPLER_BUFFER_SIZE / frame_size;
     bool force_input_standby = false;
     struct imx_stream_in *in;
-    bool low_power;
     int kernel_frames = 0;
     void *buf;
 
@@ -922,20 +791,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                 adev->active_input->source == AUDIO_SOURCE_VOICE_COMMUNICATION)
             force_input_standby = true;
     }
-    low_power = adev->low_power && !adev->active_input;
     pthread_mutex_unlock(&adev->lock);
-
-    if (low_power != out->low_power) {
-        if (low_power) {
-            out->write_threshold = LONG_PERIOD_SIZE * PLAYBACK_LONG_PERIOD_COUNT;
-            out->config.avail_min = LONG_PERIOD_SIZE;
-        } else {
-            out->write_threshold = SHORT_PERIOD_SIZE * PLAYBACK_SHORT_PERIOD_COUNT;
-            out->config.avail_min = SHORT_PERIOD_SIZE;
-        }
-        pcm_set_avail_min(out->pcm, out->config.avail_min);
-        out->low_power = low_power;
-    }
 
     /* only use resampler if required */
     if (out->config.rate != DEFAULT_OUT_SAMPLING_RATE) {
@@ -1032,9 +888,10 @@ static int out_remove_audio_effect(const struct audio_stream *stream, effect_han
 static int start_input_stream(struct imx_stream_in *in)
 {
     int ret = 0;
+    int i;
     struct imx_audio_device *adev = in->dev;
-    unsigned int card = adev->main_card;
-    unsigned int port = PORT_MM2_UL;
+    unsigned int card = 0;
+    unsigned int port = 0;
 
     adev->active_input = in;
 
@@ -1042,6 +899,18 @@ static int start_input_stream(struct imx_stream_in *in)
         adev->devices &= ~AUDIO_DEVICE_IN_ALL;
         adev->devices |= in->device;
         select_input_device(adev);
+    }
+
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+        if((adev->devices & AUDIO_DEVICE_IN_ALL) & adev->card_list[i]->supported_devices) {
+            card = i;
+            port = 0;
+            break;
+        }
+        if(i == MAX_AUDIO_CARD_NUM-1) {
+            LOGE("can not find supported device for %d",in->device);
+            return -EINVAL;
+        }
     }
 
     if (in->need_echo_reference && in->echo_reference == NULL)
@@ -1101,7 +970,16 @@ static uint32_t in_get_channels(const struct audio_stream *stream)
 
 static int in_get_format(const struct audio_stream *stream)
 {
-    return AUDIO_FORMAT_PCM_16_BIT;
+    struct imx_stream_in *in = (struct imx_stream_in *)stream;
+    switch(in->config.format) {
+    case PCM_FORMAT_S16_LE:
+         return AUDIO_FORMAT_PCM_16_BIT;
+    case PCM_FORMAT_S32_LE:
+         return AUDIO_FORMAT_PCM_32_BIT;
+    default:
+         return AUDIO_FORMAT_PCM_16_BIT;
+    }
+
 }
 
 static int in_set_format(struct audio_stream *stream, int format)
@@ -1530,9 +1408,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     pthread_mutex_lock(&in->lock);
     if (in->standby) {
         ret = start_input_stream(in);
-        if (ret == 0)
+        if (ret == 0) {
             in->standby = 0;
-        in->mute_500ms = in->requested_rate * audio_stream_frame_size(&stream->common)/2;
+            in->mute_500ms = in->requested_rate * audio_stream_frame_size(&stream->common)/2;
+        }
     }
     pthread_mutex_unlock(&adev->lock);
 
@@ -1546,12 +1425,14 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     else
         ret = pcm_read(in->pcm, buffer, bytes);
 
+    if(ret < 0) LOGW("ret %d, pcm read error %s.", ret, pcm_get_error(in->pcm));
+
     if (ret > 0)
         ret = 0;
 
     if (ret == 0 && adev->mic_mute)
         memset(buffer, 0, bytes);
- 
+
     if (in->mute_500ms > 0) {
         if(bytes <= in->mute_500ms) {
                 memset(buffer, 0, bytes);
@@ -1669,7 +1550,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out = (struct imx_stream_out *)calloc(1, sizeof(struct imx_stream_out));
     if (!out)
         return -ENOMEM;
-
+    LOGW("open output stream devices %d, format %d, channels %d, sample_rate %d",
+                        devices, *format, *channels, *sample_rate);
     ret = create_resampler(DEFAULT_OUT_SAMPLING_RATE,
                            MM_FULL_POWER_SAMPLING_RATE,
                            2,
@@ -1702,6 +1584,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->dev = ladev;
     out->standby = 1;
     out->frame_count = 0;
+    out->device      = devices;
+    out->out_id      = ladev->out_stream_num;
+    ladev->out_stream_num++;
 
     /* FIXME: when we support multiple output devices, we will want to
      * do the following:
@@ -1728,6 +1613,9 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
                                      struct audio_stream_out *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
+
+    ladev->out_stream_num--;
 
     out_standby(&stream->common);
     if (out->buffer)
@@ -1927,7 +1815,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
 
     in->dev = ladev;
     in->standby = 1;
-    in->device = devices;
+    in->device  = devices;
 
     *stream_in = &in->stream;
     return 0;
@@ -1965,33 +1853,25 @@ static int adev_dump(const audio_hw_device_t *device, int fd)
 static int adev_close(hw_device_t *device)
 {
     struct imx_audio_device *adev = (struct imx_audio_device *)device;
+    int i;
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        if(adev->mixer[i])
+            mixer_close(adev->mixer[i]);
 
-    mixer_close(adev->mixer);
     free(device);
     return 0;
 }
 
 static uint32_t adev_get_supported_devices(const struct audio_hw_device *dev)
 {
-    return (/* OUT */
-            AUDIO_DEVICE_OUT_EARPIECE |
-            AUDIO_DEVICE_OUT_SPEAKER |
-            AUDIO_DEVICE_OUT_WIRED_HEADSET |
-            AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
-            AUDIO_DEVICE_OUT_AUX_DIGITAL |
-            AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET |
-            AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET |
-            AUDIO_DEVICE_OUT_ALL_SCO |
-            AUDIO_DEVICE_OUT_DEFAULT |
-            /* IN */
-            AUDIO_DEVICE_IN_COMMUNICATION |
-            AUDIO_DEVICE_IN_AMBIENT |
-            AUDIO_DEVICE_IN_BUILTIN_MIC |
-            AUDIO_DEVICE_IN_WIRED_HEADSET |
-            AUDIO_DEVICE_IN_AUX_DIGITAL |
-            AUDIO_DEVICE_IN_BACK_MIC |
-            AUDIO_DEVICE_IN_ALL_SCO |
-            AUDIO_DEVICE_IN_DEFAULT);
+    struct imx_audio_device *adev = (struct imx_audio_device *)dev;
+    int i;
+    int devices = 0;
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        if(adev->card_list[i])
+            devices |= adev->card_list[i]->supported_devices;
+
+    return devices;            
 }
 
 
@@ -2001,7 +1881,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     struct imx_audio_device *adev;
     int ret;
     struct control *imx_control;
-    int i;
+    int i,j;
     bool found;
 
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
@@ -2032,52 +1912,52 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.close_input_stream      = adev_close_input_stream;
     adev->hw_device.dump                    = adev_dump;
 
-
     /* open the mixer for main sound card, main sound cara is like sgtl5000, wm8958, cs428888*/
     /* note: some platform do not have main sound card, only have auxiliary card.*/
     /* max num of supported card is 2 */
-    adev->main_card = -1;
-    adev->vice_card = -1;
-    for(i = 0; i < 2; i++) {
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
         found = false;
         imx_control = control_open(i);
         if(!imx_control)
             break;
         LOGW("card %d, id %s , name %s", i, control_card_info_get_id(imx_control), control_card_info_get_name(imx_control));
-        if(!strcmp(control_card_info_get_name(imx_control), CARD_IMX_MAIN)){
-            adev->main_card = i;
-            found = true;
+        for(j = 0; j < SUPPORT_CARD_NUM; j++) {
+            if(!strcmp(control_card_info_get_name(imx_control), audio_card_list[j]->name)){
+                adev->card_list[i]  = audio_card_list[j];
+                adev->mixer[i] = mixer_open(i);
+                if (!adev->mixer[i]) {
+                    free(adev);
+                    LOGE("Unable to open the mixer, aborting.");
+                    return -EINVAL;
+                }
+                found = true;
+            }
         }
-        if(!strcmp(control_card_info_get_name(imx_control), CARD_IMX_HDMI)){
-            adev->vice_card = i;
-            found = true;
-        }
+
         control_close(imx_control);
         if(!found){
             LOGW("unrecognized card found.");
             return -EINVAL;
         }
     }
-    LOGW("main card =%d, vice card =%d",adev->main_card,adev->vice_card);
-    if(adev->main_card >=0 )
-    {
-        adev->mixer = mixer_open(adev->main_card);
-        if (!adev->mixer) {
-            free(adev);
-            LOGE("Unable to open the mixer, aborting.");
-            return -EINVAL;
-        }
-    }
-
-    if(adev->main_card < 0 && adev->vice_card < 0 )
-    {
+    /*must have one card*/
+    if(!adev->card_list[0]) {
         free(adev);
         LOGE("no sound card found, aborting.");
         return  -EINVAL;
     }
+    /*second card maybe null*/
+    if(!adev->card_list[1]) {
+        adev->card_list[1]  = audio_card_list[SUPPORT_CARD_NUM-1];
+        /*FIXME:This is workaround for some board which only have one card, whose supported device only is not full*/
+        adev->card_list[1]->supported_devices  = (AUDIO_DEVICE_OUT_ALL | AUDIO_DEVICE_IN_ALL) &
+                                                 (~adev->card_list[0]->supported_devices);
+    }
+
     /* Set the default route before the PCM stream is opened */
     pthread_mutex_lock(&adev->lock);
-    set_route_by_array(adev->mixer, defaults, 1);
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
+        set_route_by_array(adev->mixer[i], adev->card_list[i]->defaults, 1);
     adev->mode    = AUDIO_MODE_NORMAL;
     adev->devices = AUDIO_DEVICE_OUT_SPEAKER | AUDIO_DEVICE_IN_BUILTIN_MIC;
     select_output_device(adev);
@@ -2090,7 +1970,6 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->bluetooth_nrec = true;
     adev->wb_amr = 0;
     pthread_mutex_unlock(&adev->lock);
-
 
     *device = &adev->hw_device.common;
 
@@ -2106,8 +1985,8 @@ struct audio_module HAL_MODULE_INFO_SYM = {
         .tag = HARDWARE_MODULE_TAG,
         .version_major = 1,
         .version_minor = 0,
-        .id = "audio.sabresd_revb",
-        .name = "SABRESD audio HW HAL",
+        .id = "audio.tinyalsa",
+        .name = "tinyalsa audio HW HAL",
         .author = "The Android Open Source Project",
         .methods = &hal_module_methods,
     },
