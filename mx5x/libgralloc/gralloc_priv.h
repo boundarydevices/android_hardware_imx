@@ -32,10 +32,14 @@
 #include <linux/fb.h>
 
 #define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
-#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
+#define  ALIGN_PIXEL_64(x)  ((x+ 63) & ~63)
 /** z430 core need 4k aligned memory, since xres has been 32 aligned, make yres
     to 128 aligned will meet this request for all pixel format (RGB565,RGB888,etc.) */
 #define  ALIGN_PIXEL_128(x)  ((x+ 127) & ~127)
+/** z430 core needs 4k aligned memory for all YUV pixel
+ *  formats */
+#define  ALIGN_PIXEL_4096(x)  ((x+ 4095) & ~4095)
+
 /*****************************************************************************/
 
 struct private_module_t;

@@ -372,22 +372,30 @@ static int gralloc_alloc(alloc_device_t* dev,
             format == HAL_PIXEL_FORMAT_YCbCr_422_SP || format == HAL_PIXEL_FORMAT_YCbCr_420_I ||
             format == HAL_PIXEL_FORMAT_YV12)
     {
+        int luma_size;
+        int chroma_size;
+
         // FIXME: there is no way to return the alignedh
-        alignedw = ALIGN_PIXEL_16(w);
-        alignedh = ALIGN_PIXEL_16(h);
+        // Aligning height and width to 64 forces 4096 alignment of chroma
+        // buffer assuming that the luma starts with 4096 alignment or higher.
+        // This is required for GPU rendering in ICS for iMX5.
+        alignedw = ALIGN_PIXEL_64(w);
+        alignedh = ALIGN_PIXEL_64(h);
+        luma_size = ALIGN_PIXEL_4096(alignedw * alignedh);
         switch (format) {
             case HAL_PIXEL_FORMAT_YCbCr_422_SP:
             case HAL_PIXEL_FORMAT_YCbCr_422_I:
-                size = alignedw * alignedh * 2;
+                chroma_size = ALIGN_PIXEL_4096( (alignedw * alignedh) / 2) * 2;
                 break;
             case HAL_PIXEL_FORMAT_YCbCr_420_SP:
             case HAL_PIXEL_FORMAT_YCbCr_420_I:
             case HAL_PIXEL_FORMAT_YV12:
-                size = (alignedw * alignedh) + (w/2 * h/2) * 2;
+                chroma_size = ALIGN_PIXEL_4096(alignedw/2 * alignedh/2) * 2;
                 break;
             default:
                 return -EINVAL;
         }
+        size = luma_size + chroma_size;
     } else {
         alignedw = ALIGN_PIXEL(w);
         alignedh = ALIGN_PIXEL(h);
