@@ -55,22 +55,9 @@ LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := audio.sabresd_reva.freescale
+LOCAL_MODULE := audio.tinyalsa.freescale
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SRC_FILES := tinyalsa_sabresd_reva.c
-LOCAL_C_INCLUDES += \
-	external/tinyalsa/include \
-	system/media/audio_utils/include \
-	system/media/audio_effects/include
-LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa libaudioutils libdl
-LOCAL_MODULE_TAGS := optional
-include $(BUILD_SHARED_LIBRARY)
-
-
-include $(CLEAR_VARS)
-LOCAL_MODULE := audio.sabresd_revb.freescale
-LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SRC_FILES := tinyalsa_sabresd_revb.c
+LOCAL_SRC_FILES := tinyalsa_hal.c
 LOCAL_C_INCLUDES += \
 	external/tinyalsa/include \
 	system/media/audio_utils/include \
