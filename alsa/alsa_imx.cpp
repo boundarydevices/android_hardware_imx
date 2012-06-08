@@ -690,7 +690,7 @@ void setDefaultControls(uint32_t devices, int mode, const char *cardname)
         if(selecteddevice == DEVICE_SGTL5000)
         {
             if(devices & AudioSystem::DEVICE_IN_BUILTIN_MIC){
-                ctl->set("MIC GAIN","20dB");
+                ctl->set("Mic Volume", 2, 0);
             }
         }
     }
