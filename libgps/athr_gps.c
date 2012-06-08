@@ -1438,7 +1438,7 @@ gps_state_init( GpsState*  state )
      {
         retry_count++;
         state->fd = open( device, O_RDWR | O_NOCTTY | O_NONBLOCK);
-	usleep (100000);
+	usleep (500000);
      } while ((retry_count < 100) && state->fd < 0 && ((errno == EIO) || (errno == EINTR)));
 
     if (state->fd < 0)
@@ -1503,11 +1503,26 @@ Fail:
 static int athr_gps_init(GpsCallbacks* callbacks)
 {
     GpsState*  s = _gps_state;
+    int    retry_count = 200;
+    const char *desired_status = "running";
+    char value[PROPERTY_VALUE_MAX] = {'\0'};
 
     s->callbacks = *callbacks;
     if (property_set("ctl.start", "ing") < 0) {
         LOGE("Failed to start ing");
         return -1;
+    }
+
+    while (retry_count-- > 0) {
+        usleep(200000);
+        if (property_get("init.svc.ing", value, NULL)) {
+            if (strcmp(value, desired_status) == 0) {
+                LOGE("ing service is running\r\n");
+                break;
+            }
+            else
+                LOGE("ing service is not running\r\n");
+        }
     }
 
     gps_state_init(s);
