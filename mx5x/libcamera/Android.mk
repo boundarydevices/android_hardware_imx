@@ -57,7 +57,7 @@ ifeq ($(HAVE_FSL_IMX_CODEC),true)
     LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux
     LOCAL_CPPFLAGS += -DUSE_FSL_JPEG_ENC
     LOCAL_C_INCLUDES +=	\
-					device/fsl/proprietary/codec/ghdr
+         device/fsl-proprietary/codec/ghdr
 endif
 ifeq ($(BOARD_CAMERA_NV12),true)
     LOCAL_CPPFLAGS += -DRECORDING_FORMAT_NV12
