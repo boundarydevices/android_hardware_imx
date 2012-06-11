@@ -74,7 +74,7 @@ namespace android {
         mCameraReady(false),
         mCaptureDeviceOpen(false),
         mPPDeviceNeed(false),
-	bDerectInput(false),
+        bDirectInput(false),
         mCameraid(cameraid),
         mPPDeviceNeedForPic(false),
         mPowerLock(false),
@@ -93,6 +93,12 @@ namespace android {
         CloseCaptureDevice();
         FreeInterBuf();
         postDestroy();
+        if(mVideoMemory != NULL) {
+            mVideoMemory->release(mVideoMemory);
+        }
+        if(mPreviewMemory != NULL) {
+            mPreviewMemory->release(mPreviewMemory);
+        }
     }
 
     void CameraHal :: release()
@@ -894,33 +900,42 @@ namespace android {
         return mPreviewRunning;
     }
 
+    //update buffer for direct input in video recorder
+    status_t CameraHal::updateDirectInput(bool bDirect)
+    {
+        unsigned int i;
+        if (bDirect == true) {
+            if (!mPPDeviceNeed){
+                if(mCaptureBufNum <= 0)
+                    CAMERA_HAL_LOG_INFO("mCaptureBuf not allocated yet, will register it later");
+                
+                for(i = 0 ; i < mCaptureBufNum; i ++) {
+                    mVideoBufferPhy[i].phy_offset = mCaptureBuffers[i].phy_offset;
+                    CAMERA_HAL_LOG_INFO("Camera HAL physic address: %x", mCaptureBuffers[i].phy_offset);
+                    mVideoBufferPhy[i].length = mCaptureBuffers[i].length;
+                    memcpy((unsigned char*)mVideoMemory->data + i*mPreviewFrameSize,
+                        (void*)&mVideoBufferPhy[i], sizeof(VIDEOFRAME_BUFFER_PHY));
+                }
+            }else{
+                for(i = 0 ; i < mPPbufNum; i ++) {
+                    mVideoBufferPhy[i].phy_offset = mPPbuf[i].phy_offset;
+                    CAMERA_HAL_LOG_INFO("Camera HAL physic address: %x", mPPbuf[i].phy_offset);
+                    mVideoBufferPhy[i].length = mPPbuf[i].length;
+                    memcpy((unsigned char*)mVideoMemory->data + i*mPreviewFrameSize,
+                    (void*)&mVideoBufferPhy[i], sizeof(VIDEOFRAME_BUFFER_PHY));
+                }
+            }
+        }
+
+        return NO_ERROR;
+    }
+
     status_t CameraHal::storeMetaDataInBuffers(bool enable)
     {
         CAMERA_HAL_LOG_FUNC;
-        unsigned int i;
-
-	bDerectInput = enable;
-	if (bDerectInput == true) {
-		if (!mPPDeviceNeed){
-			for(i = 0 ; i < mCaptureBufNum; i ++) {
-				mVideoBufferPhy[i].phy_offset = mCaptureBuffers[i].phy_offset;
-				CAMERA_HAL_LOG_INFO("Camera HAL physic address: %p", mCaptureBuffers[i].phy_offset);
-				mVideoBufferPhy[i].length = mCaptureBuffers[i].length;
-				memcpy((unsigned char*)mVideoMemory->data + i*mPreviewFrameSize,
-						(void*)&mVideoBufferPhy[i], sizeof(VIDEOFRAME_BUFFER_PHY));
-			}
-		}else{
-			for(i = 0 ; i < mPPbufNum; i ++) {
-				mVideoBufferPhy[i].phy_offset = mPPbuf[i].phy_offset;
-				CAMERA_HAL_LOG_INFO("Camera HAL physic address: %p", mPPbuf[i].phy_offset);
-				mVideoBufferPhy[i].length = mPPbuf[i].length;
-				memcpy((unsigned char*)mVideoMemory->data + i*mPreviewFrameSize,
-						(void*)&mVideoBufferPhy[i], sizeof(VIDEOFRAME_BUFFER_PHY));
-			}
-		}
-	}
-
-	return NO_ERROR;
+        bDirectInput = enable;
+        updateDirectInput(enable);
+        return NO_ERROR;
     }
 #if 0
     int32_t CameraHal::getNumberOfVideoBuffers() const
@@ -958,7 +973,7 @@ namespace android {
         }
         
            
-        if (bDerectInput == true) {
+        if (bDirectInput == true) {
             for(i = 0; i < mVideoBufNume; i++) {
                 mVideoBufferUsing[i] = 0;
             }
@@ -992,7 +1007,7 @@ namespace android {
         index = ((size_t)mem - (size_t)mVideoMemory->data) / mPreviewFrameSize;
         mVideoBufferUsing[index] = 0;
 
-        if (bDerectInput == true) {
+        if (bDirectInput == true) {
             if(mCaptureBuffers[index].refCount == 0) {
                 CAMERA_HAL_ERR("warning:%s about to release mCaptureBuffers[%d].refcount=%d-", __FUNCTION__, index, mCaptureBuffers[index].refCount);
                 return;
@@ -1668,7 +1683,10 @@ Pic_out:
             CAMERA_HAL_LOG_INFO("%s :capture run", __FUNCTION__);
             mCaptureThreadQueue.postStopMessage();
             mCaptureRunning = false;
-            sem_wait(&mCaptureStoppedCondition);
+            if(gettid()!= mCaptureFrameThread->mTID)
+                sem_wait(&mCaptureStoppedCondition);
+            else
+                CAMERA_HAL_LOG_INFO("Stop CaptureFrameThread in itself");
         }else {
             CAMERA_HAL_LOG_INFO("%s :capture not run", __FUNCTION__);
         }
@@ -1679,7 +1697,10 @@ Pic_out:
         if(mPPDeviceNeed && mPreviewRunning) {
             CAMERA_HAL_LOG_INFO("%s :postprocess run", __FUNCTION__);
             mPostProcessThreadQueue.postStopMessage();
-            sem_wait(&mPostProcessStoppedCondition);
+            if(gettid()!= mPostProcessThread->mTID)
+                sem_wait(&mPostProcessStoppedCondition);
+            else
+                CAMERA_HAL_LOG_INFO("Stop PostProcessThread in itself");
         }
         mPostProcessLock.unlock(); 
 
@@ -1688,7 +1709,10 @@ Pic_out:
             CAMERA_HAL_LOG_INFO("%s :preview run", __FUNCTION__);
             mPreviewThreadQueue.postStopMessage();
             mPreviewRunning = false;
-            sem_wait(&mPreviewStoppedCondition);
+            if(gettid()!= mPreviewShowFrameThread->mTID)
+                sem_wait(&mPreviewStoppedCondition);
+            else
+                CAMERA_HAL_LOG_INFO("Stop PreviewShowThread in itself");
         }else {
             CAMERA_HAL_LOG_INFO("%s :preview not run", __FUNCTION__);
         }
@@ -2166,7 +2190,7 @@ Pic_out:
             }
 #endif                    
     }
-    
+   
     int CameraHal ::previewshowFrameThread()
     {
         //CAMERA_HAL_LOG_FUNC;
@@ -2181,9 +2205,10 @@ Pic_out:
         sp<CMessage> msg = mPreviewThreadQueue.waitMessage();
         if(msg == 0) {
             CAMERA_HAL_ERR("%s: get invalide message", __FUNCTION__);
+            mPreviewRunning = false;
             return BAD_VALUE;            
         }
-                
+
         switch(msg->what) {
             case CMESSAGE_TYPE_NORMAL:
                 display_index = msg->arg0;
@@ -2223,7 +2248,13 @@ Pic_out:
                     if (mEnqueuedBufs <= 2) {
                         return NO_ERROR;
                     }
-                } 
+                }
+                else {
+                    mPreviewRunning = false;
+                    mPreviewThreadQueue.clearMessage();
+                    sem_post(&mPreviewStoppedCondition);
+                    return BAD_VALUE;
+                }
 
                 err = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h, &stride);
                 if((err != 0) || buf_h == NULL) {
@@ -2318,7 +2349,7 @@ Pic_out:
 
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
-                    if (bDerectInput == true) {
+                    if (bDirectInput == true) {
 	                    memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
                             (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
                     } else {
@@ -2378,7 +2409,9 @@ Pic_out:
         //    mVideoBuffers[i] = new MemoryBase(mVideoHeap,
         //            mPreviewFrameSize * i, mPreviewFrameSize);
         //}
-
+        
+        //Make sure the buffer been updated for direct input
+        updateDirectInput(bDirectInput);
         return ret;
     }
 
