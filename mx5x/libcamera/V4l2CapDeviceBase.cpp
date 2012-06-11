@@ -269,6 +269,7 @@ namespace android{
                         fd = 0;
                     }
                 }
+                closedir(v4l_dir);
             }
             if (fd > 0){
                 mCameraDevice = fd;
@@ -644,7 +645,7 @@ namespace android{
         cfilledbuffer.index = BufQueIdx;
         ret = ioctl(mCameraDevice, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
-            CAMERA_HAL_ERR("Camera VIDIOC_QBUF failure, ret=%d", ret);
+            CAMERA_HAL_ERR("Camera VIDIOC_DQBUF failure, ret=%d", ret);
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
         mQueuedBufNum ++;
