@@ -369,8 +369,9 @@ static int gralloc_alloc(alloc_device_t* dev,
 
     size_t size, alignedw, alignedh;
     if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || format == HAL_PIXEL_FORMAT_YCbCr_422_I ||
-            format == HAL_PIXEL_FORMAT_YCbCr_422_SP || format == HAL_PIXEL_FORMAT_YCbCr_420_I ||
-            format == HAL_PIXEL_FORMAT_YV12)
+        format == HAL_PIXEL_FORMAT_YCbCr_422_SP || format == HAL_PIXEL_FORMAT_YCbCr_420_I ||
+        format == HAL_PIXEL_FORMAT_YV12         || format == HAL_PIXEL_FORMAT_YCbCr_420_P ||
+        format == HAL_PIXEL_FORMAT_YCbCr_422_P)
     {
         int luma_size;
         int chroma_size;
@@ -385,10 +386,12 @@ static int gralloc_alloc(alloc_device_t* dev,
         switch (format) {
             case HAL_PIXEL_FORMAT_YCbCr_422_SP:
             case HAL_PIXEL_FORMAT_YCbCr_422_I:
+            case HAL_PIXEL_FORMAT_YCbCr_422_P:
                 chroma_size = ALIGN_PIXEL_4096( (alignedw * alignedh) / 2) * 2;
                 break;
             case HAL_PIXEL_FORMAT_YCbCr_420_SP:
             case HAL_PIXEL_FORMAT_YCbCr_420_I:
+            case HAL_PIXEL_FORMAT_YCbCr_420_P:
             case HAL_PIXEL_FORMAT_YV12:
                 chroma_size = ALIGN_PIXEL_4096(alignedw/2 * alignedh/2) * 2;
                 break;
