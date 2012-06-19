@@ -375,6 +375,11 @@ namespace android{
                 //pTimeFrame->numerator = 1;
                 //pTimeFrame->denominator = 30;
             }
+            else if (capturewidth == 1024 && captureheight == 768) {
+                capturemode = 8;       /* XGA mode */
+                //pTimeFrame->numerator = 1;
+                //pTimeFrame->denominator = 30;
+            }
             else{
                 CAMERA_HAL_ERR("The camera mode is not supported!!!!");
                 return CAPTURE_DEVICE_ERR_BAD_PARAM;
