@@ -110,8 +110,8 @@ struct private_handle_t {
 
     private_handle_t(int fd, int size, int flags) :
         fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
-        base(0), lockState(0), writeOwner(0), phys(0),pid(getpid()),
-        format(0), width(0), height(0)
+        base(0),  phys(0),  format(0), width(0),
+        height(0), pid(getpid()), lockState(0), writeOwner(0)
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
