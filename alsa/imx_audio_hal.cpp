@@ -49,16 +49,12 @@ static int imx_adev_open(const hw_module_t* module, const char* name,
     bool found = false;
 
     /*find the audio hal for different board*/
-    property_get("ro.product.device", value, "");
-
-    if(!strcmp(value, "sabresd_6q") || !strcmp(value, "sabresd_6dl") || !strcmp(value, "imx6sl_arm2")) {
-        ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_TINYALSA, &module_audio);
-        if(ret)   found = false;
-        else {
-            ret = module_audio->methods->open(module, AUDIO_HARDWARE_INTERFACE,(struct hw_device_t**)device);
-            if(ret)  found = false;
-            else     found = true;
-        }
+    ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_TINYALSA, &module_audio);
+    if(ret)   found = false;
+    else {
+        ret = module_audio->methods->open(module, AUDIO_HARDWARE_INTERFACE,(struct hw_device_t**)device);
+        if(ret)  found = false;
+        else     found = true;
     }
 
     if(!found) {
