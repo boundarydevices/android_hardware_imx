@@ -141,7 +141,7 @@ static int get_available_mode(int fbid, const char *mode_list)
                                 disp_mode_count ++;
                                 state = CHECK_NEXT_STATE;
                                 p++;
-                if(disp_mode_count >= sizeof(disp_class_list[fbid].disp_mode_list)/sizeof(disp_class_list[fbid].disp_mode_list[0])) goto check_mode_end;
+                if((unsigned int)disp_mode_count >= sizeof(disp_class_list[fbid].disp_mode_list)/sizeof(disp_class_list[fbid].disp_mode_list[0])) goto check_mode_end;
                         }
                         else p++;
                         break;
@@ -197,18 +197,18 @@ set_graphics_fb_mode_error:
     return -1;
 }
 
-int isModeValid(int fb, char* pMode, int len)
+int isModeValid(int fb, const char* pMode, int len)
 {
     int err = 0;
     int i;
 
-        LOGW("----------isModeValid:pMode=%s, len=%d", pMode, len);
+    //LOGW("isModeValid:pMode=%s, len=%d", pMode, len);
     err = read_graphics_fb_mode(fb);
     if(err)
         return 0;
 
     for(i=0; i<disp_class_list[fb].disp_mode_length; i++) {
-        LOGW("----------isModeValid:disp_mode_list[%d].mode=%s", i, disp_class_list[fb].disp_mode_list[i].mode);
+        //LOGW("isModeValid:disp_mode_list[%d].mode=%s", i, disp_class_list[fb].disp_mode_list[i].mode);
         if(!strncmp(disp_class_list[fb].disp_mode_list[i].mode, pMode, len)) {
             return 1;
         }
