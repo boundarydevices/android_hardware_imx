@@ -40,6 +40,8 @@ LOCAL_C_INCLUDES = external/expat/lib
 
 ifeq ($(HAVE_FSL_IMX_IPU),true)
 LOCAL_CFLAGS += -DFSL_IMX_DISPLAY
+else ifeq ($(HAVE_FSL_IMX_GPU),true)
+LOCAL_CFLAGS += -DFSL_IMX_DISPLAY
 endif
 
 LOCAL_MODULE_TAGS := eng
