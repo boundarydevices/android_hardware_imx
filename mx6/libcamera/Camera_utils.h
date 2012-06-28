@@ -16,7 +16,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 
 #ifndef CAMERA_UTILS_H
@@ -27,20 +27,21 @@
 #include <utils/Log.h>
 #include <utils/threads.h>
 
-#define CAMERA_HAL_DEBUG_LOG
 
 #ifdef CAMERA_HAL_DEBUG_LOG
-#define CAMERA_HAL_LOG_RUNTIME(format, ...) LOGI((format), ## __VA_ARGS__)
-#define CAMERA_HAL_LOG_FUNC LOGI("%s is excuting...",  __FUNCTION__)
+#define CAMERA_LOG_RUNTIME(format, ...) LOGI((format), ## __VA_ARGS__)
+#define CAMERA_LOG_FUNC LOGI("%s is excuting...",  __FUNCTION__)
+#define CAMERA_LOG_TRACE   LOGI("%s : %d", __FUNCTION__,__LINE__)
 #else
-#define CAMERA_HAL_LOG_RUNTIME(format, ...) 
-#define CAMERA_HAL_LOG_FUNC
+#define CAMERA_LOG_RUNTIME(format, ...) 
+#define CAMERA_LOG_FUNC
+#define CAMERA_LOG_TRACE
 #endif
 
-#define CAMERA_HAL_LOG_TRACE   LOGI("%s : %d", __FUNCTION__,__LINE__)
-#define CAMERA_HAL_LOG_INFO(format, ...) LOGI((format), ## __VA_ARGS__)
+#define CAMERA_LOG_INFO(format, ...) LOGI((format), ## __VA_ARGS__)
+#define CAMERA_LOG_WARN(format, ...) LOGW((format), ## __VA_ARGS__)
+#define CAMERA_LOG_ERR(format, ...) LOGE((format), ##__VA_ARGS__)
 
-#define CAMERA_HAL_ERR(format, ...) LOGE((format), ##__VA_ARGS__)
 namespace android {
 
     typedef enum{
