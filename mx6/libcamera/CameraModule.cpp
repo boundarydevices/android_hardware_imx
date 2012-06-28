@@ -62,7 +62,6 @@ camera_module_t HAL_MODULE_INFO_SYM = {
 
 typedef struct fsl_camera_device {
     camera_device_t base;
-    /* TI specific "private" data can go here (base.priv) */
     int cameraid;
 } fsl_camera_device_t;
 
