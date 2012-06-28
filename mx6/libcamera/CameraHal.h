@@ -15,6 +15,10 @@
  * limitations under the License.
  */
 
+/*
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ */
+
 #ifndef CAMERA_HAL_BASE_H
 #define CAMERA_HAL_BASE_H
 
@@ -70,7 +74,7 @@ namespace android {
         CAMERA_HAL_ERR_INIT = -5,
         CAMERA_HAL_ERR_ALLOC_BUF =-6,
         CAMERA_HAL_ERR_PP_NULL = -7
-    }CAMERA_HAL_ERR_RET;
+    }CAMERA_HAL_RET;
 
 	typedef enum{
         CAMERA_PREVIEW_BACK_REF = 0,
@@ -128,10 +132,10 @@ namespace android {
                 int32_t arg2);
         virtual void release();
 
-        CAMERA_HAL_ERR_RET setCaptureDevice(sp<CaptureDeviceInterface> capturedevice);
-        CAMERA_HAL_ERR_RET setPostProcessDevice(sp<PostProcessDeviceInterface> postprocessdevice);
-        CAMERA_HAL_ERR_RET setJpegEncoder(sp<JpegEncoderInterface>jpegencoder);
-        CAMERA_HAL_ERR_RET  Init();
+        CAMERA_HAL_RET setCaptureDevice(sp<CaptureDeviceInterface> capturedevice);
+        CAMERA_HAL_RET setPostProcessDevice(sp<PostProcessDeviceInterface> postprocessdevice);
+        CAMERA_HAL_RET setJpegEncoder(sp<JpegEncoderInterface>jpegencoder);
+        CAMERA_HAL_RET  Init();
         void  setPreviewRotate(CAMERA_PREVIEW_ROTATE previewRotate);
 
         CameraHal(int cameraid);
@@ -247,13 +251,13 @@ namespace android {
         status_t OpenCaptureDevice();
         void CloseCaptureDevice();
 
-        CAMERA_HAL_ERR_RET AolLocForInterBuf();
+        CAMERA_HAL_RET AolLocForInterBuf();
         void  FreeInterBuf();
-        CAMERA_HAL_ERR_RET InitCameraHalParam();
-        CAMERA_HAL_ERR_RET InitCameraBaseParam(CameraParameters *pParam);
-        CAMERA_HAL_ERR_RET InitPictureExifParam(CameraParameters *pParam);
-        CAMERA_HAL_ERR_RET CameraMiscInit();
-        CAMERA_HAL_ERR_RET CameraMiscDeInit();
+        CAMERA_HAL_RET InitCameraHalParam();
+        CAMERA_HAL_RET InitCameraBaseParam(CameraParameters *pParam);
+        CAMERA_HAL_RET InitPictureExifParam(CameraParameters *pParam);
+        CAMERA_HAL_RET CameraMiscInit();
+        CAMERA_HAL_RET CameraMiscDeInit();
         status_t CameraHALPreviewStart();
         int captureframeThread();
         int postprocessThread();
@@ -302,7 +306,7 @@ namespace android {
         status_t convertPreviewFormatToString(char *pStr, int length, unsigned int format);
         status_t putBufferCount(DMA_BUFFER *pBuf);
         void getBufferCount(DMA_BUFFER *pBuf);
-        CAMERA_HAL_ERR_RET InitCameraPreviewFormatToParam(int nFmt);
+        CAMERA_HAL_RET InitCameraPreviewFormatToParam(int nFmt);
 
         CMessageQueue mCaptureThreadQueue;
         CMessageQueue mPreviewThreadQueue;

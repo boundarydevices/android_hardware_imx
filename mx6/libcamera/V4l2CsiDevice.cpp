@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 #include <string.h>
 #include <unistd.h>
@@ -49,8 +49,8 @@ namespace android{
     }
 
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2Open(int cameraId){
-        CAMERA_HAL_LOG_FUNC;
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2Open(int cameraId){
+        CAMERA_LOG_FUNC;
         int fd = 0, i, j, is_found = 0;
         const char *flags[] = {"uncompressed", "compressed"};
 
@@ -60,21 +60,21 @@ namespace android{
         struct v4l2_dbg_chip_ident vid_chip;
         struct v4l2_fmtdesc vid_fmtdesc;
         struct v4l2_frmsizeenum vid_frmsize;
-        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
 
         if(mCameraDevice > 0)
             return CAPTURE_DEVICE_ERR_ALRADY_OPENED;
 
 #ifdef V4L2_CAMERA_SWITCH
         if (mCaptureDeviceName[0] != '#'){
-            CAMERA_HAL_LOG_RUNTIME("already get the device name %s", mCaptureDeviceName);
+            CAMERA_LOG_RUNTIME("already get the device name %s", mCaptureDeviceName);
             mCameraDevice = open(mCaptureDeviceName, O_RDWR, O_NONBLOCK);
             if (mCameraDevice < 0)
                 return CAPTURE_DEVICE_ERR_OPEN;
             ret = V4l2SetSensor(cameraId);
         }
         else{
-            CAMERA_HAL_LOG_RUNTIME("deviceName is %s", mInitalDeviceName);
+            CAMERA_LOG_RUNTIME("deviceName is %s", mInitalDeviceName);
             v4l_dir = opendir("/sys/class/video4linux");
             if (v4l_dir){
                 while((dir_entry = readdir(v4l_dir))) {
@@ -84,14 +84,14 @@ namespace android{
                     sprintf(dev_node, "/dev/%s", dir_entry->d_name);
                     if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0)
                         continue;
-                    CAMERA_HAL_LOG_RUNTIME("dev_node is %s", dev_node);
+                    CAMERA_LOG_RUNTIME("dev_node is %s", dev_node);
 
                     if (fd > 0){
                         mCameraDevice = fd;
                         ret = V4l2SetSensor(cameraId);
                     }
                     else{
-                        CAMERA_HAL_ERR("The device name is not correct or the device is error");
+                        CAMERA_LOG_ERR("The device name is not correct or the device is error");
                         return CAPTURE_DEVICE_ERR_OPEN;
                     }
 
@@ -103,8 +103,8 @@ namespace android{
                         is_found = 1;
                         strcpy(mCaptureDeviceName, dev_node);
                         strcpy(mInitalDeviceName, vid_chip.match.name);
-                        CAMERA_HAL_LOG_INFO("device name is %s", mCaptureDeviceName);
-                        CAMERA_HAL_LOG_INFO("sensor name is %s", mInitalDeviceName);
+                        CAMERA_LOG_INFO("device name is %s", mCaptureDeviceName);
+                        CAMERA_LOG_INFO("sensor name is %s", mInitalDeviceName);
                         break;
                     } else{
                         close(fd);
@@ -118,7 +118,7 @@ namespace android{
                 ret = V4l2SetSensor(cameraId);
             }
             else{
-                CAMERA_HAL_ERR("The device name is not correct or the device is error");
+                CAMERA_LOG_ERR("The device name is not correct or the device is error");
                 return CAPTURE_DEVICE_ERR_OPEN;
             }
         }
@@ -126,32 +126,32 @@ namespace android{
         memset((void *)dev_node, 0, CAMAERA_FILENAME_LENGTH);
         sprintf(dev_node, "/dev/video%d", cameraId);
         if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0) {
-            CAMERA_HAL_ERR("dev_node %s:cannot be opened", dev_node);
+            CAMERA_LOG_ERR("dev_node %s:cannot be opened", dev_node);
             return CAPTURE_DEVICE_ERR_OPEN;
         }
 
         if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
             close(fd);
-            CAMERA_HAL_ERR("dev_node %s:cannot get sensor name", dev_node);
+            CAMERA_LOG_ERR("dev_node %s:cannot get sensor name", dev_node);
             return CAPTURE_DEVICE_ERR_OPEN;
         }
         strcpy(mCaptureDeviceName, dev_node);
         strcpy(mInitalDeviceName, vid_chip.match.name);
-        CAMERA_HAL_LOG_INFO("device name is %s", mCaptureDeviceName);
-        CAMERA_HAL_LOG_INFO("sensor name is %s", mInitalDeviceName);
+        CAMERA_LOG_INFO("device name is %s", mCaptureDeviceName);
+        CAMERA_LOG_INFO("sensor name is %s", mInitalDeviceName);
         mCameraDevice = fd;
 #endif
         return ret; 
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2SetSensor(int cameraId)
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2SetSensor(int cameraId)
     {
-        CAMERA_HAL_LOG_FUNC;
-        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
-        CAMERA_HAL_LOG_INFO("-----set camera sensor %d-----", cameraId);
+        CAMERA_LOG_FUNC;
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        CAMERA_LOG_INFO("-----set camera sensor %d-----", cameraId);
 #ifdef V4L2_CAMERA_SWITCH
         if(cameraId >= 2) {
-            CAMERA_HAL_ERR("Error: camerId %d is too big", cameraId);
+            CAMERA_LOG_ERR("Error: camerId %d is too big", cameraId);
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
         }
 
@@ -159,20 +159,20 @@ namespace android{
         ctrl.id = V4L2_CID_MXC_SWITCH_CAM;
         ctrl.value = cameraId;
         if (ioctl(mCameraDevice, VIDIOC_S_CTRL, &ctrl) < 0) {
-            CAMERA_HAL_ERR("set ctrl switch camera failed\n");
+            CAMERA_LOG_ERR("set ctrl switch camera failed\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
 #endif
         return ret;
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2EnumFmt(void *retParam){
-        CAMERA_HAL_LOG_FUNC;
-        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2EnumFmt(void *retParam){
+        CAMERA_LOG_FUNC;
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
         unsigned int *pParamVal = (unsigned int *)retParam;
 
         if (mFmtParamIdx < ENUM_SUPPORTED_FMT){
-            CAMERA_HAL_LOG_RUNTIME("vid_fmtdesc.pixelformat is %x", mSupportedFmt[mFmtParamIdx]);
+            CAMERA_LOG_RUNTIME("vid_fmtdesc.pixelformat is %x", mSupportedFmt[mFmtParamIdx]);
             *pParamVal = mSupportedFmt[mFmtParamIdx];
             mFmtParamIdx ++;
             ret = CAPTURE_DEVICE_ERR_ENUM_CONTINUE;
@@ -183,15 +183,15 @@ namespace android{
         return ret;
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2EnumSizeFps(void *retParam){
-        CAMERA_HAL_LOG_FUNC;
-        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2EnumSizeFps(void *retParam){
+        CAMERA_LOG_FUNC;
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
         struct v4l2_frmsizeenum vid_frmsize;
 
         struct capture_config_t *pCapCfg =(struct capture_config_t *) retParam;
         memset(&vid_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
         vid_frmsize.index = mSizeFPSParamIdx;
-        CAMERA_HAL_LOG_RUNTIME("the query for size fps fmt is %x",pCapCfg->fmt);
+        CAMERA_LOG_RUNTIME("the query for size fps fmt is %x",pCapCfg->fmt);
         vid_frmsize.pixel_format = pCapCfg->fmt;
         if (ioctl(mCameraDevice, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize) != 0){
             mSizeFPSParamIdx = 0;
@@ -199,7 +199,7 @@ namespace android{
         }else{
             //hardcode here for ov3640
             if (strstr(mInitalDeviceName, "3640") != NULL){
-                CAMERA_HAL_LOG_INFO("the sensor  is  mInitalDeviceName");
+                CAMERA_LOG_INFO("the sensor  is  mInitalDeviceName");
                 if (vid_frmsize.discrete.width == 1024 && vid_frmsize.discrete.height == 768){
                     mSizeFPSParamIdx ++;
                     vid_frmsize.index = mSizeFPSParamIdx;
@@ -209,7 +209,7 @@ namespace android{
                     }
                 }
             }
-            CAMERA_HAL_LOG_RUNTIME("in %s the w %d, h %d", __FUNCTION__,vid_frmsize.discrete.width, vid_frmsize.discrete.height);
+            CAMERA_LOG_RUNTIME("in %s the w %d, h %d", __FUNCTION__,vid_frmsize.discrete.width, vid_frmsize.discrete.height);
             pCapCfg->width  = vid_frmsize.discrete.width;
             pCapCfg->height = vid_frmsize.discrete.height;
             if(vid_frmsize.discrete.width > 1280 || vid_frmsize.discrete.height >720){
@@ -225,27 +225,27 @@ namespace android{
         return ret;
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2ConfigInput(struct capture_config_t *pCapcfg)
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2ConfigInput(struct capture_config_t *pCapcfg)
     {
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         int input = 1;
         if (ioctl(mCameraDevice, VIDIOC_S_INPUT, &input) < 0) {
-            CAMERA_HAL_ERR("set input failed");
+            CAMERA_LOG_ERR("set input failed");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2SetConfig(struct capture_config_t *pCapcfg)
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2SetConfig(struct capture_config_t *pCapcfg)
     {
 
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         if (mCameraDevice <= 0 || pCapcfg == NULL){
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
         }
 
-        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         struct v4l2_format fmt;
         struct v4l2_control ctrl;
         struct v4l2_streamparm parm;
@@ -260,7 +260,7 @@ namespace android{
             pCapcfg->tv.numerator = 1;
             pCapcfg->tv.denominator = 30;
         }
-        CAMERA_HAL_LOG_RUNTIME("the fps is %d", pCapcfg->tv.denominator);
+        CAMERA_LOG_RUNTIME("the fps is %d", pCapcfg->tv.denominator);
 
         parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
         parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
@@ -273,8 +273,8 @@ namespace android{
             parm.parm.capture.timeperframe.numerator = 1;
             parm.parm.capture.timeperframe.denominator = 15;
             if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0){
-                CAMERA_HAL_ERR("%s:%d  VIDIOC_S_PARM failed\n", __FUNCTION__,__LINE__);
-                CAMERA_HAL_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator, 
+                CAMERA_LOG_ERR("%s:%d  VIDIOC_S_PARM failed\n", __FUNCTION__,__LINE__);
+                CAMERA_LOG_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator, 
                         parm.parm.capture.timeperframe.denominator);
                 return CAPTURE_DEVICE_ERR_SYS_CALL;
             }
@@ -294,9 +294,9 @@ namespace android{
         fmt.fmt.pix.sizeimage = 0;
 
         if (ioctl(mCameraDevice, VIDIOC_S_FMT, &fmt) < 0) {
-            CAMERA_HAL_ERR("set format failed\n");
-            CAMERA_HAL_ERR("pCapcfg->width is %d, pCapcfg->height is %d", pCapcfg->width, pCapcfg->height);
-            CAMERA_HAL_ERR(" Set the Format :%c%c%c%c\n",
+            CAMERA_LOG_ERR("set format failed\n");
+            CAMERA_LOG_ERR("pCapcfg->width is %d, pCapcfg->height is %d", pCapcfg->width, pCapcfg->height);
+            CAMERA_LOG_ERR(" Set the Format :%c%c%c%c\n",
                     pCapcfg->fmt & 0xFF, (pCapcfg->fmt >> 8) & 0xFF,
                     (pCapcfg->fmt >> 16) & 0xFF, (pCapcfg->fmt >> 24) & 0xFF);
             return CAPTURE_DEVICE_ERR_SYS_CALL;
@@ -304,24 +304,24 @@ namespace android{
 
         fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         if (ioctl(mCameraDevice, VIDIOC_G_FMT, &fmt) < 0) {
-            CAMERA_HAL_ERR("VIDIOC_S_PARM failed\n");
+            CAMERA_LOG_ERR("VIDIOC_S_PARM failed\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }else{
 
-            CAMERA_HAL_LOG_RUNTIME(" Width = %d\n", fmt.fmt.pix.width);
-            CAMERA_HAL_LOG_RUNTIME(" Height = %d \n", fmt.fmt.pix.height);
-            CAMERA_HAL_LOG_RUNTIME(" Image size = %d\n", fmt.fmt.pix.sizeimage);
-            CAMERA_HAL_LOG_RUNTIME(" pixelformat = %x\n", fmt.fmt.pix.pixelformat);
+            CAMERA_LOG_RUNTIME(" Width = %d\n", fmt.fmt.pix.width);
+            CAMERA_LOG_RUNTIME(" Height = %d \n", fmt.fmt.pix.height);
+            CAMERA_LOG_RUNTIME(" Image size = %d\n", fmt.fmt.pix.sizeimage);
+            CAMERA_LOG_RUNTIME(" pixelformat = %x\n", fmt.fmt.pix.pixelformat);
         }
         pCapcfg->framesize = fmt.fmt.pix.sizeimage;
 
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2GetCaptureMode(struct capture_config_t *pCapcfg, 
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2GetCaptureMode(struct capture_config_t *pCapcfg, 
             unsigned int *pMode, struct v4l2_fract *pTimeFrame){
 
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         if (mCameraDevice <= 0 || pCapcfg == NULL){
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
         }
@@ -381,7 +381,7 @@ namespace android{
                 //pTimeFrame->denominator = 30;
             }
             else{
-                CAMERA_HAL_ERR("The camera mode is not supported!!!!");
+                CAMERA_LOG_ERR("The camera mode is not supported!!!!");
                 return CAPTURE_DEVICE_ERR_BAD_PARAM;
             }
         }else if(strstr(mInitalDeviceName, OV3640_NAME_STR) != 0){
@@ -401,26 +401,26 @@ namespace android{
             }
             else
             {
-                CAMERA_HAL_ERR("The camera mode is not supported!!!!");
+                CAMERA_LOG_ERR("The camera mode is not supported!!!!");
                 return CAPTURE_DEVICE_ERR_BAD_PARAM;
             }
         }else{
-            CAMERA_HAL_ERR("The camera sensor %s not configure!!!!", mInitalDeviceName);
+            CAMERA_LOG_ERR("The camera sensor %s not configure!!!!", mInitalDeviceName);
             capturemode = 0;
             pic_waite_buf_num = 0;
         }
 
-        CAMERA_HAL_LOG_INFO("the mode is %d", capturemode);
+        CAMERA_LOG_INFO("camera mode:%d", capturemode);
         *pMode = capturemode;
         pCapcfg->picture_waite_number = pic_waite_buf_num;
 
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
-    CAPTURE_DEVICE_ERR_RET V4l2CsiDevice :: V4l2SetRot(struct capture_config_t *pCapcfg){
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2SetRot(struct capture_config_t *pCapcfg){
 
-        CAMERA_HAL_LOG_FUNC;
-        CAPTURE_DEVICE_ERR_RET ret = CAPTURE_DEVICE_ERR_NONE;
+        CAMERA_LOG_FUNC;
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         if (mCameraDevice <= 0 || pCapcfg == NULL){
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
         }
@@ -441,7 +441,7 @@ namespace android{
             ctrl.value = V4L2_MXC_ROTATE_NONE;
 
         if (ioctl(mCameraDevice, VIDIOC_S_CTRL, &ctrl) < 0) {
-            CAMERA_HAL_ERR("set ctrl failed\n");
+            CAMERA_LOG_ERR("set ctrl failed\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
 

@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 
 #ifndef CAPTURE_DEVICE_INTERFACE_H
@@ -40,7 +40,7 @@ namespace android {
         CAPTURE_DEVICE_ERR_BAD_PARAM  = -5,
         CAPTURE_DEVICE_ERR_SYS_CALL=-6,
         CAPTURE_DEVICE_ERR_UNKNOWN = -100
-    }CAPTURE_DEVICE_ERR_RET;
+    }CAPTURE_DEVICE_RET;
 
     typedef enum{
         MOTION_MODE = 0,
@@ -85,21 +85,21 @@ namespace android {
     class CaptureDeviceInterface : public virtual RefBase{
     public:
 
-        virtual CAPTURE_DEVICE_ERR_RET SetDevName(char * deviceName)=0;
-        virtual CAPTURE_DEVICE_ERR_RET GetDevName(char * deviceName)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevOpen(int cameraId)=0;
-        virtual CAPTURE_DEVICE_ERR_RET EnumDevParam(DevParamType devParamType, void *retParam)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevSetConfig(struct capture_config_t *pCapcfg)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevAllocateBuf(DMA_BUFFER *DevBufQue, unsigned int *pBufQueNum)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevRegisterBufs(DMA_BUFFER *DevBufQue, unsigned int *pBufQueNum)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevPrepare()=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevStart()=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevDequeue(unsigned int *pBufQueIdx)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevQueue(unsigned int BufQueIdx)=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevStop()=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevDeAllocate()=0;
-        virtual CAPTURE_DEVICE_ERR_RET DevClose()=0;
-        virtual CAPTURE_DEVICE_ERR_RET GetDevType(CAMERA_TYPE *pType)=0;
+        virtual CAPTURE_DEVICE_RET SetDevName(char * deviceName)=0;
+        virtual CAPTURE_DEVICE_RET GetDevName(char * deviceName)=0;
+        virtual CAPTURE_DEVICE_RET DevOpen(int cameraId)=0;
+        virtual CAPTURE_DEVICE_RET EnumDevParam(DevParamType devParamType, void *retParam)=0;
+        virtual CAPTURE_DEVICE_RET DevSetConfig(struct capture_config_t *pCapcfg)=0;
+        virtual CAPTURE_DEVICE_RET DevAllocateBuf(DMA_BUFFER *DevBufQue, unsigned int *pBufQueNum)=0;
+        virtual CAPTURE_DEVICE_RET DevRegisterBufs(DMA_BUFFER *DevBufQue, unsigned int *pBufQueNum)=0;
+        virtual CAPTURE_DEVICE_RET DevPrepare()=0;
+        virtual CAPTURE_DEVICE_RET DevStart()=0;
+        virtual CAPTURE_DEVICE_RET DevDequeue(unsigned int *pBufQueIdx)=0;
+        virtual CAPTURE_DEVICE_RET DevQueue(unsigned int BufQueIdx)=0;
+        virtual CAPTURE_DEVICE_RET DevStop()=0;
+        virtual CAPTURE_DEVICE_RET DevDeAllocate()=0;
+        virtual CAPTURE_DEVICE_RET DevClose()=0;
+        virtual CAPTURE_DEVICE_RET GetDevType(CAMERA_TYPE *pType)=0;
 
         virtual ~ CaptureDeviceInterface(){}
     };

@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. 
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 #include "JpegEncoderSoftware.h"
 namespace android{
@@ -23,11 +23,11 @@ namespace android{
     extern "C" sp<JpegEncoderInterface> createJpegEncoder(JPEG_ENCODER_TYPE jpeg_enc_type)
     {
         if (jpeg_enc_type == SOFTWARE_JPEG_ENC){
-            CAMERA_HAL_LOG_INFO("Create the software encoder");
+            CAMERA_LOG_INFO("Create the software encoder");
             return JpegEncoderSoftware::createInstance();
         }
         else{
-            CAMERA_HAL_ERR("the hardware encoder is not supported");
+            CAMERA_LOG_ERR("the hardware encoder is not supported");
             return NULL;
         }
     }
