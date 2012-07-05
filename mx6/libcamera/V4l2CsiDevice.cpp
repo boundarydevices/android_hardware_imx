@@ -260,7 +260,6 @@ namespace android{
             pCapcfg->tv.numerator = 1;
             pCapcfg->tv.denominator = 30;
         }
-        CAMERA_LOG_RUNTIME("the fps is %d", pCapcfg->tv.denominator);
 
         parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
         parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
@@ -280,6 +279,8 @@ namespace android{
             }
         }
 
+        CAMERA_LOG_INFO("Set FPS %d to Capture device",
+                parm.parm.capture.timeperframe.denominator);
 
         fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         fmt.fmt.pix.pixelformat = pCapcfg->fmt;
@@ -335,34 +336,22 @@ namespace android{
             pic_waite_buf_num = 6;
             if (capturewidth == 640 && captureheight == 480) {
                 capturemode = 0;	/* VGA mode */
-                pTimeFrame->numerator = 1;
-                pTimeFrame->denominator = 30;
             }
             else if (capturewidth == 320 && captureheight == 240) {
                 capturemode = 1;	/* QVGA mode */
-                pTimeFrame->numerator = 1;
-                pTimeFrame->denominator = 30;
             }
             else if (capturewidth == 720 && captureheight == 480) {
                 capturemode = 2;	/* PAL mode */
-                pTimeFrame->numerator = 1;
-                pTimeFrame->denominator = 30;
             }
             else if (capturewidth == 720 && captureheight == 576) {
                 capturemode = 3;	/* PAL mode */
-                pTimeFrame->numerator = 1;
-                pTimeFrame->denominator = 30;
             }
             else if (capturewidth == 1280 && captureheight == 720) {
                 capturemode = 4;	/* 720P mode */
-                pTimeFrame->numerator = 1;
-                pTimeFrame->denominator = 30;
             }
             else if (capturewidth == 1920 && captureheight == 1080){
                 pic_waite_buf_num = 3;
                 capturemode = 5;	/* 1080P mode */
-                pTimeFrame->numerator = 1;
-                pTimeFrame->denominator = 15;
             }
             else if (capturewidth == 2592 && captureheight == 1944) {
                 pic_waite_buf_num =3;
@@ -372,13 +361,9 @@ namespace android{
             }
             else if (capturewidth == 176 && captureheight == 144) {
                 capturemode = 7;       /* QCIF mode */
-                //pTimeFrame->numerator = 1;
-                //pTimeFrame->denominator = 30;
             }
             else if (capturewidth == 1024 && captureheight == 768) {
                 capturemode = 8;       /* XGA mode */
-                //pTimeFrame->numerator = 1;
-                //pTimeFrame->denominator = 30;
             }
             else{
                 CAMERA_LOG_ERR("The camera mode is not supported!!!!");
