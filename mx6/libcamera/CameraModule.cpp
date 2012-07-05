@@ -654,7 +654,6 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
         *pFaceFrontOrient = atoi(orientStr);
 
     LOGI("Face Front Camera is %s, orient is %d", pFaceFrontCameraName, *pFaceFrontOrient);
-
 }
 
 int camera_get_number_of_cameras()
