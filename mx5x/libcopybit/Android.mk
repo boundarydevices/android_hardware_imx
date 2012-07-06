@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ifeq (true, false)
-ifeq ($(HAVE_FSL_IMX_GPU),true)
+ifeq ($(HAVE_FSL_IMX_GPU2D),true)
 ifeq ($(BOARD_SOC_CLASS),IMX5X)
 
 LOCAL_PATH := $(call my-dir)
