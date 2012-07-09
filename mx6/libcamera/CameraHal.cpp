@@ -369,9 +369,22 @@ namespace android {
             pictureCnt ++;
 
             //Limite the FPS and resolution for preview setting
-            //Typically only max to 1080p resolution, and minum 15 fps need for preview
+            //Typically only max to 1080p for mipi, 720p for csi,
+            //and minum 15 fps need for preview.
+            unsigned int max_preview_w, max_preview_h;
+            char device_name[CAMAERA_SENSOR_LENGTH];
+            memset(device_name, 0, CAMAERA_SENSOR_LENGTH);
+            mCaptureDevice->GetDevName(device_name);
+            if(strstr(device_name, "mipi")) {
+                max_preview_w = MAX_MIPI_PREVIEW_W;
+                max_preview_h = MAX_MIPI_PREVIEW_H;
+            } else {
+                max_preview_w = MAX_CSI_PREVIEW_W;
+                max_preview_h = MAX_CSI_PREVIEW_H;
+            }
+
             if ((CaptureSizeFps.tv.denominator/CaptureSizeFps.tv.numerator >= 15)&&
-                (CaptureSizeFps.width <= MAX_PREVIEW_W)&&(CaptureSizeFps.height <= MAX_PREVIEW_H)){
+                (CaptureSizeFps.width <= max_preview_w)&&(CaptureSizeFps.height <= max_preview_h)){
                 if (previewCnt == 0)
                     strncpy((char*) mSupportedPreviewSizes, TmpStr, CAMER_PARAM_BUFFER_SIZE);
                 else{
@@ -1113,17 +1126,24 @@ namespace android {
         if (strstr(mCameraSensorName, "uvc") == NULL){
             //according to google's doc getPreviewFrameRate & getPreviewFpsRange should support both.
             // so here just a walkaround, if the app set the FpsRange, will follow this FpsRange.
-            mParameters.getPreviewFpsRange(&min_fps, &max_fps);
-            if (max_fps < 1000 || min_fps < 1000 || max_fps > 33000 || min_fps > 33000){
-                if (mParameters.getPreviewFrameRate() >= 15){
-                    mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
-                    CAMERA_LOG_INFO("Set Capture Fps %d", mParameters.getPreviewFrameRate());
+            if((strstr(mCameraSensorName, "mipi") == NULL)&&
+                (mCaptureDeviceCfg.width == 1920)&&
+                (mCaptureDeviceCfg.height == 1080)) {
+                //Workaround for 1080p setting for csi camera, which only 15fps is valid
+                mCaptureDeviceCfg.tv.denominator = 15;
+            } else {
+                mParameters.getPreviewFpsRange(&min_fps, &max_fps);
+                if (max_fps < 1000 || min_fps < 1000 || max_fps > 33000 || min_fps > 33000){
+                    if (mParameters.getPreviewFrameRate() >= 15){
+                        mCaptureDeviceCfg.tv.denominator = mParameters.getPreviewFrameRate();
+                        CAMERA_LOG_INFO("Set Capture Fps %d", mParameters.getPreviewFrameRate());
+                    }
                 }
-            }
-            else{
-                CAMERA_LOG_INFO("Set Capture Fps Range %d - %d",min_fps, max_fps);
-                actual_fps = min_fps > 15000? 30:15;
-                mCaptureDeviceCfg.tv.denominator = actual_fps;
+                else{
+                    CAMERA_LOG_INFO("Set Capture Fps Range %d - %d",min_fps, max_fps);
+                    actual_fps = min_fps > 15000? 30:15;
+                    mCaptureDeviceCfg.tv.denominator = actual_fps;
+                }
             }
         }else{
                 mCaptureDeviceCfg.tv.denominator = 15;
@@ -1283,7 +1303,7 @@ Pic_out:
                     if (mCaptureSupportedFormat[i] == mEncoderSupportedFormat[j]){
                         mPictureEncodeFormat= mCaptureSupportedFormat[i];
 
-                        CAMERA_LOG_INFO(" Get the mPictureEncodeFormat :%c%c%c%c\n",
+                        CAMERA_LOG_INFO("Get the mPictureEncodeFormat :%c%c%c%c\n",
                                 mPictureEncodeFormat & 0xFF, (mPictureEncodeFormat >> 8) & 0xFF,
                                 (mPictureEncodeFormat >> 16) & 0xFF, (mPictureEncodeFormat >> 24) & 0xFF);
                         break;

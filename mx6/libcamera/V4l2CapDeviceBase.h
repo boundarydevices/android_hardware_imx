@@ -23,10 +23,6 @@
 
 #include "CaptureDeviceInterface.h"
 
-#define CAMAERA_FILENAME_LENGTH     256
-#define MAX_CAPTURE_BUF_QUE_NUM     6
-#define CAMAERA_SENSOR_LENGTH       32
-
 namespace android{
 
     class V4l2CapDeviceBase : public CaptureDeviceInterface{
