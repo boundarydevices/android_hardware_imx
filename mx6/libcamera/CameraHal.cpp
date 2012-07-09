@@ -764,12 +764,23 @@ namespace android {
     {
         CAMERA_LOG_FUNC;
 
+        status_t err;
         //Mutex::Autolock lock(mLock);
         if (mNativeWindow == NULL){
             CAMERA_LOG_ERR("the native window is null!");
             return NO_ERROR;//BAD_VALUE;
         }
-        status_t err = mNativeWindow->set_buffers_geometry(mNativeWindow,
+
+        //Make sure the buffer be phiscal continuous
+        err = mNativeWindow->set_usage(mNativeWindow, 
+                GRALLOC_USAGE_SW_READ_NEVER | GRALLOC_USAGE_HW_TEXTURE);
+        if(err != 0){
+            CAMERA_LOG_ERR("native_window_set_usage failed:%s(%d)",
+                    strerror(-err), -err);
+            return err;
+        }
+
+        err = mNativeWindow->set_buffers_geometry(mNativeWindow,
                 mCaptureDeviceCfg.width, mCaptureDeviceCfg.height,
                 HAL_PIXEL_FORMAT_YCbCr_420_SP);//mCaptureDeviceCfg.fmt);
         if(err != 0){
