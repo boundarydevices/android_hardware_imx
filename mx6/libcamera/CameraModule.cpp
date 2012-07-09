@@ -476,6 +476,8 @@ done:
 #define DEFAULT_ERROR_NAME_str "#"
 #define UVC_NAME "uvc"
 static struct camera_info sCameraInfo[2];
+//Camera_name[0]  for back camera name
+//Camera_name[1]  for front camera name
 static char Camera_name[2][MAX_SENSOR_NAME];
 /*******************************************************************
  * implementation of camera_module functions
@@ -504,7 +506,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
 
     android::Mutex::Autolock lock(gCameraHalDeviceLock);
 
-    LOGI("camera_device open");
+    LOGI("camera_device open: %s", name);
 
     if (name != NULL) {
         cameraid = atoi(name);
@@ -601,10 +603,6 @@ int camera_device_open(const hw_module_t* module, const char* name,
         if (camera->Init() < 0)
             return NULL;
 
-        //now the board has only one csi camera sensor, so just do mirror for it
-        if(strstr(SelectedCameraName, "ov") != NULL){
-            camera->setPreviewRotate(android::CAMERA_PREVIEW_HORIZ_FLIP);
-        }
 
         gCameraHals[cameraid] = camera;
         gCamerasOpen++;
@@ -659,24 +657,19 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
 int camera_get_number_of_cameras()
 {
     int back_orient =0,  front_orient = 0;
-    int back_camera_num = 0, front_camera_num = 0;
+    int camera_num = 0;
     GetCameraPropery(Camera_name[0], Camera_name[1], &back_orient, &front_orient);
     if (Camera_name[0][0] != DEFAULT_ERROR_NAME){
-        sCameraInfo[0].facing = CAMERA_FACING_BACK;
-        sCameraInfo[0].orientation = back_orient;
-        back_camera_num++;
+        sCameraInfo[camera_num].facing = CAMERA_FACING_BACK;
+        sCameraInfo[camera_num].orientation = back_orient;
+        camera_num++;
     }
     if (Camera_name[1][0] != DEFAULT_ERROR_NAME){
-        if(back_camera_num > 0){
-            sCameraInfo[1].facing = CAMERA_FACING_FRONT;
-            sCameraInfo[1].orientation = front_orient;
-        }else{
-	    sCameraInfo[0].facing = CAMERA_FACING_FRONT;
-	    sCameraInfo[0].orientation = front_orient;
-        }
-        front_camera_num ++;
+	    sCameraInfo[camera_num].facing = CAMERA_FACING_FRONT;
+	    sCameraInfo[camera_num].orientation = front_orient;
+        camera_num ++;
     }
-    return (back_camera_num + front_camera_num);					
+    return camera_num;
 
 }
 

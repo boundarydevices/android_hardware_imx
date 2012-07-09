@@ -230,6 +230,7 @@ namespace android{
         DIR *v4l_dir = NULL;
         struct dirent *dir_entry;
         struct v4l2_capability v4l2_cap;
+        struct v4l2_dbg_chip_ident vid_chip;
         struct v4l2_fmtdesc vid_fmtdesc;
         struct v4l2_frmsizeenum vid_frmsize;
         CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
@@ -258,12 +259,21 @@ namespace android{
                         close(fd);
                         fd = 0;
                         continue;
-                    } else if ((strstr((char *)v4l2_cap.driver, mInitalDeviceName) != 0) &&
-                            (v4l2_cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-                        is_found = 1;
-                        strcpy(mCaptureDeviceName, dev_node);
-                        CAMERA_LOG_RUNTIME("device name is %s", mCaptureDeviceName);
-                        break;
+                    } else if (v4l2_cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) {
+                        if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
+                            close(fd);
+                            fd = 0;
+                            CAMERA_LOG_ERR("dev_node %s:cannot get sensor name", dev_node);
+                            continue;
+                        }
+                        CAMERA_LOG_RUNTIME("dev_node: %s, sensor name: %s", 
+                                dev_node, vid_chip.match.name);
+                        if(strstr(vid_chip.match.name, mInitalDeviceName)){
+                            is_found = 1;
+                            strcpy(mInitalDeviceName, vid_chip.match.name);
+                            strcpy(mCaptureDeviceName, dev_node);
+                            break;
+                        }
                     } else {
                         close(fd);
                         fd = 0;
@@ -279,6 +289,8 @@ namespace android{
                 return CAPTURE_DEVICE_ERR_OPEN;
             }
         }
+        CAMERA_LOG_INFO("device name is %s", mCaptureDeviceName);
+        CAMERA_LOG_INFO("sensor name is %s", mInitalDeviceName);
         return ret; 
     }
 
