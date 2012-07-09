@@ -25,6 +25,10 @@
 #include "Camera_utils.h"
 
 
+#define CAMAERA_FILENAME_LENGTH     256
+#define MAX_CAPTURE_BUF_QUE_NUM     6
+#define CAMAERA_SENSOR_LENGTH       32
+
 namespace android {
 #define UVC_NAME_STRING "uvc"
 
