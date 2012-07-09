@@ -160,12 +160,45 @@ check_mode_end:
     return 0;
 }
 
+static disp_mode g_config_mode[32];
+static int g_config_len = 0;
+static int read_mode_finished = 0;
+
 static int read_graphics_fb_mode(int fb)
 {
     int size=0;
     int fp_modes=0;
     char fb_modes[1024];
     char temp_name[256];
+
+    if (g_config_len == 0) {
+        char conf_modes[1024];
+        //int size;
+        memset(conf_modes, 0, sizeof(conf_modes));
+        memset(&g_config_mode[0], 0, sizeof(g_config_mode));
+        int fd = open("/system/etc/display_mode.conf", O_RDONLY, 0);
+        if(fd < 0) {
+            LOGE("Warning: /system/etc/display_mode.conf not defined");
+        }
+        else {
+            size = read(fd, conf_modes, sizeof(conf_modes));
+            if(size > 0) {
+                char* m_start = conf_modes;
+                int m_len = 0;
+                char *pmode = conf_modes;
+                while(*pmode != '\0') {
+                    if (*pmode == '\n') {
+                        m_len = pmode - m_start + 1;
+                        strncpy(g_config_mode[g_config_len].mode, m_start, m_len);
+                        g_config_len ++;
+                        m_start = pmode + 1;
+                    }
+                    pmode ++;
+                }//while
+            }
+            close(fd);
+        }//else
+    }
 
     sprintf(temp_name, "/sys/class/graphics/fb%d/modes", fb);
     fp_modes = open(temp_name,O_RDONLY, 0);
@@ -188,6 +221,7 @@ static int read_graphics_fb_mode(int fb)
 
     get_available_mode(fb, fb_modes);
 
+    read_mode_finished = 1;
     return 0;
 
 set_graphics_fb_mode_error:
@@ -203,9 +237,11 @@ int isModeValid(int fb, const char* pMode, int len)
     int i;
 
     //LOGW("isModeValid:pMode=%s, len=%d", pMode, len);
-    err = read_graphics_fb_mode(fb);
-    if(err)
-        return 0;
+    if(read_mode_finished == 0) {
+        err = read_graphics_fb_mode(fb);
+        if(err)
+            return 0;
+    }
 
     for(i=0; i<disp_class_list[fb].disp_mode_length; i++) {
         //LOGW("isModeValid:disp_mode_list[%d].mode=%s", i, disp_class_list[fb].disp_mode_list[i].mode);
@@ -217,4 +253,22 @@ int isModeValid(int fb, const char* pMode, int len)
     return 0;
 }
 
+char* getHighestMode(int fb)
+{
+    int i = 0;
+
+    if(read_mode_finished == 0) {
+        read_graphics_fb_mode(fb);
+    }
+
+    if(g_config_len > 0) {
+        for(i = 0; i<g_config_len; i++) {
+            if(isModeValid(fb, g_config_mode[i].mode, strlen(g_config_mode[i].mode)))
+                break;
+        }
+        return g_config_mode[i].mode;
+    }
+
+    return disp_class_list[fb].disp_mode_list[i].mode;
+}
 

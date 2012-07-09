@@ -76,6 +76,7 @@ struct fb_context_t {
 
 static int nr_framebuffers;
 static XmlTool* g_xmltool = NULL;
+static int primary_display_type = 0;
 
 sem_t * fslwatermark_sem_open()
 {
@@ -223,6 +224,7 @@ static int fb_compositionComplete(struct framebuffer_device_t* dev)
 
 /*****************************************************************************/
 extern int isModeValid(int fb, const char* pMode, int len);
+extern char* getHighestMode(int fb);
 
 static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColordepth)
 {
@@ -236,6 +238,17 @@ static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColorde
 
     //the primary display
     if(fb == 0){
+        memset(temp_name, 0, sizeof(temp_name));
+        fd_mode = open("/sys/class/graphics/fb0/fsl_disp_dev_property", O_RDONLY, 0);
+        if(fd_mode > 0 && (size = read(fd_mode, temp_name, sizeof(temp_name))) > 0) {
+            LOGI("primary display name %s", temp_name);
+            if(strstr(temp_name, "hdmi")) primary_display_type = 1;
+            else primary_display_type = 0;
+            close(fd_mode);
+        } else {
+            LOGI("open or read /sys/class/graphics/fb0/fsl_disp_dev_property failed");
+        }
+
         if(g_xmltool == NULL) {
             g_xmltool = new XmlTool(FSL_SETTINGS_PREFERENCE);
             if(g_xmltool == NULL) {
@@ -246,11 +259,23 @@ static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColorde
 
         *pColordepth = g_xmltool->getInt(FSL_PREFERENCE_COLORDEPTH, 0);
         LOGI("colordepth is %d", *pColordepth);
-        String8 dispMode = g_xmltool->getString(FSL_PREFERENCE_MODE, String8("0"));
+        String8 dispMode = g_xmltool->getString(FSL_PREFERENCE_MODE, String8(FSL_PREFERENCE_MODE_DEFAULT));
         disp_mode = dispMode.string();
-        if(!isModeValid(fb, disp_mode, strlen(disp_mode))) {
+        if(!strcmp(disp_mode, FSL_PREFERENCE_MODE_DEFAULT)) {
+            disp_mode = getHighestMode(fb);
+            memset(fb_mode, 0, sizeof(fb_mode));
+            strcpy(fb_mode, disp_mode);
+        }
+        else if(!isModeValid(fb, disp_mode, strlen(disp_mode))) {
             LOGI("Warning: display %d does not support mode: %s", fb, disp_mode);
+            delete g_xmltool;
+            g_xmltool = NULL;
             return -1;
+        }
+        else {
+            memset(fb_mode, 0, sizeof(fb_mode));
+            strcpy(fb_mode, disp_mode);
+            fb_mode[strlen(disp_mode)] = '\n';
         }
         LOGI("disp_mode is %s", disp_mode);
         memset(temp_name, 0, sizeof(temp_name));
@@ -261,11 +286,7 @@ static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColorde
             return -1;
         }
 
-        memset(fb_mode, 0, sizeof(fb_mode));
-        strcpy(fb_mode, disp_mode);
-        fb_mode[strlen(disp_mode)] = '\n';
-
-        write(fd_mode, fb_mode, strlen(disp_mode) + 1);
+        write(fd_mode, fb_mode, strlen(fb_mode));
         close(fd_mode);
         delete g_xmltool;
         g_xmltool = NULL;
@@ -299,7 +320,7 @@ static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColorde
     size = write(fd_mode, fb_mode, n + 2);
     if(size <= 0)
     {
-        LOGI("Error %d %s! Cannot write %s", errno, strerror(errno), temp_name);
+        LOGI("Error %d %s! Cannot write %s=%s", errno, strerror(errno), temp_name, fb_mode);
     }
 
     close(fd_mode);
@@ -730,6 +751,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
         *device = &dev->device.common;
         fbdev = (framebuffer_device_t*) *device;
         fbdev->reserved[0] = nr_framebuffers;
+        fbdev->reserved[1] = primary_display_type;
     } 
 
     return status;
