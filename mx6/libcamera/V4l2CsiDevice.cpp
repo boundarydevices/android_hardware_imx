@@ -49,6 +49,7 @@ namespace android{
     }
 
 
+#ifdef V4L2_CAMERA_SWITCH
     CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2Open(int cameraId){
         CAMERA_LOG_FUNC;
         int fd = 0, i, j, is_found = 0;
@@ -62,10 +63,12 @@ namespace android{
         struct v4l2_frmsizeenum vid_frmsize;
         CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
 
+        LOGI("%s: mInitalDeviceName %s, cameraId %d, mCaptureDeviceName %s",
+                __func__, mInitalDeviceName, cameraId, mCaptureDeviceName);
+
         if(mCameraDevice > 0)
             return CAPTURE_DEVICE_ERR_ALRADY_OPENED;
 
-#ifdef V4L2_CAMERA_SWITCH
         if (mCaptureDeviceName[0] != '#'){
             CAMERA_LOG_RUNTIME("already get the device name %s", mCaptureDeviceName);
             mCameraDevice = open(mCaptureDeviceName, O_RDWR, O_NONBLOCK);
@@ -86,15 +89,6 @@ namespace android{
                         continue;
                     CAMERA_LOG_RUNTIME("dev_node is %s", dev_node);
 
-                    if (fd > 0){
-                        mCameraDevice = fd;
-                        ret = V4l2SetSensor(cameraId);
-                    }
-                    else{
-                        CAMERA_LOG_ERR("The device name is not correct or the device is error");
-                        return CAPTURE_DEVICE_ERR_OPEN;
-                    }
-
                     if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
                         close(fd);
                         fd = 0;
@@ -113,6 +107,7 @@ namespace android{
                 }
                 closedir(v4l_dir);
             }
+
             if (fd > 0){
                 mCameraDevice = fd;
                 ret = V4l2SetSensor(cameraId);
@@ -122,25 +117,6 @@ namespace android{
                 return CAPTURE_DEVICE_ERR_OPEN;
             }
         }
-#else
-        memset((void *)dev_node, 0, CAMAERA_FILENAME_LENGTH);
-        sprintf(dev_node, "/dev/video%d", cameraId);
-        if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0) {
-            CAMERA_LOG_ERR("dev_node %s:cannot be opened", dev_node);
-            return CAPTURE_DEVICE_ERR_OPEN;
-        }
-
-        if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
-            close(fd);
-            CAMERA_LOG_ERR("dev_node %s:cannot get sensor name", dev_node);
-            return CAPTURE_DEVICE_ERR_OPEN;
-        }
-        strcpy(mCaptureDeviceName, dev_node);
-        strcpy(mInitalDeviceName, vid_chip.match.name);
-        CAMERA_LOG_INFO("device name is %s", mCaptureDeviceName);
-        CAMERA_LOG_INFO("sensor name is %s", mInitalDeviceName);
-        mCameraDevice = fd;
-#endif
         return ret; 
     }
 
@@ -149,7 +125,6 @@ namespace android{
         CAMERA_LOG_FUNC;
         CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         CAMERA_LOG_INFO("-----set camera sensor %d-----", cameraId);
-#ifdef V4L2_CAMERA_SWITCH
         if(cameraId >= 2) {
             CAMERA_LOG_ERR("Error: camerId %d is too big", cameraId);
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
@@ -162,9 +137,9 @@ namespace android{
             CAMERA_LOG_ERR("set ctrl switch camera failed\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         }
-#endif
         return ret;
     }
+#endif
 
     CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2EnumFmt(void *retParam){
         CAMERA_LOG_FUNC;
