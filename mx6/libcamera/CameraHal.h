@@ -66,8 +66,10 @@
 #define DEFAULT_PREVIEW_FPS (15)
 #define DEFAULT_PREVIEW_W   (640)
 #define DEFAULT_PREVIEW_H   (480)
-#define MAX_PREVIEW_W       (1920)
-#define MAX_PREVIEW_H       (1080)
+#define MAX_MIPI_PREVIEW_W       (1920)
+#define MAX_MIPI_PREVIEW_H       (1080)
+#define MAX_CSI_PREVIEW_W       (1280)
+#define MAX_CSI_PREVIEW_H       (720)
 #define DEFAULT_PICTURE_W   (640)
 #define DEFAULT_PICTURE_H   (480)
 
