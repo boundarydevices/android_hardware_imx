@@ -280,7 +280,12 @@ namespace android {
         //Make sure all thread been exit, in case they still
         //access the message queue
         mCaptureFrameThread->requestExitAndWait();
+
+        //Post Quite message to make sure the thread can be exited
+        //In case mCaptureFrameThread not been started yet in CTS test
+        mPreviewThreadQueue.postQuitMessage();
         mPreviewShowFrameThread->requestExitAndWait();
+        mEncodeThreadQueue.postQuitMessage();
         mEncodeFrameThread->requestExitAndWait();
         mTakePicThread->requestExitAndWait();
         pthread_mutex_destroy(&mPPIOParamMutex);
@@ -2018,7 +2023,6 @@ Pic_out:
 
         switch(msg->what) {
             case CMESSAGE_TYPE_NORMAL:
-
                 ret = mCaptureDevice->DevDequeue(&bufIndex);
                 //handle the error return.
                 if(ret < 0) {
@@ -2050,6 +2054,7 @@ Pic_out:
                 break;
             case CMESSAGE_TYPE_QUITE:
                 mExitCaptureThread = 1;
+                CAMERA_LOG_INFO("%s: receive QUITE message", __FUNCTION__);
                 if (mExitPreviewThread == 0)
                     mPreviewThreadQueue.postQuitMessage();
                 if (mExitEncodeThread == 0)
@@ -2300,6 +2305,7 @@ Pic_out:
                 break;
             case CMESSAGE_TYPE_QUITE:
                 mExitPreviewThread = 1;
+                CAMERA_LOG_INFO("%s: receive QUIT message", __FUNCTION__);
                 break;
             default:
                 CAMERA_LOG_ERR("%s: wrong msg type %d", __FUNCTION__, msg->what);
