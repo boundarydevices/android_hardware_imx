@@ -59,7 +59,7 @@ namespace android{
 
     CAPTURE_DEVICE_RET V4l2CapDeviceBase::SetDevName(char * deviceName){
         CAMERA_LOG_FUNC;
-        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         if(NULL == deviceName)
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
         strcpy(mInitalDeviceName, deviceName);
@@ -75,11 +75,17 @@ namespace android{
         return ret;
     }
 
+    CAPTURE_DEVICE_RET V4l2CapDeviceBase::setColorConvert(bool enable){
+        CAMERA_LOG_FUNC;
+
+        return V4l2setColorConvert(enable);
+    }
+
     CAPTURE_DEVICE_RET V4l2CapDeviceBase::DevOpen(int cameraId){
         CAMERA_LOG_FUNC;
 
-        return V4l2Open(cameraId); 
-    } 
+        return V4l2Open(cameraId);
+    }
 
     CAPTURE_DEVICE_RET V4l2CapDeviceBase::GetDevType(CAMERA_TYPE *pType)
     {
@@ -91,7 +97,7 @@ namespace android{
     }
 
     CAPTURE_DEVICE_RET V4l2CapDeviceBase::EnumDevParam(DevParamType devParamType, void *retParam){
-        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         CAMERA_LOG_FUNC;
 
         if(mCameraDevice <= 0)
@@ -249,7 +255,7 @@ namespace android{
             if (v4l_dir){
                 while((dir_entry = readdir(v4l_dir))) {
                     memset((void *)dev_node, 0, CAMAERA_FILENAME_LENGTH);
-                    if(strncmp(dir_entry->d_name, "video", 5)) 
+                    if(strncmp(dir_entry->d_name, "video", 5))
                         continue;
                     sprintf(dev_node, "/dev/%s", dir_entry->d_name);
                     if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0)
@@ -266,7 +272,7 @@ namespace android{
                             CAMERA_LOG_ERR("dev_node %s:cannot get sensor name", dev_node);
                             continue;
                         }
-                        CAMERA_LOG_RUNTIME("dev_node: %s, sensor name: %s", 
+                        CAMERA_LOG_RUNTIME("dev_node: %s, sensor name: %s",
                                 dev_node, vid_chip.match.name);
                         if(strstr(vid_chip.match.name, mInitalDeviceName)){
                             is_found = 1;
@@ -291,11 +297,11 @@ namespace android{
         }
         CAMERA_LOG_INFO("device name is %s", mCaptureDeviceName);
         CAMERA_LOG_INFO("sensor name is %s", mInitalDeviceName);
-        return ret; 
+        return ret;
     }
 
     CAPTURE_DEVICE_RET V4l2CapDeviceBase :: V4l2EnumParam(DevParamType devParamType, void *retParam){
-        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
 
         CAMERA_LOG_FUNC;
         CAMERA_LOG_RUNTIME("devParamType is %d", devParamType);
@@ -303,7 +309,7 @@ namespace android{
         if(mCameraDevice <= 0)
             return CAPTURE_DEVICE_ERR_OPEN;
         switch(devParamType){
-            case OUTPU_FMT: 
+            case OUTPU_FMT:
                 ret = V4l2EnumFmt(retParam);
                 break;
             case FRAME_SIZE_FPS:
@@ -323,7 +329,7 @@ namespace android{
 
     CAPTURE_DEVICE_RET V4l2CapDeviceBase :: V4l2EnumFmt(void *retParam){
         CAMERA_LOG_FUNC;
-        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         struct v4l2_fmtdesc vid_fmtdesc;
         unsigned int *pParamVal = (unsigned int *)retParam;
 
@@ -343,7 +349,7 @@ namespace android{
 
     CAPTURE_DEVICE_RET V4l2CapDeviceBase :: V4l2EnumSizeFps(void *retParam){
         CAMERA_LOG_FUNC;
-        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         struct v4l2_frmsizeenum vid_frmsize;
         struct v4l2_frmivalenum vid_frmval;
 
@@ -599,7 +605,7 @@ namespace android{
             if (ioctl (mCameraDevice, VIDIOC_QBUF, &buf) < 0) {
                 CAMERA_LOG_ERR("VIDIOC_QBUF error\n");
                 return CAPTURE_DEVICE_ERR_SYS_CALL;
-            } 
+            }
             mQueuedBufNum ++;
         }
 
@@ -712,5 +718,8 @@ namespace android{
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
+    CAPTURE_DEVICE_RET V4l2CapDeviceBase :: V4l2setColorConvert(bool enable){
+        return CAPTURE_DEVICE_ERR_NONE;
+    }
 
 };

@@ -82,7 +82,7 @@ namespace android{
             if (v4l_dir){
                 while((dir_entry = readdir(v4l_dir))) {
                     memset((void *)dev_node, 0, CAMAERA_FILENAME_LENGTH);
-                    if(strncmp(dir_entry->d_name, "video", 5)) 
+                    if(strncmp(dir_entry->d_name, "video", 5))
                         continue;
                     sprintf(dev_node, "/dev/%s", dir_entry->d_name);
                     if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0)
@@ -117,7 +117,7 @@ namespace android{
                 return CAPTURE_DEVICE_ERR_OPEN;
             }
         }
-        return ret; 
+        return ret;
     }
 
     CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2SetSensor(int cameraId)
@@ -143,7 +143,7 @@ namespace android{
 
     CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2EnumFmt(void *retParam){
         CAMERA_LOG_FUNC;
-        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         unsigned int *pParamVal = (unsigned int *)retParam;
 
         if (mFmtParamIdx < ENUM_SUPPORTED_FMT){
@@ -160,7 +160,7 @@ namespace android{
 
     CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2EnumSizeFps(void *retParam){
         CAMERA_LOG_FUNC;
-        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE; 
+        CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         struct v4l2_frmsizeenum vid_frmsize;
 
         struct capture_config_t *pCapCfg =(struct capture_config_t *) retParam;
@@ -238,7 +238,7 @@ namespace android{
 
         parm.parm.capture.timeperframe.numerator = pCapcfg->tv.numerator;
         parm.parm.capture.timeperframe.denominator = pCapcfg->tv.denominator;
-        ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode), 
+        ret = V4l2GetCaptureMode(pCapcfg, &(parm.parm.capture.capturemode),
                 &(parm.parm.capture.timeperframe));
         if (ret != CAPTURE_DEVICE_ERR_NONE)
             return ret;
@@ -248,7 +248,7 @@ namespace android{
             parm.parm.capture.timeperframe.denominator = 15;
             if (ioctl(mCameraDevice, VIDIOC_S_PARM, &parm) < 0){
                 CAMERA_LOG_ERR("%s:%d  VIDIOC_S_PARM failed\n", __FUNCTION__,__LINE__);
-                CAMERA_LOG_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator, 
+                CAMERA_LOG_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator,
                         parm.parm.capture.timeperframe.denominator);
                 return CAPTURE_DEVICE_ERR_SYS_CALL;
             }
@@ -294,7 +294,7 @@ namespace android{
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
-    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2GetCaptureMode(struct capture_config_t *pCapcfg, 
+    CAPTURE_DEVICE_RET V4l2CsiDevice :: V4l2GetCaptureMode(struct capture_config_t *pCapcfg,
             unsigned int *pMode, struct v4l2_fract *pTimeFrame){
 
         CAMERA_LOG_FUNC;
@@ -406,6 +406,10 @@ namespace android{
         }
 
         return ret;
+    }
+
+    CAPTURE_DEVICE_RET  V4l2CsiDevice :: V4l2DeAlloc() {
+        return CAPTURE_DEVICE_ERR_NONE;
     }
 };
 

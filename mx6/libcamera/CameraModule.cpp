@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-/**
-* @file CameraHal.cpp
-*
-* This file maps the Camera Hardware Interface to V4L2.
-*
-*/
+/*
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ */
 
 #define LOG_TAG "CameraHAL"
 
@@ -500,7 +497,6 @@ int camera_device_open(const hw_module_t* module, const char* name,
     android::CameraHal* camera = NULL;
     char *SelectedCameraName;
     android::sp<android::CaptureDeviceInterface> pCaptureDevice = NULL;
-    android::sp<android::PostProcessDeviceInterface> pPPDevice = NULL;
     android::sp<android::JpegEncoderInterface>pJpegEncoder = NULL;
     //android::CameraProperties::Properties* properties = NULL;
 
@@ -583,7 +579,6 @@ int camera_device_open(const hw_module_t* module, const char* name,
         SelectedCameraName = Camera_name[sCameraInfo[cameraid].facing];
 
         pCaptureDevice = android::createCaptureDevice(SelectedCameraName);
-        pPPDevice = android::createPPDevice();
         pJpegEncoder = android::createJpegEncoder(android::SOFTWARE_JPEG_ENC);
 
         camera = new android::CameraHal(cameraid);
@@ -596,7 +591,6 @@ int camera_device_open(const hw_module_t* module, const char* name,
         }
 
         if (camera->setCaptureDevice(pCaptureDevice) < 0 ||
-                camera->setPostProcessDevice(pPPDevice) < 0 ||
                 camera->setJpegEncoder(pJpegEncoder) < 0)
             return NULL;
 
@@ -636,7 +630,7 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
 
     if (orientStr[0] == DEFAULT_ERROR_NAME )
         *pFaceBackOrient = 0;
-    else 
+    else
         *pFaceBackOrient = atoi(orientStr);
 
     LOGI("Face Back Camera is %s, orient is %d", pFaceBackCameraName, *pFaceBackOrient);
@@ -648,7 +642,7 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
 
     if (orientStr[0] == DEFAULT_ERROR_NAME )
         *pFaceFrontOrient = 0;
-    else 
+    else
         *pFaceFrontOrient = atoi(orientStr);
 
     LOGI("Face Front Camera is %s, orient is %d", pFaceFrontCameraName, *pFaceFrontOrient);

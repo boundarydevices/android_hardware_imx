@@ -38,7 +38,6 @@ namespace android {
         mExitCaptureThread(false),
         mPreviewRunning(0),
         mExitPreviewThread(false),
-        mExitPostProcessThread(false),
         mExitEncodeThread(false),
         mTakePictureInProcess(false),
         mParameters(),
@@ -47,7 +46,6 @@ namespace android {
         mDataCb(NULL),
         mDataCbTimestamp(NULL),
         mCaptureFrameThread(NULL),
-        mPostProcessThread(NULL),
         mPreviewShowFrameThread(NULL),
         mEncodeFrameThread(NULL),
         mAutoFocusThread(NULL),
@@ -63,7 +61,6 @@ namespace android {
         mPreviewMemory(NULL),
         mVideoBufNume(VIDEO_OUTPUT_BUFFER_NUM),
         mVideoMemory(NULL),
-        mPPbufNum(0),
         mDefaultPreviewFormat(V4L2_PIX_FMT_NV12), //the optimized selected format, hard code
         mPreviewFrameSize(0),
         mTakePicFlag(false),
@@ -79,8 +76,6 @@ namespace android {
         mCameraReady(false),
         mCaptureDeviceOpen(false),
         mIsCaptureBufsAllocated(0),
-        mPPDeviceNeed(false),
-        mPPDeviceNeedForPic(false),
         mPowerLock(false),
         mDirectInput(false),
         mCameraid(cameraid),
@@ -119,6 +114,9 @@ namespace android {
     void CameraHal :: preInit()
     {
         CAMERA_LOG_FUNC;
+        mVpuSupportFmt[0] = v4l2_fourcc('N','V','1','2');
+        mVpuSupportFmt[1] = v4l2_fourcc('Y','U','1','2');
+        mIsFormatMatch = false;
     }
     void CameraHal :: postDestroy()
     {
@@ -131,17 +129,6 @@ namespace android {
         CAMERA_HAL_RET ret = CAMERA_HAL_ERR_NONE;
         if (mCameraReady == false)
             mCaptureDevice = capturedevice;
-        else
-            ret = CAMERA_HAL_ERR_BAD_ALREADY_RUN;
-        return ret;
-    }
-
-    CAMERA_HAL_RET CameraHal :: setPostProcessDevice(sp<PostProcessDeviceInterface> postprocessdevice)
-    {
-        CAMERA_LOG_FUNC;
-        CAMERA_HAL_RET ret = CAMERA_HAL_ERR_NONE;
-        if (mCameraReady == false)
-            mPPDevice = postprocessdevice;
         else
             ret = CAMERA_HAL_ERR_BAD_ALREADY_RUN;
         return ret;
@@ -166,20 +153,11 @@ namespace android {
 
         CAMERA_TYPE cType;
         mCaptureDevice->GetDevType(&cType);
-        if(cType == CAMERA_TYPE_UVC) {
-            mPPDeviceNeed = true;
-            CAMERA_LOG_INFO("Enable PP device for Camera Post process");
-        }else {
-            mPPDeviceNeed = false;
-            CAMERA_LOG_INFO("Disable PP device for Camera Post process");
-        }
 
         if ((ret = AllocInterBuf())<0)
             return ret;
         if ((ret = InitCameraHalParam()) < 0)
             return ret;
-        if (mPPDeviceNeed == true && mPPDevice == NULL)
-            return CAMERA_HAL_ERR_PP_NULL;
         if ((ret = CameraMiscInit()) < 0)
             return ret;
 
@@ -226,7 +204,7 @@ namespace android {
     }
 
     CAMERA_HAL_RET CameraHal :: InitCameraHalParam()
-    {	
+    {
         CAMERA_LOG_FUNC;
         CAMERA_HAL_RET ret = CAMERA_HAL_ERR_NONE;
 
@@ -243,7 +221,6 @@ namespace android {
     {
         CAMERA_LOG_FUNC;
         CAMERA_HAL_RET ret = CAMERA_HAL_ERR_NONE;
-        pthread_mutex_init(&mPPIOParamMutex, NULL);
 
         mPreviewRunning = false;
         mCaptureRunning = false;
@@ -251,7 +228,6 @@ namespace android {
         sem_init(&mCaptureStoppedCondition, 0, 0);
         sem_init(&mPreviewStoppedCondition, 0, 0);
         sem_init(&mEncodeStoppedCondition, 0, 0);
-        sem_init(&mPostProcessStoppedCondition, 0, 0);
         sem_init(&mTakingPicture, 0, 0);
         //mPostProcessRunning = false;
         //mEncodeRunning = false;
@@ -259,12 +235,6 @@ namespace android {
         mPreviewShowFrameThread = new PreviewShowFrameThread(this);
         mEncodeFrameThread = new EncodeFrameThread(this);
         mTakePicThread= new TakePicThread(this);
-
-        if(mPPDeviceNeed){
-            mPostProcessThread = new PostProcessThread(this);
-            if (mPostProcessThread == NULL)
-                 return CAMERA_HAL_ERR_INIT;
-        }
 
         if (mCaptureFrameThread == NULL || mPreviewShowFrameThread == NULL ||
                 mEncodeFrameThread == NULL || mTakePicThread == NULL){
@@ -288,36 +258,52 @@ namespace android {
         mEncodeThreadQueue.postQuitMessage();
         mEncodeFrameThread->requestExitAndWait();
         mTakePicThread->requestExitAndWait();
-        pthread_mutex_destroy(&mPPIOParamMutex);
         return ret;
     }
 
     CAMERA_HAL_RET CameraHal::InitCameraPreviewFormatToParam(int nFmt)
     {
         CAMERA_LOG_FUNC;
-        int i;
+        int i, n;
+        unsigned int uFormat[MAX_QUERY_FMT_TIMES];
         char fmtStr[40];
 
         memset(fmtStr, 0, 40);
-        convertPreviewFormatToString(fmtStr, 40, mDefaultPreviewFormat);
+        convertPreviewFormatToString(fmtStr, 40, mPreviewCapturedFormat);
         mParameters.setPreviewFormat(fmtStr);
         mParameters.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, fmtStr);
 
-        memset(fmtStr, 0, 40);
-        for(i = 0; i < nFmt; i++) {
-            if(mCaptureSupportedFormat[i] == v4l2_fourcc('Y','U','1','2')) {
-                strcat(fmtStr, "yuv420p");
-                strcat(fmtStr, ",");
-            }
-            else if(mCaptureSupportedFormat[i] == v4l2_fourcc('N','V','1','2')) {
-                strcat(fmtStr, "yuv420sp");
-                strcat(fmtStr, ",");
-            }
-            //else if(mCaptureSupportedFormat[i] == v4l2_fourcc('Y','U','Y','V')) {
-            //    strcat(fmtStr, "yuv422i-yuyv");
-            //    strcat(fmtStr, ",");
-            //}
+        memset(uFormat, 0, sizeof(uFormat));
+        for(n = 0; n < nFmt; n++) {
+            uFormat[n] = mSensorSupportFmt[n];
         }
+
+        //if the sensor format and preview not match,
+        //then should count the preview format.
+        if(!mIsFormatMatch && n < MAX_QUERY_FMT_TIMES)
+            uFormat[n++] = mPreviewCapturedFormat;
+
+        memset(fmtStr, 0, 40);
+        for(i = 0; i < n; i++) {
+            for (int j = 0; j < MAX_VPU_SUPPORT_FORMAT; j++) {
+                //should report VPU support format.
+                if(uFormat[i] == mVpuSupportFmt[j]) {
+                    if(uFormat[i] == v4l2_fourcc('Y','U','1','2')) {
+                        strcat(fmtStr, "yuv420p");
+                        strcat(fmtStr, ",");
+                    }
+                    else if(uFormat[i] == v4l2_fourcc('N','V','1','2')) {
+                        strcat(fmtStr, "yuv420sp");
+                        strcat(fmtStr, ",");
+                    }
+                    //else if(mSensorSupportFmt[i] == v4l2_fourcc('Y','U','Y','V')) {
+                    //    strcat(fmtStr, "yuv422i-yuyv");
+                    //    strcat(fmtStr, ",");
+                    //}
+                }
+            }
+        }
+
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, fmtStr);
         return CAMERA_HAL_ERR_NONE;
     }
@@ -335,25 +321,30 @@ namespace android {
         if (OpenCaptureDevice() < 0)
             return CAMERA_HAL_ERR_OPEN_CAPTURE_DEVICE;
 
-        memset(mCaptureSupportedFormat, 0, sizeof(unsigned int)*MAX_QUERY_FMT_TIMES);
+        memset(mSensorSupportFmt, 0, sizeof(unsigned int)*MAX_QUERY_FMT_TIMES);
 
         for(i =0; i< MAX_QUERY_FMT_TIMES; i ++){
-            if (mCaptureDevice->EnumDevParam(OUTPU_FMT,&(mCaptureSupportedFormat[i])) < 0)
+            if (mCaptureDevice->EnumDevParam(OUTPU_FMT,&(mSensorSupportFmt[i])) < 0)
                 break;
         }
         if (i == 0)
             return CAMERA_HAL_ERR_GET_PARAM;
 
-        InitCameraPreviewFormatToParam(i);
+        //InitCameraPreviewFormatToParam(i);
 
         if (NegotiateCaptureFmt(false) < 0)
             return CAMERA_HAL_ERR_GET_PARAM;
 
+        //mCaptureDeviceCfg.fmt stores format related to driver.
         CaptureSizeFps.fmt = mCaptureDeviceCfg.fmt;//mPreviewCapturedFormat;
 
-        memset(TmpStr, 0, 20);
-        convertPreviewFormatToString(TmpStr, 20, mCaptureDeviceCfg.fmt);
-        mParameters.setPreviewFormat(TmpStr);
+        //mPreviewCapturedFormat stores format report to app.
+        InitCameraPreviewFormatToParam(i);
+        //memset(TmpStr, 0, 20);
+        //mPreviewCapturedFormat stores format report to app.
+        //convertPreviewFormatToString(TmpStr, 20, mPreviewCapturedFormat);
+        //convertPreviewFormatToString(TmpStr, 20, mCaptureDeviceCfg.fmt);
+        //mParameters.setPreviewFormat(TmpStr);
 
         CAMERA_LOG_INFO("mCaptureDeviceCfg.fmt is %x", mCaptureDeviceCfg.fmt);
 
@@ -639,10 +630,9 @@ namespace android {
             return BAD_VALUE;
         }
         if (!((strcmp(params.getPreviewFormat(), "yuv420sp") == 0) ||
-                (strcmp(params.getPreviewFormat(), "yuv420p") == 0)/* || (strcmp(params.getPreviewFormat(), "yuv422i-yuyv") == 0)*/
+                (strcmp(params.getPreviewFormat(), "yuv420p") == 0)// || (strcmp(params.getPreviewFormat(), "yuv422i-yuyv") == 0)
                 )) {
             CAMERA_LOG_ERR("Only yuv420sp or yuv420pis supported, but input format is %s", params.getPreviewFormat());
-            //CAMERA_LOG_ERR("Only yuv420sp,yuv420p or yuv422i-yuyv is supported, but input format is %s", params.getPreviewFormat());
             return BAD_VALUE;
         }
 
@@ -715,7 +705,6 @@ namespace android {
         }
         mNativeWindow = window;
         if((mNativeWindow != NULL) && !mIsCaptureBufsAllocated && mCaptureBufNum) {
-        //if((mNativeWindow != NULL) && !mIsCaptureBufsAllocated) {
             if(PrepareCaptureBufs() < 0) {
                 CAMERA_LOG_ERR("PrepareCaptureBufs() error");
                 return BAD_VALUE;
@@ -733,7 +722,6 @@ namespace android {
     {
         CAMERA_LOG_FUNC;
 
-        //Mutex::Autolock lock(mLock);
         if (mNativeWindow == NULL){
             CAMERA_LOG_ERR("the native window is null!");
             return BAD_VALUE;
@@ -765,19 +753,39 @@ namespace android {
         return NO_ERROR;
     }
 
+    int CameraHal::convertPreviewFormatToPixelFormat(unsigned int format)
+    {
+        int nFormat = 0;
+        switch(format) {
+            case v4l2_fourcc('N','V','1','2'):
+                nFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+                break;
+            case v4l2_fourcc('Y','U','1','2'):
+                nFormat = HAL_PIXEL_FORMAT_YCbCr_420_P;
+                break;
+            case v4l2_fourcc('Y','U','Y','V'):
+                nFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
+                break;
+            default:
+                CAMERA_LOG_ERR("Error: format not supported!");
+                break;
+        }
+        CAMERA_LOG_INFO("pixel format: 0x%x", nFormat);
+        return nFormat;
+    }
+
     status_t CameraHal::allocateBuffersFromNativeWindow()
     {
         CAMERA_LOG_FUNC;
 
         status_t err;
-        //Mutex::Autolock lock(mLock);
         if (mNativeWindow == NULL){
             CAMERA_LOG_ERR("the native window is null!");
             return NO_ERROR;//BAD_VALUE;
         }
 
         //Make sure the buffer be phiscal continuous
-        err = mNativeWindow->set_usage(mNativeWindow, 
+        err = mNativeWindow->set_usage(mNativeWindow,
                 GRALLOC_USAGE_SW_READ_NEVER | GRALLOC_USAGE_HW_TEXTURE);
         if(err != 0){
             CAMERA_LOG_ERR("native_window_set_usage failed:%s(%d)",
@@ -785,9 +793,11 @@ namespace android {
             return err;
         }
 
+        //should use mPreviewCapturedFormat here.
+        int uFormat = convertPreviewFormatToPixelFormat(mPreviewCapturedFormat);
         err = mNativeWindow->set_buffers_geometry(mNativeWindow,
                 mCaptureDeviceCfg.width, mCaptureDeviceCfg.height,
-                HAL_PIXEL_FORMAT_YCbCr_420_SP);//mCaptureDeviceCfg.fmt);
+                uFormat);
         if(err != 0){
             CAMERA_LOG_ERR("native_window_set_buffers_geometry failed:%s(%d)",
                     strerror(-err), -err);
@@ -839,7 +849,7 @@ namespace android {
             mCaptureBuffers[i].virt_start = (unsigned char *)handle->base;
             mCaptureBuffers[i].phy_offset = handle->phys;
             //Calculate the buffer size, for GPU doesn't reply this value.
-            mCaptureBuffers[i].length =  mCaptureDeviceCfg.width * mCaptureDeviceCfg.height * 3 / 2;
+            mCaptureBuffers[i].length =  handle->size;//mCaptureFrameSize
             mCaptureBuffers[i].native_buf = (void *)buf_h;
             mCaptureBuffers[i].refCount = 0;
             mCaptureBuffers[i].buf_state = WINDOW_BUFS_DEQUEUED;
@@ -860,7 +870,6 @@ namespace android {
             mWaitForTakingPicture = false;
         }
         Mutex::Autolock lock(mLock);
-        //isPreviewFinsh = 0;
         mEnqueuedBufs = 0;
 
         mPreviewLock.lock();
@@ -889,12 +898,6 @@ namespace android {
         mCaptureRunning = true;
         mCaptureLock.unlock();
 
-        if(mPPDeviceNeed) {
-            //mPostProcessLock.lock();
-            //mPostProcessCondition.signal();
-            //mPostProcessLock.unlock();
-        }
-
         LockWakeLock();
         return ret;
     }
@@ -904,11 +907,6 @@ namespace android {
         CAMERA_LOG_FUNC;
         struct timeval af_time, be_time;
         Mutex::Autolock lock(mLock);
-        /* Cannot stop preview in recording */
-        //   if(mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)
-        //       return;
-
-        //isPreviewFinsh = 1;
         CameraHALStopPreview();
         UnLockWakeLock();
 
@@ -925,25 +923,15 @@ namespace android {
     {
         unsigned int i;
         if (bDirect == true) {
-            if (!mPPDeviceNeed){
-                if(mCaptureBufNum <= 0)
-                    CAMERA_LOG_INFO("mCaptureBuf not allocated yet, will register it later");
+            if(mCaptureBufNum <= 0)
+                CAMERA_LOG_INFO("mCaptureBuf not allocated yet, will register it later");
 
-                for(i = 0 ; i < mCaptureBufNum; i ++) {
-                    mVideoBufferPhy[i].phy_offset = mCaptureBuffers[i].phy_offset;
-                    CAMERA_LOG_INFO("Camera HAL physic address: %x", mCaptureBuffers[i].phy_offset);
-                    mVideoBufferPhy[i].length = mCaptureBuffers[i].length;
-                    memcpy((unsigned char*)mVideoMemory->data + i*mPreviewFrameSize,
+            for(i = 0 ; i < mCaptureBufNum; i ++) {
+                mVideoBufferPhy[i].phy_offset = mCaptureBuffers[i].phy_offset;
+                CAMERA_LOG_INFO("Camera HAL physic address: %x", mCaptureBuffers[i].phy_offset);
+                mVideoBufferPhy[i].length = mCaptureBuffers[i].length;
+                memcpy((unsigned char*)mVideoMemory->data + i*mPreviewFrameSize,
                         (void*)&mVideoBufferPhy[i], sizeof(VIDEOFRAME_BUFFER_PHY));
-                }
-            }else{
-                for(i = 0 ; i < mPPbufNum; i ++) {
-                    mVideoBufferPhy[i].phy_offset = mPPbuf[i].phy_offset;
-                    CAMERA_LOG_INFO("Camera HAL physic address: %x", mPPbuf[i].phy_offset);
-                    mVideoBufferPhy[i].length = mPPbuf[i].length;
-                    memcpy((unsigned char*)mVideoMemory->data + i*mPreviewFrameSize,
-                    (void*)&mVideoBufferPhy[i], sizeof(VIDEOFRAME_BUFFER_PHY));
-                }
             }
         }
 
@@ -957,28 +945,7 @@ namespace android {
         updateDirectInput(enable);
         return NO_ERROR;
     }
-#if 0
-    int32_t CameraHal::getNumberOfVideoBuffers() const
-    {
-        CAMERA_LOG_FUNC;
 
-	if (!mPPDeviceNeed){
-		return mCaptureBufNum;
-	}else{
-		return  mPPbufNum;
-	}
-    }
-
-    sp<IMemory> CameraHal::getVideoBuffer(int32_t index) const
-    {
-        CAMERA_LOG_FUNC;
-        //this may be done in cameraHardwareInterface
-        //CameraHardwareInterface::CameraHeapMemory* mem;
-        //mem = (CameraHardwareInterface::CameraHeapMemory*)(mVideoMemory->handle);
-	//return mem->mBuffers[index];
-        return mVideoMemory;
-    }
-#endif
     status_t CameraHal::startRecording()
     {
         CAMERA_LOG_FUNC;
@@ -1069,7 +1036,6 @@ namespace android {
         CAMERA_LOG_FUNC;
         Mutex::Autolock lock(mLock);
 
-        //CameraHALStopPreview();
         if(mTakePictureInProcess) {
             CAMERA_LOG_ERR("%s: takePicture already in process", __FUNCTION__);
             return INVALID_OPERATION;
@@ -1165,29 +1131,15 @@ namespace android {
                 mCaptureDeviceCfg.tv.denominator = 15;
         }
         mCaptureBufNum = PICTURE_CAPTURE_BUFFER_NUM;
-        mPPbufNum = 1;
         mTakePicFlag = true;
-        mPPDeviceNeedForPic = false;
         if ((ret = GetJpegEncoderParam()) < 0)
             return ret;
         if ((ret = NegotiateCaptureFmt(true)) < 0)
             return ret;
 
-        if (mPPDeviceNeedForPic){
-            if ((ret = PreparePostProssDevice()) < 0){
-                CAMERA_LOG_ERR("PreparePostProssDevice error");
-                return ret;
-            }
-        }
         if ((ret = PrepareCaptureDevices()) < 0)
             return ret;
 
-        if (mPPDeviceNeedForPic){
-            if ((ret = PreparePreviwBuf()) < 0){
-                CAMERA_LOG_ERR("PreparePreviwBuf error");
-                return ret;
-            }
-        }
         if ((ret = PrepareJpegEncoder()) < 0)
             return ret;
 
@@ -1217,17 +1169,7 @@ namespace android {
             }
         }
 
-        // do the csc if necessary
-        if (mPPDeviceNeedForPic){
-            mPPInputParam.user_def_paddr = mCaptureBuffers[DeQueBufIdx].phy_offset;
-            mPPOutputParam.user_def_paddr = mPPbuf[0].phy_offset;
-            mPPDevice->PPDeviceInit(&mPPInputParam, &mPPOutputParam);
-            mPPDevice->DoPorcess(&(mCaptureBuffers[DeQueBufIdx]), &(mPPbuf[0]));
-            mPPDevice->PPDeviceDeInit();
-            Buf_input = &mPPbuf[0];
-        }else{
-            Buf_input = &mCaptureBuffers[DeQueBufIdx];
-        }
+        Buf_input = &mCaptureBuffers[DeQueBufIdx];
 
         Buf_output.virt_start = (unsigned char *)(JpegMemBase->data);
         CAMERA_LOG_INFO("Generated a picture with mMsgEnabled 0x%x", mMsgEnabled);
@@ -1277,6 +1219,8 @@ Pic_out:
         }
 
         mCaptureDevice->DevStop();
+        mCaptureDevice->DevDeAllocate();
+        CloseCaptureDevice();
 
         if(JpegMemBase) {
             JpegMemBase->release(JpegMemBase);
@@ -1292,10 +1236,10 @@ Pic_out:
     {
         CAMERA_LOG_FUNC;
         int ret = NO_ERROR, i = 0;
-        memset(mEncoderSupportedFormat, 0, sizeof(unsigned int)*MAX_QUERY_FMT_TIMES);
+        memset(mJpegEncoderSupportFmt, 0, sizeof(unsigned int)*MAX_QUERY_FMT_TIMES);
 
         for (i = 0; i < MAX_QUERY_FMT_TIMES; i++){
-            if (mJpegEncoder->EnumJpegEncParam(SUPPORTED_FMT,&(mEncoderSupportedFormat[i])) < 0)
+            if (mJpegEncoder->EnumJpegEncParam(SUPPORTED_FMT,&(mJpegEncoderSupportFmt[i])) < 0)
                 break;
         }
         if (i == 0){
@@ -1308,83 +1252,87 @@ Pic_out:
     {
         CAMERA_LOG_FUNC;
         int ret = NO_ERROR, i = 0, j = 0;
-
+        unsigned int nPickFormat = 0;
 
         if(TakePicFlag){
-            mPictureEncodeFormat = 0;
+            //when take picture, only the mJpegEncoderSupportFmt impact it.
             for (i = 0; i < MAX_QUERY_FMT_TIMES; i++){
                 for (j = 0; j < MAX_QUERY_FMT_TIMES; j++){
-                    if (mEncoderSupportedFormat[j] == 0)
+                    if (mJpegEncoderSupportFmt[j] == 0)
                         break;
-                    if (mCaptureSupportedFormat[i] == mEncoderSupportedFormat[j]){
-                        mPictureEncodeFormat= mCaptureSupportedFormat[i];
-
-                        CAMERA_LOG_INFO("Get the mPictureEncodeFormat :%c%c%c%c\n",
-                                mPictureEncodeFormat & 0xFF, (mPictureEncodeFormat >> 8) & 0xFF,
-                                (mPictureEncodeFormat >> 16) & 0xFF, (mPictureEncodeFormat >> 24) & 0xFF);
+                    if (mSensorSupportFmt[i] == mJpegEncoderSupportFmt[j]){
+                        nPickFormat = mSensorSupportFmt[i];
+                        CAMERA_LOG_INFO("Get the Picture Encode Format :%c%c%c%c\n",
+                                nPickFormat&0xFF, (nPickFormat>>8)&0xFF,
+                                (nPickFormat>>16)&0xFF, (nPickFormat>>24)&0xFF);
                         break;
                     }
                 }
-                if ((mPictureEncodeFormat != 0) || (mCaptureSupportedFormat[i] == 0))
+                if ((nPickFormat != 0) || (mSensorSupportFmt[i] == 0))
                     break;
             }
-            if (mPictureEncodeFormat == 0){
-                mPictureEncodeFormat = mEncoderSupportedFormat[0];
-                mCaptureDeviceCfg.fmt = mUvcSpecialCaptureFormat; //For uvc now, IPU only can support yuyv.
-                mPPDeviceNeedForPic = true;
+            if (nPickFormat == 0) {
+                //mPictureEncodeFormat stores format report to app.
+                //mCaptureDeviceCfg.fmt stores format related to dirver.
+                mPictureEncodeFormat = mJpegEncoderSupportFmt[0];
+                mCaptureDeviceCfg.fmt = mSensorSupportFmt[0];//mUvcSpecialCaptureFormat; //For uvc now, IPU only can support yuyv.
                 CAMERA_LOG_INFO("Need to do the CSC for Jpeg encoder");
-                CAMERA_LOG_INFO("Get the captured format is :%c%c%c%c\n",
+                CAMERA_LOG_INFO("Get the sensor format is :%c%c%c%c\n",
                         mCaptureDeviceCfg.fmt & 0xFF, (mCaptureDeviceCfg.fmt >> 8) & 0xFF,
                         (mCaptureDeviceCfg.fmt >> 16) & 0xFF, (mCaptureDeviceCfg.fmt >> 24) & 0xFF);
-                CAMERA_LOG_INFO("Get the mPictureEncodeFormat :%c%c%c%c\n",
+                CAMERA_LOG_INFO("Get the Picture Encode Format :%c%c%c%c\n",
                         mPictureEncodeFormat & 0xFF, (mPictureEncodeFormat >> 8) & 0xFF,
                         (mPictureEncodeFormat >> 16) & 0xFF, (mPictureEncodeFormat >> 24) & 0xFF);
-            }else{
-                mCaptureDeviceCfg.fmt = mPictureEncodeFormat;
-            }
-        }else{
-            CAMERA_LOG_INFO("mDefaultPreviewFormat :%c%c%c%c\n",
-                    mDefaultPreviewFormat & 0xFF, (mDefaultPreviewFormat >> 8) & 0xFF,
-                    (mDefaultPreviewFormat >> 16) & 0xFF, (mDefaultPreviewFormat >> 24) & 0xFF);
-            CAMERA_LOG_INFO("mUvcSpecialCaptureFormat :%c%c%c%c\n",
-                    mUvcSpecialCaptureFormat & 0xFF, (mUvcSpecialCaptureFormat >> 8) & 0xFF,
-                    (mUvcSpecialCaptureFormat >> 16) & 0xFF, (mUvcSpecialCaptureFormat >> 24) & 0xFF);
-
-            if(mPPDeviceNeed == false) {
-                for(i =0; i< MAX_QUERY_FMT_TIMES; i ++){
-                    CAMERA_LOG_RUNTIME("mCaptureSupportedFormat[%d] is %x", i, mCaptureSupportedFormat[i]);
-                    if (mCaptureSupportedFormat[i] == mDefaultPreviewFormat){
-                        CAMERA_LOG_RUNTIME("get the correct format [%d] is %x", i, mCaptureSupportedFormat[i]);
-                        //mPPDeviceNeed = false;
-                        //mPreviewCapturedFormat = mPreviewFormat;
-                        mCaptureDeviceCfg.fmt = mDefaultPreviewFormat;
-                        break;
-                    }
-                }
+                mCaptureDevice->setColorConvert(true);
             }
             else {
-                for(i =0; i< MAX_QUERY_FMT_TIMES; i ++){
-                    //since for CSI, the CSI can convert to any YUV format if necessary, so specailly is just for UVC
-                    if (mCaptureSupportedFormat[i] == mUvcSpecialCaptureFormat){
-                        CAMERA_LOG_RUNTIME("get the correct format [%d] is %x", i, mCaptureSupportedFormat[i]);
-                        //mPPDeviceNeed = true;
-                        //mPreviewCapturedFormat = mUvcSpecialCaptureFormat;
-                        mCaptureDeviceCfg.fmt = mUvcSpecialCaptureFormat;
+                mPictureEncodeFormat = nPickFormat;
+                mCaptureDeviceCfg.fmt = nPickFormat;
+                mCaptureDevice->setColorConvert(false);
+            }
+            //should make mPictureEncodeFormat equal to mPreviewCapturedFormat.
+            //because allocate buffer should use it.
+            mPreviewCapturedFormat = mPictureEncodeFormat;
+        }//endif TakePicFlag
+        else{
+            //when preview or encoder, only mVpuSupportFmt impact it.
+            for(i =0; i< MAX_QUERY_FMT_TIMES; i ++){
+                for (j = 0; j < MAX_VPU_SUPPORT_FORMAT; j++) {
+                    if(mVpuSupportFmt[j] == 0)
+                        break;
+                    if(mSensorSupportFmt[i] == mVpuSupportFmt[j]) {
+                        nPickFormat = mSensorSupportFmt[i];
+                        CAMERA_LOG_RUNTIME("get the priview format:%c%c%c%c\n",
+                                nPickFormat&0xFF, (nPickFormat>>8)&0xFF,
+                                (nPickFormat>>16)&0xFF, (nPickFormat>>24)&0xFF);
                         break;
                     }
-                }
+                }//end for
+                if ((nPickFormat != 0) || (mSensorSupportFmt[i] == 0))
+                    break;
             }
-
-            CAMERA_LOG_INFO("mCaptureDeviceCfg.fmt :%c%c%c%c\n",
-                    mCaptureDeviceCfg.fmt & 0xFF, (mCaptureDeviceCfg.fmt >> 8) & 0xFF,
-                    (mCaptureDeviceCfg.fmt >> 16) & 0xFF, (mCaptureDeviceCfg.fmt >> 24) & 0xFF);
-
-            if ((i == MAX_QUERY_FMT_TIMES)){
-                CAMERA_LOG_ERR("Negotiate for the preview format error");
-                return BAD_VALUE;
+            if (nPickFormat == 0) {
+                //mPreviewCapturedFormat stores format report to app.
+                //mCaptureDeviceCfg.fmt stores format related to dirver.
+                mPreviewCapturedFormat = mVpuSupportFmt[0];
+                mCaptureDeviceCfg.fmt = mSensorSupportFmt[1];//mUvcSpecialCaptureFormat; //For uvc now, IPU only can support yuyv.
+                CAMERA_LOG_INFO("Need to do the CSC for preview");
+                CAMERA_LOG_INFO("Get the sensor format is :%c%c%c%c\n",
+                        mCaptureDeviceCfg.fmt & 0xFF, (mCaptureDeviceCfg.fmt >> 8) & 0xFF,
+                        (mCaptureDeviceCfg.fmt >> 16) & 0xFF, (mCaptureDeviceCfg.fmt >> 24) & 0xFF);
+                CAMERA_LOG_INFO("Get the preview format :%c%c%c%c\n",
+                        mPreviewCapturedFormat & 0xFF, (mPreviewCapturedFormat >> 8) & 0xFF,
+                        (mPreviewCapturedFormat >> 16) & 0xFF, (mPreviewCapturedFormat >> 24) & 0xFF);
+                mCaptureDevice->setColorConvert(true);
+                mIsFormatMatch = false;
             }
-        }
-
+            else {
+                mPreviewCapturedFormat = nPickFormat;
+                mCaptureDeviceCfg.fmt = nPickFormat;
+                mCaptureDevice->setColorConvert(false);
+                mIsFormatMatch = true;
+            }
+        }//end else
 
         return ret;
     }
@@ -1637,7 +1585,14 @@ Pic_out:
             return ret;
         }
 
-        mCaptureDeviceCfg.fmt = mPreviewCapturedFormat;
+        if(mIsFormatMatch) {
+            mCaptureDeviceCfg.fmt = mPreviewCapturedFormat;
+            mCaptureDevice->setColorConvert(false);
+        }
+        else {
+            mCaptureDevice->setColorConvert(true);
+        }
+
         CAMERA_LOG_RUNTIME("*********%s,mCaptureDeviceCfg.fmt=%x************", __FUNCTION__, mCaptureDeviceCfg.fmt);
         mCaptureDeviceCfg.rotate = (SENSOR_PREVIEW_ROTATE)mPreviewRotate;
         //Default setting is 15FPS
@@ -1663,10 +1618,9 @@ Pic_out:
                 mCaptureDeviceCfg.tv.denominator = 15;
         }
         mCaptureBufNum = PREVIEW_CAPTURE_BUFFER_NUM;
-        mPPbufNum = POST_PROCESS_BUFFER_NUM;
         mTakePicFlag = false;
 
-        if(mPreviewCapturedFormat)
+        if(mCaptureDeviceCfg.fmt)
                 mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height*3/2;
             else
                 mPreviewFrameSize = mCaptureDeviceCfg.width*mCaptureDeviceCfg.height *2;
@@ -1674,12 +1628,6 @@ Pic_out:
         if ((ret = PrepareCaptureDevices()) < 0){
             CAMERA_LOG_ERR("PrepareCaptureDevices error ");
             return ret;
-        }
-        if (mPPDeviceNeed){
-            if ((ret = PreparePostProssDevice()) < 0){
-                CAMERA_LOG_ERR("PreparePostProssDevice error");
-                return ret;
-            }
         }
         if ((ret = PreparePreviwBuf()) < 0){
             CAMERA_LOG_ERR("PreparePreviwBuf error");
@@ -1698,7 +1646,6 @@ Pic_out:
             }
         }
 
-        //mPreviewRunning = true;
         return ret;
     }
     void CameraHal::CameraHALStopPreview()
@@ -1712,7 +1659,6 @@ Pic_out:
         }else{
             CAMERA_LOG_INFO("Camera hal already stop preview");
         }
-        //mCaptureBufNum = 0;
         return ;
     }
 
@@ -1734,17 +1680,6 @@ Pic_out:
         }
         mCaptureLock.unlock();
         CAMERA_LOG_INFO("%s :---------", __FUNCTION__);
-
-        mPostProcessLock.lock();
-        if(mPPDeviceNeed && mPreviewRunning) {
-            CAMERA_LOG_INFO("%s :postprocess run", __FUNCTION__);
-            mPostProcessThreadQueue.postStopMessage();
-            if(gettid()!= mPostProcessThread->mTID)
-                sem_wait(&mPostProcessStoppedCondition);
-            else
-                CAMERA_LOG_INFO("Stop PostProcessThread in itself");
-        }
-        mPostProcessLock.unlock();
 
         mPreviewLock.lock();
         if(mPreviewRunning) {
@@ -1768,22 +1703,15 @@ Pic_out:
     {
         CAMERA_LOG_FUNC;
 
-        if(mPPDeviceNeed){
-        }
         mCaptureDevice->DevStop();
-        //mCaptureDevice->DevDeAllocate();
+        mCaptureDevice->DevDeAllocate();
         freeBuffersToNativeWindow();
-        //CloseCaptureDevice();
-        //mCaptureBufNum = 0;
+        CloseCaptureDevice();
     }
 
     status_t CameraHal :: PrepareCaptureBufs()
     {
         CAMERA_LOG_FUNC;
-        //status_t ret = NO_ERROR;
-        //if(mCaptureBufNum == 0) {
-        //    mCaptureBufNum = PREVIEW_CAPTURE_BUFFER_NUM;
-        //}
         unsigned int CaptureBufNum = mCaptureBufNum;
 
         if(allocateBuffersFromNativeWindow() < 0) {
@@ -1821,7 +1749,6 @@ Pic_out:
         CAMERA_LOG_FUNC;
         status_t ret = NO_ERROR;
         int i =0;
-        //unsigned int CaptureBufNum = mCaptureBufNum;
         struct capture_config_t *pCapcfg;
         if ((ret = OpenCaptureDevice())<0)
             return ret;
@@ -1842,38 +1769,6 @@ Pic_out:
         return ret;
     }
 
-    status_t CameraHal::PreparePostProssDevice()
-    {
-
-        CAMERA_LOG_FUNC;
-        status_t ret = NO_ERROR;
-        unsigned int targetFmt;
-        if (mTakePicFlag)
-            targetFmt = mPictureEncodeFormat;
-        else
-            targetFmt = mDefaultPreviewFormat;
-
-        pthread_mutex_lock(&mPPIOParamMutex);
-        mPPInputParam.width = mCaptureDeviceCfg.width;
-        mPPInputParam.height= mCaptureDeviceCfg.height;
-        mPPInputParam.fmt   = mCaptureDeviceCfg.fmt;
-        mPPInputParam.input_crop_win.pos.x = 0;
-        mPPInputParam.input_crop_win.pos.y = 0;
-        mPPInputParam.input_crop_win.win_w = mCaptureDeviceCfg.width;
-        mPPInputParam.input_crop_win.win_h = mCaptureDeviceCfg.height;
-
-        mPPOutputParam.width = mCaptureDeviceCfg.width;
-        mPPOutputParam.height= mCaptureDeviceCfg.height;
-        mPPOutputParam.fmt   = targetFmt;
-        mPPOutputParam.rot   = 0;
-        mPPOutputParam.output_win.pos.x = 0;
-        mPPOutputParam.output_win.pos.y = 0;
-        mPPOutputParam.output_win.win_w = mCaptureDeviceCfg.width;
-        mPPOutputParam.output_win.win_h = mCaptureDeviceCfg.height;
-        pthread_mutex_unlock(&mPPIOParamMutex);
-        return ret;
-    }
-
     status_t CameraHal::PreparePreviwBuf()
     {
         CAMERA_LOG_FUNC;
@@ -1891,18 +1786,6 @@ Pic_out:
                 CAMERA_LOG_ERR("%s, allocate memory failed", __FUNCTION__);
                 return NO_MEMORY;
             }
-            //now the preview fmt is supposed to be YUV420SP, so, it is now hard code here
-            //mPreviewHeap.clear();
-            //for (i = 0; i< mPreviewHeapBufNum; i++)
-            //    mPreviewBuffers[i].clear();
-            //mPreviewHeap = new MemoryHeapBase(mPreviewFrameSize * mPreviewHeapBufNum);
-            //if (mPreviewHeap == NULL)
-            //    return NO_MEMORY;
-            //for (i = 0; i < mPreviewHeapBufNum; i++)
-            //    mPreviewBuffers[i] = new MemoryBase(mPreviewHeap, mPreviewFrameSize* i, mPreviewFrameSize);
-        }
-        /*allocate the buffer for IPU process*/
-        if (mPPDeviceNeed || mPPDeviceNeedForPic){
         }
         return ret;
     }
@@ -1911,15 +1794,7 @@ Pic_out:
     {
         CAMERA_LOG_FUNC;
         status_t ret = NO_ERROR;
-        dequeue_head = 0;
         preview_heap_buf_head = 0;
-        display_head = 0;
-        enc_head     = 0;
-        pp_in_head   = 0;
-        pp_out_head  = 0;
-        error_status = 0;
-        is_first_buffer = 1;
-        last_display_index = 0;
 
        return ret;
     }
@@ -1962,13 +1837,13 @@ Pic_out:
 
         pBuf->refCount --;
         if(pBuf->refCount == 0) {
-            if(!mPPDeviceNeed && mCaptureRunning) {
+            if(mCaptureRunning) {
                 if(buf_index < mCaptureBufNum) {
                     if(mCaptureDevice->DevQueue(buf_index) <0){
                         CAMERA_LOG_ERR("The Capture device queue buf error !!!!");
                         return INVALID_OPERATION;
                     }
-                    CAMERA_LOG_RUNTIME("Return buffer %d to Capture Device", buf_index);
+                    //CAMERA_LOG_RUNTIME("Return buffer %d to Capture Device", buf_index);
                     mCaptureBuffers[buf_index].refCount = 0;
                     nCameraBuffersQueued++;
                     mEnqueuedBufs --;
@@ -1976,8 +1851,6 @@ Pic_out:
                 }else {
                     return INVALID_OPERATION;
                 }
-            }else if(mPPDeviceNeed){
-                mCaptureThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, 0));
             }//end elseif
         }
         return NO_ERROR;
@@ -2027,23 +1900,18 @@ Pic_out:
                 //handle the error return.
                 if(ret < 0) {
                     CAMERA_LOG_ERR("%s: get invalide buffer", __FUNCTION__);
-                    mCaptureRunning = false;
+                    //mCaptureRunning = false;
                     mCaptureThreadQueue.clearMessage();
                     sem_post(&mCaptureStoppedCondition);
                     return NO_ERROR;
                 }
-                CAMERA_LOG_RUNTIME("Get buffer %d from Capture Device", bufIndex);
+                //CAMERA_LOG_RUNTIME("Get buffer %d from Capture Device", bufIndex);
                 //handle the normal return.
-                if(!mPPDeviceNeed) {
-                    getBufferCount(&mCaptureBuffers[bufIndex]);
-                    mPreviewThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
+                getBufferCount(&mCaptureBuffers[bufIndex]);
+                mPreviewThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
 
-                    if(mRecordRunning) {
-                        mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
-                    }
-                }else {
-                    getBufferCount(&mCaptureBuffers[bufIndex]);
-                    mPostProcessThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
+                if(mRecordRunning) {
+                    mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
                 }
                 break;
             case CMESSAGE_TYPE_STOP:
@@ -2059,8 +1927,6 @@ Pic_out:
                     mPreviewThreadQueue.postQuitMessage();
                 if (mExitEncodeThread == 0)
                     mEncodeThreadQueue.postQuitMessage();
-                if (mPPDeviceNeed && (mExitPostProcessThread == 0))
-                    mPostProcessThreadQueue.postQuitMessage();
                 break;
             default:
                 CAMERA_LOG_ERR("%s: wrong msg type %d", __FUNCTION__, msg->what);
@@ -2068,88 +1934,6 @@ Pic_out:
                 break;
         }//end switch
 
-        return ret;
-    }
-
-    int CameraHal::postprocessThreadWrapper()
-    {
-        CAMERA_LOG_FUNC;
-        status_t ret = NO_ERROR;
-
-        while(1) {
-            if(mExitPostProcessThread) {
-                CAMERA_LOG_INFO("%s, postprocessThread exit normally", __FUNCTION__);
-                return ret;
-            }
-            ret = postprocessThread();
-            if(ret < 0) {
-                CAMERA_LOG_ERR("%s, postprocessThread exit with exception", __FUNCTION__);
-                return ret;
-            }
-        }
-        return ret;
-    }
-
-    int CameraHal::postprocessThread()
-    {
-        int PPInIdx = 0, PPoutIdx = 0;
-        DMA_BUFFER *PPInBuf, *PPoutBuf;
-        status_t ret = NO_ERROR;
-
-        sp<CMessage> msg = mPostProcessThreadQueue.waitMessage();
-        if(msg == 0) {
-            CAMERA_LOG_ERR("%s: get invalide message", __FUNCTION__);
-            return BAD_VALUE;
-        }
-        switch(msg->what) {
-            case CMESSAGE_TYPE_NORMAL:
-                PPInIdx = msg->arg0;
-                if(PPInIdx < 0 || (unsigned int)PPInIdx >= mCaptureBufNum) {
-                    CAMERA_LOG_ERR("%s: get invalide buffer index", __FUNCTION__);
-                    return BAD_VALUE;
-                }
-                PPInBuf = &mCaptureBuffers[PPInIdx];
-                PPoutIdx = pp_out_head;
-                PPoutBuf = &mPPbuf[PPoutIdx];
-                pp_out_head ++;
-                pp_out_head %= mPPbufNum;
-
-                pthread_mutex_lock(&mPPIOParamMutex);
-                mPPInputParam.user_def_paddr = PPInBuf->phy_offset;
-                mPPOutputParam.user_def_paddr = PPoutBuf->phy_offset;
-                mPPDevice->PPDeviceInit(&mPPInputParam, &mPPOutputParam);
-                mPPDevice->DoPorcess(PPInBuf, PPoutBuf);
-                mPPDevice->PPDeviceDeInit();
-                pthread_mutex_unlock(&mPPIOParamMutex);
-
-                getBufferCount(&mPPbuf[PPoutIdx]);
-                mPreviewThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, PPoutIdx));
-
-                if(mRecordRunning) {
-                    getBufferCount(&mPPbuf[PPoutIdx]);
-                    //CAMERA_LOG_INFO("%s: post encode message %d", __FUNCTION__, PPoutIdx);
-                    mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, PPoutIdx));
-                }
-
-                ret = putBufferCount(PPInBuf);
-                break;
-            case CMESSAGE_TYPE_STOP:
-                CAMERA_LOG_INFO("%s: postprocess thread stop", __FUNCTION__);
-                mPostProcessThreadQueue.clearMessage();
-                sem_post(&mPostProcessStoppedCondition);
-                CAMERA_LOG_INFO("%s: postprocess thread stop finish", __FUNCTION__);
-                break;
-            case CMESSAGE_TYPE_QUITE:
-                mExitPostProcessThread = 1;
-                mPreviewThreadQueue.postQuitMessage();
-                if(mRecordRunning)
-                    mEncodeThreadQueue.postQuitMessage();
-                break;
-            default:
-                CAMERA_LOG_ERR("%s: wrong msg type %d", __FUNCTION__, msg->what);
-                ret = INVALID_OPERATION;
-                break;
-        }
         return ret;
     }
 
@@ -2237,11 +2021,7 @@ Pic_out:
                     sem_post(&mPreviewStoppedCondition);
                     return BAD_VALUE;
                 }
-                if(!mPPDeviceNeed) {
-                    pInBuf = &mCaptureBuffers[display_index];
-                }else {
-                    pInBuf = &mPPbuf[display_index];
-                }
+                pInBuf = &mCaptureBuffers[display_index];
 
                 if (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
                     //CAMERA_LOG_ERR("*******CAMERA_MSG_PREVIEW_FRAME*******");
@@ -2359,11 +2139,7 @@ Pic_out:
 
                 struct timespec ts;
                 DMA_BUFFER *EncBuf;
-                if (!mPPDeviceNeed){
-                    EncBuf = &mCaptureBuffers[enc_index];
-                }else{
-                    EncBuf = &mPPbuf[enc_index];
-                }
+                EncBuf = &mCaptureBuffers[enc_index];
 
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
@@ -2405,28 +2181,16 @@ Pic_out:
     {
         status_t ret = NO_ERROR;
         unsigned int i = 0;
-        //mVideoHeap.clear();
         if(mVideoMemory != NULL) {
             mVideoMemory->release(mVideoMemory);
         }
-        //for(i = 0; i < mVideoBufNume; i++) {
-        //    mVideoBuffers[i].clear();
-        //    mVideoBufferUsing[i] = 0;
-        //}
 
         CAMERA_LOG_RUNTIME("Init the video Memory size %d", mPreviewFrameSize);
-        //mVideoHeap = new MemoryHeapBase(mPreviewFrameSize * mVideoBufNume);
         mVideoMemory = mRequestMemory(-1, mPreviewFrameSize, mVideoBufNume, NULL);
-        //if (mVideoHeap == NULL)
         if(mVideoMemory == NULL) {
             CAMERA_LOG_ERR("%s, request video buffer failed", __FUNCTION__);
             return NO_MEMORY;
         }
-        //for(i = 0; i < mVideoBufNume; i++) {
-        //    CAMERA_LOG_RUNTIME("Init Video Buffer:%d ",i);
-        //    mVideoBuffers[i] = new MemoryBase(mVideoHeap,
-        //            mPreviewFrameSize * i, mPreviewFrameSize);
-        //}
 
         //Make sure the buffer been updated for direct input
         updateDirectInput(mDirectInput);
