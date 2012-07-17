@@ -25,11 +25,10 @@ LOCAL_SRC_FILES:=    \
 	CaptureDeviceInterface.cpp \
 	V4l2CsiDevice.cpp \
 	V4l2CapDeviceBase.cpp  \
-	PostProcessDeviceInterface.cpp \
-	PP_ipulib.cpp    \
 	JpegEncoderInterface.cpp \
     JpegEncoderSoftware.cpp \
-    messageQueue.cpp
+    messageQueue.cpp \
+    V4l2UVCDevice.cpp
 
 LOCAL_CPPFLAGS +=
 
@@ -42,14 +41,12 @@ LOCAL_SHARED_LIBRARIES:= \
     libmedia \
     libhardware_legacy \
     libdl \
-    libc \
-	libipu
+    libc
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/binder \
 	frameworks/base/include/ui \
 	frameworks/base/camera/libcameraservice \
-	external/linux-lib/ipu \
 	hardware/imx/mx6/libgralloc_wrapper
 
 ifeq ($(HAVE_FSL_IMX_CODEC),true)
@@ -68,7 +65,7 @@ endif
 
 LOCAL_CPPFLAGS += -Werror
 
-LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw	
+LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)
 
 LOCAL_CFLAGS += -fno-short-enums

@@ -28,6 +28,7 @@
 #define CAMAERA_FILENAME_LENGTH     256
 #define MAX_CAPTURE_BUF_QUE_NUM     6
 #define CAMAERA_SENSOR_LENGTH       32
+#define MAX_DEQUEUE_WAIT_TIME  (5000)  //5000ms for uvc camera
 
 namespace android {
 #define UVC_NAME_STRING "uvc"
@@ -43,6 +44,7 @@ namespace android {
         CAPTURE_DEVICE_ERR_ALLOCATE_BUF = -4,
         CAPTURE_DEVICE_ERR_BAD_PARAM  = -5,
         CAPTURE_DEVICE_ERR_SYS_CALL=-6,
+        CAPTURE_DEVICE_ERR_OPT_TIMEOUT=-7,
         CAPTURE_DEVICE_ERR_UNKNOWN = -100
     }CAPTURE_DEVICE_RET;
 
@@ -50,7 +52,7 @@ namespace android {
         MOTION_MODE = 0,
         HIGH_QUALITY_MODE = 1
     }CAPTURE_MODE;
-    
+
     typedef enum{
         CAMERA_TYPE_CSI = 0,
         CAMERA_TYPE_UVC = 1,
@@ -82,7 +84,7 @@ namespace android {
         unsigned int framesize;   //out
         unsigned int picture_waite_number;//out
         struct timeval_fract tv;
-		SENSOR_PREVIEW_ROTATE rotate;
+	SENSOR_PREVIEW_ROTATE rotate;
     };
 
 
@@ -91,6 +93,7 @@ namespace android {
 
         virtual CAPTURE_DEVICE_RET SetDevName(char * deviceName)=0;
         virtual CAPTURE_DEVICE_RET GetDevName(char * deviceName)=0;
+        virtual CAPTURE_DEVICE_RET setColorConvert(bool enable)=0;
         virtual CAPTURE_DEVICE_RET DevOpen(int cameraId)=0;
         virtual CAPTURE_DEVICE_RET EnumDevParam(DevParamType devParamType, void *retParam)=0;
         virtual CAPTURE_DEVICE_RET DevSetConfig(struct capture_config_t *pCapcfg)=0;

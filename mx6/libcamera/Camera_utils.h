@@ -27,12 +27,13 @@
 #include <utils/Log.h>
 #include <utils/threads.h>
 
+//#define CAMERA_HAL_DEBUG_LOG
 #ifdef CAMERA_HAL_DEBUG_LOG
 #define CAMERA_LOG_RUNTIME(format, ...) LOGI((format), ## __VA_ARGS__)
 #define CAMERA_LOG_FUNC LOGI("%s is excuting...",  __FUNCTION__)
 #define CAMERA_LOG_TRACE   LOGI("%s : %d", __FUNCTION__,__LINE__)
 #else
-#define CAMERA_LOG_RUNTIME(format, ...) 
+#define CAMERA_LOG_RUNTIME(format, ...)
 #define CAMERA_LOG_FUNC
 #define CAMERA_LOG_TRACE
 #endif
