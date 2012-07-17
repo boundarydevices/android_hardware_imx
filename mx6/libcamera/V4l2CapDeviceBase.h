@@ -31,6 +31,7 @@ namespace android{
         virtual CAPTURE_DEVICE_RET SetDevName(char * deviceName);
         virtual CAPTURE_DEVICE_RET GetDevName(char * deviceName);
         virtual CAPTURE_DEVICE_RET GetDevType(CAMERA_TYPE *pType);
+        virtual CAPTURE_DEVICE_RET setColorConvert(bool enable);
         virtual CAPTURE_DEVICE_RET DevOpen(int cameraId);
         virtual CAPTURE_DEVICE_RET EnumDevParam(DevParamType devParamType, void *retParam);
         virtual CAPTURE_DEVICE_RET DevSetConfig(struct capture_config_t *pCapcfg);
@@ -63,8 +64,9 @@ namespace android{
         virtual CAPTURE_DEVICE_RET V4l2DeAlloc();
         virtual CAPTURE_DEVICE_RET V4l2Close();
         virtual CAPTURE_DEVICE_RET V4l2ConfigInput(struct capture_config_t *pCapcfg);
-        virtual CAPTURE_DEVICE_RET V4l2GetCaptureMode(struct capture_config_t *pCapcfg, unsigned int *pMode); 
+        virtual CAPTURE_DEVICE_RET V4l2GetCaptureMode(struct capture_config_t *pCapcfg, unsigned int *pMode);
         virtual CAPTURE_DEVICE_RET V4l2SetRot(struct capture_config_t *pCapcfg);
+        virtual CAPTURE_DEVICE_RET V4l2setColorConvert(bool enable);
 
         char         mCaptureDeviceName[CAMAERA_FILENAME_LENGTH];
         char         mInitalDeviceName[CAMAERA_SENSOR_LENGTH];

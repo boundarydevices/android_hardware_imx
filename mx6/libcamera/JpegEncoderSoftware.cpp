@@ -47,6 +47,7 @@ namespace android{
         pEncObj(NULL)
     {
         mSupportedType[0] = v4l2_fourcc('Y','U','1','2');
+        mSupportedType[1] = v4l2_fourcc('Y','U','Y','V');
     }
 
     JpegEncoderSoftware :: ~JpegEncoderSoftware()
@@ -58,7 +59,7 @@ namespace android{
     {
 
         int * pSupportedType = (int *)pQueryRet;
-        switch(QueryType){	
+        switch(QueryType){
             case SUPPORTED_FMT:
                 if (mSupportedTypeIdx < MAX_ENC_SUPPORTED_YUV_TYPE){
                     *pSupportedType = mSupportedType[mSupportedTypeIdx];
@@ -250,7 +251,7 @@ INT_ERR_RET:
             return JPEG_ENC_ERROR_BAD_PARAM;
         }
 
-        if((pEncCfgLocal->PicWidth <= 0) || (pEncCfgLocal->PicHeight <= 0)|| 
+        if((pEncCfgLocal->PicWidth <= 0) || (pEncCfgLocal->PicHeight <= 0)||
                 (pEncCfgLocal->ThumbWidth > pEncCfgLocal->PicWidth) ||
                 (pEncCfgLocal->ThumbHeight > pEncCfgLocal->PicHeight) ){
             CAMERA_LOG_ERR("The input widht and height is wrong");
