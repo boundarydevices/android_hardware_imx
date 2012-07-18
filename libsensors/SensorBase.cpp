@@ -124,7 +124,7 @@ int SensorBase::sensorBaseEnable(int32_t handle,int enabled){
         case ID_PX 	: what = Proximity;   break;
 
     }
-    if (uint32_t(what) >= numSensors)
+    if (what < 0 || what >= numSensors)
         return -EINVAL;
 
     if(enable)

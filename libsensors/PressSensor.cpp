@@ -31,7 +31,7 @@
 PressSensor::PressSensor()
 :SensorBase(NULL, "mpl3115")
 {
-    char * magSensorName = "mpl3115";
+    const char *magSensorName = "mpl3115";
     sensorBaseGetSysfsPath(magSensorName);
     memset(&mPendingEvents[Pressure], 0, sizeof(sensors_event_t));
     memset(&mPendingEvents[Temperatury], 0, sizeof(sensors_event_t));
