@@ -37,8 +37,8 @@
 MagSensor::MagSensor()
 : SensorBase(NULL, "eCompass")
 {
-    char * magSensorName = "mag3110";
-	sensorBaseGetSysfsPath(magSensorName);
+    const char *magSensorName = "mag3110";
+    sensorBaseGetSysfsPath(magSensorName);
     memset(&mPendingEvents[MagneticField], 0, sizeof(sensors_event_t));
     memset(&mPendingEvents[Orientation], 0, sizeof(sensors_event_t));
     mPendingEvents[MagneticField].version = sizeof(sensors_event_t);
