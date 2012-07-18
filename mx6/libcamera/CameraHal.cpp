@@ -831,7 +831,7 @@ namespace android {
             private_handle_t *handle = (private_handle_t *)(*buf_h);
             mapper.lock(handle, GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN, bounds, &pVaddr);
             if((handle->phys == 0) || (handle->base == 0) || (handle->size == 0)) {
-                 CAMERA_LOG_ERR("%s: dequeue invalide Buffer, phys=%x, base=%x, size=%d", __FUNCTION__, handle->phys, handle->base, handle->size);
+                 CAMERA_LOG_ERR("%s: dequeue invalide Buffer, phys=0x%lx, base=%x, size=%d", __FUNCTION__, handle->phys, handle->base, handle->size);
                  mNativeWindow->cancel_buffer(mNativeWindow, buf_h);
                  return BAD_VALUE;
             }

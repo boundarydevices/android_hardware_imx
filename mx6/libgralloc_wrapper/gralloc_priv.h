@@ -93,7 +93,7 @@ struct private_handle_t {
     int     size;
     int     offset;
     int     base;
-    int     phys;
+    unsigned long phys;
     int     format;
     int     width;
     int     height;
