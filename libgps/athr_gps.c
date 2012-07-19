@@ -402,6 +402,7 @@ static int nmea_reader_get_timestamp(NmeaReader*  r, Token  tok, time_t *timesta
     tm.tm_year = r->utc_year - 1900;
     tm.tm_mon  = r->utc_mon - 1;
     tm.tm_mday = r->utc_day;
+    tm.tm_isdst = -1;
 
     // D("h: %d, m: %d, s: %f", tm.tm_hour, tm.tm_min, tm.tm_sec);
     // D("Y: %d, M: %d, D: %d", tm.tm_year, tm.tm_mon, tm.tm_mday);
@@ -451,7 +452,6 @@ nmea_reader_update_date( NmeaReader*  r, Token  date, Token  mtime )
     int    day, mon, year;
 
     if (tok.p + 6 != tok.end) {
- 
         D("no date info, use host time as default: '%.*s'", tok.end-tok.p, tok.p);
         /* no date info, will use host time in _update_time function
            jhung 2010/05/12
@@ -792,7 +792,6 @@ nmea_reader_parse( NmeaReader*  r )
           int totalSentences = str2int(tok_noSentences.p, tok_noSentences.end);
           int curr;
           int i;
- 
           if (sentence == 1) {
               r->sv_status_changed = 0;
               r->sv_status.num_svs = 0;
@@ -1717,7 +1716,6 @@ static int athr_gps_xtra_inject_data(char *data, int length)
     int cnt;
 
     D("%s: entered, data: %.2x (len: %d)", __FUNCTION__, *data, length);
- 
     if (write(s->fd, data, length) < 0)
     {
       D("Send $PUNV command ERROR!");
