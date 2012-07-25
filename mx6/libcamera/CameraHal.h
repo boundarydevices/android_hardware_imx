@@ -395,8 +395,7 @@ namespace android {
         CAMERA_PREVIEW_ROTATE mPreviewRotate;
 
         unsigned int mVpuSupportFmt[MAX_VPU_SUPPORT_FORMAT];
-        bool mIsFormatMatch;//between hal and driver.
-        //bool mIsEncoderMatch;
+        CAMERA_TYPE mSensorType;
     };
 
 }; // namespace android
