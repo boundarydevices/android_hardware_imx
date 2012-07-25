@@ -784,9 +784,9 @@ namespace android {
             return NO_ERROR;//BAD_VALUE;
         }
 
-        //Make sure the buffer be phiscal continuous
+        //Make sure the buffer be physical continuous
         err = mNativeWindow->set_usage(mNativeWindow,
-                GRALLOC_USAGE_SW_READ_NEVER | GRALLOC_USAGE_HW_TEXTURE);
+                GRALLOC_USAGE_SW_READ_NEVER | GRALLOC_USAGE_FORCE_CONTIGUOUS | GRALLOC_USAGE_HW_TEXTURE);
         if(err != 0){
             CAMERA_LOG_ERR("native_window_set_usage failed:%s(%d)",
                     strerror(-err), -err);
