@@ -50,7 +50,23 @@ V4l2UVCDevice::V4l2UVCDevice()
     mCaptureConfigNum = 0;
     mCurrentConfig = NULL;
     memset(mCaptureConfig, 0, sizeof(mCaptureConfig));
+
     mEnableCSC = false;
+    memset(mCscSupportFmt, 0, sizeof(mCscSupportFmt));
+    //the format support in CSC.
+    mCscSupportFmt[0] = v4l2_fourcc('N','V','1','2');
+    mSensorFmtCnt = 0;
+    mCscFmtCnt = 0;
+    mActualCscFmtCnt = 0;
+    memset(mSensorSupportFmt, 0, sizeof(mSensorSupportFmt));
+    memset(mActualCscFmt, 0 , sizeof(mActualCscFmt));
+
+    memset(mCscGroup, 0, sizeof(mCscGroup));
+    //related to format support in CSC.
+    mCscGroup[0].srcFormat = v4l2_fourcc('Y','U','Y','V');
+    mCscGroup[0].dstFormat = v4l2_fourcc('N','V','1','2');
+    mCscGroup[0].cscConvert = convertYUYUToNV12;
+    mDoCsc = NULL;
 }
 
 CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2Open(int cameraId)
@@ -100,6 +116,10 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2Open(int cameraId)
                             strcpy(mInitalDeviceName, (const char*)v4l2_cap.driver);
                             strcpy(mCaptureDeviceName, dev_node);
                             break;
+                        }
+                        else {
+                            close(fd);
+                            fd = 0;
                         }
                     } else {
                         close(fd);
@@ -240,9 +260,17 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2Dequeue(unsigned int *pBufQueIdx)
         *pBufQueIdx = cfilledbuffer.index;
 
         //should do hardware accelerate.
-        if(mEnableCSC)
-            convertYUYUToNV12(mUvcBuffers[*pBufQueIdx].virt_start, mCaptureBuffers[*pBufQueIdx].virt_start,
-                           mCurrentConfig->width, mCurrentConfig->height);
+        if(mEnableCSC && mDoCsc) {
+            mDoCsc->width = mCurrentConfig->width;
+            mDoCsc->height = mCurrentConfig->height;
+            mDoCsc->srcStride = mDoCsc->width;
+            mDoCsc->dstStride = mDoCsc->width;
+            mDoCsc->srcVirt = mUvcBuffers[*pBufQueIdx].virt_start;
+            mDoCsc->dstVirt = mCaptureBuffers[*pBufQueIdx].virt_start;
+            mDoCsc->srcPhy = mUvcBuffers[*pBufQueIdx].phy_offset;
+            mDoCsc->dstPhy = mCaptureBuffers[*pBufQueIdx].phy_offset;
+            mDoCsc->cscConvert(mDoCsc);
+        }
         else
             memcpy(mCaptureBuffers[*pBufQueIdx].virt_start, mUvcBuffers[*pBufQueIdx].virt_start, mCaptureBuffers[*pBufQueIdx].length);
 
@@ -299,6 +327,68 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2DeAlloc()
     return CAPTURE_DEVICE_ERR_NONE;
 }
 
+void V4l2UVCDevice::selectCscFunction(unsigned int format)
+{
+    CAMERA_LOG_FUNC;
+    mDoCsc = NULL;
+    for(int i=0; i<MAX_CSC_SUPPORT_FMT; i++) {
+        if(mCscGroup[i].dstFormat == format) {
+            mDoCsc = &mCscGroup[i];
+            CAMERA_LOG_RUNTIME("find the match mCscGroup[%d]", i);
+        }
+    }
+}
+
+unsigned int V4l2UVCDevice::queryCscSourceFormat(unsigned int format)
+{
+    CAMERA_LOG_FUNC;
+    for(int i=0; i<MAX_CSC_SUPPORT_FMT; i++) {
+        if(mCscGroup[i].dstFormat == format) {
+            CAMERA_LOG_RUNTIME("find the CSC source format=0x%x convert to dest format=0x%x",
+                         mCscGroup[i].srcFormat, mCscGroup[i].dstFormat);
+            return mCscGroup[i].srcFormat;
+        }
+    }
+
+    CAMERA_LOG_ERR("invalidate format 0x%x in query", format);
+    return 0;
+}
+
+bool V4l2UVCDevice::needDoCsc(unsigned int format)
+{
+    CAMERA_LOG_FUNC;
+    unsigned int i;
+    for(i=0; i < mActualCscFmtCnt; i++) {
+        if(mActualCscFmt[i] == format)
+            return true;
+    }
+
+    return false;
+}
+
+unsigned int V4l2UVCDevice::countActualCscFmt()
+{
+    CAMERA_LOG_FUNC;
+    if(mSensorFmtCnt <= 0) {
+        return 0;
+    }
+
+    unsigned int i, k;
+    unsigned int n = 0;
+    for(i=0; i < MAX_CSC_SUPPORT_FMT; i++) {
+        for(k=0; k < mSensorFmtCnt; k++) {
+            if(mCscSupportFmt[i] == mSensorSupportFmt[k]) {
+                break;
+            }
+        }
+        if(k == mSensorFmtCnt) {
+            mActualCscFmt[n++] = mCscSupportFmt[i];
+        }
+    }
+
+    return n;
+}
+
 CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2EnumFmt(void *retParam)
 {
     CAMERA_LOG_FUNC;
@@ -310,11 +400,26 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2EnumFmt(void *retParam)
     vid_fmtdesc.index = mFmtParamIdx;
     vid_fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(mCameraDevice, VIDIOC_ENUM_FMT, &vid_fmtdesc ) != 0){
+        if(mSensorFmtCnt > 0) {
+            mCscFmtCnt = countActualCscFmt();
+            mActualCscFmtCnt = mCscFmtCnt;
+            mSensorFmtCnt = 0;
+        }
+        if(mCscFmtCnt > 0) {
+            *pParamVal = mActualCscFmt[mCscFmtCnt-1];
+            mFmtParamIdx ++;
+            mCscFmtCnt --;
+            return CAPTURE_DEVICE_ERR_ENUM_CONTINUE;
+        }
         mFmtParamIdx = 0;
         ret = CAPTURE_DEVICE_ERR_GET_PARAM;
     }else{
         CAMERA_LOG_RUNTIME("vid_fmtdesc.pixelformat is %x", vid_fmtdesc.pixelformat);
         *pParamVal = vid_fmtdesc.pixelformat;
+        if(mFmtParamIdx < MAX_SUPPORTED_FMT) {
+            mSensorSupportFmt[mFmtParamIdx] = vid_fmtdesc.pixelformat;
+            mSensorFmtCnt ++;
+        }
         mFmtParamIdx ++;
         ret = CAPTURE_DEVICE_ERR_ENUM_CONTINUE;
     }
@@ -334,15 +439,40 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2EnumSizeFps(void *retParam)
     vid_frmsize.index = mSizeFPSParamIdx;
     CAMERA_LOG_RUNTIME("the query for size fps fmt is %x",pCapCfg->fmt);
 
-    vid_frmsize.pixel_format = pCapCfg->fmt;
+    if(needDoCsc(pCapCfg->fmt)) {
+        vid_frmsize.pixel_format = queryCscSourceFormat(pCapCfg->fmt);
+        if(vid_frmsize.pixel_format == 0) {
+            CAMERA_LOG_ERR("EnumSizeFps: queryCscSourceFormat return failed");
+            return CAPTURE_DEVICE_ERR_BAD_PARAM;
+        }
+    }
+    else {
+        vid_frmsize.pixel_format = pCapCfg->fmt;
+    }
     if (ioctl(mCameraDevice, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize) != 0){
         mSizeFPSParamIdx = 0;
         ret = CAPTURE_DEVICE_ERR_SET_PARAM;
     }else{
+        //uvc handle 1600x1200 may have some problem. so, skip it.
+        if(vid_frmsize.discrete.width == 1600 && vid_frmsize.discrete.height == 1200) {
+            CAMERA_LOG_ERR("EnumSizeFps: now skip %d x %d resolution", vid_frmsize.discrete.width, vid_frmsize.discrete.height);
+            mSizeFPSParamIdx = 0;
+            return CAPTURE_DEVICE_ERR_SET_PARAM;
+        }
+
         memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
         CAMERA_LOG_RUNTIME("in %s the w %d, h %d", __FUNCTION__,vid_frmsize.discrete.width, vid_frmsize.discrete.height);
         vid_frmval.index = 0; //get the first, that is the min frame interval, but the biggest fps
-        vid_frmval.pixel_format = pCapCfg->fmt;
+        if(needDoCsc(pCapCfg->fmt)) {
+            vid_frmval.pixel_format = queryCscSourceFormat(pCapCfg->fmt);
+            if(vid_frmsize.pixel_format == 0) {
+                CAMERA_LOG_ERR("EnumSizeFps2: queryCscSourceFormat return failed");
+                return CAPTURE_DEVICE_ERR_BAD_PARAM;
+            }
+        }
+        else {
+            vid_frmval.pixel_format = pCapCfg->fmt;
+        }
         vid_frmval.width = vid_frmsize.discrete.width;
         vid_frmval.height= vid_frmsize.discrete.height;
         if (ioctl(mCameraDevice, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval) != 0){
@@ -357,7 +487,7 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2EnumSizeFps(void *retParam)
             mSizeFPSParamIdx ++;
 
             //store all configuration here.
-            mCaptureConfig[mCaptureConfigNum].fmt = pCapCfg->fmt;
+            mCaptureConfig[mCaptureConfigNum].fmt = vid_frmsize.pixel_format;//pCapCfg->fmt;
             mCaptureConfig[mCaptureConfigNum].width = pCapCfg->width;
             mCaptureConfig[mCaptureConfigNum].height = pCapCfg->height;
             mCaptureConfig[mCaptureConfigNum].picture_waite_number = 0;
@@ -367,12 +497,6 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2EnumSizeFps(void *retParam)
         }
     }
     return ret;
-}
-
-CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2setColorConvert(bool enable)
-{
-    mEnableCSC = enable;
-    return CAPTURE_DEVICE_ERR_NONE;
 }
 
 CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2SetConfig(struct capture_config_t *pCapcfg)
@@ -392,7 +516,7 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2SetConfig(struct capture_config_t *pCapcfg
 
     //find the best match configuration.
     for(unsigned int i=0; i < mCaptureConfigNum; i++) {
-        if(mCaptureConfig[i].fmt == pCapcfg->fmt &&
+        if(/*mCaptureConfig[i].fmt == pCapcfg->fmt &&*/
                  mCaptureConfig[i].width == pCapcfg->width &&
                  mCaptureConfig[i].height == pCapcfg->height) {
             matchConfig = &mCaptureConfig[i];
@@ -419,14 +543,28 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2SetConfig(struct capture_config_t *pCapcfg
                        pCapcfg->fmt, pCapcfg->width, pCapcfg->height);
         return CAPTURE_DEVICE_ERR_BAD_PARAM;
     }
+
     mCurrentConfig = matchConfig;
 
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.pixelformat = matchConfig->fmt;
+    if(needDoCsc(pCapcfg->fmt)) {
+        mEnableCSC = true;
+        //set mDoCsc 
+        selectCscFunction(pCapcfg->fmt);
+        fmt.fmt.pix.pixelformat = queryCscSourceFormat(pCapcfg->fmt);
+        if(fmt.fmt.pix.pixelformat == 0) {
+            CAMERA_LOG_ERR("SetConfig: queryCscSourceFormat return failed");
+            return CAPTURE_DEVICE_ERR_BAD_PARAM;
+        }
+    }
+    else {
+        mEnableCSC = false;
+        fmt.fmt.pix.pixelformat = matchConfig->fmt;
+    }
 
-    fmt.fmt.pix.width = matchConfig->width&0xFFFFFFF8;
-    fmt.fmt.pix.height = matchConfig->height&0xFFFFFFF8;
-    if (matchConfig->fmt == V4L2_PIX_FMT_YUYV)
+    fmt.fmt.pix.width = matchConfig->width;
+    fmt.fmt.pix.height = matchConfig->height;
+    if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
         fmt.fmt.pix.bytesperline = fmt.fmt.pix.width * 2;
     else
         fmt.fmt.pix.bytesperline = fmt.fmt.pix.width;
@@ -446,7 +584,8 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2SetConfig(struct capture_config_t *pCapcfg
     parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     parm.parm.capture.timeperframe.numerator = matchConfig->tv.numerator;
     parm.parm.capture.timeperframe.denominator = matchConfig->tv.denominator;
-
+    CAMERA_LOG_RUNTIME("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator,
+                parm.parm.capture.timeperframe.denominator);
     if ( (err = ioctl(mCameraDevice, VIDIOC_S_PARM, &parm)) < 0) {
         CAMERA_LOG_ERR("%s:%d  VIDIOC_S_PARM failed err=%d\n", __FUNCTION__,__LINE__, err);
         CAMERA_LOG_ERR("frame timeval is numerator %d, denominator %d",parm.parm.capture.timeperframe.numerator,
@@ -473,8 +612,13 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2SetConfig(struct capture_config_t *pCapcfg
     return CAPTURE_DEVICE_ERR_NONE;
 }
 
-void V4l2UVCDevice::convertYUYUToNV12(unsigned char *pSrcBufs, unsigned char *pDstBufs, unsigned int bufWidth, unsigned int bufHeight)
+void V4l2UVCDevice::convertYUYUToNV12(struct CscConversion* param)
 {
+    unsigned char *pSrcBufs = param->srcVirt;
+    unsigned char *pDstBufs = param->dstVirt;
+    unsigned int bufWidth = param->width;
+    unsigned int bufHeight = param->height;
+
     unsigned char *pSrcY1Offset = pSrcBufs;
     unsigned char *pSrcY2Offset = pSrcBufs + (bufWidth << 1);
     unsigned char *pSrcY3Offset = pSrcBufs + (bufWidth << 1) * 2;

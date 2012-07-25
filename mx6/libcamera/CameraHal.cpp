@@ -116,7 +116,6 @@ namespace android {
         CAMERA_LOG_FUNC;
         mVpuSupportFmt[0] = v4l2_fourcc('N','V','1','2');
         mVpuSupportFmt[1] = v4l2_fourcc('Y','U','1','2');
-        mIsFormatMatch = false;
     }
     void CameraHal :: postDestroy()
     {
@@ -150,9 +149,7 @@ namespace android {
         CAMERA_LOG_FUNC;
         CAMERA_HAL_RET ret = CAMERA_HAL_ERR_NONE;
         mCameraReady == true;
-
-        CAMERA_TYPE cType;
-        mCaptureDevice->GetDevType(&cType);
+        mCaptureDevice->GetDevType(&mSensorType);
 
         if ((ret = AllocInterBuf())<0)
             return ret;
@@ -249,15 +246,19 @@ namespace android {
         mCaptureThreadQueue.postQuitMessage();
         //Make sure all thread been exit, in case they still
         //access the message queue
-        mCaptureFrameThread->requestExitAndWait();
+        if(mCaptureFrameThread != NULL)
+            mCaptureFrameThread->requestExitAndWait();
 
         //Post Quite message to make sure the thread can be exited
         //In case mCaptureFrameThread not been started yet in CTS test
         mPreviewThreadQueue.postQuitMessage();
-        mPreviewShowFrameThread->requestExitAndWait();
+        if(mPreviewShowFrameThread != NULL)
+            mPreviewShowFrameThread->requestExitAndWait();
         mEncodeThreadQueue.postQuitMessage();
-        mEncodeFrameThread->requestExitAndWait();
-        mTakePicThread->requestExitAndWait();
+        if(mEncodeFrameThread != NULL)
+            mEncodeFrameThread->requestExitAndWait();
+        if(mTakePicThread != NULL)
+            mTakePicThread->requestExitAndWait();
         return ret;
     }
 
@@ -277,11 +278,6 @@ namespace android {
         for(n = 0; n < nFmt; n++) {
             uFormat[n] = mSensorSupportFmt[n];
         }
-
-        //if the sensor format and preview not match,
-        //then should count the preview format.
-        if(!mIsFormatMatch && n < MAX_QUERY_FMT_TIMES)
-            uFormat[n++] = mPreviewCapturedFormat;
 
         memset(fmtStr, 0, 40);
         for(i = 0; i < n; i++) {
@@ -1220,7 +1216,9 @@ Pic_out:
 
         mCaptureDevice->DevStop();
         mCaptureDevice->DevDeAllocate();
-        CloseCaptureDevice();
+        if(mSensorType == CAMERA_TYPE_UVC) {
+            CloseCaptureDevice();
+        }
 
         if(JpegMemBase) {
             JpegMemBase->release(JpegMemBase);
@@ -1272,23 +1270,12 @@ Pic_out:
                     break;
             }
             if (nPickFormat == 0) {
-                //mPictureEncodeFormat stores format report to app.
-                //mCaptureDeviceCfg.fmt stores format related to dirver.
-                mPictureEncodeFormat = mJpegEncoderSupportFmt[0];
-                mCaptureDeviceCfg.fmt = mSensorSupportFmt[0];//mUvcSpecialCaptureFormat; //For uvc now, IPU only can support yuyv.
-                CAMERA_LOG_INFO("Need to do the CSC for Jpeg encoder");
-                CAMERA_LOG_INFO("Get the sensor format is :%c%c%c%c\n",
-                        mCaptureDeviceCfg.fmt & 0xFF, (mCaptureDeviceCfg.fmt >> 8) & 0xFF,
-                        (mCaptureDeviceCfg.fmt >> 16) & 0xFF, (mCaptureDeviceCfg.fmt >> 24) & 0xFF);
-                CAMERA_LOG_INFO("Get the Picture Encode Format :%c%c%c%c\n",
-                        mPictureEncodeFormat & 0xFF, (mPictureEncodeFormat >> 8) & 0xFF,
-                        (mPictureEncodeFormat >> 16) & 0xFF, (mPictureEncodeFormat >> 24) & 0xFF);
-                mCaptureDevice->setColorConvert(true);
+                CAMERA_LOG_ERR("NegotiateCaptureFmt failed");
+                return UNKNOWN_ERROR;
             }
             else {
                 mPictureEncodeFormat = nPickFormat;
                 mCaptureDeviceCfg.fmt = nPickFormat;
-                mCaptureDevice->setColorConvert(false);
             }
             //should make mPictureEncodeFormat equal to mPreviewCapturedFormat.
             //because allocate buffer should use it.
@@ -1312,25 +1299,12 @@ Pic_out:
                     break;
             }
             if (nPickFormat == 0) {
-                //mPreviewCapturedFormat stores format report to app.
-                //mCaptureDeviceCfg.fmt stores format related to dirver.
-                mPreviewCapturedFormat = mVpuSupportFmt[0];
-                mCaptureDeviceCfg.fmt = mSensorSupportFmt[1];//mUvcSpecialCaptureFormat; //For uvc now, IPU only can support yuyv.
-                CAMERA_LOG_INFO("Need to do the CSC for preview");
-                CAMERA_LOG_INFO("Get the sensor format is :%c%c%c%c\n",
-                        mCaptureDeviceCfg.fmt & 0xFF, (mCaptureDeviceCfg.fmt >> 8) & 0xFF,
-                        (mCaptureDeviceCfg.fmt >> 16) & 0xFF, (mCaptureDeviceCfg.fmt >> 24) & 0xFF);
-                CAMERA_LOG_INFO("Get the preview format :%c%c%c%c\n",
-                        mPreviewCapturedFormat & 0xFF, (mPreviewCapturedFormat >> 8) & 0xFF,
-                        (mPreviewCapturedFormat >> 16) & 0xFF, (mPreviewCapturedFormat >> 24) & 0xFF);
-                mCaptureDevice->setColorConvert(true);
-                mIsFormatMatch = false;
+                CAMERA_LOG_ERR("NegotiateCaptureFmt2 failed");
+                return UNKNOWN_ERROR;
             }
             else {
                 mPreviewCapturedFormat = nPickFormat;
                 mCaptureDeviceCfg.fmt = nPickFormat;
-                mCaptureDevice->setColorConvert(false);
-                mIsFormatMatch = true;
             }
         }//end else
 
@@ -1585,13 +1559,7 @@ Pic_out:
             return ret;
         }
 
-        if(mIsFormatMatch) {
-            mCaptureDeviceCfg.fmt = mPreviewCapturedFormat;
-            mCaptureDevice->setColorConvert(false);
-        }
-        else {
-            mCaptureDevice->setColorConvert(true);
-        }
+        mCaptureDeviceCfg.fmt = mPreviewCapturedFormat;
 
         CAMERA_LOG_RUNTIME("*********%s,mCaptureDeviceCfg.fmt=%x************", __FUNCTION__, mCaptureDeviceCfg.fmt);
         mCaptureDeviceCfg.rotate = (SENSOR_PREVIEW_ROTATE)mPreviewRotate;
@@ -1706,7 +1674,9 @@ Pic_out:
         mCaptureDevice->DevStop();
         mCaptureDevice->DevDeAllocate();
         freeBuffersToNativeWindow();
-        CloseCaptureDevice();
+        if(mSensorType == CAMERA_TYPE_UVC) {
+            CloseCaptureDevice();
+        }
     }
 
     status_t CameraHal :: PrepareCaptureBufs()
@@ -1810,9 +1780,11 @@ Pic_out:
 
         unsigned int bufIndex = 0;
         //skip 10 frames when doing preview
-        for (int k = 0; k < 10; k++) {
-            mCaptureDevice->DevDequeue(&bufIndex);
-            mCaptureDevice->DevQueue(bufIndex);
+        if(mSensorType != CAMERA_TYPE_UVC) {
+            for (int k = 0; k < 10; k++) {
+                mCaptureDevice->DevDequeue(&bufIndex);
+                mCaptureDevice->DevQueue(bufIndex);
+            }
         }
 
         for(unsigned int i=0; i < mCaptureBufNum; i++) {

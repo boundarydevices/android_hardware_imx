@@ -591,12 +591,15 @@ int camera_device_open(const hw_module_t* module, const char* name,
         }
 
         if (camera->setCaptureDevice(pCaptureDevice) < 0 ||
-                camera->setJpegEncoder(pJpegEncoder) < 0)
-            return NULL;
+                camera->setJpegEncoder(pJpegEncoder) < 0) {
+            rv = -EINVAL;
+            goto fail;
+        }
 
-        if (camera->Init() < 0)
-            return NULL;
-
+        if (camera->Init() < 0) {
+            rv = -EINVAL;
+            goto fail;
+        }
 
         gCameraHals[cameraid] = camera;
         gCamerasOpen++;
