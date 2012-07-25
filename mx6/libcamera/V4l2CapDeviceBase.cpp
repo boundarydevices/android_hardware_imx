@@ -75,12 +75,6 @@ namespace android{
         return ret;
     }
 
-    CAPTURE_DEVICE_RET V4l2CapDeviceBase::setColorConvert(bool enable){
-        CAMERA_LOG_FUNC;
-
-        return V4l2setColorConvert(enable);
-    }
-
     CAPTURE_DEVICE_RET V4l2CapDeviceBase::DevOpen(int cameraId){
         CAMERA_LOG_FUNC;
 
@@ -715,10 +709,6 @@ namespace android{
         CAMERA_LOG_INFO("close the device");
         close(mCameraDevice);
         mCameraDevice = -1;
-        return CAPTURE_DEVICE_ERR_NONE;
-    }
-
-    CAPTURE_DEVICE_RET V4l2CapDeviceBase :: V4l2setColorConvert(bool enable){
         return CAPTURE_DEVICE_ERR_NONE;
     }
 
