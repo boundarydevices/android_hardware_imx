@@ -31,6 +31,10 @@
 namespace android{
 
 struct CscConversion {
+    //if the srcFormat is support by sensor.
+    bool isSensorSupport;
+    //if the dstFormat is support by sensor.
+    bool isOverlapWithSensor;
     int width;
     int height;
     int srcStride;
@@ -79,8 +83,6 @@ private:
 
     //for jpeg encoder support yuyv. this case, should not covert.
     bool mEnableCSC;
-    //stores csc support format.
-    unsigned int mCscSupportFmt[MAX_CSC_SUPPORT_FMT];
     //stores nedd csc format. 
     struct CscConversion mCscGroup[MAX_CSC_SUPPORT_FMT];
     struct CscConversion* mDoCsc;
