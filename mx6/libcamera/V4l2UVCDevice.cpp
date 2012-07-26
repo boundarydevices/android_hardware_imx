@@ -52,9 +52,6 @@ V4l2UVCDevice::V4l2UVCDevice()
     memset(mCaptureConfig, 0, sizeof(mCaptureConfig));
 
     mEnableCSC = false;
-    memset(mCscSupportFmt, 0, sizeof(mCscSupportFmt));
-    //the format support in CSC.
-    mCscSupportFmt[0] = v4l2_fourcc('N','V','1','2');
     mSensorFmtCnt = 0;
     mCscFmtCnt = 0;
     mActualCscFmtCnt = 0;
@@ -66,6 +63,8 @@ V4l2UVCDevice::V4l2UVCDevice()
     mCscGroup[0].srcFormat = v4l2_fourcc('Y','U','Y','V');
     mCscGroup[0].dstFormat = v4l2_fourcc('N','V','1','2');
     mCscGroup[0].cscConvert = convertYUYUToNV12;
+    mCscGroup[0].isSensorSupport = false;
+    mCscGroup[0].isOverlapWithSensor = false;
     mDoCsc = NULL;
 }
 
@@ -332,9 +331,10 @@ void V4l2UVCDevice::selectCscFunction(unsigned int format)
     CAMERA_LOG_FUNC;
     mDoCsc = NULL;
     for(int i=0; i<MAX_CSC_SUPPORT_FMT; i++) {
-        if(mCscGroup[i].dstFormat == format) {
+        if(mCscGroup[i].isSensorSupport == true && mCscGroup[i].isOverlapWithSensor == false &&
+                     mCscGroup[i].dstFormat == format) {
             mDoCsc = &mCscGroup[i];
-            CAMERA_LOG_RUNTIME("find the match mCscGroup[%d]", i);
+            CAMERA_LOG_RUNTIME("find the match mCscGroup[%d] CSC function", i);
         }
     }
 }
@@ -343,7 +343,8 @@ unsigned int V4l2UVCDevice::queryCscSourceFormat(unsigned int format)
 {
     CAMERA_LOG_FUNC;
     for(int i=0; i<MAX_CSC_SUPPORT_FMT; i++) {
-        if(mCscGroup[i].dstFormat == format) {
+        if(mCscGroup[i].isSensorSupport == true && mCscGroup[i].isOverlapWithSensor == false &&
+                     mCscGroup[i].dstFormat == format) {
             CAMERA_LOG_RUNTIME("find the CSC source format=0x%x convert to dest format=0x%x",
                          mCscGroup[i].srcFormat, mCscGroup[i].dstFormat);
             return mCscGroup[i].srcFormat;
@@ -375,14 +376,25 @@ unsigned int V4l2UVCDevice::countActualCscFmt()
 
     unsigned int i, k;
     unsigned int n = 0;
+
     for(i=0; i < MAX_CSC_SUPPORT_FMT; i++) {
         for(k=0; k < mSensorFmtCnt; k++) {
-            if(mCscSupportFmt[i] == mSensorSupportFmt[k]) {
+            if(mCscGroup[i].srcFormat == mSensorSupportFmt[k]) {
+                mCscGroup[i].isSensorSupport = true;
                 break;
             }
         }
-        if(k == mSensorFmtCnt) {
-            mActualCscFmt[n++] = mCscSupportFmt[i];
+    }
+
+    for(i=0; i < MAX_CSC_SUPPORT_FMT; i++) {
+        for(k=0; k < mSensorFmtCnt; k++) {
+            if(mCscGroup[i].isSensorSupport == true && mCscGroup[i].dstFormat == mSensorSupportFmt[k]) {
+                mCscGroup[i].isOverlapWithSensor = true;
+                break;
+            }
+        }
+        if(mCscGroup[i].isSensorSupport == true && mCscGroup[i].isOverlapWithSensor == false) {
+            mActualCscFmt[n++] = mCscGroup[i].dstFormat;
         }
     }
 
