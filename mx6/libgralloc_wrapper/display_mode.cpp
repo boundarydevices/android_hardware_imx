@@ -176,9 +176,9 @@ static int read_graphics_fb_mode(int fb)
         //int size;
         memset(conf_modes, 0, sizeof(conf_modes));
         memset(&g_config_mode[0], 0, sizeof(g_config_mode));
-        int fd = open("/system/etc/display_mode.conf", O_RDONLY, 0);
+        int fd = open("/system/etc/display_mode_fb0.conf", O_RDONLY, 0);
         if(fd < 0) {
-            LOGE("Warning: /system/etc/display_mode.conf not defined");
+            LOGE("Warning: /system/etc/display_mode_fb0.conf not defined");
         }
         else {
             size = read(fd, conf_modes, sizeof(conf_modes));
