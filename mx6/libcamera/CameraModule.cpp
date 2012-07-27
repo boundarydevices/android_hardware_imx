@@ -469,8 +469,8 @@ done:
 #define FACE_FRONT_CAMERA_NAME "front_camera_name"
 #define FACE_BACK_CAMERA_ORIENT "back_camera_orient"
 #define FACE_FRONT_CAMERA_ORIENT "front_camera_orient"
-#define DEFAULT_ERROR_NAME '#'
-#define DEFAULT_ERROR_NAME_str "#"
+#define DEFAULT_ERROR_NAME '0'
+#define DEFAULT_ERROR_NAME_str "0"
 #define UVC_NAME "uvc"
 static struct camera_info sCameraInfo[2];
 //Camera_name[0]  for back camera name
