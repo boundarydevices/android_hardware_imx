@@ -55,9 +55,11 @@ struct audio_card{
     struct route_setting *mm_hs_mic_input;
     struct route_setting *vx_bt_mic_input;
     struct route_setting *mm_bt_mic_input;
+    int  card;
 };
 
-#define MAX_AUDIO_CARD_NUM 2
+#define MAX_AUDIO_CARD_NUM  2
+#define MAX_AUDIO_CARD_SCAN 3
 
 struct imx_audio_device {
     struct audio_hw_device hw_device;
@@ -133,5 +135,23 @@ struct imx_stream_in {
     struct imx_audio_device *dev;
 };
 
+#define SUPPORTED_DEVICE_IN_MODULE               \
+          ( AUDIO_DEVICE_OUT_EARPIECE |          \
+            AUDIO_DEVICE_OUT_SPEAKER |           \
+            AUDIO_DEVICE_OUT_WIRED_HEADSET |     \
+            AUDIO_DEVICE_OUT_WIRED_HEADPHONE |   \
+            AUDIO_DEVICE_OUT_AUX_DIGITAL |       \
+            AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET | \
+            AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET | \
+            AUDIO_DEVICE_OUT_ALL_SCO |           \
+            AUDIO_DEVICE_OUT_DEFAULT |           \
+            AUDIO_DEVICE_IN_COMMUNICATION |      \
+            AUDIO_DEVICE_IN_AMBIENT |            \
+            AUDIO_DEVICE_IN_BUILTIN_MIC |        \
+            AUDIO_DEVICE_IN_WIRED_HEADSET |      \
+            AUDIO_DEVICE_IN_AUX_DIGITAL |        \
+            AUDIO_DEVICE_IN_BACK_MIC |           \
+            AUDIO_DEVICE_IN_ALL_SCO |            \
+            AUDIO_DEVICE_IN_DEFAULT )
 
 #endif  /* ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H */

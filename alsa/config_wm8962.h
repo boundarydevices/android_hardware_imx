@@ -222,6 +222,7 @@ static struct audio_card  wm8962_card = {
     .mm_hs_mic_input     = mm_hs_mic_input_wm8962,
     .vx_bt_mic_input     = vx_bt_mic_input_wm8962,
     .mm_bt_mic_input     = mm_bt_mic_input_wm8962,
+    .card                = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_WM8962_H */
