@@ -35,6 +35,7 @@ static struct audio_card  hdmi_card = {
     .mm_hs_mic_input     = NULL,
     .vx_bt_mic_input     = NULL,
     .mm_bt_mic_input     = NULL,
+    .card                = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_HDMI_H */
