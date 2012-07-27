@@ -391,7 +391,7 @@ static int start_output_stream(struct imx_stream_out *out)
      * devices, this will cause use of S/PDIF or HDMI only */
     for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
         if((out->device & AUDIO_DEVICE_OUT_ALL) & adev->card_list[i]->supported_devices) {
-            card = i;
+            card = adev->card_list[i]->card;
             port = 0;
             break;
         }
@@ -903,7 +903,7 @@ static int start_input_stream(struct imx_stream_in *in)
 
     for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
         if((adev->devices & AUDIO_DEVICE_IN_ALL) & adev->card_list[i]->supported_devices) {
-            card = i;
+            card = adev->card_list[i]->card;
             port = 0;
             break;
         }
@@ -1881,7 +1881,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     struct imx_audio_device *adev;
     int ret;
     struct control *imx_control;
-    int i,j;
+    int i,j,k;
     bool found;
 
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
@@ -1915,7 +1915,8 @@ static int adev_open(const hw_module_t* module, const char* name,
     /* open the mixer for main sound card, main sound cara is like sgtl5000, wm8958, cs428888*/
     /* note: some platform do not have main sound card, only have auxiliary card.*/
     /* max num of supported card is 2 */
-    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+    k = 0;
+    for (i = 0; i < MAX_AUDIO_CARD_SCAN ; i ++) {
         found = false;
         imx_control = control_open(i);
         if(!imx_control)
@@ -1923,13 +1924,15 @@ static int adev_open(const hw_module_t* module, const char* name,
         LOGW("card %d, id %s , name %s", i, control_card_info_get_id(imx_control), control_card_info_get_name(imx_control));
         for(j = 0; j < SUPPORT_CARD_NUM; j++) {
             if(!strcmp(control_card_info_get_name(imx_control), audio_card_list[j]->name)){
-                adev->card_list[i]  = audio_card_list[j];
-                adev->mixer[i] = mixer_open(i);
-                if (!adev->mixer[i]) {
+                adev->card_list[k]  = audio_card_list[j];
+                adev->mixer[k] = mixer_open(i);
+                adev->card_list[k]->card = i;
+                if (!adev->mixer[k]) {
                     free(adev);
                     LOGE("Unable to open the mixer, aborting.");
                     return -EINVAL;
                 }
+                k ++;
                 found = true;
             }
         }
@@ -1937,20 +1940,22 @@ static int adev_open(const hw_module_t* module, const char* name,
         control_close(imx_control);
         if(!found){
             LOGW("unrecognized card found.");
-            return -EINVAL;
+        }
+        if(k >= MAX_AUDIO_CARD_NUM) {
+             break;
         }
     }
     /*must have one card*/
     if(!adev->card_list[0]) {
         free(adev);
-        LOGE("no sound card found, aborting.");
+        LOGE("no supported sound card found, aborting.");
         return  -EINVAL;
     }
     /*second card maybe null*/
     if(!adev->card_list[1]) {
         adev->card_list[1]  = audio_card_list[SUPPORT_CARD_NUM-1];
         /*FIXME:This is workaround for some board which only have one card, whose supported device only is not full*/
-        adev->card_list[1]->supported_devices  = (AUDIO_DEVICE_OUT_ALL | AUDIO_DEVICE_IN_ALL) &
+        adev->card_list[1]->supported_devices  = (SUPPORTED_DEVICE_IN_MODULE) &
                                                  (~adev->card_list[0]->supported_devices);
     }
 
