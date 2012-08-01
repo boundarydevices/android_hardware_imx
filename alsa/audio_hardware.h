@@ -58,7 +58,7 @@ struct audio_card{
     int  card;
 };
 
-#define MAX_AUDIO_CARD_NUM  2
+#define MAX_AUDIO_CARD_NUM  3
 #define MAX_AUDIO_CARD_SCAN 3
 
 struct imx_audio_device {
@@ -83,6 +83,7 @@ struct imx_audio_device {
     struct audio_card *card_list[MAX_AUDIO_CARD_NUM];
     struct mixer *mixer[MAX_AUDIO_CARD_NUM];
     int out_stream_num;
+    int audio_card_num;
 };
 
 struct imx_stream_out {
@@ -151,6 +152,7 @@ struct imx_stream_in {
             AUDIO_DEVICE_IN_WIRED_HEADSET |      \
             AUDIO_DEVICE_IN_AUX_DIGITAL |        \
             AUDIO_DEVICE_IN_BACK_MIC |           \
+            AUDIO_DEVICE_IN_ANLG_DOCK_MIC |      \
             AUDIO_DEVICE_IN_ALL_SCO |            \
             AUDIO_DEVICE_IN_DEFAULT )
 

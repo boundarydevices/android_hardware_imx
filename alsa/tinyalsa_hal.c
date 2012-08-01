@@ -42,6 +42,7 @@
 #include "config_wm8962.h"
 #include "config_wm8958.h"
 #include "config_hdmi.h"
+#include "config_usbaudio.h"
 #include "config_nullcard.h"
 
 
@@ -79,19 +80,20 @@
 #define MM_LOW_POWER_SAMPLING_RATE  44100
 /* sampling rate when using MM full power port */
 #define MM_FULL_POWER_SAMPLING_RATE 44100
-
+#define MM_USB_AUDIO_IN_RATE   16000
 
 /* product-specific defines */
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
-#define SUPPORT_CARD_NUM        4
+#define SUPPORT_CARD_NUM        5
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
+    &usbaudio_card,
     &null_card,
 };
 
@@ -121,6 +123,11 @@ static void select_input_device(struct imx_audio_device *adev);
 static int adev_set_voice_volume(struct audio_hw_device *dev, float volume);
 static int do_input_standby(struct imx_stream_in *in);
 static int do_output_standby(struct imx_stream_out *out);
+static int scan_available_device(struct imx_audio_device *adev);
+static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
+                                   struct resampler_buffer* buffer);
+static void release_buffer(struct resampler_buffer_provider *buffer_provider,
+                                  struct resampler_buffer* buffer);
 
 /* Returns true on devices that are toro, false otherwise */
 static int is_device_imx(void)
@@ -376,7 +383,7 @@ static void select_input_device(struct imx_audio_device *adev)
 static int start_output_stream(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    unsigned int card = 0;
+    unsigned int card = -1;
     unsigned int port = 0;
     int i;
 
@@ -890,9 +897,9 @@ static int start_input_stream(struct imx_stream_in *in)
     int ret = 0;
     int i;
     struct imx_audio_device *adev = in->dev;
-    unsigned int card = 0;
+    unsigned int card = -1;
     unsigned int port = 0;
-
+    LOGW("start_input_stream....");
     adev->active_input = in;
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
@@ -910,6 +917,21 @@ static int start_input_stream(struct imx_stream_in *in)
         if(i == MAX_AUDIO_CARD_NUM-1) {
             LOGE("can not find supported device for %d",in->device);
             return -EINVAL;
+        }
+    }
+    LOGW("card %d, port %d device %x", card, port, in->device);
+
+    if(in->device & AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
+        if(in->config.rate != MM_USB_AUDIO_IN_RATE ||
+           in->config.channels != 1) {
+           LOGE("Input 2 does not support this format!");
+           return -EINVAL;
+        }
+    }else {
+        if(in->config.rate != MM_FULL_POWER_SAMPLING_RATE ||
+           in->config.channels != 2) {
+           LOGE("Input 1 does not support this format!");
+           return -EINVAL;
         }
     }
 
@@ -993,6 +1015,7 @@ static int do_input_standby(struct imx_stream_in *in)
     struct imx_audio_device *adev = in->dev;
 
     if (!in->standby) {
+        LOGW("do_in_standby..");
         pcm_close(in->pcm);
         in->pcm = NULL;
 
@@ -1068,6 +1091,11 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     if (do_standby)
         do_input_standby(in);
+
+    if (in->device & AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
+        scan_available_device(adev);
+    }
+
     pthread_mutex_unlock(&in->lock);
     pthread_mutex_unlock(&adev->lock);
 
@@ -1789,6 +1817,12 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
     /*fix to 2 channel,  caused by the wm8958 driver*/
     *channel_mask       = AUDIO_CHANNEL_IN_STEREO;
     in->config.channels = 2;
+ 
+    if(devices == AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
+        *channel_mask       = AUDIO_CHANNEL_IN_MONO;
+        in->config.channels = 1;
+        in->config.rate     = MM_USB_AUDIO_IN_RATE;
+    }
 
     in->buffer = malloc(in->config.period_size *
                         audio_stream_frame_size(&in->stream.common));
@@ -1875,11 +1909,82 @@ static uint32_t adev_get_supported_devices(const struct audio_hw_device *dev)
 }
 
 
+static int scan_available_device(struct imx_audio_device *adev)
+{
+    int i,j,k;
+    int m;
+    bool found;
+    bool scanned;
+    struct control *imx_control;
+    int left_devices = SUPPORTED_DEVICE_IN_MODULE;
+    /* open the mixer for main sound card, main sound cara is like sgtl5000, wm8958, cs428888*/
+    /* note: some platform do not have main sound card, only have auxiliary card.*/
+    /* max num of supported card is 2 */
+    k = adev->audio_card_num;
+    for(i = 0; i < k; i++) {
+        left_devices &= ~adev->card_list[i]->supported_devices;
+    }
+
+    for (i = 0; i < MAX_AUDIO_CARD_SCAN ; i ++) {
+        found = false;
+        imx_control = control_open(i);
+        if(!imx_control)
+            break;
+        LOGW("card %d, id %s , name %s", i, control_card_info_get_id(imx_control), control_card_info_get_name(imx_control));
+        for(j = 0; j < SUPPORT_CARD_NUM; j++) {
+            if(strstr(control_card_info_get_name(imx_control), audio_card_list[j]->name) != NULL){
+                // check if the device have been scaned before
+                scanned = false;
+                for (m = 0; m < k; m++) {
+                    if (!strcmp(audio_card_list[j]->name, adev->card_list[m]->name)) {
+                         scanned = true;
+                         found = true;
+                    }
+                }
+                if (scanned) break;
+                adev->card_list[k]  = audio_card_list[j];
+                adev->mixer[k] = mixer_open(i);
+                adev->card_list[k]->card = i;
+                if (!adev->mixer[k]) {
+                    LOGE("Unable to open the mixer, aborting.");
+                    return -EINVAL;
+                }
+                left_devices &= ~audio_card_list[j]->supported_devices;
+                k ++;
+                found = true;
+            }
+        }
+
+        control_close(imx_control);
+        if(!found){
+            LOGW("unrecognized card found.");
+        }
+        if(k >= MAX_AUDIO_CARD_NUM) {
+             break;
+        }
+    }
+    adev->audio_card_num = k;
+    /*must have one card*/
+    if(!adev->card_list[0]) {
+        LOGE("no supported sound card found, aborting.");
+        return  -EINVAL;
+    }
+    /*second card maybe null*/
+    while (k < MAX_AUDIO_CARD_NUM) {
+        adev->card_list[k]  = audio_card_list[SUPPORT_CARD_NUM-1];
+        /*FIXME:This is workaround for some board which only have one card, whose supported device only is not full*/
+        adev->card_list[k]->supported_devices  = left_devices;
+        k++;
+    }
+
+    return 0;
+}
+
 static int adev_open(const hw_module_t* module, const char* name,
                      hw_device_t** device)
 {
     struct imx_audio_device *adev;
-    int ret;
+    int ret = 0;
     struct control *imx_control;
     int i,j,k;
     bool found;
@@ -1912,51 +2017,10 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.close_input_stream      = adev_close_input_stream;
     adev->hw_device.dump                    = adev_dump;
 
-    /* open the mixer for main sound card, main sound cara is like sgtl5000, wm8958, cs428888*/
-    /* note: some platform do not have main sound card, only have auxiliary card.*/
-    /* max num of supported card is 2 */
-    k = 0;
-    for (i = 0; i < MAX_AUDIO_CARD_SCAN ; i ++) {
-        found = false;
-        imx_control = control_open(i);
-        if(!imx_control)
-            break;
-        LOGW("card %d, id %s , name %s", i, control_card_info_get_id(imx_control), control_card_info_get_name(imx_control));
-        for(j = 0; j < SUPPORT_CARD_NUM; j++) {
-            if(!strcmp(control_card_info_get_name(imx_control), audio_card_list[j]->name)){
-                adev->card_list[k]  = audio_card_list[j];
-                adev->mixer[k] = mixer_open(i);
-                adev->card_list[k]->card = i;
-                if (!adev->mixer[k]) {
-                    free(adev);
-                    LOGE("Unable to open the mixer, aborting.");
-                    return -EINVAL;
-                }
-                k ++;
-                found = true;
-            }
-        }
-
-        control_close(imx_control);
-        if(!found){
-            LOGW("unrecognized card found.");
-        }
-        if(k >= MAX_AUDIO_CARD_NUM) {
-             break;
-        }
-    }
-    /*must have one card*/
-    if(!adev->card_list[0]) {
+    ret = scan_available_device(adev);
+    if (ret != 0) {
         free(adev);
-        LOGE("no supported sound card found, aborting.");
-        return  -EINVAL;
-    }
-    /*second card maybe null*/
-    if(!adev->card_list[1]) {
-        adev->card_list[1]  = audio_card_list[SUPPORT_CARD_NUM-1];
-        /*FIXME:This is workaround for some board which only have one card, whose supported device only is not full*/
-        adev->card_list[1]->supported_devices  = (SUPPORTED_DEVICE_IN_MODULE) &
-                                                 (~adev->card_list[0]->supported_devices);
+        return ret;
     }
 
     /* Set the default route before the PCM stream is opened */
