@@ -224,7 +224,7 @@ namespace android {
         mWaitForTakingPicture = false;
         sem_init(&mCaptureStoppedCondition, 0, 0);
         sem_init(&mPreviewStoppedCondition, 0, 0);
-        sem_init(&mEncodeStoppedCondition, 0, 0);
+        //sem_init(&mEncodeStoppedCondition, 0, 0);
         sem_init(&mTakingPicture, 0, 0);
         //mPostProcessRunning = false;
         //mEncodeRunning = false;
@@ -976,7 +976,11 @@ namespace android {
         if(mRecordRunning) {
             mRecordRunning = false;
             mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_STOP, 0));
-            sem_wait(&mEncodeStoppedCondition);
+            //stopRecording() will holde mLock in camera service,
+            //when encodeframeThread() is in the call back mDataCbTimestamp.
+            //That call back will make a call of releaseRecordingFrame, which
+            //also try to acquire the lock mLock. It will make a dead lock between the two thread
+            //sem_wait(&mEncodeStoppedCondition);
             CAMERA_LOG_RUNTIME("---%s, after wait--", __FUNCTION__);
         }
         mEncodeLock.unlock();
@@ -2105,7 +2109,7 @@ Pic_out:
                     CAMERA_LOG_ERR("%s: get invalide buffer index", __FUNCTION__);
                     mRecordRunning = false;
                     mEncodeThreadQueue.clearMessage();
-                    sem_post(&mEncodeStoppedCondition);
+                    //sem_post(&mEncodeStoppedCondition);
                     return BAD_VALUE;
                 }
 
@@ -2134,7 +2138,7 @@ Pic_out:
             case CMESSAGE_TYPE_STOP:
                 CAMERA_LOG_INFO("%s: encode thread stop", __FUNCTION__);
                 mEncodeThreadQueue.clearMessage();
-                sem_post(&mEncodeStoppedCondition);
+                //sem_post(&mEncodeStoppedCondition);
                 break;
             case CMESSAGE_TYPE_QUITE:
                 mExitEncodeThread = 1;
