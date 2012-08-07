@@ -127,12 +127,18 @@ int ion_map(int fd, struct ion_handle *handle, size_t length, int prot,
         return ret;
 }
 
-int ion_phys(int fd, struct ion_handle *handle)
+unsigned long ion_phys(int fd, struct ion_handle *handle)
 {
-        struct ion_handle_data data = {
+        int ret;
+        struct ion_phys_data data = {
                 .handle = handle,
+		.phys = 0,
         };
-        return ion_ioctl(fd, ION_IOC_PHYS, &data);
+
+        ret = ion_ioctl(fd, ION_IOC_PHYS, &data);
+        if (ret == 0)
+            return data.phys;
+        return 0;
 }
 
 int ion_share(int fd, struct ion_handle *handle, int *share_fd)
