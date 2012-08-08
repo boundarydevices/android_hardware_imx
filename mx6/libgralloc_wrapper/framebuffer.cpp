@@ -695,6 +695,7 @@ static void fb_device_init(private_module_t* m, fb_context_t *dev)
     const_cast<float&>(dev->device.fps) = m->fps;
     const_cast<int&>(dev->device.minSwapInterval) = 1;
     const_cast<int&>(dev->device.maxSwapInterval) = 1;
+    const_cast<int &>(dev->device.bufferCount) = NUM_BUFFERS;
 
 }
 
