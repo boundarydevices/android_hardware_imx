@@ -847,12 +847,30 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     else
         ret = pcm_write(out->pcm, (void *)buf, out_frames * frame_size);
 
-    if(ret != 0) LOGW("ret %d, pcm write error %s.", ret, pcm_get_error(out->pcm));
+    if(ret !=0) {
+        LOGW("ret %d, pcm write %d error %s.", ret, bytes, pcm_get_error(out->pcm));
+
+        switch(pcm_state(out->pcm)) {
+            case PCM_STATE_SETUP:
+            case PCM_STATE_XRUN:
+                 ret = pcm_prepare(out->pcm);
+                 if(ret != 0) goto exit;
+                 break;
+            default:
+                 goto exit;
+        }
+
+        if(out->write_flags & PCM_MMAP)
+            ret = pcm_mmap_write(out->pcm, (void *)buf, out_frames * frame_size);
+        else
+            ret = pcm_write(out->pcm, (void *)buf, out_frames * frame_size);
+     }
 
 exit:
     pthread_mutex_unlock(&out->lock);
 
     if (ret != 0) {
+        LOGW("write error, sleep few ms");
         usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
                out_get_sample_rate(&stream->common));
     }
