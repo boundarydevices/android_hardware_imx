@@ -19,6 +19,7 @@
 
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
@@ -60,7 +61,7 @@ int blit_ipu::init()//, hwc_layer_t *layer, struct output_device *output
 	int status = -EINVAL;
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
     if(mIpuFd < 0) {
-        HWCOMPOSER_LOG_ERR("%s:%d,open ipu dev failed", __FUNCTION__, __LINE__);
+        HWCOMPOSER_LOG_ERR("%s:%d,open ipu dev failed:%s", __FUNCTION__, __LINE__, strerror(errno));
         return status;
     }
 
