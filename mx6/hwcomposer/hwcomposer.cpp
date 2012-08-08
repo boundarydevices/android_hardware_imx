@@ -30,6 +30,8 @@
 #include "gralloc_priv.h"
 #include "hwc_common.h"
 /*****************************************************************************/
+
+
 using namespace android;
 
 struct hwc_context_t {
@@ -64,7 +66,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
         version_major: 1,
         version_minor: 0,
         id: HWC_HARDWARE_MODULE_ID,
-        name: "Sample hwcomposer module",
+        name: "Freescale i.MX hwcomposer module",
         author: "The Android Open Source Project",
         methods: &hwc_module_methods,
     }
@@ -434,7 +436,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
 
     struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
     if(ctx) {
-        if(ctx->viv_hwc)
+        if(ctx->viv_hwc && ctx->viv_hwc->prepare)
             ctx->viv_hwc->prepare(ctx->viv_hwc, list);
 	//hwc_check_property(ctx);
     }
@@ -570,18 +572,19 @@ static int hwc_set(hwc_composer_device_t *dev,
     //when displayhardware do releas function, it will come here.
     if(ctx && (dpy == NULL) && (sur == NULL) && (list == NULL)) {
 	//close the output device.
-        if(ctx->viv_hwc)
+        if(ctx->viv_hwc && ctx->viv_hwc->set)
             ctx->viv_hwc->set(ctx->viv_hwc, dpy, sur, list);
 	releaseAllOutput(ctx);
 	//ctx->display_mode_changed = 1;
 
 	return 0;
     }
+
     ctx->ui_refresh = 1;
     ctx->vd_refresh = 1;
     if((ctx == NULL) || (ctx && ctx->ui_refresh)) {
         EGLBoolean sucess;
-        if(ctx->viv_hwc)
+        if(ctx->viv_hwc && ctx->viv_hwc->set)
             sucess = !ctx->viv_hwc->set(ctx->viv_hwc, dpy, sur, list);
         else
             sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
@@ -589,6 +592,7 @@ static int hwc_set(hwc_composer_device_t *dev,
             return HWC_EGL_ERROR;
         }
     }
+
     if(list == NULL || dev == NULL || !ctx->vd_refresh) {
     	return 0;
     }
