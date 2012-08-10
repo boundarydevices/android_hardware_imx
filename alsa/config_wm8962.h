@@ -38,11 +38,16 @@
 
 #define MIXER_WM8962_DIGITAL_CAPTURE_VOLUME         "Digital Capture Volume"
 
+#define MIXER_WM8962_DIGITAL_PLAYBACK_VOLUME        "Digital Playback Volume"
 
 
 /* These are values that never change */
 static struct route_setting defaults_wm8962[] = {
     /* general */
+    {
+        .ctl_name = MIXER_WM8962_DIGITAL_PLAYBACK_VOLUME,
+        .intval = 96,
+    },
     {
         .ctl_name = NULL,
     },
@@ -61,7 +66,7 @@ static struct route_setting speaker_output_wm8962[] = {
     },
     {
         .ctl_name = MIXER_WM8962_SPEAKER_VOLUME,
-        .intval = 127,
+        .intval = 121,
     },
     {
         .ctl_name = NULL,
@@ -75,7 +80,7 @@ static struct route_setting hs_output_wm8962[] = {
     },
     {
         .ctl_name = MIXER_WM8962_HEADPHONE_VOLUME,
-        .intval = 127,
+        .intval = 121,
     },
     {
         .ctl_name = NULL,
