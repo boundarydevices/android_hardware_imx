@@ -274,10 +274,9 @@ namespace android{
                             strcpy(mCaptureDeviceName, dev_node);
                             break;
                         }
-                    } else {
-                        close(fd);
-                        fd = 0;
                     }
+                    close(fd);
+                    fd = 0;
                 }
                 closedir(v4l_dir);
             }
