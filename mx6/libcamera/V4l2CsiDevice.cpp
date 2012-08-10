@@ -100,10 +100,9 @@ namespace android{
                         CAMERA_LOG_INFO("device name is %s", mCaptureDeviceName);
                         CAMERA_LOG_INFO("sensor name is %s", mInitalDeviceName);
                         break;
-                    } else{
-                        close(fd);
-                        fd = 0;
                     }
+                    close(fd);
+                    fd = 0;
                 }
                 closedir(v4l_dir);
             }
