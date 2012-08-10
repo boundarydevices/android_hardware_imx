@@ -116,14 +116,9 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2Open(int cameraId)
                             strcpy(mCaptureDeviceName, dev_node);
                             break;
                         }
-                        else {
-                            close(fd);
-                            fd = 0;
-                        }
-                    } else {
-                        close(fd);
-                        fd = 0;
                     }
+                    close(fd);
+                    fd = 0;
                 }
                 closedir(v4l_dir);
             }
