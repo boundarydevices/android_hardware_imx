@@ -24,6 +24,7 @@
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  usbaudio_card = {
     .name = "USB Device",
+    .driver_name = "USB-Audio",
     .supported_devices   = AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET | AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET | 
                            AUDIO_DEVICE_IN_ANLG_DOCK_MIC,
     .defaults            = NULL,
@@ -38,6 +39,8 @@ static struct audio_card  usbaudio_card = {
     .vx_bt_mic_input     = NULL,
     .mm_bt_mic_input     = NULL,
     .card                = 0,
+    .out_rate            = 0,
+    .in_rate             = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_USBAUDIO_H */

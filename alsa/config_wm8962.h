@@ -200,6 +200,7 @@ static struct route_setting mm_bt_mic_input_wm8962[] = {
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  wm8962_card = {
     .name = "wm8962-audio",
+    .driver_name = "wm8962-audio",
     .supported_devices = (AUDIO_DEVICE_OUT_EARPIECE |
             AUDIO_DEVICE_OUT_SPEAKER |
             AUDIO_DEVICE_OUT_WIRED_HEADSET |
@@ -228,6 +229,8 @@ static struct audio_card  wm8962_card = {
     .vx_bt_mic_input     = vx_bt_mic_input_wm8962,
     .mm_bt_mic_input     = mm_bt_mic_input_wm8962,
     .card                = 0,
+    .out_rate            = 0,
+    .in_rate             = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_WM8962_H */

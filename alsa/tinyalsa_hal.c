@@ -128,6 +128,7 @@ static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
                                    struct resampler_buffer* buffer);
 static void release_buffer(struct resampler_buffer_provider *buffer_provider,
                                   struct resampler_buffer* buffer);
+static int adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
 
 /* Returns true on devices that are toro, false otherwise */
 static int is_device_imx(void)
@@ -940,7 +941,7 @@ static int start_input_stream(struct imx_stream_in *in)
     LOGW("card %d, port %d device %x", card, port, in->device);
 
     if(in->device & AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
-        if(in->config.rate != MM_USB_AUDIO_IN_RATE ||
+        if((int)in->config.rate != adev_get_rate_for_device(adev, AUDIO_DEVICE_IN_ANLG_DOCK_MIC, PCM_IN) ||
            in->config.channels != 1) {
            LOGE("Input 2 does not support this format!");
            return -EINVAL;
@@ -1109,10 +1110,6 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     if (do_standby)
         do_input_standby(in);
-
-    if (in->device & AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
-        scan_available_device(adev);
-    }
 
     pthread_mutex_unlock(&in->lock);
     pthread_mutex_unlock(&adev->lock);
@@ -1801,6 +1798,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_in *in;
     int ret;
+    int rate;
     int channel_count = popcount(*channel_mask);
 
     if (check_input_parameters(*sample_rate, *format, channel_count) != 0)
@@ -1828,7 +1826,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
 
     in->requested_rate = *sample_rate;
 
-    LOGW("In channels %d, rate %d", channel_count, *sample_rate);
+    LOGW("In channels %d, rate %d, devices %x", channel_count, *sample_rate, devices);
     memcpy(&in->config, &pcm_config_mm_in, sizeof(pcm_config_mm_in));
     //in->config.channels = channel_count;
     //in->config.rate     = *sample_rate;
@@ -1837,9 +1835,17 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
     in->config.channels = 2;
  
     if(devices == AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
+        ret = scan_available_device(ladev);
+        if(ret != 0) return -EINVAL;
         *channel_mask       = AUDIO_CHANNEL_IN_MONO;
         in->config.channels = 1;
-        in->config.rate     = MM_USB_AUDIO_IN_RATE;
+        rate     = adev_get_rate_for_device(ladev, AUDIO_DEVICE_IN_ANLG_DOCK_MIC, PCM_IN);
+        LOGW("rate %d", rate);
+        if( rate == 0) {
+              LOGW("can not get rate for in_device %d ", AUDIO_DEVICE_IN_ANLG_DOCK_MIC);
+              return -EINVAL;
+        }
+        in->config.rate     =  rate;
     }
 
     in->buffer = malloc(in->config.period_size *
@@ -1926,15 +1932,26 @@ static uint32_t adev_get_supported_devices(const struct audio_hw_device *dev)
     return devices;            
 }
 
+static int adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
+{
+     int i;
+     for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
+          if(adev->card_list[i]->supported_devices & devices)
+		return (flag==PCM_OUT) ? adev->card_list[i]->out_rate:adev->card_list[i]->in_rate;
+     }
+     return 0;
+}
+
 
 static int scan_available_device(struct imx_audio_device *adev)
 {
     int i,j,k;
-    int m;
+    int m,n;
     bool found;
     bool scanned;
     struct control *imx_control;
     int left_devices = SUPPORTED_DEVICE_IN_MODULE;
+    int rate;
     /* open the mixer for main sound card, main sound cara is like sgtl5000, wm8958, cs428888*/
     /* note: some platform do not have main sound card, only have auxiliary card.*/
     /* max num of supported card is 2 */
@@ -1948,37 +1965,54 @@ static int scan_available_device(struct imx_audio_device *adev)
         imx_control = control_open(i);
         if(!imx_control)
             break;
-        LOGW("card %d, id %s , name %s", i, control_card_info_get_id(imx_control), control_card_info_get_name(imx_control));
+        LOGW("card %d, id %s ,driver %s, name %s", i, control_card_info_get_id(imx_control),
+                                                      control_card_info_get_driver(imx_control),
+                                                      control_card_info_get_name(imx_control));
         for(j = 0; j < SUPPORT_CARD_NUM; j++) {
-            if(strstr(control_card_info_get_name(imx_control), audio_card_list[j]->name) != NULL){
+            if(strstr(control_card_info_get_driver(imx_control), audio_card_list[j]->driver_name) != NULL){
                 // check if the device have been scaned before
                 scanned = false;
+                n = k;
                 for (m = 0; m < k; m++) {
-                    if (!strcmp(audio_card_list[j]->name, adev->card_list[m]->name)) {
+                    if (!strcmp(audio_card_list[j]->driver_name, adev->card_list[m]->driver_name)) {
                          scanned = true;
                          found = true;
+
+                         if(!strcmp(adev->card_list[m]->driver_name, "USB-Audio")) {
+                             scanned = false;
+                             left_devices |= adev->card_list[m]->supported_devices;
+                             if(adev->mixer[m])
+                                mixer_close(adev->mixer[m]);
+                             n = m;
+                             k --;
+                         }
                     }
                 }
                 if (scanned) break;
-                adev->card_list[k]  = audio_card_list[j];
-                adev->mixer[k] = mixer_open(i);
-                adev->card_list[k]->card = i;
-                if (!adev->mixer[k]) {
+                if(n >= MAX_AUDIO_CARD_NUM) {
+                    break;
+                }
+                adev->card_list[n]  = audio_card_list[j];
+                adev->mixer[n] = mixer_open(i);
+                adev->card_list[n]->card = i;
+                if (!adev->mixer[n]) {
                     LOGE("Unable to open the mixer, aborting.");
                     return -EINVAL;
                 }
+                rate = 8000;
+                if( pcm_get_near_rate(i, 0, PCM_IN, &rate) == 0)
+                        adev->card_list[n]->in_rate = rate;
+                LOGW("in rate %d",adev->card_list[n]->in_rate);
                 left_devices &= ~audio_card_list[j]->supported_devices;
                 k ++;
                 found = true;
+                break;
             }
         }
 
         control_close(imx_control);
         if(!found){
             LOGW("unrecognized card found.");
-        }
-        if(k >= MAX_AUDIO_CARD_NUM) {
-             break;
         }
     }
     adev->audio_card_num = k;
