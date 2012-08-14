@@ -23,6 +23,7 @@
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  null_card = {
     .name = "null_card",
+    .driver_name = "null_card",
     .supported_devices   = 0,
     .defaults            = NULL,
     .bt_output           = NULL,
@@ -36,6 +37,8 @@ static struct audio_card  null_card = {
     .vx_bt_mic_input     = NULL,
     .mm_bt_mic_input     = NULL,
     .card                = -1,
+    .out_rate            = 0,
+    .in_rate             = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_NULLCARD_H */

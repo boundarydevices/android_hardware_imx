@@ -43,6 +43,7 @@ struct route_setting
 
 struct audio_card{
     char * name;
+    char * driver_name;
     int  supported_devices;
     struct route_setting *defaults;
     struct route_setting *bt_output;
@@ -56,6 +57,8 @@ struct audio_card{
     struct route_setting *vx_bt_mic_input;
     struct route_setting *mm_bt_mic_input;
     int  card;
+    int  out_rate;
+    int  in_rate;
 };
 
 #define MAX_AUDIO_CARD_NUM  3

@@ -23,6 +23,7 @@
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  hdmi_card = {
     .name = "imx-hdmi-soc",
+    .driver_name = "imx-hdmi-soc",
     .supported_devices   = AUDIO_DEVICE_OUT_AUX_DIGITAL | AUDIO_DEVICE_IN_AUX_DIGITAL,
     .defaults            = NULL,
     .bt_output           = NULL,
@@ -36,6 +37,8 @@ static struct audio_card  hdmi_card = {
     .vx_bt_mic_input     = NULL,
     .mm_bt_mic_input     = NULL,
     .card                = 0,
+    .out_rate            = 0,
+    .in_rate             = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_HDMI_H */
