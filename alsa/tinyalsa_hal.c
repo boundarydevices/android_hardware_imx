@@ -1037,6 +1037,7 @@ static int do_input_standby(struct imx_stream_in *in)
         LOGW("do_in_standby..");
         pcm_close(in->pcm);
         in->pcm = NULL;
+        in->last_time_of_xrun = 0;
 
         adev->active_input = 0;
         if (adev->mode != AUDIO_MODE_IN_CALL) {
@@ -1497,7 +1498,13 @@ exit:
 
 static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
 {
-    return 0;
+    int times, diff;
+    struct imx_stream_in *in = (struct imx_stream_in *)stream;
+    times = pcm_get_time_of_xrun(in->pcm);
+    diff = times - in->last_time_of_xrun;
+    LOGW_IF((diff != 0), "in_get_input_frames_lost %d ms total %d ms\n",diff, times);
+    in->last_time_of_xrun = times;
+    return diff * in->requested_rate / 1000;
 }
 
 static int in_add_audio_effect(const struct audio_stream *stream,
