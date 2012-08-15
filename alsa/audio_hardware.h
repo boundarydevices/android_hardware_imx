@@ -137,6 +137,7 @@ struct imx_stream_in {
     int read_status;
     size_t mute_500ms;
     struct imx_audio_device *dev;
+    int last_time_of_xrun;
 };
 
 #define SUPPORTED_DEVICE_IN_MODULE               \
