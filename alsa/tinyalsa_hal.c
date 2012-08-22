@@ -940,6 +940,8 @@ static int start_input_stream(struct imx_stream_in *in)
     }
     LOGW("card %d, port %d device %x", card, port, in->device);
 
+    in->config.stop_threshold = in->config.period_size * in->config.period_count;
+
     if(in->device & AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
         if((int)in->config.rate != adev_get_rate_for_device(adev, AUDIO_DEVICE_IN_ANLG_DOCK_MIC, PCM_IN) ||
            in->config.channels != 1) {
