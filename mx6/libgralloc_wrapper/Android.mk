@@ -21,7 +21,7 @@ ifeq ($(TARGET_HAVE_IMX_GRALLOC),true)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu libhardware libutils libfsl_xmltool
+LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libhardware libutils libfsl_xmltool
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
