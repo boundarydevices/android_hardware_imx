@@ -398,7 +398,13 @@ static int start_output_stream(struct imx_stream_out *out)
     /* S/PDIF takes priority over HDMI audio. In the case of multiple
      * devices, this will cause use of S/PDIF or HDMI only */
     for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
-        if((out->device & AUDIO_DEVICE_OUT_ALL) & adev->card_list[i]->supported_devices) {
+        if(out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL) {
+            if(adev->card_list[i]->supported_devices & AUDIO_DEVICE_OUT_AUX_DIGITAL) {
+                   card = adev->card_list[i]->card;
+                   port = 0;
+                   break;
+            }
+        } else if((out->device & AUDIO_DEVICE_OUT_ALL) & adev->card_list[i]->supported_devices) {
             card = adev->card_list[i]->card;
             port = 0;
             break;
