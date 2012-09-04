@@ -20,15 +20,15 @@
 #include "V4l2UVCDevice.h"
 #include "V4l2CsiDevice.h"
 namespace android{
-    extern "C" sp<CaptureDeviceInterface> createCaptureDevice(char *deviceName)
+    extern "C" sp<CaptureDeviceInterface> createCaptureDevice(const char *deviceName, const char *devPath)
     {
         if(strstr(deviceName, UVC_NAME_STRING)){
             sp<CaptureDeviceInterface>  device(new V4l2UVCDevice());
-            device->SetDevName(deviceName);
+            device->SetDevName(deviceName, devPath);
             return device;
         }else{
             sp<CaptureDeviceInterface>  device(new V4l2CsiDevice());
-            device->SetDevName(deviceName);
+            device->SetDevName(deviceName, devPath);
             return device;
         }
     }
