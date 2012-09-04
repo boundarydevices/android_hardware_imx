@@ -85,7 +85,7 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2Open(int cameraId)
         if(mCameraDevice > 0)
             return CAPTURE_DEVICE_ERR_ALRADY_OPENED;
         else if (mCaptureDeviceName[0] != '#'){
-            CAMERA_LOG_RUNTIME("already get the device name %s", mCaptureDeviceName);
+            CAMERA_LOG_INFO("already get the device name %s", mCaptureDeviceName);
             mCameraDevice = open(mCaptureDeviceName, O_RDWR | O_NONBLOCK, 0);
             if (mCameraDevice < 0)
                 return CAPTURE_DEVICE_ERR_OPEN;

@@ -364,8 +364,8 @@ namespace android {
             //Typically only max to 1080p for mipi, 720p for csi,
             //and minum 15 fps need for preview.
             unsigned int max_preview_w, max_preview_h;
-            char device_name[CAMAERA_SENSOR_LENGTH];
-            memset(device_name, 0, CAMAERA_SENSOR_LENGTH);
+            char device_name[CAMERA_SENSOR_LENGTH];
+            memset(device_name, 0, CAMERA_SENSOR_LENGTH);
             mCaptureDevice->GetDevName(device_name);
             if(strstr(device_name, "mipi")) {
                 max_preview_w = MAX_MIPI_PREVIEW_W;

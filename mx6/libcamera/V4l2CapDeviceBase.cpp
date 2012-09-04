@@ -57,12 +57,14 @@ namespace android{
     {
     }
 
-    CAPTURE_DEVICE_RET V4l2CapDeviceBase::SetDevName(char * deviceName){
+    CAPTURE_DEVICE_RET V4l2CapDeviceBase::SetDevName(const char * deviceName, const char * devPath){
         CAMERA_LOG_FUNC;
         CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
         if(NULL == deviceName)
             return CAPTURE_DEVICE_ERR_BAD_PARAM;
         strcpy(mInitalDeviceName, deviceName);
+        if((devPath != NULL) && (strlen(devPath) > 0))
+            strcpy(mCaptureDeviceName, devPath);
         return ret;
     }
 
@@ -225,7 +227,6 @@ namespace android{
         CAMERA_LOG_FUNC;
         int fd = 0, i, j, is_found = 0;
         const char *flags[] = {"uncompressed", "compressed"};
-
         char   dev_node[CAMAERA_FILENAME_LENGTH];
         DIR *v4l_dir = NULL;
         struct dirent *dir_entry;
@@ -238,7 +239,7 @@ namespace android{
         if(mCameraDevice > 0)
             return CAPTURE_DEVICE_ERR_ALRADY_OPENED;
         else if (mCaptureDeviceName[0] != '#'){
-            CAMERA_LOG_RUNTIME("already get the device name %s", mCaptureDeviceName);
+            CAMERA_LOG_INFO("already get the device name %s", mCaptureDeviceName);
             mCameraDevice = open(mCaptureDeviceName, O_RDWR, O_NONBLOCK);
             if (mCameraDevice < 0)
                 return CAPTURE_DEVICE_ERR_OPEN;
@@ -672,7 +673,7 @@ namespace android{
         }
         type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         if (ioctl (mCameraDevice, VIDIOC_STREAMOFF, &type) < 0) {
-            CAMERA_LOG_ERR("VIDIOC_STREAMON error\n");
+            CAMERA_LOG_ERR("VIDIOC_STREAMOFF error\n");
             return CAPTURE_DEVICE_ERR_SYS_CALL;
         } else
             CAMERA_LOG_INFO("VIDIOC_STREAMOFF ok\n");
