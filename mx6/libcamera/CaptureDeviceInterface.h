@@ -27,7 +27,7 @@
 
 #define CAMAERA_FILENAME_LENGTH     256
 #define MAX_CAPTURE_BUF_QUE_NUM     6
-#define CAMAERA_SENSOR_LENGTH       32
+#define CAMERA_SENSOR_LENGTH       32
 #define MAX_DEQUEUE_WAIT_TIME  (5000)  //5000ms for uvc camera
 
 namespace android {
@@ -91,7 +91,7 @@ namespace android {
     class CaptureDeviceInterface : public virtual RefBase{
     public:
 
-        virtual CAPTURE_DEVICE_RET SetDevName(char * deviceName)=0;
+        virtual CAPTURE_DEVICE_RET SetDevName(const char * deviceName, const char * devPath = NULL)=0;
         virtual CAPTURE_DEVICE_RET GetDevName(char * deviceName)=0;
         virtual CAPTURE_DEVICE_RET DevOpen(int cameraId)=0;
         virtual CAPTURE_DEVICE_RET EnumDevParam(DevParamType devParamType, void *retParam)=0;
@@ -109,7 +109,7 @@ namespace android {
 
         virtual ~ CaptureDeviceInterface(){}
     };
-    extern "C" sp<CaptureDeviceInterface> createCaptureDevice(char *deviceName);
+    extern "C" sp<CaptureDeviceInterface> createCaptureDevice(const char *deviceName, const char *devPath);
 
 };
 #endif

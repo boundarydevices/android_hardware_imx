@@ -28,7 +28,7 @@ namespace android{
     class V4l2CapDeviceBase : public CaptureDeviceInterface{
     public:
 
-        virtual CAPTURE_DEVICE_RET SetDevName(char * deviceName);
+        virtual CAPTURE_DEVICE_RET SetDevName(const char * deviceName, const char *devPath = NULL);
         virtual CAPTURE_DEVICE_RET GetDevName(char * deviceName);
         virtual CAPTURE_DEVICE_RET GetDevType(CAMERA_TYPE *pType);
         virtual CAPTURE_DEVICE_RET DevOpen(int cameraId);
@@ -67,7 +67,7 @@ namespace android{
         virtual CAPTURE_DEVICE_RET V4l2SetRot(struct capture_config_t *pCapcfg);
 
         char         mCaptureDeviceName[CAMAERA_FILENAME_LENGTH];
-        char         mInitalDeviceName[CAMAERA_SENSOR_LENGTH];
+        char         mInitalDeviceName[CAMERA_SENSOR_LENGTH];
         int          mCameraDevice;
         unsigned int mFmtParamIdx;
         unsigned int mSizeFPSParamIdx;
