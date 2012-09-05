@@ -32,6 +32,7 @@
   *
   ***************************************************************************/
 
+#include <hardware/hardware.h>
 #include <hardware/gps.h>
 
 #include <stdlib.h>
@@ -63,12 +64,12 @@ static struct hw_module_methods_t gps_module_methods = {
     .open = open_gps
 };
 
-const struct hw_module_t HAL_MODULE_INFO_SYM = {
-    .tag = HARDWARE_MODULE_TAG,
-    .version_major = 1,
-    .version_minor = 0,
-    .id = GPS_HARDWARE_MODULE_ID,
-    .name = "Atheros GPS Module",
-    .author = "FSL MAD, Inc.",
-    .methods = &gps_module_methods,
+struct hw_module_t HAL_MODULE_INFO_SYM = {
+	.tag = HARDWARE_MODULE_TAG,
+	.version_major = 1,
+	.version_minor = 0,
+	.id = GPS_HARDWARE_MODULE_ID,
+	.name = "Atheros GPS Module",
+	.author = "FSL MAD, Inc.",
+	.methods = &gps_module_methods,
 };

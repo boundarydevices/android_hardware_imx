@@ -2064,7 +2064,7 @@ static int adev_open(const hw_module_t* module, const char* name,
         return -ENOMEM;
 
     adev->hw_device.common.tag      = HARDWARE_DEVICE_TAG;
-    adev->hw_device.common.version  = 0;
+    adev->hw_device.common.version  = AUDIO_DEVICE_API_VERSION_1_0;
     adev->hw_device.common.module   = (struct hw_module_t *) module;
     adev->hw_device.common.close    = adev_close;
 
