@@ -36,7 +36,7 @@ ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
   	liblog   \
     libcutils
 
-  LOCAL_MODULE:= alsa.freescale
+  LOCAL_MODULE:= alsa.$(TARGET_BOARD_PLATFORM)
 
   LOCAL_MODULE_TAGS := eng
 
@@ -47,7 +47,7 @@ endif
 
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := audio.primary.freescale
+LOCAL_MODULE := audio.primary.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SRC_FILES := imx_audio_hal.cpp
 LOCAL_SHARED_LIBRARIES := liblog libcutils libutils libhardware
@@ -55,7 +55,7 @@ LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := audio.tinyalsa.freescale
+LOCAL_MODULE := audio.tinyalsa.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SRC_FILES := tinyalsa_hal.c
 LOCAL_C_INCLUDES += \
