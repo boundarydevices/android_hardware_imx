@@ -52,11 +52,3 @@ include $(BUILD_SHARED_LIBRARY)
 endif
 
 
-####build xmltool lib######
-include $(CLEAR_VARS)
-LOCAL_SHARED_LIBRARIES := liblog libcutils libutils libexpat
-LOCAL_C_INCLUDES = external/expat/lib
-LOCAL_SRC_FILES := XmlTool.cpp
-LOCAL_MODULE := libfsl_xmltool
-LOCAL_MODULE_TAGS := optional
-include $(BUILD_SHARED_LIBRARY)

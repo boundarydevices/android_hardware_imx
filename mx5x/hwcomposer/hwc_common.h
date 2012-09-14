@@ -41,17 +41,17 @@
 //#define HWCOMPOSER_DEBUG_LOG
 
 #ifdef HWCOMPOSER_DEBUG_LOG
-#define HWCOMPOSER_LOG_RUNTIME(format, ...) LOGI((format), ## __VA_ARGS__)
-#define HWCOMPOSER_LOG_FUNC LOGI("%s is excuting...",  __FUNCTION__)
+#define HWCOMPOSER_LOG_RUNTIME(format, ...) ALOGI((format), ## __VA_ARGS__)
+#define HWCOMPOSER_LOG_FUNC ALOGI("%s is excuting...",  __FUNCTION__)
 #else
 #define HWCOMPOSER_LOG_RUNTIME(format, ...)
 #define HWCOMPOSER_LOG_FUNC
 #endif
 
-#define HWCOMPOSER_LOG_TRACE   LOGI("%s : %d", __FUNCTION__,__LINE__)
-#define HWCOMPOSER_LOG_INFO(format, ...) LOGI((format), ## __VA_ARGS__)
+#define HWCOMPOSER_LOG_TRACE   ALOGI("%s : %d", __FUNCTION__,__LINE__)
+#define HWCOMPOSER_LOG_INFO(format, ...) ALOGI((format), ## __VA_ARGS__)
 
-#define HWCOMPOSER_LOG_ERR(format, ...) LOGE((format), ##__VA_ARGS__)
+#define HWCOMPOSER_LOG_ERR(format, ...) ALOGE((format), ##__VA_ARGS__)
 /*****************************************************************************/
 #define DEFAULT_FB_DEV_NAME "/dev/graphics/fb0"
 #define FB1_DEV_NAME "/dev/graphics/fb1"

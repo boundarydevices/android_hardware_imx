@@ -560,7 +560,7 @@ done:
             CAMERA_LOG_RUNTIME("jpeg output data len %d",(int)g_JpegDataLen);
 
             *out_buf_ptrptr = NULL;
-            *out_buf_len_ptr = NULL;
+            *out_buf_len_ptr = 0;
         }
         else
         {

@@ -78,7 +78,7 @@ XmlTool::XmlTool(const char* file)
       mBuffer(NULL), mDepth(0),
       mFileName(file), mFileHandle(NULL), mContent()
 {
-    LOGI("XmlTool()");
+    ALOGI("XmlTool()");
     init();
     loadAndParseFile();
 }
@@ -86,19 +86,19 @@ XmlTool::XmlTool(const char* file)
 void XmlTool::init()
 {
     if(mFileName == NULL) {
-        LOGE("invalide file name");
+        ALOGE("invalide file name");
         return;
     }
 
     mFileHandle = fopen(mFileName, "r");
     if(mFileHandle == NULL) {
-        LOGE("open %s failed", mFileName);
+        ALOGE("open %s failed", mFileName);
         return;
     }
 
     mParser = XML_ParserCreate(NULL);
     if(mParser == NULL)  {
-        LOGE("create parser failed");
+        ALOGE("create parser failed");
         return;
     }
 
@@ -111,13 +111,13 @@ void XmlTool::loadAndParseFile()
 {
     Mutex::Autolock _l(mLock);
     if(mFileHandle == NULL || mParser == NULL){
-        LOGE("invalidate parameter in loadAndParseFile");
+        ALOGE("invalidate parameter in loadAndParseFile");
         return;
     }
 
     mBuffer = (char*)malloc(BUFFSIZE);
     if(mBuffer == NULL) {
-        LOGE("malloc buffer failed");
+        ALOGE("malloc buffer failed");
         return;
     }
 
@@ -130,13 +130,13 @@ void XmlTool::loadAndParseFile()
 
         len = fread(mBuffer, 1, BUFFSIZE, mFileHandle);
         if(ferror(mFileHandle)) {
-            LOGE("read file error");
+            ALOGE("read file error");
             return;
         }
 
         done = feof(mFileHandle);
         if(!XML_Parse(mParser, mBuffer, len, done)) {
-            LOGE("Parse error at line %d:/n%s", (int)XML_GetCurrentLineNumber(mParser),
+            ALOGE("Parse error at line %d:/n%s", (int)XML_GetCurrentLineNumber(mParser),
                          XML_ErrorString(XML_GetErrorCode(mParser)));
             return;
         }

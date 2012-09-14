@@ -158,7 +158,7 @@ static void update_to_display(int left, int top, int width, int height, int upda
 	int auto_update_mode = AUTO_UPDATE_MODE_REGION_MODE;
 	memset(&upd_data, 0, sizeof(mxcfb_update_data));
 
-    LOGI("update_to_display:left=%d, top=%d, width=%d, height=%d updatemode=%d\n", left, top, width, height,updatemode);
+    ALOGI("update_to_display:left=%d, top=%d, width=%d, height=%d updatemode=%d\n", left, top, width, height,updatemode);
 
 
     if((updatemode & EINK_WAVEFORM_MODE_MASK) == EINK_WAVEFORM_MODE_DU)
@@ -170,38 +170,38 @@ static void update_to_display(int left, int top, int width, int height, int upda
 	else if((updatemode & EINK_WAVEFORM_MODE_MASK) == EINK_WAVEFORM_MODE_AUTO)
 	   upd_data.waveform_mode = WAVEFORM_MODE_AUTO;
 	else 
-        LOGI("waveform_mode  wrong\n");
+        ALOGI("waveform_mode  wrong\n");
 	   
     if((updatemode & EINK_AUTO_MODE_MASK) == EINK_AUTO_MODE_REGIONAL)
         auto_update_mode = AUTO_UPDATE_MODE_REGION_MODE;
     else if((updatemode & EINK_AUTO_MODE_MASK) == EINK_AUTO_MODE_AUTOMATIC)
         auto_update_mode = AUTO_UPDATE_MODE_AUTOMATIC_MODE;
     else 
-        LOGI("wait_for_complete  wrong\n");
+        ALOGI("wait_for_complete  wrong\n");
         
     if((updatemode & EINK_UPDATE_MODE_MASK) == EINK_UPDATE_MODE_PARTIAL)
         upd_data.update_mode = UPDATE_MODE_PARTIAL;
     else if((updatemode & EINK_UPDATE_MODE_MASK) == EINK_UPDATE_MODE_FULL)
         upd_data.update_mode = UPDATE_MODE_FULL;
     else
-        LOGI("update_mode  wrong\n");
+        ALOGI("update_mode  wrong\n");
 
     if((updatemode & EINK_WAIT_MODE_MASK) == EINK_WAIT_MODE_NOWAIT)
         wait_for_complete = false;
     else if((updatemode & EINK_WAIT_MODE_MASK) == EINK_WAIT_MODE_WAIT)
         wait_for_complete = true;
     else 
-        LOGI("wait_for_complete  wrong\n");
+        ALOGI("wait_for_complete  wrong\n");
 
     if((updatemode & EINK_INVERT_MODE_MASK) == EINK_INVERT_MODE_INVERT)
 	{
 	   upd_data.flags |= EPDC_FLAG_ENABLE_INVERSION;
-       LOGI("invert mode \n");
+       ALOGI("invert mode \n");
     }
 
 	retval = ioctl(fb_dev, MXCFB_SET_AUTO_UPDATE_MODE, &auto_update_mode);
 	if (retval < 0) {
-		LOGI("set auto update mode failed.  Error = 0x%x", retval);
+		ALOGI("set auto update mode failed.  Error = 0x%x", retval);
 	}    
     
     upd_data.temp = 24; //the temperature is get from linux team
@@ -223,14 +223,14 @@ static void update_to_display(int left, int top, int width, int height, int upda
 		 * then try again after some updates have completed */
 		usleep(300000);
 		retval = ioctl(fb_dev, MXCFB_SEND_UPDATE, &upd_data);
-        LOGI("MXCFB_SEND_UPDATE  retval = 0x%x try again maybe", retval);
+        ALOGI("MXCFB_SEND_UPDATE  retval = 0x%x try again maybe", retval);
 	}
 
 	if (wait_for_complete) {
 		/* Wait for update to complete */
 		retval = ioctl(fb_dev, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &upd_data.update_marker);
 		if (retval < 0) {
-			LOGI("Wait for update complete failed.  Error = 0x%x", retval);
+			ALOGI("Wait for update complete failed.  Error = 0x%x", retval);
 		}
 	}
 
@@ -307,7 +307,7 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
     fb_context_t* ctx = (fb_context_t*)dev;
     if(count > MAX_RECT_NUM)
     {
-        LOGE("count > MAX_RECT_NUM in fb_setUpdateRect\n");
+        ALOGE("count > MAX_RECT_NUM in fb_setUpdateRect\n");
         return -EINVAL;
     }
 
@@ -338,7 +338,7 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev,
 static int fb_setSecRotation(struct framebuffer_device_t* dev,int secRotation)
 {
     fb_context_t* ctx = (fb_context_t*)dev;
-    //LOGI("fb_setSecRotation %d",secRotation);
+    //ALOGI("fb_setSecRotation %d",secRotation);
     if((ctx->sec_rotation != secRotation)&&(ctx->sec_disp_base != 0))      
        memset((void *)ctx->sec_disp_base, 0, ctx->sec_frame_size*nr_framebuffers);
     ctx->sec_rotation = secRotation;
@@ -405,7 +405,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                //     c2dCreateContext(&ctx->c2dctx);
                     ctx->mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
                     if(ctx->mIpuFd < 0) {
-                        LOGE("%s:%d,open ipu dev failed", __FUNCTION__, __LINE__);
+                        ALOGE("%s:%d,open ipu dev failed", __FUNCTION__, __LINE__);
                     }
 
                     sem_init(&ctx->sec_display_begin, 0, 0);
@@ -414,7 +414,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                     pthread_create(&ctx->thread_id, NULL, &secDispShowFrames, (void *)ctx);
                                         
                     //Set the prop rw.SECOND_DISPLAY_ENABLED to 1
-                    LOGI("sys.SECOND_DISPLAY_ENABLED Set to 1");
+                    ALOGI("sys.SECOND_DISPLAY_ENABLED Set to 1");
                     property_set("sys.SECOND_DISPLAY_ENABLED", "1");
                 }
             }
@@ -441,8 +441,8 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
                 if(ctx->mIpuFd >= 0)close(ctx->mIpuFd);
                 
                 //Set the prop rw.SECOND_DISPLAY_ENABLED to 0
-                LOGI("Switch back to display 0");
-                LOGI("sys.SECOND_DISPLAY_ENABLED Set to 0");
+                ALOGI("Switch back to display 0");
+                ALOGI("sys.SECOND_DISPLAY_ENABLED Set to 0");
                 property_set("sys.SECOND_DISPLAY_ENABLED", "0");
                 memset((void *)ctx->sec_disp_base, 0, ctx->sec_frame_size*nr_framebuffers);
                 //unmap the sec_disp_base
@@ -461,41 +461,41 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
                         fb2_fp = open("/dev/graphics/fb2",O_RDWR, 0);
                         if (fb2_fp < 0){
-                            LOGE("Error!Cannot open the /dev/graphics/fb2");
+                            ALOGE("Error!Cannot open the /dev/graphics/fb2");
                         }
                         else{
                             if(ioctl(fb2_fp, FBIOBLANK, blank) < 0) {
-                        		LOGI("Error!BLANK FB2 failed!\n");
+                        		ALOGI("Error!BLANK FB2 failed!\n");
                         	}
                             close(fb2_fp);
                         }
 
                     	if(ioctl(ctx->sec_fp, FBIOBLANK, blank) < 0) {
-                            LOGI("Error!BLANK FB2 failed!\n");
+                            ALOGI("Error!BLANK FB2 failed!\n");
                     	}
                     
                         if(ioctl(m->framebuffer->fd, FBIOBLANK, blank) < 0) {
-                    		LOGI("Error!BLANK FB0 failed!\n");
+                    		ALOGI("Error!BLANK FB0 failed!\n");
                     	}
 
                         memset(overlayStr, 0 ,32);
                         strcpy(overlayStr, "1-layer-fb\n");
-                        LOGI("WRITE 1-layer-fb to fb2/fsl_disp_property");
+                        ALOGI("WRITE 1-layer-fb to fb2/fsl_disp_property");
                         write(fp_property, overlayStr, strlen(overlayStr)+1);
                         close(fp_property);
 
                         blank = FB_BLANK_POWERDOWN;
                     	if(ioctl(ctx->sec_fp, FBIOBLANK, blank) < 0) {
-                            LOGI("Error!BLANK FB2 failed!\n");
+                            ALOGI("Error!BLANK FB2 failed!\n");
                     	}
                         blank = FB_BLANK_UNBLANK;
                     	if(ioctl(m->framebuffer->fd, FBIOBLANK, blank) < 0) {
-                    		LOGI("Error!UNBLANK FB0 failed!\n");
+                    		ALOGI("Error!UNBLANK FB0 failed!\n");
                     	}
 
 			if (ioctl(m->framebuffer->fd, FBIOGET_VSCREENINFO,
 				  &fb0_var) < 0) {
-                            LOGE("Error!Cannot get var info for fb0");
+                            ALOGE("Error!Cannot get var info for fb0");
 			}
 
 			if (fb0_var.bits_per_pixel == 32) {
@@ -505,7 +505,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 				l_alpha.alpha_in_pixel = true;
 				if (ioctl(m->framebuffer->fd, MXCFB_SET_LOC_ALPHA,
 				            &l_alpha) < 0) {
-				    LOGE("Error!MXCFB_SET_LOC_ALPHA failed!");
+				    ALOGE("Error!MXCFB_SET_LOC_ALPHA failed!");
 				}
 			} else {
 				struct mxcfb_gbl_alpha gbl_alpha;
@@ -515,16 +515,16 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 				gbl_alpha.enable = 1;
 				if (ioctl(m->framebuffer->fd, MXCFB_SET_GBL_ALPHA,
 					  &gbl_alpha) < 0) {
-				    LOGE("Error!MXCFB_SET_GBL_ALPHA failed!");
+				    ALOGE("Error!MXCFB_SET_GBL_ALPHA failed!");
 				}
 
 	                        key.enable = 1;
 	                        key.color_key = 0x00000000; // Black
-	                        LOGI("MXCFB_SET_CLR_KEY");
+	                        ALOGI("MXCFB_SET_CLR_KEY");
 	                        if( ioctl(m->framebuffer->fd, MXCFB_SET_CLR_KEY,
 					  &key) < 0)
 	                        {
-	                            LOGE("Error!MXCFB_SET_CLR_KEY for fb0");
+	                            ALOGE("Error!MXCFB_SET_CLR_KEY for fb0");
 	                        }
 			}
                     }
@@ -537,7 +537,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
         #endif
 
         if (ioctl(m->framebuffer->fd, FBIOPAN_DISPLAY, &m->info) == -1) {
-            LOGE("FBIOPAN_DISPLAY failed");
+            ALOGE("FBIOPAN_DISPLAY failed");
             m->base.unlock(&m->base, buffer); 
             return -errno;
         }
@@ -779,7 +779,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
 
     fp_cmd = open("/proc/cmdline",O_RDONLY, 0);
     if(fp_cmd < 0) {
-        LOGI("Error %d! Cannot open /proc/cmdline", fp_cmd);
+        ALOGI("Error %d! Cannot open /proc/cmdline", fp_cmd);
         goto set_graphics_fb_mode_error;
     }
 
@@ -787,7 +787,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     size = read(fp_cmd, cmd_line, sizeof(cmd_line));
     if(size <= 0)
     {
-        LOGI("Error! Cannot read /proc/cmdline");
+        ALOGI("Error! Cannot read /proc/cmdline");
         goto set_graphics_fb_mode_error;
     }
 
@@ -798,7 +798,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     sprintf(temp_name, "/sys/class/graphics/fb%d/modes", fb);
     fp_modes = open(temp_name,O_RDONLY, 0);
     if(fp_modes < 0) {
-        LOGI("Error %d! Cannot open %s", fp_modes, temp_name);
+        ALOGI("Error %d! Cannot open %s", fp_modes, temp_name);
         goto set_graphics_fb_mode_error;
     }
 
@@ -806,7 +806,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     size = read(fp_modes, fb_modes, sizeof(fb_modes));
     if(size <= 0)
     {
-        LOGI("Error! Cannot read %s", temp_name);
+        ALOGI("Error! Cannot read %s", temp_name);
         goto set_graphics_fb_mode_error;
     }
 
@@ -817,16 +817,16 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     disp_mode = find_available_mode(fb_modes, dual_disp);
     if(!disp_mode)
     {
-        LOGI("Error! Cannot find available mode for fb%d", fb);
+        ALOGI("Error! Cannot find available mode for fb%d", fb);
         goto set_graphics_fb_mode_error;
     }
 
-    LOGI("find fb%d available mode %s", fb,disp_mode);
+    ALOGI("find fb%d available mode %s", fb,disp_mode);
 
     sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
     fp_mode = open(temp_name,O_RDWR, 0);
     if(fp_mode < 0) {
-        LOGI("Error %d! Cannot open %s", fp_mode, temp_name);
+        ALOGI("Error %d! Cannot open %s", fp_mode, temp_name);
         goto set_graphics_fb_mode_error;
     }
 
@@ -834,7 +834,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
     size = read(fp_mode, fb_mode, sizeof(fb_mode));
     if(size < 0)
     {
-        LOGI("Error! Cannot read %s", temp_name);
+        ALOGI("Error! Cannot read %s", temp_name);
         goto set_graphics_fb_mode_error;
     }
 
@@ -843,7 +843,7 @@ static int set_graphics_fb_mode(int fb, int dual_disp)
         size = write(fp_mode, disp_mode, strlen(disp_mode)+1);
         if(size <= 0)
         {
-           LOGI("Error! Cannot write %s", temp_name);
+           ALOGI("Error! Cannot write %s", temp_name);
         }
     }
 
@@ -917,7 +917,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
     info.activate = FB_ACTIVATE_NOW;
 
     if(info.bits_per_pixel == 32){
-        LOGW("32bpp setting of Framebuffer catched!");
+        ALOGW("32bpp setting of Framebuffer catched!");
         /*
          * Explicitly request BGRA 8/8/8
          */
@@ -968,7 +968,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
             gbl_alpha.enable = 1;
             int ret = ioctl(fd, MXCFB_SET_GBL_ALPHA, &gbl_alpha);
             if(ret <0) {
-	        LOGE("Error!MXCFB_SET_GBL_ALPHA failed!");
+	        ALOGE("Error!MXCFB_SET_GBL_ALPHA failed!");
 	        return -1;
             }
 
@@ -977,7 +977,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
             key.color_key = 0x00000000; // Black
             ret = ioctl(fd, MXCFB_SET_CLR_KEY, &key);
             if(ret <0) {
-	        LOGE("Error!Colorkey setting failed for dev ");
+	        ALOGE("Error!Colorkey setting failed for dev ");
 	        return -1;
             }
         }
@@ -999,14 +999,14 @@ int mapFrameBufferLocked(struct private_module_t* module)
     if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
         info.yres_virtual = ALIGN_PIXEL_128(info.yres);
         flags &= ~PAGE_FLIP;
-        LOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
+        ALOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
     }
 
     if (info.yres_virtual < ALIGN_PIXEL_128(info.yres) * 2) {
         // we need at least 2 for page-flipping
         info.yres_virtual = ALIGN_PIXEL_128(info.yres);
         flags &= ~PAGE_FLIP;
-        LOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
+        ALOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
                 info.yres_virtual, ALIGN_PIXEL_128(info.yres)*2);
     }
 
@@ -1017,14 +1017,14 @@ int mapFrameBufferLocked(struct private_module_t* module)
     int auto_update_mode = AUTO_UPDATE_MODE_REGION_MODE;
     int retval = ioctl(fd, MXCFB_SET_AUTO_UPDATE_MODE, &auto_update_mode);
     if (retval < 0) {
-	LOGE("Error! set auto update mode error!\n");
+	ALOGE("Error! set auto update mode error!\n");
 	return -errno;
     }
 
     int scheme_mode = UPDATE_SCHEME_QUEUE_AND_MERGE;
     retval = ioctl(fd, MXCFB_SET_UPDATE_SCHEME, &scheme_mode);
     if (retval < 0) {
-	LOGE("Error! set update scheme error!\n");
+	ALOGE("Error! set update scheme error!\n");
 	return -errno;
     }
 #endif
@@ -1051,7 +1051,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
     float ydpi = (info.yres * 25.4f) / info.height;
     float fps  = refreshRate / 1000.0f;
 
-    LOGI(   "using (fd=%d)\n"
+    ALOGI(   "using (fd=%d)\n"
             "id           = %s\n"
             "xres         = %d px\n"
             "yres         = %d px\n"
@@ -1073,7 +1073,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
             info.blue.offset, info.blue.length
     );
 
-    LOGI(   "width        = %d mm (%f dpi)\n"
+    ALOGI(   "width        = %d mm (%f dpi)\n"
             "height       = %d mm (%f dpi)\n"
             "refresh rate = %.2f Hz\n",
             info.width,  xdpi,
@@ -1110,7 +1110,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
 
     void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if (vaddr == MAP_FAILED) {
-        LOGE("Error mapping the framebuffer (%s)", strerror(errno));
+        ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
         return -errno;
     }
     module->framebuffer->base = intptr_t(vaddr);
@@ -1146,7 +1146,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
 
     sec_fp = open("/dev/graphics/fb2",O_RDWR, 0);
     if (sec_fp < 0){
-        LOGE("Error!Cannot open the /dev/graphics/fb2 for second display");
+        ALOGE("Error!Cannot open the /dev/graphics/fb2 for second display");
         goto disp_init_error;
     }
 
@@ -1156,46 +1156,46 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
 
     fb2_fp = open("/dev/graphics/fb2",O_RDWR, 0);
     if (fb2_fp < 0){
-        LOGE("Error!Cannot open the /dev/graphics/fb2");
+        ALOGE("Error!Cannot open the /dev/graphics/fb2");
         goto disp_init_error;
     }
     if(ioctl(fb2_fp, FBIOBLANK, blank) < 0) {
-		LOGI("Error!BLANK FB0 failed!\n");
+		ALOGI("Error!BLANK FB0 failed!\n");
         goto disp_init_error;
 	}
     close(fb2_fp);
 
 	if(ioctl(sec_fp, FBIOBLANK, blank) < 0) {
-		LOGI("Error!BLANK FB2 failed!\n");
+		ALOGI("Error!BLANK FB2 failed!\n");
         goto disp_init_error;
 	}
 
     if(ioctl(m->framebuffer->fd, FBIOBLANK, blank) < 0) {
-		LOGI("Error!BLANK FB0 failed!\n");
+		ALOGI("Error!BLANK FB0 failed!\n");
         goto disp_init_error;
 	}
     
-    LOGI("Open fb0/fsl_disp_property");
+    ALOGI("Open fb0/fsl_disp_property");
     fp_property = open("/sys/class/graphics/fb0/fsl_disp_property",O_RDWR, 0); 
     if(fp_property < 0) {
-         LOGI("Error!Cannot switch the overlay to second disp");
+         ALOGI("Error!Cannot switch the overlay to second disp");
          goto disp_init_error;
     }
     
     memset(overlayStr, 0 ,32);
     strcpy(overlayStr, "1-layer-fb\n");
-    LOGI("WRITE 1-layer-fb to fb0/fsl_disp_property");
+    ALOGI("WRITE 1-layer-fb to fb0/fsl_disp_property");
     write(fp_property, overlayStr, strlen(overlayStr)+1);
     close(fp_property);
 
     blank = FB_BLANK_UNBLANK;
 	if(ioctl(sec_fp, FBIOBLANK, blank) < 0) {
-		LOGI("Error!UNBLANK FB2 failed!\n");
+		ALOGI("Error!UNBLANK FB2 failed!\n");
         goto disp_init_error;
 	}
 
 	if(ioctl(m->framebuffer->fd, FBIOBLANK, blank) < 0) {
-		LOGI("Error!UNBLANK FB0 failed!\n");
+		ALOGI("Error!UNBLANK FB0 failed!\n");
         goto disp_init_error;
 	}
 
@@ -1207,7 +1207,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     if (ioctl(sec_fp, FBIOGET_VSCREENINFO, &info) == -1)
         goto disp_init_error;
                 
-    LOGI("Second display: xres %d,yres %d, xres_virtual %d, yres_virtual %d",
+    ALOGI("Second display: xres %d,yres %d, xres_virtual %d, yres_virtual %d",
          info.xres,info.xres_virtual,info.yres,info.yres_virtual);
 
     info.reserved[0] = 0;
@@ -1221,17 +1221,17 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     info.xres_virtual = ALIGN_PIXEL(info.xres);
                         
     if (ioctl(sec_fp, FBIOPUT_VSCREENINFO, &info) == -1) {
-        LOGE("Error!Second display FBIOPUT_VSCREENINFO");
+        ALOGE("Error!Second display FBIOPUT_VSCREENINFO");
         goto disp_init_error;
     }
                     
     if (ioctl(sec_fp, FBIOGET_VSCREENINFO, &info) == -1){
-        LOGE("Error!Second display FBIOGET_VSCREENINFO");
+        ALOGE("Error!Second display FBIOGET_VSCREENINFO");
         goto disp_init_error;
     }
                     
     if (ioctl(sec_fp, FBIOGET_FSCREENINFO, &finfo) == -1){
-        LOGE("Error!Second display FBIOGET_FSCREENINFO");
+        ALOGE("Error!Second display FBIOGET_FSCREENINFO");
         goto disp_init_error;
     }
                     
@@ -1242,25 +1242,25 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
                    
     vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, sec_fp, 0);
     if (vaddr == MAP_FAILED) {
-        LOGE("Error!mapping the framebuffer (%s)", strerror(errno));
+        ALOGE("Error!mapping the framebuffer (%s)", strerror(errno));
         goto disp_init_error;
     }
 
     key.enable = 1;
     key.color_key = 0x00000000; // Black
-    LOGI("MXCFB_SET_CLR_KEY");
+    ALOGI("MXCFB_SET_CLR_KEY");
     if( ioctl(sec_fp, MXCFB_SET_CLR_KEY, &key) < 0)
     {
-        LOGE("Error!MXCFB_SET_CLR_KEY");
+        ALOGE("Error!MXCFB_SET_CLR_KEY");
         goto disp_init_error;
     }
 
     gbl_alpha.alpha = 255;
     gbl_alpha.enable = 1;
-    LOGI("MXCFB_SET_GBL_ALPHA");
+    ALOGI("MXCFB_SET_GBL_ALPHA");
     if(ioctl(sec_fp, MXCFB_SET_GBL_ALPHA, &gbl_alpha) <0)
     {
-        LOGI("Error!MXCFB_SET_GBL_ALPHA error");
+        ALOGI("Error!MXCFB_SET_GBL_ALPHA error");
         goto disp_init_error;
     }
 
@@ -1283,7 +1283,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
     if (ioctl(m->framebuffer->fd, FBIOGET_VSCREENINFO, &fb0_info) == -1)
         goto disp_init_error;
                 
-    LOGI("fb0_info display: xres %d,yres %d, xres_virtual %d, yres_virtual %d",
+    ALOGI("fb0_info display: xres %d,yres %d, xres_virtual %d, yres_virtual %d",
          fb0_info.xres,fb0_info.xres_virtual,
          fb0_info.yres,fb0_info.yres_virtual);
 
@@ -1311,7 +1311,7 @@ static int mapSecFrameBuffer(fb_context_t* ctx)
 	fb0_info.xres_virtual = fb0_info.xres;
 #endif
     if (ioctl(m->framebuffer->fd, FBIOPUT_VSCREENINFO, &m->info) == -1) {
-        LOGE("Error!Second display FBIOPUT_VSCREENINFO");
+        ALOGE("Error!Second display FBIOPUT_VSCREENINFO");
         goto disp_init_error;
     }
 
@@ -1331,7 +1331,7 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
     private_module_t* m = reinterpret_cast<private_module_t*>(ctx->dev->common.module);
 
     if(ctx->mIpuFd < 0){
-        LOGE("%s:%d, invalid ipu device !!!!", __FUNCTION__, __LINE__);
+        ALOGE("%s:%d, invalid ipu device !!!!", __FUNCTION__, __LINE__);
         return -EINVAL;
     }
 
@@ -1410,7 +1410,7 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
     }
     status = ioctl(ctx->mIpuFd, IPU_QUEUE_TASK, &ctx->mTask);
     if(status < 0) {
-        LOGE("%s:%d, IPU_QUEUE_TASK failed %d", __FUNCTION__, __LINE__ ,status);
+        ALOGE("%s:%d, IPU_QUEUE_TASK failed %d", __FUNCTION__, __LINE__ ,status);
     }
 
     return status;
@@ -1458,7 +1458,7 @@ static int resizeToSecFrameBuffer_c2d(int base,int phys,fb_context_t* ctx)
 
     if (c2dSurfAlloc(ctx->c2dctx, &srcSurface, &srcSurfaceDef) != C2D_STATUS_OK)
     {
-        LOGE("srcSurface c2dSurfAlloc fail");
+        ALOGE("srcSurface c2dSurfAlloc fail");
         return -EINVAL;
     }
 
@@ -1500,7 +1500,7 @@ static int resizeToSecFrameBuffer_c2d(int base,int phys,fb_context_t* ctx)
             
     if (c2dSurfAlloc(ctx->c2dctx, &dstSurface, &dstSurfaceDef) != C2D_STATUS_OK)
     {
-        LOGE("dstSurface c2dSurfAlloc fail");
+        ALOGE("dstSurface c2dSurfAlloc fail");
         c2dSurfFree(ctx->c2dctx, srcSurface);
         return -EINVAL;
     }

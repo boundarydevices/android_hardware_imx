@@ -63,7 +63,7 @@ namespace android{
         struct v4l2_frmsizeenum vid_frmsize;
         CAPTURE_DEVICE_RET ret = CAPTURE_DEVICE_ERR_NONE;
 
-        LOGI("%s: mInitalDeviceName %s, cameraId %d, mCaptureDeviceName %s",
+        ALOGI("%s: mInitalDeviceName %s, cameraId %d, mCaptureDeviceName %s",
                 __func__, mInitalDeviceName, cameraId, mCaptureDeviceName);
 
         if(mCameraDevice > 0)
