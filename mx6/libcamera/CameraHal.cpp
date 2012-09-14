@@ -1156,7 +1156,7 @@ namespace android {
 
         for (unsigned int i =0;;){
             if (mCaptureDevice->DevDequeue(&DeQueBufIdx) < 0){
-                LOGE("VIDIOC_DQBUF Failed!!!");
+                ALOGE("VIDIOC_DQBUF Failed!!!");
                 ret = UNKNOWN_ERROR;
                 goto Pic_out;
             }

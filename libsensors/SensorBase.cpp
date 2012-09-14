@@ -63,7 +63,7 @@ int SensorBase::open_device()
 {
     if (dev_fd<0 && dev_name) {
         dev_fd = open(dev_name, O_RDONLY);
-        LOGE_IF(dev_fd<0, "Couldn't open %s (%s)", dev_name, strerror(errno));
+        ALOGE_IF(dev_fd<0, "Couldn't open %s (%s)", dev_name, strerror(errno));
     }
     return 0;
 }
@@ -102,7 +102,7 @@ int SensorBase::read_sysfs(char * filename,char * buf,int size){
         count = read(fd,buf,size);
         close(fd);
     } else {
-        LOGE("read sysfs file error\n");
+        ALOGE("read sysfs file error\n");
         return 0;
     }
     return count;
@@ -141,7 +141,7 @@ int SensorBase::sensorBaseEnable(int32_t handle,int enabled){
         mEnabled |= (uint32_t(enable)<<what);
     }
 
-    LOGD("sensor %d , usr count %d\n",handle,mUser[handle]);
+    ALOGD("sensor %d , usr count %d\n",handle,mUser[handle]);
     return 0;
 }
 
@@ -164,7 +164,7 @@ int SensorBase::sensorBaseGetPollMin(){
     size = read_sysfs(sysfs_poll_min,buf,sizeof(buf));
     buf[size] = '\0';
     pollmin = atoi(buf);
-    LOGD("%s ,%s",__FUNCTION__,buf);
+    ALOGD("%s ,%s",__FUNCTION__,buf);
     return pollmin;
 }
 
@@ -175,7 +175,7 @@ int SensorBase::sensorBaseGetPollMax(){
     size = read_sysfs(sysfs_poll_max,buf,sizeof(buf));
     buf[size] = '\0';
     pollmax = atoi(buf);
-    LOGD("%s ,%s",__FUNCTION__,buf);
+    ALOGD("%s ,%s",__FUNCTION__,buf);
     return pollmax; //default max is 200ms
 }
 
@@ -217,10 +217,10 @@ int SensorBase::sensorBaseGetSysfsPath(const char* inputName)
                  snprintf(sysfs_poll_max, sizeof(sysfs_poll_max), "%s%s",sysfs_name, SYSFS_POLL_MAX);
                  mMinPollDelay = sensorBaseGetPollMin();
                  mMaxPollDelay = sensorBaseGetPollMax();
-                 LOGD("%s path %s",inputName,sysfs_enable);
-                 LOGD("%s path %s",inputName,sysfs_poll);
-                 LOGD("%s path %s ,poll min delay %d",inputName,sysfs_poll_min,mMinPollDelay);
-                 LOGD("%s path %s ,poll max delay %d",inputName,sysfs_poll_max,mMaxPollDelay);
+                 ALOGD("%s path %s",inputName,sysfs_enable);
+                 ALOGD("%s path %s",inputName,sysfs_poll);
+                 ALOGD("%s path %s ,poll min delay %d",inputName,sysfs_poll_min,mMinPollDelay);
+                 ALOGD("%s path %s ,poll max delay %d",inputName,sysfs_poll_max,mMaxPollDelay);
                  return 0;
             }
         }
@@ -307,7 +307,7 @@ int SensorBase::openInput(const char* inputName)
         }
     }
     closedir(dir);
-    LOGE_IF(fd<0, "couldn't find '%s' input device", inputName);
+    ALOGE_IF(fd<0, "couldn't find '%s' input device", inputName);
     return fd;
 }
 
@@ -347,7 +347,7 @@ int SensorBase::readEvents(sensors_event_t* data, int count)
                 mInputReader.next();
             }
         } else {
-            LOGE("Sensor: unknown event (type=%d, code=%d)",
+            ALOGE("Sensor: unknown event (type=%d, code=%d)",
                     type, event->code);
             mInputReader.next();
         }

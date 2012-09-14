@@ -178,7 +178,7 @@ static int read_graphics_fb_mode(int fb)
         memset(&g_config_mode[0], 0, sizeof(g_config_mode));
         int fd = open("/system/etc/display_mode_fb0.conf", O_RDONLY, 0);
         if(fd < 0) {
-            LOGE("Warning: /system/etc/display_mode_fb0.conf not defined");
+            ALOGE("Warning: /system/etc/display_mode_fb0.conf not defined");
         }
         else {
             size = read(fd, conf_modes, sizeof(conf_modes));
@@ -203,7 +203,7 @@ static int read_graphics_fb_mode(int fb)
     sprintf(temp_name, "/sys/class/graphics/fb%d/modes", fb);
     fp_modes = open(temp_name,O_RDONLY, 0);
     if(fp_modes < 0) {
-        LOGI("Error %d! Cannot open %s", fp_modes, temp_name);
+        ALOGI("Error %d! Cannot open %s", fp_modes, temp_name);
         goto set_graphics_fb_mode_error;
     }
 
@@ -211,7 +211,7 @@ static int read_graphics_fb_mode(int fb)
     size = read(fp_modes, fb_modes, sizeof(fb_modes));
     if(size <= 0)
     {
-        LOGI("Error! Cannot read %s", temp_name);
+        ALOGI("Error! Cannot read %s", temp_name);
         goto set_graphics_fb_mode_error;
     }
 
@@ -231,12 +231,12 @@ set_graphics_fb_mode_error:
     return -1;
 }
 
-int isModeValid(int fb, const char* pMode, int len)
+int isModeValid(int fb, char* pMode, int len)
 {
     int err = 0;
     int i;
 
-    //LOGW("isModeValid:pMode=%s, len=%d", pMode, len);
+    //ALOGW("isModeValid:pMode=%s, len=%d", pMode, len);
     if(read_mode_finished == 0) {
         err = read_graphics_fb_mode(fb);
         if(err)
@@ -244,7 +244,7 @@ int isModeValid(int fb, const char* pMode, int len)
     }
 
     for(i=0; i<disp_class_list[fb].disp_mode_length; i++) {
-        //LOGW("isModeValid:disp_mode_list[%d].mode=%s", i, disp_class_list[fb].disp_mode_list[i].mode);
+        //ALOGW("isModeValid:disp_mode_list[%d].mode=%s", i, disp_class_list[fb].disp_mode_list[i].mode);
         if(!strncmp(disp_class_list[fb].disp_mode_list[i].mode, pMode, len)) {
             return 1;
         }

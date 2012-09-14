@@ -1169,7 +1169,7 @@ namespace android {
 
         for (unsigned int i =0;;){
             if (mCaptureDevice->DevDequeue(&DeQueBufIdx) < 0){
-                LOGE("VIDIOC_DQBUF Failed!!!");
+                ALOGE("VIDIOC_DQBUF Failed!!!");
                 ret = UNKNOWN_ERROR;
                 goto Pic_out;
             }
@@ -2527,7 +2527,7 @@ Pic_out:
         else 
             *pFaceBackOrient = atoi(orientStr);
 
-        LOGI("Face Back Camera is %s, orient is %d", pFaceBackCameraName, *pFaceBackOrient);
+        ALOGI("Face Back Camera is %s, orient is %d", pFaceBackCameraName, *pFaceBackOrient);
 
         property_get (FACE_FRONT_CAMERA_NAME,
                 pFaceFrontCameraName,
@@ -2543,7 +2543,7 @@ Pic_out:
         else 
             *pFaceFrontOrient = atoi(orientStr);
 
-        LOGI("Face Front Camera is %s, orient is %d", pFaceFrontCameraName, *pFaceFrontOrient);
+        ALOGI("Face Front Camera is %s, orient is %d", pFaceFrontCameraName, *pFaceFrontOrient);
 
     }
 

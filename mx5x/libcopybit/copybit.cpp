@@ -153,7 +153,7 @@ static int set_parameter_copybit(
                 ctx->mRotate = value;
                 break;
             default:
-                LOGE("Invalid value for COPYBIT_ROTATION");
+                ALOGE("Invalid value for COPYBIT_ROTATION");
                 status = -EINVAL;
                 break;
             }
@@ -193,13 +193,13 @@ static int set_parameter_copybit(
                 ctx->mFlags |= C2D_FLIP_V;
                 break;
             default:
-                LOGE("Invalid value for COPYBIT_ROTATION");
+                ALOGE("Invalid value for COPYBIT_ROTATION");
                 status = -EINVAL;
                 break;
             }
             break;        
         case COPYBIT_BLUR:
-            LOGE("Not support for COPYBIT_BLUR");
+            ALOGE("Not support for COPYBIT_BLUR");
             status = -EINVAL;
             break;
         default:
@@ -365,7 +365,7 @@ static int stretch_copybit(
         if (src_rect->l < 0 || src_rect->r > src->w ||
             src_rect->t < 0 || src_rect->b > src->h) {
             // this is always invalid
-            LOGE("src_rect invalid");
+            ALOGE("src_rect invalid");
             return -EINVAL;
         }
 
@@ -377,14 +377,14 @@ static int stretch_copybit(
         image_to_surface(src, &srcSurfaceDef);
         if (c2dSurfAlloc(ctx->c2dctx, &srcSurface, &srcSurfaceDef) != C2D_STATUS_OK)
         {
-            LOGE("srcSurface c2dSurfAlloc fail");
+            ALOGE("srcSurface c2dSurfAlloc fail");
             return -EINVAL;
         }
                 
         image_to_surface(dst, &dstSurfaceDef);
         if (c2dSurfAlloc(ctx->c2dctx, &dstSurface, &dstSurfaceDef) != C2D_STATUS_OK)
         {
-            LOGE("dstSurface c2dSurfAlloc fail");
+            ALOGE("dstSurface c2dSurfAlloc fail");
             c2dSurfFree(ctx->c2dctx, srcSurface);
             return -EINVAL;
         }
@@ -409,12 +409,12 @@ static int stretch_copybit(
                 set_rects(ctx, &srcRect, &dstRect, dst_rect, src_rect, &clip, src);
                 if (srcRect.width<=0 || srcRect.height<=0)
                 {
-                        LOGE("srcRect invalid");
+                        ALOGE("srcRect invalid");
                         continue;
                 }
                 if (dstRect.width<=0 || dstRect.height<=0)
                 {
-                        LOGE("dstRect invalid");
+                        ALOGE("dstRect invalid");
                         continue;
                 }
 

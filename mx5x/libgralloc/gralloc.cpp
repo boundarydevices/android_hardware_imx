@@ -193,7 +193,7 @@ static int init_pmem_area_locked(private_module_t* m)
         size_t size;
         pmem_region region;
         if (ioctl(master_fd, PMEM_GET_TOTAL_SIZE, &region) < 0) {
-            LOGE("PMEM_GET_TOTAL_SIZE failed, limp mode");
+            ALOGE("PMEM_GET_TOTAL_SIZE failed, limp mode");
             size = 8<<20;   // 8 MiB
         } else {
             size = region.len;
@@ -211,10 +211,10 @@ static int init_pmem_area_locked(private_module_t* m)
             pmem_region region;
             err = ioctl(master_fd, PMEM_GET_PHYS, &region);
             if (err < 0) {
-                LOGE("PMEM_GET_PHYS failed (%s)", strerror(-errno));
+                ALOGE("PMEM_GET_PHYS failed (%s)", strerror(-errno));
             } else {
                 m->master_phys = (unsigned long)region.offset;
-				LOGI("PMEM GPU enabled, size:%d, phys base:%lx",size,m->master_phys);
+				ALOGI("PMEM GPU enabled, size:%d, phys base:%lx",size,m->master_phys);
             }
         }
         m->pmem_master = master_fd;
@@ -277,7 +277,7 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
 try_ashmem:
         fd = ashmem_create_region("gralloc-buffer", size);
         if (fd < 0) {
-            LOGE("couldn't create ashmem (%s)", strerror(-errno));
+            ALOGE("couldn't create ashmem (%s)", strerror(-errno));
             err = -errno;
         }
     } else {
@@ -325,7 +325,7 @@ try_ashmem:
                 err = 0;
                 goto try_ashmem;
             } else {
-                LOGE("couldn't open pmem (%s)", strerror(-errno));
+                ALOGE("couldn't open pmem (%s)", strerror(-errno));
             }
         }
     }
@@ -334,7 +334,7 @@ try_ashmem:
     
     fd = ashmem_create_region("Buffer", size);
     if (fd < 0) {
-        LOGE("couldn't create ashmem (%s)", strerror(-errno));
+        ALOGE("couldn't create ashmem (%s)", strerror(-errno));
         err = -errno;
     }
 

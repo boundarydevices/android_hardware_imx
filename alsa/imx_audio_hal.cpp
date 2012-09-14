@@ -58,7 +58,7 @@ static int imx_adev_open(const hw_module_t* module, const char* name,
     }
 
     if(!found) {
-        LOGW("reload the legacy audio hal");
+        ALOGW("reload the legacy audio hal");
         ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_LEGACY, &module_audio);
         if(ret)
             goto out;

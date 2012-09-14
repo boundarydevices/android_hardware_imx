@@ -99,7 +99,7 @@ namespace android{
 
         mIPUOutputParam.user_def_paddr[0] = pp_output_addr->phy_offset;
 
-        mIPURet = mxc_ipu_lib_task_buf_update(&mIPUHandle,pp_input_addr->phy_offset,pp_output_addr->phy_offset,NULL,NULL,NULL);
+        mIPURet = mxc_ipu_lib_task_buf_update(&mIPUHandle,pp_input_addr->phy_offset,pp_output_addr->phy_offset, 0,NULL,NULL);
         if (mIPURet < 0) {
             CAMERA_LOG_ERR("Error! convertYUYVtoNV12, mxc_ipu_lib_task_buf_update ret %d!",mIPURet);
             mxc_ipu_lib_task_uninit(&mIPUHandle);

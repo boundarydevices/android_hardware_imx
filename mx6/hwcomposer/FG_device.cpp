@@ -50,7 +50,8 @@ static int switch_set(int fd0, int fd1, int flag)
 {
     struct mxcfb_gbl_alpha gbl_alpha;
     struct mxcfb_color_key key;
-  	if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP0) {
+  	//if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP0) {
+    {
 		  	key.enable = 1;
 		  	key.color_key = 0x00000000; //black
 		  	if(ioctl(fd0, MXCFB_SET_CLR_KEY, &key) < 0) {
@@ -66,7 +67,8 @@ static int switch_set(int fd0, int fd1, int flag)
 		  	}
   	}
 
-  	if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP1) {
+  	//if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP1) {
+    {
 		  	key.enable = 1;
 		  	key.color_key = 0x00000000; //black
 		  	if(ioctl(fd1, MXCFB_SET_CLR_KEY, &key) < 0) {
@@ -107,7 +109,8 @@ static int overlay_switch(int fd0, int fd1, int fd2, int flag)
 	      return -1;
 		}
 
-  	if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP1) {
+  	//if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP1) {
+      {
   			//fp_property;
 
 		    HWCOMPOSER_LOG_ERR("Open fb0/fsl_disp_property");
@@ -124,7 +127,8 @@ static int overlay_switch(int fd0, int fd1, int fd2, int flag)
 		    close(fp_property);
 
   	}
-  	if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP0) {
+  	//if(flag & GRALLOC_USAGE_HWC_OVERLAY_DISP0) {
+      {
 		    HWCOMPOSER_LOG_ERR("Open fb1/fsl_disp_property");
 		    fp_property = open("/sys/class/graphics/fb1/fsl_disp_property",O_RDWR, 0);
 		    if(fp_property < 0) {
@@ -163,7 +167,7 @@ int FG_device::init()
         HWCOMPOSER_LOG_ERR("Error! FG_device::FG_init() invalid parameter!");
         return -1;
     }
-#if 1
+#if 0
     //fist open fb0 device that it is binded to.
     //it may be modified in mx6x
     int fd_def = -1;

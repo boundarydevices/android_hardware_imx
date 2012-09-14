@@ -182,8 +182,8 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
         hdmi_full_screen = 0;
     }
 
-    if(out_buf->usage & GRALLOC_USAGE_DISPLAY_MASK || (hdmi_full_screen && 
-                        (out_buf->usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2))) { 
+    if(out_buf->usage & GRALLOC_USAGE_DISPLAY_MASK || (hdmi_full_screen /*&& 
+                        (out_buf->usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2)*/)) { 
 	    mTask.output.width = out_buf->width;
 	    mTask.output.height = out_buf->height;
 	    mTask.output.crop.pos.x = 0;
@@ -191,7 +191,7 @@ int blit_ipu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
 	    mTask.output.crop.w = out_buf->width;
 	    mTask.output.crop.h = out_buf->height;
     }
-    else if((out_buf->usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2) && 
+    else if(/*(out_buf->usage & GRALLOC_USAGE_HWC_OVERLAY_DISP2) &&*/ 
                (out_buf->width != m_def_disp_w || out_buf->height!= m_def_disp_h)){
             int def_w,def_h;
             int dst_w = out_buf->width;
