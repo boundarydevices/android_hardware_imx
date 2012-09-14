@@ -45,10 +45,10 @@
 //#define  GPS_DEBUG
 #undef	 GPS_DEBUG_TOKEN	/* print out NMEA tokens */
 
-#define  DFR(...)   LOGD(__VA_ARGS__)
+#define  DFR(...)   ALOGD(__VA_ARGS__)
 
 #ifdef GPS_DEBUG
-#  define  D(...)   LOGD(__VA_ARGS__)
+#  define  D(...)   ALOGD(__VA_ARGS__)
 #else
 #  define  D(...)   ((void)0)
 #endif
@@ -990,11 +990,11 @@ static int athr_run_hook(char* name)
     char   buf[PROPERTY_VALUE_MAX + 20];
     if (property_get("athr.gps.hookspath",prop,"") == 0)
 	{
-        LOGE("%s: athr.gps.hookspath property is not set", __FUNCTION__);
+        ALOGE("%s: athr.gps.hookspath property is not set", __FUNCTION__);
 		return 0;
     }
     sprintf(buf,"%s/%s" , prop, name);
-    LOGI("%s: going to execute hook  \"%s\"", __FUNCTION__, buf);
+    ALOGI("%s: going to execute hook  \"%s\"", __FUNCTION__, buf);
     return !system(buf);
 }
 
@@ -1111,7 +1111,7 @@ gps_state_stop( GpsState*  s )
 		ret=write( s->control[0], &cmd, 1 );
 		if(ret < 0)
 		{
-			LOGE("write control socket error %s", strerror(errno));
+			ALOGE("write control socket error %s", strerror(errno));
 			sleep(1);
 		}
 	}
@@ -1178,7 +1178,7 @@ gps_state_thread( void*  arg )
 	state->tmr_thread = state->callbacks.create_thread_cb("athr_gps_tmr", gps_timer_thread, state);
 	if (!state->tmr_thread)
 	{
-		LOGE("could not create gps timer thread: %s", strerror(errno));
+		ALOGE("could not create gps timer thread: %s", strerror(errno));
 		started = 0;
 		state->init = STATE_INIT;
 		goto Exit;
@@ -1187,7 +1187,7 @@ gps_state_thread( void*  arg )
 	state->nmea_thread = state->callbacks.create_thread_cb("athr_nmea_thread", gps_nmea_thread, state);
 	if (!state->nmea_thread)
 	{
-		LOGE("could not create gps nmea thread: %s", strerror(errno));
+		ALOGE("could not create gps nmea thread: %s", strerror(errno));
 		started = 0;
 		state->init = STATE_INIT;
 		goto Exit;
@@ -1204,13 +1204,13 @@ gps_state_thread( void*  arg )
         nevents = epoll_wait( epoll_ctrlfd, events, 1, -1 );
         if (nevents < 0) {
             if (errno != EINTR)
-                LOGE("epoll_wait() unexpected error: %s", strerror(errno));
+                ALOGE("epoll_wait() unexpected error: %s", strerror(errno));
             continue;
         }
         // D("gps thread received %d events", nevents);
         for (ne = 0; ne < nevents; ne++) {
             if ((events[ne].events & (EPOLLERR|EPOLLHUP)) != 0) {
-                LOGE("EPOLLERR or EPOLLHUP after epoll_wait() !?");
+                ALOGE("EPOLLERR or EPOLLHUP after epoll_wait() !?");
                 goto Exit;
             }
             if ((events[ne].events & EPOLLIN) != 0) {
@@ -1254,7 +1254,7 @@ gps_state_thread( void*  arg )
                 }
                 else
                 {
-                    LOGE("epoll_wait() returned unkown fd %d ?", fd);
+                    ALOGE("epoll_wait() returned unkown fd %d ?", fd);
 					gps_fd = _gps_state->fd; //resign fd to gps_fd
                 }
             }
@@ -1303,7 +1303,7 @@ gps_nmea_thread( void*  arg )
 
 		if(bOrionShutdown && started) // Orion be shutdown but LM is started, try to wake it up.
 		{
-			LOGI("Try to wake orion up after 5 secs");
+			ALOGI("Try to wake orion up after 5 secs");
 			sleep_lock = 0;
 			sleep(5);
 			GPS_STATUS_CB(state->callbacks, GPS_STATUS_SESSION_BEGIN);
@@ -1332,7 +1332,7 @@ gps_nmea_thread( void*  arg )
 			{
 				if (strstr(buf, "CFG_R"))
 				{
-					LOGI("ver %s",buf);
+					ALOGI("ver %s",buf);
 				}
 
 				for (nn = 0; nn < ret; nn++)
@@ -1499,7 +1499,7 @@ int gps_opentty(GpsState *state)
 
         if (state->fd < 0)
         {
-            LOGE("could not open gps serial device %s: %s", prop, strerror(errno) );
+            ALOGE("could not open gps serial device %s: %s", prop, strerror(errno) );
             return -1;
         }
     }
@@ -1583,14 +1583,14 @@ gps_state_init( GpsState*  state )
 
 
     if ( socketpair( AF_LOCAL, SOCK_STREAM, 0, state->control ) < 0 ) {
-        LOGE("could not create thread control socket pair: %s", strerror(errno));
+        ALOGE("could not create thread control socket pair: %s", strerror(errno));
         goto Fail;
     }
 
 	state->thread = state->callbacks.create_thread_cb("athr_gps", gps_state_thread, state);
         if (!state->thread)
 	{
-        LOGE("could not create gps thread: %s", strerror(errno));
+        ALOGE("could not create gps thread: %s", strerror(errno));
         goto Fail;
     }
 
@@ -1755,7 +1755,7 @@ int gps_checkstate(GpsState *s)
 
 		if(!s->init)
 		{
-			LOGE("%s: still called with uninitialized state !!", __FUNCTION__);
+			ALOGE("%s: still called with uninitialized state !!", __FUNCTION__);
 			return -1;
 		}
     }

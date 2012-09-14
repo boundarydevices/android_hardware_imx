@@ -104,13 +104,13 @@ static int gralloc_alloc(alloc_device_t* dev,
         buffer_handle_t* pHandle, int* pStride)
 {
     if (!pHandle || !pStride) {
-        LOGE("<%s,%d> invalide parameters", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> invalide parameters", __FUNCTION__, __LINE__);
         return -EINVAL;
     }
 
     private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
     if(!m || !m->gpu_device) {
-        LOGE("<%s,%d> m or m->gpu_device is NULL", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> m or m->gpu_device is NULL", __FUNCTION__, __LINE__);
         return -EINVAL;
     }
 
@@ -179,7 +179,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
            if (hw_get_module(GRALLOC_VIV_HARDWARE_MODULE_ID, &gpu_module) == 0) {
               status = gralloc_open(gpu_module, &m->gpu_device);
               if(status || !m->gpu_device){
-                 LOGE("gralloc_device_open: gpu gralloc device open failed!");
+                 ALOGE("gralloc_device_open: gpu gralloc device open failed!");
               }
            }
         }

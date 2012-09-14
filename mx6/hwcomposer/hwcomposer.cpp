@@ -73,7 +73,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
 /*****************************************************************************/
 
 static void dump_layer(hwc_layer_t const* l) {
-    LOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
+    ALOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
             l->compositionType, l->flags, l->handle, l->transform, l->blending,
             l->sourceCrop.left,
             l->sourceCrop.top,
@@ -113,10 +113,10 @@ static void addRecord(hwc_context_t *dev, hwc_layer_list_t* list)
             //HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_prepare---2>>>>>>>>>>>>>>>>>\n");
             //HWCOMPOSER_LOG_ERR("-------hwc_prepare----layer[%d]-----displayID = %d", i, layer->displayId);
             private_handle_t *handle = (private_handle_t *)(layer->handle);
-            if(!(handle->usage & GRALLOC_USAGE_HWC_OVERLAY)) {
+            //if(!(handle->usage & GRALLOC_USAGE_HWC_OVERLAY)) {
                 //HWCOMPOSER_LOG_ERR("<<<<<<<<<<<<<<<hwc_prepare---usage=%x>>phy=%x>>>>>>>>>>>>>>>\n", handle->usage, handle->phys);
-                continue;
-            }
+            //    continue;
+            //}
 
             if(rec_index >= LAYER_RECORD_NUM) {
                 HWCOMPOSER_LOG_ERR("******************Error: too many video layers");
@@ -225,6 +225,7 @@ static int hwc_check_property(hwc_context_t *dev)
 
 static int hwc_modify_property(hwc_context_t *dev, private_handle_t *handle)
 {
+#if 0
 	handle->usage &= ~GRALLOC_USAGE_OVERLAY_DISPLAY_MASK;
 
     if(dev->display_mode & DISPLAY_MODE_DISP1){
@@ -247,7 +248,7 @@ static int hwc_modify_property(hwc_context_t *dev, private_handle_t *handle)
 			handle->usage |= GRALLOC_USAGE_HWC_OVERLAY_DISP2;
 	else if(dev->display_mode & DISPLAY_MODE_OVERLAY_DISP3)
 			handle->usage |= GRALLOC_USAGE_HWC_OVERLAY_DISP3;
-
+#endif
     //HWCOMPOSER_LOG_ERR("************handle->usage=%x", handle->usage);
 	return 0;
 }
@@ -331,6 +332,7 @@ static void deleteEmtpyIndex(struct hwc_context_t *ctx)
 
 static char* getDeviceName(hwc_context_t *dev, int usage, int *pUse)
 {
+#if 0
     if(dev->second_display) {
         if(usage & GRALLOC_USAGE_HWC_OVERLAY_DISP0) {
             *pUse = GRALLOC_USAGE_HWC_OVERLAY_DISP0;
@@ -359,7 +361,7 @@ static char* getDeviceName(hwc_context_t *dev, int usage, int *pUse)
             *pUse = GRALLOC_USAGE_HWC_OVERLAY_DISP2;
             return (char *)FB3_DEV_NAME;
     }
-
+#endif
     return NULL;
 }
 
@@ -453,10 +455,12 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
 	    }
 	    //HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_prepare---2>>>>>>>>>>>>>>>>>\n");
             private_handle_t *handle = (private_handle_t *)(layer->handle);
+#if 0
             if(!(handle->usage & GRALLOC_USAGE_HWC_OVERLAY)) {
                 //HWCOMPOSER_LOG_ERR("<<<<<<<<<<<<<<<hwc_prepare---usage=%x>>phy=%x>>>>>>>>>>>>>>>\n", handle->usage, handle->phys);
             	continue;
             }
+#endif
             HWCOMPOSER_LOG_RUNTIME("<<<<<<<<<<<<<<<hwc_prepare---3>usage=%x, phy=%x>>>>>>>>>>>>>>>>\n", handle->usage, handle->phys);
             hwc_check_property(ctx);
 	    layer->compositionType = HWC_OVERLAY;
@@ -622,7 +626,8 @@ static int hwc_set(hwc_composer_device_t *dev,
         }
 
 	private_handle_t *handle = (private_handle_t *)(layer->handle);
-	if(handle->usage & GRALLOC_USAGE_HWC_OVERLAY){
+//	if(handle->usage & GRALLOC_USAGE_HWC_OVERLAY){
+    {
             int retv = 0;
             int m_usage = 0;
             int i_usage = handle->usage & GRALLOC_USAGE_OVERLAY_DISPLAY_MASK;
@@ -705,7 +710,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 
         dev->device.prepare = hwc_prepare;
         dev->device.set = hwc_set;
-        dev->device.setUpdateMode = hwc_setUpdateMode;
+//        dev->device.setUpdateMode = hwc_setUpdateMode;
 
         *device = &dev->device.common;
 

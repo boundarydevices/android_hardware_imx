@@ -205,7 +205,7 @@ static void force_all_standby(struct imx_audio_device *adev)
 static void select_mode(struct imx_audio_device *adev)
 {
     if (adev->mode == AUDIO_MODE_IN_CALL) {
-        LOGE("Entering IN_CALL state, in_call=%d", adev->in_call);
+        ALOGE("Entering IN_CALL state, in_call=%d", adev->in_call);
         if (!adev->in_call) {
             force_all_standby(adev);
             /* force earpiece route for in call state if speaker is the
@@ -229,7 +229,7 @@ static void select_mode(struct imx_audio_device *adev)
             adev->in_call = 1;
         }
     } else {
-        LOGE("Leaving IN_CALL state, in_call=%d, mode=%d",
+        ALOGE("Leaving IN_CALL state, in_call=%d, mode=%d",
              adev->in_call, adev->mode);
         if (adev->in_call) {
             adev->in_call = 0;
@@ -286,7 +286,7 @@ static void select_output_device(struct imx_audio_device *adev)
         }
     }
     /*if mode = AUDIO_MODE_IN_CALL*/
-    LOGW("headphone %d ,headset %d ,speaker %d, earpiece %d, \n", headphone_on, headset_on, speaker_on, earpiece_on);
+    ALOGW("headphone %d ,headset %d ,speaker %d, earpiece %d, \n", headphone_on, headset_on, speaker_on, earpiece_on);
     /* select output stage */
     for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
         set_route_by_array(adev->mixer[i], adev->card_list[i]->bt_output, bt_on);
@@ -388,7 +388,7 @@ static int start_output_stream(struct imx_stream_out *out)
     unsigned int port = 0;
     int i;
 
-    LOGW("start_output_stream...");
+    ALOGW("start_output_stream...");
     adev->active_output[out->out_id] = out;
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
@@ -410,11 +410,11 @@ static int start_output_stream(struct imx_stream_out *out)
             break;
         }
         if(i == MAX_AUDIO_CARD_NUM-1) {
-            LOGE("can not find supported device for %d",out->device);
+            ALOGE("can not find supported device for %d",out->device);
             return -EINVAL;
         }
     }
-    LOGW("card %d, port %d device %x", card, port, out->device);
+    ALOGW("card %d, port %d device %x", card, port, out->device);
 
     out->write_flags            = PCM_OUT | PCM_MMAP;
     out->config.period_size     = LONG_PERIOD_SIZE;
@@ -441,7 +441,7 @@ static int start_output_stream(struct imx_stream_out *out)
     out->pcm = pcm_open(card, port, out->write_flags, &out->config);
 
     if (!pcm_is_ready(out->pcm)) {
-        LOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm));
+        ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm));
         pcm_close(out->pcm);
         adev->active_output[out->out_id] = NULL;
         return -ENOMEM;
@@ -494,7 +494,7 @@ static size_t get_input_buffer_size(uint32_t sample_rate, int format, int channe
     size = (pcm_config_mm_in.period_size * sample_rate) / pcm_config_mm_in.rate;
     size = ((size + 15) / 16) * 16;
 
-    LOGW("get_input_buffer_size size = %d, channel_count = %d",size,channel_count);
+    ALOGW("get_input_buffer_size size = %d, channel_count = %d",size,channel_count);
     return size * channel_count * sizeof(short);
 }
 
@@ -572,7 +572,7 @@ static int get_playback_delay(struct imx_stream_out *out,
         buffer->time_stamp.tv_sec  = 0;
         buffer->time_stamp.tv_nsec = 0;
         buffer->delay_ns           = 0;
-        LOGV("get_playback_delay(): pcm_get_htimestamp error,"
+        ALOGV("get_playback_delay(): pcm_get_htimestamp error,"
                 "setting playbackTimestamp to 0");
         return status;
     }
@@ -596,7 +596,7 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 
 static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
-    LOGE("out_set_sample_rate %d", rate);
+    ALOGE("out_set_sample_rate %d", rate);
     return 0;
 }
 
@@ -636,7 +636,7 @@ static int out_get_format(const struct audio_stream *stream)
 
 static int out_set_format(struct audio_stream *stream, int format)
 {
-    LOGE("out_set_format %d", format);
+    ALOGE("out_set_format %d", format);
     return 0;
 }
 
@@ -650,7 +650,7 @@ static int do_output_standby(struct imx_stream_out *out)
         out->pcm = NULL;
         out->frame_count = 0;
 
-        LOGW("do_out_standby...");
+        ALOGW("do_out_standby...");
         adev->active_output[out->out_id] = 0;
 
         /* if in call, don't turn off the output stage. This will
@@ -738,7 +738,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         }
         pthread_mutex_unlock(&adev->lock);
     }
-    LOGW("out_set_parameters %s, ret %d",kvpairs, ret);
+    ALOGW("out_set_parameters %s, ret %d",kvpairs, ret);
     str_parms_destroy(parms);
     return 0;
 }
@@ -756,7 +756,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
 
     ret = str_parms_add_int(parms, AUDIO_PARAMETER_STREAM_ROUTING, val);
 
-    LOGW("out get parameters %s",str_parms_to_str(parms));
+    ALOGW("out get parameters %s",str_parms_to_str(parms));
     return str_parms_to_str(parms);
 }
 
@@ -855,7 +855,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         ret = pcm_write(out->pcm, (void *)buf, out_frames * frame_size);
 
     if(ret !=0) {
-        LOGW("ret %d, pcm write %d error %s.", ret, bytes, pcm_get_error(out->pcm));
+        ALOGW("ret %d, pcm write %d error %s.", ret, bytes, pcm_get_error(out->pcm));
 
         switch(pcm_state(out->pcm)) {
             case PCM_STATE_SETUP:
@@ -900,7 +900,7 @@ static int out_get_render_position(const struct audio_stream_out *stream,
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     *dsp_frames = out->frame_count;
-    LOGW("get render position....");
+    ALOGW("get render position....");
     return 0;
 }
 
@@ -940,7 +940,7 @@ static int start_input_stream(struct imx_stream_in *in)
             break;
         }
         if(i == MAX_AUDIO_CARD_NUM-1) {
-            LOGE("can not find supported device for %d",in->device);
+            ALOGE("can not find supported device for %d",in->device);
             return -EINVAL;
         }
     }
@@ -971,7 +971,7 @@ static int start_input_stream(struct imx_stream_in *in)
     /* this assumes routing is done previously */
     in->pcm = pcm_open(card, port, PCM_IN, &in->config);
     if (!pcm_is_ready(in->pcm)) {
-        LOGE("cannot open pcm_in driver: %s", pcm_get_error(in->pcm));
+        ALOGE("cannot open pcm_in driver: %s", pcm_get_error(in->pcm));
         pcm_close(in->pcm);
         adev->active_input = NULL;
         return -ENOMEM;
@@ -1155,7 +1155,7 @@ static void get_capture_delay(struct imx_stream_in *in,
         buffer->time_stamp.tv_sec  = 0;
         buffer->time_stamp.tv_nsec = 0;
         buffer->delay_ns           = 0;
-        LOGW("read get_capture_delay(): pcm_htimestamp error");
+        ALOGW("read get_capture_delay(): pcm_htimestamp error");
         return;
     }
 
@@ -1176,7 +1176,7 @@ static void get_capture_delay(struct imx_stream_in *in,
 
     buffer->time_stamp = tstamp;
     buffer->delay_ns   = delay_ns;
-    LOGV("get_capture_delay time_stamp = [%ld].[%ld], delay_ns: [%d],"
+    ALOGV("get_capture_delay time_stamp = [%ld].[%ld], delay_ns: [%d],"
          " kernel_delay:[%ld], buf_delay:[%ld], rsmp_delay:[%ld], kernel_frames:[%d], "
          "in->frames_in:[%d], in->proc_frames_in:[%d], frames:[%d]",
          buffer->time_stamp.tv_sec , buffer->time_stamp.tv_nsec, buffer->delay_ns,
@@ -1190,7 +1190,7 @@ static int32_t update_echo_reference(struct imx_stream_in *in, size_t frames)
     struct echo_reference_buffer b;
     b.delay_ns = 0;
 
-    LOGV("update_echo_reference, frames = [%d], in->ref_frames_in = [%d],  "
+    ALOGV("update_echo_reference, frames = [%d], in->ref_frames_in = [%d],  "
           "b.frame_count = [%d]",
          frames, in->ref_frames_in, frames - in->ref_frames_in);
     if (in->ref_frames_in < frames) {
@@ -1209,12 +1209,12 @@ static int32_t update_echo_reference(struct imx_stream_in *in, size_t frames)
         if (in->echo_reference->read(in->echo_reference, &b) == 0)
         {
             in->ref_frames_in += b.frame_count;
-            LOGV("update_echo_reference: in->ref_frames_in:[%d], "
+            ALOGV("update_echo_reference: in->ref_frames_in:[%d], "
                     "in->ref_buf_size:[%d], frames:[%d], b.frame_count:[%d]",
                  in->ref_frames_in, in->ref_buf_size, frames, b.frame_count);
         }
     } else
-        LOGW("update_echo_reference: NOT enough frames to read ref buffer");
+        ALOGW("update_echo_reference: NOT enough frames to read ref buffer");
     return b.delay_ns;
 }
 
@@ -1307,7 +1307,7 @@ static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
                                    in->config.period_size *
                                        audio_stream_frame_size(&in->stream.common));
         if (in->read_status != 0) {
-            LOGE("get_next_buffer() pcm_read error %d", in->read_status);
+            ALOGE("get_next_buffer() pcm_read error %d", in->read_status);
             buffer->raw = NULL;
             buffer->frame_count = 0;
             return in->read_status;
@@ -1396,7 +1396,7 @@ static ssize_t process_frames(struct imx_stream_in *in, void* buffer, ssize_t fr
                 in->proc_buf = (int16_t *)realloc(in->proc_buf,
                                          in->proc_buf_size *
                                              in->config.channels * sizeof(int16_t));
-                LOGV("process_frames(): in->proc_buf %p size extended to %d frames",
+                ALOGV("process_frames(): in->proc_buf %p size extended to %d frames",
                      in->proc_buf, in->proc_buf_size);
             }
             frames_rd = read_frames(in,
@@ -1477,7 +1477,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     else
         ret = pcm_read(in->pcm, buffer, bytes);
 
-    if(ret < 0) LOGW("ret %d, pcm read error %s.", ret, pcm_get_error(in->pcm));
+    if(ret < 0) ALOGW("ret %d, pcm read error %s.", ret, pcm_get_error(in->pcm));
 
     if (ret > 0)
         ret = 0;
@@ -1608,7 +1608,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out = (struct imx_stream_out *)calloc(1, sizeof(struct imx_stream_out));
     if (!out)
         return -ENOMEM;
-    LOGW("open output stream devices %d, format %d, channels %d, sample_rate %d",
+    ALOGW("open output stream devices %d, format %d, channels %d, sample_rate %d",
                         devices, *format, *channels, *sample_rate);
     ret = create_resampler(DEFAULT_OUT_SAMPLING_RATE,
                            MM_FULL_POWER_SAMPLING_RATE,
@@ -1690,7 +1690,7 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     char *str;
     char value[32];
     int ret;
-    LOGW("set parameters %s",kvpairs);
+    ALOGW("set parameters %s",kvpairs);
     parms = str_parms_create_str(kvpairs);
     ret = str_parms_get_str(parms, AUDIO_PARAMETER_KEY_TTY_MODE, value, sizeof(value));
     if (ret >= 0) {
@@ -1841,7 +1841,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
 
     in->requested_rate = *sample_rate;
 
-    LOGW("In channels %d, rate %d, devices %x", channel_count, *sample_rate, devices);
+    ALOGW("In channels %d, rate %d, devices %x", channel_count, *sample_rate, devices);
     memcpy(&in->config, &pcm_config_mm_in, sizeof(pcm_config_mm_in));
     //in->config.channels = channel_count;
     //in->config.rate     = *sample_rate;

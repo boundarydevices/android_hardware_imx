@@ -58,4 +58,5 @@ static int   disp_mode_compare( const void *arg1, const void *arg2);
 static int     get_available_mode(int fbid, const char *mode_list);
 static int     read_graphics_fb_mode(int fbid);
 
+extern int isModeValid(int fb, char* pMode, int len);
 #endif

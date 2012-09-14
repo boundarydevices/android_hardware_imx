@@ -81,7 +81,7 @@ int camera_set_preview_window(struct camera_device * device,
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -102,7 +102,7 @@ void camera_set_callbacks(struct camera_device * device,
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -116,7 +116,7 @@ void camera_enable_msg_type(struct camera_device * device, int32_t msg_type)
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -130,7 +130,7 @@ void camera_disable_msg_type(struct camera_device * device, int32_t msg_type)
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -144,7 +144,7 @@ int camera_msg_type_enabled(struct camera_device * device, int32_t msg_type)
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return 0;
@@ -159,7 +159,7 @@ int camera_start_preview(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -175,7 +175,7 @@ void camera_stop_preview(struct camera_device * device)
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -190,7 +190,7 @@ int camera_preview_enabled(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -206,7 +206,7 @@ int camera_store_meta_data_in_buffers(struct camera_device * device, int enable)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -224,7 +224,7 @@ int camera_start_recording(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -239,7 +239,7 @@ void camera_stop_recording(struct camera_device * device)
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -254,7 +254,7 @@ int camera_recording_enabled(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -270,7 +270,7 @@ void camera_release_recording_frame(struct camera_device * device,
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -285,7 +285,7 @@ int camera_auto_focus(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -301,7 +301,7 @@ int camera_cancel_auto_focus(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -317,7 +317,7 @@ int camera_take_picture(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -333,7 +333,7 @@ int camera_cancel_picture(struct camera_device * device)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -349,7 +349,7 @@ int camera_set_parameters(struct camera_device * device, const char *params)
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -365,7 +365,7 @@ char* camera_get_parameters(struct camera_device * device)
     char* param = NULL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return NULL;
@@ -381,7 +381,7 @@ static void camera_put_parameters(struct camera_device *device, char *parms)
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -397,7 +397,7 @@ int camera_send_command(struct camera_device * device,
     int rv = -EINVAL;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return rv;
@@ -412,7 +412,7 @@ void camera_release(struct camera_device * device)
 {
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     if(!device)
         return;
@@ -443,7 +443,7 @@ int camera_device_close(hw_device_t* device)
     int ret = 0;
     fsl_camera_device_t* fsl_dev = NULL;
 
-    LOGV("%s", __FUNCTION__);
+    ALOGV("%s", __FUNCTION__);
 
     android::Mutex::Autolock lock(gCameraHalDeviceLock);
 
@@ -509,7 +509,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
 
     android::Mutex::Autolock lock(gCameraHalDeviceLock);
 
-    LOGI("camera_device open");
+    ALOGI("camera_device open");
 
     if (name != NULL) {
         cameraid = atoi(name);
@@ -517,7 +517,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
 
         if(cameraid > num_cameras)
         {
-            LOGE("camera service provided cameraid out of bounds, "
+            ALOGE("camera service provided cameraid out of bounds, "
                     "cameraid = %d, num supported = %d",
                     cameraid, num_cameras);
             rv = -EINVAL;
@@ -526,7 +526,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
 #if 0
         if(gCamerasOpen >= MAX_SIMUL_CAMERAS_SUPPORTED)
         {
-            LOGE("maximum number of cameras already open");
+            ALOGE("maximum number of cameras already open");
             rv = -ENOMEM;
             goto fail;
         }
@@ -534,7 +534,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
         camera_device = (fsl_camera_device_t*)malloc(sizeof(*camera_device));
         if(!camera_device)
         {
-            LOGE("camera_device allocation fail");
+            ALOGE("camera_device allocation fail");
             rv = -ENOMEM;
             goto fail;
         }
@@ -542,7 +542,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
         camera_ops = (camera_device_ops_t*)malloc(sizeof(*camera_ops));
         if(!camera_ops)
         {
-            LOGE("camera_ops allocation fail");
+            ALOGE("camera_ops allocation fail");
             rv = -ENOMEM;
             goto fail;
         }
@@ -593,7 +593,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
 
         if(!camera)
         {
-            LOGE("Couldn't create instance of CameraHal class");
+            ALOGE("Couldn't create instance of CameraHal class");
             rv = -ENOMEM;
             goto fail;
         }
@@ -646,7 +646,7 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
     else 
         *pFaceBackOrient = atoi(orientStr);
 
-    LOGI("Face Back Camera is %s, orient is %d", pFaceBackCameraName, *pFaceBackOrient);
+    ALOGI("Face Back Camera is %s, orient is %d", pFaceBackCameraName, *pFaceBackOrient);
 
     property_get(FACE_FRONT_CAMERA_NAME, pFaceFrontCameraName, DEFAULT_ERROR_NAME_str );
 
@@ -658,7 +658,7 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
     else 
         *pFaceFrontOrient = atoi(orientStr);
 
-    LOGI("Face Front Camera is %s, orient is %d", pFaceFrontCameraName, *pFaceFrontOrient);
+    ALOGI("Face Front Camera is %s, orient is %d", pFaceFrontCameraName, *pFaceFrontOrient);
 
 }
 

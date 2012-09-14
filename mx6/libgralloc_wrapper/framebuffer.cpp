@@ -52,7 +52,6 @@
 #include <hardware/DisplayCommand.h>
 #include "gralloc_priv.h"
 #include <utils/String8.h>
-#include <hardware/XmlTool.h>
 /*****************************************************************************/
 
 // numbers of buffers for page flipping
@@ -75,8 +74,6 @@ struct fb_context_t {
 };
 
 static int nr_framebuffers;
-static XmlTool* g_xmltool = NULL;
-static int primary_display_type = 0;
 
 sem_t * fslwatermark_sem_open()
 {
@@ -181,7 +178,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
         m->info.yoffset = offset / m->finfo.line_length;
 
         if (ioctl(m->framebuffer->fd, FBIOPAN_DISPLAY, &m->info) == -1) {
-            LOGE("<%s, %d> ioctl FBIOPAN_DISPLAY failed", __FUNCTION__, __LINE__);
+            ALOGE("<%s, %d> ioctl FBIOPAN_DISPLAY failed", __FUNCTION__, __LINE__);
             m->base.unlock(&m->base, buffer); 
             m->currentBuffer = buffer;
             return 0;
@@ -223,10 +220,9 @@ static int fb_compositionComplete(struct framebuffer_device_t* dev)
 }
 
 /*****************************************************************************/
-extern int isModeValid(int fb, const char* pMode, int len);
-extern char* getHighestMode(int fb);
+extern int isModeValid(int fb, char* pMode, int len);
 
-static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColordepth)
+static int set_graphics_fb_mode(int fb, struct configParam* param)
 {
     char temp_name[256];
     char fb_mode[256];
@@ -236,79 +232,94 @@ static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColorde
     int size=0;
     int n = 0;
 
-    //the primary display
-    if(fb == 0){
-        memset(temp_name, 0, sizeof(temp_name));
-        fd_mode = open("/sys/class/graphics/fb0/fsl_disp_dev_property", O_RDONLY, 0);
-        if(fd_mode > 0 && (size = read(fd_mode, temp_name, sizeof(temp_name))) > 0) {
-            LOGI("primary display name %s", temp_name);
-            if(strstr(temp_name, "hdmi")) primary_display_type = 1;
-            else primary_display_type = 0;
-            close(fd_mode);
-        } else {
-            LOGI("open or read /sys/class/graphics/fb0/fsl_disp_dev_property failed");
-        }
+    if(param == NULL) {
+        /*
+         * file /data/misc/display.conf format:
+         * mode=S1920:x1080p-60
+         * colordepth=32
+         * usage: change fb display mode.
+        */
+        int fb_misc = open("/data/misc/display.conf", O_RDWR, 0);
+        if(fb_misc > 0) {
+            memset(fb_mode, 0, sizeof(fb_mode));
+            size = read(fb_misc, fb_mode, sizeof(fb_mode));
+            if(size > 0) {
+                disp_mode = fb_mode;
+                while(*disp_mode != '\0') {
+                    if(*disp_mode == '\n') {
+                        disp_mode++;
+                        n = disp_mode - start_index;
+                        *(char*)disp_mode = '\0';
 
-        if(g_xmltool == NULL) {
-            g_xmltool = new XmlTool(FSL_SETTINGS_PREFERENCE);
-            if(g_xmltool == NULL) {
-                LOGE("Error: g_xmltool not created");
-                return -1;
+                        if(!isModeValid(fb, start_index + 1, n-1)) {
+                            ALOGI("Warning: display %d does not support len:%d, %s", fb, n-1, start_index + 1);
+                            memset(fb_mode, 0, sizeof(fb_mode));
+                            memset(temp_name, 0, sizeof(temp_name));
+                            sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
+                            fd_mode = open(temp_name,O_RDWR, 0);
+                            if(fd_mode < 0) {
+                                ALOGI("Error %d! Cannot open %s", fd_mode, temp_name);
+                                return -1;
+                            }
+                            strncpy(fb_mode, "mode=", 5);
+                            size = 5;
+                            size += read(fd_mode, fb_mode+size, sizeof(fb_mode)-size);
+                            ALOGW("fb_mode is %s", fb_mode);
+                            close(fd_mode);
+
+                            memset(temp_name, 0, sizeof(temp_name));
+                            sprintf(temp_name, "/sys/class/graphics/fb%d/bits_per_pixel", fb);
+                            fd_mode = open(temp_name, O_RDONLY, 0);
+                            if(fd_mode < 0) {
+                                ALOGI("Error %d! Cannot open %s", fd_mode, temp_name);
+                                return -1;
+                            }
+                            strncpy(fb_mode+size, "colordepth=", 11);
+                            size += 11;
+                            size += read(fd_mode, fb_mode+size, sizeof(fb_mode)-size);
+                            ALOGW("fb_mode is size=%d, %s", size, fb_mode);
+                            close(fd_mode);
+
+                            close(fb_misc);
+                            fb_misc = open("/data/misc/display.conf", O_RDWR | O_TRUNC, 0);
+                            if(fb_misc < 0)
+                                return -1;
+                            write(fb_misc, fb_mode, size);
+                            close(fb_misc);
+                            return -1;
+                        }//end !isModeValid
+
+                        memset(temp_name, 0, sizeof(temp_name));
+			sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
+			fd_mode = open(temp_name,O_RDWR, 0);
+			if(fd_mode < 0) {
+			    ALOGI("Error %d! Cannot open %s", fd_mode, temp_name);
+			    return -1;
+			}
+                        write(fd_mode, start_index + 1, n);
+                        close(fd_mode);
+                        break;
+                    }
+                    if(*disp_mode == '=') start_index = (char*)disp_mode;
+                    disp_mode++;
+                }
             }
         }
-
-        *pColordepth = g_xmltool->getInt(FSL_PREFERENCE_COLORDEPTH, 0);
-        LOGI("colordepth is %d", *pColordepth);
-        String8 dispMode = g_xmltool->getString(FSL_PREFERENCE_MODE, String8(FSL_PREFERENCE_MODE_DEFAULT));
-        disp_mode = dispMode.string();
-        if(!strcmp(disp_mode, FSL_PREFERENCE_MODE_DEFAULT)) {
-            disp_mode = getHighestMode(fb);
-            memset(fb_mode, 0, sizeof(fb_mode));
-            strcpy(fb_mode, disp_mode);
-        }
-        else if(!isModeValid(fb, disp_mode, strlen(disp_mode))) {
-            LOGI("Warning: display %d does not support mode: %s", fb, disp_mode);
-            delete g_xmltool;
-            g_xmltool = NULL;
-            return -1;
-        }
-        else {
-            memset(fb_mode, 0, sizeof(fb_mode));
-            strcpy(fb_mode, disp_mode);
-            fb_mode[strlen(disp_mode)] = '\n';
-        }
-        LOGI("disp_mode is %s", disp_mode);
-        memset(temp_name, 0, sizeof(temp_name));
-        sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
-        fd_mode = open(temp_name,O_RDWR, 0);
-        if(fd_mode < 0) {
-            LOGI("Error %d! Cannot open %s", fd_mode, temp_name);
-            return -1;
-        }
-
-        write(fd_mode, fb_mode, strlen(fb_mode));
-        close(fd_mode);
-        delete g_xmltool;
-        g_xmltool = NULL;
+        close(fb_misc);
         return 0;
     }
 
-    if(param == NULL) {
-        LOGE("param should not NULL for added display");
-        return -1;
-    }
-    //other display goes here.
     String8 str8_mode(param->mode);
     disp_mode = str8_mode.string();
     if(disp_mode == NULL) {
-        LOGE("<%s,%d> invalide parameter", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> invalide parameter", __FUNCTION__, __LINE__);
         return -1;
     }
     memset(temp_name, 0, sizeof(temp_name));
     sprintf(temp_name, "/sys/class/graphics/fb%d/mode", fb);
     fd_mode = open(temp_name,O_RDWR, 0);
     if(fd_mode < 0) {
-        LOGI("Error %d! Cannot open %s", fd_mode, temp_name);
+        ALOGI("Error %d! Cannot open %s", fd_mode, temp_name);
         return -1;
     }
 
@@ -320,7 +331,7 @@ static int set_graphics_fb_mode(int fb, struct configParam* param, int *pColorde
     size = write(fd_mode, fb_mode, n + 2);
     if(size <= 0)
     {
-        LOGI("Error %d %s! Cannot write %s=%s", errno, strerror(errno), temp_name, fb_mode);
+        ALOGI("Error %d %s! Cannot write %s", errno, strerror(errno), temp_name);
     }
 
     close(fd_mode);
@@ -344,12 +355,11 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
     int i=0;
     char name[64];
     int dpy = 0;
-    int colordepth = 0;
 
     if(param != NULL) {
         dpy = param->displayId;
     }
-    set_graphics_fb_mode(dpy, param, &colordepth);
+    set_graphics_fb_mode(dpy, param);
 
     while ((fd==-1) && device_template[i]) {
         snprintf(name, 64, device_template[i], dpy);
@@ -357,26 +367,26 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
         i++;
     }
     if (fd < 0) {
-        LOGE("<%s,%d> open %s failed", __FUNCTION__, __LINE__, name);
+        ALOGE("<%s,%d> open %s failed", __FUNCTION__, __LINE__, name);
         return -errno;
     }
 
     if(param != NULL) {
         int blank = FB_BLANK_UNBLANK;
         if(ioctl(fd, FBIOBLANK, blank) < 0) {
-            LOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
+            ALOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
         }
     }
 
     struct fb_fix_screeninfo finfo;
     if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) {
-        LOGE("<%s,%d> FBIOGET_FSCREENINFO failed", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> FBIOGET_FSCREENINFO failed", __FUNCTION__, __LINE__);
         return -errno;
     }
 
     struct fb_var_screeninfo info;
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
-        LOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
         return -errno;
     }
 
@@ -390,11 +400,9 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
         }
 
         if(info.bits_per_pixel == 0) { //|| info.xres == 0 || info.yres == 0 
-            LOGE("<%s,%d> the bpp or xres yres is 0", __FUNCTION__, __LINE__);
+            ALOGE("<%s,%d> the bpp or xres yres is 0", __FUNCTION__, __LINE__);
             return -1;
         }
-    } else if(colordepth == 16 || colordepth == 32) {
-        info.bits_per_pixel = colordepth;
     }
 
     info.reserved[0] = 0;
@@ -405,7 +413,7 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
     info.activate = FB_ACTIVATE_NOW;
 
     if(info.bits_per_pixel == 32){
-        LOGW("32bpp setting of Framebuffer catched!");
+        ALOGW("32bpp setting of Framebuffer catched!");
         /*
          * Explicitly request BGRA 8/8/8
          */
@@ -444,19 +452,19 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
     if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
         info.yres_virtual = ALIGN_PIXEL_128(info.yres);
         flags &= ~PAGE_FLIP;
-        LOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
+        ALOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
     }
 
     if (info.yres_virtual < ALIGN_PIXEL_128(info.yres) * 2) {
         // we need at least 2 for page-flipping
         info.yres_virtual = ALIGN_PIXEL_128(info.yres);
         flags &= ~PAGE_FLIP;
-        LOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
+        ALOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
                 info.yres_virtual, ALIGN_PIXEL_128(info.yres)*2);
     }
 
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
-        LOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
         return -errno;
     }
 
@@ -483,7 +491,7 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
     float ydpi = (info.yres * 25.4f) / info.height;
     float fps  = refreshRate / 1000.0f;
 
-    LOGW(   "using (fd=%d)\n"
+    ALOGW(   "using (fd=%d)\n"
             "id           = %s\n"
             "xres         = %d px\n"
             "yres         = %d px\n"
@@ -505,7 +513,7 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
             info.blue.offset, info.blue.length
     );
 
-    LOGW(   "width        = %d mm (%f dpi)\n"
+    ALOGW(   "width        = %d mm (%f dpi)\n"
             "height       = %d mm (%f dpi)\n"
             "refresh rate = %.2f Hz\n",
             info.width,  xdpi,
@@ -515,12 +523,12 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
 
 
     if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) {
-        LOGE("<%s,%d> FBIOGET_FSCREENINFO failed", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> FBIOGET_FSCREENINFO failed", __FUNCTION__, __LINE__);
         return -errno;
     }
 
     if (finfo.smem_len <= 0) {
-        LOGE("<%s,%d> finfo.smem_len <= 0", __FUNCTION__, __LINE__);
+        ALOGE("<%s,%d> finfo.smem_len <= 0", __FUNCTION__, __LINE__);
         return -errno;
     }
 
@@ -546,7 +554,7 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
 
     void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if (vaddr == MAP_FAILED) {
-        LOGE("Error mapping the framebuffer (%s)", strerror(errno));
+        ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
         return -errno;
     }
     module->framebuffer->base = intptr_t(vaddr);
@@ -582,13 +590,13 @@ static int unMapFrameBuffer(fb_context_t* ctx, struct private_module_t* module)
 
     int blank = 1;
     if(ioctl(fd, FBIOBLANK, blank) < 0) {
-        LOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
+        ALOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
     }
 
     if(ctx->mainDisp_fd > 0) {
         blank = FB_BLANK_UNBLANK;
         if(ioctl(ctx->mainDisp_fd, FBIOBLANK, blank) < 0) {
-            LOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
+            ALOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
         }
     }
     close(fd);
@@ -653,13 +661,13 @@ static int fb_perform(struct gralloc_module_t const* module,
 		    memset(addr, 0, fbSize);
                     } break;
                 default:
-                    LOGE("<%s, %d> invalide operate code %d!", __FUNCTION__, __LINE__, (int)operation);
+                    ALOGE("<%s, %d> invalide operate code %d!", __FUNCTION__, __LINE__, (int)operation);
                     err = -1;
                     break;
             } 
             break;
         default:
-            LOGE("<%s, %d> invalide operate code %d!", __FUNCTION__, __LINE__, (int)operation);
+            ALOGE("<%s, %d> invalide operate code %d!", __FUNCTION__, __LINE__, (int)operation);
             err = -1;
             break;
     }
@@ -751,7 +759,6 @@ int fb_device_open(hw_module_t const* module, const char* name,
         *device = &dev->device.common;
         fbdev = (framebuffer_device_t*) *device;
         fbdev->reserved[0] = nr_framebuffers;
-        fbdev->reserved[1] = primary_display_type;
     } 
 
     return status;
