@@ -388,7 +388,7 @@ static int start_output_stream(struct imx_stream_out *out)
     unsigned int port = 0;
     int i;
 
-    ALOGW("start_output_stream...");
+    ALOGW("start_output_stream... %d",(int)out);
     adev->active_output[out->out_id] = out;
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
@@ -541,7 +541,7 @@ static struct echo_reference_itfe *get_echo_reference(struct imx_audio_device *a
     /*only for mixer output, only one output*/
     if(adev->out_stream_num == 1)
         if (adev->active_output[0] != NULL &&
-            adev->active_output[0]->config.format == AUDIO_FORMAT_PCM_16_BIT ) {
+            adev->active_output[0]->config.format == PCM_FORMAT_S16_LE) {
             struct audio_stream *stream = &adev->active_output[0]->stream.common;
             uint32_t wr_channel_count = popcount(stream->get_channels(stream));
             uint32_t wr_sampling_rate = stream->get_sample_rate(stream);
@@ -621,7 +621,7 @@ static uint32_t out_get_channels(const struct audio_stream *stream)
         return AUDIO_CHANNEL_OUT_STEREO;
 }
 
-static int out_get_format(const struct audio_stream *stream)
+static audio_format_t out_get_format(const struct audio_stream *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     switch(out->config.format) {
@@ -634,7 +634,7 @@ static int out_get_format(const struct audio_stream *stream)
     }
 }
 
-static int out_set_format(struct audio_stream *stream, int format)
+static int out_set_format(struct audio_stream *stream, audio_format_t format)
 {
     ALOGE("out_set_format %d", format);
     return 0;
@@ -738,7 +738,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         }
         pthread_mutex_unlock(&adev->lock);
     }
-    ALOGW("out_set_parameters %s, ret %d",kvpairs, ret);
+    ALOGW("out_set_parameters %s, ret %d, out %d",kvpairs, ret, (int)out);
     str_parms_destroy(parms);
     return 0;
 }
@@ -877,7 +877,7 @@ exit:
     pthread_mutex_unlock(&out->lock);
 
     if (ret != 0) {
-        LOGW("write error, sleep few ms");
+        ALOGW("write error, sleep few ms");
         usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
                out_get_sample_rate(&stream->common));
     }
@@ -924,7 +924,7 @@ static int start_input_stream(struct imx_stream_in *in)
     struct imx_audio_device *adev = in->dev;
     unsigned int card = -1;
     unsigned int port = 0;
-    LOGW("start_input_stream....");
+    ALOGW("start_input_stream....");
     adev->active_input = in;
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
@@ -944,23 +944,9 @@ static int start_input_stream(struct imx_stream_in *in)
             return -EINVAL;
         }
     }
-    LOGW("card %d, port %d device %x", card, port, in->device);
+    ALOGW("card %d, port %d device %x", card, port, in->device);
 
     in->config.stop_threshold = in->config.period_size * in->config.period_count;
-
-    if(in->device & AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
-        if((int)in->config.rate != adev_get_rate_for_device(adev, AUDIO_DEVICE_IN_ANLG_DOCK_MIC, PCM_IN) ||
-           in->config.channels != 1) {
-           LOGE("Input 2 does not support this format!");
-           return -EINVAL;
-        }
-    }else {
-        if(in->config.rate != MM_FULL_POWER_SAMPLING_RATE ||
-           in->config.channels != 2) {
-           LOGE("Input 1 does not support this format!");
-           return -EINVAL;
-        }
-    }
 
     if (in->need_echo_reference && in->echo_reference == NULL)
         in->echo_reference = get_echo_reference(adev,
@@ -1017,7 +1003,7 @@ static uint32_t in_get_channels(const struct audio_stream *stream)
     }
 }
 
-static int in_get_format(const struct audio_stream *stream)
+static audio_format_t in_get_format(const struct audio_stream *stream)
 {
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
     switch(in->config.format) {
@@ -1031,7 +1017,7 @@ static int in_get_format(const struct audio_stream *stream)
 
 }
 
-static int in_set_format(struct audio_stream *stream, int format)
+static int in_set_format(struct audio_stream *stream, audio_format_t format)
 {
     return 0;
 }
@@ -1042,7 +1028,7 @@ static int do_input_standby(struct imx_stream_in *in)
     struct imx_audio_device *adev = in->dev;
 
     if (!in->standby) {
-        LOGW("do_in_standby..");
+        ALOGW("do_in_standby..");
         pcm_close(in->pcm);
         in->pcm = NULL;
         in->last_time_of_xrun = 0;
@@ -1510,7 +1496,7 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
     times = pcm_get_time_of_xrun(in->pcm);
     diff = times - in->last_time_of_xrun;
-    LOGW_IF((diff != 0), "in_get_input_frames_lost %d ms total %d ms\n",diff, times);
+    ALOGW_IF((diff != 0), "in_get_input_frames_lost %d ms total %d ms\n",diff, times);
     in->last_time_of_xrun = times;
     return diff * in->requested_rate / 1000;
 }
@@ -1595,10 +1581,11 @@ exit:
     return status;
 }
 
-
 static int adev_open_output_stream(struct audio_hw_device *dev,
-                                   uint32_t devices, int *format,
-                                   uint32_t *channels, uint32_t *sample_rate,
+                                   audio_io_handle_t handle,
+                                   audio_devices_t devices,
+                                   audio_output_flags_t flags,
+                                   struct audio_config *config,
                                    struct audio_stream_out **stream_out)
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
@@ -1608,8 +1595,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out = (struct imx_stream_out *)calloc(1, sizeof(struct imx_stream_out));
     if (!out)
         return -ENOMEM;
-    ALOGW("open output stream devices %d, format %d, channels %d, sample_rate %d",
-                        devices, *format, *channels, *sample_rate);
+    ALOGW("open output stream devices %d, format %d, channels %d, sample_rate %d, flag %d",
+                        devices, config->format, config->channel_mask, config->sample_rate, flags);
     ret = create_resampler(DEFAULT_OUT_SAMPLING_RATE,
                            MM_FULL_POWER_SAMPLING_RATE,
                            2,
@@ -1654,11 +1641,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
      * This is because out_set_parameters() with a route is not
      * guaranteed to be called after an output stream is opened. */
 
-    *format = out_get_format(&out->stream.common);
-    *channels = out_get_channels(&out->stream.common);
-    *sample_rate = out_get_sample_rate(&out->stream.common);
+    config->format = out_get_format(&out->stream.common);
+    config->channel_mask = out_get_channels(&out->stream.common);
+    config->sample_rate = out_get_sample_rate(&out->stream.common);
 
     *stream_out = &out->stream;
+    ALOGW("opened out stream...%d",(int)out);
     return 0;
 
 err_open:
@@ -1672,7 +1660,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
-
+    ALOGW("adev_close_output_stream...");
     ladev->out_stream_num--;
 
     out_standby(&stream->common);
@@ -1793,30 +1781,29 @@ static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
 }
 
 static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
-                                         uint32_t sample_rate, int format,
-                                         int channel_count)
+                                         const struct audio_config *config)
 {
     size_t size;
-
-    if (check_input_parameters(sample_rate, format, channel_count) != 0)
+    int channel_count = popcount(config->channel_mask);
+    if (check_input_parameters(config->sample_rate, config->format, channel_count) != 0)
         return 0;
 
-    return get_input_buffer_size(sample_rate, format, channel_count);
+    return get_input_buffer_size(config->sample_rate, config->format, channel_count);
 }
 
-static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
-                                  int *format, uint32_t *channel_mask,
-                                  uint32_t *sample_rate,
-                                  audio_in_acoustics_t acoustics,
+static int adev_open_input_stream(struct audio_hw_device *dev,
+                                  audio_io_handle_t handle,
+                                  audio_devices_t devices,
+                                  struct audio_config *config,
                                   struct audio_stream_in **stream_in)
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_in *in;
     int ret;
     int rate;
-    int channel_count = popcount(*channel_mask);
+    int channel_count = popcount(config->channel_mask);
 
-    if (check_input_parameters(*sample_rate, *format, channel_count) != 0)
+    if (check_input_parameters(config->sample_rate, config->format, channel_count) != 0)
         return -EINVAL;
 
     in = (struct imx_stream_in *)calloc(1, sizeof(struct imx_stream_in));
@@ -1839,30 +1826,16 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
-    in->requested_rate = *sample_rate;
+    in->requested_rate = config->sample_rate;
 
-    ALOGW("In channels %d, rate %d, devices %x", channel_count, *sample_rate, devices);
+    ALOGW("In channels %d, rate %d, devices %x", channel_count, config->sample_rate, devices);
     memcpy(&in->config, &pcm_config_mm_in, sizeof(pcm_config_mm_in));
     //in->config.channels = channel_count;
     //in->config.rate     = *sample_rate;
     /*fix to 2 channel,  caused by the wm8958 driver*/
-    *channel_mask       = AUDIO_CHANNEL_IN_STEREO;
+    config->channel_mask       = AUDIO_CHANNEL_IN_STEREO;
     in->config.channels = 2;
  
-    if(devices == AUDIO_DEVICE_IN_ANLG_DOCK_MIC) {
-        ret = scan_available_device(ladev);
-        if(ret != 0) return -EINVAL;
-        *channel_mask       = AUDIO_CHANNEL_IN_MONO;
-        in->config.channels = 1;
-        rate     = adev_get_rate_for_device(ladev, AUDIO_DEVICE_IN_ANLG_DOCK_MIC, PCM_IN);
-        LOGW("rate %d", rate);
-        if( rate == 0) {
-              LOGW("can not get rate for in_device %d ", AUDIO_DEVICE_IN_ANLG_DOCK_MIC);
-              return -EINVAL;
-        }
-        in->config.rate     =  rate;
-    }
-
     in->buffer = malloc(in->config.period_size *
                         audio_stream_frame_size(&in->stream.common));
     if (!in->buffer) {
@@ -1980,7 +1953,7 @@ static int scan_available_device(struct imx_audio_device *adev)
         imx_control = control_open(i);
         if(!imx_control)
             break;
-        LOGW("card %d, id %s ,driver %s, name %s", i, control_card_info_get_id(imx_control),
+        ALOGW("card %d, id %s ,driver %s, name %s", i, control_card_info_get_id(imx_control),
                                                       control_card_info_get_driver(imx_control),
                                                       control_card_info_get_name(imx_control));
         for(j = 0; j < SUPPORT_CARD_NUM; j++) {
@@ -2011,13 +1984,13 @@ static int scan_available_device(struct imx_audio_device *adev)
                 adev->mixer[n] = mixer_open(i);
                 adev->card_list[n]->card = i;
                 if (!adev->mixer[n]) {
-                    LOGE("Unable to open the mixer, aborting.");
+                    ALOGE("Unable to open the mixer, aborting.");
                     return -EINVAL;
                 }
                 rate = 8000;
                 if( pcm_get_near_rate(i, 0, PCM_IN, &rate) == 0)
                         adev->card_list[n]->in_rate = rate;
-                LOGW("in rate %d",adev->card_list[n]->in_rate);
+                ALOGW("in rate %d",adev->card_list[n]->in_rate);
                 left_devices &= ~audio_card_list[j]->supported_devices;
                 k ++;
                 found = true;
@@ -2027,13 +2000,13 @@ static int scan_available_device(struct imx_audio_device *adev)
 
         control_close(imx_control);
         if(!found){
-            LOGW("unrecognized card found.");
+            ALOGW("unrecognized card found.");
         }
     }
     adev->audio_card_num = k;
     /*must have one card*/
     if(!adev->card_list[0]) {
-        LOGE("no supported sound card found, aborting.");
+        ALOGE("no supported sound card found, aborting.");
         return  -EINVAL;
     }
     /*second card maybe null*/
@@ -2119,8 +2092,8 @@ static struct hw_module_methods_t hal_module_methods = {
 struct audio_module HAL_MODULE_INFO_SYM = {
     .common = {
         .tag = HARDWARE_MODULE_TAG,
-        .version_major = 1,
-        .version_minor = 0,
+        .module_api_version = AUDIO_MODULE_API_VERSION_0_1,
+        .hal_api_version = HARDWARE_HAL_API_VERSION,
         .id = "audio.tinyalsa",
         .name = "tinyalsa audio HW HAL",
         .author = "The Android Open Source Project",
