@@ -16,35 +16,7 @@
 
 ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
-  LOCAL_PATH := $(call my-dir)
-
-  include $(CLEAR_VARS)
-
-  LOCAL_PRELINK_MODULE := true
-
-  LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-
-  LOCAL_CFLAGS := -D_POSIX_SOURCE -Wno-multichar
-
-  LOCAL_C_INCLUDES += hardware/alsa_sound external/alsa-lib/include
-
-  LOCAL_SRC_FILES:= alsa_imx.cpp
-
-  LOCAL_SHARED_LIBRARIES := \
-	libaudio \
-  	libasound \
-  	liblog   \
-    libcutils
-
-  LOCAL_MODULE:= alsa.$(TARGET_BOARD_PLATFORM)
-
-  LOCAL_MODULE_TAGS := eng
-
-ifeq ($(TARGET_BOOTLOADER_BOARD_NAME),SABRELITE)
-  LOCAL_CFLAGS += -DBOARD_IS_SABRELITE
-endif
-  include $(BUILD_SHARED_LIBRARY)
-
+LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := audio.primary.$(TARGET_BOARD_PLATFORM)
@@ -65,5 +37,12 @@ LOCAL_C_INCLUDES += \
 LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa libaudioutils libdl
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := audio_policy.conf
+LOCAL_MODULE_CLASS := ETC
+LOCAL_SRC_FILES := audio_policy.conf
+LOCAL_MODULE_TAGS := optional
+include $(BUILD_PREBUILT)
 
 endif

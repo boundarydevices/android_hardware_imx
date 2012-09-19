@@ -58,14 +58,8 @@ static int imx_adev_open(const hw_module_t* module, const char* name,
     }
 
     if(!found) {
-        ALOGW("reload the legacy audio hal");
-        ret = hw_get_module(AUDIO_HARDWARE_MODULE_ID_LEGACY, &module_audio);
-        if(ret)
-            goto out;
-
-        ret = module_audio->methods->open(module, AUDIO_HARDWARE_INTERFACE,(struct hw_device_t**)device);
-        if(ret)
-            goto out;
+        ALOGW("load tinyalsa hal failed");
+        ret = -1;
     }
 
 out:
@@ -80,10 +74,10 @@ struct imx_audio_module HAL_MODULE_INFO_SYM = {
     module: {
         common: {
             tag: HARDWARE_MODULE_TAG,
-            version_major: 1,
-            version_minor: 0,
+            module_api_version: AUDIO_MODULE_API_VERSION_0_1,
+            hal_api_version: HARDWARE_HAL_API_VERSION,
             id: AUDIO_HARDWARE_MODULE_ID,
-            name: "LEGACY Audio HW HAL",
+            name: "Primary Audio HW HAL",
             author: "The Android Open Source Project",
             methods: &imx_audio_module_methods,
             dso : NULL,

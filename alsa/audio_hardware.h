@@ -156,7 +156,6 @@ struct imx_stream_in {
             AUDIO_DEVICE_IN_WIRED_HEADSET |      \
             AUDIO_DEVICE_IN_AUX_DIGITAL |        \
             AUDIO_DEVICE_IN_BACK_MIC |           \
-            AUDIO_DEVICE_IN_ANLG_DOCK_MIC |      \
             AUDIO_DEVICE_IN_ALL_SCO |            \
             AUDIO_DEVICE_IN_DEFAULT )
 
