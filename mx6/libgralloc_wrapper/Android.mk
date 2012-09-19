@@ -21,17 +21,16 @@ ifeq ($(TARGET_HAVE_IMX_GRALLOC),true)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libhardware libutils libfsl_xmltool
+LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libhardware libutils
 
 LOCAL_SRC_FILES := 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
 	mapper.cpp      \
-        display_mode.cpp
+	display_mode.cpp
 
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX
-LOCAL_C_INCLUDES = external/expat/lib
 
 
 #ifeq ($(HAVE_FSL_EPDC_FB),true)
