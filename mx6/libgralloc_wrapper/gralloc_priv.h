@@ -30,6 +30,9 @@
 
 #include <linux/fb.h>
 
+#define GRALLOC_HARDWARE_FB "fb"
+#define GRALLOC_VIV_HARDWARE_MODULE_ID "gralloc_viv"
+
 #define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
 #define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
 /** z430 core need 4k aligned memory, since xres has been 32 aligned, make yres
