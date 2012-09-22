@@ -416,32 +416,38 @@ static int mapFrameBufferWithParamLocked(struct private_module_t* module, struct
     if(info.bits_per_pixel == 32){
         ALOGW("32bpp setting of Framebuffer catched!");
         /*
-         * Explicitly request BGRA 8/8/8
+         * Explicitly request RGBA 8/8/8/8
          */
-        info.bits_per_pixel = 32;
-        info.red.offset     = 8;
-        info.red.length     = 8;
-        info.green.offset   = 16;
-        info.green.length   = 8;
-        info.blue.offset    = 24;
-        info.blue.length    = 8;
-        info.transp.offset  = 0;
-        info.transp.length  = 0;
+        info.red.offset       = 0;
+        info.red.length       = 8;
+        info.red.msb_right    = 0;
+        info.green.offset     = 8;
+        info.green.length     = 8;
+        info.green.msb_right  = 0;
+        info.blue.offset      = 16;
+        info.blue.length      = 8;
+        info.blue.msb_right   = 0;
+        info.transp.offset    = 24;
+        info.transp.length    = 8;
+        info.transp.msb_right = 0;
     }
     else{
         /*
          * Explicitly request 5/6/5
          */
-        info.bits_per_pixel = 16;
-        info.red.offset     = 11;
-        info.red.length     = 5;
-        info.green.offset   = 5;
-        info.green.length   = 6;
-        info.blue.offset    = 0;
-        info.blue.length    = 5;
-        info.transp.offset  = 0;
-        info.transp.length  = 0;
-
+        info.bits_per_pixel   = 16;
+        info.red.offset       = 11;
+        info.red.length       = 5;
+        info.red.msb_right    = 0;
+        info.green.offset     = 5;
+        info.green.length     = 6;
+        info.green.msb_right  = 0;
+        info.blue.offset      = 0;
+        info.blue.length      = 5;
+        info.blue.msb_right   = 0;
+        info.transp.offset    = 0;
+        info.transp.length    = 0;
+        info.transp.msb_right = 0;
     }
     /*
      * Request nr_framebuffers screens (at lest 2 for page flipping)
@@ -689,7 +695,7 @@ static void fb_device_init(private_module_t* m, fb_context_t *dev)
 	const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGB_565;
     }
     else{
-	const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_BGRA_8888;
+	const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGBX_8888;
     }
     const_cast<float&>(dev->device.xdpi) = m->xdpi;
     const_cast<float&>(dev->device.ydpi) = m->ydpi;
