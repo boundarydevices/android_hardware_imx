@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,11 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
-
-#ifndef _BLIT_GPU_H_
-#define _BLIT_GPU_H_
+#ifndef HWC_CONTEXT_H_
+#define HWC_CONTEXT_H_
 
 #include <hardware/hardware.h>
 
@@ -24,35 +23,33 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
-
+#include <cutils/properties.h>
+#include <utils/threads.h>
 #include <hardware/hwcomposer.h>
+#include <hardware_legacy/uevent.h>
+#include <utils/StrongPointer.h>
 
+#include <linux/mxcfb.h>
+#include <linux/ioctl.h>
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
-#include "hwc_common.h"
+#include "hwc_vsync.h"
 /*****************************************************************************/
+#define HWC_VIV_HARDWARE_MODULE_ID "hwcomposer_viv"
+#define HWC_MAIN_FB "/dev/graphics/fb0"
 
-class blit_gpu : public blit_device{
-public:  
-    virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf);
+class VSyncThread;
 
-		blit_gpu();
-		virtual ~blit_gpu();
-    
-private:
-		int init();
-    int uninit();
-	
-		blit_gpu& operator = (blit_gpu& out);
-		blit_gpu(const blit_gpu& out);  
-    //add private members.		    
+struct hwc_context_t {
+    hwc_composer_device_t device;
+    /* our private state goes below here */
+
+    int m_mainfb_fd;
+    float m_mainfb_fps;
+    hwc_procs_t* m_callback;
+    bool m_vsync_enable;
+    sp<VSyncThread> m_vsync_thread;
+    hwc_composer_device_t* m_viv_hwc;
 };
-
-
-//int gpu_init(struct blit_device *dev);
-//
-//int gpu_uninit(struct blit_device*dev);
-//
-//int gpu_blit(struct blit_device *dev, hwc_layer_t *layer, hwc_buffer *out_buf);
 
 #endif

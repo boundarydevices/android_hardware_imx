@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+#ifndef HWC_VSYNC_H_
+#define HWC_VSYNC_H_
 
 #include <hardware/hardware.h>
 
@@ -21,37 +23,37 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
-
+#include <cutils/properties.h>
+#include <utils/threads.h>
 #include <hardware/hwcomposer.h>
+#include <hardware_legacy/uevent.h>
+#include <utils/StrongPointer.h>
 
+#include <linux/mxcfb.h>
+#include <linux/ioctl.h>
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
-#include "hwc_common.h"
-#include "blit_gpu.h"
+#include "hwc_context.h"
 /*****************************************************************************/
+#define FB_VSYNC_EVENT "change@/devices/platform/mxc_sdc_fb.0/graphics/fb0"
+#define FB_VSYNC_EVENT_PREFIX "change@/devices/platform/mxc_sdc_fb"
+
 using namespace android;
 
-blit_gpu::blit_gpu()
-{
-		init();
-}
+struct hwc_context_t;
 
-blit_gpu::~blit_gpu()
+class VSyncThread : public Thread
 {
-		uninit();
-}
+public:
+    VSyncThread(hwc_context_t *ctx);
 
-int blit_gpu::init()
-{
-		return 0;
-}
+private:
+    virtual void onFirstRef();
+    virtual status_t readyToRun();
+    virtual bool threadLoop();
+    void handleUevent(const char *buff, int len);
 
-int blit_gpu::uninit()
-{
-		return 0;
-}
+    hwc_context_t *mCtx;
+};
 
-int blit_gpu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
-{
-		return 0;
-}
+#endif
