@@ -33,6 +33,19 @@ enum tty_modes {
     TTY_MODE_FULL
 };
 
+enum pcm_type {
+    PCM_NORMAL = 0,
+    PCM_HDMI,
+    PCM_TOTAL,
+};
+
+enum output_type {
+    OUTPUT_DEEP_BUF,      // deep PCM buffers output stream
+    OUTPUT_PRIMARY,   // low latency output stream
+    OUTPUT_HDMI,
+    OUTPUT_TOTAL
+};
+
 struct route_setting
 {
     char *ctl_name;
@@ -75,7 +88,7 @@ struct imx_audio_device {
     int in_call;
     float voice_volume;
     struct imx_stream_in  *active_input;                /*1 input stream, 2 outout stream*/
-    struct imx_stream_out *active_output[MAX_AUDIO_CARD_NUM];
+    struct imx_stream_out *active_output[OUTPUT_TOTAL];
     bool mic_mute;
     int tty_mode;
     struct echo_reference_itfe *echo_reference;
@@ -85,7 +98,6 @@ struct imx_audio_device {
     bool low_power;
     struct audio_card *card_list[MAX_AUDIO_CARD_NUM];
     struct mixer *mixer[MAX_AUDIO_CARD_NUM];
-    int out_stream_num;
     int audio_card_num;
 };
 
@@ -93,19 +105,20 @@ struct imx_stream_out {
     struct audio_stream_out stream;
 
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
-    struct pcm_config config;
-    struct pcm *pcm;
+    struct pcm_config config[PCM_TOTAL];
+    struct pcm *pcm[PCM_TOTAL];
     struct resampler_itfe *resampler;
     char *buffer;
     int standby;
     struct echo_reference_itfe *echo_reference;
     struct imx_audio_device *dev;
-    int write_threshold;
+    int write_threshold[PCM_TOTAL];
     bool low_power;
-    int frame_count;
-    int write_flags;
+    int write_flags[PCM_TOTAL];
     int device;
-    int out_id;
+    size_t buffer_frames;
+    audio_channel_mask_t channel_mask;
+    audio_channel_mask_t sup_channel_masks[3];
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
@@ -138,6 +151,13 @@ struct imx_stream_in {
     size_t mute_500ms;
     struct imx_audio_device *dev;
     int last_time_of_xrun;
+};
+#define STRING_TO_ENUM(string) { #string, string }
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
+struct string_to_enum {
+    const char *name;
+    uint32_t value;
 };
 
 #define SUPPORTED_DEVICE_IN_MODULE               \
