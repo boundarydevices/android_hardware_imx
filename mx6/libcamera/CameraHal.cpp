@@ -937,9 +937,7 @@ namespace android {
     status_t CameraHal::storeMetaDataInBuffers(bool enable)
     {
         CAMERA_LOG_FUNC;
-        mDirectInput = enable;
-        updateDirectInput(enable);
-        return NO_ERROR;
+        return -1;
     }
 
     status_t CameraHal::startRecording()
@@ -955,11 +953,8 @@ namespace android {
             return ret;
         }
 
-
-        if (mDirectInput == true) {
-            for(i = 0; i < mVideoBufNume; i++) {
-                mVideoBufferUsing[i] = 0;
-            }
+        for(i = 0; i < mVideoBufNume; i++) {
+            mVideoBufferUsing[i] = 0;
         }
 
         mRecordRunning = true;
@@ -994,13 +989,11 @@ namespace android {
         index = ((size_t)mem - (size_t)mVideoMemory->data) / mPreviewFrameSize;
         mVideoBufferUsing[index] = 0;
 
-        if (mDirectInput == true) {
-            if(mCaptureBuffers[index].refCount == 0) {
-                CAMERA_LOG_ERR("warning:%s about to release mCaptureBuffers[%d].refcount=%d-", __FUNCTION__, index, mCaptureBuffers[index].refCount);
-                return;
-            }
-            putBufferCount(&mCaptureBuffers[index]);
+        if(mCaptureBuffers[index].refCount == 0) {
+            CAMERA_LOG_ERR("warning:%s about to release mCaptureBuffers[%d].refcount=%d-", __FUNCTION__, index, mCaptureBuffers[index].refCount);
+            return;
         }
+        putBufferCount(&mCaptureBuffers[index]);
     }
 
     bool CameraHal::recordingEnabled()
@@ -2120,12 +2113,12 @@ Pic_out:
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     if (mDirectInput == true) {
-	                    memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
                             (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
+                        getBufferCount(&mCaptureBuffers[enc_index]);
                     } else {
                         memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
                                 (void*)EncBuf->virt_start, mPreviewFrameSize);
-                        ret = putBufferCount(EncBuf);
                     }
 
                     getBufferCount(&mCaptureBuffers[enc_index]);
