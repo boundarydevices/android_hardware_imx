@@ -84,7 +84,6 @@ int android_readwrite_file(const char *filename,
 		filp_close(filp, NULL);
 
 	set_fs(oldfs);
-	printk(KERN_ERR "android_readwrite_file: ret=%d\n", ret);
 
 	return ret;
 }
