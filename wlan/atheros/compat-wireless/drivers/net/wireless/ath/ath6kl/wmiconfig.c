@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2010-2011 Atheros Communications Inc.
  * Copyright (c) 2011 Qualcomm Atheros, Inc.
+ * Copyright (c) 2010-2012 Freescale Semiconductor, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +19,7 @@
 #include "testmode.h"
 #include "debug.h"
 #include "wmi.h"
-
+#include "cfg80211.h"
 #include <net/netlink.h>
 
 enum ath6kl_tm_attr {
