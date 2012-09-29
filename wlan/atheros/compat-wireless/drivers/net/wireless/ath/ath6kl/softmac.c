@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2011 Atheros Communications Inc.
  *
+ * Copyright (c) 2010-2012 Freescale Semiconductor, Inc.
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -18,6 +20,7 @@
 #include "debug.h"
 #include <linux/vmalloc.h>
 #define MAC_FILE "ath6k/AR6003/hw2.1.1/softmac"
+#define VENDOR_MAC_FILE "/device/wifi/softmac"
 
 typedef char            A_CHAR;
 extern int android_readwrite_file(const A_CHAR *filename, A_CHAR *rbuf, const A_CHAR *wbuf, size_t length);
@@ -29,6 +32,8 @@ extern int android_readwrite_file(const A_CHAR *filename, A_CHAR *rbuf, const A_
 /* Global variables, sane coding be damned. */
 u8 *ath6kl_softmac;
 size_t ath6kl_softmac_len;
+/*0=from vendor 1=from firmware*/
+int macsource = 0;
 
 static void ath6kl_calculate_crc(u32 target_type, u8 *data, size_t len)
 {
@@ -62,18 +67,14 @@ static void ath6kl_calculate_crc(u32 target_type, u8 *data, size_t len)
 	ath6kl_dbg(ATH6KL_DBG_BOOT, "New Checksum: %u\n", checksum);
 }
 
-#ifdef CONFIG_MACH_PX
-static int ath6kl_fetch_nvmac_info(struct ath6kl *ar)
+static int ath6kl_fetch_mac_from_file(struct ath6kl *ar, u8* filename)
 {
 	char softmac_filename[256];
 	int ret = 0;
 
 	do {
-		snprintf(softmac_filename, sizeof(softmac_filename),
-			 "/data/.nvmac.info");
-
 		if ( (ret = android_readwrite_file(
-			softmac_filename, NULL, NULL, 0)) < 0) {
+			filename, NULL, NULL, 0)) < 0) {
 			break;
 		} else {
 			ath6kl_softmac_len = ret;
@@ -87,7 +88,7 @@ static int ath6kl_fetch_nvmac_info(struct ath6kl *ar)
 			break;
 		}
 
-		if ( (ret = android_readwrite_file(softmac_filename,
+		if ( (ret = android_readwrite_file(filename,
 			 (char*)ath6kl_softmac, NULL, ath6kl_softmac_len)) !=
 				 ath6kl_softmac_len) {
 			ath6kl_dbg(ATH6KL_DBG_BOOT,"%s: file read error, length %d\n",
@@ -96,7 +97,7 @@ static int ath6kl_fetch_nvmac_info(struct ath6kl *ar)
 			ret = -1;
 			break;
 		}
-
+		ath6kl_dbg(ATH6KL_DBG_BOOT,"Get mac from file =%s\r\n",ath6kl_softmac);
 		if (!strncmp(ath6kl_softmac,"00:00:00:00:00:00",17)) {
 			ath6kl_dbg(ATH6KL_DBG_BOOT,"%s: mac address is zero\n",
 					 __func__);
@@ -107,16 +108,14 @@ static int ath6kl_fetch_nvmac_info(struct ath6kl *ar)
 
 		ret = 0;
 	} while (0);
-
+	macsource = 0;
 	return ret;
 }
 
-#else
-static int ath6kl_fetch_mac_file(struct ath6kl *ar)
+static int ath6kl_fetch_mac_from_firmware(struct ath6kl *ar)
 {
 	const struct firmware *fw_entry;
 	int ret = 0;
-
 
 	ret = request_firmware(&fw_entry, MAC_FILE, ar->dev);
 	if (ret)
@@ -129,6 +128,23 @@ static int ath6kl_fetch_mac_file(struct ath6kl *ar)
 		ret = -ENOMEM;
 
 	release_firmware(fw_entry);
+	macsource = 1;
+	return ret;
+}
+#ifdef CONFIG_MACH_PX
+static int ath6kl_fetch_nvmac_info(struct ath6kl *ar)
+{
+	return ath6kl_fetch_mac_from_file(ar, "/data/.nvmac.info");
+}
+
+#else
+static int ath6kl_fetch_mac_file(struct ath6kl *ar)
+{
+	int ret = 0;
+	ret = ath6kl_fetch_mac_from_file(ar, VENDOR_MAC_FILE);
+
+	if ( ret < 0)
+		return ath6kl_fetch_mac_from_firmware(ar);
 
 	return ret;
 }
@@ -138,9 +154,9 @@ void ath6kl_mangle_mac_address(struct ath6kl *ar, u8 locally_administered_bit)
 {
 	u8 *ptr_mac;
 	int i, ret;
-#ifdef CONFIG_MACH_PX
+
 	unsigned int softmac[6];
-#endif
+
 
 	switch (ar->target_type) {
 	case TARGET_TYPE_AR6003:
@@ -169,13 +185,10 @@ void ath6kl_mangle_mac_address(struct ath6kl *ar, u8 locally_administered_bit)
 
 	if (sscanf(ath6kl_softmac, "%02x:%02x:%02x:%02x:%02x:%02x",
 				&softmac[0], &softmac[1], &softmac[2],
-				&softmac[3], &softmac[4], &softmac[5])==6) {
-
-		for (i=0; i<6; ++i) {
-			ptr_mac[i] = softmac[i] & 0xff;
-		}
+		                &softmac[3], &softmac[4], &softmac[5])==6) {
+		for (i=0; i<6; ++i)
+		     ptr_mac[i] = softmac[i] & 0xff;
 	}
-
 	ath6kl_dbg(ATH6KL_DBG_BOOT,
 			"MAC from SoftMAC %02X:%02X:%02X:%02X:%02X:%02X\n",
 			ptr_mac[0], ptr_mac[1], ptr_mac[2],
@@ -187,16 +200,22 @@ void ath6kl_mangle_mac_address(struct ath6kl *ar, u8 locally_administered_bit)
 		ath6kl_err("MAC address file not found\n");
 		return;
 	}
-
-	for (i = 0; i < ETH_ALEN; ++i) {
-	   ptr_mac[i] = ath6kl_softmac[i] & 0xff;
+	if ( macsource == 0) {
+		if (sscanf(ath6kl_softmac, "%02x:%02x:%02x:%02x:%02x:%02x",
+				&softmac[0], &softmac[1], &softmac[2],
+				   &softmac[3], &softmac[4], &softmac[5])==6 ) {
+			for (i=0; i<6; ++i)
+				ptr_mac[i] = softmac[i] & 0xff;
+		}
+		vfree(ath6kl_softmac);
+	} else if (macsource == 1) {
+		for (i = 0; i < ETH_ALEN; ++i)
+		    ptr_mac[i] = ath6kl_softmac[i] & 0xff;
+		kfree(ath6kl_softmac);
 	}
 
-	kfree(ath6kl_softmac);
 #endif
-
 	if (locally_administered_bit)
 		ptr_mac[0] |= 0x02;
-
 	ath6kl_calculate_crc(ar->target_type, ar->fw_board, ar->fw_board_len);
 }

@@ -1,0 +1,12 @@
+.tmp_versions
+modules.order
+modules
+Module.symvers
+*.o.cmd
+*.o
+*.ko.cmd
+*.ko
+.compat_autoconf_patch*
+.config.mk_md5sum.txt
+*.mod.c
+regdb.c*
