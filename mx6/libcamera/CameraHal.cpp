@@ -610,11 +610,11 @@ namespace android {
         return setParameters(parameters);
     }
 
-    status_t  CameraHal:: setParameters(const CameraParameters& params)
+    status_t  CameraHal:: setParameters(CameraParameters& params)
     {
         CAMERA_LOG_FUNC;
         int w, h;
-        int framerate;
+        int framerate, local_framerate;
         int max_zoom,zoom, max_fps, min_fps;
         char tmp[128];
         Mutex::Autolock lock(mLock);
@@ -653,18 +653,33 @@ namespace android {
             return BAD_VALUE;
         }
 
+        params.getPreviewFpsRange(&min_fps, &max_fps);
+        CAMERA_LOG_INFO("FPS range: %d - %d",min_fps, max_fps);
+        if (max_fps < 1000 || min_fps < 1000 || max_fps > 33000 || min_fps > 33000){
+            CAMERA_LOG_ERR("The fps range from %d to %d is error", min_fps, max_fps);
+            return BAD_VALUE;
+        }
+
+        local_framerate = mParameters.getPreviewFrameRate();
+        CAMERA_LOG_INFO("get local frame rate:%d FPS", local_framerate);
+        if ((local_framerate > 30) || (local_framerate < 0) ){
+            CAMERA_LOG_ERR("The framerate is not corrected");
+            local_framerate = 15;
+        }
+
         framerate = params.getPreviewFrameRate();
         CAMERA_LOG_INFO("Set frame rate:%d FPS", framerate);
         if ((framerate > 30) || (framerate < 0) ){
             CAMERA_LOG_ERR("The framerate is not corrected");
             return BAD_VALUE;
         }
-
-        params.getPreviewFpsRange(&min_fps, &max_fps);
-        CAMERA_LOG_INFO("FPS range: %d - %d",min_fps, max_fps);
-        if (max_fps < 1000 || min_fps < 1000 || max_fps > 33000 || min_fps > 33000){
-            CAMERA_LOG_ERR("The fps range from %d to %d is error", min_fps, max_fps);
-            return BAD_VALUE;
+        else if(local_framerate != framerate) {
+            if(framerate == 15) {
+                params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "12000,17000");
+            }
+            else if (framerate == 30) {
+                params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "25000,33000");
+            }
         }
 
         const char *pFlashStr;

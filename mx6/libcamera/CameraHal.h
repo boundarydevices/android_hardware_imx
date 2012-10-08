@@ -131,7 +131,7 @@ namespace android {
         virtual status_t    takePicture();
         virtual status_t    cancelPicture();
         virtual status_t    dump(int fd) const;
-        virtual status_t    setParameters(const CameraParameters& params);
+        virtual status_t    setParameters(CameraParameters& params);
         virtual status_t    setParameters(const char* params);
         virtual char*  getParameters() const;
         void putParameters(char *);
