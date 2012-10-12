@@ -32,18 +32,19 @@ ATH_ANDROID_SRC_BASE:= $(LOCAL_PATH)
 ATH_ANDROID_ROOT:= $(CURDIR)
 
 ATH_LINUXPATH=$(ATH_ANDROID_ROOT)/kernel_imx
+ATH_CROSS_COMPILE=$(ATH_ANDROID_ROOT)/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-
 
 mod_cleanup := $(ATH_ANDROID_ROOT)/$(ATH_ANDROID_SRC_BASE)/dummy
 
 $(mod_cleanup) :
-	$(MAKE) -C $(ATH_ANDROID_SRC_BASE) ARCH=arm CROSS_COMPILE=$(ARM_EABI_TOOLCHAIN)/arm-eabi- KLIB=$(AT\
+	$(MAKE) -C $(ATH_ANDROID_SRC_BASE) ARCH=arm CROSS_COMPILE=$(ATH_CROSS_COMPILE) KLIB=$(AT\
   H_LINUXPATH) KLIB_BUILD=$(ATH_LINUXPATH) clean
 	mkdir -p $(TARGET_OUT)/etc/firmware/ath6k/AR6003/hw2.1.1/
 	mkdir -p $(TARGET_OUT)/lib/modules/
 
 ath6kl_module_file :=drivers/net/wireless/ath/ath6kl/ath6kl_sdio.ko
 $(ATH_ANDROID_SRC_BASE)/$(ath6kl_module_file):$(mod_cleanup) $(TARGET_PREBUILT_KERNEL) $(ACP)
-	$(MAKE) -C $(ATH_ANDROID_SRC_BASE) O=$(ATH_LINUXPATH) ARCH=arm CROSS_COMPILE=$(ARM_EABI_TOOLCHAIN)/arm-eabi- KLIB=$(ATH_LINUXPATH) KLIB_BUILD=$(ATH_LINUXPATH)
+	$(MAKE) -C $(ATH_ANDROID_SRC_BASE) O=$(ATH_LINUXPATH) ARCH=arm CROSS_COMPILE=$(ATH_CROSS_COMPILE) KLIB=$(ATH_LINUXPATH) KLIB_BUILD=$(ATH_LINUXPATH)
 	$(ACP) -fpt $(ATH_ANDROID_SRC_BASE)/compat/compat.ko $(TARGET_OUT)/lib/modules/
 	$(ACP) -fpt $(ATH_ANDROID_SRC_BASE)/net/wireless/cfg80211.ko $(TARGET_OUT)/lib/modules/
 
