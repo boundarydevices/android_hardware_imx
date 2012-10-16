@@ -44,6 +44,7 @@
 #include "config_hdmi.h"
 #include "config_usbaudio.h"
 #include "config_nullcard.h"
+#include "config_spdif.h"
 
 
 /* ALSA ports for IMX */
@@ -85,7 +86,7 @@
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
-#define SUPPORT_CARD_NUM        5
+#define SUPPORT_CARD_NUM        6
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -93,6 +94,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8962_card,
     &hdmi_card,
     &usbaudio_card,
+    &spdif_card,
     &null_card,
 };
 
