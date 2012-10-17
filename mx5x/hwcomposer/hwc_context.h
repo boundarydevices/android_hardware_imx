@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
+#ifndef HWC_CONTEXT_H_
+#define HWC_CONTEXT_H_
 
 #include <hardware/hardware.h>
 
@@ -21,37 +23,30 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
-
+#include <cutils/properties.h>
+#include <utils/threads.h>
 #include <hardware/hwcomposer.h>
+#include <utils/StrongPointer.h>
 
+#include <linux/mxcfb.h>
+#include <linux/ioctl.h>
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
-#include "hwc_common.h"
-#include "blit_gpu.h"
+#include "hwc_vsync.h"
 /*****************************************************************************/
-using namespace android;
+#define HWC_MAIN_FB "/dev/graphics/fb0"
 
-blit_gpu::blit_gpu()
-{
-		init();
-}
+class VSyncThread;
 
-blit_gpu::~blit_gpu()
-{
-		uninit();
-}
+struct hwc_context_t {
+    hwc_composer_device_t device;
+    /* our private state goes below here */
 
-int blit_gpu::init()
-{
-		return 0;
-}
+    int m_mainfb_fd;
+    float m_mainfb_fps;
+    hwc_procs_t* m_callback;
+    bool m_vsync_enable;
+    sp<VSyncThread> m_vsync_thread;
+};
 
-int blit_gpu::uninit()
-{
-		return 0;
-}
-
-int blit_gpu::blit(hwc_layer_t *layer, hwc_buffer *out_buf)
-{
-		return 0;
-}
+#endif
