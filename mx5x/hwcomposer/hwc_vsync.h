@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,11 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/*Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.*/
-
-#ifndef _BLIT_GPU_H_
-#define _BLIT_GPU_H_
+#ifndef HWC_VSYNC_H_
+#define HWC_VSYNC_H_
 
 #include <hardware/hardware.h>
 
@@ -24,35 +23,39 @@
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
+#include <cutils/properties.h>
+#include <utils/threads.h>
 
 #include <hardware/hwcomposer.h>
+#include <utils/StrongPointer.h>
 
+#include <linux/mxcfb.h>
+#include <linux/ioctl.h>
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
-#include "hwc_common.h"
+#include "hwc_context.h"
 /*****************************************************************************/
 
-class blit_gpu : public blit_device{
-public:  
-    virtual int blit(hwc_layer_t *layer, hwc_buffer *out_buf);
+using namespace android;
 
-		blit_gpu();
-		virtual ~blit_gpu();
-    
+struct hwc_context_t;
+
+class VSyncThread : public Thread
+{
+public:
+    VSyncThread(hwc_context_t *ctx);
+    void setEnabled(bool enabled);
+
 private:
-		int init();
-    int uninit();
-	
-		blit_gpu& operator = (blit_gpu& out);
-		blit_gpu(const blit_gpu& out);  
-    //add private members.		    
+    virtual void onFirstRef();
+    virtual status_t readyToRun();
+    virtual bool threadLoop();
+    void handleUevent(const char *buff, int len);
+
+    hwc_context_t *mCtx;
+    mutable Mutex mLock;
+    Condition mCondition;
+    bool mEnabled;
 };
 
-
-//int gpu_init(struct blit_device *dev);
-//
-//int gpu_uninit(struct blit_device*dev);
-//
-//int gpu_blit(struct blit_device *dev, hwc_layer_t *layer, hwc_buffer *out_buf);
-
-#endif
+#endif /* if !defined(HWC_VSYNC_H_)*/
