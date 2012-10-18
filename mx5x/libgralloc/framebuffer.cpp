@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* Copyright 2010-2012 Freescale Semiconductor Inc. */
+/* Copyright 2009-2012 Freescale Semiconductor, Inc. */
 
 #include <sys/mman.h>
 
@@ -41,6 +41,7 @@
 #include <linux/mxcfb.h>
 #include <linux/videodev.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <linux/ipu.h>
 
@@ -264,6 +265,8 @@ sem_t * fslwatermark_sem_open()
        {
            return NULL;
        }
+       /* Change permissions of shmem, so that other process can access it */
+       chmod(shm_file, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
        ftruncate(fd, sizeof(sem_t));
 
        /* map the semaphore variant in the file */ 
@@ -668,7 +671,7 @@ static int disp_mode_compare( const void *arg1, const void *arg2)
 static char* find_available_mode(const char *mode_list, int dual_disp)
 {
 	int disp_threshold = 0;
-	int i,disp_mode_count = 0;
+	unsigned int i,disp_mode_count = 0;
 	read_state state = CHECK_NEXT_STATE;
 	char *p = (char *)mode_list;
 
@@ -1103,7 +1106,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
     module->framebuffer = new private_handle_t(dup(fd), fbSize,
-            private_handle_t::PRIV_FLAGS_USES_PMEM);
+            private_handle_t::PRIV_FLAGS_USES_ION);
 
     module->numBuffers = info.yres_virtual / ALIGN_PIXEL_128(info.yres);
     module->bufferMask = 0;
@@ -1362,7 +1365,7 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
     
     if((ctx->mRotate == 0)||(ctx->mRotate == 180))
     {
-        if(ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.width/ctx->device.height){
+        if((unsigned int)ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.width/ctx->device.height){
             ctx->mTask.output.crop.w = ctx->sec_disp_h*ctx->device.width/ctx->device.height;
         }
         else{
@@ -1370,7 +1373,7 @@ static int resizeToSecFrameBuffer(int base,int phys,fb_context_t* ctx)
         }
     }
     else{
-        if(ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.height/ctx->device.width){
+        if((unsigned int)ctx->sec_disp_w >= ctx->sec_disp_h*ctx->device.height/ctx->device.width){
             ctx->mTask.output.crop.w = ctx->sec_disp_h*ctx->device.height/ctx->device.width;
         }
         else{
@@ -1645,7 +1648,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.setUpdateRect = fb_setUpdateRect;
         #endif
         dev->device.compositionComplete = fb_compositionComplete;
-        #ifdef FSL_IMX_DISPLAY
+        #if 0 //def FSL_IMX_DISPLAY
         dev->device.setSecRotation = fb_setSecRotation;
         #endif
 
@@ -1668,9 +1671,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
             const_cast<float&>(dev->device.fps) = m->fps;
             const_cast<int&>(dev->device.minSwapInterval) = 1;
             const_cast<int&>(dev->device.maxSwapInterval) = 1;
+            const_cast<int&>(dev->device.numFramebuffers) = NUM_BUFFERS;
             *device = &dev->device.common;
             fbdev = (framebuffer_device_t*) *device;
-            fbdev->reserved[0] = nr_framebuffers;
       }
 
     fslwatermark_sem_open();
