@@ -21,7 +21,7 @@ ifeq ($(TARGET_HAVE_IMX_GRALLOC), true)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := true
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu
+LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu libion
 ifeq ($(BOARD_SOC_TYPE),IMX50)
 LOCAL_SHARED_LIBRARIES += libc2d_z160
 else
@@ -31,12 +31,11 @@ LOCAL_C_INCLUDES += external/linux-lib/ipu
 LOCAL_C_INCLUDES += hardware/imx/mx5x/libcopybit
 
 LOCAL_SRC_FILES := 	\
-	allocator.cpp 	\
 	gralloc.cpp 	\
 	framebuffer.cpp \
 	mapper.cpp
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
-LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX
+LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX -Wno-missing-field-initializers
 
 
 ifeq ($(HAVE_FSL_EPDC_FB),true)

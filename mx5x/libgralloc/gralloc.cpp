@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved. */
+/* Copyright 2009-2012 Freescale Semiconductor, Inc. */
 
 #include <limits.h>
 #include <unistd.h>
@@ -37,15 +37,9 @@
 #include <hardware/gralloc.h>
 
 #include "gralloc_priv.h"
-#include "allocator.h"
+#include "gr.h"
 
-#if HAVE_ANDROID_OS
-#include <linux/android_pmem.h>
-#endif
-
-/*****************************************************************************/
-
-static SimpleBestFitAllocator sAllocator;
+#include <ion/ion.h>
 
 /*****************************************************************************/
 
@@ -79,6 +73,9 @@ extern int gralloc_register_buffer(gralloc_module_t const* module,
 extern int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle);
 
+extern int gralloc_perform(struct gralloc_module_t const* module,
+                           int operation, ... );
+
 /*****************************************************************************/
 
 static struct hw_module_methods_t gralloc_module_methods = {
@@ -94,12 +91,16 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
             id: GRALLOC_HARDWARE_MODULE_ID,
             name: "Graphics Memory Allocator Module",
             author: "The Android Open Source Project",
-            methods: &gralloc_module_methods
+            methods: &gralloc_module_methods,
+            dso: 0,
+            reserved: {0},
         },
         registerBuffer: gralloc_register_buffer,
         unregisterBuffer: gralloc_unregister_buffer,
         lock: gralloc_lock,
         unlock: gralloc_unlock,
+        perform: gralloc_perform,
+        reserved_proc: {0},
     },
     framebuffer: 0,
     flags: 0,
@@ -107,10 +108,11 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
     bufferMask: 0,
     lock: PTHREAD_MUTEX_INITIALIZER,
     currentBuffer: 0,
-    pmem_master: -1,
-    pmem_master_base: 0,
-    master_phys: 0
+    ion_master: -1,
+    master_phys: 0,
 };
+
+#define ION_GPU_POOL_ID 2
 
 /*****************************************************************************/
 
@@ -152,7 +154,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     // create a "fake" handles for it
     intptr_t vaddr = intptr_t(m->framebuffer->base);
     private_handle_t* hnd = new private_handle_t(dup(m->framebuffer->fd), size,
-            private_handle_t::PRIV_FLAGS_USES_PMEM |
+            private_handle_t::PRIV_FLAGS_USES_ION |
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
 
     // find a free slot
@@ -183,65 +185,32 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
     return err;
 }
 
-static int init_pmem_area_locked(private_module_t* m)
+static int init_ion_area_locked(private_module_t* m)
 {
     int err = 0;
-#if HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
-    int master_fd = open("/dev/pmem_gpu", O_RDWR, 0);
+    int master_fd = ion_open();
     if (master_fd >= 0) {
-        
-        size_t size;
-        pmem_region region;
-        if (ioctl(master_fd, PMEM_GET_TOTAL_SIZE, &region) < 0) {
-            ALOGE("PMEM_GET_TOTAL_SIZE failed, limp mode");
-            size = 8<<20;   // 8 MiB
-        } else {
-            size = region.len;
-        }
-        sAllocator.setSize(size);
-
-        void* base = mmap(0, size, 
-                PROT_READ|PROT_WRITE, MAP_SHARED, master_fd, 0);
-        if (base == MAP_FAILED) {
-            err = -errno;
-            base = 0;
-            close(master_fd);
-            master_fd = -1;
-        } else {
-            pmem_region region;
-            err = ioctl(master_fd, PMEM_GET_PHYS, &region);
-            if (err < 0) {
-                ALOGE("PMEM_GET_PHYS failed (%s)", strerror(-errno));
-            } else {
-                m->master_phys = (unsigned long)region.offset;
-				ALOGI("PMEM GPU enabled, size:%d, phys base:%lx",size,m->master_phys);
-            }
-        }
-        m->pmem_master = master_fd;
-        m->pmem_master_base = base;
+        m->ion_master = master_fd;
     } else {
         err = -errno;
     }
     return err;
-#else
-    return -1;
-#endif
 }
 
-static int init_pmem_area(private_module_t* m)
+static int init_ion_area(private_module_t* m)
 {
     pthread_mutex_lock(&m->lock);
-    int err = m->pmem_master;
+    int err = m->ion_master;
     if (err == -1) {
-        // first time, try to initialize pmem
-        err = init_pmem_area_locked(m);
+        // first time, try to initialize ion
+        err = init_ion_area_locked(m);
         if (err) {
-            m->pmem_master = err;
+            m->ion_master = err;
         }
     } else if (err < 0) {
-        // pmem couldn't be initialized, never use it
+        // ion couldn't be initialized, never use it
     } else {
-        // pmem OK
+        // ion OK
         err = 0;
     }
     pthread_mutex_unlock(&m->lock);
@@ -258,22 +227,22 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
     void* base = 0;
     int offset = 0;
     int lockState = 0;
+    void *buffer_handle = NULL;
 
     size = roundUpToPageSize(size);
-    
-#if HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
 
     if (usage & GRALLOC_USAGE_HW_TEXTURE) {
-        // enable pmem in that case, so our software GL can fallback to
+        // enable ion in that case, so our software GL can fallback to
         // the copybit module.
-        flags |= private_handle_t::PRIV_FLAGS_USES_PMEM;
+        flags |= private_handle_t::PRIV_FLAGS_USES_ION;
     }
     
     if (usage & GRALLOC_USAGE_HW_2D) {
-        flags |= private_handle_t::PRIV_FLAGS_USES_PMEM;
+        flags |= private_handle_t::PRIV_FLAGS_USES_ION;
     }
 
-    if ((flags & private_handle_t::PRIV_FLAGS_USES_PMEM) == 0) {
+    /* If not ION, try ashmem */
+    if ((flags & private_handle_t::PRIV_FLAGS_USES_ION) == 0) {
 try_ashmem:
         fd = ashmem_create_region("gralloc-buffer", size);
         if (fd < 0) {
@@ -284,76 +253,64 @@ try_ashmem:
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
 
-        err = init_pmem_area(m);
+        err = init_ion_area(m);
         if (err == 0) {
-            // PMEM buffers are always mmapped
-            base = m->pmem_master_base;
-            lockState |= private_handle_t::LOCK_STATE_MAPPED;
+            struct ion_handle *handle, *alloc_handle;
+            unsigned char *base = 0;
 
-            offset = sAllocator.allocate(size);
-            if (offset < 0) {
-                // no more pmem memory
-                err = -ENOMEM;
-            } else {
-                struct pmem_region sub = { offset, size };
-                
-                // now create the "sub-heap"
-                fd = open("/dev/pmem_gpu", O_RDWR, 0);
-                err = fd < 0 ? fd : 0;
-                
-                // and connect to it
-                if (err == 0)
-                    err = ioctl(fd, PMEM_CONNECT, m->pmem_master);
+            err = ion_alloc(m->ion_master, size, PAGE_SIZE, ION_GPU_POOL_ID, &handle);
+            if(err < 0) {
+                ALOGE("Cannot allocate ion size = %d err = %d", size, err);
+                return err;
+            }
 
-                // and make it available to the client process
-                if (err == 0)
-                    err = ioctl(fd, PMEM_MAP, &sub);
+            alloc_handle = handle;
+            buffer_handle = (void*)handle;
 
-                if (err < 0) {
-                    err = -errno;
-                    close(fd);
-                    sAllocator.deallocate(offset);
-                    fd = -1;
-                }
-                //LOGD_IF(!err, "allocating pmem size=%d, offset=%d", size, offset);
-                memset((char*)base + offset, 0, size);
+            err = ion_share(m->ion_master, handle, &fd);
+            if(err < 0) {
+                ALOGE("Cannot share ion handle = %p err = %d", handle, err);
+                return err;
+            }
+
+            m->master_phys = ion_phys(m->ion_master, handle);
+            if(m->master_phys == 0) {
+                ALOGE("Cannot get physical for ion handle = %p", handle);
+                return -errno;
+            }
+
+            err = ion_free(m->ion_master, alloc_handle);
+            if(err < 0) {
+                ALOGE("Cannot free ion handle = %p err = %d", alloc_handle, err);
+                return err;
             }
         } else {
             if ((usage & GRALLOC_USAGE_HW_2D) == 0) {
-                // the caller didn't request PMEM, so we can try something else
-                flags &= ~private_handle_t::PRIV_FLAGS_USES_PMEM;
+                // the caller didn't request ION, so we can try something else
+                flags &= ~private_handle_t::PRIV_FLAGS_USES_ION;
                 err = 0;
                 goto try_ashmem;
             } else {
-                ALOGE("couldn't open pmem (%s)", strerror(-errno));
+                ALOGE("couldn't open ion (%s)", strerror(-errno));
             }
         }
     }
 
-#else // HAVE_ANDROID_OS
-    
-    fd = ashmem_create_region("Buffer", size);
-    if (fd < 0) {
-        ALOGE("couldn't create ashmem (%s)", strerror(-errno));
-        err = -errno;
-    }
-
-#endif // HAVE_ANDROID_OS
-
     if (err == 0) {
         private_handle_t* hnd = new private_handle_t(fd, size, flags);
-        hnd->offset = offset;
-        hnd->base = int(base)+offset;
+        hnd->offset = 0 ;
+        hnd->base = int(base);
         hnd->lockState = lockState;
-        if (flags & private_handle_t::PRIV_FLAGS_USES_PMEM) {
+        hnd->handle = buffer_handle;
+        if (flags & private_handle_t::PRIV_FLAGS_USES_ION) {
             private_module_t* m = reinterpret_cast<private_module_t*>(
                     dev->common.module);
-            hnd->phys = m->master_phys + offset;
+            hnd->phys = m->master_phys;
         }
         *pHandle = hnd;
     }
-    
-    LOGE_IF(err, "gralloc failed err=%s", strerror(-err));
+
+    ALOGE_IF(err, "gralloc failed err=%s", strerror(-err));
     
     return err;
 }
@@ -369,7 +326,7 @@ static int gralloc_alloc(alloc_device_t* dev,
 
     size_t size, alignedw, alignedh;
     if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || format == HAL_PIXEL_FORMAT_YCbCr_422_I ||
-        format == HAL_PIXEL_FORMAT_YCbCr_422_SP || format == HAL_PIXEL_FORMAT_YCbCr_420_I ||
+        format == HAL_PIXEL_FORMAT_YCbCr_422_SP ||
         format == HAL_PIXEL_FORMAT_YV12         || format == HAL_PIXEL_FORMAT_YCbCr_420_P ||
         format == HAL_PIXEL_FORMAT_YCbCr_422_P)
     {
@@ -389,8 +346,7 @@ static int gralloc_alloc(alloc_device_t* dev,
             case HAL_PIXEL_FORMAT_YCbCr_422_P:
                 chroma_size = ALIGN_PIXEL_4096( (alignedw * alignedh) / 2) * 2;
                 break;
-            case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            case HAL_PIXEL_FORMAT_YCbCr_420_I:
+            case HAL_PIXEL_FORMAT_YCbCr_420_SP: //NV21
             case HAL_PIXEL_FORMAT_YCbCr_420_P:
             case HAL_PIXEL_FORMAT_YV12:
                 chroma_size = ALIGN_PIXEL_4096(alignedw/2 * alignedh/2) * 2;
@@ -458,27 +414,20 @@ static int gralloc_free(alloc_device_t* dev,
         const size_t bufferSize = m->finfo.line_length * ALIGN_PIXEL_128(m->info.yres);
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
-    } else { 
-#if HAVE_ANDROID_OS
-        if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) {
-            if (hnd->fd >= 0) {
-                struct pmem_region sub = { hnd->offset, hnd->size };
-                int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
-                LOGE_IF(err<0, "PMEM_UNMAP failed (%s), "
-                        "fd=%d, sub.offset=%d, sub.size=%d",
-                        strerror(errno), hnd->fd, hnd->offset, hnd->size);
-                if (err == 0) {
-                    // we can't deallocate the memory in case of UNMAP failure
-                    // because it would give that process access to someone else's
-                    // surfaces, which would be a security breach.
-                    sAllocator.deallocate(hnd->offset);
-                }
-            }
-        }
-#endif // HAVE_ANDROID_OS
+    } else {
         gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
                 dev->common.module);
         terminateBuffer(module, const_cast<private_handle_t*>(hnd));
+        if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_ION) {
+            int fd = ion_open();
+            ion_import(fd, hnd->fd, (struct ion_handle **)&hnd->handle);
+            if(munmap((void *)hnd->base, hnd->size)) {
+                ALOGE("Failed to unmap at %p : %s", (void*)hnd->base, strerror(errno));
+            }
+            ion_free(fd,(struct ion_handle *)hnd->handle);
+            close(fd);
+        }
+
     }
 
     close(hnd->fd);
@@ -507,6 +456,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
     hw_module_t *hw = const_cast<hw_module_t *>(module);
     private_module_t* m = reinterpret_cast<private_module_t*>(hw);
 
+    /* if gpu0 */
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
         dev = (gralloc_context_t*)malloc(sizeof(*dev));
@@ -528,8 +478,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
     } else {
 
         m->flags = 0;
-        m->pmem_master = -1;
-        m->pmem_master_base=0;
+        m->ion_master = -1;
         m->master_phys = 0;
 
         status = fb_device_open(module, name, device);
