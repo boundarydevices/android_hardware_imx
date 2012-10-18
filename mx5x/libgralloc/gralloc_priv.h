@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/*Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.*/
+/* Copyright 2009-2012 Freescale Semiconductor, Inc. */
 
 #ifndef GRALLOC_PRIV_H_
 #define GRALLOC_PRIV_H_
@@ -54,8 +54,7 @@ struct private_module_t {
     uint32_t bufferMask;
     pthread_mutex_t lock;
     buffer_handle_t currentBuffer;
-    int pmem_master;
-    void* pmem_master_base;
+    int ion_master;
     unsigned long master_phys;
 
     struct fb_var_screeninfo info;
@@ -82,6 +81,7 @@ struct private_handle_t {
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
         PRIV_FLAGS_USES_PMEM   = 0x00000002,
+        PRIV_FLAGS_USES_ION    = 0x00000004,
         PRIV_FLAGS_NEEDS_FLUSH    = 0x00000008,
     };
 
@@ -98,7 +98,7 @@ struct private_handle_t {
     int     flags;
     int     size;
     int     offset;
-    int     gpu_fd; 
+    int     gpu_fd;
 
     // FIXME: the attributes below should be out-of-line
     int     base;
@@ -106,15 +106,16 @@ struct private_handle_t {
     int     writeOwner;
     int     phys; // The physical address of that chunk of memory. If using ashmem, set to 0 They don't care
     int     pid;
-    int		usage;
-    int		format;
+    int	    usage;
+    int	    format;
     int     width;
     int     height;
-
+    void*   handle;
+    
 #ifdef __cplusplus
     static const int sNumInts = 14;
     static const int sNumFds = 1;
-    static const int sMagic = 'pgpu';
+    static const int sMagic = 'igpu';
 
     private_handle_t(int fd, int size, int flags) :
         fd(fd), magic(sMagic), flags(flags), size(size), offset(0),gpu_fd(-1),
@@ -130,7 +131,7 @@ struct private_handle_t {
     }
 
     bool usesPhysicallyContiguousMemory() {
-        return (flags & PRIV_FLAGS_USES_PMEM) != 0;
+        return (flags & PRIV_FLAGS_USES_ION) != 0;
     }
 
     static int validate(const native_handle* h) {
