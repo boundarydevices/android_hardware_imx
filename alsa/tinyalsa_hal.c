@@ -53,7 +53,7 @@
 #define PORT_HDMI   0
 
 /*align the definition in kernel for hdmi audio*/
-#define HDMI_PERIOD_SIZE       768
+#define HDMI_PERIOD_SIZE       192
 #define PLAYBACK_HDMI_PERIOD_COUNT      8
 
 /* number of frames per short period (low latency) */
@@ -62,7 +62,7 @@
 /* number of short periods in a long period (low power) */
 #define LONG_PERIOD_MULTIPLIER  2
 /* number of frames per long period (low power) */
-#define LONG_PERIOD_SIZE (SHORT_PERIOD_SIZE * LONG_PERIOD_MULTIPLIER)
+#define LONG_PERIOD_SIZE        192
 /* number of periods for low power playback */
 #define PLAYBACK_LONG_PERIOD_COUNT  8
 /* number of periods for capture */
@@ -437,6 +437,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         card = get_card_for_device(adev, pcm_device);
         out->pcm[PCM_NORMAL] = pcm_open(card, port,out->write_flags[PCM_NORMAL], &out->config[PCM_NORMAL]);
         ALOGW("card %d, port %d device %x", card, port, out->device);
+        ALOGW("rate %d, channel %d period_size %x", out->config[PCM_NORMAL].rate, out->config[PCM_NORMAL].channels, out->config[PCM_NORMAL].period_size);
     }
 
     pcm_device = out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL;
@@ -449,6 +450,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         card = get_card_for_device(adev, pcm_device);
         out->pcm[PCM_HDMI] = pcm_open(card, port,out->write_flags[PCM_HDMI], &out->config[PCM_HDMI]);
         ALOGW("card %d, port %d device %x", card, port, out->device);
+        ALOGW("rate %d, channel %d period_size %x", out->config[PCM_HDMI].rate, out->config[PCM_HDMI].channels, out->config[PCM_HDMI].period_size);
     }
     /* default to low power: will be corrected in out_write if necessary before first write to
      * tinyalsa.
@@ -498,6 +500,7 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
 
     card = get_card_for_device(adev, out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL);
     ALOGW("card %d, port %d device %x", card, port, out->device);
+    ALOGW("rate %d, channel %d period_size %x", out->config[PCM_HDMI].rate, out->config[PCM_HDMI].channels, out->config[PCM_HDMI].period_size);
 
     out->pcm[PCM_HDMI] = pcm_open(card, port, PCM_OUT, &out->config[PCM_HDMI]);
 
@@ -823,6 +826,9 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     size_t i, j;
     int ret;
     bool first = true;
+    char temp[10];
+
+    str = strdup(keys);
 
     ret = str_parms_get_str(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, value, sizeof(value));
     if (ret >= 0) {
@@ -843,9 +849,25 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         }
         str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, value);
         str = strdup(str_parms_to_str(reply));
-    } else {
-        str = strdup(keys);
     }
+
+    ret = str_parms_get_str(query, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES, value, sizeof(value));
+    if (ret >= 0) {
+        value[0] = '\0';
+        i = 0;
+        while (out->sup_rates[i] != 0) {
+            if (!first) {
+                strcat(value, "|");
+            }
+            sprintf(temp, "%d", out->sup_rates[i]);
+            strcat(value, temp);
+            first = false;
+            i++;
+        }
+        str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, value);
+        str = strdup(str_parms_to_str(reply));
+    }
+
     ALOGW("out get parameters query %s, reply %s",str_parms_to_str(query), str_parms_to_str(reply));
     str_parms_destroy(query);
     str_parms_destroy(reply);
@@ -1722,10 +1744,81 @@ exit:
     return status;
 }
 
-static int out_read_hdmi_channel_masks(struct imx_stream_out *out) {
+static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx_stream_out *out) {
 
-    out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_5POINT1;
-    out->sup_channel_masks[1] = AUDIO_CHANNEL_OUT_7POINT1;
+    int count = 0;
+    int sup_channels[MAX_SUP_CHANNEL_NUM]; //temp buffer for supported channels
+    int card = -1;
+    int i = 0;
+    int j = 0;
+    struct mixer *mixer_hdmi = NULL;
+    bool no_multi_channel = true;
+
+    for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
+         if(!strcmp(adev->card_list[i]->driver_name, hdmi_card.driver_name)) {
+             mixer_hdmi = adev->mixer[i];
+             card = adev->card_list[i]->card;
+             break;
+         }
+    }
+
+    if (mixer_hdmi) {
+        struct mixer_ctl *ctl;
+        ctl = mixer_get_ctl_by_name(mixer_hdmi, "HDMI Support Channels");
+        if (ctl) {
+            count = mixer_ctl_get_num_values(ctl);
+            for(i = 0; i < count; i ++) {
+                sup_channels[i] = mixer_ctl_get_value(ctl, i);
+                ALOGW("out_read_hdmi_channel_masks() card %d got %d sup channels", card, sup_channels[i]);
+		if(sup_channels[i] >= 6) no_multi_channel = false;
+            }
+        }
+    }
+
+    if (no_multi_channel)
+        return -ENOSYS;
+
+    /*when channel is 6, the mask is 5.1,when channel is 8, the mask is 7.1*/
+    for(i = 0; i < count; i++ ) {
+       if(sup_channels[i] == 6) {
+          out->sup_channel_masks[j]   = AUDIO_CHANNEL_OUT_5POINT1;
+          j++;
+       }
+       if(sup_channels[i] == 8) {
+          out->sup_channel_masks[j]   = AUDIO_CHANNEL_OUT_7POINT1;
+          j++;
+       }
+    }
+
+    return 0;
+}
+
+static int out_read_hdmi_rates(struct imx_audio_device *adev, struct imx_stream_out *out) {
+
+    int count = 0;
+    int card = -1;
+    int i = 0;
+    struct mixer *mixer_hdmi = NULL;
+
+    for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
+         if(!strcmp(adev->card_list[i]->driver_name, hdmi_card.driver_name)) {
+             mixer_hdmi = adev->mixer[i];
+             card = adev->card_list[i]->card;
+             break;
+         }
+    }
+
+    if (mixer_hdmi) {
+        struct mixer_ctl *ctl;
+        ctl = mixer_get_ctl_by_name(mixer_hdmi, "HDMI Support Rates");
+        if (ctl) {
+            count = mixer_ctl_get_num_values(ctl);
+            for(i = 0; i < count; i ++) {
+                out->sup_rates[i] = mixer_ctl_get_value(ctl, i);
+                ALOGW("out_read_hdmi_rates() card %d got %d sup rates", card, out->sup_rates[i]);
+            }
+        }
+    }
 
     return 0;
 }
@@ -1749,6 +1842,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     if (!out)
         return -ENOMEM;
 
+    out->sup_rates[0] = MM_FULL_POWER_SAMPLING_RATE;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
     out->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
 
@@ -1759,9 +1853,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             ret = -ENOSYS;
             goto err_open;
         }
-        ret = out_read_hdmi_channel_masks(out);
+        ret = out_read_hdmi_channel_masks(ladev, out);
         if (ret != 0)
             goto err_open;
+
+        ret = out_read_hdmi_rates(ladev, out);
+
         output_type = OUTPUT_HDMI;
         if (config->sample_rate == 0)
             config->sample_rate = MM_FULL_POWER_SAMPLING_RATE;
