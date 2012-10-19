@@ -77,6 +77,9 @@ struct audio_card{
 #define MAX_AUDIO_CARD_NUM  3
 #define MAX_AUDIO_CARD_SCAN 3
 
+#define MAX_SUP_CHANNEL_NUM  20
+#define MAX_SUP_RATE_NUM     20
+
 struct imx_audio_device {
     struct audio_hw_device hw_device;
 
@@ -119,6 +122,7 @@ struct imx_stream_out {
     size_t buffer_frames;
     audio_channel_mask_t channel_mask;
     audio_channel_mask_t sup_channel_masks[3];
+    int sup_rates[MAX_SUP_RATE_NUM];
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
