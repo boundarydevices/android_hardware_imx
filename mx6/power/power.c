@@ -20,13 +20,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#define LOG_TAG "i.MX PowerHAL"
+#define LOG_TAG "i.MXPowerHAL"
 #include <utils/Log.h>
 
 #include <hardware/hardware.h>
 #include <hardware/power.h>
 
 #define BOOST_PATH      "/sys/devices/system/cpu/cpufreq/interactive/boost"
+#define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
 static int boost_fd = -1;
 static int boost_warned;
 
@@ -88,9 +89,8 @@ static void fsl_power_hint(struct power_module *module, power_hint_t hint,
     case POWER_HINT_VSYNC:
         break;
     case POWER_HINT_INTERACTION:
-	sysfs_write(BOOST_PATH, "1");
+	sysfs_write(BOOSTPULSE_PATH, "1");
 	break;
-
     default:
             break;
     }
