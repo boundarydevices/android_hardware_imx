@@ -1087,6 +1087,8 @@ static int start_input_stream(struct imx_stream_in *in)
     struct imx_audio_device *adev = in->dev;
     unsigned int card = -1;
     unsigned int port = 0;
+    struct mixer *mixer;
+
     ALOGW("start_input_stream....");
     adev->active_input = in;
 
@@ -1111,6 +1113,21 @@ static int start_input_stream(struct imx_stream_in *in)
 
     in->config.stop_threshold = in->config.period_size * in->config.period_count;
 
+    /*Error handler for usb mic plug in/plug out when recording. */
+    if(in->device & AUDIO_DEVICE_IN_USB_MIC) {
+        if((int)in->config.rate != adev_get_rate_for_device(adev, AUDIO_DEVICE_IN_USB_MIC, PCM_IN) ||
+           in->config.channels != 1) {
+           ALOGE("Input 2 does not support this format!");
+           return -EINVAL;
+        }
+    }else {
+        if(in->config.rate != MM_FULL_POWER_SAMPLING_RATE ||
+           in->config.channels != 2) {
+           ALOGE("Input 1 does not support this format!");
+           return -EINVAL;
+        }
+    }
+
     if (in->need_echo_reference && in->echo_reference == NULL)
         in->echo_reference = get_echo_reference(adev,
                                         AUDIO_FORMAT_PCM_16_BIT,
@@ -1122,6 +1139,18 @@ static int start_input_stream(struct imx_stream_in *in)
     if (!pcm_is_ready(in->pcm)) {
         ALOGE("cannot open pcm_in driver: %s", pcm_get_error(in->pcm));
         pcm_close(in->pcm);
+        /*workaround for some usb camera (V-UBM46). the issue is that:
+          open camerarecorder,recording, suspend, resumed, recording. sometimes the audio input
+          will be failed to open.
+          Analysis: when resume, the usb will do some initialize in kernel, but if the user start
+          recording quickly, there will be some confliction which will cause the input open failed
+          and reopen also failed.
+          But if open and close the mixer here then the input will be opened successfully.
+        */
+        if(!strcmp(adev->card_list[i]->driver_name, "USB-Audio")) {
+                mixer = mixer_open(card);
+                mixer_close(mixer);
+        }
         adev->active_input = NULL;
         return -ENOMEM;
     }
@@ -1645,10 +1674,11 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     }
 
 exit:
-    if (ret < 0)
+    if (ret < 0) {
+        memset(buffer, 0, bytes);
         usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
                in_get_sample_rate(&stream->common));
-
+    }
     pthread_mutex_unlock(&in->lock);
     return bytes;
 }
@@ -1657,6 +1687,7 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
 {
     int times, diff;
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
+    if (in->pcm == NULL)  return 0;
     times = pcm_get_time_of_xrun(in->pcm);
     diff = times - in->last_time_of_xrun;
     ALOGW_IF((diff != 0), "in_get_input_frames_lost %d ms total %d ms\n",diff, times);
@@ -2122,6 +2153,20 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     /*fix to 2 channel,  caused by the wm8958 driver*/
     config->channel_mask       = AUDIO_CHANNEL_IN_STEREO;
     in->config.channels = 2;
+
+    if(devices == AUDIO_DEVICE_IN_USB_MIC) {
+        ret = scan_available_device(ladev);
+        if(ret != 0) return -EINVAL;
+        config->channel_mask       = AUDIO_CHANNEL_IN_MONO;
+        in->config.channels = 1;
+        rate     = adev_get_rate_for_device(ladev, AUDIO_DEVICE_IN_USB_MIC, PCM_IN);
+        ALOGW("rate %d", rate);
+        if( rate == 0) {
+              ALOGW("can not get rate for in_device %d ", AUDIO_DEVICE_IN_USB_MIC);
+              return -EINVAL;
+        }
+        in->config.rate     =  rate;
+    }
  
     in->buffer = malloc(in->config.period_size *
                         audio_stream_frame_size(&in->stream.common));
@@ -2268,11 +2313,15 @@ static int scan_available_device(struct imx_audio_device *adev)
                     break;
                 }
                 adev->card_list[n]  = audio_card_list[j];
-                adev->mixer[n] = mixer_open(i);
                 adev->card_list[n]->card = i;
-                if (!adev->mixer[n]) {
-                    ALOGE("Unable to open the mixer, aborting.");
-                    return -EINVAL;
+                if(!strcmp(adev->card_list[n]->driver_name, "USB-Audio")) {
+                    adev->mixer[n] = NULL;
+                } else {
+                    adev->mixer[n] = mixer_open(i);
+                    if (!adev->mixer[n]) {
+                         ALOGE("Unable to open the mixer, aborting.");
+                         return -EINVAL;
+                    }
                 }
                 rate = 8000;
                 if( pcm_get_near_rate(i, 0, PCM_IN, &rate) == 0)
@@ -2312,7 +2361,6 @@ static int adev_open(const hw_module_t* module, const char* name,
 {
     struct imx_audio_device *adev;
     int ret = 0;
-    struct control *imx_control;
     int i,j,k;
     bool found;
 
