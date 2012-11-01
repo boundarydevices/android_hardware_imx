@@ -25,13 +25,17 @@
 
 #include <hardware/hardware.h>
 #include <hardware/power.h>
+#include <utils/StrongPointer.h>
+
+#include "watchdog.h"
 
 #define BOOST_PATH      "/sys/devices/system/cpu/cpufreq/interactive/boost"
 #define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
 static int boost_fd = -1;
 static int boost_warned;
+static sp<WatchdogThread> wdThread;
 
-static void sysfs_write(char *path, char *s)
+static void sysfs_write(const char *path, const char *s)
 {
     int len;
     int fd = open(path, O_WRONLY);
@@ -71,6 +75,9 @@ static void fsl_power_init(struct power_module *module)
                 "40");
     sysfs_write("/sys/devices/system/cpu/cpufreq/interactive/input_boost",
 		"1");
+
+    // create and run the watchdog thread
+    wdThread = new WatchdogThread();
 }
 
 static void fsl_power_set_interactive(struct power_module *module, int on)
@@ -97,21 +104,23 @@ static void fsl_power_hint(struct power_module *module, power_hint_t hint,
 }
 
 static struct hw_module_methods_t power_module_methods = {
-    .open = NULL,
+    open: NULL,
 };
 
 struct power_module HAL_MODULE_INFO_SYM = {
-    .common = {
-        .tag = HARDWARE_MODULE_TAG,
-        .module_api_version = POWER_MODULE_API_VERSION_0_2,
-        .hal_api_version = HARDWARE_HAL_API_VERSION,
-        .id = POWER_HARDWARE_MODULE_ID,
-        .name = "FSL i.MX Power HAL",
-        .author = "Freescale Semiconductor, Inc.",
-        .methods = &power_module_methods,
+    common: {
+        tag: HARDWARE_MODULE_TAG,
+        module_api_version: POWER_MODULE_API_VERSION_0_2,
+        hal_api_version: HARDWARE_HAL_API_VERSION,
+        id: POWER_HARDWARE_MODULE_ID,
+        name: "FSL i.MX Power HAL",
+        author: "Freescale Semiconductor, Inc.",
+        methods: &power_module_methods,
+        dso: NULL,
+        reserved: {0}
     },
 
-    .init = fsl_power_init,
-    .setInteractive = fsl_power_set_interactive,
-    .powerHint = fsl_power_hint,
+    init: fsl_power_init,
+    setInteractive: fsl_power_set_interactive,
+    powerHint: fsl_power_hint,
 };
