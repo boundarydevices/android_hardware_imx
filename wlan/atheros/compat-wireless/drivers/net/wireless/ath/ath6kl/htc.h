@@ -112,7 +112,7 @@
 #define HTC_TARGET_DEBUG_INTR_MASK         0x01
 #define HTC_TARGET_CREDIT_INTR_MASK        0xF0
 
-#define HTC_HOST_MAX_MSG_PER_BUNDLE        8
+#define HTC_HOST_MAX_MSG_PER_BUNDLE        7
 #define HTC_MIN_HTC_MSGS_TO_BUNDLE         2
 
 /* packet flags */

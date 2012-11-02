@@ -36,6 +36,7 @@ static unsigned int wow_mode;
 static unsigned int uart_debug;
 static unsigned int ar6k_clock = 19200000;
 static unsigned short locally_administered_bit;
+static unsigned int heart_beat_poll = 2000;
 
 module_param(debug_mask, uint, 0644);
 module_param(testmode, uint, 0644);
@@ -44,6 +45,9 @@ module_param(wow_mode, uint, 0644);
 module_param(uart_debug, uint, 0644);
 module_param(ar6k_clock, uint, 0644);
 module_param(locally_administered_bit, ushort, 0644);
+module_param(heart_beat_poll, uint, 0644);
+MODULE_PARM_DESC(heart_beat_poll, "Enable fw error detection periodic" \
+		 "polling. This also specifies the polling interval in msecs");
 
 static const struct ath6kl_hw hw_list[] = {
 	{
@@ -318,7 +322,7 @@ static int ath6kl_init_service_ep(struct ath6kl *ar)
 	 */
 	connect.conn_flags |= HTC_CONN_FLGS_REDUCE_CRED_DRIB;
 	connect.conn_flags &= ~HTC_CONN_FLGS_THRESH_MASK;
-	connect.conn_flags |= HTC_CONN_FLGS_THRESH_LVL_HALF;
+	connect.conn_flags |= HTC_CONN_FLGS_THRESH_LVL_QUAT;
 
 	connect.svc_id = WMI_DATA_BE_SVC;
 
@@ -985,6 +989,14 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 		}
 
 		switch (ie_id) {
+		case ATH6KL_FW_IE_FW_VERSION:
+			strlcpy(ar->wiphy->fw_version, data,
+				sizeof(ar->wiphy->fw_version));
+
+			ath6kl_dbg(ATH6KL_DBG_BOOT,
+				   "found fw version %s\n",
+				    ar->wiphy->fw_version);
+			break;
 		case ATH6KL_FW_IE_OTP_IMAGE:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "found otp image ie (%zd B)\n",
 				ie_len);
@@ -1103,6 +1115,8 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 		data += ie_len;
 	};
 
+	__set_bit(ATH6KL_FW_CAPABILITY_MAC_ACL, ar->fw_capabilities);
+
 	ret = 0;
 out:
 	release_firmware(fw);
@@ -1121,6 +1135,12 @@ static int ath6kl_fetch_firmwares(struct ath6kl *ar)
 	ret = ath6kl_fetch_testmode_file(ar);
 	if (ret)
 		return ret;
+
+	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API4_FILE);
+	if (ret == 0) {
+		ar->fw_api = 4;
+		goto out;
+	}
 
 	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API3_FILE);
 	if (ret == 0) {
@@ -1873,9 +1893,10 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
 			    WIPHY_FLAG_HAVE_AP_SME |
-			    WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+			    WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
+			    WIPHY_FLAG_SUPPORTS_ACS;
 
-	if (test_bit(ATH6KL_FW_CAPABILITY_SCHED_SCAN, ar->fw_capabilities))
+	if (test_bit(ATH6KL_FW_CAPABILITY_SCHED_SCAN_V2, ar->fw_capabilities))
 		ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
 
 	ar->wiphy->probe_resp_offload =
@@ -1915,6 +1936,11 @@ int ath6kl_core_init(struct ath6kl *ar)
 		goto err_rxbuf_cleanup;
 	}
 #endif
+	if (heart_beat_poll &&
+	    test_bit(ATH6KL_FW_CAPABILITY_HEART_BEAT_POLL,
+		     ar->fw_capabilities))
+		ar->fw_recovery.hb_poll = heart_beat_poll;
+
 	ath6kl_recovery_init(ar);
 
 	return ret;
@@ -1949,8 +1975,6 @@ void ath6kl_init_hw_restart(struct ath6kl *ar)
 {
 	clear_bit(WMI_READY, &ar->flag);
 
-	ar->state = ATH6KL_STATE_RECOVERY;
-
 	ath6kl_cfg80211_stop_all(ar);
 
 	if (__ath6kl_init_hw_stop(ar)) {
@@ -1962,9 +1986,6 @@ void ath6kl_init_hw_restart(struct ath6kl *ar)
 		ath6kl_dbg(ATH6KL_DBG_RECOVERY, "Failed to restart during fw error recovery\n");
 		return;
 	}
-
-	ar->state = ATH6KL_STATE_ON;
-	ar->fw_recovery.err_reason = 0;
 }
 
 void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
@@ -2026,6 +2047,8 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	spin_unlock_bh(&ar->list_lock);
 
 	clear_bit(WMI_READY, &ar->flag);
+
+	del_timer_sync(&ar->fw_recovery.hb_timer);
 
 	/*
 	 * After wmi_shudown all WMI events will be dropped. We

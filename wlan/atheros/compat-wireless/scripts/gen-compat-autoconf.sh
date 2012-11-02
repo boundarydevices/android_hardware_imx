@@ -1,7 +1,6 @@
 #!/bin/bash
 # 
 # Copyright 2007	Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
-# Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
 #
 # Use this to parse a small .config equivalent looking file to generate
 # our own autoconf.h. This file has defines for each config option
@@ -36,6 +35,7 @@ fi
 
 CREL=$(cat $COMPAT_RELEASE | tail -1)
 KREL=$(cat $KERNEL_RELEASE | tail -1)
+DATE=$(date)
 
 # Defines a CONFIG_ option if not defined yet, this helps respect
 # linux/autoconf.h 
@@ -133,6 +133,7 @@ cat <<EOF
 #define COMPAT_AUTOCONF_INCLUDED
 /*
  * Automatically generated C config: don't edit
+ * $DATE 
  * compat-wireless-2.6: $CREL
  * linux-2.6: $KREL
  */
