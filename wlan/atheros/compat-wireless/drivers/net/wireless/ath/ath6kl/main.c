@@ -467,12 +467,9 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 		break;
 	}
 
-	if (ar->want_ch_switch & (1 << vif->fw_vif_idx)) {
-		ar->want_ch_switch &= ~(1 << vif->fw_vif_idx);
+	if (ar->last_ch != channel)
 		/* we actually don't know the phymode, default to HT20 */
-		ath6kl_cfg80211_ch_switch_notify(vif, channel,
-						 WMI_11G_HT20);
-	}
+		ath6kl_cfg80211_ch_switch_notify(vif, channel, WMI_11G_HT20);
 
 	ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx, NONE_BSS_FILTER, 0);
 	set_bit(CONNECTED, &vif->flags);
@@ -584,19 +581,23 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 	struct ath6kl *ar = devt;
 
 	memcpy(ar->mac_addr, datap, ETH_ALEN);
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: mac addr = %pM\n",
-		   __func__, ar->mac_addr);
+
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
+		   "ready event mac addr %pM sw_ver 0x%x abi_ver 0x%x\n",
+		   ar->mac_addr, sw_ver, abi_ver);
 
 	ar->version.wlan_ver = sw_ver;
 	ar->version.abi_ver = abi_ver;
 
-	snprintf(ar->wiphy->fw_version,
-		 sizeof(ar->wiphy->fw_version),
-		 "%u.%u.%u.%u",
-		 (ar->version.wlan_ver & 0xf0000000) >> 28,
-		 (ar->version.wlan_ver & 0x0f000000) >> 24,
-		 (ar->version.wlan_ver & 0x00ff0000) >> 16,
-		 (ar->version.wlan_ver & 0x0000ffff));
+	if (strlen(ar->wiphy->fw_version) == 0) {
+		snprintf(ar->wiphy->fw_version,
+			 sizeof(ar->wiphy->fw_version),
+			 "%u.%u.%u.%u",
+			 (ar->version.wlan_ver & 0xf0000000) >> 28,
+			 (ar->version.wlan_ver & 0x0f000000) >> 24,
+			 (ar->version.wlan_ver & 0x00ff0000) >> 16,
+			 (ar->version.wlan_ver & 0x0000ffff));
+	}
 
 	/* indicate to the waiting thread that the ready event was received */
 	set_bit(WMI_READY, &ar->flag);
@@ -632,6 +633,18 @@ static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 
 	switch (vif->nw_type) {
 	case AP_NETWORK:
+		/*
+		 * reconfigure any saved RSN IE capabilites in the beacon /
+		 * probe response to stay in sync with the supplicant.
+		 */
+		if (vif->rsn_capab &&
+		    test_bit(ATH6KL_FW_CAPABILITY_RSN_CAP_OVERRIDE,
+			     ar->fw_capabilities))
+			ath6kl_wmi_set_ie_cmd(ar->wmi, vif->fw_vif_idx,
+					      WLAN_EID_RSN, WMI_RSN_IE_CAPB,
+					      (const u8 *) &vif->rsn_capab,
+					      sizeof(vif->rsn_capab));
+
 		return ath6kl_wmi_ap_profile_commit(ar->wmi, vif->fw_vif_idx,
 						    &vif->profile);
 	default:
@@ -653,6 +666,9 @@ static void ath6kl_check_ch_switch(struct ath6kl *ar, u16 channel)
 	list_for_each_entry(vif, &ar->vif_list, list) {
 		if (ar->want_ch_switch & (1 << vif->fw_vif_idx))
 			res = ath6kl_commit_ch_switch(vif, channel);
+
+		/* if channel switch failed, oh well we tried */
+		ar->want_ch_switch &= ~(1 << vif->fw_vif_idx);
 
 		if (res)
 			ath6kl_err("channel switch failed nw_type %d res %d\n",
@@ -1009,8 +1025,25 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	if (vif->nw_type == AP_NETWORK) {
 		/* disconnect due to other STA vif switching channels */
 		if (reason == BSS_DISCONNECTED &&
-		    prot_reason_status == WMI_AP_REASON_STA_ROAM)
+		    prot_reason_status == WMI_AP_REASON_STA_ROAM) {
 			ar->want_ch_switch |= 1 << vif->fw_vif_idx;
+			/* bail back to this channel if STA vif fails connect */
+			ar->last_ch = le16_to_cpu(vif->profile.ch);
+		}
+
+		if (prot_reason_status == WMI_AP_REASON_MAX_STA) {
+			/* send max client reached notification to user space */
+			cfg80211_conn_failed(vif->ndev, bssid,
+					     NL80211_CONN_FAIL_MAX_CLIENTS,
+					     GFP_KERNEL);
+		}
+
+		if (prot_reason_status == WMI_AP_REASON_ACL) {
+			/* send blocked client notification to user space */
+			cfg80211_conn_failed(vif->ndev, bssid,
+					     NL80211_CONN_FAIL_BLOCKED_CLIENT,
+					     GFP_KERNEL);
+		}
 
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
 			return;
@@ -1068,6 +1101,9 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 			return;
 		}
 	}
+
+	/* restart disconnected concurrent vifs waiting for new channel */
+	ath6kl_check_ch_switch(ar, ar->last_ch);
 
 	/* update connect & link status atomically */
 	spin_lock_bh(&vif->if_lock);
@@ -1141,11 +1177,7 @@ static struct net_device_stats *ath6kl_get_stats(struct net_device *dev)
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
 static int ath6kl_set_features(struct net_device *dev, netdev_features_t features)
-#else
-static int ath6kl_set_features(struct net_device *dev, u32 features)
-#endif
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	struct ath6kl *ar = vif->ar;
@@ -1304,12 +1336,11 @@ out:
 	list_splice_tail(&mc_filter_new, &vif->mc_filter);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
 static int ath6kl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	return 0;
 }
-#endif
+
 
 static struct net_device_ops ath6kl_netdev_ops = {
 	.ndo_open               = ath6kl_open,
@@ -1320,9 +1351,7 @@ static struct net_device_ops ath6kl_netdev_ops = {
 	.ndo_set_features       = ath6kl_set_features,
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)) */
 	.ndo_set_rx_mode	= ath6kl_set_multicast_list,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
 	.ndo_do_ioctl           = ath6kl_ioctl,
-#endif
 };
 
 void init_netdev(struct net_device *dev)

@@ -22,7 +22,6 @@ enum ath6kl_cfg_suspend_mode {
 	ATH6KL_CFG_SUSPEND_DEEPSLEEP,
 	ATH6KL_CFG_SUSPEND_CUTPOWER,
 	ATH6KL_CFG_SUSPEND_WOW,
-	ATH6KL_CFG_SUSPEND_SCHED_SCAN,
 };
 
 struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
@@ -62,9 +61,6 @@ bool ath6kl_cfg80211_ready(struct ath6kl_vif *vif);
 /* TODO: remove this once ath6kl_vif_cleanup() is moved to cfg80211.c */
 void ath6kl_cfg80211_sta_bmiss_enhance(struct ath6kl_vif *vif, bool enable);
 
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
 struct net_device *ath6kl_cfg80211_add_p2p0_iface(struct ath6kl *ar);
-#endif
 
 #endif /* ATH6KL_CFG80211_H */
