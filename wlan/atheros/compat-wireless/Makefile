@@ -38,7 +38,7 @@ endif
 
 else
 
-export PWD :=	$(shell pwd)
+export CURDIR := $(shell pwd)
 CFLAGS += \
         -DCOMPAT_BASE_TREE="\"$(shell cat compat_base_tree)\"" \
         -DCOMPAT_BASE_TREE_VERSION="\"$(shell cat compat_base_tree_version)\"" \
@@ -50,22 +50,22 @@ CFLAGS += \
 export COMPAT_CONFIG=config.mk
 export CONFIG_CHECK=.$(COMPAT_CONFIG)_md5sum.txt
 export COMPAT_AUTOCONF=include/linux/compat_autoconf.h
-export CREL=$(shell cat $(PWD)/compat_version)
+export CREL=$(shell cat $(CURDIR)/compat_version)
 export CREL_PRE:=.compat_autoconf_
 export CREL_CHECK:=$(CREL_PRE)$(CREL)
 
-include $(PWD)/$(COMPAT_CONFIG)
+include $(CURDIR)/$(COMPAT_CONFIG)
 
 all: modules
 
 modules: $(CREL_CHECK)
 	@./scripts/check_config.sh
-	$(MAKE) -C $(KLIB_BUILD) M=$(PWD) modules
+	$(MAKE) -C $(KLIB_BUILD) M=$(CURDIR) modules
 	@touch $@
 
 bt: $(CREL_CHECK)
 	@./scripts/check_config.sh
-	$(MAKE) -C $(KLIB_BUILD) M=$(PWD) BT=TRUE modules
+	$(MAKE) -C $(KLIB_BUILD) M=$(CURDIR) BT=TRUE modules
 	@touch $@
 
 # With the above and this we make sure we generate a new compat autoconf per
@@ -81,7 +81,7 @@ $(CREL_CHECK):
 btinstall: btuninstall bt-install-modules
 
 bt-install-modules: bt
-	$(MAKE) -C $(KLIB_BUILD) M=$(PWD) $(KMODDIR_ARG) $(KMODPATH_ARG) BT=TRUE \
+	$(MAKE) -C $(KLIB_BUILD) M=$(CURDIR) $(KMODDIR_ARG) $(KMODPATH_ARG) BT=TRUE \
 		modules_install
 	@/sbin/depmod -ae
 	@echo
@@ -148,13 +148,13 @@ btuninstall:
 	@echo
 
 btclean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) BT=TRUE clean
+	make -C /lib/modules/$(shell uname -r)/build M=$(CURDIR) BT=TRUE clean
 	@rm -f $(CREL_PRE)*
 
 install: uninstall install-modules install-scripts
 
 install-modules: modules
-	$(MAKE) -C $(KLIB_BUILD) M=$(PWD) $(KMODDIR_ARG) $(KMODPATH_ARG) \
+	$(MAKE) -C $(KLIB_BUILD) M=$(CURDIR) $(KMODDIR_ARG) $(KMODPATH_ARG) \
 		modules_install
 
 install-scripts:
@@ -439,7 +439,7 @@ uninstall:
 
 clean:
 	@if [ -d net -a -d $(KLIB_BUILD) ]; then \
-		$(MAKE) -C $(KLIB_BUILD) M=$(PWD) clean ;\
+		$(MAKE) -C $(KLIB_BUILD) M=$(CURDIR) clean ;\
 	fi
 	@rm -f $(CREL_PRE)*
 unload:

@@ -37,8 +37,7 @@ ATH_CROSS_COMPILE=$(ATH_ANDROID_ROOT)/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/b
 mod_cleanup := $(ATH_ANDROID_ROOT)/$(ATH_ANDROID_SRC_BASE)/dummy
 
 $(mod_cleanup) :
-	$(MAKE) -C $(ATH_ANDROID_SRC_BASE) ARCH=arm CROSS_COMPILE=$(ATH_CROSS_COMPILE) KLIB=$(AT\
-  H_LINUXPATH) KLIB_BUILD=$(ATH_LINUXPATH) clean
+	$(MAKE) -C $(ATH_ANDROID_SRC_BASE) ARCH=arm CROSS_COMPILE=$(ATH_CROSS_COMPILE) KLIB=$(ATH_LINUXPATH) KLIB_BUILD=$(ATH_LINUXPATH) clean
 	mkdir -p $(TARGET_OUT)/etc/firmware/ath6k/AR6003/hw2.1.1/
 	mkdir -p $(TARGET_OUT)/lib/modules/
 

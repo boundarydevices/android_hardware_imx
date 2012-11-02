@@ -548,9 +548,30 @@
  *	%NL80211_ATTR_IFINDEX is now on %NL80211_ATTR_WIPHY_FREQ with
  *	%NL80211_ATTR_WIPHY_CHANNEL_TYPE.
  *
+ * @NL80211_CMD_CONN_FAILED: connection request to an AP failed; used to
+ *	notify userspace that AP has rejected the connection request from a
+ *	station, due to particular reason. %NL80211_ATTR_CONN_FAILED_REASON
+ *	is used for this.
+ *
  * @NL80211_CMD_BTCOEX: Send BTCOEX command to firmware.  This is
  *  used by the firmware to be aware of BT traffic and share radio
  *	between WiFi and BT.
+ *
+ * @NL80211_ATTR_STA_CAPA_REQ: Restrict only particular mode capable station
+ *	to connect (applicable only in AP mode). For example, this can be used
+ *	to allow only the remote station which supports 11G only mode to connect
+ *	to the AP. Currently used with %NL80211_CMD_NEW_BEACON command,
+ *	see &enum nl80211_sta_capab_req_options.
+ *
+ * @NL80211_CMD_SET_MAC_ACL: sets a list of mac addresses for access control.
+ *	This is to be used with the drivers advertising the support of mac
+ *	address based access control. The list of mac addresses defined by
+ *	%NL80211_ATTR_MAC_ADDRS would replace any existing acl list in driver
+ *	for a particular acl policy specified by %NL80211_ATTR_ACL_POLICY.
+ *	When the passed list of mac address is empty for a particular acl
+ *	policy,	driver has to clear corresponding acl list. This command is
+ *	used in AP/P2P GO mode. Driver has to make sure it's acl lists are
+ *	cleared during %NL80211_CMD_START_AP and NL80211_CMD_STOP_AP.
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -692,6 +713,10 @@ enum nl80211_commands {
 	NL80211_CMD_SET_NOACK_MAP, /* just to maintain ABI with CH_SWITCH_NOTIFY */
 
 	NL80211_CMD_CH_SWITCH_NOTIFY,
+
+	NL80211_CMD_CONN_FAILED,
+
+	NL80211_CMD_SET_MAC_ACL,
 
 	NL80211_CMD_BTCOEX,
 
@@ -1193,7 +1218,32 @@ enum nl80211_commands {
  * @NL80211_ATTR_BG_SCAN_PERIOD: Background scan period in seconds
  *      or 0 to disable background scan.
  *
+ * @NL80211_ATTR_WDEV: wireless device identifier, used for pseudo-devices
+ *	that don't have a netdev (u64)
+ *
+ * @NL80211_ATTR_USER_REG_HINT_TYPE: type of regulatory hint passed from
+ *	userspace. If unset it is assumed the hint comes directly from
+ *	a user. If set code could specify exactly what type of source
+ *	was used to provide the hint. For the different types of
+ *	allowed user regulatory hints see nl80211_user_reg_hint_type.
+ *
+ * @NL80211_ATTR_CONN_FAILED_REASON: The reason for which AP has rejected
+ *	the connection request from a station. nl80211_connect_failed_reason
+ *	enum has different reasons of connection failure.
+ *
  * @NL80211_ATTR_BTCOEX_DATA: BT coex wmi command.
+ *
+ * @NL80211_ATTR_ACS: Enable automatic channel selection by the driver
+ *	for AP/GO mode.
+ *
+ * @NL80211_ATTR_MAC_ACL: u8 attribute to enable or disable mac address
+ *	based access control in driver, needs to be used with the drivers
+ *	which advertise this support.
+ *
+ * @NL80211_ATTR_MAC_ADDRS: Nested attribute with mac addresses used for ACL.
+ *
+ * @NL80211_ATTR_ACL_POLICY: policy of access control,
+ *	see &enum nl80211_acl_policy_attr.
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -1447,6 +1497,22 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_BG_SCAN_PERIOD,
 
+	NL80211_ATTR_WDEV,
+
+	NL80211_ATTR_USER_REG_HINT_TYPE,
+
+	NL80211_ATTR_CONN_FAILED_REASON,
+
+	NL80211_ATTR_STA_CAP_REQ,
+
+	NL80211_ATTR_ACS,
+
+	NL80211_ATTR_MAC_ACL,
+
+	NL80211_ATTR_MAC_ADDRS,
+
+	NL80211_ATTR_ACL_POLICY,
+
 	NL80211_ATTR_BTCOEX_DATA,
 
 	/* add attributes here, update the policy in nl80211.c */
@@ -1495,6 +1561,13 @@ enum nl80211_attrs {
 
 #define NL80211_MAX_NR_CIPHER_SUITES		5
 #define NL80211_MAX_NR_AKM_SUITES		2
+
+#define NL80211_MIN_REMAIN_ON_CHANNEL_TIME	10
+
+/* default RSSI threshold for scan results if none specified. */
+#define NL80211_SCAN_RSSI_THOLD_OFF		-300
+
+#define NL80211_CQM_TXE_MAX_INTVL		1800
 
 /**
  * enum nl80211_iftype - (virtual) interface types
@@ -1918,6 +1991,8 @@ enum nl80211_reg_rule_attr {
  * @__NL80211_SCHED_SCAN_MATCH_ATTR_INVALID: attribute number 0 is reserved
  * @NL80211_SCHED_SCAN_MATCH_ATTR_SSID: SSID to be used for matching,
  * only report BSS with matching SSID.
+ * @NL80211_SCHED_SCAN_MATCH_ATTR_RSSI: RSSI threshold (in dBm) for reporting a
+ *	BSS in scan results. Filtering is turned off if not specified.
  * @NL80211_SCHED_SCAN_MATCH_ATTR_MAX: highest scheduled scan filter
  *	attribute number currently defined
  * @__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST: internal use
@@ -1925,13 +2000,17 @@ enum nl80211_reg_rule_attr {
 enum nl80211_sched_scan_match_attr {
 	__NL80211_SCHED_SCAN_MATCH_ATTR_INVALID,
 
-	NL80211_ATTR_SCHED_SCAN_MATCH_SSID,
+	NL80211_SCHED_SCAN_MATCH_ATTR_SSID,
+	NL80211_SCHED_SCAN_MATCH_ATTR_RSSI,
 
 	/* keep last */
 	__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST,
 	NL80211_SCHED_SCAN_MATCH_ATTR_MAX =
 		__NL80211_SCHED_SCAN_MATCH_ATTR_AFTER_LAST - 1
 };
+
+/* only for backward compatibility */
+#define NL80211_ATTR_SCHED_SCAN_MATCH_SSID NL80211_SCHED_SCAN_MATCH_ATTR_SSID
 
 /**
  * enum nl80211_reg_rule_flags - regulatory rule flags
@@ -2429,6 +2508,17 @@ enum nl80211_ps_state {
  * @NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT: RSSI threshold event
  * @NL80211_ATTR_CQM_PKT_LOSS_EVENT: a u32 value indicating that this many
  *	consecutive packets were not acknowledged by the peer
+ * @NL80211_ATTR_CQM_TXE_RATE: TX error rate in %. Minimum % of TX failures
+ *	during the given %NL80211_ATTR_CQM_TXE_INTVL before an
+ *	%NL80211_CMD_NOTIFY_CQM with reported %NL80211_ATTR_CQM_TXE_RATE and
+ *	%NL80211_ATTR_CQM_TXE_PKTS is generated.
+ * @NL80211_ATTR_CQM_TXE_PKTS: number of attempted packets in a given
+ *	%NL80211_ATTR_CQM_TXE_INTVL before %NL80211_ATTR_CQM_TXE_RATE is
+ *	checked.
+ * @NL80211_ATTR_CQM_TXE_INTVL: interval in seconds. Specifies the periodic
+ *	interval in which %NL80211_ATTR_CQM_TXE_PKTS and
+ *	%NL80211_ATTR_CQM_TXE_RATE must be satisfied before generating an
+ *	%NL80211_CMD_NOTIFY_CQM. Set to 0 to turn off TX error reporting.
  * @__NL80211_ATTR_CQM_AFTER_LAST: internal
  * @NL80211_ATTR_CQM_MAX: highest key attribute
  */
@@ -2438,6 +2528,9 @@ enum nl80211_attr_cqm {
 	NL80211_ATTR_CQM_RSSI_HYST,
 	NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT,
 	NL80211_ATTR_CQM_PKT_LOSS_EVENT,
+	NL80211_ATTR_CQM_TXE_RATE,
+	NL80211_ATTR_CQM_TXE_PKTS,
+	NL80211_ATTR_CQM_TXE_INTVL,
 
 	/* keep last */
 	__NL80211_ATTR_CQM_AFTER_LAST,
@@ -2780,9 +2873,17 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_SK_TX_STATUS: This driver supports reflecting back
  *	TX status to the socket error queue when requested with the
  *	socket option.
+ * @NL80211_FEATURE_HT_IBSS: This driver supports IBSS with HT datarates.
+ * @NL80211_FEATURE_INACTIVITY_TIMER: This driver takes care of freeing up
+ *	the connected inactive stations in AP mode.
+ * @NL80211_FEATURE_MAC_ACL: Driver does MAC address based access control
+ *	in AP/P2P GO mode.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS	= 1 << 0,
+	NL80211_FEATURE_HT_IBSS		= 1 << 1,
+	NL80211_FEATURE_INACTIVITY_TIMER = 1 << 2,
+	NL80211_FEATURE_MAC_ACL		 = 1 << 3,
 };
 
 /**
@@ -2821,4 +2922,39 @@ enum nl80211_btcoex_cmds {
 	NL80211_WMI_GET_BT_STATS,
 	NL80211_WMI_BT_MAX,
 };
+
+/**
+ * enum sta_capab_req_options - values for %NL80211_ATTR_STA_CAPA_REQ.
+ * @NL80211_STA_CAP_REQ_11BONLY: Allow IEEE 802.11b only stations to associate.
+ * @NL80211_STA_CAP_REQ_11GONLY: Allow IEEE 802.11g only stations to associate.
+ */
+enum nl80211_sta_capab_req_options {
+	NL80211_STA_CAP_REQ_11BONLY = 1<<0,
+	NL80211_STA_CAP_REQ_11GONLY = 1<<1,
+};
+
+/**
+ * enum nl80211_acl_policy_attr - The access control policy which needs to be
+ *	applied on an acl list set by %NL80211_CMD_SET_MAC_ACL. To be used
+ *	with %NL80211_ATTR_ACL_POLICY.
+ *
+ * @NL80211_ACL_POLICY_ACCEPT: Allow the station to authenticate.
+ * @NL80211_ACL_POLICY_DENY: Block the station from authentication
+ */
+enum nl80211_acl_policy_attr {
+	NL80211_ACL_POLICY_ACCEPT,
+	NL80211_ACL_POLICY_DENY,
+};
+
+/**
+ * enum nl80211_connect_failed_reason - connection request failed reasons
+ * @NL80211_CONN_FAIL_MAX_CLIENTS: Maximum number of clients that can be
+ *	handled by the AP is reached.
+ * @NL80211_CONN_FAIL_BLOCKED_CLIENT: Client's MAC is in the AP's blocklist.
+ * */
+enum nl80211_connect_failed_reason {
+	NL80211_CONN_FAIL_MAX_CLIENTS,
+	NL80211_CONN_FAIL_BLOCKED_CLIENT,
+};
+
 #endif /* __LINUX_NL80211_H */

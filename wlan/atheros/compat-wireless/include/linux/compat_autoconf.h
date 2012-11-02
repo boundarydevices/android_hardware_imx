@@ -2,11 +2,12 @@
 #define COMPAT_AUTOCONF_INCLUDED
 /*
  * Automatically generated C config: don't edit
- * compat-wireless-2.6: patch-10-22-gc53d81a-p
- * linux-2.6: msm-2012-06-21-43-g7ffaacb
+ * Fri Nov  2 10:11:00 CST 2012 
+ * compat-wireless-2.6: patch-10-27-gd46416c-p
+ * linux-2.6: branching-msm-3.2.3-44-g65b285b
  */
-#define COMPAT_RELEASE "patch-10-22-gc53d81a-p"
-#define COMPAT_KERNEL_RELEASE "msm-2012-06-21-43-g7ffaacb"
+#define COMPAT_RELEASE "patch-10-27-gd46416c-p"
+#define COMPAT_KERNEL_RELEASE "branching-msm-3.2.3-44-g65b285b"
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
 #error Compat-wireless requirement: Linux >= 2,6,24
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24) */ 
