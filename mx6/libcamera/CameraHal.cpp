@@ -1824,7 +1824,7 @@ Pic_out:
             if(mCaptureRunning) {
                 if(buf_index < mCaptureBufNum) {
                     if(mCaptureDevice->DevQueue(buf_index) <0){
-                        CAMERA_LOG_ERR("The Capture device queue buf error !!!!");
+                        CAMERA_LOG_ERR("The Capture device queue buf %d error !!!!", buf_index);
                         return INVALID_OPERATION;
                     }
                     //CAMERA_LOG_RUNTIME("Return buffer %d to Capture Device", buf_index);
@@ -1895,6 +1895,7 @@ Pic_out:
                 mPreviewThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
 
                 if(mRecordRunning) {
+                    getBufferCount(&mCaptureBuffers[bufIndex]);
                     mEncodeThreadQueue.postMessage(new CMessage(CMESSAGE_TYPE_NORMAL, bufIndex));
                 }
                 break;
@@ -2128,15 +2129,13 @@ Pic_out:
                 if ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) && mRecordRunning) {
                     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
                     if (mDirectInput == true) {
-	                memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
+	                    memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
                             (void*)&mVideoBufferPhy[enc_index], sizeof(VIDEOFRAME_BUFFER_PHY));
-                        getBufferCount(&mCaptureBuffers[enc_index]);
                     } else {
                         memcpy((unsigned char*)mVideoMemory->data + enc_index*mPreviewFrameSize,
                                 (void*)EncBuf->virt_start, mPreviewFrameSize);
                     }
 
-                    getBufferCount(&mCaptureBuffers[enc_index]);
                     mVideoBufferUsing[enc_index] = 1;
                     mDataCbTimestamp(timeStamp, CAMERA_MSG_VIDEO_FRAME, mVideoMemory, enc_index, mCallbackCookie);
                     break;
