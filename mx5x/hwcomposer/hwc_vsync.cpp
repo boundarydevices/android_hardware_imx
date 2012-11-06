@@ -30,7 +30,7 @@ VSyncThread::VSyncThread(hwc_context_t *ctx)
 
 void VSyncThread::onFirstRef()
 {
-    run("vsyncThread", PRIORITY_URGENT_DISPLAY);
+    run("vsyncThread", PRIORITY_URGENT_DISPLAY + ANDROID_PRIORITY_LESS_FAVORABLE);
 }
 
 void VSyncThread::setEnabled(bool enabled) {
@@ -54,7 +54,7 @@ bool VSyncThread::threadLoop()
     }
 
     uint64_t timestamp = 0;
-    uint32_t crt = (uint32_t)&timestamp; 
+    uint32_t crt = (uint32_t)&timestamp;
 
     int err = ioctl(mCtx->m_mainfb_fd, MXCFB_WAIT_FOR_VSYNC, crt);
     if ( err < 0 ) {
@@ -71,6 +71,15 @@ bool VSyncThread::threadLoop()
 #else
         mCtx->m_callback->vsync(mCtx->m_callback, 0, timestamp);
 #endif
+        {
+            struct timespec tm;
+            struct timespec ts;
+            const nsecs_t wake_up = 400000;
+
+            ts.tv_nsec =  (timestamp + mCtx->m_frame_period_ns) - (systemTime(SYSTEM_TIME_MONOTONIC) + wake_up );
+            ts.tv_sec = 0;
+            nanosleep( &ts, &tm);
+        }
     }
     return true;
 }

@@ -86,12 +86,38 @@ static int hwc_set(hwc_composer_device_t *dev,
         hwc_layer_list_t* list)
 {
     struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
-
+    bool clear_needed = false;
     EGLBoolean success;
+    int i;
 
     success = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
+
+    for (i =0 ; i < list->numHwLayers; i++)
+    {
+        private_handle_t *handle = (private_handle_t *)(list->hwLayers[i].handle);
+        if (handle)
+        {
+            if ((handle->format == HAL_PIXEL_FORMAT_YV12) ||
+                (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_SP) ||
+                (handle->format == HAL_PIXEL_FORMAT_YCrCb_420_SP) ||
+                (handle->format == HAL_PIXEL_FORMAT_YCrCb_420_SP) ||
+                (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_I) ||
+                (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_P) ||
+                (handle->format == HAL_PIXEL_FORMAT_YCbCr_420_P) ||
+                (handle->format == HAL_PIXEL_FORMAT_CbYCrY_422_I) ||
+                (handle->format == HAL_PIXEL_FORMAT_YCbCr_420_SP) )
+            {
+                clear_needed = true;
+            }
+            //dump_layer(&list->hwLayers[i]);
+        }
+    }
+
+    if (clear_needed)
+    {
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
 
     if (!success) {
         return HWC_EGL_ERROR;
@@ -191,7 +217,9 @@ static int hwc_get_framebuffer_info(struct hwc_context_t* ctx)
         refreshRate = 60 * 1000;  // 60 Hz
 
     ctx->m_mainfb_fps = refreshRate / 1000.0f;
-    ALOGI("<%s,%d> Vsync rate %0.6f fps", __FUNCTION__, __LINE__, ctx->m_mainfb_fps);
+    ctx->m_frame_period_ns = (1.0f / ctx->m_mainfb_fps) * 1000000000.0f;
+    ALOGI("<%s,%d> Vsync rate %0.6f fps, frame time %llu ns", __FUNCTION__, __LINE__,
+          ctx->m_mainfb_fps, ctx->m_frame_period_ns);
     return 0;
 }
 

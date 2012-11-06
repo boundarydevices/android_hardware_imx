@@ -44,6 +44,7 @@ struct hwc_context_t {
 
     int m_mainfb_fd;
     float m_mainfb_fps;
+    nsecs_t m_frame_period_ns;
     hwc_procs_t* m_callback;
     bool m_vsync_enable;
     sp<VSyncThread> m_vsync_thread;
