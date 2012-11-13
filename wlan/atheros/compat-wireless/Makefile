@@ -13,11 +13,18 @@ OLD_IWL=$(shell $(MODPROBE) -l iwl4965)
 
 DESTDIR?=
 
+export COMPAT_ROOT := $(COMPAT_CURDIR)
+ccflags-y += \
+        -DCOMPAT_BASE_TREE="\"$(shell cat $(COMPAT_ROOT)/compat_base_tree)\"" \
+        -DCOMPAT_BASE_TREE_VERSION="\"$(shell cat $(COMPAT_ROOT)/compat_base_tree_version)\"" \
+        -DCOMPAT_PROJECT="\"Compat-wireless\"" \
+        -DCOMPAT_VERSION="\"$(shell cat $(COMPAT_ROOT)/compat_version)\""
+
 ifneq ($(KERNELRELEASE),)
 
 NOSTDINC_FLAGS := -I$(M)/include/ \
 	-include $(M)/include/linux/compat-2.6.h \
-	$(CFLAGS)
+	$(ccflags-y)
 
 obj-y := compat/
 
@@ -38,12 +45,6 @@ endif
 
 else
 
-export COMPAT_ROOT := $(shell pwd)
-CFLAGS += \
-        -DCOMPAT_BASE_TREE="\"$(shell cat compat_base_tree)\"" \
-        -DCOMPAT_BASE_TREE_VERSION="\"$(shell cat compat_base_tree_version)\"" \
-        -DCOMPAT_PROJECT="\"Compat-wireless\"" \
-        -DCOMPAT_VERSION="\"$(shell cat compat_version)\""
 
 # These exported as they are used by the scripts
 # to check config and compat autoconf
