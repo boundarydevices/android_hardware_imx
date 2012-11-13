@@ -59,7 +59,7 @@
 #define TAKE_PIC_QUE_BUF_NUM 6
 
 #define PREVIEW_CAPTURE_BUFFER_NUM 6
-#define PICTURE_CAPTURE_BUFFER_NUM 3
+#define PICTURE_CAPTURE_BUFFER_NUM 2
 
 #define DEFAULT_PREVIEW_FPS (15)
 #define DEFAULT_PREVIEW_W   (640)
@@ -72,8 +72,8 @@
 #define DEFAULT_PICTURE_H   (480)
 
 #define MAX_VPU_SUPPORT_FORMAT 2
-
-namespace android {
+using namespace android;
+//namespace android {
 
     typedef enum{
         CAMERA_HAL_ERR_NONE = 0,
@@ -115,6 +115,8 @@ namespace android {
         virtual void        disableMsgType(int32_t msgType);
         virtual bool        msgTypeEnabled(int32_t msgType);
 
+        status_t freeBufferToIon();
+        status_t allocateBufferFromIon();
         virtual status_t    startPreview();
         virtual void        stopPreview();
         virtual bool        previewEnabled();
@@ -318,6 +320,7 @@ namespace android {
         bool mWaitForTakingPicture;
         bool mTakePictureInProcess;
 
+        bool mTakePictureAllocBuffer;
         CameraParameters    mParameters;
         void               *mCallbackCookie;
         camera_notify_callback    mNotifyCb;
@@ -395,9 +398,11 @@ namespace android {
 
         unsigned int mVpuSupportFmt[MAX_VPU_SUPPORT_FORMAT];
         CAMERA_TYPE mSensorType;
+        int mIonFd;
+        bool mUseIon;
     };
 
-}; // namespace android
+//}; // namespace android
 
 #endif
 
