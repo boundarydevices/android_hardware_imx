@@ -40,6 +40,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libbinder \
     libmedia \
     libhardware_legacy \
+    libion \
     libdl \
     libc
 
