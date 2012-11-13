@@ -30,7 +30,9 @@
 #include <ui/Rect.h>
 #include "gralloc_priv.h"
 
-namespace android {
+#include <ion/ion.h>
+
+using namespace android;
 
     CameraHal::CameraHal(int cameraid)
         :
@@ -40,6 +42,7 @@ namespace android {
         mExitPreviewThread(false),
         mExitEncodeThread(false),
         mTakePictureInProcess(false),
+        mTakePictureAllocBuffer(false),
         mParameters(),
         mCallbackCookie(NULL),
         mNotifyCb(NULL),
@@ -79,15 +82,27 @@ namespace android {
         mPowerLock(false),
         mDirectInput(false),
         mCameraid(cameraid),
-        mPreviewRotate(CAMERA_PREVIEW_BACK_REF)
+        mPreviewRotate(CAMERA_PREVIEW_BACK_REF),
+        mIonFd(-1),
+        mUseIon(true)
    {
         CAMERA_LOG_FUNC;
+
+        if(mUseIon) {
+            mIonFd = ion_open();
+            if(mIonFd <= 0) {
+                CAMERA_LOG_INFO("open ion failed.");
+            }
+        }
         preInit();
     }
 
     CameraHal :: ~CameraHal()
     {
         CAMERA_LOG_FUNC;
+        if(mUseIon) {
+            ion_close(mIonFd);
+        }
         CameraMiscDeInit();
         CloseCaptureDevice();
         FreeInterBuf();
@@ -98,6 +113,8 @@ namespace android {
         if(mPreviewMemory != NULL) {
             mPreviewMemory->release(mPreviewMemory);
         }
+        status_t err;
+
     }
 
     void CameraHal :: release()
@@ -732,6 +749,13 @@ namespace android {
     status_t CameraHal::freeBuffersToNativeWindow()
     {
         CAMERA_LOG_FUNC;
+        if(mTakePictureAllocBuffer && mIonFd > 0 && mUseIon) {
+            status_t err = freeBufferToIon();
+            if(err == NO_ERROR) {
+                return err;
+            }
+        }
+
 
         if (mNativeWindow == NULL){
             CAMERA_LOG_ERR("the native window is null!");
@@ -764,6 +788,90 @@ namespace android {
         return NO_ERROR;
     }
 
+    status_t CameraHal::freeBufferToIon()
+    {
+        if(!mTakePictureAllocBuffer || mIonFd <= 0 || !mUseIon) {
+            CAMERA_LOG_ERR("try to free buffer from ion in preview or ion invalid");
+            return BAD_VALUE;
+        }
+
+        CAMERA_LOG_INFO("freeBufferToIon buffer num:%d", mCaptureBufNum);
+        for(unsigned int i = 0; i < mCaptureBufNum; i++) {
+            struct ion_handle * ionHandle = (struct ion_handle *)mCaptureBuffers[i].native_buf;
+            ion_free(mIonFd, ionHandle);
+            munmap(mCaptureBuffers[i].virt_start, mCaptureBuffers[i].length);
+        }
+
+        return NO_ERROR;
+    }
+
+    status_t CameraHal::allocateBufferFromIon()
+    {
+        if(!mTakePictureAllocBuffer || mIonFd <= 0 || !mUseIon) {
+            CAMERA_LOG_ERR("try to allocate buffer from ion in preview or ion invalid");
+            return BAD_VALUE;
+        }
+
+        int width = 0, height = 0, size = 0;
+        width = mCaptureDeviceCfg.width;
+        height = mCaptureDeviceCfg.height;
+        if(width == 0 || height == 0) {
+            CAMERA_LOG_ERR("allocateBufferFromIon: width or height = 0");
+            return BAD_VALUE;
+        }
+
+        switch(mPreviewCapturedFormat) {
+            case v4l2_fourcc('N','V','1','2'):
+                size = width * height * 3/2;
+                break;
+            case v4l2_fourcc('Y','U','1','2'):
+                size = width * height * 3/2;
+                break;
+            case v4l2_fourcc('Y','U','Y','V'):
+                size = width * height * 2;
+                break;
+            default:
+                CAMERA_LOG_ERR("Error: format not supported int ion alloc");
+                return BAD_VALUE;
+        }
+
+        unsigned char *ptr = NULL;
+        int sharedFd;
+        int phyAddr;
+        struct ion_handle * ionHandle;
+
+        CAMERA_LOG_INFO("allocateBufferFromIon buffer num:%d", mCaptureBufNum);
+        for(unsigned int i = 0; i < mCaptureBufNum; i++) {
+            ionHandle = NULL;
+            size = (size + PAGE_SIZE)&(~(PAGE_SIZE-1));
+            int err = ion_alloc(mIonFd, size, 8, 1, &ionHandle);
+            if(err) {
+                CAMERA_LOG_ERR("ion_alloc failed.");
+                return BAD_VALUE;
+            }
+
+            err = ion_map(mIonFd, ionHandle, size, PROT_READ|PROT_WRITE, MAP_SHARED, 0, &ptr, &sharedFd);
+            if(err) {
+                CAMERA_LOG_ERR("ion_map failed.");
+                return BAD_VALUE;
+            }
+            phyAddr = ion_phys(mIonFd, ionHandle);
+            if(phyAddr == 0) {
+                CAMERA_LOG_ERR("ion_phys failed.");
+                return BAD_VALUE;
+            }
+
+            mCaptureBuffers[i].virt_start = ptr;
+            mCaptureBuffers[i].phy_offset = phyAddr;
+            mCaptureBuffers[i].length =  size;
+            mCaptureBuffers[i].native_buf = (void*)ionHandle;
+            mCaptureBuffers[i].refCount = 0;
+            mCaptureBuffers[i].buf_state = WINDOW_BUFS_DEQUEUED;
+            close(sharedFd);
+        }
+        return NO_ERROR;
+    }
+
     int CameraHal::convertPreviewFormatToPixelFormat(unsigned int format)
     {
         int nFormat = 0;
@@ -788,6 +896,13 @@ namespace android {
     status_t CameraHal::allocateBuffersFromNativeWindow()
     {
         CAMERA_LOG_FUNC;
+
+        if(mTakePictureAllocBuffer && mIonFd > 0 && mUseIon) {
+            status_t err = allocateBufferFromIon();
+            if(err == NO_ERROR) {
+                return err;
+            }
+        }
 
         status_t err;
         if (mNativeWindow == NULL){
@@ -1085,7 +1200,9 @@ namespace android {
 
         /* Stop preview, start picture capture, and then restart preview again for CSI camera*/
         CameraHALStopPreview();
+        mTakePictureAllocBuffer = true;
         cameraHALTakePicture();
+        mTakePictureAllocBuffer = false;
         mTakePictureInProcess = false;
 
         return UNKNOWN_ERROR;
@@ -1138,7 +1255,14 @@ namespace android {
         }else{
                 mCaptureDeviceCfg.tv.denominator = 15;
         }
-        mCaptureBufNum = PICTURE_CAPTURE_BUFFER_NUM;
+
+        if(mUseIon) {
+            mCaptureBufNum = PICTURE_CAPTURE_BUFFER_NUM;
+        }
+        else {
+            //surface texture requires larger than 2 buffers to work.
+            mCaptureBufNum = PICTURE_CAPTURE_BUFFER_NUM + 1;
+        }
         mTakePicFlag = true;
         if ((ret = GetJpegEncoderParam()) < 0)
             return ret;
@@ -2265,6 +2389,6 @@ Pic_out:
 
     }
 
-};
+//};
 
 

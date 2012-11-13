@@ -33,7 +33,7 @@
 
 #define MAX_CAMERAS_SUPPORTED 2
 //static android::CameraProperties gCameraProperties;
-static android::CameraHal* gCameraHals[MAX_CAMERAS_SUPPORTED];
+static CameraHal* gCameraHals[MAX_CAMERAS_SUPPORTED];
 static unsigned int gCamerasOpen = 0;
 static android::Mutex gCameraHalDeviceLock;
 
@@ -503,7 +503,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
     int cameraid;
     fsl_camera_device_t* camera_device = NULL;
     camera_device_ops_t* camera_ops = NULL;
-    android::CameraHal* camera = NULL;
+    CameraHal* camera = NULL;
     char *SelectedCameraName;
     android::sp<android::CaptureDeviceInterface> pCaptureDevice = NULL;
     android::sp<android::JpegEncoderInterface>pJpegEncoder = NULL;
@@ -591,7 +591,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
                 gCameraDevPath[sCameraInfo[cameraid].facing]);
         pJpegEncoder = android::createJpegEncoder(android::SOFTWARE_JPEG_ENC);
 
-        camera = new android::CameraHal(cameraid);
+        camera = new CameraHal(cameraid);
 
         if(!camera)
         {
