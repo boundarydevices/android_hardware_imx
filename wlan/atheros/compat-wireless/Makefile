@@ -20,8 +20,6 @@ ccflags-y += \
         -DCOMPAT_PROJECT="\"Compat-wireless\"" \
         -DCOMPAT_VERSION="\"$(shell cat $(COMPAT_ROOT)/compat_version)\""
 
-ifneq ($(KERNELRELEASE),)
-
 NOSTDINC_FLAGS := -I$(M)/include/ \
 	-include $(M)/include/linux/compat-2.6.h \
 	$(ccflags-y)
@@ -33,18 +31,7 @@ obj-$(CONFIG_COMPAT_RFKILL) += net/rfkill/
 ifeq ($(BT),)
 obj-$(CONFIG_COMPAT_WIRELESS) += net/wireless/ net/mac80211/
 obj-$(CONFIG_COMPAT_WIRELESS_MODULES) += drivers/net/wireless/
-
-
-
-
-ifeq ($(CONFIG_STAGING_EXCLUDE_BUILD),)
 endif
-
-endif
-
-
-else
-
 
 # These exported as they are used by the scripts
 # to check config and compat autoconf
@@ -454,8 +441,6 @@ wlunload:
 
 
 .PHONY: all clean install uninstall unload btunload wlunload modules bt
-
-endif
 
 clean-files += Module.symvers Module.markers modules modules.order
 clean-files += $(CREL_CHECK) $(CONFIG_CHECK)
