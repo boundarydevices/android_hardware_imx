@@ -146,6 +146,7 @@ static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
 static void release_buffer(struct resampler_buffer_provider *buffer_provider,
                                   struct resampler_buffer* buffer);
 static int adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
+static int adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
 
 /* Returns true on devices that are toro, false otherwise */
 static int is_device_imx(void)
@@ -1118,7 +1119,7 @@ static int start_input_stream(struct imx_stream_in *in)
     /*Error handler for usb mic plug in/plug out when recording. */
     if(in->device & AUDIO_DEVICE_IN_USB_MIC) {
         if((int)in->config.rate != adev_get_rate_for_device(adev, AUDIO_DEVICE_IN_USB_MIC, PCM_IN) ||
-           in->config.channels != 1) {
+           (int)in->config.channels != adev_get_channels_for_device(adev, AUDIO_DEVICE_IN_USB_MIC, PCM_IN)) {
            ALOGE("Input 2 does not support this format!");
            return -EINVAL;
         }
@@ -2120,7 +2121,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_in *in;
     int ret;
-    int rate;
+    int rate, channels;
     int channel_count = popcount(config->channel_mask);
 
     if (check_input_parameters(config->sample_rate, config->format, channel_count) != 0)
@@ -2159,8 +2160,18 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     if(devices == AUDIO_DEVICE_IN_USB_MIC) {
         ret = scan_available_device(ladev);
         if(ret != 0) return -EINVAL;
-        config->channel_mask       = AUDIO_CHANNEL_IN_MONO;
-        in->config.channels = 1;
+        channels = adev_get_channels_for_device(ladev, AUDIO_DEVICE_IN_USB_MIC, PCM_IN);
+        if (channels == 2){
+            in->config.channels = 2;
+            config->channel_mask       = AUDIO_CHANNEL_IN_STEREO;
+        } else if (channels == 1) {
+            in->config.channels = 1;
+            config->channel_mask       = AUDIO_CHANNEL_IN_MONO;
+        } else {
+              ALOGW("can not get channels for in_device %d ", AUDIO_DEVICE_IN_USB_MIC);
+              return -EINVAL;
+        }
+
         rate     = adev_get_rate_for_device(ladev, AUDIO_DEVICE_IN_USB_MIC, PCM_IN);
         ALOGW("rate %d", rate);
         if( rate == 0) {
@@ -2264,6 +2275,15 @@ static int adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devi
      return 0;
 }
 
+static int adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
+{
+     int i;
+     for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
+          if(adev->card_list[i]->supported_devices & devices)
+		return (flag==PCM_OUT) ? adev->card_list[i]->out_channels:adev->card_list[i]->in_channels;
+     }
+     return 0;
+}
 
 static int scan_available_device(struct imx_audio_device *adev)
 {
@@ -2273,7 +2293,7 @@ static int scan_available_device(struct imx_audio_device *adev)
     bool scanned;
     struct control *imx_control;
     int left_devices = SUPPORTED_DEVICE_IN_MODULE;
-    int rate;
+    int rate, channels;
     /* open the mixer for main sound card, main sound cara is like sgtl5000, wm8958, cs428888*/
     /* note: some platform do not have main sound card, only have auxiliary card.*/
     /* max num of supported card is 2 */
@@ -2326,9 +2346,14 @@ static int scan_available_device(struct imx_audio_device *adev)
                     }
                 }
                 rate = 8000;
-                if( pcm_get_near_rate(i, 0, PCM_IN, &rate) == 0)
+                if( pcm_get_near_param(i, 0, PCM_IN,PCM_HW_PARAM_RATE, &rate) == 0)
                         adev->card_list[n]->in_rate = rate;
                 ALOGW("in rate %d",adev->card_list[n]->in_rate);
+
+                channels = 1;
+                if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                        adev->card_list[n]->in_channels = channels;
+                ALOGW("in channels %d",adev->card_list[n]->in_channels);
                 left_devices &= ~audio_card_list[j]->supported_devices;
                 k ++;
                 found = true;
