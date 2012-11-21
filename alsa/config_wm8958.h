@@ -503,7 +503,9 @@ static struct audio_card  wm8958_card = {
     .mm_bt_mic_input     = mm_bt_mic_input_wm8958,
     .card                = 0,
     .out_rate            = 0,
+    .out_channels        = 0,
     .in_rate             = 0,
+    .in_channels         = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_WM8958_H */

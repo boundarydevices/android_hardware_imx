@@ -71,7 +71,9 @@ struct audio_card{
     struct route_setting *mm_bt_mic_input;
     int  card;
     int  out_rate;
+    int  out_channels;
     int  in_rate;
+    int  in_channels;
 };
 
 #define MAX_AUDIO_CARD_NUM  3

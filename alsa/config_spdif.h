@@ -38,7 +38,9 @@ static struct audio_card  spdif_card = {
     .mm_bt_mic_input     = NULL,
     .card                = 0,
     .out_rate            = 0,
+    .out_channels        = 0,
     .in_rate             = 0,
+    .in_channels         = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_SPDIF_H */
