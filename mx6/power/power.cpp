@@ -27,13 +27,55 @@
 #include <hardware/power.h>
 #include <utils/StrongPointer.h>
 
+#include <cutils/properties.h>
 #include "watchdog.h"
 
 #define BOOST_PATH      "/sys/devices/system/cpu/cpufreq/interactive/boost"
 #define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
+#define INPUTBOOST_PATH "/sys/devices/system/cpu/cpufreq/interactive/input_boost"
+#define GOV_PATH "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+#define PROP_CPUFREQGOVERNOR "sys.interactive"
+#define PROP_VAL "active"
+#define CONSERVATIVE "conservative"
 static int boost_fd = -1;
 static int boost_warned;
 static sp<WatchdogThread> wdThread;
+
+static void getcpu_gov(char *s, int size)
+{
+    int len;
+    int fd = open(GOV_PATH, O_RDONLY);
+
+    if (fd < 0) {
+        ALOGE("Error opening %s: %s\n", GOV_PATH, strerror(errno));
+        return;
+    }
+
+    len = read(fd, s, size);
+    if (len < 0) {
+        ALOGE("Error read %s: %s\n", GOV_PATH, strerror(errno));
+    }
+    close(fd);
+}
+
+static int check_and_set_property(const char *propname, const char *propval)
+{
+    char prop_cpugov[PROPERTY_VALUE_MAX];
+    char cpugov[64];
+    int ret;
+    memset(cpugov, 0, sizeof(cpugov));
+    getcpu_gov(cpugov,sizeof(cpugov));
+
+    property_set(propname, propval);
+    if( property_get(propname, prop_cpugov, NULL) &&
+            (strcmp(prop_cpugov, propval) == 0) ){
+	    ret = 0;
+    }else{
+	    ret = -1;
+	    ALOGE("setprop: %s = %s fail\n", propname, propval);
+    }
+    return ret;
+}
 
 static void sysfs_write(const char *path, const char *s)
 {
@@ -56,34 +98,28 @@ static void sysfs_write(const char *path, const char *s)
 static void fsl_power_init(struct power_module *module)
 {
     /*
-     * cpufreq interactive governor: timer 20ms, min sample 60ms,
-     * hispeed at cpufreq MAX point at load 40%
+     * cpufreq interactive governor: timer 40ms, min sample 60ms,
+     * hispeed at cpufreq MAX freq in freq_table at load 40% 
+     * move the params initialization to init
      */
-
-    sysfs_write("/sys/devices/system/cpu/cpufreq/interactive/timer_rate",
-                "20000");
-    sysfs_write("/sys/devices/system/cpu/cpufreq/interactive/min_sample_time",
-                "60000");
-    /*
-     * use cpufreq max freq default, the high speed also can be specified by
-     * wrriten a value to hispeed like below set high speed to 800MHz:
-     * sysfs_write("/sys/devices/system/cpu/cpufreq/interactive/hispeed_freq",
-                "792000");
-     */
-
-    sysfs_write("/sys/devices/system/cpu/cpufreq/interactive/go_hispeed_load",
-                "40");
-    sysfs_write("/sys/devices/system/cpu/cpufreq/interactive/input_boost",
-		"1");
-
+    check_and_set_property(PROP_CPUFREQGOVERNOR, PROP_VAL);
     // create and run the watchdog thread
     wdThread = new WatchdogThread();
 }
 
 static void fsl_power_set_interactive(struct power_module *module, int on)
 {
-	sysfs_write("/sys/devices/system/cpu/cpufreq/interactive/input_boost",
-			on ? "1" : "0");
+    /* swich to conservative when system in early_suspend or
+     * suspend mode.
+	 */
+    if (on){
+        sysfs_write(GOV_PATH, "interactive");
+		check_and_set_property(PROP_CPUFREQGOVERNOR, PROP_VAL);
+		sysfs_write(INPUTBOOST_PATH, "1");
+	}else{
+        sysfs_write(INPUTBOOST_PATH, "0");
+		sysfs_write(GOV_PATH, "conservative");
+	}
 }
 
 static void fsl_power_hint(struct power_module *module, power_hint_t hint,
@@ -91,15 +127,20 @@ static void fsl_power_hint(struct power_module *module, power_hint_t hint,
 {
     char buf[80];
     int len;
-
+    memset(buf, 0, sizeof(buf));
+    getcpu_gov(buf,sizeof(buf));
+    if(!strncmp(CONSERVATIVE, buf, strlen(CONSERVATIVE))){
+	   ALOGE("Not in interactive mode, don't do powerhint\n");
+	    return;
+    }
     switch (hint) {
     case POWER_HINT_VSYNC:
         break;
     case POWER_HINT_INTERACTION:
-	sysfs_write(BOOSTPULSE_PATH, "1");
-	break;
+        sysfs_write(BOOSTPULSE_PATH, "1");
+        break;
     default:
-            break;
+        break;
     }
 }
 
