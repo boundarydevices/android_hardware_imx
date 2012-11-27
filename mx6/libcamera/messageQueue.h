@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2009-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +15,6 @@
  * limitations under the License.
  */
 
-/*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
- */
-
 
 #ifndef CAMERA_HAL_MESSAGE_QUEUE_H
 #define CAMERA_HAL_MESSAGE_QUEUE_H
@@ -28,16 +25,9 @@
 #include <utils/threads.h>
 #include <utils/Timers.h>
 #include <utils/List.h>
-
-//#include "Barrier.h"
+#include <semaphore.h>
 
 namespace android {
-
-typedef enum{
-    CMESSAGE_TYPE_NORMAL = 0,
-    CMESSAGE_TYPE_STOP = -1,
-    CMESSAGE_TYPE_QUITE = -2,
-}CMESSAGE_TYPE;
 
 class CMessage;
 
@@ -59,18 +49,44 @@ public:
 class CMessage : public LightRefBase<CMessage>
 {
 public:
-    CMESSAGE_TYPE what;
+    int32_t what;
     int32_t arg0;
 
-    //CMessage(): what(0), arg0(0) {}
-    CMessage(CMESSAGE_TYPE what, int32_t arg0=0)
+    CMessage(int32_t what, int32_t arg0=0)
         : what(what), arg0(arg0) {}
 
-//protected:
     virtual ~CMessage() {}
 
 private:
     friend class LightRefBase<CMessage>;
+};
+
+class SyncMessage : public CMessage
+{
+public:
+    SyncMessage(int32_t what, int32_t arg0=0)
+        : CMessage(what, arg0)
+    {
+        sem_init(&mSem, 0, 0);
+    }
+
+    void wait()
+    {
+        sem_wait(&mSem);
+    }
+
+    void notify()
+    {
+        sem_post(&mSem);
+    }
+
+    ~SyncMessage()
+    {
+        sem_destroy(&mSem);
+    }
+
+private:
+    sem_t mSem;
 };
 
 class CMessageQueue
@@ -82,20 +98,16 @@ public:
 
     sp<CMessage> waitMessage(nsecs_t timeout=-1);
     status_t postMessage(const sp<CMessage>& message, int32_t flags=0);
-    status_t postQuitMessage();
-    status_t postStopMessage();
-    void clearMessage();
+    status_t postSyncMessage(const sp<SyncMessage>& message, int32_t flags=0);
 
 private:
     status_t queueMessage(const sp<CMessage>& message, int32_t flags);
+    status_t queueSyncMessage(const sp<SyncMessage>& message, int32_t flags);
 
     Mutex mLock;
     Condition mCondition;
     CMessageList mMessages;
-    bool mQuit;
-    bool mStop;
-    sp<CMessage> mQuitMessage;
-    sp<CMessage> mStopMessage;
+    CMessageList mSyncMessages;
 };
 
 
