@@ -1,5 +1,6 @@
 /*
  * Copyright (C) Freescale - http://www.Freescale.com/
+ * Copyright (C) 2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +15,6 @@
  * limitations under the License.
  */
 
-/*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
- */
-
 #define LOG_TAG "CameraHAL"
 #include <linux/videodev2.h>
 #include <linux/mxcfb.h>
@@ -29,10 +26,10 @@
 #include <utils/threads.h>
 #include <cutils/properties.h>
 #include "CameraHal.h"
-#include "Camera_utils.h"
+#include "CameraUtil.h"
 
 #define MAX_CAMERAS_SUPPORTED 2
-//static android::CameraProperties gCameraProperties;
+
 static CameraHal* gCameraHals[MAX_CAMERAS_SUPPORTED];
 static unsigned int gCamerasOpen = 0;
 static android::Mutex gCameraHalDeviceLock;
@@ -478,13 +475,8 @@ done:
 #define DEFAULT_ERROR_NAME '0'
 #define DEFAULT_ERROR_NAME_str "0"
 #define UVC_NAME "uvc"
-static struct camera_info sCameraInfo[2];
-//gCameraName[0]  for back camera name
-//gCameraName[1]  for front camera name
-static char gCameraName[2][CAMERA_SENSOR_LENGTH];
-static char gCameraDevPath[2][CAMAERA_FILENAME_LENGTH];
+static struct CameraInfo sCameraInfo[2];
 static int gCameraNum = 0;
-
 /*******************************************************************
  * implementation of camera_module functions
  *******************************************************************/
@@ -505,9 +497,6 @@ int camera_device_open(const hw_module_t* module, const char* name,
     camera_device_ops_t* camera_ops = NULL;
     CameraHal* camera = NULL;
     char *SelectedCameraName;
-    android::sp<android::CaptureDeviceInterface> pCaptureDevice = NULL;
-    android::sp<android::JpegEncoderInterface>pJpegEncoder = NULL;
-    //android::CameraProperties::Properties* properties = NULL;
 
     android::Mutex::Autolock lock(gCameraHalDeviceLock);
 
@@ -515,7 +504,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
 
     if (name != NULL) {
         cameraid = atoi(name);
-        num_cameras = camera_get_number_of_cameras();//gCameraProperties.camerasSupported();
+        num_cameras = camera_get_number_of_cameras();
 
         if(cameraid > num_cameras)
         {
@@ -525,14 +514,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
             rv = -EINVAL;
             goto fail;
         }
-#if 0
-        if(gCamerasOpen >= MAX_SIMUL_CAMERAS_SUPPORTED)
-        {
-            ALOGE("maximum number of cameras already open");
-            rv = -ENOMEM;
-            goto fail;
-        }
-#endif
+
         camera_device = (fsl_camera_device_t*)malloc(sizeof(*camera_device));
         if(!camera_device)
         {
@@ -585,11 +567,6 @@ int camera_device_open(const hw_module_t* module, const char* name,
         *device = &camera_device->base.common;
 
         camera_device->cameraid = cameraid;
-        SelectedCameraName = gCameraName[sCameraInfo[cameraid].facing];
-
-        pCaptureDevice = android::createCaptureDevice(SelectedCameraName,
-                gCameraDevPath[sCameraInfo[cameraid].facing]);
-        pJpegEncoder = android::createJpegEncoder(android::SOFTWARE_JPEG_ENC);
 
         camera = new CameraHal(cameraid);
 
@@ -600,13 +577,7 @@ int camera_device_open(const hw_module_t* module, const char* name,
             goto fail;
         }
 
-        if (camera->setCaptureDevice(pCaptureDevice) < 0 ||
-                camera->setJpegEncoder(pJpegEncoder) < 0) {
-            rv = -EINVAL;
-            goto fail;
-        }
-
-        if (camera->Init() < 0) {
+        if (camera->initialize(sCameraInfo[cameraid]) < 0) {
             rv = -EINVAL;
             goto fail;
         }
@@ -715,19 +686,19 @@ int camera_get_number_of_cameras()
 {
     int back_orient =0,  front_orient = 0;
     if(gCameraNum == 0) {
-        GetCameraPropery(gCameraName[0], gCameraName[1], &back_orient, &front_orient);
-        if (gCameraName[0][0] != DEFAULT_ERROR_NAME){
+        GetCameraPropery(sCameraInfo[0].name, sCameraInfo[1].name, &back_orient, &front_orient);
+        if (sCameraInfo[0].name[0] != DEFAULT_ERROR_NAME){
             sCameraInfo[gCameraNum].facing = CAMERA_FACING_BACK;
             sCameraInfo[gCameraNum].orientation = back_orient;
-            memset(gCameraDevPath[gCameraNum], 0, CAMAERA_FILENAME_LENGTH);
-            GetDevPath(gCameraName[gCameraNum], gCameraDevPath[gCameraNum], CAMAERA_FILENAME_LENGTH);
+            memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
+            GetDevPath(sCameraInfo[gCameraNum].name, sCameraInfo[gCameraNum].devPath, CAMAERA_FILENAME_LENGTH);
             gCameraNum++;
         }
-        if (gCameraName[1][0] != DEFAULT_ERROR_NAME){
+        if (sCameraInfo[1].name[0] != DEFAULT_ERROR_NAME){
             sCameraInfo[gCameraNum].facing = CAMERA_FACING_FRONT;
             sCameraInfo[gCameraNum].orientation = front_orient;
-            memset(gCameraDevPath[gCameraNum], 0, CAMAERA_FILENAME_LENGTH);
-            GetDevPath(gCameraName[gCameraNum], gCameraDevPath[gCameraNum], CAMAERA_FILENAME_LENGTH);
+            memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
+            GetDevPath(sCameraInfo[gCameraNum].name, sCameraInfo[gCameraNum].devPath, CAMAERA_FILENAME_LENGTH);
             gCameraNum++;
         }
     }

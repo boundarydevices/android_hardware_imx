@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2009-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +15,6 @@
  * limitations under the License.
  */
 
-/*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
- */
-
 
 #include <stdint.h>
 #include <errno.h>
@@ -29,7 +26,6 @@
 #include <binder/IPCThreadState.h>
 
 #include "messageQueue.h"
-#include "Camera_utils.h"
 
 namespace android {
 
@@ -49,10 +45,9 @@ void CMessageList::clear()
 }
 
 CMessageQueue::CMessageQueue()
-    :mQuit(false), mStop(false)
 {
-    mQuitMessage = new CMessage(CMESSAGE_TYPE_QUITE);
-    mStopMessage = new CMessage(CMESSAGE_TYPE_STOP);
+    Mutex::Autolock _l(mLock);
+    mMessages.clear();
 }
 
 CMessageQueue::~CMessageQueue()
@@ -61,32 +56,28 @@ CMessageQueue::~CMessageQueue()
     mMessages.clear();
 }
 
-void CMessageQueue::clearMessage()
-{
-    CAMERA_LOG_ERR("-------CMessageQueue::clearMessage--------");
-    Mutex::Autolock _l(mLock);
-    mMessages.clear();
-    mStop = false;
-}
-
 sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout)
 {
     sp<CMessage> result;
+    sp<SyncMessage> syncResult;
     nsecs_t timeoutTime = systemTime() + timeout;
     while(true) {
         Mutex::Autolock _l(mLock);
         nsecs_t now = systemTime();
+        //handle sync message firstly.
+        LIST::iterator scur(mSyncMessages.begin());
+        if(scur != mSyncMessages.end()) {
+            syncResult = (SyncMessage*)(*scur).get();
+        }
+
+        if(syncResult != 0) {
+            result = (CMessage*)syncResult.get();
+            mSyncMessages.remove(scur);
+            break;
+        }
+
+        //handle sync message secondly.
         LIST::iterator cur(mMessages.begin());
-
-        if(mQuit) {
-            result = mQuitMessage;
-            return result;
-        }
-        if(mStop) {
-            result = mStopMessage;
-            return result;
-        }
-
         if(cur != mMessages.end()) {
             result = *cur;
         }
@@ -107,35 +98,40 @@ sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout)
             mCondition.wait(mLock);
         }
     }
+
+    if(syncResult != NULL) {
+        syncResult->notify();
+    }
+
     return result;
 }
 
-status_t CMessageQueue::postMessage(const sp<CMessage>& message, int32_t flags) 
+status_t CMessageQueue::postMessage(const sp<CMessage>& message, int32_t flags)
 {
     return queueMessage(message, flags);
 }
 
-status_t CMessageQueue::postQuitMessage()
+status_t CMessageQueue::postSyncMessage(const sp<SyncMessage>& message, int32_t flags)
 {
-    Mutex::Autolock _l(mLock);
-    mQuit = true;
-    mCondition.signal();
-    return NO_ERROR;
-}
-
-status_t CMessageQueue::postStopMessage()
-{
-    Mutex::Autolock _l(mLock);
-    mStop = true;
-    //mMessages.insert(new CMessage(CMESSAGE_TYPE_STOP, 0));
-    mCondition.signal();
-    return NO_ERROR;
+    status_t res = queueSyncMessage(message, flags);
+    if (res == NO_ERROR) {
+        message->wait();
+    }
+    return res;
 }
 
 status_t CMessageQueue::queueMessage(const sp<CMessage>& message, int32_t flags)
 {
     Mutex::Autolock _l(mLock);
     mMessages.insert(message);
+    mCondition.signal();
+    return NO_ERROR;
+}
+
+status_t CMessageQueue::queueSyncMessage(const sp<SyncMessage>& message, int32_t flags)
+{
+    Mutex::Autolock _l(mLock);
+    mSyncMessages.insert(message.get());
     mCondition.signal();
     return NO_ERROR;
 }
