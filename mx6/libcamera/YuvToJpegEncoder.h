@@ -45,39 +45,66 @@ public:
 
     YuvToJpegEncoder();
 
-    static int getSupportedPictureFormat(int* pFormat, int len);
+    static int getSupportedPictureFormat(int *pFormat,
+                                         int  len);
+
     /** Encode YUV data to jpeg,  which is output to a stream.
      */
-    int encode(void* inYuv, int inWidth, int inHeight, int quality,
-                    void* outBuf, int outSize, int outWidth, int outHeight);
+    int encode(void *inYuv,
+               int   inWidth,
+               int   inHeight,
+               int   quality,
+               void *outBuf,
+               int   outSize,
+               int   outWidth,
+               int   outHeight);
 
     virtual ~YuvToJpegEncoder() {}
 
 protected:
     int fNumPlanes;
 
-    void setJpegCompressStruct(jpeg_compress_struct* cinfo, int width,
-            int height, int quality);
-    virtual void configSamplingFactors(jpeg_compress_struct* cinfo) = 0;
-    virtual void compress(jpeg_compress_struct* cinfo, uint8_t* yuv) = 0;
-    virtual int yuvResize(uint8_t* srcBuf, int srcWidth, int srcHeight,
-                uint8_t* dstBuf, int dstWidth, int dstHeight) = 0;
+    void setJpegCompressStruct(jpeg_compress_struct *cinfo,
+                               int                   width,
+                               int                   height,
+                               int                   quality);
+    virtual void configSamplingFactors(jpeg_compress_struct *cinfo) = 0;
+    virtual void compress(jpeg_compress_struct *cinfo,
+                          uint8_t              *yuv)                = 0;
+    virtual int  yuvResize(uint8_t *srcBuf,
+                           int      srcWidth,
+                           int      srcHeight,
+                           uint8_t *dstBuf,
+                           int      dstWidth,
+                           int      dstHeight) = 0;
 };
 
 class Yuv420SpToJpegEncoder : public YuvToJpegEncoder {
 public:
-     Yuv420SpToJpegEncoder();
-     virtual ~Yuv420SpToJpegEncoder() {}
+    Yuv420SpToJpegEncoder();
+    virtual ~Yuv420SpToJpegEncoder() {}
 
 private:
-     void configSamplingFactors(jpeg_compress_struct* cinfo);
-     void deinterleaveYuv(uint8_t* yuv, int width, int height,
-            uint8_t*& yPlanar, uint8_t*& uPlanar, uint8_t*& vPlanar);
-     void deinterleave(uint8_t* vuPlanar, uint8_t* uRows, uint8_t* vRows,
-             int rowIndex, int width);
-     void compress(jpeg_compress_struct* cinfo, uint8_t* yuv);
-     virtual int yuvResize(uint8_t* srcBuf, int srcWidth, int srcHeight,
-                uint8_t* dstBuf, int dstWidth, int dstHeight);
+    void configSamplingFactors(jpeg_compress_struct *cinfo);
+    void deinterleaveYuv(uint8_t   *yuv,
+                         int        width,
+                         int        height,
+                         uint8_t *& yPlanar,
+                         uint8_t *& uPlanar,
+                         uint8_t *& vPlanar);
+    void deinterleave(uint8_t *vuPlanar,
+                      uint8_t *uRows,
+                      uint8_t *vRows,
+                      int      rowIndex,
+                      int      width);
+    void        compress(jpeg_compress_struct *cinfo,
+                         uint8_t              *yuv);
+    virtual int yuvResize(uint8_t *srcBuf,
+                          int      srcWidth,
+                          int      srcHeight,
+                          uint8_t *dstBuf,
+                          int      dstWidth,
+                          int      dstHeight);
 };
 
 class Yuv422IToJpegEncoder : public YuvToJpegEncoder {
@@ -86,20 +113,31 @@ public:
     virtual ~Yuv422IToJpegEncoder() {}
 
 private:
-    void configSamplingFactors(jpeg_compress_struct* cinfo);
-    void compress(jpeg_compress_struct* cinfo, uint8_t* yuv);
-    void deinterleave(uint8_t* yuv, uint8_t* yRows, uint8_t* uRows,
-            uint8_t* vRows, int rowIndex, int width, int height);
-    virtual int yuvResize(uint8_t* srcBuf, int srcWidth, int srcHeight,
-                uint8_t* dstBuf, int dstWidth, int dstHeight);
+    void configSamplingFactors(jpeg_compress_struct *cinfo);
+    void compress(jpeg_compress_struct *cinfo,
+                  uint8_t              *yuv);
+    void deinterleave(uint8_t *yuv,
+                      uint8_t *yRows,
+                      uint8_t *uRows,
+                      uint8_t *vRows,
+                      int      rowIndex,
+                      int      width,
+                      int      height);
+    virtual int yuvResize(uint8_t *srcBuf,
+                          int      srcWidth,
+                          int      srcHeight,
+                          uint8_t *dstBuf,
+                          int      dstWidth,
+                          int      dstHeight);
 };
 
 struct jpegBuilder_destination_mgr : jpeg_destination_mgr {
-    jpegBuilder_destination_mgr(uint8_t* input, int size);
+    jpegBuilder_destination_mgr(uint8_t *input,
+                                int size);
 
-    uint8_t* buf;
-    int bufsize;
-    size_t jpegsize;
+    uint8_t *buf;
+    int      bufsize;
+    size_t   jpegsize;
 };
 
 
@@ -109,4 +147,4 @@ struct jpegBuilder_error_mgr : jpeg_error_mgr {
 
 void jpegBuilder_error_exit(j_common_ptr cinfo);
 
-#endif
+#endif // ifndef YuvToJpegEncoder_DEFINED

@@ -28,31 +28,45 @@
 #include <semaphore.h>
 
 namespace android {
-
 class CMessage;
 
-class CMessageList
-{
+class CMessageList {
     List< sp<CMessage> > mList;
     typedef List< sp<CMessage> > LIST;
+
 public:
-    inline LIST::iterator begin() {return mList.begin();}
-    inline LIST::const_iterator begin() const {return mList.begin();}
-    inline LIST::iterator end() {return mList.end();}
-    inline LIST::const_iterator end() const {return mList.end();}
-    inline bool isEmpty() const {return mList.empty();}
-    void insert(const sp<CMessage> &node);
+    inline LIST::iterator begin() {
+        return mList.begin();
+    }
+
+    inline LIST::const_iterator begin() const {
+        return mList.begin();
+    }
+
+    inline LIST::iterator end() {
+        return mList.end();
+    }
+
+    inline LIST::const_iterator end() const {
+        return mList.end();
+    }
+
+    inline bool isEmpty() const {
+        return mList.empty();
+    }
+
+    void insert(const sp<CMessage>& node);
     void remove(LIST::iterator pos);
     void clear();
 };
 
-class CMessage : public LightRefBase<CMessage>
-{
+class CMessage : public LightRefBase<CMessage>{
 public:
     int32_t what;
     int32_t arg0;
 
-    CMessage(int32_t what, int32_t arg0=0)
+    CMessage(int32_t what,
+             int32_t arg0 = 0)
         : what(what), arg0(arg0) {}
 
     virtual ~CMessage() {}
@@ -61,10 +75,10 @@ private:
     friend class LightRefBase<CMessage>;
 };
 
-class SyncMessage : public CMessage
-{
+class SyncMessage : public CMessage {
 public:
-    SyncMessage(int32_t what, int32_t arg0=0)
+    SyncMessage(int32_t what,
+                int32_t arg0 = 0)
         : CMessage(what, arg0)
     {
         sem_init(&mSem, 0, 0);
@@ -89,28 +103,30 @@ private:
     sem_t mSem;
 };
 
-class CMessageQueue
-{
+class CMessageQueue {
     typedef List< sp<CMessage> > LIST;
+
 public:
     CMessageQueue();
     ~CMessageQueue();
 
-    sp<CMessage> waitMessage(nsecs_t timeout=-1);
-    status_t postMessage(const sp<CMessage>& message, int32_t flags=0);
-    status_t postSyncMessage(const sp<SyncMessage>& message, int32_t flags=0);
+    sp<CMessage> waitMessage(nsecs_t timeout = -1);
+    status_t     postMessage(const sp<CMessage>& message,
+                             int32_t             flags = 0);
+    status_t     postSyncMessage(const sp<SyncMessage>& message,
+                                 int32_t                flags = 0);
 
 private:
-    status_t queueMessage(const sp<CMessage>& message, int32_t flags);
-    status_t queueSyncMessage(const sp<SyncMessage>& message, int32_t flags);
+    status_t queueMessage(const sp<CMessage>& message,
+                          int32_t             flags);
+    status_t queueSyncMessage(const sp<SyncMessage>& message,
+                              int32_t                flags);
 
     Mutex mLock;
     Condition mCondition;
     CMessageList mMessages;
     CMessageList mSyncMessages;
 };
-
-
 };
 
-#endif
+#endif // ifndef CAMERA_HAL_MESSAGE_QUEUE_H
