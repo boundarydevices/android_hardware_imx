@@ -21,16 +21,20 @@
 int convertPixelFormatToV4L2Format(PixelFormat format)
 {
     int nFormat = 0;
-    switch(format) {
+
+    switch (format) {
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            nFormat = v4l2_fourcc('N','V','1','2');
+            nFormat = v4l2_fourcc('N', 'V', '1', '2');
             break;
+
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
-            nFormat = v4l2_fourcc('Y','U','1','2');
+            nFormat = v4l2_fourcc('Y', 'U', '1', '2');
             break;
+
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
-            nFormat = v4l2_fourcc('Y','U','Y','V');
+            nFormat = v4l2_fourcc('Y', 'U', 'Y', 'V');
             break;
+
         default:
             FLOGE("Error: format not supported!");
             break;
@@ -42,16 +46,20 @@ int convertPixelFormatToV4L2Format(PixelFormat format)
 PixelFormat convertV4L2FormatToPixelFormat(unsigned int format)
 {
     PixelFormat nFormat = 0;
-    switch(format) {
-        case v4l2_fourcc('N','V','1','2'):
+
+    switch (format) {
+        case v4l2_fourcc('N', 'V', '1', '2'):
             nFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
             break;
-        case v4l2_fourcc('Y','U','1','2'):
+
+        case v4l2_fourcc('Y', 'U', '1', '2'):
             nFormat = HAL_PIXEL_FORMAT_YCbCr_420_P;
             break;
-        case v4l2_fourcc('Y','U','Y','V'):
+
+        case v4l2_fourcc('Y', 'U', 'Y', 'V'):
             nFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
             break;
+
         default:
             FLOGE("Error: format not supported!");
             break;
@@ -60,20 +68,20 @@ PixelFormat convertV4L2FormatToPixelFormat(unsigned int format)
     return nFormat;
 }
 
-int convertStringToPixelFormat(const char* pFormat)
+int convertStringToPixelFormat(const char *pFormat)
 {
-    if(pFormat == NULL) {
+    if (pFormat == NULL) {
         return 0;
     }
 
-    if(!strcmp(pFormat, "yuv420p")) {
+    if (!strcmp(pFormat, "yuv420p")) {
         return HAL_PIXEL_FORMAT_YCbCr_420_P;
     }
-    else if(!strcmp(pFormat, "yuv420sp")) {
+    else if (!strcmp(pFormat, "yuv420sp")) {
         return HAL_PIXEL_FORMAT_YCbCr_420_SP;
     }
-    else if(!strcmp(pFormat, "yuv422i-yuyv")) {
-      return HAL_PIXEL_FORMAT_YCbCr_422_I;
+    else if (!strcmp(pFormat, "yuv422i-yuyv")) {
+        return HAL_PIXEL_FORMAT_YCbCr_422_I;
     }
     else {
         FLOGE("format %s is not supported", pFormat);
@@ -81,20 +89,20 @@ int convertStringToPixelFormat(const char* pFormat)
     }
 }
 
-int convertStringToV4L2Format(const char* pFormat)
+int convertStringToV4L2Format(const char *pFormat)
 {
-    if(pFormat == NULL) {
+    if (pFormat == NULL) {
         return 0;
     }
 
-    if(!strcmp(pFormat, "yuv420p")) {
-        return v4l2_fourcc('Y','U','1','2');
+    if (!strcmp(pFormat, "yuv420p")) {
+        return v4l2_fourcc('Y', 'U', '1', '2');
     }
-    else if(!strcmp(pFormat, "yuv420sp")) {
-        return v4l2_fourcc('N','V','1','2');
+    else if (!strcmp(pFormat, "yuv420sp")) {
+        return v4l2_fourcc('N', 'V', '1', '2');
     }
-    else if(!strcmp(pFormat, "yuv422i-yuyv")) {
-        return v4l2_fourcc('Y','U','Y','V');
+    else if (!strcmp(pFormat, "yuv422i-yuyv")) {
+        return v4l2_fourcc('Y', 'U', 'Y', 'V');
     }
     else {
         FLOGE("format %s is not supported", pFormat);
@@ -107,23 +115,24 @@ CameraFrame::~CameraFrame()
     reset();
 }
 
-void CameraFrame::initialize(buffer_handle_t* buf_h, int index)
+void CameraFrame::initialize(buffer_handle_t *buf_h,
+                             int              index)
 {
     FSL_ASSERT(buf_h);
     private_handle_t *handle = (private_handle_t *)(*buf_h);
     mBufHandle = buf_h;
-    mVirtAddr =  (void*)handle->base;
-    mPhyAddr =   handle->phys;
-    mSize =   handle->size;
-    mWidth =  handle->width;
-    mHeight = handle->height;
-    mFormat = handle->format;
+    mVirtAddr  =  (void *)handle->base;
+    mPhyAddr   =   handle->phys;
+    mSize      =   handle->size;
+    mWidth     =  handle->width;
+    mHeight    = handle->height;
+    mFormat    = handle->format;
 
-    mObserver = NULL;
-    mRefCount = 0;
-    mBufState = BUFS_CREATE;
+    mObserver  = NULL;
+    mRefCount  = 0;
+    mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
-    mIndex = index;
+    mIndex     = index;
 }
 
 void CameraFrame::addState(CAMERA_BUFS_STATE state)
@@ -159,15 +168,15 @@ void CameraFrame::setObserver(CameraFrameObserver *observer)
 void CameraFrame::reset()
 {
     mBufHandle = NULL;
-    mVirtAddr = NULL;
-    mPhyAddr = 0;
-    mObserver = NULL;
-    mRefCount = 0;
-    mBufState = BUFS_CREATE;
+    mVirtAddr  = NULL;
+    mPhyAddr   = 0;
+    mObserver  = NULL;
+    mRefCount  = 0;
+    mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
 }
 
-////////////CameraBufferProvider////////////////////
+// //////////CameraBufferProvider////////////////////
 CameraBufferProvider::CameraBufferProvider()
 {
     mBufferListeners.clear();
@@ -178,14 +187,14 @@ CameraBufferProvider::~CameraBufferProvider()
     mBufferListeners.clear();
 }
 
-void CameraBufferProvider::addBufferListener(CameraBufferListener* listener)
+void CameraBufferProvider::addBufferListener(CameraBufferListener *listener)
 {
     CameraBufferListener *pNtf = NULL;
-    size_t nSize = mBufferListeners.size();
+    size_t nSize               = mBufferListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        pNtf = (CameraBufferListener*)mBufferListeners[i];
-        if(pNtf == listener) {
+    for (size_t i = 0; i < nSize; i++) {
+        pNtf = (CameraBufferListener *)mBufferListeners[i];
+        if (pNtf == listener) {
             return;
         }
     }
@@ -193,16 +202,17 @@ void CameraBufferProvider::addBufferListener(CameraBufferListener* listener)
     mBufferListeners.push((int)listener);
 }
 
-void CameraBufferProvider::removeBufferListener(CameraBufferListener* listener)
+void CameraBufferProvider::removeBufferListener(CameraBufferListener *listener)
 {
-    CameraBufferListener* pNtf;
+    CameraBufferListener *pNtf;
     size_t nSize = mBufferListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        pNtf = (CameraBufferListener*)mBufferListeners[i];
-        if(pNtf == listener) {
+    for (size_t i = 0; i < nSize; i++) {
+        pNtf = (CameraBufferListener *)mBufferListeners[i];
+        if (pNtf == listener) {
             mBufferListeners.removeAt(i);
-            //break;
+
+            // break;
         }
     }
 }
@@ -212,14 +222,16 @@ void CameraBufferProvider::clearBufferListeners()
     mBufferListeners.clear();
 }
 
-void CameraBufferProvider::dispatchBuffers(CameraFrame* pBuffer, int num, BufferState bufState)
+void CameraBufferProvider::dispatchBuffers(CameraFrame *pBuffer,
+                                           int          num,
+                                           BufferState  bufState)
 {
     CameraBufferListener *listener;
     size_t nSize = mBufferListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        listener = (CameraBufferListener*)mBufferListeners[i];
-        switch(bufState) {
+    for (size_t i = 0; i < nSize; i++) {
+        listener = (CameraBufferListener *)mBufferListeners[i];
+        switch (bufState) {
             case BUFFER_CREATE:
                 FSL_ASSERT(pBuffer);
                 listener->onBufferCreat(pBuffer, num);
@@ -228,12 +240,11 @@ void CameraBufferProvider::dispatchBuffers(CameraFrame* pBuffer, int num, Buffer
             case BUFFER_DESTROY:
                 listener->onBufferDestroy();
                 break;
-        }//end switch
-    }//end for
+        } // end switch
+    }     // end for
 }
 
-
-////////////CameraFrameProvider////////////////////
+// //////////CameraFrameProvider////////////////////
 CameraFrameProvider::CameraFrameProvider()
 {
     mFrameListeners.clear();
@@ -244,14 +255,14 @@ CameraFrameProvider::~CameraFrameProvider()
     mFrameListeners.clear();
 }
 
-void CameraFrameProvider::addFrameListener(CameraFrameListener* listener)
+void CameraFrameProvider::addFrameListener(CameraFrameListener *listener)
 {
-    CameraFrameListener* pNtf;
+    CameraFrameListener *pNtf;
     size_t nSize = mFrameListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        pNtf = (CameraFrameListener*)mFrameListeners[i];
-        if(pNtf == listener) {
+    for (size_t i = 0; i < nSize; i++) {
+        pNtf = (CameraFrameListener *)mFrameListeners[i];
+        if (pNtf == listener) {
             return;
         }
     }
@@ -259,16 +270,17 @@ void CameraFrameProvider::addFrameListener(CameraFrameListener* listener)
     mFrameListeners.push((int)listener);
 }
 
-void CameraFrameProvider::removeFrameListener(CameraFrameListener* listener)
+void CameraFrameProvider::removeFrameListener(CameraFrameListener *listener)
 {
-    CameraFrameListener* pNtf;
+    CameraFrameListener *pNtf;
     size_t nSize = mFrameListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        pNtf = (CameraFrameListener*)mFrameListeners[i];
-        if(pNtf == listener) {
+    for (size_t i = 0; i < nSize; i++) {
+        pNtf = (CameraFrameListener *)mFrameListeners[i];
+        if (pNtf == listener) {
             mFrameListeners.removeAt(i);
-            //break;
+
+            // break;
         }
     }
 }
@@ -278,30 +290,30 @@ void CameraFrameProvider::clearFrameListeners()
     mFrameListeners.clear();
 }
 
-void CameraFrameProvider::dispatchCameraFrame(CameraFrame* frame)
+void CameraFrameProvider::dispatchCameraFrame(CameraFrame *frame)
 {
     FSL_ASSERT(frame);
-    CameraFrameListener* listener;
+    CameraFrameListener *listener;
     size_t nSize = mFrameListeners.size();
 
-    //add reference here to avoid frame release too early.
+    // add reference here to avoid frame release too early.
     frame->addReference();
-    for(size_t i=0; i<nSize; i++) {
-        listener = (CameraFrameListener*)mFrameListeners[i];
+    for (size_t i = 0; i < nSize; i++) {
+        listener = (CameraFrameListener *)mFrameListeners[i];
         listener->handleCameraFrame(frame);
     }
     frame->release();
 }
 
-//----------------CameraEventProvider----------
-void CameraEventProvider::addEventListener(CameraEventListener* listener)
+// ----------------CameraEventProvider----------
+void CameraEventProvider::addEventListener(CameraEventListener *listener)
 {
-    CameraEventListener* pNtf;
+    CameraEventListener *pNtf;
     size_t nSize = mEventListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        pNtf = (CameraEventListener*)mEventListeners[i];
-        if(pNtf == listener) {
+    for (size_t i = 0; i < nSize; i++) {
+        pNtf = (CameraEventListener *)mEventListeners[i];
+        if (pNtf == listener) {
             return;
         }
     }
@@ -309,16 +321,17 @@ void CameraEventProvider::addEventListener(CameraEventListener* listener)
     mEventListeners.push((int)listener);
 }
 
-void CameraEventProvider::removeEventListener(CameraEventListener* listener)
+void CameraEventProvider::removeEventListener(CameraEventListener *listener)
 {
-    CameraEventListener* pNtf;
+    CameraEventListener *pNtf;
     size_t nSize = mEventListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        pNtf = (CameraEventListener*)mEventListeners[i];
-        if(pNtf == listener) {
+    for (size_t i = 0; i < nSize; i++) {
+        pNtf = (CameraEventListener *)mEventListeners[i];
+        if (pNtf == listener) {
             mEventListeners.removeAt(i);
-            //break;
+
+            // break;
         }
     }
 }
@@ -331,11 +344,12 @@ void CameraEventProvider::clearEventListeners()
 void CameraEventProvider::dispatchEvent(sp<CameraEvent>& event)
 {
     FSL_ASSERT(event != NULL);
-    CameraEventListener* listener;
+    CameraEventListener *listener;
     size_t nSize = mEventListeners.size();
 
-    for(size_t i=0; i<nSize; i++) {
-        listener = (CameraEventListener*)mEventListeners[i];
+    for (size_t i = 0; i < nSize; i++) {
+        listener = (CameraEventListener *)mEventListeners[i];
         listener->handleEvent(event);
     }
 }
+

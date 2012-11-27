@@ -29,16 +29,24 @@
 #define MAX_SENSOR_FORMAT 20
 #define FORMAT_STRING_LEN 64
 
-class OvDevice : public DeviceAdapter
-{
+class OvDevice : public DeviceAdapter {
 public:
-    virtual status_t initParameters(CameraParameters& params, int* supportRecordingFormat, int rfmtLen,
-                        int* supportPictureFormat, int pfmtLen);
+    virtual status_t initParameters(CameraParameters& params,
+                                    int              *supportRecordingFormat,
+                                    int               rfmtLen,
+                                    int              *supportPictureFormat,
+                                    int               pfmtLen);
     virtual status_t setParameters(CameraParameters& params);
 
 private:
-    PixelFormat getMatchFormat(int* sfmt, int slen, int* dfmt, int dlen);
-    status_t setSupportedPreviewFormats(int* sfmt, int slen, int* dfmt, int dlen);
+    PixelFormat      getMatchFormat(int *sfmt,
+                                    int  slen,
+                                    int *dfmt,
+                                    int  dlen);
+    status_t setSupportedPreviewFormats(int *sfmt,
+                                        int  slen,
+                                        int *dfmt,
+                                        int  dlen);
     status_t setPreviewStringFormat(PixelFormat format);
 
 private:
@@ -47,4 +55,4 @@ private:
     char mSupportedPreviewSizes[CAMER_PARAM_BUFFER_SIZE];
 };
 
-#endif
+#endif // ifndef _OV_DEVICE_H_

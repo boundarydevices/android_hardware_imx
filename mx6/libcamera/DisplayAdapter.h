@@ -24,12 +24,11 @@
 
 using namespace android;
 
-class DisplayAdapter : public SurfaceAdapter, public CameraFrameListener
-{
+class DisplayAdapter : public SurfaceAdapter, public CameraFrameListener {
 public:
     enum DisplayStates {
         DISPLAY_INVALID = 0,
-        DISPLAY_INIT = 1,
+        DISPLAY_INIT    = 1,
         DISPLAY_STARTED,
         DISPLAY_STOPPED,
         DISPLAY_EXITED
@@ -40,23 +39,24 @@ public:
 
     virtual status_t initialize();
 
-    virtual int startDisplay(int width, int height);
-    virtual int stopDisplay();
+    virtual int      startDisplay(int width,
+                                  int height);
+    virtual int      stopDisplay();
 
-    int setCameraFrameProvider(CameraFrameProvider* frameProvider);
+    int              setCameraFrameProvider(CameraFrameProvider *frameProvider);
 
 protected:
-    void handleCameraFrame(CameraFrame* frame);
-    bool displayThread();
+    void             handleCameraFrame(CameraFrame *frame);
+    bool             displayThread();
 
 private:
-    bool requestFrameBuffer();
+    bool             requestFrameBuffer();
 
 public:
     class DisplayThread : public Thread {
     public:
-        DisplayThread(DisplayAdapter* da)
-                 : Thread(false), mDisplayAdapter(da) { }
+        DisplayThread(DisplayAdapter *da)
+            : Thread(false), mDisplayAdapter(da) {}
 
         virtual bool threadLoop()
         {
@@ -70,27 +70,27 @@ public:
             DISPLAY_EXIT
         };
 
-        private:
-            DisplayAdapter* mDisplayAdapter;
+    private:
+        DisplayAdapter *mDisplayAdapter;
     };
 
-friend class DisplayThread;
+    friend class DisplayThread;
 
 private:
-    int postBuffer(void* displayBuf);
+    int postBuffer(void *displayBuf);
 
 private:
     uint32_t mPreviewWidth;
     uint32_t mPreviewHeight;
-    CameraFrameProvider* mFrameProvider;
+    CameraFrameProvider *mFrameProvider;
 
     sp<DisplayThread> mDisplayThread;
 
     CMessageQueue mThreadQueue;
-    unsigned int mDisplayState;
+    unsigned int  mDisplayState;
 
     mutable Mutex mLock;
     bool mDisplayEnabled;
 };
 
-#endif
+#endif // ifndef _DISPLAY_ADAPTER_H_

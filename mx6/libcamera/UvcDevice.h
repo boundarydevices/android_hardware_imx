@@ -29,17 +29,38 @@
 #define FORMAT_STRING_LEN 64
 
 
-class UvcDevice : public DeviceAdapter
-{
+class UvcDevice : public DeviceAdapter {
 public:
-    virtual status_t initParameters(CameraParameters& params, int* supportRecordingFormat, int rfmtLen,
-                        int* supportPictureFormat, int pfmtLen) {return 0;}
-    virtual status_t setParameters(CameraParameters& params) {return 0;}
+    virtual status_t initParameters(CameraParameters& params,
+                                    int              *supportRecordingFormat,
+                                    int               rfmtLen,
+                                    int              *supportPictureFormat,
+                                    int               pfmtLen) {
+        return 0;
+    }
+
+    virtual status_t setParameters(CameraParameters& params) {
+        return 0;
+    }
 
 private:
-    PixelFormat getMatchFormat(int* sfmt, int slen, int* dfmt, int dlen) {return 0;}
-    status_t setSupportedPreviewFormats(int* sfmt, int slen, int* dfmt, int dlen) {return 0;}
-    status_t setPreviewStringFormat(PixelFormat format) {return 0;}
+    PixelFormat getMatchFormat(int *sfmt,
+                               int  slen,
+                               int *dfmt,
+                               int  dlen) {
+        return 0;
+    }
+
+    status_t setSupportedPreviewFormats(int *sfmt,
+                                        int  slen,
+                                        int *dfmt,
+                                        int  dlen) {
+        return 0;
+    }
+
+    status_t setPreviewStringFormat(PixelFormat format) {
+        return 0;
+    }
 
 private:
     char mSupportedFPS[MAX_SENSOR_FORMAT];
@@ -47,5 +68,5 @@ private:
     char mSupportedPreviewSizes[CAMER_PARAM_BUFFER_SIZE];
 };
 
-#endif
+#endif // ifndef _UVC_DEVICE_H
 
