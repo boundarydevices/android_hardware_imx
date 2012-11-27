@@ -28,11 +28,10 @@
 #include "messageQueue.h"
 
 namespace android {
-
 void CMessageList::insert(const sp<CMessage>& node)
 {
     mList.push_back(node);
-};
+}
 
 void CMessageList::remove(CMessageList::LIST::iterator pos)
 {
@@ -47,90 +46,100 @@ void CMessageList::clear()
 CMessageQueue::CMessageQueue()
 {
     Mutex::Autolock _l(mLock);
+
     mMessages.clear();
 }
 
 CMessageQueue::~CMessageQueue()
 {
     Mutex::Autolock _l(mLock);
+
     mMessages.clear();
 }
 
-sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout)
+sp<CMessage>CMessageQueue::waitMessage(nsecs_t timeout)
 {
-    sp<CMessage> result;
+    sp<CMessage>    result;
     sp<SyncMessage> syncResult;
     nsecs_t timeoutTime = systemTime() + timeout;
-    while(true) {
+    while (true) {
         Mutex::Autolock _l(mLock);
         nsecs_t now = systemTime();
-        //handle sync message firstly.
+
+        // handle sync message firstly.
         LIST::iterator scur(mSyncMessages.begin());
-        if(scur != mSyncMessages.end()) {
-            syncResult = (SyncMessage*)(*scur).get();
+        if (scur != mSyncMessages.end()) {
+            syncResult = (SyncMessage *)(*scur).get();
         }
 
-        if(syncResult != 0) {
-            result = (CMessage*)syncResult.get();
+        if (syncResult != 0) {
+            result = (CMessage *)syncResult.get();
             mSyncMessages.remove(scur);
             break;
         }
 
-        //handle sync message secondly.
+        // handle sync message secondly.
         LIST::iterator cur(mMessages.begin());
-        if(cur != mMessages.end()) {
+        if (cur != mMessages.end()) {
             result = *cur;
         }
 
-        if(result != 0) {
+        if (result != 0) {
             mMessages.remove(cur);
             break;
         }
 
-        if(timeout >= 0) {
-            if(timeoutTime < now) {
+        if (timeout >= 0) {
+            if (timeoutTime < now) {
                 result = 0;
                 break;
             }
             nsecs_t relTime = timeoutTime - systemTime();
             mCondition.waitRelative(mLock, relTime);
-        }else {
+        } else {
             mCondition.wait(mLock);
         }
     }
 
-    if(syncResult != NULL) {
+    if (syncResult != NULL) {
         syncResult->notify();
     }
 
     return result;
 }
 
-status_t CMessageQueue::postMessage(const sp<CMessage>& message, int32_t flags)
+status_t CMessageQueue::postMessage(const sp<CMessage>& message,
+                                    int32_t             flags)
 {
     return queueMessage(message, flags);
 }
 
-status_t CMessageQueue::postSyncMessage(const sp<SyncMessage>& message, int32_t flags)
+status_t CMessageQueue::postSyncMessage(const sp<SyncMessage>& message,
+                                        int32_t                flags)
 {
     status_t res = queueSyncMessage(message, flags);
+
     if (res == NO_ERROR) {
         message->wait();
     }
     return res;
 }
 
-status_t CMessageQueue::queueMessage(const sp<CMessage>& message, int32_t flags)
+status_t CMessageQueue::queueMessage(const sp<CMessage>& message,
+                                     int32_t             flags)
 {
     Mutex::Autolock _l(mLock);
+
     mMessages.insert(message);
     mCondition.signal();
     return NO_ERROR;
 }
 
-status_t CMessageQueue::queueSyncMessage(const sp<SyncMessage>& message, int32_t flags)
+status_t CMessageQueue::queueSyncMessage(const sp<SyncMessage>& message,
+                                         int32_t                flags)
 {
     Mutex::Autolock _l(mLock);
+
     mSyncMessages.insert(message.get());
     mCondition.signal();
     return NO_ERROR;

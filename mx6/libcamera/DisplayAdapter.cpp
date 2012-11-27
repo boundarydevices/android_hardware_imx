@@ -24,28 +24,28 @@ DisplayAdapter::DisplayAdapter()
 {
     mFrameProvider = NULL;
 
-    mPreviewWidth = 0;
+    mPreviewWidth  = 0;
     mPreviewHeight = 0;
 }
 
 DisplayAdapter::~DisplayAdapter()
 {
-    if(mFrameProvider) {
+    if (mFrameProvider) {
         mFrameProvider->removeFrameListener(this);
         mFrameProvider = NULL;
     }
 
-    ///The ANativeWindow object will get destroyed here
+    // /The ANativeWindow object will get destroyed here
     destroy();
 
-    ///If Display thread exists
-    if(mDisplayThread.get()) {
-        mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_EXIT, 0));
+    // /If Display thread exists
+    if (mDisplayThread.get()) {
+        mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_EXIT,
+                                                     0));
         mDisplayThread->requestExitAndWait();
 
         mDisplayThread.clear();
     }
-
 }
 
 status_t DisplayAdapter::initialize()
@@ -56,7 +56,7 @@ status_t DisplayAdapter::initialize()
         return NO_MEMORY;
     }
 
-    ///Start the display thread
+    // /Start the display thread
     status_t ret = mDisplayThread->run("DisplayThread", PRIORITY_URGENT_DISPLAY);
     if (ret != NO_ERROR) {
         FLOGE("Couldn't run display thread");
@@ -68,29 +68,32 @@ status_t DisplayAdapter::initialize()
     return ret;
 }
 
-int DisplayAdapter::setCameraFrameProvider(CameraFrameProvider* frameProvider)
+int DisplayAdapter::setCameraFrameProvider(CameraFrameProvider *frameProvider)
 {
     mFrameProvider = frameProvider;
     return NO_ERROR;
 }
 
-int DisplayAdapter::startDisplay(int width, int height)
+int DisplayAdapter::startDisplay(int width,
+                                 int height)
 {
-    if(mDisplayEnabled) {
+    if (mDisplayEnabled) {
         FLOGW("Display is already enabled");
         return NO_ERROR;
     }
 
     mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_START, 0));
-    //Send START_DISPLAY COMMAND to display thread. Display thread will start and then wait for a message
+
+    // Send START_DISPLAY COMMAND to display thread. Display thread will start
+    // and then wait for a message
 
     // Register with the frame provider for frames
     FSL_ASSERT(mFrameProvider);
     mFrameProvider->addFrameListener(this);
 
     mDisplayEnabled = true;
-    mPreviewWidth = width;
-    mPreviewHeight = height;
+    mPreviewWidth   = width;
+    mPreviewHeight  = height;
 
     FLOGI("mPreviewWidth = %d mPreviewHeight = %d", mPreviewWidth, mPreviewHeight);
 
@@ -99,34 +102,36 @@ int DisplayAdapter::startDisplay(int width, int height)
 
 int DisplayAdapter::stopDisplay()
 {
-    status_t ret = NO_ERROR;
-    GraphicBufferMapper &mapper = GraphicBufferMapper::get();
+    status_t ret                = NO_ERROR;
+    GraphicBufferMapper& mapper = GraphicBufferMapper::get();
 
-    if(!mDisplayEnabled) {
+    if (!mDisplayEnabled) {
         FLOGW("Display is already disabled");
         return ALREADY_EXISTS;
     }
 
     // Unregister with the frame provider here
-    if(mFrameProvider != NULL) {
+    if (mFrameProvider != NULL) {
         mFrameProvider->removeFrameListener(this);
     }
 
-    if(NULL != mDisplayThread.get()) {
-        //Send STOP_DISPLAY COMMAND to display thread. Display thread will stop and dequeue all messages
+    if (NULL != mDisplayThread.get()) {
+        // Send STOP_DISPLAY COMMAND to display thread. Display thread will stop
+        // and dequeue all messages
         // and then wait for message
-        mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_STOP, 0));
+        mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_STOP,
+                                                     0));
     }
 
     Mutex::Autolock lock(mLock);
     {
-        ///Reset the display enabled flag
+        // /Reset the display enabled flag
         mDisplayEnabled = false;
 
-        ///Reset the frame width and height values
-        mFrameWidth =0;
-        mFrameHeight = 0;
-        mPreviewWidth = 0;
+        // /Reset the frame width and height values
+        mFrameWidth    = 0;
+        mFrameHeight   = 0;
+        mPreviewWidth  = 0;
         mPreviewHeight = 0;
     }
 
@@ -138,26 +143,29 @@ bool DisplayAdapter::displayThread()
     bool shouldLive = true;
 
     sp<CMessage> msg = mThreadQueue.waitMessage();
-    if(msg == 0) {
+    if (msg == 0) {
         FLOGE("displayThread: get invalid message");
         return false;
     }
 
-    switch(msg->what) {
+    switch (msg->what) {
         case DisplayThread::DISPLAY_FRAME:
-            //FLOGI("Display thread received DISPLAY_FRAME command from Camera HAL");
-            if(mDisplayState== DisplayAdapter::DISPLAY_INIT) {
+
+            // FLOGI("Display thread received DISPLAY_FRAME command from Camera
+            // HAL");
+            if (mDisplayState == DisplayAdapter::DISPLAY_INIT) {
                 break;
             }
-            if(mDisplayState == DisplayAdapter::DISPLAY_STARTED)
+            if (mDisplayState == DisplayAdapter::DISPLAY_STARTED)
             {
                 shouldLive = requestFrameBuffer();
             }
 
-            if(mDisplayState == DisplayAdapter::DISPLAY_EXITED)
+            if (mDisplayState == DisplayAdapter::DISPLAY_EXITED)
             {
-                ///we exit the thread even though there are frames still to dequeue. They will be dequeued
-                ///in stopDisplay
+                // /we exit the thread even though there are frames still to
+                // dequeue. They will be dequeued
+                // /in stopDisplay
                 shouldLive = false;
             }
             break;
@@ -177,43 +185,47 @@ bool DisplayAdapter::displayThread()
         case DisplayThread::DISPLAY_EXIT:
             FLOGI("display thread exiting...");
             mDisplayState = DisplayAdapter::DISPLAY_EXITED;
-            ///Note that the SF can have pending buffers when we disable the display
-            ///This is normal and the expectation is that they may not be displayed.
-            ///This is to ensure that the user experience is not impacted
+
+            // /Note that the SF can have pending buffers when we disable the
+            // display
+            // /This is normal and the expectation is that they may not be
+            // displayed.
+            // /This is to ensure that the user experience is not impacted
             shouldLive = false;
             break;
 
         default:
             FLOGE("Invalid Display Thread Command 0x%x.", msg->what);
             break;
-    }//end switch
+    } // end switch
 
     return shouldLive;
 }
 
 bool DisplayAdapter::requestFrameBuffer()
 {
-    CameraFrame* frame = requestBuffer();
-    if(frame == NULL) {
+    CameraFrame *frame = requestBuffer();
+
+    if (frame == NULL) {
         FLOGE("requestBuffer return null buffer");
         return false;
     }
 
-    //the frame release from SurfaceAdapter.
+    // the frame release from SurfaceAdapter.
     frame->release();
     return true;
 }
 
-void DisplayAdapter::handleCameraFrame(CameraFrame* frame)
+void DisplayAdapter::handleCameraFrame(CameraFrame *frame)
 {
-    if(!frame || !frame->mBufHandle) {
+    if (!frame || !frame->mBufHandle) {
         FLOGI("DisplayAdapter: notifyCameraFrame receive null frame");
         return;
     }
 
-    //the frame held in SurfaceAdapter.
+    // the frame held in SurfaceAdapter.
     frame->addReference();
-    if(mDisplayState == DisplayAdapter::DISPLAY_STARTED) {
+    if (mDisplayState == DisplayAdapter::DISPLAY_STARTED) {
         Mutex::Autolock lock(mLock);
 
         renderBuffer(frame->mBufHandle);

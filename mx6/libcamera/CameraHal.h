@@ -28,65 +28,66 @@ using namespace android;
 
 class PhysMemAdapter;
 
-class CameraHal
-{
+class CameraHal {
 public:
     CameraHal(int cameraId);
     ~CameraHal();
     status_t initialize(const CameraInfo& info);
 
-    void setCallbacks(camera_notify_callback notify_cb,
-        camera_data_callback data_cb,
-        camera_data_timestamp_callback data_cb_timestamp,
-        camera_request_memory get_memory,
-        void* user);
-    void enableMsgType(int32_t msgType);
-    void disableMsgType(int32_t msgType);
-    bool msgTypeEnabled(int32_t msgType);
-    void putParameters(char *params);
-    char* getParameters() const;
-    status_t setParameters(const char* params);
+    void     setCallbacks(camera_notify_callback         notify_cb,
+                          camera_data_callback           data_cb,
+                          camera_data_timestamp_callback data_cb_timestamp,
+                          camera_request_memory          get_memory,
+                          void                          *user);
+    void     enableMsgType(int32_t msgType);
+    void     disableMsgType(int32_t msgType);
+    bool     msgTypeEnabled(int32_t msgType);
+    void     putParameters(char *params);
+    char*    getParameters() const;
+    status_t setParameters(const char *params);
     status_t setParameters(CameraParameters& params);
     status_t setPreviewWindow(struct preview_stream_ops *window);
 
-    bool previewEnabled();
+    bool     previewEnabled();
     status_t restartPreview();
     status_t startPreview();
-    void stopPreview();
-    void forceStopPreview();
+    void     stopPreview();
+    void     forceStopPreview();
 
     status_t autoFocus();
     status_t cancelAutoFocus();
 
     status_t startRecording();
-    void stopRecording();
-    void releaseRecordingFrame(const void* mem);
+    void     stopRecording();
+    void     releaseRecordingFrame(const void *mem);
     status_t storeMetaDataInBuffers(bool enable);
-    bool recordingEnabled();
+    bool     recordingEnabled();
 
     status_t takePicture();
     status_t stopPicture();
     status_t cancelPicture();
 
-    status_t sendCommand(int32_t cmd, int32_t arg1, int32_t arg2);
-    void release();
+    status_t sendCommand(int32_t cmd,
+                         int32_t arg1,
+                         int32_t arg2);
+    void     release();
     status_t dump(int fd) const;
 
-    void LockWakeLock();
-    void UnLockWakeLock();
+    void     LockWakeLock();
+    void     UnLockWakeLock();
 
 private:
-    sp<CameraBridge> mCameraBridge;
-    sp<DeviceAdapter> mDeviceAdapter;
+    sp<CameraBridge>   mCameraBridge;
+    sp<DeviceAdapter>  mDeviceAdapter;
     sp<DisplayAdapter> mDisplayAdapter;
-    CameraBufferProvider* mBufferProvider;
+    CameraBufferProvider *mBufferProvider;
 
 private:
     bool mPowerLock;
-    int mCameraId;
+    int  mCameraId;
     mutable Mutex mLock;
     CameraParameters mParameters;
-    mutable Mutex mEncodeLock;
+    mutable Mutex    mEncodeLock;
     bool mPreviewEnabled;
     bool mRecordingEnabled;
     bool mTakePictureInProcess;
@@ -97,8 +98,8 @@ private:
 
     int mSupportedRecordingFormat[MAX_VPU_SUPPORT_FORMAT];
     int mSupportedPictureFormat[MAX_PICTURE_SUPPORT_FORMAT];
-    PhysMemAdapter* mPhysAdapter;
+    PhysMemAdapter *mPhysAdapter;
     bool mUseIon;
 };
 
-#endif
+#endif // ifndef _CAMERA_HAL_H

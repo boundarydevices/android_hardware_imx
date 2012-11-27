@@ -53,18 +53,18 @@ using namespace android;
 
 #define CAMERA_HAL_DEBUG
 #ifdef CAMERA_HAL_DEBUG
-#define FLOG_RUNTIME(format, ...) ALOGI((format), ## __VA_ARGS__)
-#define FLOG_TRACE(format, ...) ALOGI((format), ## __VA_ARGS__)
-#else
-#define FLOG_RUNTIME(format, ...)
-#define FLOG_TRACE(format, ...)
-#endif
+# define FLOG_RUNTIME(format, ...) ALOGI((format), ## __VA_ARGS__)
+# define FLOG_TRACE(format, ...) ALOGI((format), ## __VA_ARGS__)
+#else // ifdef CAMERA_HAL_DEBUG
+# define FLOG_RUNTIME(format, ...)
+# define FLOG_TRACE(format, ...)
+#endif // ifdef CAMERA_HAL_DEBUG
 
 #define FLOGI(format, ...) ALOGI((format), ## __VA_ARGS__)
 #define FLOGW(format, ...) ALOGW((format), ## __VA_ARGS__)
-#define FLOGE(format, ...) ALOGE((format), ##__VA_ARGS__)
+#define FLOGE(format, ...) ALOGE((format), ## __VA_ARGS__)
 
-#define FSL_ASSERT(cond, ...) ALOG_ASSERT((cond), ##__VA_ARGS__)
+#define FSL_ASSERT(cond, ...) ALOG_ASSERT((cond), ## __VA_ARGS__)
 
 #define UVC_NAME_STRING "uvc"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
@@ -79,16 +79,16 @@ using namespace android;
 #define PARAMS_DELIMITER ","
 
 #define CAMERA_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE | \
-                             GRALLOC_USAGE_HW_RENDER | \
-                             GRALLOC_USAGE_SW_READ_RARELY | \
-                             GRALLOC_USAGE_SW_WRITE_NEVER
+    GRALLOC_USAGE_HW_RENDER |                           \
+    GRALLOC_USAGE_SW_READ_RARELY |                      \
+    GRALLOC_USAGE_SW_WRITE_NEVER
 
 #define CAMERA_MAX(x, y) (x) > (y) ? (x) : (y)
 
-int convertPixelFormatToV4L2Format(PixelFormat format);
+int         convertPixelFormatToV4L2Format(PixelFormat format);
 PixelFormat convertV4L2FormatToPixelFormat(unsigned int format);
-int convertStringToPixelFormat(const char* pFormat);
-int convertStringToV4L2Format(const char* pFormat);
+int         convertStringToPixelFormat(const char *pFormat);
+int         convertStringToV4L2Format(const char *pFormat);
 
 struct VideoMetadataBuffer
 {
@@ -104,27 +104,27 @@ struct CameraInfo : public camera_info
 
 struct VideoInfo
 {
-    struct v4l2_capability cap;
-    struct v4l2_format format;
-    struct v4l2_streamparm param;
-    struct v4l2_buffer buf;
+    struct v4l2_capability     cap;
+    struct v4l2_format         format;
+    struct v4l2_streamparm     param;
+    struct v4l2_buffer         buf;
     struct v4l2_requestbuffers rb;
-    bool isStreamOn;
-    int width;
-    int height;
-    int formatIn;
-    int framesizeIn;
+    bool                       isStreamOn;
+    int                        width;
+    int                        height;
+    int                        formatIn;
+    int                        framesizeIn;
 };
 
 class CameraFrame;
 
-class CameraFrameObserver
-{
+class CameraFrameObserver {
 public:
     CameraFrameObserver() {}
+
     virtual ~CameraFrameObserver() {}
 
-    virtual void handleFrameRelease(CameraFrame* buffer) = 0;
+    virtual void handleFrameRelease(CameraFrame *buffer) = 0;
 
 private:
     CameraFrameObserver(const CameraFrameObserver&);
@@ -132,26 +132,27 @@ private:
 };
 
 
-class CameraFrame
-{
+class CameraFrame {
 public:
     enum CAMERA_BUFS_STATE {
-        BUFS_CREATE = 0,
-        BUFS_IN_CAPTURE = 1,
+        BUFS_CREATE      = 0,
+        BUFS_IN_CAPTURE  = 1,
         BUFS_IN_RECORDER = 2,
         BUFS_IN_PREIVIEW = 4,
-        BUFS_IN_DRIVER = 8
+        BUFS_IN_DRIVER   = 8
     };
     enum FrameType {
         INVALID_FRAME = 0,
-        IMAGE_FRAME = 1,
+        IMAGE_FRAME   = 1,
         PREVIEW_FRAME = 2,
     };
 
     CameraFrame() {}
+
     ~CameraFrame();
 
-    void initialize(buffer_handle_t* buf_h, int index);
+    void initialize(buffer_handle_t *buf_h,
+                    int              index);
     void addState(CAMERA_BUFS_STATE state);
     void removeState(CAMERA_BUFS_STATE state);
     void release();
@@ -164,132 +165,137 @@ private:
     CameraFrame& operator=(const CameraFrame&);
 
 public:
-    buffer_handle_t* mBufHandle;
-    void*            mVirtAddr;
-    int              mPhyAddr;
-    size_t           mSize;
-    int              mWidth;
-    int              mHeight;
-    int              mFormat;
-    FrameType        mFrameType;
-    int              mIndex;
+    buffer_handle_t *mBufHandle;
+    void *mVirtAddr;
+    int mPhyAddr;
+    size_t mSize;
+    int mWidth;
+    int mHeight;
+    int mFormat;
+    FrameType mFrameType;
+    int mIndex;
 
 private:
-    CameraFrameObserver* mObserver;
+    CameraFrameObserver *mObserver;
     int                  mRefCount;
     int                  mBufState;
 };
 
 enum CAMERA_ERROR {
     ERROR_FATAL = 1,
-    ERROR_TINY = 2,
+    ERROR_TINY  = 2,
 };
 
-class CameraErrorListener
-{
+class CameraErrorListener {
 public:
     virtual void handleError(CAMERA_ERROR err) = 0;
     virtual ~CameraErrorListener() {}
 };
 
-class CameraBufferListener
-{
+class CameraBufferListener {
 public:
-    virtual void onBufferCreat(CameraFrame* pBuffer, int num) = 0;
-    virtual void onBufferDestroy() = 0;
+    virtual void onBufferCreat(CameraFrame *pBuffer,
+                               int          num) = 0;
+    virtual void onBufferDestroy()               = 0;
     virtual ~CameraBufferListener() {}
 };
 
-class CameraBufferProvider
-{
+class CameraBufferProvider {
 public:
     enum BufferState {
-        BUFFER_CREATE = 1,
+        BUFFER_CREATE  = 1,
         BUFFER_DESTROY = 2,
     };
     CameraBufferProvider();
     virtual ~CameraBufferProvider();
 
-    virtual int allocatePreviewBuffer(int width, int height, int format, int numBufs) = 0;
-    virtual int allocatePictureBuffer(int width, int height, int format, int numBufs) = 0;
-    virtual int freeBuffer() = 0;
-    virtual int maxQueueableBuffers() = 0;
+    virtual int allocatePreviewBuffer(int width,
+                                      int height,
+                                      int format,
+                                      int numBufs) = 0;
+    virtual int allocatePictureBuffer(int width,
+                                      int height,
+                                      int format,
+                                      int numBufs) = 0;
+    virtual int freeBuffer()                       = 0;
+    virtual int maxQueueableBuffers()              = 0;
 
-    void addBufferListener(CameraBufferListener* listener);
-    void removeBufferListener(CameraBufferListener* listener);
-    void clearBufferListeners();
+    void        addBufferListener(CameraBufferListener *listener);
+    void        removeBufferListener(CameraBufferListener *listener);
+    void        clearBufferListeners();
 
-    void dispatchBuffers(CameraFrame* pBuffer, int num, BufferState bufState);
+    void        dispatchBuffers(CameraFrame *pBuffer,
+                                int          num,
+                                BufferState  bufState);
 
 private:
     Vector<int> mBufferListeners;
 };
 
-class CameraFrameListener
-{
+class CameraFrameListener {
 public:
-    virtual void handleCameraFrame(CameraFrame* frame) = 0;
+    virtual void handleCameraFrame(CameraFrame *frame) = 0;
     virtual ~CameraFrameListener() {}
 };
 
-class CameraFrameProvider
-{
+class CameraFrameProvider {
 public:
     CameraFrameProvider();
     virtual ~CameraFrameProvider();
 
-    virtual int getFrameSize() = 0;
+    virtual int getFrameSize()  = 0;
     virtual int getFrameCount() = 0;
-    void addFrameListener(CameraFrameListener* listener);
-    void removeFrameListener(CameraFrameListener* listener);
-    void clearFrameListeners();
+    void        addFrameListener(CameraFrameListener *listener);
+    void        removeFrameListener(CameraFrameListener *listener);
+    void        clearFrameListeners();
 
-    void dispatchCameraFrame(CameraFrame* frame);
+    void        dispatchCameraFrame(CameraFrame *frame);
 
 private:
     Vector<int> mFrameListeners;
 };
 
-class CameraEvent : public LightRefBase<CameraEvent>
-{
+class CameraEvent : public LightRefBase<CameraEvent>{
 public:
     enum CameraEventType {
         EVENT_INVALID = 0x0,
         EVENT_SHUTTER = 0x1,
-        EVENT_FOCUS = 0x2,
-        EVENT_ZOOM = 0x4,
-        EVENT_FACE = 0x8
+        EVENT_FOCUS   = 0x2,
+        EVENT_ZOOM    = 0x4,
+        EVENT_FACE    = 0x8
     };
 
     CameraEvent()
         : mData(NULL), mEventType(EVENT_INVALID)
     {}
 
-    void* mData;
+    void *mData;
     CameraEventType mEventType;
 };
 
-class CameraEventListener
-{
+class CameraEventListener {
 public:
     virtual void handleEvent(sp<CameraEvent>& event) = 0;
     virtual ~CameraEventListener() {}
 };
 
-class CameraEventProvider
-{
+class CameraEventProvider {
 public:
-    CameraEventProvider() {mEventListeners.clear();};
+    CameraEventProvider() {
+        mEventListeners.clear();
+    }
 
-    void addEventListener(CameraEventListener* listerner);
-    void removeEventListener(CameraEventListener* listerner);
+    void addEventListener(CameraEventListener *listerner);
+    void removeEventListener(CameraEventListener *listerner);
     void clearEventListeners();
     void dispatchEvent(sp<CameraEvent>& event);
 
-    virtual ~CameraEventProvider() {mEventListeners.clear();};
+    virtual ~CameraEventProvider() {
+        mEventListeners.clear();
+    }
 
 private:
     Vector<int> mEventListeners;
 };
 
-#endif
+#endif // ifndef _CAMERA_UTILS_H

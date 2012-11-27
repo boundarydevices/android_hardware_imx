@@ -22,22 +22,27 @@
 
 using namespace android;
 
-class PhysMemAdapter : public CameraBufferProvider
-{
+class PhysMemAdapter : public CameraBufferProvider {
 public:
     PhysMemAdapter();
     virtual ~PhysMemAdapter();
 
-    virtual int allocatePreviewBuffer(int width, int height, int format, int numBufs);
-    virtual int allocatePictureBuffer(int width, int height, int format, int numBufs);
+    virtual int allocatePreviewBuffer(int width,
+                                      int height,
+                                      int format,
+                                      int numBufs);
+    virtual int allocatePictureBuffer(int width,
+                                      int height,
+                                      int format,
+                                      int numBufs);
     virtual int freeBuffer();
     virtual int maxQueueableBuffers();
 
-    //void setErrorListener(CameraErrorListener* listener);
+    // void setErrorListener(CameraErrorListener* listener);
 
 protected:
     int mIonFd;
-    CameraErrorListener* mErrorListener;
+    CameraErrorListener *mErrorListener;
 
     CameraFrame mCameraBuffer[MAX_PREVIEW_BUFFER];
 
@@ -49,4 +54,4 @@ protected:
     int mQueueableCount;
 };
 
-#endif
+#endif // ifndef _PHYS_MEM_ADAPTER_H_

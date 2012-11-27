@@ -22,33 +22,46 @@
 
 using namespace android;
 
-class SurfaceAdapter : public CameraBufferProvider, public LightRefBase<SurfaceAdapter>
-{
+class SurfaceAdapter : public CameraBufferProvider,
+                       public LightRefBase<SurfaceAdapter>{
 public:
     SurfaceAdapter();
     virtual ~SurfaceAdapter();
 
-    virtual int allocatePreviewBuffer(int width, int height, int format, int numBufs);
-    virtual int allocatePictureBuffer(int width, int height, int format, int numBufs);
-    virtual int freeBuffer();
-    virtual int maxQueueableBuffers();
-    virtual int setPreviewWindow(struct preview_stream_ops *window);
+    virtual int allocatePreviewBuffer(int width,
+                                      int height,
+                                      int format,
+                                      int numBufs);
+    virtual int allocatePictureBuffer(int width,
+                                      int height,
+                                      int format,
+                                      int numBufs);
+    virtual int  freeBuffer();
+    virtual int  maxQueueableBuffers();
+    virtual int  setPreviewWindow(struct preview_stream_ops *window);
 
-    void setErrorListener(CameraErrorListener* listener);
+    void         setErrorListener(CameraErrorListener *listener);
 
 protected:
-    void destroy();
-    void renderBuffer(buffer_handle_t* bufHandle);
-    void cancelBuffer(buffer_handle_t* bufHandle);
+    void         destroy();
+    void         renderBuffer(buffer_handle_t *bufHandle);
+    void         cancelBuffer(buffer_handle_t *bufHandle);
     CameraFrame* requestBuffer();
 
 private:
-    int setNativeWindowAttribute(int width, int height, int format, int numBufs);
-    int allocateBuffer(int width, int height, int format, int numBufs, int maxQCount);
+    int          setNativeWindowAttribute(int width,
+                                          int height,
+                                          int format,
+                                          int numBufs);
+    int allocateBuffer(int width,
+                       int height,
+                       int format,
+                       int numBufs,
+                       int maxQCount);
 
 protected:
-    CameraErrorListener* mErrorListener;
-    preview_stream_ops_t* mNativeWindow;
+    CameraErrorListener  *mErrorListener;
+    preview_stream_ops_t *mNativeWindow;
 
     CameraFrame mCameraBuffer[MAX_PREVIEW_BUFFER];
 
@@ -60,4 +73,4 @@ protected:
     int mQueueableCount;
 };
 
-#endif
+#endif // ifndef _SURFACE_ADAPTER_H_
