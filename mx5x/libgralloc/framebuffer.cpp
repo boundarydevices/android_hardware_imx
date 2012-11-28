@@ -922,18 +922,22 @@ int mapFrameBufferLocked(struct private_module_t* module)
     if(info.bits_per_pixel == 32){
         ALOGW("32bpp setting of Framebuffer catched!");
         /*
-         * Explicitly request BGRA 8/8/8
+         * Explicitly request RGBA 8/8/8/8
          */
         info.bits_per_pixel = 32;
-        info.red.offset     = 8;
+        info.red.offset     = 0;
         info.red.length     = 8;
-        info.green.offset   = 16;
-        info.green.length   = 8;
-        info.blue.offset    = 24;
-        info.blue.length    = 8;
-        info.transp.offset  = 0;
-        info.transp.length  = 0;
-#ifndef FSL_EPDC_FB
+        info.red.msb_right    = 0;
+        info.green.offset     = 8;
+        info.green.length     = 8;
+        info.green.msb_right  = 0;
+        info.blue.offset      = 16;
+        info.blue.length      = 8;
+        info.blue.msb_right   = 0;
+        info.transp.offset    = 24;
+        info.transp.length    = 8;
+        info.transp.msb_right = 0;
+#if 0 //ndef FSL_EPDC_FB
         /*
          *  set the alpha in pixel
          *  only when the fb set to 32bit
@@ -953,17 +957,21 @@ int mapFrameBufferLocked(struct private_module_t* module)
         /*
          * Explicitly request 5/6/5
          */
-        info.bits_per_pixel = 16;
-        info.red.offset     = 11;
-        info.red.length     = 5;
-        info.green.offset   = 5;
-        info.green.length   = 6;
-        info.blue.offset    = 0;
-        info.blue.length    = 5;
-        info.transp.offset  = 0;
-        info.transp.length  = 0;
+        info.bits_per_pixel   = 16;
+        info.red.offset       = 11;
+        info.red.length       = 5;
+        info.red.msb_right    = 0;
+        info.green.offset     = 5;
+        info.green.length     = 6;
+        info.green.msb_right  = 0;
+        info.blue.offset      = 0;
+        info.blue.length      = 5;
+        info.blue.msb_right   = 0;
+        info.transp.offset    = 0;
+        info.transp.length    = 0;
+        info.transp.msb_right = 0;
 
-        if (!no_ipu) {
+        if (0) {
             /* for the 16bit case, only involke the glb alpha */
             struct mxcfb_gbl_alpha gbl_alpha;
 
@@ -1013,8 +1021,10 @@ int mapFrameBufferLocked(struct private_module_t* module)
                 info.yres_virtual, ALIGN_PIXEL_128(info.yres)*2);
     }
 
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
+        ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
         return -errno;
+    }
 
 #ifdef FSL_EPDC_FB
     int auto_update_mode = AUTO_UPDATE_MODE_REGION_MODE;
@@ -1664,7 +1674,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
                 const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGB_565;
             }
             else{
-                const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_BGRA_8888;
+                const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGBA_8888;
             }
             const_cast<float&>(dev->device.xdpi) = m->xdpi;
             const_cast<float&>(dev->device.ydpi) = m->ydpi;
