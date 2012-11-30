@@ -275,12 +275,14 @@ status_t DeviceAdapter::fillCameraFrame(CameraFrame *frame)
         return BAD_VALUE;
     }
 
-    mVideoInfo->buf.index    = i;
-    mVideoInfo->buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->buf.memory   = V4L2_MEMORY_USERPTR;
-    mVideoInfo->buf.m.offset = frame->mPhyAddr;
+    struct v4l2_buffer cfilledbuffer;
+    memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
+    cfilledbuffer.index    = i;
+    cfilledbuffer.m.offset = frame->mPhyAddr;
 
-    ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
+    ret = ioctl(mCameraHandle, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {
         FLOGE("fillCameraFrame: VIDIOC_QBUF Failed");
         return BAD_VALUE;
@@ -431,18 +433,20 @@ CameraFrame * DeviceAdapter::acquireCameraFrame()
 {
     int ret;
 
-    mVideoInfo->buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->buf.memory = V4L2_MEMORY_USERPTR;
+    struct v4l2_buffer cfilledbuffer;
+    memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
+    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
 
     /* DQ */
-    ret = ioctl(mCameraHandle, VIDIOC_DQBUF, &mVideoInfo->buf);
+    ret = ioctl(mCameraHandle, VIDIOC_DQBUF, &cfilledbuffer);
     if (ret < 0) {
         FLOGE("GetFrame: VIDIOC_DQBUF Failed");
         return NULL;
     }
     mDequeued++;
 
-    int index = mVideoInfo->buf.index;
+    int index = cfilledbuffer.index;
     FSL_ASSERT(!mPreviewBufs.isEmpty(), "mPreviewBufs is empty");
     return (CameraFrame *)mPreviewBufs.keyAt(index);
 }
