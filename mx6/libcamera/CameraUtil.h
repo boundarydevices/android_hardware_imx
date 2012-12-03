@@ -81,7 +81,8 @@ using namespace android;
 #define CAMERA_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE | \
     GRALLOC_USAGE_HW_RENDER |                           \
     GRALLOC_USAGE_SW_READ_RARELY |                      \
-    GRALLOC_USAGE_SW_WRITE_NEVER
+    GRALLOC_USAGE_SW_WRITE_NEVER |                      \
+    GRALLOC_USAGE_FORCE_CONTIGUOUS
 
 #define CAMERA_MAX(x, y) (x) > (y) ? (x) : (y)
 
