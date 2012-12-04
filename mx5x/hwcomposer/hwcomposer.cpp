@@ -75,7 +75,7 @@ static void dump_layer(hwc_layer_t const* l) {
 
 /***********************************************************************/
 
-static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) 
+static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list)
 {
     return 0;
 }
@@ -87,29 +87,32 @@ static int hwc_set(hwc_composer_device_t *dev,
 {
     struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
     bool clear_needed = false;
-    EGLBoolean success;
+    EGLBoolean success = EGL_TRUE;
     int i;
 
-    success = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
+    if (dpy !=NULL && sur !=NULL) {
+        success = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
+    }
 
-    for (i =0 ; i < list->numHwLayers; i++)
-    {
-        private_handle_t *handle = (private_handle_t *)(list->hwLayers[i].handle);
-        if (handle)
+    if ( list != NULL) {
+        for (i =0 ; i < list->numHwLayers; i++)
         {
-            if ((handle->format == HAL_PIXEL_FORMAT_YV12) ||
-                (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_SP) ||
-                (handle->format == HAL_PIXEL_FORMAT_YCrCb_420_SP) ||
-                (handle->format == HAL_PIXEL_FORMAT_YCrCb_420_SP) ||
-                (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_I) ||
-                (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_P) ||
-                (handle->format == HAL_PIXEL_FORMAT_YCbCr_420_P) ||
-                (handle->format == HAL_PIXEL_FORMAT_CbYCrY_422_I) ||
-                (handle->format == HAL_PIXEL_FORMAT_YCbCr_420_SP) )
+            private_handle_t *handle = (private_handle_t *)(list->hwLayers[i].handle);
+            if (handle)
             {
-                clear_needed = true;
+                if ((handle->format == HAL_PIXEL_FORMAT_YV12) ||
+                    (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_SP) ||
+                    (handle->format == HAL_PIXEL_FORMAT_YCrCb_420_SP) ||
+                    (handle->format == HAL_PIXEL_FORMAT_YCrCb_420_SP) ||
+                    (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_I) ||
+                    (handle->format == HAL_PIXEL_FORMAT_YCbCr_422_P) ||
+                    (handle->format == HAL_PIXEL_FORMAT_YCbCr_420_P) ||
+                    (handle->format == HAL_PIXEL_FORMAT_CbYCrY_422_I) ||
+                    (handle->format == HAL_PIXEL_FORMAT_YCbCr_420_SP) )
+                {
+                    clear_needed = true;
+                }
             }
-            //dump_layer(&list->hwLayers[i]);
         }
     }
 
@@ -152,13 +155,13 @@ static int hwc_eventControl(struct hwc_composer_device* dev, int event, int enab
      hwc_context_t *ctx = (hwc_context_t *) dev;
 #ifdef DEBUG_HWC_VSYNC_TIMING
      static nsecs_t start_time_ns = systemTime(SYSTEM_TIME_MONOTONIC);
-#endif   
+#endif
      switch (event) {
      case HWC_EVENT_VSYNC:
          {
              ctx->m_vsync_thread->setEnabled(enabled);
 #ifdef DEBUG_HWC_VSYNC_TIMING
-             if ( enabled ) 
+             if ( enabled )
              {
                  ALOGV("<%s,%d> paused time: %lld \n",__FUNCTION__, __LINE__, systemTime(SYSTEM_TIME_MONOTONIC)- start_time_ns);
              } else {
@@ -170,7 +173,7 @@ static int hwc_eventControl(struct hwc_composer_device* dev, int event, int enab
      default:
          return -EINVAL;
      }
-}   
+}
 
 static const struct hwc_methods hwc_methods = {
     eventControl: hwc_eventControl
