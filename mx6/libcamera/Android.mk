@@ -30,6 +30,8 @@ LOCAL_SRC_FILES:=    \
     JpegBuilder.cpp \
     messageQueue.cpp \
     OvDevice.cpp \
+    Ov5640.cpp \
+    Ov5642.cpp \
     PhysMemAdapter.cpp \
     YuvToJpegEncoder.cpp \
     NV12_resize.c
