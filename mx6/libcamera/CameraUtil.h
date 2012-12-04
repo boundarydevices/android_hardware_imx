@@ -66,7 +66,9 @@ using namespace android;
 
 #define FSL_ASSERT(cond, ...) ALOG_ASSERT((cond), ## __VA_ARGS__)
 
-#define UVC_NAME_STRING "uvc"
+#define UVC_SENSOR_NAME "uvc"
+#define OV5640_SENSOR_NAME "ov5640"
+#define OV5642_SENSOR_NAME "ov5642"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
 
 #define MAX_PREVIEW_BUFFER      6
