@@ -17,19 +17,29 @@
 
 #include "DeviceAdapter.h"
 #include "UvcDevice.h"
-#include "OvDevice.h"
+#include "Ov5640.h"
+#include "Ov5642.h"
 
 sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
 {
     sp<DeviceAdapter> devAdapter;
-    if (strstr(info.name, UVC_NAME_STRING)) {
+    if (strstr(info.name, UVC_SENSOR_NAME)) {
         FLOGI("DeviceAdapter: Create uvc device");
         devAdapter = new UvcDevice();
     }
-    else {
-        FLOGI("DeviceAdapter: Create ov device");
-        devAdapter = new OvDevice();
+    else if (strstr(info.name, OV5640_SENSOR_NAME)) {
+        FLOGI("DeviceAdapter: Create ov5640 device");
+        devAdapter = new Ov5640();
     }
+    else if (strstr(info.name, OV5642_SENSOR_NAME)) {
+        FLOGI("DeviceAdapter: Create ov5642 device");
+        devAdapter = new Ov5642();
+    }
+    else {
+        devAdapter = new OvDevice();
+        FLOGI("sensor %s does not support well now!", info.name);
+    }
+
     return devAdapter;
 }
 
