@@ -7,7 +7,7 @@ else
 	touch /device/wifi/softmac
 	echo 02:30:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10` > /device/wifi/softmac
 	sync
-	chmod 775 /vendor/wifi
-	chmod 664 /vendor/wifi/softmac
+	chmod 775 /device/wifi
+	chmod 664 /device/wifi/softmac
 	mount -r -o remount /device
 fi

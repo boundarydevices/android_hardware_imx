@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 2011 Atheros Communications Inc.
- *
- * Copyright (c) 2010-2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012 Freescale Semiconductor, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -69,7 +68,6 @@ static void ath6kl_calculate_crc(u32 target_type, u8 *data, size_t len)
 
 static int ath6kl_fetch_mac_from_file(struct ath6kl *ar, u8* filename)
 {
-	char softmac_filename[256];
 	int ret = 0;
 
 	do {
