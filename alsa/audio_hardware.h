@@ -36,6 +36,7 @@ enum tty_modes {
 enum pcm_type {
     PCM_NORMAL = 0,
     PCM_HDMI,
+    PCM_ESAI,
     PCM_TOTAL,
 };
 
@@ -43,6 +44,7 @@ enum output_type {
     OUTPUT_DEEP_BUF,      // deep PCM buffers output stream
     OUTPUT_PRIMARY,   // low latency output stream
     OUTPUT_HDMI,
+    OUTPUT_ESAI,
     OUTPUT_TOTAL
 };
 
@@ -70,9 +72,9 @@ struct audio_card{
     struct route_setting *vx_bt_mic_input;
     struct route_setting *mm_bt_mic_input;
     int  card;
-    int  out_rate;
+    unsigned int  out_rate;
     int  out_channels;
-    int  in_rate;
+    unsigned int  in_rate;
     int  in_channels;
 };
 
@@ -98,12 +100,14 @@ struct imx_audio_device {
     int tty_mode;
     struct echo_reference_itfe *echo_reference;
     bool bluetooth_nrec;
-    bool device_is_imx;
+    bool device_is_auto;
     int  wb_amr;
     bool low_power;
     struct audio_card *card_list[MAX_AUDIO_CARD_NUM];
     struct mixer *mixer[MAX_AUDIO_CARD_NUM];
     int audio_card_num;
+    unsigned int default_rate;               /*HAL input samplerate*/
+    unsigned int mm_rate;                    /*HAL hardware output samplerate*/
 };
 
 struct imx_stream_out {
