@@ -43,11 +43,11 @@ public:
                                      PixelFormat format,
                                      int         fps);
     PixelFormat getPreviewPixelFormat() {
-        return mPicturePixelFormat;
+        return mPreviewPixelFormat;
     }
 
     PixelFormat getPicturePixelFormat() {
-        return mPreviewPixelFormat;
+        return mPicturePixelFormat;
     }
 
     virtual status_t setParameters(CameraParameters& params) = 0;
