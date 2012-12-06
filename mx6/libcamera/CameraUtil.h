@@ -79,6 +79,7 @@ using namespace android;
 #define CAMERA_FORMAT_LENGTH    32
 #define CAMER_PARAM_BUFFER_SIZE 512
 #define PARAMS_DELIMITER ","
+#define THREAD_WAIT_TIMEOUT 500 * 1000 * 1000
 
 #define CAMERA_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE | \
     GRALLOC_USAGE_HW_RENDER |                           \

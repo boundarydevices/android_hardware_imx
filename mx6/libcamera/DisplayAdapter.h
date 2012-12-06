@@ -90,7 +90,7 @@ private:
     unsigned int  mDisplayState;
 
     mutable Mutex mLock;
-    bool mDisplayEnabled;
+    bool mThreadLive;
 };
 
 #endif // ifndef _DISPLAY_ADAPTER_H_
