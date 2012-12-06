@@ -129,6 +129,7 @@ private:
     CMessageQueue    mThreadQueue;
     CameraEventProvider *mEventProvider;
     CameraFrameProvider *mFrameProvider;
+    bool mThreadLive;
 
 private:
     bool mUseMetaDataBufferMode;

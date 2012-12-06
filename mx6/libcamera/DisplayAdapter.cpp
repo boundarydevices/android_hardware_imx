@@ -20,7 +20,7 @@
 DisplayAdapter::DisplayAdapter()
     : mDisplayThread(NULL),
       mDisplayState(DisplayAdapter::DISPLAY_INVALID),
-      mDisplayEnabled(false)
+      mThreadLive(false)
 {
     mFrameProvider = NULL;
 
@@ -39,7 +39,7 @@ DisplayAdapter::~DisplayAdapter()
     destroy();
 
     // /If Display thread exists
-    if (mDisplayThread.get()) {
+    if (mDisplayThread.get() != NULL) {
         mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_EXIT,
                                                      0));
         mDisplayThread->requestExitAndWait();
@@ -57,6 +57,7 @@ status_t DisplayAdapter::initialize()
     }
 
     // /Start the display thread
+    mThreadLive = true;
     status_t ret = mDisplayThread->run("DisplayThread", PRIORITY_URGENT_DISPLAY);
     if (ret != NO_ERROR) {
         FLOGE("Couldn't run display thread");
@@ -77,12 +78,14 @@ int DisplayAdapter::setCameraFrameProvider(CameraFrameProvider *frameProvider)
 int DisplayAdapter::startDisplay(int width,
                                  int height)
 {
-    if (mDisplayEnabled) {
-        FLOGW("Display is already enabled");
+    if (mDisplayState == DisplayAdapter::DISPLAY_STARTED) {
+        FLOGW("Display is already started");
         return NO_ERROR;
     }
 
-    mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_START, 0));
+    if (NULL != mDisplayThread.get()) {
+        mThreadQueue.postSyncMessage(new SyncMessage(DisplayThread::DISPLAY_START, 0));
+    }
 
     // Send START_DISPLAY COMMAND to display thread. Display thread will start
     // and then wait for a message
@@ -91,7 +94,6 @@ int DisplayAdapter::startDisplay(int width,
     FSL_ASSERT(mFrameProvider);
     mFrameProvider->addFrameListener(this);
 
-    mDisplayEnabled = true;
     mPreviewWidth   = width;
     mPreviewHeight  = height;
 
@@ -102,11 +104,11 @@ int DisplayAdapter::startDisplay(int width,
 
 int DisplayAdapter::stopDisplay()
 {
-    status_t ret                = NO_ERROR;
+    status_t ret = NO_ERROR;
     GraphicBufferMapper& mapper = GraphicBufferMapper::get();
 
-    if (!mDisplayEnabled) {
-        FLOGW("Display is already disabled");
+    if (mDisplayState == DisplayAdapter::DISPLAY_STOPPED) {
+        FLOGW("Display is already stopped");
         return ALREADY_EXISTS;
     }
 
@@ -125,9 +127,6 @@ int DisplayAdapter::stopDisplay()
 
     Mutex::Autolock lock(mLock);
     {
-        // /Reset the display enabled flag
-        mDisplayEnabled = false;
-
         // /Reset the frame width and height values
         mFrameWidth    = 0;
         mFrameHeight   = 0;
@@ -135,17 +134,19 @@ int DisplayAdapter::stopDisplay()
         mPreviewHeight = 0;
     }
 
-    return NO_ERROR;
+    return ret;
 }
 
 bool DisplayAdapter::displayThread()
 {
     bool shouldLive = true;
 
-    sp<CMessage> msg = mThreadQueue.waitMessage();
+    sp<CMessage> msg = mThreadQueue.waitMessage(THREAD_WAIT_TIMEOUT);
     if (msg == 0) {
-        FLOGE("displayThread: get invalid message");
-        return false;
+        if (mDisplayState == DisplayAdapter::DISPLAY_STARTED) {
+            FLOGI("displayThread: get invalid message");
+        }
+        return true;
     }
 
     switch (msg->what) {
@@ -156,29 +157,35 @@ bool DisplayAdapter::displayThread()
             if (mDisplayState == DisplayAdapter::DISPLAY_INIT) {
                 break;
             }
-            if (mDisplayState == DisplayAdapter::DISPLAY_STARTED)
-            {
-                shouldLive = requestFrameBuffer();
+            if (mDisplayState == DisplayAdapter::DISPLAY_STARTED) {
+                mThreadLive = requestFrameBuffer();
+                if (mThreadLive == false) {
+                    FLOGI("display thread dead because of error...");
+                    mDisplayState = DisplayAdapter::DISPLAY_EXITED;
+                }
             }
 
-            if (mDisplayState == DisplayAdapter::DISPLAY_EXITED)
-            {
-                // /we exit the thread even though there are frames still to
-                // dequeue. They will be dequeued
-                // /in stopDisplay
-                shouldLive = false;
-            }
             break;
 
         case DisplayThread::DISPLAY_START:
             FLOGI("Display thread received DISPLAY_START command from Camera HAL");
-            mDisplayState = DisplayAdapter::DISPLAY_STARTED;
+            if (mThreadLive == false) {
+                FLOGI("can't start display thread, thread dead...");
+            }
+            else {
+                mDisplayState = DisplayAdapter::DISPLAY_STARTED;
+            }
 
             break;
 
         case DisplayThread::DISPLAY_STOP:
             FLOGI("Display thread received DISPLAY_STOP command from Camera HAL");
-            mDisplayState = DisplayAdapter::DISPLAY_STOPPED;
+            if (mThreadLive == false) {
+                FLOGI("can't stop display thread, thread dead...");
+            }
+            else {
+                mDisplayState = DisplayAdapter::DISPLAY_STOPPED;
+            }
 
             break;
 

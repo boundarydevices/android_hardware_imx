@@ -355,11 +355,12 @@ void CameraHal::stopPreview()
     FLOG_RUNTIME("stopPreview");
     Mutex::Autolock lock(mLock);
     if (mTakePictureInProcess && !(mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-        FLOGI("stop takePicture");
+        FLOG_RUNTIME("stop takePicture");
         stopPicture();
     }
 
     if (!previewEnabled() || mRecordingEnabled) {
+        FLOG_RUNTIME("stopPreview return with preview not enabled");
         return;
     }
 

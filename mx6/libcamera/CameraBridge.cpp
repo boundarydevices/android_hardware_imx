@@ -18,8 +18,8 @@
 #include "CameraBridge.h"
 
 CameraBridge::CameraBridge()
-    : mEventProvider(NULL),
-      mFrameProvider(NULL), mUseMetaDataBufferMode(false),
+    : mEventProvider(NULL), mFrameProvider(NULL),
+      mThreadLive(false), mUseMetaDataBufferMode(false),
       mNotifyCb(NULL), mDataCb(NULL),
       mDataCbTimestamp(NULL), mRequestMemory(NULL), mCallbackCookie(NULL),
       mMsgEnabled(0), mBridgeState(BRIDGE_INVALID),
@@ -59,6 +59,7 @@ status_t CameraBridge::initialize()
         return NO_MEMORY;
     }
 
+    mThreadLive = true;
     // /Start the display thread
     status_t ret = mBridgeThread->run("BridgeThread", PRIORITY_URGENT_DISPLAY);
     if (ret != NO_ERROR) {
@@ -444,7 +445,10 @@ status_t CameraBridge::start()
 
     mBufferSize  = bufSize;
     mBufferCount = bufCnt;
-    mThreadQueue.postSyncMessage(new SyncMessage(BridgeThread::BRIDGE_START, 0));
+
+    if (mBridgeThread != NULL) {
+        mThreadQueue.postSyncMessage(new SyncMessage(BridgeThread::BRIDGE_START, 0));
+    }
     FSL_ASSERT(mFrameProvider.get() != NULL);
     mFrameProvider->addFrameListener(this);
 
@@ -459,7 +463,11 @@ status_t CameraBridge::stop()
     }
 
     Mutex::Autolock lock(mLock);
-    mThreadQueue.postSyncMessage(new SyncMessage(BridgeThread::BRIDGE_STOP, 0));
+
+    if (mBridgeThread != NULL) {
+        mThreadQueue.postSyncMessage(new SyncMessage(BridgeThread::BRIDGE_STOP, 0));
+    }
+
     FSL_ASSERT(mFrameProvider.get() != NULL);
     mFrameProvider->removeFrameListener(this);
 
@@ -470,21 +478,35 @@ bool CameraBridge::bridgeThread()
 {
     bool shouldLive = true;
 
-    sp<CMessage> msg = mThreadQueue.waitMessage();
+    sp<CMessage> msg = mThreadQueue.waitMessage(THREAD_WAIT_TIMEOUT);
     if (msg == 0) {
-        FLOGE("displayThread: get invalid message");
-        return false;
+        if (mBridgeState == CameraBridge::BRIDGE_STARTED) {
+            FLOGE("bridgeThread: get invalid message");
+        }
+        return true;
     }
 
     switch (msg->what) {
         case BridgeThread::BRIDGE_START:
             FLOGI("BridgeThread received BRIDGE_START command from Camera HAL");
-            mBridgeState = CameraBridge::BRIDGE_STARTED;
+            if (mThreadLive == false) {
+                FLOGI("can't start bridge thread, thread dead...");
+            }
+            else {
+                mBridgeState = CameraBridge::BRIDGE_STARTED;
+            }
+
             break;
 
         case BridgeThread::BRIDGE_STOP:
             FLOGI("BridgeThread received BRIDGE_STOP command from Camera HAL");
-            mBridgeState = CameraBridge::BRIDGE_STOPPED;
+            if (mThreadLive == false) {
+                FLOGI("can't stop bridge thread, thread dead...");
+            }
+            else {
+                mBridgeState = CameraBridge::BRIDGE_STOPPED;
+            }
+
             break;
 
         case BridgeThread::BRIDGE_EVENT:
@@ -493,11 +515,13 @@ bool CameraBridge::bridgeThread()
                 break;
             }
             if (mBridgeState == CameraBridge::BRIDGE_STARTED) {
-                shouldLive = processEvent((CameraEvent *)msg->arg0);
+                mThreadLive = processEvent((CameraEvent *)msg->arg0);
+                if (mThreadLive == false) {
+                    FLOGE("Bridge Thread dead because of error...");
+                    mBridgeState = CameraBridge::BRIDGE_EXITED;
+                }
             }
-            if (mBridgeState == CameraBridge::BRIDGE_EXITED) {
-                shouldLive = false;
-            }
+
             break;
 
         case BridgeThread::BRIDGE_FRAME:
@@ -508,11 +532,13 @@ bool CameraBridge::bridgeThread()
                 break;
             }
             if (mBridgeState == CameraBridge::BRIDGE_STARTED) {
-                shouldLive = processFrame((CameraFrame *)msg->arg0);
+                mThreadLive = processFrame((CameraFrame *)msg->arg0);
+                if(mThreadLive == false) {
+                    FLOGE("Bridge Thread dead because of error...");
+                    mBridgeState = CameraBridge::BRIDGE_EXITED;
+                }
             }
-            if (mBridgeState == CameraBridge::BRIDGE_EXITED) {
-                shouldLive = false;
-            }
+
             break;
 
         case BridgeThread::BRIDGE_EXIT:
