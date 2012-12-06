@@ -118,27 +118,27 @@ void CameraHal::setCallbacks(camera_notify_callback         notify_cb,
 void CameraHal::enableMsgType(int32_t msgType)
 {
     if (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
-        FLOGI("Enabling Preview Callback");
+        FLOG_RUNTIME("Enabling Preview Callback");
     }
     else {
-        FLOGI("Preview callback not enabled %x", msgType);
+        FLOG_RUNTIME("Preview callback not enabled %x", msgType);
     }
 
     Mutex::Autolock lock(mLock);
     mCameraBridge->enableMsgType(msgType);
-    FLOGI("enableMsgType 0x%x", msgType);
+    FLOG_RUNTIME("enableMsgType 0x%x", msgType);
     mMsgEnabled |= msgType;
 }
 
 void CameraHal::disableMsgType(int32_t msgType)
 {
     if (msgType & CAMERA_MSG_PREVIEW_FRAME) {
-        FLOGI("Disabling Preview Callback");
+        FLOG_RUNTIME("Disabling Preview Callback");
     }
 
     Mutex::Autolock lock(mLock);
     mCameraBridge->disableMsgType(msgType);
-    FLOGI("disableMsgType 0x%x", msgType);
+    FLOG_RUNTIME("disableMsgType 0x%x", msgType);
     mMsgEnabled &= ~msgType;
 }
 

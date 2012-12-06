@@ -201,6 +201,10 @@ status_t Ov5640::setParameters(CameraParameters& params)
               params.getPreviewFormat());
         return BAD_VALUE;
     }
+    else {
+        mPreviewPixelFormat = convertStringToPixelFormat(
+                                 params.getPreviewFormat());
+    }
 
     if (strcmp(params.getPictureFormat(), "jpeg") != 0) {
         FLOGE("Only jpeg still pictures are supported");
