@@ -207,6 +207,37 @@ status_t DeviceAdapter::setDeviceConfig(int         width,
     mVideoInfo->format.fmt.pix.sizeimage    = 0;
     mVideoInfo->format.fmt.pix.bytesperline = 0;
 
+    // Special stride alignment for YU12
+    if (vformat == v4l2_fourcc('Y', 'U', '1', '2')){
+        // Goolge define the the stride and c_stride for YUV420 format
+        // y_size = stride * height
+        // c_stride = ALIGN(stride/2, 16)
+        // c_size = c_stride * height/2
+        // size = y_size + c_size * 2
+        // cr_offset = y_size
+        // cb_offset = y_size + c_size
+        // int stride = (width+15)/16*16;
+        // int c_stride = (stride/2+16)/16*16;
+        // y_size = stride * height
+        // c_stride = ALIGN(stride/2, 16)
+        // c_size = c_stride * height/2
+        // size = y_size + c_size * 2
+        // cr_offset = y_size
+        // cb_offset = y_size + c_size
+
+        // GPU and IPU take below stride calculation
+        // GPU has the Y stride to be 32 alignment, and UV stride to be
+        // 16 alignment.
+        // IPU have the Y stride to be 2x of the UV stride alignment
+        int stride = (width+31)/32*32;
+        int c_stride = (stride/2+15)/16*16;
+        mVideoInfo->format.fmt.pix.bytesperline = stride;
+        mVideoInfo->format.fmt.pix.sizeimage    = stride*height+c_stride * height;
+        FLOGI("Special handling for YV12 on Stride %d, size %d",
+            mVideoInfo->format.fmt.pix.bytesperline,
+            mVideoInfo->format.fmt.pix.sizeimage);
+    }
+
     ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &mVideoInfo->format);
     if (ret < 0) {
         FLOGE("Open: VIDIOC_S_FMT Failed: %s", strerror(errno));
