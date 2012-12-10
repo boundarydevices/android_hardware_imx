@@ -719,26 +719,46 @@ int camera_get_number_of_cameras()
     int back_orient = 0,  front_orient = 0;
 
     if (gCameraNum == 0) {
-        GetCameraPropery(sCameraInfo[0].name,
-                         sCameraInfo[1].name,
+        char name_back[CAMERA_SENSOR_LENGTH];
+        char name_front[CAMERA_SENSOR_LENGTH];
+        GetCameraPropery(name_back,
+                         name_front,
                          &back_orient,
                          &front_orient);
-        if (sCameraInfo[0].name[0] != DEFAULT_ERROR_NAME) {
+        if (name_back[0] != DEFAULT_ERROR_NAME) {
+            strncpy(sCameraInfo[gCameraNum].name,
+                    name_back,
+                    CAMERA_SENSOR_LENGTH);
             sCameraInfo[gCameraNum].facing      = CAMERA_FACING_BACK;
             sCameraInfo[gCameraNum].orientation = back_orient;
             memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
             GetDevPath(sCameraInfo[gCameraNum].name,
                        sCameraInfo[gCameraNum].devPath,
                        CAMAERA_FILENAME_LENGTH);
+            ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
+                    gCameraNum,
+                    sCameraInfo[gCameraNum].name,
+                    sCameraInfo[gCameraNum].facing,
+                    sCameraInfo[gCameraNum].orientation,
+                    sCameraInfo[gCameraNum].devPath);
             gCameraNum++;
         }
-        if (sCameraInfo[1].name[0] != DEFAULT_ERROR_NAME) {
+        if (name_front[0] != DEFAULT_ERROR_NAME) {
+            strncpy(sCameraInfo[gCameraNum].name,
+                    name_front,
+                    CAMERA_SENSOR_LENGTH);
             sCameraInfo[gCameraNum].facing      = CAMERA_FACING_FRONT;
             sCameraInfo[gCameraNum].orientation = front_orient;
             memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
             GetDevPath(sCameraInfo[gCameraNum].name,
                        sCameraInfo[gCameraNum].devPath,
                        CAMAERA_FILENAME_LENGTH);
+            ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
+                    gCameraNum,
+                    sCameraInfo[gCameraNum].name,
+                    sCameraInfo[gCameraNum].facing,
+                    sCameraInfo[gCameraNum].orientation,
+                    sCameraInfo[gCameraNum].devPath);
             gCameraNum++;
         }
     }
