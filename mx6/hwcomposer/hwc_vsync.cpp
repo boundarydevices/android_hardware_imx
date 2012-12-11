@@ -20,6 +20,9 @@
 
 using namespace android;
 
+extern int hwc_get_display_fbid(struct hwc_context_t* ctx, int disp_type);
+extern int hwc_get_framebuffer_info(displayInfo *pInfo);
+
 VSyncThread::VSyncThread(hwc_context_t *ctx)
     : Thread(false), mCtx(ctx)
 {
@@ -36,17 +39,17 @@ status_t VSyncThread::readyToRun()
     return NO_ERROR;
 }
 
-void VSyncThread::handleUevent(const char *buff, int len)
+void VSyncThread::handleVsyncUevent(const char *buff, int len)
 {
     uint64_t timestamp = 0;
     const char *s = buff;
 
-    if(!mCtx || !mCtx->m_callback || !mCtx->m_callback->vsync)
+    if (!mCtx || !mCtx->m_callback || !mCtx->m_callback->vsync)
        return;
 
     s += strlen(s) + 1;
 
-    while(*s) {
+    while (*s) {
         if (!strncmp(s, "VSYNC=", strlen("VSYNC=")))
             timestamp = strtoull(s + strlen("VSYNC="), NULL, 0);
 
@@ -58,16 +61,69 @@ void VSyncThread::handleUevent(const char *buff, int len)
     mCtx->m_callback->vsync(mCtx->m_callback, 0, timestamp);
 }
 
+void VSyncThread::handleHdmiUevent(const char *buff, int len)
+{
+    if (!mCtx || !mCtx->m_callback || !mCtx->m_callback->hotplug)
+        return;
+
+    int fbid = -1;
+    const char *s = buff;
+    s += strlen(s) + 1;
+
+    while (*s) {
+        if (!strncmp(s, "EVENT=plugin", strlen("EVENT=plugin"))) {
+            mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = true;
+            fbid = hwc_get_display_fbid(mCtx, HWC_DISPLAY_HDMI);
+            if (fbid < 0) {
+                ALOGE("unrecognized fb num for hdmi");
+            }
+            else {
+                ALOGI("-----------hdmi---plug--in----");
+                if (mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].xres == 0) {
+                    hwc_get_framebuffer_info(&mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL]);
+                }
+            }
+        }
+        else if (!strncmp(s, "EVENT=plugout", strlen("EVENT=plugout"))) {
+            mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = false;
+            ALOGI("-----------hdmi---plug--out----");
+        }
+
+        s += strlen(s) + 1;
+        if (s - buff >= len)
+            break;
+    }
+
+    if (fbid >= 0 && mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] == NULL && mCtx->m_gralloc_module != NULL) {
+        ALOGI("-----------hdmi---open framebuffer----");
+        mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] = (framebuffer_device_t*)fbid;
+        char fbname[HWC_STRING_LENGTH];
+        memset(fbname, 0, sizeof(fbname));
+        sprintf(fbname, "fb%d", fbid);
+        mCtx->m_gralloc_module->methods->open(mCtx->m_gralloc_module, fbname,
+                     (struct hw_device_t**)&mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
+    }
+
+    mCtx->m_callback->hotplug(mCtx->m_callback, HWC_DISPLAY_EXTERNAL, 
+                      mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected);
+}
+
 bool VSyncThread::threadLoop()
 {
     char uevent_desc[4096];
     memset(uevent_desc, 0, sizeof(uevent_desc));
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
-    const char *pUeventName = FB_VSYNC_EVENT_PREFIX;
-    bool vsync = !strncmp(uevent_desc, pUeventName, strlen(pUeventName));
+    const char *pVsyncEvent = FB_VSYNC_EVENT_PREFIX;
+    const char *pHdmiEvent = HDMI_PLUG_EVENT;
+    bool vsync = !strncmp(uevent_desc, pVsyncEvent, strlen(pVsyncEvent));
+    bool hdmi = !strncmp(uevent_desc, pHdmiEvent, strlen(pHdmiEvent));
     if(vsync) {
-        handleUevent(uevent_desc, len);
+        handleVsyncUevent(uevent_desc, len);
     }
+    else if(hdmi) {
+        handleHdmiUevent(uevent_desc, len);
+    }
+
     return true;
 }
 

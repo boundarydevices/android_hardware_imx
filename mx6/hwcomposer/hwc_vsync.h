@@ -37,6 +37,7 @@
 /*****************************************************************************/
 #define FB_VSYNC_EVENT "change@/devices/platform/mxc_sdc_fb.0/graphics/fb0"
 #define FB_VSYNC_EVENT_PREFIX "change@/devices/platform/mxc_sdc_fb"
+#define HDMI_PLUG_EVENT "change@/devices/platform/mxc_hdmi"
 
 using namespace android;
 
@@ -51,7 +52,8 @@ private:
     virtual void onFirstRef();
     virtual status_t readyToRun();
     virtual bool threadLoop();
-    void handleUevent(const char *buff, int len);
+    void handleVsyncUevent(const char *buff, int len);
+    void handleHdmiUevent(const char *buff, int len);
 
     hwc_context_t *mCtx;
 };
