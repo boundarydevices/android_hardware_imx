@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2009-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,12 @@
 struct private_module_t;
 struct private_handle_t;
 
+struct gralloc_context_t {
+    alloc_device_t  device;
+    /* our private data here */
+    alloc_device_t *ext_dev;
+};
+
 struct private_module_t {
 /** do NOT change the elements below **/
     gralloc_module_t base;
@@ -64,6 +70,10 @@ struct private_module_t {
     unsigned long master_phys;
     alloc_device_t *gpu_device;
     gralloc_module_t* gralloc_viv;
+
+    struct alloc_device_t *priv_dev;
+    struct private_module_t *external_module;
+    int primary_fd;
     enum {
         // flag to indicate we'll post this buffer
         PRIV_USAGE_LOCKED_FOR_POST = 0x80000000

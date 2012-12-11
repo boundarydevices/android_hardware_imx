@@ -21,6 +21,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#undef LOG_TAG
+#define LOG_TAG "FslHwcomposer"
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 #include <cutils/properties.h>
@@ -37,19 +39,45 @@
 /*****************************************************************************/
 #define HWC_VIV_HARDWARE_MODULE_ID "hwcomposer_viv"
 #define HWC_MAIN_FB "/dev/graphics/fb0"
+#define HWC_MAX_FB 6
+#define HWC_PATH_LENGTH 256
+#define HWC_STRING_LENGTH 32
+#define HWC_FB_PATH "/dev/graphics/fb"
+#define HWC_FB_SYS "/sys/class/graphics/fb"
 
 class VSyncThread;
 
-struct hwc_context_t {
-    hwc_composer_device_t device;
-    /* our private state goes below here */
+enum {
+    HWC_DISPLAY_LDB = 1,
+    HWC_DISPLAY_HDMI = 2,
+    HWC_DISPLAY_DVI = 3
+};
 
-    int m_mainfb_fd;
-    float m_mainfb_fps;
+typedef struct {
+    int fb_num;
+    bool connected;
+    int type;
+    int fd;
+    int vsync_period;
+    int xres;
+    int yres;
+    int xdpi;
+    int ydpi;
+} displayInfo;
+
+struct hwc_context_t {
+    hwc_composer_device_1 device;
+    /* our private state goes below here */
+    displayInfo mDispInfo[HWC_NUM_DISPLAY_TYPES];
+    //hwc_layer_list_t* mDispList[HWC_NUM_DISPLAY_TYPES];
+    //size_t mListCapacity[HWC_NUM_DISPLAY_TYPES];
+
     hwc_procs_t* m_callback;
     bool m_vsync_enable;
     sp<VSyncThread> m_vsync_thread;
-    hwc_composer_device_t* m_viv_hwc;
+    //hwc_composer_device_t* m_viv_hwc;
+    hw_module_t const *m_gralloc_module;
+    framebuffer_device_t* mFbDev[HWC_NUM_DISPLAY_TYPES];
 };
 
 #endif
