@@ -265,7 +265,8 @@ status_t OvDevice::initParameters(CameraParameters& params,
                 mSupportedFPS);
     mParams.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE,
                 "(12000,17000),(25000,33000)");
-    mParams.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "25000,33000");
+    // Align the default FPS RANGE to the DEFAULT_PREVIEW_FPS
+    mParams.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "12000,17000");
 
     mParams.setPreviewSize(DEFAULT_PREVIEW_W, DEFAULT_PREVIEW_H);
     mParams.setPictureSize(DEFAULT_PICTURE_W, DEFAULT_PICTURE_H);
@@ -319,7 +320,7 @@ status_t OvDevice::setParameters(CameraParameters& params)
         return BAD_VALUE;
     }
 
-    local_framerate = params.getPreviewFrameRate();
+    local_framerate = mParams.getPreviewFrameRate();
     FLOGI("get local frame rate:%d FPS", local_framerate);
     if ((local_framerate > 30) || (local_framerate < 0)) {
         FLOGE("The framerate is not corrected");
