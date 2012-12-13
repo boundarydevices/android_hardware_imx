@@ -39,8 +39,10 @@ static struct audio_card  null_card = {
     .card                = -1,
     .out_rate            = 0,
     .out_channels        = 0,
+    .out_format          = 0,
     .in_rate             = 0,
     .in_channels         = 0,
+    .in_format           = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_NULLCARD_H */

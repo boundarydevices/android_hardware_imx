@@ -24,7 +24,7 @@
 static struct audio_card  spdif_card = {
     .name = "imx-spdif",
     .driver_name = "imx-spdif",
-    .supported_devices   = AUDIO_DEVICE_OUT_AUX_DIGITAL | AUDIO_DEVICE_IN_AUX_DIGITAL,
+    .supported_devices   = AUDIO_DEVICE_IN_AUX_DIGITAL,
     .defaults            = NULL,
     .bt_output           = NULL,
     .speaker_output      = NULL,
@@ -39,8 +39,10 @@ static struct audio_card  spdif_card = {
     .card                = 0,
     .out_rate            = 0,
     .out_channels        = 0,
+    .out_format          = 0,
     .in_rate             = 0,
     .in_channels         = 0,
+    .in_format           = 0,
 };
 
 #endif  /* ANDROID_INCLUDE_IMX_CONFIG_SPDIF_H */
