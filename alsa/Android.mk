@@ -30,11 +30,4 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa libaudioutils libdl
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := audio_policy.conf
-LOCAL_MODULE_CLASS := ETC
-LOCAL_SRC_FILES := audio_policy.conf
-LOCAL_MODULE_TAGS := optional
-include $(BUILD_PREBUILT)
-
 endif
