@@ -74,8 +74,10 @@ struct audio_card{
     int  card;
     unsigned int  out_rate;
     int  out_channels;
+    int  out_format;
     unsigned int  in_rate;
     int  in_channels;
+    int  in_format;
 };
 
 #define MAX_AUDIO_CARD_NUM  3
@@ -108,6 +110,7 @@ struct imx_audio_device {
     int audio_card_num;
     unsigned int default_rate;               /*HAL input samplerate*/
     unsigned int mm_rate;                    /*HAL hardware output samplerate*/
+    char usb_card_name[128];
 };
 
 struct imx_stream_out {
@@ -142,9 +145,16 @@ struct imx_stream_in {
     int device;
     struct resampler_itfe *resampler;
     struct resampler_buffer_provider buf_provider;
-    int16_t *buffer;
-    size_t frames_in;
+    int16_t *read_buf;
+    size_t read_buf_size;
+    size_t read_buf_frames;
+    int32_t *read_tmp_buf;
+    size_t read_tmp_buf_size;
+    size_t read_tmp_buf_frames;
+
     unsigned int requested_rate;
+    unsigned int requested_format;
+    unsigned int requested_channel;
     int standby;
     int source;
     struct echo_reference_itfe *echo_reference;
