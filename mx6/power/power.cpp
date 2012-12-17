@@ -27,19 +27,16 @@
 #include <hardware/power.h>
 #include <utils/StrongPointer.h>
 
-#include <cutils/properties.h>
 #include "watchdog.h"
+#include "switchprofile.h"
 
 #define BOOST_PATH      "/sys/devices/system/cpu/cpufreq/interactive/boost"
 #define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
-#define INPUTBOOST_PATH "/sys/devices/system/cpu/cpufreq/interactive/input_boost"
-#define GOV_PATH "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-#define PROP_CPUFREQGOVERNOR "sys.interactive"
-#define PROP_VAL "active"
-#define CONSERVATIVE "conservative"
+#define CONSER "conservative"
 static int boost_fd = -1;
 static int boost_warned;
 static sp<WatchdogThread> wdThread;
+static sp<SwitchprofileThread> switchprofile;
 
 static void getcpu_gov(char *s, int size)
 {
@@ -56,25 +53,6 @@ static void getcpu_gov(char *s, int size)
         ALOGE("Error read %s: %s\n", GOV_PATH, strerror(errno));
     }
     close(fd);
-}
-
-static int check_and_set_property(const char *propname, const char *propval)
-{
-    char prop_cpugov[PROPERTY_VALUE_MAX];
-    char cpugov[64];
-    int ret;
-    memset(cpugov, 0, sizeof(cpugov));
-    getcpu_gov(cpugov,sizeof(cpugov));
-
-    property_set(propname, propval);
-    if( property_get(propname, prop_cpugov, NULL) &&
-            (strcmp(prop_cpugov, propval) == 0) ){
-	    ret = 0;
-    }else{
-	    ret = -1;
-	    ALOGE("setprop: %s = %s fail\n", propname, propval);
-    }
-    return ret;
 }
 
 static void sysfs_write(const char *path, const char *s)
@@ -102,7 +80,9 @@ static void fsl_power_init(struct power_module *module)
      * hispeed at cpufreq MAX freq in freq_table at load 40% 
      * move the params initialization to init
      */
-    check_and_set_property(PROP_CPUFREQGOVERNOR, PROP_VAL);
+    //create power profile switch thread
+    switchprofile = new SwitchprofileThread();
+    switchprofile->do_setproperty(PROP_CPUFREQGOV, PROP_VAL);
     // create and run the watchdog thread
     wdThread = new WatchdogThread();
 }
@@ -112,14 +92,10 @@ static void fsl_power_set_interactive(struct power_module *module, int on)
     /* swich to conservative when system in early_suspend or
      * suspend mode.
 	 */
-    if (on){
-        sysfs_write(GOV_PATH, "interactive");
-		check_and_set_property(PROP_CPUFREQGOVERNOR, PROP_VAL);
-		sysfs_write(INPUTBOOST_PATH, "1");
-	}else{
-        sysfs_write(INPUTBOOST_PATH, "0");
-		sysfs_write(GOV_PATH, "conservative");
-	}
+    if (on)
+        switchprofile->set_cpugov(INTERACTIVE);
+	else
+        switchprofile->set_cpugov(CONSERVATIVE);
 }
 
 static void fsl_power_hint(struct power_module *module, power_hint_t hint,
@@ -129,7 +105,7 @@ static void fsl_power_hint(struct power_module *module, power_hint_t hint,
     int len;
     memset(buf, 0, sizeof(buf));
     getcpu_gov(buf,sizeof(buf));
-    if(!strncmp(CONSERVATIVE, buf, strlen(CONSERVATIVE))){
+    if(!strncmp(CONSER, buf, strlen(CONSER))){
 	   ALOGE("Not in interactive mode, don't do powerhint\n");
 	    return;
     }
