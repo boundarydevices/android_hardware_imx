@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 #include "PP_ipulib.h"
 #include <stdlib.h>
@@ -34,7 +34,7 @@ namespace android{
         singleton.clear();
     }
     PPDEVICE_ERR_RET PPIpuLib :: PPDeviceInit(pp_input_param_t *pp_input, pp_output_param_t *pp_output){
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         PPDEVICE_ERR_RET ret = PPDEVICE_ERROR_NONE;
 
         int mIPURet;
@@ -63,7 +63,7 @@ namespace android{
         mIPUOutputParam.output_win.win_h = pp_output->output_win.win_h;
         mIPUOutputParam.rot = pp_output->rot;
         mIPUOutputParam.user_def_paddr[0] = pp_output->user_def_paddr;
-        CAMERA_HAL_LOG_RUNTIME(" Output param: width %d,height %d, pos.x %d, pos.y %d,win_w %d,win_h %d,rot %d",
+        CAMERA_LOG_RUNTIME(" Output param: width %d,height %d, pos.x %d, pos.y %d,win_w %d,win_h %d,rot %d",
                 mIPUOutputParam.width,
                 mIPUOutputParam.height,
                 mIPUOutputParam.output_win.pos.x,
@@ -72,7 +72,7 @@ namespace android{
                 mIPUOutputParam.output_win.win_h,
                 mIPUOutputParam.rot);
 
-        CAMERA_HAL_LOG_RUNTIME("Input param: width %d, height %d, fmt %d, crop_win pos x %d, crop_win pos y %d, crop_win win_w %d,crop_win win_h %d",
+        CAMERA_LOG_RUNTIME("Input param: width %d, height %d, fmt %d, crop_win pos x %d, crop_win pos y %d, crop_win win_w %d,crop_win win_h %d",
                 mIPUInputParam.width,
                 mIPUInputParam.height,
                 mIPUInputParam.fmt,
@@ -83,7 +83,7 @@ namespace android{
 
         mIPURet =  mxc_ipu_lib_task_init(&mIPUInputParam,NULL,&mIPUOutputParam,OP_NORMAL_MODE|TASK_ENC_MODE,&mIPUHandle);
         if (mIPURet < 0) {
-            CAMERA_HAL_ERR("Error! convertYUYVtoNV12, mxc_ipu_lib_task_init ret %d!",mIPURet);
+            CAMERA_LOG_ERR("Error! convertYUYVtoNV12, mxc_ipu_lib_task_init ret %d!",mIPURet);
             return PPDEVICE_ERROR_INIT;
         }  
 
@@ -91,7 +91,7 @@ namespace android{
     }
 
     PPDEVICE_ERR_RET PPIpuLib :: DoPorcess(DMA_BUFFER *pp_input_addr, DMA_BUFFER *pp_output_addr){
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         PPDEVICE_ERR_RET ret = PPDEVICE_ERROR_NONE;
 
         int mIPURet;
@@ -99,9 +99,9 @@ namespace android{
 
         mIPUOutputParam.user_def_paddr[0] = pp_output_addr->phy_offset;
 
-        mIPURet = mxc_ipu_lib_task_buf_update(&mIPUHandle,pp_input_addr->phy_offset,pp_output_addr->phy_offset,NULL,NULL,NULL);
+        mIPURet = mxc_ipu_lib_task_buf_update(&mIPUHandle,pp_input_addr->phy_offset,pp_output_addr->phy_offset, 0,NULL,NULL);
         if (mIPURet < 0) {
-            CAMERA_HAL_ERR("Error! convertYUYVtoNV12, mxc_ipu_lib_task_buf_update ret %d!",mIPURet);
+            CAMERA_LOG_ERR("Error! convertYUYVtoNV12, mxc_ipu_lib_task_buf_update ret %d!",mIPURet);
             mxc_ipu_lib_task_uninit(&mIPUHandle);
             memset(&mIPUHandle, 0, sizeof(ipu_lib_handle_t));
             return PPDEVICE_ERROR_PROCESS;
@@ -112,7 +112,7 @@ namespace android{
     }
 
     PPDEVICE_ERR_RET PPIpuLib :: PPDeviceDeInit(){
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         PPDEVICE_ERR_RET ret = PPDEVICE_ERROR_NONE;
 
         mxc_ipu_lib_task_uninit(&mIPUHandle);
@@ -122,7 +122,7 @@ namespace android{
     }
 
     sp<PostProcessDeviceInterface> PPIpuLib :: createInstance(){
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         if (singleton != 0) {
             sp<PostProcessDeviceInterface> device = singleton.promote();
             if (device != 0) {

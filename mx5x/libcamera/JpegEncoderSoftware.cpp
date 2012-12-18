@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 #include <string.h>
 #include <unistd.h>
@@ -47,6 +47,7 @@ namespace android{
         pEncObj(NULL)
     {
         mSupportedType[0] = v4l2_fourcc('Y','U','1','2');
+        mSupportedType[1] = v4l2_fourcc('Y','U','Y','V');
     }
 
     JpegEncoderSoftware :: ~JpegEncoderSoftware()
@@ -58,7 +59,7 @@ namespace android{
     {
 
         int * pSupportedType = (int *)pQueryRet;
-        switch(QueryType){	
+        switch(QueryType){
             case SUPPORTED_FMT:
                 if (mSupportedTypeIdx < MAX_ENC_SUPPORTED_YUV_TYPE){
                     *pSupportedType = mSupportedType[mSupportedTypeIdx];
@@ -77,7 +78,7 @@ namespace android{
 
     JPEG_ENC_ERR_RET JpegEncoderSoftware :: JpegEncoderInit(enc_cfg_param *pEncCfg)
     {
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
 
         JPEG_ENC_ERR_RET ret = JPEG_ENC_ERROR_NONE;
         struct jpeg_enc_focallength_t * pFoclLength = NULL;
@@ -94,7 +95,7 @@ namespace android{
         pEncCfgLocal = (enc_cfg_param *)malloc(sizeof(enc_cfg_param));
 
         if (pEncCfgLocal == NULL){
-            CAMERA_HAL_ERR("Allocat buffer for EncCfg failed");
+            CAMERA_LOG_ERR("Allocat buffer for EncCfg failed");
             return JPEG_ENC_ERROR_ALOC_BUF;
         }
 
@@ -110,7 +111,7 @@ namespace android{
             pFoclLength = (struct jpeg_enc_focallength_t *)malloc(sizeof(struct jpeg_enc_focallength_t));
 
             if (pFoclLength == NULL){
-                CAMERA_HAL_ERR("Allocat buffer for pFoclLength failed");
+                CAMERA_LOG_ERR("Allocat buffer for pFoclLength failed");
                 ret = JPEG_ENC_ERROR_ALOC_BUF;
                 goto INT_ERR_RET;
             }
@@ -124,7 +125,7 @@ namespace android{
             pMakeInfo = (struct jpeg_enc_make_info_t *)malloc(sizeof(struct jpeg_enc_make_info_t));
 
             if (pMakeInfo == NULL){
-                CAMERA_HAL_ERR("Allocat buffer for pMakeInfo failed");
+                CAMERA_LOG_ERR("Allocat buffer for pMakeInfo failed");
                 ret = JPEG_ENC_ERROR_ALOC_BUF;
                 goto INT_ERR_RET;
             }
@@ -137,7 +138,7 @@ namespace android{
             pMakeNote = (struct jpeg_enc_makernote_info_t *)malloc(sizeof(struct jpeg_enc_makernote_info_t));
 
             if (pMakeNote == NULL){
-                CAMERA_HAL_ERR("Allocat buffer for pMakeNote failed");
+                CAMERA_LOG_ERR("Allocat buffer for pMakeNote failed");
                 ret = JPEG_ENC_ERROR_ALOC_BUF;
                 goto INT_ERR_RET;
             }
@@ -150,7 +151,7 @@ namespace android{
             pModelInfo = (struct jpeg_enc_model_info_t *)malloc(sizeof(struct jpeg_enc_model_info_t));
 
             if (pModelInfo == NULL){
-                CAMERA_HAL_ERR("Allocat buffer for pModelInfo failed");
+                CAMERA_LOG_ERR("Allocat buffer for pModelInfo failed");
                 ret = JPEG_ENC_ERROR_ALOC_BUF;
                 goto INT_ERR_RET;
             }
@@ -163,7 +164,7 @@ namespace android{
             pDatetimeInfo = (struct jpeg_enc_datetime_info_t *)malloc(sizeof(struct jpeg_enc_datetime_info_t));
 
             if (pDatetimeInfo == NULL){
-                CAMERA_HAL_ERR("Allocat buffer for pDatetimeInfo failed");
+                CAMERA_LOG_ERR("Allocat buffer for pDatetimeInfo failed");
                 ret = JPEG_ENC_ERROR_ALOC_BUF;
                 goto INT_ERR_RET;
             }
@@ -176,7 +177,7 @@ namespace android{
             pGpsInfoLocal = (struct jpeg_enc_gps_param *)malloc(sizeof(struct jpeg_enc_gps_param));
 
             if (pGpsInfoLocal == NULL){
-                CAMERA_HAL_ERR("Allocat buffer for pGpsInfoLocal failed");
+                CAMERA_LOG_ERR("Allocat buffer for pGpsInfoLocal failed");
                 ret = JPEG_ENC_ERROR_ALOC_BUF;
                 goto INT_ERR_RET;
             }
@@ -215,7 +216,7 @@ INT_ERR_RET:
     }
 
     JPEG_ENC_ERR_RET JpegEncoderSoftware :: JpegEncoderDeInit(){
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         JPEG_ENC_ERR_RET ret = JPEG_ENC_ERROR_NONE;
 
         if (pEncCfgLocal != NULL ){
@@ -240,20 +241,20 @@ INT_ERR_RET:
 
     JPEG_ENC_ERR_RET JpegEncoderSoftware :: CheckEncParm(){
 
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
         int i = 0;
 
         JPEG_ENC_ERR_RET ret = JPEG_ENC_ERROR_NONE;
 
         if ((pEncCfgLocal->PicWidth <= 0) && (pEncCfgLocal->PicHeight<= 0)){
-            CAMERA_HAL_ERR("The input widht and height is wrong");
+            CAMERA_LOG_ERR("The input widht and height is wrong");
             return JPEG_ENC_ERROR_BAD_PARAM;
         }
 
-        if((pEncCfgLocal->PicWidth <= 0) || (pEncCfgLocal->PicHeight <= 0)|| 
+        if((pEncCfgLocal->PicWidth <= 0) || (pEncCfgLocal->PicHeight <= 0)||
                 (pEncCfgLocal->ThumbWidth > pEncCfgLocal->PicWidth) ||
                 (pEncCfgLocal->ThumbHeight > pEncCfgLocal->PicHeight) ){
-            CAMERA_HAL_ERR("The input widht and height is wrong");
+            CAMERA_LOG_ERR("The input widht and height is wrong");
             return JPEG_ENC_ERROR_BAD_PARAM;
         }
 
@@ -270,7 +271,7 @@ INT_ERR_RET:
 
     JPEG_ENC_ERR_RET JpegEncoderSoftware :: encodeImge(DMA_BUFFER *inBuf, DMA_BUFFER *outBuf, unsigned int *pEncSize){
 
-        CAMERA_HAL_LOG_FUNC;
+        CAMERA_LOG_FUNC;
 
         JPEG_ENC_ERR_RET ret = JPEG_ENC_ERROR_NONE;
         int width, height, size,index;
@@ -424,7 +425,7 @@ encodeframe:
             v_buff = NULL;
             i_buff = (JPEG_ENC_UINT8 *)buffer;
         }
-        CAMERA_HAL_LOG_RUNTIME("version: %s\n", jpege_CodecVersionInfo());
+        CAMERA_LOG_RUNTIME("version: %s\n", jpege_CodecVersionInfo());
 
         /* --------------------------------------------
          * QUERY MEMORY REQUIREMENTS
@@ -433,11 +434,11 @@ encodeframe:
 
         if(return_val != JPEG_ENC_ERR_NO_ERROR)
         {
-            CAMERA_HAL_LOG_RUNTIME("JPEG encoder returned an error when jpeg_enc_query_mem_req was called \n");
-            CAMERA_HAL_LOG_RUNTIME("Return Val %d\n",return_val);
+            CAMERA_LOG_RUNTIME("JPEG encoder returned an error when jpeg_enc_query_mem_req was called \n");
+            CAMERA_LOG_RUNTIME("Return Val %d\n",return_val);
             goto done;
         }
-        CAMERA_HAL_LOG_RUNTIME("jpeg_enc_query_mem_req success");
+        CAMERA_LOG_RUNTIME("jpeg_enc_query_mem_req success");
         /* --------------------------------------------
          * ALLOCATE MEMORY REQUESTED BY CODEC
          * -------------------------------------------*/
@@ -450,7 +451,7 @@ encodeframe:
             mem_info = &(obj_ptr->mem_infos.mem_info[index]);
             mem_info->memptr = (void *) malloc(mem_info->size);
             if(mem_info->memptr==NULL) {
-                CAMERA_HAL_LOG_RUNTIME("Malloc error after query\n");
+                CAMERA_LOG_RUNTIME("Malloc error after query\n");
                 goto done;
             }
         }
@@ -458,12 +459,12 @@ encodeframe:
         return_val = jpeg_enc_init(obj_ptr);
         if(return_val != JPEG_ENC_ERR_NO_ERROR)
         {
-            CAMERA_HAL_LOG_RUNTIME("JPEG encoder returned an error when jpeg_enc_init was called \n");
-            CAMERA_HAL_LOG_RUNTIME("Return Val %d\n",return_val);
+            CAMERA_LOG_RUNTIME("JPEG encoder returned an error when jpeg_enc_init was called \n");
+            CAMERA_LOG_RUNTIME("Return Val %d\n",return_val);
             goto done;
         }
 
-        CAMERA_HAL_LOG_RUNTIME("jpeg_enc_init success");
+        CAMERA_LOG_RUNTIME("jpeg_enc_init success");
         if(params->mode == JPEG_ENC_THUMB)
             createJpegExifTags(obj_ptr);
 
@@ -472,8 +473,8 @@ encodeframe:
 
         if(return_val != JPEG_ENC_ERR_ENCODINGCOMPLETE)
         {
-            CAMERA_HAL_LOG_RUNTIME("JPEG encoder returned an error in jpeg_enc_encodeframe \n");
-            CAMERA_HAL_LOG_RUNTIME("Return Val %d\n",return_val);
+            CAMERA_LOG_RUNTIME("JPEG encoder returned an error in jpeg_enc_encodeframe \n");
+            CAMERA_LOG_RUNTIME("Return Val %d\n",return_val);
             goto done;
         }
 
@@ -516,7 +517,7 @@ encodeframe:
 
             goto encodeframe;
         }
-        CAMERA_HAL_LOG_RUNTIME("jpeg_enc_encodeframe success");
+        CAMERA_LOG_RUNTIME("jpeg_enc_encodeframe success");
         // Make an IMemory for each frame
         //jpegPtr = new MemoryBase(mJpegImageHeap, 0, g_JpegDataLen);
         *pEncSize = g_JpegDataLen;
@@ -556,14 +557,14 @@ done:
         {
             /* Flush the buffer*/
             g_JpegDataLen += *out_buf_len_ptr;
-            CAMERA_HAL_LOG_RUNTIME("jpeg output data len %d",(int)g_JpegDataLen);
+            CAMERA_LOG_RUNTIME("jpeg output data len %d",(int)g_JpegDataLen);
 
             *out_buf_ptrptr = NULL;
-            *out_buf_len_ptr = NULL;
+            *out_buf_len_ptr = 0;
         }
         else
         {
-            CAMERA_HAL_LOG_RUNTIME("Not enough buffer for encoding");
+            CAMERA_LOG_RUNTIME("Not enough buffer for encoding");
             return 0;
         }
 
@@ -572,7 +573,7 @@ done:
 
     void JpegEncoderSoftware::createJpegExifTags(jpeg_enc_object * obj_ptr)
     {
-        CAMERA_HAL_LOG_RUNTIME("version: %s\n", jpege_CodecVersionInfo());
+        CAMERA_LOG_RUNTIME("version: %s\n", jpege_CodecVersionInfo());
 
         jpeg_enc_set_exifheaderinfo(obj_ptr, JPEGE_ENC_SET_HEADER_ORIENTATION, (unsigned int)(&(pEncCfgLocal->RotationInfo)));
         jpeg_enc_set_exifheaderinfo(obj_ptr, JPEGE_ENC_SET_HEADER_WHITEBALANCE, (unsigned int)(&(pEncCfgLocal->WhiteBalanceInfo)));

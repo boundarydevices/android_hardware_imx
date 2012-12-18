@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 
 #ifndef JPEG_ENCODER_SOFTWARE_H
@@ -40,7 +40,7 @@
 
 
 namespace android{
-#define MAX_ENC_SUPPORTED_YUV_TYPE  1
+#define MAX_ENC_SUPPORTED_YUV_TYPE  2
 
     class JpegEncoderSoftware : public JpegEncoderInterface{
     public:
@@ -61,8 +61,8 @@ namespace android{
 
         static JPEG_ENC_UINT8 pushJpegOutput(JPEG_ENC_UINT8 ** out_buf_ptrptr,
                 JPEG_ENC_UINT32 *out_buf_len_ptr,
-                JPEG_ENC_UINT8 flush, 
-                void * context, 
+                JPEG_ENC_UINT8 flush,
+                void * context,
                 JPEG_ENC_MODE enc_mode);
         void createJpegExifTags(jpeg_enc_object * obj_ptr);
         int yuv_resize(unsigned char *dst_ptr, int dst_width, int dst_height, unsigned char *src_ptr, int src_width, int src_height);
@@ -78,7 +78,7 @@ namespace android{
         static JPEG_ENC_UINT32 g_JpegDataLen ;//Valid data len of g_JpegData
         static JPEG_ENC_UINT8 *g_JpegData ;//Buffer to hold jpeg data
 
-    }; 
+    };
 };
 
 #endif

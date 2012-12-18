@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-/**
-* @file CameraHal.cpp
-*
-* This file maps the Camera Hardware Interface to V4L2.
-*
-*/
-
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 
 #define LOG_TAG "CameraHAL"
-
+#include <linux/videodev2.h>
+#include <linux/mxcfb.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include <utils/threads.h>
 #include <cutils/properties.h>
 #include "CameraHal.h"
@@ -34,7 +33,7 @@
 
 #define MAX_CAMERAS_SUPPORTED 2
 //static android::CameraProperties gCameraProperties;
-static android::CameraHal* gCameraHals[MAX_CAMERAS_SUPPORTED];
+static CameraHal* gCameraHals[MAX_CAMERAS_SUPPORTED];
 static unsigned int gCamerasOpen = 0;
 static android::Mutex gCameraHalDeviceLock;
 
@@ -66,7 +65,6 @@ camera_module_t HAL_MODULE_INFO_SYM = {
 
 typedef struct fsl_camera_device {
     camera_device_t base;
-    /* TI specific "private" data can go here (base.priv) */
     int cameraid;
 } fsl_camera_device_t;
 
@@ -477,11 +475,16 @@ done:
 #define FACE_FRONT_CAMERA_NAME "front_camera_name"
 #define FACE_BACK_CAMERA_ORIENT "back_camera_orient"
 #define FACE_FRONT_CAMERA_ORIENT "front_camera_orient"
-#define DEFAULT_ERROR_NAME '#'
-#define DEFAULT_ERROR_NAME_str "#"
+#define DEFAULT_ERROR_NAME '0'
+#define DEFAULT_ERROR_NAME_str "0"
 #define UVC_NAME "uvc"
 static struct camera_info sCameraInfo[2];
-static char Camera_name[2][MAX_SENSOR_NAME];
+//gCameraName[0]  for back camera name
+//gCameraName[1]  for front camera name
+static char gCameraName[2][CAMERA_SENSOR_LENGTH];
+static char gCameraDevPath[2][CAMAERA_FILENAME_LENGTH];
+static int gCameraNum = 0;
+
 /*******************************************************************
  * implementation of camera_module functions
  *******************************************************************/
@@ -500,16 +503,15 @@ int camera_device_open(const hw_module_t* module, const char* name,
     int cameraid;
     fsl_camera_device_t* camera_device = NULL;
     camera_device_ops_t* camera_ops = NULL;
-    android::CameraHal* camera = NULL;
+    CameraHal* camera = NULL;
     char *SelectedCameraName;
     android::sp<android::CaptureDeviceInterface> pCaptureDevice = NULL;
-    android::sp<android::PostProcessDeviceInterface> pPPDevice = NULL;
     android::sp<android::JpegEncoderInterface>pJpegEncoder = NULL;
     //android::CameraProperties::Properties* properties = NULL;
 
     android::Mutex::Autolock lock(gCameraHalDeviceLock);
 
-    ALOGI("camera_device open");
+    ALOGI("camera_device open: %s", name);
 
     if (name != NULL) {
         cameraid = atoi(name);
@@ -583,13 +585,13 @@ int camera_device_open(const hw_module_t* module, const char* name,
         *device = &camera_device->base.common;
 
         camera_device->cameraid = cameraid;
-        SelectedCameraName = Camera_name[sCameraInfo[cameraid].facing];
+        SelectedCameraName = gCameraName[sCameraInfo[cameraid].facing];
 
-        pCaptureDevice = android::createCaptureDevice(SelectedCameraName);
-        pPPDevice = android::createPPDevice();
+        pCaptureDevice = android::createCaptureDevice(SelectedCameraName,
+                gCameraDevPath[sCameraInfo[cameraid].facing]);
         pJpegEncoder = android::createJpegEncoder(android::SOFTWARE_JPEG_ENC);
 
-        camera = new android::CameraHal(cameraid);
+        camera = new CameraHal(cameraid);
 
         if(!camera)
         {
@@ -599,16 +601,14 @@ int camera_device_open(const hw_module_t* module, const char* name,
         }
 
         if (camera->setCaptureDevice(pCaptureDevice) < 0 ||
-                camera->setPostProcessDevice(pPPDevice) < 0 ||
-                camera->setJpegEncoder(pJpegEncoder) < 0)
-            return NULL;
+                camera->setJpegEncoder(pJpegEncoder) < 0) {
+            rv = -EINVAL;
+            goto fail;
+        }
 
-        if (camera->Init() < 0)
-            return NULL;
-
-        //now the board has only one csi camera sensor, so just do mirror for it
-        if(strstr(SelectedCameraName, "ov") != NULL){
-            camera->setPreviewRotate(android::CAMERA_PREVIEW_HORIZ_FLIP);
+        if (camera->Init() < 0) {
+            rv = -EINVAL;
+            goto fail;
         }
 
         gCameraHals[cameraid] = camera;
@@ -634,6 +634,56 @@ fail:
     return rv;
 }
 
+static int GetDevPath(const char *pCameraName, char *pCameraDevPath, unsigned int pathLen)
+{
+    int retCode = -1;
+    int fd = 0;
+    char   dev_node[CAMAERA_FILENAME_LENGTH];
+    DIR *v4l_dir = NULL;
+    struct dirent *dir_entry;
+    struct v4l2_capability v4l2_cap;
+    struct v4l2_dbg_chip_ident vid_chip;
+
+    v4l_dir = opendir("/sys/class/video4linux");
+    if (v4l_dir){
+        while((dir_entry = readdir(v4l_dir))) {
+            memset((void *)dev_node, 0, CAMAERA_FILENAME_LENGTH);
+            if(strncmp(dir_entry->d_name, "video", 5))
+                continue;
+            sprintf(dev_node, "/dev/%s", dir_entry->d_name);
+            if ((fd = open(dev_node, O_RDWR, O_NONBLOCK)) < 0)
+                continue;
+            if(ioctl(fd, VIDIOC_QUERYCAP, &v4l2_cap) < 0 ) {
+                close(fd);
+                fd = 0;
+                continue;
+            } else if (v4l2_cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) {
+                if(ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0 ) {
+                    close(fd);
+                    fd = 0;
+                    continue;
+                }
+                if(strstr(vid_chip.match.name, pCameraName)){
+                    //fsl csi/mipi camera name and path match
+                    if(pathLen > strlen(dev_node)) {
+                        strcpy(pCameraDevPath, dev_node);
+                        ALOGI("Get sensor %s's dev path %s", pCameraName, pCameraDevPath);
+                        retCode = 0;
+                    }
+                    close(fd);
+                    fd = 0;
+                    break;
+                }
+            }
+            close(fd);
+            fd = 0;
+        }
+        closedir(v4l_dir);
+    }
+
+    return retCode;
+}
+
 static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraName, int *pFaceBackOrient, int *pFaceFrontOrient)
 {
     char orientStr[10];
@@ -643,7 +693,7 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
 
     if (orientStr[0] == DEFAULT_ERROR_NAME )
         *pFaceBackOrient = 0;
-    else 
+    else
         *pFaceBackOrient = atoi(orientStr);
 
     ALOGI("Face Back Camera is %s, orient is %d", pFaceBackCameraName, *pFaceBackOrient);
@@ -655,34 +705,33 @@ static void GetCameraPropery(char * pFaceBackCameraName, char *pFaceFrontCameraN
 
     if (orientStr[0] == DEFAULT_ERROR_NAME )
         *pFaceFrontOrient = 0;
-    else 
+    else
         *pFaceFrontOrient = atoi(orientStr);
 
     ALOGI("Face Front Camera is %s, orient is %d", pFaceFrontCameraName, *pFaceFrontOrient);
-
 }
 
 int camera_get_number_of_cameras()
 {
     int back_orient =0,  front_orient = 0;
-    int back_camera_num = 0, front_camera_num = 0;
-    GetCameraPropery(Camera_name[0], Camera_name[1], &back_orient, &front_orient);
-    if (Camera_name[0][0] != DEFAULT_ERROR_NAME){
-        sCameraInfo[0].facing = CAMERA_FACING_BACK;
-        sCameraInfo[0].orientation = back_orient;
-        back_camera_num++;
-    }
-    if (Camera_name[1][0] != DEFAULT_ERROR_NAME){
-        if(back_camera_num > 0){
-            sCameraInfo[1].facing = CAMERA_FACING_FRONT;
-            sCameraInfo[1].orientation = front_orient;
-        }else{
-	    sCameraInfo[0].facing = CAMERA_FACING_FRONT;
-	    sCameraInfo[0].orientation = front_orient;
+    if(gCameraNum == 0) {
+        GetCameraPropery(gCameraName[0], gCameraName[1], &back_orient, &front_orient);
+        if (gCameraName[0][0] != DEFAULT_ERROR_NAME){
+            sCameraInfo[gCameraNum].facing = CAMERA_FACING_BACK;
+            sCameraInfo[gCameraNum].orientation = back_orient;
+            memset(gCameraDevPath[gCameraNum], 0, CAMAERA_FILENAME_LENGTH);
+            GetDevPath(gCameraName[gCameraNum], gCameraDevPath[gCameraNum], CAMAERA_FILENAME_LENGTH);
+            gCameraNum++;
         }
-        front_camera_num ++;
+        if (gCameraName[1][0] != DEFAULT_ERROR_NAME){
+            sCameraInfo[gCameraNum].facing = CAMERA_FACING_FRONT;
+            sCameraInfo[gCameraNum].orientation = front_orient;
+            memset(gCameraDevPath[gCameraNum], 0, CAMAERA_FILENAME_LENGTH);
+            GetDevPath(gCameraName[gCameraNum], gCameraDevPath[gCameraNum], CAMAERA_FILENAME_LENGTH);
+            gCameraNum++;
+        }
     }
-    return (back_camera_num + front_camera_num);					
+    return gCameraNum;
 
 }
 
