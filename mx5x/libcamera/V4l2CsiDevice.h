@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 #ifndef V4L2_CSI_DEVICE_H
 #define V4L2_CSI_DEVICE_H
@@ -31,22 +31,26 @@ namespace android{
 
 class V4l2CsiDevice : public V4l2CapDeviceBase{
     public:
-        
+
         V4l2CsiDevice();
         virtual ~V4l2CsiDevice();
     protected:
-		
-		CAPTURE_DEVICE_ERR_RET V4l2Open(int cameraId);
-        CAPTURE_DEVICE_ERR_RET V4l2SetSensor(int cameraId);
-		CAPTURE_DEVICE_ERR_RET V4l2EnumFmt(void *retParam);
-		CAPTURE_DEVICE_ERR_RET V4l2EnumSizeFps(void *retParam);
-		CAPTURE_DEVICE_ERR_RET V4l2SetConfig(struct capture_config_t *pCapcfg);
-        CAPTURE_DEVICE_ERR_RET V4l2ConfigInput(struct capture_config_t *pCapcfg);
-        CAPTURE_DEVICE_ERR_RET V4l2GetCaptureMode(struct capture_config_t *pCapcfg, 
-                unsigned int *pMode, struct v4l2_fract *pTimeFrame); 
-        CAPTURE_DEVICE_ERR_RET V4l2SetRot(struct capture_config_t *pCapcfg);
 
-		unsigned int mSupportedFmt[ENUM_SUPPORTED_FMT];
+#ifdef V4L2_CAMERA_SWITCH
+        //Only for switch camera with ioctl
+        CAPTURE_DEVICE_RET V4l2Open(int cameraId);
+        CAPTURE_DEVICE_RET V4l2SetSensor(int cameraId);
+#endif
+	CAPTURE_DEVICE_RET V4l2EnumFmt(void *retParam);
+	CAPTURE_DEVICE_RET V4l2EnumSizeFps(void *retParam);
+	CAPTURE_DEVICE_RET V4l2SetConfig(struct capture_config_t *pCapcfg);
+        CAPTURE_DEVICE_RET V4l2ConfigInput(struct capture_config_t *pCapcfg);
+        CAPTURE_DEVICE_RET V4l2GetCaptureMode(struct capture_config_t *pCapcfg,
+                unsigned int *pMode, struct v4l2_fract *pTimeFrame);
+        CAPTURE_DEVICE_RET V4l2SetRot(struct capture_config_t *pCapcfg);
+        CAPTURE_DEVICE_RET V4l2DeAlloc();
+
+	unsigned int mSupportedFmt[ENUM_SUPPORTED_FMT];
    };
 
 };

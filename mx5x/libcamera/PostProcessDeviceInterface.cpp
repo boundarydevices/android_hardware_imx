@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 #include "PP_ipulib.h" 
 namespace android{

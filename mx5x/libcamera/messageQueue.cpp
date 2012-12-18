@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2012 Freescale Semiconductor, Inc.
  */
 
 
@@ -63,7 +63,7 @@ CMessageQueue::~CMessageQueue()
 
 void CMessageQueue::clearMessage()
 {
-    CAMERA_HAL_ERR("-------CMessageQueue::clearMessage--------");
+    CAMERA_LOG_ERR("-------CMessageQueue::clearMessage--------");
     Mutex::Autolock _l(mLock);
     mMessages.clear();
     mStop = false;
