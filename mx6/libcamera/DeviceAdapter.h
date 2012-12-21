@@ -38,7 +38,7 @@ public:
     void             setErrorListener(CameraErrorListener *listener);
     void             setCameraBufferProvide(CameraBufferProvider *bufferProvider);
     virtual status_t initialize(const CameraInfo& info);
-    status_t         setDeviceConfig(int         width,
+    virtual status_t setDeviceConfig(int         width,
                                      int         height,
                                      PixelFormat format,
                                      int         fps);
@@ -56,6 +56,8 @@ public:
                                     int               rfmtLen,
                                     int              *supportPictureFormat,
                                     int               pfmtLen) = 0;
+    virtual int getCaptureMode(int width,
+                          int height);
 
     // API to send a command to the camera
     // virtual status_t sendCommand(CameraCommands operation, int value1 = 0,

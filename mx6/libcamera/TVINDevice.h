@@ -15,22 +15,24 @@
  * limitations under the License.
  */
 
-#ifndef _OV_DEVICE_H_
-#define _OV_DEVICE_H_
+#ifndef _TVIN_DEVICE_H_
+#define _TVIN_DEVICE_H_
 
 #include "CameraUtil.h"
 #include "DeviceAdapter.h"
 
-class OvDevice : public DeviceAdapter {
+class TVINDevice : public DeviceAdapter {
 public:
+    virtual status_t         setDeviceConfig(int         width,
+                                     int         height,
+                                     PixelFormat format,
+                                     int         fps);
     virtual status_t initParameters(CameraParameters& params,
                                     int              *supportRecordingFormat,
                                     int               rfmtLen,
                                     int              *supportPictureFormat,
                                     int               pfmtLen);
     virtual status_t setParameters(CameraParameters& params);
-    virtual int getCaptureMode(int width,
-                          int height);
 
 protected:
     PixelFormat      getMatchFormat(int *sfmt,
@@ -47,6 +49,7 @@ protected:
     char mSupportedFPS[MAX_SENSOR_FORMAT];
     char mSupportedPictureSizes[CAMER_PARAM_BUFFER_SIZE];
     char mSupportedPreviewSizes[CAMER_PARAM_BUFFER_SIZE];
+    v4l2_std_id mSTD;
 };
 
-#endif // ifndef _OV_DEVICE_H_
+#endif // ifndef _TVIN_DEVICE_H_

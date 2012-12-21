@@ -18,6 +18,12 @@
 #include "CameraUtil.h"
 #include "OvDevice.h"
 
+#define DEFAULT_PREVIEW_FPS (15)
+#define DEFAULT_PREVIEW_W   (640)
+#define DEFAULT_PREVIEW_H   (480)
+#define DEFAULT_PICTURE_W   (640)
+#define DEFAULT_PICTURE_H   (480)
+
 PixelFormat OvDevice::getMatchFormat(int *sfmt,
                                      int  slen,
                                      int *dfmt,
@@ -249,6 +255,9 @@ status_t OvDevice::initParameters(CameraParameters& params,
                     previewCnt++;
                 }
             }
+        } // end if (ret == 0)
+        else {
+            FLOGI("enum frame size error %d", ret);
         }
     } // end while
 
@@ -358,3 +367,40 @@ status_t OvDevice::setParameters(CameraParameters& params)
     return NO_ERROR;
 }
 
+int OvDevice::getCaptureMode(int width,
+                          int height)
+{
+    int capturemode = 0;
+
+    if ((width == 640) && (height == 480)) {
+        capturemode = 0;
+    }
+    else if ((width == 320) && (height == 240)) {
+        capturemode = 1;
+    }
+    else if ((width == 720) && (height == 480)) {
+        capturemode = 2;
+    }
+    else if ((width == 720) && (height == 576)) {
+        capturemode = 3;
+    }
+    else if ((width == 1280) && (height == 720)) {
+        capturemode = 4;
+    }
+    else if ((width == 1920) && (height == 1080)) {
+        capturemode = 5;
+    }
+    else if ((width == 2592) && (height == 1944)) {
+        capturemode = 6;
+    }
+    else if ((width == 176) && (height == 144)) {
+        capturemode = 7;
+    }
+    else if ((width == 1024) && (height == 768)) {
+        capturemode = 8;
+    }
+    else {
+        FLOGE("width:%d height:%d is not supported.", width, height);
+    }
+    return capturemode;
+}

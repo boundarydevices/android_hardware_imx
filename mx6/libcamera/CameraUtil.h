@@ -69,6 +69,7 @@ using namespace android;
 #define UVC_SENSOR_NAME "uvc"
 #define OV5640_SENSOR_NAME "ov5640"
 #define OV5642_SENSOR_NAME "ov5642"
+#define ADV7180_TVIN_NAME "adv7180_decoder"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
 
 #define MAX_PREVIEW_BUFFER      6
@@ -80,6 +81,9 @@ using namespace android;
 #define CAMER_PARAM_BUFFER_SIZE 512
 #define PARAMS_DELIMITER ","
 #define THREAD_WAIT_TIMEOUT 500 * 1000 * 1000
+
+#define MAX_SENSOR_FORMAT 20
+#define FORMAT_STRING_LEN 64
 
 #define CAMERA_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE | \
     GRALLOC_USAGE_HW_RENDER |                           \

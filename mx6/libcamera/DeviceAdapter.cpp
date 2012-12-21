@@ -19,6 +19,7 @@
 #include "UvcDevice.h"
 #include "Ov5640.h"
 #include "Ov5642.h"
+#include "TVINDevice.h"
 
 sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
 {
@@ -34,6 +35,9 @@ sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
     else if (strstr(info.name, OV5642_SENSOR_NAME)) {
         FLOGI("DeviceAdapter: Create ov5642 device");
         devAdapter = new Ov5642();
+    }else if (strstr(info.name, ADV7180_TVIN_NAME)) {
+        FLOGI("DeviceAdapter: Create adv7180 device");
+        devAdapter = new TVINDevice();
     }
     else {
         devAdapter = new OvDevice();
@@ -105,42 +109,10 @@ status_t DeviceAdapter::initialize(const CameraInfo& info)
     return NO_ERROR;
 }
 
-static int getCaptureMode(int width,
+int DeviceAdapter::getCaptureMode(int width,
                           int height)
 {
-    int capturemode = 0;
-
-    if ((width == 640) && (height == 480)) {
-        capturemode = 0;
-    }
-    else if ((width == 320) && (height == 240)) {
-        capturemode = 1;
-    }
-    else if ((width == 720) && (height == 480)) {
-        capturemode = 2;
-    }
-    else if ((width == 720) && (height == 576)) {
-        capturemode = 3;
-    }
-    else if ((width == 1280) && (height == 720)) {
-        capturemode = 4;
-    }
-    else if ((width == 1920) && (height == 1080)) {
-        capturemode = 5;
-    }
-    else if ((width == 2592) && (height == 1944)) {
-        capturemode = 6;
-    }
-    else if ((width == 176) && (height == 144)) {
-        capturemode = 7;
-    }
-    else if ((width == 1024) && (height == 768)) {
-        capturemode = 8;
-    }
-    else {
-        FLOGE("width:%d height:%d is not supported.", width, height);
-    }
-    return capturemode;
+    return 0;
 }
 
 status_t DeviceAdapter::setDeviceConfig(int         width,

@@ -15,34 +15,250 @@
  * limitations under the License.
  */
 
-#include "Ov5642.h"
+#include "CameraUtil.h"
+#include "TVINDevice.h"
 
 #define DEFAULT_PREVIEW_FPS (15)
-#define DEFAULT_PREVIEW_W   (640)
-#define DEFAULT_PREVIEW_H   (480)
-#define DEFAULT_PICTURE_W   (640)
-#define DEFAULT_PICTURE_H   (480)
 
+PixelFormat TVINDevice::getMatchFormat(int *sfmt,
+                                     int  slen,
+                                     int *dfmt,
+                                     int  dlen)
+{
+    if ((sfmt == NULL) || (slen == 0) || (dfmt == NULL) || (dlen == 0)) {
+        FLOGE("setSupportedPreviewFormats invalid parameters");
+        return 0;
+    }
 
-status_t Ov5642::initParameters(CameraParameters& params,
+    PixelFormat matchFormat = 0;
+    bool live               = true;
+    for (int i = 0; i < slen && live; i++) {
+        for (int j = 0; j < dlen; j++) {
+            FLOG_RUNTIME("sfmt[%d]=%c%c%c%c, dfmt[%d]=%c%c%c%c",
+                         i,
+                         sfmt[i] & 0xFF,
+                         (sfmt[i] >> 8) & 0xFF,
+                         (sfmt[i] >> 16) & 0xFF,
+                         (sfmt[i] >> 24) & 0xFF,
+                         j,
+                         dfmt[j] & 0xFF,
+                         (dfmt[j] >> 8) & 0xFF,
+                         (dfmt[j] >> 16) & 0xFF,
+                         (dfmt[j] >> 24) & 0xFF);
+            if (sfmt[i] == dfmt[j]) {
+                matchFormat = convertV4L2FormatToPixelFormat(dfmt[j]);
+                live        = false;
+                break;
+            }
+        }
+    }
+
+    return matchFormat;
+}
+
+status_t TVINDevice::setSupportedPreviewFormats(int *sfmt,
+                                              int  slen,
+                                              int *dfmt,
+                                              int  dlen)
+{
+    if ((sfmt == NULL) || (slen == 0) || (dfmt == NULL) || (dlen == 0)) {
+        FLOGE("setSupportedPreviewFormats invalid parameters");
+        return BAD_VALUE;
+    }
+
+    char fmtStr[FORMAT_STRING_LEN];
+    memset(fmtStr, 0, FORMAT_STRING_LEN);
+    for (int i = 0; i < slen; i++) {
+        for (int j = 0; j < dlen; j++) {
+            // should report VPU support format.
+            if (sfmt[i] == dfmt[j]) {
+                if (sfmt[i] == v4l2_fourcc('Y', 'U', '1', '2')) {
+                    strcat(fmtStr, "yuv420p");
+                    strcat(fmtStr, ",");
+                }
+                else if (sfmt[i] == v4l2_fourcc('N', 'V', '1', '2')) {
+                    strcat(fmtStr, "yuv420sp");
+                    strcat(fmtStr, ",");
+                }
+                else if (sfmt[i] == v4l2_fourcc('Y', 'U', 'Y', 'V')) {
+                    strcat(fmtStr, "yuv422i-yuyv");
+                    strcat(fmtStr, ",");
+                }
+            }
+        }
+    }
+    mParams.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, fmtStr);
+
+    return NO_ERROR;
+}
+
+status_t TVINDevice::setPreviewStringFormat(PixelFormat format)
+{
+    const char *pformat = NULL;
+
+    if (format == HAL_PIXEL_FORMAT_YCbCr_420_P) {
+        pformat = "yuv420p";
+    }
+    else if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+        pformat = "yuv420sp";
+    }
+    else if (format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
+        pformat = "yuv422i-yuyv";
+    }
+    else {
+        FLOGE("format %d is not supported", format);
+        return BAD_VALUE;
+    }
+    ALOGI("setPreviewFormat: %s", pformat);
+    mParams.setPreviewFormat(pformat);
+    mParams.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, pformat);
+    return NO_ERROR;
+}
+
+status_t TVINDevice::setDeviceConfig(int         width,
+                                        int         height,
+                                        PixelFormat format,
+                                        int         fps)
+{
+    if (mCameraHandle <= 0) {
+        FLOGE("setDeviceConfig: DeviceAdapter uninitialized");
+        return BAD_VALUE;
+    }
+    if ((width == 0) || (height == 0)) {
+        FLOGE("setDeviceConfig: invalid parameters");
+        return BAD_VALUE;
+    }
+
+    status_t ret = NO_ERROR;
+    int input    = 1;
+    ret = ioctl(mCameraHandle, VIDIOC_S_INPUT, &input);
+    if (ret < 0) {
+        FLOGE("Open: VIDIOC_S_INPUT Failed: %s", strerror(errno));
+        return ret;
+    }
+
+    int vformat;
+    vformat = convertPixelFormatToV4L2Format(format);
+
+    FLOGI("Width * Height %d x %d format %d, fps: %d",
+          width,
+          height,
+          vformat,
+          fps);
+
+    mVideoInfo->width       = width;
+    mVideoInfo->height      = height;
+    mVideoInfo->framesizeIn = (width * height << 1);
+    mVideoInfo->formatIn    = vformat;
+
+    mVideoInfo->param.type =
+        V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->param.parm.capture.timeperframe.numerator   = 1;
+    mVideoInfo->param.parm.capture.timeperframe.denominator = 0;
+    mVideoInfo->param.parm.capture.capturemode = 0;
+    ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &mVideoInfo->param);
+    if (ret < 0) {
+        FLOGE("Open: VIDIOC_S_PARM Failed: %s", strerror(errno));
+        return ret;
+    }
+
+    mVideoInfo->format.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->format.fmt.pix.width        = width & 0xFFFFFFF8;
+    mVideoInfo->format.fmt.pix.height       = height & 0xFFFFFFF8;
+    mVideoInfo->format.fmt.pix.pixelformat  = vformat;
+    mVideoInfo->format.fmt.pix.field        = V4L2_FIELD_INTERLACED;
+    mVideoInfo->format.fmt.pix.priv         = 0;
+    mVideoInfo->format.fmt.pix.sizeimage    = 0;
+    mVideoInfo->format.fmt.pix.bytesperline = 0;
+
+    // Special stride alignment for YU12
+    if (vformat == v4l2_fourcc('Y', 'U', '1', '2')){
+        // Goolge define the the stride and c_stride for YUV420 format
+        // y_size = stride * height
+        // c_stride = ALIGN(stride/2, 16)
+        // c_size = c_stride * height/2
+        // size = y_size + c_size * 2
+        // cr_offset = y_size
+        // cb_offset = y_size + c_size
+        // int stride = (width+15)/16*16;
+        // int c_stride = (stride/2+16)/16*16;
+        // y_size = stride * height
+        // c_stride = ALIGN(stride/2, 16)
+        // c_size = c_stride * height/2
+        // size = y_size + c_size * 2
+        // cr_offset = y_size
+        // cb_offset = y_size + c_size
+
+        // GPU and IPU take below stride calculation
+        // GPU has the Y stride to be 32 alignment, and UV stride to be
+        // 16 alignment.
+        // IPU have the Y stride to be 2x of the UV stride alignment
+        int stride = (width+31)/32*32;
+        int c_stride = (stride/2+15)/16*16;
+        mVideoInfo->format.fmt.pix.bytesperline = stride;
+        mVideoInfo->format.fmt.pix.sizeimage    = stride*height+c_stride * height;
+        FLOGI("Special handling for YV12 on Stride %d, size %d",
+            mVideoInfo->format.fmt.pix.bytesperline,
+            mVideoInfo->format.fmt.pix.sizeimage);
+    }
+
+    ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &mVideoInfo->format);
+    if (ret < 0) {
+        FLOGE("Open: VIDIOC_S_FMT Failed: %s", strerror(errno));
+        return ret;
+    }
+
+    return ret;
+}
+
+status_t TVINDevice::initParameters(CameraParameters& params,
                                   int              *supportRecordingFormat,
                                   int               rfmtLen,
                                   int              *supportPictureFormat,
                                   int               pfmtLen)
 {
+    int ret = 0, index = 0;
+    int maxWait = 6;
+    int sensorFormat[MAX_SENSOR_FORMAT];
+
     if (mCameraHandle < 0) {
-        FLOGE("OvDevice: initParameters sensor has not been opened");
+        FLOGE("TVINDevice: initParameters sensor has not been opened");
         return BAD_VALUE;
     }
     if ((supportRecordingFormat == NULL) || (rfmtLen == 0) ||
         (supportPictureFormat == NULL) || (pfmtLen == 0)) {
-        FLOGE("OvDevice: initParameters invalid parameters");
+        FLOGE("TVINDevice: initParameters invalid parameters");
         return BAD_VALUE;
     }
 
+    // Get the PAL/NTSC STD
+    do {
+        ret = ioctl(mCameraHandle, VIDIOC_G_STD, &mSTD);
+        if (ret < 0)
+        {
+            FLOGE("VIDIOC_G_STD failed with more try %d\n",
+                  maxWait - 1);
+            sleep(1);
+        }
+        maxWait --;
+    }while ((ret != 0) || (maxWait <= 0));
+
+    if (mSTD == V4L2_STD_PAL)
+        FLOGI("Get current mode: PAL");
+    else if (mSTD == V4L2_STD_NTSC)
+        FLOGI("Get current mode: NTSC");
+    else {
+        FLOGI("Error!Get invalid mode: %llu", mSTD);
+		return BAD_VALUE;
+    }
+
+	if (ioctl(mCameraHandle, VIDIOC_S_STD, &mSTD) < 0)
+	{
+		FLOGE("VIDIOC_S_STD failed\n");
+		return BAD_VALUE;
+	}
+
     // first read sensor format.
-    int ret = 0, index = 0;
-    int sensorFormat[MAX_SENSOR_FORMAT];
 #if 0
     struct v4l2_fmtdesc vid_fmtdesc;
     while (ret == 0) {
@@ -129,6 +345,16 @@ status_t Ov5642::initParameters(CameraParameters& params,
                         "%dx%d",
                         vid_frmsize.discrete.width,
                         vid_frmsize.discrete.height);
+
+                // Set default to be first enum w/h, since tvin may only
+                // have one set
+                if (pictureCnt == 0){
+                    mParams.setPreviewSize(vid_frmsize.discrete.width,
+                            vid_frmsize.discrete.height);
+                    mParams.setPictureSize(vid_frmsize.discrete.width,
+                            vid_frmsize.discrete.height);
+                }
+
                 if (pictureCnt == 0)
                     strncpy((char *)mSupportedPictureSizes,
                             TmpStr,
@@ -144,7 +370,7 @@ status_t Ov5642::initParameters(CameraParameters& params,
                 pictureCnt++;
 
                 if (vid_frmval.discrete.denominator /
-                    vid_frmval.discrete.numerator > 15) {
+                    vid_frmval.discrete.numerator >= 15) {
                     if (previewCnt == 0)
                         strncpy((char *)mSupportedPreviewSizes,
                                 TmpStr,
@@ -160,6 +386,9 @@ status_t Ov5642::initParameters(CameraParameters& params,
                     previewCnt++;
                 }
             }
+        } // end if (ret == 0)
+        else {
+            FLOGI("enum frame size error %d", ret);
         }
     } // end while
 
@@ -178,16 +407,13 @@ status_t Ov5642::initParameters(CameraParameters& params,
                 "(12000,17000),(25000,33000)");
     // Align the default FPS RANGE to the DEFAULT_PREVIEW_FPS
     mParams.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "12000,17000");
-
-    mParams.setPreviewSize(DEFAULT_PREVIEW_W, DEFAULT_PREVIEW_H);
-    mParams.setPictureSize(DEFAULT_PICTURE_W, DEFAULT_PICTURE_H);
     mParams.setPreviewFrameRate(DEFAULT_PREVIEW_FPS);
 
     params = mParams;
     return NO_ERROR;
 }
 
-status_t Ov5642::setParameters(CameraParameters& params)
+status_t TVINDevice::setParameters(CameraParameters& params)
 {
     int  w, h;
     int  framerate, local_framerate;
@@ -208,10 +434,6 @@ status_t Ov5642::setParameters(CameraParameters& params)
         FLOGE("Only yuv420sp or yuv420pis supported, but input format is %s",
               params.getPreviewFormat());
         return BAD_VALUE;
-    }
-    else {
-        mPreviewPixelFormat = convertStringToPixelFormat(
-                                 params.getPreviewFormat());
     }
 
     if (strcmp(params.getPictureFormat(), "jpeg") != 0) {
