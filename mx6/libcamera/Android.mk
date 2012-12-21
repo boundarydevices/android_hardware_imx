@@ -32,6 +32,7 @@ LOCAL_SRC_FILES:=    \
     OvDevice.cpp \
     Ov5640.cpp \
     Ov5642.cpp \
+    TVINDevice.cpp \
     PhysMemAdapter.cpp \
     YuvToJpegEncoder.cpp \
     NV12_resize.c
