@@ -91,7 +91,8 @@ struct imx_audio_device {
 
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
     int mode;
-    int devices;
+    int in_device;
+    int out_device;
     struct pcm *pcm_modem_dl;
     struct pcm *pcm_modem_ul;
     int in_call;

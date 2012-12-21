@@ -25,7 +25,7 @@
 static struct audio_card  usbaudio_card = {
     .name = "USB Device",
     .driver_name = "USB-Audio",
-    .supported_devices   = AUDIO_DEVICE_IN_USB_MIC,
+    .supported_devices   = AUDIO_DEVICE_IN_USB_DEVICE,
     .defaults            = NULL,
     .bt_output           = NULL,
     .speaker_output      = NULL,
