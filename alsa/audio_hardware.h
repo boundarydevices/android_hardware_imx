@@ -59,7 +59,8 @@ struct route_setting
 struct audio_card{
     char * name;
     char * driver_name;
-    int  supported_devices;
+    int  supported_out_devices;
+    int  supported_in_devices;
     struct route_setting *defaults;
     struct route_setting *bt_output;
     struct route_setting *speaker_output;
@@ -181,23 +182,32 @@ struct string_to_enum {
     uint32_t value;
 };
 
-#define SUPPORTED_DEVICE_IN_MODULE               \
+#define SUPPORTED_DEVICE_OUT_MODULE               \
           ( AUDIO_DEVICE_OUT_EARPIECE |          \
             AUDIO_DEVICE_OUT_SPEAKER |           \
             AUDIO_DEVICE_OUT_WIRED_HEADSET |     \
             AUDIO_DEVICE_OUT_WIRED_HEADPHONE |   \
+            AUDIO_DEVICE_OUT_ALL_SCO |           \
             AUDIO_DEVICE_OUT_AUX_DIGITAL |       \
             AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET | \
             AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET | \
-            AUDIO_DEVICE_OUT_ALL_SCO |           \
-            AUDIO_DEVICE_OUT_DEFAULT |           \
-            AUDIO_DEVICE_IN_COMMUNICATION |      \
+            AUDIO_DEVICE_OUT_REMOTE_SUBMIX |     \
+            AUDIO_DEVICE_OUT_DEFAULT)
+
+#define SUPPORTED_DEVICE_IN_MODULE               \
+          ( AUDIO_DEVICE_IN_COMMUNICATION |      \
             AUDIO_DEVICE_IN_AMBIENT |            \
             AUDIO_DEVICE_IN_BUILTIN_MIC |        \
+            AUDIO_DEVICE_IN_ALL_SCO |            \
             AUDIO_DEVICE_IN_WIRED_HEADSET |      \
             AUDIO_DEVICE_IN_AUX_DIGITAL |        \
-            AUDIO_DEVICE_IN_BACK_MIC |           \
-            AUDIO_DEVICE_IN_ALL_SCO |            \
+            AUDIO_DEVICE_IN_VOICE_CALL   |       \
+            AUDIO_DEVICE_IN_BACK_MIC   |         \
+            AUDIO_DEVICE_IN_REMOTE_SUBMIX |      \
+            AUDIO_DEVICE_IN_ANLG_DOCK_HEADSET |  \
+            AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET |  \
+            AUDIO_DEVICE_IN_USB_ACCESSORY |      \
+            AUDIO_DEVICE_IN_USB_DEVICE  |        \
             AUDIO_DEVICE_IN_DEFAULT )
 
 #endif  /* ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H */
