@@ -474,15 +474,15 @@ static struct route_setting mm_bt_mic_input_wm8958[] = {
 static struct audio_card  wm8958_card = {
     .name = "wm8958-audio",
     .driver_name = "wm8958-audio",
-    .supported_devices = (AUDIO_DEVICE_OUT_EARPIECE |
+    .supported_out_devices = (AUDIO_DEVICE_OUT_EARPIECE |
             AUDIO_DEVICE_OUT_SPEAKER |
             AUDIO_DEVICE_OUT_WIRED_HEADSET |
             AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
             AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET |
             AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET |
             AUDIO_DEVICE_OUT_ALL_SCO |
-            AUDIO_DEVICE_OUT_DEFAULT |
-            /* IN */
+            AUDIO_DEVICE_OUT_DEFAULT),
+    .supported_in_devices = (
             AUDIO_DEVICE_IN_COMMUNICATION |
             AUDIO_DEVICE_IN_AMBIENT |
             AUDIO_DEVICE_IN_BUILTIN_MIC |
