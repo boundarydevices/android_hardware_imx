@@ -24,7 +24,8 @@
 static struct audio_card  spdif_card = {
     .name = "imx-spdif",
     .driver_name = "imx-spdif",
-    .supported_devices   = AUDIO_DEVICE_IN_AUX_DIGITAL,
+    .supported_out_devices   = 0,
+    .supported_in_devices    = AUDIO_DEVICE_IN_AUX_DIGITAL,
     .defaults            = NULL,
     .bt_output           = NULL,
     .speaker_output      = NULL,

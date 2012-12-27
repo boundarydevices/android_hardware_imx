@@ -24,7 +24,8 @@
 static struct audio_card  null_card = {
     .name = "null_card",
     .driver_name = "null_card",
-    .supported_devices   = 0,
+    .supported_out_devices  = 0,
+    .supported_in_devices   = 0,
     .defaults            = NULL,
     .bt_output           = NULL,
     .speaker_output      = NULL,
