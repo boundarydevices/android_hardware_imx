@@ -454,7 +454,7 @@ using namespace android;
     CAMERA_HAL_RET CameraHal :: InitPictureExifParam(CameraParameters *pParam)
     {
         CAMERA_LOG_FUNC;
-        char tmpBuffer[CAMER_PARAM_BUFFER_SIZE];
+        char tmpBuffer[CAMER_PARAM_BUFFER_SIZE+1];
 
         /*hard code here*/
         pParam->set(CameraParameters::KEY_FOCUS_DISTANCES, "24.0,50.0,2147483648.0");
