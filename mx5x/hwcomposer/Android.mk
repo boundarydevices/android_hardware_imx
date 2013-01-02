@@ -26,7 +26,6 @@ LOCAL_SRC_FILES := hwcomposer.cpp hwc_vsync.cpp
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_C_INCLUDES += hardware/imx/mx5x/libgralloc
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
-LOCAL_CFLAGS += -DENABLE_VSYNC 
 #LOCAL_CFLAGS += -DDEBUG_HWC_VSYNC_TIMING
 
 LOCAL_MODULE_TAGS := optional

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2013 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@
 class VSyncThread;
 
 struct hwc_context_t {
-    hwc_composer_device_t device;
+    hwc_composer_device_1_t device;
     /* our private state goes below here */
 
     int m_mainfb_fd;
