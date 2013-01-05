@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@
 #include <hardware/power.h>
 #include <utils/StrongPointer.h>
 
-#include "watchdog.h"
 #include "switchprofile.h"
 
 #define BOOST_PATH      "/sys/devices/system/cpu/cpufreq/interactive/boost"
@@ -35,7 +34,6 @@
 #define CONSER "conservative"
 static int boost_fd = -1;
 static int boost_warned;
-static sp<WatchdogThread> wdThread;
 static sp<SwitchprofileThread> switchprofile;
 
 static void getcpu_gov(char *s, int size)
@@ -83,8 +81,6 @@ static void fsl_power_init(struct power_module *module)
     //create power profile switch thread
     switchprofile = new SwitchprofileThread();
     switchprofile->do_setproperty(PROP_CPUFREQGOV, PROP_VAL);
-    // create and run the watchdog thread
-    wdThread = new WatchdogThread();
 }
 
 static void fsl_power_set_interactive(struct power_module *module, int on)
