@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2013 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,6 +87,10 @@ static int hwc_device_close(struct hw_device_t *dev)
                 close(ctx->mDispInfo[i].fd);
         }
 
+        if(ctx->m_viv_hwc) {
+            hwc_close_1(ctx->m_viv_hwc);
+        }
+
         free(ctx);
     }
     return 0;
@@ -109,6 +113,10 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
     if (external_contents) {
     }
 
+    if(ctx->m_viv_hwc) {
+        return ctx->m_viv_hwc->prepare(ctx->m_viv_hwc, numDisplays, displays);
+    }
+
     return 0;
 }
 
@@ -123,6 +131,32 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     hwc_display_contents_1_t *primary_contents = displays[HWC_DISPLAY_PRIMARY];
     hwc_display_contents_1_t *external_contents = displays[HWC_DISPLAY_EXTERNAL];
+
+    if(ctx->m_viv_hwc) {
+        for (size_t i=0 ; i<numDisplays ; i++) {
+            /* outbuf is unused for physical devices and the original value is NULL.
+              Temporally use it to pass framebuffer address to gpu hwcomposer for composition.
+             */
+            if(displays[i]) displays[i]->outbuf = (buffer_handle_t)ctx->mFbPhysAddrs[i];
+        }
+
+        int err = ctx->m_viv_hwc->set(ctx->m_viv_hwc, numDisplays, displays);
+
+        for (size_t i=0 ; i<numDisplays ; i++) {
+             /* outbuf is the buffer that receives the composed image for
+             * virtual displays. Writes to the outbuf must wait until
+             * outbufAcquireFenceFd signals. A fence that will signal when
+             * writes to outbuf are complete should be returned in
+             * retireFenceFd.
+             *
+             * For physical displays, outbuf will be NULL.
+             */
+            if(displays[i]) displays[i]->outbuf = NULL;
+        }
+
+        if(err) return err;
+    }
+
     if (primary_contents) {
         hwc_layer_1 *fbt = &primary_contents->hwLayers[primary_contents->numHwLayers - 1];
         if(ctx->mFbDev[HWC_DISPLAY_PRIMARY] != NULL)
@@ -192,6 +226,8 @@ static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
     if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
         return 0;
     }
+
+    ctx->m_viv_hwc->blank(ctx->m_viv_hwc, disp, blank);
 
     int fb_blank = blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK;
     int err = ioctl(ctx->mDispInfo[disp].fd, FBIOBLANK, fb_blank);
@@ -301,6 +337,8 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         hwc_get_display_info(dev);
 
         hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &dev->m_gralloc_module);
+        struct private_module_t *priv_m = (struct private_module_t *)dev->m_gralloc_module;
+
         for(int dispid=0; dispid<HWC_NUM_DISPLAY_TYPES; dispid++) {
             if(dev->mDispInfo[dispid].connected && dev->m_gralloc_module != NULL) {
                 int fbid = dev->mDispInfo[dispid].fb_num;
@@ -311,9 +349,27 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
                 dev->mFbDev[dispid] = (framebuffer_device_t*)fbid;
                 dev->m_gralloc_module->methods->open(dev->m_gralloc_module, fbname,
                            (struct hw_device_t**)&dev->mFbDev[dispid]);
+
+                if(dispid == 0) {
+                    dev->mFbPhysAddrs[HWC_DISPLAY_PRIMARY] = priv_m->framebuffer->phys;
+                }
+                else {
+                    dev->mFbPhysAddrs[HWC_DISPLAY_EXTERNAL] = priv_m->external_module->framebuffer->phys;
+                }
             }
         }
 
+        const hw_module_t *hwc_module;
+        if(hw_get_module(HWC_VIV_HARDWARE_MODULE_ID,
+                        (const hw_module_t**)&hwc_module) < 0) {
+            ALOGE("Error! hw_get_module viv_hwc failed");
+            goto nor_exit;
+        }
+
+        if(hwc_open_1(hwc_module, &(dev->m_viv_hwc)) != 0) {
+            ALOGE("Error! viv_hwc open failed");
+            goto nor_exit;
+        }
 nor_exit:
 
         *device = &dev->device.common;
