@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,9 +75,10 @@ struct hwc_context_t {
     hwc_procs_t* m_callback;
     bool m_vsync_enable;
     sp<VSyncThread> m_vsync_thread;
-    //hwc_composer_device_t* m_viv_hwc;
+    hwc_composer_device_1* m_viv_hwc;
     hw_module_t const *m_gralloc_module;
     framebuffer_device_t* mFbDev[HWC_NUM_DISPLAY_TYPES];
+    unsigned long mFbPhysAddrs[HWC_NUM_DISPLAY_TYPES];
 };
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,8 @@ void VSyncThread::handleVsyncUevent(const char *buff, int len)
 
 void VSyncThread::handleHdmiUevent(const char *buff, int len)
 {
+    struct private_module_t *priv_m = NULL;
+
     if (!mCtx || !mCtx->m_callback || !mCtx->m_callback->hotplug)
         return;
 
@@ -102,6 +104,9 @@ void VSyncThread::handleHdmiUevent(const char *buff, int len)
         sprintf(fbname, "fb%d", fbid);
         mCtx->m_gralloc_module->methods->open(mCtx->m_gralloc_module, fbname,
                      (struct hw_device_t**)&mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
+        priv_m = (struct private_module_t *)mCtx->m_gralloc_module;
+
+        mCtx->mFbPhysAddrs[HWC_DISPLAY_EXTERNAL] = priv_m->external_module->framebuffer->phys;
     }
 
     mCtx->m_callback->hotplug(mCtx->m_callback, HWC_DISPLAY_EXTERNAL, 
