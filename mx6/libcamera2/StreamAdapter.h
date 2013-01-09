@@ -169,6 +169,8 @@ private:
     bool mVideoSnapShot;
     PhysMemAdapter *mPhysMemAdapter;
     sp<JpegBuilder> mJpegBuilder;
+
+    bool mRequestStream;
     mutable sem_t mRespondSem;
 };
 

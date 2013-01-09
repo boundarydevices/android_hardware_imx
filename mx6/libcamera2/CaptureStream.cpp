@@ -28,6 +28,7 @@ CaptureStream::CaptureStream(int id)
     mVideoSnapShot = false;
     mPhysMemAdapter = new PhysMemAdapter();
     sem_init(&mRespondSem, 0, 0);
+    mRequestStream = false;
 }
 
 CaptureStream::~CaptureStream()
@@ -60,15 +61,6 @@ int CaptureStream::configure(int fps, bool videoSnapshot)
     mJpegBuilder->reset();
     mJpegBuilder->setMetadaManager(mMetadaManager);
 
-    mVideoSnapShot = videoSnapshot;
-    if (mVideoSnapShot) {
-        FLOGE("%s video Snapshot", __FUNCTION__);
-        mPrepared = true;
-        return ret;
-    }
-
-    fAssert(mDeviceAdapter.get() != NULL);
-
     if (mFormat == HAL_PIXEL_FORMAT_BLOB) {
         mActualFormat = mDeviceAdapter->getPicturePixelFormat();
         //fmt = HAL_PIXEL_FORMAT_YCbCr_420_SP;
@@ -77,6 +69,14 @@ int CaptureStream::configure(int fps, bool videoSnapshot)
         mActualFormat = mFormat;
     }
 
+    mVideoSnapShot = videoSnapshot;
+    if (mVideoSnapShot) {
+        FLOGE("%s video Snapshot", __FUNCTION__);
+        mPrepared = true;
+        return ret;
+    }
+
+    fAssert(mDeviceAdapter.get() != NULL);
     ret = mDeviceAdapter->setDeviceConfig(mWidth, mHeight, mActualFormat, fps);
     if (ret != NO_ERROR) {
         FLOGE("%s setDeviceConfig failed", __FUNCTION__);
@@ -159,12 +159,17 @@ int CaptureStream::release()
 
 void CaptureStream::applyRequest()
 {
+    mRequestStream = true;
     sem_wait(&mRespondSem);
 }
 
 int CaptureStream::processFrame(CameraFrame *frame)
 {
     status_t ret = NO_ERROR;
+
+    if (mVideoSnapShot && !mRequestStream) {
+        return ret;
+    }
 
     StreamBuffer buffer;
     ret = requestBuffer(&buffer);
@@ -173,6 +178,8 @@ int CaptureStream::processFrame(CameraFrame *frame)
         goto exit_err;
     }
 
+    mJpegBuilder->reset();
+    mJpegBuilder->setMetadaManager(mMetadaManager);
     ret = makeJpegImage(&buffer, frame);
     if (ret != NO_ERROR) {
         FLOGE("%s makeJpegImage failed", __FUNCTION__);
@@ -187,6 +194,7 @@ int CaptureStream::processFrame(CameraFrame *frame)
     }
 
 exit_err:
+    mRequestStream = false;
     sem_post(&mRespondSem);
 
     return ret;

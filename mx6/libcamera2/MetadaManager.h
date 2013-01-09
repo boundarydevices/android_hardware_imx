@@ -48,6 +48,7 @@ public:
         bool sizeRequest);
 
     status_t setCurrentRequest(camera_metadata_t* request);
+    status_t generateFrameRequest(camera_metadata_t * frame);
     status_t getRequestType(int *reqType);
     status_t getRequestStreams(camera_metadata_entry_t *reqStreams);
     status_t getFrameRate(int *value);

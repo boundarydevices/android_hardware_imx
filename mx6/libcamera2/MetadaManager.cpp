@@ -119,8 +119,7 @@ status_t MetadaManager::createDefaultRequest(
     static float aperture = 2.8;
     ADD_OR_SIZE(ANDROID_LENS_APERTURE, &aperture, 1);
 
-    static float focalLength = 0.0;
-    ADD_OR_SIZE(ANDROID_LENS_FOCAL_LENGTH, &focalLength, 1);
+    ADD_OR_SIZE(ANDROID_LENS_FOCAL_LENGTH, &mSensorInfo->mFocalLength, 1);
 
     static const float filterDensity = 0;
     ADD_OR_SIZE(ANDROID_LENS_FILTER_DENSITY, &filterDensity, 1);
@@ -491,9 +490,11 @@ status_t MetadaManager::getGpsProcessingMethod(uint8_t* src, int count)
         return BAD_VALUE;
     }
 
-    for (int i=0; i<(int)streams.count && i<count; i++) {
+    int i;
+    for (i=0; i<(int)streams.count && i<count-1; i++) {
         src[i] = streams.data.u8[i];
     }
+    src[i] = '\0';
 
     return NO_ERROR;
 }
@@ -555,6 +556,49 @@ status_t MetadaManager::getJpegThumbSize(int &width, int &height)
     return NO_ERROR;
 }
 
+status_t MetadaManager::generateFrameRequest(camera_metadata_t * frame)
+{
+    if (mCurrentRequest == NULL || frame == NULL) {
+        FLOGE("%s invalid param", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    camera_metadata_entry_t streams;
+    int res;
+
+    res = find_camera_metadata_entry(mCurrentRequest,
+            ANDROID_REQUEST_ID, &streams);
+    if (res != NO_ERROR) {
+        FLOGE("%s: error reading output stream tag", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    int requestId = streams.data.i32[0];
+    res = add_camera_metadata_entry(frame, ANDROID_REQUEST_ID, &requestId, 1);
+    if (res != NO_ERROR) {
+        FLOGE("%s: error add ANDROID_REQUEST_ID tag", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    static const int32_t frameCount = 0;
+    res = add_camera_metadata_entry(frame, ANDROID_REQUEST_FRAME_COUNT,
+                          &frameCount, 1);
+    if (res != NO_ERROR) {
+        FLOGE("%s: error add ANDROID_REQUEST_FRAME_COUNT tag", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    nsecs_t timeStamp = systemTime();
+    res = add_camera_metadata_entry(frame, ANDROID_SENSOR_TIMESTAMP,
+                         &timeStamp, 1);
+    if (res != NO_ERROR) {
+        FLOGE("%s: error add ANDROID_SENSOR_TIMESTAMP tag", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    return 0;
+}
+
 status_t MetadaManager::getRequestType(int *reqType)
 {
     if (mCurrentRequest == NULL) {
@@ -569,7 +613,7 @@ status_t MetadaManager::getRequestType(int *reqType)
     res = find_camera_metadata_entry(mCurrentRequest,
             ANDROID_REQUEST_ID, &streams);
     if (res != NO_ERROR) {
-        ALOGE("%s: error reading output stream tag", __FUNCTION__);
+        FLOGE("%s: error reading output stream tag", __FUNCTION__);
         return BAD_VALUE;
     }
 
@@ -631,9 +675,8 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
     ADD_OR_SIZE(ANDROID_LENS_HYPERFOCAL_DISTANCE,
             &minFocusDistance, 1);
 
-    static float focalLength = 0.0;
     ADD_OR_SIZE(ANDROID_LENS_AVAILABLE_FOCAL_LENGTHS,
-            &focalLength, 1);
+            &mSensorInfo->mFocalLength, 1);
 
     static float aperture = 2.8;
     ADD_OR_SIZE(ANDROID_LENS_AVAILABLE_APERTURES,
@@ -721,7 +764,7 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
 
     ADD_OR_SIZE(ANDROID_SCALER_AVAILABLE_FORMATS,
             mSensorInfo->mAvailableFormats,
-            sizeof(mSensorInfo->mAvailableFormats)/sizeof(uint32_t));
+            mSensorInfo->mAvailableFormatCount);
 #if 0
     const uint32_t kAvailableFormats[3] = {
         HAL_PIXEL_FORMAT_RAW_SENSOR,
@@ -744,10 +787,10 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
 
     ADD_OR_SIZE(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
         mSensorInfo->mPreviewResolutions,
-        ARRAY_SIZE(mSensorInfo->mPreviewResolutions));
+        mSensorInfo->mPreviewResolutionCount);
     ADD_OR_SIZE(ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
         mSensorInfo->mPictureResolutions,
-        ARRAY_SIZE(mSensorInfo->mPictureResolutions));
+        mSensorInfo->mPictureResolutionCount);
 
     ADD_OR_SIZE(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS,
             &mSensorInfo->mMinFrameDuration,
@@ -763,10 +806,9 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
     // android.jpeg
 
     static const int32_t jpegThumbnailSizes[] = {
-            160, 120,
-            160, 160,
             96, 96,
-            144, 96
+            160, 120,
+            0, 0
     };
 
     ADD_OR_SIZE(ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
@@ -807,7 +849,8 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
     // android.control
 
     static const uint8_t availableSceneModes[] = {
-            ANDROID_CONTROL_SCENE_MODE_UNSUPPORTED
+            ANDROID_CONTROL_SCENE_MODE_PORTRAIT,
+            ANDROID_CONTROL_SCENE_MODE_LANDSCAPE
     };
     ADD_OR_SIZE(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
             availableSceneModes, sizeof(availableSceneModes));
@@ -852,7 +895,8 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
             availableAntibandingModes, sizeof(availableAntibandingModes));
 
     static const uint8_t availableAwbModes[] = {
-            ANDROID_CONTROL_AWB_OFF
+            ANDROID_CONTROL_AWB_OFF,
+            ANDROID_CONTROL_AWB_AUTO
     };
     ADD_OR_SIZE(ANDROID_CONTROL_AWB_AVAILABLE_MODES,
             availableAwbModes, sizeof(availableAwbModes));

@@ -84,21 +84,26 @@ void RequestManager::handleError(int err)
     }
 }
 
-void RequestManager::stopAllStreamsLocked()
+void RequestManager::stopStream(int id)
+{
+    sp<StreamAdapter> cameraStream = mStreamAdapter[id];
+    FLOG_RUNTIME("%s steam id:%d", __FUNCTION__, id);
+    if (cameraStream.get() != NULL) {
+        if (cameraStream->mStarted) {
+            cameraStream->stop();
+        }
+        if (cameraStream->mPrepared) {
+            cameraStream->release();
+        }
+    }
+    FLOG_RUNTIME("%s end", __FUNCTION__);
+}
+
+void RequestManager::stopAllStreams()
 {
     FLOG_TRACE("%s running", __FUNCTION__);
-    sp<StreamAdapter> cameraStream;
     for (int id = 0; id < MAX_STREAM_NUM; id++) {
-        cameraStream = mStreamAdapter[id];
-        FLOG_RUNTIME("%s steam id:%d", __FUNCTION__, id);
-        if (cameraStream.get() != NULL) {
-            if (cameraStream->mStarted) {
-                cameraStream->stop();
-            }
-            if (cameraStream->mPrepared) {
-                cameraStream->release();
-            }
-        }
+        stopStream(id);
     }
     FLOG_TRACE("%s end", __FUNCTION__);
 }
@@ -106,6 +111,12 @@ void RequestManager::stopAllStreamsLocked()
 int RequestManager::setRequestOperation(const camera2_request_queue_src_ops_t *request_src_ops)
 {
     mRequestOperation = request_src_ops;
+    return 0;
+}
+
+int RequestManager::setFrameOperation(const camera2_frame_queue_dst_ops_t *frame_dst_ops)
+{
+    mFrameOperation = frame_dst_ops;
     return 0;
 }
 
@@ -181,6 +192,27 @@ bool RequestManager::handleRequest()
         mMetadaManager->getRequestType(&requestType);
         FLOG_RUNTIME("%s:start request %d", __FUNCTION__, requestType);
 
+        int numEntries = 0;
+        int frameSize = 0;
+        numEntries = get_camera_metadata_entry_count(request);
+        frameSize = get_camera_metadata_size(request);
+        camera_metadata_t *currentFrame = NULL;
+        res = mFrameOperation->dequeue_frame(mFrameOperation, numEntries,
+                               frameSize, &currentFrame);
+        if (res < 0) {
+            FLOGE("%s: dequeue_frame failed", __FUNCTION__);
+            currentFrame = NULL;
+        }
+        else {
+            res = mMetadaManager->generateFrameRequest(currentFrame);
+            if (res == 0) {
+                mFrameOperation->enqueue_frame(mFrameOperation, currentFrame);
+            }
+            else {
+                mFrameOperation->cancel_frame(mFrameOperation, currentFrame);
+            }
+        }
+
         res = tryRestartStreams(requestType);
         if (res != NO_ERROR) {
             FLOGE("%s: tryRestartStreams failed", __FUNCTION__);
@@ -194,7 +226,7 @@ bool RequestManager::handleRequest()
     }//end while
 
     FLOG_TRACE("%s exiting", __FUNCTION__);
-    stopAllStreamsLocked();
+    stopAllStreams();
     mRequestThread.clear();
     mPendingRequests--;
     FLOG_TRACE("%s end...", __FUNCTION__);
@@ -202,11 +234,20 @@ bool RequestManager::handleRequest()
     return false;
 }
 
-bool RequestManager::isStreamValid(int requestType, int streamId)
+bool RequestManager::isStreamValid(int requestType, int streamId, int videoSnap)
 {
+    if (videoSnap) {
+        return true;
+    }
+
     if (requestType == REQUEST_TYPE_CAPTURE && streamId == STREAM_ID_PREVIEW) {
         return false;
     }
+
+    if (requestType == REQUEST_TYPE_CAPTURE && streamId == STREAM_ID_PRVCB) {
+        return false;
+    }
+
     if (requestType == REQUEST_TYPE_PREVIEW && streamId == STREAM_ID_JPEG) {
         return false;
     }
@@ -219,7 +260,6 @@ int RequestManager::tryRestartStreams(int requestType)
     FLOG_RUNTIME("%s running", __FUNCTION__);
     int res = 0;
     int fps = 30;
-    bool needRestart = false;
     res = mMetadaManager->getFrameRate(&fps);
     if (res != NO_ERROR) {
         FLOGE("%s: getFrameRate failed", __FUNCTION__);
@@ -250,29 +290,19 @@ int RequestManager::tryRestartStreams(int requestType)
         videoSnapshot = true;
     }
 
-    for (uint32_t i = 0; i < streams.count; i++) {
-        int streamId = streams.data.u8[i];
-        if (!isStreamValid(requestType, streamId)) {
-            continue;
+    for (int id = 0; id < MAX_STREAM_NUM; id++) {
+        sp<StreamAdapter> stream = mStreamAdapter[id];
+        if (!isStreamValid(requestType, id, videoSnapshot)) {
+            if (stream.get() != NULL && stream->mPrepared) {
+                FLOGI("%s stop unused stream %d", __FUNCTION__, id);
+                stopStream(id);
+            }
         }
-        sp<StreamAdapter> stream = mStreamAdapter[streamId];
-        if (stream.get() == NULL) {
-            continue;
-        }
-        if (!stream->mPrepared) {
-            FLOGI("stream id:%d need restart", streamId);
-            needRestart = true;
-            break;
-        }
-    }
-
-    if (needRestart) {
-        stopAllStreamsLocked();
     }
 
     for (uint32_t i = 0; i < streams.count; i++) {
         int streamId = streams.data.u8[i];
-        if (!isStreamValid(requestType, streamId)) {
+        if (!isStreamValid(requestType, streamId, videoSnapshot)) {
             continue;
         }
         sp<StreamAdapter> stream = mStreamAdapter[streamId];
@@ -299,7 +329,7 @@ int RequestManager::tryRestartStreams(int requestType)
 
     for (uint32_t i = 0; i < streams.count; i++) {
         int streamId = streams.data.u8[i];
-        if (!isStreamValid(requestType, streamId)) {
+        if (!isStreamValid(requestType, streamId, videoSnapshot)) {
             continue;
         }
 
