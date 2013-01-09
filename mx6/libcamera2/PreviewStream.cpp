@@ -213,7 +213,7 @@ int PreviewStream::processFrame(CameraFrame *frame)
     ret = renderBuffer(frame);
     if (ret != NO_ERROR) {
         FLOGE("%s renderBuffer failed", __FUNCTION__);
-        return ret;
+        goto err_exit;
     }
     //the frame held in service.
     frame->addReference();
@@ -222,7 +222,7 @@ int PreviewStream::processFrame(CameraFrame *frame)
     ret = requestBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s requestBuffer failed", __FUNCTION__);
-        return ret;
+        goto err_exit;
     }
 
     for (int i = 0; i < mTotalBuffers; i++) {
@@ -233,6 +233,7 @@ int PreviewStream::processFrame(CameraFrame *frame)
         }
     }
 
+err_exit:
     mCondRespond.signal();
 
     return ret;

@@ -43,7 +43,8 @@ using namespace android;
 
 #define MAX_STREAM_NUM  6
 
-class RequestManager : public LightRefBase<RequestManager>
+class RequestManager : public LightRefBase<RequestManager>,
+                       public CameraErrorListener
 {
 public:
     RequestManager(int cameraId);
@@ -67,16 +68,13 @@ public:
     int dispatchRequest();
     bool handleRequest();
     void release();
+    void setErrorListener(CameraErrorListener *listener);
 
     class RequestHandleThread : public Thread {
     public:
         RequestHandleThread(RequestManager *rm) :
             Thread(false), mRequestManager(rm) {}
-#if 0
-        virtual void onFirstRef() {
-            run("RequestHandle", PRIORITY_DEFAULT);
-        }
-#endif
+
         virtual bool threadLoop() {
             return mRequestManager->handleRequest();
         }
@@ -89,6 +87,7 @@ private:
     int tryRestartStreams(int requestType);
     void stopAllStreamsLocked();
     bool isStreamValid(int requestType, int streamId);
+    void handleError(int err);
 
 private:
     sp<DeviceAdapter>  mDeviceAdapter;
@@ -101,7 +100,8 @@ private:
     mutable Mutex mStreamLock;
     uint8_t mPendingRequests;
     int mCameraId;
-    //CameraHal *mCameraHal;
+    CameraErrorListener *mErrorListener;
+    bool mWorkInProcess;
 };
 
 #endif

@@ -49,6 +49,11 @@ void StreamAdapter::setMetadaManager(sp<MetadaManager>& metaManager)
     mMetadaManager = metaManager;
 }
 
+void StreamAdapter::setErrorListener(CameraErrorListener *listener)
+{
+    mErrorListener = listener;
+}
+
 int StreamAdapter::start()
 {
     FLOG_TRACE("StreamAdapter %s running", __FUNCTION__);
@@ -201,7 +206,7 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     int err = requestBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s requestBuffer failed", __FUNCTION__);
-        return ret;
+        goto err_ext;
     }
 
     memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, frame->mSize);
@@ -209,9 +214,10 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     err = renderBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s renderBuffer failed", __FUNCTION__);
-        return ret;
+        goto err_ext;
     }
 
+err_ext:
     mCondRespond.signal();
 
     return ret;

@@ -170,22 +170,23 @@ int CaptureStream::processFrame(CameraFrame *frame)
     ret = requestBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s requestBuffer failed", __FUNCTION__);
-        return ret;
+        goto exit_err;
     }
 
     ret = makeJpegImage(&buffer, frame);
     if (ret != NO_ERROR) {
         FLOGE("%s makeJpegImage failed", __FUNCTION__);
-        return ret;
+        goto exit_err;
     }
 
     buffer.mTimeStamp = frame->mTimeStamp;
     ret = renderBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s renderBuffer failed", __FUNCTION__);
-        return ret;
+        goto exit_err;
     }
 
+exit_err:
     sem_post(&mRespondSem);
 
     return ret;

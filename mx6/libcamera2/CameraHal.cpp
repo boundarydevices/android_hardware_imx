@@ -43,16 +43,12 @@ void CameraHal::handleError(int err)
             break;
 
         case CAMERA2_MSG_ERROR_REQUEST:
-            mNotifyCb(CAMERA_MSG_ERROR, 0, 0, 0, mNotifyUserPtr);
-            break;
-
         case CAMERA2_MSG_ERROR_FRAME:
-            break;
-
         case CAMERA2_MSG_ERROR_STREAM:
-            break;
-
         default:
+            FLOGE("%s handle error:%d", __FUNCTION__, err);
+            mNotifyCb(CAMERA_MSG_ERROR, err, 0, 0, mNotifyUserPtr);
+
             break;
     }
 }
@@ -159,6 +155,8 @@ status_t CameraHal::initialize(CameraInfo& info)
         FLOGE("CameraHal: DeviceAdapter initialize failed");
         return ret;
     }
+
+    mRequestManager->setErrorListener(this);
 
     return ret;
 }
