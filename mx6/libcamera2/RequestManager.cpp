@@ -21,6 +21,8 @@ RequestManager::RequestManager(int cameraId)
     mRequestOperation = NULL;
     mPendingRequests = 0;
     mCameraId = cameraId;
+    mErrorListener = NULL;
+    mWorkInProcess = false;
 }
 
 RequestManager::~RequestManager()
@@ -61,8 +63,25 @@ int RequestManager::initialize(CameraInfo& info)
         return ret;
     }
     mPendingRequests=0;
+    mWorkInProcess = true;
 
     return ret;
+}
+
+void RequestManager::setErrorListener(CameraErrorListener *listener)
+{
+    mErrorListener = listener;
+    if (mDeviceAdapter.get() != NULL) {
+        mDeviceAdapter->setErrorListener(this);
+    }
+}
+
+void RequestManager::handleError(int err)
+{
+    mWorkInProcess = false;
+    if (mErrorListener != NULL) {
+        mErrorListener->handleError(err);
+    }
 }
 
 void RequestManager::stopAllStreamsLocked()
@@ -140,7 +159,7 @@ bool RequestManager::handleRequest()
     int res;
     camera_metadata_t *request=NULL;
 
-    while(mRequestOperation) {
+    while(mRequestOperation && mWorkInProcess) {
         FLOG_RUNTIME("%s:Dequeue request" ,__FUNCTION__);
         mRequestOperation->dequeue_request(mRequestOperation, &request);
         if(request == NULL) {
@@ -376,6 +395,7 @@ int RequestManager::allocateStream(uint32_t width,
     cameraStream->setPreviewWindow(stream_ops);
     cameraStream->setDeviceAdapter(mDeviceAdapter);
     cameraStream->setMetadaManager(mMetadaManager);
+    cameraStream->setErrorListener(this);
 
     mStreamAdapter[sid] = cameraStream;
     FLOG_TRACE("RequestManager %s end...", __FUNCTION__);
