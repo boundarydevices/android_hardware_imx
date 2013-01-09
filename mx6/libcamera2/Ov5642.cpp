@@ -53,8 +53,7 @@ status_t Ov5642::initSensorInfo()
     sensorFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
     sensorFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
     //mAvailableFormats[2] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-    index = 4;
-
+    mAvailableFormatCount = index;
     changeSensorFormats(sensorFormats, index);
 
     index = 0;
@@ -107,6 +106,9 @@ status_t Ov5642::initSensorInfo()
         }
     } // end while
 
+    mPreviewResolutionCount = previewCnt;
+    mPictureResolutionCount = pictureCnt;
+
     mMinFrameDuration = 33331760L;
     mMaxFrameDuration = 30000000000L;
     int i;
@@ -128,6 +130,7 @@ status_t Ov5642::initSensorInfo()
 
     setMaxPictureResolutions();
     FLOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
+    mFocalLength = 10.001;
 
     return NO_ERROR;
 }

@@ -120,8 +120,11 @@ struct CameraInfo : public camera_info
 struct SensorInfo
 {
     int mPreviewResolutions[MAX_RESOLUTION_SIZE];
+    int mPreviewResolutionCount;
     int mPictureResolutions[MAX_RESOLUTION_SIZE];
+    int mPictureResolutionCount;
     int mAvailableFormats[MAX_SENSOR_FORMAT];
+    int mAvailableFormatCount;
     nsecs_t mMinFrameDuration;
     nsecs_t mMaxFrameDuration;
     int mTargetFpsRange[MAX_FPS_RANGE];

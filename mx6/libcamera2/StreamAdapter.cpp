@@ -201,6 +201,7 @@ void StreamAdapter::applyRequest()
 int StreamAdapter::processFrame(CameraFrame *frame)
 {
     status_t ret = NO_ERROR;
+    int size;
 
     StreamBuffer buffer;
     int err = requestBuffer(&buffer);
@@ -209,7 +210,8 @@ int StreamAdapter::processFrame(CameraFrame *frame)
         goto err_ext;
     }
 
-    memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, frame->mSize);
+    size = (frame->mSize > buffer.mSize) ? buffer.mSize : frame->mSize;
+    memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, size);
     buffer.mTimeStamp = frame->mTimeStamp;
     err = renderBuffer(&buffer);
     if (ret != NO_ERROR) {

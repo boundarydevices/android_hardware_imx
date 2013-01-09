@@ -52,6 +52,7 @@ public:
 
     int initialize(CameraInfo& info);
     int setRequestOperation(const camera2_request_queue_src_ops_t *request_src_ops);
+    int setFrameOperation(const camera2_frame_queue_dst_ops_t *frame_dst_ops);
     int CreateDefaultRequest(int request_template, camera_metadata_t **request);
     int allocateStream(uint32_t width,
                         uint32_t height, int format,
@@ -85,8 +86,9 @@ public:
 
 private:
     int tryRestartStreams(int requestType);
-    void stopAllStreamsLocked();
-    bool isStreamValid(int requestType, int streamId);
+    void stopStream(int id);
+    void stopAllStreams();
+    bool isStreamValid(int requestType, int streamId, int videoSnap);
     void handleError(int err);
 
 private:
@@ -94,6 +96,7 @@ private:
     sp<RequestHandleThread> mRequestThread;
     mutable Mutex mThreadLock;
     const camera2_request_queue_src_ops_t *mRequestOperation;
+    const camera2_frame_queue_dst_ops_t *mFrameOperation;
     sp<MetadaManager> mMetadaManager;
 
     sp<StreamAdapter> mStreamAdapter[MAX_STREAM_NUM];

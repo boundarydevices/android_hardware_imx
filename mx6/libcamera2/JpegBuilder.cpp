@@ -502,7 +502,7 @@ void JpegBuilder::setMetadaManager(sp<MetadaManager> &metadaManager)
     ret = mMetadaManager->getGpsProcessingMethod(gpsProcessingMethod, GPS_PROCESSING_SIZE);
     if (ret == 0) {
         memset(mEXIFData.mGPSData.mProcMethod, 0, GPS_PROCESSING_SIZE);
-        strncpy(mEXIFData.mGPSData.mProcMethod, (const char*)gpsProcessingMethod, GPS_PROCESSING_SIZE - 1);
+        strcpy(mEXIFData.mGPSData.mProcMethod, (const char*)gpsProcessingMethod);
         mEXIFData.mGPSData.mProcMethodValid = true;
     }
     else {

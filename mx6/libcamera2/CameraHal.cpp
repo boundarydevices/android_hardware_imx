@@ -70,7 +70,7 @@ int CameraHal::set_frame_queue_dst_ops(
                     const camera2_frame_queue_dst_ops_t *frame_dst_ops)
 {
     mFrameQueue = frame_dst_ops;
-    return 0;
+    return mRequestManager->setFrameOperation(frame_dst_ops);
 }
 
 int CameraHal::get_in_progress_count()
