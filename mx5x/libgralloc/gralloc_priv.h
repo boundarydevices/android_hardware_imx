@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +15,16 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2012 Freescale Semiconductor, Inc. */
-
 #ifndef GRALLOC_PRIV_H_
 #define GRALLOC_PRIV_H_
 
 #include <stdint.h>
-#include <limits.h>
-#include <sys/cdefs.h>
-#include <hardware/gralloc.h>
 #include <pthread.h>
 #include <errno.h>
-#include <unistd.h>
+#include <linux/fb.h>
 
 #include <cutils/native_handle.h>
-
-#include <linux/fb.h>
+#include <hardware/gralloc.h>
 
 #define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
 #define  ALIGN_PIXEL_64(x)  ((x+ 63) & ~63)

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,26 +15,11 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2012 Freescale Semiconductor, Inc. */
-
 #ifndef GR_H_
 #define GR_H_
 
-#include <stdint.h>
-#ifdef HAVE_ANDROID_OS      // just want PAGE_SIZE define
-# include <asm/page.h>
-#else
-# include <sys/user.h>
-#endif
-#include <limits.h>
-#include <sys/cdefs.h>
-#include <hardware/gralloc.h>
+#include <asm/page.h>
 #include <pthread.h>
-#include <errno.h>
-
-#include <cutils/native_handle.h>
-
-/*****************************************************************************/
 
 struct private_module_t;
 struct private_handle_t;
@@ -44,8 +30,6 @@ inline size_t roundUpToPageSize(size_t x) {
 
 int mapFrameBufferLocked(struct private_module_t* module);
 int terminateBuffer(gralloc_module_t const* module, private_handle_t* hnd);
-
-/*****************************************************************************/
 
 class Locker {
     pthread_mutex_t mutex;
@@ -61,5 +45,4 @@ public:
     inline void lock()     { pthread_mutex_lock(&mutex); }
     inline void unlock()   { pthread_mutex_unlock(&mutex); }
 };
-
 #endif /* GR_H_ */
