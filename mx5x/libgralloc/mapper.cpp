@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,40 +15,20 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2012 Freescale Semiconductor, Inc. */
 
-#include <limits.h>
 #include <errno.h>
 #include <pthread.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdarg.h>
-
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
+#include <ion/ion.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
-
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
-#include <ion/ion.h>
-
 #include "gralloc_priv.h"
-
-
-/* desktop Linux needs a little help with gettid() */
-#if defined(ARCH_X86) && !defined(HAVE_ANDROID_OS)
-#define __KERNEL__
-# include <linux/unistd.h>
-pid_t gettid() { return syscall(__NR_gettid);}
-#undef __KERNEL__
-#endif
-
-/*****************************************************************************/
 
 static int gralloc_map(gralloc_module_t const* module,
         buffer_handle_t handle,
@@ -98,11 +79,7 @@ static int gralloc_unmap(gralloc_module_t const* module,
     return 0;
 }
 
-/*****************************************************************************/
-
 static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER; 
-
-/*****************************************************************************/
 
 int gralloc_register_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)

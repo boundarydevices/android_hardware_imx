@@ -22,11 +22,7 @@ include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := true
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libcutils libGLESv1_CM libipu libion
-ifeq ($(BOARD_SOC_TYPE),IMX50)
-LOCAL_SHARED_LIBRARIES += libc2d_z160
-else
 LOCAL_SHARED_LIBRARIES += libc2d_z430
-endif
 LOCAL_C_INCLUDES += external/linux-lib/ipu
 LOCAL_C_INCLUDES += hardware/imx/mx5x/libcopybit
 
@@ -36,19 +32,6 @@ LOCAL_SRC_FILES := 	\
 	mapper.cpp
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX -Wno-missing-field-initializers
-
-
-ifeq ($(HAVE_FSL_EPDC_FB),true)
-LOCAL_CFLAGS += -DFSL_EPDC_FB
-endif
-
-ifeq ($(HAVE_FSL_IMX_IPU),true)
-LOCAL_CFLAGS += -DFSL_IMX_DISPLAY
-else ifeq ($(HAVE_FSL_IMX_GPU3D),true)
-LOCAL_CFLAGS += -DFSL_IMX_DISPLAY
-else ifeq ($(HAVE_FSL_IMX_GPU2D),true)
-LOCAL_CFLAGS += -DFSL_IMX_DISPLAY
-endif
 
 LOCAL_MODULE_TAGS := eng
 
