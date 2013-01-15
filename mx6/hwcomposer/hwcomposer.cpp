@@ -114,6 +114,9 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
     }
 
     if(ctx->m_viv_hwc) {
+        char property[PROPERTY_VALUE_MAX];
+        property_get("service.bootanim.exit", property, "0");
+        if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
         return ctx->m_viv_hwc->prepare(ctx->m_viv_hwc, numDisplays, displays);
     }
 
@@ -133,6 +136,11 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
     hwc_display_contents_1_t *external_contents = displays[HWC_DISPLAY_EXTERNAL];
 
     if(ctx->m_viv_hwc) {
+
+        char property[PROPERTY_VALUE_MAX];
+        property_get("service.bootanim.exit", property, "0");
+        if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
+
         for (size_t i=0 ; i<numDisplays ; i++) {
             /* outbuf is unused for physical devices and the original value is NULL.
               Temporally use it to pass framebuffer address to gpu hwcomposer for composition.
@@ -227,7 +235,9 @@ static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
         return 0;
     }
 
-    ctx->m_viv_hwc->blank(ctx->m_viv_hwc, disp, blank);
+    if(ctx->m_viv_hwc) {
+        ctx->m_viv_hwc->blank(ctx->m_viv_hwc, disp, blank);
+    }
 
     int fb_blank = blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK;
     int err = ioctl(ctx->mDispInfo[disp].fd, FBIOBLANK, fb_blank);
