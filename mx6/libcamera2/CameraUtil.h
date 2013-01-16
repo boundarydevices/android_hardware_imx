@@ -77,6 +77,7 @@ using namespace android;
 #define MAX_PREVIEW_BUFFER      6
 #define MAX_CAPTURE_BUFFER      3
 #define NUM_PREVIEW_BUFFER      4
+#define NUM_RECORD_BUFFER       4
 #define NUM_CAPTURE_BUFFER      2
 
 #define CAMAERA_FILENAME_LENGTH 256

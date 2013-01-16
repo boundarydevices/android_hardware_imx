@@ -55,7 +55,7 @@ status_t OvDevice::changeSensorFormats(int *src, int len)
     return 0;
 }
 
-status_t OvDevice::initSensorInfo()
+status_t OvDevice::initSensorInfo(const CameraInfo& info)
 {
     if (mCameraHandle < 0) {
         FLOGE("OvDevice: initParameters sensor has not been opened");

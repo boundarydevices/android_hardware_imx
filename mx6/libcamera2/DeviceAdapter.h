@@ -40,7 +40,7 @@ public:
     void             setErrorListener(CameraErrorListener *listener);
     void             setCameraBufferProvide(CameraBufferProvider *bufferProvider);
     virtual status_t initialize(const CameraInfo& info);
-    status_t         setDeviceConfig(int         width,
+    virtual status_t setDeviceConfig(int         width,
                                      int         height,
                                      PixelFormat format,
                                      int         fps);
@@ -52,13 +52,13 @@ public:
         return mPicturePixelFormat;
     }
 
-    virtual status_t initSensorInfo() = 0;
+    virtual status_t initSensorInfo(const CameraInfo& info) = 0;
     virtual int getCaptureMode(int width, int height) {return 0;}
     PixelFormat getMatchFormat(int *sfmt, int  slen,
                                int *dfmt, int  dlen);
     void setMetadaManager(sp<MetadaManager> &metadaManager);
-    void setPreviewPixelFormat();
-    void setPicturePixelFormat();
+    virtual void setPreviewPixelFormat();
+    virtual void setPicturePixelFormat();
 
     status_t         autoFocus();
     status_t         cancelAutoFocus();
@@ -77,7 +77,7 @@ protected:
                                           int        & num);
     virtual void     handleFrameRelease(CameraFrame *buffer);
 
-private:
+protected:
     class AutoFocusThread : public Thread {
     public:
         AutoFocusThread(DeviceAdapter *hw) :
@@ -128,12 +128,14 @@ private:
         DeviceAdapter *mAdapter;
     };
 
-private:
-    status_t     fillCameraFrame(CameraFrame *frame);
-    CameraFrame* acquireCameraFrame();
+protected:
+    virtual status_t fillCameraFrame(CameraFrame *frame);
+    virtual CameraFrame* acquireCameraFrame();
 
-    status_t     startDeviceLocked();
-    status_t     stopDeviceLocked();
+    virtual status_t startDeviceLocked();
+    virtual status_t stopDeviceLocked();
+
+private:
     int          deviceThread();
     int          autoFocusThread();
 

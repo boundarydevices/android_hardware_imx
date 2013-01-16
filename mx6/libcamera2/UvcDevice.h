@@ -18,6 +18,7 @@
 #define _UVC_DEVICE_H
 
 #include "CameraUtil.h"
+#include "DeviceAdapter.h"
 
 #define DEFAULT_PREVIEW_FPS (15)
 #define DEFAULT_PREVIEW_W   (640)
@@ -25,14 +26,42 @@
 #define DEFAULT_PICTURE_W   (640)
 #define DEFAULT_PICTURE_H   (480)
 #define FORMAT_STRING_LEN 64
+#define MAX_DEQUEUE_WAIT_TIME  (5000)  //5000ms for uvc camera
 
+using namespace android;
 
 class UvcDevice : public DeviceAdapter {
 public:
-    virtual status_t initSensorInfo()
-    {
-        return 0;
-    }
+    UvcDevice();
+    ~UvcDevice();
+
+    virtual status_t initSensorInfo(const CameraInfo& info);
+    virtual status_t setDeviceConfig(int         width,
+                                     int         height,
+                                     PixelFormat format,
+                                     int         fps);
+    virtual void setPreviewPixelFormat();
+    virtual void setPicturePixelFormat();
+    virtual status_t registerCameraBuffers(CameraFrame *pBuffer, int &num);
+    virtual status_t fillCameraFrame(CameraFrame *frame);
+    virtual CameraFrame * acquireCameraFrame();
+    virtual status_t startDeviceLocked();
+    virtual status_t stopDeviceLocked();
+
+private:
+    status_t adjustPreviewResolutions();
+    status_t setMaxPictureResolutions();
+    void adjustSensorFormats(int *src, int len);
+    void convertYUYUToNV12(StreamBuffer *dst, StreamBuffer *src);
+    void doColorConvert(StreamBuffer *dst, StreamBuffer *src);
+
+private:
+    const char* pDevPath;
+    int mDefaultFormat;
+    bool mPreviewNeedCsc;
+    bool mPictureNeedCsc;
+    int mSensorFormats[MAX_SENSOR_FORMAT];
+    CameraFrame mUvcBuffers[MAX_PREVIEW_BUFFER];
 };
 
 #endif // ifndef _UVC_DEVICE_H

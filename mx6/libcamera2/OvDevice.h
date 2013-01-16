@@ -29,7 +29,7 @@
 
 class OvDevice : public DeviceAdapter {
 public:
-    virtual status_t initSensorInfo();
+    virtual status_t initSensorInfo(const CameraInfo& info);
     virtual int getCaptureMode(int width, int height);
 
 protected:
