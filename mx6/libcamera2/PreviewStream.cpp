@@ -167,6 +167,7 @@ int PreviewStream::registerBuffers(int num_buffers, buffer_handle_t *buffers)
         mCameraBuffer[i].initialize(buffers[i], i);
         mCameraBuffer[i].mWidth  = mWidth;
         mCameraBuffer[i].mHeight = mHeight;
+        mCameraBuffer[i].mFormat = mFormat;
         mCameraBuffer[i].setState(CameraFrame::BUFS_IN_SERVICE);
     }
 

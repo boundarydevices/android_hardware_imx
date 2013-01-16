@@ -21,7 +21,7 @@
 
 class Ov5640 : public OvDevice {
 public:
-    virtual status_t initSensorInfo();
+    virtual status_t initSensorInfo(const CameraInfo& info);
 };
 
 #endif // ifndef _OV_DEVICE_H_
