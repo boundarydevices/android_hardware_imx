@@ -436,6 +436,18 @@ static int GetDevPath(const char  *pCameraName,
                 continue;
             } else if (v4l2_cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) {
                 if (ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0) {
+                    if(strstr((const char*)v4l2_cap.driver, pCameraName)) {
+                       if (pathLen > strlen(dev_node)) {
+                            strcpy(pCameraDevPath, dev_node);
+                            ALOGI("Get sensor %s's dev path %s",
+                                  pCameraName,
+                                  pCameraDevPath);
+                            retCode = 0;
+                        }
+                        close(fd);
+                        fd = 0;
+                        break;
+                    }
                     close(fd);
                     fd = 0;
                     continue;

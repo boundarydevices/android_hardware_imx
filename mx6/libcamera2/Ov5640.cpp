@@ -17,7 +17,7 @@
 #include "Ov5640.h"
 
 
-status_t Ov5640::initSensorInfo()
+status_t Ov5640::initSensorInfo(const CameraInfo& info)
 {
     if (mCameraHandle < 0) {
         FLOGE("OvDevice: initParameters sensor has not been opened");

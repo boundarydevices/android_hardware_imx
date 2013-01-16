@@ -155,7 +155,7 @@ status_t DeviceAdapter::initialize(const CameraInfo& info)
         return BAD_VALUE;
     }
 
-    initSensorInfo();
+    initSensorInfo(info);
     setPreviewPixelFormat();
     setPicturePixelFormat();
     // Initialize flags
@@ -194,7 +194,7 @@ status_t DeviceAdapter::setDeviceConfig(int         width,
     if ((width > 1920) || (height > 1080)) {
         fps = 15;
     }
-    FLOGI("Width * Height %d x %d format %d, fps: %d",
+    FLOGI("Width * Height %d x %d format 0x%x, fps: %d",
           width, height, vformat, fps);
 
     mVideoInfo->width       = width;

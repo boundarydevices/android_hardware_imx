@@ -372,18 +372,19 @@ int RequestManager::allocateStream(uint32_t width,
                           width, height, format);
             sid = STREAM_ID_RECORD;
             cameraStream = new StreamAdapter(sid);
+            *max_buffers = NUM_RECORD_BUFFER;
         }
         else {
             FLOGI("%s preview stream, w:%d, h:%d, fmt:0x%x", __FUNCTION__,
                           width, height, format);
             sid = STREAM_ID_PREVIEW;
             cameraStream = new PreviewStream(sid);
+            *max_buffers = NUM_PREVIEW_BUFFER;
         }
 
         //*format_actual = HAL_PIXEL_FORMAT_YCrCb_420_SP;
         *format_actual = mDeviceAdapter->getPreviewPixelFormat();
         FLOGI("actual format 0x%x", *format_actual);
-        *max_buffers = NUM_PREVIEW_BUFFER;
     }
     else if (format == HAL_PIXEL_FORMAT_BLOB) {
         FLOGI("%s jpeg stream, w:%d, h:%d, fmt:0x%x", __FUNCTION__,
