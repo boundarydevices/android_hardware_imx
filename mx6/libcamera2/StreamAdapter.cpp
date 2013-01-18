@@ -204,7 +204,7 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     int size;
 
     StreamBuffer buffer;
-    int err = requestBuffer(&buffer);
+    ret = requestBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s requestBuffer failed", __FUNCTION__);
         goto err_ext;
@@ -213,7 +213,7 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     size = (frame->mSize > buffer.mSize) ? buffer.mSize : frame->mSize;
     memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, size);
     buffer.mTimeStamp = frame->mTimeStamp;
-    err = renderBuffer(&buffer);
+    ret = renderBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s renderBuffer failed", __FUNCTION__);
         goto err_ext;
