@@ -76,9 +76,9 @@ using namespace android;
 
 #define MAX_PREVIEW_BUFFER      6
 #define MAX_CAPTURE_BUFFER      3
-#define NUM_PREVIEW_BUFFER      4
-#define NUM_RECORD_BUFFER       4
-#define NUM_CAPTURE_BUFFER      2
+#define NUM_PREVIEW_BUFFER      3
+#define NUM_RECORD_BUFFER       1
+#define NUM_CAPTURE_BUFFER      1
 
 #define CAMAERA_FILENAME_LENGTH 256
 #define CAMERA_SENSOR_LENGTH    32
@@ -90,6 +90,11 @@ using namespace android;
 #define MAX_RESOLUTION_SIZE   64
 #define MAX_FPS_RANGE   4
 #define MAX_SENSOR_FORMAT 20
+
+#define CAMERA_GRALLOC_USAGE_JPEG GRALLOC_USAGE_HW_TEXTURE | \
+    GRALLOC_USAGE_HW_RENDER |                           \
+    GRALLOC_USAGE_SW_READ_RARELY |                      \
+    GRALLOC_USAGE_SW_WRITE_NEVER
 
 #define CAMERA_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE | \
     GRALLOC_USAGE_HW_RENDER |                           \
