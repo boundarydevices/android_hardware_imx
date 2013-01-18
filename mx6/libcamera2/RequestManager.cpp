@@ -363,7 +363,6 @@ int RequestManager::allocateStream(uint32_t width,
 {
     int sid = -1;
     sp<StreamAdapter> cameraStream;
-    *usage = CAMERA_GRALLOC_USAGE;
 
     FLOG_TRACE("RequestManager %s...", __FUNCTION__);
     if (format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
@@ -383,6 +382,7 @@ int RequestManager::allocateStream(uint32_t width,
         }
 
         //*format_actual = HAL_PIXEL_FORMAT_YCrCb_420_SP;
+        *usage = CAMERA_GRALLOC_USAGE;
         *format_actual = mDeviceAdapter->getPreviewPixelFormat();
         FLOGI("actual format 0x%x", *format_actual);
     }
@@ -390,6 +390,7 @@ int RequestManager::allocateStream(uint32_t width,
         FLOGI("%s jpeg stream, w:%d, h:%d, fmt:0x%x", __FUNCTION__,
                       width, height, format);
         //*format_actual = HAL_PIXEL_FORMAT_BLOB;
+        *usage = CAMERA_GRALLOC_USAGE_JPEG;
         *format_actual = mDeviceAdapter->getPicturePixelFormat();
         FLOGI("actual format 0x%x", *format_actual);
         sid = STREAM_ID_JPEG;
@@ -401,6 +402,7 @@ int RequestManager::allocateStream(uint32_t width,
                          format == HAL_PIXEL_FORMAT_YCbCr_420_P) {
         FLOGI("%s callback stream, w:%d, h:%d, fmt:0x%x", __FUNCTION__,
                       width, height, format);
+        *usage = CAMERA_GRALLOC_USAGE;
         *format_actual = format;
         sid = STREAM_ID_PRVCB;
         *max_buffers = NUM_PREVIEW_BUFFER;
@@ -410,6 +412,7 @@ int RequestManager::allocateStream(uint32_t width,
     else if (format == CAMERA2_HAL_PIXEL_FORMAT_ZSL) {
         FLOGI("%s callback stream, w:%d, h:%d, fmt:0x%x", __FUNCTION__,
                       width, height, format);
+        *usage = CAMERA_GRALLOC_USAGE_JPEG;
         *format_actual = HAL_PIXEL_FORMAT_YCbCr_420_SP;
         sid = STREAM_ID_PRVCB;
         *max_buffers = NUM_PREVIEW_BUFFER;
