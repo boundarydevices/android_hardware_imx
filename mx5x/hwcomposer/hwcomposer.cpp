@@ -176,6 +176,19 @@ static int hwc_eventControl(struct hwc_composer_device_1* dev, int disp, int eve
 
 static int hwc_blank(struct hwc_composer_device_1* dev, int disp, int blank)
 {
+    struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
+
+    if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
+        return 0;
+    }
+
+    int fb_blank = blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK;
+    int err = ioctl(ctx->m_mainfb_fd, FBIOBLANK, fb_blank);
+    if (err < 0) {
+        ALOGE("blank ioctl failed");
+        return -errno;
+    }
+
     return 0;
 }
 
