@@ -235,15 +235,19 @@ static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
         return 0;
     }
 
-    if(ctx->m_viv_hwc) {
+    if (ctx->m_viv_hwc) {
         ctx->m_viv_hwc->blank(ctx->m_viv_hwc, disp, blank);
     }
 
-    int fb_blank = blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK;
-    int err = ioctl(ctx->mDispInfo[disp].fd, FBIOBLANK, fb_blank);
-    if (err < 0) {
-        ALOGE("blank ioctl failed");
-        return -errno;
+    //HDMI need to keep unblank since audio need to be able to output
+    //through HDMI cable. Blank the HDMI will lost the HDMI clock
+    if (ctx->mDispInfo[disp].type !=  HWC_DISPLAY_HDMI) {
+        int fb_blank = blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK;
+        int err = ioctl(ctx->mDispInfo[disp].fd, FBIOBLANK, fb_blank);
+        if (err < 0) {
+            ALOGE("blank ioctl failed");
+            return -errno;
+        }
     }
 
     return 0;
