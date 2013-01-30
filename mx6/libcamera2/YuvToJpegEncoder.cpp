@@ -49,6 +49,7 @@ int YuvToJpegEncoder::encode(void *inYuv,
     uint8_t *resize_src = NULL;
     jpegBuilder_destination_mgr dest_mgr((uint8_t *)outBuf, outSize);
 
+    memset(&cinfo, 0, sizeof(cinfo));
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         resize_src = (uint8_t *)malloc(outSize);
         yuvResize((uint8_t *)inYuv,
@@ -123,7 +124,7 @@ void Yuv420SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,
     // process 16 lines of Y and 8 lines of U/V each time.
     while (cinfo->next_scanline < cinfo->image_height) {
         // deitnerleave u and v
-        deinterleave(vuPlanar, uRows, vRows, cinfo->next_scanline, width);
+        deinterleave(vuPlanar, uRows, vRows, cinfo->next_scanline, width, height);
 
         for (int i = 0; i < 16; i++) {
             // y row
@@ -147,9 +148,14 @@ void Yuv420SpToJpegEncoder::deinterleave(uint8_t *vuPlanar,
                                          uint8_t *uRows,
                                          uint8_t *vRows,
                                          int      rowIndex,
-                                         int      width) {
+                                         int      width,
+                                         int      height) {
     for (int row = 0; row < 8; ++row) {
-        int offset  = ((rowIndex >> 1) + row) * width;
+        int hoff = (rowIndex >> 1) + row;
+        if (hoff >= (height >> 1)) {
+            return;
+        }
+        int offset  = hoff * width;
         uint8_t *vu = vuPlanar + offset;
         for (int i = 0; i < (width >> 1); ++i) {
             int index = row * (width >> 1) + i;
