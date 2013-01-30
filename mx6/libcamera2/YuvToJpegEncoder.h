@@ -93,7 +93,8 @@ private:
                       uint8_t *uRows,
                       uint8_t *vRows,
                       int      rowIndex,
-                      int      width);
+                      int      width,
+                      int      height);
     void        compress(jpeg_compress_struct *cinfo,
                          uint8_t              *yuv);
     virtual int yuvResize(uint8_t *srcBuf,
