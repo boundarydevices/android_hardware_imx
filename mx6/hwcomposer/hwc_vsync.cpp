@@ -125,7 +125,8 @@ bool VSyncThread::threadLoop()
     if(vsync) {
         handleVsyncUevent(uevent_desc, len);
     }
-    else if(hdmi) {
+    else if (hdmi &&
+            mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].type != HWC_DISPLAY_HDMI) {
         handleHdmiUevent(uevent_desc, len);
     }
 
