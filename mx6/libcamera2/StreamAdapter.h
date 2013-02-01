@@ -61,6 +61,7 @@ public:
     //CameraFrameListener
     void handleCameraFrame(CameraFrame *frame);
     void setErrorListener(CameraErrorListener *listener);
+    void showFps();
 
     enum StreamCommands {
         STREAM_START,
@@ -117,6 +118,13 @@ protected:
     sp<MetadaManager> mMetadaManager;
     mutable Mutex mMutexRespond;
     mutable Condition mCondRespond;
+
+    // for debug.
+    bool mShowFps;
+    nsecs_t mTime1;
+    nsecs_t mTime2;
+    int mTotalFrames;
+    int mFps;
 };
 
 
