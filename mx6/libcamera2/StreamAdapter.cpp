@@ -15,7 +15,7 @@
  */
 
 #include "StreamAdapter.h"
-
+#include "RequestManager.h"
 
 StreamAdapter::StreamAdapter(int id)
     : mPrepared(false), mStarted(false), mStreamId(id), mWidth(0), mHeight(0), mFormat(0), mUsage(0),
@@ -57,6 +57,17 @@ void StreamAdapter::setErrorListener(CameraErrorListener *listener)
 int StreamAdapter::start()
 {
     FLOG_TRACE("StreamAdapter %s running", __FUNCTION__);
+
+    mTime1 = mTime2 = 0;
+    mTotalFrames = mFps = 0;
+    mShowFps = false;
+    char prop_value[CAMERA_FORMAT_LENGTH];
+    if (property_get("sys.camera.fps", prop_value, "0")) {
+        if (strcmp(prop_value, "1") == 0) {
+            mShowFps = true;
+        }
+    }
+
     mStreamThread = new StreamThread(this);
     mThreadQueue.postSyncMessage(new SyncMessage(STREAM_START, 0));
 
@@ -77,6 +88,14 @@ int StreamAdapter::stop()
         mThreadQueue.postSyncMessage(new SyncMessage(STREAM_STOP, 0));
     }
     FLOG_TRACE("StreamAdapter %s end", __FUNCTION__);
+    if (mShowFps) {
+        if (mStreamId == STREAM_ID_PREVIEW) {
+            FLOGI("preview ouput %d frames", mTotalFrames);
+        }
+        else if (mStreamId == STREAM_ID_RECORD) {
+            FLOGI("recorder ouput %d frames", mTotalFrames);
+        }
+    }
 
     mStarted = false;
     return NO_ERROR;
@@ -203,6 +222,10 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     status_t ret = NO_ERROR;
     int size;
 
+    if (mShowFps) {
+        showFps();
+    }
+
     StreamBuffer buffer;
     ret = requestBuffer(&buffer);
     if (ret != NO_ERROR) {
@@ -223,6 +246,23 @@ err_ext:
     mCondRespond.signal();
 
     return ret;
+}
+
+void StreamAdapter::showFps()
+{
+    mTime2 = systemTime();
+    mFps ++;
+    mTotalFrames ++;
+    if ((mTime2 - mTime1 >= 1000000000LL) && (mFps > 1)) {
+        if (mStreamId == STREAM_ID_PREVIEW) {
+            FLOGI("Preview %s %d fps", __FUNCTION__, mFps);
+        }
+        else if (mStreamId == STREAM_ID_RECORD) {
+            FLOGI("Recorder %s %d fps", __FUNCTION__, mFps);
+        }
+        mTime1 = mTime2;
+        mFps = 0;
+    }
 }
 
 int StreamAdapter::requestBuffer(StreamBuffer* buffer)
