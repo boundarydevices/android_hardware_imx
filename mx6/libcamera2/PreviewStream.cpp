@@ -211,6 +211,10 @@ int PreviewStream::processFrame(CameraFrame *frame)
 {
     status_t ret = NO_ERROR;
 
+    if (mShowFps) {
+        showFps();
+    }
+
     ret = renderBuffer(frame);
     if (ret != NO_ERROR) {
         FLOGE("%s renderBuffer failed", __FUNCTION__);
