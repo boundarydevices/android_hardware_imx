@@ -15,120 +15,77 @@
  */
 #include "hwc_context.h"
 #include "hwc_vsync.h"
+#include "hwc_display.h"
 
 /*****************************************************************************/
 
+#undef DEBUG_HWC_VSYNC_TIMING
+
 using namespace android;
 
-extern int hwc_get_display_fbid(struct hwc_context_t* ctx, int disp_type);
-extern int hwc_get_framebuffer_info(displayInfo *pInfo);
-
 VSyncThread::VSyncThread(hwc_context_t *ctx)
-    : Thread(false), mCtx(ctx)
+    : Thread(false), mCtx(ctx), mEnabled(false)
 {
 }
 
 void VSyncThread::onFirstRef()
 {
-    run("vsyncThread", PRIORITY_URGENT_DISPLAY);
+    run("HWC-VSYNC-Thread", PRIORITY_URGENT_DISPLAY);
 }
 
 status_t VSyncThread::readyToRun()
 {
-    uevent_init();
     return NO_ERROR;
 }
 
-void VSyncThread::handleVsyncUevent(const char *buff, int len)
-{
-    uint64_t timestamp = 0;
-    const char *s = buff;
-
-    if (!mCtx || !mCtx->m_callback || !mCtx->m_callback->vsync)
-       return;
-
-    s += strlen(s) + 1;
-
-    while (*s) {
-        if (!strncmp(s, "VSYNC=", strlen("VSYNC=")))
-            timestamp = strtoull(s + strlen("VSYNC="), NULL, 0);
-
-        s += strlen(s) + 1;
-        if (s - buff >= len)
-            break;
-    }
-
-    mCtx->m_callback->vsync(mCtx->m_callback, 0, timestamp);
-}
-
-void VSyncThread::handleHdmiUevent(const char *buff, int len)
-{
-    struct private_module_t *priv_m = NULL;
-
-    if (!mCtx || !mCtx->m_callback || !mCtx->m_callback->hotplug)
-        return;
-
-    int fbid = -1;
-    const char *s = buff;
-    s += strlen(s) + 1;
-
-    while (*s) {
-        if (!strncmp(s, "EVENT=plugin", strlen("EVENT=plugin"))) {
-            mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = true;
-            fbid = hwc_get_display_fbid(mCtx, HWC_DISPLAY_HDMI);
-            if (fbid < 0) {
-                ALOGE("unrecognized fb num for hdmi");
-            }
-            else {
-                ALOGI("-----------hdmi---plug--in----");
-                if (mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].xres == 0) {
-                    hwc_get_framebuffer_info(&mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL]);
-                }
-            }
-        }
-        else if (!strncmp(s, "EVENT=plugout", strlen("EVENT=plugout"))) {
-            mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = false;
-            ALOGI("-----------hdmi---plug--out----");
-        }
-
-        s += strlen(s) + 1;
-        if (s - buff >= len)
-            break;
-    }
-
-    if (fbid >= 0 && mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] == NULL && mCtx->m_gralloc_module != NULL) {
-        ALOGI("-----------hdmi---open framebuffer----");
-        mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] = (framebuffer_device_t*)fbid;
-        char fbname[HWC_STRING_LENGTH];
-        memset(fbname, 0, sizeof(fbname));
-        sprintf(fbname, "fb%d", fbid);
-        mCtx->m_gralloc_module->methods->open(mCtx->m_gralloc_module, fbname,
-                     (struct hw_device_t**)&mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
-        priv_m = (struct private_module_t *)mCtx->m_gralloc_module;
-
-        mCtx->mFbPhysAddrs[HWC_DISPLAY_EXTERNAL] = priv_m->external_module->framebuffer->phys;
-    }
-
-    mCtx->m_callback->hotplug(mCtx->m_callback, HWC_DISPLAY_EXTERNAL, 
-                      mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected);
+void VSyncThread::setEnabled(bool enabled) {
+    Mutex::Autolock _l(mLock);
+    mEnabled = enabled;
+    mCondition.signal();
 }
 
 bool VSyncThread::threadLoop()
 {
-    char uevent_desc[4096];
-    memset(uevent_desc, 0, sizeof(uevent_desc));
-    int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
-    const char *pVsyncEvent = FB_VSYNC_EVENT_PREFIX;
-    const char *pHdmiEvent = HDMI_PLUG_EVENT;
-    bool vsync = !strncmp(uevent_desc, pVsyncEvent, strlen(pVsyncEvent));
-    bool hdmi = !strncmp(uevent_desc, pHdmiEvent, strlen(pHdmiEvent));
-    if(vsync) {
-        handleVsyncUevent(uevent_desc, len);
+    { // scope for lock
+        Mutex::Autolock _l(mLock);
+        while (!mEnabled) {
+            mCondition.wait(mLock);
+        }
     }
-    else if (hdmi &&
-            mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].type != HWC_DISPLAY_HDMI) {
-        handleHdmiUevent(uevent_desc, len);
+
+    uint64_t timestamp = 0;
+    uint32_t crt = (uint32_t)&timestamp;
+
+    int err = ioctl(mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].fd,
+                    MXCFB_WAIT_FOR_VSYNC, crt);
+    if ( err < 0 ) {
+        ALOGE("FBIO_WAITFORVSYNC error: %s\n", strerror(errno));
+        return true;
     }
+
+#ifdef DEBUG_HWC_VSYNC_TIMING
+    static nsecs_t last_time_ns;
+    nsecs_t cur_time_ns;
+
+    cur_time_ns  = systemTime(SYSTEM_TIME_MONOTONIC);
+    mCtx->m_callback->vsync(mCtx->m_callback, 0, timestamp);
+    ALOGE("Vsync %llu, %llu\n", cur_time_ns - last_time_ns,
+          cur_time_ns - timestamp);
+    last_time_ns = cur_time_ns;
+#else
+    mCtx->m_callback->vsync(mCtx->m_callback, 0, timestamp);
+#endif
+
+    struct timespec tm;
+    struct timespec ts;
+    const nsecs_t wake_up = 400000;
+
+    double m_frame_period_ns = mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].vsync_period;
+
+    ts.tv_nsec =  (timestamp + m_frame_period_ns)
+        - (systemTime(SYSTEM_TIME_MONOTONIC) + wake_up );
+    ts.tv_sec = 0;
+    nanosleep( &ts, &tm);
 
     return true;
 }

@@ -36,6 +36,7 @@
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
 #include "hwc_vsync.h"
+#include "hwc_uevent.h"
 /*****************************************************************************/
 #define HWC_VIV_HARDWARE_MODULE_ID "hwcomposer_viv"
 #define HWC_MAIN_FB "/dev/graphics/fb0"
@@ -46,6 +47,7 @@
 #define HWC_FB_SYS "/sys/class/graphics/fb"
 
 class VSyncThread;
+class UeventThread;
 
 enum {
     HWC_DISPLAY_LDB = 1,
@@ -72,11 +74,16 @@ struct hwc_context_t {
     //hwc_layer_list_t* mDispList[HWC_NUM_DISPLAY_TYPES];
     //size_t mListCapacity[HWC_NUM_DISPLAY_TYPES];
 
-    hwc_procs_t* m_callback;
     bool m_vsync_enable;
+
+    hwc_procs_t* m_callback;
+
     sp<VSyncThread> m_vsync_thread;
+    sp<UeventThread> m_uevent_thread;
+
     hwc_composer_device_1* m_viv_hwc;
     hw_module_t const *m_gralloc_module;
+
     framebuffer_device_t* mFbDev[HWC_NUM_DISPLAY_TYPES];
     unsigned long mFbPhysAddrs[HWC_NUM_DISPLAY_TYPES];
 };
