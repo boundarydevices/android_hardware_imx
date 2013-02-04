@@ -35,11 +35,13 @@
 #include "gralloc_priv.h"
 #include "hwc_context.h"
 #include "hwc_vsync.h"
+#include "hwc_uevent.h"
+#include "hwc_display.h"
 
 /*****************************************************************************/
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device);
-extern int hwc_get_display_info(struct hwc_context_t* ctx);
+
 
 static struct hw_module_methods_t hwc_module_methods = {
     open: hwc_device_open
@@ -81,7 +83,14 @@ static int hwc_device_close(struct hw_device_t *dev)
     if (ctx) {
         if (ctx->m_vsync_thread != NULL) {
             ctx->m_vsync_thread->requestExitAndWait();
+            ctx->m_uevent_thread.clear();
         }
+
+        if (ctx->m_uevent_thread.get() != NULL) {
+            ctx->m_uevent_thread->requestExitAndWait();
+            ctx->m_uevent_thread.clear();
+        }
+
         for (int i=0; i<HWC_NUM_DISPLAY_TYPES; i++) {
             if(ctx->mDispInfo[i].connected)
                 close(ctx->mDispInfo[i].fd);
@@ -190,21 +199,12 @@ static void hwc_registerProcs(struct hwc_composer_device_1* dev,
 
 static int hwc_eventControl(struct hwc_composer_device_1* dev, int dpy, int event, int enabled)
 {
-    int ret = -EINVAL;
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     if(ctx && event == HWC_EVENT_VSYNC) {
-        int val = !!enabled;
-        ctx->m_vsync_enable = val;
-        ret = ioctl(ctx->mDispInfo[0].fd, MXCFB_ENABLE_VSYNC_EVENT, &val);
-        if(ret < 0) {
-            ALOGE("ioctl FB_ENABLE_VSYNC_IOCTL failed: %d, %s", ret, strerror(errno));
-        }
-        else {
-            ret = 0;
-        }
+        ctx->m_vsync_thread->setEnabled(enabled);
     }
 
-    return ret;
+    return 0;
 }
 
 static int hwc_query(struct hwc_composer_device_1* dev,
@@ -348,6 +348,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 
         /* our private state goes below here */
         dev->m_vsync_thread = new VSyncThread(dev);
+        dev->m_uevent_thread = new UeventThread(dev);
         hwc_get_display_info(dev);
 
         hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &dev->m_gralloc_module);

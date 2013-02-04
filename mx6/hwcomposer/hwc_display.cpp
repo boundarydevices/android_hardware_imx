@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2013 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
     FILE *fp;
     int dispid = 0;
 
-    for (int i=0; i<HWC_MAX_FB; i++) {
+    for (int i = 0; i < HWC_MAX_FB; i++) {
         if(dispid >= HWC_NUM_DISPLAY_TYPES) {
             ALOGW("system can't support more than %d devices", dispid);
             break;
@@ -60,9 +60,7 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
         fclose(fp);
 
         //check if it is a real device
-        memset(tmp, 0, sizeof(tmp));
-        strcpy(tmp, fb_path);
-        strcat(tmp, "/name");
+        snprintf(tmp, sizeof(tmp), "%s/name", fb_path);
         if (!(fp = fopen(tmp, "r"))) {
             ALOGW("open %s failed", tmp);
             continue;
@@ -81,9 +79,7 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
         fclose(fp);
 
         //read fb device name
-        memset(tmp, 0, sizeof(tmp));
-        strcpy(tmp, fb_path);
-        strcat(tmp, "/fsl_disp_dev_property");
+        snprintf(tmp, sizeof(tmp), "%s/fsl_disp_dev_property", fb_path);
         if (!(fp = fopen(tmp, "r"))) {
             ALOGI("open %s failed", tmp);
             continue;
@@ -119,9 +115,7 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
         pInfo->fb_num = i;
         if(pInfo->type != HWC_DISPLAY_LDB) {
             //judge connected device state
-            memset(tmp, 0, sizeof(tmp));
-            strcpy(tmp, fb_path);
-            strcat(tmp, "/disp_dev/cable_state");
+            snprintf(tmp, sizeof(tmp), "%s/disp_dev/cable_state", fb_path);
             if (!(fp = fopen(tmp, "r"))) {
                 ALOGI("open %s failed", tmp);
                 //make default to false.

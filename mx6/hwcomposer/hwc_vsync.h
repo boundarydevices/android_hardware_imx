@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,6 @@
 /*****************************************************************************/
 #define FB_VSYNC_EVENT "change@/devices/platform/mxc_sdc_fb.0/graphics/fb0"
 #define FB_VSYNC_EVENT_PREFIX "change@/devices/platform/mxc_sdc_fb"
-#define HDMI_PLUG_EVENT "change@/devices/platform/mxc_hdmi"
 
 using namespace android;
 
@@ -46,7 +45,8 @@ struct hwc_context_t;
 class VSyncThread : public Thread
 {
 public:
-    VSyncThread(hwc_context_t *ctx);
+    explicit VSyncThread(hwc_context_t *ctx);
+    void setEnabled(bool enabled);
 
 private:
     virtual void onFirstRef();
@@ -56,6 +56,9 @@ private:
     void handleHdmiUevent(const char *buff, int len);
 
     hwc_context_t *mCtx;
+    mutable Mutex mLock;
+    Condition mCondition;
+    bool mEnabled;
 };
 
 #endif
