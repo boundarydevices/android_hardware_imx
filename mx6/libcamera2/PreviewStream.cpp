@@ -82,8 +82,11 @@ int PreviewStream::allocateBuffers(int width, int height,
     for (int i = 0; i < mTotalBuffers; i++) {
         int state = mCameraBuffer[i].getState();
         if (state == CameraFrame::BUFS_IN_SERVICE) {
-            //the frame held in service.
-            mCameraBuffer[i].addReference();
+            // The frame held in service.
+            // Make sure we dont add one more reference
+            // count for it
+            if(!mCameraBuffer[i].getRefCount())
+                mCameraBuffer[i].addReference();
         }
     }
 
