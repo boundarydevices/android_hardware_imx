@@ -208,6 +208,7 @@ public:
     void removeState(CAMERA_BUFS_STATE state);
     void release();
     void addReference();
+    int getRefCount();
     void setObserver(CameraFrameObserver *observer);
     void reset();
 

@@ -170,6 +170,11 @@ void CameraFrame::release()
     }
 }
 
+int CameraFrame::getRefCount()
+{
+    return mRefCount;
+}
+
 void CameraFrame::setObserver(CameraFrameObserver *observer)
 {
     mObserver = observer;
