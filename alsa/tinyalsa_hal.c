@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2012 Freescale Semiconductor, Inc. */
+/* Copyright (C) 2012-2013 Freescale Semiconductor, Inc. */
 
 #define LOG_TAG "audio_hw_primary"
 //#define LOG_NDEBUG 0
@@ -970,6 +970,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     size_t i, j;
     int ret;
     bool first = true;
+    bool checked = false;
     char temp[10];
 
     ret = str_parms_get_str(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, value, sizeof(value));
@@ -991,8 +992,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         }
         str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, value);
         str = strdup(str_parms_to_str(reply));
-    } else {
-        str = strdup(keys);
+        checked = true;
     }
 
     ret = str_parms_get_str(query, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES, value, sizeof(value));
@@ -1008,9 +1008,12 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
             first = false;
             i++;
         }
-        str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, value);
+        str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES, value);
         str = strdup(str_parms_to_str(reply));
-    } else {
+	checked = true;
+    }
+
+    if (!checked) {
         str = strdup(keys);
     }
 
@@ -2084,6 +2087,10 @@ static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx
 
     /*when channel is 6, the mask is 5.1,when channel is 8, the mask is 7.1*/
     for(i = 0; i < count; i++ ) {
+       if(sup_channels[i] == 2) {
+          out->sup_channel_masks[j]   = AUDIO_CHANNEL_OUT_STEREO;
+          j++;
+       }
        if(sup_channels[i] == 6) {
           out->sup_channel_masks[j]   = AUDIO_CHANNEL_OUT_5POINT1;
           j++;
