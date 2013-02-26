@@ -18,6 +18,7 @@
 #include "UvcDevice.h"
 #include "Ov5640.h"
 #include "Ov5642.h"
+#include "TVINDevice.h"
 
 sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
 {
@@ -33,6 +34,10 @@ sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
     else if (strstr(info.name, OV5642_SENSOR_NAME)) {
         FLOGI("DeviceAdapter: Create ov5642 device");
         devAdapter = new Ov5642();
+    }
+    else if (strstr(info.name, ADV7180_TVIN_NAME)) {
+        FLOGI("DeviceAdapter: Create adv7180 device");
+        devAdapter = new TVINDevice();
     }
     else {
         devAdapter = new OvDevice();
