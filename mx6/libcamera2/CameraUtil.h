@@ -72,6 +72,7 @@ using namespace android;
 #define UVC_SENSOR_NAME "uvc"
 #define OV5640_SENSOR_NAME "ov5640"
 #define OV5642_SENSOR_NAME "ov5642"
+#define ADV7180_TVIN_NAME "adv7180_decoder"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
 
 #define MAX_PREVIEW_BUFFER      6
