@@ -34,6 +34,7 @@ LOCAL_SRC_FILES:=    \
     OvDevice.cpp \
     Ov5640.cpp \
     Ov5642.cpp \
+    TVINDevice.cpp \
     UvcDevice.cpp \
     PhysMemAdapter.cpp \
     YuvToJpegEncoder.cpp \
