@@ -32,8 +32,9 @@ LOCAL_SRC_FILES:=    \
     MetadaManager.cpp \
     messageQueue.cpp \
     OvDevice.cpp \
-    Ov5640.cpp \
-    Ov5642.cpp \
+    Ov5640Mipi.cpp \
+    Ov5642Csi.cpp \
+    Ov5640Csi.cpp \
     TVINDevice.cpp \
     UvcDevice.cpp \
     PhysMemAdapter.cpp \
