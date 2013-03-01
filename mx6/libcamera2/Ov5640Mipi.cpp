@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include "Ov5640.h"
+#include "Ov5640Mipi.h"
 
 
-status_t Ov5640::initSensorInfo(const CameraInfo& info)
+status_t Ov5640Mipi::initSensorInfo(const CameraInfo& info)
 {
     if (mCameraHandle < 0) {
         FLOGE("OvDevice: initParameters sensor has not been opened");

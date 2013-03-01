@@ -16,8 +16,9 @@
 
 #include "DeviceAdapter.h"
 #include "UvcDevice.h"
-#include "Ov5640.h"
-#include "Ov5642.h"
+#include "Ov5640Mipi.h"
+#include "Ov5642Csi.h"
+#include "Ov5640Csi.h"
 #include "TVINDevice.h"
 
 sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
@@ -27,13 +28,17 @@ sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
         FLOGI("DeviceAdapter: Create uvc device");
         devAdapter = new UvcDevice();
     }
-    else if (strstr(info.name, OV5640_SENSOR_NAME)) {
-        FLOGI("DeviceAdapter: Create ov5640 device");
-        devAdapter = new Ov5640();
+    else if (strstr(info.name, OV5640MIPI_SENSOR_NAME)) {
+        FLOGI("DeviceAdapter: Create ov5640 mipi device");
+        devAdapter = new Ov5640Mipi();
     }
-    else if (strstr(info.name, OV5642_SENSOR_NAME)) {
-        FLOGI("DeviceAdapter: Create ov5642 device");
-        devAdapter = new Ov5642();
+    else if (strstr(info.name, OV5642CSI_SENSOR_NAME)) {
+        FLOGI("DeviceAdapter: Create ov5642 csi device");
+        devAdapter = new Ov5642Csi();
+    }
+    else if (strstr(info.name, OV5640CSI_SENSOR_NAME)) {
+        FLOGI("DeviceAdapter: Create ov5640 csi device");
+        devAdapter = new Ov5640Csi();
     }
     else if (strstr(info.name, ADV7180_TVIN_NAME)) {
         FLOGI("DeviceAdapter: Create adv7180 device");
