@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef _OV5640_H_
-#define _OV5640_H_
+#ifndef _OV5640CSI_H_
+#define _OV5640CSI_H_
 
 #include "OvDevice.h"
 
-class Ov5640 : public OvDevice {
+class Ov5640Csi : public OvDevice {
 public:
     virtual status_t initSensorInfo(const CameraInfo& info);
 };

@@ -70,8 +70,9 @@ using namespace android;
 #define fAssert(e) ((e) ? (void)0 : __assert2(__FILE__, __LINE__, __func__, #e))
 
 #define UVC_SENSOR_NAME "uvc"
-#define OV5640_SENSOR_NAME "ov5640"
-#define OV5642_SENSOR_NAME "ov5642"
+#define OV5640MIPI_SENSOR_NAME "ov5640_mipi"
+#define OV5642CSI_SENSOR_NAME "ov5642_camera"
+#define OV5640CSI_SENSOR_NAME "ov5640_camera"
 #define ADV7180_TVIN_NAME "adv7180_decoder"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
 

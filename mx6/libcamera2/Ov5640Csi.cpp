@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "Ov5642.h"
+#include "Ov5640Csi.h"
 
-status_t Ov5642::initSensorInfo(const CameraInfo& info)
+status_t Ov5640Csi::initSensorInfo(const CameraInfo& info)
 {
     if (mCameraHandle < 0) {
         FLOGE("OvDevice: initParameters sensor has not been opened");
@@ -88,6 +88,13 @@ status_t Ov5642::initSensorInfo(const CameraInfo& info)
                     (vid_frmsize.discrete.height > 800)) {
                     vid_frmval.discrete.denominator = 15;
                     vid_frmval.discrete.numerator   = 1;
+                }
+                else if ((vid_frmsize.discrete.width == 1024) ||
+                    (vid_frmsize.discrete.height == 768)) {
+                    // Max fps for ov5640 csi xga cannot reach to 30fps
+                    vid_frmval.discrete.denominator = 15;
+                    vid_frmval.discrete.numerator   = 1;
+
                 }
                 else {
                     vid_frmval.discrete.denominator = 30;
