@@ -21,6 +21,15 @@ StreamAdapter::StreamAdapter(int id)
     : mPrepared(false), mStarted(false), mStreamId(id), mWidth(0), mHeight(0), mFormat(0), mUsage(0),
       mMaxProducerBuffers(0), mNativeWindow(NULL), mStreamState(STREAM_INVALID)
 {
+    g2dHandle = NULL;
+    g2d_open(&g2dHandle);
+}
+
+StreamAdapter::~StreamAdapter()
+{
+    if (g2dHandle != NULL) {
+        g2d_close(g2dHandle);
+    }
 }
 
 int StreamAdapter::initialize(int width, int height, int format, int usage, int bufferNum)
@@ -234,7 +243,18 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     }
 
     size = (frame->mSize > buffer.mSize) ? buffer.mSize : frame->mSize;
-    memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, size);
+    if (g2dHandle != NULL) {
+        struct g2d_buf s_buf, d_buf;
+        s_buf.buf_paddr = frame->mPhyAddr;
+        s_buf.buf_vaddr = frame->mVirtAddr;
+        d_buf.buf_paddr = buffer.mPhyAddr;
+        d_buf.buf_vaddr = buffer.mVirtAddr;
+        g2d_copy(g2dHandle, &d_buf, &s_buf, size);
+    }
+    else {
+        memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, size);
+    }
+
     buffer.mTimeStamp = frame->mTimeStamp;
     ret = renderBuffer(&buffer);
     if (ret != NO_ERROR) {

@@ -55,7 +55,8 @@ LOCAL_SHARED_LIBRARIES:= \
     libjpeg \
     libexif \
     libion \
-    libcamera_metadata
+    libcamera_metadata \
+    libg2d
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/binder \
@@ -64,7 +65,8 @@ LOCAL_C_INCLUDES += \
 	hardware/imx/mx6/libgralloc_wrapper \
 	system/media/camera/include \
 	external/jpeg \
-	external/jhead
+	external/jhead \
+        device/fsl-proprietary/include
 
 ifeq ($(HAVE_FSL_IMX_CODEC),true)
     #LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux
