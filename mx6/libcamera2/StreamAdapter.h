@@ -22,6 +22,7 @@
 #include "PhysMemAdapter.h"
 #include "JpegBuilder.h"
 #include "DeviceAdapter.h"
+#include "g2d.h"
 
 using namespace android;
 
@@ -30,7 +31,7 @@ class StreamAdapter : public LightRefBase<StreamAdapter>,
 {
 public:
     StreamAdapter(int id);
-    virtual ~StreamAdapter() {}
+    virtual ~StreamAdapter();
 
     virtual int initialize(int width, int height, int format,
                            int usage, int bufferNum);
@@ -125,6 +126,7 @@ protected:
     nsecs_t mTime2;
     int mTotalFrames;
     int mFps;
+    void *g2dHandle;
 };
 
 
