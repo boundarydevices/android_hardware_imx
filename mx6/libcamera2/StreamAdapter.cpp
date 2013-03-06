@@ -226,6 +226,48 @@ void StreamAdapter::applyRequest()
     mCondRespond.wait(mMutexRespond);
 }
 
+void StreamAdapter::convertNV12toYV12(StreamBuffer* dst, StreamBuffer* src)
+{
+    uint8_t *Yin, *UVin, *Yout, *Uout, *Vout;
+    int srcYSize = 0, srcUVSize = 0;
+    int dstYStride = 0, dstUVStride = 0;
+    int dstYSize = 0, dstUVSize = 0;
+
+    srcYSize = src->mWidth * src->mHeight;
+    srcUVSize = src->mWidth * src->mHeight >> 2;
+    Yin = (uint8_t *)src->mVirtAddr;
+    UVin = Yin + src->mWidth * src->mHeight;
+
+    dstYStride = (dst->mWidth+15)/16*16;
+    dstUVStride = (dst->mWidth/2+15)/16*16;
+    dstYSize = dstYStride * dst->mHeight;
+    dstUVSize = dstUVStride * dst->mHeight / 2;
+    Yout = (uint8_t *)dst->mVirtAddr;
+    Vout = Yout + dstYSize;
+    Uout = Vout + dstUVSize;
+
+    for (int y = 0; y < dst->mHeight && y < src->mHeight; y++) {
+        int width = (dst->mWidth < src->mWidth) ? dst->mWidth : src->mWidth;
+        memcpy(Yout, Yin, width);
+        Yout += dst->mWidth;
+        Yin += src->mWidth;
+    }
+
+    int yMax = (dst->mHeight < src->mHeight) ? dst->mHeight : src->mHeight;
+    int xMax = (dst->mWidth < src->mWidth) ? (dst->mWidth) : src->mWidth;
+
+    for (int y = 0; y < (yMax+1)/2; y++) {
+        for (int x=0; x<(xMax+1)/2; x++) {
+            Uout[x] = UVin[2*x];
+            Vout[x] = UVin[2*x+1];
+        }
+        UVin += src->mWidth;
+        Uout += dstUVStride;
+        Vout += dstUVStride;
+    }
+}
+
+
 int StreamAdapter::processFrame(CameraFrame *frame)
 {
     status_t ret = NO_ERROR;
@@ -243,7 +285,11 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     }
 
     size = (frame->mSize > buffer.mSize) ? buffer.mSize : frame->mSize;
-    if (g2dHandle != NULL) {
+    if (mStreamId == STREAM_ID_PRVCB &&
+            buffer.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_P) {
+        convertNV12toYV12(&buffer, frame);
+    }
+    else if (g2dHandle != NULL) {
         struct g2d_buf s_buf, d_buf;
         s_buf.buf_paddr = frame->mPhyAddr;
         s_buf.buf_vaddr = frame->mVirtAddr;
