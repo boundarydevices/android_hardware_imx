@@ -525,40 +525,56 @@ int camera_get_number_of_cameras()
                          &back_orient,
                          &front_orient);
         if (name_back[0] != DEFAULT_ERROR_NAME) {
-            strncpy(sCameraInfo[gCameraNum].name,
-                    name_back,
-                    CAMERA_SENSOR_LENGTH);
-            sCameraInfo[gCameraNum].facing      = CAMERA_FACING_BACK;
-            sCameraInfo[gCameraNum].orientation = back_orient;
-            memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
-            GetDevPath(sCameraInfo[gCameraNum].name,
-                       sCameraInfo[gCameraNum].devPath,
-                       CAMAERA_FILENAME_LENGTH);
-            ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
-                    gCameraNum,
-                    sCameraInfo[gCameraNum].name,
-                    sCameraInfo[gCameraNum].facing,
-                    sCameraInfo[gCameraNum].orientation,
-                    sCameraInfo[gCameraNum].devPath);
-            gCameraNum++;
+            char *pCameraName = strtok(name_back, ",");
+            while (pCameraName != NULL) {
+                ALOGI("Checking the camera %s", pCameraName);
+                strncpy(sCameraInfo[gCameraNum].name,
+                        pCameraName,
+                        CAMERA_SENSOR_LENGTH);
+                sCameraInfo[gCameraNum].facing      = CAMERA_FACING_BACK;
+                sCameraInfo[gCameraNum].orientation = back_orient;
+                memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
+                if (GetDevPath(sCameraInfo[gCameraNum].name,
+                           sCameraInfo[gCameraNum].devPath,
+                           CAMAERA_FILENAME_LENGTH) == -1){
+                    pCameraName = strtok(NULL, ",");
+                    continue;
+                }
+                ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
+                        gCameraNum,
+                        sCameraInfo[gCameraNum].name,
+                        sCameraInfo[gCameraNum].facing,
+                        sCameraInfo[gCameraNum].orientation,
+                        sCameraInfo[gCameraNum].devPath);
+                gCameraNum++;
+                break;
+            }
         }
         if (name_front[0] != DEFAULT_ERROR_NAME) {
-            strncpy(sCameraInfo[gCameraNum].name,
-                    name_front,
-                    CAMERA_SENSOR_LENGTH);
-            sCameraInfo[gCameraNum].facing      = CAMERA_FACING_FRONT;
-            sCameraInfo[gCameraNum].orientation = front_orient;
-            memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
-            GetDevPath(sCameraInfo[gCameraNum].name,
+            char *pCameraName = strtok(name_front, ",");
+            while (pCameraName != NULL) {
+                ALOGI("Checking the camera %s", pCameraName);
+                strncpy(sCameraInfo[gCameraNum].name,
+                        pCameraName,
+                        CAMERA_SENSOR_LENGTH);
+                sCameraInfo[gCameraNum].facing      = CAMERA_FACING_FRONT;
+                sCameraInfo[gCameraNum].orientation = front_orient;
+                memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
+                if (GetDevPath(sCameraInfo[gCameraNum].name,
                        sCameraInfo[gCameraNum].devPath,
-                       CAMAERA_FILENAME_LENGTH);
-            ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
+                       CAMAERA_FILENAME_LENGTH) == -1) {
+                    pCameraName = strtok(NULL, ",");
+                    continue;
+                }
+                ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
                     gCameraNum,
                     sCameraInfo[gCameraNum].name,
                     sCameraInfo[gCameraNum].facing,
                     sCameraInfo[gCameraNum].orientation,
                     sCameraInfo[gCameraNum].devPath);
-            gCameraNum++;
+                gCameraNum++;
+                break;
+            }
         }
     }
     return gCameraNum;
