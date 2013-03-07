@@ -49,6 +49,7 @@ public:
     virtual int release();
     virtual int processFrame(CameraFrame *frame);
     virtual void applyRequest();
+    void enableReceiveFrame();
 
     void setDeviceAdapter(sp<DeviceAdapter>& device);
     void setMetadaManager(sp<MetadaManager>& metaManager);
@@ -121,6 +122,7 @@ protected:
     mutable Mutex mMutexRespond;
     mutable Condition mCondRespond;
 
+    bool mReceiveFrame;
     // for debug.
     bool mShowFps;
     nsecs_t mTime1;
@@ -181,7 +183,6 @@ private:
     PhysMemAdapter *mPhysMemAdapter;
     sp<JpegBuilder> mJpegBuilder;
 
-    bool mRequestStream;
     mutable sem_t mRespondSem;
 };
 

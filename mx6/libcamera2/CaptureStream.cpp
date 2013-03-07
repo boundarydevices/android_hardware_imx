@@ -28,7 +28,6 @@ CaptureStream::CaptureStream(int id)
     mVideoSnapShot = false;
     mPhysMemAdapter = new PhysMemAdapter();
     sem_init(&mRespondSem, 0, 0);
-    mRequestStream = false;
 }
 
 CaptureStream::~CaptureStream()
@@ -159,17 +158,12 @@ int CaptureStream::release()
 
 void CaptureStream::applyRequest()
 {
-    mRequestStream = true;
     sem_wait(&mRespondSem);
 }
 
 int CaptureStream::processFrame(CameraFrame *frame)
 {
     status_t ret = NO_ERROR;
-
-    if (mVideoSnapShot && !mRequestStream) {
-        return ret;
-    }
 
     StreamBuffer buffer;
     ret = requestBuffer(&buffer);
@@ -194,7 +188,6 @@ int CaptureStream::processFrame(CameraFrame *frame)
     }
 
 exit_err:
-    mRequestStream = false;
     sem_post(&mRespondSem);
 
     return ret;

@@ -19,7 +19,7 @@
 
 StreamAdapter::StreamAdapter(int id)
     : mPrepared(false), mStarted(false), mStreamId(id), mWidth(0), mHeight(0), mFormat(0), mUsage(0),
-      mMaxProducerBuffers(0), mNativeWindow(NULL), mStreamState(STREAM_INVALID)
+      mMaxProducerBuffers(0), mNativeWindow(NULL), mStreamState(STREAM_INVALID), mReceiveFrame(true)
 {
     g2dHandle = NULL;
     g2d_open(&g2dHandle);
@@ -208,13 +208,25 @@ bool StreamAdapter::handleStream()
     return shouldLive;
 }
 
+void StreamAdapter::enableReceiveFrame()
+{
+    mReceiveFrame = true;
+}
+
 void StreamAdapter::handleCameraFrame(CameraFrame *frame)
 {
     if (!frame || !frame->mBufHandle) {
         FLOGI("%s invalid frame", __FUNCTION__);
         return;
     }
-
+    //don't need receive camera frame.
+    if (!mReceiveFrame) {
+        return;
+    }
+    else if (mStreamId == STREAM_ID_JPEG) {
+        //captureStream should reveive one frame every time.
+        mReceiveFrame = false;
+    }
     //the frame processed in StreamThread.
     frame->addReference();
     mThreadQueue.postMessage(new CMessage(STREAM_FRAME, (int)frame));

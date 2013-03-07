@@ -318,6 +318,7 @@ int RequestManager::tryRestartStreams(int requestType)
             }
         }
 
+        stream->enableReceiveFrame();
         if (!stream->mStarted) {
             res = stream->start();
             if (res != NO_ERROR) {
