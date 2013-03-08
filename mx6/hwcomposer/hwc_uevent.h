@@ -31,7 +31,7 @@ private:
     virtual void onFirstRef();
     virtual status_t readyToRun();
     virtual bool threadLoop();
-    void handleHdmiUevent(const char *buff, int len);
+    void handleHdmiUevent(const char *buff, int len, int dispid);
 
     hwc_context_t *mCtx;
 };

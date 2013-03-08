@@ -52,7 +52,8 @@ class UeventThread;
 enum {
     HWC_DISPLAY_LDB = 1,
     HWC_DISPLAY_HDMI = 2,
-    HWC_DISPLAY_DVI = 3
+    HWC_DISPLAY_DVI = 3,
+    HWC_DISPLAY_HDMI_ON_BOARD = 4
 };
 
 typedef struct {

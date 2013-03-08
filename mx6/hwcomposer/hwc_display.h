@@ -20,5 +20,6 @@
 int hwc_get_display_fbid(struct hwc_context_t* ctx, int disp_type);
 int hwc_get_framebuffer_info(displayInfo *pInfo);
 int hwc_get_display_info(struct hwc_context_t* ctx);
+int hwc_get_display_dispid(struct hwc_context_t* ctx, int disp_type);
 
 #endif
