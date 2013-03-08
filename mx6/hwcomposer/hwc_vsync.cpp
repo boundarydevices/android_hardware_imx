@@ -24,8 +24,10 @@
 using namespace android;
 
 VSyncThread::VSyncThread(hwc_context_t *ctx)
-    : Thread(false), mCtx(ctx), mEnabled(false)
+    : Thread(false), mCtx(ctx), mEnabled(false),
+      mFakeVSync(false), mNextFakeVSync(0)
 {
+    mRefreshPeriod = 0;
 }
 
 void VSyncThread::onFirstRef()
@@ -44,6 +46,11 @@ void VSyncThread::setEnabled(bool enabled) {
     mCondition.signal();
 }
 
+void VSyncThread::setFakeVSync(bool enable)
+{
+    mFakeVSync = enable;
+}
+
 bool VSyncThread::threadLoop()
 {
     { // scope for lock
@@ -53,6 +60,46 @@ bool VSyncThread::threadLoop()
         }
     }
 
+    if (mFakeVSync) {
+        performFakeVSync();
+    }
+    else {
+        performVSync();
+    }
+
+    return true;
+}
+
+void VSyncThread::performFakeVSync()
+{
+    mRefreshPeriod = mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].vsync_period;
+    const nsecs_t period = mRefreshPeriod;
+    const nsecs_t now = systemTime(CLOCK_MONOTONIC);
+    nsecs_t next_vsync = mNextFakeVSync;
+    nsecs_t sleep = next_vsync - now;
+    if (sleep < 0) {
+        // we missed, find where the next vsync should be
+        sleep = (period - ((now - next_vsync) % period));
+        next_vsync = now + sleep;
+    }
+    mNextFakeVSync = next_vsync + period;
+
+    struct timespec spec;
+    spec.tv_sec  = next_vsync / 1000000000;
+    spec.tv_nsec = next_vsync % 1000000000;
+
+    int err;
+    do {
+        err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
+    } while (err<0 && errno == EINTR);
+
+    if (err == 0) {
+        mCtx->m_callback->vsync(mCtx->m_callback, 0, next_vsync);
+    }
+}
+
+void VSyncThread::performVSync()
+{
     uint64_t timestamp = 0;
     uint32_t crt = (uint32_t)&timestamp;
 
@@ -60,7 +107,7 @@ bool VSyncThread::threadLoop()
                     MXCFB_WAIT_FOR_VSYNC, crt);
     if ( err < 0 ) {
         ALOGE("FBIO_WAITFORVSYNC error: %s\n", strerror(errno));
-        return true;
+        return;
     }
 
 #ifdef DEBUG_HWC_VSYNC_TIMING
@@ -86,8 +133,5 @@ bool VSyncThread::threadLoop()
         - (systemTime(SYSTEM_TIME_MONOTONIC) + wake_up );
     ts.tv_sec = 0;
     nanosleep( &ts, &tm);
-
-    return true;
 }
-
 

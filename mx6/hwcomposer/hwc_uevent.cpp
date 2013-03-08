@@ -19,6 +19,7 @@
 #include "hwc_display.h"
 
 #define HDMI_PLUG_EVENT "change@/devices/platform/mxc_hdmi"
+#define HDMI_SII902_PLUG_EVENT "change@/devices/platform/sii902x.0"
 
 using namespace android;
 
@@ -33,7 +34,7 @@ status_t UeventThread::readyToRun() {
     return NO_ERROR;
 }
 
-void UeventThread::handleHdmiUevent(const char *buff, int len) {
+void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
     struct private_module_t *priv_m = NULL;
     int fbid = -1;
     const char *s = buff;
@@ -45,6 +46,11 @@ void UeventThread::handleHdmiUevent(const char *buff, int len) {
 
     while (*s) {
         if (!strncmp(s, "EVENT=plugin", strlen("EVENT=plugin"))) {
+            if (dispid == HWC_DISPLAY_PRIMARY) {
+                mCtx->m_vsync_thread->setFakeVSync(false);
+                return;
+            }
+
             mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = true;
             fbid = hwc_get_display_fbid(mCtx, HWC_DISPLAY_HDMI);
             if (fbid < 0) {
@@ -56,6 +62,11 @@ void UeventThread::handleHdmiUevent(const char *buff, int len) {
                 }
             }
         } else if (!strncmp(s, "EVENT=plugout", strlen("EVENT=plugout"))) {
+            if (dispid == HWC_DISPLAY_PRIMARY) {
+                mCtx->m_vsync_thread->setFakeVSync(true);
+                return;
+            }
+
             mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = false;
             ALOGI("HDMI Plugout detected");
         }
@@ -85,13 +96,24 @@ void UeventThread::handleHdmiUevent(const char *buff, int len) {
 bool UeventThread::threadLoop() {
     char uevent_desc[4096];
     const char *pHdmiEvent = HDMI_PLUG_EVENT;
+    const char *pSii902 = HDMI_SII902_PLUG_EVENT;
 
     memset(uevent_desc, 0, sizeof(uevent_desc));
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
-    bool hdmi = !strncmp(uevent_desc, pHdmiEvent, strlen(pHdmiEvent));
+    int type = -1;
+    if (!strncmp(uevent_desc, pHdmiEvent, strlen(pHdmiEvent))) {
+        type = HWC_DISPLAY_HDMI;
+    }
+    else if (!strncmp(uevent_desc, pSii902, strlen(pSii902))) {
+        type = HWC_DISPLAY_HDMI_ON_BOARD;
+    }
+    else {
+        ALOGV("%s invalid uevent %s", __FUNCTION__, uevent_desc);
+        return true;
+    }
 
-    if (hdmi && mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].type != HWC_DISPLAY_HDMI)
-        handleHdmiUevent(uevent_desc, len);
+    int dispid = hwc_get_display_dispid(mCtx, type);
+    handleHdmiUevent(uevent_desc, len, dispid);
 
     return true;
 }

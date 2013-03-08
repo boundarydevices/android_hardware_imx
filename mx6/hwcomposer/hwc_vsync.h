@@ -40,6 +40,9 @@
 
 using namespace android;
 
+extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
+                           const struct timespec *request,
+                           struct timespec *remain);
 struct hwc_context_t;
 
 class VSyncThread : public Thread
@@ -47,18 +50,23 @@ class VSyncThread : public Thread
 public:
     explicit VSyncThread(hwc_context_t *ctx);
     void setEnabled(bool enabled);
+    void setFakeVSync(bool enable);
 
 private:
     virtual void onFirstRef();
     virtual status_t readyToRun();
     virtual bool threadLoop();
-    void handleVsyncUevent(const char *buff, int len);
-    void handleHdmiUevent(const char *buff, int len);
+    void performFakeVSync();
+    void performVSync();
 
     hwc_context_t *mCtx;
     mutable Mutex mLock;
     Condition mCondition;
     bool mEnabled;
+
+    bool mFakeVSync;
+    mutable nsecs_t mNextFakeVSync;
+    nsecs_t mRefreshPeriod;
 };
 
 #endif

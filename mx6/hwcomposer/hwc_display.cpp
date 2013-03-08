@@ -140,6 +140,11 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
             }
         }
 
+        //allow primary display plug-out then plug-in.
+        if (dispid == 0 && pInfo->connected == false) {
+            pInfo->connected = true;
+            ctx->m_vsync_thread->setFakeVSync(true);
+        }
         dispid ++;
     }
 
@@ -195,30 +200,7 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
 
     return NO_ERROR;
 }
-#if 0
-static int hwc_get_framebuffer_info(struct hwc_context_t* ctx)
-{
-    struct fb_var_screeninfo info;
-    if (ioctl(ctx->m_mainfb_fd, FBIOGET_VSCREENINFO, &info) == -1) {
-        ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
-        return -errno;
-    }
 
-    int refreshRate = 1000000000000000LLU / (uint64_t(info.upper_margin +
-                                                      info.lower_margin +
-                                                      info.yres +
-                                                      info.vsync_len) *
-                                             (info.left_margin  +
-                                              info.right_margin +
-                                              info.xres +
-                                              info.hsync_len) * info.pixclock);
-    if (refreshRate == 0)
-        refreshRate = 60 * 1000;  // 60 Hz
-
-    ctx->m_mainfb_fps = refreshRate / 1000.0f;
-    return 0;
-}
-#endif
 int hwc_get_display_info(struct hwc_context_t* ctx)
 {
     int err = 0;
@@ -235,7 +217,6 @@ int hwc_get_display_info(struct hwc_context_t* ctx)
     return err;
 }
 
-
 int hwc_get_display_fbid(struct hwc_context_t* ctx, int disp_type)
 {
     int fbid = -1;
@@ -250,3 +231,17 @@ int hwc_get_display_fbid(struct hwc_context_t* ctx, int disp_type)
 
     return fbid;
 }
+
+int hwc_get_display_dispid(struct hwc_context_t* ctx, int disp_type)
+{
+    int dispid = 0;
+    for(dispid=0; dispid<HWC_NUM_DISPLAY_TYPES; dispid++) {
+        displayInfo *pInfo = &ctx->mDispInfo[dispid];
+        if(pInfo->type == disp_type) {
+            return dispid;
+        }
+    }
+
+    return dispid;
+}
+
