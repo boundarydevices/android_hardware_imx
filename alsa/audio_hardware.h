@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2012 Freescale Semiconductor, Inc. */
+/* Copyright (C) 2012-2013 Freescale Semiconductor, Inc. */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
@@ -137,6 +137,19 @@ struct imx_stream_out {
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
+struct effect_info_s {
+    effect_handle_t effect_itfe;
+    size_t num_channel_configs;
+    channel_config_t* channel_configs;
+};
+
+#define NUM_IN_AUX_CNL_CONFIGS 2
+channel_config_t in_aux_cnl_configs[NUM_IN_AUX_CNL_CONFIGS] = {
+    { AUDIO_CHANNEL_IN_FRONT , AUDIO_CHANNEL_IN_BACK},
+    { AUDIO_CHANNEL_IN_STEREO , AUDIO_CHANNEL_IN_RIGHT}
+};
+
+#define MAX_NUM_CHANNEL_CONFIGS 10
 
 struct imx_stream_in {
     struct audio_stream_in stream;
@@ -161,11 +174,14 @@ struct imx_stream_in {
     int source;
     struct echo_reference_itfe *echo_reference;
     bool need_echo_reference;
-    effect_handle_t preprocessors[MAX_PREPROCESSORS];
+    struct effect_info_s preprocessors[MAX_PREPROCESSORS];
     int num_preprocessors;
-    int16_t *proc_buf;
+
+    int16_t *proc_buf_in;
+    int16_t *proc_buf_out;
     size_t proc_buf_size;
-    size_t proc_frames_in;
+    size_t proc_buf_frames;
+
     int16_t *ref_buf;
     size_t ref_buf_size;
     size_t ref_frames_in;
@@ -173,6 +189,9 @@ struct imx_stream_in {
     size_t mute_500ms;
     struct imx_audio_device *dev;
     int last_time_of_xrun;
+    bool aux_channels_changed;
+    uint32_t main_channels;
+    uint32_t aux_channels;
 };
 #define STRING_TO_ENUM(string) { #string, string }
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
