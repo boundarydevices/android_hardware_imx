@@ -22,14 +22,10 @@ StreamAdapter::StreamAdapter(int id)
       mMaxProducerBuffers(0), mNativeWindow(NULL), mStreamState(STREAM_INVALID), mReceiveFrame(true)
 {
     g2dHandle = NULL;
-    g2d_open(&g2dHandle);
 }
 
 StreamAdapter::~StreamAdapter()
 {
-    if (g2dHandle != NULL) {
-        g2d_close(g2dHandle);
-    }
 }
 
 int StreamAdapter::initialize(int width, int height, int format, int usage, int bufferNum)
@@ -181,6 +177,10 @@ bool StreamAdapter::handleStream()
                 mStreamState = STREAM_STARTED;
             }
 
+            if (g2dHandle == NULL) {
+                g2d_open(&g2dHandle);
+            }
+
             break;
 
         case STREAM_STOP:
@@ -190,6 +190,11 @@ bool StreamAdapter::handleStream()
             }
             else {
                 mStreamState = STREAM_STOPPED;
+            }
+
+            if (g2dHandle != NULL) {
+                g2d_close(g2dHandle);
+                g2dHandle = NULL;
             }
 
             break;
