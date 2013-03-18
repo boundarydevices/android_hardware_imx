@@ -1921,7 +1921,7 @@ static ssize_t process_frames(struct imx_stream_in *in, void* buffer, ssize_t fr
 
         /* if not enough frames were passed to process(), read more and retry. */
         if (out_buf.frameCount == 0) {
-            ALOGW("No frames produced by preproc");
+            ALOGV("No frames produced by preproc");
             continue;
         }
 
