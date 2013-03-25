@@ -723,7 +723,9 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
     ADD_OR_SIZE(ANDROID_SENSOR_COLOR_FILTER_ARRANGEMENT,
             &kColorFilterArrangement, 1);
 #endif
-    static const float sensorPhysicalSize[2] = {3.20f, 2.40f}; // mm
+    static const float sensorPhysicalSize[2] =
+        {mSensorInfo->mPhysicalWidth, mSensorInfo->mPhysicalHeight
+    }; // mm
     ADD_OR_SIZE(ANDROID_SENSOR_PHYSICAL_SIZE,
             sensorPhysicalSize, 2);
 
