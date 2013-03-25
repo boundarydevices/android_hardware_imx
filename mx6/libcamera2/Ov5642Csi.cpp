@@ -130,7 +130,9 @@ status_t Ov5642Csi::initSensorInfo(const CameraInfo& info)
 
     setMaxPictureResolutions();
     FLOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
-    mFocalLength = 10.001;
+    mFocalLength = 3.34f;
+    mPhysicalWidth = 3.673f;
+    mPhysicalHeight = 2.738f;
 
     return NO_ERROR;
 }

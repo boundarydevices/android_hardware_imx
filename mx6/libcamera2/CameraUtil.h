@@ -138,6 +138,8 @@ struct SensorInfo
     int mTargetFpsRange[MAX_FPS_RANGE];
     int mMaxWidth;
     int mMaxHeight;
+    float mPhysicalWidth;
+    float mPhysicalHeight;
     float mFocalLength;
 };
 
