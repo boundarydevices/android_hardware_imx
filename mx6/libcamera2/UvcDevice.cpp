@@ -34,7 +34,7 @@ void UvcDevice::adjustSensorFormats(int *src, int len)
     mDefaultFormat = 0;
     memset(mSensorFormats, 0, sizeof(mSensorFormats));
     int k = 0;
-    for (int i=0; i<len && i<MAX_SENSOR_FORMAT; i++) {
+    for (int i=0; i<len && i<MAX_SENSOR_FORMAT && k<MAX_SENSOR_FORMAT; i++) {
         switch (src[i]) {
             case v4l2_fourcc('N', 'V', '1', '2'):
                 mSensorFormats[k++] = HAL_PIXEL_FORMAT_YCbCr_420_SP;
@@ -140,7 +140,8 @@ void UvcDevice::setPreviewPixelFormat()
     if (mPreviewNeedCsc) {
         mAvailableFormats[n++] = HAL_PIXEL_FORMAT_YCbCr_420_SP;
     }
-    for (int i=0; i<MAX_SENSOR_FORMAT && (mSensorFormats[i] != 0); i++) {
+    for (int i=0; i < MAX_SENSOR_FORMAT && (mSensorFormats[i] != 0) &&
+                  n < MAX_SENSOR_FORMAT; i++) {
         mAvailableFormats[n++] = mSensorFormats[i];
     }
     mAvailableFormatCount = n;
@@ -170,6 +171,8 @@ status_t UvcDevice::initSensorInfo(const CameraInfo& info)
     int sensorFormats[MAX_SENSOR_FORMAT];
     memset(mAvailableFormats, 0, sizeof(mAvailableFormats));
     memset(sensorFormats, 0, sizeof(sensorFormats));
+    memset(mPreviewResolutions, 0, sizeof(mPreviewResolutions));
+    memset(mPictureResolutions, 0, sizeof(mPictureResolutions));
 
     struct v4l2_fmtdesc vid_fmtdesc;
     while (ret == 0) {
@@ -264,7 +267,9 @@ status_t UvcDevice::initSensorInfo(const CameraInfo& info)
 
     setMaxPictureResolutions();
     FLOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
-    mFocalLength = 10.001;
+    mFocalLength = 3.42f;
+    mPhysicalWidth = 3.673f;
+    mPhysicalHeight = 2.738f;
 
     return NO_ERROR;
 }
