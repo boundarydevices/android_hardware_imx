@@ -1,20 +1,21 @@
-/*
- * Copyright 2012 The Android Open Source Project
+/******************************************************************************
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Copyright (C) 2009-2012 Broadcom Corporation
+ *  Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at:
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/* Copyright (C) 2013 Freescale Semiconductor, Inc. */
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -31,8 +32,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
-#include "bt_vendor_ath3k.h"
-#include "userial_vendor.h"
+#include "bt_vendor_QCA3002.h"
+#include "userial_vendor_QCA3002.h"
 
 /******************************************************************************
 **  Constants & Macros
@@ -67,6 +68,7 @@ typedef struct
 ******************************************************************************/
 
 static vnd_userial_cb_t vnd_userial;
+extern int hw_config(char *port_name);
 
 /*****************************************************************************
 **   Helper Functions
@@ -137,8 +139,6 @@ void userial_ioctl_init_bt_wake(int fd)
     uint32_t bt_wake_state;
 
     /* assert BT_WAKE through ioctl */
-    ioctl(fd, USERIAL_IOCTL_BT_WAKE_ASSERT, NULL);
-    ioctl(fd, USERIAL_IOCTL_BT_WAKE_GET_ST, &bt_wake_state);
     VNDUSERIALDBG("userial_ioctl_init_bt_wake read back BT_WAKE state=%i", \
                bt_wake_state);
 }
@@ -163,6 +163,8 @@ void userial_vendor_init(void)
     vnd_userial.fd = -1;
     snprintf(vnd_userial.port_name, VND_PORT_NAME_MAXLEN, "%s", \
             BLUETOOTH_UART_DEVICE_PORT);
+	ALOGI("vnd_userial.port_name is %s ",vnd_userial.port_name);
+	
 }
 
 /*******************************************************************************
@@ -182,76 +184,11 @@ int userial_vendor_open(tUSERIAL_CFG *p_cfg)
     uint8_t stop_bits;
 
     vnd_userial.fd = -1;
-
-    if (!userial_to_tcio_baud(p_cfg->baud, &baud))
-    {
-        return -1;
+    vnd_userial.fd = hw_config(vnd_userial.port_name);
+    if (vnd_userial.fd < -1) {
+           ALOGI("Can't open serial port");
+           return -1;
     }
-
-    if(p_cfg->fmt & USERIAL_DATABITS_8)
-        data_bits = CS8;
-    else if(p_cfg->fmt & USERIAL_DATABITS_7)
-        data_bits = CS7;
-    else if(p_cfg->fmt & USERIAL_DATABITS_6)
-        data_bits = CS6;
-    else if(p_cfg->fmt & USERIAL_DATABITS_5)
-        data_bits = CS5;
-    else
-    {
-        ALOGE("userial vendor open: unsupported data bits");
-        return -1;
-    }
-
-    if(p_cfg->fmt & USERIAL_PARITY_NONE)
-        parity = 0;
-    else if(p_cfg->fmt & USERIAL_PARITY_EVEN)
-        parity = PARENB;
-    else if(p_cfg->fmt & USERIAL_PARITY_ODD)
-        parity = (PARENB | PARODD);
-    else
-    {
-        ALOGE("userial vendor open: unsupported parity bit mode");
-        return -1;
-    }
-
-    if(p_cfg->fmt & USERIAL_STOPBITS_1)
-        stop_bits = 0;
-    else if(p_cfg->fmt & USERIAL_STOPBITS_2)
-        stop_bits = CSTOPB;
-    else
-    {
-        ALOGE("userial vendor open: unsupported stop bits");
-        return -1;
-    }
-
-    ALOGI("userial vendor open: opening %s", vnd_userial.port_name);
-
-    if ((vnd_userial.fd = open(vnd_userial.port_name, O_RDWR)) == -1)
-    {
-        ALOGE("userial vendor open: unable to open %s", vnd_userial.port_name);
-        return -1;
-    }
-
-    tcflush(vnd_userial.fd, TCIOFLUSH);
-
-    tcgetattr(vnd_userial.fd, &vnd_userial.termios);
-    cfmakeraw(&vnd_userial.termios);
-    vnd_userial.termios.c_cflag |= (CRTSCTS | stop_bits);
-    tcsetattr(vnd_userial.fd, TCSANOW, &vnd_userial.termios);
-    tcflush(vnd_userial.fd, TCIOFLUSH);
-
-    tcsetattr(vnd_userial.fd, TCSANOW, &vnd_userial.termios);
-    tcflush(vnd_userial.fd, TCIOFLUSH);
-    tcflush(vnd_userial.fd, TCIOFLUSH);
-
-    /* set input/output baudrate */
-    cfsetospeed(&vnd_userial.termios, baud);
-    cfsetispeed(&vnd_userial.termios, baud);
-    tcsetattr(vnd_userial.fd, TCSANOW, &vnd_userial.termios);
-
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-    userial_ioctl_init_bt_wake(vnd_userial.fd);
-#endif
 
     ALOGI("device fd = %d open", vnd_userial.fd);
 
@@ -273,11 +210,6 @@ void userial_vendor_close(void)
 
     if (vnd_userial.fd == -1)
         return;
-
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-    /* de-assert bt_wake BEFORE closing port */
-    ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_DEASSERT, NULL);
-#endif
 
     ALOGI("device fd = %d close", vnd_userial.fd);
 

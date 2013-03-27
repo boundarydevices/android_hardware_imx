@@ -16,18 +16,17 @@
 
 LOCAL_PATH := $(call my-dir)
 
-ifneq ($(BOARD_HAVE_BLUETOOTH_QCOM_ATH3K),)
+ifneq ($(BOARD_USE_AR3K_BLUETOOTH),)
 
 include $(CLEAR_VARS)
 
-BDROID_DIR := $(TOP_DIR)external/bluetooth/bluedroid
+BDROID_DIR:= external/bluetooth/bluedroid
 
 LOCAL_SRC_FILES := \
-        src/bt_vendor_ath3k.c \
-        src/hardware.c \
-        src/userial_vendor.c \
-        src/upio.c \
-        src/conf.c
+        src/bt_vendor_QCA3002.c \
+        src/hardware_QCA3002.c \
+        src/userial_vendor_QCA3002.c \
+        src/upio.c
 
 LOCAL_C_INCLUDES += \
         $(LOCAL_PATH)/include \
@@ -37,7 +36,7 @@ LOCAL_SHARED_LIBRARIES := \
         libcutils
 
 LOCAL_MODULE := libbt-vendor
-LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_OWNER := qcom
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)
@@ -46,10 +45,4 @@ include $(LOCAL_PATH)/vnd_buildcfg.mk
 
 include $(BUILD_SHARED_LIBRARY)
 
-ifeq ($(TARGET_DEVICE), imx53_smd)
-    include $(LOCAL_PATH)/conf/fsl/imx53_smd/Android.mk
-endif
-ifeq ($(TARGET_DEVICE), sabresd_6dq)
-    include $(LOCAL_PATH)/conf/fsl/sabresd_6dq/Android.mk
-endif
-endif # BOARD_HAVE_BLUETOOTH_QCOM_ATH3K
+endif # BOARD_HAVE_BLUETOOTH_QCOM_AR3002
