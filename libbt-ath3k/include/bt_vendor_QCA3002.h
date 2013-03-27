@@ -1,5 +1,6 @@
 /*
  * Copyright 2012 The Android Open Source Project
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +15,12 @@
  * limitations under the License.
  */
 
-/* Copyright (C) 2013 Freescale Semiconductor, Inc. */
-
-#ifndef BT_VENDOR_ATH3K_H
-#define BT_VENDOR_ATH3K_H
+#ifndef BT_VENDOR_QCA3002_H
+#define BT_VENDOR_QCA3002_H
 
 #include "bt_vendor_lib.h"
 #include "vnd_buildcfg.h"
+#include "userial_vendor_QCA3002.h"
 
 #ifndef FALSE
 #define FALSE  0
@@ -29,17 +29,32 @@
 #ifndef TRUE
 #define TRUE   (!FALSE)
 #endif
-
-/* Run-time configuration file */
-#ifndef VENDOR_LIB_CONF_FILE
-#define VENDOR_LIB_CONF_FILE "/etc/bluetooth/bt_vendor.conf"
+/*
+#ifdef ppoll
+#undef ppoll
 #endif
 
-#ifndef UART_TARGET_BAUD_RATE
-#define UART_TARGET_BAUD_RATE           3000000
-#endif
+//typedef unsigned long nfds_t;
+
+#define ppoll compat_ppoll
+
+static inline int compat_ppoll(struct pollfd *fds, nfds_t nfds,
+		const struct timespec *timeout, const sigset_t *sigmask)
+{
+	if (timeout == NULL)
+		return poll(fds, nfds, -1);
+	else if (timeout->tv_sec == 0)
+		return poll(fds, nfds, 500);
+	else
+		return poll(fds, nfds, timeout->tv_sec * 1000);
+}
+*/
+// File discriptor using Transport
+extern int fd;
+
+//extern bt_hci_transport_device_type bt_hci_transport_device;
 
 extern bt_vendor_callbacks_t *bt_vendor_cbacks;
 
-#endif /* BT_VENDOR_ATH3K_H */
+#endif /* BT_VENDOR_QCA3002_H */
 
