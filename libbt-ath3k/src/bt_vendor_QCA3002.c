@@ -1,5 +1,6 @@
 /*
  * Copyright 2012 The Android Open Source Project
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,33 +15,25 @@
  * limitations under the License.
  */
 
-/* Copyright (C) 2013 Freescale Semiconductor, Inc. */
-
 /******************************************************************************
  *
- *  Filename:      bt_vendor_ar3k.c
+ *  Filename:      bt_vendor_qcom_AR3002.c
  *
- *  Description:   QCOM/Atheros vendor specific library implementation
+ *  Description:   QCOM vendor specific library implementation
  *
  ******************************************************************************/
 
 #define LOG_TAG "bt_vendor"
 
 #include <utils/Log.h>
-#include "bt_vendor_ath3k.h"
+#include <fcntl.h>
+#include <termios.h>
+#include "bt_vendor_QCA3002.h"
+#include "userial_vendor_QCA3002.h"
 #include "upio.h"
-#include "userial_vendor.h"
 
-#ifndef BTVND_DBG
-#define BTVND_DBG FALSE
-#endif
-
-#if (BTVND_DBG == TRUE)
-#define BTVNDDBG(param, ...) {ALOGD(param, ## __VA_ARGS__);}
-#else
-#define BTVNDDBG(param, ...) {}
-#endif
-
+#define UPIO_BT_POWER_OFF 0
+#define UPIO_BT_POWER_ON 1
 /******************************************************************************
 **  Static Variables
 ******************************************************************************/
@@ -54,14 +47,16 @@ static const tUSERIAL_CFG userial_init_cfg =
 /******************************************************************************
 **  Externs
 ******************************************************************************/
-extern void hw_config_start(void);
-extern void vnd_load_conf(const char *p_path);
+
 
 /******************************************************************************
 **  Variables
 ******************************************************************************/
+int pFd[2] = {0,};
+//bt_hci_transport_device_type bt_hci_transport_device;
+
 bt_vendor_callbacks_t *bt_vendor_cbacks = NULL;
-uint8_t vnd_local_bd_addr[6]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+uint8_t vnd_local_bd_addr[6]={0x11, 0x22, 0x33, 0x44, 0x55, 0xFF};
 
 /******************************************************************************
 **  Local type definitions
@@ -80,7 +75,7 @@ uint8_t vnd_local_bd_addr[6]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
 {
-    BTVNDDBG("init");
+    ALOGI("bt-vendor : init");
 
     if (p_cb == NULL)
     {
@@ -89,50 +84,58 @@ static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
     }
 
     userial_vendor_init();
+    //upio_init();
 
-    vnd_load_conf(VENDOR_LIB_CONF_FILE);
+    //vnd_load_conf(VENDOR_LIB_CONF_FILE);
 
     /* store reference to user callbacks */
     bt_vendor_cbacks = (bt_vendor_callbacks_t *) p_cb;
 
-    /* This is handed over from the stack, when to use it? */
+    /* This is handed over from the stack */
     memcpy(vnd_local_bd_addr, local_bdaddr, 6);
 
     return 0;
 }
 
+
 /** Requested operations */
 static int op(bt_vendor_opcode_t opcode, void *param)
 {
     int retval = 0;
+    int nCnt = 0;
+    int nState = -1;
 
-    BTVNDDBG("op for %d", opcode);
+    ALOGV("%s : bt-vendor : op for %d", __FUNCTION__, opcode);
 
     switch(opcode)
     {
         case BT_VND_OP_POWER_CTRL:
             {
+                ALOGV("AR3002 ::BT_VND_OP_POWER_CTRL");
                 int *state = (int *) param;
-
-                if (*state == BT_VND_PWR_OFF)
-                    upio_set_bluetooth_power(UPIO_BT_POWER_OFF);
-                else if (*state == BT_VND_PWR_ON)
-                    upio_set_bluetooth_power(UPIO_BT_POWER_ON);
-
+				if (*state == BT_VND_PWR_OFF){
+                    ALOGI("[//]AR3002 UPIO_BT_POWER_OFF");
+					upio_set_bluetooth_power(UPIO_BT_POWER_OFF);
+				}
+                else if (*state == BT_VND_PWR_ON){
+                    ALOGI("[//]AR3002 UPIO_BT_POWER_ON");
+					upio_set_bluetooth_power(UPIO_BT_POWER_ON);
+                }
                 retval = 0;
-
             }
             break;
 
         case BT_VND_OP_FW_CFG:
             {
-                if (bt_vendor_cbacks) {
-                   BTVNDDBG("Bluetooth hw config start");
+				ALOGI("AR3002 ::BT_VND_OP_FW_CFG");
 
-                   hw_config_start();
-
-                } else {
-                   ALOGE("Bluetooth bt_vendor_cbacks is NULL ");
+                if(bt_vendor_cbacks){
+                   ALOGI("AR3002 ::Bluetooth Firmware download");
+                   bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_SUCCESS);
+                }
+                else{
+                   ALOGE("AR3002 ::Error : AR3002 Bluetooth Firmware download");
+                   bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_FAIL);
                 }
             }
             break;
@@ -140,14 +143,14 @@ static int op(bt_vendor_opcode_t opcode, void *param)
         case BT_VND_OP_SCO_CFG:
             {
                 bt_vendor_cbacks->scocfg_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
-                retval = -1;
             }
             break;
 
         case BT_VND_OP_USERIAL_OPEN:
             {
+                ALOGI("AR3002 ::BT_VND_OP_USERIAL_OPEN ");
                 int (*fd_array)[] = (int (*)[]) param;
-                int fd, idx;
+                int fd,idx;
                 fd = userial_vendor_open((tUSERIAL_CFG *) &userial_init_cfg);
                 if (fd != -1)
                 {
@@ -162,29 +165,29 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 
         case BT_VND_OP_USERIAL_CLOSE:
             {
-                 userial_vendor_close();
+                ALOGI("AR3002 ::BT_VND_OP_USERIAL_CLOSE ");
+                userial_vendor_close();
             }
             break;
 
         case BT_VND_OP_GET_LPM_IDLE_TIMEOUT:
-            {
-                uint32_t *timeout_ms = (uint32_t *) param;
-                *timeout_ms = 50;
-            }
+            ALOGI("AR3002 ::BT_VND_OP_GET_LPM_IDLE_TIMEOUT (timeout_ms = 3000;)");
+            uint32_t *timeout_ms = (uint32_t *) param;
+            *timeout_ms = 3000;
             break;
 
         case BT_VND_OP_LPM_SET_MODE:
             {
+                ALOGI("AR3002 ::BT_VND_OP_LPM_SET_MODE ()");
                 bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
             }
             break;
 
         case BT_VND_OP_LPM_WAKE_SET_STATE:
-            /*{
-                uint8_t *state = (uint8_t *) param;
-                uint8_t wake_assert = (*state == BT_VND_LPM_WAKE_ASSERT) ? \
-                                        TRUE : FALSE;
-            }*/
+			{
+				ALOGI("AR3002 ::BT_VND_OP_LPM_WAKE_SET_STATE ()");
+				bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
+        	}			
             break;
     }
 
@@ -194,8 +197,8 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 /** Closes the interface */
 static void cleanup( void )
 {
-    BTVNDDBG("cleanup");
-
+    ALOGI("cleanup");
+    //upio_cleanup();
     bt_vendor_cbacks = NULL;
 }
 
