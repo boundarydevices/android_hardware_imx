@@ -59,7 +59,10 @@ DeviceAdapter::DeviceAdapter()
 DeviceAdapter::~DeviceAdapter()
 {
     // Close the camera handle and free the video info structure
-    close(mCameraHandle);
+    if (mCameraHandle > 0) {
+        close(mCameraHandle);
+        mCameraHandle = -1;
+    }
 
     if (mVideoInfo) {
         delete mVideoInfo;

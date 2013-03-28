@@ -471,8 +471,10 @@ status_t UvcDevice::stopDeviceLocked()
         }
     }
 
-    close(mCameraHandle);
-    mCameraHandle = 0;
+    if (mCameraHandle > 0) {
+        close(mCameraHandle);
+        mCameraHandle = -1;
+    }
     return ret;
 }
 
