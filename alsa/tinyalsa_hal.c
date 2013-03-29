@@ -71,7 +71,7 @@
 /* number of periods for low power playback */
 #define PLAYBACK_LONG_PERIOD_COUNT  8
 /* number of periods for capture */
-#define CAPTURE_PERIOD_SIZE  192
+#define CAPTURE_PERIOD_SIZE  512
 /* number of periods for capture */
 #define CAPTURE_PERIOD_COUNT 8
 /* minimum sleep time in out_write() when write threshold is not reached */
