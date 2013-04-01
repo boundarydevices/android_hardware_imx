@@ -2455,7 +2455,6 @@ static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx
     int i = 0;
     int j = 0;
     struct mixer *mixer_hdmi = NULL;
-    bool no_multi_channel = true;
 
     for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
          if(!strcmp(adev->card_list[i]->driver_name, hdmi_card.driver_name)) {
@@ -2473,13 +2472,9 @@ static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx
             for(i = 0; i < count; i ++) {
                 sup_channels[i] = mixer_ctl_get_value(ctl, i);
                 ALOGW("out_read_hdmi_channel_masks() card %d got %d sup channels", card, sup_channels[i]);
-		if(sup_channels[i] >= 6) no_multi_channel = false;
             }
         }
     }
-
-    if (no_multi_channel)
-        return -ENOSYS;
 
     /*when channel is 6, the mask is 5.1,when channel is 8, the mask is 7.1*/
     for(i = 0; i < count; i++ ) {
@@ -2496,6 +2491,8 @@ static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx
           j++;
        }
     }
+    /*if HDMI device does not support 2,6,8 channels, then return error*/
+    if (j == 0) return -ENOSYS;
 
     return 0;
 }
@@ -2684,8 +2681,6 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     if (out->resampler)
         release_resampler(out->resampler);
     free(stream);
-
-    ALOGW("adev_close_output_stream...%d end",(int)out);
 }
 
 static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
