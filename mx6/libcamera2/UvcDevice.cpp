@@ -46,7 +46,6 @@ void UvcDevice::adjustSensorFormats(int *src, int len)
                 break;
 
             case v4l2_fourcc('Y', 'U', 'Y', 'V'):
-                mSensorFormats[k++] = HAL_PIXEL_FORMAT_YCbCr_422_I;
                 if (mDefaultFormat == 0) {
                     mDefaultFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
                 }
