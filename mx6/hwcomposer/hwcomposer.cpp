@@ -150,26 +150,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
         property_get("service.bootanim.exit", property, "0");
         if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
 
-        for (size_t i=0 ; i<numDisplays ; i++) {
-            /* outbuf is unused for physical devices and the original value is NULL.
-              Temporally use it to pass framebuffer address to gpu hwcomposer for composition.
-             */
-            if(displays[i]) displays[i]->outbuf = (buffer_handle_t)ctx->mFbPhysAddrs[i];
-        }
-
         int err = ctx->m_viv_hwc->set(ctx->m_viv_hwc, numDisplays, displays);
-
-        for (size_t i=0 ; i<numDisplays ; i++) {
-             /* outbuf is the buffer that receives the composed image for
-             * virtual displays. Writes to the outbuf must wait until
-             * outbufAcquireFenceFd signals. A fence that will signal when
-             * writes to outbuf are complete should be returned in
-             * retireFenceFd.
-             *
-             * For physical displays, outbuf will be NULL.
-             */
-            if(displays[i]) displays[i]->outbuf = NULL;
-        }
 
         if(err) return err;
     }
@@ -364,13 +345,6 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
                 dev->mFbDev[dispid] = (framebuffer_device_t*)fbid;
                 dev->m_gralloc_module->methods->open(dev->m_gralloc_module, fbname,
                            (struct hw_device_t**)&dev->mFbDev[dispid]);
-
-                if(dispid == 0) {
-                    dev->mFbPhysAddrs[HWC_DISPLAY_PRIMARY] = priv_m->framebuffer->phys;
-                }
-                else {
-                    dev->mFbPhysAddrs[HWC_DISPLAY_EXTERNAL] = priv_m->external_module->framebuffer->phys;
-                }
             }
         }
 
