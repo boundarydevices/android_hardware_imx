@@ -86,7 +86,6 @@ struct hwc_context_t {
     hw_module_t const *m_gralloc_module;
 
     framebuffer_device_t* mFbDev[HWC_NUM_DISPLAY_TYPES];
-    unsigned long mFbPhysAddrs[HWC_NUM_DISPLAY_TYPES];
 };
 
 #endif

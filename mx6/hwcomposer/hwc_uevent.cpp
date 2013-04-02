@@ -85,8 +85,6 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
         mCtx->m_gralloc_module->methods->open(mCtx->m_gralloc_module, fbname,
                                               (struct hw_device_t**)&mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
         priv_m = (struct private_module_t *)mCtx->m_gralloc_module;
-
-        mCtx->mFbPhysAddrs[HWC_DISPLAY_EXTERNAL] = priv_m->external_module->framebuffer->phys;
     }
 
     mCtx->m_callback->hotplug(mCtx->m_callback, HWC_DISPLAY_EXTERNAL,
