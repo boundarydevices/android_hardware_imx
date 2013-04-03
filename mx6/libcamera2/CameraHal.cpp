@@ -35,13 +35,7 @@ void CameraHal::handleError(int err)
 {
     switch (err) {
         case CAMERA2_MSG_ERROR_HARDWARE:
-            abort();
-            break;
-
         case CAMERA2_MSG_ERROR_DEVICE:
-            abort();
-            break;
-
         case CAMERA2_MSG_ERROR_REQUEST:
         case CAMERA2_MSG_ERROR_FRAME:
         case CAMERA2_MSG_ERROR_STREAM:
