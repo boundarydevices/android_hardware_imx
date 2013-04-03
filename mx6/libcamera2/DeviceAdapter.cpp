@@ -140,10 +140,23 @@ status_t DeviceAdapter::initialize(const CameraInfo& info)
         return BAD_VALUE;
     }
 
-    mCameraHandle = open(info.devPath, O_RDWR);
+    if (info.devPath[0] != '\0') {
+        mCameraHandle = open(info.devPath, O_RDWR);
+    }
     if (mCameraHandle < 0) {
-        FLOGE("can not open camera devpath:%s", info.devPath);
-        return BAD_VALUE;
+        memset((void*)info.devPath, 0, sizeof(info.devPath));
+        GetDevPath(info.name, (char*)info.devPath, CAMAERA_FILENAME_LENGTH);
+        if (info.devPath[0] != '\0') {
+            mCameraHandle = open(info.devPath, O_RDWR);
+            if (mCameraHandle < 0) {
+                FLOGE("can not open camera devpath:%s", info.devPath);
+                return BAD_VALUE;
+            }
+        }
+        else {
+            FLOGE("can not open camera devpath:%s", info.devPath);
+            return BAD_VALUE;
+        }
     }
     mVideoInfo = new VideoInfo();
     if (mVideoInfo == NULL) {
@@ -420,6 +433,7 @@ status_t DeviceAdapter::stopDeviceLocked()
 
         ret = ioctl(mCameraHandle, VIDIOC_STREAMOFF, &bufType);
         if (ret < 0) {
+            close(mCameraHandle);
             FLOGE("StopStreaming: Unable to stop capture: %s", strerror(errno));
             return ret;
         }

@@ -132,6 +132,7 @@ bool StreamAdapter::handleStream()
     if (msg == 0) {
         if (mStreamState == STREAM_STARTED) {
             FLOGI("%s: get invalid message", __FUNCTION__);
+            mCondRespond.signal();
         }
         return shouldLive;
     }
