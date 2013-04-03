@@ -188,6 +188,7 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
     pInfo->xdpi = 1000 * (info.xres * 25.4f) / info.width;
     pInfo->ydpi = 1000 * (info.yres * 25.4f) / info.height;
     pInfo->vsync_period  = 1000000000 / refreshRate;
+    pInfo->blank  = 1;
 
     ALOGV("using\n"
           "xres         = %d px\n"

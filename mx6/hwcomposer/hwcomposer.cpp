@@ -155,13 +155,13 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
         if(err) return err;
     }
 
-    if (primary_contents) {
+    if (primary_contents && ctx->mDispInfo[HWC_DISPLAY_PRIMARY].blank == 0) {
         hwc_layer_1 *fbt = &primary_contents->hwLayers[primary_contents->numHwLayers - 1];
         if(ctx->mFbDev[HWC_DISPLAY_PRIMARY] != NULL)
         ctx->mFbDev[HWC_DISPLAY_PRIMARY]->post(ctx->mFbDev[HWC_DISPLAY_PRIMARY], fbt->handle);
     }
     
-    if (external_contents) {
+    if (external_contents && ctx->mDispInfo[HWC_DISPLAY_EXTERNAL].blank == 0) {
         hwc_layer_1 *fbt = &external_contents->hwLayers[external_contents->numHwLayers - 1];
         if(ctx->mFbDev[HWC_DISPLAY_EXTERNAL] != NULL)
         ctx->mFbDev[HWC_DISPLAY_EXTERNAL]->post(ctx->mFbDev[HWC_DISPLAY_EXTERNAL], fbt->handle);
@@ -219,6 +219,8 @@ static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
     if (ctx->m_viv_hwc) {
         ctx->m_viv_hwc->blank(ctx->m_viv_hwc, disp, blank);
     }
+
+    ctx->mDispInfo[disp].blank = blank;
 
     //HDMI need to keep unblank since audio need to be able to output
     //through HDMI cable. Blank the HDMI will lost the HDMI clock
