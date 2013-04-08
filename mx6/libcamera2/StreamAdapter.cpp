@@ -285,6 +285,36 @@ void StreamAdapter::convertNV12toYV12(StreamBuffer* dst, StreamBuffer* src)
     }
 }
 
+void StreamAdapter::convertNV12toNV21(StreamBuffer* dst, StreamBuffer* src)
+{
+    int Ysize = 0, UVsize = 0;
+    uint8_t *srcIn, *dstOut;
+    uint32_t *UVout;
+    struct g2d_buf s_buf, d_buf;
+    int size = (src->mSize > dst->mSize) ? dst->mSize : src->mSize;
+
+    Ysize  = src->mWidth * src->mHeight;
+    UVsize = src->mWidth *  src->mHeight >> 2;
+    srcIn = (uint8_t *)src->mVirtAddr;
+    dstOut = (uint8_t *)dst->mVirtAddr;
+    UVout = (uint32_t *)(dstOut + Ysize);
+
+    if (g2dHandle != NULL) {
+        s_buf.buf_paddr = src->mPhyAddr;
+        s_buf.buf_vaddr = src->mVirtAddr;
+        d_buf.buf_paddr = dst->mPhyAddr;
+        d_buf.buf_vaddr = dst->mVirtAddr;
+        g2d_copy(g2dHandle, &d_buf, &s_buf, size);
+    }
+    else {
+        memcpy(dstOut, srcIn, size);
+    }
+
+    for (int k = 0; k < UVsize/2; k++) {
+        __asm volatile ("rev16 %0, %0" : "+r"(*UVout));
+        UVout += 1;
+    }
+}
 
 int StreamAdapter::processFrame(CameraFrame *frame)
 {
@@ -306,6 +336,10 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     if (mStreamId == STREAM_ID_PRVCB &&
             buffer.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_P) {
         convertNV12toYV12(&buffer, frame);
+    }
+    else if (mStreamId == STREAM_ID_PRVCB && buffer.mWidth <= 1280 &&
+            buffer.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+        convertNV12toNV21(&buffer, frame);
     }
     else if (g2dHandle != NULL) {
         struct g2d_buf s_buf, d_buf;

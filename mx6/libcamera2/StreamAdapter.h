@@ -65,6 +65,7 @@ public:
     void setErrorListener(CameraErrorListener *listener);
     void showFps();
     void convertNV12toYV12(StreamBuffer* dst, StreamBuffer* src);
+    void convertNV12toNV21(StreamBuffer* dst, StreamBuffer* src);
 
     enum StreamCommands {
         STREAM_START,
