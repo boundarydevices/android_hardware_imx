@@ -123,9 +123,9 @@ status_t Ov5642Csi::initSensorInfo(const CameraInfo& info)
     FLOGI("FrameDuration is %lld, %lld", mMinFrameDuration, mMaxFrameDuration);
 
     i = 0;
-    mTargetFpsRange[i++] = 12;
+    mTargetFpsRange[i++] = 10;
     mTargetFpsRange[i++] = 15;
-    mTargetFpsRange[i++] = 27;
+    mTargetFpsRange[i++] = 25;
     mTargetFpsRange[i++] = 30;
 
     setMaxPictureResolutions();
