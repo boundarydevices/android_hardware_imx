@@ -195,11 +195,11 @@ int PreviewStream::start()
 int PreviewStream::stop()
 {
     FLOG_TRACE("PreviewStream %s running", __FUNCTION__);
-    StreamAdapter::stop();
-
     if (mDeviceAdapter.get() != NULL) {
         mDeviceAdapter->stopPreview();
     }
+
+    StreamAdapter::stop();
     return NO_ERROR;
 }
 
