@@ -23,6 +23,7 @@ RequestManager::RequestManager(int cameraId)
     mCameraId = cameraId;
     mErrorListener = NULL;
     mWorkInProcess = false;
+    sem_init(&mThreadExitSem, 0, 1);
 }
 
 RequestManager::~RequestManager()
@@ -152,6 +153,7 @@ int RequestManager::CreateDefaultRequest(int request_template, camera_metadata_t
 int RequestManager::dispatchRequest()
 {
     FLOG_TRACE("%s running", __FUNCTION__);
+    sem_wait(&mThreadExitSem);
     if (mRequestThread.get() != NULL) {
         FLOGI("RequestThread is running, request it exit");
         mRequestThread->requestExit();
@@ -184,7 +186,9 @@ bool RequestManager::handleRequest()
         res = mMetadaManager->setCurrentRequest(request);
         if (res != NO_ERROR) {
             FLOGE("%s: setCurrentRequest failed", __FUNCTION__);
+            mRequestThread.clear();
             mPendingRequests--;
+            sem_post(&mThreadExitSem);
             return false;
         }
 
@@ -216,7 +220,9 @@ bool RequestManager::handleRequest()
         res = tryRestartStreams(requestType);
         if (res != NO_ERROR) {
             FLOGE("%s: tryRestartStreams failed", __FUNCTION__);
+            mRequestThread.clear();
             mPendingRequests--;
+            sem_post(&mThreadExitSem);
             return false;
         }
 
@@ -229,6 +235,7 @@ bool RequestManager::handleRequest()
     stopAllStreams();
     mRequestThread.clear();
     mPendingRequests--;
+    sem_post(&mThreadExitSem);
     FLOG_TRACE("%s end...", __FUNCTION__);
 
     return false;

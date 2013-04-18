@@ -102,24 +102,28 @@ status_t UvcDevice::setDeviceConfig(int         width,
     mVideoInfo->framesizeIn = (width * height << 1);
     mVideoInfo->formatIn    = vformat;
 
-    mVideoInfo->param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->param.parm.capture.timeperframe.numerator   = 1;
-    mVideoInfo->param.parm.capture.timeperframe.denominator = fps;
-    ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &mVideoInfo->param);
+    struct v4l2_streamparm param;
+    memset(&param, 0, sizeof(param));
+    param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    param.parm.capture.timeperframe.numerator   = 1;
+    param.parm.capture.timeperframe.denominator = fps;
+    ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &param);
     if (ret < 0) {
         FLOGE("Open: VIDIOC_S_PARM Failed: %s", strerror(errno));
         return ret;
     }
 
-    mVideoInfo->format.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->format.fmt.pix.width        = width & 0xFFFFFFF8;
-    mVideoInfo->format.fmt.pix.height       = height & 0xFFFFFFF8;
-    mVideoInfo->format.fmt.pix.pixelformat  = vformat;
-    mVideoInfo->format.fmt.pix.priv         = 0;
-    mVideoInfo->format.fmt.pix.sizeimage    = 0;
-    mVideoInfo->format.fmt.pix.bytesperline = 0;
+    struct v4l2_format fmt;
+    memset(&fmt, 0, sizeof(fmt));
+    fmt.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width        = width & 0xFFFFFFF8;
+    fmt.fmt.pix.height       = height & 0xFFFFFFF8;
+    fmt.fmt.pix.pixelformat  = vformat;
+    fmt.fmt.pix.priv         = 0;
+    fmt.fmt.pix.sizeimage    = 0;
+    fmt.fmt.pix.bytesperline = 0;
 
-    ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &mVideoInfo->format);
+    ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &fmt);
     if (ret < 0) {
         FLOGE("Open: VIDIOC_S_FMT Failed: %s", strerror(errno));
         return ret;
@@ -383,7 +387,7 @@ CameraFrame * UvcDevice::acquireCameraFrame()
             FLOGE("Camera VIDIOC_DQBUF failure, ret=%d", rtval);
             return camBuf;
         }
-        mDequeued++;
+        mQueued --;
 
         int index = cfilledbuffer.index;
         fAssert(index >= 0 && index < mBufferCount);

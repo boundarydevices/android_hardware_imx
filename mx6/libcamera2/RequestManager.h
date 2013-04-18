@@ -105,6 +105,7 @@ private:
     int mCameraId;
     CameraErrorListener *mErrorListener;
     bool mWorkInProcess;
+    mutable sem_t mThreadExitSem;
 };
 
 #endif

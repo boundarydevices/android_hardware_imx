@@ -53,7 +53,7 @@ sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
 }
 
 DeviceAdapter::DeviceAdapter()
-    : mCameraHandle(-1), mQueued(0), mDequeued(0)
+    : mCameraHandle(-1), mQueued(0)
 {}
 
 DeviceAdapter::~DeviceAdapter()
@@ -228,23 +228,27 @@ status_t DeviceAdapter::setDeviceConfig(int         width,
     mVideoInfo->framesizeIn = (width * height << 1);
     mVideoInfo->formatIn    = vformat;
 
-    mVideoInfo->param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->param.parm.capture.timeperframe.numerator   = 1;
-    mVideoInfo->param.parm.capture.timeperframe.denominator = fps;
-    mVideoInfo->param.parm.capture.capturemode = getCaptureMode(width, height);
-    ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &mVideoInfo->param);
+    struct v4l2_streamparm param;
+    memset(&param, 0, sizeof(param));
+    param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    param.parm.capture.timeperframe.numerator   = 1;
+    param.parm.capture.timeperframe.denominator = fps;
+    param.parm.capture.capturemode = getCaptureMode(width, height);
+    ret = ioctl(mCameraHandle, VIDIOC_S_PARM, &param);
     if (ret < 0) {
         FLOGE("Open: VIDIOC_S_PARM Failed: %s", strerror(errno));
         return ret;
     }
 
-    mVideoInfo->format.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->format.fmt.pix.width        = width & 0xFFFFFFF8;
-    mVideoInfo->format.fmt.pix.height       = height & 0xFFFFFFF8;
-    mVideoInfo->format.fmt.pix.pixelformat  = vformat;
-    mVideoInfo->format.fmt.pix.priv         = 0;
-    mVideoInfo->format.fmt.pix.sizeimage    = 0;
-    mVideoInfo->format.fmt.pix.bytesperline = 0;
+    struct v4l2_format fmt;
+    memset(&fmt, 0, sizeof(fmt));
+    fmt.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width        = width & 0xFFFFFFF8;
+    fmt.fmt.pix.height       = height & 0xFFFFFFF8;
+    fmt.fmt.pix.pixelformat  = vformat;
+    fmt.fmt.pix.priv         = 0;
+    fmt.fmt.pix.sizeimage    = 0;
+    fmt.fmt.pix.bytesperline = 0;
 
     // Special stride alignment for YU12
     if (vformat == v4l2_fourcc('Y', 'U', '1', '2')){
@@ -270,14 +274,14 @@ status_t DeviceAdapter::setDeviceConfig(int         width,
         // IPU have the Y stride to be 2x of the UV stride alignment
         int stride = (width+31)/32*32;
         int c_stride = (stride/2+15)/16*16;
-        mVideoInfo->format.fmt.pix.bytesperline = stride;
-        mVideoInfo->format.fmt.pix.sizeimage    = stride*height+c_stride * height;
+        fmt.fmt.pix.bytesperline = stride;
+        fmt.fmt.pix.sizeimage    = stride*height+c_stride * height;
         FLOGI("Special handling for YV12 on Stride %d, size %d",
-            mVideoInfo->format.fmt.pix.bytesperline,
-            mVideoInfo->format.fmt.pix.sizeimage);
+            fmt.fmt.pix.bytesperline,
+            fmt.fmt.pix.sizeimage);
     }
 
-    ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &mVideoInfo->format);
+    ret = ioctl(mCameraHandle, VIDIOC_S_FMT, &fmt);
     if (ret < 0) {
         FLOGE("Open: VIDIOC_S_FMT Failed: %s", strerror(errno));
         return ret;
@@ -306,26 +310,29 @@ status_t DeviceAdapter::registerCameraBuffers(CameraFrame *pBuffer,
         return BAD_VALUE;
     }
 
-    mVideoInfo->rb.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mVideoInfo->rb.memory = V4L2_MEMORY_USERPTR;
-    mVideoInfo->rb.count  = num;
+    struct v4l2_requestbuffers req;
+    memset(&req, 0, sizeof (req));
+    req.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req.memory = V4L2_MEMORY_USERPTR;
+    req.count  = num;
 
-    ret = ioctl(mCameraHandle, VIDIOC_REQBUFS, &mVideoInfo->rb);
+    ret = ioctl(mCameraHandle, VIDIOC_REQBUFS, &req);
     if (ret < 0) {
         FLOGE("VIDIOC_REQBUFS failed: %s", strerror(errno));
         return ret;
     }
 
+    struct v4l2_buffer buf;
     for (int i = 0; i < num; i++) {
         CameraFrame *buffer = pBuffer + i;
-        memset(&mVideoInfo->buf, 0, sizeof(struct v4l2_buffer));
-        mVideoInfo->buf.index    = i;
-        mVideoInfo->buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        mVideoInfo->buf.memory   = V4L2_MEMORY_USERPTR;
-        mVideoInfo->buf.m.offset = buffer->mPhyAddr;
-        mVideoInfo->buf.length   = buffer->mSize;
+        memset(&buf, 0, sizeof (buf));
+        buf.index    = i;
+        buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.memory   = V4L2_MEMORY_USERPTR;
+        buf.m.offset = buffer->mPhyAddr;
+        buf.length   = buffer->mSize;
 
-        ret = ioctl(mCameraHandle, VIDIOC_QUERYBUF, &mVideoInfo->buf);
+        ret = ioctl(mCameraHandle, VIDIOC_QUERYBUF, &buf);
         if (ret < 0) {
             FLOGE("Unable to query buffer (%s)", strerror(errno));
             return ret;
@@ -367,7 +374,7 @@ status_t DeviceAdapter::fillCameraFrame(CameraFrame *frame)
         FLOGE("fillCameraFrame: VIDIOC_QBUF Failed");
         return BAD_VALUE;
     }
-    mQueued++;
+    android_atomic_inc(&mQueued);
 
     return ret;
 }
@@ -379,6 +386,7 @@ status_t DeviceAdapter::startDeviceLocked()
     fAssert(mBufferProvider != NULL);
 
     int state;
+    struct v4l2_buffer buf;
     for (int i = 0; i < mBufferCount; i++) {
         CameraFrame* frame = mDeviceBufs[i];
         state = frame->getState();
@@ -387,24 +395,23 @@ status_t DeviceAdapter::startDeviceLocked()
         }
         frame->setState(CameraFrame::BUFS_IN_DRIVER);
 
-        mVideoInfo->buf.index    = i;
-        mVideoInfo->buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        mVideoInfo->buf.memory   = V4L2_MEMORY_USERPTR;
-        mVideoInfo->buf.m.offset = frame->mPhyAddr;
-
-        ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
+        memset(&buf, 0, sizeof (struct v4l2_buffer));
+        buf.index    = i;
+        buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.memory   = V4L2_MEMORY_USERPTR;
+        buf.m.offset = frame->mPhyAddr;
+        ret = ioctl(mCameraHandle, VIDIOC_QBUF, &buf);
         if (ret < 0) {
             FLOGE("VIDIOC_QBUF Failed");
             return BAD_VALUE;
         }
 
-        mQueued++;
+        android_atomic_inc(&mQueued);
     }
 
     enum v4l2_buf_type bufType;
     if (!mVideoInfo->isStreamOn) {
         bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
         ret = ioctl(mCameraHandle, VIDIOC_STREAMON, &bufType);
         if (ret < 0) {
             FLOGE("VIDIOC_STREAMON failed: %s", strerror(errno));
@@ -442,7 +449,6 @@ status_t DeviceAdapter::stopDeviceLocked()
     }
 
     mQueued   = 0;
-    mDequeued = 0;
     memset(mDeviceBufs, 0, sizeof(mDeviceBufs));
 
     return ret;
@@ -458,9 +464,8 @@ status_t DeviceAdapter::startPreview()
     }
 
     Mutex::Autolock lock(mBufsLock);
-    ret = startDeviceLocked();
-
     mPreviewing = true;
+    ret = startDeviceLocked();
 
     return ret;
 }
@@ -528,7 +533,7 @@ CameraFrame * DeviceAdapter::acquireCameraFrame()
         FLOGE("GetFrame: VIDIOC_DQBUF Failed");
         return NULL;
     }
-    mDequeued++;
+    android_atomic_dec(&mQueued);
 
     int index = cfilledbuffer.index;
     fAssert(index >= 0 && index < mBufferCount);
@@ -569,22 +574,20 @@ int DeviceAdapter::deviceThread()
 {
     CameraFrame *frame = NULL;
 
+    if (mQueued <= 0) {
+        FLOGI("no buffer in v4l2, continue");
+        usleep(10000); //sleep 10ms
+        return NO_ERROR;
+    }
+    if (!mPreviewing && !mImageCapture) {
+        FLOGI("device stop, deviceThread exit");
+        return BAD_VALUE;
+    }
+
     frame = acquireCameraFrame();
     if (!frame) {
-        if (mQueued - mDequeued <= 0) {
-            // if stop preview, then exit.
-            if (!mPreviewing) {
-                FLOGI("preview stop, so exit device thread");
-                return BAD_VALUE;
-            }
-            else {
-                // to check buffer in another cycle.
-                FLOGI("no buffer in v4l driver, check it next time");
-                return NO_ERROR;
-            }
-        }
         FLOGE("device thread exit with frame = null, %d buffers still in v4l",
-              mQueued - mDequeued);
+              mQueued);
         if (mErrorListener != NULL) {
             mErrorListener->handleError(CAMERA2_MSG_ERROR_DEVICE);
         }

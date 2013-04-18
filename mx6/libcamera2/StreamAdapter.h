@@ -120,8 +120,7 @@ protected:
     CameraErrorListener *mErrorListener;
 
     sp<MetadaManager> mMetadaManager;
-    mutable Mutex mMutexRespond;
-    mutable Condition mCondRespond;
+    mutable sem_t mRespondSem;
 
     bool mReceiveFrame;
     // for debug.
@@ -183,8 +182,6 @@ private:
     bool mVideoSnapShot;
     PhysMemAdapter *mPhysMemAdapter;
     sp<JpegBuilder> mJpegBuilder;
-
-    mutable sem_t mRespondSem;
 };
 
 #endif

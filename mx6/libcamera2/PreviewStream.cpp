@@ -242,7 +242,7 @@ int PreviewStream::processFrame(CameraFrame *frame)
     }
 
 err_exit:
-    mCondRespond.signal();
+    sem_post(&mRespondSem);
 
     return ret;
 }
