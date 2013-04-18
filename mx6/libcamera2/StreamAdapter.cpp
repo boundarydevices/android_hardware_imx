@@ -22,6 +22,7 @@ StreamAdapter::StreamAdapter(int id)
       mMaxProducerBuffers(0), mNativeWindow(NULL), mStreamState(STREAM_INVALID), mReceiveFrame(true)
 {
     g2dHandle = NULL;
+    sem_init(&mRespondSem, 0, 0);
 }
 
 StreamAdapter::~StreamAdapter()
@@ -132,7 +133,7 @@ bool StreamAdapter::handleStream()
     if (msg == 0) {
         if (mStreamState == STREAM_STARTED) {
             FLOGI("%s: get invalid message", __FUNCTION__);
-            mCondRespond.signal();
+            sem_post(&mRespondSem);
         }
         return shouldLive;
     }
@@ -240,8 +241,7 @@ void StreamAdapter::handleCameraFrame(CameraFrame *frame)
 
 void StreamAdapter::applyRequest()
 {
-    Mutex::Autolock _l(mMutexRespond);
-    mCondRespond.wait(mMutexRespond);
+    sem_wait(&mRespondSem);
 }
 
 void StreamAdapter::convertNV12toYV12(StreamBuffer* dst, StreamBuffer* src)
@@ -363,7 +363,7 @@ int StreamAdapter::processFrame(CameraFrame *frame)
     }
 
 err_ext:
-    mCondRespond.signal();
+    sem_post(&mRespondSem);
 
     return ret;
 }

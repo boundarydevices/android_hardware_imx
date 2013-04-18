@@ -157,7 +157,6 @@ protected:
     struct VideoInfo *mVideoInfo;
     int mCameraHandle;
     int mQueued;
-    int mDequeued;
 
     PixelFormat mPicturePixelFormat;
     PixelFormat mPreviewPixelFormat;
