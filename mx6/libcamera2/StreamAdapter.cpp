@@ -305,6 +305,7 @@ void StreamAdapter::convertNV12toNV21(StreamBuffer* dst, StreamBuffer* src)
         d_buf.buf_paddr = dst->mPhyAddr;
         d_buf.buf_vaddr = dst->mVirtAddr;
         g2d_copy(g2dHandle, &d_buf, &s_buf, size);
+        g2d_finish(g2dHandle);
     }
     else {
         memcpy(dstOut, srcIn, size);
