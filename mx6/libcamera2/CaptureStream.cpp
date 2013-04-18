@@ -27,7 +27,6 @@ CaptureStream::CaptureStream(int id)
     mActualFormat = 0;
     mVideoSnapShot = false;
     mPhysMemAdapter = new PhysMemAdapter();
-    sem_init(&mRespondSem, 0, 0);
 }
 
 CaptureStream::~CaptureStream()

@@ -149,10 +149,6 @@ struct SensorInfo
 struct VideoInfo
 {
     struct v4l2_capability     cap;
-    struct v4l2_format         format;
-    struct v4l2_streamparm     param;
-    struct v4l2_buffer         buf;
-    struct v4l2_requestbuffers rb;
     bool                       isStreamOn;
     int                        width;
     int                        height;
