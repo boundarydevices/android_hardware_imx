@@ -349,6 +349,7 @@ int StreamAdapter::processFrame(CameraFrame *frame)
         d_buf.buf_paddr = buffer.mPhyAddr;
         d_buf.buf_vaddr = buffer.mVirtAddr;
         g2d_copy(g2dHandle, &d_buf, &s_buf, size);
+        g2d_finish(g2dHandle);
     }
     else {
         memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, size);
