@@ -261,7 +261,7 @@ status_t JpegBuilder::prepareImage(const StreamBuffer *streamBuf)
 
     if ((NO_ERROR == ret)) {
         int status = gettimeofday(&sTv, NULL);
-        pTime = gmtime(&sTv.tv_sec);
+        pTime = localtime(&sTv.tv_sec);
         char temp_value[EXIF_DATE_TIME_SIZE + 1];
         if ((0 == status) && (NULL != pTime)) {
             snprintf(temp_value, EXIF_DATE_TIME_SIZE,
