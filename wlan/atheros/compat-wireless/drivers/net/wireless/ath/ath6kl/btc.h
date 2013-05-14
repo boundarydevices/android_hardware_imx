@@ -55,6 +55,9 @@ void cfg80211_send_event_to_app(struct net_device *dev,
 	u16 size;
 	union iwreq_data wrqu;
 
+	if (!dev)
+		return;
+
 	size = len + EVENT_ID_LEN;
 
 	if (size > IW_CUSTOM_MAX)

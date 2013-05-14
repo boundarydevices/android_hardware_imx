@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Atheros Communications Inc.
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above

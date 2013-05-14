@@ -18,12 +18,15 @@
 #ifndef CORE_H
 #define CORE_H
 
+#include <linux/ip.h>
+#include <linux/udp.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
 #include <linux/circ_buf.h>
 #include <net/cfg80211.h>
+#include <linux/wireless.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -61,7 +64,10 @@
 
 /* MAX_HI_COOKIE_NUM are reserved for high priority traffic */
 #define MAX_DEF_COOKIE_NUM                180
-#define MAX_HI_COOKIE_NUM                 18	/* 10% of MAX_COOKIE_NUM */
+/* Reserved for data sync cmd to avoid htc dead lock */
+#define DATA_SYNC_RESERVED                10
+/* 10% of MAX_COOKIE_NUM(18) + DATA_SYNC_RESERVED(10) */
+#define MAX_HI_COOKIE_NUM                 28
 #define MAX_COOKIE_NUM                 (MAX_DEF_COOKIE_NUM + MAX_HI_COOKIE_NUM)
 #define WMI_MAX_COOKIE_NUM                80
 
@@ -69,11 +75,17 @@
 
 #define DISCON_TIMER_INTVAL               10000  /* in msec */
 
+#define MAX_APSD_DEPTH_FOR_EACH_CONN	  50	/*limit it to avoid exhausting system's memory*/
+#define MAX_PSQ_DEPTH_FOR_EACH_CONN       50 /*limit it to avoid exhausting system's memory*/
+
 /* Channel dwell time in fg scan */
 #define ATH6KL_FG_SCAN_INTERVAL         50 /* in ms */
 
 /* Channel dwell time in fg scan */
 #define ATH6KL_FG_SCAN_INTERVAL		50 /* in ms */
+
+/* number of sending ps-poll before switch to send null data */
+#define WLAN_CONFIG_PSPOLL_NUM		0
 
 /* includes also the null byte */
 #define ATH6KL_FIRMWARE_MAGIC               "QCA-ATH6KL"
@@ -152,6 +164,20 @@ enum ath6kl_fw_capability {
 	 * white/black list
 	 */
 	ATH6KL_FW_CAPABILITY_MAC_ACL,
+
+	/*
+	* Firmware with capability regdomain-v2 can support
+	* set regdomain immediately. The firmware without this
+	* capability need start scan for new regdomain take effect
+	*/
+	ATH6KL_FW_CAPABILITY_REGDOMAIN_V2,
+
+	/*
+	 * Firmware capable to send more than 255 byte in IE
+	 * (assoc req ie, assoc resp ie, beacon ie) present in
+	 * connect event.
+	 */
+	ATH6KL_FW_CAPABILITY_LARGE_CONNECT_IE,
 
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
@@ -385,6 +411,8 @@ struct ath6kl_sta {
 	size_t mgmt_psq_len;
 	u8 apsd_info;
 	struct sk_buff_head apsdq;
+	size_t apsdq_depth;
+	size_t psq_depth;
 	struct aggr_info_conn *aggr_conn;
 };
 
@@ -401,6 +429,40 @@ struct ath6kl_bmi {
 	u32 max_data_size;
 	u32 max_cmd_size;
 };
+
+/* Same as struct target_stats, expect it trackes only few
+   stats in u32 variable. */
+struct target_stats_dup {
+	u32 tx_retry_cnt[4];
+	u32 tx_mult_retry_cnt[4];
+	u32 tx_pkt_per_ac[4];
+	u32 rx_pkt;
+	u32 rx_dupl_frame;
+	u32 tx_fail_cnt[4];
+	u32 tx_rts_fail_cnt;
+	u32 tx_err;
+	u32 tx_rts_success_cnt;
+	u32 rx_err;
+	u32 tx_byte;
+};
+
+enum ath6kl_wlan_stats {
+	WLAN_STATS_INVALID,
+	WLAN_STATS_RETRY_CNT,
+	WLAN_STATS_MUL_RETRY_CNT,
+	WLAN_STATS_TX_FRM_CNT,
+	WLAN_STATS_RX_FRM_CNT,
+	WLAN_STATS_FRM_DUP_CNT,
+	WLAN_STATS_FAIL_CNT,
+	WLAN_STATS_RTS_FAIL_CNT,
+	WLAN_STATS_ACK_FAIL_CNT,
+	WLAN_STATS_RTS_SUC_CNT,
+	WLAN_STATS_RX_DISCARD_CNT,
+	WLAN_STATS_RX_ERROR_CNT,
+	WLAN_STATS_TX_BYTE_CNT,
+};
+
+#define ATH6KL_PRI_IOCTL_REPLY_BUF_MAX 1024
 
 struct target_stats {
 	u64 tx_pkt;
@@ -561,12 +623,37 @@ enum ath6kl_vif_state {
 	SCHED_SCANNING,
 };
 
+struct ath6kl_vif_bcn_info {
+	bool hidden_ssid;
+	enum wmi_phy_mode phy_mode;
+	u8 *beacon_ies;
+	size_t beacon_ies_len;
+	u8 *proberesp_ies;
+	size_t proberesp_ies_len;
+	u8 *assocresp_ies;
+	size_t assocresp_ies_len;
+	u8 sta_cap_req;
+};
+
+struct ath6kl_vif_tp_status {
+	unsigned int cur_level;
+	unsigned long cur_tp;
+	unsigned long cur_txrx; /* net_device_stats */
+};
+
+struct ath6kl_vif_cookie_cfg {
+	bool load_balance;
+	int min_cookies; /* the min cookies reserved for vif */
+	int mid_cookies; /* middle of cookies */
+	int max_cookies; /* max number assigned for vif */
+};
+
 struct ath6kl_vif {
 	struct list_head list;
 	struct wireless_dev wdev;
 	struct net_device *ndev;
 	struct ath6kl *ar;
-	/* Lock to protect vif specific net_stats and flags */
+	/* Lock to protect vif specific net_stats, scan_req and flags */
 	spinlock_t if_lock;
 	u8 fw_vif_idx;
 	unsigned long flags;
@@ -612,16 +699,41 @@ struct ath6kl_vif {
 	u8 assoc_bss_dtim_period;
 	struct net_device_stats net_stats;
 	struct target_stats target_stats;
+	struct target_stats_dup target_stats_dup;
 	struct wmi_connect_cmd profile;
 	u16 rsn_capab;
 
 	struct list_head mc_filter;
+	struct ath6kl_vif_bcn_info bcn_info;
+
+	struct ath6kl_vif_tp_status vif_tp_status;
+	unsigned int cur_data_cookies; /* current cookies used */
 };
 
 #define WOW_LIST_ID		0
 #define WOW_HOST_REQ_DELAY	500 /* ms */
 
 #define ATH6KL_SCHED_SCAN_RESULT_DELAY 5000 /* ms */
+
+#define ATH6KL_PRIV_GET_WLAN_STATS	(SIOCIWFIRSTPRIV + 21)
+
+/* ATH6KL_IOCTL_EXTENDED - extended ioctl */
+#define ATH6KL_IOCTL_WEXT_PRIV26        (SIOCIWFIRSTPRIV+26)
+
+
+struct ath6kl_wifi_priv_cmd {
+	char *buf;
+	int used_len;
+	int total_len;
+};
+
+/* TBD: ioctl number is aligned to olca branch
+ * will refine one the loopback tool is ready for native ath6kl
+ */
+enum ath6kl_xioctl {
+	ATH6KL_XIOCTL_TRAFFIC_ACTIVITY_CHANGE	= 80,
+	ATH6KL_XIOCTL_PKT_FILTER_ADD_DEL	= 81,
+};
 
 /* Flag info */
 enum ath6kl_dev_state {
@@ -633,6 +745,8 @@ enum ath6kl_dev_state {
 	SKIP_SCAN,
 	ROAM_TBL_PEND,
 	FIRST_BOOT,
+	RECOVERY_CLEANUP,
+	REG_DOMAIN_HINT_PEND
 };
 
 enum ath6kl_state {
@@ -653,6 +767,42 @@ enum ath6kl_fw_err {
 	ATH6KL_FW_ASSERT,
 	ATH6KL_FW_HB_RESP_FAILURE,
 	ATH6KL_FW_EP_FULL,
+	ATH6KL_FW_TX_OVERFLOW,
+};
+
+#define TP_MONITOR_TIMER_INTERVAL_S	3
+#define TP_THR_PKS_A_DEFAULT		500
+#define TP_THR_PKS_B_DEFAULT		1500
+#define TP_THR_PKS_C_DEFAULT		5000
+#define TP_THR_BYTES_A_DEFAULT		500000
+#define TP_THR_BYTES_B_DEFAULT		1500000
+#define TP_THR_BYTES_C_DEFAULT		5000000
+
+#define TP_MONITOR_MAX_INTERVEL_S	20 /* max interval seconds */
+#define TP_THR_MIN			100 /* min thr setting */
+#define TP_THR_MAX			100000000 /* max thr setting */
+
+enum ath6kl_tp_level {
+	ATH6KL_TP_LOW,			/* throughput range:[0, a) */
+	ATH6KL_TP_NORMAL_A,		/* throughput range:[a, b) */
+	ATH6KL_TP_HIGH_B,		/* throughput range:[b, c) */
+	ATH6KL_TP_SUPER_C,		/* throughput range:[c, ...) */
+};
+
+enum ath6kl_tp_type {
+	ATH6KL_TP_TYPE_DISABLED,
+	ATH6KL_TP_TYPE_PACKETS,
+	ATH6KL_TP_TYPE_BYTES,
+	ATH6KL_TP_TYPE_MAX,
+};
+
+struct ath6kl_tp_ctl {
+	unsigned int interval_s; /* tp control interval */
+	struct timer_list tp_monitor_timer;
+	enum ath6kl_tp_type thr_type; /* type for monitor throughput */
+	unsigned long thr_a; /* threshold for monitor throughput */
+	unsigned long thr_b;
+	unsigned long thr_c;
 };
 
 struct ath6kl {
@@ -734,6 +884,7 @@ struct ath6kl {
 		u32 uarttx_pin;
 		u32 testscript_addr;
 		u32 flags;
+		enum wmi_phy_cap cap;
 
 		struct ath6kl_hw_fw {
 			const char *dir;
@@ -786,7 +937,6 @@ struct ath6kl {
 	struct ath6kl_btcoex btcoex_info;
 
 	struct ath6kl_fw_recovery {
-		bool enable;
 		struct work_struct recovery_work;
 		unsigned long err_reason;
 		unsigned long hb_poll;
@@ -794,7 +944,11 @@ struct ath6kl {
 		u32 seq_num;
 		bool hb_pending;
 		u8 hb_misscnt;
+		bool enable;
 	} fw_recovery;
+
+	struct ath6kl_tp_ctl tp_ctl;
+	struct ath6kl_vif_cookie_cfg vif_cookie_cfg;
 
 #ifdef CONFIG_ATH6KL_DEBUG
 	struct {
@@ -830,7 +984,39 @@ struct ath6kl {
 	struct wake_lock p2p_wake_lock;
 #endif /* CONFIG_HAS_WAKELOCK */
 
+	u8 *ready_data;
+	size_t ready_len;
+
+	u8 alpha2[2];
 };
+
+#define ATH6KL_DHCP_OPCODE_MSG_TYPE      53
+#define ATH6KL_DHCP_MSG_TYPE_LEN         1
+
+struct bootp_pkt {		/* BOOTP packet format */
+	struct iphdr iph;	/* IP header */
+	struct udphdr udph;	/* UDP header */
+	u8 op;			/* 1=request, 2=reply */
+	u8 htype;		/* HW address type */
+	u8 hlen;		/* HW address length */
+	u8 hops;		/* Used only by gateways */
+	__be32 xid;		/* Transaction ID */
+	__be16 secs;		/* Seconds since we started */
+	__be16 flags;		/* Just what it says */
+	__be32 client_ip;	/* Client's IP address if known */
+	__be32 your_ip;		/* Assigned IP address */
+	__be32 server_ip;	/* Server's IP address */
+	__be32 relay_ip;	/* IP address of BOOTP relay */
+	u8 hw_addr[16];		/* Client's HW address */
+	u8 serv_name[64];	/* Server host name */
+	u8 boot_file[128];	/* Name of boot file */
+	u8 exten[312];		/* DHCP options / BOOTP vendor extensions */
+};
+
+struct dhcp_packet {
+	struct ethhdr  eth_hdr;
+	struct bootp_pkt bootp_hdr;
+} __packed;
 
 static inline struct ath6kl *ath6kl_priv(struct net_device *dev)
 {
@@ -890,18 +1076,20 @@ void aggr_reset_state(struct aggr_info_conn *aggr_conn);
 struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 * node_addr);
 struct ath6kl_sta *ath6kl_find_sta_by_aid(struct ath6kl *ar, u8 aid);
 
-void ath6kl_ready_event(void *devt, u8 * datap, u32 sw_ver, u32 abi_ver);
+void ath6kl_ready_event(void *devt, u8 * datap, u32 sw_ver, u32 abi_ver,
+			enum wmi_phy_cap cap);
 int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 		      enum htc_endpoint_id eid);
 void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel,
 			  u8 *bssid, u16 listen_int,
 			  u16 beacon_int, enum network_type net_type,
-			  u8 beacon_ie_len, u8 assoc_req_len,
-			  u8 assoc_resp_len, u8 *assoc_info);
+			  u16 beacon_ie_len, u16 assoc_req_len,
+			  u16 assoc_resp_len, u8 *assoc_info);
 void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel);
 void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 				u8 keymgmt, u8 ucipher, u8 auth,
-				u8 assoc_req_len, u8 *assoc_info, u8 apsd_info);
+				u16 assoc_req_len, u8 *assoc_info,
+				u8 apsd_info);
 void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 			     u8 *bssid, u8 assoc_resp_len,
 			     u8 *assoc_info, u16 prot_reason_status);
@@ -932,13 +1120,28 @@ int ath6kl_init_hw_start(struct ath6kl *ar);
 int ath6kl_init_hw_stop(struct ath6kl *ar);
 void ath6kl_check_wow_status(struct ath6kl *ar, struct sk_buff *skb,
 			     bool is_event_pkt);
-void ath6kl_sdio_init_platform(void);
+int ath6kl_sdio_init_platform(void);
 void ath6kl_sdio_exit_platform(void);
 void ath6kl_mangle_mac_address(struct ath6kl *ar, u8 locally_administered_bit);
 
 int ath6kl_wait_for_init_comp(void);
 void ath6kl_notify_init_done(void);
 
+u8 ath6kl_remove_sta(struct ath6kl *ar, u8 *mac, u16 reason);
+
+void ath6kl_tp_monitor_timer(unsigned long data);
+void ath6kl_tp_cfg(struct ath6kl *ar, unsigned int interval_s,
+		   unsigned int type, unsigned long thr_a,
+		   unsigned long thr_b, unsigned long thr_c);
+void ath6kl_cookie_vif_balance_init(struct ath6kl *ar);
+bool ath6kl_is_other_vif_cookie_busy(struct ath6kl *ar,
+				    struct ath6kl_vif *cur_vif);
+bool ath6kl_is_other_vif_connected(struct ath6kl *ar,
+				   struct ath6kl_vif *cur_vif);
+
+int ath6kl_ioctl_pkt_filter_set(struct ath6kl_vif *vif,
+				char *buf,
+				int len);
 /* Fw error recovery */
 void ath6kl_init_hw_restart(struct ath6kl *ar);
 void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason);
