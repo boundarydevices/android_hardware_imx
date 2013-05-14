@@ -2951,10 +2951,13 @@ enum nl80211_acl_policy_attr {
  * @NL80211_CONN_FAIL_MAX_CLIENTS: Maximum number of clients that can be
  *	handled by the AP is reached.
  * @NL80211_CONN_FAIL_BLOCKED_CLIENT: Client's MAC is in the AP's blocklist.
+ * @NL80211_CONN_FAIL_NEW_CLIENT: Client's MAC is not available either in
+ * 	the accept list or in the deny list.
  * */
 enum nl80211_connect_failed_reason {
 	NL80211_CONN_FAIL_MAX_CLIENTS,
 	NL80211_CONN_FAIL_BLOCKED_CLIENT,
+	NL80211_CONN_FAIL_NEW_CLIENT,
 };
 
 #endif /* __LINUX_NL80211_H */

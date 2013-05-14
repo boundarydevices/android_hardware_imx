@@ -145,12 +145,17 @@ static struct platform_driver ath6kl_pm_device = {
 	},
 };
 
-void __init ath6kl_sdio_init_platform(void)
+int __init ath6kl_sdio_init_platform(void)
 {
 	char buf[3];
-	int length;
+	int length, ret;
 
-	platform_driver_register(&ath6kl_pm_device);
+	ret = platform_driver_register(&ath6kl_pm_device);
+	if (ret) {
+		printk(KERN_ERR "platform driver registration failed: %d\n",
+		       ret);
+		return ret;
+	}
 
 	length = snprintf(buf, sizeof(buf), "%d\n", 1 ? 1 : 0);
 	android_readwrite_file("/sys/devices/platform/" MMC_PLATFORM_DEV
@@ -160,12 +165,15 @@ void __init ath6kl_sdio_init_platform(void)
 			       "/polling", NULL, buf, length);
 
 	mdelay(50);
+
+	return ret;
 }
 
-void __exit ath6kl_sdio_exit_platform(void)
+void ath6kl_sdio_exit_platform(void)
 {
 	char buf[3];
 	int length;
+
 	platform_driver_unregister(&ath6kl_pm_device);
 
 	length = snprintf(buf, sizeof(buf), "%d\n", 1 ? 1 : 0);
@@ -182,20 +190,23 @@ void __exit ath6kl_sdio_exit_platform(void)
 
 int ath6kl_wait_for_init_comp(void)
 {
-	int left;
+	int left, ret = 0;
 
 	if (atomic_read(&init_done) == 1)
-		return 0;
+		return ret;
 
 	left = wait_event_interruptible_timeout(init_wq,
 						atomic_read(&init_done) == 1,
 						ATH6KL_INIT_TIMEOUT);
-	if (left == 0)
+	if (left == 0) {
 		printk(KERN_ERR "timeout while waiting for init operation\n");
-	else if (left < 0)
+		ret = -ETIMEDOUT;
+	} else if (left < 0) {
 		printk(KERN_ERR "wait for init operation failed: %d\n", left);
+		ret = left;
+	}
 
-	return 0;
+	return ret;
 }
 void ath6kl_notify_init_done(void)
 {

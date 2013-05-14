@@ -218,9 +218,8 @@ static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
 		ath6kl_warn("Failed to clear debug interrupt: %d\n", ret);
 
 	ath6kl_hif_dump_fw_crash(dev->ar);
-	if (debug_mask & ATH6KL_DBG_STACK_DUMP)
-		ath6kl_hif_dump_fw_more(dev->ar, DUMP_MASK_FULL_STACK |
-					DUMP_MASK_DBGLOG);
+	ath6kl_hif_dump_fw_more(dev->ar, DUMP_MASK_FULL_STACK |
+				DUMP_MASK_DBGLOG);
 	ath6kl_read_fwlogs(dev->ar);
 	ath6kl_recovery_err_notify(dev->ar, ATH6KL_FW_ASSERT);
 
@@ -410,8 +409,10 @@ static int ath6kl_hif_proc_err_intr(struct ath6kl_device *dev)
 	if (MS(ERROR_INT_STATUS_RX_UNDERFLOW, error_int_status))
 		ath6kl_err("rx underflow\n");
 
-	if (MS(ERROR_INT_STATUS_TX_OVERFLOW, error_int_status))
+	if (MS(ERROR_INT_STATUS_TX_OVERFLOW, error_int_status)) {
 		ath6kl_err("tx overflow\n");
+		ath6kl_recovery_err_notify(dev->ar, ATH6KL_FW_TX_OVERFLOW);
+	}
 
 	/* Clear the interrupt */
 	dev->irq_proc_reg.error_int_status &= ~error_int_status;
