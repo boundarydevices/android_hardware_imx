@@ -88,6 +88,8 @@ static void ath6kl_sta_cleanup(struct ath6kl *ar, u8 i)
 	spin_lock_bh(&sta->psq_lock);
 	skb_queue_purge(&sta->psq);
 	skb_queue_purge(&sta->apsdq);
+	sta->apsdq_depth = 0;
+	sta->psq_depth = 0;
 
 	if (sta->mgmt_psq_len != 0) {
 		list_for_each_entry_safe(entry, tmp, &sta->mgmt_psq, list) {
@@ -110,7 +112,7 @@ static void ath6kl_sta_cleanup(struct ath6kl *ar, u8 i)
 	aggr_reset_state(sta->aggr_conn);
 }
 
-static u8 ath6kl_remove_sta(struct ath6kl *ar, u8 *mac, u16 reason)
+u8 ath6kl_remove_sta(struct ath6kl *ar, u8 *mac, u16 reason)
 {
 	u8 i, removed = 0;
 
@@ -202,6 +204,60 @@ void ath6kl_cookie_cleanup(struct ath6kl *ar)
 	/* Cleanup the control cookie */
 	ar->wmi_cookie_list = NULL;
 	ar->wmi_cookie_count = 0;
+}
+
+void ath6kl_cookie_vif_balance_init(struct ath6kl *ar)
+{
+	int ave_cookie_vif;
+	unsigned int vif_max = ar->vif_max;
+	struct ath6kl_vif_cookie_cfg *cfg;
+
+	ave_cookie_vif = MAX_COOKIE_NUM / vif_max;
+
+	cfg = &ar->vif_cookie_cfg;
+	cfg->min_cookies = ave_cookie_vif / 16;
+	cfg->mid_cookies = ave_cookie_vif + cfg->min_cookies;
+	cfg->max_cookies = MAX_COOKIE_NUM - cfg->min_cookies * (vif_max - 1);
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "cookie:min:%d mid:%d max:%d\n",
+		   cfg->min_cookies, cfg->mid_cookies, cfg->max_cookies);
+}
+
+bool ath6kl_is_other_vif_cookie_busy(struct ath6kl *ar,
+				     struct ath6kl_vif *cur_vif)
+{
+	struct ath6kl_vif *vif, *tmp_vif;
+	struct ath6kl_vif_cookie_cfg *cfg;
+	bool busy = false;
+
+	cfg = &ar->vif_cookie_cfg;
+	list_for_each_entry_safe(vif, tmp_vif, &ar->vif_list, list) {
+		if (vif == cur_vif)
+			continue;
+		if (vif->cur_data_cookies > cfg->min_cookies) {
+			busy = true;
+			break;
+		}
+	}
+
+	return busy;
+}
+
+bool ath6kl_is_other_vif_connected(struct ath6kl *ar,
+				   struct ath6kl_vif *cur_vif)
+{
+	struct ath6kl_vif *vif, *tmp_vif;
+	bool connected = false;
+
+	list_for_each_entry_safe(vif, tmp_vif, &ar->vif_list, list) {
+		if (vif == cur_vif)
+			continue;
+		if (test_bit(CONNECTED, &vif->flags)) {
+			connected = true;
+			break;
+		}
+	}
+
+	return connected;
 }
 
 void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie,
@@ -478,7 +534,7 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 
 void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 				u8 keymgmt, u8 ucipher, u8 auth,
-				u8 assoc_req_len, u8 *assoc_info, u8 apsd_info)
+				u16 assoc_req_len, u8 *assoc_info, u8 apsd_info)
 {
 	u8 *ies = NULL, *wpa_ie = NULL, *pos;
 	size_t ies_len = 0;
@@ -576,7 +632,8 @@ void ath6kl_disconnect(struct ath6kl_vif *vif)
 
 /* WMI Event handlers */
 
-void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
+void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver,
+			enum wmi_phy_cap cap)
 {
 	struct ath6kl *ar = devt;
 
@@ -588,6 +645,7 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 
 	ar->version.wlan_ver = sw_ver;
 	ar->version.abi_ver = abi_ver;
+	ar->hw.cap = cap;
 
 	if (strlen(ar->wiphy->fw_version) == 0) {
 		snprintf(ar->wiphy->fw_version,
@@ -608,6 +666,13 @@ void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
 {
 	struct ath6kl *ar = vif->ar;
 	bool aborted = false;
+
+	if (!test_bit(ATH6KL_FW_CAPABILITY_REGDOMAIN_V2, ar->fw_capabilities)) {
+		if (test_bit(SCHED_SCANNING, &vif->flags)) {
+			/* when schedule scan, should not come here */
+			WARN_ON(1);
+		}
+	}
 
 	if (status != WMI_SCAN_STATUS_SUCCESS)
 		aborted = true;
@@ -679,8 +744,8 @@ static void ath6kl_check_ch_switch(struct ath6kl *ar, u16 channel)
 
 void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 			  u16 listen_int, u16 beacon_int,
-			  enum network_type net_type, u8 beacon_ie_len,
-			  u8 assoc_req_len, u8 assoc_resp_len,
+			  enum network_type net_type, u16 beacon_ie_len,
+			  u16 assoc_req_len, u16 assoc_resp_len,
 			  u8 *assoc_info)
 {
 	struct ath6kl *ar = vif->ar;
@@ -758,6 +823,7 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 		(struct wmi_target_stats *) ptr;
 	struct ath6kl *ar = vif->ar;
 	struct target_stats *stats = &vif->target_stats;
+	struct target_stats_dup *stats_dup = &vif->target_stats_dup;
 	struct tkip_ccmp_stats *ccmp_stats;
 	u8 ac;
 
@@ -768,6 +834,7 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 
 	stats->tx_pkt += le32_to_cpu(tgt_stats->stats.tx.pkt);
 	stats->tx_byte += le32_to_cpu(tgt_stats->stats.tx.byte);
+	stats_dup->tx_byte += le32_to_cpu(tgt_stats->stats.tx.byte);
 	stats->tx_ucast_pkt += le32_to_cpu(tgt_stats->stats.tx.ucast_pkt);
 	stats->tx_ucast_byte += le32_to_cpu(tgt_stats->stats.tx.ucast_byte);
 	stats->tx_mcast_pkt += le32_to_cpu(tgt_stats->stats.tx.mcast_pkt);
@@ -776,22 +843,37 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 	stats->tx_bcast_byte += le32_to_cpu(tgt_stats->stats.tx.bcast_byte);
 	stats->tx_rts_success_cnt +=
 		le32_to_cpu(tgt_stats->stats.tx.rts_success_cnt);
+	stats_dup->tx_rts_success_cnt +=
+		le32_to_cpu(tgt_stats->stats.tx.rts_success_cnt);
 
-	for (ac = 0; ac < WMM_NUM_AC; ac++)
+	for (ac = 0; ac < WMM_NUM_AC; ac++) {
 		stats->tx_pkt_per_ac[ac] +=
 			le32_to_cpu(tgt_stats->stats.tx.pkt_per_ac[ac]);
+		stats_dup->tx_pkt_per_ac[ac] +=
+			le32_to_cpu(tgt_stats->stats.tx.pkt_per_ac[ac]);
+		stats_dup->tx_retry_cnt[ac] +=
+			le32_to_cpu(tgt_stats->stats.tx.retry_cnt);
+		stats_dup->tx_fail_cnt[ac] +=
+			le32_to_cpu(tgt_stats->stats.tx.fail_cnt);
+		stats_dup->tx_mult_retry_cnt[ac] +=
+			le32_to_cpu(tgt_stats->stats.tx.mult_retry_cnt);
+	}
 
 	stats->tx_err += le32_to_cpu(tgt_stats->stats.tx.err);
+	stats_dup->tx_err += le32_to_cpu(tgt_stats->stats.tx.err);
 	stats->tx_fail_cnt += le32_to_cpu(tgt_stats->stats.tx.fail_cnt);
 	stats->tx_retry_cnt += le32_to_cpu(tgt_stats->stats.tx.retry_cnt);
 	stats->tx_mult_retry_cnt +=
 		le32_to_cpu(tgt_stats->stats.tx.mult_retry_cnt);
 	stats->tx_rts_fail_cnt +=
 		le32_to_cpu(tgt_stats->stats.tx.rts_fail_cnt);
+	stats_dup->tx_rts_fail_cnt +=
+		le32_to_cpu(tgt_stats->stats.tx.rts_fail_cnt);
 	stats->tx_ucast_rate =
 	    ath6kl_wmi_get_rate(a_sle32_to_cpu(tgt_stats->stats.tx.ucast_rate));
 
 	stats->rx_pkt += le32_to_cpu(tgt_stats->stats.rx.pkt);
+	stats_dup->rx_pkt += le32_to_cpu(tgt_stats->stats.rx.pkt);
 	stats->rx_byte += le32_to_cpu(tgt_stats->stats.rx.byte);
 	stats->rx_ucast_pkt += le32_to_cpu(tgt_stats->stats.rx.ucast_pkt);
 	stats->rx_ucast_byte += le32_to_cpu(tgt_stats->stats.rx.ucast_byte);
@@ -801,11 +883,13 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 	stats->rx_bcast_byte += le32_to_cpu(tgt_stats->stats.rx.bcast_byte);
 	stats->rx_frgment_pkt += le32_to_cpu(tgt_stats->stats.rx.frgment_pkt);
 	stats->rx_err += le32_to_cpu(tgt_stats->stats.rx.err);
+	stats_dup->rx_err += le32_to_cpu(tgt_stats->stats.rx.err);
 	stats->rx_crc_err += le32_to_cpu(tgt_stats->stats.rx.crc_err);
 	stats->rx_key_cache_miss +=
 		le32_to_cpu(tgt_stats->stats.rx.key_cache_miss);
 	stats->rx_decrypt_err += le32_to_cpu(tgt_stats->stats.rx.decrypt_err);
 	stats->rx_dupl_frame += le32_to_cpu(tgt_stats->stats.rx.dupl_frame);
+	stats_dup->rx_dupl_frame += le32_to_cpu(tgt_stats->stats.rx.dupl_frame);
 	stats->rx_ucast_rate =
 	    ath6kl_wmi_get_rate(a_sle32_to_cpu(tgt_stats->stats.rx.ucast_rate));
 
@@ -957,6 +1041,7 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 		kfree(mgmt_buf);
 	} else {
 		skb = skb_dequeue(&conn->psq);
+		conn->psq_depth--;
 		spin_unlock_bh(&conn->psq_lock);
 
 		conn->sta_flags |= STA_PS_POLLED;
@@ -1042,6 +1127,13 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 			/* send blocked client notification to user space */
 			cfg80211_conn_failed(vif->ndev, bssid,
 					     NL80211_CONN_FAIL_BLOCKED_CLIENT,
+					     GFP_KERNEL);
+		}
+
+		if (prot_reason_status == WMI_AP_REASON_NEW_STA) {
+			/* send new client notification to user space */
+			cfg80211_conn_failed(vif->ndev, bssid,
+					     NL80211_CONN_FAIL_NEW_CLIENT,
 					     GFP_KERNEL);
 		}
 
@@ -1159,10 +1251,12 @@ static int ath6kl_open(struct net_device *dev)
 static int ath6kl_close(struct net_device *dev)
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl *ar = vif->ar;
 
 	netif_stop_queue(dev);
 
-	ath6kl_cfg80211_stop(vif);
+	if (test_bit(WMI_READY, &ar->flag))
+		ath6kl_cfg80211_stop(vif);
 
 	clear_bit(WLAN_ENABLED, &vif->flags);
 
@@ -1336,11 +1430,283 @@ out:
 	list_splice_tail(&mc_filter_new, &vif->mc_filter);
 }
 
-static int ath6kl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+
+static inline void ath6kl_pack_tlv(char *buf, char type, char size,
+				   char *val, int *tlen)
 {
+	if (*tlen > ATH6KL_PRI_IOCTL_REPLY_BUF_MAX)
+		return;
+
+	*buf++ = type;
+	*buf++ = size;
+	memcpy(buf, val, size);
+	*tlen += size + 2;
+}
+
+static int ath6kl_update_stats(struct ath6kl *ar, struct ath6kl_vif *vif,
+			       void __user *user_buf)
+{
+	struct target_stats_dup *stats;
+	char *buf;
+	int tlen = 0;
+	long left;
+	size_t ret;
+
+	if (down_interruptible(&ar->sem))
+		goto exit;
+
+	set_bit(STATS_UPDATE_PEND, &vif->flags);
+
+	if (ath6kl_wmi_get_stats_cmd(ar->wmi, 0)) {
+		up(&ar->sem);
+		goto exit;
+	}
+
+	left = wait_event_interruptible_timeout(ar->event_wq,
+						!test_bit(STATS_UPDATE_PEND,
+						&vif->flags), WMI_TIMEOUT);
+	up(&ar->sem);
+
+	if (left <= 0)
+		goto exit;
+
+	stats = &vif->target_stats_dup;
+
+	buf = kzalloc(ATH6KL_PRI_IOCTL_REPLY_BUF_MAX, GFP_KERNEL);
+	if (!buf)
+		goto exit;
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_RETRY_CNT,
+			sizeof(stats->tx_retry_cnt),
+			(char *)&stats->tx_retry_cnt, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_MUL_RETRY_CNT,
+			sizeof(stats->tx_mult_retry_cnt),
+			(char *)&stats->tx_mult_retry_cnt, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_TX_FRM_CNT,
+			sizeof(stats->tx_pkt_per_ac),
+			(char *)&stats->tx_pkt_per_ac, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_RX_FRM_CNT,
+			sizeof(stats->rx_pkt),
+			(char *)&stats->rx_pkt, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_FRM_DUP_CNT,
+			sizeof(stats->rx_dupl_frame),
+			(char *)&stats->rx_dupl_frame, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_FAIL_CNT,
+			sizeof(stats->tx_fail_cnt),
+			(char *)&stats->tx_fail_cnt, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_RTS_FAIL_CNT,
+			sizeof(stats->tx_rts_fail_cnt),
+			(char *)&stats->tx_rts_fail_cnt, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_ACK_FAIL_CNT,
+			sizeof(stats->tx_err),
+			(char *)&stats->tx_err, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_RTS_SUC_CNT,
+			sizeof(stats->tx_rts_success_cnt),
+			(char *)&stats->tx_rts_success_cnt, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_RX_DISCARD_CNT,
+			sizeof(stats->rx_err),
+			(char *)&stats->rx_err, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_RX_ERROR_CNT,
+			sizeof(stats->rx_err),
+			(char *)&stats->rx_err, &tlen);
+
+	ath6kl_pack_tlv(buf + tlen, WLAN_STATS_TX_BYTE_CNT,
+			sizeof(stats->tx_byte),
+			(char *)&stats->tx_byte, &tlen);
+
+	ret = copy_to_user(user_buf, buf, tlen);
+	if (ret)
+		ath6kl_err("failed to copy target stats to user buffer\n");
+
+	kfree(buf);
+exit:
 	return 0;
 }
 
+static int _from_hex(char c)
+{
+	int ret = 0;
+
+	if ((c >= '0') && (c <= '9'))
+		ret = (c - '0');
+	else if ((c >= 'a') && (c <= 'f'))
+		ret = (c - 'a' + 0x0a);
+	else if ((c >= 'A') && (c <= 'F'))
+		ret = (c - 'A' + 0x0A);
+
+	return ret;
+}
+
+static void hexstr_bytearray(char *hexStr, u8 *byteArray, u8 numBytes)
+{
+	u8 i;
+
+	for (i = 0; i < numBytes; i++)
+		byteArray[i] = 16 * _from_hex(hexStr[2 * i + 0]) +
+			       _from_hex(hexStr[2 * i + 1]);
+}
+
+int ath6kl_ioctl_pkt_filter_set(struct ath6kl_vif *vif,
+				char *buf,
+				int len)
+{
+	struct ath6kl *ar = vif->ar;
+	char *sptr, *token;
+	char filter[CPKT_PATTERN_SIZE], mask[CPKT_MASK_SIZE];
+	int ret;
+	u8 op, id, act, size, offset;
+
+	if (len <= 0)
+		return -EFAULT;
+
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &op))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &id))
+		return -EINVAL;
+
+	if (!op) {
+		/* del case */
+		ret = ath6kl_wmi_del_pkt_filter_pattern_cmd(ar->wmi,
+						vif->fw_vif_idx, id);
+		return ret;
+	}
+
+	/* add case */
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &act))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &size))
+		return -EINVAL;
+	if (size > CPKT_PATTERN_SIZE)
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &offset))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token ||
+	    strnlen(token, CPKT_PATTERN_SIZE << 1) >> 1 != size)
+		return -EINVAL;
+	hexstr_bytearray(token, filter, size);
+
+	token = strsep(&sptr, " ");
+	if (!token ||
+	    strnlen(token, CPKT_MASK_SIZE << 1) >> 1 != size)
+		return -EINVAL;
+	hexstr_bytearray(token, mask, size);
+
+	ret = ath6kl_wmi_add_pkt_filter_pattern_cmd(ar->wmi,
+						    vif->fw_vif_idx, id,
+						    act, size, offset,
+						    filter, mask);
+
+	return ret;
+}
+
+static int ath6kl_ioctl_wext_priv(struct net_device *dev,
+				  struct ifreq *rq, int cmd)
+{
+	struct ath6kl_wifi_priv_cmd hr_cmd;
+	struct ath6kl_vif *vif = netdev_priv(dev);
+	void *data = (void *)(rq->ifr_data);
+	char *user_cmd = NULL;
+	int ret = 0, offset = 0, priv_cmd = 0;
+
+	if (copy_from_user(&hr_cmd,
+			   data,
+			   sizeof(struct ath6kl_wifi_priv_cmd)))
+		return -EIO;
+
+	if (hr_cmd.buf == NULL || hr_cmd.used_len <= 0)
+		return -EINVAL;
+
+	user_cmd = kzalloc(hr_cmd.used_len + 1, GFP_KERNEL);
+	if (!user_cmd)
+		return -ENOMEM;
+
+	if (copy_from_user(user_cmd,
+			   hr_cmd.buf,
+			   hr_cmd.used_len)) {
+		kfree(user_cmd);
+		return -EIO;
+	}
+	user_cmd[hr_cmd.used_len] = '\0';
+
+	if (0 == strncasecmp(user_cmd, "ATH6KL PKT_FILTER ", 18)) {
+		priv_cmd = ATH6KL_XIOCTL_PKT_FILTER_ADD_DEL;
+		offset = 18;
+	}
+
+	switch (priv_cmd) {
+	case ATH6KL_XIOCTL_PKT_FILTER_ADD_DEL:
+		ret = ath6kl_ioctl_pkt_filter_set(vif, user_cmd + offset,
+						  hr_cmd.used_len - offset);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+
+	}
+
+	kfree(user_cmd);
+
+	return ret;
+}
+
+static int ath6kl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl *ar = vif->ar;
+	int ret = 0;
+
+	if (!ar || !vif) {
+		ret = -EIO;
+		goto exit;
+	}
+
+	if (!test_bit(WMI_READY, &vif->ar->flag) ||
+	    !test_bit(WLAN_ENABLED, &vif->flags)) {
+		ret = -EIO;
+		goto exit;
+	}
+
+	switch (cmd) {
+	case ATH6KL_PRIV_GET_WLAN_STATS:
+		ret = ath6kl_update_stats(ar, vif, rq->ifr_data);
+		break;
+	case ATH6KL_IOCTL_WEXT_PRIV26:
+		ret = ath6kl_ioctl_wext_priv(dev, rq, cmd);
+		break;
+	default:
+		break;
+	}
+exit:
+	if (ret)
+		ath6kl_err("io status:%d cmd:%d\n",
+			   ret, cmd);
+	else
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "io status:%d cmd:%d\n",
+			   ret, cmd);
+	return ret;
+}
 
 static struct net_device_ops ath6kl_netdev_ops = {
 	.ndo_open               = ath6kl_open,
@@ -1364,6 +1730,10 @@ void init_netdev(struct net_device *dev)
 	dev->needed_headroom += sizeof(struct ath6kl_llc_snap_hdr) +
 				sizeof(struct wmi_data_hdr) + HTC_HDR_LENGTH
 				+ WMI_MAX_TX_META_SZ + ATH6KL_HTC_ALIGN_BYTES;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39))
+	dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+#endif
 
 	return;
 }

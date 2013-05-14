@@ -29,7 +29,10 @@ struct wmi_tgt_err_report_evt {
 	__le32 err_val;
 } __packed;
 
-int ath6kl_wmi_error_report_event(struct wmi *wmi, u8 *data, int len);
 int ath6kl_init_debugfs_pri(struct ath6kl *ar);
+
 #endif
+
+int ath6kl_wmi_error_report_event(struct wmi *wmi, u8 *data, int len);
+
 #endif
