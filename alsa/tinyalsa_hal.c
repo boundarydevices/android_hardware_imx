@@ -48,6 +48,7 @@
 #include "config_cs42888.h"
 #include "config_wm8960.h"
 #include "config_sii902x.h"
+#include "config_sgtl5000.h"
 
 #ifdef BRILLO
 #define PCM_HW_PARAM_ACCESS 0
@@ -116,10 +117,9 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        9
 
 /*"null_card" must be in the end of this array*/
-struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
+struct audio_card *audio_card_list[] = {
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
@@ -128,8 +128,11 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &cs42888_card,
     &wm8960_card,
     &sii902x_card,
+    &sgtl5000_card,
     &null_card,
 };
+
+#define SUPPORT_CARD_NUM        ARRAY_SIZE(audio_card_list)
 
 struct pcm_config pcm_config_mm_out = {
     .channels = 2,
@@ -3289,7 +3292,7 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
         ALOGW("card %d, id %s ,driver %s, name %s", i, control_card_info_get_id(imx_control),
                                                       control_card_info_get_driver(imx_control),
                                                       control_card_info_get_name(imx_control));
-        for(j = 0; j < SUPPORT_CARD_NUM; j++) {
+        for(j = 0; j < (int)SUPPORT_CARD_NUM; j++) {
             if(strstr(control_card_info_get_driver(imx_control), audio_card_list[j]->driver_name) != NULL){
                 // check if the device have been scaned before
                 scanned = false;
