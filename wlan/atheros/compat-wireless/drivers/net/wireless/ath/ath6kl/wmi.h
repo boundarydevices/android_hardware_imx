@@ -2146,6 +2146,13 @@ struct wmi_add_wow_pattern_cmd {
 	u8 filter[0];
 } __packed;
 
+struct wmi_set_apps_cmd {
+	__le32 idle_time;
+	__le32 ps_period;
+	u8 sleep_period;
+	u8 ps_type;
+} __packed;
+
 struct wmi_del_wow_pattern_cmd {
 	__le16 filter_list_id;
 	__le16 filter_id;
@@ -2745,6 +2752,8 @@ int ath6kl_wmi_add_pkt_filter_pattern_cmd(struct wmi *wmi, u8 if_idx,
 					  u8 *mask);
 int ath6kl_wmi_del_pkt_filter_pattern_cmd(struct wmi *wmi, u8 if_idx,
 					  u8 filter_id);
+int ath6kl_wmi_set_ap_ps_cmd(struct wmi *wmi, u8 if_idx, u8 ps_type,
+			     u32 idle_time, u32 ps_period, u8 sleep_period);
 
 int ath6kl_wmi_set_rssi_filter_cmd(struct wmi *wmi, u8 if_idx, s8 rssi);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);

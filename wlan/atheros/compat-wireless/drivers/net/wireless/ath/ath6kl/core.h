@@ -718,21 +718,12 @@ struct ath6kl_vif {
 #define ATH6KL_PRIV_GET_WLAN_STATS	(SIOCIWFIRSTPRIV + 21)
 
 /* ATH6KL_IOCTL_EXTENDED - extended ioctl */
-#define ATH6KL_IOCTL_WEXT_PRIV26        (SIOCIWFIRSTPRIV+26)
-
+#define ATH6KL_IOCTL_WEXT_PRIV	(SIOCDEVPRIVATE + 1)
 
 struct ath6kl_wifi_priv_cmd {
 	char *buf;
 	int used_len;
 	int total_len;
-};
-
-/* TBD: ioctl number is aligned to olca branch
- * will refine one the loopback tool is ready for native ath6kl
- */
-enum ath6kl_xioctl {
-	ATH6KL_XIOCTL_TRAFFIC_ACTIVITY_CHANGE	= 80,
-	ATH6KL_XIOCTL_PKT_FILTER_ADD_DEL	= 81,
 };
 
 /* Flag info */
@@ -1018,6 +1009,11 @@ struct dhcp_packet {
 	struct bootp_pkt bootp_hdr;
 } __packed;
 
+struct ath6kl_drv_priv_cmd_ops {
+	char *cmd;
+	int (*handler) (struct ath6kl_vif *vif, char *buf, int len);
+};
+
 static inline struct ath6kl *ath6kl_priv(struct net_device *dev)
 {
 	return ((struct ath6kl_vif *) netdev_priv(dev))->ar;
@@ -1142,6 +1138,10 @@ bool ath6kl_is_other_vif_connected(struct ath6kl *ar,
 int ath6kl_ioctl_pkt_filter_set(struct ath6kl_vif *vif,
 				char *buf,
 				int len);
+
+int ath6kl_ioctl_ap_ps_parameter_set(struct ath6kl_vif *vif,
+				     char *buf, int len);
+
 /* Fw error recovery */
 void ath6kl_init_hw_restart(struct ath6kl *ar);
 void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason);

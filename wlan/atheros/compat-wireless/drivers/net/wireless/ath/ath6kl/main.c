@@ -1621,6 +1621,48 @@ int ath6kl_ioctl_pkt_filter_set(struct ath6kl_vif *vif,
 	return ret;
 }
 
+int ath6kl_ioctl_ap_ps_parameter_set(struct ath6kl_vif *vif,
+				     char *buf, int len)
+{
+	struct ath6kl *ar = vif->ar;
+	char *sptr, *token;
+	u8 ps_type, sleep_period;
+	u32 idle_time, ps_period;
+	int ret;
+
+	if (len <= 0)
+		return -EFAULT;
+
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &ps_type))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou32(token, 0, &idle_time))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou32(token, 0, &ps_period))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &sleep_period))
+		return -EINVAL;
+
+	ret = ath6kl_wmi_set_ap_ps_cmd(ar->wmi, vif->fw_vif_idx,
+				       ps_type, idle_time, ps_period,
+				       sleep_period);
+
+	return ret;
+}
+
+static struct ath6kl_drv_priv_cmd_ops ath6kl_priv_ops[] = {
+	{"PKT_FILTER ", ath6kl_ioctl_pkt_filter_set},
+	{"AP_PS_PARAMETER ", ath6kl_ioctl_ap_ps_parameter_set},
+};
+
 static int ath6kl_ioctl_wext_priv(struct net_device *dev,
 				  struct ifreq *rq, int cmd)
 {
@@ -1628,7 +1670,8 @@ static int ath6kl_ioctl_wext_priv(struct net_device *dev,
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	void *data = (void *)(rq->ifr_data);
 	char *user_cmd = NULL;
-	int ret = 0, offset = 0, priv_cmd = 0;
+	int ret = 0, cmd_len;
+	u8 i;
 
 	if (copy_from_user(&hr_cmd,
 			   data,
@@ -1650,20 +1693,21 @@ static int ath6kl_ioctl_wext_priv(struct net_device *dev,
 	}
 	user_cmd[hr_cmd.used_len] = '\0';
 
-	if (0 == strncasecmp(user_cmd, "ATH6KL PKT_FILTER ", 18)) {
-		priv_cmd = ATH6KL_XIOCTL_PKT_FILTER_ADD_DEL;
-		offset = 18;
-	}
+	for (i = 0; i < ARRAY_SIZE(ath6kl_priv_ops); i++) {
+		cmd_len = strlen(ath6kl_priv_ops[i].cmd);
 
-	switch (priv_cmd) {
-	case ATH6KL_XIOCTL_PKT_FILTER_ADD_DEL:
-		ret = ath6kl_ioctl_pkt_filter_set(vif, user_cmd + offset,
-						  hr_cmd.used_len - offset);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
+		if (hr_cmd.used_len < cmd_len)
+			continue;
 
+		if (strncmp(user_cmd, ath6kl_priv_ops[i].cmd, cmd_len))
+			continue;
+
+		if (!ath6kl_priv_ops[i].handler)
+			continue;
+
+		ret = ath6kl_priv_ops[i].handler(vif, user_cmd + cmd_len,
+						 hr_cmd.used_len - cmd_len);
+		break;
 	}
 
 	kfree(user_cmd);
@@ -1692,7 +1736,7 @@ static int ath6kl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case ATH6KL_PRIV_GET_WLAN_STATS:
 		ret = ath6kl_update_stats(ar, vif, rq->ifr_data);
 		break;
-	case ATH6KL_IOCTL_WEXT_PRIV26:
+	case ATH6KL_IOCTL_WEXT_PRIV:
 		ret = ath6kl_ioctl_wext_priv(dev, rq, cmd);
 		break;
 	default:
