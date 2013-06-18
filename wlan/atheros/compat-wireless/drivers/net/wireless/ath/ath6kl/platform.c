@@ -25,7 +25,7 @@
 
 
 
-#define ATH6KL_INIT_TIMEOUT	(3 * HZ)
+#define ATH6KL_INIT_TIMEOUT	(6 * HZ)
 
 wait_queue_head_t init_wq;
 static atomic_t init_done = ATOMIC_INIT(0);

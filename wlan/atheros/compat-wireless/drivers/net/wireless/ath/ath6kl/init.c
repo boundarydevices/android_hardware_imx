@@ -1859,6 +1859,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 	struct net_device *ndev;
 	int ret = 0, i;
 	struct net_device *ndev_p2p0;
+
 	ar->ath6kl_wq = create_singlethread_workqueue("ath6kl");
 	if (!ar->ath6kl_wq)
 		return -ENOMEM;
@@ -1956,12 +1957,16 @@ int ath6kl_core_init(struct ath6kl *ar)
 	ath6kl_rx_refill(ar->htc_target, ar->ac2ep_map[WMM_AC_BE]);
 
 	ret = ath6kl_register_ieee80211_hw(ar);
-	if (ret)
-		goto err_rxbuf_cleanup;
+	if (ret) {
+		set_bit(DESTROY_IN_PROGRESS, &ar->flag);
+		goto err_reg_cleanup;
+	}
 
 	ret = ath6kl_debug_init_fs(ar);
-	if (ret)
-		goto err_rxbuf_cleanup;
+	if (ret) {
+		set_bit(DESTROY_IN_PROGRESS, &ar->flag);
+		goto err_wiphy_cleanup;
+	}
 
 	for (i = 0; i < ar->vif_max; i++)
 		ar->avail_idx_map |= BIT(i);
@@ -1976,8 +1981,9 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	if (!ndev) {
 		ath6kl_err("Failed to instantiate a network device\n");
+		set_bit(DESTROY_IN_PROGRESS, &ar->flag);
 		ret = -ENOMEM;
-		goto err_rxbuf_cleanup;
+		goto err_wiphy_cleanup;
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
@@ -1994,9 +2000,11 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	if (!ndev_p2p0) {
 		ath6kl_err("Failed to create p2p0 iface\n");
+		set_bit(DESTROY_IN_PROGRESS, &ar->flag);
 		ret = -ENOMEM;
 		goto err_ndev_cleanup;
 	}
+
 	ar->tp_ctl.tp_monitor_timer.function = ath6kl_tp_monitor_timer;
 	ar->tp_ctl.tp_monitor_timer.data = (unsigned long) ar;
 	init_timer_deferrable(&ar->tp_ctl.tp_monitor_timer);
@@ -2028,12 +2036,15 @@ err_ndev_cleanup:
 	rtnl_lock();
 	ath6kl_deinit_if_data(netdev_priv(ndev));
 	rtnl_unlock();
+err_wiphy_cleanup:
+	wiphy_unregister(ar->wiphy);
+	ath6kl_cleanup_android_resource(ar);
+err_reg_cleanup:
+	ath6kl_init_hw_stop(ar);
 err_rxbuf_cleanup:
 	ath6kl_debug_cleanup(ar);
 	ath6kl_htc_flush_rx_buf(ar->htc_target);
 	ath6kl_cleanup_amsdu_rxbufs(ar);
-	wiphy_unregister(ar->wiphy);
-	ath6kl_cleanup_android_resource(ar);
 	ath6kl_wmi_shutdown(ar->wmi);
 	clear_bit(WMI_ENABLED, &ar->flag);
 	ar->wmi = NULL;

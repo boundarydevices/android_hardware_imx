@@ -3027,6 +3027,28 @@ int ath6kl_wmi_add_pkt_filter_pattern_cmd(struct wmi *wmi, u8 if_idx,
 	return ret;
 }
 
+int ath6kl_wmi_set_ap_ps_cmd(struct wmi *wmi, u8 if_idx, u8 ps_type,
+			     u32 idle_time, u32 ps_period, u8 sleep_period)
+{
+	struct sk_buff *skb;
+	struct wmi_set_apps_cmd *cmd;
+	int ret;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_set_apps_cmd *) skb->data;
+	cmd->ps_type = ps_type;
+	cmd->idle_time = cpu_to_le32(idle_time);
+	cmd->ps_period = cpu_to_le32(ps_period);
+	cmd->sleep_period = sleep_period;
+
+	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SET_AP_PS_CMDID,
+				  NO_SYNC_WMIFLAG);
+	return ret;
+}
+
 int ath6kl_wmi_del_pkt_filter_pattern_cmd(struct wmi *wmi,
 					  u8 if_idx, u8 filter_id)
 {
