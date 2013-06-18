@@ -610,15 +610,6 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		}
 	}
 
-	status = ath6kl_wmi_connect_cmd(ar->wmi, vif->fw_vif_idx, vif->nw_type,
-					vif->dot11_auth_mode, vif->auth_mode,
-					vif->prwise_crypto,
-					vif->prwise_crypto_len,
-					vif->grp_crypto, vif->grp_crypto_len,
-					vif->ssid_len, vif->ssid,
-					vif->req_bssid, vif->ch_hint,
-					ar->connect_ctrl_flags, nw_subtype);
-
 	/* disable background scan if period is 0 */
 	if (sme->bg_scan_period == 0)
 		sme->bg_scan_period = 0xffff;
@@ -629,6 +620,15 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0, 0,
 				  sme->bg_scan_period, 0, 0, 0, 3, 0, 0, 0);
+
+	status = ath6kl_wmi_connect_cmd(ar->wmi, vif->fw_vif_idx, vif->nw_type,
+					vif->dot11_auth_mode, vif->auth_mode,
+					vif->prwise_crypto,
+					vif->prwise_crypto_len,
+					vif->grp_crypto, vif->grp_crypto_len,
+					vif->ssid_len, vif->ssid,
+					vif->req_bssid, vif->ch_hint,
+					ar->connect_ctrl_flags, nw_subtype);
 
 	up(&ar->sem);
 
@@ -4025,8 +4025,6 @@ int ath6kl_register_ieee80211_hw(struct ath6kl *ar)
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P |
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_80211U;
 
-	ath6kl_setup_android_resource(ar);
-
 	if (test_bit(ATH6KL_FW_CAPABILITY_MAC_ACL, ar->fw_capabilities)) {
 		ar->wiphy->features |= NL80211_FEATURE_MAC_ACL;
 		ar->wiphy->max_acl_mac_addrs = MAX_ACL_MAC_ADDRS;
@@ -4037,6 +4035,8 @@ int ath6kl_register_ieee80211_hw(struct ath6kl *ar)
 		ath6kl_err("couldn't register wiphy device\n");
 		return ret;
 	}
+
+	ath6kl_setup_android_resource(ar);
 
 	return 0;
 }
