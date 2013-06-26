@@ -1,6 +1,6 @@
 /*
+ * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ __BEGIN_DECLS
 
 #define EVENT_TYPE_TEMPERATURE		ABS_MISC
 
-#define LSG                         (0x4000) // 4096 LSG = 1G for MMA8451
+#define LSG                         (0x4000) // 
 
 // conversion of acceleration data to SI units (m/s^2)
 #define RANGE_A                     (2*GRAVITY_EARTH)

@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2008 The Android Open Source Project
  * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@
 
 #include "sensors.h"
 
-#include "LightSensor.h"
 #include "AccelSensor.h"
 #include "MagSensor.h"
 #include "PressSensor.h"
@@ -51,7 +50,7 @@
 #define SENSORS_GYROSCOPE        (1<<ID_GY)
 #define SENSORS_LIGHT            (1<<ID_L)
 #define SENSORS_PRESS            (1<<ID_P)
-#define SENSORS_TEMPERATURE	 (1<<ID_T)
+#define SENSORS_TEMPERATURE		 (1<<ID_T)
 #define SENSORS_PROXIMITY        (1<<ID_PX)
 
 #define SENSORS_ACCELERATION_HANDLE     0
@@ -67,15 +66,15 @@
 
 /* The SENSORS Module */
 static const struct sensor_t sSensorList[] = {
-        { "MMA 3-axis Accelerometer",
+        { "Freescale 3-axis Accelerometer",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ACCELERATION_HANDLE,
           SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 20000, { } },
-        { "MAG3110 3-axis Magnetic field sensor",
+        { "Freescale 3-axis Magnetic field sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_MAGNETIC_FIELD_HANDLE,
           SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 100000, { } },
-        { "MAG3110 Orientation sensor",
+        { "Freescale Orientation sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ORIENTATION_HANDLE,
           SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 100000, { } },
@@ -130,9 +129,8 @@ struct sensors_poll_context_t {
 private:
     enum {
         accel           = 0,
-        mag 		= 1,
+        mag 		    = 1,
         pressure        = 2,
-        light        	= 3,
         numSensorDrivers,
         numFds,
     };
@@ -147,14 +145,12 @@ private:
         switch (handle) {
             case ID_A:
                 return accel;
-            case ID_M:
-            case ID_O:
-                return mag;
-            case ID_L:
-                return light;
-            case ID_P:
-            case ID_T:
-                return pressure;
+          	case ID_M:
+          	case ID_O:
+            	return mag;
+			case ID_P:
+			case ID_T:
+				 return pressure;
         }
         return -EINVAL;
     }
@@ -168,22 +164,18 @@ sensors_poll_context_t::sensors_poll_context_t()
     mPollFds[accel].fd = mSensors[accel]->getFd();
     mPollFds[accel].events = POLLIN;
     mPollFds[accel].revents = 0;
+   
+	mSensors[mag] = new MagSensor();
+	mPollFds[mag].fd = mSensors[mag]->getFd();
+	mPollFds[mag].events = POLLIN;
+	mPollFds[mag].revents = 0;
 
-    mSensors[mag] = new MagSensor();
-    mPollFds[mag].fd = mSensors[mag]->getFd();
-    mPollFds[mag].events = POLLIN;
-    mPollFds[mag].revents = 0;
-
-    mSensors[pressure] = new PressSensor();
-    mPollFds[pressure].fd = mSensors[pressure]->getFd();
-    mPollFds[pressure].events = POLLIN;
-    mPollFds[pressure].revents = 0;
-
-    mSensors[light] = new LightSensor();
-    mPollFds[light].fd = mSensors[light]->getFd();
-    mPollFds[light].events = POLLIN;
-    mPollFds[light].revents = 0;
-
+	mSensors[pressure] = new PressSensor();
+	mPollFds[pressure].fd = mSensors[pressure]->getFd();
+	mPollFds[pressure].events = POLLIN;
+	mPollFds[pressure].revents = 0;
+	
+	
     int wakeFds[2];
     int result = pipe(wakeFds);
     ALOGE_IF(result<0, "error creating wake pipe (%s)", strerror(errno));
@@ -206,15 +198,14 @@ sensors_poll_context_t::~sensors_poll_context_t() {
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
     int index = handleToDriver(handle);
-    int err = 0 ;
-
     if (index < 0) return index;
-    if(handle == ID_O || handle ==  ID_M){
-        err = mSensors[accel]->enable(ID_A, enabled);
-        if(err)
-            return err;
-    }
-    err |=  mSensors[index]->enable(handle, enabled);
+    int err = 0 ;
+	if(handle == ID_O || handle ==  ID_M){
+		err =  mSensors[accel]->setEnable(handle, enabled);// if handle == orientaion or magnetic ,please enable ACCELERATE Sensor
+		if(err)
+			return err;
+	}
+	err |=  mSensors[index]->setEnable(handle, enabled);
     if (enabled && !err) {
         const char wakeMessage(WAKE_MESSAGE);
         int result = write(mWritePipeFd, &wakeMessage, 1);
@@ -227,9 +218,9 @@ int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
 
     int index = handleToDriver(handle);
     if (index < 0) return index;
-    if(handle == ID_O || handle ==  ID_M)
-        mSensors[accel]->setDelay(ID_A, ns);
-
+	if(handle == ID_O || handle ==  ID_M){
+		 mSensors[accel]->setDelay(handle, ns);// if handle == orientaion or magnetic ,please enable ACCELERATE Sensor
+	}
     return mSensors[index]->setDelay(handle, ns);
 }
 
@@ -243,7 +234,7 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
         for (int i=0 ; count && i<numSensorDrivers ; i++) {
             SensorBase* const sensor(mSensors[i]);
 
-            if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
+	   if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
                 int nb = sensor->readEvents(data, count);
                 if (nb < count) {
                     // no more data for this sensor
@@ -259,7 +250,10 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
             // we still have some room, so try to see if we can get
             // some events immediately or just wait if we don't have
             // anything to return
-            n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
+            //n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
+			do {                
+			 	n = poll(mPollFds, numFds, nbEvents ? 0 : -1);            
+			} while (n < 0 && errno == EINTR);
             if (n<0) {
                 ALOGE("poll() failed (%s)", strerror(errno));
                 return -errno;

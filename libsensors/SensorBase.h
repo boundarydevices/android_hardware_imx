@@ -1,6 +1,6 @@
 /*
+ * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,16 +32,11 @@ class SensorBase {
 protected:
     const char* dev_name;
     const char* data_name;
-    char   input_name[PATH_MAX];
-    char   sysfs_enable[PATH_MAX];
-    char   sysfs_poll[PATH_MAX];
-    char   sysfs_poll_min[PATH_MAX];
-    char   sysfs_poll_max[PATH_MAX];
-    int    dev_fd;
-    int    data_fd;
-    int    mMinPollDelay;
-    int    mMaxPollDelay;
-    int    openInput(const char* inputName);
+    char        input_name[PATH_MAX];
+    int         dev_fd;
+    int         data_fd;
+
+    int openInput(const char* inputName);
     static int64_t getTimestamp();
 
 
@@ -51,40 +46,17 @@ protected:
 
     int open_device();
     int close_device();
-    int write_sysfs(char * filename,char * buf,int size);
-    int read_sysfs(char * filename,char * buf,int size);
-    int sensorBaseEnable(int32_t handle,int enabled);
-    int sensorBaseSetDelay(int32_t handle, int64_t ns);
-    int sensorBaseGetPollMin();
-    int sensorBaseGetPollMax();
-    int sensorBaseGetSysfsPath(const char* inputName);
-    InputEventCircularReader mInputReader;
-
+    
 public:
-    static int mUser[SENSORS_MAX];
-    static const int    Accelerometer   = 0;
-    static const int	MagneticField   = 1;
-    static const int	Orientation = 2;
-    static const int	Gryo =	3;
-    static const int	Light  = 4;
-    static const int	Pressure = 5;
-    static const int	Temperatury = 6;
-    static const int	Proximity = 7;
-    static const int	numSensors = 8 ;
-    static uint32_t mEnabled;
-    static uint32_t mPendingMask;
-    static sensors_event_t mPendingEvents[numSensors];
-    SensorBase(
-               const char* dev_name,
-               const char* data_name);
-
+    SensorBase(const char* dev_name,const char* data_name);
+	
     virtual ~SensorBase();
-
-    virtual int readEvents(sensors_event_t* data, int count);
-    virtual bool hasPendingEvents() const;
+	virtual bool hasPendingEvents() const;
     virtual int getFd() const;
-    virtual int setDelay(int32_t handle, int64_t ns);
-    virtual int enable(int32_t handle, int enabled) ;
+	virtual int setDelay(int32_t handle, int64_t ns);
+    virtual int setEnable(int32_t handle, int enabled);
+    virtual int getEnable(int32_t handle);
+    virtual int readEvents(sensors_event_t* data, int count);
     virtual void processEvent(int code, int value) = 0;
 };
 
