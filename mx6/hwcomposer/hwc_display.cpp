@@ -189,15 +189,20 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
     pInfo->ydpi = 1000 * (info.yres * 25.4f) / info.height;
     pInfo->vsync_period  = 1000000000 / refreshRate;
     pInfo->blank  = 0;
+    pInfo->format = (info.bits_per_pixel == 32)
+                         ? HAL_PIXEL_FORMAT_RGBA_8888
+                         : HAL_PIXEL_FORMAT_RGB_565;
 
     ALOGV("using\n"
           "xres         = %d px\n"
           "yres         = %d px\n"
           "width        = %d mm (%f dpi)\n"
           "height       = %d mm (%f dpi)\n"
-          "refresh rate = %d Hz\n",
-          dev->xres, dev->yres, info.width, dev->xdpi / 1000.0,
-          info.height, dev->ydpi / 1000.0, refreshRate);
+          "refresh rate = %d Hz\n"
+          "format       = %d\n",
+          info.xres, info.yres, info.width, pInfo->xdpi / 1000.0,
+          info.height, pInfo->ydpi / 1000.0, refreshRate,
+          pInfo->format);
 
     return NO_ERROR;
 }

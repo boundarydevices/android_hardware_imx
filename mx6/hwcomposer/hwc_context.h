@@ -67,6 +67,7 @@ typedef struct {
     int xdpi;
     int ydpi;
     int blank;
+    int format;
 } displayInfo;
 
 struct hwc_context_t {
