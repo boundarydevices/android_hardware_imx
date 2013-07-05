@@ -291,6 +291,10 @@ static int hwc_getDisplayAttributes(struct hwc_composer_device_1 *dev,
                 else
                     values[i] = 0;
                 break;
+            case HWC_DISPLAY_FORMAT:
+                values[i] = ctx->mDispInfo[disp].format;
+                break;
+
             default:
                 ALOGE("unknown display attribute %u", attributes[i]);
                 continue;
