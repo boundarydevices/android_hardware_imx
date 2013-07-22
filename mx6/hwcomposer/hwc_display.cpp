@@ -82,10 +82,10 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
         snprintf(tmp, sizeof(tmp), "%s/fsl_disp_dev_property", fb_path);
         if (!(fp = fopen(tmp, "r"))) {
             ALOGI("open %s failed", tmp);
-            continue;
+            //continue;
             //make default type to ldb.
-            //pInfo->type = HWC_DISPLAY_LDB;
-            //pInfo->connected = true;
+            pInfo->type = HWC_DISPLAY_LDB;
+            pInfo->connected = true;
         }
         else {
             memset(value, 0, sizeof(value));
