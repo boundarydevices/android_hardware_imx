@@ -126,7 +126,7 @@ status_t Ov5640Mipi::initSensorInfo(const CameraInfo& info)
     i = 0;
     mTargetFpsRange[i++] = 10;
     mTargetFpsRange[i++] = 15;
-    mTargetFpsRange[i++] = 25;
+    mTargetFpsRange[i++] = 23;
     mTargetFpsRange[i++] = 30;
 
     setMaxPictureResolutions();
