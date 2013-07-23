@@ -22,7 +22,6 @@
 #==============================================================================
 
 ifneq ($(TARGET_SIMULATOR),true)
-ifeq ($(BOARD_WLAN_DEVICE),ar6003)
 
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
@@ -63,5 +62,4 @@ LOCAL_MODULE_PATH := $(TARGET_OUT)/etc
 LOCAL_SRC_FILES := check_wifi_mac.sh
 include $(BUILD_PREBUILT)
 
-endif
 endif
