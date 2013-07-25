@@ -450,7 +450,12 @@ static void fb_device_init(private_module_t* m, fb_context_t *dev)
 	const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGB_565;
     }
     else{
-	const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGBA_8888;
+        if (m->info.red.offset == 0) {
+	    const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGBA_8888;
+        }
+        else {
+	    const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_BGRA_8888;
+        }
     }
     const_cast<float&>(dev->device.xdpi) = m->xdpi;
     const_cast<float&>(dev->device.ydpi) = m->ydpi;

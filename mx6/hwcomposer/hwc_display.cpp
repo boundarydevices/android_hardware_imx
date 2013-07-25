@@ -190,7 +190,8 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
     pInfo->vsync_period  = 1000000000 / refreshRate;
     pInfo->blank  = 0;
     pInfo->format = (info.bits_per_pixel == 32)
-                         ? HAL_PIXEL_FORMAT_RGBA_8888
+                         ? ((info.red.offset == 0) ? HAL_PIXEL_FORMAT_RGBA_8888 :
+                            HAL_PIXEL_FORMAT_BGRA_8888)
                          : HAL_PIXEL_FORMAT_RGB_565;
 
     ALOGV("using\n"
