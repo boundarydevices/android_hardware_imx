@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* Copyright 2009-2012 Freescale Semiconductor, Inc. */
+/* Copyright 2009-2013 Freescale Semiconductor, Inc. */
 
 #include <limits.h>
 #include <unistd.h>
@@ -100,6 +100,7 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
         lock: gralloc_lock,
         unlock: gralloc_unlock,
         perform: gralloc_perform,
+        lock_ycbcr: 0,
         reserved_proc: {0},
     },
     framebuffer: 0,

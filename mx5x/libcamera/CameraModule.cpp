@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright 2009-2013 Freescale Semiconductor, Inc.
  */
 
 #define LOG_TAG "CameraHAL"
@@ -61,6 +61,7 @@ camera_module_t HAL_MODULE_INFO_SYM = {
     },
     get_number_of_cameras: camera_get_number_of_cameras,
     get_camera_info: camera_get_camera_info,
+    set_callbacks: NULL,
 };
 
 typedef struct fsl_camera_device {

@@ -58,6 +58,7 @@ camera_module_t HAL_MODULE_INFO_SYM = {
     },
     get_number_of_cameras: camera_get_number_of_cameras,
     get_camera_info: camera_get_camera_info,
+    set_callbacks: NULL,
 };
 
 typedef struct fsl_camera_device {
@@ -278,6 +279,7 @@ camera2_device_ops_t fsl_camera_ops = {
     set_notify_callback:                 set_notify_callback,
     get_metadata_vendor_tag_ops:         get_metadata_vendor_tag_ops,
     dump:                                camera_dump,
+    get_instance_metadata:               NULL,
 };
 
 int camera_device_close(hw_device_t *device)

@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright 2009-2013 Freescale Semiconductor, Inc.
  */
 
 #include <string.h>
@@ -312,7 +312,7 @@ CAPTURE_DEVICE_RET V4l2UVCDevice::V4l2DeAlloc()
     }
 
     for (unsigned int i = 0; i < mBufQueNum; i++) {
-        if (mUvcBuffers[i].length && (mUvcBuffers[i].virt_start > 0)) {
+        if (mUvcBuffers[i].length && (mUvcBuffers[i].virt_start != NULL)) {
             munmap(mUvcBuffers[i].virt_start, mUvcBuffers[i].length);
             mUvcBuffers[i].length = 0;
             CAMERA_LOG_RUNTIME("munmap buffers 0x%x\n", (unsigned int)(mUvcBuffers[i].virt_start));
