@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright 2009-2013 Freescale Semiconductor, Inc.
  */
 #include <string.h>
 #include <unistd.h>
@@ -690,7 +690,7 @@ namespace android{
         }
 
         for (unsigned int i = 0; i < mBufQueNum; i++) {
-            if (mCaptureBuffers[i].length && (mCaptureBuffers[i].virt_start > 0)) {
+            if (mCaptureBuffers[i].length && (mCaptureBuffers[i].virt_start != NULL)) {
                 munmap(mCaptureBuffers[i].virt_start, mCaptureBuffers[i].length);
                 mCaptureBuffers[i].length = 0;
                 CAMERA_LOG_RUNTIME("munmap buffers 0x%x\n", (unsigned int)(mCaptureBuffers[i].virt_start));
