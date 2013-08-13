@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,12 @@ CameraBridge::CameraBridge()
     memset(mSupprotedThumbnailSizes, 0, sizeof(mSupprotedThumbnailSizes));
     mMetaDataBufsMap.clear();
     mVpuSupportFmt[0] = v4l2_fourcc('N', 'V', '1', '2');
-    mVpuSupportFmt[1] = v4l2_fourcc('Y', 'U', '1', '2');
+#ifdef EVK_6SL
+	mVpuSupportFmt[1] = v4l2_fourcc('Y', 'U', 'Y', 'V');
+#else
+	mVpuSupportFmt[1] = v4l2_fourcc('Y', 'U', '1', '2');
+#endif
+
 }
 
 CameraBridge::~CameraBridge()

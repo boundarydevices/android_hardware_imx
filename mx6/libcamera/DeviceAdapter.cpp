@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,12 +130,15 @@ status_t DeviceAdapter::setDeviceConfig(int         width,
     }
 
     status_t ret = NO_ERROR;
+	
+#ifndef EVK_6SL //VIDIOC_S_INPUT not support in evk_6sl
     int input    = 1;
     ret = ioctl(mCameraHandle, VIDIOC_S_INPUT, &input);
     if (ret < 0) {
         FLOGE("Open: VIDIOC_S_INPUT Failed: %s", strerror(errno));
         return ret;
     }
+#endif
 
     int vformat;
     vformat = convertPixelFormatToV4L2Format(format);
@@ -171,6 +174,7 @@ status_t DeviceAdapter::setDeviceConfig(int         width,
         return ret;
     }
 
+	memset(&mVideoInfo->format, 0, sizeof(mVideoInfo->format));
     mVideoInfo->format.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mVideoInfo->format.fmt.pix.width        = width & 0xFFFFFFF8;
     mVideoInfo->format.fmt.pix.height       = height & 0xFFFFFFF8;
