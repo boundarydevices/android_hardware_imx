@@ -434,7 +434,11 @@ status_t CameraBridge::start()
         return NO_INIT;
     }
 
-    int bufSize = mFrameProvider->getFrameSize();
+#ifdef EVK_6SL //driver provide yuyv, but h264enc need nv12
+    int bufSize = mFrameProvider->getFrameSize() * 3/4;
+#else
+	int bufSize = mFrameProvider->getFrameSize();
+#endif
     int bufCnt  = mFrameProvider->getFrameCount();
     if (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
         if (mPreviewMemory != NULL) {
@@ -820,7 +824,11 @@ void CameraBridge::sendVideoFrame(CameraFrame *frame)
         pMetaBuf->length    = frame->mSize;
     }
     else {
+#ifdef EVK_6SL
+		convertYUYVtoNV12SP((uint8_t *)frame->mVirtAddr, pVideoBuf, frame->mWidth, frame->mHeight);
+#else
         memcpy(pVideoBuf, (void *)frame->mVirtAddr, mMetaDataBufsSize);
+#endif
     }
 
     if (mMetaDataBufsMap.indexOfKey((int)pVideoBuf) >= 0) {
@@ -953,3 +961,48 @@ void CameraBridge::convertNV12toYUV420SP(uint8_t *inputBuffer,
     }
 }
 
+
+void CameraBridge::convertYUYVtoNV12SP(uint8_t *inputBuffer,
+                                         uint8_t *outputBuffer,
+                                         int      width,
+                                         int      height)
+{
+#define u32 unsigned int
+#define u8 unsigned char
+
+    u32 h,w;
+    u32 nHeight = height;
+    u32 nWidthDiv4  = width/4;
+
+    u8* pYSrcOffset = inputBuffer;
+    u8* pUSrcOffset = inputBuffer + 1;
+    u8* pVSrcOffset = inputBuffer + 3;
+
+    u32* pYDstOffset = (u32*)outputBuffer;
+    u32* pUVDstOffset = (u32*)(((u8*)(outputBuffer)) + width*height);
+
+
+    for(h=0; h<nHeight; h++) {
+       if(!( h & 0x1 )) {
+           for(w=0; w<nWidthDiv4; w++) {
+               *pYDstOffset = (((u32)(*(pYSrcOffset+0)))<<0)  +  (((u32)(*(pYSrcOffset+2)))<<8) + (((u32)(*(pYSrcOffset+4)))<<16) + (((u32)(*(pYSrcOffset+6)))<<24) ;
+               pYSrcOffset += 8;
+               pYDstOffset += 1;
+               //*pUVDstOffset = (((u32)(*(pUSrcOffset+0)))<<0)  + (((u32)(*(pVSrcOffset+0)))<<8) + (((u32)(*(pUSrcOffset+4)))<<16) + (((u32)(*(pVSrcOffset+4)))<<24) ;
+			   //maybe th encoder use VUVU planner
+               *pUVDstOffset = (((u32)(*(pVSrcOffset+0)))<<0)  + (((u32)(*(pUSrcOffset+0)))<<8) + (((u32)(*(pVSrcOffset+4)))<<16) + (((u32)(*(pUSrcOffset+4)))<<24) ;
+               pUSrcOffset += 8;
+               pVSrcOffset += 8;
+               pUVDstOffset += 1;
+           }
+       } else {
+           pUSrcOffset += nWidthDiv4*8;
+           pVSrcOffset += nWidthDiv4*8;
+           for(w=0; w<nWidthDiv4; w++) {
+               *pYDstOffset = (((u32)(*(pYSrcOffset+0)))<<0)  +  (((u32)(*(pYSrcOffset+2)))<<8) + (((u32)(*(pYSrcOffset+4)))<<16) + (((u32)(*(pYSrcOffset+6)))<<24) ;
+               pYSrcOffset += 8;
+               pYDstOffset += 1;
+           }
+       }
+    }
+}
