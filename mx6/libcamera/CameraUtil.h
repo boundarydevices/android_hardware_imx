@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ using namespace android;
 #define FSL_ASSERT(cond, ...) ALOG_ASSERT((cond), ## __VA_ARGS__)
 
 #define UVC_SENSOR_NAME "uvc"
-#define OV5640_SENSOR_NAME "ov5640"
+#define OV5640_SENSOR_NAME "csi"
 #define OV5642_SENSOR_NAME "ov5642"
 #define ADV7180_TVIN_NAME "adv7180_decoder"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"

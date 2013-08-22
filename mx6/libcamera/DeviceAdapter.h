@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ public:
 protected:
     void             onBufferCreat(CameraFrame *pBuffer,
                                    int          num);
-    void             onBufferDestroy();
+    virtual void             onBufferDestroy();
     virtual status_t registerCameraFrames(CameraFrame *pBuffer,
                                           int        & num);
     virtual void     handleFrameRelease(CameraFrame *buffer);
@@ -105,6 +105,7 @@ private:
         DeviceAdapter *mAdapter;
     };
 
+protected:
     class DeviceThread : public Thread {
     public:
         DeviceThread(DeviceAdapter *hw) :
@@ -131,13 +132,15 @@ private:
     };
 
 private:
-    status_t     fillCameraFrame(CameraFrame *frame);
-    CameraFrame* acquireCameraFrame();
+    virtual status_t     fillCameraFrame(CameraFrame *frame);
+    virtual CameraFrame* acquireCameraFrame();
 
-    status_t     startDeviceLocked();
-    status_t     stopDeviceLocked();
+    virtual status_t     startDeviceLocked();
     int          deviceThread();
     int          autoFocusThread();
+
+protected:
+	virtual status_t     stopDeviceLocked();
 
 protected:
     CameraBufferProvider *mBufferProvider;

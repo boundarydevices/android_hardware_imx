@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Freescale - http://www.Freescale.com/
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -648,12 +648,8 @@ static int GetDevPath(const char  *pCameraName,
                 fd = 0;
                 continue;
             } else if (v4l2_cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) {
-                if (ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vid_chip) < 0) {
-                    close(fd);
-                    fd = 0;
-                    continue;
-                }
-                if (strstr(vid_chip.match.name, pCameraName)) {
+	            ALOGI("v4l2_cap.drive is %s", v4l2_cap.driver);
+                if (strstr((const char *)v4l2_cap.driver, pCameraName)) {
                     // fsl csi/mipi camera name and path match
                     if (pathLen > strlen(dev_node)) {
                         strcpy(pCameraDevPath, dev_node);
