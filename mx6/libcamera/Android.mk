@@ -35,7 +35,8 @@ LOCAL_SRC_FILES:=    \
     TVINDevice.cpp \
     PhysMemAdapter.cpp \
     YuvToJpegEncoder.cpp \
-    NV12_resize.c
+    NV12_resize.c \
+    UvcDevice.cpp
 
 LOCAL_CPPFLAGS +=
 
