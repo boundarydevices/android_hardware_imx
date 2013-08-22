@@ -54,7 +54,11 @@ DeviceAdapter::DeviceAdapter()
 DeviceAdapter::~DeviceAdapter()
 {
     // Close the camera handle and free the video info structure
-    close(mCameraHandle);
+    if(mCameraHandle)
+    {
+		close(mCameraHandle);
+		mCameraHandle = -1;
+    }
 
     if (mVideoInfo) {
         delete mVideoInfo;
@@ -514,12 +518,15 @@ int DeviceAdapter::deviceThread()
                 return NO_ERROR;
             }
         }
-        FLOGE("device thread exit with frame = null, %d buffers still in v4l",
-              mQueued - mDequeued);
+        FLOGW("device, frame = null, %d buffers still in v4l, q %d, dq %d",
+              mQueued - mDequeued, mQueued, mDequeued);
+
+		//it's normal that mQueued > mDequeued, no need to sent err.
+		/*
         if (mErrorListener != NULL) {
             mErrorListener->handleError(ERROR_FATAL);
-        }
-        return BAD_VALUE;
+        }*/
+        return NO_ERROR;
     }
 
     if (mImageCapture) {

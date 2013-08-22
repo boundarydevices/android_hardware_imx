@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ int PhysMemAdapter::allocatePictureBuffer(int width,
     int sharedFd;
     int phyAddr;
     struct ion_handle *ionHandle;
-    size = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+    size = (size + PAGE_SIZE - 1) & (~(PAGE_SIZE - 1));
 
     FLOGI("allocateBufferFromIon buffer num:%d", numBufs);
     for (int i = 0; i < numBufs; i++) {
