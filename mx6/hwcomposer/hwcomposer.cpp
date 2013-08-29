@@ -324,7 +324,11 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 
         dev->device.prepare = hwc_prepare;
         dev->device.set = hwc_set;
+#ifdef  USE_HWCOMPOSER_VERSION_1_2
+        dev->device.common.version = HWC_DEVICE_API_VERSION_1_2;
+#else
         dev->device.common.version = HWC_DEVICE_API_VERSION_1_1;
+#endif
         dev->device.registerProcs = hwc_registerProcs;
         dev->device.eventControl = hwc_eventControl;
         dev->device.query = hwc_query;
