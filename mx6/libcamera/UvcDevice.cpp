@@ -403,55 +403,13 @@ status_t UvcDevice::registerCameraFrames(CameraFrame *pBuffer,
 
 status_t UvcDevice::initialize(const CameraInfo& info)
 {
-	int ret = NO_ERROR;
-	
-    mVideoInfo = new VideoInfo();
-    if (mVideoInfo == NULL) {
-        FLOGE("new VideoInfo failed");
-        return NO_MEMORY;
-    }
-	
+	status_t ret = NO_ERROR;
 
-	
-     if (info.name == NULL) {
-        FLOGE("invalid camera sensor name in initialize");
-        return BAD_VALUE;
-    }
-    if (info.devPath == NULL) {
-        FLOGE("invalid camera devpath in initialize");
-        return BAD_VALUE;
-    }
-	
-    mCameraHandle = open(info.devPath, O_RDWR);
-    if (mCameraHandle < 0) {
-        FLOGE("can not open camera devpath:%s", info.devPath);
-        return BAD_VALUE;
-    }
-
-	
-    ret = ioctl(mCameraHandle, VIDIOC_QUERYCAP, &mVideoInfo->cap);
-    if (ret < 0) {
-        close(mCameraHandle);
-        delete mVideoInfo;
-        FLOGE("query v4l2 capability failed");
-        return BAD_VALUE;
-    }
-    if ((mVideoInfo->cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) == 0)
-    {
-        close(mCameraHandle);
-        delete mVideoInfo;
-        FLOGE("v4l2 capability does not support capture");
-        return BAD_VALUE;
-    }
-
-	
-    // Initialize flags
-    mPreviewing            = false;
-    mVideoInfo->isStreamOn = false;
-    mImageCapture          = false;
-	pDevPath = info.devPath;		
+	ret = DeviceAdapter::initialize(info);
+	if(ret == NO_ERROR)
+		pDevPath = info.devPath;
 		
-    return NO_ERROR;
+    return ret;
 }
 
 
