@@ -622,7 +622,7 @@ fail:
     return rv;
 }
 
-static int GetDevPath(const char  *pCameraName,
+int GetDevPath(const char  *pCameraName,
                       char        *pCameraDevPath,
                       unsigned int pathLen)
 {
@@ -713,6 +713,8 @@ static void GetCameraPropery(char *pFaceBackCameraName,
 int camera_get_number_of_cameras()
 {
     int back_orient = 0,  front_orient = 0;
+	int ret = 0;
+	int numCamera = 0;
 
     if (gCameraNum == 0) {
         char name_back[CAMERA_SENSOR_LENGTH];
@@ -728,7 +730,8 @@ int camera_get_number_of_cameras()
             sCameraInfo[gCameraNum].facing      = CAMERA_FACING_BACK;
             sCameraInfo[gCameraNum].orientation = back_orient;
             memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
-            GetDevPath(sCameraInfo[gCameraNum].name,
+
+			ret = GetDevPath(sCameraInfo[gCameraNum].name,
                        sCameraInfo[gCameraNum].devPath,
                        CAMAERA_FILENAME_LENGTH);
             ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
@@ -737,8 +740,21 @@ int camera_get_number_of_cameras()
                     sCameraInfo[gCameraNum].facing,
                     sCameraInfo[gCameraNum].orientation,
                     sCameraInfo[gCameraNum].devPath);
-            gCameraNum++;
+
+			if(ret == 0)
+				gCameraNum++;
+
+			if (gCameraNum == 0) {
+                if (strstr(name_back, UVC_NAME)) {
+                    strncpy(sCameraInfo[gCameraNum].name, UVC_NAME,
+                            CAMERA_SENSOR_LENGTH);
+                    gCameraNum++;
+                }
+            }
+
         }
+
+		numCamera = gCameraNum;
         if (name_front[0] != DEFAULT_ERROR_NAME) {
             strncpy(sCameraInfo[gCameraNum].name,
                     name_front,
@@ -746,7 +762,7 @@ int camera_get_number_of_cameras()
             sCameraInfo[gCameraNum].facing      = CAMERA_FACING_FRONT;
             sCameraInfo[gCameraNum].orientation = front_orient;
             memset(sCameraInfo[gCameraNum].devPath, 0, CAMAERA_FILENAME_LENGTH);
-            GetDevPath(sCameraInfo[gCameraNum].name,
+            ret = GetDevPath(sCameraInfo[gCameraNum].name,
                        sCameraInfo[gCameraNum].devPath,
                        CAMAERA_FILENAME_LENGTH);
             ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
@@ -755,9 +771,20 @@ int camera_get_number_of_cameras()
                     sCameraInfo[gCameraNum].facing,
                     sCameraInfo[gCameraNum].orientation,
                     sCameraInfo[gCameraNum].devPath);
-            gCameraNum++;
+
+			if(ret == 0)
+				gCameraNum++;
+
+			if (gCameraNum == numCamera) {
+                if (strstr(name_front, UVC_NAME)) {
+                    strncpy(sCameraInfo[gCameraNum].name, UVC_NAME,
+                            CAMERA_SENSOR_LENGTH);
+                    gCameraNum++;
+                }
+            }
         }
     }
+
     return gCameraNum;
 }
 
