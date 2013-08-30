@@ -98,6 +98,10 @@ PixelFormat convertV4L2FormatToPixelFormat(unsigned int format);
 int         convertStringToPixelFormat(const char *pFormat);
 int         convertStringToV4L2Format(const char *pFormat);
 
+int GetDevPath(const char  *pCameraName,
+               char        *pCameraDevPath,
+               unsigned int pathLen);
+
 struct VideoMetadataBuffer
 {
     size_t phyOffset;

@@ -79,9 +79,21 @@ status_t DeviceAdapter::initialize(const CameraInfo& info)
 
     mCameraHandle = open(info.devPath, O_RDWR);
     if (mCameraHandle < 0) {
-        FLOGE("can not open camera devpath:%s", info.devPath);
-        return BAD_VALUE;
+		memset((void*)info.devPath, 0, sizeof(info.devPath));
+		GetDevPath(info.name, (char*)info.devPath, CAMAERA_FILENAME_LENGTH);
+		if (info.devPath[0] != '\0') {
+			mCameraHandle = open(info.devPath, O_RDWR);
+			if (mCameraHandle < 0) {
+				FLOGE("can not open camera devpath:%s", info.devPath);
+				return BAD_VALUE;
+			}
+		}
+		else {
+			FLOGE("can not open camera devpath:%s", info.devPath);
+			return BAD_VALUE;
+		}
     }
+
     mVideoInfo = new VideoInfo();
     if (mVideoInfo == NULL) {
         close(mCameraHandle);
