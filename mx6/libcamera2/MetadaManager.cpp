@@ -233,7 +233,8 @@ status_t MetadaManager::createDefaultRequest(
     ADD_OR_SIZE(ANDROID_SCALER_CROP_REGION, cropRegion, 3);
 
     /** android.jpeg */
-    static const int32_t jpegQuality = 100;
+    //4.3 framework change quality type from i32 to u8
+    static const uint8_t jpegQuality = 100;
     ADD_OR_SIZE(ANDROID_JPEG_QUALITY, &jpegQuality, 1);
 
     static const int32_t thumbnailSize[2] = {
@@ -241,7 +242,8 @@ status_t MetadaManager::createDefaultRequest(
     };
     ADD_OR_SIZE(ANDROID_JPEG_THUMBNAIL_SIZE, thumbnailSize, 2);
 
-    static const int32_t thumbnailQuality = 100;
+    //4.3 framework change quality type from i32 to u8
+    static const uint8_t thumbnailQuality = 100;
     ADD_OR_SIZE(ANDROID_JPEG_THUMBNAIL_QUALITY, &thumbnailQuality, 1);
 
     static const double gpsCoordinates[3] = {
@@ -479,6 +481,7 @@ status_t MetadaManager::getJpegRotation(int32_t &jpegRotation)
 
 status_t MetadaManager::getJpegQuality(int32_t &quality)
 {
+    uint8_t u8Quality = 0;
     camera_metadata_entry_t streams;
     int res = find_camera_metadata_entry(mCurrentRequest,
                 ANDROID_JPEG_QUALITY, &streams);
@@ -487,12 +490,16 @@ status_t MetadaManager::getJpegQuality(int32_t &quality)
         return BAD_VALUE;
     }
 
-    quality = streams.data.i32[0];
+    //4.3 framework change quality type from i32 to u8
+    u8Quality = streams.data.u8[0];
+    quality = u8Quality;
+
     return NO_ERROR;
 }
 
 status_t MetadaManager::getJpegThumbQuality(int32_t &thumb)
 {
+    uint8_t u8Quality = 0;
     camera_metadata_entry_t streams;
     int res = find_camera_metadata_entry(mCurrentRequest,
                 ANDROID_JPEG_THUMBNAIL_QUALITY, &streams);
@@ -501,7 +508,10 @@ status_t MetadaManager::getJpegThumbQuality(int32_t &thumb)
         return BAD_VALUE;
     }
 
-    thumb = streams.data.i32[0];
+    //4.3 framework change quality type from i32 to u8
+    u8Quality = streams.data.u8[0];
+    thumb = u8Quality;
+
     return NO_ERROR;
 }
 
