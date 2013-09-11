@@ -95,8 +95,14 @@ status_t Ov5640Mipi::initSensorInfo(const CameraInfo& info)
                     vid_frmval.discrete.numerator   = 1;
                 }
 
-                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
-                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+			//If w/h ratio is not same with senserW/sensorH, framework assume that
+			//first crop little width or little height, then scale.
+			//But 1920x1080, 176x144 not work in this mode.
+			if( !((vid_frmsize.discrete.width == 1920 && vid_frmsize.discrete.height == 1080) ||
+			      (vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144))	){
+	                    mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
+	                    mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+			}
 
                 if (vid_frmval.discrete.denominator /
                     vid_frmval.discrete.numerator > 15) {
@@ -131,9 +137,13 @@ status_t Ov5640Mipi::initSensorInfo(const CameraInfo& info)
 
     setMaxPictureResolutions();
     FLOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
-    mFocalLength = 3.42f;
-    mPhysicalWidth = 3.673f;
-    mPhysicalHeight = 2.738f;
+
+    mFocalLength = 3.37f;
+    mPhysicalWidth = 3.6288f;	//2592 x 1.4u
+    mPhysicalHeight = 2.7216f;  //1944 x 1.4u
+
+    FLOGI("ov5640Mipi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
+	mFocalLength, mPhysicalWidth, mPhysicalHeight);
 
     return NO_ERROR;
 }
