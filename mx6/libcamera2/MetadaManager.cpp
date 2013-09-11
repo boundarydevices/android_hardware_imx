@@ -897,9 +897,17 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
     ADD_OR_SIZE(ANDROID_QUIRKS_USE_ZSL_FORMAT,
             &quirkUseZslFormat, 1);
 
+	//ANDROID_QUIRKS_METERING_CROP_REGION will influence face dectect and FOV.
+	//Face dectect is not supported.
+	//If quirk is set, FOV will calculated by PreviewAspect, VideoAspect,
+	//arrayAspect(sensorAspect), stillAspect(pictureAspect) in the framework.
+	//If quirk not set, FOV will calculated by arrayAspect, stillAspect. It's just the camera work mode.
+	//So we not set ANDROID_QUIRKS_METERING_CROP_REGION to 1.
+#if 0
     static const uint8_t quirkMeteringCropRegion = 1;
     ADD_OR_SIZE(ANDROID_QUIRKS_METERING_CROP_REGION,
             &quirkMeteringCropRegion, 1);
+#endif
 
 
 #undef ADD_OR_SIZE

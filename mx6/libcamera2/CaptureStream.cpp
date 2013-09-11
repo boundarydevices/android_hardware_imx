@@ -289,7 +289,7 @@ status_t CaptureStream::makeJpegImage(StreamBuffer *dstBuf, StreamBuffer *srcBuf
                            mActualFormat);
     }
 
-    mJpegBuilder->prepareImage(dstBuf);
+    mJpegBuilder->prepareImage(srcBuf);
     ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg);
     if (ret != NO_ERROR) {
         FLOGE("%s encodeImage failed", __FUNCTION__);
