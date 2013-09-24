@@ -20,7 +20,7 @@
 #include "Ov5642Csi.h"
 #include "Ov5640Csi.h"
 #include "TVINDevice.h"
-
+#include <stdlib.h>
 sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
 {
     sp<DeviceAdapter> devAdapter;
@@ -53,7 +53,7 @@ sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
 }
 
 DeviceAdapter::DeviceAdapter()
-    : mCameraHandle(-1), mQueued(0)
+    : mCameraHandle(-1), mQueued(0), mCpuNum(0)
 {}
 
 DeviceAdapter::~DeviceAdapter()
@@ -129,6 +129,38 @@ void DeviceAdapter::setPicturePixelFormat()
                             mAvailableFormats, MAX_SENSOR_FORMAT);
 }
 
+static int GetCpuNum()
+{
+    int fd;
+    int n;
+    int cpuNum = 0;
+    char data[1024];
+    char *subStr = NULL;
+    
+    fd = open("/proc/cpuinfo", O_RDONLY);    
+    if(fd < 0) {
+        return 0;
+    }
+
+    n = read(fd, data, 1023);
+    close(fd);
+
+    if(n < 0 || n > 1023) {
+        return 0;
+    }
+
+    data[n] = 0;
+
+    subStr = data;
+    while((subStr = strstr(subStr, "processor"))) {
+        subStr++;
+        cpuNum++;
+        if(cpuNum > 100) //avoid dead cycle
+            return 0;
+    }
+
+    return cpuNum;    
+}
 status_t DeviceAdapter::initialize(const CameraInfo& info)
 {
     if (info.name == NULL) {
@@ -189,6 +221,9 @@ status_t DeviceAdapter::initialize(const CameraInfo& info)
     mVideoInfo->isStreamOn = false;
     mImageCapture          = false;
 
+    mCpuNum = GetCpuNum();
+    ALOGE("cpu num %d", mCpuNum);
+        
     return NO_ERROR;
 }
 
