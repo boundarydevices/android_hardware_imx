@@ -350,6 +350,14 @@ int StreamAdapter::processFrame(CameraFrame *frame)
         d_buf.buf_vaddr = buffer.mVirtAddr;
         g2d_copy(g2dHandle, &d_buf, &s_buf, size);
         g2d_finish(g2dHandle);
+
+        //when 1080p recording, although g2d_copy is fast, but vpu encode is slower,
+        //so slow down g2d_copy to free bus, then vpu encode run faster,
+        //It's a balance.
+        if( (mDeviceAdapter.get() != NULL) && (mDeviceAdapter->mCpuNum == 2) &&
+            (mWidth == 1920) && (mHeight == 1080) ) {
+            usleep(33000);
+        }
     }
     else {
         memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, size);

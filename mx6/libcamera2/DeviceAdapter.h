@@ -161,6 +161,9 @@ protected:
     PixelFormat mPicturePixelFormat;
     PixelFormat mPreviewPixelFormat;
     sp<MetadaManager> mMetadaManager;
+
+public:
+	int mCpuNum;
 };
 
 #endif // ifndef _DEVICE_ADAPTER_H_
