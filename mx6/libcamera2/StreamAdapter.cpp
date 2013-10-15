@@ -241,7 +241,14 @@ void StreamAdapter::handleCameraFrame(CameraFrame *frame)
 
 void StreamAdapter::applyRequest()
 {
-    sem_wait(&mRespondSem);
+    struct timespec ts;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    long msecs = 500000000 + ts.tv_nsec;//500ms
+    long secs = msecs / 1000000000;//get seconds.
+    ts.tv_sec += secs;
+    ts.tv_nsec = msecs % 1000000000;//get milliseconds.
+    sem_timedwait(&mRespondSem, &ts);
 }
 
 void StreamAdapter::convertNV12toYV12(StreamBuffer* dst, StreamBuffer* src)
