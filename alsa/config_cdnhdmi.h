@@ -24,7 +24,12 @@
 static struct audio_card  cdnhdmi_card = {
     .name = "imx-audio-hdmi",
     .driver_name = "imx-audio-hdmi",
-    .supported_out_devices  = AUDIO_DEVICE_OUT_AUX_DIGITAL,
+    .supported_out_devices  = (AUDIO_DEVICE_OUT_AUX_DIGITAL |
+            AUDIO_DEVICE_OUT_EARPIECE |
+            AUDIO_DEVICE_OUT_SPEAKER |
+            AUDIO_DEVICE_OUT_WIRED_HEADSET |
+            AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
+            AUDIO_DEVICE_OUT_DEFAULT ),
     .supported_in_devices   = 0,
     .defaults            = NULL,
     .bt_output           = NULL,
