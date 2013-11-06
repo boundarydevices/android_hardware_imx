@@ -83,7 +83,7 @@ using namespace android;
 #define NUM_CAPTURE_BUFFER      1
 
 #define CAMAERA_FILENAME_LENGTH 256
-#define CAMERA_SENSOR_LENGTH    32
+#define CAMERA_SENSOR_LENGTH    92
 #define CAMERA_FORMAT_LENGTH    32
 #define CAMER_PARAM_BUFFER_SIZE 512
 #define PARAMS_DELIMITER ","
