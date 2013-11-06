@@ -59,6 +59,8 @@ camera_module_t HAL_MODULE_INFO_SYM = {
     get_number_of_cameras: camera_get_number_of_cameras,
     get_camera_info: camera_get_camera_info,
     set_callbacks: NULL,
+    get_vendor_tag_ops: NULL,
+    reserved: {0}
 };
 
 typedef struct fsl_camera_device {
@@ -482,7 +484,7 @@ static void GetCameraPropery(char *pFaceBackCameraName,
                              int  *pFaceBackOrient,
                              int  *pFaceFrontOrient)
 {
-    char orientStr[10];
+    char orientStr[92];
 
     property_get(FACE_BACK_CAMERA_NAME,
                  pFaceBackCameraName,
