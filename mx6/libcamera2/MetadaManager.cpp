@@ -667,12 +667,12 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
     static const int32_t lensShadingMapSize[] = {1, 1};
     ADD_OR_SIZE(ANDROID_LENS_INFO_SHADING_MAP_SIZE, lensShadingMapSize,
             sizeof(lensShadingMapSize)/sizeof(int32_t));
-
+#if 0
     static const float lensShadingMap[3 * 1 * 1 ] =
             { 1.f, 1.f, 1.f };
     ADD_OR_SIZE(ANDROID_LENS_INFO_SHADING_MAP, lensShadingMap,
             sizeof(lensShadingMap)/sizeof(float));
-
+#endif
     int32_t lensFacing = mCameraId ?
             ANDROID_LENS_FACING_FRONT : ANDROID_LENS_FACING_BACK;
     ADD_OR_SIZE(ANDROID_LENS_FACING, &lensFacing, 1);

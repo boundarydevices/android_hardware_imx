@@ -67,7 +67,7 @@ int StreamAdapter::start()
     mTime1 = mTime2 = 0;
     mTotalFrames = mFps = 0;
     mShowFps = false;
-    char prop_value[CAMERA_FORMAT_LENGTH];
+    char prop_value[CAMERA_SENSOR_LENGTH];
     if (property_get("sys.camera.fps", prop_value, "0")) {
         if (strcmp(prop_value, "1") == 0) {
             mShowFps = true;
