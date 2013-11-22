@@ -284,7 +284,7 @@ int RequestManager::tryRestartStreams(int requestType)
     bool streamPicture = false;
     bool videoSnapshot = false;
     for (uint32_t i = 0; i < streams.count; i++) {
-        int streamId = streams.data.u8[i];
+        int streamId = streams.data.i32[i];
         if (streamId == STREAM_ID_RECORD) {
             streamRecord = true;
         }
@@ -308,7 +308,7 @@ int RequestManager::tryRestartStreams(int requestType)
     }
 
     for (uint32_t i = 0; i < streams.count; i++) {
-        int streamId = streams.data.u8[i];
+        int streamId = streams.data.i32[i];
         if (!isStreamValid(requestType, streamId, videoSnapshot)) {
             continue;
         }
@@ -336,7 +336,7 @@ int RequestManager::tryRestartStreams(int requestType)
     }
 
     for (uint32_t i = 0; i < streams.count; i++) {
-        int streamId = streams.data.u8[i];
+        int streamId = streams.data.i32[i];
         if (!isStreamValid(requestType, streamId, videoSnapshot)) {
             continue;
         }
