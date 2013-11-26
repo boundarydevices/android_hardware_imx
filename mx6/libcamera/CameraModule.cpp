@@ -677,7 +677,7 @@ static void GetCameraPropery(char *pFaceBackCameraName,
                              int  *pFaceBackOrient,
                              int  *pFaceFrontOrient)
 {
-    char orientStr[10];
+    char orientStr[92];
 
     property_get(FACE_BACK_CAMERA_NAME,
                  pFaceBackCameraName,
