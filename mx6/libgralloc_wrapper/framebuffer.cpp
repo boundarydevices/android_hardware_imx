@@ -360,7 +360,7 @@ static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
 
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
-    module->framebuffer = new private_handle_t(dup(fd), fbSize,
+    module->framebuffer = new private_handle_t(fd, fbSize,
             private_handle_t::PRIV_FLAGS_USES_DRV);
 
     module->numBuffers = info.yres_virtual / ALIGN_PIXEL_128(info.yres);
@@ -374,6 +374,7 @@ static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
     module->framebuffer->base = intptr_t(vaddr);
     module->framebuffer->phys = intptr_t(finfo.smem_start);
     memset(vaddr, 0, fbSize);
+
     return 0;
 }
 
@@ -392,7 +393,6 @@ static int mapFrameBuffer(struct private_module_t* module)
 
 static int unMapFrameBuffer(fb_context_t* ctx, struct private_module_t* module)
 {
-    int err = 0;
     pthread_mutex_lock(&module->lock);
 
     size_t fbSize = module->framebuffer->size;
@@ -402,41 +402,25 @@ static int unMapFrameBuffer(fb_context_t* ctx, struct private_module_t* module)
     delete (module->framebuffer);
     module->framebuffer = NULL;
 
-    int blank = 1;
-    if(ioctl(fd, FBIOBLANK, blank) < 0) {
-        ALOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
-    }
-
-    if(ctx->mainDisp_fd > 0) {
-        blank = FB_BLANK_UNBLANK;
-        if(ioctl(ctx->mainDisp_fd, FBIOBLANK, blank) < 0) {
-            ALOGE("<%s, %d> ioctl FBIOBLANK failed", __FUNCTION__, __LINE__);
-        }
-    }
     close(fd);
     pthread_mutex_unlock(&module->lock);
 
-    return err;
+    return 0;
 }
 /*****************************************************************************/
 
 static int fb_close(struct hw_device_t *dev)
 {
     fb_context_t* ctx = (fb_context_t*)dev;
-    if(ctx) free(ctx);
-    return 0;
-#if 0
-    fb_context_t* ctx = (fb_context_t*)dev;
-    if (ctx) {
-        if (ctx->priv_m != NULL) {
-            //unMapFrameBuffer(ctx, ctx->priv_m);
-            if(!ctx->isMainDisp)
-                free(ctx->priv_m);
+    if(ctx) {
+        if (!ctx->isMainDisp) {
+            unMapFrameBuffer(ctx, ctx->priv_m);
         }
+
         free(ctx);
     }
+
     return 0;
-#endif
 }
 
 static void fb_device_init(private_module_t* m, fb_context_t *dev)
@@ -506,11 +490,17 @@ int fb_device_open(hw_module_t const* module, const char* name,
             dev->isMainDisp = 1;
         } else {
             private_module_t* orig_m = (private_module_t*)module;
-            private_module_t* priv_m = (private_module_t*)malloc(sizeof(*priv_m));
-            memset(priv_m, 0, sizeof(*priv_m));
-            memcpy(priv_m, orig_m, sizeof(*priv_m));
+            private_module_t* priv_m = NULL;
+            if (orig_m->external_module == NULL) {
+                priv_m = (private_module_t*)malloc(sizeof(*priv_m));
+                memset(priv_m, 0, sizeof(*priv_m));
+                memcpy(priv_m, orig_m, sizeof(*priv_m));
 
-            orig_m->external_module = priv_m;
+                orig_m->external_module = priv_m;
+            }
+            else {
+                priv_m = orig_m->external_module;
+            }
 
             dev->device.common.module = (hw_module_t*)(priv_m);
             priv_m->framebuffer = NULL;

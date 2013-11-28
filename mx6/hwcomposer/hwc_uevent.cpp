@@ -57,9 +57,7 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
                 ALOGE("unrecognized fb num for hdmi");
             } else {
                 ALOGI("HDMI Plugin detected");
-                if (mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].xres == 0) {
-                    hwc_get_framebuffer_info(&mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL]);
-                }
+                hwc_get_framebuffer_info(&mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL]);
             }
         } else if (!strncmp(s, "EVENT=plugout", strlen("EVENT=plugout"))) {
             if (dispid == HWC_DISPLAY_PRIMARY) {
@@ -76,7 +74,9 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
             break;
     }
 
-    if (fbid >= 0 && mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] == NULL && mCtx->m_gralloc_module != NULL) {
+    if (fbid >= 0 && mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] == NULL &&
+            mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected &&
+            mCtx->m_gralloc_module != NULL) {
         ALOGI("HDMI Gralloc Framebuffer opening. ");
         mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] = reinterpret_cast<framebuffer_device_t*>(fbid);
         char fbname[HWC_STRING_LENGTH];
@@ -89,6 +89,14 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
 
     mCtx->m_callback->hotplug(mCtx->m_callback, HWC_DISPLAY_EXTERNAL,
                               mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected);
+
+    if (mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] != NULL &&
+            !mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected &&
+            mCtx->m_gralloc_module != NULL) {
+        ALOGI("HDMI Gralloc Framebuffer close. ");
+        framebuffer_close(mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
+        mCtx->mFbDev[HWC_DISPLAY_EXTERNAL] = NULL;
+    }
 }
 
 bool UeventThread::threadLoop() {

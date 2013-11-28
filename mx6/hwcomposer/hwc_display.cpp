@@ -158,6 +158,11 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
 
     memset(fb_path, 0, sizeof(fb_path));
     snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_PATH"%d", pInfo->fb_num);
+    if (pInfo->fd > 0) {
+        close(pInfo->fd);
+        pInfo->fd = 0;
+    }
+
     pInfo->fd = open(fb_path, O_RDWR);
     if(pInfo->fd < 0) {
         ALOGE("open %s failed", fb_path);
