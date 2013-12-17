@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2009-2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,6 +74,7 @@ struct private_module_t {
     struct alloc_device_t *priv_dev;
     struct private_module_t *external_module;
     int primary_fd;
+    bool closeDevice;
     enum {
         // flag to indicate we'll post this buffer
         PRIV_USAGE_LOCKED_FOR_POST = 0x80000000
