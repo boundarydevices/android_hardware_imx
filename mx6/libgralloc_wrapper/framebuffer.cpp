@@ -401,6 +401,7 @@ static int unMapFrameBuffer(fb_context_t* ctx, struct private_module_t* module)
     munmap(addr, fbSize);
     delete (module->framebuffer);
     module->framebuffer = NULL;
+    module->closeDevice = true;
 
     close(fd);
     pthread_mutex_unlock(&module->lock);
@@ -500,6 +501,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
             }
             else {
                 priv_m = orig_m->external_module;
+                priv_m->closeDevice = false;
             }
 
             dev->device.common.module = (hw_module_t*)(priv_m);

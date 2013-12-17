@@ -144,6 +144,13 @@ static int gralloc_free(alloc_device_t* dev,
         }
     }
 
+    private_handle_t* hnd = (private_handle_t*)handle;
+    if ((m->closeDevice || ((m->external_module != NULL) &&
+         m->external_module->closeDevice)) &&
+         hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
+        hnd->flags  &= ~private_handle_t::PRIV_FLAGS_FRAMEBUFFER;
+        ALOGI("release framebuffer flags:0x%x", hnd->flags);
+    }
     return m->gpu_device->free(dev, handle);
 }
 
@@ -207,6 +214,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         dev->ext_dev = (alloc_device_t*)ext;
 
         m->priv_dev = (alloc_device_t*)dev;
+        m->closeDevice = false;
     }
 
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
