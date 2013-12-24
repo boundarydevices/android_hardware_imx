@@ -68,14 +68,20 @@ typedef struct {
     int ydpi;
     int blank;
     int format;
+
+    sp<ANativeWindow> mDisplaySurface;
+    hwc_region_t mWormHole;
+    bool mG2dProcs;
+    //struct g2d_buf* mCurrentBuffer;
+    //buffer_handle_t mLastHandle;
+    //hwc_rect_t mSwapRect[3];
 } displayInfo;
 
 struct hwc_context_t {
     hwc_composer_device_1 device;
     /* our private state goes below here */
     displayInfo mDispInfo[HWC_NUM_DISPLAY_TYPES];
-    //hwc_layer_list_t* mDispList[HWC_NUM_DISPLAY_TYPES];
-    //size_t mListCapacity[HWC_NUM_DISPLAY_TYPES];
+    void* g2d_handle;
 
     bool m_vsync_enable;
 

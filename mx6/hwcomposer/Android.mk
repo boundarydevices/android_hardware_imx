@@ -29,16 +29,22 @@ LOCAL_SHARED_LIBRARIES :=			\
 	libui					\
 	libhardware				\
 	libhardware_legacy			\
-	libbinder
+	libbinder \
+    libg2d \
+    libsync
 
 LOCAL_SRC_FILES :=				\
 	hwcomposer.cpp				\
 	hwc_vsync.cpp				\
 	hwc_display.cpp				\
-	hwc_uevent.cpp
+	hwc_uevent.cpp \
+    hwc_composite.cpp
 
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
-LOCAL_C_INCLUDES += hardware/imx/mx6/libgralloc_wrapper
+LOCAL_C_INCLUDES += hardware/imx/mx6/libgralloc_wrapper \
+                    device/fsl-proprietary/include \
+                    system/core/include/
+
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_CFLAGS += -DENABLE_VSYNC
 LOCAL_MODULE_TAGS := optional
