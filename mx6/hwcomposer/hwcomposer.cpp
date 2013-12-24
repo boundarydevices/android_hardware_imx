@@ -133,6 +133,14 @@ static bool checkG2dProcs(struct hwc_context_t* ctx,
         return false;
     }
 
+    hwc_layer_1_t* targetLayer = &list->hwLayers[list->numHwLayers-1];
+    struct private_handle_t *targetHandle;
+    targetHandle = (struct private_handle_t *)targetLayer->handle;
+    if (targetHandle == NULL) {
+        ALOGI("prepare: targetHandle is null");
+        return false;
+    }
+
     hwc_layer_1_t* layer = NULL;
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
@@ -161,14 +169,6 @@ static int hwc_prepare_physical(struct hwc_context_t* ctx, int disp,
     if (ctx == NULL || ctx->g2d_handle == NULL || list == NULL) {
         ctx->mDispInfo[disp].mG2dProcs = false;
         ALOGV("%s: disp:%d invalid parameter", __FUNCTION__, disp);
-        return 0;
-    }
-
-    hwc_layer_1_t* targetLayer = &list->hwLayers[list->numHwLayers-1];
-    struct private_handle_t *targetHandle;
-    targetHandle = (struct private_handle_t *)targetLayer->handle;
-    if (targetHandle == NULL) {
-        ALOGI("prepare: targetHandle is null");
         return 0;
     }
 
@@ -233,10 +233,6 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
     hwc_layer_1_t* targetLayer = &list->hwLayers[list->numHwLayers-1];
     struct private_handle_t *targetHandle;
     targetHandle = (struct private_handle_t *)targetLayer->handle;
-    if (targetHandle == NULL) {
-        ALOGI("hwc_set: targetHandle is null");
-        return 0;
-    }
 
     if (!ctx->mDispInfo[disp].mG2dProcs) {
         if (targetHandle != NULL && ctx->mDispInfo[disp].connected) {
@@ -274,7 +270,7 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
         int fenceFd = layer->acquireFenceFd;
         if (fenceFd > 0) {
             ALOGI("fenceFd:%d", fenceFd);
-            //sync_wait(fenceFd, -1);
+            sync_wait(fenceFd, -1);
             close(fenceFd);
             layer->acquireFenceFd = -1;
         }
@@ -336,13 +332,13 @@ static int hwc_set_virtual(struct hwc_context_t* ctx, int disp,
         close(fenceFd);
         list->outbufAcquireFenceFd = -1;
     }
-    list->retireFenceFd = -1;
+
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
         int fenceFd = layer->acquireFenceFd;
         if (fenceFd > 0) {
             ALOGI("fenceFd:%d", fenceFd);
-            //sync_wait(fenceFd, -1);
+            sync_wait(fenceFd, -1);
             close(fenceFd);
             layer->acquireFenceFd = -1;
         }
