@@ -131,6 +131,7 @@ struct imx_stream_out {
     int write_flags[PCM_TOTAL];
     int device;
     size_t buffer_frames;
+    uint64_t written;
     audio_channel_mask_t channel_mask;
     audio_channel_mask_t sup_channel_masks[3];
     int sup_rates[MAX_SUP_RATE_NUM];
