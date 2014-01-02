@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2014 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,10 +32,12 @@ class SensorBase {
 protected:
     const char* dev_name;
     const char* data_name;
+	const char* fifo_name;
     char        input_name[PATH_MAX];
     int         dev_fd;
     int         data_fd;
-
+	int 		fifo_fd;
+	bool 		mBatchEnabled;
     int openInput(const char* inputName);
     static int64_t getTimestamp();
 
@@ -46,10 +48,12 @@ protected:
 
     int open_device();
     int close_device();
+	int open_fifo_device();
+    int close_fifo_device();
     
 public:
     SensorBase(const char* dev_name,const char* data_name);
-	
+	SensorBase(const char* dev_name,const char* data_name,const char* fifo_name);
     virtual ~SensorBase();
 	virtual bool hasPendingEvents() const;
     virtual int getFd() const;
@@ -58,6 +62,8 @@ public:
     virtual int getEnable(int32_t handle);
     virtual int readEvents(sensors_event_t* data, int count);
     virtual void processEvent(int code, int value) = 0;
+	virtual int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
+	virtual int flush(int handle);
 };
 
 /*****************************************************************************/
