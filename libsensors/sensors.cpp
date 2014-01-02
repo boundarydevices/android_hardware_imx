@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2014 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +36,7 @@
 #include "AccelSensor.h"
 #include "MagSensor.h"
 #include "PressSensor.h"
+#include "LightSensor.h"
 
 
 /*****************************************************************************/
@@ -53,14 +54,14 @@
 #define SENSORS_TEMPERATURE		 (1<<ID_T)
 #define SENSORS_PROXIMITY        (1<<ID_PX)
 
-#define SENSORS_ACCELERATION_HANDLE     0
-#define SENSORS_MAGNETIC_FIELD_HANDLE   1
-#define SENSORS_ORIENTATION_HANDLE      2
-#define SENSORS_GYROSCOPE_HANDLE        3
-#define SENSORS_LIGHT_HANDLE            4
-#define SENSORS_PRESSURE_HANDLE         5
-#define SENSORS_TEMPERATURE_HANDLE      6
-#define SENSORS_PROXIMITY_HANDLE        7
+#define SENSORS_ACCELERATION_HANDLE     ID_A
+#define SENSORS_MAGNETIC_FIELD_HANDLE   ID_M
+#define SENSORS_ORIENTATION_HANDLE      ID_O
+#define SENSORS_GYROSCOPE_HANDLE        ID_GY
+#define SENSORS_LIGHT_HANDLE            ID_L
+#define SENSORS_PRESSURE_HANDLE         ID_P
+#define SENSORS_TEMPERATURE_HANDLE      ID_T
+#define SENSORS_PROXIMITY_HANDLE        ID_PX
 
 /*****************************************************************************/
 
@@ -69,7 +70,7 @@ static const struct sensor_t sSensorList[] = {
         { "Freescale 3-axis Accelerometer",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ACCELERATION_HANDLE,
-          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 20000, 0, 0, { } },
+          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 20000, 0, 32, { } },
         { "Freescale 3-axis Magnetic field sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_MAGNETIC_FIELD_HANDLE,
@@ -78,10 +79,6 @@ static const struct sensor_t sSensorList[] = {
           "Freescale Semiconductor Inc.",
           1, SENSORS_ORIENTATION_HANDLE,
           SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 100000, 0, 0, { } },
-        { "MPL3115 Temperature sensor",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_TEMPERATURE_HANDLE,
-          SENSOR_TYPE_TEMPERATURE, 85.0f, CONVERT_TEMPERATURE, 0.35f, 0, 0, 0, { } },
         { "ISL29023 Light sensor",
           "Intersil",
           1, SENSORS_LIGHT_HANDLE,
@@ -116,25 +113,32 @@ struct sensors_module_t HAL_MODULE_INFO_SYM = {
         },
         get_sensors_list: sensors__get_sensors_list,
 };
-
+struct BatchParameter{
+		int flags;
+		int64_t period_ns;
+		int64_t timeout;
+};
 struct sensors_poll_context_t {
-    struct sensors_poll_device_t device; // must be first
+    struct sensors_poll_device_1 device; // must be first
 
         sensors_poll_context_t();
         ~sensors_poll_context_t();
+	int fillPollFd();
     int activate(int handle, int enabled);
     int setDelay(int handle, int64_t ns);
     int pollEvents(sensors_event_t* data, int count);
-
+	int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
+	int flush(int handle);
+	struct BatchParameter mBatchParameter[32];
+	int magRunTimes;
 private:
     enum {
         accel           = 0,
         mag 		    = 1,
-        pressure        = 2,
+        light			= 2,
         numSensorDrivers,
         numFds,
     };
-
     static const size_t wake = numFds - 1;
     static const char WAKE_MESSAGE = 'W';
     struct pollfd mPollFds[numFds];
@@ -148,34 +152,31 @@ private:
           	case ID_M:
           	case ID_O:
             	return mag;
-			case ID_P:
-			case ID_T:
-				 return pressure;
+			case ID_L:
+				return light;
         }
         return -EINVAL;
     }
 };
 
 /*****************************************************************************/
-
+int sensors_poll_context_t::fillPollFd(){
+    int i = 0;
+    for(i = 0 ; i < numSensorDrivers; i++){
+        if(mSensors[i] != NULL)
+            mPollFds[i].fd = mSensors[i]->getFd();
+        mPollFds[i].events = POLLIN;
+        mPollFds[i].revents = 0;
+    }
+    return 0;
+}
 sensors_poll_context_t::sensors_poll_context_t()
 {
     mSensors[accel] = new AccelSensor();
-    mPollFds[accel].fd = mSensors[accel]->getFd();
-    mPollFds[accel].events = POLLIN;
-    mPollFds[accel].revents = 0;
-   
 	mSensors[mag] = new MagSensor();
-	mPollFds[mag].fd = mSensors[mag]->getFd();
-	mPollFds[mag].events = POLLIN;
-	mPollFds[mag].revents = 0;
-
-	mSensors[pressure] = new PressSensor();
-	mPollFds[pressure].fd = mSensors[pressure]->getFd();
-	mPollFds[pressure].events = POLLIN;
-	mPollFds[pressure].revents = 0;
-	
-	
+	mSensors[light] = new LightSensor();
+	fillPollFd();
+	magRunTimes = 0;
     int wakeFds[2];
     int result = pipe(wakeFds);
     ALOGE_IF(result<0, "error creating wake pipe (%s)", strerror(errno));
@@ -200,12 +201,29 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
     int index = handleToDriver(handle);
     if (index < 0) return index;
     int err = 0 ;
-	if(handle == ID_O || handle ==  ID_M){
-		err =  mSensors[accel]->setEnable(handle, enabled);// if handle == orientaion or magnetic ,please enable ACCELERATE Sensor
-		if(err)
-			return err;
+	if(handle == ID_A){
+		if(enabled && magRunTimes > 0)
+			err = mSensors[index]->batch(handle,0,mBatchParameter[handle].period_ns,0); // forece accel to be continuse mode	
+			err |=  mSensors[handle]->setEnable(handle, enabled);
 	}
-	err |=  mSensors[index]->setEnable(handle, enabled);
+	else if(handle == ID_O || handle ==  ID_M){
+		if(enabled){
+			magRunTimes++;
+		}
+		else{
+			magRunTimes--;
+			if(magRunTimes < 0)
+				magRunTimes = 0;
+		}
+		if(magRunTimes > 0)
+			err |= mSensors[handleToDriver(ID_A)]->batch(ID_A,0,mBatchParameter[handle].period_ns,0); // forece accel to be continuse mode
+		else
+			err |= mSensors[handleToDriver(ID_A)]->batch(ID_A,0,mBatchParameter[ID_A].period_ns,mBatchParameter[ID_A].timeout); // forece accel to be continuse mode
+		/*change acc user count*/
+		err =  mSensors[handleToDriver(ID_A)]->setEnable(handle, enabled);
+		err |=  mSensors[index]->setEnable(handle, enabled);
+	}else
+		err =  mSensors[index]->setEnable(handle, enabled);
     if (enabled && !err) {
         const char wakeMessage(WAKE_MESSAGE);
         int result = write(mWritePipeFd, &wakeMessage, 1);
@@ -215,7 +233,6 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
 }
 
 int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
-
     int index = handleToDriver(handle);
     if (index < 0) return index;
 	if(handle == ID_O || handle ==  ID_M){
@@ -228,7 +245,6 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
 {
     int nbEvents = 0;
     int n = 0;
-
     do {
         // see if we have some leftover from the last poll()
         for (int i=0 ; count && i<numSensorDrivers ; i++) {
@@ -251,7 +267,8 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
             // some events immediately or just wait if we don't have
             // anything to return
             //n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
-			do {                
+			do {
+				fillPollFd(); /*reset poll fd , if sensor change between batch mode and continuous mode*/
 			 	n = poll(mPollFds, numFds, nbEvents ? 0 : -1);            
 			} while (n < 0 && errno == EINTR);
             if (n<0) {
@@ -270,6 +287,36 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
     } while (n && count);
 
     return nbEvents;
+}
+int sensors_poll_context_t::batch(int handle, int flags, int64_t period_ns, int64_t timeout){
+    int ret;
+    int index = handleToDriver(handle);
+    if (index < 0) return index;
+    if(flags & SENSORS_BATCH_DRY_RUN){
+        ret = mSensors[index]->batch(handle,flags,period_ns,timeout);
+    }else{
+        if(handle == ID_A && magRunTimes > 0)
+            ret = mSensors[index]->batch(handle,flags,period_ns,0);
+        else
+            ret = mSensors[index]->batch(handle,flags,period_ns,timeout);
+
+        /*just recored the batch parameter for recovery acc batch when mag disable */
+        mBatchParameter[handle].flags = flags;
+        mBatchParameter[handle].period_ns = period_ns;
+        mBatchParameter[handle].timeout = timeout;
+        /*wakeup poll , sometime poll may be blocked
+         * before sensor was change from batch mode to continuous mode
+         */
+        const char wakeMessage(WAKE_MESSAGE);
+        int result = write(mWritePipeFd, &wakeMessage, 1);
+        ALOGE_IF(result<0, "error batch sending wake message (%s)", strerror(errno));
+    }
+    return ret;
+}
+int sensors_poll_context_t::flush(int handle){
+    int index = handleToDriver(handle);
+    if (index < 0) return index;
+    return mSensors[index]->flush(handle);
 }
 
 /*****************************************************************************/
@@ -300,7 +347,16 @@ static int poll__poll(struct sensors_poll_device_t *dev,
     sensors_poll_context_t *ctx = (sensors_poll_context_t *)dev;
     return ctx->pollEvents(data, count);
 }
+static int poll__batch(struct sensors_poll_device_1* dev,
+            int handle, int flags, int64_t period_ns, int64_t timeout){
+	sensors_poll_context_t *ctx = (sensors_poll_context_t *)dev;
+	return ctx->batch(handle,flags,period_ns,timeout);
+}
 
+static int poll__flush(struct sensors_poll_device_1* dev, int handle){
+	sensors_poll_context_t *ctx = (sensors_poll_context_t *)dev;
+	return ctx->flush(handle);
+}
 /*****************************************************************************/
 
 /** Open a new instance of a sensor device using name */
@@ -310,16 +366,17 @@ static int open_sensors(const struct hw_module_t* module, const char* id,
         int status = -EINVAL;
         sensors_poll_context_t *dev = new sensors_poll_context_t();
 
-        memset(&dev->device, 0, sizeof(sensors_poll_device_t));
+        memset(&dev->device, 0, sizeof(sensors_poll_device_1));
 
         dev->device.common.tag = HARDWARE_DEVICE_TAG;
-        dev->device.common.version  = 0;
+        dev->device.common.version  = SENSORS_DEVICE_API_VERSION_1_1;
         dev->device.common.module   = const_cast<hw_module_t*>(module);
         dev->device.common.close    = poll__close;
         dev->device.activate        = poll__activate;
         dev->device.setDelay        = poll__setDelay;
         dev->device.poll            = poll__poll;
-
+		dev->device.batch			= poll__batch;
+		dev->device.flush			= poll__flush;
         *device = &dev->device.common;
         status = 0;
 
