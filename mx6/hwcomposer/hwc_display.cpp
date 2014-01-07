@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -209,6 +209,14 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
           info.xres, info.yres, info.width, pInfo->xdpi / 1000.0,
           info.height, pInfo->ydpi / 1000.0, refreshRate,
           pInfo->format);
+
+    pInfo->mSwapIndex = 0;
+    for (int i=0; i<HWC_MAX_FRAMEBUFFER; i++) {
+        pInfo->mSwapRect[i].left = 0;
+        pInfo->mSwapRect[i].top = 0;
+        pInfo->mSwapRect[i].right = pInfo->xres;
+        pInfo->mSwapRect[i].bottom = pInfo->yres;
+    }
 
     return NO_ERROR;
 }

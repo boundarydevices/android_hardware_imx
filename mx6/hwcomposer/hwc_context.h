@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,12 @@
 #define HWC_FB_PATH "/dev/graphics/fb"
 #define HWC_FB_SYS "/sys/class/graphics/fb"
 
+#ifndef NUM_FRAMEBUFFER_SURFACE_BUFFERS
+#define NUM_FRAMEBUFFER_SURFACE_BUFFERS (2)
+#endif
+
+#define HWC_MAX_FRAMEBUFFER NUM_FRAMEBUFFER_SURFACE_BUFFERS
+
 class VSyncThread;
 class UeventThread;
 
@@ -74,7 +80,8 @@ typedef struct {
     bool mG2dProcs;
     //struct g2d_buf* mCurrentBuffer;
     //buffer_handle_t mLastHandle;
-    //hwc_rect_t mSwapRect[3];
+    int mSwapIndex;
+    hwc_rect_t mSwapRect[HWC_MAX_FRAMEBUFFER];
 } displayInfo;
 
 struct hwc_context_t {
