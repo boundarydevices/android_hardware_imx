@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,11 +54,19 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device);
 
 extern int hwc_composite(struct hwc_context_t* ctx, hwc_layer_1_t* layer,
-                    struct private_handle_t *dstHandle, bool firstLayer);
+                    struct private_handle_t *dstHandle, hwc_rect_t* swap, bool firstLayer);
 extern int hwc_clearWormHole(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
                     hwc_region_t &hole);
 extern int hwc_clearRect(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
                     hwc_rect_t &rect);
+extern int hwc_copyBack(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
+                    struct private_handle_t *srcHandle, int swapIndex, int disp);
+extern int hwc_resize(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
+                    struct private_handle_t *srcHandle);
+extern int hwc_updateSwapRect(struct hwc_context_t* ctx, int disp,
+                 android_native_buffer_t* nbuf);
+extern bool hwc_hasSameContent(struct hwc_context_t* ctx, int src,
+            int dst, hwc_display_contents_1_t** lists);
 
 static struct hw_module_methods_t hwc_module_methods = {
     open: hwc_device_open
@@ -222,8 +230,9 @@ static int hwc_prepare_virtual(struct hwc_context_t* ctx, int disp,
 }
 
 static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
-                         hwc_display_contents_1_t* list)
+                         hwc_display_contents_1_t** contents)
 {
+    hwc_display_contents_1_t* list = contents[disp];
     if (ctx == NULL || list == NULL) {
         ALOGV("%s: disp:%d invalid parameter", __FUNCTION__, disp);
         return 0;
@@ -238,6 +247,7 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
         if (targetHandle != NULL && ctx->mDispInfo[disp].connected) {
             ctx->mFbDev[disp]->post(ctx->mFbDev[disp], targetHandle);
         }
+        hwc_updateSwapRect(ctx, disp, NULL);
         return 0;
     }
 
@@ -265,23 +275,43 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
         return -EINVAL;
     }
 
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        int fenceFd = layer->acquireFenceFd;
-        if (fenceFd > 0) {
-            ALOGI("fenceFd:%d", fenceFd);
-            sync_wait(fenceFd, -1);
-            close(fenceFd);
-            layer->acquireFenceFd = -1;
-        }
-
-        if (i == 0) {
-            hwc_composite(ctx, layer, frameHandle, true);
-        }
-        else
-            hwc_composite(ctx, layer, frameHandle, false);
+    int index = hwc_updateSwapRect(ctx, disp, fbuffer);
+    if (index < 0) {
+        ALOGE("invalid index");
+        return -EINVAL;
     }
 
+    bool resized = false;
+
+    if (disp != HWC_DISPLAY_PRIMARY &&
+        hwc_hasSameContent(ctx, HWC_DISPLAY_PRIMARY, disp, contents)) {
+        hwc_display_contents_1_t* sList = contents[HWC_DISPLAY_PRIMARY];
+        hwc_layer_1_t* primaryLayer = &sList->hwLayers[sList->numHwLayers-1];
+        struct private_handle_t *primaryHandle = NULL;
+        primaryHandle = (struct private_handle_t *)primaryLayer->handle;
+        if (primaryHandle != NULL) {
+            hwc_resize(ctx, frameHandle, primaryHandle);
+            resized = true;
+        }
+    }
+
+    if (!resized) {
+        hwc_rect_t& swapRect = ctx->mDispInfo[disp].mSwapRect[index];
+        for (size_t i=0; i<list->numHwLayers-1; i++) {
+            layer = &list->hwLayers[i];
+            int fenceFd = layer->acquireFenceFd;
+            if (fenceFd > 0) {
+                ALOGI("fenceFd:%d", fenceFd);
+                sync_wait(fenceFd, -1);
+                close(fenceFd);
+                layer->acquireFenceFd = -1;
+            }
+
+            hwc_composite(ctx, layer, frameHandle, &swapRect, i==0);
+        }
+
+        hwc_copyBack(ctx, frameHandle, targetHandle, index, disp);
+    }
     g2d_finish(ctx->g2d_handle);
 
     _eglPostBufferVIV(fbuffer);
@@ -295,8 +325,9 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
 }
 
 static int hwc_set_virtual(struct hwc_context_t* ctx, int disp,
-                         hwc_display_contents_1_t* list)
+                         hwc_display_contents_1_t** contents)
 {
+    hwc_display_contents_1_t* list = contents[disp];
     if (ctx == NULL || list == NULL) {
         return 0;
     }
@@ -333,6 +364,19 @@ static int hwc_set_virtual(struct hwc_context_t* ctx, int disp,
         list->outbufAcquireFenceFd = -1;
     }
 
+    if (disp != HWC_DISPLAY_PRIMARY &&
+        hwc_hasSameContent(ctx, HWC_DISPLAY_PRIMARY, disp, contents)) {
+        hwc_display_contents_1_t* sList = contents[HWC_DISPLAY_PRIMARY];
+        hwc_layer_1_t* primaryLayer = &sList->hwLayers[sList->numHwLayers-1];
+        struct private_handle_t *primaryHandle = NULL;
+        primaryHandle = (struct private_handle_t *)primaryLayer->handle;
+        if (primaryHandle != NULL) {
+            hwc_resize(ctx, frameHandle, primaryHandle);
+            g2d_finish(ctx->g2d_handle);
+            return 0;
+        }
+    }
+
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
         int fenceFd = layer->acquireFenceFd;
@@ -343,11 +387,7 @@ static int hwc_set_virtual(struct hwc_context_t* ctx, int disp,
             layer->acquireFenceFd = -1;
         }
 
-        if (i == 0) {
-            hwc_composite(ctx, layer, frameHandle, true);
-        }
-        else
-            hwc_composite(ctx, layer, frameHandle, false);
+        hwc_composite(ctx, layer, frameHandle, NULL, i==0);
     }
 
     g2d_finish(ctx->g2d_handle);
@@ -455,13 +495,13 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
         hwc_display_contents_1_t *list = displays[i];
         switch(i) {
             case HWC_DISPLAY_PRIMARY:
-                ret = hwc_set_physical(ctx, i, displays[i]);
+                ret = hwc_set_physical(ctx, i, displays);
                 break;
             case HWC_DISPLAY_EXTERNAL:
-                ret = hwc_set_physical(ctx, i, displays[i]);
+                ret = hwc_set_physical(ctx, i, displays);
                 break;
             case HWC_DISPLAY_VIRTUAL:
-                ret = hwc_set_virtual(ctx, i, displays[i]);
+                ret = hwc_set_virtual(ctx, i, displays);
                 break;
             default:
                 ALOGI("invalid display id:%d", i);
