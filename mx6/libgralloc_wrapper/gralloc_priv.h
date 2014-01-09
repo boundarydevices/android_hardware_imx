@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2009-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2009-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 #define GRALLOC_VIV_HARDWARE_MODULE_ID "gralloc_viv"
 
 #define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
+#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
 #define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
 /** z430 core need 4k aligned memory, since xres has been 32 aligned, make yres
     to 128 aligned will meet this request for all pixel format (RGB565,RGB888,etc.) */
@@ -75,6 +76,7 @@ struct private_module_t {
     struct private_module_t *external_module;
     int primary_fd;
     bool closeDevice;
+    int ion_fd;
     enum {
         // flag to indicate we'll post this buffer
         PRIV_USAGE_LOCKED_FOR_POST = 0x80000000
@@ -93,6 +95,8 @@ struct private_handle_t {
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
         PRIV_FLAGS_USES_DRV    = 0x00000002,
+        PRIV_FLAGS_USES_ION    = 0x00000004,
+        PRIV_FLAGS_FRAMEBUFFER_X = 0x00000008,
     };
 
     enum {

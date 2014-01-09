@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2010-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
+#include <ion/ion.h>
 
 #include "gralloc_priv.h"
 /*****************************************************************************/
@@ -58,6 +59,12 @@ extern int gralloc_register_buffer(gralloc_module_t const* module,
 extern int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle);
 
+extern int fsl_gralloc_alloc(alloc_device_t* dev,
+        int w, int h, int format, int usage,
+        buffer_handle_t* pHandle, int* pStride);
+
+extern int fsl_gralloc_free(alloc_device_t* dev,
+        buffer_handle_t handle);
 /*****************************************************************************/
 
 static struct hw_module_methods_t gralloc_module_methods = {
@@ -90,6 +97,20 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
     bufferMask: 0,
     lock: PTHREAD_MUTEX_INITIALIZER,
     currentBuffer: 0,
+    info: {0},
+    finfo: {{0},0},
+    xdpi: 0.0,
+    ydpi: 0.0,
+    fps: 0.0,
+    flags: 0,
+    master_phys: 0,
+    gpu_device: 0,
+    gralloc_viv: 0,
+    priv_dev: 0,
+    external_module: 0,
+    primary_fd: 0,
+    closeDevice: false,
+    ion_fd: -1
 };
 
 /*****************************************************************************/
@@ -105,8 +126,12 @@ static int gralloc_alloc(alloc_device_t* dev,
 
     private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
     if (!m || !m->gpu_device) {
-        ALOGE("<%s,%d> m or m->gpu_device is NULL", __FUNCTION__, __LINE__);
-        return -EINVAL;
+        if (!m || m->ion_fd <= 0) {
+            ALOGE("<%s,%d> m or m->gpu_device is NULL", __FUNCTION__, __LINE__);
+            return -EINVAL;
+        }
+
+        return fsl_gralloc_alloc(dev, w, h, format, usage, pHandle, pStride);
     }
 
     if (usage & GRALLOC_USAGE_HW_FBX) {
@@ -133,8 +158,12 @@ static int gralloc_free(alloc_device_t* dev,
 {
     private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
     if (!m || !m->gpu_device) {
-        ALOGE("<%s,%d> m or m->gpu_device is NULL", __FUNCTION__, __LINE__);
-        return -EINVAL;
+        if (!m || m->ion_fd <= 0) {
+            ALOGE("<%s,%d> m or m->gpu_device is NULL", __FUNCTION__, __LINE__);
+            return -EINVAL;
+        }
+
+        return fsl_gralloc_free(dev, handle);
     }
 
     if (m->external_module != NULL && m->external_module->framebuffer != NULL) {
@@ -175,6 +204,10 @@ static int gralloc_close(struct hw_device_t *dev)
            m->gpu_device->common.close((struct hw_device_t *)m->gpu_device);
            m->gpu_device = NULL;
         }
+        if (m && m->ion_fd > 0) {
+           ion_close(m->ion_fd);
+           m->ion_fd = -1;
+        }
 
         free(ctx);
     }
@@ -188,13 +221,20 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
     hw_module_t *hw = const_cast<hw_module_t *>(module);
 
     private_module_t* m = reinterpret_cast<private_module_t*>(hw);
-    if (!m->gpu_device) {
-       hw_module_t const* gpu_module;;
+    if (!m->gpu_device && m->ion_fd <= 0) {
+       hw_module_t const* gpu_module;
        if (hw_get_module(GRALLOC_VIV_HARDWARE_MODULE_ID, &gpu_module) == 0) {
           status = gralloc_open(gpu_module, &m->gpu_device);
           if(status || !m->gpu_device){
              ALOGE("gralloc_device_open: gpu gralloc device open failed!");
           }
+       }
+       else {
+           ALOGI("%s ion open", __FUNCTION__);
+           m->ion_fd = ion_open();
+           if (m->ion_fd <= 0) {
+               ALOGE("%s ion open failed", __FUNCTION__);
+           }
        }
     }
 
