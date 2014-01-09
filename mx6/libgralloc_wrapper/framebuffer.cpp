@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2010-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -496,6 +496,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
                 priv_m = (private_module_t*)malloc(sizeof(*priv_m));
                 memset(priv_m, 0, sizeof(*priv_m));
                 memcpy(priv_m, orig_m, sizeof(*priv_m));
+                if (orig_m->ion_fd > 0) {
+                    priv_m->ion_fd = dup(orig_m->ion_fd);
+                }
 
                 orig_m->external_module = priv_m;
             }

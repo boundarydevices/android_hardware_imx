@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2010-2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,20 @@ pid_t gettid() { return syscall(__NR_gettid);}
 #undef __KERNEL__
 #endif
 
+extern int fsl_gralloc_lock(gralloc_module_t const* module,
+        buffer_handle_t handle, int usage,
+        int l, int t, int w, int h,
+        void** vaddr);
+
+extern int fsl_gralloc_unlock(gralloc_module_t const* module,
+        buffer_handle_t handle);
+
+extern int fsl_gralloc_register_buffer(gralloc_module_t const* module,
+        buffer_handle_t handle);
+
+extern int fsl_gralloc_unregister_buffer(gralloc_module_t const* module,
+        buffer_handle_t handle);
+
 /*****************************************************************************/
 
 static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER; 
@@ -79,7 +93,7 @@ int gralloc_register_buffer(gralloc_module_t const* module,
         return gralloc_viv->registerBuffer(gralloc_viv, handle);
     }
 
-    return -EINVAL;
+    return fsl_gralloc_register_buffer(module, handle);
 }
 
 int gralloc_unregister_buffer(gralloc_module_t const* module,
@@ -90,7 +104,7 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
         return gralloc_viv->unregisterBuffer(gralloc_viv, handle);
     }
 
-    return -EINVAL;
+    return fsl_gralloc_unregister_buffer(module, handle);
 }
 
 int gralloc_lock(gralloc_module_t const* module,
@@ -103,7 +117,7 @@ int gralloc_lock(gralloc_module_t const* module,
         return gralloc_viv->lock(gralloc_viv, handle, usage, l, t, w, h, vaddr);
     }
 
-    return -EINVAL;
+    return fsl_gralloc_lock(module, handle, usage, l, t, w, h, vaddr);
 }
 
 int gralloc_unlock(gralloc_module_t const* module, 
@@ -114,5 +128,5 @@ int gralloc_unlock(gralloc_module_t const* module,
         return gralloc_viv->unlock(gralloc_viv, handle);
     }
 
-    return -EINVAL;
+    return fsl_gralloc_unlock(module, handle);
 }
