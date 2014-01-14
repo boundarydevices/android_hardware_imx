@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ int PhysMemAdapter::allocatePictureBuffer(int width,
     unsigned char *ptr = NULL;
     int sharedFd;
     int phyAddr;
-    struct ion_handle *ionHandle;
+    ion_user_handle_t *ionHandle;
     size = (size + PAGE_SIZE - 1) & (~(PAGE_SIZE - 1));
 
     FLOGI("allocateBufferFromIon buffer num:%d", numBufs);
@@ -144,8 +144,8 @@ int PhysMemAdapter::freeBuffer()
 
     FLOGI("freeBufferToIon buffer num:%d", mBufferCount);
     for (int i = 0; i < mBufferCount; i++) {
-        struct ion_handle *ionHandle =
-            (struct ion_handle *)mCameraBuffer[i].mBufHandle;
+        ion_user_handle_t *ionHandle =
+            (ion_user_handle_t *)mCameraBuffer[i].mBufHandle;
         ion_free(mIonFd, ionHandle);
         munmap(mCameraBuffer[i].mVirtAddr, mCameraBuffer[i].mSize);
     }
