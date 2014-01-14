@@ -56,7 +56,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 extern int hwc_composite(struct hwc_context_t* ctx, hwc_layer_1_t* layer,
                     struct private_handle_t *dstHandle, hwc_rect_t* swap, bool firstLayer);
 extern int hwc_clearWormHole(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    hwc_region_t &hole);
+                    hwc_display_contents_1_t* list, int disp);
 extern int hwc_clearRect(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
                     hwc_rect_t &rect);
 extern int hwc_copyBack(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
@@ -281,8 +281,9 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
         return -EINVAL;
     }
 
-    bool resized = false;
+    hwc_clearWormHole(ctx, frameHandle, list, disp);
 
+    bool resized = false;
     if (disp != HWC_DISPLAY_PRIMARY &&
         hwc_hasSameContent(ctx, HWC_DISPLAY_PRIMARY, disp, contents)) {
         hwc_display_contents_1_t* sList = contents[HWC_DISPLAY_PRIMARY];
@@ -306,7 +307,6 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
                 close(fenceFd);
                 layer->acquireFenceFd = -1;
             }
-
             hwc_composite(ctx, layer, frameHandle, &swapRect, i==0);
         }
 
