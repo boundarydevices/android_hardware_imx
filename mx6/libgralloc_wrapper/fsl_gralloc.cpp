@@ -116,7 +116,7 @@ static int fsl_gralloc_alloc_buffer(alloc_device_t* dev,
     unsigned char *ptr = NULL;
     int sharedFd;
     int phyAddr;
-    struct ion_handle *ion_hnd = NULL;
+    ion_user_handle_t *ion_hnd = NULL;
     size = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
     private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
