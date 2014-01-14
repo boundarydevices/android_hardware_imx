@@ -26,6 +26,8 @@
 #include <cutils/atomic.h>
 #include <cutils/properties.h>
 #include <utils/threads.h>
+#include <ui/Rect.h>
+#include <ui/Region.h>
 #include <hardware/hwcomposer.h>
 #include <hardware_legacy/uevent.h>
 #include <utils/StrongPointer.h>
@@ -40,6 +42,13 @@
 #include "hwc_display.h"
 #include <g2d.h>
 #include <system/graphics.h>
+
+
+#define MAX_HWC_RECTS 4
+typedef struct hwc_reg {
+    hwc_region_t reg;
+    hwc_rect_t rect[MAX_HWC_RECTS];
+} hwc_reg_t;
 
 extern "C" int get_aligned_size(buffer_handle_t hnd, int *width, int *height);
 
@@ -434,6 +443,7 @@ int hwc_composite(struct hwc_context_t* ctx, hwc_layer_1_t* layer,
             }
             continue;
         }
+
         if (!validateRect(drect)) {
             ALOGI("%s: invalid drect(l:%d,t:%d,r:%d,b:%d)", __FUNCTION__,
                     drect.left, drect.top, drect.right, drect.bottom);
@@ -459,12 +469,13 @@ int hwc_composite(struct hwc_context_t* ctx, hwc_layer_1_t* layer,
             sSurface.clrcolor = 0xff000000;
             sSurface.format = G2D_RGBA8888;
         }
-        ALOGV("blit rot:%d, blending:%d, alpha:%d", layer->transform,
-                layer->blending, layer->planeAlpha);
 
         if (firstLayer && layer->blending == HWC_BLENDING_DIM) {
             continue;
         }
+
+        ALOGV("blit rot:%d, blending:0x%x, alpha:%d", layer->transform,
+                layer->blending, layer->planeAlpha);
 
         if (!firstLayer) {
             convertBlending(layer->blending, sSurface, dSurface);
@@ -515,11 +526,6 @@ int hwc_copyBack(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
         index = (index + 1)%HWC_MAX_FRAMEBUFFER;
     }
 
-    #define MAX_HWC_RECTS 4
-    typedef struct hwc_reg {
-        hwc_region_t reg;
-        hwc_rect_t rect[MAX_HWC_RECTS];
-    } hwc_reg_t;
     hwc_reg_t resReg;
     resReg.reg.numRects = 0;
     resReg.reg.rects = resReg.rect;
@@ -649,20 +655,52 @@ int hwc_updateSwapRect(struct hwc_context_t* ctx, int disp,
 }
 
 int hwc_clearWormHole(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    hwc_region_t &hole)
+                    hwc_display_contents_1_t* list, int disp)
 {
-    if (ctx == NULL || dstHandle == NULL || hole.rects == NULL) {
+    if (ctx == NULL || dstHandle == NULL || list == NULL) {
         return -EINVAL;
     }
 
+    Region opaque;
+    hwc_layer_1_t* layer = NULL;
+    for (size_t i=0; i<list->numHwLayers-1; i++) {
+        layer = &list->hwLayers[i];
+        if ((layer->blending == HWC_BLENDING_NONE) ||
+                (i==0 && layer->blending == HWC_BLENDING_PREMULT) ||
+                ((i!=0) && (layer->blending == HWC_BLENDING_DIM) &&
+                 layer->planeAlpha == 0xff)) {
+            for (size_t n=0; n<layer->visibleRegionScreen.numRects; n++) {
+                Rect rect;
+                const hwc_rect_t &hrect = layer->visibleRegionScreen.rects[n];
+                ALOGV("opaque: src(l:%d,t:%d,r:%d,b:%d)",
+                        rect.left, rect.top, rect.right, rect.bottom);
+                if (!validateRect((hwc_rect_t &)hrect)) {
+                    continue;
+                }
+                memcpy(&rect, &hrect, sizeof(hrect));
+                opaque.orSelf(rect);
+            }
+        }
+    }
+
+    Rect dispRect(ctx->mDispInfo[disp].xres, ctx->mDispInfo[disp].yres);
+    Region screen(dispRect);
+    screen.subtractSelf(opaque);
+    const Rect *holes = NULL;
+    size_t numRect = 0;
+    holes = screen.getArray(&numRect);
+
     struct g2d_surface surface;
     memset(&surface, 0, sizeof(surface));
-    for (size_t i=0; i<hole.numRects; i++) {
-        hwc_rect_t& rect = (hwc_rect_t&)hole.rects[i];
-        if (!validateRect(rect)) {
+    for (size_t i=0; i<numRect; i++) {
+        if (holes[i].isEmpty()) {
             continue;
         }
 
+        hwc_rect_t rect;
+        memcpy(&rect, &holes[i], sizeof(rect));
+        ALOGV("clearhole: hole(l:%d,t:%d,r:%d,b:%d)",
+                rect.left, rect.top, rect.right, rect.bottom);
         setG2dSurface(surface, dstHandle, rect);
         surface.clrcolor = 0xff << 24;
         g2d_clear(ctx->g2d_handle, &surface);
