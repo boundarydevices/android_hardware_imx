@@ -56,7 +56,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 extern int hwc_composite(struct hwc_context_t* ctx, hwc_layer_1_t* layer,
                     struct private_handle_t *dstHandle, hwc_rect_t* swap, bool firstLayer);
 extern int hwc_clearWormHole(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    hwc_display_contents_1_t* list, int disp);
+                    hwc_display_contents_1_t* list, int disp, hwc_rect_t* swap);
 extern int hwc_clearRect(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
                     hwc_rect_t &rect);
 extern int hwc_copyBack(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
@@ -281,7 +281,8 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
         return -EINVAL;
     }
 
-    hwc_clearWormHole(ctx, frameHandle, list, disp);
+    hwc_rect_t& swapRect = ctx->mDispInfo[disp].mSwapRect[index];
+    hwc_clearWormHole(ctx, frameHandle, list, disp, &swapRect);
 
     bool resized = false;
     if (disp != HWC_DISPLAY_PRIMARY &&
@@ -297,7 +298,6 @@ static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
     }
 
     if (!resized) {
-        hwc_rect_t& swapRect = ctx->mDispInfo[disp].mSwapRect[index];
         for (size_t i=0; i<list->numHwLayers-1; i++) {
             layer = &list->hwLayers[i];
             int fenceFd = layer->acquireFenceFd;

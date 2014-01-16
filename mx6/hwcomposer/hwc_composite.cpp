@@ -650,7 +650,7 @@ int hwc_updateSwapRect(struct hwc_context_t* ctx, int disp,
 }
 
 int hwc_clearWormHole(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    hwc_display_contents_1_t* list, int disp)
+                    hwc_display_contents_1_t* list, int disp, hwc_rect_t* swap)
 {
     if (ctx == NULL || dstHandle == NULL || list == NULL) {
         return -EINVAL;
@@ -694,6 +694,12 @@ int hwc_clearWormHole(struct hwc_context_t* ctx, struct private_handle_t *dstHan
 
         hwc_rect_t rect;
         memcpy(&rect, &holes[i], sizeof(rect));
+        if (swap != NULL) {
+            intersect(&rect, &rect, swap);
+        }
+        if (!validateRect(rect)) {
+            continue;
+        }
         ALOGV("clearhole: hole(l:%d,t:%d,r:%d,b:%d)",
                 rect.left, rect.top, rect.right, rect.bottom);
         setG2dSurface(surface, dstHandle, rect);
