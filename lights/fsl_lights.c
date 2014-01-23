@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright 2009-2012 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,9 @@ static int set_light_backlight(struct light_device_t* dev,
     int result = -1;
     unsigned int color = state->color;
     unsigned int brightness = 0, max_brightness = 0;
+    unsigned int tmp_br = 0;
+    unsigned char tmp = 0x80;
+    unsigned int i = 0;
     FILE *file;
 
     brightness = ((77*((color>>16)&0x00ff)) + (150*((color>>8)&0x00ff)) +
@@ -78,16 +81,28 @@ static int set_light_backlight(struct light_device_t* dev,
     fclose(file);
 
     max_brightness = atoi((char *) &max_brightness);
-    brightness = brightness * max_brightness / MAX_BRIGHTNESS;
+    //brightness = brightness * max_brightness / MAX_BRIGHTNESS;
+    for (i = 0; i < 8; i++)
+    {
+        if (tmp & brightness) {
+            tmp_br = 7 - i;
+            break;
+        } else {
+            tmp = tmp >> 1;
+        }
+    }
+    if (tmp_br > max_brightness) {
+        tmp_br = max_brightness;
+    }
     ALOGV("set_light, max_brightness=%d, target brightness=%d",
-        max_brightness, brightness);
+        max_brightness, tmp_br);
 
     file = fopen(path, "w");
     if (!file) {
         ALOGE("can not open file %s\n", path);
         return result;
     }
-    fprintf(file, "%d", brightness);
+    fprintf(file, "%d", tmp_br);
     fclose(file);
 
     result = 0;
