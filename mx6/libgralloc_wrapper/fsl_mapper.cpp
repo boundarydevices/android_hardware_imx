@@ -97,6 +97,7 @@ int fsl_gralloc_register_buffer(gralloc_module_t const* module,
     if (hnd->pid != getpid()) {
         void *vaddr;
         ret = fsl_gralloc_map(module, handle, &vaddr);
+        hnd->pid = getpid();
     }
     if (ret == 0) {
         // increase the buffer counter in process.
