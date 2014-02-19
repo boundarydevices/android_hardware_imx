@@ -1961,12 +1961,16 @@ int ath6kl_core_init(struct ath6kl *ar)
 		set_bit(DESTROY_IN_PROGRESS, &ar->flag);
 		goto err_reg_cleanup;
 	}
-
-	ret = ath6kl_debug_init_fs(ar);
+    /*create debugfs dir already return error in our kernel3.10.
+      still under check why, considering it is only for debug,
+      we can ignore this step for now.
+      */
+	/*ret = ath6kl_debug_init_fs(ar);
 	if (ret) {
+		ath6kl_err("Failed to init debug: %d\n", ret);
 		set_bit(DESTROY_IN_PROGRESS, &ar->flag);
 		goto err_wiphy_cleanup;
-	}
+	}*/
 
 	for (i = 0; i < ar->vif_max; i++)
 		ar->avail_idx_map |= BIT(i);
