@@ -77,9 +77,9 @@ static int mesh_gate_add(struct mesh_table *tbl, struct mesh_path *mpath);
  * it's used twice. So it is illegal to do
  *	for_each_mesh_entry(rcu_dereference(...), ...)
  */
-#define for_each_mesh_entry(tbl, p, node, i) \
+#define for_each_mesh_entry(tbl,node, i) \
 	for (i = 0; i <= tbl->hash_mask; i++) \
-		hlist_for_each_entry_rcu(node, p, &tbl->hash_buckets[i], list)
+		hlist_for_each_entry_rcu(node, &tbl->hash_buckets[i], list)
 
 
 static struct mesh_table *mesh_table_alloc(int size_order)
@@ -144,7 +144,7 @@ static void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 	}
 	if (free_leafs) {
 		spin_lock_bh(&tbl->gates_lock);
-		hlist_for_each_entry_safe(gate, p, q,
+		hlist_for_each_entry_safe(gate, q,
 					 tbl->known_gates, list) {
 			hlist_del(&gate->list);
 			kfree(gate);
@@ -340,12 +340,11 @@ static struct mesh_path *path_lookup(struct mesh_table *tbl, u8 *dst,
 					  struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
-	struct hlist_node *n;
 	struct hlist_head *bucket;
 	struct mpath_node *node;
 
 	bucket = &tbl->hash_buckets[mesh_table_hash(dst, sdata, tbl)];
-	hlist_for_each_entry_rcu(node, n, bucket, list) {
+	hlist_for_each_entry_rcu(node,bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata &&
 				memcmp(dst, mpath->dst, ETH_ALEN) == 0) {
@@ -393,11 +392,10 @@ struct mesh_path *mesh_path_lookup_by_idx(int idx, struct ieee80211_sub_if_data 
 {
 	struct mesh_table *tbl = rcu_dereference(mesh_paths);
 	struct mpath_node *node;
-	struct hlist_node *p;
 	int i;
 	int j = 0;
 
-	for_each_mesh_entry(tbl, p, node, i) {
+	for_each_mesh_entry(tbl,node, i) {
 		if (sdata && node->mpath->sdata != sdata)
 			continue;
 		if (j++ == idx) {
@@ -430,13 +428,12 @@ static void mesh_gate_node_reclaim(struct rcu_head *rp)
 static int mesh_gate_add(struct mesh_table *tbl, struct mesh_path *mpath)
 {
 	struct mpath_node *gate, *new_gate;
-	struct hlist_node *n;
 	int err;
 
 	rcu_read_lock();
 	tbl = rcu_dereference(tbl);
 
-	hlist_for_each_entry_rcu(gate, n, tbl->known_gates, list)
+	hlist_for_each_entry_rcu(gate,tbl->known_gates, list)
 		if (gate->mpath == mpath) {
 			err = -EEXIST;
 			goto err_rcu;
@@ -476,11 +473,11 @@ err_rcu:
 static int mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 {
 	struct mpath_node *gate;
-	struct hlist_node *p, *q;
+	struct hlist_node *q;
 
 	tbl = rcu_dereference(tbl);
 
-	hlist_for_each_entry_safe(gate, p, q, tbl->known_gates, list)
+	hlist_for_each_entry_safe(gate, q, tbl->known_gates, list)
 		if (gate->mpath == mpath) {
 			spin_lock_bh(&tbl->gates_lock);
 			hlist_del_rcu(&gate->list);
@@ -533,7 +530,6 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	struct mesh_path *mpath, *new_mpath;
 	struct mpath_node *node, *new_node;
 	struct hlist_head *bucket;
-	struct hlist_node *n;
 	int grow = 0;
 	int err = 0;
 	u32 hash_idx;
@@ -577,7 +573,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	spin_lock_bh(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
-	hlist_for_each_entry(node, n, bucket, list) {
+	hlist_for_each_entry(node, bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata && memcmp(dst, mpath->dst, ETH_ALEN) == 0)
 			goto err_exists;
@@ -705,7 +701,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	spin_lock_bh(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
-	hlist_for_each_entry(node, n, bucket, list) {
+	hlist_for_each_entry(node,bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata && memcmp(dst, mpath->dst, ETH_ALEN) == 0)
 			goto err_exists;
@@ -749,14 +745,13 @@ void mesh_plink_broken(struct sta_info *sta)
 	static const u8 bcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mesh_path *mpath;
 	struct mpath_node *node;
-	struct hlist_node *p;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	int i;
 	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_DEST_UNREACHABLE);
 
 	rcu_read_lock();
 	tbl = rcu_dereference(mesh_paths);
-	for_each_mesh_entry(tbl, p, node, i) {
+	for_each_mesh_entry(tbl,node, i) {
 		mpath = node->mpath;
 		if (rcu_dereference(mpath->next_hop) == sta &&
 		    mpath->flags & MESH_PATH_ACTIVE &&
@@ -815,13 +810,12 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	struct mesh_table *tbl;
 	struct mesh_path *mpath;
 	struct mpath_node *node;
-	struct hlist_node *p;
 	int i;
 
 	rcu_read_lock();
 	read_lock_bh(&pathtbl_resize_lock);
 	tbl = resize_dereference_mesh_paths();
-	for_each_mesh_entry(tbl, p, node, i) {
+	for_each_mesh_entry(tbl, node, i) {
 		mpath = node->mpath;
 		if (rcu_dereference(mpath->next_hop) == sta) {
 			spin_lock_bh(&tbl->hashwlock[i]);
@@ -838,11 +832,10 @@ static void table_flush_by_iface(struct mesh_table *tbl,
 {
 	struct mesh_path *mpath;
 	struct mpath_node *node;
-	struct hlist_node *p;
 	int i;
 
 	WARN_ON(!rcu_read_lock_held());
-	for_each_mesh_entry(tbl, p, node, i) {
+	for_each_mesh_entry(tbl, node, i) {
 		mpath = node->mpath;
 		if (mpath->sdata != sdata)
 			continue;
@@ -888,7 +881,6 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	struct mesh_path *mpath;
 	struct mpath_node *node;
 	struct hlist_head *bucket;
-	struct hlist_node *n;
 	int hash_idx;
 	int err = 0;
 
@@ -898,7 +890,7 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	bucket = &tbl->hash_buckets[hash_idx];
 
 	spin_lock_bh(&tbl->hashwlock[hash_idx]);
-	hlist_for_each_entry(node, n, bucket, list) {
+	hlist_for_each_entry(node, bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata &&
 		    memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
@@ -943,7 +935,6 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
 int mesh_path_send_to_gates(struct mesh_path *mpath)
 {
 	struct ieee80211_sub_if_data *sdata = mpath->sdata;
-	struct hlist_node *n;
 	struct mesh_table *tbl;
 	struct mesh_path *from_mpath = mpath;
 	struct mpath_node *gate = NULL;
@@ -958,7 +949,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 	if (!known_gates)
 		return -EHOSTUNREACH;
 
-	hlist_for_each_entry_rcu(gate, n, known_gates, list) {
+	hlist_for_each_entry_rcu(gate, known_gates, list) {
 		if (gate->mpath->sdata != sdata)
 			continue;
 
@@ -973,7 +964,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 		}
 	}
 
-	hlist_for_each_entry_rcu(gate, n, known_gates, list)
+	hlist_for_each_entry_rcu(gate, known_gates, list)
 		if (gate->mpath->sdata == sdata) {
 			mpath_dbg("Sending to %pM\n", gate->mpath->dst);
 			mesh_path_tx_pending(gate->mpath);
@@ -1145,12 +1136,11 @@ void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 	struct mesh_table *tbl;
 	struct mesh_path *mpath;
 	struct mpath_node *node;
-	struct hlist_node *p;
 	int i;
 
 	rcu_read_lock();
 	tbl = rcu_dereference(mesh_paths);
-	for_each_mesh_entry(tbl, p, node, i) {
+	for_each_mesh_entry(tbl, node, i) {
 		if (node->mpath->sdata != sdata)
 			continue;
 		mpath = node->mpath;
