@@ -250,11 +250,11 @@ endif #CONFIG_PCMCIA
 # and changes from kernel version to version. We are using the 
 # wireless_handlers attribute which will be activated by 
 # CONFIG_WIRELESS_EXT. 
-ifdef CONFIG_WIRELESS_EXT
-CONFIG_CFG80211_WEXT=y
-else #CONFIG_CFG80211_WEXT
-$(warning "WARNING: CONFIG_CFG80211_WEXT will be deactivated or not working because kernel was compiled with CONFIG_WIRELESS_EXT=n. Tools using wext interface like iwconfig will not work. To activate it build your kernel e.g. with CONFIG_LIBIPW=m.")
-endif #CONFIG_WIRELESS_EXT
+# ifdef CONFIG_WIRELESS_EXT
+# CONFIG_CFG80211_WEXT=y
+# else #CONFIG_CFG80211_WEXT
+# $(warning "WARNING: CONFIG_CFG80211_WEXT will be deactivated or not working because kernel was compiled with CONFIG_WIRELESS_EXT=n. Tools using wext interface like iwconfig will not work. To activate it build your kernel e.g. with CONFIG_LIBIPW=m.")
+# endif #CONFIG_WIRELESS_EXT
 
 ifdef CONFIG_STAGING
 CONFIG_COMPAT_STAGING=m
