@@ -67,13 +67,13 @@ int PhysMemAdapter::allocateBuffers(int width,int height,
     unsigned char *ptr = NULL;
     int sharedFd;
     int phyAddr;
-    ion_user_handle_t *ionHandle;
+    ion_user_handle_t ionHandle;
     size = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
     FLOGI("allocateBufferFromIon buffer num:%d", numBufs);
     for (int i = 0; i < numBufs; i++) {
-        ionHandle = NULL;
-        int err = ion_alloc(mIonFd, size, 8, 1, &ionHandle);
+        ionHandle = -1;
+        int err = ion_alloc(mIonFd, size, 8, 1, 0, &ionHandle);
         if (err) {
             FLOGE("ion_alloc failed.");
             return BAD_VALUE;
@@ -133,8 +133,8 @@ int PhysMemAdapter::freeBuffers()
 
     FLOGI("freeBufferToIon buffer num:%d", mBufferCount);
     for (int i = 0; i < mBufferCount; i++) {
-        ion_user_handle_t *ionHandle =
-            (ion_user_handle_t *)mCameraBuffer[i].mBufHandle;
+        ion_user_handle_t ionHandle =
+            (ion_user_handle_t)mCameraBuffer[i].mBufHandle;
         ion_free(mIonFd, ionHandle);
         munmap(mCameraBuffer[i].mVirtAddr, mCameraBuffer[i].mSize);
     }

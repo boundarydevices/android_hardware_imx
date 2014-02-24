@@ -116,11 +116,11 @@ static int fsl_gralloc_alloc_buffer(alloc_device_t* dev,
     unsigned char *ptr = NULL;
     int sharedFd;
     int phyAddr;
-    ion_user_handle_t *ion_hnd = NULL;
+    ion_user_handle_t ion_hnd = -1;
     size = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
     private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
-    int err = ion_alloc(m->ion_fd, size, 8, 1, &ion_hnd);
+    int err = ion_alloc(m->ion_fd, size, 8, 1, 0, &ion_hnd);
     if (err) {
         ALOGE("ion_alloc failed");
         return err;
