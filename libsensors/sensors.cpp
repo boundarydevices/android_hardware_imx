@@ -204,7 +204,7 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
 	if(handle == ID_A){
 		if(enabled && magRunTimes > 0)
 			err = mSensors[index]->batch(handle,0,mBatchParameter[handle].period_ns,0); // forece accel to be continuse mode	
-			err |=  mSensors[handle]->setEnable(handle, enabled);
+			err |=  mSensors[index]->setEnable(handle, enabled);
 	}
 	else if(handle == ID_O || handle ==  ID_M){
 		if(enabled){
@@ -224,7 +224,7 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
 		err |=  mSensors[index]->setEnable(handle, enabled);
 	}else
 		err =  mSensors[index]->setEnable(handle, enabled);
-    if (enabled && !err) {
+    if (!err) {
         const char wakeMessage(WAKE_MESSAGE);
         int result = write(mWritePipeFd, &wakeMessage, 1);
         ALOGE_IF(result<0, "error sending wake message (%s)", strerror(errno));
