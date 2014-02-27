@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -125,20 +125,43 @@ int MagSensor::update_delay(int sensor_type)
     else
 	    return 0;
 }
+bool MagSensor::hasPendingEvents(){
+	return (false || (mFlushed & (0x01 << ID_M)) || (mFlushed & (0x01 << ID_O)));
+}
 
 int MagSensor::readEvents(sensors_event_t* data, int count)
 {
 	int i;
     if (count < 1)
         return -EINVAL;
-
-    ssize_t n = mInputReader.fill(data_fd);
+	sensors_event_t sensor_event;
+    int numEventReceived = 0;
+	if((mFlushed & (0x01 << ID_M)) ){
+		memset(&sensor_event,0,sizeof(sensor_event));
+		sensor_event.version = META_DATA_VERSION;
+		sensor_event.type = SENSOR_TYPE_META_DATA;
+		sensor_event.meta_data.sensor = ID_M;
+		sensor_event.meta_data.what = 0;
+		*data++ = sensor_event;
+		count--;
+		numEventReceived++;
+		mFlushed &= ~(0x01 << ID_M);
+	}
+	if((mFlushed & (0x01 << ID_O))){
+		memset(&sensor_event,0,sizeof(sensor_event));
+		sensor_event.version = META_DATA_VERSION;
+		sensor_event.type = SENSOR_TYPE_META_DATA;
+		sensor_event.meta_data.sensor = ID_O;
+		sensor_event.meta_data.what = 0;
+		*data++ = sensor_event;
+		count--;
+		numEventReceived++;
+		mFlushed &= ~(0x01 << ID_O);
+	}
+	ssize_t n = mInputReader.fill(data_fd);
     if (n < 0)
         return n;
-
-    int numEventReceived = 0;
-    input_event const* event;
-
+	input_event const* event;
     while (count && mInputReader.readEvent(&event)) {
         int type = event->type;
         if ((type == EV_ABS) || (type == EV_REL) || (type == EV_KEY)) {
@@ -339,6 +362,17 @@ int MagSensor::sensor_get_class_path(char *class_path)
 	}else {
 		*class_path = '\0';
 		return -1;
+	}
+}
+int MagSensor::flush(int handle){
+	if(mEnabled[mag] && handle == ID_M){
+		mFlushed |= (0x01 << ID_M);
+		return 0;
+	}else if(mEnabled[orn] && handle == ID_O){
+		mFlushed |= (0x01 << ID_O);
+		return 0;
+	}else{
+		return -EINVAL;
 	}
 }
 

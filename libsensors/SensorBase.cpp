@@ -40,7 +40,8 @@ SensorBase::SensorBase(
     }
 	fifo_fd = -1;
 	fifo_name = NULL;
-	mBatchEnabled = false;
+	mBatchEnabled = 0;
+	mFlushed = 0;
 }
 
 SensorBase::SensorBase(
@@ -58,7 +59,8 @@ SensorBase::SensorBase(
 	if(fifo_name){
 		open_fifo_device();
 	}
-	mBatchEnabled = false;
+	mBatchEnabled = 0;
+	mFlushed = 0; 
 }
 
 SensorBase::~SensorBase() {
@@ -197,7 +199,8 @@ int SensorBase::batch(int handle, int flags, int64_t period_ns, int64_t timeout)
 	return 0;
 }
 int SensorBase::flush(int handle){
-	return  -EINVAL;
+	return -EINVAL;
+	
 }
 
 

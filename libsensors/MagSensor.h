@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2014 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,6 +38,8 @@ public:
     virtual int setEnable(int32_t handle, int enabled);
     virtual int getEnable(int32_t handle);
     virtual int readEvents(sensors_event_t* data, int count);
+	virtual bool hasPendingEvents(); 
+	virtual int flush(int handle);
     void processEvent(int code, int value);
 
 private:
