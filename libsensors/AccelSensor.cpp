@@ -107,7 +107,7 @@ int AccelSensor::setDelay(int32_t handle, int64_t ns)
     return update_delay();
 }
 bool AccelSensor::hasPendingEvents(){
-	return (mFifoCount > 0);
+	return (mFifoCount > 0 || (mFlushed & (0x01 << ID_A)));
 }
 int AccelSensor::update_delay()
 {
@@ -184,14 +184,24 @@ int AccelSensor::readEvents(sensors_event_t* data, int count)
     if (count < 1)
         return -EINVAL;
 	int numEventReceived = 0;
-	if(mBatchEnabled){
-		sensors_event_t event;
-		if(mBatchEnabled){
-			/*read the batch FIFO infomation,then add the META_DATA_VERSION event at the end of FIFO */
-			if(mFifoCount <= 0){
-				ret = read_fifo();
-				if(ret < 0)  /*not fifo data ,return immediately*/
-					return 0;
+	sensors_event_t sensor_event;
+	if(mBatchEnabled & (0x01 << ID_A)){
+		/*read the batch FIFO infomation,then add the META_DATA_VERSION event at the end of FIFO */
+		if(mFifoCount <= 0){  
+			if(mFlushed & (0x01 << ID_A)){/*if batch mode enable and fifo lenght is zero */
+				memset(&sensor_event,0,sizeof(sensor_event));
+				sensor_event.version = META_DATA_VERSION;
+				sensor_event.type = SENSOR_TYPE_META_DATA;
+				sensor_event.meta_data.sensor = ID_A;
+				sensor_event.meta_data.what = 0;
+				*data++ = sensor_event;
+				count--;
+				numEventReceived++;
+				mFlushed &= ~(0x01 << ID_A);;
+			}
+			ret = read_fifo();
+			if(ret < 0)  /*not fifo data ,return immediately*/
+				return 0;
 			}
 			events = (count -1 < mFifoCount)? count -1 : mFifoCount;
 			if(events){
@@ -201,17 +211,27 @@ int AccelSensor::readEvents(sensors_event_t* data, int count)
 				data += events;
 			}
 			if(count > 0 && mFifoCount == 0){  //end fifo flag
-				memset(&event,0,sizeof(event));
-				event.version = META_DATA_VERSION;
-				event.type = SENSOR_TYPE_META_DATA;
-				event.meta_data.sensor = ID_A;
-				event.meta_data.what = 0;
-				*data++ = event;
+				memset(&sensor_event,0,sizeof(sensor_event));
+				sensor_event.version = META_DATA_VERSION;
+				sensor_event.type = SENSOR_TYPE_META_DATA;
+				sensor_event.meta_data.sensor = ID_A;
+				sensor_event.meta_data.what = 0;
+				*data++ = sensor_event;
 				count--;
 				numEventReceived++;
 			}
-		}
 	}else{
+		if(mFlushed & (0x01 << ID_A)){ /*if batch mode disable , send flush META_DATA_FLUSH_COMPLETE  immediately*/
+			memset(&sensor_event,0,sizeof(sensor_event));
+			sensor_event.version = META_DATA_VERSION;
+			sensor_event.type = SENSOR_TYPE_META_DATA;
+			sensor_event.meta_data.sensor = ID_A;
+			sensor_event.meta_data.what = 0;
+			*data++ = sensor_event;
+			count--;
+			numEventReceived++;
+			mFlushed &= ~(0x01 << ID_A);;
+		}
 		ssize_t n = mInputReader.fill(data_fd);
 		if (n < 0)
 			return n;
@@ -439,14 +459,19 @@ int AccelSensor::batch(int handle, int flags, int64_t period_ns, int64_t timeout
 		fifo(period_ns,timeout,wakeup);
 		mDelay = period_ns;
 		if(timeout > 0)
-			mBatchEnabled = true;
+			mBatchEnabled |= (0x01 << ID_A);
 		else
-			mBatchEnabled = false;
+			mBatchEnabled &= ~(0x01 << ID_A);
 	}
 	return 0;
 }
 int AccelSensor::flush(int handle){
-	return -1;
+	if(mEnabled){
+		mFlushed |= (0x01 << ID_A);
+		return 0;
+	}else{
+		return -EINVAL;
+	}
 }
 
 /*****************************************************************************/

@@ -37,7 +37,8 @@ protected:
     int         dev_fd;
     int         data_fd;
 	int 		fifo_fd;
-	bool 		mBatchEnabled;
+	int 		mBatchEnabled;
+	int 		mFlushed;
     int openInput(const char* inputName);
     static int64_t getTimestamp();
 
