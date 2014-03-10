@@ -53,21 +53,6 @@ static PFNEGLPOSTBUFFERVIVPROC _eglPostBufferVIV;
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device);
 
-extern int hwc_composite(struct hwc_context_t* ctx, hwc_layer_1_t* layer,
-                    struct private_handle_t *dstHandle, hwc_rect_t* swap, bool firstLayer);
-extern int hwc_clearWormHole(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    hwc_display_contents_1_t* list, int disp, hwc_rect_t* swap);
-extern int hwc_clearRect(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    hwc_rect_t &rect);
-extern int hwc_copyBack(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    struct private_handle_t *srcHandle, int swapIndex, int disp);
-extern int hwc_resize(struct hwc_context_t* ctx, struct private_handle_t *dstHandle,
-                    struct private_handle_t *srcHandle);
-extern int hwc_updateSwapRect(struct hwc_context_t* ctx, int disp,
-                 android_native_buffer_t* nbuf);
-extern bool hwc_hasSameContent(struct hwc_context_t* ctx, int src,
-            int dst, hwc_display_contents_1_t** lists);
-
 static struct hw_module_methods_t hwc_module_methods = {
     open: hwc_device_open
 };
@@ -121,8 +106,8 @@ static int hwc_device_close(struct hw_device_t *dev)
                 close(ctx->mDispInfo[i].fd);
         }
 
-        if (ctx->g2d_handle != NULL) {
-            g2d_close(ctx->g2d_handle);
+        if (ctx->m_hwc_ops != NULL) {
+            ctx->m_hwc_ops->close(ctx);
         }
 
         if(ctx->m_viv_hwc) {
@@ -131,267 +116,6 @@ static int hwc_device_close(struct hw_device_t *dev)
 
         free(ctx);
     }
-    return 0;
-}
-
-static bool checkG2dProcs(struct hwc_context_t* ctx,
-                    hwc_display_contents_1_t* list)
-{
-    if (ctx == NULL || list == NULL) {
-        return false;
-    }
-
-    hwc_layer_1_t* targetLayer = &list->hwLayers[list->numHwLayers-1];
-    struct private_handle_t *targetHandle;
-    targetHandle = (struct private_handle_t *)targetLayer->handle;
-    if (targetHandle == NULL) {
-        ALOGI("prepare: targetHandle is null");
-        return false;
-    }
-
-    hwc_layer_1_t* layer = NULL;
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        if (layer->flags & HWC_SKIP_LAYER) {
-            ALOGV("skip layer");
-            return false;
-        }
-
-        if ((layer->blending & 0xFFFF) == HWC_BLENDING_DIM) {
-            ALOGV("dim layer");
-            continue;
-        }
-
-        if (layer->handle == NULL) {
-            ALOGV("layer handle is null");
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static int hwc_prepare_physical(struct hwc_context_t* ctx, int disp,
-                         hwc_display_contents_1_t* list)
-{
-    if (ctx == NULL || ctx->g2d_handle == NULL || list == NULL) {
-        ctx->mDispInfo[disp].mG2dProcs = false;
-        ALOGV("%s: disp:%d invalid parameter", __FUNCTION__, disp);
-        return 0;
-    }
-
-    if (!ctx->mDispInfo[disp].connected) {
-        ALOGE("physical display:%d is diconnected", disp);
-        ctx->mDispInfo[disp].mG2dProcs = false;
-        return -EINVAL;
-    }
-
-    bool g2dProcs = checkG2dProcs(ctx, list);
-    if (!g2dProcs) {
-        ALOGV("pass to 3D to handle");
-        ctx->mDispInfo[disp].mG2dProcs = false;
-        return 0;
-    }
-
-    hwc_layer_1_t* layer = NULL;
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        layer->compositionType = HWC_G2D;
-    }
-    ctx->mDispInfo[disp].mG2dProcs = true;
-
-    return 0;
-}
-
-static int hwc_prepare_virtual(struct hwc_context_t* ctx, int disp,
-                         hwc_display_contents_1_t* list)
-{
-    if (ctx == NULL || ctx->g2d_handle == NULL || list == NULL) {
-        ctx->mDispInfo[disp].mG2dProcs = false;
-        ALOGV("%s: disp:%d invalid parameter", __FUNCTION__, disp);
-        return 0;
-    }
-
-    bool g2dProcs = checkG2dProcs(ctx, list);
-    if (!g2dProcs) {
-        ALOGV("pass to 3D to handle");
-        ctx->mDispInfo[disp].mG2dProcs = false;
-        return 0;
-    }
-
-    hwc_layer_1_t* layer = NULL;
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        layer->compositionType = HWC_G2D;
-    }
-    ctx->mDispInfo[disp].mG2dProcs = true;
-
-    return 0;
-}
-
-static int hwc_set_physical(struct hwc_context_t* ctx, int disp,
-                         hwc_display_contents_1_t** contents)
-{
-    hwc_display_contents_1_t* list = contents[disp];
-    if (ctx == NULL || list == NULL) {
-        ALOGV("%s: disp:%d invalid parameter", __FUNCTION__, disp);
-        return 0;
-    }
-
-    // to do copyback when use swap retangle.
-    hwc_layer_1_t* targetLayer = &list->hwLayers[list->numHwLayers-1];
-    struct private_handle_t *targetHandle;
-    targetHandle = (struct private_handle_t *)targetLayer->handle;
-
-    if (!ctx->mDispInfo[disp].mG2dProcs) {
-        if (targetHandle != NULL && ctx->mDispInfo[disp].connected) {
-            ctx->mFbDev[disp]->post(ctx->mFbDev[disp], targetHandle);
-        }
-        hwc_updateSwapRect(ctx, disp, NULL);
-        return 0;
-    }
-
-    hwc_layer_1_t* layer = NULL;
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        if (layer->compositionType != HWC_G2D) {
-            ALOGE("invalid compositionType:%d", layer->compositionType);
-            return -EINVAL;
-        }
-    }
-
-    //framebuffer handle.
-    android_native_buffer_t *fbuffer = NULL;
-    struct private_handle_t *frameHandle;
-    fbuffer = (ANativeWindowBuffer *) _eglGetRenderBufferVIV(targetHandle);
-    if (fbuffer == NULL) {
-        ALOGE("get render buffer failed!");
-        return -EINVAL;
-    }
-
-    frameHandle = (struct private_handle_t *)(fbuffer->handle);
-    if (frameHandle == NULL) {
-        ALOGE("invalid frame buffer handle");
-        return -EINVAL;
-    }
-
-    int index = hwc_updateSwapRect(ctx, disp, fbuffer);
-    if (index < 0) {
-        ALOGE("invalid index");
-        return -EINVAL;
-    }
-
-    hwc_rect_t& swapRect = ctx->mDispInfo[disp].mSwapRect[index];
-    hwc_clearWormHole(ctx, frameHandle, list, disp, &swapRect);
-
-    bool resized = false;
-    if (disp != HWC_DISPLAY_PRIMARY &&
-        hwc_hasSameContent(ctx, HWC_DISPLAY_PRIMARY, disp, contents)) {
-        hwc_display_contents_1_t* sList = contents[HWC_DISPLAY_PRIMARY];
-        hwc_layer_1_t* primaryLayer = &sList->hwLayers[sList->numHwLayers-1];
-        struct private_handle_t *primaryHandle = NULL;
-        primaryHandle = (struct private_handle_t *)primaryLayer->handle;
-        if (primaryHandle != NULL) {
-            hwc_resize(ctx, frameHandle, primaryHandle);
-            resized = true;
-        }
-    }
-
-    if (!resized) {
-        for (size_t i=0; i<list->numHwLayers-1; i++) {
-            layer = &list->hwLayers[i];
-            int fenceFd = layer->acquireFenceFd;
-            if (fenceFd > 0) {
-                ALOGI("fenceFd:%d", fenceFd);
-                sync_wait(fenceFd, -1);
-                close(fenceFd);
-                layer->acquireFenceFd = -1;
-            }
-            hwc_composite(ctx, layer, frameHandle, &swapRect, i==0);
-        }
-
-        hwc_copyBack(ctx, frameHandle, targetHandle, index, disp);
-    }
-    g2d_finish(ctx->g2d_handle);
-
-    _eglPostBufferVIV(fbuffer);
-
-    targetHandle = (struct private_handle_t *)targetLayer->handle;
-    if (targetHandle != NULL && ctx->mDispInfo[disp].connected && ctx->mDispInfo[disp].blank == 0) {
-        ctx->mFbDev[disp]->post(ctx->mFbDev[disp], targetHandle);
-    }
-
-    return 0;
-}
-
-static int hwc_set_virtual(struct hwc_context_t* ctx, int disp,
-                         hwc_display_contents_1_t** contents)
-{
-    hwc_display_contents_1_t* list = contents[disp];
-    if (ctx == NULL || list == NULL) {
-        return 0;
-    }
-
-    if (list->outbuf == NULL) {
-        ALOGE("invalid outbuf for virtual display");
-        return -EINVAL;
-    }
-
-    struct private_handle_t *frameHandle;
-    frameHandle = (struct private_handle_t *)(list->outbuf);
-    if (frameHandle == NULL) {
-        ALOGE("invalid frame buffer handle");
-        return -EINVAL;
-    }
-
-    if (!ctx->mDispInfo[disp].mG2dProcs) {
-        return 0;
-    }
-
-    hwc_layer_1_t* layer = NULL;
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        if (layer->compositionType != HWC_G2D) {
-            ALOGE("invalid compositionType:%d", layer->compositionType);
-            return -EINVAL;
-        }
-    }
-
-    int fenceFd = list->outbufAcquireFenceFd;
-    if (fenceFd != -1) {
-        sync_wait(fenceFd, -1);
-        close(fenceFd);
-        list->outbufAcquireFenceFd = -1;
-    }
-
-    if (disp != HWC_DISPLAY_PRIMARY &&
-        hwc_hasSameContent(ctx, HWC_DISPLAY_PRIMARY, disp, contents)) {
-        hwc_display_contents_1_t* sList = contents[HWC_DISPLAY_PRIMARY];
-        hwc_layer_1_t* primaryLayer = &sList->hwLayers[sList->numHwLayers-1];
-        struct private_handle_t *primaryHandle = NULL;
-        primaryHandle = (struct private_handle_t *)primaryLayer->handle;
-        if (primaryHandle != NULL) {
-            hwc_resize(ctx, frameHandle, primaryHandle);
-            g2d_finish(ctx->g2d_handle);
-            return 0;
-        }
-    }
-
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        int fenceFd = layer->acquireFenceFd;
-        if (fenceFd > 0) {
-            ALOGI("fenceFd:%d", fenceFd);
-            sync_wait(fenceFd, -1);
-            close(fenceFd);
-            layer->acquireFenceFd = -1;
-        }
-
-        hwc_composite(ctx, layer, frameHandle, NULL, i==0);
-    }
-
-    g2d_finish(ctx->g2d_handle);
-
     return 0;
 }
 
@@ -413,34 +137,8 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
         return ctx->m_viv_hwc->prepare(ctx->m_viv_hwc, numDisplays, displays);
     }
 
-    if (ctx->g2d_handle == NULL) {
-        g2d_open(&ctx->g2d_handle);
-        if (ctx->g2d_handle == NULL) {
-            ALOGE("%s invalid g2d_handle", __FUNCTION__);
-            return 0;
-        }
-    }
-
-    char property[PROPERTY_VALUE_MAX];
-    property_get("service.bootanim.exit", property, "0");
-    if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
-
-    for (size_t i = 0; i < numDisplays; i++) {
-        hwc_display_contents_1_t *list = displays[i];
-        switch(i) {
-            case HWC_DISPLAY_PRIMARY:
-                ret = hwc_prepare_physical(ctx, i, displays[i]);
-                break;
-            case HWC_DISPLAY_EXTERNAL:
-                ret = hwc_prepare_physical(ctx, i, displays[i]);
-                break;
-            case HWC_DISPLAY_VIRTUAL:
-                ret = hwc_prepare_virtual(ctx, i, displays[i]);
-                break;
-            default:
-                ALOGI("invalid display id:%d", i);
-                break;
-        }
+    if (ctx->m_hwc_ops) {
+        return ctx->m_hwc_ops->prepare(ctx, numDisplays, displays);
     }
 
     return ret;
@@ -457,59 +155,38 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
     int ret = 0;
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
 
-    if(ctx->m_viv_hwc) {
+    hwc_display_contents_1_t *primary = displays[HWC_DISPLAY_PRIMARY];
+    hwc_display_contents_1_t *external = displays[HWC_DISPLAY_EXTERNAL];
+
+    if(ctx->m_viv_hwc || ctx->m_hwc_ops) {
         char property[PROPERTY_VALUE_MAX];
         property_get("service.bootanim.exit", property, "0");
         if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
 
-        int err = ctx->m_viv_hwc->set(ctx->m_viv_hwc, numDisplays, displays);
-        if(err) return err;
-
-        hwc_display_contents_1_t *primary_contents = displays[HWC_DISPLAY_PRIMARY];
-        hwc_display_contents_1_t *external_contents = displays[HWC_DISPLAY_EXTERNAL];
-        if (primary_contents && ctx->mDispInfo[HWC_DISPLAY_PRIMARY].blank == 0) {
-            hwc_layer_1 *fbt = &primary_contents->hwLayers[primary_contents->numHwLayers - 1];
-            if(ctx->mFbDev[HWC_DISPLAY_PRIMARY] != NULL)
-                ctx->mFbDev[HWC_DISPLAY_PRIMARY]->post(ctx->mFbDev[HWC_DISPLAY_PRIMARY],  fbt->handle);
+        if (ctx->m_viv_hwc) {
+            ret = ctx->m_viv_hwc->set(ctx->m_viv_hwc, numDisplays, displays);
         }
-
-        if (external_contents && ctx->mDispInfo[HWC_DISPLAY_EXTERNAL].blank == 0) {
-            hwc_layer_1 *fbt = &external_contents->hwLayers[external_contents->numHwLayers - 1];
-            if(ctx->mFbDev[HWC_DISPLAY_EXTERNAL] != NULL)
-                ctx->mFbDev[HWC_DISPLAY_EXTERNAL]->post(ctx->mFbDev[HWC_DISPLAY_EXTERNAL], fbt->handle);
+        else {
+            ret = ctx->m_hwc_ops->set(ctx, numDisplays, displays);
         }
-
-        return 0;
+        if(ret) return ret;
     }
 
-    if (ctx->g2d_handle == NULL) {
-        ALOGI("%s invalid g2d_handle", __FUNCTION__);
-        return 0;
+    if (primary && ctx->mDispInfo[HWC_DISPLAY_PRIMARY].blank == 0) {
+        hwc_layer_1 *fbt = &primary->hwLayers[primary->numHwLayers-1];
+        if(ctx->mFbDev[HWC_DISPLAY_PRIMARY] != NULL)
+            ctx->mFbDev[HWC_DISPLAY_PRIMARY]->post(
+                     ctx->mFbDev[HWC_DISPLAY_PRIMARY],  fbt->handle);
     }
 
-    char property[PROPERTY_VALUE_MAX];
-    property_get("service.bootanim.exit", property, "0");
-    if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
-
-    for (size_t i = 0; i < numDisplays;i++) {
-        hwc_display_contents_1_t *list = displays[i];
-        switch(i) {
-            case HWC_DISPLAY_PRIMARY:
-                ret = hwc_set_physical(ctx, i, displays);
-                break;
-            case HWC_DISPLAY_EXTERNAL:
-                ret = hwc_set_physical(ctx, i, displays);
-                break;
-            case HWC_DISPLAY_VIRTUAL:
-                ret = hwc_set_virtual(ctx, i, displays);
-                break;
-            default:
-                ALOGI("invalid display id:%d", i);
-                break;
-        }
+    if (external && ctx->mDispInfo[HWC_DISPLAY_EXTERNAL].blank == 0) {
+        hwc_layer_1 *fbt = &external->hwLayers[external->numHwLayers-1];
+        if(ctx->mFbDev[HWC_DISPLAY_EXTERNAL] != NULL)
+            ctx->mFbDev[HWC_DISPLAY_EXTERNAL]->post(
+                     ctx->mFbDev[HWC_DISPLAY_EXTERNAL], fbt->handle);
     }
 
-    return ret;
+    return 0;
 }
 
 static void hwc_registerProcs(struct hwc_composer_device_1* dev,
@@ -560,6 +237,10 @@ static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
 
     if (ctx->m_viv_hwc) {
         ctx->m_viv_hwc->blank(ctx->m_viv_hwc, disp, blank);
+    }
+
+    if (ctx->m_hwc_ops) {
+        ctx->m_hwc_ops->blank(ctx, disp, blank);
     }
 
     ctx->mDispInfo[disp].blank = blank;
@@ -646,37 +327,6 @@ static int hwc_getDisplayAttributes(struct hwc_composer_device_1 *dev,
     return 0;
 }
 
-static int hwc_setDisplaySurface(struct hwc_composer_device_1 *dev,
-        int disp, ANativeWindow* window)
-{
-    struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
-    if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
-        return -EINVAL;
-    }
-
-    ALOGI("%s: disp:%d", __FUNCTION__, disp);
-    ctx->mDispInfo[disp].mDisplaySurface = window;
-
-    return 0;
-}
-
-static int hwc_setDisplayWormHole(struct hwc_composer_device_1 *dev,
-        int disp, hwc_region_t& hole)
-{
-    struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
-    if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
-        return -EINVAL;
-    }
-
-    ALOGI("%s: disp:%d", __FUNCTION__, disp);
-    ctx->mDispInfo[disp].mWormHole.numRects = hole.numRects;
-    if (hole.numRects > 0 && hole.rects != NULL) {
-        ctx->mDispInfo[disp].mWormHole.rects = (const hwc_rect_t*)malloc(hole.numRects*sizeof(hwc_rect_t));
-        memcpy((void*)ctx->mDispInfo[disp].mWormHole.rects, hole.rects, hole.numRects*sizeof(hwc_rect_t));
-    }
-
-    return 0;
-}
 /*****************************************************************************/
 
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
@@ -706,15 +356,43 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         dev->device.blank = hwc_blank;
         dev->device.getDisplayConfigs = hwc_getDisplayConfigs;
         dev->device.getDisplayAttributes = hwc_getDisplayAttributes;
-        //dev->device.setDisplaySurface = hwc_setDisplaySurface;
 
         /* our private state goes below here */
         dev->m_vsync_thread = new VSyncThread(dev);
         dev->m_uevent_thread = new UeventThread(dev);
-        hwc_get_display_info(dev);
 
+        bool using_viv_hwc = false;
+        const hw_module_t *hwc_module;
+        if(hw_get_module(HWC_VIV_HARDWARE_MODULE_ID,
+                    (const hw_module_t**)&hwc_module) < 0) {
+            ALOGE("Error! hw_get_module viv_hwc failed");
+        }
+        else if(hwc_open_1(hwc_module, &(dev->m_viv_hwc)) != 0) {
+            ALOGE("Error! viv_hwc open failed");
+        }
+        else {
+            ALOGI("using viv hwc!");
+            using_viv_hwc = true;
+        }
+
+        if (!using_viv_hwc) {
+            if (hw_get_module(HWC_FSL_HARDWARE_MODULE_ID,
+                    (const hw_module_t**)&hwc_module) < 0) {
+                ALOGE("Error! hw_get_module fsl_hwc failed");
+            }
+            else if (hwc_open_1(hwc_module, (hwc_composer_device_1_t**)&dev) != 0) {
+                //set m_hwc_ops and m_priv;
+                ALOGE("Error! hw_get_module fsl_hwc failed");
+            }
+            else {
+                ALOGI("using fsl hwc!");
+            }
+        }
+
+        hwc_get_display_info(dev);
         hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &dev->m_gralloc_module);
-        struct private_module_t *priv_m = (struct private_module_t *)dev->m_gralloc_module;
+        struct private_module_t *priv_m =
+                         (struct private_module_t *)dev->m_gralloc_module;
 
         for(int dispid=0; dispid<HWC_NUM_DISPLAY_TYPES; dispid++) {
             if(dev->mDispInfo[dispid].connected && dev->m_gralloc_module != NULL) {
@@ -729,57 +407,11 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
             }
         }
 
-        char property[PROPERTY_VALUE_MAX];
-        property_get("sys.fsl.hwc", property, "0");
-        if(!atoi(property)) {
-            const hw_module_t *hwc_module;
-            if(hw_get_module(HWC_VIV_HARDWARE_MODULE_ID,
-                        (const hw_module_t**)&hwc_module) < 0) {
-                ALOGE("Error! hw_get_module viv_hwc failed");
-            }
-            else if(hwc_open_1(hwc_module, &(dev->m_viv_hwc)) != 0) {
-                ALOGE("Error! viv_hwc open failed");
-            }
-            else {
-                ALOGI("using viv hwc!");
-                goto nor_exit;
-            }
-        }
-
-        if (_eglGetRenderBufferVIV == NULL || _eglPostBufferVIV == NULL)
-        {
-            _eglGetRenderBufferVIV = (PFNEGLGETRENDERBUFFERVIVPROC)
-                eglGetProcAddress("eglGetRenderBufferVIV");
-
-            if (_eglGetRenderBufferVIV == NULL)
-            {
-                ALOGE("eglGetRenderBufferVIV not found!");
-                status = -EINVAL;
-                goto err_exit;
-            }
-
-            _eglPostBufferVIV = (PFNEGLPOSTBUFFERVIVPROC)
-                eglGetProcAddress("eglPostBufferVIV");
-
-            if (_eglPostBufferVIV == NULL)
-            {
-                ALOGE("eglPostBufferVIV not found!");
-                status = -EINVAL;
-                goto err_exit;
-            }
-        }
-        ALOGI("using fsl hwc!");
-
-nor_exit:
         *device = &dev->device.common;
-	    ALOGI("%s,%d", __FUNCTION__, __LINE__);
+	ALOGI("%s,%d", __FUNCTION__, __LINE__);
         return 0;
     }
 
-err_exit:
-	if(dev){
-	    free(dev);
-	}
     /****************************************/
     return status;
 }
