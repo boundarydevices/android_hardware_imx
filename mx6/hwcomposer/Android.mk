@@ -29,16 +29,13 @@ LOCAL_SHARED_LIBRARIES :=			\
 	libui					\
 	libhardware				\
 	libhardware_legacy			\
-	libbinder \
-    libg2d \
-    libsync
+	libbinder
 
 LOCAL_SRC_FILES :=				\
 	hwcomposer.cpp				\
 	hwc_vsync.cpp				\
 	hwc_display.cpp				\
-	hwc_uevent.cpp \
-    hwc_composite.cpp
+	hwc_uevent.cpp
 
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_C_INCLUDES += hardware/imx/mx6/libgralloc_wrapper \

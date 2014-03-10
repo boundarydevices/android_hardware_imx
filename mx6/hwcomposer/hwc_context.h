@@ -39,6 +39,7 @@
 #include "hwc_uevent.h"
 /*****************************************************************************/
 #define HWC_VIV_HARDWARE_MODULE_ID "hwcomposer_viv"
+#define HWC_FSL_HARDWARE_MODULE_ID "hwcomposer_fsl"
 #define HWC_MAIN_FB "/dev/graphics/fb0"
 #define HWC_MAX_FB 6
 #define HWC_PATH_LENGTH 256
@@ -74,21 +75,24 @@ typedef struct {
     int ydpi;
     int blank;
     int format;
-
-    sp<ANativeWindow> mDisplaySurface;
-    hwc_region_t mWormHole;
-    bool mG2dProcs;
-    //struct g2d_buf* mCurrentBuffer;
-    //buffer_handle_t mLastHandle;
-    int mSwapIndex;
-    hwc_rect_t mSwapRect[HWC_MAX_FRAMEBUFFER];
 } displayInfo;
+
+struct hwc_context_t;
+
+struct hwc_operations {
+    void (*setDisplayInfo)(int disp, struct hwc_context_t* ctx);
+    int (*prepare)(struct hwc_context_t* ctx,
+                    size_t numDisplays, hwc_display_contents_1_t** displays);
+    int (*set)(struct hwc_context_t* ctx,
+                size_t numDisplays, hwc_display_contents_1_t** displays);
+    int (*blank)(struct hwc_context_t* ctx, int disp, int blank);
+    int (*close)(struct hwc_context_t* ctx);
+};
 
 struct hwc_context_t {
     hwc_composer_device_1 device;
     /* our private state goes below here */
     displayInfo mDispInfo[HWC_NUM_DISPLAY_TYPES];
-    void* g2d_handle;
 
     bool m_vsync_enable;
 
@@ -101,6 +105,10 @@ struct hwc_context_t {
     hw_module_t const *m_gralloc_module;
 
     framebuffer_device_t* mFbDev[HWC_NUM_DISPLAY_TYPES];
+
+    //fsl private property and operations.
+    void* m_priv;
+    hwc_operations* m_hwc_ops;
 };
 
 #endif

@@ -210,14 +210,6 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
           info.height, pInfo->ydpi / 1000.0, refreshRate,
           pInfo->format);
 
-    pInfo->mSwapIndex = 0;
-    for (int i=0; i<HWC_MAX_FRAMEBUFFER; i++) {
-        pInfo->mSwapRect[i].left = 0;
-        pInfo->mSwapRect[i].top = 0;
-        pInfo->mSwapRect[i].right = pInfo->xres;
-        pInfo->mSwapRect[i].bottom = pInfo->yres;
-    }
-
     return NO_ERROR;
 }
 
@@ -231,6 +223,9 @@ int hwc_get_display_info(struct hwc_context_t* ctx)
         displayInfo *pInfo = &ctx->mDispInfo[dispid];
         if(pInfo->connected) {
             err = hwc_get_framebuffer_info(pInfo);
+            if (!err && ctx->m_hwc_ops) {
+                ctx->m_hwc_ops->setDisplayInfo(dispid, ctx);
+            }
         }
     }
 
