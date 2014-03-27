@@ -97,8 +97,11 @@ status_t Ov5642Csi::initSensorInfo(const CameraInfo& info)
                 //If w/h ratio is not same with senserW/sensorH, framework assume that
 		//first crop little width or little height, then scale.
 		//But 1920x1080, 176x144 not work in this mode.
+		//For 1M pixel, 720p sometimes may take green picture(5%), so not report it,
+		//use 1024x768 for 1M pixel
 		if( !((vid_frmsize.discrete.width == 1920 && vid_frmsize.discrete.height == 1080) ||
-		      (vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144))	){
+		      (vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144) ||
+		      (vid_frmsize.discrete.width == 1280 && vid_frmsize.discrete.height == 720)) ){
 	            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
 	            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
 		}
