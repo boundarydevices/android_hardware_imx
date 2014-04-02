@@ -57,6 +57,10 @@ int pFd[2] = {0,};
 
 bt_vendor_callbacks_t *bt_vendor_cbacks = NULL;
 uint8_t vnd_local_bd_addr[6]={0x11, 0x22, 0x33, 0x44, 0x55, 0xFF};
+#if (HW_NEED_END_WITH_HCI_RESET == TRUE)
+void hw_epilog_process(void);
+#endif
+
 
 /******************************************************************************
 **  Local type definitions
@@ -189,6 +193,17 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 				bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
         	}			
             break;
+        case BT_VND_OP_EPILOG:
+            {
+#if (HW_NEED_END_WITH_HCI_RESET == FALSE)
+                if (bt_vendor_cbacks)
+                {
+                    bt_vendor_cbacks->epilog_cb(BT_VND_OP_RESULT_SUCCESS);
+                }
+#else
+                hw_epilog_process();
+#endif
+            }
     }
 
     return retval;
