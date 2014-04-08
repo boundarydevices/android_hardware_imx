@@ -147,7 +147,7 @@ static int convertBlending(int blending, struct g2d_surface& src,
 static int setG2dSurface(struct g2d_surface& surface,
              struct private_handle_t *handle, hwc_rect_t& rect)
 {
-    int alignWidth, alignHeight;
+    int alignWidth = 0, alignHeight = 0;
     int ret = get_aligned_size(handle, &alignWidth, &alignHeight);
     if (ret != 0) {
         alignHeight = handle->height;
@@ -179,8 +179,14 @@ static int setG2dSurface(struct g2d_surface& surface,
         case G2D_YV12: {
             int stride = surface.stride;
             int c_stride = (stride/2+15)/16*16;
-            surface.planes[1] = handle->phys + stride * alignHeight;
-            surface.planes[2] = surface.planes[1] + c_stride * alignHeight/2;
+            if (surface.format == G2D_I420) {
+                surface.planes[1] = handle->phys + stride * handle->height;
+                surface.planes[2] = surface.planes[1] + c_stride * handle->height/2;
+            }
+            else {
+                surface.planes[2] = handle->phys + stride * handle->height;
+                surface.planes[1] = surface.planes[2] + c_stride * handle->height/2;
+            }
             } break;
 
         default:
