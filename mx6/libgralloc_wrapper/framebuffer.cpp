@@ -167,6 +167,142 @@ static int fb_compositionComplete(struct framebuffer_device_t* dev)
     return 0;
 }
 
+static int checkFramebufferFormat(int fd, uint32_t &flags)
+{
+    struct fb_var_screeninfo info;
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
+        ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+        return -errno;
+    }
+
+    info.reserved[0] = 0;
+    info.reserved[1] = 0;
+    info.reserved[2] = 0;
+    info.xoffset = 0;
+    info.yoffset = 0;
+    info.activate = FB_ACTIVATE_NOW;
+    /*
+     * Request nr_framebuffers screens (at lest 2 for page flipping)
+     */
+    info.yres_virtual = ALIGN_PIXEL_128(info.yres) * nr_framebuffers;
+    info.xres_virtual = ALIGN_PIXEL(info.xres);
+
+    if (info.bits_per_pixel == 32) {
+        /*
+         * Explicitly request RGBA 8/8/8/8
+         */
+        info.red.offset       = 0;
+        info.red.length       = 8;
+        info.red.msb_right    = 0;
+        info.green.offset     = 8;
+        info.green.length     = 8;
+        info.green.msb_right  = 0;
+        info.blue.offset      = 16;
+        info.blue.length      = 8;
+        info.blue.msb_right   = 0;
+        info.transp.offset    = 24;
+        info.transp.length    = 8;
+        info.transp.msb_right = 0;
+
+        if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
+            flags &= ~PAGE_FLIP;
+            ALOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
+        }
+
+        if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
+            ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+            return -errno;
+        }
+        if (info.red.offset != 0 || info.red.length != 8 ||
+            info.green.offset != 8 || info.green.length != 8 ||
+            info.blue.offset != 16 || info.blue.length != 8) {
+            /*
+             * Explicitly request BGRA 8/8/8/8
+             */
+            info.red.offset       = 16;
+            info.red.length       = 8;
+            info.red.msb_right    = 0;
+            info.green.offset     = 8;
+            info.green.length     = 8;
+            info.green.msb_right  = 0;
+            info.blue.offset      = 0;
+            info.blue.length      = 8;
+            info.blue.msb_right   = 0;
+            info.transp.offset    = 24;
+            info.transp.length    = 8;
+            info.transp.msb_right = 0;
+
+            if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
+                flags &= ~PAGE_FLIP;
+                ALOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
+            }
+
+            if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
+                ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+                return -errno;
+            }
+            if (info.red.offset != 16 || info.red.length != 8 ||
+                info.green.offset != 8 || info.green.length != 8 ||
+                info.blue.offset != 0 || info.blue.length != 8) {
+                ALOGE("display doesn't support RGBA8888 and BRGA8888 in 32bpp,"
+                       "which are supported in framework."
+                       "please configure 16bpp in commandline to have a try");
+                return -errno;
+            }
+            ALOGI("32bpp setting of Framebuffer with BGRA8888 format!");
+        }
+        else {
+            ALOGI("32bpp setting of Framebuffer with RGBA8888 format!");
+        }
+    }
+    else {
+        /*
+         * Explicitly request 5/6/5
+         */
+        info.bits_per_pixel   = 16;
+        info.red.offset       = 11;
+        info.red.length       = 5;
+        info.red.msb_right    = 0;
+        info.green.offset     = 5;
+        info.green.length     = 6;
+        info.green.msb_right  = 0;
+        info.blue.offset      = 0;
+        info.blue.length      = 5;
+        info.blue.msb_right   = 0;
+        info.transp.offset    = 0;
+        info.transp.length    = 0;
+        info.transp.msb_right = 0;
+
+        if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
+            flags &= ~PAGE_FLIP;
+            ALOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
+        }
+
+        if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
+            ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+            return -errno;
+        }
+        if (info.red.offset != 11 || info.red.length != 5 ||
+            info.green.offset != 5 || info.green.length != 6 ||
+            info.blue.offset != 0 || info.blue.length != 5) {
+            ALOGE("display doesn't support RGB565 in 16bpp,"
+                   "which is only support in framework");
+            return -errno;
+        }
+
+        ALOGI("16bpp setting of Framebuffer with RGB565 format!");
+    }
+
+    if (info.yres_virtual < ALIGN_PIXEL_128(info.yres) * 2) {
+        // we need at least 2 for page-flipping
+        flags &= ~PAGE_FLIP;
+        ALOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
+                info.yres_virtual, ALIGN_PIXEL_128(info.yres)*2);
+    }
+
+    return 0;
+}
+
 /*****************************************************************************/
 static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
 {
@@ -174,7 +310,7 @@ static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
     if (module->framebuffer) {
         return 0;
     }
-        
+
     char const * const device_template[] = {
             "/dev/graphics/fb%u",
             "/dev/fb%u",
@@ -207,76 +343,13 @@ static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
         return -errno;
     }
 
-    struct fb_var_screeninfo info;
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
-        ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+    uint32_t flags = PAGE_FLIP;
+    if (checkFramebufferFormat(fd, flags) != 0) {
+        ALOGE("<%s,%d> checkFramebufferFormat failed", __FUNCTION__, __LINE__);
         return -errno;
     }
 
-    info.reserved[0] = 0;
-    info.reserved[1] = 0;
-    info.reserved[2] = 0;
-    info.xoffset = 0;
-    info.yoffset = 0;
-    info.activate = FB_ACTIVATE_NOW;
-
-    if(info.bits_per_pixel == 32){
-        ALOGW("32bpp setting of Framebuffer catched!");
-        /*
-         * Explicitly request RGBA 8/8/8/8
-         */
-        info.red.offset       = 0;
-        info.red.length       = 8;
-        info.red.msb_right    = 0;
-        info.green.offset     = 8;
-        info.green.length     = 8;
-        info.green.msb_right  = 0;
-        info.blue.offset      = 16;
-        info.blue.length      = 8;
-        info.blue.msb_right   = 0;
-        info.transp.offset    = 24;
-        info.transp.length    = 8;
-        info.transp.msb_right = 0;
-    }
-    else{
-        /*
-         * Explicitly request 5/6/5
-         */
-        info.bits_per_pixel   = 16;
-        info.red.offset       = 11;
-        info.red.length       = 5;
-        info.red.msb_right    = 0;
-        info.green.offset     = 5;
-        info.green.length     = 6;
-        info.green.msb_right  = 0;
-        info.blue.offset      = 0;
-        info.blue.length      = 5;
-        info.blue.msb_right   = 0;
-        info.transp.offset    = 0;
-        info.transp.length    = 0;
-        info.transp.msb_right = 0;
-    }
-    /*
-     * Request nr_framebuffers screens (at lest 2 for page flipping)
-     */
-    info.yres_virtual = ALIGN_PIXEL_128(info.yres) * nr_framebuffers;
-    info.xres_virtual = ALIGN_PIXEL(info.xres);
-    
-    uint32_t flags = PAGE_FLIP;
-    if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
-        info.yres_virtual = ALIGN_PIXEL_128(info.yres);
-        flags &= ~PAGE_FLIP;
-        ALOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
-    }
-
-    if (info.yres_virtual < ALIGN_PIXEL_128(info.yres) * 2) {
-        // we need at least 2 for page-flipping
-        info.yres_virtual = ALIGN_PIXEL_128(info.yres);
-        flags &= ~PAGE_FLIP;
-        ALOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
-                info.yres_virtual, ALIGN_PIXEL_128(info.yres)*2);
-    }
-
+    struct fb_var_screeninfo info;
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
         ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
         return -errno;
