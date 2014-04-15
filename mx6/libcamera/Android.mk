@@ -78,6 +78,10 @@ ifeq ($(PRODUCT_MODEL), EVK_MX6SL)
     LOCAL_CPPFLAGS += -DEVK_6SL
 endif
 
+ifeq ($(PRODUCT_MODEL), SABRESD-MX6SX)
+    LOCAL_CPPFLAGS += -DEVK_6SL
+endif
+
 #Define this for switch the Camera through V4L2 MXC IOCTL
 #LOCAL_CPPFLAGS += -DV4L2_CAMERA_SWITCH
 
