@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2013-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@
 #include "hwc_uevent.h"
 #include "hwc_display.h"
 
-#define HDMI_PLUG_EVENT "change@/devices/platform/mxc_hdmi"
+#define HDMI_PLUG_EVENT "hdmi_video"
+#define HDMI_PLUG_CHANGE "change@"
 #define HDMI_SII902_PLUG_EVENT "change@/devices/platform/sii902x.0"
 
 using namespace android;
@@ -58,6 +59,9 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
             } else {
                 ALOGI("HDMI Plugin detected");
                 hwc_get_framebuffer_info(&mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL]);
+                if (mCtx->m_hwc_ops) {
+                    mCtx->m_hwc_ops->setDisplayInfo(dispid, mCtx);
+                }
             }
         } else if (!strncmp(s, "EVENT=plugout", strlen("EVENT=plugout"))) {
             if (dispid == HWC_DISPLAY_PRIMARY) {
@@ -66,6 +70,9 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
             }
 
             mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = false;
+            if (mCtx->m_hwc_ops) {
+                mCtx->m_hwc_ops->setDisplayInfo(dispid, mCtx);
+            }
             ALOGI("HDMI Plugout detected");
         }
 
@@ -101,13 +108,13 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
 
 bool UeventThread::threadLoop() {
     char uevent_desc[4096];
-    const char *pHdmiEvent = HDMI_PLUG_EVENT;
     const char *pSii902 = HDMI_SII902_PLUG_EVENT;
 
     memset(uevent_desc, 0, sizeof(uevent_desc));
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
     int type = -1;
-    if (!strncmp(uevent_desc, pHdmiEvent, strlen(pHdmiEvent))) {
+    if (strstr(uevent_desc, HDMI_PLUG_EVENT) != NULL &&
+         strstr(uevent_desc, HDMI_PLUG_CHANGE) != NULL) {
         type = HWC_DISPLAY_HDMI;
     }
     else if (!strncmp(uevent_desc, pSii902, strlen(pSii902))) {
