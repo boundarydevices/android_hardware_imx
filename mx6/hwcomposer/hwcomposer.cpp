@@ -361,31 +361,32 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         dev->m_vsync_thread = new VSyncThread(dev);
         dev->m_uevent_thread = new UeventThread(dev);
 
-        bool using_viv_hwc = false;
+        bool using_fsl_hwc = false;
         const hw_module_t *hwc_module;
-        if(hw_get_module(HWC_VIV_HARDWARE_MODULE_ID,
-                    (const hw_module_t**)&hwc_module) < 0) {
-            ALOGE("Error! hw_get_module viv_hwc failed");
+
+        if (hw_get_module(HWC_FSL_HARDWARE_MODULE_ID,
+                (const hw_module_t**)&hwc_module) < 0) {
+            ALOGE("Error! hw_get_module fsl_hwc failed");
         }
-        else if(hwc_open_1(hwc_module, &(dev->m_viv_hwc)) != 0) {
-            ALOGE("Error! viv_hwc open failed");
+        else if (hwc_open_1(hwc_module, (hwc_composer_device_1_t**)&dev) != 0) {
+            //set m_hwc_ops and m_priv;
+            ALOGE("Error! hw_get_module fsl_hwc failed");
         }
         else {
-            ALOGI("using viv hwc!");
-            using_viv_hwc = true;
+            ALOGI("using fsl hwc!");
+            using_fsl_hwc = true;
         }
 
-        if (!using_viv_hwc) {
-            if (hw_get_module(HWC_FSL_HARDWARE_MODULE_ID,
-                    (const hw_module_t**)&hwc_module) < 0) {
-                ALOGE("Error! hw_get_module fsl_hwc failed");
+        if (!using_fsl_hwc) {
+            if(hw_get_module(HWC_VIV_HARDWARE_MODULE_ID,
+                        (const hw_module_t**)&hwc_module) < 0) {
+                ALOGE("Error! hw_get_module viv_hwc failed");
             }
-            else if (hwc_open_1(hwc_module, (hwc_composer_device_1_t**)&dev) != 0) {
-                //set m_hwc_ops and m_priv;
-                ALOGE("Error! hw_get_module fsl_hwc failed");
+            else if(hwc_open_1(hwc_module, &(dev->m_viv_hwc)) != 0) {
+                ALOGE("Error! viv_hwc open failed");
             }
             else {
-                ALOGI("using fsl hwc!");
+                ALOGI("using viv hwc!");
             }
         }
 
