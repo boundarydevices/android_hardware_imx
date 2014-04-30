@@ -51,6 +51,7 @@ typedef struct hwc_reg {
 } hwc_reg_t;
 
 extern "C" int get_aligned_size(buffer_handle_t hnd, int *width, int *height);
+extern "C" int get_flip_offset(buffer_handle_t hnd, int *offset);
 
 static bool validateRect(hwc_rect_t& rect)
 {
@@ -207,26 +208,24 @@ static int setG2dSurface(struct fsl_private *priv, struct g2d_surface& surface,
         alignWidth = handle->flags >> 16;
     }
     surface.format = convertFormat(handle->format);
-    surface.planes[0] = handle->phys;
     surface.stride = alignWidth;
+
+    int offset = 0;
+    get_flip_offset(handle, &offset);
+    surface.planes[0] = handle->phys + offset;
+
     switch (surface.format) {
         case G2D_RGB565:
-            surface.planes[0] += surface.stride * 2 * (alignHeight - handle->height);
-            break;
-
+        case G2D_YUYV:
         case G2D_RGBA8888:
         case G2D_BGRA8888:
         case G2D_RGBX8888:
-            surface.planes[0] += surface.stride * 4 * (alignHeight - handle->height);
-            break;
-
-        case G2D_YUYV:
             break;
 
         case G2D_NV16:
         case G2D_NV12:
         case G2D_NV21:
-            surface.planes[1] = handle->phys + surface.stride * alignHeight;
+            surface.planes[1] = surface.planes[0] + surface.stride * alignHeight;
             break;
 
         case G2D_I420:
@@ -255,6 +254,9 @@ static int setG2dSurface(struct fsl_private *priv, struct g2d_surface& surface,
                  }
                  // use temporary buffer.
                  phys = (int)priv->tmp_buf->buf_paddr;
+            }
+            else {
+                phys += offset;
             }
 
             surface.stride = alignWidth;
