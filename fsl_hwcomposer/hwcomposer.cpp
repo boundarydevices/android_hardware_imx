@@ -110,6 +110,9 @@ static int hwc_device_close(struct hwc_context_t* ctx)
         return 0;
     }
     struct fsl_private *priv = (struct fsl_private*)ctx->m_priv;
+    if (priv->tmp_buf != NULL) {
+        g2d_free(priv->tmp_buf);
+    }
     if (priv->g2d_handle != NULL) {
         g2d_close(priv->g2d_handle);
     }

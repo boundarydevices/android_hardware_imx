@@ -36,6 +36,8 @@
 #include <EGL/egl.h>
 #include "gralloc_priv.h"
 #include <hwc_context.h>
+#include <g2d.h>
+
 /*****************************************************************************/
 #define HWC_FSL_HARDWARE_MODULE_ID "hwcomposer_fsl"
 #define HWC_MAIN_FB "/dev/graphics/fb0"
@@ -69,6 +71,8 @@ struct disp_private {
 struct fsl_private {
     void* g2d_handle;
     struct disp_private mDispInfo[HWC_NUM_DISPLAY_TYPES];
+    g2d_buf* tmp_buf;
+    int tmp_buf_size;
 };
 
 #endif
