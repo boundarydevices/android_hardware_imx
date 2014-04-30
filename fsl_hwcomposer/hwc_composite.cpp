@@ -144,17 +144,71 @@ static int convertBlending(int blending, struct g2d_surface& src,
     return 0;
 }
 
-static int setG2dSurface(struct g2d_surface& surface,
+static int correctYV12Alignemt(struct fsl_private *priv,
+                       struct private_handle_t *handle,
+                       int old_y_stride, int old_uv_stride,
+                       int new_y_stride, int new_uv_stride,
+                       int alignHeight)
+{
+    int size = (new_y_stride + new_uv_stride) * alignHeight;
+    // if temporary buffer is null or buffer size is different
+    // then allocate new buffer.
+    if (priv->tmp_buf == NULL || priv->tmp_buf_size != size) {
+        if (priv->tmp_buf != NULL) {
+            g2d_free(priv->tmp_buf);
+            priv->tmp_buf = NULL;
+        }
+        priv->tmp_buf = g2d_alloc(size, 0);
+        if (priv->tmp_buf == NULL) {
+            ALOGE("g2d_alloc failed");
+            return -1;
+        }
+        priv->tmp_buf_size = size;
+    }
+
+    int phys = (int)priv->tmp_buf->buf_paddr;
+
+    struct g2d_surface src, dst;
+    // firstly, blit the Y buffer.
+    src.format = dst.format = G2D_RGBA8888;
+    src.stride = old_y_stride >> 2;
+    dst.stride = new_y_stride >> 2;
+    src.planes[0] = handle->phys;
+    dst.planes[0] = phys;
+    src.left = dst.left = 0;
+    src.top = dst.top = 0;
+    src.right = dst.right = handle->width >> 2;
+    src.bottom = dst.bottom = handle->height;
+    src.width = dst.width = handle->width >> 2;
+    src.height = dst.height = handle->height;
+    g2d_blit(priv->g2d_handle, &src, &dst);
+
+    // secondly, blit the UV buffer.
+    src.stride = old_uv_stride >> 2;
+    dst.stride = new_uv_stride >> 2;
+    src.planes[0] = handle->phys + old_y_stride * handle->height;
+    dst.planes[0] = phys + new_y_stride * handle->height;
+    src.right = dst.right = handle->width >> 3;
+    src.bottom = dst.bottom = handle->height;
+    src.width = dst.width = handle->width >> 3;
+    src.height = dst.height = handle->height;
+    g2d_blit(priv->g2d_handle, &src, &dst);
+
+    return 0;
+}
+
+static int setG2dSurface(struct fsl_private *priv, struct g2d_surface& surface,
              struct private_handle_t *handle, hwc_rect_t& rect)
 {
     int alignWidth = 0, alignHeight = 0;
     int ret = get_aligned_size(handle, &alignWidth, &alignHeight);
     if (ret != 0) {
         alignHeight = handle->height;
+        alignWidth = handle->flags >> 16;
     }
     surface.format = convertFormat(handle->format);
     surface.planes[0] = handle->phys;
-    surface.stride = handle->flags >> 16;
+    surface.stride = alignWidth;
     switch (surface.format) {
         case G2D_RGB565:
             surface.planes[0] += surface.stride * 2 * (alignHeight - handle->height);
@@ -177,14 +231,40 @@ static int setG2dSurface(struct g2d_surface& surface,
 
         case G2D_I420:
         case G2D_YV12: {
-            int stride = surface.stride;
-            int c_stride = (stride/2+15)/16*16;
+            bool needBlit = false;
+            int c_stride = (alignWidth/2+15)/16*16;
+            int old_c_stride = c_stride;
+            // when alignWidth doesn't match 32 alignment
+            // GPU 2D need to align it to 32.
+            // so allocate 32 aligned temporary buffer and get data
+            // from original buffer to pass GPU 2D to do composite.
+            if (alignWidth & 0x1f) {
+                 alignWidth = (alignWidth + 31)/32 * 32;
+                 needBlit = true;
+            }
+
+            int phys = handle->phys;
+            int stride = alignWidth;
+            c_stride = (stride/2+15)/16*16;
+            if (needBlit) {
+                 // blit original data to temporary buffer.
+                 int ret = correctYV12Alignemt(priv, handle, surface.stride,
+                               old_c_stride, alignWidth, c_stride, alignHeight);
+                 if (ret != 0) {
+                     return ret;
+                 }
+                 // use temporary buffer.
+                 phys = (int)priv->tmp_buf->buf_paddr;
+            }
+
+            surface.stride = alignWidth;
+            surface.planes[0] = phys;
             if (surface.format == G2D_I420) {
-                surface.planes[1] = handle->phys + stride * handle->height;
+                surface.planes[1] = phys + stride * handle->height;
                 surface.planes[2] = surface.planes[1] + c_stride * handle->height/2;
             }
             else {
-                surface.planes[2] = handle->phys + stride * handle->height;
+                surface.planes[2] = phys + stride * handle->height;
                 surface.planes[1] = surface.planes[2] + c_stride * handle->height/2;
             }
             } break;
@@ -455,7 +535,7 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
                 srect.left, srect.top, srect.right, srect.bottom,
                 drect.left, drect.top, drect.right, drect.bottom);
 
-        setG2dSurface(dSurface, dstHandle, drect);
+        setG2dSurface(priv, dSurface, dstHandle, drect);
         dSurface.rot = convertRotation(layer->transform);
 
         struct g2d_surface sSurface;
@@ -464,7 +544,7 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
         if (layer->blending != HWC_BLENDING_DIM) {
             struct private_handle_t *priv_handle;
             priv_handle = (struct private_handle_t *)(layer->handle);
-            setG2dSurface(sSurface, priv_handle, srect);
+            setG2dSurface(priv, sSurface, priv_handle, srect);
         }
         else {
             sSurface.clrcolor = 0xff000000;
@@ -544,10 +624,12 @@ int hwc_copyBack(struct fsl_private *priv, struct private_handle_t *dstHandle,
             continue;
         }
 
-        setG2dSurface(dSurface, dstHandle, (hwc_rect_t&)resRegion.rects[i]);
+        setG2dSurface(priv, dSurface, dstHandle,
+                        (hwc_rect_t&)resRegion.rects[i]);
         struct g2d_surface sSurface;
         memset(&sSurface, 0, sizeof(sSurface));
-        setG2dSurface(sSurface, srcHandle, (hwc_rect_t&)resRegion.rects[i]);
+        setG2dSurface(priv, sSurface, srcHandle,
+                       (hwc_rect_t&)resRegion.rects[i]);
         g2d_blit(priv->g2d_handle, &sSurface, &dSurface);
     }
 
@@ -613,8 +695,8 @@ int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
     g2d_surface sSurface, dSurface;
     memset(&sSurface, 0, sizeof(sSurface));
     memset(&dSurface, 0, sizeof(dSurface));
-    setG2dSurface(sSurface, srcHandle, srect);
-    setG2dSurface(dSurface, dstHandle, drect);
+    setG2dSurface(priv, sSurface, srcHandle, srect);
+    setG2dSurface(priv, dSurface, dstHandle, drect);
 
     g2d_blit(priv->g2d_handle, &sSurface, &dSurface);
 
@@ -708,7 +790,7 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
         }
         ALOGV("clearhole: hole(l:%d,t:%d,r:%d,b:%d)",
                 rect.left, rect.top, rect.right, rect.bottom);
-        setG2dSurface(surface, dstHandle, rect);
+        setG2dSurface(priv, surface, dstHandle, rect);
         surface.clrcolor = 0xff << 24;
         g2d_clear(priv->g2d_handle, &surface);
     }
@@ -737,7 +819,7 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
             continue;
         }
 
-        setG2dSurface(surface, dstHandle, rect);
+        setG2dSurface(priv, surface, dstHandle, rect);
         surface.clrcolor = 0xff << 24;
         g2d_clear(priv->g2d_handle, &surface);
     }
@@ -759,7 +841,7 @@ int hwc_clearRect(struct fsl_private *priv, struct private_handle_t *dstHandle,
     struct g2d_surface surface;
     memset(&surface, 0, sizeof(surface));
 
-    setG2dSurface(surface, dstHandle, rect);
+    setG2dSurface(priv, surface, dstHandle, rect);
     surface.clrcolor = 0xff << 24;
     g2d_clear(priv->g2d_handle, &surface);
 
