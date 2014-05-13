@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -101,6 +101,7 @@ struct EXIFData
 
 struct JpegParams {
     JpegParams(uint8_t *uSrc,
+		  uint8_t*uSrcPhy,
                int     srcSize,
                uint8_t *uDst,
                int     dstSize,
@@ -110,13 +111,14 @@ struct JpegParams {
                int     outWidth,
                int     outHeight,
                int     format)
-        : src(uSrc), src_size(srcSize), dst(uDst), dst_size(dstSize),
+        : src(uSrc), srcPhy(uSrcPhy),src_size(srcSize), dst(uDst), dst_size(dstSize),
           quality(quality), in_width(inWidth), in_height(inHeight),
           out_width(outWidth), out_height(outHeight), format(format),
           jpeg_size(0)
     {}
 
     uint8_t    *src;
+    uint8_t    *srcPhy;
     int         src_size;
     uint8_t    *dst;
     int         dst_size;
