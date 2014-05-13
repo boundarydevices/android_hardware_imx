@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,420 @@
 #include <ui/PixelFormat.h>
 #include <hardware/hardware.h>
 #include "NV12_resize.h"
+#include "vpu_wrapper.h"
+
+
+#define Align(ptr,align)	(((unsigned int)ptr+(align)-1)/(align)*(align))
+#define VPU_ENC_MAX_NUM_MEM_REQS	(6)
+#define MAX_FRAME_NUM	(4)
+
+typedef struct{
+	//virtual mem info
+	int nVirtNum;
+	unsigned int virtMem[VPU_ENC_MAX_NUM_MEM_REQS];
+
+	//phy mem info
+	int nPhyNum;
+	unsigned int phyMem_virtAddr[VPU_ENC_MAX_NUM_MEM_REQS];
+	unsigned int phyMem_phyAddr[VPU_ENC_MAX_NUM_MEM_REQS];
+	unsigned int phyMem_cpuAddr[VPU_ENC_MAX_NUM_MEM_REQS];
+	unsigned int phyMem_size[VPU_ENC_MAX_NUM_MEM_REQS];
+}EncMemInfo;
+
+
+int EncOutFrameBufCreateRegisterFrame(VpuCodStd eFormat,int nInColor,
+	VpuFrameBuffer* pOutRegisterFrame,int nInCnt,int nWidth,int nHeight,
+	EncMemInfo* pOutEncMemInfo, int nInRot,int* pOutSrcStride,int nInAlign,int nInMapType)
+{
+	int i;
+	VpuEncRetCode ret;
+	int yStride;
+	int uvStride;
+	int ySize;
+	int uvSize;
+	int mvSize;
+	VpuMemDesc vpuMem;
+	unsigned char* ptr;
+	unsigned char* ptrVirt;
+	int nPadW;
+	int nPadH;
+	int multifactor=1;
+
+//    FLOGI("==== EOFBCRF, eFormat %d, nInColor %d, nInAlign %d, nInMapType %d",
+  //      eFormat, nInColor, nInAlign, nInMapType);
+
+	nPadW=Align(nWidth,16);
+	nPadH=Align(nHeight,16);
+	if((nInRot==90)||(nInRot==270)){
+		yStride=nPadH;
+		ySize=yStride*nPadW;
+	}
+	else	{
+		yStride=nPadW;
+		ySize=yStride*nPadH;
+	}
+	if(VPU_V_MJPG==eFormat)	{
+		switch(nInColor){
+			case 0:	//4:2:0
+				uvStride=yStride/2;
+				uvSize=ySize/4;
+				mvSize=uvSize;
+				break;
+			case 1:	//4:2:2 hor
+				uvStride=yStride/2;
+				uvSize=ySize/2;
+				mvSize=uvSize;
+				break;
+			case 2:	//4:2:2 ver
+				uvStride=yStride;
+				uvSize=ySize/2;
+				mvSize=uvSize;
+				break;
+			case 3:	//4:4:4
+				uvStride=yStride;
+				uvSize=ySize;
+				mvSize=uvSize;
+				break;
+			case 4:	//4:0:0
+				uvStride=0;
+				uvSize=0;
+				mvSize=uvSize;
+				break;
+			default:	//4:2:0
+				FLOGE("unknown color format: %d ",nInColor);
+				uvStride=yStride/2;
+				uvSize=ySize/4;
+				mvSize=uvSize;
+				break;
+		}
+    }else {
+		//4:2:0 for all video
+		uvStride=yStride/2;
+		uvSize=ySize/4;
+		mvSize=uvSize;
+	}
+
+	if(nInMapType==2){
+		//only consider Y since interleave must be enabled
+		multifactor=2;	//for field, we need to consider alignment for top and bot
+	}
+
+	//we need to align the Y/Cb/Cr address
+	if(nInAlign>1){
+		ySize=Align(ySize,multifactor*nInAlign);
+		uvSize=Align(uvSize,nInAlign);
+	}
+
+	for(i=0;i<nInCnt;i++){
+		vpuMem.nSize=ySize+uvSize*2+mvSize+nInAlign;
+		ret=VPU_EncGetMem(&vpuMem);
+		if(VPU_ENC_RET_SUCCESS!=ret){
+			FLOGE("%s: vpu malloc frame buf failure: ret=0x%X ",__FUNCTION__,ret);
+			return -1;//OMX_ErrorInsufficientResources;
+		}
+
+		ptr=(unsigned char*)vpuMem.nPhyAddr;
+		ptrVirt=(unsigned char*)vpuMem.nVirtAddr;
+
+		/*align the base address*/
+		if(nInAlign>1){
+			ptr=(unsigned char*)Align(ptr,nInAlign);
+			ptrVirt=(unsigned char*)Align(ptrVirt,nInAlign);
+		}
+
+		/* fill stride info */
+		pOutRegisterFrame[i].nStrideY=yStride;
+		pOutRegisterFrame[i].nStrideC=uvStride;
+
+		/* fill phy addr*/
+		pOutRegisterFrame[i].pbufY=ptr;
+		pOutRegisterFrame[i].pbufCb=ptr+ySize;
+		pOutRegisterFrame[i].pbufCr=ptr+ySize+uvSize;
+		pOutRegisterFrame[i].pbufMvCol=ptr+ySize+uvSize*2;
+
+		/* fill virt addr */
+		pOutRegisterFrame[i].pbufVirtY=ptrVirt;
+		pOutRegisterFrame[i].pbufVirtCb=ptrVirt+ySize;
+		pOutRegisterFrame[i].pbufVirtCr=ptrVirt+ySize+uvSize;
+		pOutRegisterFrame[i].pbufVirtMvCol=ptrVirt+ySize+uvSize*2;
+
+		/* fill bottom address for field tile*/
+		if(nInMapType==2){
+			pOutRegisterFrame[i].pbufY_tilebot=pOutRegisterFrame[i].pbufY+ySize/2;
+			pOutRegisterFrame[i].pbufCb_tilebot=pOutRegisterFrame[i].pbufCr;
+			pOutRegisterFrame[i].pbufVirtY_tilebot=pOutRegisterFrame[i].pbufVirtY+ySize/2;
+			pOutRegisterFrame[i].pbufVirtCb_tilebot=pOutRegisterFrame[i].pbufVirtCr;
+		}
+		else	{
+			pOutRegisterFrame[i].pbufY_tilebot=0;
+			pOutRegisterFrame[i].pbufCb_tilebot=0;
+			pOutRegisterFrame[i].pbufVirtY_tilebot=0;
+			pOutRegisterFrame[i].pbufVirtCb_tilebot=0;
+		}
+
+		//record memory info for release
+		pOutEncMemInfo->phyMem_phyAddr[pOutEncMemInfo->nPhyNum]=vpuMem.nPhyAddr;
+		pOutEncMemInfo->phyMem_virtAddr[pOutEncMemInfo->nPhyNum]=vpuMem.nVirtAddr;
+		pOutEncMemInfo->phyMem_cpuAddr[pOutEncMemInfo->nPhyNum]=vpuMem.nCpuAddr;
+		pOutEncMemInfo->phyMem_size[pOutEncMemInfo->nPhyNum]=vpuMem.nSize;
+		pOutEncMemInfo->nPhyNum++;
+
+	}
+
+	*pOutSrcStride=nWidth;//nPadW;
+	return i;
+}
+
+int EncFreeMemBlock(EncMemInfo* pEncMem)
+{
+	int i;
+	VpuMemDesc vpuMem;
+	VpuEncRetCode vpuRet;
+	int retOk=1;
+
+	//free virtual mem
+	for(i=0;i<pEncMem->nVirtNum;i++){
+		free((void*)pEncMem->virtMem[i]);
+	}
+
+	//free physical mem
+	for(i=0;i<pEncMem->nPhyNum;i++)	{
+		vpuMem.nPhyAddr=pEncMem->phyMem_phyAddr[i];
+		vpuMem.nVirtAddr=pEncMem->phyMem_virtAddr[i];
+		vpuMem.nCpuAddr=pEncMem->phyMem_cpuAddr[i];
+		vpuMem.nSize=pEncMem->phyMem_size[i];
+		vpuRet=VPU_EncFreeMem(&vpuMem);
+		if(vpuRet!=VPU_ENC_RET_SUCCESS){
+			FLOGE("%s: free vpu memory failure : ret=%d ",__FUNCTION__,(unsigned int)vpuRet);
+			retOk=0;
+		}
+	}
+
+	return retOk;
+}
+
+
+int EncMallocMemBlock(VpuMemInfo* pMemBlock,EncMemInfo* pEncMem)
+{
+	int i;
+	unsigned char * ptr=NULL;
+	int size;
+
+	for(i=0;i<pMemBlock->nSubBlockNum;i++){
+     /*   FLOGI("==== EncMallocMemBlock, i %d, align %d, size %d, memType %d",
+            i, pMemBlock->MemSubBlock[i].nAlignment, pMemBlock->MemSubBlock[i].nSize,
+            pMemBlock->MemSubBlock[i].MemType); */
+
+		size=pMemBlock->MemSubBlock[i].nAlignment+pMemBlock->MemSubBlock[i].nSize;
+		if(pMemBlock->MemSubBlock[i].MemType==VPU_MEM_VIRT){
+			ptr=(unsigned char *)malloc(size);
+			if(ptr==NULL)	{
+				FLOGE("%s: get virtual memory failure, size=%d ",__FUNCTION__,(unsigned int)size);
+				goto failure;
+			}
+			pMemBlock->MemSubBlock[i].pVirtAddr=(unsigned char*)Align(ptr,pMemBlock->MemSubBlock[i].nAlignment);
+
+			//record virtual base addr
+			pEncMem->virtMem[pEncMem->nVirtNum]=(unsigned int)ptr;
+			pEncMem->nVirtNum++;
+		}
+		else{ // if(memInfo.MemSubBlock[i].MemType==VPU_MEM_PHY)
+			VpuMemDesc vpuMem;
+			VpuEncRetCode ret;
+			vpuMem.nSize=size;
+			ret=VPU_EncGetMem(&vpuMem);
+			if(ret!=VPU_ENC_RET_SUCCESS){
+				FLOGE("%s: get vpu memory failure, size=%d, ret=%d ",__FUNCTION__,size,ret);
+				goto failure;
+			}
+			pMemBlock->MemSubBlock[i].pVirtAddr=(unsigned char*)Align(vpuMem.nVirtAddr,pMemBlock->MemSubBlock[i].nAlignment);
+			pMemBlock->MemSubBlock[i].pPhyAddr=(unsigned char*)Align(vpuMem.nPhyAddr,pMemBlock->MemSubBlock[i].nAlignment);
+
+			//record physical base addr
+			pEncMem->phyMem_phyAddr[pEncMem->nPhyNum]=(unsigned int)vpuMem.nPhyAddr;
+			pEncMem->phyMem_virtAddr[pEncMem->nPhyNum]=(unsigned int)vpuMem.nVirtAddr;
+			pEncMem->phyMem_cpuAddr[pEncMem->nPhyNum]=(unsigned int)vpuMem.nCpuAddr;
+			pEncMem->phyMem_size[pEncMem->nPhyNum]=size;
+			pEncMem->nPhyNum++;
+		}
+    }
+
+	return 1;
+
+failure:
+	EncFreeMemBlock(pEncMem);
+	return 0;
+}
+
+int vpu_encode(void *inYuv,
+                             void* inYuvPhy,
+                             int   Width,
+                             int   Height,
+                             int   quality,
+                             int   color,
+                             void *outBuf,
+                             int   outSize)
+{
+	VpuEncRetCode ret;
+	int size=0;
+	VpuVersionInfo ver;
+	VpuWrapperVersionInfo w_ver;
+	VpuEncHandle handle=0;
+	VpuMemInfo sMemInfo;
+	EncMemInfo sEncMemInfo;
+	VpuEncOpenParamSimp sEncOpenParamSimp;
+	VpuEncInitInfo sEncInitInfo;
+	VpuFrameBuffer sFrameBuf[MAX_FRAME_NUM];
+	int nBufNum;
+	int nSrcStride;
+	VpuEncEncParam sEncEncParam;
+	char* tempOut=0;
+	static FILE* fpjpg=0;
+
+	memset(&sMemInfo,0,sizeof(VpuMemInfo));
+	memset(&sEncMemInfo,0,sizeof(EncMemInfo));
+	memset(&sFrameBuf,0,sizeof(VpuFrameBuffer)*MAX_FRAME_NUM);
+
+	ret=VPU_EncLoad();
+	if (ret!=VPU_ENC_RET_SUCCESS){
+		FLOGE("load vpu encoder failure !");
+		return 0;
+	}
+	ret=VPU_EncGetVersionInfo(&ver);
+	if (ret!=VPU_ENC_RET_SUCCESS){
+		FLOGE("vpu get version info failure: ret=%d ",ret);
+		goto finish;
+	}
+	FLOGI("vpu lib version : major.minor.rel=%d.%d.%d ",ver.nLibMajor,ver.nLibMinor,ver.nLibRelease);
+	FLOGI("vpu fw version : major.minor.rel_rcode=%d.%d.%d_r%d ",ver.nFwMajor,ver.nFwMinor,ver.nFwRelease,ver.nFwCode);
+
+	ret=(VpuEncRetCode)VPU_EncGetWrapperVersionInfo(&w_ver);
+	if (ret!=VPU_ENC_RET_SUCCESS){
+		FLOGE("%s: vpu get wrapper version failure: ret=%d ",__FUNCTION__,ret);
+		goto finish;
+	}
+	//FLOGI("vpu wrapper version : major.minor.rel=%d.%d.%d: %s ",w_ver.nMajor,w_ver.nMinor,w_ver.nRelease,w_ver.pBinary);
+
+	//query memory
+	ret=VPU_EncQueryMem(&sMemInfo);
+	if (ret!=VPU_ENC_RET_SUCCESS){
+		FLOGE("%s: vpu query memory failure: ret=0x%X ",__FUNCTION__,ret);
+		goto finish;
+	}
+
+	//malloc memory for vpu
+	if(0==EncMallocMemBlock(&sMemInfo,&sEncMemInfo))
+	{
+		FLOGE("%s: malloc memory failure: ",__FUNCTION__);
+		goto finish;
+	}
+
+	memset(&sEncOpenParamSimp,0,sizeof(VpuEncOpenParamSimp));
+	sEncOpenParamSimp.eFormat=VPU_V_MJPG;
+	sEncOpenParamSimp.sMirror=VPU_ENC_MIRDIR_NONE;
+	sEncOpenParamSimp.nPicWidth= Width;
+	sEncOpenParamSimp.nPicHeight=Height;
+	sEncOpenParamSimp.nRotAngle=0;
+	sEncOpenParamSimp.nFrameRate=30;
+	sEncOpenParamSimp.nBitRate=0;
+	sEncOpenParamSimp.nGOPSize=30;
+	sEncOpenParamSimp.nChromaInterleave=1;
+
+	//open vpu
+	ret=VPU_EncOpenSimp(&handle, &sMemInfo,&sEncOpenParamSimp);
+	if (ret!=VPU_ENC_RET_SUCCESS){
+		FLOGE("%s: vpu open failure: ret=0x%X ",__FUNCTION__,ret);
+		goto finish;
+	}
+
+	//get initinfo
+	ret=VPU_EncGetInitialInfo(handle,&sEncInitInfo);
+	if(VPU_ENC_RET_SUCCESS!=ret){
+		FLOGE("%s: init vpu failure ",__FUNCTION__);
+		goto finish;
+	}
+
+	nBufNum=sEncInitInfo.nMinFrameBufferCount;
+//	FLOGI("==== Init OK: min buffer cnt: %d, alignment: %d ",sEncInitInfo.nMinFrameBufferCount,sEncInitInfo.nAddressAlignment);
+	//fill frameBuf[]
+	if(-1==EncOutFrameBufCreateRegisterFrame(sEncOpenParamSimp.eFormat,color,sFrameBuf, nBufNum,Width, Height, &sEncMemInfo,0,&nSrcStride,sEncInitInfo.nAddressAlignment,0)){
+		FLOGE("%s: allocate vpu frame buffer failure ",__FUNCTION__);
+		goto finish;
+	}
+
+	//register frame buffs
+	ret=VPU_EncRegisterFrameBuffer(handle, sFrameBuf, nBufNum,nSrcStride);
+	if(VPU_ENC_RET_SUCCESS!=ret){
+		FLOGE("%s: vpu register frame failure: ret=0x%X ",__FUNCTION__,ret);
+		goto finish;
+	}
+
+	//allocate temporary physical output buffer
+	memset(&sMemInfo,0,sizeof(VpuMemInfo));
+	sMemInfo.nSubBlockNum=1;
+	sMemInfo.MemSubBlock[0].MemType=VPU_MEM_PHY;
+	sMemInfo.MemSubBlock[0].nAlignment=sEncInitInfo.nAddressAlignment;//8;
+	sMemInfo.MemSubBlock[0].nSize=outSize;
+	if(0==EncMallocMemBlock(&sMemInfo,&sEncMemInfo))	{
+		FLOGE("%s: malloc memory failure: ",__FUNCTION__);
+		goto finish;
+	}
+
+	//encode frame
+	memset(&sEncEncParam,0,sizeof(VpuEncEncParam));
+	sEncEncParam.eFormat=VPU_V_MJPG;
+	sEncEncParam.nPicWidth=Width;
+	sEncEncParam.nPicHeight=Height;
+	sEncEncParam.nFrameRate=30;
+	sEncEncParam.nQuantParam=10;
+	sEncEncParam.nInPhyInput=(unsigned int)inYuvPhy;
+	sEncEncParam.nInVirtInput=(unsigned int)inYuv;
+	sEncEncParam.nInInputSize=(color==0)?(Width*Height*3/2):(Width*Height*2);
+	sEncEncParam.nInPhyOutput=(unsigned int)sMemInfo.MemSubBlock[0].pPhyAddr;
+	sEncEncParam.nInVirtOutput=(unsigned int)sMemInfo.MemSubBlock[0].pVirtAddr;
+	sEncEncParam.nInOutputBufLen=outSize;
+
+	ret=VPU_EncEncodeFrame(handle, &sEncEncParam);
+	if(VPU_ENC_RET_SUCCESS!=ret){
+		FLOGE("%s, vpu encode frame failure: ret=0x%X ",__FUNCTION__,ret);
+		if(VPU_ENC_RET_FAILURE_TIMEOUT==ret){
+			VPU_EncReset(handle);
+		}
+	}
+
+	if((sEncEncParam.eOutRetCode & VPU_ENC_OUTPUT_DIS)||(sEncEncParam.eOutRetCode & VPU_ENC_OUTPUT_SEQHEADER)){
+		size=sEncEncParam.nOutOutputSize;
+		//FLOGI("encode succeed, output size: %d ",size);
+	}
+	else{
+		FLOGE("%s, vpu encode frame failure: no output,  ret=0x%X ",__FUNCTION__,sEncEncParam.eOutRetCode);
+	}
+
+	memcpy(outBuf,(void*)sEncEncParam.nInVirtOutput,sEncEncParam.nOutOutputSize);
+
+finish:
+
+	//close vpu
+	if(handle!=0){
+		ret=VPU_EncClose(handle);
+		if (ret!=VPU_ENC_RET_SUCCESS){
+			FLOGE("%s: vpu close failure: ret=%d ",__FUNCTION__,ret);
+		}
+	}
+
+	//unload
+	ret=VPU_EncUnLoad();
+	if (ret!=VPU_ENC_RET_SUCCESS){
+		FLOGE("%s: vpu unload failure: ret=%d \r\n",__FUNCTION__,ret);
+	}
+
+	//release mem
+	if(0==EncFreeMemBlock(&sEncMemInfo)){
+		FLOGE("%s: free memory failure:  ",__FUNCTION__);
+	}
+
+	return size;
+}
 
 YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
     // Only ImageFormat.NV21 and ImageFormat.YUY2 are supported
@@ -37,6 +451,7 @@ YuvToJpegEncoder::YuvToJpegEncoder()
 {}
 
 int YuvToJpegEncoder::encode(void *inYuv,
+                             void* inYuvPhy,
                              int   inWidth,
                              int   inHeight,
                              int   quality,
@@ -44,10 +459,18 @@ int YuvToJpegEncoder::encode(void *inYuv,
                              int   outSize,
                              int   outWidth,
                              int   outHeight) {
+    //use vpu to encode
+	if((inWidth == outWidth) && (inHeight == outHeight)){
+		int size;
+		size=vpu_encode(inYuv, inYuvPhy, outWidth, outHeight,quality,color,outBuf,outSize);
+		return size;
+	}
+
     jpeg_compress_struct  cinfo;
     jpegBuilder_error_mgr sk_err;
     uint8_t *resize_src = NULL;
     jpegBuilder_destination_mgr dest_mgr((uint8_t *)outBuf, outSize);
+
 
     memset(&cinfo, 0, sizeof(cinfo));
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
@@ -71,12 +494,12 @@ int YuvToJpegEncoder::encode(void *inYuv,
     jpeg_start_compress(&cinfo, TRUE);
 
     compress(&cinfo, (uint8_t *)inYuv);
-
     jpeg_finish_compress(&cinfo);
 
     if (resize_src != NULL) {
         free(resize_src);
     }
+
     return dest_mgr.jpegsize;
 }
 
@@ -101,6 +524,7 @@ void YuvToJpegEncoder::setJpegCompressStruct(jpeg_compress_struct *cinfo,
 Yuv420SpToJpegEncoder::Yuv420SpToJpegEncoder() :
     YuvToJpegEncoder() {
     fNumPlanes = 2;
+    color=0;
 }
 
 void Yuv420SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,
@@ -215,6 +639,7 @@ int Yuv420SpToJpegEncoder::yuvResize(uint8_t *srcBuf,
 Yuv422IToJpegEncoder::Yuv422IToJpegEncoder() :
     YuvToJpegEncoder() {
     fNumPlanes = 1;
+    color=1;
 }
 
 void Yuv422IToJpegEncoder::compress(jpeg_compress_struct *cinfo,

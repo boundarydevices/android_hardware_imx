@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ public:
     /** Encode YUV data to jpeg,  which is output to a stream.
      */
     int encode(void *inYuv,
+               void* inYuvPhy,
                int   inWidth,
                int   inHeight,
                int   quality,
@@ -60,6 +61,7 @@ public:
 
 protected:
     int fNumPlanes;
+    int color;
 
     void setJpegCompressStruct(jpeg_compress_struct *cinfo,
                                int                   width,
