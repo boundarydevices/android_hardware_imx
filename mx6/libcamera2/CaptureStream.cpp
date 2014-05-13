@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -244,6 +244,7 @@ status_t CaptureStream::makeJpegImage(StreamBuffer *dstBuf, StreamBuffer *srcBuf
     }
 
     mainJpeg = new JpegParams((uint8_t *)srcBuf->mVirtAddr,
+                       (uint8_t *)srcBuf->mPhyAddr,
                        srcBuf->mSize, (uint8_t *)rawBuf,
                        srcBuf->mSize, encodeQuality,
                        srcBuf->mWidth, srcBuf->mHeight,
@@ -278,6 +279,7 @@ status_t CaptureStream::makeJpegImage(StreamBuffer *dstBuf, StreamBuffer *srcBuf
         }
         thumbSize = srcBuf->mSize;
         thumbJpeg = new JpegParams((uint8_t *)srcBuf->mVirtAddr,
+                           (uint8_t *)srcBuf->mPhyAddr,
                            srcBuf->mSize,
                            (uint8_t *)thumbBuf,
                            thumbSize,

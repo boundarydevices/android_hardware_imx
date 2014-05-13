@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -546,6 +546,7 @@ status_t JpegBuilder::encodeJpeg(JpegParams *input)
 
     int res = 0;
     res = encoder->encode(input->src,
+                          input->srcPhy,
                           input->in_width,
                           input->in_height,
                           input->quality,
@@ -615,7 +616,7 @@ status_t JpegBuilder::buildImage(const StreamBuffer *streamBuf)
                 }
 
                 saveJpeg((unsigned char *)streamBuf->mVirtAddr,
-                         jpeg_size + exif_section->Size);
+                         jpeg_size + exif_section->Size + 2);
             }
         } else {
             size_t imageSize = jpeg_size;

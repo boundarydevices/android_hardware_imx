@@ -57,7 +57,8 @@ LOCAL_SHARED_LIBRARIES:= \
     libjhead \
     libion \
     libcamera_metadata \
-    libg2d
+    libg2d \
+    lib_vpu_wrapper
 
 LOCAL_C_INCLUDES += \
 	frameworks/base/include/binder \
@@ -67,7 +68,9 @@ LOCAL_C_INCLUDES += \
 	system/media/camera/include \
 	external/jpeg \
 	external/jhead \
-        device/fsl-proprietary/include
+        device/fsl-proprietary/include \
+        external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
+        external/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper
 
 ifeq ($(HAVE_FSL_IMX_CODEC),true)
     #LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux
