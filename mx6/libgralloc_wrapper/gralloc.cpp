@@ -142,13 +142,17 @@ static int gralloc_alloc(alloc_device_t* dev,
         }
         int res = m->gpu_device->alloc(ctx->ext_dev, w, h, format, usage, pHandle, pStride);
         private_handle_t* hnd = (private_handle_t*)(*pHandle);
-        hnd->flags |= (*pStride & 0xffff) << 16;
+        if (hnd != NULL && pStride != NULL) {
+            hnd->flags |= (*pStride & 0xffff) << 16;
+        }
         return res;
     }
 
     int ret = m->gpu_device->alloc(dev, w, h, format, usage, pHandle, pStride);
     private_handle_t* hnd = (private_handle_t*)(*pHandle);
-    hnd->flags |= (*pStride & 0xffff) << 16;
+    if (hnd != NULL && pStride != NULL) {
+        hnd->flags |= (*pStride & 0xffff) << 16;
+    }
 
     return ret;
 }
