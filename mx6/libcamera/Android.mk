@@ -51,7 +51,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libdl \
     libc \
     libjpeg \
-    libexif \
+    libjhead \
     libion
 
 LOCAL_C_INCLUDES += \
