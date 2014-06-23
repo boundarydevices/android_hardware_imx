@@ -188,6 +188,13 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
         refreshRate = 60;
     }
 
+    if (int(info.width) <= 0 || int(info.height) <= 0) {
+        // the driver doesn't return that information
+        // default to 160 dpi
+        info.width  = ((info.xres * 25.4f)/160.0f + 0.5f);
+        info.height = ((info.yres * 25.4f)/160.0f + 0.5f);
+    }
+
     pInfo->xres = info.xres;
     pInfo->yres = info.yres;
     pInfo->xdpi = 1000 * (info.xres * 25.4f) / info.width;
