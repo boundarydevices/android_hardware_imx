@@ -89,8 +89,9 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
         char fbname[HWC_STRING_LENGTH];
         memset(fbname, 0, sizeof(fbname));
         sprintf(fbname, "fb%d", fbid);
+        mCtx->mFbDev[dispid] = (framebuffer_device_t*)dispid;
         mCtx->m_gralloc_module->methods->open(mCtx->m_gralloc_module, fbname,
-                                              (struct hw_device_t**)&mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
+                           (struct hw_device_t**)&mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
         priv_m = (struct private_module_t *)mCtx->m_gralloc_module;
     }
 
