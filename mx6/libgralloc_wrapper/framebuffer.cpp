@@ -49,7 +49,8 @@
 #include <semaphore.h>
 
 #include <utils/String8.h>
-#include "gralloc_priv.h"
+#include <gralloc_priv.h>
+#include <BufferManager.h>
 /*****************************************************************************/
 
 // numbers of buffers for page flipping
@@ -66,8 +67,7 @@ enum {
 
 struct fb_context_t {
     framebuffer_device_t  device;
-    int mainDisp_fd;
-    private_module_t* priv_m;
+    Display* display;
     int isMainDisp;
 };
 
@@ -75,7 +75,7 @@ static int nr_framebuffers;
 
 /*****************************************************************************/
 
-static int fb_setSwapInterval(struct framebuffer_device_t* dev,
+int Display::setSwapInterval(struct framebuffer_device_t* dev,
             int interval)
 {
     fb_context_t* ctx = (fb_context_t*)dev;
@@ -85,89 +85,100 @@ static int fb_setSwapInterval(struct framebuffer_device_t* dev,
     return 0;
 }
 
-static int fb_setUpdateRect(struct framebuffer_device_t* dev,
+int Display::setUpdateRect(struct framebuffer_device_t* dev,
         int l, int t, int w, int h)
 {
     if (((w|h) <= 0) || ((l|t)<0))
         return -EINVAL;
 
     fb_context_t* ctx = (fb_context_t*)dev;
-    private_module_t* m = reinterpret_cast<private_module_t*>(
-            dev->common.module);
-    m->info.reserved[0] = 0x54445055; // "UPDT";
-    m->info.reserved[1] = (uint16_t)l | ((uint32_t)t << 16);
-    m->info.reserved[2] = (uint16_t)(l+w) | ((uint32_t)(t+h) << 16);
+    Display* m = ctx->display;
+    m->mInfo.reserved[0] = 0x54445055; // "UPDT";
+    m->mInfo.reserved[1] = (uint16_t)l | ((uint32_t)t << 16);
+    m->mInfo.reserved[2] = (uint16_t)(l+w) | ((uint32_t)(t+h) << 16);
     return 0;
 }
 
-static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
+int Display::postBuffer(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 {
-    if (!buffer)
+    if (!buffer || !dev) {
+        ALOGE("%s invalid parameters", __FUNCTION__);
         return -EINVAL;
+    }
 
     fb_context_t* ctx = (fb_context_t*)dev;
 
-    private_handle_t const* hnd = reinterpret_cast<private_handle_t const*>(buffer);
-    private_module_t* m = reinterpret_cast<private_module_t*>(
-            dev->common.module);
-    if (m->currentBuffer) {
-        m->base.unlock(&m->base, m->currentBuffer);
-        m->currentBuffer = 0;
+    private_handle_t const* hnd = reinterpret_cast<
+                                  private_handle_t const*>(buffer);
+    BufferManager* m = BufferManager::getInstance();
+    if (m == NULL) {
+        ALOGE("%s cat't get buffer manager", __FUNCTION__);
+        return -EINVAL;
+    }
+
+    Display* display = ctx->display;
+    if (display->mCurrentBuffer) {
+        m->unlock(display->mCurrentBuffer);
+        display->mCurrentBuffer = NULL;
     }
 
     if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
 
         void *vaddr = NULL;
-        m->base.lock(&m->base, buffer, 
-                private_module_t::PRIV_USAGE_LOCKED_FOR_POST, 
-                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL_128(m->info.yres), &vaddr);
+        m->lock(buffer,
+                private_module_t::PRIV_USAGE_LOCKED_FOR_POST,
+                0, 0, ALIGN_PIXEL_32(display->mInfo.xres),
+                ALIGN_PIXEL_128(display->mInfo.yres), &vaddr);
 
-        const size_t offset = hnd->base - m->framebuffer->base;
-        m->info.activate = FB_ACTIVATE_VBL;
-        m->info.yoffset = offset / m->finfo.line_length;
+        const size_t offset = hnd->base - display->mFramebuffer->base;
+        display->mInfo.activate = FB_ACTIVATE_VBL;
+        display->mInfo.yoffset = offset / display->mFinfo.line_length;
 
-        if (ioctl(m->framebuffer->fd, FBIOPAN_DISPLAY, &m->info) == -1) {
+        if (ioctl(display->mFramebuffer->fd, FBIOPAN_DISPLAY, &display->mInfo) == -1) {
             ALOGW("FBIOPAN_DISPLAY failed: %s", strerror(errno));
-            m->currentBuffer = buffer;
+            display->mCurrentBuffer = buffer;
             return 0;
             //return -errno;
         }
 
-        m->currentBuffer = buffer;
-        
+        display->mCurrentBuffer = buffer;
+
     } else {
-        // If we can't do the page_flip, just copy the buffer to the front 
+        // If we can't do the page_flip, just copy the buffer to the front
         // FIXME: use copybit HAL instead of memcpy
-        
+
         void* fb_vaddr;
         void* buffer_vaddr;
-        
-        m->base.lock(&m->base, m->framebuffer, 
-                GRALLOC_USAGE_SW_WRITE_RARELY, 
-                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL_128(m->info.yres),
+
+        m->lock(display->mFramebuffer,
+                GRALLOC_USAGE_SW_WRITE_RARELY,
+                0, 0, ALIGN_PIXEL_32(display->mInfo.xres),
+                 ALIGN_PIXEL_128(display->mInfo.yres),
                 &fb_vaddr);
 
-        m->base.lock(&m->base, buffer, 
-                GRALLOC_USAGE_SW_READ_RARELY, 
-                0, 0, ALIGN_PIXEL(m->info.xres), ALIGN_PIXEL_128(m->info.yres),
+        m->lock(buffer,
+                GRALLOC_USAGE_SW_READ_RARELY,
+                0, 0, ALIGN_PIXEL_32(display->mInfo.xres),
+                 ALIGN_PIXEL_128(display->mInfo.yres),
                 &buffer_vaddr);
 
-        memcpy(fb_vaddr, buffer_vaddr, m->finfo.line_length * ALIGN_PIXEL_128(m->info.yres));
+        memcpy(fb_vaddr, buffer_vaddr,
+        display->mFinfo.line_length * ALIGN_PIXEL_128(display->mInfo.yres));
 
-        m->base.unlock(&m->base, buffer); 
-        m->base.unlock(&m->base, m->framebuffer); 
+        m->unlock(buffer);
+        m->unlock(display->mFramebuffer);
     }
-    
+
     return 0;
 }
 
-static int fb_compositionComplete(struct framebuffer_device_t* dev)
+int Display::compositionComplete(struct framebuffer_device_t* dev)
 {
   //  glFinish();
     return 0;
 }
 
-static int checkFramebufferFormat(int fd, uint32_t &flags)
+int Display::checkFramebufferFormat(int fd, uint32_t &flags)
 {
     struct fb_var_screeninfo info;
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
@@ -185,7 +196,7 @@ static int checkFramebufferFormat(int fd, uint32_t &flags)
      * Request nr_framebuffers screens (at lest 2 for page flipping)
      */
     info.yres_virtual = ALIGN_PIXEL_128(info.yres) * nr_framebuffers;
-    info.xres_virtual = ALIGN_PIXEL(info.xres);
+    info.xres_virtual = ALIGN_PIXEL_32(info.xres);
 
     if (info.bits_per_pixel == 32) {
         /*
@@ -304,13 +315,18 @@ static int checkFramebufferFormat(int fd, uint32_t &flags)
 }
 
 /*****************************************************************************/
-static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
+int Display::initialize(int fb)
 {
+    Mutex::Autolock _l(mLock);
+
+    fb_num = fb;
     // already initialized...
-    if (module->framebuffer) {
+    if (mFramebuffer != NULL) {
+        ALOGI("display already initialized...");
         return 0;
     }
 
+    int fbid = fb_num;
     char const * const device_template[] = {
             "/dev/graphics/fb%u",
             "/dev/fb%u",
@@ -419,13 +435,11 @@ static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
         return -errno;
     }
 
-
-    module->flags = flags;
-    module->info = info;
-    module->finfo = finfo;
-    module->xdpi = xdpi;
-    module->ydpi = ydpi;
-    module->fps = fps;
+    mInfo = info;
+    mFinfo = finfo;
+    mXdpi = xdpi;
+    mYdpi = ydpi;
+    mFps = fps;
 
     /*
      * map the framebuffer
@@ -433,98 +447,143 @@ static int mapFrameBufferWithFbid(struct private_module_t* module, int fbid)
 
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
-    module->framebuffer = new private_handle_t(fd, fbSize,
-            private_handle_t::PRIV_FLAGS_USES_DRV);
+    mFramebuffer = new private_handle_t(fd, fbSize,
+            private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
 
-    module->numBuffers = info.yres_virtual / ALIGN_PIXEL_128(info.yres);
-    module->bufferMask = 0;
+    mNumBuffers = info.yres_virtual / ALIGN_PIXEL_128(info.yres);
+    mBufferMask = 0;
 
     void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if (vaddr == MAP_FAILED) {
         ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
         return -errno;
     }
-    module->framebuffer->base = intptr_t(vaddr);
-    module->framebuffer->phys = intptr_t(finfo.smem_start);
+    mFramebuffer->base = intptr_t(vaddr);
+    mFramebuffer->phys = intptr_t(finfo.smem_start);
     memset(vaddr, 0, fbSize);
 
     return 0;
 }
 
-int mapFrameBufferLocked(struct private_module_t* module)
+int Display::uninitialize()
 {
-    return mapFrameBufferWithFbid(module, 0);
-}
+    Mutex::Autolock _l(mLock);
 
-static int mapFrameBuffer(struct private_module_t* module)
-{
-    pthread_mutex_lock(&module->lock);
-    int err = mapFrameBufferLocked(module);
-    pthread_mutex_unlock(&module->lock);
-    return err;
-}
+    size_t fbSize = mFramebuffer->size;
+    int fd = mFramebuffer->fd;
+    // unmap framebuffer should be done at gralloc_free;
+    //void* addr = (void*)(module->framebuffer->base);
+    //munmap(addr, fbSize);
+    delete (mFramebuffer);
+    mFramebuffer = NULL;
+    mBufferMask = 0;
 
-static int unMapFrameBuffer(fb_context_t* ctx, struct private_module_t* module)
-{
-    pthread_mutex_lock(&module->lock);
-
-    size_t fbSize = module->framebuffer->size;
-    int fd = module->framebuffer->fd;
-    void* addr = (void*)(module->framebuffer->base);
-    munmap(addr, fbSize);
-    delete (module->framebuffer);
-    module->framebuffer = NULL;
-    module->closeDevice = true;
-
+    fb_num = -1;
     close(fd);
-    pthread_mutex_unlock(&module->lock);
 
     return 0;
 }
 /*****************************************************************************/
 
-static int fb_close(struct hw_device_t *dev)
+int Display::closeDevice(struct hw_device_t *dev)
 {
     fb_context_t* ctx = (fb_context_t*)dev;
     if(ctx) {
-        if (!ctx->isMainDisp) {
-            unMapFrameBuffer(ctx, ctx->priv_m);
+        if (!ctx->isMainDisp && ctx->display != NULL) {
+            ctx->display->uninitialize();
         }
-
+        ctx->display = NULL;
         free(ctx);
     }
 
     return 0;
 }
 
-static void fb_device_init(private_module_t* m, fb_context_t *dev)
+void Display::setContext(fb_context_t *dev)
 {
-    int stride = m->finfo.line_length / (m->info.bits_per_pixel >> 3);
+    int stride = mFinfo.line_length / (mInfo.bits_per_pixel >> 3);
     const_cast<uint32_t&>(dev->device.flags) = 0xfb0;
-    const_cast<uint32_t&>(dev->device.width) = m->info.xres;
-    const_cast<uint32_t&>(dev->device.height) = m->info.yres;
+    const_cast<uint32_t&>(dev->device.width) = mInfo.xres;
+    const_cast<uint32_t&>(dev->device.height) = mInfo.yres;
     const_cast<int&>(dev->device.stride) = stride;
-    if(m->info.bits_per_pixel != 32) {
-	const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGB_565;
+    if(mInfo.bits_per_pixel != 32) {
+	    const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGB_565;
     }
     else{
-        if (m->info.red.offset == 0) {
-	    const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGBA_8888;
+        if (mInfo.red.offset == 0) {
+	        const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_RGBA_8888;
         }
         else {
-	    const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_BGRA_8888;
+	        const_cast<int&>(dev->device.format) = HAL_PIXEL_FORMAT_BGRA_8888;
         }
     }
-    const_cast<float&>(dev->device.xdpi) = m->xdpi;
-    const_cast<float&>(dev->device.ydpi) = m->ydpi;
-    const_cast<float&>(dev->device.fps) = m->fps;
+    const_cast<float&>(dev->device.xdpi) = mXdpi;
+    const_cast<float&>(dev->device.ydpi) = mYdpi;
+    const_cast<float&>(dev->device.fps) = mFps;
     const_cast<int&>(dev->device.minSwapInterval) = 1;
     const_cast<int&>(dev->device.maxSwapInterval) = 1;
     const_cast<int &>(dev->device.numFramebuffers) = NUM_BUFFERS;
-
 }
 
-int fb_device_open(hw_module_t const* module, const char* name,
+int Display::allocFrameBuffer(size_t size, int usage, buffer_handle_t* pHandle)
+{
+    Mutex::Autolock _l(mLock);
+
+    if (mFramebuffer == NULL) {
+        ALOGE("%s frame buffer device not opened", __FUNCTION__);
+        return -EINVAL;
+    }
+
+    const uint32_t bufferMask = mBufferMask;
+    const uint32_t numBuffers = mNumBuffers;
+    const size_t bufferSize = mFinfo.line_length * ALIGN_PIXEL_128(mInfo.yres);
+    if (numBuffers < 2) {
+        ALOGE("%s framebuffer number less than 2", __FUNCTION__);
+        return -ENOMEM;
+    }
+
+    if (bufferMask >= ((1LU<<numBuffers)-1)) {
+        // We ran out of buffers.
+        ALOGE("%s out of memory", __FUNCTION__);
+        return -ENOMEM;
+    }
+
+    // create a "fake" handles for it
+    intptr_t vaddr = intptr_t(mFramebuffer->base);
+
+    BufferManager* manager = BufferManager::getInstance();
+    if (manager == NULL) {
+        ALOGE("%s cat't get buffer manager", __FUNCTION__);
+        return -EINVAL;
+    }
+    private_handle_t* hnd = manager->createPrivateHandle(mFramebuffer->fd,
+            size, private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
+
+    // find a free slot
+    for (uint32_t i=0 ; i<numBuffers ; i++) {
+        if ((bufferMask & (1LU<<i)) == 0) {
+            mBufferMask |= (1LU<<i);
+            break;
+        }
+        vaddr += bufferSize;
+    }
+
+    if (usage & GRALLOC_USAGE_HW_FBX) {
+        hnd->flags |= private_handle_t::PRIV_FLAGS_FRAMEBUFFER_X;
+    }
+    /*else if (usage & GRALLOC_USAGE_HW_FB2X) {
+        hnd->flags |= private_handle_t::PRIV_FLAGS_FRAMEBUFFER_2X;
+    }*/
+
+    hnd->base = vaddr;
+    hnd->offset = vaddr - intptr_t(mFramebuffer->base);
+    hnd->phys = intptr_t(mFramebuffer->phys) + hnd->offset;
+    *pHandle = hnd;
+
+    return 0;
+}
+
+int BufferManager::fb_device_open(hw_module_t const* module, const char* name,
         hw_device_t** device)
 {
     int status = 0;
@@ -545,62 +604,54 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.common.tag = HARDWARE_DEVICE_TAG;
         dev->device.common.version = 0;
         dev->device.common.module = const_cast<hw_module_t*>(module);
-        dev->device.common.close = fb_close;
-        dev->device.setSwapInterval = fb_setSwapInterval;
-        dev->device.post            = fb_post;
+        dev->device.common.close = Display::closeDevice;
+        dev->device.setSwapInterval = Display::setSwapInterval;
+        dev->device.post            = Display::postBuffer;
         dev->device.setUpdateRect = 0;
-        dev->device.compositionComplete = fb_compositionComplete;
+        dev->device.compositionComplete = Display::compositionComplete;
 
-        if (!strcmp(name, GRALLOC_HARDWARE_FB0)) {
-            dev->device.common.module = const_cast<hw_module_t*>(module);
-            private_module_t* m = (private_module_t*)module;
-            status = mapFrameBuffer(m);
-            if (status >= 0) {
-                fb_device_init(m, dev);
-            }
+        dev->device.common.module = const_cast<hw_module_t*>(module);
 
-            dev->priv_m = m;
-            dev->mainDisp_fd = m->framebuffer->fd;
-            dev->isMainDisp = 1;
-        } else {
-            private_module_t* orig_m = (private_module_t*)module;
-            private_module_t* priv_m = NULL;
-            if (orig_m->external_module == NULL) {
-                priv_m = (private_module_t*)malloc(sizeof(*priv_m));
-                memset(priv_m, 0, sizeof(*priv_m));
-                memcpy(priv_m, orig_m, sizeof(*priv_m));
-                if (orig_m->ion_fd > 0) {
-                    priv_m->ion_fd = dup(orig_m->ion_fd);
-                }
-
-                orig_m->external_module = priv_m;
-            }
-            else {
-                priv_m = orig_m->external_module;
-                priv_m->closeDevice = false;
-            }
-
-            dev->device.common.module = (hw_module_t*)(priv_m);
-            priv_m->framebuffer = NULL;
-            int fbid = (int)*device;
-            status = mapFrameBufferWithFbid(priv_m, fbid);
-            if (status >= 0) {
-                fb_device_init(priv_m, dev);
-            }
-
-            dev->priv_m = priv_m;
-            dev->mainDisp_fd = orig_m->framebuffer->fd;
-            dev->isMainDisp = 0;
-
-            gralloc_context_t* gra_dev = (gralloc_context_t*)orig_m->priv_dev;
-            alloc_device_t *ext = gra_dev->ext_dev;
-            ext->common.module = (hw_module_t*)(priv_m);
+        BufferManager* pBufferManager = BufferManager::getInstance();
+        if (pBufferManager == NULL) {
+            ALOGE("%s get buffer manager failed.", __FUNCTION__);
+            return -EINVAL;
         }
 
+        int fbid = atoi(name+2);
+        if (fbid < 0 || fbid > 5) {
+            ALOGE("%s invalid fb num %d", __FUNCTION__, fbid);
+            return -EINVAL;
+        }
+
+        int dispid = 0;
+        dev->isMainDisp = 1;
+        if (fbid != 0) {
+            dispid = (int)*device;
+            if (dispid < 0 || dispid >= MAX_DISPLAY_DEVICE) {
+                ALOGE("%s invalid dispid %d", __FUNCTION__, dispid);
+                return -EINVAL;
+            }
+            dev->isMainDisp = 0;
+        }
+
+        ALOGI("fb_device_open dispid:%d, fb:%d", dispid, fbid);
+        Display* display = pBufferManager->getDisplay(dispid);
+        if (display == NULL) {
+            ALOGE("%s can't get valid display", __FUNCTION__);
+            return -EINVAL;
+        }
+
+        status = display->initialize(fbid);
+        if (status >= 0) {
+            display->setContext(dev);
+        }
+        dev->display = display;
+
         *device = &dev->device.common;
-        fbdev = (framebuffer_device_t*) *device;
+        fbdev = (framebuffer_device_t*)(*device);
         fbdev->reserved[0] = nr_framebuffers;
-    } 
+    }
 
     return status;
 }
