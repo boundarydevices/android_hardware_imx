@@ -27,56 +27,32 @@
 #include <unistd.h>
 
 #include <cutils/native_handle.h>
-
 #include <linux/fb.h>
 
 #define GRALLOC_HARDWARE_FB "fb"
 #define GRALLOC_VIV_HARDWARE_MODULE_ID "gralloc_viv"
+#define MAX_DISPLAY_DEVICE 4
 
-#define  ALIGN_PIXEL(x)  ((x+ 31) & ~31)
-#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
+#define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
 #define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
-/** z430 core need 4k aligned memory, since xres has been 32 aligned, make yres
-    to 128 aligned will meet this request for all pixel format (RGB565,RGB888,etc.) */
+#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
 #define  ALIGN_PIXEL_128(x)  ((x+ 127) & ~127)
 
 /*****************************************************************************/
-
 struct private_module_t;
 struct private_handle_t;
+
+class BufferManager;
 
 struct gralloc_context_t {
     alloc_device_t  device;
     /* our private data here */
-    alloc_device_t *ext_dev;
+    BufferManager* module;
 };
 
 struct private_module_t {
-/** do NOT change the elements below **/
     gralloc_module_t base;
-    private_handle_t* framebuffer;
-    uint32_t numBuffers;
-    uint32_t bufferMask;
-    pthread_mutex_t lock;
-    buffer_handle_t currentBuffer;
-    struct fb_var_screeninfo info;
-    struct fb_fix_screeninfo finfo;
-/** do NOT change the elements above **/
 
-    float xdpi;
-    float ydpi;
-    float fps;
-
-    uint32_t flags;
-    unsigned long master_phys;
-    alloc_device_t *gpu_device;
-    gralloc_module_t* gralloc_viv;
-
-    struct alloc_device_t *priv_dev;
-    struct private_module_t *external_module;
-    int primary_fd;
-    bool closeDevice;
-    int ion_fd;
     enum {
         // flag to indicate we'll post this buffer
         PRIV_USAGE_LOCKED_FOR_POST = 0x80000000
@@ -93,10 +69,10 @@ struct private_handle_t {
 #endif
 
     enum {
-        PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
-        PRIV_FLAGS_USES_DRV    = 0x00000002,
-        PRIV_FLAGS_USES_ION    = 0x00000004,
-        PRIV_FLAGS_FRAMEBUFFER_X = 0x00000008,
+        PRIV_FLAGS_FRAMEBUFFER =    0x00000001,
+        PRIV_FLAGS_FRAMEBUFFER_X =  0x00000002,
+        PRIV_FLAGS_FRAMEBUFFER_2X = 0x00000004,
+        PRIV_FLAGS_USES_ION    =    0x00000008,
     };
 
     enum {
@@ -105,42 +81,39 @@ struct private_handle_t {
         LOCK_STATE_READ_MASK =   0x3FFFFFFF
     };
 /** do NOT change any element below **/
-    int     fd;
-    int     magic;
-    int     flags;
-    int     size;
-    int     offset;
-    int     base;
-    unsigned long phys;
-    int     format;
-    int     width;
-    int     height;
-    int     pid;
-/** do NOT change any element above **/
+    int  fd;
+    int  magic;
+    int  flags;
+    int  size;
+    int  offset;
+    int  base;
+    int  phys;
+    int  format;
+    int  width;
+    int  height;
+    int  pid;
 
-    int     usage;
-    int     lockState;
-    int     writeOwner;
+    //usage;
+    //stride;
+
 #ifdef __cplusplus
-    static const int sNumInts = 13;
+    static const int sNumInts = 34;
     static const int sNumFds = 1;
-    static const int sMagic = 'pgpu';
+    static const int sMagic = 0x3141592;//'pgpu';
 
     private_handle_t(int fd, int size, int flags) :
         fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
         base(0),  phys(0),  format(0), width(0),
-        height(0), pid(getpid()), lockState(0), writeOwner(0)
+        height(0), pid(getpid())
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
         numFds = sNumFds;
+        //usage = 0;
+        //stride = 0;
     }
     ~private_handle_t() {
         magic = 0;
-    }
-
-    bool usesPhysicallyContiguousMemory() {
-        return (flags & PRIV_FLAGS_USES_DRV) != 0;
     }
 
     static int validate(const native_handle* h) {

@@ -402,7 +402,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
                 memset(fbname, 0, sizeof(fbname));
                 sprintf(fbname, "fb%d", fbid);
                 ALOGI("hwcomposer: open framebuffer %s", fbname);
-                dev->mFbDev[dispid] = (framebuffer_device_t*)fbid;
+                dev->mFbDev[dispid] = (framebuffer_device_t*)dispid;
                 dev->m_gralloc_module->methods->open(dev->m_gralloc_module, fbname,
                            (struct hw_device_t**)&dev->mFbDev[dispid]);
             }
