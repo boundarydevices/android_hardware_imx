@@ -73,6 +73,7 @@ struct fsl_private {
     struct disp_private mDispInfo[HWC_NUM_DISPLAY_TYPES];
     g2d_buf* tmp_buf;
     int tmp_buf_size;
+    bool vg_engine;
 };
 
 #endif
