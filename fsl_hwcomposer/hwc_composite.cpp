@@ -700,7 +700,19 @@ int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
     setG2dSurface(priv, sSurface, srcHandle, srect);
     setG2dSurface(priv, dSurface, dstHandle, drect);
 
+    if (priv->vg_engine) {
+        /* Wait all 2D operations done. */
+        g2d_finish(priv->g2d_handle);
+        g2d_make_current(priv->g2d_handle, G2D_HARDWARE_VG);
+    }
+
     g2d_blit(priv->g2d_handle, &sSurface, &dSurface);
+
+    if (priv->vg_engine) {
+        /* Wait all VG operations done. */
+        g2d_finish(priv->g2d_handle);
+        g2d_make_current(priv->g2d_handle, G2D_HARDWARE_2D);
+    }
 
     return 0;
 }

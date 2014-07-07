@@ -413,6 +413,8 @@ static int hwc_prepare(struct hwc_context_t* ctx,
             ALOGE("%s invalid g2d_handle", __FUNCTION__);
             return 0;
         }
+        priv->vg_engine = !g2d_make_current(priv->g2d_handle, G2D_HARDWARE_VG);
+        g2d_make_current(priv->g2d_handle, G2D_HARDWARE_2D);
     }
 
     char property[PROPERTY_VALUE_MAX];
