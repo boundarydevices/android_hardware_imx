@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2012-2013 Freescale Semiconductor, Inc. */
+/* Copyright (C) 2012-2014 Freescale Semiconductor, Inc. */
 
 #define LOG_TAG "audio_hw_primary"
 //#define LOG_NDEBUG 0
@@ -1426,6 +1426,90 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 }
 
 /** audio_stream_in implementation **/
+#define MID_RATE_0_8000  4000
+#define MID_RATE_8000_11025  ((8000+11025)/2)
+#define MID_RATE_11025_16000 ((11025+16000)/2)
+#define MID_RATE_16000_22050  ((16000+22050)/2)
+#define MID_RATE_22050_32000  ((22050+32000)/2)
+#define MID_RATE_32000_44100  ((32000+44100)/2)
+#define MID_RATE_44100_48000  ((44100+48000)/2)
+#define MID_RATE_48000_64000  ((48000+64000)/2)
+#define MID_RATE_64000_88200  ((64000+88200)/2)
+#define MID_RATE_88200_96000  ((88200+96000)/2)
+#define MID_RATE_96000_176400  ((96000+176400)/2)
+#define MID_RATE_176400_196000  ((176400+196000)/2)
+
+static int spdif_in_rate_check(struct imx_stream_in *in)
+{
+    struct imx_audio_device *adev = in->dev;
+    int i = adev->in_card_idx;
+    int ret = 0;
+
+    if(!strcmp(adev->card_list[i]->driver_name, "imx-spdif")) {
+        struct mixer_ctl *ctl;
+        unsigned int rate = 0;
+        struct mixer *mixer_spdif = adev->mixer[i];
+        ctl = mixer_get_ctl_by_name(mixer_spdif, "RX Sample Rate");
+        if (ctl) {
+            rate = mixer_ctl_get_value(ctl, 0);
+        }
+
+	if (rate <= MID_RATE_0_8000)
+		rate = 0;
+	else if (MID_RATE_0_8000 < rate && rate <= MID_RATE_8000_11025)
+		rate = 8000;
+	else if (MID_RATE_8000_11025 < rate && rate <= MID_RATE_11025_16000)
+		rate = 11025;
+	else if (MID_RATE_11025_16000 < rate && rate <= MID_RATE_16000_22050)
+		rate = 16000;
+	else if (MID_RATE_16000_22050 < rate && rate <= MID_RATE_22050_32000)
+		rate = 22050;
+	else if (MID_RATE_22050_32000 < rate && rate <= MID_RATE_32000_44100)
+		rate = 32000;
+	else if (MID_RATE_32000_44100 < rate && rate <= MID_RATE_44100_48000)
+		rate = 44100;
+	else if (MID_RATE_44100_48000 < rate && rate <= MID_RATE_48000_64000)
+		rate = 48000;
+	else if (MID_RATE_48000_64000 < rate && rate <= MID_RATE_64000_88200)
+		rate = 64000;
+	else if (MID_RATE_64000_88200 < rate && rate <= MID_RATE_88200_96000)
+		rate = 88200;
+	else if (MID_RATE_88200_96000 < rate && rate <= MID_RATE_96000_176400)
+		rate = 96000;
+	else if (MID_RATE_96000_176400 < rate && rate <= MID_RATE_176400_196000)
+		rate = 176400;
+	else
+		rate = 196000;
+
+	if (rate > 0 && rate != in->config.rate) {
+            in->config.rate = rate;
+            ALOGW("spdif input rate changed to %d", rate);
+
+            if (in->resampler) {
+                release_resampler(in->resampler);
+            }
+
+            if (in->requested_rate != in->config.rate) {
+                in->buf_provider.get_next_buffer = get_next_buffer;
+                in->buf_provider.release_buffer = release_buffer;
+
+                ret = create_resampler(in->config.rate,
+                               in->requested_rate,
+                               in->requested_channel,
+                               RESAMPLER_QUALITY_DEFAULT,
+                               &in->buf_provider,
+                               &in->resampler);
+            }
+
+            /* if no supported sample rate is available, use the resampler */
+            if (in->resampler) {
+                in->resampler->reset(in->resampler);
+            }
+        }
+    }
+
+    return 0;
+}
 
 /* must be called with hw device and input stream mutexes locked */
 static int start_input_stream(struct imx_stream_in *in)
@@ -1449,6 +1533,7 @@ static int start_input_stream(struct imx_stream_in *in)
     for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
         if(adev->in_device & adev->card_list[i]->supported_in_devices) {
             card = adev->card_list[i]->card;
+            adev->in_card_idx = i;
             port = 0;
             break;
         }
@@ -2101,6 +2186,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
     if (ret < 0)
         goto exit;
+
+    spdif_in_rate_check(in);
 
     if (in->num_preprocessors != 0)
         ret = process_frames(in, buffer, frames_rq);
