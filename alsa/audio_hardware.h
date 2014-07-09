@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2012-2013 Freescale Semiconductor, Inc. */
+/* Copyright (C) 2012-2014 Freescale Semiconductor, Inc. */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
@@ -93,6 +93,7 @@ struct imx_audio_device {
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
     int mode;
     int in_device;
+    int in_card_idx; /* the index for array card_list and mixer */
     int out_device;
     struct pcm *pcm_modem_dl;
     struct pcm *pcm_modem_ul;
