@@ -452,18 +452,25 @@ static void clipRects(hwc_rect_t& src, hwc_rect_t& dst,
     srcW = srect.right - srect.left;
     srcH = srect.bottom - srect.top;
 
-    deltaX = deltaX * srcW / dstW;
-    deltaY = deltaY * srcH / dstH;
+    // use float to do multiplying then ceil to int.
+    deltaX = ceilf((float)deltaX * (float)srcW / (float)dstW);
+    deltaY = ceilf((float)deltaY * (float)srcH / (float)dstH);
 
     src.left = deltaX + srect.left;
     src.top = deltaY + srect.top;
     if (rotation & HAL_TRANSFORM_ROT_90) {
-        src.right = src.left + (dstClip.bottom - dstClip.top)* srcW / dstW;
-        src.bottom = src.top + (dstClip.right - dstClip.left)* srcH / dstH;
+        // use float to do multiplying then ceil to int.
+        src.right = src.right - ceilf((float)(drect.bottom - dst.bottom)
+                                      * (float)srcW / (float)dstW);
+        src.bottom = src.bottom - ceilf((float)(drect.right - dst.right)
+                                      * (float)srcH / (float)dstH);
     }
     else {
-        src.right = src.left + (dstClip.right - dstClip.left) * srcW / dstW;
-        src.bottom = src.top + (dstClip.bottom - dstClip.top) * srcH / dstH;
+        // use float to do multiplying then ceil to int.
+        src.right = src.right - ceilf((float)(drect.right - dst.right)
+                                      * (float)srcW / (float)dstW);
+        src.bottom = src.bottom - ceilf((float)(drect.bottom - dst.bottom)
+                                      * (float)srcH / (float)dstH);
     }
 }
 
