@@ -136,19 +136,6 @@ static bool checkG2dProcs(struct fsl_private *priv, int disp,
         ALOGI("prepare: targetHandle is null");
         return false;
     }
-    else {
-        struct disp_private& dispInfo = priv->mDispInfo[disp];
-        hwc_rect_t &tframe = targetLayer->displayFrame;
-        hwc_rect_t &cframe = dispInfo.mDisplayFrame[dispInfo.mSwapIndex];
-        if (tframe.left != cframe.left || tframe.top != cframe.top ||
-            tframe.right != cframe.right || tframe.bottom != cframe.bottom) {
-            cframe = tframe;
-            dispInfo.mClearHole = true;
-        }
-        else {
-            dispInfo.mClearHole = false;
-        }
-    }
 
     hwc_layer_1_t* layer = NULL;
     for (size_t i=0; i<list->numHwLayers-1; i++) {
@@ -365,19 +352,7 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
         list->outbufAcquireFenceFd = -1;
     }
 
-    if (disp != HWC_DISPLAY_PRIMARY &&
-        hwc_hasSameContent(priv, HWC_DISPLAY_PRIMARY, disp, contents)) {
-        hwc_display_contents_1_t* sList = contents[HWC_DISPLAY_PRIMARY];
-        hwc_layer_1_t* primaryLayer = &sList->hwLayers[sList->numHwLayers-1];
-        struct private_handle_t *primaryHandle = NULL;
-        primaryHandle = (struct private_handle_t *)primaryLayer->handle;
-        if (primaryHandle != NULL) {
-            hwc_resize(priv, frameHandle, primaryHandle);
-            g2d_finish(priv->g2d_handle);
-            return 0;
-        }
-    }
-
+    hwc_clearWormHole(priv, frameHandle, list, disp, NULL);
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
         int fenceFd = layer->acquireFenceFd;
@@ -545,10 +520,6 @@ void hwc_setDisplayInfo(int disp, struct hwc_context_t *ctx)
             dispInfo->mSwapRect[i].top = 0;
             dispInfo->mSwapRect[i].right = pInfo->xres;
             dispInfo->mSwapRect[i].bottom = pInfo->yres;
-            dispInfo->mDisplayFrame[i].left = 0;
-            dispInfo->mDisplayFrame[i].top = 0;
-            dispInfo->mDisplayFrame[i].right = pInfo->xres;
-            dispInfo->mDisplayFrame[i].bottom = pInfo->yres;
         }
     }
 }

@@ -64,8 +64,6 @@ struct disp_private {
     //buffer_handle_t mLastHandle;
     int mSwapIndex;
     hwc_rect_t mSwapRect[HWC_MAX_FRAMEBUFFER];
-    hwc_rect_t mDisplayFrame[HWC_MAX_FRAMEBUFFER];
-    bool mClearHole;
 };
 
 struct fsl_private {
