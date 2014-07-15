@@ -460,9 +460,16 @@ static void clipRects(hwc_rect_t& src, hwc_rect_t& dst,
     src.top = deltaY + srect.top;
     if (rotation & HAL_TRANSFORM_ROT_90) {
         // use float to do multiplying then ceil to int.
-        src.right = src.right - ceilf((float)(drect.bottom - dst.bottom)
+        src.right = src.left + ceilf((float)(dstClip.bottom - dstClip.top)
                                       * (float)srcW / (float)dstW);
-        src.bottom = src.bottom - ceilf((float)(drect.right - dst.right)
+        src.bottom = src.top + ceilf((float)(dstClip.right - dstClip.left)
+                                      * (float)srcH / (float)dstH);
+    }
+    //rotate 180
+    else if (rotation == (HAL_TRANSFORM_FLIP_H | HAL_TRANSFORM_FLIP_V)) {
+        src.right = src.left + ceilf((float)(dstClip.right - dstClip.left)
+                                      * (float)srcW / (float)dstW);
+        src.bottom = src.top + ceilf((float)(dstClip.bottom - dstClip.top)
                                       * (float)srcH / (float)dstH);
     }
     else {
@@ -762,9 +769,11 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
                     hwc_display_contents_1_t* list, int disp, hwc_rect_t* swap)
 {
     if (priv == NULL || dstHandle == NULL || list == NULL) {
+        ALOGE("%s invalid parameters", __FUNCTION__);
         return -EINVAL;
     }
 
+    // calculate opaque region.
     Region opaque;
     hwc_layer_1_t* layer = NULL;
     for (size_t i=0; i<list->numHwLayers-1; i++) {
@@ -777,7 +786,7 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
                 Rect rect;
                 const hwc_rect_t &hrect = layer->visibleRegionScreen.rects[n];
                 ALOGV("opaque: src(l:%d,t:%d,r:%d,b:%d)",
-                        rect.left, rect.top, rect.right, rect.bottom);
+                        hrect.left, hrect.top, hrect.right, hrect.bottom);
                 if (!validateRect((hwc_rect_t &)hrect)) {
                     continue;
                 }
@@ -787,13 +796,14 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
         }
     }
 
-    Rect dispRect(priv->mDispInfo[disp].xres, priv->mDispInfo[disp].yres);
-    Region screen(dispRect);
+    // calculate worm hole.
+    Region screen(Rect(dstHandle->width, dstHandle->height));
     screen.subtractSelf(opaque);
     const Rect *holes = NULL;
     size_t numRect = 0;
     holes = screen.getArray(&numRect);
 
+    // clear worm hole.
     struct g2d_surface surface;
     memset(&surface, 0, sizeof(surface));
     for (size_t i=0; i<numRect; i++) {
@@ -811,35 +821,6 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
         }
         ALOGV("clearhole: hole(l:%d,t:%d,r:%d,b:%d)",
                 rect.left, rect.top, rect.right, rect.bottom);
-        setG2dSurface(priv, surface, dstHandle, rect);
-        surface.clrcolor = 0xff << 24;
-        g2d_clear(priv->g2d_handle, &surface);
-    }
-
-    disp_private &dispInfo = priv->mDispInfo[disp];
-    if (!dispInfo.mClearHole) {
-        return 0;
-    }
-
-    hwc_rect_t &tframe = dispInfo.mDisplayFrame[dispInfo.mSwapIndex-1];
-    Region bounds(Rect(dispInfo.xres, dispInfo.yres));
-    const Rect rframe(tframe.left, tframe.top,
-                      tframe.right, tframe.bottom);
-    bounds.subtractSelf(rframe);
-    numRect = 0;
-    holes = bounds.getArray(&numRect);
-    memset(&surface, 0, sizeof(surface));
-    for (size_t i=0; i<numRect; i++) {
-        if (holes[i].isEmpty()) {
-            continue;
-        }
-
-        hwc_rect_t rect;
-        memcpy(&rect, &holes[i], sizeof(rect));
-        if (!validateRect(rect)) {
-            continue;
-        }
-
         setG2dSurface(priv, surface, dstHandle, rect);
         surface.clrcolor = 0xff << 24;
         g2d_clear(priv->g2d_handle, &surface);
