@@ -581,6 +581,7 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
 
         if (layer->blending != HWC_BLENDING_NONE && !firstLayer) {
             g2d_enable(priv->g2d_handle, G2D_GLOBAL_ALPHA);
+            g2d_enable(priv->g2d_handle, G2D_DITHER);
             if (layer->blending == HWC_BLENDING_DIM) {
                 ALOGV("enable blend dim");
                 g2d_enable(priv->g2d_handle, G2D_BLEND_DIM);
@@ -600,6 +601,7 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
                 g2d_disable(priv->g2d_handle, G2D_BLEND);
             }
             g2d_disable(priv->g2d_handle, G2D_GLOBAL_ALPHA);
+            g2d_disable(priv->g2d_handle, G2D_DITHER);
         }
     }
 
