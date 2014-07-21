@@ -52,6 +52,7 @@ typedef struct hwc_reg {
 
 extern "C" int get_aligned_size(buffer_handle_t hnd, int *width, int *height);
 extern "C" int get_flip_offset(buffer_handle_t hnd, int *offset);
+extern "C" int g2d_set_clipping(void *handle, int left, int top, int right, int bottom);
 
 static bool validateRect(hwc_rect_t& rect)
 {
@@ -521,7 +522,9 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
             intersect(&clip, &clip, swap);
         }
 
-        clipRects(srect, drect, clip, layer->transform);
+        //clipRects(srect, drect, clip, layer->transform);
+        g2d_set_clipping(priv->g2d_handle, clip.left, clip.top,
+                            clip.right, clip.bottom);
         if (!validateRect(srect) && layer->blending != HWC_BLENDING_DIM) {
             ALOGV("%s: invalid srect(l:%d,t:%d,r:%d,b:%d)", __FUNCTION__,
                     srect.left, srect.top, srect.right, srect.bottom);
