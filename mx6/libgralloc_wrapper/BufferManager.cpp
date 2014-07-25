@@ -126,7 +126,7 @@ int BufferManager::alloc(int w, int h, int format, int usage,
 
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
         case HAL_PIXEL_FORMAT_YV12: {
-            alignedw = ALIGN_PIXEL_32(w);
+            alignedw = ALIGN_PIXEL_16(w);
             alignedh = ALIGN_PIXEL_4(h);
             int c_stride = (alignedw/2+15)/16*16;
             size = alignedw * alignedh + c_stride * h;
