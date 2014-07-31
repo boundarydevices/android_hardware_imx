@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ CameraBridge::CameraBridge()
       mDataCbTimestamp(NULL), mRequestMemory(NULL), mCallbackCookie(NULL),
       mMsgEnabled(0), mBridgeState(BRIDGE_INVALID),
       mRecording(false), mVideoWidth(0), mVideoHeight(0),
-      mBufferCount(0), mBufferSize(0), mMetaDataBufsSize(0),
+      mBufferCount(0), mBufferSize(0), mPreviewBufferSize(0), mMetaDataBufsSize(0),
       mPreviewMemory(NULL), mVideoMemory(NULL)
 {
     memset(mSupprotedThumbnailSizes, 0, sizeof(mSupprotedThumbnailSizes));
@@ -434,6 +434,8 @@ status_t CameraBridge::start()
         return NO_INIT;
     }
 
+    mPreviewBufferSize = mFrameProvider->getFrameSize();
+
 #ifdef EVK_6SL //driver provide yuyv, but h264enc need nv12
     int bufSize = mFrameProvider->getFrameSize() * 3/4;
 #else
@@ -446,7 +448,7 @@ status_t CameraBridge::start()
             mPreviewMemory = NULL;
         }
 
-        mPreviewMemory = mRequestMemory(-1, bufSize, bufCnt, NULL);
+        mPreviewMemory = mRequestMemory(-1, mPreviewBufferSize, bufCnt, NULL);
         if (mPreviewMemory == NULL) {
             FLOGE("CameraBridge: notifyBufferCreat mRequestMemory failed");
         }
@@ -791,10 +793,9 @@ void CameraBridge::sendPreviewFrame(CameraFrame *frame)
     int bufIdx = frame->mIndex;
     FSL_ASSERT(bufIdx >= 0);
 
-    convertNV12toYUV420SP((uint8_t *)(frame->mVirtAddr),
-                          (uint8_t *)((unsigned char *)mPreviewMemory->data +
-                                      bufIdx * mBufferSize),
-                          frame->mWidth, frame->mHeight);
+    memcpy((uint8_t *)((unsigned char *)mPreviewMemory->data + bufIdx * mPreviewBufferSize),
+        (uint8_t *)(frame->mVirtAddr), mPreviewBufferSize);
+
     mDataCb(CAMERA_MSG_PREVIEW_FRAME,
             mPreviewMemory,
             bufIdx,
