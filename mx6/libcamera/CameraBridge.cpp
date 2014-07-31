@@ -434,7 +434,26 @@ status_t CameraBridge::start()
         return NO_INIT;
     }
 
-    mPreviewBufferSize = mFrameProvider->getFrameSize();
+    int previewWidth = 0;
+    int previewHeight = 0;
+
+    mParameters.getPreviewSize(&previewWidth, &previewHeight);
+    const char *previewFormat = mParameters.getPreviewFormat();
+
+    if(previewFormat) {
+        if ( strcmp(previewFormat, "yuv422i-yuyv") == 0 ) {
+            mPreviewBufferSize = previewWidth * previewHeight * 2;
+        } else if ( (strcmp(previewFormat, "yuv420p") == 0) || (strcmp(previewFormat, "yuv420sp") == 0) ) {
+            mPreviewBufferSize = previewWidth * previewHeight * 3/2;
+        } else {
+            ALOGE("CameraBridge::start, not support format %s", previewFormat);
+            mPreviewBufferSize = previewWidth * previewHeight * 3/2;
+        }
+    } else {
+        ALOGE("CameraBridge::start, can't get preview format");
+            mPreviewBufferSize = previewWidth * previewHeight * 3/2;
+    }
+
 
 #ifdef EVK_6SL //driver provide yuyv, but h264enc need nv12
     int bufSize = mFrameProvider->getFrameSize() * 3/4;
