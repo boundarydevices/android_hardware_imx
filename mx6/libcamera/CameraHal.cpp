@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2009-2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2009-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -501,7 +501,16 @@ status_t CameraHal::takePicture()
 {
     FLOG_RUNTIME("takePicture");
     status_t ret = NO_ERROR;
+
+LockAndCheck:
     Mutex::Autolock lock(mLock);
+
+    if(mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
+        ALOGW("takePicture, wait CAMERA_MSG_PREVIEW_FRAME to clear");
+        mLock.unlock();
+        usleep(10000);
+        goto LockAndCheck;
+    }
 
     if (!previewEnabled()) {
         FLOGE("takePicture: preview not start");
