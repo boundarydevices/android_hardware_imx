@@ -233,9 +233,9 @@ status_t CameraBridge::initParameters(CameraParameters& params)
                CameraParameters::SCENE_MODE_AUTO);
 
     params.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
-               CameraParameters::FOCUS_MODE_AUTO);
+               CameraParameters::FOCUS_MODE_FIXED);
     params.set(CameraParameters::KEY_FOCUS_MODE,
-               CameraParameters::FOCUS_MODE_AUTO);
+               CameraParameters::FOCUS_MODE_FIXED);
 
     params.set(CameraParameters::KEY_FOCAL_LENGTH, "10.001");
     params.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "54.8");
