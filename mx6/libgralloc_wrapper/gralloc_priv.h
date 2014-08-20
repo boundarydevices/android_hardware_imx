@@ -93,13 +93,14 @@ struct private_handle_t {
     int  height;
     int  pid;
 
-    //usage;
-    //stride;
+    int  usage;
+    int  stride;
+    int  reserved[4];
 
 #ifdef __cplusplus
-    static const int sNumInts = 34;
+    static const int sNumInts = 16;
     static const int sNumFds = 1;
-    static const int sMagic = 0x3141592;//'pgpu';
+    static const int sMagic = 'pgpu';
 
     private_handle_t(int fd, int size, int flags) :
         fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
