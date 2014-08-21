@@ -46,6 +46,7 @@ AccelSensor::AccelSensor()
       mEnabled(0),
       mPendingMask(0),
       mInputReader(4),
+      mFifoCount(0),
       mDelay(0)
 {
 	mBatchEnabled = 0;
@@ -129,7 +130,7 @@ struct mma8x5x_fifo{
 int AccelSensor::read_fifo(){
 	char buf[256];
 	int i = 0;
-	int nread,n;
+	int nread = 0,n;
 	int count;
 	int64_t period;
 	int64_t timestamp;
@@ -175,7 +176,7 @@ int AccelSensor::read_fifo(){
 			}
 		}
 	}
-	return 0;
+	return nread;
 }
 int AccelSensor::readEvents(sensors_event_t* data, int count)
 {
@@ -200,7 +201,7 @@ int AccelSensor::readEvents(sensors_event_t* data, int count)
 				mFlushed &= ~(0x01 << ID_A);;
 			}
 			ret = read_fifo();
-			if(ret < 0)  /*not fifo data ,return immediately*/
+			if(ret <= 0)  /*not fifo data ,return immediately*/
 				return 0;
 			}
 			events = (count -1 < mFifoCount)? count -1 : mFifoCount;
