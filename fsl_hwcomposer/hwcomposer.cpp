@@ -44,7 +44,7 @@
 #include <sync/sync.h>
 
 /*****************************************************************************/
-#define HWC_G2D   100
+#define HWC_G2D   HWC_OVERLAY
 
 typedef EGLClientBuffer (EGLAPIENTRYP PFNEGLGETRENDERBUFFERVIVPROC) (EGLClientBuffer Handle);
 typedef EGLBoolean (EGLAPIENTRYP PFNEGLPOSTBUFFERVIVPROC) (EGLClientBuffer Buffer);
@@ -289,8 +289,8 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
         for (size_t i=0; i<list->numHwLayers-1; i++) {
             layer = &list->hwLayers[i];
             int fenceFd = layer->acquireFenceFd;
-            if (fenceFd > 0) {
-                ALOGI("fenceFd:%d", fenceFd);
+            if (fenceFd != -1) {
+                ALOGV("fenceFd:%d", fenceFd);
                 sync_wait(fenceFd, -1);
                 close(fenceFd);
                 layer->acquireFenceFd = -1;
@@ -356,8 +356,8 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
         int fenceFd = layer->acquireFenceFd;
-        if (fenceFd > 0) {
-            ALOGI("fenceFd:%d", fenceFd);
+        if (fenceFd != -1) {
+            ALOGV("fenceFd:%d", fenceFd);
             sync_wait(fenceFd, -1);
             close(fenceFd);
             layer->acquireFenceFd = -1;
