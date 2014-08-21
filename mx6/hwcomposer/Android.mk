@@ -29,7 +29,8 @@ LOCAL_SHARED_LIBRARIES :=			\
 	libui					\
 	libhardware				\
 	libhardware_legacy			\
-	libbinder
+	libbinder				\
+	libsync
 
 LOCAL_SRC_FILES :=				\
 	hwcomposer.cpp				\

@@ -42,7 +42,6 @@
 #include <sync/sync.h>
 
 /*****************************************************************************/
-#define HWC_G2D   100
 
 typedef EGLClientBuffer (EGLAPIENTRYP PFNEGLGETRENDERBUFFERVIVPROC) (EGLClientBuffer Handle);
 typedef EGLBoolean (EGLAPIENTRYP PFNEGLPOSTBUFFERVIVPROC) (EGLClientBuffer Buffer);
@@ -174,16 +173,31 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
 
     if (primary && ctx->mDispInfo[HWC_DISPLAY_PRIMARY].blank == 0) {
         hwc_layer_1 *fbt = &primary->hwLayers[primary->numHwLayers-1];
-        if(ctx->mFbDev[HWC_DISPLAY_PRIMARY] != NULL)
+        if(ctx->mFbDev[HWC_DISPLAY_PRIMARY] != NULL && fbt != NULL) {
+            int fenceFd = fbt->acquireFenceFd;
+            if (fenceFd != -1) {
+                sync_wait(fenceFd, -1);
+                close(fenceFd);
+                fbt->acquireFenceFd = -1;
+            }
+
             ctx->mFbDev[HWC_DISPLAY_PRIMARY]->post(
                      ctx->mFbDev[HWC_DISPLAY_PRIMARY],  fbt->handle);
+       }
     }
 
     if (external && ctx->mDispInfo[HWC_DISPLAY_EXTERNAL].blank == 0) {
         hwc_layer_1 *fbt = &external->hwLayers[external->numHwLayers-1];
-        if(ctx->mFbDev[HWC_DISPLAY_EXTERNAL] != NULL)
+        if(ctx->mFbDev[HWC_DISPLAY_EXTERNAL] != NULL && fbt != NULL) {
+            int fenceFd = fbt->acquireFenceFd;
+            if (fenceFd != -1) {
+                sync_wait(fenceFd, -1);
+                close(fenceFd);
+                fbt->acquireFenceFd = -1;
+            }
             ctx->mFbDev[HWC_DISPLAY_EXTERNAL]->post(
                      ctx->mFbDev[HWC_DISPLAY_EXTERNAL], fbt->handle);
+        }
     }
 
     return 0;

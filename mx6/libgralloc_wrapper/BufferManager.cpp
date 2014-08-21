@@ -151,7 +151,7 @@ int BufferManager::alloc(int w, int h, int format, int usage,
 
 int BufferManager::free(buffer_handle_t handle)
 {
-    if (private_handle_t::validate(handle) < 0) {
+    if (validateHandle(handle) < 0) {
         ALOGE("%s invalid handle", __FUNCTION__);
         return -EINVAL;
     }
