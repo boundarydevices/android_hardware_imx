@@ -272,6 +272,17 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     hwc_rect_t& swapRect = priv->mDispInfo[disp].mSwapRect[index];
     hwc_clearWormHole(priv, frameHandle, list, disp, &swapRect);
 
+    for (size_t i=0; i<list->numHwLayers-1; i++) {
+        layer = &list->hwLayers[i];
+        int fenceFd = layer->acquireFenceFd;
+        if (fenceFd != -1) {
+            ALOGV("fenceFd:%d", fenceFd);
+            sync_wait(fenceFd, -1);
+            close(fenceFd);
+            layer->acquireFenceFd = -1;
+        }
+    }
+
     bool resized = false;
     if (disp != HWC_DISPLAY_PRIMARY &&
         hwc_hasSameContent(priv, HWC_DISPLAY_PRIMARY, disp, contents)) {
@@ -288,13 +299,6 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     if (!resized) {
         for (size_t i=0; i<list->numHwLayers-1; i++) {
             layer = &list->hwLayers[i];
-            int fenceFd = layer->acquireFenceFd;
-            if (fenceFd != -1) {
-                ALOGV("fenceFd:%d", fenceFd);
-                sync_wait(fenceFd, -1);
-                close(fenceFd);
-                layer->acquireFenceFd = -1;
-            }
             hwc_composite(priv, layer, frameHandle, &swapRect, i==0);
         }
 
@@ -303,12 +307,7 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     g2d_finish(priv->g2d_handle);
 
     _eglPostBufferVIV(fbuffer);
-#if 0
-    targetHandle = (struct private_handle_t *)targetLayer->handle;
-    if (targetHandle != NULL && ctx->mDispInfo[disp].connected && ctx->mDispInfo[disp].blank == 0) {
-        ctx->mFbDev[disp]->post(ctx->mFbDev[disp], targetHandle);
-    }
-#endif
+
     return 0;
 }
 
