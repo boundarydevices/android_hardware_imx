@@ -170,6 +170,11 @@ static int hwc_prepare_physical(struct fsl_private *priv, int disp,
 
     if (!priv->mDispInfo[disp].connected) {
         ALOGE("physical display:%d is diconnected", disp);
+        hwc_layer_1_t* layer = NULL;
+        for (size_t i=0; i<list->numHwLayers-1; i++) {
+            layer = &list->hwLayers[i];
+            layer->compositionType = HWC_FRAMEBUFFER;
+        }
         priv->mDispInfo[disp].mG2dProcs = false;
         return -EINVAL;
     }
@@ -177,6 +182,11 @@ static int hwc_prepare_physical(struct fsl_private *priv, int disp,
     bool g2dProcs = checkG2dProcs(priv, disp, list);
     if (!g2dProcs) {
         ALOGV("pass to 3D to handle");
+        hwc_layer_1_t* layer = NULL;
+        for (size_t i=0; i<list->numHwLayers-1; i++) {
+            layer = &list->hwLayers[i];
+            layer->compositionType = HWC_FRAMEBUFFER;
+        }
         priv->mDispInfo[disp].mG2dProcs = false;
         return 0;
     }
@@ -203,6 +213,11 @@ static int hwc_prepare_virtual(struct fsl_private *priv, int disp,
     bool g2dProcs = checkG2dProcs(priv, disp, list);
     if (!g2dProcs) {
         ALOGV("pass to 3D to handle");
+        hwc_layer_1_t* layer = NULL;
+        for (size_t i=0; i<list->numHwLayers-1; i++) {
+            layer = &list->hwLayers[i];
+            layer->compositionType = HWC_FRAMEBUFFER;
+        }
         priv->mDispInfo[disp].mG2dProcs = false;
         return 0;
     }
@@ -231,10 +246,19 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     struct private_handle_t *targetHandle;
     targetHandle = (struct private_handle_t *)targetLayer->handle;
 
+    for (size_t i=0; i<list->numHwLayers; i++) {
+        hwc_layer_1_t* layer = NULL;
+        layer = &list->hwLayers[i];
+        int fenceFd = layer->acquireFenceFd;
+        if (fenceFd != -1) {
+            ALOGV("fenceFd:%d", fenceFd);
+            sync_wait(fenceFd, -1);
+            close(fenceFd);
+            layer->acquireFenceFd = -1;
+        }
+    }
+
     if (!priv->mDispInfo[disp].mG2dProcs) {
-        //if (targetHandle != NULL && priv->mDispInfo[disp].connected) {
-        //    ctx->mFbDev[disp]->post(ctx->mFbDev[disp], targetHandle);
-        //}
         hwc_updateSwapRect(priv, disp, NULL);
         return 0;
     }
@@ -272,17 +296,6 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     hwc_rect_t& swapRect = priv->mDispInfo[disp].mSwapRect[index];
     hwc_clearWormHole(priv, frameHandle, list, disp, &swapRect);
 
-    for (size_t i=0; i<list->numHwLayers-1; i++) {
-        layer = &list->hwLayers[i];
-        int fenceFd = layer->acquireFenceFd;
-        if (fenceFd != -1) {
-            ALOGV("fenceFd:%d", fenceFd);
-            sync_wait(fenceFd, -1);
-            close(fenceFd);
-            layer->acquireFenceFd = -1;
-        }
-    }
-
     bool resized = false;
     if (disp != HWC_DISPLAY_PRIMARY &&
         hwc_hasSameContent(priv, HWC_DISPLAY_PRIMARY, disp, contents)) {
@@ -317,6 +330,18 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
     hwc_display_contents_1_t* list = contents[disp];
     if (priv == NULL || list == NULL) {
         return 0;
+    }
+
+    for (size_t i=0; i<list->numHwLayers; i++) {
+        hwc_layer_1_t* layer = NULL;
+        layer = &list->hwLayers[i];
+        int fenceFd = layer->acquireFenceFd;
+        if (fenceFd != -1) {
+            ALOGV("fenceFd:%d", fenceFd);
+            sync_wait(fenceFd, -1);
+            close(fenceFd);
+            layer->acquireFenceFd = -1;
+        }
     }
 
     if (list->outbuf == NULL) {
@@ -354,14 +379,6 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
     hwc_clearWormHole(priv, frameHandle, list, disp, NULL);
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
-        int fenceFd = layer->acquireFenceFd;
-        if (fenceFd != -1) {
-            ALOGV("fenceFd:%d", fenceFd);
-            sync_wait(fenceFd, -1);
-            close(fenceFd);
-            layer->acquireFenceFd = -1;
-        }
-
         hwc_composite(priv, layer, frameHandle, NULL, i==0);
     }
 
