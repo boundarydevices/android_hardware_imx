@@ -344,6 +344,13 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
         }
     }
 
+    int fenceFd = list->outbufAcquireFenceFd;
+    if (fenceFd != -1) {
+        sync_wait(fenceFd, -1);
+        close(fenceFd);
+        list->outbufAcquireFenceFd = -1;
+    }
+
     if (list->outbuf == NULL) {
         ALOGE("invalid outbuf for virtual display");
         return -EINVAL;
@@ -367,13 +374,6 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
             ALOGE("invalid compositionType:%d", layer->compositionType);
             return -EINVAL;
         }
-    }
-
-    int fenceFd = list->outbufAcquireFenceFd;
-    if (fenceFd != -1) {
-        sync_wait(fenceFd, -1);
-        close(fenceFd);
-        list->outbufAcquireFenceFd = -1;
     }
 
     hwc_clearWormHole(priv, frameHandle, list, disp, NULL);
