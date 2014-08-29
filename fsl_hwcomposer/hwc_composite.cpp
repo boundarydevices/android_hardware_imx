@@ -97,25 +97,44 @@ static enum g2d_format convertFormat(int format)
     }
 }
 
-static enum g2d_rotation convertRotation(int transform)
+static int convertRotation(int transform, struct g2d_surface& src,
+                        struct g2d_surface& dst)
 {
     switch (transform) {
         case 0:
-            return G2D_ROTATION_0;
+            dst.rot = G2D_ROTATION_0;
+            break;
         case HAL_TRANSFORM_ROT_90:
-            return G2D_ROTATION_90;
+            dst.rot =  G2D_ROTATION_90;
+            break;
         case HAL_TRANSFORM_FLIP_H | HAL_TRANSFORM_FLIP_V:
-            return G2D_ROTATION_180;
-        case HAL_TRANSFORM_FLIP_H | HAL_TRANSFORM_FLIP_V |
-             HAL_TRANSFORM_ROT_90:
-            return G2D_ROTATION_270;
+            dst.rot =  G2D_ROTATION_180;
+            break;
+        case HAL_TRANSFORM_FLIP_H | HAL_TRANSFORM_FLIP_V
+             | HAL_TRANSFORM_ROT_90:
+            dst.rot =  G2D_ROTATION_270;
+            break;
         case HAL_TRANSFORM_FLIP_H:
-            return G2D_FLIP_H;
+            dst.rot =  G2D_FLIP_H;
+            break;
         case HAL_TRANSFORM_FLIP_V:
-            return G2D_FLIP_V;
+            dst.rot =  G2D_FLIP_V;
+            break;
+        case HAL_TRANSFORM_FLIP_H | HAL_TRANSFORM_ROT_90:
+            dst.rot =  G2D_ROTATION_90;
+            src.rot =  G2D_FLIP_H;
+            break;
+        case HAL_TRANSFORM_FLIP_V | HAL_TRANSFORM_ROT_90:
+            dst.rot =  G2D_ROTATION_90;
+            src.rot =  G2D_FLIP_V;
+            break;
+
         default:
-            return G2D_ROTATION_0;
+            dst.rot =  G2D_ROTATION_0;
+            break;
     }
+
+    return 0;
 }
 
 static int convertBlending(int blending, struct g2d_surface& src,
@@ -555,7 +574,6 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
                 drect.left, drect.top, drect.right, drect.bottom);
 
         setG2dSurface(priv, dSurface, dstHandle, drect);
-        dSurface.rot = convertRotation(layer->transform);
 
         struct g2d_surface sSurface;
         memset(&sSurface, 0, sizeof(sSurface));
@@ -577,6 +595,7 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
         ALOGV("blit rot:%d, blending:0x%x, alpha:%d", layer->transform,
                 layer->blending, layer->planeAlpha);
 
+        convertRotation(layer->transform, sSurface, dSurface);
         if (!firstLayer) {
             convertBlending(layer->blending, sSurface, dSurface);
         }
