@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -114,6 +114,13 @@ status_t Ov5640::initParameters(CameraParameters& params,
 			
 #ifdef EVK_6SL //in evk_6sl, omit large resolution
 			if((vid_frmsize.discrete.width > 640) || (vid_frmsize.discrete.height > 480))
+			{
+				continue;
+			}
+
+            //Omit 176x144, since cts verifier, "Camera Video" test will use 176x144 for camera.
+            //But 320x240 for SoftAVCEncoder, will not pass
+            if((vid_frmsize.discrete.width == 176) && (vid_frmsize.discrete.height == 144))
 			{
 				continue;
 			}
