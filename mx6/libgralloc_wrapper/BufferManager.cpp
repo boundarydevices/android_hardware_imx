@@ -130,7 +130,6 @@ int BufferManager::alloc(int w, int h, int format, int usage,
             alignedh = ALIGN_PIXEL_4(h);
             int c_stride = (alignedw/2+15)/16*16;
             size = alignedw * alignedh + c_stride * h;
-            w = alignedw;
             } break;
 
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
