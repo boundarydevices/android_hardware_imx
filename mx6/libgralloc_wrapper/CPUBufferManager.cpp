@@ -93,11 +93,10 @@ int CPUBufferManager::allocBuffer(int w, int h, int format, int usage,
     hnd->width = w;
     hnd->height = h;
     hnd->format = format;
-//    hnd->usage = usage;
-//    hnd->stride = alignedw;
+    hnd->usage = usage;
+    hnd->stride = alignW;
     //becaue private_handle_t doesn't contains stride.
     //hack it to set stride in flags high 16bit.
-    hnd->flags |= (alignW & 0xffff) << 16;
     hnd->pid = getpid();
     *handle = hnd;
     *stride = alignW;
