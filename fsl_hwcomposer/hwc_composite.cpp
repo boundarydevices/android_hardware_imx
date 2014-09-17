@@ -222,11 +222,11 @@ static int setG2dSurface(struct fsl_private *priv, struct g2d_surface& surface,
              struct private_handle_t *handle, hwc_rect_t& rect)
 {
     int alignWidth = 0, alignHeight = 0;
-    int ret = get_aligned_size(handle, &alignWidth, &alignHeight);
+    int ret = get_aligned_size(handle, NULL, &alignHeight);
     if (ret != 0) {
         alignHeight = handle->height;
-        alignWidth = handle->flags >> 16;
     }
+    alignWidth = handle->stride;
     surface.format = convertFormat(handle->format);
     surface.stride = alignWidth;
 
