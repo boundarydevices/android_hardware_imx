@@ -119,7 +119,7 @@ int BufferManager::alloc(int w, int h, int format, int usage,
 
         case HAL_PIXEL_FORMAT_YCrCb_420_SP:
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            alignedw = ALIGN_PIXEL_32(w);
+            alignedw = ALIGN_PIXEL_16(w);
             alignedh = ALIGN_PIXEL_4(h);
             size = alignedw * alignedh * 3 / 2;
             break;
@@ -134,7 +134,7 @@ int BufferManager::alloc(int w, int h, int format, int usage,
 
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
-            alignedw = ALIGN_PIXEL_32(w);
+            alignedw = ALIGN_PIXEL_16(w);
             alignedh = ALIGN_PIXEL_4(h);
             size = alignedw * alignedh * 2;
             break;
