@@ -92,7 +92,7 @@ struct hwc_operations {
 struct hwc_context_t {
     hwc_composer_device_1 device;
     /* our private state goes below here */
-    displayInfo mDispInfo[HWC_NUM_DISPLAY_TYPES];
+    displayInfo mDispInfo[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
 
     bool m_vsync_enable;
 
@@ -104,7 +104,7 @@ struct hwc_context_t {
     hwc_composer_device_1* m_viv_hwc;
     hw_module_t const *m_gralloc_module;
 
-    framebuffer_device_t* mFbDev[HWC_NUM_DISPLAY_TYPES];
+    framebuffer_device_t* mFbDev[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
 
     //fsl private property and operations.
     void* m_priv;
