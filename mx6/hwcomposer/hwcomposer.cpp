@@ -100,7 +100,7 @@ static int hwc_device_close(struct hw_device_t *dev)
             ctx->m_uevent_thread.clear();
         }
 
-        for (int i=0; i<HWC_NUM_DISPLAY_TYPES; i++) {
+        for (int i=0; i<HWC_NUM_PHYSICAL_DISPLAY_TYPES; i++) {
             if(ctx->mDispInfo[i].connected)
                 close(ctx->mDispInfo[i].fd);
         }
@@ -245,7 +245,7 @@ static int hwc_query(struct hwc_composer_device_1* dev,
 static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
 {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
-    if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
+    if (!ctx || disp < 0 || disp >= HWC_NUM_PHYSICAL_DISPLAY_TYPES) {
         return 0;
     }
 
@@ -280,7 +280,7 @@ static int hwc_getDisplayConfigs(struct hwc_composer_device_1 *dev,
         return 0;
 
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
-    if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
+    if (!ctx || disp < 0 || disp >= HWC_NUM_PHYSICAL_DISPLAY_TYPES) {
         return -EINVAL;
     }
 
@@ -297,7 +297,7 @@ static int hwc_getDisplayAttributes(struct hwc_composer_device_1 *dev,
         int disp, uint32_t config, const uint32_t *attributes, int32_t *values)
 {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
-    if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
+    if (!ctx || disp < 0 || disp >= HWC_NUM_PHYSICAL_DISPLAY_TYPES) {
         return -EINVAL;
     }
 
@@ -409,7 +409,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct private_module_t *priv_m =
                          (struct private_module_t *)dev->m_gralloc_module;
 
-        for(int dispid=0; dispid<HWC_NUM_DISPLAY_TYPES; dispid++) {
+        for(int dispid=0; dispid<HWC_NUM_PHYSICAL_DISPLAY_TYPES; dispid++) {
             if(dev->mDispInfo[dispid].connected && dev->m_gralloc_module != NULL) {
                 int fbid = dev->mDispInfo[dispid].fb_num;
                 char fbname[HWC_STRING_LENGTH];
