@@ -113,7 +113,7 @@ int BufferManager::alloc(int w, int h, int format, int usage,
              * Here we assume the buffer will be used by Vivante HAL...
              */
             alignedw = ALIGN_PIXEL_16(w);
-            alignedh = ALIGN_PIXEL_16(h);
+            alignedh = ALIGN_PIXEL_4(h);
             size = alignedw * alignedh * bpp;
             break;
 
