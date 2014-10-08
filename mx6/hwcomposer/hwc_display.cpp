@@ -44,7 +44,7 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
     int dispid = 0;
 
     for (int i = 0; i < HWC_MAX_FB; i++) {
-        if(dispid >= HWC_NUM_DISPLAY_TYPES) {
+        if(dispid >= HWC_NUM_PHYSICAL_DISPLAY_TYPES) {
             ALOGW("system can't support more than %d devices", dispid);
             break;
         }
@@ -226,7 +226,7 @@ int hwc_get_display_info(struct hwc_context_t* ctx)
     int dispid = 0;
 
     hwc_judge_display_state(ctx);
-    for(dispid=0; dispid<HWC_NUM_DISPLAY_TYPES; dispid++) {
+    for(dispid=0; dispid<HWC_NUM_PHYSICAL_DISPLAY_TYPES; dispid++) {
         displayInfo *pInfo = &ctx->mDispInfo[dispid];
         if(pInfo->connected) {
             err = hwc_get_framebuffer_info(pInfo);
@@ -243,7 +243,7 @@ int hwc_get_display_fbid(struct hwc_context_t* ctx, int disp_type)
 {
     int fbid = -1;
     int dispid = 0;
-    for(dispid=0; dispid<HWC_NUM_DISPLAY_TYPES; dispid++) {
+    for(dispid=0; dispid<HWC_NUM_PHYSICAL_DISPLAY_TYPES; dispid++) {
         displayInfo *pInfo = &ctx->mDispInfo[dispid];
         if(pInfo->type == disp_type) {
             fbid = pInfo->fb_num;
@@ -257,7 +257,7 @@ int hwc_get_display_fbid(struct hwc_context_t* ctx, int disp_type)
 int hwc_get_display_dispid(struct hwc_context_t* ctx, int disp_type)
 {
     int dispid = 0;
-    for(dispid=0; dispid<HWC_NUM_DISPLAY_TYPES; dispid++) {
+    for(dispid=0; dispid<HWC_NUM_PHYSICAL_DISPLAY_TYPES; dispid++) {
         displayInfo *pInfo = &ctx->mDispInfo[dispid];
         if(pInfo->type == disp_type) {
             return dispid;
