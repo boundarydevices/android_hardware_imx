@@ -107,13 +107,13 @@ int BufferManager::alloc(int w, int h, int format, int usage,
             }
 
             /*
-             * XXX: Vivante HAL needs 16 pixel alignment in width and 4 pixel
+             * XXX: Vivante HAL needs 16 pixel alignment in width and 16 pixel
              * alignment in height.
              *
              * Here we assume the buffer will be used by Vivante HAL...
              */
             alignedw = ALIGN_PIXEL_16(w);
-            alignedh = ALIGN_PIXEL_4(h);
+            alignedh = ALIGN_PIXEL_16(h);
             size = alignedw * alignedh * bpp;
             break;
 
