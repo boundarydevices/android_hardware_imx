@@ -128,7 +128,7 @@ int Display::postBuffer(struct framebuffer_device_t* dev, buffer_handle_t buffer
         m->lock(buffer,
                 private_module_t::PRIV_USAGE_LOCKED_FOR_POST,
                 0, 0, ALIGN_PIXEL_16(display->mInfo.xres),
-                ALIGN_PIXEL_4(display->mInfo.yres), &vaddr);
+                ALIGN_PIXEL_16(display->mInfo.yres), &vaddr);
 
         const size_t offset = hnd->base - display->mFramebuffer->base;
         display->mInfo.activate = FB_ACTIVATE_VBL;
@@ -153,17 +153,17 @@ int Display::postBuffer(struct framebuffer_device_t* dev, buffer_handle_t buffer
         m->lock(display->mFramebuffer,
                 GRALLOC_USAGE_SW_WRITE_RARELY,
                 0, 0, ALIGN_PIXEL_16(display->mInfo.xres),
-                 ALIGN_PIXEL_4(display->mInfo.yres),
+                 ALIGN_PIXEL_16(display->mInfo.yres),
                 &fb_vaddr);
 
         m->lock(buffer,
                 GRALLOC_USAGE_SW_READ_RARELY,
                 0, 0, ALIGN_PIXEL_16(display->mInfo.xres),
-                 ALIGN_PIXEL_4(display->mInfo.yres),
+                 ALIGN_PIXEL_16(display->mInfo.yres),
                 &buffer_vaddr);
 
         memcpy(fb_vaddr, buffer_vaddr,
-        display->mFinfo.line_length * ALIGN_PIXEL_4(display->mInfo.yres));
+        display->mFinfo.line_length * ALIGN_PIXEL_16(display->mInfo.yres));
 
         m->unlock(buffer);
         m->unlock(display->mFramebuffer);
@@ -195,7 +195,7 @@ int Display::checkFramebufferFormat(int fd, uint32_t &flags)
     /*
      * Request nr_framebuffers screens (at lest 2 for page flipping)
      */
-    info.yres_virtual = ALIGN_PIXEL_4(info.yres) * nr_framebuffers;
+    info.yres_virtual = ALIGN_PIXEL_16(info.yres) * nr_framebuffers;
     /*
      *note: 16 alignment here should align with BufferManager::alloc.
      */
@@ -307,11 +307,11 @@ int Display::checkFramebufferFormat(int fd, uint32_t &flags)
         ALOGI("16bpp setting of Framebuffer with RGB565 format!");
     }
 
-    if (info.yres_virtual < ALIGN_PIXEL_4(info.yres) * 2) {
+    if (info.yres_virtual < ALIGN_PIXEL_16(info.yres) * 2) {
         // we need at least 2 for page-flipping
         flags &= ~PAGE_FLIP;
         ALOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
-                info.yres_virtual, ALIGN_PIXEL_4(info.yres)*2);
+                info.yres_virtual, ALIGN_PIXEL_16(info.yres)*2);
     }
 
     return 0;
@@ -453,7 +453,7 @@ int Display::initialize(int fb)
     mFramebuffer = new private_handle_t(fd, fbSize,
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
 
-    mNumBuffers = info.yres_virtual / ALIGN_PIXEL_4(info.yres);
+    mNumBuffers = info.yres_virtual / ALIGN_PIXEL_16(info.yres);
     mBufferMask = 0;
 
     void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
@@ -539,7 +539,7 @@ int Display::allocFrameBuffer(size_t size, int usage, buffer_handle_t* pHandle)
 
     const uint32_t bufferMask = mBufferMask;
     const uint32_t numBuffers = mNumBuffers;
-    const size_t bufferSize = mFinfo.line_length * ALIGN_PIXEL_4(mInfo.yres);
+    const size_t bufferSize = mFinfo.line_length * ALIGN_PIXEL_16(mInfo.yres);
     if (numBuffers < 2) {
         ALOGE("%s framebuffer number less than 2", __FUNCTION__);
         return -ENOMEM;
