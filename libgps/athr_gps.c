@@ -41,6 +41,9 @@
 #define ATHR_GPS
 #define ATHR_GPSXtra
 #define ATHR_GPSNi
+#define GPS_DEVICE_NODE "/sys/class/gpio/gpio64/value"
+#define GPS_ENABLE 1
+#define GPS_DISABLE 0
 
 //#define  GPS_DEBUG
 #undef	 GPS_DEBUG_TOKEN	/* print out NMEA tokens */
@@ -135,6 +138,24 @@ void gps_state_unlock_fix(GpsState *state) {
 			if(sem_post(&state->fix_sem)== -1)
 				D("Error in GPS state unlock:%s\n", strerror(errno));
 	}
+}
+
+int gps_enable_hardware(int enable) {
+    ALOGI("%s the GPS", (enable) ? "enabled" : "disabled");
+    FILE * f = fopen(GPS_DEVICE_NODE, "w");
+    if (f != NULL) {
+        if (GPS_ENABLE == enable) {
+            fwrite("1", 1, 1, f);
+        }
+        else {
+            fwrite("0", 1, 1, f);
+        }
+        fclose(f);
+        return 0;
+    }
+    else
+        ALOGW("GPS node file %s cannot be opened :(", GPS_DEVICE_NODE);
+    return -1;
 }
 
 int 	gps_opentty(GpsState *state);
@@ -1614,7 +1635,7 @@ Fail:
 static int athr_gps_init(GpsCallbacks* callbacks)
 {
     GpsState*  s = _gps_state;
-
+    gps_enable_hardware(GPS_ENABLE);
 	D("gps state initializing %d",s->init);
 
     s->callbacks = *callbacks;
@@ -1636,6 +1657,7 @@ athr_gps_cleanup(void)
 
     if (s->init)
         gps_state_done(s);
+    gps_enable_hardware(GPS_DISABLE);
 }
 
 static int athr_gps_start()
@@ -1674,7 +1696,6 @@ athr_gps_stop()
 	D("Try to change state to init");
 	//change state to INIT
 	GPS_STATUS_CB(s->callbacks, GPS_STATUS_SESSION_END);
-
     return 0;
 }
 
