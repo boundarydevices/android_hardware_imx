@@ -66,7 +66,7 @@ struct disp_private {
     hwc_rect_t mSwapRect[HWC_MAX_FRAMEBUFFER];
 };
 
-struct fsl_private {
+struct fsl_private : public hwc_operations {
     void* g2d_handle;
     struct disp_private mDispInfo[HWC_NUM_DISPLAY_TYPES];
     g2d_buf* tmp_buf;
