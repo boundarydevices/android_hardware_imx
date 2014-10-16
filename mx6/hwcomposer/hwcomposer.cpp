@@ -106,7 +106,7 @@ static int hwc_device_close(struct hw_device_t *dev)
         }
 
         if (ctx->m_hwc_ops != NULL) {
-            ctx->m_hwc_ops->close(ctx);
+            ctx->m_hwc_ops->close(ctx->m_hwc_ops);
         }
 
         if(ctx->m_viv_hwc) {
@@ -137,7 +137,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
     }
 
     if (ctx->m_hwc_ops) {
-        return ctx->m_hwc_ops->prepare(ctx, numDisplays, displays);
+        return ctx->m_hwc_ops->prepare(ctx->m_hwc_ops, numDisplays, displays);
     }
 
     return ret;
@@ -166,7 +166,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
             ret = ctx->m_viv_hwc->set(ctx->m_viv_hwc, numDisplays, displays);
         }
         else {
-            ret = ctx->m_hwc_ops->set(ctx, numDisplays, displays);
+            ret = ctx->m_hwc_ops->set(ctx->m_hwc_ops, numDisplays, displays);
         }
         if(ret) return ret;
     }
@@ -254,7 +254,7 @@ static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
     }
 
     if (ctx->m_hwc_ops) {
-        ctx->m_hwc_ops->blank(ctx, disp, blank);
+        ctx->m_hwc_ops->blank(ctx->m_hwc_ops, disp, blank);
     }
 
     ctx->mDispInfo[disp].blank = blank;
@@ -382,8 +382,10 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
                 (const hw_module_t**)&hwc_module) < 0) {
             ALOGE("Error! hw_get_module fsl_hwc failed");
         }
-        else if (hwc_open_1(hwc_module, (hwc_composer_device_1_t**)&dev) != 0) {
+        else if (hwc_open_1(hwc_module,
+                (hwc_composer_device_1_t**)&(dev->m_hwc_ops)) != 0) {
             //set m_hwc_ops and m_priv;
+            dev->m_hwc_ops = NULL;
             ALOGE("Error! hw_get_module fsl_hwc failed");
         }
         else {
