@@ -104,12 +104,12 @@ static void dump_layer(hwc_layer_1_t const* l) {
 }
 
 /***********************************************************************/
-static int hwc_device_close(struct hwc_context_t* ctx)
+static int hwc_device_close(struct hwc_operations* ctx)
 {
-    if (!ctx || !ctx->m_priv) {
+    if (!ctx) {
         return 0;
     }
-    struct fsl_private *priv = (struct fsl_private*)ctx->m_priv;
+    struct fsl_private *priv = (struct fsl_private*)ctx;
     if (priv->tmp_buf != NULL) {
         g2d_free(priv->tmp_buf);
     }
@@ -118,7 +118,6 @@ static int hwc_device_close(struct hwc_context_t* ctx)
     }
 
     free(priv);
-    free(ctx->m_hwc_ops);
     return 0;
 }
 
@@ -387,16 +386,16 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
     return 0;
 }
 
-static int hwc_prepare(struct hwc_context_t* ctx,
+static int hwc_prepare(struct hwc_operations* ctx,
         size_t numDisplays, hwc_display_contents_1_t** displays)
 {
-    if (!numDisplays || !displays || !ctx || !ctx->m_priv) {
+    if (!numDisplays || !displays || !ctx) {
         ALOGI("%s invalid parameter", __FUNCTION__);
         return 0;
     }
 
     int ret = 0;
-    struct fsl_private *priv = (struct fsl_private *)ctx->m_priv;
+    struct fsl_private *priv = (struct fsl_private *)ctx;
 
     if (priv->g2d_handle == NULL) {
         g2d_open(&priv->g2d_handle);
@@ -433,16 +432,16 @@ static int hwc_prepare(struct hwc_context_t* ctx,
     return ret;
 }
 
-static int hwc_set(struct hwc_context_t* ctx,
+static int hwc_set(struct hwc_operations* ctx,
         size_t numDisplays, hwc_display_contents_1_t** displays)
 {
-    if (!numDisplays || !displays || !ctx || !ctx->m_priv) {
+    if (!numDisplays || !displays || !ctx) {
         ALOGI("%s invalid parameter", __FUNCTION__);
         return 0;
     }
 
     int ret = 0;
-    struct fsl_private *priv = (struct fsl_private *)ctx->m_priv;
+    struct fsl_private *priv = (struct fsl_private *)ctx;
 
     if (priv->g2d_handle == NULL) {
         ALOGI("%s invalid g2d_handle", __FUNCTION__);
@@ -474,7 +473,7 @@ static int hwc_set(struct hwc_context_t* ctx,
     return ret;
 }
 
-static int hwc_blank(struct hwc_context_t* ctx, int disp, int blank)
+static int hwc_blank(struct hwc_operations* ctx, int disp, int blank)
 {
     if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
         return 0;
@@ -483,7 +482,7 @@ static int hwc_blank(struct hwc_context_t* ctx, int disp, int blank)
     return 0;
 }
 
-static int hwc_setDisplaySurface(struct hwc_context_t* ctx,
+static int hwc_setDisplaySurface(struct hwc_operations* ctx,
         int disp, ANativeWindow* window)
 {
     if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
@@ -491,14 +490,14 @@ static int hwc_setDisplaySurface(struct hwc_context_t* ctx,
     }
 
     ALOGI("%s: disp:%d", __FUNCTION__, disp);
-    struct fsl_private *priv = (struct fsl_private *)ctx->m_priv;
+    struct fsl_private *priv = (struct fsl_private *)ctx;
     struct disp_private *dispInfo = &priv->mDispInfo[disp];
     dispInfo->mDisplaySurface = window;
 
     return 0;
 }
 
-static int hwc_setDisplayWormHole(struct hwc_context_t* ctx,
+static int hwc_setDisplayWormHole(struct hwc_operations* ctx,
         int disp, hwc_region_t& hole)
 {
     if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
@@ -507,7 +506,7 @@ static int hwc_setDisplayWormHole(struct hwc_context_t* ctx,
 
     ALOGI("%s: disp:%d", __FUNCTION__, disp);
 
-    struct fsl_private *priv = (struct fsl_private *)ctx->m_priv;
+    struct fsl_private *priv = (struct fsl_private *)ctx;
     struct disp_private *dispInfo = &priv->mDispInfo[disp];
     dispInfo->mWormHole.numRects = hole.numRects;
     if (hole.numRects > 0 && hole.rects != NULL) {
@@ -520,22 +519,22 @@ static int hwc_setDisplayWormHole(struct hwc_context_t* ctx,
     return 0;
 }
 
-void hwc_setDisplayInfo(int disp, struct hwc_context_t *ctx)
+void hwc_setDisplayInfo(struct hwc_operations *ctx, int disp,
+                        int xres, int yres, bool connected)
 {
-    if (ctx && ctx->m_priv) {
-        struct fsl_private *priv = (struct fsl_private *)ctx->m_priv;
+    if (ctx != NULL) {
+        struct fsl_private *priv = (struct fsl_private *)ctx;
         struct disp_private *dispInfo = &priv->mDispInfo[disp];
-        displayInfo *pInfo = &ctx->mDispInfo[disp];
 
-        dispInfo->xres = pInfo->xres;
-        dispInfo->yres = pInfo->yres;
-        dispInfo->connected = pInfo->connected;
+        dispInfo->xres = xres;
+        dispInfo->yres = yres;
+        dispInfo->connected = connected;
         dispInfo->mSwapIndex = 0;
         for (int i=0; i<HWC_MAX_FRAMEBUFFER; i++) {
             dispInfo->mSwapRect[i].left = 0;
             dispInfo->mSwapRect[i].top = 0;
-            dispInfo->mSwapRect[i].right = pInfo->xres;
-            dispInfo->mSwapRect[i].bottom = pInfo->yres;
+            dispInfo->mSwapRect[i].right = xres;
+            dispInfo->mSwapRect[i].bottom = yres;
         }
     }
 }
@@ -546,21 +545,17 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device)
 {
     int status = -EINVAL;
-    struct hwc_context_t *dev = (hwc_context_t *)(*device);
     struct fsl_private *priv = NULL;
-    struct hwc_operations* operations = NULL;
     if (!strcmp(name, HWC_HARDWARE_COMPOSER)) {
-        //struct hwc_context_t *dev;
         priv = (struct fsl_private*)malloc(sizeof(*priv));
-        operations = (hwc_operations*)malloc(sizeof(*operations));
         /* initialize our state here */
         memset(priv, 0, sizeof(*priv));
 
-        operations->prepare = hwc_prepare;
-        operations->set = hwc_set;
-        operations->blank = hwc_blank;
-        operations->setDisplayInfo = hwc_setDisplayInfo;
-        operations->close = hwc_device_close;
+        priv->prepare = hwc_prepare;
+        priv->set = hwc_set;
+        priv->blank = hwc_blank;
+        priv->setDisplayInfo = hwc_setDisplayInfo;
+        priv->close = hwc_device_close;
 
         if (_eglGetRenderBufferVIV == NULL || _eglPostBufferVIV == NULL)
         {
@@ -587,8 +582,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         ALOGI("using fsl hwc!!!");
 
 nor_exit:
-        dev->m_priv = priv;
-        dev->m_hwc_ops = operations;
+        *device = (struct hw_device_t*)priv;
         ALOGI("%s,%d", __FUNCTION__, __LINE__);
         return 0;
     }
@@ -596,9 +590,6 @@ nor_exit:
 err_exit:
     if(priv){
         free(priv);
-    }
-    if (operations) {
-        free(operations);
     }
     /****************************************/
     return status;
