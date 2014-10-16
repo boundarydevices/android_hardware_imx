@@ -79,14 +79,17 @@ typedef struct {
 
 struct hwc_context_t;
 
+//note:
+//the five member in hwc_operations structure must not be changed.
 struct hwc_operations {
-    void (*setDisplayInfo)(int disp, struct hwc_context_t* ctx);
-    int (*prepare)(struct hwc_context_t* ctx,
+    void (*setDisplayInfo)(struct hwc_operations* ctx, int disp, int xres,
+                           int yres, bool connected);
+    int (*prepare)(struct hwc_operations* ctx,
                     size_t numDisplays, hwc_display_contents_1_t** displays);
-    int (*set)(struct hwc_context_t* ctx,
+    int (*set)(struct hwc_operations* ctx,
                 size_t numDisplays, hwc_display_contents_1_t** displays);
-    int (*blank)(struct hwc_context_t* ctx, int disp, int blank);
-    int (*close)(struct hwc_context_t* ctx);
+    int (*blank)(struct hwc_operations* ctx, int disp, int blank);
+    int (*close)(struct hwc_operations* ctx);
 };
 
 struct hwc_context_t {
@@ -107,7 +110,6 @@ struct hwc_context_t {
     framebuffer_device_t* mFbDev[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
 
     //fsl private property and operations.
-    void* m_priv;
     hwc_operations* m_hwc_ops;
 };
 

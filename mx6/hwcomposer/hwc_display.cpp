@@ -231,7 +231,8 @@ int hwc_get_display_info(struct hwc_context_t* ctx)
         if(pInfo->connected) {
             err = hwc_get_framebuffer_info(pInfo);
             if (!err && ctx->m_hwc_ops) {
-                ctx->m_hwc_ops->setDisplayInfo(dispid, ctx);
+                ctx->m_hwc_ops->setDisplayInfo(ctx->m_hwc_ops, dispid,
+                            pInfo->xres, pInfo->yres, pInfo->connected);
             }
         }
     }

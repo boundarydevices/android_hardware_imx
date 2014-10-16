@@ -60,7 +60,9 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
                 ALOGI("HDMI Plugin detected");
                 hwc_get_framebuffer_info(&mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL]);
                 if (mCtx->m_hwc_ops) {
-                    mCtx->m_hwc_ops->setDisplayInfo(dispid, mCtx);
+                    displayInfo *pInfo = &mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL];
+                    mCtx->m_hwc_ops->setDisplayInfo(mCtx->m_hwc_ops, dispid,
+                            pInfo->xres, pInfo->yres, pInfo->connected);
                 }
             }
         } else if (!strncmp(s, "EVENT=plugout", strlen("EVENT=plugout"))) {
@@ -71,7 +73,9 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
 
             mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL].connected = false;
             if (mCtx->m_hwc_ops) {
-                mCtx->m_hwc_ops->setDisplayInfo(dispid, mCtx);
+                displayInfo *pInfo = &mCtx->mDispInfo[HWC_DISPLAY_EXTERNAL];
+                mCtx->m_hwc_ops->setDisplayInfo(mCtx->m_hwc_ops, dispid,
+                            pInfo->xres, pInfo->yres, pInfo->connected);
             }
             ALOGI("HDMI Plugout detected");
         }
