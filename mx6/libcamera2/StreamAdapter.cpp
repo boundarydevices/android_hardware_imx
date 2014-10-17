@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,7 @@ int StreamAdapter::start()
     }
 
     mStreamThread = new StreamThread(this);
+    mThreadQueue.Clear();
     mThreadQueue.postSyncMessage(new SyncMessage(STREAM_START, 0));
 
     fAssert(mDeviceAdapter.get() != NULL);
@@ -117,6 +118,7 @@ int StreamAdapter::release()
     mThreadQueue.postSyncMessage(new SyncMessage(STREAM_EXIT, 0));
     mStreamThread->requestExitAndWait();
     mStreamThread.clear();
+    mThreadQueue.Clear();
     mStreamState = STREAM_INVALID;
     mPrepared = false;
 
