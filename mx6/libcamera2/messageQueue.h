@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2009-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -114,6 +114,7 @@ public:
                              int32_t             flags = 0);
     status_t     postSyncMessage(const sp<SyncMessage>& message,
                                  int32_t                flags = 0);
+	void Clear();
 
 private:
     status_t queueMessage(const sp<CMessage>& message,

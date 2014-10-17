@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2009-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,11 @@ CMessageQueue::~CMessageQueue()
     Mutex::Autolock _l(mLock);
 
     mMessages.clear();
+}
+void CMessageQueue::Clear()
+{
+    mMessages.clear();
+    mSyncMessages.clear();
 }
 
 sp<CMessage>CMessageQueue::waitMessage(nsecs_t timeout)
