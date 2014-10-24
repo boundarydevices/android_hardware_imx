@@ -109,8 +109,12 @@ int PhysMemAdapter::allocateBuffers(int width,int height,
         mCameraBuffer[i].mPhyAddr   = phyAddr;
         mCameraBuffer[i].mSize      =  size;
         mCameraBuffer[i].mBufHandle = (buffer_handle_t)ionHandle;
+        mCameraBuffer[i].mpFrameBuf  = NULL;
+        mCameraBuffer[i].mBindUVCBufIdx = -1;
         mCameraBuffer[i].setState(CameraFrame::BUFS_FREE);
         close(sharedFd);
+
+        FLOGI("PhysMemAdapter::allocateBuffers, i %d, phyAddr 0x%x, mBufHandle %p", i, phyAddr, mCameraBuffer[i].mBufHandle);
     }
 
     mBufferCount    = numBufs;

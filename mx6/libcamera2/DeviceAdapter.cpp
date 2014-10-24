@@ -16,17 +16,38 @@
 
 #include "DeviceAdapter.h"
 #include "UvcDevice.h"
+#include "UvcMJPGDevice.h"
 #include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
 #include "Ov5640Csi.h"
 #include "TVINDevice.h"
 #include <stdlib.h>
+
+#define DEFAULT_ERROR_NAME '0'
+#define DEFAULT_ERROR_NAME_str "0"
+
 sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
 {
     sp<DeviceAdapter> devAdapter;
+
     if (strstr(info.name, UVC_SENSOR_NAME)) {
-        FLOGI("DeviceAdapter: Create uvc device");
-        devAdapter = new UvcDevice();
+        char uvcMJPGStr[92];
+        int configUseMJPG = 0;
+
+        property_get(UVC_USE_MJPG, uvcMJPGStr, DEFAULT_ERROR_NAME_str);
+
+        if (uvcMJPGStr[0] == DEFAULT_ERROR_NAME)
+            configUseMJPG = 0;
+        else
+            configUseMJPG = atoi(uvcMJPGStr);
+
+        if(configUseMJPG == 0) {
+            FLOGI("DeviceAdapter: Create uvc device");
+            devAdapter = new UvcDevice();
+        } else {
+            FLOGI("DeviceAdapter: Create uvc device, config to use MJPG");
+            devAdapter = new UvcMJPGDevice();
+        }
     }
     else if (strstr(info.name, OV5640MIPI_SENSOR_NAME)) {
         FLOGI("DeviceAdapter: Create ov5640 mipi device");

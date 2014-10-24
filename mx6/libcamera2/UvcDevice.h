@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,14 +48,17 @@ public:
     virtual status_t startDeviceLocked();
     virtual status_t stopDeviceLocked();
 
-private:
+protected:
     status_t adjustPreviewResolutions();
     status_t setMaxPictureResolutions();
     void adjustSensorFormats(int *src, int len);
+
+private:
     void convertYUYUToNV12(StreamBuffer *dst, StreamBuffer *src);
     void doColorConvert(StreamBuffer *dst, StreamBuffer *src);
 
-private:
+
+protected:
     const char* pDevPath;
     int mDefaultFormat;
     bool mPreviewNeedCsc;
