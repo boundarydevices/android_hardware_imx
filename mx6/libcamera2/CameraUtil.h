@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ using namespace android;
 #define ADV7180_TVIN_NAME "adv7180_decoder"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
 
-#define MAX_PREVIEW_BUFFER      6
+#define MAX_PREVIEW_BUFFER      8
 #define MAX_CAPTURE_BUFFER      3
 #define NUM_PREVIEW_BUFFER      3
 #define NUM_RECORD_BUFFER       1
@@ -180,6 +180,10 @@ struct StreamBuffer {
     size_t mSize;
     buffer_handle_t mBufHandle;
     nsecs_t mTimeStamp;
+
+    //for uvc jpeg stream
+    int mBindUVCBufIdx;
+    void *mpFrameBuf;
 };
 
 class CameraFrame : public StreamBuffer {

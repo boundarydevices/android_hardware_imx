@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -133,6 +133,12 @@ void CameraFrame::initialize(buffer_handle_t  buf_h,
     mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
     mIndex     = index;
+
+    //for uvc jpeg stream
+    mpFrameBuf  = NULL;
+    mBindUVCBufIdx = -1;
+
+    FLOGI("CameraFrame::initialize, i %d, phyAddr 0x%x, mBufHandle %p", index, mPhyAddr, mBufHandle);
 }
 
 void CameraFrame::addState(CAMERA_BUFS_STATE state)
@@ -189,6 +195,10 @@ void CameraFrame::reset()
     mRefCount  = 0;
     mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
+
+    //for uvc jpeg stream
+    mpFrameBuf  = NULL;
+    mBindUVCBufIdx = -1;
 }
 
 // //////////CameraBufferProvider////////////////////

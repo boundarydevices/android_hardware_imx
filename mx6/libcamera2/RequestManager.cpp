@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -387,11 +387,25 @@ int RequestManager::allocateStream(uint32_t width,
             sid = STREAM_ID_PREVIEW;
             cameraStream = new PreviewStream(sid);
             *max_buffers = NUM_PREVIEW_BUFFER;
+
+            if(mDeviceAdapter.get() && mDeviceAdapter->UseMJPG()) {
+               //2 buffers is reserved in server side, can't register to VPU.
+               //So add extra 2 to make the buffers same as nv12 case.
+              *max_buffers = NUM_PREVIEW_BUFFER + 2;
+              FLOGI("RequestManager::allocateStream, need %d buffers for preview stream", *max_buffers);
+            }
         }
 
         //*format_actual = HAL_PIXEL_FORMAT_YCrCb_420_SP;
         *usage = CAMERA_GRALLOC_USAGE;
         *format_actual = mDeviceAdapter->getPreviewPixelFormat();
+
+		if(mDeviceAdapter.get() && mDeviceAdapter->UseMJPG()) {
+            //for uvc jpeg stream, still use nv12 for record
+			if(sid == STREAM_ID_RECORD)
+			    *format_actual = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+		}
+
         FLOGI("actual format 0x%x", *format_actual);
     }
     else if (format == HAL_PIXEL_FORMAT_BLOB) {
