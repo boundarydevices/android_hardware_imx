@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,6 +77,11 @@ int PreviewStream::allocateBuffers(int width, int height,
             return BAD_VALUE;
         }
         mCameraBuffer[index].setState(CameraFrame::BUFS_FREE);
+		if(mDeviceAdapter.get() && mDeviceAdapter->UseMJPG()) {
+			mDeviceAdapter.get()->mVPUPhyAddr[i] = (unsigned char*)mCameraBuffer[index].mPhyAddr;
+            mDeviceAdapter.get()->mVPUVirtAddr[i] = (unsigned char*)mCameraBuffer[index].mVirtAddr;
+            FLOGI("allocateBuffers, index %d, phyAddr 0x%x", index, mCameraBuffer[index].mPhyAddr);
+		}
     }
 
     for (int i = 0; i < mTotalBuffers; i++) {
@@ -87,6 +92,11 @@ int PreviewStream::allocateBuffers(int width, int height,
             // count for it
             if(!mCameraBuffer[i].getRefCount())
                 mCameraBuffer[i].addReference();
+        }
+
+        if(mDeviceAdapter.get() && mDeviceAdapter->UseMJPG()) {
+            mCameraBuffer[i].mBindUVCBufIdx = -1;
+            mCameraBuffer[i].mpFrameBuf = NULL;
         }
     }
 
@@ -220,7 +230,7 @@ int PreviewStream::processFrame(CameraFrame *frame)
 
     ret = renderBuffer(frame);
     if (ret != NO_ERROR) {
-        FLOGE("%s renderBuffer failed", __FUNCTION__);
+        FLOGE("%s renderBuffer failed, state %d", __FUNCTION__, frame->getState());
         goto err_exit;
     }
     //the frame held in service.

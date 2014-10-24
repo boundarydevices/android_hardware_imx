@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ public:
     ~DeviceAdapter();
 
 public:
+    virtual bool     UseMJPG() { return false; }
     virtual int      getFrameSize();
     virtual int      getFrameCount();
 
@@ -164,6 +165,8 @@ protected:
 
 public:
 	int mCpuNum;
+    unsigned char *mVPUPhyAddr[MAX_PREVIEW_BUFFER];
+    unsigned char *mVPUVirtAddr[MAX_PREVIEW_BUFFER];
 };
 
 #endif // ifndef _DEVICE_ADAPTER_H_

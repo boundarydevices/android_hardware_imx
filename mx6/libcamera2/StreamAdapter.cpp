@@ -17,6 +17,85 @@
 #include "StreamAdapter.h"
 #include "RequestManager.h"
 
+static void convertUV(u8 *pbySrcColor, u8 *pbyDstColor, u32 width, u32 height) //StreamBuffer *dst, StreamBuffer *src)
+{
+ //   FLOGI("convertUV\n");
+
+    unsigned int bufWidth = width;
+    unsigned int bufHeight = height;
+
+
+	unsigned char *pSrcU1Offset = pbySrcColor;
+    unsigned char *pSrcU2Offset = pbySrcColor + bufWidth;
+    unsigned char *pSrcU3Offset = pbySrcColor + bufWidth * 2;
+    unsigned char *pSrcU4Offset = pbySrcColor + bufWidth * 3;
+
+    unsigned char *pSrcV1Offset = pSrcU1Offset + 1;
+    unsigned char *pSrcV2Offset = pSrcU2Offset + 1;
+    unsigned char *pSrcV3Offset = pSrcU3Offset + 1;
+    unsigned char *pSrcV4Offset = pSrcU4Offset + 1;
+
+    unsigned int srcUVStride = bufWidth*3;
+
+	unsigned char *pDstU1Offset = pbyDstColor;
+    unsigned char *pDstU2Offset = pbyDstColor + bufWidth;
+
+    unsigned char *pDstV1Offset = pDstU1Offset + 1;
+    unsigned char *pDstV2Offset = pDstU2Offset + 1;
+
+    unsigned int dstUVStride = bufWidth;
+
+    unsigned int nw, nh;
+    for(nh = 0; nh < (bufHeight >> 2); nh++) {
+        for(nw=0; nw < (bufWidth >> 1); nw++) {
+
+            *pDstU1Offset = *pSrcU1Offset;
+            *pDstU2Offset = *pSrcU3Offset;
+            pDstU1Offset += 2;
+            pDstU2Offset += 2;
+            pSrcU1Offset += 2;
+            pSrcU3Offset += 2;
+
+            *pDstV1Offset = *pSrcV1Offset;
+            *pDstV2Offset = *pSrcV3Offset;
+            pDstV1Offset += 2;
+            pDstV2Offset += 2;
+            pSrcV1Offset += 2;
+            pSrcV3Offset += 2;
+        }
+
+        pSrcU1Offset += srcUVStride;
+        pSrcU3Offset += srcUVStride;
+        pSrcV1Offset += srcUVStride;
+        pSrcV3Offset += srcUVStride;
+
+        pDstU1Offset += dstUVStride;
+        pDstU2Offset += dstUVStride;
+        pDstV1Offset += dstUVStride;
+        pDstV2Offset += dstUVStride;
+    }
+}
+
+static void YUV422ToYUV420Interleave(u8* pbySrcY, u8* pbySrcC,
+            u32 dwSrcYStide, u32 dwSrcCStride, u32 dwSrcHeight,
+            u8 *pbyDstY, u8 *pbyDstC,
+            u32 dwDstYStide, u32 dwDstCStide, u32 dwDstHeight) {
+    //convert Y
+    u8 *pInY = pbySrcY;
+    u8 *pOutY = pbyDstY;
+    u32 nDstLine;
+
+    for(nDstLine = 0; nDstLine < dwDstHeight; nDstLine++) {
+        memcpy(pOutY, pInY, dwDstYStide);
+        pInY += dwSrcYStide;
+        pOutY += dwDstYStide;
+    }
+
+    convertUV(pbySrcC, pbyDstC, dwSrcYStide, dwSrcHeight);
+
+    return;
+}
+
 StreamAdapter::StreamAdapter(int id)
     : mPrepared(false), mStarted(false), mStreamId(id), mWidth(0), mHeight(0), mFormat(0), mUsage(0),
       mMaxProducerBuffers(0), mNativeWindow(NULL), mStreamState(STREAM_INVALID), mReceiveFrame(true)
@@ -156,7 +235,6 @@ bool StreamAdapter::handleStream()
                     frame->release();
                     break;
                 }
-
             }
 
             //the frame release from StreamThread.
@@ -180,8 +258,7 @@ bool StreamAdapter::handleStream()
             else {
                 mStreamState = STREAM_STARTED;
             }
-
-            if (g2dHandle == NULL) {
+            if ((g2dHandle == NULL) && (mDeviceAdapter->UseMJPG() == false)) {
                 g2d_open(&g2dHandle);
             }
 
@@ -368,7 +445,11 @@ int StreamAdapter::processFrame(CameraFrame *frame)
             usleep(33000);
         }
     }
-    else {
+	else if(mDeviceAdapter.get() && mDeviceAdapter->UseMJPG()) {
+		YUV422ToYUV420Interleave((unsigned char *)frame->mVirtAddr, (unsigned char *)frame->mVirtAddr + frame->mWidth * frame->mHeight,
+            frame->mWidth, frame->mWidth/2, frame->mHeight,
+            (unsigned char *)buffer.mVirtAddr, (unsigned char *)buffer.mVirtAddr + buffer.mWidth * buffer.mHeight, buffer.mWidth, buffer.mWidth/4, buffer.mHeight);
+	} else {
         memcpy(buffer.mVirtAddr, (void *)frame->mVirtAddr, size);
     }
 
@@ -458,7 +539,8 @@ int StreamAdapter::renderBuffer(StreamBuffer *buffer)
     ret = mNativeWindow->enqueue_buffer(mNativeWindow, buffer->mTimeStamp,
                                         &buffer->mBufHandle);
     if (ret != 0) {
-        FLOGE("Surface::queueBuffer returned error %d", ret);
+        FLOGE("Surface::queueBuffer returned error %d, phyAddr 0x%x, mBufHandle %p, mBindUVCBufIdx %d",
+            ret, buffer->mPhyAddr, buffer->mBufHandle, buffer->mBindUVCBufIdx);
     }
 
     return ret;

@@ -160,6 +160,14 @@ void CaptureStream::applyRequest()
     sem_wait(&mRespondSem);
 }
 
+
+status_t CaptureStream::makeJpegImageFromMJPG(StreamBuffer *pStreamBuffer, StreamBuffer *frame)
+{
+    size_t copySize = (pStreamBuffer->mSize < frame->mSize) ? pStreamBuffer->mSize : frame->mSize;
+    memcpy(pStreamBuffer->mVirtAddr, frame->mVirtAddr, copySize);
+    return NO_ERROR;
+}
+
 int CaptureStream::processFrame(CameraFrame *frame)
 {
     status_t ret = NO_ERROR;
@@ -171,16 +179,20 @@ int CaptureStream::processFrame(CameraFrame *frame)
         goto exit_err;
     }
 
-    mJpegBuilder->reset();
-    mJpegBuilder->setMetadaManager(mMetadaManager);
-    ret = makeJpegImage(&buffer, frame);
-    if (ret != NO_ERROR) {
-        FLOGE("%s makeJpegImage failed", __FUNCTION__);
-        goto exit_err;
-    }
+    if(mDeviceAdapter.get() && mDeviceAdapter->UseMJPG()) {
+		makeJpegImageFromMJPG(&buffer, frame);
+	} else {
+	    mJpegBuilder->reset();
+	    mJpegBuilder->setMetadaManager(mMetadaManager);
+	    ret = makeJpegImage(&buffer, frame);
+	    if (ret != NO_ERROR) {
+	        FLOGE("%s makeJpegImage failed", __FUNCTION__);
+	        goto exit_err;
+	    }
+	}
 
-    buffer.mTimeStamp = frame->mTimeStamp;
-    ret = renderBuffer(&buffer);
+	buffer.mTimeStamp = frame->mTimeStamp;
+	ret = renderBuffer(&buffer);
     if (ret != NO_ERROR) {
         FLOGE("%s renderBuffer failed", __FUNCTION__);
         goto exit_err;

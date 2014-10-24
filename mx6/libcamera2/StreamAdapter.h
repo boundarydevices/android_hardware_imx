@@ -176,6 +176,7 @@ public:
 
 private:
     status_t makeJpegImage(StreamBuffer *dstBuf, StreamBuffer *srcBuf);
+    status_t makeJpegImageFromMJPG(StreamBuffer *dstBuf, StreamBuffer *srcBuf);
 
 private:
     int mActualFormat;
