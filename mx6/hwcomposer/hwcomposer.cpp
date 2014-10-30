@@ -130,9 +130,6 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
 
     if(ctx->m_viv_hwc) {
-        char property[PROPERTY_VALUE_MAX];
-        property_get("service.bootanim.exit", property, "0");
-        if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
         return ctx->m_viv_hwc->prepare(ctx->m_viv_hwc, numDisplays, displays);
     }
 
@@ -158,10 +155,6 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
     hwc_display_contents_1_t *external = displays[HWC_DISPLAY_EXTERNAL];
 
     if(ctx->m_viv_hwc || ctx->m_hwc_ops) {
-        char property[PROPERTY_VALUE_MAX];
-        property_get("service.bootanim.exit", property, "0");
-        if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
-
         if (ctx->m_viv_hwc) {
             ret = ctx->m_viv_hwc->set(ctx->m_viv_hwc, numDisplays, displays);
         }
