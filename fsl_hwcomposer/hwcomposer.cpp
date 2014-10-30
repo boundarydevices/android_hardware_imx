@@ -407,10 +407,6 @@ static int hwc_prepare(struct hwc_operations* ctx,
         g2d_make_current(priv->g2d_handle, G2D_HARDWARE_2D);
     }
 
-    char property[PROPERTY_VALUE_MAX];
-    property_get("service.bootanim.exit", property, "0");
-    if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
-
     for (size_t i = 0; i < numDisplays; i++) {
         hwc_display_contents_1_t *list = displays[i];
         switch(i) {
@@ -447,10 +443,6 @@ static int hwc_set(struct hwc_operations* ctx,
         ALOGI("%s invalid g2d_handle", __FUNCTION__);
         return 0;
     }
-
-    char property[PROPERTY_VALUE_MAX];
-    property_get("service.bootanim.exit", property, "0");
-    if(!atoi(property)) numDisplays = numDisplays >= 1 ? 1 : 0;
 
     for (size_t i = 0; i < numDisplays;i++) {
         hwc_display_contents_1_t *list = displays[i];
