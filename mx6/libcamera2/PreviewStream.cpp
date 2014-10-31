@@ -59,6 +59,16 @@ int PreviewStream::allocateBuffers(int width, int height,
     int index = -1;
     int ret = NO_ERROR;
 
+    //In DeviceAdapter::handleFrameRelease, if mPreviewing is false,
+    //will not dec mRefCount. This will happen when performance is low.
+    //So need zero ref count.
+    for (int i = 0; i < mTotalBuffers; i++) {
+       // FLOGI("==== PreviewStream::allocateBuffers, i %d, state %d, ref %d",
+         //   i, mCameraBuffer[i].getState(), mCameraBuffer[i].getRefCount());
+
+        mCameraBuffer[i].ZeroRefCount();
+    }
+
     for (int i = 0; i < mMaxProducerBuffers; i++) {
         buffer_handle_t *buf_h = NULL;
         ret = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h);
@@ -86,7 +96,9 @@ int PreviewStream::allocateBuffers(int width, int height,
 
     for (int i = 0; i < mTotalBuffers; i++) {
         int state = mCameraBuffer[i].getState();
-        if (state == CameraFrame::BUFS_IN_SERVICE) {
+        if (state != CameraFrame::BUFS_FREE) {
+            mCameraBuffer[i].setState(CameraFrame::BUFS_IN_SERVICE);
+
             // The frame held in service.
             // Make sure we dont add one more reference
             // count for it
