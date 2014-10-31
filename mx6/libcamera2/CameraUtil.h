@@ -218,6 +218,7 @@ public:
     int getRefCount();
     void setObserver(CameraFrameObserver *observer);
     void reset();
+    void ZeroRefCount();
 
 private:
     CameraFrame(const CameraFrame&);

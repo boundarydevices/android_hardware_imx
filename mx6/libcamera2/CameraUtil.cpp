@@ -161,6 +161,11 @@ void CameraFrame::removeState(CAMERA_BUFS_STATE state)
     mBufState &= ~state;
 }
 
+void CameraFrame::ZeroRefCount()
+{
+    mRefCount = 0;
+}
+
 void CameraFrame::addReference()
 {
     __atomic_inc(&mRefCount);
