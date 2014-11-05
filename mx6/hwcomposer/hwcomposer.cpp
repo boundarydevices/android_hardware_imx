@@ -164,7 +164,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
         if(ret) return ret;
     }
 
-    if (primary && ctx->mDispInfo[HWC_DISPLAY_PRIMARY].blank == 0) {
+    if (primary) {
         hwc_layer_1 *fbt = &primary->hwLayers[primary->numHwLayers-1];
         if(ctx->mFbDev[HWC_DISPLAY_PRIMARY] != NULL && fbt != NULL) {
             int fenceFd = fbt->acquireFenceFd;
@@ -174,12 +174,14 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
                 fbt->acquireFenceFd = -1;
             }
 
-            ctx->mFbDev[HWC_DISPLAY_PRIMARY]->post(
+            if (ctx->mDispInfo[HWC_DISPLAY_PRIMARY].blank == 0) {
+                ctx->mFbDev[HWC_DISPLAY_PRIMARY]->post(
                      ctx->mFbDev[HWC_DISPLAY_PRIMARY],  fbt->handle);
+            }
        }
     }
 
-    if (external && ctx->mDispInfo[HWC_DISPLAY_EXTERNAL].blank == 0) {
+    if (external) {
         hwc_layer_1 *fbt = &external->hwLayers[external->numHwLayers-1];
         if(ctx->mFbDev[HWC_DISPLAY_EXTERNAL] != NULL && fbt != NULL) {
             int fenceFd = fbt->acquireFenceFd;
@@ -188,8 +190,11 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
                 close(fenceFd);
                 fbt->acquireFenceFd = -1;
             }
-            ctx->mFbDev[HWC_DISPLAY_EXTERNAL]->post(
+
+            if (ctx->mDispInfo[HWC_DISPLAY_EXTERNAL].blank == 0) {
+                ctx->mFbDev[HWC_DISPLAY_EXTERNAL]->post(
                      ctx->mFbDev[HWC_DISPLAY_EXTERNAL], fbt->handle);
+            }
         }
     }
 
