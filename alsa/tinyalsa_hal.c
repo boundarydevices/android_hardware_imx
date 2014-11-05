@@ -522,8 +522,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         select_output_device(adev);
     }
 
-    pcm_device = out->device & (AUDIO_DEVICE_OUT_ALL &
-                         ~(AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET | AUDIO_DEVICE_OUT_AUX_DIGITAL));
+    pcm_device = out->device & (AUDIO_DEVICE_OUT_ALL & ~AUDIO_DEVICE_OUT_AUX_DIGITAL);
     if (pcm_device && (adev->active_output[OUTPUT_ESAI] == NULL || adev->active_output[OUTPUT_ESAI]->standby)) {
         out->write_flags[PCM_NORMAL]            = PCM_OUT | PCM_MMAP;
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
@@ -949,6 +948,10 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
             if (out != adev->active_output[OUTPUT_HDMI]) {
                 adev->out_device = val;
                 out->device    = val;
+                if(out->device & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) {
+                    scan_available_device(adev, false);
+                }
+
                 select_output_device(adev);
             }
         }
