@@ -69,9 +69,10 @@ LOCAL_C_INCLUDES += \
 	system/media/camera/include \
 	external/jpeg \
 	external/jhead \
-        device/fsl-proprietary/include \
-        external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
-        external/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper
+    device/fsl-proprietary/include \
+    external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
+    external/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
+    system/core/libion/include
 
 ifeq ($(HAVE_FSL_IMX_CODEC),true)
     #LOCAL_SHARED_LIBRARIES += libfsl_jpeg_enc_arm11_elinux

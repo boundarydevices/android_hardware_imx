@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Freescale - http://www.Freescale.com/
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ camera_module_t HAL_MODULE_INFO_SYM = {
     get_camera_info: camera_get_camera_info,
     set_callbacks: NULL,
     get_vendor_tag_ops: NULL,
+    open_legacy: NULL,
     reserved: {0}
 };
 
@@ -197,36 +198,36 @@ int release_stream(
 }
 
 int allocate_reprocess_stream(const struct camera2_device *,
-        uint32_t width,
-        uint32_t height,
-        uint32_t format,
-        const camera2_stream_in_ops_t *reprocess_stream_ops,
-        uint32_t *stream_id,
-        uint32_t *consumer_usage,
-        uint32_t *max_buffers)
+        uint32_t /*width*/,
+        uint32_t /*height*/,
+        uint32_t /*format*/,
+        const camera2_stream_in_ops_t * /*reprocess_stream_ops*/,
+        uint32_t * /*stream_id*/,
+        uint32_t * /*consumer_usage*/,
+        uint32_t * /*max_buffers*/)
 {
     return INVALID_OPERATION;
 }
 
 int allocate_reprocess_stream_from_stream(const struct camera2_device *,
-        uint32_t output_stream_id,
-        const camera2_stream_in_ops_t *reprocess_stream_ops,
-        uint32_t *stream_id)
+        uint32_t  /*output_stream_id*/,
+        const camera2_stream_in_ops_t * /*reprocess_stream_ops*/,
+        uint32_t * /*stream_id*/ )
 {
     return INVALID_OPERATION;
 }
 
 int release_reprocess_stream(
         const struct camera2_device *,
-        uint32_t stream_id)
+        uint32_t /*stream_id*/)
 {
     return INVALID_OPERATION;
 }
 
 int trigger_action(const struct camera2_device *,
-        uint32_t trigger_id,
-        int32_t ext1,
-        int32_t ext2)
+        uint32_t /*trigger_id*/,
+        int32_t /*ext1*/,
+        int32_t /*ext2*/)
 {
     return INVALID_OPERATION;
 }
@@ -256,7 +257,7 @@ int get_metadata_vendor_tag_ops(const struct camera2_device *device,
     return ret;
 }
 
-int camera_dump(const struct camera2_device *, int fd)
+int camera_dump(const struct camera2_device *, int /*fd*/)
 {
     return INVALID_OPERATION;
 }

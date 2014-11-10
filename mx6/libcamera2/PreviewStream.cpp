@@ -17,7 +17,7 @@
 #include "StreamAdapter.h"
 
 
-int PreviewStream::configure(int fps, bool videoSnapshot)
+int PreviewStream::configure(int fps, bool /*videoSnapshot*/)
 {
     FLOG_TRACE("PreviewStream %s running", __FUNCTION__);
     int ret = NO_ERROR;
@@ -53,8 +53,8 @@ fail:
     return BAD_VALUE;
 }
 
-int PreviewStream::allocateBuffers(int width, int height,
-                        int format, int numBufs)
+int PreviewStream::allocateBuffers(int /*width*/, int /*height*/,
+                        int /*format*/, int /*numBufs*/ )
 {
     int index = -1;
     int ret = NO_ERROR;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2009-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,18 +103,18 @@ int CameraHal::release_stream(uint32_t stream_id)
 }
 
 int CameraHal::allocate_reprocess_stream(
-    uint32_t width,
-    uint32_t height,
-    uint32_t format,
-    const camera2_stream_in_ops_t *reprocess_stream_ops,
-    uint32_t *stream_id,
-    uint32_t *consumer_usage,
-    uint32_t *max_buffers)
+    uint32_t /*width*/,
+    uint32_t /*height*/,
+    uint32_t /*format*/,
+    const camera2_stream_in_ops_t * /*reprocess_stream_ops*/,
+    uint32_t * /*stream_id*/,
+    uint32_t * /*consumer_usage*/,
+    uint32_t * /*max_buffers*/)
 {
     return INVALID_OPERATION;
 }
 
-int CameraHal::release_reprocess_stream(uint32_t stream_id)
+int CameraHal::release_reprocess_stream(uint32_t /*stream_id*/)
 {
     return INVALID_OPERATION;
 }
@@ -176,7 +176,7 @@ void CameraHal::UnLockWakeLock()
     }
 }
 
-status_t CameraHal::dump(int fd) const
+status_t CameraHal::dump(int /*fd*/) const
 {
     return NO_ERROR;
 }

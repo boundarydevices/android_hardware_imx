@@ -36,9 +36,9 @@ public:
     virtual int initialize(int width, int height, int format,
                            int usage, int bufferNum);
     virtual int setPreviewWindow(const camera2_stream_ops_t* window);
-    virtual int registerBuffers(int num_buffers, buffer_handle_t *buffers) {return 0;}
+    virtual int registerBuffers(int /*num_buffers*/, buffer_handle_t * /*buffers*/) {return 0;}
 
-    virtual int configure(int fps, bool videoSnapshot)
+    virtual int configure(int /*fps*/, bool /*videoSnapshot*/)
     {
         FLOG_TRACE("StreamAdapter::configure");
         mPrepared = true;
