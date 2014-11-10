@@ -251,6 +251,9 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
         unlock: BufferManager::gralloc_unlock,
         perform: 0,
         lock_ycbcr: 0,
+        lockAsync: 0,
+        unlockAsync: 0,
+        lockAsync_ycbcr: 0,
         reserved_proc: {0}
     },
 };
