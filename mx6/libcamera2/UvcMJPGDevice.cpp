@@ -847,7 +847,7 @@ int UvcMJPGDevice::VPUExit()
 	return 0;
 }
 
-CameraFrame *UvcMJPGDevice::VPUDec(CameraFrame **ppDeviceBuf, unsigned int BufNum, u8 *InVirAddr, u32 inLen, unsigned int nUVCBufIdx, unsigned int w, unsigned int h)
+CameraFrame *UvcMJPGDevice::VPUDec(CameraFrame **ppDeviceBuf, unsigned int BufNum, u8 *InVirAddr, u32 inLen, unsigned int nUVCBufIdx, unsigned int /*w*/, unsigned int /*h*/)
 {
 DecLogic:
 	VpuDecRetCode ret; 
@@ -931,7 +931,7 @@ DecLogic:
 	//return ret;
 }
 
-int UvcMJPGDevice::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* pDecMemInfo, int*pOutFrmNum,
+int UvcMJPGDevice::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMemInfo*/, int*pOutFrmNum,
     unsigned char **pPhyAddr, unsigned char **pVirtAddr, unsigned int registerNum)
 {
 	VpuDecRetCode ret;

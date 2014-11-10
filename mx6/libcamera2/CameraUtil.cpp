@@ -15,7 +15,6 @@
  */
 
 #include "CameraUtil.h"
-#include <sys/atomics.h>
 
 int convertPixelFormatToV4L2Format(PixelFormat format)
 {
@@ -129,7 +128,7 @@ void CameraFrame::initialize(buffer_handle_t  buf_h,
     mFormat    = handle->format;
 
     mObserver  = NULL;
-    mRefCount  = 0;
+    atomic_init(&mRefCount, 0);
     mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
     mIndex     = index;
@@ -163,19 +162,18 @@ void CameraFrame::removeState(CAMERA_BUFS_STATE state)
 
 void CameraFrame::ZeroRefCount()
 {
-    mRefCount = 0;
+    atomic_init(&mRefCount, 0);
 }
 
 void CameraFrame::addReference()
 {
-    __atomic_inc(&mRefCount);
+    atomic_fetch_add(&mRefCount, 1);
 }
 
 void CameraFrame::release()
 {
-    fAssert(mRefCount > 0);
-
-    int prevCount = __atomic_dec(&mRefCount);
+    int prevCount = atomic_fetch_sub(&mRefCount, 1);
+    fAssert(prevCount > 0);
     if ((prevCount == 1) && (mObserver != NULL)) {
         mObserver->handleFrameRelease(this);
     }
@@ -183,7 +181,7 @@ void CameraFrame::release()
 
 int CameraFrame::getRefCount()
 {
-    return mRefCount;
+    return atomic_load(&mRefCount);
 }
 
 void CameraFrame::setObserver(CameraFrameObserver *observer)
@@ -197,7 +195,7 @@ void CameraFrame::reset()
     mVirtAddr  = NULL;
     mPhyAddr   = 0;
     mObserver  = NULL;
-    mRefCount  = 0;
+    atomic_init(&mRefCount, 0);
     mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
 
