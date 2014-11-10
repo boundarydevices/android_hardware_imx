@@ -127,7 +127,7 @@ private:
     int VPUInit();
     int VPUExit();
     //CameraFrame *VPUDec(CameraFrame **ppDeviceBuf, unsigned int BufNum, void *OutVirBuf, void *InVirBuf, unsigned int outSize, unsigned int w, unsigned int h);
-    CameraFrame *VPUDec(CameraFrame **ppDeviceBuf, unsigned int BufNum, u8 *InVirAddr, u32 inLen, unsigned int nUVCBufIdx, unsigned int w, unsigned int h);
+    CameraFrame *VPUDec(CameraFrame **ppDeviceBuf, unsigned int BufNum, unsigned char *InVirAddr, unsigned int inLen, unsigned int nUVCBufIdx, unsigned int w, unsigned int h);
     int ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* pDecMemInfo, int*pOutFrmNum,
          unsigned char **pPhyAddr, unsigned char **pVirtAddr, unsigned int registerNum);
     int FreeMemBlock(DecMemInfo* pDecMem);

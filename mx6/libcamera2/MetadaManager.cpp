@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -153,7 +153,6 @@ status_t MetadaManager::createDefaultRequest(
     uint8_t demosaicMode = 0;
     uint8_t noiseMode = 0;
     uint8_t shadingMode = 0;
-    uint8_t geometricMode = 0;
     uint8_t colorMode = 0;
     uint8_t tonemapMode = 0;
     uint8_t edgeMode = 0;
@@ -175,7 +174,6 @@ status_t MetadaManager::createDefaultRequest(
         demosaicMode = ANDROID_DEMOSAIC_MODE_HIGH_QUALITY;
         noiseMode = ANDROID_NOISE_REDUCTION_MODE_HIGH_QUALITY;
         shadingMode = ANDROID_SHADING_MODE_HIGH_QUALITY;
-        geometricMode = ANDROID_GEOMETRIC_MODE_HIGH_QUALITY;
         colorMode = ANDROID_COLOR_CORRECTION_MODE_HIGH_QUALITY;
         tonemapMode = ANDROID_TONEMAP_MODE_HIGH_QUALITY;
         edgeMode = ANDROID_EDGE_MODE_HIGH_QUALITY;
@@ -185,7 +183,6 @@ status_t MetadaManager::createDefaultRequest(
         demosaicMode = ANDROID_DEMOSAIC_MODE_FAST;
         noiseMode = ANDROID_NOISE_REDUCTION_MODE_FAST;
         shadingMode = ANDROID_SHADING_MODE_FAST;
-        geometricMode = ANDROID_GEOMETRIC_MODE_FAST;
         colorMode = ANDROID_COLOR_CORRECTION_MODE_FAST;
         tonemapMode = ANDROID_TONEMAP_MODE_FAST;
         edgeMode = ANDROID_EDGE_MODE_FAST;
@@ -195,7 +192,6 @@ status_t MetadaManager::createDefaultRequest(
     ADD_OR_SIZE(ANDROID_DEMOSAIC_MODE, &demosaicMode, 1);
     ADD_OR_SIZE(ANDROID_NOISE_REDUCTION_MODE, &noiseMode, 1);
     ADD_OR_SIZE(ANDROID_SHADING_MODE, &shadingMode, 1);
-    ADD_OR_SIZE(ANDROID_GEOMETRIC_MODE, &geometricMode, 1);
     ADD_OR_SIZE(ANDROID_COLOR_CORRECTION_MODE, &colorMode, 1);
     ADD_OR_SIZE(ANDROID_TONEMAP_MODE, &tonemapMode, 1);
     ADD_OR_SIZE(ANDROID_EDGE_MODE, &edgeMode, 1);
@@ -303,7 +299,7 @@ status_t MetadaManager::createDefaultRequest(
     static const uint8_t effectMode = ANDROID_CONTROL_EFFECT_MODE_OFF;
     ADD_OR_SIZE(ANDROID_CONTROL_EFFECT_MODE, &effectMode, 1);
 
-    static const uint8_t sceneMode = ANDROID_CONTROL_SCENE_MODE_UNSUPPORTED;
+    static const uint8_t sceneMode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
     ADD_OR_SIZE(ANDROID_CONTROL_SCENE_MODE, &sceneMode, 1);
 
     static const uint8_t aeMode = ANDROID_CONTROL_AE_MODE_ON;

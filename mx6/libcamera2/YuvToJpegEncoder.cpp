@@ -268,7 +268,7 @@ int vpu_encode(void *inYuv,
                              void* inYuvPhy,
                              int   Width,
                              int   Height,
-                             int   quality,
+                             int   /*quality*/,
                              int   color,
                              void *outBuf,
                              int   outSize)
@@ -695,7 +695,7 @@ void Yuv422IToJpegEncoder::deinterleave(uint8_t *yuv,
                                         uint8_t *vRows,
                                         int      rowIndex,
                                         int      width,
-                                        int      height) {
+                                        int      /*height*/) {
     for (int row = 0; row < 16; ++row) {
         uint8_t *yuvSeg = yuv + (rowIndex + row) * width * 2;
         for (int i = 0; i < (width >> 1); ++i) {

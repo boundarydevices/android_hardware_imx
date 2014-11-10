@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ void UvcDevice::adjustSensorFormats(int *src, int len)
 
 status_t UvcDevice::setDeviceConfig(int         width,
                                     int         height,
-                                    PixelFormat format,
+                                    PixelFormat /*format*/,
                                     int         fps)
 {
     if (mCameraHandle <= 0) {

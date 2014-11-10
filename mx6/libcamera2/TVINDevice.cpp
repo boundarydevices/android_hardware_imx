@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ status_t TVINDevice::changeSensorFormats(int *src, int len)
     return 0;
 }
 
-status_t TVINDevice::initSensorInfo(const CameraInfo& info)
+status_t TVINDevice::initSensorInfo(const CameraInfo& /*info*/)
 {
     if (mCameraHandle < 0) {
         FLOGE("TVINDevice: initParameters sensor has not been opened");
@@ -201,7 +201,7 @@ status_t TVINDevice::initSensorInfo(const CameraInfo& info)
     return NO_ERROR;
 }
 
-int TVINDevice::getCaptureMode(int width, int height)
+int TVINDevice::getCaptureMode(int /*width*/, int /*height*/)
 {
     return 0;
 }

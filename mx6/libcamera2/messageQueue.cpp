@@ -130,7 +130,7 @@ status_t CMessageQueue::postSyncMessage(const sp<SyncMessage>& message,
 }
 
 status_t CMessageQueue::queueMessage(const sp<CMessage>& message,
-                                     int32_t             flags)
+                                     int32_t             /*flags*/)
 {
     Mutex::Autolock _l(mLock);
 
@@ -140,7 +140,7 @@ status_t CMessageQueue::queueMessage(const sp<CMessage>& message,
 }
 
 status_t CMessageQueue::queueSyncMessage(const sp<SyncMessage>& message,
-                                         int32_t                flags)
+                                         int32_t                /*flags*/)
 {
     Mutex::Autolock _l(mLock);
 

@@ -54,7 +54,7 @@ public:
     }
 
     virtual status_t initSensorInfo(const CameraInfo& info) = 0;
-    virtual int getCaptureMode(int width, int height) {return 0;}
+    virtual int getCaptureMode(int /*width*/, int /*height*/) {return 0;}
     PixelFormat getMatchFormat(int *sfmt, int  slen,
                                int *dfmt, int  dlen);
     void setMetadaManager(sp<MetadaManager> &metadaManager);

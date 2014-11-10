@@ -17,7 +17,7 @@
 #include "StreamAdapter.h"
 #include "RequestManager.h"
 
-static void convertUV(u8 *pbySrcColor, u8 *pbyDstColor, u32 width, u32 height) //StreamBuffer *dst, StreamBuffer *src)
+static void convertUV(unsigned char *pbySrcColor, unsigned char *pbyDstColor, unsigned int width, unsigned int height) //StreamBuffer *dst, StreamBuffer *src)
 {
  //   FLOGI("convertUV\n");
 
@@ -76,14 +76,14 @@ static void convertUV(u8 *pbySrcColor, u8 *pbyDstColor, u32 width, u32 height) /
     }
 }
 
-static void YUV422ToYUV420Interleave(u8* pbySrcY, u8* pbySrcC,
-            u32 dwSrcYStide, u32 dwSrcCStride, u32 dwSrcHeight,
-            u8 *pbyDstY, u8 *pbyDstC,
-            u32 dwDstYStide, u32 dwDstCStide, u32 dwDstHeight) {
+static void YUV422ToYUV420Interleave(unsigned char* pbySrcY, unsigned char* pbySrcC,
+            unsigned int dwSrcYStide, unsigned int /*dwSrcCStride*/, unsigned int dwSrcHeight,
+            unsigned char *pbyDstY, unsigned char *pbyDstC,
+            unsigned int dwDstYStide, unsigned int /*dwDstCStide*/, unsigned int dwDstHeight) {
     //convert Y
-    u8 *pInY = pbySrcY;
-    u8 *pOutY = pbyDstY;
-    u32 nDstLine;
+    unsigned char *pInY = pbySrcY;
+    unsigned char *pOutY = pbyDstY;
+    unsigned int nDstLine;
 
     for(nDstLine = 0; nDstLine < dwDstHeight; nDstLine++) {
         memcpy(pOutY, pInY, dwDstYStide);

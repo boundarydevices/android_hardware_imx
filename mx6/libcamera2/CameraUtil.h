@@ -50,6 +50,7 @@
 #include <linux/videodev2.h>
 #include <hardware/camera2.h>
 #include "MetadaManager.h"
+#include <stdatomic.h>
 
 using namespace android;
 
@@ -229,7 +230,7 @@ public:
     int mIndex;
 
 private:
-    int mRefCount;
+    atomic_int mRefCount;
     int mBufState;
     CameraFrameObserver *mObserver;
 };
