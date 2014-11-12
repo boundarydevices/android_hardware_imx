@@ -833,9 +833,9 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
     ADD_OR_SIZE(ANDROID_CONTROL_AVAILABLE_EFFECTS,
             availableEffects, sizeof(availableEffects));
 
-    int32_t max3aRegions = 0;
+    static const int32_t max3aRegions[] = {/*AE*/ 1,/*AWB*/ 1,/*AF*/ 1};
     ADD_OR_SIZE(ANDROID_CONTROL_MAX_REGIONS,
-            &max3aRegions, 1);
+            max3aRegions, sizeof(max3aRegions)/sizeof(max3aRegions[0]));
 
     static const uint8_t availableAeModes[] = {
             ANDROID_CONTROL_AE_MODE_OFF,
