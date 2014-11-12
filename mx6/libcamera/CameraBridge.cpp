@@ -351,7 +351,7 @@ void CameraBridge::setCameraFrameProvider(CameraFrameProvider *frameProvider)
     mFrameProvider = frameProvider;
 }
 
-void CameraBridge::setCameraEventProvider(int32_t              msgs,
+void CameraBridge::setCameraEventProvider(int32_t              /*msgs*/,
                                           CameraEventProvider *eventProvider)
 {
     if (eventProvider != NULL) {

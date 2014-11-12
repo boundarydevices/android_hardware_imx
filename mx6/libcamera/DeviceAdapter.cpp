@@ -125,8 +125,8 @@ status_t DeviceAdapter::initialize(const CameraInfo& info)
     return NO_ERROR;
 }
 
-int DeviceAdapter::getCaptureMode(int width,
-                          int height)
+int DeviceAdapter::getCaptureMode(int /*width*/,
+                          int /*height*/)
 {
     return 0;
 }
@@ -487,7 +487,7 @@ CameraFrame * DeviceAdapter::acquireCameraFrame()
 }
 
 // #define FSL_CAMERAHAL_DUMP
-static void bufferDump(CameraFrame *frame)
+static void bufferDump(CameraFrame * /*frame*/)
 {
 #ifdef FSL_CAMERAHAL_DUMP
 

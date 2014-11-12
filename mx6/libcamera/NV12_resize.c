@@ -28,7 +28,7 @@ VT_resizeFrame_Video_opt2_lp
  structConvImage* i_img_ptr,        /* Points to the input image           */
  structConvImage* o_img_ptr,        /* Points to the output image          */
  IC_rect_type*  cropout,          /* how much to resize to in final image */
- mmUint16 dummy                         /* Transparent pixel value              */
+ mmUint16 dummy __unused                         /* Transparent pixel value              */
  )
 {
   ALOGV("VT_resizeFrame_Video_opt2_lp+");
