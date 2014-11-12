@@ -199,9 +199,9 @@ status_t CameraHal::setParameters(CameraParameters& params)
     return ret;
 }
 
-status_t CameraHal::sendCommand(int32_t command,
-                                int32_t arg1,
-                                int32_t arg2)
+status_t CameraHal::sendCommand(int32_t /*command*/,
+                                int32_t /*arg1*/,
+                                int32_t /*arg2*/)
 {
     return BAD_VALUE;
 }
@@ -440,7 +440,7 @@ status_t CameraHal::cancelAutoFocus()
     return ret;
 }
 
-status_t CameraHal::storeMetaDataInBuffers(bool enable)
+status_t CameraHal::storeMetaDataInBuffers(bool /*enable*/)
 {
     // return mCameraBridge->useMetaDataBufferMode(enable);
     return -1;
@@ -660,7 +660,7 @@ void CameraHal::UnLockWakeLock()
     }
 }
 
-status_t CameraHal::dump(int fd) const
+status_t CameraHal::dump(int /*fd*/) const
 {
     return NO_ERROR;
 }

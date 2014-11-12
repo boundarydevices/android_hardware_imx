@@ -34,10 +34,10 @@ PhysMemAdapter::~PhysMemAdapter()
     ion_close(mIonFd);
 }
 
-int PhysMemAdapter::allocatePreviewBuffer(int width,
-                                          int height,
-                                          int format,
-                                          int numBufs)
+int PhysMemAdapter::allocatePreviewBuffer(int /*width*/,
+                                          int /*height*/,
+                                          int /*format*/,
+                                          int /*numBufs*/)
 {
     return BAD_VALUE;
 }
