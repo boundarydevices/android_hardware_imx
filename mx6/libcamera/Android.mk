@@ -58,6 +58,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/base/include/binder \
 	frameworks/base/include/ui \
 	frameworks/base/camera/libcameraservice \
+	system/media/camera/include \
 	hardware/imx/mx6/libgralloc_wrapper \
 	external/jpeg \
 	external/jhead
@@ -85,7 +86,7 @@ endif
 #Define this for switch the Camera through V4L2 MXC IOCTL
 #LOCAL_CPPFLAGS += -DV4L2_CAMERA_SWITCH
 
-#LOCAL_CPPFLAGS += -Werror
+LOCAL_CPPFLAGS += -Werror
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)
