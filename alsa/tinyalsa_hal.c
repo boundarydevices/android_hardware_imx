@@ -524,7 +524,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
 
     pcm_device = out->device & (AUDIO_DEVICE_OUT_ALL & ~AUDIO_DEVICE_OUT_AUX_DIGITAL);
     if (pcm_device && (adev->active_output[OUTPUT_ESAI] == NULL || adev->active_output[OUTPUT_ESAI]->standby)) {
-        out->write_flags[PCM_NORMAL]            = PCM_OUT | PCM_MMAP;
+        out->write_flags[PCM_NORMAL]            = PCM_OUT | PCM_MMAP | PCM_MONOTONIC;
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
         out->config[PCM_NORMAL] = pcm_config_mm_out;
 
@@ -537,7 +537,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
 
     pcm_device = out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL;
     if(pcm_device && (adev->active_output[OUTPUT_HDMI] == NULL || adev->active_output[OUTPUT_HDMI]->standby)) {
-        out->write_flags[PCM_HDMI]            = PCM_OUT;
+        out->write_flags[PCM_HDMI]            = PCM_OUT | PCM_MONOTONIC;
         out->write_threshold[PCM_HDMI]        = HDMI_PERIOD_SIZE * PLAYBACK_HDMI_PERIOD_COUNT;
         out->config[PCM_HDMI] = pcm_config_mm_out;
         card = get_card_for_device(adev, pcm_device, PCM_OUT);
@@ -596,7 +596,7 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
     ALOGW("card %d, port %d device 0x%x", card, port, out->device);
     ALOGW("rate %d, channel %d period_size 0x%x", out->config[PCM_HDMI].rate, out->config[PCM_HDMI].channels, out->config[PCM_HDMI].period_size);
 
-    out->pcm[PCM_HDMI] = pcm_open(card, port, PCM_OUT, &out->config[PCM_HDMI]);
+    out->pcm[PCM_HDMI] = pcm_open(card, port, PCM_OUT | PCM_MONOTONIC, &out->config[PCM_HDMI]);
 
     if (out->pcm[PCM_HDMI] && !pcm_is_ready(out->pcm[PCM_HDMI])) {
         ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm[PCM_HDMI]));
@@ -627,7 +627,7 @@ static int start_output_stream_esai(struct imx_stream_out *out)
     ALOGW("card %d, port %d device 0x%x", card, port, out->device);
     ALOGW("rate %d, channel %d period_size 0x%x", out->config[PCM_ESAI].rate, out->config[PCM_ESAI].channels, out->config[PCM_ESAI].period_size);
 
-    out->pcm[PCM_ESAI] = pcm_open(card, port, PCM_OUT, &out->config[PCM_ESAI]);
+    out->pcm[PCM_ESAI] = pcm_open(card, port, PCM_OUT | PCM_MONOTONIC, &out->config[PCM_ESAI]);
 
     if (out->pcm[PCM_ESAI] && !pcm_is_ready(out->pcm[PCM_ESAI])) {
         ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm[PCM_ESAI]));
