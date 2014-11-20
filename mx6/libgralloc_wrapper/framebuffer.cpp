@@ -54,7 +54,11 @@
 /*****************************************************************************/
 
 // numbers of buffers for page flipping
+#ifndef NUM_FRAMEBUFFER_SURFACE_BUFFERS
 #define NUM_BUFFERS 3
+#else
+#define NUM_BUFFERS NUM_FRAMEBUFFER_SURFACE_BUFFERS
+#endif
 
 inline size_t roundUpToPageSize(size_t x) {
     return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
