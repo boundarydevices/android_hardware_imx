@@ -1008,9 +1008,13 @@ void CameraBridge::convertYUYVtoNV12SP(uint8_t *inputBuffer,
                *pYDstOffset = (((u32)(*(pYSrcOffset+0)))<<0)  +  (((u32)(*(pYSrcOffset+2)))<<8) + (((u32)(*(pYSrcOffset+4)))<<16) + (((u32)(*(pYSrcOffset+6)))<<24) ;
                pYSrcOffset += 8;
                pYDstOffset += 1;
-               //*pUVDstOffset = (((u32)(*(pUSrcOffset+0)))<<0)  + (((u32)(*(pVSrcOffset+0)))<<8) + (((u32)(*(pUSrcOffset+4)))<<16) + (((u32)(*(pVSrcOffset+4)))<<24) ;
-			   //maybe th encoder use VUVU planner
+
+              #ifdef PLATFORM_VERSION_4
+			   //seems th encoder use VUVU planner
                *pUVDstOffset = (((u32)(*(pVSrcOffset+0)))<<0)  + (((u32)(*(pUSrcOffset+0)))<<8) + (((u32)(*(pVSrcOffset+4)))<<16) + (((u32)(*(pUSrcOffset+4)))<<24) ;
+              #else
+               *pUVDstOffset = (((u32)(*(pUSrcOffset+0)))<<0)  + (((u32)(*(pVSrcOffset+0)))<<8) + (((u32)(*(pUSrcOffset+4)))<<16) + (((u32)(*(pVSrcOffset+4)))<<24) ;
+              #endif
                pUSrcOffset += 8;
                pVSrcOffset += 8;
                pUVDstOffset += 1;
