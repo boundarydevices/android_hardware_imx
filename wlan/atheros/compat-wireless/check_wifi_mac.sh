@@ -1,13 +1,12 @@
-if [ -e /device/wifi/softmac ]
+if [ -e /data/misc/wifi/softmac ]
 then
 	echo "update softmac"
 else
-	mount -w -o remount /device
-	mkdir /device/wifi
-	touch /device/wifi/softmac
-	echo 02:30:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10` > /device/wifi/softmac
+    mkdir /data/misc
+	mkdir /data/misc/wifi
+	touch /data/misc/wifi/softmac
+	echo 02:30:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10`:`busybox expr $RANDOM % 89 + 10` > /data/misc/wifi/softmac
 	sync
-	chmod 775 /device/wifi
-	chmod 664 /device/wifi/softmac
-	mount -r -o remount /device
+	chmod 775 /data/misc/wifi
+	chmod 664 /data/misc/wifi/softmac
 fi
