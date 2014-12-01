@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011 Atheros Communications Inc.
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014 Freescale Semiconductor, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,7 +19,7 @@
 #include "debug.h"
 #include <linux/vmalloc.h>
 #define MAC_FILE "ath6k/AR6003/hw2.1.1/softmac"
-#define VENDOR_MAC_FILE "/device/wifi/softmac"
+#define VENDOR_MAC_FILE "/data/misc/wifi/softmac"
 
 typedef char            A_CHAR;
 extern int android_readwrite_file(const A_CHAR *filename, A_CHAR *rbuf, const A_CHAR *wbuf, size_t length);
