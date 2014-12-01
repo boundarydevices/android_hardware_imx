@@ -65,6 +65,7 @@ protected:
     bool mPictureNeedCsc;
     int mSensorFormats[MAX_SENSOR_FORMAT];
     CameraFrame mUvcBuffers[MAX_PREVIEW_BUFFER];
+    bool mbOmitFirstFrame;
 };
 
 #endif // ifndef _UVC_DEVICE_H

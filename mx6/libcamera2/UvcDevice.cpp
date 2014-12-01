@@ -19,6 +19,7 @@
 
 UvcDevice::UvcDevice()
 {
+    mbOmitFirstFrame = false;
 }
 
 UvcDevice::~UvcDevice()
@@ -161,13 +162,23 @@ void UvcDevice::setPicturePixelFormat()
     mPicturePixelFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
 }
 
+#define LOGI_C920 "HD Pro Webcam C920"
+
 status_t UvcDevice::initSensorInfo(const CameraInfo& info)
 {
+    struct v4l2_capability v4l2_cap;
+
     if (mCameraHandle < 0) {
         FLOGE("OvDevice: initParameters sensor has not been opened");
         return BAD_VALUE;
     }
     pDevPath = info.devPath;
+
+    int retVal = 0;
+    retVal = ioctl(mCameraHandle, VIDIOC_QUERYCAP, &v4l2_cap);
+    if((retVal == 0) && strstr((const char*)v4l2_cap.card, LOGI_C920)) {
+        mbOmitFirstFrame = true;
+    }
 
     // first read sensor format.
     int ret = 0, index = 0;
@@ -221,7 +232,7 @@ status_t UvcDevice::initSensorInfo(const CameraInfo& info)
         }
 
         if (ret == 0) {
-            FLOG_RUNTIME("enum frame size w:%d, h:%d",
+            FLOGI("enum frame size w:%d, h:%d",
                        vid_frmsize.discrete.width, vid_frmsize.discrete.height);
             memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
             vid_frmval.index        = 0;
@@ -231,7 +242,7 @@ status_t UvcDevice::initSensorInfo(const CameraInfo& info)
 
             ret = ioctl(mCameraHandle, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
             if (ret == 0) {
-                FLOG_RUNTIME("vid_frmval denominator:%d, numeraton:%d",
+                FLOGI("vid_frmval denominator:%d, numeraton:%d",
                              vid_frmval.discrete.denominator,
                              vid_frmval.discrete.numerator);
                 mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
@@ -365,7 +376,10 @@ CameraFrame * UvcDevice::acquireCameraFrame()
     struct timeval tv;
     struct v4l2_buffer cfilledbuffer;
     CameraFrame *camBuf = NULL;
+    int capCount = 0;
 
+cap:
+    capCount++;
     FD_ZERO(&rfds);
     FD_SET(mCameraHandle, &rfds);
     tv.tv_sec = MAX_DEQUEUE_WAIT_TIME;
@@ -388,6 +402,17 @@ CameraFrame * UvcDevice::acquireCameraFrame()
             return camBuf;
         }
         mQueued --;
+
+        //for logi C920, when shift from 800x600 to 640x480, the first frame is damaged.
+        if(mImageCapture && mbOmitFirstFrame &&
+            (mVideoInfo->width == 640) && (mVideoInfo->height == 480)) {
+            ioctl(mCameraHandle, VIDIOC_QBUF, &cfilledbuffer);
+            mQueued++;
+            if(capCount < 2) {
+                ALOGI("acquireCameraFrame, omit first frame");
+                goto cap;
+            }
+        }
 
         int index = cfilledbuffer.index;
         fAssert(index >= 0 && index < mBufferCount);
