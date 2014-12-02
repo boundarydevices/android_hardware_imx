@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 
 #include "CameraUtil.h"
 #include "DeviceAdapter.h"
+
 
 class TVINDevice : public DeviceAdapter {
 public:
@@ -45,11 +46,24 @@ protected:
                                         int  dlen);
     status_t setPreviewStringFormat(PixelFormat format);
 
+    virtual status_t     stopDeviceLocked();
+    virtual status_t registerCameraFrames(CameraFrame *pBuffer,
+                                          int        & num);
+	virtual void             onBufferDestroy();
+
+private:
+    virtual status_t	 startDeviceLocked();
+    virtual status_t     fillCameraFrame(CameraFrame *frame);
+    virtual CameraFrame* acquireCameraFrame();
+
 protected:
     char mSupportedFPS[MAX_SENSOR_FORMAT];
     char mSupportedPictureSizes[CAMER_PARAM_BUFFER_SIZE];
     char mSupportedPreviewSizes[CAMER_PARAM_BUFFER_SIZE];
     v4l2_std_id mSTD;
+
+    MemmapBuf mMapedBuf[MAX_PREVIEW_BUFFER];
+	KeyedVector<int, int> mMapedBufVector;
 };
 
 #endif // ifndef _TVIN_DEVICE_H_

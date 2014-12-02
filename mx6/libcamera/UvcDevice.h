@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,14 +28,7 @@
 #define DEFAULT_PICTURE_H   (480)
 #define MAX_SENSOR_FORMAT 20
 #define FORMAT_STRING_LEN 64
-#define MAX_DEQUEUE_WAIT_TIME  (5000)  //5000ms for uvc camera
 
-typedef struct tagMemmapBuf
-{
-        unsigned char *start; //vir
-        size_t offset; //phy
-        unsigned int length;
-}MemmapBuf;
 
 class UvcDevice : public DeviceAdapter {
 public:

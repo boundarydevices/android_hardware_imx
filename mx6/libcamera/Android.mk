@@ -87,6 +87,11 @@ ifeq ($(findstring x4.,x$(PLATFORM_VERSION)), x4.)
 LOCAL_CPPFLAGS += -DPLATFORM_VERSION_4
 endif
 
+ifeq ($(PRODUCT_MODEL), SABREAUTO-MX6SX)
+    LOCAL_CPPFLAGS += -DEVK_6SL
+    LOCAL_CPPFLAGS += -DVADC_TVIN
+endif
+
 #Define this for switch the Camera through V4L2 MXC IOCTL
 #LOCAL_CPPFLAGS += -DV4L2_CAMERA_SWITCH
 

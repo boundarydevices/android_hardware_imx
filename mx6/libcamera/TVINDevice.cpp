@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,53 @@
 
 #include "CameraUtil.h"
 #include "TVINDevice.h"
+#include <poll.h>
 
 #define DEFAULT_PREVIEW_FPS (15)
+
+
+typedef unsigned int u32;
+typedef unsigned char u8;
+
+static void convertYUV444toNV12SP(u8 *inputBuffer,
+                                         u8 *outputBuffer,
+                                         u32      width,
+                                         u32      height)
+{
+    u32 line, col;
+    u8 *pbySrcY = inputBuffer + 2;
+    u8 *pbySrcU = inputBuffer + 1;
+    u8 *pbySrcV = inputBuffer;
+    u8 *pbyDstY = outputBuffer;
+    u8 *pbyDstU = outputBuffer + width * height;
+    u8 *pbyDstV = pbyDstU + 1;
+
+    for(line = 0; line < height; line++) {
+
+        for(col = 0; col < width; col++) {
+            *pbyDstY = *pbySrcY;
+
+            pbySrcY += 4;
+            pbyDstY++;
+
+            if((line < height/2) && (col < width/2)) {
+                *pbyDstU = *pbySrcU;
+                *pbyDstV = *pbySrcV;
+
+                pbySrcU += 8;
+                pbySrcV += 8;
+
+                pbyDstU += 2;
+                pbyDstV += 2;
+            }
+        }
+
+        pbySrcU += width * 4;
+        pbySrcV += width * 4;
+    }
+
+    return;
+}
 
 PixelFormat TVINDevice::getMatchFormat(int *sfmt,
                                      int  slen,
@@ -138,9 +183,14 @@ status_t TVINDevice::setDeviceConfig(int         width,
     }
 
     int vformat;
-    vformat = convertPixelFormatToV4L2Format(format);
 
-    FLOGI("Width * Height %d x %d format %d, fps: %d",
+#ifdef VADC_TVIN
+    vformat = v4l2_fourcc('Y', '4', '4', '4');
+#else
+    vformat = convertPixelFormatToV4L2Format(format);
+#endif
+
+    FLOGI("Width * Height %d x %d format 0x%x, fps: %d",
           width,
           height,
           vformat,
@@ -162,15 +212,22 @@ status_t TVINDevice::setDeviceConfig(int         width,
         return ret;
     }
 
+
+#ifdef VADC_TVIN
+    ret = ioctl(mCameraHandle, VIDIOC_S_STD, &mSTD);
+    if(ret < 0)
+    {
+		FLOGE("setDeviceConfig, VIDIOC_S_STD %d failed, V4L2_STD_PAL %d, V4L2_STD_NTSC %d\n", (int)mSTD, (int)V4L2_STD_PAL, (int)V4L2_STD_NTSC);
+		return BAD_VALUE;
+	}
+    FLOGI("setDeviceConfig, VIDIOC_S_STD %d, V4L2_STD_PAL %d, V4L2_STD_NTSC %d\n", (int)mSTD, (int)V4L2_STD_PAL, (int)V4L2_STD_NTSC);
+#endif
+
+    memset(&mVideoInfo->format, 0, sizeof(mVideoInfo->format));
     mVideoInfo->format.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mVideoInfo->format.fmt.pix.width        = width & 0xFFFFFFF8;
     mVideoInfo->format.fmt.pix.height       = height & 0xFFFFFFF8;
     mVideoInfo->format.fmt.pix.pixelformat  = vformat;
-    mVideoInfo->format.fmt.pix.field        = V4L2_FIELD_INTERLACED;
-    mVideoInfo->format.fmt.pix.priv         = 0;
-    mVideoInfo->format.fmt.pix.sizeimage    = 0;
-    mVideoInfo->format.fmt.pix.bytesperline = 0;
-
     // Special stride alignment for YU12
     if (vformat == v4l2_fourcc('Y', 'U', '1', '2')){
         // Goolge define the the stride and c_stride for YUV420 format
@@ -207,6 +264,11 @@ status_t TVINDevice::setDeviceConfig(int         width,
         FLOGE("Open: VIDIOC_S_FMT Failed: %s", strerror(errno));
         return ret;
     }
+
+    ALOGI("TVINDevice::setDeviceConfig, after VIDIOC_S_FMT, w %d, h %d, size %d\n",
+        mVideoInfo->format.fmt.pix.width,
+        mVideoInfo->format.fmt.pix.height,
+        mVideoInfo->format.fmt.pix.sizeimage);
 
     return ret;
 }
@@ -252,11 +314,13 @@ status_t TVINDevice::initParameters(CameraParameters& params,
 		return BAD_VALUE;
     }
 
+#ifndef VADC_TVIN
 	if (ioctl(mCameraHandle, VIDIOC_S_STD, &mSTD) < 0)
 	{
 		FLOGE("VIDIOC_S_STD failed\n");
 		return BAD_VALUE;
 	}
+#endif
 
     // first read sensor format.
 #if 0
@@ -311,13 +375,25 @@ status_t TVINDevice::initParameters(CameraParameters& params,
         memset(TmpStr, 0, 20);
         memset(&vid_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
         vid_frmsize.index        = index++;
+
+#ifdef VADC_TVIN
+        vid_frmsize.pixel_format = v4l2_fourcc('Y', '4', '4', '4');
+#else
         vid_frmsize.pixel_format = v4l2_fourcc('N', 'V', '1', '2');
+#endif
         ret                      = ioctl(mCameraHandle,
                                          VIDIOC_ENUM_FRAMESIZES,
                                          &vid_frmsize);
         if (ret == 0) {
             FLOG_RUNTIME("enum frame size w:%d, h:%d",
                          vid_frmsize.discrete.width, vid_frmsize.discrete.height);
+
+#ifdef VADC_TVIN //omit large resolution
+			if((vid_frmsize.discrete.width > 800) || (vid_frmsize.discrete.height > 600))
+			{
+				continue;
+			}
+#endif
             memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
             vid_frmval.index        = 0;
             vid_frmval.pixel_format = vid_frmsize.pixel_format;
@@ -494,4 +570,239 @@ status_t TVINDevice::setParameters(CameraParameters& params)
     mParams = params;
     return NO_ERROR;
 }
+
+
+status_t TVINDevice::registerCameraFrames(CameraFrame *pBuffer,
+                                             int        & num)
+{
+    status_t ret = NO_ERROR;
+
+    if ((pBuffer == NULL) || (num <= 0)) {
+        FLOGE("requestCameraBuffers invalid pBuffer");
+        return BAD_VALUE;
+    }
+
+    mVideoInfo->rb.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    mVideoInfo->rb.memory = V4L2_MEMORY_MMAP;
+    mVideoInfo->rb.count  = num;
+
+    ret = ioctl(mCameraHandle, VIDIOC_REQBUFS, &mVideoInfo->rb);
+    if (ret < 0) {
+        FLOGE("VIDIOC_REQBUFS failed: %s", strerror(errno));
+        return ret;
+    }
+
+    for (int i = 0; i < num; i++) {
+        memset(&mVideoInfo->buf, 0, sizeof(struct v4l2_buffer));
+        mVideoInfo->buf.index    = i;
+        mVideoInfo->buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        mVideoInfo->buf.memory   = V4L2_MEMORY_MMAP;
+
+	    ret = ioctl(mCameraHandle, VIDIOC_QUERYBUF, &mVideoInfo->buf);
+	    if (ret < 0) {
+	        FLOGE("Unable to query buffer (%s)", strerror(errno));
+	        return ret;
+	    }
+
+		mMapedBuf[i].length = mVideoInfo->buf.length;
+		mMapedBuf[i].offset = (size_t)mVideoInfo->buf.m.offset;
+		mMapedBuf[i].start = (unsigned char*)mmap(NULL, mMapedBuf[i].length,
+				 PROT_READ | PROT_WRITE, MAP_SHARED,
+				 mCameraHandle, mMapedBuf[i].offset);
+
+		FLOGI("maped idx %d, len %d, phy 0x%x, vir %p",
+		i, mMapedBuf[i].length, mMapedBuf[i].offset, mMapedBuf[i].start);
+    }
+
+
+	for (int i = 0; i < num; i++) {         // Associate each Camera buffer
+        CameraFrame *buffer = pBuffer + i;
+        buffer->setObserver(this);
+        mPreviewBufs.add((int)buffer, i);
+		mMapedBufVector.add((int)&mMapedBuf[i], i);
+	}
+
+    mPreviewBufferSize  = pBuffer->mSize;
+    mPreviewBufferCount = num;
+
+    return ret;
+}
+
+status_t TVINDevice::startDeviceLocked()
+{
+
+    status_t ret = NO_ERROR;
+	unsigned int phyAddr = 0;
+
+    FSL_ASSERT(!mPreviewBufs.isEmpty());
+    FSL_ASSERT(mBufferProvider != NULL);
+	FSL_ASSERT(!mMapedBufVector.isEmpty());
+
+    int queueableBufs = mBufferProvider->maxQueueableBuffers();
+    FSL_ASSERT(queueableBufs > 0);
+
+    for (int i = 0; i < queueableBufs; i++) {
+		//FLOGI("i %d, num %d", i, queueableBufs);
+		MemmapBuf *pMapdBuf = (MemmapBuf *)mMapedBufVector.keyAt(i);
+		phyAddr = (unsigned int)pMapdBuf->offset;
+		mVideoInfo->buf.index    = i;
+        mVideoInfo->buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        mVideoInfo->buf.memory   = V4L2_MEMORY_MMAP;
+        mVideoInfo->buf.m.offset = phyAddr;
+
+		ALOGE("VIDIOC_QBUF, idx %d, phyAddr 0x%x", i, phyAddr);
+        ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
+	    if (ret < 0) {
+            FLOGE("VIDIOC_QBUF Failed, %s, mCameraHandle %d", strerror(errno), mCameraHandle);
+            return BAD_VALUE;
+        }
+
+        mQueued++;
+    }
+
+
+    enum v4l2_buf_type bufType;
+    if (!mVideoInfo->isStreamOn) {
+        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+        ret = ioctl(mCameraHandle, VIDIOC_STREAMON, &bufType);
+		ALOGE("VIDIOC_STREAMON, ret %d", ret);
+        if (ret < 0) {
+            FLOGE("VIDIOC_STREAMON failed: %s", strerror(errno));
+            return ret;
+        }
+
+        mVideoInfo->isStreamOn = true;
+    }
+
+    mDeviceThread = new DeviceThread(this);
+    FLOGI("Created device thread");
+
+    return ret;
+}
+
+
+status_t TVINDevice::stopDeviceLocked()
+{
+    status_t ret = NO_ERROR;
+
+	ret = DeviceAdapter::stopDeviceLocked();
+	if (ret != 0) {
+        FLOGE("call %s failed", __FUNCTION__);
+        return ret;
+    }
+
+	for (int i = 0; i < mPreviewBufferCount; i++) {
+        if (mMapedBuf[i].start!= NULL && mMapedBuf[i].length > 0) {
+            munmap(mMapedBuf[i].start, mMapedBuf[i].length);
+        }
+    }
+
+
+    return ret;
+}
+
+status_t TVINDevice::fillCameraFrame(CameraFrame *frame)
+{
+    status_t ret = NO_ERROR;
+	unsigned int phyAddr = 0;
+
+    if (!mVideoInfo->isStreamOn) {
+        return NO_ERROR;
+    }
+
+    int i = mPreviewBufs.valueFor((unsigned int)frame);
+    if (i < 0) {
+        return BAD_VALUE;
+    }
+
+
+	MemmapBuf *pMemmapBuf = (MemmapBuf *) mMapedBufVector.keyAt(i);
+	phyAddr = (unsigned int)pMemmapBuf->offset;
+//	FLOGI("==== VIDIOC_QBUF idx %d, phy 0x%x", i, phyAddr);
+
+
+    struct v4l2_buffer cfilledbuffer;
+    memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    cfilledbuffer.memory = V4L2_MEMORY_MMAP;
+    cfilledbuffer.index    = i;
+    cfilledbuffer.m.offset = phyAddr;
+
+    ret = ioctl(mCameraHandle, VIDIOC_QBUF, &cfilledbuffer);
+    if (ret < 0) {
+        FLOGE("fillCameraFrame: VIDIOC_QBUF Failed");
+        return BAD_VALUE;
+    }
+    mQueued++;
+
+    return ret;
+}
+
+CameraFrame * TVINDevice::acquireCameraFrame()
+{
+    int ret;
+	int n;
+	struct v4l2_buffer cfilledbuffer;
+	struct pollfd fdListen;
+	int pollCount = 0;
+
+dopoll:
+	pollCount++;
+
+	memset(&fdListen, 0, sizeof(fdListen));
+	fdListen.fd = mCameraHandle;
+	fdListen.events = POLLIN;
+
+    n = poll(&fdListen, 1, MAX_DEQUEUE_WAIT_TIME);
+    if(n < 0) {
+        FLOGE("Error!Query the V4L2 Handler state error.");
+    }
+    else if(n == 0) {
+        FLOGI("Warning!Time out wait for V4L2 capture reading operation!");
+    }
+    else if(fdListen.revents & POLLIN) {
+		memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
+	    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	    cfilledbuffer.memory = V4L2_MEMORY_MMAP;
+
+	    /* DQ */
+	    ret = ioctl(mCameraHandle, VIDIOC_DQBUF, &cfilledbuffer);
+	    if (ret < 0) {
+	        FLOGE("GetFrame: VIDIOC_DQBUF Failed, fd  %d, erro %s", mCameraHandle, strerror(errno));
+	        return NULL;
+	    }
+	    mDequeued++;
+
+	    int index = cfilledbuffer.index;
+	    FSL_ASSERT(!mPreviewBufs.isEmpty(), "mPreviewBufs is empty");
+		FSL_ASSERT(!mMapedBufVector.isEmpty(), "mMapedBufVector is empty");
+
+		CameraFrame *camFrame = (CameraFrame *)mPreviewBufs.keyAt(index);
+		MemmapBuf *pMapedBuf = (MemmapBuf *)mMapedBufVector.keyAt(index);
+
+		convertYUV444toNV12SP(pMapedBuf->start, (u8 *)camFrame->mVirtAddr, mVideoInfo->width, mVideoInfo->height);
+
+	    return camFrame;
+
+    }
+	else {
+        FLOGW("Poll the V4L2 Handler, revent 0x%x, pollCount %d", fdListen.revents, pollCount);
+		usleep(10000);
+
+	if(pollCount <= 3)
+		goto dopoll;
+    }
+
+	return NULL;
+
+}
+
+
+void TVINDevice::onBufferDestroy()
+{
+    mPreviewBufs.clear();
+	mMapedBufVector.clear();
+}
+
 
