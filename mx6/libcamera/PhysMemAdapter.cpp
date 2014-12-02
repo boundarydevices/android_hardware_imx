@@ -59,7 +59,7 @@ int PhysMemAdapter::allocatePictureBuffer(int width,
     }
     switch (format) {
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            size = width * ((height + 16) & (~15)) * 3 / 2;
+            size = width * ((height + 15) & (~15)) * 3 / 2;
             break;
 
         case HAL_PIXEL_FORMAT_YCbCr_420_P:

@@ -199,6 +199,7 @@ int Yuv420SpToJpegEncoder::yuvResize(uint8_t *srcBuf,
     structConvImage o_img_ptr, i_img_ptr;
 
     // input
+    memset(&i_img_ptr, 0, sizeof(i_img_ptr));
     i_img_ptr.uWidth  =  srcWidth;
     i_img_ptr.uStride =  i_img_ptr.uWidth;
     i_img_ptr.uHeight =  srcHeight;
@@ -207,6 +208,7 @@ int Yuv420SpToJpegEncoder::yuvResize(uint8_t *srcBuf,
     i_img_ptr.clrPtr  = i_img_ptr.imgPtr + (i_img_ptr.uWidth * i_img_ptr.uHeight);
 
     // ouput
+    memset(&o_img_ptr, 0, sizeof(o_img_ptr));
     o_img_ptr.uWidth  = dstWidth;
     o_img_ptr.uStride = o_img_ptr.uWidth;
     o_img_ptr.uHeight = dstHeight;

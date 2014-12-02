@@ -28,6 +28,12 @@ sp<DeviceAdapter>DeviceAdapter::Create(const CameraInfo& info)
         FLOGI("DeviceAdapter: Create uvc device");
         devAdapter = new UvcDevice();
     }
+#ifdef VADC_TVIN
+    else if (strstr(info.name, VADC_TVIN_NAME)) {
+        FLOGI("DeviceAdapter: Create tvin device");
+        devAdapter = new TVINDevice();
+    }
+#endif
     else if (strstr(info.name, OV5640_SENSOR_NAME)) {
         FLOGI("DeviceAdapter: Create ov5640 device");
         devAdapter = new Ov5640();

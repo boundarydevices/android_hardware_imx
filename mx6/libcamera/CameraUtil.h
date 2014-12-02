@@ -70,6 +70,7 @@ using namespace android;
 #define OV5640_SENSOR_NAME "csi"
 #define OV5642_SENSOR_NAME "ov5642"
 #define ADV7180_TVIN_NAME "adv7180_decoder"
+#define VADC_TVIN_NAME "csi_v4l2"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
 
 #define MAX_PREVIEW_BUFFER      6
@@ -97,6 +98,16 @@ int         convertPixelFormatToV4L2Format(PixelFormat format);
 PixelFormat convertV4L2FormatToPixelFormat(unsigned int format);
 int         convertStringToPixelFormat(const char *pFormat);
 int         convertStringToV4L2Format(const char *pFormat);
+
+#define MAX_DEQUEUE_WAIT_TIME  (5000)  //5000ms for uvc/tvin camera
+
+typedef struct tagMemmapBuf
+{
+        unsigned char *start; //vir
+        size_t offset; //phy
+        unsigned int length;
+}MemmapBuf;
+
 
 int GetDevPath(const char  *pCameraName,
                char        *pCameraDevPath,
