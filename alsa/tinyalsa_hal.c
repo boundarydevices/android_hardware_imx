@@ -515,7 +515,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     int pcm_device;
     bool success = false;
 
-    ALOGV("start_output_stream... %d, device %d",(int)out, out->device);
+    ALOGI("start_output_stream... %d, device %d",(int)out, out->device);
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         /* FIXME: only works if only one output can be active at a time */
@@ -527,6 +527,48 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         out->write_flags[PCM_NORMAL]            = PCM_OUT | PCM_MMAP | PCM_MONOTONIC;
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
         out->config[PCM_NORMAL] = pcm_config_mm_out;
+
+       if (out->device & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) {
+            int rate = 0;
+            int channels = 0;
+
+            channels = adev_get_channels_for_device(adev, out->device, PCM_OUT);
+            if (channels == 2){
+                out->config[PCM_NORMAL].channels = 2;
+            } else if (channels == 1) {
+                ALOGW("start_output_stream_primary, channels is 1 !!!");
+                out->config[PCM_NORMAL].channels = 1;
+            } else {
+                  ALOGE("can not get channels for out_device %d ", out->device);
+                  return -EINVAL;
+            }
+
+            rate = adev_get_rate_for_device(adev, out->device, PCM_OUT);
+            if( rate == 0) {
+                  ALOGW("can not get rate for out_device %d ", out->device);
+                  return -EINVAL;
+            }
+            out->config[PCM_NORMAL].rate = rate;
+
+
+            if(out->resampler[PCM_NORMAL]) {
+                int ret;
+                release_resampler(out->resampler[PCM_NORMAL]);
+
+                //channels = 1 ?
+                ret = create_resampler(adev->default_rate,
+                           rate,
+                           channels,
+                           RESAMPLER_QUALITY_DEFAULT,
+                           NULL,
+                           &out->resampler[PCM_NORMAL]);
+                if (ret != 0) {
+                    ALOGE("can not create_resampler, inRate %d, outRate %d, channels %d, device 0x%x",
+                        adev->default_rate, rate, channels, out->device);
+                    return ret;
+                }
+            }
+        }
 
         card = get_card_for_device(adev, pcm_device, PCM_OUT);
         out->pcm[PCM_NORMAL] = pcm_open(card, port,out->write_flags[PCM_NORMAL], &out->config[PCM_NORMAL]);
@@ -567,8 +609,11 @@ static int start_output_stream_primary(struct imx_stream_out *out)
 
         if (adev->echo_reference != NULL)
             out->echo_reference = adev->echo_reference;
-        if (out->resampler)
-            out->resampler->reset(out->resampler);
+
+        for(i = 0; i < PCM_TOTAL; i++) {
+            if (out->resampler[i])
+                out->resampler[i]->reset(out->resampler[i]);
+        }
 
         return 0;
     }
@@ -583,6 +628,7 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
     unsigned int port = 0;
     int i = 0;
 
+    ALOGI("start_output_stream_hdmi, out %d, device 0x%x", (int)out, out->device);
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -1186,9 +1232,9 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
     /* only use resampler if required */
     for (i = 0; i < PCM_TOTAL; i++) {
         /* only use resampler if required */
-        if (out->pcm[i] && (out->config[i].rate != adev->default_rate)) {
+        if (out->pcm[i] && out->resampler[i] && (out->config[i].rate != adev->default_rate)) {
             out_frames = out->buffer_frames;
-            out->resampler->resample_from_input(out->resampler,
+            out->resampler[i]->resample_from_input(out->resampler[i],
                                                 (int16_t *)buffer,
                                                 &in_frames,
                                                 (int16_t *)out->buffer,
@@ -1551,20 +1597,20 @@ static int start_input_stream(struct imx_stream_in *in)
 
     in->config.stop_threshold = in->config.period_size * in->config.period_count;
 
-    if (in->device & AUDIO_DEVICE_IN_USB_DEVICE) {
+    if ((in->device & AUDIO_DEVICE_IN_USB_DEVICE) || (in->device & AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET)) {
         channels = adev_get_channels_for_device(adev, in->device, PCM_IN);
         if (channels == 2){
             in->config.channels = 2;
         } else if (channels == 1) {
             in->config.channels = 1;
         } else {
-              ALOGW("can not get channels for in_device %d ", AUDIO_DEVICE_IN_USB_DEVICE);
+              ALOGW("can not get channels for in_device %d ", in->device);
               return -EINVAL;
         }
 
         rate     = adev_get_rate_for_device(adev, in->device, PCM_IN);
         if( rate == 0) {
-              ALOGW("can not get rate for in_device %d ", AUDIO_DEVICE_IN_USB_DEVICE);
+              ALOGW("can not get rate for in_device %d ", in->device);
               return -EINVAL;
         }
         in->config.rate     =  rate;
@@ -2714,6 +2760,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     struct imx_stream_out *out;
     int ret;
     int output_type;
+    int i;
 
     ALOGW("open output stream devices %d, format %d, channels %d, sample_rate %d, flag %d",
                         devices, config->format, config->channel_mask, config->sample_rate, flags);
@@ -2786,14 +2833,17 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.write = out_write_primary;
     }
 
-    ret = create_resampler(ladev->default_rate,
-                           ladev->mm_rate,
-                           2,
-                           RESAMPLER_QUALITY_DEFAULT,
-                           NULL,
-                           &out->resampler);
-    if (ret != 0)
-        goto err_open;
+
+    for(i = 0; i < PCM_TOTAL; i++) {
+         ret = create_resampler(ladev->default_rate,
+                               ladev->mm_rate,
+                               2,
+                               RESAMPLER_QUALITY_DEFAULT,
+                               NULL,
+                               &out->resampler[i]);
+        if (ret != 0)
+            goto err_open;
+    }
 
     out->stream.common.set_sample_rate  = out_set_sample_rate;
     out->stream.common.get_channels     = out_get_channels;
@@ -2827,7 +2877,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
     *stream_out = &out->stream;
     ladev->active_output[output_type] = out;
-    ALOGW("opened out stream...%d",(int)out);
+    ALOGW("opened out stream...%d, type %d",(int)out, output_type);
     return 0;
 
 err_open:
@@ -2855,8 +2905,14 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
     if (out->buffer)
         free(out->buffer);
-    if (out->resampler)
-        release_resampler(out->resampler);
+
+    for (i = 0; i < PCM_TOTAL; i++) {
+        if (out->resampler[i]) {
+            release_resampler(out->resampler[i]);
+            out->resampler[i] = NULL;
+        }
+    }
+
     free(stream);
 }
 
@@ -3211,6 +3267,10 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb)
 
                 if(adev->card_list[n]->out_rate > adev->mm_rate)
                     adev->mm_rate = adev->card_list[n]->out_rate;
+
+                channels = 2;
+                if( pcm_get_near_param(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                        adev->card_list[n]->out_channels = channels;
 
                 rate = 44100;
                 if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
