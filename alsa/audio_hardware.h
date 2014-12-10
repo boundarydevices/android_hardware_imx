@@ -122,7 +122,7 @@ struct imx_stream_out {
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
     struct pcm_config config[PCM_TOTAL];
     struct pcm *pcm[PCM_TOTAL];
-    struct resampler_itfe *resampler;
+    struct resampler_itfe *resampler[PCM_TOTAL];
     char *buffer;
     int standby;
     struct echo_reference_itfe *echo_reference;
