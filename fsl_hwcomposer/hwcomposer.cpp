@@ -46,12 +46,6 @@
 /*****************************************************************************/
 #define HWC_G2D   HWC_OVERLAY
 
-typedef EGLClientBuffer (EGLAPIENTRYP PFNEGLGETRENDERBUFFERVIVPROC) (EGLClientBuffer Handle);
-typedef EGLBoolean (EGLAPIENTRYP PFNEGLPOSTBUFFERVIVPROC) (EGLClientBuffer Buffer);
-
-static PFNEGLGETRENDERBUFFERVIVPROC  _eglGetRenderBufferVIV;
-static PFNEGLPOSTBUFFERVIVPROC _eglPostBufferVIV;
-
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device);
 
@@ -69,6 +63,9 @@ extern int hwc_updateSwapRect(struct fsl_private *priv, int disp,
                  android_native_buffer_t* nbuf);
 extern bool hwc_hasSameContent(struct fsl_private *priv, int src,
             int dst, hwc_display_contents_1_t** lists);
+
+extern "C" void* g2d_getRenderBuffer(void *handle, void *BufferHandle);
+extern "C" unsigned int g2d_postBuffer(void *handle, void* PostBuffer);
 
 static struct hw_module_methods_t hwc_module_methods = {
     open: hwc_device_open
@@ -274,7 +271,7 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     //framebuffer handle.
     android_native_buffer_t *fbuffer = NULL;
     struct private_handle_t *frameHandle;
-    fbuffer = (ANativeWindowBuffer *) _eglGetRenderBufferVIV(targetHandle);
+    fbuffer = (ANativeWindowBuffer *) g2d_getRenderBuffer(priv->g2d_handle, targetHandle);
     if (fbuffer == NULL) {
         ALOGE("get render buffer failed!");
         return -EINVAL;
@@ -318,7 +315,7 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     }
     g2d_finish(priv->g2d_handle);
 
-    _eglPostBufferVIV(fbuffer);
+    g2d_postBuffer(priv->g2d_handle, fbuffer);
 
     return 0;
 }
@@ -549,28 +546,6 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         priv->setDisplayInfo = hwc_setDisplayInfo;
         priv->close = hwc_device_close;
 
-        if (_eglGetRenderBufferVIV == NULL || _eglPostBufferVIV == NULL)
-        {
-            _eglGetRenderBufferVIV = (PFNEGLGETRENDERBUFFERVIVPROC)
-                eglGetProcAddress("eglGetRenderBufferVIV");
-
-            if (_eglGetRenderBufferVIV == NULL)
-            {
-                ALOGE("eglGetRenderBufferVIV not found!");
-                status = -EINVAL;
-                goto err_exit;
-            }
-
-            _eglPostBufferVIV = (PFNEGLPOSTBUFFERVIVPROC)
-                eglGetProcAddress("eglPostBufferVIV");
-
-            if (_eglPostBufferVIV == NULL)
-            {
-                ALOGE("eglPostBufferVIV not found!");
-                status = -EINVAL;
-                goto err_exit;
-            }
-        }
         ALOGI("using fsl hwc!!!");
 
 nor_exit:
