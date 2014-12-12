@@ -26,7 +26,7 @@
 #define DEFAULT_PICTURE_W   (640)
 #define DEFAULT_PICTURE_H   (480)
 #define FORMAT_STRING_LEN 64
-#define MAX_DEQUEUE_WAIT_TIME  (5000)  //5000ms for uvc camera
+#define MAX_DEQUEUE_WAIT_TIME  5  //5s for uvc camera
 
 using namespace android;
 

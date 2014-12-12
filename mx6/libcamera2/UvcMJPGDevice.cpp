@@ -530,8 +530,8 @@ CaptureFrame:
 
     FD_ZERO(&rfds);
     FD_SET(mCameraHandle, &rfds);
-    tv.tv_sec = 0;
-    tv.tv_usec = MAX_DEQUEUE_WAIT_TIME*1000;
+    tv.tv_sec = MAX_DEQUEUE_WAIT_TIME;
+    tv.tv_usec = 0;
 
     n = select(mCameraHandle+1, &rfds, NULL, NULL, &tv);
     if(n < 0) {
