@@ -926,7 +926,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         val = atoi(value);
         pthread_mutex_lock(&adev->lock);
         pthread_mutex_lock(&out->lock);
-        if ((adev->out_device != val) && (val != 0)) {
+        if (adev->out_device != val) {
             if (out == adev->active_output[OUTPUT_PRIMARY] && !out->standby) {
                 /* a change in output device may change the microphone selection */
                 if (adev->active_input &&
@@ -945,7 +945,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
                         (adev->mode == AUDIO_MODE_IN_CALL))
                     do_output_standby(out);
             }
-            if (out != adev->active_output[OUTPUT_HDMI]) {
+            if ((out != adev->active_output[OUTPUT_HDMI]) && val) {
                 adev->out_device = val;
                 out->device    = val;
                 if(out->device & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) {
