@@ -185,6 +185,7 @@ status_t TVINDevice::setDeviceConfig(int         width,
     int vformat;
 
 #ifdef VADC_TVIN
+    format; //avoid compile error
     vformat = v4l2_fourcc('Y', '4', '4', '4');
 #else
     vformat = convertPixelFormatToV4L2Format(format);
