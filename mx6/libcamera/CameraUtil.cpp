@@ -136,14 +136,21 @@ void CameraFrame::initialize(buffer_handle_t *buf_h,
 
 void CameraFrame::addState(CAMERA_BUFS_STATE state)
 {
+    Mutex::Autolock lock(mCFLock);
     mBufState |= state;
 }
 
 void CameraFrame::removeState(CAMERA_BUFS_STATE state)
 {
+    Mutex::Autolock lock(mCFLock);
     mBufState &= ~state;
 }
 
+CameraFrame::CAMERA_BUFS_STATE CameraFrame::getState()
+{
+    Mutex::Autolock lock(mCFLock);
+    return (CameraFrame::CAMERA_BUFS_STATE)mBufState;
+}
 void CameraFrame::addReference()
 {
     atomic_fetch_add(&mRefCount, 1);
@@ -151,9 +158,10 @@ void CameraFrame::addReference()
 
 void CameraFrame::release()
 {
-    FSL_ASSERT(mRefCount > 0, "mRefCount=%d invalid value", mRefCount);
+
 
     int prevCount = atomic_fetch_sub(&mRefCount, 1);
+    FSL_ASSERT(prevCount > 0, "mRefCount=%d invalid value", prevCount);
     if ((prevCount == 1) && (mObserver != NULL)) {
         mObserver->handleFrameRelease(this);
     }

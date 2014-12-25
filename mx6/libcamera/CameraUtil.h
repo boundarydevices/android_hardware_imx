@@ -178,6 +178,7 @@ public:
                     int              index);
     void addState(CAMERA_BUFS_STATE state);
     void removeState(CAMERA_BUFS_STATE state);
+    CAMERA_BUFS_STATE getState();
     void release();
     void addReference();
     void setObserver(CameraFrameObserver *observer);
@@ -202,6 +203,7 @@ private:
     CameraFrameObserver *mObserver;
     atomic_int mRefCount;
     int                  mBufState;
+    mutable Mutex mCFLock;
 };
 
 enum CAMERA_ERROR {
