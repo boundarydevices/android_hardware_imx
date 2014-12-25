@@ -824,13 +824,14 @@ void CameraBridge::sendPreviewFrame(CameraFrame *frame)
 
 void CameraBridge::sendVideoFrame(CameraFrame *frame)
 {
-    FSL_ASSERT(frame);
+    Mutex::Autolock lock(mRecordingLock);
+
     if (!mRecording) {
-        FLOGE("CameraBridge: sendVideoFrame but mRecording not enable");
+        FLOGW("CameraBridge: sendVideoFrame but mRecording not enable");
         return;
     }
 
-    mRecordingLock.lock();
+    FSL_ASSERT(frame);
     nsecs_t timeStamp = systemTime(SYSTEM_TIME_MONOTONIC);
     int     bufIdx    = frame->mIndex;
     FSL_ASSERT(bufIdx >= 0);
@@ -861,20 +862,28 @@ void CameraBridge::sendVideoFrame(CameraFrame *frame)
 
     // the frame held in mediaRecorder.
     frame->addReference();
+    frame->addState(CameraFrame::BUFS_IN_RECORDER);
+
     mDataCbTimestamp(timeStamp,
                      CAMERA_MSG_VIDEO_FRAME,
                      mVideoMemory,
                      bufIdx,
                      mCallbackCookie);
-    mRecordingLock.unlock();
 }
 
 void CameraBridge::releaseRecordingFrame(const void *mem)
 {
+    if (!mRecording) {
+        FLOGE("CameraBridge: releaseRecordingFrame but mRecording not enable");
+        return;
+    }
     CameraFrame *pFrame = (CameraFrame *)mMetaDataBufsMap.valueFor((int)mem);
 
     // the frame release from mediaRecorder.
-    pFrame->release();
+    if(pFrame) {
+        pFrame->removeState(CameraFrame::BUFS_IN_RECORDER);
+        pFrame->release();
+    }
 }
 
 void CameraBridge::handleCameraFrame(CameraFrame *frame)
@@ -927,6 +936,16 @@ void CameraBridge::releaseVideoBufs()
         mVideoMemory = NULL;
     }
 
+    int size = mMetaDataBufsMap.size();
+    for(int i = 0; i < size; i++) {
+        CameraFrame *pFrame = (CameraFrame *)mMetaDataBufsMap.valueAt(i);
+        if(pFrame) {
+            if(pFrame->getState() & CameraFrame::BUFS_IN_RECORDER) {
+                pFrame->removeState(CameraFrame::BUFS_IN_RECORDER);
+                pFrame->release();
+            }
+        }
+    }
     mMetaDataBufsMap.clear();
 }
 
