@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -226,12 +226,14 @@ status_t UvcDevice::initSensorInfo(const CameraInfo& info)
                     convertPixelFormatToV4L2Format(mDefaultFormat);
         ret = ioctl(mCameraHandle,
                     VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
-        if (vid_frmsize.discrete.width == 1600 &&
-                     vid_frmsize.discrete.height == 1200) {
-            continue;
-        }
 
         if (ret == 0) {
+            //uvc need do csc, so omit large resolution.
+            if (vid_frmsize.discrete.width > 1920 ||
+                     vid_frmsize.discrete.height > 1080) {
+                continue;
+            }
+
             FLOGI("enum frame size w:%d, h:%d",
                        vid_frmsize.discrete.width, vid_frmsize.discrete.height);
             memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
