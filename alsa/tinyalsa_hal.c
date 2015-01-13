@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2012-2014 Freescale Semiconductor, Inc. */
+/* Copyright (C) 2012-2015 Freescale Semiconductor, Inc. */
 
 #define LOG_TAG "audio_hw_primary"
 //#define LOG_NDEBUG 0
@@ -159,7 +159,7 @@ static void select_input_device(struct imx_audio_device *adev);
 static int adev_set_voice_volume(struct audio_hw_device *dev, float volume);
 static int do_input_standby(struct imx_stream_in *in);
 static int do_output_standby(struct imx_stream_out *out);
-static int scan_available_device(struct imx_audio_device *adev, bool rescanusb);
+static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, bool queryInput, bool queryOutput);
 static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
                                    struct resampler_buffer* buffer);
 static void release_buffer(struct resampler_buffer_provider *buffer_provider,
@@ -995,7 +995,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
                 adev->out_device = val;
                 out->device    = val;
                 if(out->device & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) {
-                    scan_available_device(adev, false);
+                    scan_available_device(adev, false, false, true);
                 }
 
                 select_output_device(adev);
@@ -1809,7 +1809,7 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
             in->device = val;
             do_standby = true;
             if(in->device & AUDIO_DEVICE_IN_USB_DEVICE)
-               scan_available_device(adev, false);
+               scan_available_device(adev, false, true, false);
             in_update_aux_channels(in, NULL);
         }
     }
@@ -2270,6 +2270,7 @@ exit:
                in_get_sample_rate(&stream->common));
     }
     pthread_mutex_unlock(&in->lock);
+
     return bytes;
 }
 
@@ -3084,13 +3085,15 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     in->main_channels = config->channel_mask;
 
-    if (in->device & AUDIO_DEVICE_IN_USB_DEVICE)
-        scan_available_device(ladev, true);
+    if (in->device & AUDIO_DEVICE_IN_USB_DEVICE) {
+        scan_available_device(ladev, true, true, false);
+    }
 
     in->dev = ladev;
     in->standby = 1;
 
     *stream_in = &in->stream;
+
     return 0;
 
 err:
@@ -3099,6 +3102,7 @@ err:
 
     free(in);
     *stream_in = NULL;
+
     return ret;
 }
 
@@ -3194,7 +3198,7 @@ static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t de
      return 0;
 }
 
-static int scan_available_device(struct imx_audio_device *adev, bool rescanusb)
+static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, bool queryInput, bool queryOutput)
 {
     int i,j,k;
     int m,n;
@@ -3260,36 +3264,40 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb)
                     }
                 }
 
-                rate = 44100;
-                if( pcm_get_near_param(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
-                        adev->card_list[n]->out_rate = rate;
-                ALOGW("out rate %d",adev->card_list[n]->out_rate);
+                if(queryOutput) {
+                    rate = 44100;
+                    if( pcm_get_near_param(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
+                            adev->card_list[n]->out_rate = rate;
+                    ALOGW("out rate %d",adev->card_list[n]->out_rate);
 
-                if(adev->card_list[n]->out_rate > adev->mm_rate)
-                    adev->mm_rate = adev->card_list[n]->out_rate;
+                    if(adev->card_list[n]->out_rate > adev->mm_rate)
+                        adev->mm_rate = adev->card_list[n]->out_rate;
 
-                channels = 2;
-                if( pcm_get_near_param(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
-                        adev->card_list[n]->out_channels = channels;
-
-                rate = 44100;
-                if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
-                        adev->card_list[n]->in_rate = rate;
-
-                channels = 1;
-                if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
-                        adev->card_list[n]->in_channels = channels;
-
-                format = PCM_FORMAT_S16_LE;
-                if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
-                        adev->card_list[n]->in_format = format;
-                else {
-                    format = PCM_FORMAT_S24_LE;
-                    if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
-                        adev->card_list[n]->in_format = format;
+                    channels = 2;
+                    if( pcm_get_near_param(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                            adev->card_list[n]->out_channels = channels;
                 }
 
-                ALOGW("in rate %d, channels %d format %d",adev->card_list[n]->in_rate, adev->card_list[n]->in_channels, adev->card_list[n]->in_format);
+                if(queryInput) {
+                    rate = 44100;
+                    if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
+                            adev->card_list[n]->in_rate = rate;
+
+                    channels = 1;
+                    if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                            adev->card_list[n]->in_channels = channels;
+
+                    format = PCM_FORMAT_S16_LE;
+                    if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
+                            adev->card_list[n]->in_format = format;
+                    else {
+                        format = PCM_FORMAT_S24_LE;
+                        if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
+                            adev->card_list[n]->in_format = format;
+                    }
+
+                    ALOGW("in rate %d, channels %d format %d",adev->card_list[n]->in_rate, adev->card_list[n]->in_channels, adev->card_list[n]->in_format);
+                }
 
                 left_out_devices &= ~audio_card_list[j]->supported_out_devices;
                 left_in_devices &= ~audio_card_list[j]->supported_in_devices;
@@ -3358,7 +3366,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.dump                    = adev_dump;
     adev->mm_rate                           = 44100;
 
-    ret = scan_available_device(adev, true);
+    ret = scan_available_device(adev, true, true, true);
     if (ret != 0) {
         free(adev);
         return ret;
