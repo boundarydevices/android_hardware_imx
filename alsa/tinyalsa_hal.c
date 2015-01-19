@@ -913,6 +913,8 @@ static int do_output_standby(struct imx_stream_out *out)
                 pcm_close(out->pcm[i]);
                 out->pcm[i] = NULL;
             }
+
+            out->writeContiFailCount[i] = 0;
         }
 
         ALOGW("do_out_standby... %d",(int)out);
@@ -972,6 +974,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         val = atoi(value);
         pthread_mutex_lock(&adev->lock);
         pthread_mutex_lock(&out->lock);
+
         if (adev->out_device != val) {
             if (out == adev->active_output[OUTPUT_PRIMARY] && !out->standby) {
                 /* a change in output device may change the microphone selection */
@@ -988,8 +991,10 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
                                          AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET)) ||
                         ((val & AUDIO_DEVICE_OUT_SPEAKER) ^
                         (adev->out_device & AUDIO_DEVICE_OUT_SPEAKER)) ||
-                        (adev->mode == AUDIO_MODE_IN_CALL))
+                        (adev->mode == AUDIO_MODE_IN_CALL)) {
+                        ALOGI("out_set_parameters, old 0x%x, new 0x%x do_output_standby", adev->out_device, val);
                     do_output_standby(out);
+                }
             }
             if ((out != adev->active_output[OUTPUT_HDMI]) && val) {
                 adev->out_device = val;
@@ -1009,9 +1014,13 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
             pthread_mutex_unlock(&in->lock);
         }
         pthread_mutex_unlock(&adev->lock);
+
+        ret = 0;
     }
+
     ALOGW("out_set_parameters %s, ret %d, out %d",kvpairs, ret, (int)out);
     str_parms_destroy(parms);
+
     return ret;
 }
 
@@ -1176,7 +1185,7 @@ static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes,
          ret = pcm_write(pcm, (void *)buffer, bytes);
 
     if(ret !=0) {
-         ALOGW("ret %d, pcm write %d error %s.", ret, bytes, pcm_get_error(pcm));
+         ALOGW("ret %d, pcm write %d error %s", ret, bytes, pcm_get_error(pcm));
 
          switch(pcm_state(pcm)) {
               case PCM_STATE_SETUP:
@@ -1262,10 +1271,25 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
                 /* PCM needs resampler */
                 ret = pcm_write_wrapper(out->pcm[i], (void *)out->buffer, out_frames * frame_size, out->write_flags[i]);
             }
-            if (ret)
+
+            if (ret) {
+                out->writeContiFailCount[i]++;
                 break;
+            } else {
+                out->writeContiFailCount[i] = 0;
+            }
         }
    }
+
+    //If continue fail, probably th fd is invalid.
+    for (i = 0; i < PCM_TOTAL; i++) {
+        if(out->writeContiFailCount[i] > 20) {
+            ALOGW("pcm_write_wrapper continues failed for pcm %d, standby", i);
+            do_output_standby(out);
+            break;
+        }
+    }
+
    if (ret == 0)  out->written += bytes / frame_size;
 
 exit:
