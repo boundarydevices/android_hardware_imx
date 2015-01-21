@@ -456,7 +456,7 @@ void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	}
 
 	if (iter_data->need_set_hw_addr && iter_data->hw_macaddr)
-		if (compare_ether_addr(iter_data->hw_macaddr, mac) == 0)
+		if (ether_addr_equal(iter_data->hw_macaddr, mac) == 1)
 			iter_data->need_set_hw_addr = false;
 
 	if (!iter_data->any_assoc) {

@@ -1606,7 +1606,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	    skb->len >= len_rthdr + hdrlen + sizeof(rfc1042_header) + 2) {
 		u8 *payload = (u8 *)hdr + hdrlen;
 
-		if (compare_ether_addr(payload, rfc1042_header) == 0)
+		if (ether_addr_equal(payload, rfc1042_header) == 1)
 			skb->protocol = cpu_to_be16((payload[6] << 8) |
 						    payload[7]);
 	}
@@ -1639,7 +1639,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 		    tmp_sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
 		    tmp_sdata->vif.type == NL80211_IFTYPE_WDS)
 			continue;
-		if (compare_ether_addr(tmp_sdata->vif.addr, hdr->addr2) == 0) {
+		if (ether_addr_equal(tmp_sdata->vif.addr, hdr->addr2) == 1) {
 			sdata = tmp_sdata;
 			break;
 		}
@@ -1756,9 +1756,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		 * is being proxied by a portal (i.e. portal address
 		 * differs from proxied address)
 		 */
-		if (compare_ether_addr(sdata->vif.addr,
-				       skb->data + ETH_ALEN) == 0 &&
-		    !(mppath && compare_ether_addr(mppath->mpp, skb->data))) {
+		if (ether_addr_equal(sdata->vif.addr,
+				       skb->data + ETH_ALEN) == 1 &&
+		    !(mppath && !ether_addr_equal(mppath->mpp, skb->data))) {
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
 			rcu_read_unlock();
@@ -1905,7 +1905,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	if (unlikely(!ieee80211_vif_is_mesh(&sdata->vif) &&
 		     !is_multicast_ether_addr(hdr.addr1) && !authorized &&
 		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
-		      compare_ether_addr(sdata->vif.addr, skb->data + ETH_ALEN)))) {
+		      !ether_addr_equal(sdata->vif.addr, skb->data + ETH_ALEN)))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: dropped frame to %pM"

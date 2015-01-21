@@ -246,7 +246,7 @@ u8 iwl_legacy_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		sta_id = ctx->bcast_sta_id;
 	else
 		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++) {
-			if (!compare_ether_addr(priv->stations[i].sta.sta.addr,
+			if (ether_addr_equal(priv->stations[i].sta.sta.addr,
 						addr)) {
 				sta_id = i;
 				break;
@@ -278,7 +278,7 @@ u8 iwl_legacy_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	if ((priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE) &&
 	    (priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE) &&
-	    !compare_ether_addr(priv->stations[sta_id].sta.sta.addr, addr)) {
+	    ether_addr_equal(priv->stations[sta_id].sta.sta.addr, addr)) {
 		IWL_DEBUG_ASSOC(priv,
 				"STA %d (%pM) already added, not adding again.\n",
 				sta_id, addr);

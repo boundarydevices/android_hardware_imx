@@ -1059,7 +1059,7 @@ static inline struct ieee80211_hw *local_to_hw(
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {
-	return compare_ether_addr(raddr, addr) == 0 ||
+	return ether_addr_equal(raddr, addr) == 1 ||
 	       is_broadcast_ether_addr(raddr);
 }
 

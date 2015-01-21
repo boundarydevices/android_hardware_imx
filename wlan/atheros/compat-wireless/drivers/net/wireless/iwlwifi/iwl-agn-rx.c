@@ -796,7 +796,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 		for_each_context(priv, ctx) {
 			if (!ctx->last_tx_rejected)
 				continue;
-			if (compare_ether_addr(hdr->addr3,
+			if (!ether_addr_equal(hdr->addr3,
 					       ctx->active.bssid_addr))
 				continue;
 			ctx->last_tx_rejected = false;
