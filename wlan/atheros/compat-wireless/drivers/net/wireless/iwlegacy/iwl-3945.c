@@ -447,10 +447,10 @@ static int iwl3945_is_network_packet(struct iwl_priv *priv,
 	switch (priv->iw_mode) {
 	case NL80211_IFTYPE_ADHOC: /* Header: Dest. | Source    | BSSID */
 		/* packets to our IBSS update information */
-		return !compare_ether_addr(header->addr3, priv->bssid);
+		return ether_addr_equal(header->addr3, priv->bssid);
 	case NL80211_IFTYPE_STATION: /* Header: Dest. | AP{BSSID} | Source */
 		/* packets to our IBSS update information */
-		return !compare_ether_addr(header->addr2, priv->bssid);
+		return ether_addr_equal(header->addr2, priv->bssid);
 	default:
 		return 1;
 	}
