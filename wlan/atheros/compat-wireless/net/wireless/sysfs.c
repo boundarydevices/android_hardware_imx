@@ -59,7 +59,7 @@ static ssize_t addresses_show(struct device *dev,
 
 	return buf - start;
 }
-
+/*
 static struct device_attribute ieee80211_dev_attrs[] = {
 	__ATTR_RO(index),
 	__ATTR_RO(macaddress),
@@ -68,6 +68,22 @@ static struct device_attribute ieee80211_dev_attrs[] = {
 	__ATTR_RO(name),
 	{}
 };
+*/
+static DEVICE_ATTR_RO(index);
+static DEVICE_ATTR_RO(macaddress);
+static DEVICE_ATTR_RO(address_mask);
+static DEVICE_ATTR_RO(addresses);
+static DEVICE_ATTR_RO(name);
+
+static struct attribute *ieee80211_dev_attrs[] = {
+   &dev_attr_index.attr,
+   &dev_attr_macaddress.attr,
+   &dev_attr_address_mask.attr,
+   &dev_attr_addresses.attr,
+   &dev_attr_name.attr,
+   NULL,
+};
+ATTRIBUTE_GROUPS(ieee80211_dev);
 
 static void wiphy_dev_release(struct device *dev)
 {
@@ -134,7 +150,7 @@ struct class ieee80211_class = {
 	.name = "ieee80211",
 	.owner = THIS_MODULE,
 	.dev_release = wiphy_dev_release,
-	.dev_attrs = ieee80211_dev_attrs,
+	.dev_groups = ieee80211_dev_groups,
 #ifdef CONFIG_HOTPLUG
 	.dev_uevent = wiphy_uevent,
 #endif

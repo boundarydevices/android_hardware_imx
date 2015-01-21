@@ -625,7 +625,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 
 	/* ignore ProbeResp to foreign address */
 	if (stype == IEEE80211_STYPE_PROBE_RESP &&
-	    compare_ether_addr(mgmt->da, sdata->vif.addr))
+	    !ether_addr_equal(mgmt->da, sdata->vif.addr))
 		return;
 
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;

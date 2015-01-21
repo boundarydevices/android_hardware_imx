@@ -1731,7 +1731,7 @@ static u8 iwl4965_find_station(struct iwl_priv *priv, const u8 *addr)
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	for (i = start; i < priv->hw_params.max_stations; i++)
 		if (priv->stations[i].used &&
-		    (!compare_ether_addr(priv->stations[i].sta.sta.addr,
+		    (ether_addr_equal(priv->stations[i].sta.sta.addr,
 					 addr))) {
 			ret = i;
 			goto out;

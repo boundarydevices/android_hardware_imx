@@ -777,7 +777,7 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 		 * Before queuing, we already verified mgmt->sa,
 		 * so this is needed just for matching.
 		 */
-		if (compare_ether_addr(bssid, mgmt->bssid))
+		if (!ether_addr_equal(bssid, mgmt->bssid))
 			continue;
 
 		switch (fc & IEEE80211_FCTL_STYPE) {
@@ -1177,9 +1177,9 @@ ieee80211_rx_result ieee80211_work_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 	list_for_each_entry_rcu(wk, &local->work_list, list) {
 		if (sdata != wk->sdata)
 			continue;
-		if (compare_ether_addr(wk->filter_ta, mgmt->sa))
+		if (!ether_addr_equal(wk->filter_ta, mgmt->sa))
 			continue;
-		if (compare_ether_addr(wk->filter_ta, mgmt->bssid))
+		if (!ether_addr_equal(wk->filter_ta, mgmt->bssid))
 			continue;
 
 		switch (fc & IEEE80211_FCTL_STYPE) {

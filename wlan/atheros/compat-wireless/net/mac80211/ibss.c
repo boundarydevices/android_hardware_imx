@@ -441,7 +441,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
 		return NULL;
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid))
 		return NULL;
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
