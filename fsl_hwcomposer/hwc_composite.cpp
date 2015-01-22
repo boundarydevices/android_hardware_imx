@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2014 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,6 +134,14 @@ static int convertRotation(int transform, struct g2d_surface& src,
             break;
     }
 
+    return 0;
+}
+
+static int adjustRotation(uint32_t srcTransform, struct g2d_surface& src,
+                  uint32_t dstTransform, struct g2d_surface& dst)
+{
+    convertRotation(dstTransform, src, dst);
+    convertRotation(srcTransform, dst, src);
     return 0;
 }
 
@@ -701,7 +709,8 @@ bool hwc_hasSameContent(struct fsl_private *priv, int src,
 }
 
 int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
-                    struct private_handle_t *srcHandle)
+                    uint32_t dstTransform, struct private_handle_t *srcHandle,
+                    uint32_t srcTransform)
 {
     if (priv == NULL || priv->g2d_handle == NULL || srcHandle == NULL || dstHandle == NULL) {
         ALOGE("%s invalid priv", __FUNCTION__);
@@ -713,16 +722,24 @@ int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
     srect.top = 0;
     srect.right = srcHandle->width;
     srect.bottom = srcHandle->height;
+    uint32_t dstRotation = (dstTransform & HAL_TRANSFORM_ROT_90);
+    uint32_t srcRotation = (srcTransform & HAL_TRANSFORM_ROT_90);
+    int srcWidth = srcHandle->width;
+    int srcHeight = srcHandle->height;
+    if (srcRotation ^ dstRotation) {
+        srcWidth = srcHandle->height;
+        srcHeight = srcHandle->width;
+    }
 
     hwc_rect_t drect;
     int deltaW = 0, deltaH = 0;
     int dstW = dstHandle->width;
     int dstH = dstHandle->height;
-    if (dstW * srcHandle->height >= dstH * srcHandle->width) {
-        dstW = dstH * srcHandle->width / srcHandle->height;
+    if (dstW * srcHeight >= dstH * srcWidth) {
+        dstW = dstH * srcWidth / srcHeight;
     }
     else {
-        dstH = dstW * srcHandle->height / srcHandle->width;
+        dstH = dstW * srcHeight / srcWidth;
     }
 
     deltaW = dstHandle->width - dstW;
@@ -738,7 +755,12 @@ int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
     setG2dSurface(priv, sSurface, srcHandle, srect);
     setG2dSurface(priv, dSurface, dstHandle, drect);
 
-    if (priv->vg_engine) {
+    if (srcTransform != dstTransform) {
+        adjustRotation(srcTransform, sSurface, dstTransform, dSurface);
+    }
+
+    bool hasRotation = ((srcTransform != 0) || (dstTransform != 0));
+    if (!hasRotation && priv->vg_engine) {
         /* Wait all 2D operations done. */
         g2d_finish(priv->g2d_handle);
         g2d_make_current(priv->g2d_handle, G2D_HARDWARE_VG);
@@ -746,7 +768,7 @@ int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
 
     g2d_blit(priv->g2d_handle, &sSurface, &dSurface);
 
-    if (priv->vg_engine) {
+    if (!hasRotation && priv->vg_engine) {
         /* Wait all VG operations done. */
         g2d_finish(priv->g2d_handle);
         g2d_make_current(priv->g2d_handle, G2D_HARDWARE_2D);

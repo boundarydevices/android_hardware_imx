@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2014 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,7 +58,8 @@ extern int hwc_clearRect(struct fsl_private *priv, struct private_handle_t *dstH
 extern int hwc_copyBack(struct fsl_private *priv, struct private_handle_t *dstHandle,
                     struct private_handle_t *srcHandle, int swapIndex, int disp);
 extern int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
-                    struct private_handle_t *srcHandle);
+                    uint32_t dstTransform, struct private_handle_t *srcHandle,
+                    uint32_t srcTransform);
 extern int hwc_updateSwapRect(struct fsl_private *priv, int disp,
                  android_native_buffer_t* nbuf);
 extern bool hwc_hasSameContent(struct fsl_private *priv, int src,
@@ -300,7 +301,8 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
         struct private_handle_t *primaryHandle = NULL;
         primaryHandle = (struct private_handle_t *)primaryLayer->handle;
         if (primaryHandle != NULL) {
-            hwc_resize(priv, frameHandle, primaryHandle);
+            hwc_resize(priv, frameHandle, targetLayer->transform,
+                       primaryHandle, primaryLayer->transform);
             resized = true;
         }
     }
