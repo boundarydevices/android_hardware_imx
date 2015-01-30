@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
 #define LOG_TAG "i.MXPowerHAL"
 #include <utils/Log.h>
 
@@ -32,6 +31,15 @@
 #define BOOST_PATH      "/sys/devices/system/cpu/cpufreq/interactive/boost"
 #define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
 #define CONSER "conservative"
+#define LOW_POWER_MAX_FREQ "792000"
+#define LOW_POWER_MIN_FREQ "396000"
+#define NORMAL_MAX_FREQ "1200000"
+static char *cpu_path_min = 
+    "/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq";
+static char *cpu_path_max = 
+    "/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
+
+static pthread_mutex_t low_power_mode_lock = PTHREAD_MUTEX_INITIALIZER;
 static int boost_fd = -1;
 static int boost_warned;
 static sp<SwitchprofileThread> switchprofile;
@@ -97,20 +105,23 @@ static void fsl_power_set_interactive(struct power_module *module, int on)
 static void fsl_power_hint(struct power_module *module, power_hint_t hint,
                             void *data)
 {
-    char buf[80];
-    int len;
-    memset(buf, 0, sizeof(buf));
-    getcpu_gov(buf,sizeof(buf));
-    if(!strncmp(CONSER, buf, strlen(CONSER))){
-	   ALOGE("Not in interactive mode, don't do powerhint\n");
-	    return;
-    }
     switch (hint) {
     case POWER_HINT_VSYNC:
         break;
     case POWER_HINT_INTERACTION:
         sysfs_write(BOOSTPULSE_PATH, "1");
         break;
+    case POWER_HINT_LOW_POWER:
+        pthread_mutex_lock(&low_power_mode_lock);
+        if (data) {
+                     sysfs_write(cpu_path_min, LOW_POWER_MIN_FREQ);
+                     sysfs_write(cpu_path_max, LOW_POWER_MAX_FREQ);
+             } else {
+                     sysfs_write(cpu_path_max, NORMAL_MAX_FREQ);
+             }
+        pthread_mutex_unlock(&low_power_mode_lock);
+        break;
+ 
     default:
         break;
     }
