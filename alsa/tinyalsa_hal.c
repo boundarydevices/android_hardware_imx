@@ -1290,9 +1290,8 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
         }
     }
 
-   if (ret == 0)  out->written += bytes / frame_size;
-
 exit:
+    out->written += bytes / frame_size;
     pthread_mutex_unlock(&out->lock);
 
     if (ret != 0) {
@@ -1342,9 +1341,9 @@ static ssize_t out_write_hdmi(struct audio_stream_out *stream, const void* buffe
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
 
     ret = pcm_write_wrapper(out->pcm[PCM_HDMI], (void *)buffer, bytes, out->write_flags[PCM_HDMI]);
-    if (ret == 0)  out->written += bytes / frame_size;
 
 exit:
+    out->written += bytes / frame_size;
     pthread_mutex_unlock(&out->lock);
 
     if (ret != 0) {
@@ -1436,9 +1435,9 @@ static ssize_t out_write_esai(struct audio_stream_out *stream, const void* buffe
 
     convert_output_for_esai(buffer, bytes, out->config[PCM_ESAI].channels);
     ret = pcm_write_wrapper(out->pcm[PCM_ESAI], (void *)buffer, bytes, out->write_flags[PCM_ESAI]);
-    if (ret == 0)  out->written += bytes / frame_size;
 
 exit:
+    out->written += bytes / frame_size;
     pthread_mutex_unlock(&out->lock);
 
     if (ret != 0) {
