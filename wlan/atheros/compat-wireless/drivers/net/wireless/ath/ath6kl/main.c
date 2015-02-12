@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1658,9 +1659,76 @@ int ath6kl_ioctl_ap_ps_parameter_set(struct ath6kl_vif *vif,
 	return ret;
 }
 
+int ath6kl_ioctl_set_ap_wps_p2p_ie(struct ath6kl_vif *vif,
+				     char *buf, int len)
+{
+	struct ath6kl *ar = vif->ar;
+	char *sptr, *token, *tmp;
+	u8 wps_p2p_ie_type, i, found = 0;
+	u8 ie_buff[1024];
+	int ret;
+
+	if (len <= 0)
+		return -EFAULT;
+
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token || kstrtou8(token, 0, &wps_p2p_ie_type))
+		return -EINVAL;
+
+	tmp = buf;
+	tmp += 2;
+
+	while (tmp < buf + len) {
+		if (tmp[1] > 3 && tmp[2] == 0x00 && tmp[3] == 0x50 &&
+				tmp[4] == 0xf2 && tmp[5] == WSC_OUT_TYPE) {
+			/* WSC OUT (00:50:F2) */
+			found = 1;
+			break;
+		} else {
+			tmp = tmp + tmp[1] + 2;
+		}
+	}
+
+	if (found) {
+		memcpy(ie_buff, tmp, len - (tmp - buf));
+		memcpy(ie_buff + len - (tmp - buf), buf + 2, tmp - buf - 2);
+	} else {
+		return -EFAULT;
+	}
+
+	switch (wps_p2p_ie_type) {
+	case 1:
+		ret = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+		                               WMI_FRAME_BEACON,
+		                               ie_buff,
+		                               len - 2);
+
+		break;
+	case 2:
+		ret = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+		                               WMI_FRAME_PROBE_RESP,
+		                               ie_buff,
+		                               len - 2);
+		break;
+	case 4:
+		ret = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+		                               WMI_FRAME_ASSOC_RESP,
+		                               ie_buff,
+		                               len - 2);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static struct ath6kl_drv_priv_cmd_ops ath6kl_priv_ops[] = {
 	{"PKT_FILTER ", ath6kl_ioctl_pkt_filter_set},
 	{"AP_PS_PARAMETER ", ath6kl_ioctl_ap_ps_parameter_set},
+	{"SET_AP_WPS_P2P_IE ", ath6kl_ioctl_set_ap_wps_p2p_ie},
 };
 
 static int ath6kl_ioctl_wext_priv(struct net_device *dev,
