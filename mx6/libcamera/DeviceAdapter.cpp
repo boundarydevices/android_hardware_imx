@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <linux/version.h>
 #include "DeviceAdapter.h"
 #include "UvcDevice.h"
 #include "Ov5640.h"
@@ -277,6 +278,7 @@ status_t DeviceAdapter::registerCameraFrames(CameraFrame *pBuffer,
 
     for (int i = 0; i < num; i++) {
         CameraFrame *buffer = pBuffer + i;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
         memset(&mVideoInfo->buf, 0, sizeof(struct v4l2_buffer));
         mVideoInfo->buf.index    = i;
         mVideoInfo->buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -289,7 +291,7 @@ status_t DeviceAdapter::registerCameraFrames(CameraFrame *pBuffer,
             FLOGE("Unable to query buffer (%s)", strerror(errno));
             return ret;
         }
-
+#endif
         // Associate each Camera buffer
         buffer->setObserver(this);
         mPreviewBufs.add((int)buffer, i);
@@ -319,8 +321,12 @@ status_t DeviceAdapter::fillCameraFrame(CameraFrame *frame)
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     cfilledbuffer.index    = i;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
     cfilledbuffer.m.offset = frame->mPhyAddr;
-
+#else
+    cfilledbuffer.m.userptr = (unsigned int)frame->mVirtAddr;
+	cfilledbuffer.length = frame->mSize;
+#endif
     ret = ioctl(mCameraHandle, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {
         FLOGE("fillCameraFrame: VIDIOC_QBUF Failed");
@@ -346,8 +352,12 @@ status_t DeviceAdapter::startDeviceLocked()
         mVideoInfo->buf.index    = i;
         mVideoInfo->buf.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         mVideoInfo->buf.memory   = V4L2_MEMORY_USERPTR;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
         mVideoInfo->buf.m.offset = frame->mPhyAddr;
-
+#else
+        mVideoInfo->buf.m.userptr = (unsigned int)frame->mVirtAddr;
+        mVideoInfo->buf.length = frame->mSize;
+#endif
         ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
         if (ret < 0) {
             FLOGE("VIDIOC_QBUF Failed");
