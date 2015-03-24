@@ -241,9 +241,11 @@ status_t CameraBridge::initParameters(CameraParameters& params)
     params.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "54.8");
     params.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, "42.5");
     params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, "0");
-    params.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, "0");
-    params.set(CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION, "0");
-    params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, "0.0");
+    params.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, "3");
+    params.set(CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION, "-3");
+    params.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, "1.0");
+    params.set(CameraParameters::KEY_AUTO_EXPOSURE_LOCK, "false");
+    params.set(CameraParameters::KEY_AUTO_EXPOSURE_LOCK_SUPPORTED, "true");
 
     memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
     strncat((char *)tmpBuffer,
