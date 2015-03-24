@@ -1283,7 +1283,7 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
 
     //If continue fail, probably th fd is invalid.
     for (i = 0; i < PCM_TOTAL; i++) {
-        if(out->writeContiFailCount[i] > 20) {
+        if(out->writeContiFailCount[i] > 100) {
             ALOGW("pcm_write_wrapper continues failed for pcm %d, standby", i);
             do_output_standby(out);
             break;
