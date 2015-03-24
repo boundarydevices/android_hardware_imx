@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -259,6 +259,12 @@ status_t CameraBridge::initParameters(CameraParameters& params)
             (const char *)PARAMS_DELIMITER,
             CAMER_PARAM_BUFFER_SIZE);
     strncat((char *)tmpBuffer,
+            (const char *)CameraParameters::ANTIBANDING_AUTO,
+            CAMER_PARAM_BUFFER_SIZE);
+    strncat((char *)tmpBuffer,
+            (const char *)PARAMS_DELIMITER,
+            CAMER_PARAM_BUFFER_SIZE);
+    strncat((char *)tmpBuffer,
             (const char *)CameraParameters::ANTIBANDING_OFF,
             CAMER_PARAM_BUFFER_SIZE);
     params.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING, tmpBuffer);
@@ -271,7 +277,7 @@ status_t CameraBridge::initParameters(CameraParameters& params)
             CAMER_PARAM_BUFFER_SIZE);
     params.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
     params.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
-    params.set(CameraParameters::KEY_ZOOM_SUPPORTED, "true");
+    params.set(CameraParameters::KEY_ZOOM_SUPPORTED, "false");
 
     // params.set(CameraParameters::KEY_ZOOM_SUPPORTED, CameraParameters::TRUE);
     params.set(CameraParameters::KEY_MAX_ZOOM, "1");
