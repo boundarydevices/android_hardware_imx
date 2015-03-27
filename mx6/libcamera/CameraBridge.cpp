@@ -110,7 +110,7 @@ status_t CameraBridge::getSupportedPictureFormat(int *pFormat,
 
 status_t CameraBridge::initParameters(CameraParameters& params)
 {
-    char tmpBuffer[CAMER_PARAM_BUFFER_SIZE];
+    char tmpBuffer[CAMER_PARAM_BUFFER_SIZE+1];
 
     /*hard code here*/
     params.set(CameraParameters::KEY_FOCUS_DISTANCES, "24.0,50.0,2147483648.0");
