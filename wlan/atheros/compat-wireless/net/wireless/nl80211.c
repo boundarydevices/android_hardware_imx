@@ -2,6 +2,7 @@
  * This is the new netlink-based wireless configuration interface.
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
  */
 
 #include <linux/if.h>
@@ -29,20 +30,18 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 				   struct cfg80211_crypto_settings *settings,
 				   int cipher_limit);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
 static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
-			    struct genl_info *info);
-static void nl80211_post_doit(struct genl_ops *ops, struct sk_buff *skb,
-			      struct genl_info *info);
-
-static const struct genl_multicast_group nl80211_event_mcgrps[] = {
-       { .name = "config", },
-       { .name = "scan", },
-       { .name = "regulatory", },
-       { .name = "mlme", },
-#ifdef CONFIG_NL80211_TESTMODE
-       { .name = "testmode", },
+#else
+static int nl80211_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 #endif
-};
+			    struct genl_info *info);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+static void nl80211_post_doit(struct genl_ops *ops, struct sk_buff *skb,
+#else
+static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
+#endif
+			      struct genl_info *info);
 
 /* the netlink family */
 static struct genl_family nl80211_fam = {
@@ -54,9 +53,30 @@ static struct genl_family nl80211_fam = {
 	.netnsok = true,
 	.pre_doit = nl80211_pre_doit,
 	.post_doit = nl80211_post_doit,
-    .mcgrps = nl80211_event_mcgrps,
-    .n_mcgrps = ARRAY_SIZE(nl80211_event_mcgrps),
 };
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0))
+/* multicast groups */
+enum nl80211_multicast_groups {
+	NL80211_MCGRP_CONFIG,
+	NL80211_MCGRP_SCAN,
+	NL80211_MCGRP_REGULATORY,
+	NL80211_MCGRP_MLME,
+	NL80211_MCGRP_VENDOR,
+	NL80211_MCGRP_TESTMODE /* keep last - ifdef! */
+};
+
+static const struct genl_multicast_group nl80211_mcgrps[] = {
+	[NL80211_MCGRP_CONFIG] = { .name = "config", },
+	[NL80211_MCGRP_SCAN] = { .name = "scan", },
+	[NL80211_MCGRP_REGULATORY] = { .name = "regulatory", },
+	[NL80211_MCGRP_MLME] = { .name = "mlme", },
+	[NL80211_MCGRP_VENDOR] = { .name = "vendor", },
+#ifdef CONFIG_NL80211_TESTMODE
+	[NL80211_MCGRP_TESTMODE] = { .name = "testmode", }
+#endif
+};
+#endif
 
 /* internal helper: get rdev and dev */
 static int get_rdev_dev_by_info_ifindex(struct genl_info *info,
@@ -4800,6 +4820,12 @@ static int nl80211_leave_ibss(struct sk_buff *skb, struct genl_info *info)
 }
 
 #ifdef CONFIG_NL80211_TESTMODE
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+static struct genl_multicast_group nl80211_testmode_mcgrp = {
+	.name = "testmode",
+};
+#endif
+
 static int nl80211_testmode_do(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -4987,7 +5013,11 @@ void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 
 	nla_nest_end(skb, data);
 	genlmsg_end(skb, hdr);
-	genlmsg_multicast(&nl80211_fam, skb, 0, 4, gfp);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast(skb, 0, nl80211_testmode_mcgrp.id, gfp);
+#else
+	genlmsg_multicast(&nl80211_fam, skb, 0, NL80211_MCGRP_TESTMODE, gfp);
+#endif
 }
 EXPORT_SYMBOL(cfg80211_testmode_event);
 #endif
@@ -6218,7 +6248,11 @@ static int nl80211_btcoex_notify(struct sk_buff *skb,
 #define NL80211_FLAG_NEED_NETDEV_UP	(NL80211_FLAG_NEED_NETDEV |\
 					 NL80211_FLAG_CHECK_NETDEV_UP)
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
 static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
+#else
+static int nl80211_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
+#endif
 			    struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev;
@@ -6259,7 +6293,11 @@ static int nl80211_pre_doit(struct genl_ops *ops, struct sk_buff *skb,
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
 static void nl80211_post_doit(struct genl_ops *ops, struct sk_buff *skb,
+#else
+static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
+#endif
 			      struct genl_info *info)
 {
 	if (info->user_ptr[0])
@@ -6808,6 +6846,23 @@ static struct genl_ops nl80211_ops[] = {
 	},
 };
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+static struct genl_multicast_group nl80211_mlme_mcgrp = {
+	.name = "mlme",
+};
+
+/* multicast groups */
+static struct genl_multicast_group nl80211_config_mcgrp = {
+	.name = "config",
+};
+static struct genl_multicast_group nl80211_scan_mcgrp = {
+	.name = "scan",
+};
+static struct genl_multicast_group nl80211_regulatory_mcgrp = {
+	.name = "regulatory",
+};
+#endif
+
 /* notification functions */
 
 void nl80211_notify_dev_rename(struct cfg80211_registered_device *rdev)
@@ -6823,8 +6878,13 @@ void nl80211_notify_dev_rename(struct cfg80211_registered_device *rdev)
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_config_mcgrp.id, GFP_KERNEL);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				0, GFP_KERNEL);
+				NL80211_MCGRP_CONFIG, GFP_KERNEL);
+#endif
 }
 
 static int nl80211_add_scan_req(struct sk_buff *msg,
@@ -6923,8 +6983,13 @@ void nl80211_send_scan_start(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_scan_mcgrp.id, GFP_KERNEL);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				1, GFP_KERNEL);
+				NL80211_MCGRP_SCAN, GFP_KERNEL);
+#endif
 }
 
 void nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
@@ -6942,8 +7007,13 @@ void nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_scan_mcgrp.id, GFP_KERNEL);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				1, GFP_KERNEL);
+				NL80211_MCGRP_SCAN, GFP_KERNEL);
+#endif
 }
 
 void nl80211_send_scan_aborted(struct cfg80211_registered_device *rdev,
@@ -6961,8 +7031,13 @@ void nl80211_send_scan_aborted(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_scan_mcgrp.id, GFP_KERNEL);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				1, GFP_KERNEL);
+				NL80211_MCGRP_SCAN, GFP_KERNEL);
+#endif
 }
 
 void nl80211_send_sched_scan_results(struct cfg80211_registered_device *rdev,
@@ -6980,8 +7055,13 @@ void nl80211_send_sched_scan_results(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_scan_mcgrp.id, GFP_KERNEL);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				1, GFP_KERNEL);
+				NL80211_MCGRP_SCAN, GFP_KERNEL);
+#endif
 }
 
 void nl80211_send_sched_scan(struct cfg80211_registered_device *rdev,
@@ -6998,8 +7078,13 @@ void nl80211_send_sched_scan(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_scan_mcgrp.id, GFP_KERNEL);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				1, GFP_KERNEL);
+				NL80211_MCGRP_SCAN, GFP_KERNEL);
+#endif
 }
 
 /*
@@ -7046,8 +7131,13 @@ void nl80211_send_reg_change_event(struct regulatory_request *request)
 	genlmsg_end(msg, hdr);
 
 	rcu_read_lock();
-	genlmsg_multicast_allns(&nl80211_fam, msg, 0, 2,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_allns(msg, 0, nl80211_regulatory_mcgrp.id,
 				GFP_ATOMIC);
+#else
+	genlmsg_multicast_allns(&nl80211_fam, msg, 0, NL80211_MCGRP_REGULATORY,
+				GFP_ATOMIC);
+#endif
 	rcu_read_unlock();
 
 	return;
@@ -7081,8 +7171,13 @@ static void nl80211_send_mlme_event(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				/*3*/3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7162,8 +7257,13 @@ static void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7218,8 +7318,13 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7256,8 +7361,13 @@ void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7294,8 +7404,13 @@ void nl80211_send_disconnected(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, GFP_KERNEL);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, GFP_KERNEL);
+				NL80211_MCGRP_MLME, GFP_KERNEL);
+#endif
 	return;
 
  nla_put_failure:
@@ -7327,8 +7442,13 @@ void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7362,8 +7482,13 @@ void nl80211_send_new_peer_candidate(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7401,8 +7526,13 @@ void nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7453,8 +7583,13 @@ void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
 	genlmsg_end(msg, hdr);
 
 	rcu_read_lock();
-	genlmsg_multicast_allns(&nl80211_fam, msg, 0, 2,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_allns(msg, 0, nl80211_regulatory_mcgrp.id,
 				GFP_ATOMIC);
+#else
+	genlmsg_multicast_allns(&nl80211_fam, msg, 0, NL80211_MCGRP_REGULATORY,
+				GFP_ATOMIC);
+#endif
 	rcu_read_unlock();
 
 	return;
@@ -7495,8 +7630,13 @@ static void nl80211_send_remain_on_chan_event(
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7540,8 +7680,13 @@ void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 }
 
 void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
@@ -7566,8 +7711,13 @@ void nl80211_send_sta_del_event(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7600,8 +7750,13 @@ void nl80211_send_conn_failed_event(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7724,7 +7879,11 @@ void nl80211_send_mgmt_tx_status(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(&nl80211_fam, msg, 0, 3, gfp);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, gfp);
+#else
+	genlmsg_multicast(&nl80211_fam, msg, 0, NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7766,8 +7925,13 @@ nl80211_send_cqm_rssi_notify(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7808,8 +7972,13 @@ void nl80211_gtk_rekey_notify(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7851,8 +8020,13 @@ void nl80211_pmksa_candidate_notify(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7883,8 +8057,13 @@ void nl80211_ch_switch_notify(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7933,8 +8112,13 @@ nl80211_send_cqm_txe_notify(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -7975,8 +8159,13 @@ nl80211_send_cqm_pktloss_notify(struct cfg80211_registered_device *rdev,
 
 	genlmsg_end(msg, hdr);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -8016,8 +8205,13 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 		return;
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+#else
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				3, gfp);
+				NL80211_MCGRP_MLME, gfp);
+#endif
 	return;
 
  nla_put_failure:
@@ -8099,11 +8293,12 @@ int nl80211_init(void)
 {
 	int err;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0))
 	err = genl_register_family_with_ops(&nl80211_fam,
-		nl80211_ops/*, ARRAY_SIZE(nl80211_ops)*/);
+		nl80211_ops, ARRAY_SIZE(nl80211_ops));
 	if (err)
 		return err;
-/*
+
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_config_mcgrp);
 	if (err)
 		goto err_out;
@@ -8119,14 +8314,19 @@ int nl80211_init(void)
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_mlme_mcgrp);
 	if (err)
 		goto err_out;
-        */
-/*
+
 #ifdef CONFIG_NL80211_TESTMODE
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_testmode_mcgrp);
 	if (err)
 		goto err_out;
 #endif
-*/
+#else
+	err = genl_register_family_with_ops_groups(&nl80211_fam, nl80211_ops,
+											   nl80211_mcgrps);
+	if (err)
+		return err;
+#endif
+
 	err = netlink_register_notifier(&nl80211_netlink_notifier);
 	if (err)
 		goto err_out;
