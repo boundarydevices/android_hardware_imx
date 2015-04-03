@@ -24,10 +24,11 @@
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 #include <cutils/properties.h>
+#include <ctype.h>
+#include <dirent.h>
 #include <string.h>
 
 #define MAX_BRIGHTNESS 255
-#define DEF_BACKLIGHT_DEV "pwm-backlight"
 #define DEF_BACKLIGHT_PATH "/sys/class/backlight/"
 
 /*****************************************************************************/
@@ -121,7 +122,9 @@ static int lights_device_open(const struct hw_module_t* module,
     ALOGV("lights_device_open\n");
     if (!strcmp(name, LIGHT_ID_BACKLIGHT)) {
         struct light_device_t *dev;
-        char value[PROPERTY_VALUE_MAX];
+	int fdfb0;
+	char fbtype[256];
+	DIR *d;
 
         dev = malloc(sizeof(*dev));
 
@@ -138,12 +141,60 @@ static int lights_device_open(const struct hw_module_t* module,
 
         *device = &dev->common;
 
-        property_get("hw.backlight.dev", value, DEF_BACKLIGHT_DEV);
-        strcpy(path, DEF_BACKLIGHT_PATH);
-        strcat(path, value);
-        strcpy(max_path, path);
-        strcat(max_path, "/max_brightness");
-        strcat(path, "/brightness");
+	strcpy(fbtype,"ldb"); /* default */
+	fdfb0 = open("/sys/class/graphics/fb0/fsl_disp_dev_property", O_RDONLY);
+	if (0 <= fdfb0) {
+		char buf[256];
+		int len;
+		if (0 < (len=read(fdfb0,buf,sizeof(buf)-1))) {
+			int i;
+			buf[len] = '\0';
+			for (i=0; i < len; i++) {
+				if (!isprint(buf[i])) {
+					buf[i] = '\0';
+					strcpy(fbtype,buf);
+					break;
+				}
+			}
+		}
+		else
+			buf[0]=0;
+		close(fdfb0);
+	}
+
+	/* The sysfs entry is either backlight_lcd.x or backlight_lvds.x */
+	if (!strcmp(fbtype, "ldb"))
+	    strcpy(fbtype,"lvds");
+
+	/* Search for the appropriate backlight */
+	d = opendir(DEF_BACKLIGHT_PATH);
+	if (! d) {
+		ALOGE("couldn't open %s", DEF_BACKLIGHT_PATH);
+		return status;
+	}
+	while (1) {
+		struct dirent *entry;
+
+		entry = readdir (d);
+		if (!entry)
+			break;
+		if (strstr(entry->d_name, fbtype) != NULL) {
+			strcpy(path, DEF_BACKLIGHT_PATH);
+			strcat(path, entry->d_name);
+			ALOGI("found backlight under %s", path);
+			break;
+		}
+	}
+
+	/* Check if a path has been found */
+	if (strstr(path, DEF_BACKLIGHT_PATH) == NULL) {
+		ALOGE("didn't find any matching backlight");
+		return status;
+	}
+
+	strcpy(max_path, path);
+	strcat(max_path, "/max_brightness");
+	strcat(path, "/brightness");
 
         ALOGI("max backlight file is %s\n", max_path);
         ALOGI("backlight brightness file is %s\n", path);
