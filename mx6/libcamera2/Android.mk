@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(BOARD_SOC_CLASS),IMX6)
 LOCAL_PATH:= $(call my-dir)
 
 ifeq ($(BOARD_HAVE_IMX_CAMERA),true)
@@ -100,4 +99,3 @@ LOCAL_MODULE_TAGS := eng
 include $(BUILD_SHARED_LIBRARY)
 endif
 
-endif
