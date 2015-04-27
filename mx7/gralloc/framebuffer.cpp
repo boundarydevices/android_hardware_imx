@@ -55,6 +55,8 @@
 #define NUM_BUFFERS 3
 #define EPDC_WAITTIME_MS 300000
 #define EPDC_WAITCOUNT 10
+#define FB_NAME_PATH "/sys/class/graphics/fb0/name"
+#define EPDC_DISPLAY_STR "epdc"
 
 enum {
     PAGE_FLIP = 0x00000001,
@@ -63,7 +65,26 @@ enum {
 
 struct fb_context_t {
     framebuffer_device_t  device;
+    bool epdc_display;
 };
+
+static bool isEPDCDisplay()
+{
+    char display_name[256];
+    int size=0;
+    int display_fd;
+    bool ret_val = false;
+    memset(display_name, 0, sizeof(display_name));
+    display_fd = open(FB_NAME_PATH, O_RDONLY, 0);
+    if ( display_fd > 0) {
+        size = read(display_fd, display_name, sizeof(display_name));
+        if ((size > 0) && (strstr(display_name, EPDC_DISPLAY_STR)) ){
+           ret_val = true;
+        }
+        close(display_fd);
+    }
+    return ret_val;
+}
 
 __u32 marker_val = 1;
 static __u32 update_to_display(private_module_t* m, int left, int top, int width, int height,
@@ -171,9 +192,13 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
             m->base.unlock(&m->base, buffer); 
             return -errno;
         }
-        update_to_display(m, 0, 0,
+
+        // Update EPDC with mode, and waveform setting
+        if (ctx->epdc_display == true)
+            update_to_display(m, 0, 0,
                     m->info.xres, m->info.yres,
                     WAVEFORM_MODE_AUTO, 1, 0);
+
         m->currentBuffer = buffer;
         
     } else {
@@ -401,6 +426,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.setSwapInterval = fb_setSwapInterval;
         dev->device.post            = fb_post;
         dev->device.setUpdateRect = 0;
+
+        if(isEPDCDisplay())
+            dev->epdc_display = true;
 
         private_module_t* m = (private_module_t*)module;
         status = mapFrameBuffer(m);
