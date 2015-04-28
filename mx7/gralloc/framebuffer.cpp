@@ -313,6 +313,10 @@ int mapFrameBufferLocked(struct private_module_t* module)
         refreshRate = 60*1000;  // 60 Hz
     }
 
+    //epdc panel have a variable refresh rate from 2~30HZ
+    if(isEPDCDisplay())
+        refreshRate = 30*1000;
+
     if (int(info.width) <= 0 || int(info.height) <= 0) {
         // the driver doesn't return that information
         // default to 160 dpi
