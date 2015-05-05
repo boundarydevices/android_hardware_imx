@@ -74,21 +74,16 @@ else
 endif
 
  
-ifeq ($(PRODUCT_MODEL), EVK_MX6SL)
-    LOCAL_CPPFLAGS += -DEVK_6SL
-endif
-
-ifeq ($(PRODUCT_MODEL), SABRESD-MX6SX)
-    LOCAL_CPPFLAGS += -DEVK_6SL
-endif
-
 ifeq ($(findstring x4.,x$(PLATFORM_VERSION)), x4.)
 LOCAL_CPPFLAGS += -DPLATFORM_VERSION_4
 endif
 
 ifeq ($(PRODUCT_MODEL), SABREAUTO-MX6SX)
-    LOCAL_CPPFLAGS += -DEVK_6SL
     LOCAL_CPPFLAGS += -DVADC_TVIN
+endif
+
+ifeq ($(PRODUCT_MODEL), SABRESD_MX7D)
+    LOCAL_CPPFLAGS += -DNO_GPU
 endif
 
 #Define this for switch the Camera through V4L2 MXC IOCTL

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,62 @@
 
 #include "SurfaceAdapter.h"
 
+
+typedef struct tRGB{
+     unsigned char r;
+     unsigned char g;
+     unsigned char b;
+}RGB;
+
+static RGB yuvTorgb(unsigned char Y, unsigned char U, unsigned char V){
+    RGB rgb;
+    rgb.r = (int)((Y&0xff) + 1.4075 * ((V&0xff)-128));
+    rgb.g = (int)((Y&0xff) - 0.3455 * ((U&0xff)-128) - 0.7169*((V&0xff)-128));
+    rgb.b = (int)((Y&0xff) + 1.779 * ((U&0xff)-128));
+
+    return rgb;
+}
+
+
+static void YUY2ToRGB(unsigned char *src, unsigned char *dst, int width, int height){
+	int i;
+	int j;
+    int numOfPixel = width * height;
+    unsigned char *rgb = dst;
+    int lineWidth = 2*width;
+
+    for(i=0; i<height; i++){
+        int startY = i*lineWidth;
+        for(j = 0; j < lineWidth; j+=4){
+            int Y1 = j + startY;
+            int Y2 = Y1+2;
+            int U = Y1+1;
+            int V = Y1+3;
+            int index = (Y1>>1)*3;
+            RGB tmp = yuvTorgb(src[Y1], src[U], src[V]);
+            rgb[index+0] = tmp.r;
+            rgb[index+1] = tmp.g;
+            rgb[index+2] = tmp.b;
+            index += 3;
+            tmp = yuvTorgb(src[Y2], src[U], src[V]);
+            rgb[index+0] = tmp.r;
+            rgb[index+1] = tmp.g;
+            rgb[index+2] = tmp.b;
+        }
+    }
+    return;
+}
+
+
+
 SurfaceAdapter::SurfaceAdapter()
     : mNativeWindow(NULL), mFrameWidth(0), mFrameHeight(0),
       mBufferCount(0), mBufferSize(0), mFormat(0), mQueueableCount(0)
 {
     memset(mCameraBuffer, 0, sizeof(mCameraBuffer));
+#ifdef NO_GPU
+    mTmpBuf = NULL;
+#endif
 }
 
 SurfaceAdapter::~SurfaceAdapter()
@@ -70,6 +121,7 @@ int SurfaceAdapter::setNativeWindowAttribute(int width,
     }
 
     // Set window geometry
+    ALOGI("set_buffers_geometry, w %d, h %d, format 0x%x", width, height, format);
     err = mNativeWindow->set_buffers_geometry(mNativeWindow,
                                               width, height, format);
 
@@ -172,7 +224,6 @@ int SurfaceAdapter::allocateBuffer(int width,
         pVaddr = NULL;
 
         // TODO(XXX): Do we need to keep stride information in camera hal?
-
         err = mNativeWindow->dequeue_buffer(mNativeWindow, &buf_h, &stride);
         if (err != 0) {
             FLOGE("dequeueBuffer failed: %s (%d)", strerror(-err), -err);
@@ -218,6 +269,16 @@ int SurfaceAdapter::allocateBuffer(int width,
     mBufferSize  = mCameraBuffer[0].mSize;
     mFrameWidth  = width;
     mFrameHeight = height;
+
+    ALOGI("SurfaceAdapter::allocateBuffer, mBufferSize %d", mBufferSize);
+
+#ifdef NO_GPU
+    mTmpBuf = (unsigned char*)malloc(mBufferSize);
+    if(mTmpBuf == NULL) {
+        ALOGE("malloc mTmpBuf failed, bytes %d", mBufferSize);
+        goto fail;
+    }
+#endif
 
     return NO_ERROR;
 
@@ -275,6 +336,13 @@ int SurfaceAdapter::freeBuffer()
     // /Clear the frames with camera adapter map
     dispatchBuffers(NULL, 0, BUFFER_DESTROY);
 
+#ifdef NO_GPU
+    if(mTmpBuf) {
+        free(mTmpBuf);
+        mTmpBuf = NULL;
+    }
+#endif
+
     return ret;
 }
 
@@ -320,6 +388,12 @@ void SurfaceAdapter::renderBuffer(buffer_handle_t *bufHandle)
 
     // unlock buffer before sending to display
     mapper.unlock(*bufHandle);
+
+#ifdef NO_GPU
+    private_handle_t *handle = (private_handle_t *)(*bufHandle);
+    memcpy(mTmpBuf, (void *)handle->base, mBufferSize);
+    YUY2ToRGB(mTmpBuf, (unsigned char *)handle->base, mFrameWidth, mFrameHeight);
+#endif
 
     ret = mNativeWindow->enqueue_buffer(mNativeWindow, bufHandle);
     if (ret != 0) {
