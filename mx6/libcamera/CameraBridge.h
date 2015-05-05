@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ public:
     status_t stopRecording();
     status_t useMetaDataBufferMode(bool enable);
     void     releaseRecordingFrame(const void *mem);
+    bool     IsListenForVideo();
 
 public:
     void     setCallbacks(camera_notify_callback         notify_cb,

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,8 +70,11 @@ int PhysMemAdapter::allocatePictureBuffer(int width,
             size = width * height * 2;
             break;
 
+        case HAL_PIXEL_FORMAT_RGB_888: //the actual sensor format is yuyv, so we just x2.
+            size = width * height * 2;
+
         default:
-            FLOGE("Error: format not supported int ion alloc");
+            FLOGE("Error: format 0x%x not supported int ion alloc", format);
             return BAD_VALUE;
     }
 

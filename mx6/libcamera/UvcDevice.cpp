@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@
 #define UVC_DEFAULT_PICTURE_W   (320)
 #define UVC_DEFAULT_PICTURE_H   (240)
 
-
 status_t UvcDevice::initParameters(CameraParameters& params,
                                   int              *supportRecordingFormat,
                                   int               rfmtLen,
@@ -41,9 +40,9 @@ status_t UvcDevice::initParameters(CameraParameters& params,
     // first read sensor format.
     int ret = 0, index = 0;
     int sensorFormat[MAX_SENSOR_FORMAT];
-
 	sensorFormat[0] = v4l2_fourcc('Y', 'U', 'Y', 'V');
     index           = 1;
+
 
     // second check match sensor format with vpu support format and picture
     // format.
@@ -55,6 +54,12 @@ status_t UvcDevice::initParameters(CameraParameters& params,
                                          pfmtLen,
                                          sensorFormat,
                                          index);
+
+#ifdef NO_GPU
+    mPreviewPixelFormat = HAL_PIXEL_FORMAT_RGB_888;
+#endif
+
+    ALOGI("mPreviewPixelFormat 0x%x, mPicturePixelFormat 0x%x", mPreviewPixelFormat, mPicturePixelFormat);
     setPreviewStringFormat(mPreviewPixelFormat);
     ret = setSupportedPreviewFormats(supportRecordingFormat,
                                      rfmtLen,
@@ -162,16 +167,17 @@ status_t UvcDevice::setParameters(CameraParameters& params)
 	
     Mutex::Autolock lock(mLock);
 
-
     max_zoom = params.getInt(CameraParameters::KEY_MAX_ZOOM);
     zoom     = params.getInt(CameraParameters::KEY_ZOOM);
     if (zoom > max_zoom) {
         FLOGE("Invalid zoom setting, zoom %d, max zoom %d", zoom, max_zoom);
         return BAD_VALUE;
     }
+
     if (!((strcmp(params.getPreviewFormat(), "yuv420sp") == 0) ||
           (strcmp(params.getPreviewFormat(), "yuv420p") == 0) ||
-          (strcmp(params.getPreviewFormat(), "yuv422i-yuyv") == 0))) {
+          (strcmp(params.getPreviewFormat(), "yuv422i-yuyv") == 0) ||
+          (strcmp(params.getPreviewFormat(), "rgb888") == 0) )) {
         FLOGE("Only yuv420sp or yuv420pis supported, but input format is %s",
               params.getPreviewFormat());
         return BAD_VALUE;
@@ -327,6 +333,9 @@ status_t UvcDevice::setPreviewStringFormat(PixelFormat format)
     else if (format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
         pformat = "yuv422i-yuyv";
     }
+    else if (format == HAL_PIXEL_FORMAT_RGB_888) {
+        pformat = "rgb888";
+    }
     else {
         FLOGE("format %d is not supported", format);
         return BAD_VALUE;
@@ -415,7 +424,7 @@ status_t UvcDevice::initialize(const CameraInfo& info)
 
 status_t UvcDevice::setDeviceConfig(int         width,
                                         int         height,
-                                        PixelFormat format,
+                                        PixelFormat /*format*/,
                                         int         fps)
 {		
 	status_t ret = NO_ERROR;	
@@ -436,9 +445,10 @@ status_t UvcDevice::setDeviceConfig(int         width,
         FLOGE("setDeviceConfig: invalid parameters");
         return BAD_VALUE;
     }    
-	
+
+
     int vformat;
-    vformat = convertPixelFormatToV4L2Format(format);
+    vformat = v4l2_fourcc('Y', 'U', 'Y', 'V');
 
     if ((width > 1920) || (height > 1080)) {
         fps = 15;
@@ -478,7 +488,7 @@ status_t UvcDevice::setDeviceConfig(int         width,
     mVideoInfo->format.fmt.pix.bytesperline = 0;
 
 
-	FLOGE("Open: VIDIOC_S_FMT, w %d, h %d, pixel 0x%x", 
+	FLOGI("Open: VIDIOC_S_FMT, w %d, h %d, pixel 0x%x",
 		mVideoInfo->format.fmt.pix.width, mVideoInfo->format.fmt.pix.height,
 		mVideoInfo->format.fmt.pix.pixelformat);
 	
@@ -515,7 +525,7 @@ status_t UvcDevice::startDeviceLocked()
         mVideoInfo->buf.memory   = V4L2_MEMORY_MMAP;
         mVideoInfo->buf.m.offset = phyAddr;
 
-		ALOGE("VIDIOC_QBUF, idx %d, phyAddr 0x%x", i, phyAddr);
+		ALOGI("VIDIOC_QBUF, idx %d, phyAddr 0x%x", i, phyAddr);
         ret = ioctl(mCameraHandle, VIDIOC_QBUF, &mVideoInfo->buf);
 	    if (ret < 0) {
             FLOGE("VIDIOC_QBUF Failed, %s, mCameraHandle %d", strerror(errno), mCameraHandle);
@@ -531,7 +541,7 @@ status_t UvcDevice::startDeviceLocked()
         bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
         ret = ioctl(mCameraHandle, VIDIOC_STREAMON, &bufType);
-		ALOGE("VIDIOC_STREAMON, ret %d", ret);
+		ALOGI("VIDIOC_STREAMON, ret %d", ret);
         if (ret < 0) {
             FLOGE("VIDIOC_STREAMON failed: %s", strerror(errno));
             return ret;
@@ -590,8 +600,7 @@ status_t UvcDevice::fillCameraFrame(CameraFrame *frame)
 
 	MemmapBuf *pMemmapBuf = (MemmapBuf *) mMapedBufVector.keyAt(i);
 	phyAddr = (unsigned int)pMemmapBuf->offset;
-//	FLOGI("==== VIDIOC_QBUF idx %d, phy 0x%x", i, phyAddr);
-
+//    FLOGI("==== VIDIOC_QBUF idx %d, phy 0x%x", i, phyAddr);
 
     struct v4l2_buffer cfilledbuffer;
     memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
@@ -609,8 +618,6 @@ status_t UvcDevice::fillCameraFrame(CameraFrame *frame)
 	
     return ret;
 }
-
-
 
 CameraFrame * UvcDevice::acquireCameraFrame()
 {
@@ -658,14 +665,14 @@ dopoll:
 		CameraFrame *camFrame = (CameraFrame *)mPreviewBufs.keyAt(index);
 		MemmapBuf *pMapedBuf = (MemmapBuf *)mMapedBufVector.keyAt(index);
 
-//		ALOGI("VIDIOC_DQBUF, idx %d, copy src 0x%x, %d, dst 0x%x, %d", index,
-	//		pMapedBuf->start, pMapedBuf->length,
-		//	camFrame->mVirtAddr, camFrame->mSize);
-		
-		memcpy(camFrame->mVirtAddr, pMapedBuf->start, camFrame->mSize);
-		
-	    return camFrame;
+        // ALOGI("VIDIOC_DQBUF, idx %d, copy src 0x%x, %d, dst 0x%x, %d", index,
+        //      pMapedBuf->start, pMapedBuf->length,
+        //      camFrame->mVirtAddr, camFrame->mSize);
 
+        uint32_t copySize = (pMapedBuf->length <= camFrame->mSize) ? pMapedBuf->length : camFrame->mSize;
+		memcpy(camFrame->mVirtAddr, pMapedBuf->start, copySize);
+
+	    return camFrame;
     }
 	else {
         FLOGW("Poll the V4L2 Handler, revent 0x%x, pollCount %d", fdListen.revents, pollCount);

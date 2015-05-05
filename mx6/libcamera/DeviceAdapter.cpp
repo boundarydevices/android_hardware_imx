@@ -153,16 +153,6 @@ status_t DeviceAdapter::setDeviceConfig(int         width,
     }
 
     status_t ret = NO_ERROR;
-	
-#ifndef EVK_6SL //VIDIOC_S_INPUT not support in evk_6sl
-    int input    = 1;
-    ret = ioctl(mCameraHandle, VIDIOC_S_INPUT, &input);
-    if (ret < 0) {
-        FLOGE("Open: VIDIOC_S_INPUT Failed: %s", strerror(errno));
-        return ret;
-    }
-#endif
-
     int vformat;
     vformat = convertPixelFormatToV4L2Format(format);
 

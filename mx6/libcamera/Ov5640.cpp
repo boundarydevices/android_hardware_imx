@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,15 +61,9 @@ status_t Ov5640::initParameters(CameraParameters& params,
 #endif // if 0
 
     // v4l2 does not support enum format, now hard code here.
-#ifdef EVK_6SL
 	sensorFormat[0] = v4l2_fourcc('Y', 'U', 'Y', 'V');
     index           = 1;
-#else
-	sensorFormat[0] = v4l2_fourcc('N', 'V', '1', '2');
-    sensorFormat[1] = v4l2_fourcc('Y', 'U', '1', '2');
-    sensorFormat[2] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-    index           = 3;	
-#endif
+
     // second check match sensor format with vpu support format and picture
     // format.
     mPreviewPixelFormat = getMatchFormat(supportRecordingFormat,
@@ -99,12 +93,7 @@ status_t Ov5640::initParameters(CameraParameters& params,
         memset(TmpStr, 0, 20);
         memset(&vid_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
         vid_frmsize.index        = index++;
-#ifdef EVK_6SL
 		vid_frmsize.pixel_format = v4l2_fourcc('Y', 'U', 'Y', 'V');
-#else
-        vid_frmsize.pixel_format = v4l2_fourcc('N', 'V', '1', '2');
-
-#endif
         ret                      = ioctl(mCameraHandle,
                                          VIDIOC_ENUM_FRAMESIZES,
                                          &vid_frmsize);
@@ -112,7 +101,7 @@ status_t Ov5640::initParameters(CameraParameters& params,
             FLOG_RUNTIME("enum frame size w:%d, h:%d",
                          vid_frmsize.discrete.width, vid_frmsize.discrete.height);
 			
-#ifdef EVK_6SL //in evk_6sl, omit large resolution
+            //omit large resolution
 			if((vid_frmsize.discrete.width > 640) || (vid_frmsize.discrete.height > 480))
 			{
 				continue;
@@ -124,7 +113,7 @@ status_t Ov5640::initParameters(CameraParameters& params,
 			{
 				continue;
 			}
-#endif
+
             memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
             vid_frmval.index        = 0;
             vid_frmval.pixel_format = vid_frmsize.pixel_format;

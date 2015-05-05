@@ -30,12 +30,7 @@ CameraBridge::CameraBridge()
     memset(mSupprotedThumbnailSizes, 0, sizeof(mSupprotedThumbnailSizes));
     mMetaDataBufsMap.clear();
     mVpuSupportFmt[0] = v4l2_fourcc('N', 'V', '1', '2');
-#ifdef EVK_6SL
 	mVpuSupportFmt[1] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-#else
-	mVpuSupportFmt[1] = v4l2_fourcc('Y', 'U', '1', '2');
-#endif
-
 }
 
 CameraBridge::~CameraBridge()
@@ -53,6 +48,11 @@ CameraBridge::~CameraBridge()
         mBridgeThread->requestExitAndWait();
         mBridgeThread.clear();
     }
+}
+
+bool CameraBridge::IsListenForVideo()
+{
+    return ((mMsgEnabled & CAMERA_MSG_VIDEO_FRAME) != 0);
 }
 
 status_t CameraBridge::initialize()
@@ -453,6 +453,8 @@ status_t CameraBridge::start()
             mPreviewBufferSize = previewWidth * previewHeight * 2;
         } else if ( (strcmp(previewFormat, "yuv420p") == 0) || (strcmp(previewFormat, "yuv420sp") == 0) ) {
             mPreviewBufferSize = previewWidth * previewHeight * 3/2;
+        } else if (strcmp(previewFormat, "rgb888") == 0) {
+            mPreviewBufferSize = previewWidth * previewHeight * 3;
         } else {
             ALOGE("CameraBridge::start, not support format %s", previewFormat);
             mPreviewBufferSize = previewWidth * previewHeight * 3/2;
@@ -462,12 +464,9 @@ status_t CameraBridge::start()
             mPreviewBufferSize = previewWidth * previewHeight * 3/2;
     }
 
+    mParameters.getPreviewSize(&previewWidth, &previewHeight);
+    int bufSize = previewWidth*previewHeight*3/2; //nv12 for video encoder
 
-#ifdef EVK_6SL //driver provide yuyv, but h264enc need nv12
-    int bufSize = mFrameProvider->getFrameSize() * 3/4;
-#else
-	int bufSize = mFrameProvider->getFrameSize();
-#endif
     int bufCnt  = mFrameProvider->getFrameCount();
     if (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
         if (mPreviewMemory != NULL) {
@@ -701,6 +700,12 @@ bool CameraBridge::processImageFrame(CameraFrame *frame)
         thumbQuality = 100;
     }
 
+#ifdef NO_GPU //just use sensor format
+    const char *strPreviewFormat = "yuv422i-yuyv";
+#else
+    const char *strPreviewFormat = mParameters.getPreviewFormat();
+#endif
+
     mainJpeg =
         new JpegParams((uint8_t *)frame->mVirtAddr,
                        frame->mSize,
@@ -711,14 +716,14 @@ bool CameraBridge::processImageFrame(CameraFrame *frame)
                        frame->mHeight,
                        frame->mWidth,
                        frame->mHeight,
-                       mParameters.getPreviewFormat());
+                       strPreviewFormat);
 
     thumbWidth  = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
     thumbHeight = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
 
     if ((thumbWidth > 0) && (thumbHeight > 0)) {
         int thumbSize   = 0;
-        int thumbFormat = convertStringToV4L2Format(mParameters.getPreviewFormat());
+        int thumbFormat = convertStringToV4L2Format(strPreviewFormat);
         switch (thumbFormat) {
             case v4l2_fourcc('N', 'V', '1', '2'):
                 thumbSize = thumbWidth * thumbHeight * 3 / 2;
@@ -747,7 +752,7 @@ bool CameraBridge::processImageFrame(CameraFrame *frame)
                            frame->mHeight,
                            thumbWidth,
                            thumbHeight,
-                           mParameters.getPreviewFormat());
+                           strPreviewFormat);
     }
 
     mJpegBuilder->prepareImage(mParameters);
@@ -853,11 +858,12 @@ void CameraBridge::sendVideoFrame(CameraFrame *frame)
         pMetaBuf->length    = frame->mSize;
     }
     else {
-#ifdef EVK_6SL
-		convertYUYVtoNV12SP((uint8_t *)frame->mVirtAddr, pVideoBuf, frame->mWidth, frame->mHeight);
+#ifdef NO_GPU //mVirtAddr will csc to rgb888, so use mBackupVirtAddr
+        uint8_t *srcBuf = (uint8_t *)frame->mBackupVirtAddr;
 #else
-        memcpy(pVideoBuf, (void *)frame->mVirtAddr, mMetaDataBufsSize);
+        uint8_t *srcBuf = (uint8_t *)frame->mVirtAddr;
 #endif
+		convertYUYVtoNV12SP(srcBuf, pVideoBuf, frame->mWidth, frame->mHeight);
     }
 
     if (mMetaDataBufsMap.indexOfKey((int)pVideoBuf) >= 0) {
@@ -927,6 +933,10 @@ status_t CameraBridge::allocateVideoBufs()
     else {
         mMetaDataBufsSize = mBufferSize;
     }
+
+
+    ALOGI("allocateVideoBufs, mUseMetaDataBufferMode %d, mMetaDataBufsSize %d",
+        mUseMetaDataBufferMode, mMetaDataBufsSize);
 
     mVideoMemory = mRequestMemory(-1, mMetaDataBufsSize, mBufferCount, NULL);
     if (mVideoMemory == NULL) {
