@@ -17,6 +17,9 @@ else
     else
       mx7_dirs += mx6/libcamera
     endif
+	ifeq ($(BOARD_USE_SENSOR_FUSION),true)
+		mx7_dirs += libsensors_sensorhub
+	endif
     include $(call all-named-subdir-makefiles,$(mx7_dirs))
   else
     ifeq ($(TARGET_BOARD_PLATFORM),imx5x)
