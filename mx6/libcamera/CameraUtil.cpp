@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,10 @@ PixelFormat convertV4L2FormatToPixelFormat(unsigned int format)
             nFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
             break;
 
+        case v4l2_fourcc('R', 'G', 'B', '3'):
+            nFormat = HAL_PIXEL_FORMAT_RGB_888;
+            break;
+
         default:
             FLOGE("Error: format not supported!");
             break;
@@ -82,6 +86,9 @@ int convertStringToPixelFormat(const char *pFormat)
     else if (!strcmp(pFormat, "yuv422i-yuyv")) {
         return HAL_PIXEL_FORMAT_YCbCr_422_I;
     }
+    else if (!strcmp(pFormat, "rgb888")) {
+        return HAL_PIXEL_FORMAT_RGB_888;
+    }
     else {
         FLOGE("format %s is not supported", pFormat);
         return BAD_VALUE;
@@ -103,17 +110,20 @@ int convertStringToV4L2Format(const char *pFormat)
     else if (!strcmp(pFormat, "yuv422i-yuyv")) {
         return v4l2_fourcc('Y', 'U', 'Y', 'V');
     }
+    else if (!strcmp(pFormat, "rgb888")) {
+        return v4l2_fourcc('R', 'G', 'B', '3');
+    }
     else {
         FLOGE("format %s is not supported", pFormat);
         return BAD_VALUE;
     }
 }
 
+
 CameraFrame::~CameraFrame()
 {
     reset();
 }
-
 void CameraFrame::initialize(buffer_handle_t *buf_h,
                              int              index)
 {
@@ -132,6 +142,10 @@ void CameraFrame::initialize(buffer_handle_t *buf_h,
     mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
     mIndex     = index;
+
+#ifdef NO_GPU
+    mBackupVirtAddr = malloc(mSize);
+#endif
 }
 
 void CameraFrame::addState(CAMERA_BUFS_STATE state)
@@ -181,7 +195,22 @@ void CameraFrame::reset()
     atomic_init(&mRefCount, 0);
     mBufState  = BUFS_CREATE;
     mFrameType = INVALID_FRAME;
+
+#ifdef NO_GPU
+    if(mBackupVirtAddr) {
+        free(mBackupVirtAddr);
+        mBackupVirtAddr = NULL;
+    }
+#endif
 }
+
+#ifdef NO_GPU
+void CameraFrame::backupYUYV()
+{
+    memcpy(mBackupVirtAddr, mVirtAddr, mSize);
+}
+#endif
+
 
 // //////////CameraBufferProvider////////////////////
 CameraBufferProvider::CameraBufferProvider()
@@ -303,6 +332,17 @@ void CameraFrameProvider::dispatchCameraFrame(CameraFrame *frame)
     CameraFrameListener *listener;
     size_t nSize = mFrameListeners.size();
 
+#ifdef NO_GPU
+    //mVirtAddr hold YUYV, need csc to RGB888 to display.
+    //So need back the YUVY data for encoder.
+    for (size_t i = 0; i < nSize; i++) {
+        listener = (CameraFrameListener *)mFrameListeners[i];
+        if(listener->IsListenForVideo()) {
+            frame->backupYUYV();
+            break;
+        }
+    }
+#endif
     // add reference here to avoid frame release too early.
     frame->addReference();
     for (size_t i = 0; i < nSize; i++) {

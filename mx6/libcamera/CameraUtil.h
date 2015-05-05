@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,7 +183,9 @@ public:
     void addReference();
     void setObserver(CameraFrameObserver *observer);
     void reset();
-
+#ifdef NO_GPU
+    void backupYUYV();
+#endif
 private:
     CameraFrame(const CameraFrame&);
     CameraFrame& operator=(const CameraFrame&);
@@ -198,6 +200,9 @@ public:
     int mFormat;
     FrameType mFrameType;
     int mIndex;
+#ifdef NO_GPU
+    void *mBackupVirtAddr;
+#endif
 
 private:
     CameraFrameObserver *mObserver;
@@ -261,6 +266,7 @@ class CameraFrameListener {
 public:
     virtual void handleCameraFrame(CameraFrame *frame) = 0;
     virtual ~CameraFrameListener() {}
+    virtual bool IsListenForVideo() { return false; }
 };
 
 class CameraFrameProvider {
@@ -275,7 +281,6 @@ public:
     void        clearFrameListeners();
 
     void        dispatchCameraFrame(CameraFrame *frame);
-
 private:
     Vector<int> mFrameListeners;
 };

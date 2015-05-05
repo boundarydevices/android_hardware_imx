@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,6 +71,9 @@ protected:
     int mBufferSize;
     PixelFormat mFormat;
     int mQueueableCount;
+#ifdef NO_GPU
+    unsigned char *mTmpBuf; //tmp buf for yuyv to rgb888
+#endif
 };
 
 #endif // ifndef _SURFACE_ADAPTER_H_
