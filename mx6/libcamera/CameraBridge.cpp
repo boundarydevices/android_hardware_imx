@@ -273,12 +273,6 @@ status_t CameraBridge::initParameters(CameraParameters& params)
     params.set(CameraParameters::KEY_ANTIBANDING,
                CameraParameters::ANTIBANDING_OFF);
 
-    memset(tmpBuffer, '\0', sizeof(*tmpBuffer));
-    strncat((char *)tmpBuffer,
-            (const char *)CameraParameters::FLASH_MODE_OFF,
-            CAMER_PARAM_BUFFER_SIZE);
-    params.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES, tmpBuffer);
-    params.set(CameraParameters::KEY_FLASH_MODE, CameraParameters::FLASH_MODE_OFF);
     params.set(CameraParameters::KEY_ZOOM_SUPPORTED, "false");
 
     // params.set(CameraParameters::KEY_ZOOM_SUPPORTED, CameraParameters::TRUE);
@@ -316,20 +310,6 @@ void CameraBridge::setCallbacks(camera_notify_callback         notify_cb,
 status_t CameraBridge::setParameters(CameraParameters& params)
 {
     Mutex::Autolock lock(mLock);
-
-    const char *pFlashStr;
-
-    pFlashStr = params.get(CameraParameters::KEY_FLASH_MODE);
-    if ((strcmp(pFlashStr,
-                CameraParameters::FLASH_MODE_OFF) != 0) &&
-        (strcmp(pFlashStr, CameraParameters::FLASH_MODE_AUTO) != 0)
-        && (strcmp(pFlashStr,
-                   CameraParameters::FLASH_MODE_ON) != 0) &&
-        (strcmp(pFlashStr, CameraParameters::FLASH_MODE_RED_EYE) != 0)
-        && (strcmp(pFlashStr, CameraParameters::FLASH_MODE_TORCH) != 0)) {
-        FLOGE("The flash mode is not corrected");
-        return BAD_VALUE;
-    }
 
     const char *pFocusStr;
     pFocusStr = params.get(CameraParameters::KEY_FOCUS_MODE);
