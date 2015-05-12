@@ -70,7 +70,7 @@ using namespace android;
 #define OV5640_SENSOR_NAME "csi"
 #define OV5642_SENSOR_NAME "ov5642"
 #define ADV7180_TVIN_NAME "adv7180_decoder"
-#define VADC_TVIN_NAME "csi_v4l2"
+#define VADC_TVIN_NAME "mx6s-csi"
 #define V4LSTREAM_WAKE_LOCK "V4LCapture"
 
 #define MAX_PREVIEW_BUFFER      6
