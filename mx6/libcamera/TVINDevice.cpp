@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -175,18 +175,21 @@ status_t TVINDevice::setDeviceConfig(int         width,
     }
 
     status_t ret = NO_ERROR;
+
+#ifndef VADC_TVIN
     int input    = 1;
     ret = ioctl(mCameraHandle, VIDIOC_S_INPUT, &input);
     if (ret < 0) {
         FLOGE("Open: VIDIOC_S_INPUT Failed: %s", strerror(errno));
         return ret;
     }
+#endif
 
     int vformat;
 
 #ifdef VADC_TVIN
     format; //avoid compile error
-    vformat = v4l2_fourcc('Y', '4', '4', '4');
+    vformat = v4l2_fourcc('Y', 'U', 'V', '4');
 #else
     vformat = convertPixelFormatToV4L2Format(format);
 #endif
@@ -214,7 +217,7 @@ status_t TVINDevice::setDeviceConfig(int         width,
     }
 
 
-#ifdef VADC_TVIN
+#ifndef VADC_TVIN
     ret = ioctl(mCameraHandle, VIDIOC_S_STD, &mSTD);
     if(ret < 0)
     {
@@ -378,7 +381,7 @@ status_t TVINDevice::initParameters(CameraParameters& params,
         vid_frmsize.index        = index++;
 
 #ifdef VADC_TVIN
-        vid_frmsize.pixel_format = v4l2_fourcc('Y', '4', '4', '4');
+        vid_frmsize.pixel_format = v4l2_fourcc('Y', 'U', 'V', '4');
 #else
         vid_frmsize.pixel_format = v4l2_fourcc('N', 'V', '1', '2');
 #endif
