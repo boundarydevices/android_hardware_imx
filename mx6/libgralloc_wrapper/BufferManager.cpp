@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -158,4 +158,12 @@ int BufferManager::free(buffer_handle_t handle)
     return freeBuffer(handle);
 }
 
+bool BufferManager::isYUVFormat(int format)
+{
+    bool isYUV = true;
+    if (format >= HAL_PIXEL_FORMAT_RGBA_8888 && format <= HAL_PIXEL_FORMAT_sRGB_X_8888) {
+        isYUV = false;
+    }
 
+    return isYUV;
+}
