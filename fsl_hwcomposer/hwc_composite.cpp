@@ -40,7 +40,7 @@
 #include "hwc_vsync.h"
 #include "hwc_uevent.h"
 #include "hwc_display.h"
-#include <g2d.h>
+#include <g2dExt.h>
 #include <system/graphics.h>
 
 
@@ -49,10 +49,6 @@ typedef struct hwc_reg {
     hwc_region_t reg;
     hwc_rect_t rect[MAX_HWC_RECTS];
 } hwc_reg_t;
-
-extern "C" int get_aligned_size(buffer_handle_t hnd, int *width, int *height);
-extern "C" int get_flip_offset(buffer_handle_t hnd, int *offset);
-extern "C" int g2d_set_clipping(void *handle, int left, int top, int right, int bottom);
 
 static bool validateRect(hwc_rect_t& rect)
 {
@@ -64,37 +60,53 @@ static bool validateRect(hwc_rect_t& rect)
     return true;
 }
 
-static enum g2d_format convertFormat(int format)
+static enum g2d_format convertFormat(int format, struct private_handle_t *handle)
 {
+    enum g2d_format halFormat;
     switch (format) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
-            return G2D_RGBA8888;
+            halFormat = G2D_RGBA8888;
+            break;
         case HAL_PIXEL_FORMAT_RGBX_8888:
-            return G2D_RGBX8888;
+            halFormat = G2D_RGBX8888;
+            break;
         case HAL_PIXEL_FORMAT_RGB_565:
-            return G2D_RGB565;
+            halFormat = G2D_RGB565;
+            break;
         case HAL_PIXEL_FORMAT_BGRA_8888:
-            return G2D_BGRA8888;
+            halFormat = G2D_BGRA8888;
+            break;
 
         case HAL_PIXEL_FORMAT_YCrCb_420_SP:
-            return G2D_NV21;
+            halFormat = G2D_NV21;
+            break;
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            return G2D_NV12;
+            halFormat = G2D_NV12;
+            break;
 
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
-            return G2D_I420;
+            halFormat = G2D_I420;
+            break;
         case HAL_PIXEL_FORMAT_YV12:
-            return G2D_YV12;
+            halFormat = G2D_YV12;
+            break;
 
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-            return G2D_NV16;
+            halFormat = G2D_NV16;
+            break;
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
-            return G2D_YUYV;
+            halFormat = G2D_YUYV;
+            break;
 
         default:
             ALOGE("unsupported format:0x%x", format);
-            return G2D_RGBA8888;
+            halFormat = G2D_RGBA8888;
+            break;
     }
+
+    halFormat = g2d_alterFormat(handle, halFormat);
+
+    return halFormat;
 }
 
 static int convertRotation(int transform, struct g2d_surface& src,
@@ -226,17 +238,21 @@ static int correctYV12Alignemt(struct fsl_private *priv,
     return 0;
 }
 
-static int setG2dSurface(struct fsl_private *priv, struct g2d_surface& surface,
+static int setG2dSurface(struct fsl_private *priv, struct g2d_surfaceEx& surfaceX,
              struct private_handle_t *handle, hwc_rect_t& rect)
 {
     int alignWidth = 0, alignHeight = 0;
+    struct g2d_surface& surface = surfaceX.base;
     int ret = get_aligned_size(handle, NULL, &alignHeight);
     if (ret != 0) {
         alignHeight = handle->height;
     }
     alignWidth = handle->stride;
-    surface.format = convertFormat(handle->format);
+    surface.format = convertFormat(handle->format, handle);
     surface.stride = alignWidth;
+    enum g2d_tiling tile = G2D_LINEAR;
+    g2d_getTiling(handle, &tile);
+    surfaceX.tiling = tile;
 
     int offset = 0;
     get_flip_offset(handle, &offset);
@@ -248,6 +264,7 @@ static int setG2dSurface(struct fsl_private *priv, struct g2d_surface& surface,
         case G2D_RGBA8888:
         case G2D_BGRA8888:
         case G2D_RGBX8888:
+        case G2D_BGRX8888:
             break;
 
         case G2D_NV16:
@@ -533,8 +550,9 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
         return -EINVAL;
     }
 
-    struct g2d_surface dSurface;
-    memset(&dSurface, 0, sizeof(dSurface));
+    struct g2d_surfaceEx dSurfaceX;
+    memset(&dSurfaceX, 0, sizeof(dSurfaceX));
+    struct g2d_surface& dSurface = dSurfaceX.base;
 
     for (size_t i=0; i<layer->visibleRegionScreen.numRects; i++) {
         convertScalerToInt(layer->sourceCropf, srect);
@@ -581,15 +599,16 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
                 srect.left, srect.top, srect.right, srect.bottom,
                 drect.left, drect.top, drect.right, drect.bottom);
 
-        setG2dSurface(priv, dSurface, dstHandle, drect);
+        setG2dSurface(priv, dSurfaceX, dstHandle, drect);
 
-        struct g2d_surface sSurface;
-        memset(&sSurface, 0, sizeof(sSurface));
+        struct g2d_surfaceEx sSurfaceX;
+        memset(&sSurfaceX, 0, sizeof(sSurfaceX));
+        struct g2d_surface& sSurface = sSurfaceX.base;
 
         if (layer->blending != HWC_BLENDING_DIM) {
             struct private_handle_t *priv_handle;
             priv_handle = (struct private_handle_t *)(layer->handle);
-            setG2dSurface(priv, sSurface, priv_handle, srect);
+            setG2dSurface(priv, sSurfaceX, priv_handle, srect);
         }
         else {
             sSurface.clrcolor = 0xff000000;
@@ -621,7 +640,7 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
             }
         }
 
-        g2d_blit(priv->g2d_handle, &sSurface, &dSurface);
+        g2d_blitEx(priv->g2d_handle, &sSurfaceX, &dSurfaceX);
 
         if (layer->blending != HWC_BLENDING_NONE && !firstLayer) {
             if (layer->blending == HWC_BLENDING_DIM) {
@@ -661,8 +680,8 @@ int hwc_copyBack(struct fsl_private *priv, struct private_handle_t *dstHandle,
     hwc_region_t &resRegion = resReg.reg;
     subtract(&resRegion, uniRect, swapRect);
 
-    struct g2d_surface dSurface;
-    memset(&dSurface, 0, sizeof(dSurface));
+    struct g2d_surfaceEx dSurfaceX;
+    memset(&dSurfaceX, 0, sizeof(dSurfaceX));
     for (size_t i=0; i<resRegion.numRects; i++) {
         ALOGV("%s(l:%d,t:%d,r:%d,b:%d)", __FUNCTION__,
             resRegion.rects[i].left, resRegion.rects[i].top,
@@ -672,13 +691,13 @@ int hwc_copyBack(struct fsl_private *priv, struct private_handle_t *dstHandle,
             continue;
         }
 
-        setG2dSurface(priv, dSurface, dstHandle,
+        setG2dSurface(priv, dSurfaceX, dstHandle,
                         (hwc_rect_t&)resRegion.rects[i]);
-        struct g2d_surface sSurface;
-        memset(&sSurface, 0, sizeof(sSurface));
-        setG2dSurface(priv, sSurface, srcHandle,
+        struct g2d_surfaceEx sSurfaceX;
+        memset(&sSurfaceX, 0, sizeof(sSurfaceX));
+        setG2dSurface(priv, sSurfaceX, srcHandle,
                        (hwc_rect_t&)resRegion.rects[i]);
-        g2d_blit(priv->g2d_handle, &sSurface, &dSurface);
+        g2d_blitEx(priv->g2d_handle, &sSurfaceX, &dSurfaceX);
     }
 
     return 0;
@@ -749,26 +768,28 @@ int hwc_resize(struct fsl_private *priv, struct private_handle_t *dstHandle,
     drect.right = drect.left + dstW;
     drect.bottom = drect.top + dstH;
 
-    g2d_surface sSurface, dSurface;
-    memset(&sSurface, 0, sizeof(sSurface));
-    memset(&dSurface, 0, sizeof(dSurface));
-    setG2dSurface(priv, sSurface, srcHandle, srect);
-    setG2dSurface(priv, dSurface, dstHandle, drect);
+    g2d_surfaceEx sSurfaceX, dSurfaceX;
+    memset(&sSurfaceX, 0, sizeof(sSurfaceX));
+    memset(&dSurfaceX, 0, sizeof(dSurfaceX));
+    setG2dSurface(priv, sSurfaceX, srcHandle, srect);
+    setG2dSurface(priv, dSurfaceX, dstHandle, drect);
+    g2d_surface& sSurface = sSurfaceX.base;
+    g2d_surface& dSurface = dSurfaceX.base;
 
     if (srcTransform != dstTransform) {
         adjustRotation(srcTransform, sSurface, dstTransform, dSurface);
     }
 
     bool hasRotation = ((srcTransform != 0) || (dstTransform != 0));
-    if (!hasRotation && priv->vg_engine) {
+    if (!hasRotation && priv->vg_engine && (sSurfaceX.tiling == G2D_LINEAR)) {
         /* Wait all 2D operations done. */
         g2d_finish(priv->g2d_handle);
         g2d_make_current(priv->g2d_handle, G2D_HARDWARE_VG);
     }
 
-    g2d_blit(priv->g2d_handle, &sSurface, &dSurface);
+    g2d_blitEx(priv->g2d_handle, &sSurfaceX, &dSurfaceX);
 
-    if (!hasRotation && priv->vg_engine) {
+    if (!hasRotation && priv->vg_engine && (sSurfaceX.tiling == G2D_LINEAR)) {
         /* Wait all VG operations done. */
         g2d_finish(priv->g2d_handle);
         g2d_make_current(priv->g2d_handle, G2D_HARDWARE_2D);
@@ -850,8 +871,9 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
     holes = screen.getArray(&numRect);
 
     // clear worm hole.
-    struct g2d_surface surface;
-    memset(&surface, 0, sizeof(surface));
+    struct g2d_surfaceEx surfaceX;
+    memset(&surfaceX, 0, sizeof(surfaceX));
+    struct g2d_surface& surface = surfaceX.base;
     for (size_t i=0; i<numRect; i++) {
         if (holes[i].isEmpty()) {
             continue;
@@ -867,7 +889,7 @@ int hwc_clearWormHole(struct fsl_private *priv, struct private_handle_t *dstHand
         }
         ALOGV("clearhole: hole(l:%d,t:%d,r:%d,b:%d)",
                 rect.left, rect.top, rect.right, rect.bottom);
-        setG2dSurface(priv, surface, dstHandle, rect);
+        setG2dSurface(priv, surfaceX, dstHandle, rect);
         surface.clrcolor = 0xff << 24;
         g2d_clear(priv->g2d_handle, &surface);
     }
@@ -886,10 +908,11 @@ int hwc_clearRect(struct fsl_private *priv, struct private_handle_t *dstHandle,
         return -EINVAL;
     }
 
-    struct g2d_surface surface;
-    memset(&surface, 0, sizeof(surface));
+    struct g2d_surfaceEx surfaceX;
+    memset(&surfaceX, 0, sizeof(surfaceX));
+    struct g2d_surface& surface = surfaceX.base;
 
-    setG2dSurface(priv, surface, dstHandle, rect);
+    setG2dSurface(priv, surfaceX, dstHandle, rect);
     surface.clrcolor = 0xff << 24;
     g2d_clear(priv->g2d_handle, &surface);
 
