@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,6 +125,7 @@ protected:
     virtual int freeBuffer(buffer_handle_t handle) = 0;
 
     int allocFramebuffer(size_t size, int usage, buffer_handle_t* pHandle);
+    bool isYUVFormat(int format);
     BufferManager();
 
 public:
@@ -198,7 +199,6 @@ private:
     int unlockHandle(private_handle_t* hnd);
 
 private:
-    bool useVivModule;
     alloc_device_t *gpu_device;
     gralloc_module_t* gralloc_viv;
 };

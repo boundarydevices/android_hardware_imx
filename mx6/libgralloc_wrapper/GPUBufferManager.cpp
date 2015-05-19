@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,21 +23,9 @@ using namespace android;
 
 GPUBufferManager::GPUBufferManager()
 {
-    useVivModule = false;
-    char value[PROPERTY_VALUE_MAX];
-    property_get("sys.gralloc.viv", value, "");
-    if (0 == strcmp(value, "true")) {
-        useVivModule = true;
-    }
-
-    if (!useVivModule) {
-        gpu_device = NULL;
-        gralloc_viv = NULL;
-        return;
-    }
-
+    gralloc_viv = NULL;
+    gpu_device = NULL;
     ALOGI("open gpu gralloc module!");
-
     if (hw_get_module(GRALLOC_VIV_HARDWARE_MODULE_ID,
                 (const hw_module_t**)&gralloc_viv) == 0) {
         int status = gralloc_open((const hw_module_t*)gralloc_viv, &gpu_device);
@@ -119,17 +107,12 @@ int GPUBufferManager::allocBuffer(int w, int h, int format, int usage,
     }
 
     //YUV format
-    if (!useVivModule) {
+    if (isYUVFormat(format) || (gpu_device == NULL)) {
         return allocHandle(w, h, format, alignW, size,
                          usage, (buffer_handle_t*)handle, stride);
     }
 
     // RGB format
-    if (gpu_device == NULL) {
-        ALOGE("%s gpu device is null", __FUNCTION__);
-        return -EINVAL;
-    }
-
     return gpu_device->alloc(gpu_device, w, h, format, usage, handle, stride);
 }
 
@@ -158,17 +141,13 @@ int GPUBufferManager::freeBuffer(buffer_handle_t handle)
     }
 
     //YUV format
-    if (!useVivModule) {
+    if (isYUVFormat(hnd->format) || (gpu_device == NULL)) {
         ALOGV("free handle");
         return freeHandle(handle);
     }
 
     // RGB format.
     ALOGV("viv free");
-    if (gpu_device == NULL) {
-        ALOGE("%s gpu device is null", __FUNCTION__);
-        return -EINVAL;
-    }
     return gpu_device->free(gpu_device, handle);
 }
 
@@ -187,15 +166,11 @@ int GPUBufferManager::registerBuffer(buffer_handle_t handle)
     }
 
     //YUV format
-    if (!useVivModule) {
+    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
         return registerHandle((private_handle_t*)handle);
     }
 
     //RGB format.
-    if (gralloc_viv == NULL) {
-        ALOGE("%s gpu module is null", __FUNCTION__);
-        return -EINVAL;
-    }
     return gralloc_viv->registerBuffer(gralloc_viv, handle);
 }
 
@@ -214,15 +189,11 @@ int GPUBufferManager::unregisterBuffer(buffer_handle_t handle)
     }
 
     //YUV format
-    if (!useVivModule) {
+    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
         return unregisterHandle((private_handle_t*)handle);
     }
 
     // RGB format buffer.
-    if (gralloc_viv == NULL) {
-        ALOGE("%s gpu module is null", __FUNCTION__);
-        return -EINVAL;
-    }
     return gralloc_viv->unregisterBuffer(gralloc_viv, handle);
 }
 
@@ -244,15 +215,11 @@ int GPUBufferManager::lock(buffer_handle_t handle, int usage,
     }
 
     // yuv format buffer.
-    if (!useVivModule) {
+    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
         return lockHandle(hnd, vaddr);
     }
 
     // RGB format buffer.
-    if (gralloc_viv == NULL) {
-        ALOGE("%s gpu module is null", __FUNCTION__);
-        return -EINVAL;
-    }
     return gralloc_viv->lock(gralloc_viv, handle, usage,
                              l, t, w, h, vaddr);
 }
@@ -272,15 +239,11 @@ int GPUBufferManager::unlock(buffer_handle_t handle)
     }
 
     // yuv format buffer.
-    if (!useVivModule) {
+    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
         return unlockHandle(hnd);
     }
 
     // RGB format buffer.
-    if (gralloc_viv == NULL) {
-        ALOGE("%s gpu module is null", __FUNCTION__);
-        return -EINVAL;
-    }
     return gralloc_viv->unlock(gralloc_viv, handle);
 }
 
