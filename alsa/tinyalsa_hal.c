@@ -54,6 +54,7 @@
 #include "config_ak4458.h"
 #include "config_ak5558.h"
 #include "config_sgtl5000.h"
+#include "config_tc358743.h"
 #include "control.h"
 #include "pcm_ext.h"
 #include "config_xtor.h"
@@ -123,6 +124,7 @@ struct audio_card *audio_card_list[] = {
     &ak4458_card,
     &ak5558_card,
     &sgtl5000_card,
+    &tc358743_card,
     &null_card,
 };
 
