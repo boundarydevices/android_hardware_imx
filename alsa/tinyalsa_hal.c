@@ -49,6 +49,7 @@
 #include "config_wm8960.h"
 #include "config_sii902x.h"
 #include "config_sgtl5000.h"
+#include "config_tc358743.h"
 
 #ifdef BRILLO
 #define PCM_HW_PARAM_ACCESS 0
@@ -129,6 +130,7 @@ struct audio_card *audio_card_list[] = {
     &wm8960_card,
     &sii902x_card,
     &sgtl5000_card,
+    &tc358743_card,
     &null_card,
 };
 
