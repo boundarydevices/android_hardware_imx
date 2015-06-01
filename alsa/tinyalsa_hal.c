@@ -52,6 +52,7 @@
 #include "config_wm8524.h"
 #include "config_cdnhdmi.h"
 #include "config_sgtl5000.h"
+#include "config_tc358743.h"
 #include "control.h"
 #include "pcm_ext.h"
 
@@ -113,6 +114,7 @@ struct audio_card *audio_card_list[] = {
     &wm8524_card,
     &cdnhdmi_card,
     &sgtl5000_card,
+    &tc358743_card,
     &null_card,
 };
 
