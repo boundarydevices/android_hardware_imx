@@ -71,6 +71,7 @@
 #include "config_xtor_pico.h"
 #include "config_rt5645.h"
 #include "config_micfil.h"
+#include "config_tc358743.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -141,7 +142,6 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        19
 
 #define IMX8_BOARD_NAME "imx8"
 #define IMX7_BOARD_NAME "imx7"
@@ -152,7 +152,7 @@ const char* pcm_type_table[PCM_TOTAL] = {"PCM_NORMAL", "PCM_HDMI", "PCM_ESAI", "
 static const char* lpa_wakelock = "lpa_audio_wakelock";
 
 /*"null_card" must be in the end of this array*/
-struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
+struct audio_card *audio_card_list[] = {
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
@@ -172,8 +172,11 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &xtor_pico_card,
     &rt5645_card,
     &micfil_card,
+    &tc358743_card,
     &null_card,
 };
+
+#define SUPPORT_CARD_NUM        ARRAY_SIZE(audio_card_list)
 
 struct pcm_config pcm_config_mm_out = {
     .channels = 2,
