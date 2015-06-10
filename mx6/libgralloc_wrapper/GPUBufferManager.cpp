@@ -107,7 +107,7 @@ int GPUBufferManager::allocBuffer(int w, int h, int format, int usage,
     }
 
     //YUV format
-    if (isYUVFormat(format) || (gpu_device == NULL)) {
+    if (useFSLGralloc(format, usage) || (gpu_device == NULL)) {
         return allocHandle(w, h, format, alignW, size,
                          usage, (buffer_handle_t*)handle, stride);
     }
@@ -141,7 +141,7 @@ int GPUBufferManager::freeBuffer(buffer_handle_t handle)
     }
 
     //YUV format
-    if (isYUVFormat(hnd->format) || (gpu_device == NULL)) {
+    if (useFSLGralloc(hnd->format, hnd->usage) || (gpu_device == NULL)) {
         ALOGV("free handle");
         return freeHandle(handle);
     }
@@ -166,7 +166,7 @@ int GPUBufferManager::registerBuffer(buffer_handle_t handle)
     }
 
     //YUV format
-    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
+    if (useFSLGralloc(hnd->format, hnd->usage) || (gralloc_viv == NULL)) {
         return registerHandle((private_handle_t*)handle);
     }
 
@@ -189,7 +189,7 @@ int GPUBufferManager::unregisterBuffer(buffer_handle_t handle)
     }
 
     //YUV format
-    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
+    if (useFSLGralloc(hnd->format, hnd->usage) || (gralloc_viv == NULL)) {
         return unregisterHandle((private_handle_t*)handle);
     }
 
@@ -215,7 +215,7 @@ int GPUBufferManager::lock(buffer_handle_t handle, int usage,
     }
 
     // yuv format buffer.
-    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
+    if (useFSLGralloc(hnd->format, hnd->usage) ||  (gralloc_viv == NULL)) {
         return lockHandle(hnd, vaddr);
     }
 
@@ -239,7 +239,7 @@ int GPUBufferManager::unlock(buffer_handle_t handle)
     }
 
     // yuv format buffer.
-    if (isYUVFormat(hnd->format) || (gralloc_viv == NULL)) {
+    if (useFSLGralloc(hnd->format, hnd->usage) || (gralloc_viv == NULL)) {
         return unlockHandle(hnd);
     }
 
