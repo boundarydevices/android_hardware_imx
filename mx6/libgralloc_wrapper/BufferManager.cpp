@@ -158,12 +158,15 @@ int BufferManager::free(buffer_handle_t handle)
     return freeBuffer(handle);
 }
 
-bool BufferManager::isYUVFormat(int format)
+bool BufferManager::useFSLGralloc(int format, int usage)
 {
-    bool isYUV = true;
-    if (format >= HAL_PIXEL_FORMAT_RGBA_8888 && format <= HAL_PIXEL_FORMAT_sRGB_X_8888) {
-        isYUV = false;
+    bool bUseFSLGralloc = true;
+
+    //RGB format and without video encoder flag
+    if ((format >= HAL_PIXEL_FORMAT_RGBA_8888 && format <= HAL_PIXEL_FORMAT_sRGB_X_8888)
+       && !(usage & GRALLOC_USAGE_HW_VIDEO_ENCODER)) {
+        bUseFSLGralloc = false;
     }
 
-    return isYUV;
+    return bUseFSLGralloc;
 }
