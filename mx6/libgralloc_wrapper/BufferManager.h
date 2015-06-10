@@ -125,7 +125,7 @@ protected:
     virtual int freeBuffer(buffer_handle_t handle) = 0;
 
     int allocFramebuffer(size_t size, int usage, buffer_handle_t* pHandle);
-    bool isYUVFormat(int format);
+    bool useFSLGralloc(int format, int usage);
     BufferManager();
 
 public:
