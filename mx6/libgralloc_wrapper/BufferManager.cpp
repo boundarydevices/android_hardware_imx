@@ -162,6 +162,11 @@ bool BufferManager::useFSLGralloc(int format, int usage)
 {
     bool bUseFSLGralloc = true;
 
+    if (((usage & GRALLOC_USAGE_SW_WRITE_OFTEN) == GRALLOC_USAGE_SW_WRITE_OFTEN) ||
+            ((usage & GRALLOC_USAGE_SW_READ_OFTEN) == GRALLOC_USAGE_SW_READ_OFTEN)) {
+        return true;
+    }
+
     //RGB format and without video encoder flag
     if ((format >= HAL_PIXEL_FORMAT_RGBA_8888 && format <= HAL_PIXEL_FORMAT_sRGB_X_8888)
        && !(usage & GRALLOC_USAGE_HW_VIDEO_ENCODER)) {
