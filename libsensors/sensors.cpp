@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -70,15 +70,15 @@ static const struct sensor_t sSensorList[] = {
         { "Freescale 3-axis Accelerometer",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ACCELERATION_HANDLE,
-          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 20000, 0, 32},
+          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 10000, 0, 32},
         { "Freescale 3-axis Magnetic field sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_MAGNETIC_FIELD_HANDLE,
-          SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 100000, 0, 0},
+          SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 10000, 0, 0},
         { "Freescale Orientation sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ORIENTATION_HANDLE,
-          SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 100000, 0, 0},
+          SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 10000, 0, 0},
         { "ISL29023 Light sensor",
           "Intersil",
           1, SENSORS_LIGHT_HANDLE,
