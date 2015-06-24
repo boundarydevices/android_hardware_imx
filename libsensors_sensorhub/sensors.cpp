@@ -64,53 +64,53 @@ static const struct sensor_t sSensorList[] = {
         { "Freescale Sensor Hub Accelerometer",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ACCELERATION_HANDLE,
-          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 20000, 0, 0, "" },
-          
+          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 10000, 0, 0, "" },
+
         { "Freescale Sensor Hub Magnetic field sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_MAGNETIC_FIELD_HANDLE,
-          SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 100000, 0, 0, "" },
-          
+          SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 10000, 0, 0, "" },
+
         { "Freescale Sensor Hub Orientation sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ORIENTATION_HANDLE,
-          SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 100000, 0, 0, "" },
-          
+          SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 10000, 0, 0, "" },
+
         { "Freescale Sensor Hub Gyroscope sensor",
           "Freescale Semiconductor Inc.",
           1, SENSORS_GYROSCOPE_HANDLE,
-          SENSOR_TYPE_GYROSCOPE, 4000.0f, 0.0035, 0.50f, 100000, 0, 0, "" },
+          SENSOR_TYPE_GYROSCOPE, 4000.0f, 0.0035, 0.50f, 10000, 0, 0, "" },
 
 		 { "Freescale Sensor Hub Rotation Vector",
           "Freescale Semiconductor Inc.",
           1, SENSORS_ROTATION_VECTOR_HANDLE,
-          SENSOR_TYPE_ROTATION_VECTOR,10240.0f, 1.0f, 0.50f, 100000, 0, 0, "" },
-		
+          SENSOR_TYPE_ROTATION_VECTOR,10240.0f, 1.0f, 0.50f, 10000, 0, 0, "" },
+
         { "Freescale Sensor Hub Gravity",
           "Freescale Semiconductor Inc.",
           1, SENSORS_GRAVITY_HANDLE,
-          SENSOR_TYPE_GRAVITY, 10240.0f, 1.0f, 0.50f, 100000, 0, 0, "" },
-          
+          SENSOR_TYPE_GRAVITY, 10240.0f, 1.0f, 0.50f, 10000, 0, 0, "" },
+
         { "Freescale Sensor Hub Linear Accelerometer",
           "Freescale Semiconductor Inc.",
           1, SENSORS_LINEAR_ACCEL_HANDLE,
-          SENSOR_TYPE_LINEAR_ACCELERATION,10240.0f, 1.0f, 0.50f, 100000, 0, 0, "" },
+          SENSOR_TYPE_LINEAR_ACCELERATION,10240.0f, 1.0f, 0.50f, 10000, 0, 0, "" },
         { "Freescale Sensor Hub Step Detect",
           "Freescale Semiconductor Inc.",
           1, SENSORS_STEP_DETECTOR_HANDLE,
-          SENSOR_TYPE_STEP_DETECTOR, 1.0, 1.0f, 0.50f, 100000, 0, 0, "" }, 
+          SENSOR_TYPE_STEP_DETECTOR, 1.0, 1.0f, 0.50f, 10000, 0, 0, "" },
         { "Freescale Sensor Hub Step Count",
           "Freescale Semiconductor Inc.",
           1, SENSORS_STEP_COUNTER_HANDLE,
-          SENSOR_TYPE_STEP_COUNTER, 360.0f, CONVERT_O, 0.50f, 100000, 0, 0, "" },
+          SENSOR_TYPE_STEP_COUNTER, 360.0f, CONVERT_O, 0.50f, 10000, 0, 0, "" },
         { "Freescale Pressure Sensor ",
           "Freescale Semiconductor Inc.",
           1, SENSORS_PRESSURE_HANDLE,
-          SENSOR_TYPE_PRESSURE, 110.0f, 1.5, 0.50f, 100000, 0, 0, "" },
+          SENSOR_TYPE_PRESSURE, 110.0f, 1.5, 0.50f, 10000, 0, 0, "" },
         { "Freescale Temperature Sensor ",
           "Freescale Semiconductor Inc.",
           1, SENSORS_TEMPERATURE_HANDLE,
-          SENSOR_TYPE_TEMPERATURE, 110.0f, 1.5, 0.50f, 100000, 0, 0, "" },
+          SENSOR_TYPE_TEMPERATURE, 110.0f, 1.5, 0.50f, 10000, 0, 0, "" },
 };
 
 
