@@ -40,7 +40,7 @@
 #include "hwc_vsync.h"
 #include "hwc_uevent.h"
 #include "hwc_display.h"
-#include <g2d.h>
+#include <g2dExt.h>
 #include <sync/sync.h>
 
 /*****************************************************************************/
@@ -131,6 +131,13 @@ static bool checkG2dProcs(struct fsl_private *priv, int disp,
     targetHandle = (struct private_handle_t *)targetLayer->handle;
     if (targetHandle == NULL) {
         ALOGI("prepare: targetHandle is null");
+        return false;
+    }
+
+    enum g2d_tiling tile = G2D_LINEAR;
+    g2d_getTiling(targetHandle, &tile);
+    if (tile != G2D_LINEAR) {
+        ALOGI("g2d not support tiled target output");
         return false;
     }
 
