@@ -20,7 +20,7 @@ ifneq ($(BOARD_USE_AR3K_BLUETOOTH),)
 
 include $(CLEAR_VARS)
 
-BDROID_DIR:= external/bluetooth/bluedroid
+BDROID_DIR := $(TOP_DIR)system/bt
 
 LOCAL_SRC_FILES := \
         src/bt_vendor_QCA3002.c \

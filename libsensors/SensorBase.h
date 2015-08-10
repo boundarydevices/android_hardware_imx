@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <string.h>
 #include "InputEventReader.h"
 #include "sensors.h"
 
