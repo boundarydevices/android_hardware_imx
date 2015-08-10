@@ -1,6 +1,6 @@
 /*
  * Copyright 2012 The Android Open Source Project
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@
 #include "bt_vendor_lib.h"
 #include "vnd_buildcfg.h"
 #include "userial_vendor_QCA3002.h"
-#include "utils.h"
 
 #ifndef FALSE
 #define FALSE  0
