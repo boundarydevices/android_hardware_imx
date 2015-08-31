@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -120,6 +120,7 @@ int LightSensor::setIntLux()
     memset(buf, 0, 6);
     if ((n = fread(buf, 1, 6, fd)) < 0) {
         ALOGE("Unable to read %s\n", ls_sysfs_path);
+        close(fd);
 	return -1;
     }
     fclose(fd);
