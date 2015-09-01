@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2010-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -622,12 +622,14 @@ int BufferManager::fb_device_open(hw_module_t const* module, const char* name,
         BufferManager* pBufferManager = BufferManager::getInstance();
         if (pBufferManager == NULL) {
             ALOGE("%s get buffer manager failed.", __FUNCTION__);
+            ::free(dev);
             return -EINVAL;
         }
 
         int fbid = atoi(name+2);
         if (fbid < 0 || fbid > 5) {
             ALOGE("%s invalid fb num %d", __FUNCTION__, fbid);
+            ::free(dev);
             return -EINVAL;
         }
 
@@ -637,6 +639,7 @@ int BufferManager::fb_device_open(hw_module_t const* module, const char* name,
             dispid = (int)*device;
             if (dispid < 0 || dispid >= MAX_DISPLAY_DEVICE) {
                 ALOGE("%s invalid dispid %d", __FUNCTION__, dispid);
+                ::free(dev);
                 return -EINVAL;
             }
             dev->isMainDisp = 0;
@@ -646,6 +649,7 @@ int BufferManager::fb_device_open(hw_module_t const* module, const char* name,
         Display* display = pBufferManager->getDisplay(dispid);
         if (display == NULL) {
             ALOGE("%s can't get valid display", __FUNCTION__);
+            ::free(dev);
             return -EINVAL;
         }
 
