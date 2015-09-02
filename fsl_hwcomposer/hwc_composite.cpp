@@ -567,15 +567,16 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
             intersect(&clip, &clip, swap);
         }
 
-        //clipRects(srect, drect, clip, layer->transform);
-        g2d_set_clipping(priv->g2d_handle, clip.left, clip.top,
-                            clip.right, clip.bottom);
-
         /* intersect clipRect with distRect, framework may pass invalid clipRect
            which large than distRect, 2d blit will report error and fail to do blit. */
         hwc_rect_t& distRect = layer->displayFrame;
-        g2d_set_clipping(priv->g2d_handle, distRect.left, distRect.top,
-                            distRect.right, distRect.bottom);
+        if (!isEmpty(distRect) && isIntersect(&distRect, &clip)) {
+            intersect(&clip, &clip, &distRect);
+        }
+
+        //clipRects(srect, drect, clip, layer->transform);
+        g2d_set_clipping(priv->g2d_handle, clip.left, clip.top,
+                            clip.right, clip.bottom);
 
         if (!validateRect(srect) && layer->blending != HWC_BLENDING_DIM) {
             ALOGV("%s: invalid srect(l:%d,t:%d,r:%d,b:%d)", __FUNCTION__,
