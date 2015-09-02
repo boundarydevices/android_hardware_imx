@@ -120,7 +120,7 @@ int LightSensor::setIntLux()
     memset(buf, 0, 6);
     if ((n = fread(buf, 1, 6, fd)) < 0) {
         ALOGE("Unable to read %s\n", ls_sysfs_path);
-        close(fd);
+        fclose(fd);
 	return -1;
     }
     fclose(fd);
