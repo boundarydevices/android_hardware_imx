@@ -202,6 +202,7 @@ status_t UvcDevice::initSensorInfo(const CameraInfo& info)
             sensorFormats[index++] = vid_fmtdesc.pixelformat;
         }
     }
+    sensorFormats[index++] = v4l2_fourcc('Y', 'V', '1', '2');
     sensorFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
     sensorFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
 
