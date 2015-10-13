@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -739,7 +739,7 @@ status_t MetadaManager::createStaticInfo(camera_metadata_t **info, bool sizeRequ
             mSensorInfo->mAvailableFormatCount);
 #if 0
     const uint32_t kAvailableFormats[3] = {
-        HAL_PIXEL_FORMAT_RAW_SENSOR,
+        HAL_PIXEL_FORMAT_RAW16,
         HAL_PIXEL_FORMAT_BLOB,
         HAL_PIXEL_FORMAT_YCrCb_420_SP
     };
