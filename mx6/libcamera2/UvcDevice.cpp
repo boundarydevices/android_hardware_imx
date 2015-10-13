@@ -57,7 +57,7 @@ void UvcDevice::adjustSensorFormats(int *src, int len)
                 break;
 
             case v4l2_fourcc('R', 'A', 'W', 'S'):
-                mSensorFormats[k++] = HAL_PIXEL_FORMAT_RAW_SENSOR;
+                mSensorFormats[k++] = HAL_PIXEL_FORMAT_RAW16;
                 break;
 
             default:

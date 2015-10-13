@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ status_t TVINDevice::changeSensorFormats(int *src, int len)
                 break;
 
             case v4l2_fourcc('R', 'A', 'W', 'S'):
-                mAvailableFormats[k++] = HAL_PIXEL_FORMAT_RAW_SENSOR;
+                mAvailableFormats[k++] = HAL_PIXEL_FORMAT_RAW16;
                 break;
 
             default:
