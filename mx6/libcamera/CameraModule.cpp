@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Freescale - http://www.Freescale.com/
- * Copyright (C) 2012-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,8 @@ camera_module_t HAL_MODULE_INFO_SYM = {
     set_callbacks: NULL,
     get_vendor_tag_ops: NULL,
     open_legacy: NULL,
+    set_torch_mode: NULL,
+    init: NULL,
     reserved: {0}
 };
 
