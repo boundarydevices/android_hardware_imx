@@ -35,7 +35,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_SHARED_LIBRARIES := \
         libcutils
 
-LOCAL_MODULE := libbt-vendor
+LOCAL_MODULE := libbt-vendor-ar3k
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_OWNER := qcom
