@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include <errno.h>
+#include <string.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
