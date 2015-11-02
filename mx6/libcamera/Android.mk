@@ -15,7 +15,7 @@
 LOCAL_PATH:= $(call my-dir)
 
 ifeq ($(BOARD_HAVE_IMX_CAMERA),true)
-
+ifneq ($(IMX_CAMERA_HAL_V2),true)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=    \
@@ -99,5 +99,6 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := eng
 
 include $(BUILD_SHARED_LIBRARY)
+endif
 endif
 
