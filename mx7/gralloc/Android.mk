@@ -19,6 +19,7 @@ LOCAL_PATH := $(call my-dir)
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 
 ifeq ($(TARGET_HAVE_IMX_GRALLOC),true)
+ifneq ($(HAVE_FSL_IMX_GPU2D),true)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE_RELATIVE_PATH := hw
@@ -36,4 +37,5 @@ LOCAL_CFLAGS += -DUSE_PAN_DISPLAY=1
 endif
 
 include $(BUILD_SHARED_LIBRARY)
+endif
 endif
