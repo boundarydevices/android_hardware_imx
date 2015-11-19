@@ -15,7 +15,7 @@
 LOCAL_PATH:= $(call my-dir)
 
 ifeq ($(BOARD_HAVE_IMX_CAMERA),true)
-ifneq ($(IMX_CAMERA_HAL_V2),true)
+ifeq ($(IMX_CAMERA_HAL_V1),true)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=    \
