@@ -282,8 +282,6 @@ int32_t Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     mStreams = newStreams;
     mNumStreams = stream_config->num_streams;
 
-    // Clear out last seen settings metadata
-    mSettings.clear();
     return 0;
 
 err_out:
@@ -393,18 +391,10 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
     ALOGV("%s:%d: Request Frame:%d Settings:%p", __func__, mId,
             request->frame_number, request->settings);
 
-    {
+    // NULL indicates use last settings
+    if (request->settings != NULL) {
         android::Mutex::Autolock al(mDeviceLock);
-        // NULL indicates use last settings
-        if (request->settings == NULL) {
-            if (mSettings == NULL || mSettings->isEmpty()) {
-                ALOGE("%s:%d: NULL settings without previous set Frame:%d Req:%p",
-                        __func__, mId, request->frame_number, request);
-                return -EINVAL;
-            }
-        } else {
-            mSettings = new Metadata(request->settings);
-        }
+        mSettings = new Metadata(request->settings);
     }
 
     if (request->input_buffer != NULL) {
