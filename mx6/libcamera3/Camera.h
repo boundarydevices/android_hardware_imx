@@ -121,6 +121,7 @@ private:
     sp<Metadata> mSettings;
 
     sp<DeviceStream> mDeviceStream;
+    autoState m3aState;
 };
 
 #endif // CAMERA_H_
