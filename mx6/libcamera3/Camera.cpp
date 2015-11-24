@@ -114,6 +114,7 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char* path)
     mDevice.common.close  = close_device;
     mDevice.ops           = const_cast<camera3_device_ops_t*>(&sOps);
     mDevice.priv          = this;
+    memset(&m3aState, 0, sizeof(m3aState));
 }
 
 Camera::~Camera()
@@ -484,29 +485,45 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
         return 0;
     }
 
+    // auto exposure control.
+    camera_metadata_entry_t entry = settings->find(ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER);
+    if (entry.count > 0) {
+        // ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_START
+        m3aState.aeState = ANDROID_CONTROL_AE_STATE_CONVERGED;
+        ALOGI("ae precature trigger");
+    }
+    else {
+        m3aState.aeState = ANDROID_CONTROL_AE_STATE_INACTIVE;
+    }
+
+    entry = settings->find(ANDROID_CONTROL_AE_PRECAPTURE_ID);
+    if (entry.count > 0) {
+        m3aState.aeTriggerId = entry.data.i32[0];
+    }
+
     int64_t timestamp = 0;
     struct timespec ts;
     clock_gettime(CLOCK_BOOTTIME, &ts);
     timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
     settings->addInt64(ANDROID_SENSOR_TIMESTAMP, 1, &timestamp);
 
-    uint8_t aeState = ANDROID_CONTROL_AE_STATE_INACTIVE;
-    settings->addUInt8(ANDROID_CONTROL_AE_STATE, 1, &aeState);
+    settings->addUInt8(ANDROID_CONTROL_AE_STATE, 1, &m3aState.aeState);
 
-    uint8_t afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
-    settings->addUInt8(ANDROID_CONTROL_AF_STATE, 1, &afState);
+    // auto focus control.
+    m3aState.afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    settings->addUInt8(ANDROID_CONTROL_AF_STATE, 1, &m3aState.afState);
 
-    uint8_t awbState = ANDROID_CONTROL_AWB_STATE_INACTIVE;
-    settings->addUInt8(ANDROID_CONTROL_AWB_STATE, 1, &awbState);
+    // auto white balance control.
+    m3aState.awbState = ANDROID_CONTROL_AWB_STATE_INACTIVE;
+    settings->addUInt8(ANDROID_CONTROL_AWB_STATE, 1, &m3aState.awbState);
 
-    int32_t triggerId = 0;
-    camera_metadata_entry_t entry = settings->find(ANDROID_CONTROL_AF_TRIGGER_ID);
+    entry = settings->find(ANDROID_CONTROL_AF_TRIGGER_ID);
     if (entry.count > 0) {
-        triggerId = entry.data.i32[0];
+        m3aState.afTriggerId = entry.data.i32[0];
     }
 
-    settings->addInt32(ANDROID_CONTROL_AF_TRIGGER_ID, 1, &triggerId);
-    settings->addInt32(ANDROID_CONTROL_AE_PRECAPTURE_ID, 1, &triggerId);
+    settings->addInt32(ANDROID_CONTROL_AF_TRIGGER_ID, 1, &m3aState.afTriggerId);
+    settings->addInt32(ANDROID_CONTROL_AE_PRECAPTURE_ID, 1, &m3aState.aeTriggerId);
 
     notifyShutter(frame, timestamp);
 
