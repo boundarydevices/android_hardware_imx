@@ -96,6 +96,20 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert=false);
 
 class Metadata;
 class Stream;
+
+// 3aState
+struct autoState
+{
+    uint8_t aeMode;
+    uint8_t afMode;
+    uint8_t awbMode;
+    uint8_t aeState;
+    uint8_t afState;
+    uint8_t awbState;
+    int32_t afTriggerId;
+    int32_t aeTriggerId;
+};
+
 class StreamBuffer
 {
 public:
