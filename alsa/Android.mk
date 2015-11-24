@@ -31,3 +31,23 @@ LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
 
 endif
+
+
+ifeq ($(findstring imx, $(soc_name)), imx)
+
+LOCAL_PATH := $(call my-dir)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := audio.primary.$(soc_name)
+LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_SRC_FILES := tinyalsa_hal.c control.c
+LOCAL_C_INCLUDES += \
+	external/tinyalsa/include \
+	system/media/audio_utils/include \
+	system/media/audio_effects/include
+LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa libaudioutils libdl
+LOCAL_MODULE_TAGS := optional
+LOCAL_CPPFLAGS += -DBRILLO
+include $(BUILD_SHARED_LIBRARY)
+
+endif
