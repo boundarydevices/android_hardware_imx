@@ -35,7 +35,14 @@
 #define MIXER_WM8960_LEFT_INPUT_SWITCH              "Left Input Mixer Boost Switch"
 #define MIXER_WM8960_ADC_PCM_CAPTURE_VOLUME         "ADC PCM Capture Volume"
 
-
+#ifdef BRILLO
+#define	MIXER_WM8960_LEFT_INPUT1_SWITCH  			"Left Boost Mixer LINPUT1 Switch"
+#define	MIXER_WM8960_LEFT_INPUT2_SWITCH  			"Left Boost Mixer LINPUT2 Switch"
+#define	MIXER_WM8960_LEFT_INPUT3_SWITCH  			"Left Boost Mixer LINPUT3 Switch"
+#define MIXER_WM8960_RIGHT_INPUT_SWITCH             "Right Input Mixer Boost Switch"
+#define	MIXER_WM8960_RIGHT_INPUT1_SWITCH  			"Right Boost Mixer LINPUT1 Switch"
+#define	MIXER_WM8960_RIGHT_INPUT2_SWITCH  			"Right Boost Mixer LINPUT2 Switch"
+#endif
 
 
 static struct route_setting speaker_output_wm8960[] = {
@@ -82,6 +89,32 @@ static struct route_setting mm_main_mic_input_wm8960[] = {
         .ctl_name = MIXER_WM8960_CAPTURE_VOLUME,
         .intval = 60,
     },
+#ifdef BRILLO
+    {
+        .ctl_name = MIXER_WM8960_LEFT_INPUT1_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LEFT_INPUT2_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LEFT_INPUT3_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RIGHT_INPUT_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RIGHT_INPUT1_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RIGHT_INPUT2_SWITCH,
+        .intval = 1,
+    },
+#endif
     {
         .ctl_name = NULL,
     },

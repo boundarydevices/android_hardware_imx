@@ -49,6 +49,29 @@
 #include "config_wm8960.h"
 #include "config_sii902x.h"
 
+#ifdef BRILLO
+#define PCM_HW_PARAM_ACCESS 0
+#define PCM_HW_PARAM_FORMAT 1
+#define PCM_HW_PARAM_SUBFORMAT 2
+#define PCM_HW_PARAM_FIRST_MASK PCM_HW_PARAM_ACCESS
+#define PCM_HW_PARAM_LAST_MASK PCM_HW_PARAM_SUBFORMAT
+#define PCM_HW_PARAM_SAMPLE_BITS 8
+#define PCM_HW_PARAM_FRAME_BITS 9
+#define PCM_HW_PARAM_CHANNELS 10
+#define PCM_HW_PARAM_RATE 11
+#define PCM_HW_PARAM_PERIOD_TIME 12
+#define PCM_HW_PARAM_PERIOD_SIZE 13
+#define PCM_HW_PARAM_PERIOD_BYTES 14
+#define PCM_HW_PARAM_PERIODS 15
+#define PCM_HW_PARAM_BUFFER_TIME 16
+#define PCM_HW_PARAM_BUFFER_SIZE 17
+#define PCM_HW_PARAM_BUFFER_BYTES 18
+#define PCM_HW_PARAM_TICK_TIME 19
+#define PCM_HW_PARAM_FIRST_INTERVAL PCM_HW_PARAM_SAMPLE_BITS
+#define PCM_HW_PARAM_LAST_INTERVAL PCM_HW_PARAM_TICK_TIME
+#define PCM_HW_PARAMS_NORESAMPLE (1<<0)
+#endif
+
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -2271,7 +2294,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         ret = read_frames(in, buffer, frames_rq);
     else
         ret = pcm_read_convert(in, in->pcm, buffer, bytes);
- 
+
     if(ret < 0) ALOGW("ret %d, pcm read error %s.", ret, pcm_get_error(in->pcm));
 
     if (ret > 0)
@@ -2306,7 +2329,11 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
     int times, diff;
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
     if (in->pcm == NULL)  return 0;
+#ifdef BRILLO
+    times = 0;
+#else
     times = pcm_get_time_of_xrun(in->pcm);
+#endif
     diff = times - in->last_time_of_xrun;
     ALOGW_IF((diff != 0), "in_get_input_frames_lost %d ms total %d ms\n",diff, times);
     in->last_time_of_xrun = times;
@@ -3225,6 +3252,16 @@ static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t de
      return 0;
 }
 
+static int pcm_get_near_param_wrap(unsigned int card, unsigned int device,
+                     unsigned int flags, int type, int *data)
+{
+#ifdef BRILLO
+    return 0;
+#else
+    return pcm_get_near_param(card, device, flags, type, data);
+#endif
+}
+
 static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, bool queryInput, bool queryOutput)
 {
     int i,j,k;
@@ -3293,7 +3330,7 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
 
                 if(queryOutput) {
                     rate = 44100;
-                    if( pcm_get_near_param(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
+                    if( pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
                             adev->card_list[n]->out_rate = rate;
                     ALOGW("out rate %d",adev->card_list[n]->out_rate);
 
@@ -3301,20 +3338,24 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
                         adev->mm_rate = adev->card_list[n]->out_rate;
 
                     channels = 2;
-                    if( pcm_get_near_param(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                    if( pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
                             adev->card_list[n]->out_channels = channels;
                 }
 
                 if(queryInput) {
                     rate = 44100;
-                    if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
+                    if( pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
                             adev->card_list[n]->in_rate = rate;
 
                     channels = 1;
-                    if( pcm_get_near_param(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                    if( pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
                             adev->card_list[n]->in_channels = channels;
 
                     format = PCM_FORMAT_S16_LE;
+
+#ifdef BRILLO
+                    adev->card_list[n]->in_format = format;
+#else
                     if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
                             adev->card_list[n]->in_format = format;
                     else {
@@ -3322,6 +3363,7 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
                         if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
                             adev->card_list[n]->in_format = format;
                     }
+#endif
 
                     ALOGW("in rate %d, channels %d format %d",adev->card_list[n]->in_rate, adev->card_list[n]->in_channels, adev->card_list[n]->in_format);
                 }
