@@ -116,6 +116,31 @@ void CaptureRequest::init(camera3_capture_request* request,
     }
 }
 
+int32_t CaptureRequest::onCaptureError()
+{
+    camera3_stream_buffer_t cameraBuffer;
+    camera3_capture_result_t result;
+
+    cameraBuffer.status = CAMERA3_BUFFER_STATUS_ERROR;
+    cameraBuffer.acquire_fence = -1;
+    cameraBuffer.release_fence = -1;
+
+    memset(&result, 0, sizeof(result));
+    result.frame_number = mFrameNumber;
+    result.result = NULL;
+    result.num_output_buffers = 1;
+    result.output_buffers = &cameraBuffer;
+
+    for (uint32_t i=0; i<mOutBuffersNumber; i++) {
+        StreamBuffer* out = mOutBuffers[i];
+        cameraBuffer.stream = out->mStream->stream();
+        cameraBuffer.buffer = out->mBufHandle;
+        mCallbackOps->process_capture_result(mCallbackOps, &result);
+    }
+
+    return 0;
+}
+
 int32_t CaptureRequest::onCaptureDone(StreamBuffer* buffer)
 {
     if (buffer == NULL || buffer->mBufHandle == NULL || mCallbackOps == NULL) {

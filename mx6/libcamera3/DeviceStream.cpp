@@ -29,9 +29,10 @@ DeviceStream::DeviceStream(Camera* device)
 
 DeviceStream::~DeviceStream()
 {
+    ALOGI("%s", __func__);
     mMessageQueue.postMessage(new CMessage(MSG_EXIT, 1), 1);
     mMessageThread->requestExit();
-    mMessageThread->join();
+    ALOGI("%s finished", __func__);
 }
 
 int32_t DeviceStream::openDev(const char* name)
@@ -189,7 +190,6 @@ int32_t DeviceStream::handleStopLocked(bool force)
     ret = onDeviceStopLocked();
     if (ret < 0) {
         ALOGE("StopStreaming: Unable to stop capture: %s", strerror(errno));
-        return ret;
     }
 
     mState = STATE_STOP;
@@ -278,10 +278,14 @@ int32_t DeviceStream::handleCaptureFrame()
     {
         Mutex::Autolock lock(mLock);
         buf = acquireFrameLocked();
-        if (buf == NULL) {
-            ALOGE("acquireFrameLocked failed");
-            return 0;
-        }
+    }
+
+    if (buf == NULL) {
+        ALOGE("acquireFrameLocked failed");
+        req->onCaptureError();
+        Mutex::Autolock lock(mLock);
+        mRequests.erase(cur);
+        return 0;
     }
 
     ret = processCaptureRequest(*buf, req);

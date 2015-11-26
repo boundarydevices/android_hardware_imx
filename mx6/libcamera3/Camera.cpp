@@ -119,6 +119,7 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char* path)
 
 Camera::~Camera()
 {
+    ALOGI("%s:%d: destroy camera device", __func__, mId);
     android::Mutex::Autolock al(mDeviceLock);
     if (mStaticInfo != NULL) {
         free_camera_metadata(mStaticInfo);
@@ -126,6 +127,7 @@ Camera::~Camera()
 
     if (mDeviceStream != NULL) {
         mDeviceStream.clear();
+        mDeviceStream = NULL;
     }
 }
 
