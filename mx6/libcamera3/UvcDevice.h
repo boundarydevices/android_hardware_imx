@@ -26,6 +26,7 @@ public:
     virtual ~UvcDevice();
 
     virtual status_t initSensorStaticData();
+    virtual bool isHotplug() {return true;}
 
 private:
 

@@ -65,7 +65,8 @@ LOCAL_SHARED_LIBRARIES := \
     libg2d \
     libbinder \
     lib_vpu_wrapper \
-    libcamera_client
+    libcamera_client \
+    libhardware_legacy
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 

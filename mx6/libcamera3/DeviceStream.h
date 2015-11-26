@@ -112,6 +112,8 @@ private:
             if (ret != 0) {
                 ALOGI("%s exit...", __func__);
                 g2d_close(mStream->g2dHandle);
+                mStream.clear();
+                mStream = NULL;
                 return false;
             }
 

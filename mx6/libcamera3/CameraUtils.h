@@ -97,6 +97,26 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert=false);
 class Metadata;
 class Stream;
 
+struct SensorSet
+{
+    // parameters from init.rc
+    char mPropertyName[PROPERTY_VALUE_MAX];
+    int32_t mFacing;
+    int32_t mOrientation;
+
+    // parameters by enum dynamically.
+    char mSensorName[PROPERTY_VALUE_MAX];
+    char mDevPath[CAMAERA_FILENAME_LENGTH];
+
+    // parameters for extension.
+    int32_t mResourceCost;
+    uint32_t mConflictingSize;
+    char** mConflictingDevices;
+
+    // indicate sensor plug in/out.
+    bool mExisting;
+};
+
 // 3aState
 struct autoState
 {
@@ -143,6 +163,7 @@ public:
               sp<Metadata> settings);
     int32_t onCaptureDone(StreamBuffer* buffer);
     int32_t onSettingsDone(sp<Metadata> meta);
+    int32_t onCaptureError();
 
 public:
     uint32_t mFrameNumber;
