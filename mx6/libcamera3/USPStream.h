@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef _OV_STREAM_H
-#define _OV_STREAM_H
+#ifndef _USP_STREAM_H
+#define _USP_STREAM_H
 
-#include "DeviceStream.h"
+#include "MMAPStream.h"
 
-class OvStream : public DeviceStream
+// stream uses user pointer buffers which allocated in user space.
+// that exports physical address.
+class USPStream : public MMAPStream
 {
 public:
-    OvStream(Camera* device);
-    virtual ~OvStream();
+    USPStream(Camera* device);
+    virtual ~USPStream();
 
     // configure device.
     virtual int32_t onDeviceConfigureLocked();
@@ -41,6 +43,9 @@ public:
     virtual int32_t allocateBuffersLocked();
     // free buffers.
     virtual int32_t freeBuffersLocked();
+
+protected:
+    int32_t getFormatSize();
 
 private:
     int32_t mIonFd;

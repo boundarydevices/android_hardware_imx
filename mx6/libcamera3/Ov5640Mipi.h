@@ -18,6 +18,7 @@
 #define _OV5640_MIPI_H_
 
 #include "Camera.h"
+#include "USPStream.h"
 
 class Ov5640Mipi : public Camera
 {
@@ -28,7 +29,15 @@ public:
     virtual status_t initSensorStaticData();
 
 private:
+    class OvStream : public USPStream {
+    public:
+        OvStream(Camera* device)
+            : USPStream(device) {}
+        virtual ~OvStream() {}
 
+        // configure device.
+        virtual int32_t onDeviceConfigureLocked();
+    };
 };
 
 #endif

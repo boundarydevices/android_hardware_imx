@@ -41,16 +41,18 @@ LOCAL_SRC_FILES := \
     VendorTags.cpp \
     CameraUtils.cpp \
     MessageQueue.cpp \
-    DeviceStream.cpp \
+    VideoStream.cpp \
     JpegBuilder.cpp \
     Ov5640Csi.cpp \
     Ov5640Mipi.cpp \
     Ov5642Csi.cpp \
     YuvToJpegEncoder.cpp \
     NV12_resize.c \
-    OvStream.cpp \
-    UvcStream.cpp \
-    UvcDevice.cpp
+    USPStream.cpp \
+    DMAStream.cpp \
+    UvcDevice.cpp \
+    TVINDevice.cpp \
+    MMAPStream.cpp
 
 LOCAL_SHARED_LIBRARIES := \
     libcamera_metadata \

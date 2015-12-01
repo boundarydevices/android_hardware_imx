@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _DEVICE_STREAM_H
-#define _DEVICE_STREAM_H
+#ifndef _VIDEO_STREAM_H
+#define _VIDEO_STREAM_H
 
 #include <utils/threads.h>
 #include "MessageQueue.h"
@@ -27,11 +27,12 @@ using namespace android;
 
 class Camera;
 
-class DeviceStream : public Stream
+class VideoStream : public Stream
 {
 public:
-    DeviceStream(Camera* device);
-    virtual ~DeviceStream();
+    VideoStream(Camera* device);
+    virtual ~VideoStream();
+    void destroyStream();
 
     // configure device stream.
     int32_t configure(sp<Stream> stream);
@@ -56,6 +57,7 @@ private:
     static const int32_t STATE_CONFIG = 0x202;
     static const int32_t STATE_START = 0x203;
     static const int32_t STATE_STOP  = 0x204;
+    static const int32_t STATE_ERROR  = 0x205;
 
 protected:
     // handle configure message internally.
@@ -94,7 +96,7 @@ private:
     class MessageThread : public Thread
     {
     public:
-        MessageThread(DeviceStream *device)
+        MessageThread(VideoStream *device)
             : Thread(false), mStream(device)
             {}
 
@@ -122,7 +124,7 @@ private:
         }
 
     private:
-        sp<DeviceStream> mStream;
+        sp<VideoStream> mStream;
     };
 
 protected:

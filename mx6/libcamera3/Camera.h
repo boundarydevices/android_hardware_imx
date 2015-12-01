@@ -24,7 +24,7 @@
 #include "Stream.h"
 #include "CameraUtils.h"
 
-class DeviceStream;
+class VideoStream;
 // Camera represents a physical camera on a device.
 // This is constructed when the HAL module is loaded, one per physical camera.
 // It is opened by the framework, and must be closed before it can be opened
@@ -41,7 +41,6 @@ public:
 
     static Camera* createCamera(int32_t id, char* name, int32_t facing,
                                 int32_t orientation, char* path);
-    int32_t setDeviceStream(sp<DeviceStream>& stream);
     // do advanced character set.
     int32_t processSettings(sp<Metadata> settings, uint32_t frame);
     // Common Camera Device Operations (see <hardware/camera_common.h>)
@@ -121,7 +120,8 @@ private:
     // Most recent request settings seen, memoized to be reused
     sp<Metadata> mSettings;
 
-    sp<DeviceStream> mDeviceStream;
+protected:
+    sp<VideoStream> mVideoStream;
     autoState m3aState;
 };
 

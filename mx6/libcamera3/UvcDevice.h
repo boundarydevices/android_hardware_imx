@@ -18,6 +18,7 @@
 #define _UVC_DEVICE_H
 
 #include "Camera.h"
+#include "DMAStream.h"
 
 class UvcDevice : public Camera
 {
@@ -29,7 +30,25 @@ public:
     virtual bool isHotplug() {return true;}
 
 private:
+    class UvcStream : public DMAStream {
+    public:
+        UvcStream(Camera* device, const char* name)
+              : DMAStream(device) {
+            strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH);
+        }
+        virtual ~UvcStream() {}
 
+        // configure device.
+        virtual int32_t onDeviceConfigureLocked();
+        // stop device.
+        virtual int32_t onDeviceStopLocked();
+
+        // get device buffer required size.
+        virtual int32_t getDeviceBufferSize();
+
+    private:
+        char mUvcPath[CAMAERA_FILENAME_LENGTH];
+    };
 };
 
 #endif
