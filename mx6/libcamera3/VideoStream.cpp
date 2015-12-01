@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include "DeviceStream.h"
+#include "VideoStream.h"
 
 using namespace android;
 
-DeviceStream::DeviceStream(Camera* device)
+VideoStream::VideoStream(Camera* device)
     : Stream(device), mState(STATE_INVALID),
       mChanged(false), mDev(-1),
       mAllocatedBuffers(0)
@@ -27,15 +27,36 @@ DeviceStream::DeviceStream(Camera* device)
     mMessageThread = new MessageThread(this);
 }
 
-DeviceStream::~DeviceStream()
+VideoStream::~VideoStream()
 {
     ALOGI("%s", __func__);
-    mMessageQueue.postMessage(new CMessage(MSG_EXIT, 1), 1);
-    mMessageThread->requestExit();
-    ALOGI("%s finished", __func__);
+    destroyStream();
+    mMessageQueue.clearMessages();
+    mMessageQueue.clearCommands();
+    mMessageThread.clear();
+    mMessageThread = NULL;
 }
 
-int32_t DeviceStream::openDev(const char* name)
+void VideoStream::destroyStream()
+{
+    ALOGI("%s", __func__);
+    {
+        Mutex::Autolock lock(mLock);
+        if (mState == STATE_ERROR) {
+            ALOGI("%s finished!", __func__);
+            return;
+        }
+    }
+
+    if (mMessageThread != NULL && mMessageThread->isRunning()) {
+        mMessageQueue.postMessage(new CMessage(MSG_EXIT, 1), 1);
+        mMessageThread->requestExit();
+        mMessageThread->join();
+    }
+    ALOGI("%s finished!!", __func__);
+}
+
+int32_t VideoStream::openDev(const char* name)
 {
     ALOGI("%s", __func__);
     if (name == NULL) {
@@ -54,7 +75,7 @@ int32_t DeviceStream::openDev(const char* name)
     return 0;
 }
 
-int32_t DeviceStream::configure(sp<Stream> stream)
+int32_t VideoStream::configure(sp<Stream> stream)
 {
     ALOGV("%s", __func__);
     if ((stream->width() == 0) || (stream->height() == 0)
@@ -86,7 +107,7 @@ int32_t DeviceStream::configure(sp<Stream> stream)
     return 0;
 }
 
-int32_t DeviceStream::handleConfigureLocked()
+int32_t VideoStream::handleConfigureLocked()
 {
     int32_t ret   = 0;
     ALOGV("%s", __func__);
@@ -119,7 +140,7 @@ int32_t DeviceStream::handleConfigureLocked()
     return 0;
 }
 
-int32_t DeviceStream::handleStartLocked(bool force)
+int32_t VideoStream::handleStartLocked(bool force)
 {
     int32_t ret = 0;
     ALOGV("%s", __func__);
@@ -140,6 +161,7 @@ int32_t DeviceStream::handleStartLocked(bool force)
 
     ret = onDeviceStartLocked();
     if (ret != 0) {
+        mState = STATE_ERROR;
         ALOGE("%s onDeviceStart failed", __func__);
         return ret;
     }
@@ -149,12 +171,12 @@ int32_t DeviceStream::handleStartLocked(bool force)
     return 0;
 }
 
-int32_t DeviceStream::closeDev()
+int32_t VideoStream::closeDev()
 {
     ALOGI("%s", __func__);
     Mutex::Autolock lock(mLock);
 
-    if (mMessageThread->isRunning()) {
+    if (mState != STATE_ERROR && mMessageThread->isRunning()) {
         mMessageQueue.postMessage(new CMessage(MSG_CLOSE, 0), 1);
     }
     else {
@@ -168,7 +190,7 @@ int32_t DeviceStream::closeDev()
     return 0;
 }
 
-int32_t DeviceStream::handleStopLocked(bool force)
+int32_t VideoStream::handleStopLocked(bool force)
 {
     int32_t ret = 0;
     ALOGV("%s", __func__);
@@ -189,10 +211,13 @@ int32_t DeviceStream::handleStopLocked(bool force)
 
     ret = onDeviceStopLocked();
     if (ret < 0) {
+        mState = STATE_ERROR;
         ALOGE("StopStreaming: Unable to stop capture: %s", strerror(errno));
     }
+    else {
+        mState = STATE_STOP;
+    }
 
-    mState = STATE_STOP;
     if (force) {
         // clear request messages.
         mMessageQueue.clearMessages();
@@ -205,7 +230,7 @@ int32_t DeviceStream::handleStopLocked(bool force)
     return ret;
 }
 
-int32_t DeviceStream::requestCapture(sp<CaptureRequest> req)
+int32_t VideoStream::requestCapture(sp<CaptureRequest> req)
 {
     Mutex::Autolock lock(mLock);
 
@@ -216,7 +241,7 @@ int32_t DeviceStream::requestCapture(sp<CaptureRequest> req)
     return 0;
 }
 
-StreamBuffer* DeviceStream::acquireFrameLocked()
+StreamBuffer* VideoStream::acquireFrameLocked()
 {
     int32_t index = onFrameAcquireLocked();
     if (index >= MAX_STREAM_BUFFERS || index < 0) {
@@ -227,7 +252,7 @@ StreamBuffer* DeviceStream::acquireFrameLocked()
     return mBuffers[index];
 }
 
-int32_t DeviceStream::getBufferIndexLocked(StreamBuffer& buf)
+int32_t VideoStream::getBufferIndexLocked(StreamBuffer& buf)
 {
     for (uint32_t i=0; i<mNumBuffers; i++) {
         if (mBuffers[i]->mPhyAddr == buf.mPhyAddr) {
@@ -238,7 +263,7 @@ int32_t DeviceStream::getBufferIndexLocked(StreamBuffer& buf)
     return -1;
 }
 
-int32_t DeviceStream::returnFrameLocked(StreamBuffer& buf)
+int32_t VideoStream::returnFrameLocked(StreamBuffer& buf)
 {
     ALOGV("%s", __func__);
     int32_t i = getBufferIndexLocked(buf);
@@ -249,7 +274,7 @@ int32_t DeviceStream::returnFrameLocked(StreamBuffer& buf)
     return onFrameReturnLocked(i, buf);
 }
 
-int32_t DeviceStream::handleCaptureFrame()
+int32_t VideoStream::handleCaptureFrame()
 {
     int32_t ret = 0;
     ALOGV("%s", __func__);
@@ -303,7 +328,7 @@ int32_t DeviceStream::handleCaptureFrame()
     return 0;
 }
 
-int32_t DeviceStream::processCaptureRequest(StreamBuffer& src,
+int32_t VideoStream::processCaptureRequest(StreamBuffer& src,
                          sp<CaptureRequest> req)
 {
     int32_t ret = 0;
@@ -325,7 +350,7 @@ int32_t DeviceStream::processCaptureRequest(StreamBuffer& src,
 }
 
 // process advanced character.
-int32_t DeviceStream::processCaptureSettings(sp<CaptureRequest> req)
+int32_t VideoStream::processCaptureSettings(sp<CaptureRequest> req)
 {
     ALOGV("%s", __func__);
     sp<Metadata> meta = req->mSettings;
@@ -354,7 +379,7 @@ int32_t DeviceStream::processCaptureSettings(sp<CaptureRequest> req)
     return ret;
 }
 
-int32_t DeviceStream::handleMessage()
+int32_t VideoStream::handleMessage()
 {
     int32_t ret = 0;
 

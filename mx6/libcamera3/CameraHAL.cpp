@@ -352,18 +352,23 @@ int32_t CameraHAL::matchDevPath(const char* pName, char* pDevPath, uint32_t path
         }
 
         sprintf(devNode, "/dev/%s", dirEntry->d_name);
+        ALOGI("%s dev path:%s", __func__, devNode);
         if ((fd = open(devNode, O_RDWR, O_NONBLOCK)) < 0) {
+            ALOGW("%s open dev path:%s failed:%s", __func__, devNode,
+                         strerror(errno));
             continue;
         }
 
         ret = ioctl(fd, VIDIOC_QUERYCAP, &vidCap);
         if (ret < 0) {
+            ALOGW("%s QUERYCAP dev path:%s failed", __func__, devNode);
             close(fd);
             fd = -1;
             continue;
         }
 
         if (!(vidCap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+            ALOGW("%s dev path:%s is not capture", __func__, devNode);
             close(fd);
             fd = -1;
             ret = -1;
@@ -382,6 +387,7 @@ int32_t CameraHAL::matchDevPath(const char* pName, char* pDevPath, uint32_t path
 
         ret = ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vidChip);
         if (ret < 0) {
+            ALOGW("%s CHIP_IDENT dev path:%s failed", __func__, devNode);
             close(fd);
             fd = -1;
             continue;
