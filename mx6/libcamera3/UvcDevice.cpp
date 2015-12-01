@@ -15,12 +15,14 @@
  */
 
 #include "UvcDevice.h"
+#include "DMAStream.h"
 
 #define LOGI_C920 "HD Pro Webcam C920"
 
 UvcDevice::UvcDevice(int32_t id, int32_t facing, int32_t orientation, char* path)
     : Camera(id, facing, orientation, path)
 {
+    mVideoStream = new UvcStream(this, path);
 }
 
 UvcDevice::~UvcDevice()
@@ -81,38 +83,38 @@ status_t UvcDevice::initSensorStaticData()
         memset(&vid_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
         vid_frmsize.index        = index++;
         vid_frmsize.pixel_format = convertPixelFormatToV4L2Format(mSensorFormats[0]);
-        ret = ioctl(fd,
-                    VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
+        ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
+        if (ret != 0) {
+            continue;
+        }
+        //uvc need do csc, so omit large resolution.
+        if (vid_frmsize.discrete.width > 1920 ||
+                vid_frmsize.discrete.height > 1080) {
+            continue;
+        }
 
-        if (ret == 0) {
-            //uvc need do csc, so omit large resolution.
-            if (vid_frmsize.discrete.width > 1920 ||
-                     vid_frmsize.discrete.height > 1080) {
-                continue;
-            }
+        ALOGI("enum frame size w:%d, h:%d",
+                vid_frmsize.discrete.width, vid_frmsize.discrete.height);
+        memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
+        vid_frmval.index        = 0;
+        vid_frmval.pixel_format = vid_frmsize.pixel_format;
+        vid_frmval.width        = vid_frmsize.discrete.width;
+        vid_frmval.height       = vid_frmsize.discrete.height;
 
-            ALOGI("enum frame size w:%d, h:%d",
-                       vid_frmsize.discrete.width, vid_frmsize.discrete.height);
-            memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
-            vid_frmval.index        = 0;
-            vid_frmval.pixel_format = vid_frmsize.pixel_format;
-            vid_frmval.width        = vid_frmsize.discrete.width;
-            vid_frmval.height       = vid_frmsize.discrete.height;
+        ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
+        if (ret != 0) {
+            continue;
+        }
+        ALOGI("vid_frmval denominator:%d, numeraton:%d",
+                vid_frmval.discrete.denominator,
+                vid_frmval.discrete.numerator);
+        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
+        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
 
-            ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
-            if (ret == 0) {
-                ALOGI("vid_frmval denominator:%d, numeraton:%d",
-                             vid_frmval.discrete.denominator,
-                             vid_frmval.discrete.numerator);
-                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
-                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
-
-                if (vid_frmval.discrete.denominator /
-                    vid_frmval.discrete.numerator > 15) {
-                    mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
-                    mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;;
-                }
-            }
+        if (vid_frmval.discrete.denominator /
+                vid_frmval.discrete.numerator > 15) {
+            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
+            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
         }
     } // end while
 
@@ -149,5 +151,64 @@ status_t UvcDevice::initSensorStaticData()
 
     close(fd);
     return 0;
+}
+
+int32_t UvcDevice::UvcStream::onDeviceConfigureLocked()
+{
+    ALOGI("%s", __func__);
+
+    int32_t ret = 0;
+    if (mDev <= 0) {
+        // usb camera should open dev node again.
+        // because when stream off, the dev node must close.
+        mDev = open(mUvcPath, O_RDWR);
+        if (mDev <= 0) {
+            ALOGE("%s invalid fd handle", __func__);
+            return BAD_VALUE;
+        }
+    }
+
+    return DMAStream::onDeviceConfigureLocked();
+}
+
+int32_t UvcDevice::UvcStream::onDeviceStopLocked()
+{
+    ALOGI("%s", __func__);
+    int32_t ret = DMAStream::onDeviceStopLocked();
+    // usb camera must close device after stream off.
+    if (mDev > 0) {
+        close(mDev);
+        mDev = -1;
+    }
+
+    return ret;
+}
+
+// usb camera require the specific buffer size.
+int32_t UvcDevice::UvcStream::getDeviceBufferSize()
+{
+    int32_t size = 0;
+    switch (mFormat) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            size = ((mWidth + 16) & (~15)) * mHeight * 3 / 2;
+            break;
+
+         case HAL_PIXEL_FORMAT_YCbCr_420_P: {
+            int32_t stride = (mWidth+31)/32*32;
+            int32_t c_stride = (stride/2+15)/16*16;
+            size = (stride + c_stride) * mHeight;
+             break;
+         }
+
+         case HAL_PIXEL_FORMAT_YCbCr_422_I:
+            size = mWidth * mHeight * 2;
+             break;
+
+        default:
+            ALOGE("Error: %s format not supported", __func__);
+            break;
+    }
+
+    return size;
 }
 

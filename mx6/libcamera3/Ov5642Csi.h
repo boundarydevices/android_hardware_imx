@@ -18,6 +18,7 @@
 #define _OV5642_CSI_H
 
 #include "Camera.h"
+#include "USPStream.h"
 
 class Ov5642Csi : public Camera
 {
@@ -28,7 +29,15 @@ public:
     virtual status_t initSensorStaticData();
 
 private:
+    class OvStream : public USPStream {
+    public:
+        OvStream(Camera* device)
+            : USPStream(device) {}
+        virtual ~OvStream() {}
 
+        // configure device.
+        virtual int32_t onDeviceConfigureLocked();
+    };
 };
 
 #endif

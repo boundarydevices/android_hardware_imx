@@ -172,6 +172,32 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
         thumbQuality = 100;
     }
 
+    int bufSize = 0;
+    int alignedw, alignedh, c_stride;
+    switch (srcStream->format()) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+            alignedw = ALIGN_PIXEL_32(srcStream->mWidth);
+            alignedh = ALIGN_PIXEL_4(srcStream->mHeight);
+            c_stride = (alignedw/2+15)/16*16;
+            bufSize = alignedw * alignedh + c_stride * alignedh;
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            alignedw = ALIGN_PIXEL_16(srcStream->mWidth);
+            alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
+            bufSize = alignedw * alignedh * 3 / 2;
+            break;
+
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+            alignedw = ALIGN_PIXEL_16(srcStream->mWidth);
+            alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
+            bufSize = alignedw * alignedh * 2;
+            break;
+
+        default:
+            ALOGE("Error: %s format not supported", __FUNCTION__);
+            goto err_out;
+    }
+
     mainJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
                        (uint8_t *)src.mPhyAddr,
                        src.mSize, (uint8_t *)rawBuf,
@@ -187,26 +213,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     }
 
     if ((thumbWidth > 0) && (thumbHeight > 0)) {
-        int thumbSize   = 0;
-        int thumbFormat = convertPixelFormatToV4L2Format(srcStream->format());
-        switch (thumbFormat) {
-            case v4l2_fourcc('N', 'V', '1', '2'):
-                thumbSize = thumbWidth * thumbHeight * 3 / 2;
-                break;
-
-            case v4l2_fourcc('Y', 'U', '1', '2'):
-                thumbSize = thumbWidth * thumbHeight * 3 / 2;
-                break;
-
-            case v4l2_fourcc('Y', 'U', 'Y', 'V'):
-                thumbSize = thumbWidth * thumbHeight * 2;
-                break;
-
-            default:
-                ALOGE("Error: %s format not supported", __FUNCTION__);
-                goto err_out;
-        }
-        thumbSize = src.mSize;
+        int thumbSize = bufSize;
         thumbJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
                            (uint8_t *)src.mPhyAddr,
                            src.mSize,

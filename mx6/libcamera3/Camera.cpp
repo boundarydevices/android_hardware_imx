@@ -36,8 +36,8 @@
 #include "Ov5640Csi.h"
 #include "Ov5642Csi.h"
 #include "UvcDevice.h"
-#include "OvStream.h"
-#include "UvcStream.h"
+#include "TVINDevice.h"
+#include "VideoStream.h"
 
 #define CAMERA_SYNC_TIMEOUT 5000 // in msecs
 
@@ -58,36 +58,31 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
                              int32_t orientation, char* path)
 {
     Camera* device = NULL;
-    sp<DeviceStream> devStream = NULL;
 
     android::Mutex::Autolock al(sStaticInfoLock);
 
     if (strstr(name, OV5640MIPI_SENSOR_NAME)) {
         ALOGI("create id:%d ov5640 mipi device", id);
         device = new Ov5640Mipi(id, facing, orientation, path);
-        devStream = new OvStream(device);
     }
     else if (strstr(name, OV5642CSI_SENSOR_NAME)) {
         ALOGI("create id:%d ov5642 csi device", id);
         device = new Ov5642Csi(id, facing, orientation, path);
-        devStream = new OvStream(device);
     }
     else if (strstr(name, OV5640CSI_SENSOR_NAME)) {
         ALOGI("create id:%d ov5640 csi device", id);
         device = new Ov5640Csi(id, facing, orientation, path);
-        devStream = new OvStream(device);
     }
     else if (strstr(name, UVC_SENSOR_NAME)) {
         ALOGI("create id:%d usb camera device", id);
         device = new UvcDevice(id, facing, orientation, path);
-        devStream = new UvcStream(device, path);
+    }
+    else if (strstr(name, ADV7180_TVIN_NAME)) {
+        ALOGI("create id:%d adv7180 tvin device", id);
+        device = new TVINDevice(id, facing, orientation, path);
     }
     else {
         ALOGE("doesn't support camera id:%d %s", id, name);
-    }
-
-    if (device != NULL) {
-        device->setDeviceStream(devStream);
     }
 
     return device;
@@ -125,9 +120,10 @@ Camera::~Camera()
         free_camera_metadata(mStaticInfo);
     }
 
-    if (mDeviceStream != NULL) {
-        mDeviceStream.clear();
-        mDeviceStream = NULL;
+    if (mVideoStream != NULL) {
+        mVideoStream->destroyStream();
+        mVideoStream.clear();
+        mVideoStream = NULL;
     }
 }
 
@@ -145,13 +141,6 @@ void Camera::setPicturePixelFormat()
                             mAvailableFormats, MAX_SENSOR_FORMAT);
 }
 
-int32_t Camera::setDeviceStream(sp<DeviceStream>& stream)
-{
-    android::Mutex::Autolock al(mDeviceLock);
-    mDeviceStream = stream;
-    return 0;
-}
-
 int32_t Camera::openDev(const hw_module_t *module, hw_device_t **device)
 {
     ALOGI("%s:%d: Opening camera device", __func__, mId);
@@ -163,7 +152,7 @@ int32_t Camera::openDev(const hw_module_t *module, hw_device_t **device)
     }
 
     // open camera dev nodes, etc
-    int32_t ret = mDeviceStream->openDev(mDevPath);
+    int32_t ret = mVideoStream->openDev(mDevPath);
     if (ret != 0) {
         ALOGE("can not open camera devpath:%s", mDevPath);
         return BAD_VALUE;
@@ -185,7 +174,7 @@ int32_t Camera::getInfo(struct camera_info *info)
     if (mStaticInfo == NULL) {
         int32_t ret = initSensorStaticData();
         if (ret != 0) {
-            ALOGE("%s initSensorStaticData failed");
+            ALOGE("%s initSensorStaticData failed", __func__);
             return ret;
         }
         setPreviewPixelFormat();
@@ -207,7 +196,7 @@ int32_t Camera::closeDev()
     }
 
     // close camera dev nodes, etc
-    mDeviceStream->closeDev();
+    mVideoStream->closeDev();
 
     mBusy = false;
     return 0;
@@ -428,7 +417,7 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
     // set preview/still capture stream.
     sp<Stream> preview = NULL, stillcap = NULL;
     sp<Metadata> meta = NULL;
-    sp<DeviceStream> devStream = NULL;
+    sp<VideoStream> devStream = NULL;
     camera3_callback_ops* callback = NULL;
     {
         android::Mutex::Autolock al(mDeviceLock);
@@ -443,12 +432,12 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
         }
 
         meta = mSettings;
-        devStream = mDeviceStream;
+        devStream = mVideoStream;
         callback = (camera3_callback_ops*)mCallbackOps;
     }
     sp<CaptureRequest> capture = new CaptureRequest();
 
-    // configure DeviceStream according to request type.
+    // configure VideoStream according to request type.
     if (request->settings != NULL) {
         if (meta->getRequestType() == TYPE_STILLCAP) {
             if (stillcap == NULL) {

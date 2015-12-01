@@ -14,37 +14,25 @@
  * limitations under the License.
  */
 
-#include "OvStream.h"
+#include "MMAPStream.h"
 
-OvStream::OvStream(Camera* device)
-    : DeviceStream(device), mIonFd(-1)
+MMAPStream::MMAPStream(Camera* device)
+    : VideoStream(device)
 {
-    mIonFd = ion_open();
 }
 
-OvStream::~OvStream()
+MMAPStream::~MMAPStream()
 {
-    if (mIonFd > 0) {
-        close(mIonFd);
-        mIonFd = -1;
-    }
 }
 
 // configure device.
-int32_t OvStream::onDeviceConfigureLocked()
+int32_t MMAPStream::onDeviceConfigureLocked()
 {
-    ALOGV("%s", __func__);
+    ALOGI("%s", __func__);
     int32_t ret = 0;
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
         return BAD_VALUE;
-    }
-
-    int32_t input = 1;
-    ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
-    if (ret < 0) {
-        ALOGE("Open: VIDIOC_S_INPUT Failed: %s", strerror(errno));
-        return ret;
     }
 
     int32_t fps = 30;
@@ -121,9 +109,9 @@ int32_t OvStream::onDeviceConfigureLocked()
     return 0;
 }
 
-int32_t OvStream::onDeviceStartLocked()
+int32_t MMAPStream::onDeviceStartLocked()
 {
-    ALOGV("%s", __func__);
+    ALOGI("%s", __func__);
     if (mDev <= 0) {
         ALOGE("%s invalid dev node", __func__);
         return BAD_VALUE;
@@ -136,7 +124,7 @@ int32_t OvStream::onDeviceStartLocked()
     memset(&req, 0, sizeof (req));
     req.count = mNumBuffers;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    req.memory = V4L2_MEMORY_USERPTR;
+    req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(mDev, VIDIOC_REQBUFS, &req) < 0) {
         ALOGE("%s VIDIOC_REQBUFS failed", __func__);
         return BAD_VALUE;
@@ -146,13 +134,20 @@ int32_t OvStream::onDeviceStartLocked()
         memset(&buf, 0, sizeof (buf));
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.index = i;
-        buf.memory = V4L2_MEMORY_USERPTR;
-        buf.m.offset = mBuffers[i]->mPhyAddr;
-        buf.length   = mBuffers[i]->mSize;
+        buf.memory = V4L2_MEMORY_MMAP;
         if (ioctl(mDev, VIDIOC_QUERYBUF, &buf) < 0) {
             ALOGE("%s VIDIOC_QUERYBUF error", __func__);
             return BAD_VALUE;
         }
+
+        mBuffers[i] = new StreamBuffer();
+        mBuffers[i]->mPhyAddr = buf.m.offset;
+        mBuffers[i]->mSize = buf.length;
+        mBuffers[i]->mVirtAddr = (void *)mmap(NULL, mBuffers[i]->mSize,
+                    PROT_READ | PROT_WRITE, MAP_SHARED, mDev,
+                    mBuffers[i]->mPhyAddr);
+        mBuffers[i]->mStream = this;
+        memset(mBuffers[i]->mVirtAddr, 0xFF, mBuffers[i]->mSize);
     }
 
     int32_t ret = 0;
@@ -161,9 +156,10 @@ int32_t OvStream::onDeviceStartLocked()
     for (uint32_t i = 0; i < mNumBuffers; i++) {
         memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-        cfilledbuffer.index    = i;
+        cfilledbuffer.memory = V4L2_MEMORY_MMAP;
+        cfilledbuffer.index = i;
         cfilledbuffer.m.offset = mBuffers[i]->mPhyAddr;
+        cfilledbuffer.length = mBuffers[i]->mSize;
         ALOGI("%s VIDIOC_QBUF phy:0x%x", __func__, mBuffers[i]->mPhyAddr);
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
@@ -184,14 +180,23 @@ int32_t OvStream::onDeviceStartLocked()
     return 0;
 }
 
-int32_t OvStream::onDeviceStopLocked()
+int32_t MMAPStream::onDeviceStopLocked()
 {
-    ALOGV("%s", __func__);
+    ALOGI("%s", __func__);
     int32_t ret = 0;
 
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
         return BAD_VALUE;
+    }
+
+    for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
+        if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL
+                                && mBuffers[i]->mSize > 0) {
+            munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
+            delete mBuffers[i];
+            mBuffers[i] = NULL;
+        }
     }
 
     enum v4l2_buf_type bufType;
@@ -205,14 +210,14 @@ int32_t OvStream::onDeviceStopLocked()
     return 0;
 }
 
-int32_t OvStream::onFrameAcquireLocked()
+int32_t MMAPStream::onFrameAcquireLocked()
 {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
+    cfilledbuffer.memory = V4L2_MEMORY_MMAP;
 
     ret = ioctl(mDev, VIDIOC_DQBUF, &cfilledbuffer);
     if (ret < 0) {
@@ -223,16 +228,17 @@ int32_t OvStream::onFrameAcquireLocked()
     return cfilledbuffer.index;
 }
 
-int32_t OvStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
+int32_t MMAPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
 {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
+    cfilledbuffer.memory = V4L2_MEMORY_MMAP;
     cfilledbuffer.index    = index;
     cfilledbuffer.m.offset = buf.mPhyAddr;
+    cfilledbuffer.length = buf.mSize;
 
     ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {
@@ -241,122 +247,5 @@ int32_t OvStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     }
 
     return ret;
-}
-
-int32_t OvStream::allocateBuffersLocked()
-{
-    ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
-        return BAD_VALUE;
-    }
-
-    if (mRegistered) {
-        ALOGI("%s but buffer is already registered", __func__);
-        return 0;
-    }
-
-    int32_t size = 0;
-    if ((mWidth == 0) || (mHeight == 0)) {
-        ALOGE("%s: width or height = 0", __func__);
-        return BAD_VALUE;
-    }
-
-    switch (mFormat) {
-        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            size = ((mWidth + 16) & (~15)) * mHeight * 3 / 2;
-            break;
-
-        case HAL_PIXEL_FORMAT_YCbCr_420_P: {
-            int32_t stride = (mWidth+31)/32*32;
-            int32_t c_stride = (stride/2+15)/16*16;
-            size = (stride + c_stride) * mHeight;
-            break;
-        }
-        case HAL_PIXEL_FORMAT_YCbCr_422_I:
-            size = mWidth * mHeight * 2;
-            break;
-
-        default:
-            ALOGE("Error: format not supported int ion alloc");
-            return BAD_VALUE;
-    }
-
-    unsigned char *ptr = NULL;
-    int32_t sharedFd;
-    int32_t phyAddr;
-    ion_user_handle_t ionHandle;
-    size = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-
-    ALOGI("allocateBufferFromIon buffer num:%d", mNumBuffers);
-    for (uint32_t i = 0; i < mNumBuffers; i++) {
-        ionHandle = -1;
-        int32_t err = ion_alloc(mIonFd, size, 8, 1, 0, &ionHandle);
-        if (err) {
-            ALOGE("ion_alloc failed.");
-            return BAD_VALUE;
-        }
-
-        err = ion_map(mIonFd,
-                      ionHandle,
-                      size,
-                      PROT_READ | PROT_WRITE,
-                      MAP_SHARED,
-                      0,
-                      &ptr,
-                      &sharedFd);
-
-        if (err) {
-            ALOGE("ion_map failed.");
-            return BAD_VALUE;
-        }
-        phyAddr = ion_phys(mIonFd, ionHandle);
-        if (phyAddr == 0) {
-            ALOGE("ion_phys failed.");
-            return BAD_VALUE;
-        }
-        ALOGI("phyalloc ptr:0x%x, phy:0x%x, size:%d", (int32_t)ptr, phyAddr, size);
-        mBuffers[i] = new StreamBuffer();
-        mBuffers[i]->mVirtAddr  = ptr;
-        mBuffers[i]->mPhyAddr   = phyAddr;
-        mBuffers[i]->mSize      =  size;
-        mBuffers[i]->mBufHandle = (buffer_handle_t*)ionHandle;
-        mBuffers[i]->mStream = this;
-        close(sharedFd);
-    }
-
-    mRegistered = true;
-    mAllocatedBuffers = mNumBuffers;
-
-    return 0;
-}
-
-int32_t OvStream::freeBuffersLocked()
-{
-    ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
-        return BAD_VALUE;
-    }
-
-    if (!mRegistered) {
-        ALOGI("%s but buffer is not registered", __func__);
-        return 0;
-    }
-
-    ALOGI("freeBufferToIon buffer num:%d", mAllocatedBuffers);
-    for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
-        ion_user_handle_t ionHandle =
-            (ion_user_handle_t)mBuffers[i]->mBufHandle;
-        ion_free(mIonFd, ionHandle);
-        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
-        delete mBuffers[i];
-        mBuffers[i] = NULL;
-    }
-
-    mRegistered = false;
-    mAllocatedBuffers = 0;
-
-    return 0;
 }
 

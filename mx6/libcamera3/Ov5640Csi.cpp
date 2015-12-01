@@ -19,6 +19,7 @@
 Ov5640Csi::Ov5640Csi(int32_t id, int32_t facing, int32_t orientation, char* path)
     : Camera(id, facing, orientation, path)
 {
+    mVideoStream = new OvStream(this);
 }
 
 Ov5640Csi::~Ov5640Csi()
@@ -84,57 +85,57 @@ status_t Ov5640Csi::initSensorStaticData()
         memset(&vid_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
         vid_frmsize.index        = index++;
         vid_frmsize.pixel_format = convertPixelFormatToV4L2Format(mSensorFormats[0]);
-        ret = ioctl(fd,
-                    VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
-        if (ret == 0) {
-            ALOGV("enum frame size w:%d, h:%d",
-                         vid_frmsize.discrete.width, vid_frmsize.discrete.height);
-            memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
-            vid_frmval.index        = 0;
-            vid_frmval.pixel_format = vid_frmsize.pixel_format;
-            vid_frmval.width        = vid_frmsize.discrete.width;
-            vid_frmval.height       = vid_frmsize.discrete.height;
+        ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
+        if (ret != 0) {
+            continue;
+        }
+        ALOGV("enum frame size w:%d, h:%d",
+                vid_frmsize.discrete.width, vid_frmsize.discrete.height);
+#if 0
+        memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
+        vid_frmval.index        = 0;
+        vid_frmval.pixel_format = vid_frmsize.pixel_format;
+        vid_frmval.width        = vid_frmsize.discrete.width;
+        vid_frmval.height       = vid_frmsize.discrete.height;
 
-            // ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS,
-            // &vid_frmval);
-            // v4l2 does not support, now hard code here.
-            if (ret == 0) {
-                ALOGV("vid_frmval denominator:%d, numeraton:%d",
-                             vid_frmval.discrete.denominator,
-                             vid_frmval.discrete.numerator);
-                if ((vid_frmsize.discrete.width > 1280) ||
-                    (vid_frmsize.discrete.height > 800)) {
-                    vid_frmval.discrete.denominator = 15;
-                    vid_frmval.discrete.numerator   = 1;
-                }
-                else if ((vid_frmsize.discrete.width == 1024) ||
-                    (vid_frmsize.discrete.height == 768)) {
-                    // Max fps for ov5640 csi xga cannot reach to 30fps
-                    vid_frmval.discrete.denominator = 15;
-                    vid_frmval.discrete.numerator   = 1;
+        ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
+        if (ret != 0) {
+            continue;
+        }
+        ALOGV("vid_frmval denominator:%d, numeraton:%d",
+                vid_frmval.discrete.denominator,
+                vid_frmval.discrete.numerator);
+#endif
+        // v4l2 does not support, now hard code here.
+        if ((vid_frmsize.discrete.width > 1280) ||
+                (vid_frmsize.discrete.height > 800)) {
+            vid_frmval.discrete.denominator = 15;
+            vid_frmval.discrete.numerator   = 1;
+        }
+        else if ((vid_frmsize.discrete.width == 1024) ||
+                (vid_frmsize.discrete.height == 768)) {
+            // Max fps for ov5640 csi xga cannot reach to 30fps
+            vid_frmval.discrete.denominator = 15;
+            vid_frmval.discrete.numerator   = 1;
 
-                }
-                else {
-                    vid_frmval.discrete.denominator = 30;
-                    vid_frmval.discrete.numerator   = 1;
-                }
+        }
+        else {
+            vid_frmval.discrete.denominator = 30;
+            vid_frmval.discrete.numerator   = 1;
+        }
 
-                //If w/h ratio is not same with senserW/sensorH, framework assume that
-	        //first crop little width or little height, then scale.
-		//But 1920x1080, 176x144 not work in this mode.
-		if( !((vid_frmsize.discrete.width == 1920 && vid_frmsize.discrete.height == 1080) ||
-		      (vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144))	){
-	                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
-	                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
-		}
+        //If w/h ratio is not same with senserW/sensorH, framework assume that
+        //first crop little width or little height, then scale.
+        //But 1920x1080, 176x144 not work in this mode.
+        if(!((vid_frmsize.discrete.width == 1920 && vid_frmsize.discrete.height == 1080)
+          || (vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144))) {
+            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
+            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+        }
 
-
-                if (vid_frmval.discrete.denominator /
-                    vid_frmval.discrete.numerator > 15) {
-                    mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
-                    mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;;
-                }
-            }
+        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
+            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
+            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;;
         }
     } // end while
 
@@ -164,7 +165,7 @@ status_t Ov5640Csi::initSensorStaticData()
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
 
     mFocalLength = 3.37f;
-    mPhysicalWidth = 3.6288f;	//2592 x 1.4u
+    mPhysicalWidth = 3.6288f;   //2592 x 1.4u
     mPhysicalHeight = 2.7216f;  //1944 x 1.4u
 
     ALOGI("ov5640Csi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
@@ -174,4 +175,23 @@ status_t Ov5640Csi::initSensorStaticData()
     return NO_ERROR;
 }
 
+// configure device.
+int32_t Ov5640Csi::OvStream::onDeviceConfigureLocked()
+{
+    ALOGI("%s", __func__);
+    int32_t ret = 0;
+    if (mDev <= 0) {
+        ALOGE("%s invalid fd handle", __func__);
+        return BAD_VALUE;
+    }
+
+    int32_t input = 1;
+    ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
+    if (ret < 0) {
+        ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
+        return ret;
+    }
+
+    return USPStream::onDeviceConfigureLocked();
+}
 

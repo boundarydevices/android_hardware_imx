@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef _UVC_STREAM_H
-#define _UVC_STREAM_H
+#ifndef _DMA_STREAM_H
+#define _DMA_STREAM_H
 
-#include "DeviceStream.h"
+#include "USPStream.h"
 
-class UvcStream : public DeviceStream
+// stream uses DMABUF buffers which allcated in user space.
+// that exports DMABUF handle.
+class DMAStream : public USPStream
 {
 public:
-    UvcStream(Camera* device, const char* name);
-    virtual ~UvcStream();
+    DMAStream(Camera* device);
+    virtual ~DMAStream();
 
     // configure device.
     virtual int32_t onDeviceConfigureLocked();
@@ -42,10 +44,11 @@ public:
     // free buffers.
     virtual int32_t freeBuffersLocked();
 
+    // get device buffer required size.
+    virtual int32_t getDeviceBufferSize();
+
 private:
-    int32_t mIonFd;
-    int32_t mUvcSize;
-    char mUvcPath[CAMAERA_FILENAME_LENGTH];
+    int32_t mStreamSize;
 };
 
 #endif

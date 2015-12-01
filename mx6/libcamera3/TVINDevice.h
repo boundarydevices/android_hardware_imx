@@ -14,30 +14,33 @@
  * limitations under the License.
  */
 
-#ifndef _OV5640_CSI_H
-#define _OV5640_CSI_H
+#ifndef _TVIN_DEVICE_H_
+#define _TVIN_DEVICE_H_
 
 #include "Camera.h"
 #include "USPStream.h"
 
-class Ov5640Csi : public Camera
+class TVINDevice : public Camera
 {
 public:
-    Ov5640Csi(int32_t id, int32_t facing, int32_t orientation, char* path);
-    ~Ov5640Csi();
+    TVINDevice(int32_t id, int32_t facing, int32_t orientation, char* path);
+    ~TVINDevice();
 
     virtual status_t initSensorStaticData();
 
 private:
-    class OvStream : public USPStream {
+    class TVinStream : public USPStream {
     public:
-        OvStream(Camera* device)
+        TVinStream(Camera* device)
             : USPStream(device) {}
-        virtual ~OvStream() {}
+        virtual ~TVinStream() {}
 
         // configure device.
         virtual int32_t onDeviceConfigureLocked();
     };
+
+private:
+    v4l2_std_id mSTD;
 };
 
 #endif
