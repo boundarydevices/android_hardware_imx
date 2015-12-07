@@ -25,6 +25,12 @@
 #include "Camera.h"
 #include "VendorTags.h"
 
+struct nodeSet {
+    char nodeName[CAMERA_SENSOR_LENGTH];
+    char devNode[CAMERA_SENSOR_LENGTH];
+    nodeSet* next;
+};
+
 // CameraHAL contains all module state that isn't specific to an individual
 // camera device.
 class CameraHAL
@@ -43,7 +49,11 @@ public:
     int openDev(const hw_module_t* mod, const char* name, hw_device_t** dev);
 
 private:
-    int32_t matchDevPath(const char* pName, char* pDevPath, uint32_t pathLen);
+    int32_t matchDevNodes();
+    int32_t getNodeName(const char* devNode, char name[], size_t length);
+    int32_t matchNodeName(const char* nodeName, nodeSet* nodes, int32_t index);
+    int32_t matchPropertyName(nodeSet* nodes, int32_t index);
+
     int32_t handleThreadHotplug();
     void handleThreadExit();
     int32_t handleCameraConnected(char* uevent);

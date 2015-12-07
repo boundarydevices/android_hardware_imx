@@ -85,6 +85,7 @@ CameraHAL::CameraHAL()
     // Allocate camera array and instantiate camera devices
     mCameras = new Camera*[MAX_CAMERAS];
     memset(mSets, 0, sizeof(mSets));
+    memset(mCameras, 0, MAX_CAMERAS * sizeof(Camera*));
 
     // enumerate all camera sensors.
     enumSensorSet();
@@ -129,11 +130,38 @@ CameraHAL::~CameraHAL()
 
 int32_t CameraHAL::handleCameraConnected(char* uevent)
 {
+    size_t nameLen = CAMERA_SENSOR_LENGTH - 1;
+    char* devName = strstr(uevent, "video");
+    char* tmpName = devName;
+    if (devName == NULL) {
+        ALOGW("%s bad uevent:%s", __func__, uevent);
+        return 0;
+    }
+
+    while (devName != NULL) {
+        tmpName = devName;
+        devName = strstr(devName+1, "video");
+    }
+
+    nodeSet* node = (nodeSet*)malloc(sizeof(nodeSet));
+    if (node == NULL) {
+        ALOGE("%s malloc failed", __func__);
+        return 0;
+    }
+
+    memset(node, 0, sizeof(nodeSet));
+    sprintf(node->devNode, "/dev/%s", tmpName);
+
+    // usb camera is not ready until 100ms.
+    usleep(100000);
+    getNodeName(node->devNode, node->nodeName, nameLen);
+    ALOGI("%s devNode:%s, nodeName:%s", __func__, node->devNode, node->nodeName);
+
     for (int32_t index = 0; index < mCameraCount; index++) {
         // sensor is absent then to check it.
         if (!mSets[index].mExisting) {
             // match sensor according to property set.
-            enumSensorNode(index);
+            matchPropertyName(node, index);
             if (!mSets[index].mExisting) {
                 ALOGI("sensor plug event:%s enumerate failed", uevent);
                 continue;
@@ -240,7 +268,7 @@ int CameraHAL::getNumberOfCameras()
 
 int CameraHAL::getCameraInfo(int id, struct camera_info* info)
 {
-    ALOGV("%s: camera id %d: info=%p", __func__, id, info);
+    ALOGI("%s: camera id %d: info=%p", __func__, id, info);
     if ((id < 0) || (id >= mCameraCount) || (mCameras[id] == NULL)) {
         ALOGE("%s: Invalid camera id %d", __func__, id);
         return -ENODEV;
@@ -302,111 +330,186 @@ void CameraHAL::enumSensorSet()
     mSets[FRONT_CAMERA_ID].mExisting = false;
 
     // make sure of back&front camera parameters.
-    for (int32_t i=0; i<MAX_CAMERAS; i++) {
-        enumSensorNode(i);
-    }
+    matchDevNodes();
 }
 
-void CameraHAL::enumSensorNode(int index)
+int32_t CameraHAL::matchPropertyName(nodeSet* nodes, int32_t index)
 {
-    char *pCameraName = NULL;
+    char nodeName[32];
+    char *propName = NULL;
+    char *pNextName = NULL;
     int32_t ret = 0;
 
-    ALOGI("%s", __func__);
-    pCameraName = strtok(mSets[index].mPropertyName, ",");
-    while (pCameraName != NULL) {
-        ALOGI("Checking the camera id:%d, %s", index, pCameraName);
-        ret = matchDevPath(pCameraName, mSets[index].mDevPath, CAMAERA_FILENAME_LENGTH);
-        if (ret == -1) {
-            pCameraName = strtok(NULL, ",");
+    if (nodes == NULL) {
+        return 0;
+    }
+
+    propName = mSets[index].mPropertyName;
+    ALOGI("matchPropertyName: index:%d, %s", index, propName);
+    while (propName != NULL && (strlen(propName) > 0) && *propName != '0') {
+        memset(nodeName, 0, sizeof(nodeName));
+        pNextName = strchr(propName, ',');
+        if (pNextName == NULL) {
+            strncpy(nodeName, propName, 32);
+            propName = pNextName;
+        }
+        else {
+            strncpy(nodeName, propName, pNextName - propName);
+            propName = pNextName + 1;
+        }
+
+        ALOGI("index:%d, propName:%s", index, nodeName);
+
+        ret = matchNodeName(nodeName, nodes, index);
+        if (ret != 0) {
             continue;
         }
-        strncpy(mSets[index].mSensorName, pCameraName, PROPERTY_VALUE_MAX);
+
+        break;
+    }
+
+    return ret;
+}
+
+int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t index)
+{
+    if (nodes == NULL) {
+        return -1;
+    }
+
+    const char* sensorName = NULL;
+    const char* devNode = NULL;
+    int32_t ret = -1;
+
+    ALOGI("%s", __func__);
+    nodeSet* node = nodes;
+    while (node != NULL) {
+        devNode = node->devNode;
+        sensorName = node->nodeName;
+        if (strlen(sensorName) == 0) {
+            node = node->next;
+            continue;
+        }
+
+        ALOGI("matchNodeName: sensor:%s, dev:%s, node:%s, index:%d",
+              sensorName, devNode, nodeName, index);
+        if (!strstr(sensorName, nodeName)) {
+            node = node->next;
+            continue;
+        }
+
+        strncpy(mSets[index].mSensorName, nodeName, PROPERTY_VALUE_MAX);
+        strncpy(mSets[index].mDevPath, devNode, CAMAERA_FILENAME_LENGTH);
         ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
                 index, mSets[index].mSensorName, mSets[index].mFacing,
                 mSets[index].mOrientation, mSets[index].mDevPath);
         mSets[index].mExisting = true;
+        ret = 0;
         break;
     }
+
+    return ret;
 }
 
-int32_t CameraHAL::matchDevPath(const char* pName, char* pDevPath, uint32_t pathLen)
+int32_t CameraHAL::matchDevNodes()
 {
-    int32_t  ret = -1;
-    int32_t  fd = -1;
-    char devNode[CAMAERA_FILENAME_LENGTH];
     DIR *vidDir = NULL;
     struct dirent *dirEntry;
-    struct v4l2_capability vidCap;
-    struct v4l2_dbg_chip_ident vidChip;
+    size_t nameLen = CAMERA_SENSOR_LENGTH - 1;
+    nodeSet *nodes = NULL, *node = NULL, *last = NULL;
 
+    ALOGI("%s", __func__);
     vidDir = opendir("/sys/class/video4linux");
     if (vidDir == NULL) {
         return -1;
     }
 
     while ((dirEntry = readdir(vidDir)) != NULL) {
-        memset(devNode, 0, sizeof(devNode));
         if (strncmp(dirEntry->d_name, "video", 5)) {
             continue;
         }
 
-        sprintf(devNode, "/dev/%s", dirEntry->d_name);
-        ALOGI("%s dev path:%s", __func__, devNode);
-        if ((fd = open(devNode, O_RDWR, O_NONBLOCK)) < 0) {
-            ALOGW("%s open dev path:%s failed:%s", __func__, devNode,
-                         strerror(errno));
-            continue;
-        }
-
-        ret = ioctl(fd, VIDIOC_QUERYCAP, &vidCap);
-        if (ret < 0) {
-            ALOGW("%s QUERYCAP dev path:%s failed", __func__, devNode);
-            close(fd);
-            fd = -1;
-            continue;
-        }
-
-        if (!(vidCap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-            ALOGW("%s dev path:%s is not capture", __func__, devNode);
-            close(fd);
-            fd = -1;
-            ret = -1;
-            continue;
-        }
-
-        if(strstr((const char*)vidCap.driver, pName)) {
-            strncpy(pDevPath, devNode, pathLen);
-            ALOGI("match sensor %s's dev path %s, card %s, driver %s",
-                    pName, pDevPath, (const char*)vidCap.card,
-                    (const char*)vidCap.driver);
-            close(fd);
-            fd = -1;
+        node = (nodeSet*)malloc(sizeof(nodeSet));
+        if (node == NULL) {
+            ALOGE("%s malloc failed", __func__);
             break;
         }
 
-        ret = ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vidChip);
-        if (ret < 0) {
-            ALOGW("%s CHIP_IDENT dev path:%s failed", __func__, devNode);
-            close(fd);
-            fd = -1;
-            continue;
+        memset(node, 0, sizeof(nodeSet));
+        if (nodes == NULL) {
+            nodes = node;
         }
-
-        if(strstr(vidChip.match.name, pName)) {
-            strncpy(pDevPath, devNode, pathLen);
-            ALOGI("match sensor %s's dev path %s", pName, pDevPath);
-            close(fd);
-            fd = -1;
-            break;
+        else {
+            last->next = node;
         }
+        last = node;
 
-        close(fd);
-        fd = -1;
-        ret = -1;
+        sprintf(node->devNode, "/dev/%s", dirEntry->d_name);
+
+        getNodeName(node->devNode, node->nodeName, nameLen);
     }
 
     closedir(vidDir);
+
+    for (int32_t index=0; index<MAX_CAMERAS; index++) {
+        matchPropertyName(nodes, index);
+    }
+
+    return 0;
+}
+
+int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
+{
+    int32_t ret = -1;
+    int32_t fd = -1;
+    size_t strLen = 0;
+    struct v4l2_capability vidCap;
+    struct v4l2_dbg_chip_ident vidChip;
+
+    ALOGI("getNodeName: dev path:%s", devNode);
+    if ((fd = open(devNode, O_RDWR, O_NONBLOCK)) < 0) {
+        ALOGW("%s open dev path:%s failed:%s", __func__, devNode,
+                strerror(errno));
+        return ret;
+    }
+
+    ret = ioctl(fd, VIDIOC_QUERYCAP, &vidCap);
+    if (ret < 0) {
+        ALOGW("%s QUERYCAP dev path:%s failed", __func__, devNode);
+        close(fd);
+        fd = -1;
+        return ret;
+    }
+
+    if (!(vidCap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+        ALOGW("%s dev path:%s is not capture", __func__, devNode);
+        close(fd);
+        fd = -1;
+        ret = -1;
+        return ret;
+    }
+
+    strncat(name, (const char*)vidCap.driver, length);
+    strLen = strlen((const char*)vidCap.driver);
+    length -= strLen;
+    ALOGI("getNodeName: node name:%s", name);
+
+    ret = ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vidChip);
+    if (ret < 0) {
+        ALOGW("%s CHIP_IDENT dev path:%s failed", __func__, devNode);
+        close(fd);
+        fd = -1;
+        return ret;
+    }
+
+    strncat(name, ",", length);
+    strLen = 1;
+    length -= strLen;
+    strncat(name, vidChip.match.name, length);
+
+    ALOGI("getNodeNames: node name:%s", name);
+    close(fd);
+
     return ret;
 }
 
