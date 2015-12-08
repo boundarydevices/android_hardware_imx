@@ -216,6 +216,13 @@ int32_t TVINDevice::TVinStream::onDeviceConfigureLocked()
         return BAD_VALUE;
     }
 
+    int32_t input = 1;
+    ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
+    if (ret < 0) {
+        ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
+        return ret;
+    }
+
     return USPStream::onDeviceConfigureLocked();
 }
 
