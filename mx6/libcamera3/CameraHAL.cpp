@@ -187,6 +187,10 @@ int32_t CameraHAL::handleCameraConnected(char* uevent)
         }
     }
 
+    if (node != NULL) {
+        free(node);
+    }
+
     return 0;
 }
 
@@ -453,6 +457,13 @@ int32_t CameraHAL::matchDevNodes()
 
     for (int32_t index=0; index<MAX_CAMERAS; index++) {
         matchPropertyName(nodes, index);
+    }
+
+    node = nodes;
+    while (node != NULL) {
+        last = node->next;
+        free(node);
+        node = last;
     }
 
     return 0;

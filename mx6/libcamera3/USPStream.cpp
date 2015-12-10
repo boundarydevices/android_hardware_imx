@@ -253,7 +253,7 @@ int32_t USPStream::allocateBuffersLocked()
         mBuffers[i] = new StreamBuffer();
         mBuffers[i]->mVirtAddr  = ptr;
         mBuffers[i]->mPhyAddr   = phyAddr;
-        mBuffers[i]->mSize      =  size;
+        mBuffers[i]->mSize      =  ionSize;
         mBuffers[i]->mBufHandle = (buffer_handle_t*)ionHandle;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
@@ -282,9 +282,9 @@ int32_t USPStream::freeBuffersLocked()
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
         ion_user_handle_t ionHandle =
             (ion_user_handle_t)mBuffers[i]->mBufHandle;
+        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         close(mBuffers[i]->mFd);
         ion_free(mIonFd, ionHandle);
-        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }
