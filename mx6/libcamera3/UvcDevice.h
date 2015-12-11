@@ -23,13 +23,17 @@
 class UvcDevice : public Camera
 {
 public:
-    UvcDevice(int32_t id, int32_t facing, int32_t orientation, char* path);
+    UvcDevice(int32_t id, int32_t facing, int32_t orientation,
+              char* path, bool createStream = true);
     virtual ~UvcDevice();
+
+    static Camera* newInstance(int32_t id, char* name, int32_t facing,
+                               int32_t orientation, char* path);
 
     virtual status_t initSensorStaticData();
     virtual bool isHotplug() {return true;}
 
-private:
+protected:
     class UvcStream : public DMAStream {
     public:
         UvcStream(Camera* device, const char* name)
@@ -40,15 +44,52 @@ private:
 
         // configure device.
         virtual int32_t onDeviceConfigureLocked();
+        // start device.
+        virtual int32_t onDeviceStartLocked();
         // stop device.
         virtual int32_t onDeviceStopLocked();
+        // get buffer from V4L2.
+        virtual int32_t onFrameAcquireLocked();
+        // put buffer back to V4L2.
+        virtual int32_t onFrameReturnLocked(int32_t index, StreamBuffer& buf);
 
         // get device buffer required size.
         virtual int32_t getDeviceBufferSize();
 
-    private:
+    protected:
         char mUvcPath[CAMAERA_FILENAME_LENGTH];
     };
+};
+
+class LogiC920 : public UvcDevice
+{
+public:
+    LogiC920(int32_t id, int32_t facing, int32_t orientation, char* path);
+    virtual ~LogiC920();
+
+    virtual status_t initSensorStaticData();
+
+private:
+    class C920Stream : public UvcDevice::UvcStream {
+    public:
+        C920Stream(Camera* device, const char* name);
+        virtual ~C920Stream();
+
+        // start device.
+        virtual int32_t onDeviceStartLocked();
+        // get buffer from V4L2.
+        virtual int32_t onFrameAcquireLocked();
+
+        void setOmitSize(uint32_t width, uint32_t height);
+
+    private:
+        uint32_t mOmitFrames;
+        uint32_t mOmitFrameCnt;
+        uint32_t mOmitFrameWidth;
+        uint32_t mOmitFrameHeight;
+    };
+
+    C920Stream* mC920Stream;
 };
 
 #endif

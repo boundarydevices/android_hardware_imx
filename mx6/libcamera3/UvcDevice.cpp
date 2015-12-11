@@ -19,10 +19,31 @@
 
 #define LOGI_C920 "HD Pro Webcam C920"
 
-UvcDevice::UvcDevice(int32_t id, int32_t facing, int32_t orientation, char* path)
+//----------------------UvcDevice--------------------
+Camera* UvcDevice::newInstance(int32_t id, char* name, int32_t facing,
+                               int32_t orientation, char* path)
+{
+    ALOGI("%s usb sensor name:%s", __func__, name);
+    UvcDevice* device = NULL;
+    if (strstr(name, LOGI_C920)) {
+        ALOGI("%s create LogiC920 device", __func__);
+        device = new LogiC920(id, facing, orientation, path);
+    }
+    else {
+        ALOGI("%s usb sensor:%s use standard UVC device", __func__, name);
+        device = new UvcDevice(id, facing, orientation, path);
+    }
+
+    return device;
+}
+
+UvcDevice::UvcDevice(int32_t id, int32_t facing, int32_t orientation,
+                     char* path, bool createStream)
     : Camera(id, facing, orientation, path)
 {
-    mVideoStream = new UvcStream(this, path);
+    if (createStream) {
+        mVideoStream = new UvcStream(this, path);
+    }
 }
 
 UvcDevice::~UvcDevice()
@@ -33,7 +54,7 @@ status_t UvcDevice::initSensorStaticData()
 {
     int32_t fd = open(mDevPath, O_RDWR);
     if (fd < 0) {
-        ALOGE("OvDevice: initParameters sensor has not been opened");
+        ALOGE("%s open path:%s failed", __func__, mDevPath);
         return BAD_VALUE;
     }
 
@@ -85,11 +106,6 @@ status_t UvcDevice::initSensorStaticData()
         vid_frmsize.pixel_format = convertPixelFormatToV4L2Format(mSensorFormats[0]);
         ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
         if (ret != 0) {
-            continue;
-        }
-        //uvc need do csc, so omit large resolution.
-        if (vid_frmsize.discrete.width > 1920 ||
-                vid_frmsize.discrete.height > 1080) {
             continue;
         }
 
@@ -184,6 +200,24 @@ int32_t UvcDevice::UvcStream::onDeviceStopLocked()
     return ret;
 }
 
+int32_t UvcDevice::UvcStream::onDeviceStartLocked()
+{
+    ALOGI("%s", __func__);
+    return DMAStream::onDeviceStartLocked();
+}
+
+int32_t UvcDevice::UvcStream::onFrameAcquireLocked()
+{
+    ALOGV("%s", __func__);
+    return DMAStream::onFrameAcquireLocked();
+}
+
+int32_t UvcDevice::UvcStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
+{
+    ALOGV("%s", __func__);
+    return DMAStream::onFrameReturnLocked(index, buf);
+}
+
 // usb camera require the specific buffer size.
 int32_t UvcDevice::UvcStream::getDeviceBufferSize()
 {
@@ -210,5 +244,68 @@ int32_t UvcDevice::UvcStream::getDeviceBufferSize()
     }
 
     return size;
+}
+
+//---------------------LogiC920---------------
+LogiC920::LogiC920(int32_t id, int32_t facing, int32_t orientation, char* path)
+    : UvcDevice(id, facing, orientation, path, false)
+{
+    mC920Stream = new C920Stream(this, path);
+    mVideoStream = mC920Stream;
+}
+
+LogiC920::~LogiC920()
+{
+}
+
+status_t LogiC920::initSensorStaticData()
+{
+    int32_t ret = UvcDevice::initSensorStaticData();
+    mC920Stream->setOmitSize(mPreviewResolutions[0], mPreviewResolutions[1]);
+
+    return ret;
+}
+
+// LogiC920 output the first several frames which are damaged.
+// the mOmitFrames count on specific sensor.
+LogiC920::C920Stream::C920Stream(Camera* device, const char* name)
+    : UvcDevice::UvcStream(device, name), mOmitFrames(0), mOmitFrameCnt(1)
+{
+}
+LogiC920::C920Stream::~C920Stream()
+{
+}
+
+void LogiC920::C920Stream::setOmitSize(uint32_t width, uint32_t height)
+{
+    mOmitFrameWidth = width;
+    mOmitFrameHeight = height;
+}
+
+int32_t LogiC920::C920Stream::onDeviceStartLocked()
+{
+    ALOGI("%s", __func__);
+    int32_t ret = UvcDevice::UvcStream::onDeviceStartLocked();
+    mOmitFrames = mOmitFrameCnt;
+    return ret;
+}
+
+int32_t LogiC920::C920Stream::onFrameAcquireLocked()
+{
+    ALOGV("%s", __func__);
+    int32_t index = UvcDevice::UvcStream::onFrameAcquireLocked();
+
+    // large resolution should return immediately because of low frame rate.
+    if (mWidth > mOmitFrameWidth && mHeight > mOmitFrameHeight) {
+        return index;
+    }
+
+    while (mOmitFrames > 0) {
+        mOmitFrames--;
+        UvcDevice::UvcStream::onFrameReturnLocked(index, *mBuffers[index]);
+        index = UvcDevice::UvcStream::onFrameAcquireLocked();
+    }
+
+    return index;
 }
 
