@@ -75,7 +75,7 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
     }
     else if (strstr(name, UVC_SENSOR_NAME)) {
         ALOGI("create id:%d usb camera device", id);
-        device = new UvcDevice(id, facing, orientation, path);
+        device = UvcDevice::newInstance(id, name, facing, orientation, path);
     }
     else if (strstr(name, ADV7180_TVIN_NAME)) {
         ALOGI("create id:%d adv7180 tvin device", id);
