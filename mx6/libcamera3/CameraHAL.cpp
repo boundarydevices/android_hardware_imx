@@ -402,7 +402,7 @@ int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t i
             continue;
         }
 
-        strncpy(mSets[index].mSensorName, nodeName, PROPERTY_VALUE_MAX);
+        strncpy(mSets[index].mSensorName, sensorName, PROPERTY_VALUE_MAX);
         strncpy(mSets[index].mDevPath, devNode, CAMAERA_FILENAME_LENGTH);
         ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
                 index, mSets[index].mSensorName, mSets[index].mFacing,
@@ -507,7 +507,12 @@ int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
 
     ret = ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vidChip);
     if (ret < 0) {
-        ALOGW("%s CHIP_IDENT dev path:%s failed", __func__, devNode);
+        ALOGI("%s CHIP_IDENT dev path:%s failed", __func__, devNode);
+        strncat(name, ",", length);
+        strLen = 1;
+        length -= strLen;
+        strncat(name, (const char*)vidCap.card, length);
+        ALOGI("getNodeNames: node name:%s", name);
         close(fd);
         fd = -1;
         return ret;
