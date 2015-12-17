@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is the Freescale ALSA module for i.MX
+# This is the Freescale ALSA module for i.MX.
 
 ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
@@ -47,7 +47,7 @@ LOCAL_C_INCLUDES += \
 	system/media/audio_effects/include
 LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa libaudioutils libdl
 LOCAL_MODULE_TAGS := optional
-LOCAL_CPPFLAGS += -DBRILLO
+LOCAL_CFLAGS += -DBRILLO
 include $(BUILD_SHARED_LIBRARY)
 
 endif
