@@ -33,29 +33,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
-
 #include <linux/ioctl.h>
-#define __force
-#define __bitwise
-#define __user
 #include <sound/asound.h>
-
 #include <tinyalsa/asoundlib.h>
-
-struct ctl_pcm_info {
-    struct snd_pcm_info      *info;
-    struct ctl_pcm_info      *next;
-};
-
-
-struct control {
-    int fd;
-    struct snd_ctl_card_info *card_info;
-    struct ctl_pcm_info      *pcm_info_p;
-    unsigned int count_p;
-    struct ctl_pcm_info      *pcm_info_c;
-    unsigned int count_c;
-};
+#include "control.h"
 
 struct control *control_open(unsigned int card)
 {
@@ -65,7 +46,7 @@ struct control *control_open(unsigned int card)
     int fd;
     char fn[256];
     int device = -1;
-    struct ctl_pcm_info      *current;
+    struct ctl_pcm_info      *current = NULL;
 
     snprintf(fn, sizeof(fn), "/dev/snd/controlC%u", card);
     fd = open(fn, O_RDWR);
@@ -160,8 +141,8 @@ fail:
 void control_close(struct control *control)
 {
     unsigned int n,m;
-    struct ctl_pcm_info      *current;
-    struct ctl_pcm_info      *p;
+    struct ctl_pcm_info      *current = NULL;
+    struct ctl_pcm_info      *p = NULL;
 
     if (!control)
         return;
@@ -221,7 +202,7 @@ const char *control_card_info_get_name(struct control *control)
 
 int control_pcm_next_device(struct control *control, int *device, int stream)
 {
-    struct ctl_pcm_info      *current;
+    struct ctl_pcm_info      *current = NULL;
     if (!control)
         return -EINVAL;
 
@@ -240,7 +221,7 @@ int control_pcm_next_device(struct control *control, int *device, int stream)
 
 const char *control_pcm_info_get_id(struct control *control, unsigned int device, int stream)
 {
-    struct ctl_pcm_info      *current;
+    struct ctl_pcm_info      *current = NULL;
     if (!control)
         return "";
 
@@ -256,7 +237,7 @@ const char *control_pcm_info_get_id(struct control *control, unsigned int device
 
 const char *control_pcm_info_get_name(struct control *control, unsigned int device, int stream)
 {
-    struct ctl_pcm_info      *current;
+    struct ctl_pcm_info      *current = NULL;
     if (!control)
         return "";
 

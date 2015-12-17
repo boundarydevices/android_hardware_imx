@@ -276,7 +276,7 @@ static int convert_record_data(void *src, void *dst, unsigned int frames, bool b
 static int set_route_by_array(struct mixer *mixer, struct route_setting *route,
                               int enable)
 {
-    struct mixer_ctl *ctl;
+    struct mixer_ctl *ctl = NULL;
     unsigned int i, j;
 
     if(!mixer) return 0;
