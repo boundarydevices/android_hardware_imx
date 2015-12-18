@@ -419,6 +419,7 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
     sp<Metadata> meta = NULL;
     sp<VideoStream> devStream = NULL;
     camera3_callback_ops* callback = NULL;
+    uint32_t fps = 30;
     {
         android::Mutex::Autolock al(mDeviceLock);
         for (int32_t i = 0; i < mNumStreams; i++) {
@@ -428,6 +429,17 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
             }
             if (stream->isJpeg()) {
                 stillcap = stream;
+            }
+        }
+
+        camera_metadata_entry_t streams = mSettings->find(
+                            ANDROID_CONTROL_AE_TARGET_FPS_RANGE);
+        if (streams.count > 1) {
+            if (streams.data.i32[0] > 15 && streams.data.i32[1] > 15) {
+                fps = 30;
+            }
+            else {
+                fps = 15;
             }
         }
 
@@ -444,9 +456,11 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
                 ALOGE("still capture intent but without jpeg stream");
                 stillcap = preview;
             }
+            stillcap->setFps(fps);
             devStream->configure(stillcap);
         }
         else {
+            preview->setFps(fps);
             devStream->configure(preview);
         }
     }
