@@ -54,6 +54,8 @@ public:
     uint32_t bufferNum() {return mNumBuffers;}
     camera3_stream_t* stream() {return mStream;}
     void setReuse(bool reuse) {mReuse = mReuse;}
+    void setFps(uint32_t fps) {mFps = fps;}
+    uint32_t fps() {return mFps;};
 
     int getType();
     bool isInputType();
@@ -89,6 +91,8 @@ protected:
     int32_t mFormat;
     // Gralloc usage mask : GRALLOC_USAGE_* (see <hardware/gralloc.h>)
     uint32_t mUsage;
+    // frame rate.
+    uint32_t mFps;
     // Max simultaneous in-flight buffers for this stream
     uint32_t mNumBuffers;
     // Buffers have been registered for this stream and are ready

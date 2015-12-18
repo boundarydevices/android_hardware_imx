@@ -89,18 +89,19 @@ int32_t VideoStream::configure(sp<Stream> stream)
     Mutex::Autolock lock(mLock);
     // when width&height&format are same, keep it to reduce start/stop time.
     if ((mWidth == stream->width()) && (mHeight == stream->height())
-         && (mFormat == sensorFormat)) {
+         && (mFormat == sensorFormat) && (mFps == stream->fps())) {
         return 0;
     }
 
     mWidth  = stream->width();
     mHeight = stream->height();
     mFormat = sensorFormat;
+    mFps = stream->fps();
     mNumBuffers = stream->bufferNum();
     mChanged = true;
 
-    ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, num:%d",
-           __func__, mWidth, mHeight, mFormat, stream->format(), mNumBuffers);
+    ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
+           __func__, mWidth, mHeight, mFormat, stream->format(), mFps, mNumBuffers);
     mMessageQueue.clearMessages();
     mMessageQueue.postMessage(new CMessage(MSG_CONFIG, 0), 0);
 

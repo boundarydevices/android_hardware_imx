@@ -35,7 +35,7 @@ int32_t MMAPStream::onDeviceConfigureLocked()
         return BAD_VALUE;
     }
 
-    int32_t fps = 30;
+    int32_t fps = mFps;
     int32_t vformat;
     vformat = convertPixelFormatToV4L2Format(mFormat);
 

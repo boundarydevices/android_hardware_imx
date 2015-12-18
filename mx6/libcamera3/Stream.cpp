@@ -42,6 +42,7 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     mHeight(s->height),
     mFormat(s->format),
     mUsage(0),
+    mFps(30),
     mNumBuffers(0),
     mRegistered(false),
     mCamera(camera)
@@ -100,6 +101,7 @@ Stream::Stream(Camera* camera)
     mHeight(0),
     mFormat(0),
     mUsage(0),
+    mFps(30),
     mNumBuffers(0),
     mRegistered(false),
     mCamera(camera)
