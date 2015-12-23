@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2014 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,6 +91,7 @@ static int hwc_judge_display_state(struct hwc_context_t* ctx)
             memset(value, 0, sizeof(value));
             if (!fgets(value, sizeof(value), fp)) {
                 ALOGI("read %s failed", tmp);
+                fclose(fp);
                 continue;
                 //make default type to ldb.
                 //pInfo->type = HWC_DISPLAY_LDB;
