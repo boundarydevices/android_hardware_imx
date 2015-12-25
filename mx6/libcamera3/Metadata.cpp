@@ -193,6 +193,10 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
             ARRAY_SIZE(sensor.mTargetFpsRange),
             sensor.mTargetFpsRange);
 
+    static const uint8_t aeAntibandingMode =
+            ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
+    m.addUInt8(ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES, 1, &aeAntibandingMode);
+
     int32_t android_control_ae_compensation_range[] = {-3, 3};
     m.addInt32(ANDROID_CONTROL_AE_COMPENSATION_RANGE,
             ARRAY_SIZE(android_control_ae_compensation_range),
