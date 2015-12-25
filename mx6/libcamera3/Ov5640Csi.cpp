@@ -157,8 +157,8 @@ status_t Ov5640Csi::initSensorStaticData()
 
     i = 0;
     mTargetFpsRange[i++] = 10;
-    mTargetFpsRange[i++] = 15;
-    mTargetFpsRange[i++] = 23;
+    mTargetFpsRange[i++] = 30;
+    mTargetFpsRange[i++] = 30;
     mTargetFpsRange[i++] = 30;
 
     setMaxPictureResolutions();
