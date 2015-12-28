@@ -176,7 +176,7 @@ int Display::postBuffer(struct framebuffer_device_t* dev, buffer_handle_t buffer
     return 0;
 }
 
-int Display::compositionComplete(struct framebuffer_device_t* dev)
+int Display::compositionComplete(struct framebuffer_device_t* /*dev*/)
 {
   //  glFinish();
     return 0;
