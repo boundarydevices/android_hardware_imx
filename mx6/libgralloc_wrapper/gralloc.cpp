@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,6 +149,31 @@ int BufferManager::gralloc_lock(gralloc_module_t const* module,
     return m->lock(handle, usage, l, t, w, h, vaddr);
 }
 
+
+int BufferManager::gralloc_lockYCbCr(gralloc_module_t const* module,
+        buffer_handle_t handle, int usage,
+        int l, int t, int w, int h,
+        android_ycbcr* ycbcr)
+{
+    if (module == NULL) {
+        ALOGE("<%s,%d> invalide parameters", __FUNCTION__, __LINE__);
+        return -EINVAL;
+    }
+
+    BufferManager* m = BufferManager::getInstance();
+    if (m == NULL) {
+        ALOGE("%s cat't get buffer manager", __FUNCTION__);
+        return -EINVAL;
+    }
+
+    if (m->validateHandle(handle) < 0) {
+        ALOGE("%s invalid handle", __FUNCTION__);
+        return -EINVAL;
+    }
+
+    return m->lockYCbCr(handle, usage, l, t, w, h, ycbcr);
+}
+
 int BufferManager::gralloc_unlock(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
@@ -250,7 +275,7 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
         lock: BufferManager::gralloc_lock,
         unlock: BufferManager::gralloc_unlock,
         perform: 0,
-        lock_ycbcr: 0,
+        lock_ycbcr: BufferManager::gralloc_lockYCbCr,
         lockAsync: 0,
         unlockAsync: 0,
         lockAsync_ycbcr: 0,

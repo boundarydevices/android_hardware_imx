@@ -117,6 +117,11 @@ int BufferManager::alloc(int w, int h, int format, int usage,
             size = alignedw * alignedh * bpp;
             break;
 
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+            // now, take the flex format as NV12.
+            // this format should only be known in framework.
+            // private_handle in hal should not record this format.
+            format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
         case HAL_PIXEL_FORMAT_YCrCb_420_SP:
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
             alignedw = ALIGN_PIXEL_16(w);
