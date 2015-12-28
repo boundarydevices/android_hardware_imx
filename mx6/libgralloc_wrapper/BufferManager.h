@@ -110,6 +110,9 @@ public:
     virtual int lock(buffer_handle_t handle, int usage,
             int l, int t, int w, int h,
             void** vaddr) = 0;
+    virtual int lockYCbCr(buffer_handle_t handle, int usage,
+            int l, int t, int w, int h,
+            android_ycbcr* ycbcr) = 0;
     virtual int unlock(buffer_handle_t handle) = 0;
 
     // to alloc/free private handle.
@@ -143,6 +146,10 @@ public:
         buffer_handle_t handle, int usage,
         int l, int t, int w, int h,
         void** vaddr);
+    static int gralloc_lockYCbCr(gralloc_module_t const* module,
+        buffer_handle_t handle, int usage,
+        int l, int t, int w, int h,
+        android_ycbcr* ycbcr);
     static int gralloc_unlock(gralloc_module_t const* module,
         buffer_handle_t handle);
     static int gralloc_device_close(struct hw_device_t *dev);
@@ -169,6 +176,9 @@ public:
     virtual int lock(buffer_handle_t handle, int usage,
             int l, int t, int w, int h,
             void** vaddr);
+    virtual int lockYCbCr(buffer_handle_t handle, int usage,
+            int l, int t, int w, int h,
+            android_ycbcr* ycbcr);
     virtual int unlock(buffer_handle_t handle);
 
     virtual private_handle_t* createPrivateHandle(int fd,
@@ -196,6 +206,7 @@ private:
     int registerHandle(private_handle_t* hnd);
     int unregisterHandle(private_handle_t* hnd);
     int lockHandle(private_handle_t* hnd, void** vaddr);
+    int lockYUVHandle(private_handle_t* hnd, android_ycbcr* ycbcr);
     int unlockHandle(private_handle_t* hnd);
 
 private:
@@ -214,6 +225,9 @@ public:
     virtual int lock(buffer_handle_t handle, int usage,
             int l, int t, int w, int h,
             void** vaddr);
+    virtual int lockYCbCr(buffer_handle_t handle, int usage,
+            int l, int t, int w, int h,
+            android_ycbcr* ycbcr);
     virtual int unlock(buffer_handle_t handle);
 
     virtual private_handle_t* createPrivateHandle(int fd,

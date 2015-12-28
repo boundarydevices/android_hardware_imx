@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ int CPUBufferManager::validateHandle(buffer_handle_t handle)
 }
 
 int CPUBufferManager::allocBuffer(int w, int h, int format, int usage,
-                                  int alignW, int alignH, size_t size,
+                                  int alignW, int /*alignH*/, size_t size,
                                   buffer_handle_t* handle, int* stride)
 {
     if (!handle || !stride) {
@@ -117,7 +117,7 @@ int CPUBufferManager::freeBuffer(buffer_handle_t handle)
     return 0;
 }
 
-int CPUBufferManager::allocBuffer(size_t size, int usage,
+int CPUBufferManager::allocBuffer(size_t size, int /*usage*/,
                  buffer_handle_t* pHandle)
 {
     int err = 0;
@@ -144,7 +144,7 @@ int CPUBufferManager::allocBuffer(size_t size, int usage,
     return err;
 }
 
-int CPUBufferManager::allocBufferByIon(size_t size, int usage,
+int CPUBufferManager::allocBufferByIon(size_t size, int /*usage*/,
                  buffer_handle_t* pHandle)
 {
     if (mIonFd <= 0) {
@@ -277,8 +277,8 @@ int CPUBufferManager::unregisterBuffer(buffer_handle_t handle)
     return 0;
 }
 
-int CPUBufferManager::lock(buffer_handle_t handle, int usage,
-            int l, int t, int w, int h,
+int CPUBufferManager::lock(buffer_handle_t handle, int /*usage*/,
+            int /*l*/, int /*t*/, int /*w*/, int /*h*/,
             void** vaddr)
 {
     if (validateHandle(handle) < 0) {
@@ -291,6 +291,67 @@ int CPUBufferManager::lock(buffer_handle_t handle, int usage,
 
     //may call ion_lock to sync the buffer access across process.
     //ion_lock(moudule->ion_fd, hnd->fd);
+    return 0;
+}
+
+
+int CPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
+            int /*l*/, int /*t*/, int /*w*/, int /*h*/,
+        android_ycbcr* ycbcr)
+{
+    if (ycbcr == NULL) {
+        return 0;
+    }
+
+    if (validateHandle(handle) < 0) {
+        ALOGE("%s invalid handle", __FUNCTION__);
+        return -EINVAL;
+    }
+
+    private_handle_t* hnd = (private_handle_t*)handle;
+
+    switch (hnd->format) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cr = (int*)ycbcr->cb + 1;
+            ycbcr->chroma_step = 2;
+            break;
+
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cb = (int*)ycbcr->cr + 1;
+            ycbcr->chroma_step = 2;
+            break;
+
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride / 2;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cr = (void*)((int)ycbcr->cb + ycbcr->cstride*hnd->height/2);
+            ycbcr->chroma_step = 1;
+            break;
+
+        case HAL_PIXEL_FORMAT_YV12:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride / 2;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cb = (void*)((int)ycbcr->cr + ycbcr->cstride*hnd->height/2);
+            ycbcr->chroma_step = 1;
+            break;
+
+        default:
+            ALOGE("%s not support format:0x%x", __func__, hnd->format);
+            return -EINVAL;
+    }
+
     return 0;
 }
 

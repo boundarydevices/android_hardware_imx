@@ -67,7 +67,7 @@ int GPUBufferManager::validateHandle(buffer_handle_t handle)
 }
 
 int GPUBufferManager::allocBuffer(int w, int h, int format, int usage,
-                                  int alignW, int alignH, size_t size,
+                                  int alignW, int /*alignH*/, size_t size,
                                   buffer_handle_t* handle, int* stride)
 {
     if (!handle || !stride) {
@@ -224,6 +224,20 @@ int GPUBufferManager::lock(buffer_handle_t handle, int usage,
                              l, t, w, h, vaddr);
 }
 
+
+int GPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
+        int /*l*/, int /*t*/, int /*w*/, int /*h*/,
+        android_ycbcr* ycbcr)
+{
+    if (validateHandle(handle) < 0) {
+        ALOGE("%s invalid handle", __FUNCTION__);
+        return -EINVAL;
+    }
+
+    private_handle_t* hnd = (private_handle_t*)handle;
+    return lockYUVHandle(hnd, ycbcr);
+}
+
 int GPUBufferManager::unlock(buffer_handle_t handle)
 {
     if (validateHandle(handle) < 0) {
@@ -286,8 +300,66 @@ int GPUBufferManager::unregisterHandle(private_handle_t* hnd)
 
 int GPUBufferManager::lockHandle(private_handle_t* hnd, void** vaddr)
 {
-    *vaddr = (void*)hnd->base;
-    return graphic_buffer_lock(hnd);
+    int ret = graphic_buffer_lock(hnd);
+
+    if (vaddr != NULL) {
+        *vaddr = (void*)hnd->base;
+    }
+
+    return ret;
+}
+
+int GPUBufferManager::lockYUVHandle(private_handle_t* hnd, android_ycbcr* ycbcr)
+{
+    int ret = graphic_buffer_lock(hnd);
+
+    if (ycbcr == NULL) {
+        return ret;
+    }
+
+    switch (hnd->format) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cr = (int*)ycbcr->cb + 1;
+            ycbcr->chroma_step = 2;
+            break;
+
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cb = (int*)ycbcr->cr + 1;
+            ycbcr->chroma_step = 2;
+            break;
+
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride / 2;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cr = (void*)((int)ycbcr->cb + ycbcr->cstride*hnd->height/2);
+            ycbcr->chroma_step = 1;
+            break;
+
+        case HAL_PIXEL_FORMAT_YV12:
+            ycbcr->ystride = hnd->stride;
+            ycbcr->cstride = ycbcr->ystride / 2;
+            ycbcr->y = (void*)hnd->base;
+            ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
+            ycbcr->cb = (void*)((int)ycbcr->cr + ycbcr->cstride*hnd->height/2);
+            ycbcr->chroma_step = 1;
+            break;
+
+        default:
+            ALOGE("%s not support format:0x%x", __func__, hnd->format);
+            return -EINVAL;
+    }
+
+    return ret;
 }
 
 int GPUBufferManager::unlockHandle(private_handle_t* hnd)
