@@ -121,8 +121,8 @@ status_t Ov5640Mipi::initSensorStaticData()
         //If w/h ratio is not same with senserW/sensorH, framework assume that
         //first crop little width or little height, then scale.
         //But 1920x1080, 176x144 not work in this mode.
-        if(!((vid_frmsize.discrete.width == 1920 && vid_frmsize.discrete.height == 1080)
-           || (vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144))){
+        // 1920x1080 is required by CTS.
+        if(!(vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144)){
             mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
             mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
         }
