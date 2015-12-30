@@ -122,9 +122,8 @@ status_t Ov5642Csi::initSensorStaticData()
         //But 1920x1080, 176x144 not work in this mode.
         //For 1M pixel, 720p sometimes may take green picture(5%), so not report it,
         //use 1024x768 for 1M pixel
-        if(!((vid_frmsize.discrete.width == 1920 && vid_frmsize.discrete.height == 1080)
-         || (vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144)
-         || (vid_frmsize.discrete.width == 1280 && vid_frmsize.discrete.height == 720))) {
+        // 1920x1080 1280x720 is required by CTS.
+        if(!(vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144)) {
             mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
             mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
         }
