@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -316,7 +316,7 @@ int CPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cr = (int*)ycbcr->cb + 1;
+            ycbcr->cr = (void*)((int)ycbcr->cb + 1);
             ycbcr->chroma_step = 2;
             break;
 
@@ -325,7 +325,7 @@ int CPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cb = (int*)ycbcr->cr + 1;
+            ycbcr->cb = (void*)((int)ycbcr->cr + 1);
             ycbcr->chroma_step = 2;
             break;
 
