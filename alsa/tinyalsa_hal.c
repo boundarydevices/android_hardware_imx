@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2012-2015 Freescale Semiconductor, Inc. */
+/* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
 
 #define LOG_TAG "audio_hw_primary"
 //#define LOG_NDEBUG 0
@@ -3324,6 +3324,7 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
                     adev->mixer[n] = mixer_open(i);
                     if (!adev->mixer[n]) {
                          ALOGE("Unable to open the mixer, aborting.");
+                         control_close(imx_control);
                          return -EINVAL;
                     }
                 }
