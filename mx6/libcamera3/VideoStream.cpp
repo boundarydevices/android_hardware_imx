@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -202,14 +202,6 @@ int32_t VideoStream::handleStopLocked(bool force)
         return 0;
     }
 
-    if (force || mChanged) {
-        ret = freeBuffersLocked();
-        if (ret != 0) {
-            ALOGE("%s freeBuffersLocked failed", __func__);
-            return -1;
-        }
-    }
-
     ret = onDeviceStopLocked();
     if (ret < 0) {
         mState = STATE_ERROR;
@@ -217,6 +209,14 @@ int32_t VideoStream::handleStopLocked(bool force)
     }
     else {
         mState = STATE_STOP;
+    }
+
+    if (force || mChanged) {
+        ret = freeBuffersLocked();
+        if (ret != 0) {
+            ALOGE("%s freeBuffersLocked failed", __func__);
+            return -1;
+        }
     }
 
     if (force) {
