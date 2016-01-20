@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,8 +124,11 @@ status_t UvcDevice::initSensorStaticData()
         ALOGI("vid_frmval denominator:%d, numeraton:%d",
                 vid_frmval.discrete.denominator,
                 vid_frmval.discrete.numerator);
-        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
-        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+        if (vid_frmval.discrete.denominator /
+                vid_frmval.discrete.numerator >= 5) {
+            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
+            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+        }
 
         if (vid_frmval.discrete.denominator /
                 vid_frmval.discrete.numerator > 15) {
