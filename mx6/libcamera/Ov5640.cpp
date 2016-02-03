@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -187,7 +187,7 @@ status_t Ov5640::initParameters(CameraParameters& params,
     mParams.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
                 mSupportedFPS);
     mParams.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE,
-                "(12000,17000),(25000,33000)");
+                "(12000,30000),(15000,15000),(30000,30000)");
     // Align the default FPS RANGE to the DEFAULT_PREVIEW_FPS
     mParams.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "12000,17000");
 
@@ -262,10 +262,10 @@ status_t Ov5640::setParameters(CameraParameters& params)
     }
     else if (local_framerate != framerate) {
         if (framerate == 15) {
-            params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "12000,17000");
+            params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "15000,15000");
         }
         else if (framerate == 30) {
-            params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "25000,33000");
+            params.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "30000,30000");
         }
     }
 
