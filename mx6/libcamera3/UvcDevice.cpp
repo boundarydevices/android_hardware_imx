@@ -84,6 +84,7 @@ status_t UvcDevice::initSensorStaticData()
     mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
     if (mSensorFormatCount == 0) {
         ALOGE("%s no sensor format enum", __func__);
+        close(fd);
         return BAD_VALUE;
     }
 

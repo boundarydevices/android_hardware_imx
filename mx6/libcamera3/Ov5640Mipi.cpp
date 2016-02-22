@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,6 +68,7 @@ status_t Ov5640Mipi::initSensorStaticData()
     mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
     if (mSensorFormatCount == 0) {
         ALOGE("%s no sensor format enum", __func__);
+        close(fd);
         return BAD_VALUE;
     }
 
