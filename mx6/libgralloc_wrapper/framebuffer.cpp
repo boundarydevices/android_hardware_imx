@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2010-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2010-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -363,18 +363,21 @@ int Display::initialize(int fb)
     struct fb_fix_screeninfo finfo;
     if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) {
         ALOGE("<%s,%d> FBIOGET_FSCREENINFO failed", __FUNCTION__, __LINE__);
+        close(fd);
         return -errno;
     }
 
     uint32_t flags = PAGE_FLIP;
     if (checkFramebufferFormat(fd, flags) != 0) {
         ALOGE("<%s,%d> checkFramebufferFormat failed", __FUNCTION__, __LINE__);
+        close(fd);
         return -errno;
     }
 
     struct fb_var_screeninfo info;
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
         ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __FUNCTION__, __LINE__);
+        close(fd);
         return -errno;
     }
 
@@ -434,11 +437,13 @@ int Display::initialize(int fb)
 
     if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) {
         ALOGE("<%s,%d> FBIOGET_FSCREENINFO failed", __FUNCTION__, __LINE__);
+        close(fd);
         return -errno;
     }
 
     if (finfo.smem_len <= 0) {
         ALOGE("<%s,%d> finfo.smem_len <= 0", __FUNCTION__, __LINE__);
+        close(fd);
         return -errno;
     }
 
@@ -454,7 +459,7 @@ int Display::initialize(int fb)
 
     int err;
     size_t fbSize = roundUpToPageSize(finfo.line_length * info.yres_virtual);
-    mFramebuffer = new private_handle_t(fd, fbSize,
+    mFramebuffer = new private_handle_t(dup(fd), fbSize,
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
 
     mNumBuffers = info.yres_virtual / ALIGN_PIXEL_16(info.yres);
@@ -463,11 +468,13 @@ int Display::initialize(int fb)
     void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if (vaddr == MAP_FAILED) {
         ALOGE("Error mapping the framebuffer (%s)", strerror(errno));
+        close(fd);
         return -errno;
     }
     mFramebuffer->base = intptr_t(vaddr);
     mFramebuffer->phys = intptr_t(finfo.smem_start);
     memset(vaddr, 0, fbSize);
+    close(fd);
 
     return 0;
 }
