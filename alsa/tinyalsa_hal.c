@@ -1093,6 +1093,8 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     if (ret >= 0) {
         value[0] = '\0';
         i = 0;
+        if (str != NULL)
+            free(str);
         while (out->sup_rates[i] != 0) {
             if (!first) {
                 strcat(value, "|");
@@ -1104,7 +1106,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         }
         str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES, value);
         str = strdup(str_parms_to_str(reply));
-	checked = true;
+        checked = true;
     }
 
     if (!checked) {
