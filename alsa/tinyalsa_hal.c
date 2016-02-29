@@ -825,28 +825,30 @@ static int get_playback_delay(struct imx_stream_out *out,
     struct imx_audio_device *adev = out->dev;
 
     /* Find the first active PCM to act as primary */
-    while ((primary_pcm < PCM_TOTAL) && !out->pcm[primary_pcm])
-        primary_pcm++;
+    for (primary_pcm = 0; primary_pcm < PCM_TOTAL; primary_pcm++) {
+        if (out->pcm[primary_pcm]) {
+            status = pcm_get_htimestamp(out->pcm[primary_pcm], &kernel_frames, &buffer->time_stamp);
+            if (status < 0) {
+                buffer->time_stamp.tv_sec  = 0;
+                buffer->time_stamp.tv_nsec = 0;
+                buffer->delay_ns           = 0;
+                ALOGV("get_playback_delay(): pcm_get_htimestamp error,"
+                        "setting playbackTimestamp to 0");
+                return status;
+            }
 
-    status = pcm_get_htimestamp(out->pcm[primary_pcm], &kernel_frames, &buffer->time_stamp);
-    if (status < 0) {
-        buffer->time_stamp.tv_sec  = 0;
-        buffer->time_stamp.tv_nsec = 0;
-        buffer->delay_ns           = 0;
-        ALOGV("get_playback_delay(): pcm_get_htimestamp error,"
-                "setting playbackTimestamp to 0");
-        return status;
+            kernel_frames = pcm_get_buffer_size(out->pcm[primary_pcm]) - kernel_frames;
+
+            /* adjust render time stamp with delay added by current driver buffer.
+             * Add the duration of current frame as we want the render time of the last
+             * sample being written. */
+            buffer->delay_ns = (long)(((int64_t)(kernel_frames + frames)* 1000000000)/
+                                    adev->mm_rate);
+
+            return 0;
+        }
     }
-
-    kernel_frames = pcm_get_buffer_size(out->pcm[primary_pcm]) - kernel_frames;
-
-    /* adjust render time stamp with delay added by current driver buffer.
-     * Add the duration of current frame as we want the render time of the last
-     * sample being written. */
-    buffer->delay_ns = (long)(((int64_t)(kernel_frames + frames)* 1000000000)/
-                            adev->mm_rate);
-
-    return 0;
+    return -1;
 }
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
