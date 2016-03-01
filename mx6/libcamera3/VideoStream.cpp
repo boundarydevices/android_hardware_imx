@@ -93,24 +93,30 @@ int32_t VideoStream::configure(sp<Stream> stream)
         return 0;
     }
 
-    mWidth  = stream->width();
-    mHeight = stream->height();
-    mFormat = sensorFormat;
-    mFps = stream->fps();
-    mNumBuffers = stream->bufferNum();
+    ConfigureParam* params = new ConfigureParam();
+    params->mWidth  = stream->width();
+    params->mHeight = stream->height();
+    params->mFormat = sensorFormat;
+    params->mFps = stream->fps();
+    params->mBuffers = stream->bufferNum();
     mChanged = true;
 
     ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
            __func__, mWidth, mHeight, mFormat, stream->format(), mFps, mNumBuffers);
-    mMessageQueue.postMessage(new CMessage(MSG_CONFIG, 0), 0);
+    mMessageQueue.postMessage(new CMessage(MSG_CONFIG, (int32_t)params), 0);
 
     return 0;
 }
 
-int32_t VideoStream::handleConfigureLocked()
+int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
 {
     int32_t ret   = 0;
     ALOGV("%s", __func__);
+
+    if (params == NULL) {
+        ALOGW("%s invalid params", __func__);
+        return 0;
+    }
 
     // add start state to go into config state.
     // so, only call config to do stop automically.
@@ -128,6 +134,12 @@ int32_t VideoStream::handleConfigureLocked()
         ALOGE("invalid state:0x%x go into config state", mState);
         return 0;
     }
+
+    mWidth = params->mWidth;
+    mHeight = params->mHeight;
+    mFormat = params->mFormat;
+    mFps = params->mFps;
+    mNumBuffers = params->mBuffers;
 
     ret = onDeviceConfigureLocked();
     if (ret != 0) {
@@ -392,7 +404,11 @@ int32_t VideoStream::handleMessage()
     switch (msg->what) {
         case MSG_CONFIG: {
             Mutex::Autolock lock(mLock);
-            ret = handleConfigureLocked();
+            ConfigureParam* params = (ConfigureParam*)msg->arg0;
+            ret = handleConfigureLocked(params);
+            if (params != NULL) {
+                delete params;
+            }
         }
         break;
 
