@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,16 @@
 using namespace android;
 
 class Camera;
+
+class ConfigureParam
+{
+public:
+    int32_t mWidth;
+    int32_t mHeight;
+    int32_t mFormat;
+    int32_t mFps;
+    int32_t mBuffers;
+};
 
 class VideoStream : public Stream
 {
@@ -61,7 +71,7 @@ private:
 
 protected:
     // handle configure message internally.
-    int32_t handleConfigureLocked();
+    int32_t handleConfigureLocked(ConfigureParam* params);
     virtual int32_t onDeviceConfigureLocked() = 0;
     // handle start message internally.
     int32_t handleStartLocked(bool force);
