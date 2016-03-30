@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -496,7 +496,7 @@ int YuvToJpegEncoder::encode(void *inYuv,
 
     compress(&cinfo, (uint8_t *)inYuv);
     jpeg_finish_compress(&cinfo);
-
+    jpeg_destroy_compress(&cinfo);
     if (resize_src != NULL) {
         free(resize_src);
     }
