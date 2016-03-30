@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -144,6 +144,17 @@ void JpegBuilder::saveJpeg(unsigned char *jpeg,
         DiscardData();
         jpeg_opened = false;
     }
+
+    int num_elements = gps_tag_count + exif_tag_count;
+
+    for (int i = 0; i < num_elements; i++) {
+        if (table[i].Value) {
+            free(table[i].Value);
+            table[i].Value = NULL;
+        }
+    }
+    gps_tag_count = 0;
+    exif_tag_count = 0;
 }
 
 status_t JpegBuilder::insertElement(const char *tag,
