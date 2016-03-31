@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -359,6 +359,11 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
     if (list->outbuf == NULL) {
         ALOGE("invalid outbuf for virtual display");
         return -EINVAL;
+    }
+
+    if (list->numHwLayers < 2) {
+        ALOGV("%s no layer to do composite", __func__);
+        return 0;
     }
 
     struct private_handle_t *frameHandle;
