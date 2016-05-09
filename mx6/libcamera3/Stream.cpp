@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -517,6 +517,8 @@ void Stream::dump(int fd)
     dprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
     dprintf(fd, "Number of Buffers: %d\n", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
+        if(mBuffers[i] == NULL)
+            continue;
         dprintf(fd, "Buffer %d %d : %p\n", i, mNumBuffers,
                 mBuffers[i]->mBufHandle);
     }

@@ -572,6 +572,9 @@ void Camera::dumpDev(int32_t fd)
 
     dprintf(fd, "Number of streams: %d\n", mNumStreams);
     for (int32_t i = 0; i < mNumStreams; i++) {
+        if(mStreams[i] == NULL)
+            continue;
+
         dprintf(fd, "Stream %d/%d:\n", i, mNumStreams);
         mStreams[i]->dump(fd);
     }
