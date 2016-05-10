@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,10 +86,6 @@ CaptureRequest::CaptureRequest()
 
 CaptureRequest::~CaptureRequest()
 {
-    if (mOutBuffers == NULL) {
-        return;
-    }
-
     for (uint32_t i = 0; i < mOutBuffersNumber; i++) {
         if (mOutBuffers[i] != NULL)
             delete mOutBuffers[i];
