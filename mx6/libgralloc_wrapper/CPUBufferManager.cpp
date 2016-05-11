@@ -169,6 +169,12 @@ int CPUBufferManager::allocBufferByIon(size_t size, int /*usage*/,
     if (err) {
         ALOGE("ion_map failed");
         ion_free(mIonFd, ion_hnd);
+        if (ptr != MAP_FAILED) {
+            munmap(ptr, size);
+        }
+        if (sharedFd > 0) {
+            close(sharedFd);
+        }
         return err;
     }
 
@@ -176,6 +182,9 @@ int CPUBufferManager::allocBufferByIon(size_t size, int /*usage*/,
     if (phyAddr == 0) {
         ALOGE("ion_phys failed");
         ion_free(mIonFd, ion_hnd);
+        if (ptr != MAP_FAILED) {
+            munmap(ptr, size);
+        }
         close(sharedFd);
         return -EINVAL;
     }
