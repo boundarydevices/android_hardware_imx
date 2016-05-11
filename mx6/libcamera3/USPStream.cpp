@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -242,12 +242,25 @@ int32_t USPStream::allocateBuffersLocked()
 
         if (err) {
             ALOGE("ion_map failed.");
-            return BAD_VALUE;
+            ion_free(mIonFd, ionHandle);
+            if (ptr != MAP_FAILED) {
+                munmap(ptr, ionSize);
+            }
+            if (sharedFd > 0) {
+                close(sharedFd);
+            }
+
+            goto err;
         }
         phyAddr = ion_phys(mIonFd, ionHandle);
         if (phyAddr == 0) {
             ALOGE("ion_phys failed.");
-            return BAD_VALUE;
+            ion_free(mIonFd, ionHandle);
+            if (ptr != MAP_FAILED) {
+                munmap(ptr, ionSize);
+            }
+            close(sharedFd);
+            goto err;
         }
         ALOGI("phyalloc ptr:0x%x, phy:0x%x, ionSize:%d", (int32_t)ptr, phyAddr, ionSize);
         mBuffers[i] = new StreamBuffer();
@@ -263,6 +276,23 @@ int32_t USPStream::allocateBuffersLocked()
     mAllocatedBuffers = mNumBuffers;
 
     return 0;
+
+err:
+    for (uint32_t i = 0; i < mNumBuffers; i++) {
+        if (mBuffers[i] == NULL) {
+            continue;
+        }
+
+        ion_user_handle_t ionHandle =
+            (ion_user_handle_t)mBuffers[i]->mBufHandle;
+        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
+        close(mBuffers[i]->mFd);
+        ion_free(mIonFd, ionHandle);
+        delete mBuffers[i];
+        mBuffers[i] = NULL;
+    }
+
+    return BAD_VALUE;
 }
 
 int32_t USPStream::freeBuffersLocked()
