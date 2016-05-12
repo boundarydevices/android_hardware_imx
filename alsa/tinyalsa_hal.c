@@ -709,6 +709,7 @@ static int start_output_stream_esai(struct imx_stream_out *out)
         out->pcm[PCM_ESAI] = NULL;
         return -ENOMEM;
     }
+    out->written = 0;
     return 0;
 }
 
