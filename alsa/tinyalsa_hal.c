@@ -542,7 +542,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     int pcm_device;
     bool success = false;
 
-    ALOGI("start_output_stream... %d, device %d",(int)out, out->device);
+    ALOGI("start_output_stream_primary... %d, device %d",(int)out, out->device);
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         /* FIXME: only works if only one output can be active at a time */
@@ -687,6 +687,7 @@ static int start_output_stream_esai(struct imx_stream_out *out)
     unsigned int port = 0;
     int i = 0;
 
+    ALOGI("start_output_stream_esai, out %d, device 0x%x", (int)out, out->device);
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -1483,8 +1484,33 @@ exit:
 static int out_get_render_position(const struct audio_stream_out *stream,
                                    uint32_t *dsp_frames)
 {
-    ALOGW("get render position....");
-    return -EINVAL;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    struct imx_audio_device *adev = out->dev;
+    struct timespec timestamp;
+    int64_t signed_frames = 0;
+    int i;
+    pthread_mutex_lock(&out->lock);
+
+    for (i = 0; i < PCM_TOTAL; i++)
+        if (out->pcm[i]) {
+            size_t avail;
+            size_t kernel_buffer_size = out->config[i].period_size * out->config[i].period_count;
+            // this is the number of frames which the dsp actually presented at least
+            signed_frames = out->written - kernel_buffer_size * adev->default_rate / out->config[i].rate;
+            if (pcm_get_htimestamp(out->pcm[i], &avail, &timestamp) == 0) {
+                // compensate for driver's frames consumed
+                signed_frames += avail * adev->default_rate / out->config[i].rate;
+                break;
+            }
+        }
+   if (signed_frames >= 0)
+       *dsp_frames = (uint32_t)signed_frames;
+   else
+       *dsp_frames = 0;
+
+    pthread_mutex_unlock(&out->lock);
+
+    return 0;
 }
 
 static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
