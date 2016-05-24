@@ -57,6 +57,7 @@
 #define OV5642CSI_SENSOR_NAME "ov5642_camera"
 #define OV5640CSI_SENSOR_NAME "ov5640_camera"
 #define ADV7180_TVIN_NAME "adv7180_decoder"
+#define TC358743_NAME "tc358743_mipi"
 
 #define CAMAERA_FILENAME_LENGTH 256
 #define CAMERA_SENSOR_LENGTH    92
