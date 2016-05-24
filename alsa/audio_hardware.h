@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2012-2015 Freescale Semiconductor, Inc. */
+/* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
@@ -126,6 +126,7 @@ struct imx_stream_out {
     struct resampler_itfe *resampler[PCM_TOTAL];
     char *buffer;
     int standby;
+    int card_index;
     struct echo_reference_itfe *echo_reference;
     struct imx_audio_device *dev;
     int write_threshold[PCM_TOTAL];
