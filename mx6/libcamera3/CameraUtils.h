@@ -148,6 +148,9 @@ public:
     int32_t mPhyAddr;
     size_t  mSize;
     int32_t mFd;
+
+    //for uvc jpeg stream
+    void *mpFrameBuf;
 };
 
 enum RequestType {

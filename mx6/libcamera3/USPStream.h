@@ -46,9 +46,10 @@ public:
 
 protected:
     int32_t getFormatSize();
+    int32_t mIonFd;
 
 private:
-    int32_t mIonFd;
+
 };
 
 #endif

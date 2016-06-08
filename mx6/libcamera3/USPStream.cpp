@@ -188,6 +188,11 @@ int32_t USPStream::getFormatSize()
             alignedh = ALIGN_PIXEL_16(mHeight);
             size = alignedw * alignedh * 2;
             break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+            alignedw = ALIGN_PIXEL_16(mWidth);
+            alignedh = ALIGN_PIXEL_16(mHeight);
+            size = alignedw * alignedh * 2;
+            break;
 
         default:
             ALOGE("Error: %s format not supported", __func__);

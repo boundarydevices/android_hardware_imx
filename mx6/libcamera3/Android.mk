@@ -48,9 +48,11 @@ LOCAL_SRC_FILES := \
     Ov5642Csi.cpp \
     YuvToJpegEncoder.cpp \
     NV12_resize.c \
+    UvcMJPGDevice.cpp\
     USPStream.cpp \
     DMAStream.cpp \
     UvcDevice.cpp \
+    MJPGStream.cpp \
     TVINDevice.cpp \
     MMAPStream.cpp
 

@@ -271,7 +271,8 @@ int vpu_encode(void *inYuv,
                              int   /*quality*/,
                              int   color,
                              void *outBuf,
-                             int   outSize)
+                             int   outSize,
+                             int colorFormat)
 {
 	VpuEncRetCode ret;
 	int size=0;
@@ -337,6 +338,7 @@ int vpu_encode(void *inYuv,
 	sEncOpenParamSimp.nBitRate=0;
 	sEncOpenParamSimp.nGOPSize=30;
 	sEncOpenParamSimp.nChromaInterleave=1;
+    sEncOpenParamSimp.eColorFormat=(VpuColorFormat)colorFormat;
 
 	//open vpu
 	ret=VPU_EncOpenSimp(&handle, &sMemInfo,&sEncOpenParamSimp);
@@ -441,6 +443,8 @@ YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
         return new Yuv420SpToJpegEncoder();
     } else if (format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
         return new Yuv422IToJpegEncoder();
+    } else if (format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+        return new Yuv422SpToJpegEncoder();
     } else {
         ALOGE("YuvToJpegEncoder:create format:%d not support", format);
         return NULL;
@@ -463,7 +467,7 @@ int YuvToJpegEncoder::encode(void *inYuv,
     //use vpu to encode
 	if((inWidth == outWidth) && (inHeight == outHeight) && supportVpu){
 		int size;
-		size=vpu_encode(inYuv, inYuvPhy, outWidth, outHeight,quality,color,outBuf,outSize);
+		size=vpu_encode(inYuv, inYuvPhy, outWidth, outHeight,quality,color,outBuf,outSize, mColorFormat);
 		return size;
 	}
 
@@ -527,6 +531,7 @@ Yuv420SpToJpegEncoder::Yuv420SpToJpegEncoder() :
     fNumPlanes = 2;
     color=0;
     supportVpu = true;
+    mColorFormat = VPU_COLOR_420;
 }
 
 void Yuv420SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,
@@ -644,6 +649,7 @@ Yuv422IToJpegEncoder::Yuv422IToJpegEncoder() :
     YuvToJpegEncoder() {
     fNumPlanes = 1;
     color=1;
+    mColorFormat = VPU_COLOR_422H;
 }
 
 void Yuv422IToJpegEncoder::compress(jpeg_compress_struct *cinfo,
@@ -787,6 +793,158 @@ _resize_begin:
 
     return 0;
 }
+
+// /////////////////////////////////////////////////////////////////////////////////////////////
+Yuv422SpToJpegEncoder::Yuv422SpToJpegEncoder() :
+    YuvToJpegEncoder() {
+        supportVpu = true;
+        fNumPlanes = 1;
+        color=1;
+        mColorFormat = VPU_COLOR_422H;
+    }
+
+void Yuv422SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,
+        uint8_t              *yuv) {
+    JSAMPROW   y[16];
+    JSAMPROW   cb[16];
+    JSAMPROW   cr[16];
+    JSAMPARRAY planes[3];
+
+    planes[0] = y;
+    planes[1] = cb;
+    planes[2] = cr;
+
+    int width      = cinfo->image_width;
+    int height     = cinfo->image_height;
+    uint8_t *yRows = new uint8_t[16 * width];
+    uint8_t *uRows = new uint8_t[16 * (width >> 1)];
+    uint8_t *vRows = new uint8_t[16 * (width >> 1)];
+
+    uint8_t *yuvOffset = yuv;
+
+    // process 16 lines of Y and 16 lines of U/V each time.
+    while (cinfo->next_scanline < cinfo->image_height) {
+        deinterleave(yuvOffset,
+                yRows,
+                uRows,
+                vRows,
+                cinfo->next_scanline,
+                width,
+                height);
+
+        for (int i = 0; i < 16; i++) {
+            // y row
+            y[i] = yRows + i * width;
+
+            // construct u row and v row
+            // width is halved because of downsampling
+            int offset = i * (width >> 1);
+            cb[i] = uRows + offset;
+            cr[i] = vRows + offset;
+        }
+
+        jpeg_write_raw_data(cinfo, planes, 16);
+    }
+    delete[] yRows;
+    delete[] uRows;
+    delete[] vRows;
+}
+
+void Yuv422SpToJpegEncoder::deinterleave(uint8_t *yuv,
+        uint8_t *yRows,
+        uint8_t *uRows,
+        uint8_t *vRows,
+        int      rowIndex,
+        int      width,
+        int      /*height*/) {
+    for (int row = 0; row < 16; ++row) {
+        uint8_t *yuvSeg = yuv + (rowIndex + row) * width * 2;
+        for (int i = 0; i < (width >> 1); ++i) {
+            int indexY = row * width + (i << 1);
+            int indexU = row * (width >> 1) + i;
+            yRows[indexY]     = yuvSeg[0];
+            yRows[indexY + 1] = yuvSeg[2];
+            uRows[indexU]     = yuvSeg[1];
+            vRows[indexU]     = yuvSeg[3];
+            yuvSeg           += 4;
+        }
+    }
+}
+
+void Yuv422SpToJpegEncoder::configSamplingFactors(jpeg_compress_struct *cinfo) {
+    // cb and cr are horizontally downsampled and vertically downsampled as
+    // well.
+    cinfo->comp_info[0].h_samp_factor = 2;
+    cinfo->comp_info[0].v_samp_factor = 2;
+    cinfo->comp_info[1].h_samp_factor = 1;
+    cinfo->comp_info[1].v_samp_factor = 2;
+    cinfo->comp_info[2].h_samp_factor = 1;
+    cinfo->comp_info[2].v_samp_factor = 2;
+}
+
+int Yuv422SpToJpegEncoder::yuvResize(uint8_t *srcBuf,
+        int      srcWidth,
+        int      srcHeight,
+        uint8_t *dstBuf,
+        int      dstWidth,
+        int      dstHeight)
+{
+    int i, j, s;
+    int h_offset;
+    int v_offset;
+    unsigned char *ptr, cc;
+    int h_scale_ratio;
+    int v_scale_ratio;
+
+    s = 0;
+
+_resize_begin:
+
+    if (!dstWidth) return -1;
+
+    if (!dstHeight) return -1;
+
+    h_scale_ratio = srcWidth / dstWidth;
+    if (!h_scale_ratio) return -1;
+
+    v_scale_ratio = srcHeight / dstHeight;
+    if (!v_scale_ratio) return -1;
+
+    h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
+    v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
+
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
+    {
+        for (j = 0; j < dstWidth * h_scale_ratio; j += h_scale_ratio)
+        {
+            ptr = srcBuf + i * srcWidth + j + v_offset * srcWidth + h_offset;
+            cc  = ptr[0];
+
+            ptr    = dstBuf + (i / v_scale_ratio) * dstWidth + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
+    }
+
+    srcBuf += srcWidth * srcHeight;
+    dstBuf += dstWidth * dstHeight;
+
+    if (s < 2)
+    {
+        if (!s++)
+        {
+            srcWidth  >>= 1;
+            srcHeight >>= 1;
+
+            dstWidth  >>= 1;
+            dstHeight >>= 1;
+        }
+
+        goto _resize_begin;
+    }
+
+    return 0;
+}
+
 
 void jpegBuilder_error_exit(j_common_ptr cinfo)
 {

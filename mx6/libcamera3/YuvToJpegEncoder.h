@@ -58,10 +58,12 @@ public:
                int   outHeight);
 
     virtual ~YuvToJpegEncoder() {}
+    int getColorFormat() {return mColorFormat;}
 
 protected:
     int fNumPlanes;
     int color;
+    int mColorFormat;
 
     void setJpegCompressStruct(jpeg_compress_struct *cinfo,
                                int                   width,
@@ -130,6 +132,30 @@ private:
                           uint8_t *dstBuf,
                           int      dstWidth,
                           int      dstHeight);
+};
+
+class Yuv422SpToJpegEncoder : public YuvToJpegEncoder {
+    public:
+        Yuv422SpToJpegEncoder();
+        virtual ~Yuv422SpToJpegEncoder() {}
+
+    private:
+        void configSamplingFactors(jpeg_compress_struct *cinfo);
+        void compress(jpeg_compress_struct *cinfo,
+                uint8_t              *yuv);
+        void deinterleave(uint8_t *yuv,
+                uint8_t *yRows,
+                uint8_t *uRows,
+                uint8_t *vRows,
+                int      rowIndex,
+                int      width,
+                int      height);
+        virtual int yuvResize(uint8_t *srcBuf,
+                int      srcWidth,
+                int      srcHeight,
+                uint8_t *dstBuf,
+                int      dstWidth,
+                int      dstHeight);
 };
 
 struct jpegBuilder_destination_mgr : jpeg_destination_mgr {
