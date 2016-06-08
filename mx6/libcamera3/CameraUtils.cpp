@@ -44,6 +44,9 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
             nFormat = v4l2_fourcc('Y', 'U', 'Y', 'V');
             break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+            nFormat = v4l2_fourcc('N', 'V', '1', '6');
+            break;
 
         default:
             ALOGE("Error: format:0x%x not supported!", format);
@@ -73,6 +76,10 @@ void StreamBuffer::initialize(buffer_handle_t* buf_h)
     mVirtAddr  = (void *)handle->base;
     mPhyAddr   = handle->phys;
     mSize      = handle->size;
+
+    //for uvc jpeg stream
+    mpFrameBuf  = NULL;
+
 }
 
 //--------------------CaptureRequest----------------------
@@ -213,7 +220,6 @@ int32_t SensorData::getSensorFormat(int32_t availFormat)
             return availFormat;
         }
     }
-
     // return the first sensor format by default.
     return mSensorFormats[0];
 }
@@ -246,6 +252,9 @@ int32_t SensorData::changeSensorFormats(int *src, int *dst, int len)
 
             case v4l2_fourcc('R', 'A', 'W', 'S'):
                 dst[k++] = HAL_PIXEL_FORMAT_RAW16;
+                break;
+            case v4l2_fourcc('N', 'V', '1', '6'):
+                dst[k++] = HAL_PIXEL_FORMAT_YCbCr_422_SP;
                 break;
 
             default:
