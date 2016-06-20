@@ -224,10 +224,23 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
             android_jpeg_max_size);
 
     /* android.lens */
+    float minFocusDistance = 1.0/0.05; /* 5cm */
+    m.addFloat(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE, 1, &minFocusDistance);
+
+    float hypFocusDistance = 1.0/0.05; /* 5cm */
+    m.addFloat(ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE, 1, &hypFocusDistance);
+
     float android_lens_info_available_focal_lengths[] = {sensor.mFocalLength};
     m.addFloat(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
             ARRAY_SIZE(android_lens_info_available_focal_lengths),
             android_lens_info_available_focal_lengths);
+
+    const uint8_t availableAfModes[] = {
+        ANDROID_CONTROL_AF_MODE_OFF,
+        ANDROID_CONTROL_AF_MODE_AUTO
+    };
+    m.addUInt8(ANDROID_CONTROL_AF_AVAILABLE_MODES, sizeof(availableAfModes),
+	       availableAfModes);
 #if 0
     /* android.request */
     int32_t android_request_max_num_output_streams[] = {0, 3, 1};

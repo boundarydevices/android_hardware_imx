@@ -61,6 +61,8 @@ protected:
     // Initialize static camera characteristics for individual device
     virtual status_t initSensorStaticData() = 0;
 
+    virtual uint8_t doAutoFocus() { return ANDROID_CONTROL_AF_STATE_NOT_FOCUSED_LOCKED; }
+
     virtual void setPreviewPixelFormat();
     virtual void setPicturePixelFormat();
 
