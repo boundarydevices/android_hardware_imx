@@ -28,6 +28,8 @@ public:
 
     virtual status_t initSensorStaticData();
 
+    virtual uint8_t doAutoFocus();
+
 private:
     class OvStream : public USPStream {
     public:

@@ -170,6 +170,32 @@ status_t Ov5640Mipi::initSensorStaticData()
     return NO_ERROR;
 }
 
+uint8_t Ov5640Mipi::doAutoFocus()
+{
+    struct v4l2_control c;
+    uint8_t ret = ANDROID_CONTROL_AF_STATE_NOT_FOCUSED_LOCKED;
+    int result;
+
+    int32_t fd = open(mDevPath, O_RDWR);
+    if (fd < 0) {
+        ALOGE("couldn't open device %s", mDevPath);
+        return ret;
+    }
+
+    c.id = V4L2_CID_AUTO_FOCUS_START;
+    result = ioctl(fd, VIDIOC_S_CTRL, &c);
+    if (result != 0) {
+        ALOGE("ioctl error: %d", result);
+        ret = ANDROID_CONTROL_AF_STATE_NOT_FOCUSED_LOCKED;
+    } else {
+        ret = ANDROID_CONTROL_AF_STATE_FOCUSED_LOCKED;
+    }
+
+    close(fd);
+
+    return ret;
+}
+
 // configure device.
 int32_t Ov5640Mipi::OvStream::onDeviceConfigureLocked()
 {
