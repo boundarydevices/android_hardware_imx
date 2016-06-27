@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -638,7 +638,6 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
 
         if (layer->blending != HWC_BLENDING_NONE && !firstLayer) {
             g2d_enable(priv->g2d_handle, G2D_GLOBAL_ALPHA);
-            g2d_enable(priv->g2d_handle, G2D_DITHER);
             if (layer->blending == HWC_BLENDING_DIM) {
                 ALOGV("enable blend dim");
                 g2d_enable(priv->g2d_handle, G2D_BLEND_DIM);
@@ -648,7 +647,11 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
             }
         }
 
+        g2d_enable(priv->g2d_handle, G2D_DITHER);
+
         g2d_blitEx(priv->g2d_handle, &sSurfaceX, &dSurfaceX);
+
+        g2d_disable(priv->g2d_handle, G2D_DITHER);
 
         if (layer->blending != HWC_BLENDING_NONE && !firstLayer) {
             if (layer->blending == HWC_BLENDING_DIM) {
@@ -658,7 +661,6 @@ int hwc_composite(struct fsl_private *priv, hwc_layer_1_t* layer,
                 g2d_disable(priv->g2d_handle, G2D_BLEND);
             }
             g2d_disable(priv->g2d_handle, G2D_GLOBAL_ALPHA);
-            g2d_disable(priv->g2d_handle, G2D_DITHER);
         }
     }
 
