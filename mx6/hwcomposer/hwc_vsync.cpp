@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -101,7 +101,7 @@ void VSyncThread::performFakeVSync()
 void VSyncThread::performVSync()
 {
     uint64_t timestamp = 0;
-    uint32_t crt = (uint32_t)&timestamp;
+    uintptr_t crt = (uintptr_t)&timestamp;
 
     int err = ioctl(mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].fd,
                     MXCFB_WAIT_FOR_VSYNC, crt);

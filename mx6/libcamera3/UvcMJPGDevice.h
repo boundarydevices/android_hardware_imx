@@ -35,10 +35,10 @@ protected:
     class UvcStream : public MJPGStream {
         public:
 
-            *UvcStream(Camera* device, const char* name)
+            UvcStream(Camera* device, const char* name)
                 : MJPGStream(device) {
                     strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH);
-                                                                        }
+            }
             virtual ~UvcStream() {}
 
             // configure device.

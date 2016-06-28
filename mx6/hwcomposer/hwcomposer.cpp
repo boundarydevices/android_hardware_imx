@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2014 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2009-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -409,7 +409,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct private_module_t *priv_m =
                          (struct private_module_t *)dev->m_gralloc_module;
 
-        for(int dispid=0; dispid<HWC_NUM_PHYSICAL_DISPLAY_TYPES; dispid++) {
+        for(intptr_t dispid=0; dispid<HWC_NUM_PHYSICAL_DISPLAY_TYPES; dispid++) {
             if(dev->mDispInfo[dispid].connected && dev->m_gralloc_module != NULL) {
                 int fbid = dev->mDispInfo[dispid].fb_num;
                 char fbname[HWC_STRING_LENGTH];

@@ -25,7 +25,7 @@
 #define VPU_DEC_MAX_NUM_MEM_NUM 20
 #define DEFAULT_FILL_DATA_UNIT  (16*1024)
 #define DEFAULT_DELAY_BUFSIZE   (-1)
-#define Align(ptr,align)     (((unsigned int)ptr+(align)-1)/(align)*(align))
+#define Align(ptr,align)     (((uintptr_t)ptr+(align)-1)/(align)*(align))
 #define MAX_PREVIEW_BUFFER      8
 #define MAX_FRAME_NUM                (30)
 #define FRAME_SURPLUS                (0)

@@ -458,7 +458,7 @@ int32_t MJPGStream::allocateSensorBuffersLocked()
         mSensorBuffers[i]->mVirtAddr  = Sensorptr;
         mSensorBuffers[i]->mPhyAddr   = phyAddr;
         mSensorBuffers[i]->mSize      = ionSize;
-        mSensorBuffers[i]->mBufHandle = (buffer_handle_t*)ionHandle;
+        mSensorBuffers[i]->mBufHandle = (buffer_handle_t*)(uintptr_t)ionHandle;
         mSensorBuffers[i]->mFd = sharedFd;
         mSensorBuffers[i]->mStream = this;
         mSensorBuffers[i]->mpFrameBuf  = NULL;
@@ -476,7 +476,7 @@ err:
         }
 
         ion_user_handle_t ionHandle =
-            (ion_user_handle_t)mSensorBuffers[i]->mBufHandle;
+            (ion_user_handle_t)(uintptr_t)mSensorBuffers[i]->mBufHandle;
         munmap(mSensorBuffers[i]->mVirtAddr, mSensorBuffers[i]->mSize);
         close(mSensorBuffers[i]->mFd);
         ion_free(mIonFd, ionHandle);
@@ -503,7 +503,7 @@ int32_t MJPGStream::freeSensorBuffersLocked()
     ALOGI("freeSensorBufferToIon buffer num:%d", mAllocatedBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
         ion_user_handle_t ionHandle =
-            (ion_user_handle_t)mSensorBuffers[i]->mBufHandle;
+            (ion_user_handle_t)(uintptr_t)mSensorBuffers[i]->mBufHandle;
         munmap(mSensorBuffers[i]->mVirtAddr, mSensorBuffers[i]->mSize);
         close(mSensorBuffers[i]->mFd);
         ion_free(mIonFd, ionHandle);
@@ -717,7 +717,7 @@ DecLogic:
 
         unsigned int i;
         for(i = 0; i < mNumBuffers; i++) {
-            if(frameInfo.pDisplayFrameBuf->pbufY == (unsigned char* )mBuffers[i]->mPhyAddr) {
+            if(frameInfo.pDisplayFrameBuf->pbufY == (unsigned char* )(uintptr_t)mBuffers[i]->mPhyAddr) {
                 VPUIndex = i;
                 break;
             }
@@ -812,9 +812,9 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
         pVirtAddr=VPUptr;
         mBuffers[i] = new StreamBuffer();
         mBuffers[i]->mVirtAddr  = VPUptr;
-        mBuffers[i]->mPhyAddr   = (int32_t)phyAddr;
+        mBuffers[i]->mPhyAddr   = (uintptr_t)phyAddr;
         mBuffers[i]->mSize      =  ionSize;
-        mBuffers[i]->mBufHandle = (buffer_handle_t*)ionHandle;
+        mBuffers[i]->mBufHandle = (buffer_handle_t*)(uintptr_t)ionHandle;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
         mBuffers[i]->mpFrameBuf  = NULL;
@@ -932,7 +932,7 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
     {
         totalSize=(ySize+uSize+vSize+mvSize+nAlign)*1;
 
-        ptr=(unsigned char*)(mBuffers[i]->mPhyAddr);
+        ptr=(unsigned char*)(uintptr_t)(mBuffers[i]->mPhyAddr);
         ptrVirt=(unsigned char*)(mBuffers[i]->mVirtAddr);
 
         /*align the base address*/
@@ -1000,7 +1000,7 @@ int MJPGStream::FreeMemBlock(DecMemInfo* pDecMem)
     //free virtual mem
     for(i=0;i<pDecMem->nVirtNum;i++)
     {
-        if((void*)pDecMem->virtMem[i]) free((void*)pDecMem->virtMem[i]);
+        if((void*)(uintptr_t)pDecMem->virtMem[i]) free((void*)(uintptr_t)pDecMem->virtMem[i]);
     }
     pDecMem->nVirtNum=0;
 
@@ -1043,7 +1043,7 @@ int  MJPGStream::MallocMemBlock(VpuMemInfo* pMemBlock,DecMemInfo* pDecMem)
             pMemBlock->MemSubBlock[i].pVirtAddr=(unsigned char*)Align(ptr,pMemBlock->MemSubBlock[i].nAlignment);
 
             //record virtual base addr
-            pDecMem->virtMem[pDecMem->nVirtNum]=(unsigned int)ptr;
+            pDecMem->virtMem[pDecMem->nVirtNum]=(uintptr_t)ptr;
             pDecMem->nVirtNum++;
         }
         else// if(memInfo.MemSubBlock[i].MemType==VPU_MEM_PHY)

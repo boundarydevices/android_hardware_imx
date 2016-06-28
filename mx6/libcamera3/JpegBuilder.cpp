@@ -631,7 +631,7 @@ status_t JpegBuilder::buildImage(const StreamBuffer *streamBuf)
             if (exif_section) {
                 size_t imageSize = jpeg_size + exif_section->Size;
                 if (streamBuf->mSize < imageSize) {
-                    ALOGE("%s buf size %d small than %d", __FUNCTION__,
+                    ALOGE("%s buf size %zu small than %zu", __FUNCTION__,
                                     streamBuf->mSize, imageSize);
                     return BAD_VALUE;
                 }
@@ -642,7 +642,7 @@ status_t JpegBuilder::buildImage(const StreamBuffer *streamBuf)
         } else {
             size_t imageSize = jpeg_size;
             if (streamBuf->mSize < imageSize) {
-                ALOGE("%s buf size %d small than %d", __FUNCTION__,
+                ALOGE("%s buf size %zu small than %zu", __FUNCTION__,
                                     streamBuf->mSize, imageSize);
                 return BAD_VALUE;
             }

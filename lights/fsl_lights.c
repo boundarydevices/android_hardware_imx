@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
- * Copyright 2009-2015 Freescale Semiconductor, Inc.
+ * Copyright 2009-2016 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 #include <cutils/properties.h>
+#include <string.h>
 
 #define MAX_BRIGHTNESS 255
 #define DEF_BACKLIGHT_DEV "pwm-backlight"

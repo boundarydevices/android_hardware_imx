@@ -22,7 +22,7 @@
 #include "vpu_wrapper.h"
 
 
-#define Align(ptr,align)	(((unsigned int)ptr+(align)-1)/(align)*(align))
+#define Align(ptr,align)	(((uintptr_t)ptr+(align)-1)/(align)*(align))
 #define VPU_ENC_MAX_NUM_MEM_REQS	(6)
 #define MAX_FRAME_NUM	(4)
 
@@ -192,7 +192,7 @@ int EncFreeMemBlock(EncMemInfo* pEncMem)
 
 	//free virtual mem
 	for(i=0;i<pEncMem->nVirtNum;i++){
-		free((void*)pEncMem->virtMem[i]);
+		free((void*)(uintptr_t)pEncMem->virtMem[i]);
 	}
 
 	//free physical mem
@@ -233,7 +233,7 @@ int EncMallocMemBlock(VpuMemInfo* pMemBlock,EncMemInfo* pEncMem)
 			pMemBlock->MemSubBlock[i].pVirtAddr=(unsigned char*)Align(ptr,pMemBlock->MemSubBlock[i].nAlignment);
 
 			//record virtual base addr
-			pEncMem->virtMem[pEncMem->nVirtNum]=(unsigned int)ptr;
+			pEncMem->virtMem[pEncMem->nVirtNum]=(uintptr_t)ptr;
 			pEncMem->nVirtNum++;
 		}
 		else{ // if(memInfo.MemSubBlock[i].MemType==VPU_MEM_PHY)
@@ -387,11 +387,11 @@ int vpu_encode(void *inYuv,
 	sEncEncParam.nPicHeight=Height;
 	sEncEncParam.nFrameRate=30;
 	sEncEncParam.nQuantParam=10;
-	sEncEncParam.nInPhyInput=(unsigned int)inYuvPhy;
-	sEncEncParam.nInVirtInput=(unsigned int)inYuv;
+	sEncEncParam.nInPhyInput=(uintptr_t)inYuvPhy;
+	sEncEncParam.nInVirtInput=(uintptr_t)inYuv;
 	sEncEncParam.nInInputSize=(color==0)?(Width*Height*3/2):(Width*Height*2);
-	sEncEncParam.nInPhyOutput=(unsigned int)sMemInfo.MemSubBlock[0].pPhyAddr;
-	sEncEncParam.nInVirtOutput=(unsigned int)sMemInfo.MemSubBlock[0].pVirtAddr;
+	sEncEncParam.nInPhyOutput=(uintptr_t)sMemInfo.MemSubBlock[0].pPhyAddr;
+	sEncEncParam.nInVirtOutput=(uintptr_t)sMemInfo.MemSubBlock[0].pVirtAddr;
 	sEncEncParam.nInOutputBufLen=outSize;
 
 	ret=VPU_EncEncodeFrame(handle, &sEncEncParam);
@@ -410,7 +410,7 @@ int vpu_encode(void *inYuv,
 		ALOGE("%s, vpu encode frame failure: no output,  ret=0x%X ",__FUNCTION__,sEncEncParam.eOutRetCode);
 	}
 
-	memcpy(outBuf,(void*)sEncEncParam.nInVirtOutput,sEncEncParam.nOutOutputSize);
+	memcpy(outBuf,(void*)(uintptr_t)sEncEncParam.nInVirtOutput,sEncEncParam.nOutOutputSize);
 
 finish:
 
