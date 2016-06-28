@@ -544,7 +544,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     int pcm_device;
     bool success = false;
 
-    ALOGI("start_output_stream_primary... %d, device %d",(int)out, out->device);
+    ALOGI("start_output_stream_primary... %d, device %d",(uintptr_t)out, out->device);
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         /* FIXME: only works if only one output can be active at a time */
@@ -657,7 +657,7 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
     unsigned int port = 0;
     int i = 0;
 
-    ALOGI("start_output_stream_hdmi, out %d, device 0x%x", (int)out, out->device);
+    ALOGI("start_output_stream_hdmi, out %d, device 0x%x", (uintptr_t)out, out->device);
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -689,7 +689,7 @@ static int start_output_stream_esai(struct imx_stream_out *out)
     unsigned int port = 0;
     int i = 0;
 
-    ALOGI("start_output_stream_esai, out %d, device 0x%x", (int)out, out->device);
+    ALOGI("start_output_stream_esai, out %d, device 0x%x", (uintptr_t)out, out->device);
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -954,7 +954,7 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
             out->writeContiFailCount[i] = 0;
         }
 
-        ALOGW("do_out_standby... %d",(int)out);
+        ALOGW("do_out_standby... %d",(uintptr_t)out);
 
         /* if in call, don't turn off the output stage. This will
         be done when the call is ended */
@@ -1055,7 +1055,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         ret = 0;
     }
 
-    ALOGW("out_set_parameters %s, ret %d, out %d",kvpairs, ret, (int)out);
+    ALOGW("out_set_parameters %s, ret %d, out %d",kvpairs, ret, (uintptr_t) out);
     str_parms_destroy(parms);
 
     return ret;
@@ -2969,7 +2969,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
     *stream_out = &out->stream;
     ladev->active_output[output_type] = out;
-    ALOGW("opened out stream...%d, type %d",(int)out, output_type);
+    ALOGW("opened out stream...%d, type %d",(uintptr_t)out, output_type);
     return 0;
 
 err_open:
@@ -2984,7 +2984,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     int i;
-    ALOGW("adev_close_output_stream...%d",(int)out);
+    ALOGW("adev_close_output_stream...%d",(uintptr_t)out);
 
     pthread_mutex_lock(&out->dev->lock);
     pthread_mutex_lock(&out->lock);

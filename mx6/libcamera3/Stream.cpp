@@ -206,7 +206,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     }
 
     mainJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
-                       (uint8_t *)src.mPhyAddr,
+                       (uint8_t *)(uintptr_t)src.mPhyAddr,
                        src.mSize, (uint8_t *)rawBuf,
                        src.mSize, encodeQuality,
                        srcStream->mWidth, srcStream->mHeight,
@@ -222,7 +222,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     if ((thumbWidth > 0) && (thumbHeight > 0)) {
         int thumbSize = bufSize;
         thumbJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
-                           (uint8_t *)src.mPhyAddr,
+                           (uint8_t *)(uintptr_t)src.mPhyAddr,
                            src.mSize,
                            (uint8_t *)thumbBuf,
                            thumbSize,

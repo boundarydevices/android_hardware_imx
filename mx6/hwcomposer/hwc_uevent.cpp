@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2013-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ void UeventThread::handleHdmiUevent(const char *buff, int len, int dispid) {
         char fbname[HWC_STRING_LENGTH];
         memset(fbname, 0, sizeof(fbname));
         sprintf(fbname, "fb%d", fbid);
-        mCtx->mFbDev[dispid] = (framebuffer_device_t*)dispid;
+        mCtx->mFbDev[dispid] = (framebuffer_device_t*)(intptr_t)dispid;
         mCtx->m_gralloc_module->methods->open(mCtx->m_gralloc_module, fbname,
                            (struct hw_device_t**)&mCtx->mFbDev[HWC_DISPLAY_EXTERNAL]);
         priv_m = (struct private_module_t *)mCtx->m_gralloc_module;

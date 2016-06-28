@@ -191,7 +191,7 @@ int CPUBufferManager::allocBufferByIon(size_t size, int /*usage*/,
 
     private_handle_t* hnd = new private_handle_t(sharedFd, size,
                      private_handle_t::PRIV_FLAGS_USES_ION);
-    hnd->base = (int)ptr;
+    hnd->base = (uintptr_t)ptr;
     hnd->phys = phyAddr;
     *pHandle = hnd;
     ion_free(mIonFd, ion_hnd);
@@ -325,7 +325,7 @@ int CPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cr = (void*)((int)ycbcr->cb + 1);
+            ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + 1);
             ycbcr->chroma_step = 2;
             break;
 
@@ -334,7 +334,7 @@ int CPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cb = (void*)((int)ycbcr->cr + 1);
+            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + 1);
             ycbcr->chroma_step = 2;
             break;
 
@@ -343,7 +343,7 @@ int CPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cr = (void*)((int)ycbcr->cb + ycbcr->cstride*hnd->height/2);
+            ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + ycbcr->cstride*hnd->height/2);
             ycbcr->chroma_step = 1;
             break;
 
@@ -352,7 +352,7 @@ int CPUBufferManager::lockYCbCr(buffer_handle_t handle, int /*usage*/,
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cb = (void*)((int)ycbcr->cr + ycbcr->cstride*hnd->height/2);
+            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + ycbcr->cstride*hnd->height/2);
             ycbcr->chroma_step = 1;
             break;
 

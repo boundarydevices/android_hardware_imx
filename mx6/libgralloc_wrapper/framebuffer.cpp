@@ -643,7 +643,7 @@ int BufferManager::fb_device_open(hw_module_t const* module, const char* name,
         int dispid = 0;
         dev->isMainDisp = 1;
         if (fbid != 0) {
-            dispid = (int)*device;
+            dispid = (intptr_t)*device;
             if (dispid < 0 || dispid >= MAX_DISPLAY_DEVICE) {
                 ALOGE("%s invalid dispid %d", __FUNCTION__, dispid);
                 ::free(dev);

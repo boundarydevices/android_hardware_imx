@@ -267,12 +267,12 @@ int32_t USPStream::allocateBuffersLocked()
             close(sharedFd);
             goto err;
         }
-        ALOGI("phyalloc ptr:0x%x, phy:0x%x, ionSize:%d", (int32_t)ptr, phyAddr, ionSize);
+        ALOGI("phyalloc ptr:0x%p, phy:0x%x, ionSize:%d", ptr, phyAddr, ionSize);
         mBuffers[i] = new StreamBuffer();
         mBuffers[i]->mVirtAddr  = ptr;
         mBuffers[i]->mPhyAddr   = phyAddr;
         mBuffers[i]->mSize      =  ionSize;
-        mBuffers[i]->mBufHandle = (buffer_handle_t*)ionHandle;
+        mBuffers[i]->mBufHandle = (buffer_handle_t*)(uintptr_t)ionHandle;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
     }
@@ -289,7 +289,7 @@ err:
         }
 
         ion_user_handle_t ionHandle =
-            (ion_user_handle_t)mBuffers[i]->mBufHandle;
+            (ion_user_handle_t)(uintptr_t)mBuffers[i]->mBufHandle;
         munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         close(mBuffers[i]->mFd);
         ion_free(mIonFd, ionHandle);
@@ -316,7 +316,7 @@ int32_t USPStream::freeBuffersLocked()
     ALOGI("freeBufferToIon buffer num:%d", mAllocatedBuffers);
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
         ion_user_handle_t ionHandle =
-            (ion_user_handle_t)mBuffers[i]->mBufHandle;
+            (ion_user_handle_t)(uintptr_t)mBuffers[i]->mBufHandle;
         munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         close(mBuffers[i]->mFd);
         ion_free(mIonFd, ionHandle);

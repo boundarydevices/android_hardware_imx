@@ -103,7 +103,7 @@ int32_t VideoStream::configure(sp<Stream> stream)
 
     ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
            __func__, mWidth, mHeight, mFormat, stream->format(), mFps, mNumBuffers);
-    mMessageQueue.postMessage(new CMessage(MSG_CONFIG, (int32_t)params), 0);
+    mMessageQueue.postMessage(new CMessage(MSG_CONFIG, (uintptr_t)params), 0);
 
     return 0;
 }
@@ -404,7 +404,7 @@ int32_t VideoStream::handleMessage()
     switch (msg->what) {
         case MSG_CONFIG: {
             Mutex::Autolock lock(mLock);
-            ConfigureParam* params = (ConfigureParam*)msg->arg0;
+            ConfigureParam* params = (ConfigureParam*)(uintptr_t)msg->arg0;
             ret = handleConfigureLocked(params);
             if (params != NULL) {
                 delete params;

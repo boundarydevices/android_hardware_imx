@@ -323,7 +323,7 @@ int GPUBufferManager::lockYUVHandle(private_handle_t* hnd, android_ycbcr* ycbcr)
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cr =  (void*)((int)ycbcr->cb + 1);
+            ycbcr->cr =  (void*)((uintptr_t)ycbcr->cb + 1);
             ycbcr->chroma_step = 2;
             break;
 
@@ -332,7 +332,7 @@ int GPUBufferManager::lockYUVHandle(private_handle_t* hnd, android_ycbcr* ycbcr)
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cb = (void*)((int)ycbcr->cr + 1);
+            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + 1);
             ycbcr->chroma_step = 2;
             break;
 
@@ -341,7 +341,7 @@ int GPUBufferManager::lockYUVHandle(private_handle_t* hnd, android_ycbcr* ycbcr)
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cb = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cr = (void*)((int)ycbcr->cb + ycbcr->cstride*hnd->height/2);
+            ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + ycbcr->cstride*hnd->height/2);
             ycbcr->chroma_step = 1;
             break;
 
@@ -350,7 +350,7 @@ int GPUBufferManager::lockYUVHandle(private_handle_t* hnd, android_ycbcr* ycbcr)
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)hnd->base;
             ycbcr->cr = (void*)(hnd->base + hnd->stride*hnd->height);
-            ycbcr->cb = (void*)((int)ycbcr->cr + ycbcr->cstride*hnd->height/2);
+            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + ycbcr->cstride*hnd->height/2);
             ycbcr->chroma_step = 1;
             break;
 
