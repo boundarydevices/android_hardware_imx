@@ -89,7 +89,7 @@ endif
 #Define this for switch the Camera through V4L2 MXC IOCTL
 #LOCAL_CPPFLAGS += -DV4L2_CAMERA_SWITCH
 
-LOCAL_CPPFLAGS += -Werror
+LOCAL_CPPFLAGS += -Werror -Wno-error=gnu-designator -Wno-error=tautological-pointer-compare
 
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)
