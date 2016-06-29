@@ -81,7 +81,9 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
 
     ALOGI("stream: w:%d, h:%d, format:0x%x, usage:0x%x, buffers:%d",
           s->width, s->height, s->format, s->usage, mNumBuffers);
+#ifdef HAVE_FSL_IMX_IPU
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
+#endif
 
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
@@ -106,7 +108,9 @@ Stream::Stream(Camera* camera)
     mRegistered(false),
     mCamera(camera)
 {
+#ifdef HAVE_FSL_IMX_IPU
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
+#endif
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
     }
@@ -115,10 +119,12 @@ Stream::Stream(Camera* camera)
 Stream::~Stream()
 {
     android::Mutex::Autolock al(mLock);
+#ifdef HAVE_FSL_IMX_IPU
     if (mIpuFd > 0) {
         close(mIpuFd);
         mIpuFd = -1;
     }
+#endif
 }
 
 int32_t Stream::processJpegBuffer(StreamBuffer& src,
@@ -260,6 +266,7 @@ err_out:
     return ret;
 }
 
+#ifdef HAVE_FSL_IMX_IPU
 int32_t Stream::processBufferWithIPU(StreamBuffer& src)
 {
     ALOGV("%s", __func__);
@@ -335,6 +342,7 @@ int32_t Stream::processBufferWithIPU(StreamBuffer& src)
 
     return ret;
 }
+#endif
 
 static void bufferDump(StreamBuffer *frame, bool in)
 {
@@ -410,6 +418,7 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
 
     int32_t ret = 0;
     // IPU can't support NV12->NV21 conversion.
+#ifdef HAVE_FSL_IMX_IPU
     if ((mWidth != device->mWidth) || (mHeight != device->mHeight) ||
          (mFormat != device->mFormat) || ((mFormat == device->mFormat) &&
          (mCallback && (mFormat != HAL_PIXEL_FORMAT_YCbCr_420_SP)))) {
@@ -418,6 +427,9 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
     else {
         ret = processBufferWithGPU(src);
     }
+#else
+    ret = processBufferWithGPU(src);
+#endif
 
     return ret;
 }
