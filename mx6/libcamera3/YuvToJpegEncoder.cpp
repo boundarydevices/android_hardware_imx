@@ -19,13 +19,16 @@
 #include <ui/PixelFormat.h>
 #include <hardware/hardware.h>
 #include "NV12_resize.h"
-#include "vpu_wrapper.h"
 
+#ifdef BOARD_HAVE_VPU
+#include "vpu_wrapper.h"
+#endif
 
 #define Align(ptr,align)	(((uintptr_t)ptr+(align)-1)/(align)*(align))
 #define VPU_ENC_MAX_NUM_MEM_REQS	(6)
 #define MAX_FRAME_NUM	(4)
 
+#ifdef BOARD_HAVE_VPU
 typedef struct{
 	//virtual mem info
 	int nVirtNum;
@@ -435,6 +438,7 @@ finish:
 
 	return size;
 }
+#endif
 
 YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
     // Only ImageFormat.NV21 and ImageFormat.YUY2 are supported
@@ -464,12 +468,14 @@ int YuvToJpegEncoder::encode(void *inYuv,
                              int   outSize,
                              int   outWidth,
                              int   outHeight) {
+#ifdef BOARD_HAVE_VPU
     //use vpu to encode
 	if((inWidth == outWidth) && (inHeight == outHeight) && supportVpu){
 		int size;
 		size=vpu_encode(inYuv, inYuvPhy, outWidth, outHeight,quality,color,outBuf,outSize, mColorFormat);
 		return size;
 	}
+#endif
 
     jpeg_compress_struct  cinfo;
     jpegBuilder_error_mgr sk_err;
@@ -530,8 +536,10 @@ Yuv420SpToJpegEncoder::Yuv420SpToJpegEncoder() :
     YuvToJpegEncoder() {
     fNumPlanes = 2;
     color=0;
+#ifdef BOARD_HAVE_VPU
     supportVpu = true;
     mColorFormat = VPU_COLOR_420;
+#endif
 }
 
 void Yuv420SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,
@@ -649,7 +657,9 @@ Yuv422IToJpegEncoder::Yuv422IToJpegEncoder() :
     YuvToJpegEncoder() {
     fNumPlanes = 1;
     color=1;
+#ifdef BOARD_HAVE_VPU
     mColorFormat = VPU_COLOR_422H;
+#endif
 }
 
 void Yuv422IToJpegEncoder::compress(jpeg_compress_struct *cinfo,
@@ -797,10 +807,12 @@ _resize_begin:
 // /////////////////////////////////////////////////////////////////////////////////////////////
 Yuv422SpToJpegEncoder::Yuv422SpToJpegEncoder() :
     YuvToJpegEncoder() {
-        supportVpu = true;
         fNumPlanes = 1;
         color=1;
+#ifdef BOARD_HAVE_VPU
+        supportVpu = true;
         mColorFormat = VPU_COLOR_422H;
+#endif
     }
 
 void Yuv422SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,

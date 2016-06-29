@@ -48,13 +48,17 @@ LOCAL_SRC_FILES := \
     Ov5642Csi.cpp \
     YuvToJpegEncoder.cpp \
     NV12_resize.c \
-    UvcMJPGDevice.cpp\
     USPStream.cpp \
     DMAStream.cpp \
     UvcDevice.cpp \
-    MJPGStream.cpp \
     TVINDevice.cpp \
     MMAPStream.cpp
+
+ifeq ($(BOARD_HAVE_VPU),true)
+    LOCAL_SRC_FILES += \
+    UvcMJPGDevice.cpp \
+    MJPGStream.cpp
+endif
 
 LOCAL_SHARED_LIBRARIES := \
     libcamera_metadata \
@@ -68,9 +72,18 @@ LOCAL_SHARED_LIBRARIES := \
     libion \
     libg2d \
     libbinder \
-    lib_vpu_wrapper \
     libcamera_client \
     libhardware_legacy
+
+ifeq ($(BOARD_HAVE_VPU),true)
+    LOCAL_SHARED_LIBRARIES += \
+            lib_vpu_wrapper
+    LOCAL_CFLAGS += -DBOARD_HAVE_VPU
+endif
+
+ifeq ($(HAVE_FSL_IMX_IPU),true)
+    LOCAL_CFLAGS += -DHAVE_FSL_IMX_IPU
+endif
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 

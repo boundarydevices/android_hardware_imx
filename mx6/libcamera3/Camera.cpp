@@ -74,6 +74,7 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
         device = new Ov5640Csi(id, facing, orientation, path);
     }
     else if (strstr(name, UVC_SENSOR_NAME)) {
+#ifdef BOARD_HAVE_VPU
         char uvcMJPGStr[92];
         int configUseMJPG = 0;
 
@@ -91,6 +92,10 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
             ALOGI("DeviceAdapter: Create uvc device, config to use MJPG");
             device = new UvcMJPGDevice(id, facing, orientation, path);
         }
+#else
+        ALOGI("create id:%d usb camera device", id);
+        device = UvcDevice::newInstance(id, name, facing, orientation, path);
+#endif
     }
     else if (strstr(name, ADV7180_TVIN_NAME)) {
         ALOGI("create id:%d adv7180 tvin device", id);

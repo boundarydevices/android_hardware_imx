@@ -68,7 +68,9 @@ protected:
                               sp<Metadata> meta);
     int32_t processFrameBuffer(StreamBuffer& src,
                                sp<Metadata> meta);
+#ifdef HAVE_FSL_IMX_IPU
     int32_t processBufferWithIPU(StreamBuffer& src);
+#endif
     int32_t processBufferWithGPU(StreamBuffer& src);
 
 protected:
