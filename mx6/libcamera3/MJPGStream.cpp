@@ -678,6 +678,7 @@ DecLogic:
 
     Mutex::Autolock lock(mVPULock);
 
+    memset(&InData, 0, sizeof(InData));
     InData.nSize = inLen;
     InData.pPhyAddr = NULL;
     InData.pVirAddr = InVirAddr;
