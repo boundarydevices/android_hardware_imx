@@ -402,7 +402,7 @@ int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t i
             continue;
         }
 
-        strncpy(mSets[index].mSensorName, sensorName, PROPERTY_VALUE_MAX);
+        strncpy(mSets[index].mSensorName, sensorName, PROPERTY_VALUE_MAX-1);
         strncpy(mSets[index].mDevPath, devNode, CAMAERA_FILENAME_LENGTH);
         ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
                 index, mSets[index].mSensorName, mSets[index].mFacing,
