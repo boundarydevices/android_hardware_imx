@@ -456,7 +456,10 @@ YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
 }
 
 YuvToJpegEncoder::YuvToJpegEncoder()
-    : supportVpu(false)
+    : supportVpu(false),
+      fNumPlanes(1),
+      color(1),
+      mColorFormat(0)
 {}
 
 int YuvToJpegEncoder::encode(void *inYuv,
