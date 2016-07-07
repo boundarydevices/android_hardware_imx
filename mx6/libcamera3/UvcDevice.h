@@ -38,7 +38,7 @@ protected:
     public:
         UvcStream(Camera* device, const char* name)
               : DMAStream(device) {
-            strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH);
+            strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH-1);
         }
         virtual ~UvcStream() {}
 
