@@ -354,7 +354,7 @@ int32_t CameraHAL::matchPropertyName(nodeSet* nodes, int32_t index)
         memset(nodeName, 0, sizeof(nodeName));
         pNextName = strchr(propName, ',');
         if (pNextName == NULL) {
-            strncpy(nodeName, propName, 32);
+            strncpy(nodeName, propName, 31);
             propName = pNextName;
         }
         else {
