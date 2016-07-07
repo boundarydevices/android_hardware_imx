@@ -37,7 +37,7 @@ protected:
 
             UvcStream(Camera* device, const char* name)
                 : MJPGStream(device) {
-                    strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH);
+                    strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH-1);
             }
             virtual ~UvcStream() {}
 
