@@ -51,6 +51,14 @@ VT_resizeFrame_Video_opt2_lp
   mmUint32 cox, coy, codx, cody;
   mmUint16 idx,idy, idxC;
 
+  if (!i_img_ptr || !i_img_ptr->imgPtr ||
+          !o_img_ptr || !o_img_ptr->imgPtr)
+  {
+      ALOGE("Image Point NULL");
+      ALOGV("VT_resizeFrame_Video_opt2_lp-");
+      return FALSE;
+  }
+
   if(i_img_ptr->uWidth == o_img_ptr->uWidth)
 	{
 		if(i_img_ptr->uHeight == o_img_ptr->uHeight)
@@ -63,13 +71,6 @@ VT_resizeFrame_Video_opt2_lp
 			}
 	}
 
-  if (!i_img_ptr || !i_img_ptr->imgPtr ||
-    !o_img_ptr || !o_img_ptr->imgPtr)
-  {
-	ALOGE("Image Point NULL");
-	ALOGV("VT_resizeFrame_Video_opt2_lp-");
-	return FALSE;
-  }
   inImgPtrY = (mmUchar *) i_img_ptr->imgPtr + i_img_ptr->uOffset;
   inImgPtrU = (mmUchar *) i_img_ptr->clrPtr + i_img_ptr->uOffset/2;
   inImgPtrV = (mmUchar*)inImgPtrU + 1;
