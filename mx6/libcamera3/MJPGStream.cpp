@@ -670,8 +670,6 @@ DecLogic:
     DecMemInfo pDecMemInfo;
 
     VpuBufferNode InData;
-    u8 *pCamFrame=NULL;
-    pCamFrame=(u8*)malloc(mStreamSize);
 
     unsigned int outIdx = 0;
     unsigned int VPUIndex = 0;
