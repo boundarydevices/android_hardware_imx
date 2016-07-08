@@ -75,6 +75,14 @@ int CPUBufferManager::allocBuffer(int w, int h, int format, int usage,
     if (usage & GRALLOC_USAGE_HW_FB) {
         err = allocFramebuffer(size, usage,
                               (buffer_handle_t*)&hnd);
+        if (err != 0) {
+            usage = (usage & ~GRALLOC_USAGE_HW_FB)
+                    | GRALLOC_USAGE_FORCE_CONTIGUOUS
+                    | GRALLOC_USAGE_HW_2D
+                    | GRALLOC_USAGE_HW_RENDER;
+            err = allocBufferByIon(size, usage,
+                          (buffer_handle_t*)&hnd);
+        }
     }
     else if (usage & GRALLOC_USAGE_FORCE_CONTIGUOUS) {
         err = allocBufferByIon(size, usage,

@@ -84,7 +84,11 @@ int GPUBufferManager::allocBuffer(int w, int h, int format, int usage,
         err = allocFramebuffer(size, usage, (buffer_handle_t*)&hnd);
         if (err != 0) {
             ALOGE("%s alloc framebuffer failed", __FUNCTION__);
-            return err;
+            usage = (usage & ~GRALLOC_USAGE_HW_FB)
+                    | GRALLOC_USAGE_FORCE_CONTIGUOUS
+                    | GRALLOC_USAGE_HW_2D
+                    | GRALLOC_USAGE_HW_RENDER;
+            goto err;
         }
 
         hnd->width = w;
@@ -106,6 +110,7 @@ int GPUBufferManager::allocBuffer(int w, int h, int format, int usage,
                           hnd->phys, (void*)hnd->base);
     }
 
+err:
     //YUV format
     if (useFSLGralloc(format, usage) || (gpu_device == NULL)) {
         return allocHandle(w, h, format, alignW, size,

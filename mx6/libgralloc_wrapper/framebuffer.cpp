@@ -150,18 +150,15 @@ int Display::postBuffer(struct framebuffer_device_t* dev, buffer_handle_t buffer
     } else {
         // If we can't do the page_flip, just copy the buffer to the front
         // FIXME: use copybit HAL instead of memcpy
-
         void* fb_vaddr;
         void* buffer_vaddr;
+        private_handle_t const* hnd = reinterpret_cast<
+                                  private_handle_t const*>(display->mFramebuffer);
 
-        m->lock(display->mFramebuffer,
-                GRALLOC_USAGE_SW_WRITE_RARELY,
-                0, 0, ALIGN_PIXEL_16(display->mInfo.xres),
-                 ALIGN_PIXEL_16(display->mInfo.yres),
-                &fb_vaddr);
-
+        fb_vaddr = (void*)hnd->base;
+        hnd = reinterpret_cast<private_handle_t const*>(buffer);
         m->lock(buffer,
-                GRALLOC_USAGE_SW_READ_RARELY,
+                hnd->usage,
                 0, 0, ALIGN_PIXEL_16(display->mInfo.xres),
                  ALIGN_PIXEL_16(display->mInfo.yres),
                 &buffer_vaddr);
@@ -170,7 +167,6 @@ int Display::postBuffer(struct framebuffer_device_t* dev, buffer_handle_t buffer
         display->mFinfo.line_length * ALIGN_PIXEL_16(display->mInfo.yres));
 
         m->unlock(buffer);
-        m->unlock(display->mFramebuffer);
     }
 
     return 0;
