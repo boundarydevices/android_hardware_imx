@@ -87,7 +87,7 @@ struct private_handle_t {
     int  size;
     int  offset;
     uint64_t base __attribute__((aligned(8)));
-    int  phys;
+    uint64_t phys __attribute__((aligned(8)));
     int  format;
     int  width;
     int  height;
@@ -98,9 +98,11 @@ struct private_handle_t {
     int  reserved[4];
 
 #ifdef __cplusplus
-    static const int sNumInts = 16;
+    static inline int sNumInts() {
+        return (((sizeof(private_handle_t) - sizeof(native_handle_t))/sizeof(int)) - sNumFds);
+    }
     static const int sNumFds = 1;
-    static const int sMagic = 'pgpu';
+    static const int sMagic = 0x3141592;
 
     private_handle_t(int fd, int size, int flags) :
         fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
@@ -108,7 +110,7 @@ struct private_handle_t {
         height(0), pid(getpid())
     {
         version = sizeof(native_handle);
-        numInts = sNumInts;
+        numInts = sNumInts();
         numFds = sNumFds;
         //usage = 0;
         //stride = 0;
@@ -120,7 +122,7 @@ struct private_handle_t {
     static int validate(const native_handle* h) {
         const private_handle_t* hnd = (const private_handle_t*)h;
         if (!h || h->version != sizeof(native_handle) ||
-                h->numInts != sNumInts || h->numFds != sNumFds ||
+                h->numInts != sNumInts() || h->numFds != sNumFds ||
                 hnd->magic != sMagic)
         {
             ALOGE("invalid gralloc handle (at %p)", h);
