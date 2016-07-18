@@ -41,6 +41,7 @@
 #include "hwc_uevent.h"
 #include "hwc_display.h"
 #include <g2dExt.h>
+#include <gpuhelper.h>
 #include <system/graphics.h>
 
 
@@ -104,7 +105,7 @@ static enum g2d_format convertFormat(int format, struct private_handle_t *handle
             break;
     }
 
-    halFormat = g2d_alterFormat(handle, halFormat);
+    halFormat = hwc_alterFormat(handle, halFormat);
 
     return halFormat;
 }
@@ -243,7 +244,7 @@ static int setG2dSurface(struct fsl_private *priv, struct g2d_surfaceEx& surface
 {
     int alignWidth = 0, alignHeight = 0;
     struct g2d_surface& surface = surfaceX.base;
-    int ret = get_aligned_size(handle, NULL, &alignHeight);
+    int ret = hwc_getAlignedSize(handle, NULL, &alignHeight);
     if (ret != 0) {
         alignHeight = handle->height;
     }
@@ -251,11 +252,11 @@ static int setG2dSurface(struct fsl_private *priv, struct g2d_surfaceEx& surface
     surface.format = convertFormat(handle->format, handle);
     surface.stride = alignWidth;
     enum g2d_tiling tile = G2D_LINEAR;
-    g2d_getTiling(handle, &tile);
+    hwc_getTiling(handle, &tile);
     surfaceX.tiling = tile;
 
     int offset = 0;
-    get_flip_offset(handle, &offset);
+    hwc_getFlipOffset(handle, &offset);
     surface.planes[0] = handle->phys + offset;
 
     switch (surface.format) {

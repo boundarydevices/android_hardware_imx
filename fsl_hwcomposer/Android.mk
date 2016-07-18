@@ -29,6 +29,7 @@ LOCAL_SHARED_LIBRARIES :=			\
 	libhardware_legacy			\
 	libbinder \
 	libg2d \
+	libgpuhelper \
 	libsync
 
 LOCAL_SRC_FILES :=				\

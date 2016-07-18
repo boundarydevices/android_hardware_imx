@@ -41,6 +41,7 @@
 #include "hwc_uevent.h"
 #include "hwc_display.h"
 #include <g2dExt.h>
+#include <gpuhelper.h>
 #include <sync/sync.h>
 
 /*****************************************************************************/
@@ -64,9 +65,6 @@ extern int hwc_updateSwapRect(struct fsl_private *priv, int disp,
                  android_native_buffer_t* nbuf);
 extern bool hwc_hasSameContent(struct fsl_private *priv, int src,
             int dst, hwc_display_contents_1_t** lists);
-
-extern "C" void* g2d_getRenderBuffer(void *handle, void *BufferHandle);
-extern "C" unsigned int g2d_postBuffer(void *handle, void* PostBuffer);
 
 static struct hw_module_methods_t hwc_module_methods = {
     open: hwc_device_open
@@ -135,7 +133,7 @@ static bool checkG2dProcs(struct fsl_private *priv, int disp,
     }
 
     enum g2d_tiling tile = G2D_LINEAR;
-    g2d_getTiling(targetHandle, &tile);
+    hwc_getTiling(targetHandle, &tile);
     if (tile != G2D_LINEAR) {
         ALOGI("g2d not support tiled target output");
         return false;
@@ -279,7 +277,7 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     //framebuffer handle.
     android_native_buffer_t *fbuffer = NULL;
     struct private_handle_t *frameHandle;
-    fbuffer = (ANativeWindowBuffer *) g2d_getRenderBuffer(priv->g2d_handle, targetHandle);
+    fbuffer = (ANativeWindowBuffer *) hwc_getRenderBuffer(targetHandle);
     if (fbuffer == NULL) {
         ALOGE("get render buffer failed!");
         return -EINVAL;
@@ -324,7 +322,7 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     }
     g2d_finish(priv->g2d_handle);
 
-    g2d_postBuffer(priv->g2d_handle, fbuffer);
+    hwc_postBuffer(fbuffer);
 
     return 0;
 }
