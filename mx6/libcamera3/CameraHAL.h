@@ -28,6 +28,7 @@
 struct nodeSet {
     char nodeName[CAMERA_SENSOR_LENGTH];
     char devNode[CAMERA_SENSOR_LENGTH];
+    bool isHeld;
     nodeSet* next;
 };
 
