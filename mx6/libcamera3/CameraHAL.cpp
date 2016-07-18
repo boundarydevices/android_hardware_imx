@@ -93,10 +93,6 @@ CameraHAL::CameraHAL()
     // check if camera exists.
     for (int32_t index=0; index<MAX_CAMERAS; index++) {
         if (!mSets[index].mExisting) {
-            // count on usb camera if set in init.rc.
-            if (strstr(mSets[index].mPropertyName, UVC_SENSOR_NAME)) {
-                mCameraCount++;
-            }
             continue;
         }
         mCameras[index] = Camera::createCamera(index, mSets[index].mSensorName,
@@ -390,7 +386,7 @@ int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t i
     while (node != NULL) {
         devNode = node->devNode;
         sensorName = node->nodeName;
-        if (strlen(sensorName) == 0) {
+        if (node->isHeld || strlen(sensorName) == 0) {
             node = node->next;
             continue;
         }
@@ -408,6 +404,7 @@ int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t i
                 index, mSets[index].mSensorName, mSets[index].mFacing,
                 mSets[index].mOrientation, mSets[index].mDevPath);
         mSets[index].mExisting = true;
+        node->isHeld = true;
         ret = 0;
         break;
     }
