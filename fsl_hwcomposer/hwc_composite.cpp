@@ -821,8 +821,8 @@ int hwc_updateSwapRect(struct fsl_private *priv, int disp,
     priv->mDispInfo[disp].mSwapIndex = (index + 1)%HWC_MAX_FRAMEBUFFER;
     hwc_rect_t& swapRect = priv->mDispInfo[disp].mSwapRect[index];
     if (nbuf != NULL) {
-        int origin = (int) nbuf->common.reserved[0];
-        int size = (int) nbuf->common.reserved[1];
+        int origin = (intptr_t) nbuf->common.reserved[0];
+        int size = (intptr_t) nbuf->common.reserved[1];
         if (size != 0) {
             swapRect.left = origin >> 16;
             swapRect.top = origin & 0xFFFF;
