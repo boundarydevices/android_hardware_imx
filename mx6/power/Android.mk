@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+ifneq ($(TARGET_BOARD_PLATFORM),imx8)
 LOCAL_PATH := $(call my-dir)
 
 # HAL module implemenation stored in
@@ -27,3 +27,4 @@ LOCAL_EXPORT_SHARED_LIBRARY_HEADERS := libbase libutils
 LOCAL_MODULE := power.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
+endif
