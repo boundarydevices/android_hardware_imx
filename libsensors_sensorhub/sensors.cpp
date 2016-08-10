@@ -36,6 +36,10 @@
 
 #include "FSLSensorsHub.h"
 
+#ifdef CONFIG_SENSOR_8DV_LIGHT
+#include "LightSensor.h"
+#endif
+
 /*****************************************************************************/
 
 #define DELAY_OUT_TIME 0x7FFFFFFF
@@ -111,6 +115,13 @@ static const struct sensor_t sSensorList[] = {
           "Freescale Semiconductor Inc.",
           1, SENSORS_TEMPERATURE_HANDLE,
           SENSOR_TYPE_TEMPERATURE, 110.0f, 1.5, 0.50f, 10000, 0, 0, "" },
+#ifdef CONFIG_SENSOR_8DV_LIGHT
+        { "ISL29023 Light sensor",
+          "Intersil",
+          1, SENSORS_LIGHT_HANDLE,
+          SENSOR_TYPE_LIGHT, 16000.0f, 1.0f, 0.35f, 0, 0, 0},
+
+#endif
 };
 
 
@@ -158,6 +169,9 @@ private:
         fsl_sens           = 0,
         press,
         temperature,
+#ifdef CONFIG_SENSOR_8DV_LIGHT
+        light,
+#endif
         numSensorDrivers,
         numFds,
     };
@@ -175,6 +189,12 @@ private:
             case ID_T:
                 return temperature;
                 break;
+#ifdef CONFIG_SENSOR_8DV_LIGHT
+            case ID_L:
+                return light;
+                break;
+#endif
+
             case ID_A:
           	case ID_M:
           	case ID_O:
@@ -206,6 +226,10 @@ sensors_poll_context_t::sensors_poll_context_t()
     mSensors[fsl_sens] = new FSLSensorsHub();
     mSensors[press] = new PressSensor();
     mSensors[temperature] = new PressSensor();
+#ifdef CONFIG_SENSOR_8DV_LIGHT
+    mSensors[light] = new LightSensor();
+#endif
+
 	fillPollFd();
 	magRunTimes = 0;
     int wakeFds[2];
