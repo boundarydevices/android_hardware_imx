@@ -13,7 +13,16 @@
 # limitations under the License.
 
 ifeq ($(BOARD_USE_SENSOR_FUSION),true)
+	COMPILE_SENSOR_HUB = true
+endif
+
+ifeq ($(BOARD_USE_SENSOR_FUSION_64BIT),true)
+	COMPILE_SENSOR_HUB = true
+endif
+
 LOCAL_PATH := $(call my-dir)
+
+ifeq ($(COMPILE_SENSOR_HUB),true)
 
 ifneq ($(TARGET_SIMULATOR),true)
 
@@ -30,7 +39,15 @@ LOCAL_SRC_FILES := 						\
 				SensorBase.cpp			\
 				FSLSensorsHub.cpp		\
 				PressSensor.cpp			\
-				InputEventReader.cpp
+				InputEventReader.cpp            \
+
+
+ifeq ($(BOARD_USE_SENSOR_FUSION_64BIT),true)
+	LOCAL_CFLAGS += -DCONFIG_SENSOR_8DV_LIGHT
+	LOCAL_SRC_FILES += LightSensor.cpp
+endif
+
+
 
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
 
