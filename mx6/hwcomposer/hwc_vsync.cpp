@@ -18,14 +18,13 @@
 #include "hwc_display.h"
 
 /*****************************************************************************/
-
-#undef DEBUG_HWC_VSYNC_TIMING
+#define VSYNC_STRING_LEN 128
 
 using namespace android;
 
 VSyncThread::VSyncThread(hwc_context_t *ctx)
     : Thread(false), mCtx(ctx), mEnabled(false),
-      mFakeVSync(false), mNextFakeVSync(0)
+      mFakeVSync(false), mNextFakeVSync(0), mFd(-1)
 {
     mRefreshPeriod = 0;
 }
@@ -37,6 +36,17 @@ void VSyncThread::onFirstRef()
 
 status_t VSyncThread::readyToRun()
 {
+    char fb_path[HWC_PATH_LENGTH];
+    memset(fb_path, 0, sizeof(fb_path));
+    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS"%d""/vsync",
+            HWC_DISPLAY_PRIMARY);
+
+    mFd = open(fb_path, O_RDONLY);
+    if (mFd <= 0) {
+        ALOGW("open %s failed, fallback to fake vsync", fb_path);
+        mFakeVSync = true;
+    }
+
     return NO_ERROR;
 }
 
@@ -101,37 +111,25 @@ void VSyncThread::performFakeVSync()
 void VSyncThread::performVSync()
 {
     uint64_t timestamp = 0;
-    uintptr_t crt = (uintptr_t)&timestamp;
+    char buf[VSYNC_STRING_LEN];
+    memset(buf, 0, VSYNC_STRING_LEN);
+    static uint64_t lasttime = 0;
 
-    int err = ioctl(mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].fd,
-                    MXCFB_WAIT_FOR_VSYNC, crt);
-    if ( err < 0 ) {
-        ALOGE("FBIO_WAITFORVSYNC error: %s\n", strerror(errno));
+    ssize_t len = pread(mFd, buf, VSYNC_STRING_LEN-1, 0);
+    if (len < 0) {
+        ALOGE("unable to read vsync event error: %s", strerror(errno));
         return;
     }
 
-#ifdef DEBUG_HWC_VSYNC_TIMING
-    static nsecs_t last_time_ns;
-    nsecs_t cur_time_ns;
+    if (!strncmp(buf, "VSYNC=", strlen("VSYNC="))) {
+        timestamp = strtoull(buf + strlen("VSYNC="), NULL, 0);
+    }
 
-    cur_time_ns  = systemTime(SYSTEM_TIME_MONOTONIC);
+    if (lasttime != 0) {
+        ALOGV("vsync period: %llu", timestamp - lasttime);
+    }
+
+    lasttime = timestamp;
     mCtx->m_callback->vsync(mCtx->m_callback, 0, timestamp);
-    ALOGE("Vsync %llu, %llu\n", cur_time_ns - last_time_ns,
-          cur_time_ns - timestamp);
-    last_time_ns = cur_time_ns;
-#else
-    mCtx->m_callback->vsync(mCtx->m_callback, 0, timestamp);
-#endif
-
-    struct timespec tm;
-    struct timespec ts;
-    const nsecs_t wake_up = 400000;
-
-    double m_frame_period_ns = mCtx->mDispInfo[HWC_DISPLAY_PRIMARY].vsync_period;
-
-    ts.tv_nsec =  (timestamp + m_frame_period_ns)
-        - (systemTime(SYSTEM_TIME_MONOTONIC) + wake_up );
-    ts.tv_sec = 0;
-    nanosleep( &ts, &tm);
 }
 

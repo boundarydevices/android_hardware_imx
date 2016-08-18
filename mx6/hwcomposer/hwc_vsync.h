@@ -67,6 +67,7 @@ private:
     bool mFakeVSync;
     mutable nsecs_t mNextFakeVSync;
     nsecs_t mRefreshPeriod;
+    int mFd;
 };
 
 #endif
