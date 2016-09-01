@@ -85,7 +85,15 @@ int32_t USPStream::onDeviceStartLocked()
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
         cfilledbuffer.index    = i;
-        cfilledbuffer.m.offset = mBuffers[i]->mPhyAddr;
+
+        if (mPxpFd > 0) {
+            cfilledbuffer.m.userptr = (unsigned int)mBuffers[i]->mVirtAddr;
+            cfilledbuffer.length = mBuffers[i]->mSize;
+        }
+        else {
+            cfilledbuffer.m.offset = mBuffers[i]->mPhyAddr;
+        }
+
         ALOGI("%s VIDIOC_QBUF phy:0x%x", __func__, mBuffers[i]->mPhyAddr);
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
@@ -154,7 +162,14 @@ int32_t USPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     cfilledbuffer.index    = index;
-    cfilledbuffer.m.offset = buf.mPhyAddr;
+
+    if(mPxpFd > 0) {
+        cfilledbuffer.m.userptr = (unsigned int)buf.mVirtAddr;
+        cfilledbuffer.length = buf.mSize;
+    }
+    else {
+        cfilledbuffer.m.offset = buf.mPhyAddr;
+    }
 
     ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {

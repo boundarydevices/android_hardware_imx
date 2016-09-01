@@ -53,6 +53,7 @@
 #define DEFAULT_ERROR_NAME_str "0"
 
 #define UVC_SENSOR_NAME "uvc"
+#define OV5640_SENSOR_NAME "csi"
 #define OV5640MIPI_SENSOR_NAME "ov5640_mipi"
 #define OV5642CSI_SENSOR_NAME "ov5642_camera"
 #define OV5640CSI_SENSOR_NAME "ov5640_camera"

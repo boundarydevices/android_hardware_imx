@@ -97,6 +97,11 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
         device = UvcDevice::newInstance(id, name, facing, orientation, path);
 #endif
     }
+    else if (strstr(name, OV5640_SENSOR_NAME)) {
+            ALOGI("create id:%d 5640-csi device", id);
+            device = new Ov5640Csi(id, facing, orientation, path);
+            device->usemx6s = 1;
+    }
     else if (strstr(name, ADV7180_TVIN_NAME)) {
         ALOGI("create id:%d adv7180 tvin device", id);
         device = new TVINDevice(id, facing, orientation, path);
@@ -114,7 +119,8 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char* path)
     mBusy(false),
     mCallbackOps(NULL),
     mStreams(NULL),
-    mNumStreams(0)
+    mNumStreams(0),
+    usemx6s(0)
 {
     ALOGI("%s:%d: new camera device", __func__, mId);
     android::Mutex::Autolock al(mDeviceLock);

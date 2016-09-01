@@ -68,9 +68,9 @@ protected:
                               sp<Metadata> meta);
     int32_t processFrameBuffer(StreamBuffer& src,
                                sp<Metadata> meta);
-#ifdef HAVE_FSL_IMX_IPU
+    int32_t processBufferWithPXP(StreamBuffer& src);
+    int32_t convertYUYVtoNV12SP(StreamBuffer& src);
     int32_t processBufferWithIPU(StreamBuffer& src);
-#endif
     int32_t processBufferWithGPU(StreamBuffer& src);
 
 protected:
@@ -105,6 +105,8 @@ protected:
     android::Mutex mLock;
 
     int32_t mIpuFd;
+    int32_t mPxpFd;
+    int32_t channel;
     StreamBuffer* mCurrent;
     Camera* mCamera;
     sp<JpegBuilder> mJpegBuilder;

@@ -25,6 +25,11 @@
 #include <sync/sync.h>
 
 //#define LOG_NDEBUG 0
+
+extern "C" {
+#include "pxp_lib.h"
+}
+
 #include <cutils/log.h>
 #include "Camera.h"
 #include "Stream.h"
@@ -71,6 +76,7 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     else {
         ALOGI("create callback stream", __func__);
         mCallback = true;
+        mFormat = mCamera->getPreviewPixelFormat();
         mUsage = CAMERA_GRALLOC_USAGE;
         mNumBuffers = NUM_PREVIEW_BUFFER;
     }
@@ -81,9 +87,16 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
 
     ALOGI("stream: w:%d, h:%d, format:0x%x, usage:0x%x, buffers:%d",
           s->width, s->height, s->format, s->usage, mNumBuffers);
-#ifdef HAVE_FSL_IMX_IPU
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
-#endif
+
+    mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
+    int32_t ret = -1;
+
+    //When open pxp device, need allocate a channel at the same time.
+    ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
+    if(ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+    }
 
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
@@ -108,9 +121,16 @@ Stream::Stream(Camera* camera)
     mRegistered(false),
     mCamera(camera)
 {
-#ifdef HAVE_FSL_IMX_IPU
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
-#endif
+
+    mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
+
+    //When open pxp device, need allocate a channel at the same time.
+    ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
+    if(ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+    }
+
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
     }
@@ -119,12 +139,15 @@ Stream::Stream(Camera* camera)
 Stream::~Stream()
 {
     android::Mutex::Autolock al(mLock);
-#ifdef HAVE_FSL_IMX_IPU
     if (mIpuFd > 0) {
         close(mIpuFd);
         mIpuFd = -1;
     }
-#endif
+
+    if (mPxpFd > 0) {
+        close(mPxpFd);
+        mPxpFd = -1;
+    }
 }
 
 int32_t Stream::processJpegBuffer(StreamBuffer& src,
@@ -266,7 +289,80 @@ err_out:
     return ret;
 }
 
-#ifdef HAVE_FSL_IMX_IPU
+int32_t Stream::processBufferWithPXP(StreamBuffer& src)
+{
+    ALOGV("%s", __func__);
+    sp<Stream>& device = src.mStream;
+    if (device == NULL) {
+        ALOGE("%s invalid device stream", __func__);
+        return 0;
+    }
+
+    StreamBuffer* out = mCurrent;
+    if (out == NULL || out->mBufHandle == NULL) {
+        ALOGE("%s invalid buffer handle", __func__);
+        return 0;
+    }
+
+    struct pxp_config_data pxp_conf;
+    struct pxp_layer_param *src_param = NULL, *out_param = NULL;
+    int32_t ret = -1;
+
+    memset(&pxp_conf, 0, sizeof(struct pxp_config_data));
+
+    src_param = &(pxp_conf.s0_param);
+    out_param = &(pxp_conf.out_param);
+
+    /*
+    * Initialize src parameters
+    */
+    src_param->paddr = src.mPhyAddr;
+    src_param->width = device->mWidth;
+    src_param->height = device->mHeight;
+    src_param->color_key = -1;
+    src_param->color_key_enable = 0;
+    src_param->pixel_fmt = convertPixelFormatToV4L2Format(device->mFormat);
+    pxp_conf.proc_data.srect.top = 0;
+    pxp_conf.proc_data.srect.left = 0;
+    pxp_conf.proc_data.srect.width = device->mWidth;
+    pxp_conf.proc_data.srect.height = device->mHeight;
+
+    /*
+    * Initialize out parameters
+    */
+    out_param->paddr = out->mPhyAddr;
+    out_param->width = mWidth;
+    out_param->height = mHeight;
+    out_param->stride = mWidth;
+    out_param->pixel_fmt = convertPixelFormatToV4L2Format(mFormat);
+    pxp_conf.handle = channel;
+    pxp_conf.proc_data.drect.top = 0;
+    pxp_conf.proc_data.drect.left = 0;
+    pxp_conf.proc_data.drect.width = mWidth;
+    pxp_conf.proc_data.drect.height = mHeight;
+
+    ret = ioctl(mPxpFd, PXP_IOC_CONFIG_CHAN, &pxp_conf);
+    if(ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_CONFIG_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+        return ret;
+    }
+
+    ret = ioctl(mPxpFd, PXP_IOC_START_CHAN, &(pxp_conf.handle));
+    if(ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_START_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+        return ret;
+    }
+
+    ret = ioctl(mPxpFd, PXP_IOC_WAIT4CMPLT, &pxp_conf);
+    if(ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_WAIT4CMPLT failed %d", __FUNCTION__, __LINE__ ,ret);
+        return ret;
+    }
+
+    return ret;
+
+}
+
 int32_t Stream::processBufferWithIPU(StreamBuffer& src)
 {
     ALOGV("%s", __func__);
@@ -342,7 +438,6 @@ int32_t Stream::processBufferWithIPU(StreamBuffer& src)
 
     return ret;
 }
-#endif
 
 static void bufferDump(StreamBuffer *frame, bool in)
 {
@@ -406,6 +501,59 @@ int32_t Stream::processBufferWithGPU(StreamBuffer& src)
     return 0;
 }
 
+int32_t Stream::convertYUYVtoNV12SP(StreamBuffer& src)
+{
+    #define u32 unsigned int
+    #define u8 unsigned char
+    sp<Stream>& device = src.mStream;
+    if (device == NULL) {
+        ALOGE("%s invalid device stream", __func__);
+        return 0;
+    }
+
+    StreamBuffer* out = mCurrent;
+    u32 h,w;
+    u32 nWidthDiv4  = device->mWidth/4;
+    u32 nHeight = device->mHeight;
+
+    u8* pYSrcOffset = (uint8_t *)src.mVirtAddr;
+    u8* pUSrcOffset = (uint8_t *)src.mVirtAddr + 1;
+    u8* pVSrcOffset = (uint8_t *)src.mVirtAddr + 3;
+
+    u32* pYDstOffset = (u32*)out->mVirtAddr;
+    u32* pUVDstOffset = (u32*)(((u8*)(out->mVirtAddr)) + (device->mWidth)*(device->mHeight));
+
+    for(h=0; h<nHeight; h++) {
+        if(!( h & 0x1 )) {
+            for(w=0; w<nWidthDiv4; w++) {
+                *pYDstOffset = (((u32)(*(pYSrcOffset+0)))<<0)  +  (((u32)(*(pYSrcOffset+2)))<<8) + (((u32)(*(pYSrcOffset+4)))<<16) + (((u32)(*(pYSrcOffset+6)))<<24) ;
+                pYSrcOffset += 8;
+                pYDstOffset += 1;
+
+                #ifdef PLATFORM_VERSION_4
+                //seems th encoder use VUVU planner
+                *pUVDstOffset = (((u32)(*(pVSrcOffset+0)))<<0)  + (((u32)(*(pUSrcOffset+0)))<<8) + (((u32)(*(pVSrcOffset+4)))<<16) + (((u32)(*(pUSrcOffset+4)))<<24) ;
+                #else
+                *pUVDstOffset = (((u32)(*(pUSrcOffset+0)))<<0)  + (((u32)(*(pVSrcOffset+0)))<<8) + (((u32)(*(pUSrcOffset+4)))<<16) + (((u32)(*(pVSrcOffset+4)))<<24) ;
+                #endif
+                pUSrcOffset += 8;
+                pVSrcOffset += 8;
+                pUVDstOffset += 1;
+            }
+        } else {
+            pUSrcOffset += nWidthDiv4*8;
+            pVSrcOffset += nWidthDiv4*8;
+            for(w=0; w<nWidthDiv4; w++) {
+                *pYDstOffset = (((u32)(*(pYSrcOffset+0)))<<0)  +  (((u32)(*(pYSrcOffset+2)))<<8) + (((u32)(*(pYSrcOffset+4)))<<16) + (((u32)(*(pYSrcOffset+6)))<<24) ;
+                pYSrcOffset += 8;
+                pYDstOffset += 1;
+            }
+        }
+    }
+    return 0;
+}
+
+
 int32_t Stream::processFrameBuffer(StreamBuffer& src,
                                    sp<Metadata> meta)
 {
@@ -418,24 +566,32 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
 
     int32_t ret = 0;
     // IPU can't support NV12->NV21 conversion.
-#ifdef HAVE_FSL_IMX_IPU
     if ((mWidth != device->mWidth) || (mHeight != device->mHeight) ||
-         (mFormat != device->mFormat) || ((mFormat == device->mFormat) &&
-         (mCallback && (mFormat != HAL_PIXEL_FORMAT_YCbCr_420_SP)))) {
-        ret = processBufferWithIPU(src);
+            (mFormat != device->mFormat) || ((mFormat == device->mFormat) &&
+                (mCallback && (mFormat != HAL_PIXEL_FORMAT_YCbCr_420_SP)))) {
+        if (mIpuFd > 0) {
+            ret = processBufferWithIPU(src);
+        }
+        else if (mPxpFd > 0){
+            ret = processBufferWithPXP(src);
+        }
+        else if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
+                (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)){
+            ret = convertYUYVtoNV12SP(src);
+        }
+        else {
+            ALOGE("CPU can't support the 0x%x -> 0x%x conversion", device->mFormat, mFormat);
+        }
     }
     else {
         ret = processBufferWithGPU(src);
     }
-#else
-    ret = processBufferWithGPU(src);
-#endif
 
     return ret;
 }
 
 int32_t Stream::processCaptureBuffer(StreamBuffer& src,
-                                     sp<Metadata> meta)
+        sp<Metadata> meta)
 {
     int32_t res = 0;
 

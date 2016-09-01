@@ -40,42 +40,56 @@ status_t Ov5640Csi::initSensorStaticData()
     int availFormats[MAX_SENSOR_FORMAT];
     memset(sensorFormats, 0, sizeof(sensorFormats));
     memset(availFormats, 0, sizeof(availFormats));
-#if 0
-    struct v4l2_fmtdesc vid_fmtdesc;
-    while (ret == 0) {
-        vid_fmtdesc.index = index;
-        vid_fmtdesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        ret               = ioctl(fd, VIDIOC_ENUM_FMT, &vid_fmtdesc);
-        ALOGV("index:%d,ret:%d, format:%c%c%c%c", index, ret,
-                     vid_fmtdesc.pixelformat & 0xFF,
-                     (vid_fmtdesc.pixelformat >> 8) & 0xFF,
-                     (vid_fmtdesc.pixelformat >> 16) & 0xFF,
-                     (vid_fmtdesc.pixelformat >> 24) & 0xFF);
-        if (ret == 0) {
-            sensorFormats[index++] = vid_fmtdesc.pixelformat;
+    if (usemx6s > 0) {
+        struct v4l2_fmtdesc vid_fmtdesc;
+        while (ret == 0) {
+            vid_fmtdesc.index = index;
+            vid_fmtdesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+            ret = ioctl(fd, VIDIOC_ENUM_FMT, &vid_fmtdesc);
+            ALOGV("index:%d,ret:%d, format:%c%c%c%c", index, ret,
+                    vid_fmtdesc.pixelformat & 0xFF,
+                    (vid_fmtdesc.pixelformat >> 8) & 0xFF,
+                    (vid_fmtdesc.pixelformat >> 16) & 0xFF,
+                    (vid_fmtdesc.pixelformat >> 24) & 0xFF);
+            if (ret == 0) {
+                sensorFormats[index] = vid_fmtdesc.pixelformat;
+                availFormats[index++] = vid_fmtdesc.pixelformat;
+            }
         }
+
+        mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
+        if (mSensorFormatCount == 0) {
+            ALOGE("%s no sensor format enum", __func__);
+            close(fd);
+            return BAD_VALUE;
+        }
+
+        availFormats[index++] = v4l2_fourcc('N', 'V', '1', '2');
+        availFormats[index++] = v4l2_fourcc('Y', 'V', '1', '2');
+        availFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
+        availFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
+        mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
+
+    } else {
+        // v4l2 does not support enum format, now hard code here.
+        sensorFormats[index] = v4l2_fourcc('N', 'V', '1', '2');
+        availFormats[index++] = v4l2_fourcc('N', 'V', '1', '2');
+        sensorFormats[index] = v4l2_fourcc('Y', 'V', '1', '2');
+        availFormats[index++] = v4l2_fourcc('Y', 'V', '1', '2');
+        mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
+        if (mSensorFormatCount == 0) {
+            ALOGE("%s no sensor format enum", __func__);
+            close(fd);
+            return BAD_VALUE;
+        }
+
+        availFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
+        availFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
+        //availFormats[2] = v4l2_fourcc('Y', 'U', 'Y', 'V');
+        mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
     }
-    sensorFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
-    sensorFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
-#endif
 
-    // v4l2 does not support enum format, now hard code here.
-    sensorFormats[index] = v4l2_fourcc('N', 'V', '1', '2');
-    availFormats[index++] = v4l2_fourcc('N', 'V', '1', '2');
-    sensorFormats[index] = v4l2_fourcc('Y', 'V', '1', '2');
-    availFormats[index++] = v4l2_fourcc('Y', 'V', '1', '2');
-    mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
-    if (mSensorFormatCount == 0) {
-        ALOGE("%s no sensor format enum", __func__);
-        close(fd);
-        return BAD_VALUE;
-    }
-
-    availFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
-    availFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
-    //availFormats[2] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-    mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
-
+    ret = 0;
     index = 0;
     char TmpStr[20];
     int  previewCnt = 0, pictureCnt = 0;
@@ -92,21 +106,21 @@ status_t Ov5640Csi::initSensorStaticData()
         }
         ALOGV("enum frame size w:%d, h:%d",
                 vid_frmsize.discrete.width, vid_frmsize.discrete.height);
-#if 0
-        memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
-        vid_frmval.index        = 0;
-        vid_frmval.pixel_format = vid_frmsize.pixel_format;
-        vid_frmval.width        = vid_frmsize.discrete.width;
-        vid_frmval.height       = vid_frmsize.discrete.height;
+        if (usemx6s > 0) {
+            memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
+            vid_frmval.index        = 0;
+            vid_frmval.pixel_format = vid_frmsize.pixel_format;
+            vid_frmval.width        = vid_frmsize.discrete.width;
+            vid_frmval.height       = vid_frmsize.discrete.height;
 
-        ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
-        if (ret != 0) {
-            continue;
+            ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
+            if (ret != 0) {
+                continue;
+            }
+            ALOGV("vid_frmval denominator:%d, numeraton:%d",
+                    vid_frmval.discrete.denominator,
+                    vid_frmval.discrete.numerator);
         }
-        ALOGV("vid_frmval denominator:%d, numeraton:%d",
-                vid_frmval.discrete.denominator,
-                vid_frmval.discrete.numerator);
-#endif
         // v4l2 does not support, now hard code here.
         if ((vid_frmsize.discrete.width > 1280) ||
                 (vid_frmsize.discrete.height > 800)) {
@@ -129,15 +143,31 @@ status_t Ov5640Csi::initSensorStaticData()
         //first crop little width or little height, then scale.
         //But 1920x1080, 176x144 not work in this mode.
         // 1920x1080 is required by CTS.
-        if(!(vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144)) {
-            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
-            mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+        if (usemx6s > 0){
+            if ((vid_frmsize.discrete.width <= 640) || (vid_frmsize.discrete.height <= 480)) {
+                if(!(vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144)) {
+                    mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
+                    mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+                }
+
+                if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
+                    mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
+                    mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
+                }
+            }
+        } else {
+            if(!(vid_frmsize.discrete.width == 176 && vid_frmsize.discrete.height == 144)) {
+                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
+                mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
+            }
+
+            if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
+                mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
+                mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
+            }
         }
 
-        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
-            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
-            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;;
-        }
+
     } // end while
 
     mPreviewResolutionCount = previewCnt;
@@ -186,11 +216,15 @@ int32_t Ov5640Csi::OvStream::onDeviceConfigureLocked()
         return BAD_VALUE;
     }
 
-    int32_t input = 1;
-    ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
-    if (ret < 0) {
-        ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
-        return ret;
+    if (mPxpFd > 0) {
+        ALOGI("can't support VIDIOC_S_INPUT");
+    } else {
+        int32_t input = 1;
+        ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
+        if (ret < 0) {
+            ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
+            return ret;
+        }
     }
 
     return USPStream::onDeviceConfigureLocked();
