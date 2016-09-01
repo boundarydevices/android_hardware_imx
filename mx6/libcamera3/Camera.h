@@ -56,6 +56,7 @@ public:
     const camera_metadata_t *constructDefaultRequestSettings(int32_t type);
     int32_t processCaptureRequest(camera3_capture_request_t *request);
     void dumpDev(int32_t fd);
+    int32_t usemx6s;
 
 protected:
     // Initialize static camera characteristics for individual device

@@ -23,6 +23,7 @@ LOCAL_MODULE := camera.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_RELATIVE_PATH := hw
 
 LOCAL_C_INCLUDES += \
+    external/linux-lib/pxp \
     system/core/include \
     system/media/camera/include \
     external/jpeg \
@@ -81,6 +82,12 @@ ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_CFLAGS += -DBOARD_HAVE_VPU
 endif
 
+ifeq ($(HAVE_FSL_IMX_PXP),true)
+    LOCAL_SHARED_LIBRARIES += \
+            libpxp
+            LOCAL_CFLAGS += -DHAVE_FSL_IMX_PXP
+endif
+
 ifeq ($(HAVE_FSL_IMX_IPU),true)
     LOCAL_CFLAGS += -DHAVE_FSL_IMX_IPU
 endif
@@ -90,6 +97,5 @@ LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)
-
 endif
 endif
