@@ -126,6 +126,7 @@ Stream::Stream(Camera* camera)
     mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
 
     //When open pxp device, need allocate a channel at the same time.
+    int32_t ret = -1;
     ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
     if(ret < 0) {
         ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
