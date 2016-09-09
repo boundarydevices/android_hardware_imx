@@ -33,11 +33,12 @@
 
 #include "Camera.h"
 #include "CameraUtils.h"
-#include "Ov5640Mipi.h"
 #include "Ov5640Csi.h"
+#include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
-#include "UvcDevice.h"
+#include "TVIN8DvDevice.h"
 #include "TVINDevice.h"
+#include "UvcDevice.h"
 #include "VADCTVINDevice.h"
 #include "VideoStream.h"
 
@@ -109,8 +110,17 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 #endif
     }
     else if (strstr(name, ADV7180_TVIN_NAME)) {
-        ALOGI("create id:%d adv7180 tvin device", id);
-        device = new TVINDevice(id, facing, orientation, path);
+        char boardName[CAMERA_SENSOR_LENGTH];
+        memset(boardName, 0, sizeof(boardName));
+        property_get("ro.board.platform", boardName, DEFAULT_ERROR_NAME_str);
+
+        if (strstr(boardName, IMX8_BOARD_NAME)) {
+            ALOGI("create id:%d adv7180 tvin device on 8dv", id);
+            device = new TVIN8DvDevice(id, facing, orientation, path);
+        } else {
+            ALOGI("create id:%d adv7180 tvin device", id);
+            device = new TVINDevice(id, facing, orientation, path);
+        }
     }
     else {
         ALOGE("doesn't support camera id:%d %s", id, name);
@@ -119,14 +129,8 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
     return device;
 }
 
-Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char* path)
-  : mId(id),
-    mStaticInfo(NULL),
-    mBusy(false),
-    mCallbackOps(NULL),
-    mStreams(NULL),
-    mNumStreams(0),
-    usemx6s(0)
+Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path)
+    : mId(id), mStaticInfo(NULL), mBusy(false), mCallbackOps(NULL), mStreams(NULL), mNumStreams(0), mTmpBuf(NULL), usemx6s(0)
 {
     ALOGI("%s:%d: new camera device", __func__, mId);
     android::Mutex::Autolock al(mDeviceLock);
@@ -136,11 +140,11 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char* path)
     strncpy(SensorData::mDevPath, path, CAMAERA_FILENAME_LENGTH);
 
     memset(&mDevice, 0, sizeof(mDevice));
-    mDevice.common.tag    = HARDWARE_DEVICE_TAG;
+    mDevice.common.tag = HARDWARE_DEVICE_TAG;
     mDevice.common.version = CAMERA_DEVICE_API_VERSION_3_0;
-    mDevice.common.close  = close_device;
-    mDevice.ops           = const_cast<camera3_device_ops_t*>(&sOps);
-    mDevice.priv          = this;
+    mDevice.common.close = close_device;
+    mDevice.ops = const_cast<camera3_device_ops_t *>(&sOps);
+    mDevice.priv = this;
     memset(&m3aState, 0, sizeof(m3aState));
 }
 
@@ -764,6 +768,18 @@ bool Camera::isValidCaptureSettings(const camera_metadata_t* settings)
 {
     // TODO: reject settings that cannot be captured
     return true;
+}
+
+int32_t Camera::getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t *pV4l2Width, uint32_t *pV4l2Height)
+{
+    if ((pV4l2Width == NULL) || (pV4l2Height == NULL)) {
+        ALOGE("%s, para null", __func__);
+        return BAD_VALUE;
+    }
+
+    *pV4l2Width = streamWidth;
+    *pV4l2Height = streamHeight;
+    return NO_ERROR;
 }
 
 //---------------------------------------------------------

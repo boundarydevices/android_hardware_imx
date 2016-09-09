@@ -35,6 +35,95 @@ extern "C" {
 #include "Stream.h"
 #include "CameraUtils.h"
 
+static void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight, uint8_t *src, uint32_t srcWidth, uint32_t srcHeight)
+{
+    uint32_t i;
+    int BytesPerPixel = 2;
+    uint8_t *pDstLine = dst;
+    uint8_t *pSrcLine = src;
+    uint32_t bytesPerSrcLine = BytesPerPixel * srcWidth;
+    uint32_t bytesPerDstLine = BytesPerPixel * dstWidth;
+    uint32_t marginWidh = dstWidth - srcWidth;
+    uint16_t *pYUV;
+
+    if ((srcWidth > dstWidth) || (srcHeight > dstHeight)) {
+        ALOGW("%s, para error");
+        return;
+    }
+
+    for (i = 0; i < srcHeight; i++) {
+        memcpy(pDstLine, pSrcLine, bytesPerSrcLine);
+
+        // black margin, Y:0, U:128, V:128
+        for (uint32_t j = 0; j < marginWidh; j++) {
+            pYUV = (uint16_t *)(pDstLine + bytesPerSrcLine + j * BytesPerPixel);
+            *pYUV = 0x8000;
+        }
+
+        pSrcLine += bytesPerSrcLine;
+        pDstLine += bytesPerDstLine;
+    }
+
+    return;
+}
+
+static void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height)
+{
+#define u32 unsigned int
+#define u8 unsigned char
+
+    u32 h, w;
+    u32 nHeight = height;
+    u32 nWidthDiv4 = width / 4;
+
+    u8 *pYSrcOffset = inputBuffer;
+    u8 *pUSrcOffset = inputBuffer + 1;
+    u8 *pVSrcOffset = inputBuffer + 3;
+
+    u32 *pYDstOffset = (u32 *)outputBuffer;
+    u32 *pUVDstOffset = (u32 *)(((u8 *)(outputBuffer)) + width * height);
+
+    for (h = 0; h < nHeight; h++) {
+        if (!(h & 0x1)) {
+            for (w = 0; w < nWidthDiv4; w++) {
+                *pYDstOffset = (((u32)(*(pYSrcOffset + 0))) << 0) +
+                               (((u32)(*(pYSrcOffset + 2))) << 8) +
+                               (((u32)(*(pYSrcOffset + 4))) << 16) +
+                               (((u32)(*(pYSrcOffset + 6))) << 24);
+                pYSrcOffset += 8;
+                pYDstOffset += 1;
+
+#ifdef PLATFORM_VERSION_4
+                // seems th encoder use VUVU planner
+                *pUVDstOffset = (((u32)(*(pVSrcOffset + 0))) << 0) +
+                                (((u32)(*(pUSrcOffset + 0))) << 8) +
+                                (((u32)(*(pVSrcOffset + 4))) << 16) +
+                                (((u32)(*(pUSrcOffset + 4))) << 24);
+#else
+                *pUVDstOffset = (((u32)(*(pUSrcOffset + 0))) << 0) +
+                                (((u32)(*(pVSrcOffset + 0))) << 8) +
+                                (((u32)(*(pUSrcOffset + 4))) << 16) +
+                                (((u32)(*(pVSrcOffset + 4))) << 24);
+#endif
+                pUSrcOffset += 8;
+                pVSrcOffset += 8;
+                pUVDstOffset += 1;
+            }
+        } else {
+            pUSrcOffset += nWidthDiv4 * 8;
+            pVSrcOffset += nWidthDiv4 * 8;
+            for (w = 0; w < nWidthDiv4; w++) {
+                *pYDstOffset = (((u32)(*(pYSrcOffset + 0))) << 0) +
+                               (((u32)(*(pYSrcOffset + 2))) << 8) +
+                               (((u32)(*(pYSrcOffset + 4))) << 16) +
+                               (((u32)(*(pYSrcOffset + 6))) << 24);
+                pYSrcOffset += 8;
+                pYDstOffset += 1;
+            }
+        }
+    }
+}
+
 Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
   : mReuse(false),
     mPreview(false),
@@ -160,9 +249,28 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     JpegParams *mainJpeg = NULL, *thumbJpeg = NULL;
     void *rawBuf = NULL, *thumbBuf = NULL;
     size_t imageSize = 0;
+    uint32_t v4l2Width = 0, v4l2Height = 0;
 
     StreamBuffer* dstBuf = mCurrent;
     sp<Stream>& srcStream = src.mStream;
+
+    ret = mCamera->getV4l2Res(mWidth, mHeight, &v4l2Width, &v4l2Height);
+    if (ret) {
+        ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
+        return BAD_VALUE;
+    }
+
+    ALOGI(
+        "value of srcStream->mWidth srcStream->mHeight v4l2Width and "
+        "v4l2Height.......%d..%d.....%d..%d.......test11111111",
+        srcStream->mWidth,
+        srcStream->mHeight,
+        v4l2Width,
+        v4l2Height);
+    // just set to actual v4l2 res
+    srcStream->mWidth = v4l2Width;
+    srcStream->mHeight = v4l2Height;
+
     if (dstBuf == NULL || srcStream == NULL) {
         ALOGE("%s invalid param", __FUNCTION__);
         return BAD_VALUE;
@@ -507,58 +615,80 @@ int32_t Stream::processBufferWithGPU(StreamBuffer& src)
     return 0;
 }
 
-int32_t Stream::convertYUYVtoNV12SP(StreamBuffer& src)
+int32_t Stream::processBufferWithCPU(StreamBuffer &src)
 {
-    #define u32 unsigned int
-    #define u8 unsigned char
-    sp<Stream>& device = src.mStream;
+    int ret;
+    uint32_t v4l2Width;
+    uint32_t v4l2Height;
+
+    sp<Stream> &device = src.mStream;
     if (device == NULL) {
         ALOGE("%s invalid device stream", __func__);
         return 0;
     }
 
-    StreamBuffer* out = mCurrent;
-    u32 h,w;
-    u32 nWidthDiv4  = device->mWidth/4;
-    u32 nHeight = device->mHeight;
-
-    u8* pYSrcOffset = (uint8_t *)src.mVirtAddr;
-    u8* pUSrcOffset = (uint8_t *)src.mVirtAddr + 1;
-    u8* pVSrcOffset = (uint8_t *)src.mVirtAddr + 3;
-
-    u32* pYDstOffset = (u32*)out->mVirtAddr;
-    u32* pUVDstOffset = (u32*)(((u8*)(out->mVirtAddr)) + (device->mWidth)*(device->mHeight));
-
-    for(h=0; h<nHeight; h++) {
-        if(!( h & 0x1 )) {
-            for(w=0; w<nWidthDiv4; w++) {
-                *pYDstOffset = (((u32)(*(pYSrcOffset+0)))<<0)  +  (((u32)(*(pYSrcOffset+2)))<<8) + (((u32)(*(pYSrcOffset+4)))<<16) + (((u32)(*(pYSrcOffset+6)))<<24) ;
-                pYSrcOffset += 8;
-                pYDstOffset += 1;
-
-                #ifdef PLATFORM_VERSION_4
-                //seems th encoder use VUVU planner
-                *pUVDstOffset = (((u32)(*(pVSrcOffset+0)))<<0)  + (((u32)(*(pUSrcOffset+0)))<<8) + (((u32)(*(pVSrcOffset+4)))<<16) + (((u32)(*(pUSrcOffset+4)))<<24) ;
-                #else
-                *pUVDstOffset = (((u32)(*(pUSrcOffset+0)))<<0)  + (((u32)(*(pVSrcOffset+0)))<<8) + (((u32)(*(pUSrcOffset+4)))<<16) + (((u32)(*(pVSrcOffset+4)))<<24) ;
-                #endif
-                pUSrcOffset += 8;
-                pVSrcOffset += 8;
-                pUVDstOffset += 1;
-            }
-        } else {
-            pUSrcOffset += nWidthDiv4*8;
-            pVSrcOffset += nWidthDiv4*8;
-            for(w=0; w<nWidthDiv4; w++) {
-                *pYDstOffset = (((u32)(*(pYSrcOffset+0)))<<0)  +  (((u32)(*(pYSrcOffset+2)))<<8) + (((u32)(*(pYSrcOffset+4)))<<16) + (((u32)(*(pYSrcOffset+6)))<<24) ;
-                pYSrcOffset += 8;
-                pYDstOffset += 1;
-            }
-        }
+    StreamBuffer *out = mCurrent;
+    if (out == NULL || out->mBufHandle == NULL) {
+        ALOGE("%s invalid buffer handle", __func__);
+        return 0;
     }
+
+    void *g2dHandle = device->getG2dHandle();
+    if (g2dHandle == NULL) {
+        ALOGE("%s invalid g2d handle", __func__);
+        return 0;
+    }
+
+    ret = mCamera->getV4l2Res(mWidth, mHeight, &v4l2Width, &v4l2Height);
+    if (ret) {
+        ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
+        return 0;
+    }
+
+    ALOGV("res, stream %dx%d, v4l2 %dx%d", mWidth, mHeight, v4l2Width, v4l2Height);
+
+    // record
+    if (mCallback && (mFormat != HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
+        uint8_t *pTmpBuf = (uint8_t *)src.mVirtAddr;
+
+        if ((v4l2Width != mWidth) || (v4l2Height != mHeight)) {
+            pTmpBuf = mCamera->getTmpBuf();
+            if (pTmpBuf == NULL) {
+                ALOGE("this %p, %s pTmpBuf null", this, __func__);
+                return 0;
+            }
+            YUYVCopyByLine(pTmpBuf, mWidth, mHeight, (uint8_t *)src.mVirtAddr, v4l2Width, v4l2Height);
+        }
+
+        convertYUYVtoNV12SP(pTmpBuf, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
+
+        return 0;
+    } else if (mCallback && (mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
+               (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
+        convertYUYVtoNV12SP((uint8_t *)src.mVirtAddr, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
+        return 0;
+    }
+
+    // preview
+    if ((v4l2Width == mWidth) && (v4l2Height == mHeight) &&
+        (mFormat == device->mFormat)) {
+        uint32_t copySize = (out->mSize <= src.mSize) ? out->mSize : src.mSize;
+        struct g2d_buf s_buf, d_buf;
+        s_buf.buf_paddr = src.mPhyAddr;
+        s_buf.buf_vaddr = src.mVirtAddr;
+        d_buf.buf_paddr = out->mPhyAddr;
+        d_buf.buf_vaddr = out->mVirtAddr;
+        g2d_copy(g2dHandle, &d_buf, &s_buf, copySize);
+        g2d_finish(g2dHandle);
+    } else if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
+               (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
+        convertYUYVtoNV12SP((uint8_t *)src.mVirtAddr, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
+    } else {
+        YUYVCopyByLine((uint8_t *)out->mVirtAddr, mWidth, mHeight, (uint8_t *)src.mVirtAddr, v4l2Width, v4l2Height);
+    }
+
     return 0;
 }
-
 
 int32_t Stream::processFrameBuffer(StreamBuffer& src,
                                    sp<Metadata> meta)
@@ -581,16 +711,12 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
         else if (mPxpFd > 0){
             ret = processBufferWithPXP(src);
         }
-        else if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
-                (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)){
-            ret = convertYUYVtoNV12SP(src);
-        }
         else {
-            ALOGE("CPU can't support the 0x%x -> 0x%x conversion", device->mFormat, mFormat);
+            ret = processBufferWithCPU(src);
         }
     }
     else {
-        ret = processBufferWithGPU(src);
+        ret = processBufferWithCPU(src);
     }
 
     return ret;

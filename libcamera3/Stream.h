@@ -69,9 +69,10 @@ protected:
     int32_t processFrameBuffer(StreamBuffer& src,
                                sp<Metadata> meta);
     int32_t processBufferWithPXP(StreamBuffer& src);
-    int32_t convertYUYVtoNV12SP(StreamBuffer& src);
     int32_t processBufferWithIPU(StreamBuffer& src);
     int32_t processBufferWithGPU(StreamBuffer& src);
+
+    int32_t processBufferWithCPU(StreamBuffer& src);
 
 protected:
     // This stream is being reused. Used in stream configuration passes
