@@ -142,7 +142,7 @@ status_t TVINDevice::initSensorStaticData()
 
         if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
             mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
-            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;;
+            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
         }
     } // end while
 

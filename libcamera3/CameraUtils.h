@@ -51,6 +51,7 @@
 #define FACE_CAMERA_ORIENT "camera_orient"
 #define DEFAULT_ERROR_NAME '0'
 #define DEFAULT_ERROR_NAME_str "0"
+#define IMX8_BOARD_NAME "imx8"
 
 #define UVC_SENSOR_NAME "uvc"
 #define OV5640_SENSOR_NAME "csi"
@@ -190,7 +191,8 @@ public:
 
     int getCaptureMode(int width, int height);
 
-    PixelFormat getPreviewPixelFormat() {
+    virtual PixelFormat getPreviewPixelFormat()
+    {
         return mPreviewPixelFormat;
     }
 

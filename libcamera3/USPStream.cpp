@@ -87,7 +87,7 @@ int32_t USPStream::onDeviceStartLocked()
         cfilledbuffer.index    = i;
 
         if (mPxpFd > 0) {
-            cfilledbuffer.m.userptr = (unsigned int)mBuffers[i]->mVirtAddr;
+            cfilledbuffer.m.userptr = (unsigned long)mBuffers[i]->mVirtAddr;
             cfilledbuffer.length = mBuffers[i]->mSize;
         }
         else {
@@ -164,7 +164,7 @@ int32_t USPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     cfilledbuffer.index    = index;
 
     if(mPxpFd > 0) {
-        cfilledbuffer.m.userptr = (unsigned int)buf.mVirtAddr;
+        cfilledbuffer.m.userptr = (unsigned long)buf.mVirtAddr;
         cfilledbuffer.length = buf.mSize;
     }
     else {
@@ -295,6 +295,13 @@ int32_t USPStream::allocateBuffersLocked()
     mRegistered = true;
     mAllocatedBuffers = mNumBuffers;
 
+    int ret;
+    ret = mCamera->allocTmpBuf(size);
+    if (ret) {
+        ALOGE("%s, allocTmpBuf failed, ret %d", __func__, ret);
+        goto err;
+    }
+
     return 0;
 
 err:
@@ -338,6 +345,8 @@ int32_t USPStream::freeBuffersLocked()
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }
+
+    mCamera->freeTmpBuf();
 
     mRegistered = false;
     mAllocatedBuffers = 0;

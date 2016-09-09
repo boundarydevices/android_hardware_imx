@@ -58,6 +58,21 @@ public:
     void dumpDev(int32_t fd);
     int32_t usemx6s;
 
+    // some camera's resolution is not 16 pixels aligned, while gralloc is 16
+    // pixels aligned.
+    // Is just copy data from v4l2 to gralloc buffer, image  distortion
+    virtual int32_t getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t *pV4l2Width, uint32_t *pV4l2Height);
+
+    virtual int32_t allocTmpBuf(uint32_t size)
+    {
+        return 0;
+    }
+    virtual void freeTmpBuf(){};
+    uint8_t *getTmpBuf()
+    {
+        return mTmpBuf;
+    }
+
 protected:
     // Initialize static camera characteristics for individual device
     virtual status_t initSensorStaticData() = 0;
@@ -124,6 +139,7 @@ private:
 protected:
     sp<VideoStream> mVideoStream;
     autoState m3aState;
+    uint8_t *mTmpBuf;  // used for soft csc temp buffer
 };
 
 #endif // CAMERA_H_
