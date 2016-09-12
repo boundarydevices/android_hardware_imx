@@ -15,7 +15,6 @@
 LOCAL_PATH := $(call my-dir)
 
 ifeq ($(BOARD_HAVE_IMX_CAMERA),true)
-ifeq ($(IMX_CAMERA_HAL_V3),true)
 
 include $(CLEAR_VARS)
 
@@ -97,5 +96,4 @@ LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)
-endif
 endif
