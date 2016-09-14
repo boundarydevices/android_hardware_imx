@@ -3248,23 +3248,23 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                                                       control_card_info_get_name(imx_control));
         for(j = 0; j < SUPPORT_CARD_NUM; j++) {
             if(strstr(control_card_info_get_driver(imx_control), audio_card_list[j]->driver_name) != NULL){
+
+                //On 8dv, if period_size too small(176), when underrun,
+                //the out_write_primary comsume 176 smaples quickly as only several us,
+                //the producer (MonoPipe::write) is schduled at lower frequency,
+                //and can't jump the loop. So the sii902x is always xrun.
+                //One resolution is to calulate pcm_write interval, if too short for 10 times,
+                //usleep 20ms, can fix the issue.
+                //Here we enlarge period_size to avoid the issue.
+                if(strcmp(audio_card_list[j]->driver_name, "sii902x-audio") == 0) {
+                    ALOGI("sii902x audio, set period_size to 768");
+                    pcm_config_mm_out.period_size = 768;
+                }
+
                 // check if the device have been scaned before
                 scanned = false;
                 n = k;
                 for (m = 0; m < k; m++) {
-
-					//On 8dv, if period_size too small(176), when underrun,
-					//the out_write_primary comsume 176 smaples quickly as only several us,
-					//the producer (MonoPipe::write) is schduled at lower frequency,
-					//and can't jump the loop. So the sii902x is always xrun.
-					//One resolution is to calulate pcm_write interval, if too short for 10 times,
-					//usleep 20ms, can fix the issue.
-					//Here we enlarge period_size to avoid the issue.
-					if(strcmp(audio_card_list[j]->driver_name, "sii902x-audio") == 0) {
-						ALOGI("sii902x audio, set period_size to 768");
-						pcm_config_mm_out.period_size = 768;
-					}
-
                     if (!strcmp(audio_card_list[j]->driver_name, adev->card_list[m]->driver_name)) {
                          scanned = true;
                          found = true;
