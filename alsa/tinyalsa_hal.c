@@ -42,7 +42,6 @@
 #include "config_wm8962.h"
 #include "config_wm8958.h"
 #include "config_hdmi.h"
-#include "config_usbaudio.h"
 #include "config_nullcard.h"
 #include "config_spdif.h"
 #include "config_cs42888.h"
@@ -116,14 +115,14 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        9
+#define SUPPORT_CARD_NUM        8
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8958_card,
     &wm8962_card,
     &hdmi_card,
-    &usbaudio_card,
+    /* &usbaudio_card, */
     &spdif_card,
     &cs42888_card,
     &wm8960_card,
@@ -186,7 +185,7 @@ static void select_input_device(struct imx_audio_device *adev);
 static int adev_set_voice_volume(struct audio_hw_device *dev, float volume);
 static int do_input_standby(struct imx_stream_in *in);
 static int do_output_standby(struct imx_stream_out *out, int force_standby);
-static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, bool queryInput, bool queryOutput);
+static int scan_available_device(struct imx_audio_device *adev, bool queryInput, bool queryOutput);
 static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
                                    struct resampler_buffer* buffer);
 static void release_buffer(struct resampler_buffer_provider *buffer_provider,
@@ -557,47 +556,6 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
         out->config[PCM_NORMAL] = pcm_config_mm_out;
 
-       if (out->device & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) {
-            int rate = 0;
-            int channels = 0;
-
-            channels = adev_get_channels_for_device(adev, out->device, PCM_OUT);
-            if (channels == 2){
-                out->config[PCM_NORMAL].channels = 2;
-            } else if (channels == 1) {
-                ALOGW("start_output_stream_primary, channels is 1 !!!");
-                out->config[PCM_NORMAL].channels = 1;
-            } else {
-                  ALOGE("can not get channels for out_device %d ", out->device);
-                  return -EINVAL;
-            }
-
-            rate = adev_get_rate_for_device(adev, out->device, PCM_OUT);
-            if( rate == 0) {
-                  ALOGW("can not get rate for out_device %d ", out->device);
-                  return -EINVAL;
-            }
-            out->config[PCM_NORMAL].rate = rate;
-
-
-            if(out->resampler[PCM_NORMAL]) {
-                int ret;
-                release_resampler(out->resampler[PCM_NORMAL]);
-
-                //channels = 1 ?
-                ret = create_resampler(adev->default_rate,
-                           rate,
-                           channels,
-                           RESAMPLER_QUALITY_DEFAULT,
-                           NULL,
-                           &out->resampler[PCM_NORMAL]);
-                if (ret != 0) {
-                    ALOGE("can not create_resampler, inRate %d, outRate %d, channels %d, device 0x%x",
-                        adev->default_rate, rate, channels, out->device);
-                    return ret;
-                }
-            }
-        }
 
         card = get_card_for_device(adev, pcm_device, PCM_OUT, &out->card_index);
         out->pcm[PCM_NORMAL] = pcm_open(card, port,out->write_flags[PCM_NORMAL], &out->config[PCM_NORMAL]);
@@ -1022,10 +980,6 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
                 /* force standby if moving to/from HDMI */
                 if (((val & AUDIO_DEVICE_OUT_AUX_DIGITAL) ^
                         (adev->out_device & AUDIO_DEVICE_OUT_AUX_DIGITAL)) ||
-                        ((val & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) ^
-                        (adev->out_device & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET)) ||
-                        (adev->out_device & (AUDIO_DEVICE_OUT_AUX_DIGITAL |
-                                         AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET)) ||
                         ((val & AUDIO_DEVICE_OUT_SPEAKER) ^
                         (adev->out_device & AUDIO_DEVICE_OUT_SPEAKER)) ||
                         (adev->mode == AUDIO_MODE_IN_CALL)) {
@@ -1036,9 +990,6 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
             if ((out != adev->active_output[OUTPUT_HDMI]) && val) {
                 adev->out_device = val;
                 out->device    = val;
-                if(out->device & AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) {
-                    scan_available_device(adev, false, false, true);
-                }
 
                 select_output_device(adev);
             }
@@ -1684,24 +1635,7 @@ static int start_input_stream(struct imx_stream_in *in)
 
     in->config.stop_threshold = in->config.period_size * in->config.period_count;
 
-    if ((in->device & AUDIO_DEVICE_IN_USB_DEVICE) || (in->device & AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET)) {
-        channels = adev_get_channels_for_device(adev, in->device, PCM_IN);
-        if (channels == 2){
-            in->config.channels = 2;
-        } else if (channels == 1) {
-            in->config.channels = 1;
-        } else {
-              ALOGW("can not get channels for in_device %d ", in->device);
-              return -EINVAL;
-        }
-
-        rate     = adev_get_rate_for_device(adev, in->device, PCM_IN);
-        if( rate == 0) {
-              ALOGW("can not get rate for in_device %d ", in->device);
-              return -EINVAL;
-        }
-        in->config.rate     =  rate;
-    } else if (in->device & AUDIO_DEVICE_IN_AUX_DIGITAL) {
+    if (in->device & AUDIO_DEVICE_IN_AUX_DIGITAL) {
         format     = adev_get_format_for_device(adev, in->device, PCM_IN);
         in->config.format  = format;
     }
@@ -1721,18 +1655,6 @@ static int start_input_stream(struct imx_stream_in *in)
     if (!pcm_is_ready(in->pcm)) {
         ALOGE("cannot open pcm_in driver: %s", pcm_get_error(in->pcm));
         pcm_close(in->pcm);
-        /*workaround for some usb camera (V-UBM46). the issue is that:
-          open camerarecorder,recording, suspend, resumed, recording. sometimes the audio input
-          will be failed to open.
-          Analysis: when resume, the usb will do some initialize in kernel, but if the user start
-          recording quickly, there will be some confliction which will cause the input open failed
-          and reopen also failed.
-          But if open and close the mixer here then the input will be opened successfully.
-        */
-        if(!strcmp(adev->card_list[i]->driver_name, "USB-Audio")) {
-                mixer = mixer_open(card);
-                mixer_close(mixer);
-        }
         adev->active_input = NULL;
         return -ENOMEM;
     }
@@ -1895,8 +1817,6 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
         if ((in->device != val) && (val != 0)) {
             in->device = val;
             do_standby = true;
-            if(in->device & AUDIO_DEVICE_IN_USB_DEVICE)
-               scan_available_device(adev, false, true, false);
             in_update_aux_channels(in, NULL);
         }
     }
@@ -3180,10 +3100,6 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     in->main_channels = config->channel_mask;
 
-    if (in->device & AUDIO_DEVICE_IN_USB_DEVICE) {
-        scan_available_device(ladev, true, true, false);
-    }
-
     in->dev = ladev;
     in->standby = 1;
 
@@ -3303,7 +3219,7 @@ static int pcm_get_near_param_wrap(unsigned int card, unsigned int device,
 #endif
 }
 
-static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, bool queryInput, bool queryOutput)
+static int scan_available_device(struct imx_audio_device *adev, bool queryInput, bool queryOutput)
 {
     int i,j,k;
     int m,n;
@@ -3352,18 +3268,6 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
                     if (!strcmp(audio_card_list[j]->driver_name, adev->card_list[m]->driver_name)) {
                          scanned = true;
                          found = true;
-                         if(!strcmp(adev->card_list[m]->driver_name, "USB-Audio")) {
-                             if(strcmp(control_card_info_get_name(imx_control), adev->usb_card_name) || rescanusb) {
-                                scanned = false;
-                                strcpy(adev->usb_card_name, control_card_info_get_name(imx_control));
-                                left_out_devices |= adev->card_list[m]->supported_out_devices;
-                                left_in_devices |= adev->card_list[m]->supported_in_devices;
-                                if(adev->mixer[m])
-                                   mixer_close(adev->mixer[m]);
-                                n = m;
-                                k --;
-                             }
-                         }
                     }
                 }
                 if (scanned) break;
@@ -3372,15 +3276,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool rescanusb, 
                 }
                 adev->card_list[n]  = audio_card_list[j];
                 adev->card_list[n]->card = i;
-                if(!strcmp(adev->card_list[n]->driver_name, "USB-Audio")) {
-                    adev->mixer[n] = NULL;
-                } else {
-                    adev->mixer[n] = mixer_open(i);
-                    if (!adev->mixer[n]) {
-                         ALOGE("Unable to open the mixer, aborting.");
-                         control_close(imx_control);
-                         return -EINVAL;
-                    }
+                adev->mixer[n] = mixer_open(i);
+                if (!adev->mixer[n]) {
+                     ALOGE("Unable to open the mixer, aborting.");
+                     control_close(imx_control);
+                     return -EINVAL;
                 }
 
                 if(queryOutput) {
@@ -3490,7 +3390,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.dump                    = adev_dump;
     adev->mm_rate                           = 44100;
 
-    ret = scan_available_device(adev, true, true, true);
+    ret = scan_available_device(adev, true, true);
     if (ret != 0) {
         free(adev);
         return ret;
