@@ -315,7 +315,9 @@ static int hwc_set_physical(struct fsl_private* priv, int disp,
     if (!resized) {
         for (size_t i=0; i<list->numHwLayers-1; i++) {
             layer = &list->hwLayers[i];
+            hwc_lockSurface(layer->handle);
             hwc_composite(priv, layer, frameHandle, &swapRect, i==0);
+            hwc_unlockSurface(layer->handle);
         }
 
         hwc_copyBack(priv, frameHandle, targetHandle, index, disp);
@@ -387,7 +389,9 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
     hwc_clearWormHole(priv, frameHandle, list, disp, NULL);
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
+        hwc_lockSurface(layer->handle);
         hwc_composite(priv, layer, frameHandle, NULL, i==0);
+        hwc_unlockSurface(layer->handle);
     }
 
     g2d_finish(priv->g2d_handle);
