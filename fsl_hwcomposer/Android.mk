@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifneq ($(PREBUILT_FSL_HWCOMPOSER),true)
+ifeq ($(TARGET_HAVE_IMX_HWCOMPOSER),true)
 LOCAL_PATH := $(call my-dir)
 
 # HAL module implemenation, not prelinked and stored in
