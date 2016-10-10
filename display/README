@@ -1,0 +1,6 @@
+This directory includes gralloc and hwcomposer seperated by version.
+gralloc_v1: old gralloc version used on non-gpu platform.
+gralloc_v2: new gralloc version used on gpu platform.
+hwcomposer_v10: hwcomposer v1.0 interface implementation.
+hwcomposer_v13: hwcomposer v1.3 interface implementation.
+compositor: hardware composite implemented by g2d interface.

@@ -1,0 +1,26 @@
+diff --git a/mx6/libcamera3/Stream.cpp b/mx6/libcamera3/Stream.cpp
+index b88c99b..1cc586f 100644
+--- a/mx6/libcamera3/Stream.cpp
++++ b/mx6/libcamera3/Stream.cpp
+@@ -68,12 +68,16 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
+         mUsage = CAMERA_GRALLOC_USAGE;
+         mNumBuffers = NUM_PREVIEW_BUFFER;
+         mPreview = true;
+-        if (s->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) {
+-            ALOGI("%s create video recording stream", __func__);
+-            mPreview = false;
+-        }
+     }
+-    else {
++    else if (s->format == HAL_PIXEL_FORMAT_YCbCr_420_888) {
++        ALOGI("%s create vide recording stream", __func__);
++        mFormat = mCamera->getPreviewPixelFormat();
++        s->format = mFormat;
++        mUsage = CAMERA_GRALLOC_USAGE;
++        mNumBuffers = NUM_PREVIEW_BUFFER;
++        mPreview = false;
++    }
++   else {
+         ALOGI("create callback stream", __func__);
+         mCallback = true;
+         mFormat = mCamera->getPreviewPixelFormat();

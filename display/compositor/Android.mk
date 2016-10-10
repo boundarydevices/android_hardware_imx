@@ -37,8 +37,8 @@ LOCAL_SRC_FILES :=				\
 	hwc_composite.cpp
 
 LOCAL_MODULE := hwcomposer_fsl.$(TARGET_BOARD_PLATFORM)
-LOCAL_C_INCLUDES += hardware/imx/mx6/libgralloc_wrapper \
-                    hardware/imx/mx6/hwcomposer \
+LOCAL_C_INCLUDES += hardware/imx/display/gralloc_v2 \
+                    hardware/imx/display/hwcomposer_v13 \
                     device/fsl-proprietary/include \
                     system/core/include/
 
