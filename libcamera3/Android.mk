@@ -30,7 +30,7 @@ LOCAL_C_INCLUDES += \
     device/fsl-proprietary/include \
     external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
     external/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
-    hardware/imx/mx6/libgralloc_wrapper \
+    hardware/imx/display/gralloc_v2 \
     system/core/libion/include
 
 LOCAL_SRC_FILES := \

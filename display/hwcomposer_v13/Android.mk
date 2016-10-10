@@ -40,7 +40,7 @@ LOCAL_SRC_FILES :=				\
 	hwc_uevent.cpp
 
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
-LOCAL_C_INCLUDES += hardware/imx/mx6/libgralloc_wrapper \
+LOCAL_C_INCLUDES += hardware/imx/display/gralloc_v2 \
                     device/fsl-proprietary/include \
                     system/core/include/
 
