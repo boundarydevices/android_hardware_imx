@@ -216,15 +216,15 @@ int32_t Ov5640Csi::OvStream::onDeviceConfigureLocked()
         return BAD_VALUE;
     }
 
-    if (mPxpFd > 0) {
-        ALOGI("can't support VIDIOC_S_INPUT");
-    } else {
+    if (mIpuFd > 0) {
         int32_t input = 1;
         ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
         if (ret < 0) {
             ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
             return ret;
         }
+    } else if (mPxpFd > 0) {
+        ALOGI("can't support VIDIOC_S_INPUT");
     }
 
     return USPStream::onDeviceConfigureLocked();
