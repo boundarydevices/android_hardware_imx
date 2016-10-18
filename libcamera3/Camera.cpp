@@ -38,6 +38,7 @@
 #include "Ov5642Csi.h"
 #include "UvcDevice.h"
 #include "TVINDevice.h"
+#include "VADCTVINDevice.h"
 #include "VideoStream.h"
 
 #define CAMERA_SYNC_TIMEOUT 5000 // in msecs
@@ -98,9 +99,14 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 #endif
     }
     else if (strstr(name, OV5640_SENSOR_NAME)) {
-            ALOGI("create id:%d 5640-csi device", id);
-            device = new Ov5640Csi(id, facing, orientation, path);
-            device->usemx6s = 1;
+#ifdef VADC_TVIN
+        ALOGI("create id:%d TVin device for auto_sx", id);
+        device = new VADCTVINDevice(id, facing, orientation, path);
+#else
+        ALOGI("create id:%d 5640-csi device", id);
+        device = new Ov5640Csi(id, facing, orientation, path);
+        device->usemx6s = 1;
+#endif
     }
     else if (strstr(name, ADV7180_TVIN_NAME)) {
         ALOGI("create id:%d adv7180 tvin device", id);

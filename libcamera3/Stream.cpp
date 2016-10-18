@@ -229,6 +229,11 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
             alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
             bufSize = alignedw * alignedh * 2;
             break;
+        case HAL_PIXEL_FORMAT_YCbCr_444_888:
+            alignedw = ALIGN_PIXEL_16(srcStream->mWidth);
+            alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
+            bufSize = alignedw * alignedh * 3;
+            break;
 
         default:
             ALOGE("Error: %s format not supported", __FUNCTION__);

@@ -52,6 +52,7 @@ LOCAL_SRC_FILES := \
     DMAStream.cpp \
     UvcDevice.cpp \
     TVINDevice.cpp \
+    VADCTVINDevice.cpp \
     MMAPStream.cpp
 
 ifeq ($(BOARD_HAVE_VPU),true)
@@ -89,6 +90,10 @@ endif
 
 ifeq ($(HAVE_FSL_IMX_IPU),true)
     LOCAL_CFLAGS += -DHAVE_FSL_IMX_IPU
+endif
+
+ifeq ($(PRODUCT_MODEL), SABREAUTO-MX6SX)
+    LOCAL_CPPFLAGS += -DVADC_TVIN
 endif
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
