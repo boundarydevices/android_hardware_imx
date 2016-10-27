@@ -33,6 +33,7 @@
 
 #include "Camera.h"
 #include "CameraUtils.h"
+#include "Max9286Mipi.h"
 #include "Ov5640Csi.h"
 #include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
@@ -121,8 +122,10 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
             ALOGI("create id:%d adv7180 tvin device", id);
             device = new TVINDevice(id, facing, orientation, path);
         }
-    }
-    else {
+    } else if (strstr(name, MAX9286MIPI_SENSOR_NAME)) {
+        ALOGI("create id:%d Max9286Mipi device", id);
+        device = new Max9286Mipi(id, facing, orientation, path);
+    } else {
         ALOGE("doesn't support camera id:%d %s", id, name);
     }
 

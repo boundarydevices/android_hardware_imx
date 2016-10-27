@@ -46,6 +46,7 @@ LOCAL_SRC_FILES := \
     Ov5640Csi.cpp \
     Ov5640Mipi.cpp \
     Ov5642Csi.cpp \
+    Max9286Mipi.cpp \
     YuvToJpegEncoder.cpp \
     NV12_resize.c \
     USPStream.cpp \
