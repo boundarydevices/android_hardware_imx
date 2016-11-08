@@ -132,6 +132,8 @@ bool MagSensor::hasPendingEvents(){
 int MagSensor::readEvents(sensors_event_t* data, int count)
 {
 	int i;
+	int clockid = CLOCK_MONOTONIC;
+
     if (count < 1)
         return -EINVAL;
 	sensors_event_t sensor_event;
@@ -158,6 +160,11 @@ int MagSensor::readEvents(sensors_event_t* data, int count)
 		numEventReceived++;
 		mFlushed &= ~(0x01 << ID_O);
 	}
+
+    if (TEMP_FAILURE_RETRY(ioctl(data_fd, EVIOCSCLOCKID, &clockid)) < 0) {
+        ALOGW("Could not set input clock id to CLOCK_MONOTONIC. errno=%d", errno);
+    }
+
 	ssize_t n = mInputReader.fill(data_fd);
     if (n < 0)
         return n;
