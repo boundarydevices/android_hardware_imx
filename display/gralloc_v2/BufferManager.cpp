@@ -112,7 +112,14 @@ int BufferManager::alloc(int w, int h, int format, int usage,
              *
              * Here we assume the buffer will be used by Vivante HAL...
              */
+#ifdef IMX_8DV_ALIGN_WORKAROUND
+            /* mx8dv request special align to get better performance for GPU tile
+               to linear resolve, for example 1920x1080 display resolution with 32bpp,
+               stride need set to 1936 */
+            alignedw = ALIGN_PIXEL_128(w) + 16;
+#else
             alignedw = ALIGN_PIXEL_16(w);
+#endif
             alignedh = ALIGN_PIXEL_16(h);
             size = alignedw * alignedh * bpp;
             break;
