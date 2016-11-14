@@ -195,7 +195,11 @@ int Display::checkFramebufferFormat(int fd, uint32_t &flags)
     /*
      * Request nr_framebuffers screens (at lest 2 for page flipping)
      */
+#ifdef IMX_8DV_ALIGN_WORKAROUND
+    info.yres_virtual = info.yres * nr_framebuffers;
+#else
     info.yres_virtual = ALIGN_PIXEL_16(info.yres) * nr_framebuffers;
+#endif
     /*
      *note: 16 alignment here should align with BufferManager::alloc.
      */
@@ -458,7 +462,11 @@ int Display::initialize(int fb)
     mFramebuffer = new private_handle_t(dup(fd), fbSize,
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
 
+#ifdef IMX_8DV_ALIGN_WORKAROUND
+    mNumBuffers = info.yres_virtual / info.yres;
+#else
     mNumBuffers = info.yres_virtual / ALIGN_PIXEL_16(info.yres);
+#endif
     mBufferMask = 0;
 
     void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
@@ -546,7 +554,11 @@ int Display::allocFrameBuffer(size_t size, int usage, buffer_handle_t* pHandle)
 
     const uint32_t bufferMask = mBufferMask;
     const uint32_t numBuffers = mNumBuffers;
+#ifdef IMX_8DV_ALIGN_WORKAROUND
+    const size_t bufferSize = mFinfo.line_length * mInfo.yres;
+#else
     const size_t bufferSize = mFinfo.line_length * ALIGN_PIXEL_16(mInfo.yres);
+#endif
     if (numBuffers < 2) {
         ALOGE("%s framebuffer number less than 2", __FUNCTION__);
         return -ENOMEM;
