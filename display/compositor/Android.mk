@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(TARGET_HAVE_IMX_HWCOMPOSER),true)
 LOCAL_PATH := $(call my-dir)
 
+ifneq ($(TARGET_FSL_IMX_2D),PXP2D)
 # HAL module implemenation, not prelinked and stored in
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
