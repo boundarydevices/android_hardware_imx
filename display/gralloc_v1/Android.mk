@@ -18,8 +18,7 @@ LOCAL_PATH := $(call my-dir)
 # HAL module implemenation stored in
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 
-ifeq ($(TARGET_HAVE_IMX_GRALLOC),true)
-ifneq ($(HAVE_FSL_IMX_GPU2D),true)
+ifeq ($(TARGET_GRALLOC_VERSION),v1)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE_RELATIVE_PATH := hw
@@ -37,5 +36,4 @@ LOCAL_CFLAGS += -DUSE_PAN_DISPLAY=1
 endif
 
 include $(BUILD_SHARED_LIBRARY)
-endif
 endif
