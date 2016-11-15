@@ -165,6 +165,10 @@ status_t UvcDevice::initSensorStaticData()
     mFocalLength = 3.42f;
     mPhysicalWidth = 3.673f;
     mPhysicalHeight = 2.738f;
+    mActiveArrayWidth = 1920;
+    mActiveArrayHeight = 1080;
+    mPixelArrayWidth = 1920;
+    mPixelArrayHeight = 1080;
 
     ALOGI("UvcDevice, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
         mFocalLength, mPhysicalWidth, mPhysicalHeight);

@@ -162,6 +162,10 @@ status_t Ov5640Mipi::initSensorStaticData()
     mFocalLength = 3.37f;
     mPhysicalWidth = 3.6288f;	//2592 x 1.4u
     mPhysicalHeight = 2.7216f;  //1944 x 1.4u
+    mActiveArrayWidth = 2592;
+    mActiveArrayHeight = 1944;
+    mPixelArrayWidth = 2592;
+    mPixelArrayHeight = 1944;
 
     ALOGI("ov5640Mipi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
 	mFocalLength, mPhysicalWidth, mPhysicalHeight);

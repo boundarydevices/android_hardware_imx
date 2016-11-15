@@ -275,7 +275,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
 
     /* android.sensor */
 
-    int32_t android_sensor_info_active_array_size[] = {sensor.mMaxWidth, sensor.mMaxHeight};
+    int32_t android_sensor_info_active_array_size[] = {sensor.mActiveArrayWidth, sensor.mActiveArrayHeight};
     m.addInt32(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_active_array_size),
             android_sensor_info_active_array_size);
@@ -296,7 +296,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
             ARRAY_SIZE(android_sensor_info_physical_size),
             android_sensor_info_physical_size);
 
-    int32_t android_sensor_info_pixel_array_size[] = {sensor.mMaxWidth, sensor.mMaxHeight};
+    int32_t android_sensor_info_pixel_array_size[] = {sensor.mPixelArrayWidth, sensor.mPixelArrayHeight};
     m.addInt32(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_pixel_array_size),
             android_sensor_info_pixel_array_size);
