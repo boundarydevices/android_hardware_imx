@@ -198,6 +198,10 @@ status_t TVIN8DvDevice::initSensorStaticData()
     mFocalLength = 3.37f;
     mPhysicalWidth = 3.6288f;   // 2592 x 1.4u
     mPhysicalHeight = 2.7216f;  // 1944 x 1.4u
+    mActiveArrayWidth = 704;
+    mActiveArrayHeight = 244;
+    mPixelArrayWidth = 704;
+    mPixelArrayHeight = 244;
 
     ALOGI("tvin device, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
           mFocalLength,

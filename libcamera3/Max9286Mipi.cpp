@@ -130,6 +130,10 @@ status_t Max9286Mipi::initSensorStaticData()
     mFocalLength = 3.37f;
     mPhysicalWidth = 3.6288f;   // 2592 x 1.4u
     mPhysicalHeight = 2.7216f;  // 1944 x 1.4u
+    mActiveArrayWidth = 1280;
+    mActiveArrayHeight = 800;
+    mPixelArrayWidth = 1280;
+    mPixelArrayHeight = 800;
 
     ALOGI("ImxdpuCsi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
           mFocalLength,

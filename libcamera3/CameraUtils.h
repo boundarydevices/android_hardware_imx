@@ -227,6 +227,12 @@ public:
     float mPhysicalHeight;
     float mFocalLength;
 
+    // these values is the max size sensor can support.
+    int32_t mActiveArrayWidth;
+    int32_t mActiveArrayHeight;
+    int32_t mPixelArrayWidth;
+    int32_t mPixelArrayHeight;
+
     // preview and picture format.
     PixelFormat mPicturePixelFormat;
     PixelFormat mPreviewPixelFormat;
