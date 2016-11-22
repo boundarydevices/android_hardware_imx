@@ -254,15 +254,13 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     StreamBuffer* dstBuf = mCurrent;
     sp<Stream>& srcStream = src.mStream;
 
-    ret = mCamera->getV4l2Res(mWidth, mHeight, &v4l2Width, &v4l2Height);
+    ret = mCamera->getV4l2Res(srcStream->mWidth, srcStream->mHeight, &v4l2Width, &v4l2Height);
     if (ret) {
         ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
         return BAD_VALUE;
     }
 
-    ALOGI(
-        "value of srcStream->mWidth srcStream->mHeight v4l2Width and "
-        "v4l2Height.......%d..%d.....%d..%d.......test11111111",
+    ALOGI("%s srcStream->mWidth:%d, srcStream->mHeight:%d, v4l2Width:%d, v4l2Height:%d", __func__,
         srcStream->mWidth,
         srcStream->mHeight,
         v4l2Width,
