@@ -57,7 +57,7 @@ PressSensor::PressSensor()
 	mEnabled[temperature] = 0;
 	mDelay[temperature] = 0;
     mPendingEvent[temperature].sensor  = ID_T;
-    mPendingEvent[temperature].type    = SENSOR_TYPE_TEMPERATURE;
+    mPendingEvent[temperature].type    = SENSOR_TYPE_AMBIENT_TEMPERATURE;
     mPendingEvent[temperature].orientation.status = SENSOR_STATUS_ACCURACY_HIGH;
 	mPendingEvent[temperature].version = sizeof(sensors_event_t);
 	

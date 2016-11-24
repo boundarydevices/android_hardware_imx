@@ -97,7 +97,7 @@ static const struct sensor_t sSensorList[] = {
         { "Freescale Temperature Sensor ",
           "Freescale Semiconductor Inc.",
           1, SENSORS_TEMPERATURE_HANDLE,
-          SENSOR_TYPE_TEMPERATURE, 110.0f, 1.5, 0.50f, 10000, 0, 0, "" },
+          SENSOR_TYPE_AMBIENT_TEMPERATURE, 110.0f, 1.5, 0.50f, 10000, 0, 0, "" },
 #ifdef CONFIG_SENSOR_8DV_LIGHT
         { "ISL29023 Light sensor",
           "Intersil",
