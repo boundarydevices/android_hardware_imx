@@ -1827,9 +1827,10 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     pthread_mutex_unlock(&in->lock);
     pthread_mutex_unlock(&adev->lock);
 
-    ALOGW("in_set_parameters %s, ret %d", kvpairs, ret);
+    ALOGW("in_set_parameters %s", kvpairs);
     str_parms_destroy(parms);
-    return ret;
+
+    return 0;
 }
 
 static char * in_get_parameters(const struct audio_stream *stream,
@@ -2982,7 +2983,8 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     }
 
     str_parms_destroy(parms);
-    return ret;
+
+    return 0;
 }
 
 static char * adev_get_parameters(const struct audio_hw_device *dev,
