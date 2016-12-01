@@ -165,7 +165,6 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     else {
         ALOGI("create callback stream", __func__);
         mCallback = true;
-        mFormat = mCamera->getPreviewPixelFormat();
         mUsage = CAMERA_GRALLOC_USAGE;
         mNumBuffers = NUM_PREVIEW_BUFFER;
     }

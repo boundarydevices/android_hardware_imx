@@ -50,6 +50,9 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
         case HAL_PIXEL_FORMAT_YCbCr_444_888:
             nFormat = v4l2_fourcc('Y', 'U', 'V', '4');
             break;
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+            nFormat = v4l2_fourcc('N', 'V', '1', '2');
+            break;
 
         default:
             ALOGE("Error: format:0x%x not supported!", format);
