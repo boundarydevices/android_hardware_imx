@@ -3108,15 +3108,6 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     *stream_in = &in->stream;
 
     return 0;
-
-err:
-    if (in->resampler)
-        release_resampler(in->resampler);
-
-    free(in);
-    *stream_in = NULL;
-
-    return ret;
 }
 
 static void adev_close_input_stream(struct audio_hw_device *dev,
