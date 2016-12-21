@@ -66,6 +66,7 @@ status_t Ov5640Csi::initSensorStaticData()
 
         availFormats[index++] = v4l2_fourcc('N', 'V', '1', '2');
         availFormats[index++] = v4l2_fourcc('Y', 'V', '1', '2');
+        availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
         availFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
         availFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
         mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
@@ -83,6 +84,7 @@ status_t Ov5640Csi::initSensorStaticData()
             return BAD_VALUE;
         }
 
+        availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
         availFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
         availFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
         //availFormats[2] = v4l2_fourcc('Y', 'U', 'Y', 'V');

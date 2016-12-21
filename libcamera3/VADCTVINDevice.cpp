@@ -116,6 +116,7 @@ status_t VADCTVINDevice::initSensorStaticData()
         return BAD_VALUE;
     }
 
+    availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
     mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
     ret = 0;

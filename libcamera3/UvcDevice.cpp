@@ -90,6 +90,7 @@ status_t UvcDevice::initSensorStaticData()
 
     availFormats[index++] = v4l2_fourcc('N', 'V', '1', '2');
     availFormats[index++] = v4l2_fourcc('Y', 'V', '1', '2');
+    availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
     availFormats[index++] = v4l2_fourcc('B', 'L', 'O', 'B');
     availFormats[index++] = v4l2_fourcc('R', 'A', 'W', 'S');
     mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
