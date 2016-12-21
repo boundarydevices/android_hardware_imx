@@ -52,6 +52,7 @@ status_t Max9286Mipi::initSensorStaticData()
         return BAD_VALUE;
     }
 
+    availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
     mAvailableFormatCount =
         changeSensorFormats(availFormats, mAvailableFormats, index);
 

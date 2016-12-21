@@ -53,6 +53,9 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
         case HAL_PIXEL_FORMAT_YCbCr_420_888:
             nFormat = v4l2_fourcc('N', 'V', '1', '2');
             break;
+        case HAL_PIXEL_FORMAT_YV12:
+            nFormat = v4l2_fourcc('Y', 'V', '1', '2');
+            break;
 
         default:
             ALOGE("Error: format:0x%x not supported!", format);
@@ -244,8 +247,13 @@ int32_t SensorData::changeSensorFormats(int *src, int *dst, int len)
                 dst[k++] = HAL_PIXEL_FORMAT_YCbCr_420_SP;
                 break;
 
+            case v4l2_fourcc('N', 'V', '2', '1'):
+                dst[k++] = HAL_PIXEL_FORMAT_YCrCb_420_SP;
+                break;
+
+            //camera service will use HAL_PIXEL_FORMAT_YV12 to match YV12 format.
             case v4l2_fourcc('Y', 'V', '1', '2'):
-                dst[k++] = HAL_PIXEL_FORMAT_YCbCr_420_P;
+                dst[k++] = HAL_PIXEL_FORMAT_YV12;
                 break;
 
             case v4l2_fourcc('Y', 'U', 'Y', 'V'):
