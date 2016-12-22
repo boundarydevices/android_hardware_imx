@@ -68,6 +68,7 @@ protected:
                               sp<Metadata> meta);
     int32_t processFrameBuffer(StreamBuffer& src,
                                sp<Metadata> meta);
+    int32_t convertNV12toNV21(StreamBuffer& src);
     int32_t processBufferWithPXP(StreamBuffer& src);
     int32_t processBufferWithIPU(StreamBuffer& src);
     int32_t processBufferWithGPU(StreamBuffer& src);

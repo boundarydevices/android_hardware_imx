@@ -612,6 +612,53 @@ int32_t Stream::processBufferWithGPU(StreamBuffer& src)
     return 0;
 }
 
+int32_t Stream::convertNV12toNV21(StreamBuffer& src)
+{
+    sp<Stream>& device = src.mStream;
+    if (device == NULL) {
+        ALOGE("%s invalid device stream", __func__);
+        return 0;
+    }
+
+    StreamBuffer* out = mCurrent;
+    if (out == NULL || out->mBufHandle == NULL) {
+        ALOGE("%s invalid buffer handle", __func__);
+        return 0;
+    }
+    int Ysize = 0, UVsize = 0;
+    uint8_t *srcIn, *dstOut;
+    uint32_t *UVout;
+    struct g2d_buf s_buf, d_buf;
+    int size = (src.mSize > out->mSize) ? out->mSize : src.mSize;
+
+    Ysize  = device->mWidth * device->mHeight;
+    UVsize = device->mWidth * device->mHeight >> 2;
+    srcIn = (uint8_t *)src.mVirtAddr;
+    dstOut = (uint8_t *)out->mVirtAddr;
+    UVout = (uint32_t *)(dstOut + Ysize);
+
+    void* g2dHandle = device->getG2dHandle();
+
+    if (g2dHandle != NULL) {
+        s_buf.buf_paddr = src.mPhyAddr;
+        s_buf.buf_vaddr = src.mVirtAddr;
+        d_buf.buf_paddr = out->mPhyAddr;
+        d_buf.buf_vaddr = out->mVirtAddr;
+        g2d_copy(g2dHandle, &d_buf, &s_buf, out->mSize);
+        g2d_finish(g2dHandle);
+    }
+    else {
+        memcpy(dstOut, srcIn, size);
+    }
+
+    for (int k = 0; k < UVsize/2; k++) {
+        __asm volatile ("rev16 %0, %0" : "+r"(*UVout));
+        UVout += 1;
+    }
+
+    return 0;
+}
+
 int32_t Stream::processBufferWithCPU(StreamBuffer &src)
 {
     int ret;
@@ -630,12 +677,6 @@ int32_t Stream::processBufferWithCPU(StreamBuffer &src)
         return 0;
     }
 
-    void *g2dHandle = device->getG2dHandle();
-    if (g2dHandle == NULL) {
-        ALOGE("%s invalid g2d handle", __func__);
-        return 0;
-    }
-
     ret = mCamera->getV4l2Res(mWidth, mHeight, &v4l2Width, &v4l2Height);
     if (ret) {
         ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
@@ -644,10 +685,10 @@ int32_t Stream::processBufferWithCPU(StreamBuffer &src)
 
     ALOGV("res, stream %dx%d, v4l2 %dx%d", mWidth, mHeight, v4l2Width, v4l2Height);
 
-    // record
-    if (mCallback && (mFormat != HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
-        uint8_t *pTmpBuf = (uint8_t *)src.mVirtAddr;
+    if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) &&
+        (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
 
+        uint8_t *pTmpBuf = (uint8_t *)src.mVirtAddr;
         if ((v4l2Width != mWidth) || (v4l2Height != mHeight)) {
             pTmpBuf = mCamera->getTmpBuf();
             if (pTmpBuf == NULL) {
@@ -656,30 +697,14 @@ int32_t Stream::processBufferWithCPU(StreamBuffer &src)
             }
             YUYVCopyByLine(pTmpBuf, mWidth, mHeight, (uint8_t *)src.mVirtAddr, v4l2Width, v4l2Height);
         }
-
         convertYUYVtoNV12SP(pTmpBuf, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
 
-        return 0;
-    } else if (mCallback && (mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
-               (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
-        convertYUYVtoNV12SP((uint8_t *)src.mVirtAddr, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
-        return 0;
-    }
-
-    // preview
-    if ((v4l2Width == mWidth) && (v4l2Height == mHeight) &&
-        (mFormat == device->mFormat)) {
-        uint32_t copySize = (out->mSize <= src.mSize) ? out->mSize : src.mSize;
-        struct g2d_buf s_buf, d_buf;
-        s_buf.buf_paddr = src.mPhyAddr;
-        s_buf.buf_vaddr = src.mVirtAddr;
-        d_buf.buf_paddr = out->mPhyAddr;
-        d_buf.buf_vaddr = out->mVirtAddr;
-        g2d_copy(g2dHandle, &d_buf, &s_buf, copySize);
-        g2d_finish(g2dHandle);
     } else if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
                (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
         convertYUYVtoNV12SP((uint8_t *)src.mVirtAddr, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
+    } else if ((device->mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
+               (mFormat == HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
+        ret = convertNV12toNV21(src);
     } else {
         YUYVCopyByLine((uint8_t *)out->mVirtAddr, mWidth, mHeight, (uint8_t *)src.mVirtAddr, v4l2Width, v4l2Height);
     }
@@ -698,22 +723,25 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
     }
 
     int32_t ret = 0;
-    // IPU can't support NV12->NV21 conversion.
-    if ((mWidth != device->mWidth) || (mHeight != device->mHeight) ||
-            (mFormat != device->mFormat) || ((mFormat == device->mFormat) &&
-                (mCallback && (mFormat != HAL_PIXEL_FORMAT_YCbCr_420_SP)))) {
-        if (mIpuFd > 0) {
+    uint32_t v4l2Width;
+    uint32_t v4l2Height;
+
+    ret = mCamera->getV4l2Res(device->mWidth, device->mHeight, &v4l2Width, &v4l2Height);
+    if (ret) {
+        ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
+    }
+
+    if ((mWidth != v4l2Width) || (mHeight != v4l2Height) ||
+            (mFormat != device->mFormat)) {
+        if ((mIpuFd > 0) && (mFormat != HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
             ret = processBufferWithIPU(src);
-        }
-        else if (mPxpFd > 0){
+        } else if (mPxpFd > 0){
             ret = processBufferWithPXP(src);
-        }
-        else {
+        } else {
             ret = processBufferWithCPU(src);
         }
-    }
-    else {
-        ret = processBufferWithCPU(src);
+    } else {
+        ret = processBufferWithGPU(src);
     }
 
     return ret;
