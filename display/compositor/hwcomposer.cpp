@@ -390,6 +390,7 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
         }
     }
 
+    hwc_lockSurface(frameHandle);
     hwc_clearWormHole(priv, frameHandle, list, disp, NULL);
     for (size_t i=0; i<list->numHwLayers-1; i++) {
         layer = &list->hwLayers[i];
@@ -401,6 +402,7 @@ static int hwc_set_virtual(struct fsl_private* priv, int disp,
             hwc_unlockSurface(layer->handle);
         }
     }
+    hwc_unlockSurface(frameHandle);
 
     g2d_finish(priv->g2d_handle);
 
