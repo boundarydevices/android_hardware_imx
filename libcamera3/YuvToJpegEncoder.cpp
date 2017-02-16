@@ -758,9 +758,8 @@ int Yuv422IToJpegEncoder::yuvResize(uint8_t *srcBuf,
     int h_scale_ratio;
     int v_scale_ratio;
 
-    s = 0;
-
-_resize_begin:
+    int srcStride;
+    int dstStride;
 
     if (!dstWidth) return -1;
 
@@ -775,33 +774,46 @@ _resize_begin:
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
     v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
 
+    srcStride = srcWidth * 2;
+    dstStride = dstWidth * 2;
+
+    //for Y
     for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
     {
-        for (j = 0; j < dstWidth * h_scale_ratio; j += h_scale_ratio)
+        for (j = 0; j < dstStride * h_scale_ratio; j += 2 * h_scale_ratio)
         {
-            ptr = srcBuf + i * srcWidth + j + v_offset * srcWidth + h_offset;
+            ptr = srcBuf + i * srcStride + j + v_offset * srcStride + h_offset * 2;
             cc  = ptr[0];
 
-            ptr    = dstBuf + (i / v_scale_ratio) * dstWidth + (j / h_scale_ratio);
+            ptr    = dstBuf + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
             ptr[0] = cc;
         }
     }
 
-    srcBuf += srcWidth * srcHeight;
-    dstBuf += dstWidth * dstHeight;
-
-    if (s < 2)
+    //for U
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
     {
-        if (!s++)
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
         {
-            srcWidth  >>= 1;
-            srcHeight >>= 1;
+            ptr = srcBuf + 1 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc  = ptr[0];
 
-            dstWidth  >>= 1;
-            dstHeight >>= 1;
+            ptr    = dstBuf + 1 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
         }
+    }
 
-        goto _resize_begin;
+    //for V
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
+    {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
+        {
+            ptr = srcBuf + 3 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc  = ptr[0];
+
+            ptr    = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
     }
 
     return 0;
