@@ -685,6 +685,11 @@ int32_t Stream::processBufferWithCPU(StreamBuffer &src)
 
     ALOGV("res, stream %dx%d, v4l2 %dx%d", mWidth, mHeight, v4l2Width, v4l2Height);
 
+    if ((device->mWidth != mWidth) || (device->mHeight != mHeight)) {
+        ALOGE("%s:%d, Software don't support resize, device->mFormat:0x%d, mFormat:0x%d", __FUNCTION__, __LINE__, device->mFormat, mFormat);
+        return 0;
+    }
+
     if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) &&
         (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
 

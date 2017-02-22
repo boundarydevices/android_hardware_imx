@@ -40,6 +40,7 @@
 #include "TVIN8DvDevice.h"
 #include "TVINDevice.h"
 #include "UvcDevice.h"
+#include "Uvc7ulpDevice.h"
 #include "VADCTVINDevice.h"
 #include "VideoStream.h"
 
@@ -96,8 +97,13 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
             device = new UvcMJPGDevice(id, facing, orientation, path);
         }
 #else
+#ifdef IMX7ULP_UVC
+        ALOGI("create id:%d imx7ulp usb camera device", id);
+        device = Uvc7ulpDevice::newInstance(id, name, facing, orientation, path);
+#else
         ALOGI("create id:%d usb camera device", id);
         device = UvcDevice::newInstance(id, name, facing, orientation, path);
+#endif
 #endif
     }
     else if (strstr(name, OV5640_SENSOR_NAME)) {

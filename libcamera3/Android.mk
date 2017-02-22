@@ -52,6 +52,7 @@ LOCAL_SRC_FILES := \
     USPStream.cpp \
     DMAStream.cpp \
     UvcDevice.cpp \
+    Uvc7ulpDevice.cpp \
     TVINDevice.cpp \
     TVIN8DvDevice.cpp \
     VADCTVINDevice.cpp \
@@ -96,6 +97,10 @@ endif
 
 ifeq ($(PRODUCT_MODEL), SABREAUTO-MX6SX)
     LOCAL_CPPFLAGS += -DVADC_TVIN
+endif
+
+ifeq ($(BOARD_SOC_TYPE), IMX7ULP)
+    LOCAL_CPPFLAGS += -DIMX7ULP_UVC
 endif
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
