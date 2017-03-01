@@ -175,15 +175,23 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
 
     ALOGI("stream: w:%d, h:%d, format:0x%x, usage:0x%x, buffers:%d",
           s->width, s->height, s->format, s->usage, mNumBuffers);
+    /*
+     * imx6dl support IPU device and PXP device.
+     * imx6q and imx6qp support IPU device.
+     * imx6sx and imx6sl support PXP device.
+     * IPU can't handle NV21 format, so open PXP on some platform to handle it.
+     */
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
 
     mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
-    int32_t ret = -1;
 
     //When open pxp device, need allocate a channel at the same time.
-    ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+    int32_t ret = -1;
+    if (mPxpFd > 0) {
+        ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
+        if (ret < 0) {
+            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+        }
     }
 
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
@@ -215,9 +223,11 @@ Stream::Stream(Camera* camera)
 
     //When open pxp device, need allocate a channel at the same time.
     int32_t ret = -1;
-    ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+    if (mPxpFd > 0) {
+        ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
+        if(ret < 0) {
+            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+        }
     }
 
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
