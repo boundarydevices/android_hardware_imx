@@ -20,6 +20,7 @@ VADCTVINDevice::VADCTVINDevice(int32_t id, int32_t facing, int32_t orientation, 
     : Camera(id, facing, orientation, path)
 {
     mVideoStream = new VADCTVinStream(this);
+    mSTD = 0;
 }
 
 VADCTVINDevice::~VADCTVINDevice()
