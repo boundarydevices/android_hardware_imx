@@ -305,6 +305,11 @@ int32_t LogiC920::C920Stream::onFrameAcquireLocked()
     ALOGV("%s", __func__);
     int32_t index = UvcDevice::UvcStream::onFrameAcquireLocked();
 
+    if (index >= MAX_STREAM_BUFFERS || index < 0) {
+        ALOGE("%s: invalid index %d", __func__, index);
+        return -1;
+    }
+
     // large resolution should return immediately because of low frame rate.
     if (mWidth > mOmitFrameWidth && mHeight > mOmitFrameHeight) {
         return index;
@@ -314,6 +319,11 @@ int32_t LogiC920::C920Stream::onFrameAcquireLocked()
         mOmitFrames--;
         UvcDevice::UvcStream::onFrameReturnLocked(index, *mBuffers[index]);
         index = UvcDevice::UvcStream::onFrameAcquireLocked();
+
+        if (index >= MAX_STREAM_BUFFERS || index < 0) {
+            ALOGE("%s: invalid index %d", __func__, index);
+            return -1;
+        }
     }
 
     return index;
