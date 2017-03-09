@@ -720,8 +720,11 @@ int32_t Stream::processBufferWithCPU(StreamBuffer &src)
     } else if ((device->mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
                (mFormat == HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
         ret = convertNV12toNV21(src);
-    } else {
+    } else if (device->mFormat == mFormat) {
         YUYVCopyByLine((uint8_t *)out->mVirtAddr, mWidth, mHeight, (uint8_t *)src.mVirtAddr, v4l2Width, v4l2Height);
+    } else {
+        ALOGE("%s:%d, Software don't support format convert from 0x%x to 0x%x", __FUNCTION__, __LINE__, device->mFormat, mFormat);
+        return 0;
     }
 
     return 0;
