@@ -272,6 +272,7 @@ int32_t SensorData::changeSensorFormats(int *src, int *dst, int len)
                 break;
             case v4l2_fourcc('Y', 'U', 'V', '4'):
                 dst[k++] = HAL_PIXEL_FORMAT_YCbCr_444_888;
+                break;
 
             default:
                 ALOGE("Error: format:%c%c%c%c not supported!", src[i]&0xFF,
