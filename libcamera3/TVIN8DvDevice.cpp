@@ -23,6 +23,7 @@ TVIN8DvDevice::TVIN8DvDevice(int32_t id, int32_t facing, int32_t orientation, ch
     : Camera(id, facing, orientation, path)
 {
     mVideoStream = new TVin8DvStream(this);
+    mSTD = 0;
     mResCount = 0;
     memset(mResMap, 0, sizeof(mResMap));
 }
