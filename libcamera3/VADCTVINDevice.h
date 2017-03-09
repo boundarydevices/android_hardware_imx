@@ -33,7 +33,11 @@ private:
     {
         public:
             VADCTVinStream(Camera* device)
-                : MMAPStream(device) {}
+                : MMAPStream(device), mIonFd(-1) {
+                    for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
+                        mV4L2Buffers[i] = NULL;
+                    }
+                }
             virtual ~VADCTVinStream() {}
 
             StreamBuffer* mV4L2Buffers[MAX_STREAM_BUFFERS];
