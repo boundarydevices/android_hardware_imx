@@ -278,7 +278,8 @@ status_t LogitC920::initSensorStaticData()
 // LogiC920 output the first several frames which are damaged.
 // the mOmitFrames count on specific sensor.
 LogitC920::C920Stream::C920Stream(Camera* device, const char* name)
-    : Uvc7ulpDevice::Uvc7ulpStream(device, name), mOmitFrames(0), mOmitFrameCnt(1)
+    : Uvc7ulpDevice::Uvc7ulpStream(device, name), mOmitFrames(0), mOmitFrameCnt(1),
+      mOmitFrameWidth(0), mOmitFrameHeight(0)
 {
 }
 LogitC920::C920Stream::~C920Stream()
