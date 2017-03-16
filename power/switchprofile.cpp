@@ -84,12 +84,11 @@ void SwitchprofileThread::do_changecpugov(const char *gov)
         mActive = true;
     else {
         mActive = false;
-        mFd1 = open(INPUTBOOST_PATH, O_WRONLY);
-        if (mFd1 <= 0) {
-                ALOGE("Could not open cpu gov:%s", INPUTBOOST_PATH);
-                return;
-        }
-        write(mFd1,"0",strlen("0"));
+        mFd1 = open(BOOST_PATH, O_WRONLY);
+        if (mFd1 <= 0)
+                ALOGE("Could not open cpu gov:%s", BOOST_PATH);
+        else
+		write(mFd1,"0",strlen("0"));
         close(mFd1);
     }
     if (write(mFd, gov, strlen(gov)) < 0){
@@ -98,12 +97,11 @@ void SwitchprofileThread::do_changecpugov(const char *gov)
     }
     if (mActive){
         do_setproperty(PROP_CPUFREQGOV, PROP_VAL);
-        mFd1 = open(INPUTBOOST_PATH, O_WRONLY);
-        if (mFd1 <= 0) {
-                ALOGE("Could not open cpu gov:%s", INPUTBOOST_PATH);
-                return;
-        }
-        write(mFd1,"1",strlen("1"));
+        mFd1 = open(BOOST_PATH, O_WRONLY);
+        if (mFd1 <= 0)
+                ALOGE("Could not open cpu gov:%s", BOOST_PATH);
+        else
+		write(mFd1,"1",strlen("1"));
         close(mFd1);
     }
 
