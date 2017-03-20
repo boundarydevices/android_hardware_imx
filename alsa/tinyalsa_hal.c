@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
+/* Copyright 2017 NXP */
 
 #define LOG_TAG "audio_hw_primary"
 //#define LOG_NDEBUG 0
@@ -3254,6 +3255,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                 if(strcmp(audio_card_list[j]->driver_name, "sii902x-audio") == 0) {
                     ALOGI("sii902x audio, set period_size to 768");
                     pcm_config_mm_out.period_size = 768;
+                }
+
+                if(strcmp(audio_card_list[j]->driver_name, "rpmsg-audio") == 0) {
+                    ALOGI("rpmsg-audio, set period_size to 1024");
+                    pcm_config_mm_out.period_size = 1024;
                 }
 
                 // check if the device have been scaned before
