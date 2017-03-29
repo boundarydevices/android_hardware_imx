@@ -25,7 +25,7 @@
 #include <cutils/properties.h>
 #include "messageQueue.h"
 #define GOV_PATH "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-#define BOOST_PATH "/sys/devices/system/cpu/cpufreq/interactive/boost"
+#define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
 #define PROP_CPUFREQGOV "sys.interactive"
 #define PROP_VAL "active"
 enum Cpugov {

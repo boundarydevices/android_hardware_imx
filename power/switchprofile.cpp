@@ -82,26 +82,21 @@ void SwitchprofileThread::do_changecpugov(const char *gov)
 
     if (strncmp("interactive", gov, strlen("interactive")) == 0)
         mActive = true;
-    else {
+    else
         mActive = false;
-        mFd1 = open(BOOST_PATH, O_WRONLY);
-        if (mFd1 <= 0)
-                ALOGE("Could not open cpu gov:%s", BOOST_PATH);
-        else
-		write(mFd1,"0",strlen("0"));
-        close(mFd1);
-    }
+
     if (write(mFd, gov, strlen(gov)) < 0){
         ALOGE("Error writing to %s: %s\n", GOV_PATH, strerror(errno));
         return;
     }
     if (mActive){
         do_setproperty(PROP_CPUFREQGOV, PROP_VAL);
-        mFd1 = open(BOOST_PATH, O_WRONLY);
-        if (mFd1 <= 0)
-                ALOGE("Could not open cpu gov:%s", BOOST_PATH);
-        else
-		write(mFd1,"1",strlen("1"));
+        mFd1 = open(BOOSTPULSE_PATH, O_WRONLY);
+        if (mFd1 <= 0) {
+                ALOGE("Could not open cpu gov:%s", BOOSTPULSE_PATH);
+                return;
+        }
+        write(mFd1,"1",strlen("1"));
         close(mFd1);
     }
 
