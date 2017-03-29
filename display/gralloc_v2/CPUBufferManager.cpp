@@ -17,6 +17,8 @@
 
 #include <BufferManager.h>
 #include <ion/ion.h>
+#include <linux/mxc_ion.h>
+#include <ion_ext.h>
 
 using namespace android;
 

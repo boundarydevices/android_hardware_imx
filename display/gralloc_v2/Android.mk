@@ -31,7 +31,9 @@ LOCAL_SRC_FILES := 	\
     CPUBufferManager.cpp \
     GPUBufferManager.cpp
 
-LOCAL_C_INCLUDES += device/fsl-proprietary/include
+LOCAL_C_INCLUDES += device/fsl-proprietary/include \
+                    device/fsl/common/kernel-headers \
+                    hardware/imx/include
 
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"$(TARGET_BOARD_PLATFORM).gralloc\" -D_LINUX
