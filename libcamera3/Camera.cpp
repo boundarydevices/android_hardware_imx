@@ -39,6 +39,7 @@
 #include "Ov5640Csi8MQ.h"
 #include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
+#include "Tc358743.h"
 #include "TVIN8DvDevice.h"
 #include "TVINDevice.h"
 #include "UvcDevice.h"
@@ -107,6 +108,10 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
         device = UvcDevice::newInstance(id, name, facing, orientation, path);
 #endif
 #endif
+    }
+    else if (strstr(name, TC358743_NAME)) {
+        ALOGI("create id:%d tc358743 device", id);
+        device = new Tc358743(id, facing, orientation, path);
     }
     else if (strstr(name, OV5640_SENSOR_NAME)) {
 #ifdef VADC_TVIN

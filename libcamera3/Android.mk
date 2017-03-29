@@ -56,6 +56,7 @@ LOCAL_SRC_FILES := \
     DMAStream.cpp \
     UvcDevice.cpp \
     Uvc7ulpDevice.cpp \
+    Tc358743.cpp \
     TVINDevice.cpp \
     TVIN8DvDevice.cpp \
     VADCTVINDevice.cpp \
