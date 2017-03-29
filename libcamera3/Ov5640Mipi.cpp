@@ -177,6 +177,113 @@ status_t Ov5640Mipi::initSensorStaticData()
     return NO_ERROR;
 }
 
+uint8_t Ov5640Mipi::getAutoFocusStatus(uint8_t mode)
+{
+    struct v4l2_control c;
+    uint8_t ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    int result;
+
+    int32_t fd = open(mDevPath, O_RDWR);
+    if (fd < 0) {
+        ALOGE("couldn't open device %s", mDevPath);
+        return ret;
+    }
+
+    c.id = V4L2_CID_AUTO_FOCUS_STATUS;
+    result = ioctl(fd, VIDIOC_G_CTRL, &c);
+    if (result != 0) {
+        ALOGE("ioctl error: %d", result);
+        goto end;
+    }
+
+    switch (c.value) {
+    case V4L2_AUTO_FOCUS_STATUS_BUSY:
+        if ((mode == ANDROID_CONTROL_AF_MODE_AUTO) ||
+            (mode == ANDROID_CONTROL_AF_MODE_MACRO))
+            ret = ANDROID_CONTROL_AF_STATE_ACTIVE_SCAN;
+        else
+            ret = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+        break;
+    case V4L2_AUTO_FOCUS_STATUS_REACHED:
+        ret = ANDROID_CONTROL_AF_STATE_FOCUSED_LOCKED;
+        break;
+    case V4L2_AUTO_FOCUS_STATUS_FAILED:
+    case V4L2_AUTO_FOCUS_STATUS_IDLE:
+    default:
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    }
+end:
+    close(fd);
+    return ret;
+}
+
+#define OV5640_AF_ZONE_ARRAY_WIDTH	80
+void Ov5640Mipi::setAutoFocusRegion(int x, int y)
+{
+    struct v4l2_control c;
+    int result;
+    /* Android provides coordinates scaled to max picture resolution */
+    float ratio = (float)mVideoStream->getWidth() / mVideoStream->getHeight();
+    int scaled_x = x / (mMaxWidth / OV5640_AF_ZONE_ARRAY_WIDTH);
+    int scaled_y = y / (mMaxHeight / (OV5640_AF_ZONE_ARRAY_WIDTH / ratio));
+
+    int32_t fd = open(mDevPath, O_RDWR);
+    if (fd < 0) {
+        ALOGE("couldn't open device %s", mDevPath);
+        return;
+    }
+
+    /* Using custom implementation of the absolute focus ioctl for ov5640 */
+    c.id = V4L2_CID_FOCUS_ABSOLUTE;
+    c.value = ((scaled_x & 0xFFFF) << 16) + (scaled_y & 0xFFFF);
+    result = ioctl(fd, VIDIOC_S_CTRL, &c);
+    if (result != 0)
+        ALOGE("ioctl error: %d", result);
+
+    close(fd);
+    return;
+}
+
+uint8_t Ov5640Mipi::doAutoFocus(uint8_t mode)
+{
+    struct v4l2_control c;
+    uint8_t ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    int result;
+
+    int32_t fd = open(mDevPath, O_RDWR);
+    if (fd < 0) {
+        ALOGE("couldn't open device %s", mDevPath);
+        return ret;
+    }
+
+    switch (mode) {
+    case ANDROID_CONTROL_AF_MODE_AUTO:
+    case ANDROID_CONTROL_AF_MODE_MACRO:
+        ret = ANDROID_CONTROL_AF_STATE_ACTIVE_SCAN;
+        c.id = V4L2_CID_AUTO_FOCUS_START;
+        break;
+    case ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO:
+    case ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE:
+        ret = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+        c.id = V4L2_CID_FOCUS_AUTO;
+        c.value = 1;
+        break;
+    case ANDROID_CONTROL_AF_MODE_OFF:
+    default:
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+        c.id = V4L2_CID_AUTO_FOCUS_STOP;
+    }
+    result = ioctl(fd, VIDIOC_S_CTRL, &c);
+    if (result != 0) {
+        ALOGE("ioctl error: %d", result);
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    }
+
+    close(fd);
+
+    return ret;
+}
+
 // configure device.
 int32_t Ov5640Mipi::OvStream::onDeviceConfigureLocked()
 {
