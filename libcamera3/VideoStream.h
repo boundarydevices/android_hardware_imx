@@ -57,6 +57,9 @@ public:
 
     virtual void* getG2dHandle() {return g2dHandle;}
 
+    int32_t getWidth() {return mWidth;}
+    int32_t getHeight() {return mHeight;}
+
 private:
     // message type.
     static const int32_t MSG_CONFIG = 0x100;
