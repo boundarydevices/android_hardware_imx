@@ -29,6 +29,10 @@ public:
 
     virtual status_t initSensorStaticData();
 
+    virtual uint8_t doAutoFocus(uint8_t mode);
+    virtual uint8_t getAutoFocusStatus(uint8_t mode);
+    virtual void    setAutoFocusRegion(int x, int y);
+
 private:
     class OvStream : public MMAPStream {
     public:
