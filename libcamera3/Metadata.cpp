@@ -203,7 +203,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
             ARRAY_SIZE(android_control_ae_compensation_step),
             android_control_ae_compensation_step);
 
-    int32_t android_control_max_regions[] = {/*AE*/ 0, /*AWB*/ 0, /*AF*/ 0};
+    int32_t android_control_max_regions[] = {/*AE*/ 1, /*AWB*/ 0, /*AF*/ 1};
     m.addInt32(ANDROID_CONTROL_MAX_REGIONS,
             ARRAY_SIZE(android_control_max_regions),
             android_control_max_regions);
@@ -240,6 +240,21 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     m.addUInt8(ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
             ARRAY_SIZE(android_lens_info_available_optical_stabilization),
             android_lens_info_available_optical_stabilization);
+
+    float minFocusDistance = 1.0/0.05; /* 5cm */
+    m.addFloat(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE, 1, &minFocusDistance);
+
+    float hypFocusDistance = 1.0/0.05; /* 5cm */
+    m.addFloat(ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE, 1, &hypFocusDistance);
+
+    const uint8_t availableAfModes[] = {
+        ANDROID_CONTROL_AF_MODE_OFF,
+        ANDROID_CONTROL_AF_MODE_AUTO,
+        ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE,
+        ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO,
+    };
+    m.addUInt8(ANDROID_CONTROL_AF_AVAILABLE_MODES, sizeof(availableAfModes),
+               availableAfModes);
 
     /* android.request */
     int32_t android_request_max_num_output_streams[] = {0, 3, 1};
@@ -491,9 +506,6 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
 
     static const uint8_t availableAeModes[] = {ANDROID_CONTROL_AE_MODE_OFF, ANDROID_CONTROL_AE_MODE_ON};
     m.addUInt8(ANDROID_CONTROL_AE_AVAILABLE_MODES, ARRAY_SIZE(availableAeModes), availableAeModes);
-
-    static const uint8_t availableAfModes[] = {ANDROID_CONTROL_AF_MODE_OFF};
-    m.addUInt8(ANDROID_CONTROL_AF_AVAILABLE_MODES, ARRAY_SIZE(availableAfModes), availableAfModes);
 
     static const uint8_t availableAwbModes[] = {
         ANDROID_CONTROL_AWB_MODE_OFF,
@@ -845,6 +857,12 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     static const uint8_t aeAntibandingMode =
             ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
     base.addUInt8(ANDROID_CONTROL_AE_ANTIBANDING_MODE, 1, &aeAntibandingMode);
+
+    static const int32_t controlRegions[5] = {
+        0, 0, 0, 0, 0
+    };
+    base.addInt32(ANDROID_CONTROL_AE_REGIONS, 5, controlRegions);
+    base.addInt32(ANDROID_CONTROL_AF_REGIONS, 5, controlRegions);
 
     uint8_t afMode = 0;
     switch (request_template) {
