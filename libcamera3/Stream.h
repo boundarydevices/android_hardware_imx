@@ -24,6 +24,8 @@
 #include <utils/RefBase.h>
 #include <linux/ipu.h>
 #include <ion/ion.h>
+#include <linux/mxc_ion.h>
+#include <ion_ext.h>
 #include "JpegBuilder.h"
 #include "g2d.h"
 

@@ -28,6 +28,8 @@ LOCAL_C_INCLUDES += \
     external/jpeg \
     external/jhead \
     device/fsl-proprietary/include \
+    device/fsl/common/kernel-headers \
+    hardware/imx/include \
     external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
     external/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
     hardware/imx/display/gralloc_v2 \
