@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,6 +125,14 @@ int BufferManager::alloc(int w, int h, int format, int usage,
             size = alignedw * alignedh * bpp;
             break;
 
+        case HAL_PIXEL_FORMAT_BLOB:
+            alignedw = ALIGN_PIXEL_16(w);
+            alignedh = h;
+            size = alignedw * alignedh;
+            format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+            if(h != 1)
+                ALOGW("%s, BLOB format, w %d, h %d is not 1 !!!", __FUNCTION__, w, h);
+            break;
         case HAL_PIXEL_FORMAT_YCbCr_420_888:
             // now, take the flex format as NV12.
             // this format should only be known in framework.
