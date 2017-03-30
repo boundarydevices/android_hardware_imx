@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -144,9 +145,7 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     if (s->format == HAL_PIXEL_FORMAT_BLOB) {
         ALOGI("%s create capture stream", __func__);
         mJpeg = true;
-        mFormat = mCamera->getPicturePixelFormat();
-        s->format = mFormat;
-
+        mFormat = s->format;
         mUsage = CAMERA_GRALLOC_USAGE_JPEG;
         mNumBuffers = NUM_CAPTURE_BUFFER;
     }
