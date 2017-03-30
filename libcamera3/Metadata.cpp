@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -307,6 +308,11 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
             android_sensor_orientation);
 #endif
     /* End of static camera characteristics */
+
+    uint8_t availableSceneModes[] = {ANDROID_CONTROL_SCENE_MODE_DISABLED};
+    m.addUInt8(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
+             ARRAY_SIZE(availableSceneModes),
+             availableSceneModes);
 
     return clone_camera_metadata(m.get());
 }
