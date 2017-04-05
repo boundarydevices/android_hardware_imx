@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
-/* Copyright 2017 NXP */
+/* Copyright 2017-2018 NXP */
 
 #define LOG_TAG "audio_hw_primary"
 //#define LOG_NDEBUG 0
@@ -53,6 +53,7 @@
 #include "config_cdnhdmi.h"
 #include "control.h"
 #include "pcm_ext.h"
+#include "config_xtor.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -92,12 +93,14 @@
 
 #define MM_USB_AUDIO_IN_RATE   16000
 
+#define SCO_RATE 16000
+
 /* product-specific defines */
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        11
+#define SUPPORT_CARD_NUM        12
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -112,6 +115,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &rpmsg_card,
     &wm8524_card,
     &cdnhdmi_card,
+    &xtor_card,
     &null_card,
 };
 
@@ -139,6 +143,25 @@ struct pcm_config pcm_config_esai_multi = {
     .rate = MM_FULL_POWER_SAMPLING_RATE, /* changed when the stream is opened */
     .period_size = ESAI_PERIOD_SIZE,
     .period_count = PLAYBACK_ESAI_PERIOD_COUNT,
+    .format = PCM_FORMAT_S16_LE,
+    .start_threshold = 0,
+    .avail_min = 0,
+};
+struct pcm_config pcm_config_sco_out = {
+    .channels = 2,
+    .rate = SCO_RATE,
+    .period_size = LONG_PERIOD_SIZE,
+    .period_count = PLAYBACK_LONG_PERIOD_COUNT,
+    .format = PCM_FORMAT_S16_LE,
+    .start_threshold = 0,
+    .avail_min = 0,
+};
+
+struct pcm_config pcm_config_sco_in = {
+    .channels = 2,
+    .rate = SCO_RATE,
+    .period_size = CAPTURE_PERIOD_SIZE,
+    .period_count = CAPTURE_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
     .start_threshold = 0,
     .avail_min = 0,
@@ -485,6 +508,24 @@ static void select_input_device(struct imx_audio_device *adev)
     }
 }
 
+static int get_card_for_bt_sai(struct imx_audio_device *adev, int *card_index)
+{
+    int i;
+    int card = -1;
+
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+        if(strcmp(adev->card_list[i]->name, BT_SAI_CARD_NAME) == 0) {
+              card = adev->card_list[i]->card;
+              break;
+        }
+    }
+
+    if (card_index != NULL)
+        *card_index = i;
+
+    return card;
+}
+
 static int get_card_for_device(struct imx_audio_device *adev, int device, unsigned int flag, int *card_index)
 {
     int i;
@@ -499,7 +540,7 @@ static int get_card_for_device(struct imx_audio_device *adev, int device, unsign
         }
     } else {
         for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
-            if(adev->card_list[i]->supported_in_devices & device) {
+            if(adev->card_list[i]->supported_in_devices & device & ~AUDIO_DEVICE_BIT_IN) {
                   card = adev->card_list[i]->card;
                   break;
             }
@@ -876,7 +917,8 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
     struct imx_audio_device *adev = out->dev;
     int i;
 
-    if (!force_standby && !strcmp(adev->card_list[out->card_index]->driver_name, "wm8962-audio")) {
+    if ( (adev->mode == AUDIO_MODE_IN_CALL) ||
+        (!force_standby && !strcmp(adev->card_list[out->card_index]->driver_name, "wm8962-audio")) ) {
         ALOGW("no standby");
         return 0;
     }
@@ -1150,6 +1192,7 @@ static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes)
 static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes, int flags)
 {
     int ret = 0;
+
     if(flags & PCM_MMAP)
          ret = pcm_mmap_write(pcm, (void *)buffer, bytes);
     else
@@ -1193,8 +1236,14 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
      * on the output stream mutex - e.g. executing select_mode() while holding the hw device
      * mutex
      */
+
+
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
+
+    if(adev->b_sco_rx_running)
+        ALOGW("out_write_primary, bt receive task is running");
+
     if (out->standby) {
         ret = start_output_stream_primary(out);
         if (ret != 0) {
@@ -1231,6 +1280,7 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
         get_playback_delay(out, out_frames, &b);
         out->echo_reference->write(out->echo_reference, &b);
     }
+
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
     /* Write to all active PCMs */
     for (i = 0; i < PCM_TOTAL; i++) {
@@ -2929,6 +2979,368 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     free(stream);
 }
 
+static struct pcm *SelectPcm(struct imx_stream_out *stream_out, int *flag)
+{
+    struct pcm *curPcm = NULL;
+    int curDev = 0;
+
+    if((stream_out == NULL) || (flag == NULL))
+        return NULL;
+
+    curDev = stream_out->device;
+    ALOGI("SelectPcm, curDev 0x%x, hdmi pcm %p", curDev, stream_out->pcm[PCM_HDMI]);
+
+    if(stream_out->pcm[PCM_HDMI]) {
+        curPcm = stream_out->pcm[PCM_HDMI];
+        *flag = stream_out->write_flags[PCM_HDMI];
+        return curPcm;
+    }
+
+    if(AUDIO_DEVICE_OUT_SPEAKER == curDev) {
+        curPcm = stream_out->pcm[PCM_NORMAL];
+        *flag = stream_out->write_flags[PCM_NORMAL];
+    } else if(AUDIO_DEVICE_OUT_HDMI == curDev) {
+        curPcm = stream_out->pcm[PCM_HDMI];
+        *flag = stream_out->write_flags[PCM_HDMI];
+    } else {
+        ALOGE("SelectPcm, no pcm found for device 0x%x", curDev);
+    }
+
+    return curPcm;
+}
+
+static void* sco_rx_task(void *arg)
+{
+    int ret = 0;
+    uint32_t size = 0;
+    uint32_t frames = 0;
+    uint32_t out_frames = 0;
+    uint32_t out_size = 0;
+    uint8_t *buffer = NULL;
+    struct pcm *out_pcm = NULL;
+    struct imx_stream_out *stream_out = NULL;
+    struct imx_audio_device *adev = (struct imx_audio_device *)arg;
+    int flag = 0;
+
+    if(adev == NULL)
+        return NULL;
+
+    frames = pcm_config_sco_in.period_size;
+    size = pcm_frames_to_bytes(adev->pcm_sco_rx, frames);
+    buffer = (uint8_t *)malloc(size);
+    if(buffer == NULL) {
+        ALOGE("sco_rx_task, malloc %d bytes failed", size);
+        return NULL;
+    }
+
+    ALOGI("enter sco_rx_task, pcm_sco_rx frames %d, szie %d", frames, size);
+
+    stream_out = adev->active_output[OUTPUT_PRIMARY];
+    if(NULL == stream_out) {
+        ALOGE("sco_rx_task, stream_out for OUTPUT_PRIMARY is null");
+        return NULL;
+    }
+
+    out_pcm = SelectPcm(stream_out, &flag);
+    if(NULL == out_pcm) {
+        ALOGE("sco_rx_task, out_pcm is null");
+        return NULL;
+    }
+
+    while(adev->b_sco_rx_running) {
+        ret = pcm_read(adev->pcm_sco_rx, buffer, size);
+        if(ret) {
+            ALOGE("sco_rx_task, pcm_read ret %d, size %d, %s",
+                ret, size, pcm_get_error(adev->pcm_sco_rx));
+            usleep(2000);
+            continue;
+        }
+
+        frames = pcm_config_sco_in.period_size;
+        out_frames = stream_out->buffer_frames;
+        adev->rsmpl_sco_rx->resample_from_input(adev->rsmpl_sco_rx,
+                                                (int16_t *)buffer,
+                                                &frames,
+                                                (int16_t *)stream_out->buffer,
+                                                &out_frames);
+
+        ALOGV("sco_rx_task, resample_from_input, in frames %d, %d, out_frames %d, %d",
+            pcm_config_sco_in.period_size, frames,
+            stream_out->buffer_frames, out_frames);
+
+        out_size = pcm_frames_to_bytes(out_pcm, out_frames);
+        pthread_mutex_lock(&stream_out->lock);
+        ret = pcm_write_wrapper(out_pcm, stream_out->buffer, out_size, flag);
+        pthread_mutex_unlock(&stream_out->lock);
+        if(ret) {
+            ALOGE("sco_rx_task, pcm_write ret %d, size %d, %s",
+                ret, out_size, pcm_get_error(out_pcm));
+            usleep(2000);
+        }
+    }
+
+    free(buffer);
+    ALOGI("leave sco_rx_task");
+
+    return NULL;
+}
+
+static void* sco_tx_task(void *arg)
+{
+    int ret = 0;
+    uint32_t size = 0;
+    uint32_t frames = 0;
+    uint8_t *buffer = NULL;
+    uint32_t out_frames = 0;
+    uint32_t out_size = 0;
+    uint8_t *out_buffer = NULL;
+
+    struct imx_audio_device *adev = (struct imx_audio_device *)arg;
+    if(adev == NULL)
+        return NULL;
+
+    frames = adev->cap_config.period_size;
+    size = pcm_frames_to_bytes(adev->pcm_cap , frames);
+    buffer = (uint8_t *)malloc(size);
+    if(buffer == NULL) {
+        ALOGE("sco_tx_task, malloc %d bytes failed", size);
+        return NULL;
+    }
+
+    ALOGI("enter sco_tx_task, pcm_cap frames %d, szie %d", frames, size);
+
+    out_frames = pcm_config_sco_out.period_size * 2;
+    out_size = pcm_frames_to_bytes(adev->pcm_sco_tx, out_frames);
+    out_buffer = (uint8_t *)malloc(out_size);
+    if(out_buffer == NULL) {
+        ALOGE("sco_tx_task, malloc out_buffer %d bytes failed", out_size);
+        return NULL;
+    }
+
+    while(adev->b_sco_tx_running) {
+        ret = pcm_read(adev->pcm_cap, buffer, size);
+        if(ret) {
+            ALOGI("sco_tx_task, pcm_read ret %d, size %d, %s",
+                ret, size, pcm_get_error(adev->pcm_cap));
+            continue;
+        }
+
+        frames = adev->cap_config.period_size;
+        out_frames = pcm_config_sco_out.period_size * 2;
+        adev->rsmpl_sco_tx->resample_from_input(adev->rsmpl_sco_tx,
+                                                (int16_t *)buffer,
+                                                &frames,
+                                                (int16_t *)out_buffer,
+                                                &out_frames);
+
+        ALOGV("sco_tx_task, resample_from_input, in frames %d, %d, out_frames %d, %d",
+            adev->cap_config.period_size, frames,
+            pcm_config_sco_out.period_size * 2, out_frames);
+
+        out_size = pcm_frames_to_bytes(adev->pcm_sco_tx, out_frames);
+        ret = pcm_write(adev->pcm_sco_tx, out_buffer, out_size);
+        if(ret) {
+            ALOGE("sco_tx_task, pcm_write ret %d, size %d, %s",
+                ret, out_size, pcm_get_error(adev->pcm_sco_tx));
+        }
+    }
+
+    free(buffer);
+    free(out_buffer);
+    ALOGI("leave sco_tx_task");
+
+    return NULL;
+}
+
+static int sco_release_resource(struct imx_audio_device *adev)
+{
+    if(NULL == adev)
+        return -1;
+
+    // release rx resource
+    if(adev->tid_sco_rx) {
+        adev->b_sco_rx_running = false;
+        pthread_join(adev->tid_sco_rx, NULL);
+    }
+
+    if(adev->pcm_sco_rx) {
+        pcm_close(adev->pcm_sco_rx);
+        adev->pcm_sco_rx = NULL;
+    }
+
+    if(adev->rsmpl_sco_rx) {
+        release_resampler(adev->rsmpl_sco_rx);
+        adev->rsmpl_sco_rx = NULL;
+    }
+
+    // release tx resource
+    if(adev->tid_sco_tx) {
+        adev->b_sco_tx_running = false;
+        pthread_join(adev->tid_sco_tx, NULL);
+    }
+
+    if(adev->pcm_sco_tx) {
+        pcm_close(adev->pcm_sco_tx);
+        adev->pcm_sco_tx = NULL;
+    }
+
+    if(adev->rsmpl_sco_tx) {
+        release_resampler(adev->rsmpl_sco_tx);
+        adev->rsmpl_sco_tx = NULL;
+    }
+
+    if(adev->pcm_cap){
+        pcm_close(adev->pcm_cap);
+        adev->pcm_cap = NULL;
+    }
+
+    return 0;
+}
+
+static int sco_task_create(struct imx_audio_device *adev)
+{
+    int ret = 0;
+    unsigned int port = 0;
+    unsigned int card = 0;
+    pthread_t tid_sco_rx = 0;
+    pthread_t tid_sco_tx = 0;
+    pthread_attr_t attr;
+    struct sched_param schParam;
+
+    if(NULL == adev)
+        return -1;
+
+    /*=============== create rx task ===============*/
+    ALOGI("prepare bt rx task");
+    //open sco card for read
+    card = get_card_for_bt_sai(adev, NULL);
+    pcm_config_sco_in.period_size =  pcm_config_mm_out.period_size * pcm_config_sco_in.rate / pcm_config_mm_out.rate;
+    pcm_config_sco_in.period_count = pcm_config_mm_out.period_count;
+
+    ALOGI("set pcm_config_sco_in.period_size to %d", pcm_config_sco_in.period_size);
+    ALOGI("open sco for read, card %d, port %d", card, port);
+    ALOGI("rate %d, channel %d, period_size 0x%x, period_count %d",
+        pcm_config_sco_in.rate, pcm_config_sco_in.channels,
+        pcm_config_sco_in.period_size, pcm_config_sco_in.period_count);
+
+    adev->pcm_sco_rx = pcm_open(card, port, PCM_IN, &pcm_config_sco_in);
+    ALOGI("after pcm open, rate %d, channel %d, period_size 0x%x, period_count %d",
+        pcm_config_sco_in.rate, pcm_config_sco_in.channels,
+        pcm_config_sco_in.period_size, pcm_config_sco_in.period_count);
+
+    if (adev->pcm_sco_rx && !pcm_is_ready(adev->pcm_sco_rx)) {
+        ret = -1;
+        ALOGE("cannot open pcm_sco_rx: %s", pcm_get_error(adev->pcm_sco_rx));
+        goto error;
+    }
+
+    //create resampler
+    ret = create_resampler(pcm_config_sco_in.rate,
+                           pcm_config_mm_out.rate,
+                           2,
+                           RESAMPLER_QUALITY_DEFAULT,
+                           NULL,
+                           &adev->rsmpl_sco_rx);
+    if(ret) {
+        ALOGI("create_resampler rsmpl_sco_rx failed, ret %d", ret);
+        goto error;
+    }
+
+    ALOGI("create_resampler rsmpl_sco_rx, in rate %d, out rate %d",
+        pcm_config_sco_in.rate, pcm_config_mm_out.rate);
+
+    //create rx task, use real time thread.
+    pthread_attr_init(&attr);
+    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+    schParam.sched_priority = 3;
+    pthread_attr_setschedparam(&attr, &schParam);
+
+    adev->b_sco_rx_running = true;
+    ret = pthread_create(&tid_sco_rx, &attr, sco_rx_task, (void *)adev);
+    if(ret) {
+        goto error;
+    }
+    adev->tid_sco_rx = tid_sco_rx;
+    ALOGI("sco_rx_task create ret %d, tid_sco_rx %lld", ret, tid_sco_rx);
+
+    /*=============== create tx task ===============*/
+    ALOGI("prepare bt tx task");
+    //open sco card for write
+    card = get_card_for_bt_sai(adev, NULL);
+    ALOGI("open sco for write, card %d, port %d", card, port);
+    ALOGI("rate %d, channel %d, period_size 0x%x",
+        pcm_config_sco_out.rate, pcm_config_sco_out.channels, pcm_config_sco_out.period_size);
+
+    adev->pcm_sco_tx = pcm_open(card, port, PCM_OUT, &pcm_config_sco_out);
+    if (adev->pcm_sco_tx && !pcm_is_ready(adev->pcm_sco_tx)) {
+        ret = -1;
+        ALOGE("cannot open pcm_sco_tx: %s", pcm_get_error(adev->pcm_sco_tx));
+        goto error;
+    }
+
+    //open built-in mic for cap
+    card = get_card_for_device(adev, AUDIO_DEVICE_IN_BUILTIN_MIC, PCM_IN, NULL);
+    adev->cap_config = pcm_config_sco_out;
+    adev->cap_config.rate = 48000;
+    adev->cap_config.period_size = pcm_config_sco_out.period_size * adev->cap_config.rate / pcm_config_sco_out.rate;
+    ALOGW(" open mic, card %d, port %d", card, port);
+    ALOGW("rate %d, channel %d, period_size 0x%x",
+        adev->cap_config.rate, adev->cap_config.channels, adev->cap_config.period_size);
+
+    adev->pcm_cap = pcm_open(card, port, PCM_IN, &adev->cap_config);
+    if (adev->pcm_cap && !pcm_is_ready(adev->pcm_cap)) {
+        ret = -1;
+        ALOGE("cannot open pcm_cap: %s", pcm_get_error(adev->pcm_cap));
+        goto error;
+    }
+
+    //create resampler
+    ret = create_resampler(adev->cap_config.rate,
+                         pcm_config_sco_out.rate,
+                         2,
+                         RESAMPLER_QUALITY_DEFAULT,
+                         NULL,
+                         &adev->rsmpl_sco_tx);
+    if(ret) {
+      ALOGI("create_resampler rsmpl_sco_tx failed, ret %d", ret);
+      goto error;
+    }
+
+    ALOGI("create_resampler rsmpl_sco_tx, in rate %d, out rate %d",
+        adev->cap_config.rate, pcm_config_sco_out.rate);
+
+    //create tx task, use real time thread.
+    pthread_attr_init(&attr);
+    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+    schParam.sched_priority = 3;
+    pthread_attr_setschedparam(&attr, &schParam);
+
+    adev->b_sco_tx_running = true;
+    ret = pthread_create(&tid_sco_tx, &attr, sco_tx_task, (void *)adev);
+    if(ret) {
+        goto error;
+    }
+    adev->tid_sco_tx = tid_sco_tx;
+    ALOGI("sco_tx_task create ret %d, tid_sco_tx %d", ret, tid_sco_tx);
+
+    return 0;
+
+error:
+    sco_release_resource(adev);
+    return ret;
+}
+
+static int sco_task_destroy(struct imx_audio_device *adev)
+{
+    int ret;
+
+    ALOGI("enter sco_task_destroy");
+    ret = sco_release_resource(adev);
+    ALOGI("leave sco_task_destroy");
+
+    return ret;
+}
+
 static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
 {
     struct imx_audio_device *adev = (struct imx_audio_device *)dev;
@@ -2981,6 +3393,25 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
             adev->low_power = false;
         else
             adev->low_power = true;
+    }
+
+    ret = str_parms_get_str(parms, "hfp_set_sampling_rate", value, sizeof(value));
+    if (ret >= 0) {
+        int rate = atoi(value);
+        ALOGI("hfp_set_sampling_rate, %d", rate);
+        pcm_config_sco_in.rate = rate;
+        pcm_config_sco_out.rate = rate;
+    }
+
+    ret = str_parms_get_str(parms, "hfp_enable", value, sizeof(value));
+    if (ret >= 0) {
+        if(0 == strcmp(value, "true")) {
+            ret = sco_task_create(adev);
+            ALOGI("sco_task_create, ret %d", ret);
+        } else {
+            ret = sco_task_destroy(adev);
+            ALOGI("sco_task_destroy, ret %d", ret);
+        }
     }
 
 done:

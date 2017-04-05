@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
+/* Copyright 2017-2018 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
@@ -114,6 +115,16 @@ struct imx_audio_device {
     unsigned int default_rate;               /*HAL input samplerate*/
     unsigned int mm_rate;                    /*HAL hardware output samplerate*/
     char usb_card_name[128];
+    struct pcm *pcm_sco_rx;
+    struct pcm *pcm_sco_tx;
+    pthread_t tid_sco_rx;
+    pthread_t tid_sco_tx;
+    bool b_sco_rx_running;
+    bool b_sco_tx_running;
+    struct resampler_itfe *rsmpl_sco_rx;
+    struct resampler_itfe *rsmpl_sco_tx;
+    struct pcm *pcm_cap;
+    struct pcm_config cap_config;
 };
 
 struct imx_stream_out {
