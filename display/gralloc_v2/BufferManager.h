@@ -62,6 +62,7 @@ public:
 
     int initialize(int fb);
     int allocFrameBuffer(size_t size, int usage, buffer_handle_t* pHandle);
+    int freeFrameBuffer(private_handle_t* hnd);
 
     static int postBuffer(struct framebuffer_device_t* dev, buffer_handle_t buffer);
     static int setUpdateRect(struct framebuffer_device_t* dev,

@@ -487,11 +487,14 @@ int Display::uninitialize()
 {
     Mutex::Autolock _l(mLock);
 
-    size_t fbSize = mFramebuffer->size;
+    size_t fbSize = roundUpToPageSize(mFinfo.line_length * mInfo.yres_virtual);
     int fd = mFramebuffer->fd;
     // unmap framebuffer should be done at gralloc_free;
     //void* addr = (void*)(module->framebuffer->base);
     //munmap(addr, fbSize);
+    void* addr = (void*)(mFramebuffer->base);
+    if(munmap(addr, fbSize) < 0)
+        ALOGE("Could not unmap %s", strerror(errno));
     delete (mFramebuffer);
     mFramebuffer = NULL;
     mBufferMask = 0;
@@ -602,6 +605,20 @@ int Display::allocFrameBuffer(size_t size, int usage, buffer_handle_t* pHandle)
     hnd->phys = intptr_t(mFramebuffer->phys) + hnd->offset;
     *pHandle = hnd;
 
+    return 0;
+}
+
+int Display::freeFrameBuffer(private_handle_t* hnd)
+{
+    if(mFramebuffer){
+        #ifdef IMX_8DV_ALIGN_WORKAROUND
+        const size_t bufferSize = mFinfo.line_length * mInfo.yres;
+        #else
+        const size_t bufferSize = mFinfo.line_length * ALIGN_PIXEL_16(mInfo.yres);
+        #endif
+        int index = (hnd->base - mFramebuffer->base)/bufferSize;
+        mBufferMask &= ~(1<<index);
+    }
     return 0;
 }
 

@@ -129,17 +129,26 @@ int GPUBufferManager::freeBuffer(buffer_handle_t handle)
     }
 
     private_handle_t* hnd = (private_handle_t*)handle;
+    int dispid = 0;
     // free framebuffer.
     if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
         /* XXX: Un-wrap the framebuffer. */
         unwrapHandle(hnd);
 
+        if(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER_X)
+            dispid = 1;
+        else
+            dispid = 0;
+        Display* display = getDisplay(dispid);
+        display->freeFrameBuffer(hnd);
+        #if 0
         if (hnd->base) {
             // unmap framebuffer here.
             if (munmap((void*)hnd->base, hnd->size) < 0) {
                 ALOGE("Could not unmap %s", strerror(errno));
             }
         }
+        #endif
 
         destroyPrivateHandle(hnd);
         return 0;
