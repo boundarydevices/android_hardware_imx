@@ -50,28 +50,7 @@
 #include "config_sii902x.h"
 #include "config_rpmsg.h"
 #include "control.h"
-
-#define PCM_HW_PARAM_ACCESS 0
-#define PCM_HW_PARAM_FORMAT 1
-#define PCM_HW_PARAM_SUBFORMAT 2
-#define PCM_HW_PARAM_FIRST_MASK PCM_HW_PARAM_ACCESS
-#define PCM_HW_PARAM_LAST_MASK PCM_HW_PARAM_SUBFORMAT
-#define PCM_HW_PARAM_SAMPLE_BITS 8
-#define PCM_HW_PARAM_FRAME_BITS 9
-#define PCM_HW_PARAM_CHANNELS 10
-#define PCM_HW_PARAM_RATE 11
-#define PCM_HW_PARAM_PERIOD_TIME 12
-#define PCM_HW_PARAM_PERIOD_SIZE 13
-#define PCM_HW_PARAM_PERIOD_BYTES 14
-#define PCM_HW_PARAM_PERIODS 15
-#define PCM_HW_PARAM_BUFFER_TIME 16
-#define PCM_HW_PARAM_BUFFER_SIZE 17
-#define PCM_HW_PARAM_BUFFER_BYTES 18
-#define PCM_HW_PARAM_TICK_TIME 19
-#define PCM_HW_PARAM_FIRST_INTERVAL PCM_HW_PARAM_SAMPLE_BITS
-#define PCM_HW_PARAM_LAST_INTERVAL PCM_HW_PARAM_TICK_TIME
-#define PCM_HW_PARAMS_NORESAMPLE (1<<0)
-
+#include "pcm_ext.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -2289,11 +2268,13 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
     int times, diff;
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
     if (in->pcm == NULL)  return 0;
-#ifdef BRILLO
-    times = 0;
-#else
-    times = pcm_get_time_of_xrun(in->pcm);
-#endif
+
+    if(pcm_get_time_of_xrun == NULL) {
+        times = 0;
+    } else {
+        times = pcm_get_time_of_xrun(in->pcm);
+    }
+
     diff = times - in->last_time_of_xrun;
     ALOGW_IF((diff != 0), "in_get_input_frames_lost %d ms total %d ms\n",diff, times);
     in->last_time_of_xrun = times;
