@@ -20,6 +20,7 @@
 
 #define HDMI_PLUG_EVENT "hdmi_video"
 #define HDMI_PLUG_CHANGE "change@"
+#define HDMI_EXTCON "extcon"
 #define HDMI_SII902_PLUG_EVENT "change@/devices/platform/sii902x.0"
 
 using namespace android;
@@ -119,7 +120,8 @@ bool UeventThread::threadLoop() {
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
     int type = -1;
     if (strstr(uevent_desc, HDMI_PLUG_EVENT) != NULL &&
-         strstr(uevent_desc, HDMI_PLUG_CHANGE) != NULL) {
+         strstr(uevent_desc, HDMI_PLUG_CHANGE) != NULL &&
+         strstr(uevent_desc, HDMI_EXTCON) == NULL) {
         type = HWC_DISPLAY_HDMI;
     }
     else if (!strncmp(uevent_desc, pSii902, strlen(pSii902))) {
