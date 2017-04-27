@@ -299,8 +299,8 @@ int mapFrameBufferLocked(struct private_module_t* module)
 
     uint64_t  refreshQuotient =
     (
-            uint64_t( info.upper_margin + info.lower_margin + info.yres )
-            * ( info.left_margin  + info.right_margin + info.xres )
+            uint64_t( info.upper_margin + info.lower_margin + info.yres + info.vsync_len)
+            * ( info.left_margin  + info.right_margin + info.xres + info.hsync_len)
             * info.pixclock
     );
 

@@ -177,7 +177,7 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
         return BAD_VALUE;
     }
 
-    refreshRate = 1000000000000LLU /
+    refreshRate = 1000000000000000LLU /
         (
          uint64_t( info.upper_margin + info.lower_margin + info.yres + info.vsync_len)
          * ( info.left_margin  + info.right_margin + info.xres + info.hsync_len)
@@ -186,7 +186,7 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
 
     if (refreshRate == 0) {
         ALOGW("invalid refresh rate, assuming 60 Hz");
-        refreshRate = 60;
+        refreshRate = 60000;
     }
 
     if (int(info.width) <= 0 || int(info.height) <= 0) {
@@ -200,22 +200,24 @@ int hwc_get_framebuffer_info(displayInfo *pInfo)
     pInfo->yres = info.yres;
     pInfo->xdpi = 1000 * (info.xres * 25.4f) / info.width;
     pInfo->ydpi = 1000 * (info.yres * 25.4f) / info.height;
-    pInfo->vsync_period  = 1000000000 / refreshRate;
+    pInfo->vsync_period  = 1000000000000 / refreshRate;
     pInfo->blank  = 0;
     pInfo->format = (info.bits_per_pixel == 32)
                          ? ((info.red.offset == 0) ? HAL_PIXEL_FORMAT_RGBA_8888 :
                             HAL_PIXEL_FORMAT_BGRA_8888)
                          : HAL_PIXEL_FORMAT_RGB_565;
 
+    float fps  = refreshRate / 1000.0f;
+
     ALOGV("using\n"
           "xres         = %d px\n"
           "yres         = %d px\n"
           "width        = %d mm (%f dpi)\n"
           "height       = %d mm (%f dpi)\n"
-          "refresh rate = %d Hz\n"
+          "refresh rate = %.2f Hz\n"
           "format       = %d\n",
           info.xres, info.yres, info.width, pInfo->xdpi / 1000.0,
-          info.height, pInfo->ydpi / 1000.0, refreshRate,
+          info.height, pInfo->ydpi / 1000.0, fps,
           pInfo->format);
 
     return NO_ERROR;

@@ -110,7 +110,7 @@ void hwc_get_framebuffer_info(struct hwc_context_t* ctx)
         return;
     }
 
-    refreshRate = 1000000000000LLU /
+    refreshRate = 1000000000000000LLU /
         (
          uint64_t( info.upper_margin + info.lower_margin + info.yres + info.vsync_len)
          * ( info.left_margin  + info.right_margin + info.xres + info.hsync_len)
@@ -119,11 +119,13 @@ void hwc_get_framebuffer_info(struct hwc_context_t* ctx)
 
     if (refreshRate == 0) {
         ALOGW("invalid refresh rate, assuming 60 Hz");
-        refreshRate = 60;
+        refreshRate = 60000;
     }
 
-    ctx->mVsyncPeriod  = 1000000000 / refreshRate;
-    ALOGI("<%s,%d> Vsync rate %d fps, frame time %llu ns", __FUNCTION__, __LINE__,
-          refreshRate, ctx->mVsyncPeriod);
+    ctx->mVsyncPeriod  = 1000000000000 / refreshRate;
+    float fps  = refreshRate / 1000.0f;
+
+    ALOGI("<%s,%d> Vsync rate %.2f fps, frame time %llu ns", __FUNCTION__, __LINE__,
+          fps, ctx->mVsyncPeriod);
 }
 
