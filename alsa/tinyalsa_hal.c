@@ -49,8 +49,8 @@
 #include "config_wm8960.h"
 #include "config_sii902x.h"
 #include "config_rpmsg.h"
+#include "control.h"
 
-#ifdef BRILLO
 #define PCM_HW_PARAM_ACCESS 0
 #define PCM_HW_PARAM_FORMAT 1
 #define PCM_HW_PARAM_SUBFORMAT 2
@@ -71,7 +71,6 @@
 #define PCM_HW_PARAM_FIRST_INTERVAL PCM_HW_PARAM_SAMPLE_BITS
 #define PCM_HW_PARAM_LAST_INTERVAL PCM_HW_PARAM_TICK_TIME
 #define PCM_HW_PARAMS_NORESAMPLE (1<<0)
-#endif
 
 
 /* ALSA ports for IMX */
