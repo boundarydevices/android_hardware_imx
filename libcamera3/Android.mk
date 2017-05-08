@@ -22,7 +22,7 @@ LOCAL_MODULE := camera.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_RELATIVE_PATH := hw
 
 LOCAL_C_INCLUDES += \
-    external/linux-lib/pxp \
+    external/imx-lib/pxp \
     system/core/include \
     system/media/camera/include \
     external/jpeg \
