@@ -1,0 +1,78 @@
+/*
+ * Copyright 2017 NXP
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef FSL_MEMORYDESC_H_
+#define FSL_MEMORYDESC_H_
+
+#include <stdint.h>
+#include <utils/Mutex.h>
+
+namespace fsl {
+
+using android::Mutex;
+
+enum {
+    FORMAT_RGBA8888 = 1,
+    FORMAT_RGBX8888 = 2,
+    FORMAT_RGB888   = 3,
+    FORMAT_RGB565   = 4,
+    FORMAT_BGRA8888 = 5,
+    FORMAT_BLOB  = 0x21,
+    FORMAT_YV12  = 0x32315659, // YCrCb 4:2:0 Planar
+    FORMAT_NV16  = 0x10, // NV16
+    FORMAT_NV21  = 0x11, // NV21
+    FORMAT_YUYV  = 0x14, // YUY2
+    FORMAT_I420  = 0x101,
+    FORMAT_NV12  = 0x103,
+};
+
+struct MemoryDesc
+{
+    static const int sMagic = 0x31415920;
+    MemoryDesc();
+    bool isValid();
+    int checkFormat();
+
+    int mMagic;
+    int mFlag;
+    int mWidth;
+    int mHeight;
+    int mFormat;
+    int mFslFormat;
+    int mStride;
+    int mBpp;
+    int mSize;
+    int64_t mProduceUsage;
+    int64_t mConsumeUsage;
+};
+
+class MemoryShadow
+{
+public:
+    MemoryShadow(bool own);
+    virtual ~MemoryShadow();
+
+    void incRef();
+    void decRef();
+
+protected:
+    bool mOwner;
+    Mutex mLock;
+    int mRefCount;
+};
+
+}
+#endif /* GRALLOC_PRIV_H_ */
