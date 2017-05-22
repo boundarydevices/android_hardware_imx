@@ -147,6 +147,14 @@ int32_t MMAPStream::onDeviceStartLocked()
                     PROT_READ | PROT_WRITE, MAP_SHARED, mDev,
                     mBuffers[i]->mPhyAddr);
         mBuffers[i]->mStream = this;
+
+	 //For mx6s capture driver, it need to query twice to get the phy address
+	 if (ioctl(mDev, VIDIOC_QUERYBUF, &buf) < 0) {
+		  ALOGE("%s VIDIOC_QUERYBUF error", __func__);
+		  return BAD_VALUE;
+	 }
+	 mBuffers[i]->mPhyAddr = buf.m.offset;
+
         memset(mBuffers[i]->mVirtAddr, 0xFF, mBuffers[i]->mSize);
     }
 
