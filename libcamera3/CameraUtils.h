@@ -42,6 +42,7 @@
 #include <cutils/properties.h>
 #include <hardware_legacy/power.h>
 #include <ui/PixelFormat.h>
+#include <graphics_ext.h>
 #include <hardware/camera3.h>
 #include "gralloc_priv.h"
 

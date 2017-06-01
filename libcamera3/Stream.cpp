@@ -19,6 +19,7 @@
 #include <hardware/camera3.h>
 #include <hardware/gralloc.h>
 #include <system/graphics.h>
+#include <graphics_ext.h>
 #include <utils/Mutex.h>
 #include <utils/StrongPointer.h>
 #include <binder/MemoryBase.h>
