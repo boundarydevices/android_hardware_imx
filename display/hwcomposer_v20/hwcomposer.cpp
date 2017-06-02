@@ -1178,11 +1178,13 @@ static void hwc_get_capabilities(struct hwc2_device* device, uint32_t* outCount,
     }
 
     if (outCapabilities) {
-        *outCapabilities = HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM |
-                           HWC2_CAPABILITY_SIDEBAND_STREAM;
+        if (outCount != NULL && *outCount >= 2) {
+            outCapabilities[0] = HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM;
+            outCapabilities[1] = HWC2_CAPABILITY_SIDEBAND_STREAM;
+        }
     }
     else if (outCount) {
-        *outCount = 1;
+        *outCount = 2;
     }
 }
 
