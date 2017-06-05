@@ -190,7 +190,7 @@ int DisplayManager::enumDisplays()
     char tmp[HWC_PATH_LENGTH];
     char value[HWC_STRING_LENGTH];
     FILE *fp;
-    int id = 0;
+    int id = 1;
     int fb = -1;
     int ret = 0;
 
@@ -231,11 +231,18 @@ int DisplayManager::enumDisplays()
             closedir(dir);
             return 0;
         }
-        FbDisplay *display = mFbDisplays[id];
+
+        FbDisplay *display = NULL;
+        if (fb == 0) {
+            display = mFbDisplays[0];
+        }
+        else {
+            display = mFbDisplays[id];
+            id++;
+        }
         display->setFb(fb);
         display->readType();
         display->readConnection();
-        id++;
         if (display->connected()) {
             display->openFb();
         }
