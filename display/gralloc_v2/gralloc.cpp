@@ -141,7 +141,7 @@ int gralloc_alloc(alloc_device_t* /*dev*/,
     desc.mWidth = w;
     desc.mHeight = h;
     desc.mFormat = format;
-    desc.mFormat = convertAndroidFormat(format);
+    desc.mFslFormat = convertAndroidFormat(format);
     desc.mProduceUsage = usage;
     desc.mFlag = flags;
     desc.checkFormat();
