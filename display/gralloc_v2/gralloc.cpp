@@ -144,6 +144,16 @@ int gralloc_alloc(alloc_device_t* /*dev*/,
     desc.mFslFormat = convertAndroidFormat(format);
     desc.mProduceUsage = usage;
     desc.mFlag = flags;
+
+    if (desc.mFslFormat == FORMAT_BLOB) {
+        // GPU can't recognize BLOB format, fake format to YUYV.
+        // size = width * height * 2;
+        // avoid height alignment issue.
+        desc.mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
+        desc.mWidth = desc.mWidth / 32;
+        desc.mHeight = desc.mHeight * 16;
+    }
+
     desc.checkFormat();
 
     int ret = pManager->allocMemory(desc, &memory);
