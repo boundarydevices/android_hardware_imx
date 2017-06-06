@@ -19,6 +19,7 @@
 
 #include "Camera.h"
 #include "USPStream.h"
+#include "MMAPStream.h"
 
 class TVINDevice : public Camera
 {
@@ -29,10 +30,10 @@ public:
     virtual status_t initSensorStaticData();
 
 private:
-    class TVinStream : public USPStream {
+    class TVinStream : public MMAPStream {
     public:
         TVinStream(Camera* device)
-            : USPStream(device) {}
+            : MMAPStream(device) {}
         virtual ~TVinStream() {}
 
         // configure device.

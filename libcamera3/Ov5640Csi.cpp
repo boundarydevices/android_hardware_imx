@@ -233,6 +233,6 @@ int32_t Ov5640Csi::OvStream::onDeviceConfigureLocked()
         ALOGI("can't support VIDIOC_S_INPUT");
     }
 
-    return USPStream::onDeviceConfigureLocked();
+    return MMAPStream::onDeviceConfigureLocked();
 }
 

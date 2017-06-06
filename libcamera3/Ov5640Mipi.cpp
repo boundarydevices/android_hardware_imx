@@ -192,6 +192,6 @@ int32_t Ov5640Mipi::OvStream::onDeviceConfigureLocked()
         return ret;
     }
 
-    return USPStream::onDeviceConfigureLocked();
+    return MMAPStream::onDeviceConfigureLocked();
 }
 

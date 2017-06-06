@@ -15,7 +15,6 @@
  */
 
 #include "TVINDevice.h"
-#include "USPStream.h"
 
 TVINDevice::TVINDevice(int32_t id, int32_t facing, int32_t orientation, char* path)
     : Camera(id, facing, orientation, path)
@@ -230,6 +229,6 @@ int32_t TVINDevice::TVinStream::onDeviceConfigureLocked()
         return ret;
     }
 
-    return USPStream::onDeviceConfigureLocked();
+    return MMAPStream::onDeviceConfigureLocked();
 }
 

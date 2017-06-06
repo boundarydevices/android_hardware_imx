@@ -193,6 +193,6 @@ int32_t Ov5642Csi::OvStream::onDeviceConfigureLocked()
         return ret;
     }
 
-    return USPStream::onDeviceConfigureLocked();
+    return MMAPStream::onDeviceConfigureLocked();
 }
 

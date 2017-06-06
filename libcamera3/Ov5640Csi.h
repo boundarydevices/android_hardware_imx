@@ -19,6 +19,7 @@
 
 #include "Camera.h"
 #include "USPStream.h"
+#include "MMAPStream.h"
 
 class Ov5640Csi : public Camera
 {
@@ -29,10 +30,10 @@ public:
     virtual status_t initSensorStaticData();
 
 private:
-    class OvStream : public USPStream {
+    class OvStream : public MMAPStream {
     public:
         OvStream(Camera* device)
-            : USPStream(device) {}
+            : MMAPStream(device) {}
         virtual ~OvStream() {}
 
         // configure device.
