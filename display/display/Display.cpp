@@ -329,7 +329,7 @@ bool Display::verifyLayers()
                 break;
 
             case LAYER_TYPE_CURSOR:
-                mLayers[i]->type = LAYER_TYPE_CURSOR;
+                mLayers[i]->type = LAYER_TYPE_DEVICE;
                 break;
 
             default:
