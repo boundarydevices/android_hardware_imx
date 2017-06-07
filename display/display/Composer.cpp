@@ -269,7 +269,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
         setClipping(srect, drect, clip, layer->transform);
         ALOGV("index:%d, i:%d sourceCrop(l:%d,t:%d,r:%d,b:%d), "
              "visible(l:%d,t:%d,r:%d,b:%d), "
-             "display(l:%d,t:%d,r:%d,b:%d)", layer->index, i,
+             "display(l:%d,t:%d,r:%d,b:%d)", layer->index, (int)i,
              srect.left, srect.top, srect.right, srect.bottom,
              clip.left, clip.top, clip.right, clip.bottom,
              drect.left, drect.top, drect.right, drect.bottom);
@@ -558,7 +558,9 @@ int Composer::setClipping(Rect& src, Rect& dst, Rect& clip, int rotation)
         return -EINVAL;
     }
 
-    return (*mSetClipping)(mHandle, (void*)clip.left, (void*)clip.top, (void*)clip.right, (void*)clip.bottom);
+    return (*mSetClipping)(mHandle, (void*)(intptr_t)clip.left,
+            (void*)(intptr_t)clip.top, (void*)(intptr_t)clip.right,
+            (void*)(intptr_t)clip.bottom);
 }
 
 int Composer::blitSurface(struct g2d_surfaceEx *srcEx, struct g2d_surfaceEx *dstEx)

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <string>
 #include <math.h>
 #include <hardware/hardware.h>
@@ -30,7 +31,7 @@ static Layer* hwc2_get_layer(hwc2_display_t display, hwc2_layer_t layer)
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return NULL;
     }
 
@@ -310,7 +311,7 @@ static int hwc2_validate_display(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -333,7 +334,7 @@ static int hwc2_set_vsync_enable(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -358,7 +359,7 @@ static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -400,7 +401,7 @@ static int hwc2_set_output_buffer(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -435,7 +436,7 @@ static int hwc2_set_color_mode(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -459,7 +460,7 @@ static int hwc2_set_client_target(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -489,7 +490,7 @@ static int hwc2_set_active_config(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -540,7 +541,7 @@ static int hwc2_present_display(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -573,7 +574,7 @@ static int hwc2_get_release_fences(hwc2_device_t* device, hwc2_display_t display
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -616,7 +617,7 @@ static int hwc2_get_hdr_capabilities(hwc2_device_t* device, hwc2_display_t displ
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -655,7 +656,7 @@ static int hwc2_get_doze_support(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -675,7 +676,7 @@ static int hwc2_get_display_type(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -706,7 +707,7 @@ static int hwc2_get_display_requests(hwc2_device_t* device, hwc2_display_t displ
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -725,7 +726,7 @@ static int hwc2_get_display_name(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -754,7 +755,7 @@ static int hwc2_get_display_configs(hwc2_device_t* device, hwc2_display_t displa
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -784,7 +785,7 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -852,7 +853,7 @@ static int hwc2_get_client_target_support(hwc2_device_t* device,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -881,7 +882,7 @@ static int hwc2_get_changed_composition_types(hwc2_device_t* device,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -901,7 +902,7 @@ static int hwc2_get_active_config(hwc2_device_t* device,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -920,7 +921,7 @@ static int hwc2_destroy_virtual_display(hwc2_device_t* device,
     DisplayManager* displayManager = DisplayManager::getInstance();
     int ret = displayManager->destroyVirtualDisplay(display);
     if (ret != 0) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -961,7 +962,7 @@ static int hwc2_destroy_layer(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -981,7 +982,7 @@ static int hwc2_create_layer(hwc2_device_t* device, hwc2_display_t display,
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
@@ -1007,7 +1008,7 @@ static int hwc2_accept_display_changes(hwc2_device_t* device, hwc2_display_t dis
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
     if (pDisplay == NULL) {
-        ALOGE("%s invalid display id:%lld", __func__, display);
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 

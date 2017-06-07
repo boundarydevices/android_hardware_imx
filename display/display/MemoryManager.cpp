@@ -67,7 +67,7 @@ int MemoryManager::verifyMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)handle->shadow;
+    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
     if (shadow == NULL) {
         ALOGE("%s buffer shadow invalid", __func__);
         return -EINVAL;
@@ -88,7 +88,7 @@ int MemoryManager::releaseMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)handle->shadow;
+    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
     if (shadow == NULL) {
         ALOGE("%s buffer handle invalid", __func__);
         return -EINVAL;

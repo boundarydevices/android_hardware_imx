@@ -440,7 +440,7 @@ int Display::composeLayersLocked()
             mComposer.unlockSurface(layer->handle);
 
         if (ret != 0) {
-            ALOGE("compose layer %d failed", i);
+            ALOGE("compose layer %zu failed", i);
             break;
         }
     }

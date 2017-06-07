@@ -111,7 +111,7 @@ int GPUManager::allocMemory(MemoryDesc& desc, Memory** out)
     }
 
     MemoryShadow* shadow = new GPUShadow(memory, true, mAlloc, mModule);
-    memory->shadow = (int)shadow;
+    memory->shadow = (int)(intptr_t)shadow;
     *out = memory;
 
     return 0;
@@ -129,7 +129,7 @@ int GPUManager::retainMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)handle->shadow;
+    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
     if (handle->pid != getpid()) {
         int ret = mModule->registerBuffer(mModule, handle);
         if (ret != 0) {
@@ -138,7 +138,7 @@ int GPUManager::retainMemory(Memory* handle)
         }
 
         shadow = new GPUShadow(handle, false, mAlloc, mModule);
-        handle->shadow = (int)shadow;
+        handle->shadow = (int)(intptr_t)shadow;
         handle->pid = getpid();
     }
     else {

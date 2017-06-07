@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <cutils/log.h>
@@ -684,7 +685,7 @@ void FbDisplay::VSyncThread::performVSync()
     }
 
     if (lasttime != 0) {
-        ALOGV("vsync period: %llu", timestamp - lasttime);
+        ALOGV("vsync period: %" PRIu64, timestamp - lasttime);
     }
 
     lasttime = timestamp;

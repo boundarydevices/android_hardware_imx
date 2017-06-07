@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <cutils/log.h>
 #include <hardware/hardware.h>
@@ -92,7 +93,7 @@ static int gralloc_unlock(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -135,7 +136,7 @@ static int gralloc_lock(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -163,7 +164,7 @@ static int gralloc_get_num_flex_planes(gralloc1_device_t* /*device*/,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -211,7 +212,7 @@ static int gralloc_lock_flex(gralloc1_device_t* /*device*/,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -266,7 +267,7 @@ static int gralloc_release(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -295,7 +296,7 @@ static int gralloc_retain(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -339,7 +340,7 @@ static int gralloc_allocate(gralloc1_device_t* device,
         Memory* memory = NULL;
         MemoryDesc* desc = (MemoryDesc*)descriptors[i];
         if (!desc || !desc->isValid() || desc->mWidth < 0 || desc->mHeight < 0) {
-            ALOGE("%s invalid descriptor:0x%llx", __func__, descriptors[i]);
+            ALOGE("%s invalid descriptor:%" PRId64, __func__, descriptors[i]);
             return GRALLOC1_ERROR_BAD_DESCRIPTOR;
         }
 
@@ -377,7 +378,7 @@ static int gralloc_get_stride(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -396,7 +397,7 @@ static int gralloc_get_produce_usage(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -415,7 +416,7 @@ static int gralloc_get_format(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -434,7 +435,7 @@ static int gralloc_get_dimension(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -454,7 +455,7 @@ static int gralloc_get_consume_usage(gralloc1_device_t* device,
 
     Memory* memory = (Memory*)buffer;
     if (!memory || !memory->isValid()) {
-        ALOGE("%s invalid memory:0x%x", __func__, (int)buffer);
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
@@ -480,7 +481,7 @@ static int gralloc_set_produce_usage(gralloc1_device_t *device,
 
     MemoryDesc* desc = (MemoryDesc*)descriptor;
     if (!desc || !desc->isValid()) {
-        ALOGE("%s invalid descriptor:0x%llx", __func__, descriptor);
+        ALOGE("%s invalid descriptor:%" PRId64, __func__, descriptor);
         return GRALLOC1_ERROR_BAD_DESCRIPTOR;
     }
 
@@ -513,7 +514,7 @@ static int gralloc_set_format(gralloc1_device_t *device,
 
     MemoryDesc* desc = (MemoryDesc*)descriptor;
     if (!desc || !desc->isValid()) {
-        ALOGE("%s invalid descriptor:0x%llx", __func__, descriptor);
+        ALOGE("%s invalid descriptor:%" PRId64, __func__, descriptor);
         return GRALLOC1_ERROR_BAD_DESCRIPTOR;
     }
 
@@ -539,7 +540,7 @@ static int gralloc_set_dimension(gralloc1_device_t *device,
 
     MemoryDesc* desc = (MemoryDesc*)descriptor;
     if (!desc || !desc->isValid()) {
-        ALOGE("%s invalid descriptor:0x%llx", __func__, descriptor);
+        ALOGE("%s invalid descriptor:%" PRId64, __func__, descriptor);
         return GRALLOC1_ERROR_BAD_DESCRIPTOR;
     }
 
@@ -559,7 +560,7 @@ static int gralloc_set_consume_usage(gralloc1_device_t *device,
 
     MemoryDesc* desc = (MemoryDesc*)descriptor;
     if (!desc || !desc->isValid()) {
-        ALOGE("%s invalid descriptor:0x%llx", __func__, descriptor);
+        ALOGE("%s invalid descriptor:%" PRId64, __func__, descriptor);
         return GRALLOC1_ERROR_BAD_DESCRIPTOR;
     }
 
@@ -590,7 +591,7 @@ static int gralloc_destroy_descriptor(gralloc1_device_t *device,
 
     MemoryDesc* desc = (MemoryDesc*)descriptor;
     if (!desc || !desc->isValid()) {
-        ALOGE("%s invalid descriptor:0x%llx", __func__, descriptor);
+        ALOGE("%s invalid descriptor:%" PRId64, __func__, descriptor);
         return GRALLOC1_ERROR_BAD_DESCRIPTOR;
     }
 

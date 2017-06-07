@@ -117,7 +117,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     memory = new Memory(&desc, sharedFd);
     getPhys(memory);
     MemoryShadow* shadow = new IonShadow(sharedFd, memory, true);
-    memory->shadow = (int)shadow;
+    memory->shadow = (intptr_t)shadow;
     *out = memory;
     ion_free(mIonFd, ion_hnd);
     close(sharedFd);
@@ -189,10 +189,10 @@ int IonManager::retainMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)handle->shadow;
+    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
     if (handle->pid != getpid()) {
         shadow = new IonShadow(handle->fd, handle, false);
-        handle->shadow = (int)shadow;
+        handle->shadow = (intptr_t)shadow;
         handle->pid = getpid();
     }
     else {
