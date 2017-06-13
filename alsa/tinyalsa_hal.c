@@ -618,6 +618,9 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
         out->pcm[PCM_HDMI] = NULL;
         return -ENOMEM;
     }
+
+    out->written = 0;
+
     return 0;
 }
 
