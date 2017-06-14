@@ -25,10 +25,11 @@ LOCAL_SRC_FILES :=  \
     framebuffer.cpp \
     gralloc.cpp
 
-LOCAL_C_INCLUDES += hardware/imx/display/display   \
-                    hardware/imx/include           \
-                    device/fsl-proprietary/include \
-                    system/core/include/
+LOCAL_C_INCLUDES += hardware/imx/display/display           \
+                    hardware/imx/include                   \
+                    device/fsl-proprietary/include         \
+                    system/core/include/                   \
+                    frameworks/native/libs/arect/include
 
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" -D_LINUX
