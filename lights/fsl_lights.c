@@ -89,7 +89,9 @@ static int set_light_backlight(struct light_device_t* dev,
     if (brightness > max_brightness) {
         brightness  = max_brightness;
     }
-    
+    if (brightness < 1) {/*target brightness should be at least 1, or backlight will off*/
+        brightness  = 1;
+    }
     ALOGV("set_light, max_brightness=%d, target brightness=%d",
         max_brightness, brightness);
 
