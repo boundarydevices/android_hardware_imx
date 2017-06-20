@@ -74,7 +74,7 @@ struct Memory : public native_handle
     int  stride;
     int  reserved[2];
     int  fslFormat;
-    int  shadow;
+    intptr_t  shadow;
 
     /* gpu private ints. */
     uint64_t gpu_priv[12];
