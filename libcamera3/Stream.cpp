@@ -257,7 +257,6 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     int32_t thumbWidth, thumbHeight;
     JpegParams *mainJpeg = NULL, *thumbJpeg = NULL;
     void *rawBuf = NULL, *thumbBuf = NULL;
-    size_t imageSize = 0;
     uint32_t v4l2Width = 0, v4l2Height = 0;
 
     StreamBuffer* dstBuf = mCurrent;
@@ -391,7 +390,6 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
         goto err_out;
     }
 
-    imageSize = mJpegBuilder->getImageSize();
     ret = mJpegBuilder->buildImage(dstBuf);
     if (ret != NO_ERROR) {
         ALOGE("%s buildImage failed", __FUNCTION__);

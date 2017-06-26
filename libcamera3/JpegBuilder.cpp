@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2017 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,8 @@ static string_pair degress_to_exif_lut[] = {
     { "180", "3"     },
     { "270", "8"     },
 };
+
+static const char ExifAsciiPrefix[] = {0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0};
 
 /* public static functions */
 const char * JpegBuilder::degreesToExifOrientation(const char *degrees) {
@@ -108,138 +110,67 @@ void JpegBuilder::stringToRational(const char   *str,
     }
 }
 
-bool JpegBuilder::isAsciiTag(const char *tag) {
-    // TODO(XXX): Add tags as necessary
-    return (strcmp(tag, TAG_GPS_PROCESSING_METHOD) == 0);
-}
-
-void JpegBuilder::insertExifToJpeg(unsigned char *jpeg,
-                                   size_t         jpeg_size) {
-    ReadMode_t read_mode = (ReadMode_t)(READ_METADATA | READ_IMAGE);
-
-    ResetJpgfile();
-    if (ReadJpegSectionsFromBuffer(jpeg, jpeg_size, read_mode)) {
-        jpeg_opened = true;
-        create_EXIF(table, exif_tag_count, gps_tag_count, has_datetime_tag);
-    }
-}
-
-status_t JpegBuilder::insertExifThumbnailImage(const char *thumb,
-                                               int         len) {
-    status_t ret = NO_ERROR;
-
-    if ((len > 0) && jpeg_opened) {
-        ret = ReplaceThumbnailFromBuffer(thumb, len);
-        ALOGI("insertExifThumbnailImage. ReplaceThumbnail(). ret=%d", ret);
-    }
-
-    return ret;
-}
-
-void JpegBuilder::saveJpeg(unsigned char *jpeg,
-                           size_t         jpeg_size) {
-    if (jpeg_opened) {
-        WriteJpegToBuffer(jpeg, jpeg_size);
-        DiscardData();
-        jpeg_opened = false;
-    }
-
-    int num_elements = gps_tag_count + exif_tag_count;
-
-    for (int i = 0; i < num_elements; i++) {
-        if (table[i].Value) {
-            free(table[i].Value);
-            table[i].Value = NULL;
-        }
-    }
-    gps_tag_count = 0;
-    exif_tag_count = 0;
-
-}
-
-status_t JpegBuilder::insertElement(const char *tag,
-                                    const char *value) {
+status_t JpegBuilder::insertElement(uint16_t tag,
+                                    uint32_t val1,
+                                    uint32_t val2,
+                                    uint32_t val3,
+                                    uint32_t val4,
+                                    uint32_t val5,
+                                    uint32_t val6,
+                                    char *strVal)
+{
     int value_length = 0;
     status_t ret     = NO_ERROR;
-
-    if (!value || !tag) {
-        return -EINVAL;
-    }
 
     if (position >= MAX_EXIF_TAGS_SUPPORTED) {
         ALOGE("Max number of EXIF elements already inserted");
         return NO_MEMORY;
     }
 
-    if (isAsciiTag(tag)) {
-        value_length = sizeof(ExifAsciiPrefix) +
-                       strlen(value + sizeof(ExifAsciiPrefix));
-    }
-    else {
-        value_length = strlen(value);
-    }
+    table[position].tag = tag;
+    table[position].val1 = val1;
+    table[position].val2 = val2;
+    table[position].val3 = val3;
+    table[position].val4 = val4;
+    table[position].val5 = val5;
+    table[position].val6 = val6;
 
-    if (IsGpsTag(tag)) {
-        table[position].GpsTag = TRUE;
-        table[position].Tag    = GpsTagNameToValue(tag);
-        gps_tag_count++;
-    }
-    else {
-        table[position].GpsTag = FALSE;
-        table[position].Tag    = TagNameToValue(tag);
-        exif_tag_count++;
-
-        if (strcmp(tag, TAG_DATETIME) == 0) {
-            has_datetime_tag = true;
+    if (strVal) {
+        if (table[position].tag == TAG_GPS_PROCESSING_METHOD) {
+            int value_length = 0;
+            value_length = sizeof(ExifAsciiPrefix) +
+                           strlen(strVal + sizeof(ExifAsciiPrefix));
+            table[position].strVal = (char *)malloc(sizeof(char) * (value_length + 1));
+            memcpy(table[position].strVal, strVal, value_length + 1);
+        } else {
+            table[position].strVal = strdup(strVal);
         }
     }
 
-    table[position].DataLength = 0;
-    table[position].Value      = (char *)malloc(sizeof(char) * (value_length + 1));
-
-    if (table[position].Value) {
-        memcpy(table[position].Value, value, value_length + 1);
-        table[position].DataLength = value_length + 1;
-    }
-
     position++;
+
     return ret;
 }
 
 JpegBuilder::JpegBuilder()
-    : gps_tag_count(0), exif_tag_count(0), position(0),
-      jpeg_opened(false), has_datetime_tag(false)
+    : position(0), has_datetime_tag(false)
 {
     reset();
 }
 
 void JpegBuilder::reset()
 {
-    gps_tag_count    = 0;
-    exif_tag_count   = 0;
     position         = 0;
-    jpeg_opened      = false;
     has_datetime_tag = false;
     mMainInput       = NULL;
     mThumbnailInput  = NULL;
     mCancelEncoding  = false;
     memset(&mEXIFData, 0, sizeof(mEXIFData));
-    memset(&table, 0, sizeof(table));
+    memset(table, 0, sizeof(table));
 }
 
 JpegBuilder::~JpegBuilder()
 {
-    int num_elements = gps_tag_count + exif_tag_count;
-
-    for (int i = 0; i < num_elements; i++) {
-        if (table[i].Value) {
-            free(table[i].Value);
-        }
-    }
-
-    if (jpeg_opened) {
-        DiscardData();
-    }
 }
 
 status_t JpegBuilder::prepareImage(const StreamBuffer *streamBuf)
@@ -256,13 +187,8 @@ status_t JpegBuilder::prepareImage(const StreamBuffer *streamBuf)
 
     const sp<Stream>& stream = streamBuf->mStream;
 
-    if ((NO_ERROR == ret) && (mEXIFData.mModelValid)) {
-        ret = insertElement(TAG_MODEL, EXIF_MODEL);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mMakeValid)) {
-        ret = insertElement(TAG_MAKE, EXIF_MAKENOTE);
-    }
+    insertElement(TAG_MODEL, 0, 0, 0, 0, 0, 0, EXIF_MODEL);
+    insertElement(TAG_MAKE, 0, 0, 0, 0, 0, 0, EXIF_MAKENOTE);
 
     float focalLength;
     ret = mMeta->getFocalLength(focalLength);
@@ -272,138 +198,33 @@ status_t JpegBuilder::prepareImage(const StreamBuffer *streamBuf)
         unsigned int numerator = 0, denominator = 0;
         JpegBuilder::stringToRational(str, &numerator, &denominator);
         if (numerator || denominator) {
-            char temp_value[256]; // arbitrarily long string
-            snprintf(temp_value,
-                     sizeof(temp_value) / sizeof(char),
-                     "%u/%u", numerator, denominator);
-            ret = insertElement(TAG_FOCALLENGTH, temp_value);
+            insertElement(TAG_FOCALLENGTH, numerator, denominator, 0, 0, 0, 0, NULL);
         }
     }
 
-    if ((NO_ERROR == ret)) {
-        int status = gettimeofday(&sTv, NULL);
-        pTime = localtime(&sTv.tv_sec);
-        char temp_value[EXIF_DATE_TIME_SIZE + 1];
-        if ((0 == status) && (NULL != pTime)) {
-            snprintf(temp_value, EXIF_DATE_TIME_SIZE,
-                     "%04d:%02d:%02d %02d:%02d:%02d",
-                     pTime->tm_year + 1900,
-                     pTime->tm_mon + 1,
-                     pTime->tm_mday,
-                     pTime->tm_hour,
-                     pTime->tm_min,
-                     pTime->tm_sec);
+    int status = gettimeofday(&sTv, NULL);
+    pTime = localtime(&sTv.tv_sec);
+    char temp_value[EXIF_DATE_TIME_SIZE + 1];
+    if ((0 == status) && (NULL != pTime)) {
+        snprintf(temp_value,
+                 EXIF_DATE_TIME_SIZE,
+                 "%04d:%02d:%02d %02d:%02d:%02d",
+                 pTime->tm_year + 1900,
+                 pTime->tm_mon + 1,
+                 pTime->tm_mday,
+                 pTime->tm_hour,
+                 pTime->tm_min,
+                 pTime->tm_sec);
 
-            ret = insertElement(TAG_DATETIME, temp_value);
-        }
+        insertElement(TAG_DATETIME, 0, 0, 0, 0, 0, 0, temp_value);
     }
 
     int width, height;
     width = stream->width();
     height = stream->height();
-    if ((NO_ERROR == ret)) {
-        char temp_value[5];
-        snprintf(temp_value, sizeof(temp_value) / sizeof(char), "%lu",
-                 (unsigned long)width);
-        ret = insertElement(TAG_IMAGE_WIDTH, temp_value);
-    }
 
-    if ((NO_ERROR == ret)) {
-        char temp_value[5];
-        snprintf(temp_value, sizeof(temp_value) / sizeof(char), "%lu",
-                 (unsigned long)height);
-        ret = insertElement(TAG_IMAGE_LENGTH, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLatValid)) {
-        char temp_value[256]; // arbitrarily long string
-        snprintf(temp_value,
-                 sizeof(temp_value) / sizeof(char) - 1,
-                 "%d/%d,%d/%d,%d/%d",
-                 abs(mEXIFData.mGPSData.mLatDeg), 1,
-                 abs(mEXIFData.mGPSData.mLatMin), 1,
-                 abs(mEXIFData.mGPSData.mLatSec),
-                 abs(mEXIFData.mGPSData.mLatSecDiv));
-        ret = insertElement(TAG_GPS_LAT, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLatValid)) {
-        ret = insertElement(TAG_GPS_LAT_REF, mEXIFData.mGPSData.mLatRef);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLongValid)) {
-        char temp_value[256]; // arbitrarily long string
-        snprintf(temp_value,
-                 sizeof(temp_value) / sizeof(char) - 1,
-                 "%d/%d,%d/%d,%d/%d",
-                 abs(mEXIFData.mGPSData.mLongDeg), 1,
-                 abs(mEXIFData.mGPSData.mLongMin), 1,
-                 abs(mEXIFData.mGPSData.mLongSec),
-                 abs(mEXIFData.mGPSData.mLongSecDiv));
-        ret = insertElement(TAG_GPS_LONG, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLongValid)) {
-        ret = insertElement(TAG_GPS_LONG_REF, mEXIFData.mGPSData.mLongRef);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mAltitudeValid)) {
-        char temp_value[256]; // arbitrarily long string
-        snprintf(temp_value,
-                 sizeof(temp_value) / sizeof(char) - 1,
-                 "%d/%d",
-                 abs(mEXIFData.mGPSData.mAltitude), 1);
-        ret = insertElement(TAG_GPS_ALT, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mAltitudeValid)) {
-        char temp_value[5];
-        snprintf(temp_value,
-                 sizeof(temp_value) / sizeof(char) - 1,
-                 "%d", mEXIFData.mGPSData.mAltitudeRef);
-        ret = insertElement(TAG_GPS_ALT_REF, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mMapDatumValid)) {
-        ret = insertElement(TAG_GPS_MAP_DATUM, mEXIFData.mGPSData.mMapDatum);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mProcMethodValid)) {
-        char temp_value[GPS_PROCESSING_SIZE];
-        memcpy(temp_value, ExifAsciiPrefix, sizeof(ExifAsciiPrefix));
-        memcpy(temp_value + sizeof(ExifAsciiPrefix),
-               mEXIFData.mGPSData.mProcMethod,
-               (GPS_PROCESSING_SIZE - sizeof(ExifAsciiPrefix)));
-        ret = insertElement(TAG_GPS_PROCESSING_METHOD, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mVersionIdValid)) {
-        char temp_value[256]; // arbitrarily long string
-        snprintf(temp_value,
-                 sizeof(temp_value) / sizeof(char) - 1,
-                 "%d,%d,%d,%d",
-                 mEXIFData.mGPSData.mVersionId[0],
-                 mEXIFData.mGPSData.mVersionId[1],
-                 mEXIFData.mGPSData.mVersionId[2],
-                 mEXIFData.mGPSData.mVersionId[3]);
-        ret = insertElement(TAG_GPS_VERSION_ID, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mTimeStampValid)) {
-        char temp_value[256]; // arbitrarily long string
-        snprintf(temp_value,
-                 sizeof(temp_value) / sizeof(char) - 1,
-                 "%d/%d,%d/%d,%d/%d",
-                 mEXIFData.mGPSData.mTimeStampHour, 1,
-                 mEXIFData.mGPSData.mTimeStampMin, 1,
-                 mEXIFData.mGPSData.mTimeStampSec, 1);
-        ret = insertElement(TAG_GPS_TIMESTAMP, temp_value);
-    }
-
-    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mDatestampValid)) {
-        ret = insertElement(TAG_GPS_DATESTAMP, mEXIFData.mGPSData.mDatestamp);
-    }
-
+    insertElement(TAG_IMAGE_WIDTH, width, 0, 0, 0, 0, 0, NULL);
+    insertElement(TAG_IMAGE_LENGTH, height, 0, 0, 0, 0, 0, NULL);
     int32_t jpegRotation;
     ret = mMeta->getJpegRotation(jpegRotation);
     if (NO_ERROR == ret) {
@@ -413,8 +234,130 @@ status_t JpegBuilder::prepareImage(const StreamBuffer *streamBuf)
             JpegBuilder::degreesToExifOrientation(str);
 
         if (exif_orient) {
-            ret = insertElement(TAG_ORIENTATION, exif_orient);
+            ret = insertElement(TAG_ORIENTATION, atoi(exif_orient), 0, 0, 0, 0, 0, NULL);
         }
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLatValid)) {
+        char temp_value[256];  // arbitrarily long string
+        snprintf(temp_value,
+                 sizeof(temp_value) / sizeof(char) - 1,
+                 "%d/%d,%d/%d,%d/%d",
+                 abs(mEXIFData.mGPSData.mLatDeg),
+                 1,
+                 abs(mEXIFData.mGPSData.mLatMin),
+                 1,
+                 abs(mEXIFData.mGPSData.mLatSec),
+                 abs(mEXIFData.mGPSData.mLatSecDiv));
+        ret = insertElement(TAG_GPS_LATITUDE,
+                            abs(mEXIFData.mGPSData.mLatDeg),
+                            1,
+                            abs(mEXIFData.mGPSData.mLatMin),
+                            1,
+                            abs(mEXIFData.mGPSData.mLatSec),
+                            abs(mEXIFData.mGPSData.mLatSecDiv),
+                            NULL);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLatValid)) {
+        ret = insertElement(TAG_GPS_LATITUDE_REF, 0, 0, 0, 0, 0, 0, mEXIFData.mGPSData.mLatRef);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLongValid)) {
+        char temp_value[256];  // arbitrarily long string
+        snprintf(temp_value,
+                 sizeof(temp_value) / sizeof(char) - 1,
+                 "%d/%d,%d/%d,%d/%d",
+                 abs(mEXIFData.mGPSData.mLongDeg),
+                 1,
+                 abs(mEXIFData.mGPSData.mLongMin),
+                 1,
+                 abs(mEXIFData.mGPSData.mLongSec),
+                 abs(mEXIFData.mGPSData.mLongSecDiv));
+        ret = insertElement(TAG_GPS_LONGITUDE,
+                            abs(mEXIFData.mGPSData.mLongDeg),
+                            1,
+                            abs(mEXIFData.mGPSData.mLongMin),
+                            1,
+                            abs(mEXIFData.mGPSData.mLongSec),
+                            abs(mEXIFData.mGPSData.mLongSecDiv),
+                            NULL);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mLongValid)) {
+        ret = insertElement(TAG_GPS_LONGITUDE_REF, 0, 0, 0, 0, 0, 0, mEXIFData.mGPSData.mLongRef);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mAltitudeValid)) {
+        char temp_value[256];  // arbitrarily long string
+        snprintf(temp_value,
+                 sizeof(temp_value) / sizeof(char) - 1,
+                 "%d/%d",
+                 abs(mEXIFData.mGPSData.mAltitude),
+                 1);
+        unsigned int numerator = 0, denominator = 0;
+        JpegBuilder::stringToRational(temp_value, &numerator, &denominator);
+        ret = insertElement(TAG_GPS_ALTITUDE, numerator, denominator, 0, 0, 0, 0, NULL);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mAltitudeValid)) {
+        char temp_value[5];
+        snprintf(temp_value,
+                 sizeof(temp_value) / sizeof(char) - 1,
+                 "%d",
+                 mEXIFData.mGPSData.mAltitudeRef);
+        ret = insertElement(TAG_GPS_ALTITUDE_REF, 0, 0, 0, 0, 0, 0, temp_value);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mMapDatumValid)) {
+        ret = insertElement(TAG_GPS_MAP_DATUM, 0, 0, 0, 0, 0, 0, mEXIFData.mGPSData.mMapDatum);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mProcMethodValid)) {
+        char temp_value[GPS_PROCESSING_SIZE];
+        memcpy(temp_value, ExifAsciiPrefix, sizeof(ExifAsciiPrefix));
+        memcpy(temp_value + sizeof(ExifAsciiPrefix),
+               mEXIFData.mGPSData.mProcMethod,
+               (GPS_PROCESSING_SIZE - sizeof(ExifAsciiPrefix)));
+        ret = insertElement(TAG_GPS_PROCESSING_METHOD, 0, 0, 0, 0, 0, 0, temp_value);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mVersionIdValid)) {
+        char temp_value[256];  // arbitrarily long string
+        snprintf(temp_value,
+                 sizeof(temp_value) / sizeof(char) - 1,
+                 "%d,%d,%d,%d",
+                 mEXIFData.mGPSData.mVersionId[0],
+                 mEXIFData.mGPSData.mVersionId[1],
+                 mEXIFData.mGPSData.mVersionId[2],
+                 mEXIFData.mGPSData.mVersionId[3]);
+        ret = insertElement(TAG_GPS_VERSION_ID, 0, 0, 0, 0, 0, 0, temp_value);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mTimeStampValid)) {
+        char temp_value[256];  // arbitrarily long string
+        snprintf(temp_value,
+                 sizeof(temp_value) / sizeof(char) - 1,
+                 "%d/%d,%d/%d,%d/%d",
+                 mEXIFData.mGPSData.mTimeStampHour,
+                 1,
+                 mEXIFData.mGPSData.mTimeStampMin,
+                 1,
+                 mEXIFData.mGPSData.mTimeStampSec,
+                 1);
+        ret = insertElement(TAG_GPS_TIMESTAMP,
+                            mEXIFData.mGPSData.mTimeStampHour,
+                            1,
+                            mEXIFData.mGPSData.mTimeStampMin,
+                            1,
+                            mEXIFData.mGPSData.mTimeStampSec,
+                            1,
+                            NULL);
+    }
+
+    if ((NO_ERROR == ret) && (mEXIFData.mGPSData.mDatestampValid)) {
+        //add GPS date TAG.
+        ret = insertElement(TAG_GPS_DATESTAMP, 0, 0, 0, 0, 0, 0, mEXIFData.mGPSData.mDatestamp);
     }
 
     return ret;
@@ -586,71 +529,44 @@ status_t JpegBuilder::encodeJpeg(JpegParams *input)
     }
 }
 
-size_t JpegBuilder::getImageSize()
-{
-    size_t jpeg_size, image_size;
-    Section_t *exif_section = NULL;
-
-    jpeg_size = mMainInput->jpeg_size;
-
-    exif_section = FindSection(M_EXIF);
-    if (exif_section != NULL) {
-        image_size = jpeg_size + exif_section->Size;
-    }
-    else {
-        image_size = jpeg_size;
-    }
-    return image_size;
-}
-
 status_t JpegBuilder::buildImage(const StreamBuffer *streamBuf)
 {
-    size_t   jpeg_size;
-    uint8_t *src  = NULL;
+    int ret = 0;
+
+    uint8_t *pThumb = NULL;
+    uint32_t dwThumbSize = 0;
 
     if (!streamBuf || !mMainInput || !streamBuf->mVirtAddr) {
         ALOGE("%s invalid param", __FUNCTION__);
         return BAD_VALUE;
     }
 
-    jpeg_size = mMainInput->jpeg_size;
-    src       = mMainInput->src;
+    if (mThumbnailInput) {
+        pThumb = mThumbnailInput->dst;
+        dwThumbSize = mThumbnailInput->jpeg_size;
+    }
 
-    if (mMainInput->dst && (jpeg_size > 0)) {
-        if (position > 0) {
-            Section_t *exif_section = NULL;
+    ret = InsertEXIFAndThumbnail(table,
+                                 position,
+                                 pThumb,
+                                 dwThumbSize,
+                                 mMainInput->dst,
+                                 mMainInput->jpeg_size,
+                                 (uint8_t *)streamBuf->mVirtAddr,
+                                 streamBuf->mSize);
 
-            insertExifToJpeg((unsigned char *)mMainInput->dst, jpeg_size);
-
-            if (mThumbnailInput) {
-                insertExifThumbnailImage((const char *)mThumbnailInput->dst,
-                                         (int)mThumbnailInput->jpeg_size);
-            }
-
-            exif_section = FindSection(M_EXIF);
-            if (exif_section) {
-                size_t imageSize = jpeg_size + exif_section->Size;
-                if (streamBuf->mSize < imageSize) {
-                    ALOGE("%s buf size %zu small than %zu", __FUNCTION__,
-                                    streamBuf->mSize, imageSize);
-                    return BAD_VALUE;
-                }
-
-                saveJpeg((unsigned char *)streamBuf->mVirtAddr,
-                         jpeg_size + exif_section->Size + 2);
-            }
-        } else {
-            size_t imageSize = jpeg_size;
-            if (streamBuf->mSize < imageSize) {
-                ALOGE("%s buf size %zu small than %zu", __FUNCTION__,
-                                    streamBuf->mSize, imageSize);
-                return BAD_VALUE;
-            }
-            memcpy(streamBuf->mVirtAddr, mMainInput->dst, jpeg_size);
+    // clean IDF table
+    int i;
+    for (i = 0; i < position; i++) {
+        if (table[i].strVal) {
+            free(table[i].strVal);
         }
     }
 
-    return NO_ERROR;
+    memset(table, 0, sizeof(table));
+    position = 0;
+
+    return ret;
 }
 
 status_t JpegBuilder::convertGPSCoord(double coord,

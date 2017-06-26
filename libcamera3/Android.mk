@@ -26,7 +26,6 @@ LOCAL_C_INCLUDES += \
     system/core/include \
     system/media/camera/include \
     external/jpeg \
-    external/jhead \
     device/fsl-proprietary/include \
     device/fsl/common/kernel-headers \
     hardware/imx/include \
@@ -58,7 +57,8 @@ LOCAL_SRC_FILES := \
     TVINDevice.cpp \
     TVIN8DvDevice.cpp \
     VADCTVINDevice.cpp \
-    MMAPStream.cpp
+    MMAPStream.cpp \
+    TinyExif.cpp
 
 ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_SRC_FILES += \
@@ -74,7 +74,6 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libc \
     libjpeg \
-    libjhead \
     libion \
     libg2d \
     libbinder \

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2017 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,25 +19,15 @@
 
 #include "CameraUtils.h"
 #include <utils/RefBase.h>
+#include "TinyExif.h"
 #include "YuvToJpegEncoder.h"
-
-extern "C" {
-#include "jhead.h"
-}
 
 namespace android {
 #define EXIF_MAKENOTE "fsl_makernote"
 #define EXIF_MODEL    "fsl_model"
 
-#define MAX_EXIF_TAGS_SUPPORTED 30
-
-static const char TAG_MODEL[]                 = "Model";
-static const char TAG_MAKE[]                  = "Make";
-static const char TAG_FOCALLENGTH[]           = "FocalLength";
-static const char TAG_DATETIME[]              = "DateTime";
-static const char TAG_IMAGE_WIDTH[]           = "ImageWidth";
-static const char TAG_IMAGE_LENGTH[]          = "ImageLength";
-static const char TAG_GPS_LAT[]               = "GPSLatitude";
+//static const char TAG_GPS_PROCESSING_METHOD[] = "GPSProcessingMethod";
+/*static const char TAG_GPS_LAT[]               = "GPSLatitude";
 static const char TAG_GPS_LAT_REF[]           = "GPSLatitudeRef";
 static const char TAG_GPS_LONG[]              = "GPSLongitude";
 static const char TAG_GPS_LONG_REF[]          = "GPSLongitudeRef";
@@ -47,9 +37,9 @@ static const char TAG_GPS_MAP_DATUM[]         = "GPSMapDatum";
 static const char TAG_GPS_PROCESSING_METHOD[] = "GPSProcessingMethod";
 static const char TAG_GPS_VERSION_ID[]        = "GPSVersionID";
 static const char TAG_GPS_TIMESTAMP[]         = "GPSTimeStamp";
-static const char TAG_GPS_DATESTAMP[]         = "GPSDateStamp";
-static const char TAG_ORIENTATION[]           = "Orientation";
+static const char TAG_GPS_DATESTAMP[]         = "GPSDateStamp";**/
 
+#define MAX_EXIF_TAGS_SUPPORTED 30
 #define GPS_MIN_DIV                 60
 #define GPS_SEC_DIV                 60
 #define GPS_SEC_ACCURACY            1000
@@ -147,8 +137,14 @@ public:
     void setMetadata(sp<Metadata> meta);
 
 private:
-    status_t insertElement(const char *tag,
-                           const char *value);
+    status_t insertElement(uint16_t tag,
+                           uint32_t val1,
+                           uint32_t val2,
+                           uint32_t val3,
+                           uint32_t val4,
+                           uint32_t val5,
+                           uint32_t val6,
+                           char *strVal);
     void     insertExifToJpeg(unsigned char *jpeg,
                               size_t         jpeg_size);
     status_t insertExifThumbnailImage(const char *,
@@ -177,9 +173,8 @@ private:
     EXIFData mEXIFData;
 
 private:
-    ExifElement_t table[MAX_EXIF_TAGS_SUPPORTED];
+    IFDEle table[MAX_EXIF_TAGS_SUPPORTED];
     unsigned int  gps_tag_count;
-    unsigned int  exif_tag_count;
     unsigned int  position;
     bool jpeg_opened;
     bool has_datetime_tag;
