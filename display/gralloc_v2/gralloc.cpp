@@ -41,6 +41,8 @@
 
 using namespace fsl;
 
+#define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
+#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
 extern int fb_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device);
 
@@ -152,6 +154,11 @@ int gralloc_alloc(alloc_device_t* /*dev*/,
         desc.mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
         desc.mWidth = desc.mWidth / 32;
         desc.mHeight = desc.mHeight * 16;
+    }
+    if (desc.mFslFormat == FORMAT_YV12 || desc.mFslFormat == FORMAT_I420) {
+        //GPU need width 32bit align and height 4bit align.
+        desc.mWidth = ALIGN_PIXEL_32(desc.mWidth);
+        desc.mHeight = ALIGN_PIXEL_4(desc.mHeight);
     }
 
     desc.checkFormat();
