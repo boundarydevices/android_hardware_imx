@@ -67,22 +67,78 @@
 
 /* The SENSORS Module */
 static const struct sensor_t sSensorList[] = {
-        { "Freescale 3-axis Accelerometer",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_ACCELERATION_HANDLE,
-          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 10000, 0, 32},
-        { "Freescale 3-axis Magnetic field sensor",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_MAGNETIC_FIELD_HANDLE,
-          SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 10000, 0, 0},
-        { "Freescale Orientation sensor",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_ORIENTATION_HANDLE,
-          SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 10000, 0, 0},
-        { "ISL29023 Light sensor",
-          "Intersil",
-          1, SENSORS_LIGHT_HANDLE,
-          SENSOR_TYPE_LIGHT, 16000.0f, 1.0f, 0.35f, 0, 0, 0},
+    {
+    .name =       "Freescale 3-axis Accelerometer",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_ACCELERATION_HANDLE,
+    .type =       SENSOR_TYPE_ACCELEROMETER,
+    .maxRange =   RANGE_A,
+    .resolution = CONVERT_A,
+    .power =      0.30f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      32,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale 3-axis Magnetic field sensor",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_MAGNETIC_FIELD_HANDLE,
+    .type =       SENSOR_TYPE_MAGNETIC_FIELD,
+    .maxRange =   1500.0f,
+    .resolution = CONVERT_M,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale Orientation sensor",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_ORIENTATION_HANDLE,
+    .type =       SENSOR_TYPE_ORIENTATION,
+    .maxRange =   360.0f,
+    .resolution = CONVERT_O,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "ISL29023 Light sensor",
+    .vendor =     "Intersil",
+    .version=     1,
+    .handle =     SENSORS_LIGHT_HANDLE,
+    .type =       SENSOR_TYPE_LIGHT,
+    .maxRange =   16000.0f,
+    .resolution = 1.0f,
+    .power =      0.35f,
+    .minDelay =   0,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               0,
+    .flags =      SENSOR_FLAG_ON_CHANGE_MODE,
+    .reserved =   {}
+    },
 };
 
 
@@ -369,7 +425,7 @@ static int open_sensors(const struct hw_module_t* module, const char* id,
         memset(&dev->device, 0, sizeof(sensors_poll_device_1));
 
         dev->device.common.tag = HARDWARE_DEVICE_TAG;
-        dev->device.common.version  = SENSORS_DEVICE_API_VERSION_1_1;
+        dev->device.common.version  = SENSORS_DEVICE_API_VERSION_1_4;
         dev->device.common.module   = const_cast<hw_module_t*>(module);
         dev->device.common.close    = poll__close;
         dev->device.activate        = poll__activate;
