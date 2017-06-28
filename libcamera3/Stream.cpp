@@ -603,9 +603,12 @@ int32_t Stream::processBufferWithGPU(StreamBuffer& src)
 
     void* g2dHandle = device->getG2dHandle();
     if (g2dHandle == NULL) {
-        ALOGE("%s invalid g2d handle", __func__);
+        ALOGV("%s if board don't support g2d_copy, use memcpy", __func__);
+        memcpy(out->mVirtAddr, src.mVirtAddr, out->mSize);
         return 0;
     }
+
+#ifdef TARGET_FSL_IMX_2D
     struct g2d_buf s_buf, d_buf;
     s_buf.buf_paddr = src.mPhyAddr;
     s_buf.buf_vaddr = src.mVirtAddr;
@@ -613,6 +616,7 @@ int32_t Stream::processBufferWithGPU(StreamBuffer& src)
     d_buf.buf_vaddr = out->mVirtAddr;
     g2d_copy(g2dHandle, &d_buf, &s_buf, out->mSize);
     g2d_finish(g2dHandle);
+#endif
 
     bufferDump(&src, true);
     bufferDump(out, false);
@@ -636,7 +640,6 @@ int32_t Stream::convertNV12toNV21(StreamBuffer& src)
     int Ysize = 0, UVsize = 0;
     uint8_t *srcIn, *dstOut;
     uint32_t *UVout;
-    struct g2d_buf s_buf, d_buf;
     int size = (src.mSize > out->mSize) ? out->mSize : src.mSize;
 
     Ysize  = device->mWidth * device->mHeight;
@@ -648,12 +651,15 @@ int32_t Stream::convertNV12toNV21(StreamBuffer& src)
     void* g2dHandle = device->getG2dHandle();
 
     if (g2dHandle != NULL) {
+#ifdef TARGET_FSL_IMX_2D
+        struct g2d_buf s_buf, d_buf;
         s_buf.buf_paddr = src.mPhyAddr;
         s_buf.buf_vaddr = src.mVirtAddr;
         d_buf.buf_paddr = out->mPhyAddr;
         d_buf.buf_vaddr = out->mVirtAddr;
         g2d_copy(g2dHandle, &d_buf, &s_buf, out->mSize);
         g2d_finish(g2dHandle);
+#endif
     }
     else {
         memcpy(dstOut, srcIn, size);

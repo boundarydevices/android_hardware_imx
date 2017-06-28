@@ -27,7 +27,10 @@
 #include <linux/mxc_ion.h>
 #include <ion_ext.h>
 #include "JpegBuilder.h"
+
+#ifdef TARGET_FSL_IMX_2D
 #include "g2d.h"
+#endif
 
 using namespace android;
 

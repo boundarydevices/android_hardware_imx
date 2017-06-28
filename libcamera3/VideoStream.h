@@ -115,7 +115,9 @@ private:
         }
 
         virtual status_t readyToRun() {
+#ifdef TARGET_FSL_IMX_2D
             g2d_open(&mStream->g2dHandle);
+#endif
             return 0;
         }
 
@@ -123,7 +125,9 @@ private:
             int ret = mStream->handleMessage();
             if (ret != 0) {
                 ALOGI("%s exit...", __func__);
+#ifdef TARGET_FSL_IMX_2D
                 g2d_close(mStream->g2dHandle);
+#endif
                 mStream.clear();
                 mStream = NULL;
                 return false;

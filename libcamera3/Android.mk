@@ -76,10 +76,15 @@ LOCAL_SHARED_LIBRARIES := \
     libc \
     libjpeg \
     libion \
-    libg2d \
     libbinder \
     libcamera_client \
     libhardware_legacy
+
+ifneq ($(TARGET_FSL_IMX_2D),)
+    LOCAL_SHARED_LIBRARIES += \
+	     libg2d
+    LOCAL_CFLAGS += -DTARGET_FSL_IMX_2D
+endif
 
 ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_SHARED_LIBRARIES += \
