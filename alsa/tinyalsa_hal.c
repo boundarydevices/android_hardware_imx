@@ -49,6 +49,7 @@
 #include "config_wm8960.h"
 #include "config_sii902x.h"
 #include "config_rpmsg.h"
+#include "config_wm8524.h"
 #include "control.h"
 #include "pcm_ext.h"
 
@@ -95,7 +96,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        9
+#define SUPPORT_CARD_NUM        10
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -108,6 +109,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8960_card,
     &sii902x_card,
     &rpmsg_card,
+    &wm8524_card,
     &null_card,
 };
 
@@ -176,6 +178,8 @@ static int adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t 
 static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
 static void in_update_aux_channels(struct imx_stream_in *in, effect_handle_t effect);
 static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes);
+
+extern int pcm_state(struct pcm *pcm);
 
 /* Returns true on devices that are sabreauto, false otherwise */
 static int is_device_auto(void)
