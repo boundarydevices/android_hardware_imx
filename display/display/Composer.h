@@ -56,6 +56,7 @@ private:
                         struct g2d_surface& dst);
     int convertBlending(int blending, struct g2d_surface& src,
                         struct g2d_surface& dst);
+	void getModule(char *path, const char *name);
     int checkDimBuffer();
     int clearRect(Memory* target, Rect& rect);
 

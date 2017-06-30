@@ -22,6 +22,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := audio.primary.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SRC_FILES := tinyalsa_hal.c control.c pcm_ext.c
+LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
 	external/tinyalsa/include \
 	system/media/audio_utils/include \
@@ -39,6 +40,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := audio.primary.$(soc_name)
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SRC_FILES := tinyalsa_hal.c control.c
 LOCAL_C_INCLUDES += \

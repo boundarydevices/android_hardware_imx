@@ -34,6 +34,7 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE := sensors.$(TARGET_BOOTLOADER_BOARD_NAME)
 LOCAL_MODULE_TAGS := eng
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_SRC_FILES := 						\
 				sensors.cpp 			\
 				SensorBase.cpp			\

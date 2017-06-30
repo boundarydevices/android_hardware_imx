@@ -47,6 +47,7 @@ LOCAL_SHARED_LIBRARIES :=   \
     libion                  \
     libdrm
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := libfsldisplay
 LOCAL_CFLAGS:= -DLOG_TAG=\"display\" -D_LINUX -Wunused-parameter
 

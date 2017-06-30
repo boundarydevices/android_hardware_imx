@@ -25,9 +25,11 @@
 #include <dlfcn.h>
 
 #if defined(__LP64__)
-#define LIB_PATH "/system/lib64"
+#define LIB_PATH1 "/system/lib64"
+#define LIB_PATH2 "/vendor/lib64"
 #else
-#define LIB_PATH "/system/lib"
+#define LIB_PATH1 "/system/lib"
+#define LIB_PATH2 "/vendor/lib"
 #endif
 
 #define GPUHELPER "libgpuhelper.so"
@@ -94,7 +96,7 @@ IonManager::IonManager()
     }
 
     char path[PATH_MAX] = {0};
-    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH, GPUHELPER);
+    getModule(path, GPUHELPER);
     void* handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
         ALOGI("no %s found", path);
@@ -182,6 +184,18 @@ int IonManager::getPhys(Memory* memory)
     return 0;
 }
 
+void IonManager::getModule(char *path, const char *name)
+{
+    snprintf(path, PATH_MAX, "%s/%s",
+                          LIB_PATH1, name);
+    if (access(path, R_OK) == 0)
+        return;
+    snprintf(path, PATH_MAX, "%s/%s",
+                          LIB_PATH2, name);
+    if (access(path, R_OK) == 0)
+        return;
+    return;
+}
 int IonManager::getVaddrs(Memory* memory)
 {
     if (mIonFd <= 0 || memory == NULL || memory->fd < 0) {

@@ -29,6 +29,7 @@ LOCAL_C_INCLUDES += hardware/imx/display/display   \
                     device/fsl-proprietary/include \
                     system/core/include/
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" -D_LINUX
 

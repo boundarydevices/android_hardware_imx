@@ -19,9 +19,11 @@
 #include <system/window.h>
 
 #if defined(__LP64__)
-#define LIB_PATH "/system/lib64"
+#define LIB_PATH1 "/system/lib64"
+#define LIB_PATH2 "/vendor/lib64"
 #else
-#define LIB_PATH "/system/lib"
+#define LIB_PATH1 "/system/lib"
+#define LIB_PATH2 "/vendor/lib"
 #endif
 
 #define GPUHELPER "libgpuhelper.so"
@@ -36,7 +38,7 @@ Composer::Composer()
     mHandle = NULL;
 
     char path[PATH_MAX] = {0};
-    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH, GPUHELPER);
+	getModule(path, GPUHELPER);
 
     void* handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
@@ -57,7 +59,7 @@ Composer::Composer()
         mUnlockSurface = (hwc_func1)dlsym(handle, "hwc_unlockSurface");
     }
     memset(path, 0, sizeof(path));
-    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH, GPUENGINE);
+    getModule(path, GPUENGINE);
 
     handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
@@ -102,6 +104,19 @@ Composer::~Composer()
 bool Composer::isValid()
 {
     return (mHandle != NULL && mBlitFunction != NULL);
+}
+
+void Composer::getModule(char *path, const char *name)
+{
+    snprintf(path, PATH_MAX, "%s/%s",
+                                 LIB_PATH1, name);
+    if (access(path, R_OK) == 0)
+        return;
+    snprintf(path, PATH_MAX, "%s/%s",
+                                 LIB_PATH2, name);
+    if (access(path, R_OK) == 0)
+        return;
+    return;
 }
 
 int Composer::checkDimBuffer()

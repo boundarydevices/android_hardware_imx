@@ -53,6 +53,7 @@ public:
     int flushCache(Memory* memory);
     int getPhys(Memory* memory);
     int getVaddrs(Memory* memory);
+    void getModule(char *path, const char *name);
 
     virtual int retainMemory(Memory* handle);
     virtual int lock(Memory* handle, int usage,

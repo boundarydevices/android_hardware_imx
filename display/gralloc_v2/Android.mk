@@ -31,6 +31,7 @@ LOCAL_C_INCLUDES += hardware/imx/display/display           \
                     system/core/include/                   \
                     frameworks/native/libs/arect/include
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" -D_LINUX
 

@@ -32,6 +32,7 @@ LOCAL_SHARED_LIBRARIES :=	\
 
 LOCAL_SRC_FILES := hwcomposer.cpp
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_C_INCLUDES += hardware/imx/display/display   \
                     device/fsl-proprietary/include \

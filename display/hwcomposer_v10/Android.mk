@@ -36,6 +36,7 @@ LOCAL_SRC_FILES :=			\
 	hwc_vsync.cpp			\
     hwc_display.cpp
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_MODULE_TAGS := optional

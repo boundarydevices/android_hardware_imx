@@ -21,6 +21,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := camera.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_RELATIVE_PATH := hw
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
     external/imx-lib/pxp \
     system/core/include \
