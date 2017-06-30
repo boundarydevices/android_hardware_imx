@@ -15,12 +15,22 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <sys/mman.h>
 #include <cutils/log.h>
 #include "IonManager.h"
 #include <ion/ion.h>
 #include <linux/mxc_ion.h>
 #include <ion_ext.h>
+#include <dlfcn.h>
+
+#if defined(__LP64__)
+#define LIB_PATH "/system/lib64"
+#else
+#define LIB_PATH "/system/lib"
+#endif
+
+#define GPUHELPER "libgpuhelper.so"
 
 namespace fsl {
 
@@ -29,17 +39,27 @@ inline size_t roundUpToPageSize(size_t x) {
 }
 
 //--------------------------------------------------
-IonShadow::IonShadow(int fd, struct Memory* handle, bool own)
-  : MemoryShadow(own), mFd(dup(fd)), mHandle(handle)
+IonShadow::IonShadow(int fd, struct Memory* handle, bool own, gpu_unwrapfunc pointer)
+  : MemoryShadow(own), mFd(dup(fd)), mHandle(handle), mUnwrap(pointer)
 {
     if (mHandle != NULL) {
         mHandle->base = 0;
+        mHandle->gemHandle = 0;
+        mHandle->fbId = 0;
     }
 }
 
 IonShadow::~IonShadow()
 {
     if (mHandle != NULL) {
+        if (mListener != NULL) {
+            mListener->onMemoryDestroyed(mHandle);
+        }
+
+        if (mUnwrap != NULL && mHandle->flags&FLAGS_ALLOCATION_GPU) {
+            mUnwrap(mHandle);
+        }
+
         if (mHandle->base != 0) {
             munmap((void*)mHandle->base, mHandle->size);
         }
@@ -71,6 +91,19 @@ IonManager::IonManager()
     mIonFd = ion_open();
     if (mIonFd <= 0) {
         ALOGE("%s ion open failed", __func__);
+    }
+
+    char path[PATH_MAX] = {0};
+    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH, GPUHELPER);
+    void* handle = dlopen(path, RTLD_NOW);
+    if (handle == NULL) {
+        ALOGI("no %s found", path);
+        mWrap = NULL;
+        mUnwrap = NULL;
+    }
+    else {
+        mWrap = (gpu_wrapfunc)dlsym(handle, "graphic_buffer_wrap");
+        mUnwrap = (gpu_unwrapfunc)dlsym(handle, "graphic_buffer_unwrap");
     }
 }
 
@@ -116,8 +149,13 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 
     memory = new Memory(&desc, sharedFd);
     getPhys(memory);
-    MemoryShadow* shadow = new IonShadow(sharedFd, memory, true);
-    memory->shadow = (intptr_t)shadow;
+    MemoryShadow* shadow = new IonShadow(sharedFd, memory, true, mUnwrap);
+    memory->shadow = (uintptr_t)shadow;
+    if (memory->flags&FLAGS_ALLOCATION_GPU && mWrap != NULL) {
+        void* vaddr = NULL;
+        mWrap(memory, memory->width, memory->height, memory->format,
+              memory->stride, memory->phys, &vaddr);
+    }
     *out = memory;
     ion_free(mIonFd, ion_hnd);
     close(sharedFd);
@@ -132,23 +170,15 @@ int IonManager::getPhys(Memory* memory)
         return -EINVAL;
     }
 
-    int phyAddr = 0;
-    ion_user_handle_t ion_hnd = -1;
-    int err = ion_import(mIonFd, memory->fd, &ion_hnd);
-    if (err) {
-        ALOGE("ion_import failed");
-        return -EINVAL;
-    }
+    uint64_t phyAddr = 0;
 
-    phyAddr = ion_phys(mIonFd, ion_hnd);
+    phyAddr = ion_phys(mIonFd, memory->size, memory->fd);
     if (phyAddr == 0) {
         ALOGE("ion_phys failed");
-        ion_free(mIonFd, ion_hnd);
         return -EINVAL;
     }
 
     memory->phys = phyAddr;
-    ion_free(mIonFd, ion_hnd);
     return 0;
 }
 
@@ -165,7 +195,7 @@ int IonManager::getVaddrs(Memory* memory)
         ALOGE("Could not mmap %s", strerror(errno));
         return -EINVAL;
     }
-    memory->base = (intptr_t)mappedAddress;
+    memory->base = (uintptr_t)mappedAddress;
 
     return 0;
 }
@@ -189,10 +219,15 @@ int IonManager::retainMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
+    MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
     if (handle->pid != getpid()) {
-        shadow = new IonShadow(handle->fd, handle, false);
-        handle->shadow = (intptr_t)shadow;
+        if (handle->flags&FLAGS_ALLOCATION_GPU && mWrap != NULL) {
+            void* vaddr = NULL;
+            mWrap(handle, handle->width, handle->height, handle->format,
+                handle->stride, handle->phys, &vaddr);
+        }
+        shadow = new IonShadow(handle->fd, handle, false, mUnwrap);
+        handle->shadow = (uintptr_t)shadow;
         handle->pid = getpid();
     }
     else {

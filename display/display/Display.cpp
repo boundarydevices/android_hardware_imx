@@ -73,6 +73,19 @@ Display::~Display()
     }
 }
 
+int Display::setPowerMode(int mode)
+{
+    return -1;
+}
+
+void Display::setVsyncEnabled(bool enabled)
+{
+}
+
+void Display::setFakeVSync(bool)
+{
+}
+
 void Display::setConnected(bool connected)
 {
     Mutex::Autolock _l(mLock);

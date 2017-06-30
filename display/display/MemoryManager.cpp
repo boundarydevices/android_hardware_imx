@@ -33,7 +33,7 @@ MemoryManager* MemoryManager::getInstance()
 
     GPUManager* pManager = new GPUManager();
     if (pManager != NULL && pManager->isValid()) {
-        ALOGI("GPUManager exists");
+        ALOGI("GPUManager used");
         sInstance = pManager;
     }
     else {
@@ -67,7 +67,7 @@ int MemoryManager::verifyMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
+    MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
     if (shadow == NULL) {
         ALOGE("%s buffer shadow invalid", __func__);
         return -EINVAL;
@@ -88,7 +88,7 @@ int MemoryManager::releaseMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
+    MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
     if (shadow == NULL) {
         ALOGE("%s buffer handle invalid", __func__);
         return -EINVAL;

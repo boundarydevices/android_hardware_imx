@@ -72,12 +72,15 @@ struct Memory : public native_handle
 
     int  usage;
     int  stride;
-    int  reserved[2];
+    int  gemHandle;
+    int  fbId;
     int  fslFormat;
-    intptr_t  shadow;
+    int  reserve;
 
     /* gpu private ints. */
     uint64_t gpu_priv[12];
+    uint64_t shadow;
+    uint64_t reserved[3];
 };
 
 }

@@ -23,10 +23,14 @@
 
 namespace fsl {
 
+typedef int (*gpu_wrapfunc)(void* handle, int w, int h, int f,
+                            int s, int phys, void* addr);
+typedef int (*gpu_unwrapfunc)(void* handle);
+
 class IonShadow : public MemoryShadow
 {
 public:
-    IonShadow(int fd, struct Memory* handle, bool own);
+    IonShadow(int fd, struct Memory* handle, bool own, gpu_unwrapfunc pointer);
     ~IonShadow();
 
     int fd();
@@ -35,6 +39,7 @@ public:
 private:
     int mFd;
     struct Memory* mHandle;
+    gpu_unwrapfunc mUnwrap;
 };
 
 class IonManager : public MemoryManager
@@ -60,6 +65,8 @@ public:
 
 private:
     int mIonFd;
+    gpu_wrapfunc mWrap;
+    gpu_unwrapfunc mUnwrap;
 };
 
 }

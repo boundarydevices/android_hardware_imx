@@ -48,6 +48,13 @@ enum {
     DISPLAY_VIRTUAL = 5,
 };
 
+enum {
+    POWER_ON = 0,
+    POWER_DOZE,
+    POWER_DOZE_SUSPEND,
+    POWER_OFF,
+};
+
 struct DisplayConfig
 {
     int mXres;
@@ -90,6 +97,12 @@ public:
     virtual int composeLayers();
 
     // display property.
+    // set display power on/off.
+    virtual int setPowerMode(int mode);
+    // enable/disable display vsync.
+    virtual void setVsyncEnabled(bool enabled);
+    // use software vsync.
+    virtual void setFakeVSync(bool enable);
     // set display connection state.
     void setConnected(bool connected);
     // get display connection state.

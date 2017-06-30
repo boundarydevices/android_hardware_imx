@@ -60,7 +60,23 @@ int FbDisplay::setPowerMode(int mode)
 {
     Mutex::Autolock _l(mLock);
 
-    mPowerMode = mode;
+    switch (mode) {
+        case POWER_ON:
+            mPowerMode = FB_BLANK_UNBLANK;
+            break;
+        case POWER_DOZE:
+            mPowerMode = FB_BLANK_NORMAL;
+            break;
+        case POWER_DOZE_SUSPEND:
+            mPowerMode = FB_BLANK_VSYNC_SUSPEND;
+            break;
+        case POWER_OFF:
+            mPowerMode = FB_BLANK_POWERDOWN;
+            break;
+        default:
+            mPowerMode = FB_BLANK_UNBLANK;
+            break;
+    }
     //HDMI need to keep unblank since audio need to be able to output
     //through HDMI cable. Blank the HDMI will lost the HDMI clock
     if (mType == DISPLAY_HDMI) {
@@ -79,6 +95,10 @@ int FbDisplay::setPowerMode(int mode)
 void FbDisplay::enableVsync()
 {
     Mutex::Autolock _l(mLock);
+    if (mFd < 0) {
+        return;
+    }
+
     mVsyncThread = new VSyncThread(this);
 }
 
@@ -129,8 +149,8 @@ int FbDisplay::updateScreen()
     }
 
     Memory* buffer = mRenderTarget;
-    if (!buffer || !buffer->flags & FLAGS_FRAMEBUFFER) {
-        ALOGV("%s buffer is not framebuffer", __func__);
+    if (!buffer || !(buffer->flags & FLAGS_FRAMEBUFFER)) {
+        ALOGV("%s buffer is invalid", __func__);
         return -EINVAL;
     }
 
@@ -306,6 +326,11 @@ int FbDisplay::closeFb()
 
 void FbDisplay::prepareTargetsLocked()
 {
+    if (!mComposer.isValid()) {
+        ALOGI("no need to alloc memory");
+        return;
+    }
+
     MemoryDesc desc;
     const DisplayConfig& config = mConfigs[mActiveConfig];
     desc.mWidth = config.mXres;

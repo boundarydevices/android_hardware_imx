@@ -17,6 +17,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <cutils/log.h>
+#include <cutils/properties.h>
 
 #include "DisplayManager.h"
 
@@ -48,23 +49,71 @@ DisplayManager::DisplayManager()
         mFbDisplays[i]->setIndex(i);
     }
 
+    for (int i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+        mKmsDisplays[i] = new KmsDisplay();
+        mKmsDisplays[i]->setIndex(i);
+    }
+
     for (int i=0; i<MAX_VIRTUAL_DISPLAY; i++) {
         mVirtualDisplays[i] = new VirtualDisplay();
         mVirtualDisplays[i]->setIndex(i+MAX_PHYSICAL_DISPLAY);
     }
 
-    // now only main display vsync valid.
-    mFbDisplays[DISPLAY_PRIMARY]->enableVsync();
+    mDrmFd = -1;
+    mDrmMode = false;
+    enumKmsDisplays();
+    if (!mDrmMode) {
+        enumFbDisplays();
+    }
 
-    enumDisplays();
+    // now only main display vsync valid.
+    if (mDrmMode) {
+        mKmsDisplays[DISPLAY_PRIMARY]->enableVsync();
+    }
+    else {
+        mFbDisplays[DISPLAY_PRIMARY]->enableVsync();
+    }
 
     //allow primary display plug-out then plug-in.
-    if (mFbDisplays[DISPLAY_PRIMARY]->connected() == false) {
-        mFbDisplays[DISPLAY_PRIMARY]->setConnected(true);
-        mFbDisplays[DISPLAY_PRIMARY]->setFakeVSync(true);
+    Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
+    if (display->connected() == false) {
+        display->setConnected(true);
+        display->setFakeVSync(true);
     }
 
     mHotplugThread = new HotplugThread(this);
+}
+
+DisplayManager::~DisplayManager()
+{
+    if (mHotplugThread != NULL) {
+        mHotplugThread->requestExit();
+    }
+
+    Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
+    display->setVsyncEnabled(false);
+
+    for (int i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+        if (mFbDisplays[i] != NULL) {
+            delete mFbDisplays[i];
+        }
+    }
+
+    for (int i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+        if (mKmsDisplays[i] != NULL) {
+            delete mKmsDisplays[i];
+        }
+    }
+
+    for (int i=0; i<MAX_VIRTUAL_DISPLAY; i++) {
+        if (mVirtualDisplays[i] != NULL) {
+            delete mVirtualDisplays[i];
+        }
+    }
+
+    if (mDrmFd > 0) {
+        close(mDrmFd);
+    }
 }
 
 Display* DisplayManager::getDisplay(int id)
@@ -72,7 +121,12 @@ Display* DisplayManager::getDisplay(int id)
     Display* pDisplay = NULL;
     Mutex::Autolock _l(mLock);
     if (id >= 0 && id < MAX_PHYSICAL_DISPLAY) {
-        pDisplay = (Display*)mFbDisplays[id];
+        if (mDrmMode) {
+            pDisplay = (Display*)mKmsDisplays[id];
+        }
+        else {
+            pDisplay = (Display*)mFbDisplays[id];
+        }
     }
     else if (id >= MAX_PHYSICAL_DISPLAY &&
              id < MAX_PHYSICAL_DISPLAY + MAX_VIRTUAL_DISPLAY) {
@@ -85,7 +139,7 @@ Display* DisplayManager::getDisplay(int id)
     return pDisplay;
 }
 
-FbDisplay* DisplayManager::getFbDisplay(int id)
+Display* DisplayManager::getPhysicalDisplay(int id)
 {
     Mutex::Autolock _l(mLock);
     if (id < 0 || id >= MAX_PHYSICAL_DISPLAY) {
@@ -93,6 +147,9 @@ FbDisplay* DisplayManager::getFbDisplay(int id)
         return NULL;
     }
 
+    if (mDrmMode) {
+        return mKmsDisplays[id];
+    }
     return mFbDisplays[id];
 }
 
@@ -182,7 +239,84 @@ bool DisplayManager::isOverlay(int fb)
     return false;
 }
 
-int DisplayManager::enumDisplays()
+int DisplayManager::enumKmsDisplays()
+{
+    char path[PROPERTY_VALUE_MAX];
+    property_get("hwc.drm.device", path, "/dev/dri/card0");
+
+    mDrmFd = open(path, O_RDWR);
+    if(mDrmFd <= 0) {
+        ALOGE("Failed to open dri-%s, error:%s", path, strerror(-errno));
+        return -ENODEV;
+    }
+
+    int ret = drmSetClientCap(mDrmFd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
+    if (ret) {
+        ALOGE("Failed to set universal plane cap %d", ret);
+        close(mDrmFd);
+        mDrmFd = -1;
+        return ret;
+    }
+
+    ret = drmSetClientCap(mDrmFd, DRM_CLIENT_CAP_ATOMIC, 1);
+    if (ret) {
+        ALOGE("Failed to set atomic cap %d", ret);
+        close(mDrmFd);
+        mDrmFd = -1;
+        return ret;
+    }
+
+    drmModeResPtr res = drmModeGetResources(mDrmFd);
+    if (!res) {
+        ALOGE("Failed to get DrmResources resources");
+        close(mDrmFd);
+        mDrmFd = -1;
+        return -ENODEV;
+    }
+
+    int id = 1;
+    bool foundPrimary = false;
+    KmsDisplay* display = NULL;
+    for (int i = 0; i < res->count_connectors; i++) {
+        display = mKmsDisplays[id];
+
+        if (display->setDrm(mDrmFd, res->connectors[i]) != 0) {
+            continue;
+        }
+
+        display->readType();
+        if (display->readConnection() != 0 || !display->connected()) {
+            id++;
+            continue;
+        }
+
+        if (display->openKms(res) != 0) {
+            display->closeKms();
+            id++;
+            continue;
+        }
+
+        // the first connected device as primary display.
+        if (!foundPrimary) {
+            foundPrimary = true;
+            KmsDisplay* tmp = mKmsDisplays[0];
+            mKmsDisplays[0] = mKmsDisplays[id];
+            mKmsDisplays[id] = tmp;
+        }
+        else {
+            id++;
+        }
+    }
+    drmModeFreeResources(res);
+
+    if (foundPrimary) {
+        mDrmMode = true;
+    }
+
+    return ret;
+}
+
+int DisplayManager::enumFbDisplays()
 {
     DIR *dir = NULL;
     struct dirent *dirEntry;
@@ -260,6 +394,7 @@ void DisplayManager::handleHotplugEvent()
             Mutex::Autolock _l(mLock);
             display = mFbDisplays[i];
         }
+
         bool connected = display->connected();
         display->readConnection();
         if (display->connected() == connected) {
@@ -291,6 +426,56 @@ void DisplayManager::handleHotplugEvent()
     }
 }
 
+void DisplayManager::handleKmsHotplug()
+{
+    if (mDrmFd < 0) {
+        return;
+    }
+
+    drmModeResPtr res = drmModeGetResources(mDrmFd);
+    if (!res) {
+        ALOGE("Failed to get DrmResources resources");
+        return;
+    }
+
+    for (uint32_t i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+        KmsDisplay* display = NULL;
+        {
+            Mutex::Autolock _l(mLock);
+            display = mKmsDisplays[i];
+        }
+
+        bool connected = display->connected();
+        display->readConnection();
+        if (display->connected() == connected) {
+            continue;
+        }
+
+        // primary display.
+        if (i == DISPLAY_PRIMARY) {
+            display->setFakeVSync(!display->connected());
+            continue;
+        }
+
+        if (display->connected()) {
+            display->openKms(res);
+        }
+
+        EventListener* callback = NULL;
+        {
+            Mutex::Autolock _l(mLock);
+            callback = mListener;
+        }
+        if (callback != NULL) {
+            callback->onHotplug(i, display->connected());
+        }
+
+        if (!display->connected()) {
+            display->closeKms();
+        }
+    }
+}
+
 //------------------------------------------------------------
 DisplayManager::HotplugThread::HotplugThread(DisplayManager *ctx)
    : Thread(false), mCtx(ctx)
@@ -313,6 +498,7 @@ bool DisplayManager::HotplugThread::threadLoop()
     char uevent_desc[4096];
     const char *pSii902 = HDMI_SII902_PLUG_EVENT;
 
+    bool kms = false;
     memset(uevent_desc, 0, sizeof(uevent_desc));
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
     int type = -1;
@@ -324,12 +510,21 @@ bool DisplayManager::HotplugThread::threadLoop()
     else if (!strncmp(uevent_desc, pSii902, strlen(pSii902))) {
         type = DISPLAY_HDMI_ON_BOARD;
     }
+    else if (strstr(uevent_desc, "DEVTYPE=drm_minor") &&
+             strstr(uevent_desc, "HOTPLUG=1")) {
+        kms = true;
+    }
     else {
         ALOGV("%s invalid uevent %s", __func__, uevent_desc);
         return true;
     }
 
-    mCtx->handleHotplugEvent();
+    if (kms) {
+        mCtx->handleKmsHotplug();
+    }
+    else {
+        mCtx->handleHotplugEvent();
+    }
 
     return true;
 }

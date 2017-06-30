@@ -124,7 +124,7 @@ int MemoryDesc::checkFormat()
 }
 
 MemoryShadow::MemoryShadow(bool own)
-  : mOwner(own), mRefCount(1)
+  : mOwner(own), mRefCount(1), mListener(NULL)
 {
 }
 
@@ -150,6 +150,12 @@ void MemoryShadow::decRef()
     if (count <= 0) {
         delete this;
     }
+}
+
+void MemoryShadow::setListener(MemoryListener* listener)
+{
+    Mutex::Autolock _l(mLock);
+    mListener = listener;
 }
 
 }

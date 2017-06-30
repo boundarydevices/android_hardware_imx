@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,17 +54,18 @@ GPUManager::GPUManager()
     mAlloc = NULL;
     int ret = hw_get_module(GPU_MODULE_ID, (const hw_module_t**)&mModule);
     if (ret != 0) {
-        ALOGE("gpu gralloc module open failed!");
+        ALOGV("gpu gralloc module open failed!");
         return;
     }
 
     ret = gralloc_open((const hw_module_t*)mModule, &mAlloc);
     if (ret != 0 || !mAlloc) {
-        ALOGE("gpu gralloc device open failed!");
+        ALOGV("gpu gralloc device open failed!");
         return;
     }
 
-    ALOGI("open gpu gralloc module success!");
+    mIonManager = new IonManager();
+    ALOGV("open gpu gralloc module success!");
 }
 
 GPUManager::~GPUManager()
@@ -91,6 +93,10 @@ int GPUManager::allocMemory(MemoryDesc& desc, Memory** out)
     }
 
     desc.mFlag |= FLAGS_ALLOCATION_GPU;
+    if (desc.mFlag & FLAGS_FRAMEBUFFER) {
+        return mIonManager->allocMemory(desc, out);
+    }
+
     int ret = desc.checkFormat();
     if (ret != 0 || desc.mSize == 0) {
         ALOGE("%s check format failed", __func__);
@@ -111,7 +117,7 @@ int GPUManager::allocMemory(MemoryDesc& desc, Memory** out)
     }
 
     MemoryShadow* shadow = new GPUShadow(memory, true, mAlloc, mModule);
-    memory->shadow = (intptr_t)shadow;
+    memory->shadow = (uintptr_t)shadow;
     *out = memory;
 
     return 0;
@@ -129,7 +135,11 @@ int GPUManager::retainMemory(Memory* handle)
         return -EINVAL;
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)(intptr_t)handle->shadow;
+    if (handle->flags & FLAGS_FRAMEBUFFER) {
+        return mIonManager->retainMemory(handle);
+    }
+
+    MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
     if (handle->pid != getpid()) {
         int ret = mModule->registerBuffer(mModule, handle);
         if (ret != 0) {
@@ -138,7 +148,7 @@ int GPUManager::retainMemory(Memory* handle)
         }
 
         shadow = new GPUShadow(handle, false, mAlloc, mModule);
-        handle->shadow = (intptr_t)shadow;
+        handle->shadow = (uintptr_t)shadow;
         handle->pid = getpid();
     }
     else {
@@ -159,6 +169,10 @@ int GPUManager::lock(Memory* handle, int usage,
     if (mAlloc == NULL) {
         ALOGE("%s invalid gpu device", __func__);
         return -EINVAL;
+    }
+
+    if (handle->flags & FLAGS_FRAMEBUFFER) {
+        return mIonManager->lock(handle, usage, l, t, w, h, vaddr);
     }
 
     int ret = 0;
@@ -194,6 +208,10 @@ int GPUManager::lockYCbCr(Memory* handle, int usage,
         return -EINVAL;
     }
 
+    if (handle->flags & FLAGS_FRAMEBUFFER) {
+        return mIonManager->lockYCbCr(handle, usage, l, t, w, h, ycbcr);
+    }
+
     return mModule->lock_ycbcr(mModule, handle, usage, l, t, w, h, ycbcr);
 }
 
@@ -209,6 +227,10 @@ int GPUManager::unlock(Memory* handle)
     if (ret != 0) {
         ALOGE("%s verify memory failed", __func__);
         return -EINVAL;
+    }
+
+    if (handle->flags & FLAGS_FRAMEBUFFER) {
+        return mIonManager->unlock(handle);
     }
 
     ret = mModule->unlock(mModule, handle);

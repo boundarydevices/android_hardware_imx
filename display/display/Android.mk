@@ -20,6 +20,7 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_SRC_FILES := Display.cpp \
                    DisplayManager.cpp \
                    FbDisplay.cpp \
+                   KmsDisplay.cpp \
                    VirtualDisplay.cpp \
                    Layer.cpp \
                    Memory.cpp \
@@ -31,7 +32,9 @@ LOCAL_SRC_FILES := Display.cpp \
 
 LOCAL_C_INCLUDES += device/fsl-proprietary/include \
                     hardware/imx/include \
-                    system/core/include
+                    system/core/include \
+                    external/libdrm \
+                    external/libdrm/include/drm
 
 LOCAL_SHARED_LIBRARIES :=   \
     liblog                  \
@@ -41,7 +44,8 @@ LOCAL_SHARED_LIBRARIES :=   \
     libhardware             \
     libhardware_legacy      \
     libsync                 \
-    libion
+    libion                  \
+    libdrm
 
 LOCAL_MODULE := libfsldisplay
 LOCAL_CFLAGS:= -DLOG_TAG=\"display\" -D_LINUX -Wunused-parameter

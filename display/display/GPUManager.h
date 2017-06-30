@@ -61,6 +61,7 @@ public:
 private:
     alloc_device_t *mAlloc;
     gralloc_module_t* mModule;
+    IonManager* mIonManager;
 };
 
 }

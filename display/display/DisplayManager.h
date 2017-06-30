@@ -21,6 +21,7 @@
 #include <hardware_legacy/uevent.h>
 
 #include "FbDisplay.h"
+#include "KmsDisplay.h"
 #include "VirtualDisplay.h"
 
 #define MAX_PHYSICAL_DISPLAY 10
@@ -31,19 +32,21 @@ namespace fsl {
 class DisplayManager
 {
 public:
-    virtual ~DisplayManager() {}
+    virtual ~DisplayManager();
 
     static DisplayManager* getInstance();
     Display* getDisplay(int id);
-    FbDisplay* getFbDisplay(int id);
+    Display* getPhysicalDisplay(int id);
     VirtualDisplay* getVirtualDisplay(int id);
     VirtualDisplay* createVirtualDisplay();
     int destroyVirtualDisplay(int id);
 
     bool isOverlay(int fb);
-    int enumDisplays();
+    int enumFbDisplays();
+    int enumKmsDisplays();
     void setCallback(EventListener* callback);
     void handleHotplugEvent();
+    void handleKmsHotplug();
 
 private:
     DisplayManager();
@@ -57,8 +60,6 @@ private:
         virtual void onFirstRef();
         virtual int32_t readyToRun();
         virtual bool threadLoop();
-        void handleHdmiUevent(const char *buff, int len, int dispid);
-        void handleHotplugEvent();
 
         DisplayManager *mCtx;
     };
@@ -71,8 +72,11 @@ private:
 
     Mutex mLock;
     FbDisplay* mFbDisplays[MAX_PHYSICAL_DISPLAY];
+    KmsDisplay* mKmsDisplays[MAX_PHYSICAL_DISPLAY];
     VirtualDisplay* mVirtualDisplays[MAX_VIRTUAL_DISPLAY];
     EventListener* mListener;
+    int mDrmFd;
+    bool mDrmMode;
 };
 
 }

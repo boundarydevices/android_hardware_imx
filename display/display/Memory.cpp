@@ -24,7 +24,8 @@ Memory::Memory(MemoryDesc* desc, int fd)
     size(desc->mSize), offset(0), base(0),  phys(0),
     format(desc->mFormat), width(desc->mWidth),
     height(desc->mHeight), pid(getpid()), usage(desc->mProduceUsage),
-    stride(desc->mStride), fslFormat(desc->mFslFormat), shadow(0)
+    stride(desc->mStride), gemHandle(0), fbId(0),
+    fslFormat(desc->mFslFormat), shadow(0)
 {
     version = sizeof(native_handle);
     numInts = sNumInts();

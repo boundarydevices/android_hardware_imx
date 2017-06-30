@@ -341,7 +341,7 @@ static int hwc2_set_vsync_enable(hwc2_device_t* device, hwc2_display_t display,
     bool enable = (enabled == HWC2_VSYNC_ENABLE) ? true : false;
     int type = pDisplay->type();
     if (type >= DISPLAY_LDB && type < DISPLAY_VIRTUAL) {
-        ((FbDisplay*)pDisplay)->setVsyncEnabled(enable);
+        pDisplay->setVsyncEnabled(enable);
     }
 
     return HWC2_ERROR_NONE;
@@ -383,7 +383,7 @@ static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display,
 
     int type = pDisplay->type();
     if (type >= DISPLAY_LDB && type < DISPLAY_VIRTUAL) {
-        ((FbDisplay*)pDisplay)->setPowerMode(power);
+        pDisplay->setPowerMode(power);
     }
 
     return HWC2_ERROR_NONE;
@@ -554,7 +554,7 @@ static int hwc2_present_display(hwc2_device_t* device, hwc2_display_t display,
     struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
     if (ctx->checkHDMI && ctx->mHotplug != NULL && ctx->mVsync != NULL) {
         ctx->checkHDMI = false;
-        FbDisplay* fb = displayManager->getFbDisplay(HWC_DISPLAY_EXTERNAL);
+        Display* fb = displayManager->getPhysicalDisplay(HWC_DISPLAY_EXTERNAL);
         ctx->mListener->onHotplug(HWC_DISPLAY_EXTERNAL, fb->connected());
     }
 
