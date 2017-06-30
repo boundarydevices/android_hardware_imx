@@ -444,7 +444,7 @@ int32_t MJPGStream::allocateSensorBuffersLocked()
             }
             goto err;
         }
-        phyAddr = ion_phys(mIonFd, ionHandle);
+        phyAddr = ion_phys(mIonFd, ionSize, sharedFd);
         if (phyAddr == 0) {
             ALOGE("ion_phys failed.");
             ion_free(mIonFd, ionHandle);
@@ -802,7 +802,7 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
             ALOGE("ion_map failed.");
             return BAD_VALUE;
         }
-        phyAddr = (unsigned char *)ion_phys(mIonFd, ionHandle);
+        phyAddr = (unsigned char *)ion_phys(mIonFd, ionSize, sharedFd);
         if (phyAddr == 0) {
             ALOGE("ion_phys failed.");
             return BAD_VALUE;

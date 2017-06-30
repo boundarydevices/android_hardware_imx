@@ -341,7 +341,7 @@ int32_t VADCTVINDevice::VADCTVinStream::allocateFrameBuffersLocked()
             }
             goto err;
         }
-        phyAddr = ion_phys(mIonFd, ionHandle);
+        phyAddr = ion_phys(mIonFd, ionSize, sharedFd);
         if (phyAddr == 0) {
             ALOGI("ion_phys failed.");
             ion_free(mIonFd, ionHandle);

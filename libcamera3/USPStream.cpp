@@ -272,7 +272,7 @@ int32_t USPStream::allocateBuffersLocked()
 
             goto err;
         }
-        phyAddr = ion_phys(mIonFd, ionHandle);
+        phyAddr = ion_phys(mIonFd, ionSize, sharedFd);
         if (phyAddr == 0) {
             ALOGE("ion_phys failed.");
             ion_free(mIonFd, ionHandle);
