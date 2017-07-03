@@ -36,9 +36,7 @@
 
 #include "FSLSensorsHub.h"
 
-#ifdef CONFIG_SENSOR_8DV_LIGHT
 #include "LightSensor.h"
-#endif
 
 /*****************************************************************************/
 
@@ -65,46 +63,150 @@
 
 /* The SENSORS Module */
 static const struct sensor_t sSensorList[] = {
-        { "Freescale Sensor Hub Accelerometer",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_ACCELERATION_HANDLE,
-          SENSOR_TYPE_ACCELEROMETER, RANGE_A, CONVERT_A, 0.30f, 10000, 0, 0, "" },
-
-        { "Freescale Sensor Hub Magnetic field sensor",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_MAGNETIC_FIELD_HANDLE,
-          SENSOR_TYPE_MAGNETIC_FIELD, 1500.0f, CONVERT_M, 0.50f, 10000, 0, 0, "" },
-
-        { "Freescale Sensor Hub Orientation sensor",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_ORIENTATION_HANDLE,
-          SENSOR_TYPE_ORIENTATION, 360.0f, CONVERT_O, 0.50f, 10000, 0, 0, "" },
-
-        { "Freescale Sensor Hub Gyroscope sensor",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_GYROSCOPE_HANDLE,
-          SENSOR_TYPE_GYROSCOPE, 4000.0f, 0.0035, 0.50f, 10000, 0, 0, "" },
-
-		 { "Freescale Sensor Hub Rotation Vector",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_ROTATION_VECTOR_HANDLE,
-          SENSOR_TYPE_ROTATION_VECTOR,10240.0f, 1.0f, 0.50f, 10000, 0, 0, "" },
-
-        { "Freescale Pressure Sensor ",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_PRESSURE_HANDLE,
-          SENSOR_TYPE_PRESSURE, 110.0f, 1.5, 0.50f, 10000, 0, 0, "" },
-        { "Freescale Temperature Sensor ",
-          "Freescale Semiconductor Inc.",
-          1, SENSORS_TEMPERATURE_HANDLE,
-          SENSOR_TYPE_AMBIENT_TEMPERATURE, 110.0f, 1.5, 0.50f, 10000, 0, 0, "" },
-#ifdef CONFIG_SENSOR_8DV_LIGHT
-        { "ISL29023 Light sensor",
-          "Intersil",
-          1, SENSORS_LIGHT_HANDLE,
-          SENSOR_TYPE_LIGHT, 16000.0f, 1.0f, 0.35f, 0, 0, 0},
-
-#endif
+    {
+    .name =       "Freescale Sensor Hub Accelerometer",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_ACCELERATION_HANDLE,
+    .type =       SENSOR_TYPE_ACCELEROMETER,
+    .maxRange =   RANGE_A,
+    .resolution = CONVERT_A,
+    .power =      0.30f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale Sensor Hub Magnetic field sensor",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_MAGNETIC_FIELD_HANDLE,
+    .type =       SENSOR_TYPE_MAGNETIC_FIELD,
+    .maxRange =   1500.0f,
+    .resolution = CONVERT_M,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale Sensor Hub Orientation sensor",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_ORIENTATION_HANDLE,
+    .type =       SENSOR_TYPE_ORIENTATION,
+    .maxRange =   360.0f,
+    .resolution = CONVERT_O,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale Sensor Hub Gyroscope sensor",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_GYROSCOPE_HANDLE,
+    .type =       SENSOR_TYPE_GYROSCOPE,
+    .maxRange =   4000.0f,
+    .resolution = 0.0035,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale Sensor Hub Rotation Vector",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_ROTATION_VECTOR_HANDLE,
+    .type =       SENSOR_TYPE_ROTATION_VECTOR,
+    .maxRange =   10240.0f,
+    .resolution = 1.0f,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale Pressure Sensor",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_PRESSURE_HANDLE,
+    .type =       SENSOR_TYPE_PRESSURE,
+    .maxRange =   110.0f,
+    .resolution = 1.5,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_CONTINUOUS_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "Freescale Temperature Sensor",
+    .vendor =     "Freescale Semiconductor Inc.",
+    .version=     1,
+    .handle =     SENSORS_TEMPERATURE_HANDLE,
+    .type =       SENSOR_TYPE_AMBIENT_TEMPERATURE,
+    .maxRange =   110.0f,
+    .resolution = 1.5,
+    .power =      0.50f,
+    .minDelay =   1000,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               500000,
+    .flags =      SENSOR_FLAG_ON_CHANGE_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "ISL29023 Light sensor",
+    .vendor =     "Intersil",
+    .version=     1,
+    .handle =     SENSORS_LIGHT_HANDLE,
+    .type =       SENSOR_TYPE_LIGHT,
+    .maxRange =   16000.0f,
+    .resolution = 1.0f,
+    .power =      0.35f,
+    .minDelay =   0,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             0,
+    .requiredPermission =     0,
+    .maxDelay =               0,
+    .flags =      SENSOR_FLAG_ON_CHANGE_MODE,
+    .reserved =   {}
+    },
 };
 
 
@@ -152,9 +254,7 @@ private:
         fsl_sens           = 0,
         press,
         temperature,
-#ifdef CONFIG_SENSOR_8DV_LIGHT
         light,
-#endif
         numSensorDrivers,
         numFds,
     };
@@ -172,11 +272,9 @@ private:
             case ID_T:
                 return temperature;
                 break;
-#ifdef CONFIG_SENSOR_8DV_LIGHT
             case ID_L:
                 return light;
                 break;
-#endif
 
             case ID_A:
           	case ID_M:
@@ -209,9 +307,7 @@ sensors_poll_context_t::sensors_poll_context_t()
     mSensors[fsl_sens] = new FSLSensorsHub();
     mSensors[press] = new PressSensor();
     mSensors[temperature] = new PressSensor();
-#ifdef CONFIG_SENSOR_8DV_LIGHT
     mSensors[light] = new LightSensor();
-#endif
 
 	fillPollFd();
 	magRunTimes = 0;
@@ -367,7 +463,7 @@ static int open_sensors(const struct hw_module_t* module, const char* id,
         memset(&dev->device, 0, sizeof(sensors_poll_device_1));
 
         dev->device.common.tag = HARDWARE_DEVICE_TAG;
-        dev->device.common.version  = SENSORS_DEVICE_API_VERSION_1_1;
+        dev->device.common.version  = SENSORS_DEVICE_API_VERSION_1_4;
         dev->device.common.module   = const_cast<hw_module_t*>(module);
         dev->device.common.close    = poll__close;
         dev->device.activate        = poll__activate;

@@ -41,14 +41,7 @@ LOCAL_SRC_FILES := 						\
 				FSLSensorsHub.cpp		\
 				PressSensor.cpp			\
 				InputEventReader.cpp            \
-
-
-ifeq ($(BOARD_USE_SENSOR_FUSION_64BIT),true)
-	LOCAL_CFLAGS += -DCONFIG_SENSOR_8DV_LIGHT
-	LOCAL_SRC_FILES += LightSensor.cpp
-endif
-
-
+				LightSensor.cpp
 
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
 
