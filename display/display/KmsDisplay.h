@@ -129,6 +129,7 @@ private:
                           uint64_t* value);
     void addAtomicRequest(drmModeAtomicReqPtr pset, uint32_t modeID, uint32_t fb);
     int getPrimaryPlane();
+    int findBestMatch(drmModeConnectorPtr pConnector);
 
 protected:
     int mDrmFd;

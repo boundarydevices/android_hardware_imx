@@ -19,6 +19,7 @@
 #include <sys/ioctl.h>
 #include <cutils/log.h>
 #include <sync/sync.h>
+#include <cutils/properties.h>
 
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
@@ -425,13 +426,8 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
         return -ENODEV;
     }
 
-    mMode = pConnector->modes[0];
-
-    for (int i=0; i<pConnector->count_modes; i++) {
-        drmModeModeInfo mode = pConnector->modes[i];
-        ALOGV("mode[%d]: w:%d, h:%d", i, mode.hdisplay, mode.vdisplay);
-    }
-
+    int index = findBestMatch(pConnector);
+    mMode = pConnector->modes[index];
     for (int i = 0; i < pModeRes->count_crtcs; i++) {
         if ((pEncoder->possible_crtcs & (1 << i)) == 0) {
             continue;
@@ -477,6 +473,56 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
     prepareTargetsLocked();
 
     return 0;
+}
+
+int KmsDisplay::findBestMatch(drmModeConnectorPtr pConnector)
+{
+    int index = 0;
+    unsigned int delta = -1, rdelta = -1;
+    char value[PROPERTY_VALUE_MAX];
+    int width = 0, height = 0;
+
+    memset(value, 0, sizeof(value));
+    property_get("ro.boot.displaymode", value, "1080p");
+    if (!strncmp(value, "2k", 2)) {
+        width = 2048;
+    }
+    else if (!strncmp(value, "4k", 2)) {
+        width = 4096;
+    }
+    else {
+        height = atoi(value);
+        if (height == 0) {
+            height = 1080;
+        }
+    }
+    ALOGV("%s mode:%s, width:%d, height:%d", __func__, value, width, height);
+
+    for (int i=0; i<pConnector->count_modes; i++) {
+        drmModeModeInfo mode = pConnector->modes[i];
+        ALOGV("mode[%d]: w:%d, h:%d", i, mode.hdisplay, mode.vdisplay);
+
+        if (height > 0) {
+            rdelta = abs((height - mode.vdisplay));
+        }
+        else {
+            rdelta = abs((width - mode.hdisplay));
+        }
+
+        if (rdelta < delta) {
+            delta = rdelta;
+            index = i;
+        }
+
+        if (delta == 0) {
+            break;
+        }
+    }
+
+    drmModeModeInfo mode = pConnector->modes[index];
+    ALOGV("find best mode w:%d, h:%d", mode.hdisplay, mode.vdisplay);
+
+    return index;
 }
 
 int KmsDisplay::getPrimaryPlane()
