@@ -315,16 +315,22 @@ void CameraHAL::enumSensorSet()
     ALOGI("%s", __func__);
     // get back camera property.
     memset(orientStr, 0, sizeof(orientStr));
-    property_get("back_camera_name", mSets[BACK_CAMERA_ID].mPropertyName, "0");
-    property_get("back_camera_orient", orientStr, "0");
+    if (property_get("ro.boot.back_camera_name",
+                     mSets[BACK_CAMERA_ID].mPropertyName, NULL) <= 0)
+        property_get("back_camera_name", mSets[BACK_CAMERA_ID].mPropertyName, "0");
+    if (property_get("ro.boot.back_camera_orient", orientStr, NULL) <= 0)
+        property_get("back_camera_orient", orientStr, "0");
     mSets[BACK_CAMERA_ID].mOrientation = atoi(orientStr);
     mSets[BACK_CAMERA_ID].mFacing = CAMERA_FACING_BACK;
     mSets[BACK_CAMERA_ID].mExisting = false;
 
     // get front camera property.
     memset(orientStr, 0, sizeof(orientStr));
-    property_get("front_camera_name", mSets[FRONT_CAMERA_ID].mPropertyName, "0");
-    property_get("front_camera_orient", orientStr, "0");
+    if (property_get("ro.boot.front_camera_name",
+                     mSets[FRONT_CAMERA_ID].mPropertyName, NULL) <= 0)
+        property_get("front_camera_name", mSets[FRONT_CAMERA_ID].mPropertyName, "0");
+    if (property_get("ro.boot.front_camera_orient", orientStr, NULL) <= 0)
+        property_get("front_camera_orient", orientStr, "0");
     mSets[FRONT_CAMERA_ID].mOrientation = atoi(orientStr);
     mSets[FRONT_CAMERA_ID].mFacing = CAMERA_FACING_FRONT;
     mSets[FRONT_CAMERA_ID].mExisting = false;
