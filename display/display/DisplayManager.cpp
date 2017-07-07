@@ -27,6 +27,7 @@ namespace fsl {
 #define HDMI_PLUG_CHANGE "change@"
 #define HDMI_SII902_PLUG_EVENT "change@/devices/platform/sii902x.0"
 #define HDMI_EXTCON "extcon"
+#define HDMI_DRM_EVENT "change@/devices/platform/display-subsystem/drm"
 
 DisplayManager* DisplayManager::sInstance(0);
 Mutex DisplayManager::sLock(Mutex::PRIVATE);
@@ -512,6 +513,10 @@ bool DisplayManager::HotplugThread::threadLoop()
     }
     else if (strstr(uevent_desc, "DEVTYPE=drm_minor") &&
              strstr(uevent_desc, "HOTPLUG=1")) {
+        kms = true;
+    }
+    else if (strstr(uevent_desc, HDMI_DRM_EVENT)) {
+        ALOGV("%s kms uevent %s", __func__, uevent_desc);
         kms = true;
     }
     else {

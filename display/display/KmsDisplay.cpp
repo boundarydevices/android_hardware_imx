@@ -339,6 +339,11 @@ int KmsDisplay::updateScreen()
         drmfd = mDrmFd;
     }
 
+    if (drmfd < 0) {
+        ALOGE("%s invalid drmfd", __func__);
+        return -EINVAL;
+    }
+
     if (!buffer || !(buffer->flags & FLAGS_FRAMEBUFFER)) {
         ALOGE("%s buffer is invalid", __func__);
         return -EINVAL;
@@ -397,6 +402,11 @@ int KmsDisplay::updateScreen()
 int KmsDisplay::openKms(drmModeResPtr pModeRes)
 {
     Mutex::Autolock _l(mLock);
+
+    if (mDrmFd < 0 || mConnectorID == 0) {
+        ALOGE("%s invalid drmfd or connector id", __func__);
+        return -ENODEV;
+    }
 
     int ret = drmSetClientCap(mDrmFd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
     if (ret) {
@@ -733,11 +743,14 @@ void KmsDisplay::handleVsyncEvent(nsecs_t timestamp)
 int KmsDisplay::setDrm(int drmfd, size_t connectorId)
 {
     if (drmfd < 0 || connectorId == 0) {
-        ALOGE("invalid fd or connector id.");
+        ALOGE("%s invalid drmfd or connector id", __func__);
         return -ENODEV;
     }
 
     Mutex::Autolock _l(mLock);
+    if (mDrmFd > 0) {
+        close(mDrmFd);
+    }
     mDrmFd = dup(drmfd);
     mConnectorID = connectorId;
 
@@ -752,6 +765,11 @@ int KmsDisplay::powerMode()
 
 int KmsDisplay::readType()
 {
+    if (mDrmFd < 0 || mConnectorID == 0) {
+        ALOGE("%s invalid drmfd or connector id", __func__);
+        return -ENODEV;
+    }
+
     drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
     if (pConnector == NULL) {
         ALOGE("%s drmModeGetConnector failed for "
@@ -768,7 +786,9 @@ int KmsDisplay::readType()
         case DRM_MODE_CONNECTOR_TV:
             mType = DISPLAY_HDMI;
             break;
-        case DRM_MODE_CONNECTOR_DSI:
+        case DRM_MODE_CONNECTOR_DVII:
+        case DRM_MODE_CONNECTOR_DVID:
+        case DRM_MODE_CONNECTOR_DVIA:
             mType = DISPLAY_DVI;
             break;
         default:
@@ -786,6 +806,11 @@ int KmsDisplay::readType()
 
 int KmsDisplay::readConnection()
 {
+    if (mDrmFd < 0 || mConnectorID == 0) {
+        ALOGE("%s invalid drmfd or connector id", __func__);
+        return -ENODEV;
+    }
+
     drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
     if (pConnector == NULL) {
         ALOGE("%s drmModeGetConnector failed for "
