@@ -48,6 +48,7 @@ public:
     int lockSurface(Memory *handle);
     // unlock surface to release resource.
     int unlockSurface(Memory *handle);
+    bool isFeatureSupported(g2d_feature feature);
 
 private:
     int setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect& rect);
@@ -93,6 +94,7 @@ private:
     hwc_func2 mEnableFunction;
     hwc_func2 mDisableFunction;
     hwc_func1 mFinishEngine;
+    hwc_func3 mQueryFeature;
 };
 
 }

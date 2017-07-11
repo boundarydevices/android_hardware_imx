@@ -72,6 +72,7 @@ Composer::Composer()
         mEnableFunction = NULL;
         mDisableFunction = NULL;
         mFinishEngine = NULL;
+        mQueryFeature = NULL;
     }
     else {
         mSetClipping = (hwc_func5)dlsym(handle, "g2d_set_clipping");
@@ -85,6 +86,7 @@ Composer::Composer()
         mEnableFunction = (hwc_func2)dlsym(handle, "g2d_enable");
         mDisableFunction = (hwc_func2)dlsym(handle, "g2d_disable");
         mFinishEngine = (hwc_func1)dlsym(handle, "g2d_finish");
+        mQueryFeature = (hwc_func3)dlsym(handle, "g2d_query_feature");
         openEngine(&mHandle);
     }
 }
@@ -638,6 +640,17 @@ int Composer::finishEngine(void* handle)
     }
 
     return (*mFinishEngine)(handle);
+}
+
+bool Composer::isFeatureSupported(g2d_feature feature)
+{
+    if (mQueryFeature == NULL) {
+        return false;
+    }
+
+    int enable = 0;
+    (*mQueryFeature)(mHandle, (void*)feature, (void*)&enable);
+    return (enable != 0);
 }
 
 }

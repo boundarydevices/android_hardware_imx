@@ -312,12 +312,19 @@ int Display::getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers,
 bool Display::verifyLayers()
 {
     bool deviceCompose = true;
+    bool rotationCap = mComposer.isFeatureSupported(G2D_ROTATION);
 
     Mutex::Autolock _l(mLock);
     mLayerVector.clear();
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
+        }
+
+        if (mLayers[i]->transform != 0 && !rotationCap) {
+            deviceCompose = false;
+            ALOGV("g2d can't support rotation");
+            break;
         }
 
         switch (mLayers[i]->origType) {
