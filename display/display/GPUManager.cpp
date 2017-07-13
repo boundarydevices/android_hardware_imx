@@ -18,10 +18,43 @@
 #include <cutils/log.h>
 #include "GPUManager.h"
 #include <system/window.h>
+#include <dlfcn.h>
 
 namespace fsl {
 
 #define GPU_MODULE_ID "gralloc_viv"
+
+#if defined(__LP64__)
+#define LIB_PATH "/system/lib64"
+#else
+#define LIB_PATH "/system/lib"
+#endif
+
+#define GPUHELPER "libgpuhelper.so"
+
+//-------------------------------------------
+HelperShadow::HelperShadow(struct Memory* handle, bool own,
+           helperFunc free, helperFunc unregister)
+  : MemoryShadow(own), mHandle(handle), mHelperFree(free), mHelperUnregister(unregister)
+{
+}
+
+HelperShadow::~HelperShadow()
+{
+    if (mHelperFree != NULL && mHelperUnregister != NULL && mHandle != NULL) {
+        if (mOwner) {
+            mHelperFree(mHandle);
+        }
+        else {
+            mHelperUnregister(mHandle);
+        }
+    }
+}
+
+struct Memory* HelperShadow::handle()
+{
+    return mHandle;
+}
 
 //-------------------------------------------
 GPUShadow::GPUShadow(struct Memory* handle, bool own,
@@ -65,6 +98,27 @@ GPUManager::GPUManager()
     }
 
     mIonManager = new IonManager();
+
+    char path[PATH_MAX] = {0};
+    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH, GPUHELPER);
+    void* handle = dlopen(path, RTLD_NOW);
+    if (handle == NULL) {
+        ALOGI("no %s found", path);
+        mHelperAlloc = NULL;
+        mHelperFree = NULL;
+        mHelperLock = NULL;
+        mHelperUnlock = NULL;
+        mHelperRegister = NULL;
+        mHelperUnregister = NULL;
+    }
+    else {
+        mHelperAlloc = (helperAlloc)dlsym(handle, "graphic_buffer_alloc");
+        mHelperFree = (helperFunc)dlsym(handle, "graphic_buffer_free");
+        mHelperLock = (helperFunc)dlsym(handle, "graphic_buffer_lock");
+        mHelperUnlock = (helperFunc)dlsym(handle, "graphic_buffer_unlock");
+        mHelperRegister = (helperFunc)dlsym(handle, "graphic_buffer_register");
+        mHelperUnregister = (helperFunc)dlsym(handle, "graphic_buffer_unregister");
+    }
     ALOGV("open gpu gralloc module success!");
 }
 
@@ -78,6 +132,17 @@ GPUManager::~GPUManager()
 bool GPUManager::isValid()
 {
     return ((mModule != NULL) && mAlloc != NULL);
+}
+
+bool GPUManager::useHelper(int format, int usage)
+{
+    bool helper = true;
+    if (((format >= FORMAT_RGBA8888 && format <= FORMAT_BGRA8888) &&
+          (!(usage & USAGE_HW_VIDEO_ENCODER) || usage == (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN)))) {
+        helper = false;
+    }
+
+    return helper;
 }
 
 int GPUManager::allocMemory(MemoryDesc& desc, Memory** out)
@@ -104,8 +169,14 @@ int GPUManager::allocMemory(MemoryDesc& desc, Memory** out)
     }
 
     Memory* memory = NULL;
-    ret = mAlloc->alloc(mAlloc, desc.mWidth, desc.mHeight, desc.mFormat,
-                 desc.mProduceUsage, (buffer_handle_t *)&memory, &desc.mStride);
+    if (useHelper(desc.mFslFormat, desc.mProduceUsage) && mHelperAlloc != NULL) {
+        ret = mHelperAlloc(desc.mWidth, desc.mHeight, desc.mFormat,
+                 (int)desc.mProduceUsage, desc.mStride, desc.mSize, (void**)&memory);
+    }
+    else {
+        ret = mAlloc->alloc(mAlloc, desc.mWidth, desc.mHeight, desc.mFormat,
+                 (int)desc.mProduceUsage, (buffer_handle_t *)&memory, &desc.mStride);
+    }
     if (ret != 0 || memory == NULL) {
         ALOGE("%s buffer alloc failed", __func__);
         return -EINVAL;
@@ -116,7 +187,13 @@ int GPUManager::allocMemory(MemoryDesc& desc, Memory** out)
         memory->flags |= FLAGS_FRAMEBUFFER | FLAGS_ALLOCATION_GPU;
     }
 
-    MemoryShadow* shadow = new GPUShadow(memory, true, mAlloc, mModule);
+    MemoryShadow* shadow = NULL;
+    if (useHelper(desc.mFslFormat, desc.mProduceUsage) && mHelperAlloc != NULL) {
+        shadow = new HelperShadow(memory, true, mHelperFree, mHelperUnregister);
+    }
+    else {
+        shadow = new GPUShadow(memory, true, mAlloc, mModule);
+    }
     memory->shadow = (uintptr_t)shadow;
     *out = memory;
 
@@ -141,13 +218,24 @@ int GPUManager::retainMemory(Memory* handle)
 
     MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
     if (handle->pid != getpid()) {
-        int ret = mModule->registerBuffer(mModule, handle);
+        int ret = 0;
+        if (useHelper(handle->fslFormat, handle->usage) && mHelperRegister != NULL) {
+            ret = mHelperRegister(handle);
+        }
+        else {
+            ret = mModule->registerBuffer(mModule, handle);
+        }
         if (ret != 0) {
             ALOGE("%s register failed", __func__);
             return -EINVAL;
         }
 
-        shadow = new GPUShadow(handle, false, mAlloc, mModule);
+        if (useHelper(handle->fslFormat, handle->usage) && mHelperRegister != NULL) {
+            shadow = new HelperShadow(handle, false, mHelperFree, mHelperUnregister);
+        }
+        else {
+            shadow = new GPUShadow(handle, false, mAlloc, mModule);
+        }
         handle->shadow = (uintptr_t)shadow;
         handle->pid = getpid();
     }
@@ -182,7 +270,12 @@ int GPUManager::lock(Memory* handle, int usage,
         return -EINVAL;
     }
 
-    ret = mModule->lock(mModule, handle, usage, l, t, w, h, vaddr);
+    if (useHelper(handle->fslFormat, handle->usage) && mHelperLock != NULL) {
+        ret = mHelperLock(handle);
+    }
+    else {
+        ret = mModule->lock(mModule, handle, usage, l, t, w, h, vaddr);
+    }
     if (ret != 0 || handle->base == 0) {
         ALOGE("%s lock failed", __func__);
         return -EINVAL;
@@ -212,6 +305,11 @@ int GPUManager::lockYCbCr(Memory* handle, int usage,
         return mIonManager->lockYCbCr(handle, usage, l, t, w, h, ycbcr);
     }
 
+    if (useHelper(handle->fslFormat, handle->usage) && mHelperLock != NULL) {
+        mHelperLock(handle);
+        return MemoryManager::lockYCbCr(handle, usage, l, t, w, h, ycbcr);
+    }
+
     return mModule->lock_ycbcr(mModule, handle, usage, l, t, w, h, ycbcr);
 }
 
@@ -233,7 +331,12 @@ int GPUManager::unlock(Memory* handle)
         return mIonManager->unlock(handle);
     }
 
-    ret = mModule->unlock(mModule, handle);
+    if (useHelper(handle->fslFormat, handle->usage) && mHelperUnlock != NULL) {
+        ret = mHelperUnlock(handle);
+    }
+    else {
+        ret = mModule->unlock(mModule, handle);
+    }
     if (ret != 0) {
         ALOGE("%s unlock failed", __func__);
         return -EINVAL;

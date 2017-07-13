@@ -25,6 +25,25 @@
 
 namespace fsl {
 
+typedef int (*helperAlloc)(int w, int h, int format, int usage,
+            int stride, size_t size, void** handle);
+typedef int (*helperFunc)(void* handle);
+
+class HelperShadow : public MemoryShadow
+{
+public:
+    HelperShadow(struct Memory* handle, bool own,
+              helperFunc free, helperFunc unregister);
+    ~HelperShadow();
+
+    struct Memory* handle();
+
+private:
+    struct Memory* mHandle;
+    helperFunc mHelperFree;
+    helperFunc mHelperUnregister;
+};
+
 class GPUShadow : public MemoryShadow
 {
 public:
@@ -59,9 +78,17 @@ public:
     virtual int unlock(Memory* handle);
 
 private:
+    bool useHelper(int format, int usage);
+
     alloc_device_t *mAlloc;
     gralloc_module_t* mModule;
     IonManager* mIonManager;
+    helperAlloc mHelperAlloc;
+    helperFunc  mHelperFree;
+    helperFunc  mHelperLock;
+    helperFunc  mHelperUnlock;
+    helperFunc  mHelperRegister;
+    helperFunc  mHelperUnregister;
 };
 
 }

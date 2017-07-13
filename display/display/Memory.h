@@ -23,6 +23,12 @@
 namespace fsl {
 
 enum {
+    /* buffer is often read in software */
+    USAGE_SW_READ_OFTEN = 0x00000003,
+    /* buffer is often written in software */
+    USAGE_SW_WRITE_OFTEN = 0x00000030,
+    /* buffer will be used as an OpenGL ES texture */
+    USAGE_HW_TEXTURE = 0x00000100,
     /* buffer will be used as an OpenGL ES render target */
     USAGE_HW_RENDER   = 0x00000200,
     /* buffer will be used by the 2D hardware blitter */

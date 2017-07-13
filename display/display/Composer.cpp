@@ -369,19 +369,15 @@ int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect
         case G2D_I420:
         case G2D_YV12: {
             int c_stride = (alignWidth/2+15)/16*16;
-            int old_c_stride = c_stride;
-            int phys = handle->phys;
             int stride = alignWidth;
-            c_stride = (stride/2+15)/16*16;
 
             surface.stride = alignWidth;
-            surface.planes[0] = phys + offset;
             if (surface.format == G2D_I420) {
-                surface.planes[1] = phys + stride * handle->height;
+                surface.planes[1] = surface.planes[0] + stride * handle->height;
                 surface.planes[2] = surface.planes[1] + c_stride * handle->height/2;
             }
             else {
-                surface.planes[2] = phys + stride * handle->height;
+                surface.planes[2] = surface.planes[0] + stride * handle->height;
                 surface.planes[1] = surface.planes[2] + c_stride * handle->height/2;
             }
             } break;

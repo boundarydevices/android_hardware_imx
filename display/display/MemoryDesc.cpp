@@ -80,7 +80,6 @@ int MemoryDesc::checkFormat()
             alignedh = mHeight;
             size = alignedw * alignedh;
             mFslFormat = FORMAT_NV12;
-            mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
             if(mHeight != 1)
                 ALOGW("%s, BLOB format, h %d is not 1 !!!", __func__, mHeight);
             break;
@@ -90,7 +89,6 @@ int MemoryDesc::checkFormat()
             alignedw = ALIGN_PIXEL_16(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 3 / 2;
-            mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
             break;
 
         case FORMAT_I420:
@@ -99,7 +97,6 @@ int MemoryDesc::checkFormat()
             alignedh = ALIGN_PIXEL_4(mHeight);
             int c_stride = (alignedw/2+15)/16*16;
             size = alignedw * alignedh + c_stride * mHeight;
-            mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
             } break;
 
         case FORMAT_NV16:
@@ -107,7 +104,6 @@ int MemoryDesc::checkFormat()
             alignedw = ALIGN_PIXEL_16(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 2;
-            mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
             break;
 
         default:
@@ -115,7 +111,6 @@ int MemoryDesc::checkFormat()
             return -EINVAL;
     }
 
-    size = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
     mSize = size;
     mBpp = bpp;
     mStride = alignedw;
