@@ -42,7 +42,7 @@ Composer::Composer()
 
     void* handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
-        ALOGI("no %s found", path);
+        ALOGV("no %s found", path);
         mGetAlignedSize = NULL;
         mGetFlipOffset = NULL;
         mGetTiling = NULL;

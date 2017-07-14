@@ -155,11 +155,6 @@ int gralloc_alloc(alloc_device_t* /*dev*/,
         desc.mWidth = desc.mWidth / 32;
         desc.mHeight = desc.mHeight * 16;
     }
-    if (desc.mFslFormat == FORMAT_YV12 || desc.mFslFormat == FORMAT_I420) {
-        //GPU need width 32bit align and height 4bit align.
-        desc.mWidth = ALIGN_PIXEL_32(desc.mWidth);
-        desc.mHeight = ALIGN_PIXEL_4(desc.mHeight);
-    }
 
     desc.checkFormat();
 

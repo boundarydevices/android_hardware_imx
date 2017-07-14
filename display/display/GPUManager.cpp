@@ -103,7 +103,7 @@ GPUManager::GPUManager()
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH, GPUHELPER);
     void* handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
-        ALOGI("no %s found", path);
+        ALOGV("no %s found", path);
         mHelperAlloc = NULL;
         mHelperFree = NULL;
         mHelperLock = NULL;
@@ -137,8 +137,14 @@ bool GPUManager::isValid()
 bool GPUManager::useHelper(int format, int usage)
 {
     bool helper = true;
+    /*
+     * RGB format and without video encoder flag go to VIV Gralloc.
+     * Only READ/WRITE OFTEN flag go to VIV Gralloc,
+     * which support allocate non physical continue memory.
+     */
     if (((format >= FORMAT_RGBA8888 && format <= FORMAT_BGRA8888) &&
-          (!(usage & USAGE_HW_VIDEO_ENCODER) || usage == (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN)))) {
+          !(usage & USAGE_HW_VIDEO_ENCODER)) ||
+          (usage == (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN))) {
         helper = false;
     }
 

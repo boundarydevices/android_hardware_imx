@@ -99,7 +99,7 @@ IonManager::IonManager()
     getModule(path, GPUHELPER);
     void* handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
-        ALOGI("no %s found", path);
+        ALOGV("no %s found", path);
         mWrap = NULL;
         mUnwrap = NULL;
     }
