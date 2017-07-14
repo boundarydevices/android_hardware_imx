@@ -215,10 +215,6 @@ void KmsDisplay::addAtomicRequest(drmModeAtomicReqPtr pset,
                              mKmsProperty.plane.crtc_w, config.mXres);
     drmModeAtomicAddProperty(pset, mPlaneID,
                              mKmsProperty.plane.crtc_h, config.mYres);
-
-    // Add dpms to the pset when the kernel supports it
-    drmModeConnectorSetProperty(mDrmFd, mConnectorID,
-                             mKmsProperty.connector.dpms_id, mPowerMode);
 }
 
 int KmsDisplay::setPowerMode(int mode)
@@ -241,11 +237,6 @@ int KmsDisplay::setPowerMode(int mode)
         default:
             mPowerMode = DRM_MODE_DPMS_ON;
             break;
-    }
-    //HDMI need to keep unblank since audio need to be able to output
-    //through HDMI cable. Blank the HDMI will lost the HDMI clock
-    if (mType == DISPLAY_HDMI) {
-        return 0;
     }
 
     int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
@@ -379,15 +370,16 @@ int KmsDisplay::updateScreen()
     }
 
     uint32_t modeID = 0;
-    const uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
+    uint32_t flags = DRM_MODE_ATOMIC_NONBLOCK;
     if (mModeset) {
+        flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
         drmModeCreatePropertyBlob(drmfd, &mMode, sizeof(mMode), &modeID);
     }
 
     addAtomicRequest(pset, modeID, buffer->fbId);
     int ret = drmModeAtomicCommit(drmfd, pset, flags, NULL /* user_data */);
     if (ret != 0) {
-        ALOGE("Failed to commit pset ret=%d", ret);
+        ALOGV("Failed to commit pset ret=%d", ret);
     }
 
     drmModeAtomicFree(pset);
@@ -510,6 +502,10 @@ int KmsDisplay::findBestMatch(drmModeConnectorPtr pConnector)
 
     for (int i=0; i<pConnector->count_modes; i++) {
         drmModeModeInfo mode = pConnector->modes[i];
+        if (mode.vrefresh < 60) {
+            // bypass fps < 60.
+            continue;
+        }
         ALOGV("mode[%d]: w:%d, h:%d", i, mode.hdisplay, mode.vdisplay);
 
         if (height > 0) {
@@ -942,6 +938,11 @@ void KmsDisplay::VSyncThread::performVSync()
     else {
         timestamp = (uint64_t)vblank.reply.tval_sec * kOneSecondNs +
                 (uint64_t)vblank.reply.tval_usec * 1000;
+    }
+
+    // bypass timestamp when it is 0.
+    if (timestamp == 0) {
+        return;
     }
 
     if (lasttime != 0) {
