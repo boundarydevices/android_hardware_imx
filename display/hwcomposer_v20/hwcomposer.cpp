@@ -76,6 +76,7 @@ static int hwc2_set_layer_visible_region(hwc2_device_t* device, hwc2_display_t d
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
+    pLayer->visibleRegion.clear();
     for (size_t n=0; n<visible.numRects; n++) {
         Rect rect;
         const hwc_rect_t &hrect = visible.rects[n];

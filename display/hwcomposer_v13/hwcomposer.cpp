@@ -113,6 +113,7 @@ static int setLayer(hwc_layer_1_t* hwlayer, Layer* layer, int index)
     layer->sourceCrop.right = hwlayer->sourceCropf.right;
     layer->sourceCrop.bottom = hwlayer->sourceCropf.bottom;
     memcpy(&layer->displayFrame, &hwlayer->displayFrame, sizeof(Rect));
+    layer->visibleRegion.clear();
     for (size_t n=0; n<hwlayer->visibleRegionScreen.numRects; n++) {
         Rect rect;
         const hwc_rect_t &hrect = hwlayer->visibleRegionScreen.rects[n];
