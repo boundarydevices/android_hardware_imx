@@ -107,6 +107,7 @@ static int setLayer(hwc_layer_1_t* hwlayer, Layer* layer, int index)
     layer->handle = (Memory*)(hwlayer->handle);
     layer->transform = hwlayer->transform;
     layer->blendMode = hwlayer->blending;
+    layer->planeAlpha = hwlayer->planeAlpha;
     layer->color = hwlayer->planeAlpha << 24;
     layer->sourceCrop.left = hwlayer->sourceCropf.left;
     layer->sourceCrop.top = hwlayer->sourceCropf.top;
