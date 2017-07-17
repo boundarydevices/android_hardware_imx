@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -150,7 +151,7 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path)
 
     memset(&mDevice, 0, sizeof(mDevice));
     mDevice.common.tag = HARDWARE_DEVICE_TAG;
-    mDevice.common.version = CAMERA_DEVICE_API_VERSION_3_0;
+    mDevice.common.version = CAMERA_DEVICE_API_VERSION_3_2;
     mDevice.common.close = close_device;
     mDevice.ops = const_cast<camera3_device_ops_t *>(&sOps);
     mDevice.priv = this;
@@ -224,7 +225,7 @@ int32_t Camera::getInfo(struct camera_info *info)
         }
         setPreviewPixelFormat();
         setPicturePixelFormat();
-        mStaticInfo = Metadata::createStaticInfo(*this);
+        mStaticInfo = Metadata::createStaticInfo(*this, *this);
     }
     info->static_camera_characteristics = mStaticInfo;
     return 0;

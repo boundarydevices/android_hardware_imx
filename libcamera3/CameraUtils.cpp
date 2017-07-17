@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,6 +174,10 @@ int32_t CaptureRequest::onCaptureDone(StreamBuffer* buffer)
     result.num_output_buffers = 1;
     result.output_buffers = &cameraBuffer;
 
+    // For HAL3.2 or above, If HAL doesn't support partial, it must always set
+    // partial_result to 1 when metadata is included in this result.
+    result.partial_result = 1;
+
     ALOGV("onCaptureDone fm:%d", mFrameNumber);
     mCallbackOps->process_capture_result(mCallbackOps, &result);
     return 0;
@@ -196,6 +201,10 @@ int32_t CaptureRequest::onSettingsDone(sp<Metadata> meta)
     result.result = meta->get();
     result.num_output_buffers = 0;
     result.output_buffers = NULL;
+
+    // For HAL3.2 or above, If HAL doesn't support partial, it must always set
+    // partial_result to 1 when metadata is included in this result.
+    result.partial_result = 1;
 
     ALOGV("onSettingsDone fm:%d", mFrameNumber);
     mCallbackOps->process_capture_result(mCallbackOps, &result);

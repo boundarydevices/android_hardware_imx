@@ -175,13 +175,8 @@ int32_t Metadata::getFocalLength(float &focalLength)
 
     return 0;
 }
-#if 0
-void Metadata::clear()
-{
-    mData.clear();
-}
-#endif
-camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
+
+camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &camInfo)
 {
     /*
      * Setup static camera info.  This will have to customized per camera
@@ -276,7 +271,8 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
 
     /* android.sensor */
 
-    int32_t android_sensor_info_active_array_size[] = {sensor.mActiveArrayWidth, sensor.mActiveArrayHeight};
+    /* left, top, right, bottom */
+    int32_t android_sensor_info_active_array_size[] = {0, 0, sensor.mActiveArrayWidth, sensor.mActiveArrayHeight};
     m.addInt32(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_active_array_size),
             android_sensor_info_active_array_size);
@@ -301,18 +297,103 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
     m.addInt32(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_pixel_array_size),
             android_sensor_info_pixel_array_size);
-#if 0
+
     int32_t android_sensor_orientation[] = {0};
     m.addInt32(ANDROID_SENSOR_ORIENTATION,
             ARRAY_SIZE(android_sensor_orientation),
             android_sensor_orientation);
-#endif
+
     /* End of static camera characteristics */
 
     uint8_t availableSceneModes[] = {ANDROID_CONTROL_SCENE_MODE_DISABLED};
     m.addUInt8(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
              ARRAY_SIZE(availableSceneModes),
              availableSceneModes);
+
+    uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE};
+    m.addUInt8(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+            ARRAY_SIZE(available_capabilities),
+            available_capabilities);
+
+    uint8_t lensFacing = (camInfo.facing == CAMERA_FACING_BACK) ? ANDROID_LENS_FACING_BACK : ANDROID_LENS_FACING_FRONT;
+    m.addUInt8(ANDROID_LENS_FACING,
+               1,
+               &lensFacing);
+
+    int ResIdx = 0;
+    int ResCount = 0;
+    int streamConfigIdx = 0;
+    int32_t streamConfig[MAX_RESOLUTION_SIZE*4]; // MAX_RESOLUTION_SIZE/2 * 2 * 4;
+    int64_t minFrmDuration[MAX_RESOLUTION_SIZE*4];
+    int64_t stallDuration[MAX_RESOLUTION_SIZE*4];
+
+    // TODO: It's better to get those info in seperate camera, and get the accurate fps.
+    ResCount = sensor.mPreviewResolutionCount/2;
+    for(ResIdx = 0; ResIdx < ResCount; ResIdx++) {
+        streamConfigIdx = ResIdx*4;
+
+        streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+        streamConfig[streamConfigIdx+1] = sensor.mPreviewResolutions[ResIdx*2];
+        streamConfig[streamConfigIdx+2] = sensor.mPreviewResolutions[ResIdx*2+1];
+        streamConfig[streamConfigIdx+3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
+
+        minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+        minFrmDuration[streamConfigIdx+1] = sensor.mPreviewResolutions[ResIdx*2];
+        minFrmDuration[streamConfigIdx+2] = sensor.mPreviewResolutions[ResIdx*2+1];
+        minFrmDuration[streamConfigIdx+3] = 33333333; // ns
+
+        stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+        stallDuration[streamConfigIdx+1] = sensor.mPreviewResolutions[ResIdx*2];
+        stallDuration[streamConfigIdx+2] = sensor.mPreviewResolutions[ResIdx*2+1];
+        stallDuration[streamConfigIdx+3] = 33333333; // ns
+    }
+
+    ResCount = sensor.mPictureResolutionCount/2;
+    for(ResIdx = 0; ResIdx < ResCount; ResIdx++) {
+        streamConfigIdx = sensor.mPreviewResolutionCount*2 + ResIdx*4;
+
+        streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
+        streamConfig[streamConfigIdx+1] = sensor.mPictureResolutions[ResIdx*2];
+        streamConfig[streamConfigIdx+2] = sensor.mPictureResolutions[ResIdx*2+1];
+        streamConfig[streamConfigIdx+3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
+
+        minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
+        minFrmDuration[streamConfigIdx+1] = sensor.mPictureResolutions[ResIdx*2];
+        minFrmDuration[streamConfigIdx+2] = sensor.mPictureResolutions[ResIdx*2+1];
+        minFrmDuration[streamConfigIdx+3] = 33333333; // ns
+
+        stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
+        stallDuration[streamConfigIdx+1] = sensor.mPictureResolutions[ResIdx*2];
+        stallDuration[streamConfigIdx+2] = sensor.mPictureResolutions[ResIdx*2+1];
+        stallDuration[streamConfigIdx+3] = 33333333; // ns
+    }
+
+    m.addInt32(ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                    streamConfigIdx + 4,
+                    streamConfig);
+
+    m.addInt64(ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS,
+                    streamConfigIdx + 4,
+                    minFrmDuration);
+
+    m.addInt64(ANDROID_SCALER_AVAILABLE_STALL_DURATIONS,
+                    streamConfigIdx + 4,
+                    stallDuration);
+
+    uint8_t supportedHwLvl =  ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
+    m.addUInt8(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
+                    1,
+                    &supportedHwLvl);
+
+    /* flahs info */
+    uint8_t flashInfoAvailable =  ANDROID_FLASH_INFO_AVAILABLE_TRUE;
+    m.addUInt8(ANDROID_FLASH_INFO_AVAILABLE, 1, &flashInfoAvailable);
+
+    /* face detect mode */
+    uint8_t availableFaceDetectModes[] = {ANDROID_STATISTICS_FACE_DETECT_MODE_OFF};
+    m.addUInt8(ANDROID_STATISTICS_INFO_AVAILABLE_FACE_DETECT_MODES,
+                    ARRAY_SIZE(availableFaceDetectModes),
+                    availableFaceDetectModes);
 
     return clone_camera_metadata(m.get());
 }

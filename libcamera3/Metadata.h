@@ -31,7 +31,7 @@ public:
     Metadata(const camera_metadata_t *metadata);
     ~Metadata();
 
-    static camera_metadata_t* createStaticInfo(SensorData& sensor);
+    static camera_metadata_t* createStaticInfo(SensorData& sensor, camera_info &camInfo);
     static void createSettingTemplate(Metadata& base, SensorData& sensor,
                                       int request_template);
 
