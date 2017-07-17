@@ -78,6 +78,7 @@ public:
     virtual int unlock(Memory* handle);
 
 private:
+    void getModule(char *path, const char *name);
     bool useHelper(int format, int usage);
 
     alloc_device_t *mAlloc;

@@ -25,9 +25,11 @@ namespace fsl {
 #define GPU_MODULE_ID "gralloc_viv"
 
 #if defined(__LP64__)
-#define LIB_PATH "/system/lib64"
+#define LIB_PATH1 "/system/lib64"
+#define LIB_PATH2 "/vendor/lib64"
 #else
-#define LIB_PATH "/system/lib"
+#define LIB_PATH1 "/system/lib"
+#define LIB_PATH2 "/vendor/lib"
 #endif
 
 #define GPUHELPER "libgpuhelper.so"
@@ -100,7 +102,7 @@ GPUManager::GPUManager()
     mIonManager = new IonManager();
 
     char path[PATH_MAX] = {0};
-    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH, GPUHELPER);
+    getModule(path, GPUHELPER);
     void* handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
         ALOGV("no %s found", path);
@@ -149,6 +151,19 @@ bool GPUManager::useHelper(int format, int usage)
     }
 
     return helper;
+}
+
+void GPUManager::getModule(char *path, const char *name)
+{
+    snprintf(path, PATH_MAX, "%s/%s",
+                          LIB_PATH1, name);
+    if (access(path, R_OK) == 0)
+        return;
+    snprintf(path, PATH_MAX, "%s/%s",
+                          LIB_PATH2, name);
+    if (access(path, R_OK) == 0)
+        return;
+    return;
 }
 
 int GPUManager::allocMemory(MemoryDesc& desc, Memory** out)
