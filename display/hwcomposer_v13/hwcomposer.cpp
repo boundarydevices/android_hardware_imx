@@ -163,7 +163,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
                 break;
         }
 
-        if (!display || !display->connected()) {
+        if (!display || (!display->connected() && i != HWC_DISPLAY_PRIMARY)) {
             continue;
         }
 
@@ -235,7 +235,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
                 break;
         }
 
-        if (!display || !display->connected()) {
+        if (!display || (!display->connected() && i != HWC_DISPLAY_PRIMARY)) {
             continue;
         }
 

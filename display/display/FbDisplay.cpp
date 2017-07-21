@@ -138,7 +138,7 @@ int FbDisplay::updateScreen()
 {
     Mutex::Autolock _l(mLock);
 
-    if (!mConnected) {
+    if (!mConnected && mFb != 0) {
         ALOGE("updateScreen display plugout");
         return -EINVAL;
     }

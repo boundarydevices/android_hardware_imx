@@ -424,7 +424,7 @@ int Display::composeLayersLocked()
 
     waitOnFenceLocked();
 
-    if (!mConnected) {
+    if (!mConnected && mIndex != DISPLAY_PRIMARY) {
         ALOGE("composeLayersLocked display plugout");
         return -EINVAL;
     }
