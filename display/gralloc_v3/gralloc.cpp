@@ -352,6 +352,7 @@ static int gralloc_allocate(gralloc1_device_t* device,
             // size = width * height * 2;
             // avoid height alignment issue.
             desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
+            desc->mFslFormat = FORMAT_YUYV;
             desc->mWidth = desc->mWidth / 32;
             desc->mHeight = desc->mHeight * 16;
         }

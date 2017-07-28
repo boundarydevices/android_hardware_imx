@@ -85,12 +85,16 @@ static int hwc_device_close(struct hw_device_t *dev)
 
 static int getLayerType(hwc_layer_1_t* hwlayer)
 {
-    if (hwlayer->flags & HWC_SKIP_LAYER || hwlayer->handle == NULL) {
+    if (hwlayer->flags & HWC_SKIP_LAYER) {
         return LAYER_TYPE_CLIENT;
     }
 
     if ((hwlayer->blending & 0xFFFF) == BLENDING_DIM) {
         return LAYER_TYPE_SOLID_COLOR;
+    }
+
+    if (hwlayer->handle == NULL) {
+        return LAYER_TYPE_CLIENT;
     }
 
     if (hwlayer->compositionType == HWC_SIDEBAND) {
