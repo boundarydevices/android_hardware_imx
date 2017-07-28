@@ -153,10 +153,11 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
         switch(i) {
             case HWC_DISPLAY_PRIMARY:
             case HWC_DISPLAY_EXTERNAL:
-                display = displayManager->getFbDisplay(i);
+                display = displayManager->getPhysicalDisplay(i);
                 break;
             case HWC_DISPLAY_VIRTUAL:
-                display = displayManager->getVirtualDisplay(i-HWC_DISPLAY_VIRTUAL);
+                display = displayManager->getVirtualDisplay(
+                                i-HWC_DISPLAY_VIRTUAL+MAX_PHYSICAL_DISPLAY);
                 break;
             default:
                 ALOGI("invalid display id:%d", i);
@@ -216,7 +217,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
             case HWC_DISPLAY_PRIMARY:
             case HWC_DISPLAY_EXTERNAL:
                 fbt = &list->hwLayers[list->numHwLayers-1];
-                display = displayManager->getFbDisplay(i);
+                display = displayManager->getPhysicalDisplay(i);
                 if(fbt != NULL) {
                     target = (Memory*)fbt->handle;
                     fenceFd = fbt->acquireFenceFd;
@@ -225,7 +226,8 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
                 break;
 
             case HWC_DISPLAY_VIRTUAL:
-                display = displayManager->getVirtualDisplay(i-HWC_DISPLAY_VIRTUAL);
+                display = displayManager->getVirtualDisplay(
+                                i-HWC_DISPLAY_VIRTUAL+MAX_PHYSICAL_DISPLAY);
                 target = (Memory*)list->outbuf;
                 fenceFd = list->outbufAcquireFenceFd;
                 list->outbufAcquireFenceFd= -1;
@@ -271,7 +273,7 @@ static int hwc_eventControl(struct hwc_composer_device_1* dev, int /*dpy*/, int 
 {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     if(event == HWC_EVENT_VSYNC) {
-        FbDisplay* display = DisplayManager::getInstance()->getFbDisplay(HWC_DISPLAY_PRIMARY);
+        Display* display = DisplayManager::getInstance()->getPhysicalDisplay(HWC_DISPLAY_PRIMARY);
         display->setVsyncEnabled(enabled);
     }
 
@@ -282,7 +284,7 @@ static int hwc_query(struct hwc_composer_device_1* dev,
         int what, int* value)
 {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
-    FbDisplay* display = DisplayManager::getInstance()->getFbDisplay(HWC_DISPLAY_PRIMARY);
+    Display* display = DisplayManager::getInstance()->getPhysicalDisplay(HWC_DISPLAY_PRIMARY);
     const DisplayConfig& config = display->getActiveConfig();
 
     switch (what) {
@@ -316,7 +318,7 @@ static int hwc_blank(struct hwc_composer_device_1 *dev, int disp, int blank)
         mode = POWER_OFF;
     }
 
-    FbDisplay* display = DisplayManager::getInstance()->getFbDisplay(disp);
+    Display* display = DisplayManager::getInstance()->getPhysicalDisplay(disp);
     return display->setPowerMode(mode);
 }
 
@@ -332,7 +334,7 @@ static int hwc_getDisplayConfigs(struct hwc_composer_device_1 *dev,
         return 0;
     }
 
-    FbDisplay* display = DisplayManager::getInstance()->getFbDisplay(disp);
+    Display* display = DisplayManager::getInstance()->getPhysicalDisplay(disp);
     if (display->connected()) {
         configs[0] = 0;
         *numConfigs = 1;
@@ -350,7 +352,7 @@ static int hwc_getDisplayAttributes(struct hwc_composer_device_1 *dev,
         return -EINVAL;
     }
 
-    FbDisplay* display = DisplayManager::getInstance()->getFbDisplay(disp);
+    Display* display = DisplayManager::getInstance()->getPhysicalDisplay(disp);
     const DisplayConfig& config = display->getActiveConfig();
     for (int i = 0; attributes[i] != HWC_DISPLAY_NO_ATTRIBUTE; i++) {
         switch(attributes[i]) {

@@ -39,7 +39,7 @@ using namespace fsl;
 
 struct fb_context_t {
     framebuffer_device_t device;
-    FbDisplay* display;
+    Display* display;
 };
 
 int fb_setSwapInterval(struct framebuffer_device_t* dev, int interval)
@@ -88,12 +88,6 @@ int fb_close(struct hw_device_t *dev)
         return 0;
     }
 
-    FbDisplay* display = ctx->display;
-    // only primary display can't uninitialize.
-    if (display != NULL && display->fb() != DISPLAY_PRIMARY) {
-        display->closeFb();
-    }
-
     ctx->display = NULL;
     free(ctx);
 
@@ -128,32 +122,29 @@ int fb_device_open(hw_module_t const* module, const char* name,
     }
 
     ALOGI("fb_device_open open primary display");
-    FbDisplay* display = pDisplayManager->getFbDisplay(DISPLAY_PRIMARY);
+    Display* display = pDisplayManager->getPhysicalDisplay(DISPLAY_PRIMARY);
     if (display == NULL) {
         ALOGE("%s can't get valid display", __FUNCTION__);
         free(dev);
         return -EINVAL;
     }
 
-    int status = display->openFb();
-    if (status >= 0) {
-        const DisplayConfig& config = display->getActiveConfig();
-        const_cast<uint32_t&>(dev->device.flags) = 0xfb0;
-        const_cast<uint32_t&>(dev->device.width) = config.mXres;
-        const_cast<uint32_t&>(dev->device.height) = config.mYres;
-        const_cast<int&>(dev->device.stride) = config.mStride / config.mBytespixel;
-        const_cast<int&>(dev->device.format) = config.mFormat;
-        const_cast<float&>(dev->device.xdpi) = config.mXdpi/1000;
-        const_cast<float&>(dev->device.ydpi) = config.mYdpi/1000;
-        const_cast<float&>(dev->device.fps) = config.mFps;
-        const_cast<int&>(dev->device.minSwapInterval) = 1;
-        const_cast<int&>(dev->device.maxSwapInterval) = 1;
-        const_cast<int &>(dev->device.numFramebuffers) = MAX_FRAMEBUFFERS;
-    }
+    const DisplayConfig& config = display->getActiveConfig();
+    const_cast<uint32_t&>(dev->device.flags) = 0xfb0;
+    const_cast<uint32_t&>(dev->device.width) = config.mXres;
+    const_cast<uint32_t&>(dev->device.height) = config.mYres;
+    const_cast<int&>(dev->device.stride) = config.mStride / config.mBytespixel;
+    const_cast<int&>(dev->device.format) = config.mFormat;
+    const_cast<float&>(dev->device.xdpi) = config.mXdpi/1000;
+    const_cast<float&>(dev->device.ydpi) = config.mYdpi/1000;
+    const_cast<float&>(dev->device.fps) = config.mFps;
+    const_cast<int&>(dev->device.minSwapInterval) = 1;
+    const_cast<int&>(dev->device.maxSwapInterval) = 1;
+    const_cast<int &>(dev->device.numFramebuffers) = MAX_FRAMEBUFFERS;
 
     dev->device.reserved[0] = MAX_FRAMEBUFFERS;
     dev->display = display;
     *device = &dev->device.common;
 
-    return status;
+    return 0;
 }

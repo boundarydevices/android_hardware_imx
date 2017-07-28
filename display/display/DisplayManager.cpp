@@ -19,6 +19,8 @@
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
+#include "FbDisplay.h"
+#include "KmsDisplay.h"
 #include "DisplayManager.h"
 
 namespace fsl {

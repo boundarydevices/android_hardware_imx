@@ -36,8 +36,6 @@ LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := hwcomposer.$(TARGET_BOARD_PLATFORM)
 LOCAL_C_INCLUDES += hardware/imx/display/display   \
                     device/fsl-proprietary/include \
-                    external/libdrm \
-                    external/libdrm/include/drm \
                     system/core/include/
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"

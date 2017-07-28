@@ -20,14 +20,15 @@
 #include <utils/StrongPointer.h>
 #include <hardware_legacy/uevent.h>
 
-#include "FbDisplay.h"
-#include "KmsDisplay.h"
 #include "VirtualDisplay.h"
 
 #define MAX_PHYSICAL_DISPLAY 10
 #define MAX_VIRTUAL_DISPLAY  16
 
 namespace fsl {
+
+class FbDisplay;
+class KmsDisplay;
 
 class DisplayManager
 {
