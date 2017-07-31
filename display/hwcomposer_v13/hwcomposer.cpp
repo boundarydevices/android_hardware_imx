@@ -177,6 +177,10 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
         for (size_t k=0; k<list->numHwLayers-1; k++) {
             hwlayer = &list->hwLayers[k];
             Layer* layer = display->getFreeLayer();
+            if (layer == NULL) {
+                ALOGE("%s get free layer failed", __func__);
+                return -ENOSR;
+            }
             setLayer(hwlayer, layer, k);
         }
         if (!display->verifyLayers()) {

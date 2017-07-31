@@ -25,7 +25,7 @@
 
 namespace fsl {
 
-#define MAX_LAYERS 32
+#define MAX_LAYERS 64
 
 using android::Rect;
 using android::Region;
