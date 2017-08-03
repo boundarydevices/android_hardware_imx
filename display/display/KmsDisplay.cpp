@@ -464,8 +464,11 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
     config.mBytespixel = 4;
     ALOGW("xres         = %d px\n"
           "yres         = %d px\n"
+          "xdpi         = %.2f ppi\n"
+          "ydpi         = %.2f ppi\n"
           "fps          = %.2f Hz\n",
-          config.mXres, config.mYres, config.mFps);
+          config.mXres, config.mYres, config.mXdpi / 1000.0f,
+          config.mYdpi / 1000.0f, config.mFps);
 
     if (pConnector != NULL) {
         drmModeFreeConnector(pConnector);

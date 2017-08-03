@@ -808,14 +808,14 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
             if(pDisplay->type() == DISPLAY_LDB)
                 *outValue = config.mXdpi;
             else
-                *outValue = 0;
+                *outValue = -1;
             break;
 
         case HWC2_ATTRIBUTE_DPI_Y:
             if(pDisplay->type() == DISPLAY_LDB)
                 *outValue = config.mYdpi;
             else
-                *outValue = 0;
+                *outValue = -1;
             break;
 
         default:
