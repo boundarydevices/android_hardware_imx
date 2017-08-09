@@ -41,6 +41,8 @@ int32_t MMAPStream::onDeviceConfigureLocked()
 
     if ((mWidth > 1920) || (mHeight > 1080)) {
         fps = 15;
+    } else if ((mWidth <= 720) || (mHeight <= 480)) {
+        fps = 30;
     }
 
     ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d",
