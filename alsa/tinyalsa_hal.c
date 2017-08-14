@@ -50,6 +50,7 @@
 #include "config_sii902x.h"
 #include "config_rpmsg.h"
 #include "config_wm8524.h"
+#include "config_cdnhdmi.h"
 #include "control.h"
 #include "pcm_ext.h"
 
@@ -96,7 +97,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        10
+#define SUPPORT_CARD_NUM        11
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -110,6 +111,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &sii902x_card,
     &rpmsg_card,
     &wm8524_card,
+    &cdnhdmi_card,
     &null_card,
 };
 
