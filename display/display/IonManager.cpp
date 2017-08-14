@@ -154,9 +154,9 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     MemoryShadow* shadow = new IonShadow(sharedFd, memory, true, mUnwrap);
     memory->shadow = (uintptr_t)shadow;
     if (memory->flags&FLAGS_ALLOCATION_GPU && mWrap != NULL) {
-        void* vaddr = NULL;
+        getVaddrs(memory);
         mWrap(memory, memory->width, memory->height, memory->format,
-              memory->stride, memory->phys, &vaddr);
+              memory->stride, memory->phys, (void*)memory->base);
     }
     *out = memory;
     ion_free(mIonFd, ion_hnd);
@@ -235,14 +235,14 @@ int IonManager::retainMemory(Memory* handle)
 
     MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
     if (handle->pid != getpid()) {
-        if (handle->flags&FLAGS_ALLOCATION_GPU && mWrap != NULL) {
-            void* vaddr = NULL;
-            mWrap(handle, handle->width, handle->height, handle->format,
-                handle->stride, handle->phys, &vaddr);
-        }
         shadow = new IonShadow(handle->fd, handle, false, mUnwrap);
         handle->shadow = (uintptr_t)shadow;
         handle->pid = getpid();
+        if (handle->flags&FLAGS_ALLOCATION_GPU && mWrap != NULL) {
+            getVaddrs(handle);
+            mWrap(handle, handle->width, handle->height, handle->format,
+                handle->stride, handle->phys, (void*)handle->base);
+        }
     }
     else {
         if (shadow == NULL) {
