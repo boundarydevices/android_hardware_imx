@@ -22,6 +22,7 @@
 
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
+#include <linux/videodev2.h>
 
 #include "Memory.h"
 #include "MemoryManager.h"
@@ -168,8 +169,23 @@ int FbDisplay::updateScreen()
     mxcbuf.stride = config.mStride;
     mxcbuf.phys = buffer->phys;
 
-    if (ioctl(mFd, MXCFB_UPDATE_SCREEN, &mxcbuf) == -1) {
-        ALOGW("MXCFB_UPDATE_SCREEN failed: %s", strerror(errno));
+    if (ioctl(mFd, MXCFB_UPDATE_SCREEN, &mxcbuf) < 0) {
+        ALOGV("MXCFB_UPDATE_SCREEN failed: %s", strerror(errno));
+        struct fb_var_screeninfo info;
+        if (ioctl(mFd, FBIOGET_VSCREENINFO, &info) < 0) {
+            ALOGE("updateScreen: FBIOGET_VSCREENINFO failed");
+            return -errno;
+        }
+
+        info.xoffset = info.yoffset = 0;
+        info.reserved[0] = static_cast<uint32_t>(buffer->phys);
+        info.reserved[1] = static_cast<uint32_t>(buffer->phys >> 32);
+        info.activate = FB_ACTIVATE_VBL;
+        if (ioctl(mFd, FBIOPAN_DISPLAY, &info) < 0) {
+            ALOGE("updateScreen: FBIOPAN_DISPLAY failed errno:%d", errno);
+            return -errno;
+        }
+
         return 0;
     }
 
@@ -405,7 +421,13 @@ int FbDisplay::setDefaultFormatLocked()
     info.transp.offset    = 24;
     info.transp.length    = 8;
     info.transp.msb_right = 0;
-    info.activate = FB_ACTIVATE_NOW;
+    info.grayscale = V4L2_PIX_FMT_ARGB32;
+    info.reserved[0] = 0;
+    info.reserved[1] = 0;
+    info.reserved[2] = 0;
+    info.xoffset = 0;
+    info.yoffset = 0;
+    info.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 
     if (ioctl(mFd, FBIOPUT_VSCREENINFO, &info) == -1) {
         ALOGE("setDefaultFormatLocked: RGBA8888 not supported now");
@@ -441,7 +463,7 @@ int FbDisplay::setActiveConfig(int configId)
     info.yres = config.mYres;
     info.xres_virtual = info.xres;
     info.yres_virtual = info.yres;
-    info.activate = FB_ACTIVATE_NOW;
+    info.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
     if (ioctl(mFd, FBIOPUT_VSCREENINFO, &info) == -1) {
         ALOGW("setActiveConfig: FBIOPUT_VSCREENINFO failed");
         return -EINVAL;
