@@ -37,6 +37,9 @@ enum {
     USAGE_HW_COMPOSER = 0x00000800,
     /* buffer will be used with the HW video encoder */
     USAGE_HW_VIDEO_ENCODER = 0x00010000,
+    /* buffer size of hantro decoder is not to yuv pixel size, it need to
+    * pad some bytes for vpu usage, so add this flag */
+    USAGE_PADDING_BUFFER = 0x10000000,
 };
 
 enum {

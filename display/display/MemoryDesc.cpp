@@ -89,6 +89,9 @@ int MemoryDesc::checkFormat()
             alignedw = ALIGN_PIXEL_16(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 3 / 2;
+            //hantro vpu need more buffer size for decoding
+            if(mProduceUsage & USAGE_PADDING_BUFFER)
+                size += alignedw * alignedh / 4 + 32;
             break;
 
         case FORMAT_I420:
