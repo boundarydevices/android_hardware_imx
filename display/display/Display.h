@@ -116,6 +116,8 @@ public:
     // get display index of array.
     int index();
 
+    virtual bool checkOverlay(Layer* layer);
+    virtual int performOverlay();
     // update composite buffer to screen.
     virtual int updateScreen();
     // set display active config.

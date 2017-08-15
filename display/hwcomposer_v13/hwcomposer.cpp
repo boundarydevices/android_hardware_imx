@@ -28,6 +28,7 @@
 #include <hardware/hwcomposer.h>
 #include <hardware_legacy/uevent.h>
 #include <utils/StrongPointer.h>
+#include <utils/KeyedVector.h>
 
 #include <linux/mxcfb.h>
 #include <linux/ioctl.h>
@@ -164,7 +165,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
                                 i-HWC_DISPLAY_VIRTUAL+MAX_PHYSICAL_DISPLAY);
                 break;
             default:
-                ALOGI("invalid display id:%d", i);
+                ALOGI("invalid display id:%zu", i);
                 break;
         }
 
@@ -173,6 +174,7 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
         }
 
         display->invalidLayers();
+        android::KeyedVector<hwc_layer_1_t*, Layer*> mKeyedLayers;
         hwc_layer_1_t* hwlayer = NULL;
         for (size_t k=0; k<list->numHwLayers-1; k++) {
             hwlayer = &list->hwLayers[k];
@@ -182,9 +184,18 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
                 return -ENOSR;
             }
             setLayer(hwlayer, layer, k);
+            mKeyedLayers.add(hwlayer, layer);
         }
         if (!display->verifyLayers()) {
             ALOGV("pass to 3D to handle");
+            // set overlay here.
+            for (size_t k=0; k<list->numHwLayers-1; k++) {
+                hwlayer = &list->hwLayers[k];
+                Layer* layer = mKeyedLayers.valueFor(hwlayer);
+                if (layer->type == LAYER_TYPE_DEVICE) {
+                    hwlayer->compositionType = HWC_G2D;
+                }
+            }
             continue;
         }
 
@@ -241,7 +252,7 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
                 list->outbufAcquireFenceFd= -1;
                 break;
             default:
-                ALOGI("invalid display id:%d", i);
+                ALOGI("invalid display id:%zu", i);
                 break;
         }
 

@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <cutils/log.h>
+#include <cutils/properties.h>
 #include <sync/sync.h>
 
 #include <linux/fb.h>
@@ -27,6 +28,7 @@
 #include "Memory.h"
 #include "MemoryManager.h"
 #include "FbDisplay.h"
+#include "Layer.h"
 
 namespace fsl {
 
@@ -40,6 +42,9 @@ FbDisplay::FbDisplay()
     mOpened = false;
     mTargetIndex = 0;
     memset(&mTargets[0], 0, sizeof(mTargets));
+    mOvFd  = -1;
+    memset(&mOvInfo, 0, sizeof(mOvInfo));
+    mOverlay = NULL;
 }
 
 FbDisplay::~FbDisplay()
@@ -133,6 +138,138 @@ void FbDisplay::setFakeVSync(bool enable)
     if (vsync != NULL) {
         vsync->setFakeVSync(enable);
     }
+}
+
+int FbDisplay::convertFormatInfo(int format, int* bpp)
+{
+    int vformat = V4L2_PIX_FMT_NV12, bits = 8;
+    switch (format) {
+        case FORMAT_NV12:
+            vformat = V4L2_PIX_FMT_NV12;
+            bits = 8;
+            break;
+        case FORMAT_NV21:
+            vformat = V4L2_PIX_FMT_NV21;
+            bits = 8;
+            break;
+        case FORMAT_YV12:
+            vformat = V4L2_PIX_FMT_YVU420;
+            bits = 8;
+            break;
+        case FORMAT_I420:
+            vformat = V4L2_PIX_FMT_YUV420;
+            bits = 8;
+            break;
+        case FORMAT_NV16:
+            vformat = V4L2_PIX_FMT_NV16;
+            bits = 16;
+            break;
+        case FORMAT_YUYV:
+            vformat = V4L2_PIX_FMT_YUYV;
+            bits = 16;
+            break;
+        default:
+            ALOGI("format:0x%x can't support", format);
+            vformat = V4L2_PIX_FMT_NV12;
+            bits = 8;
+            break;
+    }
+
+    if (bpp) {
+        *bpp = bits;
+    }
+    return vformat;
+}
+
+bool FbDisplay::checkOverlay(Layer* layer)
+{
+    char value[PROPERTY_VALUE_MAX];
+    property_get("hwc.enable.overlay", value, "1");
+    int useOverlay = atoi(value);
+    if (useOverlay == 0) {
+        return false;
+    }
+
+    if (mOvFd < 0 || layer == NULL) {
+        ALOGV("updateOverlay: invalid fd or layer");
+        return false;
+    }
+
+    Memory* memory = layer->handle;
+    if (memory == NULL) {
+        ALOGV("updateOverlay: invalid memory");
+        return false;
+    }
+
+    if ((memory->fslFormat >= FORMAT_RGBA8888) &&
+        (memory->fslFormat <= FORMAT_BGRA8888)) {
+        ALOGV("updateOverlay: invalid format");
+        return false;
+    }
+
+    // overlay only needs on imx8mq.
+    if (!(memory->usage & USAGE_PADDING_BUFFER)) {
+        return false;
+    }
+
+    if (mOverlay != NULL) {
+        ALOGW("only support one overlay now");
+        return false;
+    }
+
+    mOverlay = layer;
+
+    return true;
+}
+
+int FbDisplay::performOverlay()
+{
+    Layer* layer = mOverlay;
+    if (layer == NULL) {
+        if (mOvPowerMode == FB_BLANK_UNBLANK) {
+            mOvPowerMode = FB_BLANK_POWERDOWN;
+            ioctl(mOvFd, FBIOBLANK, mOvPowerMode);
+        }
+        return 0;
+    }
+
+    if (mOvPowerMode != FB_BLANK_UNBLANK) {
+        mOvPowerMode = FB_BLANK_UNBLANK;
+        ioctl(mOvFd, FBIOBLANK, mOvPowerMode);
+    }
+
+    Memory* memory = layer->handle;
+    Rect& frame = layer->displayFrame;
+    int bitspix = 0;
+    int vformat = convertFormatInfo(memory->fslFormat, &bitspix);
+    if ((int)mOvInfo.xres != memory->width
+        || (int)mOvInfo.yres != memory->height
+        || (int)mOvInfo.grayscale != vformat) {
+        mOvInfo.xoffset = mOvInfo.yoffset = 0;
+        mOvInfo.xres = mOvInfo.xres_virtual = memory->width;
+        mOvInfo.yres = mOvInfo.yres_virtual = memory->height;
+        mOvInfo.nonstd = vformat;
+        mOvInfo.grayscale = vformat;
+        mOvInfo.bits_per_pixel = bitspix;
+        mOvInfo.activate = FB_ACTIVATE_FORCE | FB_ACTIVATE_NOW;
+        ALOGI("set overlay info");
+        if (ioctl(mOvFd, FBIOPUT_VSCREENINFO, &mOvInfo) < 0) {
+            ALOGE("updateOverlay: FBIOGET_VSCREENINFO failed");
+            return false;
+        }
+    }
+
+    mOvInfo.xoffset = mOvInfo.yoffset = 0;
+    mOvInfo.reserved[0] = static_cast<uint32_t>(memory->phys);
+    mOvInfo.reserved[1] = static_cast<uint32_t>(memory->phys >> 32);
+    mOvInfo.activate = FB_ACTIVATE_VBL;
+    if (ioctl(mOvFd, FBIOPAN_DISPLAY, &mOvInfo) < 0) {
+        ALOGE("updateOverlay: FBIOPAN_DISPLAY failed");
+        return false;
+    }
+    mOverlay = NULL;
+
+    return true;
 }
 
 int FbDisplay::updateScreen()
@@ -312,6 +449,22 @@ int FbDisplay::openFb()
     mPowerMode  = POWER_ON;
     mOpened = true;
 
+    // open overlay fd.
+    snprintf(name, 64, HWC_FB_DEV"%d", mFb + 1);
+    mOvFd = open(name, O_RDWR, 0);
+    if (mOvFd < 0) {
+        ALOGI("open overlay failed");
+        return 0;
+    }
+
+    if (ioctl(mOvFd, FBIOGET_VSCREENINFO, &mOvInfo) == -1) {
+        ALOGE("openOV: FBIOGET_VSCREENINFO failed");
+        close(mOvFd);
+        mOvFd = -1;
+    }
+    mOvPowerMode = -1;
+    mOverlay = NULL;
+
     return 0;
 }
 
@@ -337,6 +490,9 @@ int FbDisplay::closeFb()
     mOpened = false;
     releaseTargetsLocked();
     close(mFd);
+    mFd = -1;
+    close(mOvFd);
+    mOvFd = -1;
     return 0;
 }
 

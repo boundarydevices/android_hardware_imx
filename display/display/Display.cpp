@@ -180,6 +180,16 @@ int Display::getActiveId()
     return mActiveConfig;
 }
 
+bool Display::checkOverlay(Layer* layer)
+{
+    return false;
+}
+
+int Display::performOverlay()
+{
+    return 0;
+}
+
 int Display::updateScreen()
 {
     return -EINVAL;
@@ -367,6 +377,12 @@ bool Display::verifyLayers()
             continue;
         }
 
+        // handle overlay.
+        if (checkOverlay(mLayers[i])) {
+            mLayers[i]->type = LAYER_TYPE_DEVICE;
+            continue;
+        }
+
         if (!deviceCompose) {
             mLayers[i]->type = LAYER_TYPE_CLIENT;
             continue;
@@ -428,6 +444,8 @@ int Display::composeLayersLocked()
         ALOGE("composeLayersLocked display plugout");
         return -EINVAL;
     }
+
+    performOverlay();
 
     if (mLayerVector.size() <= 0) {
         return ret;

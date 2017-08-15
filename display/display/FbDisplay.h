@@ -57,6 +57,8 @@ public:
     // use software vsync.
     virtual void setFakeVSync(bool enable);
 
+    virtual bool checkOverlay(Layer* layer);
+    virtual int performOverlay();
     // compose all layers.
     virtual int composeLayers();
     // set display active config.
@@ -85,6 +87,7 @@ private:
     int getConfigIdLocked(int width, int height);
     void prepareTargetsLocked();
     void releaseTargetsLocked();
+    int convertFormatInfo(int format, int* bpp);
 
 protected:
     int mFb;
@@ -94,6 +97,11 @@ protected:
     bool mOpened;
     int mTargetIndex;
     Memory* mTargets[MAX_FRAMEBUFFERS];
+
+    int mOvFd;
+    struct fb_var_screeninfo mOvInfo;
+    int mOvPowerMode;
+    Layer* mOverlay;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);
