@@ -227,8 +227,8 @@ int FbDisplay::performOverlay()
     Layer* layer = mOverlay;
     if (layer == NULL) {
         if (mOvPowerMode == FB_BLANK_UNBLANK) {
-            mOvPowerMode = FB_BLANK_POWERDOWN;
-            ioctl(mOvFd, FBIOBLANK, mOvPowerMode);
+            //mOvPowerMode = FB_BLANK_POWERDOWN;
+            //ioctl(mOvFd, FBIOBLANK, mOvPowerMode);
         }
         return 0;
     }
@@ -262,6 +262,7 @@ int FbDisplay::performOverlay()
     mOvInfo.xoffset = mOvInfo.yoffset = 0;
     mOvInfo.reserved[0] = static_cast<uint32_t>(memory->phys);
     mOvInfo.reserved[1] = static_cast<uint32_t>(memory->phys >> 32);
+    mOvInfo.reserved[2] = 1;
     mOvInfo.activate = FB_ACTIVATE_VBL;
     if (ioctl(mOvFd, FBIOPAN_DISPLAY, &mOvInfo) < 0) {
         ALOGE("updateOverlay: FBIOPAN_DISPLAY failed");
@@ -317,6 +318,7 @@ int FbDisplay::updateScreen()
         info.xoffset = info.yoffset = 0;
         info.reserved[0] = static_cast<uint32_t>(buffer->phys);
         info.reserved[1] = static_cast<uint32_t>(buffer->phys >> 32);
+        info.reserved[2] = 1;
         info.activate = FB_ACTIVATE_VBL;
         if (ioctl(mFd, FBIOPAN_DISPLAY, &info) < 0) {
             ALOGE("updateScreen: FBIOPAN_DISPLAY failed errno:%d", errno);
