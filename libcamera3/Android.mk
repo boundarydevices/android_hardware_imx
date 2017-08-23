@@ -94,6 +94,10 @@ ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_CFLAGS += -DBOARD_HAVE_VPU
 endif
 
+ifeq ($(BOARD_HAVE_FLASHLIGHT),true)
+    LOCAL_CFLAGS += -DBOARD_HAVE_FLASHLIGHT
+endif
+
 ifeq ($(HAVE_FSL_IMX_PXP),true)
     LOCAL_SHARED_LIBRARIES += \
             libpxp
