@@ -324,6 +324,15 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
 #endif
     /* End of static camera characteristics */
 
+    uint8_t flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_FALSE;
+#ifdef BOARD_HAVE_FLASHLIGHT
+    flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_TRUE;
+#endif
+    m.addUInt8(ANDROID_FLASH_INFO_AVAILABLE, 1, &flashAvailable);
+
+    static const int64_t flashChargeDuration = 0;
+    m.addInt64(ANDROID_FLASH_INFO_CHARGE_DURATION, 1, &flashChargeDuration);
+
     return clone_camera_metadata(m.get());
 }
 

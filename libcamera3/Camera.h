@@ -86,6 +86,9 @@ protected:
     virtual void setAutoFocusRegion(int x, int y) {
         return;
     }
+#ifdef BOARD_HAVE_FLASHLIGHT
+    virtual uint8_t setFlashlight(uint8_t mode);
+#endif
 
     virtual void setPreviewPixelFormat();
     virtual void setPicturePixelFormat();
