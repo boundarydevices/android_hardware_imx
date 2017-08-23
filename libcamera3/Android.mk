@@ -96,6 +96,10 @@ ifeq ($(BOARD_HAVE_USB_MJPEG_CAMERA), true)
 endif
 endif
 
+ifeq ($(BOARD_HAVE_FLASHLIGHT),true)
+    LOCAL_CFLAGS += -DBOARD_HAVE_FLASHLIGHT
+endif
+
 ifeq ($(HAVE_FSL_IMX_PXP),true)
     LOCAL_SHARED_LIBRARIES += \
             libpxp
