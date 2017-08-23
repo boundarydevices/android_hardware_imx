@@ -178,14 +178,14 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
 
     mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
-    int32_t ret = -1;
+    if (mPxpFd > 0) {
+        int32_t ret = -1;
 
-    //When open pxp device, need allocate a channel at the same time.
-    ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+        // When open pxp device, need allocate a channel at the same time.
+        ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
+        if (ret < 0)
+            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
     }
-
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
     }
@@ -212,12 +212,13 @@ Stream::Stream(Camera* camera)
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
 
     mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
+    if (mPxpFd > 0) {
+        int32_t ret = -1;
 
-    //When open pxp device, need allocate a channel at the same time.
-    int32_t ret = -1;
-    ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
+        //When open pxp device, need allocate a channel at the same time.
+        ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
+        if (ret < 0)
+            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
     }
 
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
