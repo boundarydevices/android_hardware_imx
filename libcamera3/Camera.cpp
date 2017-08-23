@@ -196,6 +196,14 @@ int32_t Camera::closeDev()
         return -EINVAL;
     }
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+    // make sure flashlight is off
+    if (ANDROID_FLASH_MODE_OFF != m3aState.flashMode) {
+        m3aState.aeMode = ANDROID_CONTROL_AE_MODE_OFF;
+        m3aState.flashMode = setFlashlight(ANDROID_FLASH_MODE_OFF);
+    }
+#endif
+
     // close camera dev nodes, etc
     mVideoStream->closeDev();
 
@@ -583,6 +591,59 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
     timestamp = systemTime(SYSTEM_TIME_BOOTTIME);
     settings->addInt64(ANDROID_SENSOR_TIMESTAMP, 1, &timestamp);
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+    // flash support
+    uint8_t flash_mode = ANDROID_FLASH_MODE_OFF;
+    uint8_t flash_state = ANDROID_FLASH_STATE_READY;
+    uint8_t ae_mode = ANDROID_CONTROL_AE_MODE_OFF;
+
+    entry = settings->find(ANDROID_FLASH_MODE);
+    if (entry.count > 0)
+        flash_mode = entry.data.u8[0];
+
+    entry = settings->find(ANDROID_FLASH_STATE);
+    if (entry.count > 0)
+        flash_state = entry.data.u8[0];
+
+    entry = settings->find(ANDROID_CONTROL_AE_MODE);
+    if (entry.count > 0)
+        ae_mode = entry.data.u8[0];
+
+    if (ae_mode != m3aState.aeMode) {
+        m3aState.aeMode = ae_mode;
+        // Override flash_mode param in case of always on
+        switch (m3aState.aeMode) {
+            case ANDROID_CONTROL_AE_MODE_ON_ALWAYS_FLASH:
+                flash_mode = ANDROID_FLASH_MODE_TORCH;
+                break;
+            case ANDROID_CONTROL_AE_MODE_ON_AUTO_FLASH:
+            case ANDROID_CONTROL_AE_MODE_ON_AUTO_FLASH_REDEYE:
+                // Not supported, should set m3aState.aeState to
+                // ANDROID_CONTROL_AE_STATE_FLASH_REQUIRED
+                // when HAL thinks that a flash is required.
+                break;
+            case ANDROID_CONTROL_AE_MODE_OFF:
+            case ANDROID_CONTROL_AE_MODE_ON:
+            default:
+                if (m3aState.flashMode == ANDROID_FLASH_MODE_TORCH)
+                    flash_mode = ANDROID_FLASH_MODE_OFF;
+                break;
+        };
+    }
+
+    if (flash_mode != m3aState.flashMode) {
+        // update mode/state if different than last
+        m3aState.flashMode = setFlashlight(flash_mode);
+        if ((m3aState.flashMode != flash_mode) &&
+            (m3aState.flashMode == ANDROID_FLASH_MODE_OFF))
+            flash_state = ANDROID_FLASH_STATE_UNAVAILABLE;
+    }
+
+    m3aState.flashState = flash_state;
+    settings->addUInt8(ANDROID_FLASH_STATE, 1, &m3aState.flashState);
+    settings->addUInt8(ANDROID_FLASH_MODE, 1, &m3aState.flashMode);
+#endif
+
     settings->addUInt8(ANDROID_CONTROL_AE_STATE, 1, &m3aState.aeState);
 
     // auto focus control.
@@ -891,6 +952,60 @@ int32_t Camera::getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t
     *pV4l2Height = streamHeight;
     return NO_ERROR;
 }
+
+#ifdef BOARD_HAVE_FLASHLIGHT
+#define TORCH_PATH      "/sys/class/leds/torch"
+#define FLASH_PATH      "/sys/class/leds/flash"
+#define PATH_LEN 256
+
+uint8_t Camera::setFlashlight(uint8_t mode)
+{
+    FILE *file;
+    unsigned int brightness = 0;
+    bool on = false;
+    char max_path[PATH_LEN], path[PATH_LEN];
+
+    // Special case, always override value when ALWAYS_FLASH
+    if (m3aState.aeMode == ANDROID_CONTROL_AE_MODE_ON_ALWAYS_FLASH)
+        mode = ANDROID_FLASH_MODE_TORCH;
+
+    switch (mode) {
+        case ANDROID_FLASH_MODE_SINGLE:
+            snprintf(max_path, PATH_LEN, "%s/max_brightness", FLASH_PATH);
+            snprintf(path, PATH_LEN, "%s/brightness", FLASH_PATH);
+            on = true;
+            break;
+        case ANDROID_FLASH_MODE_TORCH:
+            on = true;
+        case ANDROID_FLASH_MODE_OFF:
+        default:
+            snprintf(max_path, PATH_LEN, "%s/max_brightness", TORCH_PATH);
+            snprintf(path, PATH_LEN, "%s/brightness", TORCH_PATH);
+            break;
+    };
+
+    if (on) {
+        /* Read maximum value */
+        file = fopen(max_path, "r");
+        if (!file) {
+            ALOGE("can not open file %s\n", max_path);
+            return ANDROID_FLASH_MODE_OFF;
+        }
+        fscanf(file, "%d", &brightness);
+        fclose(file);
+    }
+
+    file = fopen(path, "w");
+    if (!file) {
+        ALOGE("can not open file %s\n", path);
+        return ANDROID_FLASH_MODE_OFF;
+    }
+    fprintf(file, "%d", brightness);
+    fclose(file);
+
+    return mode;
+}
+#endif
 
 //---------------------------------------------------------
 extern "C" {

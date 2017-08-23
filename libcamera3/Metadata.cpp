@@ -504,9 +504,6 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const uint8_t availableNoiseReductionModes[] = {ANDROID_NOISE_REDUCTION_MODE_OFF, ANDROID_NOISE_REDUCTION_MODE_FAST, ANDROID_NOISE_REDUCTION_MODE_HIGH_QUALITY};
     m.addUInt8(ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES, ARRAY_SIZE(availableNoiseReductionModes), availableNoiseReductionModes);
 
-    static const uint8_t availableAeModes[] = {ANDROID_CONTROL_AE_MODE_OFF, ANDROID_CONTROL_AE_MODE_ON};
-    m.addUInt8(ANDROID_CONTROL_AE_AVAILABLE_MODES, ARRAY_SIZE(availableAeModes), availableAeModes);
-
     static const uint8_t availableAwbModes[] = {
         ANDROID_CONTROL_AWB_MODE_OFF,
         ANDROID_CONTROL_AWB_MODE_AUTO,
@@ -627,6 +624,27 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                                       ANDROID_FLASH_STATE,
                                       ANDROID_CONTROL_AE_AVAILABLE_MODES};
     m.addInt32(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, ARRAY_SIZE(availableRequestKeys), availableRequestKeys);
+
+    uint8_t flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_FALSE;
+#ifdef BOARD_HAVE_FLASHLIGHT
+    if (camInfo.facing == CAMERA_FACING_BACK)
+        flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_TRUE;
+#endif
+    m.addUInt8(ANDROID_FLASH_INFO_AVAILABLE, 1, &flashAvailable);
+
+    static const int64_t flashChargeDuration = 0;
+    m.addInt64(ANDROID_FLASH_INFO_CHARGE_DURATION, 1, &flashChargeDuration);
+
+    static const uint8_t availableAeModes[] = {
+            ANDROID_CONTROL_AE_MODE_OFF,
+            ANDROID_CONTROL_AE_MODE_ON,
+#ifdef BOARD_HAVE_FLASHLIGHT
+            // Discard ON_AUTO_FLASH & ON_AUTO_FLASH_REDEYE
+            ANDROID_CONTROL_AE_MODE_ON_ALWAYS_FLASH,
+#endif
+    };
+    m.addUInt8(ANDROID_CONTROL_AE_AVAILABLE_MODES, sizeof(availableAeModes),
+	       availableAeModes);
 
     return clone_camera_metadata(m.get());
 }
