@@ -333,6 +333,17 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
     static const int64_t flashChargeDuration = 0;
     m.addInt64(ANDROID_FLASH_INFO_CHARGE_DURATION, 1, &flashChargeDuration);
 
+    static const uint8_t availableAeModes[] = {
+            ANDROID_CONTROL_AE_MODE_OFF,
+            ANDROID_CONTROL_AE_MODE_ON,
+#ifdef BOARD_HAVE_FLASHLIGHT
+            // Discard ON_AUTO_FLASH & ON_AUTO_FLASH_REDEYE
+            ANDROID_CONTROL_AE_MODE_ON_ALWAYS_FLASH,
+#endif
+    };
+    m.addUInt8(ANDROID_CONTROL_AE_AVAILABLE_MODES, sizeof(availableAeModes),
+	       availableAeModes);
+
     return clone_camera_metadata(m.get());
 }
 

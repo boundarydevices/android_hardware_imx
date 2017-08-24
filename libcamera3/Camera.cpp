@@ -246,8 +246,8 @@ int32_t Camera::closeDev()
 
 #ifdef BOARD_HAVE_FLASHLIGHT
     // make sure flashlight is off
-    if (ANDROID_FLASH_MODE_OFF != m3aState.flashState)
-        m3aState.flashState = setFlashlight(ANDROID_FLASH_MODE_OFF);
+    if (ANDROID_FLASH_MODE_OFF != m3aState.flashMode)
+        m3aState.flashMode = setFlashlight(ANDROID_FLASH_MODE_OFF);
 #endif
 
     // close camera dev nodes, etc
@@ -567,21 +567,57 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
     timestamp = systemTime();
     settings->addInt64(ANDROID_SENSOR_TIMESTAMP, 1, &timestamp);
 
-    settings->addUInt8(ANDROID_CONTROL_AE_STATE, 1, &m3aState.aeState);
-
 #ifdef BOARD_HAVE_FLASHLIGHT
     // flash support
-    uint8_t flash = ANDROID_FLASH_MODE_OFF;
+    uint8_t flash_mode = ANDROID_FLASH_MODE_OFF;
+    uint8_t flash_state = ANDROID_FLASH_STATE_READY;
+    uint8_t ae_mode = ANDROID_CONTROL_AE_MODE_OFF;
 
     entry = settings->find(ANDROID_FLASH_MODE);
     if (entry.count > 0)
-        flash = entry.data.u8[0];
+        flash_mode = entry.data.u8[0];
 
-    if (flash != m3aState.flashState)
-        // update state if different than last
-        m3aState.flashState = setFlashlight(flash);
+    entry = settings->find(ANDROID_FLASH_STATE);
+    if (entry.count > 0)
+        flash_state = entry.data.u8[0];
 
-    settings->addUInt8(ANDROID_FLASH_MODE, 1, &m3aState.flashState);
+    entry = settings->find(ANDROID_CONTROL_AE_MODE);
+    if (entry.count > 0)
+        ae_mode = entry.data.u8[0];
+
+    if (ae_mode != m3aState.aeMode) {
+        m3aState.aeMode = ae_mode;
+        // Override flash_mode param in case of always on
+        switch (m3aState.aeMode) {
+            case ANDROID_CONTROL_AE_MODE_ON_ALWAYS_FLASH:
+                flash_mode = ANDROID_FLASH_MODE_TORCH;
+                break;
+            case ANDROID_CONTROL_AE_MODE_ON_AUTO_FLASH:
+            case ANDROID_CONTROL_AE_MODE_ON_AUTO_FLASH_REDEYE:
+                // Not supported, should set m3aState.aeState to
+                // ANDROID_CONTROL_AE_STATE_FLASH_REQUIRED
+                // when HAL thinks that a flash a required.
+                break;
+            case ANDROID_CONTROL_AE_MODE_OFF:
+            case ANDROID_CONTROL_AE_MODE_ON:
+            default:
+                if (m3aState.flashMode == ANDROID_FLASH_MODE_TORCH)
+                    flash_mode = ANDROID_FLASH_MODE_OFF;
+                break;
+        };
+    }
+
+    if (flash_mode != m3aState.flashMode) {
+        // update mode/state if different than last
+        m3aState.flashMode = setFlashlight(flash_mode);
+        if ((m3aState.flashMode != flash_mode) &&
+            (m3aState.flashMode == ANDROID_FLASH_MODE_OFF))
+            flash_state = ANDROID_FLASH_STATE_UNAVAILABLE;
+    }
+
+    m3aState.flashState = flash_state;
+    settings->addUInt8(ANDROID_FLASH_STATE, 1, &m3aState.flashState);
+    settings->addUInt8(ANDROID_FLASH_MODE, 1, &m3aState.flashMode);
 #endif
 
     // auto focus control.
@@ -643,6 +679,7 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
     m3aState.awbState = ANDROID_CONTROL_AWB_STATE_INACTIVE;
     settings->addUInt8(ANDROID_CONTROL_AWB_STATE, 1, &m3aState.awbState);
 
+    settings->addUInt8(ANDROID_CONTROL_AE_STATE, 1, &m3aState.aeState);
     settings->addInt32(ANDROID_CONTROL_AE_PRECAPTURE_ID, 1, &m3aState.aeTriggerId);
 
     notifyShutter(frame, timestamp);
@@ -872,6 +909,10 @@ uint8_t Camera::setFlashlight(uint8_t mode)
     unsigned int brightness = 0;
     bool on = false;
     char max_path[PATH_LEN], path[PATH_LEN];
+
+    // Special case, always override value when ALWAYS_FLASH
+    if (m3aState.aeMode == ANDROID_CONTROL_AE_MODE_ON_ALWAYS_FLASH)
+        mode = ANDROID_FLASH_MODE_TORCH;
 
     switch (mode) {
         case ANDROID_FLASH_MODE_SINGLE:

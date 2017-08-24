@@ -134,6 +134,7 @@ struct autoState
     uint8_t afState;
     uint8_t awbState;
 #ifdef BOARD_HAVE_FLASHLIGHT
+    uint8_t flashMode;
     uint8_t flashState;
 #endif
     int32_t afTriggerId;
