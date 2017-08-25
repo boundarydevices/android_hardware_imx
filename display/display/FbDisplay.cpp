@@ -212,6 +212,12 @@ bool FbDisplay::checkOverlay(Layer* layer)
         return false;
     }
 
+    // work around to GPU composite if video < 720x576.
+    if (memory->width <= 720 || memory->height <= 576) {
+        ALOGV("work around to GPU composite");
+        return false;
+    }
+
     if (mOverlay != NULL) {
         ALOGW("only support one overlay now");
         return false;
