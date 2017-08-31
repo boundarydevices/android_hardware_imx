@@ -131,6 +131,8 @@ static int setLayer(hwc_layer_1_t* hwlayer, Layer* layer, int index)
     }
     layer->acquireFence = hwlayer->acquireFenceFd;
     hwlayer->acquireFenceFd = -1;
+    layer->releaseFence = -1;
+    layer->priv = hwlayer;
 
     return 0;
 }
@@ -174,7 +176,6 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
         }
 
         display->invalidLayers();
-        android::KeyedVector<hwc_layer_1_t*, Layer*> mKeyedLayers;
         hwc_layer_1_t* hwlayer = NULL;
         for (size_t k=0; k<list->numHwLayers-1; k++) {
             hwlayer = &list->hwLayers[k];
@@ -184,14 +185,13 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
                 return -ENOSR;
             }
             setLayer(hwlayer, layer, k);
-            mKeyedLayers.add(hwlayer, layer);
         }
         if (!display->verifyLayers()) {
             ALOGV("pass to 3D to handle");
             // set overlay here.
             for (size_t k=0; k<list->numHwLayers-1; k++) {
                 hwlayer = &list->hwLayers[k];
-                Layer* layer = mKeyedLayers.valueFor(hwlayer);
+                Layer* layer = display->getLayerByPriv(hwlayer);
                 if (layer->type == LAYER_TYPE_DEVICE) {
                     hwlayer->compositionType = HWC_G2D;
                 }
@@ -273,6 +273,16 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
         display->setRenderTarget(target, fenceFd);
         display->composeLayers();
         display->updateScreen();
+
+        // set release fence here.
+        for (size_t k=0; k<list->numHwLayers-1; k++) {
+            hwlayer = &list->hwLayers[k];
+            Layer* layer = display->getLayerByPriv(hwlayer);
+            if (layer->type == LAYER_TYPE_DEVICE) {
+                hwlayer->releaseFenceFd = layer->releaseFence;
+                layer->releaseFence = -1;
+            }
+        }
     }
 
     return 0;

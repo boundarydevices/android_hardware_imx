@@ -75,7 +75,9 @@ public:
     Rect displayFrame;
     Region visibleRegion;
     int acquireFence;
+    int releaseFence;
     int index;
+    void* priv;
 };
 
 class LayerVector : public SortedVector<Layer*> {

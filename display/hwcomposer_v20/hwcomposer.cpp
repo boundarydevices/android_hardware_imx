@@ -579,19 +579,7 @@ static int hwc2_get_release_fences(hwc2_device_t* device, hwc2_display_t display
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    if (outNumElements != NULL) {
-        *outNumElements = 0;
-    }
-
-    if (outLayers != NULL) {
-        *outLayers = 0;
-    }
-
-    if (outFences != NULL) {
-        *outFences = -1;
-    }
-
-    return HWC2_ERROR_NONE;
+    return pDisplay->getReleaseFences(outNumElements, outLayers, outFences);
 }
 
 static int hwc2_get_max_virtual_display_count(hwc2_device_t* device)

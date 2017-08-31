@@ -229,6 +229,8 @@ void Display::resetLayerLocked(Layer* layer)
         close(layer->acquireFence);
     }
     layer->acquireFence = -1;
+    layer->releaseFence = -1;
+    layer->priv = NULL;
 }
 
 void Display::releaseLayer(int index)
@@ -256,6 +258,24 @@ Layer* Display::getLayer(int index)
 
     Mutex::Autolock _l(mLock);
     return mLayers[index];
+}
+
+Layer* Display::getLayerByPriv(void* priv)
+{
+    Mutex::Autolock _l(mLock);
+    Layer* layer = NULL;
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (!mLayers[i]->busy) {
+            continue;
+        }
+
+        if (mLayers[i]->priv == priv) {
+            layer = mLayers[i];
+            break;
+        }
+    }
+
+    return layer;
 }
 
 Layer* Display::getFreeLayer()
@@ -287,6 +307,33 @@ int Display::getRequests(int32_t* outDisplayRequests, uint32_t* outNumRequests,
     if (outLayers != NULL && outLayerRequests != NULL) {
         *outLayers = 0;
         *outLayerRequests = 0;
+    }
+
+    return 0;
+}
+
+int Display::getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers,
+                              int32_t* outFences)
+{
+    uint32_t numElements = 0;
+
+    Mutex::Autolock _l(mLock);
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (!mLayers[i]->busy) {
+            continue;
+        }
+
+        if (mLayers[i]->releaseFence != -1) {
+            if (outLayers != NULL && outFences != NULL) {
+                outLayers[numElements] = (uint64_t)mLayers[i]->index;
+                outFences[numElements] = (int32_t)mLayers[i]->releaseFence;
+            }
+            numElements++;
+        }
+    }
+
+    if (outNumElements) {
+        *outNumElements = numElements;
     }
 
     return 0;

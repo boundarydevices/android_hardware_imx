@@ -79,6 +79,7 @@ public:
     void releaseLayer(int index);
     // get layer with index.
     Layer* getLayer(int index);
+    Layer* getLayerByPriv(void* priv);
     // get empty layer.
     Layer* getFreeLayer();
     // clean and invalidate all layers.
@@ -89,6 +90,8 @@ public:
     // get display&layer request for all layers.
     int getRequests(int32_t* outDisplayRequests, uint32_t* outNumRequests,
                     uint64_t* outLayers, int32_t* outLayerRequests);
+    int getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers,
+                         int32_t* outFences);
     // verify all layers and marks if device can handle.
     bool verifyLayers();
     // set display composite target buffer.
