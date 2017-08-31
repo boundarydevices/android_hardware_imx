@@ -640,7 +640,7 @@ int Composer::finishEngine(void* handle)
 
 bool Composer::isFeatureSupported(g2d_feature feature)
 {
-    if (mQueryFeature == NULL) {
+    if (mQueryFeature == NULL || mHandle == NULL) {
         return false;
     }
 
