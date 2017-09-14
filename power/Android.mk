@@ -22,7 +22,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SHARED_LIBRARIES := libbase liblog libcutils libutils
-LOCAL_SRC_FILES := power.cpp switchprofile.cpp messageQueue.cpp
+LOCAL_SRC_FILES := power.cpp
 LOCAL_EXPORT_SHARED_LIBRARY_HEADERS := libbase libutils
 LOCAL_MODULE := power.$(TARGET_BOARD_PLATFORM)
 LOCAL_VENDOR_MODULE := true
