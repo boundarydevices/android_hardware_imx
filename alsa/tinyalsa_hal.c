@@ -181,17 +181,6 @@ static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes);
 
 extern int pcm_state(struct pcm *pcm);
 
-/* Returns true on devices that are sabreauto, false otherwise */
-static int is_device_auto(void)
-{
-    char property[PROPERTY_VALUE_MAX];
-
-    property_get(PRODUCT_DEVICE_PROPERTY, property, "");
-
-    /* return true if the property matches the given value */
-    return strstr(property, PRODUCT_DEVICE_AUTO) != NULL;
-}
-
 static int convert_record_data(void *src, void *dst, unsigned int frames, bool bit_24b_2_16b, bool mono2stereo, bool stereo2mono)
 {
      unsigned int i;
@@ -2803,7 +2792,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config[PCM_HDMI].rate = config->sample_rate;
         out->config[PCM_HDMI].channels = popcount(config->channel_mask);
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
-                   devices == AUDIO_DEVICE_OUT_SPEAKER && ladev->device_is_auto) {
+                   devices == AUDIO_DEVICE_OUT_SPEAKER && ladev->support_multichannel) {
         ALOGW("adev_open_output_stream() ESAI multichannel");
         if (ladev->active_output[OUTPUT_ESAI] != NULL) {
             ret = -ENOSYS;
@@ -3250,6 +3239,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                     pcm_config_mm_out.period_count = 4;
                 }
 
+                if(strcmp(audio_card_list[j]->driver_name, "cs42888-audio") == 0) {
+                    ALOGI("cs42888-audio: support multichannel");
+                    adev->support_multichannel = true;
+                }
+
                 // check if the device have been scaned before
                 scanned = false;
                 n = k;
@@ -3378,6 +3372,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.close_input_stream      = adev_close_input_stream;
     adev->hw_device.dump                    = adev_dump;
     adev->mm_rate                           = 44100;
+    adev->support_multichannel              = false;
 
     ret = scan_available_device(adev, true, true);
     if (ret != 0) {
@@ -3404,7 +3399,6 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->pcm_modem_ul  = NULL;
     adev->voice_volume  = 1.0f;
     adev->tty_mode      = TTY_MODE_OFF;
-    adev->device_is_auto = is_device_auto();
     adev->bluetooth_nrec = true;
     adev->wb_amr = 0;
     pthread_mutex_unlock(&adev->lock);

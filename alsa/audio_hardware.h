@@ -105,7 +105,7 @@ struct imx_audio_device {
     int tty_mode;
     struct echo_reference_itfe *echo_reference;
     bool bluetooth_nrec;
-    bool device_is_auto;
+    bool support_multichannel;
     int  wb_amr;
     bool low_power;
     struct audio_card *card_list[MAX_AUDIO_CARD_NUM];
