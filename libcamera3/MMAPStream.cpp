@@ -41,7 +41,7 @@ int32_t MMAPStream::onDeviceConfigureLocked()
 
     if ((mWidth > 1920) || (mHeight > 1080)) {
         fps = 15;
-    } else if ((mWidth <= 720) || (mHeight <= 480)) {
+    } else if ((mWidth <= 1024) || (mHeight <= 768)) {
         fps = 30;
     }
 
