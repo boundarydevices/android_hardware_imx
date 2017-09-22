@@ -939,6 +939,11 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     bool out_is_active = false;
     int  i;
 
+    ALOGD("%s: enter: kvpairs: %s", __func__, kvpairs);
+    if (strlen(kvpairs) == 0) {
+        return 0;
+    }
+
     parms = str_parms_create_str(kvpairs);
 
     ret = str_parms_get_str(parms, AUDIO_PARAMETER_STREAM_ROUTING, value, sizeof(value));
@@ -983,8 +988,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         ret = 0;
     }
 
-    ALOGW("out_set_parameters %s, ret %d, out %d",kvpairs, ret, (uintptr_t) out);
     str_parms_destroy(parms);
+    ALOGW("%s: exit: code(%d)", __func__, ret);
 
     return ret;
 }
