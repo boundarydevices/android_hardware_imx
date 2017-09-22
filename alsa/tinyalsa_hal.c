@@ -1051,7 +1051,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     }
 
     if (!checked) {
-        str = strdup(keys);
+        str = strdup("");
     }
 
     ALOGW("out get parameters query %s, reply %s",str_parms_to_str(query), str_parms_to_str(reply));
