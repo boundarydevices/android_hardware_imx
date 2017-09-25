@@ -590,6 +590,26 @@ int FbDisplay::setDefaultFormatLocked()
     info.yoffset = 0;
     info.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 
+    char value[PROPERTY_VALUE_MAX];
+    memset(value, 0, sizeof(value));
+    property_get("ro.boot.gui_resolution", value, "p");
+    if (!strncmp(value, "4k", 2)) {
+        info.xres = info.xres_virtual = 3840;
+        info.yres = info.yres_virtual = 2160;
+    }
+    else if (!strncmp(value, "1080p", 5)) {
+        info.xres = info.xres_virtual = 1920;
+        info.yres = info.yres_virtual = 1080;
+    }
+    else if (!strncmp(value, "720p", 4)) {
+        info.xres = info.xres_virtual = 1280;
+        info.yres = info.yres_virtual = 720;
+    }
+    else if (!strncmp(value, "480p", 4)) {
+        info.xres = info.xres_virtual = 640;
+        info.yres = info.yres_virtual = 480;
+    }
+
     if (ioctl(mFd, FBIOPUT_VSCREENINFO, &info) == -1) {
         ALOGE("setDefaultFormatLocked: RGBA8888 not supported now");
         return -errno;
