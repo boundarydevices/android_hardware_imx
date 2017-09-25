@@ -938,12 +938,9 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     bool force_input_standby = false;
     bool out_is_active = false;
     int  i;
+    int status = 0;
 
     ALOGD("%s: enter: kvpairs: %s", __func__, kvpairs);
-    if (strlen(kvpairs) == 0) {
-        return 0;
-    }
-
     parms = str_parms_create_str(kvpairs);
 
     ret = str_parms_get_str(parms, AUDIO_PARAMETER_STREAM_ROUTING, value, sizeof(value));
@@ -989,9 +986,9 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     }
 
     str_parms_destroy(parms);
-    ALOGW("%s: exit: code(%d)", __func__, ret);
+    ALOGD("%s: exit: code(%d)", __func__, status);
 
-    return ret;
+    return status;
 }
 
 static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
@@ -1777,7 +1774,9 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     char value[32];
     int ret, val = 0;
     bool do_standby = false;
+    int status = 0;
 
+    ALOGD("%s: enter: kvpairs=%s", __func__, kvpairs);
     parms = str_parms_create_str(kvpairs);
 
     ret = str_parms_get_str(parms, AUDIO_PARAMETER_STREAM_INPUT_SOURCE, value, sizeof(value));
@@ -1809,10 +1808,9 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     pthread_mutex_unlock(&in->lock);
     pthread_mutex_unlock(&adev->lock);
 
-    ALOGW("in_set_parameters %s", kvpairs);
     str_parms_destroy(parms);
-
-    return 0;
+    ALOGD("%s: exit: status(%d)", __func__, status);
+    return status;
 }
 
 static char * in_get_parameters(const struct audio_stream *stream,
@@ -2924,7 +2922,10 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     char *str;
     char value[32];
     int ret;
-    ALOGW("set parameters %s",kvpairs);
+    int status = 0;
+
+    ALOGD("%s: enter: %s", __func__, kvpairs);
+
     parms = str_parms_create_str(kvpairs);
     ret = str_parms_get_str(parms, AUDIO_PARAMETER_KEY_TTY_MODE, value, sizeof(value));
     if (ret >= 0) {
@@ -2938,8 +2939,10 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
             tty_mode = TTY_MODE_HCO;
         else if (strcmp(value, AUDIO_PARAMETER_VALUE_TTY_FULL) == 0)
             tty_mode = TTY_MODE_FULL;
-        else
-            return -EINVAL;
+        else {
+            status = -EINVAL;
+            goto done;
+        }
 
         pthread_mutex_lock(&adev->lock);
         if (tty_mode != adev->tty_mode) {
@@ -2966,9 +2969,10 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
             adev->low_power = true;
     }
 
+done:
     str_parms_destroy(parms);
-
-    return 0;
+    ALOGD("%s: exit with code(%d)", __func__, status);
+    return status;
 }
 
 static char * adev_get_parameters(const struct audio_hw_device *dev,
