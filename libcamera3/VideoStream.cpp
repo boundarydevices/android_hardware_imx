@@ -99,7 +99,6 @@ int32_t VideoStream::configure(sp<Stream> stream)
     params->mFormat = sensorFormat;
     params->mFps = stream->fps();
     params->mBuffers = stream->bufferNum();
-    mChanged = true;
 
     ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
            __func__, mWidth, mHeight, mFormat, stream->format(), mFps, mNumBuffers);
@@ -117,6 +116,8 @@ int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
         ALOGW("%s invalid params", __func__);
         return 0;
     }
+
+    mChanged = true;
 
     // add start state to go into config state.
     // so, only call config to do stop automically.
