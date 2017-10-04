@@ -246,8 +246,10 @@ int32_t Camera::closeDev()
 
 #ifdef BOARD_HAVE_FLASHLIGHT
     // make sure flashlight is off
-    if (ANDROID_FLASH_MODE_OFF != m3aState.flashMode)
+    if (ANDROID_FLASH_MODE_OFF != m3aState.flashMode) {
+        m3aState.aeMode = ANDROID_CONTROL_AE_MODE_OFF;
         m3aState.flashMode = setFlashlight(ANDROID_FLASH_MODE_OFF);
+    }
 #endif
 
     // close camera dev nodes, etc
@@ -596,7 +598,7 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
             case ANDROID_CONTROL_AE_MODE_ON_AUTO_FLASH_REDEYE:
                 // Not supported, should set m3aState.aeState to
                 // ANDROID_CONTROL_AE_STATE_FLASH_REQUIRED
-                // when HAL thinks that a flash a required.
+                // when HAL thinks that a flash is required.
                 break;
             case ANDROID_CONTROL_AE_MODE_OFF:
             case ANDROID_CONTROL_AE_MODE_ON:
