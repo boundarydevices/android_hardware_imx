@@ -138,6 +138,16 @@ fail:
     return 0;
 }
 
+static void free_ctl_pcm_info(struct ctl_pcm_info* current) {
+    struct ctl_pcm_info* p = NULL;
+    while (current) {
+        free(current->info);
+        p = current;
+        current = current->next;
+        free(p);
+    }
+}
+
 void control_close(struct control *control)
 {
     unsigned int n,m;
@@ -153,25 +163,9 @@ void control_close(struct control *control)
     if (control->card_info)
         free(control->card_info);
 
-    current = control->pcm_info_p;
-    while(!current)
-    {
-        if(!current->info)
-            free(current->info);
-        p = current;
-        current = current->next;
-        free(p);
-    }
+    free_ctl_pcm_info(control->pcm_info_p);
+    free_ctl_pcm_info(control->pcm_info_c);
 
-    current = control->pcm_info_c;
-    while(!current)
-    {
-        if(!current->info)
-            free(current->info);
-        p = current;
-        current = current->next;
-        free(p);
-    }
     free(control);
 }
 
