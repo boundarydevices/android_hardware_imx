@@ -391,10 +391,17 @@ int FbDisplay::readConfigLocked()
           info.green.length, info.blue.offset, info.blue.length);
 
     config.mVsyncPeriod  = 1000000000000 / refreshRate;
-    config.mFormat = (info.bits_per_pixel == 32)
+    if (info.grayscale == 0) {
+        config.mFormat = (info.bits_per_pixel == 32)
                        ? ((info.red.offset == 0) ? FORMAT_RGBA8888 :
                             FORMAT_BGRA8888)
                        : FORMAT_RGB565;
+    }
+    else {
+        config.mFormat = (info.grayscale == V4L2_PIX_FMT_ARGB32)
+                       ? FORMAT_RGBA8888
+                       : FORMAT_BGRA8888;
+    }
     config.mBytespixel = info.bits_per_pixel >> 3;
     config.mStride = finfo.line_length;
 
