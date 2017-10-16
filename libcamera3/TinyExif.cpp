@@ -61,12 +61,10 @@ static IFDGroup g_ExifGroup;
 static IFDGroup g_GpsGroup;
 static uint32_t g_thumbNailOffset;
 static uint32_t g_mainJpgOffset;
+uint32_t tag_length;
 
 #define IFDELE_SIZE 12
 #define ARRAYSIZE(a) (uint32_t)(sizeof(a) / sizeof(a[0]))
-
-//PROCESSING_METHOD_LEN is temporary.
-#define PROCESSING_METHOD_LEN 16
 
 const static uint8_t SOIMark[] = {0xff, 0xd8};
 
@@ -156,8 +154,7 @@ static int WriteOneIFD(IFDGroup* pGrp, uint32_t idx, uint8_t* pDst)
 
     // set count
     if (pIFDSpec->type == TYPE_UNDEFINED) {
-        pIFDSpec->count = PROCESSING_METHOD_LEN;
-        //pIFDSpec->count = 16;
+        pIFDSpec->count = tag_length;
     } else if (pIFDSpec->type != TYPE_ASCII) {
         pIFDSpec->count = 1;
     } else if (strlen(pIFDEle->strVal) < 4) {
@@ -196,8 +193,8 @@ static int WriteOneIFD(IFDGroup* pGrp, uint32_t idx, uint8_t* pDst)
         if (strlen(pIFDEle->strVal) < 4) {
             strcpy((char*)(&pIFDSpec->value), pIFDEle->strVal);
         } else if (TYPE_UNDEFINED == pIFDSpec->type) {
-            memcpy((char*)pDst + pGrp->variedLenIdx, pIFDEle->strVal, PROCESSING_METHOD_LEN);
-            pGrp->variedLenIdx += PROCESSING_METHOD_LEN;
+            memcpy((char*)pDst + pGrp->variedLenIdx, pIFDEle->strVal, tag_length);
+            pGrp->variedLenIdx += tag_length;
         } else {
             strcpy((char*)pDst + pGrp->variedLenIdx, pIFDEle->strVal);
             pGrp->variedLenIdx += strlen(pIFDEle->strVal) + 1;
@@ -345,7 +342,9 @@ static uint32_t CalcGroupSize(IFDGroup* pIFDGrp)
                 variedSize += strlen(pIFDEle->strVal) + 1;
             }
         } else if (TYPE_UNDEFINED == type) {
-            variedSize += PROCESSING_METHOD_LEN;
+                tag_length = sizeof(ExifAsciiPrefix) +
+                             strlen(pIFDEle->strVal + sizeof(ExifAsciiPrefix));
+            variedSize += tag_length;
         } else if ((TYPE_RATIONAL == type) || (TYPE_RATIONAL_SIGNED == type)) {
             if (pIFDEle->val6 != 0) {
                 variedSize += 24;

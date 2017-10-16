@@ -36,6 +36,8 @@
 #define TAG_GPS_TIMESTAMP 0x0007
 #define TAG_GPS_DATESTAMP 0x001d
 
+const static char ExifAsciiPrefix[] = {0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0};
+
 typedef struct st_IFDEle {
     uint16_t tag;
     uint32_t val1;

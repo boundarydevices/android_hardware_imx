@@ -48,8 +48,6 @@ static string_pair degress_to_exif_lut[] = {
     { "270", "8"     },
 };
 
-static const char ExifAsciiPrefix[] = {0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0};
-
 /* public static functions */
 const char * JpegBuilder::degreesToExifOrientation(const char *degrees) {
     for (unsigned int i = 0; i < ARRAY_SIZE(degress_to_exif_lut); i++) {
@@ -137,7 +135,6 @@ status_t JpegBuilder::insertElement(uint16_t tag,
 
     if (strVal) {
         if (table[position].tag == TAG_GPS_PROCESSING_METHOD) {
-            int value_length = 0;
             value_length = sizeof(ExifAsciiPrefix) +
                            strlen(strVal + sizeof(ExifAsciiPrefix));
             table[position].strVal = (char *)malloc(sizeof(char) * (value_length + 1));
@@ -556,7 +553,7 @@ status_t JpegBuilder::buildImage(const StreamBuffer *streamBuf)
                                  streamBuf->mSize);
 
     // clean IDF table
-    int i;
+    unsigned int i;
     for (i = 0; i < position; i++) {
         if (table[i].strVal) {
             free(table[i].strVal);
