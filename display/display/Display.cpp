@@ -51,6 +51,7 @@ Display::Display()
     mType = DISPLAY_INVALID;
     mRenderTarget = NULL;
     mAcquireFence = -1;
+    mIndex = -1;
 }
 
 Display::~Display()
