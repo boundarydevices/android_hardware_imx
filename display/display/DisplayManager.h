@@ -44,6 +44,7 @@ public:
 
     bool isOverlay(int fb);
     int enumFbDisplays();
+    int enumKmsDisplay(const char *path);
     int enumKmsDisplays();
     void setCallback(EventListener* callback);
     void handleHotplugEvent();

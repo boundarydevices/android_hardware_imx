@@ -242,11 +242,8 @@ bool DisplayManager::isOverlay(int fb)
     return false;
 }
 
-int DisplayManager::enumKmsDisplays()
+int DisplayManager::enumKmsDisplay(const char *path)
 {
-    char path[PROPERTY_VALUE_MAX];
-    property_get("hwc.drm.device", path, "/dev/dri/card0");
-
     mDrmFd = open(path, O_RDWR);
     if(mDrmFd <= 0) {
         ALOGE("Failed to open dri-%s, error:%s", path, strerror(-errno));
@@ -314,9 +311,44 @@ int DisplayManager::enumKmsDisplays()
 
     if (foundPrimary) {
         mDrmMode = true;
+        ret = 0;
+    }
+    else {
+        ret = -ENODEV;
     }
 
     return ret;
+}
+
+int DisplayManager::enumKmsDisplays()
+{
+    DIR *dir = NULL;
+    struct dirent *dirEntry;
+    char path[HWC_PATH_LENGTH];
+    int ret = 0;
+    char dri[PROPERTY_VALUE_MAX];
+    property_get("hwc.drm.device", dri, "/dev/dri");
+
+    dir = opendir(dri);
+    if (dir == NULL) {
+        ALOGE("%s open %s failed", __func__, SYS_GRAPHICS);
+        return -EINVAL;
+    }
+
+    while ((dirEntry = readdir(dir)) != NULL) {
+        if (strncmp(dirEntry->d_name, "card", 4)) {
+            continue;
+        }
+        memset(path, 0, sizeof(path));
+        snprintf(path, HWC_PATH_LENGTH, "/dev/dri/%s", dirEntry->d_name);
+        ALOGI("try dev:%s", path);
+        ret = enumKmsDisplay(path);
+        if (ret == 0) {
+            break;
+        }
+    }
+
+    return 0;
 }
 
 int DisplayManager::enumFbDisplays()
