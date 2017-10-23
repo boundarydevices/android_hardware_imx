@@ -1467,7 +1467,7 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    int ret = -1;
+    int ret = -ENODATA;
     int i;
 
     pthread_mutex_lock(&out->lock);
