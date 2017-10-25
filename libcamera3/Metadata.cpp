@@ -331,7 +331,8 @@ camera_metadata_t* Metadata::createStaticInfo(Camera& camera)
 
     uint8_t flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_FALSE;
 #ifdef BOARD_HAVE_FLASHLIGHT
-    flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_TRUE;
+    if (camera.facing == CAMERA_FACING_BACK)
+        flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_TRUE;
 #endif
     m.addUInt8(ANDROID_FLASH_INFO_AVAILABLE, 1, &flashAvailable);
 
