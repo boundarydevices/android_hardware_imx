@@ -21,6 +21,11 @@
 #include <cutils/log.h>
 #include "Metadata.h"
 
+// Undefine u8 since the camera_metadata_ro_entry_t contains a u8 field
+#ifdef u8
+    #undef u8
+#endif
+
 Metadata::Metadata(const camera_metadata_t *metadata)
 {
     mData = metadata;
@@ -176,7 +181,7 @@ int32_t Metadata::getFocalLength(float &focalLength)
     return 0;
 }
 
-camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &camInfo)
+camera_metadata_t* Metadata::createStaticInfo(Camera& camera, camera_info &camInfo)
 {
     /*
      * Setup static camera info.  This will have to customized per camera
@@ -186,8 +191,8 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
 
     /* android.control */
     m.addInt32(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
-            ARRAY_SIZE(sensor.mTargetFpsRange),
-            sensor.mTargetFpsRange);
+            ARRAY_SIZE(camera.mTargetFpsRange),
+            camera.mTargetFpsRange);
 
     static const uint8_t aeAntibandingMode =
             ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
@@ -226,7 +231,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     float hypFocusDistance = 1.0/0.05; /* 5cm */
     m.addFloat(ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE, 1, &hypFocusDistance);
 
-    float android_lens_info_available_focal_lengths[] = {sensor.mFocalLength};
+    float android_lens_info_available_focal_lengths[] = {camera.mFocalLength};
     m.addFloat(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
             ARRAY_SIZE(android_lens_info_available_focal_lengths),
             android_lens_info_available_focal_lengths);
@@ -248,38 +253,38 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
 
     /* android.scaler */
     m.addInt32(ANDROID_SCALER_AVAILABLE_FORMATS,
-            sensor.mAvailableFormatCount,
-            sensor.mAvailableFormats);
+            camera.mAvailableFormatCount,
+            camera.mAvailableFormats);
 
-    int64_t android_scaler_available_jpeg_min_durations[] = {sensor.mMinFrameDuration};
+    int64_t android_scaler_available_jpeg_min_durations[] = {camera.mMinFrameDuration};
     m.addInt64(ANDROID_SCALER_AVAILABLE_JPEG_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_jpeg_min_durations),
             android_scaler_available_jpeg_min_durations);
 
     m.addInt32(ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
-            sensor.mPictureResolutionCount,
-            sensor.mPictureResolutions);
+            camera.mPictureResolutionCount,
+            camera.mPictureResolutions);
 
     float android_scaler_available_max_digital_zoom[] = {4};
     m.addFloat(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM,
             ARRAY_SIZE(android_scaler_available_max_digital_zoom),
             android_scaler_available_max_digital_zoom);
 
-    int64_t android_scaler_available_processed_min_durations[] = {sensor.mMinFrameDuration};
+    int64_t android_scaler_available_processed_min_durations[] = {camera.mMinFrameDuration};
     m.addInt64(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_processed_min_durations),
             android_scaler_available_processed_min_durations);
 
     m.addInt32(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
-            sensor.mPreviewResolutionCount,
-            sensor.mPreviewResolutions);
+            camera.mPreviewResolutionCount,
+            camera.mPreviewResolutions);
 
-    int64_t android_scaler_available_raw_min_durations[] = {sensor.mMinFrameDuration};
+    int64_t android_scaler_available_raw_min_durations[] = {camera.mMinFrameDuration};
     m.addInt64(ANDROID_SCALER_AVAILABLE_RAW_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_raw_min_durations),
             android_scaler_available_raw_min_durations);
 
-    int32_t android_scaler_available_raw_sizes[] = {sensor.mMaxWidth, sensor.mMaxHeight};
+    int32_t android_scaler_available_raw_sizes[] = {camera.mMaxWidth, camera.mMaxHeight};
     m.addInt32(ANDROID_SCALER_AVAILABLE_RAW_SIZES,
             ARRAY_SIZE(android_scaler_available_raw_sizes),
             android_scaler_available_raw_sizes);
@@ -287,7 +292,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     /* android.sensor */
 
     /* left, top, right, bottom */
-    int32_t android_sensor_info_active_array_size[] = {0, 0, sensor.mActiveArrayWidth, sensor.mActiveArrayHeight};
+    int32_t android_sensor_info_active_array_size[] = {0, 0, camera.mActiveArrayWidth, camera.mActiveArrayHeight};
     m.addInt32(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_active_array_size),
             android_sensor_info_active_array_size);
@@ -298,7 +303,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
             ARRAY_SIZE(android_sensor_info_sensitivity_range),
             android_sensor_info_sensitivity_range);
 
-    int64_t android_sensor_info_max_frame_duration[] = {sensor.mMaxFrameDuration};
+    int64_t android_sensor_info_max_frame_duration[] = {camera.mMaxFrameDuration};
     m.addInt64(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
             ARRAY_SIZE(android_sensor_info_max_frame_duration),
             android_sensor_info_max_frame_duration);
@@ -306,12 +311,12 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     int64_t kExposureTimeRange[2] = {1000L, 300000000L};
     m.addInt64(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE, ARRAY_SIZE(kExposureTimeRange), kExposureTimeRange);
 
-    float android_sensor_info_physical_size[] = {sensor.mPhysicalWidth, sensor.mPhysicalHeight};
+    float android_sensor_info_physical_size[] = {camera.mPhysicalWidth, camera.mPhysicalHeight};
     m.addFloat(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
             ARRAY_SIZE(android_sensor_info_physical_size),
             android_sensor_info_physical_size);
 
-    int32_t android_sensor_info_pixel_array_size[] = {sensor.mPixelArrayWidth, sensor.mPixelArrayHeight};
+    int32_t android_sensor_info_pixel_array_size[] = {camera.mPixelArrayWidth, camera.mPixelArrayHeight};
     m.addInt32(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_pixel_array_size),
             android_sensor_info_pixel_array_size);
@@ -346,63 +351,63 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     int64_t stallDuration[MAX_RESOLUTION_SIZE * 6];
 
     // TODO: It's better to get those info in seperate camera, and get the accurate fps.
-    ResCount = sensor.mPreviewResolutionCount/2;
+    ResCount = camera.mPreviewResolutionCount/2;
     for(ResIdx = 0; ResIdx < ResCount; ResIdx++) {
         streamConfigIdx = ResIdx*4;
 
         streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
-        streamConfig[streamConfigIdx+1] = sensor.mPreviewResolutions[ResIdx*2];
-        streamConfig[streamConfigIdx+2] = sensor.mPreviewResolutions[ResIdx*2+1];
+        streamConfig[streamConfigIdx+1] = camera.mPreviewResolutions[ResIdx*2];
+        streamConfig[streamConfigIdx+2] = camera.mPreviewResolutions[ResIdx*2+1];
         streamConfig[streamConfigIdx+3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
 
         minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
-        minFrmDuration[streamConfigIdx+1] = sensor.mPreviewResolutions[ResIdx*2];
-        minFrmDuration[streamConfigIdx+2] = sensor.mPreviewResolutions[ResIdx*2+1];
+        minFrmDuration[streamConfigIdx+1] = camera.mPreviewResolutions[ResIdx*2];
+        minFrmDuration[streamConfigIdx+2] = camera.mPreviewResolutions[ResIdx*2+1];
         minFrmDuration[streamConfigIdx+3] = 33333333; // ns
 
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
-        stallDuration[streamConfigIdx+1] = sensor.mPreviewResolutions[ResIdx*2];
-        stallDuration[streamConfigIdx+2] = sensor.mPreviewResolutions[ResIdx*2+1];
+        stallDuration[streamConfigIdx+1] = camera.mPreviewResolutions[ResIdx*2];
+        stallDuration[streamConfigIdx+2] = camera.mPreviewResolutions[ResIdx*2+1];
         stallDuration[streamConfigIdx + 3] = 0; // ns
     }
 
-    ResCount = sensor.mPictureResolutionCount/2;
+    ResCount = camera.mPictureResolutionCount/2;
     for(ResIdx = 0; ResIdx < ResCount; ResIdx++) {
-        streamConfigIdx = sensor.mPreviewResolutionCount*2 + ResIdx*4;
+        streamConfigIdx = camera.mPreviewResolutionCount*2 + ResIdx*4;
 
         streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
-        streamConfig[streamConfigIdx+1] = sensor.mPictureResolutions[ResIdx*2];
-        streamConfig[streamConfigIdx+2] = sensor.mPictureResolutions[ResIdx*2+1];
+        streamConfig[streamConfigIdx+1] = camera.mPictureResolutions[ResIdx*2];
+        streamConfig[streamConfigIdx+2] = camera.mPictureResolutions[ResIdx*2+1];
         streamConfig[streamConfigIdx+3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
 
         minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
-        minFrmDuration[streamConfigIdx+1] = sensor.mPictureResolutions[ResIdx*2];
-        minFrmDuration[streamConfigIdx+2] = sensor.mPictureResolutions[ResIdx*2+1];
+        minFrmDuration[streamConfigIdx+1] = camera.mPictureResolutions[ResIdx*2];
+        minFrmDuration[streamConfigIdx+2] = camera.mPictureResolutions[ResIdx*2+1];
         minFrmDuration[streamConfigIdx+3] = 33333333; // ns
 
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
-        stallDuration[streamConfigIdx+1] = sensor.mPictureResolutions[ResIdx*2];
-        stallDuration[streamConfigIdx+2] = sensor.mPictureResolutions[ResIdx*2+1];
+        stallDuration[streamConfigIdx+1] = camera.mPictureResolutions[ResIdx*2];
+        stallDuration[streamConfigIdx+2] = camera.mPictureResolutions[ResIdx*2+1];
         stallDuration[streamConfigIdx+3] = 33333333; // ns
     }
 
-    ResCount = sensor.mPreviewResolutionCount / 2;
+    ResCount = camera.mPreviewResolutionCount / 2;
     for (ResIdx = 0; ResIdx < ResCount; ResIdx++) {
-         streamConfigIdx = sensor.mPictureResolutionCount * 2 + sensor.mPreviewResolutionCount * 2 + ResIdx * 4;
+         streamConfigIdx = camera.mPictureResolutionCount * 2 + camera.mPreviewResolutionCount * 2 + ResIdx * 4;
 
          streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
-         streamConfig[streamConfigIdx + 1] = sensor.mPreviewResolutions[ResIdx * 2];
-         streamConfig[streamConfigIdx + 2] = sensor.mPreviewResolutions[ResIdx * 2 + 1];
+         streamConfig[streamConfigIdx + 1] = camera.mPreviewResolutions[ResIdx * 2];
+         streamConfig[streamConfigIdx + 2] = camera.mPreviewResolutions[ResIdx * 2 + 1];
          streamConfig[streamConfigIdx + 3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
 
          minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
-         minFrmDuration[streamConfigIdx + 1] = sensor.mPreviewResolutions[ResIdx * 2];
-         minFrmDuration[streamConfigIdx + 2] = sensor.mPreviewResolutions[ResIdx * 2 + 1];
+         minFrmDuration[streamConfigIdx + 1] = camera.mPreviewResolutions[ResIdx * 2];
+         minFrmDuration[streamConfigIdx + 2] = camera.mPreviewResolutions[ResIdx * 2 + 1];
          minFrmDuration[streamConfigIdx + 3] = 33333333; // ns
 
          stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
-         stallDuration[streamConfigIdx + 1] = sensor.mPreviewResolutions[ResIdx * 2];
-         stallDuration[streamConfigIdx + 2] = sensor.mPreviewResolutions[ResIdx * 2 + 1];
+         stallDuration[streamConfigIdx + 1] = camera.mPreviewResolutions[ResIdx * 2];
+         stallDuration[streamConfigIdx + 2] = camera.mPreviewResolutions[ResIdx * 2 + 1];
          stallDuration[streamConfigIdx + 3] = 0;
     }
 
@@ -588,7 +593,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     return clone_camera_metadata(m.get());
 }
 
-void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
+void Metadata::createSettingTemplate(Metadata& base, Camera& camera,
                                      int request_template)
 {
     /** android.request */
@@ -607,7 +612,7 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
 
     static float aperture = 2.8;
     base.addFloat(ANDROID_LENS_APERTURE, 1, &aperture);
-    base.addFloat(ANDROID_LENS_FOCAL_LENGTH, 1, &sensor.mFocalLength);
+    base.addFloat(ANDROID_LENS_FOCAL_LENGTH, 1, &camera.mFocalLength);
 
     static const float filterDensity = 0;
     base.addFloat(ANDROID_LENS_FILTER_DENSITY, 1, &filterDensity);
