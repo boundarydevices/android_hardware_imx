@@ -20,7 +20,6 @@
 #include <hardware/hardware.h>
 #include <hardware/camera3.h>
 #include <utils/Mutex.h>
-#include "Metadata.h"
 #include "Stream.h"
 #include "CameraUtils.h"
 
@@ -153,5 +152,7 @@ protected:
     autoState m3aState;
     uint8_t *mTmpBuf;  // used for soft csc temp buffer
 };
+
+#include "Metadata.h"
 
 #endif // CAMERA_H_

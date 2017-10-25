@@ -22,6 +22,7 @@
 #include <system/camera_metadata.h>
 #include <camera/CameraMetadata.h>
 #include "CameraUtils.h"
+#include "Camera.h"
 
 // Metadata is a convenience class for dealing with libcamera_metadata
 class Metadata : public LightRefBase<Metadata>
@@ -31,8 +32,8 @@ public:
     Metadata(const camera_metadata_t *metadata);
     ~Metadata();
 
-    static camera_metadata_t* createStaticInfo(SensorData& sensor, camera_info &camInfo);
-    static void createSettingTemplate(Metadata& base, SensorData& sensor,
+    static camera_metadata_t* createStaticInfo(Camera& camera, camera_info &camInfo);
+    static void createSettingTemplate(Metadata& base, Camera& camera,
                                       int request_template);
 
     camera_metadata_entry_t find(uint32_t tag);
