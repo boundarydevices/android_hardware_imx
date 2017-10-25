@@ -20,6 +20,11 @@
 #include <cutils/log.h>
 #include "Metadata.h"
 
+// Undefine u8 since the camera_metadata_ro_entry_t contains a u8 field
+#ifdef u8
+    #undef u8
+#endif
+
 Metadata::Metadata(const camera_metadata_t *metadata)
 {
     mData = metadata;
@@ -180,7 +185,7 @@ void Metadata::clear()
     mData.clear();
 }
 #endif
-camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
+camera_metadata_t* Metadata::createStaticInfo(Camera& camera)
 {
     /*
      * Setup static camera info.  This will have to customized per camera
@@ -190,8 +195,8 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
 
     /* android.control */
     m.addInt32(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
-            ARRAY_SIZE(sensor.mTargetFpsRange),
-            sensor.mTargetFpsRange);
+            ARRAY_SIZE(camera.mTargetFpsRange),
+            camera.mTargetFpsRange);
 
     static const uint8_t aeAntibandingMode =
             ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
@@ -230,7 +235,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
     float hypFocusDistance = 1.0/0.05; /* 5cm */
     m.addFloat(ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE, 1, &hypFocusDistance);
 
-    float android_lens_info_available_focal_lengths[] = {sensor.mFocalLength};
+    float android_lens_info_available_focal_lengths[] = {camera.mFocalLength};
     m.addFloat(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
             ARRAY_SIZE(android_lens_info_available_focal_lengths),
             android_lens_info_available_focal_lengths);
@@ -253,45 +258,45 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
 #endif
     /* android.scaler */
     m.addInt32(ANDROID_SCALER_AVAILABLE_FORMATS,
-            sensor.mAvailableFormatCount,
-            sensor.mAvailableFormats);
+            camera.mAvailableFormatCount,
+            camera.mAvailableFormats);
 
-    int64_t android_scaler_available_jpeg_min_durations[] = {sensor.mMinFrameDuration};
+    int64_t android_scaler_available_jpeg_min_durations[] = {camera.mMinFrameDuration};
     m.addInt64(ANDROID_SCALER_AVAILABLE_JPEG_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_jpeg_min_durations),
             android_scaler_available_jpeg_min_durations);
 
     m.addInt32(ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
-            sensor.mPictureResolutionCount,
-            sensor.mPictureResolutions);
+            camera.mPictureResolutionCount,
+            camera.mPictureResolutions);
 
     float android_scaler_available_max_digital_zoom[] = {4};
     m.addFloat(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM,
             ARRAY_SIZE(android_scaler_available_max_digital_zoom),
             android_scaler_available_max_digital_zoom);
 
-    int64_t android_scaler_available_processed_min_durations[] = {sensor.mMinFrameDuration};
+    int64_t android_scaler_available_processed_min_durations[] = {camera.mMinFrameDuration};
     m.addInt64(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_processed_min_durations),
             android_scaler_available_processed_min_durations);
 
     m.addInt32(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
-            sensor.mPreviewResolutionCount,
-            sensor.mPreviewResolutions);
+            camera.mPreviewResolutionCount,
+            camera.mPreviewResolutions);
 
-    int64_t android_scaler_available_raw_min_durations[] = {sensor.mMinFrameDuration};
+    int64_t android_scaler_available_raw_min_durations[] = {camera.mMinFrameDuration};
     m.addInt64(ANDROID_SCALER_AVAILABLE_RAW_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_raw_min_durations),
             android_scaler_available_raw_min_durations);
 
-    int32_t android_scaler_available_raw_sizes[] = {sensor.mMaxWidth, sensor.mMaxHeight};
+    int32_t android_scaler_available_raw_sizes[] = {camera.mMaxWidth, camera.mMaxHeight};
     m.addInt32(ANDROID_SCALER_AVAILABLE_RAW_SIZES,
             ARRAY_SIZE(android_scaler_available_raw_sizes),
             android_scaler_available_raw_sizes);
 
     /* android.sensor */
 
-    int32_t android_sensor_info_active_array_size[] = {sensor.mActiveArrayWidth, sensor.mActiveArrayHeight};
+    int32_t android_sensor_info_active_array_size[] = {camera.mActiveArrayWidth, camera.mActiveArrayHeight};
     m.addInt32(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_active_array_size),
             android_sensor_info_active_array_size);
@@ -302,17 +307,17 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
             ARRAY_SIZE(android_sensor_info_sensitivity_range),
             android_sensor_info_sensitivity_range);
 #endif
-    int64_t android_sensor_info_max_frame_duration[] = {sensor.mMaxFrameDuration};
+    int64_t android_sensor_info_max_frame_duration[] = {camera.mMaxFrameDuration};
     m.addInt64(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
             ARRAY_SIZE(android_sensor_info_max_frame_duration),
             android_sensor_info_max_frame_duration);
 
-    float android_sensor_info_physical_size[] = {sensor.mPhysicalWidth, sensor.mPhysicalHeight};
+    float android_sensor_info_physical_size[] = {camera.mPhysicalWidth, camera.mPhysicalHeight};
     m.addFloat(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
             ARRAY_SIZE(android_sensor_info_physical_size),
             android_sensor_info_physical_size);
 
-    int32_t android_sensor_info_pixel_array_size[] = {sensor.mPixelArrayWidth, sensor.mPixelArrayHeight};
+    int32_t android_sensor_info_pixel_array_size[] = {camera.mPixelArrayWidth, camera.mPixelArrayHeight};
     m.addInt32(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_pixel_array_size),
             android_sensor_info_pixel_array_size);
@@ -347,7 +352,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor)
     return clone_camera_metadata(m.get());
 }
 
-void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
+void Metadata::createSettingTemplate(Metadata& base, Camera& camera,
                                      int request_template)
 {
     /** android.request */
@@ -366,7 +371,7 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
 
     static float aperture = 2.8;
     base.addFloat(ANDROID_LENS_APERTURE, 1, &aperture);
-    base.addFloat(ANDROID_LENS_FOCAL_LENGTH, 1, &sensor.mFocalLength);
+    base.addFloat(ANDROID_LENS_FOCAL_LENGTH, 1, &camera.mFocalLength);
 
     static const float filterDensity = 0;
     base.addFloat(ANDROID_LENS_FILTER_DENSITY, 1, &filterDensity);
@@ -548,7 +553,7 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     base.addUInt8(ANDROID_CONTROL_AE_MODE, 1, &aeMode);
 
     int32_t controlRegions[5] = {
-        0, 0, sensor.mMaxWidth, sensor.mMaxHeight, 1000
+        0, 0, camera.mMaxWidth, camera.mMaxHeight, 1000
     };
     base.addInt32(ANDROID_CONTROL_AE_REGIONS, 5, controlRegions);
 
