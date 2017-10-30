@@ -18,56 +18,34 @@
 #ifndef _FSL_ION_MANAGER_H_
 #define _FSL_ION_MANAGER_H_
 
+#include <hardware/gralloc.h>
 #include "Memory.h"
-#include "MemoryManager.h"
+#include "MemoryDesc.h"
 
 namespace fsl {
 
-typedef int (*gpu_wrapfunc)(void* handle, int w, int h, int f,
-                            int s, int phys, void* addr);
-typedef int (*gpu_unwrapfunc)(void* handle);
-
-class IonShadow : public MemoryShadow
-{
-public:
-    IonShadow(int fd, struct Memory* handle, bool own, gpu_unwrapfunc pointer);
-    ~IonShadow();
-
-    int fd();
-    struct Memory* handle();
-
-private:
-    int mFd;
-    struct Memory* mHandle;
-    gpu_unwrapfunc mUnwrap;
-};
-
-class IonManager : public MemoryManager
+class IonManager
 {
 public:
     IonManager();
     ~IonManager();
 
-    virtual int allocMemory(MemoryDesc& desc, Memory** out);
+    int allocMemory(MemoryDesc& desc, Memory** out);
 
     int flushCache(Memory* memory);
     int getPhys(Memory* memory);
     int getVaddrs(Memory* memory);
-    void getModule(char *path, const char *name);
 
-    virtual int retainMemory(Memory* handle);
-    virtual int lock(Memory* handle, int usage,
+    int lock(Memory* handle, int usage,
             int l, int t, int w, int h,
             void** vaddr);
-    virtual int lockYCbCr(Memory* handle, int usage,
+    int lockYCbCr(Memory* handle, int usage,
             int l, int t, int w, int h,
             android_ycbcr* ycbcr);
-    virtual int unlock(Memory* handle);
+    int unlock(Memory* handle);
 
 private:
     int mIonFd;
-    gpu_wrapfunc mWrap;
-    gpu_unwrapfunc mUnwrap;
 };
 
 }

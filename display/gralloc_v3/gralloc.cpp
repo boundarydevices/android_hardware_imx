@@ -716,7 +716,7 @@ static void gralloc_get_capabilities(struct gralloc1_device* device,
 
     if (outCapabilities) {
         if (outCount != NULL && *outCount >= 1)
-        *outCapabilities = GRALLOC1_CAPABILITY_TEST_ALLOCATE;
+        *outCapabilities = GRALLOC1_CAPABILITY_RELEASE_IMPLY_DELETE;
     }
     else if (outCount) {
         *outCount = 1;

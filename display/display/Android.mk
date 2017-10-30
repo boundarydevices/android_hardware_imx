@@ -27,8 +27,7 @@ LOCAL_SRC_FILES := Display.cpp \
                    MemoryDesc.cpp \
                    MemoryManager.cpp \
                    IonManager.cpp \
-                   Composer.cpp \
-                   GPUManager.cpp
+                   Composer.cpp
 
 LOCAL_C_INCLUDES += device/fsl-proprietary/include \
                     hardware/imx/include \
