@@ -32,7 +32,7 @@ LOCAL_SRC_FILES := Display.cpp \
 
 LOCAL_C_INCLUDES += device/fsl-proprietary/include \
                     hardware/imx/include \
-                    system/core/include \
+                    frameworks/native/libs/nativewindow/include  \
                     external/libdrm \
                     external/libdrm/include/drm
 
