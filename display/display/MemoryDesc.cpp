@@ -24,6 +24,7 @@ namespace fsl {
 #define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
 #define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
 #define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
+#define  ALIGN_PIXEL_64(x)  ((x+ 63) & ~63)
 
 MemoryDesc::MemoryDesc()
    : mMagic(sMagic), mFlag(0), mWidth(0),
@@ -62,14 +63,15 @@ int MemoryDesc::checkFormat()
             }
 
             /*
-             * XXX: Vivante HAL needs 16 pixel alignment in width and 16 pixel
-             * alignment in height.
+             * Vivante HAL needs 64 pixel alignment in width and 64 pixel
+             * alignment in height when render with tile buffer.
+             * tile buffer needs additional 128 byte size.
              *
              * Here we assume the buffer will be used by Vivante HAL...
              */
-            alignedw = ALIGN_PIXEL_16(mWidth);
-            alignedh = ALIGN_PIXEL_16(mHeight);
-            size = alignedw * alignedh * bpp;
+            alignedw = ALIGN_PIXEL_64(mWidth);
+            alignedh = ALIGN_PIXEL_64(mHeight);
+            size = alignedw * alignedh * bpp + 128;
             if (mProduceUsage & USAGE_HW_VIDEO_ENCODER) {
                 mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
             }
@@ -119,41 +121,6 @@ int MemoryDesc::checkFormat()
     mStride = alignedw;
 
     return 0;
-}
-
-MemoryShadow::MemoryShadow(bool own)
-  : mOwner(own), mRefCount(1), mListener(NULL)
-{
-}
-
-MemoryShadow::~MemoryShadow()
-{
-}
-
-void MemoryShadow::incRef()
-{
-    Mutex::Autolock _l(mLock);
-    mRefCount++;
-}
-
-void MemoryShadow::decRef()
-{
-    int count = -1;
-    {
-        Mutex::Autolock _l(mLock);
-        mRefCount--;
-        count = mRefCount;
-    }
-
-    if (count <= 0) {
-        delete this;
-    }
-}
-
-void MemoryShadow::setListener(MemoryListener* listener)
-{
-    Mutex::Autolock _l(mLock);
-    mListener = listener;
 }
 
 }

@@ -24,14 +24,6 @@ namespace fsl {
 
 using android::Mutex;
 
-class MemoryListener
-{
-public:
-    virtual ~MemoryListener() {}
-    //virtual int onCreated(Memory* handle) = 0;
-    virtual int onMemoryDestroyed(Memory* handle) = 0;
-};
-
 enum {
     FORMAT_RGBA8888 = 1,
     FORMAT_RGBX8888 = 2,
@@ -65,23 +57,6 @@ struct MemoryDesc
     int mSize;
     int64_t mProduceUsage;
     int64_t mConsumeUsage;
-};
-
-class MemoryShadow
-{
-public:
-    MemoryShadow(bool own);
-    virtual ~MemoryShadow();
-
-    void incRef();
-    void decRef();
-    void setListener(MemoryListener* listener);
-
-protected:
-    bool mOwner;
-    Mutex mLock;
-    int mRefCount;
-    MemoryListener* mListener;
 };
 
 }

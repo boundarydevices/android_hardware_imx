@@ -23,6 +23,9 @@
 
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
+#include <drm/drm_fourcc.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 #include "Memory.h"
 #include "MemoryManager.h"
@@ -36,7 +39,7 @@ KmsDisplay::KmsDisplay()
     mVsyncThread = NULL;
     mTargetIndex = 0;
     memset(&mTargets[0], 0, sizeof(mTargets));
-    mIonManager = new IonManager();
+    mMemoryManager = MemoryManager::getInstance();
     mModeset = true;
     memset(&mKmsProperty, 0, sizeof(mKmsProperty));
     mConnectorID = 0;
@@ -290,26 +293,6 @@ void KmsDisplay::setFakeVSync(bool enable)
     }
 }
 
-int KmsDisplay::onMemoryDestroyed(Memory* handle)
-{
-    if (handle == NULL) {
-        return 0;
-    }
-
-    if (handle->fbId != 0) {
-        drmModeRmFB(mDrmFd, handle->fbId);
-    }
-
-    if (handle->gemHandle != 0) {
-        struct drm_gem_close gem_close;
-        memset(&gem_close, 0, sizeof(gem_close));
-        gem_close.handle = handle->gemHandle;
-        drmIoctl(mDrmFd, DRM_IOCTL_GEM_CLOSE, &gem_close);
-    }
-
-    return 0;
-}
-
 int KmsDisplay::updateScreen()
 {
     int drmfd = -1;
@@ -348,18 +331,16 @@ int KmsDisplay::updateScreen()
         uint32_t pitches[4] = {0};
         uint32_t offsets[4] = {0};
 
-        bo_handles[0] = buffer->gemHandle;
         pitches[0] = stride;
-        drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->gemHandle);
+        drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
+        bo_handles[0] = buffer->fbHandle;
         drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
                     bo_handles, pitches, offsets, (uint32_t*)&buffer->fbId, 0);
-        MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)buffer->shadow;
-        if (shadow != NULL) {
-            shadow->setListener(this);
-        }
+        buffer->kmsFd = mDrmFd;
     }
 
     if (buffer->fbId == 0) {
+        ALOGE("%s invalid fbId", __func__);
         return 0;
     }
 
@@ -658,7 +639,7 @@ void KmsDisplay::prepareTargetsLocked()
     desc.checkFormat();
 
     for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
-        mIonManager->allocMemory(desc, &mTargets[i]);
+        mMemoryManager->allocMemory(desc, &mTargets[i]);
     }
     mTargetIndex = 0;
 }
@@ -669,7 +650,7 @@ void KmsDisplay::releaseTargetsLocked()
         if (mTargets[i] == NULL) {
             continue;
         }
-        mIonManager->releaseMemory(mTargets[i]);
+        mMemoryManager->releaseMemory(mTargets[i]);
         mTargets[i] = NULL;
     }
     mTargetIndex = 0;

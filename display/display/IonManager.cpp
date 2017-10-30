@@ -18,21 +18,10 @@
 #include <inttypes.h>
 #include <sys/mman.h>
 #include <cutils/log.h>
-#include "IonManager.h"
 #include <ion/ion.h>
 #include <linux/mxc_ion.h>
 #include <ion_ext.h>
-#include <dlfcn.h>
-
-#if defined(__LP64__)
-#define LIB_PATH1 "/system/lib64"
-#define LIB_PATH2 "/vendor/lib64"
-#else
-#define LIB_PATH1 "/system/lib"
-#define LIB_PATH2 "/vendor/lib"
-#endif
-
-#define GPUHELPER "libgpuhelper.so"
+#include "IonManager.h"
 
 namespace fsl {
 
@@ -40,72 +29,11 @@ inline size_t roundUpToPageSize(size_t x) {
     return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
 }
 
-//--------------------------------------------------
-IonShadow::IonShadow(int fd, struct Memory* handle, bool own, gpu_unwrapfunc pointer)
-  : MemoryShadow(own), mFd(dup(fd)), mHandle(handle), mUnwrap(pointer)
-{
-    if (mHandle != NULL) {
-        mHandle->base = 0;
-        mHandle->gemHandle = 0;
-        mHandle->fbId = 0;
-    }
-}
-
-IonShadow::~IonShadow()
-{
-    if (mHandle != NULL) {
-        if (mListener != NULL) {
-            mListener->onMemoryDestroyed(mHandle);
-        }
-
-        if (mUnwrap != NULL && mHandle->flags&FLAGS_ALLOCATION_GPU) {
-            mUnwrap(mHandle);
-        }
-
-        if (mHandle->base != 0) {
-            munmap((void*)mHandle->base, mHandle->size);
-        }
-
-        if (mOwner) {
-            close(mHandle->fd);
-            delete mHandle;
-        }
-    }
-
-    if (mFd > 0) {
-        close(mFd);
-    }
-}
-
-int IonShadow::fd()
-{
-    return mFd;
-}
-
-struct Memory* IonShadow::handle()
-{
-    return mHandle;
-}
-
-//--------------------------------------------------
 IonManager::IonManager()
 {
     mIonFd = ion_open();
     if (mIonFd <= 0) {
         ALOGE("%s ion open failed", __func__);
-    }
-
-    char path[PATH_MAX] = {0};
-    getModule(path, GPUHELPER);
-    void* handle = dlopen(path, RTLD_NOW);
-    if (handle == NULL) {
-        ALOGV("no %s found", path);
-        mWrap = NULL;
-        mUnwrap = NULL;
-    }
-    else {
-        mWrap = (gpu_wrapfunc)dlsym(handle, "graphic_buffer_wrap");
-        mUnwrap = (gpu_unwrapfunc)dlsym(handle, "graphic_buffer_unwrap");
     }
 }
 
@@ -151,13 +79,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 
     memory = new Memory(&desc, sharedFd);
     getPhys(memory);
-    MemoryShadow* shadow = new IonShadow(sharedFd, memory, true, mUnwrap);
-    memory->shadow = (uintptr_t)shadow;
-    if (memory->flags&FLAGS_ALLOCATION_GPU && mWrap != NULL) {
-        getVaddrs(memory);
-        mWrap(memory, memory->width, memory->height, memory->format,
-              memory->stride, memory->phys, (void*)memory->base);
-    }
+
     *out = memory;
     ion_free(mIonFd, ion_hnd);
     close(sharedFd);
@@ -184,18 +106,6 @@ int IonManager::getPhys(Memory* memory)
     return 0;
 }
 
-void IonManager::getModule(char *path, const char *name)
-{
-    snprintf(path, PATH_MAX, "%s/%s",
-                          LIB_PATH1, name);
-    if (access(path, R_OK) == 0)
-        return;
-    snprintf(path, PATH_MAX, "%s/%s",
-                          LIB_PATH2, name);
-    if (access(path, R_OK) == 0)
-        return;
-    return;
-}
 int IonManager::getVaddrs(Memory* memory)
 {
     if (mIonFd <= 0 || memory == NULL || memory->fd < 0) {
@@ -226,46 +136,9 @@ int IonManager::flushCache(Memory* memory)
     return 0;
 }
 
-int IonManager::retainMemory(Memory* handle)
-{
-    if (handle == NULL || !handle->isValid()) {
-        ALOGE("%s invalid handle", __func__);
-        return -EINVAL;
-    }
-
-    MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
-    if (handle->pid != getpid()) {
-        shadow = new IonShadow(handle->fd, handle, false, mUnwrap);
-        handle->shadow = (uintptr_t)shadow;
-        handle->pid = getpid();
-        if (handle->flags&FLAGS_ALLOCATION_GPU && mWrap != NULL) {
-            getVaddrs(handle);
-            mWrap(handle, handle->width, handle->height, handle->format,
-                handle->stride, handle->phys, (void*)handle->base);
-        }
-    }
-    else {
-        if (shadow == NULL) {
-            ALOGE("%s buffer handle invalid", __func__);
-            return -EINVAL;
-        }
-
-        shadow->incRef();
-    }
-
-    return 0;
-}
-
 int IonManager::lock(Memory* handle, int /*usage*/,
         int /*l*/, int /*t*/, int /*w*/, int /*h*/, void** vaddr)
 {
-    int ret = 0;
-    ret = verifyMemory(handle);
-    if (ret != 0) {
-        ALOGE("%s verify memory failed", __func__);
-        return -EINVAL;
-    }
-
     if (handle->base == 0) {
         getVaddrs(handle);
     }
@@ -274,32 +147,18 @@ int IonManager::lock(Memory* handle, int /*usage*/,
     return 0;
 }
 
-int IonManager::lockYCbCr(Memory* handle, int usage,
-        int l, int t, int w, int h, android_ycbcr* ycbcr)
+int IonManager::lockYCbCr(Memory* handle, int /*usage*/,
+        int /*l*/, int /*t*/, int /*w*/, int /*h*/, android_ycbcr* ycbcr)
 {
-    int ret = 0;
-    ret = verifyMemory(handle);
-    if (ret != 0) {
-        ALOGE("%s verify memory failed", __func__);
-        return -EINVAL;
-    }
-
     if (handle->base == 0) {
         getVaddrs(handle);
     }
 
-    return MemoryManager::lockYCbCr(handle, usage, l, t, w, h ,ycbcr);
+    return 0;
 }
 
 int IonManager::unlock(Memory* handle)
 {
-    int ret = 0;
-    ret = verifyMemory(handle);
-    if (ret != 0) {
-        ALOGE("%s verify memory failed", __func__);
-        return -EINVAL;
-    }
-
     if (handle->flags & FLAGS_CPU) {
         flushCache(handle);
     }

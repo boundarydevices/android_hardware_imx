@@ -43,6 +43,7 @@ enum {
 };
 
 enum {
+    FLAGS_FRAMEBUFFER    = 0x00000001,
     FLAGS_ALLOCATION_ION = 0x00000010,
     FLAGS_ALLOCATION_GPU = 0x00000020,
     FLAGS_WRAP_GPU       = 0x00000040,
@@ -50,7 +51,6 @@ enum {
     FLAGS_VIDEO          = 0x00200000,
     FLAGS_UI             = 0x00400000,
     FLAGS_CPU            = 0x00800000,
-    FLAGS_FRAMEBUFFER    = 0x10000000,
 };
 
 struct MemoryDesc;
@@ -74,22 +74,21 @@ struct Memory : public native_handle
     int  offset;
     uint64_t base __attribute__((aligned(8)));
     uint64_t phys __attribute__((aligned(8)));
-    int  format;
-    int  width;
-    int  height;
-    int  pid;
+    int width;
+    int height;
+    int format;
+    int stride;
+    int usage;
+    int pid;
 
-    int  usage;
-    int  stride;
-    int  gemHandle;
-    int  fbId;
-    int  fslFormat;
-    int  reserve;
+    int fslFormat;
+    int kmsFd;
+    uint32_t fbHandle;
+    uint32_t fbId;
+    uint64_t fsl_reserved[2] __attribute__((aligned(8)));
 
-    /* gpu private ints. */
-    uint64_t gpu_priv[12];
-    uint64_t shadow;
-    uint64_t reserved[3];
+    /* pointer to viv private. */
+    uint64_t viv_reserved[4] __attribute__((aligned(8)));
 };
 
 }

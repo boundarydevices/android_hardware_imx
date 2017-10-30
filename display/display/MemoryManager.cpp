@@ -15,9 +15,12 @@
  * limitations under the License.
  */
 
+#include <sys/mman.h>
 #include <cutils/log.h>
-#include "IonManager.h"
-#include "GPUManager.h"
+#include <cutils/properties.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+#include "MemoryManager.h"
 
 namespace fsl {
 
@@ -31,47 +34,46 @@ MemoryManager* MemoryManager::getInstance()
         return sInstance;
     }
 
-    GPUManager* pManager = new GPUManager();
-    if (pManager != NULL && pManager->isValid()) {
-        ALOGI("GPUManager used");
-        sInstance = pManager;
-    }
-    else {
-        if (pManager != NULL) {
-            delete pManager;
-        }
-        sInstance = new IonManager();
-        ALOGI("IonManager used");
-    }
+    sInstance = new MemoryManager();
 
     return sInstance;
 }
 
 MemoryManager::MemoryManager()
 {
+    mIonManager = new IonManager();
 }
 
 MemoryManager::~MemoryManager()
 {
+    if (mIonManager != NULL) {
+        delete mIonManager;
+    }
 }
 
-int MemoryManager::verifyMemory(Memory* handle)
+int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
+{
+    Memory *handle = NULL;
+    int ret = mIonManager->allocMemory(desc, &handle);
+    if (ret != 0 || handle == NULL) {
+        ALOGE("%s alloc ion memory failed", __func__);
+        return -EINVAL;
+    }
+
+    retainMemory(handle);
+    *out = handle;
+
+    return 0;
+}
+
+int MemoryManager::retainMemory(Memory* handle)
 {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
     }
 
-    if (handle->pid != getpid()) {
-        ALOGE("%s handle not allocated in this process", __func__);
-        return -EINVAL;
-    }
-
-    MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
-    if (shadow == NULL) {
-        ALOGE("%s buffer shadow invalid", __func__);
-        return -EINVAL;
-    }
+    mIonManager->getVaddrs(handle);
 
     return 0;
 }
@@ -83,28 +85,54 @@ int MemoryManager::releaseMemory(Memory* handle)
         return -EINVAL;
     }
 
-    if (handle->pid != getpid()) {
-        ALOGE("%s handle not allocated in this process", __func__);
-        return -EINVAL;
+    /* kmsFd, fbHandle and fbId are created in KmsDisplay.
+     * It is hard to put free memory code to KmsDisplay.
+    */
+    if (handle->kmsFd > 0) {
+        if (handle->fbId != 0) {
+            drmModeRmFB(handle->kmsFd, handle->fbId);
+        }
+        if (handle->fbHandle != 0) {
+            struct drm_gem_close gem_close;
+            memset(&gem_close, 0, sizeof(gem_close));
+            gem_close.handle = handle->fbHandle;
+            drmIoctl(handle->kmsFd, DRM_IOCTL_GEM_CLOSE, &gem_close);
+        }
     }
 
-    MemoryShadow* shadow = (MemoryShadow*)(uintptr_t)handle->shadow;
-    if (shadow == NULL) {
-        ALOGE("%s buffer handle invalid", __func__);
-        return -EINVAL;
+    if (handle->base != 0) {
+        munmap((void*)handle->base, handle->size);
     }
 
-    shadow->decRef();
+    close(handle->fd);
+    delete handle;
 
     return 0;
 }
 
-int MemoryManager::lockYCbCr(Memory* handle, int /*usage*/,
-            int /*l*/, int /*t*/, int /*w*/, int /*h*/,
+int MemoryManager::lock(Memory* handle, int usage,
+        int l, int t, int w, int h, void** vaddr)
+{
+    if (handle == NULL || !handle->isValid()) {
+        ALOGE("%s invalid handle", __func__);
+        return -EINVAL;
+    }
+
+    return mIonManager->lock(handle, usage, l, t, w, h, vaddr);
+}
+
+int MemoryManager::lockYCbCr(Memory* handle, int usage,
+            int l, int t, int w, int h,
             android_ycbcr* ycbcr)
 {
     if (handle == NULL || !handle->isValid() || ycbcr == NULL) {
         ALOGE("%s invalid handle", __func__);
+        return -EINVAL;
+    }
+
+    int ret = mIonManager->lockYCbCr(handle, usage, l, t, w, h, ycbcr);
+    if (ret != 0) {
+        ALOGE("%s ion lock failed", __func__);
         return -EINVAL;
     }
 
@@ -151,6 +179,16 @@ int MemoryManager::lockYCbCr(Memory* handle, int /*usage*/,
     }
 
     return 0;
+}
+
+int MemoryManager::unlock(Memory* handle)
+{
+    if (handle == NULL || !handle->isValid()) {
+        ALOGE("%s invalid handle", __func__);
+        return -EINVAL;
+    }
+
+    return mIonManager->unlock(handle);
 }
 
 }

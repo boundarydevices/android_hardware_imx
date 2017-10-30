@@ -22,14 +22,16 @@ namespace fsl {
 Memory::Memory(MemoryDesc* desc, int fd)
   : fd(dup(fd)), magic(sMagic), flags(desc->mFlag),
     size(desc->mSize), offset(0), base(0),  phys(0),
-    format(desc->mFormat), width(desc->mWidth),
-    height(desc->mHeight), pid(getpid()), usage(desc->mProduceUsage),
-    stride(desc->mStride), gemHandle(0), fbId(0),
-    fslFormat(desc->mFslFormat), shadow(0)
+    width(desc->mWidth), height(desc->mHeight),
+    format(desc->mFormat), stride(desc->mStride),
+    usage(desc->mProduceUsage), pid(getpid()),
+    fslFormat(desc->mFslFormat), kmsFd(-1),
+    fbHandle(0), fbId(0)
 {
     version = sizeof(native_handle);
     numInts = sNumInts();
     numFds = sNumFds;
+    memset(viv_reserved, 0, sizeof(viv_reserved));
 }
 
 Memory::~Memory()

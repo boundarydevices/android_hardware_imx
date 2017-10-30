@@ -21,6 +21,7 @@
 #include <hardware/gralloc.h>
 #include "Memory.h"
 #include "MemoryDesc.h"
+#include "IonManager.h"
 
 namespace fsl {
 
@@ -32,26 +33,28 @@ public:
     static MemoryManager* getInstance();
 
     // allocate memory interface.
-    virtual int allocMemory(MemoryDesc& desc, Memory** out) = 0;
+    int allocMemory(MemoryDesc& desc, Memory** out);
     // release memory interface.
     int releaseMemory(Memory* handle);
 
     // keep memory reference and import it.
-    virtual int retainMemory(Memory* handle) = 0;
+    int retainMemory(Memory* handle);
     // lock memory to get virtual address for CPU access.
-    virtual int lock(Memory* handle, int usage,
+    int lock(Memory* handle, int usage,
             int l, int t, int w, int h,
-            void** vaddr) = 0;
+            void** vaddr);
     // lock YUV memory to get virtual address for CPU access.
-    virtual int lockYCbCr(Memory* handle, int usage,
+    int lockYCbCr(Memory* handle, int usage,
             int l, int t, int w, int h,
-            android_ycbcr* ycbcr) = 0;
+            android_ycbcr* ycbcr);
     // unlock memory after CPU access.
-    virtual int unlock(Memory* handle) = 0;
+    int unlock(Memory* handle);
 
 protected:
     MemoryManager();
-    int verifyMemory(Memory* handle);
+
+private:
+    IonManager *mIonManager;
 
 private:
     static Mutex sLock;

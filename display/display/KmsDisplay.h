@@ -22,7 +22,7 @@
 #include <xf86drmMode.h>
 #include <utils/threads.h>
 
-#include "IonManager.h"
+#include "MemoryManager.h"
 #include "MemoryDesc.h"
 #include "Display.h"
 
@@ -71,15 +71,12 @@ struct TableProperty
     uint32_t *ptr;
 };
 
-class IonManager;
-
-class KmsDisplay : public Display, public MemoryListener
+class KmsDisplay : public Display
 {
 public:
     KmsDisplay();
     virtual ~KmsDisplay();
 
-    virtual int onMemoryDestroyed(Memory* handle);
     // set display power on/off.
     virtual int setPowerMode(int mode);
     // enable display vsync thread.
@@ -145,8 +142,7 @@ protected:
     uint32_t mPlaneID;
     bool mModeset;
     KmsProperty mKmsProperty;
-
-    IonManager* mIonManager;
+    MemoryManager* mMemoryManager;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);
