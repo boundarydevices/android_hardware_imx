@@ -224,13 +224,13 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     m.addFloat(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
             ARRAY_SIZE(android_lens_info_available_focal_lengths),
             android_lens_info_available_focal_lengths);
-#if 0
+
     /* android.request */
     int32_t android_request_max_num_output_streams[] = {0, 3, 1};
     m.addInt32(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
             ARRAY_SIZE(android_request_max_num_output_streams),
             android_request_max_num_output_streams);
-#endif
+
     /* android.scaler */
     m.addInt32(ANDROID_SCALER_AVAILABLE_FORMATS,
             sensor.mAvailableFormatCount,
@@ -384,6 +384,24 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     m.addUInt8(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
                     1,
                     &supportedHwLvl);
+
+    static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_PER_FRAME_CONTROL;
+    m.addInt32(ANDROID_SYNC_MAX_LATENCY, 1, &maxLatency);
+
+    static const uint8_t croppingType = ANDROID_SCALER_CROPPING_TYPE_FREEFORM;
+    m.addUInt8(ANDROID_SCALER_CROPPING_TYPE, 1, &croppingType);
+
+    int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE};
+    m.addInt32(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, ARRAY_SIZE(availableResultKeys), availableResultKeys);
+
+    static const uint8_t availableVstabModes[] = {ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF};
+    m.addUInt8(ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES, ARRAY_SIZE(availableVstabModes), availableVstabModes);
+
+    static const uint8_t availableEffects[] = {ANDROID_CONTROL_EFFECT_MODE_OFF};
+    m.addUInt8(ANDROID_CONTROL_AVAILABLE_EFFECTS, ARRAY_SIZE(availableEffects), availableEffects);
+
+    static const int32_t availableTestPatternModes[] = {ANDROID_SENSOR_TEST_PATTERN_MODE_OFF};
+    m.addInt32(ANDROID_SENSOR_AVAILABLE_TEST_PATTERN_MODES, ARRAY_SIZE(availableTestPatternModes), availableTestPatternModes);
 
     /* flahs info */
     uint8_t flashInfoAvailable =  ANDROID_FLASH_INFO_AVAILABLE_TRUE;
