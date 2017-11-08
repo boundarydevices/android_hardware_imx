@@ -81,12 +81,14 @@
 #define CAMERA_GRALLOC_USAGE_JPEG GRALLOC_USAGE_HW_TEXTURE | \
     GRALLOC_USAGE_HW_RENDER |                           \
     GRALLOC_USAGE_SW_READ_RARELY |                      \
-    GRALLOC_USAGE_SW_WRITE_NEVER
+    GRALLOC_USAGE_SW_WRITE_NEVER |                      \
+    GRALLOC_USAGE_HW_CAMERA_WRITE
 
 #define CAMERA_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE |         \
                                  GRALLOC_USAGE_HW_RENDER |      \
                                  GRALLOC_USAGE_SW_READ_RARELY | \
-                                 GRALLOC_USAGE_SW_WRITE_NEVER
+                                 GRALLOC_USAGE_SW_WRITE_NEVER | \
+                                 GRALLOC_USAGE_HW_CAMERA_WRITE
 
 #define NUM_PREVIEW_BUFFER      2
 #define NUM_CAPTURE_BUFFER      1

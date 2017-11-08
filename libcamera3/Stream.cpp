@@ -853,6 +853,12 @@ bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
         return false;
     }
 
+    ALOGV("%s:%d: Mismatched reused stream. usage got:0x%x expect:0x%x",
+            __func__, mId, s->usage, mUsage);
+    s->usage |= mUsage;
+    //max_buffers is mNumBuffers-1 which is set in Stream constructor.
+    s->max_buffers = mNumBuffers -1;
+
     return true;
 }
 
