@@ -24,6 +24,8 @@
 
 namespace fsl {
 
+#define GPU_MODULE_ID "gralloc_viv"
+
 MemoryManager* MemoryManager::sInstance(0);
 Mutex MemoryManager::sLock(Mutex::PRIVATE);
 
@@ -42,6 +44,19 @@ MemoryManager* MemoryManager::getInstance()
 MemoryManager::MemoryManager()
 {
     mIonManager = new IonManager();
+
+    mGPUModule = NULL;
+    mGPUAlloc = NULL;
+    ALOGI("open gpu gralloc module!");
+    if (hw_get_module(GPU_MODULE_ID, (const hw_module_t**)&mGPUModule) == 0) {
+        int status = gralloc_open((const hw_module_t*)mGPUModule, &mGPUAlloc);
+        if(status || !mGPUAlloc){
+            ALOGI("no gpu gralloc device!");
+        }
+    }
+    else {
+        ALOGI("no gpu gralloc module!");
+    }
 }
 
 MemoryManager::~MemoryManager()
@@ -49,12 +64,28 @@ MemoryManager::~MemoryManager()
     if (mIonManager != NULL) {
         delete mIonManager;
     }
+    if (mGPUAlloc != NULL) {
+        mGPUAlloc->common.close((struct hw_device_t *)mGPUAlloc);
+    }
 }
 
 int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
 {
     Memory *handle = NULL;
-    int ret = mIonManager->allocMemory(desc, &handle);
+    int ret = 0;
+
+    if (!(desc.mFlag & FLAGS_FRAMEBUFFER) && mGPUAlloc != NULL) {
+        ret = mGPUAlloc->alloc(mGPUAlloc, desc.mWidth, desc.mHeight,
+                desc.mFormat, (int)desc.mProduceUsage,
+                (buffer_handle_t *)&handle, &desc.mStride);
+        if (ret == 0 && handle != NULL) {
+            handle->fslFormat = desc.mFslFormat;
+        }
+        *out = handle;
+        return ret;
+    }
+
+    ret = mIonManager->allocMemory(desc, &handle);
     if (ret != 0 || handle == NULL) {
         ALOGE("%s alloc ion memory failed", __func__);
         return -EINVAL;
@@ -73,6 +104,10 @@ int MemoryManager::retainMemory(Memory* handle)
         return -EINVAL;
     }
 
+    if (!(handle->flags & FLAGS_FRAMEBUFFER) && mGPUAlloc != NULL) {
+        return mGPUModule->registerBuffer(mGPUModule, handle);
+    }
+
     mIonManager->getVaddrs(handle);
 
     return 0;
@@ -83,6 +118,10 @@ int MemoryManager::releaseMemory(Memory* handle)
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
+    }
+
+    if (!(handle->flags & FLAGS_FRAMEBUFFER) && mGPUAlloc != NULL) {
+        return mGPUAlloc->free(mGPUAlloc, handle);
     }
 
     /* kmsFd, fbHandle and fbId are created in KmsDisplay.
@@ -118,6 +157,11 @@ int MemoryManager::lock(Memory* handle, int usage,
         return -EINVAL;
     }
 
+    if (!(handle->flags & FLAGS_FRAMEBUFFER) && mGPUAlloc != NULL) {
+        return mGPUModule->lock(mGPUModule, handle, usage,
+                    l, t, w, h, vaddr);
+    }
+
     return mIonManager->lock(handle, usage, l, t, w, h, vaddr);
 }
 
@@ -128,6 +172,11 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
     if (handle == NULL || !handle->isValid() || ycbcr == NULL) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
+    }
+
+    if (!(handle->flags & FLAGS_FRAMEBUFFER) && mGPUAlloc != NULL) {
+        return mGPUModule->lock_ycbcr(mGPUModule, handle, usage,
+                    l, t, w, h, ycbcr);
     }
 
     int ret = mIonManager->lockYCbCr(handle, usage, l, t, w, h, ycbcr);
@@ -186,6 +235,10 @@ int MemoryManager::unlock(Memory* handle)
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
+    }
+
+    if (!(handle->flags & FLAGS_FRAMEBUFFER) && mGPUAlloc != NULL) {
+        return mGPUModule->unlock(mGPUModule, handle);
     }
 
     return mIonManager->unlock(handle);

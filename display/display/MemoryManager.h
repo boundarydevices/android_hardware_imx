@@ -55,6 +55,8 @@ protected:
 
 private:
     IonManager *mIonManager;
+    alloc_device_t *mGPUAlloc;
+    gralloc_module_t* mGPUModule;
 
 private:
     static Mutex sLock;
