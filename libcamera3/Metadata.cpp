@@ -391,6 +391,12 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const uint8_t croppingType = ANDROID_SCALER_CROPPING_TYPE_FREEFORM;
     m.addUInt8(ANDROID_SCALER_CROPPING_TYPE, 1, &croppingType);
 
+    static const int32_t tonemapCurvePoints = 128;
+    m.addInt32(ANDROID_TONEMAP_MAX_CURVE_POINTS, 1, &tonemapCurvePoints);
+
+    static const uint8_t afTrigger = ANDROID_CONTROL_AF_TRIGGER_IDLE;
+    m.addUInt8(ANDROID_CONTROL_AF_TRIGGER, 1, &afTrigger);
+
     int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE};
     m.addInt32(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, ARRAY_SIZE(availableResultKeys), availableResultKeys);
 
@@ -403,8 +409,23 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const int32_t availableTestPatternModes[] = {ANDROID_SENSOR_TEST_PATTERN_MODE_OFF};
     m.addInt32(ANDROID_SENSOR_AVAILABLE_TEST_PATTERN_MODES, ARRAY_SIZE(availableTestPatternModes), availableTestPatternModes);
 
+    static const uint8_t availableEdgeModes[] = {ANDROID_EDGE_MODE_OFF, ANDROID_EDGE_MODE_FAST, ANDROID_EDGE_MODE_HIGH_QUALITY};
+    m.addUInt8(ANDROID_EDGE_AVAILABLE_EDGE_MODES, ARRAY_SIZE(availableEdgeModes), availableEdgeModes);
+
+    static const uint8_t availableToneMapModes[] = {ANDROID_TONEMAP_MODE_CONTRAST_CURVE, ANDROID_TONEMAP_MODE_FAST, ANDROID_TONEMAP_MODE_HIGH_QUALITY};
+    m.addUInt8(ANDROID_TONEMAP_AVAILABLE_TONE_MAP_MODES, ARRAY_SIZE(availableToneMapModes), availableToneMapModes);
+
+    static const uint8_t availableNoiseReductionModes[] = {ANDROID_NOISE_REDUCTION_MODE_OFF, ANDROID_NOISE_REDUCTION_MODE_FAST, ANDROID_NOISE_REDUCTION_MODE_HIGH_QUALITY};
+    m.addUInt8(ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES, ARRAY_SIZE(availableNoiseReductionModes), availableNoiseReductionModes);
+
+    static const uint8_t availableAeModes[] = {ANDROID_CONTROL_AE_MODE_OFF, ANDROID_CONTROL_AE_MODE_ON};
+    m.addUInt8(ANDROID_CONTROL_AE_AVAILABLE_MODES, ARRAY_SIZE(availableAeModes), availableAeModes);
+
+    static const uint8_t availableAfModes[] = {ANDROID_CONTROL_AF_MODE_OFF};
+    m.addUInt8(ANDROID_CONTROL_AF_AVAILABLE_MODES, ARRAY_SIZE(availableAfModes), availableAfModes);
+
     /* flahs info */
-    uint8_t flashInfoAvailable =  ANDROID_FLASH_INFO_AVAILABLE_TRUE;
+    uint8_t flashInfoAvailable = ANDROID_FLASH_INFO_AVAILABLE_FALSE;
     m.addUInt8(ANDROID_FLASH_INFO_AVAILABLE, 1, &flashInfoAvailable);
 
     /* face detect mode */
@@ -412,6 +433,49 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     m.addUInt8(ANDROID_STATISTICS_INFO_AVAILABLE_FACE_DETECT_MODES,
                     ARRAY_SIZE(availableFaceDetectModes),
                     availableFaceDetectModes);
+    int32_t availableRequestKeys[] = {ANDROID_COLOR_CORRECTION_MODE,
+                                      ANDROID_COLOR_CORRECTION_TRANSFORM,
+                                      ANDROID_CONTROL_AE_ANTIBANDING_MODE,
+                                      ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION,
+                                      ANDROID_CONTROL_AE_MODE,
+                                      ANDROID_CONTROL_AE_REGIONS,
+                                      ANDROID_CONTROL_AE_TARGET_FPS_RANGE,
+                                      ANDROID_CONTROL_AF_MODE,
+                                      ANDROID_CONTROL_AWB_MODE,
+                                      ANDROID_CONTROL_CAPTURE_INTENT,
+                                      ANDROID_CONTROL_MODE,
+                                      ANDROID_CONTROL_SCENE_MODE,
+                                      ANDROID_CONTROL_VIDEO_STABILIZATION_MODE,
+                                      ANDROID_DEMOSAIC_MODE,
+                                      ANDROID_FLASH_FIRING_POWER,
+                                      ANDROID_FLASH_FIRING_TIME,
+                                      ANDROID_FLASH_MODE,
+                                      ANDROID_JPEG_GPS_COORDINATES,
+                                      ANDROID_JPEG_GPS_PROCESSING_METHOD,
+                                      ANDROID_JPEG_GPS_TIMESTAMP,
+                                      ANDROID_JPEG_ORIENTATION,
+                                      ANDROID_JPEG_QUALITY,
+                                      ANDROID_JPEG_THUMBNAIL_QUALITY,
+                                      ANDROID_JPEG_THUMBNAIL_SIZE,
+                                      ANDROID_LENS_APERTURE,
+                                      ANDROID_LENS_FILTER_DENSITY,
+                                      ANDROID_LENS_FOCAL_LENGTH,
+                                      ANDROID_LENS_FOCUS_DISTANCE,
+                                      ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+                                      ANDROID_STATISTICS_FACE_DETECT_MODE,
+                                      ANDROID_CONTROL_AF_TRIGGER,
+                                      ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
+                                      ANDROID_REQUEST_ID,
+                                      ANDROID_SCALER_CROP_REGION,
+                                      ANDROID_SENSOR_FRAME_DURATION,
+                                      ANDROID_HOT_PIXEL_MODE,
+                                      ANDROID_STATISTICS_HISTOGRAM_MODE,
+                                      ANDROID_STATISTICS_SHARPNESS_MAP_MODE,
+                                      ANDROID_TONEMAP_CURVE_BLUE,
+                                      ANDROID_TONEMAP_CURVE_GREEN,
+                                      ANDROID_TONEMAP_CURVE_RED,
+                                      ANDROID_TONEMAP_MODE};
+    m.addInt32(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, ARRAY_SIZE(availableRequestKeys), availableRequestKeys);
 
     return clone_camera_metadata(m.get());
 }
