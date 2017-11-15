@@ -19,6 +19,13 @@
 MMAPStream::MMAPStream(Camera* device)
     : VideoStream(device)
 {
+    mPlane = false;
+}
+
+MMAPStream::MMAPStream(Camera *device, bool mplane) : VideoStream(device) {
+    // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
+    // true, else set it as false.
+    mPlane = mplane;
 }
 
 MMAPStream::~MMAPStream()
@@ -122,10 +129,17 @@ int32_t MMAPStream::onDeviceStartLocked()
     //-------register buffers----------
     struct v4l2_buffer buf;
     struct v4l2_requestbuffers req;
+    struct v4l2_plane planes = {0};
 
     memset(&req, 0, sizeof (req));
     req.count = mNumBuffers;
-    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+    if (mPlane) {
+        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    } else {
+        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    }
+
     req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(mDev, VIDIOC_REQBUFS, &req) < 0) {
         ALOGE("%s VIDIOC_REQBUFS failed", __func__);
@@ -134,28 +148,47 @@ int32_t MMAPStream::onDeviceStartLocked()
 
     for (uint32_t i = 0; i < mNumBuffers; i++) {
         memset(&buf, 0, sizeof (buf));
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.index = i;
+
+        if (mPlane) {
+            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+            buf.m.planes = &planes;
+            buf.length = 1; /* plane num */
+        } else {
+            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        }
+
         buf.memory = V4L2_MEMORY_MMAP;
+        buf.index = i;
+
         if (ioctl(mDev, VIDIOC_QUERYBUF, &buf) < 0) {
             ALOGE("%s VIDIOC_QUERYBUF error", __func__);
             return BAD_VALUE;
         }
 
         mBuffers[i] = new StreamBuffer();
-        mBuffers[i]->mPhyAddr = buf.m.offset;
-        mBuffers[i]->mSize = buf.length;
+
+        if (mPlane) {
+            mBuffers[i]->mPhyAddr = (size_t)buf.m.planes->m.mem_offset;
+            mBuffers[i]->mSize = buf.m.planes->length;
+        } else {
+            mBuffers[i]->mPhyAddr = buf.m.offset;
+            mBuffers[i]->mSize = buf.length;
+        }
+
         mBuffers[i]->mVirtAddr = (void *)mmap(NULL, mBuffers[i]->mSize,
                     PROT_READ | PROT_WRITE, MAP_SHARED, mDev,
                     mBuffers[i]->mPhyAddr);
         mBuffers[i]->mStream = this;
 
-	 //For mx6s capture driver, it need to query twice to get the phy address
-	 if (ioctl(mDev, VIDIOC_QUERYBUF, &buf) < 0) {
-		  ALOGE("%s VIDIOC_QUERYBUF error", __func__);
-		  return BAD_VALUE;
-	 }
-	 mBuffers[i]->mPhyAddr = buf.m.offset;
+        if (!mPlane) {
+            // For mx6s capture driver, it need to query twice to get the phy
+            // address
+            if (ioctl(mDev, VIDIOC_QUERYBUF, &buf) < 0) {
+                ALOGE("%s VIDIOC_QUERYBUF error", __func__);
+                return BAD_VALUE;
+            }
+            mBuffers[i]->mPhyAddr = buf.m.offset;
+        }
 
         memset(mBuffers[i]->mVirtAddr, 0xFF, mBuffers[i]->mSize);
     }
@@ -165,12 +198,24 @@ int32_t MMAPStream::onDeviceStartLocked()
     struct v4l2_buffer cfilledbuffer;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
         memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
-        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+        if (mPlane) {
+            memset(&planes, 0, sizeof(planes));
+            cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+            cfilledbuffer.m.planes = &planes;
+            cfilledbuffer.m.planes->length = mBuffers[i]->mSize;
+            cfilledbuffer.length = 1;
+            cfilledbuffer.m.planes->m.mem_offset = mBuffers[i]->mPhyAddr;
+        } else {
+            cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+            cfilledbuffer.m.offset = mBuffers[i]->mPhyAddr;
+            cfilledbuffer.length = mBuffers[i]->mSize;
+            ALOGI("%s VIDIOC_QBUF phy:0x%x", __func__, mBuffers[i]->mPhyAddr);
+        }
+
         cfilledbuffer.memory = V4L2_MEMORY_MMAP;
         cfilledbuffer.index = i;
-        cfilledbuffer.m.offset = mBuffers[i]->mPhyAddr;
-        cfilledbuffer.length = mBuffers[i]->mSize;
-        ALOGI("%s VIDIOC_QBUF phy:0x%x", __func__, mBuffers[i]->mPhyAddr);
+
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
             ALOGE("%s VIDIOC_QBUF Failed", __func__);
@@ -180,7 +225,13 @@ int32_t MMAPStream::onDeviceStartLocked()
 
     //-------stream on-------
     enum v4l2_buf_type bufType;
-    bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+    if (mPlane) {
+        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    } else {
+        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    }
+
     ret = ioctl(mDev, VIDIOC_STREAMON, &bufType);
     if (ret < 0) {
         ALOGE("%s VIDIOC_STREAMON failed:%s", __func__, strerror(errno));
@@ -210,7 +261,13 @@ int32_t MMAPStream::onDeviceStopLocked()
     }
 
     enum v4l2_buf_type bufType;
-    bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+    if (mPlane) {
+        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    } else {
+        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    }
+
     ret = ioctl(mDev, VIDIOC_STREAMOFF, &bufType);
     if (ret < 0) {
         ALOGE("%s VIDIOC_STREAMOFF failed: %s", __func__, strerror(errno));
@@ -225,8 +282,18 @@ int32_t MMAPStream::onFrameAcquireLocked()
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
+    struct v4l2_plane planes = {0};
+
     memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
-    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+    if (mPlane) {
+        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        cfilledbuffer.m.planes = &planes;
+        cfilledbuffer.length = 1;
+    } else {
+        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    }
+
     cfilledbuffer.memory = V4L2_MEMORY_MMAP;
 
     ret = ioctl(mDev, VIDIOC_DQBUF, &cfilledbuffer);
@@ -243,12 +310,24 @@ int32_t MMAPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
+    struct v4l2_plane planes = {0};
+
     memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
-    cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+    if (mPlane) {
+        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        cfilledbuffer.m.planes = &planes;
+        cfilledbuffer.m.planes->m.mem_offset = buf.mPhyAddr;
+        cfilledbuffer.m.planes->length = buf.mSize;
+        cfilledbuffer.length = 1;
+    } else {
+        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        cfilledbuffer.m.offset = buf.mPhyAddr;
+        cfilledbuffer.length = buf.mSize;
+    }
+
     cfilledbuffer.memory = V4L2_MEMORY_MMAP;
-    cfilledbuffer.index    = index;
-    cfilledbuffer.m.offset = buf.mPhyAddr;
-    cfilledbuffer.length = buf.mSize;
+    cfilledbuffer.index = index;
 
     ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {

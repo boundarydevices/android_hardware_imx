@@ -24,6 +24,7 @@ class MMAPStream : public VideoStream
 {
 public:
     MMAPStream(Camera* device);
+    MMAPStream(Camera *device, bool mplane);
     virtual ~MMAPStream();
 
     // configure device.
@@ -44,6 +45,7 @@ public:
     virtual int32_t freeBuffersLocked() {return 0;}
 
 private:
+    bool mPlane;
 
 };
 

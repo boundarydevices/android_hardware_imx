@@ -489,7 +489,8 @@ int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
         return ret;
     }
 
-    if (!(vidCap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+    if (!(vidCap.capabilities &
+          (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_CAPTURE_MPLANE))) {
         ALOGW("%s dev path:%s is not capture", __func__, devNode);
         close(fd);
         fd = -1;

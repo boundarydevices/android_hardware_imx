@@ -19,7 +19,7 @@
 Max9286Mipi::Max9286Mipi(int32_t id, int32_t facing, int32_t orientation, char *path)
     : Camera(id, facing, orientation, path)
 {
-    mVideoStream = new OvStream(this);
+    mVideoStream = new Max9286Stream(this);
 }
 
 Max9286Mipi::~Max9286Mipi()
@@ -30,7 +30,7 @@ status_t Max9286Mipi::initSensorStaticData()
 {
     int32_t fd = open(mDevPath, O_RDWR);
     if (fd < 0) {
-        ALOGE("OvDevice: initParameters sensor has not been opened");
+        ALOGE("Max9286MipiDevice: initParameters sensor has not been opened");
         return BAD_VALUE;
     }
 
@@ -99,7 +99,6 @@ status_t Max9286Mipi::initSensorStaticData()
         if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
             mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
             mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
-            ;
         }
     }  // end while
 
@@ -152,20 +151,13 @@ PixelFormat Max9286Mipi::getPreviewPixelFormat()
 }
 
 // configure device.
-int32_t Max9286Mipi::OvStream::onDeviceConfigureLocked()
+int32_t Max9286Mipi::Max9286Stream::onDeviceConfigureLocked()
 {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
         return BAD_VALUE;
-    }
-
-    int32_t input = 1;
-    ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
-    if (ret < 0) {
-        ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
-        return ret;
     }
 
     int32_t fps = mFps;
@@ -178,35 +170,14 @@ int32_t Max9286Mipi::OvStream::onDeviceConfigureLocked()
 
     ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
 
-    struct v4l2_streamparm param;
-    memset(&param, 0, sizeof(param));
-    param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    param.parm.capture.timeperframe.numerator = 1;
-    param.parm.capture.timeperframe.denominator = fps;
-    param.parm.capture.capturemode = 0;
-    ret = ioctl(mDev, VIDIOC_S_PARM, &param);
-    if (ret < 0) {
-        ALOGE("%s: VIDIOC_S_PARM Failed: %s", __func__, strerror(errno));
-        return ret;
-    }
-
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
-    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width = mWidth & 0xFFFFFFF8;
-    fmt.fmt.pix.height = mHeight & 0xFFFFFFF8;
-    fmt.fmt.pix.pixelformat = vformat;
-    fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
 
-    int32_t min = fmt.fmt.pix.width * 2;
-    fmt.fmt.pix.bytesperline = min;
-
-    min = fmt.fmt.pix.bytesperline * fmt.fmt.pix.height;
-    fmt.fmt.pix.sizeimage = min;
-
-    ALOGI("bytesperline and sizeimage for YUYV on Stride %d, size %d",
-          fmt.fmt.pix.bytesperline,
-          fmt.fmt.pix.sizeimage);
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    fmt.fmt.pix_mp.pixelformat = vformat;
+    fmt.fmt.pix_mp.width = mWidth & 0xFFFFFFF8;
+    fmt.fmt.pix_mp.height = mHeight & 0xFFFFFFF8;
+    fmt.fmt.pix_mp.num_planes = 1; /* max9286 use YUYV format, is packed storage mode, set num_planes 1*/
 
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
     if (ret < 0) {

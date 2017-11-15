@@ -30,16 +30,11 @@ public:
     virtual PixelFormat getPreviewPixelFormat();
 
 private:
-    class OvStream : public MMAPStream
+    class Max9286Stream : public MMAPStream
     {
     public:
-        OvStream(Camera *device)
-            : MMAPStream(device)
-        {
-        }
-        virtual ~OvStream()
-        {
-        }
+        Max9286Stream(Camera *device) : MMAPStream(device, true) {}
+        virtual ~Max9286Stream() {}
 
         // configure device.
         virtual int32_t onDeviceConfigureLocked();
