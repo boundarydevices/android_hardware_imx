@@ -37,8 +37,13 @@ SensorBase::SensorBase(
 {
 
     if (data_name) {
-        data_fd = openInput(data_name);
+	int i=2;
+        do{
+	    data_fd = openInput(data_name);
+	    i--;
+	}while(i>0);
     }
+
 	fifo_fd = -1;
 	fifo_name = NULL;
 	mBatchEnabled = false;
@@ -54,7 +59,12 @@ SensorBase::SensorBase(
      fifo_fd(-1)
 {
 	if (data_name) {
-        data_fd = openInput(data_name);
+	int i=2;
+        do{
+	    data_fd = openInput(data_name);
+	    i--;
+	}while(i>0);
+
     }
 	if(fifo_name){
 		open_fifo_device();
