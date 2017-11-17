@@ -220,8 +220,7 @@ int32_t Camera::getInfo(struct camera_info *info)
     if (mStaticInfo == NULL) {
         int32_t ret = initSensorStaticData();
         if (ret != 0) {
-            ALOGE("%s initSensorStaticData failed", __func__);
-            return ret;
+            ALOGW("%s initSensorStaticData failed", __func__);
         }
         setPreviewPixelFormat();
         setPicturePixelFormat();
