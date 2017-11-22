@@ -41,8 +41,11 @@ KmsDisplay::KmsDisplay()
     memset(&mTargets[0], 0, sizeof(mTargets));
     mMemoryManager = MemoryManager::getInstance();
     mModeset = true;
-    memset(&mKmsProperty, 0, sizeof(mKmsProperty));
     mConnectorID = 0;
+    mKmsPlaneNum = 1;
+    memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
+    mPset = NULL;
+    mOverlay = NULL;
 }
 
 KmsDisplay::~KmsDisplay()
@@ -68,14 +71,14 @@ KmsDisplay::~KmsDisplay()
  */
 void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType,
                           const char *propName, uint32_t* propId,
-                          uint64_t* value)
+                          uint64_t* value, int drmfd)
 {
     int found = 0;
     uint64_t ivalue = 0;
     uint32_t id = 0;
 
     drmModeObjectPropertiesPtr pModeObjectProperties =
-        drmModeObjectGetProperties(mDrmFd, objectID, objectType);
+        drmModeObjectGetProperties(drmfd, objectID, objectType);
 
     if (pModeObjectProperties == NULL) {
         ALOGE("drmModeObjectGetProperties failed.");
@@ -84,7 +87,7 @@ void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType,
 
     for (uint32_t i = 0; i < pModeObjectProperties->count_props; i++) {
         drmModePropertyPtr pProperty =
-            drmModeGetProperty(mDrmFd, pModeObjectProperties->props[i]);
+            drmModeGetProperty(drmfd, pModeObjectProperties->props[i]);
         if (pProperty == NULL) {
             ALOGE("drmModeGetProperty failed.");
             continue;
@@ -115,10 +118,11 @@ void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType,
 void KmsDisplay::getTableProperty(uint32_t objectID,
                                   uint32_t objectType,
                                   struct TableProperty *table,
-                                  size_t tableLen)
+                                  size_t tableLen, int drmfd)
 {
     for (uint32_t i = 0; i < tableLen; i++) {
-        getPropertyValue(objectID, objectType, table[i].name, table[i].ptr, NULL);
+        getPropertyValue(objectID, objectType, table[i].name,
+                 table[i].ptr, NULL, drmfd);
         if (*(table[i].ptr) == 0) {
             ALOGE("can't find property ID for \'%s\'.", table[i].name);
         }
@@ -128,96 +132,135 @@ void KmsDisplay::getTableProperty(uint32_t objectID,
 /*
  * Find the property IDs in group with type.
  */
+void KmsPlane::getPropertyIds()
+{
+    struct TableProperty planeTable[] = {
+        {"SRC_X",   &src_x},
+        {"SRC_Y",   &src_y},
+        {"SRC_W",   &src_w},
+        {"SRC_H",   &src_h},
+        {"CRTC_X",  &crtc_x},
+        {"CRTC_Y",  &crtc_y},
+        {"CRTC_W",  &crtc_w},
+        {"CRTC_H",  &crtc_h},
+        {"alpha",   &alpha_id},
+        {"FB_ID",   &fb_id},
+        {"CRTC_ID", &crtc_id},
+    };
+
+    KmsDisplay::getTableProperty(mPlaneID,
+                     DRM_MODE_OBJECT_PLANE,
+                     planeTable, ARRAY_LEN(planeTable),
+                     mDrmFd);
+}
+
+/*
+ * Find the property IDs in group with type.
+ */
 void KmsDisplay::getKmsProperty()
 {
     struct TableProperty crtcTable[] = {
-        {"MODE_ID", &mKmsProperty.crtc.mode_id},
-        {"ACTIVE",  &mKmsProperty.crtc.active},
-    };
-
-    struct TableProperty planeTable[] = {
-        {"SRC_X",   &mKmsProperty.plane.src_x},
-        {"SRC_Y",   &mKmsProperty.plane.src_y},
-        {"SRC_W",   &mKmsProperty.plane.src_w},
-        {"SRC_H",   &mKmsProperty.plane.src_h},
-        {"CRTC_X",  &mKmsProperty.plane.crtc_x},
-        {"CRTC_Y",  &mKmsProperty.plane.crtc_y},
-        {"CRTC_W",  &mKmsProperty.plane.crtc_w},
-        {"CRTC_H",  &mKmsProperty.plane.crtc_h},
-        {"FB_ID",   &mKmsProperty.plane.fb_id},
-        {"CRTC_ID", &mKmsProperty.plane.crtc_id},
+        {"MODE_ID", &mCrtc.mode_id},
+        {"ACTIVE",  &mCrtc.active},
     };
 
     struct TableProperty connectorTable[] = {
-        {"CRTC_ID", &mKmsProperty.connector.crtc_id},
-        {"DPMS", &mKmsProperty.connector.dpms_id},
+        {"CRTC_ID", &mConnector.crtc_id},
+        {"DPMS", &mConnector.dpms_id},
     };
 
     getTableProperty(mCrtcID,
                      DRM_MODE_OBJECT_CRTC,
-                     crtcTable, ARRAY_LEN(crtcTable));
-    getTableProperty(mPlaneID,
-                     DRM_MODE_OBJECT_PLANE,
-                     planeTable, ARRAY_LEN(planeTable));
+                     crtcTable, ARRAY_LEN(crtcTable),
+                     mDrmFd);
     getTableProperty(mConnectorID,
                      DRM_MODE_OBJECT_CONNECTOR,
-                     connectorTable, ARRAY_LEN(connectorTable));
+                     connectorTable, ARRAY_LEN(connectorTable),
+                     mDrmFd);
+
+    for (uint32_t i=0; i<mKmsPlaneNum; i++) {
+        mKmsPlanes[i].getPropertyIds();
+    }
 }
 
 /*
  * add properties to a drmModeAtomicReqPtr object.
  */
-void KmsDisplay::addAtomicRequest(drmModeAtomicReqPtr pset,
-                                     uint32_t modeID, uint32_t fb)
+void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
 {
     /* Specify the mode to use on the CRTC, and make the CRTC active. */
     if (mModeset) {
         drmModeAtomicAddProperty(pset, mCrtcID,
-                             mKmsProperty.crtc.mode_id, modeID);
+                             mCrtc.mode_id, modeID);
         drmModeAtomicAddProperty(pset, mCrtcID,
-                             mKmsProperty.crtc.active, 1);
+                             mCrtc.active, 1);
 
         /* Tell the connector to receive pixels from the CRTC. */
         drmModeAtomicAddProperty(pset, mConnectorID,
-                             mKmsProperty.connector.crtc_id, mCrtcID);
+                             mConnector.crtc_id, mCrtcID);
     }
+}
 
+void KmsPlane::connectCrtc(drmModeAtomicReqPtr pset,
+                    uint32_t crtc, uint32_t fb)
+{
     /*
      * Specify the surface to display in the plane, and connect the
      * plane to the CRTC.
      */
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.fb_id, fb);
+                             fb_id, fb);
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.crtc_id, mCrtcID);
+                             crtc_id, crtc);
 
+}
+
+void KmsPlane::setAlpha(drmModeAtomicReqPtr pset,
+                    uint32_t alpha)
+{
+    /*
+     * Specify the alpha of source surface to display.
+     */
+    drmModeAtomicAddProperty(pset, mPlaneID,
+                             alpha_id, alpha);
+}
+
+void KmsPlane::setSourceSurface(drmModeAtomicReqPtr pset,
+                    uint32_t x, uint32_t y,
+                    uint32_t w, uint32_t h)
+{
     /*
      * Specify the region of source surface to display (i.e., the
      * "ViewPortIn").  Note these values are in 16.16 format, so shift
      * up by 16.
      */
-    const DisplayConfig& config = mConfigs[mActiveConfig];
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.src_x, 0);
+                             src_x, x);
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.src_y, 0);
+                             src_y, y);
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.src_w, config.mXres << 16);
+                             src_w, w << 16);
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.src_h, config.mYres << 16);
+                             src_h, h << 16);
 
+}
+
+void KmsPlane::setDisplayFrame(drmModeAtomicReqPtr pset,
+                    uint32_t x, uint32_t y,
+                    uint32_t w, uint32_t h)
+{
     /*
      * Specify the region within the mode where the image should be
      * displayed (i.e., the "ViewPortOut").
      */
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.crtc_x, 0);
+                             crtc_x, x);
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.crtc_y, 0);
+                             crtc_y, y);
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.crtc_w, config.mXres);
+                             crtc_w, w);
     drmModeAtomicAddProperty(pset, mPlaneID,
-                             mKmsProperty.plane.crtc_h, config.mYres);
+                             crtc_h, h);
 }
 
 int KmsDisplay::setPowerMode(int mode)
@@ -243,7 +286,7 @@ int KmsDisplay::setPowerMode(int mode)
     }
 
     int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
-                  mKmsProperty.connector.dpms_id, mPowerMode);
+                  mConnector.dpms_id, mPowerMode);
     if (err != 0) {
         ALOGE("failed to set DPMS mode");
     }
@@ -293,6 +336,113 @@ void KmsDisplay::setFakeVSync(bool enable)
     }
 }
 
+bool KmsDisplay::checkOverlay(Layer* layer)
+{
+    char value[PROPERTY_VALUE_MAX];
+    property_get("hwc.enable.overlay", value, "1");
+    int useOverlay = atoi(value);
+    if (useOverlay == 0) {
+        return false;
+    }
+
+    if (mKmsPlaneNum < 2) {
+        ALOGI("no overlay plane found");
+        return false;
+    }
+
+    if (layer == NULL || layer->handle == NULL) {
+        ALOGV("updateOverlay: invalid layer or handle");
+        return false;
+    }
+
+    Memory* memory = layer->handle;
+    if ((memory->fslFormat >= FORMAT_RGBA8888) &&
+        (memory->fslFormat <= FORMAT_BGRA8888)) {
+        ALOGV("updateOverlay: invalid format");
+        return false;
+    }
+
+    // overlay only needs on imx8mq.
+    if (!(memory->usage & USAGE_PADDING_BUFFER)) {
+        return false;
+    }
+
+    // work around to GPU composite if video < 720x576.
+    if (memory->width <= 720 || memory->height <= 576) {
+        ALOGV("work around to GPU composite");
+        return false;
+    }
+
+    if (mOverlay != NULL) {
+        ALOGW("only support one overlay now");
+        return false;
+    }
+
+    mOverlay = layer;
+
+    return true;
+}
+
+int KmsDisplay::performOverlay()
+{
+    Layer* layer = mOverlay;
+    if (layer == NULL || layer->handle == NULL) {
+        return 0;
+    }
+
+    if (!mPset) {
+        mPset = drmModeAtomicAlloc();
+        if (!mPset) {
+            ALOGE("Failed to allocate property set");
+            return -ENOMEM;
+        }
+    }
+
+    Memory* buffer = layer->handle;
+    const DisplayConfig& config = mConfigs[mActiveConfig];
+    if (buffer->fbId == 0) {
+        int format = convertFormatToDrm(buffer->fslFormat);
+        int stride = buffer->stride * 1;
+        uint32_t bo_handles[4] = {0};
+        uint32_t pitches[4] = {0};
+        uint32_t offsets[4] = {0};
+
+        pitches[0] = stride;
+        pitches[1] = stride;
+        offsets[0] = 0;
+        offsets[1] = stride * buffer->height;
+        drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
+        bo_handles[0] = buffer->fbHandle;
+        bo_handles[1] = buffer->fbHandle;
+        drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
+                    bo_handles, pitches, offsets, (uint32_t*)&buffer->fbId, 0);
+        buffer->kmsFd = mDrmFd;
+    }
+
+    if (buffer->fbId == 0) {
+        ALOGE("%s invalid fbid", __func__);
+        mOverlay = NULL;
+        return 0;
+    }
+
+    mKmsPlanes[mKmsPlaneNum - 1].connectCrtc(mPset, mCrtcID, buffer->fbId);
+
+    Rect *rect = &layer->sourceCrop;
+    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, rect->left, rect->top,
+                    rect->right - rect->left, rect->bottom - rect->top);
+
+    rect = &layer->displayFrame;
+    int x = rect->left * mMode.hdisplay / config.mXres;
+    int y = rect->top * mMode.vdisplay / config.mYres;
+    int w = (rect->right - rect->left) * mMode.hdisplay / config.mXres;
+    int h = (rect->bottom - rect->top) * mMode.hdisplay / config.mXres;
+    mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, w, h);
+
+    mOverlay = NULL;
+
+    return true;
+}
+
 int KmsDisplay::updateScreen()
 {
     int drmfd = -1;
@@ -340,14 +490,16 @@ int KmsDisplay::updateScreen()
     }
 
     if (buffer->fbId == 0) {
-        ALOGE("%s invalid fbId", __func__);
+        ALOGE("%s invalid fbid", __func__);
         return 0;
     }
 
-    drmModeAtomicReqPtr pset = drmModeAtomicAlloc();
-    if (!pset) {
-        ALOGE("Failed to allocate property set");
-        return -ENOMEM;
+    if (!mPset) {
+        mPset = drmModeAtomicAlloc();
+        if (!mPset) {
+            ALOGE("Failed to allocate property set");
+            return -ENOMEM;
+        }
     }
 
     uint32_t modeID = 0;
@@ -357,13 +509,18 @@ int KmsDisplay::updateScreen()
         drmModeCreatePropertyBlob(drmfd, &mMode, sizeof(mMode), &modeID);
     }
 
-    addAtomicRequest(pset, modeID, buffer->fbId);
-    int ret = drmModeAtomicCommit(drmfd, pset, flags, NULL /* user_data */);
+    bindCrtc(mPset, modeID);
+    mKmsPlanes[0].connectCrtc(mPset, mCrtcID, buffer->fbId);
+    mKmsPlanes[0].setSourceSurface(mPset, 0, 0, config.mXres, config.mYres);
+    mKmsPlanes[0].setDisplayFrame(mPset, 0, 0, mMode.hdisplay, mMode.vdisplay);
+
+    int ret = drmModeAtomicCommit(drmfd, mPset, flags, NULL /* user_data */);
     if (ret != 0) {
         ALOGV("Failed to commit pset ret=%d", ret);
     }
 
-    drmModeAtomicFree(pset);
+    drmModeAtomicFree(mPset);
+    mPset = NULL;
     if (mModeset) {
         mModeset = false;
         drmModeDestroyPropertyBlob(drmfd, modeID);
@@ -430,18 +587,54 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
     getPrimaryPlane();
     getKmsProperty();
 
-    ssize_t configId = getConfigIdLocked(mMode.hdisplay, mMode.vdisplay);
+    int width = mMode.hdisplay;
+    int height = mMode.vdisplay;
+    char value[PROPERTY_VALUE_MAX];
+    memset(value, 0, sizeof(value));
+    property_get("ro.boot.gui_resolution", value, "p");
+    if (!strncmp(value, "4k", 2)) {
+        width = 3840;
+        height = 2160;
+    }
+    else if (!strncmp(value, "1080p", 5)) {
+        width = 1920;
+        height = 1080;
+    }
+    else if (!strncmp(value, "720p", 4)) {
+        width = 1280;
+        height = 720;
+    }
+    else if (!strncmp(value, "480p", 4)) {
+        width = 640;
+        height = 480;
+    }
+
+    ssize_t configId = getConfigIdLocked(width, height);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", mMode.hdisplay, mMode.vdisplay);
         return -1;
     }
+
+    int format = FORMAT_RGBX8888;
+    drmModePlanePtr planePtr = drmModeGetPlane(mDrmFd, mKmsPlanes[0].mPlaneID);
+    for (uint32_t i = 0; i < planePtr->count_formats; i++) {
+        ALOGV("enum format:%c%c%c%c", planePtr->formats[i]&0xFF,
+                (planePtr->formats[i]>>8)&0xFF,
+                (planePtr->formats[i]>>16)&0xFF,
+                (planePtr->formats[i]>>24)&0xFF);
+        if (planePtr->formats[i] == DRM_FORMAT_ABGR8888) {
+            format = FORMAT_RGBA8888;
+            break;
+        }
+    }
+    drmModeFreePlane(planePtr);
 
     DisplayConfig& config = mConfigs.editItemAt(configId);
     config.mXdpi = mMode.hdisplay * 25400 / pConnector->mmWidth;
     config.mYdpi = mMode.vdisplay * 25400 / pConnector->mmHeight;
     config.mFps  = mMode.vrefresh;
     config.mVsyncPeriod  = 1000000000 / mMode.vrefresh;
-    config.mFormat = FORMAT_RGBA8888;
+    config.mFormat = format;
     config.mBytespixel = 4;
     ALOGW("xres         = %d px\n"
           "yres         = %d px\n"
@@ -549,17 +742,22 @@ int KmsDisplay::getPrimaryPlane()
 
         getPropertyValue(pPlaneRes->planes[i],
                          DRM_MODE_OBJECT_PLANE,
-                        "type", NULL, &type);
+                        "type", NULL, &type, mDrmFd);
 
         if (type == DRM_PLANE_TYPE_PRIMARY) {
-            mPlaneID = pPlaneRes->planes[i];
-            break;
+            mKmsPlanes[0].mPlaneID = pPlaneRes->planes[i];
+            mKmsPlanes[0].mDrmFd = mDrmFd;
+        }
+        if (type == DRM_PLANE_TYPE_OVERLAY && mKmsPlaneNum < KMS_PLANE_NUM) {
+            mKmsPlanes[mKmsPlaneNum].mPlaneID = pPlaneRes->planes[i];
+            mKmsPlanes[mKmsPlaneNum].mDrmFd = mDrmFd;
+            mKmsPlaneNum++;
         }
     }
 
     drmModeFreePlaneResources(pPlaneRes);
 
-    if (mPlaneID == 0) {
+    if (mKmsPlanes[0].mPlaneID == 0) {
         ALOGE("can't find primary plane.");
         return -ENODEV;
     }
@@ -581,6 +779,8 @@ int KmsDisplay::closeKms()
     }
     mConfigs.clear();
     mActiveConfig = -1;
+    mKmsPlaneNum = 1;
+    memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
 
     releaseTargetsLocked();
     return 0;
@@ -596,8 +796,7 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
         case FORMAT_RGBX8888:
             return DRM_FORMAT_XBGR8888;
         case FORMAT_RGBA8888:
-            //return DRM_FORMAT_ABGR8888;
-            return DRM_FORMAT_XBGR8888;
+            return DRM_FORMAT_ABGR8888;
         case FORMAT_RGB565:
             return DRM_FORMAT_BGR565;
         case FORMAT_NV12:
