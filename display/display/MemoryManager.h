@@ -52,6 +52,7 @@ public:
 
 protected:
     MemoryManager();
+    bool isDrmAlloc(int flags, int format, int usage);
 
 private:
     IonManager *mIonManager;
