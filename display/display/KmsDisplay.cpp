@@ -475,7 +475,7 @@ int KmsDisplay::updateScreen()
 
     const DisplayConfig& config = mConfigs[mActiveConfig];
     if (buffer->fbId == 0) {
-        int format = convertFormatToDrm(buffer->fslFormat);
+        int format = convertFormatToDrm(config.mFormat);
         int stride = buffer->stride * config.mBytespixel;
         uint32_t bo_handles[4] = {0};
         uint32_t pitches[4] = {0};
