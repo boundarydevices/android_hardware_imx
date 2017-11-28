@@ -103,7 +103,7 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
                 (buffer_handle_t *)&handle, &desc.mStride);
         if (ret == 0 && handle != NULL) {
             handle->fslFormat = desc.mFslFormat;
-            mIonManager->getPhys(handle);
+            //mIonManager->getPhys(handle);
         }
         *out = handle;
         return ret;
