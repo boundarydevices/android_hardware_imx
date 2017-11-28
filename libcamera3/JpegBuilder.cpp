@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2012-2017 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
