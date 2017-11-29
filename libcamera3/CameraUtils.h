@@ -192,7 +192,7 @@ public:
     SensorData();
     virtual ~SensorData();
 
-    int getCaptureMode(int width, int height);
+    virtual int getCaptureMode(int width, int height);
 
     virtual PixelFormat getPreviewPixelFormat()
     {

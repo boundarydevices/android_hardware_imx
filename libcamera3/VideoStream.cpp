@@ -101,7 +101,7 @@ int32_t VideoStream::configure(sp<Stream> stream)
     params->mBuffers = stream->bufferNum();
 
     ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
-           __func__, mWidth, mHeight, mFormat, stream->format(), mFps, mNumBuffers);
+           __func__, params->mWidth, params->mHeight, params->mFormat, stream->format(), params->mFps, params->mBuffers);
     mMessageQueue.postMessage(new CMessage(MSG_CONFIG, (uintptr_t)params), 0);
 
     return 0;
