@@ -648,6 +648,8 @@ const char* Camera::templateToString(int32_t type)
         return "CAMERA3_TEMPLATE_VIDEO_SNAPSHOT";
     case CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG:
         return "CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG";
+    case CAMERA3_TEMPLATE_MANUAL:
+        return "CAMERA3_TEMPLATE_MANUAL";
     }
     // TODO: support vendor templates
     return "Invalid template type!";
@@ -696,6 +698,9 @@ int32_t Camera::initDevice()
     if (res)
         return res;
     res = setZslTemplate();
+    if (res)
+        return res;
+    res = setManualTemplate();
     if (res)
         return res;
 
@@ -781,6 +786,22 @@ int32_t Camera::setZslTemplate()
         return res;
     // TODO: set reprocessing parameters for zsl input queue
     return setTemplate(CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG, base.get());
+}
+
+int32_t Camera::setManualTemplate()
+{
+    Metadata base;
+    // Create manual template from copies of base metadata
+    // TODO: use vendor tags in base metadata
+    Metadata::createSettingTemplate(base, *this, CAMERA3_TEMPLATE_MANUAL);
+
+    int32_t res = base.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
+                                 ANDROID_CONTROL_CAPTURE_INTENT_MANUAL);
+    // Setup default manual controls
+    if (res)
+        return res;
+    // TODO: set reprocessing parameters for manual input queue
+    return setTemplate(CAMERA3_TEMPLATE_MANUAL, base.get());
 }
 
 bool Camera::isValidCaptureSettings(const camera_metadata_t* settings)

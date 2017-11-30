@@ -203,7 +203,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
             ARRAY_SIZE(android_control_ae_compensation_step),
             android_control_ae_compensation_step);
 
-    int32_t android_control_max_regions[] = {/*AE*/ 1,/*AWB*/ 1,/*AF*/ 1};
+    int32_t android_control_max_regions[] = {/*AE*/ 0, /*AWB*/ 0, /*AF*/ 0};
     m.addInt32(ANDROID_CONTROL_MAX_REGIONS,
             ARRAY_SIZE(android_control_max_regions),
             android_control_max_regions);
@@ -276,17 +276,20 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     m.addInt32(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_active_array_size),
             android_sensor_info_active_array_size);
-#if 0
+
     int32_t android_sensor_info_sensitivity_range[] =
             {100, 1600};
     m.addInt32(ANDROID_SENSOR_INFO_SENSITIVITY_RANGE,
             ARRAY_SIZE(android_sensor_info_sensitivity_range),
             android_sensor_info_sensitivity_range);
-#endif
+
     int64_t android_sensor_info_max_frame_duration[] = {sensor.mMaxFrameDuration};
     m.addInt64(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
             ARRAY_SIZE(android_sensor_info_max_frame_duration),
             android_sensor_info_max_frame_duration);
+
+    int64_t kExposureTimeRange[2] = {1000L, 300000000L};
+    m.addInt64(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE, ARRAY_SIZE(kExposureTimeRange), kExposureTimeRange);
 
     float android_sensor_info_physical_size[] = {sensor.mPhysicalWidth, sensor.mPhysicalHeight};
     m.addFloat(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
@@ -397,6 +400,12 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const uint8_t afTrigger = ANDROID_CONTROL_AF_TRIGGER_IDLE;
     m.addUInt8(ANDROID_CONTROL_AF_TRIGGER, 1, &afTrigger);
 
+    static const uint8_t tonemapMode = ANDROID_TONEMAP_MODE_FAST;
+    m.addUInt8(ANDROID_TONEMAP_MODE, 1, &tonemapMode);
+
+    static const uint8_t pipelineMaxDepth = 3;
+    m.addUInt8(ANDROID_REQUEST_PIPELINE_MAX_DEPTH, 1, &pipelineMaxDepth);
+
     int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE};
     m.addInt32(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, ARRAY_SIZE(availableResultKeys), availableResultKeys);
 
@@ -424,6 +433,28 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const uint8_t availableAfModes[] = {ANDROID_CONTROL_AF_MODE_OFF};
     m.addUInt8(ANDROID_CONTROL_AF_AVAILABLE_MODES, ARRAY_SIZE(availableAfModes), availableAfModes);
 
+    static const uint8_t aberrationMode[] = {
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_OFF,
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY};
+    m.addUInt8(ANDROID_COLOR_CORRECTION_ABERRATION_MODE, ARRAY_SIZE(aberrationMode), aberrationMode);
+
+    static const uint8_t availableAwbModes[] = {
+        ANDROID_CONTROL_AWB_MODE_OFF,
+        ANDROID_CONTROL_AWB_MODE_AUTO,
+        ANDROID_CONTROL_AWB_MODE_INCANDESCENT,
+        ANDROID_CONTROL_AWB_MODE_FLUORESCENT,
+        ANDROID_CONTROL_AWB_MODE_DAYLIGHT,
+        ANDROID_CONTROL_AWB_MODE_SHADE};
+    m.addUInt8(ANDROID_CONTROL_AWB_AVAILABLE_MODES, ARRAY_SIZE(availableAwbModes), availableAwbModes);
+
+    static const uint8_t availableAberrationModes[] = {
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_OFF,
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST,
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY};
+    m.addUInt8(ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES,
+               ARRAY_SIZE(availableAberrationModes),
+               availableAberrationModes);
+
     /* flahs info */
     uint8_t flashInfoAvailable = ANDROID_FLASH_INFO_AVAILABLE_FALSE;
     m.addUInt8(ANDROID_FLASH_INFO_AVAILABLE, 1, &flashInfoAvailable);
@@ -438,7 +469,6 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                                       ANDROID_CONTROL_AE_ANTIBANDING_MODE,
                                       ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION,
                                       ANDROID_CONTROL_AE_MODE,
-                                      ANDROID_CONTROL_AE_REGIONS,
                                       ANDROID_CONTROL_AE_TARGET_FPS_RANGE,
                                       ANDROID_CONTROL_AF_MODE,
                                       ANDROID_CONTROL_AWB_MODE,
@@ -457,14 +487,11 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                                       ANDROID_JPEG_QUALITY,
                                       ANDROID_JPEG_THUMBNAIL_QUALITY,
                                       ANDROID_JPEG_THUMBNAIL_SIZE,
-                                      ANDROID_LENS_APERTURE,
-                                      ANDROID_LENS_FILTER_DENSITY,
                                       ANDROID_LENS_FOCAL_LENGTH,
                                       ANDROID_LENS_FOCUS_DISTANCE,
                                       ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
                                       ANDROID_STATISTICS_FACE_DETECT_MODE,
                                       ANDROID_CONTROL_AF_TRIGGER,
-                                      ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
                                       ANDROID_REQUEST_ID,
                                       ANDROID_SCALER_CROP_REGION,
                                       ANDROID_SENSOR_FRAME_DURATION,
@@ -474,7 +501,14 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                                       ANDROID_TONEMAP_CURVE_BLUE,
                                       ANDROID_TONEMAP_CURVE_GREEN,
                                       ANDROID_TONEMAP_CURVE_RED,
-                                      ANDROID_TONEMAP_MODE};
+                                      ANDROID_CONTROL_AWB_LOCK,
+                                      ANDROID_CONTROL_AWB_AVAILABLE_MODES,
+                                      ANDROID_COLOR_CORRECTION_TRANSFORM,
+                                      ANDROID_COLOR_CORRECTION_GAINS,
+                                      ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE,
+                                      ANDROID_CONTROL_EFFECT_MODE,
+                                      ANDROID_FLASH_STATE,
+                                      ANDROID_CONTROL_AE_AVAILABLE_MODES};
     m.addInt32(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, ARRAY_SIZE(availableRequestKeys), availableRequestKeys);
 
     return clone_camera_metadata(m.get());
@@ -529,9 +563,9 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     uint8_t demosaicMode = 0;
     uint8_t noiseMode = 0;
     uint8_t shadingMode = 0;
-    uint8_t colorMode = 0;
     uint8_t tonemapMode = 0;
     uint8_t edgeMode = 0;
+    uint8_t colorMode = ANDROID_COLOR_CORRECTION_MODE_FAST;
     uint8_t vstabMode = ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF;
 
     switch (request_template) {
@@ -554,6 +588,12 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
         tonemapMode = ANDROID_TONEMAP_MODE_HIGH_QUALITY;
         edgeMode = ANDROID_EDGE_MODE_HIGH_QUALITY;
         break;
+      case CAMERA3_TEMPLATE_MANUAL:
+        noiseMode = ANDROID_NOISE_REDUCTION_MODE_FAST;
+        tonemapMode = ANDROID_TONEMAP_MODE_FAST;
+        colorMode = ANDROID_COLOR_CORRECTION_MODE_FAST;
+        edgeMode = ANDROID_EDGE_MODE_FAST;
+        break;
       default:
         hotPixelMode = ANDROID_HOT_PIXEL_MODE_FAST;
         demosaicMode = ANDROID_DEMOSAIC_MODE_FAST;
@@ -573,17 +613,15 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     base.addUInt8(ANDROID_EDGE_MODE, 1, &edgeMode);
     base.addUInt8(ANDROID_CONTROL_VIDEO_STABILIZATION_MODE, 1, &vstabMode);
 
+    static const uint8_t aberrationMode[] = {
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_OFF,
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST,
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY};
+    base.addUInt8(ANDROID_COLOR_CORRECTION_ABERRATION_MODE, ARRAY_SIZE(aberrationMode), aberrationMode);
+
     /** android.noise */
     static const uint8_t noiseStrength = 5;
     base.addUInt8(ANDROID_NOISE_REDUCTION_STRENGTH, 1, &noiseStrength);
-
-    /** android.color */
-    static const float colorTransform[9] = {
-        1.0f, 0.f, 0.f,
-        0.f, 1.f, 0.f,
-        0.f, 0.f, 1.f
-    };
-    base.addFloat(ANDROID_COLOR_CORRECTION_TRANSFORM, 9, colorTransform);
 
     /** android.tonemap */
     static const float tonemapCurve[4] = {
@@ -634,9 +672,6 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
 
     /** android.stats */
 
-    static const uint8_t faceDetectMode = ANDROID_STATISTICS_FACE_DETECT_MODE_FULL;
-    base.addUInt8(ANDROID_STATISTICS_FACE_DETECT_MODE, 1, &faceDetectMode);
-
     static const uint8_t histogramMode = ANDROID_STATISTICS_HISTOGRAM_MODE_OFF;
     base.addUInt8(ANDROID_STATISTICS_HISTOGRAM_MODE, 1, &histogramMode);
 
@@ -662,14 +697,19 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
       case CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG:
         controlIntent = ANDROID_CONTROL_CAPTURE_INTENT_ZERO_SHUTTER_LAG;
         break;
+      case CAMERA3_TEMPLATE_MANUAL:
+        controlIntent = ANDROID_CONTROL_CAPTURE_INTENT_MANUAL;
+        break;
       default:
         controlIntent = ANDROID_CONTROL_CAPTURE_INTENT_CUSTOM;
         break;
     }
     base.addUInt8(ANDROID_CONTROL_CAPTURE_INTENT, 1, &controlIntent);
 
-    static const uint8_t controlMode = ANDROID_CONTROL_MODE_AUTO;
-    base.addUInt8(ANDROID_CONTROL_MODE, 1, &controlMode);
+    uint8_t controlMode = ANDROID_CONTROL_MODE_AUTO;
+    uint8_t aeMode = ANDROID_CONTROL_AE_MODE_ON;
+    uint8_t awbMode = ANDROID_CONTROL_AWB_MODE_AUTO;
+    uint8_t faceDetectMode = ANDROID_STATISTICS_FACE_DETECT_MODE_OFF;
 
     static const uint8_t effectMode = ANDROID_CONTROL_EFFECT_MODE_OFF;
     base.addUInt8(ANDROID_CONTROL_EFFECT_MODE, 1, &effectMode);
@@ -677,12 +717,8 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     static const uint8_t sceneMode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
     base.addUInt8(ANDROID_CONTROL_SCENE_MODE, 1, &sceneMode);
 
-    static const uint8_t aeMode = ANDROID_CONTROL_AE_MODE_ON;
-    base.addUInt8(ANDROID_CONTROL_AE_MODE, 1, &aeMode);
-
     int32_t controlRegions[5] = {
-        0, 0, sensor.mMaxWidth, sensor.mMaxHeight, 1000
-    };
+        0, 0, 0, 0, 0};
     base.addInt32(ANDROID_CONTROL_AE_REGIONS, 5, controlRegions);
 
     static const int32_t aeExpCompensation = 0;
@@ -696,10 +732,6 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     static const uint8_t aeAntibandingMode =
             ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
     base.addUInt8(ANDROID_CONTROL_AE_ANTIBANDING_MODE, 1, &aeAntibandingMode);
-
-    static const uint8_t awbMode =
-            ANDROID_CONTROL_AWB_MODE_AUTO;
-    base.addUInt8(ANDROID_CONTROL_AWB_MODE, 1, &awbMode);
 
     base.addInt32(ANDROID_CONTROL_AWB_REGIONS, 5, controlRegions);
 
@@ -720,13 +752,50 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
       case CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG:
         afMode = ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE;
         break;
+      case CAMERA3_TEMPLATE_MANUAL:
+        afMode = ANDROID_CONTROL_AF_MODE_OFF;
+        aeMode = ANDROID_CONTROL_AE_MODE_OFF;
+        awbMode = ANDROID_CONTROL_AWB_MODE_OFF;
+        controlMode = ANDROID_CONTROL_MODE_OFF;
+        faceDetectMode = ANDROID_STATISTICS_FACE_DETECT_MODE_OFF;
+        break;
       default:
         afMode = ANDROID_CONTROL_AF_MODE_AUTO;
         break;
     }
+
     base.addUInt8(ANDROID_CONTROL_AF_MODE, 1, &afMode);
+    base.addUInt8(ANDROID_CONTROL_MODE, 1, &controlMode);
+    base.addUInt8(ANDROID_CONTROL_AE_MODE, 1, &aeMode);
+    base.addUInt8(ANDROID_CONTROL_AWB_MODE, 1, &awbMode);
+    base.addUInt8(ANDROID_STATISTICS_FACE_DETECT_MODE, 1, &faceDetectMode);
 
     base.addInt32(ANDROID_CONTROL_AF_REGIONS, 5, controlRegions);
+
+    static const uint8_t aePrecaptureTrigger = ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_IDLE;
+    base.addUInt8(ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER, 1, &aePrecaptureTrigger);
+
+    static const uint8_t aeLock = ANDROID_CONTROL_AE_LOCK_OFF;
+    base.addUInt8(ANDROID_CONTROL_AE_LOCK, 1, &aeLock);
+
+    static const uint8_t awbLock = ANDROID_CONTROL_AWB_LOCK_OFF;
+    base.addUInt8(ANDROID_CONTROL_AWB_LOCK, 1, &awbLock);
+
+    static const uint8_t afTrigger = ANDROID_CONTROL_AF_TRIGGER_IDLE;
+    base.addUInt8(ANDROID_CONTROL_AF_TRIGGER, 1, &afTrigger);
+
+    static const uint8_t flashState = ANDROID_FLASH_STATE_UNAVAILABLE;
+    base.addUInt8(ANDROID_FLASH_STATE, 1, &flashState);
+
+    static const uint8_t pipelineDepth = 3;
+    base.addUInt8(ANDROID_REQUEST_PIPELINE_DEPTH, 1, &pipelineDepth);
+
+    static const float colorGains[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    base.addFloat(ANDROID_COLOR_CORRECTION_GAINS, ARRAY_SIZE(colorGains), colorGains);
+
+    static const camera_metadata_rational_t colorTransform[9] = {
+        {1, 1}, {0, 1}, {0, 1}, {0, 1}, {1, 1}, {0, 1}, {0, 1}, {0, 1}, {1, 1}};
+    base.addRational(ANDROID_COLOR_CORRECTION_TRANSFORM, ARRAY_SIZE(colorTransform), colorTransform);
 }
 #if 0
 int Metadata::init(const camera_metadata_t *metadata)
