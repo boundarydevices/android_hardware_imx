@@ -95,6 +95,7 @@ protected:
     int32_t setRecordTemplate();
     int32_t setSnapshotTemplate();
     int32_t setZslTemplate();
+    int32_t setManualTemplate();
 
 private:
     // Camera device handle returned to framework for use
