@@ -35,6 +35,7 @@ public:
     int32_t mFormat;
     int32_t mFps;
     int32_t mBuffers;
+    int32_t mIsJpeg;
 };
 
 class VideoStream : public Stream
