@@ -87,11 +87,6 @@ int32_t VideoStream::configure(sp<Stream> stream)
     int32_t sensorFormat = mCamera->getSensorFormat(stream->format());
 
     Mutex::Autolock lock(mLock);
-    // when width&height&format are same, keep it to reduce start/stop time.
-    if ((mWidth == stream->width()) && (mHeight == stream->height())
-         && (mFormat == sensorFormat) && (stream->isJpeg() || (mFps == stream->fps()))) {
-        return 0;
-    }
 
     ConfigureParam* params = new ConfigureParam();
     params->mWidth  = stream->width();
@@ -99,6 +94,7 @@ int32_t VideoStream::configure(sp<Stream> stream)
     params->mFormat = sensorFormat;
     params->mFps = stream->fps();
     params->mBuffers = stream->bufferNum();
+    params->mIsJpeg = stream->isJpeg();
 
     ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
            __func__, params->mWidth, params->mHeight, params->mFormat, stream->format(), params->mFps, params->mBuffers);
@@ -114,6 +110,14 @@ int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
 
     if (params == NULL) {
         ALOGW("%s invalid params", __func__);
+        return 0;
+    }
+
+    // when width&height&format are same, keep it to reduce start/stop time.
+    if ((mWidth == params->mWidth) && (mHeight == params->mHeight)
+         && (mFormat == params->mFormat)  && (params->mIsJpeg || (mFps == params->mFps))) {
+        ALOGI("%s, same config, res %dx%d, fmt 0x%x, fps %d, %d, jpg %d",
+          __func__, mWidth, mHeight, mFormat, mFps, params->mFps, params->mIsJpeg);
         return 0;
     }
 
