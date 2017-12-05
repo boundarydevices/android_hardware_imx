@@ -23,16 +23,16 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
-    external/imx-lib/pxp \
+    $(IMX_LIB_PATH)/imx-lib/pxp \
     system/core/include \
     system/media/camera/include \
     external/jpeg \
-    device/fsl-proprietary/include \
+    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
     device/fsl/common/kernel-headers \
-    hardware/imx/include \
+    $(IMX_PATH)/imx/include \
     external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
-    external/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
-    hardware/imx/display/gralloc_v2 \
+    $(FSL_IMX_OMX_PATH)/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
+    $(IMX_PATH)/imx/display/gralloc_v2 \
     system/core/libion/include
 
 LOCAL_SRC_FILES := \
