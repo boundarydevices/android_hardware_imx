@@ -24,9 +24,9 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libfsldisplay \
 LOCAL_SRC_FILES :=  \
     gralloc.cpp
 
-LOCAL_C_INCLUDES += hardware/imx/display/display   \
-                    hardware/imx/include           \
-                    device/fsl-proprietary/include \
+LOCAL_C_INCLUDES += $(IMX_PATH)/imx/display/display   \
+                    $(IMX_PATH)/imx/include           \
+                    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
                     system/core/include/
 
 LOCAL_VENDOR_MODULE := true

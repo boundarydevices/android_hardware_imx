@@ -29,8 +29,8 @@ LOCAL_SRC_FILES := Display.cpp \
                    IonManager.cpp \
                    Composer.cpp
 
-LOCAL_C_INCLUDES += device/fsl-proprietary/include \
-                    hardware/imx/include \
+LOCAL_C_INCLUDES += $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
+                    $(IMX_PATH)/imx/include \
                     frameworks/native/libs/nativewindow/include  \
                     external/libdrm \
                     external/libdrm/include/drm
