@@ -124,6 +124,7 @@ static int lights_device_open(const struct hw_module_t* module,
     if (!strcmp(name, LIGHT_ID_BACKLIGHT)) {
         struct light_device_t *dev;
         char value[PROPERTY_VALUE_MAX];
+        FILE *file;
 
         dev = malloc(sizeof(*dev));
 
@@ -146,6 +147,14 @@ static int lights_device_open(const struct hw_module_t* module,
         strcpy(max_path, path);
         strcat(max_path, "/max_brightness");
         strcat(path, "/brightness");
+
+        file = fopen(max_path, "r");
+        if (!file) {
+            free(dev);
+            ALOGE("cannot open backlight file %s\n", max_path);
+            return status;
+        }
+        fclose(file);
 
         ALOGI("max backlight file is %s\n", max_path);
         ALOGI("backlight brightness file is %s\n", path);
