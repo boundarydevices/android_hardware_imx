@@ -35,6 +35,7 @@ struct hwc2_context_t {
     HWC2_PFN_REFRESH mRefresh;
     hwc2_callback_data_t mRefreshData;
     bool checkHDMI;
+    bool color_tranform;
 };
 
 class DisplayListener : public EventListener

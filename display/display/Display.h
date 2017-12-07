@@ -84,6 +84,8 @@ public:
     Layer* getFreeLayer();
     // clean and invalidate all layers.
     int invalidLayers();
+    // set or unset SKIP_LAYER flag for all layers.
+    int setSkipLayer(bool skip);
     // get changed composition types for all layers.
     int getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers,
                         int32_t* outTypes);

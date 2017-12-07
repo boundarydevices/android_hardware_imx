@@ -307,6 +307,7 @@ static int hwc2_validate_display(hwc2_device_t* device, hwc2_display_t display,
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
     }
+    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
 
     Display* pDisplay = NULL;
     DisplayManager* displayManager = DisplayManager::getInstance();
@@ -315,6 +316,8 @@ static int hwc2_validate_display(hwc2_device_t* device, hwc2_display_t display,
         ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
+
+    pDisplay->setSkipLayer(ctx->color_tranform);
 
     pDisplay->verifyLayers();
     pDisplay->getRequests(NULL, outNumRequests, NULL, NULL);
@@ -419,10 +422,21 @@ static int hwc2_set_output_buffer(hwc2_device_t* device, hwc2_display_t display,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_color_transform(hwc2_device_t* /*device*/, hwc2_display_t /*display*/,
-                                    const float* /*matrix*/, int32_t /*hint*/)
+static int hwc2_set_color_transform(hwc2_device_t* *device, hwc2_display_t /*display*/,
+                                    const float* /*matrix*/, int32_t hint)
 {
-    return HWC2_ERROR_UNSUPPORTED;
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+
+    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
+
+    if( hint == HAL_COLOR_TRANSFORM_IDENTITY )
+        ctx->color_tranform = false;
+    else
+        ctx->color_tranform = true;
+    return HWC2_ERROR_NONE;
 }
 
 static int hwc2_set_color_mode(hwc2_device_t* device, hwc2_display_t display,
@@ -1168,13 +1182,12 @@ static void hwc_get_capabilities(struct hwc2_device* device, uint32_t* outCount,
     }
 
     if (outCapabilities) {
-        if (outCount != NULL && *outCount >= 2) {
-            outCapabilities[0] = HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM;
-            outCapabilities[1] = HWC2_CAPABILITY_SIDEBAND_STREAM;
+        if (outCount != NULL && *outCount >= 1) {
+            outCapabilities[0] = HWC2_CAPABILITY_SIDEBAND_STREAM;
         }
     }
     else if (outCount) {
-        *outCount = 2;
+        *outCount = 1;
     }
 }
 
@@ -1210,6 +1223,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 
     dev->mListener = new DisplayListener(dev);
     dev->checkHDMI = true;
+    dev->color_tranform = false;
 
     *device = &dev->device.common;
     ALOGI("%s,%d", __FUNCTION__, __LINE__);
