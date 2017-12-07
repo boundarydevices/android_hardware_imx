@@ -56,6 +56,10 @@ enum {
     BLENDING_DIM      = 0x0805,
 };
 
+enum {
+    SKIP_LAYER          = 0x00000001,
+};
+
 class Layer
 {
 public:
@@ -71,6 +75,7 @@ public:
     int blendMode;
     int planeAlpha;
     int color;
+    int flags;
     Rect sourceCrop;
     Rect displayFrame;
     Region visibleRegion;

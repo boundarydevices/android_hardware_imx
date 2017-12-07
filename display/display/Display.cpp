@@ -241,6 +241,7 @@ void Display::resetLayerLocked(Layer* layer)
     layer->transform = 0;
     layer->blendMode = 0;
     layer->color = 0;
+    layer->flags = 0;
     layer->sourceCrop.clear();
     layer->displayFrame.clear();
     layer->visibleRegion.clear();
@@ -402,6 +403,10 @@ bool Display::verifyLayers()
             ALOGV("g2d can't support rotation");
             break;
         }
+        if (mLayers[i]->flags & SKIP_LAYER) {
+            deviceCompose = false;
+            mLayers[i]->type = LAYER_TYPE_CLIENT;
+        }
 
         switch (mLayers[i]->origType) {
             case LAYER_TYPE_CLIENT:
@@ -470,6 +475,19 @@ int Display::invalidLayers()
         resetLayerLocked(mLayers[i]);
     }
     mLayerVector.clear();
+
+    return 0;
+}
+
+int Display::setSkipLayer(bool skip)
+{
+    Mutex::Autolock _l(mLock);
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (skip)
+            mLayers[i]->flags |= SKIP_LAYER;
+        else
+            mLayers[i]->flags &= ~SKIP_LAYER;
+    }
 
     return 0;
 }
