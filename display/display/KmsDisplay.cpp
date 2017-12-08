@@ -346,7 +346,7 @@ bool KmsDisplay::checkOverlay(Layer* layer)
     }
 
     if (mKmsPlaneNum < 2) {
-        ALOGI("no overlay plane found");
+        ALOGV("no overlay plane found");
         return false;
     }
 
@@ -514,9 +514,17 @@ int KmsDisplay::updateScreen()
     mKmsPlanes[0].setSourceSurface(mPset, 0, 0, config.mXres, config.mYres);
     mKmsPlanes[0].setDisplayFrame(mPset, 0, 0, mMode.hdisplay, mMode.vdisplay);
 
-    int ret = drmModeAtomicCommit(drmfd, mPset, flags, NULL /* user_data */);
-    if (ret != 0) {
-        ALOGV("Failed to commit pset ret=%d", ret);
+    for (uint32_t i=0; i<3; i++) {
+        int ret = drmModeAtomicCommit(drmfd, mPset, flags, NULL);
+        if (ret == -EBUSY) {
+            ALOGV("commit pset busy and try again");
+            usleep(1000);
+            continue;
+        }
+        else if (ret != 0) {
+            ALOGI("Failed to commit pset ret=%d", ret);
+        }
+        break;
     }
 
     drmModeAtomicFree(mPset);
