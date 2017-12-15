@@ -285,6 +285,13 @@ int KmsDisplay::setPowerMode(int mode)
             break;
     }
 
+    // Audio/Video share same clock on HDMI interface.
+    // Power off HDMI will also break HDMI Audio clock.
+    // So HDMI need to keep power on.
+    if (mEncoderType == DRM_MODE_ENCODER_TMDS) {
+        return 0;
+    }
+
     int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
                   mConnector.dpms_id, mPowerMode);
     if (err != 0) {
@@ -590,6 +597,8 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
         ALOGE("can't get valid CRTC.");
         return -ENODEV;
     }
+
+    mEncoderType = pEncoder->encoder_type;
 
     drmModeFreeEncoder(pEncoder);
     getPrimaryPlane();

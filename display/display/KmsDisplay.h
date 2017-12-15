@@ -148,6 +148,7 @@ protected:
     } mCrtc;
     uint32_t mCrtcID;
     int mCrtcIndex;
+    int mEncoderType;
 
     struct {
         uint32_t crtc_id;
