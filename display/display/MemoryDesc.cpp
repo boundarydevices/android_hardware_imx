@@ -52,14 +52,19 @@ int MemoryDesc::checkFormat()
         case FORMAT_RGBA8888:
         case FORMAT_RGBX8888:
         case FORMAT_BGRA8888:
+        case FORMAT_RGBA1010102:
             bpp = 4;
         case FORMAT_RGB888:
         case FORMAT_RGB565:
+        case FORMAT_RGBAFP16:
             if (mFslFormat == FORMAT_RGB565) {
                 bpp = 2;
             }
             else if (mFslFormat == FORMAT_RGB888) {
                 bpp = 3;
+            }
+            else if (mFslFormat == FORMAT_RGBAFP16) {
+                bpp = 8;
             }
 
             /*

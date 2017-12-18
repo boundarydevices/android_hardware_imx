@@ -76,6 +76,12 @@ int convertAndroidFormat(int format)
         case HAL_PIXEL_FORMAT_BLOB:
             fslFormat = FORMAT_BLOB;
             break;
+        case HAL_PIXEL_FORMAT_RGBA_1010102:
+            fslFormat = FORMAT_RGBA1010102;
+            break;
+        case HAL_PIXEL_FORMAT_RGBA_FP16:
+            fslFormat = FORMAT_RGBAFP16;
+            break;
         default:
             ALOGE("%s invalid format:0x%x", __func__, format);
             break;
@@ -353,8 +359,7 @@ static int gralloc_allocate(gralloc1_device_t* device,
             // avoid height alignment issue.
             desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
             desc->mFslFormat = FORMAT_YUYV;
-            desc->mWidth = desc->mWidth / 32;
-            desc->mHeight = desc->mHeight * 16;
+            desc->mWidth = (desc->mWidth + 1) / 2;
         }
 
         desc->checkFormat();
