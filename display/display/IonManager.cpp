@@ -23,6 +23,9 @@
 #include <ion_ext.h>
 #include "IonManager.h"
 
+#define ION_DECODED_BUFFER_VPU_HEAP 2
+#define ION_DECODED_BUFFER_VPU_ALIGN 8
+
 namespace fsl {
 
 inline size_t roundUpToPageSize(size_t x) {
@@ -64,7 +67,12 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     Memory* memory = NULL;
 
     desc.mSize = (desc.mSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-    int err = ion_alloc(mIonFd, desc.mSize, 8, 1, 0, &ion_hnd);
+    int err = ion_alloc(mIonFd,
+        desc.mSize,
+        ION_DECODED_BUFFER_VPU_ALIGN,
+        ION_DECODED_BUFFER_VPU_HEAP,
+        0,
+        &ion_hnd);
     if (err) {
         ALOGE("ion_alloc failed");
         return err;
