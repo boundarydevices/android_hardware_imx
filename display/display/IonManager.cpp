@@ -64,7 +64,16 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     Memory* memory = NULL;
 
     desc.mSize = (desc.mSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-    int err = ion_alloc(mIonFd, desc.mSize, 8, 1, 0, &ion_hnd);
+    int cachebuffer = desc.mProduceUsage &
+            (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
+    int err = 0;
+    if (cachebuffer != 0) {
+        err = ion_alloc(mIonFd, desc.mSize, 8, 1 << 1, 0, &ion_hnd);
+        ALOGI("alloc cache buffer err:%d", err);
+    }
+    if (cachebuffer == 0 || err != 0) {
+        err = ion_alloc(mIonFd, desc.mSize, 8, 1 << 0, 0, &ion_hnd);
+    }
     if (err) {
         ALOGE("ion_alloc failed");
         return err;
