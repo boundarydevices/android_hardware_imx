@@ -406,6 +406,15 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const uint8_t pipelineMaxDepth = 3;
     m.addUInt8(ANDROID_REQUEST_PIPELINE_MAX_DEPTH, 1, &pipelineMaxDepth);
 
+    static const int32_t partialResultCount = 1;
+    m.addInt32(ANDROID_REQUEST_PARTIAL_RESULT_COUNT, 1, &partialResultCount);
+
+    static const uint8_t timestampSource = ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME;
+    m.addUInt8(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE, 1, &timestampSource);
+
+    static const int32_t maxFaceCount = 0;
+    m.addInt32(ANDROID_STATISTICS_INFO_MAX_FACE_COUNT, 1, &maxFaceCount);
+
     int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE};
     m.addInt32(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, ARRAY_SIZE(availableResultKeys), availableResultKeys);
 
@@ -433,11 +442,6 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const uint8_t availableAfModes[] = {ANDROID_CONTROL_AF_MODE_OFF};
     m.addUInt8(ANDROID_CONTROL_AF_AVAILABLE_MODES, ARRAY_SIZE(availableAfModes), availableAfModes);
 
-    static const uint8_t aberrationMode[] = {
-        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_OFF,
-        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY};
-    m.addUInt8(ANDROID_COLOR_CORRECTION_ABERRATION_MODE, ARRAY_SIZE(aberrationMode), aberrationMode);
-
     static const uint8_t availableAwbModes[] = {
         ANDROID_CONTROL_AWB_MODE_OFF,
         ANDROID_CONTROL_AWB_MODE_AUTO,
@@ -458,6 +462,42 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     /* flahs info */
     uint8_t flashInfoAvailable = ANDROID_FLASH_INFO_AVAILABLE_FALSE;
     m.addUInt8(ANDROID_FLASH_INFO_AVAILABLE, 1, &flashInfoAvailable);
+
+    int32_t characteristics_keys_basic[] = {
+        ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES,
+        ANDROID_CONTROL_AE_AVAILABLE_MODES,
+        ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
+        ANDROID_CONTROL_AE_COMPENSATION_RANGE,
+        ANDROID_CONTROL_AE_COMPENSATION_STEP,
+        ANDROID_CONTROL_AF_AVAILABLE_MODES,
+        ANDROID_CONTROL_AVAILABLE_EFFECTS,
+        ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
+        ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES,
+        ANDROID_CONTROL_AWB_AVAILABLE_MODES,
+        ANDROID_FLASH_INFO_AVAILABLE,
+        ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
+        ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES,
+        ANDROID_SCALER_CROPPING_TYPE,
+        ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM,
+        ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
+        ANDROID_LENS_FACING,
+        ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
+        ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES,
+        ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+        ANDROID_REQUEST_PARTIAL_RESULT_COUNT,
+        ANDROID_REQUEST_PIPELINE_MAX_DEPTH,
+        ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE,
+        ANDROID_SENSOR_AVAILABLE_TEST_PATTERN_MODES,
+        ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
+        ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
+        ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
+        ANDROID_SENSOR_ORIENTATION,
+        ANDROID_STATISTICS_INFO_AVAILABLE_FACE_DETECT_MODES,
+        ANDROID_STATISTICS_INFO_MAX_FACE_COUNT,
+        ANDROID_SYNC_MAX_LATENCY};
+    m.addInt32(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+               ARRAY_SIZE(characteristics_keys_basic),
+               characteristics_keys_basic);
 
     /* face detect mode */
     uint8_t availableFaceDetectModes[] = {ANDROID_STATISTICS_FACE_DETECT_MODE_OFF};
@@ -490,6 +530,8 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                                       ANDROID_LENS_FOCAL_LENGTH,
                                       ANDROID_LENS_FOCUS_DISTANCE,
                                       ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+                                      ANDROID_COLOR_CORRECTION_ABERRATION_MODE,
+                                      ANDROID_NOISE_REDUCTION_MODE,
                                       ANDROID_STATISTICS_FACE_DETECT_MODE,
                                       ANDROID_CONTROL_AF_TRIGGER,
                                       ANDROID_REQUEST_ID,
@@ -561,20 +603,25 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     /** Processing block modes */
     uint8_t hotPixelMode = 0;
     uint8_t demosaicMode = 0;
-    uint8_t noiseMode = 0;
     uint8_t shadingMode = 0;
     uint8_t tonemapMode = 0;
     uint8_t edgeMode = 0;
     uint8_t colorMode = ANDROID_COLOR_CORRECTION_MODE_FAST;
+    uint8_t noiseMode = ANDROID_NOISE_REDUCTION_MODE_HIGH_QUALITY;
+    uint8_t aberrationMode = ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY;
     uint8_t vstabMode = ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF;
 
     switch (request_template) {
       case CAMERA3_TEMPLATE_PREVIEW:
+        noiseMode = ANDROID_NOISE_REDUCTION_MODE_FAST;
+        aberrationMode = ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST;
         break;
       case CAMERA3_TEMPLATE_STILL_CAPTURE:
         break;
       case CAMERA3_TEMPLATE_VIDEO_RECORD:
+        noiseMode = ANDROID_NOISE_REDUCTION_MODE_FAST;
         vstabMode = ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_ON;
+        aberrationMode = ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST;
         break;
       case CAMERA3_TEMPLATE_VIDEO_SNAPSHOT:
         vstabMode = ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_ON;
@@ -612,12 +659,7 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     base.addUInt8(ANDROID_TONEMAP_MODE, 1, &tonemapMode);
     base.addUInt8(ANDROID_EDGE_MODE, 1, &edgeMode);
     base.addUInt8(ANDROID_CONTROL_VIDEO_STABILIZATION_MODE, 1, &vstabMode);
-
-    static const uint8_t aberrationMode[] = {
-        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_OFF,
-        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST,
-        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY};
-    base.addUInt8(ANDROID_COLOR_CORRECTION_ABERRATION_MODE, ARRAY_SIZE(aberrationMode), aberrationMode);
+    base.addUInt8(ANDROID_COLOR_CORRECTION_ABERRATION_MODE, 1, &aberrationMode);
 
     /** android.noise */
     static const uint8_t noiseStrength = 5;
