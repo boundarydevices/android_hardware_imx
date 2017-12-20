@@ -326,9 +326,9 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     int ResIdx = 0;
     int ResCount = 0;
     int streamConfigIdx = 0;
-    int32_t streamConfig[MAX_RESOLUTION_SIZE*4]; // MAX_RESOLUTION_SIZE/2 * 2 * 4;
-    int64_t minFrmDuration[MAX_RESOLUTION_SIZE*4];
-    int64_t stallDuration[MAX_RESOLUTION_SIZE*4];
+    int32_t streamConfig[MAX_RESOLUTION_SIZE * 6]; // MAX_RESOLUTION_SIZE/2 * 2 * 6;
+    int64_t minFrmDuration[MAX_RESOLUTION_SIZE * 6];
+    int64_t stallDuration[MAX_RESOLUTION_SIZE * 6];
 
     // TODO: It's better to get those info in seperate camera, and get the accurate fps.
     ResCount = sensor.mPreviewResolutionCount/2;
@@ -348,7 +348,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
         stallDuration[streamConfigIdx+1] = sensor.mPreviewResolutions[ResIdx*2];
         stallDuration[streamConfigIdx+2] = sensor.mPreviewResolutions[ResIdx*2+1];
-        stallDuration[streamConfigIdx+3] = 33333333; // ns
+        stallDuration[streamConfigIdx + 3] = 0; // ns
     }
 
     ResCount = sensor.mPictureResolutionCount/2;
@@ -369,6 +369,26 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
         stallDuration[streamConfigIdx+1] = sensor.mPictureResolutions[ResIdx*2];
         stallDuration[streamConfigIdx+2] = sensor.mPictureResolutions[ResIdx*2+1];
         stallDuration[streamConfigIdx+3] = 33333333; // ns
+    }
+
+    ResCount = sensor.mPreviewResolutionCount / 2;
+    for (ResIdx = 0; ResIdx < ResCount; ResIdx++) {
+         streamConfigIdx = sensor.mPictureResolutionCount * 2 + sensor.mPreviewResolutionCount * 2 + ResIdx * 4;
+
+         streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
+         streamConfig[streamConfigIdx + 1] = sensor.mPreviewResolutions[ResIdx * 2];
+         streamConfig[streamConfigIdx + 2] = sensor.mPreviewResolutions[ResIdx * 2 + 1];
+         streamConfig[streamConfigIdx + 3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
+
+         minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
+         minFrmDuration[streamConfigIdx + 1] = sensor.mPreviewResolutions[ResIdx * 2];
+         minFrmDuration[streamConfigIdx + 2] = sensor.mPreviewResolutions[ResIdx * 2 + 1];
+         minFrmDuration[streamConfigIdx + 3] = 33333333; // ns
+
+         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
+         stallDuration[streamConfigIdx + 1] = sensor.mPreviewResolutions[ResIdx * 2];
+         stallDuration[streamConfigIdx + 2] = sensor.mPreviewResolutions[ResIdx * 2 + 1];
+         stallDuration[streamConfigIdx + 3] = 0;
     }
 
     m.addInt32(ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
