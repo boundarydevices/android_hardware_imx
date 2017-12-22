@@ -166,7 +166,7 @@ protected:
 
     LayerVector mLayerVector;
     Layer* mLayers[MAX_LAYERS];
-    Composer mComposer;
+    Composer& mComposer;
     Memory* mRenderTarget;
     int mAcquireFence;
     int mComposeFlag;

@@ -35,7 +35,8 @@ static inline int compare_type(const DisplayConfig& lhs, const DisplayConfig& rh
 }
 
 Display::Display()
-    : mLock(Mutex::PRIVATE)
+    : mLock(Mutex::PRIVATE),
+      mComposer(*Composer::getInstance())
 {
     mConfigs.clear();
     mActiveConfig = -1;
