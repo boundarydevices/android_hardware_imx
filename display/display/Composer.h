@@ -17,6 +17,7 @@
 #ifndef _FSL_COMPOSER_H_
 #define _FSL_COMPOSER_H_
 
+#include <utils/threads.h>
 #include <g2dExt.h>
 #include "Memory.h"
 #include "Layer.h"
@@ -29,11 +30,13 @@ typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 typedef int (*hwc_func5)(void* handle, void* arg1, void* arg2, void* arg3, void* arg4);
 
+using android::Mutex;
+
 class Composer
 {
 public:
-    Composer();
     ~Composer();
+    static Composer* getInstance();
 
     bool isValid();
     // set composite target buffer.
@@ -49,8 +52,10 @@ public:
     // unlock surface to release resource.
     int unlockSurface(Memory *handle);
     bool isFeatureSupported(g2d_feature feature);
+    int alignTile(int *width, int *height, int format, int usage);
 
 private:
+    Composer();
     int setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect& rect);
     enum g2d_format convertFormat(int format, Memory *handle);
     int convertRotation(int transform, struct g2d_surface& src,
@@ -75,6 +80,9 @@ private:
     int finishEngine(void* handle);
 
 private:
+    static Mutex sLock;
+    static Composer* sInstance;
+
     void* mHandle;
     Memory* mTarget;
     Memory* mDimBuffer;
@@ -95,6 +103,7 @@ private:
     hwc_func2 mDisableFunction;
     hwc_func1 mFinishEngine;
     hwc_func3 mQueryFeature;
+    hwc_func4 mAlignTile;
 };
 
 }

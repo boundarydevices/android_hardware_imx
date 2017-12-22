@@ -31,6 +31,20 @@
 
 namespace fsl {
 
+Composer* Composer::sInstance(0);
+Mutex Composer::sLock(Mutex::PRIVATE);
+
+Composer* Composer::getInstance()
+{
+    Mutex::Autolock _l(sLock);
+    if (sInstance != NULL) {
+        return sInstance;
+    }
+
+    sInstance = new Composer();
+    return sInstance;
+}
+
 Composer::Composer()
 {
     mTarget = NULL;
@@ -49,6 +63,7 @@ Composer::Composer()
         mAlterFormat = NULL;
         mLockSurface = NULL;
         mUnlockSurface = NULL;
+        mAlignTile = NULL;
     }
     else {
         mGetAlignedSize = (hwc_func3)dlsym(handle, "hwc_getAlignedSize");
@@ -57,6 +72,7 @@ Composer::Composer()
         mAlterFormat = (hwc_func2)dlsym(handle, "hwc_alterFormat");
         mLockSurface = (hwc_func1)dlsym(handle, "hwc_lockSurface");
         mUnlockSurface = (hwc_func1)dlsym(handle, "hwc_unlockSurface");
+        mAlignTile = (hwc_func4)dlsym(handle, "hwc_align_tile");
     }
     memset(path, 0, sizeof(path));
     getModule(path, GPUENGINE);
@@ -647,6 +663,14 @@ bool Composer::isFeatureSupported(g2d_feature feature)
     int enable = 0;
     (*mQueryFeature)(mHandle, (void*)feature, (void*)&enable);
     return (enable != 0);
+}
+
+int Composer::alignTile(int *width, int *height, int format, int usage)
+{
+    if (mAlignTile == NULL) {
+        return -EINVAL;
+    }
+    return (*mAlignTile)(width, height, (void*)format, (void*)usage);
 }
 
 }

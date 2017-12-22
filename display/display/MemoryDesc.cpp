@@ -18,6 +18,7 @@
 
 #include "Memory.h"
 #include "MemoryDesc.h"
+#include "Composer.h"
 
 namespace fsl {
 
@@ -56,7 +57,7 @@ int MemoryDesc::checkFormat()
             bpp = 4;
         case FORMAT_RGB888:
         case FORMAT_RGB565:
-        case FORMAT_RGBAFP16:
+        case FORMAT_RGBAFP16: {
             if (mFslFormat == FORMAT_RGB565) {
                 bpp = 2;
             }
@@ -75,8 +76,9 @@ int MemoryDesc::checkFormat()
              * Here we assume the buffer will be used by Vivante HAL...
              */
             #ifndef USE_SW_OPENGL
-            alignedw = ALIGN_PIXEL_64(mWidth);
-            alignedh = ALIGN_PIXEL_64(mHeight);
+            Composer *composer = Composer::getInstance();
+            alignedw = mWidth; alignedh = mHeight;
+            composer->alignTile((int*)&alignedw, (int*)&alignedh, mFslFormat, mProduceUsage);
             #else
             alignedw = ALIGN_PIXEL_16(mWidth);
             alignedh = ALIGN_PIXEL_16(mHeight);
@@ -85,7 +87,7 @@ int MemoryDesc::checkFormat()
             if (mProduceUsage & USAGE_HW_VIDEO_ENCODER) {
                 mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
             }
-            break;
+            } break;
 
         case FORMAT_BLOB:
             alignedw = mWidth;
