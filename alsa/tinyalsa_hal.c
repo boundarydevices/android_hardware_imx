@@ -2759,8 +2759,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     int output_type;
     int i;
 
-    ALOGI("%s: enter: sample_rate(%d) channel_mask(%#x) format(%#x) devices(%#x) flags(%#x)",
-              __func__, config->sample_rate, config->channel_mask, config->format, devices, flags);
+    ALOGW("open output stream devices %d, format %d, channels %d, sample_rate %d, flag %d",
+                        devices, config->format, config->channel_mask, config->sample_rate, flags);
+
     out = (struct imx_stream_out *)calloc(1, sizeof(struct imx_stream_out));
     if (!out)
         return -ENOMEM;
@@ -2867,31 +2868,18 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
      * This is because out_set_parameters() with a route is not
      * guaranteed to be called after an output stream is opened. */
 
-    if ((config->format != AUDIO_FORMAT_DEFAULT && config->format != out->stream.common.get_format(&out->stream.common)) ||
-        (config->channel_mask != 0 && config->channel_mask != out->stream.common.get_channels(&out->stream.common)) ||
-        (config->sample_rate != 0 && config->sample_rate != out->stream.common.get_sample_rate(&out->stream.common))) {
-        ALOGI("%s: Unsupported output config. sample_rate:%d format:%#x channel_mask:%#x",
-                      __func__, config->sample_rate, config->format, config->channel_mask);
-        config->format = out->stream.common.get_format(&out->stream.common);
-        config->channel_mask = out->stream.common.get_channels(&out->stream.common);
-        config->sample_rate = out->stream.common.get_sample_rate(&out->stream.common);
-        ret = -EINVAL;
-        goto err_open;
-    }
-
     config->format = out->stream.common.get_format(&out->stream.common);
     config->channel_mask = out->stream.common.get_channels(&out->stream.common);
     config->sample_rate = out->stream.common.get_sample_rate(&out->stream.common);
 
     *stream_out = &out->stream;
     ladev->active_output[output_type] = out;
-    ALOGI("%s: exit: output_type %d", __func__, output_type);
+    ALOGW("opened out stream...%d, type %d",(uintptr_t)out, output_type);
     return 0;
 
 err_open:
     free(out);
     *stream_out = NULL;
-    ALOGW("%s: exit: ret %d", __func__, ret);
     return ret;
 }
 
