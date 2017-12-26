@@ -270,7 +270,14 @@ int32_t Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     camera3_stream_t *astream;
     sp<Stream> *newStreams = NULL;
 
-    ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
+    ALOGI("%s:%d: stream_config %p, num %d, streams %p, mode %d",
+        __func__,
+        mId,
+        stream_config,
+        stream_config->num_streams,
+        stream_config->streams,
+        stream_config->operation_mode);
+
     android::Mutex::Autolock al(mDeviceLock);
 
     if (stream_config == NULL) {
@@ -280,6 +287,31 @@ int32_t Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     if (stream_config->num_streams == 0) {
         ALOGE("%s:%d: Empty stream configuration array", __func__, mId);
         return -EINVAL;
+    }
+
+    for(int i = 0; i < stream_config->num_streams; i++) {
+      camera3_stream_t *stream = stream_config->streams[i];
+      if(stream == NULL) {
+        ALOGE("stream config %d null", i);
+        return -EINVAL;
+      }
+
+    ALOGI("config %d, type %d, res %dx%d, fmt 0x%x, usage 0x%x, maxbufs %d, priv %p, rotation %d",
+        i,
+        stream->stream_type,
+        stream->width,
+        stream->height,
+        stream->format,
+        stream->usage,
+        stream->max_buffers,
+        stream->priv,
+        stream->rotation);
+
+        if(((int)stream->width <= 0) || ((int)stream->height <= 0) || (stream->format == -1) ||
+          !(stream->rotation >=0 && stream->rotation <= 3) ) {
+          ALOGE("para error");
+          return -EINVAL;
+        }
     }
 
     // Create new stream array
