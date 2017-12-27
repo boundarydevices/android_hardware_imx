@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +15,7 @@
  * limitations under the License.
  */
 
-#ifndef _TVIN_8DV__DEVICE_H_
+#ifndef _TVIN_8DV_DEVICE_H_
 #define _TVIN_8DV_DEVICE_H_
 
 #include "Camera.h"

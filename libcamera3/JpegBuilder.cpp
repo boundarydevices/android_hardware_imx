@@ -174,7 +174,6 @@ JpegBuilder::~JpegBuilder()
 status_t JpegBuilder::prepareImage(const StreamBuffer *streamBuf)
 {
     status_t ret = NO_ERROR;
-    int eError   = 0;
     struct timeval sTv;
     struct tm     *pTime;
 
@@ -185,8 +184,8 @@ status_t JpegBuilder::prepareImage(const StreamBuffer *streamBuf)
 
     const sp<Stream>& stream = streamBuf->mStream;
 
-    insertElement(TAG_MODEL, 0, 0, 0, 0, 0, 0, EXIF_MODEL);
-    insertElement(TAG_MAKE, 0, 0, 0, 0, 0, 0, EXIF_MAKENOTE);
+    insertElement(TAG_MODEL, 0, 0, 0, 0, 0, 0, (char *)EXIF_MODEL);
+    insertElement(TAG_MAKE, 0, 0, 0, 0, 0, 0, (char *)EXIF_MAKENOTE);
 
     float focalLength;
     ret = mMeta->getFocalLength(focalLength);

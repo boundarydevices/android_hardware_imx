@@ -291,8 +291,6 @@ int vpu_encode(void *inYuv,
 	int nBufNum;
 	int nSrcStride;
 	VpuEncEncParam sEncEncParam;
-	char* tempOut=0;
-	static FILE* fpjpg=0;
 
 	memset(&sMemInfo,0,sizeof(VpuMemInfo));
 	memset(&sEncMemInfo,0,sizeof(EncMemInfo));
@@ -457,10 +455,10 @@ YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
 }
 
 YuvToJpegEncoder::YuvToJpegEncoder()
-    : supportVpu(false),
-      fNumPlanes(1),
+    : fNumPlanes(1),
       color(1),
-      mColorFormat(0)
+      mColorFormat(0),
+      supportVpu(false)
 {}
 
 int YuvToJpegEncoder::encode(void *inYuv,
@@ -752,7 +750,7 @@ int Yuv422IToJpegEncoder::yuvResize(uint8_t *srcBuf,
                                     int      dstWidth,
                                     int      dstHeight)
 {
-    int i, j, s;
+    int i, j;
     int h_offset;
     int v_offset;
     unsigned char *ptr, cc;

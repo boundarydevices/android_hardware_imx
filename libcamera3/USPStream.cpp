@@ -35,7 +35,6 @@ USPStream::~USPStream()
 int32_t USPStream::onDeviceConfigureLocked()
 {
     ALOGI("%s", __func__);
-    int32_t ret = 0;
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
         return BAD_VALUE;
