@@ -33,7 +33,7 @@ private:
     class Max9286Stream : public MMAPStream
     {
     public:
-        Max9286Stream(Camera *device) : MMAPStream(device, true) {}
+        Max9286Stream(Camera *device) : MMAPStream(device, true) { mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE; }
         virtual ~Max9286Stream() {}
 
         // configure device.

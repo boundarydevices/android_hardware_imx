@@ -53,6 +53,7 @@ public:
     // open/close device stream.
     int32_t openDev(const char* name);
     int32_t closeDev();
+    int32_t flushDev();
 
     virtual void* getG2dHandle() {return g2dHandle;}
 
@@ -62,6 +63,7 @@ private:
     static const int32_t MSG_FRAME = 0x103;
     static const int32_t MSG_CLOSE = 0x104;
     static const int32_t MSG_EXIT  = 0x105;
+    static const int32_t MSG_FLUSH = 0x106;
 
     // device stream state.
     static const int32_t STATE_INVALID = 0x201;
@@ -80,6 +82,9 @@ protected:
     // handle stop message internally.
     int32_t handleStopLocked(bool force);
     virtual int32_t onDeviceStopLocked() = 0;
+    // handle flush.
+    int32_t handleFlushLocked();
+    virtual int32_t onFlushLocked();
     // handle frame message internally.
     int32_t handleCaptureFrame();
 
@@ -154,6 +159,8 @@ protected:
     int32_t mDev;
     void *g2dHandle;
     uint32_t mAllocatedBuffers;
+    enum v4l2_memory mV4l2MemType;
+    enum v4l2_buf_type mV4l2BufType;
 };
 
 #endif

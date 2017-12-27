@@ -20,6 +20,7 @@ USPStream::USPStream(Camera* device)
     : MMAPStream(device), mIonFd(-1)
 {
     mIonFd = ion_open();
+    mV4l2MemType = V4L2_MEMORY_USERPTR;
 }
 
 USPStream::~USPStream()

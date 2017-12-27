@@ -26,6 +26,7 @@ MMAPStream::MMAPStream(Camera *device, bool mplane) : VideoStream(device) {
     // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
     // true, else set it as false.
     mPlane = mplane;
+    mV4l2MemType = V4L2_MEMORY_MMAP;
 }
 
 MMAPStream::~MMAPStream()

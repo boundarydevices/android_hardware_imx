@@ -19,6 +19,7 @@
 DMAStream::DMAStream(Camera* device)
     : USPStream(device), mStreamSize(0)
 {
+    mV4l2MemType = V4L2_MEMORY_DMABUF;
 }
 
 DMAStream::~DMAStream()
