@@ -44,7 +44,6 @@ int32_t DMAStream::onDeviceStartLocked()
     }
 
     //-------register buffers----------
-    struct v4l2_buffer buf;
     struct v4l2_requestbuffers req;
 
     memset(&req, 0, sizeof (req));
@@ -122,7 +121,6 @@ int32_t DMAStream::onFrameAcquireLocked()
         return -1;
     }
 
-    int32_t index = cfilledbuffer.index;
     ALOGV("acquire index:%d", cfilledbuffer.index);
     return cfilledbuffer.index;
 }

@@ -273,7 +273,7 @@ int32_t VideoStream::onFlushLocked() {
 
     ALOGI("%s, v4l2 memory type %d", __func__, mV4l2MemType);
     // refresh the v4l2 buffers
-    for (int i = 0; i < mNumBuffers; i++) {
+    for (uint32_t i = 0; i < mNumBuffers; i++) {
         struct v4l2_buffer cfilledbuffer;
 
         memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));

@@ -182,7 +182,6 @@ int32_t UvcDevice::UvcStream::onDeviceConfigureLocked()
 {
     ALOGI("%s", __func__);
 
-    int32_t ret = 0;
     if (mDev <= 0) {
         // usb camera should open dev node again.
         // because when stream off, the dev node must close.

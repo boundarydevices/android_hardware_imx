@@ -49,7 +49,7 @@ static void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight, 
     uint16_t *pYUV;
 
     if ((srcWidth > dstWidth) || (srcHeight > dstHeight)) {
-        ALOGW("%s, para error");
+        ALOGW("%s, para error", __func__);
         return;
     }
 
@@ -163,7 +163,7 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
         }
     }
     else {
-        ALOGI("create callback stream", __func__);
+        ALOGI("%s create callback stream", __func__);
         mCallback = true;
         mUsage = CAMERA_GRALLOC_USAGE;
         mNumBuffers = NUM_PREVIEW_BUFFER;
@@ -737,7 +737,7 @@ int32_t Stream::processBufferWithCPU(StreamBuffer &src)
 }
 
 int32_t Stream::processFrameBuffer(StreamBuffer& src,
-                                   sp<Metadata> meta)
+                                   sp<Metadata> meta __unused)
 {
     ALOGV("%s", __func__);
     sp<Stream>& device = src.mStream;

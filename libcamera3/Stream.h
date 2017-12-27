@@ -58,7 +58,7 @@ public:
     int32_t format() {return mFormat;}
     uint32_t bufferNum() {return mNumBuffers;}
     camera3_stream_t* stream() {return mStream;}
-    void setReuse(bool reuse) {mReuse = mReuse;}
+    void setReuse(bool reuse) {mReuse = reuse;}
     void setFps(uint32_t fps) {mFps = fps;}
     uint32_t fps() {return mFps;};
 

@@ -140,7 +140,7 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 }
 
 Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path)
-    : mId(id), mStaticInfo(NULL), mBusy(false), mCallbackOps(NULL), mStreams(NULL), mNumStreams(0), mTmpBuf(NULL), usemx6s(0)
+    : usemx6s(0), mId(id), mStaticInfo(NULL), mBusy(false), mCallbackOps(NULL), mStreams(NULL), mNumStreams(0), mTmpBuf(NULL)
 {
     ALOGI("%s:%d: new camera device", __func__, mId);
     android::Mutex::Autolock al(mDeviceLock);
@@ -304,7 +304,7 @@ int32_t Camera::configureStreams(camera3_stream_configuration_t *stream_config)
         return -EINVAL;
     }
 
-    for(int i = 0; i < stream_config->num_streams; i++) {
+    for(uint32_t i = 0; i < stream_config->num_streams; i++) {
       camera3_stream_t *stream = stream_config->streams[i];
       if(stream == NULL) {
         ALOGE("stream config %d null", i);
@@ -562,10 +562,6 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
     capture->init(request, callback, meta);
 
     return devStream->requestCapture(capture);
-
-err_out:
-    // TODO: this should probably be a total device failure; transient for now
-    return -EINVAL;
 }
 
 bool Camera::isValidReprocessSettings(const camera_metadata_t* /*settings*/)
@@ -841,7 +837,7 @@ int32_t Camera::setManualTemplate()
     return setTemplate(CAMERA3_TEMPLATE_MANUAL, base.get());
 }
 
-bool Camera::isValidCaptureSettings(const camera_metadata_t* settings)
+bool Camera::isValidCaptureSettings(const camera_metadata_t* settings __unused)
 {
     // TODO: reject settings that cannot be captured
     return true;

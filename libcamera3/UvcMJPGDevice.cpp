@@ -48,8 +48,6 @@ status_t UvcMJPGDevice::initSensorStaticData()
     memset(sensorFormats, 0, sizeof(sensorFormats));
     memset(availFormats, 0, sizeof(availFormats));
 
-    struct v4l2_fmtdesc vid_fmtdesc;
-
     sensorFormats[index++] = v4l2_fourcc('N', 'V', '1', '6');
 
     mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
@@ -150,7 +148,6 @@ int32_t UvcMJPGDevice::UvcStream::onDeviceConfigureLocked()
 {
     ALOGI("%s", __func__);
 
-    int32_t ret = 0;
     if (mDev <= 0) {
         // usb camera should open dev node again.
         // because when stream off, the dev node must close.

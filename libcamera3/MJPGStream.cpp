@@ -19,6 +19,7 @@
 unsigned char* VPUptr;
 int32_t mVPUBuffersIndex=0;
 
+#if 0
 static u8 g_hufTab[] = { \
     0xff, 0xc4, 0x00, 0x1f,
           0x00, 0x00, 0x01, 0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -48,6 +49,7 @@ static u8 g_hufTab[] = { \
           0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9,
           0xca, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
           0xe8, 0xe9, 0xea, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa };
+#endif
 
 #define MAX_SERCH_SIZE (u32)(64*1024)
 
@@ -64,6 +66,7 @@ typedef struct tagSecHead {
 #define ID_DHT  0xc4
 #define ID_SOS  0xda
 
+#if 0
 static int SearchHufTabPos(u8 *pSrc, u32 nSrcSize, bool *pbExist, u32 *pdwExptDHTPos) {
     u32 dwSearchSize = (MAX_SERCH_SIZE < nSrcSize) ? MAX_SERCH_SIZE : nSrcSize;
     TSecHead tSecHead;
@@ -139,7 +142,9 @@ static int SearchHufTabPos(u8 *pSrc, u32 nSrcSize, bool *pbExist, u32 *pdwExptDH
     return 0;
 
 }
+#endif
 
+#if 0
 static int CheckAndInsertHufTab(u8 *pDst, u8 *pSrc, u32 nDstSize, u32 nSrcSize) {
     bool bExist = 0;
     u32 dwExptDHTPos = 0;
@@ -170,6 +175,7 @@ static int CheckAndInsertHufTab(u8 *pDst, u8 *pSrc, u32 nDstSize, u32 nSrcSize) 
 
     return 0;
 }
+#endif
 
 MJPGStream::MJPGStream(Camera* device): DMAStream(device), mStreamSize(0)
 {
@@ -265,7 +271,6 @@ int32_t MJPGStream::onDeviceStartLocked()
     }
 
     //-------register buffers----------
-    struct v4l2_buffer buf;
     struct v4l2_requestbuffers req;
 
     memset(&req, 0, sizeof (req));
@@ -655,23 +660,20 @@ int MJPGStream::VPUExit()
         return 1;
     }
 
-
     return 0;
 }
 
-int MJPGStream::VPUDec(u8 *InVirAddr, u32 inLen, unsigned int nUVCBufIdx)
+int MJPGStream::VPUDec(u8 *InVirAddr, u32 inLen, unsigned int nUVCBufIdx __unused)
 {
 DecLogic:
     VpuDecRetCode ret;
     int bufRetCode = 0;
-    int err = 0;
 
     //DecContxt * decContxt;
     DecMemInfo pDecMemInfo;
 
     VpuBufferNode InData;
 
-    unsigned int outIdx = 0;
     unsigned int VPUIndex = 0;
 
     Mutex::Autolock lock(mVPULock);
@@ -734,13 +736,11 @@ DecLogic:
       return VPUIndex;
 }
 
-int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMemInfo*/, int*pOutFrmNum, unsigned char** rptr, int32_t* vpuindex)
+int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMemInfo*/, int*pOutFrmNum, unsigned char** rptr __unused, int32_t* vpuindex)
 {
     VpuDecRetCode ret;
     VpuFrameBuffer frameBuf[MAX_FRAME_NUM];
-    VpuMemDesc vpuMem;
     int requestedBufNum;
-    int i;
     int totalSize=0;
     int mvSize=0;
     int ySize=0;

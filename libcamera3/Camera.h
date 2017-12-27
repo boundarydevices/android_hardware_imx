@@ -64,7 +64,7 @@ public:
     // Is just copy data from v4l2 to gralloc buffer, image  distortion
     virtual int32_t getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t *pV4l2Width, uint32_t *pV4l2Height);
 
-    virtual int32_t allocTmpBuf(uint32_t size)
+    virtual int32_t allocTmpBuf(uint32_t /*size*/)
     {
         return 0;
     }

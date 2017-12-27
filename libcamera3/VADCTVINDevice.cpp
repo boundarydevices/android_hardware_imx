@@ -411,7 +411,6 @@ int32_t VADCTVINDevice::VADCTVinStream::onDeviceStartLocked()
     }
 
     mIonFd = ion_open();
-    int32_t cscbuffer = allocateFrameBuffersLocked();
 
     //-------register buffers----------
     struct v4l2_buffer buf;
@@ -528,7 +527,7 @@ int32_t VADCTVINDevice::VADCTVinStream::onFrameAcquireLocked()
     }
 
     // Do format convert and transfer converted data to stream.
-    int32_t rets = convertYUV444toNV12((u8 *)mV4L2Buffers[cfilledbuffer.index]->mVirtAddr, (u8 *)mBuffers[cfilledbuffer.index]->mVirtAddr, mWidth, mHeight);
+    convertYUV444toNV12((u8 *)mV4L2Buffers[cfilledbuffer.index]->mVirtAddr, (u8 *)mBuffers[cfilledbuffer.index]->mVirtAddr, mWidth, mHeight);
 
     return cfilledbuffer.index;
 }

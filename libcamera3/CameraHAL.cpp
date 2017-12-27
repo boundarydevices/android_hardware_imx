@@ -237,7 +237,6 @@ int32_t CameraHAL::handleThreadHotplug()
      */
     char uevent_desc[4096];
     memset(uevent_desc, 0, sizeof(uevent_desc));
-    int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
     if (strstr(uevent_desc, CAMERA_PLUG_EVENT) != NULL) {
         ALOGI("%s uevent %s", __func__, uevent_desc);
         if (strstr(uevent_desc, CAMERA_PLUG_ADD) != NULL) {
@@ -309,8 +308,6 @@ void CameraHAL::enumSensorSet()
 {
     // get property from init.rc mSets.
     char orientStr[CAMERA_SENSOR_LENGTH];
-    char *pCameraName = NULL;
-    int32_t ret = 0;
 
     ALOGI("%s", __func__);
     // get back camera property.
@@ -584,29 +581,29 @@ static int open_dev(const hw_module_t* mod, const char* name, hw_device_t** dev)
 }
 
 static hw_module_methods_t gCameraModuleMethods = {
-    open : open_dev
+    .open = open_dev
 };
 
 camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
-    common : {
-        tag                : HARDWARE_MODULE_TAG,
-        module_api_version : CAMERA_MODULE_API_VERSION_2_2,
-        hal_api_version    : HARDWARE_HAL_API_VERSION,
-        id                 : CAMERA_HARDWARE_MODULE_ID,
-        name               : "Default Camera HAL",
-        author             : "The Android Open Source Project",
-        methods            : &gCameraModuleMethods,
-        dso                : NULL,
-        reserved           : {0},
+    .common = {
+       .tag                = HARDWARE_MODULE_TAG,
+       .module_api_version = CAMERA_MODULE_API_VERSION_2_2,
+       .hal_api_version    = HARDWARE_HAL_API_VERSION,
+       .id                 = CAMERA_HARDWARE_MODULE_ID,
+       .name               = "Default Camera HAL",
+       .author             = "The Android Open Source Project",
+       .methods            = &gCameraModuleMethods,
+       .dso                = NULL,
+       .reserved           = {0},
     },
-    get_number_of_cameras : get_number_of_cameras,
-    get_camera_info       : get_camera_info,
-    set_callbacks         : set_callbacks,
-    get_vendor_tag_ops    : get_vendor_tag_ops,
-    open_legacy           : NULL,
-    set_torch_mode        : NULL,
-    init                  : NULL,
-    reserved              : {0},
+   .get_number_of_cameras = get_number_of_cameras,
+   .get_camera_info       = get_camera_info,
+   .set_callbacks         = set_callbacks,
+   .get_vendor_tag_ops    = get_vendor_tag_ops,
+   .open_legacy           = NULL,
+   .set_torch_mode        = NULL,
+   .init                  = NULL,
+   .reserved              = {0},
 };
 } // extern "C"
 
