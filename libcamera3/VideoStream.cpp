@@ -24,6 +24,7 @@ VideoStream::VideoStream(Camera* device)
       mAllocatedBuffers(0)
 {
     g2dHandle = NULL;
+    mV4l2MemType =  V4L2_MEMORY_MMAP;
     mMessageThread = new MessageThread(this);
 }
 
@@ -243,6 +244,57 @@ int32_t VideoStream::handleStopLocked(bool force)
     return ret;
 }
 
+int32_t VideoStream::flushDev()
+{
+    Mutex::Autolock lock(mLock);
+
+    if (mState != STATE_ERROR && mMessageThread->isRunning()) {
+       mMessageQueue.postMessage(new CMessage(MSG_FLUSH, 0), 1);
+    } else {
+        ALOGI("%s flushDev failed", __func__);
+        return -1;
+    }
+
+    return 0;
+}
+
+int32_t VideoStream::handleFlushLocked() {
+    if (mState != STATE_START) {
+        ALOGI("state:0x%x flushing can be done only in the start state", mState);
+        return 0;
+    }
+
+    onFlushLocked();
+    return 0;
+}
+
+int32_t VideoStream::onFlushLocked() {
+    int32_t ret = 0;
+
+    ALOGI("%s, v4l2 memory type %d", __func__, mV4l2MemType);
+    // refresh the v4l2 buffers
+    for (int i = 0; i < mNumBuffers; i++) {
+        struct v4l2_buffer cfilledbuffer;
+
+        memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));
+        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        cfilledbuffer.memory = mV4l2MemType;
+
+        ret = ioctl(mDev, VIDIOC_DQBUF, &cfilledbuffer);
+        if (ret < 0) {
+            ALOGE("%s: VIDIOC_DQBUF Failed: %s (%d)", __func__, strerror(errno), errno);
+            return BAD_VALUE;
+        }
+        ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
+        if (ret < 0) {
+            ALOGE("%s: VIDIOC_QBUF Failed: %s (%d)", __func__, strerror(errno), errno);
+            return BAD_VALUE;
+        }
+      }
+
+    return 0;
+}
+
 int32_t VideoStream::requestCapture(sp<CaptureRequest> req)
 {
     Mutex::Autolock lock(mLock);
@@ -447,6 +499,14 @@ int32_t VideoStream::handleMessage()
             }
 
             ret = -1;
+        }
+        break;
+
+        case MSG_FLUSH: {
+            Mutex::Autolock lock(mLock);
+            if (mState == STATE_START) {
+                handleFlushLocked();
+            }
         }
         break;
 

@@ -19,6 +19,7 @@
 MMAPStream::MMAPStream(Camera* device)
     : VideoStream(device)
 {
+    mV4l2MemType = V4L2_MEMORY_MMAP;
 }
 
 MMAPStream::~MMAPStream()

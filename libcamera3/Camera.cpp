@@ -247,6 +247,21 @@ int32_t Camera::closeDev()
     return 0;
 }
 
+int32_t Camera::flushDev()
+{
+    ALOGI("%s:%d: Flushing camera device", __func__, mId);
+    android::Mutex::Autolock al(mDeviceLock);
+
+    if (!mBusy) {
+      ALOGE("%s:%d: Error! Camera device not opened yet", __func__, mId);
+      return -EINVAL;
+    }
+
+    // flush camera dev nodes.
+    return mVideoStream->flushDev();
+}
+
+
 int32_t Camera::initializeDev(const camera3_callback_ops_t *callback_ops)
 {
     int32_t res;
@@ -574,7 +589,7 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
     if (entry.count > 0) {
         // ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_START
         m3aState.aeState = ANDROID_CONTROL_AE_STATE_CONVERGED;
-        ALOGI("ae precature trigger");
+        ALOGV("ae precature trigger");
     }
     else {
         m3aState.aeState = ANDROID_CONTROL_AE_STATE_INACTIVE;
@@ -887,10 +902,9 @@ static void dump(const camera3_device_t *dev, int32_t fd)
     camdev_to_camera(dev)->dumpDev(fd);
 }
 
-static int32_t flush(const camera3_device_t*)
+static int32_t flush(const camera3_device_t *dev)
 {
-    ALOGE("%s: unimplemented.", __func__);
-    return -1;
+    return camdev_to_camera(dev)->flushDev();
 }
 
 } // extern "C"

@@ -47,6 +47,7 @@ public:
     int32_t openDev(const hw_module_t *module, hw_device_t **device);
     int32_t getInfo(struct camera_info *info);
     int32_t closeDev();
+    int32_t flushDev();
     virtual bool isHotplug() {return false;}
 
     // Camera v3 Device Operations (see <hardware/camera3.h>)
