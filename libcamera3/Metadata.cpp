@@ -699,10 +699,13 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     base.addUInt8(ANDROID_EDGE_STRENGTH, 1, &edgeStrength);
 
     /** android.scaler */
-    int32_t cropRegion[3] = {
-        0, 0, /*mSensorInfo->mMaxWidth*/
+    int32_t cropRegion[4] = {
+	     0, 0, 0, 0
     };
-    base.addInt32(ANDROID_SCALER_CROP_REGION, 3, cropRegion);
+    base.addInt32(ANDROID_SCALER_CROP_REGION, 4, cropRegion);
+
+    static const int32_t testPatternMode = ANDROID_SENSOR_TEST_PATTERN_MODE_OFF;
+    base.addInt32(ANDROID_SENSOR_TEST_PATTERN_MODE, 1, &testPatternMode);
 
     /** android.jpeg */
     //4.3 framework change quality type from i32 to u8
@@ -779,10 +782,6 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     static const uint8_t sceneMode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
     base.addUInt8(ANDROID_CONTROL_SCENE_MODE, 1, &sceneMode);
 
-    int32_t controlRegions[5] = {
-        0, 0, 0, 0, 0};
-    base.addInt32(ANDROID_CONTROL_AE_REGIONS, 5, controlRegions);
-
     static const int32_t aeExpCompensation = 0;
     base.addInt32(ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION, 1, &aeExpCompensation);
 
@@ -794,8 +793,6 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     static const uint8_t aeAntibandingMode =
             ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
     base.addUInt8(ANDROID_CONTROL_AE_ANTIBANDING_MODE, 1, &aeAntibandingMode);
-
-    base.addInt32(ANDROID_CONTROL_AWB_REGIONS, 5, controlRegions);
 
     uint8_t afMode = 0;
     switch (request_template) {
@@ -831,8 +828,6 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
     base.addUInt8(ANDROID_CONTROL_AE_MODE, 1, &aeMode);
     base.addUInt8(ANDROID_CONTROL_AWB_MODE, 1, &awbMode);
     base.addUInt8(ANDROID_STATISTICS_FACE_DETECT_MODE, 1, &faceDetectMode);
-
-    base.addInt32(ANDROID_CONTROL_AF_REGIONS, 5, controlRegions);
 
     static const uint8_t aePrecaptureTrigger = ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_IDLE;
     base.addUInt8(ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER, 1, &aePrecaptureTrigger);
