@@ -17,6 +17,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#undef LOG_TAG
+#define LOG_TAG "FslCameraHAL"
 #include <cutils/log.h>
 #include "TinyExif.h"
 
@@ -52,13 +55,13 @@ typedef struct st_IFDGroup {
     uint32_t grpSize;
     uint32_t exifOffsetIdx;       // idx for TAG_EXIF_OFFSET in g_TiffGroup.eleArray
     uint32_t gpsOffsetIdx;        // idx for TAG_GPS_OFFSET in g_TiffGroup.eleArray
-    uint32_t thumbnailOffsetIdx;  // idx for TAG_THUMBNAIL_OFFSET in
-                                  // g_TiffGroup.eleArray
+    uint32_t nextIFDOffset;       // offset of next IFD, now just used in g_TiffGroup to poit 1st IFD offset
 } IFDGroup;
 
 static IFDGroup g_TiffGroup;
 static IFDGroup g_ExifGroup;
 static IFDGroup g_GpsGroup;
+static IFDGroup g_TiffGroup_1st;
 static uint32_t g_thumbNailOffset;
 static uint32_t g_mainJpgOffset;
 uint32_t tag_length;
@@ -328,6 +331,9 @@ static uint32_t CalcGroupSize(IFDGroup* pIFDGrp)
     if (pIFDGrp == NULL)
         return -1;
 
+    if(pIFDGrp->eleNum == 0)
+        goto finished;
+
     // 2 bytes of ele number
     // 4 bytes of next IFD offset
     fixedSize = 2 + IFDELE_SIZE * pIFDGrp->eleNum + 4;
@@ -335,6 +341,7 @@ static uint32_t CalcGroupSize(IFDGroup* pIFDGrp)
     for (i = 0; i < pIFDGrp->eleNum; i++) {
         pIFDEle = &pIFDGrp->eleArray[i];
         type = GetTypeFromTag(pIFDEle->tag);
+
         if (TYPE_ASCII == type) {
             if (strlen(pIFDEle->strVal) < 4) {
                 ALOGI("the length of pIFDEle->strVal less than 4 bytes");
@@ -354,6 +361,7 @@ static uint32_t CalcGroupSize(IFDGroup* pIFDGrp)
         }
     }
 
+finished:
     pIFDGrp->fixedSize = fixedSize;
     pIFDGrp->variedSize = variedSize;
     pIFDGrp->grpSize = fixedSize + variedSize;
@@ -385,6 +393,7 @@ static int ScanIFD(IFDEle* pIFDEle,
     memset(&g_TiffGroup, 0, sizeof(g_TiffGroup));
     memset(&g_ExifGroup, 0, sizeof(g_ExifGroup));
     memset(&g_GpsGroup, 0, sizeof(g_GpsGroup));
+    memset(&g_TiffGroup_1st, 0, sizeof(g_TiffGroup_1st));
 
     for (i = 0; i < eleNum; i++) {
         if (IsTiffTags(pIFDEle[i].tag)) {
@@ -420,19 +429,6 @@ static int ScanIFD(IFDEle* pIFDEle,
         }
     }
 
-    // Add thumbnail tag in Tiff Group
-    if (thumbSize > 0) {
-        BOUND_CHECK(g_TiffGroup.eleNum, MAX_ELE_NUM);
-        g_TiffGroup.eleArray[g_TiffGroup.eleNum].tag = TAG_THUMBNAIL_OFFSET;
-        g_TiffGroup.thumbnailOffsetIdx = g_TiffGroup.eleNum;
-        g_TiffGroup.eleNum++;
-
-        BOUND_CHECK(g_TiffGroup.eleNum, MAX_ELE_NUM);
-        g_TiffGroup.eleArray[g_TiffGroup.eleNum].tag = TAG_THUMBNAIL_LENGTH;
-        g_TiffGroup.eleArray[g_TiffGroup.eleNum].val1 = thumbSize;
-        g_TiffGroup.eleNum++;
-    }
-
     CalcGroupSize(&g_TiffGroup);
     CalcGroupSize(&g_ExifGroup);
     CalcGroupSize(&g_GpsGroup);
@@ -443,17 +439,33 @@ static int ScanIFD(IFDEle* pIFDEle,
     g_TiffGroup.eleArray[g_TiffGroup.exifOffsetIdx].val1 =
         ARRAYSIZE(IFDHead) + g_TiffGroup.grpSize + g_GpsGroup.grpSize;
 
-    if (thumbSize > 0)
-        g_TiffGroup.eleArray[g_TiffGroup.thumbnailOffsetIdx].val1 =
-            ARRAYSIZE(IFDHead) + g_TiffGroup.grpSize + g_ExifGroup.grpSize + g_GpsGroup.grpSize;
+    if(thumbSize > 0) {
+        g_TiffGroup.nextIFDOffset =
+            ARRAYSIZE(IFDHead) + g_TiffGroup.grpSize + g_GpsGroup.grpSize + g_ExifGroup.grpSize;
 
-    g_thumbNailOffset = totalHeadSize + g_TiffGroup.grpSize + g_ExifGroup.grpSize + g_GpsGroup.grpSize;
+        BOUND_CHECK(g_TiffGroup_1st.eleNum, MAX_ELE_NUM);
+        g_TiffGroup_1st.eleArray[g_TiffGroup_1st.eleNum].tag = TAG_THUMBNAIL_OFFSET;
+        g_TiffGroup_1st.eleNum++;
+
+        BOUND_CHECK(g_TiffGroup_1st.eleNum, MAX_ELE_NUM);
+        g_TiffGroup_1st.eleArray[g_TiffGroup_1st.eleNum].tag = TAG_THUMBNAIL_LENGTH;
+        g_TiffGroup_1st.eleArray[g_TiffGroup_1st.eleNum].val1 = thumbSize;
+        g_TiffGroup_1st.eleNum++;
+
+        CalcGroupSize(&g_TiffGroup_1st);
+        g_TiffGroup_1st.eleArray[0].val1 =
+           ARRAYSIZE(IFDHead) + g_TiffGroup.grpSize + g_GpsGroup.grpSize + g_ExifGroup.grpSize + g_TiffGroup_1st.grpSize;
+    }
+
+
+    g_thumbNailOffset = totalHeadSize + g_TiffGroup.grpSize + g_GpsGroup.grpSize + g_ExifGroup.grpSize + g_TiffGroup_1st.grpSize;
     g_mainJpgOffset = g_thumbNailOffset + thumbSize;
     requestSize = g_mainJpgOffset + mainSize;
 
     if (pRequestSize)
         *pRequestSize = requestSize;
 
+    // calulate fixed (IFDs, each 12 bytes) and varied (such as string, ratio data) area offset for each group
     g_TiffGroup.fixedLenIdx = IFDGROUP_OFFSET;
     g_TiffGroup.variedLenIdx = g_TiffGroup.fixedLenIdx + g_TiffGroup.fixedSize;
 
@@ -463,12 +475,15 @@ static int ScanIFD(IFDEle* pIFDEle,
     g_ExifGroup.fixedLenIdx = IFDGROUP_OFFSET + g_TiffGroup.grpSize + g_GpsGroup.grpSize;
     g_ExifGroup.variedLenIdx = g_ExifGroup.fixedLenIdx + g_ExifGroup.fixedSize;
 
-    ALOGV("requestSize %d, thumb offset 0x%x, main offset 0x%x",
+    g_TiffGroup_1st.fixedLenIdx = IFDGROUP_OFFSET + g_TiffGroup.grpSize + g_GpsGroup.grpSize + g_ExifGroup.grpSize;
+    g_TiffGroup_1st.variedLenIdx = g_TiffGroup_1st.fixedLenIdx + g_TiffGroup_1st.fixedSize;
+
+    ALOGI("requestSize %d, thumb offset 0x%x, main offset 0x%x",
           requestSize,
           g_thumbNailOffset,
           g_mainJpgOffset);
 
-    ALOGV(
+    ALOGI(
         "TiffGrp elenum %d, fixedSzie %d, Size %d, fixedLenIdx 0x%x, "
         "variedLenIdx 0x%x",
         g_TiffGroup.eleNum,
@@ -477,15 +492,7 @@ static int ScanIFD(IFDEle* pIFDEle,
         g_TiffGroup.fixedLenIdx,
         g_TiffGroup.variedLenIdx);
 
-    ALOGV(
-        "ExifGroup elenum %d, fixedSzie %d, Size %d, fixedLenIdx 0x%x, "
-        "variedLenIdx 0x%x",
-        g_ExifGroup.eleNum,
-        g_ExifGroup.fixedSize,
-        g_ExifGroup.grpSize,
-        g_ExifGroup.fixedLenIdx,
-        g_ExifGroup.variedLenIdx);
-    ALOGV(
+    ALOGI(
         "GpsGroup elenum %d, fixedSzie %d, Size %d, fixedLenIdx 0x%x, "
         "variedLenIdx 0x%x",
         g_GpsGroup.eleNum,
@@ -493,6 +500,24 @@ static int ScanIFD(IFDEle* pIFDEle,
         g_GpsGroup.grpSize,
         g_GpsGroup.fixedLenIdx,
         g_GpsGroup.variedLenIdx);
+
+    ALOGI(
+        "ExifGroup elenum %d, fixedSzie %d, Size %d, fixedLenIdx 0x%x, "
+        "variedLenIdx 0x%x",
+        g_ExifGroup.eleNum,
+        g_ExifGroup.fixedSize,
+        g_ExifGroup.grpSize,
+        g_ExifGroup.fixedLenIdx,
+        g_ExifGroup.variedLenIdx);
+
+    ALOGI(
+        "TiffGrp_1st elenum %d, fixedSzie %d, Size %d, fixedLenIdx 0x%x, "
+        "variedLenIdx 0x%x",
+        g_TiffGroup_1st.eleNum,
+        g_TiffGroup_1st.fixedSize,
+        g_TiffGroup_1st.grpSize,
+        g_TiffGroup_1st.fixedLenIdx,
+        g_TiffGroup_1st.variedLenIdx);
 
     return 0;
 }
@@ -506,7 +531,7 @@ static int InsertGrp(IFDGroup* pGrp, uint8_t* pDst)
         return -1;
 
     if ((pGrp->eleNum) == 0)
-	 return 0;
+        return 0;
 
     // write IFD element number
     *(uint16_t*)(pDst + pGrp->fixedLenIdx) = (uint16_t)pGrp->eleNum;
@@ -520,7 +545,7 @@ static int InsertGrp(IFDGroup* pGrp, uint8_t* pDst)
     }
 
     // next IFD offset, 4 bytes
-    *(uint32_t*)(pDst + pGrp->fixedLenIdx) = 0;
+    *(uint32_t*)(pDst + pGrp->fixedLenIdx) = pGrp->nextIFDOffset;
     pGrp->fixedLenIdx += 4;
 
     return 0;
@@ -596,6 +621,13 @@ int InsertEXIFAndThumbnail(IFDEle* pIFDEle,
         ALOGE("%s, InsertGrp g_ExifGroup failed, ret %d", __func__, ret);
         return ret;
     }
+
+    ret = InsertGrp(&g_TiffGroup_1st, pDst);
+    if (ret) {
+        ALOGE("%s, InsertGrp g_TiffGroup_1st failed, ret %d", __func__, ret);
+        return ret;
+    }
+
 
     ALOGV("should equal, g_ExifGroup.variedLenIdx %d, g_thumbNailOffset %d",
           g_ExifGroup.variedLenIdx,
