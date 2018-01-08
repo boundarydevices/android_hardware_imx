@@ -282,21 +282,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
         return BAD_VALUE;
     }
 
-    sp<MemoryHeapBase> rawFrame(
-                    new MemoryHeapBase(src.mSize, 0, "rawFrame"));
-    rawBuf = rawFrame->getBase();
-    if (rawBuf == MAP_FAILED) {
-        ALOGE("%s new MemoryHeapBase failed", __FUNCTION__);
-        return BAD_VALUE;
-    }
-
-    sp<MemoryHeapBase> thumbFrame(
-                new MemoryHeapBase(src.mSize, 0, "thumbFrame"));
-    thumbBuf = thumbFrame->getBase();
-    if (thumbBuf == MAP_FAILED) {
-        ALOGE("%s new MemoryHeapBase failed", __FUNCTION__);
-        return BAD_VALUE;
-    }
+    sp<Stream>& capture = dstBuf->mStream;
 
     ret = meta->getJpegQuality(encodeQuality);
     if (ret != NO_ERROR) {
@@ -318,49 +304,68 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
         thumbQuality = 100;
     }
 
-    int bufSize = 0;
+    int captureSize = 0;
     int alignedw, alignedh, c_stride;
     switch (srcStream->format()) {
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
-            alignedw = ALIGN_PIXEL_32(srcStream->mWidth);
-            alignedh = ALIGN_PIXEL_4(srcStream->mHeight);
+            alignedw = ALIGN_PIXEL_32(capture->mWidth);
+            alignedh = ALIGN_PIXEL_4(capture->mHeight);
             c_stride = (alignedw/2+15)/16*16;
-            bufSize = alignedw * alignedh + c_stride * alignedh;
+            captureSize = alignedw * alignedh + c_stride * alignedh;
             break;
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            alignedw = ALIGN_PIXEL_16(srcStream->mWidth);
-            alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
-            bufSize = alignedw * alignedh * 3 / 2;
+            alignedw = ALIGN_PIXEL_16(capture->mWidth);
+            alignedh = ALIGN_PIXEL_16(capture->mHeight);
+            captureSize = alignedw * alignedh * 3 / 2;
             break;
 
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
-            alignedw = ALIGN_PIXEL_16(srcStream->mWidth);
-            alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
-            bufSize = alignedw * alignedh * 2;
+            alignedw = ALIGN_PIXEL_16(capture->mWidth);
+            alignedh = ALIGN_PIXEL_16(capture->mHeight);
+            captureSize = alignedw * alignedh * 2;
             break;
         case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-            alignedw = ALIGN_PIXEL_16(srcStream->mWidth);
-            alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
-            bufSize = alignedw * alignedh * 2;
+            alignedw = ALIGN_PIXEL_16(capture->mWidth);
+            alignedh = ALIGN_PIXEL_16(capture->mHeight);
+            captureSize = alignedw * alignedh * 2;
             break;
         case HAL_PIXEL_FORMAT_YCbCr_444_888:
-            alignedw = ALIGN_PIXEL_16(srcStream->mWidth);
-            alignedh = ALIGN_PIXEL_16(srcStream->mHeight);
-            bufSize = alignedw * alignedh * 3;
+            alignedw = ALIGN_PIXEL_16(capture->mWidth);
+            alignedh = ALIGN_PIXEL_16(capture->mHeight);
+            captureSize = alignedw * alignedh * 3;
             break;
 
         default:
             ALOGE("Error: %s format not supported", __FUNCTION__);
-            goto err_out;
+    }
+
+    sp<MemoryHeapBase> rawFrame(
+        new MemoryHeapBase(captureSize, 0, "rawFrame"));
+    rawBuf = rawFrame->getBase();
+    if (rawBuf == MAP_FAILED) {
+        ALOGE("%s new MemoryHeapBase failed", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    sp<MemoryHeapBase> thumbFrame(
+        new MemoryHeapBase(captureSize, 0, "thumbFrame"));
+    thumbBuf = thumbFrame->getBase();
+    if (thumbBuf == MAP_FAILED) {
+        ALOGE("%s new MemoryHeapBase failed", __FUNCTION__);
+        return BAD_VALUE;
     }
 
     mainJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
-                       (uint8_t *)(uintptr_t)src.mPhyAddr,
-                       src.mSize, (uint8_t *)rawBuf,
-                       src.mSize, encodeQuality,
-                       srcStream->mWidth, srcStream->mHeight,
-                       srcStream->mWidth, srcStream->mHeight,
-                       srcStream->format());
+                              (uint8_t *)(uintptr_t)src.mPhyAddr,
+                              src.mSize,
+                              (uint8_t *)rawBuf,
+                              captureSize,
+                              encodeQuality,
+                              srcStream->mWidth,
+                              srcStream->mHeight,
+                              capture->mWidth,
+                              capture->mHeight,
+                              srcStream->format());
 
     ret = meta->getJpegThumbSize(thumbWidth, thumbHeight);
     if (ret != NO_ERROR) {
@@ -369,7 +374,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     }
 
     if ((thumbWidth > 0) && (thumbHeight > 0)) {
-        int thumbSize = bufSize;
+        int thumbSize = captureSize;
         thumbJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
                            (uint8_t *)(uintptr_t)src.mPhyAddr,
                            src.mSize,
