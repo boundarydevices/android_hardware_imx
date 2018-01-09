@@ -209,7 +209,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
             android_control_max_regions);
 
     /* android.jpeg */
-    int32_t android_jpeg_available_thumbnail_sizes[] = {96, 96, 160, 120, 0, 0};
+    int32_t android_jpeg_available_thumbnail_sizes[] = {0, 0, 96, 96, 160, 120};
     m.addInt32(ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
             ARRAY_SIZE(android_jpeg_available_thumbnail_sizes),
             android_jpeg_available_thumbnail_sizes);
