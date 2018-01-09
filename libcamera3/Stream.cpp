@@ -529,6 +529,15 @@ int32_t Stream::processBufferWithIPU(StreamBuffer& src)
     mTask.output.rotate = 0;
     mTask.output.paddr = out->mPhyAddr;
 
+    // If after convert, src/dst has same format and resolution, then process with GPU.
+    // For exmaple, HAL_PIXEL_FORMAT_YCBCR_420_888, HAL_PIXEL_FORMAT_YCbCr_420_SP
+    // both convert to v4l2_fourcc('N', 'V', '1', '2').
+    if( (mTask.output.format == mTask.input.format) &&
+        (mTask.output.width == mTask.input.width) &&
+        (mTask.output.height == mTask.input.height) ) {
+        return processBufferWithGPU(src);
+    }
+
     int32_t ret = IPU_CHECK_ERR_INPUT_CROP;
     while(ret != IPU_CHECK_OK && ret > IPU_CHECK_ERR_MIN) {
         ret = ioctl(mIpuFd, IPU_CHECK_TASK, &mTask);
