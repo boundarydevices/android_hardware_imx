@@ -517,7 +517,7 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
     }
 
     // set preview/still capture stream.
-    sp<Stream> preview = NULL, stillcap = NULL;
+    sp<Stream> preview = NULL, stillcap = NULL, callbackStream = NULL;
     sp<Metadata> meta = NULL;
     sp<VideoStream> devStream = NULL;
     camera3_callback_ops* callback = NULL;
@@ -532,6 +532,14 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
             if (stream->isJpeg()) {
                 stillcap = stream;
             }
+            if (stream->isCallback()) {
+                callbackStream = stream;
+            }
+        }
+
+        if ((preview == NULL) && (stillcap == NULL) && (callbackStream == NULL)) {
+            ALOGI("%s: preview, stillcap and callback stream all are NULL", __func__);
+            return -EINVAL;
         }
 
         camera_metadata_entry_t streams = mSettings->find(
@@ -556,16 +564,26 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
         if (meta->getRequestType() == TYPE_STILLCAP) {
             if (stillcap == NULL) {
                 ALOGE("still capture intent but without jpeg stream");
-                stillcap = preview;
+                if (preview != NULL) {
+                    stillcap = preview;
+                } else if (callbackStream != NULL) {
+                    stillcap = callbackStream;
+                }
             }
-            stillcap->setFps(fps);
-            devStream->configure(stillcap);
-        }
-        else {
+            if (stillcap != NULL) {
+                stillcap->setFps(fps);
+                devStream->configure(stillcap);
+            }
+        } else if (preview != NULL) {
             if (meta->getRequestType() != TYPE_SNAPSHOT) {
                 preview->setFps(fps);
             }
             devStream->configure(preview);
+        } else if (callbackStream != NULL) {
+            callbackStream->setFps(fps);
+            devStream->configure(callbackStream);
+        } else {
+            ALOGI("%s: RequestType = %d, but preview and callback stream is null", __func__, meta->getRequestType());
         }
     }
 

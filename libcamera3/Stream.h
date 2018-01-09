@@ -53,6 +53,7 @@ public:
     virtual void* getG2dHandle() {return NULL;}
     bool isPreview() {return mPreview;}
     bool isJpeg() {return mJpeg;}
+    bool isCallback() {return mCallback;}
     uint32_t width() {return mWidth;}
     uint32_t height() {return mHeight;}
     int32_t format() {return mFormat;}
