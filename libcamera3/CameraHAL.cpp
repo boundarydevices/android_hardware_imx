@@ -237,6 +237,7 @@ int32_t CameraHAL::handleThreadHotplug()
      */
     char uevent_desc[4096];
     memset(uevent_desc, 0, sizeof(uevent_desc));
+    uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
     if (strstr(uevent_desc, CAMERA_PLUG_EVENT) != NULL) {
         ALOGI("%s uevent %s", __func__, uevent_desc);
         if (strstr(uevent_desc, CAMERA_PLUG_ADD) != NULL) {
