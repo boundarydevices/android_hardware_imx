@@ -26,8 +26,6 @@
 
 using namespace fsl;
 
-#define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
-#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
 struct private_module_t {
     hw_module_t base;
 };
@@ -75,6 +73,9 @@ int convertAndroidFormat(int format)
             break;
         case HAL_PIXEL_FORMAT_BLOB:
             fslFormat = FORMAT_BLOB;
+            break;
+        case HAL_PIXEL_FORMAT_NV12_TILED:
+            fslFormat = FORMAT_NV12_TILED;
             break;
         default:
             ALOGE("%s invalid format:0x%x", __func__, format);
@@ -355,6 +356,9 @@ static int gralloc_allocate(gralloc1_device_t* device,
             desc->mFslFormat = FORMAT_YUYV;
             desc->mWidth = desc->mWidth / 32;
             desc->mHeight = desc->mHeight * 16;
+        }
+        if (desc->mFslFormat == FORMAT_NV12_TILED) {
+            desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
         }
 
         desc->checkFormat();

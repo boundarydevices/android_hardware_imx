@@ -10,6 +10,7 @@ enum {
     HAL_PIXEL_FORMAT_YCbCr_420_P        = 0x101,
     HAL_PIXEL_FORMAT_CbYCrY_422_I       = 0x102,
     HAL_PIXEL_FORMAT_YCbCr_420_SP       = 0x103,
+    HAL_PIXEL_FORMAT_NV12_TILED         = 0x104,
 };
 
 #endif

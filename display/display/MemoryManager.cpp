@@ -84,8 +84,8 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     else if (mGPUAlloc == NULL) {
         canHandle = false;
     }
-    else if (((format == FORMAT_NV12) || (format == FORMAT_NV21)) &&
-         (usage & USAGE_PADDING_BUFFER)) {
+    else if ((((format == FORMAT_NV12) || (format == FORMAT_NV21)) &&
+        (usage & USAGE_PADDING_BUFFER)) || format == FORMAT_NV12_TILED) {
         canHandle = false;
     }
 
@@ -97,7 +97,7 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
     Memory *handle = NULL;
     int ret = 0;
 
-    if (isDrmAlloc(desc.mFlag, desc.mFormat, desc.mProduceUsage)) {
+    if (isDrmAlloc(desc.mFlag, desc.mFslFormat, desc.mProduceUsage)) {
         ret = mGPUAlloc->alloc(mGPUAlloc, desc.mWidth, desc.mHeight,
                 desc.mFormat, (int)desc.mProduceUsage,
                 (buffer_handle_t *)&handle, &desc.mStride);
@@ -128,7 +128,7 @@ int MemoryManager::retainMemory(Memory* handle)
         return -EINVAL;
     }
 
-    if (isDrmAlloc(handle->flags, handle->format, handle->usage)) {
+    if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         return mGPUModule->registerBuffer(mGPUModule, handle);
     }
 
@@ -144,7 +144,7 @@ int MemoryManager::releaseMemory(Memory* handle)
         return -EINVAL;
     }
 
-    if (isDrmAlloc(handle->flags, handle->format, handle->usage)) {
+    if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         return mGPUAlloc->free(mGPUAlloc, handle);
     }
 
@@ -181,7 +181,7 @@ int MemoryManager::lock(Memory* handle, int usage,
         return -EINVAL;
     }
 
-    if (isDrmAlloc(handle->flags, handle->format, handle->usage)) {
+    if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         return mGPUModule->lock(mGPUModule, handle, usage,
                     l, t, w, h, vaddr);
     }
@@ -198,7 +198,7 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
         return -EINVAL;
     }
 
-    if (isDrmAlloc(handle->flags, handle->format, handle->usage)) {
+    if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         return mGPUModule->lock_ycbcr(mGPUModule, handle, usage,
                     l, t, w, h, ycbcr);
     }
@@ -261,7 +261,7 @@ int MemoryManager::unlock(Memory* handle)
         return -EINVAL;
     }
 
-    if (isDrmAlloc(handle->flags, handle->format, handle->usage)) {
+    if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         return mGPUModule->unlock(mGPUModule, handle);
     }
 

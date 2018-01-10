@@ -163,6 +163,8 @@ protected:
     drmModeAtomicReqPtr mPset;
     Layer* mOverlay;
     MemoryManager* mMemoryManager;
+    bool mNoResolve;
+    bool mAllowModifier;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);

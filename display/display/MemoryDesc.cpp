@@ -21,11 +21,6 @@
 
 namespace fsl {
 
-#define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
-#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
-#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
-#define  ALIGN_PIXEL_64(x)  ((x+ 63) & ~63)
-
 MemoryDesc::MemoryDesc()
    : mMagic(sMagic), mFlag(0), mWidth(0),
      mHeight(0), mFormat(0), mFslFormat(0), mStride(0),
@@ -109,6 +104,12 @@ int MemoryDesc::checkFormat()
             alignedw = ALIGN_PIXEL_16(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 2;
+            break;
+
+        case FORMAT_NV12_TILED:
+            alignedw = ALIGN_PIXEL_256(mWidth);
+            alignedh = ALIGN_PIXEL_256(mHeight);
+            size = alignedw * alignedh * 3 / 2;
             break;
 
         default:

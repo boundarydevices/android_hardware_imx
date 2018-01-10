@@ -33,6 +33,11 @@
 
 namespace fsl {
 
+#define DRM_FORMAT_MOD_VENDOR_VIVANTE 0x06
+#define DRM_FORMAT_MOD_VENDOR_AMPHION  0x08
+#define DRM_FORMAT_MOD_VIVANTE_SUPER_TILED  fourcc_mod_code(VIVANTE, 2)
+#define DRM_FORMAT_MOD_AMPHION_TILED fourcc_mod_code(AMPHION, 1)
+
 KmsDisplay::KmsDisplay()
 {
     mDrmFd = -1;
@@ -46,6 +51,8 @@ KmsDisplay::KmsDisplay()
     memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
     mPset = NULL;
     mOverlay = NULL;
+    mNoResolve = false;
+    mAllowModifier = false;
 }
 
 KmsDisplay::~KmsDisplay()
@@ -369,13 +376,15 @@ bool KmsDisplay::checkOverlay(Layer* layer)
         return false;
     }
 
-    // overlay only needs on imx8mq.
-    if (!(memory->usage & USAGE_PADDING_BUFFER)) {
+    // overlay only needs on imx8mq and supertiled format.
+    if (!(memory->usage & USAGE_PADDING_BUFFER) &&
+        memory->fslFormat != FORMAT_NV12_TILED) {
         return false;
     }
 
     // work around to GPU composite if video < 720x576.
-    if (memory->width <= 720 || memory->height <= 576) {
+    if ((memory->width <= 720 || memory->height <= 576) &&
+        memory->fslFormat != FORMAT_NV12_TILED) {
         ALOGV("work around to GPU composite");
         return false;
     }
@@ -413,7 +422,12 @@ int KmsDisplay::performOverlay()
         uint32_t bo_handles[4] = {0};
         uint32_t pitches[4] = {0};
         uint32_t offsets[4] = {0};
+        uint64_t modifiers[4] = {0};
 
+        if (buffer->fslFormat == FORMAT_NV12_TILED) {
+            modifiers[0] = DRM_FORMAT_MOD_AMPHION_TILED;
+            modifiers[1] = DRM_FORMAT_MOD_AMPHION_TILED;
+        }
         pitches[0] = stride;
         pitches[1] = stride;
         offsets[0] = 0;
@@ -421,8 +435,15 @@ int KmsDisplay::performOverlay()
         drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
         bo_handles[0] = buffer->fbHandle;
         bo_handles[1] = buffer->fbHandle;
-        drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
+        if (buffer->fslFormat == FORMAT_NV12_TILED) {
+            drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height,
+                format, bo_handles, pitches, offsets, modifiers,
+                (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
+        }
+        else {
+            drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
                     bo_handles, pitches, offsets, (uint32_t*)&buffer->fbId, 0);
+        }
         buffer->kmsFd = mDrmFd;
     }
 
@@ -434,16 +455,25 @@ int KmsDisplay::performOverlay()
 
     mKmsPlanes[mKmsPlaneNum - 1].connectCrtc(mPset, mCrtcID, buffer->fbId);
 
-    Rect *rect = &layer->sourceCrop;
-    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, rect->left, rect->top,
-                    rect->right - rect->left, rect->bottom - rect->top);
-
-    rect = &layer->displayFrame;
+    Rect *rect = &layer->displayFrame;
     int x = rect->left * mMode.hdisplay / config.mXres;
     int y = rect->top * mMode.vdisplay / config.mYres;
     int w = (rect->right - rect->left) * mMode.hdisplay / config.mXres;
     int h = (rect->bottom - rect->top) * mMode.hdisplay / config.mXres;
+#ifdef WORKAROUND_DOWNSCALE_LIMITATION
+    mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w), ALIGN_PIXEL_2(h));
+#else
     mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, w, h);
+#endif
+
+    rect = &layer->sourceCrop;
+#ifdef WORKAROUND_DOWNSCALE_LIMITATION
+    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, 0, 0,
+                    ALIGN_PIXEL_2(w), ALIGN_PIXEL_2(h));
+#else
+    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, rect->left, rect->top,
+                    rect->right - rect->left, rect->bottom - rect->top);
+#endif
 
     mOverlay = NULL;
 
@@ -487,12 +517,34 @@ int KmsDisplay::updateScreen()
         uint32_t bo_handles[4] = {0};
         uint32_t pitches[4] = {0};
         uint32_t offsets[4] = {0};
+        uint64_t modifiers[4] = {0};
+
+#ifdef ENABLE_FRAMEBUFFER_TILE
+        mNoResolve = mAllowModifier && (buffer->usage &
+                (USAGE_GPU_TILED_VIV | USAGE_GPU_TS_VIV));
+#endif
+        if (mNoResolve) {
+            modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED;
+        }
 
         pitches[0] = stride;
         drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
         bo_handles[0] = buffer->fbHandle;
-        drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
+        if (mNoResolve) {
+            /* workaround GPU SUPER_TILED R/B swap issue, for no-resolve and tiled output
+              GPU not distinguish A8B8G8R8 and A8R8G8B8, all regard as A8R8G8B8, need do
+              R/B swap here for no-resolve and tiled buffer */
+            if (format == DRM_FORMAT_XBGR8888) format = DRM_FORMAT_XRGB8888;
+            if (format == DRM_FORMAT_ABGR8888) format = DRM_FORMAT_ARGB8888;
+
+            drmModeAddFB2WithModifiers(mDrmFd, ALIGN_PIXEL_64(buffer->width), ALIGN_PIXEL_64(buffer->height),
+                format, bo_handles, pitches, offsets, modifiers,
+                (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
+        }
+        else {
+            drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
                     bo_handles, pitches, offsets, (uint32_t*)&buffer->fbId, 0);
+        }
         buffer->kmsFd = mDrmFd;
     }
 
@@ -564,6 +616,10 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
         ALOGE("failed to set atomic cap %d", ret);
         return ret;
     }
+
+    uint64_t modifier = 0;
+    ret = drmGetCap(mDrmFd, DRM_CAP_ADDFB2_MODIFIERS, &modifier);
+    mAllowModifier = (modifier == 0) ? false : true;
 
     drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
     if (pConnector == NULL) {
@@ -828,6 +884,8 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
             return DRM_FORMAT_NV16;
         case FORMAT_YUYV:
             return DRM_FORMAT_YUYV;
+        case FORMAT_NV12_TILED:
+            return DRM_FORMAT_NV12;
         default:
             ALOGE("Cannot convert format to drm %u", format);
             return -EINVAL;

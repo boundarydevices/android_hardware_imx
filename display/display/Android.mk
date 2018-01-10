@@ -54,6 +54,14 @@ ifneq ($(NUM_FRAMEBUFFER_SURFACE_BUFFERS),)
   LOCAL_CFLAGS += -DNUM_FRAMEBUFFER_SURFACE_BUFFERS=$(NUM_FRAMEBUFFER_SURFACE_BUFFERS)
 endif
 
+# DRM DPU not support tile buffer downscale, Cactus player video play is not full screen
+# need do downscale, workaround by set source width and height the same as DPU Crtc then
+# it will work as crop instead of downscale, and source width and height need 2 pixel
+# align in DPU plane check.
+ifeq ($(BOARD_SOC_TYPE), IMX8Q)
+    LOCAL_CPPFLAGS += -DWORKAROUND_DOWNSCALE_LIMITATION
+endif
+
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)

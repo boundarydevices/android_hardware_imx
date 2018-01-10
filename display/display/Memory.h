@@ -22,6 +22,13 @@
 
 namespace fsl {
 
+#define  ALIGN_PIXEL_2(x)  ((x+ 1) & ~1)
+#define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
+#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
+#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
+#define  ALIGN_PIXEL_64(x)  ((x+ 63) & ~63)
+#define  ALIGN_PIXEL_256(x)  ((x+ 255) & ~255)
+
 enum {
     /* buffer is often read in software */
     USAGE_SW_READ_OFTEN = 0x00000003,
@@ -37,6 +44,8 @@ enum {
     USAGE_HW_COMPOSER = 0x00000800,
     /* buffer will be used with the HW video encoder */
     USAGE_HW_VIDEO_ENCODER = 0x00010000,
+    USAGE_GPU_TILED_VIV = 0x10000000,
+    USAGE_GPU_TS_VIV = 0x20000000,
     /* buffer size of hantro decoder is not to yuv pixel size, it need to
     * pad some bytes for vpu usage, so add this flag */
     USAGE_PADDING_BUFFER = 0x80000000,

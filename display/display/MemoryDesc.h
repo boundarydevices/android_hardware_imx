@@ -37,6 +37,7 @@ enum {
     FORMAT_YUYV  = 0x14, // YUY2
     FORMAT_I420  = 0x101,
     FORMAT_NV12  = 0x103,
+    FORMAT_NV12_TILED = 0x104,
 };
 
 struct MemoryDesc
