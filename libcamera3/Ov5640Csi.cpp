@@ -200,12 +200,22 @@ status_t Ov5640Csi::initSensorStaticData()
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
 
     mFocalLength = 3.37f;
-    mPhysicalWidth = 3.6288f;   //2592 x 1.4u
-    mPhysicalHeight = 2.7216f;  //1944 x 1.4u
-    mActiveArrayWidth = 2592;
-    mActiveArrayHeight = 1944;
-    mPixelArrayWidth = 2592;
-    mPixelArrayHeight = 1944;
+
+    if (usemx6s > 0) {
+        mPhysicalWidth = 1.0080f;   //720 x 1.4u
+        mPhysicalHeight = 0.6720f;  //480 x 1.4u
+        mActiveArrayWidth = 720;
+        mActiveArrayHeight = 480;
+        mPixelArrayWidth = 720;
+        mPixelArrayHeight = 480;
+    } else {
+        mPhysicalWidth = 3.6288f;   //2592 x 1.4u
+        mPhysicalHeight = 2.7216f;  //1944 x 1.4u
+        mActiveArrayWidth = 2592;
+        mActiveArrayHeight = 1944;
+        mPixelArrayWidth = 2592;
+        mPixelArrayHeight = 1944;
+    }
 
     ALOGI("ov5640Csi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
         mFocalLength, mPhysicalWidth, mPhysicalHeight);
