@@ -159,6 +159,7 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
         mPreview = true;
         if (s->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) {
             ALOGI("%s create video recording stream", __func__);
+            s->format = HAL_PIXEL_FORMAT_YCBCR_420_888;
             mPreview = false;
         }
     }
