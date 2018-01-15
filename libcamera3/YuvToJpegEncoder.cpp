@@ -760,9 +760,7 @@ int Yuv422IToJpegEncoder::yuvResize(uint8_t *srcBuf,
     int srcStride;
     int dstStride;
 
-    if (!dstWidth) return -1;
-
-    if (!dstHeight) return -1;
+    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight) return -1;
 
     h_scale_ratio = srcWidth / dstWidth;
     v_scale_ratio = srcHeight / dstHeight;
