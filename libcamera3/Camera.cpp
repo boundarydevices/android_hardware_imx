@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
+ * Copyright 2017-2018 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -563,6 +563,8 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
             if (stillcap != NULL) {
                 stillcap->setFps(fps);
                 devStream->configure(stillcap);
+            } else {
+                ALOGW("%s: TYPE_STILLCAP, no stream found to config", __func__);
             }
         } else if (preview != NULL) {
             if (meta->getRequestType() != TYPE_SNAPSHOT) {
@@ -572,8 +574,11 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
         } else if (callbackStream != NULL) {
             callbackStream->setFps(fps);
             devStream->configure(callbackStream);
+        } else if (stillcap != NULL) {
+            stillcap->setFps(fps);
+            devStream->configure(stillcap);
         } else {
-            ALOGI("%s: RequestType = %d, but preview and callback stream is null", __func__, meta->getRequestType());
+            ALOGW("%s: RequestType = %d, but preview and callback stream is null", __func__, meta->getRequestType());
         }
     }
 
