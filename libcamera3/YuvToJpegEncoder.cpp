@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
  * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017-2018 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -764,11 +765,19 @@ int Yuv422IToJpegEncoder::yuvResize(uint8_t *srcBuf,
     if (!dstHeight) return -1;
 
     h_scale_ratio = srcWidth / dstWidth;
-    if (!h_scale_ratio) return -1;
-
     v_scale_ratio = srcHeight / dstHeight;
-    if (!v_scale_ratio) return -1;
 
+    if((h_scale_ratio > 0) && (v_scale_ratio > 0))
+        goto reduce;
+    else if(h_scale_ratio + v_scale_ratio <= 1)
+        goto enlarge;
+
+    ALOGI("Yuv422IToJpegEncoder::yuvResize, not support resize %dx%d to %dx%d",
+        srcWidth, srcHeight, dstWidth, dstHeight);
+
+    return -1;
+
+reduce:
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
     v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
 
@@ -811,6 +820,81 @@ int Yuv422IToJpegEncoder::yuvResize(uint8_t *srcBuf,
 
             ptr    = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
             ptr[0] = cc;
+        }
+    }
+
+    return 0;
+
+enlarge:
+    int h_offset_end;
+    int v_offset_end;
+    int srcRow;
+    int srcCol;
+
+    h_scale_ratio = dstWidth / srcWidth;
+    v_scale_ratio = dstHeight / srcHeight;
+
+    h_offset = (dstWidth - srcWidth * h_scale_ratio) / 2;
+    v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
+
+    h_offset_end = h_offset + srcWidth * h_scale_ratio;
+    v_offset_end = v_offset + srcHeight * v_scale_ratio;
+
+    srcStride = srcWidth * 2;
+    dstStride = dstWidth * 2;
+
+    ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d, h_offset_end %d, v_offset_end %d",
+            h_scale_ratio, v_scale_ratio, h_offset, v_offset, h_offset_end, v_offset_end);
+
+    // for Y
+    for (i = 0; i < dstHeight; i++)
+    {
+        // top, bottom black margin
+        if((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++)
+            {
+                dstBuf[dstStride*i + j*2] = 0;
+            }
+            continue;
+        }
+
+        for (j = 0; j < dstWidth; j++)
+        {
+            // left, right black margin
+            if((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride*i + j*2] = 0;
+                continue;
+            }
+
+            srcRow = (i - v_offset)/v_scale_ratio;
+            srcCol = (j - h_offset)/h_scale_ratio;
+            dstBuf[dstStride*i + j*2] = srcBuf[srcStride * srcRow + srcCol*2];
+        }
+    }
+
+    // for UV
+    for (i = 0; i < dstHeight; i++)
+    {
+        // top, bottom black margin
+        if((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++)
+            {
+                dstBuf[dstStride*i + j*2+1] = 128;
+            }
+            continue;
+        }
+
+        for (j = 0; j < dstWidth; j++)
+        {
+            // left, right black margin
+            if((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride*i + j*2+1] = 128;
+                continue;
+            }
+
+            srcRow = (i - v_offset)/v_scale_ratio;
+            srcCol = (j - h_offset)/h_scale_ratio;
+            dstBuf[dstStride*i + j*2+1] = srcBuf[srcStride * srcRow + srcCol*2+1];
         }
     }
 
