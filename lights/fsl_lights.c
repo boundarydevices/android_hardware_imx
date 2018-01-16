@@ -122,9 +122,10 @@ static int lights_device_open(const struct hw_module_t* module,
     ALOGV("lights_device_open\n");
     if (!strcmp(name, LIGHT_ID_BACKLIGHT)) {
         struct light_device_t *dev;
-	int fdfb0;
-	char fbtype[256];
-	DIR *d;
+        int fdfb0;
+        char fbtype[256];
+        struct dirent **namelist;
+        int n, idx = 0;
 
         dev = malloc(sizeof(*dev));
 
@@ -141,60 +142,62 @@ static int lights_device_open(const struct hw_module_t* module,
 
         *device = &dev->common;
 
-	strcpy(fbtype,"ldb"); /* default */
-	fdfb0 = open("/sys/class/graphics/fb0/fsl_disp_dev_property", O_RDONLY);
-	if (0 <= fdfb0) {
-		char buf[256];
-		int len;
-		if (0 < (len=read(fdfb0,buf,sizeof(buf)-1))) {
-			int i;
-			buf[len] = '\0';
-			for (i=0; i < len; i++) {
-				if (!isprint(buf[i])) {
-					buf[i] = '\0';
-					strcpy(fbtype,buf);
-					break;
-				}
-			}
-		}
-		else
-			buf[0]=0;
-		close(fdfb0);
-	}
+        strcpy(fbtype,"ldb"); /* default */
+        fdfb0 = open("/sys/class/graphics/fb0/fsl_disp_dev_property", O_RDONLY);
+        if (0 <= fdfb0) {
+            char buf[256];
+            int len;
+            if (0 < (len=read(fdfb0,buf,sizeof(buf)-1))) {
+                int i;
+                buf[len] = '\0';
+                for (i=0; i < len; i++) {
+                    if (!isprint(buf[i])) {
+                        buf[i] = '\0';
+                        strcpy(fbtype,buf);
+                        break;
+                    }
+                }
+            }
+            else
+                buf[0]=0;
+            close(fdfb0);
+        }
 
-	/* The sysfs entry is either backlight_lcd.x or backlight_lvds.x */
-	if (!strcmp(fbtype, "ldb"))
-	    strcpy(fbtype,"lvds");
+        /* The sysfs entry is either backlight_lcd.x or backlight_lvds.x */
+        if (!strcmp(fbtype, "ldb"))
+            strcpy(fbtype, "lvds");
 
-	/* Search for the appropriate backlight */
-	d = opendir(DEF_BACKLIGHT_PATH);
-	if (! d) {
-		ALOGE("couldn't open %s", DEF_BACKLIGHT_PATH);
-		return status;
-	}
-	while (1) {
-		struct dirent *entry;
+        /* Search for the appropriate backlight */
+        n = scandir(DEF_BACKLIGHT_PATH, &namelist, NULL, alphasort);
+        if (n < 0) {
+            ALOGE("couldn't scandir %s", DEF_BACKLIGHT_PATH);
+            return status;
+        }
 
-		entry = readdir (d);
-		if (!entry)
-			break;
-		if (strstr(entry->d_name, fbtype) != NULL) {
-			strcpy(path, DEF_BACKLIGHT_PATH);
-			strcat(path, entry->d_name);
-			ALOGI("found backlight under %s", path);
-			break;
-		}
-	}
+        /* Use first match (alphabetic order) */
+        while (idx++ < n) {
+            if (strstr(namelist[idx]->d_name, fbtype) != NULL) {
+                strcpy(path, DEF_BACKLIGHT_PATH);
+                strcat(path, namelist[idx]->d_name);
+                ALOGI("found backlight under %s", path);
+                break;
+            }
+        }
 
-	/* Check if a path has been found */
-	if (strstr(path, DEF_BACKLIGHT_PATH) == NULL) {
-		ALOGE("didn't find any matching backlight");
-		return status;
-	}
+        /* Make sure the whole list is freed */
+        while (n--)
+            free(namelist[n]);
+        free(namelist);
 
-	strcpy(max_path, path);
-	strcat(max_path, "/max_brightness");
-	strcat(path, "/brightness");
+        /* Check if a path has been found */
+        if (strstr(path, DEF_BACKLIGHT_PATH) == NULL) {
+            ALOGE("didn't find any matching backlight");
+            return status;
+        }
+
+        strcpy(max_path, path);
+        strcat(max_path, "/max_brightness");
+        strcat(path, "/brightness");
 
         ALOGI("max backlight file is %s\n", max_path);
         ALOGI("backlight brightness file is %s\n", path);
