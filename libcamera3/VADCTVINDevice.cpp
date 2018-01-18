@@ -412,6 +412,12 @@ int32_t VADCTVINDevice::VADCTVinStream::onDeviceStartLocked()
 
     mIonFd = ion_open();
 
+    int32_t cscbuffer = allocateFrameBuffersLocked();
+    if (cscbuffer < 0) {
+        ALOGE("%s allocate CSC buffer failed", __func__);
+        return BAD_VALUE;
+    }
+
     //-------register buffers----------
     struct v4l2_buffer buf;
     struct v4l2_requestbuffers req;
@@ -527,7 +533,15 @@ int32_t VADCTVINDevice::VADCTVinStream::onFrameAcquireLocked()
     }
 
     // Do format convert and transfer converted data to stream.
-    convertYUV444toNV12((u8 *)mV4L2Buffers[cfilledbuffer.index]->mVirtAddr, (u8 *)mBuffers[cfilledbuffer.index]->mVirtAddr, mWidth, mHeight);
+    int32_t rets = convertYUV444toNV12((u8 *)mV4L2Buffers[cfilledbuffer.index]->mVirtAddr,
+                                       (u8 *)mBuffers[cfilledbuffer.index]->mVirtAddr,
+                                       mWidth,
+                                       mHeight);
+
+    if (rets < 0) {
+        ALOGE("%s: convertYUV444toNV12 Failed", __func__);
+        return -1;
+    }
 
     return cfilledbuffer.index;
 }
