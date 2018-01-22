@@ -30,6 +30,7 @@ namespace fsl {
 #define  ALIGN_PIXEL_256(x)  ((x+ 255) & ~255)
 
 enum {
+    /* below usage come from gralloc.h*/
     /* buffer is often read in software */
     USAGE_SW_READ_OFTEN = 0x00000003,
     /* buffer is often written in software */
@@ -46,6 +47,7 @@ enum {
     USAGE_HW_VIDEO_ENCODER = 0x00010000,
     USAGE_GPU_TILED_VIV = 0x10000000,
     USAGE_GPU_TS_VIV = 0x20000000,
+
     /* buffer size of hantro decoder is not to yuv pixel size, it need to
     * pad some bytes for vpu usage, so add this flag */
     USAGE_PADDING_BUFFER = 0x80000000,
@@ -60,6 +62,9 @@ enum {
     FLAGS_VIDEO          = 0x00200000,
     FLAGS_UI             = 0x00400000,
     FLAGS_CPU            = 0x00800000,
+    FLAGS_META_CHANGED   = 0x01000000,
+    FLAGS_HDR10_VIDEO    = 0x02000000,
+    FLAGS_DOLBY_VIDEO    = 0x04000000,
 };
 
 struct MemoryDesc;
@@ -69,14 +74,15 @@ struct Memory : public native_handle
     static inline int sNumInts() {
         return (((sizeof(Memory) - sizeof(native_handle_t))/sizeof(int)) - sNumFds);
     }
-    static const int sNumFds = 1;
+    static const int sNumFds = 2;
     static const int sMagic = 0x3141592;
 
-    Memory(MemoryDesc* desc, int fd);
+    Memory(MemoryDesc* desc, int fd, int fd2);
     ~Memory();
     bool isValid();
 
     int  fd;
+    int  fd_meta;
     int  magic;
     int  flags;
     int  size;

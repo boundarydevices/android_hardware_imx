@@ -38,6 +38,22 @@ namespace fsl {
 #define DRM_FORMAT_MOD_VIVANTE_SUPER_TILED  fourcc_mod_code(VIVANTE, 2)
 #define DRM_FORMAT_MOD_AMPHION_TILED fourcc_mod_code(AMPHION, 1)
 
+/* HDR Metadata */
+struct hdr_static_metadata {
+    uint8_t eotf;
+    uint8_t metadata_type;
+    struct {
+        uint16_t x, y;
+    } display_primaries[3];
+    struct {
+        uint16_t x, y;
+    } white_point;
+    uint16_t max_mastering_display_luminance;
+    uint16_t min_mastering_display_luminance;
+    uint16_t max_cll;
+    uint16_t max_fall;
+};
+
 KmsDisplay::KmsDisplay()
 {
     mDrmFd = -1;
@@ -53,6 +69,7 @@ KmsDisplay::KmsDisplay()
     mOverlay = NULL;
     mNoResolve = false;
     mAllowModifier = false;
+    mMetadataID = 0;
 }
 
 KmsDisplay::~KmsDisplay()
@@ -174,6 +191,7 @@ void KmsDisplay::getKmsProperty()
     struct TableProperty connectorTable[] = {
         {"CRTC_ID", &mConnector.crtc_id},
         {"DPMS", &mConnector.dpms_id},
+        {"HDR_SOURCE_METADATA", &mConnector.hdr_meta_id},
     };
 
     getTableProperty(mCrtcID,
@@ -193,6 +211,40 @@ void KmsDisplay::getKmsProperty()
 /*
  * add properties to a drmModeAtomicReqPtr object.
  */
+void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, Memory *handle)
+{
+    if (handle == NULL || handle->fd_meta <= 0) {
+        return;
+    }
+
+    MetaData * meta = MemoryManager::getInstance()->getMetaData(handle);
+    if (meta == NULL || !(meta->mFlags & FLAGS_META_CHANGED)) {
+        return;
+    }
+
+    struct hdr_static_metadata hdr_metadata;
+    hdr_metadata.eotf = 0;
+    hdr_metadata.metadata_type = 0;
+    hdr_metadata.display_primaries[0].x = meta->mStaticInfo.sType1.mR.x;
+    hdr_metadata.display_primaries[0].y = meta->mStaticInfo.sType1.mR.y;
+    hdr_metadata.display_primaries[1].x = meta->mStaticInfo.sType1.mG.x;
+    hdr_metadata.display_primaries[1].y = meta->mStaticInfo.sType1.mG.y;
+    hdr_metadata.display_primaries[2].x = meta->mStaticInfo.sType1.mB.x;
+    hdr_metadata.display_primaries[2].y = meta->mStaticInfo.sType1.mB.y;
+    hdr_metadata.white_point.x = meta->mStaticInfo.sType1.mW.x;
+    hdr_metadata.white_point.y = meta->mStaticInfo.sType1.mW.y;
+    hdr_metadata.max_mastering_display_luminance = meta->mStaticInfo.sType1.mMaxDisplayLuminance;
+    hdr_metadata.min_mastering_display_luminance = meta->mStaticInfo.sType1.mMinDisplayLuminance;
+    hdr_metadata.max_cll = meta->mStaticInfo.sType1.mMaxContentLightLevel;
+    hdr_metadata.max_fall = meta->mStaticInfo.sType1.mMaxFrameAverageLightLevel;
+
+    drmModeCreatePropertyBlob(mDrmFd, &hdr_metadata,
+             sizeof(hdr_metadata), &mMetadataID);
+    drmModeAtomicAddProperty(pset, mConnectorID,
+                         mConnector.hdr_meta_id, mMetadataID);
+    meta->mFlags &= ~FLAGS_META_CHANGED;
+}
+
 void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
 {
     /* Specify the mode to use on the CRTC, and make the CRTC active. */
@@ -461,6 +513,7 @@ int KmsDisplay::performOverlay()
         return 0;
     }
 
+    setMetaData(mPset, buffer);
     mKmsPlanes[mKmsPlaneNum - 1].connectCrtc(mPset, mCrtcID, buffer->fbId);
 
     Rect *rect = &layer->displayFrame;
@@ -599,6 +652,9 @@ int KmsDisplay::updateScreen()
     if (mModeset) {
         mModeset = false;
         drmModeDestroyPropertyBlob(drmfd, modeID);
+    }
+    if (mMetadataID != 0) {
+        drmModeDestroyPropertyBlob(drmfd, mMetadataID);
     }
 
     return 0;

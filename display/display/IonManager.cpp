@@ -77,7 +77,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
         return err;
     }
 
-    memory = new Memory(&desc, sharedFd);
+    memory = new Memory(&desc, sharedFd, -1);
     getPhys(memory);
 
     *out = memory;

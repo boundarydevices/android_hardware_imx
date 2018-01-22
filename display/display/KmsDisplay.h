@@ -134,6 +134,7 @@ private:
     int findBestMatch(drmModeConnectorPtr pConnector);
 
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
+    void setMetaData(drmModeAtomicReqPtr pset, Memory *handle);
 
 protected:
     int mDrmFd;
@@ -153,6 +154,7 @@ protected:
     struct {
         uint32_t crtc_id;
         uint32_t dpms_id;
+        uint32_t hdr_meta_id;
     } mConnector;
     uint32_t mConnectorID;
 
@@ -165,6 +167,7 @@ protected:
     MemoryManager* mMemoryManager;
     bool mNoResolve;
     bool mAllowModifier;
+    uint32_t mMetadataID;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);

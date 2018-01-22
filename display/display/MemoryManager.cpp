@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
+#include <cutils/ashmem.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "MemoryManager.h"
@@ -105,6 +106,7 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
             handle->fslFormat = desc.mFslFormat;
             //mIonManager->getPhys(handle);
         }
+        allocMetaData(handle);
         *out = handle;
         return ret;
     }
@@ -115,6 +117,7 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
         return -EINVAL;
     }
 
+    allocMetaData(handle);
     retainMemory(handle);
     *out = handle;
 
@@ -168,6 +171,16 @@ int MemoryManager::releaseMemory(Memory* handle)
     }
 
     close(handle->fd);
+
+    if (mMetaMap.indexOfKey(handle) >= 0) {
+        uint64_t addr = mMetaMap.valueFor(handle);
+        munmap((void*)addr, sizeof(MetaData));
+    }
+
+    if (handle->fd_meta > 0) {
+        close(handle->fd_meta);
+    }
+
     delete handle;
 
     return 0;
@@ -266,6 +279,46 @@ int MemoryManager::unlock(Memory* handle)
     }
 
     return mIonManager->unlock(handle);
+}
+
+int MemoryManager::allocMetaData(Memory* handle)
+{
+    if (handle == NULL || !handle->isValid()) {
+        ALOGE("%s invalid handle", __func__);
+        return -EINVAL;
+    }
+
+    size_t size = sizeof(MetaData);
+    handle->fd_meta = ashmem_create_region("meta", size);
+    return handle->fd_meta > 0;
+}
+
+MetaData *MemoryManager::getMetaData(Memory* handle)
+{
+    if (handle == NULL || !handle->isValid()) {
+        ALOGE("%s invalid handle", __func__);
+        return NULL;
+    }
+
+    if (handle->fd_meta <= 0) {
+        return NULL;
+    }
+
+    if (mMetaMap.indexOfKey(handle) >= 0) {
+        uint64_t addr = mMetaMap.valueFor(handle);
+        return (MetaData *)addr;
+    }
+
+    void *addr = NULL;
+    int fd = handle->fd_meta;
+    size_t size = sizeof(MetaData);
+    addr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) {
+        return NULL;
+    }
+
+    mMetaMap.add(handle, (uint64_t)addr);
+    return (MetaData *)addr;
 }
 
 }

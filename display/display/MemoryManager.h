@@ -19,11 +19,23 @@
 #define _FSL_MEMORY_MANAGER_H
 
 #include <hardware/gralloc.h>
+#include <utils/KeyedVector.h>
+#include <media/hardware/VideoAPI.h>
 #include "Memory.h"
 #include "MemoryDesc.h"
 #include "IonManager.h"
 
 namespace fsl {
+
+using android::KeyedVector;
+using android::ColorAspects;
+using android::HDRStaticInfo;
+
+struct MetaData {
+    int32_t mFlags;
+    ColorAspects mColor;
+    HDRStaticInfo mStaticInfo;
+};
 
 class MemoryManager
 {
@@ -50,14 +62,18 @@ public:
     // unlock memory after CPU access.
     int unlock(Memory* handle);
 
+    MetaData *getMetaData(Memory* handle);
+
 protected:
     MemoryManager();
     bool isDrmAlloc(int flags, int format, int usage);
+    int allocMetaData(Memory* handle);
 
 private:
     IonManager *mIonManager;
     alloc_device_t *mGPUAlloc;
     gralloc_module_t* mGPUModule;
+    KeyedVector<Memory*, uint64_t> mMetaMap;
 
 private:
     static Mutex sLock;

@@ -19,8 +19,8 @@
 
 namespace fsl {
 
-Memory::Memory(MemoryDesc* desc, int fd)
-  : fd(dup(fd)), magic(sMagic), flags(desc->mFlag),
+Memory::Memory(MemoryDesc* desc, int fd, int fd2)
+  : fd(dup(fd)), fd_meta(fd2), magic(sMagic), flags(desc->mFlag),
     size(desc->mSize), offset(0), base(0),  phys(0),
     width(desc->mWidth), height(desc->mHeight),
     format(desc->mFormat), stride(desc->mStride),
