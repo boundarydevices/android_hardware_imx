@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP.
+ * Copyright 2017-2018 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -382,11 +382,19 @@ bool KmsDisplay::checkOverlay(Layer* layer)
         return false;
     }
 
-    // work around to GPU composite if video < 720x576.
-    if ((memory->width <= 720 || memory->height <= 576) &&
-        memory->fslFormat != FORMAT_NV12_TILED) {
-        ALOGV("work around to GPU composite");
-        return false;
+    // scaling limitation on imx8mq.
+    if (memory->usage & USAGE_PADDING_BUFFER) {
+        Rect *rect = &layer->displayFrame;
+        const DisplayConfig& config = mConfigs[mActiveConfig];
+        int w = (rect->right - rect->left) * mMode.hdisplay / config.mXres;
+        int h = (rect->bottom - rect->top) * mMode.vdisplay / config.mYres;
+        Rect *srect = &layer->sourceCrop;
+        if (w > (srect->right - srect->left) * 7 ||
+            h > (srect->bottom - srect->top) * 7) {
+            ALOGV("work around to GPU composite");
+            // fall back to GPU.
+            return false;
+        }
     }
 
     if (mOverlay != NULL) {
@@ -459,7 +467,7 @@ int KmsDisplay::performOverlay()
     int x = rect->left * mMode.hdisplay / config.mXres;
     int y = rect->top * mMode.vdisplay / config.mYres;
     int w = (rect->right - rect->left) * mMode.hdisplay / config.mXres;
-    int h = (rect->bottom - rect->top) * mMode.hdisplay / config.mXres;
+    int h = (rect->bottom - rect->top) * mMode.vdisplay / config.mYres;
 #ifdef WORKAROUND_DOWNSCALE_LIMITATION
     mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w), ALIGN_PIXEL_2(h));
 #else
