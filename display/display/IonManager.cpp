@@ -23,7 +23,12 @@
 #include <ion_ext.h>
 #include "IonManager.h"
 
+#ifdef CFG_SECURE_DATA_PATH
 #define ION_DECODED_BUFFER_VPU_HEAP 2
+#else
+#define ION_DECODED_BUFFER_VPU_HEAP 1
+#endif
+
 #define ION_DECODED_BUFFER_VPU_ALIGN 8
 
 namespace fsl {
