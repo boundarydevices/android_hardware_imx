@@ -52,6 +52,7 @@ struct KmsPlane
                     uint32_t x, uint32_t y,
                     uint32_t w, uint32_t h);
     void setAlpha(drmModeAtomicReqPtr pset, uint32_t alpha);
+    void setTableOffset(drmModeAtomicReqPtr pset, Memory *handle);
 
     uint32_t src_x;
     uint32_t src_y;
@@ -63,6 +64,7 @@ struct KmsPlane
     uint32_t crtc_h;
 
     uint32_t alpha_id;
+    uint32_t ofs_id;
     uint32_t fb_id;
     uint32_t crtc_id;
     uint32_t mPlaneID;

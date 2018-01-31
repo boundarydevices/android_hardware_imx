@@ -35,8 +35,12 @@ namespace fsl {
 
 #define DRM_FORMAT_MOD_VENDOR_VIVANTE 0x06
 #define DRM_FORMAT_MOD_VENDOR_AMPHION  0x08
+#define DRM_FORMAT_MOD_VENDOR_VSI      0x09
 #define DRM_FORMAT_MOD_VIVANTE_SUPER_TILED  fourcc_mod_code(VIVANTE, 2)
 #define DRM_FORMAT_MOD_AMPHION_TILED fourcc_mod_code(AMPHION, 1)
+#define DRM_FORMAT_MOD_VSI_G1_TILED fourcc_mod_code(VSI, 1)
+#define DRM_FORMAT_MOD_VSI_G2_TILED fourcc_mod_code(VSI, 2)
+#define DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED fourcc_mod_code(VSI, 3)
 
 /* HDR Metadata */
 struct hdr_static_metadata {
@@ -168,6 +172,7 @@ void KmsPlane::getPropertyIds()
         {"CRTC_W",  &crtc_w},
         {"CRTC_H",  &crtc_h},
         {"alpha",   &alpha_id},
+        {"dtrc_table_ofs",   &ofs_id},
         {"FB_ID",   &fb_id},
         {"CRTC_ID", &crtc_id},
     };
@@ -282,6 +287,28 @@ void KmsPlane::setAlpha(drmModeAtomicReqPtr pset,
      */
     drmModeAtomicAddProperty(pset, mPlaneID,
                              alpha_id, alpha);
+}
+
+void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, Memory *handle)
+{
+    if (handle == NULL || handle->fd_meta <= 0) {
+        return;
+    }
+
+    MetaData * meta = MemoryManager::getInstance()->getMetaData(handle);
+    if (meta == NULL || !(meta->mFlags & FLAGS_COMPRESSED_OFFSET)) {
+        return;
+    }
+
+    uint32_t yoff = meta->mYOffset;
+    uint32_t uvoff = meta->mUVOffset;
+
+    /*
+     * Specify the offset of table to plane.
+     */
+    drmModeAtomicAddProperty(pset, mPlaneID,
+                             ofs_id, yoff | ((uint64_t)uvoff) << 32);
+    meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
 }
 
 void KmsPlane::setSourceSurface(drmModeAtomicReqPtr pset,
@@ -430,7 +457,10 @@ bool KmsDisplay::checkOverlay(Layer* layer)
 
     // overlay only needs on imx8mq and supertiled format.
     if (!(memory->usage & USAGE_PADDING_BUFFER) &&
-        memory->fslFormat != FORMAT_NV12_TILED) {
+        memory->fslFormat != FORMAT_NV12_TILED &&
+        memory->fslFormat != FORMAT_NV12_G1_TILED &&
+        memory->fslFormat != FORMAT_NV12_G2_TILED &&
+        memory->fslFormat != FORMAT_NV12_G2_TILED_COMPRESSED) {
         return false;
     }
 
@@ -488,6 +518,18 @@ int KmsDisplay::performOverlay()
             modifiers[0] = DRM_FORMAT_MOD_AMPHION_TILED;
             modifiers[1] = DRM_FORMAT_MOD_AMPHION_TILED;
         }
+        else if (buffer->fslFormat == FORMAT_NV12_G1_TILED) {
+            modifiers[0] = DRM_FORMAT_MOD_VSI_G1_TILED;
+            modifiers[1] = DRM_FORMAT_MOD_VSI_G1_TILED;
+        }
+        else if (buffer->fslFormat == FORMAT_NV12_G2_TILED) {
+            modifiers[0] = DRM_FORMAT_MOD_VSI_G2_TILED;
+            modifiers[1] = DRM_FORMAT_MOD_VSI_G2_TILED;
+        }
+        else if (buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED) {
+            modifiers[0] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
+            modifiers[1] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
+        }
         pitches[0] = stride;
         pitches[1] = stride;
         offsets[0] = 0;
@@ -495,7 +537,10 @@ int KmsDisplay::performOverlay()
         drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
         bo_handles[0] = buffer->fbHandle;
         bo_handles[1] = buffer->fbHandle;
-        if (buffer->fslFormat == FORMAT_NV12_TILED) {
+        if (buffer->fslFormat == FORMAT_NV12_TILED ||
+            buffer->fslFormat == FORMAT_NV12_G1_TILED ||
+            buffer->fslFormat == FORMAT_NV12_G2_TILED ||
+            buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED) {
             drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height,
                 format, bo_handles, pitches, offsets, modifiers,
                 (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
@@ -514,6 +559,7 @@ int KmsDisplay::performOverlay()
     }
 
     setMetaData(mPset, buffer);
+    mKmsPlanes[mKmsPlaneNum - 1].setTableOffset(mPset, buffer);
     mKmsPlanes[mKmsPlaneNum - 1].connectCrtc(mPset, mCrtcID, buffer->fbId);
 
     Rect *rect = &layer->displayFrame;
@@ -949,6 +995,9 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
         case FORMAT_YUYV:
             return DRM_FORMAT_YUYV;
         case FORMAT_NV12_TILED:
+        case FORMAT_NV12_G1_TILED:
+        case FORMAT_NV12_G2_TILED:
+        case FORMAT_NV12_G2_TILED_COMPRESSED:
             return DRM_FORMAT_NV12;
         default:
             ALOGE("Cannot convert format to drm %u", format);

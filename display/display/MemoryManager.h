@@ -33,8 +33,17 @@ using android::HDRStaticInfo;
 
 struct MetaData {
     int32_t mFlags;
-    ColorAspects mColor;
-    HDRStaticInfo mStaticInfo;
+    union {
+        struct {
+            ColorAspects mColor;
+            HDRStaticInfo mStaticInfo;
+        };
+
+        struct {
+            uint32_t mYOffset;
+            uint32_t mUVOffset;
+        };
+    };
 };
 
 class MemoryManager
