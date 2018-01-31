@@ -242,7 +242,7 @@ bool DisplayManager::isOverlay(int fb)
     return false;
 }
 
-int DisplayManager::enumKmsDisplay(const char *path)
+int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary)
 {
     mDrmFd = open(path, O_RDWR);
     if(mDrmFd <= 0) {
@@ -274,11 +274,9 @@ int DisplayManager::enumKmsDisplay(const char *path)
         return -ENODEV;
     }
 
-    int id = 1;
-    bool foundPrimary = false;
     KmsDisplay* display = NULL;
     for (int i = 0; i < res->count_connectors; i++) {
-        display = mKmsDisplays[id];
+        display = mKmsDisplays[*id];
 
         if (display->setDrm(mDrmFd, res->connectors[i]) != 0) {
             continue;
@@ -286,38 +284,30 @@ int DisplayManager::enumKmsDisplay(const char *path)
 
         display->readType();
         if (display->readConnection() != 0 || !display->connected()) {
-            id++;
+            (*id)++;
             continue;
         }
 
         if (display->openKms(res) != 0) {
             display->closeKms();
-            id++;
+            (*id)++;
             continue;
         }
 
         // the first connected device as primary display.
-        if (!foundPrimary) {
-            foundPrimary = true;
+        if (!*foundPrimary) {
+            *foundPrimary = true;
             KmsDisplay* tmp = mKmsDisplays[0];
-            mKmsDisplays[0] = mKmsDisplays[id];
-            mKmsDisplays[id] = tmp;
+            mKmsDisplays[0] = mKmsDisplays[*id];
+            mKmsDisplays[*id] = tmp;
         }
         else {
-            id++;
+            (*id)++;
         }
     }
     drmModeFreeResources(res);
 
-    if (foundPrimary) {
-        mDrmMode = true;
-        ret = 0;
-    }
-    else {
-        ret = -ENODEV;
-    }
-
-    return ret;
+    return 0;
 }
 
 int DisplayManager::enumKmsDisplays()
@@ -327,6 +317,8 @@ int DisplayManager::enumKmsDisplays()
     char path[HWC_PATH_LENGTH];
     int ret = 0;
     char dri[PROPERTY_VALUE_MAX];
+    int id = 1;
+    bool foundPrimary = false;
     property_get("hwc.drm.device", dri, "/dev/dri");
 
     dir = opendir(dri);
@@ -342,13 +334,18 @@ int DisplayManager::enumKmsDisplays()
         memset(path, 0, sizeof(path));
         snprintf(path, HWC_PATH_LENGTH, "/dev/dri/%s", dirEntry->d_name);
         ALOGI("try dev:%s", path);
-        ret = enumKmsDisplay(path);
-        if (ret == 0) {
-            break;
-        }
+        enumKmsDisplay(path, &id, &foundPrimary);
     }
 
-    return 0;
+    if (foundPrimary) {
+        mDrmMode = true;
+        ret = 0;
+    }
+    else {
+        ret = -ENODEV;
+    }
+
+    return ret;
 }
 
 int DisplayManager::enumFbDisplays()
