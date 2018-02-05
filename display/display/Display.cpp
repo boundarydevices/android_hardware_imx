@@ -16,7 +16,6 @@
 
 #include <cutils/log.h>
 #include <sync/sync.h>
-#include <system/window.h>
 
 #include "Memory.h"
 #include <g2dExt.h>

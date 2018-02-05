@@ -18,8 +18,8 @@
 #define _FSL_LAYER_H_
 
 #include <utils/SortedVector.h>
-#include <ui/Rect.h>
-#include <ui/Region.h>
+#include "android/Rect.h"
+#include "android/Region.h"
 
 #include "Memory.h"
 

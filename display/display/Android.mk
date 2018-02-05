@@ -27,11 +27,13 @@ LOCAL_SRC_FILES := Display.cpp \
                    MemoryDesc.cpp \
                    MemoryManager.cpp \
                    IonManager.cpp \
-                   Composer.cpp
+                   Composer.cpp \
+                   android/Rect.cpp \
+                   android/Region.cpp \
+                   android/uevent.cpp
 
 LOCAL_C_INCLUDES += $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
                     $(IMX_PATH)/imx/include \
-                    frameworks/native/libs/nativewindow/include  \
                     external/libdrm \
                     external/libdrm/include/drm
 
@@ -39,9 +41,7 @@ LOCAL_SHARED_LIBRARIES :=   \
     liblog                  \
     libcutils               \
     libutils                \
-    libui                   \
     libhardware             \
-    libhardware_legacy      \
     libsync                 \
     libion                  \
     libdrm

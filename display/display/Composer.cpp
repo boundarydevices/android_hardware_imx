@@ -16,7 +16,6 @@
 #include <dlfcn.h>
 #include "Composer.h"
 #include "MemoryManager.h"
-#include <system/window.h>
 
 #if defined(__LP64__)
 #define LIB_PATH1 "/system/lib64"
