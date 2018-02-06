@@ -81,7 +81,7 @@ void StreamBuffer::initialize(buffer_handle_t* buf_h)
         return;
     }
 
-    private_handle_t *handle = (private_handle_t *)(*buf_h);
+    fsl::Memory *handle = (fsl::Memory *)(*buf_h);
     mBufHandle = buf_h;
     mVirtAddr  = (void *)handle->base;
     mPhyAddr   = handle->phys;

@@ -44,7 +44,7 @@
 #include <ui/PixelFormat.h>
 #include <graphics_ext.h>
 #include <hardware/camera3.h>
-#include "gralloc_priv.h"
+#include "Memory.h"
 
 #define MAX_CAMERAS 2
 
