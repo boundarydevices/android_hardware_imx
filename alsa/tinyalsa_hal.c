@@ -95,6 +95,8 @@
 #define MM_USB_AUDIO_IN_RATE   16000
 
 #define SCO_RATE 16000
+/* audio input device for hfp */
+#define SCO_IN_DEVICE AUDIO_DEVICE_IN_BUILTIN_MIC
 
 /* product-specific defines */
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
@@ -3284,8 +3286,7 @@ static int sco_task_create(struct imx_audio_device *adev)
         goto error;
     }
 
-    //open built-in mic for cap
-    card = get_card_for_device(adev, AUDIO_DEVICE_IN_BUILTIN_MIC, PCM_IN, NULL);
+    card = get_card_for_device(adev, SCO_IN_DEVICE, PCM_IN, NULL);
     adev->cap_config = pcm_config_sco_out;
     adev->cap_config.rate = 48000;
     adev->cap_config.period_size = pcm_config_sco_out.period_size * adev->cap_config.rate / pcm_config_sco_out.rate;
