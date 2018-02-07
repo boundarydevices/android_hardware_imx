@@ -52,7 +52,7 @@ struct KmsPlane
                     uint32_t x, uint32_t y,
                     uint32_t w, uint32_t h);
     void setAlpha(drmModeAtomicReqPtr pset, uint32_t alpha);
-    void setTableOffset(drmModeAtomicReqPtr pset, Memory *handle);
+    void setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta);
 
     uint32_t src_x;
     uint32_t src_y;
@@ -136,7 +136,7 @@ private:
     int findBestMatch(drmModeConnectorPtr pConnector);
 
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
-    void setMetaData(drmModeAtomicReqPtr pset, Memory *handle);
+    void setMetaData(drmModeAtomicReqPtr pset, MetaData *meta);
 
 protected:
     int mDrmFd;

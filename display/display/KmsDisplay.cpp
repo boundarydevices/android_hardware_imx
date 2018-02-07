@@ -216,14 +216,9 @@ void KmsDisplay::getKmsProperty()
 /*
  * add properties to a drmModeAtomicReqPtr object.
  */
-void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, Memory *handle)
+void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, MetaData *meta)
 {
-    if (handle == NULL || handle->fd_meta <= 0) {
-        return;
-    }
-
-    MetaData * meta = MemoryManager::getInstance()->getMetaData(handle);
-    if (meta == NULL || !(meta->mFlags & FLAGS_META_CHANGED)) {
+    if (meta == NULL) {
         return;
     }
 
@@ -247,7 +242,6 @@ void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, Memory *handle)
              sizeof(hdr_metadata), &mMetadataID);
     drmModeAtomicAddProperty(pset, mConnectorID,
                          mConnector.hdr_meta_id, mMetadataID);
-    meta->mFlags &= ~FLAGS_META_CHANGED;
 }
 
 void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
@@ -289,14 +283,9 @@ void KmsPlane::setAlpha(drmModeAtomicReqPtr pset,
                              alpha_id, alpha);
 }
 
-void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, Memory *handle)
+void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta)
 {
-    if (handle == NULL || handle->fd_meta <= 0) {
-        return;
-    }
-
-    MetaData * meta = MemoryManager::getInstance()->getMetaData(handle);
-    if (meta == NULL || !(meta->mFlags & FLAGS_COMPRESSED_OFFSET)) {
+    if (meta == NULL) {
         return;
     }
 
@@ -308,7 +297,6 @@ void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, Memory *handle)
      */
     drmModeAtomicAddProperty(pset, mPlaneID,
                              ofs_id, yoff | ((uint64_t)uvoff) << 32);
-    meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
 }
 
 void KmsPlane::setSourceSurface(drmModeAtomicReqPtr pset,
@@ -558,8 +546,16 @@ int KmsDisplay::performOverlay()
         return 0;
     }
 
-    setMetaData(mPset, buffer);
-    mKmsPlanes[mKmsPlaneNum - 1].setTableOffset(mPset, buffer);
+    MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
+    if (meta != NULL && meta->mFlags & FLAGS_META_CHANGED) {
+        setMetaData(mPset, meta);
+        meta->mFlags &= ~FLAGS_META_CHANGED;
+        meta++;
+    }
+    if (meta != NULL && meta->mFlags & FLAGS_COMPRESSED_OFFSET) {
+        mKmsPlanes[mKmsPlaneNum - 1].setTableOffset(mPset, meta);
+        meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
+    }
     mKmsPlanes[mKmsPlaneNum - 1].connectCrtc(mPset, mCrtcID, buffer->fbId);
 
     Rect *rect = &layer->displayFrame;

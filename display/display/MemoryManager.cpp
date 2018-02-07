@@ -177,6 +177,7 @@ int MemoryManager::releaseMemory(Memory* handle)
     if (mMetaMap.indexOfKey(handle) >= 0) {
         uint64_t addr = mMetaMap.valueFor(handle);
         munmap((void*)addr, sizeof(MetaData));
+        mMetaMap.removeItem(handle);
     }
 
     if (handle->fd_meta > 0) {
@@ -290,7 +291,7 @@ int MemoryManager::allocMetaData(Memory* handle)
         return -EINVAL;
     }
 
-    size_t size = sizeof(MetaData);
+    size_t size = 2 * sizeof(MetaData);
     handle->fd_meta = ashmem_create_region("meta", size);
     return handle->fd_meta > 0;
 }
