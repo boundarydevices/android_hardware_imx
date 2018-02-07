@@ -180,6 +180,11 @@ static int CheckAndInsertHufTab(u8 *pDst, u8 *pSrc, u32 nDstSize, u32 nSrcSize) 
 MJPGStream::MJPGStream(Camera* device): DMAStream(device), mStreamSize(0)
 {
     mVPUHandle = 0;
+    meOutColorFmt = DEC_OUT_UNKNOWN;
+
+    memset(&mVPUPhyAddr,0,sizeof(mVPUPhyAddr));
+    memset(&mVPUVirtAddr,0,sizeof(mVPUVirtAddr));
+    memset(&mSensorBuffers,0,sizeof(mSensorBuffers));
     memset(&mDecMemInfo,0,sizeof(DecMemInfo));
     memset(&mDecContxt, 0, sizeof(mDecContxt));
 }
@@ -540,6 +545,8 @@ int MJPGStream::VPUInit()
 
 
     //clear 0
+    memset(&ver,0,sizeof(ver));
+    memset(&w_ver,0,sizeof(w_ver));
     memset(&memInfo,0,sizeof(memInfo));
     memset(&mDecMemInfo,0,sizeof(mDecMemInfo));
 
@@ -692,6 +699,7 @@ DecLogic:
         ALOGI("%s: vpu & VPU_DEC_INIT_OK \r\n", __FUNCTION__);
         int nFrmNum;
         VpuDecInitInfo InitInfo;
+	 memset(&InitInfo, 0, sizeof(InitInfo));
 
         //process init info
         if(ProcessInitInfo(&InitInfo, &pDecMemInfo, &nFrmNum, &VPUptr, &mVPUBuffersIndex) == 0)
