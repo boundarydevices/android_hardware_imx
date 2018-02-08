@@ -83,6 +83,9 @@ int MemoryDesc::checkFormat()
 
         case FORMAT_NV12:
         case FORMAT_NV21:
+        case FORMAT_NV12_G1_TILED:
+        case FORMAT_NV12_G2_TILED:
+        case FORMAT_NV12_G2_TILED_COMPRESSED:
             alignedw = ALIGN_PIXEL_16(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 3 / 2;
@@ -107,9 +110,6 @@ int MemoryDesc::checkFormat()
             break;
 
         case FORMAT_NV12_TILED:
-        case FORMAT_NV12_G1_TILED:
-        case FORMAT_NV12_G2_TILED:
-        case FORMAT_NV12_G2_TILED_COMPRESSED:
             alignedw = ALIGN_PIXEL_256(mWidth);
             alignedh = ALIGN_PIXEL_256(mHeight);
             size = alignedw * alignedh * 3 / 2;
