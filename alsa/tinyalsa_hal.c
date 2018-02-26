@@ -2726,7 +2726,8 @@ static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx
     struct mixer *mixer_hdmi = NULL;
 
     for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
-         if(!strcmp(adev->card_list[i]->driver_name, hdmi_card.driver_name)) {
+         if((!strcmp(adev->card_list[i]->driver_name, hdmi_card.driver_name)) ||
+            (!strcmp(adev->card_list[i]->driver_name, cdnhdmi_card.driver_name))) {
              mixer_hdmi = adev->mixer[i];
              card = adev->card_list[i]->card;
              break;
@@ -2774,7 +2775,8 @@ static int out_read_hdmi_rates(struct imx_audio_device *adev, struct imx_stream_
     struct mixer *mixer_hdmi = NULL;
 
     for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
-         if(!strcmp(adev->card_list[i]->driver_name, hdmi_card.driver_name)) {
+         if((!strcmp(adev->card_list[i]->driver_name, hdmi_card.driver_name)) ||
+            (!strcmp(adev->card_list[i]->driver_name, cdnhdmi_card.driver_name))) {
              mixer_hdmi = adev->mixer[i];
              card = adev->card_list[i]->card;
              break;
