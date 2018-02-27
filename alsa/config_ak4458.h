@@ -13,20 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright (C) 2015 Freescale Semiconductor, Inc. */
-/* Copyright 2017-2018 NXP */
+/* Copyright 2018 NXP */
 
-#ifndef ANDROID_INCLUDE_IMX_CONFIG_WM8524_H
-#define ANDROID_INCLUDE_IMX_CONFIG_WM8524_H
+#ifndef ANDROID_INCLUDE_IMX_CONFIG_AK4458_H
+#define ANDROID_INCLUDE_IMX_CONFIG_AK4458_H
 
 #include "audio_hardware.h"
 
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
-static struct audio_card  wm8524_card = {
-    .name = "wm8524-audio",
-    .driver_name = "wm8524-audio",
-    .supported_out_devices = AUDIO_DEVICE_OUT_SPEAKER,
-    .supported_in_devices = 0,
+static struct audio_card  ak4458_card = {
+    .name = "ak4458-audio",
+    .driver_name = "ak4458-audio",
+    .supported_out_devices  = AUDIO_DEVICE_OUT_WIRED_HEADPHONE,
+    .supported_in_devices   = 0,
     .defaults            = NULL,
     .bt_output           = NULL,
     .speaker_output      = NULL,
@@ -47,4 +46,4 @@ static struct audio_card  wm8524_card = {
     .in_format           = 0,
 };
 
-#endif  /* ANDROID_INCLUDE_IMX_CONFIG_WM8524_H */
+#endif  /* ANDROID_INCLUDE_IMX_CONFIG_AK4458_H */

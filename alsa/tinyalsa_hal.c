@@ -51,6 +51,7 @@
 #include "config_rpmsg.h"
 #include "config_wm8524.h"
 #include "config_cdnhdmi.h"
+#include "config_ak4458.h"
 #include "control.h"
 #include "pcm_ext.h"
 #include "config_xtor.h"
@@ -100,7 +101,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        12
+#define SUPPORT_CARD_NUM        13
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -116,6 +117,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8524_card,
     &cdnhdmi_card,
     &xtor_card,
+    &ak4458_card,
     &null_card,
 };
 
@@ -677,7 +679,7 @@ static int start_output_stream_esai(struct imx_stream_out *out)
         pthread_mutex_unlock(&p_out->lock);
     }
 
-    card = get_card_for_device(adev, out->device & AUDIO_DEVICE_OUT_SPEAKER, PCM_OUT, &out->card_index);
+    card = get_card_for_device(adev, out->device & (AUDIO_DEVICE_OUT_SPEAKER | AUDIO_DEVICE_OUT_WIRED_HEADPHONE), PCM_OUT, &out->card_index);
     ALOGW("card %d, port %d device 0x%x", card, port, out->device);
     ALOGW("rate %d, channel %d period_size 0x%x", out->config[PCM_ESAI].rate, out->config[PCM_ESAI].channels, out->config[PCM_ESAI].period_size);
 
@@ -2848,7 +2850,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config[PCM_HDMI].rate = config->sample_rate;
         out->config[PCM_HDMI].channels = popcount(config->channel_mask);
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
-                   devices == AUDIO_DEVICE_OUT_SPEAKER && ladev->support_multichannel) {
+              ((devices == AUDIO_DEVICE_OUT_SPEAKER) ||
+               (devices == AUDIO_DEVICE_OUT_WIRED_HEADPHONE)) &&
+               ladev->support_multichannel) {
         ALOGW("adev_open_output_stream() ESAI multichannel");
         if (ladev->active_output[OUTPUT_ESAI] != NULL) {
             ret = -ENOSYS;
@@ -3697,6 +3701,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
 
                 if(strcmp(audio_card_list[j]->driver_name, "cs42888-audio") == 0) {
                     ALOGI("cs42888-audio: support multichannel");
+                    adev->support_multichannel = true;
+                }
+
+                if(strcmp(audio_card_list[j]->driver_name, "ak4458-audio") == 0) {
+                    ALOGI("ak4458-audio: support multichannel");
                     adev->support_multichannel = true;
                 }
 
