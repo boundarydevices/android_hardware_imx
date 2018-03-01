@@ -150,6 +150,9 @@ int MemoryManager::releaseMemory(Memory* handle)
     }
 
     if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
+        if (handle->fd_meta > 0) {
+            close(handle->fd_meta);
+        }
         return mGPUAlloc->free(mGPUAlloc, handle);
     }
 
