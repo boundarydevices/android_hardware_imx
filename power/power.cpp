@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <dirent.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
@@ -28,7 +29,8 @@
 #include <utils/StrongPointer.h>
 #include <cutils/properties.h>
 
-#define GOVERNOR_PATH "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+#define POLICY_PATH "/sys/devices/system/cpu/cpufreq"
+#define GOVERNOR_PATH_FMT "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor"
 #define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
 #define PROP_CPUFREQGOV "sys.interactive"
 #define PROP_VAL "active"
@@ -38,24 +40,10 @@
 #define POWERSAVE    "powersave"
 #define PERFORMANCE  "performance"
 
+#define MAX_POLICY_NUM 2
 static int interactive_mode = 0;
-
-static void getcpu_gov(char *s, int size)
-{
-    int len;
-    int fd = open(GOVERNOR_PATH, O_RDONLY);
-
-    if (fd < 0) {
-        ALOGE("Error opening %s: %s\n", GOVERNOR_PATH, strerror(errno));
-        return;
-    }
-
-    len = read(fd, s, size);
-    if (len < 0) {
-        ALOGE("Error read %s: %s\n", GOVERNOR_PATH, strerror(errno));
-    }
-    close(fd);
-}
+static int policy_cpu[MAX_POLICY_NUM] = {0}; /*only support up to two policy*/
+static int policy_num = 0;
 
 static void sysfs_write(const char *path, const char *s)
 {
@@ -119,17 +107,22 @@ int do_setproperty(const char *propname, const char *propval)
 
 int do_changecpugov(const char *gov)
 {
-    int fd = open(GOVERNOR_PATH, O_WRONLY);
-    if (fd < 0) {
-        ALOGE("Error opening %s: %s\n", GOVERNOR_PATH, strerror(errno));
-        return -1;
+    int fd;
+    char governor_path[256];
+    for (int i=0; i<policy_num; i++) {
+        sprintf(governor_path, GOVERNOR_PATH_FMT, policy_cpu[i]);
+        fd = open(governor_path, O_WRONLY);
+        if (fd < 0) {
+            ALOGE("Error opening %s: %s\n", governor_path, strerror(errno));
+            return -1;
+        }
+        if (write(fd, gov, strlen(gov)) < 0) {
+            ALOGE("Error writing to %s: %s\n", governor_path, strerror(errno));
+            close(fd);
+            return -1;
+        }
     }
 
-    if (write(fd, gov, strlen(gov)) < 0) {
-        ALOGE("Error writing to %s: %s\n", GOVERNOR_PATH, strerror(errno));
-        close(fd);
-        return -1;
-    }
     if (strncmp(INTERACTIVE, gov, strlen(INTERACTIVE)) == 0) {
         do_setproperty(PROP_CPUFREQGOV, PROP_VAL);
         interactive_mode = 1;
@@ -149,6 +142,27 @@ static void fsl_power_init(struct power_module *module)
      * the params is initialized in init.rc
      */
     (void)module;
+
+    dirent* de;
+    int fd;
+    int dfd;
+    DIR* d = opendir(POLICY_PATH);
+    if (d) {
+        dfd = dirfd(d);
+        while ((de = readdir(d)) != nullptr) {
+            if (de->d_type != DT_DIR || de->d_name[0] == '.') continue;
+
+            fd = openat(dfd, de->d_name, O_RDONLY | O_DIRECTORY);
+            if (fd < 0) continue;
+
+            if (strncmp(de->d_name, "policy", 5) == 0) {
+                sscanf(de->d_name, "policy%d", &policy_cpu[policy_num]);
+                policy_num++;
+                if (policy_num >= MAX_POLICY_NUM)
+                    break;
+            }
+        }
+    }
 
     do_changecpugov(INTERACTIVE);
 }
