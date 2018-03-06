@@ -82,8 +82,8 @@ struct audio_card{
     int  in_format;
 };
 
-#define MAX_AUDIO_CARD_NUM  5
-#define MAX_AUDIO_CARD_SCAN 5
+#define MAX_AUDIO_CARD_NUM  6
+#define MAX_AUDIO_CARD_SCAN 6
 
 #define MAX_SUP_CHANNEL_NUM  20
 #define MAX_SUP_RATE_NUM     20

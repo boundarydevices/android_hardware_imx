@@ -52,6 +52,7 @@
 #include "config_wm8524.h"
 #include "config_cdnhdmi.h"
 #include "config_ak4458.h"
+#include "config_ak5558.h"
 #include "control.h"
 #include "pcm_ext.h"
 #include "config_xtor.h"
@@ -103,7 +104,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        13
+#define SUPPORT_CARD_NUM        14
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -120,6 +121,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &cdnhdmi_card,
     &xtor_card,
     &ak4458_card,
+    &ak5558_card,
     &null_card,
 };
 
