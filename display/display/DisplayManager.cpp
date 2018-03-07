@@ -312,30 +312,32 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
 
 int DisplayManager::enumKmsDisplays()
 {
-    DIR *dir = NULL;
-    struct dirent *dirEntry;
+    struct dirent **dirEntry;
     char path[HWC_PATH_LENGTH];
     int ret = 0;
     char dri[PROPERTY_VALUE_MAX];
     int id = 1;
     bool foundPrimary = false;
     property_get("hwc.drm.device", dri, "/dev/dri");
+    int count = -1;
 
-    dir = opendir(dri);
-    if (dir == NULL) {
+    count = scandir(dri, &dirEntry, 0, alphasort);
+    if(count < 0) {
         ALOGE("%s open %s failed", __func__, SYS_GRAPHICS);
         return -EINVAL;
     }
-
-    while ((dirEntry = readdir(dir)) != NULL) {
-        if (strncmp(dirEntry->d_name, "card", 4)) {
+    for(int i=0; i<count; i++) {
+        if (strncmp(dirEntry[i]->d_name, "card", 4)) {
+            free(dirEntry[i]);
             continue;
         }
         memset(path, 0, sizeof(path));
-        snprintf(path, HWC_PATH_LENGTH, "/dev/dri/%s", dirEntry->d_name);
+        snprintf(path, HWC_PATH_LENGTH, "/dev/dri/%s", dirEntry[i]->d_name);
         ALOGI("try dev:%s", path);
         enumKmsDisplay(path, &id, &foundPrimary);
+        free(dirEntry[i]);
     }
+    free(dirEntry);
 
     if (foundPrimary) {
         mDrmMode = true;
