@@ -41,21 +41,21 @@ namespace fsl {
 #define DRM_FORMAT_MOD_VSI_G1_TILED fourcc_mod_code(VSI, 1)
 #define DRM_FORMAT_MOD_VSI_G2_TILED fourcc_mod_code(VSI, 2)
 #define DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED fourcc_mod_code(VSI, 3)
+#define DRM_FORMAT_P010                fourcc_code('P', '0', '1', '0')
 
 /* HDR Metadata */
 struct hdr_static_metadata {
-    uint8_t eotf;
-    uint8_t metadata_type;
-    struct {
-        uint16_t x, y;
-    } display_primaries[3];
-    struct {
-        uint16_t x, y;
-    } white_point;
+    uint16_t eotf;
+    uint16_t type;
+    uint16_t display_primaries_x[3];
+    uint16_t display_primaries_y[3];
+    uint16_t white_point_x;
+    uint16_t white_point_y;
     uint16_t max_mastering_display_luminance;
     uint16_t min_mastering_display_luminance;
-    uint16_t max_cll;
     uint16_t max_fall;
+    uint16_t max_cll;
+    uint16_t min_cll;
 };
 
 KmsDisplay::KmsDisplay()
@@ -223,16 +223,16 @@ void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, MetaData *meta)
     }
 
     struct hdr_static_metadata hdr_metadata;
-    hdr_metadata.eotf = 0;
-    hdr_metadata.metadata_type = 0;
-    hdr_metadata.display_primaries[0].x = meta->mStaticInfo.sType1.mR.x;
-    hdr_metadata.display_primaries[0].y = meta->mStaticInfo.sType1.mR.y;
-    hdr_metadata.display_primaries[1].x = meta->mStaticInfo.sType1.mG.x;
-    hdr_metadata.display_primaries[1].y = meta->mStaticInfo.sType1.mG.y;
-    hdr_metadata.display_primaries[2].x = meta->mStaticInfo.sType1.mB.x;
-    hdr_metadata.display_primaries[2].y = meta->mStaticInfo.sType1.mB.y;
-    hdr_metadata.white_point.x = meta->mStaticInfo.sType1.mW.x;
-    hdr_metadata.white_point.y = meta->mStaticInfo.sType1.mW.y;
+    hdr_metadata.eotf = 2;
+    hdr_metadata.type = 0x8a48;
+    hdr_metadata.display_primaries_x[0] = meta->mStaticInfo.sType1.mR.x;
+    hdr_metadata.display_primaries_y[0] = meta->mStaticInfo.sType1.mR.y;
+    hdr_metadata.display_primaries_x[1] = meta->mStaticInfo.sType1.mG.x;
+    hdr_metadata.display_primaries_y[1] = meta->mStaticInfo.sType1.mG.y;
+    hdr_metadata.display_primaries_x[2] = meta->mStaticInfo.sType1.mB.x;
+    hdr_metadata.display_primaries_y[2] = meta->mStaticInfo.sType1.mB.y;
+    hdr_metadata.white_point_x = meta->mStaticInfo.sType1.mW.x;
+    hdr_metadata.white_point_y = meta->mStaticInfo.sType1.mW.y;
     hdr_metadata.max_mastering_display_luminance = meta->mStaticInfo.sType1.mMaxDisplayLuminance;
     hdr_metadata.min_mastering_display_luminance = meta->mStaticInfo.sType1.mMinDisplayLuminance;
     hdr_metadata.max_cll = meta->mStaticInfo.sType1.mMaxContentLightLevel;
@@ -448,7 +448,10 @@ bool KmsDisplay::checkOverlay(Layer* layer)
         memory->fslFormat != FORMAT_NV12_TILED &&
         memory->fslFormat != FORMAT_NV12_G1_TILED &&
         memory->fslFormat != FORMAT_NV12_G2_TILED &&
-        memory->fslFormat != FORMAT_NV12_G2_TILED_COMPRESSED) {
+        memory->fslFormat != FORMAT_NV12_G2_TILED_COMPRESSED &&
+        memory->fslFormat != FORMAT_P010 &&
+        memory->fslFormat != FORMAT_P010_TILED &&
+        memory->fslFormat != FORMAT_P010_TILED_COMPRESSED) {
         return false;
     }
 
@@ -506,7 +509,8 @@ int KmsDisplay::performOverlay()
             modifiers[0] = DRM_FORMAT_MOD_AMPHION_TILED;
             modifiers[1] = DRM_FORMAT_MOD_AMPHION_TILED;
         }
-        else if (buffer->fslFormat == FORMAT_NV12_G1_TILED) {
+        else if (buffer->fslFormat == FORMAT_NV12_G1_TILED ||
+                buffer->fslFormat == FORMAT_P010_TILED) {
             modifiers[0] = DRM_FORMAT_MOD_VSI_G1_TILED;
             modifiers[1] = DRM_FORMAT_MOD_VSI_G1_TILED;
         }
@@ -514,7 +518,8 @@ int KmsDisplay::performOverlay()
             modifiers[0] = DRM_FORMAT_MOD_VSI_G2_TILED;
             modifiers[1] = DRM_FORMAT_MOD_VSI_G2_TILED;
         }
-        else if (buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED) {
+        else if (buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+                buffer->fslFormat == FORMAT_P010_TILED_COMPRESSED) {
             modifiers[0] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
             modifiers[1] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
         }
@@ -528,7 +533,9 @@ int KmsDisplay::performOverlay()
         if (buffer->fslFormat == FORMAT_NV12_TILED ||
             buffer->fslFormat == FORMAT_NV12_G1_TILED ||
             buffer->fslFormat == FORMAT_NV12_G2_TILED ||
-            buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED) {
+            buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+            buffer->fslFormat == FORMAT_P010_TILED ||
+            buffer->fslFormat == FORMAT_P010_TILED_COMPRESSED) {
             drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height,
                 format, bo_handles, pitches, offsets, modifiers,
                 (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
@@ -622,10 +629,8 @@ int KmsDisplay::updateScreen()
         uint32_t offsets[4] = {0};
         uint64_t modifiers[4] = {0};
 
-#ifdef ENABLE_FRAMEBUFFER_TILE
         mNoResolve = mAllowModifier && (buffer->usage &
                 (USAGE_GPU_TILED_VIV | USAGE_GPU_TS_VIV));
-#endif
         if (mNoResolve) {
             modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED;
         }
@@ -992,6 +997,10 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
             return DRM_FORMAT_NV12;
         case FORMAT_NV21:
             return DRM_FORMAT_NV21;
+        case FORMAT_P010:
+        case FORMAT_P010_TILED:
+        case FORMAT_P010_TILED_COMPRESSED:
+            return DRM_FORMAT_P010;
         case FORMAT_I420:
             return DRM_FORMAT_YUV420;
         case FORMAT_YV12:

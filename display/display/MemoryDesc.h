@@ -41,6 +41,9 @@ enum {
     FORMAT_NV12_G1_TILED = 0x105,
     FORMAT_NV12_G2_TILED = 0x106,
     FORMAT_NV12_G2_TILED_COMPRESSED = 0x107,
+    FORMAT_P010                  = 0x108,
+    FORMAT_P010_TILED            = 0x109,
+    FORMAT_P010_TILED_COMPRESSED = 0x110,
 };
 
 struct MemoryDesc

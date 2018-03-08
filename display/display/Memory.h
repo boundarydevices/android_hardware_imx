@@ -24,6 +24,7 @@ namespace fsl {
 
 #define  ALIGN_PIXEL_2(x)  ((x+ 1) & ~1)
 #define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
+#define  ALIGN_PIXEL_8(x)  ((x+ 7) & ~7)
 #define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
 #define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
 #define  ALIGN_PIXEL_64(x)  ((x+ 63) & ~63)

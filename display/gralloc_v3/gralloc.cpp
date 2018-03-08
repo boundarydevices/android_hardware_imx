@@ -86,6 +86,15 @@ int convertAndroidFormat(int format)
         case HAL_PIXEL_FORMAT_NV12_G2_TILED_COMPRESSED:
             fslFormat = FORMAT_NV12_G2_TILED_COMPRESSED;
             break;
+        case HAL_PIXEL_FORMAT_P010:
+            fslFormat = FORMAT_P010;
+            break;
+        case HAL_PIXEL_FORMAT_P010_TILED:
+            fslFormat = FORMAT_P010_TILED;
+            break;
+        case HAL_PIXEL_FORMAT_P010_TILED_COMPRESSED:
+            fslFormat = FORMAT_P010_TILED_COMPRESSED;
+            break;
         default:
             ALOGE("%s invalid format:0x%x", __func__, format);
             break;
@@ -369,7 +378,10 @@ static int gralloc_allocate(gralloc1_device_t* device,
         if (desc->mFslFormat == FORMAT_NV12_TILED ||
             desc->mFslFormat == FORMAT_NV12_G1_TILED ||
             desc->mFslFormat == FORMAT_NV12_G2_TILED ||
-            desc->mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED) {
+            desc->mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+            desc->mFslFormat == FORMAT_P010 ||
+            desc->mFslFormat == FORMAT_P010_TILED ||
+            desc->mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
             desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
         }
 
