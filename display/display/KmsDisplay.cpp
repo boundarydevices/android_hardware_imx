@@ -702,6 +702,34 @@ int KmsDisplay::updateScreen()
     return 0;
 }
 
+void KmsDisplay::getGUIResolution(int &width, int &height)
+{
+    // keep resolution if less than 1080p.
+    if (width <= 1920 && height <= 1080) {
+        return;
+    }
+
+    char value[PROPERTY_VALUE_MAX];
+    memset(value, 0, sizeof(value));
+    property_get("ro.boot.gui_resolution", value, "p");
+    if (!strncmp(value, "4k", 2)) {
+        width = 3840;
+        height = 2160;
+    }
+    else if (!strncmp(value, "1080p", 5)) {
+        width = 1920;
+        height = 1080;
+    }
+    else if (!strncmp(value, "720p", 4)) {
+        width = 1280;
+        height = 720;
+    }
+    else if (!strncmp(value, "480p", 4)) {
+        width = 640;
+        height = 480;
+    }
+}
+
 int KmsDisplay::openKms(drmModeResPtr pModeRes)
 {
     Mutex::Autolock _l(mLock);
@@ -768,25 +796,7 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
 
     int width = mMode.hdisplay;
     int height = mMode.vdisplay;
-    char value[PROPERTY_VALUE_MAX];
-    memset(value, 0, sizeof(value));
-    property_get("ro.boot.gui_resolution", value, "p");
-    if (!strncmp(value, "4k", 2)) {
-        width = 3840;
-        height = 2160;
-    }
-    else if (!strncmp(value, "1080p", 5)) {
-        width = 1920;
-        height = 1080;
-    }
-    else if (!strncmp(value, "720p", 4)) {
-        width = 1280;
-        height = 720;
-    }
-    else if (!strncmp(value, "480p", 4)) {
-        width = 640;
-        height = 480;
-    }
+    getGUIResolution(width, height);
 
     ssize_t configId = getConfigIdLocked(width, height);
     if (configId < 0) {

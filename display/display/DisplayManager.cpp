@@ -323,7 +323,7 @@ int DisplayManager::enumKmsDisplays()
 
     count = scandir(dri, &dirEntry, 0, alphasort);
     if(count < 0) {
-        ALOGE("%s open %s failed", __func__, SYS_GRAPHICS);
+        ALOGE("%s open %s failed", __func__, dri);
         return -EINVAL;
     }
     for(int i=0; i<count; i++) {

@@ -137,6 +137,7 @@ private:
 
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
     void setMetaData(drmModeAtomicReqPtr pset, MetaData *meta);
+    void getGUIResolution(int &width, int &height);
 
 protected:
     int mDrmFd;
