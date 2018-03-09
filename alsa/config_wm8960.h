@@ -55,15 +55,15 @@ static struct route_setting speaker_output_wm8960[] = {
     },
     {
         .ctl_name = MIXER_WM8960_PLAYBACK_VOLUME,
-        .intval = 230,
+        .intval = 255,
     },
     {
         .ctl_name = MIXER_WM8960_SPEAKER_VOLUME,
-        .intval = 120,
+        .intval = 127,
     },
     {
         .ctl_name = MIXER_WM8960_HEADPHONE_VOLUME,
-        .intval = 120,
+        .intval = 127,
     },
     {
         .ctl_name = NULL,
