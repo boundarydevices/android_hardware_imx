@@ -658,8 +658,6 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
                 if ((afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO) ||
                     (afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE))
                     m3aState.afState = doAutoFocus(afMode);
-                else
-                    m3aState.afState = doAutoFocus(ANDROID_CONTROL_AF_MODE_OFF);
                 break;
             case ANDROID_CONTROL_AF_TRIGGER_START:
                 m3aState.afState = doAutoFocus(afMode);
