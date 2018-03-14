@@ -77,6 +77,7 @@ KmsDisplay::KmsDisplay()
     mNoResolve = false;
     mAllowModifier = false;
     mMetadataID = 0;
+    mReturnFence = -1;
 }
 
 KmsDisplay::~KmsDisplay()
@@ -194,9 +195,11 @@ void KmsPlane::getPropertyIds()
  */
 void KmsDisplay::getKmsProperty()
 {
+    mCrtc.fence_ptr = 0;
     struct TableProperty crtcTable[] = {
         {"MODE_ID", &mCrtc.mode_id},
         {"ACTIVE",  &mCrtc.active},
+        {"ANDROID_OUT_FENCE_PTR", &mCrtc.fence_ptr},
     };
 
     struct TableProperty connectorTable[] = {
@@ -263,6 +266,20 @@ void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
         drmModeAtomicAddProperty(pset, mConnectorID,
                              mConnector.crtc_id, mCrtcID);
     }
+
+    if (mCrtc.fence_ptr != 0) {
+        drmModeAtomicAddProperty(pset, mCrtcID,
+                         mCrtc.fence_ptr, (uint64_t)&mReturnFence);
+    }
+}
+
+int KmsDisplay::getPresentFence(int32_t* outPresentFence)
+{
+    if (outPresentFence != NULL) {
+        *outPresentFence = mReturnFence;
+        mReturnFence = -1;
+    }
+    return 0;
 }
 
 void KmsPlane::connectCrtc(drmModeAtomicReqPtr pset,
@@ -607,8 +624,6 @@ int KmsDisplay::performOverlay()
                     rect->right - rect->left, rect->bottom - rect->top);
 #endif
 
-    mOverlay = NULL;
-
     return true;
 }
 
@@ -723,6 +738,11 @@ int KmsDisplay::updateScreen()
             ALOGI("Failed to commit pset ret=%d", ret);
         }
         break;
+    }
+
+    if (mOverlay != NULL) {
+        mOverlay->releaseFence = (mReturnFence > 0) ? dup(mReturnFence) : -1;
+        mOverlay = NULL;
     }
 
     drmModeAtomicFree(mPset);

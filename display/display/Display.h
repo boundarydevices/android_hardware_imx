@@ -135,6 +135,11 @@ public:
     virtual int updateScreen();
     // set display active config.
     virtual int setActiveConfig(int configId);
+    virtual int getPresentFence(int32_t* outPresentFence) {
+        if (outPresentFence != NULL)
+            *outPresentFence = -1;
+        return 0;
+    }
     // set display specified config parameters.
     int setConfig(int width, int height, int* format);
     // clear all display configs.

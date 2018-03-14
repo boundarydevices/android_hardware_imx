@@ -100,6 +100,7 @@ public:
     virtual int setActiveConfig(int configId);
     // update composite buffer to screen.
     virtual int updateScreen();
+    virtual int getPresentFence(int32_t* outPresentFence);
 
     // open drm device.
     int openKms();
@@ -149,10 +150,12 @@ protected:
     struct {
         uint32_t mode_id;
         uint32_t active;
+        uint32_t fence_ptr;
     } mCrtc;
     uint32_t mCrtcID;
     int mCrtcIndex;
     int mEncoderType;
+    int mReturnFence;
 
     struct {
         uint32_t crtc_id;

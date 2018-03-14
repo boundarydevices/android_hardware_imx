@@ -563,7 +563,7 @@ static int hwc2_present_display(hwc2_device_t* device, hwc2_display_t display,
     pDisplay->composeLayers();
     pDisplay->updateScreen();
     if (outPresentFence != NULL) {
-        *outPresentFence = -1;
+        pDisplay->getPresentFence(outPresentFence);
     }
 
     struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
