@@ -62,7 +62,6 @@ DisplayManager::DisplayManager()
         mVirtualDisplays[i]->setIndex(i+MAX_PHYSICAL_DISPLAY);
     }
 
-    mDrmFd = -1;
     mDrmMode = false;
     enumKmsDisplays();
     if (!mDrmMode) {
@@ -80,7 +79,6 @@ DisplayManager::DisplayManager()
     //allow primary display plug-out then plug-in.
     Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
     if (display->connected() == false) {
-        display->setConnected(true);
         display->setFakeVSync(true);
     }
 
@@ -112,10 +110,6 @@ DisplayManager::~DisplayManager()
         if (mVirtualDisplays[i] != NULL) {
             delete mVirtualDisplays[i];
         }
-    }
-
-    if (mDrmFd > 0) {
-        close(mDrmFd);
     }
 }
 
@@ -244,33 +238,43 @@ bool DisplayManager::isOverlay(int fb)
 
 int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary)
 {
-    mDrmFd = open(path, O_RDWR);
-    if(mDrmFd <= 0) {
+    int drmFd = open(path, O_RDWR);
+    if(drmFd <= 0) {
         ALOGE("Failed to open dri-%s, error:%s", path, strerror(-errno));
         return -ENODEV;
     }
 
-    int ret = drmSetClientCap(mDrmFd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
+    int ret = drmSetClientCap(drmFd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
     if (ret) {
         ALOGE("Failed to set universal plane cap %d", ret);
-        close(mDrmFd);
-        mDrmFd = -1;
+        close(drmFd);
         return ret;
     }
 
-    ret = drmSetClientCap(mDrmFd, DRM_CLIENT_CAP_ATOMIC, 1);
+    ret = drmSetClientCap(drmFd, DRM_CLIENT_CAP_ATOMIC, 1);
     if (ret) {
         ALOGE("Failed to set atomic cap %d", ret);
-        close(mDrmFd);
-        mDrmFd = -1;
+        close(drmFd);
         return ret;
     }
 
-    drmModeResPtr res = drmModeGetResources(mDrmFd);
+    // get primary display name to match DRM.
+    // the primary display can be fixed by name.
+    int main = 0;
+    char value[PROPERTY_VALUE_MAX];
+    int len = property_get("ro.boot.primary_display", value, NULL);
+    if (len > 0) {
+        drmVersionPtr version = drmGetVersion(drmFd);
+        if (version && !strncmp(version->name, value, len)) {
+            main = 1;
+        }
+        drmFreeVersion(version);
+    }
+
+    drmModeResPtr res = drmModeGetResources(drmFd);
     if (!res) {
         ALOGE("Failed to get DrmResources resources");
-        close(mDrmFd);
-        mDrmFd = -1;
+        close(drmFd);
         return -ENODEV;
     }
 
@@ -278,34 +282,40 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     for (int i = 0; i < res->count_connectors; i++) {
         display = mKmsDisplays[*id];
 
-        if (display->setDrm(mDrmFd, res->connectors[i]) != 0) {
+        if (display->setDrm(drmFd, res->connectors[i]) != 0) {
             continue;
         }
 
         display->readType();
-        if (display->readConnection() != 0 || !display->connected()) {
+        display->readConnection();
+        // primary display allow not connected.
+        if (!display->connected() && (*foundPrimary || !main)) {
             (*id)++;
             continue;
         }
 
-        if (display->openKms(res) != 0) {
+        if (display->openKms() != 0) {
             display->closeKms();
             (*id)++;
             continue;
         }
 
-        // the first connected device as primary display.
-        if (!*foundPrimary) {
+        // primary display is fixed by name.
+        if (!*foundPrimary && main) {
+            ALOGI("%s set %d as primary display", __func__, (*id));
             *foundPrimary = true;
             KmsDisplay* tmp = mKmsDisplays[0];
             mKmsDisplays[0] = mKmsDisplays[*id];
             mKmsDisplays[*id] = tmp;
+            mKmsDisplays[0]->setIndex(0);
+            mKmsDisplays[*id]->setIndex(*id);
         }
         else {
             (*id)++;
         }
     }
     drmModeFreeResources(res);
+    close(drmFd);
 
     return 0;
 }
@@ -462,16 +472,6 @@ void DisplayManager::handleHotplugEvent()
 
 void DisplayManager::handleKmsHotplug()
 {
-    if (mDrmFd < 0) {
-        return;
-    }
-
-    drmModeResPtr res = drmModeGetResources(mDrmFd);
-    if (!res) {
-        ALOGE("Failed to get DrmResources resources");
-        return;
-    }
-
     for (uint32_t i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
         KmsDisplay* display = NULL;
         {
@@ -492,7 +492,7 @@ void DisplayManager::handleKmsHotplug()
         }
 
         if (display->connected()) {
-            display->openKms(res);
+            display->openKms();
         }
 
         EventListener* callback = NULL;

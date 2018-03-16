@@ -102,7 +102,7 @@ public:
     virtual int updateScreen();
 
     // open drm device.
-    int openKms(drmModeResPtr pModeRes);
+    int openKms();
     // close drm device.
     int closeKms();
     // read display type.
@@ -133,7 +133,7 @@ private:
     uint32_t convertFormatToDrm(uint32_t format);
     void getKmsProperty();
     int getPrimaryPlane();
-    int findBestMatch(drmModeConnectorPtr pConnector);
+    int getDisplayMode(drmModeConnectorPtr pConnector);
 
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
     void setMetaData(drmModeAtomicReqPtr pset, MetaData *meta);

@@ -69,6 +69,9 @@ KmsDisplay::KmsDisplay()
     mConnectorID = 0;
     mKmsPlaneNum = 1;
     memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
+    memset(&mMode, 0, sizeof(mMode));
+    mCrtcID = 0;
+
     mPset = NULL;
     mOverlay = NULL;
     mNoResolve = false;
@@ -340,6 +343,11 @@ void KmsPlane::setDisplayFrame(drmModeAtomicReqPtr pset,
 int KmsDisplay::setPowerMode(int mode)
 {
     Mutex::Autolock _l(mLock);
+
+    if (!mConnected) {
+        ALOGE("%s display plugout", __func__);
+        return 0;
+    }
 
     switch (mode) {
         case POWER_ON:
@@ -735,12 +743,18 @@ void KmsDisplay::getGUIResolution(int &width, int &height)
     }
 }
 
-int KmsDisplay::openKms(drmModeResPtr pModeRes)
+int KmsDisplay::openKms()
 {
     Mutex::Autolock _l(mLock);
 
     if (mDrmFd < 0 || mConnectorID == 0) {
         ALOGE("%s invalid drmfd or connector id", __func__);
+        return -ENODEV;
+    }
+
+    drmModeResPtr pModeRes = drmModeGetResources(mDrmFd);
+    if (!pModeRes) {
+        ALOGE("Failed to get DrmResources resources");
         return -ENODEV;
     }
 
@@ -776,8 +790,7 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
         return -ENODEV;
     }
 
-    int index = findBestMatch(pConnector);
-    mMode = pConnector->modes[index];
+    getDisplayMode(pConnector);
     for (int i = 0; i < pModeRes->count_crtcs; i++) {
         if ((pEncoder->possible_crtcs & (1 << i)) == 0) {
             continue;
@@ -805,7 +818,7 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
 
     ssize_t configId = getConfigIdLocked(width, height);
     if (configId < 0) {
-        ALOGE("can't find config: w:%d, h:%d", mMode.hdisplay, mMode.vdisplay);
+        ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
     }
 
@@ -824,23 +837,40 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
     drmModeFreePlane(planePtr);
 
     DisplayConfig& config = mConfigs.editItemAt(configId);
-    config.mXdpi = mMode.hdisplay * 25400 / pConnector->mmWidth;
-    config.mYdpi = mMode.vdisplay * 25400 / pConnector->mmHeight;
+    // the mmWidth and mmHeight is 0 when is not connected.
+    // set the default dpi to 160.
+    if (pConnector->mmWidth != 0) {
+        config.mXdpi = mMode.hdisplay * 25400 / pConnector->mmWidth;
+    }
+    else {
+        config.mXdpi = 160000;
+    }
+    if (pConnector->mmHeight != 0) {
+        config.mYdpi = mMode.vdisplay * 25400 / pConnector->mmHeight;
+    }
+    else {
+        config.mYdpi = 160000;
+    }
+
     config.mFps  = mMode.vrefresh;
     config.mVsyncPeriod  = 1000000000 / mMode.vrefresh;
     config.mFormat = format;
     config.mBytespixel = 4;
     ALOGW("xres         = %d px\n"
           "yres         = %d px\n"
+          "format       = %d\n"
           "xdpi         = %.2f ppi\n"
           "ydpi         = %.2f ppi\n"
-          "fps          = %.2f Hz\n",
-          config.mXres, config.mYres, config.mXdpi / 1000.0f,
-          config.mYdpi / 1000.0f, config.mFps);
+          "fps          = %.2f Hz\n"
+          "mode.width   = %d px\n"
+          "mode.height  = %d px\n",
+          config.mXres, config.mYres, format, config.mXdpi / 1000.0f,
+          config.mYdpi / 1000.0f, config.mFps, mMode.hdisplay, mMode.vdisplay);
 
     if (pConnector != NULL) {
         drmModeFreeConnector(pConnector);
     }
+    drmModeFreeResources(pModeRes);
 
     mActiveConfig = configId;
     prepareTargetsLocked();
@@ -848,20 +878,36 @@ int KmsDisplay::openKms(drmModeResPtr pModeRes)
     return 0;
 }
 
-int KmsDisplay::findBestMatch(drmModeConnectorPtr pConnector)
+int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
 {
     int index = 0;
     unsigned int delta = -1, rdelta = -1;
     char value[PROPERTY_VALUE_MAX];
     int width = 0, height = 0;
 
+    // display mode set by bootargs.
+    mMode.vrefresh = 60;
     memset(value, 0, sizeof(value));
     property_get("ro.boot.displaymode", value, "1080p");
-    if (!strncmp(value, "2k", 2)) {
-        width = 2048;
-    }
-    else if (!strncmp(value, "4k", 2)) {
+    if (!strncmp(value, "4k", 2)) {
         width = 4096;
+        mMode.hdisplay = 3840;
+        mMode.vdisplay = 2160;
+    }
+    else if (!strncmp(value, "1080p", 5)) {
+        height = 1080;
+        mMode.hdisplay = 1920;
+        mMode.vdisplay = 1080;
+    }
+    else if (!strncmp(value, "720p", 4)) {
+        height = 720;
+        mMode.hdisplay = 1280;
+        mMode.vdisplay = 720;
+    }
+    else if (!strncmp(value, "480p", 4)) {
+        height = 480;
+        mMode.hdisplay = 640;
+        mMode.vdisplay = 480;
     }
     else {
         height = atoi(value);
@@ -871,6 +917,7 @@ int KmsDisplay::findBestMatch(drmModeConnectorPtr pConnector)
     }
     ALOGV("%s mode:%s, width:%d, height:%d", __func__, value, width, height);
 
+    // find the best display mode.
     for (int i=0; i<pConnector->count_modes; i++) {
         drmModeModeInfo mode = pConnector->modes[i];
         if (mode.vrefresh < 60) {
@@ -896,10 +943,13 @@ int KmsDisplay::findBestMatch(drmModeConnectorPtr pConnector)
         }
     }
 
-    drmModeModeInfo mode = pConnector->modes[index];
-    ALOGV("find best mode w:%d, h:%d", mode.hdisplay, mode.vdisplay);
+    // display mode found in connector.
+    if (pConnector->count_modes > 0) {
+        mMode = pConnector->modes[index];
+    }
+    ALOGV("find best mode w:%d, h:%d", mMode.hdisplay, mMode.vdisplay);
 
-    return index;
+    return 0;
 }
 
 int KmsDisplay::getPrimaryPlane()
@@ -1188,11 +1238,13 @@ int KmsDisplay::readType()
 
 int KmsDisplay::readConnection()
 {
+    Mutex::Autolock _l(mLock);
     if (mDrmFd < 0 || mConnectorID == 0) {
-        ALOGE("%s invalid drmfd or connector id", __func__);
+        ALOGE("%s id:%d, invalid drmfd or connector id", __func__, mIndex);
         return -ENODEV;
     }
 
+    int connected = mConnected;
     drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
     if (pConnector == NULL) {
         ALOGE("%s drmModeGetConnector failed for "
@@ -1200,10 +1252,14 @@ int KmsDisplay::readConnection()
         return -ENODEV;
     }
 
+    ALOGI("%s: id:%d, connection:%d, count_modes:%d, count_encoders:%d",
+           __func__, mIndex, pConnector->connection,
+           pConnector->count_modes, pConnector->count_encoders);
     if ((pConnector->connection == DRM_MODE_CONNECTED) &&
         (pConnector->count_modes > 0) &&
         (pConnector->count_encoders > 0)) {
         mConnected = true;
+        getDisplayMode(pConnector);
     }
     else {
         mConnected = false;
@@ -1211,6 +1267,10 @@ int KmsDisplay::readConnection()
 
     if (pConnector != NULL) {
         drmModeFreeConnector(pConnector);
+    }
+
+    if (connected ^ mConnected) {
+        mModeset = true;
     }
 
     return 0;
@@ -1259,7 +1319,7 @@ bool KmsDisplay::VSyncThread::threadLoop()
         }
     }
 
-    if (mFakeVSync) {
+    if (mFakeVSync || mCtx->mModeset) {
         performFakeVSync();
     }
     else {

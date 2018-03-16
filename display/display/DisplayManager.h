@@ -77,7 +77,6 @@ private:
     KmsDisplay* mKmsDisplays[MAX_PHYSICAL_DISPLAY];
     VirtualDisplay* mVirtualDisplays[MAX_VIRTUAL_DISPLAY];
     EventListener* mListener;
-    int mDrmFd;
     bool mDrmMode;
 };
 
