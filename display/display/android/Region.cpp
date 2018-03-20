@@ -21,7 +21,6 @@
 
 #include <utils/Log.h>
 #include <utils/String8.h>
-#include <utils/CallStack.h>
 
 #include "Rect.h"
 #include "Region.h"
@@ -578,7 +577,6 @@ bool Region::validate(const Region& reg, const char* name, bool silent)
     }
     if (result == false && !silent) {
         reg.dump(name);
-        CallStack stack(LOG_TAG);
     }
     return result;
 }

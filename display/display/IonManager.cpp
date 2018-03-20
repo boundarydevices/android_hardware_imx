@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <string.h>
 #include <inttypes.h>
 #include <sys/mman.h>
 #include <cutils/log.h>
