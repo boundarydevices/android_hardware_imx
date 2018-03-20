@@ -64,9 +64,16 @@ int MemoryDesc::checkFormat()
              *
              * Here we assume the buffer will be used by Vivante HAL...
              */
-            alignedw = ALIGN_PIXEL_64(mWidth);
-            alignedh = ALIGN_PIXEL_64(mHeight);
-            size = alignedw * alignedh * bpp + 128;
+            if (mProduceUsage & USAGE_GPU_TILED_VIV) {
+                alignedw = ALIGN_PIXEL_64(mWidth);
+                alignedh = ALIGN_PIXEL_64(mHeight);
+                size = alignedw * alignedh * bpp + 128;
+            } else {
+                alignedw = ALIGN_PIXEL_16(mWidth);
+                alignedh = ALIGN_PIXEL_16(mHeight);
+                size = alignedw * alignedh * bpp;
+            }
+
             if (mProduceUsage & USAGE_HW_VIDEO_ENCODER) {
                 mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
             }
