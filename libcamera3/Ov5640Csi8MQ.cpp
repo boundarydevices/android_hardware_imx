@@ -103,12 +103,6 @@ status_t Ov5640Csi8MQ::initSensorStaticData()
         ALOGI("enum frame size w:%d, h:%d",
                 vid_frmsize.discrete.width, vid_frmsize.discrete.height);
 
-        // On mscale, resolution less than 720p is not supported, will block on dqbuf
-        if((vid_frmsize.discrete.width < 1280) || (vid_frmsize.discrete.height < 720)) {
-          ALOGI("omit resolution less 720p");
-          continue;
-        }
-
         memset(&vid_frmval, 0, sizeof(struct v4l2_frmivalenum));
         vid_frmval.index        = 0;
         vid_frmval.pixel_format = vid_frmsize.pixel_format;
