@@ -95,6 +95,9 @@ KmsDisplay::~KmsDisplay()
     if (mDrmFd > 0) {
         close(mDrmFd);
     }
+    if (mEdid != NULL) {
+        delete mEdid;
+    }
 }
 
 /*
@@ -1186,6 +1189,7 @@ int KmsDisplay::setDrm(int drmfd, size_t connectorId)
     mDrmFd = dup(drmfd);
     mConnectorID = connectorId;
 
+    mEdid = new Edid(mDrmFd,mConnectorID);
     return 0;
 }
 

@@ -34,6 +34,7 @@ LOCAL_SRC_FILES := Display.cpp \
 
 LOCAL_C_INCLUDES += $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
                     $(IMX_PATH)/imx/include \
+                    $(IMX_PATH)/imx/libedid \
                     external/libdrm \
                     external/libdrm/include/drm
 
@@ -44,6 +45,7 @@ LOCAL_SHARED_LIBRARIES :=   \
     libhardware             \
     libsync                 \
     libion                  \
+    libedid                 \
     libdrm
 
 LOCAL_VENDOR_MODULE := true

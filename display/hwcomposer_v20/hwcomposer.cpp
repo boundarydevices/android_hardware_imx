@@ -610,24 +610,34 @@ static int hwc2_get_hdr_capabilities(hwc2_device_t* device, hwc2_display_t displ
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    if (outNumTypes != NULL) {
-        *outNumTypes = 0;
+    HdrMetaData hdrMetaData;
+    memset(&hdrMetaData, 0, sizeof(hdrMetaData));
+    if (pDisplay->isHdrSupported() && (pDisplay->getHdrMetaData(&hdrMetaData) == 0) ) {
+        if (outTypes == NULL) {
+            if (outNumTypes != NULL)
+                *outNumTypes = 1;
+        }
+        else {
+            *outTypes = HAL_HDR_HDR10;
+            if (outMaxLuminance != NULL)
+                *outMaxLuminance = hdrMetaData.max_cll;
+            if (outMaxAverageLuminance != NULL)
+                *outMaxAverageLuminance = hdrMetaData.max_fall;
+            if (outMinLuminance != NULL)
+                *outMinLuminance = hdrMetaData.min_cll;
+        }
     }
-
-    if (outTypes != NULL) {
-        *outTypes = 0;
-    }
-
-    if (outMaxLuminance != NULL) {
-        *outMaxLuminance = 0.0f;
-    }
-
-    if (outMaxAverageLuminance != NULL) {
-        *outMaxAverageLuminance = 0.0f;
-    }
-
-    if (outMinLuminance != NULL) {
-        *outMinLuminance = 0.0f;
+    else {
+        if (outNumTypes != NULL)
+            *outNumTypes = 0;
+        if (outTypes != NULL)
+            *outTypes = 0;
+        if (outMaxLuminance != NULL)
+            *outMaxLuminance = 0.0f;
+        if (outMaxAverageLuminance != NULL)
+            *outMaxAverageLuminance = 0.0f;
+        if (outMinLuminance != NULL)
+            *outMinLuminance = 0.0f;
     }
 
     return HWC2_ERROR_NONE;

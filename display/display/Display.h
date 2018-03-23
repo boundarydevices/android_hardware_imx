@@ -21,6 +21,7 @@
 #include "Memory.h"
 #include "Layer.h"
 #include "Composer.h"
+#include "Edid.h"
 
 namespace fsl {
 
@@ -137,6 +138,10 @@ public:
     int getActiveId();
     // get display config number.
     int getConfigNum();
+    // check whether display support HDR or not
+    bool isHdrSupported();
+    // get HDR metadata
+    int getHdrMetaData(HdrMetaData* hdrMetaData);
 
 protected:
     int composeLayersLocked();
@@ -157,6 +162,7 @@ protected:
     Composer mComposer;
     Memory* mRenderTarget;
     int mAcquireFence;
+    Edid* mEdid;
 };
 
 }

@@ -51,6 +51,7 @@ Display::Display()
     mRenderTarget = NULL;
     mAcquireFence = -1;
     mIndex = -1;
+    mEdid = NULL;
 }
 
 Display::~Display()
@@ -153,6 +154,22 @@ int Display::getConfigNum()
 {
     Mutex::Autolock _l(mLock);
     return mConfigs.size();
+}
+
+bool Display::isHdrSupported()
+{
+    Mutex::Autolock _l(mLock);
+    if(mEdid == NULL)
+        return false;
+    return mEdid->isHdrSupported();
+}
+
+int Display::getHdrMetaData(HdrMetaData* hdrMetaData)
+{
+    Mutex::Autolock _l(mLock);
+    if(mEdid == NULL)
+        return -EINVAL;
+    return mEdid->getHdrMetaData(hdrMetaData);
 }
 
 const DisplayConfig& Display::getConfig(int config)
