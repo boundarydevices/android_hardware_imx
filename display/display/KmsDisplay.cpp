@@ -687,6 +687,15 @@ int KmsDisplay::updateScreen()
         drmModeCreatePropertyBlob(drmfd, &mMode, sizeof(mMode), &modeID);
     }
 
+    // to clear screen to black in below case:
+    // it is not in client composition and
+    // last overlay state and current are different.
+    if (buffer->base != 0 && ((mComposeFlag & CLIENT_COMPOSE_MASK) ^
+             CLIENT_COMPOSE_MASK) && ((mComposeFlag >> 1) ^
+             (mComposeFlag & OVERLAY_COMPOSE_MASK))) {
+        memset((void*)buffer->base, 0, buffer->size);
+    }
+
     bindCrtc(mPset, modeID);
     mKmsPlanes[0].connectCrtc(mPset, mCrtcID, buffer->fbId);
     mKmsPlanes[0].setSourceSurface(mPset, 0, 0, config.mXres, config.mYres);

@@ -51,6 +51,7 @@ Display::Display()
     mRenderTarget = NULL;
     mAcquireFence = -1;
     mIndex = -1;
+    mComposeFlag = 0;
     mEdid = NULL;
 }
 
@@ -436,6 +437,8 @@ bool Display::verifyLayers()
         deviceCompose = false;
     }
 
+    mComposeFlag &= OVERLAY_COMPOSE_MASK;
+    mComposeFlag = mComposeFlag << (LAST_OVERLAY_BIT - OVERLAY_COMPOSE_BIT);
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
@@ -444,11 +447,13 @@ bool Display::verifyLayers()
         // handle overlay.
         if (checkOverlay(mLayers[i])) {
             mLayers[i]->type = LAYER_TYPE_DEVICE;
+            mComposeFlag |= 1 << OVERLAY_COMPOSE_BIT;
             continue;
         }
 
         if (!deviceCompose) {
             mLayers[i]->type = LAYER_TYPE_CLIENT;
+            mComposeFlag |= 1 << CLIENT_COMPOSE_BIT;
             continue;
         }
         mLayerVector.add(mLayers[i]);

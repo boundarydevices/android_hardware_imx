@@ -31,6 +31,13 @@ using android::sp;
 
 #define DISPLAY_PRIMARY 0
 
+#define OVERLAY_COMPOSE_BIT 0
+#define LAST_OVERLAY_BIT 1
+#define CLIENT_COMPOSE_BIT 2
+#define OVERLAY_COMPOSE_MASK (1 << OVERLAY_COMPOSE_BIT)
+#define LAST_OVERLAY_MASK (1 << LAST_OVERLAY_BIT)
+#define CLIENT_COMPOSE_MASK (1 << CLIENT_COMPOSE_BIT)
+
 class EventListener
 {
 public:
@@ -162,6 +169,7 @@ protected:
     Composer mComposer;
     Memory* mRenderTarget;
     int mAcquireFence;
+    int mComposeFlag;
     Edid* mEdid;
 };
 
