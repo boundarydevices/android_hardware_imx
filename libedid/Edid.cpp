@@ -50,7 +50,7 @@ void Edid::getEdidDataFromDrm(int fd,uint32_t connectorID)
     ALOGI("Try to check fd %d connector:%d edid info",fd,connectorID);
 
     //Step1: get edid blobid for specified card and connector
-    uint32_t edidBlobId;
+    uint32_t edidBlobId = 0;
     drmModeObjectPropertiesPtr props;
     props = drmModeObjectGetProperties(fd,connectorID,DRM_MODE_OBJECT_CONNECTOR);
     if (!props) {

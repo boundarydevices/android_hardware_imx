@@ -159,8 +159,8 @@ VirtualDisplay* DisplayManager::getVirtualDisplay(int id)
         return NULL;
     }
 
-    mVirtualDisplays[id]->setConnected(true);
-    return mVirtualDisplays[id];
+    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->setConnected(true);
+    return mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY];
 }
 
 VirtualDisplay* DisplayManager::createVirtualDisplay()
@@ -190,10 +190,10 @@ int DisplayManager::destroyVirtualDisplay(int id)
         return -EINVAL;
     }
 
-    mVirtualDisplays[id]->setConnected(false);
-    mVirtualDisplays[id]->reset();
-    mVirtualDisplays[id]->clearConfigs();
-    mVirtualDisplays[id]->setBusy(false);
+    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->setConnected(false);
+    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->reset();
+    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->clearConfigs();
+    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->setBusy(false);
     return 0;
 }
 

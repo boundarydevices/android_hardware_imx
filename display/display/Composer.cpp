@@ -303,8 +303,11 @@ int Composer::composeLayer(Layer* layer, bool bypass)
         if (!layer->isSolidColor()) {
             setG2dSurface(sSurfaceX, layer->handle, srect);
         }
-        else {
+        else if (mDimBuffer) {
             setG2dSurface(sSurfaceX, mDimBuffer, drect);
+        }
+        else {
+            return -EINVAL;
         }
 
         convertRotation(layer->transform, sSurface, dSurface);
