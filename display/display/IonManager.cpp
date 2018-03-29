@@ -21,14 +21,11 @@
 #include <cutils/log.h>
 #include <ion/ion.h>
 #include <linux/mxc_ion.h>
+#ifdef CFG_SECURE_DATA_PATH
+#include <linux/secure_ion.h>
+#endif
 #include <ion_ext.h>
 #include "IonManager.h"
-
-#ifdef CFG_SECURE_DATA_PATH
-#define ION_DECODED_BUFFER_VPU_HEAP 2
-#else
-#define ION_DECODED_BUFFER_VPU_HEAP 1
-#endif
 
 #define ION_DECODED_BUFFER_VPU_ALIGN 8
 
@@ -69,16 +66,33 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 
     unsigned char *ptr = NULL;
     int sharedFd;
+    int err;
     ion_user_handle_t ion_hnd = -1;
     Memory* memory = NULL;
 
     desc.mSize = (desc.mSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-    int err = ion_alloc(mIonFd,
-        desc.mSize,
-        ION_DECODED_BUFFER_VPU_ALIGN,
-        ION_DECODED_BUFFER_VPU_HEAP,
-        0,
-        &ion_hnd);
+
+#ifdef CFG_SECURE_DATA_PATH
+    if (desc.mFlag & FLAGS_SECURE)
+    {
+        err = ion_alloc(mIonFd,
+            desc.mSize,
+            ION_DECODED_BUFFER_VPU_ALIGN,
+            DWL_ION_DECODED_BUFFER_DCSS_HEAP,
+            0,
+            &ion_hnd);
+    }
+    else
+#endif
+    {
+        err = ion_alloc(mIonFd,
+            desc.mSize,
+            ION_DECODED_BUFFER_VPU_ALIGN,
+            1,
+            0,
+            &ion_hnd);
+    }
+
     if (err) {
         ALOGE("ion_alloc failed");
         return err;
