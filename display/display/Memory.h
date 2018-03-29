@@ -44,6 +44,9 @@ enum {
     USAGE_HW_2D       = 0x00000400,
     /* buffer will be used by the HWComposer HAL module */
     USAGE_HW_COMPOSER = 0x00000800,
+    /* secure buffer flag.
+     * reference to hardware/libhardware/include/hardware/gralloc.h*/
+    USAGE_PROTECTED   = 0x00004000,
     /* buffer will be used with the HW video encoder */
     USAGE_HW_VIDEO_ENCODER = 0x00010000,
     USAGE_GPU_TILED_VIV = 0x10000000,
@@ -67,6 +70,7 @@ enum {
     FLAGS_HDR10_VIDEO    = 0x02000000,
     FLAGS_DOLBY_VIDEO    = 0x04000000,
     FLAGS_COMPRESSED_OFFSET = 0x08000000,
+    FLAGS_SECURE         = 0x10000000,
 };
 
 struct MemoryDesc;

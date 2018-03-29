@@ -77,9 +77,10 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     /* The following conditions decide allocator.
      * 1) framebuffer should use ION.
      * 2) Hantro VPU needs special size should use ION.
-     * 3) other conditions can use DRM Gralloc.
+     * 3) secure memory should use ION.
+     * 4) other conditions can use DRM Gralloc.
     */
-    if (flags & FLAGS_FRAMEBUFFER) {
+    if (flags & (FLAGS_FRAMEBUFFER | FLAGS_SECURE)) {
         canHandle = false;
     }
     else if (mGPUAlloc == NULL) {
@@ -101,6 +102,11 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
     Memory *handle = NULL;
     int ret = 0;
 
+#ifdef CFG_SECURE_DATA_PATH
+    if (desc.mProduceUsage & USAGE_PROTECTED) {
+        desc.mFlag |= FLAGS_SECURE;
+    }
+#endif
     if (isDrmAlloc(desc.mFlag, desc.mFslFormat, desc.mProduceUsage)) {
         ret = mGPUAlloc->alloc(mGPUAlloc, desc.mWidth, desc.mHeight,
                 desc.mFormat, (int)desc.mProduceUsage,
