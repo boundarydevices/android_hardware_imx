@@ -145,6 +145,8 @@ int MemoryManager::retainMemory(Memory* handle)
     }
 
     mIonManager->getVaddrs(handle);
+    handle->fbId = 0;
+    handle->fbHandle = 0;
 
     return 0;
 }
@@ -177,6 +179,8 @@ int MemoryManager::releaseMemory(Memory* handle)
             drmIoctl(handle->kmsFd, DRM_IOCTL_GEM_CLOSE, &gem_close);
         }
     }
+    handle->fbId = 0;
+    handle->fbHandle = 0;
 
     if (handle->base != 0) {
         munmap((void*)handle->base, handle->size);
