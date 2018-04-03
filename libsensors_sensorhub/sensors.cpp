@@ -33,6 +33,8 @@
 
 #include "sensors.h"
 #include "PressSensor.h"
+#include "Stepcounter.h"
+#include "Stepdetector.h"
 
 #include "FSLSensorsHub.h"
 
@@ -207,6 +209,42 @@ static const struct sensor_t sSensorList[] = {
     .flags =      SENSOR_FLAG_ON_CHANGE_MODE,
     .reserved =   {}
     },
+    {
+    .name =       "NXP iMX StepCounter",
+    .vendor =     "NXP",
+    .version=     1,
+    .handle =     SENSORS_STEP_COUNTER_HANDLE,
+    .type =       SENSOR_TYPE_STEP_COUNTER,
+    .maxRange =   1.0f,
+    .resolution = 1.0f,
+    .power =      0.0f,
+    .minDelay =   0,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             SENSOR_STRING_TYPE_STEP_COUNTER,
+    .requiredPermission =     0,
+    .maxDelay =               0,
+    .flags =      SENSOR_FLAG_ON_CHANGE_MODE,
+    .reserved =   {}
+    },
+    {
+    .name =       "NXP iMX StepDetector",
+    .vendor =     "NXP",
+    .version=     1,
+    .handle =     SENSORS_STEP_DETECTOR_HANDLE,
+    .type =       SENSOR_TYPE_STEP_DETECTOR ,
+    .maxRange =   1.0f,
+    .resolution = 1.0f,
+    .power =      0.0f,
+    .minDelay =   0,
+    .fifoReservedEventCount = 0,
+    .fifoMaxEventCount =      0,
+    .stringType =             SENSOR_STRING_TYPE_STEP_DETECTOR,
+    .requiredPermission =     0,
+    .maxDelay =               0,
+    .flags =      SENSOR_FLAG_SPECIAL_REPORTING_MODE,
+    .reserved =   {}
+    },
 };
 
 
@@ -255,6 +293,8 @@ private:
         press,
         temperature,
         light,
+	step_counter,
+	step_detector,
         numSensorDrivers,
         numFds,
     };
@@ -275,7 +315,12 @@ private:
             case ID_L:
                 return light;
                 break;
-
+	    case ID_SD:
+		return step_detector;
+		break;
+	    case ID_SC:
+		return step_counter;
+		break;
             case ID_A:
           	case ID_M:
           	case ID_O:
@@ -283,8 +328,6 @@ private:
 			case ID_GR:
 			case ID_LA:
 			case ID_RV:
-			case ID_SD:
-			case ID_SC:
 			  return fsl_sens;
         }
         return -EINVAL;
@@ -308,6 +351,8 @@ sensors_poll_context_t::sensors_poll_context_t()
     mSensors[press] = new PressSensor();
     mSensors[temperature] = new PressSensor();
     mSensors[light] = new LightSensor();
+    mSensors[step_counter] = new Stepcounter();
+    mSensors[step_detector] = new Stepdetector();
 
 	fillPollFd();
 	magRunTimes = 0;

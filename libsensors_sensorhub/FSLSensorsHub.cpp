@@ -142,20 +142,6 @@ FSLSensorsHub::FSLSensorsHub()
     mPendingEvent[gravt].orientation.status = SENSOR_STATUS_ACCURACY_LOW;
 	mPendingEvent[gravt].version = sizeof(sensors_event_t);
 	
-	mEnabled[sd] = 0;
-	mDelay[sd] = 0;
-    mPendingEvent[sd].sensor  = ID_SD;
-    mPendingEvent[sd].type    = SENSOR_TYPE_STEP_DETECTOR;
-    mPendingEvent[sd].orientation.status = SENSOR_STATUS_ACCURACY_HIGH;
-	mPendingEvent[sd].version = sizeof(sensors_event_t);
-
-	mEnabled[sc] = 0;
-	mDelay[sc] = 0;
-    mPendingEvent[sc].sensor  = ID_SC;
-    mPendingEvent[sc].type    = SENSOR_TYPE_STEP_COUNTER;
-    mPendingEvent[sc].orientation.status = SENSOR_STATUS_ACCURACY_LOW;
-	mPendingEvent[sc].version = sizeof(sensors_event_t);
-
 	sprintf(mClassPath[accel],"%s/%s",FSL_SENS_SYSFS_PATH,FSL_ACC_DEVICE_NAME);
 	sprintf(mClassPath[mag],"%s/%s",FSL_SENS_SYSFS_PATH,FSL_MAG_DEVICE_NAME);
 	sprintf(mClassPath[gyro],"%s/%s",FSL_SENS_SYSFS_PATH,FSL_GYRO_DEVICE_NAME);
@@ -179,8 +165,6 @@ int FSLSensorsHub::setEnable(int32_t handle, int en)
 		case ID_RV: what = rv;	  break;
 		case ID_LA: what = la;	  break;
 		case ID_GR: what = gravt; break;
-		case ID_SD: what = sd;    break;
-		case ID_SC: what = sc;    break;
 		
     }
 
@@ -234,8 +218,6 @@ int FSLSensorsHub::setDelay(int32_t handle, int64_t ns)
 		case ID_RV: what = rv;	  break;
 		case ID_LA: what = la;	  break;
 		case ID_GR: what = gravt; break;
-		case ID_SD: what = sd;	  break;
-		case ID_SC: what = sc;    break;
     }
 
     mDelay[what] = ns;
@@ -348,18 +330,6 @@ void FSLSensorsHub::processEvent(int type ,int code, int value){
         case EVENT_GYRO_Z :
             mPendingMask |=  1 << gyro;
             mPendingEvent[gyro].gyro.z	= GYRO_DATA_CONVERSION(value);
-            break;
-		case EVENT_STEP_DETECTED:
-            mPendingMask |=  1 << sd;
-            mPendingEvent[sd].data[0] = 1.0f;
-            break;
-		case EVENT_STEP_COUNT_HIGH:
-			steps_high = (uint64_t)(value & 0xffffffff);
-            break;
-		case EVENT_STEP_COUNT_LOW:
-            mPendingMask |=  1 << sc;
-			steps_low = (uint64_t)(value & 0xffffffff);
-            mPendingEvent[sc].u64.step_counter = ((steps_high << 32) | steps_low);
             break;
 		}
     
@@ -504,8 +474,6 @@ int FSLSensorsHub::getEnable(int32_t handle) {
 		case ID_RV: what = rv;	  break;
 		case ID_LA: what = la;	  break;
 		case ID_GR: what = gravt; break;
-		case ID_SD: what = sd;	  break;
-		case ID_SC: what = sc;    break;
     }
 
 	return mEnabled[what];

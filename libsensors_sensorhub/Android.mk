@@ -41,6 +41,8 @@ LOCAL_SRC_FILES := 						\
 				FSLSensorsHub.cpp		\
 				PressSensor.cpp			\
 				InputEventReader.cpp            \
+				Stepcounter.cpp                 \
+				Stepdetector.cpp                \
 				LightSensor.cpp
 
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
