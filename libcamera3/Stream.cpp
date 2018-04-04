@@ -78,9 +78,9 @@ static void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int
     u32 nHeight = height;
     u32 nWidthDiv4 = width / 4;
 
-    u8 *pYSrcOffset = inputBuffer;
-    u8 *pUSrcOffset = inputBuffer + 1;
-    u8 *pVSrcOffset = inputBuffer + 3;
+    u32 *pYSrcOffset = (u32 *)inputBuffer;
+    u32 value = 0;
+    u32 value2 = 0;
 
     u32 *pYDstOffset = (u32 *)outputBuffer;
     u32 *pUVDstOffset = (u32 *)(((u8 *)(outputBuffer)) + width * height);
@@ -88,38 +88,38 @@ static void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int
     for (h = 0; h < nHeight; h++) {
         if (!(h & 0x1)) {
             for (w = 0; w < nWidthDiv4; w++) {
-                *pYDstOffset = (((u32)(*(pYSrcOffset + 0))) << 0) +
-                               (((u32)(*(pYSrcOffset + 2))) << 8) +
-                               (((u32)(*(pYSrcOffset + 4))) << 16) +
-                               (((u32)(*(pYSrcOffset + 6))) << 24);
-                pYSrcOffset += 8;
+                value = (*pYSrcOffset);
+                value2 = (*(pYSrcOffset + 1));
+                //use bitwise operation to get data from src to improve performance.
+                *pYDstOffset = ((value & 0x000000ff) >> 0) |
+                               ((value & 0x00ff0000) >> 8) |
+                               ((value2 & 0x000000ff) << 16) |
+                               ((value2 & 0x00ff0000) << 8);
                 pYDstOffset += 1;
 
 #ifdef PLATFORM_VERSION_4
-                // seems th encoder use VUVU planner
-                *pUVDstOffset = (((u32)(*(pVSrcOffset + 0))) << 0) +
-                                (((u32)(*(pUSrcOffset + 0))) << 8) +
-                                (((u32)(*(pVSrcOffset + 4))) << 16) +
-                                (((u32)(*(pUSrcOffset + 4))) << 24);
+                *pUVDstOffset = ((value & 0xff000000) >> 24) |
+                                ((value & 0x0000ff00) >> 0) |
+                                ((value2 & 0xff000000) >> 8) |
+                                ((value2 & 0x0000ff00) << 16);
 #else
-                *pUVDstOffset = (((u32)(*(pUSrcOffset + 0))) << 0) +
-                                (((u32)(*(pVSrcOffset + 0))) << 8) +
-                                (((u32)(*(pUSrcOffset + 4))) << 16) +
-                                (((u32)(*(pVSrcOffset + 4))) << 24);
+                *pUVDstOffset = ((value & 0x0000ff00) >> 8) |
+                                ((value & 0xff000000) >> 16) |
+                                ((value2 & 0x0000ff00) << 8) |
+                                ((value2 & 0xff000000) << 0);
 #endif
-                pUSrcOffset += 8;
-                pVSrcOffset += 8;
                 pUVDstOffset += 1;
+                pYSrcOffset += 2;
             }
         } else {
-            pUSrcOffset += nWidthDiv4 * 8;
-            pVSrcOffset += nWidthDiv4 * 8;
             for (w = 0; w < nWidthDiv4; w++) {
-                *pYDstOffset = (((u32)(*(pYSrcOffset + 0))) << 0) +
-                               (((u32)(*(pYSrcOffset + 2))) << 8) +
-                               (((u32)(*(pYSrcOffset + 4))) << 16) +
-                               (((u32)(*(pYSrcOffset + 6))) << 24);
-                pYSrcOffset += 8;
+                value = (*pYSrcOffset);
+                value2 = (*(pYSrcOffset + 1));
+                *pYDstOffset = ((value & 0x000000ff) >> 0) |
+                               ((value & 0x00ff0000) >> 8) |
+                               ((value2 & 0x000000ff) << 16) |
+                               ((value2 & 0x00ff0000) << 8);
+                pYSrcOffset += 2;
                 pYDstOffset += 1;
             }
         }
