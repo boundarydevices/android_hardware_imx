@@ -460,7 +460,8 @@ bool KmsDisplay::checkOverlay(Layer* layer)
     }
 
     // overlay only needs on imx8mq and supertiled format.
-    if (!(memory->usage & USAGE_PADDING_BUFFER) &&
+    if (!((memory->usage & USAGE_PADDING_BUFFER) &&
+        (memory->fslFormat == FORMAT_NV12)) &&
         !(memory->flags & FLAGS_SECURE) &&
         memory->fslFormat != FORMAT_NV12_TILED &&
         memory->fslFormat != FORMAT_NV12_G1_TILED &&

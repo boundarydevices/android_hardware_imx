@@ -86,7 +86,8 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     else if (mGPUAlloc == NULL) {
         canHandle = false;
     }
-    else if ((((format == FORMAT_NV12) || (format == FORMAT_NV21)) &&
+    else if ((((format == FORMAT_NV12) || (format == FORMAT_NV21) ||
+        (format == FORMAT_NV16)) &&
         (usage & USAGE_PADDING_BUFFER)) || format == FORMAT_NV12_TILED ||
         format == FORMAT_NV12_G1_TILED || format == FORMAT_NV12_G2_TILED ||
         format == FORMAT_NV12_G2_TILED_COMPRESSED || format == FORMAT_P010 ||
