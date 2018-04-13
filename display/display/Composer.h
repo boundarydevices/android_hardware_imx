@@ -18,6 +18,7 @@
 #define _FSL_COMPOSER_H_
 
 #include <utils/threads.h>
+#include <cutils/threads.h>
 #include <g2dExt.h>
 #include "Memory.h"
 #include "Layer.h"
@@ -56,6 +57,8 @@ public:
 
 private:
     Composer();
+    void *getHandle();
+    static void threadDestructor(void *handle);
     int setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect& rect);
     enum g2d_format convertFormat(int format, Memory *handle);
     int convertRotation(int transform, struct g2d_surface& src,
@@ -83,7 +86,7 @@ private:
     static Mutex sLock;
     static Composer* sInstance;
 
-    void* mHandle;
+    thread_store_t mTls;
     Memory* mTarget;
     Memory* mDimBuffer;
 

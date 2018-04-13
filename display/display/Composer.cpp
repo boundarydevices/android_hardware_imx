@@ -48,7 +48,8 @@ Composer::Composer()
 {
     mTarget = NULL;
     mDimBuffer = NULL;
-    mHandle = NULL;
+    mTls.has_tls = 0;
+    pthread_mutex_init(&mTls.lock, NULL);
 
     char path[PATH_MAX] = {0};
 	getModule(path, GPUHELPER);
@@ -102,7 +103,6 @@ Composer::Composer()
         mDisableFunction = (hwc_func2)dlsym(handle, "g2d_disable");
         mFinishEngine = (hwc_func1)dlsym(handle, "g2d_finish");
         mQueryFeature = (hwc_func3)dlsym(handle, "g2d_query_feature");
-        openEngine(&mHandle);
     }
 }
 
@@ -112,15 +112,42 @@ Composer::~Composer()
     if (mDimBuffer != NULL) {
         pManager->releaseMemory(mDimBuffer);
     }
+}
 
-    if (mHandle != NULL) {
-        closeEngine(mHandle);
+void *Composer::getHandle()
+{
+    void *handle = thread_store_get(&mTls);
+    if (handle != NULL) {
+        return handle;
     }
+
+    if (mOpenEngine == NULL) {
+        return NULL;
+    }
+
+    handle = malloc(sizeof(void*));
+    if (handle == NULL) {
+        return NULL;
+    }
+
+    openEngine(&handle);
+    thread_store_set(&mTls, handle, threadDestructor);
+    return handle;
+}
+
+void Composer::threadDestructor(void *handle)
+{
+    if (handle == NULL) {
+        return;
+    }
+
+    Composer::getInstance()->closeEngine(handle);
+    free(handle);
 }
 
 bool Composer::isValid()
 {
-    return (mHandle != NULL && mBlitFunction != NULL);
+    return (getHandle() != NULL && mBlitFunction != NULL);
 }
 
 void Composer::getModule(char *path, const char *name)
@@ -175,7 +202,7 @@ int Composer::checkDimBuffer()
 
 int Composer::finishComposite()
 {
-    finishEngine(mHandle);
+    finishEngine(getHandle());
     return 0;
 }
 
@@ -198,7 +225,7 @@ int Composer::clearRect(Memory* target, Rect& rect)
             rect.left, rect.top, rect.right, rect.bottom);
     setG2dSurface(surfaceX, target, rect);
     surface.clrcolor = 0xff << 24;
-    clearFunction(mHandle, &surface);
+    clearFunction(getHandle(), &surface);
 
     return 0;
 }
@@ -248,7 +275,7 @@ int Composer::clearWormHole(LayerVector& layers)
                 rect.left, rect.top, rect.right, rect.bottom);
         setG2dSurface(surfaceX, mTarget, rect);
         surface.clrcolor = 0xff << 24;
-        clearFunction(mHandle, &surface);
+        clearFunction(getHandle(), &surface);
     }
 
     return 0;
@@ -333,15 +360,15 @@ int Composer::composeLayer(Layer* layer, bool bypass)
         sSurface.global_alpha = layer->planeAlpha;
 
         if (layer->blendMode != BLENDING_NONE && !bypass) {
-            enableFunction(mHandle, G2D_GLOBAL_ALPHA, true);
-            enableFunction(mHandle, G2D_BLEND, true);
+            enableFunction(getHandle(), G2D_GLOBAL_ALPHA, true);
+            enableFunction(getHandle(), G2D_BLEND, true);
         }
 
         blitSurface(&sSurfaceX, &dSurfaceX);
 
         if (layer->blendMode != BLENDING_NONE && !bypass) {
-            enableFunction(mHandle, G2D_BLEND, false);
-            enableFunction(mHandle, G2D_GLOBAL_ALPHA, false);
+            enableFunction(getHandle(), G2D_BLEND, false);
+            enableFunction(getHandle(), G2D_GLOBAL_ALPHA, false);
         }
     }
 
@@ -589,7 +616,7 @@ int Composer::setClipping(Rect& src, Rect& dst, Rect& clip, int rotation)
         return -EINVAL;
     }
 
-    return (*mSetClipping)(mHandle, (void*)(intptr_t)clip.left,
+    return (*mSetClipping)(getHandle(), (void*)(intptr_t)clip.left,
             (void*)(intptr_t)clip.top, (void*)(intptr_t)clip.right,
             (void*)(intptr_t)clip.bottom);
 }
@@ -600,7 +627,7 @@ int Composer::blitSurface(struct g2d_surfaceEx *srcEx, struct g2d_surfaceEx *dst
         return -EINVAL;
     }
 
-    return (*mBlitFunction)(mHandle, srcEx, dstEx);
+    return (*mBlitFunction)(getHandle(), srcEx, dstEx);
 }
 
 int Composer::openEngine(void** handle)
@@ -658,12 +685,12 @@ int Composer::finishEngine(void* handle)
 
 bool Composer::isFeatureSupported(g2d_feature feature)
 {
-    if (mQueryFeature == NULL || mHandle == NULL) {
+    if (mQueryFeature == NULL || getHandle() == NULL) {
         return false;
     }
 
     int enable = 0;
-    (*mQueryFeature)(mHandle, (void*)feature, (void*)&enable);
+    (*mQueryFeature)(getHandle(), (void*)feature, (void*)&enable);
     return (enable != 0);
 }
 
