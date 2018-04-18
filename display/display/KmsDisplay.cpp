@@ -737,7 +737,7 @@ int KmsDisplay::updateScreen()
 void KmsDisplay::getGUIResolution(int &width, int &height)
 {
     // keep resolution if less than 1080p.
-    if (width <= 1920 && height <= 1080) {
+    if (width <= 1920) {
         return;
     }
 
@@ -903,11 +903,12 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
     unsigned int delta = -1, rdelta = -1;
     char value[PROPERTY_VALUE_MAX];
     int width = 0, height = 0;
+    int prefermode = 0;
 
     // display mode set by bootargs.
     mMode.vrefresh = 60;
     memset(value, 0, sizeof(value));
-    property_get("ro.boot.displaymode", value, "1080p");
+    property_get("ro.boot.displaymode", value, "p");
     if (!strncmp(value, "4k", 2)) {
         width = 4096;
         mMode.hdisplay = 3840;
@@ -929,6 +930,9 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
         mMode.vdisplay = 480;
     }
     else {
+        prefermode = 1;
+        mMode.hdisplay = 1920;
+        mMode.vdisplay = 1080;
         height = atoi(value);
         if (height == 0) {
             height = 1080;
@@ -939,6 +943,11 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
     // find the best display mode.
     for (int i=0; i<pConnector->count_modes; i++) {
         drmModeModeInfo mode = pConnector->modes[i];
+        if ((mode.type & DRM_MODE_TYPE_PREFERRED) && (prefermode == 1)) {
+            index = i;
+            break;
+        }
+
         if (mode.vrefresh < 60) {
             // bypass fps < 60.
             continue;
