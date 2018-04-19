@@ -2998,12 +2998,16 @@ static struct pcm *SelectPcm(struct imx_stream_out *stream_out, int *flag)
         return NULL;
 
     curDev = stream_out->device;
-    ALOGI("SelectPcm, curDev 0x%x, hdmi pcm %p", curDev, stream_out->pcm[PCM_HDMI]);
+    ALOGI("SelectPcm, curDev 0x%x, standby %d, hdmi pcm %p, normal pcm %p",
+        curDev, stream_out->standby, stream_out->pcm[PCM_HDMI], stream_out->pcm[PCM_NORMAL]);
 
-    if(stream_out->pcm[PCM_HDMI]) {
-        curPcm = stream_out->pcm[PCM_HDMI];
-        *flag = stream_out->write_flags[PCM_HDMI];
-        return curPcm;
+    if(stream_out->standby) {
+      ALOGI("SelectPcm, primary output is standy, open it");
+      int ret = start_output_stream_primary(stream_out);
+      if(ret == 0)
+        stream_out->standby = 0;
+      else
+        ALOGE("SelectPcm, start_output_stream_primary failed, ret %d, dev 0x%x", ret, curDev);
     }
 
     if(AUDIO_DEVICE_OUT_SPEAKER == curDev) {
