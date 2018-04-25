@@ -28,6 +28,7 @@
 #include "IonManager.h"
 
 #define ION_DECODED_BUFFER_VPU_ALIGN 8
+#define ION_HEAP_MASK ((1 << ION_CMA_HEAP_ID) | (1 << ION_CARVEOUT_HEAP_ID))
 
 namespace fsl {
 
@@ -88,7 +89,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
         err = ion_alloc(mIonFd,
             desc.mSize,
             ION_DECODED_BUFFER_VPU_ALIGN,
-            1,
+            ION_HEAP_MASK,
             0,
             &ion_hnd);
     }
