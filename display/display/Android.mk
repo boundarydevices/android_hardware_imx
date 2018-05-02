@@ -35,8 +35,8 @@ LOCAL_SRC_FILES := Display.cpp \
 LOCAL_C_INCLUDES += $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
                     $(IMX_PATH)/imx/include \
                     $(IMX_PATH)/imx/libedid \
-                    external/libdrm \
-                    external/libdrm/include/drm
+                    $(IMX_PATH)/libdrm-imx \
+                    $(IMX_PATH)/libdrm-imx/include/drm
 
 LOCAL_SHARED_LIBRARIES :=   \
     liblog                  \
@@ -46,7 +46,7 @@ LOCAL_SHARED_LIBRARIES :=   \
     libsync                 \
     libion                  \
     libedid                 \
-    libdrm
+    libdrm_android
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := libfsldisplay

@@ -19,14 +19,14 @@ LOCAL_PRELINK_MODULE := false
 
 LOCAL_SRC_FILES := Edid.cpp
 
-LOCAL_C_INCLUDES += external/libdrm \
-                    external/libdrm/include/drm
+LOCAL_C_INCLUDES += $(IMX_PATH)/libdrm-imx \
+                    $(IMX_PATH)/libdrm-imx/include/drm
 
 LOCAL_SHARED_LIBRARIES :=   \
     liblog                  \
     libcutils               \
     libutils                \
-    libdrm
+    libdrm_android
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := libedid
