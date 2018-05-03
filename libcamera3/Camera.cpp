@@ -37,6 +37,7 @@
 #include "Max9286Mipi.h"
 #include "Ov5640Csi.h"
 #include "Ov5640Csi8MQ.h"
+#include "Ov5640Imx8Q.h"
 #include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
 #include "TVIN8DvDevice.h"
@@ -67,7 +68,11 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 
     android::Mutex::Autolock al(sStaticInfoLock);
 
-    if (strstr(name, OV5640MIPI_SENSOR_NAME)) {
+    if (strstr(name, IMX8_OV5640_SENSOR_NAME)) {
+        ALOGI("create id:%d imx8 ov5640 camera device", id);
+        device = new Ov5640Imx8Q(id, facing, orientation, path);
+    }
+    else if (strstr(name, OV5640MIPI_SENSOR_NAME)) {
         ALOGI("create id:%d ov5640 mipi device", id);
         device = new Ov5640Mipi(id, facing, orientation, path);
     }
