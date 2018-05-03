@@ -246,6 +246,8 @@ int32_t MMAPStream::onDeviceStopLocked()
 {
     ALOGI("%s", __func__);
     int32_t ret = 0;
+    enum v4l2_buf_type bufType;
+    struct v4l2_requestbuffers req;
 
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
@@ -261,8 +263,6 @@ int32_t MMAPStream::onDeviceStopLocked()
         }
     }
 
-    enum v4l2_buf_type bufType;
-
     if (mPlane) {
         bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     } else {
@@ -273,6 +273,16 @@ int32_t MMAPStream::onDeviceStopLocked()
     if (ret < 0) {
         ALOGE("%s VIDIOC_STREAMOFF failed: %s", __func__, strerror(errno));
         return ret;
+    }
+
+    memset(&req, 0, sizeof (req));
+    req.count = 0;
+    req.type = bufType;
+    req.memory = V4L2_MEMORY_MMAP;
+
+    if (ioctl(mDev, VIDIOC_REQBUFS, &req) < 0) {
+        ALOGI("%s VIDIOC_REQBUFS failed: %s", __func__, strerror(errno));
+        return BAD_VALUE;
     }
 
     return 0;
