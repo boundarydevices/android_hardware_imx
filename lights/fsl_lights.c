@@ -191,12 +191,14 @@ static int lights_device_open(const struct hw_module_t* module,
 
     if (!strcmp(name, LIGHT_ID_BACKLIGHT)) {
         int fdfb0;
+        char value[PROPERTY_VALUE_MAX];
         char fbtype[256];
         struct dirent **namelist;
         int n, idx = 0;
+        FILE *file;
 
         set_light = set_light_backlight;
-
+#ifdef BOARD_IS_IMX6
         strcpy(fbtype,"ldb"); /* default */
         fdfb0 = open("/sys/class/graphics/fb0/fsl_disp_dev_property", O_RDONLY);
         if (0 <= fdfb0) {
@@ -249,10 +251,22 @@ static int lights_device_open(const struct hw_module_t* module,
             ALOGE("didn't find any matching backlight");
             return -EINVAL;
         }
+#else
+        property_get("ro.backlight.dev", value, DEF_BACKLIGHT_DEV);
+        strcpy(backlight_path, DEF_BACKLIGHT_PATH);
+        strcat(backlight_path, value);
+#endif
 
         strcpy(backlight_max_path, backlight_path);
         strcat(backlight_max_path, "/max_brightness");
         strcat(backlight_path, "/brightness");
+
+        file = fopen(backlight_path, "r");
+        if (!file) {
+            ALOGE("cannot open backlight %s\n", backlight_path);
+            return -EINVAL;
+        }
+        fclose(file);
 
         ALOGI("max backlight file is %s\n", backlight_max_path);
         ALOGI("backlight brightness file is %s\n", backlight_path);
