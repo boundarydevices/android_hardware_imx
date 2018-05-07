@@ -60,11 +60,11 @@
 #define SENSORS_STEP_DETECTOR_HANDLE  	ID_SD
 #define SENSORS_STEP_COUNTER_HANDLE  	ID_SC
 
-
 /*****************************************************************************/
 
 /* The SENSORS Module */
 static const struct sensor_t sSensorList[] = {
+#ifdef CONFIG_LEGACY_SENSOR
     {
     .name =       "Freescale Sensor Hub Accelerometer",
     .vendor =     "Freescale Semiconductor Inc.",
@@ -209,6 +209,8 @@ static const struct sensor_t sSensorList[] = {
     .flags =      SENSOR_FLAG_ON_CHANGE_MODE,
     .reserved =   {}
     },
+#endif
+#ifdef CONFIG_SENSOR_PEDOMETER
     {
     .name =       "NXP iMX StepCounter",
     .vendor =     "NXP",
@@ -245,6 +247,7 @@ static const struct sensor_t sSensorList[] = {
     .flags =      SENSOR_FLAG_SPECIAL_REPORTING_MODE,
     .reserved =   {}
     },
+#endif
 };
 
 

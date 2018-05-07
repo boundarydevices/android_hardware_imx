@@ -45,6 +45,13 @@ LOCAL_SRC_FILES := 						\
 				Stepdetector.cpp                \
 				LightSensor.cpp
 
+ifeq ($(BOARD_USE_LEGACY_SENSOR),true)
+	LOCAL_CFLAGS += -DCONFIG_LEGACY_SENSOR
+endif
+ifeq ($(BOARD_USE_SENSOR_PEDOMETER),true)
+	LOCAL_CFLAGS += -DCONFIG_SENSOR_PEDOMETER
+endif
+
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
 
 include $(BUILD_SHARED_LIBRARY)
