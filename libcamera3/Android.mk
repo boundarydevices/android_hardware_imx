@@ -61,7 +61,8 @@ LOCAL_SRC_FILES := \
     TVIN8DvDevice.cpp \
     VADCTVINDevice.cpp \
     MMAPStream.cpp \
-    TinyExif.cpp
+    TinyExif.cpp \
+    ImageProcess.cpp
 
 ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_SRC_FILES += \
@@ -82,12 +83,6 @@ LOCAL_SHARED_LIBRARIES := \
     libcamera_client \
     libhardware_legacy
 
-ifneq ($(TARGET_FSL_IMX_2D),)
-    LOCAL_SHARED_LIBRARIES += \
-	     libg2d
-    LOCAL_CFLAGS += -DTARGET_FSL_IMX_2D
-endif
-
 ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_SHARED_LIBRARIES += \
             lib_vpu_wrapper
@@ -98,10 +93,6 @@ ifeq ($(HAVE_FSL_IMX_PXP),true)
     LOCAL_SHARED_LIBRARIES += \
             libpxp
             LOCAL_CFLAGS += -DHAVE_FSL_IMX_PXP
-endif
-
-ifeq ($(HAVE_FSL_IMX_IPU),true)
-    LOCAL_CFLAGS += -DHAVE_FSL_IMX_IPU
 endif
 
 ifeq ($(PRODUCT_MODEL), SABREAUTO-MX6SX)

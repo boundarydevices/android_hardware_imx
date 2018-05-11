@@ -86,7 +86,7 @@ int32_t USPStream::onDeviceStartLocked()
         cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
         cfilledbuffer.index    = i;
 
-        if (mPxpFd > 0) {
+        if (!mCustomDriver) {
             cfilledbuffer.m.userptr = (unsigned long)mBuffers[i]->mVirtAddr;
             cfilledbuffer.length = mBuffers[i]->mSize;
         }
@@ -163,7 +163,7 @@ int32_t USPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
     cfilledbuffer.index    = index;
 
-    if(mPxpFd > 0) {
+    if(!mCustomDriver) {
         cfilledbuffer.m.userptr = (unsigned long)buf.mVirtAddr;
         cfilledbuffer.length = buf.mSize;
     }

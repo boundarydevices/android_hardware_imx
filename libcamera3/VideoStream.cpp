@@ -23,7 +23,6 @@ VideoStream::VideoStream(Camera* device)
       mChanged(false), mDev(-1),
       mAllocatedBuffers(0)
 {
-    g2dHandle = NULL;
     mV4l2MemType =  V4L2_MEMORY_MMAP;
     mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mMessageThread = new MessageThread(this);

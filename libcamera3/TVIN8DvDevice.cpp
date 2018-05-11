@@ -308,8 +308,11 @@ int32_t TVIN8DvDevice::TVin8DvStream::onDeviceConfigureLocked()
     int32_t input = 1;
     ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
     if (ret < 0) {
-        ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
-        return ret;
+        ALOGW("%s VIDIOC_S_INPUT not supported: %s", __func__, strerror(errno));
+        mCustomDriver = false;
+    }
+    else {
+        mCustomDriver = true;
     }
 
     int32_t fps = mFps;

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
+ * Copyright 2017-2018 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,103 +28,11 @@
 
 //#define LOG_NDEBUG 0
 
-extern "C" {
-#include "pxp_lib.h"
-}
-
 #include <cutils/log.h>
 #include "Camera.h"
 #include "Stream.h"
 #include "CameraUtils.h"
-
-static void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight, uint8_t *src, uint32_t srcWidth, uint32_t srcHeight)
-{
-    uint32_t i;
-    int BytesPerPixel = 2;
-    uint8_t *pDstLine = dst;
-    uint8_t *pSrcLine = src;
-    uint32_t bytesPerSrcLine = BytesPerPixel * srcWidth;
-    uint32_t bytesPerDstLine = BytesPerPixel * dstWidth;
-    uint32_t marginWidh = dstWidth - srcWidth;
-    uint16_t *pYUV;
-
-    if ((srcWidth > dstWidth) || (srcHeight > dstHeight)) {
-        ALOGW("%s, para error", __func__);
-        return;
-    }
-
-    for (i = 0; i < srcHeight; i++) {
-        memcpy(pDstLine, pSrcLine, bytesPerSrcLine);
-
-        // black margin, Y:0, U:128, V:128
-        for (uint32_t j = 0; j < marginWidh; j++) {
-            pYUV = (uint16_t *)(pDstLine + bytesPerSrcLine + j * BytesPerPixel);
-            *pYUV = 0x8000;
-        }
-
-        pSrcLine += bytesPerSrcLine;
-        pDstLine += bytesPerDstLine;
-    }
-
-    return;
-}
-
-static void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height)
-{
-#define u32 unsigned int
-#define u8 unsigned char
-
-    u32 h, w;
-    u32 nHeight = height;
-    u32 nWidthDiv4 = width / 4;
-
-    u32 *pYSrcOffset = (u32 *)inputBuffer;
-    u32 value = 0;
-    u32 value2 = 0;
-
-    u32 *pYDstOffset = (u32 *)outputBuffer;
-    u32 *pUVDstOffset = (u32 *)(((u8 *)(outputBuffer)) + width * height);
-
-    for (h = 0; h < nHeight; h++) {
-        if (!(h & 0x1)) {
-            for (w = 0; w < nWidthDiv4; w++) {
-                value = (*pYSrcOffset);
-                value2 = (*(pYSrcOffset + 1));
-                //use bitwise operation to get data from src to improve performance.
-                *pYDstOffset = ((value & 0x000000ff) >> 0) |
-                               ((value & 0x00ff0000) >> 8) |
-                               ((value2 & 0x000000ff) << 16) |
-                               ((value2 & 0x00ff0000) << 8);
-                pYDstOffset += 1;
-
-#ifdef PLATFORM_VERSION_4
-                *pUVDstOffset = ((value & 0xff000000) >> 24) |
-                                ((value & 0x0000ff00) >> 0) |
-                                ((value2 & 0xff000000) >> 8) |
-                                ((value2 & 0x0000ff00) << 16);
-#else
-                *pUVDstOffset = ((value & 0x0000ff00) >> 8) |
-                                ((value & 0xff000000) >> 16) |
-                                ((value2 & 0x0000ff00) << 8) |
-                                ((value2 & 0xff000000) << 0);
-#endif
-                pUVDstOffset += 1;
-                pYSrcOffset += 2;
-            }
-        } else {
-            for (w = 0; w < nWidthDiv4; w++) {
-                value = (*pYSrcOffset);
-                value2 = (*(pYSrcOffset + 1));
-                *pYDstOffset = ((value & 0x000000ff) >> 0) |
-                               ((value & 0x00ff0000) >> 8) |
-                               ((value2 & 0x000000ff) << 16) |
-                               ((value2 & 0x00ff0000) << 8);
-                pYSrcOffset += 2;
-                pYDstOffset += 1;
-            }
-        }
-    }
-}
+#include "ImageProcess.h"
 
 Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
   : mReuse(false),
@@ -141,7 +49,8 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     mFps(30),
     mNumBuffers(0),
     mRegistered(false),
-    mCamera(camera)
+    mCamera(camera),
+    mCustomDriver(false)
 {
     if (s->format == HAL_PIXEL_FORMAT_BLOB) {
         ALOGI("%s create capture stream", __func__);
@@ -176,24 +85,6 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
 
     ALOGI("stream: w:%d, h:%d, format:0x%x, usage:0x%x, buffers:%d",
           s->width, s->height, s->format, s->usage, mNumBuffers);
-    /*
-     * imx6dl support IPU device and PXP device.
-     * imx6q and imx6qp support IPU device.
-     * imx6sx and imx6sl support PXP device.
-     * IPU can't handle NV21 format, so open PXP on some platform to handle it.
-     */
-    mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
-
-    mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
-
-    //When open pxp device, need allocate a channel at the same time.
-    int32_t ret = -1;
-    if (mPxpFd > 0) {
-        ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
-        if (ret < 0) {
-            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
-        }
-    }
 
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
@@ -216,21 +107,9 @@ Stream::Stream(Camera* camera)
     mFps(30),
     mNumBuffers(0),
     mRegistered(false),
-    mCamera(camera)
+    mCamera(camera),
+    mCustomDriver(false)
 {
-    mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
-
-    mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
-
-    //When open pxp device, need allocate a channel at the same time.
-    int32_t ret = -1;
-    if (mPxpFd > 0) {
-        ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &channel);
-        if(ret < 0) {
-            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
-        }
-    }
-
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
     }
@@ -238,16 +117,6 @@ Stream::Stream(Camera* camera)
 
 Stream::~Stream()
 {
-    android::Mutex::Autolock al(mLock);
-    if (mIpuFd > 0) {
-        close(mIpuFd);
-        mIpuFd = -1;
-    }
-
-    if (mPxpFd > 0) {
-        close(mPxpFd);
-        mPxpFd = -1;
-    }
 }
 
 int32_t Stream::processJpegBuffer(StreamBuffer& src,
@@ -414,165 +283,6 @@ err_out:
     return ret;
 }
 
-int32_t Stream::processBufferWithPXP(StreamBuffer& src)
-{
-    ALOGV("%s", __func__);
-    sp<Stream>& device = src.mStream;
-    if (device == NULL) {
-        ALOGE("%s invalid device stream", __func__);
-        return 0;
-    }
-
-    StreamBuffer* out = mCurrent;
-    if (out == NULL || out->mBufHandle == NULL) {
-        ALOGE("%s invalid buffer handle", __func__);
-        return 0;
-    }
-
-    struct pxp_config_data pxp_conf;
-    struct pxp_layer_param *src_param = NULL, *out_param = NULL;
-    int32_t ret = -1;
-
-    memset(&pxp_conf, 0, sizeof(struct pxp_config_data));
-
-    src_param = &(pxp_conf.s0_param);
-    out_param = &(pxp_conf.out_param);
-
-    /*
-    * Initialize src parameters
-    */
-    src_param->paddr = src.mPhyAddr;
-    src_param->width = device->mWidth;
-    src_param->height = device->mHeight;
-    src_param->color_key = -1;
-    src_param->color_key_enable = 0;
-    src_param->pixel_fmt = convertPixelFormatToV4L2Format(device->mFormat);
-    pxp_conf.proc_data.srect.top = 0;
-    pxp_conf.proc_data.srect.left = 0;
-    pxp_conf.proc_data.srect.width = device->mWidth;
-    pxp_conf.proc_data.srect.height = device->mHeight;
-
-    /*
-    * Initialize out parameters
-    */
-    out_param->paddr = out->mPhyAddr;
-    out_param->width = mWidth;
-    out_param->height = mHeight;
-    out_param->stride = mWidth;
-    out_param->pixel_fmt = convertPixelFormatToV4L2Format(mFormat);
-    pxp_conf.handle = channel;
-    pxp_conf.proc_data.drect.top = 0;
-    pxp_conf.proc_data.drect.left = 0;
-    pxp_conf.proc_data.drect.width = mWidth;
-    pxp_conf.proc_data.drect.height = mHeight;
-
-    ret = ioctl(mPxpFd, PXP_IOC_CONFIG_CHAN, &pxp_conf);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_CONFIG_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
-        return ret;
-    }
-
-    ret = ioctl(mPxpFd, PXP_IOC_START_CHAN, &(pxp_conf.handle));
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_START_CHAN failed %d", __FUNCTION__, __LINE__ ,ret);
-        return ret;
-    }
-
-    ret = ioctl(mPxpFd, PXP_IOC_WAIT4CMPLT, &pxp_conf);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_WAIT4CMPLT failed %d", __FUNCTION__, __LINE__ ,ret);
-        return ret;
-    }
-
-    return ret;
-
-}
-
-int32_t Stream::processBufferWithIPU(StreamBuffer& src)
-{
-    ALOGV("%s", __func__);
-    sp<Stream>& device = src.mStream;
-    if (device == NULL) {
-        ALOGE("%s invalid device stream", __func__);
-        return 0;
-    }
-
-    StreamBuffer* out = mCurrent;
-    if (out == NULL || out->mBufHandle == NULL) {
-        ALOGE("%s invalid buffer handle", __func__);
-        return 0;
-    }
-
-    struct ipu_task mTask;
-    memset(&mTask, 0, sizeof(mTask));
-
-    mTask.input.width = device->mWidth;
-    mTask.input.height = device->mHeight;
-    mTask.input.crop.pos.x = 0;
-    mTask.input.crop.pos.y = 0;
-    mTask.input.crop.w = device->mWidth;
-    mTask.input.crop.h = device->mHeight;
-    mTask.input.format = convertPixelFormatToV4L2Format(device->mFormat);
-    mTask.input.paddr = src.mPhyAddr;
-
-    if (!mCallback) {
-        mTask.output.format = convertPixelFormatToV4L2Format(mFormat);
-    }
-    else {
-        mTask.output.format = convertPixelFormatToV4L2Format(mFormat, true);
-    }
-    mTask.output.width = mWidth;
-    mTask.output.height = mHeight;
-    mTask.output.crop.pos.x = 0;
-    mTask.output.crop.pos.y = 0;
-    mTask.output.crop.w = mWidth;
-    mTask.output.crop.h = mHeight;
-    mTask.output.rotate = 0;
-    mTask.output.paddr = out->mPhyAddr;
-
-    // If after convert, src/dst has same format and resolution, then process with GPU.
-    // For exmaple, HAL_PIXEL_FORMAT_YCBCR_420_888, HAL_PIXEL_FORMAT_YCbCr_420_SP
-    // both convert to v4l2_fourcc('N', 'V', '1', '2').
-    if( (mTask.output.format == mTask.input.format) &&
-        (mTask.output.width == mTask.input.width) &&
-        (mTask.output.height == mTask.input.height) ) {
-        return processBufferWithGPU(src);
-    }
-
-    int32_t ret = IPU_CHECK_ERR_INPUT_CROP;
-    while(ret != IPU_CHECK_OK && ret > IPU_CHECK_ERR_MIN) {
-        ret = ioctl(mIpuFd, IPU_CHECK_TASK, &mTask);
-        ALOGV("%s:%d, IPU_CHECK_TASK ret=%d", __FUNCTION__, __LINE__, ret);
-        switch(ret) {
-            case IPU_CHECK_OK:
-                break;
-            case IPU_CHECK_ERR_SPLIT_INPUTW_OVER:
-                mTask.input.crop.w -= 8;
-                break;
-            case IPU_CHECK_ERR_SPLIT_INPUTH_OVER:
-                mTask.input.crop.h -= 8;
-                break;
-            case IPU_CHECK_ERR_SPLIT_OUTPUTW_OVER:
-                mTask.output.crop.w -= 8;
-                break;
-            case IPU_CHECK_ERR_SPLIT_OUTPUTH_OVER:
-                mTask.output.crop.h -= 8;;
-                break;
-            default:
-                ALOGE("%s:%d, IPU_CHECK_TASK ret=%d", __FUNCTION__, __LINE__, ret);
-                return ret;
-        }
-    }
-
-    ret = ioctl(mIpuFd, IPU_QUEUE_TASK, &mTask);
-    if(ret < 0) {
-        ALOGE("%s:%d, IPU_QUEUE_TASK failed %d", __FUNCTION__, __LINE__ ,ret);
-        return ret;
-    }
-
-    return ret;
-}
-
 static void bufferDump(StreamBuffer *frame, bool in)
 {
     // for test code
@@ -602,155 +312,6 @@ static void bufferDump(StreamBuffer *frame, bool in)
     }
 }
 
-int32_t Stream::processBufferWithGPU(StreamBuffer& src)
-{
-    sp<Stream>& device = src.mStream;
-    if (device == NULL) {
-        ALOGE("%s invalid device stream", __func__);
-        return 0;
-    }
-
-    StreamBuffer* out = mCurrent;
-    if (out == NULL || out->mBufHandle == NULL) {
-        ALOGE("%s invalid buffer handle", __func__);
-        return 0;
-    }
-
-    void* g2dHandle = device->getG2dHandle();
-    int size = (src.mSize > out->mSize) ? out->mSize : src.mSize;
-
-    if (g2dHandle == NULL) {
-        ALOGV("%s if board don't support g2d_copy, use memcpy", __func__);
-        memcpy(out->mVirtAddr, src.mVirtAddr, size);
-        return 0;
-    }
-
-#ifdef TARGET_FSL_IMX_2D
-    struct g2d_buf s_buf, d_buf;
-    s_buf.buf_paddr = src.mPhyAddr;
-    s_buf.buf_vaddr = src.mVirtAddr;
-    d_buf.buf_paddr = out->mPhyAddr;
-    d_buf.buf_vaddr = out->mVirtAddr;
-    g2d_copy(g2dHandle, &d_buf, &s_buf, size);
-    g2d_finish(g2dHandle);
-#endif
-
-    bufferDump(&src, true);
-    bufferDump(out, false);
-
-    return 0;
-}
-
-int32_t Stream::convertNV12toNV21(StreamBuffer& src)
-{
-    sp<Stream>& device = src.mStream;
-    if (device == NULL) {
-        ALOGE("%s invalid device stream", __func__);
-        return 0;
-    }
-
-    StreamBuffer* out = mCurrent;
-    if (out == NULL || out->mBufHandle == NULL) {
-        ALOGE("%s invalid buffer handle", __func__);
-        return 0;
-    }
-    int Ysize = 0, UVsize = 0;
-    uint8_t *srcIn, *dstOut;
-    uint32_t *UVout;
-    int size = (src.mSize > out->mSize) ? out->mSize : src.mSize;
-
-    Ysize  = device->mWidth * device->mHeight;
-    UVsize = device->mWidth * device->mHeight >> 2;
-    srcIn = (uint8_t *)src.mVirtAddr;
-    dstOut = (uint8_t *)out->mVirtAddr;
-    UVout = (uint32_t *)(dstOut + Ysize);
-
-    void* g2dHandle = device->getG2dHandle();
-
-    if (g2dHandle != NULL) {
-#ifdef TARGET_FSL_IMX_2D
-        struct g2d_buf s_buf, d_buf;
-        s_buf.buf_paddr = src.mPhyAddr;
-        s_buf.buf_vaddr = src.mVirtAddr;
-        d_buf.buf_paddr = out->mPhyAddr;
-        d_buf.buf_vaddr = out->mVirtAddr;
-        g2d_copy(g2dHandle, &d_buf, &s_buf, size);
-        g2d_finish(g2dHandle);
-#endif
-    }
-    else {
-        memcpy(dstOut, srcIn, size);
-    }
-
-    for (int k = 0; k < UVsize/2; k++) {
-        __asm volatile ("rev16 %0, %0" : "+r"(*UVout));
-        UVout += 1;
-    }
-
-    return 0;
-}
-
-int32_t Stream::processBufferWithCPU(StreamBuffer &src)
-{
-    int ret;
-    uint32_t v4l2Width;
-    uint32_t v4l2Height;
-
-    sp<Stream> &device = src.mStream;
-    if (device == NULL) {
-        ALOGE("%s invalid device stream", __func__);
-        return 0;
-    }
-
-    StreamBuffer *out = mCurrent;
-    if (out == NULL || out->mBufHandle == NULL) {
-        ALOGE("%s invalid buffer handle", __func__);
-        return 0;
-    }
-
-    ret = mCamera->getV4l2Res(mWidth, mHeight, &v4l2Width, &v4l2Height);
-    if (ret) {
-        ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
-        return 0;
-    }
-
-    ALOGV("res, stream %dx%d, v4l2 %dx%d", mWidth, mHeight, v4l2Width, v4l2Height);
-
-    if ((device->mWidth != mWidth) || (device->mHeight != mHeight)) {
-        ALOGE("%s:%d, Software don't support resize, device->mFormat:0x%d, mFormat:0x%d", __FUNCTION__, __LINE__, device->mFormat, mFormat);
-        return 0;
-    }
-
-    if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) &&
-        (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
-
-        uint8_t *pTmpBuf = (uint8_t *)src.mVirtAddr;
-        if ((v4l2Width != mWidth) || (v4l2Height != mHeight)) {
-            pTmpBuf = mCamera->getTmpBuf();
-            if (pTmpBuf == NULL) {
-                ALOGE("this %p, %s pTmpBuf null", this, __func__);
-                return 0;
-            }
-            YUYVCopyByLine(pTmpBuf, mWidth, mHeight, (uint8_t *)src.mVirtAddr, v4l2Width, v4l2Height);
-        }
-        convertYUYVtoNV12SP(pTmpBuf, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
-
-    } else if ((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
-               (device->mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
-        convertYUYVtoNV12SP((uint8_t *)src.mVirtAddr, (uint8_t *)out->mVirtAddr, mWidth, mHeight);
-    } else if ((device->mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
-               (mFormat == HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
-        ret = convertNV12toNV21(src);
-    } else if (device->mFormat == mFormat) {
-        YUYVCopyByLine((uint8_t *)out->mVirtAddr, mWidth, mHeight, (uint8_t *)src.mVirtAddr, v4l2Width, v4l2Height);
-    } else {
-        ALOGE("%s:%d, Software don't support format convert from 0x%x to 0x%x", __FUNCTION__, __LINE__, device->mFormat, mFormat);
-        return 0;
-    }
-
-    return 0;
-}
-
 int32_t Stream::processFrameBuffer(StreamBuffer& src,
                                    sp<Metadata> meta __unused)
 {
@@ -761,29 +322,15 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
         return 0;
     }
 
-    int32_t ret = 0;
-    uint32_t v4l2Width;
-    uint32_t v4l2Height;
-
-    ret = mCamera->getV4l2Res(device->mWidth, device->mHeight, &v4l2Width, &v4l2Height);
-    if (ret) {
-        ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
+    StreamBuffer* out = mCurrent;
+    if (out == NULL || out->mBufHandle == NULL) {
+        ALOGE("%s invalid buffer handle", __func__);
+        return 0;
     }
 
-    if ((mWidth != v4l2Width) || (mHeight != v4l2Height) ||
-            (mFormat != device->mFormat)) {
-        if ((mIpuFd > 0) && (mFormat != HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
-            ret = processBufferWithIPU(src);
-        } else if (mPxpFd > 0){
-            ret = processBufferWithPXP(src);
-        } else {
-            ret = processBufferWithCPU(src);
-        }
-    } else {
-        ret = processBufferWithGPU(src);
-    }
-
-    return ret;
+    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+    //ImageProcess *imageProcess = ImageProcess::getInstance();
+    return imageProcess->handleFrame(*out, src);
 }
 
 int32_t Stream::processCaptureBuffer(StreamBuffer& src,

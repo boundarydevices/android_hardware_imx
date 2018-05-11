@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,10 +28,6 @@
 #include <linux/mxc_ion.h>
 #include <ion_ext.h>
 #include "JpegBuilder.h"
-
-#ifdef TARGET_FSL_IMX_2D
-#include "g2d.h"
-#endif
 
 using namespace android;
 
@@ -74,12 +71,6 @@ protected:
                               sp<Metadata> meta);
     int32_t processFrameBuffer(StreamBuffer& src,
                                sp<Metadata> meta);
-    int32_t convertNV12toNV21(StreamBuffer& src);
-    int32_t processBufferWithPXP(StreamBuffer& src);
-    int32_t processBufferWithIPU(StreamBuffer& src);
-    int32_t processBufferWithGPU(StreamBuffer& src);
-
-    int32_t processBufferWithCPU(StreamBuffer& src);
 
 protected:
     // This stream is being reused. Used in stream configuration passes
@@ -112,9 +103,7 @@ protected:
     // Lock protecting the Stream object for modifications
     android::Mutex mLock;
 
-    int32_t mIpuFd;
-    int32_t mPxpFd;
-    int32_t channel;
+    bool mCustomDriver;
     StreamBuffer* mCurrent;
     Camera* mCamera;
     sp<JpegBuilder> mJpegBuilder;

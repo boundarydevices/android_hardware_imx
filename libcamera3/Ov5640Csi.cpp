@@ -218,21 +218,21 @@ status_t Ov5640Csi::initSensorStaticData()
 int32_t Ov5640Csi::OvStream::onDeviceConfigureLocked()
 {
     ALOGI("%s", __func__);
-    int32_t ret = 0;
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
         return BAD_VALUE;
     }
 
-    if (mIpuFd > 0) {
-        int32_t input = 1;
-        ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
-        if (ret < 0) {
-            ALOGE("%s VIDIOC_S_INPUT Failed: %s", __func__, strerror(errno));
-            return ret;
-        }
-    } else if (mPxpFd > 0) {
-        ALOGI("can't support VIDIOC_S_INPUT");
+    int32_t input = 1;
+    // don't get ioctl return value.
+    // only call this ioctl.
+    int ret = ioctl(mDev, VIDIOC_S_INPUT, &input);
+    if (ret < 0) {
+        ALOGW("%s VIDIOC_S_INPUT not supported: %s", __func__, strerror(errno));
+        mCustomDriver = false;
+    }
+    else {
+        mCustomDriver = true;
     }
 
     return MMAPStream::onDeviceConfigureLocked();

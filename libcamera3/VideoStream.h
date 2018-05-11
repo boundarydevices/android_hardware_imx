@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,8 +55,6 @@ public:
     int32_t openDev(const char* name);
     int32_t closeDev();
     int32_t flushDev();
-
-    virtual void* getG2dHandle() {return g2dHandle;}
 
 private:
     // message type.
@@ -121,9 +120,6 @@ private:
         }
 
         virtual status_t readyToRun() {
-#ifdef TARGET_FSL_IMX_2D
-            g2d_open(&mStream->g2dHandle);
-#endif
             return 0;
         }
 
@@ -131,9 +127,6 @@ private:
             int ret = mStream->handleMessage();
             if (ret != 0) {
                 ALOGI("%s exit...", __func__);
-#ifdef TARGET_FSL_IMX_2D
-                g2d_close(mStream->g2dHandle);
-#endif
                 mStream.clear();
                 mStream = NULL;
                 return false;
@@ -157,7 +150,6 @@ protected:
 
     // camera dev node.
     int32_t mDev;
-    void *g2dHandle;
     uint32_t mAllocatedBuffers;
     enum v4l2_memory mV4l2MemType;
     enum v4l2_buf_type mV4l2BufType;
