@@ -906,7 +906,7 @@ int32_t Camera::getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t
 uint8_t Camera::setFlashlight(uint8_t mode)
 {
     FILE *file;
-    int32_t brightness = -1;
+    int32_t brightness = 0;
     bool on = false;
     char max_path[PATH_LEN], path[PATH_LEN];
 
@@ -923,11 +923,11 @@ uint8_t Camera::setFlashlight(uint8_t mode)
             break;
         case ANDROID_FLASH_MODE_TORCH:
             on = true;
+            brightness = property_get_int32("persist.camera.torch.brightness", -1);
         case ANDROID_FLASH_MODE_OFF:
         default:
             snprintf(max_path, PATH_LEN, "%s/max_brightness", TORCH_PATH);
             snprintf(path, PATH_LEN, "%s/brightness", TORCH_PATH);
-            brightness = property_get_int32("persist.camera.torch.brightness", -1);
             break;
     };
 
