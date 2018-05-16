@@ -33,6 +33,7 @@ static int gOutWidth = 0;
 static int gOutHeight = 0;
 static int gMemory_type = 0;
 static bool gMemTest = false;
+static bool gCLBuildTest = false;
 static int gCopyLen = 0;
 static int gIonFd;
 
@@ -303,6 +304,7 @@ void usage(char *app)
     printf("%s test program.\n", app);
     printf("Usage: %s [-h] [-c] [-l len] [-w width] [-g height] [-i input_file] [-s input_format] [-o output_file] [-d output_format] [-m memory_type]\n", app);
     printf("\t-h\t  Print this message\n");
+    printf("\t-b\t  Generate CL Binary as output file from input file\n");
     printf("\t-c\t  Memory copy test\n");
     printf("\t-l\t  Copy length\n");
     printf("\t-i\t  Input file\n");
@@ -369,6 +371,196 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
     return 0;
 }
 
+int createCLProgram(const char* fileSrcName, const char*fileBinName)
+{
+    cl_int errNum;
+    cl_uint numPlatforms;
+    cl_platform_id firstPlatformId;
+    cl_context context = NULL;
+    cl_uint numDevices = 0;
+    cl_device_id *devices = NULL;
+    cl_device_id device;
+    cl_device_id *program_devices = NULL;
+    size_t *programBinarySizes =  NULL;
+    size_t deviceBufferSize = -1;
+    unsigned char **programBinaries = NULL;
+    cl_program program;
+    size_t program_length;
+    FILE* pSrcFileStream = NULL;
+    char* source = NULL;
+    int ret = 0;
+
+    errNum = clGetPlatformIDs(1, &firstPlatformId, &numPlatforms);
+    if (errNum != CL_SUCCESS || numPlatforms <= 0) {
+        ALOGE("Failed to find any OpenCL platforms.\n");
+        return -1;
+    }
+
+    cl_context_properties contextProperties[] =
+    {
+        CL_CONTEXT_PLATFORM,
+        (cl_context_properties)firstPlatformId,
+        0
+    };
+    context = clCreateContextFromType(contextProperties,
+            CL_DEVICE_TYPE_GPU,
+            NULL, NULL, &errNum);
+    if (errNum != CL_SUCCESS) {
+        ALOGE("Could not create GPU context, trying CPU...\n");
+        context = clCreateContextFromType(contextProperties,
+                CL_DEVICE_TYPE_CPU,
+                NULL, NULL, &errNum);
+        if (errNum != CL_SUCCESS) {
+            ALOGE("Failed to create an OpenCL GPU or CPU context.\n");
+            return -1;
+        }
+    }
+    // First get the size of the devices buffer
+    errNum = clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, NULL,
+            &deviceBufferSize);
+    if (errNum != CL_SUCCESS) {
+        ALOGE("Failed call to clGetContextInfo(...,GL_CONTEXT_DEVICES,...)\n");
+        return -1;
+    }
+    if (deviceBufferSize <= 0) {
+        ALOGE("No devices available.\n");
+        return -1;
+    }
+
+    // Allocate memory for the devices buffer
+    devices = new cl_device_id[numDevices];
+    errNum = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+            deviceBufferSize, devices, NULL);
+    if (errNum != CL_SUCCESS) {
+        ALOGE("Failed to get device IDs\n");
+        return -1;
+    }
+    device = devices[0];
+
+    pSrcFileStream = fopen(fileSrcName, "rb");
+    if(pSrcFileStream == 0) {
+        ALOGE("Failed to open file %s for reading\n" ,fileSrcName);
+        ret = -1;
+        goto binary_out;
+    }
+
+    // get the length of the source code
+    fseek(pSrcFileStream, 0, SEEK_END);
+    program_length = ftell(pSrcFileStream);
+    fseek(pSrcFileStream, 0, SEEK_SET);
+
+    // allocate a buffer for the source code string and read it in
+    source = (char *)malloc(program_length + 1);
+    if (fread((source), program_length, 1, pSrcFileStream) != 1) {
+        fclose(pSrcFileStream);
+        free(source);
+        ALOGE("Failed to open file %s for reading\n" ,fileSrcName);
+        ret = -1;
+        goto binary_out;
+    }
+    fclose(pSrcFileStream);
+    source[program_length] = '\0';
+
+    program = clCreateProgramWithSource(context, 1,
+            (const char**)&source,
+            NULL, NULL);
+    free(source);
+    if (program == NULL) {
+        ALOGE("Failed to create CL program from source.\n");
+        ret = -1;
+        goto binary_out;
+    }
+    errNum = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    if (errNum != CL_SUCCESS) {
+        // Determine the reason for the error
+        char buildLog[16384];
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
+                sizeof(buildLog), buildLog, NULL);
+        ALOGE("Error in build kernel:\n");
+        ALOGE("%s", buildLog);
+        clReleaseProgram(program);
+        ret = -1;
+        goto binary_out;
+    }
+    errNum = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint),
+                                          &numDevices, NULL);
+    if (errNum != CL_SUCCESS) {
+        ALOGE("Error querying for number of devices.");
+        ret = -1;
+        goto binary_out;
+    }
+
+    // 2 - Get all of the Device IDs
+    program_devices = new cl_device_id[numDevices];
+    errNum = clGetProgramInfo(program, CL_PROGRAM_DEVICES,
+                sizeof(cl_device_id) * numDevices,
+                program_devices, NULL);
+    if (errNum != CL_SUCCESS) {
+        ALOGE("Error querying for devices.");
+        ret = -1;
+        goto binary_out;
+    }
+
+    programBinarySizes = new size_t [numDevices];
+    errNum = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES,
+            sizeof(size_t) * numDevices,
+            programBinarySizes, NULL);
+    if (errNum != CL_SUCCESS) {
+        ALOGE("Error querying for program binary sizes.");
+        ret = -1;
+        goto binary_out;
+    }
+
+    programBinaries = new unsigned char*[numDevices];
+    for (cl_uint i = 0; i < numDevices; i++) {
+        programBinaries[i] =
+            new unsigned char[programBinarySizes[i]];
+    }
+    errNum = clGetProgramInfo(program, CL_PROGRAM_BINARIES,
+            sizeof(unsigned char*) * numDevices,
+            programBinaries, NULL);
+    if (errNum != CL_SUCCESS) {
+        ALOGE("Error querying for program binaries");
+        ret = -1;
+        goto binary_out;
+    }
+
+    for (cl_uint i = 0; i < numDevices; i++) {
+        // Store the binary just for the device requested.
+        // In a scenario where multiple devices were being used
+        // you would save all of the binaries out here.
+        if (program_devices[i] == device) {
+            FILE *fp = fopen(fileBinName, "wb");
+            fwrite(programBinaries[i], 1,
+                    programBinarySizes[i], fp);
+            fclose(fp);
+            break;
+        }
+    }
+
+binary_out:
+    if(devices != NULL)
+        delete [] devices;
+    if(program_devices != NULL)
+        delete [] program_devices;
+    if(programBinarySizes != NULL)
+        delete [] programBinarySizes;
+    for(cl_uint i = 0; i < numDevices; i++) {
+        if( programBinaries != NULL)
+            delete [] programBinaries[i];
+    }
+    if(programBinaries != NULL)
+        delete [] programBinaries;
+
+    if(pSrcFileStream == 0)
+        fclose(pSrcFileStream);
+    if(program != NULL)
+        clReleaseProgram(program);
+    if(context != NULL)
+        clReleaseContext(context);
+    return ret;
+}
+
 int main(int argc, char** argv)
 {
     int fd, err, rt;
@@ -391,16 +583,19 @@ int main(int argc, char** argv)
 	struct cl_g2d_surface src,dst;
 	void *g2dHandle = NULL;
 
-    if (argc < 4) {
+    if (argc < 3) {
         usage(argv[0]);
         return 0;
     }
 
-    while ((rt = getopt(argc, argv, "hcl:i:s:o:d:w:g:m:x:y:")) >= 0) {
+    while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:m:x:y:")) >= 0) {
 	    switch (rt) {
 	    case 'h':
 	        usage(argv[0]);
 	        return 0;
+	    case 'b':
+            gCLBuildTest = true;
+            break;
 	    case 'c':
             gMemTest = true;
             break;
@@ -447,15 +642,32 @@ int main(int argc, char** argv)
     if (gOutHeight == 0)
         gOutHeight = gHeight;
 
+    if (gCLBuildTest) {
+        ALOGI("Start opencl 2d binary build:");
+        ALOGI("input file: %s", input_file);
+        ALOGI("output file: %s", output_file);
+        if(createCLProgram(input_file, output_file) == 0)
+            ALOGI("Success on opencl 2d binary build!");
+        else
+            ALOGI("Fail on opencl 2d binary build!");
+        return 0;
+    }
+
     //Either copy or blit
-    if (gMemTest && (gWidth != 0) && (gHeight != 0) )
+    if (gMemTest && (gWidth != 0) && (gHeight != 0) ) {
 	    usage(argv[0]);
+        return 0;
+    }
 
-    if (!gMemTest && (gWidth == 0) && (gHeight == 0) )
+    if (!gMemTest && (gWidth == 0) && (gHeight == 0) ) {
 	    usage(argv[0]);
+        return 0;
+    }
 
-    if (gMemTest && (gCopyLen == 0))
+    if (gMemTest && (gCopyLen == 0)) {
 	    usage(argv[0]);
+        return 0;
+    }
 
     ALOGI("Start opencl 2d test with:");
     ALOGI("input file: %s", input_file);

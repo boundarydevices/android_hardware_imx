@@ -19,7 +19,8 @@
 #define CL_ATOMIC_COPY_MASK 0x3f
 #define MAX_PATH 128
 #define CL_FILE_PATH "/vendor/etc/"
-#define YUYV_CONVERT_NAME "cl_g2d.cl"
+#define YUYV_CONVERT_SOURCE "cl_g2d.cl"
+#define YUYV_CONVERT_BIN "cl_g2d.bin"
 #define YUYV_TO_NV12_KERNEL "g2d_yuyv_to_nv12"
 #define YUYV_TO_YUYV_KERNEL "g2d_yuyv_to_yuyv"
 #define MEM_COPY_KERNEL "g2d_mem_copy"
@@ -230,6 +231,61 @@ static bool ReadOutMemObjects(struct g2dContext *gContext)
     return true;
 }
 
+static cl_program CreateProgramFromBinary(cl_context context, cl_device_id device,
+        const char* fileName)
+{
+    FILE *fp = fopen(fileName, "rb");
+    if (fp == NULL) {
+        g2d_printf("Error read program binary %s.", fileName);
+        return NULL;
+    }
+
+    // Determine the size of the binary
+    size_t binarySize;
+    fseek(fp, 0, SEEK_END);
+    binarySize = ftell(fp);
+    rewind(fp);
+    // Load binary from disk
+    unsigned char *programBinary = new unsigned char[binarySize];
+    fread(programBinary, 1, binarySize, fp);
+    fclose(fp);
+    cl_int errNum = 0;
+    cl_program program;
+    cl_int binaryStatus;
+
+    program = clCreateProgramWithBinary(context,
+            1,
+            &device,
+            &binarySize,
+            (const unsigned char**)&programBinary,
+            &binaryStatus,
+            &errNum);
+    delete [] programBinary;
+    if (errNum != CL_SUCCESS)
+    {
+        g2d_printf("Error loading program binary.");
+        return NULL;
+    }
+    if (binaryStatus != CL_SUCCESS)
+    {
+        g2d_printf("Invalid binary for device");
+        return NULL;
+    }
+    errNum = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    if (errNum != CL_SUCCESS)
+    {
+        // Determine the reason for the error
+        char buildLog[16384];
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
+                sizeof(buildLog), buildLog, NULL);
+        g2d_printf("Error in program: ");
+        g2d_printf("%s", buildLog);
+        clReleaseProgram(program);
+        return NULL;
+    }
+    return program;
+}
+
 static cl_program CreateProgram(cl_context context, cl_device_id device,
         const char* fileName)
 {
@@ -438,7 +494,8 @@ int cl_g2d_open(void **handle)
     char clFileName[MAX_PATH];
     memset(clFileName, 0, sizeof(clFileName));
     strncpy(clFileName, CL_FILE_PATH, strlen(CL_FILE_PATH));
-    strcat(clFileName, YUYV_CONVERT_NAME);
+    //strcat(clFileName, YUYV_CONVERT_SOURCE);
+    strcat(clFileName, YUYV_CONVERT_BIN);
 
     if (handle == NULL) {
         g2d_printf("%s: invalid handle\n", __func__);
@@ -464,9 +521,10 @@ int cl_g2d_open(void **handle)
     }
     gContext->device = device;
     //All kernel should be built and create in open to save time
-    gContext->program = CreateProgram(gContext->context, device, clFileName);
+    //gContext->program = CreateProgram(gContext->context, device, clFileName);
+    gContext->program = CreateProgramFromBinary(gContext->context, device, clFileName);
     if (gContext->program == NULL) {
-        g2d_printf("failed for CreateProgram\n");
+        g2d_printf("failed for CreateProgramFromBinary %s\n", clFileName);
         goto err2;
     }
 
