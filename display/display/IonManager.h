@@ -46,6 +46,7 @@ public:
 
 private:
     int mIonFd;
+    int mHeapIds;
 };
 
 }

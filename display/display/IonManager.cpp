@@ -21,6 +21,8 @@
 #include <cutils/log.h>
 #include <ion/ion.h>
 #include <linux/mxc_ion.h>
+#include <linux/dma-buf.h>
+#include <ion_4.12.h>
 #ifdef CFG_SECURE_DATA_PATH
 #include <linux/secure_ion.h>
 #endif
@@ -37,10 +39,34 @@ inline size_t roundUpToPageSize(size_t x) {
 }
 
 IonManager::IonManager()
+    : mIonFd(-1), mHeapIds(0)
 {
     mIonFd = ion_open();
     if (mIonFd <= 0) {
         ALOGE("%s ion open failed", __func__);
+        return;
+    }
+
+    int heapCnt = 0;
+    int ret = ion_query_heap_cnt(mIonFd, &heapCnt);
+    if (ret != 0 || heapCnt == 0) {
+        ALOGE("can't query heap count");
+        return;
+    }
+
+    struct ion_heap_data ihd[heapCnt];
+    memset(&ihd, 0, sizeof(ihd));
+    ret = ion_query_get_heaps(mIonFd, heapCnt, &ihd);
+    if (ret != 0) {
+        ALOGE("can't get ion heaps");
+        return;
+    }
+
+    for (int i=0; i<heapCnt; i++) {
+        if (ihd[i].type == ION_HEAP_TYPE_DMA ||
+             ihd[i].type == ION_HEAP_TYPE_CARVEOUT) {
+            mHeapIds |=  1 << ihd[i].heap_id;
+        }
     }
 }
 
@@ -53,7 +79,7 @@ IonManager::~IonManager()
 
 int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 {
-    if (mIonFd <= 0 || out == NULL) {
+    if (mIonFd <= 0 || out == NULL || mHeapIds == 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
@@ -68,7 +94,6 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     unsigned char *ptr = NULL;
     int sharedFd;
     int err;
-    ion_user_handle_t ion_hnd = -1;
     Memory* memory = NULL;
 
     desc.mSize = (desc.mSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
@@ -76,22 +101,22 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 #ifdef CFG_SECURE_DATA_PATH
     if (desc.mFlag & FLAGS_SECURE)
     {
-        err = ion_alloc(mIonFd,
+        err = ion_alloc_fd(mIonFd,
             desc.mSize,
             ION_DECODED_BUFFER_VPU_ALIGN,
             DWL_ION_DECODED_BUFFER_DCSS_HEAP,
             0,
-            &ion_hnd);
+            &sharedFd);
     }
     else
 #endif
     {
-        err = ion_alloc(mIonFd,
+        err = ion_alloc_fd(mIonFd,
             desc.mSize,
             ION_DECODED_BUFFER_VPU_ALIGN,
-            ION_HEAP_MASK,
+            mHeapIds,
             0,
-            &ion_hnd);
+            &sharedFd);
     }
 
     if (err) {
@@ -99,18 +124,10 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
         return err;
     }
 
-    err = ion_share(mIonFd, ion_hnd, &sharedFd);
-    if (err) {
-        ALOGE("ion_share failed");
-        ion_free(mIonFd, ion_hnd);
-        return err;
-    }
-
     memory = new Memory(&desc, sharedFd, -1);
     getPhys(memory);
 
     *out = memory;
-    ion_free(mIonFd, ion_hnd);
     close(sharedFd);
 
     return 0;
@@ -125,7 +142,14 @@ int IonManager::getPhys(Memory* memory)
 
     uint64_t phyAddr = 0;
 
-    phyAddr = ion_phys(mIonFd, memory->size, memory->fd);
+    if (ion_is_legacy(mIonFd)) {
+        phyAddr = ion_phys(mIonFd, memory->size, memory->fd);
+    }
+    else {
+        struct dma_buf_phys dma_phys;
+        ioctl(memory->fd, DMA_BUF_IOCTL_PHYS, &dma_phys);
+        phyAddr = dma_phys.phys;
+    }
     if (phyAddr == 0) {
         ALOGE("ion_phys failed");
         return -EINVAL;
@@ -160,7 +184,14 @@ int IonManager::flushCache(Memory* memory)
         return -EINVAL;
     }
 
-    ion_sync_fd(mIonFd, memory->fd);
+    if (ion_is_legacy(mIonFd)) {
+        ion_sync_fd(mIonFd, memory->fd);
+    }
+    else {
+        struct dma_buf_sync dma_sync;
+        dma_sync.flags = DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END;
+        ioctl(memory->fd, DMA_BUF_IOCTL_SYNC, &dma_sync);
+    }
 
     return 0;
 }

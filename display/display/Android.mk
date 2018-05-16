@@ -36,7 +36,8 @@ LOCAL_C_INCLUDES += $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
                     $(IMX_PATH)/imx/include \
                     $(IMX_PATH)/imx/libedid \
                     $(IMX_PATH)/libdrm-imx \
-                    $(IMX_PATH)/libdrm-imx/include/drm
+                    $(IMX_PATH)/libdrm-imx/include/drm \
+                    system/core/libion
 
 LOCAL_SHARED_LIBRARIES :=   \
     liblog                  \
