@@ -32,6 +32,34 @@ __kernel void g2d_yuyv_to_nv12(__global const uchar8 *input,
     }
 }
 
+__kernel void g2d_nv12_to_nv21(__global const uchar8 *input_y,
+        __global const uchar4 *input_uv,
+        __global uchar8 *output_y,
+        __global uchar4 *output_uv,
+        int width,
+        int height,
+        int src_stride,
+        int dst_stride)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    if((x+1)*8 <= width) {
+        int src_index = y*src_stride + x*8;
+        int dst_index = y*dst_stride + x*8;
+        uchar4 *dst_uv_buf = output_uv + dst_index/8;
+        uchar8 *dst_y_buf = output_y + dst_index/8;
+        uchar4 *src_uv_buf = input_uv + src_index/8;
+        uchar8 *src_y_buf = input_y + src_index/8;
+
+        (*dst_y_buf) = (*src_y_buf);
+        (*dst_uv_buf).x = (*src_uv_buf).y;
+        (*dst_uv_buf).y = (*src_uv_buf).x;
+        (*dst_uv_buf).z = (*src_uv_buf).w;
+        (*dst_uv_buf).w = (*src_uv_buf).z;
+    }
+}
+
+
 __kernel void g2d_yuyv_to_yuyv(__global const uint4 *input,
         __global uint4 *output,
         int src_width,

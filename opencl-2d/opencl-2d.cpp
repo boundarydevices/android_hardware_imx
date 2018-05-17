@@ -23,6 +23,7 @@
 #define YUYV_CONVERT_BIN "cl_g2d.bin"
 #define YUYV_TO_NV12_KERNEL "g2d_yuyv_to_nv12"
 #define YUYV_TO_YUYV_KERNEL "g2d_yuyv_to_yuyv"
+#define NV12_TO_NV21_KERNEL "g2d_nv12_to_nv21"
 #define MEM_COPY_KERNEL "g2d_mem_copy"
 
 /*Assume max buffer are 4 buffers to be handle */
@@ -34,14 +35,16 @@ typedef enum {
     /* Uncached physical continuous buffer*/
     YUYV_TO_YUYV_INDEX   = 1,
     MEM_COPY_INDEX       = 2,
+    NV12_TO_NV21_INDEX   = 3,
     /*Assume max kernel function to handle 2D convert */
-    MAX_CL_KERNEL_COUNT  = 3
+    MAX_CL_KERNEL_COUNT  = 4
 } cl_kernel_index;
 
 static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
     YUYV_TO_NV12_KERNEL,
     YUYV_TO_YUYV_KERNEL,
     MEM_COPY_KERNEL,
+    NV12_TO_NV21_KERNEL,
     NULL,
 };
 
@@ -663,6 +666,31 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     return 0;
 }
 
+static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *dst)
+{
+    int kernel_index = -1;
+    if ((src->width != dst->width)||
+        (src->height != dst->height)||
+        (src->width > src->stride)||
+        (dst->width > dst->stride)) {
+        g2d_printf("%s: src/dst width/height/stride should be matched\n", __func__);
+        return -1;
+    }
+
+    if ((src->format == CL_G2D_YUYV)&&
+        (dst->format == CL_G2D_NV12))
+        kernel_index = YUYV_TO_NV12_INDEX;
+    else if ((src->format == CL_G2D_YUYV)&&
+        (dst->format == CL_G2D_YUYV))
+        kernel_index = YUYV_TO_YUYV_INDEX;
+    else if ((src->format == CL_G2D_NV12)&&
+        (dst->format == CL_G2D_NV21))
+        kernel_index = NV12_TO_NV21_INDEX;
+
+    return kernel_index;
+
+}
+
 int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface *dst)
 {
     cl_int errNum = 0;
@@ -677,23 +705,8 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
         return -1;
     }
 
-    if ((src->format == CL_G2D_YUYV)&&
-        ((dst->format == CL_G2D_NV12) || (dst->format == CL_G2D_YUYV))) {
-        if ((src->width < dst->width)&&
-            (src->height < dst->height)) {
-            g2d_printf("%s: src/dst width/height should be matched\n", __func__);
-            return -1;
-        }
-
-        if ((src->format == CL_G2D_YUYV)&&
-            (dst->format == CL_G2D_NV12))
-            kernel_index = YUYV_TO_NV12_INDEX;
-        else if ((src->format == CL_G2D_YUYV)&&
-            (dst->format == CL_G2D_YUYV))
-            kernel_index = YUYV_TO_YUYV_INDEX;
-        else
-            return -1;
-
+    kernel_index = get_kernel_index(src, dst);
+    if (kernel_index >= 0) {
         if((kernel_index >= MAX_CL_KERNEL_COUNT)||(gcontext->dst[kernel_index] != NULL)){
             g2d_printf("%s: invalid kernel index %d\n", __func__, kernel_index);
             return -1;
@@ -727,8 +740,7 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
                 arg_index ++;
             }
 
-        if ((src->format == CL_G2D_YUYV)&&
-            (dst->format == CL_G2D_NV12)) {
+        if (kernel_index == YUYV_TO_NV12_INDEX) {
             // for yuyv to nv12, 4 pixels with one kernel calls
             // and based on src width
             int src_width = src->width/4;
@@ -741,18 +753,31 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
         }
-        else if ((src->format == CL_G2D_YUYV)&&
-            (dst->format == CL_G2D_YUYV)) {
+        else if (kernel_index == YUYV_TO_YUYV_INDEX) {
             // for yuyv to yuyv, 8 pixels with one kernel calls
             // and based on dst width
             int src_width = src->width/8;
-            int dst_width = dst->width/8;
-            kernel_width = dst->width/8;
+            int dst_width = dst->stride/8;
+            kernel_width = dst->stride/8;
             kernel_height = src->height;
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+        }
+        else if (kernel_index == NV12_TO_NV21_INDEX) {
+            // for nv12 to nv21, 8 pixels with one kernel calls
+            // and based on dst width
+            int width = src->width;
+            int height = src->height;
+            int src_stride = src->stride;
+            int dst_stride = dst->stride;
+            kernel_width = (width + 7)/8;
+            kernel_height = height;
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(height));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_stride));
         }
 
         if (errNum != CL_SUCCESS)

@@ -29,8 +29,10 @@ static enum cl_g2d_format gInput_format = CL_G2D_YUYV;
 static enum cl_g2d_format gOutput_format = CL_G2D_YUYV;
 static int gWidth = 0;
 static int gHeight = 0;
+static int gStride = 0;
 static int gOutWidth = 0;
 static int gOutHeight = 0;
+static int gOutStride = 0;
 static int gMemory_type = 0;
 static bool gMemTest = false;
 static bool gCLBuildTest = false;
@@ -44,6 +46,7 @@ static int get_buf_size(enum cl_g2d_format format, int width, int height, bool c
 	    case CL_G2D_YUYV:
             return width*height*2;
 	    case CL_G2D_NV12:
+	    case CL_G2D_NV21:
 	    case CL_G2D_I420:
             return width*height*3/2;
 	    default:
@@ -240,6 +243,33 @@ static void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
     return;
 }
 
+static void convertNV12toNV21(uint8_t *dst, uint32_t width, uint32_t height,
+        uint8_t *src)
+{
+    uint32_t i;
+    uint8_t *pDstLine = dst;
+    uint8_t *pUVDstLine = dst + width * height;
+    uint8_t *pSrcLine = src;
+    uint8_t *pUVSrcLine = src + width * height;
+    uint32_t ystride = width;
+    uint32_t uvstride = width/2;
+
+    for (i = 0; i < height; i++) {
+        memcpy(pDstLine, pSrcLine, ystride);
+
+        for (uint32_t j = 0; j < uvstride/2; j++) {
+            *(pUVDstLine + 0) = *(pUVSrcLine + 1);
+            *(pUVDstLine + 1) = *(pUVSrcLine + 0);
+            pUVDstLine += 2;
+            pUVSrcLine += 2;
+        }
+
+        pSrcLine += ystride;
+        pDstLine += ystride;
+    }
+
+    return;
+}
 
 static void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
         int width, int height)
@@ -309,14 +339,16 @@ void usage(char *app)
     printf("\t-l\t  Copy length\n");
     printf("\t-i\t  Input file\n");
     printf("\t-s\t  input format\n");
-    printf("\t\t\t  24:YUYV,20:NV12, 21:I420\n");
+    printf("\t\t\t  24:YUYV,20:NV12, 21:I420, 23:NV21\n");
     printf("\t-d\t  output format\n");
-    printf("\t\t\t  24:YUYV,20:NV12, 21:I420\n");
+    printf("\t\t\t  24:YUYV,20:NV12, 21:I420, 23:NV21\n");
     printf("\t-o\t  output to output_file\n");
     printf("\t-w\t  input width\n");
     printf("\t-g\t  intput height\n");
+    printf("\t-t\t  input stride\n");
     printf("\t-x\t  output width\n");
     printf("\t-y\t  output height\n");
+    printf("\t-z\t  output stride\n");
     printf("\t-m\t  memory_type\n");
     printf("\t\t\t  0:Cached memory,1:Non-cached ION memory\n");
 
@@ -332,6 +364,11 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
 	case CL_G2D_YUYV:
 		src->planes[0] = (long)input_buf;
 		break;
+    case CL_G2D_NV12:
+    case CL_G2D_NV21:
+		src->planes[0] = (long)input_buf;
+		src->planes[1] = (long)(input_buf + gWidth * gHeight);
+		break;
 	default:
 		ALOGE("Unsupport input format\n");
 		return 0;
@@ -341,7 +378,7 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
 	src->top = 0;
 	src->right = gWidth;
 	src->bottom = gHeight;
-	src->stride = gWidth;
+	src->stride = gStride;
 	src->width  = gWidth;
 	src->height = gHeight;
 
@@ -350,8 +387,10 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
         dst->usage = CL_G2D_DEVICE_MEMORY;
 	switch (dst->format) {
 	case CL_G2D_NV12:
+	case CL_G2D_NV21:
 		dst->planes[0] = (long)output_buf;
 		dst->planes[1] = (long)(output_buf + gOutWidth * gOutHeight);
+		break;
 		break;
 	case CL_G2D_YUYV:
 		dst->planes[0] = (long)output_buf;
@@ -365,7 +404,7 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
 	dst->top = 0;
 	dst->right = gOutWidth;
 	dst->bottom = gOutHeight;
-	dst->stride = gOutWidth;
+	dst->stride = gOutStride;
 	dst->width  = gOutWidth;
 	dst->height = gOutHeight;
     return 0;
@@ -588,7 +627,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:m:x:y:")) >= 0) {
+    while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:t:m:x:y:z:")) >= 0) {
 	    switch (rt) {
 	    case 'h':
 	        usage(argv[0]);
@@ -618,11 +657,17 @@ int main(int argc, char** argv)
         case 'g':
              gHeight = atoi(optarg);
             break;
+        case 't':
+             gStride = atoi(optarg);
+            break;
         case 'x':
              gOutWidth = atoi(optarg);
             break;
         case 'y':
              gOutHeight = atoi(optarg);
+            break;
+        case 'z':
+             gOutStride = atoi(optarg);
             break;
         case 'm':
             gMemory_type = atoi(optarg);
@@ -641,6 +686,10 @@ int main(int argc, char** argv)
         gOutWidth = gWidth;
     if (gOutHeight == 0)
         gOutHeight = gHeight;
+    if (gStride == 0)
+        gStride = gWidth;
+    if (gOutStride == 0)
+        gOutStride = gOutWidth;
 
     if (gCLBuildTest) {
         ALOGI("Start opencl 2d binary build:");
@@ -675,8 +724,10 @@ int main(int argc, char** argv)
     if (!gMemTest) {
         ALOGI("src width: %d", gWidth);
         ALOGI("src height: %d", gHeight);
+        ALOGI("src stride: %d", gStride);
         ALOGI("out width: %d", gOutWidth);
         ALOGI("out height: %d", gOutHeight);
+        ALOGI("out stride: %d", gOutStride);
         ALOGI("input format: %d", gInput_format);
         ALOGI("output format: %d", gOutput_format);
     } else {
@@ -755,6 +806,10 @@ int main(int argc, char** argv)
             YUYVCopyByLine((uint8_t *)output_benchmark_buf, gOutWidth, gOutHeight,
                 (uint8_t *)input_buf, gWidth, gHeight);
         }
+        else if ((src.format == CL_G2D_NV12) && (dst.format == CL_G2D_NV21)) {
+            convertNV12toNV21((uint8_t *)output_benchmark_buf, gOutWidth, gOutHeight,
+                (uint8_t *)input_buf);
+        }
     } else {
         memcpy(output_benchmark_buf, input_buf, gCopyLen);
     }
@@ -766,6 +821,12 @@ int main(int argc, char** argv)
             dump_buffer(output_benchmark_buf, 128, "output_benchmark_yuyv");
         }
         else if (dst.format == CL_G2D_NV12) {
+            dump_buffer(output_buf, 64, "output_y");
+            dump_buffer(output_buf + gOutWidth*gOutHeight, 64, "output_uv");
+            dump_buffer(output_benchmark_buf, 64, "output_benchmark_y");
+            dump_buffer(output_benchmark_buf + gOutWidth*gOutHeight, 64, "output_benchmark_uv");
+        }
+        else if (dst.format == CL_G2D_NV21) {
             dump_buffer(output_buf, 64, "output_y");
             dump_buffer(output_buf + gOutWidth*gOutHeight, 64, "output_uv");
             dump_buffer(output_benchmark_buf, 64, "output_benchmark_y");
