@@ -596,6 +596,10 @@ int KmsDisplay::performOverlay()
 
     rect = &layer->sourceCrop;
 #ifdef WORKAROUND_DOWNSCALE_LIMITATION
+    int srcW = rect->right - rect->left;
+    int srcH = rect->bottom - rect->top;
+    if (srcW < w) w = srcW;
+    if (srcH < h) h = srcH;
     mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, 0, 0,
                     ALIGN_PIXEL_2(w), ALIGN_PIXEL_2(h));
 #else
