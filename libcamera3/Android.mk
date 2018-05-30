@@ -33,6 +33,7 @@ LOCAL_C_INCLUDES += \
     external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
     $(FSL_IMX_OMX_PATH)/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
     $(IMX_PATH)/imx/display/display \
+    $(IMX_PATH)/imx/opencl-2d \
     system/core/libion/include
 
 LOCAL_SRC_FILES := \

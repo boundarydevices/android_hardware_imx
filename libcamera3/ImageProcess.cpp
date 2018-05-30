@@ -23,6 +23,8 @@
 
 #include <g2d.h>
 #include <linux/ipu.h>
+#include "opencl-2d.h"
+
 extern "C" {
 #include <pxp_lib.h>
 }
@@ -36,6 +38,7 @@ extern "C" {
 #endif
 
 #define GPUENGINE "libg2d.so"
+#define CLENGINE "libopencl-2d.so"
 
 namespace fsl {
 
@@ -94,6 +97,33 @@ ImageProcess::ImageProcess()
 
     mTls.has_tls = 0;
     pthread_mutex_init(&mTls.lock, NULL);
+
+    memset(path, 0, sizeof(path));
+    getModule(path, CLENGINE);
+    handle = dlopen(path, RTLD_NOW);
+    if (handle == NULL) {
+        mCLOpen = NULL;
+        mCLClose = NULL;
+        mCLFlush = NULL;
+        mCLFinish = NULL;
+        mCLBlit = NULL;
+        mCLHandle = NULL;
+    }
+    else {
+        mCLOpen = (hwc_func1)dlsym(handle, "cl_g2d_open");
+        mCLClose = (hwc_func1)dlsym(handle, "cl_g2d_close");
+        mCLFlush = (hwc_func1)dlsym(handle, "cl_g2d_flush");
+        mCLFinish = (hwc_func1)dlsym(handle, "cl_g2d_finish");
+        mCLBlit = (hwc_func3)dlsym(handle, "cl_g2d_blit");
+        ret = (*mCLOpen)((void*)&mCLHandle);
+        if (ret != 0) {
+            mCLHandle = NULL;
+        }
+    }
+
+    if(mCLHandle != NULL) {
+        ALOGW("opencl g2d device is used!\n");
+    }
 }
 
 ImageProcess::~ImageProcess()
@@ -106,6 +136,10 @@ ImageProcess::~ImageProcess()
     if (mPxpFd > 0) {
         close(mPxpFd);
         mPxpFd = -1;
+    }
+
+    if (mCLHandle != NULL) {
+        (*mCLClose)(mCLHandle);
     }
 }
 
@@ -194,6 +228,12 @@ int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 
         // try pxp.
         ret = handleFrameByPXP(dstBuf, srcBuf);
+        if (ret == 0) {
+            break;
+        }
+
+        // try opencl.
+        ret = handleFrameByOpencl(dstBuf, srcBuf);
         if (ret == 0) {
             break;
         }
@@ -424,6 +464,43 @@ int ImageProcess::convertNV12toNV21(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     return 0;
 }
 
+int ImageProcess::handleFrameByOpencl(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+{
+    // opencl g2d exists.
+    if (mCLHandle == NULL) {
+        return -EINVAL;
+    }
+
+    sp<Stream> src, dst;
+    src = srcBuf.mStream;
+    dst = dstBuf.mStream;
+
+    if ((src->width() != dst->width()) || (src->height() != dst->height())) {
+        ALOGE("%s:%d, Software don't support resize", __func__, __LINE__);
+        return -EINVAL;
+    }
+
+    if (((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
+         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
+        (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
+        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
+                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+    } else if (src->format() == dst->format()) {
+        cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
+                 dst->width(), dst->height(),
+                (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), true);
+    } else {
+        ALOGI("%s:%d, opencl don't support format convert from 0x%x to 0x%x",
+                 __func__, __LINE__, src->format(), dst->format());
+        return -EINVAL;
+    }
+
+    (*mCLFlush)(mCLHandle);
+    (*mCLFinish)(mCLHandle);
+
+    return 0;
+}
+
 int ImageProcess::handleFrameByCPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 {
     sp<Stream> src, dst;
@@ -453,6 +530,74 @@ int ImageProcess::handleFrameByCPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     }
 
     return 0;
+}
+
+void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
+         uint8_t *output, uint32_t dstWidth,
+         uint32_t dstHeight, uint8_t *input,
+         uint32_t srcWidth, uint32_t srcHeight, bool bInputCached)
+{
+    struct cl_g2d_surface src,dst;
+
+    src.format = CL_G2D_YUYV;
+    if(bInputCached){
+        //Input is buffer from usb v4l2 driver
+        //cachable buffer
+        src.usage = CL_G2D_CPU_MEMORY;
+    }
+    else
+        src.usage = CL_G2D_DEVICE_MEMORY;
+
+    src.planes[0] = (long)input;
+    src.left = 0;
+    src.top = 0;
+    src.right  = srcWidth;
+    src.bottom = srcHeight;
+    src.stride = srcWidth;
+    src.width  = srcWidth;
+    src.height = srcHeight;
+
+    dst.format = CL_G2D_YUYV;
+    dst.usage = CL_G2D_DEVICE_MEMORY;
+    dst.planes[0] = (long)output;
+    dst.left = 0;
+    dst.top = 0;
+    dst.right  = dstWidth;
+    dst.bottom = dstHeight;
+    dst.stride = dstWidth;
+    dst.width  = dstWidth;
+    dst.height = dstHeight;
+
+    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+}
+void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
+         uint8_t *outputBuffer, int width, int height)
+{
+    struct cl_g2d_surface src,dst;
+    src.format = CL_G2D_YUYV;
+    src.usage = CL_G2D_DEVICE_MEMORY;
+    src.planes[0] = (long)inputBuffer;
+    src.left = 0;
+    src.top = 0;
+    src.right = width;
+    src.bottom = height;
+    src.stride = width;
+    src.width  = width;
+    src.height = height;
+
+    dst.format = CL_G2D_NV12;
+    dst.usage = CL_G2D_DEVICE_MEMORY;
+    dst.planes[0] = (long)outputBuffer;
+    dst.planes[1] = (long)outputBuffer + width * height;
+    dst.left = 0;
+    dst.top = 0;
+    dst.right = width;
+    dst.bottom = height;
+    dst.stride = width;
+    dst.width  = width;
+    dst.height = height;
+
+    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
 }
 
 void ImageProcess::YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth,

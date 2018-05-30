@@ -27,6 +27,7 @@ namespace fsl {
 using namespace android;
 
 typedef int (*hwc_func1)(void* handle);
+typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 
 class ImageProcess
@@ -42,11 +43,18 @@ private:
     int handleFrameByPXP(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByIPU(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByGPU(StreamBuffer& dst, StreamBuffer& src);
+    int handleFrameByOpencl(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByCPU(StreamBuffer& dst, StreamBuffer& src);
     void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
              uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
     void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
              int width, int height);
+    void cl_YUYVCopyByLine(void *g2dHandle,
+             uint8_t *dst, uint32_t dstWidth,
+             uint32_t dstHeight, uint8_t *src,
+             uint32_t srcWidth, uint32_t srcHeight, bool bInputCached);
+    void cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
+             uint8_t *outputBuffer, int width, int height);
     void *getHandle();
     static void threadDestructor(void *handle);
     int openEngine(void** handle);
@@ -67,6 +75,13 @@ private:
     hwc_func1 mCloseEngine;
     hwc_func1 mFinishEngine;
     hwc_func4 mCopyEngine;
+
+    void *mCLHandle;
+    hwc_func1 mCLOpen;
+    hwc_func1 mCLClose;
+    hwc_func3 mCLBlit;
+    hwc_func1 mCLFlush;
+    hwc_func1 mCLFinish;
 };
 
 }
