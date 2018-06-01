@@ -14,6 +14,7 @@
 
 LOCAL_PATH := $(call my-dir)
 
+ifeq ($(TARGET_OPENCL_2D),true)
 include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 
@@ -57,6 +58,4 @@ LOCAL_SHARED_LIBRARIES := liblog \
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)
-
-
-
+endif
