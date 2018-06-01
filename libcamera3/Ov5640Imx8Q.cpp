@@ -147,6 +147,8 @@ status_t Ov5640Imx8Q::initSensorStaticData()
     i = 0;
     mTargetFpsRange[i++] = 10;
     mTargetFpsRange[i++] = 30;
+    mTargetFpsRange[i++] = 15;
+    mTargetFpsRange[i++] = 30;
     mTargetFpsRange[i++] = 30;
     mTargetFpsRange[i++] = 30;
 
@@ -156,10 +158,10 @@ status_t Ov5640Imx8Q::initSensorStaticData()
     mFocalLength = 3.37f;
     mPhysicalWidth = 3.6288f;   // 2592 x 1.4u
     mPhysicalHeight = 2.7216f;  // 1944 x 1.4u
-    mActiveArrayWidth = 1280;
-    mActiveArrayHeight = 800;
-    mPixelArrayWidth = 1280;
-    mPixelArrayHeight = 800;
+    mActiveArrayWidth = 1920;
+    mActiveArrayHeight = 1080;
+    mPixelArrayWidth = 1920;
+    mPixelArrayHeight = 1080;
 
     ALOGI("ImxdpuCsi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
           mFocalLength,
