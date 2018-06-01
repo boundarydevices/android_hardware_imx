@@ -121,6 +121,7 @@ int do_changecpugov(const char *gov)
             close(fd);
             return -1;
         }
+        close(fd);
     }
 
     if (strncmp(INTERACTIVE, gov, strlen(INTERACTIVE)) == 0) {
@@ -130,7 +131,6 @@ int do_changecpugov(const char *gov)
         interactive_mode = 0;
     }
 
-    close(fd);
     return 0;
 }
 
