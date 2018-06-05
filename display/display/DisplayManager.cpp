@@ -239,7 +239,7 @@ bool DisplayManager::isOverlay(int fb)
 int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary)
 {
     int drmFd = open(path, O_RDWR);
-    if(drmFd <= 0) {
+    if(drmFd < 0) {
         ALOGE("Failed to open dri-%s, error:%s", path, strerror(-errno));
         return -ENODEV;
     }

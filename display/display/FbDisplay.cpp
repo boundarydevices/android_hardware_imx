@@ -241,7 +241,10 @@ int FbDisplay::performOverlay()
 
     if (mOvPowerMode != FB_BLANK_UNBLANK) {
         mOvPowerMode = FB_BLANK_UNBLANK;
-        ioctl(mOvFd, FBIOBLANK, mOvPowerMode);
+        if (ioctl(mOvFd, FBIOBLANK, mOvPowerMode) < 0) {
+            ALOGE("updateOverlay: FBIOBLANK failed");
+            return false;
+        }
     }
 
     Memory* memory = layer->handle;
@@ -299,6 +302,10 @@ int FbDisplay::updateScreen()
         return -EINVAL;
     }
 
+    if (mActiveConfig < 0) {
+        ALOGE("%s invalid config",__func__);
+        return -EINVAL;
+    }
     const DisplayConfig& config = mConfigs[mActiveConfig];
     if (buffer->width != config.mXres || buffer->height != config.mYres ||
         buffer->fslFormat != config.mFormat) {
@@ -516,6 +523,10 @@ void FbDisplay::prepareTargetsLocked()
     }
 
     MemoryDesc desc;
+    if (mActiveConfig < 0) {
+        ALOGE("%s invalid config",__func__);
+        return;
+    }
     const DisplayConfig& config = mConfigs[mActiveConfig];
     desc.mWidth = config.mXres;
     desc.mHeight = config.mYres;
