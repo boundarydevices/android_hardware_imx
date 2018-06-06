@@ -16,6 +16,7 @@
 #include <dlfcn.h>
 #include "Composer.h"
 #include "MemoryManager.h"
+#include <cutils/properties.h>
 
 #if defined(__LP64__)
 #define LIB_PATH1 "/system/lib64"
@@ -48,13 +49,20 @@ Composer::Composer()
 {
     mTarget = NULL;
     mDimBuffer = NULL;
+    void* handle = NULL;
+    char path[PATH_MAX] = {0};
+    char value[PROPERTY_VALUE_MAX];
     mTls.has_tls = 0;
     pthread_mutex_init(&mTls.lock, NULL);
 
-    char path[PATH_MAX] = {0};
-	getModule(path, GPUHELPER);
+    property_get("sys.hwc.disable", value, "0");
+    int mDisableHWC = atoi(value);
 
-    void* handle = dlopen(path, RTLD_NOW);
+    if (!mDisableHWC) {
+        getModule(path, GPUHELPER);
+        handle = dlopen(path, RTLD_NOW);
+    }
+
     if (handle == NULL) {
         ALOGV("no %s found", path);
         mGetAlignedSize = NULL;
@@ -74,12 +82,15 @@ Composer::Composer()
         mUnlockSurface = (hwc_func1)dlsym(handle, "hwc_unlockSurface");
         mAlignTile = (hwc_func4)dlsym(handle, "hwc_align_tile");
     }
-    memset(path, 0, sizeof(path));
-    getModule(path, GPUENGINE);
 
-    handle = dlopen(path, RTLD_NOW);
+    if (!mDisableHWC) {
+        memset(path, 0, sizeof(path));
+        getModule(path, GPUENGINE);
+        handle = dlopen(path, RTLD_NOW);
+    }
+
     if (handle == NULL) {
-        ALOGI("no %s found, switch to 3D composite", path);
+        ALOGI("Use 3D OpenGL ES composition!");
         mSetClipping = NULL;
         mBlitFunction = NULL;
         mOpenEngine = NULL;
@@ -91,6 +102,7 @@ Composer::Composer()
         mQueryFeature = NULL;
     }
     else {
+        ALOGI("Use 2D HWC composition!");
         mSetClipping = (hwc_func5)dlsym(handle, "g2d_set_clipping");
         mBlitFunction = (hwc_func3)dlsym(handle, "g2d_blitEx");
         if (mBlitFunction == NULL) {
