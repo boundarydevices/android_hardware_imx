@@ -38,6 +38,7 @@ enum pcm_type {
     PCM_NORMAL = 0,
     PCM_HDMI,
     PCM_ESAI,
+    PCM_DSD,
     PCM_TOTAL,
 };
 
@@ -46,6 +47,7 @@ enum output_type {
     OUTPUT_PRIMARY,   // low latency output stream
     OUTPUT_HDMI,
     OUTPUT_ESAI,
+    OUTPUT_OFFLOAD,
     OUTPUT_TOTAL
 };
 
@@ -149,6 +151,7 @@ struct imx_stream_out {
     audio_channel_mask_t channel_mask;
     audio_channel_mask_t sup_channel_masks[3];
     int sup_rates[MAX_SUP_RATE_NUM];
+    audio_format_t format;
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */

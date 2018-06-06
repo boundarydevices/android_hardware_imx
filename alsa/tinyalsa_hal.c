@@ -56,6 +56,7 @@
 #include "control.h"
 #include "pcm_ext.h"
 #include "config_xtor.h"
+#include "config_ak4497.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -69,6 +70,9 @@
 
 #define ESAI_PERIOD_SIZE       192
 #define PLAYBACK_ESAI_PERIOD_COUNT      8
+
+#define DSD_PERIOD_SIZE       1024
+#define PLAYBACK_DSD_PERIOD_COUNT       8
 
 /* number of frames per short period (low latency) */
 /* align other card with hdmi, same latency*/
@@ -93,6 +97,11 @@
 /* sampling rate when using MM full power port */
 #define MM_FULL_POWER_SAMPLING_RATE 44100
 
+#define DSD64_SAMPLING_RATE 2822400
+#define DSD_RATE_TO_PCM_RATE 32
+// DSD pcm param: 2 channel, 32 bit
+#define DSD_FRAMESIZE_BYTES 8
+
 #define MM_USB_AUDIO_IN_RATE   16000
 
 #define SCO_RATE 16000
@@ -104,7 +113,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        14
+#define SUPPORT_CARD_NUM        15
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -122,6 +131,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &xtor_card,
     &ak4458_card,
     &ak5558_card,
+    &ak4497_card,
     &null_card,
 };
 
@@ -150,6 +160,15 @@ struct pcm_config pcm_config_esai_multi = {
     .period_size = ESAI_PERIOD_SIZE,
     .period_count = PLAYBACK_ESAI_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
+    .start_threshold = 0,
+    .avail_min = 0,
+};
+struct pcm_config pcm_config_dsd = {
+    .channels = 2,
+    .rate = DSD64_SAMPLING_RATE / DSD_RATE_TO_PCM_RATE, /* changed when the stream is opened */
+    .period_size = DSD_PERIOD_SIZE,
+    .period_count = PLAYBACK_DSD_PERIOD_COUNT,
+    .format = PCM_FORMAT_DSD,
     .start_threshold = 0,
     .avail_min = 0,
 };
@@ -532,6 +551,24 @@ static int get_card_for_bt_sai(struct imx_audio_device *adev, int *card_index)
     return card;
 }
 
+static int get_card_for_dsd(struct imx_audio_device *adev, int *card_index)
+{
+    int i;
+    int card = -1;
+
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+        if(strcmp(adev->card_list[i]->name, DSD_CARD_NAME) == 0) {
+              card = adev->card_list[i]->card;
+              break;
+        }
+    }
+
+    if (card_index != NULL)
+        *card_index = i;
+
+    return card;
+}
+
 static int get_card_for_device(struct imx_audio_device *adev, int device, unsigned int flag, int *card_index)
 {
     int i;
@@ -699,6 +736,33 @@ static int start_output_stream_esai(struct imx_stream_out *out)
     return 0;
 }
 
+static int start_output_stream_dsd(struct imx_stream_out *out)
+{
+    struct imx_audio_device *adev = out->dev;
+    unsigned int card = -1;
+    unsigned int port = 0;
+    int i = 0;
+
+    ALOGI("%s: out %p, device 0x%x", __func__, (uintptr_t)out, out->device);
+    card = get_card_for_dsd(adev, NULL);
+
+    ALOGW("card %d, port %d device 0x%x", card, port, out->device);
+    ALOGW("rate %d, channel %d period_size 0x%x format %d", out->config[PCM_DSD].rate, out->config[PCM_DSD].channels, out->config[PCM_DSD].period_size, out->config[PCM_DSD].format);
+
+    out->pcm[PCM_DSD] = pcm_open(card, port, PCM_OUT | PCM_MONOTONIC, &out->config[PCM_DSD]);
+
+    if (out->pcm[PCM_DSD] && !pcm_is_ready(out->pcm[PCM_DSD])) {
+        ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm[PCM_DSD]));
+        pcm_close(out->pcm[PCM_DSD]);
+        out->pcm[PCM_DSD] = NULL;
+        return -ENOMEM;
+    }
+
+    out->written = 0;
+
+    return 0;
+}
+
 static int check_input_parameters(uint32_t sample_rate, int format, int channel_count)
 {
     if (format != AUDIO_FORMAT_PCM_16_BIT)
@@ -857,6 +921,12 @@ static uint32_t out_get_sample_rate_esai(const struct audio_stream *stream)
     return out->config[PCM_ESAI].rate;
 }
 
+static uint32_t out_get_sample_rate_dsd(const struct audio_stream *stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    return out->config[PCM_DSD].rate * DSD_RATE_TO_PCM_RATE;
+}
+
 static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
     ALOGW("out_set_sample_rate %d", rate);
@@ -900,6 +970,20 @@ static size_t out_get_buffer_size_esai(const struct audio_stream *stream)
     return size * audio_stream_frame_size((struct audio_stream *)stream);
 }
 
+static size_t out_get_buffer_size_dsd(const struct audio_stream *stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+
+    /* take resampling into account and return the closest majoring
+    multiple of 16 frames, as audioflinger expects audio buffers to
+    be a multiple of 16 frames */
+    size_t size = pcm_config_dsd.period_size * pcm_config_dsd.period_count;
+    size = ((size + 15) / 16) * 16;
+    // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_frame_size will return 1
+    // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
+    return size * audio_stream_frame_size((struct audio_stream *)stream) * DSD_FRAMESIZE_BYTES;
+}
+
 static uint32_t out_get_channels(const struct audio_stream *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
@@ -908,7 +992,8 @@ static uint32_t out_get_channels(const struct audio_stream *stream)
 
 static audio_format_t out_get_format(const struct audio_stream *stream)
 {
-    return AUDIO_FORMAT_PCM_16_BIT;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    return out->format;
 }
 
 static int out_set_format(struct audio_stream *stream, audio_format_t format)
@@ -973,6 +1058,14 @@ static int out_standby(struct audio_stream *stream)
 
 static int out_dump(const struct audio_stream *stream, int fd)
 {
+    return 0;
+}
+
+static int out_flush(struct audio_stream_out* stream)
+{
+    struct imx_stream_out *out = (struct stream_out *)stream;
+    out->written = 0;
+
     return 0;
 }
 
@@ -1126,6 +1219,13 @@ static uint32_t out_get_latency_esai(const struct audio_stream_out *stream)
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
 
     return (pcm_config_esai_multi.period_size * pcm_config_esai_multi.period_count * 1000) / pcm_config_esai_multi.rate;
+}
+
+static uint32_t out_get_latency_dsd(const struct audio_stream_out *stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+
+    return (pcm_config_dsd.period_size * pcm_config_dsd.period_count * 1000) / pcm_config_dsd.rate;
 }
 
 static int out_set_volume(struct audio_stream_out *stream, float left,
@@ -1382,6 +1482,49 @@ exit:
     return bytes;
 }
 
+static ssize_t out_write_dsd(struct audio_stream_out *stream, const void* buffer,
+                         size_t bytes)
+{
+    int ret;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    struct imx_audio_device *adev = out->dev;
+    // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_frame_size will return 1
+    // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
+    size_t frame_size = audio_stream_frame_size(&out->stream.common) * DSD_FRAMESIZE_BYTES;
+
+    /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
+     * on the output stream mutex - e.g. executing select_mode() while holding the hw device
+     * mutex
+     */
+    pthread_mutex_lock(&adev->lock);
+    pthread_mutex_lock(&out->lock);
+    if (out->standby) {
+        ret = start_output_stream_dsd(out);
+        if (ret != 0) {
+            pthread_mutex_unlock(&adev->lock);
+            goto exit;
+        }
+        out->standby = 0;
+    }
+    pthread_mutex_unlock(&adev->lock);
+
+    /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
+
+    ret = pcm_write_wrapper(out->pcm[PCM_DSD], (void *)buffer, bytes, out->write_flags[PCM_DSD]);
+
+exit:
+    out->written += bytes / frame_size;
+    pthread_mutex_unlock(&out->lock);
+
+    if (ret != 0) {
+        ALOGV("write error, sleep few ms");
+        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+               out_get_sample_rate(&stream->common));
+    }
+
+    return bytes;
+}
+
 /********************************************************************************************************
 For esai, it will use the first channels/2 for Left channels, use second half channels for Right channels.
 So we need to transform channel map in HAL for multichannel.
@@ -1533,8 +1676,14 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
             size_t avail;
             if (pcm_get_htimestamp(out->pcm[i], &avail, timestamp) == 0) {
                 size_t kernel_buffer_size = out->config[i].period_size * out->config[i].period_count;
-		/*Actually we have no case for adev->default_rate != out->config[i].rate */
-                int64_t signed_frames = out->written - (kernel_buffer_size - avail) * adev->default_rate / out->config[i].rate;
+                /*Actually we have no case for adev->default_rate != out->config[i].rate */
+                int64_t signed_frames;
+                if (i == PCM_DSD)
+                    // In AudioFlinger, frame_size is 1/4 byte(2 channel && 1 bit), here it is 8 byte(2 channel && 32 bit)
+                    signed_frames = (out->written - kernel_buffer_size + avail) * DSD_RATE_TO_PCM_RATE;
+                else
+                    signed_frames = out->written - (kernel_buffer_size - avail) * adev->default_rate / out->config[i].rate;
+                ALOGV("%s: avail: %zu kernel_buffer_size: %zu written: %zu signed_frames: %lld", __func__, avail, kernel_buffer_size, out->written, signed_frames);
 
                 if (signed_frames >= 0) {
                     *frames = signed_frames;
@@ -2826,8 +2975,33 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->sup_rates[0] = ladev->mm_rate;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
     out->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
+    out->format = config->format;
 
-    if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
+    if (flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        ALOGW("%s: compress offload stream", __func__);
+        if (ladev->active_output[OUTPUT_OFFLOAD] != NULL) {
+            ret = -ENOSYS;
+            goto err_open;
+        }
+        if (out->format != AUDIO_FORMAT_DSD) {
+            ALOGE("%s: Unsupported audio format", __func__);
+            ret = -EINVAL;
+            goto err_open;
+        }
+        output_type = OUTPUT_OFFLOAD;
+        if (config->sample_rate == 0)
+            config->sample_rate = pcm_config_dsd.rate;
+        if (config->channel_mask == 0)
+            config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
+        out->channel_mask = config->channel_mask;
+        out->stream.common.get_buffer_size = out_get_buffer_size_dsd;
+        out->stream.common.get_sample_rate = out_get_sample_rate_dsd;
+        out->stream.get_latency = out_get_latency_dsd;
+        out->stream.write = out_write_dsd;
+        pcm_config_dsd.rate = config->sample_rate / DSD_RATE_TO_PCM_RATE;
+        out->config[PCM_DSD] = pcm_config_dsd;
+        out->stream.flush = out_flush;
+    } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
                    devices == AUDIO_DEVICE_OUT_AUX_DIGITAL) {
         ALOGW("adev_open_output_stream() HDMI multichannel");
         if (ladev->active_output[OUTPUT_HDMI] != NULL) {
