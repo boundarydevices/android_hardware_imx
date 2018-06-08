@@ -526,16 +526,28 @@ status_t JpegBuilder::encodeJpeg(JpegParams *input)
     }
 }
 
-status_t JpegBuilder::buildImage(const StreamBuffer *streamBuf)
+status_t JpegBuilder::buildImage(StreamBuffer *streamBuf)
 {
     int ret = 0;
 
     uint8_t *pThumb = NULL;
     uint32_t dwThumbSize = 0;
+    bool bMapVirt = false;
 
-    if (!streamBuf || !mMainInput || !streamBuf->mVirtAddr) {
+    if (!streamBuf || !mMainInput) {
         ALOGE("%s invalid param", __FUNCTION__);
         return BAD_VALUE;
+    }
+
+    // When run with some APKs, the virt address is not mapped. Cause jpeg encode
+    // failed on no vpu device, say pico_imx7d. Map the virt address in HAL.
+    if(!streamBuf->mVirtAddr) {
+        streamBuf->MapVirtAddr();
+        if(!streamBuf->mVirtAddr) {
+            return BAD_VALUE;
+        }
+
+        bMapVirt = true;
     }
 
     if (mThumbnailInput) {
@@ -562,6 +574,10 @@ status_t JpegBuilder::buildImage(const StreamBuffer *streamBuf)
 
     memset(table, 0, sizeof(table));
     position = 0;
+
+    if(bMapVirt) {
+        streamBuf->UnMapVirtAddr();
+    }
 
     return ret;
 }

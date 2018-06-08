@@ -37,6 +37,7 @@
 #include "Max9286Mipi.h"
 #include "Ov5640Csi.h"
 #include "Ov5640Csi8MQ.h"
+#include "Ov5640Csi7D.h"
 #include "Ov5640Imx8Q.h"
 #include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
@@ -125,6 +126,10 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
         if (strstr(boardName, IMX8_BOARD_NAME)) {
             ALOGI("create id:%d 5640-csi-8mq device", id);
             device = new Ov5640Csi8MQ(id, facing, orientation, path);
+        } else if (strstr(boardName, IMX7_BOARD_NAME)) {
+            ALOGI("create id:%d 5640-csi-7d device", id);
+            device = new Ov5640Csi7D(id, facing, orientation, path);
+            device->usemx6s = 1;
         } else {
             ALOGI("create id:%d 5640-csi device", id);
             device = new Ov5640Csi(id, facing, orientation, path);
@@ -522,7 +527,7 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
     }
 
     // set preview/still capture stream.
-    sp<Stream> preview = NULL, stillcap = NULL, callbackStream = NULL;
+    sp<Stream> preview = NULL, stillcap = NULL, record = NULL, callbackStream = NULL;
     sp<Metadata> meta = NULL;
     sp<VideoStream> devStream = NULL;
     camera3_callback_ops* callback = NULL;
@@ -533,16 +538,16 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
             sp<Stream>& stream = mStreams[i];
             if (stream->isPreview()) {
                 preview = stream;
-            }
-            if (stream->isJpeg()) {
+            } else if (stream->isJpeg()) {
                 stillcap = stream;
-            }
-            if (stream->isCallback()) {
+            } else if (stream->isRecord()) {
+                 record = stream;
+            } else if (stream->isCallback()) {
                 callbackStream = stream;
             }
         }
 
-        if ((preview == NULL) && (stillcap == NULL) && (callbackStream == NULL)) {
+        if ((preview == NULL) && (stillcap == NULL) && (callbackStream == NULL) && (record == NULL)) {
             ALOGI("%s: preview, stillcap and callback stream all are NULL", __func__);
             return -EINVAL;
         }
@@ -592,6 +597,9 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
         } else if (stillcap != NULL) {
             stillcap->setFps(fps);
             devStream->configure(stillcap);
+        } else if (record != NULL) {
+            record->setFps(fps);
+            devStream->configure(record);
         } else {
             ALOGW("%s: RequestType = %d, but preview and callback stream is null", __func__, meta->getRequestType());
         }

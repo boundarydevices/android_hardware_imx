@@ -133,7 +133,7 @@ public:
     status_t encodeImage(JpegParams *mainJpeg,
                          JpegParams *thumbNail);
     size_t   getImageSize();
-    status_t buildImage(const StreamBuffer *streamBuf);
+    status_t buildImage(StreamBuffer *streamBuf);
     void     reset();
     void setMetadata(sp<Metadata> meta);
 

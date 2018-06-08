@@ -26,7 +26,7 @@
 #include "opencl-2d.h"
 
 extern "C" {
-#include <pxp_lib.h>
+#include <linux/pxp_device.h>
 }
 
 #if defined(__LP64__)
@@ -245,6 +245,43 @@ int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     return ret;
 }
 
+static int pxp_get_bpp(unsigned int format)
+{
+  switch(format) {
+  case PXP_PIX_FMT_RGB565:
+  case PXP_PIX_FMT_BGR565:
+    return 16;
+  case PXP_PIX_FMT_XRGB32:
+  case PXP_PIX_FMT_XBGR32:
+  case PXP_PIX_FMT_ARGB32:
+  case PXP_PIX_FMT_ABGR32:
+  case PXP_PIX_FMT_BGRA32:
+  case PXP_PIX_FMT_BGRX32:
+  case PXP_PIX_FMT_RGBA32:
+    return 32;
+  case PXP_PIX_FMT_UYVY:
+  case PXP_PIX_FMT_VYUY:
+  case PXP_PIX_FMT_YUYV:
+  case PXP_PIX_FMT_YVYU:
+    return 16;
+  /* for the multi-plane format,
+   * only return the bits number
+   * for Y plane
+   */
+  case PXP_PIX_FMT_NV12:
+  case PXP_PIX_FMT_NV21:
+  case PXP_PIX_FMT_NV16:
+  case PXP_PIX_FMT_NV61:
+  case PXP_PIX_FMT_YVU420P:
+  case PXP_PIX_FMT_YUV420P:
+    return 8;
+  default:
+    ALOGE("%s: unsupported format for getting bpp\n", __func__);
+  }
+  return 0;
+}
+
+
 int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 {
     ALOGV("%s", __func__);
@@ -260,6 +297,7 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     struct pxp_layer_param *src_param = NULL, *out_param = NULL;
     int32_t ret = -1;
 
+
     memset(&pxp_conf, 0, sizeof(struct pxp_config_data));
 
     src_param = &(pxp_conf.s0_param);
@@ -269,11 +307,13 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     * Initialize src parameters
     */
     src_param->paddr = srcBuf.mPhyAddr;
+
     src_param->width = src->width();
     src_param->height = src->height();
     src_param->color_key = -1;
     src_param->color_key_enable = 0;
     src_param->pixel_fmt = convertPixelFormatToV4L2Format(src->format());
+    src_param->stride = src_param->width * (pxp_get_bpp(src_param->pixel_fmt) >> 3);
     pxp_conf.proc_data.srect.top = 0;
     pxp_conf.proc_data.srect.left = 0;
     pxp_conf.proc_data.srect.width = src->width();
@@ -285,13 +325,30 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     out_param->paddr = dstBuf.mPhyAddr;
     out_param->width = dst->width();
     out_param->height = dst->height();
-    out_param->stride = dst->width();
     out_param->pixel_fmt = convertPixelFormatToV4L2Format(dst->format());
+    out_param->stride = out_param->width * (pxp_get_bpp(out_param->pixel_fmt) >> 3);
     pxp_conf.handle = mChannel;
     pxp_conf.proc_data.drect.top = 0;
     pxp_conf.proc_data.drect.left = 0;
     pxp_conf.proc_data.drect.width = dst->width();
     pxp_conf.proc_data.drect.height = dst->height();
+
+    if((src_param->stride == 0) || (out_param->stride == 0)) {
+        ALOGE("%s:%d, src stride %d, dst stride %d", __func__, __LINE__, src_param->stride, out_param->stride);
+        return -EINVAL;
+    }
+
+    // The fb dirver treat r as bit[0:7], but PXP convert r to bit[24:31].
+    // For preview, do some trick to set format as G2D_YVYU.
+    if((src_param->pixel_fmt == PXP_PIX_FMT_YUYV) && (out_param->pixel_fmt == PXP_PIX_FMT_RGBA32)) {
+        src_param->pixel_fmt = PXP_PIX_FMT_YVYU;
+        out_param->pixel_fmt = PXP_PIX_FMT_ARGB32;
+    }
+
+    ALOGV("src: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d",
+      src->width(), src->height(), src->format(), srcBuf.mPhyAddr, src_param->pixel_fmt, src_param->stride);
+    ALOGV("dst: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d",
+      dst->width(), dst->height(), dst->format(), dstBuf.mPhyAddr, out_param->pixel_fmt, out_param->stride);
 
     ret = ioctl(mPxpFd, PXP_IOC_CONFIG_CHAN, &pxp_conf);
     if(ret < 0) {
@@ -311,7 +368,6 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     }
 
     return ret;
-
 }
 
 int ImageProcess::handleFrameByIPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)

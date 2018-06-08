@@ -56,6 +56,7 @@ public:
     int32_t closeDev();
     int32_t flushDev();
 
+    void setOmitFrameCount(uint32_t omitCount) { mOmitFrmCount = omitCount; }
 private:
     // message type.
     static const int32_t MSG_CONFIG = 0x100;
@@ -153,6 +154,8 @@ protected:
     uint32_t mAllocatedBuffers;
     enum v4l2_memory mV4l2MemType;
     enum v4l2_buf_type mV4l2BufType;
+    uint32_t mOmitFrames;
+    uint32_t mOmitFrmCount;
 };
 
 #endif

@@ -214,7 +214,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
             ARRAY_SIZE(android_jpeg_available_thumbnail_sizes),
             android_jpeg_available_thumbnail_sizes);
 
-    int32_t android_jpeg_max_size[] = {8 * 1024 * 1024}; // 8MB
+    int32_t android_jpeg_max_size[] = {sensor.mMaxJpegSize}; // default 8MB
     m.addInt32(ANDROID_JPEG_MAX_SIZE,
             ARRAY_SIZE(android_jpeg_max_size),
             android_jpeg_max_size);

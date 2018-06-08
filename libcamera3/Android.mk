@@ -49,6 +49,7 @@ LOCAL_SRC_FILES := \
     JpegBuilder.cpp \
     Ov5640Csi.cpp \
     Ov5640Csi8MQ.cpp \
+    Ov5640Csi7D.cpp \
     Ov5640Imx8Q.cpp \
     Ov5640Mipi.cpp \
     Ov5642Csi.cpp \

@@ -39,6 +39,7 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     mPreview(false),
     mJpeg(false),
     mCallback(false),
+    mRecord(false),
     mId(id),
     mStream(s),
     mType(s->stream_type),
@@ -62,15 +63,16 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     else if (s->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
         ALOGI("%s create preview stream", __func__);
         mFormat = mCamera->getPreviewPixelFormat();
-        s->format = mFormat;
         mUsage = CAMERA_GRALLOC_USAGE;
         mNumBuffers = NUM_PREVIEW_BUFFER;
         mPreview = true;
         if (s->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) {
             ALOGI("%s create video recording stream", __func__);
-            s->format = HAL_PIXEL_FORMAT_YCBCR_420_888;
+            mFormat = HAL_PIXEL_FORMAT_YCBCR_420_888;
             mPreview = false;
+            mRecord = true;
         }
+        s->format = mFormat;
     }
     else {
         ALOGI("%s create callback stream", __func__);

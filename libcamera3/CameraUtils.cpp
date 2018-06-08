@@ -57,6 +57,9 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
         case HAL_PIXEL_FORMAT_YV12:
             nFormat = v4l2_fourcc('Y', 'V', '1', '2');
             break;
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+            nFormat = v4l2_fourcc('R', 'G', 'B', 'A');
+            break;
 
         default:
             ALOGE("Error: format:0x%x not supported!", format);
@@ -89,7 +92,41 @@ void StreamBuffer::initialize(buffer_handle_t* buf_h)
 
     //for uvc jpeg stream
     mpFrameBuf  = NULL;
+}
 
+void StreamBuffer::MapVirtAddr()
+{
+    fsl::Memory *handle = (fsl::Memory *)(*mBufHandle);
+
+    ALOGW("%s, StreamBuffer %p, handle->base is 0, map it", __func__, this);
+
+    void* mappedAddress = mmap(
+        0, handle->size, PROT_READ | PROT_WRITE, MAP_SHARED, handle->fd, 0);
+    if (mappedAddress == MAP_FAILED) {
+        ALOGW("Could not mmap %s", strerror(errno));
+    } else {
+        mVirtAddr = mappedAddress;
+    }
+
+    return;
+}
+
+void StreamBuffer::UnMapVirtAddr()
+{
+    if (mBufHandle == NULL) {
+        return;
+    }
+
+    struct fsl::Memory* handle = (struct fsl::Memory*)(*mBufHandle);
+    if (handle == NULL)
+        return;
+
+    if(mVirtAddr) {
+        munmap(mVirtAddr, handle->size);
+        mVirtAddr = NULL;
+    }
+
+    return;
 }
 
 //--------------------CaptureRequest----------------------
@@ -225,6 +262,8 @@ SensorData::SensorData()
 
     memset(mPreviewResolutions, 0, sizeof(mPreviewResolutions));
     memset(mPictureResolutions, 0, sizeof(mPictureResolutions));
+
+    mMaxJpegSize = 8 * 1024 * 1024;
 }
 
 SensorData::~SensorData()

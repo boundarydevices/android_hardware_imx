@@ -54,6 +54,7 @@
 #define DEFAULT_ERROR_NAME '0'
 #define DEFAULT_ERROR_NAME_str "0"
 #define IMX8_BOARD_NAME "imx8"
+#define IMX7_BOARD_NAME "imx7"
 
 #define UVC_SENSOR_NAME "uvc"
 #define OV5640_SENSOR_NAME "csi"
@@ -146,6 +147,8 @@ public:
     StreamBuffer();
     ~StreamBuffer();
     void initialize(buffer_handle_t* buf_h);
+    void MapVirtAddr();
+    void UnMapVirtAddr();
     // buffer width, height, format is in Stream.
     sp<Stream> mStream;
     int32_t mAcquireFence;
@@ -230,6 +233,7 @@ public:
     float mPhysicalWidth;
     float mPhysicalHeight;
     float mFocalLength;
+    int mMaxJpegSize;
 
     // these values is the max size sensor can support.
     int32_t mActiveArrayWidth;

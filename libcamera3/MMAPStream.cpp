@@ -239,6 +239,8 @@ int32_t MMAPStream::onDeviceStartLocked()
         return ret;
     }
 
+    mOmitFrames = mOmitFrmCount;
+
     return 0;
 }
 
@@ -295,6 +297,7 @@ int32_t MMAPStream::onFrameAcquireLocked()
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes = {0};
 
+capture_data:
     memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
 
     if (mPlane) {
@@ -311,6 +314,17 @@ int32_t MMAPStream::onFrameAcquireLocked()
     if (ret < 0) {
         ALOGE("%s: VIDIOC_DQBUF Failed", __func__);
         return -1;
+    }
+
+    if (mOmitFrames > 0) {
+        ALOGI("%s omit frame", __func__);
+        ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
+        if (ret < 0) {
+          ALOGE("%s VIDIOC_QBUF Failed", __func__);
+          return BAD_VALUE;
+        }
+        mOmitFrames--;
+        goto capture_data;
     }
 
     return cfilledbuffer.index;

@@ -51,6 +51,7 @@ public:
     bool isPreview() {return mPreview;}
     bool isJpeg() {return mJpeg;}
     bool isCallback() {return mCallback;}
+    bool isRecord() {return mRecord;}
     uint32_t width() {return mWidth;}
     uint32_t height() {return mHeight;}
     int32_t format() {return mFormat;}
@@ -78,6 +79,7 @@ protected:
     bool mPreview;
     bool mJpeg;
     bool mCallback;
+    bool mRecord;
     // The camera device id this stream belongs to
     const int mId;
     // Handle to framework's stream, used as a cookie for buffers

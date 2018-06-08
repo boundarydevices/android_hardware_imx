@@ -21,7 +21,8 @@ using namespace android;
 VideoStream::VideoStream(Camera* device)
     : Stream(device), mState(STATE_INVALID),
       mChanged(false), mDev(-1),
-      mAllocatedBuffers(0)
+      mAllocatedBuffers(0),
+      mOmitFrames(0), mOmitFrmCount(0)
 {
     mV4l2MemType =  V4L2_MEMORY_MMAP;
     mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
