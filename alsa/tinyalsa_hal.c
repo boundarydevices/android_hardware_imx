@@ -3226,13 +3226,13 @@ static void* sco_rx_task(void *arg)
     stream_out = adev->active_output[OUTPUT_PRIMARY];
     if(NULL == stream_out) {
         ALOGE("sco_rx_task, stream_out for OUTPUT_PRIMARY is null");
-        return NULL;
+        goto exit;
     }
 
     out_pcm = SelectPcm(stream_out, &flag);
     if(NULL == out_pcm) {
         ALOGE("sco_rx_task, out_pcm is null");
-        return NULL;
+        goto exit;
     }
 
     while(adev->b_sco_rx_running) {
@@ -3267,6 +3267,7 @@ static void* sco_rx_task(void *arg)
         }
     }
 
+exit:
     free(buffer);
     ALOGI("leave sco_rx_task");
 
@@ -3301,6 +3302,7 @@ static void* sco_tx_task(void *arg)
     out_size = pcm_frames_to_bytes(adev->pcm_sco_tx, out_frames);
     out_buffer = (uint8_t *)malloc(out_size);
     if(out_buffer == NULL) {
+        free(buffer);
         ALOGE("sco_tx_task, malloc out_buffer %d bytes failed", out_size);
         return NULL;
     }
