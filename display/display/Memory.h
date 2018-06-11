@@ -107,7 +107,8 @@ struct Memory : public native_handle
     int kmsFd;
     uint32_t fbHandle;
     uint32_t fbId;
-    uint64_t fsl_reserved[2] __attribute__((aligned(8)));
+    uint64_t fsl_reserved[1] __attribute__((aligned(8)));
+    uint64_t surface;
 
     /* pointer to viv private. */
     uint64_t viv_reserved[4] __attribute__((aligned(8)));
