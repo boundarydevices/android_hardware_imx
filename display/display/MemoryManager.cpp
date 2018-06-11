@@ -78,9 +78,10 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
      * 1) framebuffer should use ION.
      * 2) Hantro VPU needs special size should use ION.
      * 3) secure memory should use ION.
-     * 4) other conditions can use DRM Gralloc.
+     * 4) Dim buffer should use ION.
+     * 5) other conditions can use DRM Gralloc.
     */
-    if (flags & (FLAGS_FRAMEBUFFER | FLAGS_SECURE)) {
+    if (flags & (FLAGS_FRAMEBUFFER | FLAGS_SECURE | FLAGS_DIMBUFFER)) {
         canHandle = false;
     }
     else if (mGPUAlloc == NULL) {
