@@ -229,7 +229,7 @@ static int lights_device_open(const struct hw_module_t* module,
         }
 
         /* Use first match (alphabetic order) */
-        while (idx++ < n) {
+        for (idx = 0; idx < n; idx++) {
             if (strstr(namelist[idx]->d_name, fbtype) != NULL) {
                 strcpy(backlight_path, DEF_BACKLIGHT_PATH);
                 strcat(backlight_path, namelist[idx]->d_name);
