@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include <IonAllocator.h>
 #include "MJPGStream.h"
 
-unsigned char* VPUptr;
 int32_t mVPUBuffersIndex=0;
 
 #if 0
@@ -403,8 +403,9 @@ int32_t MJPGStream::getDeviceBufferSize()
 int32_t MJPGStream::allocateSensorBuffersLocked()
 {
     ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
+    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    if (allocator == NULL) {
+        ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
     }
 
@@ -421,54 +422,37 @@ int32_t MJPGStream::allocateSensorBuffersLocked()
 
 
     mStreamSize = getDeviceBufferSize();
-    unsigned char *Sensorptr = NULL;
+    uint64_t Sensorptr = 0;
     int32_t sharedFd;
-    int32_t phyAddr;
-    ion_user_handle_t ionHandle;
+    uint64_t phyAddr;
     int32_t ionSize = mStreamSize;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        ionHandle = -1;
-        int32_t err = ion_alloc(mIonFd, ionSize, 8, 1, 0, &ionHandle);
-        if (err) {
-            ALOGE("ion_alloc failed.");
-            return BAD_VALUE;
-        }
-
-        err = ion_map(mIonFd,
-                ionHandle,
-                ionSize,
-                PROT_READ | PROT_WRITE,
-                MAP_SHARED,
-                0,
-                &Sensorptr,
-                &sharedFd);
-
-        if (err) {
-            ALOGE("ion_map failed.");
-            ion_free(mIonFd, ionHandle);
-            if (VPUptr != MAP_FAILED) {
-                munmap(Sensorptr, ionSize);
-            }
-            if (sharedFd > 0) {
-                close(sharedFd);
-            }
+        sharedFd = allocator->allocMemory(ionSize,
+                        ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        if (sharedFd < 0) {
+            ALOGE("allocMemory failed.");
             goto err;
         }
-        phyAddr = ion_phys(mIonFd, ionSize, sharedFd);
-        if (phyAddr == 0) {
-            ALOGE("ion_phys failed.");
-            ion_free(mIonFd, ionHandle);
-            if (VPUptr != MAP_FAILED) {
-                munmap(Sensorptr, ionSize);
-            }
+
+        int err = allocator->getVaddrs(sharedFd, ionSize, Sensorptr);
+        if (err) {
+            ALOGE("getVaddrs failed.");
             close(sharedFd);
             goto err;
         }
+
+        err = allocator->getPhys(sharedFd, ionSize, phyAddr);
+        if (err != 0) {
+            ALOGE("getPhys failed.");
+            munmap((void*)(uintptr_t)Sensorptr, ionSize);
+            close(sharedFd);
+        }
+
         mSensorBuffers[i] = new StreamBuffer();
-        mSensorBuffers[i]->mVirtAddr  = Sensorptr;
+        mSensorBuffers[i]->mVirtAddr  = (void*)(uintptr_t)Sensorptr;
         mSensorBuffers[i]->mPhyAddr   = phyAddr;
         mSensorBuffers[i]->mSize      = ionSize;
-        mSensorBuffers[i]->mBufHandle = (buffer_handle_t*)(uintptr_t)ionHandle;
+        mSensorBuffers[i]->mBufHandle = NULL;
         mSensorBuffers[i]->mFd = sharedFd;
         mSensorBuffers[i]->mStream = this;
         mSensorBuffers[i]->mpFrameBuf  = NULL;
@@ -485,11 +469,8 @@ err:
             continue;
         }
 
-        ion_user_handle_t ionHandle =
-            (ion_user_handle_t)(uintptr_t)mSensorBuffers[i]->mBufHandle;
         munmap(mSensorBuffers[i]->mVirtAddr, mSensorBuffers[i]->mSize);
         close(mSensorBuffers[i]->mFd);
-        ion_free(mIonFd, ionHandle);
         delete mSensorBuffers[i];
         mSensorBuffers[i] = NULL;
     }
@@ -500,11 +481,6 @@ err:
 int32_t MJPGStream::freeSensorBuffersLocked()
 {
     ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
-        return BAD_VALUE;
-    }
-
     if (!mRegistered) {
         ALOGI("%s but buffer is not registered", __func__);
         return 0;
@@ -512,11 +488,8 @@ int32_t MJPGStream::freeSensorBuffersLocked()
 
     ALOGI("freeSensorBufferToIon buffer num:%d", mAllocatedBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        ion_user_handle_t ionHandle =
-            (ion_user_handle_t)(uintptr_t)mSensorBuffers[i]->mBufHandle;
         munmap(mSensorBuffers[i]->mVirtAddr, mSensorBuffers[i]->mSize);
         close(mSensorBuffers[i]->mFd);
-        ion_free(mIonFd, ionHandle);
         delete mSensorBuffers[i];
         mSensorBuffers[i] = NULL;
     }
@@ -702,7 +675,7 @@ DecLogic:
 	 memset(&InitInfo, 0, sizeof(InitInfo));
 
         //process init info
-        if(ProcessInitInfo(&InitInfo, &pDecMemInfo, &nFrmNum, &VPUptr, &mVPUBuffersIndex) == 0)
+        if(ProcessInitInfo(&InitInfo, &pDecMemInfo, &nFrmNum, NULL, &mVPUBuffersIndex) == 0)
         {
         ALOGI("%s: vpu process init info failure: \r\n", __FUNCTION__);
             return 0;
@@ -784,44 +757,46 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
         return 0;
     }
 
-    unsigned char *VPUptr = NULL;
+    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    if (allocator == NULL) {
+        ALOGE("%s ion allocator invalid", __func__);
+        return BAD_VALUE;
+    }
+
+    uint64_t base = 0;
+    uint64_t phyAddr;
     int32_t sharedFd;
-    unsigned char *phyAddr;
-    ion_user_handle_t ionHandle;
     int32_t ionSize = getDeviceBufferSize();
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        ionHandle = -1;
-        int32_t err = ion_alloc(mIonFd, ionSize, 8, 1, 0, &ionHandle);
-        if (err) {
-            ALOGE("ion_alloc failed.");
+        sharedFd = allocator->allocMemory(ionSize,
+                        ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        if (sharedFd < 0) {
+            ALOGE("allocMemory failed.");
             return BAD_VALUE;
         }
 
-        err = ion_map(mIonFd,
-                ionHandle,
-                ionSize,
-                PROT_READ | PROT_WRITE,
-                MAP_SHARED,
-                0,
-                &VPUptr,
-                &sharedFd);
+        int err = allocator->getVaddrs(sharedFd, ionSize, base);
+        if (err != 0) {
+            ALOGE("getVaddrs failed.");
+            close(sharedFd);
+            return BAD_VALUE;
+        }
 
-        if (err) {
-            ALOGE("ion_map failed.");
+        err = allocator->getPhys(sharedFd, ionSize, phyAddr);
+        if (err != 0) {
+            ALOGE("getPhys failed.");
+            munmap((void*)(uintptr_t)base, ionSize);
+            close(sharedFd);
             return BAD_VALUE;
         }
-        phyAddr = (unsigned char *)ion_phys(mIonFd, ionSize, sharedFd);
-        if (phyAddr == 0) {
-            ALOGE("ion_phys failed.");
-            return BAD_VALUE;
-        }
-        pPhyAddr=phyAddr;
-        pVirtAddr=VPUptr;
+
+        pPhyAddr=(unsigned char*)(uintptr_t)phyAddr;
+        pVirtAddr=(unsigned char*)(uintptr_t)base;
         mBuffers[i] = new StreamBuffer();
-        mBuffers[i]->mVirtAddr  = VPUptr;
+        mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)base;
         mBuffers[i]->mPhyAddr   = (uintptr_t)phyAddr;
         mBuffers[i]->mSize      =  ionSize;
-        mBuffers[i]->mBufHandle = (buffer_handle_t*)(uintptr_t)ionHandle;
+        mBuffers[i]->mBufHandle = NULL;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
         mBuffers[i]->mpFrameBuf  = NULL;

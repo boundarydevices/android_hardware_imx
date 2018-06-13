@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <IonAllocator.h>
 #include "VADCTVINDevice.h"
 
 VADCTVINDevice::VADCTVINDevice(int32_t id, int32_t facing, int32_t orientation, char* path)
@@ -302,60 +303,45 @@ int32_t VADCTVINDevice::VADCTVinStream::onDeviceConfigureLocked()
 int32_t VADCTVINDevice::VADCTVinStream::allocateFrameBuffersLocked()
 {
     ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
+    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    if (allocator == NULL) {
+        ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
     }
 
     int32_t mFrameBufferSize = getFormatSize();
-    unsigned char *SXptr = NULL;
     int32_t sharedFd;
-    int32_t phyAddr;
-    ion_user_handle_t ionHandle;
+    uint64_t ptr = 0;
+    uint64_t phyAddr;
     int32_t ionSize = mFrameBufferSize;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        ionHandle = -1;
-        int32_t err = ion_alloc(mIonFd, ionSize, 8, 1, 0, &ionHandle);
-        if (err) {
-            ALOGI("ion_alloc failed.");
-            return BAD_VALUE;
-        }
-
-        err = ion_map(mIonFd,
-                ionHandle,
-                ionSize,
-                PROT_READ | PROT_WRITE,
-                MAP_SHARED,
-                0,
-                &SXptr,
-                &sharedFd);
-
-        if (err) {
-            ALOGI("ion_map failed.");
-            ion_free(mIonFd, ionHandle);
-            if (SXptr != MAP_FAILED) {
-                munmap(SXptr, ionSize);
-            }
-            if (sharedFd > 0) {
-                close(sharedFd);
-            }
+        sharedFd = allocator->allocMemory(ionSize,
+                        ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        if (sharedFd < 0) {
+            ALOGE("allocMemory failed.");
             goto err;
         }
-        phyAddr = ion_phys(mIonFd, ionSize, sharedFd);
-        if (phyAddr == 0) {
-            ALOGI("ion_phys failed.");
-            ion_free(mIonFd, ionHandle);
-            if (SXptr != MAP_FAILED) {
-                munmap(SXptr, ionSize);
-            }
+
+        int err = allocator->getVaddrs(sharedFd, ionSize, ptr);
+        if (err != 0) {
+            ALOGE("getVaddrs failed.");
             close(sharedFd);
             goto err;
         }
+
+        err = allocator->getPhys(sharedFd, ionSize, phyAddr);
+        if (err != 0) {
+            ALOGE("getPhys failed.");
+            munmap((void*)(uintptr_t)ptr, ionSize);
+            close(sharedFd);
+            goto err;
+        }
+
         mBuffers[i] = new StreamBuffer();
-        mBuffers[i]->mVirtAddr  = SXptr;
+        mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;
         mBuffers[i]->mPhyAddr   = phyAddr;
         mBuffers[i]->mSize      = ionSize;
-        mBuffers[i]->mBufHandle = (buffer_handle_t*)(uintptr_t)ionHandle;
+        mBuffers[i]->mBufHandle = NULL;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
         mBuffers[i]->mpFrameBuf  = NULL;
@@ -368,11 +354,8 @@ err:
             continue;
         }
 
-        ion_user_handle_t ionHandle =
-            (ion_user_handle_t)(uintptr_t)mBuffers[i]->mBufHandle;
         munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         close(mBuffers[i]->mFd);
-        ion_free(mIonFd, ionHandle);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }
@@ -382,19 +365,10 @@ err:
 
 int32_t VADCTVINDevice::VADCTVinStream::freeFrameBuffersLocked()
 {
-    ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
-        return BAD_VALUE;
-    }
-
     ALOGI("freeCSCBufferToIon buffer");
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        ion_user_handle_t ionHandle =
-            (ion_user_handle_t)(uintptr_t)mBuffers[i]->mBufHandle;
         munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         close(mBuffers[i]->mFd);
-        ion_free(mIonFd, ionHandle);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }
@@ -409,8 +383,6 @@ int32_t VADCTVINDevice::VADCTVinStream::onDeviceStartLocked()
         ALOGE("%s invalid dev node", __func__);
         return BAD_VALUE;
     }
-
-    mIonFd = ion_open();
 
     int32_t cscbuffer = allocateFrameBuffersLocked();
     if (cscbuffer < 0) {

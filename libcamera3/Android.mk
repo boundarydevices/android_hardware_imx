@@ -85,6 +85,8 @@ LOCAL_SHARED_LIBRARIES := \
     libcamera_client \
     libhardware_legacy
 
+LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
+
 ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_SHARED_LIBRARIES += \
             lib_vpu_wrapper

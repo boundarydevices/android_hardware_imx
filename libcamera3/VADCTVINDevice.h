@@ -33,7 +33,7 @@ private:
     {
         public:
             VADCTVinStream(Camera* device)
-                : MMAPStream(device), mIonFd(-1) {
+                : MMAPStream(device) {
                     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
                         mV4L2Buffers[i] = NULL;
                     }
@@ -59,9 +59,6 @@ private:
             // free CSC buffers.
             virtual int32_t freeFrameBuffersLocked();
             virtual int32_t getFormatSize();
-            //int32_t mIonFd;
-        protected:
-            int32_t mIonFd;
         private:
 
     };

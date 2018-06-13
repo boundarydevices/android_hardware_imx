@@ -14,21 +14,17 @@
  * limitations under the License.
  */
 
+#include <IonAllocator.h>
 #include "USPStream.h"
 
 USPStream::USPStream(Camera* device)
-    : MMAPStream(device), mIonFd(-1)
+    : MMAPStream(device)
 {
-    mIonFd = ion_open();
     mV4l2MemType = V4L2_MEMORY_USERPTR;
 }
 
 USPStream::~USPStream()
 {
-    if (mIonFd > 0) {
-        close(mIonFd);
-        mIonFd = -1;
-    }
 }
 
 // configure device.
@@ -220,8 +216,9 @@ int32_t USPStream::getFormatSize()
 int32_t USPStream::allocateBuffersLocked()
 {
     ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
+    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    if (allocator == NULL) {
+        ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
     }
 
@@ -236,58 +233,40 @@ int32_t USPStream::allocateBuffersLocked()
         return BAD_VALUE;
     }
 
-    unsigned char *ptr = NULL;
+    uint64_t ptr = 0;
     int32_t sharedFd;
-    int32_t phyAddr;
-    ion_user_handle_t ionHandle;
+    uint64_t phyAddr;
     int32_t ionSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
     ALOGI("allocateBufferFromIon buffer num:%d", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        ionHandle = -1;
-        int32_t err = ion_alloc(mIonFd, ionSize, 8, 1, 0, &ionHandle);
-        if (err) {
-            ALOGE("ion_alloc failed.");
-            return BAD_VALUE;
-        }
-
-        err = ion_map(mIonFd,
-                      ionHandle,
-                      ionSize,
-                      PROT_READ | PROT_WRITE,
-                      MAP_SHARED,
-                      0,
-                      &ptr,
-                      &sharedFd);
-
-        if (err) {
-            ALOGE("ion_map failed.");
-            ion_free(mIonFd, ionHandle);
-            if (ptr != MAP_FAILED) {
-                munmap(ptr, ionSize);
-            }
-            if (sharedFd > 0) {
-                close(sharedFd);
-            }
-
+        sharedFd = allocator->allocMemory(ionSize,
+                        ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        if (sharedFd < 0) {
+            ALOGE("allocMemory failed.");
             goto err;
         }
-        phyAddr = ion_phys(mIonFd, ionSize, sharedFd);
-        if (phyAddr == 0) {
-            ALOGE("ion_phys failed.");
-            ion_free(mIonFd, ionHandle);
-            if (ptr != MAP_FAILED) {
-                munmap(ptr, ionSize);
-            }
+
+        int err = allocator->getVaddrs(sharedFd, ionSize, ptr);
+        if (err != 0) {
+            ALOGE("getVaddrs failed.");
             close(sharedFd);
             goto err;
         }
-        ALOGI("phyalloc ptr:0x%p, phy:0x%x, ionSize:%d", ptr, phyAddr, ionSize);
+
+        err = allocator->getPhys(sharedFd, ionSize, phyAddr);
+        if (err != 0) {
+            ALOGE("getPhys failed.");
+            munmap((void*)(uintptr_t)ptr, ionSize);
+            close(sharedFd);
+            goto err;
+        }
+        ALOGI("phyalloc ptr:0x%llx, phy:0x%llx, ionSize:%d", ptr, phyAddr, ionSize);
         mBuffers[i] = new StreamBuffer();
-        mBuffers[i]->mVirtAddr  = ptr;
+        mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;
         mBuffers[i]->mPhyAddr   = phyAddr;
         mBuffers[i]->mSize      =  ionSize;
-        mBuffers[i]->mBufHandle = (buffer_handle_t*)(uintptr_t)ionHandle;
+        mBuffers[i]->mBufHandle = NULL;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
     }
@@ -310,11 +289,8 @@ err:
             continue;
         }
 
-        ion_user_handle_t ionHandle =
-            (ion_user_handle_t)(uintptr_t)mBuffers[i]->mBufHandle;
         munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         close(mBuffers[i]->mFd);
-        ion_free(mIonFd, ionHandle);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }
@@ -325,11 +301,6 @@ err:
 int32_t USPStream::freeBuffersLocked()
 {
     ALOGV("%s", __func__);
-    if (mIonFd <= 0) {
-        ALOGE("%s ion invalid", __func__);
-        return BAD_VALUE;
-    }
-
     if (!mRegistered) {
         ALOGI("%s but buffer is not registered", __func__);
         return 0;
@@ -337,11 +308,8 @@ int32_t USPStream::freeBuffersLocked()
 
     ALOGI("freeBufferToIon buffer num:%d", mAllocatedBuffers);
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
-        ion_user_handle_t ionHandle =
-            (ion_user_handle_t)(uintptr_t)mBuffers[i]->mBufHandle;
         munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
         close(mBuffers[i]->mFd);
-        ion_free(mIonFd, ionHandle);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }
