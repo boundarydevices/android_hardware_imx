@@ -17,6 +17,17 @@ ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := IonAllocator.cpp
+
+LOCAL_C_INCLUDES += $(IMX_PATH)/imx/include \
+                    system/core/libion/include
+
+LOCAL_CFLAGS:= -DLOG_TAG=\"ionalloc\"
+LOCAL_MODULE := libionallocator
+include $(BUILD_STATIC_LIBRARY)
+
+include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 
 LOCAL_SRC_FILES := Display.cpp \
@@ -51,6 +62,7 @@ LOCAL_SHARED_LIBRARIES :=   \
     libedid                 \
     libdrm_android
 
+LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := libfsldisplay
 LOCAL_CFLAGS:= -DLOG_TAG=\"display\" -D_LINUX -Wunused-parameter

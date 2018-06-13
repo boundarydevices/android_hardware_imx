@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP.
+ * Copyright 2017-2018 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,71 +15,26 @@
  * limitations under the License.
  */
 
-#include <string.h>
-#include <inttypes.h>
-#include <sys/mman.h>
 #include <cutils/log.h>
-#include <ion/ion.h>
-#include <linux/mxc_ion.h>
-#include <linux/dma-buf.h>
-#include <ion_4.12.h>
-#ifdef CFG_SECURE_DATA_PATH
-#include <linux/secure_ion.h>
-#endif
-#include <ion_ext.h>
 #include "IonManager.h"
 
 #define ION_DECODED_BUFFER_VPU_ALIGN 8
-#define ION_HEAP_MASK ((1 << ION_CMA_HEAP_ID) | (1 << ION_CARVEOUT_HEAP_ID))
 
 namespace fsl {
 
-inline size_t roundUpToPageSize(size_t x) {
-    return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
-}
-
 IonManager::IonManager()
-    : mIonFd(-1), mHeapIds(0)
+    : mAllocator(NULL)
 {
-    mIonFd = ion_open();
-    if (mIonFd <= 0) {
-        ALOGE("%s ion open failed", __func__);
-        return;
-    }
-
-    int heapCnt = 0;
-    int ret = ion_query_heap_cnt(mIonFd, &heapCnt);
-    if (ret != 0 || heapCnt == 0) {
-        ALOGE("can't query heap count");
-        return;
-    }
-
-    struct ion_heap_data ihd[heapCnt];
-    memset(&ihd, 0, sizeof(ihd));
-    ret = ion_query_get_heaps(mIonFd, heapCnt, &ihd);
-    if (ret != 0) {
-        ALOGE("can't get ion heaps");
-        return;
-    }
-
-    for (int i=0; i<heapCnt; i++) {
-        if (ihd[i].type == ION_HEAP_TYPE_DMA ||
-             ihd[i].type == ION_HEAP_TYPE_CARVEOUT) {
-            mHeapIds |=  1 << ihd[i].heap_id;
-        }
-    }
+    mAllocator = IonAllocator::getInstance();
 }
 
 IonManager::~IonManager()
 {
-    if (mIonFd > 0) {
-        close(mIonFd);
-    }
 }
 
 int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 {
-    if (mIonFd <= 0 || out == NULL || mHeapIds == 0) {
+    if (out == NULL || mAllocator == NULL) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
@@ -92,36 +47,22 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     }
 
     unsigned char *ptr = NULL;
-    int sharedFd;
-    int err;
+    int sharedFd = -1;
     Memory* memory = NULL;
-
-    desc.mSize = (desc.mSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+    int align = ION_MEM_ALIGN;
+    int flags = MFLAGS_CONTIGUOUS;
 
 #ifdef CFG_SECURE_DATA_PATH
     if (desc.mFlag & FLAGS_SECURE)
     {
-        err = ion_alloc_fd(mIonFd,
-            desc.mSize,
-            ION_DECODED_BUFFER_VPU_ALIGN,
-            DWL_ION_DECODED_BUFFER_DCSS_HEAP,
-            0,
-            &sharedFd);
+        align = ION_DECODED_BUFFER_VPU_ALIGN;
+        flags = MFLAGS_SECURE;
     }
-    else
 #endif
-    {
-        err = ion_alloc_fd(mIonFd,
-            desc.mSize,
-            ION_DECODED_BUFFER_VPU_ALIGN,
-            mHeapIds,
-            0,
-            &sharedFd);
-    }
-
-    if (err) {
-        ALOGE("ion_alloc failed");
-        return err;
+    sharedFd = mAllocator->allocMemory(desc.mSize, align, flags);
+    if (sharedFd < 0) {
+        ALOGE("allocator allocMemory failed");
+        return -EINVAL;
     }
 
     memory = new Memory(&desc, sharedFd, -1);
@@ -135,23 +76,15 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 
 int IonManager::getPhys(Memory* memory)
 {
-    if (mIonFd <= 0 || memory == NULL || memory->fd < 0) {
+    if (mAllocator == NULL || memory == NULL || memory->fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
 
     uint64_t phyAddr = 0;
-
-    if (ion_is_legacy(mIonFd)) {
-        phyAddr = ion_phys(mIonFd, memory->size, memory->fd);
-    }
-    else {
-        struct dma_buf_phys dma_phys;
-        ioctl(memory->fd, DMA_BUF_IOCTL_PHYS, &dma_phys);
-        phyAddr = dma_phys.phys;
-    }
-    if (phyAddr == 0) {
-        ALOGE("ion_phys failed");
+    int ret = mAllocator->getPhys(memory->fd, memory->size, phyAddr);
+    if (ret != 0) {
+        ALOGE("allocator get phys failed");
         return -EINVAL;
     }
 
@@ -161,39 +94,30 @@ int IonManager::getPhys(Memory* memory)
 
 int IonManager::getVaddrs(Memory* memory)
 {
-    if (mIonFd <= 0 || memory == NULL || memory->fd < 0) {
+    if (mAllocator == NULL || memory == NULL || memory->fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
 
-    void* mappedAddress = mmap(0, memory->size,
-        PROT_READ|PROT_WRITE, MAP_SHARED, memory->fd, 0);
-    if (mappedAddress == MAP_FAILED) {
-        ALOGE("Could not mmap %s", strerror(errno));
+    uint64_t base = 0;
+    int ret = mAllocator->getVaddrs(memory->fd, memory->size, base);
+    if (ret != 0) {
+        ALOGE("allocator get vaddrs failed");
         return -EINVAL;
     }
-    memory->base = (uintptr_t)mappedAddress;
 
+    memory->base = base;
     return 0;
 }
 
 int IonManager::flushCache(Memory* memory)
 {
-    if (mIonFd <= 0 || memory == NULL || memory->fd < 0) {
+    if (mAllocator == NULL || memory == NULL || memory->fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
 
-    if (ion_is_legacy(mIonFd)) {
-        ion_sync_fd(mIonFd, memory->fd);
-    }
-    else {
-        struct dma_buf_sync dma_sync;
-        dma_sync.flags = DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END;
-        ioctl(memory->fd, DMA_BUF_IOCTL_SYNC, &dma_sync);
-    }
-
-    return 0;
+    return mAllocator->flushCache(memory->fd);
 }
 
 int IonManager::lock(Memory* handle, int /*usage*/,

@@ -21,6 +21,7 @@
 #include <hardware/gralloc.h>
 #include "Memory.h"
 #include "MemoryDesc.h"
+#include "IonAllocator.h"
 
 namespace fsl {
 
@@ -45,8 +46,7 @@ public:
     int unlock(Memory* handle);
 
 private:
-    int mIonFd;
-    int mHeapIds;
+    IonAllocator* mAllocator;
 };
 
 }
