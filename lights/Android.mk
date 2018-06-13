@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -24,3 +25,5 @@ LOCAL_MODULE := lights.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := eng
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_SHARED_LIBRARY)
+
+endif

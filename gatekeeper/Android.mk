@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -43,3 +43,4 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_STATIC_LIBRARIES := libscrypt_static
 LOCAL_C_INCLUDES := external/scrypt/lib/crypto
 include $(BUILD_SHARED_LIBRARY)
+endif

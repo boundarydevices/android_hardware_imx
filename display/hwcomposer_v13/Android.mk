@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -42,4 +43,5 @@ LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
+endif
 endif

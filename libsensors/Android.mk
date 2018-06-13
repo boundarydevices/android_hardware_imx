@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 
 ifeq ($(BOARD_HAS_SENSOR),true)
 LOCAL_PATH := $(call my-dir)
@@ -40,5 +41,5 @@ LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
 include $(BUILD_SHARED_LIBRARY)
 
 endif # !TARGET_SIMULATOR
-
-endif #
+endif # BOARD_HAS_SENSOR
+endif

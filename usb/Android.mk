@@ -14,6 +14,7 @@
 # * See the License for the specific language governing permissions and
 # * limitations under the License.
 # */
+ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -37,3 +38,4 @@ LOCAL_SHARED_LIBRARIES := \
     android.hardware.usb@1.1
 
 include $(BUILD_EXECUTABLE)
+endif

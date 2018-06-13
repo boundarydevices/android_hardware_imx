@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # This is the Freescale ALSA module for i.MX.
+ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 
 ifeq ($(strip $(BOARD_USES_ALSA_AUDIO)),true)
 
@@ -33,7 +34,6 @@ include $(BUILD_SHARED_LIBRARY)
 
 endif
 
-
 ifeq ($(findstring imx, $(soc_name)), imx)
 
 LOCAL_PATH := $(call my-dir)
@@ -52,4 +52,5 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -DBRILLO
 include $(BUILD_SHARED_LIBRARY)
 
+endif
 endif
