@@ -79,12 +79,16 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
      * 2) Hantro VPU needs special size should use ION.
      * 3) secure memory should use ION.
      * 4) Dim buffer should use ION.
-     * 5) other conditions can use DRM Gralloc.
+     * 5) VPU post process buffer (RGB565, USAGE_PADDING_BUFFER) use ION.
+     * 6) other conditions can use DRM Gralloc.
     */
     if (flags & (FLAGS_FRAMEBUFFER | FLAGS_SECURE | FLAGS_DIMBUFFER)) {
         canHandle = false;
     }
     else if (mGPUAlloc == NULL) {
+        canHandle = false;
+    }
+    else if ((format == FORMAT_RGB565) && (usage & USAGE_PADDING_BUFFER)) {
         canHandle = false;
     }
     else if ((((format == FORMAT_NV12) || (format == FORMAT_NV21) ||
