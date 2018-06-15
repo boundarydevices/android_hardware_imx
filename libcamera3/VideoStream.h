@@ -107,6 +107,7 @@ protected:
     virtual int32_t freeBuffersLocked() = 0;
 
     int32_t handleMessage();
+    int32_t flushDevLocked();
 
 private:
     class MessageThread : public Thread

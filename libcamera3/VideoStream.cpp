@@ -120,6 +120,7 @@ int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
          && (mFormat == params->mFormat)  && (params->mIsJpeg || (mFps == params->mFps))) {
         ALOGI("%s, same config, res %dx%d, fmt 0x%x, fps %d, %d, jpg %d",
           __func__, mWidth, mHeight, mFormat, mFps, params->mFps, params->mIsJpeg);
+        flushDevLocked();
         return 0;
     }
 
@@ -252,7 +253,11 @@ int32_t VideoStream::handleStopLocked(bool force)
 int32_t VideoStream::flushDev()
 {
     Mutex::Autolock lock(mLock);
+    return flushDevLocked();
+}
 
+int32_t VideoStream::flushDevLocked()
+{
     if (mState != STATE_ERROR && mMessageThread->isRunning()) {
        mMessageQueue.postMessage(new CMessage(MSG_FLUSH, 0), 1);
     } else {
