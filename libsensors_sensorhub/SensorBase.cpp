@@ -37,7 +37,14 @@ SensorBase::SensorBase(
 {
 
     if (data_name) {
-        data_fd = openInput(data_name);
+        int retry;
+        for(retry=0;retry<3;retry++)
+        {
+            if((data_fd = openInput(data_name)) >= 0)
+                break;
+            sleep(1);
+            ALOGE("retrying to open(%s)\n", data_name);
+        }
     }
 	fifo_fd = -1;
 	fifo_name = NULL;
