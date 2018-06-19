@@ -402,8 +402,11 @@ static int set_route_by_array(struct mixer *mixer, struct route_setting *route,
     i = 0;
     while (route[i].ctl_name) {
         ctl = mixer_get_ctl_by_name(mixer, route[i].ctl_name);
-        if (!ctl)
-            return -EINVAL;
+        if (!ctl) {
+            ALOGW("Can't set mixer ctl value for missing control %s", route[i].ctl_name);
+            i++;
+            continue;
+        }
 
         if (route[i].strval) {
             if (enable)
