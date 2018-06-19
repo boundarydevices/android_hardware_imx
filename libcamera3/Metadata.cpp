@@ -225,6 +225,22 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
             ARRAY_SIZE(android_lens_info_available_focal_lengths),
             android_lens_info_available_focal_lengths);
 
+    float android_lens_info_available_apertures[] = {2.8};
+    m.addFloat(ANDROID_LENS_INFO_AVAILABLE_APERTURES,
+            ARRAY_SIZE(android_lens_info_available_apertures),
+            android_lens_info_available_apertures);
+
+    float android_lens_info_available_filter_densities[] = {0.0};
+    m.addFloat(ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
+            ARRAY_SIZE(android_lens_info_available_filter_densities),
+            android_lens_info_available_filter_densities);
+
+    uint8_t android_lens_info_available_optical_stabilization[] = {
+            ANDROID_LENS_OPTICAL_STABILIZATION_MODE_OFF};
+    m.addUInt8(ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
+            ARRAY_SIZE(android_lens_info_available_optical_stabilization),
+            android_lens_info_available_optical_stabilization);
+
     /* android.request */
     int32_t android_request_max_num_output_streams[] = {0, 3, 1};
     m.addInt32(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
@@ -549,6 +565,9 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                                       ANDROID_JPEG_THUMBNAIL_SIZE,
                                       ANDROID_LENS_FOCAL_LENGTH,
                                       ANDROID_LENS_FOCUS_DISTANCE,
+                                      ANDROID_LENS_INFO_AVAILABLE_APERTURES,
+                                      ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
+                                      ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
                                       ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
                                       ANDROID_COLOR_CORRECTION_ABERRATION_MODE,
                                       ANDROID_NOISE_REDUCTION_MODE,
