@@ -178,6 +178,7 @@ protected:
     int mAcquireFence;
     int mComposeFlag;
     Edid* mEdid;
+    bool mResetHdrMode;
 };
 
 }

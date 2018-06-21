@@ -82,6 +82,7 @@ public:
     int acquireFence;
     int releaseFence;
     int index;
+    bool isHdrMode;
     void* priv;
 };
 

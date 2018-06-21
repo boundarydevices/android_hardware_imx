@@ -54,6 +54,7 @@ Display::Display()
     mIndex = -1;
     mComposeFlag = 0;
     mEdid = NULL;
+    mResetHdrMode = false;
 }
 
 Display::~Display()
@@ -250,6 +251,7 @@ void Display::resetLayerLocked(Layer* layer)
     }
     layer->acquireFence = -1;
     layer->releaseFence = -1;
+    layer->isHdrMode = false;
     layer->priv = NULL;
 }
 
@@ -265,6 +267,9 @@ void Display::releaseLayer(int index)
         return;
     }
 
+    if (mLayers[index]->isHdrMode) {
+        mResetHdrMode = true;
+    }
     resetLayerLocked(mLayers[index]);
     mLayerVector.remove(mLayers[index]);
 }

@@ -23,7 +23,7 @@
 
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
-#include <drm/drm_fourcc.h>
+#include <drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -32,31 +32,6 @@
 #include "KmsDisplay.h"
 
 namespace fsl {
-
-#define DRM_FORMAT_MOD_VENDOR_VIVANTE 0x06
-#define DRM_FORMAT_MOD_VENDOR_AMPHION  0x08
-#define DRM_FORMAT_MOD_VENDOR_VSI      0x09
-#define DRM_FORMAT_MOD_VIVANTE_SUPER_TILED  fourcc_mod_code(VIVANTE, 2)
-#define DRM_FORMAT_MOD_AMPHION_TILED fourcc_mod_code(AMPHION, 1)
-#define DRM_FORMAT_MOD_VSI_G1_TILED fourcc_mod_code(VSI, 1)
-#define DRM_FORMAT_MOD_VSI_G2_TILED fourcc_mod_code(VSI, 2)
-#define DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED fourcc_mod_code(VSI, 3)
-#define DRM_FORMAT_P010                fourcc_code('P', '0', '1', '0')
-
-/* HDR Metadata */
-struct hdr_static_metadata {
-    uint16_t eotf;
-    uint16_t type;
-    uint16_t display_primaries_x[3];
-    uint16_t display_primaries_y[3];
-    uint16_t white_point_x;
-    uint16_t white_point_y;
-    uint16_t max_mastering_display_luminance;
-    uint16_t min_mastering_display_luminance;
-    uint16_t max_fall;
-    uint16_t max_cll;
-    uint16_t min_cll;
-};
 
 KmsDisplay::KmsDisplay()
 {
@@ -231,21 +206,30 @@ void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, MetaData *meta)
         return;
     }
 
+    HDRStaticInfo::Type1 &info = meta->mStaticInfo.sType1;
     struct hdr_static_metadata hdr_metadata;
-    hdr_metadata.eotf = 2;
-    hdr_metadata.type = 0x8a48;
-    hdr_metadata.display_primaries_x[0] = meta->mStaticInfo.sType1.mR.x;
-    hdr_metadata.display_primaries_y[0] = meta->mStaticInfo.sType1.mR.y;
-    hdr_metadata.display_primaries_x[1] = meta->mStaticInfo.sType1.mG.x;
-    hdr_metadata.display_primaries_y[1] = meta->mStaticInfo.sType1.mG.y;
-    hdr_metadata.display_primaries_x[2] = meta->mStaticInfo.sType1.mB.x;
-    hdr_metadata.display_primaries_y[2] = meta->mStaticInfo.sType1.mB.y;
-    hdr_metadata.white_point_x = meta->mStaticInfo.sType1.mW.x;
-    hdr_metadata.white_point_y = meta->mStaticInfo.sType1.mW.y;
-    hdr_metadata.max_mastering_display_luminance = meta->mStaticInfo.sType1.mMaxDisplayLuminance;
-    hdr_metadata.min_mastering_display_luminance = meta->mStaticInfo.sType1.mMinDisplayLuminance;
-    hdr_metadata.max_cll = meta->mStaticInfo.sType1.mMaxContentLightLevel;
-    hdr_metadata.max_fall = meta->mStaticInfo.sType1.mMaxFrameAverageLightLevel;
+    if (info.mR.x == 0 && info.mR.y == 0 && info.mG.x == 0 && info.mG.y == 0 &&
+        info.mB.x == 0 && info.mB.y == 0 && info.mW.x == 0 && info.mW.y == 0 &&
+        info.mMaxDisplayLuminance == 0 && info.mMaxFrameAverageLightLevel == 0
+        && info.mMaxContentLightLevel == 0 && info.mMinDisplayLuminance == 0) {
+        hdr_metadata.eotf = 0;
+    }
+    else {
+        hdr_metadata.eotf = SMPTE_ST2084;
+    }
+    hdr_metadata.type = 0;
+    hdr_metadata.display_primaries_x[0] = info.mR.x;
+    hdr_metadata.display_primaries_y[0] = info.mR.y;
+    hdr_metadata.display_primaries_x[1] = info.mG.x;
+    hdr_metadata.display_primaries_y[1] = info.mG.y;
+    hdr_metadata.display_primaries_x[2] = info.mB.x;
+    hdr_metadata.display_primaries_y[2] = info.mB.y;
+    hdr_metadata.white_point_x = info.mW.x;
+    hdr_metadata.white_point_y = info.mW.y;
+    hdr_metadata.max_mastering_display_luminance = info.mMaxDisplayLuminance;
+    hdr_metadata.min_mastering_display_luminance = info.mMinDisplayLuminance;
+    hdr_metadata.max_cll = info.mMaxContentLightLevel;
+    hdr_metadata.max_fall = info.mMaxFrameAverageLightLevel;
 
     drmModeCreatePropertyBlob(mDrmFd, &hdr_metadata,
              sizeof(hdr_metadata), &mMetadataID);
@@ -593,6 +577,7 @@ int KmsDisplay::performOverlay()
         setMetaData(mPset, meta);
         meta->mFlags &= ~FLAGS_META_CHANGED;
         meta++;
+        layer->isHdrMode = true;
     }
     if (meta != NULL && meta->mFlags & FLAGS_COMPRESSED_OFFSET) {
         mKmsPlanes[mKmsPlaneNum - 1].setTableOffset(mPset, meta);
@@ -726,6 +711,12 @@ int KmsDisplay::updateScreen()
     mKmsPlanes[0].connectCrtc(mPset, mCrtcID, buffer->fbId);
     mKmsPlanes[0].setSourceSurface(mPset, 0, 0, config.mXres, config.mYres);
     mKmsPlanes[0].setDisplayFrame(mPset, 0, 0, mMode.hdisplay, mMode.vdisplay);
+    if (mResetHdrMode) {
+        mResetHdrMode = false;
+        MetaData meta;
+        memset(&meta, 0, sizeof(meta));
+        setMetaData(mPset, &meta);
+    }
 
     for (uint32_t i=0; i<3; i++) {
         int ret = drmModeAtomicCommit(drmfd, mPset, flags, NULL);
