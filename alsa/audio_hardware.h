@@ -62,6 +62,7 @@ struct route_setting
 struct audio_card{
     char * name;
     char * driver_name;
+    char* bus_name;  // Used in iot, sound card found by DEVICE -> bus -> card
     int  supported_out_devices;
     int  supported_in_devices;
     struct route_setting *defaults;
@@ -152,6 +153,7 @@ struct imx_stream_out {
     audio_channel_mask_t sup_channel_masks[3];
     int sup_rates[MAX_SUP_RATE_NUM];
     audio_format_t format;
+    char* address;
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
@@ -210,6 +212,7 @@ struct imx_stream_in {
     bool aux_channels_changed;
     uint32_t main_channels;
     uint32_t aux_channels;
+    char* address;
 };
 #define STRING_TO_ENUM(string) { #string, string }
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))

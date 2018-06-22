@@ -39,6 +39,10 @@
 #include <hardware/audio_effect.h>
 #include <audio_effects/effect_aec.h>
 
+#ifdef PRODUCT_IOT
+#include <audio_map_xml.h>
+#endif
+
 #include "audio_hardware.h"
 #include "config_wm8962.h"
 #include "config_wm8958.h"
@@ -57,6 +61,8 @@
 #include "pcm_ext.h"
 #include "config_xtor.h"
 #include "config_ak4497.h"
+#include "config_sgtl5000.h"
+#include "config_xtor_pico.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -113,7 +119,11 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        15
+#define SUPPORT_CARD_NUM        17
+
+#define IMX8_BOARD_NAME "imx8"
+#define IMX7_BOARD_NAME "imx7"
+#define DEFAULT_ERROR_NAME_str "0"
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -132,6 +142,8 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &ak4458_card,
     &ak5558_card,
     &ak4497_card,
+    &sgtl5000_card,
+    &xtor_pico_card,
     &null_card,
 };
 
@@ -163,6 +175,12 @@ struct pcm_config pcm_config_esai_multi = {
     .start_threshold = 0,
     .avail_min = 0,
 };
+
+// PCM_FORMAT_DSD is used in Android, defined in tinyalsa. Here just make build pass in iot.
+#ifdef PRODUCT_IOT
+#define PCM_FORMAT_DSD 5
+#endif
+
 struct pcm_config pcm_config_dsd = {
     .channels = 2,
     .rate = DSD64_SAMPLING_RATE / DSD_RATE_TO_PCM_RATE, /* changed when the stream is opened */
@@ -569,6 +587,35 @@ static int get_card_for_dsd(struct imx_audio_device *adev, int *card_index)
     return card;
 }
 
+#ifdef PRODUCT_IOT
+static int get_card_for_bus(struct imx_audio_device* adev, const char* bus, int *p_array_index) {
+    if (!adev || !bus) {
+        ALOGE("Invalid audio device or bus");
+        return -1;
+    }
+
+    int card = -1;
+    int i = 0;
+    for (i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+        if (adev->card_list[i]->bus_name) {
+            if (!strcmp(bus, adev->card_list[i]->bus_name)) {
+                card = adev->card_list[i]->card;
+                break;
+            }
+        }
+    }
+
+    if (card == -1) {
+        ALOGE("Failed to find card from bus '%s'", bus);
+    }
+
+    if(p_array_index)
+        *p_array_index = i;
+
+    return card;
+}
+#endif
+
 static int get_card_for_device(struct imx_audio_device *adev, int device, unsigned int flag, int *card_index)
 {
     int i;
@@ -616,8 +663,23 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
         out->config[PCM_NORMAL] = pcm_config_mm_out;
 
+#ifdef PRODUCT_IOT
+        const char* bus = audio_map_get_audio_bus(out->device, out->address);
+        if (!bus) {
+            ALOGE("Failed to find bus with device %d addr %s.",
+                  out->device,
+                  out->address);
+            return -EINVAL;
+        }
 
+        card = get_card_for_bus(adev, bus, NULL);
+        if (card == (unsigned)-1) {
+            ALOGE("Cannot find supported card for bus %s.", bus);
+            return -EINVAL;
+        }
+#else
         card = get_card_for_device(adev, pcm_device, PCM_OUT, &out->card_index);
+#endif
         out->pcm[PCM_NORMAL] = pcm_open(card, port,out->write_flags[PCM_NORMAL], &out->config[PCM_NORMAL]);
         ALOGW("card %d, port %d device 0x%x", card, port, out->device);
         ALOGW("rate %d, channel %d period_size 0x%x", out->config[PCM_NORMAL].rate, out->config[PCM_NORMAL].channels, out->config[PCM_NORMAL].period_size);
@@ -1803,6 +1865,24 @@ static int start_input_stream(struct imx_stream_in *in)
         select_input_device(adev);
     }
 
+#ifdef PRODUCT_IOT
+    const char* bus =
+        audio_map_get_audio_bus(in->device | AUDIO_DEVICE_BIT_IN, in->address);
+    if (!bus) {
+        ALOGE(
+            "Failed to find bus with device %d addr %s.", in->device, in->address);
+        return -EINVAL;
+    }
+
+    int array_idx = -1;
+    card = get_card_for_bus(adev, bus, &array_idx);
+    if ((card == (unsigned)-1) || (array_idx == -1)) {
+        ALOGE("Cannot find supported card for bus %s.", bus);
+        return -EINVAL;
+    }
+    adev->in_card_idx = array_idx;
+
+#else
     for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
         if(adev->in_device & adev->card_list[i]->supported_in_devices) {
             card = adev->card_list[i]->card;
@@ -1815,7 +1895,7 @@ static int start_input_stream(struct imx_stream_in *in)
             return -EINVAL;
         }
     }
-
+#endif
     /*Error handler for usb mic plug in/plug out when recording. */
     memcpy(&in->config, &pcm_config_mm_in, sizeof(pcm_config_mm_in));
 
@@ -2495,6 +2575,36 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
                     status = cmd_status;                   \
             } while(0)
 
+static int in_configure_effect(struct imx_stream_in* in, effect_handle_t effect)
+{
+    int32_t cmd_status;
+    uint32_t size = sizeof(int);
+    effect_config_t config;
+    int32_t status = 0;
+    int32_t fct_status = 0;
+
+    config.inputCfg.channels = in->main_channels;
+    config.outputCfg.channels = in->main_channels;
+    config.inputCfg.format = AUDIO_FORMAT_PCM_16_BIT;
+    config.outputCfg.format = AUDIO_FORMAT_PCM_16_BIT;
+    config.inputCfg.samplingRate = in->requested_rate;
+    config.outputCfg.samplingRate = in->requested_rate;
+    config.inputCfg.mask = (EFFECT_CONFIG_SMP_RATE | EFFECT_CONFIG_CHANNELS |
+                            EFFECT_CONFIG_FORMAT);
+    config.outputCfg.mask = (EFFECT_CONFIG_SMP_RATE | EFFECT_CONFIG_CHANNELS |
+                             EFFECT_CONFIG_FORMAT);
+
+    fct_status = (*(effect))
+                     ->command(effect,
+                               EFFECT_CMD_SET_CONFIG,
+                               sizeof(effect_config_t),
+                               &config,
+                               &size,
+                               &cmd_status);
+    GET_COMMAND_STATUS(status, fct_status, cmd_status);
+    return status;
+}
+
 static int in_configure_reverse(struct imx_stream_in *in)
 {
     int32_t cmd_status;
@@ -2784,6 +2894,11 @@ static int in_add_audio_effect(const struct audio_stream *stream,
     if (status != 0)
         goto exit;
 
+    /* check compatibility between the effect and the stream */
+    status = in_configure_effect(in, effect);
+    if (status != 0)
+        goto exit;
+
     in->preprocessors[in->num_preprocessors].effect_itfe = effect;
     /* add the supported channel of the effect in the channel_configs */
     in_read_audio_effect_channel_configs(in, &in->preprocessors[in->num_preprocessors]);
@@ -2958,7 +3073,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_devices_t devices,
                                    audio_output_flags_t flags,
                                    struct audio_config *config,
-                                   struct audio_stream_out **stream_out)
+                                   struct audio_stream_out **stream_out,
+                                   const char* address)
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_out *out;
@@ -2972,6 +3088,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     if (!out)
         return -ENOMEM;
 
+    out->address = strdup(address);
     out->sup_rates[0] = ladev->mm_rate;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
     out->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
@@ -3152,6 +3269,9 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
     if (out->buffer)
         free(out->buffer);
+
+    if (out->address)
+        free(out->address);
 
     for (i = 0; i < PCM_TOTAL; i++) {
         if (out->resampler[i]) {
@@ -3680,7 +3800,10 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   audio_io_handle_t handle,
                                   audio_devices_t devices,
                                   struct audio_config *config,
-                                  struct audio_stream_in **stream_in)
+                                  struct audio_stream_in **stream_in,
+                                  audio_input_flags_t flags __unused,
+                                  const char* address,
+                                  audio_source_t source __unused)
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_in *in;
@@ -3724,6 +3847,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     in->main_channels = config->channel_mask;
 
+    in->address = strdup(address);
     in->dev = ladev;
     in->standby = 1;
 
@@ -3751,6 +3875,8 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
         free(in->proc_buf_out);
     if (in->ref_buf)
         free(in->ref_buf);
+    if (in->address)
+        free(in->address);
 
     free(stream);
     return;
@@ -3770,6 +3896,11 @@ static int adev_close(hw_device_t *device)
             mixer_close(adev->mixer[i]);
 
     free(device);
+
+#ifdef PRODUCT_IOT
+    audio_map_free();
+#endif
+
     return 0;
 }
 
@@ -3827,7 +3958,7 @@ static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t de
 static int pcm_get_near_param_wrap(unsigned int card, unsigned int device,
                      unsigned int flags, int type, int *data)
 {
-#ifdef BRILLO
+#ifdef PRODUCT_IOT
     return 0;
 #else
     return pcm_get_near_param(card, device, flags, type, data);
@@ -3858,11 +3989,25 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
         imx_control = control_open(i);
         if(!imx_control)
             break;
-        ALOGW("card %d, id %s ,driver %s, name %s", i, control_card_info_get_id(imx_control),
+        ALOGW("card %d, id %s, driver %s, name %s", i, control_card_info_get_id(imx_control),
                                                       control_card_info_get_driver(imx_control),
                                                       control_card_info_get_name(imx_control));
         for(j = 0; j < SUPPORT_CARD_NUM; j++) {
             if(strstr(control_card_info_get_driver(imx_control), audio_card_list[j]->driver_name) != NULL){
+                // imx7d_pico, imx8qxp and imx8qm all have "xtor-audio" card, need an extra tactic to distinguish them.
+                if(strstr(audio_card_list[j]->driver_name, "xtor-audio")) {
+                    char boardName[128];
+                    memset(boardName, 0, sizeof(boardName));
+                    property_get("ro.board.platform", boardName, DEFAULT_ERROR_NAME_str);
+
+                    if(strstr(boardName, IMX8_BOARD_NAME) && strcmp(audio_card_list[j]->name, BT_SAI_CARD_NAME) ) {
+                        continue;
+                    }
+
+                    if(strstr(boardName, IMX7_BOARD_NAME) && strcmp(audio_card_list[j]->name, PICO_SAI_CARD_NAME) ) {
+                        continue;
+                    }
+                }
 
                 //On 8dv, if period_size too small(176), when underrun,
                 //the out_write_primary comsume 176 smaples quickly as only several us,
@@ -3939,7 +4084,7 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
 
                     format = PCM_FORMAT_S16_LE;
 
-#ifdef BRILLO
+#ifdef PRODUCT_IOT
                     adev->card_list[n]->in_format = format;
 #else
                     if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
@@ -3968,6 +4113,12 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
         }
     }
     adev->audio_card_num = k;
+
+    ALOGI("Total %d cards match", k);
+    for(int cardIdx = 0; cardIdx < k; cardIdx++) {
+        ALOGI("card idx %d, name %s", cardIdx, adev->card_list[cardIdx]->name);
+    }
+
     /*must have one card*/
     if(!adev->card_list[0]) {
         ALOGE("no supported sound card found, aborting.");
@@ -4053,6 +4204,10 @@ static int adev_open(const hw_module_t* module, const char* name,
 
     *device = &adev->hw_device.common;
 
+#ifdef PRODUCT_IOT
+    audio_map_init();
+#endif
+
     return 0;
 }
 
@@ -4066,7 +4221,7 @@ struct audio_module HAL_MODULE_INFO_SYM = {
         .module_api_version = AUDIO_MODULE_API_VERSION_0_1,
         .hal_api_version = HARDWARE_HAL_API_VERSION,
         .id = AUDIO_HARDWARE_MODULE_ID,
-        .name = "Freescale i.MX Audio HW HAL",
+        .name = "NXP i.MX Audio HW HAL",
         .author = "The Android Open Source Project",
         .methods = &hal_module_methods,
     },
