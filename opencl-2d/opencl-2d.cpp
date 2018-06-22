@@ -4,6 +4,8 @@
 #include <sys/time.h>
 #include <CL/opencl.h>
 
+#include <utils/threads.h>
+
 #include "opencl-2d.h"
 
 #define LOG_TAG "opencl-2d"
@@ -28,6 +30,8 @@
 
 /*Assume max buffer are 4 buffers to be handle */
 #define MAX_CL_MEM_COUNT 4
+
+using android::Mutex;
 
 typedef enum {
     /*cached and non-continuous buffer*/
@@ -57,6 +61,7 @@ struct g2dContext {
     cl_mem memInObjects[MAX_CL_KERNEL_COUNT][MAX_CL_MEM_COUNT];
     cl_mem memOutObjects[MAX_CL_KERNEL_COUNT][MAX_CL_MEM_COUNT];
     struct cl_g2d_surface *dst[MAX_CL_KERNEL_COUNT];
+    Mutex mLock;
 };
 
 static int g2d_get_planebpp(unsigned int format, int plane);
@@ -464,26 +469,29 @@ static void ReleaseMemObjects(struct g2dContext *gContext)
 static void Cleanup(struct g2dContext *gContext)
 {
     if (gContext != NULL) {
-        cl_int errNum;
+        {
+	    Mutex::Autolock _l(gContext->mLock);
+            cl_int errNum;
 
-        ReleaseMemObjects(gContext);
-        //Release gcontext->dst[kernel_index]
-        for(int i = 0; i < MAX_CL_KERNEL_COUNT; i ++)
-            if(gContext->dst[i] != NULL){
-                free(gContext->dst[i]);
-                gContext->dst[i] == NULL;
-            }
+            ReleaseMemObjects(gContext);
+            //Release gcontext->dst[kernel_index]
+            for(int i = 0; i < MAX_CL_KERNEL_COUNT; i ++)
+                if(gContext->dst[i] != NULL){
+                    free(gContext->dst[i]);
+                    gContext->dst[i] == NULL;
+                }
 
-        ReleaseKernel(gContext);
+            ReleaseKernel(gContext);
 
-        if (gContext->context != 0)
-            errNum = clReleaseContext(gContext->context);
+            if (gContext->context != 0)
+                errNum = clReleaseContext(gContext->context);
 
-        if (gContext->program != 0)
-            errNum = clReleaseProgram(gContext->program);
+            if (gContext->program != 0)
+                errNum = clReleaseProgram(gContext->program);
 
-        if (gContext->commandQueue != 0)
-            errNum = clReleaseCommandQueue(gContext->commandQueue);
+            if (gContext->commandQueue != 0)
+                errNum = clReleaseCommandQueue(gContext->commandQueue);
+	}
 
         free(gContext);
     }
@@ -508,8 +516,10 @@ int cl_g2d_open(void **handle)
     gContext = (struct g2dContext *)calloc(1, sizeof(struct g2dContext));
     if (gContext == NULL) {
         g2d_printf("malloc memory failed for g2dcontext!\n");
-        goto err2;
+        return -1;
     }
+
+    Mutex::Autolock init(gContext->mLock);
 
     gContext->context = CreateContext();
 	if (gContext->context == NULL) {
@@ -545,8 +555,8 @@ int cl_g2d_open(void **handle)
         }
     }
 
-	*handle = (void*)gContext;
-	return 0;
+    *handle = (void*)gContext;
+    return 0;
 
 err2:
     Cleanup(gContext);
@@ -577,7 +587,10 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     cl_int errNum = 0;
     cl_kernel kernel = 0;
     int kernel_index = MEM_COPY_INDEX;
+    unsigned int remain_size = 0;
+    size_t globalWorkSize = 0;
     struct g2dContext *gcontext = (struct g2dContext *)handle;
+    Mutex::Autolock _l(gcontext->mLock);
 
     if ((gcontext == NULL) ||
        (input_buf == NULL) ||
@@ -585,12 +598,12 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
        (size > input_buf->buf_size)||
        (size > output_buf->buf_size)) {
         g2d_printf("%s: invalid parameters\n", __func__);
-        return -1;
+        goto error;
     }
 
     if((kernel_index >= MAX_CL_KERNEL_COUNT)||(gcontext->dst[kernel_index] != NULL)){
         g2d_printf("%s: invalid kernel index %d\n", __func__, kernel_index);
-        return -1;
+        goto error;
     }
 
     kernel = gcontext->kernel[kernel_index];
@@ -606,7 +619,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     if (memObject == NULL)
     {
         g2d_printf( "Error creating input memory objects.\n");
-        return false;
+        goto error;
     }
     gcontext->memInObjects[kernel_index][0] = memObject;
 
@@ -620,7 +633,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     if (memObject == NULL)
     {
         g2d_printf( "Error creating output memory objects.\n");
-        return false;
+        goto error;
     }
     gcontext->memOutObjects[kernel_index][0] = memObject;
 
@@ -634,9 +647,9 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     {
         g2d_printf("Error setting kernel arguments.\n");
         ReleaseMemObjects(gcontext);
-        return -1;
+        goto error;
     }
-    size_t globalWorkSize = size/CL_ATOMIC_COPY_SIZE;
+    globalWorkSize = size/CL_ATOMIC_COPY_SIZE;
     //Summit command
     errNum = clEnqueueNDRangeKernel(gcontext->commandQueue, kernel, 1, NULL,
             &globalWorkSize, NULL,
@@ -646,7 +659,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
         g2d_printf("Error queuing kernel for execution as err = %d \n",
                 errNum );
         ReleaseMemObjects(gcontext);
-        return -1;
+        goto error;
     }
     gcontext->dst[kernel_index] = (struct cl_g2d_surface *)malloc(sizeof(struct cl_g2d_surface));
     if(gcontext->dst[kernel_index] != NULL){
@@ -658,12 +671,15 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
         gcontext->dst[kernel_index]->usage = output_buf->usage;
     }
     //use cpu to handle the last 63 bytes, if the size is not n x 64 byptes
-    unsigned int remain_size = size&CL_ATOMIC_COPY_MASK;
+    remain_size = size&CL_ATOMIC_COPY_MASK;
     if(remain_size > 0)
         memcpy((char *)input_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE,
                 (char *)output_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE, remain_size);
 
     return 0;
+
+error:
+    return -1;
 }
 
 static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *dst)
@@ -699,6 +715,7 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
     int kernel_index = 0;
     cl_int kernel_width = 0;
     cl_int kernel_height = 0;
+    Mutex::Autolock _l(gcontext->mLock);
 
     if (gcontext == NULL) {
         g2d_printf("%s: invalid handle\n", __func__);
@@ -709,7 +726,7 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
     if (kernel_index >= 0) {
         if((kernel_index >= MAX_CL_KERNEL_COUNT)||(gcontext->dst[kernel_index] != NULL)){
             g2d_printf("%s: invalid kernel index %d\n", __func__, kernel_index);
-            return -1;
+            goto error;
         }
 
         kernel = gcontext->kernel[kernel_index];
@@ -717,12 +734,12 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
         if (!CreateMemObjects(gcontext, src, true, kernel_index)){
             g2d_printf("%s: Cannot create input mem objs\n", __func__);
             ReleaseMemObjects(gcontext);
-            return -1;
+            goto error;
         }
         if (!CreateMemObjects(gcontext, dst, false, kernel_index)){
             g2d_printf("%s: Cannot create output mem objs\n", __func__);
             ReleaseMemObjects(gcontext);
-            return -1;
+            goto error;
         }
         //Set kernel args
         int arg_index = 0;
@@ -784,7 +801,7 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
         {
             g2d_printf("Error setting kernel arguments.\n");
             ReleaseMemObjects(gcontext);
-            return -1;
+            goto error;
         }
         size_t globalWorkSize[2] = { (size_t)kernel_width, (size_t)kernel_height};
         //Summit command
@@ -796,7 +813,7 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             g2d_printf("Error queuing kernel for execution as err = %d \n",
                     errNum );
             ReleaseMemObjects(gcontext);
-            return -1;
+            goto error;
         }
         gcontext->dst[kernel_index] = (struct cl_g2d_surface *)malloc(sizeof(struct cl_g2d_surface));
         if(gcontext->dst[kernel_index] != NULL)
@@ -805,15 +822,19 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
     else {
 		g2d_printf("%s: cannot support src format 0x%x and dst format 0x%x\n",
                 __func__, src->format, dst->format);
-        return -1;
+        goto error;
     }
     return 0;
+
+error:
+    return -1;
 }
 
 int cl_g2d_flush(void *handle)
 {
 	int ret;
 	struct g2dContext *gcontext = (struct g2dContext *)handle;
+        Mutex::Autolock _l(gcontext->mLock);
 
 	if (gcontext == NULL) {
 		g2d_printf("%s: Invalid handle!\n", __func__);
@@ -822,13 +843,14 @@ int cl_g2d_flush(void *handle)
 
     clFinish(gcontext->commandQueue);
     ReadOutMemObjects(gcontext);
-	return 0;
+    return 0;
 }
 
 int cl_g2d_finish(void *handle)
 {
 	int ret;
 	struct g2dContext *gcontext = (struct g2dContext *)handle;
+        Mutex::Autolock _l(gcontext->mLock);
 
 	if (gcontext == NULL) {
 		g2d_printf("%s: Invalid handle!\n", __func__);
