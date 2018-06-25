@@ -43,19 +43,19 @@ static int get_buf_size(enum cl_g2d_format format, int width, int height, bool c
 {
     if(!copyTest) {
         switch(format) {
-	    case CL_G2D_YUYV:
+        case CL_G2D_YUYV:
             return width*height*2;
-	    case CL_G2D_NV12:
-	    case CL_G2D_NV21:
-	    case CL_G2D_I420:
+        case CL_G2D_NV12:
+        case CL_G2D_NV21:
+        case CL_G2D_I420:
             return width*height*3/2;
-	    default:
+        default:
             ALOGE("unsupported format\n");
-	    }
+        }
     } else {
         return copyLen;
     }
-	return 0;
+    return 0;
 
 }
 
@@ -357,56 +357,56 @@ void usage(char *app)
 static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf,
         struct cl_g2d_surface *dst, char *output_buf)
 {
-	src->format = gInput_format;
+    src->format = gInput_format;
     if (gMemory_type == 1)
         src->usage = CL_G2D_DEVICE_MEMORY;
-	switch (src->format) {
-	case CL_G2D_YUYV:
-		src->planes[0] = (long)input_buf;
-		break;
+    switch (src->format) {
+    case CL_G2D_YUYV:
+        src->planes[0] = (long)input_buf;
+        break;
     case CL_G2D_NV12:
     case CL_G2D_NV21:
-		src->planes[0] = (long)input_buf;
-		src->planes[1] = (long)(input_buf + gWidth * gHeight);
-		break;
-	default:
-		ALOGE("Unsupport input format\n");
-		return 0;
-	}
+        src->planes[0] = (long)input_buf;
+        src->planes[1] = (long)(input_buf + gWidth * gHeight);
+        break;
+    default:
+        ALOGE("Unsupport input format\n");
+        return 0;
+    }
 
-	src->left = 0;
-	src->top = 0;
-	src->right = gWidth;
-	src->bottom = gHeight;
-	src->stride = gStride;
-	src->width  = gWidth;
-	src->height = gHeight;
+    src->left = 0;
+    src->top = 0;
+    src->right = gWidth;
+    src->bottom = gHeight;
+    src->stride = gStride;
+    src->width  = gWidth;
+    src->height = gHeight;
 
-	dst->format = gOutput_format;
+    dst->format = gOutput_format;
     if (gMemory_type == 1)
         dst->usage = CL_G2D_DEVICE_MEMORY;
-	switch (dst->format) {
-	case CL_G2D_NV12:
-	case CL_G2D_NV21:
-		dst->planes[0] = (long)output_buf;
-		dst->planes[1] = (long)(output_buf + gOutWidth * gOutHeight);
-		break;
-		break;
-	case CL_G2D_YUYV:
-		dst->planes[0] = (long)output_buf;
-		break;
-	default:
-		ALOGE("Unsupport input format\n");
-		return -1;
-	}
+    switch (dst->format) {
+    case CL_G2D_NV12:
+    case CL_G2D_NV21:
+        dst->planes[0] = (long)output_buf;
+        dst->planes[1] = (long)(output_buf + gOutWidth * gOutHeight);
+        break;
+        break;
+    case CL_G2D_YUYV:
+        dst->planes[0] = (long)output_buf;
+        break;
+    default:
+        ALOGE("Unsupport input format\n");
+        return -1;
+    }
 
-	dst->left = 0;
-	dst->top = 0;
-	dst->right = gOutWidth;
-	dst->bottom = gOutHeight;
-	dst->stride = gOutStride;
-	dst->width  = gOutWidth;
-	dst->height = gOutHeight;
+    dst->left = 0;
+    dst->top = 0;
+    dst->right = gOutWidth;
+    dst->bottom = gOutHeight;
+    dst->stride = gOutStride;
+    dst->width  = gOutWidth;
+    dst->height = gOutHeight;
     return 0;
 }
 
@@ -619,8 +619,8 @@ int main(int argc, char** argv)
     ion_user_handle_t benchmark_ion_hnd = 0;
     int benchmark_ion_buf_fd = 0;;
 
-	struct cl_g2d_surface src,dst;
-	void *g2dHandle = NULL;
+    struct cl_g2d_surface src,dst;
+    void *g2dHandle = NULL;
 
     if (argc < 3) {
         usage(argv[0]);
@@ -628,14 +628,14 @@ int main(int argc, char** argv)
     }
 
     while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:t:m:x:y:z:")) >= 0) {
-	    switch (rt) {
-	    case 'h':
-	        usage(argv[0]);
-	        return 0;
-	    case 'b':
+        switch (rt) {
+        case 'h':
+            usage(argv[0]);
+            return 0;
+        case 'b':
             gCLBuildTest = true;
             break;
-	    case 'c':
+        case 'c':
             gMemTest = true;
             break;
         case 'l':
@@ -644,10 +644,10 @@ int main(int argc, char** argv)
         case 'i':
             memset(input_file, 0, MAX_FILE_LEN);
             strncpy(input_file, optarg, MAX_FILE_LEN);
-	        break;
-	    case 's':
+            break;
+        case 's':
             gInput_format = (enum cl_g2d_format)atoi(optarg);
-	        break;
+            break;
         case 'd':
             gOutput_format = (enum cl_g2d_format)atoi(optarg);
             break;
@@ -675,11 +675,11 @@ int main(int argc, char** argv)
         case 'o':
             memset(output_file, 0, MAX_FILE_LEN);
             strncpy(output_file, optarg, MAX_FILE_LEN);
-	        break;
-	    default:
-	        usage(argv[0]);
-	        return 0;
-	    }
+            break;
+        default:
+            usage(argv[0]);
+            return 0;
+        }
     }
 
     if (gOutWidth == 0)
@@ -704,17 +704,17 @@ int main(int argc, char** argv)
 
     //Either copy or blit
     if (gMemTest && (gWidth != 0) && (gHeight != 0) ) {
-	    usage(argv[0]);
+        usage(argv[0]);
         return 0;
     }
 
     if (!gMemTest && (gWidth == 0) && (gHeight == 0) ) {
-	    usage(argv[0]);
+        usage(argv[0]);
         return 0;
     }
 
     if (gMemTest && (gCopyLen == 0)) {
-	    usage(argv[0]);
+        usage(argv[0]);
         return 0;
     }
 
@@ -761,10 +761,10 @@ int main(int argc, char** argv)
     memset(output_buf, 0, outputlen);
     memset(output_benchmark_buf, 0, outputlen);
 
-	if(cl_g2d_open(&g2dHandle) == -1 || g2dHandle == NULL) {
-		ALOGE("Fail to open g2d device!\n");
+    if(cl_g2d_open(&g2dHandle) == -1 || g2dHandle == NULL) {
+        ALOGE("Fail to open g2d device!\n");
         goto clean;
-	}
+    }
 
     for(int loop = 0; loop < G2D_TEST_LOOP; loop ++) {
         ALOGI("Start openCL 2d blit at loop %d", loop);
@@ -791,8 +791,8 @@ int main(int argc, char** argv)
             cl_g2d_copy(g2dHandle, &g2d_output_buf,
                     &g2d_input_buf, (unsigned int)gCopyLen);
         }
-	    cl_g2d_flush(g2dHandle);
-	    cl_g2d_finish(g2dHandle);
+        cl_g2d_flush(g2dHandle);
+        cl_g2d_finish(g2dHandle);
         ALOGI("End openCL 2d blit at loop %d", loop);
     }
 
@@ -816,7 +816,7 @@ int main(int argc, char** argv)
     ALOGI("End CPU 2d blit");
 
     if (!gMemTest) {
-	    if (dst.format == CL_G2D_YUYV) {
+        if (dst.format == CL_G2D_YUYV) {
             dump_buffer(output_buf, 128, "output_yuyv");
             dump_buffer(output_benchmark_buf, 128, "output_benchmark_yuyv");
         }
@@ -853,7 +853,7 @@ clean:
         free_memory(output_benchmark_buf, benchmark_ion_hnd,
                 benchmark_ion_buf_fd, outputlen);
     if(g2dHandle  == NULL)
-	    cl_g2d_close(g2dHandle);
+        cl_g2d_close(g2dHandle);
     if(gIonFd == 0)
         ion_close(gIonFd);
 

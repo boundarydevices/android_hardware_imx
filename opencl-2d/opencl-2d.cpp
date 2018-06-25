@@ -80,78 +80,78 @@ static int g2d_get_planebpp(unsigned int format, int plane)
 {
     if(plane >= g2d_get_planecount(format))
         return 0;
-	switch(format) {
-	case CL_G2D_RGB565:
-		return 16;
-	case CL_G2D_BGRX8888:
-	case CL_G2D_BGRA8888:
-	case CL_G2D_RGBA8888:
-	case CL_G2D_RGBX8888:
-	case CL_G2D_ARGB8888:
-	case CL_G2D_XRGB8888:
-	case CL_G2D_ABGR8888:
-	case CL_G2D_XBGR8888:
-		return 32;
-	case CL_G2D_UYVY:
-	case CL_G2D_YUYV:
-	case CL_G2D_VYUY:
-	case CL_G2D_YVYU:
-		return 16;
-	/* for the multi-plane format,
-	 * only return the bits number
-	 * for Y plane
-	 */
-	case CL_G2D_NV12:
-	case CL_G2D_NV21:
-        if(plane == 0)
-		    return 8;
-        else
-            return 4;
+    switch(format) {
+        case CL_G2D_RGB565:
+            return 16;
+        case CL_G2D_BGRX8888:
+        case CL_G2D_BGRA8888:
+        case CL_G2D_RGBA8888:
+        case CL_G2D_RGBX8888:
+        case CL_G2D_ARGB8888:
+        case CL_G2D_XRGB8888:
+        case CL_G2D_ABGR8888:
+        case CL_G2D_XBGR8888:
+            return 32;
+        case CL_G2D_UYVY:
+        case CL_G2D_YUYV:
+        case CL_G2D_VYUY:
+        case CL_G2D_YVYU:
+            return 16;
+        /* for the multi-plane format,
+         * only return the bits number
+         * for Y plane
+         */
+        case CL_G2D_NV12:
+        case CL_G2D_NV21:
+            if(plane == 0)
+               return 8;
+            else
+               return 4;
 
-	case CL_G2D_YV12:
-	case CL_G2D_I420:
-        if(plane == 0)
-		    return 8;
-        else
-            return 2;
+        case CL_G2D_YV12:
+        case CL_G2D_I420:
+            if(plane == 0)
+               return 8;
+            else
+               return 2;
 
-	default:
-		g2d_printf("%s: unsupported format for getting bpp\n", __func__);
-	}
-	return 0;
+        default:
+           g2d_printf("%s: unsupported format for getting bpp\n", __func__);
+        }
+        return 0;
 }
 
 static int g2d_get_planecount(unsigned int format)
 {
     switch(format) {
-	case CL_G2D_RGB565:
-	case CL_G2D_BGRX8888:
-	case CL_G2D_BGRA8888:
-	case CL_G2D_RGBA8888:
-	case CL_G2D_RGBX8888:
-	case CL_G2D_ARGB8888:
-	case CL_G2D_XRGB8888:
-	case CL_G2D_ABGR8888:
-	case CL_G2D_XBGR8888:
-	case CL_G2D_UYVY:
-	case CL_G2D_YUYV:
-	case CL_G2D_VYUY:
-	case CL_G2D_YVYU:
-		return 1;
-	/* for the multi-plane format,
-	 * only return the bits number
-	 * for Y plane
-	 */
-	case CL_G2D_NV12:
-	case CL_G2D_NV21:
-		return 2;
-	case CL_G2D_YV12:
-	case CL_G2D_I420:
-		return 3;
-	default:
-		g2d_printf("%s: unsupported format for getting plane count\n", __func__);
-	}
-	return 0;
+        case CL_G2D_RGB565:
+        case CL_G2D_BGRX8888:
+        case CL_G2D_BGRA8888:
+        case CL_G2D_RGBA8888:
+        case CL_G2D_RGBX8888:
+        case CL_G2D_ARGB8888:
+        case CL_G2D_XRGB8888:
+        case CL_G2D_ABGR8888:
+        case CL_G2D_XBGR8888:
+        case CL_G2D_UYVY:
+        case CL_G2D_YUYV:
+        case CL_G2D_VYUY:
+        case CL_G2D_YVYU:
+            return 1;
+        /* for the multi-plane format,
+         * only return the bits number
+         * for Y plane
+         */
+        case CL_G2D_NV12:
+        case CL_G2D_NV21:
+            return 2;
+        case CL_G2D_YV12:
+        case CL_G2D_I420:
+            return 3;
+        default:
+           g2d_printf("%s: unsupported format for getting plane count\n", __func__);
+        }
+        return 0;
 }
 
 static int g2d_get_planesize(struct cl_g2d_surface *surface, int plane)
@@ -470,7 +470,7 @@ static void Cleanup(struct g2dContext *gContext)
 {
     if (gContext != NULL) {
         {
-	    Mutex::Autolock _l(gContext->mLock);
+            Mutex::Autolock _l(gContext->mLock);
             cl_int errNum;
 
             ReleaseMemObjects(gContext);
@@ -491,7 +491,7 @@ static void Cleanup(struct g2dContext *gContext)
 
             if (gContext->commandQueue != 0)
                 errNum = clReleaseCommandQueue(gContext->commandQueue);
-	}
+        }
 
         free(gContext);
     }
@@ -522,15 +522,15 @@ int cl_g2d_open(void **handle)
     Mutex::Autolock init(gContext->mLock);
 
     gContext->context = CreateContext();
-	if (gContext->context == NULL) {
-		g2d_printf("failed for CreateContext\n");
-		goto err2;
+        if (gContext->context == NULL) {
+                g2d_printf("failed for CreateContext\n");
+                goto err2;
     }
 
     gContext->commandQueue = CreateCommandQueue(gContext->context, &device);
-	if (gContext->commandQueue == NULL) {
-		g2d_printf("failed for CreateCommandQueue\n");
-		goto err2;
+        if (gContext->commandQueue == NULL) {
+                g2d_printf("failed for CreateCommandQueue\n");
+                goto err2;
     }
     gContext->device = device;
     //All kernel should be built and create in open to save time
@@ -548,7 +548,7 @@ int cl_g2d_open(void **handle)
             kernel = clCreateKernel(gContext->program, kernel_name_list[i], NULL);
             if (kernel == NULL)
             {
-	            g2d_printf("%s: Cannot create kernel %s\n", __func__, kernel_name_list[i]);
+                g2d_printf("%s: Cannot create kernel %s\n", __func__, kernel_name_list[i]);
                 goto err2;
             }
             gContext->kernel[i] = kernel;
@@ -820,7 +820,7 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             memcpy(gcontext->dst[kernel_index], dst, sizeof(struct cl_g2d_surface));
     }
     else {
-		g2d_printf("%s: cannot support src format 0x%x and dst format 0x%x\n",
+                g2d_printf("%s: cannot support src format 0x%x and dst format 0x%x\n",
                 __func__, src->format, dst->format);
         goto error;
     }
@@ -832,14 +832,14 @@ error:
 
 int cl_g2d_flush(void *handle)
 {
-	int ret;
-	struct g2dContext *gcontext = (struct g2dContext *)handle;
-        Mutex::Autolock _l(gcontext->mLock);
+    int ret;
+    struct g2dContext *gcontext = (struct g2dContext *)handle;
+    Mutex::Autolock _l(gcontext->mLock);
 
-	if (gcontext == NULL) {
-		g2d_printf("%s: Invalid handle!\n", __func__);
-		return -1;
-	}
+    if (gcontext == NULL) {
+        g2d_printf("%s: Invalid handle!\n", __func__);
+        return -1;
+    }
 
     clFinish(gcontext->commandQueue);
     ReadOutMemObjects(gcontext);
@@ -848,14 +848,14 @@ int cl_g2d_flush(void *handle)
 
 int cl_g2d_finish(void *handle)
 {
-	int ret;
-	struct g2dContext *gcontext = (struct g2dContext *)handle;
-        Mutex::Autolock _l(gcontext->mLock);
+    int ret;
+    struct g2dContext *gcontext = (struct g2dContext *)handle;
+    Mutex::Autolock _l(gcontext->mLock);
 
-	if (gcontext == NULL) {
-		g2d_printf("%s: Invalid handle!\n", __func__);
-		return -1;
-	}
+    if (gcontext == NULL) {
+        g2d_printf("%s: Invalid handle!\n", __func__);
+        return -1;
+    }
     //Release cl_mem objests
     ReleaseMemObjects(gcontext);
     //Release gcontext->dst[kernel_index]
@@ -865,6 +865,6 @@ int cl_g2d_finish(void *handle)
             gcontext->dst[i] = NULL;
         }
 
-	return 0;
+    return 0;
 }
 
