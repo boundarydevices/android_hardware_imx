@@ -263,7 +263,7 @@ int FSLSensorsHub::readEvents(sensors_event_t* data, int count)
 			for(i = 0 ; i< sensors && mPendingMask && count ;i++){
 			  	 	if(mPendingMask & (1 << i)){
 						mPendingMask &= ~(1 << i);
-						mPendingEvent[i].timestamp = time;
+						mPendingEvent[i].timestamp = getTimestamp();
 						if (mEnabled[i]) {
 							*data++ = mPendingEvent[i];
 							count--;
