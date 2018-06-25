@@ -63,6 +63,7 @@
 #include "config_ak4497.h"
 #include "config_sgtl5000.h"
 #include "config_xtor_pico.h"
+#include "config_rt5645.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -119,7 +120,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        17
+#define SUPPORT_CARD_NUM        18
 
 #define IMX8_BOARD_NAME "imx8"
 #define IMX7_BOARD_NAME "imx7"
@@ -144,6 +145,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &ak4497_card,
     &sgtl5000_card,
     &xtor_pico_card,
+    &rt5645_card,
     &null_card,
 };
 
@@ -3959,6 +3961,16 @@ static int pcm_get_near_param_wrap(unsigned int card, unsigned int device,
                      unsigned int flags, int type, int *data)
 {
 #ifdef PRODUCT_IOT
+    if(type == PCM_HW_PARAM_RATE) {
+        struct control* imx_control;
+        imx_control = control_open(card);
+        if(imx_control && strstr(control_card_info_get_driver(imx_control), "rt5645") && data) {
+            *data = 48000;
+        }
+
+        if(imx_control)
+            control_close(imx_control);
+    }
     return 0;
 #else
     return pcm_get_near_param(card, device, flags, type, data);
