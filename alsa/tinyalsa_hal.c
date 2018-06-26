@@ -3183,6 +3183,10 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             config->sample_rate = ladev->mm_rate;
         if (config->channel_mask == 0)
             config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
+        if (config->format == AUDIO_FORMAT_DEFAULT) {
+            config->format = AUDIO_FORMAT_PCM_16_BIT;
+            out->format = config->format;
+        }
         out->channel_mask = config->channel_mask;
         out->stream.common.get_buffer_size = out_get_buffer_size_hdmi;
         out->stream.common.get_sample_rate = out_get_sample_rate_hdmi;
