@@ -590,7 +590,6 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     unsigned int remain_size = 0;
     size_t globalWorkSize = 0;
     struct g2dContext *gcontext = (struct g2dContext *)handle;
-    Mutex::Autolock _l(gcontext->mLock);
 
     if ((gcontext == NULL) ||
        (input_buf == NULL) ||
@@ -598,8 +597,9 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
        (size > input_buf->buf_size)||
        (size > output_buf->buf_size)) {
         g2d_printf("%s: invalid parameters\n", __func__);
-        goto error;
+        return -1;
     }
+    Mutex::Autolock _l(gcontext->mLock);
 
     if((kernel_index >= MAX_CL_KERNEL_COUNT)||(gcontext->dst[kernel_index] != NULL)){
         g2d_printf("%s: invalid kernel index %d\n", __func__, kernel_index);
@@ -715,12 +715,12 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
     int kernel_index = 0;
     cl_int kernel_width = 0;
     cl_int kernel_height = 0;
-    Mutex::Autolock _l(gcontext->mLock);
 
     if (gcontext == NULL) {
         g2d_printf("%s: invalid handle\n", __func__);
         return -1;
     }
+    Mutex::Autolock _l(gcontext->mLock);
 
     kernel_index = get_kernel_index(src, dst);
     if (kernel_index >= 0) {
@@ -834,12 +834,12 @@ int cl_g2d_flush(void *handle)
 {
     int ret;
     struct g2dContext *gcontext = (struct g2dContext *)handle;
-    Mutex::Autolock _l(gcontext->mLock);
 
     if (gcontext == NULL) {
         g2d_printf("%s: Invalid handle!\n", __func__);
         return -1;
     }
+    Mutex::Autolock _l(gcontext->mLock);
 
     clFinish(gcontext->commandQueue);
     ReadOutMemObjects(gcontext);
@@ -850,12 +850,12 @@ int cl_g2d_finish(void *handle)
 {
     int ret;
     struct g2dContext *gcontext = (struct g2dContext *)handle;
-    Mutex::Autolock _l(gcontext->mLock);
 
     if (gcontext == NULL) {
         g2d_printf("%s: Invalid handle!\n", __func__);
         return -1;
     }
+    Mutex::Autolock _l(gcontext->mLock);
     //Release cl_mem objests
     ReleaseMemObjects(gcontext);
     //Release gcontext->dst[kernel_index]
