@@ -251,67 +251,110 @@ static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes);
 
 extern int pcm_state(struct pcm *pcm);
 
-static int convert_record_data(void *src, void *dst, unsigned int frames, bool bit_24b_2_16b, bool mono2stereo, bool stereo2mono)
+static int convert_record_data(void *src, void *dst, unsigned int frames, bool bit_24b_2_16b, bool bit_32b_2_16b, bool mono2stereo, bool stereo2mono)
 {
-     unsigned int i;
-     short *dst_t = (short *)dst;
-     if (bit_24b_2_16b && mono2stereo && !stereo2mono) {
+    unsigned int i;
+    short *dst_t = (short *)dst;
+
+    if (bit_24b_2_16b && mono2stereo && !stereo2mono) {
         int data;
         int *src_t = (int *)src;
-        for(i = 0; i < frames; i++)
-        {
-            data   = *src_t++;
+        for (i = 0; i < frames; i++) {
+            data = *src_t++;
             *dst_t++ = (short)(data >> 8);
             *dst_t++ = (short)(data >> 8);
         }
-     }
 
-     if (bit_24b_2_16b && !mono2stereo && stereo2mono) {
-        int data1=0, data2=0;
+        return 0;
+    }
+
+    if (bit_24b_2_16b && !mono2stereo && stereo2mono) {
+        int data1 = 0, data2 = 0;
         int *src_t = (int *)src;
-        for(i = 0; i < frames; i++)
-        {
-            data1   = *src_t++;
-            data2   = *src_t++;
+        for (i = 0; i < frames; i++) {
+            data1 = *src_t++;
+            data2 = *src_t++;
             *dst_t++ = (short)(((data1 << 8) >> 17) + ((data2 << 8) >> 17));
         }
-     }
 
-     if (bit_24b_2_16b && !mono2stereo && !stereo2mono) {
+        return 0;
+    }
+
+    if (bit_24b_2_16b && !mono2stereo && !stereo2mono) {
         int data1, data2;
         int *src_t = (int *)src;
-        for(i = 0; i < frames; i++)
-        {
-            data1   = *src_t++;
-            data2   = *src_t++;
+        for (i = 0; i < frames; i++) {
+            data1 = *src_t++;
+            data2 = *src_t++;
             *dst_t++ = (short)(data1 >> 8);
             *dst_t++ = (short)(data2 >> 8);
         }
-     }
 
-     if (!bit_24b_2_16b && mono2stereo && !stereo2mono ) {
+        return 0;
+    }
+
+    if (bit_32b_2_16b && mono2stereo && !stereo2mono) {
+        int data;
+        int *src_t = (int *)src;
+        for (i = 0; i < frames; i++) {
+            data = *src_t++;
+            *dst_t++ = (short)(data >> 16);
+            *dst_t++ = (short)(data >> 16);
+        }
+
+        return 0;
+    }
+
+    if (bit_32b_2_16b && !mono2stereo && stereo2mono) {
+        int data1 = 0, data2 = 0;
+        int *src_t = (int *)src;
+        for (i = 0; i < frames; i++) {
+            data1 = *src_t++;
+            data2 = *src_t++;
+            *dst_t++ = (short)((data1 >> 17) + (data2 >> 17));
+        }
+
+        return 0;
+    }
+
+    if (bit_32b_2_16b && !mono2stereo && !stereo2mono) {
+        int data1, data2;
+        int *src_t = (int *)src;
+        for (i = 0; i < frames; i++) {
+            data1 = *src_t++;
+            data2 = *src_t++;
+            *dst_t++ = (short)(data1 >> 16);
+            *dst_t++ = (short)(data2 >> 16);
+        }
+
+        return 0;
+    }
+
+    if (mono2stereo && !stereo2mono) {
         short data;
         short *src_t = (short *)src;
-        for(i = 0; i < frames; i++)
-        {
-            data   = *src_t++;
+        for (i = 0; i < frames; i++) {
+            data = *src_t++;
             *dst_t++ = data;
             *dst_t++ = data;
         }
-     }
 
-     if (!bit_24b_2_16b && !mono2stereo && stereo2mono) {
+        return 0;
+    }
+
+    if (!mono2stereo && stereo2mono) {
         short data1, data2;
         short *src_t = (short *)src;
-        for(i = 0; i < frames; i++)
-        {
-            data1   = *src_t++;
-            data2   = *src_t++;
+        for (i = 0; i < frames; i++) {
+            data1 = *src_t++;
+            data2 = *src_t++;
             *dst_t++ = (data1 >> 1) + (data2 >> 1);
         }
-     }
 
-     return 0;
+        return 0;
+    }
+
+    return 0;
 }
 
 /* The enable flag when 0 makes the assumption that enums are disabled by
@@ -1301,15 +1344,17 @@ static int out_set_volume(struct audio_stream_out *stream, float left,
 static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *data, unsigned int count)
 {
     bool bit_24b_2_16b = false;
+    bool bit_32b_2_16b = false;
     bool mono2stereo = false;
     bool stereo2mono = false;
     size_t frames_rq = count / audio_stream_frame_size(&in->stream.common);
 
     if (in->config.format == PCM_FORMAT_S24_LE && in->requested_format == PCM_FORMAT_S16_LE) bit_24b_2_16b = true;
+    if (in->config.format == PCM_FORMAT_S32_LE && in->requested_format == PCM_FORMAT_S16_LE) bit_32b_2_16b = true;
     if (in->config.channels == 2 && in->requested_channel == 1) stereo2mono = true;
     if (in->config.channels == 1 && in->requested_channel == 2) mono2stereo = true;
 
-    if (bit_24b_2_16b || mono2stereo || stereo2mono) {
+    if (bit_24b_2_16b || bit_32b_2_16b ||  mono2stereo || stereo2mono) {
         size_t size_in_bytes_tmp = pcm_frames_to_bytes(in->pcm, frames_rq);
         if (in->read_tmp_buf_size < in->config.period_size) {
             in->read_tmp_buf_size = in->config.period_size;
@@ -1326,7 +1371,7 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
             ALOGE("get_next_buffer() pcm_read_wrapper error %d", in->read_status);
             return in->read_status;
         }
-        convert_record_data((void *)in->read_tmp_buf, (void *)data, frames_rq, bit_24b_2_16b, mono2stereo, stereo2mono);
+        convert_record_data((void *)in->read_tmp_buf, (void *)data, frames_rq, bit_24b_2_16b, bit_32b_2_16b, mono2stereo, stereo2mono);
     }
     else {
         in->read_status = pcm_read_wrapper(pcm, (void*)data, count);
