@@ -64,6 +64,7 @@
 #include "config_sgtl5000.h"
 #include "config_xtor_pico.h"
 #include "config_rt5645.h"
+#include "config_micfil.h"
 
 /* ALSA ports for IMX */
 #define PORT_MM     0
@@ -120,7 +121,7 @@
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
 #define PRODUCT_DEVICE_IMX      "imx"
 #define PRODUCT_DEVICE_AUTO     "sabreauto"
-#define SUPPORT_CARD_NUM        18
+#define SUPPORT_CARD_NUM        19
 
 #define IMX8_BOARD_NAME "imx8"
 #define IMX7_BOARD_NAME "imx7"
@@ -146,6 +147,7 @@ struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &sgtl5000_card,
     &xtor_pico_card,
     &rt5645_card,
+    &micfil_card,
     &null_card,
 };
 
