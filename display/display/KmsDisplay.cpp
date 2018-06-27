@@ -718,7 +718,7 @@ int KmsDisplay::updateScreen()
         setMetaData(mPset, &meta);
     }
 
-    for (uint32_t i=0; i<3; i++) {
+    for (uint32_t i=0; i<10; i++) {
         int ret = drmModeAtomicCommit(drmfd, mPset, flags, NULL);
         if (ret == -EBUSY) {
             ALOGV("commit pset busy and try again");
