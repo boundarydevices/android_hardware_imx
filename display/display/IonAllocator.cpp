@@ -126,8 +126,10 @@ int IonAllocator::allocMemory(int size, int align, int flags)
         return fd;
     }
 
-    // align to page size.
-    size = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+    // VPU decoder needs 32k physical address alignment.
+    // But align parameter can't take effect to ensure alignment.
+    // And ION driver also can't ensure physical address alignment.
+    size = (size + (PAGE_SIZE << 3)) & (~((PAGE_SIZE << 3) - 1));
     ret = ion_alloc_fd(mIonFd, size, align, heapIds, 0, &fd);
     if (ret != 0) {
         ALOGE("ion_alloc failed");
