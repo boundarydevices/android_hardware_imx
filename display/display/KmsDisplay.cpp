@@ -912,85 +912,126 @@ int KmsDisplay::openKms()
     return 0;
 }
 
+struct DisplayMode {
+    char modestr[16];
+    int width;
+    int height;
+    int vrefresh;
+};
+
+DisplayMode gDisplayModes[16] = {
+ {"4kp60", 3840, 2160, 60},
+ {"4kp50", 3840, 2160, 50},
+ {"4kp30", 3840, 2160, 30},
+ {"1080p60", 1920, 1080, 60},
+ {"1080p50", 1920, 1080, 50},
+ {"1080p30", 1920, 1080, 30},
+ {"720p60", 1280, 720, 60},
+ {"720p50", 1280, 720, 50},
+ {"720p30", 1280, 720, 30},
+ {"480p60", 640, 480, 60},
+ {"480p50", 640, 480, 50},
+ {"480p30", 640, 480, 30},
+ {"4k", 3840, 2160, 60}, // default as 60fps
+ {"1080p", 1920, 1080, 60}, // default as 60fps
+ {"720p", 1280, 720, 60}, // default as 60fps
+ {"480p", 640, 480, 60}, // default as 60fps
+};
+
+static void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode)
+{
+    char value[PROPERTY_VALUE_MAX];
+    memset(value, 0, sizeof(value));
+    property_get("ro.boot.displaymode", value, "p");
+
+    int i = 0;
+    int modeCount = sizeof(gDisplayModes)/sizeof(DisplayMode);
+    *prefermode = 0;
+    for (i=0; i < modeCount; i++) {
+        if (!strncmp(value, gDisplayModes[i].modestr, strlen(gDisplayModes[i].modestr))) {
+            *width = gDisplayModes[i].width;
+            *height = gDisplayModes[i].height;
+            *vrefresh = gDisplayModes[i].vrefresh;
+            break;
+        }
+    }
+
+    if (i == modeCount) {
+        //Set default mode as 1080p60
+        *width = 1920;
+        *height = 1080;
+        *vrefresh = 60;
+        *prefermode = 1;
+    }
+
+}
+
 int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
 {
-    int index = 0;
-    unsigned int delta = -1, rdelta = -1;
-    char value[PROPERTY_VALUE_MAX];
-    int width = 0, height = 0;
+    int index = 0, prefer_index = -1;
+    unsigned int delta = -1, rdelta = -1, vrefresh_delta = -1;
+    int width = 0, height = 0, vrefresh = 60;
     int prefermode = 0;
 
     // display mode set by bootargs.
-    mMode.vrefresh = 60;
-    memset(value, 0, sizeof(value));
-    property_get("ro.boot.displaymode", value, "p");
-    if (!strncmp(value, "4k", 2)) {
-        width = 4096;
-        mMode.hdisplay = 3840;
-        mMode.vdisplay = 2160;
-    }
-    else if (!strncmp(value, "1080p", 5)) {
-        height = 1080;
-        mMode.hdisplay = 1920;
-        mMode.vdisplay = 1080;
-    }
-    else if (!strncmp(value, "720p", 4)) {
-        height = 720;
-        mMode.hdisplay = 1280;
-        mMode.vdisplay = 720;
-    }
-    else if (!strncmp(value, "480p", 4)) {
-        height = 480;
-        mMode.hdisplay = 640;
-        mMode.vdisplay = 480;
-    }
-    else {
-        prefermode = 1;
-        mMode.hdisplay = 1920;
-        mMode.vdisplay = 1080;
-        height = atoi(value);
-        if (height == 0) {
-            height = 1080;
-        }
-    }
-    ALOGV("%s mode:%s, width:%d, height:%d", __func__, value, width, height);
-
-    // find the best display mode.
-    for (int i=0; i<pConnector->count_modes; i++) {
-        drmModeModeInfo mode = pConnector->modes[i];
-        if ((mode.type & DRM_MODE_TYPE_PREFERRED) && (prefermode == 1)) {
-            index = i;
-            break;
-        }
-
-        if (mode.vrefresh < 60) {
-            // bypass fps < 60.
-            continue;
-        }
-        ALOGV("mode[%d]: w:%d, h:%d", i, mode.hdisplay, mode.vdisplay);
-
-        if (height > 0) {
-            rdelta = abs((height - mode.vdisplay));
-        }
-        else {
-            rdelta = abs((width - mode.hdisplay));
-        }
-
-        if (rdelta < delta) {
-            delta = rdelta;
-            index = i;
-        }
-
-        if (delta == 0) {
-            break;
-        }
-    }
-
-    // display mode found in connector.
+    parseDisplayMode(&width, &height, &vrefresh, &prefermode);
+    mMode.vrefresh = vrefresh;
+    mMode.hdisplay = width;
+    mMode.vdisplay = height;
+    ALOGI("Require mode:width:%d, height:%d, vrefresh %d, prefermode %d", width, height, vrefresh, prefermode);
     if (pConnector->count_modes > 0) {
+        index = pConnector->count_modes;
+        prefer_index = pConnector->count_modes;
+        // find the best display mode.
+        for (int i=0; i<pConnector->count_modes; i++) {
+            drmModeModeInfo mode = pConnector->modes[i];
+            ALOGV("Display mode[%d]: w:%d, h:%d, vrefresh %d", i, mode.hdisplay, mode.vdisplay, mode.vrefresh);
+            if (mode.type & DRM_MODE_TYPE_PREFERRED) {
+                prefer_index = i;
+                if (prefermode == 1) {
+                    index = i;
+                    break;
+                }
+            }
+
+            rdelta = abs((mMode.vdisplay - mode.vdisplay)) + \
+                         abs((mMode.hdisplay - mode.hdisplay));
+            //Match the resolution fristly
+            //Choose the modes based on vrefresh if have two same resolutions
+            if (rdelta < delta) {
+                delta = rdelta;
+                index = i;
+            }
+            else if (rdelta == delta) {
+                //Make prefer_index has the priority. Once prefer_index is choosed, only update the index
+                //if new mode has vrefresh same as required.
+                if ( (prefer_index < pConnector->count_modes)&& (index == prefer_index)) {
+                    drmModeModeInfo prefer_mode = pConnector->modes[prefer_index];
+                    if (( mMode.vrefresh != prefer_mode.vrefresh)&& ( mMode.vrefresh == mode.vrefresh))
+                        index = i;
+                }
+                else {
+                    //Make first matched fps/w/h has the priority.
+                    //Only update the index if the new mode has more precise vrefresh than previous
+                    //choosed mode
+                    drmModeModeInfo index_mode = pConnector->modes[index];
+                    if (( mMode.vrefresh != index_mode.vrefresh)&& ( mMode.vrefresh == mode.vrefresh))
+                        index = i;
+                }
+            }
+        }
+
+        if (index >= pConnector->count_modes) {
+            if (prefer_index >= pConnector->count_modes)
+                index = 0;
+            else
+                index = prefer_index;
+        }
+
+        // display mode found in connector.
         mMode = pConnector->modes[index];
+        ALOGI("Find best mode w:%d, h:%d, vrefresh:%d at mode index %d", mMode.hdisplay, mMode.vdisplay, mMode.vrefresh, index);
     }
-    ALOGV("find best mode w:%d, h:%d", mMode.hdisplay, mMode.vdisplay);
 
     return 0;
 }
