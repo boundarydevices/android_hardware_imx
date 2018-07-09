@@ -57,7 +57,7 @@ ImageProcess* ImageProcess::getInstance()
 }
 
 ImageProcess::ImageProcess()
-    : mIpuFd(-1), mPxpFd(-1)
+    : mIpuFd(-1), mPxpFd(-1), mChannel(-1), mG2dModule(NULL), mCLModule(NULL)
 {
     /*
      * imx6dl support IPU device and PXP device.
@@ -81,27 +81,28 @@ ImageProcess::ImageProcess()
 
     char path[PATH_MAX] = {0};
     getModule(path, GPUENGINE);
-    void* handle = dlopen(path, RTLD_NOW);
-    if (handle == NULL) {
+    mG2dModule = dlopen(path, RTLD_NOW);
+    if (mG2dModule == NULL) {
         mOpenEngine = NULL;
         mCloseEngine = NULL;
         mFinishEngine = NULL;
         mCopyEngine = NULL;
     }
     else {
-        mOpenEngine = (hwc_func1)dlsym(handle, "g2d_open");
-        mCloseEngine = (hwc_func1)dlsym(handle, "g2d_close");
-        mFinishEngine = (hwc_func1)dlsym(handle, "g2d_finish");
-        mCopyEngine = (hwc_func4)dlsym(handle, "g2d_copy");
+        mOpenEngine = (hwc_func1)dlsym(mG2dModule, "g2d_open");
+        mCloseEngine = (hwc_func1)dlsym(mG2dModule, "g2d_close");
+        mFinishEngine = (hwc_func1)dlsym(mG2dModule, "g2d_finish");
+        mCopyEngine = (hwc_func4)dlsym(mG2dModule, "g2d_copy");
     }
 
+    mTls.tls = 0;
     mTls.has_tls = 0;
     pthread_mutex_init(&mTls.lock, NULL);
 
     memset(path, 0, sizeof(path));
     getModule(path, CLENGINE);
-    handle = dlopen(path, RTLD_NOW);
-    if (handle == NULL) {
+    mCLModule = dlopen(path, RTLD_NOW);
+    if (mCLModule == NULL) {
         mCLOpen = NULL;
         mCLClose = NULL;
         mCLFlush = NULL;
@@ -110,11 +111,11 @@ ImageProcess::ImageProcess()
         mCLHandle = NULL;
     }
     else {
-        mCLOpen = (hwc_func1)dlsym(handle, "cl_g2d_open");
-        mCLClose = (hwc_func1)dlsym(handle, "cl_g2d_close");
-        mCLFlush = (hwc_func1)dlsym(handle, "cl_g2d_flush");
-        mCLFinish = (hwc_func1)dlsym(handle, "cl_g2d_finish");
-        mCLBlit = (hwc_func3)dlsym(handle, "cl_g2d_blit");
+        mCLOpen = (hwc_func1)dlsym(mCLModule, "cl_g2d_open");
+        mCLClose = (hwc_func1)dlsym(mCLModule, "cl_g2d_close");
+        mCLFlush = (hwc_func1)dlsym(mCLModule, "cl_g2d_flush");
+        mCLFinish = (hwc_func1)dlsym(mCLModule, "cl_g2d_finish");
+        mCLBlit = (hwc_func3)dlsym(mCLModule, "cl_g2d_blit");
         ret = (*mCLOpen)((void*)&mCLHandle);
         if (ret != 0) {
             mCLHandle = NULL;
@@ -140,6 +141,14 @@ ImageProcess::~ImageProcess()
 
     if (mCLHandle != NULL) {
         (*mCLClose)(mCLHandle);
+    }
+
+    if (mG2dModule != NULL) {
+        dlclose(mG2dModule);
+    }
+
+    if (mCLModule != NULL) {
+        dlclose(mCLModule);
     }
 }
 

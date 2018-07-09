@@ -76,6 +76,8 @@ private:
     hwc_func1 mFinishEngine;
     hwc_func4 mCopyEngine;
 
+    void *mG2dModule;
+    void *mCLModule;
     void *mCLHandle;
     hwc_func1 mCLOpen;
     hwc_func1 mCLClose;
