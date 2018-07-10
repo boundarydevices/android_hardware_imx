@@ -305,6 +305,11 @@ int32_t Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     camera3_stream_t *astream;
     sp<Stream> *newStreams = NULL;
 
+    if (stream_config == NULL) {
+        ALOGE("%s:%d: NULL stream configuration array", __func__, mId);
+        return -EINVAL;
+    }
+
     ALOGI("%s:%d: stream_config %p, num %d, streams %p, mode %d",
         __func__,
         mId,
@@ -315,10 +320,6 @@ int32_t Camera::configureStreams(camera3_stream_configuration_t *stream_config)
 
     android::Mutex::Autolock al(mDeviceLock);
 
-    if (stream_config == NULL) {
-        ALOGE("%s:%d: NULL stream configuration array", __func__, mId);
-        return -EINVAL;
-    }
     if (stream_config->num_streams == 0) {
         ALOGE("%s:%d: Empty stream configuration array", __func__, mId);
         return -EINVAL;
