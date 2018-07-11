@@ -45,6 +45,8 @@ enum cl_g2d_format
      CL_G2D_VYUY                 = 27,
      CL_G2D_NV16                 = 28,
      CL_G2D_NV61                 = 29,
+     CL_G2D_NV12_TILED           = 30,
+     CL_G2D_NV12_10BIT_TILED     = 31,
 };
 
 struct cl_g2d_buf

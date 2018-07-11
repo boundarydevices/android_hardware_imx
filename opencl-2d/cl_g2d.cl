@@ -1,3 +1,110 @@
+
+typedef struct _pix5
+{
+    uchar pix[5];
+} pix5;
+
+__kernel void nv12_10bit_tiled_to_linear(__global const uchar *input_y,
+        __global const uchar *input_uv, __global const uchar *output_y,
+        __global const uchar *output_uv, int src_stride, int width, int height)
+{
+    short x1 = get_global_id(0);
+    short y = get_global_id(1);
+    pix5 ypix, upix;
+    short x = x1 * 5;
+    y = y << 1;
+    int dst_index = x1 * 8 + y * width;
+    int dst_index2 = x1 * 8 + (y+1) * width;
+    x = x << 1;
+    int src_index1 = (x/8) * 8 * 128 + (y&127) * 8 + (y / 128) * src_stride * 128;
+    uchar byte_loc = (x&7);
+    uchar byte_cnt = 8 - byte_loc;
+    uchar i;
+    if (y < (height >> 1)) {
+        for(i=0; i<byte_cnt&&i<5; i++) {
+            ypix.pix[i] = *(input_y + src_index1 + byte_loc + i);
+            upix.pix[i] = *(input_uv + src_index1 + byte_loc + i);
+        }
+    }
+    else {
+        for(i=0; i<byte_cnt&&i<5; i++) {
+            ypix.pix[i] = *(input_y + src_index1 + byte_loc + i);
+        }
+    }
+
+    if (byte_cnt < 5) {
+        int src_index2 = (x/8+1) * 8 * 128 + (y&127) * 8 + (y / 128) * src_stride * 128;
+        if (y < (height >> 1)) {
+            for(uchar k=0;i<5;i++,k++) {
+                ypix.pix[i] = *(input_y + src_index2 + k);
+                upix.pix[i] = *(input_uv + src_index2 + k);
+            }
+        }
+        else {
+            for(uchar k=0;i<5;i++,k++) {
+                ypix.pix[i] = *(input_y + src_index2 + k);
+            }
+        }
+    }
+    ushort pix = 0;
+    uchar bit_loc = 0;
+    uchar bit_pos = 0;
+    if (y < (height >> 1)) {
+        for (i=0; i<4; i++) {
+            bit_pos = i * 10;
+            byte_loc = bit_pos >> 3;
+            bit_loc = bit_pos - (byte_loc << 3);
+            pix = ((ypix.pix[byte_loc] << 8) |
+                 ypix.pix[(byte_loc + 1)]);
+            pix = pix >> (8 - bit_loc);
+            *(output_y + dst_index + 2*i) = pix & 0xff;
+            *(output_y + dst_index + 2*i + 1) = pix & 0xff;
+            *(output_y + dst_index2 + 2*i) = pix & 0xff;
+            *(output_y + dst_index2 + 2*i+1) = pix & 0xff;
+
+            pix = (upix.pix[byte_loc] << 8) |
+                 (upix.pix[byte_loc + 1]);
+            pix = pix >> (8 - bit_loc);
+            *(output_uv + dst_index + i) = pix & 0xff;
+            *(output_uv + dst_index + i + 4) = pix & 0xff;
+            *(output_uv + dst_index2 + i) = pix & 0xff;
+            *(output_uv + dst_index2 + i + 4) = pix & 0xff;
+        }
+    }
+    else {
+        for (i=0; i<4; i++) {
+            bit_pos = i * 10;
+            byte_loc = bit_pos >> 3;
+            bit_loc = bit_pos - (byte_loc << 3);
+            pix = ((ypix.pix[byte_loc] << 8) |
+                 ypix.pix[(byte_loc + 1)]);
+            pix = pix >> (8 - bit_loc);
+            *(output_y + dst_index + 2*i) = pix & 0xff;
+            *(output_y + dst_index + 2*i + 1) = pix & 0xff;
+            *(output_y + dst_index2 + 2*i) = pix & 0xff;
+            *(output_y + dst_index2 + 2*i+1) = pix & 0xff;
+        }
+    }
+}
+
+__kernel void nv12_tiled_to_linear(__global const uchar8 *input_y,
+        __global const uchar8 *input_uv, __global uchar8 *output_y,
+        __global uchar8 *output_uv, int src_stride, int width, int height)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1) * 2;
+    int src_index = x * 8 * 128 + (y&127) * 8 + (y / 128) * src_stride * 128;
+    int dst_index1 = x * 8 + y * width;
+    int dst_index2 = x * 8 + (y+1) * width;
+
+    *(output_y + (dst_index1 >> 3)) = *(input_y + (src_index >> 3));
+    *(output_y + (dst_index2 >> 3)) = *(input_y + (src_index >> 3) + 1);
+    if (y < (height >> 1)) {
+        *(output_uv + (dst_index1 >> 3)) = *(input_uv + (src_index >> 3));
+        *(output_uv + (dst_index2 >> 3)) = *(input_uv + (src_index >> 3) + 1);
+    }
+}
+
 __kernel void g2d_yuyv_to_nv12(__global const uchar8 *input,
         __global uchar4 *output_y,
         __global uchar4 *output_uv,

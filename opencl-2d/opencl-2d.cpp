@@ -26,6 +26,8 @@
 #define YUYV_TO_NV12_KERNEL "g2d_yuyv_to_nv12"
 #define YUYV_TO_YUYV_KERNEL "g2d_yuyv_to_yuyv"
 #define NV12_TO_NV21_KERNEL "g2d_nv12_to_nv21"
+#define NV12_TILED_TO_LINEAR_KERNEL "nv12_tiled_to_linear"
+#define NV12_10BIT_TILED_TO_LINEAR_KERNEL "nv12_10bit_tiled_to_linear"
 #define MEM_COPY_KERNEL "g2d_mem_copy"
 
 /*Assume max buffer are 4 buffers to be handle */
@@ -40,8 +42,10 @@ typedef enum {
     YUYV_TO_YUYV_INDEX   = 1,
     MEM_COPY_INDEX       = 2,
     NV12_TO_NV21_INDEX   = 3,
+    NV12_TILED_TO_LINEAR_INDEX = 4,
+    NV12_10BIT_TILED_TO_LINEAR_INDEX = 5,
     /*Assume max kernel function to handle 2D convert */
-    MAX_CL_KERNEL_COUNT  = 4
+    MAX_CL_KERNEL_COUNT  = 6
 } cl_kernel_index;
 
 static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
@@ -49,6 +53,8 @@ static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
     YUYV_TO_YUYV_KERNEL,
     MEM_COPY_KERNEL,
     NV12_TO_NV21_KERNEL,
+    NV12_TILED_TO_LINEAR_KERNEL,
+    NV12_10BIT_TILED_TO_LINEAR_KERNEL,
     NULL,
 };
 
@@ -103,10 +109,16 @@ static int g2d_get_planebpp(unsigned int format, int plane)
          */
         case CL_G2D_NV12:
         case CL_G2D_NV21:
+        case CL_G2D_NV12_TILED:
             if(plane == 0)
                return 8;
             else
                return 4;
+        case CL_G2D_NV12_10BIT_TILED:
+            if(plane == 0)
+               return 10;
+            else
+               return 5;
 
         case CL_G2D_YV12:
         case CL_G2D_I420:
@@ -144,6 +156,8 @@ static int g2d_get_planecount(unsigned int format)
          */
         case CL_G2D_NV12:
         case CL_G2D_NV21:
+        case CL_G2D_NV12_10BIT_TILED:
+        case CL_G2D_NV12_TILED:
             return 2;
         case CL_G2D_YV12:
         case CL_G2D_I420:
@@ -159,6 +173,11 @@ static int g2d_get_planesize(struct cl_g2d_surface *surface, int plane)
     int bpp = g2d_get_planebpp(surface->format, plane);
     if(plane >= g2d_get_planecount(surface->format))
         return 0;
+
+    if (surface->format == CL_G2D_NV12_10BIT_TILED) {
+        return (plane == 0) ? surface->stride * surface->height :
+                surface->stride * surface->height / 2;
+    }
 
     return surface->stride * surface->height * bpp / 8;
 }
@@ -702,6 +721,12 @@ static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *d
     else if ((src->format == CL_G2D_NV12)&&
         (dst->format == CL_G2D_NV21))
         kernel_index = NV12_TO_NV21_INDEX;
+    else if ((src->format == CL_G2D_NV12_TILED)&&
+        (dst->format == CL_G2D_NV12))
+        kernel_index = NV12_TILED_TO_LINEAR_INDEX;
+    else if ((src->format == CL_G2D_NV12_10BIT_TILED)&&
+        (dst->format == CL_G2D_NV12))
+        kernel_index = NV12_10BIT_TILED_TO_LINEAR_INDEX;
 
     return kernel_index;
 
@@ -795,6 +820,28 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(height));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_stride));
+        }
+        else if (kernel_index == NV12_TILED_TO_LINEAR_INDEX) {
+            // for nv12 8bit tiled, 16 pixels with one kernel calls
+            int width = dst->width;
+            int height = dst->height;
+            int src_stride = src->stride;
+            kernel_width = width / 8;
+            kernel_height = height / 2;
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(height));
+        }
+        else if (kernel_index == NV12_10BIT_TILED_TO_LINEAR_INDEX) {
+            // for nv12 10bit tiled, 16 pixels with one kernel calls
+            int width = dst->width;
+            int height = dst->height;
+            int src_stride = src->stride;
+            kernel_width = width / 8;
+            kernel_height = height / 2;
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(height));
         }
 
         if (errNum != CL_SUCCESS)
