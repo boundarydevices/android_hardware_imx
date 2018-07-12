@@ -60,6 +60,11 @@
 #define MIXER_RT5645_STO1_ADC_MIXL_ADC1_SWITCH "Sto1 ADC MIXL ADC1 Switch"
 #define MIXER_RT5645_STO1_ADC_MIXR_ADC1_SWITCH "Sto1 ADC MIXR ADC1 Switch"
 
+// build-in mic
+#define MIXER_SLOT1_ADC_MIXR_ADC2_SWITCH "Sto1 ADC MIXR ADC2 Switch"
+#define MIXER_SLOT1_ADC_MIXL_ADC2_SWITCH "Sto1 ADC MIXL ADC2 Switch"
+#define MIXER_STEREO1_ADC2_MUX "Stereo1 ADC2 Mux"
+#define MIXER_I2S2_FUNC_SWITCH "I2S2 Func Switch"
 
 /* These are values that never change */
 static struct route_setting defaults_rt5645[] = {
@@ -156,10 +161,7 @@ static struct route_setting headset_output_rt5645[] = {
     },
 };
 
-// Fix me. Actually, it's setting for headset input.
-// Will enable both headset input and built-in input after
-// kernel support built-in input and auto detect headset jack insert.
-static struct route_setting mm_main_mic_input_rt5645[] = {
+static struct route_setting mm_headset_input_rt5645[] = {
     {
         .ctl_name = MIXER_RT5645_ADC_CAPTURE_SWITCH, .intval = 1,
     },
@@ -180,6 +182,24 @@ static struct route_setting mm_main_mic_input_rt5645[] = {
     },
     {
         .ctl_name = MIXER_RT5645_STO1_ADC_MIXR_ADC1_SWITCH, .intval = 1,
+    },
+    {
+        .ctl_name = NULL,
+    },
+};
+
+static struct route_setting mm_built_in_mic_input_rt5645[] = {
+    {
+        .ctl_name = MIXER_SLOT1_ADC_MIXR_ADC2_SWITCH, .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_SLOT1_ADC_MIXL_ADC2_SWITCH, .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_STEREO1_ADC2_MUX, .strval = "DMIC",
+    },
+    {
+        .ctl_name = MIXER_I2S2_FUNC_SWITCH, .intval = 0,
     },
     {
         .ctl_name = NULL,
@@ -208,9 +228,9 @@ static struct audio_card rt5645_card = {
     .hs_output = headset_output_rt5645,
     .earpiece_output = NULL,
     .vx_hs_mic_input = NULL,
-    .mm_main_mic_input = mm_main_mic_input_rt5645,
+    .mm_main_mic_input = mm_built_in_mic_input_rt5645,
     .vx_main_mic_input = NULL,
-    .mm_hs_mic_input = NULL,
+    .mm_hs_mic_input = mm_headset_input_rt5645,
     .vx_bt_mic_input = NULL,
     .mm_bt_mic_input = NULL,
     .card = 0,
