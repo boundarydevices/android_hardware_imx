@@ -80,7 +80,8 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
      * 3) secure memory should use ION.
      * 4) Dim buffer should use ION.
      * 5) VPU post process buffer (RGB565, USAGE_PADDING_BUFFER) use ION.
-     * 6) other conditions can use DRM Gralloc.
+     * 6) encoder memory should use ION.
+     * 7) other conditions can use DRM Gralloc.
     */
     if (flags & (FLAGS_FRAMEBUFFER | FLAGS_SECURE | FLAGS_DIMBUFFER)) {
         canHandle = false;
@@ -97,6 +98,9 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
         format == FORMAT_NV12_G1_TILED || format == FORMAT_NV12_G2_TILED ||
         format == FORMAT_NV12_G2_TILED_COMPRESSED || format == FORMAT_P010 ||
         format == FORMAT_P010_TILED || format == FORMAT_P010_TILED_COMPRESSED) {
+        canHandle = false;
+    }
+    else if (usage & USAGE_HW_VIDEO_ENCODER) {
         canHandle = false;
     }
 
