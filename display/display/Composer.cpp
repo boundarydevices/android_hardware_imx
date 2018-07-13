@@ -623,7 +623,7 @@ int Composer::unlockSurface(Memory *handle)
     return (*mUnlockSurface)(handle);
 }
 
-int Composer::setClipping(Rect& src, Rect& dst, Rect& clip, int rotation)
+int Composer::setClipping(Rect& /*src*/, Rect& /*dst*/, Rect& clip, int /*rotation*/)
 {
     if (mSetClipping == NULL) {
         return -EINVAL;

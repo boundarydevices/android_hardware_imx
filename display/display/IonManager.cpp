@@ -132,7 +132,7 @@ int IonManager::lock(Memory* handle, int /*usage*/,
 }
 
 int IonManager::lockYCbCr(Memory* handle, int /*usage*/,
-        int /*l*/, int /*t*/, int /*w*/, int /*h*/, android_ycbcr* ycbcr)
+        int /*l*/, int /*t*/, int /*w*/, int /*h*/, android_ycbcr* /*ycbcr*/)
 {
     if (handle->base == 0) {
         getVaddrs(handle);

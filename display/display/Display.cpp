@@ -77,12 +77,12 @@ Display::~Display()
     }
 }
 
-int Display::setPowerMode(int mode)
+int Display::setPowerMode(int /*mode*/)
 {
     return -1;
 }
 
-void Display::setVsyncEnabled(bool enabled)
+void Display::setVsyncEnabled(bool /*enabled*/)
 {
 }
 
@@ -200,7 +200,7 @@ int Display::getActiveId()
     return mActiveConfig;
 }
 
-bool Display::checkOverlay(Layer* layer)
+bool Display::checkOverlay(Layer* /*layer*/)
 {
     return false;
 }
