@@ -71,6 +71,7 @@ public:
     int origType;
     int type;
     Memory* handle;
+    Memory* lastHandle;
     int transform;
     int blendMode;
     int planeAlpha;
@@ -79,10 +80,13 @@ public:
     Rect sourceCrop;
     Rect displayFrame;
     Region visibleRegion;
+    Rect lastSourceCrop;
+    Rect lastDisplayFrame;
     int acquireFence;
     int releaseFence;
     int index;
     bool isHdrMode;
+    bool isOverlay;
     void* priv;
 };
 

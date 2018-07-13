@@ -179,6 +179,7 @@ protected:
     int mComposeFlag;
     Edid* mEdid;
     bool mResetHdrMode;
+    bool mUiUpdate;
 };
 
 }

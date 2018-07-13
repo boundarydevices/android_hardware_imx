@@ -495,6 +495,7 @@ bool KmsDisplay::checkOverlay(Layer* layer)
     }
 
     mOverlay = layer;
+    layer->isOverlay = true;
 
     return true;
 }
@@ -732,7 +733,13 @@ int KmsDisplay::updateScreen()
     }
 
     if (mOverlay != NULL) {
-        mOverlay->releaseFence = (mReturnFence > 0) ? dup(mReturnFence) : -1;
+        if (mUiUpdate) {
+            mOverlay->releaseFence = (mReturnFence > 0) ? dup(mReturnFence) : -1;
+        }
+        else {
+            mOverlay->releaseFence = mReturnFence;
+            mReturnFence = -1;
+        }
         mOverlay = NULL;
     }
 

@@ -55,6 +55,7 @@ Display::Display()
     mComposeFlag = 0;
     mEdid = NULL;
     mResetHdrMode = false;
+    mUiUpdate = false;
 }
 
 Display::~Display()
@@ -253,6 +254,10 @@ void Display::resetLayerLocked(Layer* layer)
     layer->releaseFence = -1;
     layer->isHdrMode = false;
     layer->priv = NULL;
+    layer->lastHandle = NULL;
+    layer->isOverlay = false;
+    layer->lastSourceCrop.clear();
+    layer->lastDisplayFrame.clear();
 }
 
 void Display::releaseLayer(int index)
@@ -395,6 +400,7 @@ bool Display::verifyLayers()
 {
     bool deviceCompose = true;
     bool rotationCap = mComposer.isFeatureSupported(G2D_ROTATION);
+    mUiUpdate = false;
 
     Mutex::Autolock _l(mLock);
     mLayerVector.clear();
@@ -465,9 +471,36 @@ bool Display::verifyLayers()
         if (!deviceCompose) {
             mLayers[i]->type = LAYER_TYPE_CLIENT;
             mComposeFlag |= 1 << CLIENT_COMPOSE_BIT;
+
+            // Here compare current layer info with previous one to determine
+            // whether UI has update. IF no update,won't commit to framebuffer
+            // to avoid UI re-composition.
+            if (mLayers[i]->handle != mLayers[i]->lastHandle ||
+                    mLayers[i]->lastSourceCrop != mLayers[i]->sourceCrop ||
+                    mLayers[i]->lastDisplayFrame != mLayers[i]->displayFrame){
+                mUiUpdate = true;
+            }
+
+            mLayers[i]->lastHandle = mLayers[i]->handle;
+            mLayers[i]->lastSourceCrop = mLayers[i]->sourceCrop;
+            mLayers[i]->lastDisplayFrame = mLayers[i]->displayFrame;
             continue;
         }
         mLayerVector.add(mLayers[i]);
+    }
+
+    if ((mComposeFlag & 1 << OVERLAY_COMPOSE_BIT) &&
+            (mComposeFlag & 1 << LAST_OVERLAY_BIT) && !mUiUpdate) {
+        for (size_t i=0; i<MAX_LAYERS; i++) {
+            if (!mLayers[i]->busy) {
+                continue;
+            }
+            if (mLayers[i]->isOverlay)
+                continue;
+            if (mLayers[i]->type == LAYER_TYPE_CLIENT) {
+                mLayers[i]->type = LAYER_TYPE_DEVICE;
+            }
+        }
     }
 
     return deviceCompose;
