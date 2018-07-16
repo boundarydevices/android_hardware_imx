@@ -24,12 +24,7 @@
 static struct audio_card  hdmi_card = {
     .name = "imx-hdmi-soc",
     .driver_name = "imx-hdmi-soc",
-    .supported_out_devices  = (
-	AUDIO_DEVICE_OUT_AUX_DIGITAL
-	| AUDIO_DEVICE_OUT_WIRED_HEADPHONE
-	| AUDIO_DEVICE_OUT_SPEAKER
-	| AUDIO_DEVICE_OUT_EARPIECE
-	| AUDIO_DEVICE_OUT_DEFAULT ),
+    .supported_out_devices  = AUDIO_DEVICE_OUT_AUX_DIGITAL,
     .supported_in_devices   = 0,
     .defaults            = NULL,
     .bt_output           = NULL,
