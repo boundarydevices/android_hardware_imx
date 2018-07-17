@@ -39,18 +39,18 @@ LOCAL_VENDOR_MODULE := true
 LOCAL_SRC_FILES := 						\
 				sensors.cpp 			\
 				SensorBase.cpp			\
-				FSLSensorsHub.cpp		\
-				PressSensor.cpp			\
-				InputEventReader.cpp            \
-				Stepcounter.cpp                 \
-				Stepdetector.cpp                \
-				LightSensor.cpp
+				InputEventReader.cpp
 
 ifeq ($(BOARD_USE_LEGACY_SENSOR),true)
-	LOCAL_CFLAGS += -DCONFIG_LEGACY_SENSOR
+    LOCAL_CFLAGS += -DCONFIG_LEGACY_SENSOR
+    LOCAL_SRC_FILES += FSLSensorsHub.cpp
+    LOCAL_SRC_FILES += PressSensor.cpp
+    LOCAL_SRC_FILES += LightSensor.cpp
 endif
 ifeq ($(BOARD_USE_SENSOR_PEDOMETER),true)
-	LOCAL_CFLAGS += -DCONFIG_SENSOR_PEDOMETER
+    LOCAL_CFLAGS += -DCONFIG_SENSOR_PEDOMETER
+    LOCAL_SRC_FILES += Stepdetector.cpp
+    LOCAL_SRC_FILES += Stepcounter.cpp
 endif
 
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl

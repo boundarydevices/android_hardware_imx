@@ -350,12 +350,16 @@ int sensors_poll_context_t::fillPollFd(){
 }
 sensors_poll_context_t::sensors_poll_context_t()
 {
+#ifdef CONFIG_LEGACY_SENSOR
     mSensors[fsl_sens] = new FSLSensorsHub();
     mSensors[press] = new PressSensor();
     mSensors[temperature] = new PressSensor();
     mSensors[light] = new LightSensor();
+#endif
+#ifdef CONFIG_SENSOR_PEDOMETER
     mSensors[step_counter] = new Stepcounter();
     mSensors[step_detector] = new Stepdetector();
+#endif
 
 	fillPollFd();
 	magRunTimes = 0;
