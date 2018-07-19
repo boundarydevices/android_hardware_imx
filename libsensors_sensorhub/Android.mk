@@ -14,11 +14,11 @@
 ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
 
 ifeq ($(BOARD_USE_SENSOR_FUSION),true)
-	COMPILE_SENSOR_HUB = true
+    COMPILE_SENSOR_HUB = true
 endif
 
 ifeq ($(BOARD_USE_SENSOR_FUSION_64BIT),true)
-	COMPILE_SENSOR_HUB = true
+    COMPILE_SENSOR_HUB = true
 endif
 
 LOCAL_PATH := $(call my-dir)
@@ -36,10 +36,10 @@ LOCAL_MODULE := sensors.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := eng
 
 LOCAL_VENDOR_MODULE := true
-LOCAL_SRC_FILES := 						\
-				sensors.cpp 			\
-				SensorBase.cpp			\
-				InputEventReader.cpp
+LOCAL_SRC_FILES :=                      \
+            sensors.cpp                 \
+            SensorBase.cpp              \
+            InputEventReader.cpp
 
 ifeq ($(BOARD_USE_LEGACY_SENSOR),true)
     LOCAL_CFLAGS += -DCONFIG_LEGACY_SENSOR

@@ -28,12 +28,12 @@
 #include <cutils/properties.h>
 #include "PressSensor.h"
 
-#define PRESS_DATA_NAME    "mpl3115" 
+#define PRESS_DATA_NAME    "mpl3115"
 #define PRESS_SYSFS_PATH   "/sys/class/input"
 #define PRESS_SYSFS_DELAY  "poll"
 #define PRESS_SYSFS_ENABLE "enable"
-#define PRESS_EVENT 		ABS_PRESSURE
-#define TEMPERATURE_EVENT 	ABS_MISC
+#define PRESS_EVENT        ABS_PRESSURE
+#define TEMPERATURE_EVENT  ABS_MISC
 #define PRESS_DATA_CONVERSION(value) (float)((float)(((int)value)/(4.0f*100)))
 #define TEMPERATURE_DATA_CONVERSION(value) (float)((float)(((int)value)/(16.0f)))
 
@@ -44,27 +44,26 @@ PressSensor::PressSensor()
 {
     ALOGD("sendrolon press sensor init");
     memset(&mPendingEvent[0], 0, sensors *sizeof(sensors_event_t));
-	memset(mClassPath, '\0', sizeof(mClassPath));
+    memset(mClassPath, '\0', sizeof(mClassPath));
 
-	mEnabled[press] = 0;
-	mDelay[press] = 0;
+    mEnabled[press] = 0;
+    mDelay[press] = 0;
     mPendingEvent[press].version = sizeof(sensors_event_t);
     mPendingEvent[press].sensor  = ID_P;
     mPendingEvent[press].type    = SENSOR_TYPE_PRESSURE;
     mPendingEvent[press].magnetic.status = SENSOR_STATUS_ACCURACY_HIGH;
     mPendingEvent[press].version = sizeof(sensors_event_t);
 
-	mEnabled[temperature] = 0;
-	mDelay[temperature] = 0;
+    mEnabled[temperature] = 0;
+    mDelay[temperature] = 0;
     mPendingEvent[temperature].sensor  = ID_T;
     mPendingEvent[temperature].type    = SENSOR_TYPE_AMBIENT_TEMPERATURE;
     mPendingEvent[temperature].orientation.status = SENSOR_STATUS_ACCURACY_HIGH;
-	mPendingEvent[temperature].version = sizeof(sensors_event_t);
-	
-	if(sensor_get_class_path(mClassPath))
-	{
-		ALOGE("Can`t find the press sensor!");
-	}
+    mPendingEvent[temperature].version = sizeof(sensors_event_t);
+
+    if(sensor_get_class_path(mClassPath)) {
+        ALOGE("Can`t find the press sensor!");
+    }
 }
 
 PressSensor::~PressSensor()
@@ -73,27 +72,30 @@ PressSensor::~PressSensor()
 
 int PressSensor::setEnable(int32_t handle, int en)
 {
-	int err = 0;
-	int what = press;
+    int err = 0;
+    int what = press;
     switch(handle){
-		case ID_P : what = press; break;
-		case ID_T : what = temperature; break;
+        case ID_P : what = press; break;
+        case ID_T : what = temperature; break;
     }
 
     if(en)
-		mEnabled[what]++;
-	else
-		mEnabled[what]--;
-	if(mEnabled[what] < 0)
-		mEnabled[what] = 0;
-	if(mEnabled[press] > 0 || mEnabled[temperature] > 0)
-		err = enable_sensor();
-	else
-		err = disable_sensor();
-	if (!err) {
-            update_delay(what);
+        mEnabled[what]++;
+    else
+        mEnabled[what]--;
+
+    if(mEnabled[what] < 0)
+        mEnabled[what] = 0;
+
+    if(mEnabled[press] > 0 || mEnabled[temperature] > 0)
+        err = enable_sensor();
+    else
+        err = disable_sensor();
+
+    if (!err) {
+        update_delay(what);
     }
-	ALOGD("PressSensor mEnabled %d, Temperature mEnabled %d\n",mEnabled[press],mEnabled[temperature]);
+    ALOGD("PressSensor mEnabled %d, Temperature mEnabled %d\n",mEnabled[press],mEnabled[temperature]);
     return err;
 }
 
@@ -101,10 +103,10 @@ int PressSensor::setDelay(int32_t handle, int64_t ns)
 {
     if (ns < 0)
         return -EINVAL;
-	int what = press;
+    int what = press;
     switch(handle){
-		case ID_P : what = press; break;
-		case ID_T : what = temperature; break;
+        case ID_P : what = press; break;
+        case ID_T : what = temperature; break;
     }
 
     mDelay[what] = ns;
@@ -117,12 +119,12 @@ int PressSensor::update_delay(int sensor_type)
         return set_delay(mDelay[sensor_type]);
     }
     else
-	    return 0;
+        return 0;
 }
 
 int PressSensor::readEvents(sensors_event_t* data, int count)
 {
-	int i;
+    int i;
     if (count < 1)
         return -EINVAL;
 
@@ -140,20 +142,20 @@ int PressSensor::readEvents(sensors_event_t* data, int count)
             mInputReader.next();
         } else if (type == EV_SYN) {
             int64_t time = timevalToNano(event->time);
-			for(i = 0 ; i< sensors && mPendingMask && count ;i++){
-			  	 	if(mPendingMask & (1 << i)){
-						mPendingMask &= ~(1 << i);
-						mPendingEvent[i].timestamp = getTimestamp();
-						if (mEnabled[i]) {
-							*data++ = mPendingEvent[i];
-							count--;
-							numEventReceived++;
-						}
-			  	 	}
-	       }
-		   if (!mPendingMask) {
-		       mInputReader.next();
-		   }
+                for(i = 0 ; i< sensors && mPendingMask && count ;i++){
+                    if(mPendingMask & (1 << i)){
+                        mPendingMask &= ~(1 << i);
+                        mPendingEvent[i].timestamp = getTimestamp();
+                            if (mEnabled[i]) {
+                                *data++ = mPendingEvent[i];
+                                count--;
+                                numEventReceived++;
+                            }
+                    }
+                }
+            if (!mPendingMask) {
+                mInputReader.next();
+            }
         } else {
             mInputReader.next();
         }
@@ -164,7 +166,6 @@ int PressSensor::readEvents(sensors_event_t* data, int count)
 
 void PressSensor::processEvent(int code, int value)
 {
-
     switch (code) {
         case PRESS_EVENT:
             mPendingMask |= 1 << press;
@@ -173,69 +174,69 @@ void PressSensor::processEvent(int code, int value)
         case TEMPERATURE_EVENT:
             mPendingMask |= 1 << temperature;
             mPendingEvent[temperature].temperature = TEMPERATURE_DATA_CONVERSION(value);
-			break;
+            break;
     }
 }
 
 int PressSensor::writeEnable(int isEnable) {
-	char attr[PATH_MAX] = {'\0'};
-	if(mClassPath[0] == '\0')
-		return -1;
+    char attr[PATH_MAX] = {'\0'};
+    if(mClassPath[0] == '\0')
+    return -1;
 
-	strcpy(attr, mClassPath);
-	strcat(attr,"/");
-	strcat(attr,PRESS_SYSFS_ENABLE);
+    strcpy(attr, mClassPath);
+    strcat(attr,"/");
+    strcat(attr,PRESS_SYSFS_ENABLE);
 
-	int fd = open(attr, O_RDWR);
-	if (0 > fd) {
-		ALOGE("Could not open (write-only) SysFs attribute \"%s\" (%s).", attr, strerror(errno));
-		return -errno;
-	}
+    int fd = open(attr, O_RDWR);
+    if (0 > fd) {
+        ALOGE("Could not open (write-only) SysFs attribute \"%s\" (%s).", attr, strerror(errno));
+        return -errno;
+    }
 
-	char buf[2];
+    char buf[2];
 
-	if (isEnable) {
-		buf[0] = '1';
-	} else {
-		buf[0] = '0';
-	}
-	buf[1] = '\0';
+    if (isEnable) {
+        buf[0] = '1';
+    } else {
+        buf[0] = '0';
+    }
+    buf[1] = '\0';
 
-	int err = 0;
-	err = write(fd, buf, sizeof(buf));
+    int err = 0;
+    err = write(fd, buf, sizeof(buf));
 
-	if (0 > err) {
-		err = -errno;
-		ALOGE("Could not write SysFs attribute \"%s\" (%s).", attr, strerror(errno));
-	} else {
-		err = 0;
-	}
+    if (0 > err) {
+        err = -errno;
+        ALOGE("Could not write SysFs attribute \"%s\" (%s).", attr, strerror(errno));
+     } else {
+        err = 0;
+    }
 
-	close(fd);
+    close(fd);
 
-	return err;
+    return err;
 }
 
 int PressSensor::writeDelay(int64_t ns) {
-	char attr[PATH_MAX] = {'\0'};
-	if(mClassPath[0] == '\0')
-		return -1;
+    char attr[PATH_MAX] = {'\0'};
+    if(mClassPath[0] == '\0')
+        return -1;
 
-	strcpy(attr, mClassPath);
-	strcat(attr,"/");
-	strcat(attr,PRESS_SYSFS_DELAY);
+    strcpy(attr, mClassPath);
+    strcat(attr,"/");
+    strcat(attr,PRESS_SYSFS_DELAY);
 
-	int fd = open(attr, O_RDWR);
-	if (0 > fd) {
-		ALOGE("Could not open (write-only) SysFs attribute \"%s\" (%s).", attr, strerror(errno));
-		return -errno;
-	}
-	if (ns > 10240000000LL) {
-		ns = 10240000000LL; /* maximum delay in nano second. */
-	}
-	if (ns < 312500LL) {
-		ns = 312500LL; /* minimum delay in nano second. */
-	}
+    int fd = open(attr, O_RDWR);
+    if (0 > fd) {
+        ALOGE("Could not open (write-only) SysFs attribute \"%s\" (%s).", attr, strerror(errno));
+        return -errno;
+    }
+    if (ns > 10240000000LL) {
+        ns = 10240000000LL; /* maximum delay in nano second. */
+    }
+    if (ns < 312500LL) {
+        ns = 312500LL; /* minimum delay in nano second. */
+    }
 
     char buf[80];
     sprintf(buf, "%lld", ns/1000/1000);
@@ -246,73 +247,73 @@ int PressSensor::writeDelay(int64_t ns) {
 }
 
 int PressSensor::enable_sensor() {
-	return writeEnable(1);
+    return writeEnable(1);
 }
 
 int PressSensor::disable_sensor() {
-	return writeEnable(0);
+    return writeEnable(0);
 }
 
 int PressSensor::set_delay(int64_t ns) {
-	return writeDelay(ns);
+    return writeDelay(ns);
 }
 
 int PressSensor::getEnable(int32_t handle) {
-	int what = press;
-	if(handle == ID_P)
-		what = press;
-	else if(handle == ID_T)
-		what = temperature;
-	return mEnabled[what];
+    int what = press;
+    if(handle == ID_P)
+        what = press;
+    else if(handle == ID_T)
+        what = temperature;
+    return mEnabled[what];
 }
 
 int PressSensor::sensor_get_class_path(char *class_path)
 {
-	char dirname[] = PRESS_SYSFS_PATH;
-	char buf[256];
-	int res;
-	DIR *dir;
-	struct dirent *de;
-	int fd = -1;
-	int found = 0;
+    char dirname[] = PRESS_SYSFS_PATH;
+    char buf[256];
+    int res;
+    DIR *dir;
+    struct dirent *de;
+    int fd = -1;
+    int found = 0;
 
-	dir = opendir(dirname);
-	if (dir == NULL)
-		return -1;
+    dir = opendir(dirname);
+    if (dir == NULL)
+        return -1;
 
-	while((de = readdir(dir))) {
-		if (strncmp(de->d_name, "input", strlen("input")) != 0) {
-		    continue;
-        	}
+    while((de = readdir(dir))) {
+        if (strncmp(de->d_name, "input", strlen("input")) != 0) {
+            continue;
+        }
 
-		sprintf(class_path, "%s/%s", dirname, de->d_name);
-		snprintf(buf, sizeof(buf), "%s/name", class_path);
+        sprintf(class_path, "%s/%s", dirname, de->d_name);
+        snprintf(buf, sizeof(buf), "%s/name", class_path);
 
-		fd = open(buf, O_RDONLY);
-		if (fd < 0) {
-		    continue;
-		}
-		if ((res = read(fd, buf, sizeof(buf))) < 0) {
-		    close(fd);
-		    continue;
-		}
-		buf[res - 1] = '\0';
-		if (strcmp(buf, PRESS_DATA_NAME) == 0) {
-		    found = 1;
-		    close(fd);
-		    break;
-		}
+        fd = open(buf, O_RDONLY);
+        if (fd < 0) {
+            continue;
+        }
+        if ((res = read(fd, buf, sizeof(buf))) < 0) {
+            close(fd);
+            continue;
+        }
+        buf[res - 1] = '\0';
+        if (strcmp(buf, PRESS_DATA_NAME) == 0) {
+            found = 1;
+            close(fd);
+            break;
+        }
 
-		close(fd);
-		fd = -1;
-	}
-	closedir(dir);
-	if (found) {
-		return 0;
-	}else {
-		*class_path = '\0';
-		return -1;
-	}
+        close(fd);
+        fd = -1;
+    }
+    closedir(dir);
+    if (found) {
+        return 0;
+    }else {
+        *class_path = '\0';
+        return -1;
+    }
 }
 
 /*****************************************************************************/

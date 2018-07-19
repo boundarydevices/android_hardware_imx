@@ -88,7 +88,7 @@ int LightSensor::enable(int32_t handle, int en)
         strcpy(&ls_sysfs_path[ls_sysfs_path_len], "mode");
         fd = fopen(ls_sysfs_path, "r+");
 
-	ALOGE("########fopen %s\n", ls_sysfs_path);
+        ALOGE("########fopen %s\n", ls_sysfs_path);
 
         if (fd) {
             memset(buf, 0, 2);
@@ -124,7 +124,7 @@ int LightSensor::setIntLux()
     if ((n = fread(buf, 1, 6, fd)) < 0) {
         ALOGE("Unable to read %s\n", ls_sysfs_path);
         fclose(fd);
-	return -1;
+        return -1;
     }
     fclose(fd);
 
@@ -133,7 +133,7 @@ int LightSensor::setIntLux()
     int_lt_lux = lux - mThresholdLux;
 
     if (int_lt_lux < 0)
-	    int_lt_lux = 0;
+        int_lt_lux = 0;
 
     DEBUG("Current light is %d lux\n", lux);
 
@@ -159,6 +159,7 @@ int LightSensor::setIntLux()
 
     return 0;
 }
+
 bool LightSensor::hasPendingEvents() const {
     return mHasPendingEvent;
 }

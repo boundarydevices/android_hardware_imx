@@ -35,7 +35,6 @@ SensorBase::SensorBase(
       dev_fd(-1),
       data_fd(-1)
 {
-
     if (data_name) {
         int retry;
         for(retry=0;retry<3;retry++)
@@ -46,27 +45,27 @@ SensorBase::SensorBase(
             ALOGE("retrying to open(%s)\n", data_name);
         }
     }
-	fifo_fd = -1;
-	fifo_name = NULL;
-	mBatchEnabled = false;
+    fifo_fd = -1;
+    fifo_name = NULL;
+    mBatchEnabled = false;
 }
 
 SensorBase::SensorBase(
-	const char* dev_name,
-	const char* data_name,
-	const char* fifo_name)
-	: dev_name(dev_name), data_name(data_name),fifo_name(fifo_name),
-     dev_fd(-1),
-     data_fd(-1),
-     fifo_fd(-1)
+    const char* dev_name,
+    const char* data_name,
+    const char* fifo_name)
+    : dev_name(dev_name), data_name(data_name),fifo_name(fifo_name),
+    dev_fd(-1),
+    data_fd(-1),
+    fifo_fd(-1)
 {
-	if (data_name) {
+    if (data_name) {
         data_fd = openInput(data_name);
     }
-	if(fifo_name){
-		open_fifo_device();
-	}
-	mBatchEnabled = false;
+    if(fifo_name){
+        open_fifo_device();
+    }
+    mBatchEnabled = false;
 }
 
 SensorBase::~SensorBase() {
@@ -76,10 +75,9 @@ SensorBase::~SensorBase() {
     if (dev_fd >= 0) {
         close(dev_fd);
     }
-	if(fifo_fd >= 0)
-	{
-		close(fifo_fd);
-	}
+    if(fifo_fd >= 0) {
+        close(fifo_fd);
+    }
 }
 
 int SensorBase::open_device() {
@@ -99,34 +97,37 @@ int SensorBase::close_device() {
 }
 
 int SensorBase::open_fifo_device(){
-	if (fifo_fd < 0 && fifo_name) {
+    if (fifo_fd < 0 && fifo_name) {
         fifo_fd = open(fifo_name, O_RDONLY);
         ALOGE_IF(fifo_fd < 0, "Couldn't  open %s (%s)", fifo_name, strerror(errno));
     }
-	return 0;
+    return 0;
 }
-int SensorBase::close_fifo_device(){
-	if (fifo_fd >= 0) {
+
+int SensorBase::close_fifo_device() {
+    if (fifo_fd >= 0) {
         close(fifo_fd);
         fifo_fd = -1;
     }
     return 0;
 }
-int SensorBase::getFd() const 
-{    
-	if(mBatchEnabled){
-		return fifo_fd;    
-	}else{       
-		return data_fd;    
-	}
+
+int SensorBase::getFd() const
+{
+    if(mBatchEnabled) {
+        return fifo_fd;
+    } else {
+        return data_fd;
+    }
 }
+
 int SensorBase::setEnable(int32_t handle, int enabled)
 {
-	return 0;
+    return 0;
 }
 int SensorBase::getEnable(int32_t handle)
 {
-	return 0;
+    return 0;
 }
 
 int SensorBase::setDelay(int32_t handle, int64_t ns) {
@@ -134,11 +135,11 @@ int SensorBase::setDelay(int32_t handle, int64_t ns) {
 }
 
 bool SensorBase::hasPendingEvents() const {
-	return false;
+    return false;
 }
-void  processEvent(int code, int value) 
-{
 
+void  processEvent(int code, int value)
+{
 }
 
 int64_t SensorBase::getTimestamp() {
@@ -150,9 +151,9 @@ int64_t SensorBase::getTimestamp() {
 
 int SensorBase::openInput(const char* inputName) {
     int fd = -1;
-	int input_id = -1;
+    int input_id = -1;
     const char *dirname = "/dev/input";
-	const char *inputsysfs = "/sys/class/input";
+    const char *inputsysfs = "/sys/class/input";
     char devname[PATH_MAX];
     char *filename;
     DIR *dir;
@@ -166,8 +167,7 @@ int SensorBase::openInput(const char* inputName) {
     *filename++ = '/';
     while((de = readdir(dir))) {
         if(de->d_name[0] == '.' &&
-                (de->d_name[1] == '\0' ||
-                        (de->d_name[1] == '.' && de->d_name[2] == '\0')))
+            (de->d_name[1] == '\0' ||(de->d_name[1] == '.' && de->d_name[2] == '\0')))
             continue;
         strcpy(filename, de->d_name);
         fd = open(devname, O_RDONLY);
@@ -179,7 +179,7 @@ int SensorBase::openInput(const char* inputName) {
             }
 
             if (!strcmp(name, inputName)) {
-                strcpy(input_name, filename);			
+                strcpy(input_name, filename);
                 break;
             } else {
                 close(fd);
@@ -193,20 +193,19 @@ int SensorBase::openInput(const char* inputName) {
 }
 int SensorBase::readEvents(sensors_event_t* data, int count)
 {
-  	return 0;
+    return 0;
 }
 int SensorBase::batch(int handle, int flags, int64_t period_ns, int64_t timeout){
-	
-	/*default , not support batch mode or SENSORS_BATCH_WAKE_UPON_FIFO_FULL */
-	if(timeout > 0 || flags & SENSORS_BATCH_WAKE_UPON_FIFO_FULL) 
-		return -EINVAL;
-	if(!(flags & SENSORS_BATCH_DRY_RUN)){
-		setDelay(handle,period_ns);
-	}
-	return 0;
+/*default , not support batch mode or SENSORS_BATCH_WAKE_UPON_FIFO_FULL */
+    if(timeout > 0 || flags & SENSORS_BATCH_WAKE_UPON_FIFO_FULL)
+        return -EINVAL;
+    if(!(flags & SENSORS_BATCH_DRY_RUN)){
+        setDelay(handle,period_ns);
+    }
+    return 0;
 }
 int SensorBase::flush(int handle){
-	return  -EINVAL;
+    return  -EINVAL;
 }
 
 

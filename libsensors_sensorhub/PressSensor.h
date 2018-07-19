@@ -41,26 +41,26 @@ public:
     void processEvent(int code, int value);
 
 private:
-	  enum {
-        press     	= 0,
-        temperature	= 1,
-        sensors  	= 2,			
+    enum {
+        press       = 0,
+        temperature = 1,
+        sensors     = 2,
     };
-	int sensor_get_class_path(char *class_path);
-	int is_sensor_enabled();
-	int enable_sensor();
-	int disable_sensor();
-	int set_delay(int64_t ns);
-	int update_delay(int sensor_type);
-	int readDisable();
-	int writeEnable(int isEnable);
-	int writeDelay(int64_t ns);
-	int mEnabled[sensors];
-	int mPendingMask;
-	char mClassPath[PATH_MAX];
-	InputEventCircularReader mInputReader;
-	sensors_event_t mPendingEvent[sensors];
-	int64_t mDelay[sensors];
+    int sensor_get_class_path(char *class_path);
+    int is_sensor_enabled();
+    int enable_sensor();
+    int disable_sensor();
+    int set_delay(int64_t ns);
+    int update_delay(int sensor_type);
+    int readDisable();
+    int writeEnable(int isEnable);
+    int writeDelay(int64_t ns);
+    int mEnabled[sensors];
+    int mPendingMask;
+    char mClassPath[PATH_MAX];
+    InputEventCircularReader mInputReader;
+    sensors_event_t mPendingEvent[sensors];
+    int64_t mDelay[sensors];
 };
 
 /*****************************************************************************/

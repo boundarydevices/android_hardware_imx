@@ -46,8 +46,8 @@ __BEGIN_DECLS
 #define ID_GR (9)
 #define ID_LA (10)
 #define ID_RV (11)
-#define ID_SD (12)		/*step detect*/
-#define ID_SC (13)	    /*step count*/
+#define ID_SD (12) /*step detect*/
+#define ID_SC (13) /*step count*/
 
 
 #define HWROTATION_0   (0)
@@ -78,11 +78,11 @@ __BEGIN_DECLS
 
 #define EVENT_TYPE_LIGHT            ABS_MISC
 
-#define EVENT_TYPE_PRESSURE	        ABS_PRESSURE
+#define EVENT_TYPE_PRESSURE         ABS_PRESSURE
 
-#define EVENT_TYPE_TEMPERATURE		ABS_MISC
+#define EVENT_TYPE_TEMPERATURE      ABS_MISC
 
-#define LSG                         (0x4000) // 
+#define LSG                         (0x4000)
 
 // conversion of acceleration data to SI units (m/s^2)
 #define RANGE_A                     (2*GRAVITY_EARTH)
@@ -105,7 +105,7 @@ __BEGIN_DECLS
 
 #define CONVERT_PRESSURE            (1.0f/(4.0f*100)) // hpa
 
-#define CONVERT_TEMPERATURE		    (1.0f/16.0f)     //Celsius
+#define CONVERT_TEMPERATURE         (1.0f/16.0f)     //Celsius
 
 
 #define SENSOR_STATE_MASK           (0x7FFF)

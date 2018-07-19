@@ -54,11 +54,11 @@
 #define SENSORS_PRESSURE_HANDLE         ID_P
 #define SENSORS_TEMPERATURE_HANDLE      ID_T
 #define SENSORS_PROXIMITY_HANDLE        ID_PX
-#define SENSORS_GRAVITY_HANDLE			ID_GR
-#define SENSORS_LINEAR_ACCEL_HANDLE		ID_LA
+#define SENSORS_GRAVITY_HANDLE          ID_GR
+#define SENSORS_LINEAR_ACCEL_HANDLE     ID_LA
 #define SENSORS_ROTATION_VECTOR_HANDLE  ID_RV
-#define SENSORS_STEP_DETECTOR_HANDLE  	ID_SD
-#define SENSORS_STEP_COUNTER_HANDLE  	ID_SC
+#define SENSORS_STEP_DETECTOR_HANDLE    ID_SD
+#define SENSORS_STEP_COUNTER_HANDLE     ID_SC
 
 /*****************************************************************************/
 
@@ -250,54 +250,57 @@ static const struct sensor_t sSensorList[] = {
 #endif
 };
 
-
 static int open_sensors(const struct hw_module_t* module, const char* id,
                         struct hw_device_t** device);
-
 
 static int sensors__get_sensors_list(struct sensors_module_t* module,
                                      struct sensor_t const** list)
 {
-        *list = sSensorList;
-        return ARRAY_SIZE(sSensorList);
+    *list = sSensorList;
+    return ARRAY_SIZE(sSensorList);
 }
 
 static struct hw_module_methods_t sensors_module_methods = {
-        open: open_sensors
+    open: open_sensors
 };
 
 struct sensors_module_t HAL_MODULE_INFO_SYM = {
-        common: {
-                tag: HARDWARE_MODULE_TAG,
-                version_major: 1,
-                version_minor: 1,
-                id: SENSORS_HARDWARE_MODULE_ID,
-                name: "Freescale Sensor module",
-                author: "Freescale Semiconductor Inc.",
-                methods: &sensors_module_methods,
-        },
-        get_sensors_list: sensors__get_sensors_list,
+    common: {
+        tag: HARDWARE_MODULE_TAG,
+        version_major: 1,
+        version_minor: 1,
+        id: SENSORS_HARDWARE_MODULE_ID,
+        name: "Freescale Sensor module",
+        author: "Freescale Semiconductor Inc.",
+        methods: &sensors_module_methods,
+    },
+    get_sensors_list: sensors__get_sensors_list,
 };
+
 struct sensors_poll_context_t {
     struct sensors_poll_device_1 device; // must be first
 
-        sensors_poll_context_t();
-        ~sensors_poll_context_t();
-	int fillPollFd();
+    sensors_poll_context_t();
+    ~sensors_poll_context_t();
+    int fillPollFd();
     int activate(int handle, int enabled);
     int setDelay(int handle, int64_t ns);
     int pollEvents(sensors_event_t* data, int count);
-	int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
-	int flush(int handle);
-	int magRunTimes;
+    int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
+    int flush(int handle);
+    int magRunTimes;
 private:
     enum {
+#ifdef CONFIG_LEGACY_SENSOR
         fsl_sens           = 0,
         press,
         temperature,
         light,
-	step_counter,
-	step_detector,
+#endif
+#ifdef CONFIG_SENSOR_PEDOMETER
+        step_counter,
+        step_detector,
+#endif
         numSensorDrivers,
         numFds,
     };
@@ -309,6 +312,15 @@ private:
 
     int handleToDriver(int handle) const {
         switch (handle) {
+#ifdef CONFIG_SENSOR_PEDOMETER
+            case ID_SD:
+               return step_detector;
+               break;
+            case ID_SC:
+               return step_counter;
+               break;
+#endif
+#ifdef CONFIG_LEGACY_SENSOR
             case ID_P:
                 return press;
                 break;
@@ -318,20 +330,15 @@ private:
             case ID_L:
                 return light;
                 break;
-	    case ID_SD:
-		return step_detector;
-		break;
-	    case ID_SC:
-		return step_counter;
-		break;
             case ID_A:
-          	case ID_M:
-          	case ID_O:
-			case ID_GY:
-			case ID_GR:
-			case ID_LA:
-			case ID_RV:
-			  return fsl_sens;
+            case ID_M:
+            case ID_O:
+            case ID_GY:
+            case ID_GR:
+            case ID_LA:
+            case ID_RV:
+                return fsl_sens;
+#endif
         }
         return -EINVAL;
     }
@@ -339,15 +346,16 @@ private:
 
 /*****************************************************************************/
 int sensors_poll_context_t::fillPollFd(){
-	int i = 0;
-	for(i = 0 ; i < numSensorDrivers; i++){
-		if(mSensors[i] != NULL)
-			 mPollFds[i].fd = mSensors[i]->getFd();
-   			 mPollFds[i].events = POLLIN;
-    		 mPollFds[i].revents = 0;
-	}
-	return 0;
+    int i = 0;
+    for(i = 0 ; i < numSensorDrivers; i++){
+    if(mSensors[i] != NULL)
+        mPollFds[i].fd = mSensors[i]->getFd();
+        mPollFds[i].events = POLLIN;
+        mPollFds[i].revents = 0;
+    }
+    return 0;
 }
+
 sensors_poll_context_t::sensors_poll_context_t()
 {
 #ifdef CONFIG_LEGACY_SENSOR
@@ -361,8 +369,8 @@ sensors_poll_context_t::sensors_poll_context_t()
     mSensors[step_detector] = new Stepdetector();
 #endif
 
-	fillPollFd();
-	magRunTimes = 0;
+    fillPollFd();
+    magRunTimes = 0;
     int wakeFds[2];
     int result = pipe(wakeFds);
     ALOGE_IF(result<0, "error creating wake pipe (%s)", strerror(errno));
@@ -387,7 +395,7 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
     int index = handleToDriver(handle);
     if (index < 0) return index;
     int err = 0 ;
-	err =  mSensors[index]->setEnable(handle, enabled);
+        err =  mSensors[index]->setEnable(handle, enabled);
     if (enabled && !err) {
         const char wakeMessage(WAKE_MESSAGE);
         int result = write(mWritePipeFd, &wakeMessage, 1);
@@ -411,7 +419,7 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
         for (int i=0 ; count && i<numSensorDrivers ; i++) {
             SensorBase* const sensor(mSensors[i]);
 
-	   if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
+            if ((mPollFds[i].revents & POLLIN) || (sensor->hasPendingEvents())) {
                 int nb = sensor->readEvents(data, count);
                 if (nb < count) {
                     // no more data for this sensor
@@ -428,10 +436,10 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
             // some events immediately or just wait if we don't have
             // anything to return
             //n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
-			do {
-				//fillPollFd(); /*reset poll fd , if sensor change between batch mode and continuous mode*/
-			 	n = poll(mPollFds, numFds, nbEvents ? 0 : -1);            
-			} while (n < 0 && errno == EINTR);
+            do {
+                //fillPollFd(); /*reset poll fd , if sensor change between batch mode and continuous mode*/
+                n = poll(mPollFds, numFds, nbEvents ? 0 : -1);
+            } while (n < 0 && errno == EINTR);
             if (n<0) {
                 ALOGE("poll() failed (%s)", strerror(errno));
                 return -errno;
@@ -449,18 +457,20 @@ int sensors_poll_context_t::pollEvents(sensors_event_t* data, int count)
 
     return nbEvents;
 }
+
 int sensors_poll_context_t::batch(int handle, int flags, int64_t period_ns, int64_t timeout){
-	 int ret;
-	 int index = handleToDriver(handle);
-     if (index < 0) return index;
-	 ret = mSensors[index]->batch(handle,flags,period_ns,timeout);
-	 const char wakeMessage(WAKE_MESSAGE); 
-     int result = write(mWritePipeFd, &wakeMessage, 1);
-     ALOGE_IF(result<0, "error batch sending wake message (%s)", strerror(errno));
-	 return ret;
+    int ret;
+    int index = handleToDriver(handle);
+    if (index < 0) return index;
+    ret = mSensors[index]->batch(handle,flags,period_ns,timeout);
+    const char wakeMessage(WAKE_MESSAGE);
+    int result = write(mWritePipeFd, &wakeMessage, 1);
+    ALOGE_IF(result<0, "error batch sending wake message (%s)", strerror(errno));
+    return ret;
 }
+
 int sensors_poll_context_t::flush(int handle){
-	int index = handleToDriver(handle);
+    int index = handleToDriver(handle);
     if (index < 0) return index;
     return mSensors[index]->flush(handle);
 }
@@ -494,37 +504,37 @@ static int poll__poll(struct sensors_poll_device_t *dev,
     return ctx->pollEvents(data, count);
 }
 static int poll__batch(struct sensors_poll_device_1* dev,
-            int handle, int flags, int64_t period_ns, int64_t timeout){
-	sensors_poll_context_t *ctx = (sensors_poll_context_t *)dev;
-	return ctx->batch(handle,flags,period_ns,timeout);
+        int handle, int flags, int64_t period_ns, int64_t timeout){
+    sensors_poll_context_t *ctx = (sensors_poll_context_t *)dev;
+    return ctx->batch(handle,flags,period_ns,timeout);
 }
 
 static int poll__flush(struct sensors_poll_device_1* dev, int handle){
-	sensors_poll_context_t *ctx = (sensors_poll_context_t *)dev;
-	return ctx->flush(handle);
+    sensors_poll_context_t *ctx = (sensors_poll_context_t *)dev;
+    return ctx->flush(handle);
 }
+
 /*****************************************************************************/
 
 /** Open a new instance of a sensor device using name */
 static int open_sensors(const struct hw_module_t* module, const char* id,
-                        struct hw_device_t** device)
-{
-        int status = -EINVAL;
-        sensors_poll_context_t *dev = new sensors_poll_context_t();
+        struct hw_device_t** device) {
+    int status = -EINVAL;
+    sensors_poll_context_t *dev = new sensors_poll_context_t();
 
-        memset(&dev->device, 0, sizeof(sensors_poll_device_1));
+    memset(&dev->device, 0, sizeof(sensors_poll_device_1));
 
-        dev->device.common.tag = HARDWARE_DEVICE_TAG;
-        dev->device.common.version  = SENSORS_DEVICE_API_VERSION_1_4;
-        dev->device.common.module   = const_cast<hw_module_t*>(module);
-        dev->device.common.close    = poll__close;
-        dev->device.activate        = poll__activate;
-        dev->device.setDelay        = poll__setDelay;
-        dev->device.poll            = poll__poll;
-		dev->device.batch			= poll__batch;
-		dev->device.flush			= poll__flush;
-        *device = &dev->device.common;
-        status = 0;
+    dev->device.common.tag = HARDWARE_DEVICE_TAG;
+    dev->device.common.version  = SENSORS_DEVICE_API_VERSION_1_4;
+    dev->device.common.module   = const_cast<hw_module_t*>(module);
+    dev->device.common.close    = poll__close;
+    dev->device.activate        = poll__activate;
+    dev->device.setDelay        = poll__setDelay;
+    dev->device.poll            = poll__poll;
+    dev->device.batch           = poll__batch;
+    dev->device.flush           = poll__flush;
+    *device = &dev->device.common;
+    status = 0;
 
-        return status;
+    return status;
 }
