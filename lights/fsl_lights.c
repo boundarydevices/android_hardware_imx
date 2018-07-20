@@ -58,7 +58,7 @@ static char max_path[256], path[256];
 // ****************************************************************************
 // module
 // ****************************************************************************
-static int set_light_backlight(struct light_device_t* dev,
+static int set_light_backlight(__attribute__((unused))struct light_device_t* dev,
                                struct light_state_t const* state)
 {
     int result = -1;
