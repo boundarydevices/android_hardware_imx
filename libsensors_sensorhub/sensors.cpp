@@ -253,7 +253,7 @@ static const struct sensor_t sSensorList[] = {
 static int open_sensors(const struct hw_module_t* module, const char* id,
                         struct hw_device_t** device);
 
-static int sensors__get_sensors_list(struct sensors_module_t* module,
+static int sensors__get_sensors_list(__attribute__((unused))struct sensors_module_t* module,
                                      struct sensor_t const** list)
 {
     *list = sSensorList;
@@ -261,20 +261,20 @@ static int sensors__get_sensors_list(struct sensors_module_t* module,
 }
 
 static struct hw_module_methods_t sensors_module_methods = {
-    open: open_sensors
+    .open = open_sensors
 };
 
 struct sensors_module_t HAL_MODULE_INFO_SYM = {
-    common: {
-        tag: HARDWARE_MODULE_TAG,
-        version_major: 1,
-        version_minor: 1,
-        id: SENSORS_HARDWARE_MODULE_ID,
-        name: "Freescale Sensor module",
-        author: "Freescale Semiconductor Inc.",
-        methods: &sensors_module_methods,
+    .common = {
+        .tag = HARDWARE_MODULE_TAG,
+        .version_major = 1,
+        .version_minor = 1,
+        .id = SENSORS_HARDWARE_MODULE_ID,
+        .name = "Freescale Sensor module",
+        .author = "Freescale Semiconductor Inc.",
+        .methods = &sensors_module_methods,
     },
-    get_sensors_list: sensors__get_sensors_list,
+    .get_sensors_list = sensors__get_sensors_list,
 };
 
 struct sensors_poll_context_t {
@@ -517,7 +517,7 @@ static int poll__flush(struct sensors_poll_device_1* dev, int handle){
 /*****************************************************************************/
 
 /** Open a new instance of a sensor device using name */
-static int open_sensors(const struct hw_module_t* module, const char* id,
+static int open_sensors(const struct hw_module_t* module, __attribute__((unused))const char* id,
         struct hw_device_t** device) {
     int status = -EINVAL;
     sensors_poll_context_t *dev = new sensors_poll_context_t();

@@ -70,13 +70,13 @@ LightSensor::~LightSensor() {
     }
 }
 
-int LightSensor::setDelay(int32_t handle, int64_t ns)
+int LightSensor::setDelay(__attribute__((unused))int32_t handle, __attribute__((unused))int64_t ns)
 {
     //dummy due to not support in driver....
     return 0;
 }
 
-int LightSensor::enable(int32_t handle, int en)
+int LightSensor::enable(__attribute__((unused))int32_t handle, int en)
 {
     char buf[2];
     int n;
@@ -208,6 +208,6 @@ int LightSensor::readEvents(sensors_event_t* data, int count)
     return numEventReceived;
 }
 
-void LightSensor::processEvent(int code, int value)
+void LightSensor::processEvent(__attribute__((unused))int code, __attribute__((unused))int value)
 {
 }

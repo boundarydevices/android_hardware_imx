@@ -239,7 +239,7 @@ int PressSensor::writeDelay(int64_t ns) {
     }
 
     char buf[80];
-    sprintf(buf, "%lld", ns/1000/1000);
+    sprintf(buf, "%lld", (long long)(ns/1000/1000));
     write(fd, buf, strlen(buf)+1);
     close(fd);
     return 0;

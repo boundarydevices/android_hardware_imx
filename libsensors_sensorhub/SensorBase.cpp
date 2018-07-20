@@ -121,16 +121,16 @@ int SensorBase::getFd() const
     }
 }
 
-int SensorBase::setEnable(int32_t handle, int enabled)
+int SensorBase::setEnable(__attribute__((unused))int32_t handle, __attribute__((unused))int enabled)
 {
     return 0;
 }
-int SensorBase::getEnable(int32_t handle)
+int SensorBase::getEnable(__attribute__((unused))int32_t handle)
 {
     return 0;
 }
 
-int SensorBase::setDelay(int32_t handle, int64_t ns) {
+int SensorBase::setDelay(__attribute__((unused))int32_t handle, __attribute__((unused))int64_t ns) {
     return 0;
 }
 
@@ -138,7 +138,7 @@ bool SensorBase::hasPendingEvents() const {
     return false;
 }
 
-void  processEvent(int code, int value)
+void  processEvent(__attribute__((unused))int code, __attribute__((unused))int value)
 {
 }
 
@@ -191,7 +191,7 @@ int SensorBase::openInput(const char* inputName) {
     ALOGE_IF(fd<0, "couldn't find '%s' input device", inputName);
     return fd;
 }
-int SensorBase::readEvents(sensors_event_t* data, int count)
+int SensorBase::readEvents(__attribute__((unused))sensors_event_t* data, __attribute__((unused))int count)
 {
     return 0;
 }
@@ -204,7 +204,7 @@ int SensorBase::batch(int handle, int flags, int64_t period_ns, int64_t timeout)
     }
     return 0;
 }
-int SensorBase::flush(int handle){
+int SensorBase::flush(__attribute__((unused))int handle){
     return  -EINVAL;
 }
 

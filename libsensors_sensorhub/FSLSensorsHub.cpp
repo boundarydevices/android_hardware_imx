@@ -276,7 +276,7 @@ int FSLSensorsHub::readEvents(sensors_event_t* data, int count)
     return numEventReceived;
 }
 
-void FSLSensorsHub::processEvent(int code, int value)
+void FSLSensorsHub::processEvent(__attribute__((unused))int code, __attribute__((unused))int value)
 {
 
 }
