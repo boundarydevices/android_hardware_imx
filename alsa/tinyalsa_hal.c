@@ -697,7 +697,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     int pcm_device;
     bool success = false;
 
-    ALOGI("start_output_stream_primary... %d, device %d",(uintptr_t)out, out->device);
+    ALOGI("start_output_stream_primary... %p, device %d",out, out->device);
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         /* FIXME: only works if only one output can be active at a time */
@@ -761,7 +761,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     if (success) {
         out->buffer_frames = pcm_config_mm_out.period_size * 2;
         if (out->buffer == NULL)
-            out->buffer = malloc(out->buffer_frames * audio_stream_frame_size(&out->stream.common));
+            out->buffer = malloc(out->buffer_frames * audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common));
 
         if (adev->echo_reference != NULL)
             out->echo_reference = adev->echo_reference;
@@ -784,7 +784,7 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
     unsigned int port = 0;
     int i = 0;
 
-    ALOGI("start_output_stream_hdmi, out %d, device 0x%x", (uintptr_t)out, out->device);
+    ALOGI("start_output_stream_hdmi, out %p, device 0x%x", out, out->device);
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -819,7 +819,7 @@ static int start_output_stream_esai(struct imx_stream_out *out)
     unsigned int port = 0;
     int i = 0;
 
-    ALOGI("start_output_stream_esai, out %d, device 0x%x", (uintptr_t)out, out->device);
+    ALOGI("start_output_stream_esai, out %p, device 0x%x", out, out->device);
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -852,7 +852,7 @@ static int start_output_stream_dsd(struct imx_stream_out *out)
     unsigned int port = 0;
     int i = 0;
 
-    ALOGI("%s: out %p, device 0x%x", __func__, (uintptr_t)out, out->device);
+    ALOGI("%s: out %p, device 0x%x", __func__, out, out->device);
     card = get_card_for_dsd(adev, NULL);
 
     ALOGW("card %d, port %d device 0x%x", card, port, out->device);
@@ -911,7 +911,7 @@ static size_t get_input_buffer_size(uint32_t sample_rate, int format, int channe
     size = (pcm_config_mm_in.period_size * sample_rate) / pcm_config_mm_in.rate;
     size = ((size + 15) / 16) * 16;
 
-    ALOGW("get_input_buffer_size size = %d, channel_count = %d",size,channel_count);
+    ALOGW("get_input_buffer_size size = %zu, channel_count = %d",size,channel_count);
     return size * channel_count * sizeof(short);
 }
 
@@ -950,7 +950,7 @@ static void put_echo_reference(struct imx_audio_device *adev,
 }
 
 static struct echo_reference_itfe *get_echo_reference(struct imx_audio_device *adev,
-                                               audio_format_t format,
+                                               audio_format_t format __unused,
                                                uint32_t channel_count,
                                                uint32_t sampling_rate)
 {
@@ -980,7 +980,7 @@ static int get_playback_delay(struct imx_stream_out *out,
                        size_t frames,
                        struct echo_reference_buffer *buffer)
 {
-    size_t kernel_frames;
+    unsigned int kernel_frames;
     int status;
     int primary_pcm = 0;
     struct imx_audio_device *adev = out->dev;
@@ -1036,7 +1036,7 @@ static uint32_t out_get_sample_rate_dsd(const struct audio_stream *stream)
     return out->config[PCM_DSD].rate * DSD_RATE_TO_PCM_RATE;
 }
 
-static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
+static int out_set_sample_rate(struct audio_stream *stream __unused, uint32_t rate)
 {
     ALOGW("out_set_sample_rate %d", rate);
     return 0;
@@ -1052,7 +1052,7 @@ static size_t out_get_buffer_size_primary(const struct audio_stream *stream)
     be a multiple of 16 frames */
     size_t size = (pcm_config_mm_out.period_size * adev->default_rate) / pcm_config_mm_out.rate;
     size = ((size + 15) / 16) * 16;
-    return size * audio_stream_frame_size((struct audio_stream *)stream);
+    return size * audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
 
 static size_t out_get_buffer_size_hdmi(const struct audio_stream *stream)
@@ -1064,7 +1064,7 @@ static size_t out_get_buffer_size_hdmi(const struct audio_stream *stream)
     be a multiple of 16 frames */
     size_t size = pcm_config_hdmi_multi.period_size;
     size = ((size + 15) / 16) * 16;
-    return size * audio_stream_frame_size((struct audio_stream *)stream);
+    return size * audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
 
 static size_t out_get_buffer_size_esai(const struct audio_stream *stream)
@@ -1076,7 +1076,7 @@ static size_t out_get_buffer_size_esai(const struct audio_stream *stream)
     be a multiple of 16 frames */
     size_t size = pcm_config_esai_multi.period_size;
     size = ((size + 15) / 16) * 16;
-    return size * audio_stream_frame_size((struct audio_stream *)stream);
+    return size * audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
 
 static size_t out_get_buffer_size_dsd(const struct audio_stream *stream)
@@ -1090,7 +1090,7 @@ static size_t out_get_buffer_size_dsd(const struct audio_stream *stream)
     size = ((size + 15) / 16) * 16;
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_frame_size will return 1
     // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
-    return size * audio_stream_frame_size((struct audio_stream *)stream) * DSD_FRAMESIZE_BYTES;
+    return size * audio_stream_out_frame_size((const struct audio_stream_out *)stream) * DSD_FRAMESIZE_BYTES;
 }
 
 static uint32_t out_get_channels(const struct audio_stream *stream)
@@ -1105,7 +1105,7 @@ static audio_format_t out_get_format(const struct audio_stream *stream)
     return out->format;
 }
 
-static int out_set_format(struct audio_stream *stream, audio_format_t format)
+static int out_set_format(struct audio_stream *stream __unused, audio_format_t format)
 {
     ALOGW("out_set_format %d", format);
     return 0;
@@ -1133,7 +1133,7 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
             out->writeContiFailCount[i] = 0;
         }
 
-        ALOGW("do_out_standby... %d",(uintptr_t)out);
+        ALOGW("do_out_standby... %p",out);
 
         /* if in call, don't turn off the output stage. This will
         be done when the call is ended */
@@ -1165,14 +1165,14 @@ static int out_standby(struct audio_stream *stream)
     return status;
 }
 
-static int out_dump(const struct audio_stream *stream, int fd)
+static int out_dump(const struct audio_stream *stream __unused, int fd __unused)
 {
     return 0;
 }
 
 static int out_flush(struct audio_stream_out* stream)
 {
-    struct imx_stream_out *out = (struct stream_out *)stream;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
     out->written = 0;
 
     return 0;
@@ -1337,8 +1337,8 @@ static uint32_t out_get_latency_dsd(const struct audio_stream_out *stream)
     return (pcm_config_dsd.period_size * pcm_config_dsd.period_count * 1000) / pcm_config_dsd.rate;
 }
 
-static int out_set_volume(struct audio_stream_out *stream, float left,
-                          float right)
+static int out_set_volume(struct audio_stream_out *stream __unused, float left __unused,
+                          float right __unused)
 {
     return -ENOSYS;
 }
@@ -1349,7 +1349,7 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
     bool bit_32b_2_16b = false;
     bool mono2stereo = false;
     bool stereo2mono = false;
-    size_t frames_rq = count / audio_stream_frame_size(&in->stream.common);
+    size_t frames_rq = count / audio_stream_in_frame_size((const struct audio_stream_in *)&in->stream.common);
 
     if (in->config.format == PCM_FORMAT_S24_LE && in->requested_format == PCM_FORMAT_S16_LE) bit_24b_2_16b = true;
     if (in->config.format == PCM_FORMAT_S32_LE && in->requested_format == PCM_FORMAT_S16_LE) bit_32b_2_16b = true;
@@ -1363,7 +1363,7 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
             in->read_tmp_buf = (int32_t *) realloc(in->read_tmp_buf, size_in_bytes_tmp);
             ALOG_ASSERT((in->read_tmp_buf != NULL),
                         "get_next_buffer() failed to reallocate read_tmp_buf");
-            ALOGV("get_next_buffer(): read_tmp_buf %p extended to %d bytes",
+            ALOGV("get_next_buffer(): read_tmp_buf %p extended to %zu bytes",
                      in->read_tmp_buf, size_in_bytes_tmp);
         }
 
@@ -1388,7 +1388,7 @@ static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes)
     ret = pcm_read(pcm, (void *)buffer, bytes);
 
     if(ret !=0) {
-         ALOGV("ret %d, pcm read %d error %s.", ret, bytes, pcm_get_error(pcm));
+         ALOGV("ret %d, pcm read %zu error %s.", ret, bytes, pcm_get_error(pcm));
 
          switch(pcm_state(pcm)) {
               case PCM_STATE_SETUP:
@@ -1416,7 +1416,7 @@ static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes,
          ret = pcm_write(pcm, (void *)buffer, bytes);
 
     if(ret !=0) {
-         ALOGW("ret %d, pcm write %d error %s", ret, bytes, pcm_get_error(pcm));
+         ALOGW("ret %d, pcm write %zu error %s", ret, bytes, pcm_get_error(pcm));
 
          switch(pcm_state(pcm)) {
               case PCM_STATE_SETUP:
@@ -1443,7 +1443,7 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_frame_size(&out->stream.common);
+    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
     size_t in_frames = bytes / frame_size;
     size_t out_frames = in_frames;
     bool force_input_standby = false;
@@ -1534,7 +1534,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -1557,7 +1557,7 @@ static ssize_t out_write_hdmi(struct audio_stream_out *stream, const void* buffe
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_frame_size(&out->stream.common);
+    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
     size_t in_frames = bytes / frame_size;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
@@ -1586,7 +1586,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -1601,7 +1601,7 @@ static ssize_t out_write_dsd(struct audio_stream_out *stream, const void* buffer
     struct imx_audio_device *adev = out->dev;
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_frame_size will return 1
     // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
-    size_t frame_size = audio_stream_frame_size(&out->stream.common) * DSD_FRAMESIZE_BYTES;
+    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common) * DSD_FRAMESIZE_BYTES;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
      * on the output stream mutex - e.g. executing select_mode() while holding the hw device
@@ -1629,7 +1629,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -1693,7 +1693,7 @@ static ssize_t out_write_esai(struct audio_stream_out *stream, const void* buffe
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_frame_size(&out->stream.common);
+    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
     size_t in_frames = bytes / frame_size;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
@@ -1723,7 +1723,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -1742,7 +1742,7 @@ static int out_get_render_position(const struct audio_stream_out *stream,
 
     for (i = 0; i < PCM_TOTAL; i++)
         if (out->pcm[i]) {
-            size_t avail;
+            unsigned int avail;
             size_t kernel_buffer_size = out->config[i].period_size * out->config[i].period_count;
             // this is the number of frames which the dsp actually presented at least
             signed_frames = out->written - kernel_buffer_size * adev->default_rate / out->config[i].rate;
@@ -1762,12 +1762,12 @@ static int out_get_render_position(const struct audio_stream_out *stream,
     return 0;
 }
 
-static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+static int out_add_audio_effect(const struct audio_stream *stream __unused, effect_handle_t effect __unused)
 {
     return 0;
 }
 
-static int out_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+static int out_remove_audio_effect(const struct audio_stream *stream __unused, effect_handle_t effect __unused)
 {
     return 0;
 }
@@ -1784,7 +1784,7 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 
     for (i = 0; i < PCM_TOTAL; i++)
         if (out->pcm[i]) {
-            size_t avail;
+            unsigned int avail;
             if (pcm_get_htimestamp(out->pcm[i], &avail, timestamp) == 0) {
                 size_t kernel_buffer_size = out->config[i].period_size * out->config[i].period_count;
                 /*Actually we have no case for adev->default_rate != out->config[i].rate */
@@ -1794,7 +1794,7 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
                     signed_frames = (out->written - kernel_buffer_size + avail) * DSD_RATE_TO_PCM_RATE;
                 else
                     signed_frames = out->written - (kernel_buffer_size - avail) * adev->default_rate / out->config[i].rate;
-                ALOGV("%s: avail: %zu kernel_buffer_size: %zu written: %zu signed_frames: %lld", __func__, avail, kernel_buffer_size, out->written, signed_frames);
+                ALOGV("%s: avail: %u kernel_buffer_size: %zu written: %zu signed_frames: %ld", __func__, avail, kernel_buffer_size, out->written, (long)signed_frames);
 
                 if (signed_frames >= 0) {
                     *frames = signed_frames;
@@ -2008,7 +2008,7 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
     return in->requested_rate;
 }
 
-static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
+static int in_set_sample_rate(struct audio_stream *stream __unused, uint32_t rate __unused)
 {
     return 0;
 }
@@ -2049,7 +2049,7 @@ static audio_format_t in_get_format(const struct audio_stream *stream)
 
 }
 
-static int in_set_format(struct audio_stream *stream, audio_format_t format)
+static int in_set_format(struct audio_stream *stream __unused, audio_format_t format __unused)
 {
     return 0;
 }
@@ -2096,7 +2096,7 @@ static int in_standby(struct audio_stream *stream)
     return status;
 }
 
-static int in_dump(const struct audio_stream *stream, int fd)
+static int in_dump(const struct audio_stream *stream __unused, int fd __unused)
 {
     return 0;
 }
@@ -2149,13 +2149,13 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     return status;
 }
 
-static char * in_get_parameters(const struct audio_stream *stream,
-                                const char *keys)
+static char * in_get_parameters(const struct audio_stream *stream __unused,
+                                const char *keys __unused)
 {
     return strdup("");
 }
 
-static int in_set_gain(struct audio_stream_in *stream, float gain)
+static int in_set_gain(struct audio_stream_in *stream __unused, float gain __unused)
 {
     return 0;
 }
@@ -2166,7 +2166,7 @@ static void get_capture_delay(struct imx_stream_in *in,
 {
 
     /* read frames available in kernel driver buffer */
-    size_t kernel_frames;
+    unsigned int kernel_frames;
     struct timespec tstamp;
     long buf_delay;
     long rsmp_delay;
@@ -2201,8 +2201,8 @@ static void get_capture_delay(struct imx_stream_in *in,
     buffer->time_stamp = tstamp;
     buffer->delay_ns   = delay_ns;
     ALOGV("get_capture_delay time_stamp = [%ld].[%ld], delay_ns: [%d],"
-         " kernel_delay:[%ld], buf_delay:[%ld], rsmp_delay:[%ld], kernel_frames:[%d], "
-         "in->read_buf_frames:[%d], in->proc_buf_frames:[%d], frames:[%d]",
+         " kernel_delay:[%ld], buf_delay:[%ld], rsmp_delay:[%ld], kernel_frames:[%u], "
+         "in->read_buf_frames:[%zu], in->proc_buf_frames:[%zu], frames:[%zu]",
          buffer->time_stamp.tv_sec , buffer->time_stamp.tv_nsec, buffer->delay_ns,
          kernel_delay, buf_delay, rsmp_delay, kernel_frames,
          in->read_buf_frames, in->proc_buf_frames, frames);
@@ -2214,8 +2214,8 @@ static int32_t update_echo_reference(struct imx_stream_in *in, size_t frames)
     struct echo_reference_buffer b;
     b.delay_ns = 0;
 
-    ALOGV("update_echo_reference, frames = [%d], in->ref_frames_in = [%d],  "
-          "b.frame_count = [%d]",
+    ALOGV("update_echo_reference, frames = [%zu], in->ref_frames_in = [%zu],  "
+          "b.frame_count = [%zu]",
          frames, in->ref_frames_in, frames - in->ref_frames_in);
     if (in->ref_frames_in < frames) {
         if (in->ref_buf_size < frames) {
@@ -2233,8 +2233,8 @@ static int32_t update_echo_reference(struct imx_stream_in *in, size_t frames)
         if (in->echo_reference->read(in->echo_reference, &b) == 0)
         {
             in->ref_frames_in += b.frame_count;
-            ALOGV("update_echo_reference: in->ref_frames_in:[%d], "
-                    "in->ref_buf_size:[%d], frames:[%d], b.frame_count:[%d]",
+            ALOGV("update_echo_reference: in->ref_frames_in:[%zu], "
+                    "in->ref_buf_size:[%zu], frames:[%zu], b.frame_count:[%zu]",
                  in->ref_frames_in, in->ref_buf_size, frames, b.frame_count);
         }
     } else
@@ -2326,13 +2326,13 @@ static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
     }
 
     if (in->read_buf_frames == 0) {
-        size_t size_in_bytes = in->config.period_size * audio_stream_frame_size(&in->stream.common);
+        size_t size_in_bytes = in->config.period_size * audio_stream_in_frame_size((const struct audio_stream_in *)&in->stream.common);
         if (in->read_buf_size < in->config.period_size) {
             in->read_buf_size = in->config.period_size;
             in->read_buf = (int16_t *) realloc(in->read_buf, size_in_bytes);
             ALOG_ASSERT((in->read_buf != NULL),
                         "get_next_buffer() failed to reallocate read_buf");
-            ALOGV("get_next_buffer(): read_buf %p extended to %d bytes",
+            ALOGV("get_next_buffer(): read_buf %p extended to %zu bytes",
                   in->read_buf, size_in_bytes);
         }
 
@@ -2381,19 +2381,19 @@ static ssize_t read_frames(struct imx_stream_in *in, void *buffer, ssize_t frame
         if (in->resampler != NULL) {
             in->resampler->resample_from_provider(in->resampler,
                     (int16_t *)((char *)buffer +
-                            frames_wr * audio_stream_frame_size(&in->stream.common)),
+                            frames_wr * audio_stream_in_frame_size((const struct audio_stream_in *)&in->stream.common)),
                     &frames_rd);
         } else {
             struct resampler_buffer buf = {
-                    { raw : NULL, },
-                    frame_count : frames_rd,
+                    { .raw = NULL, },
+                    .frame_count = frames_rd,
             };
             get_next_buffer(&in->buf_provider, &buf);
             if (buf.raw != NULL) {
                 memcpy((char *)buffer +
-                           frames_wr * audio_stream_frame_size(&in->stream.common),
+                           frames_wr * audio_stream_in_frame_size((const struct audio_stream_in *)&in->stream.common),
                         buf.raw,
-                        buf.frame_count * audio_stream_frame_size(&in->stream.common));
+                        buf.frame_count * audio_stream_in_frame_size((const struct audio_stream_in *)&in->stream.common));
                 frames_rd = buf.frame_count;
             }
             release_buffer(&in->buf_provider, &buf);
@@ -2446,7 +2446,7 @@ static ssize_t process_frames(struct imx_stream_in *in, void* buffer, ssize_t fr
                     proc_buf_out = in->proc_buf_out;
                 }
                 ALOGV("process_frames(): proc_buf_in %p extended to %d bytes",
-                     in->proc_buf_in,in->proc_buf_size * in->requested_channel * sizeof(int16_t));
+                     in->proc_buf_in, in->proc_buf_size * in->requested_channel * sizeof(int16_t));
             }
             frames_rd = read_frames(in,
                                     in->proc_buf_in +
@@ -2500,7 +2500,7 @@ static ssize_t process_frames(struct imx_stream_in *in, void* buffer, ssize_t fr
             frames_wr += out_buf.frameCount;
         } else {
             /* The effect does not comply to the API. In theory, we should never end up here! */
-            ALOGE("preprocessing produced too many frames: %d + %d  > %d !",
+            ALOGE("preprocessing produced too many frames: %d + %zu  > %d !",
                   (unsigned int)frames_wr, out_buf.frameCount, (unsigned int)frames);
             frames_wr = frames;
         }
@@ -2540,7 +2540,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     int ret = 0;
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
     struct imx_audio_device *adev = in->dev;
-    size_t frames_rq = bytes / audio_stream_frame_size(&stream->common);
+    size_t frames_rq = bytes / audio_stream_in_frame_size((const struct audio_stream_in *)&stream->common);
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
      * on the input stream mutex - e.g. executing select_mode() while holding the hw device
@@ -2552,7 +2552,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         ret = start_input_stream(in);
         if (ret == 0) {
             in->standby = 0;
-            in->mute_500ms = in->requested_rate * audio_stream_frame_size(&stream->common)/2;
+            in->mute_500ms = in->requested_rate * audio_stream_in_frame_size((const struct audio_stream_in *)&stream->common)/2;
         }
     }
     pthread_mutex_unlock(&adev->lock);
@@ -2590,7 +2590,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 exit:
     if (ret < 0) {
         memset(buffer, 0, bytes);
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_in_frame_size((const struct audio_stream_in *)&stream->common) /
                in_get_sample_rate(&stream->common));
     }
     pthread_mutex_unlock(&in->lock);
@@ -2694,7 +2694,7 @@ static int in_configure_reverse(struct imx_stream_in *in)
 
 #define MAX_NUM_CHANNEL_CONFIGS 10
 
-static void in_read_audio_effect_channel_configs(struct imx_stream_in *in,
+static void in_read_audio_effect_channel_configs(struct imx_stream_in *in __unused,
                                                  struct effect_info_s *effect_info)
 {
     /* size and format of the cmd are defined in hardware/audio_effect.h */
@@ -3118,7 +3118,7 @@ static int out_read_hdmi_rates(struct imx_audio_device *adev, struct imx_stream_
 }
 
 static int adev_open_output_stream(struct audio_hw_device *dev,
-                                   audio_io_handle_t handle,
+                                   audio_io_handle_t handle __unused,
                                    audio_devices_t devices,
                                    audio_output_flags_t flags,
                                    struct audio_config *config,
@@ -3305,7 +3305,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     int i;
-    ALOGW("adev_close_output_stream...%d",(uintptr_t)out);
+    ALOGW("adev_close_output_stream...%p", out);
 
     pthread_mutex_lock(&out->dev->lock);
     pthread_mutex_lock(&out->lock);
@@ -3421,11 +3421,11 @@ static void* sco_rx_task(void *arg)
         out_frames = stream_out->buffer_frames;
         adev->rsmpl_sco_rx->resample_from_input(adev->rsmpl_sco_rx,
                                                 (int16_t *)buffer,
-                                                &frames,
+                                                (size_t *)&frames,
                                                 (int16_t *)stream_out->buffer,
-                                                &out_frames);
+                                                (size_t *)&out_frames);
 
-        ALOGV("sco_rx_task, resample_from_input, in frames %d, %d, out_frames %d, %d",
+        ALOGV("sco_rx_task, resample_from_input, in frames %d, %d, out_frames %zu, %d",
             pcm_config_sco_in.period_size, frames,
             stream_out->buffer_frames, out_frames);
 
@@ -3492,9 +3492,9 @@ static void* sco_tx_task(void *arg)
         out_frames = pcm_config_sco_out.period_size * 2;
         adev->rsmpl_sco_tx->resample_from_input(adev->rsmpl_sco_tx,
                                                 (int16_t *)buffer,
-                                                &frames,
+                                                (size_t *)&frames,
                                                 (int16_t *)out_buffer,
-                                                &out_frames);
+                                                (size_t *)&out_frames);
 
         ALOGV("sco_tx_task, resample_from_input, in frames %d, %d, out_frames %d, %d",
             adev->cap_config.period_size, frames,
@@ -3624,7 +3624,7 @@ static int sco_task_create(struct imx_audio_device *adev)
         goto error;
     }
     adev->tid_sco_rx = tid_sco_rx;
-    ALOGI("sco_rx_task create ret %d, tid_sco_rx %lld", ret, tid_sco_rx);
+    ALOGI("sco_rx_task create ret %d, tid_sco_rx %ld", ret, tid_sco_rx);
 
     /*=============== create tx task ===============*/
     ALOGI("prepare bt tx task");
@@ -3683,7 +3683,7 @@ static int sco_task_create(struct imx_audio_device *adev)
         goto error;
     }
     adev->tid_sco_tx = tid_sco_tx;
-    ALOGI("sco_tx_task create ret %d, tid_sco_tx %d", ret, tid_sco_tx);
+    ALOGI("sco_tx_task create ret %d, tid_sco_tx %ld", ret, tid_sco_tx);
 
     return 0;
 
@@ -3782,13 +3782,13 @@ done:
     return status;
 }
 
-static char * adev_get_parameters(const struct audio_hw_device *dev,
-                                  const char *keys)
+static char * adev_get_parameters(const struct audio_hw_device *dev __unused,
+                                  const char *keys __unused)
 {
     return strdup("");
 }
 
-static int adev_init_check(const struct audio_hw_device *dev)
+static int adev_init_check(const struct audio_hw_device *dev __unused)
 {
     return 0;
 }
@@ -3802,7 +3802,7 @@ static int adev_set_voice_volume(struct audio_hw_device *dev, float volume)
     return 0;
 }
 
-static int adev_set_master_volume(struct audio_hw_device *dev, float volume)
+static int adev_set_master_volume(struct audio_hw_device *dev __unused, float volume __unused)
 {
     return -ENOSYS;
 }
@@ -3838,7 +3838,7 @@ static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
     return 0;
 }
 
-static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
+static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev __unused,
                                          const struct audio_config *config)
 {
     size_t size;
@@ -3850,7 +3850,7 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
 }
 
 static int adev_open_input_stream(struct audio_hw_device *dev,
-                                  audio_io_handle_t handle,
+                                  audio_io_handle_t handle __unused,
                                   audio_devices_t devices,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in,
@@ -3909,7 +3909,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     return 0;
 }
 
-static void adev_close_input_stream(struct audio_hw_device *dev,
+static void adev_close_input_stream(struct audio_hw_device *dev __unused,
                                    struct audio_stream_in *stream)
 {
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
@@ -3935,7 +3935,7 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
     return;
 }
 
-static int adev_dump(const audio_hw_device_t *device, int fd)
+static int adev_dump(const audio_hw_device_t *device __unused, int fd __unused)
 {
     return 0;
 }
