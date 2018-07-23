@@ -130,7 +130,8 @@ int32_t MMAPStream::onDeviceStartLocked()
     //-------register buffers----------
     struct v4l2_buffer buf;
     struct v4l2_requestbuffers req;
-    struct v4l2_plane planes = {0};
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
 
     memset(&req, 0, sizeof (req));
     req.count = mNumBuffers;
@@ -295,7 +296,8 @@ int32_t MMAPStream::onFrameAcquireLocked()
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
-    struct v4l2_plane planes = {0};
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
 
 capture_data:
     memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
@@ -335,7 +337,8 @@ int32_t MMAPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
-    struct v4l2_plane planes = {0};
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
 
     memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
 

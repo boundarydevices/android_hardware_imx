@@ -261,7 +261,7 @@ int32_t USPStream::allocateBuffersLocked()
             close(sharedFd);
             goto err;
         }
-        ALOGI("phyalloc ptr:0x%llx, phy:0x%llx, ionSize:%d", ptr, phyAddr, ionSize);
+        ALOGI("phyalloc ptr:0x%" PRIu64 ", phy:0x%" PRIu64 ", ionSize:%d", ptr, phyAddr, ionSize);
         mBuffers[i] = new StreamBuffer();
         mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;
         mBuffers[i]->mPhyAddr   = phyAddr;

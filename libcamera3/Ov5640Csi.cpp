@@ -186,7 +186,7 @@ status_t Ov5640Csi::initSensorStaticData()
     for (i=0; i<MAX_RESOLUTION_SIZE && i<previewCnt; i+=2) {
         ALOGI("SupportedPreviewSizes: %d x %d", mPreviewResolutions[i], mPreviewResolutions[i+1]);
     }
-    ALOGI("FrameDuration is %lld, %lld", mMinFrameDuration, mMaxFrameDuration);
+    ALOGI("FrameDuration is %" PRId64 ", %" PRId64 "", mMinFrameDuration, mMaxFrameDuration);
 
     i = 0;
     mTargetFpsRange[i++] = 10;

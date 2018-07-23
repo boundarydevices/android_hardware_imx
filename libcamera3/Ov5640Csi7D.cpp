@@ -233,7 +233,7 @@ status_t Ov5640Csi7D::initSensorStaticData()
                     mPreviewResolutions[i],
                     mPreviewResolutions[i + 1]);
     }
-    ALOGI("FrameDuration is %lld, %lld", mMinFrameDuration, mMaxFrameDuration);
+    ALOGI("FrameDuration is %" PRId64 ", %" PRId64 "", mMinFrameDuration, mMaxFrameDuration);
 
     mTargetFpsRange[0] = 15;
     mTargetFpsRange[1] = 30;

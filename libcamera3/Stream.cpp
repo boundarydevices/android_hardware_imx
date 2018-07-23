@@ -50,8 +50,8 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     mFps(30),
     mNumBuffers(0),
     mRegistered(false),
-    mCamera(camera),
-    mCustomDriver(false)
+    mCustomDriver(false),
+    mCamera(camera)
 {
     if (s->format == HAL_PIXEL_FORMAT_BLOB) {
         ALOGI("%s create capture stream", __func__);
@@ -109,8 +109,8 @@ Stream::Stream(Camera* camera)
     mFps(30),
     mNumBuffers(0),
     mRegistered(false),
-    mCamera(camera),
-    mCustomDriver(false)
+    mCustomDriver(false),
+    mCamera(camera)
 {
     for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;

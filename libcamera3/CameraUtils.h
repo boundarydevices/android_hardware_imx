@@ -22,6 +22,7 @@
 #define LOG_TAG "FslCameraHAL"
 #include <utils/Log.h>
 
+#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>

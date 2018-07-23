@@ -281,7 +281,8 @@ int32_t VideoStream::handleFlushLocked() {
 int32_t VideoStream::onFlushLocked() {
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
-    struct v4l2_plane planes = {0};
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
 
     ALOGI("%s, v4l2 memory type %d, mV4l2BufType %d", __func__, mV4l2MemType, mV4l2BufType);
     // refresh the v4l2 buffers
