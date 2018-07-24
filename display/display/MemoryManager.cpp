@@ -75,7 +75,7 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     bool canHandle = true;
 
     /* The following conditions decide allocator.
-     * 1) framebuffer should use ION.
+     * 1) framebuffer (except 8mscale) should use ION.
      * 2) Hantro VPU needs special size should use ION.
      * 3) secure memory should use ION.
      * 4) Dim buffer should use ION.
@@ -83,7 +83,11 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
      * 6) encoder memory should use ION.
      * 7) other conditions can use DRM Gralloc.
     */
+#ifdef FRAMEBUFFER_COMPRESSION
+    if (flags & (FLAGS_SECURE | FLAGS_DIMBUFFER)) {
+#else
     if (flags & (FLAGS_FRAMEBUFFER | FLAGS_SECURE | FLAGS_DIMBUFFER)) {
+#endif
         canHandle = false;
     }
     else if (mGPUAlloc == NULL) {
@@ -123,7 +127,12 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
                 (buffer_handle_t *)&handle, &desc.mStride);
         if (ret == 0 && handle != NULL) {
             handle->fslFormat = desc.mFslFormat;
-            //mIonManager->getPhys(handle);
+#ifdef FRAMEBUFFER_COMPRESSION
+            if (desc.mFlag & FLAGS_FRAMEBUFFER) {
+                mIonManager->getPhys(handle);
+                handle->flags = desc.mFlag;
+            }
+#endif
         }
         allocMetaData(handle);
         *out = handle;

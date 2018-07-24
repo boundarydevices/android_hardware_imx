@@ -655,7 +655,12 @@ int KmsDisplay::updateScreen()
         mNoResolve = mAllowModifier && (buffer->usage &
                 (USAGE_GPU_TILED_VIV | USAGE_GPU_TS_VIV));
         if (mNoResolve) {
-            modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED;
+#ifdef FRAMEBUFFER_COMPRESSION
+            if (buffer->usage & USAGE_GPU_TS_VIV)
+                modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED_FC;
+            else
+#endif
+                modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED;
         }
 
         pitches[0] = stride;
