@@ -20,6 +20,11 @@
 
 #include "audio_hardware.h"
 
+#define MIXER_AK4458_L1CH_VOLUME                 "0 AK4458 L1ch Digital Volume"
+#define MIXER_AK4458_R1CH_VOLUME                 "0 AK4458 R1ch Digital Volume"
+
+#define AK4458_VOLUME_MAX 255
+
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  ak4458_card = {
     .name = "ak4458-audio",

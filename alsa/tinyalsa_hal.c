@@ -1337,9 +1337,37 @@ static uint32_t out_get_latency_dsd(const struct audio_stream_out *stream)
     return (pcm_config_dsd.period_size * pcm_config_dsd.period_count * 1000) / pcm_config_dsd.rate;
 }
 
-static int out_set_volume(struct audio_stream_out *stream __unused, float left __unused,
-                          float right __unused)
+static int out_set_volume(struct audio_stream_out *stream, float left, float right)
 {
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    struct imx_audio_device *adev = out->dev;
+
+    if (!strcmp(adev->card_list[out->card_index]->driver_name, "ak4458-audio")) {
+        struct mixer *mixer;
+        struct mixer_ctl *ctl[2];
+        int volume[2];
+
+        volume[0] = (int)(left * AK4458_VOLUME_MAX);
+        volume[1] = (int)(right * AK4458_VOLUME_MAX);
+        mixer = adev->mixer[out->card_index];
+        if (!mixer) {
+            return -ENOSYS;
+        }
+        ctl[0] = mixer_get_ctl_by_name(mixer, MIXER_AK4458_L1CH_VOLUME);
+        if (!ctl[0]) {
+            return -ENOSYS;
+        }
+        ctl[1] = mixer_get_ctl_by_name(mixer, MIXER_AK4458_R1CH_VOLUME);
+        if (!ctl[1]) {
+            return -ENOSYS;
+        }
+        mixer_ctl_set_value(ctl[0], 0, volume[0]);
+        mixer_ctl_set_value(ctl[1], 0, volume[1]);
+        ALOGD("%s left: %d, right: %d",__func__, mixer_ctl_get_value(ctl[0], 0), mixer_ctl_get_value(ctl[1], 0));
+
+        return 0;
+    }
+
     return -ENOSYS;
 }
 
