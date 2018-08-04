@@ -28,10 +28,9 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
 
-LOCAL_INIT_RC := android.hardware.automotive.evs@1.0-sample.rc
+LOCAL_MODULE := android.hardware.automotive.evs@1.0-EvsEnumeratorHw
 
-LOCAL_MODULE := android.hardware.automotive.evs@1.0-sample
-
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_TAGS := optional
 LOCAL_STRIP_MODULE := keep_symbols
 

@@ -65,7 +65,7 @@ bool VideoCapture::open(const char* deviceName) {
     // Enumerate the available capture formats (if any)
     ALOGI("Supported capture formats:");
     v4l2_fmtdesc formatDescriptions;
-    formatDescriptions.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    formatDescriptions.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     for (int i=0; true; i++) {
         formatDescriptions.index = i;
         if (ioctl(mDeviceFd, VIDIOC_ENUM_FMT, &formatDescriptions) == 0) {
@@ -82,7 +82,7 @@ bool VideoCapture::open(const char* deviceName) {
     }
 
     // Verify we can use this device for video capture
-    if (!(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE) ||
+    if (!(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) ||
         !(caps.capabilities & V4L2_CAP_STREAMING)) {
         // Can't do streaming capture.
         ALOGE("Streaming capture not supported by %s.", deviceName);
@@ -91,11 +91,12 @@ bool VideoCapture::open(const char* deviceName) {
 
     // Set our desired output format
     v4l2_format format;
-    format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    format.fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY; // Could/should we request V4L2_PIX_FMT_NV21?
-    format.fmt.pix.width = 720;                     // TODO:  Can we avoid hard coding dimensions?
-    format.fmt.pix.height = 240;                    // For now, this works with available hardware
-    format.fmt.pix.field = V4L2_FIELD_ALTERNATE;    // TODO:  Do we need to specify this?
+    format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    format.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUYV; // Could/should we request V4L2_PIX_FMT_NV21?
+    format.fmt.pix_mp.width = 640;                     // TODO:  Can we avoid hard coding dimensions?
+    format.fmt.pix_mp.height = 480;                    // For now, this works with available hardware
+    format.fmt.pix_mp.field = V4L2_FIELD_ALTERNATE;    // TODO:  Do we need to specify this?
+    format.fmt.pix_mp.num_planes = 1;    // TODO:  Do we need to specify this?
     ALOGI("Requesting format %c%c%c%c (0x%08X)",
           ((char*)&format.fmt.pix.pixelformat)[0],
           ((char*)&format.fmt.pix.pixelformat)[1],
@@ -107,19 +108,19 @@ bool VideoCapture::open(const char* deviceName) {
     }
 
     // Report the current output format
-    format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     if (ioctl(mDeviceFd, VIDIOC_G_FMT, &format) == 0) {
 
-        mFormat = format.fmt.pix.pixelformat;
-        mWidth  = format.fmt.pix.width;
-        mHeight = format.fmt.pix.height;
-        mStride = format.fmt.pix.bytesperline;
+        mFormat = format.fmt.pix_mp.pixelformat;
+        mWidth  = format.fmt.pix_mp.width;
+        mHeight = format.fmt.pix_mp.height;
+        mStride = format.fmt.pix_mp.plane_fmt[0].bytesperline;
 
-        ALOGI("Current output format:  fmt=0x%X, %dx%d, pitch=%d",
-               format.fmt.pix.pixelformat,
-               format.fmt.pix.width,
-               format.fmt.pix.height,
-               format.fmt.pix.bytesperline
+        ALOGI("Current output format:  fmt=0x%X, %dx%d, mStride=%d",
+               format.fmt.pix_mp.pixelformat,
+               format.fmt.pix_mp.width,
+               format.fmt.pix_mp.height,
+               mStride
         );
     } else {
         ALOGE("VIDIOC_G_FMT: %s", strerror(errno));
@@ -159,52 +160,56 @@ bool VideoCapture::startStream(std::function<void(VideoCapture*, imageBuffer*, v
 
     // Tell the L4V2 driver to prepare our streaming buffers
     v4l2_requestbuffers bufrequest;
-    bufrequest.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    bufrequest.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     bufrequest.memory = V4L2_MEMORY_MMAP;
-    bufrequest.count = 1;
+    bufrequest.count = 2;
     if (ioctl(mDeviceFd, VIDIOC_REQBUFS, &bufrequest) < 0) {
         ALOGE("VIDIOC_REQBUFS: %s", strerror(errno));
         return false;
     }
 
-    // Get the information on the buffer that was created for us
-    memset(&mBufferInfo, 0, sizeof(mBufferInfo));
-    mBufferInfo.type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    mBufferInfo.memory   = V4L2_MEMORY_MMAP;
-    mBufferInfo.index    = 0;
-    if (ioctl(mDeviceFd, VIDIOC_QUERYBUF, &mBufferInfo) < 0) {
-        ALOGE("VIDIOC_QUERYBUF: %s", strerror(errno));
-        return false;
+    for (int i = 0; i < 2; i++) {
+        // Get the information on the buffer that was created for us
+        struct v4l2_plane planes;
+        memset(&mBufferInfo[i], 0, sizeof(mBufferInfo[0]));
+        mBufferInfo[i].type     = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        mBufferInfo[i].memory   = V4L2_MEMORY_MMAP;
+        mBufferInfo[i].m.planes = &planes;
+        mBufferInfo[i].length   = 1;
+        mBufferInfo[i].index    = i;
+        if (ioctl(mDeviceFd, VIDIOC_QUERYBUF, &mBufferInfo[i]) < 0) {
+            ALOGE("VIDIOC_QUERYBUF: %s", strerror(errno));
+            return false;
+        }
+
+        ALOGI("Buffer description:");
+        ALOGI("offset: %d", mBufferInfo[i].m.planes[0].m.mem_offset);
+        ALOGI("length: %d", mBufferInfo[i].m.planes[0].length);
+
+        // Get a pointer to the buffer contents by mapping into our address space
+        mPixelBuffer[i] = mmap(
+                NULL,
+                mBufferInfo[i].m.planes[0].length,
+                PROT_READ | PROT_WRITE,
+                MAP_SHARED,
+                mDeviceFd,
+                mBufferInfo[i].m.planes[0].m.mem_offset
+        );
+        if( mPixelBuffer[i] == MAP_FAILED) {
+            ALOGE("mmap: %s", strerror(errno));
+            return false;
+        }
+
+        memset(mPixelBuffer[i], 0, mBufferInfo[i].length);
+        ALOGI("Buffer mapped at %p", mPixelBuffer[i]);
+        // Queue the first capture buffer
+        if (ioctl(mDeviceFd, VIDIOC_QBUF, &mBufferInfo[i]) < 0) {
+            ALOGE("VIDIOC_QBUF: %s", strerror(errno));
+            return false;
+        }
     }
-
-    ALOGI("Buffer description:");
-    ALOGI("  offset: %d", mBufferInfo.m.offset);
-    ALOGI("  length: %d", mBufferInfo.length);
-
-    // Get a pointer to the buffer contents by mapping into our address space
-    mPixelBuffer = mmap(
-            NULL,
-            mBufferInfo.length,
-            PROT_READ | PROT_WRITE,
-            MAP_SHARED,
-            mDeviceFd,
-            mBufferInfo.m.offset
-    );
-    if( mPixelBuffer == MAP_FAILED) {
-        ALOGE("mmap: %s", strerror(errno));
-        return false;
-    }
-    memset(mPixelBuffer, 0, mBufferInfo.length);
-    ALOGI("Buffer mapped at %p", mPixelBuffer);
-
-    // Queue the first capture buffer
-    if (ioctl(mDeviceFd, VIDIOC_QBUF, &mBufferInfo) < 0) {
-        ALOGE("VIDIOC_QBUF: %s", strerror(errno));
-        return false;
-    }
-
     // Start the video stream
-    int type = mBufferInfo.type;
+    int type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     if (ioctl(mDeviceFd, VIDIOC_STREAMON, &type) < 0) {
         ALOGE("VIDIOC_STREAMON: %s", strerror(errno));
         return false;
@@ -212,7 +217,6 @@ bool VideoCapture::startStream(std::function<void(VideoCapture*, imageBuffer*, v
 
     // Remember who to tell about new frames as they arrive
     mCallback = callback;
-
     // Fire up a thread to receive and dispatch the video frames
     mCaptureThread = std::thread([this](){ collectFrames(); });
 
@@ -223,6 +227,7 @@ bool VideoCapture::startStream(std::function<void(VideoCapture*, imageBuffer*, v
 
 void VideoCapture::stopStream() {
     // Tell the background thread to stop
+    int i;
     int prevRunMode = mRunMode.fetch_or(STOPPING);
     if (prevRunMode == STOPPED) {
         // The background thread wasn't running, so set the flag back to STOPPED
@@ -237,7 +242,7 @@ void VideoCapture::stopStream() {
         }
 
         // Stop the underlying video stream (automatically empties the buffer queue)
-        int type = mBufferInfo.type;
+        int type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
         if (ioctl(mDeviceFd, VIDIOC_STREAMOFF, &type) < 0) {
             ALOGE("VIDIOC_STREAMOFF: %s", strerror(errno));
         }
@@ -245,12 +250,14 @@ void VideoCapture::stopStream() {
         ALOGD("Capture thread stopped.");
     }
 
+
     // Unmap the buffers we allocated
-    munmap(mPixelBuffer, mBufferInfo.length);
+    for (i = 0; i < 2; i++)
+        munmap(mPixelBuffer[i], mBufferInfo[i].length);
 
     // Tell the L4V2 driver to release our streaming buffers
     v4l2_requestbuffers bufrequest;
-    bufrequest.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    bufrequest.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     bufrequest.memory = V4L2_MEMORY_MMAP;
     bufrequest.count = 0;
     ioctl(mDeviceFd, VIDIOC_REQBUFS, &bufrequest);
@@ -267,33 +274,52 @@ void VideoCapture::markFrameReady() {
 
 bool VideoCapture::returnFrame() {
     // We're giving the frame back to the system, so clear the "ready" flag
+    ALOGI("returnFrame  index %d", currentIndex);
     mFrameReady = false;
+    struct v4l2_buffer buf;
+    struct v4l2_plane planes;
+    memset(&buf, 0, sizeof(buf));
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.m.planes = &planes;
+    buf.index = currentIndex;
+    buf.length = 1;
+    buf.m.planes[0].length = mBufferInfo[currentIndex].m.planes[0].length;
 
     // Requeue the buffer to capture the next available frame
-    if (ioctl(mDeviceFd, VIDIOC_QBUF, &mBufferInfo) < 0) {
+    if (ioctl(mDeviceFd, VIDIOC_QBUF, &buf) < 0) {
         ALOGE("VIDIOC_QBUF: %s", strerror(errno));
         return false;
     }
-
     return true;
 }
 
 
 // This runs on a background thread to receive and dispatch video frames
 void VideoCapture::collectFrames() {
+    struct v4l2_buffer buf;
+    struct v4l2_plane planes;
+
+    memset(&buf, 0, sizeof(buf));
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.m.planes = &planes;
+    buf.length = 1;
+
     // Run until our atomic signal is cleared
     while (mRunMode == RUN) {
         // Wait for a buffer to be ready
-        if (ioctl(mDeviceFd, VIDIOC_DQBUF, &mBufferInfo) < 0) {
+
+        if (ioctl(mDeviceFd, VIDIOC_DQBUF, &buf) < 0) {
             ALOGE("VIDIOC_DQBUF: %s", strerror(errno));
             break;
         }
-
         markFrameReady();
 
+        currentIndex = buf.index ;
         // If a callback was requested per frame, do that now
         if (mCallback) {
-            mCallback(this, &mBufferInfo, mPixelBuffer);
+            mCallback(this, &mBufferInfo[currentIndex], mPixelBuffer[currentIndex]);
         }
     }
 

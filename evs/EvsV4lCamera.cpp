@@ -52,8 +52,8 @@ EvsV4lCamera::EvsV4lCamera(const char *deviceName) :
     // TODO:  Settle on the one official format that works on all platforms
     // TODO:  Get NV21 working?  It is scrambled somewhere along the way right now.
 //    mFormat = HAL_PIXEL_FORMAT_YCRCB_420_SP;    // 420SP == NV21
-//    mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
-    mFormat = HAL_PIXEL_FORMAT_YCBCR_422_I;
+    mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
+//    mFormat = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
     // How we expect to use the gralloc buffers we'll exchange with our client
     mUsage  = GRALLOC_USAGE_HW_TEXTURE     |

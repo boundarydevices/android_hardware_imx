@@ -176,8 +176,9 @@ Return<void> EvsGlDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)  {
         }
 
         // Assemble the buffer description we'll use for our render target
-        mBuffer.width       = mGlWrapper.getWidth();
-        mBuffer.height      = mGlWrapper.getHeight();
+        // hard code the resolution 640*480
+        mBuffer.width       = 640;
+        mBuffer.height      = 480;
         mBuffer.format      = HAL_PIXEL_FORMAT_RGBA_8888;
         mBuffer.usage       = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER;
         mBuffer.bufferId    = 0x3870;  // Arbitrary magic number for self recognition

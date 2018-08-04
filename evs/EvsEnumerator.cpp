@@ -237,14 +237,14 @@ bool EvsEnumerator::qualifyCaptureDevice(const char* deviceName) {
     if (result  < 0) {
         return false;
     }
-    if (((caps.capabilities & V4L2_CAP_VIDEO_CAPTURE) == 0) ||
+    if (((caps.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) == 0) ||
         ((caps.capabilities & V4L2_CAP_STREAMING)     == 0)) {
         return false;
     }
 
     // Enumerate the available capture formats (if any)
     v4l2_fmtdesc formatDescription;
-    formatDescription.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    formatDescription.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     for (int i=0; true; i++) {
         formatDescription.index = i;
         if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescription) == 0) {

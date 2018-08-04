@@ -51,8 +51,9 @@ private:
 
     int mDeviceFd = -1;
 
-    v4l2_buffer mBufferInfo = {};
-    void* mPixelBuffer = nullptr;
+    int currentIndex = 0; // mark as current buffer num 0 or 1
+    v4l2_buffer mBufferInfo[2] = {}; // Used to instore buffer information
+    void* mPixelBuffer[2] = {nullptr}; // Used to instore the mmap address
 
     __u32   mFormat = 0;
     __u32   mWidth  = 0;
