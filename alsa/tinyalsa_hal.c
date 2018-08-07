@@ -598,39 +598,27 @@ static void select_input_device(struct imx_audio_device *adev)
     }
 }
 
-static int get_card_for_bt_sai(struct imx_audio_device *adev, int *card_index)
+static int get_card_for_name(struct imx_audio_device *adev, const char *name, int *card_index)
 {
     int i;
     int card = -1;
 
-    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
-        if(strcmp(adev->card_list[i]->name, BT_SAI_CARD_NAME) == 0) {
+    if (!adev || !name) {
+        ALOGE("%s: Invalid audio device or card name", __func__);
+        return -1;
+    }
+
+    for (i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+        if (strcmp(adev->card_list[i]->name, name) == 0) {
               card = adev->card_list[i]->card;
               break;
         }
     }
 
-    if (card_index != NULL)
+    if (card_index)
         *card_index = i;
 
-    return card;
-}
-
-static int get_card_for_dsd(struct imx_audio_device *adev, int *card_index)
-{
-    int i;
-    int card = -1;
-
-    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
-        if(strcmp(adev->card_list[i]->name, DSD_CARD_NAME) == 0) {
-              card = adev->card_list[i]->card;
-              break;
-        }
-    }
-
-    if (card_index != NULL)
-        *card_index = i;
-
+    ALOGD("%s: name: %s, card: %d", __func__, name, card);
     return card;
 }
 
@@ -853,7 +841,7 @@ static int start_output_stream_dsd(struct imx_stream_out *out)
     int i = 0;
 
     ALOGI("%s: out %p, device 0x%x", __func__, out, out->device);
-    card = get_card_for_dsd(adev, NULL);
+    card = get_card_for_name(adev, DSD_CARD_NAME, &out->card_index);
 
     ALOGW("card %d, port %d device 0x%x", card, port, out->device);
     ALOGW("rate %d, channel %d period_size 0x%x format %d", out->config[PCM_DSD].rate, out->config[PCM_DSD].channels, out->config[PCM_DSD].period_size, out->config[PCM_DSD].format);
@@ -3604,7 +3592,7 @@ static int sco_task_create(struct imx_audio_device *adev)
     /*=============== create rx task ===============*/
     ALOGI("prepare bt rx task");
     //open sco card for read
-    card = get_card_for_bt_sai(adev, NULL);
+    card = get_card_for_name(adev, BT_SAI_CARD_NAME, NULL);
     pcm_config_sco_in.period_size =  pcm_config_mm_out.period_size * pcm_config_sco_in.rate / pcm_config_mm_out.rate;
     pcm_config_sco_in.period_count = pcm_config_mm_out.period_count;
 
@@ -3657,7 +3645,7 @@ static int sco_task_create(struct imx_audio_device *adev)
     /*=============== create tx task ===============*/
     ALOGI("prepare bt tx task");
     //open sco card for write
-    card = get_card_for_bt_sai(adev, NULL);
+    card = get_card_for_name(adev, BT_SAI_CARD_NAME, NULL);
     ALOGI("open sco for write, card %d, port %d", card, port);
     ALOGI("rate %d, channel %d, period_size 0x%x",
         pcm_config_sco_out.rate, pcm_config_sco_out.channels, pcm_config_sco_out.period_size);
