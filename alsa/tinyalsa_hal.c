@@ -112,6 +112,9 @@
 // DSD pcm param: 2 channel, 32 bit
 #define DSD_FRAMESIZE_BYTES 8
 
+#define LPA_PERIOD_SIZE 192
+#define LPA_PERIOD_COUNT 8
+
 #define MM_USB_AUDIO_IN_RATE   16000
 
 #define SCO_RATE 16000
@@ -158,6 +161,16 @@ struct pcm_config pcm_config_mm_out = {
     .rate = MM_FULL_POWER_SAMPLING_RATE,
     .period_size = LONG_PERIOD_SIZE,
     .period_count = PLAYBACK_LONG_PERIOD_COUNT,
+    .format = PCM_FORMAT_S16_LE,
+    .start_threshold = 0,
+    .avail_min = 0,
+};
+
+struct pcm_config pcm_config_lpa = {
+    .channels = 2,
+    .rate = 48000,
+    .period_size = LPA_PERIOD_SIZE,
+    .period_count = LPA_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
     .start_threshold = 0,
     .avail_min = 0,
@@ -767,6 +780,33 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     return -ENOMEM;
 }
 
+static int start_output_stream(struct imx_stream_out *out)
+{
+    struct imx_audio_device *adev = out->dev;
+    unsigned int card = -1;
+    unsigned int port = 0;
+    int i = 0;
+
+    ALOGI("%s: out %p, device 0x%x", __func__, out, out->device);
+    card = get_card_for_device(adev, out->device & AUDIO_DEVICE_OUT_LINE, PCM_OUT, &out->card_index);
+    ALOGW("card %d, port %d device 0x%x", card, port, out->device);
+    ALOGW("rate %d, channel %d period_size 0x%x", out->config_default.rate, out->config_default.channels, out->config_default.period_size);
+
+    out->write_flags_default = PCM_OUT | PCM_MONOTONIC;
+    out->pcm_default = pcm_open(card, port, out->write_flags_default, &out->config_default);
+
+    if (out->pcm_default && !pcm_is_ready(out->pcm_default)) {
+        ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm_default));
+        pcm_close(out->pcm_default);
+        out->pcm_default = NULL;
+        return -ENOMEM;
+    }
+
+    out->written = 0;
+
+    return 0;
+}
+
 static int start_output_stream_hdmi(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
@@ -1008,6 +1048,13 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
     return pcm_config_mm_out.rate;
 }
 
+static uint32_t out_get_sample_rate_default(const struct audio_stream *stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+
+    return out->sample_rate;
+}
+
 static uint32_t out_get_sample_rate_hdmi(const struct audio_stream *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
@@ -1043,6 +1090,14 @@ static size_t out_get_buffer_size_primary(const struct audio_stream *stream)
     size_t size = (pcm_config_mm_out.period_size * adev->default_rate) / pcm_config_mm_out.rate;
     size = ((size + 15) / 16) * 16;
     return size * audio_stream_out_frame_size((const struct audio_stream_out *)stream);
+}
+
+static size_t out_get_buffer_size(const struct audio_stream *stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+
+    return out->config_default.period_size *
+                audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
 
 static size_t out_get_buffer_size_hdmi(const struct audio_stream *stream)
@@ -1122,6 +1177,12 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
 
             out->writeContiFailCount[i] = 0;
         }
+
+        if (out->pcm_default) {
+            pcm_close(out->pcm_default);
+            out->pcm_default = NULL;
+        }
+        out->writeContiFailCount_default = 0;
 
         ALOGW("do_out_standby... %p",out);
 
@@ -1359,6 +1420,16 @@ static uint32_t out_get_latency_primary(const struct audio_stream_out *stream)
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
 
     return (pcm_config_mm_out.period_size * pcm_config_mm_out.period_count * 1000) / pcm_config_mm_out.rate;
+}
+
+static uint32_t out_get_latency(const struct audio_stream_out *stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    uint32_t latency;
+
+    latency = (out->config_default.period_count * out->config_default.period_size * 1000) /
+              (out->config_default.rate);
+    return latency;
 }
 
 static uint32_t out_get_latency_hdmi(const struct audio_stream_out *stream)
@@ -1695,6 +1766,47 @@ static ssize_t out_write_dsd(struct audio_stream_out *stream, const void* buffer
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
 
     ret = pcm_write_wrapper(out->pcm[PCM_DSD], (void *)buffer, bytes, out->write_flags[PCM_DSD]);
+
+exit:
+    out->written += bytes / frame_size;
+    pthread_mutex_unlock(&out->lock);
+
+    if (ret != 0) {
+        ALOGV("write error, sleep few ms");
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
+               out_get_sample_rate(&stream->common));
+    }
+
+    return bytes;
+}
+
+static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
+                         size_t bytes)
+{
+    int ret;
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    struct imx_audio_device *adev = out->dev;
+    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
+
+    /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
+     * on the output stream mutex - e.g. executing select_mode() while holding the hw device
+     * mutex
+     */
+    pthread_mutex_lock(&adev->lock);
+    pthread_mutex_lock(&out->lock);
+    if (out->standby) {
+        ret = start_output_stream(out);
+        if (ret != 0) {
+            pthread_mutex_unlock(&adev->lock);
+            goto exit;
+        }
+        out->standby = 0;
+    }
+    pthread_mutex_unlock(&adev->lock);
+
+    /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
+
+    ret = pcm_write_wrapper(out->pcm_default, (void *)buffer, bytes, out->write_flags_default);
 
 exit:
     out->written += bytes / frame_size;
@@ -3136,6 +3248,8 @@ static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx
                 ALOGW("out_read_hdmi_channel_masks() card %d got %d sup channels", card, sup_channels[i]);
             }
         }
+    } else {
+        return 0;
     }
 
     /*when channel is 6, the mask is 5.1,when channel is 8, the mask is 7.1*/
@@ -3241,7 +3355,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config[PCM_DSD] = pcm_config_dsd;
         out->stream.flush = out_flush;
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
-                   devices == AUDIO_DEVICE_OUT_AUX_DIGITAL) {
+               devices == AUDIO_DEVICE_OUT_AUX_DIGITAL) {
         ALOGW("adev_open_output_stream() HDMI multichannel");
         if (ladev->active_output[OUTPUT_HDMI] != NULL) {
             ret = -ENOSYS;
@@ -3293,6 +3407,31 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config[PCM_ESAI] = pcm_config_esai_multi;
         out->config[PCM_ESAI].rate = config->sample_rate;
         out->config[PCM_ESAI].channels = popcount(config->channel_mask);
+    } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
+               devices == AUDIO_DEVICE_OUT_LINE) {
+        int lpa_hold_second = property_get_int32("lpa_hold_second", 0);
+        int lpa_period_ms = property_get_int32("lpa_period_ms", 0);
+
+        if(lpa_hold_second && lpa_period_ms) {
+            pcm_config_lpa.period_size = config->sample_rate * lpa_period_ms / 1000;
+            pcm_config_lpa.period_count =  lpa_hold_second * 1000 / lpa_period_ms;
+        }
+
+        ALOGD("%s: LPA direct output stream, hold_second: %d, period_ms: %d", __func__, lpa_hold_second, lpa_period_ms);
+        output_type = OUTPUT_HDMI;
+        out->sample_rate = config->sample_rate;
+        out->channel_mask = config->channel_mask;
+        out->stream.common.get_buffer_size = out_get_buffer_size;
+        out->stream.common.get_sample_rate = out_get_sample_rate_default;
+        out->stream.get_latency = out_get_latency;
+        out->stream.write = out_write;
+
+        out->config_default = pcm_config_lpa;
+        out->config_default.rate = config->sample_rate;
+        out->config_default.channels = popcount(config->channel_mask);
+        out->stream.pause = out_pause;
+        out->stream.resume = out_resume;
+        out->stream.flush = out_flush;
     } else {
         ALOGV("adev_open_output_stream() normal buffer");
         if (ladev->active_output[OUTPUT_PRIMARY] != NULL) {

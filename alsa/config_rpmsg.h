@@ -128,6 +128,7 @@ static struct audio_card  rpmsg_card = {
             AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
             AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET |
             AUDIO_DEVICE_OUT_ALL_SCO |
+            AUDIO_DEVICE_OUT_LINE |
             AUDIO_DEVICE_OUT_DEFAULT ),
     .supported_in_devices = (
             AUDIO_DEVICE_IN_COMMUNICATION |

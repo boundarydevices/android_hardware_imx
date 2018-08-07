@@ -139,6 +139,7 @@ struct imx_stream_out {
     struct pcm *pcm[PCM_TOTAL];
     struct pcm *pcm_default;
     int writeContiFailCount[PCM_TOTAL];
+    int writeContiFailCount_default;
     struct resampler_itfe *resampler[PCM_TOTAL];
     char *buffer;
     int standby;
@@ -148,9 +149,11 @@ struct imx_stream_out {
     int write_threshold[PCM_TOTAL];
     bool low_power;
     int write_flags[PCM_TOTAL];
+    int write_flags_default;
     int device;
     size_t buffer_frames;
     uint64_t written;
+    unsigned int sample_rate;
     audio_channel_mask_t channel_mask;
     audio_channel_mask_t sup_channel_masks[3];
     int sup_rates[MAX_SUP_RATE_NUM];
