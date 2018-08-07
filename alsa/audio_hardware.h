@@ -135,7 +135,9 @@ struct imx_stream_out {
 
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
     struct pcm_config config[PCM_TOTAL];
+    struct pcm_config config_default;
     struct pcm *pcm[PCM_TOTAL];
+    struct pcm *pcm_default;
     int writeContiFailCount[PCM_TOTAL];
     struct resampler_itfe *resampler[PCM_TOTAL];
     char *buffer;
@@ -154,6 +156,7 @@ struct imx_stream_out {
     int sup_rates[MAX_SUP_RATE_NUM];
     audio_format_t format;
     char* address;
+    bool paused;
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */

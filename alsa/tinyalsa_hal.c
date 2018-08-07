@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
 #include <stdlib.h>
 
 #include <cutils/log.h>
@@ -32,6 +33,7 @@
 #include <hardware/hardware.h>
 #include <system/audio.h>
 #include <hardware/audio.h>
+#include <sound/asound.h>
 
 #include <tinyalsa/asoundlib.h>
 #include <audio_utils/resampler.h>
@@ -1158,12 +1160,67 @@ static int out_dump(const struct audio_stream *stream __unused, int fd __unused)
     return 0;
 }
 
+#define PCM_IOCTL_PAUSE  1
+#define PCM_IOCTL_RESUME 0
+static int out_pause(struct audio_stream_out* stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    int status = 0;
+
+    ALOGI("%s", __func__);
+    pthread_mutex_lock(&out->lock);
+    if (!out->paused) {
+        status = pcm_ioctl(out->pcm_default, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
+        if (!status)
+            out->paused = true;
+    }
+    pthread_mutex_unlock(&out->lock);
+
+    return status;
+}
+
+static int out_resume(struct audio_stream_out* stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+    int status = 0;
+
+    ALOGI("%s", __func__);
+    pthread_mutex_lock(&out->lock);
+    if (out->paused) {
+        status= pcm_ioctl(out->pcm_default, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
+        if (!status)
+            out->paused = false;
+    }
+    pthread_mutex_unlock(&out->lock);
+
+    return status;
+}
+#undef PCM_IOCTL_PAUSE
+#undef PCM_IOCTL_RESUME
+
 static int out_flush(struct audio_stream_out* stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    out->written = 0;
+    struct imx_audio_device *adev = out->dev;
+    int status = 0;
 
-    return 0;
+    ALOGI("%s", __func__);
+    pthread_mutex_lock(&out->lock);
+
+    out->written = 0;
+    if(out->pcm_default) {
+        pcm_close(out->pcm_default);
+        out->pcm_default = NULL;
+    }
+
+    out->pcm_default = pcm_open(adev->card_list[out->card_index]->card, 0, PCM_OUT | PCM_MONOTONIC, &out->config_default);
+    if(out->pcm_default)
+        out->standby = 0;
+
+    out->paused = false;
+    pthread_mutex_unlock(&out->lock);
+
+    return status;
 }
 
 static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
@@ -3278,6 +3335,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->dev = ladev;
     out->standby = 1;
     out->device      = devices;
+    out->paused = false;
 
     /* FIXME: when we support multiple output devices, we will want to
      * do the following:
