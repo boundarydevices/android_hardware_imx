@@ -92,6 +92,8 @@ public:
     Layer* getFreeLayer();
     // clean and invalidate all layers.
     int invalidLayers();
+    // set layer info with specified layer.
+    void setLayerInfo(int index, Layer* layer);
     // set or unset SKIP_LAYER flag for all layers.
     int setSkipLayer(bool skip);
     // get changed composition types for all layers.

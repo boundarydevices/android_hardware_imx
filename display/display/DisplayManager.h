@@ -45,6 +45,7 @@ public:
     bool isOverlay(int fb);
     int enumFbDisplays();
     int enumKmsDisplay(const char *path, int *id, bool *foundPrimary);
+    int enumFakeKmsDisplay();
     int enumKmsDisplays();
     void setCallback(EventListener* callback);
     void handleHotplugEvent();
@@ -77,6 +78,7 @@ private:
     KmsDisplay* mKmsDisplays[MAX_PHYSICAL_DISPLAY];
     VirtualDisplay* mVirtualDisplays[MAX_VIRTUAL_DISPLAY];
     EventListener* mListener;
+    bool mDriverReady;
     bool mDrmMode;
 };
 

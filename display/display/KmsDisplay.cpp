@@ -789,6 +789,29 @@ void KmsDisplay::getGUIResolution(int &width, int &height)
     }
 }
 
+void KmsDisplay::getFakeGUIResolution(int &width, int &height)
+{
+    char value[PROPERTY_VALUE_MAX];
+    memset(value, 0, sizeof(value));
+    property_get("ro.boot.fake.ui_resolution", value, "p");
+    if (!strncmp(value, "4k", 2)) {
+        width = 3840;
+        height = 2160;
+    }
+    else if (!strncmp(value, "1080p", 5)) {
+        width = 1920;
+        height = 1080;
+    }
+    else if (!strncmp(value, "720p", 4)) {
+        width = 1280;
+        height = 720;
+    }
+    else if (!strncmp(value, "480p", 4)) {
+        width = 640;
+        height = 480;
+    }
+}
+
 int KmsDisplay::openKms()
 {
     Mutex::Autolock _l(mLock);
@@ -917,6 +940,42 @@ int KmsDisplay::openKms()
         drmModeFreeConnector(pConnector);
     }
     drmModeFreeResources(pModeRes);
+
+    mActiveConfig = configId;
+    prepareTargetsLocked();
+
+    return 0;
+}
+
+int KmsDisplay::openFakeKms()
+{
+    mType = DISPLAY_HDMI;
+    int width = 1920;
+    int height = 1080;
+    getFakeGUIResolution(width, height);
+
+    ssize_t configId = getConfigIdLocked(width, height);
+    if (configId < 0) {
+        ALOGE("can't find config: w:%d, h:%d", width, height);
+        return -1;
+    }
+
+    DisplayConfig& config = mConfigs.editItemAt(configId);
+    config.mXdpi = 160000;
+    config.mYdpi = 160000;
+
+    config.mFps  = 60.0f;
+    config.mVsyncPeriod  = 1000000000 / config.mFps;
+    config.mFormat = FORMAT_RGBA8888;
+    config.mBytespixel = 4;
+    ALOGW("xres         = %d px\n"
+          "yres         = %d px\n"
+          "format       = %d\n"
+          "xdpi         = %.2f ppi\n"
+          "ydpi         = %.2f ppi\n"
+          "fps          = %.2f Hz\n",
+          config.mXres, config.mYres, config.mFormat, config.mXdpi / 1000.0f,
+          config.mYdpi / 1000.0f, config.mFps);
 
     mActiveConfig = configId;
     prepareTargetsLocked();

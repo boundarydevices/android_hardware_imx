@@ -517,6 +517,45 @@ int Display::invalidLayers()
     return 0;
 }
 
+void Display::setLayerInfo(int index, Layer* layer)
+{
+    if (index < 0 || index >= MAX_LAYERS) {
+        ALOGE("%s invalid index:%d", __func__, index);
+        return;
+    }
+
+    Mutex::Autolock _l(mLock);
+
+    mLayers[index]->busy = layer->busy;
+    mLayers[index]->zorder = layer->zorder;
+    mLayers[index]->origType = layer->origType;
+    mLayers[index]->type = layer->type;
+    mLayers[index]->handle = layer->handle;
+    mLayers[index]->lastHandle = NULL;
+    mLayers[index]->transform = layer->transform;
+    mLayers[index]->blendMode = layer->blendMode;
+    mLayers[index]->planeAlpha = layer->planeAlpha;
+    mLayers[index]->color = layer->color;
+    mLayers[index]->flags = layer->flags;
+    mLayers[index]->sourceCrop.left = layer->sourceCrop.left;
+    mLayers[index]->sourceCrop.top = layer->sourceCrop.top;
+    mLayers[index]->sourceCrop.right = layer->sourceCrop.right;
+    mLayers[index]->sourceCrop.bottom = layer->sourceCrop.bottom;
+    mLayers[index]->displayFrame.left = layer->displayFrame.left;
+    mLayers[index]->displayFrame.top = layer->displayFrame.top;
+    mLayers[index]->displayFrame.right = layer->displayFrame.right;
+    mLayers[index]->displayFrame.bottom = layer->displayFrame.bottom;
+    mLayers[index]->visibleRegion = layer->visibleRegion;
+    mLayers[index]->lastSourceCrop.clear();
+    mLayers[index]->lastDisplayFrame.clear();
+    mLayers[index]->acquireFence = layer->acquireFence;
+    mLayers[index]->releaseFence = layer->releaseFence;
+    mLayers[index]->index = layer->index;
+    mLayers[index]->isHdrMode = layer->isHdrMode;
+    mLayers[index]->isOverlay = layer->isOverlay;
+    mLayers[index]->priv = layer->priv;
+}
+
 int Display::setSkipLayer(bool skip)
 {
     Mutex::Autolock _l(mLock);

@@ -63,6 +63,7 @@ DisplayManager::DisplayManager()
     }
 
     mDrmMode = false;
+    mDriverReady = true;
     enumKmsDisplays();
     if (!mDrmMode) {
         enumFbDisplays();
@@ -238,6 +239,14 @@ bool DisplayManager::isOverlay(int fb)
 
 int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary)
 {
+    char value[PROPERTY_VALUE_MAX];
+    int len = property_get("ro.boot.primary_display", value, NULL);
+    if (len > 0) {
+        if (strstr(value,"drm")) {
+            mDrmMode = true;
+        }
+    }
+
     int drmFd = open(path, O_RDWR);
     if(drmFd < 0) {
         ALOGE("Failed to open dri-%s, error:%s", path, strerror(-errno));
@@ -261,8 +270,6 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     // get primary display name to match DRM.
     // the primary display can be fixed by name.
     int main = 0;
-    char value[PROPERTY_VALUE_MAX];
-    int len = property_get("ro.boot.primary_display", value, NULL);
     if (len > 0) {
         drmVersionPtr version = drmGetVersion(drmFd);
         if (version && !strncmp(version->name, value, len)) {
@@ -309,6 +316,15 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
             mKmsDisplays[*id] = tmp;
             mKmsDisplays[0]->setIndex(0);
             mKmsDisplays[*id]->setIndex(*id);
+
+            for (size_t i=0; i<MAX_LAYERS; i++) {
+                Layer* pLayer = mKmsDisplays[*id]->getLayer(i);
+                if (!pLayer->busy) {
+                    continue;
+                }
+                mKmsDisplays[0]->setLayerInfo(i,pLayer);
+            }
+            mKmsDisplays[*id]->invalidLayers();
         }
         else {
             (*id)++;
@@ -317,6 +333,14 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     drmModeFreeResources(res);
     close(drmFd);
 
+    return 0;
+}
+
+int DisplayManager::enumFakeKmsDisplay()
+{
+    KmsDisplay* display = mKmsDisplays[DISPLAY_PRIMARY];
+    if (display->openFakeKms() != 0)
+        display->closeKms();
     return 0;
 }
 
@@ -350,12 +374,14 @@ int DisplayManager::enumKmsDisplays()
     free(dirEntry);
 
     if (foundPrimary) {
-        mDrmMode = true;
-        ret = 0;
+        mDriverReady = true;
     }
     else {
-        ret = -ENODEV;
+        ALOGI("drm driver may not ready or bootargs is not correct");
+        enumFakeKmsDisplay();
+        mDriverReady = false;
     }
+    ret = 0;
 
     return ret;
 }
@@ -479,6 +505,19 @@ void DisplayManager::handleKmsHotplug()
             display = mKmsDisplays[i];
         }
 
+        EventListener* callback = NULL;
+        {
+            Mutex::Autolock _l(mLock);
+            callback = mListener;
+        }
+
+        if (!mDriverReady) {
+            enumKmsDisplays();
+            if (callback != NULL) {
+                callback->onRefresh(i);
+            }
+        }
+
         bool connected = display->connected();
         display->readConnection();
         if (display->connected() == connected) {
@@ -495,11 +534,6 @@ void DisplayManager::handleKmsHotplug()
             display->openKms();
         }
 
-        EventListener* callback = NULL;
-        {
-            Mutex::Autolock _l(mLock);
-            callback = mListener;
-        }
         if (callback != NULL) {
             callback->onHotplug(i, display->connected());
         }

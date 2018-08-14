@@ -104,6 +104,8 @@ public:
 
     // open drm device.
     int openKms();
+    // config releated info when drm device is not ready.
+    int openFakeKms();
     // close drm device.
     int closeKms();
     // read display type.
@@ -139,6 +141,7 @@ private:
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
     void setMetaData(drmModeAtomicReqPtr pset, MetaData *meta);
     void getGUIResolution(int &width, int &height);
+    void getFakeGUIResolution(int &width, int &height);
 
 protected:
     int mDrmFd;
