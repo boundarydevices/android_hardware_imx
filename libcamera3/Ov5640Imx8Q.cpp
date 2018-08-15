@@ -95,6 +95,11 @@ status_t Ov5640Imx8Q::initSensorStaticData()
         }
         ALOGI("enum frame size w:%d, h:%d", vid_frmsize.discrete.width, vid_frmsize.discrete.height);
 
+        if (vid_frmsize.discrete.width == 0 ||
+              vid_frmsize.discrete.height == 0) {
+            continue;
+        }
+
         // v4l2 does not support, now hard code here.
         if ((vid_frmsize.discrete.width > 1280) ||
             (vid_frmsize.discrete.height > 800)) {
