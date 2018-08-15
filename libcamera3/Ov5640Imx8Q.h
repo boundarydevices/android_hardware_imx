@@ -26,7 +26,6 @@ public:
     Ov5640Imx8Q(int32_t id, int32_t facing, int32_t orientation, char *path);
     ~Ov5640Imx8Q();
 
-    virtual int getCaptureMode(int width, int height);
     virtual status_t initSensorStaticData();
     virtual PixelFormat getPreviewPixelFormat();
 
@@ -37,6 +36,7 @@ private:
         Ov5640Stream(Camera *device) : MMAPStream(device, true) { mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE; }
         virtual ~Ov5640Stream() {}
 
+        virtual int getCaptureMode(int width, int height);
         // configure device.
         virtual int32_t onDeviceConfigureLocked();
     };

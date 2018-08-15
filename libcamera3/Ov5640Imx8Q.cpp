@@ -27,28 +27,24 @@ Ov5640Imx8Q::~Ov5640Imx8Q()
 }
 
 
-int Ov5640Imx8Q::getCaptureMode(int width, int height)
+int Ov5640Imx8Q::Ov5640Stream::getCaptureMode(int width, int height)
 {
+    int index = 0;
+    int ret = 0;
     int capturemode = 0;
+    struct v4l2_frmsizeenum vid_frmsize;
 
-    if ((width == 640) && (height == 480)) {
-        capturemode = 0;
+    while (ret == 0) {
+        vid_frmsize.index = index++;
+        vid_frmsize.pixel_format = v4l2_fourcc('Y', 'U', 'Y', 'V');
+        ret = ioctl(mDev, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
+        if ((vid_frmsize.discrete.width == (uint32_t)width) && (vid_frmsize.discrete.height == (uint32_t)height)
+            && (ret == 0)) {
+            capturemode = vid_frmsize.index;
+            break;
+        }
     }
-    else if ((width == 320) && (height == 240)) {
-        capturemode = 1;
-    }
-    else if ((width == 480) && (height == 272)) {
-        capturemode = 2;
-    }
-    else if ((width == 1280) && (height == 720)) {
-        capturemode = 3;
-    }
-    else if ((width == 1920) && (height == 1080)) {
-        capturemode = 4;
-    }
-    else {
-        ALOGE("width:%d height:%d is not supported.", width, height);
-    }
+
     return capturemode;
 }
 
@@ -206,7 +202,7 @@ int32_t Ov5640Imx8Q::Ov5640Stream::onDeviceConfigureLocked()
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     param.parm.capture.timeperframe.numerator   = 1;
     param.parm.capture.timeperframe.denominator = fps;
-    param.parm.capture.capturemode = mCamera->getCaptureMode(mWidth, mHeight);
+    param.parm.capture.capturemode = getCaptureMode(mWidth, mHeight);
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
     if (ret < 0) {
         ALOGE("%s: VIDIOC_S_PARM Failed: %s", __func__, strerror(errno));
