@@ -556,7 +556,7 @@ int32_t Camera::processCaptureRequest(camera3_capture_request_t *request)
         camera_metadata_entry_t streams = mSettings->find(
                             ANDROID_CONTROL_AE_TARGET_FPS_RANGE);
         if (streams.count > 1) {
-            if (streams.data.i32[0] > 15 && streams.data.i32[1] > 15) {
+            if (streams.data.i32[0] > 15 || streams.data.i32[1] > 15) {
                 fps = 30;
             }
             else {

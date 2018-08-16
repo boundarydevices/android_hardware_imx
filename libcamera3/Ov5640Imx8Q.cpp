@@ -80,6 +80,7 @@ status_t Ov5640Imx8Q::initSensorStaticData()
 
     index = 0;
     char TmpStr[20];
+    uint32_t fps = 0;
     int previewCnt = 0, pictureCnt = 0;
     struct v4l2_frmsizeenum vid_frmsize;
     struct v4l2_frmivalenum vid_frmval;
@@ -100,14 +101,15 @@ status_t Ov5640Imx8Q::initSensorStaticData()
             continue;
         }
 
-        // v4l2 does not support, now hard code here.
-        if ((vid_frmsize.discrete.width > 1280) ||
-            (vid_frmsize.discrete.height > 800)) {
-            vid_frmval.discrete.denominator = 15;
-            vid_frmval.discrete.numerator = 1;
-        } else {
-            vid_frmval.discrete.denominator = 30;
-            vid_frmval.discrete.numerator = 1;
+        vid_frmval.index = 0;
+        vid_frmval.pixel_format = vid_frmsize.pixel_format;
+        vid_frmval.width = vid_frmsize.discrete.width;
+        vid_frmval.height = vid_frmsize.discrete.height;
+        while (ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval) >= 0) {
+            if (fps < vid_frmval.discrete.denominator / vid_frmval.discrete.numerator) {
+                fps = vid_frmval.discrete.denominator / vid_frmval.discrete.numerator;
+            }
+            vid_frmval.index++;
         }
 
         // If w/h ratio is not same with senserW/sensorH, framework assume that
@@ -123,7 +125,7 @@ status_t Ov5640Imx8Q::initSensorStaticData()
             mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
         }
 
-        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
+        if (fps > 15) {
             mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
             mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
         }
@@ -189,14 +191,25 @@ int32_t Ov5640Imx8Q::Ov5640Stream::onDeviceConfigureLocked()
         return BAD_VALUE;
     }
 
-    int32_t fps = mFps;
+    uint32_t fps = 0;
     int32_t vformat;
     vformat = convertPixelFormatToV4L2Format(mFormat);
 
-    if ((mWidth > 1280) || (mHeight > 720)) {
-        fps = 15;
-    } else {
-        fps = 30;
+    struct v4l2_frmivalenum frmival;
+    frmival.index = 0;
+    frmival.pixel_format = vformat;
+    frmival.width = mWidth;
+    frmival.height = mHeight;
+
+    while (ioctl(mDev, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) == 0) {
+        if (fps < frmival.discrete.denominator / frmival.discrete.numerator) {
+            fps = frmival.discrete.denominator / frmival.discrete.numerator;
+        }
+        if (mFps == (frmival.discrete.denominator / frmival.discrete.numerator)) {
+            fps = mFps;
+            break;
+        }
+        frmival.index++;
     }
 
     ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF, (vformat >> 8) & 0xFF,
