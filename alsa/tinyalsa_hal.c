@@ -694,7 +694,7 @@ static int get_card_for_device(struct imx_audio_device *adev, int device, unsign
 static int start_output_stream_primary(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    unsigned int card = -1;
+    int card = -1;
     unsigned int port = 0;
     int i;
     int pcm_device;
@@ -783,7 +783,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
 static int start_output_stream(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    unsigned int card = -1;
+    int card = -1;
     unsigned int port = 0;
     int i = 0;
 
@@ -810,7 +810,7 @@ static int start_output_stream(struct imx_stream_out *out)
 static int start_output_stream_hdmi(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    unsigned int card = -1;
+    int card = -1;
     unsigned int port = 0;
     int i = 0;
 
@@ -845,7 +845,7 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
 static int start_output_stream_esai(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    unsigned int card = -1;
+    int card = -1;
     unsigned int port = 0;
     int i = 0;
 
@@ -878,12 +878,15 @@ static int start_output_stream_esai(struct imx_stream_out *out)
 static int start_output_stream_dsd(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    unsigned int card = -1;
+    int card = -1;
     unsigned int port = 0;
     int i = 0;
 
     ALOGI("%s: out %p, device 0x%x", __func__, out, out->device);
     card = get_card_for_name(adev, DSD_CARD_NAME, &out->card_index);
+    if (card < 0) {
+        card = get_card_for_name(adev, RPMSG_CARD_NAME, &out->card_index);
+    }
 
     ALOGW("card %d, port %d device 0x%x", card, port, out->device);
     ALOGW("rate %d, channel %d period_size 0x%x format %d", out->config[PCM_DSD].rate, out->config[PCM_DSD].channels, out->config[PCM_DSD].period_size, out->config[PCM_DSD].format);
@@ -2086,7 +2089,7 @@ static int start_input_stream(struct imx_stream_in *in)
     int ret = 0;
     int i;
     struct imx_audio_device *adev = in->dev;
-    unsigned int card = -1;
+    int card = -1;
     unsigned int port = 0;
     struct mixer *mixer;
     int rate = 0, channels = 0, format = 0;

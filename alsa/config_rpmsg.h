@@ -20,6 +20,7 @@
 
 #include "audio_hardware.h"
 
+#define RPMSG_CARD_NAME                            "rpmsg-audio"
 
 #define MIXER_RPMSG_SPEAKER_VOLUME                 "Speaker Playback Volume"
 #define MIXER_RPMSG_HEADPHONE_VOLUME               "Headphone Playback Volume"
