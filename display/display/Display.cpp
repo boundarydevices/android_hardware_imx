@@ -578,13 +578,6 @@ int Display::composeLayers()
 
 void Display::waitOnFenceLocked()
 {
-    // release target fence.
-    if (mAcquireFence != -1) {
-        sync_wait(mAcquireFence, -1);
-        close(mAcquireFence);
-        mAcquireFence = -1;
-    }
-
     // release all layer fence.
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {

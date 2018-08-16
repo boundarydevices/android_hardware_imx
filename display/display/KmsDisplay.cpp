@@ -157,6 +157,7 @@ void KmsPlane::getPropertyIds()
         {"dtrc_table_ofs",   &ofs_id},
         {"FB_ID",   &fb_id},
         {"CRTC_ID", &crtc_id},
+        {"IN_FENCE_FD", &fence_id},
     };
 
     KmsDisplay::getTableProperty(mPlaneID,
@@ -288,6 +289,12 @@ void KmsPlane::setAlpha(drmModeAtomicReqPtr pset,
      */
     drmModeAtomicAddProperty(pset, mPlaneID,
                              alpha_id, alpha);
+}
+
+void KmsPlane::setClientFence(drmModeAtomicReqPtr pset, int fd)
+{
+    if (fence_id > 0)
+        drmModeAtomicAddProperty(pset, mPlaneID, fence_id, fd);
 }
 
 void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta)
@@ -717,6 +724,9 @@ int KmsDisplay::updateScreen()
     mKmsPlanes[0].connectCrtc(mPset, mCrtcID, buffer->fbId);
     mKmsPlanes[0].setSourceSurface(mPset, 0, 0, config.mXres, config.mYres);
     mKmsPlanes[0].setDisplayFrame(mPset, 0, 0, mMode.hdisplay, mMode.vdisplay);
+    if (mAcquireFence != -1) {
+        mKmsPlanes[0].setClientFence(mPset, mAcquireFence);
+    }
     if (mResetHdrMode) {
         mResetHdrMode = false;
         MetaData meta;
@@ -756,6 +766,11 @@ int KmsDisplay::updateScreen()
     }
     if (mMetadataID != 0) {
         drmModeDestroyPropertyBlob(drmfd, mMetadataID);
+    }
+
+    if (mAcquireFence != -1) {
+        close(mAcquireFence);
+        mAcquireFence = -1;
     }
 
     return 0;

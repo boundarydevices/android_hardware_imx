@@ -315,6 +315,12 @@ int FbDisplay::updateScreen()
         return -EINVAL;
     }
 
+    if (mAcquireFence != -1) {
+        sync_wait(mAcquireFence, -1);
+        close(mAcquireFence);
+        mAcquireFence = -1;
+    }
+
     struct mxcfb_buffer mxcbuf;
     mxcbuf.xoffset = mxcbuf.yoffset = 0;
     mxcbuf.stride = config.mStride;

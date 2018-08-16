@@ -53,6 +53,7 @@ struct KmsPlane
                     uint32_t w, uint32_t h);
     void setAlpha(drmModeAtomicReqPtr pset, uint32_t alpha);
     void setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta);
+    void setClientFence(drmModeAtomicReqPtr pset, int fd);
 
     uint32_t src_x;
     uint32_t src_y;
@@ -68,6 +69,7 @@ struct KmsPlane
     uint32_t fb_id;
     uint32_t crtc_id;
     uint32_t mPlaneID;
+    uint32_t fence_id;
     int mDrmFd;
 };
 
