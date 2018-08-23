@@ -29,7 +29,7 @@ LOCAL_SHARED_LIBRARIES := liblog \
                           libion \
                           libOpenCL
 
-LOCAL_CFLAGS += -DBUILD_FOR_ANDROID
+LOCAL_CFLAGS += -DBUILD_FOR_ANDROID -DUSE_CL_SOURCECODE
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := libopencl-2d

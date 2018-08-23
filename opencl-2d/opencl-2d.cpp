@@ -21,8 +21,11 @@
 #define CL_ATOMIC_COPY_MASK 0x3f
 #define MAX_PATH 128
 #define CL_FILE_PATH "/vendor/etc/"
+#ifdef USE_CL_SOURCECODE
 #define YUYV_CONVERT_SOURCE "cl_g2d.cl"
-#define YUYV_CONVERT_BIN "cl_g2d.bin"
+#else
+#define YUYV_CONVERT_SOURCE "cl_g2d.bin"
+#endif
 #define YUYV_TO_NV12_KERNEL "g2d_yuyv_to_nv12"
 #define YUYV_TO_YUYV_KERNEL "g2d_yuyv_to_yuyv"
 #define NV12_TO_NV21_KERNEL "g2d_nv12_to_nv21"
@@ -524,8 +527,7 @@ int cl_g2d_open(void **handle)
     char clFileName[MAX_PATH];
     memset(clFileName, 0, sizeof(clFileName));
     strncpy(clFileName, CL_FILE_PATH, strlen(CL_FILE_PATH));
-    //strcat(clFileName, YUYV_CONVERT_SOURCE);
-    strcat(clFileName, YUYV_CONVERT_BIN);
+    strcat(clFileName, YUYV_CONVERT_SOURCE);
 
     if (handle == NULL) {
         g2d_printf("%s: invalid handle\n", __func__);
@@ -553,8 +555,11 @@ int cl_g2d_open(void **handle)
     }
     gContext->device = device;
     //All kernel should be built and create in open to save time
-    //gContext->program = CreateProgram(gContext->context, device, clFileName);
+#ifdef USE_CL_SOURCECODE
+    gContext->program = CreateProgram(gContext->context, device, clFileName);
+#else
     gContext->program = CreateProgramFromBinary(gContext->context, device, clFileName);
+#endif
     if (gContext->program == NULL) {
         g2d_printf("failed for CreateProgramFromBinary %s\n", clFileName);
         goto err2;
