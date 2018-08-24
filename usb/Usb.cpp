@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2017 The Android Open Source Project
- * Copyright 2017 NXP
+ * Copyright 2018 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,12 +183,12 @@ bool switchMode(const hidl_string &portName,
 
     if (ret != EOF) {
       struct timespec   to;
-      struct timeval    tp;
+      struct timespec   now;
 
 wait_again:
-      gettimeofday(&tp, NULL);
-      to.tv_sec = tp.tv_sec + PORT_TYPE_TIMEOUT;
-      to.tv_nsec = tp.tv_usec * 1000;;
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      to.tv_sec = now.tv_sec + PORT_TYPE_TIMEOUT;
+      to.tv_nsec = now.tv_nsec;
 
       int err = pthread_cond_timedwait(&usb->mPartnerCV, &usb->mPartnerLock, &to);
       // There are no uevent signals which implies role swap timed out.
@@ -213,10 +213,33 @@ wait_again:
   return roleSwitch;
 }
 
+Usb::Usb()
+        : mLock(PTHREAD_MUTEX_INITIALIZER),
+          mRoleSwitchLock(PTHREAD_MUTEX_INITIALIZER),
+          mPartnerLock(PTHREAD_MUTEX_INITIALIZER),
+          mPartnerUp(false) {
+    pthread_condattr_t attr;
+    if (pthread_condattr_init(&attr)) {
+        ALOGE("pthread_condattr_init failed: %s", strerror(errno));
+        abort();
+    }
+    if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC)) {
+        ALOGE("pthread_condattr_setclock failed: %s", strerror(errno));
+        abort();
+    }
+    if (pthread_cond_init(&mPartnerCV, &attr))  {
+        ALOGE("pthread_cond_init failed: %s", strerror(errno));
+        abort();
+    }
+    if (pthread_condattr_destroy(&attr)) {
+        ALOGE("pthread_condattr_destroy failed: %s", strerror(errno));
+        abort();
+    }
+}
 
 
 Return<void> Usb::switchRole(const hidl_string &portName,
-                             const PortRole &newRole) {
+                             const V1_0::PortRole &newRole) {
   std::string filename =
       appendRoleNodeHelper(std::string(portName.c_str()), newRole.type);
   std::string written;
@@ -358,8 +381,6 @@ Status getTypeCPortNamesHelper(std::unordered_map<std::string, bool> *names) {
 
   dp = opendir("/sys/class/typec");
   if (dp != NULL) {
-    int32_t ports = 0;
-    int32_t current = 0;
     struct dirent *ep;
 
     while ((ep = readdir(dp))) {
@@ -586,6 +607,13 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
         pthread_mutex_unlock(&payload->usb->mRoleSwitchLock);
       }
       break;
+    } else if (std::regex_match(cp, match,
+          std::regex("add@(/devices/soc/a800000\\.ssusb/a800000\\.dwc3/xhci-hcd\\.0\\.auto/"
+                     "usb\\d/\\d-\\d)/.*"))) {
+      if (match.size() == 2) {
+        std::csub_match submatch = match[1];
+        checkUsbDeviceAutoSuspend("/sys" +  submatch.str());
+      }
     }
 
     /* advance to after the next \0 */

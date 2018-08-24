@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 The Android Open Source Project
- * Copyright 2017 NXP
+ * Copyright 2018 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 
 #include <hidl/HidlTransportSupport.h>
 #include "Usb.h"
+#include "UsbGadget.h"
 
 using android::sp;
 
@@ -28,26 +29,35 @@ using android::hardware::joinRpcThreadpool;
 
 // Generated HIDL files
 using android::hardware::usb::V1_1::IUsb;
+using android::hardware::usb::gadget::V1_0::IUsbGadget;
 using android::hardware::usb::V1_1::implementation::Usb;
+using android::hardware::usb::gadget::V1_0::implementation::UsbGadget;
 
-using android::status_t;
 using android::OK;
+using android::status_t;
 
 int main() {
-    android::sp<IUsb> service = new Usb();
+  android::sp<IUsb> service = new Usb();
+  android::sp<IUsbGadget> service2 = new UsbGadget();
 
-    configureRpcThreadpool(1, true /*callerWillJoin*/);
-    status_t status = service->registerAsService();
+  configureRpcThreadpool(2, true /*callerWillJoin*/);
+  status_t status = service->registerAsService();
 
-    if (status != OK) {
-        ALOGE("Cannot register USB HAL service");
-        return 1;
-    }
-
-    ALOGI("USB HAL Ready.");
-    joinRpcThreadpool();
-    // Under noraml cases, execution will not reach this line.
-    ALOGI("USB HAL failed to join thread pool.");
+  if (status != OK) {
+    ALOGE("Cannot register USB HAL service");
     return 1;
+  }
 
+  status = service2->registerAsService();
+
+  if (status != OK) {
+    ALOGE("Cannot register USB Gadget HAL service");
+    return 1;
+  }
+
+  ALOGI("USB HAL Ready.");
+  joinRpcThreadpool();
+  // Under noraml cases, execution will not reach this line.
+  ALOGI("USB HAL failed to join thread pool.");
+  return 1;
 }
