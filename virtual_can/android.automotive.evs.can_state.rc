@@ -1,0 +1,4 @@
+service evs_can_service /vendor/bin/evs_can_service
+    class late_start
+    user automotive_evs
+    group automotive_evs
