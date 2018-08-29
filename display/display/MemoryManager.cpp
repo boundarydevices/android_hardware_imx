@@ -81,7 +81,8 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
      * 4) Dim buffer should use ION.
      * 5) VPU post process buffer (RGB565, USAGE_PADDING_BUFFER) use ION.
      * 6) encoder memory should use ION.
-     * 7) other conditions can use DRM Gralloc.
+     * 7) all YUV format use ION.
+     * 8) other conditions can use DRM Gralloc.
     */
 #ifdef FRAMEBUFFER_COMPRESSION
     if (flags & (FLAGS_SECURE | FLAGS_DIMBUFFER)) {
@@ -96,9 +97,10 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     else if ((format == FORMAT_RGB565) && (usage & USAGE_PADDING_BUFFER)) {
         canHandle = false;
     }
-    else if ((((format == FORMAT_NV12) || (format == FORMAT_NV21) ||
-        (format == FORMAT_NV16)) &&
-        (usage & USAGE_PADDING_BUFFER)) || format == FORMAT_NV12_TILED ||
+    else if ((format == FORMAT_NV12) || (format == FORMAT_NV21) ||
+        (format == FORMAT_NV16) || (format == FORMAT_YUYV) ||
+        (format == FORMAT_YV12) || (format == FORMAT_I420) ||
+        (format == FORMAT_NV12_TILED) ||
         format == FORMAT_NV12_G1_TILED || format == FORMAT_NV12_G2_TILED ||
         format == FORMAT_NV12_G2_TILED_COMPRESSED || format == FORMAT_P010 ||
         format == FORMAT_P010_TILED || format == FORMAT_P010_TILED_COMPRESSED) {
