@@ -18,7 +18,7 @@
 #define __OV5640_IMX8Q_H
 
 #include "Camera.h"
-#include "MMAPStream.h"
+#include "DMAStream.h"
 
 class Ov5640Imx8Q: public Camera
 {
@@ -30,10 +30,11 @@ public:
     virtual PixelFormat getPreviewPixelFormat();
 
 private:
-    class Ov5640Stream : public MMAPStream
+    class Ov5640Stream : public DMAStream
     {
     public:
-        Ov5640Stream(Camera *device) : MMAPStream(device, true) { mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE; }
+        Ov5640Stream(Camera *device)
+            : DMAStream(device, true) { mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE; }
         virtual ~Ov5640Stream() {}
 
         virtual int getCaptureMode(int width, int height);

@@ -25,6 +25,7 @@ class DMAStream : public USPStream
 {
 public:
     DMAStream(Camera* device);
+    DMAStream(Camera *device, bool mplane);
     virtual ~DMAStream();
 
     // configure device.
@@ -49,6 +50,7 @@ public:
 
 private:
     int32_t mStreamSize;
+    bool mPlane;
 };
 
 #endif
