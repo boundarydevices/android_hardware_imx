@@ -373,7 +373,7 @@ V1_0::Status UsbGadget::setupFunctions(
       return Status::ERROR;
 
 
-    if (linkFunction("ptp.gs1", i++)) return Status::ERROR;
+    if (linkFunction("ffs.ptp", i++)) return Status::ERROR;
 
     // Add endpoints to be monitored.
     mEndpointList.push_back("/dev/usb-ffs/ptp/ep1");
