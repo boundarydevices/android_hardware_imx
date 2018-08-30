@@ -481,6 +481,14 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
     goto error;
   }
 
+  if ((functions & GadgetFunction::RNDIS) == 0) {
+    if (access(RNDIS_PATH,F_OK) == 0) {
+       if (rmdir(RNDIS_PATH)) ALOGE("Error remove %s",RNDIS_PATH);
+    }
+  } else if ((functions & GadgetFunction::RNDIS)) {
+    if (mkdir(RNDIS_PATH,644)) goto error;
+  }
+
   // Leave the gadget pulled down to give time for the host to sense disconnect.
   usleep(DISCONNECT_WAIT_US);
 
