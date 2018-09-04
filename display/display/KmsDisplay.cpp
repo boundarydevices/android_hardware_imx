@@ -714,10 +714,25 @@ int KmsDisplay::updateScreen()
     // to clear screen to black in below case:
     // it is not in client composition and
     // last overlay state and current are different.
-    if (buffer->base != 0 && ((mComposeFlag & CLIENT_COMPOSE_MASK) ^
+    if (((mComposeFlag & CLIENT_COMPOSE_MASK) ^
              CLIENT_COMPOSE_MASK) && ((mComposeFlag >> 1) ^
              (mComposeFlag & OVERLAY_COMPOSE_MASK))) {
-        memset((void*)buffer->base, 0, buffer->size);
+        if (buffer->base == 0) {
+            void *vaddr = NULL;
+            int usage = buffer->usage | USAGE_SW_READ_OFTEN
+                    | USAGE_SW_WRITE_OFTEN;
+            int ret = mMemoryManager->lock(buffer, usage,
+                    0, 0, buffer->width, buffer->height, &vaddr);
+            mMemoryManager->unlock(buffer);
+            buffer->base = (uintptr_t)vaddr;
+        }
+
+        if (buffer->base != 0) {
+            memset((void*)buffer->base, 0, buffer->size);
+        }
+        else {
+            ALOGE("%s can't get virtual address to clear screen!", __func__);
+        }
     }
 
     bindCrtc(mPset, modeID);
