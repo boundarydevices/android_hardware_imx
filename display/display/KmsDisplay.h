@@ -90,7 +90,7 @@ public:
     // enable display vsync thread.
     void enableVsync();
     // set display vsync/hotplug callback.
-    void setCallback(EventListener* callback);
+    virtual void setCallback(EventListener* callback);
     // enable/disable display vsync.
     virtual void setVsyncEnabled(bool enabled);
     // use software vsync.

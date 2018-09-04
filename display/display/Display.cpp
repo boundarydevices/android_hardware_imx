@@ -78,6 +78,10 @@ Display::~Display()
     }
 }
 
+void Display::setCallback(EventListener* /*callback*/)
+{
+}
+
 int Display::setPowerMode(int /*mode*/)
 {
     return -1;

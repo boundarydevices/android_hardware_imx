@@ -200,10 +200,11 @@ int DisplayManager::destroyVirtualDisplay(int id)
 
 void DisplayManager::setCallback(EventListener* callback)
 {
-    FbDisplay* display = NULL;
+    Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
+    if (display == NULL)
+        return;
     {
         Mutex::Autolock _l(mLock);
-        display = mFbDisplays[DISPLAY_PRIMARY];
         mListener = callback;
     }
     display->setCallback(callback);

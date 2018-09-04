@@ -112,6 +112,8 @@ public:
     virtual int composeLayers();
 
     // display property.
+    // set display vsync/hotplug callback.
+    virtual void setCallback(EventListener* callback);
     // set display power on/off.
     virtual int setPowerMode(int mode);
     // enable/disable display vsync.
