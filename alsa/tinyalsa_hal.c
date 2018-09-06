@@ -115,6 +115,9 @@
 #define LPA_PERIOD_SIZE 192
 #define LPA_PERIOD_COUNT 8
 
+// Limit LPA max latency to 300ms
+#define LPA_LATENCY_MS 300
+
 #define MM_USB_AUDIO_IN_RATE   16000
 
 #define SCO_RATE 16000
@@ -1432,6 +1435,10 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
 
     latency = (out->config_default.period_count * out->config_default.period_size * 1000) /
               (out->config_default.rate);
+    if (latency > LPA_LATENCY_MS) {
+        ALOGD("%s: Original latency is %dms; Force it to be %dms", __func__, latency, LPA_LATENCY_MS);
+        latency = LPA_LATENCY_MS;
+    }
     return latency;
 }
 
