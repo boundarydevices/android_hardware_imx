@@ -11,6 +11,7 @@ LOCAL_SRC_FILES := \
     GlWrapper.cpp \
     VideoCapture.cpp \
     bufferCopy.cpp \
+    bufferConvert.cpp
 
 
 LOCAL_SHARED_LIBRARIES := \
@@ -27,6 +28,10 @@ LOCAL_SHARED_LIBRARIES := \
     libhidltransport \
     liblog \
     libutils \
+    libopencl-2d
+
+LOCAL_C_INCLUDES +=  \
+    vendor/nxp-opensource/imx/opencl-2d
 
 LOCAL_MODULE := android.hardware.automotive.evs@1.0-EvsEnumeratorHw
 

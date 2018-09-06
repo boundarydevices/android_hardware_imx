@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <cutils/log.h>
+#include "opencl-2d.h"
 #include "EvsV4lCamera.h"
 #include "EvsEnumerator.h"
 #include "bufferCopy.h"
@@ -33,7 +34,7 @@ namespace implementation {
 // Arbitrary limit on number of graphics buffers allowed to be allocated
 // Safeguards against unreasonable resource consumption and provides a testable limit
 static const unsigned MAX_BUFFERS_IN_FLIGHT = 100;
-
+void *g2dHandle;
 
 EvsV4lCamera::EvsV4lCamera(const char *deviceName) :
         mFramesAllowed(0),
@@ -47,13 +48,16 @@ EvsV4lCamera::EvsV4lCamera(const char *deviceName) :
         ALOGE("Failed to open v4l device %s\n", deviceName);
     }
 
+    if(cl_g2d_open(&g2dHandle) == -1 || g2dHandle == NULL)
+        ALOGE("Fail to open g2d device!\n");
+
     // NOTE:  Our current spec says only support NV21 -- can we stick to that with software
     // conversion?  Will this work with the hardware texture units?
     // TODO:  Settle on the one official format that works on all platforms
     // TODO:  Get NV21 working?  It is scrambled somewhere along the way right now.
 //    mFormat = HAL_PIXEL_FORMAT_YCRCB_420_SP;    // 420SP == NV21
-    mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
-//    mFormat = HAL_PIXEL_FORMAT_YCBCR_422_I;
+//    mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
+    mFormat = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
     // How we expect to use the gralloc buffers we'll exchange with our client
     mUsage  = GRALLOC_USAGE_HW_TEXTURE     |
@@ -63,6 +67,8 @@ EvsV4lCamera::EvsV4lCamera(const char *deviceName) :
 
 
 EvsV4lCamera::~EvsV4lCamera() {
+    if(g2dHandle != NULL)
+        cl_g2d_close(g2dHandle);
     ALOGD("EvsV4lCamera being destroyed");
     shutdown();
 }
@@ -190,7 +196,7 @@ Return<EvsResult> EvsV4lCamera::startVideoStream(const ::android::sp<IEvsCameraS
         break;
     case HAL_PIXEL_FORMAT_YCBCR_422_I:
         switch (videoSrcFormat) {
-        case V4L2_PIX_FMT_YUYV:     mFillBufferFromVideo = fillYUYVFromYUYV;    break;
+        case V4L2_PIX_FMT_YUYV:     mFillBufferFromVideo = fillYUYVFromYUYVWithOpencl;    break;
         case V4L2_PIX_FMT_UYVY:     mFillBufferFromVideo = fillYUYVFromUYVY;    break;
         default:
             // TODO:  Are there other V4L2 formats we must support?

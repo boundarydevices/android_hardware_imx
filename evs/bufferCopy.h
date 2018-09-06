@@ -43,6 +43,11 @@ void fillYUYVFromYUYV(const BufferDesc& tgtBuff, uint8_t* tgt,
 void fillYUYVFromUYVY(const BufferDesc& tgtBuff, uint8_t* tgt,
                       void* imgData, unsigned imgStride);
 
+void fillYUYVFromYUYVWithOpencl(const BufferDesc& tgtBuff, uint8_t* tgt,
+                      void* imgData, unsigned imgStride);
+
+extern void *g2dHandle;
+
 } // namespace implementation
 } // namespace V1_0
 } // namespace evs

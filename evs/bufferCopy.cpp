@@ -15,7 +15,7 @@
  */
 
 #include "bufferCopy.h"
-
+#include "bufferConvert.h"
 
 namespace android {
 namespace hardware {
@@ -176,7 +176,6 @@ void fillRGBAFromYUYV(const BufferDesc& tgtBuff, uint8_t* tgt, void* imgData, un
     }
 }
 
-
 void fillYUYVFromYUYV(const BufferDesc& tgtBuff, uint8_t* tgt, void* imgData, unsigned imgStride) {
     unsigned width = tgtBuff.width;
     unsigned height = tgtBuff.height;
@@ -189,6 +188,16 @@ void fillYUYVFromYUYV(const BufferDesc& tgtBuff, uint8_t* tgt, void* imgData, un
         // Copy a pixel row at a time (2 bytes per pixel, averaged over a YUYV macro pixel)
         memcpy(dst+r*dstStrideBytes, src+r*srcStrideBytes, width*2);
     }
+}
+
+void fillYUYVFromYUYVWithOpencl(const BufferDesc& tgtBuff, uint8_t* tgt, void* imgData,
+                                                    __attribute__((unused))unsigned imgStride) {
+    int width = (int)tgtBuff.width;
+    int height = (int)tgtBuff.height;
+    uint8_t* src = (uint8_t*)imgData;
+    uint8_t* dst = (uint8_t*)tgt;
+
+    cl_YUYVCopyByLine(g2dHandle, dst, width, height, src, width, height, true);
 }
 
 
