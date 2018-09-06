@@ -490,6 +490,25 @@ Status getPortStatusHelper(hidl_vec<PortStatus_1_1> *currentPortStatus_1_1,
       }
     }
     return Status::SUCCESS;
+  } else {
+    //For legacy device has no type-c implementation
+    ALOGE("Legacy device has no type-c implementation\n");
+    currentPortStatus_1_1->resize(1);
+    (*currentPortStatus_1_1)[0].status.portName = "port0";
+    (*currentPortStatus_1_1)[0].status.currentDataRole = PortDataRole::DEVICE;
+    (*currentPortStatus_1_1)[0].status.currentPowerRole = PortPowerRole::SINK;
+    (*currentPortStatus_1_1)[0].status.currentMode = V1_0::PortMode::NONE;
+    (*currentPortStatus_1_1)[0].status.canChangeMode = false;
+    (*currentPortStatus_1_1)[0].status.canChangeDataRole = false;
+    (*currentPortStatus_1_1)[0].status.canChangePowerRole = false;
+    (*currentPortStatus_1_1)[0].status.supportedModes = V1_0::PortMode::NONE;
+    (*currentPortStatus_1_1)[0].supportedModes = PortMode_1_1::UFP | PortMode_1_1::DFP;
+    (*currentPortStatus_1_1)[0].currentMode = PortMode_1_1::UFP;
+    ALOGI("Legacy: canChangeMode:%d canChagedata:%d canChangePower:%d",
+             (*currentPortStatus_1_1)[i].status.canChangeMode,
+            (*currentPortStatus_1_1)[i].status.canChangeDataRole,
+            (*currentPortStatus_1_1)[i].status.canChangePowerRole);
+    return Status::SUCCESS;
   }
 done:
   return Status::ERROR;
