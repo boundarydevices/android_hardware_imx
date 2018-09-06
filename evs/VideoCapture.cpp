@@ -162,13 +162,13 @@ bool VideoCapture::startStream(std::function<void(VideoCapture*, imageBuffer*, v
     v4l2_requestbuffers bufrequest;
     bufrequest.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     bufrequest.memory = V4L2_MEMORY_MMAP;
-    bufrequest.count = 2;
+    bufrequest.count = CAMERA_BUFFER_NUM;
     if (ioctl(mDeviceFd, VIDIOC_REQBUFS, &bufrequest) < 0) {
         ALOGE("VIDIOC_REQBUFS: %s", strerror(errno));
         return false;
     }
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
         // Get the information on the buffer that was created for us
         struct v4l2_plane planes;
         memset(&mBufferInfo[i], 0, sizeof(mBufferInfo[0]));
@@ -252,7 +252,7 @@ void VideoCapture::stopStream() {
 
 
     // Unmap the buffers we allocated
-    for (i = 0; i < 2; i++)
+    for (i = 0; i < CAMERA_BUFFER_NUM; i++)
         munmap(mPixelBuffer[i], mBufferInfo[i].length);
 
     // Tell the L4V2 driver to release our streaming buffers
