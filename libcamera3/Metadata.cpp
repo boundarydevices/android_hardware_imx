@@ -208,7 +208,7 @@ camera_metadata_t* Metadata::createStaticInfo(Camera& camera, camera_info &camIn
             ARRAY_SIZE(android_control_ae_compensation_step),
             android_control_ae_compensation_step);
 
-    int32_t android_control_max_regions[] = {/*AE*/ 0, /*AWB*/ 0, /*AF*/ 0};
+    int32_t android_control_max_regions[] = {/*AE*/ 1, /*AWB*/ 0, /*AF*/ 1};
     m.addInt32(ANDROID_CONTROL_MAX_REGIONS,
             ARRAY_SIZE(android_control_max_regions),
             android_control_max_regions);
@@ -828,6 +828,12 @@ void Metadata::createSettingTemplate(Metadata& base, Camera& camera,
     static const uint8_t aeAntibandingMode =
             ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
     base.addUInt8(ANDROID_CONTROL_AE_ANTIBANDING_MODE, 1, &aeAntibandingMode);
+
+    static const int32_t controlRegions[5] = {
+        0, 0, 0, 0, 0
+    };
+    base.addInt32(ANDROID_CONTROL_AE_REGIONS, 5, controlRegions);
+    base.addInt32(ANDROID_CONTROL_AF_REGIONS, 5, controlRegions);
 
     uint8_t afMode = 0;
     switch (request_template) {
