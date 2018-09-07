@@ -720,11 +720,13 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
 
         // check if a ROI has been provided
         entry = settings->find(ANDROID_CONTROL_AF_REGIONS);
-        if (entry.count > 0) {
+        if (entry.count > 3) {
             int xavg = (entry.data.i32[0] + entry.data.i32[2]) / 2;
             int yavg = (entry.data.i32[1] + entry.data.i32[3]) / 2;
-            ALOGV("%s: AF region: x %d y %d", __FUNCTION__, xavg, yavg);
-            setAutoFocusRegion(xavg, yavg);
+            if (xavg || yavg) {
+                ALOGV("%s: AF region: x %d y %d", __FUNCTION__, xavg, yavg);
+                setAutoFocusRegion(xavg, yavg);
+            }
         }
 
         // get and save trigger ID
@@ -745,12 +747,21 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
                 m3aState.afState = doAutoFocus(afMode);
                 break;
             case ANDROID_CONTROL_AF_TRIGGER_IDLE:
-                m3aState.afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
+                if ((afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO) ||
+                    (afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE))
+                    if (afMode != m3aState.afMode)
+                        m3aState.afState = doAutoFocus(afMode);
+                    else
+                        m3aState.afState = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+                else
+                    m3aState.afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
                 break;
             default:
                 ALOGE("unknown trigger: %d", trigger);
                 m3aState.afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
         }
+        // save current mode
+        m3aState.afMode = afMode;
     } else {
         m3aState.afState = getAutoFocusStatus(afMode);
     }
