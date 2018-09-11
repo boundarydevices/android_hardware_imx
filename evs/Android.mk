@@ -1,5 +1,6 @@
 LOCAL_PATH:= $(call my-dir)
 
+ifeq ($(BOARD_HAVE_IMX_EVS),true)
 ##################################
 include $(CLEAR_VARS)
 
@@ -47,3 +48,4 @@ LOCAL_CFLAGS += -Wall -Werror -Wunused -Wunreachable-code
 #LOCAL_CFLAGS += -O0 -g
 
 include $(BUILD_EXECUTABLE)
+endif
