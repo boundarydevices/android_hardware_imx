@@ -43,25 +43,18 @@ int32_t MMAPStream::onDeviceConfigureLocked()
         return BAD_VALUE;
     }
 
-    int32_t fps = mFps;
     int32_t vformat;
     vformat = convertPixelFormatToV4L2Format(mFormat);
 
-    if ((mWidth > 1920) || (mHeight > 1080)) {
-        fps = 15;
-    } else if ((mWidth <= 1024) || (mHeight <= 768)) {
-        fps = 30;
-    }
-
     ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d",
           mWidth, mHeight, vformat&0xFF, (vformat>>8)&0xFF,
-          (vformat>>16)&0xFF, (vformat>>24)&0xFF, fps);
+          (vformat>>16)&0xFF, (vformat>>24)&0xFF, mCamera->getFps(mWidth, mHeight, mFps));
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     param.parm.capture.timeperframe.numerator   = 1;
-    param.parm.capture.timeperframe.denominator = fps;
+    param.parm.capture.timeperframe.denominator = mCamera->getFps(mWidth, mHeight, mFps);
     param.parm.capture.capturemode = mCamera->getCaptureMode(mWidth, mHeight);
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
     if (ret < 0) {

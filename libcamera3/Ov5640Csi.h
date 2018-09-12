@@ -28,6 +28,7 @@ public:
     ~Ov5640Csi();
 
     virtual status_t initSensorStaticData();
+    virtual int getFps(int width, int height, int defValue);
 
 private:
     class OvStream : public MMAPStream {

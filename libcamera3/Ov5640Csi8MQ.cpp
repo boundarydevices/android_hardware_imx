@@ -51,6 +51,18 @@ int Ov5640Csi8MQ::getCaptureMode(int width, int height)
     return capturemode;
 }
 
+int Ov5640Csi8MQ::getFps(int width, int height, int /*defValue*/)
+{
+    int fps = 0;
+    if ((width == 2592) && (height == 1944)) {
+        fps = 15;
+    } else {
+        fps = 30;
+    }
+
+    return fps;
+}
+
 PixelFormat Ov5640Csi8MQ::getPreviewPixelFormat()
 {
     ALOGI("%s", __func__);
@@ -183,25 +195,18 @@ int32_t Ov5640Csi8MQ::OvStream::onDeviceConfigureLocked()
         return BAD_VALUE;
     }
 
-    int32_t fps = mFps;
     int32_t vformat;
     vformat = convertPixelFormatToV4L2Format(mFormat);
 
-    if ((mWidth == 2592) && (mHeight == 1944)) {
-        fps = 15;
-    } else {
-        fps = 30;
-    }
-
     ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d",
           mWidth, mHeight, vformat&0xFF, (vformat>>8)&0xFF,
-          (vformat>>16)&0xFF, (vformat>>24)&0xFF, fps);
+          (vformat>>16)&0xFF, (vformat>>24)&0xFF, mCamera->getFps(mWidth, mHeight, mFps));
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     param.parm.capture.timeperframe.numerator   = 1;
-    param.parm.capture.timeperframe.denominator = fps;
+    param.parm.capture.timeperframe.denominator = mCamera->getFps(mWidth, mHeight, mFps);
     param.parm.capture.capturemode = mCamera->getCaptureMode(mWidth, mHeight);
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
     if (ret < 0) {
