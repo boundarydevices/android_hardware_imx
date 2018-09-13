@@ -68,7 +68,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
             (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
     int err = 0;
     if (cachebuffer != 0) {
-        err = ion_alloc(mIonFd, desc.mSize, 8, 1 << 1, 0, &ion_hnd);
+        err = ion_alloc(mIonFd, desc.mSize, 8, 1 << 1, ION_FLAG_CACHED, &ion_hnd);
         ALOGI("alloc cache buffer err:%d", err);
     }
     if (cachebuffer == 0 || err != 0) {
