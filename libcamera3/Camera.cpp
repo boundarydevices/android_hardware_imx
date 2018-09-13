@@ -171,7 +171,7 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path)
 
     memset(&mDevice, 0, sizeof(mDevice));
     mDevice.common.tag = HARDWARE_DEVICE_TAG;
-    mDevice.common.version = CAMERA_DEVICE_API_VERSION_3_2;
+    mDevice.common.version = CAMERA_DEVICE_API_VERSION_3_5;
     mDevice.common.close = close_device;
     mDevice.ops = const_cast<camera3_device_ops_t *>(&sOps);
     mDevice.priv = this;
