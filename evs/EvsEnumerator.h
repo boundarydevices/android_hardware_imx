@@ -21,7 +21,7 @@
 #include <android/hardware/automotive/evs/1.0/IEvsCamera.h>
 
 #include <list>
-
+#include <string>
 
 namespace android {
 namespace hardware {
@@ -50,10 +50,12 @@ public:
 
 private:
     struct CameraRecord {
+        std::string         name;
         CameraDesc          desc;
         wp<EvsV4lCamera>    activeInstance;
 
-        CameraRecord(const char *cameraId) : desc() { desc.cameraId = cameraId; }
+        CameraRecord(const char *name, const char *cameraId)
+            : desc() { this->name = name; desc.cameraId = cameraId; }
     };
 
 

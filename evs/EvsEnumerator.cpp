@@ -19,7 +19,7 @@
 #include "EvsGlDisplay.h"
 
 #include <dirent.h>
-
+#include <string.h>
 
 namespace android {
 namespace hardware {
@@ -28,6 +28,7 @@ namespace evs {
 namespace V1_0 {
 namespace implementation {
 
+#define HWC_PATH_LENGTH 64
 
 // NOTE:  All members values are static so that all clients operate on the same state
 //        That is to say, this is effectively a singleton despite the fact that HIDL
@@ -56,6 +57,9 @@ EvsEnumerator::EvsEnumerator() {
         LOG_FATAL("Failed to open /dev folder\n");
     }
     struct dirent* entry;
+    FILE *fp = NULL;
+    char devPath[HWC_PATH_LENGTH];
+    char value[HWC_PATH_LENGTH];
     while ((entry = readdir(dir)) != nullptr) {
         // We're only looking for entries starting with 'video'
         if (strncmp(entry->d_name, "video", 5) == 0) {
@@ -63,7 +67,18 @@ EvsEnumerator::EvsEnumerator() {
             deviceName += entry->d_name;
             videoCount++;
             if (qualifyCaptureDevice(deviceName.c_str())) {
-                sCameraList.emplace_back(deviceName.c_str());
+                snprintf(devPath, HWC_PATH_LENGTH,
+                    "/sys/class/video4linux/%s/name", entry->d_name);
+                if ((fp = fopen(devPath, "r")) == nullptr) {
+                    ALOGE("can't open %s", devPath);
+                    continue;
+                }
+                if(fgets(value, sizeof(value), fp) == nullptr) {
+                    ALOGE("can't read %s", devPath);
+                    continue;
+                }
+                ALOGI("enum name:%s, path:%s", value, deviceName.c_str());
+                sCameraList.emplace_back(value, deviceName.c_str());
                 captureCount++;
             }
         }
@@ -114,7 +129,7 @@ Return<sp<IEvsCamera>> EvsEnumerator::openCamera(const hidl_string& cameraId) {
     }
 
     // Construct a camera instance for the caller
-    pActiveCamera = new EvsV4lCamera(cameraId.c_str());
+    pActiveCamera = new EvsV4lCamera(pRecord->desc.cameraId.c_str());
     pRecord->activeInstance = pActiveCamera;
     if (pActiveCamera == nullptr) {
         ALOGE("Failed to allocate new EvsV4lCamera object for %s\n", cameraId.c_str());
@@ -275,7 +290,7 @@ bool EvsEnumerator::qualifyCaptureDevice(const char* deviceName) {
 EvsEnumerator::CameraRecord* EvsEnumerator::findCameraById(const std::string& cameraId) {
     // Find the named camera
     for (auto &&cam : sCameraList) {
-        if (cam.desc.cameraId == cameraId) {
+        if (strstr(cam.name.c_str(), cameraId.c_str())) {
             // Found a match!
             return &cam;
         }
