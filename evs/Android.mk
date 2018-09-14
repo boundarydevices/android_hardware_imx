@@ -29,11 +29,14 @@ LOCAL_SHARED_LIBRARIES := \
     libhidltransport \
     liblog \
     libutils \
+    libion \
     libopencl-2d
 
 LOCAL_C_INCLUDES +=  \
+    $(IMX_PATH)/imx/display/display \
     vendor/nxp-opensource/imx/opencl-2d
 
+LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
 LOCAL_MODULE := android.hardware.automotive.evs@1.0-EvsEnumeratorHw
 
 LOCAL_VENDOR_MODULE := true

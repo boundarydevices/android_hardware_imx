@@ -22,6 +22,13 @@
 typedef v4l2_buffer imageBuffer;
 #define CAMERA_BUFFER_NUM 3
 
+struct streamBuf
+{
+    void *vaddr;
+    void *phys;
+    int size;
+    int fd;
+};
 
 class VideoCapture {
 public:
@@ -46,6 +53,7 @@ public:
     bool isOpen()               { return mDeviceFd >= 0; };
 
 private:
+    int getCaptureMode(int width, int height);
     void collectFrames();
     void markFrameReady();
     bool returnFrame();
@@ -55,6 +63,7 @@ private:
     int currentIndex = 0; // mark as current buffer num 0 or 1
     v4l2_buffer mBufferInfo[CAMERA_BUFFER_NUM] = {}; // Used to instore buffer information
     void* mPixelBuffer[CAMERA_BUFFER_NUM] = {nullptr}; // Used to instore the mmap address
+    streamBuf mBuffers[CAMERA_BUFFER_NUM] = {};
 
     __u32   mFormat = 0;
     __u32   mWidth  = 0;

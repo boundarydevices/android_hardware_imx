@@ -74,16 +74,18 @@ EvsEnumerator::EvsEnumerator() {
                     continue;
                 }
                 if(fgets(value, sizeof(value), fp) == nullptr) {
+                    fclose(fp);
                     ALOGE("can't read %s", devPath);
                     continue;
                 }
-                ALOGI("enum name:%s, path:%s", value, deviceName.c_str());
+                fclose(fp);
+                ALOGI("enum name:%s path:%s", value, deviceName.c_str());
                 sCameraList.emplace_back(value, deviceName.c_str());
                 captureCount++;
             }
         }
     }
-
+    closedir(dir);
     ALOGI("Found %d qualified video capture devices of %d checked\n", captureCount, videoCount);
 }
 
@@ -289,8 +291,11 @@ bool EvsEnumerator::qualifyCaptureDevice(const char* deviceName) {
 
 EvsEnumerator::CameraRecord* EvsEnumerator::findCameraById(const std::string& cameraId) {
     // Find the named camera
+    // the cameraId from evs app is camera name.
+    // and sometimes it is camera dev path.
     for (auto &&cam : sCameraList) {
-        if (strstr(cam.name.c_str(), cameraId.c_str())) {
+        if (strstr(cam.name.c_str(), cameraId.c_str()) ||
+                (cam.desc.cameraId == cameraId)) {
             // Found a match!
             return &cam;
         }

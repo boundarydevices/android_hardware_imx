@@ -20,6 +20,7 @@
 #include <android/hardware/automotive/evs/1.0/types.h>
 #include <android/hardware/automotive/evs/1.0/IEvsCamera.h>
 #include <ui/GraphicBuffer.h>
+#include <hwbinder/IBinder.h>
 
 #include <thread>
 #include <functional>
@@ -34,10 +35,9 @@ namespace evs {
 namespace V1_0 {
 namespace implementation {
 
-
+using ::android::hardware::hidl_death_recipient;
 // From EvsEnumerator.h
 class EvsEnumerator;
-
 
 class EvsV4lCamera : public IEvsCamera {
 public:
@@ -56,6 +56,21 @@ public:
     void shutdown();
 
     const CameraDesc& getDesc() { return mDescription; };
+
+private:
+    void releaseResource(void);
+    class EvsAppRecipient : public hidl_death_recipient
+    {
+    public:
+        EvsAppRecipient(sp<EvsV4lCamera> camera) : mCamera(camera) {}
+        ~EvsAppRecipient() {}
+        virtual void serviceDied(uint64_t cookie,
+              const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/);
+
+    private:
+        sp<EvsV4lCamera> mCamera;
+    };
+    sp<EvsAppRecipient> mEvsAppRecipient;
 
 private:
     // These three functions are expected to be called while mAccessLock is held

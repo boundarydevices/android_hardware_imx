@@ -22,7 +22,6 @@
 #include <ui/GraphicBufferAllocator.h>
 #include <ui/GraphicBufferMapper.h>
 
-
 namespace android {
 namespace hardware {
 namespace automotive {
@@ -30,11 +29,21 @@ namespace evs {
 namespace V1_0 {
 namespace implementation {
 
-
 // Arbitrary limit on number of graphics buffers allowed to be allocated
 // Safeguards against unreasonable resource consumption and provides a testable limit
 static const unsigned MAX_BUFFERS_IN_FLIGHT = 100;
 void *g2dHandle;
+
+void EvsV4lCamera::EvsAppRecipient::serviceDied(uint64_t /*cookie*/,
+        const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/)
+{
+    mCamera->releaseResource();
+}
+
+void EvsV4lCamera::releaseResource(void)
+{
+    shutdown();
+}
 
 EvsV4lCamera::EvsV4lCamera(const char *deviceName) :
         mFramesAllowed(0),
@@ -222,12 +231,15 @@ Return<EvsResult> EvsV4lCamera::startVideoStream(const ::android::sp<IEvsCameraS
         return EvsResult::UNDERLYING_SERVICE_ERROR;
     }
 
+    mEvsAppRecipient = new EvsAppRecipient(this);
+    stream->linkToDeath(mEvsAppRecipient, 0);
+
     return EvsResult::OK;
 }
 
 
 Return<void> EvsV4lCamera::doneWithFrame(const BufferDesc& buffer)  {
-    ALOGD("doneWithFrame");
+    ALOGV("doneWithFrame");
     std::lock_guard <std::mutex> lock(mAccessLock);
 
     // If we've been displaced by another owner of the camera, then we can't do anything else
@@ -516,7 +528,7 @@ void EvsV4lCamera::forwardFrame(imageBuffer* /*pV4lBuff*/, void* pData) {
         // Issue the (asynchronous) callback to the client -- can't be holding the lock
         auto result = mStream->deliverFrame(buff);
         if (result.isOk()) {
-            ALOGD("Delivered %p as id %d", buff.memHandle.getNativeHandle(), buff.bufferId);
+            ALOGV("Delivered %p as id %d", buff.memHandle.getNativeHandle(), buff.bufferId);
         } else {
             // This can happen if the client dies and is likely unrecoverable.
             // To avoid consuming resources generating failing calls, we stop sending
