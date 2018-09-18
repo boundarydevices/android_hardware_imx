@@ -87,8 +87,11 @@ IonAllocator::IonAllocator()
     }
 
 #ifdef CFG_SECURE_DATA_PATH
-    // secure ids will be changed later.
-    mSeHeapIds = DWL_ION_DECODED_BUFFER_DCSS_HEAP;
+    for (int i=0; i<heapCnt; i++) {
+        if (ihd[i].type == ION_HEAP_TYPE_CARVEOUT) {
+            mSeHeapIds |=  1 << ihd[i].heap_id;
+        }
+    }
 #endif
 }
 
@@ -132,7 +135,7 @@ int IonAllocator::allocMemory(int size, int align, int flags)
     size = (size + (PAGE_SIZE << 3)) & (~((PAGE_SIZE << 3) - 1));
     ret = ion_alloc_fd(mIonFd, size, align, heapIds, 0, &fd);
     if (ret != 0) {
-        ALOGE("ion_alloc failed");
+        ALOGE("ion_alloc failed 0x%08X",ret);
     }
 
     return fd;

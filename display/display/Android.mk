@@ -24,6 +24,11 @@ LOCAL_C_INCLUDES += $(IMX_PATH)/imx/include \
                     system/core/libion/include
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"ionalloc\"
+
+ifeq ($(CFG_SECURE_DATA_PATH), y)
+    LOCAL_CPPFLAGS += -DCFG_SECURE_DATA_PATH
+endif
+
 LOCAL_MODULE := libionallocator
 include $(BUILD_STATIC_LIBRARY)
 
