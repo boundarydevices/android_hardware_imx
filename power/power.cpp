@@ -30,20 +30,20 @@
 #include <cutils/properties.h>
 
 #define POLICY_PATH "/sys/devices/system/cpu/cpufreq"
-#define GOVERNOR_PATH_FMT "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor"
 #define BOOSTPULSE_PATH "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
-#define PROP_CPUFREQGOV "sys.interactive"
-#define PROP_VAL "active"
-
-#define CONSERVATIVE "conservative"
-#define INTERACTIVE  "interactive"
-#define POWERSAVE    "powersave"
-#define PERFORMANCE  "performance"
 
 #define MAX_POLICY_NUM 2
-static int interactive_mode = 0;
-static int policy_cpu[MAX_POLICY_NUM] = {0}; /*only support up to two policy*/
+#define MAX_FREQ_LEN   16
+
+constexpr char kPowerHalStateProp[] = "vendor.powerhal.state";
+constexpr char kPowerHalMaxFreqProp[] = "vendor.powerhal.lowpower.max_freq";
 static int policy_num = 0;
+
+struct power_hal_t {
+    int policy_cpu;
+    char max_cpufreq[MAX_FREQ_LEN];
+    char min_cpufreq[MAX_FREQ_LEN];
+}imx_power[MAX_POLICY_NUM] = {0};
 
 static void sysfs_write(const char *path, const char *s)
 {
@@ -90,12 +90,12 @@ static ssize_t sysfs_read(char *path, char *s, int num_bytes)
 }
 int do_setproperty(const char *propname, const char *propval)
 {
-    char prop_cpugov[PROPERTY_VALUE_MAX];
+    char prop[PROPERTY_VALUE_MAX];
     int ret;
 
     property_set(propname, propval);
-    if ( property_get(propname, prop_cpugov, NULL) &&
-                     (strcmp(prop_cpugov, propval) == 0) ) {
+    if ( property_get(propname, prop, NULL) &&
+                     (strcmp(prop, propval) == 0) ) {
 	ret = 0;
         ALOGV("setprop: %s = %s ", propname, propval);
     } else {
@@ -105,44 +105,44 @@ int do_setproperty(const char *propname, const char *propval)
     return ret;
 }
 
-int do_changecpugov(const char *gov)
+static int cpufreq_set_max_frequency_limit(int low_power)
 {
     int fd;
-    char governor_path[256];
+    char path[256];
+    char *param;
+    char prop[PROPERTY_VALUE_MAX];
     for (int i=0; i<policy_num; i++) {
-        sprintf(governor_path, GOVERNOR_PATH_FMT, policy_cpu[i]);
-        fd = open(governor_path, O_WRONLY);
+        sprintf(path, POLICY_PATH"policy%d/scaling_max_freq", imx_power[i].policy_cpu);
+        fd = open(path, O_WRONLY);
         if (fd < 0) {
-            ALOGE("Error opening %s: %s\n", governor_path, strerror(errno));
+            ALOGE("Error opening %s: %s\n", path, strerror(errno));
             return -1;
         }
-        if (write(fd, gov, strlen(gov)) < 0) {
-            ALOGE("Error writing to %s: %s\n", governor_path, strerror(errno));
+
+        if (low_power) {
+            if (property_get(kPowerHalMaxFreqProp, prop, NULL))
+                param = prop;
+            else
+                param = imx_power[i].min_cpufreq;
+        } else {
+            param = imx_power[i].max_cpufreq;
+        }
+        if (write(fd, param, strlen(param)) < 0) {
+            ALOGE("Error writing to %s: %s\n", path, strerror(errno));
             close(fd);
             return -1;
         }
         close(fd);
     }
-
-    if (strncmp(INTERACTIVE, gov, strlen(INTERACTIVE)) == 0) {
-        do_setproperty(PROP_CPUFREQGOV, PROP_VAL);
-        interactive_mode = 1;
-    } else {
-        interactive_mode = 0;
-    }
-
     return 0;
 }
 
 static void fsl_power_init(struct power_module *module)
 {
-    /*
-     * cpufreq interactive governor: timer 40ms, min sample 60ms,
-     * hispeed at cpufreq MAX freq in freq_table at load 40% 
-     * the params is initialized in init.rc
-     */
     (void)module;
-
+    char path[256];
+    char *param;
+    int cpu_id;
     dirent* de;
     int fd;
     int dfd;
@@ -155,52 +155,59 @@ static void fsl_power_init(struct power_module *module)
             fd = openat(dfd, de->d_name, O_RDONLY | O_DIRECTORY);
             if (fd < 0) continue;
 
-            if (strncmp(de->d_name, "policy", 5) == 0) {
-                sscanf(de->d_name, "policy%d", &policy_cpu[policy_num]);
+            if (strncmp(de->d_name, "policy", 6) == 0) {
+                sscanf(de->d_name, "policy%d", &cpu_id);
+                imx_power[policy_num].policy_cpu = cpu_id;
+                sprintf(path, POLICY_PATH"/policy%d/cpuinfo_max_freq", cpu_id);
+                param = imx_power[policy_num].max_cpufreq;
+                if (sysfs_read(path, param, MAX_FREQ_LEN) < 0)
+                    imx_power[policy_num].max_cpufreq[0] = '\0';
+
+                sprintf(path, POLICY_PATH"/policy%d/cpuinfo_min_freq", cpu_id);
+                param = imx_power[policy_num].min_cpufreq;
+                if (sysfs_read(path, param, MAX_FREQ_LEN) < 0)
+                    imx_power[policy_num].min_cpufreq[0] = '\0';
+
                 policy_num++;
                 if (policy_num >= MAX_POLICY_NUM)
                     break;
             }
         }
     }
-
-    do_changecpugov(INTERACTIVE);
 }
 
 static void fsl_power_set_interactive(struct power_module *module, int on)
 {
-    /* swich to conservative when system in early_suspend or
-     * suspend mode.
-     */
     (void)module;
-
-    if (on)
-        do_changecpugov(INTERACTIVE);
-    else
-        do_changecpugov(CONSERVATIVE);
+    (void)on;
 }
 
 static void fsl_power_hint(struct power_module *module, power_hint_t hint,
                             void *data)
 {
     (void)module;
-
     switch (hint) {
     case POWER_HINT_VSYNC:
         break;
     case POWER_HINT_INTERACTION:
-        if (interactive_mode)
-            sysfs_write(BOOSTPULSE_PATH, "1");
-        else
-            do_changecpugov(INTERACTIVE);
+        do_setproperty(kPowerHalStateProp, "interaction");
         break;
     case POWER_HINT_LOW_POWER:
-        if (data)
-            do_changecpugov(POWERSAVE);
-        else
-            do_changecpugov(INTERACTIVE);
+        if (data) {
+            cpufreq_set_max_frequency_limit(1);
+            do_setproperty(kPowerHalStateProp, "low_power_on");
+        } else {
+            cpufreq_set_max_frequency_limit(0);
+            do_setproperty(kPowerHalStateProp, "low_power_off");
+        }
         break;
- 
+    case POWER_HINT_SUSTAINED_PERFORMANCE:
+        if (data) {
+            do_setproperty(kPowerHalStateProp, "sustained_perf_on");
+        } else {
+            do_setproperty(kPowerHalStateProp, "sustained_perf_off");
+        }
+        break;
     default:
         break;
     }
