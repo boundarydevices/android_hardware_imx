@@ -29,6 +29,9 @@
 
 #include "VideoCapture.h"
 
+#define CAMERA_WIDTH 1280
+#define CAMERA_HEIGHT 720
+
 int VideoCapture::getCaptureMode(int width, int height)
 {
     int index = 0;
@@ -116,7 +119,7 @@ bool VideoCapture::open(const char* deviceName) {
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     param.parm.capture.timeperframe.numerator   = 1;
     param.parm.capture.timeperframe.denominator = 30;
-    param.parm.capture.capturemode = getCaptureMode(640, 480);
+    param.parm.capture.capturemode = getCaptureMode(CAMERA_WIDTH, CAMERA_HEIGHT);
     int ret = ioctl(mDeviceFd, VIDIOC_S_PARM, &param);
     if (ret < 0) {
         ALOGE("%s: VIDIOC_S_PARM Failed: %s", __func__, strerror(errno));
@@ -127,8 +130,8 @@ bool VideoCapture::open(const char* deviceName) {
     v4l2_format format;
     format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     format.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUYV; // Could/should we request V4L2_PIX_FMT_NV21?
-    format.fmt.pix_mp.width = 640;                     // TODO:  Can we avoid hard coding dimensions?
-    format.fmt.pix_mp.height = 480;                    // For now, this works with available hardware
+    format.fmt.pix_mp.width = CAMERA_WIDTH;                     // TODO:  Can we avoid hard coding dimensions?
+    format.fmt.pix_mp.height = CAMERA_HEIGHT;                    // For now, this works with available hardware
     format.fmt.pix_mp.field = V4L2_FIELD_ALTERNATE;    // TODO:  Do we need to specify this?
     format.fmt.pix_mp.num_planes = 1;    // TODO:  Do we need to specify this?
     ALOGI("Requesting format %c%c%c%c (0x%08X)",
@@ -172,7 +175,7 @@ bool VideoCapture::open(const char* deviceName) {
     }
 
     ret = 0;
-    int size = 640 * 480 * 2;
+    int size = CAMERA_WIDTH * CAMERA_HEIGHT * 2;
     uint64_t ptr = 0;
     int ionSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
     for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {

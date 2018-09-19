@@ -27,6 +27,8 @@ namespace evs {
 namespace V1_0 {
 namespace implementation {
 
+#define DISPLAY_WIDTH 1280
+#define DISPLAY_HEIGHT 720
 
 EvsGlDisplay::EvsGlDisplay() {
     ALOGD("EvsGlDisplay instantiated");
@@ -177,8 +179,8 @@ Return<void> EvsGlDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)  {
 
         // Assemble the buffer description we'll use for our render target
         // hard code the resolution 640*480
-        mBuffer.width       = 640;
-        mBuffer.height      = 480;
+        mBuffer.width       = DISPLAY_WIDTH;
+        mBuffer.height      = DISPLAY_HEIGHT;
         mBuffer.format      = HAL_PIXEL_FORMAT_RGBA_8888;
         mBuffer.usage       = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER;
         mBuffer.bufferId    = 0x3870;  // Arbitrary magic number for self recognition
