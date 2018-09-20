@@ -88,7 +88,10 @@ IonAllocator::IonAllocator()
 
 #ifdef CFG_SECURE_DATA_PATH
     for (int i=0; i<heapCnt; i++) {
-        if (ihd[i].type == ION_HEAP_TYPE_CARVEOUT) {
+        if ((ihd[i].type == ION_HEAP_TYPE_UNMAPPED) &&
+            (!memcmp(ihd[i].name,
+                DWL_ION_DECODED_BUFFER_DISPLAY_HEAP_NAME,
+                sizeof(DWL_ION_DECODED_BUFFER_DISPLAY_HEAP_NAME)))) {
             mSeHeapIds |=  1 << ihd[i].heap_id;
         }
     }
