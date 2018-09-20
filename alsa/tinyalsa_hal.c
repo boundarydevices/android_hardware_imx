@@ -203,6 +203,8 @@ struct pcm_config pcm_config_esai_multi = {
 #define PCM_FORMAT_DSD 5
 #endif
 
+int lpa_enable = 0;
+
 struct pcm_config pcm_config_dsd = {
     .channels = 2,
     .rate = DSD64_SAMPLING_RATE / DSD_RATE_TO_PCM_RATE, /* changed when the stream is opened */
@@ -1235,6 +1237,10 @@ static int out_pause(struct audio_stream_out* stream)
     int status = 0;
 
     ALOGI("%s", __func__);
+
+    if (lpa_enable == 1)
+        return status;
+
     pthread_mutex_lock(&out->lock);
     if (!out->paused) {
         status = pcm_ioctl(out->pcm_default, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
@@ -1252,6 +1258,10 @@ static int out_resume(struct audio_stream_out* stream)
     int status = 0;
 
     ALOGI("%s", __func__);
+
+    if (lpa_enable == 1)
+        return status;
+
     pthread_mutex_lock(&out->lock);
     if (out->paused) {
         status= pcm_ioctl(out->pcm_default, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
@@ -1571,6 +1581,8 @@ static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes,
 
     if(ret !=0) {
          ALOGW("ret %d, pcm write %zu error %s", ret, bytes, pcm_get_error(pcm));
+        if (lpa_enable == 1)
+            return ret;
 
          switch(pcm_state(pcm)) {
               case PCM_STATE_SETUP:
@@ -3419,8 +3431,16 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config[PCM_ESAI].channels = popcount(config->channel_mask);
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
                devices == AUDIO_DEVICE_OUT_LINE) {
-        int lpa_hold_second = property_get_int32("lpa_hold_second", 0);
-        int lpa_period_ms = property_get_int32("lpa_period_ms", 0);
+        int lpa_hold_second = 0;
+        int lpa_period_ms = 0;
+
+        if (lpa_enable == 0) {
+            lpa_hold_second = property_get_int32("lpa_hold_second", 0);
+            lpa_period_ms = property_get_int32("lpa_period_ms", 0);
+        } else if (lpa_enable == 1) {
+            lpa_hold_second = property_get_int32("lpa_hold_second", 60);
+            lpa_period_ms = property_get_int32("lpa_period_ms", 1000);
+        }
 
         if(lpa_hold_second && lpa_period_ms) {
             pcm_config_lpa.period_size = config->sample_rate * lpa_period_ms / 1000;
@@ -4489,6 +4509,8 @@ static int adev_open(const hw_module_t* module, const char* name,
     pthread_mutex_unlock(&adev->lock);
 
     *device = &adev->hw_device.common;
+
+    lpa_enable = property_get_int32("lpa_enable", 0);
 
 #ifdef PRODUCT_IOT
     audio_map_init();
