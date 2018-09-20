@@ -797,7 +797,7 @@ static int start_output_stream(struct imx_stream_out *out)
     ALOGW("card %d, port %d device 0x%x", card, port, out->device);
     ALOGW("rate %d, channel %d period_size 0x%x", out->config_default.rate, out->config_default.channels, out->config_default.period_size);
 
-    out->write_flags_default = PCM_OUT | PCM_MONOTONIC;
+    out->write_flags_default = PCM_OUT | PCM_MONOTONIC | PCM_LPA;
     out->pcm_default = pcm_open(card, port, out->write_flags_default, &out->config_default);
 
     if (out->pcm_default && !pcm_is_ready(out->pcm_default)) {
