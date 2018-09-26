@@ -322,7 +322,7 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     src_param->color_key = -1;
     src_param->color_key_enable = 0;
     src_param->pixel_fmt = convertPixelFormatToV4L2Format(src->format());
-    src_param->stride = src_param->width * (pxp_get_bpp(src_param->pixel_fmt) >> 3);
+    src_param->stride = src_param->width;
     pxp_conf.proc_data.srect.top = 0;
     pxp_conf.proc_data.srect.left = 0;
     pxp_conf.proc_data.srect.width = src->width();
@@ -335,7 +335,7 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     out_param->width = dst->width();
     out_param->height = dst->height();
     out_param->pixel_fmt = convertPixelFormatToV4L2Format(dst->format());
-    out_param->stride = out_param->width * (pxp_get_bpp(out_param->pixel_fmt) >> 3);
+    out_param->stride = out_param->width;
     pxp_conf.handle = mChannel;
     pxp_conf.proc_data.drect.top = 0;
     pxp_conf.proc_data.drect.left = 0;
