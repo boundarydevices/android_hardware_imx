@@ -434,7 +434,7 @@ void GlWrapper::renderImageToScreen() {
 
     // Draw a rectangle on the screen
     // TODO:  We pulled in from the edges for now for diagnostic purposes...
-#if 0
+#if 1
     GLfloat vertsCarPos[] = { -1.0,  1.0, 0.0f,   // left top in window space
                                1.0,  1.0, 0.0f,   // right top
                               -1.0, -1.0, 0.0f,   // left bottom
