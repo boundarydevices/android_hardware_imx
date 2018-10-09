@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP.
+ * Copyright 2017-2018 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -115,8 +115,10 @@ int MemoryDesc::checkFormat()
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 3 / 2;
             //hantro vpu need more buffer size for decoding
-            if(mProduceUsage & USAGE_PADDING_BUFFER)
-                size += alignedw * alignedh / 4 + 32;
+            if(mProduceUsage & USAGE_PADDING_BUFFER) {
+                alignedh = ALIGN_PIXEL_16(mHeight);
+                size = alignedw * alignedh * 3 / 2 + alignedw * alignedh / 4 + 32;
+            }
             break;
 
         case FORMAT_P010:
@@ -131,8 +133,10 @@ int MemoryDesc::checkFormat()
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 3 / 2 * 5 / 4;
             //hantro vpu need more buffer size for decoding
-            if(mProduceUsage & USAGE_PADDING_BUFFER)
-                size += alignedw * alignedh / 4 + 32;
+            if(mProduceUsage & USAGE_PADDING_BUFFER) {
+                alignedh = ALIGN_PIXEL_16(mHeight);
+                size = alignedw * alignedh * 3 / 2 * 5 / 4 + alignedw * alignedh / 4 + 32;
+            }
             break;
 
         case FORMAT_I420:
