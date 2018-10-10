@@ -22,6 +22,10 @@
 
 #include "VirtualDisplay.h"
 
+#define BUFFER_SIZE 512
+#define DRM_DRI_PATH "/dev/dri/"
+#define EPOLL_MAX_EVENTS 8
+
 #define MAX_PHYSICAL_DISPLAY 10
 #define MAX_VIRTUAL_DISPLAY  16
 
@@ -48,6 +52,7 @@ public:
     int enumFakeKmsDisplay();
     int enumKmsDisplays();
     void setCallback(EventListener* callback);
+    EventListener* getCallback();
     void handleHotplugEvent();
     void handleKmsHotplug();
 
@@ -68,6 +73,23 @@ private:
     };
 
     sp<HotplugThread> mHotplugThread;
+
+    class PollFileThread : public Thread {
+    public:
+        PollFileThread(DisplayManager *ctx);
+
+    private:
+        virtual void onFirstRef();
+        virtual int32_t readyToRun();
+        virtual bool threadLoop();
+
+        DisplayManager *mCtx;
+        int mINotifyFd;
+        int mINotifyWd;
+        int mEpollFd;
+    };
+
+    sp<PollFileThread> mPollFileThread;
 
 private:
     static Mutex sLock;

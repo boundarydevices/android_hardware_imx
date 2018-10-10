@@ -18,6 +18,8 @@
 #include <dirent.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
+#include <sys/epoll.h>
+#include <sys/inotify.h>
 
 #include "FbDisplay.h"
 #include "KmsDisplay.h"
@@ -65,6 +67,10 @@ DisplayManager::DisplayManager()
     mDrmMode = false;
     mDriverReady = true;
     enumKmsDisplays();
+    if (!mDriverReady) {
+        mPollFileThread = new PollFileThread(this);
+    }
+
     if (!mDrmMode) {
         enumFbDisplays();
     }
@@ -90,6 +96,9 @@ DisplayManager::~DisplayManager()
 {
     if (mHotplugThread != NULL) {
         mHotplugThread->requestExit();
+    }
+    if (mPollFileThread != NULL) {
+        mPollFileThread->requestExit();
     }
 
     Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
@@ -208,6 +217,12 @@ void DisplayManager::setCallback(EventListener* callback)
         mListener = callback;
     }
     display->setCallback(callback);
+}
+
+EventListener* DisplayManager::getCallback()
+{
+    Mutex::Autolock _l(mLock);
+    return mListener;
 }
 
 bool DisplayManager::isOverlay(int fb)
@@ -512,13 +527,6 @@ void DisplayManager::handleKmsHotplug()
             callback = mListener;
         }
 
-        if (!mDriverReady) {
-            enumKmsDisplays();
-            if (callback != NULL) {
-                callback->onRefresh(i);
-            }
-        }
-
         bool connected = display->connected();
         display->readConnection();
         if (display->connected() == connected) {
@@ -597,6 +605,100 @@ bool DisplayManager::HotplugThread::threadLoop()
     }
     else {
         mCtx->handleHotplugEvent();
+    }
+
+    return true;
+}
+
+DisplayManager::PollFileThread::PollFileThread(DisplayManager *ctx)
+   : Thread(false), mCtx(ctx), mINotifyFd(-1), mINotifyWd(-1), mEpollFd(-1)
+{
+}
+
+void DisplayManager::PollFileThread::onFirstRef()
+{
+    run("HWC-Poll-Thread", android::PRIORITY_URGENT_DISPLAY);
+}
+
+int32_t DisplayManager::PollFileThread::readyToRun()
+{
+    mINotifyFd = inotify_init();
+    if (mINotifyFd < 0) {
+        ALOGE("Fail to initialize inotify fd, error:%s",strerror(errno));
+        return -1;
+    }
+
+    mINotifyWd = inotify_add_watch(mINotifyFd, DRM_DRI_PATH, IN_CREATE);
+    if (mINotifyWd < 0) {
+        ALOGE("Fail to add watch for %s,error:%s",DRM_DRI_PATH,strerror(errno));
+        close(mINotifyFd);
+        return -1;
+    }
+
+    mEpollFd = epoll_create(1);
+    if (mEpollFd == -1) {
+        ALOGE("Fail to create epoll instance, error:%s",strerror(errno));
+        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        close(mINotifyFd);
+        return -1;
+    }
+    epoll_event eventItem;
+    memset(&eventItem, 0, sizeof(epoll_event));
+    eventItem.events = EPOLLIN;
+    eventItem.data.fd = mINotifyFd;
+    int result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mINotifyFd, &eventItem);
+    if (result == -1) {
+        ALOGE("Fail to add inotify to epoll instance, error:%s",strerror(errno));
+        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        close(mINotifyFd);
+        close(mEpollFd);
+        return -1;
+    }
+    return 0;
+}
+
+bool DisplayManager::PollFileThread::threadLoop()
+{
+    int numEpollEvent = 0;
+    epoll_event epollItems[EPOLL_MAX_EVENTS];
+    numEpollEvent = epoll_wait(mEpollFd, epollItems, EPOLL_MAX_EVENTS, -1);
+    if (numEpollEvent <= 0) {
+        ALOGE("Fail to wait requested events,numEpollEvent:%d,error:%s",numEpollEvent,strerror(errno));
+        return true;
+    }
+
+    for (int i=0; i<numEpollEvent; i++) {
+        if (epollItems[i].events & (EPOLLERR|EPOLLHUP)) {
+            continue;
+        }
+        if (epollItems[i].events & EPOLLIN) {
+            char buf[BUFFER_SIZE];
+            int numINotifyItem = read(mINotifyFd,buf,BUFFER_SIZE);
+            if (numINotifyItem < 0) {
+                ALOGE("Fail to read from INotifyFd,error:%s",strerror(errno));
+                continue;
+            }
+
+            //Each successful read returns a buffer containing one or more of struct inotify_event
+            //The length of each inotify_event structure is sizeof(struct inotify_event)+len.
+            for (char *inotifyItemBuf = buf;inotifyItemBuf < buf+numINotifyItem;) {
+                struct inotify_event *inotifyItem = (struct inotify_event *)inotifyItemBuf;
+                if (strstr(inotifyItem->name,"card")) {
+                    //detect /dev/dri/card%d has been created
+                    mCtx->enumKmsDisplays();
+                    EventListener* callback = NULL;
+                    callback = mCtx->getCallback();
+                    if (callback != NULL) {
+                        callback->onRefresh(0);
+                    }
+                    inotify_rm_watch(mINotifyFd,mINotifyWd);
+                    close(mEpollFd);
+                    close(mINotifyFd);
+                    return false;
+                }
+                inotifyItemBuf += sizeof(struct inotify_event) + inotifyItem->len;
+            }
+        }
     }
 
     return true;
