@@ -123,6 +123,13 @@ status_t Uvc7ulpDevice::initSensorStaticData()
         if (ret != 0) {
             continue;
         }
+
+        //when use the resolution as capture size, camera app will update preview size(7ulp mipi display),
+        //the operation is not allowed. Filter out the resolution.
+        if ((vid_frmsize.discrete.width == 864) && (vid_frmsize.discrete.height == 480)) {
+            continue;
+        }
+
         ALOGI("vid_frmval denominator:%d, numeraton:%d",
                 vid_frmval.discrete.denominator,
                 vid_frmval.discrete.numerator);
