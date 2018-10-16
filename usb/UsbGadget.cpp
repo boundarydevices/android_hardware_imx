@@ -36,7 +36,7 @@ constexpr int DISCONNECT_WAIT_US = 10000;
 #define BUILD_TYPE "ro.build.type"
 #define GADGET_PATH "/config/usb_gadget/g1/"
 #define PULLUP_PATH GADGET_PATH "UDC"
-#define USB_CONTROLLER "sys.usb.controller"
+#define USB_CONTROLLER "vendor.usb.config"
 #define GADGET_NAME GetProperty(USB_CONTROLLER, "")
 #define PERSISTENT_BOOT_MODE "ro.bootmode"
 #define VENDOR_ID_PATH GADGET_PATH "idVendor"
