@@ -3524,8 +3524,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     } else {
         ALOGV("adev_open_output_stream() normal buffer");
         if (ladev->active_output[OUTPUT_PRIMARY] != NULL) {
-            ret = -ENOSYS;
-            goto err_open;
+            if (flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
+                ret = -ENOSYS;
+                goto err_open;
+            } else {
+                ALOGW("%s: already has primary output: %p", __func__, ladev->active_output[OUTPUT_PRIMARY]);
+            }
         }
         output_type = OUTPUT_PRIMARY;
         out->stream.common.get_buffer_size = out_get_buffer_size_primary;
