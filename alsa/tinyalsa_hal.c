@@ -3359,6 +3359,32 @@ static int out_read_hdmi_rates(struct imx_audio_device *adev, struct imx_stream_
     return 0;
 }
 
+static int adev_get_microphones(const struct audio_hw_device *dev,
+                                struct audio_microphone_characteristic_t *mic_array,
+                                size_t *mic_count) {
+    struct imx_audio_device *adev = (struct imx_audio_device *)dev;
+    ALOGD("%s", __func__);
+
+    if (mic_count == NULL) {
+        return -EINVAL;
+    }
+    if (mic_array == NULL) {
+        return -EINVAL;
+    }
+
+    if (*mic_count == 0) {
+        *mic_count = 1;
+        return 0;
+    }
+
+    for (size_t ch = 0; ch < AUDIO_CHANNEL_COUNT_MAX; ch++) {
+        mic_array->channel_mapping[ch] = AUDIO_MICROPHONE_CHANNEL_MAPPING_UNUSED;
+    }
+    *mic_count = 1;
+
+    return 0;
+}
+
 static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_io_handle_t handle __unused,
                                    audio_devices_t devices,
@@ -4508,6 +4534,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.close_output_stream     = adev_close_output_stream;
     adev->hw_device.open_input_stream       = adev_open_input_stream;
     adev->hw_device.close_input_stream      = adev_close_input_stream;
+    adev->hw_device.get_microphones         = adev_get_microphones;
     adev->hw_device.dump                    = adev_dump;
     adev->mm_rate                           = 44100;
     adev->support_multichannel              = false;
