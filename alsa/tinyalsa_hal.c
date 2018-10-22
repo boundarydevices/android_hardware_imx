@@ -1421,6 +1421,15 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         checked = true;
     }
 
+    ret = str_parms_get_str(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS, value, sizeof(value));
+    if (ret >= 0) {
+        value[0] = '\0';
+        strcat(value, "AUDIO_FORMAT_PCM_16_BIT");
+        str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_FORMATS, value);
+        str = strdup(str_parms_to_str(reply));
+        checked = true;
+    }
+
     if (!checked) {
         str = strdup("");
     }
@@ -2356,10 +2365,34 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     return status;
 }
 
-static char * in_get_parameters(const struct audio_stream *stream __unused,
-                                const char *keys __unused)
+static char * in_get_parameters(const struct audio_stream *stream,
+                                const char *keys)
 {
-    return strdup("");
+    struct str_parms *query = str_parms_create_str(keys);
+    char *str = NULL;
+    char value[256];
+    struct str_parms *reply = str_parms_create();
+    int ret;
+    bool checked = false;
+
+    ret = str_parms_get_str(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS, value, sizeof(value));
+    if (ret >= 0) {
+        value[0] = '\0';
+        strcat(value, "AUDIO_FORMAT_PCM_16_BIT");
+        str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_FORMATS, value);
+        str = strdup(str_parms_to_str(reply));
+        checked = true;
+    }
+
+    if (!checked) {
+        str = strdup("");
+    }
+
+    ALOGD("%s: query %s; reply %s", __func__, str_parms_to_str(query), str_parms_to_str(reply));
+    str_parms_destroy(query);
+    str_parms_destroy(reply);
+
+    return str;
 }
 
 static int in_set_gain(struct audio_stream_in *stream __unused, float gain __unused)
