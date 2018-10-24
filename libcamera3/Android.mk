@@ -65,7 +65,8 @@ LOCAL_SRC_FILES := \
     VADCTVINDevice.cpp \
     MMAPStream.cpp \
     TinyExif.cpp \
-    ImageProcess.cpp
+    ImageProcess.cpp \
+    CameraMetadata.cpp
 
 ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_SRC_FILES += \
@@ -83,7 +84,6 @@ LOCAL_SHARED_LIBRARIES := \
     libjpeg \
     libion \
     libbinder \
-    libcamera_client \
     libhardware_legacy
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
