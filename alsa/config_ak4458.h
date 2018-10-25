@@ -22,8 +22,55 @@
 
 #define MIXER_AK4458_L1CH_VOLUME                 "0 AK4458 L1ch Digital Volume"
 #define MIXER_AK4458_R1CH_VOLUME                 "0 AK4458 R1ch Digital Volume"
+#define MIXER_AK4458_L2CH_VOLUME                 "0 AK4458 L2ch Digital Volume"
+#define MIXER_AK4458_R2CH_VOLUME                 "0 AK4458 R2ch Digital Volume"
+#define MIXER_AK4458_L3CH_VOLUME                 "0 AK4458 L3ch Digital Volume"
+#define MIXER_AK4458_R3CH_VOLUME                 "0 AK4458 R3ch Digital Volume"
+#define MIXER_AK4458_L4CH_VOLUME                 "0 AK4458 L4ch Digital Volume"
+#define MIXER_AK4458_R4CH_VOLUME                 "0 AK4458 R4ch Digital Volume"
 
+// a suitable default volume, see out_set_volume in tinyalsa_hal.c
+#define AK4458_VOLUME_DEFAULT 172
 #define AK4458_VOLUME_MAX 255
+#define AK4458_VOLUME_MIN 170
+
+static struct route_setting headphone_output_ak4458[] = {
+    {
+        .ctl_name = MIXER_AK4458_L1CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = MIXER_AK4458_R1CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = MIXER_AK4458_L2CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = MIXER_AK4458_R2CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = MIXER_AK4458_L3CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = MIXER_AK4458_R3CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = MIXER_AK4458_L4CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = MIXER_AK4458_R4CH_VOLUME,
+        .intval = AK4458_VOLUME_DEFAULT,
+    },
+    {
+        .ctl_name = NULL,
+    },
+};
 
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  ak4458_card = {
@@ -34,7 +81,7 @@ static struct audio_card  ak4458_card = {
     .defaults            = NULL,
     .bt_output           = NULL,
     .speaker_output      = NULL,
-    .hs_output           = NULL,
+    .hs_output           = headphone_output_ak4458,
     .earpiece_output     = NULL,
     .vx_hs_mic_input     = NULL,
     .mm_main_mic_input   = NULL,

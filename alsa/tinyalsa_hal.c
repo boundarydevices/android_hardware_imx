@@ -1488,27 +1488,36 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
     struct imx_audio_device *adev = out->dev;
 
     if (!strcmp(adev->card_list[out->card_index]->driver_name, "ak4458-audio")) {
-        struct mixer *mixer;
-        struct mixer_ctl *ctl[2];
+        struct route_setting *route = adev->card_list[out->card_index]->hs_output;
+        struct mixer *mixer = adev->mixer[out->card_index];
+        struct mixer_ctl *ctl;
         int volume[2];
+        int i = 0;
 
-        volume[0] = (int)(left * AK4458_VOLUME_MAX);
-        volume[1] = (int)(right * AK4458_VOLUME_MAX);
-        mixer = adev->mixer[out->card_index];
         if (!mixer) {
             return -ENOSYS;
         }
-        ctl[0] = mixer_get_ctl_by_name(mixer, MIXER_AK4458_L1CH_VOLUME);
-        if (!ctl[0]) {
-            return -ENOSYS;
+
+        if (left == 0 && right == 0) {
+            volume[0] = 0;
+            volume[1] = 0;
+        } else {
+            // After factory reset, the original MUSIC stream volume is 5 (headphone)
+            // Here left/right value is 0.023646, caculated volume is 172, which is just
+            // the default volume defined in config_ak4458.h, this will avoid the
+            // volume jump after seek/pause/resume operation.
+            volume[0] = (int)(AK4458_VOLUME_MIN + left * (AK4458_VOLUME_MAX - AK4458_VOLUME_MIN));
+            volume[1] = (int)(AK4458_VOLUME_MIN + right * (AK4458_VOLUME_MAX - AK4458_VOLUME_MIN));
         }
-        ctl[1] = mixer_get_ctl_by_name(mixer, MIXER_AK4458_R1CH_VOLUME);
-        if (!ctl[1]) {
-            return -ENOSYS;
+
+        while (route[i].ctl_name) {
+            ctl = mixer_get_ctl_by_name(mixer, route[i].ctl_name);
+            if (!ctl)
+                return -ENOSYS;
+            mixer_ctl_set_value(ctl, 0, volume[0]);
+            i++;
         }
-        mixer_ctl_set_value(ctl[0], 0, volume[0]);
-        mixer_ctl_set_value(ctl[1], 0, volume[1]);
-        ALOGD("%s left: %d, right: %d",__func__, mixer_ctl_get_value(ctl[0], 0), mixer_ctl_get_value(ctl[1], 0));
+        ALOGD("%s: float: %f, integer: %d", __func__, left, volume[0]);
 
         return 0;
     }
