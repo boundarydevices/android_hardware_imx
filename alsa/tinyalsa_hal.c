@@ -3503,11 +3503,11 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         int lpa_period_ms = 0;
 
         if (lpa_enable == 0) {
-            lpa_hold_second = property_get_int32("lpa_hold_second", 0);
-            lpa_period_ms = property_get_int32("lpa_period_ms", 0);
+            lpa_hold_second = property_get_int32("vendor.audio.lpa.hold_second", 0);
+            lpa_period_ms = property_get_int32("vendor.audio.lpa.period_ms", 0);
         } else if (lpa_enable == 1) {
-            lpa_hold_second = property_get_int32("lpa_hold_second", 60);
-            lpa_period_ms = property_get_int32("lpa_period_ms", 1000);
+            lpa_hold_second = property_get_int32("vendor.audio.lpa.hold_second", 60);
+            lpa_period_ms = property_get_int32("vendor.audio.lpa.period_ms", 1000);
         }
 
         if(lpa_hold_second && lpa_period_ms) {
@@ -4583,7 +4583,7 @@ static int adev_open(const hw_module_t* module, const char* name,
 
     *device = &adev->hw_device.common;
 
-    lpa_enable = property_get_int32("lpa_enable", 0);
+    lpa_enable = property_get_int32("vendor.audio.lpa.enable", 0);
 
 #ifdef PRODUCT_IOT
     audio_map_init();
