@@ -451,6 +451,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
     static const int32_t maxFaceCount = 0;
     m.addInt32(ANDROID_STATISTICS_INFO_MAX_FACE_COUNT, 1, &maxFaceCount);
 
+#if ANDROID_SDK_VERSION >= 28
     static const uint8_t aeLockAvailable = ANDROID_CONTROL_AE_LOCK_AVAILABLE_FALSE;
     m.addUInt8(ANDROID_CONTROL_AE_LOCK_AVAILABLE, 1, &aeLockAvailable);
 
@@ -465,6 +466,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
 
     static const int32_t session_keys[] = {ANDROID_CONTROL_VIDEO_STABILIZATION_MODE, ANDROID_CONTROL_AE_TARGET_FPS_RANGE};
     m.addInt32(ANDROID_REQUEST_AVAILABLE_SESSION_KEYS, ARRAY_SIZE(session_keys), session_keys);
+#endif
 
     int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE};
     m.addInt32(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, ARRAY_SIZE(availableResultKeys), availableResultKeys);
@@ -525,9 +527,11 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
         ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
         ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES,
         ANDROID_CONTROL_AWB_AVAILABLE_MODES,
+#if ANDROID_SDK_VERSION >= 28
         ANDROID_CONTROL_AE_LOCK_AVAILABLE,
         ANDROID_CONTROL_AWB_LOCK_AVAILABLE,
         ANDROID_CONTROL_AVAILABLE_MODES,
+#endif
         ANDROID_FLASH_INFO_AVAILABLE,
         ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
         ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES,
@@ -594,6 +598,9 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                                       ANDROID_REQUEST_ID,
                                       ANDROID_SCALER_CROP_REGION,
                                       ANDROID_SENSOR_FRAME_DURATION,
+#if ANDROID_SDK_VERSION < 28
+                                      ANDROID_HOT_PIXEL_MODE,
+#endif
                                       ANDROID_STATISTICS_HISTOGRAM_MODE,
                                       ANDROID_STATISTICS_SHARPNESS_MAP_MODE,
                                       ANDROID_TONEMAP_CURVE_BLUE,
@@ -669,15 +676,21 @@ void Metadata::createSettingTemplate(Metadata& base, SensorData& sensor,
 
     switch (request_template) {
       case CAMERA3_TEMPLATE_PREVIEW:
+#if ANDROID_SDK_VERSION >= 28
         hotPixelMode = ANDROID_HOT_PIXEL_MODE_FAST;
+#endif
         noiseMode = ANDROID_NOISE_REDUCTION_MODE_FAST;
         aberrationMode = ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST;
         break;
       case CAMERA3_TEMPLATE_STILL_CAPTURE:
+#if ANDROID_SDK_VERSION >= 28
         hotPixelMode = ANDROID_HOT_PIXEL_MODE_HIGH_QUALITY;
+#endif
         break;
       case CAMERA3_TEMPLATE_VIDEO_RECORD:
+#if ANDROID_SDK_VERSION >= 28
         hotPixelMode = ANDROID_HOT_PIXEL_MODE_FAST;
+#endif
         noiseMode = ANDROID_NOISE_REDUCTION_MODE_FAST;
         vstabMode = ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_ON;
         aberrationMode = ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST;

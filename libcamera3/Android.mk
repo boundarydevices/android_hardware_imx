@@ -108,6 +108,9 @@ ifeq ($(BOARD_SOC_TYPE), IMX7ULP)
     LOCAL_CPPFLAGS += -DIMX7ULP_UVC
 endif
 
+LOCAL_CFLAGS += \
+        -DANDROID_SDK_VERSION=$(PLATFORM_SDK_VERSION)
+
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 
 LOCAL_MODULE_TAGS := optional
