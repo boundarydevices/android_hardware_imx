@@ -339,19 +339,32 @@ void GlWrapper::shutdown() {
 
 void GlWrapper::showWindow() {
     if (mFlingerSurfaceControl != nullptr) {
+#if ANDROID_SDK_VERSION >= 28
         SurfaceComposerClient::Transaction{}
                 .setLayer(mFlingerSurfaceControl, 0x7FFFFFFF)     // always on top
                 .show(mFlingerSurfaceControl)
                 .apply();
+#else
+        SurfaceComposerClient::openGlobalTransaction();
+                mFlingerSurfaceControl->setLayer(0x7FFFFFFF);     // always on top
+                mFlingerSurfaceControl->show();
+                SurfaceComposerClient::closeGlobalTransaction();
+#endif
     }
 }
 
 
 void GlWrapper::hideWindow() {
     if (mFlingerSurfaceControl != nullptr) {
+#if ANDROID_SDK_VERSION >= 28
         SurfaceComposerClient::Transaction{}
                 .hide(mFlingerSurfaceControl)
                 .apply();
+#else
+        SurfaceComposerClient::openGlobalTransaction();
+                mFlingerSurfaceControl->hide();
+                SurfaceComposerClient::closeGlobalTransaction();
+#endif
     }
 }
 
