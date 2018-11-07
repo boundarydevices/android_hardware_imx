@@ -59,6 +59,24 @@ const char pixelShaderSource[] =
         "    color = texel;                         \n"
         "}                                          \n";
 
+static const char gVertexShader[] =
+    "#version 300 es\n"
+    "layout(location = 0) in vec4 vPosition;\n"
+    "layout(location = 1) in vec4 aColor;\n"
+    "out vec4 vColor;\n"
+    "void main() {\n"
+    "  vColor = aColor;\n"
+    "  gl_Position = vPosition;\n"
+    "}\n";
+
+static const char gFragmentShader[] =
+    "#version 300 es\n"
+    "precision mediump float;\n"
+    "in vec4 vColor;\n"
+    "out vec4 gColor;\n"
+    "void main() {\n"
+    "  gColor = vColor;\n"
+    "}\n";
 
 static const char *getEGLError(void) {
     switch (eglGetError()) {
@@ -301,6 +319,12 @@ bool GlWrapper::initialize() {
         return false;
     }
 
+    // Create the shader program for lines draw.
+    mLineShaderProgram = buildShaderProgram(gVertexShader, gFragmentShader);
+    if (!mLineShaderProgram) {
+        ALOGE("Failed to build line shader program: %s", getEGLError());
+    }
+
     // Create a GL texture that will eventually wrap our externally created texture surface(s)
     glGenTextures(1, &mTextureMap);
     if (mTextureMap <= 0) {
@@ -423,6 +447,80 @@ bool GlWrapper::updateImageTexture(const BufferDesc& buffer) {
     return true;
 }
 
+void GlWrapper::renderColorLines()
+{
+    const GLfloat gLineVertices[] = {
+        -1.00f, -1.00f,
+        -0.83f, -0.33f,
+        -0.83f, -0.33f,
+        -0.66f, 0.33f,
+        -0.66f, 0.33f,
+        -0.50f, 1.00f,
+
+        1.00f, -1.00f,
+        0.83f, -0.33f,
+        0.83f, -0.33f,
+        0.66f, 0.33f,
+        0.66f, 0.33f,
+        0.50f, 1.00f,
+
+        -0.91f, -0.66f,
+        -0.75f, -0.66f,
+        -0.75f, 0.00f,
+        -0.58f, 0.00f,
+        -0.58f, 0.66f,
+        -0.41f, 0.66f,
+
+        0.91f, -0.66f,
+        0.75f, -0.66f,
+        0.75f, 0.00f,
+        0.58f, 0.00f,
+        0.58f, 0.66f,
+        0.41f, 0.66f,
+    };
+
+    const GLfloat gLineColors[] = {
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 0.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        1.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+        0.0f, 1.0f, 0.0f, 1.0f,
+    };
+
+    // Select our screen space simple texture shader
+    glUseProgram(mLineShaderProgram);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glLineWidth(8);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, gLineVertices);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, gLineColors);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glDrawArrays(GL_LINES, 0, 24);
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+}
 
 void GlWrapper::renderImageToScreen() {
     // Set the viewport
@@ -477,6 +575,8 @@ void GlWrapper::renderImageToScreen() {
     // Clean up and flip the rendered result to the front so it is visible
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
+
+    renderColorLines();
 
     glFinish();
 

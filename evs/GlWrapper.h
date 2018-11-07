@@ -45,6 +45,7 @@ public:
 
     bool updateImageTexture(const BufferDesc& buffer);
     void renderImageToScreen();
+    void renderColorLines();
 
     void showWindow();
     void hideWindow();
@@ -67,6 +68,7 @@ private:
 
     GLuint mTextureMap    = 0;
     GLuint mShaderProgram = 0;
+    GLuint mLineShaderProgram = 0;
 };
 
 #endif // ANDROID_HARDWARE_AUTOMOTIVE_EVS_V1_0_DISPLAY_GLWRAPPER_H
