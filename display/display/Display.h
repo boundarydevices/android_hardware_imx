@@ -207,7 +207,7 @@ public:
     // get display config number.
     int getConfigNum();
     // check whether display support HDR or not
-    bool isHdrSupported();
+    virtual bool isHdrSupported();
     // get HDR metadata
     int getHdrMetaData(HdrMetaData* hdrMetaData);
     bool triggerComposition();

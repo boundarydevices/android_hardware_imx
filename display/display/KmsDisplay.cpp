@@ -655,9 +655,12 @@ int KmsDisplay::performOverlay()
 
     bindOutFence(mPset);
     if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_output_metadata))) {
-        setHdrMetaData(mPset,layer->hdrMetadata);
-        layer->isHdrMode = true;
-        mLastHdrMetaData = layer->hdrMetadata;
+        // Only pass HDR metadata and flag on HDR supported display.
+        if (mEdid != NULL && mEdid->isHdrSupported()) {
+            setHdrMetaData(mPset,layer->hdrMetadata);
+            layer->isHdrMode = true;
+            mLastHdrMetaData = layer->hdrMetadata;
+        }
     }
     MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
     if (meta != NULL && meta->mFlags & FLAGS_COMPRESSED_OFFSET) {
@@ -1286,6 +1289,15 @@ int KmsDisplay::getPrimaryPlane()
     }
 
     return 0;
+}
+
+bool KmsDisplay::isHdrSupported()
+{
+    // Android framework will check whether display support HDR10 or not.
+    // And force ClientComposition without passing layer to HWC if not support.
+    // Here if display suport overlay,return HDR10 is supported to framework.
+    // Then HWC can handle this layer.
+    return Display::isHdrSupported() || (mKmsPlaneNum > 1);
 }
 
 int KmsDisplay::closeKms()
