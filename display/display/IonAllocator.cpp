@@ -20,6 +20,7 @@
 #include <cutils/log.h>
 #include <ion/ion.h>
 #include <linux/mxc_ion.h>
+#include <ion_4.12.h>
 #include <linux/dma-buf.h>
 #ifdef CFG_SECURE_DATA_PATH
 #include <linux/secure_ion.h>

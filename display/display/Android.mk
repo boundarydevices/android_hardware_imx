@@ -22,7 +22,8 @@ LOCAL_SRC_FILES := IonAllocator.cpp
 
 LOCAL_C_INCLUDES += $(IMX_PATH)/imx/include \
                     system/core/libion/include \
-                    system/core/libion/kernel-headers
+                    system/core/libion/kernel-headers \
+                    system/core/libion
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"ionalloc\"
 
