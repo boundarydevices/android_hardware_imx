@@ -1194,6 +1194,15 @@ int KmsDisplay::getPrimaryPlane()
     return 0;
 }
 
+bool KmsDisplay::isHdrSupported()
+{
+    // Since pie 9.0,framework will check whether display support HDR10 or not.
+    // And force ClientComposition without passing layer to HWC if not support.
+    // Here if display suport overlay,return HDR10 is supported to framework.
+    // Then HWC can handle this layer.
+    return Display::isHdrSupported() || (mKmsPlaneNum > 1);
+}
+
 int KmsDisplay::closeKms()
 {
     ALOGV("close kms");
