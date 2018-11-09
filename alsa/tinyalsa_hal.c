@@ -3492,6 +3492,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             config->sample_rate = ladev->mm_rate;
         if (config->channel_mask == 0)
             config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
+        if (config->format != AUDIO_FORMAT_PCM_FLOAT)
+            pcm_config_esai_multi.format = PCM_FORMAT_S16_LE;
         out->channel_mask = config->channel_mask;
         out->stream.common.get_buffer_size = out_get_buffer_size_esai;
         out->stream.common.get_sample_rate = out_get_sample_rate_esai;
@@ -4092,6 +4094,17 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
             ret = sco_task_destroy(adev);
             ALOGI("sco_task_destroy, ret %d", ret);
         }
+    }
+
+    ret = str_parms_get_str(parms, "pcm_bit", value, sizeof(value));
+    if (ret >= 0) {
+        int bits = atoi(value);
+        if (bits == 16)
+            pcm_config_esai_multi.format = PCM_FORMAT_S16_LE;
+        else if (bits == 24)
+            pcm_config_esai_multi.format = PCM_FORMAT_S24_LE;
+        else if (bits == 32)
+            pcm_config_esai_multi.format = PCM_FORMAT_S32_LE;
     }
 
 done:
