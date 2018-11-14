@@ -31,7 +31,8 @@ constexpr int BUFFER_SIZE = 512;
 constexpr int MAX_FILE_PATH_LENGTH = 256;
 constexpr int EPOLL_EVENTS = 10;
 constexpr bool DEBUG = false;
-constexpr int DISCONNECT_WAIT_US = 10000;
+constexpr int DISCONNECT_WAIT_US = 100000;
+constexpr int PULL_UP_DELAY = 500000;
 
 #define BUILD_TYPE "ro.build.type"
 #define GADGET_PATH "/config/usb_gadget/g1/"
@@ -98,6 +99,7 @@ static void *monitorFfs(void *param) {
   char buf[BUFFER_SIZE];
   bool writeUdc = true, stopMonitor = false;
   struct epoll_event events[EPOLL_EVENTS];
+  steady_clock::time_point disconnect;
 
   bool descriptorWritten = true;
   for (int i = 0; i < static_cast<int>(usbGadget->mEndpointList.size()); i++) {
@@ -108,11 +110,16 @@ static void *monitorFfs(void *param) {
   }
 
   // notify here if the endpoints are already present.
-  if (descriptorWritten && !!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-    lock_guard<mutex> lock(usbGadget->mLock);
-    usbGadget->mCurrentUsbFunctionsApplied = true;
-    gadgetPullup = true;
-    usbGadget->mCv.notify_all();
+  if (descriptorWritten) {
+    usleep(PULL_UP_DELAY);
+    if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+      lock_guard<mutex> lock(usbGadget->mLock);
+      usbGadget->mCurrentUsbFunctionsApplied = true;
+      gadgetPullup = true;
+      writeUdc = false;
+      ALOGI("GADGET pulled up");
+      usbGadget->mCv.notify_all();
+    }
   }
 
   while (!stopMonitor) {
@@ -148,15 +155,23 @@ static void *monitorFfs(void *param) {
           if (!descriptorPresent && !writeUdc) {
             if (DEBUG) ALOGI("endpoints not up");
             writeUdc = true;
-          } else if (descriptorPresent && writeUdc &&
-                     !!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-            lock_guard<mutex> lock(usbGadget->mLock);
-            usbGadget->mCurrentUsbFunctionsApplied = true;
-            ALOGI("GADGET pulled up");
-            writeUdc = false;
-            gadgetPullup = true;
-            // notify the main thread to signal userspace.
-            usbGadget->mCv.notify_all();
+            disconnect = std::chrono::steady_clock::now();
+          } else if (descriptorPresent && writeUdc) {
+            steady_clock::time_point temp = steady_clock::now();
+
+            if (std::chrono::duration_cast<microseconds>(temp - disconnect).count()
+                < PULL_UP_DELAY)
+              usleep(PULL_UP_DELAY);
+
+            if(!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+              lock_guard<mutex> lock(usbGadget->mLock);
+              usbGadget->mCurrentUsbFunctionsApplied = true;
+              ALOGI("GADGET pulled up");
+              writeUdc = false;
+              gadgetPullup = true;
+              // notify the main thread to signal userspace.
+              usbGadget->mCv.notify_all();
+            }
           }
         }
       } else {
