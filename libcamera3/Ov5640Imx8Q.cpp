@@ -161,10 +161,10 @@ status_t Ov5640Imx8Q::initSensorStaticData()
     mFocalLength = 3.37f;
     mPhysicalWidth = 3.6288f;   // 2592 x 1.4u
     mPhysicalHeight = 2.7216f;  // 1944 x 1.4u
-    mActiveArrayWidth = 1920;
-    mActiveArrayHeight = 1080;
-    mPixelArrayWidth = 1920;
-    mPixelArrayHeight = 1080;
+    mActiveArrayWidth = 2592;
+    mActiveArrayHeight = 1944;
+    mPixelArrayWidth = 2592;
+    mPixelArrayHeight = 1944;
 
     ALOGI("ImxdpuCsi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
           mFocalLength,
