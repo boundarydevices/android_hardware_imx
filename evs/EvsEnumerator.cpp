@@ -18,8 +18,11 @@
 #include "EvsV4lCamera.h"
 #include "EvsGlDisplay.h"
 
+#include <cutils/properties.h>
 #include <dirent.h>
 #include <string.h>
+#include <sys/epoll.h>
+#include <sys/inotify.h>
 
 namespace android {
 namespace hardware {
@@ -29,6 +32,10 @@ namespace V1_0 {
 namespace implementation {
 
 #define HWC_PATH_LENGTH 64
+#define BUFFER_SIZE 512
+#define EPOLL_MAX_EVENTS 8
+#define MEDIA_FILE_PATH "/dev"
+#define EVS_VIDEO_READY "evs.video.ready"
 
 // NOTE:  All members values are static so that all clients operate on the same state
 //        That is to say, this is effectively a singleton despite the fact that HIDL
@@ -37,11 +44,10 @@ std::list<EvsEnumerator::CameraRecord>   EvsEnumerator::sCameraList;
 wp<EvsGlDisplay>                           EvsEnumerator::sActiveDisplay;
 
 
-EvsEnumerator::EvsEnumerator() {
-    ALOGD("EvsEnumerator created");
-
+bool EvsEnumerator::EnumAvailableVideo() {
     unsigned videoCount   = 0;
     unsigned captureCount = 0;
+    bool videoReady = false;
 
     // For every video* entry in the dev folder, see if it reports suitable capabilities
     // WARNING:  Depending on the driver implementations this could be slow, especially if
@@ -85,8 +91,113 @@ EvsEnumerator::EvsEnumerator() {
             }
         }
     }
+
+    if (captureCount != 0) {
+        videoReady = true;
+        if (property_set(EVS_VIDEO_READY, "1") < 0)
+            ALOGE("Can not set property %s", EVS_VIDEO_READY);
+    }
+
     closedir(dir);
     ALOGI("Found %d qualified video capture devices of %d checked\n", captureCount, videoCount);
+    return videoReady;
+}
+
+EvsEnumerator::EvsEnumerator() {
+    ALOGD("EvsEnumerator created");
+
+    if (!EnumAvailableVideo())
+        mPollVideoFileThread = new PollVideoFileThread();
+}
+
+EvsEnumerator::PollVideoFileThread::PollVideoFileThread()
+    :Thread(false), mINotifyFd(-1), mINotifyWd(-1), mEpollFd(-1)
+{
+}
+
+void EvsEnumerator::PollVideoFileThread::onFirstRef()
+{
+    run("VideoFile-Poll-Thread", PRIORITY_NORMAL);
+}
+
+int32_t EvsEnumerator::PollVideoFileThread::readyToRun()
+{
+    epoll_event eventItem;
+    mINotifyFd = inotify_init();
+    if (mINotifyFd < 0) {
+        ALOGE("Fail to initialize inotify fd, error:%s",strerror(errno));
+        return -1;
+    }
+    mINotifyWd = inotify_add_watch(mINotifyFd, MEDIA_FILE_PATH, IN_CREATE);
+    if (mINotifyWd < 0) {
+        ALOGE("Fail to add watch for %s,error:%s", MEDIA_FILE_PATH, strerror(errno));
+        close(mINotifyFd);
+        return -1;
+    }
+
+    mEpollFd = epoll_create(1);
+    if (mEpollFd == -1) {
+        ALOGE("Fail to create epoll instance, error:%s",strerror(errno));
+        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        close(mINotifyFd);
+        return -1;
+    }
+
+    memset(&eventItem, 0, sizeof(epoll_event));
+    eventItem.events = EPOLLIN;
+    eventItem.data.fd = mINotifyFd;
+    int result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mINotifyFd, &eventItem);
+    if (result == -1) {
+        ALOGE("Fail to add inotify to epoll instance, error:%s",strerror(errno));
+        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        close(mINotifyFd);
+        close(mEpollFd);
+        return -1;
+    }
+    return 0;
+}
+
+bool EvsEnumerator::PollVideoFileThread::threadLoop()
+{
+    int numEpollEvent = 0;
+    epoll_event epollItems[EPOLL_MAX_EVENTS];
+    numEpollEvent = epoll_wait(mEpollFd, epollItems, EPOLL_MAX_EVENTS, -1);
+    if (numEpollEvent <= 0) {
+        ALOGE("Fail to wait requested events,numEpollEvent:%d,error:%s",numEpollEvent,strerror(errno));
+        return true;
+    }
+
+    for (int i=0; i < numEpollEvent; i++) {
+        if (epollItems[i].events & (EPOLLERR|EPOLLHUP)) {
+            continue;
+        }
+        if (epollItems[i].events & EPOLLIN) {
+            char buf[BUFFER_SIZE];
+            int numINotifyItem = read(mINotifyFd, buf, BUFFER_SIZE);
+            if (numINotifyItem < 0) {
+                ALOGE("Fail to read from INotifyFd,error:%s",strerror(errno));
+                continue;
+            }
+
+            //Each successful read returns a buffer containing one or more of struct inotify_event
+            //The length of each inotify_event structure is sizeof(struct inotify_event)+len.
+            for (char *inotifyItemBuf = buf; inotifyItemBuf < buf+numINotifyItem;) {
+                struct inotify_event *inotifyItem = (struct inotify_event *)inotifyItemBuf;
+                if (strstr(inotifyItem->name,"media")) {
+                    //detect /dev/media* has been created
+                    if(EnumAvailableVideo()) {
+                        inotify_rm_watch(mINotifyFd,mINotifyWd);
+                        close(mEpollFd);
+                        close(mINotifyFd);
+                        return false;
+                    }
+                }
+                inotifyItemBuf += sizeof(struct inotify_event) + inotifyItem->len;
+            }
+        }
+    }
+
+    return true;
 }
 
 

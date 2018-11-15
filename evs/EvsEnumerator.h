@@ -19,6 +19,7 @@
 
 #include <android/hardware/automotive/evs/1.0/IEvsEnumerator.h>
 #include <android/hardware/automotive/evs/1.0/IEvsCamera.h>
+#include <utils/threads.h>
 
 #include <list>
 #include <string>
@@ -29,7 +30,8 @@ namespace automotive {
 namespace evs {
 namespace V1_0 {
 namespace implementation {
-
+using android::Thread;
+using android::sp;
 
 class EvsV4lCamera;    // from EvsCamera.h
 class EvsGlDisplay;    // from EvsGlDisplay.h
@@ -59,9 +61,23 @@ private:
     };
 
 
+    static bool EnumAvailableVideo();
     static bool qualifyCaptureDevice(const char* deviceName);
     static CameraRecord* findCameraById(const std::string& cameraId);
 
+    class PollVideoFileThread : public Thread {
+    public:
+        PollVideoFileThread();
+    private:
+        virtual void onFirstRef();
+        virtual int32_t readyToRun();
+        virtual bool threadLoop();
+        int mINotifyFd;
+        int mINotifyWd;
+        int mEpollFd;
+    };
+
+    sp<PollVideoFileThread> mPollVideoFileThread;
 
     // NOTE:  All members values are static so that all clients operate on the same state
     //        That is to say, this is effectively a singleton despite the fact that HIDL
