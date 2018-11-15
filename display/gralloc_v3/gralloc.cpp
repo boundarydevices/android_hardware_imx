@@ -524,7 +524,6 @@ static int gralloc_set_produce_usage(gralloc1_device_t *device,
 
     int flags = 0;
     if (usage & GRALLOC1_CONSUMER_USAGE_CLIENT_TARGET) {
-        usage &= ~GRALLOC1_CONSUMER_USAGE_CLIENT_TARGET;
         flags |= FLAGS_FRAMEBUFFER;
         usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER
               | GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
@@ -603,7 +602,6 @@ static int gralloc_set_consume_usage(gralloc1_device_t *device,
 
     int flags = 0;
     if (usage & GRALLOC1_CONSUMER_USAGE_CLIENT_TARGET) {
-        usage &= ~GRALLOC1_CONSUMER_USAGE_CLIENT_TARGET;
         flags |= FLAGS_FRAMEBUFFER;
         usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER
               | GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
