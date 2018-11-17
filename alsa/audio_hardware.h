@@ -39,6 +39,7 @@ enum pcm_type {
     PCM_HDMI,
     PCM_ESAI,
     PCM_DSD,
+    PCM_TYPE_LPA,
     PCM_TOTAL,
 };
 
@@ -135,11 +136,9 @@ struct imx_stream_out {
 
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
     struct pcm_config config[PCM_TOTAL];
-    struct pcm_config config_default;
     struct pcm *pcm[PCM_TOTAL];
-    struct pcm *pcm_default;
+    enum pcm_type pcm_type;
     int writeContiFailCount[PCM_TOTAL];
-    int writeContiFailCount_default;
     struct resampler_itfe *resampler[PCM_TOTAL];
     char *buffer;
     int standby;
@@ -149,7 +148,6 @@ struct imx_stream_out {
     int write_threshold[PCM_TOTAL];
     bool low_power;
     int write_flags[PCM_TOTAL];
-    int write_flags_default;
     int device;
     size_t buffer_frames;
     uint64_t written;

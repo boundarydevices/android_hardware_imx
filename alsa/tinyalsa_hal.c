@@ -136,6 +136,8 @@
 #define IMX7_BOARD_NAME "imx7"
 #define DEFAULT_ERROR_NAME_str "0"
 
+const char* pcm_type_table[PCM_TOTAL] = {"PCM_NORMAL", "PCM_HDMI", "PCM_ESAI", "PCM_DSD", "PCM_TYPE_LPA"};
+
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
     &wm8958_card,
@@ -789,38 +791,16 @@ static int start_output_stream_primary(struct imx_stream_out *out)
 static int start_output_stream(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
+    enum pcm_type pcm_type = out->pcm_type;
+    struct pcm_config *config = &out->config[pcm_type];
     int card = -1;
     unsigned int port = 0;
-    int i = 0;
+    unsigned int flags = PCM_OUT | PCM_MONOTONIC;
 
-    ALOGI("%s: out %p, device 0x%x", __func__, out, out->device);
-    card = get_card_for_device(adev, out->device & AUDIO_DEVICE_OUT_LINE, PCM_OUT, &out->card_index);
-    ALOGW("card %d, port %d device 0x%x", card, port, out->device);
-    ALOGW("rate %d, channel %d period_size 0x%x", out->config_default.rate, out->config_default.channels, out->config_default.period_size);
+    ALOGI("%s: out: %p, device: 0x%x, pcm_type: %s", __func__, out, out->device, pcm_type_table[pcm_type]);
+    if (pcm_type == PCM_TYPE_LPA)
+        flags |= PCM_LPA;
 
-    out->write_flags_default = PCM_OUT | PCM_MONOTONIC | PCM_LPA;
-    out->pcm_default = pcm_open(card, port, out->write_flags_default, &out->config_default);
-
-    if (out->pcm_default && !pcm_is_ready(out->pcm_default)) {
-        ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm_default));
-        pcm_close(out->pcm_default);
-        out->pcm_default = NULL;
-        return -ENOMEM;
-    }
-
-    out->written = 0;
-
-    return 0;
-}
-
-static int start_output_stream_hdmi(struct imx_stream_out *out)
-{
-    struct imx_audio_device *adev = out->dev;
-    int card = -1;
-    unsigned int port = 0;
-    int i = 0;
-
-    ALOGI("start_output_stream_hdmi, out %p, device 0x%x", out, out->device);
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -830,77 +810,27 @@ static int start_output_stream_hdmi(struct imx_stream_out *out)
         pthread_mutex_unlock(&p_out->lock);
     }
 
-    card = get_card_for_device(adev, out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL, PCM_OUT, &out->card_index);
-    ALOGW("card %d, port %d device 0x%x", card, port, out->device);
-    ALOGW("rate %d, channel %d period_size 0x%x", out->config[PCM_HDMI].rate, out->config[PCM_HDMI].channels, out->config[PCM_HDMI].period_size);
+    if (pcm_type == PCM_DSD) {
+        card = get_card_for_name(adev, AK4497_CARD_NAME, &out->card_index);
+        if (card < 0) card = get_card_for_name(adev, AK4458_CARD_NAME, &out->card_index);
+    } else
+        card = get_card_for_device(adev, out->device, PCM_OUT, &out->card_index);
 
-    out->pcm[PCM_HDMI] = pcm_open(card, port, PCM_OUT | PCM_MONOTONIC, &out->config[PCM_HDMI]);
+    ALOGD("%s: pcm_open: card: %d, rate: %d, channel: %d, format: %d, period_size: 0x%x, flag: %x",
+          __func__, card, config->rate, config->channels, config->format, config->period_size, flags);
 
-    if (out->pcm[PCM_HDMI] && !pcm_is_ready(out->pcm[PCM_HDMI])) {
-        ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm[PCM_HDMI]));
-        pcm_close(out->pcm[PCM_HDMI]);
-        out->pcm[PCM_HDMI] = NULL;
-        return -ENOMEM;
+    if (card < 0) {
+        ALOGE("%s: Invalid PCM card id: %d", __func__, card);
+        return -EINVAL;
     }
+    out->pcm[pcm_type] = pcm_open(card, port, flags, config);
 
-    out->written = 0;
-
-    return 0;
-}
-
-static int start_output_stream_esai(struct imx_stream_out *out)
-{
-    struct imx_audio_device *adev = out->dev;
-    int card = -1;
-    unsigned int port = 0;
-    int i = 0;
-
-    ALOGI("start_output_stream_esai, out %p, device 0x%x", out, out->device);
-    /* force standby on low latency output stream to close HDMI driver in case it was in use */
-    if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
-            !adev->active_output[OUTPUT_PRIMARY]->standby) {
-        struct imx_stream_out *p_out = adev->active_output[OUTPUT_PRIMARY];
-        pthread_mutex_lock(&p_out->lock);
-        do_output_standby(p_out, true);
-        pthread_mutex_unlock(&p_out->lock);
-    }
-
-    card = get_card_for_device(adev, out->device & (AUDIO_DEVICE_OUT_SPEAKER | AUDIO_DEVICE_OUT_WIRED_HEADPHONE), PCM_OUT, &out->card_index);
-    ALOGW("card %d, port %d device 0x%x", card, port, out->device);
-    ALOGW("rate %d, channel %d period_size 0x%x", out->config[PCM_ESAI].rate, out->config[PCM_ESAI].channels, out->config[PCM_ESAI].period_size);
-
-    out->pcm[PCM_ESAI] = pcm_open(card, port, PCM_OUT | PCM_MONOTONIC, &out->config[PCM_ESAI]);
-
-    if (out->pcm[PCM_ESAI] && !pcm_is_ready(out->pcm[PCM_ESAI])) {
-        ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm[PCM_ESAI]));
-        pcm_close(out->pcm[PCM_ESAI]);
-        out->pcm[PCM_ESAI] = NULL;
-        return -ENOMEM;
-    }
-    out->written = 0;
-    return 0;
-}
-
-static int start_output_stream_dsd(struct imx_stream_out *out)
-{
-    struct imx_audio_device *adev = out->dev;
-    int card = -1;
-    unsigned int port = 0;
-    int i = 0;
-
-    ALOGI("%s: out %p, device 0x%x", __func__, out, out->device);
-    card = get_card_for_name(adev, AK4497_CARD_NAME, &out->card_index);
-    if (card < 0) card = get_card_for_name(adev, AK4458_CARD_NAME, &out->card_index);
-
-    ALOGW("card %d, port %d device 0x%x", card, port, out->device);
-    ALOGW("rate %d, channel %d period_size 0x%x format %d", out->config[PCM_DSD].rate, out->config[PCM_DSD].channels, out->config[PCM_DSD].period_size, out->config[PCM_DSD].format);
-
-    out->pcm[PCM_DSD] = pcm_open(card, port, PCM_OUT | PCM_MONOTONIC, &out->config[PCM_DSD]);
-
-    if (out->pcm[PCM_DSD] && !pcm_is_ready(out->pcm[PCM_DSD])) {
-        ALOGE("cannot open pcm_out driver: %s", pcm_get_error(out->pcm[PCM_DSD]));
-        pcm_close(out->pcm[PCM_DSD]);
-        out->pcm[PCM_DSD] = NULL;
+    if (out->pcm[pcm_type] && !pcm_is_ready(out->pcm[pcm_type])) {
+        ALOGE("%s: %s", __func__, pcm_get_error(out->pcm[pcm_type]));
+        if (out->pcm[pcm_type] != NULL) {
+            pcm_close(out->pcm[pcm_type]);
+            out->pcm[pcm_type] = NULL;
+        }
         return -ENOMEM;
     }
 
@@ -1103,7 +1033,7 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
 
-    return out->config_default.period_size *
+    return out->config[out->pcm_type].period_size *
                 audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
 
@@ -1185,12 +1115,10 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
             out->writeContiFailCount[i] = 0;
         }
 
-        if (out->pcm_default) {
-            pcm_close(out->pcm_default);
-            out->pcm_default = NULL;
+        if (out->pcm[out->pcm_type]) {
+            pcm_close(out->pcm[out->pcm_type]);
+            out->pcm[out->pcm_type] = NULL;
         }
-        out->writeContiFailCount_default = 0;
-
         ALOGW("do_out_standby... %p",out);
 
         /* if in call, don't turn off the output stage. This will
@@ -1242,7 +1170,7 @@ static int out_pause(struct audio_stream_out* stream)
 
     pthread_mutex_lock(&out->lock);
     if (!out->paused) {
-        status = pcm_ioctl(out->pcm_default, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
+        status = pcm_ioctl(out->pcm[out->pcm_type], SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
         if (!status)
             out->paused = true;
     }
@@ -1263,7 +1191,7 @@ static int out_resume(struct audio_stream_out* stream)
 
     pthread_mutex_lock(&out->lock);
     if (out->paused) {
-        status= pcm_ioctl(out->pcm_default, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
+        status= pcm_ioctl(out->pcm[out->pcm_type], SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
         if (!status)
             out->paused = false;
     }
@@ -1284,13 +1212,13 @@ static int out_flush(struct audio_stream_out* stream)
     pthread_mutex_lock(&out->lock);
 
     out->written = 0;
-    if(out->pcm_default) {
-        pcm_close(out->pcm_default);
-        out->pcm_default = NULL;
+    if(out->pcm[out->pcm_type]) {
+        pcm_close(out->pcm[out->pcm_type]);
+        out->pcm[out->pcm_type] = NULL;
     }
 
-    out->pcm_default = pcm_open(adev->card_list[out->card_index]->card, 0, PCM_OUT | PCM_MONOTONIC, &out->config_default);
-    if(out->pcm_default)
+    out->pcm[out->pcm_type] = pcm_open(adev->card_list[out->card_index]->card, 0, PCM_OUT | PCM_MONOTONIC, &out->config[out->pcm_type]);
+    if(out->pcm[out->pcm_type])
         out->standby = 0;
 
     out->paused = false;
@@ -1451,8 +1379,8 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     uint32_t latency;
 
-    latency = (out->config_default.period_count * out->config_default.period_size * 1000) /
-              (out->config_default.rate);
+    latency = (out->config[out->pcm_type].period_count * out->config[out->pcm_type].period_size * 1000) /
+              (out->config[out->pcm_type].rate);
     if (latency > LPA_LATENCY_MS) {
         ALOGD("%s: Original latency is %dms; Force it to be %dms", __func__, latency, LPA_LATENCY_MS);
         latency = LPA_LATENCY_MS;
@@ -1750,7 +1678,7 @@ static ssize_t out_write_hdmi(struct audio_stream_out *stream, const void* buffe
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
     if (out->standby) {
-        ret = start_output_stream_hdmi(out);
+        ret = start_output_stream(out);
         if (ret != 0) {
             pthread_mutex_unlock(&adev->lock);
             goto exit;
@@ -1793,7 +1721,7 @@ static ssize_t out_write_dsd(struct audio_stream_out *stream, const void* buffer
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
     if (out->standby) {
-        ret = start_output_stream_dsd(out);
+        ret = start_output_stream(out);
         if (ret != 0) {
             pthread_mutex_unlock(&adev->lock);
             goto exit;
@@ -1845,7 +1773,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
 
-    ret = pcm_write_wrapper(out->pcm_default, (void *)buffer, bytes, out->write_flags_default);
+    ret = pcm_write_wrapper(out->pcm[out->pcm_type], (void *)buffer, bytes, out->write_flags[out->pcm_type]);
 
 exit:
     out->written += bytes / frame_size;
@@ -1927,7 +1855,7 @@ static ssize_t out_write_esai(struct audio_stream_out *stream, const void* buffe
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
     if (out->standby) {
-        ret = start_output_stream_esai(out);
+        ret = start_output_stream(out);
         if (ret != 0) {
             pthread_mutex_unlock(&adev->lock);
             goto exit;
@@ -3434,6 +3362,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
         }
         output_type = OUTPUT_OFFLOAD;
+        out->pcm_type = PCM_DSD;
         if (config->sample_rate == 0)
             config->sample_rate = pcm_config_dsd.rate;
         if (config->channel_mask == 0)
@@ -3460,6 +3389,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         ret = out_read_hdmi_rates(ladev, out);
 
         output_type = OUTPUT_HDMI;
+        out->pcm_type = PCM_HDMI;
         if (config->sample_rate == 0)
             config->sample_rate = ladev->mm_rate;
         if (config->channel_mask == 0)
@@ -3487,6 +3417,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         }
 
         output_type = OUTPUT_ESAI;
+        out->pcm_type = PCM_ESAI;
         if (config->sample_rate == 0)
             config->sample_rate = ladev->mm_rate;
         if (config->channel_mask == 0)
@@ -3521,6 +3452,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
         ALOGD("%s: LPA direct output stream, hold_second: %d, period_ms: %d", __func__, lpa_hold_second, lpa_period_ms);
         output_type = OUTPUT_HDMI;
+        out->pcm_type = PCM_TYPE_LPA;
         out->sample_rate = config->sample_rate;
         out->channel_mask = config->channel_mask;
         out->stream.common.get_buffer_size = out_get_buffer_size;
@@ -3528,9 +3460,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.get_latency = out_get_latency;
         out->stream.write = out_write;
 
-        out->config_default = pcm_config_lpa;
-        out->config_default.rate = config->sample_rate;
-        out->config_default.channels = popcount(config->channel_mask);
+        out->config[out->pcm_type] = pcm_config_lpa;
+        out->config[out->pcm_type].rate = config->sample_rate;
+        out->config[out->pcm_type].channels = popcount(config->channel_mask);
         out->stream.pause = out_pause;
         out->stream.resume = out_resume;
         out->stream.flush = out_flush;
@@ -3545,6 +3477,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             }
         }
         output_type = OUTPUT_PRIMARY;
+        out->pcm_type = PCM_NORMAL;
         out->stream.common.get_buffer_size = out_get_buffer_size_primary;
         out->stream.common.get_sample_rate = out_get_sample_rate;
         out->stream.get_latency = out_get_latency_primary;
