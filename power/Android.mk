@@ -27,5 +27,6 @@ LOCAL_EXPORT_SHARED_LIBRARY_HEADERS := libbase libutils
 LOCAL_MODULE := power.$(TARGET_BOARD_PLATFORM)
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_TAGS := optional
+LOCAL_C_INCLUDES += hardware/libhardware/include
 include $(BUILD_SHARED_LIBRARY)
 endif

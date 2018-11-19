@@ -19,6 +19,9 @@ LOCAL_PATH := $(call my-dir)
 # HAL module implemenation, not prelinked and stored in hw/
 include $(CLEAR_VARS)
 LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_C_INCLUDES += hardware/libhardware/include \
+                    system/core/include
+
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_SRC_FILES := fsl_lights.c
 LOCAL_MODULE := lights.$(TARGET_BOARD_PLATFORM)

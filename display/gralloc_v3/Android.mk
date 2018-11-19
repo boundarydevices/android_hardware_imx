@@ -28,7 +28,8 @@ LOCAL_SRC_FILES :=  \
 LOCAL_C_INCLUDES += $(IMX_PATH)/imx/display/display   \
                     $(IMX_PATH)/imx/include           \
                     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
-                    system/core/include/
+                    system/core/include \
+                    frameworks/native/include
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := gralloc.$(TARGET_BOARD_PLATFORM)

@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <cutils/log.h>
 #include <cutils/str_parms.h>

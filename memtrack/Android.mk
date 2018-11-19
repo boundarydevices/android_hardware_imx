@@ -25,6 +25,7 @@ LOCAL_SRC_FILES := memtrack.c
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS:= -DLOG_TAG=\"memtrack\"
+LOCAL_C_INCLUDES += system/core/include
 
 include $(BUILD_SHARED_LIBRARY)
 endif

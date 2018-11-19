@@ -22,7 +22,8 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_SRC_FILES := opencl-2d.cpp
 
 LOCAL_C_INCLUDES += \
-                    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include
+                    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
+                    system/core/include
 
 LOCAL_SHARED_LIBRARIES := liblog \
                           libcutils \

@@ -23,7 +23,8 @@ LOCAL_SRC_FILES := IonAllocator.cpp
 LOCAL_C_INCLUDES += $(IMX_PATH)/imx/include \
                     system/core/libion/include \
                     system/core/libion/kernel-headers \
-                    system/core/libion
+                    system/core/libion \
+                    system/core/include
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"ionalloc\"
 
@@ -31,6 +32,7 @@ ifeq ($(CFG_SECURE_DATA_PATH), y)
     LOCAL_CPPFLAGS += -DCFG_SECURE_DATA_PATH
 endif
 
+LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE := libionallocator
 include $(BUILD_STATIC_LIBRARY)
 
@@ -57,7 +59,9 @@ LOCAL_C_INCLUDES += $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
                     $(IMX_PATH)/imx/libedid \
                     $(IMX_PATH)/libdrm-imx \
                     $(IMX_PATH)/libdrm-imx/include/drm \
-                    system/core/libion
+                    system/core/libion \
+                    frameworks/native/include \
+                    hardware/libhardware_legacy/include
 
 LOCAL_SHARED_LIBRARIES :=   \
     liblog                  \

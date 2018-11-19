@@ -41,6 +41,9 @@ LOCAL_SRC_FILES :=                      \
             SensorBase.cpp              \
             InputEventReader.cpp
 
+LOCAL_C_INCLUDES += hardware/libhardware/include \
+                    system/core/include
+
 ifeq ($(BOARD_USE_LEGACY_SENSOR),true)
     LOCAL_CFLAGS += -DCONFIG_LEGACY_SENSOR
     LOCAL_SRC_FILES += FSLSensorsHub.cpp

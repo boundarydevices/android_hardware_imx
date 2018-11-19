@@ -35,7 +35,10 @@ LOCAL_C_INCLUDES += \
     $(FSL_IMX_OMX_PATH)/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
     $(IMX_PATH)/imx/display/display \
     $(IMX_PATH)/imx/opencl-2d \
-    system/core/libion/include
+    system/core/libion/include \
+    hardware/libhardware/include \
+    frameworks/av/include \
+    frameworks/native/include
 
 LOCAL_SRC_FILES := \
     CameraHAL.cpp \
