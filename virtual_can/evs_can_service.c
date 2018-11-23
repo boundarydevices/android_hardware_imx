@@ -41,27 +41,27 @@ handle_events(int uevent_fd)
     msg[n+1] = '\0';
     cp = msg;
     while (*cp) {
-        if (!strncmp(cp, "STATE=CAN_RPMSG_EVENT=0", strlen("STATE=CAN_RPMSG_EVENT=0"))) {
+        if (!strncmp(cp, "STATE=VEHICLE_RPMSG_EVENT=0", strlen("STATE=VEHICLE_RPMSG_EVENT=0"))) {
             if (property_set(RPMSG_CAN_EVENT, "0") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_EVENT", __FUNCTION__);
-        } else if (!strncmp(cp, "STATE=CAN_RPMSG_EVENT=1", strlen("STATE=CAN_RPMSG_EVENT=1"))) {
+        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_EVENT=1", strlen("STATE=VEHICLE_RPMSG_EVENT=1"))) {
             if (property_set(RPMSG_CAN_EVENT, "1") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_EVENT", __FUNCTION__);
-        } else if (!strncmp(cp, "STATE=CAN_RPMSG_REGISTER=0", strlen("STATE=CAN_RPMSG_REGISTER=0"))) {
+        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_REGISTER=0", strlen("STATE=VEHICLE_RPMSG_REGISTER=0"))) {
             if (property_set(RPMSG_CAN_REGISTER, "0") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_REGISTER", __FUNCTION__);
-        } else if (!strncmp(cp, "STATE=CAN_RPMSG_REGISTER=1", strlen("STATE=CAN_RPMSG_REGISTER=1"))) {
+        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_REGISTER=1", strlen("STATE=VEHICLERPMSG_REGISTER=1"))) {
             if (property_set(RPMSG_CAN_REGISTER, "1") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_REGISTER", __FUNCTION__);
         }
 
         /* the format of msg is as below. it include "\0" which separate different info.
-         * change@/devices/platform/imx_rpmsg/90100000.rpmsg1/virtio1/virtio1.rpmsg-can-channel.-1.1/extcon/extcon2\0
+         * change@/devices/platform/imx_rpmsg/90100000.rpmsg1/virtio1/virtio1.rpmsg-vehicle-channel.-1.1/extcon/extcon2\0
          * ACTION=change\0
-         * DEVPATH=/devices/platform/imx_rpmsg/90100000.rpmsg1/virtio1/virtio1.rpmsg-can-channel.-1.1/extcon/extcon2\0
+         * DEVPATH=/devices/platform/imx_rpmsg/90100000.rpmsg1/virtio1/virtio1.rpmsg-vehicle-channel.-1.1/extcon/extcon2\0
          * SUBSYSTEM=extcon\0
-         * NAME=virtio1.rpmsg-can-channel.-1.1\0
-         * STATE=CAN_RPMSG_EVENT=0\0
+         * NAME=virtio1.rpmsg-vehicle-channel.-1.1\0
+         * STATE=VEHICLERPMSG_EVENT=0\0
          */
         if (*cp) { cp += strlen(cp) + 1;}
     }
