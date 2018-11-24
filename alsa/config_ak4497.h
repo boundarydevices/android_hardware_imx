@@ -27,7 +27,7 @@
 #define MIXER_AK4497_DSD_DATA_INPUT_PIN         "AK4497 DSD Data Input Pin"
 #define MIXER_AK4497_SOFT_MUTE_CONTROL          "AK4497 Soft Mute Control"
 
-static struct route_setting speaker_output_ak4497[] = {
+static struct route_setting default_output_ak4497[] = {
     {
         .ctl_name = MIXER_AK4497_DAC_ENABLE,
         .intval = 1,
@@ -55,9 +55,9 @@ static struct audio_card  ak4497_card = {
     .driver_name = "ak4497-audio",
     .supported_out_devices  = AUDIO_DEVICE_OUT_SPEAKER | AUDIO_DEVICE_OUT_LINE,
     .supported_in_devices   = 0,
-    .defaults            = NULL,
+    .defaults            = default_output_ak4497,
     .bt_output           = NULL,
-    .speaker_output      = speaker_output_ak4497,
+    .speaker_output      = NULL,
     .hs_output           = NULL,
     .earpiece_output     = NULL,
     .vx_hs_mic_input     = NULL,

@@ -1489,7 +1489,7 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
     struct imx_audio_device *adev = out->dev;
 
     if (!strcmp(adev->card_list[out->card_index]->driver_name, "ak4458-audio")) {
-        struct route_setting *route = adev->card_list[out->card_index]->hs_output;
+        struct route_setting *route = adev->card_list[out->card_index]->defaults;
         struct mixer *mixer = adev->mixer[out->card_index];
         struct mixer_ctl *ctl;
         int volume[2];

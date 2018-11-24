@@ -29,7 +29,7 @@
 #define MIXER_AK5558_INPUT7_SWITCH              "AK5558 Ch7 Enable"
 #define MIXER_AK5558_INPUT8_SWITCH              "AK5558 Ch8 Enable"
 
-static struct route_setting mm_main_mic_input_ak5558[] = {
+static struct route_setting default_input_ak5558[] = {
     {
         .ctl_name = MIXER_AK5558_INPUT1_SWITCH,
         .intval = 1,
@@ -73,13 +73,13 @@ static struct audio_card  ak5558_card = {
     .driver_name = "ak5558-audio",
     .supported_out_devices  = 0,
     .supported_in_devices   = AUDIO_DEVICE_IN_BUILTIN_MIC,
-    .defaults            = NULL,
+    .defaults            = default_input_ak5558,
     .bt_output           = NULL,
     .speaker_output      = NULL,
     .hs_output           = NULL,
     .earpiece_output     = NULL,
     .vx_hs_mic_input     = NULL,
-    .mm_main_mic_input   = mm_main_mic_input_ak5558,
+    .mm_main_mic_input   = NULL,
     .vx_main_mic_input   = NULL,
     .mm_hs_mic_input     = NULL,
     .vx_bt_mic_input     = NULL,
