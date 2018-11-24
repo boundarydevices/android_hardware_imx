@@ -20,6 +20,8 @@
 
 #include "audio_hardware.h"
 
+#define AK4458_CARD_NAME                         "ak4458-audio"
+
 #define MIXER_AK4458_L1CH_VOLUME                 "0 AK4458 L1ch Digital Volume"
 #define MIXER_AK4458_R1CH_VOLUME                 "0 AK4458 R1ch Digital Volume"
 #define MIXER_AK4458_L2CH_VOLUME                 "0 AK4458 L2ch Digital Volume"

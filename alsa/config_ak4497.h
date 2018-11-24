@@ -20,7 +20,7 @@
 
 #include "audio_hardware.h"
 
-#define DSD_CARD_NAME                           "ak4497-audio"
+#define AK4497_CARD_NAME                        "ak4497-audio"
 
 #define MIXER_AK4497_DAC_ENABLE                 "AK4497 DAC Enable"
 #define MIXER_AK4497_AUTO_DETECT_MODE           "AK4497 Read FS Auto Detect Mode"
