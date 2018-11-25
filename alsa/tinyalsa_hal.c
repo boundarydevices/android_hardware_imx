@@ -1662,132 +1662,6 @@ exit:
     return bytes;
 }
 
-static ssize_t out_write_hdmi(struct audio_stream_out *stream, const void* buffer,
-                         size_t bytes)
-{
-    int ret;
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
-    size_t in_frames = bytes / frame_size;
-
-    /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
-     * on the output stream mutex - e.g. executing select_mode() while holding the hw device
-     * mutex
-     */
-    pthread_mutex_lock(&adev->lock);
-    pthread_mutex_lock(&out->lock);
-    if (out->standby) {
-        ret = start_output_stream(out);
-        if (ret != 0) {
-            pthread_mutex_unlock(&adev->lock);
-            goto exit;
-        }
-        out->standby = 0;
-    }
-    pthread_mutex_unlock(&adev->lock);
-
-    /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
-
-    ret = pcm_write_wrapper(out->pcm[PCM_HDMI], (void *)buffer, bytes, out->write_flags[PCM_HDMI]);
-
-exit:
-    out->written += bytes / frame_size;
-    pthread_mutex_unlock(&out->lock);
-
-    if (ret != 0) {
-        ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
-               out_get_sample_rate(&stream->common));
-    }
-
-    return bytes;
-}
-
-static ssize_t out_write_dsd(struct audio_stream_out *stream, const void* buffer,
-                         size_t bytes)
-{
-    int ret;
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *adev = out->dev;
-    // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_frame_size will return 1
-    // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
-    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common) * DSD_FRAMESIZE_BYTES;
-
-    /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
-     * on the output stream mutex - e.g. executing select_mode() while holding the hw device
-     * mutex
-     */
-    pthread_mutex_lock(&adev->lock);
-    pthread_mutex_lock(&out->lock);
-    if (out->standby) {
-        ret = start_output_stream(out);
-        if (ret != 0) {
-            pthread_mutex_unlock(&adev->lock);
-            goto exit;
-        }
-        out->standby = 0;
-    }
-    pthread_mutex_unlock(&adev->lock);
-
-    /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
-
-    ret = pcm_write_wrapper(out->pcm[PCM_DSD], (void *)buffer, bytes, out->write_flags[PCM_DSD]);
-
-exit:
-    out->written += bytes / frame_size;
-    pthread_mutex_unlock(&out->lock);
-
-    if (ret != 0) {
-        ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
-               out_get_sample_rate(&stream->common));
-    }
-
-    return bytes;
-}
-
-static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
-                         size_t bytes)
-{
-    int ret;
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
-
-    /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
-     * on the output stream mutex - e.g. executing select_mode() while holding the hw device
-     * mutex
-     */
-    pthread_mutex_lock(&adev->lock);
-    pthread_mutex_lock(&out->lock);
-    if (out->standby) {
-        ret = start_output_stream(out);
-        if (ret != 0) {
-            pthread_mutex_unlock(&adev->lock);
-            goto exit;
-        }
-        out->standby = 0;
-    }
-    pthread_mutex_unlock(&adev->lock);
-
-    /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
-
-    ret = pcm_write_wrapper(out->pcm[out->pcm_type], (void *)buffer, bytes, out->write_flags[out->pcm_type]);
-
-exit:
-    out->written += bytes / frame_size;
-    pthread_mutex_unlock(&out->lock);
-
-    if (ret != 0) {
-        ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
-               out_get_sample_rate(&stream->common));
-    }
-
-    return bytes;
-}
-
 /********************************************************************************************************
 For esai, it will use the first channels/2 for Left channels, use second half channels for Right channels.
 So we need to transform channel map in HAL for multichannel.
@@ -1839,14 +1713,19 @@ static void convert_output_for_esai(const void* buffer, size_t bytes, int channe
     }
 }
 
-static ssize_t out_write_esai(struct audio_stream_out *stream, const void* buffer,
+static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                          size_t bytes)
 {
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
-    size_t in_frames = bytes / frame_size;
+    size_t frame_size = audio_stream_out_frame_size(stream);
+    enum pcm_type pcm_type = out->pcm_type;
+
+    // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will return 1
+    // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
+    if (pcm_type == PCM_DSD)
+        frame_size *= DSD_FRAMESIZE_BYTES;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
      * on the output stream mutex - e.g. executing select_mode() while holding the hw device
@@ -1866,8 +1745,10 @@ static ssize_t out_write_esai(struct audio_stream_out *stream, const void* buffe
 
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
 
-    convert_output_for_esai(buffer, bytes, out->config[PCM_ESAI].channels);
-    ret = pcm_write_wrapper(out->pcm[PCM_ESAI], (void *)buffer, bytes, out->write_flags[PCM_ESAI]);
+    if (pcm_type == PCM_ESAI)
+        convert_output_for_esai(buffer, bytes, out->config[pcm_type].channels);
+
+    ret = pcm_write_wrapper(out->pcm[pcm_type], (void *)buffer, bytes, out->write_flags[pcm_type]);
 
 exit:
     out->written += bytes / frame_size;
@@ -1875,8 +1756,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
-               out_get_sample_rate(&stream->common));
+        usleep(bytes * 1000000 / frame_size / out_get_sample_rate(&stream->common));
     }
 
     return bytes;
@@ -3371,7 +3251,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.common.get_buffer_size = out_get_buffer_size_dsd;
         out->stream.common.get_sample_rate = out_get_sample_rate_dsd;
         out->stream.get_latency = out_get_latency_dsd;
-        out->stream.write = out_write_dsd;
+        out->stream.write = out_write;
         pcm_config_dsd.rate = config->sample_rate / DSD_RATE_TO_PCM_RATE;
         out->config[PCM_DSD] = pcm_config_dsd;
         out->stream.flush = out_flush;
@@ -3402,7 +3282,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.common.get_buffer_size = out_get_buffer_size_hdmi;
         out->stream.common.get_sample_rate = out_get_sample_rate_hdmi;
         out->stream.get_latency = out_get_latency_hdmi;
-        out->stream.write = out_write_hdmi;
+        out->stream.write = out_write;
         out->config[PCM_HDMI] = pcm_config_hdmi_multi;
         out->config[PCM_HDMI].rate = config->sample_rate;
         out->config[PCM_HDMI].channels = popcount(config->channel_mask);
@@ -3428,7 +3308,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.common.get_buffer_size = out_get_buffer_size_esai;
         out->stream.common.get_sample_rate = out_get_sample_rate_esai;
         out->stream.get_latency = out_get_latency_esai;
-        out->stream.write = out_write_esai;
+        out->stream.write = out_write;
         out->config[PCM_ESAI] = pcm_config_esai_multi;
         out->config[PCM_ESAI].rate = config->sample_rate;
         out->config[PCM_ESAI].channels = popcount(config->channel_mask);
