@@ -35,7 +35,7 @@ namespace implementation {
 #define BUFFER_SIZE 512
 #define EPOLL_MAX_EVENTS 8
 #define MEDIA_FILE_PATH "/dev"
-#define EVS_VIDEO_READY "evs.video.ready"
+#define EVS_VIDEO_READY "vendor.evs.video.ready"
 
 // NOTE:  All members values are static so that all clients operate on the same state
 //        That is to say, this is effectively a singleton despite the fact that HIDL
