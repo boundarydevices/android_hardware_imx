@@ -146,6 +146,7 @@ private:
     void setMetaData(drmModeAtomicReqPtr pset, MetaData *meta);
     void getGUIResolution(int &width, int &height);
     void getFakeGUIResolution(int &width, int &height);
+    bool veritySourceSize(Layer* layer);
 
 protected:
     int mDrmFd;

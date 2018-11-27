@@ -507,10 +507,43 @@ bool KmsDisplay::checkOverlay(Layer* layer)
     return true;
 }
 
+bool KmsDisplay::veritySourceSize(Layer* layer)
+{
+    if (layer == NULL || layer->handle == NULL) {
+        return false;
+    }
+
+    Rect *rect = &layer->sourceCrop;
+    int srcW = rect->right - rect->left;
+    int srcH = rect->bottom - rect->top;
+    int format = convertFormatToDrm(layer->handle->fslFormat);
+    if (srcW < 64 && ((format == DRM_FORMAT_NV12) ||
+            (format == DRM_FORMAT_NV21) || (format == DRM_FORMAT_P010))) {
+        return false;
+    }
+    else if (srcW < 32 && ((format == DRM_FORMAT_UYVY) ||
+            (format == DRM_FORMAT_VYUY) || (format == DRM_FORMAT_YUYV) ||
+            (format == DRM_FORMAT_YVYU))) {
+        return false;
+    }
+
+    return srcW >= 16 && srcH >= 8;
+}
+
 int KmsDisplay::performOverlay()
 {
     Layer* layer = mOverlay;
     if (layer == NULL || layer->handle == NULL) {
+        return 0;
+    }
+
+    // it is only used for 8mq platform.
+    if (!veritySourceSize(layer)) {
+        Rect *rect = &layer->sourceCrop;
+        int srcW = rect->right - rect->left;
+        int srcH = rect->bottom - rect->top;
+        int format = layer->handle->fslFormat;
+        ALOGW("no support source size: w:%d, h:%d, f:0x%x", srcW, srcH, format);
         return 0;
     }
 
