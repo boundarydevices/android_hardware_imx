@@ -48,8 +48,8 @@
 #define NV12_10BIT_TILED_TO_LINEAR_KERNEL "nv12_10bit_tiled_to_linear"
 #define MEM_COPY_KERNEL "g2d_mem_copy"
 
-/*Assume max buffer are 4 buffers to be handle */
-#define MAX_CL_MEM_COUNT 4
+/*Assume max buffer are 3 buffers to be handle, align with cl_g2d_surface.planes[3] */
+#define MAX_CL_MEM_COUNT 3
 
 using android::Mutex;
 
