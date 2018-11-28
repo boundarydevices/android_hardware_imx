@@ -168,6 +168,7 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path)
     camera_info::facing = facing;
     camera_info::orientation = orientation;
     strncpy(SensorData::mDevPath, path, CAMAERA_FILENAME_LENGTH);
+    SensorData::mDevPath[CAMAERA_FILENAME_LENGTH-1] = 0;
 
     memset(&mDevice, 0, sizeof(mDevice));
     mDevice.common.tag = HARDWARE_DEVICE_TAG;
