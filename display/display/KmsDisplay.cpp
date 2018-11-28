@@ -46,6 +46,7 @@ KmsDisplay::KmsDisplay()
     memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
     memset(&mMode, 0, sizeof(mMode));
     mCrtcID = 0;
+    mPowerMode = DRM_MODE_DPMS_OFF;
 
     mPset = NULL;
     mOverlay = NULL;
@@ -660,13 +661,8 @@ int KmsDisplay::updateScreen()
     {
         Mutex::Autolock _l(mLock);
 
-        if (!mConnected) {
-            ALOGE("updateScreen display plugout");
-            return -EINVAL;
-        }
-
         if (mPowerMode != POWER_ON) {
-            ALOGE("can't update screen power mode:%d", mPowerMode);
+            ALOGE("%s failed because not power on:%d", __func__, mPowerMode);
             return -EINVAL;
         }
         buffer = mRenderTarget;
