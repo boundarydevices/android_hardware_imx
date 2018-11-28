@@ -607,7 +607,6 @@ int cl_g2d_open(void **handle)
 
 err2:
     Cleanup(gContext);
-    free(gContext);
     *handle = NULL;
     return -1;
 }
