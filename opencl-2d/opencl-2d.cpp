@@ -409,10 +409,17 @@ static cl_command_queue CreateCommandQueue(cl_context context,
     }
     // Allocate memory for the devices buffer
     devices = (cl_device_id *)malloc(deviceBufferSize);
+    if(devices == NULL)
+    {
+        g2d_printf("Failed to malloc %d bytes for devices\n", deviceBufferSize);
+        return NULL;
+    }
+
     errNum = clGetContextInfo(context, CL_CONTEXT_DEVICES,
             deviceBufferSize, devices, NULL);
     if (errNum != CL_SUCCESS)
     {
+        free(devices);
         g2d_printf("Failed to get device IDs\n");
         return NULL;
     }
@@ -421,6 +428,7 @@ static cl_command_queue CreateCommandQueue(cl_context context,
             devices[0], 0, NULL);
     if (commandQueue == NULL)
     {
+        free(devices);
         g2d_printf("Failed to create commandQueue for device 0\n");
         return NULL;
     }
