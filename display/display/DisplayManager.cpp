@@ -331,7 +331,9 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
             mKmsDisplays[0] = mKmsDisplays[*id];
             mKmsDisplays[*id] = tmp;
             mKmsDisplays[0]->setIndex(0);
+            mKmsDisplays[0]->setPowerMode(POWER_ON);
             mKmsDisplays[*id]->setIndex(*id);
+            mKmsDisplays[*id]->setPowerMode(POWER_OFF);
 
             for (size_t i=0; i<MAX_LAYERS; i++) {
                 Layer* pLayer = mKmsDisplays[*id]->getLayer(i);
