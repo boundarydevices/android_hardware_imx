@@ -32,6 +32,7 @@
 #include <cutils/properties.h>
 
 #include <hardware/hardware.h>
+#include <hardware_legacy/power.h>
 #include <system/audio.h>
 #include <hardware/audio.h>
 #include <sound/asound.h>
@@ -137,6 +138,8 @@
 #define DEFAULT_ERROR_NAME_str "0"
 
 const char* pcm_type_table[PCM_TOTAL] = {"PCM_NORMAL", "PCM_HDMI", "PCM_ESAI", "PCM_DSD", "PCM_TYPE_LPA"};
+
+static const char* lpa_wakelock = "lpa_audio_wakelock";
 
 /*"null_card" must be in the end of this array*/
 struct audio_card *audio_card_list[SUPPORT_CARD_NUM] = {
@@ -1168,6 +1171,11 @@ static int out_pause(struct audio_stream_out* stream)
     if (lpa_enable == 1)
         return status;
 
+    if (out->pcm_type == PCM_TYPE_LPA && out->lpa_wakelock_acquired) {
+        release_wake_lock(lpa_wakelock);
+        out->lpa_wakelock_acquired = false;
+    }
+
     pthread_mutex_lock(&out->lock);
     if (!out->paused) {
         status = pcm_ioctl(out->pcm[out->pcm_type], SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
@@ -1721,6 +1729,8 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     struct imx_audio_device *adev = out->dev;
     size_t frame_size = audio_stream_out_frame_size(stream);
     enum pcm_type pcm_type = out->pcm_type;
+    unsigned int avail;
+    struct timespec timestamp;
 
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will return 1
     // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
@@ -1744,6 +1754,18 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     pthread_mutex_unlock(&adev->lock);
 
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
+
+    if (pcm_type == PCM_TYPE_LPA) {
+        pcm_get_htimestamp(out->pcm[pcm_type], &avail, &timestamp);
+        ALOGV("%s: LPA buffer avail: %u", __func__, avail);
+        if (avail != 0 && !out->lpa_wakelock_acquired) {
+            acquire_wake_lock(PARTIAL_WAKE_LOCK, lpa_wakelock);
+            out->lpa_wakelock_acquired = true;
+        } else if (avail == 0 && out->lpa_wakelock_acquired) {
+            release_wake_lock(lpa_wakelock);
+            out->lpa_wakelock_acquired = false;
+        }
+    }
 
     if (pcm_type == PCM_ESAI)
         convert_output_for_esai(buffer, bytes, out->config[pcm_type].channels);
@@ -3339,6 +3361,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.common.get_sample_rate = out_get_sample_rate_default;
         out->stream.get_latency = out_get_latency;
         out->stream.write = out_write;
+        out->lpa_wakelock_acquired = false;
 
         out->config[out->pcm_type] = pcm_config_lpa;
         out->config[out->pcm_type].rate = config->sample_rate;
@@ -3463,6 +3486,11 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
             release_resampler(out->resampler[i]);
             out->resampler[i] = NULL;
         }
+    }
+
+    if (out->pcm_type == PCM_TYPE_LPA && out->lpa_wakelock_acquired) {
+        release_wake_lock(lpa_wakelock);
+        out->lpa_wakelock_acquired = false;
     }
 
     free(stream);

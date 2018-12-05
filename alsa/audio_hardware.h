@@ -158,6 +158,7 @@ struct imx_stream_out {
     audio_format_t format;
     char* address;
     bool paused;
+    bool lpa_wakelock_acquired;
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
