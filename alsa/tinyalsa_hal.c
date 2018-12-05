@@ -3208,8 +3208,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     int output_type;
     int i;
 
-    ALOGI("%s: enter: sample_rate(%d) channel_mask(%#x) format(%#x) devices(%#x) flags(%#x)",
-              __func__, config->sample_rate, config->channel_mask, config->format, devices, flags);
+    ALOGI("%s: enter: sample_rate(%d) channel_mask(%#x) format(%#x) devices(%#x) flags(%#x), address(%s)",
+              __func__, config->sample_rate, config->channel_mask, config->format, devices, flags, address);
     out = (struct imx_stream_out *)calloc(1, sizeof(struct imx_stream_out));
     if (!out)
         return -ENOMEM;
@@ -3475,7 +3475,8 @@ static struct pcm *SelectPcm(struct imx_stream_out *stream_out, int *flag)
         ALOGE("SelectPcm, start_output_stream_primary failed, ret %d, dev 0x%x", ret, curDev);
     }
 
-    if(AUDIO_DEVICE_OUT_SPEAKER == curDev) {
+    if((AUDIO_DEVICE_OUT_SPEAKER == curDev) ||
+       (AUDIO_DEVICE_OUT_BUS == curDev)) {
         curPcm = stream_out->pcm[PCM_NORMAL];
         *flag = stream_out->write_flags[PCM_NORMAL];
     } else if(AUDIO_DEVICE_OUT_HDMI == curDev) {
