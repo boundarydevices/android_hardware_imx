@@ -43,6 +43,7 @@ private:
     int handleFrameByPXP(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByIPU(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByGPU(StreamBuffer& dst, StreamBuffer& src);
+    int handleFrameBy2D(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByOpencl(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByCPU(StreamBuffer& dst, StreamBuffer& src);
     void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
@@ -69,12 +70,14 @@ private:
     int mIpuFd;
     int mPxpFd;
     int mChannel;
+    int m2DEnable;
 
     thread_store_t mTls;
     hwc_func1 mOpenEngine;
     hwc_func1 mCloseEngine;
     hwc_func1 mFinishEngine;
     hwc_func4 mCopyEngine;
+    hwc_func3 mBlitEngine;
 
     void *mG2dModule;
     void *mCLModule;

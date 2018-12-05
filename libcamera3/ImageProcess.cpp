@@ -57,7 +57,7 @@ ImageProcess* ImageProcess::getInstance()
 }
 
 ImageProcess::ImageProcess()
-    : mIpuFd(-1), mPxpFd(-1), mChannel(-1), mG2dModule(NULL), mCLModule(NULL)
+    : mIpuFd(-1), mPxpFd(-1), mChannel(-1), m2DEnable(0), mG2dModule(NULL), mCLModule(NULL)
 {
     /*
      * imx6dl support IPU device and PXP device.
@@ -87,12 +87,14 @@ ImageProcess::ImageProcess()
         mCloseEngine = NULL;
         mFinishEngine = NULL;
         mCopyEngine = NULL;
+        mBlitEngine = NULL;
     }
     else {
         mOpenEngine = (hwc_func1)dlsym(mG2dModule, "g2d_open");
         mCloseEngine = (hwc_func1)dlsym(mG2dModule, "g2d_close");
         mFinishEngine = (hwc_func1)dlsym(mG2dModule, "g2d_finish");
         mCopyEngine = (hwc_func4)dlsym(mG2dModule, "g2d_copy");
+        mBlitEngine = (hwc_func3)dlsym(mG2dModule, "g2d_blit");
     }
 
     mTls.tls = 0;
@@ -120,6 +122,10 @@ ImageProcess::ImageProcess()
         if (ret != 0) {
             mCLHandle = NULL;
         }
+    }
+
+    if (property_get_bool("vendor.camera.2d.enable", false)) {
+        m2DEnable = 1;
     }
 
     if(mCLHandle != NULL) {
@@ -229,6 +235,12 @@ int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
             break;
         }
 
+        // try gpu 2d.
+        ret = handleFrameBy2D(dstBuf, srcBuf);
+        if (ret == 0) {
+            break;
+        }
+
         // try ipu.
         ret = handleFrameByIPU(dstBuf, srcBuf);
         if (ret == 0) {
@@ -290,6 +302,24 @@ static int pxp_get_bpp(unsigned int format)
   return 0;
 }
 
+int convertPixelFormatToG2DFormat(PixelFormat format)
+{
+    int nFormat = 0;
+
+    switch (format) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            nFormat = G2D_NV12;
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+            nFormat = G2D_YUYV;
+            break;
+        default:
+            ALOGE("%s:%d, Error: format:0x%x not supported!", __func__, __LINE__, format);
+            break;
+    }
+    return nFormat;
+}
 
 int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 {
@@ -487,6 +517,69 @@ int ImageProcess::handleFrameByGPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     }
 
     return ret;
+}
+
+int ImageProcess::handleFrameBy2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+{
+    if (mBlitEngine == NULL) {
+        return -EINVAL;
+    }
+    //only can work on 8mm platform.
+    if (m2DEnable == 0) {
+        return -EINVAL;
+    }
+
+    sp<Stream> src, dst;
+    src = srcBuf.mStream;
+    dst = dstBuf.mStream;
+    // can't do csc for some formats.
+    if (!(((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
+         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
+         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))) {
+        return -EINVAL;
+    }
+
+    int ret;
+    void* g2dHandle = getHandle();
+    struct g2d_buf s_buf, d_buf;
+    struct g2d_surface s_surface, d_surface;
+
+    s_buf.buf_paddr = srcBuf.mPhyAddr;
+    s_buf.buf_vaddr = srcBuf.mVirtAddr;
+    d_buf.buf_paddr = dstBuf.mPhyAddr;
+    d_buf.buf_vaddr = dstBuf.mVirtAddr;
+
+    s_surface.format = (g2d_format)convertPixelFormatToG2DFormat(src->format());
+    s_surface.planes[0] = (long)s_buf.buf_paddr;
+    s_surface.left = 0;
+    s_surface.top = 0;
+    s_surface.right = src->width();
+    s_surface.bottom = src->height();
+    s_surface.stride = src->width();
+    s_surface.width  = src->width();
+    s_surface.height = src->height();
+    s_surface.rot    = G2D_ROTATION_0;
+
+    d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dst->format());
+    d_surface.planes[0] = (long)d_buf.buf_paddr;
+    d_surface.planes[1] = (long)d_buf.buf_paddr + dst->width() * dst->height();
+    d_surface.left = 0;
+    d_surface.top = 0;
+    d_surface.right = dst->width();
+    d_surface.bottom = dst->height();
+    d_surface.stride = dst->width();
+    d_surface.width  = dst->width();
+    d_surface.height = dst->height();
+    d_surface.rot    = G2D_ROTATION_0;
+
+    ret = mBlitEngine(g2dHandle, (void*)&s_surface, (void*)&d_surface);
+
+    if (ret == 0) {
+        mFinishEngine(g2dHandle);
+    }
+
+    return ret;
+
 }
 
 int ImageProcess::convertNV12toNV21(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
