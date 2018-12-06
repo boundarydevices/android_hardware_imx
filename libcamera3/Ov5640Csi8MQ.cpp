@@ -133,15 +133,13 @@ status_t Ov5640Csi8MQ::initSensorStaticData()
         //But 1920x1080, 176x144 not work in this mode.
         // 1920x1080 is required by CTS.
         //2592x1944 will block when do DQBUF, filter it out in picture size.
-       if(!(vid_frmsize.discrete.width >= 1920 && vid_frmsize.discrete.height >= 1080)) {
-           mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
-           mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
-       }
+        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.width;
+        mPictureResolutions[pictureCnt++] = vid_frmsize.discrete.height;
 
-       if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
-           mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
-           mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
-       }
+        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator > 15) {
+            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.width;
+            mPreviewResolutions[previewCnt++] = vid_frmsize.discrete.height;
+        }
     } // end while
 
     mPreviewResolutionCount = previewCnt;
