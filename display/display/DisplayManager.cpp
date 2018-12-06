@@ -538,6 +538,7 @@ void DisplayManager::handleKmsHotplug()
         // primary display.
         if (i == DISPLAY_PRIMARY) {
             display->setFakeVSync(!display->connected());
+            callback->onRefresh(i);
             continue;
         }
 

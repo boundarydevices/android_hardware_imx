@@ -356,11 +356,6 @@ int KmsDisplay::setPowerMode(int mode)
 {
     Mutex::Autolock _l(mLock);
 
-    if (!mConnected) {
-        ALOGE("%s display plugout", __func__);
-        return 0;
-    }
-
     switch (mode) {
         case POWER_ON:
             mPowerMode = DRM_MODE_DPMS_ON;
