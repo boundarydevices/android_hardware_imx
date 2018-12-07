@@ -39,7 +39,6 @@ enum pcm_type {
     PCM_HDMI,
     PCM_ESAI,
     PCM_DSD,
-    PCM_TYPE_LPA,
     PCM_TOTAL,
 };
 

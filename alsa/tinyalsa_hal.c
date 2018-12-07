@@ -114,9 +114,6 @@
 // DSD pcm param: 2 channel, 32 bit
 #define DSD_FRAMESIZE_BYTES 8
 
-#define LPA_PERIOD_SIZE 192
-#define LPA_PERIOD_COUNT 8
-
 // Limit LPA max latency to 300ms
 #define LPA_LATENCY_MS 300
 
@@ -137,7 +134,7 @@
 #define IMX7_BOARD_NAME "imx7"
 #define DEFAULT_ERROR_NAME_str "0"
 
-const char* pcm_type_table[PCM_TOTAL] = {"PCM_NORMAL", "PCM_HDMI", "PCM_ESAI", "PCM_DSD", "PCM_TYPE_LPA"};
+const char* pcm_type_table[PCM_TOTAL] = {"PCM_NORMAL", "PCM_HDMI", "PCM_ESAI", "PCM_DSD"};
 
 static const char* lpa_wakelock = "lpa_audio_wakelock";
 
@@ -170,16 +167,6 @@ struct pcm_config pcm_config_mm_out = {
     .rate = MM_FULL_POWER_SAMPLING_RATE,
     .period_size = LONG_PERIOD_SIZE,
     .period_count = PLAYBACK_LONG_PERIOD_COUNT,
-    .format = PCM_FORMAT_S16_LE,
-    .start_threshold = 0,
-    .avail_min = 0,
-};
-
-struct pcm_config pcm_config_lpa = {
-    .channels = 2,
-    .rate = 48000,
-    .period_size = LPA_PERIOD_SIZE,
-    .period_count = LPA_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
     .start_threshold = 0,
     .avail_min = 0,
@@ -801,7 +788,7 @@ static int start_output_stream(struct imx_stream_out *out)
     unsigned int flags = PCM_OUT | PCM_MONOTONIC;
 
     ALOGI("%s: out: %p, device: 0x%x, pcm_type: %s", __func__, out, out->device, pcm_type_table[pcm_type]);
-    if (pcm_type == PCM_TYPE_LPA)
+    if (lpa_enable)
         flags |= PCM_LPA;
 
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
@@ -1001,12 +988,6 @@ static uint32_t out_get_sample_rate_hdmi(const struct audio_stream *stream)
     return out->config[PCM_HDMI].rate;
 }
 
-static uint32_t out_get_sample_rate_esai(const struct audio_stream *stream)
-{
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    return out->config[PCM_ESAI].rate;
-}
-
 static uint32_t out_get_sample_rate_dsd(const struct audio_stream *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
@@ -1048,18 +1029,6 @@ static size_t out_get_buffer_size_hdmi(const struct audio_stream *stream)
     multiple of 16 frames, as audioflinger expects audio buffers to
     be a multiple of 16 frames */
     size_t size = pcm_config_hdmi_multi.period_size;
-    size = ((size + 15) / 16) * 16;
-    return size * audio_stream_out_frame_size((const struct audio_stream_out *)stream);
-}
-
-static size_t out_get_buffer_size_esai(const struct audio_stream *stream)
-{
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-
-    /* take resampling into account and return the closest majoring
-    multiple of 16 frames, as audioflinger expects audio buffers to
-    be a multiple of 16 frames */
-    size_t size = pcm_config_esai_multi.period_size;
     size = ((size + 15) / 16) * 16;
     return size * audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
@@ -1171,7 +1140,7 @@ static int out_pause(struct audio_stream_out* stream)
     if (lpa_enable == 1)
         return status;
 
-    if (out->pcm_type == PCM_TYPE_LPA && out->lpa_wakelock_acquired) {
+    if (lpa_enable && out->lpa_wakelock_acquired) {
         release_wake_lock(lpa_wakelock);
         out->lpa_wakelock_acquired = false;
     }
@@ -1401,13 +1370,6 @@ static uint32_t out_get_latency_hdmi(const struct audio_stream_out *stream)
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
 
     return (pcm_config_hdmi_multi.period_size * pcm_config_hdmi_multi.period_count * 1000) / pcm_config_hdmi_multi.rate;
-}
-
-static uint32_t out_get_latency_esai(const struct audio_stream_out *stream)
-{
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-
-    return (pcm_config_esai_multi.period_size * pcm_config_esai_multi.period_count * 1000) / pcm_config_esai_multi.rate;
 }
 
 static uint32_t out_get_latency_dsd(const struct audio_stream_out *stream)
@@ -1755,7 +1717,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
 
-    if (pcm_type == PCM_TYPE_LPA) {
+    if (lpa_enable) {
         pcm_get_htimestamp(out->pcm[pcm_type], &avail, &timestamp);
         ALOGV("%s: LPA buffer avail: %u", __func__, avail);
         if (avail != 0 && !out->lpa_wakelock_acquired) {
@@ -3236,6 +3198,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_out *out;
+    enum pcm_type pcm_type;
     int ret;
     int output_type;
     int i;
@@ -3264,7 +3227,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
         }
         output_type = OUTPUT_OFFLOAD;
-        out->pcm_type = PCM_DSD;
+        pcm_type = PCM_DSD;
         if (config->sample_rate == 0)
             config->sample_rate = pcm_config_dsd.rate;
         if (config->channel_mask == 0)
@@ -3275,7 +3238,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.get_latency = out_get_latency_dsd;
         out->stream.write = out_write;
         pcm_config_dsd.rate = config->sample_rate / DSD_RATE_TO_PCM_RATE;
-        out->config[PCM_DSD] = pcm_config_dsd;
+        out->config[pcm_type] = pcm_config_dsd;
         out->stream.flush = out_flush;
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
                devices == AUDIO_DEVICE_OUT_AUX_DIGITAL) {
@@ -3291,7 +3254,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         ret = out_read_hdmi_rates(ladev, out);
 
         output_type = OUTPUT_HDMI;
-        out->pcm_type = PCM_HDMI;
+        pcm_type = PCM_HDMI;
         if (config->sample_rate == 0)
             config->sample_rate = ladev->mm_rate;
         if (config->channel_mask == 0)
@@ -3305,11 +3268,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.common.get_sample_rate = out_get_sample_rate_hdmi;
         out->stream.get_latency = out_get_latency_hdmi;
         out->stream.write = out_write;
-        out->config[PCM_HDMI] = pcm_config_hdmi_multi;
-        out->config[PCM_HDMI].rate = config->sample_rate;
-        out->config[PCM_HDMI].channels = popcount(config->channel_mask);
+        out->config[pcm_type] = pcm_config_hdmi_multi;
+        out->config[pcm_type].rate = config->sample_rate;
+        out->config[pcm_type].channels = popcount(config->channel_mask);
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
               ((devices == AUDIO_DEVICE_OUT_SPEAKER) ||
+               (devices == AUDIO_DEVICE_OUT_LINE) ||
                (devices == AUDIO_DEVICE_OUT_WIRED_HEADPHONE)) &&
                ladev->support_multichannel) {
         ALOGW("adev_open_output_stream() ESAI multichannel");
@@ -3318,24 +3282,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
         }
 
-        output_type = OUTPUT_ESAI;
-        out->pcm_type = PCM_ESAI;
-        if (config->sample_rate == 0)
-            config->sample_rate = ladev->mm_rate;
-        if (config->channel_mask == 0)
-            config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
-        if (config->format != AUDIO_FORMAT_PCM_FLOAT)
-            pcm_config_esai_multi.format = PCM_FORMAT_S16_LE;
-        out->channel_mask = config->channel_mask;
-        out->stream.common.get_buffer_size = out_get_buffer_size_esai;
-        out->stream.common.get_sample_rate = out_get_sample_rate_esai;
-        out->stream.get_latency = out_get_latency_esai;
-        out->stream.write = out_write;
-        out->config[PCM_ESAI] = pcm_config_esai_multi;
-        out->config[PCM_ESAI].rate = config->sample_rate;
-        out->config[PCM_ESAI].channels = popcount(config->channel_mask);
-    } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
-               devices == AUDIO_DEVICE_OUT_LINE) {
         int lpa_hold_second = 0;
         int lpa_period_ms = 0;
 
@@ -3348,13 +3294,19 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         }
 
         if(lpa_hold_second && lpa_period_ms) {
-            pcm_config_lpa.period_size = config->sample_rate * lpa_period_ms / 1000;
-            pcm_config_lpa.period_count =  lpa_hold_second * 1000 / lpa_period_ms;
+            pcm_config_esai_multi.period_size = config->sample_rate * lpa_period_ms / 1000;
+            pcm_config_esai_multi.period_count =  lpa_hold_second * 1000 / lpa_period_ms;
         }
 
-        ALOGD("%s: LPA direct output stream, hold_second: %d, period_ms: %d", __func__, lpa_hold_second, lpa_period_ms);
-        output_type = OUTPUT_HDMI;
-        out->pcm_type = PCM_TYPE_LPA;
+        ALOGD("%s: LPA esai direct output stream, hold_second: %d, period_ms: %d", __func__, lpa_hold_second, lpa_period_ms);
+        output_type = OUTPUT_ESAI;
+        pcm_type = PCM_ESAI;
+        if (config->sample_rate == 0)
+            config->sample_rate = ladev->mm_rate;
+        if (config->channel_mask == 0)
+            config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
+        if (config->format != AUDIO_FORMAT_PCM_FLOAT)
+            pcm_config_esai_multi.format = PCM_FORMAT_S16_LE;
         out->sample_rate = config->sample_rate;
         out->channel_mask = config->channel_mask;
         out->stream.common.get_buffer_size = out_get_buffer_size;
@@ -3363,9 +3315,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.write = out_write;
         out->lpa_wakelock_acquired = false;
 
-        out->config[out->pcm_type] = pcm_config_lpa;
-        out->config[out->pcm_type].rate = config->sample_rate;
-        out->config[out->pcm_type].channels = popcount(config->channel_mask);
+        out->config[pcm_type] = pcm_config_esai_multi;
+        out->config[pcm_type].rate = config->sample_rate;
+        out->config[pcm_type].channels = popcount(config->channel_mask);
         out->stream.pause = out_pause;
         out->stream.resume = out_resume;
         out->stream.flush = out_flush;
@@ -3380,7 +3332,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             }
         }
         output_type = OUTPUT_PRIMARY;
-        out->pcm_type = PCM_NORMAL;
+        pcm_type = PCM_NORMAL;
         out->stream.common.get_buffer_size = out_get_buffer_size_primary;
         out->stream.common.get_sample_rate = out_get_sample_rate;
         out->stream.get_latency = out_get_latency_primary;
@@ -3417,6 +3369,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->standby = 1;
     out->device      = devices;
     out->paused = false;
+    out->pcm_type = pcm_type;
 
     /* FIXME: when we support multiple output devices, we will want to
      * do the following:
@@ -3488,7 +3441,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         }
     }
 
-    if (out->pcm_type == PCM_TYPE_LPA && out->lpa_wakelock_acquired) {
+    if (lpa_enable && out->lpa_wakelock_acquired) {
         release_wake_lock(lpa_wakelock);
         out->lpa_wakelock_acquired = false;
     }
@@ -4263,6 +4216,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
 
                 if(strcmp(audio_card_list[j]->driver_name, "cs42888-audio") == 0) {
                     ALOGI("cs42888-audio: support multichannel");
+                    adev->support_multichannel = true;
+                }
+
+                if(strcmp(audio_card_list[j]->driver_name, "ak4497-audio") == 0) {
+                    ALOGI("ak4497-audio: support multichannel");
                     adev->support_multichannel = true;
                 }
 
