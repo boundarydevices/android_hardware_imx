@@ -28,7 +28,6 @@ public:
     ~Ov5640Csi8MQ();
 
     virtual status_t initSensorStaticData();
-    virtual int getCaptureMode(int width, int height);
     virtual int getFps(int width, int height, int defValue);
     virtual PixelFormat getPreviewPixelFormat();
 
@@ -39,6 +38,7 @@ private:
             : MMAPStream(device) {}
         virtual ~OvStream() {}
         virtual int32_t onDeviceConfigureLocked();
+        virtual int32_t getCaptureMode(int width, int height);
     };
 };
 
