@@ -18,6 +18,7 @@
 #include <sync/sync.h>
 
 #include "Memory.h"
+#include "MemoryDesc.h"
 #include <g2dExt.h>
 #include "Display.h"
 
@@ -400,6 +401,33 @@ int Display::getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers,
     return 0;
 }
 
+bool Display::check2DComposition()
+{
+    // set device compose to false if composer is invalid or disabled.
+    if (!mComposer.isValid() || mComposer.isDisabled()) {
+        return false;
+    }
+
+    // set device compose if force set to 2DComposition.
+    if (mComposer.is2DComposition()) {
+        return true;
+    }
+
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (!mLayers[i]->busy) {
+            continue;
+        }
+
+        // vpu tile format must be handled by device.
+        Memory* memory = mLayers[i]->handle;
+        if (memory != nullptr && memory->fslFormat == FORMAT_NV12_TILED) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool Display::verifyLayers()
 {
     bool deviceCompose = true;
@@ -454,9 +482,13 @@ bool Display::verifyLayers()
         }
     }
 
-    if (!mComposer.isValid()) {
+    // set device compose to false if composer is invalid or disabled.
+    if (!mComposer.isValid() || mComposer.isDisabled()) {
         deviceCompose = false;
     }
+
+    // set device compose flags.
+    deviceCompose = check2DComposition();
 
     mComposeFlag &= OVERLAY_COMPOSE_MASK;
     mComposeFlag = mComposeFlag << (LAST_OVERLAY_BIT - OVERLAY_COMPOSE_BIT);

@@ -470,7 +470,6 @@ bool KmsDisplay::checkOverlay(Layer* layer)
     if (!((memory->usage & USAGE_PADDING_BUFFER) &&
         (memory->fslFormat == FORMAT_NV12)) &&
         !(memory->flags & FLAGS_SECURE) &&
-        memory->fslFormat != FORMAT_NV12_TILED &&
         memory->fslFormat != FORMAT_NV12_G1_TILED &&
         memory->fslFormat != FORMAT_NV12_G2_TILED &&
         memory->fslFormat != FORMAT_NV12_G2_TILED_COMPRESSED &&

@@ -40,6 +40,10 @@ public:
     static Composer* getInstance();
 
     bool isValid();
+    // check hwc disabled or not.
+    bool isDisabled();
+    // check 2d composition or not.
+    bool is2DComposition();
     // set composite target buffer.
     int setRenderTarget(Memory* memory);
     // clear worm hole introduced by layers not cover whole screen.
@@ -107,6 +111,9 @@ private:
     hwc_func1 mFinishEngine;
     hwc_func3 mQueryFeature;
     hwc_func4 mAlignTile;
+
+    int mDisableHWC;
+    int m2DComposition;
 };
 
 }

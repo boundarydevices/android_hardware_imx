@@ -56,12 +56,22 @@ Composer::Composer()
     pthread_mutex_init(&mTls.lock, NULL);
 
     property_get("sys.hwc.disable", value, "0");
-    int mDisableHWC = atoi(value);
-
-    if (!mDisableHWC) {
-        getModule(path, GPUHELPER);
-        handle = dlopen(path, RTLD_NOW);
+    mDisableHWC = atoi(value);
+    if (mDisableHWC) {
+        ALOGI("HWC disabled!");
     }
+
+    property_get("vendor.2d.composition", value, "1");
+    m2DComposition = atoi(value);
+    if (m2DComposition && !mDisableHWC) {
+        ALOGI("g2d 2D composition enabled!");
+    }
+    else {
+        ALOGI("Opengl ES 3D composition enabled!");
+    }
+
+    getModule(path, GPUHELPER);
+    handle = dlopen(path, RTLD_NOW);
 
     if (handle == NULL) {
         ALOGV("no %s found", path);
@@ -83,14 +93,12 @@ Composer::Composer()
         mAlignTile = (hwc_func4)dlsym(handle, "hwc_align_tile");
     }
 
-    if (!mDisableHWC) {
-        memset(path, 0, sizeof(path));
-        getModule(path, GPUENGINE);
-        handle = dlopen(path, RTLD_NOW);
-    }
+    memset(path, 0, sizeof(path));
+    getModule(path, GPUENGINE);
+    handle = dlopen(path, RTLD_NOW);
 
     if (handle == NULL) {
-        ALOGI("Use 3D OpenGL ES composition!");
+        ALOGI("can't find %s, 2D is invalid", path);
         mSetClipping = NULL;
         mBlitFunction = NULL;
         mOpenEngine = NULL;
@@ -102,7 +110,7 @@ Composer::Composer()
         mQueryFeature = NULL;
     }
     else {
-        ALOGI("Use 2D HWC composition!");
+        ALOGI("load %s library!", path);
         mSetClipping = (hwc_func5)dlsym(handle, "g2d_set_clipping");
         mBlitFunction = (hwc_func3)dlsym(handle, "g2d_blitEx");
         if (mBlitFunction == NULL) {
@@ -160,6 +168,16 @@ void Composer::threadDestructor(void *handle)
 bool Composer::isValid()
 {
     return (getHandle() != NULL && mBlitFunction != NULL);
+}
+
+bool Composer::isDisabled()
+{
+    return (mDisableHWC != 0);
+}
+
+bool Composer::is2DComposition()
+{
+    return (m2DComposition != 0);
 }
 
 void Composer::getModule(char *path, const char *name)
@@ -403,7 +421,12 @@ int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect
     surface.stride = alignWidth;
     enum g2d_tiling tile = G2D_LINEAR;
     getTiling(handle, &tile);
-    surfaceX.tiling = tile;
+    if (handle->fslFormat == FORMAT_NV12_TILED) {
+        surfaceX.tiling = G2D_AMPHION_TILED;
+    }
+    else {
+        surfaceX.tiling = tile;
+    }
 
     int offset = 0;
     getFlipOffset(handle, &offset);
@@ -475,6 +498,7 @@ enum g2d_format Composer::convertFormat(int format, Memory *handle)
             halFormat = G2D_NV21;
             break;
         case FORMAT_NV12:
+        case FORMAT_NV12_TILED:
             halFormat = G2D_NV12;
             break;
 

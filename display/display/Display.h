@@ -165,6 +165,7 @@ protected:
     int composeLayersLocked();
     void resetLayerLocked(Layer* layer);
     void waitOnFenceLocked();
+    bool check2DComposition();
 
 protected:
     Mutex mLock;
