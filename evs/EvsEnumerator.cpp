@@ -36,6 +36,7 @@ namespace implementation {
 #define EPOLL_MAX_EVENTS 8
 #define MEDIA_FILE_PATH "/dev"
 #define EVS_VIDEO_READY "vendor.evs.video.ready"
+#define FAKE_CAPTURE_ID "fake-capture"
 
 // NOTE:  All members values are static so that all clients operate on the same state
 //        That is to say, this is effectively a singleton despite the fact that HIDL
@@ -91,6 +92,11 @@ bool EvsEnumerator::EnumAvailableVideo() {
             }
         }
     }
+
+#ifdef FAKE_CAPTURE
+    sCameraList.emplace_back(FAKE_CAPTURE_ID, "/dev/video0");
+    captureCount++;
+#endif
 
     if (captureCount != 0) {
         videoReady = true;
@@ -228,7 +234,12 @@ Return<sp<IEvsCamera>> EvsEnumerator::openCamera(const hidl_string& cameraId) {
     ALOGD("openCamera");
 
     // Is this a recognized camera id?
+#ifndef FAKE_CAPTURE
     CameraRecord *pRecord = findCameraById(cameraId);
+#else
+    CameraRecord *pRecord = findCameraById(FAKE_CAPTURE_ID);
+    ALOGI("Requested camera %s with fake capture", cameraId.c_str());
+#endif
     if (!pRecord) {
         ALOGE("Requested camera %s not found", cameraId.c_str());
         return nullptr;

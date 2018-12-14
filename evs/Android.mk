@@ -43,11 +43,14 @@ LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_TAGS := optional
 LOCAL_STRIP_MODULE := keep_symbols
 
-LOCAL_CFLAGS += -DLOG_TAG=\"EvsSampleDriver\"
+LOCAL_CFLAGS += -DLOG_TAG=\"EvsImxDriver\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -Wall -Werror -Wunused -Wunreachable-code
 LOCAL_CFLAGS += \
         -DANDROID_SDK_VERSION=$(PLATFORM_SDK_VERSION)
+
+#Use a fake capture device, but not the real camera
+#LOCAL_CFLAGS += -DFAKE_CAPTURE
 
 # NOTE:  It can be helpful, while debugging, to disable optimizations
 #LOCAL_CFLAGS += -O0 -g

@@ -59,8 +59,10 @@ int VideoCapture::getCaptureMode(int width, int height)
 //        the file descriptor.  This must be fixed before using this code for anything but
 //        experimentation.
 bool VideoCapture::open(const char* deviceName) {
+    int ret = 0;
     // If we want a polling interface for getting frames, we would use O_NONBLOCK
 //    int mDeviceFd = open(deviceName, O_RDWR | O_NONBLOCK, 0);
+#ifndef FAKE_CAPTURE
     mDeviceFd = ::open(deviceName, O_RDWR, 0);
     if (mDeviceFd < 0) {
         ALOGE("failed to open device %s (%d = %s)", deviceName, errno, strerror(errno));
@@ -120,7 +122,7 @@ bool VideoCapture::open(const char* deviceName) {
     param.parm.capture.timeperframe.numerator   = 1;
     param.parm.capture.timeperframe.denominator = 30;
     param.parm.capture.capturemode = getCaptureMode(CAMERA_WIDTH, CAMERA_HEIGHT);
-    int ret = ioctl(mDeviceFd, VIDIOC_S_PARM, &param);
+    ret = ioctl(mDeviceFd, VIDIOC_S_PARM, &param);
     if (ret < 0) {
         ALOGE("%s: VIDIOC_S_PARM Failed: %s", __func__, strerror(errno));
         return false;
@@ -163,7 +165,13 @@ bool VideoCapture::open(const char* deviceName) {
         ALOGE("VIDIOC_G_FMT: %s", strerror(errno));
         return false;
     }
-
+#else
+    ALOGI("Use faked capture for device %s", deviceName);
+    mFormat = V4L2_PIX_FMT_YUYV;
+    mWidth  = CAMERA_WIDTH;
+    mHeight = CAMERA_HEIGHT;
+    mStride = 2 * mWidth; // 2 bytes for YUYV format
+#endif
     // Make sure we're initialized to the STOPPED state
     mRunMode = STOPPED;
     mFrameReady = false;
@@ -174,7 +182,6 @@ bool VideoCapture::open(const char* deviceName) {
         return false;
     }
 
-    ret = 0;
     int size = CAMERA_WIDTH * CAMERA_HEIGHT * 2;
     uint64_t ptr = 0;
     int ionSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
@@ -211,12 +218,14 @@ void VideoCapture::close() {
     // Stream should be stopped first!
     assert(mRunMode == STOPPED);
 
+#ifndef FAKE_CAPTURE
     if (!isOpen()) {
         return;
     }
     ALOGD("closing video device file handled %d", mDeviceFd);
     ::close(mDeviceFd);
     mDeviceFd = -1;
+#endif
     for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
         munmap(mBuffers[i].vaddr, mBuffers[i].size);
         ::close(mBuffers[i].fd);
@@ -233,6 +242,7 @@ bool VideoCapture::startStream(std::function<void(VideoCapture*, imageBuffer*, v
         return false;
     }
 
+#ifndef FAKE_CAPTURE
     // Tell the L4V2 driver to prepare our streaming buffers
     v4l2_requestbuffers bufrequest;
     bufrequest.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -274,7 +284,7 @@ bool VideoCapture::startStream(std::function<void(VideoCapture*, imageBuffer*, v
         ALOGE("VIDIOC_STREAMON: %s", strerror(errno));
         return false;
     }
-
+#endif
     // Remember who to tell about new frames as they arrive
     mCallback = callback;
     // Fire up a thread to receive and dispatch the video frames
@@ -302,15 +312,18 @@ void VideoCapture::stopStream() {
             mCaptureThread.join();
         }
 
+#ifndef FAKE_CAPTURE
         // Stop the underlying video stream (automatically empties the buffer queue)
         int type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
         if (ioctl(mDeviceFd, VIDIOC_STREAMOFF, &type) < 0) {
             ALOGE("VIDIOC_STREAMOFF: %s", strerror(errno));
         }
+#endif
 
         ALOGD("Capture thread stopped.");
     }
 
+#ifndef FAKE_CAPTURE
     // Tell the L4V2 driver to release our streaming buffers
     v4l2_requestbuffers bufrequest;
     bufrequest.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -319,6 +332,7 @@ void VideoCapture::stopStream() {
     if (ioctl(mDeviceFd, VIDIOC_REQBUFS, &bufrequest) < 0) {
         ALOGE("VIDIOC_REQBUFS count = 0 failed: %s", strerror(errno));
     }
+#endif
 
     // Drop our reference to the frame delivery callback interface
     mCallback = nullptr;
@@ -334,6 +348,8 @@ bool VideoCapture::returnFrame() {
     // We're giving the frame back to the system, so clear the "ready" flag
     ALOGV("returnFrame  index %d", currentIndex);
     mFrameReady = false;
+
+#ifndef FAKE_CAPTURE
     struct v4l2_buffer buf;
     struct v4l2_plane planes;
     memset(&buf, 0, sizeof(buf));
@@ -351,12 +367,15 @@ bool VideoCapture::returnFrame() {
         ALOGE("%s VIDIOC_QBUF: %s", __func__, strerror(errno));
         return false;
     }
+#endif
+
     return true;
 }
 
 
 // This runs on a background thread to receive and dispatch video frames
 void VideoCapture::collectFrames() {
+#ifndef FAKE_CAPTURE
     struct v4l2_buffer buf;
     struct v4l2_plane planes;
 
@@ -366,17 +385,36 @@ void VideoCapture::collectFrames() {
     buf.memory = V4L2_MEMORY_DMABUF;
     buf.m.planes = &planes;
     buf.length = 1;
+#endif
 
     // Run until our atomic signal is cleared
     while (mRunMode == RUN) {
+#ifndef FAKE_CAPTURE
         // Wait for a buffer to be ready
         if (ioctl(mDeviceFd, VIDIOC_DQBUF, &buf) < 0) {
             ALOGE("VIDIOC_DQBUF: %s", strerror(errno));
             break;
         }
+#else
+        usleep(33333);//30fps
+#endif
         markFrameReady();
 
+#ifndef FAKE_CAPTURE
         currentIndex = buf.index ;
+#else
+        currentIndex = (currentIndex + 1) % CAMERA_BUFFER_NUM;
+        //Draw several pixels height of color on the frame
+#define COLOR_HEIGHT 64
+#define COLOR_VALUE 0x86
+        static unsigned int frame_index = 0;
+        frame_index ++;
+        memset(mPixelBuffer[currentIndex], 0x0, mStride*mHeight);
+        unsigned int start_line = frame_index % (mHeight/COLOR_HEIGHT) * COLOR_HEIGHT;
+        if( start_line + COLOR_HEIGHT <= mHeight)
+            memset((char *)mPixelBuffer[currentIndex] + start_line * mStride,
+                    COLOR_VALUE, mStride*COLOR_HEIGHT);
+#endif
         // If a callback was requested per frame, do that now
         if (mCallback) {
             mCallback(this, &mBufferInfo[currentIndex], mPixelBuffer[currentIndex]);

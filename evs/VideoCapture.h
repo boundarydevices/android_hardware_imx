@@ -50,7 +50,13 @@ public:
     bool isFrameReady()         { return mFrameReady; };
     void markFrameConsumed()    { returnFrame(); };
 
-    bool isOpen()               { return mDeviceFd >= 0; };
+    bool isOpen()               {
+#ifndef FAKE_CAPTURE
+        return mDeviceFd >= 0;
+#else
+        return true;
+#endif
+    };
 
 private:
     int getCaptureMode(int width, int height);
