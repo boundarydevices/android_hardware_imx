@@ -3182,6 +3182,11 @@ static int adev_get_microphones(const struct audio_hw_device *dev,
     for (size_t ch = 0; ch < AUDIO_CHANNEL_COUNT_MAX; ch++) {
         mic_array->channel_mapping[ch] = AUDIO_MICROPHONE_CHANNEL_MAPPING_UNUSED;
     }
+
+    mic_array->device = AUDIO_DEVICE_IN_BUILTIN_MIC;
+    strncpy(mic_array->address, AUDIO_BOTTOM_MICROPHONE_ADDRESS, AUDIO_DEVICE_MAX_ADDRESS_LEN);
+    mic_array->address[AUDIO_DEVICE_MAX_ADDRESS_LEN-1] = 0;
+
     *mic_count = 1;
 
     return 0;
