@@ -210,7 +210,10 @@ void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, MetaData *meta)
 
     HDRStaticInfo::Type1 &info = meta->mStaticInfo.sType1;
     struct hdr_static_metadata hdr_metadata;
-    if (info.mR.x == 0 && info.mR.y == 0 && info.mG.x == 0 && info.mG.y == 0 &&
+    ColorAspects color = meta->mColor;
+    if (color.mTransfer != ColorAspects::TransferST2084 &&
+        color.mTransfer != ColorAspects::TransferHLG &&
+        info.mR.x == 0 && info.mR.y == 0 && info.mG.x == 0 && info.mG.y == 0 &&
         info.mB.x == 0 && info.mB.y == 0 && info.mW.x == 0 && info.mW.y == 0 &&
         info.mMaxDisplayLuminance == 0 && info.mMaxFrameAverageLightLevel == 0
         && info.mMaxContentLightLevel == 0 && info.mMinDisplayLuminance == 0) {
