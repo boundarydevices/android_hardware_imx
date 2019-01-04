@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 The Android Open Source Project
+ * Copyright 2019 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,8 +34,8 @@ namespace implementation {
 using android::Thread;
 using android::sp;
 
-class EvsV4lCamera;    // from EvsCamera.h
-class EvsGlDisplay;    // from EvsGlDisplay.h
+class EvsCamera;    // from EvsCamera.h
+class EvsDisplay;    // from EvsDisplay.h
 
 
 class EvsEnumerator : public IEvsEnumerator {
@@ -54,7 +55,7 @@ private:
     struct CameraRecord {
         std::string         name;
         CameraDesc          desc;
-        wp<EvsV4lCamera>    activeInstance;
+        wp<EvsCamera>    activeInstance;
 
         CameraRecord(const char *name, const char *cameraId)
             : desc() { this->name = name; desc.cameraId = cameraId; }
@@ -87,7 +88,7 @@ private:
     //        using them.
     static std::list<CameraRecord> sCameraList;
 
-    static wp<EvsGlDisplay>          sActiveDisplay; // Weak pointer. Object destructs if client dies.
+    static wp<EvsDisplay>          sActiveDisplay; // Weak pointer. Object destructs if client dies.
 };
 
 } // namespace implementation

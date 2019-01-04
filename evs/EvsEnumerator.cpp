@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 The Android Open Source Project
+ * Copyright 2019 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +16,9 @@
  */
 
 #include "EvsEnumerator.h"
-#include "EvsV4lCamera.h"
-#include "EvsGlDisplay.h"
+#include "V4l2Capture.h"
+#include "FakeCapture.h"
+#include "EvsDisplay.h"
 
 #include <cutils/properties.h>
 #include <dirent.h>
@@ -36,19 +38,27 @@ namespace implementation {
 #define EPOLL_MAX_EVENTS 8
 #define MEDIA_FILE_PATH "/dev"
 #define EVS_VIDEO_READY "vendor.evs.video.ready"
-#define FAKE_CAPTURE_ID "fake-capture"
+#define EVS_FAKE_SENSOR "mxc_isi.0.capture"
+#define EVS_FAKE_NAME   "fake.camera"
+#define EVS_FAKE_PROP   "vendor.evs.fake.enable"
 
 // NOTE:  All members values are static so that all clients operate on the same state
 //        That is to say, this is effectively a singleton despite the fact that HIDL
 //        constructs a new instance for each client.
 std::list<EvsEnumerator::CameraRecord>   EvsEnumerator::sCameraList;
-wp<EvsGlDisplay>                           EvsEnumerator::sActiveDisplay;
+wp<EvsDisplay>                           EvsEnumerator::sActiveDisplay;
 
 
 bool EvsEnumerator::EnumAvailableVideo() {
     unsigned videoCount   = 0;
     unsigned captureCount = 0;
     bool videoReady = false;
+
+    int enableFake = property_get_int32(EVS_FAKE_PROP, 0);
+    if (enableFake != 0) {
+        sCameraList.emplace_back(EVS_FAKE_SENSOR, EVS_FAKE_NAME);
+        captureCount++;
+    }
 
     // For every video* entry in the dev folder, see if it reports suitable capabilities
     // WARNING:  Depending on the driver implementations this could be slow, especially if
@@ -92,11 +102,6 @@ bool EvsEnumerator::EnumAvailableVideo() {
             }
         }
     }
-
-#ifdef FAKE_CAPTURE
-    sCameraList.emplace_back(FAKE_CAPTURE_ID, "/dev/video0");
-    captureCount++;
-#endif
 
     if (captureCount != 0) {
         videoReady = true;
@@ -234,29 +239,31 @@ Return<sp<IEvsCamera>> EvsEnumerator::openCamera(const hidl_string& cameraId) {
     ALOGD("openCamera");
 
     // Is this a recognized camera id?
-#ifndef FAKE_CAPTURE
     CameraRecord *pRecord = findCameraById(cameraId);
-#else
-    CameraRecord *pRecord = findCameraById(FAKE_CAPTURE_ID);
-    ALOGI("Requested camera %s with fake capture", cameraId.c_str());
-#endif
     if (!pRecord) {
         ALOGE("Requested camera %s not found", cameraId.c_str());
         return nullptr;
     }
 
     // Has this camera already been instantiated by another caller?
-    sp<EvsV4lCamera> pActiveCamera = pRecord->activeInstance.promote();
+    sp<EvsCamera> pActiveCamera = pRecord->activeInstance.promote();
     if (pActiveCamera != nullptr) {
         ALOGW("Killing previous camera because of new caller");
         closeCamera(pActiveCamera);
     }
 
     // Construct a camera instance for the caller
-    pActiveCamera = new EvsV4lCamera(pRecord->desc.cameraId.c_str());
+    std::string fakeCamera(EVS_FAKE_NAME);
+    if (fakeCamera == pRecord->desc.cameraId) {
+        pActiveCamera = new FakeCapture(pRecord->desc.cameraId.c_str());
+    }
+    else {
+        pActiveCamera = new V4l2Capture(pRecord->desc.cameraId.c_str());
+    }
+    pActiveCamera->openup(pRecord->desc.cameraId.c_str());
     pRecord->activeInstance = pActiveCamera;
     if (pActiveCamera == nullptr) {
-        ALOGE("Failed to allocate new EvsV4lCamera object for %s\n", cameraId.c_str());
+        ALOGE("Failed to allocate new EvsCamera object for %s\n", cameraId.c_str());
     }
 
     return pActiveCamera;
@@ -285,7 +292,7 @@ Return<void> EvsEnumerator::closeCamera(const ::android::sp<IEvsCamera>& pCamera
     if (!pRecord) {
         ALOGE("Asked to close a camera whose name isn't recognized");
     } else {
-        sp<EvsV4lCamera> pActiveCamera = pRecord->activeInstance.promote();
+        sp<EvsCamera> pActiveCamera = pRecord->activeInstance.promote();
 
         if (pActiveCamera == nullptr) {
             ALOGE("Somehow a camera is being destroyed when the enumerator didn't know one existed");
@@ -308,17 +315,17 @@ Return<sp<IEvsDisplay>> EvsEnumerator::openDisplay() {
 
     // If we already have a display active, then we need to shut it down so we can
     // give exclusive access to the new caller.
-    sp<EvsGlDisplay> pActiveDisplay = sActiveDisplay.promote();
+    sp<EvsDisplay> pActiveDisplay = sActiveDisplay.promote();
     if (pActiveDisplay != nullptr) {
         ALOGW("Killing previous display because of new caller");
         closeDisplay(pActiveDisplay);
     }
 
     // Create a new display interface and return it
-    pActiveDisplay = new EvsGlDisplay();
+    pActiveDisplay = new EvsDisplay();
     sActiveDisplay = pActiveDisplay;
 
-    ALOGD("Returning new EvsGlDisplay object %p", pActiveDisplay.get());
+    ALOGD("Returning new EvsDisplay object %p", pActiveDisplay.get());
     return pActiveDisplay;
 }
 
@@ -327,7 +334,7 @@ Return<void> EvsEnumerator::closeDisplay(const ::android::sp<IEvsDisplay>& pDisp
     ALOGD("closeDisplay");
 
     // Do we still have a display object we think should be active?
-    sp<EvsGlDisplay> pActiveDisplay = sActiveDisplay.promote();
+    sp<EvsDisplay> pActiveDisplay = sActiveDisplay.promote();
     if (pActiveDisplay == nullptr) {
         ALOGE("Somehow a display is being destroyed when the enumerator didn't know one existed");
     } else if (sActiveDisplay != pDisplay) {

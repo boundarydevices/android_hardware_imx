@@ -23,7 +23,6 @@
 
 #include "ServiceNames.h"
 #include "EvsEnumerator.h"
-#include "EvsGlDisplay.h"
 
 
 // libhidl:

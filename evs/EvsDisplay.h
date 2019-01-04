@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 The Android Open Source Project
+ * Copyright 2019 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_AUTOMOTIVE_EVS_V1_0_EVSGLDISPLAY_H
-#define ANDROID_HARDWARE_AUTOMOTIVE_EVS_V1_0_EVSGLDISPLAY_H
+#ifndef _FSL_EVS_DISPLAY_H
+#define _FSL_EVS_DISPLAY_H
 
 #include <android/hardware/automotive/evs/1.0/IEvsDisplay.h>
-#include <ui/GraphicBuffer.h>
+#include <system/window.h>
 
-#include "GlWrapper.h"
-
+#include <gui/ISurfaceComposer.h>
+#include <gui/Surface.h>
+#include <gui/SurfaceComposerClient.h>
 
 namespace android {
 namespace hardware {
@@ -30,8 +31,9 @@ namespace evs {
 namespace V1_0 {
 namespace implementation {
 
+#define DISPLAY_BUFFER_NUM 3
 
-class EvsGlDisplay : public IEvsDisplay {
+class EvsDisplay : public IEvsDisplay {
 public:
     // Methods from ::android::hardware::automotive::evs::V1_0::IEvsDisplay follow.
     Return<void> getDisplayInfo(getDisplayInfo_cb _hidl_cb)  override;
@@ -41,21 +43,30 @@ public:
     Return<EvsResult> returnTargetBufferForDisplay(const BufferDesc& buffer)  override;
 
     // Implementation details
-    EvsGlDisplay();
-    virtual ~EvsGlDisplay() override;
+    EvsDisplay();
+    virtual ~EvsDisplay() override;
 
-    void forceShutdown();   // This gets called if another caller "steals" ownership of the display
+    // This gets called if another caller "steals" ownership of the display.
+    void forceShutdown();
 
 private:
-    DisplayDesc     mInfo           = {};
-    BufferDesc      mBuffer         = {};       // A graphics buffer into which we'll store images
+    bool initialize();
+    void showWindow();
+    void hideWindow();
 
-    bool            mFrameBusy      = false;    // A flag telling us our buffer is in use
-    DisplayState    mRequestedState = DisplayState::NOT_VISIBLE;
+private:
+    std::mutex mLock;
+    int mFormat = 0;
+    int mWidth  = 0;
+    int mHeight = 0;
 
-    GlWrapper       mGlWrapper;
+    DisplayDesc mInfo = {};
+    ANativeWindowBuffer* mBuffers[DISPLAY_BUFFER_NUM];
+    DisplayState mRequestedState = DisplayState::NOT_VISIBLE;
 
-    std::mutex      mAccessLock;
+    sp<SurfaceComposerClient>  mComposerClient;
+    sp<SurfaceControl> mSurfaceControl;
+    sp<ANativeWindow> mNativeWindow;
 };
 
 } // namespace implementation
@@ -65,4 +76,4 @@ private:
 } // namespace hardware
 } // namespace android
 
-#endif  // ANDROID_HARDWARE_AUTOMOTIVE_EVS_V1_0_EVSGLDISPLAY_H
+#endif  // _FSL_EVS_DISPLAY_H

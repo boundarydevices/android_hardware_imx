@@ -7,20 +7,16 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
     service.cpp \
     EvsEnumerator.cpp \
-    EvsV4lCamera.cpp \
-    EvsGlDisplay.cpp \
-    GlWrapper.cpp \
-    VideoCapture.cpp \
-    bufferCopy.cpp \
-    bufferConvert.cpp
+    EvsCamera.cpp \
+    EvsDisplay.cpp \
+    V4l2Capture.cpp \
+    FakeCapture.cpp
 
 
 LOCAL_SHARED_LIBRARIES := \
     android.hardware.automotive.evs@1.0 \
     libui \
     libgui \
-    libEGL \
-    libGLESv2 \
     libbase \
     libbinder \
     libcutils \
@@ -29,28 +25,23 @@ LOCAL_SHARED_LIBRARIES := \
     libhidltransport \
     liblog \
     libutils \
-    libion \
-    libopencl-2d
+    libfsldisplay \
+    libsync
 
 LOCAL_C_INCLUDES +=  \
-    $(IMX_PATH)/imx/display/display \
-    vendor/nxp-opensource/imx/opencl-2d
+    $(IMX_PATH)/imx/display/display
 
-LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
 LOCAL_MODULE := android.hardware.automotive.evs@1.0-EvsEnumeratorHw
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_MODULE_TAGS := optional
 LOCAL_STRIP_MODULE := keep_symbols
 
-LOCAL_CFLAGS += -DLOG_TAG=\"EvsImxDriver\"
+LOCAL_CFLAGS += -DLOG_TAG=\"EvsSampleDriver\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 LOCAL_CFLAGS += -Wall -Werror -Wunused -Wunreachable-code
 LOCAL_CFLAGS += \
         -DANDROID_SDK_VERSION=$(PLATFORM_SDK_VERSION)
-
-#Use a fake capture device, but not the real camera
-#LOCAL_CFLAGS += -DFAKE_CAPTURE
 
 # NOTE:  It can be helpful, while debugging, to disable optimizations
 #LOCAL_CFLAGS += -O0 -g

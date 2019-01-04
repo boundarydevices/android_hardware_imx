@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 The Android Open Source Project
+ * Copyright 2019 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +15,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_AUTOMOTIVE_EVS_V1_0_EVSV4LCAMERA_H
-#define ANDROID_HARDWARE_AUTOMOTIVE_EVS_V1_0_EVSV4LCAMERA_H
+#ifndef _FSL_EVS_CAMERA_H
+#define _FSL_EVS_CAMERA_H
 
 #include <android/hardware/automotive/evs/1.0/types.h>
 #include <android/hardware/automotive/evs/1.0/IEvsCamera.h>
@@ -25,8 +26,9 @@
 #include <thread>
 #include <functional>
 
-#include "VideoCapture.h"
-
+#include <Memory.h>
+#include <MemoryDesc.h>
+#include <MemoryManager.h>
 
 namespace android {
 namespace hardware {
@@ -36,10 +38,11 @@ namespace V1_0 {
 namespace implementation {
 
 using ::android::hardware::hidl_death_recipient;
-// From EvsEnumerator.h
-class EvsEnumerator;
 
-class EvsV4lCamera : public IEvsCamera {
+#define CAMERA_BUFFER_NUM 3
+
+class EvsCamera : public IEvsCamera
+{
 public:
     // Methods from ::android::hardware::automotive::evs::V1_0::IEvsCamera follow.
     Return<void> getCameraInfo(getCameraInfo_cb _hidl_cb)  override;
@@ -51,62 +54,75 @@ public:
     Return <EvsResult> setExtendedInfo(uint32_t opaqueIdentifier, int32_t opaqueValue) override;
 
     // Implementation details
-    EvsV4lCamera(const char *deviceName);
-    virtual ~EvsV4lCamera() override;
+    EvsCamera(const char *deviceName);
+    virtual ~EvsCamera() override;
     void shutdown();
+    void openup(const char *deviceName);
 
     const CameraDesc& getDesc() { return mDescription; };
+
+protected:
+    virtual bool onOpen(const char* deviceName) = 0;
+    virtual void onClose() = 0;
+
+    virtual bool onStart() = 0;
+    virtual void onStop() = 0;
+
+    virtual bool isOpen() = 0;
+    // Valid only after open()
+    virtual bool onFrameReturn(int index) = 0;
+    virtual fsl::Memory* onFrameCollect(int &index) = 0;
+
+    virtual void onMemoryCreate();
+    virtual void onMemoryDestroy();
 
 private:
     void releaseResource(void);
     class EvsAppRecipient : public hidl_death_recipient
     {
     public:
-        EvsAppRecipient(sp<EvsV4lCamera> camera) : mCamera(camera) {}
+        EvsAppRecipient(sp<EvsCamera> camera) : mCamera(camera) {}
         ~EvsAppRecipient() {}
         virtual void serviceDied(uint64_t cookie,
               const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/);
 
     private:
-        sp<EvsV4lCamera> mCamera;
+        sp<EvsCamera> mCamera;
     };
     sp<EvsAppRecipient> mEvsAppRecipient;
 
-private:
-    // These three functions are expected to be called while mAccessLock is held
-    bool setAvailableFrames_Locked(unsigned bufferCount);
-    unsigned increaseAvailableFrames_Locked(unsigned numToAdd);
-    unsigned decreaseAvailableFrames_Locked(unsigned numToRemove);
+    // These functions are used to send/receive frame.
+    void forwardFrame(fsl::Memory* handle, int index);
+    void collectFrames();
 
-    void forwardFrame(imageBuffer* tgt, void* data);
+protected:
+    // The callback used to deliver each frame.
+    sp <IEvsCameraStream> mStream = nullptr;
+    // The properties of this camera.
+    CameraDesc mDescription = {};
 
-    sp <IEvsCameraStream> mStream = nullptr;  // The callback used to deliver each frame
+    // Synchronization deconflict capture thread from main service thread.
+    // Note that service interface remains single threaded (ie: not reentrant)
+    std::mutex mLock;
 
-    VideoCapture          mVideo;   // Interface to the v4l device
+    fsl::Memory* mBuffers[CAMERA_BUFFER_NUM] = {nullptr};
 
-    CameraDesc mDescription = {};   // The properties of this camera
-    uint32_t mFormat = 0;           // Values from android_pixel_format_t
-    uint32_t mUsage  = 0;           // Values from from Gralloc.h
-    uint32_t mStride = 0;           // Pixels per row (may be greater than image width)
+    __u32 mFormat = 0;
+    __u32 mWidth  = 0;
+    __u32 mHeight = 0;
 
-    struct BufferRecord {
-        buffer_handle_t handle;
-        bool inUse;
+    // The thread we'll use to dispatch frames.
+    std::thread mCaptureThread;
+    // Used to signal the frame loop (see RunModes below).
+    std::atomic<int> mRunMode;
 
-        explicit BufferRecord(buffer_handle_t h) : handle(h), inUse(false) {};
+    // Careful changing these -- we're using bit-wise ops to manipulate these
+    enum RunModes {
+        STOPPED     = 0,
+        RUN         = 1,
+        STOPPING    = 2,
     };
-
-    std::vector <BufferRecord> mBuffers;    // Graphics buffers to transfer images
-    unsigned mFramesAllowed;                // How many buffers are we currently using
-    unsigned mFramesInUse;                  // How many buffers are currently outstanding
-
-    // Which format specific function we need to use to move camera imagery into our output buffers
-    void(*mFillBufferFromVideo)(const BufferDesc& tgtBuff, uint8_t* tgt,
-                                void* imgData, unsigned imgStride);
-
-    // Synchronization necessary to deconflict the capture thread from the main service thread
-    // Note that the service interface remains single threaded (ie: not reentrant)
-    std::mutex mAccessLock;
+    int mDeqIdx;
 };
 
 } // namespace implementation
@@ -116,4 +132,4 @@ private:
 } // namespace hardware
 } // namespace android
 
-#endif  // ANDROID_HARDWARE_AUTOMOTIVE_EVS_V1_0_EVSV4LCAMERA_H
+#endif  // _FSL_EVS_CAMERA_H
