@@ -33,6 +33,11 @@ LOCAL_C_INCLUDES += \
 	hardware/libhardware/include
 LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa libaudioutils libdl libpower
 LOCAL_MODULE_TAGS := optional
+
+ifeq ($(PRODUCT_IMX_CAR),true)
+LOCAL_CFLAGS += -DCAR_AUDIO
+endif
+
 include $(BUILD_SHARED_LIBRARY)
 
 endif

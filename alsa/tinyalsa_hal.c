@@ -488,6 +488,10 @@ static void select_output_device(struct imx_audio_device *adev)
     earpiece_on     = adev->out_device & AUDIO_DEVICE_OUT_EARPIECE;
     bt_on           = adev->out_device & AUDIO_DEVICE_OUT_ALL_SCO;
 
+#ifdef CAR_AUDIO
+    speaker_on      =  adev->out_device & AUDIO_DEVICE_OUT_BUS;
+    headphone_on    =  adev->out_device & AUDIO_DEVICE_OUT_BUS;
+#endif
     /* force rx path according to TTY mode when in call */
     if (adev->mode == AUDIO_MODE_IN_CALL && !bt_on) {
         switch(adev->tty_mode) {
@@ -517,7 +521,7 @@ static void select_output_device(struct imx_audio_device *adev)
         }
     }
     /*if mode = AUDIO_MODE_IN_CALL*/
-    ALOGV("headphone %d ,headset %d ,speaker %d, earpiece %d, \n", headphone_on, headset_on, speaker_on, earpiece_on);
+    ALOGI("%s(), headphone %d ,headset %d ,speaker %d, earpiece %d, \n", __func__, headphone_on, headset_on, speaker_on, earpiece_on);
     /* select output stage */
     for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
         set_route_by_array(adev->mixer[i], adev->card_list[i]->bt_output, bt_on);
@@ -635,7 +639,7 @@ static int get_card_for_name(struct imx_audio_device *adev, const char *name, in
     return card;
 }
 
-#ifdef PRODUCT_IOT
+#if defined(PRODUCT_IOT) || defined(CAR_AUDIO)
 static int get_card_for_bus(struct imx_audio_device* adev, const char* bus, int *p_array_index) {
     if (!adev || !bus) {
         ALOGE("Invalid audio device or bus");
@@ -698,7 +702,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     int pcm_device;
     bool success = false;
 
-    ALOGI("start_output_stream_primary... %p, device %d",out, out->device);
+    ALOGI("start_output_stream_primary... %p, device %d, address %s, mode %d",out, out->device, out->address, adev->mode);
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         /* FIXME: only works if only one output can be active at a time */
@@ -711,7 +715,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
         out->config[PCM_NORMAL] = pcm_config_mm_out;
 
-#ifdef PRODUCT_IOT
+#if defined(PRODUCT_IOT)
         const char* bus = audio_map_get_audio_bus(out->device, out->address);
         if (!bus) {
             ALOGE("Failed to find bus with device %d addr %s.",
@@ -725,6 +729,8 @@ static int start_output_stream_primary(struct imx_stream_out *out)
             ALOGE("Cannot find supported card for bus %s.", bus);
             return -EINVAL;
         }
+#elif defined(CAR_AUDIO)
+        card = get_card_for_bus(adev, out->address, NULL);
 #else
         card = get_card_for_device(adev, pcm_device, PCM_OUT, &out->card_index);
 #endif
@@ -791,6 +797,7 @@ static int start_output_stream(struct imx_stream_out *out)
     if (lpa_enable)
         flags |= PCM_LPA;
 
+#ifndef CAR_AUDIO
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
             !adev->active_output[OUTPUT_PRIMARY]->standby) {
@@ -799,6 +806,7 @@ static int start_output_stream(struct imx_stream_out *out)
         do_output_standby(p_out, true);
         pthread_mutex_unlock(&p_out->lock);
     }
+#endif
 
     if (pcm_type == PCM_DSD) {
         card = get_card_for_name(adev, AK4497_CARD_NAME, &out->card_index);
@@ -1539,7 +1547,7 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
 
-    if(adev->b_sco_rx_running)
+    if((adev->b_sco_rx_running) && (out == adev->active_output[OUTPUT_PRIMARY]))
         ALOGW("out_write_primary, bt receive task is running");
 
     if (out->standby) {
@@ -3329,12 +3337,16 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     } else {
         ALOGV("adev_open_output_stream() normal buffer");
         if (ladev->active_output[OUTPUT_PRIMARY] != NULL) {
+#ifdef CAR_AUDIO
+            ALOGW("%s: already has primary output: %p", __func__, ladev->active_output[OUTPUT_PRIMARY]);
+#else
             if (flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
                 ret = -ENOSYS;
                 goto err_open;
             } else {
                 ALOGW("%s: already has primary output: %p", __func__, ladev->active_output[OUTPUT_PRIMARY]);
             }
+#endif
         }
         output_type = OUTPUT_PRIMARY;
         pcm_type = PCM_NORMAL;
@@ -3401,8 +3413,18 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     config->sample_rate = out->stream.common.get_sample_rate(&out->stream.common);
 
     *stream_out = &out->stream;
+
+#ifdef CAR_AUDIO
+    // just register the first primary output.
+    if(output_type != OUTPUT_PRIMARY)
+      ladev->active_output[output_type] = out;
+    else if(ladev->active_output[output_type] == NULL)
+       ladev->active_output[output_type] = out;
+#else
     ladev->active_output[output_type] = out;
-    ALOGI("%s: exit: output_type %d", __func__, output_type);
+#endif
+
+    ALOGI("%s: exit: output_type %d, output %p", __func__, output_type, *stream_out);
     return 0;
 
 err_open:

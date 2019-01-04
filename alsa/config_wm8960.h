@@ -122,12 +122,14 @@ static struct route_setting mm_main_mic_input_wm8960[] = {
 static struct audio_card  wm8960_card = {
     .name = "wm8960-audio",
     .driver_name = "wm8960-audio",
+    .bus_name = "bus1_system_sound_out",
     .supported_out_devices = (AUDIO_DEVICE_OUT_EARPIECE |
             AUDIO_DEVICE_OUT_SPEAKER |
             AUDIO_DEVICE_OUT_WIRED_HEADSET |
             AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
             AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET |
             AUDIO_DEVICE_OUT_ALL_SCO |
+            AUDIO_DEVICE_OUT_BUS |
             AUDIO_DEVICE_OUT_DEFAULT ),
     .supported_in_devices = (
             AUDIO_DEVICE_IN_COMMUNICATION |
