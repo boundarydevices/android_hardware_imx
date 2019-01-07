@@ -203,7 +203,7 @@ struct pcm_config pcm_config_dsd = {
     .rate = DSD64_SAMPLING_RATE / DSD_RATE_TO_PCM_RATE, /* changed when the stream is opened */
     .period_size = DSD_PERIOD_SIZE,
     .period_count = PLAYBACK_DSD_PERIOD_COUNT,
-    .format = PCM_FORMAT_DSD,
+    .format = PCM_FORMAT_S32_LE, // This will be converted to SNDRV_PCM_FORMAT_DSD_U32_LE in tinyalsa
     .start_threshold = 0,
     .avail_min = 0,
 };
@@ -809,6 +809,7 @@ static int start_output_stream(struct imx_stream_out *out)
 #endif
 
     if (pcm_type == PCM_DSD) {
+        flags |= PCM_FLAG_DSD;
         card = get_card_for_name(adev, AK4497_CARD_NAME, &out->card_index);
         if (card < 0) card = get_card_for_name(adev, AK4458_CARD_NAME, &out->card_index);
     } else
@@ -1191,6 +1192,7 @@ static int out_flush(struct audio_stream_out* stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
+    unsigned int pcm_flags = PCM_OUT | PCM_MONOTONIC;
     int status = 0;
 
     ALOGI("%s", __func__);
@@ -1202,7 +1204,9 @@ static int out_flush(struct audio_stream_out* stream)
         out->pcm[out->pcm_type] = NULL;
     }
 
-    out->pcm[out->pcm_type] = pcm_open(adev->card_list[out->card_index]->card, 0, PCM_OUT | PCM_MONOTONIC, &out->config[out->pcm_type]);
+    if (out->pcm_type == PCM_DSD)
+        pcm_flags |= PCM_FLAG_DSD;
+    out->pcm[out->pcm_type] = pcm_open(adev->card_list[out->card_index]->card, 0, pcm_flags, &out->config[out->pcm_type]);
     if(out->pcm[out->pcm_type])
         out->standby = 0;
 
