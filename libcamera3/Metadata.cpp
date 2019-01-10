@@ -424,7 +424,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                     1,
                     &supportedHwLvl);
 
-    static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_PER_FRAME_CONTROL;
+    static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_UNKNOWN;
     m.addInt32(ANDROID_SYNC_MAX_LATENCY, 1, &maxLatency);
 
     static const uint8_t croppingType = ANDROID_SCALER_CROPPING_TYPE_FREEFORM;
