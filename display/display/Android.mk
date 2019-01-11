@@ -40,6 +40,7 @@ include $(CLEAR_VARS)
 LOCAL_PRELINK_MODULE := false
 
 LOCAL_SRC_FILES := Display.cpp \
+                   DisplayHal.cpp \
                    DisplayManager.cpp \
                    FbDisplay.cpp \
                    KmsDisplay.cpp \
@@ -71,6 +72,9 @@ LOCAL_SHARED_LIBRARIES :=   \
     libsync                 \
     libion                  \
     libedid                 \
+    nxp.hardware.display@1.0 \
+    libhidlbase \
+    libhidltransport \
     libdrm_android
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator

@@ -17,8 +17,6 @@
 #include "EvsDisplay.h"
 
 #include <sync/sync.h>
-#include <Memory.h>
-#include <ui/DisplayInfo.h>
 
 namespace android {
 namespace hardware {
@@ -28,6 +26,7 @@ namespace V1_0 {
 namespace implementation {
 
 using namespace android;
+using ::nxp::hardware::display::V1_0::Error;
 
 #define DISPLAY_WIDTH 1280
 #define DISPLAY_HEIGHT 720
@@ -38,9 +37,12 @@ EvsDisplay::EvsDisplay()
 
     // Set up our self description
     // NOTE:  These are arbitrary values chosen for testing
-    mInfo.displayId   = "Mock Display";
+    mInfo.displayId   = "evs hal Display";
     mInfo.vendorFlags = 3870;
-    mFormat = PIXEL_FORMAT_RGBA_8888;
+
+    mWidth = DISPLAY_WIDTH;
+    mHeight = DISPLAY_HEIGHT;
+    mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
 
     initialize();
 }
@@ -54,48 +56,11 @@ EvsDisplay::~EvsDisplay()
 void EvsDisplay::showWindow()
 {
     ALOGI("%s window is showing", __func__);
-    sp<SurfaceControl> surfaceControl;
-    {
-        std::lock_guard<std::mutex> lock(mLock);
-        surfaceControl = mSurfaceControl;
-    }
-
-    if (surfaceControl != nullptr) {
-#if ANDROID_SDK_VERSION >= 28
-        SurfaceComposerClient::Transaction{}
-                .setLayer(surfaceControl, 0x7FFFFFFF)     // always on top
-                .show(surfaceControl)
-                .apply();
-#else
-        SurfaceComposerClient::openGlobalTransaction();
-                surfaceControl->setLayer(0x7FFFFFFF);     // always on top
-                surfaceControl->show();
-                SurfaceComposerClient::closeGlobalTransaction();
-#endif
-    }
 }
 
 
 void EvsDisplay::hideWindow()
 {
-    ALOGI("%s widow is hiding", __func__);
-    sp<SurfaceControl> surfaceControl;
-    {
-        std::lock_guard<std::mutex> lock(mLock);
-        surfaceControl = mSurfaceControl;
-    }
-
-    if (surfaceControl != nullptr) {
-#if ANDROID_SDK_VERSION >= 28
-        SurfaceComposerClient::Transaction{}
-                .hide(surfaceControl)
-                .apply();
-#else
-        SurfaceComposerClient::openGlobalTransaction();
-                surfaceControl->hide();
-                SurfaceComposerClient::closeGlobalTransaction();
-#endif
-    }
 }
 
 // Main entry point
@@ -104,55 +69,59 @@ bool EvsDisplay::initialize()
     //
     //  Create the native full screen window and get a suitable configuration to match it
     //
-    status_t err;
-
-    mComposerClient = new SurfaceComposerClient();
-    if (mComposerClient == nullptr) {
-        ALOGE("SurfaceComposerClient couldn't be allocated");
-        return false;
-    }
-    err = mComposerClient->initCheck();
-    if (err != NO_ERROR) {
-        ALOGE("SurfaceComposerClient::initCheck error: %#x", err);
-        return false;
+    uint32_t layer = -1;
+    sp<IDisplay> display = nullptr;
+    while (display.get() == nullptr) {
+        display = IDisplay::getService();
+        if (display.get() == nullptr) {
+            ALOGE("%s get display service failed", __func__);
+            usleep(200000);
+        }
     }
 
-    // Get main display parameters.
-    sp <IBinder> mainDpy = SurfaceComposerClient::getBuiltInDisplay(
-            ISurfaceComposer::eDisplayIdMain);
-    DisplayInfo mainDpyInfo;
-    err = SurfaceComposerClient::getDisplayInfo(mainDpy, &mainDpyInfo);
-    if (err != NO_ERROR) {
-        ALOGE("ERROR: unable to get display characteristics");
-        return false;
-    }
+    display->getLayer(DISPLAY_BUFFER_NUM,
+        [&](const auto& tmpError, const auto& tmpLayer) {
+            if (tmpError == Error::NONE) {
+                layer = tmpLayer;
+            }
+    });
 
-    if (mainDpyInfo.orientation != DISPLAY_ORIENTATION_0 &&
-        mainDpyInfo.orientation != DISPLAY_ORIENTATION_180) {
-        // rotated
-        mWidth = mainDpyInfo.h;
-        mHeight = mainDpyInfo.w;
-    } else {
-        mWidth = mainDpyInfo.w;
-        mHeight = mainDpyInfo.h;
-    }
-
-    mSurfaceControl = mComposerClient->createSurface(
-            String8("Evs Display"), mWidth, mHeight,
-            mFormat, ISurfaceComposerClient::eOpaque);
-    if (mSurfaceControl == nullptr || !mSurfaceControl->isValid()) {
-        ALOGE("Failed to create SurfaceControl");
+    if (layer == (uint32_t)-1) {
+        ALOGE("%s get layer failed", __func__);
         return false;
     }
 
-    mNativeWindow = mSurfaceControl->getSurface();
+    {
+        std::unique_lock<std::mutex> lock(mLock);
+        mIndex = 0;
+        mDisplay = display;
+        mLayer = layer;
+    }
 
-    // configure native window.
-    native_window_api_connect(mNativeWindow.get(), NATIVE_WINDOW_API_EGL);
-    native_window_set_usage(mNativeWindow.get(), fsl::USAGE_HW_TEXTURE
-                  | fsl::USAGE_HW_RENDER); //fsl::USAGE_GPU_TILED_VIV
-    native_window_set_buffer_count(mNativeWindow.get(), DISPLAY_BUFFER_NUM);
-    memset(mBuffers, 0, sizeof(mBuffers));
+    // allocate memory.
+    fsl::Memory *buffer = nullptr;
+    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+    fsl::MemoryDesc desc;
+    desc.mWidth = mWidth;
+    desc.mHeight = mHeight;
+    desc.mFormat = mFormat;
+    desc.mFslFormat = mFormat;
+    desc.mProduceUsage |= fsl::USAGE_HW_TEXTURE
+            | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
+    desc.mFlag = 0;
+    int ret = desc.checkFormat();
+    if (ret != 0) {
+        ALOGE("%s checkFormat failed", __func__);
+        return false;
+    }
+
+    for (int i = 0; i < DISPLAY_BUFFER_NUM; i++) {
+        buffer = nullptr;
+        allocator->allocMemory(desc, &buffer);
+
+        std::unique_lock<std::mutex> lock(mLock);
+        mBuffers[i] = buffer;
+    }
 
     return true;
 }
@@ -163,31 +132,35 @@ bool EvsDisplay::initialize()
 void EvsDisplay::forceShutdown()
 {
     ALOGD("EvsDisplay forceShutdown");
-    sp<ANativeWindow> window;
+    int layer;
+    sp<IDisplay> display;
     {
-        std::lock_guard<std::mutex> lock(mLock);
-        window = mNativeWindow;
+        std::unique_lock<std::mutex> lock(mLock);
+        layer = mLayer;
+        mLayer = -1;
+        display = mDisplay;
     }
 
-    if (window != nullptr) {
-        native_window_api_disconnect(window.get(), NATIVE_WINDOW_API_EGL);
+    if (display != nullptr) {
+        display->putLayer(layer);
     }
 
-    for (int i=0; i<DISPLAY_BUFFER_NUM; i++) {
-        std::lock_guard<std::mutex> lock(mLock);
-        if (mBuffers[i] == nullptr) {
-            continue;
+    fsl::Memory *buffer = nullptr;
+    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+    for (int i = 0; i < DISPLAY_BUFFER_NUM; i++) {
+        {
+            std::unique_lock<std::mutex> lock(mLock);
+            if (mBuffers[i] == nullptr) {
+                continue;
+            }
+
+            buffer = mBuffers[i];
+            mBuffers[i] = nullptr;
         }
-
-        mBuffers[i]->decStrong(mBuffers[i]);
-        mBuffers[i] = nullptr;
+        allocator->releaseMemory(buffer);
     }
 
     std::lock_guard<std::mutex> lock(mLock);
-    // Let go of our SurfaceComposer resources
-    mNativeWindow.clear();
-    mSurfaceControl.clear();
-    mComposerClient.clear();
     // Put this object into an unrecoverable error state since somebody else
     // is going to own the display now.
     mRequestedState = DisplayState::DEAD;
@@ -276,7 +249,6 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
 {
     ALOGV("getTargetBuffer");
 
-    sp<ANativeWindow> window;
     BufferDesc hbuf = {};
     {
         std::lock_guard<std::mutex> lock(mLock);
@@ -286,50 +258,45 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
             _hidl_cb(hbuf);
             return Void();
         }
-        window = mNativeWindow;
     }
 
-    if (window == nullptr) {
-        ALOGE("%s invalid window", __func__);
-        _hidl_cb(hbuf);
-        return Void();
-    }
-
-    ANativeWindowBuffer *buffer = nullptr;
-    int fenceFd = -1;
-    int ret = window->dequeueBuffer(window.get(), &buffer, &fenceFd);
-    if (ret != 0) {
-        ALOGE("getTargetBuffer called while no buffers available.");
-        _hidl_cb(hbuf);
-        return Void();
-    }
-    if (fenceFd != -1) {
-        sync_wait(fenceFd, -1);
-        close(fenceFd);
-    }
-
-    int index = -1;
+    int layer;
+    uint32_t slot = -1;
+    sp<IDisplay> display = nullptr;
     {
         std::lock_guard<std::mutex> lock(mLock);
-        for (int i=0; i<DISPLAY_BUFFER_NUM; i++) {
-            if (mBuffers[i] != nullptr) {
-                continue;
-            }
-
-            mBuffers[i] = buffer;
-            index = i;
-            break;
-        }
+        display = mDisplay;
+        layer = mLayer;
     }
-
-    if (index == -1) {
-        ALOGE("%s can't fine free slot", __func__);
+    if (display == nullptr)  {
+        ALOGE("%s invalid display", __func__);
         _hidl_cb(hbuf);
         return Void();
     }
 
-    // reference to the buffer.
-    buffer->incStrong(buffer);
+    display->getSlot(layer, [&](const auto& tmpError, const auto& tmpSlot) {
+        if (tmpError == Error::NONE) {
+            slot = tmpSlot;
+        }
+    });
+
+    if (slot == (uint32_t)-1) {
+        ALOGE("%s get slot failed", __func__);
+        _hidl_cb(hbuf);
+        return Void();
+    }
+
+    fsl::Memory *buffer = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(mLock);
+        if (mBuffers[slot] == nullptr) {
+            ALOGE("%s can't find valid buffer", __func__);
+            _hidl_cb(hbuf);
+            return Void();
+        }
+        buffer = mBuffers[slot];
+    }
+
     // Assemble the buffer description we'll use for our render target
     // hard code the resolution 640*480
     hbuf.width     = buffer->width;
@@ -337,9 +304,9 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
     hbuf.stride    = buffer->stride;
     hbuf.format    = buffer->format;
     hbuf.usage     = buffer->usage;
-    hbuf.bufferId  = index;
+    hbuf.bufferId  = slot;
     hbuf.pixelSize = 4;
-    hbuf.memHandle = buffer->handle;
+    hbuf.memHandle = buffer;
 
     // Send the buffer to the client
     ALOGV("Providing display buffer handle %p as id %d",
@@ -368,14 +335,15 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc& buf
     }
 
     DisplayState state;
-    sp<ANativeWindow> window;
-    ANativeWindowBuffer *abuffer = nullptr;
+    sp<IDisplay> display;
+    fsl::Memory *abuffer = nullptr;
+    int layer;
     {
         std::lock_guard<std::mutex> lock(mLock);
         state = mRequestedState;
         abuffer = mBuffers[buffer.bufferId];
-        mBuffers[buffer.bufferId] = nullptr;
-        window = mNativeWindow;
+        display = mDisplay;
+        layer = mLayer;
     }
 
     if (abuffer == nullptr) {
@@ -383,12 +351,9 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc& buf
         return EvsResult::INVALID_ARG;
     }
 
-    if (window != nullptr) {
-        window->queueBuffer(window.get(), abuffer, -1);
+    if (display != nullptr) {
+        display->presentLayer(layer, buffer.bufferId, abuffer);
     }
-
-    // deference buffer.
-    abuffer->decStrong(abuffer);
 
     // If we've been displaced by another owner of the display, then we can't do anything else
     if (state == DisplayState::DEAD) {

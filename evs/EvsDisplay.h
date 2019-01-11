@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#ifndef _FSL_EVS_DISPLAY_H
-#define _FSL_EVS_DISPLAY_H
+#ifndef _FSL_EVS_HW_DISPLAY_H
+#define _FSL_EVS_HW_DISPLAY_H
 
 #include <android/hardware/automotive/evs/1.0/IEvsDisplay.h>
-#include <system/window.h>
+#include <nxp/hardware/display/1.0/IDisplay.h>
 
-#include <gui/ISurfaceComposer.h>
-#include <gui/Surface.h>
-#include <gui/SurfaceComposerClient.h>
+#include <Memory.h>
+#include <MemoryDesc.h>
+#include <MemoryManager.h>
 
 namespace android {
 namespace hardware {
@@ -31,7 +31,9 @@ namespace evs {
 namespace V1_0 {
 namespace implementation {
 
+using ::nxp::hardware::display::V1_0::IDisplay;
 #define DISPLAY_BUFFER_NUM 3
+
 
 class EvsDisplay : public IEvsDisplay {
 public:
@@ -60,13 +62,14 @@ private:
     int mWidth  = 0;
     int mHeight = 0;
 
+    int mIndex = -1;
+    fsl::Memory* mBuffers[DISPLAY_BUFFER_NUM] = {};
+
     DisplayDesc mInfo = {};
-    ANativeWindowBuffer* mBuffers[DISPLAY_BUFFER_NUM];
     DisplayState mRequestedState = DisplayState::NOT_VISIBLE;
 
-    sp<SurfaceComposerClient>  mComposerClient;
-    sp<SurfaceControl> mSurfaceControl;
-    sp<ANativeWindow> mNativeWindow;
+    uint32_t mLayer = -1;
+    sp<IDisplay> mDisplay;
 };
 
 } // namespace implementation

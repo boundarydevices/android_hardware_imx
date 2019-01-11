@@ -20,7 +20,6 @@
 
 #include <android/hardware/automotive/evs/1.0/types.h>
 #include <android/hardware/automotive/evs/1.0/IEvsCamera.h>
-#include <ui/GraphicBuffer.h>
 #include <hwbinder/IBinder.h>
 
 #include <thread>

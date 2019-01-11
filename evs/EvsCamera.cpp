@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cutils/log.h>
+#include <log/log.h>
 #include "EvsCamera.h"
 
 namespace android {
@@ -378,6 +378,10 @@ void EvsCamera::onMemoryDestroy()
     for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
         {
             std::unique_lock <std::mutex> lock(mLock);
+            if (mBuffers[i] == nullptr) {
+                continue;
+            }
+
             buffer = mBuffers[i];
             mBuffers[i] = nullptr;
         }

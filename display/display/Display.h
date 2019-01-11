@@ -22,10 +22,12 @@
 #include "Layer.h"
 #include "Composer.h"
 #include "Edid.h"
+#include <vector>
 
 namespace fsl {
 
 using android::Mutex;
+using android::Condition;
 using android::Thread;
 using android::sp;
 
@@ -37,6 +39,31 @@ using android::sp;
 #define OVERLAY_COMPOSE_MASK (1 << OVERLAY_COMPOSE_BIT)
 #define LAST_OVERLAY_MASK (1 << LAST_OVERLAY_BIT)
 #define CLIENT_COMPOSE_MASK (1 << CLIENT_COMPOSE_BIT)
+
+class BufferSlot
+{
+public:
+    static const uint32_t MAX_COUNT = 32;
+    BufferSlot(uint32_t count);
+    ~BufferSlot();
+
+    // it may be block when no free slot.
+    int32_t getFreeSlot();
+    // it will return failure when no present slot.
+    int32_t getPresentSlot();
+    // get buffer from present queue.
+    Memory* getPresentBuffer(int32_t slot);
+    // add slot and buffer to present queue.
+    void addPresentSlot(int32_t slot, Memory* buffer);
+
+private:
+    Mutex mLock;
+    Condition mCondition;
+    std::vector<int32_t> mFreeSlot;
+    std::vector<int32_t> mPresentSlot;
+    int32_t mLastPresent;
+    Memory *mBuffers[MAX_COUNT];
+};
 
 class EventListener
 {
@@ -111,6 +138,11 @@ public:
     // to do composite all layers.
     virtual int composeLayers();
 
+    // add hw layer.
+    int addHwLayer(uint32_t index, Layer *layer);
+    // remove hw layer.
+    int removeHwLayer(uint32_t index);
+
     // display property.
     // set display vsync/hotplug callback.
     virtual void setCallback(EventListener* callback);
@@ -178,6 +210,7 @@ protected:
 
     LayerVector mLayerVector;
     Layer* mLayers[MAX_LAYERS];
+    Layer* mHwLayers[MAX_LAYERS];
     Composer& mComposer;
     Memory* mRenderTarget;
     int mAcquireFence;

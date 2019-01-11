@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <cutils/log.h>
 #include <sync/sync.h>
 
@@ -45,6 +46,7 @@ Display::Display()
     for (size_t i=0; i<MAX_LAYERS; i++) {
         mLayers[i] = new Layer();
         mLayers[i]->index = i;
+        mHwLayers[i] = nullptr;
     }
 
     invalidLayers();
@@ -414,6 +416,11 @@ bool Display::check2DComposition()
     }
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
+        // hw layer must be handled by device.
+        if (mHwLayers[i] != nullptr) {
+            return true;
+        }
+
         if (!mLayers[i]->busy) {
             continue;
         }
@@ -525,6 +532,17 @@ bool Display::verifyLayers()
         mLayerVector.add(mLayers[i]);
     }
 
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (mHwLayers[i] == nullptr) {
+            continue;
+        }
+        if (!deviceCompose) {
+            ALOGI("please enable hwc property, valid:%d, disabled:%d",
+                    mComposer.isValid(), mComposer.isDisabled());
+            break;
+        }
+    }
+
     if ((mComposeFlag & 1 << OVERLAY_COMPOSE_BIT) &&
             (mComposeFlag & 1 << LAST_OVERLAY_BIT) && !mUiUpdate) {
         for (size_t i=0; i<MAX_LAYERS; i++) {
@@ -605,6 +623,38 @@ int Display::setSkipLayer(bool skip)
     return 0;
 }
 
+int Display::addHwLayer(uint32_t index, Layer *layer)
+{
+    if (layer == nullptr || index >= MAX_LAYERS) {
+        return -EINVAL;
+    }
+
+    Mutex::Autolock _l(mLock);
+    if (mHwLayers[index] != nullptr) {
+        ALOGI("%s slot:%uz will be override", __func__, index);
+    }
+    mHwLayers[index] = layer;
+
+    return 0;
+}
+
+int Display::removeHwLayer(uint32_t index)
+{
+    if (index >= MAX_LAYERS) {
+        return -EINVAL;
+    }
+
+    Mutex::Autolock _l(mLock);
+    if (mHwLayers[index] == nullptr) {
+        return 0;
+    }
+
+    mLayerVector.remove(mHwLayers[index]);
+    mHwLayers[index] = nullptr;
+
+    return 0;
+}
+
 int Display::composeLayers()
 {
     Mutex::Autolock _l(mLock);
@@ -645,6 +695,36 @@ int Display::composeLayersLocked()
         return ret;
     }
 
+    // handle hw layers.
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (mHwLayers[i] == nullptr) {
+            continue;
+        }
+        if (!(mHwLayers[i]->flags & BUFFER_SLOT)) {
+            ALOGE("%s hw layer without BUFFER_SLOT flag", __func__);
+            continue;
+        }
+
+        BufferSlot *queue = (BufferSlot*)mHwLayers[i]->priv;
+        if (queue == nullptr) {
+            ALOGE("%s hw layer without queue", __func__);
+            continue;
+        }
+
+        int slot = queue->getPresentSlot();
+        if (slot < 0) {
+            ALOGW("%s hw layer no buffer", __func__);
+            continue;
+        }
+
+        mHwLayers[i]->handle = queue->getPresentBuffer(slot);
+        if (mHwLayers[i]->handle == nullptr) {
+            ALOGW("%s hw layer no valid handle", __func__);
+            continue;
+        }
+        mLayerVector.add(mHwLayers[i]);
+    }
+
     mComposer.lockSurface(mRenderTarget);
     mComposer.setRenderTarget(mRenderTarget);
     mComposer.clearWormHole(mLayerVector);
@@ -663,12 +743,12 @@ int Display::composeLayersLocked()
             continue;
         }
 
-        if (layer->handle != NULL)
+        if (layer->handle != NULL && !(layer->flags & BUFFER_SLOT))
             mComposer.lockSurface(layer->handle);
 
         ret = mComposer.composeLayer(layer, i==0);
 
-        if (layer->handle != NULL)
+        if (layer->handle != NULL && !(layer->flags & BUFFER_SLOT))
             mComposer.unlockSurface(layer->handle);
 
         if (ret != 0) {
@@ -681,6 +761,96 @@ int Display::composeLayersLocked()
     mComposer.finishComposite();
 
     return ret;
+}
+
+// ------------------BufferSlot-----------------------------
+BufferSlot::BufferSlot(uint32_t count)
+{
+    if (count > MAX_COUNT) {
+        count = MAX_COUNT;
+    }
+
+    for (uint32_t i=0; i<MAX_COUNT; i++) {
+        mBuffers[i] = nullptr;
+    }
+
+    for (uint32_t i=0; i<count; i++) {
+        mFreeSlot.emplace_back(i);
+    }
+    mPresentSlot.clear();
+    mLastPresent = -1;
+}
+
+BufferSlot::~BufferSlot()
+{
+    native_handle_t *handle;
+    Mutex::Autolock _l(mLock);
+    for (uint32_t i=0; i<MAX_COUNT; i++) {
+        if (mBuffers[i] == nullptr) {
+            continue;
+        }
+        handle = (native_handle_t*)mBuffers[i];
+        native_handle_close(handle);
+        native_handle_delete(handle);
+    }
+}
+
+int32_t BufferSlot::getFreeSlot()
+{
+    Mutex::Autolock _l(mLock);
+    if (mFreeSlot.empty()) {
+        mCondition.wait(mLock);
+    }
+
+    int32_t slot;
+    auto it = mFreeSlot.begin();
+    slot = *it;
+    mFreeSlot.erase(it);
+
+    return slot;
+}
+
+int32_t BufferSlot::getPresentSlot()
+{
+    Mutex::Autolock _l(mLock);
+    if (mPresentSlot.empty()) {
+        return mLastPresent;
+    }
+
+    int32_t slot;
+    auto it = mPresentSlot.begin();
+    slot = *it;
+    mPresentSlot.erase(it);
+
+    if (mLastPresent != -1) {
+        mFreeSlot.emplace_back(mLastPresent);
+        mCondition.signal();
+    }
+    mLastPresent = slot;
+    return slot;
+}
+
+Memory* BufferSlot::getPresentBuffer(int32_t slot)
+{
+    if (slot < 0 || slot >= (int32_t)MAX_COUNT) {
+        return nullptr;
+    }
+
+    Mutex::Autolock _l(mLock);
+    return mBuffers[slot];
+}
+
+void BufferSlot::addPresentSlot(int32_t slot, Memory* buffer)
+{
+    if (slot < 0 || slot >= (int32_t)MAX_COUNT || buffer == nullptr) {
+        return;
+    }
+
+    Mutex::Autolock _l(mLock);
+    mPresentSlot.emplace_back(slot);
+    if (mBuffers[slot] == nullptr) {
+        mBuffers[slot] = (Memory*)native_handle_clone(buffer);
+    }
 }
 
 }

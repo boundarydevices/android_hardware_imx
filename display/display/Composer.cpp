@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <inttypes.h>
 #include <dlfcn.h>
 #include "Composer.h"
 #include "MemoryManager.h"
@@ -363,8 +364,10 @@ int Composer::composeLayer(Layer* layer, bool bypass)
              srect.left, srect.top, srect.right, srect.bottom,
              clip.left, clip.top, clip.right, clip.bottom,
              drect.left, drect.top, drect.right, drect.bottom);
-        ALOGV("target phys:0x%x, layer phys:0x%x",
-                (int)mTarget->phys, (int)layer->handle->phys);
+        if (layer->handle != nullptr) {
+            ALOGV("zorder:0x%x, layer phys:0x%" PRIx64,
+                layer->zorder, layer->handle->phys);
+        }
         ALOGV("transform:0x%x, blend:0x%x, alpha:0x%x",
                 layer->transform, layer->blendMode, layer->planeAlpha);
 

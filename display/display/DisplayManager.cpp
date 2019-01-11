@@ -24,15 +24,18 @@
 #include "FbDisplay.h"
 #include "KmsDisplay.h"
 #include "DisplayManager.h"
+#include "DisplayHal.h"
 
 namespace fsl {
 
+using nxp::hardware::display::V1_0::implementation::DisplayHal;
 #define HDMI_PLUG_EVENT "hdmi_video"
 #define HDMI_PLUG_CHANGE "change@"
 #define HDMI_SII902_PLUG_EVENT "change@/devices/platform/sii902x.0"
 #define HDMI_EXTCON "extcon"
 #define HDMI_DRM_EVENT "change@/devices/platform/display-subsystem/drm"
 
+static sp<DisplayHal> mDisplayHal;
 DisplayManager* DisplayManager::sInstance(0);
 Mutex DisplayManager::sLock(Mutex::PRIVATE);
 
@@ -90,6 +93,10 @@ DisplayManager::DisplayManager()
     }
 
     mHotplugThread = new HotplugThread(this);
+    mDisplayHal = new DisplayHal();
+    if (mDisplayHal->registerAsService() != 0) {
+        ALOGE("failed to register IDisplay service");
+    }
 }
 
 DisplayManager::~DisplayManager()

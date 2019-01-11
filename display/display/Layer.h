@@ -58,6 +58,7 @@ enum {
 
 enum {
     SKIP_LAYER          = 0x00000001,
+    BUFFER_SLOT         = 0x40000000,
 };
 
 class Layer
