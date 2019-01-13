@@ -339,11 +339,7 @@ void VehicleEmulator::rxThread() {
 
     // Comms are properly opened
     while (!mExit) {
-        retVal = mComm->connect();
-
-        if (retVal >= 0) {
             rxMsg();
-        }
 
         // Check every 100ms for a new connection
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -19,13 +19,21 @@
 #include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 #include <android/log.h>
 #include <log/log.h>
+#include <linux/netlink.h>
 #include <netinet/in.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 
 #include "SocketComm.h"
 
 // Socket to use when communicating with Host PC
-static constexpr int DEBUG_SOCKET = 33452;
+typedef struct user_msg_info {
+        struct nlmsghdr hdr;
+        char  msg[1024];
+} user_socket_info;
+
+#define MAX_PLOAD 1024
+#define PROTOCOL_ID 30
 
 namespace android {
 namespace hardware {
@@ -67,9 +75,9 @@ int SocketComm::connect() {
 
 int SocketComm::open() {
     int retVal;
-    struct sockaddr_in servAddr;
+    struct sockaddr_nl servAddr;
 
-    mSockFd = socket(AF_INET, SOCK_STREAM, 0);
+    mSockFd = socket(AF_NETLINK, SOCK_RAW, PROTOCOL_ID);
     if (mSockFd < 0) {
         ALOGE("%s: socket() failed, mSockFd=%d, errno=%d", __FUNCTION__, mSockFd, errno);
         mSockFd = -1;
@@ -77,64 +85,43 @@ int SocketComm::open() {
     }
 
     memset(&servAddr, 0, sizeof(servAddr));
-    servAddr.sin_family = AF_INET;
-    servAddr.sin_addr.s_addr = INADDR_ANY;
-    servAddr.sin_port = htons(DEBUG_SOCKET);
+    servAddr.nl_family = AF_NETLINK;
+    servAddr.nl_pid = getpid();
+    servAddr.nl_groups = 0;
 
-    retVal = bind(mSockFd, reinterpret_cast<struct sockaddr*>(&servAddr), sizeof(servAddr));
+    retVal = bind(mSockFd, (struct sockaddr *)&servAddr, sizeof(servAddr));
     if(retVal < 0) {
         ALOGE("%s: Error on binding: retVal=%d, errno=%d", __FUNCTION__, retVal, errno);
         close(mSockFd);
-        mSockFd = -1;
         return -errno;
     }
-
-    listen(mSockFd, 1);
-
-    // Set the socket to be non-blocking so we can poll it continouously
-    fcntl(mSockFd, F_SETFL, O_NONBLOCK);
 
     return 0;
 }
 
 std::vector<uint8_t> SocketComm::read() {
-    int32_t msgSize;
-    int numBytes = 0;
+    int ret;
+    user_socket_info u_info;
+    struct sockaddr_nl nl_socket;
+    socklen_t nl_socket_len = sizeof(nl_socket);
+    int message_size;
 
-    // This is a variable length message.
-    // Read the number of bytes to rx over the socket
-    numBytes = ::read(mCurSockFd, &msgSize, sizeof(msgSize));
-    msgSize = ntohl(msgSize);
+    memset(&nl_socket, 0, sizeof(nl_socket));
+    memset(&u_info, 0, sizeof(user_socket_info));
+    nl_socket.nl_family = AF_NETLINK;
+    nl_socket.nl_pid = 0;
+    nl_socket.nl_groups = 0;
 
-    if (numBytes != sizeof(msgSize)) {
-        // This happens when connection is closed
-        ALOGD("%s: numBytes=%d, expected=4", __FUNCTION__, numBytes);
-        ALOGD("%s: Connection terminated on socket %d", __FUNCTION__, mCurSockFd);
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            mCurSockFd = -1;
-        }
+    ret = recvfrom(mSockFd, &u_info, sizeof(u_info), 0, (struct sockaddr *)&nl_socket, &nl_socket_len);
 
+    message_size = u_info.hdr.nlmsg_len - sizeof(struct nlmsghdr);
+    if(ret < 0) {
+        ALOGE("recv message failed \n");
         return std::vector<uint8_t>();
-    }
-
-    std::vector<uint8_t> msg = std::vector<uint8_t>(msgSize);
-
-    numBytes = ::read(mCurSockFd, msg.data(), msgSize);
-
-    if ((numBytes == msgSize) && (msgSize > 0)) {
-        // Received a message.
-        return msg;
     } else {
-        // This happens when connection is closed
-        ALOGD("%s: numBytes=%d, msgSize=%d", __FUNCTION__, numBytes, msgSize);
-        ALOGD("%s: Connection terminated on socket %d", __FUNCTION__, mCurSockFd);
-        {
-            std::lock_guard<std::mutex> lock(mMutex);
-            mCurSockFd = -1;
-        }
-
-        return std::vector<uint8_t>();
+        std::vector<uint8_t> msg = std::vector<uint8_t> (message_size);
+        memcpy(msg.data(), u_info.msg, message_size);
+        return msg;
     }
 }
 
@@ -157,27 +144,30 @@ void SocketComm::stop() {
 }
 
 int SocketComm::write(const std::vector<uint8_t>& data) {
-    static constexpr int MSG_HEADER_LEN = 4;
-    int retVal = 0;
-    union {
-        uint32_t msgLen;
-        uint8_t msgLenBytes[MSG_HEADER_LEN];
-    };
+    int ret;
+    struct sockaddr_nl daddr;
+    struct nlmsghdr *nlh = NULL;
+    memset(&daddr, 0, sizeof(daddr));
+    daddr.nl_family = AF_NETLINK;
+    // 0 means this message is to kernel
+    daddr.nl_pid = 0;
+    daddr.nl_groups = 0;
 
-    // Prepare header for the message
-    msgLen = static_cast<uint32_t>(data.size());
-    msgLen = htonl(msgLen);
-
-    std::lock_guard<std::mutex> lock(mMutex);
-    if (mCurSockFd != -1) {
-        retVal = ::write(mCurSockFd, msgLenBytes, MSG_HEADER_LEN);
-
-        if (retVal == MSG_HEADER_LEN) {
-            retVal = ::write(mCurSockFd, data.data(), data.size());
-        }
+    nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PLOAD));
+    memset(nlh, 0, sizeof(struct nlmsghdr));
+    nlh->nlmsg_len = NLMSG_LENGTH(data.size());
+    nlh->nlmsg_flags = 0;
+    nlh->nlmsg_type = 0;
+    nlh->nlmsg_seq = 0;
+    nlh->nlmsg_pid = getpid();
+    memcpy(NLMSG_DATA(nlh), data.data(), data.size());
+    ret = sendto(mSockFd, nlh, nlh->nlmsg_len, 0, (struct sockaddr *)&daddr, sizeof(struct sockaddr_nl));
+    if(!ret) {
+        ALOGE("send message failed.\n");
+        return -1;
     }
 
-    return retVal;
+    return 0;
 }
 
 
