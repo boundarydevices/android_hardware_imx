@@ -221,8 +221,6 @@ void VehicleEmulator::parseRxProtoBuf(std::vector<uint8_t>& msg) {
                 break;
         }
 
-        // Send the reply
-        txMsg(respMsg);
     } else {
         ALOGE("%s: ParseFromString() failed. msgSize=%d", __func__, static_cast<int>(msg.size()));
     }
