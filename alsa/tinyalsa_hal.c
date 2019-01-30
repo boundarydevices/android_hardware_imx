@@ -1080,7 +1080,7 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
     struct imx_audio_device *adev = out->dev;
     int i;
 
-    if ( (adev->mode == AUDIO_MODE_IN_CALL) ||
+    if ( (adev->mode == AUDIO_MODE_IN_CALL) || (adev->b_sco_rx_running == true) ||
         (!force_standby && !strcmp(adev->card_list[out->card_index]->driver_name, "wm8962-audio")) ) {
         ALOGW("no standby");
         return 0;
@@ -3913,10 +3913,14 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     ret = str_parms_get_str(parms, "hfp_enable", value, sizeof(value));
     if (ret >= 0) {
         if(0 == strcmp(value, "true")) {
+            pthread_mutex_lock(&adev->lock);
             ret = sco_task_create(adev);
+            pthread_mutex_unlock(&adev->lock);
             ALOGI("sco_task_create, ret %d", ret);
         } else {
+            pthread_mutex_lock(&adev->lock);
             ret = sco_task_destroy(adev);
+            pthread_mutex_unlock(&adev->lock);
             ALOGI("sco_task_destroy, ret %d", ret);
         }
     }
@@ -3966,6 +3970,8 @@ static int adev_set_master_volume(struct audio_hw_device *dev __unused, float vo
 static int adev_set_mode(struct audio_hw_device *dev, int mode)
 {
     struct imx_audio_device *adev = (struct imx_audio_device *)dev;
+
+    ALOGI("adev_set_mode mode %d\n", mode);
     pthread_mutex_lock(&adev->lock);
     if (adev->mode != mode) {
         adev->mode = mode;
