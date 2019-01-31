@@ -163,7 +163,6 @@ void Composer::threadDestructor(void *handle)
     }
 
     Composer::getInstance()->closeEngine(handle);
-    free(handle);
 }
 
 bool Composer::isValid()
