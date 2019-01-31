@@ -44,7 +44,7 @@
 #define MIXER_WM8960_RIGHT_INPUT2_SWITCH            "Right Boost Mixer LINPUT2 Switch"
 #endif
 
-static struct route_setting speaker_output_wm8960[] = {
+static struct route_setting default_output_wm8960[] = {
     {
         .ctl_name = MIXER_WM8960_LEFT_OUTPUT_SWITCH,
         .intval = 1,
@@ -123,14 +123,9 @@ static struct audio_card  wm8960_card = {
     .name = "wm8960-audio",
     .driver_name = "wm8960-audio",
     .bus_name = "bus1_system_sound_out",
-    .supported_out_devices = (AUDIO_DEVICE_OUT_EARPIECE |
-            AUDIO_DEVICE_OUT_SPEAKER |
-            AUDIO_DEVICE_OUT_WIRED_HEADSET |
+    .supported_out_devices = (
             AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
-            AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET |
-            AUDIO_DEVICE_OUT_ALL_SCO |
-            AUDIO_DEVICE_OUT_BUS |
-            AUDIO_DEVICE_OUT_DEFAULT ),
+            AUDIO_DEVICE_OUT_BUS),
     .supported_in_devices = (
             AUDIO_DEVICE_IN_COMMUNICATION |
             AUDIO_DEVICE_IN_AMBIENT |
@@ -139,9 +134,9 @@ static struct audio_card  wm8960_card = {
             AUDIO_DEVICE_IN_BACK_MIC |
             AUDIO_DEVICE_IN_ALL_SCO |
             AUDIO_DEVICE_IN_DEFAULT),
-    .defaults            = NULL,
+    .defaults            = default_output_wm8960,
     .bt_output           = NULL,
-    .speaker_output      = speaker_output_wm8960,
+    .speaker_output      = NULL,
     .hs_output           = NULL,
     .earpiece_output     = NULL,
     .vx_hs_mic_input     = NULL,
