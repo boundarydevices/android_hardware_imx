@@ -609,7 +609,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     if (success) {
         out->buffer_frames = pcm_config_mm_out.period_size * 2;
         if (out->buffer == NULL)
-            out->buffer = malloc(out->buffer_frames * audio_stream_frame_size(&out->stream.common));
+            out->buffer = malloc(out->buffer_frames * audio_stream_out_frame_size((struct audio_stream_out *)&out->stream.common));
 
         if (adev->echo_reference != NULL)
             out->echo_reference = adev->echo_reference;
@@ -864,7 +864,7 @@ static size_t out_get_buffer_size_primary(const struct audio_stream *stream)
     be a multiple of 16 frames */
     size_t size = (pcm_config_mm_out.period_size * adev->default_rate) / pcm_config_mm_out.rate;
     size = ((size + 15) / 16) * 16;
-    return size * audio_stream_frame_size((struct audio_stream *)stream);
+    return size * audio_stream_out_frame_size((struct audio_stream_out *)stream);
 }
 
 static size_t out_get_buffer_size_hdmi(const struct audio_stream *stream)
@@ -876,7 +876,7 @@ static size_t out_get_buffer_size_hdmi(const struct audio_stream *stream)
     be a multiple of 16 frames */
     size_t size = pcm_config_hdmi_multi.period_size;
     size = ((size + 15) / 16) * 16;
-    return size * audio_stream_frame_size((struct audio_stream *)stream);
+    return size * audio_stream_out_frame_size((struct audio_stream_out *)stream);
 }
 
 static size_t out_get_buffer_size_esai(const struct audio_stream *stream)
@@ -888,7 +888,7 @@ static size_t out_get_buffer_size_esai(const struct audio_stream *stream)
     be a multiple of 16 frames */
     size_t size = pcm_config_esai_multi.period_size;
     size = ((size + 15) / 16) * 16;
-    return size * audio_stream_frame_size((struct audio_stream *)stream);
+    return size * audio_stream_out_frame_size((struct audio_stream_out *)stream);
 }
 
 static uint32_t out_get_channels(const struct audio_stream *stream)
@@ -1127,7 +1127,7 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
     bool bit_24b_2_16b = false;
     bool mono2stereo = false;
     bool stereo2mono = false;
-    size_t frames_rq = count / audio_stream_frame_size(&in->stream.common);
+    size_t frames_rq = count / audio_stream_in_frame_size((struct audio_stream_in *)&in->stream.common);
 
     if (in->config.format == PCM_FORMAT_S24_LE && in->requested_format == PCM_FORMAT_S16_LE) bit_24b_2_16b = true;
     if (in->config.channels == 2 && in->requested_channel == 1) stereo2mono = true;
@@ -1219,7 +1219,7 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_frame_size(&out->stream.common);
+    size_t frame_size = audio_stream_out_frame_size((struct audio_stream_out *)&out->stream.common);
     size_t in_frames = bytes / frame_size;
     size_t out_frames = in_frames;
     bool force_input_standby = false;
@@ -1303,7 +1303,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((struct audio_stream_out *)&stream->common) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -1326,7 +1326,7 @@ static ssize_t out_write_hdmi(struct audio_stream_out *stream, const void* buffe
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_frame_size(&out->stream.common);
+    size_t frame_size = audio_stream_out_frame_size((struct audio_stream_out *)&out->stream.common);
     size_t in_frames = bytes / frame_size;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
@@ -1355,7 +1355,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((struct audio_stream_out *)&stream->common) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -1419,7 +1419,7 @@ static ssize_t out_write_esai(struct audio_stream_out *stream, const void* buffe
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_frame_size(&out->stream.common);
+    size_t frame_size = audio_stream_out_frame_size((struct audio_stream_out *)&out->stream.common);
     size_t in_frames = bytes / frame_size;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
@@ -1449,7 +1449,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size((struct audio_stream_out *)&stream->common) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -2033,7 +2033,7 @@ static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
     }
 
     if (in->read_buf_frames == 0) {
-        size_t size_in_bytes = in->config.period_size * audio_stream_frame_size(&in->stream.common);
+        size_t size_in_bytes = in->config.period_size * audio_stream_in_frame_size((struct audio_stream_in *)&in->stream.common);
         if (in->read_buf_size < in->config.period_size) {
             in->read_buf_size = in->config.period_size;
             in->read_buf = (int16_t *) realloc(in->read_buf, size_in_bytes);
@@ -2088,19 +2088,19 @@ static ssize_t read_frames(struct imx_stream_in *in, void *buffer, ssize_t frame
         if (in->resampler != NULL) {
             in->resampler->resample_from_provider(in->resampler,
                     (int16_t *)((char *)buffer +
-                            frames_wr * audio_stream_frame_size(&in->stream.common)),
+                            frames_wr * audio_stream_in_frame_size((struct audio_stream_in *)&in->stream.common)),
                     &frames_rd);
         } else {
             struct resampler_buffer buf = {
-                    { raw : NULL, },
-                    frame_count : frames_rd,
+                    { .raw = NULL, },
+                      .frame_count = frames_rd,
             };
             get_next_buffer(&in->buf_provider, &buf);
             if (buf.raw != NULL) {
                 memcpy((char *)buffer +
-                           frames_wr * audio_stream_frame_size(&in->stream.common),
+                           frames_wr * audio_stream_in_frame_size((struct audio_stream_in *)&in->stream.common),
                         buf.raw,
-                        buf.frame_count * audio_stream_frame_size(&in->stream.common));
+                        buf.frame_count * audio_stream_in_frame_size((struct audio_stream_in *)&in->stream.common));
                 frames_rd = buf.frame_count;
             }
             release_buffer(&in->buf_provider, &buf);
@@ -2247,7 +2247,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     int ret = 0;
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
     struct imx_audio_device *adev = in->dev;
-    size_t frames_rq = bytes / audio_stream_frame_size(&stream->common);
+    size_t frames_rq = bytes / audio_stream_in_frame_size((struct audio_stream_in *)&stream->common);
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
      * on the input stream mutex - e.g. executing select_mode() while holding the hw device
@@ -2259,7 +2259,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         ret = start_input_stream(in);
         if (ret == 0) {
             in->standby = 0;
-            in->mute_500ms = in->requested_rate * audio_stream_frame_size(&stream->common)/2;
+            in->mute_500ms = in->requested_rate * audio_stream_in_frame_size((struct audio_stream_in *)&stream->common)/2;
         }
     }
     pthread_mutex_unlock(&adev->lock);
@@ -2297,7 +2297,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 exit:
     if (ret < 0) {
         memset(buffer, 0, bytes);
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_in_frame_size((struct audio_stream_in *)&stream->common) /
                in_get_sample_rate(&stream->common));
     }
     pthread_mutex_unlock(&in->lock);
@@ -2790,7 +2790,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_devices_t devices,
                                    audio_output_flags_t flags,
                                    struct audio_config *config,
-                                   struct audio_stream_out **stream_out)
+                                   struct audio_stream_out **stream_out,
+				   const char *address)
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_out *out;
@@ -3081,7 +3082,10 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   audio_io_handle_t handle,
                                   audio_devices_t devices,
                                   struct audio_config *config,
-                                  struct audio_stream_in **stream_in)
+                                  struct audio_stream_in **stream_in,
+				  audio_input_flags_t flags,
+				  const char *address,
+				  audio_source_t source)
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_in *in;
