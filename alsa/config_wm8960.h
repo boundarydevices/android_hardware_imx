@@ -44,7 +44,8 @@
 #define MIXER_WM8960_RIGHT_INPUT2_SWITCH            "Right Boost Mixer LINPUT2 Switch"
 #endif
 
-static struct route_setting speaker_output_wm8960[] = {
+/* These are values that never change */
+static struct route_setting defaults_wm8960[] = {
     {
         .ctl_name = MIXER_WM8960_LEFT_OUTPUT_SWITCH,
         .intval = 1,
@@ -61,6 +62,15 @@ static struct route_setting speaker_output_wm8960[] = {
         .ctl_name = MIXER_WM8960_SPEAKER_VOLUME,
         .intval = 127,
     },
+};
+
+static struct route_setting speaker_output_wm8960[] = {
+    {
+        .ctl_name = NULL,
+    },
+};
+
+static struct route_setting headphone_output_wm8960[] = {
     {
         .ctl_name = MIXER_WM8960_HEADPHONE_VOLUME,
         .intval = 127,
@@ -122,26 +132,19 @@ static struct route_setting mm_main_mic_input_wm8960[] = {
 static struct audio_card  wm8960_card = {
     .name = "wm8960-audio",
     .driver_name = "wm8960-audio",
-    .supported_out_devices = (AUDIO_DEVICE_OUT_EARPIECE |
+    .supported_out_devices = (
             AUDIO_DEVICE_OUT_SPEAKER |
             AUDIO_DEVICE_OUT_WIRED_HEADSET |
             AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
-            AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET |
-            AUDIO_DEVICE_OUT_ALL_SCO |
             AUDIO_DEVICE_OUT_DEFAULT ),
     .supported_in_devices = (
-            AUDIO_DEVICE_IN_COMMUNICATION |
-            AUDIO_DEVICE_IN_AMBIENT |
             AUDIO_DEVICE_IN_BUILTIN_MIC |
             AUDIO_DEVICE_IN_WIRED_HEADSET |
-            AUDIO_DEVICE_IN_BACK_MIC |
-            AUDIO_DEVICE_IN_ALL_SCO |
             AUDIO_DEVICE_IN_DEFAULT),
-    .defaults            = NULL,
+    .defaults            = defaults_wm8960,
     .bt_output           = NULL,
     .speaker_output      = speaker_output_wm8960,
-    .hs_output           = NULL,
-    .earpiece_output     = NULL,
+    .hs_output		 = headphone_output_wm8960,
     .vx_hs_mic_input     = NULL,
     .mm_main_mic_input   = mm_main_mic_input_wm8960,
     .vx_main_mic_input   = NULL,
