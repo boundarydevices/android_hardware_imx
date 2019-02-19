@@ -64,7 +64,6 @@ LOCAL_SRC_FILES := \
     UvcDevice.cpp \
     Uvc7ulpDevice.cpp \
     TVINDevice.cpp \
-    TVIN8DvDevice.cpp \
     VADCTVINDevice.cpp \
     MMAPStream.cpp \
     TinyExif.cpp \

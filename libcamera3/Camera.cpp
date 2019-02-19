@@ -41,7 +41,6 @@
 #include "Ov5640Imx8Q.h"
 #include "Ov5640Mipi.h"
 #include "Ov5642Csi.h"
-#include "TVIN8DvDevice.h"
 #include "TVINDevice.h"
 #include "UvcDevice.h"
 #include "Uvc7ulpDevice.h"
@@ -138,17 +137,8 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 #endif
     }
     else if (strstr(name, ADV7180_TVIN_NAME)) {
-        char boardName[CAMERA_SENSOR_LENGTH];
-        memset(boardName, 0, sizeof(boardName));
-        property_get("ro.board.platform", boardName, DEFAULT_ERROR_NAME_str);
-
-        if (strstr(boardName, IMX8_BOARD_NAME)) {
-            ALOGI("create id:%d adv7180 tvin device on 8dv", id);
-            device = new TVIN8DvDevice(id, facing, orientation, path);
-        } else {
-            ALOGI("create id:%d adv7180 tvin device", id);
-            device = new TVINDevice(id, facing, orientation, path);
-        }
+        ALOGI("create id:%d adv7180 tvin device", id);
+        device = new TVINDevice(id, facing, orientation, path);
     } else if (strstr(name, MAX9286MIPI_SENSOR_NAME)) {
         ALOGI("create id:%d Max9286Mipi device", id);
         device = new Max9286Mipi(id, facing, orientation, path);
