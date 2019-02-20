@@ -124,6 +124,7 @@ static struct audio_card  wm8960_card = {
     .driver_name = "wm8960-audio",
     .bus_name = "bus1_system_sound_out",
     .supported_out_devices = (
+            AUDIO_DEVICE_OUT_SPEAKER |
             AUDIO_DEVICE_OUT_WIRED_HEADPHONE |
             AUDIO_DEVICE_OUT_BUS),
     .supported_in_devices = (
