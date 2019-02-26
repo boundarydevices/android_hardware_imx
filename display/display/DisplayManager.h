@@ -57,6 +57,7 @@ public:
     void handleKmsHotplug();
 
 private:
+    void setPrimaryDisplay(int index);
     DisplayManager();
     /* This class mainly handle all uevent in hwc, currently only hdmi
      * hotplugin event needs to be care. */

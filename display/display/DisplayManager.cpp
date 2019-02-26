@@ -334,22 +334,13 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
         if (!*foundPrimary && main) {
             ALOGI("%s set %d as primary display", __func__, (*id));
             *foundPrimary = true;
-            KmsDisplay* tmp = mKmsDisplays[0];
-            mKmsDisplays[0] = mKmsDisplays[*id];
-            mKmsDisplays[*id] = tmp;
-            mKmsDisplays[0]->setIndex(0);
-            mKmsDisplays[0]->setPowerMode(POWER_ON);
-            mKmsDisplays[*id]->setIndex(*id);
-            mKmsDisplays[*id]->setPowerMode(POWER_OFF);
-
-            for (size_t i=0; i<MAX_LAYERS; i++) {
-                Layer* pLayer = mKmsDisplays[*id]->getLayer(i);
-                if (!pLayer->busy) {
-                    continue;
-                }
-                mKmsDisplays[0]->setLayerInfo(i,pLayer);
-            }
-            mKmsDisplays[*id]->invalidLayers();
+            setPrimaryDisplay(*id);
+        }
+        // set actual primary display when it is not connected.
+        else if (!mKmsDisplays[0]->connected() && display->connected()) {
+            ALOGI("%s replace primary display with %d", __func__, (*id));
+            setPrimaryDisplay(*id);
+            (*id)++;
         }
         else {
             (*id)++;
@@ -359,6 +350,26 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     close(drmFd);
 
     return 0;
+}
+
+void DisplayManager::setPrimaryDisplay(int index)
+{
+    KmsDisplay* tmp = mKmsDisplays[0];
+    mKmsDisplays[0] = mKmsDisplays[index];
+    mKmsDisplays[index] = tmp;
+    mKmsDisplays[0]->setIndex(0);
+    mKmsDisplays[0]->setPowerMode(POWER_ON);
+    mKmsDisplays[index]->setIndex(index);
+    mKmsDisplays[index]->setPowerMode(POWER_OFF);
+
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        Layer* pLayer = mKmsDisplays[index]->getLayer(i);
+        if (!pLayer->busy) {
+            continue;
+        }
+        mKmsDisplays[0]->setLayerInfo(i,pLayer);
+    }
+    mKmsDisplays[index]->invalidLayers();
 }
 
 int DisplayManager::enumFakeKmsDisplay()
