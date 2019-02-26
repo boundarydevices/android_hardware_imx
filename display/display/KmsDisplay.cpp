@@ -53,7 +53,8 @@ KmsDisplay::KmsDisplay()
     mNoResolve = false;
     mAllowModifier = false;
     mMetadataID = 0;
-    mReturnFence = -1;
+    mOutFence = -1;
+    mPresentFence = -1;
 }
 
 KmsDisplay::~KmsDisplay()
@@ -177,6 +178,7 @@ void KmsDisplay::getKmsProperty()
         {"MODE_ID", &mCrtc.mode_id},
         {"ACTIVE",  &mCrtc.active},
         {"ANDROID_OUT_FENCE_PTR", &mCrtc.fence_ptr},
+        {"OUT_FENCE_PTR", &mCrtc.present_fence_ptr},
     };
 
     struct TableProperty connectorTable[] = {
@@ -256,17 +258,28 @@ void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
                              mConnector.crtc_id, mCrtcID);
     }
 
+    if (mCrtc.present_fence_ptr != 0) {
+        drmModeAtomicAddProperty(pset, mCrtcID,
+                         mCrtc.present_fence_ptr, (uint64_t)&mPresentFence);
+    }
+}
+
+void KmsDisplay::bindOutFence(drmModeAtomicReqPtr pset)
+{
     if (mCrtc.fence_ptr != 0) {
         drmModeAtomicAddProperty(pset, mCrtcID,
-                         mCrtc.fence_ptr, (uint64_t)&mReturnFence);
+                         mCrtc.fence_ptr, (uint64_t)&mOutFence);
     }
 }
 
 int KmsDisplay::getPresentFence(int32_t* outPresentFence)
 {
     if (outPresentFence != NULL) {
-        *outPresentFence = mReturnFence;
-        mReturnFence = -1;
+        if (mPresentFence == -1) {
+            ALOGV("%s invalid present fence:%d", __func__, mPresentFence);
+        }
+        *outPresentFence = mPresentFence;
+        mPresentFence = -1;
     }
     return 0;
 }
@@ -392,7 +405,7 @@ int KmsDisplay::setPowerMode(int mode)
     int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
                   mConnector.dpms_id, mPowerMode);
     if (err != 0) {
-        ALOGE("failed to set DPMS mode");
+        ALOGE("failed to set DPMS mode:%d", mPowerMode);
     }
 
     return err;
@@ -611,6 +624,7 @@ int KmsDisplay::performOverlay()
         return 0;
     }
 
+    bindOutFence(mPset);
     MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
     if (meta != NULL && meta->mFlags & FLAGS_META_CHANGED) {
         setMetaData(mPset, meta);
@@ -780,6 +794,9 @@ int KmsDisplay::updateScreen()
         if (ret == -EBUSY) {
             ALOGV("commit pset busy and try again");
             usleep(1000);
+            if (i >= 15) {
+                ALOGE("%s atomic commit failed", __func__);
+            }
             continue;
         }
         else if (ret != 0) {
@@ -789,13 +806,11 @@ int KmsDisplay::updateScreen()
     }
 
     if (mOverlay != NULL) {
-        if (mUiUpdate) {
-            mOverlay->releaseFence = (mReturnFence > 0) ? dup(mReturnFence) : -1;
+        mOverlay->releaseFence = mOutFence;
+        if (mOutFence == -1) {
+            ALOGV("%s invalid out fence:%d", __func__, mOutFence);
         }
-        else {
-            mOverlay->releaseFence = mReturnFence;
-            mReturnFence = -1;
-        }
+        mOutFence = -1;
         mOverlay = NULL;
     }
 
