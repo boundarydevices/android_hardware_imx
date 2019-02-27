@@ -83,7 +83,11 @@ public:
     Region visibleRegion;
     Rect lastSourceCrop;
     Rect lastDisplayFrame;
+    // fence transfered from surfaceflinger to HWC.
+    // and HWC should wait it before read.
     int acquireFence;
+    // fence transfered from HWC to to surfaceflinger.
+    // and surfaceflinger should wait it before write.
     int releaseFence;
     int index;
     bool isHdrMode;

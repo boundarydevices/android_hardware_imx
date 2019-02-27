@@ -789,12 +789,14 @@ int KmsDisplay::updateScreen()
         setMetaData(mPset, &meta);
     }
 
-    for (uint32_t i=0; i<16; i++) {
+    // DRM driver will hold two frames in async mode.
+    // So user space should wait two vsync interval when it is busy.
+    for (uint32_t i=0; i<32; i++) {
         int ret = drmModeAtomicCommit(drmfd, mPset, flags, NULL);
         if (ret == -EBUSY) {
             ALOGV("commit pset busy and try again");
             usleep(1000);
-            if (i >= 15) {
+            if (i >= 31) {
                 ALOGE("%s atomic commit failed", __func__);
             }
             continue;
