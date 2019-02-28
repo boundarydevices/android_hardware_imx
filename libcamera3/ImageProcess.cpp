@@ -314,6 +314,9 @@ int convertPixelFormatToG2DFormat(PixelFormat format)
         case HAL_PIXEL_FORMAT_YCbCr_422_I:
             nFormat = G2D_YUYV;
             break;
+        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+            nFormat = G2D_NV21;
+            break;
         default:
             ALOGE("%s:%d, Error: format:0x%x not supported!", __func__, __LINE__, format);
             break;
@@ -534,7 +537,8 @@ int ImageProcess::handleFrameBy2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     dst = dstBuf.mStream;
     // can't do csc for some formats.
     if (!(((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
-         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
+         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
+         (dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP)) &&
          (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))) {
         return -EINVAL;
     }
