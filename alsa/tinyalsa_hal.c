@@ -702,15 +702,15 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     int pcm_device;
     bool success = false;
 
-    ALOGI("start_output_stream_primary... %p, device %d, address %s, mode %d",out, out->device, out->address, adev->mode);
-
-    if (adev->mode != AUDIO_MODE_IN_CALL) {
-        /* FIXME: only works if only one output can be active at a time */
-        select_output_device(adev);
-    }
-
     pcm_device = out->device & (AUDIO_DEVICE_OUT_ALL & ~AUDIO_DEVICE_OUT_AUX_DIGITAL);
     if (pcm_device && (adev->active_output[OUTPUT_ESAI] == NULL || adev->active_output[OUTPUT_ESAI]->standby)) {
+        ALOGI("start_output_stream_primary... %p, device %d, address %s, mode %d",out, out->device, out->address, adev->mode);
+
+        if (adev->mode != AUDIO_MODE_IN_CALL) {
+           /* FIXME: only works if only one output can be active at a time */
+            select_output_device(adev);
+        }
+
         out->write_flags[PCM_NORMAL]            = PCM_OUT | PCM_MMAP | PCM_MONOTONIC;
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
         out->config[PCM_NORMAL] = pcm_config_mm_out;
@@ -742,6 +742,13 @@ static int start_output_stream_primary(struct imx_stream_out *out)
 
     pcm_device = out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL;
     if(pcm_device && (adev->active_output[OUTPUT_HDMI] == NULL || adev->active_output[OUTPUT_HDMI]->standby)) {
+        ALOGI("start_output_stream_primary... %p, device %d, address %s, mode %d",out, out->device, out->address, adev->mode);
+
+        if (adev->mode != AUDIO_MODE_IN_CALL) {
+           /* FIXME: only works if only one output can be active at a time */
+            select_output_device(adev);
+        }
+
         out->write_flags[PCM_HDMI]            = PCM_OUT | PCM_MONOTONIC;
         out->write_threshold[PCM_HDMI]        = HDMI_PERIOD_SIZE * PLAYBACK_HDMI_PERIOD_COUNT;
         out->config[PCM_HDMI] = pcm_config_mm_out;
