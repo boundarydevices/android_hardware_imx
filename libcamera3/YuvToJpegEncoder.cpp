@@ -561,13 +561,16 @@ void Yuv420SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,
     uint8_t *vuPlanar = yuv + width * height;
     uint8_t *uRows    = new uint8_t[8 * (width >> 1)];
     uint8_t *vRows    = new uint8_t[8 * (width >> 1)];
+    int processLines = DEINTERLEAVE_LINES_ONE_TIME;
 
     // process 16 lines of Y and 8 lines of U/V each time.
     while (cinfo->next_scanline < cinfo->image_height) {
+        if (cinfo->next_scanline + DEINTERLEAVE_LINES_ONE_TIME > cinfo->image_height)
+            processLines = cinfo->image_height - cinfo->next_scanline;
         // deitnerleave u and v
-        deinterleave(vuPlanar, uRows, vRows, cinfo->next_scanline, width, height);
+        deinterleave(vuPlanar, uRows, vRows, cinfo->next_scanline, width, height, processLines);
 
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < processLines; i++) {
             // y row
             y[i] = yPlanar + (cinfo->next_scanline + i) * width;
 
@@ -590,8 +593,9 @@ void Yuv420SpToJpegEncoder::deinterleave(uint8_t *vuPlanar,
                                          uint8_t *vRows,
                                          int      rowIndex,
                                          int      width,
-                                         int      height) {
-    for (int row = 0; row < 8; ++row) {
+                                         int      height,
+                                         int      processLines) {
+    for (int row = 0; row < processLines/2; ++row) {
         int hoff = (rowIndex >> 1) + row;
         if (hoff >= (height >> 1)) {
             return;
@@ -680,20 +684,24 @@ void Yuv422IToJpegEncoder::compress(jpeg_compress_struct *cinfo,
     uint8_t *yRows = new uint8_t[16 * width];
     uint8_t *uRows = new uint8_t[16 * (width >> 1)];
     uint8_t *vRows = new uint8_t[16 * (width >> 1)];
+    int processLines = DEINTERLEAVE_LINES_ONE_TIME;
 
     uint8_t *yuvOffset = yuv;
 
     // process 16 lines of Y and 16 lines of U/V each time.
     while (cinfo->next_scanline < cinfo->image_height) {
+        if (cinfo->next_scanline + DEINTERLEAVE_LINES_ONE_TIME > cinfo->image_height)
+            processLines = cinfo->image_height - cinfo->next_scanline;
         deinterleave(yuvOffset,
                      yRows,
                      uRows,
                      vRows,
                      cinfo->next_scanline,
                      width,
-                     height);
+                     height,
+                     processLines);
 
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < processLines; i++) {
             // y row
             y[i] = yRows + i * width;
 
@@ -717,8 +725,9 @@ void Yuv422IToJpegEncoder::deinterleave(uint8_t *yuv,
                                         uint8_t *vRows,
                                         int      rowIndex,
                                         int      width,
-                                        int      /*height*/) {
-    for (int row = 0; row < 16; ++row) {
+                                        int      /*height*/,
+                                        int      processLines) {
+    for (int row = 0; row < processLines; ++row) {
         uint8_t *yuvSeg = yuv + (rowIndex + row) * width * 2;
         for (int i = 0; i < (width >> 1); ++i) {
             int indexY = row * width + (i << 1);
@@ -926,20 +935,23 @@ void Yuv422SpToJpegEncoder::compress(jpeg_compress_struct *cinfo,
     uint8_t *yRows = new uint8_t[16 * width];
     uint8_t *uRows = new uint8_t[16 * (width >> 1)];
     uint8_t *vRows = new uint8_t[16 * (width >> 1)];
-
     uint8_t *yuvOffset = yuv;
+    int processLines = DEINTERLEAVE_LINES_ONE_TIME;
 
     // process 16 lines of Y and 16 lines of U/V each time.
     while (cinfo->next_scanline < cinfo->image_height) {
+        if (cinfo->next_scanline + DEINTERLEAVE_LINES_ONE_TIME > cinfo->image_height)
+            processLines = cinfo->image_height - cinfo->next_scanline;
         deinterleave(yuvOffset,
                 yRows,
                 uRows,
                 vRows,
                 cinfo->next_scanline,
                 width,
-                height);
+                height,
+                processLines);
 
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < processLines; i++) {
             // y row
             y[i] = yRows + i * width;
 
@@ -963,8 +975,9 @@ void Yuv422SpToJpegEncoder::deinterleave(uint8_t *yuv,
         uint8_t *vRows,
         int      rowIndex,
         int      width,
-        int      /*height*/) {
-    for (int row = 0; row < 16; ++row) {
+        int      /*height*/,
+        int      processLines) {
+    for (int row = 0; row < processLines; ++row) {
         uint8_t *yuvSeg = yuv + (rowIndex + row) * width * 2;
         for (int i = 0; i < (width >> 1); ++i) {
             int indexY = row * width + (i << 1);

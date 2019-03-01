@@ -37,6 +37,8 @@ extern "C" {
 }
 #include <setjmp.h>
 
+#define DEINTERLEAVE_LINES_ONE_TIME  16
+
 class YuvToJpegEncoder {
 public:
     /** Create an encoder based on the YUV format.
@@ -99,7 +101,8 @@ private:
                       uint8_t *vRows,
                       int      rowIndex,
                       int      width,
-                      int      height);
+                      int      height,
+                      int      processLines);
     void        compress(jpeg_compress_struct *cinfo,
                          uint8_t              *yuv);
     virtual int yuvResize(uint8_t *srcBuf,
@@ -125,7 +128,8 @@ private:
                       uint8_t *vRows,
                       int      rowIndex,
                       int      width,
-                      int      height);
+                      int      height,
+                      int      processLines);
     virtual int yuvResize(uint8_t *srcBuf,
                           int      srcWidth,
                           int      srcHeight,
@@ -149,7 +153,8 @@ class Yuv422SpToJpegEncoder : public YuvToJpegEncoder {
                 uint8_t *vRows,
                 int      rowIndex,
                 int      width,
-                int      height);
+                int      height,
+                int      processLines);
         virtual int yuvResize(uint8_t *srcBuf,
                 int      srcWidth,
                 int      srcHeight,
