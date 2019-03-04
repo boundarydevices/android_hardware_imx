@@ -1737,14 +1737,15 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
 
     if (lpa_enable) {
-        pcm_get_htimestamp(out->pcm[pcm_type], &avail, &timestamp);
-        ALOGV("%s: LPA buffer avail: %u", __func__, avail);
-        if (avail != 0 && !out->lpa_wakelock_acquired) {
-            acquire_wake_lock(PARTIAL_WAKE_LOCK, lpa_wakelock);
-            out->lpa_wakelock_acquired = true;
-        } else if (avail == 0 && out->lpa_wakelock_acquired) {
-            release_wake_lock(lpa_wakelock);
-            out->lpa_wakelock_acquired = false;
+        if (pcm_get_htimestamp(out->pcm[pcm_type], &avail, &timestamp) == 0) {
+            ALOGV("%s: LPA buffer avail: %u", __func__, avail);
+            if (avail != 0 && !out->lpa_wakelock_acquired) {
+                acquire_wake_lock(PARTIAL_WAKE_LOCK, lpa_wakelock);
+                out->lpa_wakelock_acquired = true;
+            } else if (avail == 0 && out->lpa_wakelock_acquired) {
+                release_wake_lock(lpa_wakelock);
+                out->lpa_wakelock_acquired = false;
+            }
         }
     }
 
