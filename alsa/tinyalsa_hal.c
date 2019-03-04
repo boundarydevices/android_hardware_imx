@@ -1246,7 +1246,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         pthread_mutex_lock(&adev->lock);
         pthread_mutex_lock(&out->lock);
 
-        if (adev->out_device != val) {
+        if (out->device != val) {
             if (out == adev->active_output[OUTPUT_PRIMARY] && !out->standby) {
                 /* a change in output device may change the microphone selection */
                 if (adev->active_input &&
