@@ -85,15 +85,6 @@ static struct route_setting defaults_rt5645[] = {
         .ctl_name = MIXER_RT5645_STEREO_DAC_MIXR_DAC_R1, .intval = 1,
     },
     {
-        .ctl_name = NULL,
-    },
-};
-
-static struct route_setting speaker_output_rt5645[] = {
-    {
-        .ctl_name = MIXER_RT5645_SPK_CHN_SWITCH, .intval = 1,
-    },
-    {
         .ctl_name = MIXER_RT5645_SPKVOL_L_SWITCH, .intval = 1,
     },
     {
@@ -110,6 +101,15 @@ static struct route_setting speaker_output_rt5645[] = {
     },
     {
         .ctl_name = MIXER_RT5645_SPOR_MIX_SPKVOL_R_SWITCH, .intval = 1,
+    },
+    {
+        .ctl_name = NULL,
+    },
+};
+
+static struct route_setting speaker_output_rt5645[] = {
+    {
+        .ctl_name = MIXER_RT5645_SPK_CHN_SWITCH, .intval = 1,
     },
     {
         .ctl_name = MIXER_RT5645_SPK_PLAYBACK_VOL, .intval = 39,
