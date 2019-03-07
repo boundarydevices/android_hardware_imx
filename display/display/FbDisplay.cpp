@@ -38,13 +38,16 @@ FbDisplay::FbDisplay()
 {
     mFb = -1;
     mFd = -1;
+    mPowerMode = POWER_ON;
     mVsyncThread = NULL;
     mOpened = false;
     mTargetIndex = 0;
     memset(&mTargets[0], 0, sizeof(mTargets));
     mOvFd  = -1;
     memset(&mOvInfo, 0, sizeof(mOvInfo));
+    mOvPowerMode = -1;
     mOverlay = NULL;
+    mListener = NULL;
 }
 
 FbDisplay::~FbDisplay()

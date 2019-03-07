@@ -114,6 +114,9 @@ private:
 
     int mDisableHWC;
     int m2DComposition;
+
+    void* mHelperHandle;
+    void* mG2dHandle;
 };
 
 }

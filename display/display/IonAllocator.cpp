@@ -156,15 +156,18 @@ int IonAllocator::getPhys(int fd, int size, uint64_t& addr)
 
     if (ion_is_legacy(mIonFd)) {
         phyAddr = ion_phys(mIonFd, size, fd);
+        if (phyAddr == 0) {
+            ALOGE("%s ion_phys failed",__func__);
+            return -EINVAL;
+        }
     }
     else {
         struct dma_buf_phys dma_phys;
-        ioctl(fd, DMA_BUF_IOCTL_PHYS, &dma_phys);
+        if (ioctl(fd, DMA_BUF_IOCTL_PHYS, &dma_phys) < 0) {
+            ALOGE("%s DMA_BUF_IOCTL_PHYS failed",__func__);
+            return -EINVAL;
+        }
         phyAddr = dma_phys.phys;
-    }
-    if (phyAddr == 0) {
-        ALOGE("ion_phys failed");
-        return -EINVAL;
     }
 
     addr = phyAddr;
@@ -196,12 +199,18 @@ int IonAllocator::flushCache(int fd)
     }
 
     if (ion_is_legacy(mIonFd)) {
-        ion_sync_fd(mIonFd, fd);
+        if (ion_sync_fd(mIonFd, fd) < 0) {
+            ALOGE("%s ION_IOC_SYNC failed",__func__);
+            return -EINVAL;
+        }
     }
     else {
         struct dma_buf_sync dma_sync;
         dma_sync.flags = DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END;
-        ioctl(fd, DMA_BUF_IOCTL_SYNC, &dma_sync);
+        if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &dma_sync) < 0) {
+            ALOGE("%s DMA_BUF_IOCTL_SYNC failed",__func__);
+            return -EINVAL;
+        }
     }
 
     return 0;

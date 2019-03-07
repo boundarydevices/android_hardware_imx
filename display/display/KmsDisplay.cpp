@@ -55,6 +55,11 @@ KmsDisplay::KmsDisplay()
     mMetadataID = 0;
     mOutFence = -1;
     mPresentFence = -1;
+    memset(&mCrtc, 0, sizeof(mCrtc));
+    mCrtcIndex = 0;
+    mEncoderType = 0;
+    memset(&mConnector, 0, sizeof(mConnector));
+    mListener = NULL;
 }
 
 KmsDisplay::~KmsDisplay()

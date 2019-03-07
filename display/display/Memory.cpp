@@ -38,6 +38,9 @@ Memory::Memory(MemoryDesc* desc, int fd, int fd2)
 Memory::~Memory()
 {
     magic = 0;
+    if (fd > 0) {
+        close(fd);
+    }
 }
 
 bool Memory::isValid()

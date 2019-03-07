@@ -67,6 +67,7 @@ DisplayManager::DisplayManager()
         mVirtualDisplays[i]->setIndex(i+MAX_PHYSICAL_DISPLAY);
     }
 
+    mListener = NULL;
     mDrmMode = false;
     mDriverReady = true;
     enumKmsDisplays();

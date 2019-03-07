@@ -19,9 +19,11 @@
 namespace fsl {
 
 Layer::Layer()
-  : busy(false), zorder(0), type(LAYER_TYPE_INVALID),
-    handle(NULL), transform(0), blendMode(BLENDING_NONE),
-    color(0), acquireFence(-1), index(-1)
+  : busy(false), zorder(0), origType(LAYER_TYPE_INVALID),
+    type(LAYER_TYPE_INVALID), handle(NULL), lastHandle(NULL),
+    transform(0), blendMode(BLENDING_NONE), planeAlpha(0),
+    color(0), flags(0), acquireFence(-1),releaseFence(-1),
+    index(-1), isHdrMode(false), isOverlay(false), priv(NULL)
 {
     sourceCrop.clear();
     displayFrame.clear();
