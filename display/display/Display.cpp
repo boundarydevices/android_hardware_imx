@@ -81,8 +81,10 @@ Display::~Display()
     }
 }
 
-void Display::setCallback(EventListener* /*callback*/)
+void Display::setCallback(EventListener* callback)
 {
+    Mutex::Autolock _l(mLock);
+    mListener = callback;
 }
 
 int Display::setPowerMode(int /*mode*/)
@@ -435,6 +437,34 @@ bool Display::check2DComposition()
     return false;
 }
 
+bool Display::triggerComposition()
+{
+    Mutex::Autolock _l(mLock);
+    return directCompositionLocked();
+
+}
+bool Display::directCompositionLocked()
+{
+    bool force = false;
+
+    // surfaceflinger layers triggered by surfaceflinger.
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (mLayers[i]->busy) {
+            return force;
+        }
+    }
+
+    // hw layers.
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (mHwLayers[i] != nullptr) {
+            force = true;
+            break;
+        }
+    }
+
+    return force;
+}
+
 bool Display::verifyLayers()
 {
     bool deviceCompose = true;
@@ -691,7 +721,7 @@ int Display::composeLayersLocked()
 
     performOverlay();
 
-    if (mLayerVector.size() <= 0) {
+    if (mLayerVector.size() <= 0 && !directCompositionLocked()) {
         return ret;
     }
 
@@ -715,6 +745,10 @@ int Display::composeLayersLocked()
         if (slot < 0) {
             ALOGW("%s hw layer no buffer", __func__);
             continue;
+        }
+
+        if (queue->presentSlotCount() > 0 && mListener != nullptr) {
+            mListener->onRefresh(0);
         }
 
         mHwLayers[i]->handle = queue->getPresentBuffer(slot);
@@ -808,6 +842,12 @@ int32_t BufferSlot::getFreeSlot()
     mFreeSlot.erase(it);
 
     return slot;
+}
+
+int32_t BufferSlot::presentSlotCount()
+{
+    Mutex::Autolock _l(mLock);
+    return mPresentSlot.size();
 }
 
 int32_t BufferSlot::getPresentSlot()

@@ -55,6 +55,7 @@ public:
     Memory* getPresentBuffer(int32_t slot);
     // add slot and buffer to present queue.
     void addPresentSlot(int32_t slot, Memory* buffer);
+    int32_t presentSlotCount();
 
 private:
     Mutex mLock;
@@ -145,7 +146,7 @@ public:
 
     // display property.
     // set display vsync/hotplug callback.
-    virtual void setCallback(EventListener* callback);
+    void setCallback(EventListener* callback);
     // set display power on/off.
     virtual int setPowerMode(int mode);
     // enable/disable display vsync.
@@ -192,12 +193,14 @@ public:
     virtual bool isHdrSupported();
     // get HDR metadata
     int getHdrMetaData(HdrMetaData* hdrMetaData);
+    bool triggerComposition();
 
 protected:
     int composeLayersLocked();
     void resetLayerLocked(Layer* layer);
     void waitOnFenceLocked();
     bool check2DComposition();
+    bool directCompositionLocked();
 
 protected:
     Mutex mLock;
@@ -218,6 +221,7 @@ protected:
     Edid* mEdid;
     bool mResetHdrMode;
     bool mUiUpdate;
+    EventListener* mListener;
 };
 
 }

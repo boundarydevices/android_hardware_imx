@@ -19,6 +19,7 @@
 #include <MemoryDesc.h>
 #include <DisplayManager.h>
 #include <Display.h>
+#include <sync/sync.h>
 
 #include "DisplayHal.h"
 
@@ -209,6 +210,19 @@ Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
     }
 
     queue->addPresentSlot(slot, (fsl::Memory *)handle);
+
+    if (pDisplay->triggerComposition()) {
+        pDisplay->composeLayers();
+        pDisplay->updateScreen();
+        int presentFence = -1;
+        pDisplay->getPresentFence(&presentFence);
+        if (presentFence != -1) {
+            sync_wait(presentFence, -1);
+            close(presentFence);
+        }
+
+        return Error::NONE;
+    }
     // call onRefresh() to trigger SurfaceFlinger composition.
     fsl::EventListener* callback = NULL;
     callback = displayManager->getCallback();

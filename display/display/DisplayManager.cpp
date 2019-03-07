@@ -218,13 +218,14 @@ int DisplayManager::destroyVirtualDisplay(int id)
 void DisplayManager::setCallback(EventListener* callback)
 {
     Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
-    if (display == NULL)
-        return;
     {
         Mutex::Autolock _l(mLock);
         mListener = callback;
     }
-    display->setCallback(callback);
+
+    if (display != NULL) {
+        display->setCallback(callback);
+    }
 }
 
 EventListener* DisplayManager::getCallback()
@@ -362,6 +363,7 @@ void DisplayManager::setPrimaryDisplay(int index)
     mKmsDisplays[0]->setPowerMode(POWER_ON);
     mKmsDisplays[index]->setIndex(index);
     mKmsDisplays[index]->setPowerMode(POWER_OFF);
+    mKmsDisplays[0]->setCallback(mListener);
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
         Layer* pLayer = mKmsDisplays[index]->getLayer(i);

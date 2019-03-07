@@ -50,8 +50,6 @@ public:
     virtual int setPowerMode(int mode);
     // enable display vsync thread.
     void enableVsync();
-    // set display vsync/hotplug callback.
-    virtual void setCallback(EventListener* callback);
     // enable/disable display vsync.
     virtual void setVsyncEnabled(bool enabled);
     // use software vsync.
@@ -133,7 +131,6 @@ protected:
     };
 
     sp<VSyncThread> mVsyncThread;
-    EventListener* mListener;
 };
 
 }

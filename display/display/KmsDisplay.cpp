@@ -426,12 +426,6 @@ void KmsDisplay::enableVsync()
     mVsyncThread = new VSyncThread(this);
 }
 
-void KmsDisplay::setCallback(EventListener* callback)
-{
-    Mutex::Autolock _l(mLock);
-    mListener = callback;
-}
-
 void KmsDisplay::setVsyncEnabled(bool enabled)
 {
     sp<VSyncThread> vsync = NULL;
@@ -1390,7 +1384,7 @@ int KmsDisplay::composeLayers()
 
     // mLayerVector's size > 0 means 2D composite.
     // only this case needs override mRenderTarget.
-    if (mLayerVector.size() > 0) {
+    if (mLayerVector.size() > 0 || directCompositionLocked()) {
         mTargetIndex = mTargetIndex % MAX_FRAMEBUFFERS;
         mRenderTarget = mTargets[mTargetIndex];
         mTargetIndex++;
