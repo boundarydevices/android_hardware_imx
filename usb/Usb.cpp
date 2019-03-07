@@ -505,9 +505,9 @@ Status getPortStatusHelper(hidl_vec<PortStatus_1_1> *currentPortStatus_1_1,
     (*currentPortStatus_1_1)[0].supportedModes = PortMode_1_1::UFP | PortMode_1_1::DFP;
     (*currentPortStatus_1_1)[0].currentMode = PortMode_1_1::UFP;
     ALOGI("Legacy: canChangeMode:%d canChagedata:%d canChangePower:%d",
-             (*currentPortStatus_1_1)[i].status.canChangeMode,
-            (*currentPortStatus_1_1)[i].status.canChangeDataRole,
-            (*currentPortStatus_1_1)[i].status.canChangePowerRole);
+             (*currentPortStatus_1_1)[0].status.canChangeMode,
+            (*currentPortStatus_1_1)[0].status.canChangeDataRole,
+            (*currentPortStatus_1_1)[0].status.canChangePowerRole);
     return Status::SUCCESS;
   }
 done:
