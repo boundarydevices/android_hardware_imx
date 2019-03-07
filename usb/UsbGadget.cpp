@@ -189,6 +189,7 @@ static void *monitorFfs(void *param) {
 
 UsbGadget::UsbGadget()
     : mMonitorCreated(false), mCurrentUsbFunctionsApplied(false) {
+  mCurrentUsbFunctions = static_cast<uint64_t>(GadgetFunction::NONE);
   if (access(OS_DESC_PATH, R_OK) != 0) ALOGE("configfs setup not done yet");
 }
 
