@@ -48,6 +48,8 @@ FbDisplay::FbDisplay()
     mOvPowerMode = -1;
     mOverlay = NULL;
     mListener = NULL;
+    mOutFence = -1;
+    mPresentFence = -1;
 }
 
 FbDisplay::~FbDisplay()
@@ -184,6 +186,18 @@ int FbDisplay::convertFormatInfo(int format, int* bpp)
     return vformat;
 }
 
+int FbDisplay::getPresentFence(int32_t* outPresentFence)
+{
+    if (outPresentFence != NULL) {
+        if (mPresentFence == -1) {
+            ALOGV("%s invalid present fence:%d", __func__, mPresentFence);
+        }
+        *outPresentFence = mPresentFence;
+        mPresentFence = -1;
+    }
+    return 0;
+}
+
 bool FbDisplay::checkOverlay(Layer* layer)
 {
     char value[PROPERTY_VALUE_MAX];
@@ -318,19 +332,20 @@ int FbDisplay::updateScreen()
         return -EINVAL;
     }
 
+    struct mxcfb_datainfo mxcbuf;
+
+    memset(&mxcbuf, 0, sizeof(mxcbuf));
+    mxcbuf.screeninfo.xoffset = 0;
+    mxcbuf.screeninfo.yoffset = 0;
+
+    mxcbuf.smem_start = buffer->phys;
     if (mAcquireFence != -1) {
-        sync_wait(mAcquireFence, -1);
-        close(mAcquireFence);
-        mAcquireFence = -1;
+        mxcbuf.fence_fd = mAcquireFence;
     }
+    mxcbuf.fence_ptr = (intptr_t)&mPresentFence;
 
-    struct mxcfb_buffer mxcbuf;
-    mxcbuf.xoffset = mxcbuf.yoffset = 0;
-    mxcbuf.stride = config.mStride;
-    mxcbuf.phys = buffer->phys;
-
-    if (ioctl(mFd, MXCFB_UPDATE_SCREEN, &mxcbuf) < 0) {
-        ALOGV("MXCFB_UPDATE_SCREEN failed: %s", strerror(errno));
+    if (ioctl(mFd, MXCFB_PRESENT_SCREEN, &mxcbuf) < 0) {
+        ALOGE("MXCFB_PRESENT_SCREEN failed: %s", strerror(errno));
         struct fb_var_screeninfo info;
         if (ioctl(mFd, FBIOGET_VSCREENINFO, &info) < 0) {
             ALOGE("updateScreen: FBIOGET_VSCREENINFO failed");
@@ -345,6 +360,11 @@ int FbDisplay::updateScreen()
             ALOGE("updateScreen: FBIOPAN_DISPLAY failed errno:%d", errno);
             return -errno;
         }
+    }
+
+    if (mAcquireFence != -1) {
+        close(mAcquireFence);
+        mAcquireFence = -1;
     }
 
     return 0;

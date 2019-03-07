@@ -65,6 +65,7 @@ public:
     virtual int setActiveConfig(int configId);
     // update composite buffer to screen.
     virtual int updateScreen();
+    virtual int getPresentFence(int32_t* outPresentFence);
 
     // open fb device.
     int openFb();
@@ -102,6 +103,8 @@ protected:
     struct fb_var_screeninfo mOvInfo;
     int mOvPowerMode;
     Layer* mOverlay;
+    int mOutFence;
+    int mPresentFence;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);
