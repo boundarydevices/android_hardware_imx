@@ -1153,9 +1153,6 @@ static int out_pause(struct audio_stream_out* stream)
 
     ALOGI("%s", __func__);
 
-    if (lpa_enable == 1)
-        return status;
-
     if (lpa_enable && out->lpa_wakelock_acquired) {
         release_wake_lock(lpa_wakelock);
         out->lpa_wakelock_acquired = false;
@@ -1178,9 +1175,6 @@ static int out_resume(struct audio_stream_out* stream)
     int status = 0;
 
     ALOGI("%s", __func__);
-
-    if (lpa_enable == 1)
-        return status;
 
     pthread_mutex_lock(&out->lock);
     if (out->paused) {
