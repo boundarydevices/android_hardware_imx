@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -222,6 +222,18 @@ int32_t Ov5640Csi8MQ::OvStream::onDeviceConfigureLocked()
     if (ret < 0) {
         ALOGE("%s: VIDIOC_S_FMT Failed: %s", __func__, strerror(errno));
         return ret;
+    }
+
+    char deviceName[CAMERA_SENSOR_LENGTH];
+    memset(deviceName, 0, sizeof(deviceName));
+    property_get("ro.product.device", deviceName, DEFAULT_ERROR_NAME_str);
+    if(strstr(deviceName, "aiy_8mq")) {
+      if(mWidth == 2592 && mHeight == 1944)
+        setOmitFrameCount(3);
+      else if(mWidth == 1920 && mHeight == 1080)
+        setOmitFrameCount(2);
+      else
+        setOmitFrameCount(0);
     }
 
     return 0;
