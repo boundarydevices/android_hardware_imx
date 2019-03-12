@@ -21,28 +21,41 @@
 #include "audio_hardware.h"
 
 
-#define MIXER_WM8960_SPEAKER_VOLUME                 "Speaker Playback Volume"
-#define MIXER_WM8960_HEADPHONE_VOLUME               "Headphone Playback Volume"
-#define MIXER_WM8960_PLAYBACK_VOLUME                "Playback Volume"
+#define MIXER_WM8960_SPEAKER_VOLUME		"Speaker Playback Volume"
+#define MIXER_WM8960_HEADPHONE_VOLUME		"Headphone Playback Volume"
+#define MIXER_WM8960_PLAYBACK_VOLUME		"Playback Volume"
 
-#define MIXER_WM8960_LEFT_OUTPUT_SWITCH             "Left Output Mixer PCM Playback Switch"
-#define MIXER_WM8960_RIGHT_OUTPUT_SWITCH            "Right Output Mixer PCM Playback Switch"
+#define MIXER_WM8960_LEFT_OUTPUT_SWITCH		"Left Output Mixer PCM Playback Switch"
+#define MIXER_WM8960_RIGHT_OUTPUT_SWITCH	"Right Output Mixer PCM Playback Switch"
 
-#define MIXER_WM8960_CAPTURE_SWITCH                 "Capture Switch"
-#define MIXER_WM8960_CAPTURE_VOLUME                 "Capture Volume"
+#define MIXER_WM8960_CAPTURE_SWITCH		"Capture Switch"
+#define MIXER_WM8960_CAPTURE_VOLUME		"Capture Volume"
 
-#define MIXER_WM8960_ALC_FUNCTION                   "ALC Function"
-#define MIXER_WM8960_LEFT_INPUT_SWITCH              "Left Input Mixer Boost Switch"
+#define MIXER_WM8960_ALC_FUNCTION		"ALC Function"
+
+#define MIXER_WM8960_LINPUT_SWITCH		"Left Input Mixer Boost Switch"
+
+#define MIXER_WM8960_LINPUT1_SWITCH		"Left Boost Mixer LINPUT1 Switch"
+#define MIXER_WM8960_LINPUT2_SWITCH		"Left Boost Mixer LINPUT2 Switch"
+#define MIXER_WM8960_LINPUT3_SWITCH		"Left Boost Mixer LINPUT3 Switch"
+#define MIXER_WM8960_LINPUT1_VOLUME		"Left Input Boost Mixer LINPUT1 Volume"
+#define MIXER_WM8960_LINPUT2_VOLUME		"Left Input Boost Mixer LINPUT2 Volume"
+#define MIXER_WM8960_LINPUT3_VOLUME		"Left Input Boost Mixer LINPUT3 Volume"
+#define MIXER_WM8960_LEFT_OUTPUT_LINPUT3_SWITCH	"Left Output Mixer LINPUT3 Switch"
+#define MIXER_WM8960_LEFT_OUTPUT_LINPUT3_VOLUME	"Left Output Mixer LINPUT3 Volume"
+
+#define MIXER_WM8960_RINPUT_SWITCH		"Right Input Mixer Boost Switch"
+
+#define MIXER_WM8960_RINPUT1_SWITCH		"Right Boost Mixer RINPUT1 Switch"
+#define MIXER_WM8960_RINPUT2_SWITCH		"Right Boost Mixer RINPUT2 Switch"
+#define MIXER_WM8960_RINPUT3_SWITCH		"Right Boost Mixer RINPUT3 Switch"
+#define MIXER_WM8960_RINPUT1_VOLUME		"Right Input Boost Mixer RINPUT1 Volume"
+#define MIXER_WM8960_RINPUT2_VOLUME		"Right Input Boost Mixer RINPUT2 Volume"
+#define MIXER_WM8960_RINPUT3_VOLUME		"Right Input Boost Mixer RINPUT3 Volume"
+#define MIXER_WM8960_RIGHT_OUTPUT_RINPUT3_SWITCH "Right Output Mixer RINPUT3 Switch"
+#define MIXER_WM8960_RIGHT_OUTPUT_RINPUT3_VOLUME "Right Output Mixer RINPUT3 Volume"
+
 #define MIXER_WM8960_ADC_PCM_CAPTURE_VOLUME         "ADC PCM Capture Volume"
-
-#ifdef BRILLO
-#define MIXER_WM8960_LEFT_INPUT1_SWITCH             "Left Boost Mixer LINPUT1 Switch"
-#define MIXER_WM8960_LEFT_INPUT2_SWITCH             "Left Boost Mixer LINPUT2 Switch"
-#define MIXER_WM8960_LEFT_INPUT3_SWITCH             "Left Boost Mixer LINPUT3 Switch"
-#define MIXER_WM8960_RIGHT_INPUT_SWITCH             "Right Input Mixer Boost Switch"
-#define MIXER_WM8960_RIGHT_INPUT1_SWITCH            "Right Boost Mixer LINPUT1 Switch"
-#define MIXER_WM8960_RIGHT_INPUT2_SWITCH            "Right Boost Mixer LINPUT2 Switch"
-#endif
 
 /* These are values that never change */
 static struct route_setting defaults_wm8960[] = {
@@ -62,6 +75,80 @@ static struct route_setting defaults_wm8960[] = {
         .ctl_name = MIXER_WM8960_SPEAKER_VOLUME,
         .intval = 127,
     },
+    {
+        .ctl_name = MIXER_WM8960_LINPUT1_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LINPUT2_SWITCH,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LINPUT3_SWITCH,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LINPUT1_VOLUME,
+        .intval = 3,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LINPUT2_VOLUME,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LINPUT3_VOLUME,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LEFT_OUTPUT_LINPUT3_SWITCH,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_LEFT_OUTPUT_LINPUT3_VOLUME,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RINPUT1_SWITCH,
+        .intval = 1,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RINPUT2_SWITCH,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RINPUT3_SWITCH,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RINPUT1_VOLUME,
+        .intval = 3,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RINPUT2_VOLUME,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RINPUT3_VOLUME,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RIGHT_OUTPUT_RINPUT3_SWITCH,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RIGHT_OUTPUT_RINPUT3_VOLUME,
+        .intval = 0,
+    },
+    {
+        .ctl_name = MIXER_WM8960_RINPUT_SWITCH,
+        .intval = 1,
+    },
+#if 0
+    {
+        .ctl_name = MIXER_WM8960_LINPUT_SWITCH,
+        .intval = 1,
+    },
+#endif
 };
 
 static struct route_setting speaker_output_wm8960[] = {
@@ -86,7 +173,7 @@ static struct route_setting mm_main_mic_input_wm8960[] = {
         .intval = 3,
     },
     {
-        .ctl_name = MIXER_WM8960_LEFT_INPUT_SWITCH,
+        .ctl_name = MIXER_WM8960_LINPUT_SWITCH,
         .intval = 1,
     },
     {
@@ -97,32 +184,6 @@ static struct route_setting mm_main_mic_input_wm8960[] = {
         .ctl_name = MIXER_WM8960_CAPTURE_VOLUME,
         .intval = 60,
     },
-#ifdef BRILLO
-    {
-        .ctl_name = MIXER_WM8960_LEFT_INPUT1_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8960_LEFT_INPUT2_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8960_LEFT_INPUT3_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8960_RIGHT_INPUT_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8960_RIGHT_INPUT1_SWITCH,
-        .intval = 1,
-    },
-    {
-        .ctl_name = MIXER_WM8960_RIGHT_INPUT2_SWITCH,
-        .intval = 1,
-    },
-#endif
     {
         .ctl_name = NULL,
     },
