@@ -24,8 +24,8 @@
 #include <errno.h>
 
 #define UEVENT_MSG_LEN 2048
-#define RPMSG_CAN_EVENT  "vendor.rpmsg.can.event"
-#define RPMSG_CAN_REGISTER "vendor.rpmsg.can.register"
+#define RPMSG_CAN_EVENT  "vendor.vehicle.event"
+#define RPMSG_CAN_REGISTER "vendor.vehicle.register"
 static void
 handle_events(int uevent_fd)
 {
