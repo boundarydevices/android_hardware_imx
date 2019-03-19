@@ -419,7 +419,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
                     streamConfigIdx + 4,
                     stallDuration);
 
-    uint8_t supportedHwLvl =  ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
+    uint8_t supportedHwLvl =  ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED;
     m.addUInt8(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
                     1,
                     &supportedHwLvl);
