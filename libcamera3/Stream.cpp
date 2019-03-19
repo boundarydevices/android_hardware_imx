@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP.
+ * Copyright 2017-2019 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -130,6 +130,9 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     JpegParams *mainJpeg = NULL, *thumbJpeg = NULL;
     void *rawBuf = NULL, *thumbBuf = NULL;
     uint32_t v4l2Width = 0, v4l2Height = 0;
+    uint8_t *pDst = NULL;
+    struct camera3_jpeg_blob *jpegBlob = NULL;
+    uint32_t bufSize = 0;
 
     StreamBuffer* dstBuf = mCurrent;
     sp<Stream>& srcStream = src.mStream;
@@ -272,6 +275,18 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
         ALOGE("%s buildImage failed", __FUNCTION__);
         goto err_out;
     }
+
+    // write jpeg size
+    pDst = (uint8_t *)dstBuf->mVirtAddr;
+    bufSize = (mCamera->mMaxJpegSize <= dstBuf->mSize) ? mCamera->mMaxJpegSize : dstBuf->mSize;
+
+    jpegBlob = (struct camera3_jpeg_blob *)(pDst + bufSize -
+                                            sizeof(struct camera3_jpeg_blob));
+    jpegBlob->jpeg_blob_id = CAMERA3_JPEG_BLOB_ID;
+    jpegBlob->jpeg_size = mJpegBuilder->getImageSize();
+
+    ALOGI("%s, dstbuf size %d, jpeg_size %d, max jpeg size %d",
+           __func__, dstBuf->mSize, jpegBlob->jpeg_size, mCamera->mMaxJpegSize);
 
 err_out:
     if (mainJpeg) {
