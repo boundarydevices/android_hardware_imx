@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ int InsertEXIFAndThumbnail(IFDEle* pIFDEle,
                            uint8_t* pMain,
                            uint32_t mainSize,
                            uint8_t* pDst,
-                           uint32_t dstSize);
+                           uint32_t dstSize,
+                           uint32_t *pRequestSize);
 
 #endif
