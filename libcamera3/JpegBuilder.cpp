@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -555,6 +555,7 @@ status_t JpegBuilder::buildImage(StreamBuffer *streamBuf)
         dwThumbSize = mThumbnailInput->jpeg_size;
     }
 
+    mRequestSize = 0;
     ret = InsertEXIFAndThumbnail(table,
                                  position,
                                  pThumb,
@@ -562,7 +563,8 @@ status_t JpegBuilder::buildImage(StreamBuffer *streamBuf)
                                  mMainInput->dst,
                                  mMainInput->jpeg_size,
                                  (uint8_t *)streamBuf->mVirtAddr,
-                                 streamBuf->mSize);
+                                 streamBuf->mSize,
+                                 &mRequestSize);
 
     // clean IDF table
     unsigned int i;

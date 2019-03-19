@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -132,7 +132,7 @@ public:
 
     status_t encodeImage(JpegParams *mainJpeg,
                          JpegParams *thumbNail);
-    size_t   getImageSize();
+    size_t   getImageSize() { return mRequestSize; }
     status_t buildImage(StreamBuffer *streamBuf);
     void     reset();
     void setMetadata(sp<Metadata> meta);
@@ -181,6 +181,7 @@ private:
     bool has_datetime_tag;
 
     sp<Metadata> mMeta;
+    uint32_t mRequestSize;
 };
 };
 
