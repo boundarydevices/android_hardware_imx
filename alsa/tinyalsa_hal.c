@@ -1197,6 +1197,7 @@ static int out_flush(struct audio_stream_out* stream)
     int status = 0;
 
     ALOGI("%s", __func__);
+    pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
 
     out->written = 0;
@@ -1213,6 +1214,7 @@ static int out_flush(struct audio_stream_out* stream)
 
     out->paused = false;
     pthread_mutex_unlock(&out->lock);
+    pthread_mutex_unlock(&adev->lock);
 
     return status;
 }
