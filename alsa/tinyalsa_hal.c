@@ -1088,7 +1088,7 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
     int i;
 
     if ( (adev->mode == AUDIO_MODE_IN_CALL) || (adev->b_sco_rx_running == true) ||
-        (!force_standby && !strcmp(adev->card_list[out->card_index]->driver_name, "wm8962-audio")) ) {
+        (!force_standby && out->card_index != -1 && !strcmp(adev->card_list[out->card_index]->driver_name, "wm8962-audio")) ) {
         ALOGW("no standby");
         return 0;
     }
@@ -1399,7 +1399,18 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
 
-    if (!strcmp(adev->card_list[out->card_index]->driver_name, "ak4458-audio")) {
+    // Update out->card_index before start_output_stream
+    if (out->card_index < 0){
+        int card = -1;
+        if (out->pcm_type == PCM_DSD) {
+            card = get_card_for_name(adev, AK4497_CARD_NAME, &out->card_index);
+            if (card < 0) card = get_card_for_name(adev, AK4458_CARD_NAME, &out->card_index);
+        } else
+            get_card_for_device(adev, out->device, PCM_OUT, &out->card_index);
+    }
+
+    if (out->card_index >= 0 && out->card_index < MAX_AUDIO_CARD_NUM &&
+        !strcmp(adev->card_list[out->card_index]->driver_name, "ak4458-audio")) {
         struct route_setting *route = adev->card_list[out->card_index]->defaults;
         struct mixer *mixer = adev->mixer[out->card_index];
         struct mixer_ctl *ctl;
@@ -3395,6 +3406,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->device      = devices;
     out->paused = false;
     out->pcm_type = pcm_type;
+    out->card_index = -1;
 
     /* FIXME: when we support multiple output devices, we will want to
      * do the following:
