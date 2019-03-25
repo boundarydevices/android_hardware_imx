@@ -33,7 +33,8 @@ using nxp::hardware::display::V1_0::implementation::DisplayHal;
 #define HDMI_PLUG_CHANGE "change@"
 #define HDMI_SII902_PLUG_EVENT "change@/devices/platform/sii902x.0"
 #define HDMI_EXTCON "extcon"
-#define HDMI_DRM_EVENT "change@/devices/platform/display-subsystem/drm"
+#define HDMI_DEVTYPE_DRM "DEVTYPE=drm_minor"
+#define HDMI_HOTPLUG "HOTPLUG=1"
 
 static sp<DisplayHal> mDisplayHal;
 DisplayManager* DisplayManager::sInstance(0);
@@ -594,33 +595,41 @@ int32_t DisplayManager::HotplugThread::readyToRun()
     return 0;
 }
 
+bool DisplayManager::HotplugThread::stringInString(char *uevent_desc, char *sub_string)
+{
+    char *cp;
+    cp = uevent_desc;
+    while(*cp) {
+        if(!strncmp(cp, sub_string, strlen(sub_string)))
+            return true;
+        if (*cp) {
+            cp += strlen(cp) + 1;
+        }
+    }
+    return false;
+}
+
 bool DisplayManager::HotplugThread::threadLoop()
 {
-    char uevent_desc[4096];
-    const char *pSii902 = HDMI_SII902_PLUG_EVENT;
+    char uevent_desc[EVENT_MSG_LEN + 2];
 
-    bool kms = false;
+    bool kms;
     memset(uevent_desc, 0, sizeof(uevent_desc));
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
-    int type = -1;
-    if (strstr(uevent_desc, HDMI_PLUG_EVENT) != NULL &&
-         strstr(uevent_desc, HDMI_PLUG_CHANGE) != NULL &&
-         strstr(uevent_desc, HDMI_EXTCON) == NULL) {
-        type = DISPLAY_HDMI;
-    }
-    else if (!strncmp(uevent_desc, pSii902, strlen(pSii902))) {
-        type = DISPLAY_HDMI_ON_BOARD;
-    }
-    else if (strstr(uevent_desc, "DEVTYPE=drm_minor") &&
-             strstr(uevent_desc, "HOTPLUG=1")) {
+    if (len <= 0 || len >= EVENT_MSG_LEN)
+        return true;
+    uevent_desc[len] = '\0';
+    uevent_desc[len+1] = '\0';
+
+    if ((stringInString(uevent_desc, HDMI_PLUG_EVENT) &&
+         stringInString(uevent_desc, HDMI_PLUG_CHANGE)  &&
+         stringInString(uevent_desc, HDMI_EXTCON)) || stringInString(uevent_desc, HDMI_SII902_PLUG_EVENT)) {
+        kms = false;
+    } else if (stringInString(uevent_desc, HDMI_DEVTYPE_DRM) &&
+             stringInString(uevent_desc, HDMI_HOTPLUG)) {
         kms = true;
-    }
-    else if (strstr(uevent_desc, HDMI_DRM_EVENT)) {
-        ALOGV("%s kms uevent %s", __func__, uevent_desc);
-        kms = true;
-    }
-    else {
-        ALOGV("%s invalid uevent %s", __func__, uevent_desc);
+    } else {
+        ALOGE("%s invalid uevent %s", __func__, uevent_desc);
         return true;
     }
 

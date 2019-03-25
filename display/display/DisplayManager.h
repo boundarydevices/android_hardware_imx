@@ -29,6 +29,8 @@
 #define MAX_PHYSICAL_DISPLAY 10
 #define MAX_VIRTUAL_DISPLAY  16
 
+#define EVENT_MSG_LEN 4096
+
 namespace fsl {
 
 class FbDisplay;
@@ -69,6 +71,7 @@ private:
         virtual void onFirstRef();
         virtual int32_t readyToRun();
         virtual bool threadLoop();
+        virtual bool stringInString(char *uevent_desc, char *sub_string);
 
         DisplayManager *mCtx;
     };
