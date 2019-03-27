@@ -223,11 +223,15 @@ Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
 
         return Error::NONE;
     }
-    // call onRefresh() to trigger SurfaceFlinger composition.
-    fsl::EventListener* callback = NULL;
-    callback = displayManager->getCallback();
-    if (callback != NULL) {
-        callback->onRefresh(0);
+
+    //For the first frame, vync maybe disabled
+    //Menually trigger the onRefresh for composer
+    if(queue->presentTotal() == 1) {
+        fsl::EventListener* callback = NULL;
+        callback = displayManager->getCallback();
+        if (callback != NULL) {
+             callback->onRefresh(0);
+        }
     }
 
     return Error::NONE;

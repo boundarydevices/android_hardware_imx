@@ -56,6 +56,7 @@ public:
     // add slot and buffer to present queue.
     void addPresentSlot(int32_t slot, Memory* buffer);
     int32_t presentSlotCount();
+    int32_t presentTotal();
 
 private:
     Mutex mLock;
@@ -63,6 +64,7 @@ private:
     std::vector<int32_t> mFreeSlot;
     std::vector<int32_t> mPresentSlot;
     int32_t mLastPresent;
+    int32_t mPresentTotal;
     Memory *mBuffers[MAX_COUNT];
 };
 
@@ -138,6 +140,10 @@ public:
     int setRenderTarget(Memory* buffer, int acquireFence);
     // to do composite all layers.
     virtual int composeLayers();
+    // trigger Composer refresh
+    void triggerRefresh();
+    // force Vync event with evs display
+    bool forceVync();
 
     // add hw layer.
     int addHwLayer(uint32_t index, Layer *layer);

@@ -708,6 +708,51 @@ void Display::waitOnFenceLocked()
     }
 }
 
+bool Display::forceVync()
+{
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
+        if (mHwLayers[i] == nullptr) {
+            continue;
+        }
+        if (!(mHwLayers[i]->flags & BUFFER_SLOT)) {
+            ALOGE("%s hw layer without BUFFER_SLOT flag", __func__);
+            continue;
+        }
+
+        BufferSlot *queue = (BufferSlot*)mHwLayers[i]->priv;
+        if (queue == nullptr) {
+            ALOGE("%s hw layer without queue", __func__);
+            continue;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+void Display::triggerRefresh()
+{
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
+        if (mHwLayers[i] == nullptr) {
+            continue;
+        }
+        if (!(mHwLayers[i]->flags & BUFFER_SLOT)) {
+            ALOGE("%s hw layer without BUFFER_SLOT flag", __func__);
+            continue;
+        }
+
+        BufferSlot *queue = (BufferSlot*)mHwLayers[i]->priv;
+        if (queue == nullptr) {
+            ALOGE("%s hw layer without queue", __func__);
+            continue;
+        }
+
+        if (queue->presentSlotCount() > 0 && mListener != nullptr) {
+            mListener->onRefresh(0);
+        }
+    }
+}
+
 int Display::composeLayersLocked()
 {
     int ret = 0;
@@ -745,10 +790,6 @@ int Display::composeLayersLocked()
         if (slot < 0) {
             ALOGW("%s hw layer no buffer", __func__);
             continue;
-        }
-
-        if (queue->presentSlotCount() > 0 && mListener != nullptr) {
-            mListener->onRefresh(0);
         }
 
         mHwLayers[i]->handle = queue->getPresentBuffer(slot);
@@ -813,6 +854,7 @@ BufferSlot::BufferSlot(uint32_t count)
     }
     mPresentSlot.clear();
     mLastPresent = -1;
+    mPresentTotal = 0;
 }
 
 BufferSlot::~BufferSlot()
@@ -848,6 +890,12 @@ int32_t BufferSlot::presentSlotCount()
 {
     Mutex::Autolock _l(mLock);
     return mPresentSlot.size();
+}
+
+int32_t BufferSlot::presentTotal()
+{
+    Mutex::Autolock _l(mLock);
+    return mPresentTotal;
 }
 
 int32_t BufferSlot::getPresentSlot()
@@ -888,6 +936,7 @@ void BufferSlot::addPresentSlot(int32_t slot, Memory* buffer)
 
     Mutex::Autolock _l(mLock);
     mPresentSlot.emplace_back(slot);
+    mPresentTotal ++;
     if (mBuffers[slot] == nullptr) {
         mBuffers[slot] = (Memory*)native_handle_clone(buffer);
     }
