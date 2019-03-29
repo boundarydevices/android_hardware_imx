@@ -111,6 +111,7 @@ int IonAllocator::allocMemory(int size, int align, int flags)
     int ret = 0;
     int fd = -1;
     int heapIds = 0;
+    int ion_flags = 0;
 
     // contiguous memory includes cacheable/non-cacheable.
     if (flags & MFLAGS_CONTIGUOUS) {
@@ -119,6 +120,7 @@ int IonAllocator::allocMemory(int size, int align, int flags)
     // cacheable memory includes contiguous/non-contiguous.
     else if (flags & MFLAGS_CACHEABLE) {
         heapIds = mCCHeapIds | mNCHeapIds;
+        ion_flags = ION_FLAG_CACHED;
     }
     else if (flags & MFLAGS_SECURE) {
         heapIds = mSeHeapIds;
@@ -137,7 +139,7 @@ int IonAllocator::allocMemory(int size, int align, int flags)
     // But align parameter can't take effect to ensure alignment.
     // And ION driver also can't ensure physical address alignment.
     size = (size + (PAGE_SIZE << 3)) & (~((PAGE_SIZE << 3) - 1));
-    ret = ion_alloc_fd(mIonFd, size, align, heapIds, 0, &fd);
+    ret = ion_alloc_fd(mIonFd, size, align, heapIds, ion_flags, &fd);
     if (ret != 0) {
         ALOGE("ion_alloc failed 0x%08X",ret);
     }
