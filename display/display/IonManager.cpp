@@ -57,10 +57,11 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     {
         align = ION_DECODED_BUFFER_VPU_ALIGN;
         flags = MFLAGS_SECURE;
-    } else
+    }
 #endif
+
     if (desc.mProduceUsage & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN)) {
-        flags = MFLAGS_CACHEABLE;
+        flags |= MFLAGS_CACHEABLE;
     }
 
     sharedFd = mAllocator->allocMemory(desc.mSize, align, flags);
