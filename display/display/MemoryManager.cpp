@@ -174,6 +174,7 @@ int MemoryManager::retainMemory(Memory* handle)
 
 int MemoryManager::releaseMemory(Memory* handle)
 {
+    int ret;
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
@@ -181,7 +182,12 @@ int MemoryManager::releaseMemory(Memory* handle)
 
     if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         if (handle->fd_meta > 0) {
-            close(handle->fd_meta);
+            ret = close(handle->fd_meta);
+            handle->fd_meta = 0;
+            if(ret != 0){
+                ALOGE("%s: close DRM allocated fd_meta failed as errno %s", __func__,
+                        strerror(errno));
+            }
         }
         return mGPUAlloc->free(mGPUAlloc, handle);
     }
@@ -207,7 +213,14 @@ int MemoryManager::releaseMemory(Memory* handle)
         munmap((void*)handle->base, handle->size);
     }
 
-    close(handle->fd);
+    if (handle->fd > 0) {
+        ret = close(handle->fd);
+        handle->fd = 0;
+        if(ret != 0){
+            ALOGE("%s: close fd failed as errno %s", __func__,
+                strerror(errno));
+        }
+    }
 
     if (mMetaMap.indexOfKey(handle) >= 0) {
         uint64_t addr = mMetaMap.valueFor(handle);
@@ -216,7 +229,12 @@ int MemoryManager::releaseMemory(Memory* handle)
     }
 
     if (handle->fd_meta > 0) {
-        close(handle->fd_meta);
+        ret = close(handle->fd_meta);
+        handle->fd_meta = 0;
+        if(ret != 0){
+            ALOGE("%s: close fd_meta failed as errno %s", __func__,
+                strerror(errno));
+        }
     }
 
     delete handle;
