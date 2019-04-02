@@ -92,6 +92,10 @@ int Display::setPowerMode(int /*mode*/)
     return -1;
 }
 
+void Display::enableVsync()
+{
+}
+
 void Display::setVsyncEnabled(bool /*enabled*/)
 {
 }

@@ -49,7 +49,7 @@ public:
     // set display power on/off.
     virtual int setPowerMode(int mode);
     // enable display vsync thread.
-    void enableVsync();
+    virtual void enableVsync();
     // enable/disable display vsync.
     virtual void setVsyncEnabled(bool enabled);
     // use software vsync.

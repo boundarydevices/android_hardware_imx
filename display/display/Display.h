@@ -155,6 +155,8 @@ public:
     void setCallback(EventListener* callback);
     // set display power on/off.
     virtual int setPowerMode(int mode);
+    // enable display vsync thread.
+    virtual void enableVsync();
     // enable/disable display vsync.
     virtual void setVsyncEnabled(bool enabled);
     // use software vsync.

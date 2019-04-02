@@ -719,6 +719,9 @@ bool DisplayManager::PollFileThread::threadLoop()
                 if (strstr(inotifyItem->name,"card")) {
                     //detect /dev/dri/card%d has been created
                     mCtx->enumKmsDisplays();
+                    Display* pDisplay = mCtx->getPhysicalDisplay(DISPLAY_PRIMARY);
+                    pDisplay->enableVsync();
+                    pDisplay->setVsyncEnabled(true);
                     EventListener* callback = NULL;
                     callback = mCtx->getCallback();
                     if (callback != NULL) {
