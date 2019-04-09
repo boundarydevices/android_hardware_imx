@@ -72,7 +72,7 @@ DisplayManager::DisplayManager()
     mDrmMode = false;
     mDriverReady = true;
     enumKmsDisplays();
-    if (!mDriverReady) {
+    if (mDrmMode && !mDriverReady) {
         mPollFileThread = new PollFileThread(this);
     }
 
@@ -416,7 +416,7 @@ int DisplayManager::enumKmsDisplays()
     if (foundPrimary) {
         mDriverReady = true;
     }
-    else {
+    else if (mDrmMode){
         ALOGI("drm driver may not ready or bootargs is not correct");
         enumFakeKmsDisplay();
         mDriverReady = false;
