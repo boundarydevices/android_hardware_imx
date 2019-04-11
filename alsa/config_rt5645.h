@@ -210,7 +210,7 @@ static struct route_setting mm_built_in_mic_input_rt5645[] = {
  * config*/
 static struct audio_card rt5645_card = {
     .name = "rt5645-audio",
-    .driver_name = "rt5645-audio",
+    .driver_name = "edgetpu-audio",
     .bus_name = "I2S2",
     .supported_out_devices =
         (AUDIO_DEVICE_OUT_EARPIECE | AUDIO_DEVICE_OUT_SPEAKER |
