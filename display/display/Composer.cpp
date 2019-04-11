@@ -225,7 +225,8 @@ int Composer::checkDimBuffer()
     desc.mFormat = mTarget->format;
     desc.mFslFormat = mTarget->fslFormat;
     desc.mProduceUsage |= USAGE_HW_COMPOSER |
-                          USAGE_HW_2D | USAGE_HW_RENDER;
+                          USAGE_HW_2D | USAGE_HW_RENDER |
+                          USAGE_SW_WRITE_OFTEN | USAGE_SW_READ_OFTEN;
     desc.mFlag = FLAGS_DIMBUFFER;
     desc.checkFormat();
     int ret = pManager->allocMemory(desc, &mDimBuffer);
