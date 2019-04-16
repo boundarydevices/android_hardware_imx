@@ -348,7 +348,7 @@ static cl_program CreateProgram(cl_context context, cl_device_id device,
 
     // get the length of the source code
     fseek(pFileStream, 0, SEEK_END);
-    program_length = ftell(pFileStream);
+    program_length = (size_t)ftell(pFileStream);
     fseek(pFileStream, 0, SEEK_SET);
 
     // allocate a buffer for the source code string and read it in
