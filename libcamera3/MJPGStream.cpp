@@ -958,6 +958,7 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
             frameBuf[i].pbufVirtCb_tilebot=0;
         }
         *vpuindex = i;
+        memset(frameBuf[i].nReserved, 0, sizeof(frameBuf[i].nReserved));
     }
 
     //register frame buffs
