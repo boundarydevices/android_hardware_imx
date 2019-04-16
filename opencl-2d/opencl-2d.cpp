@@ -523,7 +523,7 @@ static void Cleanup(struct g2dContext *gContext)
             for(int i = 0; i < MAX_CL_KERNEL_COUNT; i ++)
                 if(gContext->dst[i] != NULL){
                     free(gContext->dst[i]);
-                    gContext->dst[i] == NULL;
+                    gContext->dst[i] = NULL;
                 }
 
             ReleaseKernel(gContext);
