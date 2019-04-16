@@ -355,7 +355,8 @@ bool CameraMetadata::exists(uint32_t tag) const {
 
 camera_metadata_entry_t CameraMetadata::find(uint32_t tag) {
     status_t res;
-    camera_metadata_entry entry;
+    camera_metadata_entry entry = {0, 0, 0, 0};
+
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         entry.count = 0;
