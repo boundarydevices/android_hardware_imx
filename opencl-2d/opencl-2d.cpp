@@ -563,45 +563,46 @@ int cl_g2d_open(void **handle)
         return -1;
     }
 
-    Mutex::Autolock init(gContext->mLock);
+    {
+        Mutex::Autolock init(gContext->mLock);
 
-    gContext->context = CreateContext();
-        if (gContext->context == NULL) {
-                g2d_printf("failed for CreateContext\n");
-                goto err2;
-    }
+        gContext->context = CreateContext();
+            if (gContext->context == NULL) {
+                    g2d_printf("failed for CreateContext\n");
+                    goto err2;
+        }
 
-    gContext->commandQueue = CreateCommandQueue(gContext->context, &device);
-        if (gContext->commandQueue == NULL) {
-                g2d_printf("failed for CreateCommandQueue\n");
-                goto err2;
-    }
-    gContext->device = device;
-    //All kernel should be built and create in open to save time
+        gContext->commandQueue = CreateCommandQueue(gContext->context, &device);
+            if (gContext->commandQueue == NULL) {
+                    g2d_printf("failed for CreateCommandQueue\n");
+                    goto err2;
+        }
+        gContext->device = device;
+        //All kernel should be built and create in open to save time
 #ifdef USE_CL_SOURCECODE
-    gContext->program = CreateProgram(gContext->context, device, clFileName);
+        gContext->program = CreateProgram(gContext->context, device, clFileName);
 #else
-    gContext->program = CreateProgramFromBinary(gContext->context, device, clFileName);
+        gContext->program = CreateProgramFromBinary(gContext->context, device, clFileName);
 #endif
-    if (gContext->program == NULL) {
-        g2d_printf("failed for CreateProgramFromBinary %s\n", clFileName);
-        goto err2;
-    }
+        if (gContext->program == NULL) {
+            g2d_printf("failed for CreateProgramFromBinary %s\n", clFileName);
+            goto err2;
+        }
 
-    for(int i = 0; i < MAX_CL_KERNEL_COUNT; i ++) {
-        if(kernel_name_list[i] != NULL) {
-            cl_kernel kernel = 0;
-            // Create OpenCL kernel
-            kernel = clCreateKernel(gContext->program, kernel_name_list[i], NULL);
-            if (kernel == NULL)
-            {
-                g2d_printf("%s: Cannot create kernel %s\n", __func__, kernel_name_list[i]);
-                goto err2;
+        for(int i = 0; i < MAX_CL_KERNEL_COUNT; i ++) {
+            if(kernel_name_list[i] != NULL) {
+                cl_kernel kernel = 0;
+                // Create OpenCL kernel
+                kernel = clCreateKernel(gContext->program, kernel_name_list[i], NULL);
+                if (kernel == NULL)
+                {
+                    g2d_printf("%s: Cannot create kernel %s\n", __func__, kernel_name_list[i]);
+                    goto err2;
+                }
+                gContext->kernel[i] = kernel;
             }
-            gContext->kernel[i] = kernel;
         }
     }
-
     *handle = (void*)gContext;
     return 0;
 
