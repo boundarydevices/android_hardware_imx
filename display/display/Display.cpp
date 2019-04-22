@@ -477,6 +477,10 @@ bool Display::verifyLayers()
 
     Mutex::Autolock _l(mLock);
     mLayerVector.clear();
+
+    // get deviceCompose init value
+    deviceCompose = check2DComposition();
+
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
@@ -529,8 +533,6 @@ bool Display::verifyLayers()
     }
 
     // set device compose flags.
-    deviceCompose = check2DComposition();
-
     mComposeFlag &= OVERLAY_COMPOSE_MASK;
     mComposeFlag = mComposeFlag << (LAST_OVERLAY_BIT - OVERLAY_COMPOSE_BIT);
     for (size_t i=0; i<MAX_LAYERS; i++) {
