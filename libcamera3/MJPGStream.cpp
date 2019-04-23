@@ -994,6 +994,8 @@ int MJPGStream::FreeMemBlock(DecMemInfo* pDecMem)
         vpuMem.nVirtAddr=pDecMem->phyMem_virtAddr[i];
         vpuMem.nCpuAddr=pDecMem->phyMem_cpuAddr[i];
         vpuMem.nSize=pDecMem->phyMem_size[i];
+        vpuMem.nType=VPU_MEM_DESC_NORMAL;
+
         vpuRet=VPU_DecFreeMem(&vpuMem);
         if(vpuRet!=VPU_DEC_RET_SUCCESS)
         {
@@ -1034,6 +1036,8 @@ int  MJPGStream::MallocMemBlock(VpuMemInfo* pMemBlock,DecMemInfo* pDecMem)
             VpuMemDesc vpuMem;
             VpuDecRetCode ret;
             vpuMem.nSize=size;
+            vpuMem.nType=VPU_MEM_DESC_NORMAL;
+
             ret=VPU_DecGetMem(&vpuMem);
             if(ret!=VPU_DEC_RET_SUCCESS)
             {
