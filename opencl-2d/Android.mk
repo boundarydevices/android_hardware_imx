@@ -49,12 +49,18 @@ LOCAL_SRC_FILES := opencl-2d-test.cpp
 LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
                     system/core/libion/include \
+                    system/core/libion \
                     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include
+
+LOCAL_C_INCLUDES += \
+                    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include/VX
 
 LOCAL_SHARED_LIBRARIES := liblog \
                           libcutils \
                           libion \
                           libOpenCL \
+                          libOpenVX \
+                          libOpenVXU \
                           libopencl-2d
 
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID
