@@ -19,6 +19,7 @@
 #include <healthd/healthd.h>
 #include <health2/Health.h>
 #include <hidl/HidlTransportSupport.h>
+#include <cutils/properties.h>
 
 #include <android-base/file.h>
 #include <android-base/strings.h>
@@ -45,9 +46,11 @@ void get_storage_info(std::vector<struct StorageInfo>&) {
 }
 
 static constexpr size_t kDiskStatsSize = 11;
-static constexpr char kDiskStatsFile[] = "/sys/block/mmcblk0/stat";
+#define PROP_BOOT_DEVICE_ROOT "ro.boot.boot_device_root"
 
 void get_disk_stats(std::vector<struct DiskStats>& vec_stats) {
+  char boot_device_root[PROP_VALUE_MAX];
+  char kDiskStatsFile[PROP_VALUE_MAX];
   DiskStats stats = {};
   std::string mmcblk_link_path;
 
@@ -55,7 +58,8 @@ void get_disk_stats(std::vector<struct DiskStats>& vec_stats) {
   stats.attr.isBootDevice = true;
   stats.attr.name = "micron";
 
-
+  property_get(PROP_BOOT_DEVICE_ROOT, boot_device_root, "mmcblk0");
+  sprintf(kDiskStatsFile, "/sys/block/%s/stat", boot_device_root);
   std::string buffer;
   if (!android::base::ReadFileToString(std::string(kDiskStatsFile), &buffer)) {
       LOG(ERROR) << kDiskStatsFile << ": ReadFileToString failed.";
