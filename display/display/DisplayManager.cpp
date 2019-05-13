@@ -94,12 +94,6 @@ DisplayManager::DisplayManager()
         display->setFakeVSync(true);
     }
 
-    char value[PROPERTY_VALUE_MAX];
-    int len = property_get("ro.boot.soc_type", value, NULL);
-    if ((len > 0) && strstr(value, "imx6sx")) {
-        display->setFakeVSync(true);
-    }
-
     mHotplugThread = new HotplugThread(this);
     mDisplayHal = new DisplayHal();
     if (mDisplayHal->registerAsService() != 0) {
