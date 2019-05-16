@@ -373,12 +373,22 @@ static int gralloc_allocate(gralloc1_device_t* device,
 
         desc->mFslFormat = convertAndroidFormat(desc->mFormat);
         if (desc->mFslFormat == FORMAT_BLOB) {
+            // Below trick is based on the convention that the height is 1, width is size
+            // when BLOB format. Show the info, so that once the framework change the convention,
+            // We can get some clue.
+            ALOGI("%s, FORMAT_BLOB, %dx%d", __func__, desc->mWidth, desc->mHeight);
+
             // GPU can't recognize BLOB format, fake format to YUYV.
             // size = width * height * 2;
             // avoid height alignment issue.
             desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
             desc->mFslFormat = FORMAT_YUYV;
             desc->mWidth = (desc->mWidth + 1) / 2;
+
+            // For FORMAT_YUYV, the height is aligned by 4 in MemoryDesc::checkFormat().
+            // Do some trick here to keep  w*h unchanged. Or will allocate 4 times of the needed size.
+            desc->mWidth = (desc->mWidth+3)/4;
+            desc->mHeight *= 4;
         }
         if (desc->mFslFormat == FORMAT_NV12_TILED ||
             desc->mFslFormat == FORMAT_NV12_G1_TILED ||
