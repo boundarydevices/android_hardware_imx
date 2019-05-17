@@ -93,7 +93,8 @@ int MemoryDesc::checkFormat()
             }
 
             if (mProduceUsage & USAGE_HW_VIDEO_ENCODER) {
-                mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
+                mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER |
+                                 USAGE_SW_WRITE_OFTEN | USAGE_SW_READ_OFTEN;
             }
             } break;
 
