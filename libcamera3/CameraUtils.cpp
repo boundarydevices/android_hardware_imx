@@ -263,7 +263,8 @@ SensorData::SensorData()
     memset(mPreviewResolutions, 0, sizeof(mPreviewResolutions));
     memset(mPictureResolutions, 0, sizeof(mPictureResolutions));
 
-    mMaxJpegSize = 8 * 1024 * 1024;
+    // For 2592x1944 jpg, mostly less than 1MB, 4MB is enough.
+    mMaxJpegSize = 4 * 1024 * 1024;
 }
 
 SensorData::~SensorData()
