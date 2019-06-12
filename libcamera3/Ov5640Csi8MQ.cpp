@@ -172,6 +172,7 @@ status_t Ov5640Csi8MQ::initSensorStaticData()
     mActiveArrayHeight = 1944;
     mPixelArrayWidth = 2592;
     mPixelArrayHeight = 1944;
+    mMaxJpegSize = 8 * 1024 * 1024;
 
     ALOGI("ov5640Csi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
         mFocalLength, mPhysicalWidth, mPhysicalHeight);

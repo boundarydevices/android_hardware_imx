@@ -165,6 +165,7 @@ status_t Ov5640Imx8Q::initSensorStaticData()
     mActiveArrayHeight = 1944;
     mPixelArrayWidth = 2592;
     mPixelArrayHeight = 1944;
+    mMaxJpegSize = 8 * 1024 * 1024;
 
     ALOGI("ImxdpuCsi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
           mFocalLength,
