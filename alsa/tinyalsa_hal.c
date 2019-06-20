@@ -3226,6 +3226,16 @@ static int adev_get_microphones(const struct audio_hw_device *dev,
 
     return 0;
 }
+
+static int in_get_active_microphones(const struct audio_stream_in *stream,
+                                     struct audio_microphone_characteristic_t *mic_array,
+                                     size_t *mic_count)
+{
+    struct imx_stream_in *in = (struct imx_stream_in *)stream;
+    struct imx_audio_device *adev = in->dev;
+
+    return adev_get_microphones((struct audio_hw_device *)adev, mic_array, mic_count);
+}
 #endif
 
 static int adev_open_output_stream(struct audio_hw_device *dev,
@@ -4072,6 +4082,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.set_gain = in_set_gain;
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
+#if ANDROID_SDK_VERSION >= 28
+    in->stream.get_active_microphones = in_get_active_microphones;
+#endif
 
     in->requested_rate    = config->sample_rate;
     in->requested_format  = PCM_FORMAT_S16_LE;
