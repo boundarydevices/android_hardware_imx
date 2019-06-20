@@ -25,7 +25,6 @@ LOCAL_C_INCLUDES += hardware/libhardware/include \
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_SRC_FILES := fsl_lights.c
 LOCAL_MODULE := lights.$(TARGET_BOARD_PLATFORM)
-LOCAL_MODULE_TAGS := eng
 LOCAL_VENDOR_MODULE := true
 include $(BUILD_SHARED_LIBRARY)
 
