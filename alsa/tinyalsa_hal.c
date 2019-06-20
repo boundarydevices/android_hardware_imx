@@ -117,6 +117,14 @@
 // Limit LPA max latency to 300ms
 #define LPA_LATENCY_MS 300
 
+#ifndef PCM_LPA
+#define PCM_LPA 0
+#endif
+
+#ifndef PCM_FLAG_DSD
+#define PCM_FLAG_DSD 0
+#endif
+
 #define MM_USB_AUDIO_IN_RATE   16000
 
 #define SCO_RATE 16000
