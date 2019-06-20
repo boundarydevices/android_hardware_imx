@@ -113,7 +113,7 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 #endif
 #endif
     }
-    else if (strstr(name, OV5640_SENSOR_NAME) || strstr(name, IMX8MN_OV5640_SENSOR_NAME)) {
+    else if (strstr(name, OV5640_SENSOR_NAME)) {
 #ifdef VADC_TVIN
         ALOGI("create id:%d TVin device for auto_sx", id);
         device = new VADCTVINDevice(id, facing, orientation, path);
