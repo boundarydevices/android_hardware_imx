@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ enum {
 
     /* buffer size of hantro decoder is not to yuv pixel size, it need to
     * pad some bytes for vpu usage, so add this flag */
-    USAGE_PADDING_BUFFER = 0x80000000,
+    USAGE_PADDING_BUFFER = 0x40000000,
 };
 
 enum {
