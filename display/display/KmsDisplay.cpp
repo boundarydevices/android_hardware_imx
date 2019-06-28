@@ -31,6 +31,67 @@
 #include "MemoryManager.h"
 #include "KmsDisplay.h"
 
+// uncomment below to enable frame dump feature
+//#define DEBUG_DUMP_FRAME
+
+#ifdef DEBUG_DUMP_FRAME
+static void dump_frame_to_file(char *pbuf, int size, char *filename)
+{
+    int fd = 0;
+    int len = 0;
+    fd = open(filename, O_CREAT | O_RDWR, 0666);
+    if (fd<0) {
+        ALOGE("Unable to open file [%s]\n",
+             filename);
+    }
+    len = write(fd, pbuf, size);
+    close(fd);
+}
+
+static void dump_frame(char *pbuf, int size)
+{
+    static bool start_dump = false;
+    static int prev_request_frame_count = 0;
+    static int request_frame_count = 0;
+    static int dumpped_count = 0;
+
+    if(!start_dump) {
+        char value[PROPERTY_VALUE_MAX];
+        property_get("hwc.enable.dump_frame", value, "0");
+        request_frame_count = atoi(value);
+        //Previous dump request finished, no more request catched
+        if(prev_request_frame_count == request_frame_count)
+            return;
+
+        prev_request_frame_count = request_frame_count;
+        if (request_frame_count >= 1)
+            start_dump = true;
+        else
+            start_dump = false;
+
+    }
+
+    if((start_dump)&& (request_frame_count >= 1)) {
+        ALOGI("Dump %d frame buffer %p, size %d",
+                dumpped_count, pbuf, size);
+        if (pbuf != 0) {
+            char filename[128];
+            memset(filename, 0, 128);
+            sprintf(filename, "/data/%s-frame-%d.rgba",
+                    "drm-display", dumpped_count);
+            dump_frame_to_file(pbuf, size, filename);
+            dumpped_count ++;
+        }
+        request_frame_count --;
+        if(request_frame_count == 0){
+            start_dump = false;
+        }
+    }
+
+}
+
+#endif
+
 namespace fsl {
 
 KmsDisplay::KmsDisplay()
@@ -664,6 +725,8 @@ int KmsDisplay::performOverlay()
     return true;
 }
 
+
+
 int KmsDisplay::updateScreen()
 {
     int drmfd = -1;
@@ -773,6 +836,18 @@ int KmsDisplay::updateScreen()
             ALOGE("%s can't get virtual address to clear screen!", __func__);
         }
     }
+
+#ifdef DEBUG_DUMP_FRAME
+    if(buffer->base == 0) {
+        void *vaddr = NULL;
+        mMemoryManager->lock(buffer, buffer->usage,
+                    0, 0, buffer->width, buffer->height, &vaddr);
+        dump_frame((char *)vaddr, buffer->size);
+        mMemoryManager->unlock(buffer);
+    }
+    else
+        dump_frame((char *)buffer->base, buffer->size);
+#endif
 
     bindCrtc(mPset, modeID);
     mKmsPlanes[0].connectCrtc(mPset, mCrtcID, buffer->fbId);
