@@ -27,7 +27,10 @@
 #include "CameraHAL.h"
 #include "Metadata.h"
 #include "Stream.h"
+
+#ifdef BOARD_HAVE_VPU
 #include "UvcMJPGDevice.h"
+#endif
 
 //#define LOG_NDEBUG 0
 #include <cutils/log.h>
