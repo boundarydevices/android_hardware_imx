@@ -133,7 +133,6 @@ static struct audio_card  wm8960_card = {
             AUDIO_DEVICE_IN_BUILTIN_MIC |
             AUDIO_DEVICE_IN_WIRED_HEADSET |
             AUDIO_DEVICE_IN_BACK_MIC |
-            AUDIO_DEVICE_IN_ALL_SCO |
             AUDIO_DEVICE_IN_DEFAULT),
     .defaults            = default_output_wm8960,
     .bt_output           = NULL,

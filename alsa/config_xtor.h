@@ -26,8 +26,8 @@
 static struct audio_card  xtor_card = {
     .name = BT_SAI_CARD_NAME,
     .driver_name = "xtor-audio",
-    .supported_out_devices = 0,
-    .supported_in_devices = 0,
+    .supported_out_devices = AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET,
+    .supported_in_devices = AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET,
     .defaults            = NULL,
     .bt_output           = NULL,
     .speaker_output      = NULL,

@@ -131,6 +131,9 @@
 /* audio input device for hfp */
 #define SCO_IN_DEVICE AUDIO_DEVICE_IN_BUILTIN_MIC
 
+// sample rate requested by BT firmware on HSP
+#define HSP_SAMPLE_RATE 8000
+
 /* product-specific defines */
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
 #define PRODUCT_NAME_PROPERTY   "ro.product.name"
@@ -709,6 +712,7 @@ static int start_output_stream_primary(struct imx_stream_out *out)
     int i;
     int pcm_device;
     bool success = false;
+    int ret = 0;
 
     pcm_device = out->device & (AUDIO_DEVICE_OUT_ALL & ~AUDIO_DEVICE_OUT_AUX_DIGITAL);
     if (pcm_device && (adev->active_output[OUTPUT_ESAI] == NULL || adev->active_output[OUTPUT_ESAI]->standby)) {
@@ -722,6 +726,28 @@ static int start_output_stream_primary(struct imx_stream_out *out)
         out->write_flags[PCM_NORMAL]            = PCM_OUT | PCM_MMAP | PCM_MONOTONIC;
         out->write_threshold[PCM_NORMAL]        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
         out->config[PCM_NORMAL] = pcm_config_mm_out;
+
+        // create resampler from 48000 to 8000
+        if(out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) {
+            out->config[PCM_NORMAL].rate = HSP_SAMPLE_RATE;
+            if(out->resampler[PCM_NORMAL])
+                release_resampler(out->resampler[PCM_NORMAL]);
+
+            ret = create_resampler(adev->default_rate,
+                               HSP_SAMPLE_RATE,
+                               2,
+                               RESAMPLER_QUALITY_DEFAULT,
+                               NULL,
+                               &out->resampler[PCM_NORMAL]);
+            if (ret != 0) {
+                ALOGE("create resampler from %d to %d failed, ret %d\n", adev->default_rate, HSP_SAMPLE_RATE, ret);
+                return ret;
+            }
+        }
+
+        // Fix me. When exit from HSP, should recover resampler to the origin.
+        // But since primary stream sample rate is same as that configured in sound card.
+        // will no call resampler, so do nothing.
 
 #if defined(PRODUCT_IOT)
         const char* bus = audio_map_get_audio_bus(out->device, out->address);
@@ -1957,12 +1983,14 @@ static int start_input_stream(struct imx_stream_in *in)
     struct mixer *mixer;
     int rate = 0, channels = 0, format = 0;
 
-    ALOGW("start_input_stream....");
+    ALOGW("start_input_stream...., mode %d, in->device 0x%x", adev->mode, in->device);
 
     adev->active_input = in;
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         adev->in_device = in->device;
         select_input_device(adev);
+    } else {
+        adev->in_device = in->device;
     }
 
 #ifdef PRODUCT_IOT
@@ -1998,6 +2026,9 @@ static int start_input_stream(struct imx_stream_in *in)
 #endif
     /*Error handler for usb mic plug in/plug out when recording. */
     memcpy(&in->config, &pcm_config_mm_in, sizeof(pcm_config_mm_in));
+
+    if(in->device == (AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET & ~AUDIO_DEVICE_BIT_IN))
+        in->config.rate = HSP_SAMPLE_RATE;
 
     in->config.stop_threshold = in->config.period_size * in->config.period_count;
 
@@ -3393,7 +3424,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.write = out_write_primary;
     }
 
-
+    // Fix me. Default_rate is same as mm_rate. The resampler do nothing.
     for(i = 0; i < PCM_TOTAL; i++) {
          ret = create_resampler(ladev->default_rate,
                                ladev->mm_rate,
