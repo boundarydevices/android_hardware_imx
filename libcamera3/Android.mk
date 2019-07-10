@@ -91,9 +91,11 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
 
 ifeq ($(BOARD_HAVE_VPU),true)
+ifneq ($(BOARD_SOC_TYPE), IMX8Q)
     LOCAL_SHARED_LIBRARIES += \
             lib_vpu_wrapper
     LOCAL_CFLAGS += -DBOARD_HAVE_VPU
+endif
 endif
 
 ifeq ($(HAVE_FSL_IMX_PXP),true)
