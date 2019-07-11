@@ -243,5 +243,10 @@ int32_t Ov5640Imx8Q::Ov5640Stream::onDeviceConfigureLocked()
         return ret;
     }
 
+    if(mWidth == 2592 && mHeight == 1944)
+      setOmitFrameCount(2);
+    else
+      setOmitFrameCount(0);
+
     return 0;
 }
