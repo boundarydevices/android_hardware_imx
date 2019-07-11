@@ -1,0 +1,73 @@
+// Copyright 2019 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// This is the Freescale ALSA module for i.MX.
+
+audio_primary_defaults {
+    name: "audio_primary_default",
+    relative_install_path: "hw",
+    srcs: [
+        "tinyalsa_hal.c",
+        "control.c",
+        "pcm_ext.c",
+    ],
+
+    vendor: true,
+    include_dirs: [
+        "external/tinyalsa/include",
+        "system/media/audio_utils/include",
+        "system/media/audio_effects/include",
+        "hardware/libhardware/include",
+    ],
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libtinyalsa",
+        "libaudioutils",
+        "libdl",
+        "libpower",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-alsa",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/alsa",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "alsa.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cc_library_shared {
+    name: "audio.primary.imx8",
+    defaults: ["audio_primary_default"],
+}
+
+cc_library_shared {
+    name: "audio.primary.imx6",
+    defaults: ["audio_primary_default"],
+}
+
+cc_library_shared {
+    name: "audio.primary.imx7",
+    defaults: ["audio_primary_default"],
+}
