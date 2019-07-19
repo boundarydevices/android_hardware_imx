@@ -145,7 +145,7 @@ int MemoryDesc::checkFormat()
             alignedw = ALIGN_PIXEL_32(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
             int c_stride = (alignedw/2+15)/16*16;
-            size = alignedw * alignedh + c_stride * mHeight;
+            size = alignedw * alignedh + c_stride * alignedh;
             } break;
 
         case FORMAT_NV16:

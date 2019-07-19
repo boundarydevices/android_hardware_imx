@@ -283,7 +283,7 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cb = (void*)(handle->base + handle->stride*handle->height);
+            ycbcr->cb = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
             ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + 1);
             ycbcr->chroma_step = 2;
             break;
@@ -292,7 +292,7 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cr = (void*)(handle->base + handle->stride*handle->height);
+            ycbcr->cr = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
             ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + 1);
             ycbcr->chroma_step = 2;
             break;
@@ -301,8 +301,8 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cb = (void*)(handle->base + handle->stride*handle->height);
-            ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + ycbcr->cstride*handle->height/2);
+            ycbcr->cb = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
+            ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + ycbcr->cstride*ALIGN_PIXEL_4(handle->height)/2);
             ycbcr->chroma_step = 1;
             break;
 
@@ -310,8 +310,8 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cr = (void*)(handle->base + handle->stride*handle->height);
-            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + ycbcr->cstride*handle->height/2);
+            ycbcr->cr = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
+            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + ycbcr->cstride*ALIGN_PIXEL_4(handle->height)/2);
             ycbcr->chroma_step = 1;
             break;
 
