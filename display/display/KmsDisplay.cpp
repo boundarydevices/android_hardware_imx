@@ -815,10 +815,12 @@ int KmsDisplay::updateScreen()
 
     // to clear screen to black in below case:
     // it is not in client composition and
-    // last overlay state and current are different.
-    if (((mComposeFlag & CLIENT_COMPOSE_MASK) ^
-             CLIENT_COMPOSE_MASK) && ((mComposeFlag >> 1) ^
-             (mComposeFlag & OVERLAY_COMPOSE_MASK))) {
+    // last overlay state and current are different or
+    // all layer is in overlay state.
+
+    if (((mComposeFlag & CLIENT_COMPOSE_MASK) ^ CLIENT_COMPOSE_MASK) &&
+             ( ((mComposeFlag >> 1) ^ (mComposeFlag & OVERLAY_COMPOSE_MASK)) ||
+             ( (mComposeFlag & ONLY_OVERLAY_MASK) ))) {
         if (buffer->base == 0) {
             void *vaddr = NULL;
             int usage = buffer->usage | USAGE_SW_READ_OFTEN

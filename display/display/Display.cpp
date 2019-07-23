@@ -480,6 +480,7 @@ bool Display::verifyLayers()
 
     // get deviceCompose init value
     deviceCompose = check2DComposition();
+    int lastComposeFlag = mComposeFlag;
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
@@ -566,6 +567,19 @@ bool Display::verifyLayers()
             continue;
         }
         mLayerVector.add(mLayers[i]);
+    }
+
+    // If all layer is in overlay state,add ONLY_OVERLAY_BIT to mComposeFlag.
+    // But only add it at the first time.
+    lastComposeFlag &= ~ONLY_OVERLAY_MASK;
+    if ( ((mComposeFlag & CLIENT_COMPOSE_MASK) ^ CLIENT_COMPOSE_MASK) &&
+        mComposeFlag & OVERLAY_COMPOSE_MASK ) {
+        if ( lastComposeFlag == mComposeFlag) {
+            mComposeFlag &= ~ONLY_OVERLAY_MASK;
+        }
+        else {
+            mComposeFlag |= 1 << ONLY_OVERLAY_BIT;
+        }
     }
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
