@@ -98,8 +98,10 @@ ifeq ($(BOARD_SOC_CLASS), IMX8)
     LOCAL_CFLAGS += -DIMX8
 endif
 
+# 8MQ DCSS need source width and height 2 pixel align.
+# workaround by set source width and height 2 pixel align.
 ifeq ($(BOARD_SOC_TYPE), IMX8MQ)
-    LOCAL_CFLAGS += -DFRAMEBUFFER_COMPRESSION
+    LOCAL_CFLAGS += -DFRAMEBUFFER_COMPRESSION -DWORKAROUND_DOWNSCALE_LIMITATION_DCSS
 endif
 
 ifneq ($(HAVE_FSL_IMX_GPU3D),true)

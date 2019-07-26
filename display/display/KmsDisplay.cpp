@@ -703,8 +703,8 @@ int KmsDisplay::performOverlay()
     int y = rect->top * mMode.vdisplay / config.mYres;
     int w = (rect->right - rect->left) * mMode.hdisplay / config.mXres;
     int h = (rect->bottom - rect->top) * mMode.vdisplay / config.mYres;
-#ifdef WORKAROUND_DOWNSCALE_LIMITATION
-    mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w), ALIGN_PIXEL_2(h));
+#if defined(WORKAROUND_DOWNSCALE_LIMITATION) || defined(WORKAROUND_DOWNSCALE_LIMITATION_DCSS)
+    mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
 #else
     mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, w, h);
 #endif
@@ -716,7 +716,11 @@ int KmsDisplay::performOverlay()
     if (srcW < w) w = srcW;
     if (srcH < h) h = srcH;
     mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, 0, 0,
-                    ALIGN_PIXEL_2(w), ALIGN_PIXEL_2(h));
+                    ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
+#elif defined(WORKAROUND_DOWNSCALE_LIMITATION_DCSS)
+    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, rect->left, rect->top,
+                    ALIGN_PIXEL_2(rect->right - rect->left -1),
+                    ALIGN_PIXEL_2(rect->bottom - rect->top -1));
 #else
     mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, rect->left, rect->top,
                     rect->right - rect->left, rect->bottom - rect->top);
