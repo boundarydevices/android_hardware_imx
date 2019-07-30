@@ -87,6 +87,7 @@ private:
     void prepareTargetsLocked();
     void releaseTargetsLocked();
     int convertFormatInfo(int format, int* bpp);
+    void getGUIResolution(int &width, int &height);
 
 protected:
     int mFb;
@@ -103,6 +104,7 @@ protected:
     Layer* mOverlay;
     int mOutFence;
     int mPresentFence;
+    bool mCustomizeUI;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);

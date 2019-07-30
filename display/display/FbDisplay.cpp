@@ -50,6 +50,7 @@ FbDisplay::FbDisplay()
     mListener = NULL;
     mOutFence = -1;
     mPresentFence = -1;
+    mCustomizeUI = false;
 }
 
 FbDisplay::~FbDisplay()
@@ -317,13 +318,15 @@ int FbDisplay::updateScreen()
         ALOGE("%s invalid config",__func__);
         return -EINVAL;
     }
-    const DisplayConfig& config = mConfigs[mActiveConfig];
-    if (buffer->width != config.mXres || buffer->height != config.mYres ||
-        buffer->fslFormat != config.mFormat) {
-        ALOGE("%s buffer not match: w:%d, h:%d, f:%d, xres:%d, yres:%d, mf:%d",
-              __func__, buffer->width, buffer->height, buffer->fslFormat,
-              config.mXres, config.mYres, config.mFormat);
-        return -EINVAL;
+    if (!mCustomizeUI) {
+        const DisplayConfig& config = mConfigs[mActiveConfig];
+        if (buffer->width != config.mXres || buffer->height != config.mYres ||
+            buffer->fslFormat != config.mFormat) {
+            ALOGE("%s buffer not match: w:%d, h:%d, f:%d, xres:%d, yres:%d, mf:%d",
+                  __func__, buffer->width, buffer->height, buffer->fslFormat,
+                  config.mXres, config.mYres, config.mFormat);
+            return -EINVAL;
+        }
     }
 
     struct mxcfb_datainfo mxcbuf;
@@ -364,6 +367,32 @@ int FbDisplay::updateScreen()
     return 0;
 }
 
+void FbDisplay::getGUIResolution(int &width, int &height)
+{
+    char value[PROPERTY_VALUE_MAX];
+    char w_buf[PROPERTY_VALUE_MAX];
+    char h_buf[PROPERTY_VALUE_MAX];
+    memset(value, 0, sizeof(value));
+    memset(w_buf, 0, sizeof(w_buf));
+    memset(h_buf, 0, sizeof(h_buf));
+    property_get("ro.boot.ui_resolution", value, "imx");
+    if (!strncmp(value, "imx", 3)) {
+        mCustomizeUI = false;
+        return;
+    }
+    if (sscanf(value,"%[0-9]x%[0-9]",w_buf,h_buf) == 2) {
+        int w = atoi(w_buf);
+        int h = atoi(h_buf);
+        if (w > width || h > height) {
+            ALOGI("Set ui resolution failed! width,height:[%dx%d] can not exceed [%dx%d]",w,h,width,height);
+            return;
+        }
+        mCustomizeUI = true;
+        width = w;
+        height = h;
+    }
+}
+
 int FbDisplay::readConfigLocked()
 {
     struct fb_var_screeninfo info;
@@ -399,15 +428,19 @@ int FbDisplay::readConfigLocked()
         info.height = ((info.yres * 25.4f)/160.0f + 0.5f);
     }
 
-    ssize_t configId = getConfigIdLocked(info.xres, info.yres);
+    int width = info.xres;
+    int height = info.yres;
+    getGUIResolution(width, height);
+
+    ssize_t configId = getConfigIdLocked(width,height);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", info.xres, info.yres);
         return -1;
     }
 
     DisplayConfig& config = mConfigs.editItemAt(configId);
-    config.mXdpi = 1000 * (info.xres * 25.4f) / info.width;
-    config.mYdpi = 1000 * (info.yres * 25.4f) / info.height;
+    config.mXdpi = 1000 * (config.mXres * 25.4f) / info.width;
+    config.mYdpi = 1000 * (config.mYres * 25.4f) / info.height;
     config.mFps  = refreshRate / 1000.0f;
     ALOGW("xres         = %d px\n"
           "yres         = %d px\n"
@@ -416,7 +449,7 @@ int FbDisplay::readConfigLocked()
           "r            = %2u:%u\n"
           "g            = %2u:%u\n"
           "b            = %2u:%u\n",
-          info.xres, info.yres, config.mFps, info.bits_per_pixel,
+          config.mXres, config.mYres, config.mFps, info.bits_per_pixel,
           info.red.offset, info.red.length, info.green.offset,
           info.green.length, info.blue.offset, info.blue.length);
 
@@ -551,8 +584,20 @@ void FbDisplay::prepareTargetsLocked()
         return;
     }
     const DisplayConfig& config = mConfigs[mActiveConfig];
-    desc.mWidth = config.mXres;
-    desc.mHeight = config.mYres;
+    if (!mCustomizeUI) {
+        desc.mWidth = config.mXres;
+        desc.mHeight = config.mYres;
+    } else {
+        struct fb_var_screeninfo info;
+        if (ioctl(mFd, FBIOGET_VSCREENINFO, &info) == -1) {
+            ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __func__, __LINE__);
+            close(mFd);
+            return;
+        }
+        desc.mWidth = info.xres;
+        desc.mHeight = info.yres;
+    }
+
     desc.mFormat = config.mFormat;
     desc.mFslFormat = config.mFormat;
     desc.mProduceUsage |= USAGE_HW_COMPOSER |
