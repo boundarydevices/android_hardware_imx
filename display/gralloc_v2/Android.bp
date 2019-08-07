@@ -1,0 +1,61 @@
+gralloc_v2_defaults {
+    name: "gralloc_v2_default",
+    relative_install_path: "hw",
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libfsldisplay",
+        "libhardware",
+        "libutils",
+        "libion",
+    ],
+    srcs: [
+        "framebuffer.cpp",
+        "gralloc.cpp",
+    ],
+    include_dirs: [
+        "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp/fsl-proprietary/include",
+        "system/core/include/",
+        "frameworks/native/libs/arect/include",
+        "hardware/libhardware_legacy/include",
+        "external/u-boot/include",
+    ],
+    vendor: true,
+    cflags: [
+        "-DLOG_TAG=\"gralloc\"",
+        "-D_LINUX",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-gralloc_v2",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/display/gralloc_v2",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "gralloc_v2.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+cc_library_shared {
+    name: "gralloc_v2.imx6",
+    defaults: ["gralloc_v2_default"],
+}
+
+cc_library_shared {
+    name: "gralloc_v2.imx7",
+    defaults: ["gralloc_v2_default"],
+}
+
+cc_library_shared {
+    name: "gralloc_v2.imx8",
+    defaults: ["gralloc_v2_default"],
+}

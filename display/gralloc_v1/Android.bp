@@ -1,0 +1,72 @@
+// Copyright 2019 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+gralloc_v1_defaults {
+    name: "gralloc_v1_default",
+    relative_install_path: "hw",
+    shared_libs: [
+        "liblog",
+        "libcutils",
+    ],
+    srcs: [
+        "gralloc.cpp",
+        "framebuffer.cpp",
+        "mapper.cpp",
+    ],
+    include_dirs: [
+        "hardware/libhardware/include",
+        "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp/fsl-proprietary/include",
+        "system/core/include",
+        "frameworks/native/include",
+        "device/fsl/common/kernel-headers",
+    ],
+    vendor: true,
+    cflags: ["-Wno-missing-field-initializers"],
+   }
+
+bootstrap_go_package {
+    name: "soong-gralloc_v1",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/display/gralloc_v1",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "gralloc_v1.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+cc_library_shared {
+    name: "gralloc_v1.imx6",
+    cflags: ["-DLOG_TAG=\"" + "imx6"+ ".gralloc\""],
+    defaults: ["gralloc_v1_default"],
+}
+
+cc_library_shared {
+    name: "gralloc_v1.imx7",
+    cflags: ["-DLOG_TAG=\"" + "imx7"+ ".gralloc\""],
+    defaults: ["gralloc_v1_default"],
+}
+
+cc_library_shared {
+    name: "gralloc_v1.imx8",
+    cflags: ["-DLOG_TAG=\"" + "imx8"+ ".gralloc\""],
+    defaults: ["gralloc_v1_default"],
+}

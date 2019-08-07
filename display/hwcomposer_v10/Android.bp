@@ -1,0 +1,67 @@
+// Copyright 2019 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+hwcomposer_v10_defaults {
+    name: "hwcomposer_v10_default",
+    relative_install_path: "hw",
+    shared_libs: [
+        "liblog",
+        "libEGL",
+        "libcutils",
+        "libutils",
+        "libui",
+        "libhardware",
+        "libhardware_legacy",
+        "libbinder",
+    ],
+    srcs: [
+        "hwcomposer.cpp",
+        "hwc_vsync.cpp",
+        "hwc_display.cpp",
+    ],
+    vendor: true,
+    cflags: ["-DLOG_TAG=\"hwcomposer\""],
+}
+
+bootstrap_go_package {
+    name: "soong-hwcomposer_v10",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/display/hwcomposer_v10",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "hwcomposer_v10.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cc_library_shared {
+    name: "hwcomposer_v10.imx6",
+    defaults: ["hwcomposer_v10_default"],
+}
+
+cc_library_shared {
+    name: "hwcomposer_v10.imx7",
+    defaults: ["hwcomposer_v10_default"],
+}
+
+cc_library_shared {
+    name: "hwcomposer_v10.imx8",
+    defaults: ["hwcomposer_v10_default"],
+}
