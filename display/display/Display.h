@@ -232,6 +232,7 @@ protected:
     bool mResetHdrMode;
     bool mUiUpdate;
     EventListener* mListener;
+    int mTotalLayerNum;
 };
 
 }

@@ -59,6 +59,7 @@ Display::Display()
     mEdid = NULL;
     mResetHdrMode = false;
     mUiUpdate = false;
+    mTotalLayerNum = 0;
 }
 
 Display::~Display()
@@ -481,6 +482,8 @@ bool Display::verifyLayers()
     // get deviceCompose init value
     deviceCompose = check2DComposition();
     int lastComposeFlag = mComposeFlag;
+    int lastTotalLayerNum = mTotalLayerNum;
+    mTotalLayerNum = 0;
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
@@ -551,6 +554,7 @@ bool Display::verifyLayers()
         if (!deviceCompose) {
             mLayers[i]->type = LAYER_TYPE_CLIENT;
             mComposeFlag |= 1 << CLIENT_COMPOSE_BIT;
+            mTotalLayerNum++;
 
             // Here compare current layer info with previous one to determine
             // whether UI has update. IF no update,won't commit to framebuffer
@@ -567,6 +571,10 @@ bool Display::verifyLayers()
             continue;
         }
         mLayerVector.add(mLayers[i]);
+        mTotalLayerNum++;
+    }
+    if (mTotalLayerNum < lastTotalLayerNum) {
+        mUiUpdate = true;
     }
 
     // If all layer is in overlay state,add ONLY_OVERLAY_BIT to mComposeFlag.
