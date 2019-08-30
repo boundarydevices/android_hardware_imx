@@ -121,6 +121,43 @@ Stream::~Stream()
 {
 }
 
+int32_t Stream::getJpegBufferSize(StreamBuffer &src,
+                                  sp<Metadata> meta)
+{
+    const ssize_t kMinJpegBufferSize = 256 * 1024 + sizeof(camera3_jpeg_blob);
+    sp<Stream> &srcStream = src.mStream;
+    int maxJpegResWidth, maxJpegResHeight;
+    uint32_t v4l2Width = 0, v4l2Height = 0;
+    ssize_t maxJpegBufferSize = 0;
+    int ret;
+
+    ret = mCamera->getV4l2Res(srcStream->mWidth, srcStream->mHeight, &v4l2Width, &v4l2Height);
+    if (ret) {
+        ALOGE("%s getV4l2Res failed, ret %d", __func__, ret);
+        return BAD_VALUE;
+    }
+
+    maxJpegResWidth = mCamera->mMaxWidth;
+    maxJpegResHeight = mCamera->mMaxHeight;
+
+    // Get max jpeg buffer size
+    maxJpegBufferSize = mCamera->mMaxJpegSize;
+    assert(kMinJpegBufferSize < maxJpegBufferSize);
+
+    // Calculate final jpeg buffer size for the given resolution.
+    float scaleFactor = ((float) (v4l2Width * v4l2Height)) /
+            (maxJpegResWidth * maxJpegResHeight);
+
+    ssize_t jpegBufferSize = scaleFactor * (maxJpegBufferSize - kMinJpegBufferSize) +
+            kMinJpegBufferSize;
+
+    if (jpegBufferSize > maxJpegBufferSize) {
+        jpegBufferSize = maxJpegBufferSize;
+    }
+
+    return jpegBufferSize;
+}
+
 int32_t Stream::processJpegBuffer(StreamBuffer& src,
                                   sp<Metadata> meta)
 {
@@ -133,6 +170,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     uint8_t *pDst = NULL;
     struct camera3_jpeg_blob *jpegBlob = NULL;
     uint32_t bufSize = 0;
+    int32_t jpegBufferSize;
 
     StreamBuffer* dstBuf = mCurrent;
     sp<Stream>& srcStream = src.mStream;
@@ -278,7 +316,8 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
 
     // write jpeg size
     pDst = (uint8_t *)dstBuf->mVirtAddr;
-    bufSize = (mCamera->mMaxJpegSize <= dstBuf->mSize) ? mCamera->mMaxJpegSize : dstBuf->mSize;
+    jpegBufferSize = getJpegBufferSize(src, meta);
+    bufSize = (mCamera->mMaxJpegSize <= jpegBufferSize) ? mCamera->mMaxJpegSize : jpegBufferSize;
 
     jpegBlob = (struct camera3_jpeg_blob *)(pDst + bufSize -
                                             sizeof(struct camera3_jpeg_blob));
