@@ -68,6 +68,8 @@ public:
     void dump(int fd);
 
 protected:
+    int32_t getJpegBufferSize(StreamBuffer&src,
+                               sp<Metadata> meta);
     int32_t processJpegBuffer(StreamBuffer& src,
                               sp<Metadata> meta);
     int32_t processFrameBuffer(StreamBuffer& src,
