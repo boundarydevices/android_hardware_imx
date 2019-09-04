@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+libionallocator_defaults {
+    name: "libionallocator_default"
+}
 cc_library_static {
     name: "libionallocator",
+    defaults: ["libionallocator_default"],
     srcs: ["IonAllocator.cpp"],
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
@@ -28,8 +32,12 @@ cc_library_static {
     cflags: ["-DLOG_TAG=\"ionalloc\""],
 }
 
+libfsldisplay_defaults {
+    name: "libfsldisplay_default"
+}
 cc_library_shared {
     name: "libfsldisplay",
+    defaults: ["libfsldisplay_default"],
     srcs: [
         "Display.cpp",
         "DisplayHal.cpp",

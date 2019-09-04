@@ -22,8 +22,8 @@ import (
 )
 
 func init() {
-    android.RegisterModuleType("libionallocator", libionallocatorDefaultsFactory)
-    android.RegisterModuleType("libfsldisplay", libfsldisplayDefaultsFactory)
+    android.RegisterModuleType("libionallocator_defaults", libionallocatorDefaultsFactory)
+    android.RegisterModuleType("libfsldisplay_defaults", libfsldisplayDefaultsFactory)
 }
 
 func libionallocatorDefaultsFactory() (android.Module) {
@@ -63,14 +63,12 @@ func libfsldisplayDefaultsFactory() (android.Module) {
 }
 
 func libfsldisplayDefaults(ctx android.LoadHookContext) {
-    var Cppflags []string
-    var Cflags []string
     type props struct {
-        cppflags []string
-        cflags []string
         Target struct {
                 Android struct {
                         Enabled *bool
+                        Cflags []string
+                        Cppflags []string
                 }
         }
     }
@@ -82,25 +80,22 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("NUM_FRAMEBUFFER_SURFACE_BUFFERS") != "" {
-         Cflags = append(Cflags, "-DNUM_FRAMEBUFFER_SURFACE_BUFFERS= " + ctx.Config().VendorConfig("IMXPLUGIN").String("NUM_FRAMEBUFFER_SURFACE_BUFFERS"))
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DNUM_FRAMEBUFFER_SURFACE_BUFFERS= " + ctx.Config().VendorConfig("IMXPLUGIN").String("NUM_FRAMEBUFFER_SURFACE_BUFFERS"))
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8Q" {
-        Cppflags = append(Cppflags, "-DWORKAROUND_DOWNSCALE_LIMITATION")
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DWORKAROUND_DOWNSCALE_LIMITATION")
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_CLASS") == "IMX8" {
-        Cflags = append(Cflags, "-DIMX8")
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DIMX8")
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("OARD_SOC_TYPE") == "IMX8MQ" {
-        Cflags = append(Cflags, "-DFRAMEBUFFER_COMPRESSION")
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DFRAMEBUFFER_COMPRESSION")
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").Bool("AVE_FSL_IMX_GPU3D") {
-        Cflags = append(Cflags,"-DUSE_SW_OPENGL")
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags,"-DUSE_SW_OPENGL")
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("FG_SECURE_DATA_PATH") == "y" {
-        Cppflags = append(Cppflags, "-DCFG_SECURE_DATA_PATH")
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCFG_SECURE_DATA_PATH")
     }
-    p.cflags = Cflags
-    p.cppflags = Cppflags
     ctx.AppendProperties(p)
 }
-
