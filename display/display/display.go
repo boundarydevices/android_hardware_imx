@@ -80,7 +80,7 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("NUM_FRAMEBUFFER_SURFACE_BUFFERS") != "" {
-        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DNUM_FRAMEBUFFER_SURFACE_BUFFERS= " + ctx.Config().VendorConfig("IMXPLUGIN").String("NUM_FRAMEBUFFER_SURFACE_BUFFERS"))
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DNUM_FRAMEBUFFER_SURFACE_BUFFERS=" + ctx.Config().VendorConfig("IMXPLUGIN").String("NUM_FRAMEBUFFER_SURFACE_BUFFERS"))
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8Q" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DWORKAROUND_DOWNSCALE_LIMITATION")
