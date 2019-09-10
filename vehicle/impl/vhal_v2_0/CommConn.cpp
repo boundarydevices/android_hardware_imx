@@ -66,7 +66,6 @@ void CommConn::readThread() {
             emulator::EmulatorMessage respMsg;
             mMessageProcessor->processMessage(rxMsg, respMsg);
 
-            sendMessage(respMsg);
         }
     }
 }
