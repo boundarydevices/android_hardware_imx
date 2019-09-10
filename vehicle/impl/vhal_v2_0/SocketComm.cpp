@@ -35,6 +35,8 @@ typedef struct user_msg_info {
 #define MAX_PLOAD 1024
 #define PROTOCOL_ID 30
 
+#define SYNC_COMMANDS "sync"
+
 namespace android {
 namespace hardware {
 namespace automotive {
@@ -96,6 +98,13 @@ bool SocketComm::listen() {
         close(mListenFd);
         mListenFd = -1;
         return false;
+    }
+
+    std::vector<uint8_t> msg = std::vector<uint8_t>(sizeof(SYNC_COMMANDS));
+    memcpy(msg.data(), SYNC_COMMANDS, sizeof(SYNC_COMMANDS));
+
+    for (std::unique_ptr<SocketConn> const& conn : mOpenConnections) {
+        conn->write(msg);
     }
 
     return true;
