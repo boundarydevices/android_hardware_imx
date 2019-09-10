@@ -675,7 +675,7 @@ const ConfigDeclaration kVehicleProperties[]{
                          .access = VehiclePropertyAccess::READ,
                          .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
                  },
-         .initialValue = {.int32Values = {toInt(VehicleGear::GEAR_PARK)}}},
+         .initialValue = {.int32Values = {toInt(VehicleGear::GEAR_REVERSE)}}},
 
         {.config =
                  {
