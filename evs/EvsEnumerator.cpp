@@ -222,8 +222,10 @@ Return<void> EvsEnumerator::getCameraList(getCameraList_cb _hidl_cb)  {
     hidl_vec<CameraDesc> hidlCameras;
     hidlCameras.resize(numCameras);
     unsigned i = 0;
+    CameraDesc aCamera;
     for (const auto& cam : sCameraList) {
-        hidlCameras[i++] = cam.desc;
+        aCamera.cameraId = cam.name.c_str();
+        hidlCameras[i++] = aCamera;
     }
 
     // Send back the results

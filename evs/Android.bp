@@ -55,7 +55,7 @@ evs_defaults {
     ],
 }
 
-cc_defaults {
+cc_binary {
     name: "android.hardware.automotive.evs@1.0-EvsEnumeratorHw",
     defaults: ["evs_default"],
 }
