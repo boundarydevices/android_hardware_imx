@@ -52,9 +52,6 @@ SocketComm::~SocketComm() {
 }
 
 void SocketComm::start() {
-    if (!listen()) {
-        return;
-    }
 
     mListenThread = std::make_unique<std::thread>(std::bind(&SocketComm::listenThread, this));
 }
@@ -76,7 +73,7 @@ void SocketComm::sendMessage(emulator::EmulatorMessage const& msg) {
     }
 }
 
-bool SocketComm::listen() {
+int SocketComm::listen() {
     int retVal;
     struct sockaddr_nl servAddr;
 
@@ -84,7 +81,7 @@ bool SocketComm::listen() {
     if (mListenFd < 0) {
         ALOGE("%s: socket() failed, mSockFd=%d, errno=%d", __FUNCTION__, mListenFd, errno);
         mListenFd = -1;
-        return false;
+        return mListenFd;
     }
 
     memset(&servAddr, 0, sizeof(servAddr));
@@ -97,47 +94,25 @@ bool SocketComm::listen() {
         ALOGE("%s: Error on binding: retVal=%d, errno=%d", __FUNCTION__, retVal, errno);
         close(mListenFd);
         mListenFd = -1;
-        return false;
+        return mListenFd;
     }
 
-    std::vector<uint8_t> msg = std::vector<uint8_t>(sizeof(SYNC_COMMANDS));
-    memcpy(msg.data(), SYNC_COMMANDS, sizeof(SYNC_COMMANDS));
-
-    for (std::unique_ptr<SocketConn> const& conn : mOpenConnections) {
-        conn->write(msg);
-    }
-
-    return true;
-}
-
-SocketConn* SocketComm::accept() {
-    sockaddr_in cliAddr;
-    socklen_t cliLen = sizeof(cliAddr);
-    int sfd = ::accept(mListenFd, reinterpret_cast<struct sockaddr*>(&cliAddr), &cliLen);
-
-    if (sfd > 0) {
-        char addr[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &cliAddr.sin_addr, addr, INET_ADDRSTRLEN);
-
-        ALOGD("%s: Incoming connection received from %s:%d", __FUNCTION__, addr, cliAddr.sin_port);
-        return new SocketConn(mMessageProcessor, sfd);
-    }
-
-    return nullptr;
+    return mListenFd;
 }
 
 void SocketComm::listenThread() {
-    while (true) {
-        SocketConn* conn = accept();
-        if (conn == nullptr) {
-            return;
-        }
+    int listenFd = listen();
 
-        conn->start();
-        {
+    SocketConn* conn = new SocketConn(mMessageProcessor, listenFd);
+
+    std::vector<uint8_t> msg = std::vector<uint8_t>(sizeof(SYNC_COMMANDS));
+    memcpy(msg.data(), SYNC_COMMANDS, sizeof(SYNC_COMMANDS));
+    conn->write(msg);
+
+    conn->start();
+    {
             std::lock_guard<std::mutex> lock(mMutex);
             mOpenConnections.push_back(std::unique_ptr<SocketConn>(conn));
-        }
     }
 }
 
