@@ -225,6 +225,8 @@ SensorData::SensorData()
 
     memset(mPreviewResolutions, 0, sizeof(mPreviewResolutions));
     memset(mPictureResolutions, 0, sizeof(mPictureResolutions));
+
+    mMaxJpegSize = 8 * 1024 * 1024;
 }
 
 SensorData::~SensorData()
