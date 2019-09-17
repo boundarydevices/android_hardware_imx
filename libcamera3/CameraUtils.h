@@ -233,6 +233,7 @@ public:
     float mPhysicalWidth;
     float mPhysicalHeight;
     float mFocalLength;
+    int mMaxJpegSize;
 
     // these values is the max size sensor can support.
     int32_t mActiveArrayWidth;
