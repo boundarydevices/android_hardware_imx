@@ -1238,6 +1238,9 @@ static int out_flush(struct audio_stream_out* stream)
     if(out->pcm[out->pcm_type]) {
         pcm_close(out->pcm[out->pcm_type]);
         out->pcm[out->pcm_type] = NULL;
+    } else {
+        ALOGE("%s: no need flush as card not opened yet", __func__);
+        goto exit;
     }
 
     if (out->pcm_type == PCM_DSD)
@@ -1247,6 +1250,8 @@ static int out_flush(struct audio_stream_out* stream)
         out->standby = 0;
 
     out->paused = false;
+
+exit:
     pthread_mutex_unlock(&out->lock);
     pthread_mutex_unlock(&adev->lock);
 
