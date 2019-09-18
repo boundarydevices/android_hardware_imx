@@ -1036,6 +1036,123 @@ static void hwc2_dump(struct hwc2_device* /*device*/,
     }
 }
 
+static int hwc2_get_display_brightness_support(hwc2_device_t* device, hwc2_display_t display,
+                                               bool* outSupport)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    *outSupport = (pDisplay->getMaxBrightness() != -1);
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_set_display_brightness(hwc2_device_t* device, hwc2_display_t display,
+                                       float brightness)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    bool isBrightnessSupport = false;
+    int status = hwc2_get_display_brightness_support(device,display,&isBrightnessSupport);
+    if (status != HWC2_ERROR_NONE) {
+        ALOGE("%s failed to get brightness support %d",__func__,status);
+        return status;
+    }
+    if (!isBrightnessSupport) {
+        return HWC2_ERROR_UNSUPPORTED;
+    }
+
+    if (brightness == -1.0f) {
+        brightness = 0.0f;
+    }
+    else if (brightness < 0.0f || brightness >1.0f) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+    else if (pDisplay->setBrightness(brightness) != HWC2_ERROR_NONE) {
+        return HWC2_ERROR_NO_RESOURCES;
+    }
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t display,
+                                         uint32_t* outNumCapabilities,uint32_t* outCapabilities)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    //Check DisplayCapability::SkipClientColorTransform support
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    bool isDeviceComose = pDisplay->isDeviceComposition();
+
+    //Check DisplayCapability::Doze support
+    int32_t isDozeSupport = 0;
+    int status = hwc2_get_doze_support(device,display,&isDozeSupport);
+    if (status != HWC2_ERROR_NONE) {
+        ALOGE("%s failed to get doze support %d",__func__,status);
+        return status;
+    }
+
+    //Check DisplayCapability::Brightness support
+    bool isBrightnessSupport = false;
+    status = hwc2_get_display_brightness_support(device,display,&isBrightnessSupport);
+    if (status != HWC2_ERROR_NONE) {
+        ALOGE("%s failed to get brightness support %d",__func__,status);
+        return status;
+    }
+
+
+    int numCapabilities = (isDeviceComose ? 1 : 0) + isDozeSupport
+                            + (isBrightnessSupport ? 1 : 0);
+
+    if (outCapabilities == NULL) {
+        *outNumCapabilities = numCapabilities;
+        return HWC2_ERROR_NONE;
+    }
+
+    int i = 0;
+    if (*outNumCapabilities >= numCapabilities) {
+        if (isDeviceComose) {
+            outCapabilities[i++] = HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM;
+        }
+        if (isDozeSupport == 1) {
+            outCapabilities[i++] = HWC2_DISPLAY_CAPABILITY_DOZE;
+        }
+        if (isBrightnessSupport) {
+            outCapabilities[i++] = HWC2_DISPLAY_CAPABILITY_BRIGHTNESS;
+        }
+    }
+    *outNumCapabilities = numCapabilities;
+
+    return HWC2_ERROR_NONE;
+}
+
 static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
                                                 int32_t descriptor)
 {
@@ -1174,6 +1291,15 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
             break;
         case HWC2_FUNCTION_DUMP:
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_dump);
+            break;
+        case HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_display_capabilities);
+            break;
+        case HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_display_brightness_support);
+            break;
+        case HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_display_brightness);
             break;
         default:
             func = NULL;

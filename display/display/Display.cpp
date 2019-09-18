@@ -60,6 +60,7 @@ Display::Display()
     mResetHdrMode = false;
     mUiUpdate = false;
     mTotalLayerNum = 0;
+    mMaxBrightness = -1;
 }
 
 Display::~Display()
@@ -864,6 +865,69 @@ int Display::composeLayersLocked()
     mComposer.finishComposite();
 
     return ret;
+}
+
+void Display::initBrightness()
+{
+    Mutex::Autolock _l(mLock);
+    if (mIndex != DISPLAY_PRIMARY) {
+        mMaxBrightness = -1;
+        return;
+    }
+
+    char path[PROPERTY_VALUE_MAX];
+    property_get("hw.backlight.dev", path, DEF_BACKLIGHT_DEV);
+    strcpy(mBrightnessPath, DEF_BACKLIGHT_PATH);
+    strcat(mBrightnessPath, path);
+    strcpy(path, mBrightnessPath);
+    strcat(mBrightnessPath, "/brightness");
+    strcat(path, "/max_brightness");
+
+    FILE *file = fopen(path, "r");
+    if (!file) {
+        mMaxBrightness = -1;
+        ALOGE("%s cannot open backlight file %s", __func__,path);
+    }
+    else {
+        fread(&mMaxBrightness,1,3,file);
+        mMaxBrightness = atoi((char *)&mMaxBrightness);
+        ALOGI("%s get maxBrightness:%d",__func__,mMaxBrightness);
+        fclose(file);
+    }
+
+}
+
+int Display::getMaxBrightness()
+{
+    Mutex::Autolock _l(mLock);
+    return mMaxBrightness;
+}
+
+int Display::setBrightness(float brightness)
+{
+    Mutex::Autolock _l(mLock);
+    if (mIndex != DISPLAY_PRIMARY || mMaxBrightness == -1) {
+        return -1;
+    }
+
+    int bright = (int)(mMaxBrightness * brightness);
+    FILE *file = fopen(mBrightnessPath, "w");
+    if (!file) {
+        ALOGE("%s can not open file %s\n", __func__,mBrightnessPath);
+        return -1;
+    }
+    fprintf(file, "%d", bright);
+    fclose(file);
+    return 0;
+}
+
+bool Display::isDeviceComposition()
+{
+    Mutex::Autolock _l(mLock);
+    if (!mComposer.isDisabled() && mComposer.is2DComposition()) {
+        return true;
+    }
+    return false;
 }
 
 // ------------------BufferSlot-----------------------------

@@ -17,6 +17,7 @@
 #ifndef _FSL_DISPLAY_H_
 #define _FSL_DISPLAY_H_
 
+#include <cutils/properties.h>
 #include <utils/threads.h>
 #include "Memory.h"
 #include "Layer.h"
@@ -41,6 +42,9 @@ using android::sp;
 #define LAST_OVERLAY_MASK (1 << LAST_OVERLAY_BIT)
 #define CLIENT_COMPOSE_MASK (1 << CLIENT_COMPOSE_BIT)
 #define ONLY_OVERLAY_MASK (1 << ONLY_OVERLAY_BIT)
+
+#define DEF_BACKLIGHT_DEV "pwm-backlight"
+#define DEF_BACKLIGHT_PATH "/sys/class/backlight/"
 
 class BufferSlot
 {
@@ -204,6 +208,14 @@ public:
     // get HDR metadata
     int getHdrMetaData(HdrMetaData* hdrMetaData);
     bool triggerComposition();
+    // init display brightness check
+    void initBrightness();
+    // return mMaxBrightness
+    int getMaxBrightness();
+    // set display Brightness with brightness
+    int setBrightness(float brightness);
+    // check whether display use DEVICE or CLIENT composition
+    bool isDeviceComposition();
 
 protected:
     int composeLayersLocked();
@@ -233,6 +245,8 @@ protected:
     bool mUiUpdate;
     EventListener* mListener;
     int mTotalLayerNum;
+    int mMaxBrightness;
+    char mBrightnessPath[PROPERTY_VALUE_MAX];
 };
 
 }

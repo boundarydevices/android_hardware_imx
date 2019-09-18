@@ -93,6 +93,7 @@ DisplayManager::DisplayManager()
     if (display->connected() == false) {
         display->setFakeVSync(true);
     }
+    display->initBrightness();
 
     mHotplugThread = new HotplugThread(this);
     mDisplayHal = new DisplayHal();
