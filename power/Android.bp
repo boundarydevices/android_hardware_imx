@@ -1,3 +1,4 @@
+//
 // Copyright 2019 NXP
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,54 +13,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-power_defaults {
-    name: "power_default",
+cc_library_headers {
+    name: "imx_power_headers",
+    vendor_available: true,
+    export_include_dirs: ["."],
+}
 
+cc_binary {
+    name: "android.hardware.power@1.3-service.imx",
     relative_install_path: "hw",
+    vintf_fragments: ["android.hardware.power@1.3-service.imx.xml"],
+    init_rc: ["android.hardware.power@1.3-service.imx.rc"],
+    srcs: ["service.cpp", "Power.cpp", "InteractionHandler.cpp"],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
     shared_libs: [
         "libbase",
+        "libhidlbase",
+        "libhidltransport",
         "liblog",
+        "libutils",
         "libcutils",
-        "libutils",
+        "android.hardware.power@1.0",
+        "android.hardware.power@1.1",
+        "android.hardware.power@1.2",
+        "android.hardware.power@1.3",
+        "libperfmgr",
     ],
-    srcs: ["power.cpp"],
-    export_shared_lib_headers: [
-        "libbase",
-        "libutils",
-    ],
-    vendor: true,
-
-    include_dirs: ["hardware/libhardware/include"],
-}
-
-bootstrap_go_package {
-    name: "soong-power",
-    pkgPath: "android/soong/vendor/nxp-opensource/imx/power",
-    deps: [
-        "blueprint",
-        "blueprint-pathtools",
-        "soong",
-        "soong-android",
-        "soong-cc",
-        "soong-genrule",
-    ],
-    srcs: [
-        "power.go",
-    ],
-    pluginFor: ["soong_build"],
-}
-
-cc_library_shared {
-    name: "power.imx6",
-    defaults: ["power_default"],
-}
-
-cc_library_shared {
-    name: "power.imx7",
-    defaults: ["power_default"],
-}
-
-cc_library_shared {
-    name: "power.imx8",
-    defaults: ["power_default"],
+    proprietary: true,
 }
