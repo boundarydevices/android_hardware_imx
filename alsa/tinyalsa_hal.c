@@ -3473,8 +3473,10 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     if ((config->format != AUDIO_FORMAT_DEFAULT && config->format != out->stream.common.get_format(&out->stream.common)) ||
         (config->channel_mask != 0 && config->channel_mask != out->stream.common.get_channels(&out->stream.common)) ||
         (config->sample_rate != 0 && config->sample_rate != out->stream.common.get_sample_rate(&out->stream.common))) {
-        ALOGI("%s: Unsupported output config. sample_rate:%d format:%#x channel_mask:%#x",
-                      __func__, config->sample_rate, config->format, config->channel_mask);
+        ALOGE("%s: Unsupported output config. sample_rate:%d:%d; format:%#x:%#x; channel_mask:%#x:%#x",
+                      __func__, config->sample_rate, out->stream.common.get_sample_rate(&out->stream.common),
+                      config->format, out->stream.common.get_format(&out->stream.common),
+                      config->channel_mask, out->stream.common.get_channels(&out->stream.common));
         config->format = out->stream.common.get_format(&out->stream.common);
         config->channel_mask = out->stream.common.get_channels(&out->stream.common);
         config->sample_rate = out->stream.common.get_sample_rate(&out->stream.common);
@@ -4476,7 +4478,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.get_microphones         = adev_get_microphones;
 #endif
     adev->hw_device.dump                    = adev_dump;
-    adev->mm_rate                           = 44100;
+    adev->mm_rate                           = 48000;
     adev->support_multichannel              = false;
 
     ret = scan_available_device(adev, true, true);
