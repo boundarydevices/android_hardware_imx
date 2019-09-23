@@ -536,9 +536,16 @@ static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
             break;
     }
 
-    DisplayManager::getInstance()->setCallback(ctx->mListener);
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    displayManager->setCallback(ctx->mListener);
     if (descriptor == HWC2_CALLBACK_HOTPLUG && pointer != NULL) {
         ctx->mListener->onHotplug(HWC_DISPLAY_PRIMARY, true);
+        for (int i = 1; i < MAX_PHYSICAL_DISPLAY; i++) {
+            pDisplay = displayManager->getDisplay(i);
+            if (pDisplay->connected())
+                ctx->mListener->onHotplug(i, true);
+        }
     }
 
     return HWC2_ERROR_NONE;
@@ -564,13 +571,6 @@ static int hwc2_present_display(hwc2_device_t* device, hwc2_display_t display,
     pDisplay->updateScreen();
     if (outPresentFence != NULL) {
         pDisplay->getPresentFence(outPresentFence);
-    }
-
-    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
-    if (ctx->checkHDMI && ctx->mHotplug != NULL && ctx->mVsync != NULL) {
-        ctx->checkHDMI = false;
-        Display* fb = displayManager->getPhysicalDisplay(HWC_DISPLAY_EXTERNAL);
-        ctx->mListener->onHotplug(HWC_DISPLAY_EXTERNAL, fb->connected());
     }
 
     return HWC2_ERROR_NONE;
@@ -1153,6 +1153,36 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
     return HWC2_ERROR_NONE;
 }
 
+static int hwc2_get_display_identification_data(hwc2_device_t* device, hwc2_display_t display,
+                                          uint8_t* outPort,uint32_t* outDataSize, uint8_t* outData)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    if (!outData) {
+        *outDataSize = EDID_LENGTH;
+    } else {
+        int len = pDisplay->getDisplayIdentificationData(outPort, outData, EDID_LENGTH);
+        if (len > 0) {
+            *outDataSize = len;
+        } else {
+            return HWC2_ERROR_UNSUPPORTED;
+        }
+    }
+
+    return HWC2_ERROR_NONE;
+}
+
 static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
                                                 int32_t descriptor)
 {
@@ -1300,6 +1330,9 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
             break;
         case HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS:
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_display_brightness);
+            break;
+        case HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_display_identification_data);
             break;
         default:
             func = NULL;

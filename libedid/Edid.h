@@ -44,9 +44,14 @@ public:
     //get EdidMetaData
     int getHdrMetaData(HdrMetaData* hdrMetaData);
 
+    //get edid raw data. return the actual size it get
+    int getEdidRawData(uint8_t *buf, int size);
+
 private:
     bool mIsHdrSupported;
     HdrMetaData mHdrMetaData;
+    bool mIsValid;
+    uint8_t mRawData[EDID_LENGTH];
 
     //get edid data from drm and parse it
     void getEdidDataFromDrm(int fd,uint32_t connectorID);

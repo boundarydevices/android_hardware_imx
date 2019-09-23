@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <cutils/log.h>
+#include <log/log.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -24,6 +24,7 @@
 
 Edid::Edid(int fd,uint32_t connectorID)
 {
+    mIsValid = false;
     mIsHdrSupported = false;
     memset(&mHdrMetaData, 0, sizeof(mHdrMetaData));
     getEdidDataFromDrm(fd,connectorID);
@@ -44,6 +45,17 @@ int Edid::getHdrMetaData(HdrMetaData* hdrMetaData)
         return -EINVAL;
     *hdrMetaData = mHdrMetaData;
     return 0;
+}
+
+int Edid::getEdidRawData(uint8_t *buf, int size)
+{
+    int i;
+    if ((buf == NULL) || (size < EDID_LENGTH) || (!mIsValid))
+        return -1;
+
+    memcpy(buf, mRawData, EDID_LENGTH);
+
+    return EDID_LENGTH;
 }
 
 void Edid::getEdidDataFromDrm(int fd,uint32_t connectorID)
@@ -82,6 +94,8 @@ void Edid::getEdidDataFromDrm(int fd,uint32_t connectorID)
     if (isEdidValid(edid)) {
         unsigned char *edidExt = getCeaExtensionData(edid);
         parseCeaExtData(edidExt);
+        memcpy(mRawData, edid, EDID_LENGTH);
+        mIsValid = true;
     }
     drmModeFreePropertyBlob(blob);
 }

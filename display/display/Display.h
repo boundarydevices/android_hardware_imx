@@ -216,6 +216,8 @@ public:
     int setBrightness(float brightness);
     // check whether display use DEVICE or CLIENT composition
     bool isDeviceComposition();
+    // get display identification data
+    int getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data, uint32_t size);
 
 protected:
     int composeLayersLocked();
