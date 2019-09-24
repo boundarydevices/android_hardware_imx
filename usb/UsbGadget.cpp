@@ -53,6 +53,7 @@ constexpr int PULL_UP_DELAY = 500000;
 #define FUNCTION_NAME "function"
 #define FUNCTION_PATH CONFIG_PATH FUNCTION_NAME
 #define RNDIS_PATH FUNCTIONS_PATH "rndis.gs4"
+#define CONFIGURATION_PATH CONFIG_PATH "strings/0x409/configuration"
 
 #define CTL_START  "ctl.start"
 #define CTL_STOP  "ctl.stop"
@@ -323,49 +324,64 @@ static V1_0::Status validateAndSetVidPid(uint64_t functions) {
 
   switch (functions) {
     case static_cast<uint64_t>(GadgetFunction::MTP):
+        WriteStringToFile("mtp", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee1");
       break;
     case GadgetFunction::ADB | GadgetFunction::MTP:
+        WriteStringToFile("adb|mtp", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee2");
       break;
     case static_cast<uint64_t>(GadgetFunction::RNDIS):
+        WriteStringToFile("rndis", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee3");
       break;
     case GadgetFunction::ADB | GadgetFunction::RNDIS:
+        WriteStringToFile("adb|rndis", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee4");
       break;
     case static_cast<uint64_t>(GadgetFunction::PTP):
+      WriteStringToFile("ptp", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee5");
       break;
     case GadgetFunction::ADB | GadgetFunction::PTP:
+      WriteStringToFile("adb|ptp", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee6");
       break;
     case static_cast<uint64_t>(GadgetFunction::ADB):
+        WriteStringToFile("adb", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee7");
       break;
     case static_cast<uint64_t>(GadgetFunction::MIDI):
+      WriteStringToFile("midi", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee8");
       break;
     case GadgetFunction::ADB | GadgetFunction::MIDI:
+      WriteStringToFile("adb|midi", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee9");
       break;
     case static_cast<uint64_t>(GadgetFunction::ACCESSORY):
+      WriteStringToFile("accessory", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d00");
       break;
     case GadgetFunction::ADB | GadgetFunction::ACCESSORY:
+      WriteStringToFile("adb|accessory", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d01");
       break;
     case static_cast<uint64_t>(GadgetFunction::AUDIO_SOURCE):
+      WriteStringToFile("audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d02");
       break;
     case GadgetFunction::ADB | GadgetFunction::AUDIO_SOURCE:
+      WriteStringToFile("adb|audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d03");
       break;
     case GadgetFunction::ACCESSORY | GadgetFunction::AUDIO_SOURCE:
+      WriteStringToFile("accessory|audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d04");
       break;
     case GadgetFunction::ADB | GadgetFunction::ACCESSORY |
          GadgetFunction::AUDIO_SOURCE:
+      WriteStringToFile("adb|accessory|audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d05");
       break;
     default:
