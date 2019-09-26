@@ -33,10 +33,10 @@ func evsDefaultsFactory() (android.Module) {
 
 func evsDefaults(ctx android.LoadHookContext) {
     type props struct {
-        Cflags []string
         Target struct {
                 Android struct {
                         Enabled *bool
+                        Cflags []string
                 }
         }
     }
@@ -46,7 +46,7 @@ func evsDefaults(ctx android.LoadHookContext) {
     } else {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
-    p.Cflags = append(p.Cflags, "-DANDROID_SDK_VERSION="+ strconv.Itoa(ctx.AConfig().PlatformSdkVersionInt()))
+    p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DANDROID_SDK_VERSION="+ strconv.Itoa(ctx.AConfig().PlatformSdkVersionInt()))
     ctx.AppendProperties(p)
 }
 

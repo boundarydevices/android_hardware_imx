@@ -33,10 +33,10 @@ func gralloc_v1DefaultsFactory() (android.Module) {
 
 func gralloc_v1Defaults(ctx android.LoadHookContext) {
     type props struct {
-        Cflags []string
         Target struct {
                 Android struct {
                         Enabled *bool
+                        Cflags []string
                 }
         }
     }
@@ -48,7 +48,7 @@ func gralloc_v1Defaults(ctx android.LoadHookContext) {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").Bool("TARGET_USE_PAN_DISPLAY") {
-        p.Cflags = append(p.Cflags, "-DUSE_PAN_DISPLAY=1")
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DUSE_PAN_DISPLAY=1")
     }
     ctx.AppendProperties(p)
 }

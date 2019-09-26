@@ -33,12 +33,11 @@ func libionallocatorDefaultsFactory() (android.Module) {
 }
 
 func libionallocatorDefaults(ctx android.LoadHookContext) {
-    var Cppflags []string
     type props struct {
-        cppflags []string
         Target struct {
                 Android struct {
                         Enabled *bool
+                        Cppflags []string
                 }
         }
     }
@@ -50,9 +49,8 @@ func libionallocatorDefaults(ctx android.LoadHookContext) {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("CFG_SECURE_DATA_PATH") == "y" {
-        Cppflags = append(Cppflags, "-DCFG_SECURE_DATA_PATH")
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCFG_SECURE_DATA_PATH")
     }
-    p.cppflags = Cppflags
     ctx.AppendProperties(p)
 }
 
@@ -88,13 +86,13 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_CLASS") == "IMX8" {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DIMX8")
     }
-    if ctx.Config().VendorConfig("IMXPLUGIN").String("OARD_SOC_TYPE") == "IMX8MQ" {
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MQ" {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DFRAMEBUFFER_COMPRESSION")
     }
-    if ctx.Config().VendorConfig("IMXPLUGIN").Bool("AVE_FSL_IMX_GPU3D") {
+    if ctx.Config().VendorConfig("IMXPLUGIN").Bool("HAVE_FSL_IMX_GPU3D") {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags,"-DUSE_SW_OPENGL")
     }
-    if ctx.Config().VendorConfig("IMXPLUGIN").String("FG_SECURE_DATA_PATH") == "y" {
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("CFG_SECURE_DATA_PATH") == "y" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCFG_SECURE_DATA_PATH")
     }
     ctx.AppendProperties(p)

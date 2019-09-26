@@ -43,6 +43,8 @@ func lightsDefaults(ctx android.LoadHookContext) {
     var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
     if strings.Contains(board, "imx") {
         p.Target.Android.Enabled = proptools.BoolPtr(true)
+    } else {
+        p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
     ctx.AppendProperties(p)
 }
