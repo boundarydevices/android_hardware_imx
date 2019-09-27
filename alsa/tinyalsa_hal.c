@@ -3146,6 +3146,21 @@ exit:
     return status;
 }
 
+static int in_set_microphone_direction(const struct audio_stream_in *stream,
+                                           audio_microphone_direction_t dir)
+{
+    (void)stream;
+    (void)dir;
+    return 0;
+}
+
+static int in_set_microphone_field_dimension(const struct audio_stream_in *stream, float zoom)
+{
+    (void)stream;
+    (void)zoom;
+    return 0;
+}
+
 static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx_stream_out *out) {
 
     int count = 0;
@@ -4122,6 +4137,8 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 #if ANDROID_SDK_VERSION >= 28
     in->stream.get_active_microphones = in_get_active_microphones;
+    in->stream.set_microphone_direction = in_set_microphone_direction;
+    in->stream.set_microphone_field_dimension = in_set_microphone_field_dimension;
 #endif
 
     in->requested_rate    = config->sample_rate;
