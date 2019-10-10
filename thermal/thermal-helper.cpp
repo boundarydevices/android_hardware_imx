@@ -50,10 +50,11 @@ constexpr std::string_view kSensorTripPointHystZeroFile("trip_point_0_hyst");
 constexpr std::string_view kUserSpaceSuffix("step_wise");
 constexpr std::string_view kCoolingDeviceCurStateSuffix("cur_state");
 constexpr std::string_view kConfigProperty("vendor.thermal.config");
-constexpr std::string_view kConfigDefaultFileName("thermal_info_config.json");
-
+constexpr char kSocType[] = "ro.boot.soc_type";
 namespace {
 using android::base::StringPrintf;
+
+std::string kConfigDefaultFileName = android::base::StringPrintf("%s_%s%s","thermal_info_config",android::base::GetProperty(kSocType, "").c_str(),".json");
 
 std::size_t getNumberOfCores() {
     std::string file;
