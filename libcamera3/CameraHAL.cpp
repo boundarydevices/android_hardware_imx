@@ -369,6 +369,25 @@ int32_t CameraHAL::matchPropertyName(nodeSet* nodes, int32_t index)
     return ret;
 }
 
+static bool IsVideoCaptureDevice(const char* devNode)
+{
+    if(devNode == NULL)
+        return false;
+
+    int fd = open(devNode, O_RDONLY);
+    if(fd < 0)
+        return false;
+
+    struct v4l2_fmtdesc vid_fmtdesc;
+    vid_fmtdesc.index = 0;
+    vid_fmtdesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+    int ret = ioctl(fd, VIDIOC_ENUM_FMT, &vid_fmtdesc);
+    close(fd);
+
+    return (ret == 0) ? true : false;
+}
+
 int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t index)
 {
     if (nodes == NULL) {
@@ -395,6 +414,17 @@ int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t i
             node = node->next;
             continue;
         }
+
+        // If uvc, filter out the meta device.
+        if(strstr(nodeName, "uvc")) {
+            bool IsVideoCapDev = IsVideoCaptureDevice(devNode);
+            if(IsVideoCapDev == false) {
+                ALOGI("Although %s driver name has uvc, but it's a uvc meta device", devNode);
+                node = node->next;
+                continue;
+            }
+        }
+
 
         strncpy(mSets[index].mSensorName, sensorName, PROPERTY_VALUE_MAX-1);
         strncpy(mSets[index].mDevPath, devNode, CAMAERA_FILENAME_LENGTH);
@@ -487,6 +517,7 @@ int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
         return ret;
     }
 
+    ALOGI("video capabilities 0x%x\n", vidCap.capabilities);
     if (!(vidCap.capabilities &
           (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_CAPTURE_MPLANE))) {
         ALOGW("%s dev path:%s is not capture", __func__, devNode);
