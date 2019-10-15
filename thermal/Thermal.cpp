@@ -237,10 +237,6 @@ Return<void> Thermal::unregisterThermalChangedCallback(
 void Thermal::sendThermalChangedCallback(const std::vector<Temperature_2_0> &temps) {
     std::lock_guard<std::mutex> _lock(thermal_callback_mutex_);
     for (auto &t : temps) {
-        LOG(INFO) << "Sending notification: "
-                  << " Type: " << android::hardware::thermal::V2_0::toString(t.type)
-                  << " Name: " << t.name << " CurrentValue: " << t.value << " ThrottlingStatus: "
-                  << android::hardware::thermal::V2_0::toString(t.throttlingStatus);
         callbacks_.erase(
             std::remove_if(callbacks_.begin(), callbacks_.end(),
                            [&](const CallbackSetting &c) {
