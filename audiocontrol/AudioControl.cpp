@@ -1,3 +1,19 @@
+//
+// Copyright (C) 2017 The Android Open Source Project
+// Copyright 2019 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "AudioControl.h"
 
 #include <hidl/HidlTransportSupport.h>
@@ -19,13 +35,13 @@ namespace implementation {
 static int sContextToBusMap[] = {
     -1,     // INVALID
      0,     // MUSIC_CONTEXT
-     1,     // NAVIGATION_CONTEXT
-     2,     // VOICE_COMMAND_CONTEXT
-     3,     // CALL_RING_CONTEXT
-     4,     // CALL_CONTEXT
-     5,     // ALARM_CONTEXT
-     6,     // NOTIFICATION_CONTEXT
-     7,     // SYSTEM_SOUND_CONTEXT
+     0,     // NAVIGATION_CONTEXT
+     0,     // VOICE_COMMAND_CONTEXT
+     0,     // CALL_RING_CONTEXT
+     0,     // CALL_CONTEXT
+     1,     // ALARM_CONTEXT
+     1,     // NOTIFICATION_CONTEXT
+     1,     // SYSTEM_SOUND_CONTEXT
 };
 static const unsigned sContextMapSize = ARRAY_SIZE(sContextToBusMap);
 static const unsigned sContextCount = sContextMapSize - 1;  // Less one for the INVALID entry
