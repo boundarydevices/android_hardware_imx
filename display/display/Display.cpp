@@ -933,6 +933,7 @@ bool Display::isDeviceComposition()
 int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
                                           uint32_t size)
 {
+    int len;
     uint8_t default_edid[EDID_LENGTH] = {
         // Basic info of the default edid:
         // Vendor ID: NXP, Product ID: 0, Serial Number: 0, Mfg Week: 1, Mfg Year: 2019
@@ -948,8 +949,10 @@ int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
     };
 
     *displayPort = mIndex;
-    int len = mEdid->getEdidRawData(data, size);
-    if ((len <= 0) && (size >= EDID_LENGTH)) {
+    if (size < EDID_LENGTH)
+        return -1;
+
+    if ((mEdid == NULL) || ((len = mEdid->getEdidRawData(data, size)) <= 0)) {
         // Use NXP default EDID data if no data get from driver
         memcpy(data, default_edid, EDID_LENGTH);
         len = EDID_LENGTH;
