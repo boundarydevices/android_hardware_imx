@@ -191,6 +191,9 @@ int32_t VideoStream::handleStartLocked(bool force)
     return 0;
 }
 
+#define CLOSE_WAIT_ITVL_MS 5
+#define CLOSE_WAIT_ITVL_US (uint32_t)(CLOSE_WAIT_ITVL_MS*1000)
+
 int32_t VideoStream::closeDev()
 {
     ALOGI("%s", __func__);
@@ -198,6 +201,23 @@ int32_t VideoStream::closeDev()
 
     if (mState != STATE_ERROR && mMessageThread->isRunning()) {
         mMessageQueue.postMessage(new CMessage(MSG_CLOSE, 0), 1);
+
+        // The working thread maybe in the middle of the image process.
+        // Make sure there's no frame under process.
+        int count = 0;
+        while(mState == STATE_START) {
+            // Unlock to let mMessageThread to be scheduled.
+            mLock.unlock();
+
+            usleep(CLOSE_WAIT_ITVL_US);
+            count++;
+            if(count % 20 == 0) {
+                ALOGW("%s, !!! %d ms passed, current image still under processing",
+                    __func__, count * CLOSE_WAIT_ITVL_MS);
+            }
+
+            mLock.lock();
+        }
     }
     else {
         ALOGI("%s thread is exit", __func__);
