@@ -50,29 +50,20 @@ LOCAL_SRC_FILES := \
     MessageQueue.cpp \
     VideoStream.cpp \
     JpegBuilder.cpp \
-    Ov5640Csi.cpp \
-    Ov5640Csi8MQ.cpp \
-    Ov5640Csi7D.cpp \
-    Ov5640Imx8Q.cpp \
-    Ov5640Mipi.cpp \
-    Ov5642Csi.cpp \
-    Max9286Mipi.cpp \
+    ImxCamera.cpp \
     YuvToJpegEncoder.cpp \
     NV12_resize.c \
     USPStream.cpp \
     DMAStream.cpp \
     UvcDevice.cpp \
-    Uvc7ulpDevice.cpp \
-    TVINDevice.cpp \
-    VADCTVINDevice.cpp \
     MMAPStream.cpp \
     TinyExif.cpp \
     ImageProcess.cpp \
-    CameraMetadata.cpp
+    CameraMetadata.cpp \
+    utils/CameraConfigurationParser.cpp
 
 ifeq ($(BOARD_HAVE_VPU),true)
     LOCAL_SRC_FILES += \
-    UvcMJPGDevice.cpp \
     MJPGStream.cpp
 endif
 
@@ -86,7 +77,9 @@ LOCAL_SHARED_LIBRARIES := \
     libjpeg \
     libion \
     libbinder \
-    libhardware_legacy
+    libhardware_legacy \
+    libjsoncpp \
+    libbase
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
 

@@ -28,26 +28,13 @@
 #include "Metadata.h"
 #include "Stream.h"
 
-#ifdef BOARD_HAVE_VPU
-#include "UvcMJPGDevice.h"
-#endif
-
 //#define LOG_NDEBUG 0
 #include <cutils/log.h>
 
 #include "Camera.h"
 #include "CameraUtils.h"
-#include "Max9286Mipi.h"
-#include "Ov5640Csi.h"
-#include "Ov5640Csi8MQ.h"
-#include "Ov5640Csi7D.h"
-#include "Ov5640Imx8Q.h"
-#include "Ov5640Mipi.h"
-#include "Ov5642Csi.h"
-#include "TVINDevice.h"
+#include "ImxCamera.h"
 #include "UvcDevice.h"
-#include "Uvc7ulpDevice.h"
-#include "VADCTVINDevice.h"
 #include "VideoStream.h"
 
 #define CAMERA_SYNC_TIMEOUT 5000 // in msecs
@@ -71,84 +58,10 @@ Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
 
     android::Mutex::Autolock al(sStaticInfoLock);
 
-    if (strstr(name, IMX8_OV5640_SENSOR_NAME)) {
-        ALOGI("create id:%d imx8 ov5640 camera device", id);
-        device = new Ov5640Imx8Q(id, facing, orientation, path);
-    }
-    else if (strstr(name, OV5640MIPI_SENSOR_NAME)) {
-        ALOGI("create id:%d ov5640 mipi device", id);
-        device = new Ov5640Mipi(id, facing, orientation, path);
-    }
-    else if (strstr(name, OV5642CSI_SENSOR_NAME)) {
-        ALOGI("create id:%d ov5642 csi device", id);
-        device = new Ov5642Csi(id, facing, orientation, path);
-    }
-    else if (strstr(name, OV5640CSI_SENSOR_NAME)) {
-        ALOGI("create id:%d ov5640 csi device", id);
-        device = new Ov5640Csi(id, facing, orientation, path);
-    }
-    else if (strstr(name, UVC_SENSOR_NAME)) {
-#ifdef BOARD_HAVE_VPU
-        char uvcMJPGStr[92];
-        int configUseMJPG = 0;
-
-        property_get(UVC_USE_MJPG, uvcMJPGStr, DEFAULT_ERROR_NAME_str);
-
-        if (uvcMJPGStr[0] == DEFAULT_ERROR_NAME)
-            configUseMJPG = 0;
-        else
-            configUseMJPG = atoi(uvcMJPGStr);
-
-        if(configUseMJPG == 0) {
-            ALOGI("create id:%d usb camera device", id);
-            device = UvcDevice::newInstance(id, name, facing, orientation, path);
-        } else {
-            ALOGI("DeviceAdapter: Create uvc device, config to use MJPG");
-            device = new UvcMJPGDevice(id, facing, orientation, path);
-        }
-#else
-#ifdef IMX7ULP_UVC
-        ALOGI("create id:%d imx7ulp usb camera device", id);
-        device = Uvc7ulpDevice::newInstance(id, name, facing, orientation, path);
-#else
-        ALOGI("create id:%d usb camera device", id);
+    if (strstr(name, OV5640_SENSOR_NAME_V1) || strstr(name, OV5640_SENSOR_NAME_V2))
+        device = new ImxCamera(id, facing, orientation, path);
+    else if (strstr(name, UVC_NAME))
         device = UvcDevice::newInstance(id, name, facing, orientation, path);
-#endif
-#endif
-    }
-    else if (strstr(name, OV5640_SENSOR_NAME)) {
-#ifdef VADC_TVIN
-        ALOGI("create id:%d TVin device for auto_sx", id);
-        device = new VADCTVINDevice(id, facing, orientation, path);
-#else
-        char boardName[CAMERA_SENSOR_LENGTH];
-        memset(boardName, 0, sizeof(boardName));
-        property_get("ro.board.platform", boardName, DEFAULT_ERROR_NAME_str);
-
-        if (strstr(boardName, IMX8_BOARD_NAME)) {
-            ALOGI("create id:%d 5640-csi-8mq device", id);
-            device = new Ov5640Csi8MQ(id, facing, orientation, path);
-        } else if (strstr(boardName, IMX7_BOARD_NAME)) {
-            ALOGI("create id:%d 5640-csi-7d device", id);
-            device = new Ov5640Csi7D(id, facing, orientation, path);
-            device->usemx6s = 1;
-        } else {
-            ALOGI("create id:%d 5640-csi device", id);
-            device = new Ov5640Csi(id, facing, orientation, path);
-            device->usemx6s = 1;
-        }
-#endif
-    }
-    else if (strstr(name, ADV7180_TVIN_NAME)) {
-        ALOGI("create id:%d adv7180 tvin device", id);
-        device = new TVINDevice(id, facing, orientation, path);
-    } else if (strstr(name, MAX9286MIPI_SENSOR_NAME)) {
-        ALOGI("create id:%d Max9286Mipi device", id);
-        device = new Max9286Mipi(id, facing, orientation, path);
-    } else {
-        ALOGE("doesn't support camera id:%d %s", id, name);
-    }
-
     return device;
 }
 

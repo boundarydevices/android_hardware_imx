@@ -19,6 +19,7 @@
 
 #include "Camera.h"
 #include "DMAStream.h"
+#include "utils/CameraConfigurationParser.h"
 
 class UvcDevice : public Camera
 {
@@ -30,6 +31,8 @@ public:
     static Camera* newInstance(int32_t id, char* name, int32_t facing,
                                int32_t orientation, char* path);
 
+    cameraconfigparser::CameraDefinition cameradef;
+    cameraconfigparser::CameraConfigurationParser mCameraCfgParser;
     virtual status_t initSensorStaticData();
     virtual bool isHotplug() {return true;}
 

@@ -41,6 +41,10 @@ UvcDevice::UvcDevice(int32_t id, int32_t facing, int32_t orientation,
                      char* path, bool createStream)
     : Camera(id, facing, orientation, path)
 {
+    std::string camera_type = "uvc_metadata";
+    mCameraCfgParser.Init(camera_type);
+    cameradef = mCameraCfgParser.mcamera();
+
     if (createStream) {
         mVideoStream = new UvcStream(this, path);
     }
@@ -142,8 +146,8 @@ status_t UvcDevice::initSensorStaticData()
     mPreviewResolutionCount = previewCnt;
     mPictureResolutionCount = pictureCnt;
 
-    mMinFrameDuration = 33331760L;
-    mMaxFrameDuration = 30000000000L;
+    mMinFrameDuration = cameradef.minframeduration;
+    mMaxFrameDuration = cameradef.maxframeduration;
     int i;
     for (i=0; i<MAX_RESOLUTION_SIZE && i<pictureCnt; i+=2) {
         ALOGI("SupportedPictureSizes: %d x %d", mPictureResolutions[i], mPictureResolutions[i+1]);
@@ -163,13 +167,13 @@ status_t UvcDevice::initSensorStaticData()
 
     setMaxPictureResolutions();
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
-    mFocalLength = 3.42f;
-    mPhysicalWidth = 3.673f;
-    mPhysicalHeight = 2.738f;
-    mActiveArrayWidth = 1920;
-    mActiveArrayHeight = 1080;
-    mPixelArrayWidth = 1920;
-    mPixelArrayHeight = 1080;
+    mFocalLength = cameradef.focallength;
+    mPhysicalWidth = cameradef.physicalwidth;
+    mPhysicalHeight = cameradef.physicalheight;
+    mActiveArrayWidth = cameradef.activearraywidth;
+    mActiveArrayHeight = cameradef.activearrayheight;
+    mPixelArrayWidth = cameradef.pixelarraywidth;
+    mPixelArrayHeight = cameradef.pixelarrayheight;
 
     ALOGI("UvcDevice, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
         mFocalLength, mPhysicalWidth, mPhysicalHeight);
