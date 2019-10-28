@@ -369,10 +369,9 @@ void DisplayManager::setPrimaryDisplay(int index)
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
         Layer* pLayer = mKmsDisplays[index]->getLayer(i);
-        if (!pLayer->busy) {
-            continue;
+        if (pLayer != NULL) {
+            mKmsDisplays[0]->setLayerInfo(i,pLayer);
         }
-        mKmsDisplays[0]->setLayerInfo(i,pLayer);
     }
     mKmsDisplays[index]->invalidLayers();
 }

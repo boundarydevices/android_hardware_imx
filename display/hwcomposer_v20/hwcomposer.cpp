@@ -351,6 +351,9 @@ static int hwc2_set_vsync_enable(hwc2_device_t* device, hwc2_display_t display,
     return HWC2_ERROR_NONE;
 }
 
+static int hwc2_get_doze_support(hwc2_device_t* device, hwc2_display_t display,
+                                 int32_t* outSupport);
+
 static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display,
                                int32_t mode)
 {
@@ -385,6 +388,17 @@ static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display,
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
+    //Check DisplayCapability::Doze support
+    int32_t isDozeSupport = 0;
+    int status = hwc2_get_doze_support(device,display,&isDozeSupport);
+    if (status != HWC2_ERROR_NONE) {
+        ALOGE("%s failed to get doze support %d",__func__,status);
+        return status;
+    }
+    if ((mode == HWC2_POWER_MODE_DOZE || mode == HWC2_POWER_MODE_DOZE_SUSPEND)
+         && isDozeSupport == 0 ) {
+        return HWC2_ERROR_UNSUPPORTED;
+    }
     int type = pDisplay->type();
     if (type >= DISPLAY_LDB && type < DISPLAY_VIRTUAL) {
         pDisplay->setPowerMode(power);
@@ -444,7 +458,7 @@ static int hwc2_set_color_mode(hwc2_device_t* device, hwc2_display_t display,
 {
     if (!device) {
         ALOGE("%s invalid device", __func__);
-        return HWC2_ERROR_BAD_PARAMETER;
+        return HWC2_ERROR_BAD_DISPLAY;
     }
 
     Display* pDisplay = NULL;
@@ -455,8 +469,8 @@ static int hwc2_set_color_mode(hwc2_device_t* device, hwc2_display_t display,
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    if (mode != HAL_COLOR_MODE_NATIVE) {
-        return HWC2_ERROR_UNSUPPORTED;
+    if ((mode < HAL_COLOR_MODE_NATIVE) || (mode > HAL_COLOR_MODE_DISPLAY_P3)) {
+        return HWC2_ERROR_BAD_PARAMETER;
     }
 
     return HWC2_ERROR_NONE;
@@ -838,15 +852,29 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_get_color_modes(hwc2_device_t* /*device*/, hwc2_display_t /*display*/,
+static int hwc2_get_color_modes(hwc2_device_t* device, hwc2_display_t display,
                                uint32_t* outNumModes, int32_t* outModes)
 {
-    if (outNumModes != NULL) {
-        *outNumModes = 1;
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    if (outModes != NULL) {
-        *outModes = HAL_COLOR_MODE_NATIVE;
+    if (outNumModes == NULL) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+    if (outModes == NULL) {
+        *outNumModes = 1;
+    } else {
+        *outNumModes = 1;
+        outModes[0] = HAL_COLOR_MODE_NATIVE;
     }
 
     return HWC2_ERROR_NONE;
@@ -968,7 +996,7 @@ static int hwc2_destroy_layer(hwc2_device_t* device, hwc2_display_t display,
 {
     if (!device) {
         ALOGE("%s invalid device", __func__);
-        return HWC2_ERROR_BAD_PARAMETER;
+        return HWC2_ERROR_BAD_DISPLAY;
     }
 
     Display* pDisplay = NULL;
@@ -977,6 +1005,12 @@ static int hwc2_destroy_layer(hwc2_device_t* device, hwc2_display_t display,
     if (pDisplay == NULL) {
         ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    Layer* pLayer = hwc2_get_layer(display, layer);
+    if (pLayer == NULL) {
+        ALOGE("%s get layer failed", __func__);
+        return HWC2_ERROR_BAD_LAYER;
     }
 
     pDisplay->releaseLayer(layer);
@@ -1131,6 +1165,10 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
     int numCapabilities = (isDeviceComose ? 1 : 0) + isDozeSupport
                             + (isBrightnessSupport ? 1 : 0);
 
+    if (outNumCapabilities == NULL) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+
     if (outCapabilities == NULL) {
         *outNumCapabilities = numCapabilities;
         return HWC2_ERROR_NONE;
@@ -1178,6 +1216,69 @@ static int hwc2_get_display_identification_data(hwc2_device_t* device, hwc2_disp
         } else {
             return HWC2_ERROR_UNSUPPORTED;
         }
+    }
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_function_get_render_intents(hwc2_device_t* device,hwc2_display_t display,
+                                        int32_t mode,uint32_t* outNumIntents,
+                                        int32_t* /*android_render_intent_v1_1_t*/ outIntents)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    if ((mode < HAL_COLOR_MODE_NATIVE) || (mode > HAL_COLOR_MODE_DISPLAY_P3)) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+
+    if (outNumIntents == NULL) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+    if (outIntents == NULL) {
+        *outNumIntents = 1;
+    } else {
+        *outNumIntents = 1;
+        outIntents[0] = HAL_RENDER_INTENT_COLORIMETRIC;
+    }
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_function_set_color_mode_with_render_intent(hwc2_device_t* device, hwc2_display_t display,
+                                                           int32_t /*android_color_mode_t*/ mode,
+                                                           int32_t /*android_render_intent_v1_1_t */ intent)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    if ((mode < HAL_COLOR_MODE_NATIVE) || (mode > HAL_COLOR_MODE_DISPLAY_P3)) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+    if ((intent < HAL_RENDER_INTENT_COLORIMETRIC) || (intent > HAL_RENDER_INTENT_TONE_MAP_ENHANCE)) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+
+    if ((mode != HAL_COLOR_MODE_NATIVE) || (intent != HAL_RENDER_INTENT_COLORIMETRIC)) {
+        return HWC2_ERROR_UNSUPPORTED;
     }
 
     return HWC2_ERROR_NONE;
@@ -1333,6 +1434,12 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
             break;
         case HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA:
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_display_identification_data);
+            break;
+        case HWC2_FUNCTION_GET_RENDER_INTENTS:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_function_get_render_intents);
+            break;
+        case HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_function_set_color_mode_with_render_intent);
             break;
         default:
             func = NULL;

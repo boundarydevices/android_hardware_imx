@@ -302,7 +302,12 @@ Layer* Display::getLayer(int index)
     }
 
     Mutex::Autolock _l(mLock);
-    return mLayers[index];
+    if (mLayers[index]->busy) {
+        return mLayers[index];
+    }
+    else {
+        return NULL;
+    }
 }
 
 Layer* Display::getLayerByPriv(void* priv)
