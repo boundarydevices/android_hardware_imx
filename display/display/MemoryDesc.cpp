@@ -50,6 +50,7 @@ int MemoryDesc::checkFormat()
         case FORMAT_BGRA8888:
         case FORMAT_RGBA1010102:
             bpp = 4;
+            [[fallthrough]];
         case FORMAT_RGB888:
         case FORMAT_RGB565:
         case FORMAT_RGBAFP16: {
