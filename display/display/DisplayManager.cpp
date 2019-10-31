@@ -592,7 +592,7 @@ int32_t DisplayManager::HotplugThread::readyToRun()
     return 0;
 }
 
-bool DisplayManager::HotplugThread::stringInString(char *uevent_desc, char *sub_string)
+bool DisplayManager::HotplugThread::stringInString(char *uevent_desc, const char* sub_string)
 {
     char *cp;
     cp = uevent_desc;

@@ -71,7 +71,7 @@ private:
         virtual void onFirstRef();
         virtual int32_t readyToRun();
         virtual bool threadLoop();
-        virtual bool stringInString(char *uevent_desc, char *sub_string);
+        virtual bool stringInString(char *uevent_desc, const char *sub_string);
 
         DisplayManager *mCtx;
     };
