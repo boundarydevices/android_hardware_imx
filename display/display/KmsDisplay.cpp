@@ -151,7 +151,6 @@ void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType,
                           const char *propName, uint32_t* propId,
                           uint64_t* value, int drmfd)
 {
-    int found = 0;
     uint64_t ivalue = 0;
     uint32_t id = 0;
 
@@ -829,7 +828,7 @@ int KmsDisplay::updateScreen()
             void *vaddr = NULL;
             int usage = buffer->usage | USAGE_SW_READ_OFTEN
                     | USAGE_SW_WRITE_OFTEN;
-            int ret = mMemoryManager->lock(buffer, usage,
+            mMemoryManager->lock(buffer, usage,
                     0, 0, buffer->width, buffer->height, &vaddr);
             mMemoryManager->unlock(buffer);
             buffer->base = (uintptr_t)vaddr;
@@ -1193,7 +1192,7 @@ static void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefer
 int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
 {
     int index = 0, prefer_index = -1;
-    unsigned int delta = -1, rdelta = -1, vrefresh_delta = -1;
+    unsigned int delta = -1, rdelta = -1;
     int width = 0, height = 0, vrefresh = 60;
     int prefermode = 0;
 

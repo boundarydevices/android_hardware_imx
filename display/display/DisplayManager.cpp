@@ -431,12 +431,9 @@ int DisplayManager::enumFbDisplays()
     DIR *dir = NULL;
     struct dirent *dirEntry;
     char fb_path[HWC_PATH_LENGTH];
-    char tmp[HWC_PATH_LENGTH];
-    char value[HWC_STRING_LENGTH];
     FILE *fp;
     int id = 1;
     int fb = -1;
-    int ret = 0;
 
     dir = opendir(SYS_GRAPHICS);
     if (dir == NULL) {

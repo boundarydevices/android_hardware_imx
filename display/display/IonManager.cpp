@@ -46,7 +46,6 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
         return -EINVAL;
     }
 
-    unsigned char *ptr = NULL;
     int sharedFd = -1;
     Memory* memory = NULL;
     int align = ION_MEM_ALIGN;

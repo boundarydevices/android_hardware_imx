@@ -260,7 +260,6 @@ int FbDisplay::performOverlay()
     }
 
     Memory* memory = layer->handle;
-    Rect& frame = layer->displayFrame;
     int bitspix = 0;
     int vformat = convertFormatInfo(memory->fslFormat, &bitspix);
     if ((int)mOvInfo.xres != memory->width
