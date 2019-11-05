@@ -23,6 +23,7 @@
 #include "CameraUtils.h"
 #include "Stream.h"
 #include "Camera.h"
+#include "utils/CameraConfigurationParser.h"
 
 using namespace android;
 

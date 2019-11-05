@@ -90,6 +90,9 @@ CameraHAL::CameraHAL()
     // enumerate all camera sensors.
     enumSensorSet();
 
+    mCameraCfgParser.Init();
+    mCameraDef = mCameraCfgParser.mcamera();
+
     // check if camera exists.
     for (int32_t index=0; index<MAX_CAMERAS; index++) {
         if (!mSets[index].mExisting) {
@@ -97,7 +100,7 @@ CameraHAL::CameraHAL()
         }
         mCameras[index] = Camera::createCamera(index, mSets[index].mSensorName,
                                 mSets[index].mFacing, mSets[index].mOrientation,
-                                mSets[index].mDevPath);
+                                mSets[index].mDevPath, &mCameraDef);
 
         if (mCameras[index] == NULL) {
             // camera sensor is not supported now.
@@ -165,7 +168,7 @@ int32_t CameraHAL::handleCameraConnected(char* uevent)
 
             mCameras[index] = Camera::createCamera(index,
                     mSets[index].mSensorName, mSets[index].mFacing,
-                    mSets[index].mOrientation, mSets[index].mDevPath);
+                    mSets[index].mOrientation, mSets[index].mDevPath, &mCameraDef);
             if (mCameras[index] == NULL) {
                 // camera sensor is not supported now.
                 ALOGE("Error: camera %s, %s create failed",

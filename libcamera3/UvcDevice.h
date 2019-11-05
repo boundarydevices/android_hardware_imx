@@ -20,19 +20,23 @@
 #include "Camera.h"
 #include "DMAStream.h"
 #include "utils/CameraConfigurationParser.h"
+using namespace cameraconfigparser;
 
 class UvcDevice : public Camera
 {
 public:
     UvcDevice(int32_t id, int32_t facing, int32_t orientation,
-              char* path, bool createStream = true);
+              char* path, int cam_preview_hw, int cam_recording_hw,
+              bool createStream = true, CameraSensorMetadata *cam_metadata = NULL);
+
     virtual ~UvcDevice();
 
     static Camera* newInstance(int32_t id, char* name, int32_t facing,
-                               int32_t orientation, char* path);
+                               int32_t orientation, char* path,
+                               int cam_preview_hw, int cam_recording_hw,
+                               CameraSensorMetadata *cam_metadata);
 
-    cameraconfigparser::CameraDefinition cameradef;
-    cameraconfigparser::CameraConfigurationParser mCameraCfgParser;
+    CameraSensorMetadata *mCameraMetadata;
     virtual status_t initSensorStaticData();
     virtual bool isHotplug() {return true;}
 

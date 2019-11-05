@@ -16,17 +16,16 @@
 
 #include "ImxCamera.h"
 
-ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path)
-    : Camera(id, facing, orientation, path)
+ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, int cam_preview_hw,
+                                                int cam_recording_hw, CameraSensorMetadata *cam_metadata)
+   : Camera(id, facing, orientation, path, cam_preview_hw, cam_recording_hw)
 {
-    std::string camera_type = "ov5640_metadata";
     mVideoStream = new ImxCameraMMAPStream(this);
-    mCameraCfgParser.Init(camera_type);
-    cameradef = mCameraCfgParser.mcamera();
 
-    if (cameradef.buffer_type == cameraconfigparser::CameraDefinition::kMmap)
+    mCameraMetadata = cam_metadata;
+    if (cam_metadata->buffer_type == CameraSensorMetadata::kMmap)
         mVideoStream = new ImxCameraMMAPStream(this);
-    else if (cameradef.buffer_type == cameraconfigparser::CameraDefinition::kDma)
+    else if (cam_metadata->buffer_type == CameraSensorMetadata::kDma)
         mVideoStream = new ImxCameraDMAStream(this);
 }
 
@@ -139,8 +138,8 @@ status_t ImxCamera::initSensorStaticData()
     mPreviewResolutionCount = previewCnt;
     mPictureResolutionCount = pictureCnt;
 
-    mMinFrameDuration = cameradef.minframeduration;
-    mMaxFrameDuration = cameradef.maxframeduration;
+    mMinFrameDuration = mCameraMetadata->minframeduration;
+    mMaxFrameDuration = mCameraMetadata->maxframeduration;
     int i;
     for (i = 0; i < MAX_RESOLUTION_SIZE && i < pictureCnt; i += 2) {
         ALOGI("SupportedPictureSizes: %d x %d", mPictureResolutions[i], mPictureResolutions[i + 1]);
@@ -163,14 +162,14 @@ status_t ImxCamera::initSensorStaticData()
     setMaxPictureResolutions();
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
 
-    mFocalLength = cameradef.focallength;
-    mPhysicalWidth = cameradef.physicalwidth;
-    mPhysicalHeight = cameradef.physicalheight;
-    mActiveArrayWidth = cameradef.activearraywidth;
-    mActiveArrayHeight = cameradef.activearrayheight;
-    mPixelArrayWidth = cameradef.pixelarraywidth;
-    mPixelArrayHeight = cameradef.pixelarrayheight;
-    mMaxJpegSize = cameradef.maxjpegsize;
+    mFocalLength = mCameraMetadata->focallength;
+    mPhysicalWidth = mCameraMetadata->physicalwidth;
+    mPhysicalHeight = mCameraMetadata->physicalheight;
+    mActiveArrayWidth = mCameraMetadata->activearraywidth;
+    mActiveArrayHeight = mCameraMetadata->activearrayheight;
+    mPixelArrayWidth = mCameraMetadata->pixelarraywidth;
+    mPixelArrayHeight = mCameraMetadata->pixelarrayheight;
+    mMaxJpegSize = mCameraMetadata->maxjpegsize;
 
     ALOGI("ImxdpuCsi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
           mFocalLength,

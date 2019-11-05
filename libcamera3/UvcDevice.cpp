@@ -21,7 +21,9 @@
 
 //----------------------UvcDevice--------------------
 Camera* UvcDevice::newInstance(int32_t id, char* name, int32_t facing,
-                               int32_t orientation, char* path)
+                               int32_t orientation, char* path,
+                               int cam_preview_hw, int cam_recording_hw,
+                                 CameraSensorMetadata *cam_metadata)
 {
     ALOGI("%s usb sensor name:%s", __func__, name);
     UvcDevice* device = NULL;
@@ -31,19 +33,18 @@ Camera* UvcDevice::newInstance(int32_t id, char* name, int32_t facing,
     }
     else {
         ALOGI("%s usb sensor:%s use standard UVC device", __func__, name);
-        device = new UvcDevice(id, facing, orientation, path);
+
+        device = new UvcDevice(id, facing, orientation, path, cam_preview_hw, cam_recording_hw, true, cam_metadata);
     }
 
     return device;
 }
 
 UvcDevice::UvcDevice(int32_t id, int32_t facing, int32_t orientation,
-                     char* path, bool createStream)
-    : Camera(id, facing, orientation, path)
+                     char* path, int cam_preview_hw, int cam_recording_hw, bool createStream, CameraSensorMetadata *cam_metadata)
+    : Camera(id, facing, orientation, path, cam_preview_hw, cam_recording_hw)
 {
-    std::string camera_type = "uvc_metadata";
-    mCameraCfgParser.Init(camera_type);
-    cameradef = mCameraCfgParser.mcamera();
+    mCameraMetadata = cam_metadata;
 
     if (createStream) {
         mVideoStream = new UvcStream(this, path);
@@ -146,8 +147,8 @@ status_t UvcDevice::initSensorStaticData()
     mPreviewResolutionCount = previewCnt;
     mPictureResolutionCount = pictureCnt;
 
-    mMinFrameDuration = cameradef.minframeduration;
-    mMaxFrameDuration = cameradef.maxframeduration;
+    mMinFrameDuration = mCameraMetadata->minframeduration;
+    mMaxFrameDuration = mCameraMetadata->maxframeduration;
     int i;
     for (i=0; i<MAX_RESOLUTION_SIZE && i<pictureCnt; i+=2) {
         ALOGI("SupportedPictureSizes: %d x %d", mPictureResolutions[i], mPictureResolutions[i+1]);
@@ -167,13 +168,13 @@ status_t UvcDevice::initSensorStaticData()
 
     setMaxPictureResolutions();
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
-    mFocalLength = cameradef.focallength;
-    mPhysicalWidth = cameradef.physicalwidth;
-    mPhysicalHeight = cameradef.physicalheight;
-    mActiveArrayWidth = cameradef.activearraywidth;
-    mActiveArrayHeight = cameradef.activearrayheight;
-    mPixelArrayWidth = cameradef.pixelarraywidth;
-    mPixelArrayHeight = cameradef.pixelarrayheight;
+    mFocalLength = mCameraMetadata->focallength;
+    mPhysicalWidth = mCameraMetadata->physicalwidth;
+    mPhysicalHeight = mCameraMetadata->physicalheight;
+    mActiveArrayWidth = mCameraMetadata->activearraywidth;
+    mActiveArrayHeight = mCameraMetadata->activearrayheight;
+    mPixelArrayWidth = mCameraMetadata->pixelarraywidth;
+    mPixelArrayHeight = mCameraMetadata->pixelarrayheight;
 
     ALOGI("UvcDevice, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
         mFocalLength, mPhysicalWidth, mPhysicalHeight);
@@ -260,7 +261,7 @@ int32_t UvcDevice::UvcStream::getDeviceBufferSize()
 
 //---------------------LogiC920---------------
 LogiC920::LogiC920(int32_t id, int32_t facing, int32_t orientation, char* path)
-    : UvcDevice(id, facing, orientation, path, false)
+    : UvcDevice(id, facing, orientation, path, false, NULL)
 {
     mC920Stream = new C920Stream(this, path);
     mVideoStream = mC920Stream;

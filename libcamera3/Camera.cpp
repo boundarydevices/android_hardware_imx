@@ -27,6 +27,7 @@
 #include "CameraHAL.h"
 #include "Metadata.h"
 #include "Stream.h"
+#include "utils/CameraConfigurationParser.h"
 
 //#define LOG_NDEBUG 0
 #include <cutils/log.h>
@@ -52,24 +53,29 @@ static int32_t close_device(hw_device_t* dev)
 android::Mutex Camera::sStaticInfoLock(android::Mutex::PRIVATE);
 
 Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
-                             int32_t orientation, char* path)
+                             int32_t orientation, char* path, CameraDefinition *camera_def)
 {
     Camera* device = NULL;
 
     android::Mutex::Autolock al(sStaticInfoLock);
 
     if (strstr(name, OV5640_SENSOR_NAME_V1) || strstr(name, OV5640_SENSOR_NAME_V2))
-        device = new ImxCamera(id, facing, orientation, path);
+        device = new ImxCamera(id, facing, orientation, path, camera_def->preview_csc_hw_type, camera_def->recording_csc_hw_type,
+                                                                        &(camera_def->camera_metadata[OV5640_METADATA]));
     else if (strstr(name, UVC_NAME))
-        device = UvcDevice::newInstance(id, name, facing, orientation, path);
+        device = UvcDevice::newInstance(id, name, facing, orientation, path, camera_def->preview_csc_hw_type, camera_def->recording_csc_hw_type,
+                               &(camera_def->camera_metadata[UVC_METADATA]));
     return device;
 }
 
-Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path)
+Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path, int cam_preview_hw, int cam_recording_hw)
     : usemx6s(0), mId(id), mStaticInfo(NULL), mBusy(false), mCallbackOps(NULL), mStreams(NULL), mNumStreams(0), mTmpBuf(NULL)
 {
     ALOGI("%s:%d: new camera device", __func__, mId);
     android::Mutex::Autolock al(mDeviceLock);
+
+    preview_csc_hw_type = cam_preview_hw;
+    recording_csc_hw_type = cam_recording_hw;
 
     camera_info::facing = facing;
     camera_info::orientation = orientation;

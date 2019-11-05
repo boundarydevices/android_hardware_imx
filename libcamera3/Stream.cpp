@@ -330,7 +330,7 @@ static void bufferDump(StreamBuffer *frame, bool in)
 }
 
 int32_t Stream::processFrameBuffer(StreamBuffer& src,
-                                   sp<Metadata> meta __unused)
+                                   sp<Metadata> meta __unused, int csc_hw)
 {
     ALOGV("%s", __func__);
     sp<Stream>& device = src.mStream;
@@ -347,7 +347,7 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
 
     fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
     //ImageProcess *imageProcess = ImageProcess::getInstance();
-    return imageProcess->handleFrame(*out, src);
+    return imageProcess->handleFrame(*out, src, csc_hw);
 }
 
 int32_t Stream::processCaptureBuffer(StreamBuffer& src,
@@ -384,7 +384,12 @@ int32_t Stream::processCaptureBuffer(StreamBuffer& src,
         mJpegBuilder->setMetadata(NULL);
     }
     else {
-        res = processFrameBuffer(src, meta);
+        int csc_hw;
+        if (mRecord)
+            csc_hw = mCamera->getRecordingCscHw();
+        else
+            csc_hw = mCamera->getPreviewCscHw();
+        res = processFrameBuffer(src, meta, csc_hw);
     }
 
     return res;

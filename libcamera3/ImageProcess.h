@@ -21,6 +21,7 @@
 #include <utils/Mutex.h>
 #include <cutils/threads.h>
 #include "Stream.h"
+#include "utils/CameraConfigurationParser.h"
 
 namespace fsl {
 
@@ -36,16 +37,19 @@ public:
     static ImageProcess* getInstance();
     ~ImageProcess();
 
-    int handleFrame(StreamBuffer& dst, StreamBuffer& src);
+    int handleFrame(StreamBuffer& dst, StreamBuffer& src, int);
 
 private:
     int convertNV12toNV21(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByPXP(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByIPU(StreamBuffer& dst, StreamBuffer& src);
-    int handleFrameByGPU(StreamBuffer& dst, StreamBuffer& src);
-    int handleFrameBy2D(StreamBuffer& dst, StreamBuffer& src);
-    int handleFrameByOpencl(StreamBuffer& dst, StreamBuffer& src);
+    int handleFrameByG2DCopy(StreamBuffer& dst, StreamBuffer& src);
+    int handleFrameByG2DBlit(StreamBuffer& dst, StreamBuffer& src);
+    int handleFrameByGPU_3D(StreamBuffer& dst, StreamBuffer& src);
     int handleFrameByCPU(StreamBuffer& dst, StreamBuffer& src);
+    int handleFrameByDPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf);
+    int handleFrameByGPU_2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf);
+    int handleFrameByG2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf);
     void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
              uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
     void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,

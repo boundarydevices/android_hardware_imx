@@ -23,7 +23,9 @@
 #include "Metadata.h"
 #include "Stream.h"
 #include "CameraUtils.h"
+#include "utils/CameraConfigurationParser.h"
 
+using namespace cameraconfigparser;
 class VideoStream;
 // Camera represents a physical camera on a device.
 // This is constructed when the HAL module is loaded, one per physical camera.
@@ -36,11 +38,11 @@ class Camera : public camera_info, public SensorData
 public:
     // id is used to distinguish cameras. 0 <= id < NUM_CAMERAS.
     // module is a handle to the HAL module, used when the device is opened.
-    Camera(int32_t id, int32_t facing, int32_t orientation, char* path);
+    Camera(int32_t id, int32_t facing, int32_t orientation, char* path, int, int);
     virtual ~Camera();
 
     static Camera* createCamera(int32_t id, char* name, int32_t facing,
-                                int32_t orientation, char* path);
+                                int32_t orientation, char* path, CameraDefinition *camera_def);
     // do advanced character set.
     int32_t processSettings(sp<Metadata> settings, uint32_t frame);
     // Common Camera Device Operations (see <hardware/camera_common.h>)
@@ -56,9 +58,13 @@ public:
     int32_t registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set);
     const camera_metadata_t *constructDefaultRequestSettings(int32_t type);
     int32_t processCaptureRequest(camera3_capture_request_t *request);
+    int getPreviewCscHw() {return preview_csc_hw_type;}
+    int getRecordingCscHw() {return recording_csc_hw_type;}
     void dumpDev(int32_t fd);
     int32_t usemx6s;
 
+    int preview_csc_hw_type;
+    int recording_csc_hw_type;
     // some camera's resolution is not 16 pixels aligned, while gralloc is 16
     // pixels aligned.
     // Is just copy data from v4l2 to gralloc buffer, image  distortion

@@ -24,6 +24,8 @@
 #include <system/camera_vendor_tags.h>
 #include "Camera.h"
 #include "VendorTags.h"
+#include "utils/CameraConfigurationParser.h"
+using namespace cameraconfigparser;
 
 struct nodeSet {
     char nodeName[CAMERA_SENSOR_LENGTH];
@@ -45,6 +47,8 @@ public:
     int getCameraInfo(int camera_id, struct camera_info *info);
     int setCallbacks(const camera_module_callbacks_t *callbacks);
     void getVendorTagOps(vendor_tag_ops_t* ops);
+    CameraConfigurationParser mCameraCfgParser;
+    CameraDefinition mCameraDef;
 
     // Hardware Module Interface (see <hardware/hardware.h>)
     int openDev(const hw_module_t* mod, const char* name, hw_device_t** dev);

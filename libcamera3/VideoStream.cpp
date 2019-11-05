@@ -524,7 +524,6 @@ int32_t VideoStream::handleMessage()
                     return ret;
                 }
             }
-
         }
         ret = handleCaptureFrame();
         break;

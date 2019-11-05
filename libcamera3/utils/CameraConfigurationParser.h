@@ -17,12 +17,28 @@
 #define HALS_CAMERACAMERACONFIGURATIONPARSER_H_
 
 #include <vector>
+#include <string>
 
 namespace cameraconfigparser {
 
+enum CameraMetadataType {
+  OV5640_METADATA = 0,
+  UVC_METADATA,
+  NUM_METADATA,
+};
+
+enum CscHw {
+  GPU_2D,
+  GPU_3D,
+  DPU,
+  PXP,
+  IPU,
+  CPU,
+};
+
 enum HalVersion { kHalV1, kHalV2, kHalV3 };
 // Camera properties and features.
-struct CameraDefinition {
+struct CameraSensorMetadata {
   // Camera recognized HAL versions.
   enum BufferType { kMmap, kDma };
 
@@ -56,6 +72,13 @@ struct CameraDefinition {
   BufferType buffer_type;
 };
 
+struct CameraDefinition {
+  HalVersion hal_version;
+  CscHw preview_csc_hw_type;
+  CscHw recording_csc_hw_type;
+  struct CameraSensorMetadata camera_metadata[2];
+};
+
 class CameraConfigurationParser {
  public:
   CameraConfigurationParser() {}
@@ -63,7 +86,7 @@ class CameraConfigurationParser {
 
   CameraDefinition& mcamera()  { return mcamera_; }
 
-  bool Init(const std::string);
+  bool Init();
 
  private:
   CameraDefinition mcamera_;

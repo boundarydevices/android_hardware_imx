@@ -41,6 +41,8 @@ namespace {
 //  ],
 
 //  "hal_version": "3",
+//  "cam_preview_csc_hw": "DPU",
+//  "cam_recording_csc_hw": "GPU_3D",
 
 //  "ov5640_metadata": [
 //    {
@@ -71,6 +73,8 @@ const char* const kCameraBufferType = "buffer_type";
 // - 2 (Camera HALv2)
 // - 3 (Camera HALv3)
 const char* const kCameraDefinitionHalVersionKey = "hal_version";
+const char* const kCameraDefinitionPreviewCscHwKey = "cam_preview_csc_hw";
+const char* const kCameraDefinitionRecordingCscHwKey = "cam_recording_csc_hw";
 
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
 const char* const kActiveArrayHeightKey = "ActiveArrayHeight";
@@ -83,6 +87,16 @@ const char* const kMaxJpegSizeKey = "MaxJpegSize";
 const char* const kMinFrameDurationKey = "MinFrameDuration";
 const char* const kMaxFrameDurationKey = "MaxFrameDuration";
 
+
+const char* const kOv5640MetaDataKey = "ov5640_metadata";
+const char* const kUvcMetaDataKey = "uvc_metadata";
+
+#define CSC_HW_GPU_2D "GPU_2D"
+#define CSC_HW_GPU_3D "GPU_3D"
+#define CSC_HW_IPU "IPU"
+#define CSC_HW_PXP "PXP"
+#define CSC_HW_DPU "DPU"
+#define CSC_HW_CPU "CPU"
 
 HalVersion ValueToCameraHalVersion(const std::string& value) {
   int temp;
@@ -117,14 +131,34 @@ HalVersion ValueToCameraHalVersion(const std::string& value) {
   return hal_version;
 }
 
+CscHw ValueToCameraCscHw(const std::string& value) {
+  CscHw csc_hw = GPU_2D;
+  if (value == CSC_HW_DPU) {
+      csc_hw = DPU;
+  } else if (value == CSC_HW_GPU_2D) {
+      csc_hw = GPU_2D;
+  } else if (value == CSC_HW_GPU_3D) {
+      csc_hw = GPU_3D;
+  } else if (value == CSC_HW_PXP) {
+      csc_hw = PXP;
+  } else if (value == CSC_HW_IPU) {
+      csc_hw = IPU;
+  } else if (value == CSC_HW_CPU) {
+      csc_hw = CPU;
+  }
+  return csc_hw;
+
+}
+
 // Convert string value to buffer map type
 bool ValueToCameraBufferType(const std::string& value,
-                              CameraDefinition* camera) {
+                              CameraDefinition* camera,
+                              enum CameraMetadataType cam_metadata_type_index) {
     if (value == "mmap") {
-        camera->buffer_type = CameraDefinition::kMmap;
+        camera->camera_metadata[cam_metadata_type_index].buffer_type = CameraSensorMetadata::kMmap;
         return true;
     } else if (value == "dma") {
-        camera->buffer_type = CameraDefinition::kDma;
+        camera->camera_metadata[cam_metadata_type_index].buffer_type = CameraSensorMetadata::kDma;
         return true;
     }
     return false;
@@ -133,7 +167,7 @@ bool ValueToCameraBufferType(const std::string& value,
 // Process camera definitions.
 // Returns true, if definitions were sane.
 bool ConfigureCameras(const Json::Value& value,
-                      CameraDefinition* camera, const std::string camera_metadata) {
+                      CameraDefinition* camera) {
   char* endptr;
   if (!value.isObject()) {
     ALOGE("%s: Configuration root is not an object", __FUNCTION__);
@@ -141,109 +175,127 @@ bool ConfigureCameras(const Json::Value& value,
   }
 
   if (!value.isMember(kCameraDefinitionHalVersionKey)) return true;
-  if (ValueToCameraHalVersion(
-    value[kCameraDefinitionHalVersionKey].asString()) != kHalV3) {
+    camera->hal_version = ValueToCameraHalVersion(value[kCameraDefinitionHalVersionKey].asString());
+
+  if (camera->hal_version != kHalV3) {
     ALOGE("%s: Invalid camera hal version: key %s is not matched.", __FUNCTION__,
           kCameraDefinitionHalVersionKey);
     return false;
   }
 
-  if (!value.isMember(camera_metadata.c_str())) return true;
-  for (Json::ValueConstIterator iter = value[camera_metadata.c_str()].begin();
-       iter != value[camera_metadata.c_str()].end(); ++iter) {
-      if (!ValueToCameraBufferType(
+  if (!value.isMember(kCameraDefinitionPreviewCscHwKey)) return true;
+  camera->preview_csc_hw_type = ValueToCameraCscHw(value[kCameraDefinitionPreviewCscHwKey].asString());
+
+  if (!value.isMember(kCameraDefinitionRecordingCscHwKey)) return true;
+  camera->recording_csc_hw_type = ValueToCameraCscHw(value[kCameraDefinitionRecordingCscHwKey].asString());
+
+  if (!value.isMember(kOv5640MetaDataKey) &&
+      !value.isMember(kUvcMetaDataKey))
+      return true;
+
+  Json::ValueConstIterator iter;
+  for (int cam_metadata = OV5640_METADATA; cam_metadata < NUM_METADATA; cam_metadata++) {
+    if (cam_metadata == OV5640_METADATA) {
+      if (!value.isMember(kOv5640MetaDataKey))
+        continue;
+      iter = value[kOv5640MetaDataKey].begin();
+    } else if (cam_metadata == UVC_METADATA) {
+      if (!value.isMember(kUvcMetaDataKey))
+        continue;
+      iter = value[kUvcMetaDataKey].begin();
+    }
+
+
+    if (!ValueToCameraBufferType(
               (*iter)[kCameraBufferType].asString(),
-              camera))
+              camera, (enum CameraMetadataType)cam_metadata))
         return false;
 
-      camera->activearraywidth = strtol((*iter)[kActiveArrayWidthKey].asString().c_str(),
+    camera->camera_metadata[cam_metadata].activearraywidth = strtol((*iter)[kActiveArrayWidthKey].asString().c_str(),
                                                         &endptr, 10);
-      if (endptr != (*iter)[kActiveArrayWidthKey].asString().c_str() +
+    if (endptr != (*iter)[kActiveArrayWidthKey].asString().c_str() +
           (*iter)[kActiveArrayWidthKey].asString().size()) {
           ALOGE("%s: Invalid camera resolution width. Expected number, got %s.",
                __FUNCTION__, (*iter)[kActiveArrayWidthKey].asString().c_str());
-      }
+    }
 
-      camera->activearrayheight = strtol((*iter)[kActiveArrayHeightKey].asString().c_str(),
+    camera->camera_metadata[cam_metadata].activearrayheight = strtol((*iter)[kActiveArrayHeightKey].asString().c_str(),
                                                         &endptr, 10);
-      if (endptr != (*iter)[kActiveArrayHeightKey].asString().c_str() +
-          (*iter)[kActiveArrayHeightKey].asString().size()) {
-          ALOGE("%s: Invalid camera ActiveArrayHeight. got %s.",
-               __FUNCTION__, (*iter)[kActiveArrayHeightKey].asString().c_str());
-      }
+    if (endptr != (*iter)[kActiveArrayHeightKey].asString().c_str() +
+        (*iter)[kActiveArrayHeightKey].asString().size()) {
+        ALOGE("%s: Invalid camera ActiveArrayHeight. got %s.",
+             __FUNCTION__, (*iter)[kActiveArrayHeightKey].asString().c_str());
+    }
 
-      camera->pixelarraywidth = strtol((*iter)[kPixelArrayWidthKey].asString().c_str(),
+    camera->camera_metadata[cam_metadata].pixelarraywidth = strtol((*iter)[kPixelArrayWidthKey].asString().c_str(),
                                                         &endptr, 10);
-      if (endptr != (*iter)[kPixelArrayWidthKey].asString().c_str() +
-          (*iter)[kPixelArrayWidthKey].asString().size()) {
-          ALOGE("%s: Invalid camera PixelArrayWidth. got %s.",
-               __FUNCTION__, (*iter)[kPixelArrayWidthKey].asString().c_str());
-      }
+    if (endptr != (*iter)[kPixelArrayWidthKey].asString().c_str() +
+        (*iter)[kPixelArrayWidthKey].asString().size()) {
+        ALOGE("%s: Invalid camera PixelArrayWidth. got %s.",
+             __FUNCTION__, (*iter)[kPixelArrayWidthKey].asString().c_str());
+    }
 
-      camera->pixelarrayheight = strtol((*iter)[kPixelArrayHeightKey].asString().c_str(),
+    camera->camera_metadata[cam_metadata].pixelarrayheight = strtol((*iter)[kPixelArrayHeightKey].asString().c_str(),
+                                                      &endptr, 10);
+    if (endptr != (*iter)[kPixelArrayHeightKey].asString().c_str() +
+        (*iter)[kPixelArrayHeightKey].asString().size()) {
+        ALOGE("%s: Invalid camera PixelArrayHeight. got %s.",
+             __FUNCTION__, (*iter)[kPixelArrayHeightKey].asString().c_str());
+    }
+
+    camera->camera_metadata[cam_metadata].maxjpegsize = strtol((*iter)[kMaxJpegSizeKey].asString().c_str(),
                                                         &endptr, 10);
-      if (endptr != (*iter)[kPixelArrayHeightKey].asString().c_str() +
-          (*iter)[kPixelArrayHeightKey].asString().size()) {
-          ALOGE("%s: Invalid camera PixelArrayHeight. got %s.",
-               __FUNCTION__, (*iter)[kPixelArrayHeightKey].asString().c_str());
-      }
+    if (endptr != (*iter)[kMaxJpegSizeKey].asString().c_str() +
+        (*iter)[kMaxJpegSizeKey].asString().size()) {
+        ALOGE("%s: Invalid camera MaxJpegSize. got %s.",
+             __FUNCTION__, (*iter)[kMaxJpegSizeKey].asString().c_str());
+    }
 
-      camera->maxjpegsize = strtol((*iter)[kMaxJpegSizeKey].asString().c_str(),
+    camera->camera_metadata[cam_metadata].minframeduration = strtol((*iter)[kMinFrameDurationKey].asString().c_str(),
                                                         &endptr, 10);
-      if (endptr != (*iter)[kMaxJpegSizeKey].asString().c_str() +
-          (*iter)[kMaxJpegSizeKey].asString().size()) {
-          ALOGE("%s: Invalid camera MaxJpegSize. got %s.",
-               __FUNCTION__, (*iter)[kMaxJpegSizeKey].asString().c_str());
-      }
-
-      camera->minframeduration = strtol((*iter)[kMinFrameDurationKey].asString().c_str(),
-                                                        &endptr, 10);
-      if (endptr != (*iter)[kMinFrameDurationKey].asString().c_str() +
-          (*iter)[kMinFrameDurationKey].asString().size()) {
-          ALOGE("%s: Invalid camera MinFrameDuration. got %s.",
-               __FUNCTION__, (*iter)[kMinFrameDurationKey].asString().c_str());
-      }
+    if (endptr != (*iter)[kMinFrameDurationKey].asString().c_str() +
+        (*iter)[kMinFrameDurationKey].asString().size()) {
+        ALOGE("%s: Invalid camera MinFrameDuration. got %s.",
+             __FUNCTION__, (*iter)[kMinFrameDurationKey].asString().c_str());
+    }
 
 
-      camera->maxframeduration = strtol((*iter)[kMaxFrameDurationKey].asString().c_str(),
-                                                        &endptr, 10);
-      if (endptr != (*iter)[kMaxFrameDurationKey].asString().c_str() +
-          (*iter)[kMaxFrameDurationKey].asString().size()) {
-          ALOGE("%s: Invalid camera MaxFrameDuration. got %s.",
-               __FUNCTION__, (*iter)[kMaxFrameDurationKey].asString().c_str());
-      }
+    camera->camera_metadata[cam_metadata].maxframeduration = strtol((*iter)[kMaxFrameDurationKey].asString().c_str(),
+                                                      &endptr, 10);
+    if (endptr != (*iter)[kMaxFrameDurationKey].asString().c_str() +
+        (*iter)[kMaxFrameDurationKey].asString().size()) {
+        ALOGE("%s: Invalid camera MaxFrameDuration. got %s.",
+             __FUNCTION__, (*iter)[kMaxFrameDurationKey].asString().c_str());
+    }
 
-      camera->physicalwidth = strtof((*iter)[kPhysicalWidthKey].asString().c_str(),
-                                                        &endptr);
-      if (endptr != (*iter)[kPhysicalWidthKey].asString().c_str() +
-          (*iter)[kPhysicalWidthKey].asString().size()) {
-          ALOGE("%s: Invalid camera PhysicalWidth. got %s.",
-               __FUNCTION__, (*iter)[kPhysicalWidthKey].asString().c_str());
-      }
-
-      camera->physicalheight = strtof((*iter)[kPhysicalHeightKey].asString().c_str(),
-                                                        &endptr);
-      if (endptr != (*iter)[kPhysicalHeightKey].asString().c_str() +
-          (*iter)[kPhysicalHeightKey].asString().size()) {
-          ALOGE("%s: Invalid PhysicalHeight. got %s.",
-               __FUNCTION__, (*iter)[kPhysicalHeightKey].asString().c_str());
-      }
-
-      camera->focallength = strtof((*iter)[kFocalLengthKey].asString().c_str(),
-                                                        &endptr);
-      if (endptr != (*iter)[kFocalLengthKey].asString().c_str() +
-          (*iter)[kFocalLengthKey].asString().size()) {
-          ALOGE("%s: Invalid camera FocalLength. got %s.",
-               __FUNCTION__, (*iter)[kFocalLengthKey].asString().c_str());
-      }
-
+    camera->camera_metadata[cam_metadata].physicalwidth = strtof((*iter)[kPhysicalWidthKey].asString().c_str(),
+                                                      &endptr);
+    if (endptr != (*iter)[kPhysicalWidthKey].asString().c_str() +
+        (*iter)[kPhysicalWidthKey].asString().size()) {
+        ALOGE("%s: Invalid camera PhysicalWidth. got %s.",
+             __FUNCTION__, (*iter)[kPhysicalWidthKey].asString().c_str());
+    }
+    camera->camera_metadata[cam_metadata].physicalheight = strtof((*iter)[kPhysicalHeightKey].asString().c_str(),
+                                                    &endptr);
+    if (endptr != (*iter)[kPhysicalHeightKey].asString().c_str() +
+        (*iter)[kPhysicalHeightKey].asString().size()) {
+        ALOGE("%s: Invalid PhysicalHeight. got %s.",
+             __FUNCTION__, (*iter)[kPhysicalHeightKey].asString().c_str());
+    }
+    camera->camera_metadata[cam_metadata].focallength = strtof((*iter)[kFocalLengthKey].asString().c_str(),
+                                                      &endptr);
+    if (endptr != (*iter)[kFocalLengthKey].asString().c_str() +
+        (*iter)[kFocalLengthKey].asString().size()) {
+        ALOGE("%s: Invalid camera FocalLength. got %s.",
+             __FUNCTION__, (*iter)[kFocalLengthKey].asString().c_str());
+    }
   }
 
   return true;
 }
 }  // namespace
 
-bool CameraConfigurationParser::Init(const std::string camera_type) {
+bool CameraConfigurationParser::Init() {
   std::string config;
   char name[PATH_MAX] = {0};
   snprintf(name, PATH_MAX, "%s_%s%s", kCameraConfiguration, android::base::GetProperty(kSocType, "").c_str(), ".json");
@@ -262,7 +314,7 @@ bool CameraConfigurationParser::Init(const std::string camera_type) {
     return false;
   }
 
-  return ConfigureCameras(root, &mcamera_, camera_type);
+  return ConfigureCameras(root, &mcamera_);
 }
 
 }  // namespace cameraconfigparser

@@ -28,6 +28,7 @@
 #include <linux/mxc_ion.h>
 #include <ion_ext.h>
 #include "JpegBuilder.h"
+#include "utils/CameraConfigurationParser.h"
 
 using namespace android;
 
@@ -71,7 +72,8 @@ protected:
     int32_t processJpegBuffer(StreamBuffer& src,
                               sp<Metadata> meta);
     int32_t processFrameBuffer(StreamBuffer& src,
-                               sp<Metadata> meta);
+                               sp<Metadata> meta,
+                               int csc_hw);
 
 protected:
     // This stream is being reused. Used in stream configuration passes

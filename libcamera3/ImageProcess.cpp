@@ -25,6 +25,7 @@
 #include <linux/ipu.h>
 #include "opencl-2d.h"
 
+using namespace cameraconfigparser;
 extern "C" {
 #include <linux/pxp_device.h>
 }
@@ -220,7 +221,7 @@ void ImageProcess::getModule(char *path, const char *name)
     return;
 }
 
-int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf, int hw_type)
 {
     int ret = 0;
 
@@ -228,78 +229,31 @@ int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
         return -EINVAL;
     }
 
-    do {
-        // firstly try GPU.
-        ret = handleFrameByGPU(dstBuf, srcBuf);
-        if (ret == 0) {
-            break;
-        }
-
-        // try gpu 2d.
-        ret = handleFrameBy2D(dstBuf, srcBuf);
-        if (ret == 0) {
-            break;
-        }
-
-        // try ipu.
-        ret = handleFrameByIPU(dstBuf, srcBuf);
-        if (ret == 0) {
-            break;
-        }
-
-        // try pxp.
+    switch (hw_type) {
+    case GPU_2D:
+        ret = handleFrameByGPU_2D(dstBuf, srcBuf);
+        break;
+    case GPU_3D:
+        ret = handleFrameByGPU_3D(dstBuf, srcBuf);
+        break;
+    case DPU:
+        ret = handleFrameByDPU(dstBuf, srcBuf);
+        break;
+    case PXP:
         ret = handleFrameByPXP(dstBuf, srcBuf);
-        if (ret == 0) {
-            break;
-        }
-
-        // try opencl.
-        ret = handleFrameByOpencl(dstBuf, srcBuf);
-        if (ret == 0) {
-            break;
-        }
-
-        // no hardware exists.
+        break;
+    case IPU:
+        ret = handleFrameByIPU(dstBuf, srcBuf);
+        break;
+    case CPU:
         ret = handleFrameByCPU(dstBuf, srcBuf);
-    } while(false);
+        break;
+    default:
+        ALOGE("hw_type is not correct");
+        return -EINVAL;
+    }
 
     return ret;
-}
-
-static int pxp_get_bpp(unsigned int format)
-{
-  switch(format) {
-  case PXP_PIX_FMT_RGB565:
-  case PXP_PIX_FMT_BGR565:
-    return 16;
-  case PXP_PIX_FMT_XRGB32:
-  case PXP_PIX_FMT_XBGR32:
-  case PXP_PIX_FMT_ARGB32:
-  case PXP_PIX_FMT_ABGR32:
-  case PXP_PIX_FMT_BGRA32:
-  case PXP_PIX_FMT_BGRX32:
-  case PXP_PIX_FMT_RGBA32:
-    return 32;
-  case PXP_PIX_FMT_UYVY:
-  case PXP_PIX_FMT_VYUY:
-  case PXP_PIX_FMT_YUYV:
-  case PXP_PIX_FMT_YVYU:
-    return 16;
-  /* for the multi-plane format,
-   * only return the bits number
-   * for Y plane
-   */
-  case PXP_PIX_FMT_NV12:
-  case PXP_PIX_FMT_NV21:
-  case PXP_PIX_FMT_NV16:
-  case PXP_PIX_FMT_NV61:
-  case PXP_PIX_FMT_YVU420P:
-  case PXP_PIX_FMT_YUV420P:
-    return 8;
-  default:
-    ALOGE("%s: unsupported format for getting bpp\n", __func__);
-  }
-  return 0;
 }
 
 int convertPixelFormatToG2DFormat(PixelFormat format)
@@ -481,13 +435,12 @@ int ImageProcess::handleFrameByIPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     return ret;
 }
 
-int ImageProcess::handleFrameByGPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+int ImageProcess::handleFrameByG2DCopy(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 {
     // gpu 2d exists.
     if (mCopyEngine == NULL) {
         return -EINVAL;
     }
-
     sp<Stream> src, dst;
     src = srcBuf.mStream;
     dst = dstBuf.mStream;
@@ -522,7 +475,7 @@ int ImageProcess::handleFrameByGPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     return ret;
 }
 
-int ImageProcess::handleFrameBy2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+int ImageProcess::handleFrameByG2DBlit(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 {
     if (mBlitEngine == NULL) {
         return -EINVAL;
@@ -538,8 +491,10 @@ int ImageProcess::handleFrameBy2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     // can't do csc for some formats.
     if (!(((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
-         (dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP)) &&
-         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))) {
+         ((dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP) &&
+         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) ||
+         ((src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
+         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))))) {
         return -EINVAL;
     }
 
@@ -586,6 +541,32 @@ int ImageProcess::handleFrameBy2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 
 }
 
+int ImageProcess::handleFrameByG2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+{
+    int ret;
+    sp<Stream> src, dst;
+    src = srcBuf.mStream;
+    dst = dstBuf.mStream;
+
+    if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
+         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))
+        ret = handleFrameByG2DCopy(dstBuf, srcBuf);
+    else
+        ret = handleFrameByG2DBlit(dstBuf, srcBuf);
+
+    return ret;
+}
+
+int ImageProcess::handleFrameByDPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+{
+    return handleFrameByG2D(dstBuf, srcBuf);
+}
+
+int ImageProcess::handleFrameByGPU_2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+{
+    return handleFrameByG2D(dstBuf, srcBuf);
+}
+
 int ImageProcess::convertNV12toNV21(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 {
     sp<Stream> src, dst;
@@ -626,7 +607,7 @@ int ImageProcess::convertNV12toNV21(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     return 0;
 }
 
-int ImageProcess::handleFrameByOpencl(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
+int ImageProcess::handleFrameByGPU_3D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
 {
     // opencl g2d exists.
     if (mCLHandle == NULL) {

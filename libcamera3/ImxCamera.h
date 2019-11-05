@@ -21,18 +21,19 @@
 #include "DMAStream.h"
 #include "utils/CameraConfigurationParser.h"
 
+using namespace cameraconfigparser;
 class ImxCamera: public Camera
 {
 public:
-    ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path);
+    ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, int cam_preview_hw,
+                                 int cam_recording_hw, CameraSensorMetadata *cam_metadata);
     ~ImxCamera();
 
+    CameraSensorMetadata *mCameraMetadata;
     virtual status_t initSensorStaticData();
     virtual PixelFormat getPreviewPixelFormat();
 
 private:
-    cameraconfigparser::CameraDefinition cameradef;
-    cameraconfigparser::CameraConfigurationParser mCameraCfgParser;
     class ImxCameraMMAPStream : public MMAPStream
     {
     public:
