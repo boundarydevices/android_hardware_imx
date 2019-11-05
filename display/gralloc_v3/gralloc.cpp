@@ -109,6 +109,45 @@ int convertAndroidFormat(int format)
     return fslFormat;
 }
 
+static int checkDesc(MemoryDesc* desc)
+{
+    if (!desc || !desc->isValid() || desc->mWidth < 0 || desc->mHeight < 0) {
+        ALOGI("%s invalid descriptor",__func__);
+        return -1;
+    }
+    desc->mFslFormat = convertAndroidFormat(desc->mFormat);
+    if (desc->mFslFormat == FORMAT_BLOB) {
+        // Below trick is based on the convention that the height is 1, width is size
+        // when BLOB format. Show the info, so that once the framework change the convention,
+        // We can get some clue.
+        ALOGI("%s, FORMAT_BLOB, %dx%d", __func__, desc->mWidth, desc->mHeight);
+
+        // GPU can't recognize BLOB format, fake format to YUYV.
+        // size = width * height * 2;
+        // avoid height alignment issue.
+        desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
+        desc->mFslFormat = FORMAT_YUYV;
+        desc->mWidth = (desc->mWidth + 1) / 2;
+
+        // For FORMAT_YUYV, the height is aligned by 4 in MemoryDesc::checkFormat().
+        // Do some trick here to keep  w*h unchanged. Or will allocate 4 times of the needed size.
+        desc->mWidth = (desc->mWidth+3)/4;
+        desc->mHeight *= 4;
+    }
+    if (desc->mFslFormat == FORMAT_NV12_TILED ||
+        desc->mFslFormat == FORMAT_NV12_G1_TILED ||
+        desc->mFslFormat == FORMAT_NV12_G2_TILED ||
+        desc->mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+        desc->mFslFormat == FORMAT_P010 ||
+        desc->mFslFormat == FORMAT_P010_TILED ||
+        desc->mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
+        desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+    }
+
+    desc->checkFormat();
+    return 0;
+}
+
 static int gralloc_unlock(gralloc1_device_t* device,
                    buffer_handle_t buffer,
                    int32_t* outReleaseFence)
@@ -366,42 +405,11 @@ static int gralloc_allocate(gralloc1_device_t* device,
     for (uint32_t i=0; i<numDescriptors; i++) {
         Memory* memory = NULL;
         MemoryDesc* desc = (MemoryDesc*)descriptors[i];
-        if (!desc || !desc->isValid() || desc->mWidth < 0 || desc->mHeight < 0) {
+
+        if (checkDesc(desc) != 0) {
             ALOGE("%s invalid descriptor:%" PRId64, __func__, descriptors[i]);
             return GRALLOC1_ERROR_BAD_DESCRIPTOR;
         }
-
-        desc->mFslFormat = convertAndroidFormat(desc->mFormat);
-        if (desc->mFslFormat == FORMAT_BLOB) {
-            // Below trick is based on the convention that the height is 1, width is size
-            // when BLOB format. Show the info, so that once the framework change the convention,
-            // We can get some clue.
-            ALOGI("%s, FORMAT_BLOB, %dx%d", __func__, desc->mWidth, desc->mHeight);
-
-            // GPU can't recognize BLOB format, fake format to YUYV.
-            // size = width * height * 2;
-            // avoid height alignment issue.
-            desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
-            desc->mFslFormat = FORMAT_YUYV;
-            desc->mWidth = (desc->mWidth + 1) / 2;
-
-            // For FORMAT_YUYV, the height is aligned by 4 in MemoryDesc::checkFormat().
-            // Do some trick here to keep  w*h unchanged. Or will allocate 4 times of the needed size.
-            desc->mWidth = (desc->mWidth+3)/4;
-            desc->mHeight *= 4;
-        }
-        if (desc->mFslFormat == FORMAT_NV12_TILED ||
-            desc->mFslFormat == FORMAT_NV12_G1_TILED ||
-            desc->mFslFormat == FORMAT_NV12_G2_TILED ||
-            desc->mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
-            desc->mFslFormat == FORMAT_P010 ||
-            desc->mFslFormat == FORMAT_P010_TILED ||
-            desc->mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
-            desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
-        }
-
-        desc->checkFormat();
-
         int ret = pManager->allocMemory(*desc, &memory);
         if (ret != 0) {
             ALOGE("%s alloc memory failed", __func__);
@@ -668,6 +676,100 @@ static void gralloc_dump(gralloc1_device_t* /*device*/,
 {
 }
 
+static int gralloc_validate_buffer_size(gralloc1_device_t* device, buffer_handle_t buffer,
+                    const gralloc1_buffer_descriptor_info_t* descriptorInfo, uint32_t /*stride*/)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return GRALLOC1_ERROR_BAD_VALUE;
+    }
+
+    Memory* memory = (Memory*)buffer;
+    if (!memory || !memory->isValid()) {
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
+        return GRALLOC1_ERROR_BAD_HANDLE;
+    }
+
+    if (descriptorInfo->layerCount >1) {
+        return GRALLOC1_ERROR_BAD_VALUE;
+    }
+
+    MemoryDesc* desc = new MemoryDesc();
+    desc->mWidth = descriptorInfo->width;
+    desc->mHeight = descriptorInfo->height;
+    desc->mFormat = descriptorInfo->format;
+    desc->mProduceUsage = descriptorInfo->producerUsage;
+    desc->mConsumeUsage = descriptorInfo->consumerUsage;
+    if (checkDesc(desc) != 0) {
+        ALOGE("%s invalid descriptor", __func__);
+        if (desc != NULL) {
+            delete desc;
+        }
+        return GRALLOC1_ERROR_BAD_DESCRIPTOR;
+    }
+
+    MemoryManager* pManager = MemoryManager::getInstance();
+    if (pManager == NULL) {
+        ALOGE("%s can't get memory manager", __func__);
+        return -EINVAL;
+    }
+
+    int ret = pManager->validateMemory(*desc, memory);
+    if (ret != 0) {
+        ALOGE("%s failed, ret:%d", __func__,ret);
+        return GRALLOC1_ERROR_BAD_VALUE;
+    }
+    return GRALLOC1_ERROR_NONE;
+}
+
+static int gralloc_get_transport_size(gralloc1_device_t* device, buffer_handle_t buffer,
+                    uint32_t *outNumFds, uint32_t *outNumInts)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return GRALLOC1_ERROR_BAD_VALUE;
+    }
+
+    Memory* memory = (Memory*)buffer;
+    if (!memory || !memory->isValid()) {
+        ALOGE("%s invalid memory:0x%p", __func__, buffer);
+        return GRALLOC1_ERROR_BAD_HANDLE;
+    }
+
+    if (outNumFds != NULL) {
+        *outNumFds = memory->numFds;
+    }
+    if (outNumInts != NULL) {
+        *outNumInts = memory->numInts;
+    }
+
+    return GRALLOC1_ERROR_NONE;
+}
+
+static int gralloc_import_buffer(gralloc1_device_t* device, const buffer_handle_t rawHandle,
+                    buffer_handle_t* outBuffer)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return GRALLOC1_ERROR_BAD_VALUE;
+    }
+    native_handle_t* bufferHandle = native_handle_clone(rawHandle);
+    if (!bufferHandle) {
+        return GRALLOC1_ERROR_NO_RESOURCES;
+    }
+    int ret = gralloc_retain(device,bufferHandle);
+    if (ret != GRALLOC1_ERROR_NONE) {
+        ALOGI("%s fail ret:%d",__func__,ret);
+        native_handle_close(bufferHandle);
+        native_handle_delete(bufferHandle);
+        return ret;
+    }
+    if (outBuffer != NULL) {
+        *outBuffer = bufferHandle;
+    }
+    return GRALLOC1_ERROR_NONE;
+}
+
 static gralloc1_function_pointer_t gralloc_get_function(
                     struct gralloc1_device* device,
                     int32_t descriptor)
@@ -738,6 +840,15 @@ static gralloc1_function_pointer_t gralloc_get_function(
             break;
         case GRALLOC1_FUNCTION_DUMP:
             func = reinterpret_cast<gralloc1_function_pointer_t>(gralloc_dump);
+            break;
+        case GRALLOC1_FUNCTION_VALIDATE_BUFFER_SIZE:
+            func = reinterpret_cast<gralloc1_function_pointer_t>(gralloc_validate_buffer_size);
+            break;
+        case GRALLOC1_FUNCTION_GET_TRANSPORT_SIZE:
+            func = reinterpret_cast<gralloc1_function_pointer_t>(gralloc_get_transport_size);
+            break;
+        case GRALLOC1_FUNCTION_IMPORT_BUFFER:
+            func = reinterpret_cast<gralloc1_function_pointer_t>(gralloc_import_buffer);
             break;
         default:
             ALOGE("invalid descriptor:%d", descriptor);

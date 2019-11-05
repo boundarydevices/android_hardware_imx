@@ -70,6 +70,8 @@ public:
             android_ycbcr* ycbcr);
     // unlock memory after CPU access.
     int unlock(Memory* handle);
+    // validate memory size
+    int validateMemory(MemoryDesc& desc,Memory* handle);
 
     MetaData *getMetaData(Memory* handle);
 

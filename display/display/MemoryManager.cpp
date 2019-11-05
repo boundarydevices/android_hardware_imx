@@ -337,6 +337,20 @@ int MemoryManager::unlock(Memory* handle)
     return mIonManager->unlock(handle);
 }
 
+int MemoryManager::validateMemory(MemoryDesc& desc,Memory* handle)
+{
+    if (handle == NULL || !handle->isValid()) {
+        ALOGE("%s invalid handle", __func__);
+        return -EINVAL;
+    }
+
+    if (isDrmAlloc(desc.mFlag, desc.mFslFormat, desc.mProduceUsage)) {
+        return mGPUModule->validateBufferSize(mGPUModule, handle,desc.mWidth,
+                    desc.mHeight,desc.mFormat, (int)desc.mProduceUsage,desc.mStride);
+    }
+    return desc.mSize != handle->size;
+}
+
 int MemoryManager::allocMetaData(Memory* handle)
 {
     if (handle == NULL || !handle->isValid()) {
