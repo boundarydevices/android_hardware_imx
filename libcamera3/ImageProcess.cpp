@@ -221,7 +221,7 @@ void ImageProcess::getModule(char *path, const char *name)
     return;
 }
 
-int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf, int hw_type)
+int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf, CscHw hw_type)
 {
     int ret = 0;
 

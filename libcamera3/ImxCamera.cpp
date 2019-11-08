@@ -16,13 +16,12 @@
 
 #include "ImxCamera.h"
 
-ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, int cam_preview_hw,
-                                                int cam_recording_hw, CameraSensorMetadata *cam_metadata)
-   : Camera(id, facing, orientation, path, cam_preview_hw, cam_recording_hw)
+ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
+                                                CscHw cam_csc_hw, CameraSensorMetadata *cam_metadata)
+   : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw)
 {
-    mVideoStream = new ImxCameraMMAPStream(this);
-
     mCameraMetadata = cam_metadata;
+
     if (cam_metadata->buffer_type == CameraSensorMetadata::kMmap)
         mVideoStream = new ImxCameraMMAPStream(this);
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kDma)

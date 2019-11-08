@@ -52,30 +52,36 @@ static int32_t close_device(hw_device_t* dev)
 
 android::Mutex Camera::sStaticInfoLock(android::Mutex::PRIVATE);
 
-Camera* Camera::createCamera(int32_t id, char* name, int32_t facing,
-                             int32_t orientation, char* path, CameraDefinition *camera_def)
+Camera* Camera::createCamera(int32_t id,
+                             char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, CameraSensorMetadata *cam_metadata)
 {
     Camera* device = NULL;
+    int facing;
 
     android::Mutex::Autolock al(sStaticInfoLock);
+    if (strstr(cam_metadata->camera_type, BACK_CAMERA_NAME))
+        facing = CAMERA_FACING_BACK;
+    else if (strstr(cam_metadata->camera_type, FRONT_CAMERA_NAME))
+        facing = CAMERA_FACING_FRONT;
 
-    if (strstr(name, OV5640_SENSOR_NAME_V1) || strstr(name, OV5640_SENSOR_NAME_V2))
-        device = new ImxCamera(id, facing, orientation, path, camera_def->preview_csc_hw_type, camera_def->recording_csc_hw_type,
-                                                                        &(camera_def->camera_metadata[OV5640_METADATA]));
-    else if (strstr(name, UVC_NAME))
-        device = UvcDevice::newInstance(id, name, facing, orientation, path, camera_def->preview_csc_hw_type, camera_def->recording_csc_hw_type,
-                               &(camera_def->camera_metadata[UVC_METADATA]));
+    if (strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V1) ||
+                          strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V2))
+        device = new ImxCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw,
+                                                                        cam_metadata);
+    else if (strstr(cam_metadata->camera_name, UVC_NAME))
+        device = UvcDevice::newInstance(id, cam_metadata->camera_name, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw,
+                               cam_metadata);
     return device;
 }
 
-Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path, int cam_preview_hw, int cam_recording_hw)
+Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw, CscHw cam_csc_hw)
     : usemx6s(0), mId(id), mStaticInfo(NULL), mBusy(false), mCallbackOps(NULL), mStreams(NULL), mNumStreams(0), mTmpBuf(NULL)
 {
     ALOGI("%s:%d: new camera device", __func__, mId);
     android::Mutex::Autolock al(mDeviceLock);
 
-    preview_csc_hw_type = cam_preview_hw;
-    recording_csc_hw_type = cam_recording_hw;
+    mCamBlitCopyType = cam_copy_hw;
+    mCamBlitCscType = cam_csc_hw;
 
     camera_info::facing = facing;
     camera_info::orientation = orientation;

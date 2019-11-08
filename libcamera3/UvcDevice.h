@@ -26,14 +26,14 @@ class UvcDevice : public Camera
 {
 public:
     UvcDevice(int32_t id, int32_t facing, int32_t orientation,
-              char* path, int cam_preview_hw, int cam_recording_hw,
+              char* path, CscHw cam_copy_hw = GPU_2D, CscHw cam_csc_hw = GPU_2D,
               bool createStream = true, CameraSensorMetadata *cam_metadata = NULL);
 
     virtual ~UvcDevice();
 
     static Camera* newInstance(int32_t id, char* name, int32_t facing,
                                int32_t orientation, char* path,
-                               int cam_preview_hw, int cam_recording_hw,
+                               CscHw cam_copy_hw, CscHw cam_csc_hw,
                                CameraSensorMetadata *cam_metadata);
 
     CameraSensorMetadata *mCameraMetadata;

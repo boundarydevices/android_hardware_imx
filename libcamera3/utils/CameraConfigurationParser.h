@@ -21,10 +21,10 @@
 
 namespace cameraconfigparser {
 
-enum CameraMetadataType {
-  OV5640_METADATA = 0,
-  UVC_METADATA,
-  NUM_METADATA,
+enum CameraId {
+  BACK_CAM_ID = 0,
+  FRONT_CAM_ID,
+  NUM_CAM_ID,
 };
 
 enum CscHw {
@@ -42,6 +42,7 @@ struct CameraSensorMetadata {
   // Camera recognized HAL versions.
   enum BufferType { kMmap, kDma };
 
+  int orientation;
   // the max active pixel width for camera sensor
   int activearraywidth;
   // the max active pixel height for camera sensor
@@ -62,6 +63,12 @@ struct CameraSensorMetadata {
   // focal size
   float focallength;
 
+  // "back" or "front"
+  char camera_type[32];
+
+  // camera node name
+  char camera_name[32];
+
   // max pixel size
   int maxjpegsize;
 
@@ -74,8 +81,8 @@ struct CameraSensorMetadata {
 
 struct CameraDefinition {
   HalVersion hal_version;
-  CscHw preview_csc_hw_type;
-  CscHw recording_csc_hw_type;
+  CscHw cam_blit_copy_hw;
+  CscHw cam_blit_csc_hw;
   struct CameraSensorMetadata camera_metadata[2];
 };
 

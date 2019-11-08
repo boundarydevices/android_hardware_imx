@@ -72,8 +72,7 @@ protected:
     int32_t processJpegBuffer(StreamBuffer& src,
                               sp<Metadata> meta);
     int32_t processFrameBuffer(StreamBuffer& src,
-                               sp<Metadata> meta,
-                               int csc_hw);
+                               sp<Metadata> meta);
 
 protected:
     // This stream is being reused. Used in stream configuration passes

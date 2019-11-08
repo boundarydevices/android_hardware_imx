@@ -62,8 +62,6 @@
  * structure and functions used by the framework to load and interface to this
  * HAL, as well as the handles to the individual camera devices.
  */
-#define BACK_CAMERA_ID 0
-#define FRONT_CAMERA_ID 1
 #define CAMERA_PLUG_EVENT "video4linux/video"
 #define CAMERA_PLUG_ADD "add@"
 #define CAMERA_PLUG_REMOVE "remove@"
@@ -87,20 +85,26 @@ CameraHAL::CameraHAL()
     memset(mSets, 0, sizeof(mSets));
     memset(mCameras, 0, MAX_CAMERAS * sizeof(Camera*));
 
+    mCameraCfgParser.Init();
+    mCameraDef = mCameraCfgParser.mcamera();
+    CameraSensorMetadata *camera_metadata;
+
     // enumerate all camera sensors.
     enumSensorSet();
 
-    mCameraCfgParser.Init();
-    mCameraDef = mCameraCfgParser.mcamera();
-
     // check if camera exists.
-    for (int32_t index=0; index<MAX_CAMERAS; index++) {
+    for (int32_t index = BACK_CAM_ID; index < NUM_CAM_ID; index++) {
         if (!mSets[index].mExisting) {
             continue;
         }
-        mCameras[index] = Camera::createCamera(index, mSets[index].mSensorName,
-                                mSets[index].mFacing, mSets[index].mOrientation,
-                                mSets[index].mDevPath, &mCameraDef);
+
+        // camera_metadata[0] always hold the back camera metadata even set the back camera as sencond sequece in json file,
+        // It's instored by the camera_name in ConfigureCameras. camera_metadata[1] hold the front camera data.
+        camera_metadata = &(mCameraDef.camera_metadata[index]);
+
+        mCameras[index] = Camera::createCamera(index,
+                                mSets[index].mDevPath, mCameraDef.cam_blit_copy_hw,
+                                mCameraDef.cam_blit_csc_hw, camera_metadata);
 
         if (mCameras[index] == NULL) {
             // camera sensor is not supported now.
@@ -156,7 +160,8 @@ int32_t CameraHAL::handleCameraConnected(char* uevent)
     getNodeName(node->devNode, node->nodeName, nameLen);
     ALOGI("%s devNode:%s, nodeName:%s", __func__, node->devNode, node->nodeName);
 
-    for (int32_t index = 0; index < mCameraCount; index++) {
+    CameraSensorMetadata *camera_metadata;
+    for (int32_t index = BACK_CAM_ID; index < mCameraCount; index++) {
         // sensor is absent then to check it.
         if (!mSets[index].mExisting) {
             // match sensor according to property set.
@@ -166,9 +171,15 @@ int32_t CameraHAL::handleCameraConnected(char* uevent)
                 continue;
             }
 
-            mCameras[index] = Camera::createCamera(index,
-                    mSets[index].mSensorName, mSets[index].mFacing,
-                    mSets[index].mOrientation, mSets[index].mDevPath, &mCameraDef);
+
+            // camera_metadata[0] always hold the back camera metadata even set the back camera as sencond sequece in json file,
+            // It's instored by the camera_name in ConfigureCameras. camera_metadata[1] hold the front camera data.
+            camera_metadata = &(mCameraDef.camera_metadata[index]);
+
+            mCameras[index] = Camera::createCamera(index, mSets[index].mDevPath,
+                    mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw,
+                    camera_metadata);
+
             if (mCameras[index] == NULL) {
                 // camera sensor is not supported now.
                 ALOGE("Error: camera %s, %s create failed",
@@ -311,24 +322,19 @@ int CameraHAL::openDev(const hw_module_t* mod, const char* name, hw_device_t** d
 void CameraHAL::enumSensorSet()
 {
     // get property from init.rc mSets.
-    char orientStr[CAMERA_SENSOR_LENGTH];
 
     ALOGI("%s", __func__);
     // get back camera property.
-    memset(orientStr, 0, sizeof(orientStr));
-    property_get("back_camera_name", mSets[BACK_CAMERA_ID].mPropertyName, "0");
-    property_get("back_camera_orient", orientStr, "0");
-    mSets[BACK_CAMERA_ID].mOrientation = atoi(orientStr);
-    mSets[BACK_CAMERA_ID].mFacing = CAMERA_FACING_BACK;
-    mSets[BACK_CAMERA_ID].mExisting = false;
+    strncpy(mSets[BACK_CAM_ID].mPropertyName, mCameraDef.camera_metadata[BACK_CAM_ID].camera_name, strlen(mCameraDef.camera_metadata[BACK_CAM_ID].camera_name));
+    mSets[BACK_CAM_ID].mOrientation = mCameraDef.camera_metadata[BACK_CAM_ID].orientation;
+    mSets[BACK_CAM_ID].mFacing = CAMERA_FACING_BACK;
+    mSets[BACK_CAM_ID].mExisting = false;
 
     // get front camera property.
-    memset(orientStr, 0, sizeof(orientStr));
-    property_get("front_camera_name", mSets[FRONT_CAMERA_ID].mPropertyName, "0");
-    property_get("front_camera_orient", orientStr, "0");
-    mSets[FRONT_CAMERA_ID].mOrientation = atoi(orientStr);
-    mSets[FRONT_CAMERA_ID].mFacing = CAMERA_FACING_FRONT;
-    mSets[FRONT_CAMERA_ID].mExisting = false;
+    strncpy(mSets[FRONT_CAM_ID].mPropertyName, mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name, strlen(mCameraDef.camera_metadata[BACK_CAM_ID].camera_name));
+    mSets[FRONT_CAM_ID].mOrientation = mCameraDef.camera_metadata[BACK_CAM_ID].orientation;;
+    mSets[FRONT_CAM_ID].mFacing = CAMERA_FACING_FRONT;
+    mSets[FRONT_CAM_ID].mExisting = false;
 
     // make sure of back&front camera parameters.
     matchDevNodes();
@@ -336,9 +342,7 @@ void CameraHAL::enumSensorSet()
 
 int32_t CameraHAL::matchPropertyName(nodeSet* nodes, int32_t index)
 {
-    char nodeName[32];
     char *propName = NULL;
-    char *pNextName = NULL;
     int32_t ret = 0;
 
     if (nodes == NULL) {
@@ -347,29 +351,14 @@ int32_t CameraHAL::matchPropertyName(nodeSet* nodes, int32_t index)
 
     propName = mSets[index].mPropertyName;
     ALOGI("matchPropertyName: index:%d, %s", index, propName);
-    while (propName != NULL && (strlen(propName) > 0) && *propName != '0') {
-        memset(nodeName, 0, sizeof(nodeName));
-        pNextName = strchr(propName, ',');
-        if (pNextName == NULL) {
-            strncpy(nodeName, propName, 31);
-            propName = pNextName;
-        }
-        else {
-            strncpy(nodeName, propName, pNextName - propName);
-            propName = pNextName + 1;
-        }
 
-        ALOGI("index:%d, propName:%s", index, nodeName);
-
-        ret = matchNodeName(nodeName, nodes, index);
-        if (ret != 0) {
-            continue;
-        }
-
-        break;
+    ret = matchNodeName(propName, nodes, index);
+    if (ret != 0) {
+        ALOGE("do not find proper valid video node to match the setting");
+        return -1;
     }
 
-    return ret;
+    return 0;
 }
 
 static bool IsVideoCaptureDevice(const char* devNode)
@@ -418,17 +407,6 @@ int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t i
             continue;
         }
 
-        // If uvc, filter out the meta device.
-        if(strstr(nodeName, "uvc")) {
-            bool IsVideoCapDev = IsVideoCaptureDevice(devNode);
-            if(IsVideoCapDev == false) {
-                ALOGI("Although %s driver name has uvc, but it's a uvc meta device", devNode);
-                node = node->next;
-                continue;
-            }
-        }
-
-
         strncpy(mSets[index].mSensorName, sensorName, PROPERTY_VALUE_MAX-1);
         strncpy(mSets[index].mDevPath, devNode, CAMAERA_FILENAME_LENGTH);
         ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
@@ -468,17 +446,20 @@ int32_t CameraHAL::matchDevNodes()
         }
 
         memset(node, 0, sizeof(nodeSet));
-        if (nodes == NULL) {
-            nodes = node;
-        }
-        else {
-            last->next = node;
-        }
-        last = node;
 
         sprintf(node->devNode, "/dev/%s", dirEntry->d_name);
 
         getNodeName(node->devNode, node->nodeName, nameLen);
+
+        if (strlen(node->nodeName) != 0) {
+            if (nodes == NULL) {
+                nodes = node;
+            }
+            else {
+                last->next = node;
+            }
+            last = node;
+        }
     }
 
     closedir(vidDir);
@@ -528,6 +509,16 @@ int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
         fd = -1;
         ret = -1;
         return ret;
+    }
+
+    if(strstr((const char*)vidCap.driver, "uvc")) {
+        bool IsVideoCapDev = IsVideoCaptureDevice(devNode);
+        if(IsVideoCapDev == false) {
+            ALOGI("Although %s driver name has uvc, but it's a uvc meta device", devNode);
+            close(fd);
+            fd = -1;
+            return -1;
+        }
     }
 
     strncat(name, (const char*)vidCap.driver, length);

@@ -57,13 +57,6 @@
 #define IMX8_BOARD_NAME "imx8"
 #define IMX7_BOARD_NAME "imx7"
 
-#define UVC_NAME "uvc"
-
-#define OV5640_SENSOR_NAME_V1 "ov5640"
-
-// The sensor name ov5640 on imx8mq/imx8mm(/sys/class/video4linux/videoX/name) is mx6s-csi
-#define OV5640_SENSOR_NAME_V2 "mx6s-csi"
-
 #define CAMAERA_FILENAME_LENGTH 256
 #define CAMERA_SENSOR_LENGTH    92
 #define CAMERA_FORMAT_LENGTH    32

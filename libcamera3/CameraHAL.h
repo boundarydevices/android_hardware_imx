@@ -25,6 +25,15 @@
 #include "Camera.h"
 #include "VendorTags.h"
 #include "utils/CameraConfigurationParser.h"
+
+#define UVC_NAME "uvc"
+#define OV5640_SENSOR_NAME_V1 "ov5640"
+// The sensor name ov5640 on imx8mq/imx8mm(/sys/class/video4linux/videoX/name) is mx6s-csi
+#define OV5640_SENSOR_NAME_V2 "mx6s-csi"
+
+#define BACK_CAMERA_NAME "back"
+#define FRONT_CAMERA_NAME "front"
+
 using namespace cameraconfigparser;
 
 struct nodeSet {

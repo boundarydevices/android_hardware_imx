@@ -26,6 +26,7 @@
 namespace fsl {
 
 using namespace android;
+using namespace cameraconfigparser;
 
 typedef int (*hwc_func1)(void* handle);
 typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
@@ -37,7 +38,7 @@ public:
     static ImageProcess* getInstance();
     ~ImageProcess();
 
-    int handleFrame(StreamBuffer& dst, StreamBuffer& src, int);
+    int handleFrame(StreamBuffer& dst, StreamBuffer& src, CscHw);
 
 private:
     int convertNV12toNV21(StreamBuffer& dst, StreamBuffer& src);
