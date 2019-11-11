@@ -575,13 +575,6 @@ static int gralloc_set_format(gralloc1_device_t *device,
         return GRALLOC1_ERROR_BAD_DESCRIPTOR;
     }
 
-    if (format == HAL_PIXEL_FORMAT_YCbCr_420_888) {
-        // now, take the flex format as NV12.
-        // this format should only be known in framework.
-        // private_handle in hal should not record this format.
-        format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
-    }
-
     desc->mFormat = format;
     return GRALLOC1_ERROR_NONE;
 }
