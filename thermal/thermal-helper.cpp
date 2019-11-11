@@ -170,10 +170,10 @@ ThermalHelper::ThermalHelper(const NotificationCallback &cb)
               std::bind(&ThermalHelper::thermalWatcherCallbackFunc, this, std::placeholders::_1))),
       cb_(cb),
       cooling_device_info_map_(ParseCoolingDevice(
-              "/vendor/etc/" +
+              "/vendor/etc/configs/" +
               android::base::GetProperty(kConfigProperty.data(), kConfigDefaultFileName.data()))),
       sensor_info_map_(ParseSensorInfo(
-              "/vendor/etc/" +
+              "/vendor/etc/configs/" +
               android::base::GetProperty(kConfigProperty.data(), kConfigDefaultFileName.data()))) {
     for (auto const &name_status_pair : sensor_info_map_) {
         sensor_status_map_[name_status_pair.first] = {

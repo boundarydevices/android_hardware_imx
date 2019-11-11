@@ -47,7 +47,7 @@ constexpr char kPowerHalStateProp[] = "vendor.powerhal.camera";
 constexpr char kPowerHalAudioProp[] = "vendor.powerhal.audio";
 constexpr char kPowerHalInitProp[] = "vendor.powerhal.init";
 constexpr char kPowerHalRenderingProp[] = "vendor.powerhal.rendering";
-constexpr char kPowerHalConfigPath[] = "/vendor/etc/powerhint";
+constexpr char kPowerHalConfigPath[] = "/vendor/etc/configs/powerhint";
 constexpr char kSocType[] = "ro.boot.soc_type";
 static struct timespec s_previous_boost_timespec;
 static int s_previous_duration;

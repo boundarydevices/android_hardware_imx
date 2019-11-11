@@ -77,7 +77,7 @@ namespace {
 //    "MaxFrameDuration": "300000000"
 //  }
 // Location of the camera json configuration files.
-const char* const kCameraConfiguration = "/vendor/etc/config/camera_config";
+const char* const kCameraConfiguration = "/vendor/etc/configs/camera_config";
 
 //
 // Array of camera definitions for all cameras available on the device (array).
