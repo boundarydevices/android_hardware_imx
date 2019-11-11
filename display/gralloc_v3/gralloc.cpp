@@ -71,6 +71,9 @@ int convertAndroidFormat(int format)
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
             fslFormat = FORMAT_NV12;
             break;
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+            fslFormat = FORMAT_NV12;
+            break;
         case HAL_PIXEL_FORMAT_BLOB:
             fslFormat = FORMAT_BLOB;
             break;
