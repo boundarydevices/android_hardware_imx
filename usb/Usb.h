@@ -18,6 +18,8 @@
 #ifndef ANDROID_HARDWARE_USB_V1_1_USB_H
 #define ANDROID_HARDWARE_USB_V1_1_USB_H
 
+#include <android-base/file.h>
+#include <android-base/properties.h>
 #include <android/hardware/usb/1.1/IUsb.h>
 #include <android/hardware/usb/1.1/types.h>
 #include <android/hardware/usb/1.1/IUsbCallback.h>
@@ -30,6 +32,10 @@
 // Having a margin of ~3 secs for the directory and other related bookeeping
 // structures created and uvent fired.
 #define PORT_TYPE_TIMEOUT 8
+
+#define UDC_CONFIGURED "configured"
+#define USB_CONTROLLER "vendor.usb.config"
+#define UDC_STATE_VALUE_MAX 64
 
 namespace android {
 namespace hardware {

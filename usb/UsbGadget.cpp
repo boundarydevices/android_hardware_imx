@@ -20,7 +20,6 @@
 #include "UsbGadget.h"
 #include <dirent.h>
 #include <fcntl.h>
-#include <hardware_legacy/power.h>
 #include <stdio.h>
 #include <sys/inotify.h>
 #include <sys/mount.h>
@@ -59,9 +58,6 @@ constexpr int PULL_UP_DELAY = 500000;
 #define CTL_STOP  "ctl.stop"
 #define USB_FFS  "sys.usb.ffs.ready"
 #define ADBD  "adbd"
-#define UDC_STATE_VALUE_MAX 64
-#define UDC_CONFIGURED "configured"
-static const char* udc_wakelock = "usb_wakelock";
 
 namespace android {
 namespace hardware {
@@ -105,8 +101,6 @@ static void *monitorFfs(void *param) {
   bool writeUdc = true, stopMonitor = false;
   struct epoll_event events[EPOLL_EVENTS];
   steady_clock::time_point disconnect;
-  char udc_state[UDC_STATE_VALUE_MAX];
-  sprintf(udc_state, "/sys/class/udc/%s/state", GADGET_NAME.c_str());
 
   bool descriptorWritten = true;
   for (int i = 0; i < static_cast<int>(usbGadget->mEndpointList.size()); i++) {
@@ -135,17 +129,6 @@ static void *monitorFfs(void *param) {
       ALOGE("epoll wait did not return descriptor number");
       continue;
     }
-
-  std::string buffer;
-  if (!android::base::ReadFileToString(std::string(udc_state), &buffer)) {
-    ALOGE("can't read udc_state");
-  }
-
-  if (!strncmp(buffer.c_str(), UDC_CONFIGURED, strlen(UDC_CONFIGURED))) {
-    acquire_wake_lock(PARTIAL_WAKE_LOCK, udc_wakelock);
-  } else {
-    release_wake_lock(udc_wakelock);
-  }
 
     for (int i = 0; i < nrEvents; i++) {
       ALOGI("event=%u on fd=%d\n", events[i].events, events[i].data.fd);

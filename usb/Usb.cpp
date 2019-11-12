@@ -30,6 +30,7 @@
 #include <unordered_map>
 
 #include <cutils/uevent.h>
+#include <hardware_legacy/power.h>
 #include <sys/epoll.h>
 #include <utils/Errors.h>
 #include <utils/StrongPointer.h>
@@ -44,6 +45,7 @@ namespace implementation {
 
 const char GOOGLE_USB_VENDOR_ID_STR[] = "18d1";
 const char GOOGLE_USBC_35_ADAPTER_UNPLUGGED_ID_STR[] = "5029";
+static const char* udc_wakelock = "usb_wakelock";
 
 // Set by the signal handler to destroy the thread
 volatile bool destroyThread;
@@ -575,6 +577,10 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
        payload->usb->mPartnerUp = true;
        pthread_cond_signal(&payload->usb->mPartnerCV);
        pthread_mutex_unlock(&payload->usb->mPartnerLock);
+    } else if (!strncmp(cp, "USB_STATE=CONFIGURED", strlen("USB_STATE=CONFIGURED"))) {
+       acquire_wake_lock(PARTIAL_WAKE_LOCK, udc_wakelock);
+    } else if (!strncmp(cp, "USB_STATE=DISCONNECTED", strlen("USB_STATE=DISCONNECTED"))) {
+       release_wake_lock(udc_wakelock);
     } else if (!strncmp(cp, "DEVTYPE=typec_", strlen("DEVTYPE=typec_"))) {
       hidl_vec<PortStatus_1_1> currentPortStatus_1_1;
       ALOGI("uevent received %s", cp);
@@ -647,6 +653,22 @@ void *work(void *param) {
   struct data payload;
 
   ALOGE("creating thread");
+  std::string buffer;
+  std::string usb_state = android::base::GetProperty(USB_CONTROLLER, "");
+  if (usb_state !=  "") {
+    char udc_state[UDC_STATE_VALUE_MAX];
+    sprintf(udc_state, "/sys/class/udc/%s/state", usb_state.c_str());
+
+    if (!android::base::ReadFileToString(std::string(udc_state), &buffer)) {
+      ALOGE("can't read udc_state");
+    }
+  }
+
+  // the usb hal is not started when usb driver probe, the uevent send in usb probe stage is not handled in time.
+  // if device is configured when start usb hal, hold one wakelock.
+  if (!strncmp(buffer.c_str(), UDC_CONFIGURED, strlen(UDC_CONFIGURED))) {
+    acquire_wake_lock(PARTIAL_WAKE_LOCK, udc_wakelock);
+  }
 
   uevent_fd = uevent_open_socket(64 * 1024, true);
 
