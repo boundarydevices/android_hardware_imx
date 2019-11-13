@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright 2018 NXP */
+/* Copyright 2018-2019 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_CONFIG_AK4458_H
 #define ANDROID_INCLUDE_IMX_CONFIG_AK4458_H
@@ -22,14 +22,10 @@
 
 #define AK4458_CARD_NAME                         "ak4458-audio"
 
-#define MIXER_AK4458_L1CH_VOLUME                 "0 AK4458 L1ch Digital Volume"
-#define MIXER_AK4458_R1CH_VOLUME                 "0 AK4458 R1ch Digital Volume"
-#define MIXER_AK4458_L2CH_VOLUME                 "0 AK4458 L2ch Digital Volume"
-#define MIXER_AK4458_R2CH_VOLUME                 "0 AK4458 R2ch Digital Volume"
-#define MIXER_AK4458_L3CH_VOLUME                 "0 AK4458 L3ch Digital Volume"
-#define MIXER_AK4458_R3CH_VOLUME                 "0 AK4458 R3ch Digital Volume"
-#define MIXER_AK4458_L4CH_VOLUME                 "0 AK4458 L4ch Digital Volume"
-#define MIXER_AK4458_R4CH_VOLUME                 "0 AK4458 R4ch Digital Volume"
+#define MIXER_AK4458_DAC1_VOLUME                 "0 DAC1 Playback Volume"
+#define MIXER_AK4458_DAC2_VOLUME                 "0 DAC2 Playback Volume"
+#define MIXER_AK4458_DAC3_VOLUME                 "0 DAC3 Playback Volume"
+#define MIXER_AK4458_DAC4_VOLUME                 "0 DAC4 Playback Volume"
 
 // a suitable default volume, see out_set_volume in tinyalsa_hal.c
 #define AK4458_VOLUME_DEFAULT 172
@@ -38,35 +34,19 @@
 
 static struct route_setting default_output_ak4458[] = {
     {
-        .ctl_name = MIXER_AK4458_L1CH_VOLUME,
+        .ctl_name = MIXER_AK4458_DAC1_VOLUME,
         .intval = AK4458_VOLUME_DEFAULT,
     },
     {
-        .ctl_name = MIXER_AK4458_R1CH_VOLUME,
+        .ctl_name = MIXER_AK4458_DAC2_VOLUME,
         .intval = AK4458_VOLUME_DEFAULT,
     },
     {
-        .ctl_name = MIXER_AK4458_L2CH_VOLUME,
+        .ctl_name = MIXER_AK4458_DAC3_VOLUME,
         .intval = AK4458_VOLUME_DEFAULT,
     },
     {
-        .ctl_name = MIXER_AK4458_R2CH_VOLUME,
-        .intval = AK4458_VOLUME_DEFAULT,
-    },
-    {
-        .ctl_name = MIXER_AK4458_L3CH_VOLUME,
-        .intval = AK4458_VOLUME_DEFAULT,
-    },
-    {
-        .ctl_name = MIXER_AK4458_R3CH_VOLUME,
-        .intval = AK4458_VOLUME_DEFAULT,
-    },
-    {
-        .ctl_name = MIXER_AK4458_L4CH_VOLUME,
-        .intval = AK4458_VOLUME_DEFAULT,
-    },
-    {
-        .ctl_name = MIXER_AK4458_R4CH_VOLUME,
+        .ctl_name = MIXER_AK4458_DAC4_VOLUME,
         .intval = AK4458_VOLUME_DEFAULT,
     },
     {
