@@ -247,6 +247,7 @@ static int gralloc_get_num_flex_planes(gralloc1_device_t* /*device*/,
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
         case HAL_PIXEL_FORMAT_CbYCrY_422_I:
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
             isYuv = true;
             break;
         default:
