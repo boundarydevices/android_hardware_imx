@@ -697,6 +697,9 @@ static int gralloc_validate_buffer_size(gralloc1_device_t* device, buffer_handle
     desc->mFormat = descriptorInfo->format;
     desc->mProduceUsage = descriptorInfo->producerUsage;
     desc->mConsumeUsage = descriptorInfo->consumerUsage;
+    if (memory->usage & USAGE_HW_VIDEO_ENCODER) {
+        desc->mProduceUsage |= USAGE_HW_VIDEO_ENCODER;
+    }
     if (checkDesc(desc) != 0) {
         ALOGE("%s invalid descriptor", __func__);
         if (desc != NULL) {
