@@ -28,12 +28,35 @@
 #endif
 
 #define GPUHELPER "libgpuhelper.so"
-#define GPUENGINE "libg2d.so"
+#define G2DENGINE "libg2d"
 
 namespace fsl {
 
 Composer* Composer::sInstance(0);
 Mutex Composer::sLock(Mutex::PRIVATE);
+
+static bool getDefaultG2DLib(char *libName, int size)
+{
+    char value[PROPERTY_VALUE_MAX];
+
+    if((libName == NULL)||(size < strlen(G2DENGINE) + strlen(".so")))
+        return false;
+
+    memset(libName, 0, size);
+    property_get("vendor.imx.default-g2d", value, "");
+    if(strcmp(value, "") == 0) {
+        strncpy(libName, G2DENGINE, strlen(G2DENGINE));
+        strcat(libName, ".so");
+    }
+    else {
+        strncpy(libName, G2DENGINE, strlen(G2DENGINE));
+        strcat(libName, "-");
+        strcat(libName, value);
+        strcat(libName, ".so");
+    }
+    ALOGI("Default g2d lib: %s", libName);
+    return true;
+}
 
 Composer* Composer::getInstance()
 {
@@ -54,6 +77,7 @@ Composer::Composer()
     mG2dHandle = NULL;
 
     char path[PATH_MAX] = {0};
+    char g2dlibName[PATH_MAX] = {0};
     char value[PROPERTY_VALUE_MAX];
     mTls.tls = 0;
     mTls.has_tls = 0;
@@ -98,8 +122,10 @@ Composer::Composer()
     }
 
     memset(path, 0, sizeof(path));
-    getModule(path, GPUENGINE);
-    mG2dHandle = dlopen(path, RTLD_NOW);
+    if(getDefaultG2DLib(g2dlibName, PATH_MAX)){
+        getModule(path, g2dlibName);
+        mG2dHandle = dlopen(path, RTLD_NOW);
+    }
 
     if (mG2dHandle == NULL) {
         ALOGI("can't find %s, 2D is invalid", path);

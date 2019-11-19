@@ -38,13 +38,36 @@ extern "C" {
 #define LIB_PATH2 "/vendor/lib"
 #endif
 
-#define GPUENGINE "libg2d.so"
-#define CLENGINE "libopencl-2d.so"
+#define CLENGINE "libg2d-opencl.so"
+#define G2DENGINE "libg2d"
 
 namespace fsl {
 
 ImageProcess* ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
+
+static bool getDefaultG2DLib(char *libName, int size)
+{
+    char value[PROPERTY_VALUE_MAX];
+
+    if((libName == NULL)||(size < strlen(G2DENGINE) + strlen(".so")))
+        return false;
+
+    memset(libName, 0, size);
+    property_get("vendor.imx.default-g2d", value, "");
+    if(strcmp(value, "") == 0) {
+        strncpy(libName, G2DENGINE, strlen(G2DENGINE));
+        strcat(libName, ".so");
+    }
+    else {
+        strncpy(libName, G2DENGINE, strlen(G2DENGINE));
+        strcat(libName, "-");
+        strcat(libName, value);
+        strcat(libName, ".so");
+    }
+    ALOGI("Default g2d lib: %s", libName);
+    return true;
+}
 
 ImageProcess* ImageProcess::getInstance()
 {
@@ -81,8 +104,12 @@ ImageProcess::ImageProcess()
     }
 
     char path[PATH_MAX] = {0};
-    getModule(path, GPUENGINE);
-    mG2dModule = dlopen(path, RTLD_NOW);
+    char g2dlibName[PATH_MAX] = {0};
+    if(getDefaultG2DLib(g2dlibName, PATH_MAX)){
+        getModule(path, g2dlibName);
+        mG2dModule = dlopen(path, RTLD_NOW);
+    }
+
     if (mG2dModule == NULL) {
         mOpenEngine = NULL;
         mCloseEngine = NULL;

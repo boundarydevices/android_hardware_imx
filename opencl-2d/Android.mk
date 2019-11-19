@@ -33,7 +33,7 @@ LOCAL_SHARED_LIBRARIES := liblog \
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID -DUSE_CL_SOURCECODE
 
 LOCAL_VENDOR_MODULE := true
-LOCAL_MODULE := libopencl-2d
+LOCAL_MODULE := libg2d-opencl
 
 LOCAL_MODULE_TAGS := optional
 
@@ -61,7 +61,7 @@ LOCAL_SHARED_LIBRARIES := liblog \
                           libOpenCL \
                           libOpenVX \
                           libOpenVXU \
-                          libopencl-2d
+                          libg2d-opencl
 
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID
 LOCAL_MODULE_TAGS := optional
