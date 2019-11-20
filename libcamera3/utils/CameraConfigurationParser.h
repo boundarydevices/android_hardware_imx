@@ -36,6 +36,12 @@ enum CscHw {
   CPU,
 };
 
+struct OmitFrame {
+  int width;
+  int height;
+  int omitnum;
+};
+
 enum HalVersion { kHalV1, kHalV2, kHalV3 };
 // Camera properties and features.
 struct CameraSensorMetadata {
@@ -76,6 +82,7 @@ struct CameraSensorMetadata {
   long minframeduration;
   long maxframeduration;
 
+  struct OmitFrame omit_frame[2];
   BufferType buffer_type;
 };
 

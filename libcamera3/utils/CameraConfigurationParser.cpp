@@ -108,6 +108,11 @@ const char* const kFocalLengthKey = "FocalLength";
 const char* const kMaxJpegSizeKey = "MaxJpegSize";
 const char* const kMinFrameDurationKey = "MinFrameDuration";
 const char* const kMaxFrameDurationKey = "MaxFrameDuration";
+const char* const kOmitFrameKey = "OmitFrame";
+const char* const kOmitFrameWidthKey = "width";
+const char* const kOmitFrameHeightKey = "height";
+const char* const kOmitFrameNumKey = "omit_num";
+
 
 
 #define CSC_HW_GPU_2D "GPU_2D"
@@ -318,6 +323,35 @@ bool ConfigureCameras(const Json::Value& value,
         (*iter)[kFocalLengthKey].asString().size()) {
         ALOGE("%s: Invalid camera FocalLength. got %s.",
              __FUNCTION__, (*iter)[kFocalLengthKey].asString().c_str());
+    }
+
+    int omit_index = 0;
+    for (Json::ValueConstIterator omititer = (*iter)[kOmitFrameKey].begin();
+                 omititer != (*iter)[kOmitFrameKey].end(); ++omititer) {
+        camera->camera_metadata[cam_index].omit_frame[omit_index].width = strtol((*omititer)[kOmitFrameWidthKey].asString().c_str(),
+                                                                      &endptr, 10);
+        if (endptr != (*omititer)[kOmitFrameWidthKey].asString().c_str() +
+               (*omititer)[kOmitFrameWidthKey].asString().size()) {
+             ALOGE("%s: Invalid camera omit width. Expected number, got %s.",
+                   __FUNCTION__, (*omititer)[kOmitFrameWidthKey].asString().c_str());
+        }
+
+        camera->camera_metadata[cam_index].omit_frame[omit_index].height = strtol((*omititer)[kOmitFrameHeightKey].asString().c_str(),
+                                                                     &endptr, 10);
+        if (endptr != (*omititer)[kOmitFrameHeightKey].asString().c_str() +
+               (*omititer)[kOmitFrameHeightKey].asString().size()) {
+             ALOGE("%s: Invalid camera omit height. Expected number, got %s.",
+                   __FUNCTION__, (*omititer)[kOmitFrameHeightKey].asString().c_str());
+        }
+
+        camera->camera_metadata[cam_index].omit_frame[omit_index].omitnum = strtol((*omititer)[kOmitFrameNumKey].asString().c_str(),
+                                                                     &endptr, 10);
+        if (endptr != (*omititer)[kOmitFrameNumKey].asString().c_str() +
+               (*omititer)[kOmitFrameNumKey].asString().size()) {
+             ALOGE("%s: Invalid camera omit num. Expected number, got %s.",
+                   __FUNCTION__, (*omititer)[kOmitFrameNumKey].asString().c_str());
+        }
+        omit_index++;
     }
   }
 

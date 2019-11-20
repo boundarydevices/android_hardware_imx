@@ -37,24 +37,29 @@ private:
     class ImxCameraMMAPStream : public MMAPStream
     {
     public:
-        ImxCameraMMAPStream(Camera *device)
-            : MMAPStream(device) { }
+        ImxCameraMMAPStream(Camera *device, struct OmitFrame *omit_frame)
+            : MMAPStream(device) { mOmitFrame = omit_frame; }
         virtual ~ImxCameraMMAPStream() {}
 
         virtual int getCaptureMode(int width, int height);
         // configure device.
         virtual int32_t onDeviceConfigureLocked();
+        struct OmitFrame *mOmitFrame;
     };
     class ImxCameraDMAStream : public DMAStream
     {
     public:
-        ImxCameraDMAStream(Camera *device)
-            :  DMAStream(device, true) { mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE; }
+        ImxCameraDMAStream(Camera *device, struct OmitFrame *omit_frame)
+            :  DMAStream(device, true) {
+               mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+               mOmitFrame = omit_frame;
+        }
         virtual ~ImxCameraDMAStream() {}
 
         virtual int getCaptureMode(int width, int height);
         // configure device.
         virtual int32_t onDeviceConfigureLocked();
+        struct OmitFrame *mOmitFrame;
     };
 };
 

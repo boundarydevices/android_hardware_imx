@@ -23,9 +23,9 @@ ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path
     mCameraMetadata = cam_metadata;
 
     if (cam_metadata->buffer_type == CameraSensorMetadata::kMmap)
-        mVideoStream = new ImxCameraMMAPStream(this);
+        mVideoStream = new ImxCameraMMAPStream(this, cam_metadata->omit_frame);
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kDma)
-        mVideoStream = new ImxCameraDMAStream(this);
+        mVideoStream = new ImxCameraDMAStream(this, cam_metadata->omit_frame);
 }
 
 ImxCamera::~ImxCamera()
@@ -248,10 +248,15 @@ int32_t ImxCamera::ImxCameraMMAPStream::onDeviceConfigureLocked()
         return ret;
     }
 
-    if(mWidth == 2592 && mHeight == 1944)
-      setOmitFrameCount(2);
-    else
-      setOmitFrameCount(0);
+    setOmitFrameCount(0);
+
+    struct OmitFrame *item;
+    for(item = mOmitFrame; item < mOmitFrame + 2; item++) {
+      if ((mWidth == item->width) && (mHeight == item->height)) {
+        setOmitFrameCount(item->omitnum);
+        break;
+      }
+    }
 
     return 0;
 }
@@ -318,10 +323,15 @@ int32_t ImxCamera::ImxCameraDMAStream::onDeviceConfigureLocked()
         return ret;
     }
 
-    if(mWidth == 2592 && mHeight == 1944)
-      setOmitFrameCount(2);
-    else
-      setOmitFrameCount(0);
+    setOmitFrameCount(0);
+
+    struct OmitFrame *item;
+    for(item = mOmitFrame; item < mOmitFrame + 2; item++) {
+      if ((mWidth == item->width) && (mHeight == item->height)) {
+        setOmitFrameCount(item->omitnum);
+        break;
+      }
+    }
 
     return 0;
 }
