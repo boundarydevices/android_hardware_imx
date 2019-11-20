@@ -45,8 +45,8 @@ static bool getDefaultG2DLib(char *libName, int size)
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
     if(strcmp(value, "") == 0) {
-        strncpy(libName, G2DENGINE, strlen(G2DENGINE));
-        strcat(libName, ".so");
+        ALOGI("No g2d lib available to be used!");
+        return false;
     }
     else {
         strncpy(libName, G2DENGINE, strlen(G2DENGINE));
