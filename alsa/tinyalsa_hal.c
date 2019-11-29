@@ -1477,6 +1477,7 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
             if (!ctl)
                 return -ENOSYS;
             mixer_ctl_set_value(ctl, 0, volume[0]);
+            mixer_ctl_set_value(ctl, 1, volume[1]);
             i++;
         }
         ALOGD("%s: float: %f, integer: %d", __func__, left, volume[0]);
