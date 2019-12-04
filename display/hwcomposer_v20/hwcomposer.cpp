@@ -1284,6 +1284,125 @@ static int hwc2_function_set_color_mode_with_render_intent(hwc2_device_t* device
     return HWC2_ERROR_NONE;
 }
 
+static int hwc2_get_per_frame_metadata_keys(hwc2_device_t* device, hwc2_display_t display,
+                                            uint32_t* outNumKeys,int32_t* /*hwc2_per_frame_metadata_key_t*/ outKeys)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    uint32_t count = 0;
+    int error = hwc2_get_hdr_capabilities(device,display,&count,NULL,NULL,NULL,NULL);
+    if (error != HWC2_ERROR_NONE || count <1) {
+        return HWC2_ERROR_UNSUPPORTED;
+    }
+
+    if (outNumKeys == NULL) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+    if (outKeys == NULL) {
+        *outNumKeys = HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL + 1;
+    } else {
+        *outNumKeys = HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL + 1;
+        outKeys[0] = HWC2_DISPLAY_RED_PRIMARY_X;
+        outKeys[1] = HWC2_DISPLAY_RED_PRIMARY_Y;
+        outKeys[2] = HWC2_DISPLAY_GREEN_PRIMARY_X;
+        outKeys[3] = HWC2_DISPLAY_GREEN_PRIMARY_Y;
+        outKeys[4] = HWC2_DISPLAY_BLUE_PRIMARY_X;
+        outKeys[5] = HWC2_DISPLAY_BLUE_PRIMARY_Y;
+        outKeys[6] = HWC2_WHITE_POINT_X;
+        outKeys[7] = HWC2_WHITE_POINT_Y;
+        outKeys[8] = HWC2_MAX_LUMINANCE;
+        outKeys[9] = HWC2_MIN_LUMINANCE;
+        outKeys[10] = HWC2_MAX_CONTENT_LIGHT_LEVEL;
+        outKeys[11] = HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL;
+    }
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_set_layer_per_frame_metadata(hwc2_device_t* device, hwc2_display_t display,
+                                             hwc2_layer_t layer,uint32_t numElements,
+                                             const int32_t* /*hw2_per_frame_metadata_key_t*/ keys,
+                                             const float* metadata)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    uint32_t count = 0;
+    int error = hwc2_get_per_frame_metadata_keys(device,display,&count,NULL);
+    if (error != HWC2_ERROR_NONE || count <1) {
+        return HWC2_ERROR_UNSUPPORTED;
+    }
+
+    Layer* pLayer = hwc2_get_layer(display, layer);
+    if (pLayer == NULL) {
+        ALOGE("%s get layer failed", __func__);
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+
+    pLayer->hdrMetadata.eotf = SMPTE_ST2084;
+    pLayer->hdrMetadata.type = 0;
+    for (uint32_t i = 0; i < numElements; i++) {
+        switch (keys[i]) {
+        case HWC2_DISPLAY_RED_PRIMARY_X:
+            pLayer->hdrMetadata.display_primaries_x[0] = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_DISPLAY_RED_PRIMARY_Y:
+            pLayer->hdrMetadata.display_primaries_y[0] = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_DISPLAY_GREEN_PRIMARY_X:
+            pLayer->hdrMetadata.display_primaries_x[1] = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_DISPLAY_GREEN_PRIMARY_Y:
+            pLayer->hdrMetadata.display_primaries_y[1] = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_DISPLAY_BLUE_PRIMARY_X:
+            pLayer->hdrMetadata.display_primaries_x[2] = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_DISPLAY_BLUE_PRIMARY_Y:
+            pLayer->hdrMetadata.display_primaries_y[2] = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_WHITE_POINT_X:
+            pLayer->hdrMetadata.white_point_x = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_WHITE_POINT_Y:
+            pLayer->hdrMetadata.white_point_y = (uint16_t)(metadata[i] * 50000);
+            break;
+        case HWC2_MAX_LUMINANCE:
+            pLayer->hdrMetadata.max_mastering_display_luminance = (uint16_t)(metadata[i]);
+            break;
+        case HWC2_MIN_LUMINANCE:
+            pLayer->hdrMetadata.min_mastering_display_luminance = (uint16_t)(metadata[i] * 10000);
+            break;
+        case HWC2_MAX_CONTENT_LIGHT_LEVEL:
+            pLayer->hdrMetadata.max_cll = (uint16_t)(metadata[i]);
+            break;
+        case HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL:
+            pLayer->hdrMetadata.max_fall = (uint16_t)(metadata[i]);
+            break;
+        }
+    }
+    return HWC2_ERROR_NONE;
+}
+
 static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
                                                 int32_t descriptor)
 {
@@ -1440,6 +1559,12 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
             break;
         case HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT:
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_function_set_color_mode_with_render_intent);
+            break;
+        case HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_per_frame_metadata_keys);
+            break;
+        case HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_layer_per_frame_metadata);
             break;
         default:
             func = NULL;

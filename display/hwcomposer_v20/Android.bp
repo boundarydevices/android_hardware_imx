@@ -37,6 +37,8 @@ hwcomposer_v20_defaults {
     include_dirs: [
         "vendor/nxp-opensource/imx/display/display",
         "vendor/nxp/fsl-proprietary/include",
+        "vendor/nxp-opensource/libdrm-imx",
+        "vendor/nxp-opensource/libdrm-imx/include/drm",
         "vendor/nxp-opensource/imx/libedid",
         "system/core/include/",
     ],

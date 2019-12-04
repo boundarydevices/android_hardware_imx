@@ -310,6 +310,7 @@ void Display::resetLayerLocked(Layer* layer)
     layer->isOverlay = false;
     layer->lastSourceCrop.clear();
     layer->lastDisplayFrame.clear();
+    memset(&layer->hdrMetadata, 0, sizeof(layer->hdrMetadata));
 }
 
 void Display::releaseLayer(int index)

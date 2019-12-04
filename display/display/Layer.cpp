@@ -28,6 +28,7 @@ Layer::Layer()
     sourceCrop.clear();
     displayFrame.clear();
     visibleRegion.clear();
+    memset(&hdrMetadata, 0, sizeof(hdrMetadata));
 }
 
 bool Layer::isSolidColor()

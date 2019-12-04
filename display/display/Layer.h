@@ -22,6 +22,8 @@
 #include "android/Region.h"
 
 #include "Memory.h"
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 namespace fsl {
 
@@ -93,6 +95,7 @@ public:
     bool isHdrMode;
     bool isOverlay;
     void* priv;
+    hdr_static_metadata hdrMetadata;
 };
 
 class LayerVector : public SortedVector<Layer*> {

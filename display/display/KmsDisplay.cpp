@@ -121,6 +121,7 @@ KmsDisplay::KmsDisplay()
     mEncoderType = 0;
     memset(&mConnector, 0, sizeof(mConnector));
     mListener = NULL;
+    memset(&mLastHdrMetaData, 0, sizeof(mLastHdrMetaData));
 }
 
 KmsDisplay::~KmsDisplay()
@@ -269,42 +270,10 @@ void KmsDisplay::getKmsProperty()
 /*
  * add properties to a drmModeAtomicReqPtr object.
  */
-void KmsDisplay::setMetaData(drmModeAtomicReqPtr pset, MetaData *meta)
+void KmsDisplay::setHdrMetaData(drmModeAtomicReqPtr pset,hdr_static_metadata hdrMetaData)
 {
-    if (meta == NULL) {
-        return;
-    }
-
-    HDRStaticInfo::Type1 &info = meta->mStaticInfo.sType1;
-    struct hdr_static_metadata hdr_metadata;
-    ColorAspects color = meta->mColor;
-    if (color.mTransfer != ColorAspects::TransferST2084 &&
-        color.mTransfer != ColorAspects::TransferHLG &&
-        info.mR.x == 0 && info.mR.y == 0 && info.mG.x == 0 && info.mG.y == 0 &&
-        info.mB.x == 0 && info.mB.y == 0 && info.mW.x == 0 && info.mW.y == 0 &&
-        info.mMaxDisplayLuminance == 0 && info.mMaxFrameAverageLightLevel == 0
-        && info.mMaxContentLightLevel == 0 && info.mMinDisplayLuminance == 0) {
-        hdr_metadata.eotf = 0;
-    }
-    else {
-        hdr_metadata.eotf = SMPTE_ST2084;
-    }
-    hdr_metadata.type = 0;
-    hdr_metadata.display_primaries_x[0] = info.mR.x;
-    hdr_metadata.display_primaries_y[0] = info.mR.y;
-    hdr_metadata.display_primaries_x[1] = info.mG.x;
-    hdr_metadata.display_primaries_y[1] = info.mG.y;
-    hdr_metadata.display_primaries_x[2] = info.mB.x;
-    hdr_metadata.display_primaries_y[2] = info.mB.y;
-    hdr_metadata.white_point_x = info.mW.x;
-    hdr_metadata.white_point_y = info.mW.y;
-    hdr_metadata.max_mastering_display_luminance = info.mMaxDisplayLuminance;
-    hdr_metadata.min_mastering_display_luminance = info.mMinDisplayLuminance;
-    hdr_metadata.max_cll = info.mMaxContentLightLevel;
-    hdr_metadata.max_fall = info.mMaxFrameAverageLightLevel;
-
-    drmModeCreatePropertyBlob(mDrmFd, &hdr_metadata,
-             sizeof(hdr_metadata), &mMetadataID);
+    drmModeCreatePropertyBlob(mDrmFd, &hdrMetaData,
+             sizeof(hdrMetaData), &mMetadataID);
     drmModeAtomicAddProperty(pset, mConnectorID,
                          mConnector.hdr_meta_id, mMetadataID);
 }
@@ -684,13 +653,12 @@ int KmsDisplay::performOverlay()
     }
 
     bindOutFence(mPset);
-    MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
-    if (meta != NULL && meta->mFlags & FLAGS_META_CHANGED) {
-        setMetaData(mPset, meta);
-        meta->mFlags &= ~FLAGS_META_CHANGED;
-        meta++;
+    if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_static_metadata))) {
+        setHdrMetaData(mPset,layer->hdrMetadata);
         layer->isHdrMode = true;
+        mLastHdrMetaData = layer->hdrMetadata;
     }
+    MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
     if (meta != NULL && meta->mFlags & FLAGS_COMPRESSED_OFFSET) {
         mKmsPlanes[mKmsPlaneNum - 1].setTableOffset(mPset, meta);
         meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
@@ -863,9 +831,10 @@ int KmsDisplay::updateScreen()
     }
     if (mResetHdrMode) {
         mResetHdrMode = false;
-        MetaData meta;
-        memset(&meta, 0, sizeof(meta));
-        setMetaData(mPset, &meta);
+        hdr_static_metadata hdrMetaData;
+        memset(&hdrMetaData, 0, sizeof(hdrMetaData));
+        setHdrMetaData(mPset,hdrMetaData);
+        mLastHdrMetaData = hdrMetaData;
     }
 
     // DRM driver will hold two frames in async mode.
