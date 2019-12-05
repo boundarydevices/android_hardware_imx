@@ -569,7 +569,7 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
     }
 
     ALOGI("Usb Gadget setcurrent functions called successfully");
-  } else {
+  } else if (callback) {
     Return<void> ret_default = callback->setCurrentUsbFunctionsCb(functions, Status::SUCCESS);
     if (!ret_default.isOk())
       ALOGE("Error while calling setCurrentUsbFunctionsCb when there is no function switch happen, %s",
