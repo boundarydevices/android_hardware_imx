@@ -103,7 +103,6 @@ int MemoryDesc::checkFormat()
             alignedw = mWidth;
             alignedh = mHeight;
             size = alignedw * alignedh;
-            mFslFormat = FORMAT_NV12;
             if(mHeight != 1)
                 ALOGW("%s, BLOB format, h %d is not 1 !!!", __func__, mHeight);
             break;
