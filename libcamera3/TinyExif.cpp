@@ -70,6 +70,7 @@ uint32_t tag_length;
 #define ARRAYSIZE(a) (uint32_t)(sizeof(a) / sizeof(a[0]))
 
 const static uint8_t SOIMark[] = {0xff, 0xd8};
+const static uint8_t EOIMark[] = {0xff, 0xd9};
 
 /*  APP1 Marker, 0xffe1, 2 bytes
     APP1 Length, written later, 2 bytes
@@ -389,6 +390,7 @@ static int ScanIFD(IFDEle* pIFDEle,
     bool bTagGpsOffsetAdded = false;
     uint32_t totalHeadSize =
         ARRAYSIZE(SOIMark) + ARRAYSIZE(APP1Head) + ARRAYSIZE(IFDHead);
+    uint32_t totalEndSize = ARRAYSIZE(EOIMark);
 
     memset(&g_TiffGroup, 0, sizeof(g_TiffGroup));
     memset(&g_ExifGroup, 0, sizeof(g_ExifGroup));
@@ -460,7 +462,7 @@ static int ScanIFD(IFDEle* pIFDEle,
 
     g_thumbNailOffset = totalHeadSize + g_TiffGroup.grpSize + g_GpsGroup.grpSize + g_ExifGroup.grpSize + g_TiffGroup_1st.grpSize;
     g_mainJpgOffset = g_thumbNailOffset + thumbSize;
-    requestSize = g_mainJpgOffset + mainSize;
+    requestSize = g_mainJpgOffset + mainSize + totalEndSize;
 
     if (pRequestSize)
         *pRequestSize = requestSize;
@@ -648,6 +650,8 @@ int InsertEXIFAndThumbnail(IFDEle* pIFDEle,
         ALOGE("%s, InsertMain failed, ret %d", __func__, ret);
         return ret;
     }
+    // write end
+    memcpy(pDst + requestSize - ARRAYSIZE(EOIMark), EOIMark, ARRAYSIZE(EOIMark));
 
     return ret;
 }
