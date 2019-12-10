@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
-/* Copyright 2017-2018 NXP */
+/* Copyright 2017-2019 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
@@ -76,6 +76,7 @@ struct audio_card{
     struct route_setting *mm_hs_mic_input;
     struct route_setting *vx_bt_mic_input;
     struct route_setting *mm_bt_mic_input;
+    struct route_setting *out_volume;
     int  card;
     unsigned int  out_rate;
     int  out_channels;
@@ -128,6 +129,7 @@ struct imx_audio_device {
     struct resampler_itfe *rsmpl_sco_tx;
     struct pcm *pcm_cap;
     struct pcm_config cap_config;
+    Hashmap *out_bus_stream_map;
 };
 
 struct imx_stream_out {
@@ -156,6 +158,7 @@ struct imx_stream_out {
     int sup_rates[MAX_SUP_RATE_NUM];
     audio_format_t format;
     char* address;
+    struct audio_gain gain_stage;
     bool paused;
     bool lpa_wakelock_acquired;
 };

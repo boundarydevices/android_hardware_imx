@@ -14,11 +14,24 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2014 Freescale Semiconductor, Inc. */
+/* Copyright 2019 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_CONFIG_CS42888_H
 #define ANDROID_INCLUDE_IMX_CONFIG_CS42888_H
 
 #include "audio_hardware.h"
+
+#define MIXER_CS42888_DAC1_PLAYBACK_VOLUME  "DAC1 Playback Volume"
+
+static struct route_setting out_volume_cs42888[] = {
+    {
+        .ctl_name = MIXER_CS42888_DAC1_PLAYBACK_VOLUME,
+        .intval = 255,
+    },
+    {
+        .ctl_name = NULL,
+    },
+};
 
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  cs42888_card = {
@@ -46,6 +59,7 @@ static struct audio_card  cs42888_card = {
     .mm_hs_mic_input     = NULL,
     .vx_bt_mic_input     = NULL,
     .mm_bt_mic_input     = NULL,
+    .out_volume          = out_volume_cs42888,
     .card                = 0,
     .out_rate            = 0,
     .out_channels        = 0,

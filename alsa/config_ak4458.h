@@ -32,7 +32,7 @@
 #define AK4458_VOLUME_MAX 255
 #define AK4458_VOLUME_MIN 170
 
-static struct route_setting default_output_ak4458[] = {
+static struct route_setting out_volume_ak4458[] = {
     {
         .ctl_name = MIXER_AK4458_DAC1_VOLUME,
         .intval = AK4458_VOLUME_DEFAULT,
@@ -60,7 +60,7 @@ static struct audio_card  ak4458_card = {
     .driver_name = "ak4458-audio",
     .supported_out_devices  = AUDIO_DEVICE_OUT_WIRED_HEADPHONE,
     .supported_in_devices   = 0,
-    .defaults            = default_output_ak4458,
+    .defaults            = out_volume_ak4458,
     .bt_output           = NULL,
     .speaker_output      = NULL,
     .hs_output           = NULL,
@@ -71,6 +71,7 @@ static struct audio_card  ak4458_card = {
     .mm_hs_mic_input     = NULL,
     .vx_bt_mic_input     = NULL,
     .mm_bt_mic_input     = NULL,
+    .out_volume          = out_volume_ak4458,
     .card                = 0,
     .out_rate            = 0,
     .out_channels        = 0,

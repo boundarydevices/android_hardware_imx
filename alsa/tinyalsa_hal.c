@@ -26,10 +26,12 @@
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <math.h>
 
 #include <cutils/log.h>
 #include <cutils/str_parms.h>
 #include <cutils/properties.h>
+#include <cutils/hashmap.h>
 
 #include <hardware/hardware.h>
 #include <hardware_legacy/power.h>
@@ -1433,6 +1435,27 @@ static uint32_t out_get_latency_dsd(const struct audio_stream_out *stream)
     return (pcm_config_dsd.period_size * pcm_config_dsd.period_count * 1000) / pcm_config_dsd.rate;
 }
 
+static int out_set_control_volume(struct mixer *mixer, struct route_setting *route, int left, int right)
+{
+    struct mixer_ctl *ctl;
+    int i = 0;
+
+    if (!mixer || !route) {
+        ALOGE("%s: mixer or route_setting is NULL", __func__);
+        return -EINVAL;
+    }
+
+    while (route[i].ctl_name) {
+        ctl = mixer_get_ctl_by_name(mixer, route[i].ctl_name);
+        if (!ctl)
+            return -ENOSYS;
+        mixer_ctl_set_value(ctl, 0, left);
+        mixer_ctl_set_value(ctl, 1, right);
+        i++;
+    }
+    return 0;
+}
+
 static int out_set_volume(struct audio_stream_out *stream, float left, float right)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
@@ -1450,11 +1473,9 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
 
     if (out->card_index >= 0 && out->card_index < MAX_AUDIO_CARD_NUM &&
         !strcmp(adev->card_list[out->card_index]->driver_name, "ak4458-audio")) {
-        struct route_setting *route = adev->card_list[out->card_index]->defaults;
+        struct route_setting *route = adev->card_list[out->card_index]->out_volume;
         struct mixer *mixer = adev->mixer[out->card_index];
-        struct mixer_ctl *ctl;
         int volume[2];
-        int i = 0;
 
         if (!mixer) {
             return -ENOSYS;
@@ -1472,14 +1493,7 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
             volume[1] = (int)(AK4458_VOLUME_MIN + right * (AK4458_VOLUME_MAX - AK4458_VOLUME_MIN));
         }
 
-        while (route[i].ctl_name) {
-            ctl = mixer_get_ctl_by_name(mixer, route[i].ctl_name);
-            if (!ctl)
-                return -ENOSYS;
-            mixer_ctl_set_value(ctl, 0, volume[0]);
-            mixer_ctl_set_value(ctl, 1, volume[1]);
-            i++;
-        }
+        out_set_control_volume(mixer, route, volume[0], volume[1]);
         ALOGD("%s: float: %f, integer: %d", __func__, left, volume[0]);
 
         return 0;
@@ -3290,6 +3304,69 @@ static int in_get_active_microphones(const struct audio_stream_in *stream,
 }
 #endif
 
+#ifdef CAR_AUDIO
+static int adev_set_audio_port_config(struct audio_hw_device *dev,
+        const struct audio_port_config *config)
+{
+    struct imx_audio_device *adev = (struct imx_audio_device *)dev;
+    const char *bus_address = config->ext.device.address;
+    struct imx_stream_out *out = hashmapGet(adev->out_bus_stream_map, bus_address);
+    int card = get_card_for_bus(adev, bus_address, NULL);
+    struct route_setting *route = adev->card_list[card]->out_volume;
+    struct mixer *mixer = adev->mixer[card];
+    int ret = 0;
+
+    if (out) {
+        if (!out->gain_stage.step_value) {
+            ALOGE("%s: gain stage step value cannot be %d", __func__, out->gain_stage.step_value);
+            ret = -EINVAL;
+            return ret;
+        }
+        pthread_mutex_lock(&out->lock);
+        int gainIndex = (config->gain.values[0] - out->gain_stage.min_value) /
+            out->gain_stage.step_value;
+        int totalSteps = (out->gain_stage.max_value - out->gain_stage.min_value) /
+            out->gain_stage.step_value;
+        int minDb = out->gain_stage.min_value / 100;
+        int maxDb = out->gain_stage.max_value / 100;
+        int max_volume = 255;
+        int volume;
+        // curve: 10^((minDb + (maxDb - minDb) * gainIndex / totalSteps) / 20)
+        float amplitude_ratio = pow(10,
+                (minDb + (maxDb - minDb) * (gainIndex / (float)totalSteps)) / 20);
+        if (gainIndex == 0) amplitude_ratio = 0;
+        volume = max_volume * amplitude_ratio;
+        out_set_control_volume(mixer, route, volume, volume);
+        pthread_mutex_unlock(&out->lock);
+        ALOGD("%s: set audio gain: card: %d, address: %s, amplitude_ratio: %f, volume: %d",
+                __func__, card, bus_address, amplitude_ratio, volume);
+    } else {
+        ALOGE("%s: can not find output stream by bus_address:%s", __func__, bus_address);
+        ret = -EINVAL;
+    }
+
+    return ret;
+}
+
+static int adev_create_audio_patch(struct audio_hw_device *dev,
+        unsigned int num_sources,
+        const struct audio_port_config *sources,
+        unsigned int num_sinks,
+        const struct audio_port_config *sinks,
+        audio_patch_handle_t *handle)
+{
+    ALOGD("%s: handle: %d", __func__, handle);
+    return 0;
+}
+
+static int adev_release_audio_patch(struct audio_hw_device *dev,
+        audio_patch_handle_t handle)
+{
+    ALOGD("%s: handle: %d", __func__, handle);
+    return 0;
+}
+#endif
+
 static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_io_handle_t handle __unused,
                                    audio_devices_t devices,
@@ -3445,6 +3522,23 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.write = out_write_primary;
     }
 
+    if (address) {
+        hashmapPut(ladev->out_bus_stream_map, out->address, out);
+        if (strcmp(out->address, "bus0_media_out") == 0) {
+            // gain_stage should align with audio_policy_configuration.xml
+            out->gain_stage = (struct audio_gain) {
+                .min_value = -500,
+                .max_value = 0,
+                .step_value = 100,
+            };
+        } else if (strcmp(out->address, "bus1_system_sound_out") == 0) {
+            out->gain_stage = (struct audio_gain) {
+                .min_value = -500,
+                .max_value = 0,
+                .step_value = 100,
+            };
+        }
+    }
     // Fix me. Default_rate is same as mm_rate. The resampler do nothing.
     for(i = 0; i < PCM_TOTAL; i++) {
          ret = create_resampler(ladev->default_rate,
@@ -3550,8 +3644,10 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     if (out->buffer)
         free(out->buffer);
 
-    if (out->address)
+    if (out->address) {
+        hashmapRemove(ladev->out_bus_stream_map, out->address);
         free(out->address);
+    }
 
     for (i = 0; i < PCM_TOTAL; i++) {
         if (out->resampler[i]) {
@@ -4203,6 +4299,9 @@ static int adev_close(hw_device_t *device)
         if(adev->mixer[i])
             mixer_close(adev->mixer[i]);
 
+    if (adev->out_bus_stream_map) {
+        hashmapFree(adev->out_bus_stream_map);
+    }
     free(device);
 
 #ifdef PRODUCT_IOT
@@ -4459,6 +4558,27 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
     return 0;
 }
 
+/* copied from libcutils/str_parms.c */
+static bool str_eq(void *key_a, void *key_b) {
+    return !strcmp((const char *)key_a, (const char *)key_b);
+}
+
+/**
+ * use djb hash unless we find it inadequate.
+ * copied from libcutils/str_parms.c
+ */
+#ifdef __clang__
+__attribute__((no_sanitize("integer")))
+#endif
+static int str_hash_fn(void *str) {
+    uint32_t hash = 5381;
+    char *p;
+    for (p = str; p && *p; p++) {
+        hash = ((hash << 5) + hash) + *p;
+    }
+    return (int)hash;
+}
+
 static int adev_open(const hw_module_t* module, const char* name,
                      hw_device_t** device)
 {
@@ -4475,7 +4595,11 @@ static int adev_open(const hw_module_t* module, const char* name,
         return -ENOMEM;
 
     adev->hw_device.common.tag      = HARDWARE_DEVICE_TAG;
+#ifdef CAR_AUDIO
+    adev->hw_device.common.version  = AUDIO_DEVICE_API_VERSION_3_0;
+#else
     adev->hw_device.common.version  = AUDIO_DEVICE_API_VERSION_2_0;
+#endif
     adev->hw_device.common.module   = (struct hw_module_t *) module;
     adev->hw_device.common.close    = adev_close;
 
@@ -4494,6 +4618,11 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.close_input_stream      = adev_close_input_stream;
 #if ANDROID_SDK_VERSION >= 28
     adev->hw_device.get_microphones         = adev_get_microphones;
+#endif
+#ifdef CAR_AUDIO
+    adev->hw_device.set_audio_port_config   = adev_set_audio_port_config;
+    adev->hw_device.create_audio_patch      = adev_create_audio_patch;
+    adev->hw_device.release_audio_patch     = adev_release_audio_patch;
 #endif
     adev->hw_device.dump                    = adev_dump;
     adev->mm_rate                           = 48000;
@@ -4531,6 +4660,9 @@ static int adev_open(const hw_module_t* module, const char* name,
     *device = &adev->hw_device.common;
 
     lpa_enable = property_get_int32("vendor.audio.lpa.enable", 0);
+
+    // Initialize the bus address to output stream map
+    adev->out_bus_stream_map = hashmapCreate(5, str_hash_fn, str_eq);
 
 #ifdef PRODUCT_IOT
     audio_map_init();

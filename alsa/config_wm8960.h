@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2015 Freescale Semiconductor, Inc. */
+/* Copyright 2019 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_CONFIG_WM8960_H
 #define ANDROID_INCLUDE_IMX_CONFIG_WM8960_H
@@ -118,6 +119,18 @@ static struct route_setting mm_main_mic_input_wm8960[] = {
     },
 };
 
+#define MIXER_WM8960_PLAYBACK_VOLUME    "Playback Volume"
+
+static struct route_setting out_volume_wm8960[] = {
+    {
+        .ctl_name = MIXER_WM8960_PLAYBACK_VOLUME,
+        .intval = 255,
+    },
+    {
+        .ctl_name = NULL,
+    },
+};
+
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
 static struct audio_card  wm8960_card = {
     .name = "wm8960-audio",
@@ -145,6 +158,7 @@ static struct audio_card  wm8960_card = {
     .mm_hs_mic_input     = NULL,
     .vx_bt_mic_input     = NULL,
     .mm_bt_mic_input     = NULL,
+    .out_volume          = out_volume_wm8960,
     .card                = 0,
     .out_rate            = 0,
     .out_channels        = 0,
