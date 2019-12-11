@@ -89,6 +89,9 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MQ" {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DFRAMEBUFFER_COMPRESSION")
     }
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MM" {
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DWORKAROUND_VIRTUAL_DISPLAY_FLICKER")
+    }
     if ctx.Config().VendorConfig("IMXPLUGIN").Bool("HAVE_FSL_IMX_GPU3D") {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags,"-DUSE_SW_OPENGL")
     }

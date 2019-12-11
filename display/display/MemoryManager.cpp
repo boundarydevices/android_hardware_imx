@@ -110,6 +110,11 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     else if (usage & USAGE_HW_VIDEO_ENCODER) {
         canHandle = false;
     }
+#ifdef WORKAROUND_VIRTUAL_DISPLAY_FLICKER
+    else if (usage == (USAGE_HW_TEXTURE | USAGE_HW_RENDER)) {
+        canHandle = false;
+    }
+#endif
 
     return canHandle;
 }
