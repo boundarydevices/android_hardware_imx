@@ -179,6 +179,12 @@ static int close_lights(struct hw_device_t *dev)
     return 0;
 }
 
+static int set_light_nop(__attribute__((unused)) struct light_device_t* dev,
+		__attribute__((unused)) struct light_state_t const* state)
+{
+	return 0;
+}
+
 /*****************************************************************************/
 static int lights_device_open(const struct hw_module_t* module,
                               const char* name, struct hw_device_t** device)
@@ -186,6 +192,7 @@ static int lights_device_open(const struct hw_module_t* module,
     int (*set_light)(struct light_device_t* dev,
             struct light_state_t const* state);
 
+    set_light = set_light_nop;
     if (!strcmp(name, LIGHT_ID_BACKLIGHT)) {
         int fdfb0;
         char fbtype[256];
