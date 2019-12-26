@@ -4382,6 +4382,48 @@ static int pcm_get_near_param_wrap(unsigned int card, unsigned int device,
 #endif
 }
 
+/* On imx8q board, we prefer use audio board(cs42888) as speaker and mic */
+static void adjust_card_sequence(struct imx_audio_device *adev)
+{
+    int cardIdx;
+    char deviceName[128];
+    struct audio_card *pcard_wm8960 = NULL;
+    struct audio_card *pcard_cs42888 = NULL;
+    int idx_wm8960 = -1;
+    int idx_cs42888 = -1;
+
+    if((adev == NULL) || (adev->audio_card_num == 0))
+        return;
+
+    memset(deviceName, 0, sizeof(deviceName));
+    property_get(PRODUCT_DEVICE_PROPERTY, deviceName, DEFAULT_ERROR_NAME_str);
+
+    if(!strstr(deviceName, "mek_8q"))
+        return;
+
+    for(cardIdx = 0; cardIdx < adev->audio_card_num; cardIdx++) {
+        if(strstr(adev->card_list[cardIdx]->name, "wm8960")) {
+            pcard_wm8960 = adev->card_list[cardIdx];
+            idx_wm8960 = cardIdx;
+        }
+        else if(strstr(adev->card_list[cardIdx]->name, "cs42888")) {
+            pcard_cs42888 = adev->card_list[cardIdx];
+            idx_cs42888 = cardIdx;
+        }
+    }
+
+    if((pcard_wm8960 == NULL) || (pcard_cs42888 == NULL))
+        return;
+
+    if(idx_cs42888 < idx_wm8960)
+        return;
+
+    adev->card_list[idx_wm8960] = pcard_cs42888;
+    adev->card_list[idx_cs42888] = pcard_wm8960;
+
+    return;
+}
+
 static int scan_available_device(struct imx_audio_device *adev, bool queryInput, bool queryOutput)
 {
     int i,j,k;
@@ -4535,6 +4577,8 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
         }
     }
     adev->audio_card_num = k;
+
+    adjust_card_sequence(adev);
 
     ALOGI("Total %d cards match", k);
     for(int cardIdx = 0; cardIdx < k; cardIdx++) {
