@@ -293,7 +293,7 @@ const ConfigDeclaration kVehicleProperties[]{
     {.config =
          {
              .prop = toInt(VehicleProperty::FUEL_DOOR_OPEN),
-             .access = VehiclePropertyAccess::READ_WRITE,
+             .access = VehiclePropertyAccess::READ,
              .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
              .areaConfigs = {VehicleAreaConfig{.areaId = (0)}},
          },
@@ -311,7 +311,7 @@ const ConfigDeclaration kVehicleProperties[]{
     {.config =
          {
              .prop = toInt(VehicleProperty::EV_CHARGE_PORT_OPEN),
-             .access = VehiclePropertyAccess::READ_WRITE,
+             .access = VehiclePropertyAccess::READ,
              .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
              .areaConfigs = {VehicleAreaConfig{.areaId = (0)}},
          },
