@@ -128,8 +128,10 @@ VehicleHal::VehiclePropValuePtr EmulatedVehicleHal::get(
     return v;
 }
 
-StatusCode EmulatedVehicleHal::set(const VehiclePropValue& propValue) {
+StatusCode EmulatedVehicleHal::set(const VehiclePropValue& prop) {
     static constexpr bool shouldUpdateStatus = false;
+    VehiclePropValue propValue = prop;
+    propValue.timestamp = elapsedRealtimeNano();
 
     if (propValue.prop == kGenerateFakeDataControllingProperty) {
         StatusCode status = handleGenerateFakeDataRequest(propValue);
