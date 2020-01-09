@@ -321,6 +321,15 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->chroma_step = 1;
             break;
 
+        case FORMAT_YUYV:
+            ycbcr->ystride = handle->stride * 2;
+            ycbcr->cstride = handle->stride;
+            ycbcr->y = (void*)handle->base;
+            ycbcr->cb = NULL;
+            ycbcr->cr = NULL;
+            ycbcr->chroma_step = 1;
+            break;
+
         default:
             ALOGE("%s not support format:0x%x", __func__, handle->format);
             return -EINVAL;
