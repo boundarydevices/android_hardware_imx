@@ -191,7 +191,7 @@ int pcm_get_near_param(unsigned int card, unsigned int device,
 
     if(param_is_mask(type)) return -1;
 
-    pcm = calloc(1, sizeof(struct pcm));
+    pcm = (struct pcm *)calloc(1, sizeof(struct pcm));
     if (!pcm)
         return -1;
 
@@ -251,7 +251,7 @@ int pcm_check_param_mask(unsigned int card, unsigned int device,
 
     if (param_is_interval(type)) return 0;
 
-    pcm = calloc(1, sizeof(struct pcm));
+    pcm = (struct pcm *)calloc(1, sizeof(struct pcm));
     if (!pcm)
         return 0;
 
@@ -268,7 +268,7 @@ int pcm_check_param_mask(unsigned int card, unsigned int device,
 
     param_init(&params);
     if (type == PCM_HW_PARAM_FORMAT)
-        param_set_mask(&params, type, pcm_format_to_alsa(request_data));
+        param_set_mask(&params, type, pcm_format_to_alsa((enum pcm_format)request_data));
     else
         param_set_mask(&params, type, request_data);
     param_set_rmask(&params, type);

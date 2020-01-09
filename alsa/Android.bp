@@ -18,9 +18,10 @@ audio_primary_defaults {
     name: "audio_primary_default",
     relative_install_path: "hw",
     srcs: [
-        "tinyalsa_hal.c",
-        "control.c",
-        "pcm_ext.c",
+        "tinyalsa_hal.cpp",
+        "control.cpp",
+        "pcm_ext.cpp",
+        "audio_card_config_parse.cpp",
     ],
 
     vendor: true,
@@ -29,6 +30,7 @@ audio_primary_defaults {
         "system/media/audio_utils/include",
         "system/media/audio_effects/include",
         "hardware/libhardware/include",
+        "system/core/base/include",
     ],
     shared_libs: [
         "liblog",
@@ -37,6 +39,8 @@ audio_primary_defaults {
         "libaudioutils",
         "libdl",
         "libpower",
+        "libjsoncpp",
+        "libbase",
     ],
 }
 

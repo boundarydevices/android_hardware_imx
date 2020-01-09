@@ -24,6 +24,7 @@
 
 #include <hardware/hardware.h>
 
+#include "audio_card_config_parse.h"
 
 #define MIN(x, y) ((x) > (y) ? (y) : (x))
 
@@ -51,44 +52,7 @@ enum output_type {
     OUTPUT_TOTAL
 };
 
-struct route_setting
-{
-    char *ctl_name;
-    int intval;
-    char *strval;
-};
-
-
-struct audio_card{
-    char * name;
-    char * driver_name;
-    char* bus_name;  // Used in iot, sound card found by DEVICE -> bus -> card
-    int  supported_out_devices;
-    int  supported_in_devices;
-    struct route_setting *defaults;
-    struct route_setting *bt_output;
-    struct route_setting *speaker_output;
-    struct route_setting *hs_output;
-    struct route_setting *earpiece_output;
-    struct route_setting *vx_hs_mic_input;
-    struct route_setting *mm_main_mic_input;
-    struct route_setting *vx_main_mic_input;
-    struct route_setting *mm_hs_mic_input;
-    struct route_setting *vx_bt_mic_input;
-    struct route_setting *mm_bt_mic_input;
-    struct route_setting *out_volume;
-    int  card;
-    unsigned int  out_rate;
-    int  out_channels;
-    int  out_format;
-    unsigned int  in_rate;
-    int  in_channels;
-    int  in_format;
-};
-
-#define MAX_AUDIO_CARD_NUM  6
-#define MAX_AUDIO_CARD_SCAN 6
-
+#define MAX_AUDIO_CARD_NUM  10
 #define MAX_SUP_CHANNEL_NUM  20
 #define MAX_SUP_RATE_NUM     20
 

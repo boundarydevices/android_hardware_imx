@@ -42,21 +42,21 @@ struct control *control_open(unsigned int card)
     if (fd < 0)
         return 0;
 
-    control = calloc(1, sizeof(*control));
+    control = (struct control *)calloc(1, sizeof(*control));
     if (!control)
         goto fail;
 
     control->count_p   = 0;
     control->count_c   = 0;
     control->fd        = fd;
-    control->card_info = calloc(1, sizeof(struct snd_ctl_card_info));
+    control->card_info = (struct snd_ctl_card_info *)calloc(1, sizeof(struct snd_ctl_card_info));
     if (!control->card_info)
         goto fail;
 
     if (ioctl(fd, SNDRV_CTL_IOCTL_CARD_INFO, control->card_info) < 0)
         goto fail;
 
-    control->pcm_info_p = calloc(1, sizeof(struct ctl_pcm_info));
+    control->pcm_info_p = (struct ctl_pcm_info *)calloc(1, sizeof(struct ctl_pcm_info));
     if (!control->pcm_info_p)
         goto fail;
 
@@ -70,7 +70,7 @@ struct control *control_open(unsigned int card)
             break;
 
         control->count_p           += 1;
-        current->info = calloc(1, sizeof(struct snd_pcm_info));
+        current->info = (struct snd_pcm_info *)calloc(1, sizeof(struct snd_pcm_info));
         if (!current->info)
             goto fail;
 
@@ -81,13 +81,13 @@ struct control *control_open(unsigned int card)
         if (ioctl(fd, SNDRV_CTL_IOCTL_PCM_INFO, current->info) < 0)
             break;
 
-        current->next = calloc(1, sizeof(struct ctl_pcm_info));
+        current->next = (struct ctl_pcm_info *)calloc(1, sizeof(struct ctl_pcm_info));
         if (!current->next)
             goto fail;
         current = current->next;
     }
 
-    control->pcm_info_c = calloc(1, sizeof(struct ctl_pcm_info));
+    control->pcm_info_c = (struct ctl_pcm_info *)calloc(1, sizeof(struct ctl_pcm_info));
     if (!control->pcm_info_c)
         goto fail;
 
@@ -101,7 +101,7 @@ struct control *control_open(unsigned int card)
             break;
 
         control->count_c           += 1;
-        current->info = calloc(1, sizeof(struct snd_pcm_info));
+        current->info = (struct snd_pcm_info *)calloc(1, sizeof(struct snd_pcm_info));
         if (!current->info)
             goto fail;
 
@@ -112,7 +112,7 @@ struct control *control_open(unsigned int card)
         if (ioctl(fd, SNDRV_CTL_IOCTL_PCM_INFO, current->info) < 0)
             break;
 
-        current->next = calloc(1, sizeof(struct ctl_pcm_info));
+        current->next = (struct ctl_pcm_info *)calloc(1, sizeof(struct ctl_pcm_info));
         if (!current->next)
             goto fail;
         current = current->next;
