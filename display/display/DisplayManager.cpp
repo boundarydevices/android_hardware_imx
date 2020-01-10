@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <ctype.h>
 #include <dirent.h>
 #include <cutils/log.h>
@@ -266,12 +265,15 @@ bool DisplayManager::isOverlay(int fb)
 
 int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary)
 {
+    char const *imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss"};
     char value[PROPERTY_VALUE_MAX];
     int len = property_get("ro.boot.primary_display", value, NULL);
     if (len > 0) {
-        if (strstr(value,"drm")) {
-            mDrmMode = true;
-        }
+        for (int i=0; i<sizeof(imx_drm_version)/sizeof(char*); i++)
+            if (strncmp(value, imx_drm_version[i], strlen(imx_drm_version[i]))) {
+                mDrmMode = true;
+                break;
+            }
     }
 
     int drmFd = open(path, O_RDWR);
@@ -299,6 +301,9 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     int main = 0;
     if (len > 0) {
         drmVersionPtr version = drmGetVersion(drmFd);
+        if (version)
+            ALOGI("primary display in bootargs:%s, drm version of %s:%s",
+                   value, path, version->name);
         if (version && !strncmp(version->name, value, len)) {
             main = 1;
         }
@@ -626,7 +631,7 @@ bool DisplayManager::HotplugThread::threadLoop()
              stringInString(uevent_desc, HDMI_HOTPLUG)) {
         kms = true;
     } else {
-        ALOGE("%s invalid uevent %s", __func__, uevent_desc);
+        ALOGV("%s invalid uevent %s", __func__, uevent_desc);
         return true;
     }
 
