@@ -64,7 +64,6 @@ static int set_light_backlight(__attribute__((unused))struct light_device_t* dev
     int result = -1;
     unsigned int color = state->color;
     unsigned int brightness = 0, max_brightness = 0;
-    unsigned int i = 0;
     FILE *file;
 
     brightness = ((77*((color>>16)&0x00ff)) + (150*((color>>8)&0x00ff)) +
@@ -126,7 +125,7 @@ static int lights_device_open(const struct hw_module_t* module,
         char value[PROPERTY_VALUE_MAX];
         FILE *file;
 
-        dev = malloc(sizeof(*dev));
+        dev = (struct light_device_t *)malloc(sizeof(*dev));
 
         /* initialize our state here */
         memset(dev, 0, sizeof(*dev));

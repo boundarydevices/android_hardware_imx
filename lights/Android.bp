@@ -24,7 +24,7 @@ lights_defaults {
         "liblog",
         "libcutils",
     ],
-    srcs: ["fsl_lights.c"],
+    srcs: ["fsl_lights.cpp"],
     vendor: true,
 }
 

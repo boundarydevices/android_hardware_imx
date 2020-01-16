@@ -18,7 +18,7 @@ memtrack_defaults {
     clang: true,
     vendor: true,
     relative_install_path: "hw",
-    srcs: ["memtrack.c"],
+    srcs: ["memtrack.cpp"],
     shared_libs: [
         "liblog",
         "libcutils",

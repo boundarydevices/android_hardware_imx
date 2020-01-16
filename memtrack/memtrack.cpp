@@ -36,8 +36,8 @@ int memtrack_get_memory(const struct memtrack_module *module,
     if(!module)
         return -1;
 
-    ALOGV("memtrack_get_memory: pid(%d), type(%d) records (%x), &num_records(%x)",
-          pid, type, (unsigned int)records, (unsigned int)num_records);
+    ALOGV("memtrack_get_memory: pid(%d), type(%d), records size(%zu) flags(%x), &num_records(%zu)",
+          pid, type, records->size_in_bytes, records->flags, *num_records);
 
     return -EINVAL;
 }

@@ -53,7 +53,7 @@ LOCAL_SRC_FILES := \
     JpegBuilder.cpp \
     ImxCamera.cpp \
     YuvToJpegEncoder.cpp \
-    NV12_resize.c \
+    NV12_resize.cpp \
     USPStream.cpp \
     DMAStream.cpp \
     UvcDevice.cpp \

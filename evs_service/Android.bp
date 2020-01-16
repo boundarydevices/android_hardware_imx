@@ -15,7 +15,7 @@
 cc_binary {
     name: "evs_service",
 
-    srcs: ["evs_service.c"],
+    srcs: ["evs_service.cpp"],
 
     shared_libs: [
         "libcutils",
