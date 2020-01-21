@@ -95,7 +95,7 @@ public:
     bool isHdrMode;
     bool isOverlay;
     void* priv;
-    hdr_static_metadata hdrMetadata;
+    hdr_output_metadata hdrMetadata;
 };
 
 class LayerVector : public SortedVector<Layer*> {

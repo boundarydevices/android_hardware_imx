@@ -1358,45 +1358,46 @@ static int hwc2_set_layer_per_frame_metadata(hwc2_device_t* device, hwc2_display
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
-    pLayer->hdrMetadata.eotf = SMPTE_ST2084;
-    pLayer->hdrMetadata.type = 0;
+    pLayer->hdrMetadata.metadata_type = 0;
+    pLayer->hdrMetadata.hdmi_metadata_type1.eotf = SMPTE_ST2084;
+    pLayer->hdrMetadata.hdmi_metadata_type1.metadata_type = 1;
     for (uint32_t i = 0; i < numElements; i++) {
         switch (keys[i]) {
         case HWC2_DISPLAY_RED_PRIMARY_X:
-            pLayer->hdrMetadata.display_primaries_x[0] = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[0].x = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_DISPLAY_RED_PRIMARY_Y:
-            pLayer->hdrMetadata.display_primaries_y[0] = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[0].y = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_DISPLAY_GREEN_PRIMARY_X:
-            pLayer->hdrMetadata.display_primaries_x[1] = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[1].x = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_DISPLAY_GREEN_PRIMARY_Y:
-            pLayer->hdrMetadata.display_primaries_y[1] = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[1].y = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_DISPLAY_BLUE_PRIMARY_X:
-            pLayer->hdrMetadata.display_primaries_x[2] = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[2].x = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_DISPLAY_BLUE_PRIMARY_Y:
-            pLayer->hdrMetadata.display_primaries_y[2] = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[2].y = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_WHITE_POINT_X:
-            pLayer->hdrMetadata.white_point_x = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.white_point.x = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_WHITE_POINT_Y:
-            pLayer->hdrMetadata.white_point_y = (uint16_t)(metadata[i] * 50000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.white_point.y = (uint16_t)(metadata[i] * 50000);
             break;
         case HWC2_MAX_LUMINANCE:
-            pLayer->hdrMetadata.max_mastering_display_luminance = (uint16_t)(metadata[i]);
+            pLayer->hdrMetadata.hdmi_metadata_type1.max_display_mastering_luminance = (uint16_t)(metadata[i]);
             break;
         case HWC2_MIN_LUMINANCE:
-            pLayer->hdrMetadata.min_mastering_display_luminance = (uint16_t)(metadata[i] * 10000);
+            pLayer->hdrMetadata.hdmi_metadata_type1.min_display_mastering_luminance = (uint16_t)(metadata[i] * 10000);
             break;
         case HWC2_MAX_CONTENT_LIGHT_LEVEL:
-            pLayer->hdrMetadata.max_cll = (uint16_t)(metadata[i]);
+            pLayer->hdrMetadata.hdmi_metadata_type1.max_cll = (uint16_t)(metadata[i]);
             break;
         case HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL:
-            pLayer->hdrMetadata.max_fall = (uint16_t)(metadata[i]);
+            pLayer->hdrMetadata.hdmi_metadata_type1.max_fall = (uint16_t)(metadata[i]);
             break;
         }
     }

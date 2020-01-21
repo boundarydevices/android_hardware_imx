@@ -250,7 +250,7 @@ void KmsDisplay::getKmsProperty()
     struct TableProperty connectorTable[] = {
         {"CRTC_ID", &mConnector.crtc_id},
         {"DPMS", &mConnector.dpms_id},
-        {"HDR_SOURCE_METADATA", &mConnector.hdr_meta_id},
+        {"HDR_OUTPUT_METADATA", &mConnector.hdr_meta_id},
     };
 
     getTableProperty(mCrtcID,
@@ -270,12 +270,13 @@ void KmsDisplay::getKmsProperty()
 /*
  * add properties to a drmModeAtomicReqPtr object.
  */
-void KmsDisplay::setHdrMetaData(drmModeAtomicReqPtr pset,hdr_static_metadata hdrMetaData)
+void KmsDisplay::setHdrMetaData(drmModeAtomicReqPtr pset,hdr_output_metadata hdrMetaData)
 {
     drmModeCreatePropertyBlob(mDrmFd, &hdrMetaData,
              sizeof(hdrMetaData), &mMetadataID);
     drmModeAtomicAddProperty(pset, mConnectorID,
                          mConnector.hdr_meta_id, mMetadataID);
+    mModeset = true;
 }
 
 void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
@@ -653,7 +654,7 @@ int KmsDisplay::performOverlay()
     }
 
     bindOutFence(mPset);
-    if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_static_metadata))) {
+    if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_output_metadata))) {
         setHdrMetaData(mPset,layer->hdrMetadata);
         layer->isHdrMode = true;
         mLastHdrMetaData = layer->hdrMetadata;
@@ -777,6 +778,15 @@ int KmsDisplay::updateScreen()
         }
     }
 
+    if (mResetHdrMode) {
+        mResetHdrMode = false;
+        hdr_output_metadata hdrMetaData;
+        memset(&hdrMetaData, 0, sizeof(hdrMetaData));
+        mLastHdrMetaData = hdrMetaData;
+        drmModeAtomicAddProperty(mPset, mConnectorID,mConnector.hdr_meta_id, 0);
+        mModeset = true;
+    }
+
     uint32_t modeID = 0;
     uint32_t flags = DRM_MODE_ATOMIC_NONBLOCK;
     if (mModeset) {
@@ -828,13 +838,6 @@ int KmsDisplay::updateScreen()
     mKmsPlanes[0].setDisplayFrame(mPset, 0, 0, mMode.hdisplay, mMode.vdisplay);
     if (mAcquireFence != -1) {
         mKmsPlanes[0].setClientFence(mPset, mAcquireFence);
-    }
-    if (mResetHdrMode) {
-        mResetHdrMode = false;
-        hdr_static_metadata hdrMetaData;
-        memset(&hdrMetaData, 0, sizeof(hdrMetaData));
-        setHdrMetaData(mPset,hdrMetaData);
-        mLastHdrMetaData = hdrMetaData;
     }
 
     // DRM driver will hold two frames in async mode.
@@ -1335,7 +1338,7 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
         case FORMAT_P010:
         case FORMAT_P010_TILED:
         case FORMAT_P010_TILED_COMPRESSED:
-            return DRM_FORMAT_P010;
+            return DRM_FORMAT_NV12_10LE40;
         case FORMAT_I420:
             return DRM_FORMAT_YUV420;
         case FORMAT_YV12:

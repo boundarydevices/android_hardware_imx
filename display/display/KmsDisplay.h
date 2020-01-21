@@ -142,7 +142,7 @@ private:
 
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
     void bindOutFence(drmModeAtomicReqPtr pset);
-    void setHdrMetaData(drmModeAtomicReqPtr pset,hdr_static_metadata hdrMetaData);
+    void setHdrMetaData(drmModeAtomicReqPtr pset,hdr_output_metadata hdrMetaData);
     void getGUIResolution(int &width, int &height);
     void getFakeGUIResolution(int &width, int &height);
     bool veritySourceSize(Layer* layer);
@@ -183,7 +183,7 @@ protected:
     bool mNoResolve;
     bool mAllowModifier;
     uint32_t mMetadataID;
-    hdr_static_metadata mLastHdrMetaData;
+    hdr_output_metadata mLastHdrMetaData;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);
