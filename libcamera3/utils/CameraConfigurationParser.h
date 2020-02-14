@@ -43,6 +43,9 @@ struct OmitFrame {
 };
 
 enum HalVersion { kHalV1, kHalV2, kHalV3 };
+
+#define OMIT_RESOLUTION_NUM 8
+
 // Camera properties and features.
 struct CameraSensorMetadata {
   // Camera recognized HAL versions.
@@ -82,7 +85,7 @@ struct CameraSensorMetadata {
   long minframeduration;
   long maxframeduration;
 
-  struct OmitFrame omit_frame[2];
+  struct OmitFrame omit_frame[OMIT_RESOLUTION_NUM];
   BufferType buffer_type;
 };
 

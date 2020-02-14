@@ -352,6 +352,9 @@ bool ConfigureCameras(const Json::Value& value,
                    __FUNCTION__, (*omititer)[kOmitFrameNumKey].asString().c_str());
         }
         omit_index++;
+
+        if(omit_index >= OMIT_RESOLUTION_NUM)
+            break;
     }
   }
 

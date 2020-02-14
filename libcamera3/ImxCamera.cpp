@@ -251,7 +251,7 @@ int32_t ImxCamera::ImxCameraMMAPStream::onDeviceConfigureLocked()
     setOmitFrameCount(0);
 
     struct OmitFrame *item;
-    for(item = mOmitFrame; item < mOmitFrame + 2; item++) {
+    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
       if ((mWidth == item->width) && (mHeight == item->height)) {
         setOmitFrameCount(item->omitnum);
         break;
@@ -326,7 +326,7 @@ int32_t ImxCamera::ImxCameraDMAStream::onDeviceConfigureLocked()
     setOmitFrameCount(0);
 
     struct OmitFrame *item;
-    for(item = mOmitFrame; item < mOmitFrame + 2; item++) {
+    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
       if ((mWidth == item->width) && (mHeight == item->height)) {
         setOmitFrameCount(item->omitnum);
         break;
