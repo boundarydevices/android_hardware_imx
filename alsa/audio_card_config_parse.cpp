@@ -64,6 +64,8 @@ static const struct audio_devcie_map g_out_device_map[] = {
     {"line", AUDIO_DEVICE_OUT_LINE},
     {"bus", AUDIO_DEVICE_OUT_BUS},
     {"bluetooth_sco_headset", AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET},
+    {"bluetooth_sco_carkit", AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT},
+    {"bluetooth_sco", AUDIO_DEVICE_OUT_BLUETOOTH_SCO},
 };
 
 static const struct audio_devcie_map g_in_device_map[] = {
