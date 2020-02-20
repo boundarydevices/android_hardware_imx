@@ -3182,8 +3182,8 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
         const struct audio_port_config *config)
 {
     struct imx_audio_device *adev = (struct imx_audio_device *)dev;
-    const char *bus_address = config->ext.device.address;
-    struct imx_stream_out *out = hashmapGet(adev->out_bus_stream_map, bus_address);
+    char *bus_address = (char *)config->ext.device.address;
+    struct imx_stream_out *out = (struct imx_stream_out *)hashmapGet(adev->out_bus_stream_map, bus_address);
     int card = get_card_for_bus(adev, bus_address, NULL);
     struct route_setting *route = adev->card_list[card]->out_volume_ctl;
     struct mixer *mixer = adev->mixer[card];
