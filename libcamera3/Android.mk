@@ -31,9 +31,8 @@ LOCAL_C_INCLUDES += \
     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
     device/fsl/common/kernel-headers \
     $(IMX_PATH)/imx/include \
-    external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
     $(FSL_IMX_OMX_PATH)/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
-    vendor/nxp/imx_android_mm/codec2/vpu_wrapper \
+    vendor/nxp/vpu_wrapper \
     $(IMX_PATH)/imx/display/display \
     $(IMX_PATH)/imx/opencl-2d \
     system/core/libion/include \
