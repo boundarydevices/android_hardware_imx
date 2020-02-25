@@ -47,8 +47,8 @@ LOCAL_SRC_FILES := opencl-2d-test.cpp
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
-                    system/core/libion/include \
-                    system/core/libion \
+                    system/memory/libion/include \
+                    system/memory/libion \
                     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include
 
 LOCAL_C_INCLUDES += \

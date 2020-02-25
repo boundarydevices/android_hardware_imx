@@ -35,7 +35,7 @@ LOCAL_C_INCLUDES += \
     vendor/nxp/vpu_wrapper \
     $(IMX_PATH)/imx/display/display \
     $(IMX_PATH)/imx/opencl-2d \
-    system/core/libion/include \
+    system/memory/libion/include \
     hardware/libhardware/include \
     frameworks/av/include \
     frameworks/native/include

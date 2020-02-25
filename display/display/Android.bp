@@ -21,9 +21,10 @@ cc_library_static {
     srcs: ["IonAllocator.cpp"],
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
-        "system/core/libion/include",
-        "system/core/libion/kernel-headers",
-        "system/core/libion",
+        "system/memory/libion/include",
+        "system/memory/libion/kernel-headers/linux",
+        "system/memory/libion/kernel-headers",
+        "system/memory/libion",
         "system/core/include",
         "device/fsl/common/kernel-headers",
 
@@ -61,7 +62,7 @@ cc_library_shared {
         "vendor/nxp-opensource/imx/libedid",
         "vendor/nxp-opensource/libdrm-imx",
         "vendor/nxp-opensource/libdrm-imx/include/drm",
-        "system/core/libion",
+        "system/memory/libion",
         "frameworks/native/include",
         "hardware/libhardware_legacy/include",
         "device/fsl/common/kernel-headers",
