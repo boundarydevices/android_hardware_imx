@@ -76,6 +76,7 @@ private:
     int getAlignedSize(Memory *handle, int *width, int *height);
     int getFlipOffset(Memory *handle, int *offset);
     int getTiling(Memory *handle, enum g2d_tiling* tile);
+    int getTileStatus(Memory *handle, struct g2d_surfaceEx *surfaceX);
     enum g2d_format alterFormat(Memory *handle, enum g2d_format format);
 
     int setClipping(Rect& src, Rect& dst, Rect& clip, int rotation);
@@ -111,6 +112,7 @@ private:
     hwc_func1 mFinishEngine;
     hwc_func3 mQueryFeature;
     hwc_func4 mAlignTile;
+    hwc_func2 mGetTileStatus;
 
     int mDisableHWC;
     int m2DComposition;
