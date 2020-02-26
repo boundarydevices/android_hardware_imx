@@ -343,8 +343,10 @@ static int set_route_by_array(struct mixer *mixer, struct route_setting *route,
     i = 0;
     while (route[i].ctl_name) {
         ctl = mixer_get_ctl_by_name(mixer, route[i].ctl_name);
-        if (!ctl)
+        if (!ctl) {
+            ALOGE("%s, no such ctrl in %s", __func__, route[i].ctl_name);
             return -EINVAL;
+        }
 
         if (route[i].strval) {
             if (enable)
@@ -4247,6 +4249,8 @@ static void adjust_card_sequence(struct imx_audio_device *adev)
     char deviceName[128];
     struct audio_card *pcard_wm8960 = NULL;
     struct audio_card *pcard_cs42888 = NULL;
+    struct mixer *pmixer_wm8960 = NULL;
+    struct mixer *pmixer_cs42888 = NULL;
     int idx_wm8960 = -1;
     int idx_cs42888 = -1;
 
@@ -4262,10 +4266,12 @@ static void adjust_card_sequence(struct imx_audio_device *adev)
     for(cardIdx = 0; cardIdx < adev->audio_card_num; cardIdx++) {
         if(strstr(adev->card_list[cardIdx]->driver_name, "wm8960")) {
             pcard_wm8960 = adev->card_list[cardIdx];
+            pmixer_wm8960 = adev->mixer[cardIdx];
             idx_wm8960 = cardIdx;
         }
         else if(strstr(adev->card_list[cardIdx]->driver_name, "cs42888")) {
             pcard_cs42888 = adev->card_list[cardIdx];
+            pmixer_cs42888 = adev->mixer[cardIdx];
             idx_cs42888 = cardIdx;
         }
     }
@@ -4278,6 +4284,8 @@ static void adjust_card_sequence(struct imx_audio_device *adev)
 
     adev->card_list[idx_wm8960] = pcard_cs42888;
     adev->card_list[idx_cs42888] = pcard_wm8960;
+    adev->mixer[idx_wm8960] = pmixer_cs42888;
+    adev->mixer[idx_cs42888] = pmixer_wm8960;
 
     return;
 }
