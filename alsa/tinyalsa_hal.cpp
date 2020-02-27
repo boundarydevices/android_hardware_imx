@@ -3186,9 +3186,9 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
     struct imx_audio_device *adev = (struct imx_audio_device *)dev;
     char *bus_address = (char *)config->ext.device.address;
     struct imx_stream_out *out = (struct imx_stream_out *)hashmapGet(adev->out_bus_stream_map, bus_address);
-    int card = get_card_for_bus(adev, bus_address, NULL);
-    struct route_setting *route = adev->card_list[card]->out_volume_ctl;
-    struct mixer *mixer = adev->mixer[card];
+    int card_index = -1;
+    struct route_setting *route;
+    struct mixer *mixer;
     int ret = 0;
 
     if (out) {
@@ -3197,6 +3197,10 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
             ret = -EINVAL;
             return ret;
         }
+        get_card_for_bus(adev, bus_address, &card_index);
+        route = adev->card_list[card_index]->out_volume_ctl;
+        mixer = adev->mixer[card_index];
+
         pthread_mutex_lock(&out->lock);
         int gainIndex = (config->gain.values[0] - out->gain_stage.min_value) /
             out->gain_stage.step_value;
@@ -3214,7 +3218,7 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
         out_set_control_volume(mixer, route, volume, volume);
         pthread_mutex_unlock(&out->lock);
         ALOGD("%s: set audio gain: card: %d, address: %s, amplitude_ratio: %f, volume: %d",
-                __func__, card, bus_address, amplitude_ratio, volume);
+                __func__, adev->card_list[card_index]->card, bus_address, amplitude_ratio, volume);
     } else {
         ALOGE("%s: can not find output stream by bus_address:%s", __func__, bus_address);
         ret = -EINVAL;
