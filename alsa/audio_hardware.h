@@ -35,14 +35,6 @@ enum tty_modes {
     TTY_MODE_FULL
 };
 
-enum pcm_type {
-    PCM_NORMAL = 0,
-    PCM_HDMI,
-    PCM_ESAI,
-    PCM_DSD,
-    PCM_TOTAL,
-};
-
 enum output_type {
     OUTPUT_DEEP_BUF,      // deep PCM buffers output stream
     OUTPUT_PRIMARY,   // low latency output stream
@@ -102,7 +94,6 @@ struct imx_stream_out {
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
     struct pcm_config config;
     struct pcm *pcm;
-    enum pcm_type pcm_type;
     int writeContiFailCount;
     struct resampler_itfe *resampler;
     char *buffer;

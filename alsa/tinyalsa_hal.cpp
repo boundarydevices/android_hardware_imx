@@ -119,8 +119,6 @@
 #define IMX7_BOARD_NAME "imx7"
 #define DEFAULT_ERROR_NAME_str "0"
 
-const char* pcm_type_table[PCM_TOTAL] = {"PCM_NORMAL", "PCM_HDMI", "PCM_ESAI", "PCM_DSD"};
-
 static const char* lpa_wakelock = "lpa_audio_wakelock";
 
 struct audio_card *audio_card_list[MAX_SUPPORT_CARD_LIST_SIZE];
@@ -718,13 +716,12 @@ static int start_output_stream_primary(struct imx_stream_out *out)
 static int start_output_stream(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
-    enum pcm_type pcm_type = out->pcm_type;
     struct pcm_config *config = &out->config;
     int card = -1;
     unsigned int port = 0;
     unsigned int flags = PCM_OUT | PCM_MONOTONIC;
 
-    ALOGI("%s: out: %p, device: 0x%x, pcm_type: %s", __func__, out, out->device, pcm_type_table[pcm_type]);
+    ALOGI("%s: out: %p, device: 0x%x", __func__, out, out->device);
     if (lpa_enable)
         flags |= PCM_LPA;
 
@@ -739,7 +736,7 @@ static int start_output_stream(struct imx_stream_out *out)
     }
 #endif
 
-    if (pcm_type == PCM_DSD) {
+    if (out->format == AUDIO_FORMAT_DSD) {
         flags |= PCM_FLAG_DSD;
         card = get_card_for_dsd(adev, &out->card_index);
     } else
@@ -1071,7 +1068,7 @@ static int out_flush(struct audio_stream_out* stream)
         goto exit;
     }
 
-    if (out->pcm_type == PCM_DSD)
+    if (out->format == AUDIO_FORMAT_DSD)
         pcm_flags |= PCM_FLAG_DSD;
     out->pcm = pcm_open(adev->card_list[out->card_index]->card, 0, pcm_flags, &out->config);
     if(out->pcm)
@@ -1266,7 +1263,7 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
     // Update out->card_index before start_output_stream
     if (out->card_index < 0){
         int card = -1;
-        if (out->pcm_type == PCM_DSD) {
+        if (out->format == AUDIO_FORMAT_DSD) {
             card = get_card_for_dsd(adev, &out->card_index);
         } else
             get_card_for_device(adev, out->device, PCM_OUT, &out->card_index);
@@ -1564,13 +1561,12 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
     size_t frame_size = audio_stream_out_frame_size(stream);
-    enum pcm_type pcm_type = out->pcm_type;
     unsigned int avail;
     struct timespec timestamp;
 
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will return 1
     // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
-    if (pcm_type == PCM_DSD)
+    if (out->format == AUDIO_FORMAT_DSD)
         frame_size *= DSD_FRAMESIZE_BYTES;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
@@ -1604,8 +1600,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         }
     }
 
-    if (pcm_type == PCM_ESAI)
-        convert_output_for_esai(buffer, bytes, out->config.channels);
+    // convert_output_for_esai(buffer, bytes, out->config.channels); TODO: check whether still need this
 
     ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
 
@@ -3146,7 +3141,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 {
     struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
     struct imx_stream_out *out;
-    enum pcm_type pcm_type;
     int ret;
     int output_type;
 
@@ -3175,7 +3169,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
         }
         output_type = OUTPUT_OFFLOAD;
-        pcm_type = PCM_DSD;
         if (config->sample_rate == 0)
             config->sample_rate = pcm_config_dsd.rate;
         if (config->channel_mask == 0)
@@ -3199,7 +3192,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         ret = out_read_hdmi_rates(ladev, out);
 
         output_type = OUTPUT_HDMI;
-        pcm_type = PCM_HDMI;
         if (config->sample_rate == 0) {
             config->sample_rate = ladev->mm_rate;
             out->sample_rate = config->sample_rate;
@@ -3244,7 +3236,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
         ALOGD("%s: LPA esai direct output stream, hold_second: %d, period_ms: %d", __func__, lpa_hold_second, lpa_period_ms);
         output_type = OUTPUT_ESAI;
-        pcm_type = PCM_ESAI;
         if (config->sample_rate == 0) {
             config->sample_rate = ladev->mm_rate;
             out->sample_rate = config->sample_rate;
@@ -3279,7 +3270,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         }
         out->config = pcm_config_mm_out;
         output_type = OUTPUT_PRIMARY;
-        pcm_type = PCM_NORMAL;
         out->stream.write = out_write_primary;
     }
 
@@ -3331,7 +3321,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->standby = 1;
     out->device      = devices;
     out->paused = false;
-    out->pcm_type = pcm_type;
     out->card_index = -1;
 
     /* FIXME: when we support multiple output devices, we will want to
