@@ -740,6 +740,11 @@ static int gralloc_import_buffer(gralloc1_device_t* device, const buffer_handle_
     if (!bufferHandle) {
         return GRALLOC1_ERROR_NO_RESOURCES;
     }
+
+    // Drop the virtual address which is mapped in the exporter process.
+    Memory *memory = (Memory *)bufferHandle;
+    memory->base = 0;
+
     int ret = gralloc_retain(device,bufferHandle);
     if (ret != GRALLOC1_ERROR_NONE) {
         ALOGI("%s fail ret:%d",__func__,ret);
