@@ -100,19 +100,19 @@ struct imx_stream_out {
     struct audio_stream_out stream;
 
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
-    struct pcm_config config[PCM_TOTAL];
-    struct pcm *pcm[PCM_TOTAL];
+    struct pcm_config config;
+    struct pcm *pcm;
     enum pcm_type pcm_type;
-    int writeContiFailCount[PCM_TOTAL];
-    struct resampler_itfe *resampler[PCM_TOTAL];
+    int writeContiFailCount;
+    struct resampler_itfe *resampler;
     char *buffer;
     int standby;
     int card_index;
     struct echo_reference_itfe *echo_reference;
     struct imx_audio_device *dev;
-    int write_threshold[PCM_TOTAL];
+    int write_threshold;
     bool low_power;
-    int write_flags[PCM_TOTAL];
+    int write_flags;
     int device;
     size_t buffer_frames;
     uint64_t written;
