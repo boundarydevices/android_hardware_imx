@@ -171,7 +171,6 @@ int MemoryManager::retainMemory(Memory* handle)
         return mGPUModule->registerBuffer(mGPUModule, handle);
     }
 
-    mIonManager->getVaddrs(handle);
     handle->fbId = 0;
     handle->fbHandle = 0;
 
