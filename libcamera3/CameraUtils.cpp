@@ -19,6 +19,7 @@
 #include <linux/videodev2.h>
 #include "Metadata.h"
 #include "Stream.h"
+#include "MemoryManager.h"
 
 using namespace android;
 
@@ -86,7 +87,16 @@ void StreamBuffer::initialize(buffer_handle_t* buf_h)
 
     fsl::Memory *handle = (fsl::Memory *)(*buf_h);
     mBufHandle = buf_h;
-    mVirtAddr  = (void *)handle->base;
+
+    void *vaddr = NULL;
+    fsl::MemoryManager* pMemManager = fsl::MemoryManager::getInstance();
+    if (pMemManager == NULL) {
+        ALOGE("%s, unexpected, pMemManager is null !!!", __func__);
+    } else {
+        pMemManager->lock(handle, handle->usage, 0, 0, handle->width, handle->height, &vaddr);
+    }
+
+    mVirtAddr  = vaddr;
     mPhyAddr   = handle->phys;
     mSize      = handle->size;
 
@@ -195,6 +205,15 @@ int32_t CaptureRequest::onCaptureDone(StreamBuffer* buffer)
 {
     if (buffer == NULL || buffer->mBufHandle == NULL || mCallbackOps == NULL) {
         return 0;
+    }
+
+    fsl::Memory *handle = (fsl::Memory *)(*buffer->mBufHandle);
+
+    fsl::MemoryManager* pMemManager = fsl::MemoryManager::getInstance();
+    if (pMemManager == NULL) {
+        ALOGE("%s, unexpected, pMemManager is null !!!", __func__);
+    } else {
+        pMemManager->unlock(handle);
     }
 
     camera3_stream_buffer_t cameraBuffer;

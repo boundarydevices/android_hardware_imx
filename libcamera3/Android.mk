@@ -79,7 +79,8 @@ LOCAL_SHARED_LIBRARIES := \
     libbinder \
     libhardware_legacy \
     libjsoncpp \
-    libbase
+    libbase \
+    libfsldisplay
 
 LOCAL_WHOLE_STATIC_LIBRARIES := libionallocator
 
