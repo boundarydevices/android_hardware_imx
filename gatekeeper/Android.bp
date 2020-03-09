@@ -66,16 +66,6 @@ bootstrap_go_package {
 }
 
 cc_library_shared {
-    name: "gatekeeper.imx6",
-    defaults: ["gatekeeper_default"],
-}
-
-cc_library_shared {
-    name: "gatekeeper.imx7",
-    defaults: ["gatekeeper_default"],
-}
-
-cc_library_shared {
-    name: "gatekeeper.imx8",
+    name: "gatekeeper.imx",
     defaults: ["gatekeeper_default"],
 }

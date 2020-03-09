@@ -46,16 +46,6 @@ bootstrap_go_package {
 }
 
 cc_library_shared {
-    name: "memtrack.imx6",
-    defaults: ["memtrack_default"],
-}
-
-cc_library_shared {
-    name: "memtrack.imx7",
-    defaults: ["memtrack_default"],
-}
-
-cc_library_shared {
-    name: "memtrack.imx8",
+    name: "memtrack.imx",
     defaults: ["memtrack_default"],
 }

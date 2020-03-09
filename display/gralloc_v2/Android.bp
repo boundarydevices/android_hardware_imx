@@ -45,17 +45,8 @@ bootstrap_go_package {
     ],
     pluginFor: ["soong_build"],
 }
-cc_library_shared {
-    name: "gralloc_v2.imx6",
-    defaults: ["gralloc_v2_default"],
-}
 
 cc_library_shared {
-    name: "gralloc_v2.imx7",
-    defaults: ["gralloc_v2_default"],
-}
-
-cc_library_shared {
-    name: "gralloc_v2.imx8",
+    name: "gralloc_v2.imx",
     defaults: ["gralloc_v2_default"],
 }

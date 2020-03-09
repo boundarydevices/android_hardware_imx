@@ -52,16 +52,6 @@ bootstrap_go_package {
 }
 
 cc_library_shared {
-    name: "hwcomposer_v10.imx6",
-    defaults: ["hwcomposer_v10_default"],
-}
-
-cc_library_shared {
-    name: "hwcomposer_v10.imx7",
-    defaults: ["hwcomposer_v10_default"],
-}
-
-cc_library_shared {
-    name: "hwcomposer_v10.imx8",
+    name: "hwcomposer_v10.imx",
     defaults: ["hwcomposer_v10_default"],
 }

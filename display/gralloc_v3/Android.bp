@@ -56,16 +56,6 @@ bootstrap_go_package {
 }
 
 cc_library_shared {
-    name: "gralloc.imx6",
-    defaults: ["gralloc_v3_default"],
-}
-
-cc_library_shared {
-    name: "gralloc.imx7",
-    defaults: ["gralloc_v3_default"],
-}
-
-cc_library_shared {
-    name: "gralloc.imx8",
+    name: "gralloc.imx",
     defaults: ["gralloc_v3_default"],
 }

@@ -46,16 +46,6 @@ bootstrap_go_package {
 }
 
 cc_library_shared {
-    name: "lights.imx8",
-    defaults: ["lights_default"],
-}
-
-cc_library_shared {
-    name: "lights.imx6",
-    defaults: ["lights_default"],
-}
-
-cc_library_shared {
-    name: "lights.imx7",
+    name: "lights.imx",
     defaults: ["lights_default"],
 }

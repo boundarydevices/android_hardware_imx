@@ -62,16 +62,6 @@ bootstrap_go_package {
 }
 
 cc_library_shared {
-    name: "audio.primary.imx8",
-    defaults: ["audio_primary_default"],
-}
-
-cc_library_shared {
-    name: "audio.primary.imx6",
-    defaults: ["audio_primary_default"],
-}
-
-cc_library_shared {
-    name: "audio.primary.imx7",
+    name: "audio.primary.imx",
     defaults: ["audio_primary_default"],
 }

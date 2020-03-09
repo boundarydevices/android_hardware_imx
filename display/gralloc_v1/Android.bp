@@ -53,20 +53,9 @@ bootstrap_go_package {
     ],
     pluginFor: ["soong_build"],
 }
-cc_library_shared {
-    name: "gralloc_v1.imx6",
-    cflags: ["-DLOG_TAG=\"" + "imx6"+ ".gralloc\""],
-    defaults: ["gralloc_v1_default"],
-}
 
 cc_library_shared {
-    name: "gralloc_v1.imx7",
-    cflags: ["-DLOG_TAG=\"" + "imx7"+ ".gralloc\""],
-    defaults: ["gralloc_v1_default"],
-}
-
-cc_library_shared {
-    name: "gralloc_v1.imx8",
-    cflags: ["-DLOG_TAG=\"" + "imx8"+ ".gralloc\""],
+    name: "gralloc_v1.imx",
+    cflags: ["-DLOG_TAG=\"" + "imx"+ ".gralloc\""],
     defaults: ["gralloc_v1_default"],
 }
