@@ -62,10 +62,6 @@ LOCAL_SRC_FILES := \
     CameraMetadata.cpp \
     utils/CameraConfigurationParser.cpp
 
-ifeq ($(BOARD_HAVE_VPU),true)
-    LOCAL_SRC_FILES += \
-    MJPGStream.cpp
-endif
 
 LOCAL_SHARED_LIBRARIES := \
     libcamera_metadata \
@@ -89,6 +85,13 @@ ifneq ($(BOARD_SOC_TYPE), IMX8Q)
     LOCAL_SHARED_LIBRARIES += \
             lib_vpu_wrapper
     LOCAL_CFLAGS += -DBOARD_HAVE_VPU
+endif
+
+#Enable UVC camera with mjpeg streaming
+#So far only i.mx6 has mjpeg decoder for this UVC
+ifeq ($(BOARD_HAVE_USB_MJPEG_CAMERA), true)
+    LOCAL_SRC_FILES += \
+        MJPGStream.cpp
 endif
 endif
 
