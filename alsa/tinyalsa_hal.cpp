@@ -218,6 +218,7 @@ static int adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t 
 static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
 static void in_update_aux_channels(struct imx_stream_in *in, effect_handle_t effect);
 static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes);
+static void convert_output_for_esai(const void* buffer, size_t bytes, int channels);
 
 extern "C" int pcm_state(struct pcm *pcm);
 
@@ -611,124 +612,41 @@ static int get_card_for_device(struct imx_audio_device *adev, int device, unsign
     return card;
 }
 /* must be called with hw device and output stream mutexes locked */
-static int start_output_stream_primary(struct imx_stream_out *out)
-{
-    struct imx_audio_device *adev = out->dev;
-    int card = -1;
-    unsigned int port = 0;
-    int pcm_device;
-    bool success = false;
-    int ret = 0;
-
-    pcm_device = out->device & (AUDIO_DEVICE_OUT_ALL & ~AUDIO_DEVICE_OUT_AUX_DIGITAL);
-    if (pcm_device && (adev->active_output[OUTPUT_ESAI] == NULL || adev->active_output[OUTPUT_ESAI]->standby)) {
-        ALOGI("start_output_stream_primary... %p, device %d, address %s, mode %d",out, out->device, out->address, adev->mode);
-
-        if (adev->mode != AUDIO_MODE_IN_CALL) {
-           /* FIXME: only works if only one output can be active at a time */
-            select_output_device(adev);
-        }
-
-        out->write_flags            = PCM_OUT | PCM_MMAP | PCM_MONOTONIC;
-        out->write_threshold        = PLAYBACK_LONG_PERIOD_COUNT * LONG_PERIOD_SIZE;
-        out->config = pcm_config_mm_out;
-
-        // create resampler from 48000 to 8000
-        if(out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) {
-            out->config.rate = HSP_SAMPLE_RATE;
-            if(out->resampler)
-                release_resampler(out->resampler);
-
-            ret = create_resampler(adev->default_rate,
-                               HSP_SAMPLE_RATE,
-                               2,
-                               RESAMPLER_QUALITY_DEFAULT,
-                               NULL,
-                               &out->resampler);
-            if (ret != 0) {
-                ALOGE("create resampler from %d to %d failed, ret %d\n", adev->default_rate, HSP_SAMPLE_RATE, ret);
-                return ret;
-            }
-        }
-
-        // Fix me. When exit from HSP, should recover resampler to the origin.
-        // But since primary stream sample rate is same as that configured in sound card.
-        // will no call resampler, so do nothing.
-
-#if defined(CAR_AUDIO)
-        card = get_card_for_bus(adev, out->address, NULL);
-#else
-        card = get_card_for_device(adev, pcm_device, PCM_OUT, &out->card_index);
-#endif
-        out->pcm = pcm_open(card, port, out->write_flags, &out->config);
-        ALOGW("card %d, port %d device 0x%x", card, port, out->device);
-        ALOGW("rate %d, channel %d period_size 0x%x", out->config.rate, out->config.channels, out->config.period_size);
-        success = true;
-    }
-
-    pcm_device = out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL;
-    if(pcm_device && (adev->active_output[OUTPUT_HDMI] == NULL || adev->active_output[OUTPUT_HDMI]->standby)) {
-        ALOGI("start_output_stream_primary... %p, device %d, address %s, mode %d",out, out->device, out->address, adev->mode);
-
-        if (adev->mode != AUDIO_MODE_IN_CALL) {
-           /* FIXME: only works if only one output can be active at a time */
-            select_output_device(adev);
-        }
-
-        out->write_flags            = PCM_OUT | PCM_MONOTONIC;
-        out->write_threshold        = HDMI_PERIOD_SIZE * PLAYBACK_HDMI_PERIOD_COUNT;
-        out->config = pcm_config_mm_out;
-        card = get_card_for_device(adev, pcm_device, PCM_OUT, &out->card_index);
-        out->pcm = pcm_open(card, port,out->write_flags, &out->config);
-        ALOGW("card %d, port %d device 0x%x", card, port, out->device);
-        ALOGW("rate %d, channel %d period_size 0x%x", out->config.rate, out->config.channels, out->config.period_size);
-        success = true;
-    }
-    /* default to low power: will be corrected in out_write if necessary before first write to
-     * tinyalsa.
-     */
-    out->low_power   = 0;
-    /* Close any PCMs that could not be opened properly and return an error */
-    if (out->pcm && !pcm_is_ready(out->pcm)) {
-        ALOGE("cannot open pcm_out driver %s", pcm_get_error(out->pcm));
-        pcm_close(out->pcm);
-        out->pcm = NULL;
-        success = false;
-    }
-
-    if (success) {
-        out->buffer_frames = pcm_config_mm_out.period_size * 2;
-        if (out->buffer == NULL)
-            out->buffer = (char *)malloc(out->buffer_frames * audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common));
-
-        if (adev->echo_reference != NULL)
-            out->echo_reference = adev->echo_reference;
-
-        if (out->resampler)
-            out->resampler->reset(out->resampler);
-
-        return 0;
-    }
-
-    return -ENOMEM;
-}
-
 static int start_output_stream(struct imx_stream_out *out)
 {
     struct imx_audio_device *adev = out->dev;
     struct pcm_config *config = &out->config;
     int card = -1;
     unsigned int port = 0;
+    bool success = false;
+    int ret = 0;
     unsigned int flags = PCM_OUT | PCM_MONOTONIC;
+    static int first = 1;
 
-    ALOGI("%s: out: %p, device: 0x%x", __func__, out, out->device);
-    if (lpa_enable)
-        flags |= PCM_LPA;
+    // When ESAI or HDMI stream is active, pcm device is occupied.
+    // Disable any primary stream output, like touch sound.
+    if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
+        ((adev->active_output[OUTPUT_ESAI] != NULL) ||
+         (adev->active_output[OUTPUT_HDMI] != NULL))) {
+        if (first) {
+            first = 0;
+            ALOGE("%s: disable primary output stream while direct output stream is active.", __func__);
+        }
+        return -EBUSY;
+    }
+    first = 1;
+
+    ALOGI("%s: out: %p, device: %d, address: %s, mode: %d", __func__, out, out->device, out->address, adev->mode);
+
+    if (adev->mode != AUDIO_MODE_IN_CALL) {
+        select_output_device(adev);
+    }
 
 #ifndef CAR_AUDIO
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
-    if (adev->active_output[OUTPUT_PRIMARY] != NULL &&
-            !adev->active_output[OUTPUT_PRIMARY]->standby) {
+    if (((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) == 0) &&
+        (adev->active_output[OUTPUT_PRIMARY] != NULL) &&
+        (!adev->active_output[OUTPUT_PRIMARY]->standby)) {
         struct imx_stream_out *p_out = adev->active_output[OUTPUT_PRIMARY];
         pthread_mutex_lock(&p_out->lock);
         do_output_standby(p_out, true);
@@ -736,11 +654,44 @@ static int start_output_stream(struct imx_stream_out *out)
     }
 #endif
 
-    if (out->format == AUDIO_FORMAT_DSD) {
+    if (lpa_enable)
+        flags |= PCM_LPA;
+    if (out->format == AUDIO_FORMAT_DSD)
         flags |= PCM_FLAG_DSD;
+    if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
+        (out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL == 0))
+        flags |= PCM_MMAP;
+
+    // create resampler from 48000 to 8000 for HSP
+    if (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) {
+        config->rate = HSP_SAMPLE_RATE;
+        if(out->resampler)
+            release_resampler(out->resampler);
+
+        ret = create_resampler(adev->default_rate,
+                HSP_SAMPLE_RATE,
+                2,
+                RESAMPLER_QUALITY_DEFAULT,
+                NULL,
+                &out->resampler);
+        if (ret != 0) {
+            ALOGE("create resampler from %d to %d failed, ret %d\n", adev->default_rate, HSP_SAMPLE_RATE, ret);
+            return ret;
+        }
+    }
+
+    // Fix me. When exit from HSP, should recover resampler to the origin.
+    // But since primary stream sample rate is same as that configured in sound card.
+    // will no call resampler, so do nothing.
+
+#if defined(CAR_AUDIO)
+    card = get_card_for_bus(adev, out->address, NULL);
+#else
+    if (out->format == AUDIO_FORMAT_DSD) {
         card = get_card_for_dsd(adev, &out->card_index);
     } else
         card = get_card_for_device(adev, out->device, PCM_OUT, &out->card_index);
+#endif
 
     ALOGD("%s: pcm_open: card: %d, rate: %d, channel: %d, format: %d, period_size: 0x%x, flag: %x",
           __func__, card, config->rate, config->channels, config->format, config->period_size, flags);
@@ -751,18 +702,36 @@ static int start_output_stream(struct imx_stream_out *out)
     }
     out->pcm = pcm_open(card, port, flags, config);
 
+    success = true;
+
+    /* Close any PCMs that could not be opened properly and return an error */
     if (out->pcm && !pcm_is_ready(out->pcm)) {
-        ALOGE("%s: %s", __func__, pcm_get_error(out->pcm));
+        ALOGE("%s: pcm_open error: %s", __func__, pcm_get_error(out->pcm));
         if (out->pcm != NULL) {
             pcm_close(out->pcm);
             out->pcm = NULL;
         }
-        return -ENOMEM;
+        success = false;
     }
 
-    out->written = 0;
+    if (success) {
+        if (out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
+            out->buffer_frames = pcm_config_mm_out.period_size * 2;
+            if (out->buffer == NULL)
+                out->buffer = (char *)malloc(out->buffer_frames * audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common));
 
-    return 0;
+            if (adev->echo_reference != NULL)
+                out->echo_reference = adev->echo_reference;
+
+            if (out->resampler)
+                out->resampler->reset(out->resampler);
+        } else
+            out->written = 0;
+
+        return 0;
+    }
+
+    return -ENOMEM;
 }
 
 static int check_input_parameters(uint32_t sample_rate, int format, int channel_count)
@@ -967,12 +936,6 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
         out->writeContiFailCount = 0;
 
         ALOGW("do_out_standby... %p",out);
-
-        /* if in call, don't turn off the output stage. This will
-        be done when the call is ended */
-        if (adev->mode != AUDIO_MODE_IN_CALL) {
-            /* FIXME: only works if only one output can be active at a time */
-        }
 
         /* stop writing to echo reference */
         if (out->echo_reference != NULL) {
@@ -1400,31 +1363,37 @@ static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes,
     return ret;
 }
 
-static ssize_t out_write_primary(struct audio_stream_out *stream, const void* buffer,
+static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                          size_t bytes)
 {
     int ret;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common);
+    size_t frame_size = audio_stream_out_frame_size(stream);
     size_t in_frames = bytes / frame_size;
     size_t out_frames = in_frames;
     bool force_input_standby = false;
     struct imx_stream_in *in;
+    unsigned int avail;
+    struct timespec timestamp;
+
+    // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will return 1
+    // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
+    if (out->format == AUDIO_FORMAT_DSD)
+        frame_size *= DSD_FRAMESIZE_BYTES;
+
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
      * on the output stream mutex - e.g. executing select_mode() while holding the hw device
      * mutex
      */
-
-
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
 
     if((adev->b_sco_rx_running) && (out == adev->active_output[OUTPUT_PRIMARY]))
-        ALOGW("out_write_primary, bt receive task is running");
+        ALOGW("out_write, bt receive task is running");
 
     if (out->standby) {
-        ret = start_output_stream_primary(out);
+        ret = start_output_stream(out);
         if (ret != 0) {
             pthread_mutex_unlock(&adev->lock);
             goto exit;
@@ -1438,7 +1407,8 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
     pthread_mutex_unlock(&adev->lock);
 
     /* only use resampler if required */
-    if (out->pcm && out->resampler && (out->config.rate != adev->default_rate)) {
+    if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
+        out->pcm && out->resampler && (out->config.rate != adev->default_rate)) {
         out_frames = out->buffer_frames;
         out->resampler->resample_from_input(out->resampler,
                 (int16_t *)buffer,
@@ -1456,15 +1426,30 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
         out->echo_reference->write(out->echo_reference, &b);
     }
 
-    /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
-    /* Write to all active PCMs */
+    if (lpa_enable) {
+        if (pcm_get_htimestamp(out->pcm, &avail, &timestamp) == 0) {
+            ALOGV("%s: LPA buffer avail: %u", __func__, avail);
+            if (avail != 0 && !out->lpa_wakelock_acquired) {
+                acquire_wake_lock(PARTIAL_WAKE_LOCK, lpa_wakelock);
+                out->lpa_wakelock_acquired = true;
+            } else if (avail == 0 && out->lpa_wakelock_acquired) {
+                release_wake_lock(lpa_wakelock);
+                out->lpa_wakelock_acquired = false;
+            }
+        }
+    }
+
+    if (out->config.channels > 2)
+        convert_output_for_esai(buffer, bytes, out->config.channels);
+
     if (out->pcm) {
-        if (out->config.rate == adev->default_rate) {
-            /* PCM uses native sample rate */
-            ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
-        } else {
+        if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
+            (out->config.rate != adev->default_rate)) {
             /* PCM needs resampler */
             ret = pcm_write_wrapper(out->pcm, (void *)out->buffer, out_frames * frame_size, out->write_flags);
+        } else {
+            /* PCM uses native sample rate */
+            ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
         }
 
         if (ret) {
@@ -1475,7 +1460,7 @@ static ssize_t out_write_primary(struct audio_stream_out *stream, const void* bu
     }
 
     //If continue fail, probably th fd is invalid.
-    if(out->writeContiFailCount > 100) {
+    if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) && (out->writeContiFailCount > 100)) {
         ALOGW("pcm_write_wrapper continues failed for pcm, standby");
         do_output_standby(out, true);
     }
@@ -1486,8 +1471,7 @@ exit:
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / audio_stream_out_frame_size((const struct audio_stream_out *)&stream->common) /
-               out_get_sample_rate(&stream->common));
+        usleep(bytes * 1000000 / frame_size / out_get_sample_rate(&stream->common));
     }
 
     if (force_input_standby) {
@@ -1552,68 +1536,6 @@ static void convert_output_for_esai(const void* buffer, size_t bytes, int channe
            *data_dst++ = dataSR;
         }
     }
-}
-
-static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
-                         size_t bytes)
-{
-    int ret;
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *adev = out->dev;
-    size_t frame_size = audio_stream_out_frame_size(stream);
-    unsigned int avail;
-    struct timespec timestamp;
-
-    // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will return 1
-    // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
-    if (out->format == AUDIO_FORMAT_DSD)
-        frame_size *= DSD_FRAMESIZE_BYTES;
-
-    /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
-     * on the output stream mutex - e.g. executing select_mode() while holding the hw device
-     * mutex
-     */
-    pthread_mutex_lock(&adev->lock);
-    pthread_mutex_lock(&out->lock);
-    if (out->standby) {
-        ret = start_output_stream(out);
-        if (ret != 0) {
-            pthread_mutex_unlock(&adev->lock);
-            goto exit;
-        }
-        out->standby = 0;
-    }
-    pthread_mutex_unlock(&adev->lock);
-
-    /* do not allow more than out->write_threshold frames in kernel pcm driver buffer */
-
-    if (lpa_enable) {
-        if (pcm_get_htimestamp(out->pcm, &avail, &timestamp) == 0) {
-            ALOGV("%s: LPA buffer avail: %u", __func__, avail);
-            if (avail != 0 && !out->lpa_wakelock_acquired) {
-                acquire_wake_lock(PARTIAL_WAKE_LOCK, lpa_wakelock);
-                out->lpa_wakelock_acquired = true;
-            } else if (avail == 0 && out->lpa_wakelock_acquired) {
-                release_wake_lock(lpa_wakelock);
-                out->lpa_wakelock_acquired = false;
-            }
-        }
-    }
-
-    // convert_output_for_esai(buffer, bytes, out->config.channels); TODO: check whether still need this
-
-    ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
-
-exit:
-    out->written += bytes / frame_size;
-    pthread_mutex_unlock(&out->lock);
-
-    if (ret != 0) {
-        ALOGV("write error, sleep few ms");
-        usleep(bytes * 1000000 / frame_size / out_get_sample_rate(&stream->common));
-    }
-
-    return bytes;
 }
 
 static int out_get_render_position(const struct audio_stream_out *stream,
@@ -3150,6 +3072,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     if (!out)
         return -ENOMEM;
 
+    out->flags = flags;
+    out->device = devices;
     out->address = strdup(address);
     out->sup_rates[0] = ladev->mm_rate;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
@@ -3174,7 +3098,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         if (config->channel_mask == 0)
             config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
         out->channel_mask = config->channel_mask;
-        out->stream.write = out_write;
         pcm_config_dsd.rate = config->sample_rate / DSD_RATE_TO_PCM_RATE;
         out->config = pcm_config_dsd;
         out->stream.flush = out_flush;
@@ -3203,7 +3126,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             out->format = config->format;
         }
         out->channel_mask = config->channel_mask;
-        out->stream.write = out_write;
         out->config = pcm_config_hdmi_multi;
         out->config.rate = config->sample_rate;
         out->config.channels = popcount(config->channel_mask);
@@ -3245,7 +3167,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         if (config->format != AUDIO_FORMAT_PCM_FLOAT)
             pcm_config_esai_multi.format = PCM_FORMAT_S16_LE;
         out->channel_mask = config->channel_mask;
-        out->stream.write = out_write;
         out->lpa_wakelock_acquired = false;
 
         out->config = pcm_config_esai_multi;
@@ -3270,7 +3191,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         }
         out->config = pcm_config_mm_out;
         output_type = OUTPUT_PRIMARY;
-        out->stream.write = out_write_primary;
     }
 
     if (address) {
@@ -3316,10 +3236,10 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_render_position         = out_get_render_position;
     out->stream.get_presentation_position   = out_get_presentation_position;
     out->stream.get_latency                 = out_get_latency;
+    out->stream.write                       = out_write;
 
     out->dev = ladev;
     out->standby = 1;
-    out->device      = devices;
     out->paused = false;
     out->card_index = -1;
 
@@ -3447,11 +3367,11 @@ static void* sco_rx_task(void *arg)
 
     if (stream_out->standby) {
         ALOGI("%s: primary output is standy, open it", __func__);
-        int ret = start_output_stream_primary(stream_out);
+        int ret = start_output_stream(stream_out);
         if (ret == 0)
             stream_out->standby = 0;
         else
-            ALOGE("%s: start_output_stream_primary failed, ret %d", __func__, ret);
+            ALOGE("%s: start_output_stream failed, ret %d", __func__, ret);
     }
 
     out_pcm = stream_out->pcm;
@@ -3799,14 +3719,6 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
             adev->bluetooth_nrec = true;
         else
             adev->bluetooth_nrec = false;
-    }
-
-    ret = str_parms_get_str(parms, "screen_state", value, sizeof(value));
-    if (ret >= 0) {
-        if (strcmp(value, AUDIO_PARAMETER_VALUE_ON) == 0)
-            adev->low_power = false;
-        else
-            adev->low_power = true;
     }
 
     ret = str_parms_get_str(parms, "hfp_set_sampling_rate", value, sizeof(value));

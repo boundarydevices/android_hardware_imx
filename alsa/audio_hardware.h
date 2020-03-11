@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
-/* Copyright 2017-2019 NXP */
+/* Copyright 2017-2020 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
@@ -68,7 +68,6 @@ struct imx_audio_device {
     bool bluetooth_nrec;
     bool support_multichannel;
     int  wb_amr;
-    bool low_power;
     struct audio_card *card_list[MAX_AUDIO_CARD_NUM];
     struct mixer *mixer[MAX_AUDIO_CARD_NUM];
     int audio_card_num;
@@ -101,8 +100,6 @@ struct imx_stream_out {
     int card_index;
     struct echo_reference_itfe *echo_reference;
     struct imx_audio_device *dev;
-    int write_threshold;
-    bool low_power;
     int write_flags;
     int device;
     size_t buffer_frames;
@@ -110,6 +107,7 @@ struct imx_stream_out {
     unsigned int sample_rate;
     audio_channel_mask_t channel_mask;
     audio_channel_mask_t sup_channel_masks[3];
+    audio_output_flags_t flags;
     int sup_rates[MAX_SUP_RATE_NUM];
     audio_format_t format;
     char* address;
