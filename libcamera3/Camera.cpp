@@ -53,7 +53,7 @@ static int32_t close_device(hw_device_t* dev)
 android::Mutex Camera::sStaticInfoLock(android::Mutex::PRIVATE);
 
 Camera* Camera::createCamera(int32_t id,
-                             char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, CameraSensorMetadata *cam_metadata)
+                             char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, const char *jpeg_hw, CameraSensorMetadata *cam_metadata)
 {
     Camera* device = NULL;
     int facing;
@@ -67,15 +67,16 @@ Camera* Camera::createCamera(int32_t id,
     if (strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V1) ||
                           strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V2) ||
                           strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V3))
-        device = new ImxCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw,
+        device = new ImxCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw, jpeg_hw,
                                                                         cam_metadata);
     else if (strstr(cam_metadata->camera_name, UVC_NAME))
         device = UvcDevice::newInstance(id, cam_metadata->camera_name, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw,
+                               jpeg_hw,
                                cam_metadata);
     return device;
 }
 
-Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw, CscHw cam_csc_hw)
+Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_enc)
     : usemx6s(0), mId(id), mStaticInfo(NULL), mBusy(false), mCallbackOps(NULL), mStreams(NULL), mNumStreams(0), mTmpBuf(NULL)
 {
     ALOGI("%s:%d: new camera device", __func__, mId);
@@ -84,6 +85,7 @@ Camera::Camera(int32_t id, int32_t facing, int32_t orientation, char *path, CscH
     mCamBlitCopyType = cam_copy_hw;
     mCamBlitCscType = cam_csc_hw;
 
+    strcpy(mJpegHw, hw_enc);
     camera_info::facing = facing;
     camera_info::orientation = orientation;
     strncpy(SensorData::mDevPath, path, CAMAERA_FILENAME_LENGTH);

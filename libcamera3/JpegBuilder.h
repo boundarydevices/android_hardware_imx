@@ -22,6 +22,7 @@
 #include <utils/RefBase.h>
 #include "TinyExif.h"
 #include "YuvToJpegEncoder.h"
+#include "HwJpegEncoder.h"
 
 namespace android {
 #define EXIF_MAKENOTE "fsl_makernote"
@@ -131,7 +132,8 @@ public:
     status_t prepareImage(const StreamBuffer *streamBuf);
 
     status_t encodeImage(JpegParams *mainJpeg,
-                         JpegParams *thumbNail);
+                         JpegParams *thumbNail,
+                         char *hw_jpeg_enc);
     size_t   getImageSize() { return mRequestSize; }
     status_t buildImage(StreamBuffer *streamBuf);
     void     reset();
@@ -154,7 +156,7 @@ private:
                       size_t         jpeg_size);
 
 private:
-    status_t    encodeJpeg(JpegParams *input);
+    status_t    encodeJpeg(JpegParams *input, char *hw_jpeg_enc);
     const char* degreesToExifOrientation(const char *);
     void        stringToRational(const    char *,
                                  unsigned int *,

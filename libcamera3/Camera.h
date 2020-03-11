@@ -38,11 +38,11 @@ class Camera : public camera_info, public SensorData
 public:
     // id is used to distinguish cameras. 0 <= id < NUM_CAMERAS.
     // module is a handle to the HAL module, used when the device is opened.
-    Camera(int32_t id, int32_t facing, int32_t orientation, char* path, CscHw, CscHw);
+    Camera(int32_t id, int32_t facing, int32_t orientation, char* path, CscHw, CscHw, const char *);
     virtual ~Camera();
 
     static Camera* createCamera(int32_t id,
-                                char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, CameraSensorMetadata *cam_metadata);
+                                char* path, CscHw cam_copy_hw, CscHw cam_csc_hw,const char *hw_jpeg, CameraSensorMetadata *cam_metadata);
     // do advanced character set.
     int32_t processSettings(sp<Metadata> settings, uint32_t frame);
     // Common Camera Device Operations (see <hardware/camera_common.h>)
@@ -60,11 +60,15 @@ public:
     int32_t processCaptureRequest(camera3_capture_request_t *request);
     CscHw getBlitCopyHw() {return mCamBlitCopyType;}
     CscHw getBlitCscHw() {return mCamBlitCscType;}
+
+    char *getHwEncoder() {return mJpegHw;};
     void dumpDev(int32_t fd);
     int32_t usemx6s;
 
     CscHw mCamBlitCopyType;
     CscHw mCamBlitCscType;
+
+    char mJpegHw[32] = { 0 };;
     // some camera's resolution is not 16 pixels aligned, while gralloc is 16
     // pixels aligned.
     // Is just copy data from v4l2 to gralloc buffer, image  distortion

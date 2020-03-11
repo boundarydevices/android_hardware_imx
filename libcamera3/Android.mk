@@ -56,6 +56,7 @@ LOCAL_SRC_FILES := \
     USPStream.cpp \
     DMAStream.cpp \
     UvcDevice.cpp \
+    HwJpegEncoder.cpp \
     MMAPStream.cpp \
     TinyExif.cpp \
     ImageProcess.cpp \

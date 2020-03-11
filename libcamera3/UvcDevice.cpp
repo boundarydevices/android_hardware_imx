@@ -22,7 +22,7 @@
 //----------------------UvcDevice--------------------
 Camera* UvcDevice::newInstance(int32_t id, char* name, int32_t facing,
                                int32_t orientation, char* path,
-                               CscHw cam_copy_hw, CscHw cam_csc_hw,
+                               CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg_enc,
                                  CameraSensorMetadata *cam_metadata)
 {
     ALOGI("%s usb sensor name:%s", __func__, name);
@@ -34,15 +34,15 @@ Camera* UvcDevice::newInstance(int32_t id, char* name, int32_t facing,
     else {
         ALOGI("%s usb sensor:%s use standard UVC device", __func__, name);
 
-        device = new UvcDevice(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, true, cam_metadata);
+        device = new UvcDevice(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc, true, cam_metadata);
     }
 
     return device;
 }
 
 UvcDevice::UvcDevice(int32_t id, int32_t facing, int32_t orientation,
-                     char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, bool createStream, CameraSensorMetadata *cam_metadata)
-    : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw)
+                     char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg_enc, bool createStream, CameraSensorMetadata *cam_metadata)
+    : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc)
 {
     mCameraMetadata = cam_metadata;
 

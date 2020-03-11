@@ -49,7 +49,7 @@ public:
 
     /** Encode YUV data to jpeg,  which is output to a stream.
      */
-    int encode(void *inYuv,
+    virtual int encode(void *inYuv,
                void* inYuvPhy,
                int   inWidth,
                int   inHeight,
@@ -71,15 +71,15 @@ protected:
                                int                   width,
                                int                   height,
                                int                   quality);
-    virtual void configSamplingFactors(jpeg_compress_struct *cinfo) = 0;
-    virtual void compress(jpeg_compress_struct *cinfo,
-                          uint8_t              *yuv)                = 0;
-    virtual int  yuvResize(uint8_t *srcBuf,
-                           int      srcWidth,
-                           int      srcHeight,
-                           uint8_t *dstBuf,
-                           int      dstWidth,
-                           int      dstHeight) = 0;
+    virtual void configSamplingFactors(__attribute__((unused))jpeg_compress_struct *cinfo) {return;};
+    virtual void compress(__attribute__((unused))jpeg_compress_struct *cinfo,
+                          __attribute__((unused))uint8_t *yuv) {return;};
+    virtual int  yuvResize(__attribute__((unused))uint8_t *srcBuf,
+                           __attribute__((unused))int      srcWidth,
+                           __attribute__((unused))int      srcHeight,
+                           __attribute__((unused))uint8_t *dstBuf,
+                           __attribute__((unused))int      dstWidth,
+                           __attribute__((unused))int      dstHeight) {return 0;};
     bool supportVpu;
 };
 

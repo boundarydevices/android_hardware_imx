@@ -17,8 +17,8 @@
 #include "ImxCamera.h"
 
 ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
-                                                CscHw cam_csc_hw, CameraSensorMetadata *cam_metadata)
-   : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw)
+                                                CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata)
+   : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc)
 {
     mCameraMetadata = cam_metadata;
 

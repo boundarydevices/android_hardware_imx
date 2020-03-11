@@ -264,7 +264,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     }
 
     mJpegBuilder->prepareImage(&src);
-    ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg);
+    ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg, mCamera->getHwEncoder());
     if (ret != NO_ERROR) {
         ALOGE("%s encodeImage failed", __FUNCTION__);
         goto err_out;

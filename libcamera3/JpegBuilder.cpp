@@ -35,6 +35,8 @@ extern "C" {
     #include "jerror.h"
 }
 
+#define IMX_JPEG_ENC "mxc-jpeg-enc"
+
 namespace android {
 struct string_pair {
     const char *string1;
@@ -477,14 +479,14 @@ void JpegBuilder::setMetadata(sp<Metadata> meta)
 }
 
 status_t JpegBuilder::encodeImage(JpegParams *mainJpeg,
-                                  JpegParams *thumbNail)
+                                  JpegParams *thumbNail, char *hw_jpeg_enc)
 {
     status_t ret = NO_ERROR;
 
     mMainInput      = mainJpeg;
     mThumbnailInput = thumbNail;
     if (thumbNail) {
-        ret = encodeJpeg(thumbNail);
+        ret = encodeJpeg(thumbNail, hw_jpeg_enc);
     }
 
     if (ret != NO_ERROR) {
@@ -492,16 +494,21 @@ status_t JpegBuilder::encodeImage(JpegParams *mainJpeg,
         return ret;
     }
 
-    return encodeJpeg(mainJpeg);
+    return encodeJpeg(mainJpeg, hw_jpeg_enc);
 }
 
-status_t JpegBuilder::encodeJpeg(JpegParams *input)
+status_t JpegBuilder::encodeJpeg(JpegParams *input, char *hw_jpeg_enc)
 {
     PixelFormat format = input->format;
-    YuvToJpegEncoder *encoder = YuvToJpegEncoder::create(format);
+
+    YuvToJpegEncoder *encoder;
+    if (strstr(hw_jpeg_enc, IMX_JPEG_ENC))
+        encoder = new HwJpegEncoder(format);
+    else
+        encoder = YuvToJpegEncoder::create(format);
 
     if (encoder == NULL) {
-        ALOGE("%s YuvToJpegEncoder::create failed", __FUNCTION__);
+        ALOGE("%s failed to create jpeg encoder", __FUNCTION__);
         return BAD_VALUE;
     }
 
@@ -515,6 +522,7 @@ status_t JpegBuilder::encodeJpeg(JpegParams *input)
                           input->dst_size,
                           input->out_width,
                           input->out_height);
+
 
     delete encoder;
     if (res) {

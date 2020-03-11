@@ -93,6 +93,7 @@ struct CameraDefinition {
   HalVersion hal_version;
   CscHw cam_blit_copy_hw;
   CscHw cam_blit_csc_hw;
+  std::string jpeg_hw;
   struct CameraSensorMetadata camera_metadata[2];
 };
 

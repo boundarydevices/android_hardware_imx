@@ -92,6 +92,7 @@ const char* const kCameraBufferType = "buffer_type";
 const char* const kCameraDefinitionHalVersionKey = "hal_version";
 const char* const kCameraBlitCopyKey = "cam_blit_copy";
 const char* const kCameraBlitCscKey = "cam_blit_csc";
+const char* const kCameraHwJpeg = "hw_jpeg_enc";
 
 const char* const kCameraMetadataKey = "camera_metadata";
 const char* const kCameraTypeKey = "camera_type";
@@ -212,6 +213,10 @@ bool ConfigureCameras(const Json::Value& value,
 
   if (!value.isMember(kCameraBlitCscKey)) return true;
   camera->cam_blit_csc_hw = ValueToCameraCscHw(value[kCameraBlitCscKey].asString());
+
+  if (value.isMember(kCameraHwJpeg)) {
+      camera->jpeg_hw = value[kCameraHwJpeg].asString();
+  }
 
   int cam_index = 0;
   for (Json::ValueConstIterator iter = value[kCameraMetadataKey].begin();

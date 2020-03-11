@@ -104,7 +104,7 @@ CameraHAL::CameraHAL()
 
         mCameras[index] = Camera::createCamera(index,
                                 mSets[index].mDevPath, mCameraDef.cam_blit_copy_hw,
-                                mCameraDef.cam_blit_csc_hw, camera_metadata);
+                                mCameraDef.cam_blit_csc_hw, mCameraDef.jpeg_hw.c_str(), camera_metadata);
 
         if (mCameras[index] == NULL) {
             // camera sensor is not supported now.
@@ -178,6 +178,7 @@ int32_t CameraHAL::handleCameraConnected(char* uevent)
 
             mCameras[index] = Camera::createCamera(index, mSets[index].mDevPath,
                     mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw,
+                    mCameraDef.jpeg_hw.c_str(),
                     camera_metadata);
 
             if (mCameras[index] == NULL) {
