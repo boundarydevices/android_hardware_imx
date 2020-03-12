@@ -129,8 +129,6 @@ public:
     static void getPropertyValue(uint32_t objectID, uint32_t objectType,
                           const char *propName, uint32_t* propId,
                           uint64_t* value, int drmfd);
-    // check whether display support HDR or not
-    virtual bool isHdrSupported();
 private:
     int getConfigIdLocked(int width, int height);
     void prepareTargetsLocked();
