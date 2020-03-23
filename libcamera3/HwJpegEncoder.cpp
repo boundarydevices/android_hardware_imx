@@ -195,7 +195,6 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct
     cap_fmt.fmt.pix_mp.width = ea->width;
     cap_fmt.fmt.pix_mp.height = ea->height;
 
-
     if (ioctl(mJpegFd, VIDIOC_S_FMT, &cap_fmt) < 0) {
         ALOGE("VIDIOC_S_FMT failed for cap fmt");
         goto failed;
@@ -378,6 +377,9 @@ int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer
 void HwJpegEncoder::onEncoderStop(struct v4l2_buffer *buf_in, struct v4l2_buffer *buf_out){
     int type_cap, type_out;
 
+    struct v4l2_requestbuffers bufreq_out;
+    struct v4l2_requestbuffers bufreq_in;
+
     type_cap = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     type_out = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 
@@ -393,6 +395,35 @@ void HwJpegEncoder::onEncoderStop(struct v4l2_buffer *buf_in, struct v4l2_buffer
 
     v4l2_munmap(buf_out, mBufferOutStart);
     v4l2_munmap(buf_in, mBufferInStart);
+
+    memset(&bufreq_out, 0, sizeof(bufreq_out));
+    memset(&bufreq_in, 0, sizeof(bufreq_in));
+
+    // the type of bufreq_out is V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+    // bufreq_out is the output of JPEG hardware
+    bufreq_out.type = type_cap;
+    bufreq_out.memory = V4L2_MEMORY_MMAP;
+
+    // need set the count to 0 when release the physical address.
+    bufreq_out.count = 0;
+
+    if (ioctl(mJpegFd, VIDIOC_REQBUFS, &bufreq_out) < 0) {
+        ALOGE("VIDIOC_REQBUFS failed when cleaning the jpeg out bufs");
+        return;
+    }
+
+    // the type of bufreq_in is V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE
+    // bufreq_in is the input of JPEG hardware
+    bufreq_in.type = type_out;
+    bufreq_in.memory = V4L2_MEMORY_MMAP;
+
+    // need set the count to 0 when release the physical address.
+    bufreq_in.count = 0;
+
+    if (ioctl(mJpegFd, VIDIOC_REQBUFS, &bufreq_in) < 0) {
+        ALOGE("VIDIOC_REQBUFS failed when cleaning the jpeg in bufs");
+        return;
+    }
 }
 
 
