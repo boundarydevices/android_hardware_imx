@@ -1728,11 +1728,7 @@ static int start_input_stream(struct imx_stream_in *in)
         in->config.rate = HSP_SAMPLE_RATE;
 
     in->config.stop_threshold = in->config.period_size * in->config.period_count;
-
-    if (in->device & AUDIO_DEVICE_IN_AUX_DIGITAL) {
-        format     = adev_get_format_for_device(adev, in->device, PCM_IN);
-        in->config.format  = (enum pcm_format)format;
-    }
+    in->config.format = (enum pcm_format)adev_get_format_for_device(adev, in->device, PCM_IN);
 
     ALOGW("card %d, port %d device 0x%x", card, port, in->device);
     ALOGW("rate %d, channel %d format %d, period_size 0x%x", in->config.rate, in->config.channels, 
@@ -4137,13 +4133,21 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                             adev->card_list[n]->in_channels = channels;
 
                     format = PCM_FORMAT_S16_LE;
-
-                    if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
-                            adev->card_list[n]->in_format = format;
-                    else {
+                    if (pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
+                        adev->card_list[n]->in_format = format;
+                    } else {
                         format = PCM_FORMAT_S24_LE;
-                        if( pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format))
+                        if (pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
                             adev->card_list[n]->in_format = format;
+                        } else {
+                            format = PCM_FORMAT_S32_LE;
+                            if (pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
+                                adev->card_list[n]->in_format = format;
+                            } else {
+                                adev->card_list[n]->in_format = PCM_FORMAT_S16_LE;
+                                ALOGE("No supported formats: S16_LE, S24_LE and S32_LE, use default one: S16_LE");
+                            }
+                        }
                     }
 
                     ALOGW("in rate %d, channels %d format %d",adev->card_list[n]->in_rate, adev->card_list[n]->in_channels, adev->card_list[n]->in_format);
