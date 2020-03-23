@@ -79,13 +79,16 @@ int HwJpegEncoder::encode(void *inYuv,
     onEncoderStop(&bufferin, &bufferout);
 
 failed:
+    if (resize_src != NULL)
+        free(resize_src);
+
     if (mJpegFd > 0)
         close(mJpegFd);
 
     return jpeg_size;
 }
 
-void HwJpegEncoder::v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
+int HwJpegEncoder::v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
                               void *buf_start[])
 {
     unsigned int i;
@@ -99,13 +102,14 @@ void HwJpegEncoder::v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
                             vdev_fd,
                             buf->m.planes[i].m.mem_offset);
         if (buf_start[i] == MAP_FAILED) {
-            ALOGE("mmap in, multi-planar");
-            return;
+            ALOGE("mmap failed with error %d", errno);
+            return -1;
         }
 
         /* empty capture buffer */
         memset(buf_start[i], 0, buf->m.planes[i].length);
     }
+    return 0;
 }
 
 void HwJpegEncoder::v4l2_munmap(struct v4l2_buffer *buf,
@@ -114,8 +118,8 @@ void HwJpegEncoder::v4l2_munmap(struct v4l2_buffer *buf,
     unsigned int i;
 
     for (i = 0; i < buf->length; i++) {
-        munmap(buf_start[i], buf->m.planes[i].length);
-        ALOGI("munmap multi-planes %d\n", i);
+        if (buf_start[i] != NULL)
+            munmap(buf_start[i], buf->m.planes[i].length);
     }
 }
 
@@ -145,6 +149,7 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct
     struct v4l2_requestbuffers bufreq_out;
     bool support_m2m;
     bool support_mp;
+    int ret;
 
     enumJpegEnc();
 
@@ -269,8 +274,13 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct
                bufferout->m.planes[0].length,
                bufferout->m.planes[0].data_offset);
 
-    v4l2_mmap(mJpegFd, bufferout, mBufferOutStart);
-    v4l2_mmap(mJpegFd, bufferin, mBufferInStart);
+    ret = v4l2_mmap(mJpegFd, bufferout, mBufferOutStart);
+    if (ret < 0)
+        goto failed;
+
+    ret =v4l2_mmap(mJpegFd, bufferin, mBufferInStart);
+    if (ret < 0)
+        goto failed;
 
     /*
      * fill output buffer with the contents of the input raw file

@@ -55,7 +55,7 @@ public:
     virtual ~HwJpegEncoder() {};
 
 private:
-    void v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
+    int v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
                    void *buf_start[]);
     void v4l2_munmap(struct v4l2_buffer *buf,
                    void *buf_start[]);
