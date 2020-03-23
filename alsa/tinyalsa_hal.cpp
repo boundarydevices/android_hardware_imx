@@ -77,13 +77,6 @@
 /* minimum sleep time in out_write() when write threshold is not reached */
 #define MIN_WRITE_SLEEP_US 5000
 
-#define DEFAULT_OUT_SAMPLING_RATE 48000
-
-/* sampling rate when using MM low power port */
-#define MM_LOW_POWER_SAMPLING_RATE  48000
-/* sampling rate when using MM full power port */
-#define MM_FULL_POWER_SAMPLING_RATE 48000
-
 #define DSD64_SAMPLING_RATE 2822400
 #define DSD_RATE_TO_PCM_RATE 32
 // DSD pcm param: 2 channel, 32 bit
@@ -99,8 +92,6 @@
 #ifndef PCM_FLAG_DSD
 #define PCM_FLAG_DSD 0
 #endif
-
-#define MM_USB_AUDIO_IN_RATE   16000
 
 #define SCO_RATE 16000
 /* audio input device for hfp */
@@ -124,30 +115,30 @@ static const char* lpa_wakelock = "lpa_audio_wakelock";
 struct audio_card *audio_card_list[MAX_SUPPORT_CARD_LIST_SIZE];
 
 struct pcm_config pcm_config_mm_out = {
-    .channels = 2,
-    .rate = MM_FULL_POWER_SAMPLING_RATE,
+    .channels = DEFAULT_OUTPUT_CHANNEL_COUNT,
+    .rate = DEFAULT_OUTPUT_SAMPLE_RATE,
     .period_size = LONG_PERIOD_SIZE,
     .period_count = PLAYBACK_LONG_PERIOD_COUNT,
-    .format = PCM_FORMAT_S16_LE,
+    .format = DEFAULT_OUTPUT_FORMAT_PCM,
     .start_threshold = 0,
     .avail_min = 0,
 };
 
 struct pcm_config pcm_config_hdmi_multi = {
     .channels = 8, /* changed when the stream is opened */
-    .rate = MM_FULL_POWER_SAMPLING_RATE, /* changed when the stream is opened */
+    .rate = DEFAULT_OUTPUT_SAMPLE_RATE, /* changed when the stream is opened */
     .period_size = HDMI_PERIOD_SIZE,
     .period_count = PLAYBACK_HDMI_PERIOD_COUNT,
-    .format = PCM_FORMAT_S16_LE,
+    .format = DEFAULT_OUTPUT_FORMAT_PCM,
     .start_threshold = 0,
     .avail_min = 0,
 };
 struct pcm_config pcm_config_esai_multi = {
     .channels = 8, /* changed when the stream is opened */
-    .rate = MM_FULL_POWER_SAMPLING_RATE, /* changed when the stream is opened */
+    .rate = DEFAULT_OUTPUT_SAMPLE_RATE, /* changed when the stream is opened */
     .period_size = ESAI_PERIOD_SIZE,
     .period_count = PLAYBACK_ESAI_PERIOD_COUNT,
-    .format = PCM_FORMAT_S16_LE,
+    .format = DEFAULT_OUTPUT_FORMAT_PCM,
     .start_threshold = 0,
     .avail_min = 0,
 };
@@ -184,11 +175,11 @@ struct pcm_config pcm_config_sco_in = {
 };
 
 struct pcm_config pcm_config_mm_in = {
-    .channels = 2,
-    .rate = MM_FULL_POWER_SAMPLING_RATE,
+    .channels = DEFAULT_INPUT_CHANNEL_COUNT,
+    .rate = DEFAULT_INPUT_SAMPLE_RATE,
     .period_size = CAPTURE_PERIOD_SIZE,
     .period_count = CAPTURE_PERIOD_COUNT,
-    .format = PCM_FORMAT_S16_LE,
+    .format = DEFAULT_INPUT_FORMAT_PCM,
     .start_threshold = 0,
     .avail_min = 0,
 };
@@ -3190,6 +3181,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 #endif
         }
         out->config = pcm_config_mm_out;
+        out->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
+        out->channel_mask = DEFAULT_OUTPUT_CHANNEL_MASK;
+        out->format = DEFAULT_OUTPUT_FORMAT;
         output_type = OUTPUT_PRIMARY;
     }
 
