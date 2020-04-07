@@ -627,7 +627,7 @@ static int start_output_stream(struct imx_stream_out *out)
     }
     first = 1;
 
-    ALOGI("%s: out: %p, device: %d, address: %s, mode: %d", __func__, out, out->device, out->address, adev->mode);
+    ALOGI("%s: out: %p, device: %d, address: %s, mode: %d, flags 0x%x", __func__, out, out->device, out->address, adev->mode, out->flags);
 
     if (adev->mode != AUDIO_MODE_IN_CALL) {
         select_output_device(adev);
@@ -653,8 +653,16 @@ static int start_output_stream(struct imx_stream_out *out)
         (out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL == 0))
         flags |= PCM_MMAP;
 
+    if ((out->flags & (AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD | AUDIO_OUTPUT_FLAG_DIRECT)) == 0) {
+        out->config = pcm_config_mm_out;
+        config = &out->config;
+        ALOGI("%s: set to pcm_config_mm_out, rate %d, chn %d, format 0x%x", __func__, config->rate, config->channels, config->format);
+    }
+
     // create resampler from 48000 to 8000 for HSP
-    if (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) {
+    if ((out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
+        (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
+        (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO)) {
         config->rate = HSP_SAMPLE_RATE;
         if(out->resampler)
             release_resampler(out->resampler);
