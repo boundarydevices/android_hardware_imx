@@ -32,7 +32,7 @@ LOCAL_C_INCLUDES += \
     device/fsl/common/kernel-headers \
     $(IMX_PATH)/imx/include \
     $(FSL_IMX_OMX_PATH)/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
-    vendor/nxp/vpu_wrapper \
+    vendor/nxp-opensource/vpu_wrapper \
     $(IMX_PATH)/imx/display/display \
     $(IMX_PATH)/imx/opencl-2d \
     system/core/libion/include \
