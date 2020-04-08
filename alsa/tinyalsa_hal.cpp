@@ -99,6 +99,7 @@
 
 // sample rate requested by BT firmware on HSP
 #define HSP_SAMPLE_RATE 8000
+static int g_hsp_chns = 2;
 
 /* product-specific defines */
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
@@ -664,6 +665,8 @@ static int start_output_stream(struct imx_stream_out *out)
         (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
         (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO)) {
         config->rate = HSP_SAMPLE_RATE;
+        config->channels = g_hsp_chns;
+
         if(out->resampler)
             release_resampler(out->resampler);
 
@@ -1296,6 +1299,7 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
             ALOGE("get_next_buffer() pcm_read_wrapper error %d", in->read_status);
             return in->read_status;
         }
+
         convert_record_data((void *)in->read_tmp_buf, (void *)data, frames_rq, bit_24b_2_16b, bit_32b_2_16b, mono2stereo, stereo2mono);
     }
     else {
@@ -1409,11 +1413,17 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
         out->pcm && out->resampler && (out->config.rate != adev->default_rate)) {
         out_frames = out->buffer_frames;
+
         out->resampler->resample_from_input(out->resampler,
                 (int16_t *)buffer,
                 &in_frames,
                 (int16_t *)out->buffer,
                 &out_frames);
+
+        if(out->config.channels == 1) {
+            bytes = out_frames * frame_size / 2;
+            convert_record_data(out->buffer, (void *)buffer, out_frames, false, false, false, true);
+        }
     }
 
     if (out->echo_reference != NULL) {
@@ -1443,11 +1453,12 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     if (out->pcm) {
         if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
-            (out->config.rate != adev->default_rate)) {
-            /* PCM needs resampler */
+            (out->config.rate != adev->default_rate) && (out->config.channels == 2)) {
+            /* PCM resampled */
             ret = pcm_write_wrapper(out->pcm, (void *)out->buffer, out_frames * frame_size, out->write_flags);
         } else {
-            /* PCM uses native sample rate */
+            /* PCM uses native sample rate, or resampled and chanel converted.
+               For bt-sai HSP case, buffer resample to out->buffer, then strero->mono to buffer */
             ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
         }
 
@@ -1732,8 +1743,10 @@ static int start_input_stream(struct imx_stream_in *in)
     /*Error handler for usb mic plug in/plug out when recording. */
     memcpy(&in->config, &pcm_config_mm_in, sizeof(pcm_config_mm_in));
 
-    if(in->device == (AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET & ~AUDIO_DEVICE_BIT_IN))
+    if(in->device == (AUDIO_DEVICE_IN_BLUETOOTH_SCO_HEADSET & ~AUDIO_DEVICE_BIT_IN)) {
         in->config.rate = HSP_SAMPLE_RATE;
+        in->config.channels = g_hsp_chns;
+    }
 
     in->config.stop_threshold = in->config.period_size * in->config.period_count;
     in->config.format = (enum pcm_format)adev_get_format_for_device(adev, in->device, PCM_IN);
@@ -3073,6 +3086,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->sup_rates[0] = ladev->mm_rate;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
     out->sample_rate = config->sample_rate;
+
     out->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
     out->format = config->format;
 
@@ -4077,6 +4091,8 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                 break;
 
             if(strstr(control_card_info_get_driver(imx_control), audio_card_list[j]->driver_name) != NULL){
+                if(strstr(audio_card_list[j]->driver_name, "bt-sco-audio"))
+                    g_hsp_chns = 1;
                 // The default period size:count is 192:8. On some cards/platforms(rpmsg/imx7ulp), it's too small.
                 // Will Underrun due to the producer (MonoPipe::write) is schduled at lower frequency.
                 // Fix me, pcm_config_mm_out will impact all the cards on one board.
@@ -4121,7 +4137,6 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                     rate = 44100;
                     if( pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
                             adev->card_list[n]->out_rate = rate;
-                    ALOGW("out rate %d",adev->card_list[n]->out_rate);
 
                     if(adev->card_list[n]->out_rate > adev->mm_rate)
                         adev->mm_rate = adev->card_list[n]->out_rate;
@@ -4129,6 +4144,7 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                     channels = 2;
                     if( pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
                             adev->card_list[n]->out_channels = channels;
+                    ALOGW("out rate %d, channels %d",adev->card_list[n]->out_rate, adev->card_list[n]->out_channels);
                 }
 
                 if(queryInput) {
