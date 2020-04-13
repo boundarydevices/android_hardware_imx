@@ -728,6 +728,11 @@ bool DisplayManager::PollFileThread::threadLoop()
                     callback = mCtx->getCallback();
                     if (callback != NULL) {
                         callback->onRefresh(0);
+                        for (int i = 1; i < MAX_PHYSICAL_DISPLAY; i++) {
+                            pDisplay = mCtx->getPhysicalDisplay(i);
+                            if (pDisplay->connected())
+                                callback->onHotplug(i, true);
+                        }
                     }
                     inotify_rm_watch(mINotifyFd,mINotifyWd);
                     close(mEpollFd);
