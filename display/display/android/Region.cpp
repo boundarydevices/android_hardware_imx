@@ -29,7 +29,7 @@
 #include "Region.h"
 #include "Point.h"
 
-#include <private/ui/RegionHelper.h>
+#include <ui/RegionHelper.h>
 
 // ----------------------------------------------------------------------------
 #define VALIDATE_REGIONS        (false)

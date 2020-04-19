@@ -30,8 +30,6 @@ cc_binary {
         "libcutils",
         "libdumpstateutil",
         "libhidlbase",
-        "libhidltransport",
-        "libhwbinder",
         "liblog",
         "libutils",
     ],

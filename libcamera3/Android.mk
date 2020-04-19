@@ -38,6 +38,7 @@ LOCAL_C_INCLUDES += \
     system/memory/libion/include \
     hardware/libhardware/include \
     frameworks/av/include \
+	frameworks/av/camera/include \
     frameworks/native/include
 
 LOCAL_SRC_FILES := \

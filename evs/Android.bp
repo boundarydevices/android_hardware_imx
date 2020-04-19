@@ -30,7 +30,6 @@ evs_defaults {
         "libcutils",
         "libhardware",
         "libhidlbase",
-        "libhidltransport",
         "liblog",
         "libutils",
         "libfsldisplay",
