@@ -539,6 +539,17 @@ bool Display::verifyLayers()
             ALOGV("g2d can't support rotation");
             break;
         }
+#ifdef WORKAROUND_DPU_ALPHA_BLENDING
+        Memory* memory = mLayers[i]->handle;
+        if (memory != nullptr && mLayers[i]->planeAlpha != 0xff && mLayers[i]->blendMode == BLENDING_PREMULT &&
+            (memory->fslFormat == FORMAT_RGBA8888 || memory->fslFormat == FORMAT_BGRA8888 ||
+             memory->fslFormat == FORMAT_RGBA1010102 || memory->fslFormat == FORMAT_RGBAFP16))
+        {
+            deviceCompose = false;
+            ALOGV("%s,%d,%x,%x,%x",__func__,__LINE__,memory->fslFormat,mLayers[i]->planeAlpha,mLayers[i]->blendMode);
+            break;
+        }
+#endif
         if (mLayers[i]->flags & SKIP_LAYER) {
             deviceCompose = false;
             mLayers[i]->type = LAYER_TYPE_CLIENT;
