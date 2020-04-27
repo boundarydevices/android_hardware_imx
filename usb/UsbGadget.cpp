@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 The Android Open Source Project
- * Copyright 2018 NXP
+ * Copyright 2018-2020 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "android.hardware.usb.gadget@1.0-service.imx"
+#define LOG_TAG "android.hardware.usb.gadget@1.1-service.imx"
 
 #include "UsbGadget.h"
 #include <dirent.h>
@@ -63,7 +63,7 @@ namespace android {
 namespace hardware {
 namespace usb {
 namespace gadget {
-namespace V1_0 {
+namespace V1_1 {
 namespace implementation {
 
 volatile bool gadgetPullup;
@@ -265,8 +265,17 @@ V1_0::Status UsbGadget::tearDownGadget() {
 
   if (mMonitorCreated) {
     uint64_t flag = 100;
+    unsigned long ret;
+
     // Stop the monitor thread by writing into signal fd.
-    write(mEventFd, &flag, sizeof(flag));
+    ret = TEMP_FAILURE_RETRY(write(mEventFd, &flag, sizeof(flag)));
+    if (ret < 0) {
+        ALOGE("Error writing errno=%d", errno);
+    } else if (ret < sizeof(flag)) {
+        ALOGE("Short write length=%zd", ret);
+    }
+
+    ALOGI("mMonitor signalled to exit");
     mMonitor->join();
     mMonitorCreated = false;
     ALOGI("mMonitor destroyed");
@@ -279,6 +288,15 @@ V1_0::Status UsbGadget::tearDownGadget() {
   mEpollFd.reset(-1);
   mEndpointList.clear();
   return Status::SUCCESS;
+}
+
+Return<Status> UsbGadget::reset() {
+    if (!WriteStringToFile("none", PULLUP_PATH)) {
+        ALOGI("Gadget cannot be pulled down");
+        return Status::ERROR;
+    }
+
+    return Status::SUCCESS;
 }
 
 static int linkFunction(const char *function, int index) {
@@ -455,6 +473,8 @@ V1_0::Status UsbGadget::setupFunctions(
   if ((functions & GadgetFunction::ADB) != 0) {
     ffsEnabled = true;
     ALOGI("setCurrentUsbFunctions Adb");
+    if (!WriteStringToFile("1", DESC_USE_PATH))
+      return Status::ERROR;
     if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/adb/", IN_ALL_EVENTS) == -1)
       return Status::ERROR;
 
@@ -531,7 +551,7 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
     mCurrentUsbFunctionsApplied = false;
 
     // Unlink the gadget and stop the monitor if running.
-    status = tearDownGadget();
+  V1_0::Status status = tearDownGadget();
     if (status != Status::SUCCESS) {
       goto error;
     }
@@ -587,7 +607,7 @@ error:
   return Void();
 }
 }  // namespace implementation
-}  // namespace V1_0
+}  // namespace V1_1
 }  // namespace gadget
 }  // namespace usb
 }  // namespace hardware
