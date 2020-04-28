@@ -17,7 +17,7 @@
 #include "ImxCamera.h"
 
 ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
-                                                CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata)
+                     CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata, char *subdev_path)
    : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc)
 {
     mCameraMetadata = cam_metadata;
@@ -26,6 +26,18 @@ ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path
         mVideoStream = new ImxCameraMMAPStream(this, cam_metadata->omit_frame);
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kDma)
         mVideoStream = new ImxCameraDMAStream(this, cam_metadata->omit_frame);
+
+    /* If a subdev node is present, it is for AF */
+    if (strlen(subdev_path)) {
+        strncpy(mAFDevPath, subdev_path, strlen(subdev_path));
+        mAFDevPath[strlen(subdev_path)] = '\0';
+    } else {
+        strncpy(mAFDevPath, path, strlen(path));
+        mAFDevPath[strlen(path)] = '\0';
+    }
+
+    if (isAutoFocusSupported() == 0)
+        mAFSupported = true;
 }
 
 ImxCamera::~ImxCamera()
@@ -183,6 +195,141 @@ PixelFormat ImxCamera::getPreviewPixelFormat()
 {
     ALOGI("%s", __func__);
     return HAL_PIXEL_FORMAT_YCbCr_422_I;
+}
+
+int ImxCamera::isAutoFocusSupported(void)
+{
+    struct v4l2_control c;
+    int result;
+
+    int32_t fd = open(mAFDevPath, O_RDWR);
+    if (fd < 0)
+        return -1;
+
+    c.id = V4L2_CID_AUTO_FOCUS_STATUS;
+    result = ioctl(fd, VIDIOC_G_CTRL, &c);
+    close(fd);
+
+    return result;
+}
+
+uint8_t ImxCamera::getAutoFocusStatus(uint8_t mode)
+{
+    struct v4l2_control c;
+    uint8_t ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    int result;
+
+    if (!mAFSupported)
+        return ret;
+
+    int32_t fd = open(mAFDevPath, O_RDWR);
+    if (fd < 0) {
+        ALOGE("%s: couldn't open device %s", __func__, mAFDevPath);
+        return ret;
+    }
+
+    c.id = V4L2_CID_AUTO_FOCUS_STATUS;
+    result = ioctl(fd, VIDIOC_G_CTRL, &c);
+    if (result != 0) {
+        ALOGE("%s: ioctl error: %d", __func__, result);
+        goto end;
+    }
+
+    switch (c.value) {
+    case V4L2_AUTO_FOCUS_STATUS_BUSY:
+        if ((mode == ANDROID_CONTROL_AF_MODE_AUTO) ||
+            (mode == ANDROID_CONTROL_AF_MODE_MACRO))
+            ret = ANDROID_CONTROL_AF_STATE_ACTIVE_SCAN;
+        else
+            ret = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+        break;
+    case V4L2_AUTO_FOCUS_STATUS_REACHED:
+        ret = ANDROID_CONTROL_AF_STATE_FOCUSED_LOCKED;
+        break;
+    case V4L2_AUTO_FOCUS_STATUS_FAILED:
+    case V4L2_AUTO_FOCUS_STATUS_IDLE:
+    default:
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    }
+end:
+    close(fd);
+
+    return ret;
+}
+
+#define DEFAULT_AF_ZONE_ARRAY_WIDTH	80
+void ImxCamera::setAutoFocusRegion(int x, int y)
+{
+    struct v4l2_control c;
+    int result;
+
+    if (!mAFSupported)
+        return;
+
+    /* Android provides coordinates scaled to max picture resolution */
+    float ratio = (float)mVideoStream->getWidth() / mVideoStream->getHeight();
+    int scaled_x = x / (mMaxWidth / DEFAULT_AF_ZONE_ARRAY_WIDTH);
+    int scaled_y = y / (mMaxHeight / (DEFAULT_AF_ZONE_ARRAY_WIDTH / ratio));
+
+    int32_t fd = open(mAFDevPath, O_RDWR);
+    if (fd < 0) {
+        ALOGE("%s: couldn't open device %s", __func__, mAFDevPath);
+        return;
+    }
+
+    /* Using custom implementation of the absolute focus ioctl for ov5640 */
+    c.id = V4L2_CID_FOCUS_ABSOLUTE;
+    c.value = ((scaled_x & 0xFFFF) << 16) + (scaled_y & 0xFFFF);
+    result = ioctl(fd, VIDIOC_S_CTRL, &c);
+    if (result != 0)
+        ALOGE("%s: ioctl error: %d", __func__, result);
+
+    close(fd);
+
+    return;
+}
+
+uint8_t ImxCamera::doAutoFocus(uint8_t mode)
+{
+    struct v4l2_control c;
+    uint8_t ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    int result;
+
+    if (!mAFSupported)
+        return ret;
+
+    int32_t fd = open(mAFDevPath, O_RDWR);
+    if (fd < 0) {
+        ALOGE("%s: couldn't open device %s", __func__, mAFDevPath);
+        return ret;
+    }
+
+    switch (mode) {
+    case ANDROID_CONTROL_AF_MODE_AUTO:
+    case ANDROID_CONTROL_AF_MODE_MACRO:
+        ret = ANDROID_CONTROL_AF_STATE_ACTIVE_SCAN;
+        c.id = V4L2_CID_AUTO_FOCUS_START;
+        break;
+    case ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO:
+    case ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE:
+        ret = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+        c.id = V4L2_CID_FOCUS_AUTO;
+        c.value = 1;
+        break;
+    case ANDROID_CONTROL_AF_MODE_OFF:
+    default:
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+        c.id = V4L2_CID_AUTO_FOCUS_STOP;
+    }
+    result = ioctl(fd, VIDIOC_S_CTRL, &c);
+    if (result != 0) {
+        ALOGE("%s: ioctl error: %d", __func__, result);
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    }
+
+    close(fd);
+
+    return ret;
 }
 
 // configure device.

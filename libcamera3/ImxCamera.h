@@ -26,14 +26,21 @@ class ImxCamera: public Camera
 {
 public:
     ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
-                                 CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata);
+              CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata, char *subdev_path);
     ~ImxCamera();
 
     CameraSensorMetadata *mCameraMetadata;
     virtual status_t initSensorStaticData();
     virtual PixelFormat getPreviewPixelFormat();
 
+    virtual uint8_t doAutoFocus(uint8_t mode);
+    virtual uint8_t getAutoFocusStatus(uint8_t mode);
+    virtual void    setAutoFocusRegion(int x, int y);
+
 private:
+    bool mAFSupported = false;
+    char mAFDevPath[CAMAERA_FILENAME_LENGTH];
+    int isAutoFocusSupported(void);
     class ImxCameraMMAPStream : public MMAPStream
     {
     public:
