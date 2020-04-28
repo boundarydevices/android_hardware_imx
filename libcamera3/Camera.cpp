@@ -74,8 +74,8 @@ Camera* Camera::createCamera(int32_t id,
     if (strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V1) ||
                           strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V2) ||
                           strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V3))
-        device = new ImxCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw, jpeg_hw,
-                                                                        cam_metadata);
+        device = new ImxCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw,
+                               cam_csc_hw, jpeg_hw, cam_metadata, subdev_path);
     else if (strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
         device = new ISPCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw, jpeg_hw,
                                                                         cam_metadata);
