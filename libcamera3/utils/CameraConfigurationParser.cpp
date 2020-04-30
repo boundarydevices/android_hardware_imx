@@ -98,6 +98,7 @@ const char* const kCameraMetadataKey = "camera_metadata";
 const char* const kCameraTypeKey = "camera_type";
 const char* const kCameraNameKey = "camera_name";
 const char* const kDeviceNodeKey = "device_node";
+const char* const kSubdevPathKey = "subdev_path";
 const char* const kOrientationKey = "orientation";
 
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
@@ -247,6 +248,15 @@ bool ConfigureCameras(const Json::Value& value,
               (*iter)[kCameraTypeKey].asString().c_str(),
               META_STRING_SIZE);
     camera->camera_metadata[cam_index].camera_type[META_STRING_SIZE-1] = 0;
+
+    if (strlen((*iter)[kSubdevPathKey].asString().c_str())) {
+        strncpy(camera->camera_metadata[cam_index].subdev_path,
+                (*iter)[kSubdevPathKey].asString().c_str(),
+                strlen((*iter)[kSubdevPathKey].asString().c_str()));
+    } else {
+        ALOGD("%s: no subdev path provided for cam %d", __FUNCTION__, cam_index);
+        camera->camera_metadata[cam_index].subdev_path[0] = '\0';
+    }
 
     if (!ValueToCameraBufferType(
               (*iter)[kCameraBufferType].asString(),
