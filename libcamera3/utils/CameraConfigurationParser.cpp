@@ -96,6 +96,7 @@ const char* const kCameraBlitCscKey = "cam_blit_csc";
 const char* const kCameraMetadataKey = "camera_metadata";
 const char* const kCameraTypeKey = "camera_type";
 const char* const kCameraNameKey = "camera_name";
+const char* const kSubdevPathKey = "subdev_path";
 const char* const kOrientationKey = "orientation";
 
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
@@ -230,6 +231,15 @@ bool ConfigureCameras(const Json::Value& value,
     strncpy(camera->camera_metadata[cam_index].camera_type,
               (*iter)[kCameraTypeKey].asString().c_str(),
               strlen((*iter)[kCameraTypeKey].asString().c_str()));
+
+    if (strlen((*iter)[kSubdevPathKey].asString().c_str())) {
+        strncpy(camera->camera_metadata[cam_index].subdev_path,
+                (*iter)[kSubdevPathKey].asString().c_str(),
+                strlen((*iter)[kSubdevPathKey].asString().c_str()));
+    } else {
+        ALOGD("%s: no subdev path provided for cam %d", __FUNCTION__, cam_index);
+        camera->camera_metadata[cam_index].subdev_path[0] = '\0';
+    }
 
     if (!ValueToCameraBufferType(
               (*iter)[kCameraBufferType].asString(),
