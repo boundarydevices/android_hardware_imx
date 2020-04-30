@@ -104,7 +104,7 @@ CameraHAL::CameraHAL()
 
         mCameras[index] = Camera::createCamera(index,
                                 mSets[index].mDevPath, mCameraDef.cam_blit_copy_hw,
-                                mCameraDef.cam_blit_csc_hw, camera_metadata);
+                                mCameraDef.cam_blit_csc_hw, camera_metadata, mSets[index].mSubdevPath);
 
         if (mCameras[index] == NULL) {
             // camera sensor is not supported now.
@@ -178,7 +178,7 @@ int32_t CameraHAL::handleCameraConnected(char* uevent)
 
             mCameras[index] = Camera::createCamera(index, mSets[index].mDevPath,
                     mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw,
-                    camera_metadata);
+                    camera_metadata, NULL);
 
             if (mCameras[index] == NULL) {
                 // camera sensor is not supported now.
@@ -326,12 +326,14 @@ void CameraHAL::enumSensorSet()
     ALOGI("%s", __func__);
     // get back camera property.
     strncpy(mSets[BACK_CAM_ID].mPropertyName, mCameraDef.camera_metadata[BACK_CAM_ID].camera_name, strlen(mCameraDef.camera_metadata[BACK_CAM_ID].camera_name));
+    strncpy(mSets[BACK_CAM_ID].mSubdevPath, mCameraDef.camera_metadata[BACK_CAM_ID].subdev_path, strlen(mCameraDef.camera_metadata[BACK_CAM_ID].subdev_path));
     mSets[BACK_CAM_ID].mOrientation = mCameraDef.camera_metadata[BACK_CAM_ID].orientation;
     mSets[BACK_CAM_ID].mFacing = CAMERA_FACING_BACK;
     mSets[BACK_CAM_ID].mExisting = false;
 
     // get front camera property.
     strncpy(mSets[FRONT_CAM_ID].mPropertyName, mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name, strlen(mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name));
+    strncpy(mSets[FRONT_CAM_ID].mSubdevPath, mCameraDef.camera_metadata[FRONT_CAM_ID].subdev_path, strlen(mCameraDef.camera_metadata[FRONT_CAM_ID].subdev_path));
     mSets[FRONT_CAM_ID].mOrientation = mCameraDef.camera_metadata[FRONT_CAM_ID].orientation;;
     mSets[FRONT_CAM_ID].mFacing = CAMERA_FACING_FRONT;
     mSets[FRONT_CAM_ID].mExisting = false;
