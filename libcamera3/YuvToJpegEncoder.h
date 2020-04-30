@@ -79,7 +79,7 @@ protected:
                            __attribute__((unused))int      srcHeight,
                            __attribute__((unused))uint8_t *dstBuf,
                            __attribute__((unused))int      dstWidth,
-                           __attribute__((unused))int      dstHeight) {return 0;};
+                           __attribute__((unused))int      dstHeight);
     bool supportVpu;
 };
 
@@ -105,7 +105,7 @@ private:
                       int      processLines);
     void        compress(jpeg_compress_struct *cinfo,
                          uint8_t              *yuv);
-    virtual int yuvResize(uint8_t *srcBuf,
+    int yuvResize(uint8_t *srcBuf,
                           int      srcWidth,
                           int      srcHeight,
                           uint8_t *dstBuf,
@@ -130,12 +130,6 @@ private:
                       int      width,
                       int      height,
                       int      processLines);
-    virtual int yuvResize(uint8_t *srcBuf,
-                          int      srcWidth,
-                          int      srcHeight,
-                          uint8_t *dstBuf,
-                          int      dstWidth,
-                          int      dstHeight);
 };
 
 class Yuv422SpToJpegEncoder : public YuvToJpegEncoder {
@@ -155,7 +149,7 @@ class Yuv422SpToJpegEncoder : public YuvToJpegEncoder {
                 int      width,
                 int      height,
                 int      processLines);
-        virtual int yuvResize(uint8_t *srcBuf,
+        int yuvResize(uint8_t *srcBuf,
                 int      srcWidth,
                 int      srcHeight,
                 uint8_t *dstBuf,
