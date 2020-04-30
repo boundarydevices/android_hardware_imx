@@ -3012,7 +3012,11 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
             ret = -EINVAL;
             return ret;
         }
-        get_card_for_bus(adev, bus_address, &card_index);
+        if (-1 == get_card_for_bus(adev, bus_address, &card_index)) {
+            ALOGE("%s: No card available for config setting!", __func__);
+            ret = -EINVAL;
+            return ret;
+        }
         route = adev->card_list[card_index]->out_volume_ctl;
         mixer = adev->mixer[card_index];
 
