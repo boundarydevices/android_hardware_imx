@@ -42,7 +42,8 @@ public:
     virtual ~Camera();
 
     static Camera* createCamera(int32_t id,
-                                char* path, CscHw cam_copy_hw, CscHw cam_csc_hw,const char *hw_jpeg, CameraSensorMetadata *cam_metadata);
+                                char* path, CscHw cam_copy_hw, CscHw cam_csc_hw,const char *hw_jpeg,
+                                CameraSensorMetadata *cam_metadata, char* subdev_path);
     // do advanced character set.
     int32_t processSettings(sp<Metadata> settings, uint32_t frame);
     // Common Camera Device Operations (see <hardware/camera_common.h>)
