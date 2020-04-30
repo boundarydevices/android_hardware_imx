@@ -111,6 +111,9 @@ struct SensorSet
     char mSensorName[PROPERTY_VALUE_MAX];
     char mDevPath[CAMAERA_FILENAME_LENGTH];
 
+    // add subdev device management
+    char mSubdevPath[CAMAERA_FILENAME_LENGTH];
+
     // parameters for extension.
     int32_t mResourceCost;
     uint32_t mConflictingSize;

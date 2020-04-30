@@ -58,7 +58,8 @@ static int32_t close_device(hw_device_t* dev)
 android::Mutex Camera::sStaticInfoLock(android::Mutex::PRIVATE);
 
 Camera* Camera::createCamera(int32_t id,
-                             char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, const char *jpeg_hw, CameraSensorMetadata *cam_metadata)
+                             char* path, CscHw cam_copy_hw, CscHw cam_csc_hw, const char *jpeg_hw,
+                             CameraSensorMetadata *cam_metadata, char* subdev_path)
 {
     Camera* device = NULL;
     int facing;
