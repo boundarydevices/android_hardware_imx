@@ -73,6 +73,6 @@ cc_library_shared {
         "vendor/nxp-opensource/imx/display/display",
         "vendor/nxp-opensource/libdrm-imx",
         "vendor/nxp-opensource/libdrm-imx/include/drm",
-        "device/nxp/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
     ],
 }

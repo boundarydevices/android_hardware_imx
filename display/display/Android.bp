@@ -29,7 +29,7 @@ cc_library_static {
         "system/memory/libion",
         "system/logging/liblog/include",
         "system/core/include",
-        "device/nxp/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
     ],
     vendor: true,
     cflags: ["-DLOG_TAG=\"ionalloc\""],
@@ -71,7 +71,7 @@ cc_library_shared {
         "frameworks/native/libs/ui/include_private",
         "frameworks/native/libs/math/include",
         "hardware/libhardware_legacy/include",
-        "device/nxp/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
     ],
     shared_libs: [
         "liblog",
