@@ -31,7 +31,7 @@ gralloc_v1_defaults {
         "vendor/nxp/fsl-proprietary/include",
         "system/core/include",
         "frameworks/native/include",
-        "device/fsl/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
     ],
     vendor: true,
     cflags: ["-Wno-missing-field-initializers"],

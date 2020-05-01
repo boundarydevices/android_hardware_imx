@@ -25,7 +25,7 @@ cc_library_static {
         "system/core/libion/kernel-headers",
         "system/core/libion",
         "system/core/include",
-        "device/fsl/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
 
     ],
     vendor: true,
@@ -64,7 +64,7 @@ cc_library_shared {
         "system/core/libion",
         "frameworks/native/include",
         "hardware/libhardware_legacy/include",
-        "device/fsl/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
     ],
     shared_libs: [
         "liblog",

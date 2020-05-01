@@ -29,7 +29,7 @@ LOCAL_C_INCLUDES += \
     system/media/camera/include \
     external/jpeg \
     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
-    device/fsl/common/kernel-headers \
+    device/boundary/common/kernel-headers \
     $(IMX_PATH)/imx/include \
     external/fsl_vpu_omx/OpenMAXIL/src/component/vpu_wrapper \
     $(FSL_IMX_OMX_PATH)/fsl_imx_omx/OpenMAXIL/src/component/vpu_wrapper \
