@@ -86,7 +86,7 @@ libnxp_gralloc_v5_defaults {
         "frameworks/native/libs/arect/include",
         "frameworks/native/libs/ui/include_private",
         "hardware/libhardware_legacy/include",
-        "device/nxp/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
     ],
     export_include_dirs: ["."],
 

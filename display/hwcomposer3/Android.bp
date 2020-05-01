@@ -29,7 +29,7 @@ cc_binary {
     include_dirs: [
         "system/core/include/utils",
         "frameworks/native/include",
-        "device/nxp/common/kernel-headers",
+        "device/boundary/common/kernel-headers",
     ],
 
     shared_libs: [
