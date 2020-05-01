@@ -86,7 +86,7 @@ imx_camera_defaults {
                 "vendor/nxp-opensource/imx/opencl-2d",
                 "vendor/nxp-opensource/imx/display/display",
                 "vendor/nxp/fsl-proprietary/include",
-                "device/nxp/common/kernel-headers",
+                "device/boundary/common/kernel-headers",
                 "vendor/nxp-opensource/libdrm-imx",
                 "vendor/nxp-opensource/libdrm-imx/include/drm",
             ],
