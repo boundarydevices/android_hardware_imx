@@ -583,6 +583,7 @@ bool Display::verifyLayers()
 
             default:
                 ALOGE("verifyLayers: invalid type:%d", mLayers[i]->origType);
+                deviceCompose = false;
                 break;
         }
     }
