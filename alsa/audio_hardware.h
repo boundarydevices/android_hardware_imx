@@ -83,6 +83,7 @@ struct imx_audio_device {
     struct echo_reference_itfe *echo_reference;
     bool bluetooth_nrec;
     bool support_multichannel;
+    bool support_lpa;
     int  wb_amr;
     struct audio_card *card_list[MAX_AUDIO_CARD_NUM];
     struct mixer *mixer[MAX_AUDIO_CARD_NUM];

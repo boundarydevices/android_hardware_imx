@@ -3146,7 +3146,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
               ((devices == AUDIO_DEVICE_OUT_SPEAKER) ||
                (devices == AUDIO_DEVICE_OUT_LINE) ||
                (devices == AUDIO_DEVICE_OUT_WIRED_HEADPHONE)) &&
-               ladev->support_multichannel) {
+               (ladev->support_multichannel || (ladev->support_lpa && lpa_enable))) {
         ALOGW("adev_open_output_stream() ESAI multichannel");
         if (ladev->active_output[OUTPUT_ESAI] != NULL) {
             ret = -ENOSYS;
@@ -4115,6 +4115,11 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                     adev->support_multichannel = true;
                 }
 
+                if(audio_card_list[j]->support_lpa) {
+                    ALOGI("%s support lpa", audio_card_list[j]->driver_name);
+                    adev->support_lpa = true;
+                }
+
                 // check if the device have been scaned before
                 scanned = false;
                 n = k;
@@ -4280,6 +4285,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.dump                    = adev_dump;
     adev->mm_rate                           = 48000;
     adev->support_multichannel              = false;
+    adev->support_lpa                       = false;
 
     parse_all_cards(audio_card_list);
 

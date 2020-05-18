@@ -47,6 +47,7 @@ static const char* const g_key_support_dsd = "support_dsd";
 static const char* const g_key_support_hfp = "support_hfp";
 static const char* const g_key_is_hdmi_card = "is_hdmi_card";
 static const char* const g_key_support_multi_chn = "support_multi_chn";
+static const char* const g_key_support_lpa = "support_lpa";
 static const char* const g_key_out_period_size = "out_period_size";
 static const char* const g_key_out_period_count = "out_period_count";
 
@@ -249,6 +250,9 @@ static bool parse_one_card(char *config_file, struct audio_card **pp_audio_card)
 
     if(root.isMember(g_key_support_multi_chn))
         p_audio_card->support_multi_chn = root[g_key_support_multi_chn].asBool();
+
+    if(root.isMember(g_key_support_lpa))
+        p_audio_card->support_lpa = root[g_key_support_lpa].asBool();
 
     if(root.isMember(g_key_out_period_size))
         p_audio_card->out_period_size = root[g_key_out_period_size].asUInt();
