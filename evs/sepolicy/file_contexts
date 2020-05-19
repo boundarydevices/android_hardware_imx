@@ -1,0 +1,10 @@
+
+###################################
+# Binaries associated with the default EVS stack, plus
+# the directory which contains the configuration for the evs_app
+#
+/system/etc/automotive/evs(/.*)?                                u:object_r:imx_evs_app_files:s0
+/vendor/bin/android\.hardware\.automotive\.evs@1\.[0-9]+-EvsEnumeratorHw u:object_r:hal_evs_driver_exec:s0
+/system/bin/imx_evs_app u:object_r:imx_evs_app_exec:s0
+
+###################################

@@ -1,0 +1,29 @@
+type imx_evs_app, domain, coredomain;
+
+hal_server_domain(imx_evs_app, hal_evs)
+hal_client_domain(imx_evs_app, hal_evs)
+hal_client_domain(imx_evs_app, hal_vehicle)
+hal_client_domain(imx_evs_app, hal_configstore)
+hal_client_domain(imx_evs_app, hal_graphics_allocator)
+
+type imx_evs_app_exec, exec_type, file_type, system_file_type;
+init_daemon_domain(imx_evs_app)
+
+allow imx_evs_app gpu_device:chr_file rw_file_perms;
+allow imx_evs_app ion_device:chr_file r_file_perms;
+
+type imx_evs_app_files, file_type, system_file_type;
+allow imx_evs_app imx_evs_app_files:file { getattr open read };
+allow imx_evs_app imx_evs_app_files:dir search;
+get_prop(imx_evs_app, vendor_default_prop)
+
+allow imx_evs_app system_file:dir { read open };
+binder_use(imx_evs_app);
+allow imx_evs_app surfaceflinger_service:service_manager find;
+allow imx_evs_app hal_configstore_default:binder { call };
+allow imx_evs_app ion_device:chr_file { read open ioctl };
+allow imx_evs_app hal_vehicle_hwservice:hwservice_manager { find };
+allow imx_evs_app hal_graphics_mapper_hwservice:hwservice_manager { find };
+allow imx_evs_app hal_configstore_ISurfaceFlingerConfigs:hwservice_manager { find };
+allow imx_evs_app gpu_device:chr_file { map };
+allow imx_evs_app hal_evs_hwservice:hwservice_manager { find };

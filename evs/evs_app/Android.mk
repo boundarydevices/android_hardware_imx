@@ -15,7 +15,6 @@ LOCAL_SRC_FILES := \
     TexWrapper.cpp \
     VideoTex.cpp \
     StreamHandler.cpp \
-    WindowSurface.cpp \
     FormatConvert.cpp \
     RenderPixelCopy.cpp
 
@@ -24,7 +23,6 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils \
     liblog \
     libutils \
-    libgui \
     libui \
     libhidlbase \
     libhidltransport \
@@ -40,7 +38,6 @@ LOCAL_STATIC_LIBRARIES := \
     libjsoncpp \
 
 LOCAL_STRIP_MODULE := keep_symbols
-# LOCAL_VENDOR_MODULE := true
 
 # LOCAL_INIT_RC := evs_app.rc
 
@@ -54,30 +51,30 @@ LOCAL_CFLAGS += -Wall -Werror -Wunused -Wunreachable-code
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := config.json
+LOCAL_MODULE := ImxConfig.json
 LOCAL_MODULE_CLASS := ETC
 LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/automotive/evs
 LOCAL_SRC_FILES := $(LOCAL_MODULE)
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := CarFromTop.png
+LOCAL_MODULE := ImxCarFromTop.png
 LOCAL_MODULE_CLASS := ETC
 LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/automotive/evs
 LOCAL_SRC_FILES := $(LOCAL_MODULE)
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := LabeledChecker.png
+LOCAL_MODULE := ImxLabeledChecker.png
 LOCAL_MODULE_CLASS := ETC
 LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/automotive/evs
 LOCAL_SRC_FILES := $(LOCAL_MODULE)
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := evs_app_default_resources
+LOCAL_MODULE := imx_evs_app_default_resources
 LOCAL_REQUIRED_MODULES := \
-    config.json \
-    CarFromTop.png \
-    LabeledChecker.png
+    ImxConfig.json \
+    ImxCarFromTop.png \
+    ImxLabeledChecker.png
 include $(BUILD_PHONY_PACKAGE)

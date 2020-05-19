@@ -132,7 +132,7 @@ bool RenderTopView::activate() {
 
     // Load the checkerboard text image
     mTexAssets.checkerBoard.reset(createTextureFromPng(
-                                  "/system/etc/automotive/evs/LabeledChecker.png"));
+                                  "/system/etc/automotive/evs/ImxLabeledChecker.png"));
     if (!mTexAssets.checkerBoard) {
         ALOGE("Failed to load checkerboard texture");
         return false;
@@ -140,7 +140,7 @@ bool RenderTopView::activate() {
 
     // Load the car image
     mTexAssets.carTopView.reset(createTextureFromPng(
-                                "/system/etc/automotive/evs/CarFromTop.png"));
+                                "/system/etc/automotive/evs/ImxCarFromTop.png"));
     if (!mTexAssets.carTopView) {
         ALOGE("Failed to load carTopView texture");
         return false;

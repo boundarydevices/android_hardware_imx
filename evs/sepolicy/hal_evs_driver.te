@@ -1,0 +1,18 @@
+get_prop(hal_evs_driver, vendor_default_prop)
+
+allow hal_evs_driver ion_device:chr_file { read open ioctl };
+allow hal_evs_driver binder_device:chr_file { read write open ioctl map };
+allow hal_evs_driver hal_configstore_default:binder { call };
+allow hal_evs_driver video_device:chr_file { map };
+allow hal_evs_driver hal_evs_hwservice:hwservice_manager { add };
+allow hal_evs_driver hidl_base_hwservice:hwservice_manager { add };
+allow hal_evs_driver gpu_device:chr_file { map };
+allow hal_evs_driver opencl_cache_file:dir { create_dir_perms };
+allow hal_evs_driver opencl_cache_file:file { create_file_perms };
+allow hal_evs_driver sysfs:file { open read getattr };
+allow hal_evs_driver evs_prop:property_service { set };
+allow hal_evs_driver property_socket:sock_file { write };
+allow hal_evs_driver init:unix_stream_socket { connectto };
+allow hal_evs_driver hal_graphics_composer_hwservice:hwservice_manager { find };
+allow hal_evs_driver hal_graphics_composer_default:binder { call };
+allow hal_evs_driver device:dir { watch };
