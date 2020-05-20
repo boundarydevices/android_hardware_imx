@@ -1,0 +1,62 @@
+{
+  "car" : {
+    "width"  : 76.7,
+    "wheelBase" : 117.9,
+    "frontExtent" : 44.7,
+    "rearExtent" : 40
+  },
+  "display" : {
+    "frontRange" : 100,
+    "rearRange" : 100
+  },
+  "graphic" : {
+    "frontPixel" : 23,
+    "rearPixel" : 223
+  },
+  "cameras" : [
+    {
+      "cameraId" : "mxc_isi.0.capture",
+      "function" : "reverse,park",
+      "x" : 0.0,
+      "y" : -40.0,
+      "z" : 100,
+      "yaw" : 180,
+      "pitch" : -35,
+      "hfov" : 120,
+      "vfov" : 103
+    },
+    {
+      "cameraId" : "mxc_isi.1.capture",
+      "function" : "front,park",
+      "x" : 0.0,
+      "y" : 100.0,
+      "z" : 48,
+      "yaw" : 0,
+      "pitch" : -11,
+      "hfov" : 120,
+      "vfov" : 50
+    },
+    {
+      "cameraId" : "mxc_isi.2.capture",
+      "function" : "right,park",
+      "x" : 36.0,
+      "y" : 60.0,
+      "z" : 118,
+      "yaw" : -90,
+      "pitch" : -42,
+      "hfov" : 85,
+      "vfov" : 50
+    },
+    {
+      "cameraId" : "mxc_isi.3.capture",
+      "function" : "left,park",
+      "x" : -36.0,
+      "y" : 60.0,
+      "z" : 118,
+      "yaw" : 90,
+      "pitch" : -42,
+      "hfov" : 85,
+      "vfov" : 50
+    }
+  ]
+}
