@@ -1450,6 +1450,9 @@ void KmsDisplay::prepareTargetsLocked()
     desc.mFslFormat = config.mFormat;
     desc.mProduceUsage |= USAGE_HW_COMPOSER |
                           USAGE_HW_2D | USAGE_HW_RENDER;
+#ifdef HAVE_UNMAPPED_HEAP
+    desc.mProduceUsage |= USAGE_PROTECTED;
+#endif
     desc.mFlag = FLAGS_FRAMEBUFFER;
     desc.checkFormat();
 

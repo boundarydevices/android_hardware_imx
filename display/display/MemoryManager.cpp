@@ -132,11 +132,10 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
     Memory *handle = NULL;
     int ret = 0;
 
-#ifdef CFG_SECURE_DATA_PATH
     if (desc.mProduceUsage & USAGE_PROTECTED) {
         desc.mFlag |= FLAGS_SECURE;
     }
-#endif
+
     if (isDrmAlloc(desc.mFlag, desc.mFslFormat, desc.mProduceUsage)) {
         ret = mGPUAlloc->alloc(mGPUAlloc, desc.mWidth, desc.mHeight,
                 desc.mFormat, (int)desc.mProduceUsage,

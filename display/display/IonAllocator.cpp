@@ -91,6 +91,9 @@ IonAllocator::IonAllocator()
             mNCHeapIds |= 1 << ihd[i].heap_id;
             continue;
         }
+        if (ihd[i].type == ION_HEAP_TYPE_UNMAPPED) {
+            mSeHeapIds |=  1 << ihd[i].heap_id;
+        }
     }
 
 #ifdef CFG_SECURE_DATA_PATH
@@ -103,6 +106,7 @@ IonAllocator::IonAllocator()
         }
     }
 #endif
+
 }
 
 IonAllocator::~IonAllocator()
@@ -120,13 +124,13 @@ int IonAllocator::allocMemory(int size, int align, int flags)
     int ion_flags = 0;
 
     // contiguous memory includes cacheable/non-cacheable.
-    if (flags & MFLAGS_CONTIGUOUS) {
+    if (flags & MFLAGS_SECURE) {
+        heapIds = mSeHeapIds;
+    }
+    else if (flags & MFLAGS_CONTIGUOUS) {
         heapIds = mCCHeapIds | mCNHeapIds;
         if (flags & MFLAGS_CACHEABLE)
             ion_flags = ION_FLAG_CACHED;
-    }
-    else if (flags & MFLAGS_SECURE) {
-        heapIds = mSeHeapIds;
     }
     // cacheable memory includes contiguous/non-contiguous.
     else if (flags & MFLAGS_CACHEABLE) {

@@ -63,6 +63,9 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
         flags |= MFLAGS_CACHEABLE;
     }
 
+    if (desc.mProduceUsage & USAGE_PROTECTED) {
+        flags = MFLAGS_SECURE;
+    }
     sharedFd = mAllocator->allocMemory(desc.mSize, align, flags);
     if (sharedFd < 0) {
         ALOGE("allocator allocMemory failed");

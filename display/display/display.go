@@ -88,6 +88,9 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_CLASS") == "IMX8" {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DIMX8")
     }
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MP" {
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DHAVE_UNMAPPED_HEAP")
+    }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MQ" {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DFRAMEBUFFER_COMPRESSION")
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DWORKAROUND_DOWNSCALE_LIMITATION_DCSS")
