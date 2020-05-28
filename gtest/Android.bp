@@ -14,11 +14,20 @@
 
 cc_test {
     name: "imx_unit_test",
-    srcs: ["ImageDecoderEncoder.cpp"],
+    srcs: [
+        "ImageDecoderEncoder.cpp",
+        "evs-eigen.cpp",
+    ],
+
     cflags: [
         "-Wall",
         "-Werror",
     ],
+
+    header_libs: [
+        "libeigen",
+    ],
+
     shared_libs: [
         "libandroid",
         "liblog",

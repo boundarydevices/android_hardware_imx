@@ -1,4 +1,4 @@
-#define LOG_TAG "sv-test"
+#define LOG_TAG "image-test"
 #include <android/data_space.h>
 #include <android/bitmap.h>
 #include <android/imagedecoder.h>
