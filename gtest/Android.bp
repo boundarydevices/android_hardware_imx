@@ -30,3 +30,22 @@ cc_test {
     stl: "c++_static",
     test_suites: ["device-tests"],
 }
+
+cc_test{
+
+       name: "imx_stress_test",
+       srcs: ["UsbGtest.cpp"],
+       cflags: [
+             "-Wall",
+             "-Werror",
+            ],
+       shared_libs: [
+           "android.hardware.usb.gadget@1.0",
+           "libhardware",
+           "libbase",
+           "libhidlbase",
+           "liblog",
+           "libutils",
+           "libcutils",
+           ],
+}
