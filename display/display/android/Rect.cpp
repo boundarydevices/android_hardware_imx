@@ -15,7 +15,7 @@
  */
 
 #include <system/graphics.h>
-#include "Rect.h"
+#include <ui/Rect.h>
 
 namespace android {
 
@@ -69,6 +69,14 @@ Rect& Rect::offsetBy(int32_t x, int32_t y) {
     top += y;
     right += x;
     bottom += y;
+    return *this;
+}
+
+Rect& Rect::inset(int32_t _left, int32_t _top, int32_t _right, int32_t _bottom) {
+    this->left += _left;
+    this->top += _top;
+    this->right -= _right;
+    this->bottom -= _bottom;
     return *this;
 }
 
