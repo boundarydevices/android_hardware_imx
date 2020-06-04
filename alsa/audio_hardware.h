@@ -57,6 +57,7 @@ enum output_type {
     OUTPUT_HDMI,
     OUTPUT_ESAI,
     OUTPUT_OFFLOAD,
+    OUTPUT_MIXER,
     OUTPUT_TOTAL
 };
 

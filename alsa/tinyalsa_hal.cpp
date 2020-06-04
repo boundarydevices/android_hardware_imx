@@ -214,6 +214,23 @@ static void convert_output_for_esai(const void* buffer, size_t bytes, int channe
 
 extern "C" int pcm_state(struct pcm *pcm);
 
+static enum pcm_format pcm_format_from_audio_format(audio_format_t format)
+{
+    switch (format) {
+    case AUDIO_FORMAT_PCM_16_BIT:
+        return PCM_FORMAT_S16_LE;
+    case AUDIO_FORMAT_PCM_24_BIT_PACKED:
+        return PCM_FORMAT_S24_3LE;
+    case AUDIO_FORMAT_PCM_32_BIT:
+        return PCM_FORMAT_S32_LE;
+    case AUDIO_FORMAT_PCM_8_24_BIT:
+        return PCM_FORMAT_S24_LE;
+    case AUDIO_FORMAT_PCM_FLOAT:  /* there is no equivalent for float */
+    default:
+        return PCM_FORMAT_INVALID;
+    }
+}
+
 static int convert_record_data(void *src, void *dst, unsigned int frames, bool bit_24b_2_16b, bool bit_32b_2_16b, bool mono2stereo, bool stereo2mono)
 {
     unsigned int i;
@@ -654,38 +671,6 @@ static int start_output_stream(struct imx_stream_out *out)
         (out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL == 0))
         flags |= PCM_MMAP;
 
-    if ((out->flags & (AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD | AUDIO_OUTPUT_FLAG_DIRECT)) == 0) {
-        out->config = pcm_config_mm_out;
-        config = &out->config;
-        ALOGI("%s: set to pcm_config_mm_out, rate %d, chn %d, format 0x%x", __func__, config->rate, config->channels, config->format);
-    }
-
-    // create resampler from 48000 to 8000 for HSP
-    if ((out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
-        (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
-        (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO)) {
-        config->rate = HSP_SAMPLE_RATE;
-        config->channels = g_hsp_chns;
-
-        if(out->resampler)
-            release_resampler(out->resampler);
-
-        ret = create_resampler(adev->default_rate,
-                HSP_SAMPLE_RATE,
-                2,
-                RESAMPLER_QUALITY_DEFAULT,
-                NULL,
-                &out->resampler);
-        if (ret != 0) {
-            ALOGE("create resampler from %d to %d failed, ret %d\n", adev->default_rate, HSP_SAMPLE_RATE, ret);
-            return ret;
-        }
-    }
-
-    // Fix me. When exit from HSP, should recover resampler to the origin.
-    // But since primary stream sample rate is same as that configured in sound card.
-    // will no call resampler, so do nothing.
-
 #if defined(CAR_AUDIO)
     card = get_card_for_bus(adev, out->address, NULL);
 #else
@@ -717,7 +702,7 @@ static int start_output_stream(struct imx_stream_out *out)
     }
 
     if (success) {
-        if (out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
+        if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) || (out->flags == AUDIO_OUTPUT_FLAG_NONE)) {
             out->buffer_frames = pcm_config_mm_out.period_size * 2;
             if (out->buffer == NULL)
                 out->buffer = (char *)malloc(out->buffer_frames * audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common));
@@ -1426,6 +1411,15 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         }
     }
 
+    // bt-sco card only supports mono channel, but mixer can not support mono channel
+    // so we set it as stereo channel in audio policy, then convert it to mono channel in HAL
+    if ((out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
+            (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
+            (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO)) {
+        convert_record_data((void *)buffer, (void *)(out->buffer), out_frames, false, false, false, true);
+        frame_size = frame_size / 2;
+    }
+
     if (out->echo_reference != NULL) {
         struct echo_reference_buffer b;
         b.raw = (void *)buffer;
@@ -1452,13 +1446,13 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         convert_output_for_esai(buffer, bytes, out->config.channels);
 
     if (out->pcm) {
-        if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
-            (out->config.rate != adev->default_rate) && (out->config.channels == 2)) {
-            /* PCM resampled */
+        if (((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) || (out->flags == AUDIO_OUTPUT_FLAG_NONE)) &&
+                (out->config.rate != adev->default_rate)) {
+            /* PCM resampled or channel converted.
+               For bt-sai HSP case, stereo buffer converted to mono out->buffer */
             ret = pcm_write_wrapper(out->pcm, (void *)out->buffer, out_frames * frame_size, out->write_flags);
         } else {
-            /* PCM uses native sample rate, or resampled and chanel converted.
-               For bt-sai HSP case, buffer resample to out->buffer, then strero->mono to buffer */
+            /* PCM uses native sample rate */
             ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
         }
 
@@ -3090,8 +3084,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->sup_rates[0] = ladev->mm_rate;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
     out->sample_rate = config->sample_rate;
-
-    out->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
+    out->channel_mask = config->channel_mask;
     out->format = config->format;
 
     if (flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
@@ -3188,8 +3181,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.pause = out_pause;
         out->stream.resume = out_resume;
         out->stream.flush = out_flush;
-    } else {
-        ALOGV("adev_open_output_stream() normal buffer");
+    } else if (flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
+        ALOGD("%s: primary output stream", __func__);
         if (ladev->active_output[OUTPUT_PRIMARY] != NULL) {
 #ifdef CAR_AUDIO
             ALOGW("%s: already has primary output: %p", __func__, ladev->active_output[OUTPUT_PRIMARY]);
@@ -3207,6 +3200,24 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->channel_mask = DEFAULT_OUTPUT_CHANNEL_MASK;
         out->format = DEFAULT_OUTPUT_FORMAT;
         output_type = OUTPUT_PRIMARY;
+    } else {
+        ALOGD("%s: non-primary mixer output stream", __func__);
+        if (flags & AUDIO_OUTPUT_FLAG_DIRECT) {
+            ALOGD("%s: non-primary mixer output stream does not support AUDIO_OUTPUT_FLAG_DIRECT", __func__);
+            ret = -EINVAL;
+            goto err_open;
+        }
+        out->config = pcm_config_mm_out;
+        out->config.rate = config->sample_rate;
+        out->config.channels = audio_channel_count_from_out_mask(config->channel_mask);
+        out->config.format = pcm_format_from_audio_format(config->format);
+
+        if ((out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
+                (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
+                (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO)) {
+            out->config.channels = g_hsp_chns;
+        }
+        output_type = OUTPUT_MIXER;
     }
 
     if (address) {
@@ -3226,15 +3237,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             };
         }
     }
-    // Fix me. Default_rate is same as mm_rate. The resampler do nothing.
-    ret = create_resampler(ladev->default_rate,
-            ladev->mm_rate,
-            2,
-            RESAMPLER_QUALITY_DEFAULT,
-            NULL,
-            &out->resampler);
-    if (ret != 0)
-        goto err_open;
 
     out->stream.common.get_buffer_size  = out_get_buffer_size;
     out->stream.common.get_sample_rate  = out_get_sample_rate;
