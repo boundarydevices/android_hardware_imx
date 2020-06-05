@@ -64,6 +64,7 @@ cc_library_shared {
         "vendor/nxp-opensource/libdrm-imx/include/drm",
         "system/memory/libion",
         "frameworks/native/include",
+        "frameworks/native/libs/ui/",
         "frameworks/native/libs/ui/include",
         "frameworks/native/libs/arect/include",
         "frameworks/native/libs/ui/include_private",
