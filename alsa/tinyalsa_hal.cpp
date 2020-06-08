@@ -3181,7 +3181,25 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->stream.pause = out_pause;
         out->stream.resume = out_resume;
         out->stream.flush = out_flush;
-    } else if (flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
+    } else if ((flags == AUDIO_OUTPUT_FLAG_NONE) &&
+            ((devices == AUDIO_DEVICE_OUT_AUX_DIGITAL) ||
+             (devices == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
+             (devices == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
+             (devices == AUDIO_DEVICE_OUT_BLUETOOTH_SCO))) {
+        ALOGD("%s: non-primary mixer output stream", __func__);
+
+        out->config = pcm_config_mm_out;
+        out->config.rate = config->sample_rate;
+        out->config.channels = audio_channel_count_from_out_mask(config->channel_mask);
+        out->config.format = pcm_format_from_audio_format(config->format);
+
+        if ((out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
+                (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
+                (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO)) {
+            out->config.channels = g_hsp_chns;
+        }
+        output_type = OUTPUT_MIXER;
+    } else {
         ALOGD("%s: primary output stream", __func__);
         if (ladev->active_output[OUTPUT_PRIMARY] != NULL) {
 #ifdef CAR_AUDIO
@@ -3200,24 +3218,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->channel_mask = DEFAULT_OUTPUT_CHANNEL_MASK;
         out->format = DEFAULT_OUTPUT_FORMAT;
         output_type = OUTPUT_PRIMARY;
-    } else {
-        ALOGD("%s: non-primary mixer output stream", __func__);
-        if (flags & AUDIO_OUTPUT_FLAG_DIRECT) {
-            ALOGD("%s: non-primary mixer output stream does not support AUDIO_OUTPUT_FLAG_DIRECT", __func__);
-            ret = -EINVAL;
-            goto err_open;
-        }
-        out->config = pcm_config_mm_out;
-        out->config.rate = config->sample_rate;
-        out->config.channels = audio_channel_count_from_out_mask(config->channel_mask);
-        out->config.format = pcm_format_from_audio_format(config->format);
-
-        if ((out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
-                (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_CARKIT) ||
-                (out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO)) {
-            out->config.channels = g_hsp_chns;
-        }
-        output_type = OUTPUT_MIXER;
     }
 
     if (address) {
