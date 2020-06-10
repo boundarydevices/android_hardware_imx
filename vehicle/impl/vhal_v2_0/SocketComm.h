@@ -61,7 +61,7 @@ class SocketComm {
      *
      * @return bool Returns true on success.
      */
-    bool listen();
+    int listen();
 
     /**
      * Blocks and waits for a connection from a client, returns a new SocketConn with the connection
