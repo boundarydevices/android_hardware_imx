@@ -17,8 +17,6 @@
 #include "UvcDevice.h"
 #include "DMAStream.h"
 
-#define LOGI_C920 "HD Pro Webcam C920"
-
 //----------------------UvcDevice--------------------
 Camera* UvcDevice::newInstance(int32_t id, char* name, int32_t facing,
                                int32_t orientation, char* path,
@@ -27,15 +25,9 @@ Camera* UvcDevice::newInstance(int32_t id, char* name, int32_t facing,
 {
     ALOGI("%s usb sensor name:%s", __func__, name);
     UvcDevice* device = NULL;
-    if (strstr(name, LOGI_C920)) {
-        ALOGI("%s create LogiC920 device", __func__);
-        device = new LogiC920(id, facing, orientation, path);
-    }
-    else {
-        ALOGI("%s usb sensor:%s use standard UVC device", __func__, name);
 
-        device = new UvcDevice(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc, true, cam_metadata);
-    }
+    ALOGI("%s usb sensor:%s use standard UVC device", __func__, name);
+    device = new UvcDevice(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc, true, cam_metadata);
 
     return device;
 }
@@ -268,78 +260,3 @@ int32_t UvcDevice::UvcStream::getDeviceBufferSize()
 
     return size;
 }
-
-//---------------------LogiC920---------------
-LogiC920::LogiC920(int32_t id, int32_t facing, int32_t orientation, char* path)
-    : UvcDevice(id, facing, orientation, path)
-{
-    mC920Stream = new C920Stream(this, path);
-    mVideoStream = mC920Stream;
-}
-
-LogiC920::~LogiC920()
-{
-}
-
-status_t LogiC920::initSensorStaticData()
-{
-    int32_t ret = UvcDevice::initSensorStaticData();
-    mC920Stream->setOmitSize(mPreviewResolutions[0], mPreviewResolutions[1]);
-
-    return ret;
-}
-
-// LogiC920 output the first several frames which are damaged.
-// the mOmitFrames count on specific sensor.
-LogiC920::C920Stream::C920Stream(Camera* device, const char* name)
-    : UvcDevice::UvcStream(device, name, NULL), mOmitFrames(0), mOmitFrameCnt(1),
-      mOmitFrameWidth(0), mOmitFrameHeight(0)
-{
-}
-LogiC920::C920Stream::~C920Stream()
-{
-}
-
-void LogiC920::C920Stream::setOmitSize(uint32_t width, uint32_t height)
-{
-    mOmitFrameWidth = width;
-    mOmitFrameHeight = height;
-}
-
-int32_t LogiC920::C920Stream::onDeviceStartLocked()
-{
-    ALOGI("%s", __func__);
-    int32_t ret = UvcDevice::UvcStream::onDeviceStartLocked();
-    mOmitFrames = mOmitFrameCnt;
-    return ret;
-}
-
-int32_t LogiC920::C920Stream::onFrameAcquireLocked()
-{
-    ALOGV("%s", __func__);
-    int32_t index = UvcDevice::UvcStream::onFrameAcquireLocked();
-
-    if (index >= MAX_STREAM_BUFFERS || index < 0) {
-        ALOGE("%s: invalid index %d", __func__, index);
-        return -1;
-    }
-
-    // large resolution should return immediately because of low frame rate.
-    if (mWidth > mOmitFrameWidth && mHeight > mOmitFrameHeight) {
-        return index;
-    }
-
-    while (mOmitFrames > 0) {
-        mOmitFrames--;
-        UvcDevice::UvcStream::onFrameReturnLocked(index, *mBuffers[index]);
-        index = UvcDevice::UvcStream::onFrameAcquireLocked();
-
-        if (index >= MAX_STREAM_BUFFERS || index < 0) {
-            ALOGE("%s: invalid index %d", __func__, index);
-            return -1;
-        }
-    }
-
-    return index;
-}
-
