@@ -70,35 +70,4 @@ protected:
     };
 };
 
-class LogiC920 : public UvcDevice
-{
-public:
-    LogiC920(int32_t id, int32_t facing, int32_t orientation, char* path);
-    virtual ~LogiC920();
-
-    virtual status_t initSensorStaticData();
-
-private:
-    class C920Stream : public UvcDevice::UvcStream {
-    public:
-        C920Stream(Camera* device, const char* name);
-        virtual ~C920Stream();
-
-        // start device.
-        virtual int32_t onDeviceStartLocked();
-        // get buffer from V4L2.
-        virtual int32_t onFrameAcquireLocked();
-
-        void setOmitSize(uint32_t width, uint32_t height);
-
-    private:
-        uint32_t mOmitFrames;
-        uint32_t mOmitFrameCnt;
-        uint32_t mOmitFrameWidth;
-        uint32_t mOmitFrameHeight;
-    };
-
-    C920Stream* mC920Stream;
-};
-
 #endif
