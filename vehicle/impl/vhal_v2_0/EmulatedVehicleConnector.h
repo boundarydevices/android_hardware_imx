@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_
-#define android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_
+#ifndef android_hardware_automotive_vehicle_V2_0_impl_EmulatedVehicleConnector_H_
+#define android_hardware_automotive_vehicle_V2_0_impl_EmulatedVehicleConnector_H_
 
-#include <android/hardware/automotive/vehicle/2.0/types.h>
+#include <vhal_v2_0/VehicleConnector.h>
 
-#include <chrono>
+#include "VehicleHalClient.h"
+#include "VehicleHalServer.h"
 
 namespace android {
 namespace hardware {
@@ -29,20 +30,10 @@ namespace V2_0 {
 
 namespace impl {
 
-class FakeValueGenerator {
-public:
-    virtual ~FakeValueGenerator() = default;
+using PassthroughConnector = IPassThroughConnector<VehicleHalClient, VehicleHalServer>;
+using PassthroughConnectorPtr = std::unique_ptr<PassthroughConnector>;
 
-    virtual VehiclePropValue nextEvent() = 0;
-
-    virtual bool hasNext() = 0;
-};
-
-using Clock = std::chrono::steady_clock;
-using Nanos = std::chrono::nanoseconds;
-using TimePoint = std::chrono::time_point<Clock, Nanos>;
-
-using FakeValueGeneratorPtr = std::unique_ptr<FakeValueGenerator>;
+PassthroughConnectorPtr makeEmulatedPassthroughConnector();
 
 }  // namespace impl
 
@@ -52,4 +43,4 @@ using FakeValueGeneratorPtr = std::unique_ptr<FakeValueGenerator>;
 }  // namespace hardware
 }  // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_
+#endif  // android_hardware_automotive_vehicle_V2_0_impl_EmulatedVehicleConnector_H_

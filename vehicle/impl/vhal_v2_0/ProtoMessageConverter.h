@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_
-#define android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_
+#ifndef android_hardware_automotive_vehicle_V2_0_impl_ProtoMessageConverter_H_
+#define android_hardware_automotive_vehicle_V2_0_impl_ProtoMessageConverter_H_
 
 #include <android/hardware/automotive/vehicle/2.0/types.h>
 
-#include <chrono>
+#include "VehicleHalProto.pb.h"
 
 namespace android {
 namespace hardware {
@@ -29,20 +29,21 @@ namespace V2_0 {
 
 namespace impl {
 
-class FakeValueGenerator {
-public:
-    virtual ~FakeValueGenerator() = default;
+namespace proto_msg_converter {
 
-    virtual VehiclePropValue nextEvent() = 0;
+// VehiclePropConfig
 
-    virtual bool hasNext() = 0;
-};
+void toProto(vhal_proto::VehiclePropConfig* protoCfg, const VehiclePropConfig& cfg);
 
-using Clock = std::chrono::steady_clock;
-using Nanos = std::chrono::nanoseconds;
-using TimePoint = std::chrono::time_point<Clock, Nanos>;
+void fromProto(VehiclePropConfig* cfg, const vhal_proto::VehiclePropConfig& protoCfg);
 
-using FakeValueGeneratorPtr = std::unique_ptr<FakeValueGenerator>;
+// VehiclePropValue
+
+void toProto(vhal_proto::VehiclePropValue* protoVal, const VehiclePropValue& val);
+
+void fromProto(VehiclePropValue* val, const vhal_proto::VehiclePropValue& protoVal);
+
+}  // namespace proto_msg_converter
 
 }  // namespace impl
 
@@ -52,4 +53,4 @@ using FakeValueGeneratorPtr = std::unique_ptr<FakeValueGenerator>;
 }  // namespace hardware
 }  // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_
+#endif  // android_hardware_automotive_vehicle_V2_0_impl_VehicleHalEmulator_H_

@@ -20,22 +20,13 @@
 #include <android/log.h>
 #include <arpa/inet.h>
 #include <log/log.h>
-#include <linux/netlink.h>
 #include <netinet/in.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 
 #include "SocketComm.h"
 
-typedef struct user_msg_info {
-	struct nlmsghdr hdr;
-	char  msg[1024];
-} user_socket_info;
-
-#define MAX_PLOAD 1024
-#define PROTOCOL_ID 30
-
-#define SYNC_COMMANDS "sync"
+// Socket to use when communicating with Host PC
+static constexpr int DEBUG_SOCKET = 33452;
 
 namespace android {
 namespace hardware {
@@ -52,6 +43,9 @@ SocketComm::~SocketComm() {
 }
 
 void SocketComm::start() {
+    if (!listen()) {
+        return;
+    }
 
     mListenThread = std::make_unique<std::thread>(std::bind(&SocketComm::listenThread, this));
 }
@@ -66,53 +60,73 @@ void SocketComm::stop() {
     }
 }
 
-void SocketComm::sendMessage(emulator::EmulatorMessage const& msg) {
+void SocketComm::sendMessage(vhal_proto::EmulatorMessage const& msg) {
     std::lock_guard<std::mutex> lock(mMutex);
     for (std::unique_ptr<SocketConn> const& conn : mOpenConnections) {
         conn->sendMessage(msg);
     }
 }
 
-int SocketComm::listen() {
+bool SocketComm::listen() {
     int retVal;
-    struct sockaddr_nl servAddr;
+    struct sockaddr_in servAddr;
 
-    mListenFd = socket(AF_NETLINK, SOCK_RAW, PROTOCOL_ID);
+    mListenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (mListenFd < 0) {
         ALOGE("%s: socket() failed, mSockFd=%d, errno=%d", __FUNCTION__, mListenFd, errno);
         mListenFd = -1;
-        return mListenFd;
+        return false;
     }
 
     memset(&servAddr, 0, sizeof(servAddr));
-    servAddr.nl_family = AF_NETLINK;
-    servAddr.nl_pid = getpid();
-    servAddr.nl_groups = 0;
+    servAddr.sin_family = AF_INET;
+    servAddr.sin_addr.s_addr = INADDR_ANY;
+    servAddr.sin_port = htons(DEBUG_SOCKET);
 
-    retVal = bind(mListenFd, (struct sockaddr *)&servAddr, sizeof(servAddr));
+    retVal = bind(mListenFd, reinterpret_cast<struct sockaddr*>(&servAddr), sizeof(servAddr));
     if(retVal < 0) {
         ALOGE("%s: Error on binding: retVal=%d, errno=%d", __FUNCTION__, retVal, errno);
         close(mListenFd);
         mListenFd = -1;
-        return mListenFd;
+        return false;
     }
 
-    return mListenFd;
+    ALOGI("%s: Listening for connections on port %d", __FUNCTION__, DEBUG_SOCKET);
+    if (::listen(mListenFd, 1) == -1) {
+        ALOGE("%s: Error on listening: errno: %d: %s", __FUNCTION__, errno, strerror(errno));
+        return false;
+    }
+    return true;
+}
+
+SocketConn* SocketComm::accept() {
+    sockaddr_in cliAddr;
+    socklen_t cliLen = sizeof(cliAddr);
+    int sfd = ::accept(mListenFd, reinterpret_cast<struct sockaddr*>(&cliAddr), &cliLen);
+
+    if (sfd > 0) {
+        char addr[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &cliAddr.sin_addr, addr, INET_ADDRSTRLEN);
+
+        ALOGD("%s: Incoming connection received from %s:%d", __FUNCTION__, addr, cliAddr.sin_port);
+        return new SocketConn(mMessageProcessor, sfd);
+    }
+
+    return nullptr;
 }
 
 void SocketComm::listenThread() {
-    int listenFd = listen();
+    while (true) {
+        SocketConn* conn = accept();
+        if (conn == nullptr) {
+            return;
+        }
 
-    SocketConn* conn = new SocketConn(mMessageProcessor, listenFd);
-
-    std::vector<uint8_t> msg = std::vector<uint8_t>(sizeof(SYNC_COMMANDS));
-    memcpy(msg.data(), SYNC_COMMANDS, sizeof(SYNC_COMMANDS));
-    conn->write(msg);
-
-    conn->start();
-    {
+        conn->start();
+        {
             std::lock_guard<std::mutex> lock(mMutex);
             mOpenConnections.push_back(std::unique_ptr<SocketConn>(conn));
+        }
     }
 }
 
@@ -128,29 +142,48 @@ void SocketComm::removeClosedConnections() {
 SocketConn::SocketConn(MessageProcessor* messageProcessor, int sfd)
     : CommConn(messageProcessor), mSockFd(sfd) {}
 
-std::vector<uint8_t> SocketConn::read() {
-    int ret;
-    user_socket_info u_info;
-    struct sockaddr_nl nl_socket;
-    socklen_t nl_socket_len = sizeof(nl_socket);
-    int message_size;
+/**
+ * Reads, in a loop, exactly numBytes from the given fd. If the connection is closed, returns
+ * an empty buffer, otherwise will return exactly the given number of bytes.
+ */
+std::vector<uint8_t> readExactly(int fd, int numBytes) {
+    std::vector<uint8_t> buffer(numBytes);
+    int totalRead = 0;
+    int offset = 0;
+    while (totalRead < numBytes) {
+        int numRead = ::read(fd, &buffer.data()[offset], numBytes - offset);
+        if (numRead == 0) {
+            buffer.resize(0);
+            return buffer;
+        }
 
-    memset(&nl_socket, 0, sizeof(nl_socket));
-    memset(&u_info, 0, sizeof(user_socket_info));
-    nl_socket.nl_family = AF_NETLINK;
-    nl_socket.nl_pid = 0;
-    nl_socket.nl_groups = 0;
-
-    ret = recvfrom(mSockFd, &u_info, sizeof(u_info), 0, (struct sockaddr *)&nl_socket, &nl_socket_len);
-    if(ret < 0) {
-        ALOGE("recv message failed \n");
-        return std::vector<uint8_t>();
-    } else {
-        message_size = u_info.hdr.nlmsg_len - sizeof(struct nlmsghdr);
-        std::vector<uint8_t> msg = std::vector<uint8_t> (message_size);
-        memcpy(msg.data(), u_info.msg, message_size);
-        return msg;
+        totalRead += numRead;
     }
+    return buffer;
+}
+
+/**
+ * Reads an int, guaranteed to be non-zero, from the given fd. If the connection is closed, returns
+ * -1.
+ */
+int32_t readInt(int fd) {
+    std::vector<uint8_t> buffer = readExactly(fd, sizeof(int32_t));
+    if (buffer.size() == 0) {
+        return -1;
+    }
+
+    int32_t value = *reinterpret_cast<int32_t*>(buffer.data());
+    return ntohl(value);
+}
+
+std::vector<uint8_t> SocketConn::read() {
+    int32_t msgSize = readInt(mSockFd);
+    if (msgSize <= 0) {
+        ALOGD("%s: Connection terminated on socket %d", __FUNCTION__, mSockFd);
+        return std::vector<uint8_t>();
+    }
+
+    return readExactly(mSockFd, msgSize);
 }
 
 void SocketConn::stop() {
@@ -161,30 +194,26 @@ void SocketConn::stop() {
 }
 
 int SocketConn::write(const std::vector<uint8_t>& data) {
-    int ret;
-    struct sockaddr_nl daddr;
-    struct nlmsghdr *nlh = NULL;
-    memset(&daddr, 0, sizeof(daddr));
-    daddr.nl_family = AF_NETLINK;
-    // 0 means this message is to kernel
-    daddr.nl_pid = 0;
-    daddr.nl_groups = 0;
+    static constexpr int MSG_HEADER_LEN = 4;
+    int retVal = 0;
+    union {
+        uint32_t msgLen;
+        uint8_t msgLenBytes[MSG_HEADER_LEN];
+    };
 
-    nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PLOAD));
-    memset(nlh, 0, sizeof(struct nlmsghdr));
-    nlh->nlmsg_len = NLMSG_LENGTH(data.size());
-    nlh->nlmsg_flags = 0;
-    nlh->nlmsg_type = 0;
-    nlh->nlmsg_seq = 0;
-    nlh->nlmsg_pid = getpid();
-    memcpy(NLMSG_DATA(nlh), data.data(), data.size());
-    ret = sendto(mSockFd, nlh, nlh->nlmsg_len, 0, (struct sockaddr *)&daddr, sizeof(struct sockaddr_nl));
-    if(!ret) {
-        ALOGE("send message failed.\n");
-        return -1;
+    // Prepare header for the message
+    msgLen = static_cast<uint32_t>(data.size());
+    msgLen = htonl(msgLen);
+
+    if (mSockFd > 0) {
+        retVal = ::write(mSockFd, msgLenBytes, MSG_HEADER_LEN);
+
+        if (retVal == MSG_HEADER_LEN) {
+            retVal = ::write(mSockFd, data.data(), data.size());
+        }
     }
 
-    return 0;
+    return retVal;
 }
 
 }  // impl

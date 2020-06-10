@@ -47,7 +47,7 @@ class SocketComm {
     /**
      * Serialized and send the given message to all connected clients.
      */
-    void sendMessage(emulator::EmulatorMessage const& msg);
+    void sendMessage(vhal_proto::EmulatorMessage const& msg);
 
    private:
     int mListenFd;
@@ -61,7 +61,7 @@ class SocketComm {
      *
      * @return bool Returns true on success.
      */
-    int listen();
+    bool listen();
 
     /**
      * Blocks and waits for a connection from a client, returns a new SocketConn with the connection
