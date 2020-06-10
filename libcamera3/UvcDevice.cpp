@@ -47,7 +47,7 @@ UvcDevice::UvcDevice(int32_t id, int32_t facing, int32_t orientation,
     mCameraMetadata = cam_metadata;
 
     if (createStream) {
-        mVideoStream = new UvcStream(this, path);
+        mVideoStream = new UvcStream(this, path, cam_metadata->omit_frame);
     }
 }
 
@@ -197,6 +197,16 @@ int32_t UvcDevice::UvcStream::onDeviceConfigureLocked()
         }
     }
 
+    setOmitFrameCount(0);
+
+    struct OmitFrame *item;
+    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
+      if ((mWidth == item->width) && (mHeight == item->height)) {
+        setOmitFrameCount(item->omitnum);
+        break;
+      }
+    }
+
     return DMAStream::onDeviceConfigureLocked();
 }
 
@@ -282,7 +292,7 @@ status_t LogiC920::initSensorStaticData()
 // LogiC920 output the first several frames which are damaged.
 // the mOmitFrames count on specific sensor.
 LogiC920::C920Stream::C920Stream(Camera* device, const char* name)
-    : UvcDevice::UvcStream(device, name), mOmitFrames(0), mOmitFrameCnt(1),
+    : UvcDevice::UvcStream(device, name, NULL), mOmitFrames(0), mOmitFrameCnt(1),
       mOmitFrameWidth(0), mOmitFrameHeight(0)
 {
 }

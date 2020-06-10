@@ -43,9 +43,10 @@ public:
 protected:
     class UvcStream : public DMAStream {
     public:
-        UvcStream(Camera* device, const char* name)
+        UvcStream(Camera* device, const char* name, struct OmitFrame *omit_frame)
               : DMAStream(device) {
             strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH-1);
+            mOmitFrame = omit_frame;
         }
         virtual ~UvcStream() {}
 
@@ -65,6 +66,7 @@ protected:
 
     protected:
         char mUvcPath[CAMAERA_FILENAME_LENGTH];
+        struct OmitFrame *mOmitFrame;
     };
 };
 
