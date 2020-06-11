@@ -20,6 +20,8 @@ cc_test {
     ],
 
     cflags: [
+        "-DGL_GLEXT_PROTOTYPES",
+        "-DEGL_EGLEXT_PROTOTYPES",
         "-Wall",
         "-Werror",
     ],
@@ -28,15 +30,24 @@ cc_test {
         "libeigen",
     ],
 
+    static_libs: ["libglTest", "libimxsv_base"],
+
     shared_libs: [
         "libandroid",
         "liblog",
         "libjnigraphics",
         "libdl",
         "libmediandk",
+        "libcutils",
+        "libEGL",
+        "libGLESv1_CM",
+        "libui",
+        "libgui",
+        "libutils",
     ],
     stl: "c++_static",
     test_suites: ["device-tests"],
+    host_supported: false,
 }
 
 cc_test{
