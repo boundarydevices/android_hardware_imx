@@ -23,10 +23,6 @@ func alsaDefaults(ctx android.LoadHookContext) {
     }
 
     p := &props{}
-    sdkVersion := ctx.Config().PlatformSdkVersionInt()
-    if ctx.Config().VendorConfig("IMXPLUGIN").Bool("IMX_CAR") && sdkVersion >= 28 {
-        cppflags = append(cppflags, "-DCAR_AUDIO")
-    }
     cppflags = append(cppflags, "-DANDROID_SDK_VERSION=" + strconv.Itoa(ctx.AConfig().PlatformSdkVersionInt()))
     p.Cflags = cppflags
     ctx.AppendProperties(p)

@@ -446,13 +446,8 @@ static void select_output_device(struct imx_audio_device *adev)
     int i;
 
     headset_on      = adev->out_device & AUDIO_DEVICE_OUT_WIRED_HEADSET;
-    headphone_on    = adev->out_device & AUDIO_DEVICE_OUT_WIRED_HEADPHONE;
-    speaker_on      = adev->out_device & AUDIO_DEVICE_OUT_SPEAKER;
-
-#ifdef CAR_AUDIO
-    speaker_on      =  adev->out_device & AUDIO_DEVICE_OUT_BUS;
-    headphone_on    =  adev->out_device & AUDIO_DEVICE_OUT_BUS;
-#endif
+    headphone_on    = adev->out_device & (AUDIO_DEVICE_OUT_WIRED_HEADPHONE | AUDIO_DEVICE_OUT_BUS);
+    speaker_on      = adev->out_device & (AUDIO_DEVICE_OUT_SPEAKER | AUDIO_DEVICE_OUT_BUS);
 
     ALOGI("%s(), headphone %d ,headset %d ,speaker %d\n", __func__, headphone_on, headset_on, speaker_on);
     /* select output stage */
@@ -567,7 +562,6 @@ static int get_card_for_hfp(struct imx_audio_device *adev, int *card_index)
     return card;
 }
 
-#if defined(CAR_AUDIO)
 static int get_card_for_bus(struct imx_audio_device* adev, const char* bus, int *p_array_index) {
     if (!adev || !bus) {
         ALOGE("Invalid audio device or bus");
@@ -594,7 +588,6 @@ static int get_card_for_bus(struct imx_audio_device* adev, const char* bus, int 
 
     return card;
 }
-#endif
 
 static int get_card_for_device(struct imx_audio_device *adev, int device, unsigned int flag, int *card_index)
 {
@@ -651,7 +644,6 @@ static int start_output_stream(struct imx_stream_out *out)
         select_output_device(adev);
     }
 
-#ifndef CAR_AUDIO
     /* force standby on low latency output stream to close HDMI driver in case it was in use */
     if (((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) == 0) &&
         (adev->active_output[OUTPUT_PRIMARY] != NULL) &&
@@ -661,7 +653,6 @@ static int start_output_stream(struct imx_stream_out *out)
         do_output_standby(p_out, true);
         pthread_mutex_unlock(&p_out->lock);
     }
-#endif
 
     if (lpa_enable)
         flags |= PCM_LPA;
@@ -671,14 +662,12 @@ static int start_output_stream(struct imx_stream_out *out)
         (out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL == 0))
         flags |= PCM_MMAP;
 
-#if defined(CAR_AUDIO)
-    card = get_card_for_bus(adev, out->address, NULL);
-#else
-    if (out->format == AUDIO_FORMAT_DSD) {
+    if (out->device == AUDIO_DEVICE_OUT_BUS)
+        card = get_card_for_bus(adev, out->address, NULL);
+    else if (out->format == AUDIO_FORMAT_DSD)
         card = get_card_for_dsd(adev, &out->card_index);
-    } else
+    else
         card = get_card_for_device(adev, out->device, PCM_OUT, &out->card_index);
-#endif
 
     ALOGD("%s: pcm_open: card: %d, rate: %d, channel: %d, format: %d, period_size: 0x%x, flag: %x",
           __func__, card, config->rate, config->channels, config->format, config->period_size, flags);
@@ -2988,7 +2977,6 @@ static int in_get_active_microphones(const struct audio_stream_in *stream,
 }
 #endif
 
-#ifdef CAR_AUDIO
 static int adev_set_audio_port_config(struct audio_hw_device *dev,
         const struct audio_port_config *config)
 {
@@ -3057,7 +3045,6 @@ static int adev_release_audio_patch(struct audio_hw_device *dev,
     ALOGD("%s: handle: %d", __func__, handle);
     return 0;
 }
-#endif
 
 static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_io_handle_t handle __unused,
@@ -3202,16 +3189,14 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     } else {
         ALOGD("%s: primary output stream", __func__);
         if (ladev->active_output[OUTPUT_PRIMARY] != NULL) {
-#ifdef CAR_AUDIO
-            ALOGW("%s: already has primary output: %p", __func__, ladev->active_output[OUTPUT_PRIMARY]);
-#else
-            if (flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
+            if (out->device == AUDIO_DEVICE_OUT_BUS)
+                ALOGW("%s: already has primary output: %p", __func__, ladev->active_output[OUTPUT_PRIMARY]);
+            else if (flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
                 ret = -ENOSYS;
                 goto err_open;
             } else {
                 ALOGW("%s: already has primary output: %p", __func__, ladev->active_output[OUTPUT_PRIMARY]);
             }
-#endif
         }
         out->config = pcm_config_mm_out;
         out->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
@@ -3289,15 +3274,15 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
     *stream_out = &out->stream;
 
-#ifdef CAR_AUDIO
-    // just register the first primary output.
-    if(output_type != OUTPUT_PRIMARY)
-      ladev->active_output[output_type] = out;
-    else if(ladev->active_output[output_type] == NULL)
-       ladev->active_output[output_type] = out;
-#else
-    ladev->active_output[output_type] = out;
-#endif
+    if (out->device == AUDIO_DEVICE_OUT_BUS) {
+        // just register the first primary output.
+        if(output_type != OUTPUT_PRIMARY)
+            ladev->active_output[output_type] = out;
+        else if(ladev->active_output[output_type] == NULL)
+            ladev->active_output[output_type] = out;
+    } else {
+        ladev->active_output[output_type] = out;
+    }
 
     ALOGI("%s: exit: output_type %d, output %p", __func__, output_type, *stream_out);
     return 0;
@@ -4255,11 +4240,7 @@ static int adev_open(const hw_module_t* module, const char* name,
         return -ENOMEM;
 
     adev->hw_device.common.tag      = HARDWARE_DEVICE_TAG;
-#ifdef CAR_AUDIO
     adev->hw_device.common.version  = AUDIO_DEVICE_API_VERSION_3_0;
-#else
-    adev->hw_device.common.version  = AUDIO_DEVICE_API_VERSION_2_0;
-#endif
     adev->hw_device.common.module   = (struct hw_module_t *) module;
     adev->hw_device.common.close    = adev_close;
 
@@ -4279,11 +4260,9 @@ static int adev_open(const hw_module_t* module, const char* name,
 #if ANDROID_SDK_VERSION >= 28
     adev->hw_device.get_microphones         = adev_get_microphones;
 #endif
-#ifdef CAR_AUDIO
     adev->hw_device.set_audio_port_config   = adev_set_audio_port_config;
     adev->hw_device.create_audio_patch      = adev_create_audio_patch;
     adev->hw_device.release_audio_patch     = adev_release_audio_patch;
-#endif
     adev->hw_device.dump                    = adev_dump;
     adev->mm_rate                           = 48000;
     adev->support_multichannel              = false;
