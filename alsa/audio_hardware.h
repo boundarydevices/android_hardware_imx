@@ -20,6 +20,7 @@
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 
 #include <stdlib.h>
+#include <cutils/list.h>
 #include <tinyalsa/asoundlib.h>
 
 #include <hardware/hardware.h>
@@ -103,6 +104,9 @@ struct imx_audio_device {
     struct pcm *pcm_cap;
     struct pcm_config cap_config;
     Hashmap *out_bus_stream_map;
+    struct listnode out_streams; // record for output streams
+    struct listnode in_streams;  // record for input streams
+    audio_patch_handle_t next_patch_handle; // unique handle used in release/create_audio_patch
 };
 
 struct imx_stream_out {
@@ -132,6 +136,13 @@ struct imx_stream_out {
     struct audio_gain gain_stage;
     bool paused;
     bool lpa_wakelock_acquired;
+
+    uint32_t num_devices;
+    audio_devices_t devices[AUDIO_PATCH_PORTS_MAX]; // TODO: use devices to specify stream's device type. Currently still uses device variable.
+    audio_io_handle_t handle;
+    audio_patch_handle_t patch_handle;
+
+    struct listnode stream_node; // linked to imx_audio_device->out_streams
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
@@ -191,6 +202,11 @@ struct imx_stream_in {
     uint32_t main_channels;
     uint32_t aux_channels;
     char* address;
+
+    audio_io_handle_t handle;
+    audio_patch_handle_t patch_handle;
+
+    struct listnode stream_node; // linked to imx_audio_device->in_streams
 };
 #define STRING_TO_ENUM(string) { #string, string }
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
