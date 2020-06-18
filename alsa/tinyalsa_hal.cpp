@@ -1038,44 +1038,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     ret = str_parms_get_str(parms, AUDIO_PARAMETER_STREAM_ROUTING, value, sizeof(value));
     if (ret >= 0) {
-        val = atoi(value);
-        pthread_mutex_lock(&adev->lock);
-        pthread_mutex_lock(&out->lock);
-
-        if (out->device != val) {
-            if (out == adev->active_output[OUTPUT_PRIMARY] && !out->standby) {
-                /* a change in output device may change the microphone selection */
-                if (adev->active_input &&
-                        adev->active_input->source == AUDIO_SOURCE_VOICE_COMMUNICATION) {
-                    force_input_standby = true;
-                }
-                /* force standby if moving to/from HDMI */
-                if (((val & AUDIO_DEVICE_OUT_AUX_DIGITAL) ^
-                        (adev->out_device & AUDIO_DEVICE_OUT_AUX_DIGITAL)) ||
-                        ((val & AUDIO_DEVICE_OUT_SPEAKER) ^
-                        (adev->out_device & AUDIO_DEVICE_OUT_SPEAKER)) ||
-                        (adev->mode == AUDIO_MODE_IN_CALL)) {
-                        ALOGI("out_set_parameters, old 0x%x, new 0x%x do_output_standby", adev->out_device, val);
-                    do_output_standby(out, true);
-                }
-            }
-            if ((out != adev->active_output[OUTPUT_HDMI]) && val) {
-                adev->out_device = val;
-                out->device    = val;
-
-                select_output_device(adev);
-            }
-        }
-        pthread_mutex_unlock(&out->lock);
-        if (force_input_standby) {
-            in = adev->active_input;
-            pthread_mutex_lock(&in->lock);
-            do_input_standby(in);
-            pthread_mutex_unlock(&in->lock);
-        }
-        pthread_mutex_unlock(&adev->lock);
-
-        ret = 0;
+        ALOGE("%s: Must not use set parameters API to set audio devices", __func__);
     }
 
     str_parms_destroy(parms);
@@ -1908,12 +1871,7 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     ret = str_parms_get_str(parms, AUDIO_PARAMETER_STREAM_ROUTING, value, sizeof(value));
     if (ret >= 0) {
-        val = atoi(value) & ~AUDIO_DEVICE_BIT_IN;
-        if ((in->device != val) && (val != 0)) {
-            in->device = val;
-            do_standby = true;
-            in_update_aux_channels(in, NULL);
-        }
+        ALOGE("%s: Must not use set parameters API to set audio devices", __func__);
     }
 
     if (do_standby)
@@ -3028,6 +2986,66 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
     return ret;
 }
 
+// This must be called with adev->lock held.
+struct imx_stream_out *get_stream_out_by_io_handle_l(
+        struct imx_audio_device *adev, audio_io_handle_t handle) {
+    struct listnode *node;
+
+    list_for_each(node, &adev->out_streams) {
+        struct imx_stream_out *out = node_to_item(
+                node, struct imx_stream_out, stream_node);
+        if (out->handle == handle) {
+            return out;
+        }
+    }
+    return NULL;
+}
+
+// This must be called with adev->lock held.
+struct imx_stream_in *get_stream_in_by_io_handle_l(
+        struct imx_audio_device *adev, audio_io_handle_t handle) {
+    struct listnode *node;
+
+    list_for_each(node, &adev->in_streams) {
+        struct imx_stream_in *in = node_to_item(
+                node, struct imx_stream_in, stream_node);
+        if (in->handle == handle) {
+            return in;
+        }
+    }
+    return NULL;
+}
+
+// This must be called with adev->lock held.
+struct imx_stream_out *get_stream_out_by_patch_handle_l(
+        struct imx_audio_device *adev, audio_patch_handle_t patch_handle) {
+    struct listnode *node;
+
+    list_for_each(node, &adev->out_streams) {
+        struct imx_stream_out *out = node_to_item(
+                node, struct imx_stream_out, stream_node);
+        if (out->patch_handle == patch_handle) {
+            return out;
+        }
+    }
+    return NULL;
+}
+
+// This must be called with adev->lock held.
+struct imx_stream_in *get_stream_in_by_patch_handle_l(
+        struct imx_audio_device *adev, audio_patch_handle_t patch_handle) {
+    struct listnode *node;
+
+    list_for_each(node, &adev->in_streams) {
+        struct imx_stream_in *in = node_to_item(
+                node, struct imx_stream_in, stream_node);
+        if (in->patch_handle == patch_handle) {
+            return in;
+        }
+    }
+    return NULL;
+}
+
 static int adev_create_audio_patch(struct audio_hw_device *dev,
         unsigned int num_sources,
         const struct audio_port_config *sources,
@@ -3035,15 +3053,137 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
         const struct audio_port_config *sinks,
         audio_patch_handle_t *handle)
 {
-    ALOGD("%s: handle: %d", __func__, handle);
+    if (num_sources != 1 || num_sinks == 0 || num_sinks > AUDIO_PATCH_PORTS_MAX) {
+        ALOGE("%s() invalid source/sink number", __func__);
+        return -EINVAL;
+    }
+
+    if (sources[0].type == AUDIO_PORT_TYPE_DEVICE) {
+        ALOGD("%s() device->mix: %d -> %d", __func__, sources[0].ext.device.type &~ AUDIO_DEVICE_BIT_IN, sinks[0].ext.mix.handle);
+        // If source is a device, the number of sinks should be 1.
+        if (num_sinks != 1 || sinks[0].type != AUDIO_PORT_TYPE_MIX) {
+            return -EINVAL;
+        }
+    } else if (sources[0].type == AUDIO_PORT_TYPE_MIX) {
+        ALOGD("%s() mix->device: %d -> %d", __func__, sources[0].ext.mix.handle, sinks[0].ext.device.type);
+        // If source is a mix, all sinks should be device.
+        for (unsigned int i = 0; i < num_sinks; i++) {
+            if (sinks[i].type != AUDIO_PORT_TYPE_DEVICE) {
+                ALOGE("%s() invalid sink type %#x for mix source", __func__, sinks[i].type);
+                return -EINVAL;
+            }
+        }
+    } else {
+        // All other cases are invalid.
+        ALOGE("%s() invalid source/sink configures", __func__);
+        return -EINVAL;
+    }
+
+    struct imx_audio_device* adev = (struct imx_audio_device*) dev;
+    int ret = 0;
+    bool generatedPatchHandle = false;
+    pthread_mutex_lock(&adev->lock);
+    if (*handle == AUDIO_PATCH_HANDLE_NONE) {
+        *handle = ++adev->next_patch_handle;
+        generatedPatchHandle = true;
+    }
+
+    // Only handle patches for mix->devices and device->mix case.
+    if (sources[0].type == AUDIO_PORT_TYPE_DEVICE) {
+        struct imx_stream_in *in =
+                get_stream_in_by_io_handle_l(adev, sinks[0].ext.mix.handle);
+        if (in == NULL) {
+            ALOGE("%s()can not find stream with handle(%d)", __func__, sources[0].ext.mix.handle);
+            ret = -EINVAL;
+            goto error;
+        }
+
+        // Check if the patch handle match the recorded one if a valid patch handle is passed.
+        if (!generatedPatchHandle && in->patch_handle != *handle) {
+            ALOGE("%s() the patch handle(%d) does not match recorded one(%d) for stream "
+                  "with handle(%d) when creating audio patch for device->mix",
+                  __func__, *handle, in->patch_handle, in->handle);
+            ret = -EINVAL;
+            goto error;
+        }
+        pthread_mutex_lock(&in->lock);
+        if (in->device != sources[0].ext.device.type) {
+            in->device = sources[0].ext.device.type &~ AUDIO_DEVICE_BIT_IN;
+            do_input_standby(in);
+            in_update_aux_channels(in, NULL);
+            ALOGD("%s() set input(%d) device to %x, patch_handle %d", __func__, in->handle, in->device, *handle);
+        }
+        pthread_mutex_unlock(&in->lock);
+        in->patch_handle = *handle;
+    } else {
+        struct imx_stream_out *out =
+                get_stream_out_by_io_handle_l(adev, sources[0].ext.mix.handle);
+        if (out == NULL) {
+            ALOGE("%s()can not find stream with handle(%d)", __func__, sources[0].ext.mix.handle);
+            ret = -EINVAL;
+            goto error;
+        }
+
+        // Check if the patch handle match the recorded one if a valid patch handle is passed.
+        if (!generatedPatchHandle && out->patch_handle != *handle) {
+            ALOGE("%s() the patch handle(%d) does not match recorded one(%d) for stream "
+                  "with handle(%d) when creating audio patch for mix->device",
+                  __func__, *handle, out->patch_handle, out->handle);
+            ret = -EINVAL;
+            goto error;
+        }
+        pthread_mutex_lock(&out->lock);
+        for (out->num_devices = 0; out->num_devices < num_sinks; out->num_devices++) {
+            out->devices[out->num_devices] = sinks[out->num_devices].ext.device.type;
+        }
+        if (out->device != sinks[0].ext.device.type) {
+            out->device = sinks[0].ext.device.type;
+            do_output_standby(out, true);
+            ALOGD("%s() set output(%d) device to %x, patch_handle %d", __func__, out->handle, out->device, *handle);
+        }
+        pthread_mutex_unlock(&out->lock);
+        out->patch_handle = *handle;
+    }
+
+error:
+    if (ret != 0 && generatedPatchHandle) {
+        *handle = AUDIO_PATCH_HANDLE_NONE;
+    }
+    pthread_mutex_unlock(&adev->lock);
     return 0;
 }
 
 static int adev_release_audio_patch(struct audio_hw_device *dev,
-        audio_patch_handle_t handle)
+        audio_patch_handle_t patch_handle)
 {
-    ALOGD("%s: handle: %d", __func__, handle);
-    return 0;
+    struct imx_audio_device *adev = (struct imx_audio_device *) dev;
+
+    ALOGE("%s() patch_handle: %d", __func__, patch_handle);
+    pthread_mutex_lock(&adev->lock);
+    struct imx_stream_out *out = get_stream_out_by_patch_handle_l(adev, patch_handle);
+    if (out != NULL) {
+        pthread_mutex_lock(&out->lock);
+        out->num_devices = 0;
+        memset(out->devices, 0, sizeof(out->devices));
+        out->device = 0;
+        pthread_mutex_unlock(&out->lock);
+        out->patch_handle = AUDIO_PATCH_HANDLE_NONE;
+        pthread_mutex_unlock(&adev->lock);
+        return 0;
+    }
+    struct imx_stream_in *in = get_stream_in_by_patch_handle_l(adev, patch_handle);
+    if (in != NULL) {
+        pthread_mutex_lock(&in->lock);
+        in->device = AUDIO_DEVICE_NONE;
+        pthread_mutex_unlock(&in->lock);
+        in->patch_handle = AUDIO_PATCH_HANDLE_NONE;
+        pthread_mutex_unlock(&adev->lock);
+        return 0;
+    }
+
+    pthread_mutex_unlock(&adev->lock);
+    ALOGW("%s() cannot find stream for patch handle: %d", __func__, patch_handle);
+    return -EINVAL;
 }
 
 static int adev_open_output_stream(struct audio_hw_device *dev,
@@ -3241,6 +3381,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_latency                 = out_get_latency;
     out->stream.write                       = out_write;
 
+    out->handle = handle;
+
     out->dev = ladev;
     out->standby = 1;
     out->paused = false;
@@ -3272,6 +3414,10 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     config->channel_mask = out->stream.common.get_channels(&out->stream.common);
     config->sample_rate = out->stream.common.get_sample_rate(&out->stream.common);
 
+    pthread_mutex_lock(&ladev->lock);
+    list_add_tail(&ladev->out_streams, &out->stream_node);
+    pthread_mutex_unlock(&ladev->lock);
+
     *stream_out = &out->stream;
 
     if (out->device == AUDIO_DEVICE_OUT_BUS) {
@@ -3298,7 +3444,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
                                      struct audio_stream_out *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
+    struct imx_audio_device *adev = (struct imx_audio_device *)dev;
     int i;
     ALOGW("adev_close_output_stream...%p", out);
 
@@ -3309,8 +3455,8 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     pthread_mutex_unlock(&out->dev->lock);
 
     for (i = 0; i < OUTPUT_TOTAL; i++) {
-        if (ladev->active_output[i] == out) {
-            ladev->active_output[i] = NULL;
+        if (adev->active_output[i] == out) {
+            adev->active_output[i] = NULL;
             break;
         }
     }
@@ -3319,7 +3465,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         free(out->buffer);
 
     if (out->address) {
-        hashmapRemove(ladev->out_bus_stream_map, out->address);
+        hashmapRemove(adev->out_bus_stream_map, out->address);
         free(out->address);
     }
 
@@ -3333,6 +3479,9 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         out->lpa_wakelock_acquired = false;
     }
 
+    pthread_mutex_lock(&adev->lock);
+    list_remove(&out->stream_node);
+    pthread_mutex_unlock(&adev->lock);
     free(stream);
 }
 
@@ -3841,7 +3990,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   const char* address,
                                   audio_source_t source __unused)
 {
-    struct imx_audio_device *ladev = (struct imx_audio_device *)dev;
+    struct imx_audio_device *adev = (struct imx_audio_device *)dev;
     struct imx_stream_in *in;
     int channel_count = popcount(config->channel_mask);
 
@@ -3887,18 +4036,25 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->main_channels = config->channel_mask;
 
     in->address = strdup(address);
-    in->dev = ladev;
+    in->dev = adev;
     in->standby = 1;
+
+    in->handle = handle;
+
+    pthread_mutex_lock(&adev->lock);
+    list_add_tail(&adev->in_streams, &in->stream_node);
+    pthread_mutex_unlock(&adev->lock);
 
     *stream_in = &in->stream;
 
     return 0;
 }
 
-static void adev_close_input_stream(struct audio_hw_device *dev __unused,
+static void adev_close_input_stream(struct audio_hw_device *dev,
                                    struct audio_stream_in *stream)
 {
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
+    struct imx_audio_device *adev = (struct imx_audio_device *) dev;
 
     in_standby(&stream->common);
 
@@ -3917,6 +4073,9 @@ static void adev_close_input_stream(struct audio_hw_device *dev __unused,
     if (in->address)
         free(in->address);
 
+    pthread_mutex_lock(&adev->lock);
+    list_remove(&in->stream_node);
+    pthread_mutex_unlock(&adev->lock);
     free(stream);
     return;
 }
@@ -4290,6 +4449,10 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->out_device = AUDIO_DEVICE_OUT_SPEAKER;
     adev->in_device  = AUDIO_DEVICE_IN_BUILTIN_MIC & ~AUDIO_DEVICE_BIT_IN;
     select_output_device(adev);
+
+    adev->next_patch_handle = AUDIO_PATCH_HANDLE_NONE;
+    list_init(&adev->out_streams);
+    list_init(&adev->in_streams);
 
     adev->pcm_modem_dl  = NULL;
     adev->pcm_modem_ul  = NULL;
