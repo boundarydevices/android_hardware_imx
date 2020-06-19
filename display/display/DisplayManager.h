@@ -57,6 +57,7 @@ public:
     EventListener* getCallback();
     void handleHotplugEvent();
     void handleKmsHotplug();
+    int setProperty(const char *name, const char *value);
 
 private:
     void setPrimaryDisplay(int index);

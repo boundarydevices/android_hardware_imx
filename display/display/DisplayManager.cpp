@@ -35,6 +35,9 @@ using nxp::hardware::display::V1_0::implementation::DisplayHal;
 #define HDMI_DEVTYPE_DRM "DEVTYPE=drm_minor"
 #define HDMI_HOTPLUG "HOTPLUG=1"
 
+constexpr char kPrimaryDispReady[] = "vendor.display.state";
+constexpr char DISP_STATE_READY[]  = "1";
+
 static sp<DisplayHal> mDisplayHal;
 DisplayManager* DisplayManager::sInstance(0);
 Mutex DisplayManager::sLock(Mutex::PRIVATE);
@@ -73,6 +76,8 @@ DisplayManager::DisplayManager()
     enumKmsDisplays();
     if (mDrmMode && !mDriverReady) {
         mPollFileThread = new PollFileThread(this);
+    } else if (mDriverReady) {
+        setProperty(kPrimaryDispReady, DISP_STATE_READY);
     }
 
     if (!mDrmMode) {
@@ -130,6 +135,20 @@ DisplayManager::~DisplayManager()
             delete mVirtualDisplays[i];
         }
     }
+}
+
+int DisplayManager::setProperty(const char *name, const char *value)
+{
+    int ret;
+
+    if (property_set(name, value) < 0) {
+        ret = -1;
+        ALOGE("setprop: %s = %s fail\n", name, value);
+    } else {
+        ret = 0;
+        ALOGV("setprop: %s = %s\n", name, value);
+    }
+    return ret;
 }
 
 Display* DisplayManager::getDisplay(int id)
@@ -737,6 +756,10 @@ bool DisplayManager::PollFileThread::threadLoop()
                     inotify_rm_watch(mINotifyFd,mINotifyWd);
                     close(mEpollFd);
                     close(mINotifyFd);
+
+                    DisplayManager* displayManager = DisplayManager::getInstance();
+                    displayManager->setProperty(kPrimaryDispReady, DISP_STATE_READY);
+
                     return false;
                 }
                 inotifyItemBuf += sizeof(struct inotify_event) + inotifyItem->len;
