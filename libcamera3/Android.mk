@@ -61,8 +61,8 @@ LOCAL_SRC_FILES := \
     TinyExif.cpp \
     ImageProcess.cpp \
     CameraMetadata.cpp \
-    utils/CameraConfigurationParser.cpp
-
+    utils/CameraConfigurationParser.cpp \
+    ISPCamera.cpp
 
 LOCAL_SHARED_LIBRARIES := \
     libcamera_metadata \

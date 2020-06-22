@@ -31,6 +31,7 @@
 // The sensor name ov5640 on imx8mq/imx8mm(/sys/class/video4linux/videoX/name) is mx6s-csi
 #define OV5640_SENSOR_NAME_V2 "mx6s-csi"
 #define OV5640_SENSOR_NAME_V3 "mxc-isi-cap"
+#define ISP_SENSOR_NAME "viv_v4l2_device"
 
 #define BACK_CAMERA_NAME "back"
 #define FRONT_CAMERA_NAME "front"

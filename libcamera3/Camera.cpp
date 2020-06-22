@@ -35,6 +35,7 @@
 #include "Camera.h"
 #include "CameraUtils.h"
 #include "ImxCamera.h"
+#include "ISPCamera.h"
 #include "UvcDevice.h"
 #include "VideoStream.h"
 
@@ -68,6 +69,9 @@ Camera* Camera::createCamera(int32_t id,
                           strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V2) ||
                           strstr(cam_metadata->camera_name, OV5640_SENSOR_NAME_V3))
         device = new ImxCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw, jpeg_hw,
+                                                                        cam_metadata);
+    else if (strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
+        device = new ISPCamera(id, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw, jpeg_hw,
                                                                         cam_metadata);
     else if (strstr(cam_metadata->camera_name, UVC_NAME))
         device = UvcDevice::newInstance(id, cam_metadata->camera_name, facing, cam_metadata->orientation, path, cam_copy_hw, cam_csc_hw,
