@@ -519,6 +519,7 @@ bool Display::verifyLayers()
     bool deviceCompose = true;
     bool rotationCap = mComposer.isFeatureSupported(G2D_ROTATION);
     mUiUpdate = false;
+    static int only_overlay_cnt = 0;
 
     Mutex::Autolock _l(mLock);
     mLayerVector.clear();
@@ -637,8 +638,17 @@ bool Display::verifyLayers()
     lastComposeFlag &= ~ONLY_OVERLAY_MASK;
     if ( ((mComposeFlag & CLIENT_COMPOSE_MASK) ^ CLIENT_COMPOSE_MASK) &&
         mComposeFlag & OVERLAY_COMPOSE_MASK ) {
+        if (lastComposeFlag & CLIENT_COMPOSE_MASK) {
+            only_overlay_cnt = 1; // clear target buffer at least twice
+        }
+
         if ( lastComposeFlag == mComposeFlag) {
-            mComposeFlag &= ~ONLY_OVERLAY_MASK;
+            if (only_overlay_cnt) {
+                only_overlay_cnt--;
+                mComposeFlag |= 1 << ONLY_OVERLAY_BIT;
+            } else {
+                mComposeFlag &= ~ONLY_OVERLAY_MASK;
+            }
         }
         else {
             mComposeFlag |= 1 << ONLY_OVERLAY_BIT;
