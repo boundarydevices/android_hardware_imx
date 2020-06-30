@@ -1,3 +1,19 @@
+/*
+ *  Copyright 2020 NXP.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 #define LOG_TAG "image-test"
 
 #include <android/data_space.h>
@@ -46,7 +62,7 @@ static bool getImageInfo(const char *input, uint32_t *width, uint32_t *height, u
              input);
         return false;
     }
- 
+
     result = AImageDecoder_createFromFd(fd, &decoder);
     if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
         // An error occurred, and the file could not be decoded.
@@ -58,7 +74,7 @@ static bool getImageInfo(const char *input, uint32_t *width, uint32_t *height, u
     info = AImageDecoder_getHeaderInfo(decoder);
     *width = AImageDecoderHeaderInfo_getWidth(info);
     *height = AImageDecoderHeaderInfo_getHeight(info);
-    *stride = AImageDecoder_getMinimumStride(decoder); 
+    *stride = AImageDecoder_getMinimumStride(decoder);
 
     AImageDecoder_delete(decoder);
 
@@ -67,7 +83,7 @@ static bool getImageInfo(const char *input, uint32_t *width, uint32_t *height, u
     return true;
 }
 
-static bool encoderImage(uint32_t width, uint32_t height, 
+static bool encoderImage(uint32_t width, uint32_t height,
                 uint32_t stride, AndroidBitmapFormat format,
                 char *image, const char *name)
 {
@@ -134,7 +150,7 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
              input_file);
         return false;
     }
- 
+
     result = AImageDecoder_createFromFd(fd, &decoder);
     if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
         // An error occurred, and the file could not be decoded.
@@ -149,7 +165,7 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
     AImageDecoder_setAndroidBitmapFormat(decoder, ANDROID_BITMAP_FORMAT_RGBA_8888);
     format =
            (AndroidBitmapFormat) AImageDecoderHeaderInfo_getAndroidBitmapFormat(info);
-    stride = AImageDecoder_getMinimumStride(decoder); 
+    stride = AImageDecoder_getMinimumStride(decoder);
     size = height * stride;
     pixels = malloc(size);
 
@@ -171,7 +187,7 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
     }
 
     //undistorted with none matrix calculation
-    double fx = K(0,0); 
+    double fx = K(0,0);
     double fy = K(1,1);
     double cx = K(0,2);
     double cy = K(1,2);
@@ -190,7 +206,7 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
     char* pbuf;
     if(output_buf != nullptr)
         if(outsize >= out_size)
-            pbuf = (char *)output_buf; 
+            pbuf = (char *)output_buf;
         else
             ALOGE("Not good! no enough buffer");
     else {
@@ -204,14 +220,14 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
             auto y = (v - out_cy) / fy;
             auto r = sqrt(x*x + y*y);
             double theta = atan(r);
-            
+
             double theta_4 = k4*pow(theta, 9);
             double theta_3 = k3*pow(theta, 7);
             double theta_2 = k2*pow(theta, 5);
             double theta_1 = k1*pow(theta, 3);
             double theta_d = theta + theta_1 + theta_2 + theta_3 + theta_4;
 
-            double x_distorted = x*(theta_d/r); 
+            double x_distorted = x*(theta_d/r);
             double y_distorted = y*(theta_d/r);
 
             double u_distorted = fx * x_distorted + cx;
@@ -339,7 +355,7 @@ static void getHomography(Matrix<double, 3, 3> &Kb,
     auto nextrotation_matrix = nextrotation_vector.toRotationMatrix();
     //auto bird_origin_point = nextrotation_matrix.inverse()*( - birdeyeT);
     auto betweenrotation_matrix = nextrotation_matrix * rotation_matrix.inverse();
-    Vector3d betweent = bT - betweenrotation_matrix * cT; 
+    Vector3d betweent = bT - betweenrotation_matrix * cT;
     *homography = Kb * (betweenrotation_matrix + 1/d * betweent * na.transpose()) * Kc.inverse();
 }
 
@@ -355,7 +371,7 @@ static void updateLUT(int width, int height,
         for(uint32_t bv = 0; bv < bheight; bv++) {
             for(uint32_t bu = 0; bu < bwidth; bu++) {
                 Vector3d pixel(bu, bv, 1);
-                auto &cpixel = hinverse * pixel; 
+                auto &cpixel = hinverse * pixel;
                 auto cu = (int)(cpixel[0]/cpixel[2]);
                 auto cv = (int)(cpixel[1]/cpixel[2]);
                 if(cv >= 0 && cu >=0 && cu < width && cv < height) {
@@ -394,7 +410,7 @@ static void generateBirdView(int /*width*/, int /*height*/, int stride,
         for(uint32_t bu = 0; bu < bwidth; bu++) {
             PixelMap *pMap = LUT + bv*bwidth + bu;
             if((pMap->index0 >= 0) && (pMap->index1 >= 0)) {
-                //alpha blending on overlap region 
+                //alpha blending on overlap region
                 auto undistort0 = undistorts[pMap->index0].get();
                 auto undistort1 = undistorts[pMap->index1].get();
                 unsigned int color0 = *(int *)(( char *)undistort0 + \
@@ -443,7 +459,7 @@ static void generateBirdView(int width, int height, int stride,
 {
     int *buf_mapper = nullptr;
     int bpp = 4;
-    shared_ptr<int> buf_mapper_ptr(new int[bwidth * bheight], 
+    shared_ptr<int> buf_mapper_ptr(new int[bwidth * bheight],
                 std::default_delete<int[]>());
     if(buf_mapper_ptr != nullptr) {
         buf_mapper = buf_mapper_ptr.get();
@@ -460,7 +476,7 @@ static void generateBirdView(int width, int height, int stride,
         for(uint32_t v = 0; v < height; v++) {
             for(uint32_t u = 0; u < width; u++) {
                 Vector3d undistort_v(u, v, 1);
-                auto &birdeye_v = homography * undistort_v; 
+                auto &birdeye_v = homography * undistort_v;
                 //cout << "undistorted u="<< u << ", v=" << v << endl;
                 //cout << "map to birdeye u,v,z = " << birdeye_v.transpose() << endl;
                 //cout << "map to normalized birdeye u,v= " << birdeye_v[0]/birdeye_v[2] << " " <<
@@ -763,7 +779,7 @@ static bool birdeye2DSurround(float bscaler, float bird_height,
     bool retValue;
     int bpp = 4;
     Vector3d birdeyeR(0, M_PI, 0);
-    Vector3d birdeyeT(0, 0, bird_height); 
+    Vector3d birdeyeT(0, 0, bird_height);
 
     if(evsRotations.size() != 4 ||
         evsTransforms.size() != 4 ||
@@ -795,7 +811,7 @@ static bool birdeye2DSurround(float bscaler, float bird_height,
     uint32_t bstride = bwidth * bpp;
     uint32_t birdeyesize = bheight * bstride;
     char *birdeye_outbuf = nullptr;
-    shared_ptr<char> birdeye_outbuf_ptr(new char[birdeyesize], 
+    shared_ptr<char> birdeye_outbuf_ptr(new char[birdeyesize],
                 std::default_delete<char[]>());
     if(birdeye_outbuf_ptr != nullptr) {
         birdeye_outbuf = birdeye_outbuf_ptr.get();
@@ -803,14 +819,14 @@ static bool birdeye2DSurround(float bscaler, float bird_height,
     }
 
     int *buf_mapper = nullptr;
-    shared_ptr<int> buf_mapper_ptr(new int[bwidth * bheight], 
+    shared_ptr<int> buf_mapper_ptr(new int[bwidth * bheight],
                 std::default_delete<int[]>());
     if(buf_mapper_ptr != nullptr) {
         buf_mapper = buf_mapper_ptr.get();
         memset((void *)buf_mapper, 0, bwidth * bheight * 4);
     }
 
-    shared_ptr<PixelMap> LUT_ptr(new PixelMap[bwidth * bheight], 
+    shared_ptr<PixelMap> LUT_ptr(new PixelMap[bwidth * bheight],
                 std::default_delete<PixelMap[]>());
     if(lut) {
         if(LUT_ptr != nullptr) {
@@ -818,7 +834,7 @@ static bool birdeye2DSurround(float bscaler, float bird_height,
             memset((void *)LUT, -1, sizeof(PixelMap) * bwidth * bheight);
         }
     }
-    
+
     vector<shared_ptr<char>> undistorts;
     vector<Matrix<double, 3, 3>> homographies;
     for(int index = 0; index < evsRotations.size(); index ++) {
@@ -834,12 +850,12 @@ static bool birdeye2DSurround(float bscaler, float bird_height,
         memset(input, 0, sizeof(input));
         sprintf(input, "/sdcard/%d.png", index);
 
-        shared_ptr<char> undistort_outbuf(new char[size], 
+        shared_ptr<char> undistort_outbuf(new char[size],
                 std::default_delete<char[]>());
         if(undistort_outbuf == nullptr)
             return false;
 
-        retValue = calibrationImage(scaler, K, D, input, 
+        retValue = calibrationImage(scaler, K, D, input,
                 nullptr, nullptr, undistort_outbuf.get(), size);
 
         if(!retValue) {
@@ -882,7 +898,7 @@ static bool birdeye2DSurround(float bscaler, float bird_height,
     if(encoderImage(bwidth, bheight, bstride, format,
                 birdeye_outbuf, output) == false)
         return false;
-    
+
     return true;
 }
 
@@ -964,7 +980,7 @@ static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
                  input);
             return false;
         }
- 
+
         auto result = AImageDecoder_createFromFd(fd, &decoder);
         if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
             // An error occurred, and the file could not be decoded.
@@ -1222,19 +1238,19 @@ TEST(ImxSV, RotationVector) {
         T.pretranslate(t);
         auto cT = T.matrix();
         cout << "Transform matrix = \n" << cT << endl;
-    
+ 
         Quaterniond q = Quaterniond(rotation_vector);
         cout << "quaternion from rotation vector = " << q.coeffs().transpose() << endl;
         q = Quaterniond(rotation_matrix);
         cout << "quaternion from rotation matrix = " << q.coeffs().transpose() << endl;
-        auto v_rotated = q * v; 
+        auto v_rotated = q * v;
         cout << "(1,0,0) after rotation = " << v_rotated.transpose() << endl;
         cout << "should be equal to " << (q * Quaterniond(0, 1, 0, 0) * q.inverse()).coeffs().transpose() << endl;
-        
+ 
         int index_next = index + 1;
         if(index == (evsRotations.size() - 1))
             index_next = 0;
-            
+ 
         auto &rnext = evsRotations[index_next];
         auto &tnext = evsTransforms[index_next];
         auto rnextnormal = rnext.norm();
@@ -1274,7 +1290,6 @@ TEST(ImxSV, RotationVector) {
         cout << "Camera "<< index << " dot with "<< index_next << " = "<< dot << endl;
         cout << "Camera "<< index << " angle with "<< index_next << " = "<< acos(dot/normal/rnextnormal)/M_PI << "pi" << endl;
 
-    
         auto cross = r.cross(rnext);
         cout << "Camera "<< index << " cross with "<< index_next << " = \n"<< cross << endl;
         cout << "Camera "<< index << " angle with "<< index_next << " = "<< asin(cross.norm()/normal/rnextnormal)/M_PI << "pi" << endl;

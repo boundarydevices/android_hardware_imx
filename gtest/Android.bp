@@ -15,13 +15,10 @@
 cc_test {
     name: "imx_unit_test",
     srcs: [
-        "ImageDecoderEncoder.cpp",
-        "evs-eigen.cpp",
+        "SVImageGtest.cpp",
     ],
 
     cflags: [
-        "-DGL_GLEXT_PROTOTYPES",
-        "-DEGL_EGLEXT_PROTOTYPES",
         "-Wall",
         "-Werror",
     ],
