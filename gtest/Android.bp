@@ -69,5 +69,6 @@ cc_test {
                "libbase",
                "libhidlbase",
                "liblog",
+               "libcrypto",
                ]
 }
