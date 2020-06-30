@@ -1,0 +1,50 @@
+// Copyright 2019 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+cc_defaults {
+    name: "libimxsv_defaults",
+    include_dirs: [
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp-opensource/imx/sv/corelib/include",
+    ],
+    header_libs: [
+        "libeigen",
+    ],
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libutils",
+    ],
+    export_include_dirs: ["include"],
+    cflags: [
+        "-DLOG_TAG=\"imx-sv\"",
+    ],
+}
+
+cc_library_shared {
+    name: "libimxsv",
+    defaults: ["libimxsv_defaults"],
+    static_libs: ["libimxsv_base"],
+    vendor: true,
+}
+
+cc_library_static {
+    name: "libimxsv_base",
+    defaults: ["libimxsv_defaults"],
+    vendor_available: true,
+    srcs: [
+        "src/Imx3DGrid.cpp",
+        "src/Imx2DSurroundView.cpp",
+    ],
+}
