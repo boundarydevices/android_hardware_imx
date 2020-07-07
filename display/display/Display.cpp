@@ -526,6 +526,7 @@ bool Display::verifyLayers()
 
     // get deviceCompose init value
     deviceCompose = check2DComposition();
+    bool forceHwc = forceVync();
     int lastComposeFlag = mComposeFlag;
     int lastTotalLayerNum = mTotalLayerNum;
     mTotalLayerNum = 0;
@@ -544,7 +545,7 @@ bool Display::verifyLayers()
         Memory* memory = mLayers[i]->handle;
         if (memory != nullptr && mLayers[i]->planeAlpha != 0xff && mLayers[i]->blendMode == BLENDING_PREMULT &&
             (memory->fslFormat == FORMAT_RGBA8888 || memory->fslFormat == FORMAT_BGRA8888 ||
-             memory->fslFormat == FORMAT_RGBA1010102 || memory->fslFormat == FORMAT_RGBAFP16))
+             memory->fslFormat == FORMAT_RGBA1010102 || memory->fslFormat == FORMAT_RGBAFP16) && !forceHwc)
         {
             deviceCompose = false;
             ALOGV("%s,%d,%x,%x,%x",__func__,__LINE__,memory->fslFormat,mLayers[i]->planeAlpha,mLayers[i]->blendMode);
