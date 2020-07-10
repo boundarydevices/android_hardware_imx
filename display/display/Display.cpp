@@ -51,6 +51,7 @@ Display::Display()
 {
     mConfigs.clear();
     mActiveConfig = -1;
+    mRefreshRequired = false;
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
         mLayers[i] = new Layer();
@@ -187,23 +188,38 @@ void Display::clearConfigs()
     mActiveConfig = -1;
 }
 
-int Display::setConfig(int width, int height, int* format)
+int Display::findDisplayConfig(int width, int height, int format)
+{
+    int i;
+    for (i=0; i<mConfigs.size(); i++) {
+        const DisplayConfig& cfg = mConfigs.itemAt(i);
+        // if not specify the format(0), only compare the resolution
+        // if the foramt is not 0, both format and resolution need to compare
+        if ((((format != 0) && (cfg.mFormat == format)) || (format == 0))
+            && (cfg.mXres == width) && (cfg.mYres == height))
+            break;
+    }
+
+    return i >= mConfigs.size() ? -1 : i;
+}
+
+int Display::createDisplayConfig(int width, int height, int format)
 {
     Mutex::Autolock _l(mLock);
 
-    DisplayConfig config;
-    config.mXres = width;
-    config.mYres = height;
-    if (format) {
-        config.mFormat = *format;
+    int index = findDisplayConfig(width, height, format);
+    if (index < 0) {
+        DisplayConfig config;
+        config.mXres = width;
+        config.mYres = height;
+        if (format) {
+            config.mFormat = format;
+        }
+        index = mConfigs.add(config);
     }
+    mActiveConfig = index;
 
-    mActiveConfig = mConfigs.indexOf(config);
-    if (mActiveConfig < 0) {
-        mActiveConfig = mConfigs.add(config);
-    }
-
-    return mActiveConfig;
+    return index;
 }
 
 int Display::getConfigNum()
@@ -251,6 +267,33 @@ int Display::getActiveId()
 {
     Mutex::Autolock _l(mLock);
     return mActiveConfig;
+}
+
+int Display::getFormatSize(int format)
+{
+    int bpp;
+    switch (format) {
+        case FORMAT_RGBA8888:
+        case FORMAT_RGBX8888:
+        case FORMAT_BGRA8888:
+        case FORMAT_RGBA1010102:
+            bpp = 4;
+            break;
+        case FORMAT_RGB888:
+            bpp = 3;
+            break;
+        case FORMAT_RGB565:
+            bpp = 2;
+            break;
+        case FORMAT_RGBAFP16:
+            bpp = 8;
+            break;
+        default:
+            bpp = 4;
+            break;
+    }
+
+    return bpp;
 }
 
 bool Display::checkOverlay(Layer* /*layer*/)
@@ -1036,6 +1079,77 @@ int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
     }
 
     return len;
+}
+
+int Display::getDisplayConnectionType()
+{
+    Mutex::Autolock _l(mLock);
+    return mType;
+}
+
+nsecs_t Display::getDisplayVsyncPeroid()
+{
+    Mutex::Autolock _l(mLock);
+    return mConfigs[mActiveConfig].mVsyncPeriod;
+}
+
+bool Display::isLowLatencyModeSupport()
+{
+    /* Need display to support low latency mode. If the display
+    * is connected via HDMI 2.1, then Auto Low Latency Mode should be triggered. If the display is
+    * internally connected, then a custom low latency mode should be triggered (if available).
+    */
+    Mutex::Autolock _l(mLock);
+    // TODO: Need to consider the EDID inforamtion
+    if (mType == DISPLAY_HDMI || mType == DISPLAY_HDMI_ON_BOARD)
+        return true;
+    else
+        return false;
+}
+
+int Display::setAutoLowLatencyMode(bool /*on*/)
+{
+    /* Need display to support low latency mode.
+    */
+    return 0;
+}
+
+int Display::getSupportedContentTypes(int num, uint32_t *supportedTypes)
+{
+    // HDMI spec feature, assume it support all types
+    // This list must not change after initialization.
+    int i = 0;
+    if (num >= DISP_CONTENT_TYPE_GAME && supportedTypes) {
+        supportedTypes[i++] = DISP_CONTENT_TYPE_GRAPHICS;
+        supportedTypes[i++] = DISP_CONTENT_TYPE_PHOTO;
+        supportedTypes[i++] = DISP_CONTENT_TYPE_CINEMA;
+        supportedTypes[i++] = DISP_CONTENT_TYPE_GAME;
+    }
+
+    return DISP_CONTENT_TYPE_GAME;  // assume support all types
+}
+
+int Display::setContentType(int /*contentType*/)
+{
+    /* According to the HDMI 1.4 specification, supporting all content types is optional. Whether
+     * the display supports a given content type is reported by getSupportedContentTypes.
+     */
+    return 0;
+}
+
+int Display::getConfigGroup(int config)
+{
+    Mutex::Autolock _l(mLock);
+    return mConfigs[config].cfgGroupId;
+}
+
+int Display::changeDisplayConfig(int config, nsecs_t /*desiredTimeNanos*/, bool /*seamlessRequired*/,
+                        nsecs_t* /*outAppliedTime*/, bool* /*outRefresh*/, nsecs_t* /*outRefreshTime*/)
+{
+    Mutex::Autolock _l(mLock);
+    setActiveConfig(config);
+
+    return 0;
 }
 
 // ------------------BufferSlot-----------------------------

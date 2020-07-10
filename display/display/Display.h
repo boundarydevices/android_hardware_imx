@@ -31,6 +31,7 @@ using android::Mutex;
 using android::Condition;
 using android::Thread;
 using android::sp;
+using android::Vector;
 
 #define DISPLAY_PRIMARY 0
 
@@ -78,9 +79,11 @@ class EventListener
 {
 public:
     virtual ~EventListener() {}
-    virtual void onVSync(int disp, nsecs_t timestamp) = 0;
+    virtual void onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos) = 0;
     virtual void onHotplug(int disp, bool connected) = 0;
     virtual void onRefresh(int disp) = 0;
+    virtual void onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos, bool refreshRequired, nsecs_t refreshTimeNanos) = 0;
+    virtual void onSeamlessPossible(int disp) = 0;
 };
 
 enum {
@@ -99,6 +102,14 @@ enum {
     POWER_OFF,
 };
 
+enum {
+    DISP_CONTENT_TYPE_NONE = 0,
+    DISP_CONTENT_TYPE_GRAPHICS = 1,
+    DISP_CONTENT_TYPE_PHOTO = 2,
+    DISP_CONTENT_TYPE_CINEMA = 3,
+    DISP_CONTENT_TYPE_GAME = 4,
+};
+
 struct DisplayConfig
 {
     int mXres;
@@ -110,6 +121,8 @@ struct DisplayConfig
     int mVsyncPeriod;
     int mXdpi;
     int mYdpi;
+    int cfgGroupId;
+    int modeIdx; // drmModeModeInfo index
 };
 
 typedef int (*sw_sync_timeline_create_func)(void);
@@ -189,11 +202,14 @@ public:
     virtual int updateScreen();
     // set display active config.
     virtual int setActiveConfig(int configId);
+    virtual int createDisplayConfig(int width, int height, int format);
     virtual int getPresentFence(int32_t* outPresentFence) {
         if (outPresentFence != NULL)
             *outPresentFence = -1;
         return 0;
     }
+    // get display mode format size
+    int getFormatSize(int format);
     // set display specified config parameters.
     int setConfig(int width, int height, int* format);
     // clear all display configs.
@@ -204,6 +220,8 @@ public:
     const DisplayConfig& getActiveConfig();
     // get display active config index.
     int getActiveId();
+    // find the config index of specific parameters
+    int findDisplayConfig(int width, int height, int format);
     // get display config number.
     int getConfigNum();
     // check whether display support HDR or not
@@ -221,6 +239,23 @@ public:
     bool isDeviceComposition();
     // get display identification data
     int getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data, uint32_t size);
+    // get display connection type: internal or external
+    int getDisplayConnectionType();
+    // get the VSYNC period of the display
+    nsecs_t getDisplayVsyncPeroid();
+    // check if display support low latency mode
+    bool isLowLatencyModeSupport();
+    // set display low latency mode
+    int setAutoLowLatencyMode(bool on);
+    // get display supported content types
+    int getSupportedContentTypes(int num, uint32_t *supportedTypes);
+    // set display content type
+    int setContentType(int contentType);
+    // get group id of the display configuration
+    int getConfigGroup(int config);
+    virtual int changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool seamlessRequired,
+                            nsecs_t *outAppliedTime, bool *outRefresh, nsecs_t *outRefreshTime);
+
 
 protected:
     int composeLayersLocked();
@@ -236,7 +271,8 @@ protected:
     int mType;
 
     int mActiveConfig;
-    SortedVector<DisplayConfig> mConfigs;
+    Vector<DisplayConfig> mConfigs;
+    bool mRefreshRequired;
 
     LayerVector mLayerVector;
     Layer* mLayers[MAX_LAYERS];

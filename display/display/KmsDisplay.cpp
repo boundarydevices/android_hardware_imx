@@ -98,6 +98,7 @@ KmsDisplay::KmsDisplay()
 {
     mDrmFd = -1;
     mVsyncThread = NULL;
+    mConfigThread = NULL;
     mTargetIndex = 0;
     memset(&mTargets[0], 0, sizeof(mTargets));
     mMemoryManager = MemoryManager::getInstance();
@@ -106,6 +107,8 @@ KmsDisplay::KmsDisplay()
     mKmsPlaneNum = 1;
     memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
     memset(&mMode, 0, sizeof(mMode));
+    mDrmModes.clear();;
+    mModePrefered = -1;
     mCrtcID = 0;
     mPowerMode = DRM_MODE_DPMS_OFF;
 
@@ -131,9 +134,17 @@ KmsDisplay::~KmsDisplay()
         Mutex::Autolock _l(mLock);
         vsync = mVsyncThread;
     }
-
     if (vsync != NULL) {
         vsync->requestExit();
+    }
+
+    sp<ConfigThread> cfgThread = NULL;
+    {
+        Mutex::Autolock _l(mLock);
+        cfgThread = mConfigThread;
+    }
+    if (cfgThread != NULL) {
+        cfgThread->requestExit();
     }
 
     closeKms();
@@ -283,6 +294,7 @@ void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
 {
     /* Specify the mode to use on the CRTC, and make the CRTC active. */
     if (mModeset) {
+        ALOGI("Do mode set for display %d", mIndex);
         drmModeAtomicAddProperty(pset, mCrtcID,
                              mCrtc.mode_id, modeID);
         drmModeAtomicAddProperty(pset, mCrtcID,
@@ -727,6 +739,12 @@ int KmsDisplay::updateScreen()
         return -EINVAL;
     }
 
+    sp<ConfigThread> cfgThread = mConfigThread;
+    if (cfgThread != NULL && mRefreshRequired) {
+        const nsecs_t refreshTime = systemTime(CLOCK_MONOTONIC);
+        cfgThread->notifyNewFrame(refreshTime);
+    }
+
     const DisplayConfig& config = mConfigs[mActiveConfig];
     if (buffer->fbId == 0) {
         int format = convertFormatToDrm(config.mFormat);
@@ -1008,16 +1026,6 @@ int KmsDisplay::openKms()
     getPrimaryPlane();
     getKmsProperty();
 
-    int width = mMode.hdisplay;
-    int height = mMode.vdisplay;
-    getGUIResolution(width, height);
-
-    ssize_t configId = getConfigIdLocked(width, height);
-    if (configId < 0) {
-        ALOGE("can't find config: w:%d, h:%d", width, height);
-        return -1;
-    }
-
     int format = FORMAT_RGBX8888;
     drmModePlanePtr planePtr = drmModeGetPlane(mDrmFd, mKmsPlanes[0].mPlaneID);
     for (uint32_t i = 0; i < planePtr->count_formats; i++) {
@@ -1032,27 +1040,23 @@ int KmsDisplay::openKms()
     }
     drmModeFreePlane(planePtr);
 
-    DisplayConfig& config = mConfigs.editItemAt(configId);
-    // the mmWidth and mmHeight is 0 when is not connected.
-    // set the default dpi to 160.
-    if (pConnector->mmWidth != 0) {
-        config.mXdpi = mMode.hdisplay * 25400 / pConnector->mmWidth;
-    }
-    else {
-        config.mXdpi = 160000;
-    }
-    if (pConnector->mmHeight != 0) {
-        config.mYdpi = mMode.vdisplay * 25400 / pConnector->mmHeight;
-    }
-    else {
-        config.mYdpi = 160000;
+    buildDisplayConfigs(pConnector->mmWidth, pConnector->mmHeight, format);
+
+    int width = mMode.hdisplay;
+    int height = mMode.vdisplay;
+    getGUIResolution(width, height);
+
+    int configId = createDisplayConfig(width, height, format);
+    if (configId < 0) {
+        ALOGE("can't find config: w:%d, h:%d", width, height);
+        return -1;
     }
 
-    config.mFps  = mMode.vrefresh;
-    config.mVsyncPeriod  = 1000000000 / mMode.vrefresh;
-    config.mFormat = format;
-    config.mBytespixel = 4;
-    ALOGW("xres         = %d px\n"
+
+    DisplayConfig& config = mConfigs.editItemAt(configId);
+    ALOGW("Display index= %d \n"
+          "configId     = %d \n"
+          "xres         = %d px\n"
           "yres         = %d px\n"
           "format       = %d\n"
           "xdpi         = %.2f ppi\n"
@@ -1060,6 +1064,7 @@ int KmsDisplay::openKms()
           "fps          = %.2f Hz\n"
           "mode.width   = %d px\n"
           "mode.height  = %d px\n",
+          mIndex, configId,
           config.mXres, config.mYres, format, config.mXdpi / 1000.0f,
           config.mYdpi / 1000.0f, config.mFps, mMode.hdisplay, mMode.vdisplay);
 
@@ -1070,6 +1075,8 @@ int KmsDisplay::openKms()
 
     mActiveConfig = configId;
     prepareTargetsLocked();
+    if (mConfigThread == NULL)
+        mConfigThread = new ConfigThread(this);
 
     return 0;
 }
@@ -1081,7 +1088,7 @@ int KmsDisplay::openFakeKms()
     int height = 1080;
     getFakeGUIResolution(width, height);
 
-    ssize_t configId = getConfigIdLocked(width, height);
+    ssize_t configId = createDisplayConfig(width, height, 0);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
@@ -1166,7 +1173,7 @@ static void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefer
 
 int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
 {
-    int index = 0, prefer_index = -1;
+    int i, index = 0, prefer_index = -1;
     unsigned int delta = -1, rdelta = -1;
     int width = 0, height = 0, vrefresh = 60;
     int prefermode = 0;
@@ -1181,15 +1188,15 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
         index = pConnector->count_modes;
         prefer_index = pConnector->count_modes;
         // find the best display mode.
-        for (int i=0; i<pConnector->count_modes; i++) {
+        mDrmModes.clear();
+        mModePrefered = -1;
+        for (i=0; i<pConnector->count_modes; i++) {
             drmModeModeInfo mode = pConnector->modes[i];
+            mDrmModes.add(mode);
+
             ALOGV("Display mode[%d]: w:%d, h:%d, vrefresh %d", i, mode.hdisplay, mode.vdisplay, mode.vrefresh);
             if (mode.type & DRM_MODE_TYPE_PREFERRED) {
                 prefer_index = i;
-                if (prefermode == 1) {
-                    index = i;
-                    break;
-                }
             }
 
             rdelta = abs((mMode.vdisplay - mode.vdisplay)) + \
@@ -1219,6 +1226,9 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
             }
         }
 
+        if (prefermode == 1) {
+            index = prefer_index;
+        }
         if (index >= pConnector->count_modes) {
             if (prefer_index >= pConnector->count_modes)
                 index = 0;
@@ -1228,6 +1238,7 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
 
         // display mode found in connector.
         mMode = pConnector->modes[index];
+        mModePrefered = index;
         ALOGI("Find best mode w:%d, h:%d, vrefresh:%d at mode index %d", mMode.hdisplay, mMode.vdisplay, mMode.vrefresh, index);
     }
 
@@ -1399,24 +1410,77 @@ void KmsDisplay::releaseTargetsLocked()
     mTargetIndex = 0;
 }
 
-int KmsDisplay::getConfigIdLocked(int width, int height)
+void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format)
 {
-    int index = -1;
     DisplayConfig config;
+    drmModeModeInfo mode;
+    if (format == 0)
+        format = FORMAT_RGBA8888;
+
+    mConfigs.clear();
+    for (int i=0; i<mDrmModes.size(); i++) {
+        mode = mDrmModes.itemAt(i);
+        config.mXres = mode.hdisplay;
+        config.mYres = mode.vdisplay;
+        config.mFps = mode.vrefresh;
+        config.cfgGroupId = i;
+        config.modeIdx = i;
+        // the mmWidth and mmHeight is 0 when is not connected.
+        // set the default dpi to 160.
+        if (mmWidth != 0) {
+            config.mXdpi = mode.hdisplay * 25400 / mmWidth;
+        }
+        else {
+            config.mXdpi = 160000;
+        }
+        if (mmHeight != 0) {
+            config.mYdpi = mode.vdisplay * 25400 / mmHeight;
+        }
+        else {
+            config.mYdpi = 160000;
+        }
+
+        config.mVsyncPeriod  = 1000000000 / mode.vrefresh;
+        config.mFormat = format;
+        config.mBytespixel = getFormatSize(format);
+
+        mConfigs.add(config);
+    }
+}
+
+int KmsDisplay::createDisplayConfig(int width, int height, int format)
+{
+    int index;
+    index = findDisplayConfig(width, height, format);
+    if (index < mConfigs.size())
+        return index;
+
+    DisplayConfig config;
+    if (mModePrefered >= 0)
+        config = mConfigs[mModePrefered];
+    else
+        config.modeIdx = -1;
     config.mXres = width;
     config.mYres = height;
-
-    index = mConfigs.indexOf(config);
-    if (index < 0) {
-        index = mConfigs.add(config);
-    }
+    if (format != 0)
+        config.mFormat = format;
+    index = mConfigs.add(config);
 
     return index;
 }
 
-int KmsDisplay::setActiveConfig(int configId)
+int KmsDisplay::setNewDrmMode(int index)
 {
-    Mutex::Autolock _l(mLock);
+    if ((index >= 0) && (index < mDrmModes.size())) {
+        mMode = mDrmModes[index];
+        mModeset = true;
+    }
+
+    return 0;
+}
+
+int KmsDisplay::setActiveConfigLocked(int configId)
+{
     if (mActiveConfig == configId) {
         ALOGI("the same config, no need to change");
         return 0;
@@ -1427,8 +1491,49 @@ int KmsDisplay::setActiveConfig(int configId)
         return -EINVAL;
     }
 
+    mActiveConfig = configId;
     releaseTargetsLocked();
     prepareTargetsLocked();
+
+    return 0;
+}
+int KmsDisplay::setActiveConfig(int configId)
+{
+    Mutex::Autolock _l(mLock);
+    setActiveConfigLocked(configId);
+    return 0;
+}
+
+int KmsDisplay::changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool seamlessRequired,
+                        nsecs_t *outAppliedTime, bool *outRefresh, nsecs_t *outRefreshTime)
+{
+    Mutex::Autolock _l(mLock);
+    if (seamlessRequired)
+        return -1; // change config seamlessly is not support yet
+
+    ALOGI("Display %d switch to new configuration mode id=%d, res=%dx%dp%f", mIndex, config,
+               mConfigs[config].mXres, mConfigs[config].mYres, mConfigs[config].mFps);
+
+    const nsecs_t now = systemTime(CLOCK_MONOTONIC);
+    *outAppliedTime = desiredTimeNanos + 2 * mConfigs[mActiveConfig].mVsyncPeriod;
+    *outRefresh = true;
+    *outRefreshTime = *outAppliedTime - mConfigs[mActiveConfig].mVsyncPeriod;
+
+    sp<ConfigThread> cfgThread = mConfigThread;
+    if (cfgThread != NULL) {
+        cfgThread->setDisplayConfig(config, desiredTimeNanos, *outRefreshTime);
+    } else {
+        setActiveConfigLocked(config);
+    }
+
+    mRefreshRequired = true;
+
+    return 0;
+}
+
+int KmsDisplay::stopRefreshEvent()
+{
+    mRefreshRequired = false;
 
     return 0;
 }
@@ -1460,7 +1565,21 @@ void KmsDisplay::handleVsyncEvent(nsecs_t timestamp)
         return;
     }
     triggerRefresh();
-    callback->onVSync(DISPLAY_PRIMARY, timestamp);
+    callback->onVSync(DISPLAY_PRIMARY, timestamp, mConfigs[mActiveConfig].mVsyncPeriod);
+}
+
+void KmsDisplay::handleRefreshFrameMissed(nsecs_t newAppliedTime, bool refresh, nsecs_t newRefreshTime)
+{
+    EventListener* callback = NULL;
+    {
+        Mutex::Autolock _l(mLock);
+        callback = mListener;
+    }
+
+    if (callback == NULL) {
+        return;
+    }
+    callback->onVSyncPeriodTimingChanged(mIndex, newAppliedTime, refresh, newRefreshTime);
 }
 
 int KmsDisplay::setDrm(int drmfd, size_t connectorId)
@@ -1551,7 +1670,6 @@ int KmsDisplay::readConnection()
         (pConnector->count_modes > 0) &&
         (pConnector->count_encoders > 0)) {
         mConnected = true;
-        getDisplayMode(pConnector);
     }
     else {
         mConnected = false;
@@ -1693,4 +1811,82 @@ void KmsDisplay::VSyncThread::performVSync()
     }
 }
 
+KmsDisplay::ConfigThread::ConfigThread(KmsDisplay *ctx)
+    : Thread(false), mCtx(ctx), mNewChange(false),
+      mNewConfig(-1), mDesiredTime(0)
+{
+}
+
+void KmsDisplay::ConfigThread::onFirstRef()
+{
+    run("HWC-Config-Thread", android::PRIORITY_URGENT_DISPLAY);
+}
+
+int32_t KmsDisplay::ConfigThread::readyToRun()
+{
+    return 0;
+}
+
+void KmsDisplay::ConfigThread::setDisplayConfig(int configId, nsecs_t desiredTime, nsecs_t refreshTime)
+{
+    Mutex::Autolock _l(mLock);
+    mNewChange = true;
+    mDesiredTime = desiredTime;
+    mRefreshTime = refreshTime;
+    mNewConfig = configId;
+    mCondition.signal();
+}
+
+void KmsDisplay::ConfigThread::notifyNewFrame(nsecs_t timestamp)
+{
+    Mutex::Autolock _l(mLock);
+    mCondv.notify_one();
+}
+
+// This ConfigThread is used to make sure the timing of display mode switching
+// meet the HWC2.4 requirement. The API need to make sure the new mode take
+// effect at specific time.
+bool KmsDisplay::ConfigThread::threadLoop()
+{
+    { // scope for lock
+        Mutex::Autolock _l(mLock);
+        while (!mNewChange) {
+            mCondition.wait(mLock);
+        }
+    }
+
+    const DisplayConfig config = mCtx->getConfig(mNewConfig);
+    const nsecs_t now = systemTime(CLOCK_MONOTONIC);
+    if (now < mDesiredTime) {
+        struct timespec spec;
+        spec.tv_sec  = mDesiredTime / 1000000000;
+        spec.tv_nsec = mDesiredTime % 1000000000;
+
+        int err;
+        do {
+            err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
+        } while (err<0 && errno == EINTR);
+    }
+    mCtx->setNewDrmMode(config.modeIdx);
+    mCtx->setActiveConfig(mNewConfig);
+    mNewChange = false;
+
+    nsecs_t rt = systemTime(CLOCK_MONOTONIC);
+    nsecs_t to = (rt >= mRefreshTime) ? 0 : mRefreshTime - rt;
+
+    if (to == 0) {
+        mCtx->handleRefreshFrameMissed(rt + config.mVsyncPeriod, true, rt);
+    } else {
+        std::mutex mtx;
+        std::unique_lock<std::mutex> g(mtx);
+        while (mCondv.wait_for(g, std::chrono::nanoseconds(to)) == std::cv_status::timeout) {
+            nsecs_t t = systemTime(CLOCK_MONOTONIC);
+            mCtx->handleRefreshFrameMissed(t + config.mVsyncPeriod, true, t);
+            to = config.mVsyncPeriod;// wait vsync period and check again
+        }
+    }
+
+    mCtx->stopRefreshEvent();
+    return true;
+}
 }

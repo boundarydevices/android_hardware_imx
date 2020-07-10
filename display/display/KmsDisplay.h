@@ -17,6 +17,8 @@
 #ifndef _KMS_DISPLAY_H_
 #define _KMS_DISPLAY_H_
 
+#include <chrono>
+#include <condition_variable>
 #include <drm/drm_fourcc.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -101,6 +103,9 @@ public:
     // update composite buffer to screen.
     virtual int updateScreen();
     virtual int getPresentFence(int32_t* outPresentFence);
+    // switch to new display config
+    virtual int changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool seamlessRequired,
+                        nsecs_t *outAppliedTime, bool *outRefresh, nsecs_t *outRefreshTime);
 
     // open drm device.
     int openKms();
@@ -132,7 +137,9 @@ public:
     // check whether display support HDR or not
     virtual bool isHdrSupported();
 private:
-    int getConfigIdLocked(int width, int height);
+    int setActiveConfigLocked(int configId);
+    void buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format);
+    int createDisplayConfig(int width, int height, int format);
     void prepareTargetsLocked();
     void releaseTargetsLocked();
     uint32_t convertFormatToDrm(uint32_t format);
@@ -174,6 +181,8 @@ protected:
     uint32_t mConnectorID;
 
     drmModeModeInfo mMode;
+    Vector<drmModeModeInfo> mDrmModes;
+    int mModePrefered;
     bool mModeset;
     KmsPlane mKmsPlanes[KMS_PLANE_NUM];
     uint32_t mKmsPlaneNum;
@@ -187,6 +196,9 @@ protected:
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);
+    void handleRefreshFrameMissed(nsecs_t newAppliedTime, bool refresh, nsecs_t newRefreshTime);
+    int setNewDrmMode(int index);
+    int stopRefreshEvent();
     class VSyncThread : public Thread {
     public:
         explicit VSyncThread(KmsDisplay *ctx);
@@ -211,6 +223,30 @@ protected:
     };
 
     sp<VSyncThread> mVsyncThread;
+
+    class ConfigThread : public Thread {
+    public:
+        explicit ConfigThread(KmsDisplay *ctx);
+        void setDisplayConfig(int configId, nsecs_t desiredTime, nsecs_t refreshTime);
+        void notifyNewFrame(nsecs_t timestamp);
+
+    private:
+        virtual void onFirstRef();
+        virtual int32_t readyToRun();
+        virtual bool threadLoop();
+
+        KmsDisplay *mCtx;
+        mutable Mutex mLock;
+        Condition mCondition;
+        std::condition_variable mCondv;
+        bool mNewChange;
+
+        int mNewConfig;
+        nsecs_t mDesiredTime;
+        nsecs_t mRefreshTime;
+    };
+
+    sp<ConfigThread> mConfigThread;
 };
 
 }

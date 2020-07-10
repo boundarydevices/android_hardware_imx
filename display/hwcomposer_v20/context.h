@@ -34,17 +34,26 @@ struct hwc2_context_t {
     hwc2_callback_data_t mVsyncData;
     HWC2_PFN_REFRESH mRefresh;
     hwc2_callback_data_t mRefreshData;
+    HWC2_PFN_VSYNC_2_4 mVsync_2_4;
+    hwc2_callback_data_t mVsyncData_2_4;
+    HWC2_PFN_VSYNC_PERIOD_TIMING_CHANGED mVsyncPeriodTimingChanged;
+    hwc2_callback_data_t mVsyncPeriodTimingChangedData;
+    HWC2_PFN_SEAMLESS_POSSIBLE mSeamlessPossible;
+    hwc2_callback_data_t mSeamlessPossibleData;
     bool checkHDMI;
     bool color_tranform;
+    bool useVsync_2_4;
 };
 
 class DisplayListener : public EventListener
 {
 public:
     DisplayListener(struct hwc2_context_t* ctx);
-    virtual void onVSync(int disp, nsecs_t timestamp);
+    virtual void onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos);
     virtual void onHotplug(int disp, bool connected);
     virtual void onRefresh(int disp);
+    virtual void onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos, bool refreshRequired, nsecs_t refreshTimeNanos);
+    virtual void onSeamlessPossible(int disp);
 
 private:
     hwc2_context_t* mCtx;

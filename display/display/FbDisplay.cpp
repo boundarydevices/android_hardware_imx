@@ -634,7 +634,7 @@ int FbDisplay::getConfigIdLocked(int width, int height)
     config.mXres = width;
     config.mYres = height;
 
-    index = mConfigs.indexOf(config);
+    index = findDisplayConfig(width, height, 0);
     if (index < 0) {
         index = mConfigs.add(config);
     }
@@ -774,7 +774,7 @@ void FbDisplay::handleVsyncEvent(nsecs_t timestamp)
         return;
     }
 
-    callback->onVSync(DISPLAY_PRIMARY, timestamp);
+    callback->onVSync(DISPLAY_PRIMARY, timestamp, mConfigs[mActiveConfig].mVsyncPeriod);
 }
 
 void FbDisplay::setFb(int fb)

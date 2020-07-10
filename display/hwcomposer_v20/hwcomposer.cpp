@@ -548,6 +548,18 @@ static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
             ctx->mVsync = reinterpret_cast<HWC2_PFN_VSYNC>(pointer);
             ctx->mVsyncData = callbackData;
             break;
+        case HWC2_CALLBACK_VSYNC_2_4:
+            ctx->mVsync_2_4 = reinterpret_cast<HWC2_PFN_VSYNC_2_4>(pointer);
+            ctx->mVsyncData_2_4 = callbackData;
+            break;
+        case HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED:
+            ctx->mVsyncPeriodTimingChanged = reinterpret_cast<HWC2_PFN_VSYNC_PERIOD_TIMING_CHANGED>(pointer);
+            ctx->mVsyncPeriodTimingChangedData = callbackData;
+            break;
+        case HWC2_CALLBACK_SEAMLESS_POSSIBLE:
+            ctx->mSeamlessPossible = reinterpret_cast<HWC2_PFN_SEAMLESS_POSSIBLE>(pointer);
+            ctx->mSeamlessPossibleData = callbackData;
+            break;
     }
 
     Display* pDisplay = NULL;
@@ -844,6 +856,10 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
                 *outValue = -1;
             break;
 
+        case HWC2_ATTRIBUTE_CONFIG_GROUP:
+            *outValue = config.cfgGroupId;
+            break;
+
         default:
             ALOGE("unknown display attribute %u", attribute);
             break;
@@ -986,7 +1002,7 @@ static int hwc2_create_virtual_display(hwc2_device_t* device, uint32_t width,
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    pDisplay->setConfig(width, height, format);
+    pDisplay->createDisplayConfig(width, height, *format);
     *outDisplay = pDisplay->index();
     return HWC2_ERROR_NONE;
 }
@@ -1144,6 +1160,7 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
         return HWC2_ERROR_BAD_DISPLAY;
     }
     bool isDeviceComose = pDisplay->isDeviceComposition();
+    bool isLowLatencyModeSupport = pDisplay->isLowLatencyModeSupport();
 
     //Check DisplayCapability::Doze support
     int32_t isDozeSupport = 0;
@@ -1163,7 +1180,7 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
 
 
     int numCapabilities = (isDeviceComose ? 1 : 0) + isDozeSupport
-                            + (isBrightnessSupport ? 1 : 0);
+                            + (isBrightnessSupport ? 1 : 0) + (isLowLatencyModeSupport ? 1 : 0);
 
     if (outNumCapabilities == NULL) {
         return HWC2_ERROR_BAD_PARAMETER;
@@ -1184,6 +1201,9 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
         }
         if (isBrightnessSupport) {
             outCapabilities[i++] = HWC2_DISPLAY_CAPABILITY_BRIGHTNESS;
+        }
+        if (isLowLatencyModeSupport) {
+            outCapabilities[i++] = HWC2_DISPLAY_CAPABILITY_AUTO_LOW_LATENCY_MODE;
         }
     }
     *outNumCapabilities = numCapabilities;
@@ -1404,6 +1424,235 @@ static int hwc2_set_layer_per_frame_metadata(hwc2_device_t* device, hwc2_display
     return HWC2_ERROR_NONE;
 }
 
+static int hwc2_get_display_connection_type(hwc2_device_t* device, hwc2_display_t display,
+                                            uint32_t* /*hwc2_display_connection_type_t*/ outType)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    *outType = (pDisplay->getDisplayConnectionType() == DISPLAY_LDB ? HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL
+                                                                    : HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL);
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_get_display_vsync_period(hwc2_device_t* device, hwc2_display_t display,
+                                         hwc2_vsync_period_t* outVsyncPeriod)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    *outVsyncPeriod = pDisplay->getDisplayVsyncPeroid();
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_set_active_config_with_constraints(hwc2_device_t* device, hwc2_display_t display,
+                                                   hwc2_config_t config,
+                                                   hwc_vsync_period_change_constraints_t* vsyncPeriodChangeConstraints,
+                                                   hwc_vsync_period_change_timeline_t* outTimeline)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    if (config >= pDisplay->getConfigNum())
+        return HWC2_ERROR_BAD_CONFIG;
+
+    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
+
+    nsecs_t appliedTime;
+    bool bRefresh;
+    nsecs_t refreshTime;
+    bool seamlessRequired = vsyncPeriodChangeConstraints->seamlessRequired;
+    nsecs_t desiredTime = vsyncPeriodChangeConstraints->desiredTimeNanos;
+    int group = pDisplay->getConfigGroup(config);
+    int activeCfg = pDisplay->getActiveId();
+    if (config == activeCfg) {
+        // The same display config, no need to switch.
+    } else if (pDisplay->getConfigGroup(activeCfg) == group) {
+        // If the new config shares the same config group as the current config,
+        // only the vsync period shall change.
+        if (pDisplay->changeDisplayConfig(config, desiredTime, seamlessRequired,
+                                          &appliedTime, &bRefresh, &refreshTime) != 0)
+            return HWC2_ERROR_SEAMLESS_NOT_POSSIBLE;
+        outTimeline->newVsyncAppliedTimeNanos = (int64_t)appliedTime;
+        outTimeline->refreshRequired = bRefresh ? 1 : 0;
+        outTimeline->refreshTimeNanos = (int64_t)refreshTime;
+    } else if (seamlessRequired) {
+        return HWC2_ERROR_SEAMLESS_NOT_ALLOWED;
+    } else {
+        pDisplay->changeDisplayConfig(config, desiredTime, false,
+                                      &appliedTime, &bRefresh, &refreshTime);
+        outTimeline->newVsyncAppliedTimeNanos = (int64_t)appliedTime;
+        outTimeline->refreshRequired = bRefresh ? 1 : 0;
+        outTimeline->refreshTimeNanos = (int64_t)refreshTime;
+    }
+
+    ctx->useVsync_2_4 = true;
+    return HWC2_ERROR_NONE;
+
+}
+
+static int hwc2_set_auto_low_latency_mode(hwc2_device_t* device, hwc2_display_t display, bool on)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    pDisplay->setAutoLowLatencyMode(on);
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_get_supported_content_types(hwc2_device_t* device, hwc2_display_t display,
+                                            uint32_t* outNumSupportedContentTypes, uint32_t* outSupportedContentTypes)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    if (outNumSupportedContentTypes == NULL)
+        return HWC2_ERROR_BAD_PARAMETER;
+    else if (outSupportedContentTypes == NULL)
+        *outNumSupportedContentTypes = HWC2_CONTENT_TYPE_GAME;
+    else
+        *outNumSupportedContentTypes = pDisplay->getSupportedContentTypes(HWC2_CONTENT_TYPE_GAME, outSupportedContentTypes);
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_set_content_type(hwc2_device_t* device, hwc2_display_t display,
+                                 int32_t /* hwc2_content_type_t */ contentType)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    if ((contentType != HWC2_CONTENT_TYPE_GRAPHICS) && (contentType != HWC2_CONTENT_TYPE_PHOTO)
+         && (contentType != HWC2_CONTENT_TYPE_CINEMA) && (contentType != HWC2_CONTENT_TYPE_GAME)
+         && (contentType != HWC2_CONTENT_TYPE_NONE)) {
+        return HWC2_ERROR_BAD_PARAMETER;
+    }
+
+    pDisplay->setContentType(contentType);
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_get_client_target_property(hwc2_device_t* device, hwc2_display_t display,
+                                           hwc_client_target_property_t* outClientTargetProperty)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    outClientTargetProperty->pixelFormat = HAL_PIXEL_FORMAT_RGBA_8888;
+    outClientTargetProperty->dataspace = HAL_DATASPACE_UNKNOWN;
+
+    return HWC2_ERROR_NONE;
+}
+
+static int hwc2_set_layer_generic_metadata(hwc2_device_t* device, hwc2_display_t display,
+                                           hwc2_layer_t /*layer*/, uint32_t /*keyLength*/, const char* /*key*/,
+                                           bool /*mandatory*/, uint32_t /*valueLength*/, const uint8_t* /*value*/)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    return HWC2_ERROR_UNSUPPORTED;
+}
+
+static int hwc2_get_layer_generic_metadata_key(hwc2_device_t* device, uint32_t /*keyIndex*/,
+        uint32_t* outKeyLength, char* /*outKey*/, bool* /*outMandatory*/)
+{
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    if (displayManager == NULL) {
+        ALOGE("%s invalid display manager" PRId64, __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+
+    *outKeyLength = 0;
+
+    return HWC2_ERROR_UNSUPPORTED;
+}
+
 static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
                                                 int32_t descriptor)
 {
@@ -1567,6 +1816,33 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
         case HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA:
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_layer_per_frame_metadata);
             break;
+        case HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_display_connection_type);
+            break;
+        case HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_display_vsync_period);
+            break;
+        case HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_active_config_with_constraints);
+            break;
+        case HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_auto_low_latency_mode);
+            break;
+        case HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_supported_content_types);
+            break;
+        case HWC2_FUNCTION_SET_CONTENT_TYPE:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_content_type);
+            break;
+        case HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_client_target_property);
+            break;
+        case HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_layer_generic_metadata);
+            break;
+        case HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY:
+            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_layer_generic_metadata_key);
+            break;
         default:
             func = NULL;
             break;
@@ -1626,6 +1902,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     dev->mListener = new DisplayListener(dev);
     dev->checkHDMI = true;
     dev->color_tranform = false;
+    dev->useVsync_2_4 = false;
 
     *device = &dev->device.common;
     ALOGI("%s,%d", __FUNCTION__, __LINE__);
@@ -1653,13 +1930,16 @@ DisplayListener::DisplayListener(struct hwc2_context_t* ctx)
     mCtx = ctx;
 }
 
-void DisplayListener::onVSync(int disp, nsecs_t timestamp)
+void DisplayListener::onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos)
 {
     if (mCtx == NULL || mCtx->mVsync == NULL) {
         return;
     }
 
-    mCtx->mVsync(mCtx->mVsyncData, disp, timestamp);
+    if ((mCtx->mVsync_2_4 != NULL) && mCtx->useVsync_2_4)
+        mCtx->mVsync_2_4(mCtx->mVsyncData_2_4, disp, timestamp, vsyncPeriodNanos);
+    else
+        mCtx->mVsync(mCtx->mVsyncData, disp, timestamp);
 }
 
 void DisplayListener::onHotplug(int disp, bool connected)
@@ -1682,3 +1962,22 @@ void DisplayListener::onRefresh(int disp)
     mCtx->mRefresh(mCtx->mRefreshData, disp);
 }
 
+void DisplayListener::onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos,
+                                                 bool refreshRequired, nsecs_t refreshTimeNanos)
+{
+    if (mCtx == NULL || mCtx->mVsyncPeriodTimingChanged == NULL) {
+        return;
+    }
+
+    hwc_vsync_period_change_timeline_t updated_timeline = {newVsyncAppliedTimeNanos, refreshRequired, refreshTimeNanos};
+    mCtx->mVsyncPeriodTimingChanged(mCtx->mVsyncPeriodTimingChangedData, disp, &updated_timeline);
+}
+
+void DisplayListener::onSeamlessPossible(int disp)
+{
+    if (mCtx == NULL || mCtx->mSeamlessPossible == NULL) {
+        return;
+    }
+
+    mCtx->mSeamlessPossible(mCtx->mSeamlessPossibleData, disp);
+}
