@@ -26,7 +26,7 @@ cc_library_static {
         "system/memory/libion/kernel-headers",
         "system/memory/libion",
         "system/core/include",
-        "device/fsl/common/kernel-headers",
+        "device/nxp/common/kernel-headers",
 
     ],
     vendor: true,
@@ -69,7 +69,7 @@ cc_library_shared {
         "frameworks/native/libs/arect/include",
         "frameworks/native/libs/ui/include_private",
         "hardware/libhardware_legacy/include",
-        "device/fsl/common/kernel-headers",
+        "device/nxp/common/kernel-headers",
     ],
     shared_libs: [
         "liblog",
