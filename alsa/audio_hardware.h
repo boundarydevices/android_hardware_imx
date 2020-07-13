@@ -52,16 +52,6 @@ enum tty_modes {
     TTY_MODE_FULL
 };
 
-enum output_type {
-    OUTPUT_DEEP_BUF,      // deep PCM buffers output stream
-    OUTPUT_PRIMARY,   // low latency output stream
-    OUTPUT_HDMI,
-    OUTPUT_ESAI,
-    OUTPUT_OFFLOAD,
-    OUTPUT_MIXER,
-    OUTPUT_TOTAL
-};
-
 #define MAX_AUDIO_CARD_NUM  10
 #define MAX_SUP_CHANNEL_NUM  20
 #define MAX_SUP_RATE_NUM     20
@@ -74,12 +64,10 @@ struct imx_audio_device {
     int in_device;
     int in_card_idx; /* the index for array card_list and mixer */
     int out_device;
-    struct pcm *pcm_modem_dl;
-    struct pcm *pcm_modem_ul;
     int in_call;
     float voice_volume;
     struct imx_stream_in  *active_input;                /*1 input stream, 2 outout stream*/
-    struct imx_stream_out *active_output[OUTPUT_TOTAL];
+    struct imx_stream_out *primary_output;
     bool mic_mute;
     int tty_mode;
     struct echo_reference_itfe *echo_reference;
