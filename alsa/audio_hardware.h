@@ -71,16 +71,11 @@ struct imx_audio_device {
     bool mic_mute;
     int tty_mode;
     struct echo_reference_itfe *echo_reference;
-    bool bluetooth_nrec;
     bool support_multichannel;
     bool support_lpa;
-    int  wb_amr;
     struct audio_card *card_list[MAX_AUDIO_CARD_NUM];
     struct mixer *mixer[MAX_AUDIO_CARD_NUM];
     int audio_card_num;
-    unsigned int default_rate;               /*HAL input samplerate*/
-    unsigned int mm_rate;                    /*HAL hardware output samplerate*/
-    char usb_card_name[128];
     struct pcm *pcm_sco_rx;
     struct pcm *pcm_sco_tx;
     pthread_t tid_sco_rx;

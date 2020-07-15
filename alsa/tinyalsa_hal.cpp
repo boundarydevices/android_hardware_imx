@@ -616,7 +616,7 @@ static int start_output_stream(struct imx_stream_out *out)
     if (out->format == AUDIO_FORMAT_DSD)
         flags |= PCM_FLAG_DSD;
     if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
-        (out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL == 0))
+        ((out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL) == 0))
         flags |= PCM_MMAP;
 
     if (out->device == AUDIO_DEVICE_OUT_BUS)
@@ -634,6 +634,7 @@ static int start_output_stream(struct imx_stream_out *out)
         return -EINVAL;
     }
     out->pcm = pcm_open(card, port, flags, config);
+    out->write_flags = flags;
 
     success = true;
 
@@ -796,7 +797,7 @@ static int get_playback_delay(struct imx_stream_out *out,
          * Add the duration of current frame as we want the render time of the last
          * sample being written. */
         buffer->delay_ns = (long)(((int64_t)(kernel_frames + frames)* 1000000000)/
-                adev->mm_rate);
+                out->sample_rate);
 
         return 0;
     }
@@ -1303,23 +1304,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     }
     pthread_mutex_unlock(&adev->lock);
 
-    /* only use resampler if required */
-    if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
-        out->pcm && out->resampler && (out->config.rate != adev->default_rate)) {
-        out_frames = out->buffer_frames;
-
-        out->resampler->resample_from_input(out->resampler,
-                (int16_t *)buffer,
-                &in_frames,
-                (int16_t *)out->buffer,
-                &out_frames);
-
-        if(out->config.channels == 1) {
-            bytes = out_frames * frame_size / 2;
-            convert_record_data(out->buffer, (void *)buffer, out_frames, false, false, false, true);
-        }
-    }
-
     // bt-sco card only supports mono channel, but mixer can not support mono channel
     // so we set it as stereo channel in audio policy, then convert it to mono channel in HAL
     if ((out->device == AUDIO_DEVICE_OUT_BLUETOOTH_SCO_HEADSET) ||
@@ -1356,7 +1340,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     if (out->pcm) {
         if (((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) || (out->flags == AUDIO_OUTPUT_FLAG_NONE)) &&
-                (out->config.rate != adev->default_rate)) {
+                (out->config.rate != DEFAULT_OUTPUT_SAMPLE_RATE)) {
             /* PCM resampled or channel converted.
                For bt-sai HSP case, stereo buffer converted to mono out->buffer */
             ret = pcm_write_wrapper(out->pcm, (void *)out->buffer, out_frames * frame_size, out->write_flags);
@@ -1464,10 +1448,10 @@ static int out_get_render_position(const struct audio_stream_out *stream,
         unsigned int avail;
         size_t kernel_buffer_size = out->config.period_size * out->config.period_count;
         // this is the number of frames which the dsp actually presented at least
-        signed_frames = out->written - kernel_buffer_size * adev->default_rate / out->config.rate;
+        signed_frames = out->written - kernel_buffer_size;
         if (pcm_get_htimestamp(out->pcm, &avail, &timestamp) == 0) {
             // compensate for driver's frames consumed
-            signed_frames += avail * adev->default_rate / out->config.rate;
+            signed_frames += avail;
         }
     }
    if (signed_frames >= 0)
@@ -1503,13 +1487,12 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
         unsigned int avail;
         if (pcm_get_htimestamp(out->pcm, &avail, timestamp) == 0) {
             size_t kernel_buffer_size = out->config.period_size * out->config.period_count;
-            /*Actually we have no case for adev->default_rate != out->config.rate */
             int64_t signed_frames;
             if (out->format == AUDIO_FORMAT_DSD)
                 // In AudioFlinger, frame_size is 1/4 byte(2 channel && 1 bit), here it is 8 byte(2 channel && 32 bit)
                 signed_frames = (out->written - kernel_buffer_size + avail) * DSD_RATE_TO_PCM_RATE;
             else
-                signed_frames = out->written - (kernel_buffer_size - avail) * adev->default_rate / out->config.rate;
+                signed_frames = out->written - (kernel_buffer_size - avail);
             ALOGV("%s: avail: %u kernel_buffer_size: %zu written: %zu signed_frames: %ld", __func__, avail, kernel_buffer_size, out->written, (long)signed_frames);
 
             if (signed_frames >= 0) {
@@ -3166,7 +3149,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->flags = flags;
     out->device = devices;
     out->address = strdup(address);
-    out->sup_rates[0] = ladev->mm_rate;
+    out->sup_rates[0] = DEFAULT_OUTPUT_SAMPLE_RATE;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
     out->sample_rate = config->sample_rate;
     out->channel_mask = config->channel_mask;
@@ -3197,7 +3180,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         ret = out_read_hdmi_rates(ladev, out);
 
         if (config->sample_rate == 0) {
-            config->sample_rate = ladev->mm_rate;
+            config->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
             out->sample_rate = config->sample_rate;
         }
         if (config->channel_mask == 0)
@@ -3234,7 +3217,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
         ALOGD("%s: LPA esai direct output stream, hold_second: %d, period_ms: %d", __func__, lpa_hold_second, lpa_period_ms);
         if (config->sample_rate == 0) {
-            config->sample_rate = ladev->mm_rate;
+            config->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
             out->sample_rate = config->sample_rate;
         }
         if (config->channel_mask == 0)
@@ -3791,14 +3774,6 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         pthread_mutex_unlock(&adev->lock);
     }
 
-    ret = str_parms_get_str(parms, AUDIO_PARAMETER_KEY_BT_NREC, value, sizeof(value));
-    if (ret >= 0) {
-        if (strcmp(value, AUDIO_PARAMETER_VALUE_ON) == 0)
-            adev->bluetooth_nrec = true;
-        else
-            adev->bluetooth_nrec = false;
-    }
-
     ret = str_parms_get_str(parms, "hfp_set_sampling_rate", value, sizeof(value));
     if (ret >= 0) {
         int rate = atoi(value);
@@ -4214,28 +4189,34 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                      return -EINVAL;
                 }
 
-                if(queryOutput) {
-                    rate = 44100;
-                    if( pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
-                            adev->card_list[n]->out_rate = rate;
+                if (queryOutput) {
+                    rate = DEFAULT_OUTPUT_SAMPLE_RATE;
+                    if (pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
+                        adev->card_list[n]->out_rate = rate;
 
-                    if(adev->card_list[n]->out_rate > adev->mm_rate)
-                        adev->mm_rate = adev->card_list[n]->out_rate;
+                    channels = DEFAULT_OUTPUT_CHANNEL_COUNT;
+                    if (pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                        adev->card_list[n]->out_channels = channels;
 
-                    channels = 2;
-                    if( pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
-                            adev->card_list[n]->out_channels = channels;
-                    ALOGW("out rate %d, channels %d",adev->card_list[n]->out_rate, adev->card_list[n]->out_channels);
+                    format = PCM_FORMAT_S16_LE;
+                    if (pcm_check_param_mask(i, 0, PCM_OUT, PCM_HW_PARAM_FORMAT, format)) {
+                        adev->card_list[n]->out_format = format;
+                    }
+
+                    ALOGW("Supported output rate %d, channels %d, format %d",
+                            adev->card_list[n]->out_rate,
+                            adev->card_list[n]->out_channels,
+                            adev->card_list[n]->out_format);
                 }
 
                 if(queryInput) {
-                    rate = 44100;
-                    if( pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
-                            adev->card_list[n]->in_rate = rate;
+                    rate = DEFAULT_INPUT_SAMPLE_RATE;
+                    if (pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
+                        adev->card_list[n]->in_rate = rate;
 
-                    channels = 1;
-                    if( pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
-                            adev->card_list[n]->in_channels = channels;
+                    channels = DEFAULT_INPUT_CHANNEL_COUNT;
+                    if (pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
+                        adev->card_list[n]->in_channels = channels;
 
                     format = PCM_FORMAT_S16_LE;
                     if (pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
@@ -4255,7 +4236,10 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                         }
                     }
 
-                    ALOGW("in rate %d, channels %d format %d",adev->card_list[n]->in_rate, adev->card_list[n]->in_channels, adev->card_list[n]->in_format);
+                    ALOGW("Supported input rate %d, channels %d, format %d",
+                            adev->card_list[n]->in_rate,
+                            adev->card_list[n]->in_channels,
+                            adev->card_list[n]->in_format);
                 }
 
                 left_out_devices &= ~audio_card_list[j]->supported_out_devices;
@@ -4349,7 +4333,6 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.create_audio_patch      = adev_create_audio_patch;
     adev->hw_device.release_audio_patch     = adev_release_audio_patch;
     adev->hw_device.dump                    = adev_dump;
-    adev->mm_rate                           = 48000;
     adev->support_multichannel              = false;
     adev->support_lpa                       = false;
     adev->primary_output                    = NULL;
@@ -4361,12 +4344,6 @@ static int adev_open(const hw_module_t* module, const char* name,
         free(adev);
         return ret;
     }
-
-    adev->default_rate                      = adev->mm_rate;
-    pcm_config_mm_out.rate                  = adev->mm_rate;
-    pcm_config_mm_in.rate                   = adev->mm_rate;
-    pcm_config_hdmi_multi.rate              = adev->mm_rate;
-    pcm_config_esai_multi.rate              = adev->mm_rate;
 
     /* Set the default route before the PCM stream is opened */
     pthread_mutex_lock(&adev->lock);
@@ -4383,8 +4360,6 @@ static int adev_open(const hw_module_t* module, const char* name,
 
     adev->voice_volume  = 1.0f;
     adev->tty_mode      = TTY_MODE_OFF;
-    adev->bluetooth_nrec = true;
-    adev->wb_amr = 0;
     pthread_mutex_unlock(&adev->lock);
 
     *device = &adev->hw_device.common;
