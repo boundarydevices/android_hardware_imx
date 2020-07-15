@@ -16,7 +16,7 @@
 cc_library_static {
     name: "android.hardware.automotive.vehicle@2.0-imx-impl-lib",
     vendor: true,
-    defaults: ["vhal_v2_0_defaults"],
+    defaults: ["vhal_v2_0_target_defaults"],
     srcs: [
         "impl/vhal_v2_0/CommConn.cpp",
         "impl/vhal_v2_0/EmulatedVehicleConnector.cpp",
