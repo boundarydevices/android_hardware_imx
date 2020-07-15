@@ -16,116 +16,22 @@
 
 #define LOG_TAG "image-test"
 
-#include <android/data_space.h>
-#include <android/bitmap.h>
-#include <android/imagedecoder.h>
 #include <math.h>
 #include <cutils/log.h>
 #include <gtest/gtest.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <Imx2DSurroundView.hpp>
+#include "ImageUtils.h"
 
 using namespace std;
 using namespace Eigen;
 using namespace imx;
 
-struct PixelMap{
-    int index0;
-    int index1;
-    unsigned int u0;
-    unsigned int v0;
-    float fov0;
-    float alpha0;
-    unsigned int u1;
-    unsigned int v1;
-    float fov1;
-    float alpha1;
-};
-
-static bool getImageInfo(const char *input, uint32_t *width,
-                    uint32_t *height, uint32_t *stride);
 static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<double, 1, 4> &D,
                     const char *input_file, const char *output_file, const char *dotfile,
                     void *output_buf = nullptr, size_t outsize = 0);
 static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts);
-
-static bool getImageInfo(const char *input, uint32_t *width, uint32_t *height, uint32_t *stride) {
-    int fd = -1;
-    int result = -1;
-    AImageDecoder* decoder;
-    const AImageDecoderHeaderInfo* info;
-
-    fd = open(input, O_RDWR, O_RDONLY);
-    if (fd < 0) {
-        ALOGE("Unable to open file [%s]",
-             input);
-        return false;
-    }
-
-    result = AImageDecoder_createFromFd(fd, &decoder);
-    if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
-        // An error occurred, and the file could not be decoded.
-        ALOGE("Not a valid image file [%s]",
-             input);
-        close(fd);
-        return false;
-    }
-    info = AImageDecoder_getHeaderInfo(decoder);
-    *width = AImageDecoderHeaderInfo_getWidth(info);
-    *height = AImageDecoderHeaderInfo_getHeight(info);
-    *stride = AImageDecoder_getMinimumStride(decoder);
-
-    AImageDecoder_delete(decoder);
-
-    if(fd >=0)
-        close(fd);
-    return true;
-}
-
-static bool encoderImage(uint32_t width, uint32_t height,
-                uint32_t stride, AndroidBitmapFormat format,
-                char *image, const char *name)
-{
-    //Encoder the flat_output
-    AndroidBitmapInfo bpinfo = {
-         .flags = 0,
-         .format = format,
-         .height = height,
-         .width = width,
-         .stride = stride,
-    };
-
-     int outfd = open(name, O_CREAT | O_RDWR, 0666);
-     if (outfd < 0) {
-         ALOGE("Unable to open out file [%s]",
-                 name);
-         return false;
-     }
-
-     auto fn = [](void *userContext, const void *data, size_t size) -> bool {
-        if((userContext == nullptr) || (data == nullptr) || (size == 0)) {
-            ALOGE("Error on encoder!");
-            return false;
-        }
-        int fd = *(int *)userContext;
-        int len = 0;
-        len = write(fd, data, size);
-        return true;
-     };
-
-     int result = -1;
-     result = AndroidBitmap_compress(&bpinfo, ADATASPACE_SCRGB_LINEAR,
-                image, ANDROID_BITMAP_COMPRESS_FORMAT_JPEG,
-                100, &outfd, fn);
-     if (result != ANDROID_BITMAP_RESULT_SUCCESS ) {
-         ALOGE("Error on encoder return %d!", result);
-         return false;
-     }
-     if(outfd >=0)
-         close(outfd);
-     return true;
-}
 
 static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<double, 1, 4> &D,
                     const char *input_file, const char *output_file, const char *dotfile,
@@ -964,38 +870,18 @@ static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d
     Ds.push_back(D3);
 }
 
+
+
 static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
     uint32_t width = 0, height=0, stride=0;
     for(int index = 0; index < 4; index ++) {
-        AImageDecoder* decoder;
-        AndroidBitmapFormat format;
-        const AImageDecoderHeaderInfo* info;
 
         char input[128];
         memset(input, 0, sizeof(input));
         sprintf(input, "/sdcard/%d.png", index);
-        auto fd = open(input, O_RDWR, O_RDONLY);
-        if (fd < 0) {
-            ALOGE("Unable to open file [%s]",
-                 input);
-            return false;
-        }
 
-        auto result = AImageDecoder_createFromFd(fd, &decoder);
-        if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
-            // An error occurred, and the file could not be decoded.
-            ALOGE("Not a valid image file [%s]",
-                 input);
-            close(fd);
-            return false;
-        }
-        info = AImageDecoder_getHeaderInfo(decoder);
-        width = AImageDecoderHeaderInfo_getWidth(info);
-        height = AImageDecoderHeaderInfo_getHeight(info);
-        AImageDecoder_setAndroidBitmapFormat(decoder, ANDROID_BITMAP_FORMAT_RGBA_8888);
-        format =
-               (AndroidBitmapFormat) AImageDecoderHeaderInfo_getAndroidBitmapFormat(info);
-        stride = AImageDecoder_getMinimumStride(decoder);
+        AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+        getImageInfo(input, &width, &height, &stride);
         auto size = height * stride;
         shared_ptr<char> pixels_outbuf(new char[size],
                 std::default_delete<char[]>());
@@ -1003,20 +889,9 @@ static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
             return false;
         auto pixels = pixels_outbuf.get();
         ALOGI("Image: %d x %d, stride %u, format %d", width, height, stride, format);
-
-        result = AImageDecoder_decodeImage(decoder, pixels, stride, size);
-        if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
-            // An error occurred, and the file could not be decoded.
-            ALOGE("file to decode the image [%s]",
-                 input);
-            AImageDecoder_delete(decoder);
-            close(fd);
-            return false;
-        }
+        decodeImage(pixels, size, input);
 
         distorts.push_back(pixels_outbuf);
-        if(fd >=0)
-            close(fd);
     }
     return true;
 }

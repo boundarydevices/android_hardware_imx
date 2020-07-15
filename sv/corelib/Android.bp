@@ -17,6 +17,7 @@ cc_defaults {
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
         "vendor/nxp-opensource/imx/sv/corelib/include",
+        "frameworks/native/opengl/include"
     ],
     header_libs: [
         "libeigen",
@@ -25,10 +26,15 @@ cc_defaults {
         "liblog",
         "libcutils",
         "libutils",
+        "libGLESv2",
+        "libEGL",
     ],
     export_include_dirs: ["include"],
     cflags: [
         "-DLOG_TAG=\"imx-sv\"",
+        "-DGL_GLEXT_PROTOTYPES",
+        "-DEGL_EGLEXT_PROTOTYPES",
+        "-O0",
     ],
 }
 
@@ -46,5 +52,7 @@ cc_library_static {
     srcs: [
         "src/Imx3DGrid.cpp",
         "src/Imx2DSurroundView.cpp",
+        "src/Imx3DView.cpp",
+        "src/gl_shaders.cpp",
     ],
 }

@@ -83,19 +83,6 @@ class Imx2DSV {
             uint32_t bpp);
 
     private:
-    struct PixelMap{
-        int index0;
-        int index1;
-        unsigned int u0;
-        unsigned int v0;
-        float fov0;
-        float alpha0;
-        unsigned int u1;
-        unsigned int v1;
-        float fov1;
-        float alpha1;
-    };
-
     bool updateLUT();
 
     ImxSV2DParams m2DParams;

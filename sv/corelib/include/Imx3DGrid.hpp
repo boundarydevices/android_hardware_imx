@@ -34,10 +34,14 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <vector>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <cutils/log.h>
 
 #include "ImxSurroundViewTypes.hpp"
 
 using namespace std;
+using namespace Eigen;
 
 namespace imx {
 /*******************************************************************************************
@@ -57,9 +61,9 @@ struct GridParam {		/* Parameters of grid */
 /* CurvilinearGrid class - the grid is denser at the middle of bowl bottom and more sparse at the bowl bottom edge. */
 class CurvilinearGrid {
 public:
-	void setAngles(uint val) {parameters.angles = val; }
-	void setNopZ(uint val) {parameters.nop_z = val; }
-	void setStepX(double val) {parameters.step_x = val; }
+	void setAngles(uint val) {mParameters.angles = val; }
+	void setNopZ(uint val) {mParameters.nop_z = val; }
+	void setStepX(double val) {mParameters.step_x = val; }
 	
 	
 		/**************************************************************************************************************
@@ -78,7 +82,10 @@ public:
 		 * @remarks 		The function sets main property of new CurvilinearGrid object.
 		 *
 		 **************************************************************************************************************/
-		CurvilinearGrid(uint angles, uint nop_z, double step_x);
+		CurvilinearGrid(uint angles, uint nop_z, double step_x,
+	            uint32_t width, uint32_t height,
+	            vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
+	            vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds);
 
 		/**************************************************************************************************************
 		 *
@@ -93,12 +100,29 @@ public:
 		 * @remarks 		The function defines 3D grid, generates triangles from it and saves the triangles into file.
 		 *
 		 **************************************************************************************************************/
-		void createGrid(double radius);
+		bool createGrid(float radius);
+
+	    int getMashes(float** points, int camara);
+	    int getGrids(float** points);
 
 private:
-		int NoP;				// Number of grid points for one grid sector (angle)
-		vector<Size3dFloat> p3d;	// 3D grid points (template points)
-		GridParam parameters;	// Parameters of grid
+	    bool valid3DPoint(uint32_t index);
+
+		int mNoP;				// Number of grid points for one grid sector (angle)
+	    int mMinNoP;            // Number of grid points for valid camra mapping
+		vector<Vector3d> mGlobalP3d;	    // All 3D grid points (template points)
+		//vector<Vector3d> mCurrentP3d;	// Mapped to current camera 3D grid points (template points)
+		//vector<Vector2d> mP2d;	// 2D grid points (template points)
+		GridParam mParameters;	// Parameters of grid
+	    float mRadius;
+	    uint32_t mWidth;
+	    uint32_t mHeight;
+
+	    vector<Vector3d> mEvsRotations;
+	    vector<Vector3d> mEvsTransforms;
+	    vector<Matrix<double, 3, 3>> mKs;
+	    vector<Matrix<double, 1, 4>> mDs;
+	    shared_ptr<PixelMap> mLookupPtr;
 };
 
 } //namespace imx

@@ -16,11 +16,16 @@ cc_test {
     name: "imx_unit_test",
     srcs: [
         "SVImageGtest.cpp",
+        "ImageUtils.cpp",
+        "SV3DGtest.cpp",
     ],
 
     cflags: [
         "-Wall",
         "-Werror",
+        "-O0",
+        "-DGL_GLEXT_PROTOTYPES",
+        "-DEGL_EGLEXT_PROTOTYPES",
     ],
 
     header_libs: [
@@ -37,7 +42,7 @@ cc_test {
         "libmediandk",
         "libcutils",
         "libEGL",
-        "libGLESv1_CM",
+        "libGLESv2",
         "libui",
         "libgui",
         "libutils",

@@ -16,7 +16,21 @@
 #ifndef IMX_SURROUNDVIEW_TYPES_HPP_
 #define IMX_SURROUNDVIEW_TYPES_HPP_
 
+using namespace std;
 namespace imx {
+
+struct PixelMap{
+        int index0;
+        int index1;
+        unsigned int u0;
+        unsigned int v0;
+        float fov0;
+        float alpha0;
+        unsigned int u1;
+        unsigned int v1;
+        float fov1;
+        float alpha1;
+};
 
 // base size 2d type template.
 template <typename T>
@@ -80,6 +94,7 @@ typedef Size3dBase<int> Size3dInteger;
 
 // float type size.
 typedef Size3dBase<float> Size3dFloat;
+
 } //namespace imx
 #endif
 
