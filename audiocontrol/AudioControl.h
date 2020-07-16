@@ -27,6 +27,13 @@ public:
     Return<void> setBalanceTowardRight(float value) override;
     Return<void> setFadeTowardFront(float value) override;
 
+    // Dump apis
+    Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+    void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+    void cmdHelp(int fd);
+    void cmdList(int fd, const hidl_vec<hidl_string>& options);
+    void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
+
     // Implementation details
     AudioControl();
 };

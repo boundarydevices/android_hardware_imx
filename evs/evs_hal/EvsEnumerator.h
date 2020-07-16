@@ -21,6 +21,7 @@
 #include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
 #include <android/hardware/automotive/evs/1.1/IEvsCamera.h>
 #include <android/frameworks/automotive/display/1.0/IAutomotiveDisplayProxyService.h>
+#include <android-base/unique_fd.h>
 #include <utils/threads.h>
 
 #include <list>
@@ -74,6 +75,14 @@ public:
     Return<void> closeUltrasonicsArray(
               const ::android::sp<IEvsUltrasonicsArray>& evsUltrasonicsArray) override; 
     Return<void> getUltrasonicsArrayList(getUltrasonicsArrayList_cb _hidl_cb) override;
+
+    // Dump apis
+    Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+    void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+    void cmdHelp(int fd);
+    void cmdList(int fd, const hidl_vec<hidl_string>& options);
+    void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
+
     // Implementation details
     EvsEnumerator(sp<IAutomotiveDisplayProxyService> proxyService = nullptr);
 

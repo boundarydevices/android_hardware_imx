@@ -29,6 +29,8 @@ namespace implementation {
 
 using ::nxp::hardware::display::V1_0::Error;
 using ::android::hardware::hidl_handle;
+using ::android::hardware::hidl_string;
+using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
 using ::android::sp;
@@ -44,6 +46,12 @@ public:
     Return<void> getSlot(uint32_t layer, getSlot_cb _hidl_cb) override;
     Return<Error> presentLayer(uint32_t layer, uint32_t slot, const hidl_handle& buffer) override;
 
+    // Dump apis
+    Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+    void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+    void cmdHelp(int fd);
+    void cmdList(int fd, const hidl_vec<hidl_string>& options);
+    void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
 private:
     std::mutex mLock;
     fsl::Layer* mLayers[MAX_LAYERS] = {};

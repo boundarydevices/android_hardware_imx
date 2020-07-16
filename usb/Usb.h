@@ -82,6 +82,13 @@ struct Usb : public IUsb {
     // Variable to signal partner coming back online after type switch
     bool mPartnerUp;
 
+    // Dump apis
+    Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+    void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+    void cmdHelp(int fd);
+    void cmdList(int fd, const hidl_vec<hidl_string>& options);
+    void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
+
     private:
         pthread_t mPoll;
 };

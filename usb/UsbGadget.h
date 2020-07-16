@@ -88,6 +88,13 @@ struct UsbGadget : public IUsbGadget {
 
   Return<Status> reset() override;
 
+  // Dump apis
+  Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+  void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+  void cmdHelp(int fd);
+  void cmdList(int fd, const hidl_vec<hidl_string>& options);
+  void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
+
   private:
   Status tearDownGadget();
   Status setupFunctions(uint64_t functions, const sp<V1_0::IUsbGadgetCallback> &callback,

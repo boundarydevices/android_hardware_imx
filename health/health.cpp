@@ -21,10 +21,14 @@
 #include <android-base/file.h>
 #include <android-base/logging.h>
 #include <android-base/strings.h>
+#include <android-base/stringprintf.h>
 #include <cutils/properties.h>
 #include <health/utils.h>
 #include <health2impl/Health.h>
 
+using ::android::base::EqualsIgnoreCase;
+using ::android::base::StringPrintf;
+using ::android::base::WriteStringToFd;
 using ::android::sp;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
@@ -89,6 +93,11 @@ class HealthImpl : public Health {
     Return<void> getChargeStatus(getChargeStatus_cb _hidl_cb) override;
     Return<void> shouldKeepScreenOn(Health::shouldKeepScreenOn_cb _hidl_cb) override;
     Return<void> getDiskStats(Health::getDiskStats_cb _hidl_cb) override;
+    Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+    void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+    void cmdHelp(int fd);
+    void cmdList(int fd, const hidl_vec<hidl_string>& options);
+    void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
  protected:
   void UpdateHealthInfo(HealthInfo* health_info) override;
 };
@@ -146,6 +155,111 @@ Return<void> HealthImpl::getDiskStats(getDiskStats_cb _hidl_cb) {
       _hidl_cb(Result::SUCCESS, stats_vec);
   }
   return Void();
+}
+
+Return<void> HealthImpl::debug(const hidl_handle& fd , const hidl_vec<hidl_string>& options) {
+    if (fd.getNativeHandle() != nullptr && fd->numFds > 0) {
+        cmdDump(fd->data[0], options);
+    } else {
+        LOG(ERROR) << "Given file descriptor is not valid.";
+    }
+
+    return {};
+}
+
+void HealthImpl::cmdDump(int fd, const hidl_vec<hidl_string>& options) {
+    if (options.size() == 0) {
+        WriteStringToFd("No option is given.\n", fd);
+        cmdHelp(fd);
+        return;
+    }
+
+    const std::string option = options[0];
+    if (EqualsIgnoreCase(option, "--help")) {
+        cmdHelp(fd);
+    } else if (EqualsIgnoreCase(option, "--list")) {
+        cmdList(fd, options);
+    } else if (EqualsIgnoreCase(option, "--dump")) {
+        cmdDumpDevice(fd, options);
+    } else {
+        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()),fd);
+        cmdHelp(fd);
+    }
+}
+
+void HealthImpl::cmdHelp(int fd) {
+    WriteStringToFd("--help: shows this help.\n"
+                    "--list: [HealthInfo|DiskStats|all]: lists all the dump options: HealthInfo or DiskStats or all\n"
+                    "available to Health Hal.\n"
+                    "--dump HealthInfo: shows current status of the HealthInfo\n"
+                    "--dump DiskStats: shows current status of the DiskStats\n", fd);
+    return;
+}
+
+void HealthImpl::cmdList(int fd, const hidl_vec<hidl_string>& options) {
+    bool listHealthInfo = false;
+    bool listDiskStats = false;
+    if (options.size() > 1) {
+        const std::string option = options[1];
+        const bool listAll = EqualsIgnoreCase(option, "all");
+        listHealthInfo = listAll || EqualsIgnoreCase(option, "HealthInfo");
+        listDiskStats = listAll || EqualsIgnoreCase(option, "DiskStats");
+        if (!listHealthInfo && !listDiskStats) {
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            cmdHelp(fd);
+            return;
+        }
+        if(listHealthInfo) {
+            WriteStringToFd(StringPrintf("list listHealthInfo dump options, default is --list listHealthInfo.\n"),fd);
+        }
+        if(listDiskStats) {
+            WriteStringToFd(StringPrintf("list listDiskStats dump options, default is --list listDiskStats.\n"),fd);
+        }
+    } else {
+        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"),fd);
+        cmdHelp(fd);
+    }
+}
+
+void HealthImpl::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
+    bool listHealthInfo = false;
+    bool listDiskStats = false;
+    if (options.size() > 1) {
+        const std::string option = options[1];
+        const bool listAll = EqualsIgnoreCase(option, "all");
+        listHealthInfo = listAll || EqualsIgnoreCase(option, "HealthInfo");
+        listDiskStats = listAll || EqualsIgnoreCase(option, "DiskStats");
+        if (!listHealthInfo && !listDiskStats) {
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            cmdHelp(fd);
+            return;
+        }
+        if(listHealthInfo) {
+            Health::getHealthInfo_2_1([fd](auto res, const auto& info) {
+            WriteStringToFd("\ngetHealthInfo -> ", fd);
+            if (res == Result::SUCCESS) {
+                WriteStringToFd(toString(info), fd);
+            } else {
+                WriteStringToFd(toString(res), fd);
+            }
+            WriteStringToFd("\n", fd);
+            });
+        }
+        if(listDiskStats) {
+            getDiskStats([fd](auto res, const auto& info) {
+            WriteStringToFd("\ngetDiskStats -> ", fd);
+            if (res == Result::SUCCESS) {
+                WriteStringToFd(toString(info), fd);
+            } else {
+                WriteStringToFd(toString(res), fd);
+            }
+            WriteStringToFd("\n", fd);
+            });
+        }
+    } else {
+        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"),fd);
+        cmdHelp(fd);
+    }
 }
 
 }  // namespace implementation

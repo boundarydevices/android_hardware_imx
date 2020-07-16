@@ -42,6 +42,12 @@ struct OemLock : public IOemLock {
     Return<OemLockStatus> setOemUnlockAllowedByDevice(bool allowed) override;
     Return<void> isOemUnlockAllowedByDevice(isOemUnlockAllowedByDevice_cb _hidl_cb) override;
 
+    // Dump apis
+    Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+    void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+    void cmdHelp(int fd);
+    void cmdList(int fd, const hidl_vec<hidl_string>& options);
+    void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
 private:
     avbOemUnlockIpc *mAvbOemUnlockIpc;
 };

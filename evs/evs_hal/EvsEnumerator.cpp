@@ -26,6 +26,12 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 
+#include <android-base/logging.h>
+#include <android-base/strings.h>
+#include <android-base/stringprintf.h>
+#include <android-base/file.h>
+#include <android-base/unique_fd.h>
+
 namespace android {
 namespace hardware {
 namespace automotive {
@@ -41,6 +47,10 @@ namespace implementation {
 #define EVS_FAKE_SENSOR "mxc_isi.0.capture"
 #define EVS_FAKE_NAME   "fake.camera"
 #define EVS_FAKE_PROP   "vendor.evs.fake.enable"
+
+using ::android::base::EqualsIgnoreCase;
+using ::android::base::StringPrintf;
+using ::android::base::WriteStringToFd;
 
 // NOTE:  All members values are static so that all clients operate on the same state
 //        That is to say, this is effectively a singleton despite the fact that HIDL
@@ -520,6 +530,97 @@ Return<void> EvsEnumerator::closeUltrasonicsArray(
     const ::android::sp<IEvsUltrasonicsArray>& evsUltrasonicsArray)  {
     (void)evsUltrasonicsArray;
     return Void();
+}
+
+Return<void> EvsEnumerator::debug(const hidl_handle& fd , const hidl_vec<hidl_string>& options) {
+    if (fd.getNativeHandle() != nullptr && fd->numFds > 0) {
+        cmdDump(fd->data[0], options);
+    } else {
+        LOG(ERROR) << "Given file descriptor is not valid.";
+    }
+
+    return {};
+}
+
+void EvsEnumerator::cmdDump(int fd, const hidl_vec<hidl_string>& options) {
+    if (options.size() == 0) {
+        WriteStringToFd("No option is given.\n", fd);
+        cmdHelp(fd);
+        return;
+    }
+
+    const std::string option = options[0];
+    if (EqualsIgnoreCase(option, "--help")) {
+        cmdHelp(fd);
+    } else if (EqualsIgnoreCase(option, "--list")) {
+        cmdList(fd, options);
+    } else if (EqualsIgnoreCase(option, "--dump")) {
+        cmdDumpDevice(fd, options);
+    } else {
+        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()),fd);
+        cmdHelp(fd);
+    }
+}
+
+void EvsEnumerator::cmdHelp(int fd) {
+    WriteStringToFd("--help: shows this help.\n"
+                    "--list: [option1|option2|...|all]: lists all the dump options: option1 or option2 or ... or all\n"
+                    "available to EvsEnumerator Hal.\n"
+                    "--dump option1: shows current status of the option1\n"
+                    "--dump option2: shows current status of the option2\n"
+                    "--dump all: shows current status of all the options\n", fd);
+    return;
+}
+
+void EvsEnumerator::cmdList(int fd, const hidl_vec<hidl_string>& options) {
+    bool listoption1 = false;
+    bool listoption2 = false;
+    if (options.size() > 1) {
+        const std::string option = options[1];
+        const bool listAll = EqualsIgnoreCase(option, "all");
+        listoption1 = listAll || EqualsIgnoreCase(option, "option1");
+        listoption2 = listAll || EqualsIgnoreCase(option, "option2");
+        if (!listoption1 && !listoption2) {
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            cmdHelp(fd);
+            return;
+        }
+        if(listoption1) {
+            WriteStringToFd(StringPrintf("list option1 dump options, default is --list listoption1.\n"),fd);
+         }
+
+        if(listoption2) {
+            WriteStringToFd(StringPrintf("list option2 dump options, default is --list listoption2.\n"),fd);
+        }
+    } else {
+        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"),fd);
+        cmdHelp(fd);
+     }
+}
+
+void EvsEnumerator::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
+    bool listoption1 = false;
+    bool listoption2 = false;
+    if (options.size() > 1) {
+        const std::string option = options[1];
+        const bool listAll = EqualsIgnoreCase(option, "all");
+        listoption1 = listAll || EqualsIgnoreCase(option, "option1");
+        listoption2 = listAll || EqualsIgnoreCase(option, "option2");
+        if (!listoption1 && !listoption2) {
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            cmdHelp(fd);
+            return;
+        }
+        if(listoption1) {
+            WriteStringToFd(StringPrintf("dump option1 info.\n"),fd);
+        }
+        if(listoption2) {
+            WriteStringToFd(StringPrintf("dump option2 info.\n"),fd);
+        }
+    } else {
+        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"),fd);
+        cmdHelp(fd);
+    }
 }
 
 } // namespace implementation
