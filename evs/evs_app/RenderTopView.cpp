@@ -24,14 +24,15 @@
 #include <log/log.h>
 #include <math/mat4.h>
 #include <math/vec3.h>
+#include <system/camera_metadata.h>
 
+using ::android::hardware::graphics::common::V1_0::PixelFormat;
 
 // Simple aliases to make geometric math using vectors more readable
 static const unsigned X = 0;
 static const unsigned Y = 1;
 static const unsigned Z = 2;
 //static const unsigned W = 3;
-
 
 // Since we assume no roll in these views, we can simplify the required math
 static android::vec3 unitVectorFromPitchAndYaw(float pitch, float yaw) {
@@ -93,9 +94,11 @@ static android::mat4 cameraLookMatrix(const ConfigManager::CameraInfo& cam) {
 
 RenderTopView::RenderTopView(sp<IEvsEnumerator> enumerator,
                              const std::vector<ConfigManager::CameraInfo>& camList,
-                             const ConfigManager& mConfig) :
+                             const ConfigManager& mConfig,
+                             std::unique_ptr<Stream> targetCfg) :
     mEnumerator(enumerator),
-    mConfig(mConfig) {
+    mConfig(mConfig),
+    mTargetCfg(std::move(targetCfg)) {
 
     // Copy the list of cameras we're to employ into our local storage.  We'll create and
     // associate a streaming video texture when we are activated.
@@ -149,7 +152,8 @@ bool RenderTopView::activate() {
 
     // Set up streaming video textures for our associated cameras
     for (auto&& cam: mActiveCameras) {
-        cam.tex.reset(createVideoTexture(mEnumerator, cam.info.cameraId.c_str(), sDisplay));
+        cam.tex.reset(createVideoTexture(mEnumerator, cam.info.cameraId.c_str(),
+                   std::move(mTargetCfg), sDisplay));
         if (!cam.tex) {
             ALOGE("Failed to set up video texture for %s (%s)",
                   cam.info.cameraId.c_str(), cam.info.function.c_str());

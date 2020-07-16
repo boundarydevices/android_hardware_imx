@@ -19,6 +19,7 @@ LOCAL_SRC_FILES := \
     RenderPixelCopy.cpp
 
 LOCAL_SHARED_LIBRARIES := \
+    libcamera_metadata \
     libbinder \
     libcutils \
     liblog \

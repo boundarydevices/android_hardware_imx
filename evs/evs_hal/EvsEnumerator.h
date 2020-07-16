@@ -23,6 +23,7 @@
 #include <android/frameworks/automotive/display/1.0/IAutomotiveDisplayProxyService.h>
 #include <android-base/unique_fd.h>
 #include <utils/threads.h>
+#include "ConfigManager.h"
 
 #include <list>
 #include <string>
@@ -100,6 +101,8 @@ private:
     static bool EnumAvailableVideo();
     static bool qualifyCaptureDevice(const char* deviceName);
     static CameraRecord* findCameraById(const std::string& cameraId);
+
+    static std::unique_ptr<ConfigManager>   sConfigManager;
 
     class PollVideoFileThread : public Thread {
     public:

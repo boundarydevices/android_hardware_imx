@@ -25,9 +25,6 @@ namespace evs {
 namespace V1_1 {
 namespace implementation {
 
-#define CAMERA_WIDTH 1280
-#define CAMERA_HEIGHT 720
-
 void EvsCamera::EvsAppRecipient::serviceDied(uint64_t /*cookie*/,
         const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/)
 {
@@ -45,14 +42,9 @@ EvsCamera::EvsCamera(const char *deviceName)
 
     // Initialize the stream params.
     mFormat = fsl::FORMAT_YUYV;
-    mWidth = CAMERA_WIDTH;
-    mHeight = CAMERA_HEIGHT;
     mDeqIdx = -1;
     mDescription.v1.cameraId = deviceName;
-    mCameraFd = ::open(deviceName, O_RDWR, 0);
-    if(mCameraFd < 0) {
-        ALOGE("failed to open device");
-    }
+
 }
 
 EvsCamera::~EvsCamera()
@@ -314,32 +306,23 @@ Return<void> EvsCamera::getIntParameterRange(CameraParam id,
 Return<void> EvsCamera::doneWithFrame(const BufferDesc_1_0& buffer)
 {
     ALOGV("doneWithFrame index %d", buffer.bufferId);
-    doneWithFrame_impl(buffer.bufferId, buffer.memHandle);
+    doneWithFrame_impl(buffer.bufferId, buffer.memHandle, NULL);
     return Void();
 }
 
 Return<EvsResult> EvsCamera::doneWithFrame_1_1(const hidl_vec<BufferDesc_1_1>& buffers)  {
     for (auto&& buffer : buffers) {
-        doneWithFrame_impl(buffer.bufferId, buffer.buffer.nativeHandle);
+        doneWithFrame_impl(buffer.bufferId, buffer.buffer.nativeHandle, buffer.deviceId);
     }
 
     return EvsResult::OK;
 }
 
 // This is the async callback from the thread that tells us a frame is ready
-void EvsCamera::forwardFrame(fsl::Memory* handle, int index)
+void EvsCamera::forwardFrame(std::vector<struct forwardframe> &fwframes)
 {
     // Assemble the buffer description we'll transmit below
     BufferDesc_1_1 bufDesc_1_1 = {};
-    AHardwareBuffer_Desc* pDesc =
-                 reinterpret_cast<AHardwareBuffer_Desc *>(&bufDesc_1_1.buffer.description);
-    pDesc->width      = handle->width;
-    pDesc->height     = handle->height;
-    pDesc->stride     = handle->stride;
-    pDesc->format     = handle->fslFormat;
-    pDesc->usage      = handle->usage;
-    bufDesc_1_1.bufferId   = index;
-    bufDesc_1_1.buffer.nativeHandle  = handle;
 
     ::android::sp<IEvsCameraStream_1_0> stream = nullptr;
     {
@@ -348,16 +331,40 @@ void EvsCamera::forwardFrame(fsl::Memory* handle, int index)
     }
     // Issue the (asynchronous) callback to the client
     if (mStream_1_1 != nullptr) {
+        int i = 0;
         hidl_vec<BufferDesc_1_1> frames;
-        frames.resize(1);
-        frames[0] = bufDesc_1_1;
+        frames.resize(fwframes.size());
+        for (auto &fr : fwframes) {
+            AHardwareBuffer_Desc* pDesc =
+                    reinterpret_cast<AHardwareBuffer_Desc *>(&bufDesc_1_1.buffer.description);
+            pDesc->width      = fr.buf->width;
+            pDesc->height     = fr.buf->height;
+            pDesc->stride     = fr.buf->stride;
+            pDesc->format     = fr.buf->fslFormat;
+            pDesc->usage      = fr.buf->usage;
+            bufDesc_1_1.deviceId   = fr.deviceid;
+            bufDesc_1_1.bufferId   = fr.index;
+            bufDesc_1_1.buffer.nativeHandle  = fr.buf;
+
+            frames[i++] = bufDesc_1_1;
+        }
+
         auto result = mStream_1_1->deliverFrame_1_1(frames);
         if (result.isOk()) {
-           ALOGV("Delivered buffer as id %d",
-                 bufDesc_1_1.bufferId);
+            ALOGV("Delivered buffer as id %d",
+                  bufDesc_1_1.bufferId);
+            fwframes.clear();
             return;
         }
     } else {
+        AHardwareBuffer_Desc* pDesc =
+                     reinterpret_cast<AHardwareBuffer_Desc *>(&bufDesc_1_1.buffer.description);
+        pDesc->width      = fwframes[0].buf->width;
+        pDesc->height     = fwframes[0].buf->height;
+        pDesc->stride     = fwframes[0].buf->stride;
+        pDesc->format     = fwframes[0].buf->fslFormat;
+        pDesc->usage      = fwframes[0].buf->usage;
+
         BufferDesc_1_0 bufDesc_1_0 = {
             pDesc->width,
             pDesc->height,
@@ -380,7 +387,9 @@ void EvsCamera::forwardFrame(fsl::Memory* handle, int index)
     // frames.  Note, however, that the stream remains in the "STREAMING" state
     // until cleaned up on the main thread.
     ALOGE("Frame delivery call failed in the transport layer.");
-    onFrameReturn(index);
+    for (auto &fr : fwframes) {
+        onFrameReturn(fr.index, fr.deviceid);
+    }
 }
 
 // This runs on a background thread to receive and dispatch video frames
@@ -392,14 +401,13 @@ void EvsCamera::collectFrames()
         runMode = mRunMode;
     }
 
-    fsl::Memory *buffer = nullptr;
-    int index = -1;
+    std::vector<struct forwardframe> physicalCamera;
     // Run until our atomic signal is cleared
     while (runMode == RUN) {
         // Wait for a buffer to be ready
-        buffer = onFrameCollect(index);
-        if (buffer != nullptr) {
-            forwardFrame(buffer, index);
+        onFrameCollect(physicalCamera);
+        if (physicalCamera.size() > 0) {
+            forwardFrame(physicalCamera);
         }
 
         std::unique_lock <std::mutex> lock(mLock);
@@ -411,7 +419,8 @@ void EvsCamera::collectFrames()
 }
 
 Return<void> EvsCamera::doneWithFrame_impl(const uint32_t bufferId,
-                                          const buffer_handle_t memHandle)
+                                          const buffer_handle_t memHandle,
+                                          std::string deviceid)
 {
     ALOGV("doneWithFrame_impl index %d", bufferId);
     // If we've been displaced by another owner of the camera
@@ -425,36 +434,9 @@ Return<void> EvsCamera::doneWithFrame_impl(const uint32_t bufferId,
         return Void();
     }
 
-    onFrameReturn(bufferId);
+    onFrameReturn(bufferId, deviceid);
 
     return Void();
-}
-
-void EvsCamera::onMemoryCreate()
-{
-    fsl::Memory *buffer = nullptr;
-    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-    fsl::MemoryDesc desc;
-    desc.mWidth = mWidth;
-    desc.mHeight = mHeight;
-    desc.mFormat = mFormat;
-    desc.mFslFormat = mFormat;
-    desc.mProduceUsage |= fsl::USAGE_HW_TEXTURE
-            | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
-    desc.mFlag = 0;
-    int ret = desc.checkFormat();
-    if (ret != 0) {
-        ALOGE("%s checkFormat failed", __func__);
-        return;
-    }
-
-    for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
-        buffer = nullptr;
-        allocator->allocMemory(desc, &buffer);
-
-        std::unique_lock <std::mutex> lock(mLock);
-        mBuffers[i] = buffer;
-    }
 }
 
 Return<EvsResult> EvsCamera::pauseVideoStream() {
@@ -595,24 +577,6 @@ Return<void> EvsCamera::getExtendedInfo_1_1(uint32_t opaqueIdentifier,
 
      _hidl_cb(status, value);
     return Void();
-}
-
-void EvsCamera::onMemoryDestroy()
-{
-    fsl::Memory *buffer = nullptr;
-    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-    for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
-        {
-            std::unique_lock <std::mutex> lock(mLock);
-            if (mBuffers[i] == nullptr) {
-                continue;
-            }
-
-            buffer = mBuffers[i];
-            mBuffers[i] = nullptr;
-        }
-        allocator->releaseMemory(buffer);
-    }
 }
 
 } // namespace implementation

@@ -26,10 +26,13 @@
 #include <inttypes.h>
 #include <utils/SystemClock.h>
 #include <binder/IServiceManager.h>
+#include <system/camera_metadata.h>
 
 
 using BufferDesc_1_0 = ::android::hardware::automotive::evs::V1_0::BufferDesc;
 using ::android::hardware::automotive::evs::V1_0::EvsResult;
+using ::android::hardware::graphics::common::V1_0::PixelFormat;
+const size_t kStreamCfgSz = sizeof(RawStreamConfig);
 
 static bool isSfReady() {
     const android::String16 serviceName("SurfaceFlinger");
@@ -86,15 +89,19 @@ EvsStateControl::EvsStateControl(android::sp <IVehicle>       pVnet,
                                         // We found a match!
                                         if (info.function.find("reverse") != std::string::npos) {
                                             mCameraList[State::REVERSE].push_back(info);
+                                            mCameraDescList[State::REVERSE].emplace_back(cam);
                                         }
                                         if (info.function.find("right") != std::string::npos) {
                                             mCameraList[State::RIGHT].push_back(info);
+                                            mCameraDescList[State::RIGHT].emplace_back(cam);
                                         }
                                         if (info.function.find("left") != std::string::npos) {
                                             mCameraList[State::LEFT].push_back(info);
+                                            mCameraDescList[State::LEFT].emplace_back(cam);
                                         }
                                         if (info.function.find("park") != std::string::npos) {
                                             mCameraList[State::PARKING].push_back(info);
+                                            mCameraDescList[State::PARKING].emplace_back(cam);
                                         }
                                         cameraConfigFound = true;
                                         break;
@@ -317,16 +324,68 @@ bool EvsStateControl::configureEvsPipeline(State desiredState) {
         // Do we need a new direct view renderer?
         if (mCameraList[desiredState].size() == 1) {
             // We have a camera assigned to this state for direct view.
+            bool foundCfg = false;
+            std::unique_ptr<Stream> targetCfg(new Stream());
+            if (!foundCfg) {
+                // This logic picks the first configuration in the list among them that
+                // support YUYV format and its frame rate is faster than minReqFps.
+                const int32_t minReqFps = 15;
+                int32_t maxArea = 0;
+                camera_metadata_entry_t streamCfgs;
+                if (!find_camera_metadata_entry(
+                        reinterpret_cast<camera_metadata_t *>(mCameraDescList[desiredState][0].metadata.data()),
+                        ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                        &streamCfgs)) {
+                       // Stream configurations are found in metadata
+                       // the size of every stream is kStreamCfgSz
+                       RawStreamConfig *ptr = reinterpret_cast<RawStreamConfig *>(streamCfgs.data.i32);
+                       unsigned streamCfgSize = calculate_camera_metadata_entry_data_size(
+                           get_camera_metadata_tag_type(
+                                ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS
+                           ),
+                           streamCfgs.count);
+
+                       for (unsigned idx = 0; idx < streamCfgSize; idx += kStreamCfgSz) {
+                           if (ptr->direction == ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT &&
+                               ptr->format == HAL_PIXEL_FORMAT_YCBCR_422_I) {
+                               if (ptr->framerate >= minReqFps &&
+                                   ptr->width * ptr->height > maxArea) {
+                                   targetCfg->id = ptr->id;
+                                   targetCfg->width = ptr->width;
+                                   targetCfg->height = ptr->height;
+                                   maxArea = ptr->width * ptr->height;
+                                   foundCfg = true;
+                               }
+                           }
+                           ++ptr;
+                       }
+                   } else {
+                       ALOGE("No stream configuration data is found; ");
+                   }
+            }
+
+            targetCfg->format =
+                           static_cast<PixelFormat>(HAL_PIXEL_FORMAT_YCBCR_422_I);
+
             mDesiredRenderer = std::make_unique<RenderDirectView>(mEvs,
-                                                                  mCameraList[desiredState][0]);
+                                                                   mCameraDescList[desiredState][0],
+                                                                   std::move(targetCfg));
             if (!mDesiredRenderer) {
                 ALOGE("Failed to construct direct renderer.  Skipping state change.");
                 return false;
             }
         } else if (mCameraList[desiredState].size() > 1 || desiredState == PARKING) {
+            std::unique_ptr<Stream> targetCfg(new Stream());
+
+            targetCfg->width = WIDTH_FOR_TOP_VIEW;
+            targetCfg->height = HEIGHT_FOR_TOP_VIEW;
+            targetCfg->format =
+                            static_cast<PixelFormat>(HAL_PIXEL_FORMAT_YCBCR_422_I);
+
             mDesiredRenderer = std::make_unique<RenderTopView>(mEvs,
                                                                mCameraList[desiredState],
-                                                               mConfig);
+                                                               mConfig,
+                                                               std::move(targetCfg));
             if (!mDesiredRenderer) {
                 ALOGE("Failed to construct top view renderer.  Skipping state change.");
                 return false;

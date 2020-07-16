@@ -102,7 +102,7 @@ void FakeCapture::onStop()
     ALOGD("Stream stopped.");
 }
 
-bool FakeCapture::onFrameReturn(int index)
+bool FakeCapture::onFrameReturn(int index, __attribute__ ((unused))std::string deviceid)
 {
     // We're giving the frame back to the system, so clear the "ready" flag
     ALOGV("returnFrame  index %d", index);
@@ -126,22 +126,22 @@ bool FakeCapture::onFrameReturn(int index)
 }
 
 // This runs on a background thread to receive and dispatch video frames
-fsl::Memory* FakeCapture::onFrameCollect(int &index)
+void FakeCapture::onFrameCollect(std::vector<struct forwardframe> &frames)
 {
+    struct forwardframe frame;
     fsl::Memory *buffer = nullptr;
     usleep(33333);//30fps
 
     {
         std::unique_lock <std::mutex> lock(mLock);
         buffer = mBuffers[mDeqIdx];
-        index = mDeqIdx++;
         mDeqIdx = mDeqIdx % CAMERA_BUFFER_NUM;
         mFrameIndex++;
     }
 
     if (buffer == nullptr || buffer->base == 0) {
         ALOGE("%s invalid buffer", __func__);
-        return nullptr;
+        return;
     }
 
     void *vaddr = nullptr;
@@ -155,7 +155,11 @@ fsl::Memory* FakeCapture::onFrameCollect(int &index)
                 COLOR_VALUE, buffer->stride*COLOR_HEIGHT);
     }
 
-    return buffer;
+    frame.buf = buffer;
+    frame.index = mDeqIdx;
+    frames.push_back(frame);
+
+    return;
 }
 
 void FakeCapture::onMemoryCreate()

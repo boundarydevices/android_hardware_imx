@@ -134,9 +134,16 @@ bool VideoTex::refresh() {
 
 VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum,
                              const char* evsCameraId,
+                             std::unique_ptr<Stream> streamCfg,
                              EGLDisplay glDisplay) {
     // Set up the camera to feed this texture
-    sp<IEvsCamera> pCamera = IEvsCamera::castFrom(pEnum->openCamera(evsCameraId));
+    sp<IEvsCamera> pCamera = nullptr;
+    if (streamCfg != nullptr) {
+        pCamera = pEnum->openCamera_1_1(evsCameraId, *streamCfg);
+    } else {
+        pCamera = IEvsCamera::castFrom(pEnum->openCamera(evsCameraId));
+    }
+
     if (pCamera.get() == nullptr) {
         ALOGE("Failed to allocate new EVS Camera interface for %s", evsCameraId);
         return nullptr;

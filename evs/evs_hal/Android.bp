@@ -20,6 +20,8 @@ evs_defaults {
         "EvsCamera.cpp",
         "EvsDisplay.cpp",
         "V4l2Capture.cpp",
+        "ConfigManager.cpp",
+        "ConfigManagerUtil.cpp",
         "FakeCapture.cpp",
     ],
     shared_libs: [
@@ -27,6 +29,8 @@ evs_defaults {
         "android.hardware.automotive.evs@1.0",
         "nxp.hardware.display@1.0",
         "libbase",
+        "libtinyxml2",
+        "libcamera_metadata",
         "libui",
         "libbinder",
         "libcutils",
@@ -79,4 +83,11 @@ bootstrap_go_package {
         "evs.go",
     ],
     pluginFor: ["soong_build"],
+}
+
+prebuilt_etc {
+    name: "imx_evs_configuration.xml",
+    soc_specific: true,
+    src: "resources/imx_evs_configuration.xml",
+    sub_dir: "automotive/evs",
 }

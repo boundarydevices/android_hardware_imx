@@ -28,7 +28,17 @@
 
 
 using namespace ::android::hardware::automotive::evs::V1_1;
-
+/*
+ * For RenderTopView, mActiveCameras info is from jason file.
+ * jason file include the four camera view relationship(offset/x/y)
+ * can't get these infomation from camera metadata.
+ * so hard code the width/height info here.
+ * For RenderDirectView, the width/height is from camera metadata.
+ * the metadata info is from evs hal. no need hardcode width/height
+ * for RenderDirectView
+ */
+#define WIDTH_FOR_TOP_VIEW 1280
+#define HEIGHT_FOR_TOP_VIEW 720
 
 /*
  * Combines the views from all available cameras into one reprojected top down view.
@@ -37,7 +47,8 @@ class RenderTopView: public RenderBase {
 public:
     RenderTopView(sp<IEvsEnumerator> enumerator,
                   const std::vector<ConfigManager::CameraInfo>& camList,
-                  const ConfigManager& config);
+                  const ConfigManager& config,
+                  std::unique_ptr<Stream> targetCfg);
 
     virtual bool activate() override;
     virtual void deactivate() override;
@@ -58,6 +69,7 @@ protected:
     sp<IEvsEnumerator>              mEnumerator;
     const ConfigManager&            mConfig;
     std::vector<ActiveCamera>       mActiveCameras;
+    std::unique_ptr<Stream>         mTargetCfg;
 
     struct {
         std::unique_ptr<TexWrapper> checkerBoard;

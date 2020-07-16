@@ -20,6 +20,7 @@
 #include <thread>
 #include <functional>
 #include <linux/videodev2.h>
+#include <unordered_set>
 #include "EvsCamera.h"
 
 using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
@@ -27,10 +28,12 @@ using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
 class V4l2Capture : public EvsCamera
 {
 public:
-    V4l2Capture(const char *deviceName);
+    V4l2Capture(const char *deviceName, __u32 width, __u32 height, int format,
+                  const camera_metadata_t * metadata);
     virtual ~V4l2Capture();
 
     virtual bool onOpen(const char* deviceName);
+    int onOpenSingleCamera(const char* deviceName);
     virtual void onClose();
 
     virtual bool onStart();
@@ -38,18 +41,28 @@ public:
 
     virtual bool isOpen();
     // Valid only after open()
-    virtual bool onFrameReturn(int index);
-    virtual fsl::Memory* onFrameCollect(int &index);
+    virtual bool onFrameReturn(int index, std::string deviceid);
+    virtual void onFrameCollect(std::vector<struct forwardframe> &frame);
     virtual int getParameter(v4l2_control& control);
     virtual int setParameter(v4l2_control& control);
     virtual std::set<uint32_t>  enumerateCameraControls();
+    virtual void onMemoryCreate();
+    virtual void onMemoryDestroy();
 
 private:
     int getCaptureMode(int fd, int width, int height);
     int getV4lFormat(int format);
+    bool isLogicalCamera(const camera_metadata_t *metadata);
+    // mPhysicalCamera return the physical camera
+    std::unordered_set<std::string> getPhysicalCameraInLogic(const camera_metadata_t *metadata);
+    std::unordered_set<std::string> mPhysicalCamera;
 
-    int mDeviceFd = -1;
+    // if the camera is logic camera, mDeviceFd will been instored according the mPhysicalCamera name.
+    // if the camera is pyhsical camera, mDeviceFd will been the fd of pyhsical camera
+    std::unordered_map<std::string, int> mDeviceFd;
     __u32 mV4lFormat = 0;
+    // judge whether it's logic camera according the metadata
+    bool mIslogicCamera;
 };
 
 #endif

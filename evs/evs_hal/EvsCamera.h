@@ -36,6 +36,7 @@
 #include <MemoryManager.h>
 #include <unordered_map>
 #include <linux/videodev2.h>
+#include <system/camera_metadata.h>
 
 using ::android::hardware::hidl_string;
 using ::android::hardware::camera::device::V3_2::Stream;
@@ -48,6 +49,12 @@ using IEvsDisplay_1_1      = ::android::hardware::automotive::evs::V1_1::IEvsDis
 using IEvsCameraStream_1_0 = ::android::hardware::automotive::evs::V1_0::IEvsCameraStream;
 using IEvsCameraStream_1_1 = ::android::hardware::automotive::evs::V1_1::IEvsCameraStream;
 
+struct forwardframe {
+    fsl::Memory *buf;
+    int index;
+    std::string deviceid;
+};
+
 using ::android::hardware::hidl_death_recipient;
 namespace android {
 namespace hardware {
@@ -55,7 +62,6 @@ namespace automotive {
 namespace evs {
 namespace V1_1 {
 namespace implementation {
-
 
 #define CAMERA_BUFFER_NUM 3
 
@@ -113,11 +119,11 @@ protected:
 
     virtual bool isOpen() = 0;
     // Valid only after open()
-    virtual bool onFrameReturn(int index) = 0;
-    virtual fsl::Memory* onFrameCollect(int &index) = 0;
+    virtual bool onFrameReturn(int index, std::string deviceid) = 0;
+    virtual void onFrameCollect(std::vector<struct forwardframe> &frame) = 0;
 
-    virtual void onMemoryCreate();
-    virtual void onMemoryDestroy();
+    virtual void onMemoryCreate() = 0;
+    virtual void onMemoryDestroy() = 0;
 
 private:
     void releaseResource(void);
@@ -133,14 +139,13 @@ private:
         sp<EvsCamera> mCamera;
     };
     sp<EvsAppRecipient> mEvsAppRecipient;
-    Return<void> doneWithFrame_impl(const uint32_t id, const buffer_handle_t handle);
+    Return<void> doneWithFrame_impl(const uint32_t id, const buffer_handle_t handle, std::string deviceid);
     inline bool convertToV4l2CID(CameraParam id, uint32_t& v4l2cid);
 
     // These functions are used to send/receive frame.
-    void forwardFrame(fsl::Memory* handle, int index);
+    void forwardFrame(std::vector<struct forwardframe> &fwframes);
     void collectFrames();
     std::set<uint32_t> mCameraControls;     // Available camera controls
-    int mCameraFd = -1;
 
 protected:
     // The callback used to deliver each frame.
@@ -154,10 +159,13 @@ protected:
     std::mutex mLock;
 
     fsl::Memory* mBuffers[CAMERA_BUFFER_NUM] = {nullptr};
+    std::unordered_map<int, std::vector<fsl::Memory*>> mCamBuffers;
 
     __u32 mFormat = 0;
     __u32 mWidth  = 0;
     __u32 mHeight = 0;
+
+    int mNumInLogic;
 
     // The thread we'll use to dispatch frames.
     std::thread mCaptureThread;

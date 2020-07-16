@@ -37,8 +37,8 @@ public:
 
     virtual bool isOpen();
     // Valid only after open()
-    virtual bool onFrameReturn(int index);
-    virtual fsl::Memory* onFrameCollect(int &index);
+    virtual bool onFrameReturn(int index, std::string deviceid);
+    virtual void onFrameCollect(std::vector<struct forwardframe> &frame);
     virtual void onMemoryCreate();
 
 private:

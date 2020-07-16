@@ -21,14 +21,18 @@
 #include "shader_simpleTex.h"
 #include "shader_reverseLine.h"
 
+#include <system/camera_metadata.h>
 #include <log/log.h>
 #include <math/mat4.h>
 
+using ::android::hardware::graphics::common::V1_0::PixelFormat;
 
 RenderDirectView::RenderDirectView(sp<IEvsEnumerator> enumerator,
-                                   const ConfigManager::CameraInfo& cam) {
+                                   const CameraDesc& camDesc,
+                                   std::unique_ptr<Stream> targetCfg) {
     mEnumerator = enumerator;
-    mCameraInfo = cam;
+    mCameraDesc = camDesc;
+    mTargetCfg = std::move(targetCfg);
 }
 
 
@@ -61,7 +65,8 @@ bool RenderDirectView::activate() {
     }
 
     // Construct our video texture
-    mTexture.reset(createVideoTexture(mEnumerator, mCameraInfo.cameraId.c_str(), sDisplay));
+    mTexture.reset(createVideoTexture(mEnumerator, mCameraDesc.v1.cameraId.c_str(),
+                    std::move(mTargetCfg), sDisplay));
     if (!mTexture) {
         ALOGE("Failed to set up video texture for %s (%s)",
               mCameraInfo.cameraId.c_str(), mCameraInfo.function.c_str());

@@ -26,14 +26,15 @@
 
 
 using namespace ::android::hardware::automotive::evs::V1_1;
-
+using ::android::hardware::camera::device::V3_2::Stream;
 
 /*
  * Renders the view from a single specified camera directly to the full display.
  */
 class RenderDirectView: public RenderBase {
 public:
-    RenderDirectView(sp<IEvsEnumerator> enumerator, const ConfigManager::CameraInfo& cam);
+    RenderDirectView(sp<IEvsEnumerator> enumerator, const CameraDesc& cam,
+                               std::unique_ptr<Stream> targetCfg);
 
     virtual bool activate() override;
     virtual void deactivate() override;
@@ -44,6 +45,9 @@ public:
 protected:
     sp<IEvsEnumerator>              mEnumerator;
     ConfigManager::CameraInfo       mCameraInfo;
+
+    CameraDesc                      mCameraDesc;
+    std::unique_ptr<Stream>         mTargetCfg;
 
     std::unique_ptr<VideoTex>       mTexture;
 

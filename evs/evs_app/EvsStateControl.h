@@ -95,6 +95,7 @@ private:
     State                       mCurrentState = OFF;
 
     std::vector<ConfigManager::CameraInfo>  mCameraList[NUM_STATES];
+    std::vector<CameraDesc> mCameraDescList[NUM_STATES];
     std::unique_ptr<RenderBase> mCurrentRenderer;
     std::unique_ptr<RenderBase> mDesiredRenderer;
 
