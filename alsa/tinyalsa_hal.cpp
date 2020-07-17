@@ -156,7 +156,7 @@ struct pcm_config pcm_config_dsd = {
     .avail_min = 0,
 };
 struct pcm_config pcm_config_sco_out = {
-    .channels = 2,
+    .channels = 1,
     .rate = SCO_RATE,
     .period_size = LONG_PERIOD_SIZE,
     .period_count = PLAYBACK_LONG_PERIOD_COUNT,
@@ -166,7 +166,7 @@ struct pcm_config pcm_config_sco_out = {
 };
 
 struct pcm_config pcm_config_sco_in = {
-    .channels = 2,
+    .channels = 1,
     .rate = SCO_RATE,
     .period_size = CAPTURE_PERIOD_SIZE,
     .period_count = CAPTURE_PERIOD_COUNT,
@@ -3406,6 +3406,8 @@ static void* sco_rx_task(void *arg)
     struct imx_stream_out *stream_out = NULL;
     struct imx_audio_device *adev = (struct imx_audio_device *)arg;
     int flag = 0;
+    uint32_t sco_rx_out_buffer_size = 0;
+    char *sco_rx_out_buffer = NULL;
 
     if(adev == NULL)
         return NULL;
@@ -3442,6 +3444,13 @@ static void* sco_rx_task(void *arg)
         goto exit;
     }
 
+    sco_rx_out_buffer_size = stream_out->buffer_frames * audio_stream_out_frame_size((const struct audio_stream_out *)&stream_out->stream.common);
+    sco_rx_out_buffer = (char *)malloc(sco_rx_out_buffer_size);
+    if(sco_rx_out_buffer == NULL) {
+        ALOGE("sco_rx_task, malloc sco_rx_out_buffer %d bytes failed", sco_rx_out_buffer_size);
+        return NULL;
+    }
+
     while(adev->b_sco_rx_running) {
         ret = pcm_read(adev->pcm_sco_rx, buffer, size);
         if(ret) {
@@ -3451,6 +3460,7 @@ static void* sco_rx_task(void *arg)
             continue;
         }
 
+        // 16k to 48k convert, 1chn
         frames = pcm_config_sco_in.period_size;
         out_frames = stream_out->buffer_frames;
         adev->rsmpl_sco_rx->resample_from_input(adev->rsmpl_sco_rx,
@@ -3463,9 +3473,12 @@ static void* sco_rx_task(void *arg)
             pcm_config_sco_in.period_size, frames,
             stream_out->buffer_frames, out_frames);
 
+        // mono to stereo
+        convert_record_data(stream_out->buffer, sco_rx_out_buffer, out_frames, false, false, true, false);
         out_size = pcm_frames_to_bytes(out_pcm, out_frames);
+
         pthread_mutex_lock(&stream_out->lock);
-        ret = pcm_write_wrapper(out_pcm, stream_out->buffer, out_size, flag);
+        ret = pcm_write_wrapper(out_pcm, sco_rx_out_buffer, out_size, flag);
         pthread_mutex_unlock(&stream_out->lock);
         if(ret) {
             ALOGE("sco_rx_task, pcm_write ret %d, size %d, %s",
@@ -3476,6 +3489,7 @@ static void* sco_rx_task(void *arg)
 
 exit:
     free(buffer);
+    free(sco_rx_out_buffer);
     ALOGI("leave sco_rx_task");
 
     return NULL;
@@ -3505,7 +3519,7 @@ static void* sco_tx_task(void *arg)
 
     ALOGI("enter sco_tx_task, pcm_cap frames %d, szie %d", frames, size);
 
-    out_frames = pcm_config_sco_out.period_size * 2;
+    out_frames = pcm_config_sco_out.period_size;
     out_size = pcm_frames_to_bytes(adev->pcm_sco_tx, out_frames);
     out_buffer = (uint8_t *)malloc(out_size);
     if(out_buffer == NULL) {
@@ -3523,7 +3537,7 @@ static void* sco_tx_task(void *arg)
         }
 
         frames = adev->cap_config.period_size;
-        out_frames = pcm_config_sco_out.period_size * 2;
+        out_frames = pcm_config_sco_out.period_size;
         adev->rsmpl_sco_tx->resample_from_input(adev->rsmpl_sco_tx,
                                                 (int16_t *)buffer,
                                                 (size_t *)&frames,
@@ -3532,7 +3546,7 @@ static void* sco_tx_task(void *arg)
 
         ALOGV("sco_tx_task, resample_from_input, in frames %d, %d, out_frames %d, %d",
             adev->cap_config.period_size, frames,
-            pcm_config_sco_out.period_size * 2, out_frames);
+            pcm_config_sco_out.period_size, out_frames);
 
         out_size = pcm_frames_to_bytes(adev->pcm_sco_tx, out_frames);
         ret = pcm_write(adev->pcm_sco_tx, out_buffer, out_size);
@@ -3634,7 +3648,7 @@ static int sco_task_create(struct imx_audio_device *adev)
     //create resampler
     ret = create_resampler(pcm_config_sco_in.rate,
                            pcm_config_mm_out.rate,
-                           2,
+                           pcm_config_sco_in.channels,
                            RESAMPLER_QUALITY_DEFAULT,
                            NULL,
                            &adev->rsmpl_sco_rx);
@@ -3693,7 +3707,7 @@ static int sco_task_create(struct imx_audio_device *adev)
     //create resampler
     ret = create_resampler(adev->cap_config.rate,
                          pcm_config_sco_out.rate,
-                         2,
+                         pcm_config_sco_out.channels,
                          RESAMPLER_QUALITY_DEFAULT,
                          NULL,
                          &adev->rsmpl_sco_tx);
