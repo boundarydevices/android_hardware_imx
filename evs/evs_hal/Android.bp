@@ -23,9 +23,11 @@ evs_defaults {
         "FakeCapture.cpp",
     ],
     shared_libs: [
+        "android.hardware.automotive.evs@1.1",
         "android.hardware.automotive.evs@1.0",
         "nxp.hardware.display@1.0",
         "libbase",
+        "libui",
         "libbinder",
         "libcutils",
         "libhardware",
@@ -34,6 +36,9 @@ evs_defaults {
         "libutils",
         "libfsldisplay",
         "libsync",
+    ],
+    vintf_fragments: [
+        "android.hardware.automotive.evs@1.1-EvsEnumeratorHw.xml",
     ],
     include_dirs: [
         "frameworks/native/include",
@@ -55,7 +60,7 @@ evs_defaults {
 }
 
 cc_binary {
-    name: "android.hardware.automotive.evs@1.0-EvsEnumeratorHw",
+    name: "android.hardware.automotive.evs@1.1-EvsEnumeratorHw",
     defaults: ["evs_default"],
 }
 

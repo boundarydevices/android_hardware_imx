@@ -17,18 +17,26 @@
 #ifndef _FSL_EVS_HW_DISPLAY_H
 #define _FSL_EVS_HW_DISPLAY_H
 
-#include <android/hardware/automotive/evs/1.0/IEvsDisplay.h>
+#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
 #include <nxp/hardware/display/1.0/IDisplay.h>
 
 #include <Memory.h>
 #include <MemoryDesc.h>
 #include <MemoryManager.h>
 
+using EvsDisplayState = ::android::hardware::automotive::evs::V1_0::DisplayState;
+using BufferDesc_1_0  = ::android::hardware::automotive::evs::V1_0::BufferDesc;
+using ::android::hardware::automotive::evs::V1_0::DisplayDesc;
+using ::android::hardware::automotive::evs::V1_1::IEvsDisplay;
+using EvsResult   = ::android::hardware::automotive::evs::V1_0::EvsResult;
+using ::android::frameworks::automotive::display::V1_0::HwDisplayConfig;
+
+
 namespace android {
 namespace hardware {
 namespace automotive {
 namespace evs {
-namespace V1_0 {
+namespace V1_1 {
 namespace implementation {
 
 using ::nxp::hardware::display::V1_0::IDisplay;
@@ -39,10 +47,11 @@ class EvsDisplay : public IEvsDisplay {
 public:
     // Methods from ::android::hardware::automotive::evs::V1_0::IEvsDisplay follow.
     Return<void> getDisplayInfo(getDisplayInfo_cb _hidl_cb)  override;
-    Return<EvsResult> setDisplayState(DisplayState state)  override;
-    Return<DisplayState> getDisplayState()  override;
+    Return<EvsResult> setDisplayState(EvsDisplayState state)  override;
+    Return<EvsDisplayState> getDisplayState()  override;
     Return<void> getTargetBuffer(getTargetBuffer_cb _hidl_cb)  override;
-    Return<EvsResult> returnTargetBufferForDisplay(const BufferDesc& buffer)  override;
+    Return<EvsResult> returnTargetBufferForDisplay(const BufferDesc_1_0& buffer)  override;
+    Return<void> getDisplayInfo_1_1(getDisplayInfo_1_1_cb _info_cb) override;
 
     // Implementation details
     EvsDisplay();
@@ -66,7 +75,7 @@ private:
     fsl::Memory* mBuffers[DISPLAY_BUFFER_NUM] = {};
 
     DisplayDesc mInfo = {};
-    DisplayState mRequestedState = DisplayState::NOT_VISIBLE;
+    EvsDisplayState mRequestedState = EvsDisplayState::NOT_VISIBLE;
 
     uint32_t mLayer = -1;
     sp<IDisplay> mDisplay;

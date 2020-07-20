@@ -22,7 +22,7 @@
 #include <linux/videodev2.h>
 #include "EvsCamera.h"
 
-using ::android::hardware::automotive::evs::V1_0::implementation::EvsCamera;
+using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
 
 class V4l2Capture : public EvsCamera
 {
@@ -40,6 +40,9 @@ public:
     // Valid only after open()
     virtual bool onFrameReturn(int index);
     virtual fsl::Memory* onFrameCollect(int &index);
+    virtual int getParameter(v4l2_control& control);
+    virtual int setParameter(v4l2_control& control);
+    virtual std::set<uint32_t>  enumerateCameraControls();
 
 private:
     int getCaptureMode(int fd, int width, int height);

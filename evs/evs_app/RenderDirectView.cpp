@@ -84,7 +84,7 @@ void RenderDirectView::deactivate() {
 
 bool RenderDirectView::drawFrame(const BufferDesc& tgtBuffer) {
     // release resourse to avoid leak
-    if (tgtBuffer.memHandle.getNativeHandle() != nullptr) {
+    if (tgtBuffer.buffer.nativeHandle.getNativeHandle() != nullptr) {
         detachRenderTarget();
     }
 

@@ -22,7 +22,7 @@ namespace android {
 namespace hardware {
 namespace automotive {
 namespace evs {
-namespace V1_0 {
+namespace V1_1 {
 namespace implementation {
 
 using namespace android;
@@ -163,7 +163,7 @@ void EvsDisplay::forceShutdown()
     std::lock_guard<std::mutex> lock(mLock);
     // Put this object into an unrecoverable error state since somebody else
     // is going to own the display now.
-    mRequestedState = DisplayState::DEAD;
+    mRequestedState = EvsDisplayState::DEAD;
 }
 
 /**
@@ -188,29 +188,29 @@ Return<void> EvsDisplay::getDisplayInfo(getDisplayInfo_cb _hidl_cb)
  * then begin providing video.  When the display is no longer required, the client
  * is expected to request the NOT_VISIBLE state after passing the last video frame.
  */
-Return<EvsResult> EvsDisplay::setDisplayState(DisplayState state)
+Return<EvsResult> EvsDisplay::setDisplayState(EvsDisplayState state)
 {
     ALOGD("setDisplayState");
 
     {
         std::lock_guard<std::mutex> lock(mLock);
 
-        if (mRequestedState == DisplayState::DEAD) {
+        if (mRequestedState == EvsDisplayState::DEAD) {
             // This object no longer owns the display -- it's been superceeded!
             return EvsResult::OWNERSHIP_LOST;
         }
     }
 
     // Ensure we recognize the requested state so we don't go off the rails
-    if (state >= DisplayState::NUM_STATES) {
+    if (state >= EvsDisplayState::NUM_STATES) {
         return EvsResult::INVALID_ARG;
     }
 
     switch (state) {
-    case DisplayState::NOT_VISIBLE:
+    case EvsDisplayState::NOT_VISIBLE:
         hideWindow();
         break;
-    case DisplayState::VISIBLE:
+    case EvsDisplayState::VISIBLE:
         showWindow();
         break;
     default:
@@ -231,7 +231,7 @@ Return<EvsResult> EvsDisplay::setDisplayState(DisplayState state)
  * the device layer, making it undesirable for the HAL implementation to
  * spontaneously change display states.
  */
-Return<DisplayState> EvsDisplay::getDisplayState()
+Return<EvsDisplayState> EvsDisplay::getDisplayState()
 {
     ALOGD("getDisplayState");
 
@@ -249,11 +249,11 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
 {
     ALOGV("getTargetBuffer");
 
-    BufferDesc hbuf = {};
+    BufferDesc_1_0 hbuf = {};
     {
         std::lock_guard<std::mutex> lock(mLock);
 
-        if (mRequestedState == DisplayState::DEAD) {
+        if (mRequestedState == EvsDisplayState::DEAD) {
             ALOGE("Rejecting buffer request from object that lost ownership of the display.");
             _hidl_cb(hbuf);
             return Void();
@@ -320,7 +320,7 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
  * This call tells the display that the buffer is ready for display.
  * The buffer is no longer valid for use by the client after this call.
  */
-Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc& buffer)
+Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc_1_0& buffer)
 {
     ALOGV("returnTargetBufferForDisplay %p", buffer.memHandle.getNativeHandle());
     // Nobody should call us with a null handle
@@ -334,7 +334,7 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc& buf
         return EvsResult::INVALID_ARG;
     }
 
-    DisplayState state;
+    EvsDisplayState state;
     sp<IDisplay> display;
     fsl::Memory *abuffer = nullptr;
     int layer;
@@ -356,19 +356,19 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc& buf
     }
 
     // If we've been displaced by another owner of the display, then we can't do anything else
-    if (state == DisplayState::DEAD) {
+    if (state == EvsDisplayState::DEAD) {
         return EvsResult::OWNERSHIP_LOST;
     }
 
     // If we were waiting for a new frame, this is it!
-    if (state == DisplayState::VISIBLE_ON_NEXT_FRAME) {
+    if (state == EvsDisplayState::VISIBLE_ON_NEXT_FRAME) {
         showWindow();
         std::lock_guard<std::mutex> lock(mLock);
-        mRequestedState = DisplayState::VISIBLE;
+        mRequestedState = EvsDisplayState::VISIBLE;
     }
 
     // Validate we're in an expected state
-    if (state != DisplayState::VISIBLE) {
+    if (state != EvsDisplayState::VISIBLE) {
         // Not sure why a client would send frames back when we're not visible.
         ALOGW("Got a frame returned while not visible - ignoring.\n");
     }
@@ -377,6 +377,14 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc& buf
     }
 
     return EvsResult::OK;
+}
+
+Return<void> EvsDisplay::getDisplayInfo_1_1(__attribute__ ((unused))getDisplayInfo_1_1_cb _info_cb) {
+    //    HwDisplayConfig nullConfig;
+    //    HwDisplayState  nullState;
+    // return null, because we have no display proxy
+    _info_cb({}, {});
+    return Void();
 }
 
 } // namespace implementation

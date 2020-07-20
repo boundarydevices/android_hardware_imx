@@ -204,6 +204,47 @@ bool V4l2Capture::onOpen(const char* deviceName)
     return true;
 }
 
+std::set<uint32_t>  V4l2Capture::enumerateCameraControls()
+{
+    // Retrieve available camera controls
+    struct v4l2_queryctrl ctrl = {
+        .id = V4L2_CTRL_FLAG_NEXT_CTRL
+    };
+
+    std::set<uint32_t> ctrlIDs;
+    while (0 == ioctl(mDeviceFd, VIDIOC_QUERYCTRL, &ctrl)) {
+        if (!(ctrl.flags & V4L2_CTRL_FLAG_DISABLED)) {
+            ctrlIDs.emplace(ctrl.id);
+        }
+
+        ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+    }
+
+    if (errno != EINVAL) {
+        ALOGE("Failed to run VIDIOC_QUERYCTRL");
+    }
+    return std::move(ctrlIDs);
+}
+
+int V4l2Capture::setParameter(v4l2_control& control) {
+    int status = ioctl(mDeviceFd, VIDIOC_S_CTRL, &control);
+    if (status < 0) {
+        ALOGE("Failed to program a parameter value id = %d", control.id);
+    }
+
+    return status;
+}
+
+
+int V4l2Capture::getParameter(v4l2_control& control) {
+    int status = ioctl(mDeviceFd, VIDIOC_G_CTRL, &control);
+    if (status < 0) {
+        ALOGE("Failed to read a parameter value id = %d", control.id);
+    }
+
+    return status;
+}
+
 bool V4l2Capture::isOpen()
 {
     std::unique_lock <std::mutex> lock(mLock);
@@ -411,3 +452,4 @@ fsl::Memory* V4l2Capture::onFrameCollect(int &index)
     ALOGV("%s index: %d", __func__, index);
     return buffer;
 }
+

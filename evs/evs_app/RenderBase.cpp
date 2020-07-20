@@ -138,20 +138,24 @@ bool RenderBase::prepareGL() {
 
 
 bool RenderBase::attachRenderTarget(const BufferDesc& tgtBuffer) {
+    const AHardwareBuffer_Desc* pDesc =
+              reinterpret_cast<const AHardwareBuffer_Desc *>(&tgtBuffer.buffer.description);
     // Hardcoded to RGBx for now
-    if (tgtBuffer.format != HAL_PIXEL_FORMAT_RGBA_8888) {
+    if (pDesc->format != HAL_PIXEL_FORMAT_RGBA_8888) {
         ALOGE("Unsupported target buffer format");
         return false;
     }
 
     glGenRenderbuffers(1, &sColorBuffer);
     // create a GraphicBuffer from the existing handle
-    sp<GraphicBuffer> pGfxBuffer = new GraphicBuffer(tgtBuffer.memHandle,
+    sp<GraphicBuffer> pGfxBuffer = new GraphicBuffer(tgtBuffer.buffer.nativeHandle,
                                                      GraphicBuffer::CLONE_HANDLE,
-                                                     tgtBuffer.width, tgtBuffer.height,
-                                                     tgtBuffer.format, 1, // layer count
+                                                     pDesc->width,
+                                                     pDesc->height,
+                                                     pDesc->format,
+                                                     1, // layer count
                                                      GRALLOC_USAGE_HW_RENDER,
-                                                     tgtBuffer.stride);
+                                                     pDesc->stride);
     if (pGfxBuffer.get() == nullptr) {
         ALOGE("Failed to allocate GraphicBuffer to wrap image handle");
         return false;
@@ -190,8 +194,8 @@ bool RenderBase::attachRenderTarget(const BufferDesc& tgtBuffer) {
     }
 
     // Store the size of our target buffer
-    sWidth = tgtBuffer.width;
-    sHeight = tgtBuffer.height;
+    sWidth = pDesc->width;
+    sHeight = pDesc->height;
     sAspectRatio = (float)sWidth / sHeight;
 
     // Set the viewport

@@ -17,6 +17,7 @@
 #include "RenderDirectView.h"
 #include "RenderTopView.h"
 #include "RenderPixelCopy.h"
+#include "FormatConvert.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -25,6 +26,10 @@
 #include <inttypes.h>
 #include <utils/SystemClock.h>
 #include <binder/IServiceManager.h>
+
+
+using BufferDesc_1_0 = ::android::hardware::automotive::evs::V1_0::BufferDesc;
+using ::android::hardware::automotive::evs::V1_0::EvsResult;
 
 static bool isSfReady() {
     const android::String16 serviceName("SurfaceFlinger");
@@ -62,11 +67,11 @@ EvsStateControl::EvsStateControl(android::sp <IVehicle>       pVnet,
     // This way we only ever deal with cameras which exist in the system
     // Build our set of cameras for the states we support
     ALOGD("Requesting camera list");
-    mEvs->getCameraList([this, &config](hidl_vec<CameraDesc> cameraList) {
+    mEvs->getCameraList_1_1([this, &config](hidl_vec<CameraDesc> cameraList) {
                             ALOGI("Camera list callback received %zu cameras",
                                   cameraList.size());
                             for (auto&& cam: cameraList) {
-                                ALOGD("Found camera %s", cam.cameraId.c_str());
+                                ALOGD("Found camera %s", cam.v1.cameraId.c_str());
                                 bool cameraConfigFound = false;
 
                                 // Check our configuration for information about this camera
@@ -76,7 +81,7 @@ EvsStateControl::EvsStateControl(android::sp <IVehicle>       pVnet,
                                 // list all of them and let the UX/rendering logic use one, some
                                 // or all of them as appropriate.
                                 for (auto&& info: config.getCameras()) {
-                                    if (strstr(cam.cameraId.c_str(), info.cameraId.c_str())) {
+                                    if (strstr(cam.v1.cameraId.c_str(), info.cameraId.c_str())) {
 
                                         // We found a match!
                                         if (info.function.find("reverse") != std::string::npos) {
@@ -97,7 +102,7 @@ EvsStateControl::EvsStateControl(android::sp <IVehicle>       pVnet,
                                 }
                                 if (!cameraConfigFound) {
                                     ALOGW("No config information for hardware camera %s",
-                                          cam.cameraId.c_str());
+                                          cam.v1.cameraId.c_str());
                                 }
                             }
                         }
@@ -177,8 +182,8 @@ void EvsStateControl::updateLoop() {
         // If we have an active renderer, give it a chance to draw
         if (mCurrentRenderer) {
             // Get the output buffer we'll use to display the imagery
-            BufferDesc tgtBuffer = {};
-            mDisplay->getTargetBuffer([&tgtBuffer](const BufferDesc& buff) {
+            BufferDesc_1_0 tgtBuffer = {};
+            mDisplay->getTargetBuffer([&tgtBuffer](const BufferDesc_1_0& buff) {
                                           tgtBuffer = buff;
                                       }
             );
@@ -187,7 +192,7 @@ void EvsStateControl::updateLoop() {
                 ALOGE("Didn't get requested output buffer -- skipping this frame.");
             } else {
                 // Generate our output image
-                if (!mCurrentRenderer->drawFrame(tgtBuffer)) {
+                if (!mCurrentRenderer->drawFrame(convertBufferDesc(tgtBuffer))) {
                     // If drawing failed, we want to exit quickly so an app restart can happen
                     run = false;
                 }
@@ -344,7 +349,7 @@ bool EvsStateControl::configureEvsPipeline(State desiredState) {
     // Now set the display state based on whether we have a video feed to show
     if (mDesiredRenderer == nullptr) {
         ALOGD("Turning off the display");
-        mDisplay->setDisplayState(DisplayState::NOT_VISIBLE);
+        mDisplay->setDisplayState(EvsDisplayState::NOT_VISIBLE);
     } else {
         mCurrentRenderer = std::move(mDesiredRenderer);
 
@@ -357,7 +362,7 @@ bool EvsStateControl::configureEvsPipeline(State desiredState) {
 
         // Activate the display
         ALOGD("EvsActivateDisplayTiming start time: %" PRId64 "ms", android::elapsedRealtime());
-        Return<EvsResult> result = mDisplay->setDisplayState(DisplayState::VISIBLE_ON_NEXT_FRAME);
+        Return<EvsResult> result = mDisplay->setDisplayState(EvsDisplayState::VISIBLE_ON_NEXT_FRAME);
         if (result != EvsResult::OK) {
             ALOGE("setDisplayState returned an error (%d)", (EvsResult)result);
             return false;

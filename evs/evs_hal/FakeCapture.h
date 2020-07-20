@@ -21,7 +21,7 @@
 #include <functional>
 #include "EvsCamera.h"
 
-using ::android::hardware::automotive::evs::V1_0::implementation::EvsCamera;
+using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
 
 class FakeCapture : public EvsCamera
 {

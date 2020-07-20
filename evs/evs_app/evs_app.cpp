@@ -23,8 +23,8 @@
 
 #include "android-base/macros.h"    // arraysize
 
-#include <android/hardware/automotive/evs/1.0/IEvsEnumerator.h>
-#include <android/hardware/automotive/evs/1.0/IEvsDisplay.h>
+#include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
+#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
 
 #include <hwbinder/ProcessState.h>
 
@@ -122,7 +122,7 @@ int main(int argc, char** argv)
     // Request exclusive access to the EVS display
     ALOGI("Acquiring EVS Display");
     android::sp <IEvsDisplay> pDisplay;
-    pDisplay = pEvs->openDisplay();
+    pDisplay = pEvs->openDisplay_1_1(0);
     if (pDisplay.get() == nullptr) {
         ALOGE("EVS Display unavailable.  Exiting.");
         return 1;

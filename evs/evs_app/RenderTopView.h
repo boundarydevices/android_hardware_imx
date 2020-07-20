@@ -21,13 +21,13 @@
 
 #include "RenderBase.h"
 
-#include <android/hardware/automotive/evs/1.0/IEvsEnumerator.h>
+#include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
 #include "ConfigManager.h"
 #include "VideoTex.h"
 #include <math/mat4.h>
 
 
-using namespace ::android::hardware::automotive::evs::V1_0;
+using namespace ::android::hardware::automotive::evs::V1_1;
 
 
 /*

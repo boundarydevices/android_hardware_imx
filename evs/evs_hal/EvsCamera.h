@@ -18,25 +18,44 @@
 #ifndef _FSL_EVS_CAMERA_H
 #define _FSL_EVS_CAMERA_H
 
-#include <android/hardware/automotive/evs/1.0/types.h>
-#include <android/hardware/automotive/evs/1.0/IEvsCamera.h>
 #include <hwbinder/IBinder.h>
+#include <android/hardware/automotive/evs/1.1/types.h>
+#include <android/hardware/automotive/evs/1.1/IEvsCamera.h>
+#include <android/hardware/automotive/evs/1.1/IEvsCameraStream.h>
+#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
+#include <android/hardware/camera/device/3.2/ICameraDevice.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <set>
 #include <thread>
 #include <functional>
 
 #include <Memory.h>
 #include <MemoryDesc.h>
 #include <MemoryManager.h>
+#include <unordered_map>
+#include <linux/videodev2.h>
 
+using ::android::hardware::hidl_string;
+using ::android::hardware::camera::device::V3_2::Stream;
+using ::android::hardware::automotive::evs::V1_0::EvsResult;
+using ::android::hardware::automotive::evs::V1_0::CameraDesc;
+using BufferDesc_1_0       = ::android::hardware::automotive::evs::V1_0::BufferDesc;
+using BufferDesc_1_1       = ::android::hardware::automotive::evs::V1_1::BufferDesc;
+using IEvsDisplay_1_0      = ::android::hardware::automotive::evs::V1_0::IEvsDisplay;
+using IEvsDisplay_1_1      = ::android::hardware::automotive::evs::V1_1::IEvsDisplay;
+using IEvsCameraStream_1_0 = ::android::hardware::automotive::evs::V1_0::IEvsCameraStream;
+using IEvsCameraStream_1_1 = ::android::hardware::automotive::evs::V1_1::IEvsCameraStream;
+
+using ::android::hardware::hidl_death_recipient;
 namespace android {
 namespace hardware {
 namespace automotive {
 namespace evs {
-namespace V1_0 {
+namespace V1_1 {
 namespace implementation {
 
-using ::android::hardware::hidl_death_recipient;
 
 #define CAMERA_BUFFER_NUM 3
 
@@ -45,12 +64,34 @@ class EvsCamera : public IEvsCamera
 public:
     // Methods from ::android::hardware::automotive::evs::V1_0::IEvsCamera follow.
     Return<void> getCameraInfo(getCameraInfo_cb _hidl_cb)  override;
+    Return<void>      getCameraInfo_1_1(getCameraInfo_1_1_cb _hidl_cb)  override;
+    Return<void>      getPhysicalCameraInfo(const hidl_string& deviceId,
+                           getPhysicalCameraInfo_cb _hidl_cb)  override;
     Return <EvsResult> setMaxFramesInFlight(uint32_t bufferCount) override;
-    Return <EvsResult> startVideoStream(const ::android::sp<IEvsCameraStream>& stream) override;
-    Return<void> doneWithFrame(const BufferDesc& buffer) override;
+    Return <EvsResult> startVideoStream(const ::android::sp<IEvsCameraStream_1_0>& stream) override;
+    Return<void> doneWithFrame(const BufferDesc_1_0& buffer) override;
+    Return<EvsResult> doneWithFrame_1_1(const hidl_vec<BufferDesc_1_1>& buffer) override;
     Return<void> stopVideoStream() override;
     Return <int32_t> getExtendedInfo(uint32_t opaqueIdentifier) override;
     Return <EvsResult> setExtendedInfo(uint32_t opaqueIdentifier, int32_t opaqueValue) override;
+    Return<EvsResult> pauseVideoStream() override;
+    Return<EvsResult> resumeVideoStream() override;
+    Return<EvsResult> setMaster() override;
+    Return<EvsResult> forceMaster(const sp<IEvsDisplay_1_0>&) override;
+    Return<EvsResult> unsetMaster() override;
+    Return<void>      setIntParameter(CameraParam id, int32_t value,
+                                                 setIntParameter_cb _hidl_cb) override;
+    Return<void>      getIntParameter(CameraParam id,
+                                                 getIntParameter_cb _hidl_cb) override;
+    Return<EvsResult> setExtendedInfo_1_1(uint32_t opaqueIdentifier,
+                                               const hidl_vec<uint8_t>& opaqueValue) override;
+    Return<void>      getExtendedInfo_1_1(uint32_t opaqueIdentifier,
+                                               getExtendedInfo_1_1_cb _hidl_cb) override;
+    Return<void>      importExternalBuffers(const hidl_vec<BufferDesc_1_1>& buffers,
+                                     importExternalBuffers_cb _hidl_cb) override;
+    Return<void>      getParameterList(getParameterList_cb _hidl_cb) override;
+    Return<void>      getIntParameterRange(CameraParam id,
+                                 getIntParameterRange_cb _hidl_cb) override;
 
     // Implementation details
     EvsCamera(const char *deviceName);
@@ -66,6 +107,9 @@ protected:
 
     virtual bool onStart() = 0;
     virtual void onStop() = 0;
+    virtual int getParameter(v4l2_control& control) = 0;
+    virtual int setParameter(v4l2_control& control) = 0;
+    virtual std::set<uint32_t>  enumerateCameraControls() = 0;
 
     virtual bool isOpen() = 0;
     // Valid only after open()
@@ -89,14 +133,19 @@ private:
         sp<EvsCamera> mCamera;
     };
     sp<EvsAppRecipient> mEvsAppRecipient;
+    Return<void> doneWithFrame_impl(const uint32_t id, const buffer_handle_t handle);
+    inline bool convertToV4l2CID(CameraParam id, uint32_t& v4l2cid);
 
     // These functions are used to send/receive frame.
     void forwardFrame(fsl::Memory* handle, int index);
     void collectFrames();
+    std::set<uint32_t> mCameraControls;     // Available camera controls
+    int mCameraFd = -1;
 
 protected:
     // The callback used to deliver each frame.
-    sp <IEvsCameraStream> mStream = nullptr;
+    sp <IEvsCameraStream_1_0> mStream = nullptr;
+    sp <IEvsCameraStream_1_1> mStream_1_1 = nullptr;
     // The properties of this camera.
     CameraDesc mDescription = {};
 
@@ -122,6 +171,8 @@ protected:
         STOPPING    = 2,
     };
     int mDeqIdx;
+
+    std::unordered_map<uint32_t, std::vector<uint8_t>> mExtInfo;
 };
 
 } // namespace implementation

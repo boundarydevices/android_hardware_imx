@@ -68,7 +68,7 @@ bool VideoTex::refresh() {
     }
 
     // If we already have an image backing us, then it's time to return it
-    if (mImageBuffer.memHandle.getNativeHandle() != nullptr) {
+    if (mImageBuffer.buffer.nativeHandle.getNativeHandle() != nullptr) {
         // Drop our device texture image
         if (mKHRimage != EGL_NO_IMAGE_KHR) {
             eglDestroyImageKHR(mDisplay, mKHRimage);
@@ -84,12 +84,17 @@ bool VideoTex::refresh() {
 
 
     // create a GraphicBuffer from the existing handle
-    sp<GraphicBuffer> pGfxBuffer = new GraphicBuffer(mImageBuffer.memHandle,
+    const AHardwareBuffer_Desc* pDesc =
+         reinterpret_cast<const AHardwareBuffer_Desc *>(&mImageBuffer.buffer.description);
+
+    sp<GraphicBuffer> pGfxBuffer = new GraphicBuffer(mImageBuffer.buffer.nativeHandle,
                                                      GraphicBuffer::CLONE_HANDLE,
-                                                     mImageBuffer.width, mImageBuffer.height,
-                                                     mImageBuffer.format, 1, // layer count
+                                                     pDesc->width,
+                                                     pDesc->height,
+                                                     pDesc->format,
+                                                     1, // layer count
                                                      GRALLOC_USAGE_HW_TEXTURE,
-                                                     mImageBuffer.stride);
+                                                     pDesc->stride);
     if (pGfxBuffer.get() == nullptr) {
         ALOGE("Failed to allocate GraphicBuffer to wrap image handle");
         // Returning "true" in this error condition because we already released the
@@ -131,7 +136,7 @@ VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum,
                              const char* evsCameraId,
                              EGLDisplay glDisplay) {
     // Set up the camera to feed this texture
-    sp<IEvsCamera> pCamera = pEnum->openCamera(evsCameraId);
+    sp<IEvsCamera> pCamera = IEvsCamera::castFrom(pEnum->openCamera(evsCameraId));
     if (pCamera.get() == nullptr) {
         ALOGE("Failed to allocate new EVS Camera interface for %s", evsCameraId);
         return nullptr;

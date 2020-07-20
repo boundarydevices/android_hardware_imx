@@ -31,6 +31,7 @@ LOCAL_SHARED_LIBRARIES := \
     libhardware \
     libpng \
     android.hardware.automotive.evs@1.0 \
+    android.hardware.automotive.evs@1.1 \
     android.hardware.automotive.vehicle@2.0 \
 
 LOCAL_STATIC_LIBRARIES := \

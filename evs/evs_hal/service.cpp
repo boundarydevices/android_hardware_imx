@@ -30,17 +30,17 @@ using android::hardware::configureRpcThreadpool;
 using android::hardware::joinRpcThreadpool;
 
 // Generated HIDL files
-using android::hardware::automotive::evs::V1_0::IEvsEnumerator;
-using android::hardware::automotive::evs::V1_0::IEvsDisplay;
+using android::hardware::automotive::evs::V1_1::IEvsEnumerator;
+using android::hardware::automotive::evs::V1_1::IEvsDisplay;
 
 // The namespace in which all our implementation code lives
-using namespace android::hardware::automotive::evs::V1_0::implementation;
+using namespace android::hardware::automotive::evs::V1_1::implementation;
 using namespace android;
 
 
 int main() {
     ALOGI("EVS Hardware Enumerator service is starting");
-    android::sp<IEvsEnumerator> service = new EvsEnumerator();
+    android::sp<IEvsEnumerator> service = new EvsEnumerator(nullptr);
 
     configureRpcThreadpool(1, true /* callerWillJoin */);
 

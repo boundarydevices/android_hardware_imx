@@ -167,3 +167,21 @@ void copyMatchedInterleavedFormats(unsigned width, unsigned height,
         dst = (uint8_t*)dst + dstStridePixels * pixelSize;
     }
 }
+
+BufferDesc_1_1 convertBufferDesc(const BufferDesc_1_0& src) {
+    BufferDesc_1_1 dst = {};
+    AHardwareBuffer_Desc* pDesc =
+        reinterpret_cast<AHardwareBuffer_Desc *>(&dst.buffer.description);
+    pDesc->width  = src.width;
+    pDesc->height = src.height;
+    pDesc->layers = 1;
+    pDesc->format = src.format;
+    pDesc->usage  = static_cast<uint64_t>(src.usage);
+    pDesc->stride = src.stride;
+
+    dst.buffer.nativeHandle = src.memHandle;
+    dst.pixelSize = src.pixelSize;
+    dst.bufferId = src.bufferId;
+
+    return dst;
+}

@@ -29,7 +29,8 @@ RenderPixelCopy::RenderPixelCopy(sp<IEvsEnumerator> enumerator,
 
 bool RenderPixelCopy::activate() {
     // Set up the camera to feed this texture
-    sp<IEvsCamera> pCamera = mEnumerator->openCamera(mCameraInfo.cameraId.c_str());
+    sp<IEvsCamera> pCamera =
+                IEvsCamera::castFrom(mEnumerator->openCamera(mCameraInfo.cameraId.c_str()));
     if (pCamera.get() == nullptr) {
         ALOGE("Failed to allocate new EVS Camera interface");
         return false;
@@ -61,18 +62,24 @@ void RenderPixelCopy::deactivate() {
 
 bool RenderPixelCopy::drawFrame(const BufferDesc& tgtBuffer) {
     bool success = true;
+    const AHardwareBuffer_Desc* pTgtDesc =
+       reinterpret_cast<const AHardwareBuffer_Desc *>(&tgtBuffer.buffer.description);
 
     sp<android::GraphicBuffer> tgt = new android::GraphicBuffer(
-            tgtBuffer.memHandle, android::GraphicBuffer::CLONE_HANDLE,
-            tgtBuffer.width, tgtBuffer.height, tgtBuffer.format, 1, tgtBuffer.usage,
-            tgtBuffer.stride);
+            tgtBuffer.buffer.nativeHandle, android::GraphicBuffer::CLONE_HANDLE,
+            pTgtDesc->width,
+            pTgtDesc->height,
+            pTgtDesc->format,
+            1,
+            pTgtDesc->usage,
+            pTgtDesc->stride);
 
     // Lock our target buffer for writing (should be RGBA8888 format)
     uint32_t* tgtPixels = nullptr;
     tgt->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)&tgtPixels);
 
     if (tgtPixels) {
-        if (tgtBuffer.format != HAL_PIXEL_FORMAT_RGBA_8888) {
+        if (pTgtDesc->format != HAL_PIXEL_FORMAT_RGBA_8888) {
             // We always expect 32 bit RGB for the display output for now.  Is there a need for 565?
             ALOGE("Diplay buffer is always expected to be 32bit RGBA");
             success = false;
@@ -81,11 +88,19 @@ bool RenderPixelCopy::drawFrame(const BufferDesc& tgtBuffer) {
             if (mStreamHandler->newFrameAvailable()) {
                 const BufferDesc& srcBuffer = mStreamHandler->getNewFrame();
 
+                const AHardwareBuffer_Desc* pSrcDesc =
+                      reinterpret_cast<const AHardwareBuffer_Desc *>(&srcBuffer.buffer.description);
+
                 // Lock our source buffer for reading (current expectation are for this to be NV21 format)
                 sp<android::GraphicBuffer> src = new android::GraphicBuffer(
-                        srcBuffer.memHandle, android::GraphicBuffer::CLONE_HANDLE,
-                        srcBuffer.width, srcBuffer.height, srcBuffer.format, 1, srcBuffer.usage,
-                        srcBuffer.stride);
+                        srcBuffer.buffer.nativeHandle,
+                        android::GraphicBuffer::CLONE_HANDLE,
+                        pSrcDesc->width,
+                        pSrcDesc->height,
+                        pSrcDesc->format,
+                        1,
+                        pSrcDesc->usage,
+                        pSrcDesc->stride);
                 unsigned char* srcPixels = nullptr;
                 src->lock(GRALLOC_USAGE_SW_READ_OFTEN, (void**)&srcPixels);
                 if (!srcPixels) {
@@ -93,27 +108,27 @@ bool RenderPixelCopy::drawFrame(const BufferDesc& tgtBuffer) {
                 }
 
                 // Make sure we don't run off the end of either buffer
-                const unsigned width     = std::min(tgtBuffer.width,
-                                                    srcBuffer.width);
-                const unsigned height    = std::min(tgtBuffer.height,
-                                                    srcBuffer.height);
+                const unsigned width     = std::min(pTgtDesc->width,
+                                                     pSrcDesc->width);
+                const unsigned height    = std::min(pTgtDesc->height,
+                                                    pSrcDesc->height);
 
-                if (srcBuffer.format == HAL_PIXEL_FORMAT_YCRCB_420_SP) {   // 420SP == NV21
+                if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCRCB_420_SP) {   // 420SP == NV21
                     copyNV21toRGB32(width, height,
                                     srcPixels,
-                                    tgtPixels, tgtBuffer.stride);
-                } else if (srcBuffer.format == HAL_PIXEL_FORMAT_YV12) { // YUV_420P == YV12
+                                    tgtPixels, pTgtDesc->stride);
+                } else if (pSrcDesc->format == HAL_PIXEL_FORMAT_YV12) { // YUV_420P == YV12
                     copyYV12toRGB32(width, height,
                                     srcPixels,
-                                    tgtPixels, tgtBuffer.stride);
-                } else if (srcBuffer.format == HAL_PIXEL_FORMAT_YCBCR_422_I) { // YUYV
+                                    tgtPixels, pTgtDesc->stride);
+                } else if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCBCR_422_I) { // YUYV
                     copyYUYVtoRGB32(width, height,
-                                    srcPixels, srcBuffer.stride,
-                                    tgtPixels, tgtBuffer.stride);
-                } else if (srcBuffer.format == tgtBuffer.format) {  // 32bit RGBA
+                                    srcPixels, pSrcDesc->stride,
+                                    tgtPixels, pTgtDesc->stride);
+                } else if (pSrcDesc->format == pTgtDesc->format) {  // 32bit RGBA
                     copyMatchedInterleavedFormats(width, height,
-                                                  srcPixels, srcBuffer.stride,
-                                                  tgtPixels, tgtBuffer.stride,
+                                                  srcPixels, pSrcDesc->stride,
+                                                  tgtPixels, pTgtDesc->stride,
                                                   tgtBuffer.pixelSize);
                 }
 

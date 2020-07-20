@@ -21,16 +21,18 @@
 
 #include "ui/GraphicBuffer.h"
 
-#include <android/hardware/automotive/evs/1.0/IEvsCameraStream.h>
-#include <android/hardware/automotive/evs/1.0/IEvsCamera.h>
-#include <android/hardware/automotive/evs/1.0/IEvsDisplay.h>
+#include <android/hardware/automotive/evs/1.1/IEvsCameraStream.h>
+#include <android/hardware/automotive/evs/1.1/IEvsCamera.h>
+#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
 
-using namespace ::android::hardware::automotive::evs::V1_0;
+using BufferDesc_1_0 = ::android::hardware::automotive::evs::V1_0::BufferDesc;
+using BufferDesc_1_1 = ::android::hardware::automotive::evs::V1_1::BufferDesc;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
 using ::android::hardware::hidl_vec;
 using ::android::hardware::hidl_handle;
 using ::android::sp;
+using namespace ::android::hardware::automotive::evs::V1_1;
 
 
 /*
@@ -59,7 +61,9 @@ public:
 
 private:
     // Implementation for ::android::hardware::automotive::evs::V1_0::ICarCameraStream
-    Return<void> deliverFrame(const BufferDesc& buffer)  override;
+    Return<void> deliverFrame(const BufferDesc_1_0& buffer)  override;
+    Return<void> deliverFrame_1_1(const hidl_vec<BufferDesc_1_1>& buffer)  override;
+    Return<void> notify(const EvsEventDesc& event) override;
 
     // Values initialized as startup
     android::sp <IEvsCamera>    mCamera;
