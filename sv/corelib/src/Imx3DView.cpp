@@ -37,13 +37,14 @@ namespace imx {
 ***************************************************************************************/
 Imx3DView::Imx3DView()
 {
-	current_prog = 0;
-	//glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
-	glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-	//glEnable(GL_CULL_FACE);
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    current_prog = 0;
+    //glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
+    //glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    //glEnable(GL_CULL_FACE);
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 
@@ -170,12 +171,22 @@ void Imx3DView::bufferObjectInit(GLuint* text_vao, GLuint* text_vbo, GLfloat* ve
 	glBindVertexArray(*text_vao);
 
 	// Position attribute
-	glVertexAttribPointer(0, SV_VERTEX_NUM, GL_FLOAT, GL_FALSE, SV_ATTRIBUTE_NUM * sizeof(GLfloat), (GLvoid*)0);
+	glVertexAttribPointer(0, SV_VERTEX_NUM, GL_FLOAT, GL_FALSE,
+                          SV_ATTRIBUTE_NUM * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
 
 	// TexCoord attribute
-	glVertexAttribPointer(1, SV_TEXTURE_NUM, GL_FLOAT, GL_FALSE, SV_ATTRIBUTE_NUM * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glVertexAttribPointer(1, SV_TEXTURE_NUM, GL_FLOAT, GL_FALSE,
+                          SV_ATTRIBUTE_NUM * sizeof(GLfloat),
+                          (GLvoid*)(SV_VERTEX_NUM * sizeof(GLfloat)));
 	glEnableVertexAttribArray(1);
+
+	// TexCoord attribute
+	glVertexAttribPointer(2, SV_ALPHA_NUM, GL_FLOAT, GL_FALSE,
+                          SV_ATTRIBUTE_NUM * sizeof(GLfloat),
+                          (GLvoid*)((SV_VERTEX_NUM + SV_TEXTURE_NUM) * sizeof(GLfloat)));
+	glEnableVertexAttribArray(2);
+
 
 	glBindVertexArray(0);
 }

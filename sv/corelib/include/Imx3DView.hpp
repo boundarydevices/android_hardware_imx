@@ -64,8 +64,10 @@
 #define SV_VERTEX_NUM 3
 //2 * float for vetex
 #define SV_TEXTURE_NUM 2
+//1 * float for alpha 
+#define SV_ALPHA_NUM 1
 
-#define SV_ATTRIBUTE_NUM (SV_VERTEX_NUM + SV_TEXTURE_NUM)
+#define SV_ATTRIBUTE_NUM (SV_VERTEX_NUM + SV_TEXTURE_NUM + SV_ALPHA_NUM)
 
 namespace imx {
 /**********************************************************************************************************************

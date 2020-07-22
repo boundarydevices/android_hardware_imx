@@ -75,20 +75,24 @@ static const char s_v_shader_bowl[] =
 	"uniform mat4 mvpMatrix;                  \n"
 	" layout(location = 0) in vec3 vPosition; \n "
 	" layout(location = 1) in vec2 vTexCoord; \n "
+	" layout(location = 2) in float vTexAlpha; \n "
 	" out vec2 TexCoord; \n "
+	" out float TexAlpha; \n "
 	" void main() \n "
 	" { \n "
 		" gl_Position = mvpMatrix * vec4(vPosition.xyz, 1.0f); \n "
 		" TexCoord = vTexCoord; \n "
+		" TexAlpha = vTexAlpha; \n "
 	" } \n ";
 
 static const char s_f_shader_bowl[] =
 	"#version 300 es \n"
 	" precision mediump float;\n "
 	" in vec2 TexCoord; \n "
+	" in float TexAlpha; \n "
 	" out vec4 fragColor; \n "
 	" uniform sampler2D myTexture0; \n "
 	" void main() \n "
 	" {\n "
-		" fragColor = texture(myTexture0, TexCoord); \n "
+		" fragColor = vec4(texture(myTexture0, TexCoord).rgb, TexAlpha); \n "
 	" }\n ";	

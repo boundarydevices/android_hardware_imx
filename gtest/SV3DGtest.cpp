@@ -160,7 +160,7 @@ static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d
 
 #define SV_X_STEP (0.2)
 #define SV_Z_NOP (16)
-#define SV_ANGLES_IN_PI (32)
+#define SV_ANGLES_IN_PI (64)
 #define SV_RADIUS (4.0)
 
 static int getMashes(CurvilinearGrid &grid, float** gl_grid, int camera)
@@ -374,7 +374,7 @@ TEST(ImxSV, 3DSurroundViewGrids) {
         free(data);
 }
 
-TEST(ImxSV, 3DSurroundViewMashes) {
+TEST(ImxSV, 3DSurroundViewTextures) {
     EGLint majorVersion;
     EGLint minorVersion;
     EGLSurface surface;
@@ -556,7 +556,7 @@ TEST(ImxSV, 3DSurroundViewMashes) {
             usleep(300000);
         }
 
-        cout << "**Rotation, transform  and Rotation test**" << endl;
+        cout << "**X Rotation, transform  and Rotation test**" << endl;
         //Rotation and transform test
         for(int i = 0; i < 10; i ++){
             Vector3d r = { 1, 0, 0};
@@ -596,9 +596,208 @@ TEST(ImxSV, 3DSurroundViewMashes) {
             usleep(300000);
         }
 
+        cout << "**Z Rotation, transform  and Rotation test**" << endl;
+        //Rotation and transform test
+        for(int i = 0; i < 10; i ++){
+            Vector3d r = { 0, 0, 1};
+            Vector3d t = { 0, 0, 0};
+            AngleAxisd rotation_vector(M_PI/10 * i, r);
+            Isometry3d T = Isometry3d::Identity();
+            T.rotate(rotation_vector);
+            T.pretranslate(t);
+            auto modelMatrix = T.matrix();
+
+            //cout << "Transform matrix = \n" << modelMatrix << endl;
+            float mvp_matrix[16];
+            for(int i = 0; i < 4; i ++)
+                for(int j = 0; j < 4; j ++){
+                    mvp_matrix[i *4 + j] = (float)modelMatrix(i, j);
+                }
+
+            view->cleanView();
+            view->setMVPMatrix(2, mvp_matrix);
+
+            for(uint32_t index = 0; index < 4; index ++) {
+                data_num = getMashes(grid, &data, index);
+                grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
+		        view->renderView(images[index], width, height, grid_buf);
+            }
+
+            eglSwapBuffers(dpy, surface);
+            sleep(1);
+        }
+
     }
 
     sleep(2);
-    ALOGI("End of the 3D test");
+    ALOGI("End of the SV Textures test");
+    glFinish();
+}
+
+TEST(ImxSV, 3DSurroundViewMashes) {
+    EGLint majorVersion;
+    EGLint minorVersion;
+    EGLSurface surface;
+    EGLint w, h;
+    EGLDisplay dpy;
+
+    WindowSurface windowSurface;
+    EGLNativeWindowType window = windowSurface.getSurface();
+
+    dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (dpy == EGL_NO_DISPLAY) {
+        ALOGE("Failed to get egl display");
+        return;
+    }
+
+    if(!eglInitialize(dpy, &majorVersion, &minorVersion)) {
+        ALOGE("Failed to initialize EGL: %s", getEGLError());
+        return;
+    }
+
+    // Hardcoded to RGBx output display
+    const EGLint config_attribs[] = {
+        // Tag                  Value
+        EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT,
+        EGL_RED_SIZE,           8,
+        EGL_GREEN_SIZE,         8,
+        EGL_BLUE_SIZE,          8,
+        EGL_NONE
+    };
+
+    const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+    EGLConfig egl_config;
+    EGLint num_configs;
+    if (!eglChooseConfig(dpy, config_attribs, &egl_config, 1, &num_configs)) {
+        ALOGE("eglChooseConfig() failed with error: %s", getEGLError());
+        return;
+    }
+
+    surface = eglCreateWindowSurface(dpy, egl_config, window, NULL);
+    EGLContext context = eglCreateContext(dpy, egl_config,
+            EGL_NO_CONTEXT, context_attribs);
+    if (context == EGL_NO_CONTEXT) {
+        ALOGE("Failed to create OpenGL ES Context: %s", getEGLError());
+        return;
+    }
+
+    // Activate our render target for drawing
+    if (!eglMakeCurrent(dpy, surface, surface, context)) {
+        ALOGE("Failed to make the OpenGL ES Context current: %s", getEGLError());
+        return;
+    } else {
+        ALOGI("We made our context current!  :)");
+    }
+
+    eglMakeCurrent(dpy, surface, surface, context);
+    eglQuerySurface(dpy, surface, EGL_WIDTH, &w);
+    eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
+
+    Imx3DView *view = new Imx3DView();
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
+
+    char input[128];
+    memset(input, 0, sizeof(input));
+    sprintf(input, "/sdcard/%d.png", 0);
+    uint32_t width = 0, height=0, stride=0;
+    bool retValue = getImageInfo(input, &width,
+                    &height, &stride);
+    if(!retValue)
+        return;
+
+    vector<Vector3d> evsRotations;
+    vector<Vector3d> evsTransforms;
+    vector<Matrix<double, 3, 3>> Ks;
+    vector<Matrix<double, 1, 4>> Ds;
+
+    initCameraParameters(evsRotations, evsTransforms,
+        Ks, Ds);
+
+	auto grid = CurvilinearGrid(SV_ANGLES_IN_PI, SV_Z_NOP, SV_X_STEP,
+                                w, h, evsRotations, evsTransforms, Ks, Ds);
+	grid.createGrid(SV_RADIUS); // Calculate grid points
+
+    view->cleanView();
+
+    float* data = nullptr;
+    int data_num;
+    int grid_buf;
+    if(view->setProgram(2) == 0) {
+        //prepare input buffers
+        vector<shared_ptr<unsigned char>> images;
+
+        //RGB24 bits
+        for(uint32_t index = 0; index < 4; index ++) {
+            shared_ptr<unsigned char> image_outbuf(new unsigned char[height *width * 3],
+                std::default_delete<unsigned char[]>());
+            if(image_outbuf == nullptr)
+                return;
+            unsigned char *image = image_outbuf.get();
+            for(int i = 0; i < height; i ++)
+                for(int j = 0; j < width; j ++) {
+                    if(index == 0) {
+                        image[(i * width + j)*3] = 0xff;
+                        image[(i * width + j)*3 + 1] = 0;
+                        image[(i * width + j)*3 + 2] = 0;
+                    } else if(index == 1) {
+                        image[(i * width + j)*3] = 0;
+                        image[(i * width + j)*3 + 1] = 0xff;
+                        image[(i * width + j)*3 + 2] = 0;
+                    } else if(index == 2) {
+                        image[(i * width + j)*3] = 0;
+                        image[(i * width + j)*3 + 1] = 0;
+                        image[(i * width + j)*3 + 2] = 0xff;
+                    } else {
+                        image[(i * width + j)*3] = 0;
+                        image[(i * width + j)*3 + 1] = 0xff;
+                        image[(i * width + j)*3 + 2] = 0xff;
+                    }
+
+            }
+            images.push_back(image_outbuf);
+        }
+
+        cout << "**Z Rotation, transform  and Rotation test**" << endl;
+        //Rotation and transform test
+        for(int i = 0; i < 10; i ++){
+            Vector3d r = { 0, 0, 1};
+            Vector3d t = { 0, 0, 0};
+            AngleAxisd rotation_vector(M_PI/10 * i, r);
+            Isometry3d T = Isometry3d::Identity();
+            T.rotate(rotation_vector);
+            T.pretranslate(t);
+            auto modelMatrix = T.matrix();
+
+            //cout << "Transform matrix = \n" << modelMatrix << endl;
+            float mvp_matrix[16];
+            for(int i = 0; i < 4; i ++)
+                for(int j = 0; j < 4; j ++){
+                    mvp_matrix[i *4 + j] = (float)modelMatrix(i, j);
+                }
+
+            view->cleanView();
+            view->setMVPMatrix(2, mvp_matrix);
+
+            for(uint32_t index = 0; index < 4; index ++) {
+                data_num = getMashes(grid, &data, index);
+                grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
+		        view->renderView(images[index], width, height, grid_buf);
+            }
+
+            eglSwapBuffers(dpy, surface);
+            sleep(1);
+        }
+
+    }
+
+    sleep(2);
+    ALOGI("End of the SV Mashes test");
     glFinish();
 }

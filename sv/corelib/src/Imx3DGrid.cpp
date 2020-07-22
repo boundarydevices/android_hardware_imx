@@ -291,7 +291,7 @@ int CurvilinearGrid::getGrids(float** points) {
 }
 
 static int findCommonIndex(PixelMap *LUT0, PixelMap *LUT1,
-	                                PixelMap *LUT2, PixelMap *LUT3)
+	                       PixelMap *LUT2, PixelMap *LUT3)
 {
 	int index0 = SV_INVALID_INDEX;
 	int index1 = SV_INVALID_INDEX;
@@ -313,8 +313,39 @@ static int findCommonIndex(PixelMap *LUT0, PixelMap *LUT1,
 	return index0;
 }
 
+static bool IsCommonIndex(int camera, PixelMap *LUT0, PixelMap *LUT1,
+	                     PixelMap *LUT2, PixelMap *LUT3)
+{
+	int index0 = SV_INVALID_INDEX;
+	int index1 = SV_INVALID_INDEX;
+	for(int i = 0; i < 4; i ++){
+	    if((i != LUT0->index0)&&(i != LUT0->index1))
+	        continue;
+	    if((i != LUT1->index0)&&(i != LUT1->index1))
+	        continue;
+	    if((i != LUT2->index0)&&(i != LUT2->index1))
+	        continue;
+	    if((i != LUT3->index0)&&(i != LUT3->index1))
+	        continue;
+	    if(index0 == SV_INVALID_INDEX)
+	        index0 = i;
+	    else if(index1 == SV_INVALID_INDEX) {
+	        index1 = i;
+	    }
+	}
+    if((camera == index0)||(camera == index1))
+        return true;
+    else
+        return false;
+}
+
 int CurvilinearGrid::getMashes(float** points, int camera) {
 	int size = 0;
+
+	if(camera == SV_INVALID_INDEX) {
+        ALOGE("Error! Not a valid camera index %d", camera);
+        return 0;
+    }
 
 	if (mGlobalP3d.size() == 0) return (0);
 	float x_norm = 1.0 / mWidth;
@@ -344,12 +375,10 @@ int CurvilinearGrid::getMashes(float** points, int camera) {
 	        if(!valid3DPoint(i) || !valid3DPoint(i + 1)
 	            || !valid3DPoint(inext) || !valid3DPoint(inext))
 	            continue;
-	        uint32_t index = findCommonIndex(LUT + i, LUT + i + 1,
-	                                         LUT + inext, LUT + inext + 1);
-	        if(index == SV_INVALID_INDEX)
-	            continue;
 
-	        if(index != camera)
+            bool validGrid = IsCommonIndex(camera, LUT + i, LUT + i + 1,
+	                                       LUT + inext, LUT + inext + 1);
+	        if(!validGrid)
 	            continue;
 
 	        auto fn = [&](unsigned int point){
@@ -357,12 +386,14 @@ int CurvilinearGrid::getMashes(float** points, int camera) {
 	            (*points)[size ++] = mGlobalP3d[point][1]/norXY;
 	            (*points)[size ++] = mGlobalP3d[point][2]/norXY;
 	            //texture corridnate should be top - x*normal?
-	            if(index == (LUT + point)->index0) {
+	            if(camera == (LUT + point)->index0) {
 	                    (*points)[size ++] = (LUT + point)->u0 * x_norm;
 	                    (*points)[size ++] = (LUT + point)->v0 * y_norm;
+	                    (*points)[size ++] = (LUT + point)->alpha0;
 	            } else {
 	                    (*points)[size ++] = (LUT + point)->u1 * x_norm;
 	                    (*points)[size ++] = (LUT + point)->v1 * y_norm;
+	                    (*points)[size ++] = (LUT + point)->alpha1;
 	            }
 	        };
 
