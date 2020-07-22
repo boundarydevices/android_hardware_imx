@@ -563,6 +563,49 @@ static int get_card_for_device(struct imx_audio_device *adev, int device, unsign
         *card_index = i;
     return card;
 }
+static int refine_input_parameters(uint32_t *sample_rate, audio_format_t *format,
+        audio_channel_mask_t *channel_mask)
+{
+    static const uint32_t sample_rates [] = {8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000};
+    static const int sample_rates_count = sizeof(sample_rates)/sizeof(uint32_t);
+    bool inval = false;
+    ALOGI("%s: enter: sample_rate(%d) channel_mask(%#x) format(%#x)",
+              __func__, *sample_rate, *channel_mask, *format);
+    if (*format != DEFAULT_INPUT_FORMAT) {
+        *format = DEFAULT_INPUT_FORMAT;
+        inval = true;
+    }
+
+    int channel_count = popcount(*channel_mask);
+    if (channel_count != 1 && channel_count != 2) {
+        *channel_mask = DEFAULT_INPUT_CHANNEL_MASK;
+        inval = true;
+    }
+
+    int i;
+    for (i = 0; i < sample_rates_count; i++) {
+        if (*sample_rate < sample_rates[i]) {
+            *sample_rate = sample_rates[i];
+            inval=true;
+            break;
+        }
+        else if (*sample_rate == sample_rates[i]) {
+            break;
+        }
+        else if (i == sample_rates_count-1) {
+            // Cap it to the highest rate we support
+            *sample_rate = sample_rates[i];
+            inval=true;
+        }
+    }
+
+    if (inval) {
+        ALOGI("%s: unsupported input parameters.", __func__);
+        return -EINVAL;
+    }
+    return 0;
+}
+
 /* must be called with hw device and output stream mutexes locked */
 static int start_output_stream(struct imx_stream_out *out)
 {
@@ -668,36 +711,18 @@ static int start_output_stream(struct imx_stream_out *out)
     return -ENOMEM;
 }
 
-static int check_input_parameters(uint32_t sample_rate, int format, int channel_count)
+static int check_input_parameters(uint32_t sample_rate, audio_format_t format,
+        audio_channel_mask_t channel_mask)
 {
-    if (format != AUDIO_FORMAT_PCM_16_BIT)
-        return -EINVAL;
-
-    if ((channel_count < 1) || (channel_count > 2))
-        return -EINVAL;
-
-    switch(sample_rate) {
-    case 8000:
-    case 11025:
-    case 16000:
-    case 22050:
-    case 24000:
-    case 32000:
-    case 44100:
-    case 48000:
-        break;
-    default:
-        return -EINVAL;
-    }
-
-    return 0;
+    return refine_input_parameters(&sample_rate, &format, &channel_mask);
 }
 
-static size_t get_input_buffer_size(uint32_t sample_rate, int format, int channel_count)
+static size_t get_input_buffer_size(uint32_t sample_rate, audio_format_t format,
+        audio_channel_mask_t channel_mask)
 {
     size_t size;
-
-    if (check_input_parameters(sample_rate, format, channel_count) != 0)
+    int channel_count = popcount(channel_mask);
+    if (check_input_parameters(sample_rate, format, channel_mask) != 0)
         return 0;
 
     /* take resampling into account and return the closest majoring
@@ -1172,8 +1197,8 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
     bool stereo2mono = false;
     size_t frames_rq = count / audio_stream_in_frame_size((const struct audio_stream_in *)&in->stream.common);
 
-    if (in->config.format == PCM_FORMAT_S24_LE && in->requested_format == PCM_FORMAT_S16_LE) bit_24b_2_16b = true;
-    if (in->config.format == PCM_FORMAT_S32_LE && in->requested_format == PCM_FORMAT_S16_LE) bit_32b_2_16b = true;
+    if (in->config.format == PCM_FORMAT_S24_LE && in->requested_format == AUDIO_FORMAT_PCM_16_BIT) bit_24b_2_16b = true;
+    if (in->config.format == PCM_FORMAT_S32_LE && in->requested_format == AUDIO_FORMAT_PCM_16_BIT) bit_32b_2_16b = true;
     if (in->config.channels == 2 && in->requested_channel == 1) stereo2mono = true;
     if (in->config.channels == 1 && in->requested_channel == 2) mono2stereo = true;
 
@@ -1700,8 +1725,8 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
 
     return get_input_buffer_size(in->requested_rate,
-                                 AUDIO_FORMAT_PCM_16_BIT,
-                                 in->requested_channel);
+                                 in->requested_format,
+                                 in->requested_channel_mask);
 }
 
 static uint32_t in_get_channels(const struct audio_stream *stream)
@@ -1718,17 +1743,7 @@ static uint32_t in_get_channels(const struct audio_stream *stream)
 static audio_format_t in_get_format(const struct audio_stream *stream)
 {
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
-    switch(in->requested_format) {
-    case PCM_FORMAT_S16_LE:
-         return AUDIO_FORMAT_PCM_16_BIT;
-    case PCM_FORMAT_S32_LE:
-         return AUDIO_FORMAT_PCM_32_BIT;
-    case PCM_FORMAT_S24_LE:
-         return AUDIO_FORMAT_PCM_8_24_BIT;
-    default:
-         return AUDIO_FORMAT_PCM_16_BIT;
-    }
-
+    return in->requested_format;
 }
 
 static int in_set_format(struct audio_stream *stream __unused, audio_format_t format __unused)
@@ -3889,11 +3904,7 @@ static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
 static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev __unused,
                                          const struct audio_config *config)
 {
-    int channel_count = popcount(config->channel_mask);
-    if (check_input_parameters(config->sample_rate, config->format, channel_count) != 0)
-        return 0;
-
-    return get_input_buffer_size(config->sample_rate, config->format, channel_count);
+    return get_input_buffer_size(config->sample_rate, config->format, config->channel_mask);
 }
 
 static int adev_open_input_stream(struct audio_hw_device *dev,
@@ -3909,8 +3920,13 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     struct imx_stream_in *in;
     int channel_count = popcount(config->channel_mask);
 
-    if (check_input_parameters(config->sample_rate, config->format, channel_count) != 0)
+    if (refine_input_parameters(&config->sample_rate, &config->format, &config->channel_mask)) {
+        ALOGE("Error opening input stream. Refine parameters to format %d, channel_mask %#x, \
+                sample_rate %u", config->format, config->channel_mask, config->sample_rate);
         return -EINVAL;
+    }
+
+    ALOGI("%s: enter: devices(%#x) flags(%#x), address(%s)", __func__, devices, flags, address);
 
     in = (struct imx_stream_in *)calloc(1, sizeof(struct imx_stream_in));
     if (!in)
@@ -3938,8 +3954,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 #endif
 
     in->requested_rate    = config->sample_rate;
-    in->requested_format  = PCM_FORMAT_S16_LE;
+    in->requested_format  = config->format;
     in->requested_channel = channel_count;
+    in->requested_channel_mask = config->channel_mask;
     in->device  = devices & ~AUDIO_DEVICE_BIT_IN;
 
     ALOGW("In channels %d, rate %d, devices 0x%x", channel_count, config->sample_rate, devices);

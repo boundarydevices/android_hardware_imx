@@ -160,8 +160,9 @@ struct imx_stream_in {
     size_t read_tmp_buf_frames;
 
     unsigned int requested_rate;
-    unsigned int requested_format;
+    audio_format_t requested_format;
     unsigned int requested_channel;
+    audio_channel_mask_t requested_channel_mask;
     int standby;
     int source;
     struct echo_reference_itfe *echo_reference;
