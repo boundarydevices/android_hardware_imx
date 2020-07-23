@@ -1030,6 +1030,39 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     return status;
 }
 
+static bool stream_get_parameter_formats(struct str_parms *query,
+                                         struct str_parms *reply,
+                                         audio_format_t *supported_formats) {
+    int ret = -1;
+    char value[256];
+    int i;
+
+    if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
+        ret = 0;
+        value[0] = '\0';
+        switch (supported_formats[0]) {
+            case AUDIO_FORMAT_PCM_16_BIT:
+                strcat(value, "AUDIO_FORMAT_PCM_16_BIT");
+                break;
+            case AUDIO_FORMAT_PCM_24_BIT_PACKED:
+                strcat(value, "AUDIO_FORMAT_PCM_24_BIT_PACKED");
+                break;
+            case AUDIO_FORMAT_PCM_32_BIT:
+                strcat(value, "AUDIO_FORMAT_PCM_32_BIT");
+                break;
+            case AUDIO_FORMAT_DSD:
+                strcat(value, "AUDIO_FORMAT_DSD");
+                break;
+            default:
+                ALOGE("%s: unsupported format %#x", __func__,
+                      supported_formats[0]);
+                break;
+        }
+        str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_FORMATS, value);
+    }
+    return ret >= 0;
+}
+
 static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
@@ -1086,16 +1119,10 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         checked = true;
     }
 
-    ret = str_parms_get_str(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS, value, sizeof(value));
-    if (ret >= 0) {
-        value[0] = '\0';
-        strcat(value, "AUDIO_FORMAT_PCM_16_BIT");
-        str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_FORMATS, value);
-        str = strdup(str_parms_to_str(reply));
-        checked = true;
-    }
-
-    if (!checked) {
+    checked |= stream_get_parameter_formats(query, reply, &out->format);
+    if (checked) {
+        str = str_parms_to_str(reply);
+    } else {
         str = strdup("");
     }
 
@@ -3164,7 +3191,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->flags = flags;
     out->device = devices;
     out->address = strdup(address);
-    out->sup_rates[0] = DEFAULT_OUTPUT_SAMPLE_RATE;
+    out->sup_rates[0] = config->sample_rate;
     out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
     out->sample_rate = config->sample_rate;
     out->channel_mask = config->channel_mask;
