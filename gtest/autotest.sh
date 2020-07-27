@@ -19,11 +19,13 @@ Options:
           WIFI/BT:   wifi
           Unit:      unit
           Security:  security
+          Widevine:  widevine
  -t:      Case name of module as follows:
           Media:     quick
           WIFI/BT:   quick ; connect
           Unit:      quick
           Security:  quick
+          Widevine:  quick
 -------------------------------------------------------------------
 EOF
 }
@@ -39,11 +41,11 @@ test_case=0
 casename=""
 modulename=""
 start_test=0
-module_names="security media unit wifi graphic"
+module_names="security media unit wifi graphic widevine"
 case_names=""
-file_list=(command_quick.txt test_list.txt FslOMXAutoTest.apk http_45_video_1.txt imx_unit_test security_unit_test)
-function_list=(fun_run_unit fun_run_media fun_run_wifi fun_run_security)
-module_name=(UNIT-MODULE MEDIA-MODULE WIFI-MODULE SECURITY-MODULE)
+file_list=(command_quick.txt test_list.txt FslOMXAutoTest.apk http_45_video_1.txt imx_unit_test security_unit_test WidevineTest)
+function_list=(fun_run_unit fun_run_media fun_run_wifi fun_run_security fun_run_widevine)
+module_name=(UNIT-MODULE MEDIA-MODULE WIFI-MODULE SECURITY-MODULE WIDEVINE-MODULE)
 
 #--------------------------------------wget--file---------------------------------------
 for file_item in "${file_list[@]}" ;do
@@ -326,13 +328,44 @@ fun_run_unit ()
     fi
 }
 #-------------------------------------Unit_test_end------------------------------------
+#-------------------------------------Widevine_test------------------------------------
+fun_check_widevine_hal()
+{
+    adb shell lshal | grep "android.hardware.drm@1.0::IDrmFactory/widevine" >/dev/null 2>&1
+}
+fun_run_widevine()
+{
+    fun_check_widevine_hal
+    if [ $? -ne 0 ];then
+        echo -e ${RED}There is no widevine hal${STD}
+        exit 1
+    else
+        echo -e ${BLUE}There is widevine hal${STD}
+        chmod 777 WidevineTest
+        $adb_c push WidevineTest /data/
+    fi
+    if [ $# -eq 0 ];then
+        $adb_c shell /data/WidevineTest
+    else
+        case "$1" in
+           "quick")
+                   $adb_c shell /data/WidevineTest
+                   ;;
+            *)  echo -e "${RED}===No found case===${STD}"
+                exit 1;;
+        esac
+    fi
+
+}
+#-----------------------------------Widevine_test_end----------------------------------
 fun_find_module ()
 {
     case "$1" in
-        "media")    fun_run_media    $2;;
-        "wifi")     fun_run_wifi     $2;;
-        "security") fun_run_security $2;;
-        "unit")     fun_run_unit     $2;;
+        "media")     fun_run_media    $2;;
+        "wifi")      fun_run_wifi     $2;;
+        "security")  fun_run_security $2;;
+        "unit")      fun_run_unit     $2;;
+        "widevine")  fun_run_widevine $2;;
         *)          echo -e "${RED}No found module${STD}"
                     return 1;;
     esac
