@@ -14,6 +14,7 @@
 
 cc_test {
     name: "imx_unit_test",
+    compile_multilib: "64",
     srcs: [
         "SVImageGtest.cpp",
         "ImageUtils.cpp",
@@ -32,6 +33,11 @@ cc_test {
         "libeigen",
     ],
 
+    include_dirs: [
+        "external/assimp/include",
+        "external/glm"
+    ],
+
     static_libs: ["libglTest", "libimxsv_base"],
 
     shared_libs: [
@@ -46,6 +52,7 @@ cc_test {
         "libui",
         "libgui",
         "libutils",
+        "libassimp",
     ],
     stl: "c++_static",
     test_suites: ["device-tests"],

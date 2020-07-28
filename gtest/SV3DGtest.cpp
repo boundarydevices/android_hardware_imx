@@ -24,6 +24,10 @@
 #include <EGL/egl.h>
 #include <GLES/gl.h>
 #include <GLES/glext.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <ModelLoader/ModelLoader.hpp>
 
 #include <WindowSurface.h>
 #include <EGLUtils.h>
@@ -162,6 +166,17 @@ static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d
 #define SV_Z_NOP (16)
 #define SV_ANGLES_IN_PI (64)
 #define SV_RADIUS (4.0)
+
+#define CAR_ORIENTATION_X 90.0f 
+#define CAR_ORIENTATION_Y 180.0f
+#define CAR_ORIENTATION_Z 0.0f
+#define SV_ORIENTATION_X 0.0f 
+#define SV_ORIENTATION_Y 0.0f
+#define SV_ORIENTATION_Z 0.0f
+#define CAM_LIMIT_RY_MIN -1.57f
+#define CAM_LIMIT_RY_MAX 0.0f
+#define CAM_LIMIT_ZOOM_MIN -11.5f
+#define CAM_LIMIT_ZOOM_MAX -2.5f
 
 static int getMashes(CurvilinearGrid &grid, float** gl_grid, int camera)
 {
@@ -469,9 +484,6 @@ TEST(ImxSV, 3DSurroundViewTextures) {
 
     view->cleanView();
 
-    float* data = nullptr;
-    int data_num;
-    int grid_buf;
     if(view->setProgram(2) == 0) {
         //prepare input buffers
         vector<shared_ptr<char>> distorts;
@@ -496,6 +508,18 @@ TEST(ImxSV, 3DSurroundViewTextures) {
             images.push_back(image_outbuf);
         }
 
+        vector<int> mashes;
+        for(uint32_t index = 0; index < 4; index ++) {
+            float* data = nullptr;
+            int data_num = getMashes(grid, &data, index);
+            int grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
+            if(data != nullptr) {
+                free(data);
+                data = nullptr;
+            }
+            mashes.push_back(grid_buf);
+        }
+
         cout << "**Rotation test**" << endl;
         for(int i = 0; i < 10; i ++){
             Vector3d r = { 1, 0, 0};
@@ -513,13 +537,7 @@ TEST(ImxSV, 3DSurroundViewTextures) {
             view->setMVPMatrix(2, mvp_matrix);
 
             for(uint32_t index = 0; index < 4; index ++) {
-                data_num = getMashes(grid, &data, index);
-                grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
-		        view->renderView(images[index], width, height, grid_buf);
-                if(data != nullptr) {
-                    free(data);
-                    data = nullptr;
-                }
+		        view->renderView(images[index], width, height, mashes[index]);
             }
 
             eglSwapBuffers(dpy, surface);
@@ -547,9 +565,7 @@ TEST(ImxSV, 3DSurroundViewTextures) {
             view->setMVPMatrix(2, mvp_matrix);
 
             for(uint32_t index = 0; index < 4; index ++) {
-                data_num = getMashes(grid, &data, index);
-                grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
-		        view->renderView(images[index], width, height, grid_buf);
+		        view->renderView(images[index], width, height, mashes[index]);
             }
 
             eglSwapBuffers(dpy, surface);
@@ -587,9 +603,7 @@ TEST(ImxSV, 3DSurroundViewTextures) {
             view->setMVPMatrix(2, mvp_matrix);
 
             for(uint32_t index = 0; index < 4; index ++) {
-                data_num = getMashes(grid, &data, index);
-                grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
-		        view->renderView(images[index], width, height, grid_buf);
+		        view->renderView(images[index], width, height, mashes[index]);
             }
 
             eglSwapBuffers(dpy, surface);
@@ -618,13 +632,11 @@ TEST(ImxSV, 3DSurroundViewTextures) {
             view->setMVPMatrix(2, mvp_matrix);
 
             for(uint32_t index = 0; index < 4; index ++) {
-                data_num = getMashes(grid, &data, index);
-                grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
-		        view->renderView(images[index], width, height, grid_buf);
+		        view->renderView(images[index], width, height, mashes[index]);
             }
 
             eglSwapBuffers(dpy, surface);
-            sleep(1);
+            usleep(300000);
         }
 
     }
@@ -726,9 +738,6 @@ TEST(ImxSV, 3DSurroundViewMashes) {
 
     view->cleanView();
 
-    float* data = nullptr;
-    int data_num;
-    int grid_buf;
     if(view->setProgram(2) == 0) {
         //prepare input buffers
         vector<shared_ptr<unsigned char>> images;
@@ -764,6 +773,18 @@ TEST(ImxSV, 3DSurroundViewMashes) {
             images.push_back(image_outbuf);
         }
 
+        vector<int> mashes;
+        for(uint32_t index = 0; index < 4; index ++) {
+            float* data = nullptr;
+            int data_num = getMashes(grid, &data, index);
+            int grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
+            if(data != nullptr) {
+                free(data);
+                data = nullptr;
+            }
+            mashes.push_back(grid_buf);
+        }
+
         cout << "**Z Rotation, transform  and Rotation test**" << endl;
         //Rotation and transform test
         for(int i = 0; i < 10; i ++){
@@ -786,13 +807,11 @@ TEST(ImxSV, 3DSurroundViewMashes) {
             view->setMVPMatrix(2, mvp_matrix);
 
             for(uint32_t index = 0; index < 4; index ++) {
-                data_num = getMashes(grid, &data, index);
-                grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
-		        view->renderView(images[index], width, height, grid_buf);
+		        view->renderView(images[index], width, height, mashes[index]);
             }
 
             eglSwapBuffers(dpy, surface);
-            sleep(1);
+            usleep(300000);
         }
 
     }
@@ -801,3 +820,682 @@ TEST(ImxSV, 3DSurroundViewMashes) {
     ALOGI("End of the SV Mashes test");
     glFinish();
 }
+
+TEST(ImxSV, 3DSurroundViewCar) {
+    EGLint majorVersion;
+    EGLint minorVersion;
+    EGLSurface surface;
+    EGLint w, h;
+    EGLDisplay dpy;
+
+    WindowSurface windowSurface;
+    EGLNativeWindowType window = windowSurface.getSurface();
+
+    dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (dpy == EGL_NO_DISPLAY) {
+        ALOGE("Failed to get egl display");
+        return;
+    }
+
+    if(!eglInitialize(dpy, &majorVersion, &minorVersion)) {
+        ALOGE("Failed to initialize EGL: %s", getEGLError());
+        return;
+    }
+
+    // Hardcoded to RGBx output display
+    const EGLint config_attribs[] = {
+        // Tag                  Value
+        EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT,
+        EGL_RED_SIZE,           8,
+        EGL_GREEN_SIZE,         8,
+        EGL_BLUE_SIZE,          8,
+        EGL_NONE
+    };
+
+    const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+    EGLConfig egl_config;
+    EGLint num_configs;
+    if (!eglChooseConfig(dpy, config_attribs, &egl_config, 1, &num_configs)) {
+        ALOGE("eglChooseConfig() failed with error: %s", getEGLError());
+        return;
+    }
+
+    surface = eglCreateWindowSurface(dpy, egl_config, window, NULL);
+    EGLContext context = eglCreateContext(dpy, egl_config,
+            EGL_NO_CONTEXT, context_attribs);
+    if (context == EGL_NO_CONTEXT) {
+        ALOGE("Failed to create OpenGL ES Context: %s", getEGLError());
+        return;
+    }
+
+    // Activate our render target for drawing
+    if (!eglMakeCurrent(dpy, surface, surface, context)) {
+        ALOGE("Failed to make the OpenGL ES Context current: %s", getEGLError());
+        return;
+    } else {
+        ALOGI("We made our context current!  :)");
+    }
+
+    eglMakeCurrent(dpy, surface, surface, context);
+    eglQuerySurface(dpy, surface, EGL_WIDTH, &w);
+    eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
+        
+    ModelLoader modelLoader;
+    Programs carModelProgram;
+
+	if (!modelLoader.Initialize()) {
+        cout << "Car model was not initialized" << endl;
+        return;
+    }
+	// Car Model
+	if (carModelProgram.loadShaders(s_v_shader_model, s_f_shader_model) == -1) // Car image
+	{
+	    cout << "Car rendering program was not loaded" << endl;
+	    return;
+	}
+
+    GLuint mvpUniform, mvUniform, mnUniform;
+	mvpUniform = glGetUniformLocation(carModelProgram.getHandle(), "mvp");
+	mvUniform = glGetUniformLocation(carModelProgram.getHandle(), "mv");
+	mnUniform = glGetUniformLocation(carModelProgram.getHandle(), "mn");
+	
+	glUseProgram(carModelProgram.getHandle());
+	glEnable(GL_DEPTH_TEST);
+
+    float rx = 0.0f, ry = 0.0f, px = 0.0f, py = 0.0f, pz = -10.0f;
+    glm::mat4 gProjection = glm::perspective(45.0f,
+                            (float) w / (float)h, 0.1f, 100.0f);
+    for(int i = 0; i < 10; i++) {
+	    // Render car model
+	    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glm::vec3 car_scale = glm::vec3(i*1.0f, i * 1.0f, i * 1.0f);
+	    glm::mat4 mv = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f),
+                            glm::vec3(px, py, pz)), ry, glm::vec3(1, 0, 0)),
+                            rx, glm::vec3(0, 0, 1));
+	    glm::mat4 carModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                        car_scale), glm::radians(CAR_ORIENTATION_X),
+                        glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y),
+                        glm::vec3(0, 1, 0));
+	    auto mvp = gProjection * mv * carModelMatrix;
+	    auto mn = glm::mat3(glm::rotate(glm::rotate(glm::rotate(glm::rotate(glm::mat4(1.0f), ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1)),
+		glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0)));
+	    // Set matrices
+	    glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, glm::value_ptr(mvp)); 
+	    glUniformMatrix4fv(mvUniform, 1, GL_FALSE, glm::value_ptr(mv)); 
+	    glUniformMatrix3fv(mnUniform, 1, GL_FALSE, glm::value_ptr(mn)); 
+
+	    modelLoader.Draw(carModelProgram.getHandle());
+	    glFinish();
+        eglSwapBuffers(dpy, surface);
+        usleep(300000);
+    }
+
+    sleep(6);
+    ALOGI("End of the SV Car test");
+    glFinish();
+}
+
+TEST(ImxSV, 3DSurroundViewMashesCar) {
+    EGLint majorVersion;
+    EGLint minorVersion;
+    EGLSurface surface;
+    EGLint w, h;
+    EGLDisplay dpy;
+
+    WindowSurface windowSurface;
+    EGLNativeWindowType window = windowSurface.getSurface();
+
+    dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (dpy == EGL_NO_DISPLAY) {
+        ALOGE("Failed to get egl display");
+        return;
+    }
+
+    if(!eglInitialize(dpy, &majorVersion, &minorVersion)) {
+        ALOGE("Failed to initialize EGL: %s", getEGLError());
+        return;
+    }
+
+    // Hardcoded to RGBx output display
+    const EGLint config_attribs[] = {
+        // Tag                  Value
+        EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT,
+        EGL_RED_SIZE,           8,
+        EGL_GREEN_SIZE,         8,
+        EGL_BLUE_SIZE,          8,
+        EGL_NONE
+    };
+
+    const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+    EGLConfig egl_config;
+    EGLint num_configs;
+    if (!eglChooseConfig(dpy, config_attribs, &egl_config, 1, &num_configs)) {
+        ALOGE("eglChooseConfig() failed with error: %s", getEGLError());
+        return;
+    }
+
+    surface = eglCreateWindowSurface(dpy, egl_config, window, NULL);
+    EGLContext context = eglCreateContext(dpy, egl_config,
+            EGL_NO_CONTEXT, context_attribs);
+    if (context == EGL_NO_CONTEXT) {
+        ALOGE("Failed to create OpenGL ES Context: %s", getEGLError());
+        return;
+    }
+
+    // Activate our render target for drawing
+    if (!eglMakeCurrent(dpy, surface, surface, context)) {
+        ALOGE("Failed to make the OpenGL ES Context current: %s", getEGLError());
+        return;
+    } else {
+        ALOGI("We made our context current!  :)");
+    }
+
+    eglMakeCurrent(dpy, surface, surface, context);
+    eglQuerySurface(dpy, surface, EGL_WIDTH, &w);
+    eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
+
+    Imx3DView *view = new Imx3DView();
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
+
+    char input[128];
+    memset(input, 0, sizeof(input));
+    sprintf(input, "/sdcard/%d.png", 0);
+    uint32_t width = 0, height=0, stride=0;
+    bool retValue = getImageInfo(input, &width,
+                    &height, &stride);
+    if(!retValue)
+        return;
+
+    vector<Vector3d> evsRotations;
+    vector<Vector3d> evsTransforms;
+    vector<Matrix<double, 3, 3>> Ks;
+    vector<Matrix<double, 1, 4>> Ds;
+
+    initCameraParameters(evsRotations, evsTransforms,
+        Ks, Ds);
+
+	auto grid = CurvilinearGrid(SV_ANGLES_IN_PI, SV_Z_NOP, SV_X_STEP,
+                                w, h, evsRotations, evsTransforms, Ks, Ds);
+	grid.createGrid(SV_RADIUS); // Calculate grid points
+
+    view->cleanView();
+   
+    //Car render init
+    ModelLoader modelLoader;
+    Programs carModelProgram;
+	if (!modelLoader.Initialize()) {
+        cout << "Car model was not initialized" << endl;
+        return;
+    }
+	// Car Model
+	if (carModelProgram.loadShaders(s_v_shader_model, s_f_shader_model) == -1) // Car image
+	{
+	    cout << "Car rendering program was not loaded" << endl;
+	    return;
+	}
+    GLuint mvpUniform, mvUniform, mnUniform;
+	mvpUniform = glGetUniformLocation(carModelProgram.getHandle(), "mvp");
+	mvUniform = glGetUniformLocation(carModelProgram.getHandle(), "mv");
+	mnUniform = glGetUniformLocation(carModelProgram.getHandle(), "mn");
+    float rx = 0.0f, ry = 0.0f, px = 0.0f, py = 0.0f, pz = -10.0f;
+    glm::mat4 gProjection = glm::perspective(45.0f,
+                            (float) w / (float)h, 0.1f, 100.0f);
+
+    //prepare input buffers
+    vector<shared_ptr<unsigned char>> images;
+
+    //RGB24 bits
+    for(uint32_t index = 0; index < 4; index ++) {
+        shared_ptr<unsigned char> image_outbuf(new unsigned char[height *width * 3],
+            std::default_delete<unsigned char[]>());
+        if(image_outbuf == nullptr)
+            return;
+        unsigned char *image = image_outbuf.get();
+        for(int i = 0; i < height; i ++)
+            for(int j = 0; j < width; j ++) {
+                if(index == 0) {
+                    image[(i * width + j)*3] = 0xff;
+                    image[(i * width + j)*3 + 1] = 0;
+                    image[(i * width + j)*3 + 2] = 0;
+                } else if(index == 1) {
+                    image[(i * width + j)*3] = 0;
+                    image[(i * width + j)*3 + 1] = 0xff;
+                    image[(i * width + j)*3 + 2] = 0;
+                } else if(index == 2) {
+                    image[(i * width + j)*3] = 0;
+                    image[(i * width + j)*3 + 1] = 0;
+                    image[(i * width + j)*3 + 2] = 0xff;
+                } else {
+                    image[(i * width + j)*3] = 0;
+                    image[(i * width + j)*3 + 1] = 0xff;
+                    image[(i * width + j)*3 + 2] = 0xff;
+                }
+
+        }
+        images.push_back(image_outbuf);
+    }
+
+    vector<int> mashes;
+    view->setProgram(2);
+    for(uint32_t index = 0; index < 4; index ++) {
+        float* data = nullptr;
+        int data_num = getMashes(grid, &data, index);
+        int grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
+        if(data != nullptr) {
+            free(data);
+            data = nullptr;
+        }
+        mashes.push_back(grid_buf);
+    }   
+
+    //Rotation and transform test
+    for(int i = 0; i < 10; i ++){
+        //car and sv share same view and projection matrix
+	    glm::mat4 mv = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f),
+                        glm::vec3(px, py, pz)), glm::radians(ry + 30.0f * i), glm::vec3(1, 0, 0)),
+                        rx, glm::vec3(0, 0, 1));
+
+        //Car mvp matrixes
+        //the dae car model we used is around 5 times of sv view
+        glm::vec3 car_scale = glm::vec3(i*0.2f, i * 0.2f, i * 0.2f);
+	    glm::mat4 carModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    car_scale), glm::radians(CAR_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto car_mvp = gProjection * mv * carModelMatrix;
+	    auto car_mn = glm::mat3(glm::rotate(glm::rotate(glm::rotate(glm::rotate(glm::mat4(1.0f),
+                    ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1)),
+	                glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)),
+                    glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0)));
+
+        //SV mv matrixes
+        glm::vec3 sv_scale = glm::vec3(i*1.0f, i * 1.0f, i * 1.0f);
+	    glm::mat4 svModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    sv_scale), glm::radians(SV_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(SV_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto sv_mvp = gProjection * mv * svModelMatrix;
+
+        view->setProgram(2);
+        view->cleanView();
+        view->setMVPMatrix(2, glm::value_ptr(sv_mvp));
+
+        for(uint32_t index = 0; index < 4; index ++) {
+	        view->renderView(images[index], width, height, mashes[index]);
+        }
+        glUseProgram(carModelProgram.getHandle());
+        // Set matrices
+	    glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, glm::value_ptr(car_mvp)); 
+	    glUniformMatrix4fv(mvUniform, 1, GL_FALSE, glm::value_ptr(mv)); 
+	    glUniformMatrix3fv(mnUniform, 1, GL_FALSE, glm::value_ptr(car_mn)); 
+
+	    modelLoader.Draw(carModelProgram.getHandle());
+	    glFinish();
+
+        eglSwapBuffers(dpy, surface);
+        usleep(300000);
+    }
+
+    //Rotation and transform test
+    for(int i = 0; i < 10; i ++){
+        //car and sv share same view and projection matrix
+	    glm::mat4 mv = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f),
+                        glm::vec3(px, py, pz)), ry, glm::vec3(1, 0, 0)),
+                        glm::radians(rx + 30.0f * i), glm::vec3(0, 0, 1));
+
+        //Car mvp matrixes
+        //the dae car model we used is around 5 times of sv view
+        glm::vec3 car_scale = glm::vec3(8*0.2f, 8 * 0.2f, 8 * 0.2f);
+	    glm::mat4 carModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    car_scale), glm::radians(CAR_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto car_mvp = gProjection * mv * carModelMatrix;
+	    auto car_mn = glm::mat3(glm::rotate(glm::rotate(glm::rotate(glm::rotate(glm::mat4(1.0f),
+                    ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1)),
+	                glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)),
+                    glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0)));
+
+        //SV mv matrixes
+        glm::vec3 sv_scale = glm::vec3(8*1.0f, 8 * 1.0f, 8 * 1.0f);
+	    glm::mat4 svModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    sv_scale), glm::radians(SV_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(SV_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto sv_mvp = gProjection * mv * svModelMatrix;
+
+        view->setProgram(2);
+        view->cleanView();
+        view->setMVPMatrix(2, glm::value_ptr(sv_mvp));
+
+        for(uint32_t index = 0; index < 4; index ++) {
+	        view->renderView(images[index], width, height, mashes[index]);
+        }
+        glUseProgram(carModelProgram.getHandle());
+        // Set matrices
+	    glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, glm::value_ptr(car_mvp)); 
+	    glUniformMatrix4fv(mvUniform, 1, GL_FALSE, glm::value_ptr(mv)); 
+	    glUniformMatrix3fv(mnUniform, 1, GL_FALSE, glm::value_ptr(car_mn)); 
+
+	    modelLoader.Draw(carModelProgram.getHandle());
+	    glFinish();
+
+        eglSwapBuffers(dpy, surface);
+        usleep(300000);
+    }
+
+
+    sleep(2);
+    ALOGI("End of the SV Mashes with Car test");
+    glFinish();
+}
+
+TEST(ImxSV, 3DSurroundViewTexturesCar) {
+    EGLint majorVersion;
+    EGLint minorVersion;
+    EGLSurface surface;
+    EGLint w, h;
+    EGLDisplay dpy;
+
+    WindowSurface windowSurface;
+    EGLNativeWindowType window = windowSurface.getSurface();
+
+    dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (dpy == EGL_NO_DISPLAY) {
+        ALOGE("Failed to get egl display");
+        return;
+    }
+
+    if(!eglInitialize(dpy, &majorVersion, &minorVersion)) {
+        ALOGE("Failed to initialize EGL: %s", getEGLError());
+        return;
+    }
+
+    // Hardcoded to RGBx output display
+    const EGLint config_attribs[] = {
+        // Tag                  Value
+        EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT,
+        EGL_RED_SIZE,           8,
+        EGL_GREEN_SIZE,         8,
+        EGL_BLUE_SIZE,          8,
+        EGL_NONE
+    };
+
+    const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+    EGLConfig egl_config;
+    EGLint num_configs;
+    if (!eglChooseConfig(dpy, config_attribs, &egl_config, 1, &num_configs)) {
+        ALOGE("eglChooseConfig() failed with error: %s", getEGLError());
+        return;
+    }
+
+    surface = eglCreateWindowSurface(dpy, egl_config, window, NULL);
+    EGLContext context = eglCreateContext(dpy, egl_config,
+            EGL_NO_CONTEXT, context_attribs);
+    if (context == EGL_NO_CONTEXT) {
+        ALOGE("Failed to create OpenGL ES Context: %s", getEGLError());
+        return;
+    }
+
+
+    // Activate our render target for drawing
+    if (!eglMakeCurrent(dpy, surface, surface, context)) {
+        ALOGE("Failed to make the OpenGL ES Context current: %s", getEGLError());
+        return;
+    } else {
+        ALOGI("We made our context current!  :)");
+    }
+
+
+    eglMakeCurrent(dpy, surface, surface, context);
+    eglQuerySurface(dpy, surface, EGL_WIDTH, &w);
+    eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
+
+    Imx3DView *view = new Imx3DView();
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
+
+
+    char input[128];
+    memset(input, 0, sizeof(input));
+    sprintf(input, "/sdcard/%d.png", 0);
+    uint32_t width = 0, height=0, stride=0;
+    bool retValue = getImageInfo(input, &width,
+                    &height, &stride);
+    if(!retValue)
+        return;
+
+    vector<Vector3d> evsRotations;
+    vector<Vector3d> evsTransforms;
+    vector<Matrix<double, 3, 3>> Ks;
+    vector<Matrix<double, 1, 4>> Ds;
+
+    initCameraParameters(evsRotations, evsTransforms,
+        Ks, Ds);
+
+	auto grid = CurvilinearGrid(SV_ANGLES_IN_PI, SV_Z_NOP, SV_X_STEP,
+                                w, h, evsRotations, evsTransforms, Ks, Ds);
+	grid.createGrid(SV_RADIUS); // Calculate grid points
+
+    view->cleanView();
+
+    //Car render init
+    ModelLoader modelLoader;
+    Programs carModelProgram;
+	if (!modelLoader.Initialize()) {
+        cout << "Car model was not initialized" << endl;
+        return;
+    }
+	// Car Model
+	if (carModelProgram.loadShaders(s_v_shader_model, s_f_shader_model) == -1) // Car image
+	{
+	    cout << "Car rendering program was not loaded" << endl;
+	    return;
+	}
+    GLuint mvpUniform, mvUniform, mnUniform;
+	mvpUniform = glGetUniformLocation(carModelProgram.getHandle(), "mvp");
+	mvUniform = glGetUniformLocation(carModelProgram.getHandle(), "mv");
+	mnUniform = glGetUniformLocation(carModelProgram.getHandle(), "mn");
+    float rx = 0.0f, ry = 0.0f, px = 0.0f, py = 0.0f, pz = -10.0f;
+    glm::mat4 gProjection = glm::perspective(45.0f,
+                            (float) w / (float)h, 0.1f, 100.0f);
+
+    //prepare input buffers
+    vector<shared_ptr<char>> distorts;
+    vector<shared_ptr<unsigned char>> images;
+    prepareFisheyeImages(distorts);
+
+    //RGB24 bits
+    for(uint32_t index = 0; index < 4; index ++) {
+        shared_ptr<unsigned char> image_outbuf(new unsigned char[height *width * 3],
+            std::default_delete<unsigned char[]>());
+        if(image_outbuf == nullptr)
+            return;
+        unsigned char *image = image_outbuf.get();
+        auto pixels = distorts[index].get();
+        for(int i = 0; i < height; i ++)
+            for(int j = 0; j < width; j ++) {
+                unsigned char *originP = (unsigned char *)((uint32_t *)pixels+ i * width + j);
+                image[(i * width + j)*3] = *originP;
+                image[(i * width + j)*3 + 1] = *(originP + 1);
+                image[(i * width + j)*3 + 2] = *(originP + 2);
+        }
+        images.push_back(image_outbuf);
+    }
+
+    vector<int> mashes;
+    view->setProgram(2);
+    for(uint32_t index = 0; index < 4; index ++) {
+        float* data = nullptr;
+        int data_num = getMashes(grid, &data, index);
+        int grid_buf = view->addMesh(data, data_num / SV_ATTRIBUTE_NUM);
+        if(data != nullptr) {
+            free(data);
+            data = nullptr;
+        }
+        mashes.push_back(grid_buf);
+    }
+
+    cout << "**Rotation test**" << endl;
+    for(int i = 0; i < 180; i ++){
+        //car and sv share same view and projection matrix
+	    glm::mat4 mv = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f),
+                        glm::vec3(px, py, pz)), ry, glm::vec3(1, 0, 0)),
+                        glm::radians(rx + 5.0f * i), glm::vec3(0, 0, 1));
+
+        //Car mvp matrixes
+        //the dae car model we used is around 5 times of sv view
+        glm::vec3 car_scale = glm::vec3(8*0.2f, 8 * 0.2f, 8 * 0.2f);
+	    glm::mat4 carModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    car_scale), glm::radians(CAR_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto car_mvp = gProjection * mv * carModelMatrix;
+	    auto car_mn = glm::mat3(glm::rotate(glm::rotate(glm::rotate(glm::rotate(glm::mat4(1.0f),
+                    ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1)),
+	                glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)),
+                    glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0)));
+
+        //SV mv matrixes
+        glm::vec3 sv_scale = glm::vec3(8*1.0f, 8 * 1.0f, 8 * 1.0f);
+	    glm::mat4 svModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    sv_scale), glm::radians(SV_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(SV_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto sv_mvp = gProjection * mv * svModelMatrix;
+
+        //draw 4 sv camera view
+        view->setProgram(2);
+        view->cleanView();
+        view->setMVPMatrix(2, glm::value_ptr(sv_mvp));
+        for(uint32_t index = 0; index < 4; index ++) {
+	        view->renderView(images[index], width, height, mashes[index]);
+        }
+
+        glUseProgram(carModelProgram.getHandle());
+        // Set matrices
+	    glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, glm::value_ptr(car_mvp)); 
+	    glUniformMatrix4fv(mvUniform, 1, GL_FALSE, glm::value_ptr(mv)); 
+	    glUniformMatrix3fv(mnUniform, 1, GL_FALSE, glm::value_ptr(car_mn)); 
+
+	    modelLoader.Draw(carModelProgram.getHandle());
+	    glFinish();
+
+        eglSwapBuffers(dpy, surface);
+        usleep(5000);
+    }
+
+    for(int i = 0; i < 180; i ++){
+        //car and sv share same view and projection matrix
+	    glm::mat4 mv = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f),
+                        glm::vec3(px, py, pz)), glm::radians(ry - 0.2f * i), glm::vec3(1, 0, 0)),
+                        glm::radians(rx), glm::vec3(0, 0, 1));
+
+        //Car mvp matrixes
+        //the dae car model we used is around 5 times of sv view
+        glm::vec3 car_scale = glm::vec3(8*0.2f, 8 * 0.2f, 8 * 0.2f);
+	    glm::mat4 carModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    car_scale), glm::radians(CAR_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto car_mvp = gProjection * mv * carModelMatrix;
+	    auto car_mn = glm::mat3(glm::rotate(glm::rotate(glm::rotate(glm::rotate(glm::mat4(1.0f),
+                    ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1)),
+	                glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)),
+                    glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0)));
+
+        //SV mv matrixes
+        glm::vec3 sv_scale = glm::vec3(8*1.0f, 8 * 1.0f, 8 * 1.0f);
+	    glm::mat4 svModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    sv_scale), glm::radians(SV_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(SV_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto sv_mvp = gProjection * mv * svModelMatrix;
+
+        //draw 4 sv camera view
+        view->setProgram(2);
+        view->cleanView();
+        view->setMVPMatrix(2, glm::value_ptr(sv_mvp));
+        for(uint32_t index = 0; index < 4; index ++) {
+	        view->renderView(images[index], width, height, mashes[index]);
+        }
+
+        glUseProgram(carModelProgram.getHandle());
+        // Set matrices
+	    glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, glm::value_ptr(car_mvp)); 
+	    glUniformMatrix4fv(mvUniform, 1, GL_FALSE, glm::value_ptr(mv)); 
+	    glUniformMatrix3fv(mnUniform, 1, GL_FALSE, glm::value_ptr(car_mn)); 
+	    modelLoader.Draw(carModelProgram.getHandle());
+	    glFinish();
+
+        eglSwapBuffers(dpy, surface);
+        usleep(5000);
+    }
+
+    for(int i = 0; i < 360; i ++){
+        //car and sv share same view and projection matrix
+	    glm::mat4 mv = glm::rotate(glm::rotate(glm::translate(glm::mat4(1.0f),
+                        glm::vec3(px, py, pz)), glm::radians(-60.0f), glm::vec3(1, 0, 0)),
+                        glm::radians(rx + 1.0f * i), glm::vec3(0, 0, 1));
+
+        //Car mvp matrixes
+        //the dae car model we used is around 5 times of sv view
+        glm::vec3 car_scale = glm::vec3(8*0.2f, 8 * 0.2f, 8 * 0.2f);
+	    glm::mat4 carModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    car_scale), glm::radians(CAR_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(CAR_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto car_mvp = gProjection * mv * carModelMatrix;
+	    auto car_mn = glm::mat3(glm::rotate(glm::rotate(glm::rotate(glm::rotate(glm::mat4(1.0f),
+                    ry, glm::vec3(1, 0, 0)), rx, glm::vec3(0, 0, 1)),
+	                glm::radians(CAR_ORIENTATION_X), glm::vec3(1, 0, 0)),
+                    glm::radians(CAR_ORIENTATION_Y), glm::vec3(0, 1, 0)));
+
+        //SV mv matrixes
+        glm::vec3 sv_scale = glm::vec3(8*1.0f, 8 * 1.0f, 8 * 1.0f);
+	    glm::mat4 svModelMatrix = glm::rotate(glm::rotate(glm::scale(glm::mat4(1.0f),
+                    sv_scale), glm::radians(SV_ORIENTATION_X),
+                    glm::vec3(1, 0, 0)), glm::radians(SV_ORIENTATION_Y),
+                    glm::vec3(0, 1, 0));
+	    auto sv_mvp = gProjection * mv * svModelMatrix;
+
+        //draw 4 sv camera view
+        view->setProgram(2);
+        view->cleanView();
+        view->setMVPMatrix(2, glm::value_ptr(sv_mvp));
+        for(uint32_t index = 0; index < 4; index ++) {
+	        view->renderView(images[index], width, height, mashes[index]);
+        }
+
+        glUseProgram(carModelProgram.getHandle());
+        // Set matrices
+	    glUniformMatrix4fv(mvpUniform, 1, GL_FALSE, glm::value_ptr(car_mvp)); 
+	    glUniformMatrix4fv(mvUniform, 1, GL_FALSE, glm::value_ptr(mv)); 
+	    glUniformMatrix3fv(mnUniform, 1, GL_FALSE, glm::value_ptr(car_mn)); 
+	    modelLoader.Draw(carModelProgram.getHandle());
+	    glFinish();
+
+        eglSwapBuffers(dpy, surface);
+        usleep(5000);
+    }
+
+    sleep(2);
+    ALOGI("End of the SV Textures with car test");
+    glFinish();
+}
+
+

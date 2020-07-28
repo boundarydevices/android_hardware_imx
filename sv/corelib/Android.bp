@@ -14,10 +14,13 @@
 
 cc_defaults {
     name: "libimxsv_defaults",
+    compile_multilib: "64",
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
         "vendor/nxp-opensource/imx/sv/corelib/include",
-        "frameworks/native/opengl/include"
+        "frameworks/native/opengl/include",
+        "external/assimp/include",
+        "external/glm",
     ],
     header_libs: [
         "libeigen",
@@ -54,5 +57,8 @@ cc_library_static {
         "src/Imx2DSurroundView.cpp",
         "src/Imx3DView.cpp",
         "src/gl_shaders.cpp",
+        "src/ModelLoader/ModelLoader.cpp",
+        "src/ModelLoader/Material.cpp",
+        "src/ModelLoader/VBO.cpp",
     ],
 }
