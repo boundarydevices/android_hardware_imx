@@ -1534,9 +1534,12 @@ static int hwc2_set_auto_low_latency_mode(hwc2_device_t* device, hwc2_display_t 
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    pDisplay->setAutoLowLatencyMode(on);
-
-    return HWC2_ERROR_NONE;
+    if (pDisplay->isLowLatencyModeSupport()) {
+        pDisplay->setAutoLowLatencyMode(on);
+        return HWC2_ERROR_NONE;
+    } else {
+        return HWC2_ERROR_UNSUPPORTED;
+    }
 }
 
 static int hwc2_get_supported_content_types(hwc2_device_t* device, hwc2_display_t display,
