@@ -620,7 +620,7 @@ static int start_output_stream(struct imx_stream_out *out)
     struct listnode *node;
 
     // Disable primary output stream (like touch sound) if other stream opened the same pcm device.
-    if (out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) {
+    if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) && (out->device != AUDIO_DEVICE_OUT_BUS)) {
         list_for_each(node, &adev->out_streams) {
             struct imx_stream_out *stream = node_to_item(
                     node, struct imx_stream_out, stream_node);
