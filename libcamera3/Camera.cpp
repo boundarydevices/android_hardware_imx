@@ -574,7 +574,7 @@ int32_t Camera::processSettings(sp<Metadata> settings, uint32_t frame)
     }
 
     int64_t timestamp = 0;
-    timestamp = systemTime();
+    timestamp = systemTime(SYSTEM_TIME_BOOTTIME);
     settings->addInt64(ANDROID_SENSOR_TIMESTAMP, 1, &timestamp);
 
     settings->addUInt8(ANDROID_CONTROL_AE_STATE, 1, &m3aState.aeState);
