@@ -151,6 +151,7 @@ EvsEnumerator::EvsEnumerator(sp<IAutomotiveDisplayProxyService> proxyService) {
 
 Return<void> EvsEnumerator::getDisplayIdList(getDisplayIdList_cb _list_cb) {
     hidl_vec<uint8_t> ids;
+    ids.resize(1);
     ids[0] = 0;
     _list_cb(ids);
     return Void();
