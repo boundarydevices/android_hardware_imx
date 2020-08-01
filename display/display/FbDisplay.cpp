@@ -634,7 +634,7 @@ int FbDisplay::getConfigIdLocked(int width, int height)
     config.mXres = width;
     config.mYres = height;
 
-    index = findDisplayConfig(width, height, 0);
+    index = findDisplayConfig(width, height, DEFAULT_REFRESH_RATE, -1);
     if (index < 0) {
         index = mConfigs.add(config);
     }

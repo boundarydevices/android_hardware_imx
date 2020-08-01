@@ -188,33 +188,38 @@ void Display::clearConfigs()
     mActiveConfig = -1;
 }
 
-int Display::findDisplayConfig(int width, int height, int format)
+int Display::findDisplayConfig(int width, int height, float fps, int format)
 {
     int i;
     for (i=0; i<mConfigs.size(); i++) {
         const DisplayConfig& cfg = mConfigs.itemAt(i);
         // if not specify the format(0), only compare the resolution
         // if the foramt is not 0, both format and resolution need to compare
-        if ((((format != 0) && (cfg.mFormat == format)) || (format == 0))
-            && (cfg.mXres == width) && (cfg.mYres == height))
+        if ((((format != -1) && (cfg.mFormat == format)) || (format == -1))
+            && (cfg.mXres == width) && (cfg.mYres == height) && (fabs(cfg.mFps - fps) < FLOAT_TOLERANCE))
             break;
     }
 
     return i >= mConfigs.size() ? -1 : i;
 }
 
-int Display::createDisplayConfig(int width, int height, int format)
+int Display::createDisplayConfig(int width, int height, float fps, int format)
 {
     Mutex::Autolock _l(mLock);
 
-    int index = findDisplayConfig(width, height, format);
+    int index = findDisplayConfig(width, height, fps, format);
     if (index < 0) {
         DisplayConfig config;
         config.mXres = width;
         config.mYres = height;
-        if (format) {
+        if (format != -1) {
             config.mFormat = format;
         }
+        if (fabs(fps) >= FLOAT_TOLERANCE)
+            config.mFps = fps;
+        else
+            config.mFps = DEFAULT_REFRESH_RATE;
+
         index = mConfigs.add(config);
     }
     mActiveConfig = index;

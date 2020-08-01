@@ -1046,7 +1046,7 @@ int KmsDisplay::openKms()
     int height = mMode.vdisplay;
     getGUIResolution(width, height);
 
-    int configId = createDisplayConfig(width, height, format);
+    int configId = createDisplayConfig(width, height, DEFAULT_REFRESH_RATE, format);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
@@ -1088,7 +1088,7 @@ int KmsDisplay::openFakeKms()
     int height = 1080;
     getFakeGUIResolution(width, height);
 
-    ssize_t configId = createDisplayConfig(width, height, 0);
+    ssize_t configId = createDisplayConfig(width, height, DEFAULT_REFRESH_RATE, -1);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
@@ -1414,7 +1414,7 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
 {
     DisplayConfig config;
     drmModeModeInfo mode;
-    if (format == 0)
+    if (format == -1)
         format = FORMAT_RGBA8888;
 
     mConfigs.clear();
@@ -1444,16 +1444,20 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
         config.mFormat = format;
         config.mBytespixel = getFormatSize(format);
 
-        mConfigs.add(config);
+        if (fabs(config.mFps - DEFAULT_REFRESH_RATE) < FLOAT_TOLERANCE)
+            mConfigs.push_back(config);
+        else
+            mConfigs.push_front(config);
     }
 }
 
-int KmsDisplay::createDisplayConfig(int width, int height, int format)
+int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format)
 {
     int index;
-    index = findDisplayConfig(width, height, format);
-    if (index < mConfigs.size())
+    index = findDisplayConfig(width, height, fps, format);
+    if (index < mConfigs.size()) {
         return index;
+    }
 
     DisplayConfig config;
     if (mModePrefered >= 0)
@@ -1462,8 +1466,14 @@ int KmsDisplay::createDisplayConfig(int width, int height, int format)
         config.modeIdx = -1;
     config.mXres = width;
     config.mYres = height;
-    if (format != 0)
+    if (format != -1)
         config.mFormat = format;
+
+    if (fabs(fps) >= FLOAT_TOLERANCE)
+        config.mFps = fps;
+    else
+        config.mFps = DEFAULT_REFRESH_RATE;
+
     index = mConfigs.add(config);
 
     return index;

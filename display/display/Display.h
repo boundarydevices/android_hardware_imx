@@ -19,6 +19,7 @@
 
 #include <cutils/properties.h>
 #include <utils/threads.h>
+#include <math.h>
 #include "Memory.h"
 #include "Layer.h"
 #include "Composer.h"
@@ -46,6 +47,9 @@ using android::Vector;
 
 #define DEF_BACKLIGHT_DEV "pwm-backlight"
 #define DEF_BACKLIGHT_PATH "/sys/class/backlight/"
+
+#define DEFAULT_REFRESH_RATE             60
+#define FLOAT_TOLERANCE                  0.01
 
 class BufferSlot
 {
@@ -202,7 +206,7 @@ public:
     virtual int updateScreen();
     // set display active config.
     virtual int setActiveConfig(int configId);
-    virtual int createDisplayConfig(int width, int height, int format);
+    virtual int createDisplayConfig(int width, int height, float fps, int format);
     virtual int getPresentFence(int32_t* outPresentFence) {
         if (outPresentFence != NULL)
             *outPresentFence = -1;
@@ -221,7 +225,7 @@ public:
     // get display active config index.
     int getActiveId();
     // find the config index of specific parameters
-    int findDisplayConfig(int width, int height, int format);
+    int findDisplayConfig(int width, int height, float fps, int format);
     // get display config number.
     int getConfigNum();
     // check whether display support HDR or not

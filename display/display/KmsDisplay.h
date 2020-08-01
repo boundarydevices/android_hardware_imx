@@ -139,7 +139,7 @@ public:
 private:
     int setActiveConfigLocked(int configId);
     void buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format);
-    int createDisplayConfig(int width, int height, int format);
+    int createDisplayConfig(int width, int height, float fps, int format);
     void prepareTargetsLocked();
     void releaseTargetsLocked();
     uint32_t convertFormatToDrm(uint32_t format);
