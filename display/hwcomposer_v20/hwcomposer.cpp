@@ -1002,7 +1002,7 @@ static int hwc2_create_virtual_display(hwc2_device_t* device, uint32_t width,
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    pDisplay->createDisplayConfig(width, height, *format);
+    pDisplay->createDisplayConfig(width, height, DEFAULT_REFRESH_RATE, *format);
     *outDisplay = pDisplay->index();
     return HWC2_ERROR_NONE;
 }
