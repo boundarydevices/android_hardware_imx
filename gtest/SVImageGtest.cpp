@@ -21,74 +21,40 @@
 #include <gtest/gtest.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <gui/BufferItem.h>
+#include <gui/BufferQueue.h>
+#include <gui/BufferItemConsumer.h>
+#include <gui/IProducerListener.h>
+#include <ui/GraphicBuffer.h>
+#include <gui/ISurfaceComposer.h>
+#include <gui/Surface.h>
+#include <gui/SurfaceComposerClient.h>
+
+
 #include <Imx2DSurroundView.hpp>
 #include "ImageUtils.h"
 
 using namespace std;
 using namespace Eigen;
 using namespace imx;
+using namespace android;
+using Transaction = SurfaceComposerClient::Transaction;
 
 static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<double, 1, 4> &D,
-                    const char *input_file, const char *output_file, const char *dotfile,
-                    void *output_buf = nullptr, size_t outsize = 0);
+                    void *pixels, void *blended_pixels,
+                    uint32_t width, uint32_t height, uint32_t stride,
+                    void *output_buf, size_t outsize);
 static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts);
 
 static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<double, 1, 4> &D,
-                    const char *input_file, const char *output_file, const char *dotfile,
+                    void *pixels, void *blended_pixels,
+                    uint32_t width, uint32_t height, uint32_t stride,
                     void *output_buf, size_t outsize) {
     //Read image
-    int fd = -1;
-    int outfd = -1;
-    int result = -1;
-    uint32_t width;
-    uint32_t height;
-    uint32_t stride;
     size_t size;
-    void* pixels = nullptr;
-    void* blended_pixels = nullptr;
-    AImageDecoder* decoder;
-    AndroidBitmapFormat format;
-    const AImageDecoderHeaderInfo* info;
-
-    fd = open(input_file, O_RDWR, O_RDONLY);
-    if (fd < 0) {
-        ALOGE("Unable to open file [%s]",
-             input_file);
-        return false;
-    }
-
-    result = AImageDecoder_createFromFd(fd, &decoder);
-    if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
-        // An error occurred, and the file could not be decoded.
-        ALOGE("Not a valid image file [%s]",
-             input_file);
-        close(fd);
-        return false;
-    }
-    info = AImageDecoder_getHeaderInfo(decoder);
-    width = AImageDecoderHeaderInfo_getWidth(info);
-    height = AImageDecoderHeaderInfo_getHeight(info);
-    AImageDecoder_setAndroidBitmapFormat(decoder, ANDROID_BITMAP_FORMAT_RGBA_8888);
-    format =
-           (AndroidBitmapFormat) AImageDecoderHeaderInfo_getAndroidBitmapFormat(info);
-    stride = AImageDecoder_getMinimumStride(decoder);
     size = height * stride;
-    pixels = malloc(size);
 
-    ALOGI("Image: %d x %d, stride %u, format %d", width, height, stride, format);
-
-    result = AImageDecoder_decodeImage(decoder, pixels, stride, size);
-    if (result != ANDROID_IMAGE_DECODER_SUCCESS) {
-        // An error occurred, and the file could not be decoded.
-        ALOGE("file to decode the image [%s]",
-             input_file);
-        AImageDecoder_delete(decoder);
-        close(fd);
-        return false;
-    }
-
-    if(dotfile != nullptr) {
-        blended_pixels = malloc(size);
+    if(blended_pixels != nullptr) {
         memcpy(blended_pixels, pixels, size);
     }
 
@@ -110,14 +76,13 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
     size_t out_size = out_stride *out_height;
 
     char* pbuf;
-    if(output_buf != nullptr)
-        if(outsize >= out_size)
+    if(output_buf != nullptr) {
+        if(outsize >= out_size) {
             pbuf = (char *)output_buf;
-        else
+        } else {
             ALOGE("Not good! no enough buffer");
-    else {
-        pbuf = (char *)malloc(out_size);
-        memset(pbuf, 0, out_size);
+            return false;
+        }
     }
 
     for(int v = 0; v < out_height; v++) {
@@ -144,7 +109,7 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
                         (char *)pixels + stride * (int)v_distorted + (int)u_distorted*bpp,
                         bpp);
 
-                if(dotfile) {
+                if(blended_pixels != nullptr) {
                     int green_color = 3 | 252>>8| 119>>16;
                     int color = *(int *)((char *)blended_pixels + stride * (int)v_distorted + (int)u_distorted*bpp);
                     int blended_color = color * (1- 0.5) + 0.5*green_color;
@@ -156,88 +121,6 @@ static bool calibrationImage(float scaler,  Matrix<double, 3, 3> &K, Matrix<doub
             }
         }
     }
-
-    auto fn = [](void *userContext, const void *data, size_t size) -> bool {
-        if((userContext == nullptr) || (data == nullptr) || (size == 0)) {
-            ALOGE("Error on encoder!");
-            return false;
-        }
-        int fd = *(int *)userContext;
-        int len = 0;
-        len = write(fd, data, size);
-        return true;
-    };
-
-    if(output_file != nullptr){
-        AndroidBitmapInfo bpinfo = {
-            .flags = 0,
-            .format = format,
-            .height = out_height,
-            .width = out_width,
-            .stride = out_stride,
-        };
-        outfd = open(output_file, O_CREAT | O_RDWR, 0666);
-        if (outfd < 0) {
-            ALOGE("Unable to open out file [%s]",
-                    output_file);
-            AImageDecoder_delete(decoder);
-            close(fd);
-            return false;
-        }
-
-        result = AndroidBitmap_compress(&bpinfo, ADATASPACE_SCRGB_LINEAR,
-                pbuf, ANDROID_BITMAP_COMPRESS_FORMAT_JPEG, 100, &outfd, fn);
-        if (result != ANDROID_BITMAP_RESULT_SUCCESS ) {
-            ALOGE("Error on encoder return %d!", result);
-        }
-    }
-
-    if(dotfile != nullptr) {
-        AndroidBitmapInfo bpinfo = {
-            .flags = 0,
-            .format = format,
-            .height = height,
-            .width = width,
-            .stride = stride,
-        };
-
-        int alpha_outfd = open(dotfile, O_CREAT | O_RDWR, 0666);
-        if (alpha_outfd < 0) {
-            ALOGE("Unable to open out file [%s]",
-                    dotfile);
-            AImageDecoder_delete(decoder);
-            close(outfd);
-            close(fd);
-            return false;
-        }
-
-        result = AndroidBitmap_compress(&bpinfo, ADATASPACE_SCRGB_LINEAR,
-                blended_pixels, ANDROID_BITMAP_COMPRESS_FORMAT_JPEG, 100, &alpha_outfd, fn);
-        if (result != ANDROID_BITMAP_RESULT_SUCCESS ) {
-            ALOGE("Error on encoder return %d!", result);
-        }
-        if(blended_pixels != nullptr)
-            free(blended_pixels);
-        if(alpha_outfd >=0)
-            close(alpha_outfd);
-    }
-
-    // We’re done with the decoder, so now it’s safe to delete it.
-    AImageDecoder_delete(decoder);
-
-    // Free the pixels when done drawing with them
-    if(pixels != nullptr)
-        free(pixels);
-
-    if(output_buf == nullptr)
-        if(pbuf != nullptr)
-            free(pbuf);
-
-    if(fd >=0)
-        close(fd);
-
-    if(outfd >=0)
-        close(outfd);
 
     return true;
 }
@@ -497,317 +380,6 @@ static void generateBirdView(int width, int height, int stride,
     }
 }
 
-static bool flat2DSurround(float pw, float ph, uint32_t flatw, uint32_t flath,
-                vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
-                vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds)
-{
-    bool retValue;
-    int bpp = 4;
-
-    if(evsRotations.size() != 4 ||
-        evsTransforms.size() != 4 ||
-        Ks.size() != 4 ||
-        Ds.size() != 4){
-        cout << "Not valid input, as we need four camera parameters!!" << endl;
-        return false;
-    }
-
-    char input[128];
-    memset(input, 0, sizeof(input));
-    sprintf(input, "/sdcard/%d.png", 0);
-    uint32_t width = 0, height=0, stride=0;
-    retValue = getImageInfo(input, &width,
-                    &height, &stride);
-    if(!retValue)
-        return retValue;
-
-    cout << "Get Image: width=" << width << ", height=" << height << ", stride=" \
-            << stride << endl;
-
-    uint32_t fstride = flatw * bpp;
-    uint32_t fsize = flath * fstride;
-    char *flat_outbuf = nullptr;
-    shared_ptr<char> flat_outbuf_ptr(new char[fsize],
-                std::default_delete<char[]>());
-    if(flat_outbuf_ptr != nullptr) {
-        flat_outbuf = flat_outbuf_ptr.get();
-        memset(flat_outbuf, 0, fsize);
-    }
-
-    PixelMap *LUT = nullptr;
-    shared_ptr<PixelMap> LUT_ptr(new PixelMap[flath * flatw],
-                std::default_delete<PixelMap[]>());
-    if(LUT_ptr != nullptr) {
-        LUT = LUT_ptr.get();
-        memset((void *)LUT, -1, sizeof(PixelMap) * flath * flatw);
-    }
-
-    LUT = LUT_ptr.get();
-    vector<shared_ptr<char>> distorts;
-    for(int index = 0; index < evsRotations.size(); index ++) {
-        auto &R = evsRotations[index];
-        auto &T = evsTransforms[index];
-        auto &K = Ks[index];
-        auto &D = Ds[index];
-        double k1 = D(0,0);
-        double k2 = D(0,1);
-        double k3 = D(0,2);
-        double k4 = D(0,3);
-        double fx = K(0,0);
-        double fy = K(1,1);
-        double cx = K(0,2);
-        double cy = K(1,2);
-        double normal = R.norm();
-        AngleAxisd rotation_vector(normal, R/normal);
-        auto rotation_matrix = rotation_vector.toRotationMatrix();
-        for(uint32_t v = 0; v < flath; v++) {
-            for(uint32_t u = 0; u < flatw; u++) {
-                float x = - pw/2 + u * pw / flatw;
-                float y = ph/2 - v * ph / flath;
-                Vector3d worldPoint {x, y, 0};
-
-                Vector3d cameraPoint = rotation_matrix * worldPoint + T;
-                Vector3d normalizedCamera = cameraPoint/cameraPoint[2];
-                Vector3d cameraZ {0, 0, 1};
-                auto dot = cameraZ.dot(cameraPoint);
-                auto fov = acos(dot/cameraPoint.norm());
-                auto threshhold = M_PI/3;
-                // if the worldPoint beyond the camera FOV, ignore it.
-                // assume we only care FOV < 180 point
-                // a dot b = a.norm()*b.norm*cos(angle)
-                // here angle should be less than 90 degree.
-                if(dot/cameraPoint.norm() < cos(threshhold)) {
-                    //cout << "No FOV in camera "<< index << ",u="\
-                    //    << u << ", v=" << v << endl;
-                    //cout << "cameraPoint:" << cameraPoint << endl;
-                    continue;
-                }
-                Vector3d undistortPoint = K * normalizedCamera;
-                auto xc = (undistortPoint[0]/undistortPoint[2] - cx)/fx;
-                auto yc = (undistortPoint[1]/undistortPoint[2] - cy)/fy;
-
-                auto r = sqrt(xc*xc + yc*yc);
-                double theta = atan(r);
-
-                double theta_4 = k4*pow(theta, 9);
-                double theta_3 = k3*pow(theta, 7);
-                double theta_2 = k2*pow(theta, 5);
-                double theta_1 = k1*pow(theta, 3);
-                double theta_d = theta + theta_1 + theta_2 + theta_3 + theta_4;
-                double x_distorted = xc*(theta_d/r);
-                double y_distorted = yc*(theta_d/r);
-
-                double u_distorted = fx * x_distorted + cx;
-                double v_distorted = fy * y_distorted + cy;
-                if(u_distorted >= 0 && v_distorted >=0 && \
-                        u_distorted < width && v_distorted < height) {
-                    PixelMap *pMap = LUT + v*flatw + u;
-                    if(pMap->index0 == -1) {
-                        pMap->index0 = index;
-                        pMap->u0 = u_distorted;
-                        pMap->v0 = v_distorted;
-                        pMap->fov0 = fov;
-                    }
-                    else if((index != pMap->index0)&&(pMap->index1 == -1)) {
-                        pMap->index1 = index;
-                        pMap->u1 = u_distorted;
-                        pMap->v1 = v_distorted;
-                        pMap->fov1 = fov;
-                        auto fov0 = pMap->fov0;
-                        auto alpha0 = (threshhold - fov0)/(threshhold - fov0 + threshhold - fov);
-                        pMap->alpha1 = 1 - alpha0;
-                        pMap->alpha0 = alpha0;
-                    }
-                    else if((index != pMap->index0) &&
-                           (index != pMap->index1)) {
-                        cout << "3 region:index="<< index <<", index0= "<< \
-                            pMap->index0 << ", index1="<< pMap->index1 << endl;
-                        cout << "pixel:" << u << "x" << v << endl;
-                    }
-                }
-            }
-        }
-    }
-
-    if(prepareFisheyeImages(distorts) == false)
-        return false;
-
-    for(uint32_t v = 0; v < flath; v++) {
-        for(uint32_t u = 0; u < flatw; u++) {
-            PixelMap *pMap = LUT + v*flatw + u;
-            if((pMap->index0 >= 0) && (pMap->index1 >= 0)) {
-                //alpha blending on overlap region
-                auto distort0 = distorts[pMap->index0].get();
-                auto distort1 = distorts[pMap->index1].get();
-                unsigned int color0 = *(int *)(( char *)distort0 + \
-                        stride * pMap->v0 + pMap->u0*bpp);
-                unsigned int color1 = *(int *)(( char *)distort1 + \
-                        stride * pMap->v1 + pMap->u1*bpp);
-                //float alpha = 0.5;
-                float alpha = pMap->alpha0;
-                unsigned char R = alpha *(color0 & 0xff0000 >> 16) + (1 - alpha)*((color1 & 0xff0000) >> 16);
-                unsigned char G = alpha *(color0 & 0xff00 >> 8) + (1- alpha)*((color1 & 0xff00) >> 8);
-                unsigned char B = alpha *(color0 & 0xff) + (1- alpha)*(color1 & 0xff);
-                color0 = (R << 16) | (G << 8) | B;
-                *(int *)((char *)flat_outbuf + fstride * ((int)v) + ((int)u)*bpp) =
-                    color0;
-            }
-            else if(pMap->index0 >= 0) {
-                int index = pMap->index0;
-
-                auto distort0 = distorts[index].get();
-                unsigned int color0 = *(int *)(( char *)distort0 + \
-                        stride * pMap->v0 + pMap->u0*bpp);
-                *(int *)((char *)flat_outbuf + fstride * v + u*bpp) =
-                    color0;
-            }
-        }
-    }
-
-    //Encoder the flat_output
-    char output[128];
-    memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/flat-surround-w%f-h%f.jpg", pw, ph);
-    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if(encoderImage(flatw, flath, fstride, format,
-                flat_outbuf, output) == false)
-        return false;
-
-    return true;
-}
-
-
-static bool birdeye2DSurround(float bscaler, float bird_height,
-            Matrix<double, 3, 3> &Kb,
-            vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
-            vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds,
-            bool lut = false) {
-    bool retValue;
-    int bpp = 4;
-    Vector3d birdeyeR(0, M_PI, 0);
-    Vector3d birdeyeT(0, 0, bird_height);
-
-    if(evsRotations.size() != 4 ||
-        evsTransforms.size() != 4 ||
-        Ks.size() != 4 ||
-        Ds.size() != 4){
-        cout << "Not valid input, as we need four camera parameters!!" << endl;
-        return false;
-    }
-
-    auto b_cx = Kb(0,2);
-    auto b_cy = Kb(1,2);
-    Kb(0,2) = b_cx * bscaler;
-    Kb(1,2) = b_cy * bscaler;
-
-    char input[128];
-    memset(input, 0, sizeof(input));
-    sprintf(input, "/sdcard/%d.png", 0);
-    uint32_t width = 0, height=0, stride=0;
-    retValue = getImageInfo(input, &width,
-                    &height, &stride);
-    if(!retValue)
-        return retValue;
-
-    cout << "Get Image: width=" << width << ", height=" << height << ", height=" << height << endl;
-    uint32_t size = height * stride;
-
-    uint32_t bwidth = width * bscaler;
-    uint32_t bheight = height * bscaler;
-    uint32_t bstride = bwidth * bpp;
-    uint32_t birdeyesize = bheight * bstride;
-    char *birdeye_outbuf = nullptr;
-    shared_ptr<char> birdeye_outbuf_ptr(new char[birdeyesize],
-                std::default_delete<char[]>());
-    if(birdeye_outbuf_ptr != nullptr) {
-        birdeye_outbuf = birdeye_outbuf_ptr.get();
-        memset(birdeye_outbuf, 0, birdeyesize);
-    }
-
-    int *buf_mapper = nullptr;
-    shared_ptr<int> buf_mapper_ptr(new int[bwidth * bheight],
-                std::default_delete<int[]>());
-    if(buf_mapper_ptr != nullptr) {
-        buf_mapper = buf_mapper_ptr.get();
-        memset((void *)buf_mapper, 0, bwidth * bheight * 4);
-    }
-
-    shared_ptr<PixelMap> LUT_ptr(new PixelMap[bwidth * bheight],
-                std::default_delete<PixelMap[]>());
-    if(lut) {
-        if(LUT_ptr != nullptr) {
-            auto LUT = LUT_ptr.get();
-            memset((void *)LUT, -1, sizeof(PixelMap) * bwidth * bheight);
-        }
-    }
-
-    vector<shared_ptr<char>> undistorts;
-    vector<Matrix<double, 3, 3>> homographies;
-    for(int index = 0; index < evsRotations.size(); index ++) {
-        auto &r = evsRotations[index];
-        auto &t = evsTransforms[index];
-        auto &K = Ks[index];
-        auto &D = Ds[index];
-        cout << "Camera " << index << "********" << endl;
-
-        //Get undistored jpg
-        float scaler = 1;
-        char input[128];
-        memset(input, 0, sizeof(input));
-        sprintf(input, "/sdcard/%d.png", index);
-
-        shared_ptr<char> undistort_outbuf(new char[size],
-                std::default_delete<char[]>());
-        if(undistort_outbuf == nullptr)
-            return false;
-
-        retValue = calibrationImage(scaler, K, D, input,
-                nullptr, nullptr, undistort_outbuf.get(), size);
-
-        if(!retValue) {
-            cout << "Error on calibration the image " << index <<" !!" << endl;
-            return false;
-        }
-        undistorts.push_back(undistort_outbuf);
-
-        Matrix<double, 3, 3> homography;
-        getHomography(Kb, birdeyeR, birdeyeT,
-                    r, t, K, &homography);
-
-        cout << "Homography between bird and camera matrix = \n" << homography << endl;
-        homographies.push_back(homography);
-    }
-
-    if(!lut)
-        generateBirdView(width, height, stride,
-                     bwidth, bheight, bstride,
-                     homographies,
-                     undistorts,
-                     birdeye_outbuf_ptr);
-    else {
-        updateLUT(width, height,
-                  bwidth, bheight,
-                  homographies,
-                  LUT_ptr);
-        generateBirdView(width, height, stride,
-                         bwidth, bheight, bstride,
-                         LUT_ptr,
-                         undistorts,
-                         birdeye_outbuf_ptr);
-    }
-
-    //Encoder the birdeye_output
-    char output[128];
-    memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/birdeye-surround-s%f-h%f.jpg", bscaler, bird_height);
-    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if(encoderImage(bwidth, bheight, bstride, format,
-                birdeye_outbuf, output) == false)
-        return false;
-
-    return true;
-}
-
 static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
         vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds)
 {
@@ -870,8 +442,6 @@ static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d
     Ds.push_back(D3);
 }
 
-
-
 static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
     uint32_t width = 0, height=0, stride=0;
     for(int index = 0; index < 4; index ++) {
@@ -896,32 +466,340 @@ static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
     return true;
 }
 
-TEST(ImxSV, SVLibFlatSurroundW16H12) {
+class ImxSV2DTest: public ::testing::Test
+{
+protected:
+    uint32_t mWidth = 0;
+    uint32_t mHeight = 0;
+    uint32_t mStride = 0;
+    vector<Vector3d> evsRotations;
+    vector<Vector3d> evsTransforms;
+    vector<Matrix<double, 3, 3>> Ks;
+    vector<Matrix<double, 1, 4>> Ds;
+    Matrix<double, 3, 3> Kb;
+
+    virtual void SetUp() {
+        Kb <<  607.8691721095306, 0.0,975.5686146375716,
+               0.0, 608.0112887189435, 481.1938786570715,
+               0.0, 0.0, 1.0;
+
+        initCameraParameters(evsRotations, evsTransforms,
+            Ks, Ds);
+        char input[128];
+        memset(input, 0, sizeof(input));
+        sprintf(input, "/sdcard/%d.png", 0);
+        auto retValue = getImageInfo(input, &mWidth,
+                        &mHeight, &mStride);
+        if(!retValue)
+            return;
+
+        cout << "Get Image: width=" << mWidth << ", height=" << mHeight << ", stride=" \
+                << mStride << endl;
+
+        mComposerClient = new SurfaceComposerClient;
+        ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
+    }
+    
+    virtual void TearDown() {
+    }
+
+    virtual void ShowImage(uint32_t width, uint32_t height, void *pixels)  {
+        mSurfaceControl = mComposerClient->createSurface(
+                String8("ImxSVSurface"), width, height, PIXEL_FORMAT_RGBA_8888, 0);
+        ASSERT_TRUE(mSurfaceControl != nullptr);
+        ASSERT_TRUE(mSurfaceControl->isValid());
+
+        Transaction t;
+        ASSERT_EQ(NO_ERROR, t.setLayer(mSurfaceControl, 0x7fffffff)
+                .show(mSurfaceControl)
+                .apply());
+
+        mSurface = mSurfaceControl->getSurface();
+        ASSERT_TRUE(mSurface != nullptr);
+        sp<ANativeWindow> anw(mSurface);
+        ASSERT_EQ(NO_ERROR, native_window_api_connect(anw.get(), NATIVE_WINDOW_API_CPU));
+        ASSERT_EQ(NO_ERROR, native_window_set_usage(anw.get(),
+            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
+
+        ANativeWindowBuffer* anb;
+        ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(anw.get(),
+            &anb));
+        ASSERT_TRUE(anb != nullptr);
+
+        sp<GraphicBuffer> buf(GraphicBuffer::from(anb));
+        // Fill the buffer with the a checkerboard pattern
+        uint8_t* img = nullptr;
+        buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
+        int size =  width * height * 4;
+        memcpy(img, pixels, size);
+        buf->unlock();
+        ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf->getNativeBuffer(),
+            -1));
+        sleep(3);
+    }
+
+    sp<Surface> mSurface;
+    sp<SurfaceComposerClient> mComposerClient;
+    sp<SurfaceControl> mSurfaceControl;
+
+    bool birdeye2DSurround(float bscaler, float bird_height,
+                           uint32_t bwidth, uint32_t bheight, uint32_t bstride,
+                           shared_ptr<char> &birdeye_outbuf_ptr, bool lut = false) {
+        bool retValue;
+        Vector3d birdeyeR(0, M_PI, 0);
+        Vector3d birdeyeT(0, 0, bird_height);
+
+        if(evsRotations.size() != 4 ||
+            evsTransforms.size() != 4 ||
+            Ks.size() != 4 ||
+            Ds.size() != 4){
+            cout << "Not valid input, as we need four camera parameters!!" << endl;
+            return false;
+        }
+
+        auto b_cx = Kb(0,2);
+        auto b_cy = Kb(1,2);
+        Kb(0,2) = b_cx * bscaler;
+        Kb(1,2) = b_cy * bscaler;
+
+        uint32_t size = mHeight * mStride;
+
+        int *buf_mapper = nullptr;
+        shared_ptr<int> buf_mapper_ptr(new int[bwidth * bheight],
+                    std::default_delete<int[]>());
+        if(buf_mapper_ptr != nullptr) {
+            buf_mapper = buf_mapper_ptr.get();
+            memset((void *)buf_mapper, 0, bwidth * bheight * 4);
+        }
+
+        shared_ptr<PixelMap> LUT_ptr(new PixelMap[bwidth * bheight],
+                    std::default_delete<PixelMap[]>());
+        if(lut) {
+            if(LUT_ptr != nullptr) {
+                auto LUT = LUT_ptr.get();
+                memset((void *)LUT, -1, sizeof(PixelMap) * bwidth * bheight);
+            }
+        }
+
+        vector<shared_ptr<char>> undistorts;
+        vector<Matrix<double, 3, 3>> homographies;
+        for(int index = 0; index < evsRotations.size(); index ++) {
+            auto &r = evsRotations[index];
+            auto &t = evsTransforms[index];
+            auto &K = Ks[index];
+            auto &D = Ds[index];
+            cout << "Camera " << index << "********" << endl;
+
+            //Get undistored jpg
+            float scaler = 1;
+            char input[128];
+            memset(input, 0, sizeof(input));
+            sprintf(input, "/sdcard/%d.png", index);
+
+            shared_ptr<char> pixels_outbuf(new char[size],
+                std::default_delete<char[]>());
+            if(pixels_outbuf == nullptr)
+                return false;
+            auto pixels = pixels_outbuf.get();
+            decodeImage(pixels, size, input);
+
+            shared_ptr<char> undistort_outbuf(new char[size],
+                    std::default_delete<char[]>());
+            if(undistort_outbuf == nullptr)
+                return false;
+
+            retValue = calibrationImage(scaler, K, D, pixels, nullptr,
+                                        mWidth, mHeight, mStride,
+                                        undistort_outbuf.get(), size);
+
+            if(!retValue) {
+                cout << "Error on calibration the image " << index <<" !!" << endl;
+                return false;
+            }
+            undistorts.push_back(undistort_outbuf);
+
+            Matrix<double, 3, 3> homography;
+            getHomography(Kb, birdeyeR, birdeyeT,
+                        r, t, K, &homography);
+
+            cout << "Homography between bird and camera matrix = \n" << homography << endl;
+            homographies.push_back(homography);
+        }
+
+        if(!lut)
+            generateBirdView(mWidth, mHeight, mStride,
+                         bwidth, bheight, bstride,
+                         homographies,
+                         undistorts,
+                         birdeye_outbuf_ptr);
+        else {
+            updateLUT(mWidth, mHeight,
+                      bwidth, bheight,
+                      homographies,
+                      LUT_ptr);
+            generateBirdView(mWidth, mHeight, mStride,
+                             bwidth, bheight, bstride,
+                             LUT_ptr,
+                             undistorts,
+                             birdeye_outbuf_ptr);
+        }
+
+
+        return true;
+    }
+
+    bool flat2DSurround(float pw, float ph, uint32_t flatw,
+            uint32_t flath, uint32_t fstride, char *flat_outbuf) {
+        int bpp = 4;
+
+        if(evsRotations.size() != 4 ||
+           evsTransforms.size() != 4 ||
+            Ks.size() != 4 ||
+            Ds.size() != 4){
+            cout << "Not valid input, as we need four camera parameters!!" << endl;
+            return false;
+        }
+
+        PixelMap *LUT = nullptr;
+        shared_ptr<PixelMap> LUT_ptr(new PixelMap[flath * flatw],
+                    std::default_delete<PixelMap[]>());
+        if(LUT_ptr != nullptr) {
+            LUT = LUT_ptr.get();
+            memset((void *)LUT, -1, sizeof(PixelMap) * flath * flatw);
+        }
+
+        LUT = LUT_ptr.get();
+        vector<shared_ptr<char>> distorts;
+        for(int index = 0; index < evsRotations.size(); index ++) {
+            auto &R = evsRotations[index];
+            auto &T = evsTransforms[index];
+            auto &K = Ks[index];
+            auto &D = Ds[index];
+            double k1 = D(0,0);
+            double k2 = D(0,1);
+            double k3 = D(0,2);
+            double k4 = D(0,3);
+            double fx = K(0,0);
+            double fy = K(1,1);
+            double cx = K(0,2);
+            double cy = K(1,2);
+            double normal = R.norm();
+            AngleAxisd rotation_vector(normal, R/normal);
+            auto rotation_matrix = rotation_vector.toRotationMatrix();
+            for(uint32_t v = 0; v < flath; v++) {
+                for(uint32_t u = 0; u < flatw; u++) {
+                    float x = - pw/2 + u * pw / flatw;
+                    float y = ph/2 - v * ph / flath;
+                    Vector3d worldPoint {x, y, 0};
+
+                    Vector3d cameraPoint = rotation_matrix * worldPoint + T;
+                    Vector3d normalizedCamera = cameraPoint/cameraPoint[2];
+                    Vector3d cameraZ {0, 0, 1};
+                    auto dot = cameraZ.dot(cameraPoint);
+                    auto fov = acos(dot/cameraPoint.norm());
+                    auto threshhold = M_PI/3;
+                    // if the worldPoint beyond the camera FOV, ignore it.
+                    // assume we only care FOV < 180 point
+                    // a dot b = a.norm()*b.norm*cos(angle)
+                    // here angle should be less than 90 degree.
+                    if(dot/cameraPoint.norm() < cos(threshhold)) {
+                        //cout << "No FOV in camera "<< index << ",u="\
+                        //    << u << ", v=" << v << endl;
+                        //cout << "cameraPoint:" << cameraPoint << endl;
+                        continue;
+                    }
+                    Vector3d undistortPoint = K * normalizedCamera;
+                    auto xc = (undistortPoint[0]/undistortPoint[2] - cx)/fx;
+                    auto yc = (undistortPoint[1]/undistortPoint[2] - cy)/fy;
+
+                    auto r = sqrt(xc*xc + yc*yc);
+                    double theta = atan(r);
+
+                    double theta_4 = k4*pow(theta, 9);
+                    double theta_3 = k3*pow(theta, 7);
+                    double theta_2 = k2*pow(theta, 5);
+                    double theta_1 = k1*pow(theta, 3);
+                    double theta_d = theta + theta_1 + theta_2 + theta_3 + theta_4;
+                    double x_distorted = xc*(theta_d/r);
+                    double y_distorted = yc*(theta_d/r);
+
+                    double u_distorted = fx * x_distorted + cx;
+                    double v_distorted = fy * y_distorted + cy;
+                    if(u_distorted >= 0 && v_distorted >=0 && \
+                            u_distorted < mWidth && v_distorted < mHeight) {
+                        PixelMap *pMap = LUT + v*flatw + u;
+                        if(pMap->index0 == -1) {
+                            pMap->index0 = index;
+                            pMap->u0 = u_distorted;
+                            pMap->v0 = v_distorted;
+                            pMap->fov0 = fov;
+                        }
+                        else if((index != pMap->index0)&&(pMap->index1 == -1)) {
+                            pMap->index1 = index;
+                            pMap->u1 = u_distorted;
+                            pMap->v1 = v_distorted;
+                            pMap->fov1 = fov;
+                            auto fov0 = pMap->fov0;
+                            auto alpha0 = (threshhold - fov0)/(threshhold - fov0 + threshhold - fov);
+                            pMap->alpha1 = 1 - alpha0;
+                            pMap->alpha0 = alpha0;
+                        }
+                        else if((index != pMap->index0) &&
+                               (index != pMap->index1)) {
+                            cout << "3 region:index="<< index <<", index0= "<< \
+                                pMap->index0 << ", index1="<< pMap->index1 << endl;
+                            cout << "pixel:" << u << "x" << v << endl;
+                        }
+                    }
+                }
+            }
+        }
+
+        if(prepareFisheyeImages(distorts) == false)
+            return false;
+
+        for(uint32_t v = 0; v < flath; v++) {
+            for(uint32_t u = 0; u < flatw; u++) {
+                PixelMap *pMap = LUT + v*flatw + u;
+                if((pMap->index0 >= 0) && (pMap->index1 >= 0)) {
+                    //alpha blending on overlap region
+                    auto distort0 = distorts[pMap->index0].get();
+                    auto distort1 = distorts[pMap->index1].get();
+                    unsigned int color0 = *(int *)(( char *)distort0 + \
+                            mStride * pMap->v0 + pMap->u0*bpp);
+                    unsigned int color1 = *(int *)(( char *)distort1 + \
+                            mStride * pMap->v1 + pMap->u1*bpp);
+                    //float alpha = 0.5;
+                    float alpha = pMap->alpha0;
+                    unsigned char R = alpha *(color0 & 0xff0000 >> 16) + (1 - alpha)*((color1 & 0xff0000) >> 16);
+                    unsigned char G = alpha *(color0 & 0xff00 >> 8) + (1- alpha)*((color1 & 0xff00) >> 8);
+                    unsigned char B = alpha *(color0 & 0xff) + (1- alpha)*(color1 & 0xff);
+                    color0 = (R << 16) | (G << 8) | B;
+                    *(int *)((char *)flat_outbuf + fstride * ((int)v) + ((int)u)*bpp) =
+                        color0;
+                }
+                else if(pMap->index0 >= 0) {
+                    int index = pMap->index0;
+
+                    auto distort0 = distorts[index].get();
+                    unsigned int color0 = *(int *)(( char *)distort0 + \
+                            mStride * pMap->v0 + pMap->u0*bpp);
+                    *(int *)((char *)flat_outbuf + fstride * v + u*bpp) =
+                        color0;
+                }
+            }
+        }
+
+        return true;
+    }
+};
+
+TEST_F(ImxSV2DTest, SVLibFlatSurroundW16H12) {
     uint32_t flatw = 1024;
     uint32_t flath = 768;
     float pw = 16.0;
     float ph = 12.0;
     int bpp = 4;
-
-    vector<Vector3d> evsRotations;
-    vector<Vector3d> evsTransforms;
-    vector<Matrix<double, 3, 3>> Ks;
-    vector<Matrix<double, 1, 4>> Ds;
-
-    initCameraParameters(evsRotations, evsTransforms,
-        Ks, Ds);
-
-    char input[128];
-    memset(input, 0, sizeof(input));
-    sprintf(input, "/sdcard/%d.png", 0);
-    uint32_t width = 0, height=0, stride=0;
-    auto retValue = getImageInfo(input, &width,
-                    &height, &stride);
-    if(!retValue)
-        return;
-
-    cout << "Get Image: width=" << width << ", height=" << height << ", stride=" \
-            << stride << endl;
 
     //prepare output buffer
     uint32_t fstride = flatw * bpp;
@@ -939,7 +817,7 @@ TEST(ImxSV, SVLibFlatSurroundW16H12) {
     prepareFisheyeImages(distorts);
 
     Imx2DSV *imx2DSV = new Imx2DSV();
-    ImxSV2DParams sv2DParams = ImxSV2DParams(Size2dInteger(width, height),
+    ImxSV2DParams sv2DParams = ImxSV2DParams(Size2dInteger(mWidth, mHeight),
                                     Size2dInteger(flatw, flath),
                                     Size2dFloat(pw, ph));
     ASSERT_TRUE(imx2DSV->SetConfigs(sv2DParams, evsRotations,
@@ -956,143 +834,160 @@ TEST(ImxSV, SVLibFlatSurroundW16H12) {
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
     ASSERT_TRUE(encoderImage(flatw, flath, fstride, format,
                 flat_outbuf, output));
+    ShowImage(flatw, flath, flat_outbuf);
 
     delete imx2DSV;
 }
 
-TEST(ImxSV, FlatSurroundW16H12) {
+TEST_F(ImxSV2DTest, FlatSurroundW16H12) {
     uint32_t flatw = 1024;
     uint32_t flath = 768;
     float pw = 16.0;
     float ph = 12.0;
 
-    vector<Vector3d> evsRotations;
-    vector<Vector3d> evsTransforms;
-    vector<Matrix<double, 3, 3>> Ks;
-    vector<Matrix<double, 1, 4>> Ds;
+    int bpp = 4;
+    uint32_t fstride = flatw * bpp;
+    uint32_t fsize = flath * fstride;
+    char *flat_outbuf = nullptr;
+    shared_ptr<char> flat_outbuf_ptr(new char[fsize],
+                std::default_delete<char[]>());
+    if(flat_outbuf_ptr != nullptr) {
+        flat_outbuf = flat_outbuf_ptr.get();
+        memset(flat_outbuf, 0, fsize);
+    }
 
-    initCameraParameters(evsRotations, evsTransforms,
-        Ks, Ds);
-    ASSERT_TRUE(flat2DSurround(pw, ph, flatw, flath,
-         evsRotations, evsTransforms,
-         Ks, Ds));
+    ASSERT_TRUE(flat2DSurround(pw, ph, flatw, flath, fstride, flat_outbuf));
+
+    //Encoder the flat_output
+    char output[128];
+    memset(output, 0, sizeof(output));
+    sprintf(output, "/sdcard/flat-surround-w%f-h%f.jpg", pw, ph);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(flatw, flath, fstride, format,
+                flat_outbuf, output) == false)
+        return;
+    ShowImage(flatw, flath, flat_outbuf);
 }
 
-TEST(ImxSV, BEyeSurroundS2H8) {
-    float bscaler = 2.0;
-    float bird_height = 8;
-    Matrix<double, 3, 3> Kb;
-    Kb <<  607.8691721095306, 0.0,975.5686146375716,
-               0.0, 608.0112887189435, 481.1938786570715,
-               0.0, 0.0, 1.0;
-    vector<Vector3d> evsRotations;
-    vector<Vector3d> evsTransforms;
-    vector<Matrix<double, 3, 3>> Ks;
-    vector<Matrix<double, 1, 4>> Ds;
-
-    initCameraParameters(evsRotations, evsTransforms,
-        Ks, Ds);
-
-    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, Kb,
-         evsRotations, evsTransforms,
-         Ks, Ds));
-}
-
-TEST(ImxSV, BEyeSurroundS2H4) {
+TEST_F(ImxSV2DTest, BEyeSurroundS2H4LUT) {
     float bscaler = 2.0;
     float bird_height = 4;
-    Matrix<double, 3, 3> Kb;
-    Kb <<  607.8691721095306, 0.0,975.5686146375716,
-               0.0, 608.0112887189435, 481.1938786570715,
-               0.0, 0.0, 1.0;
-    vector<Vector3d> evsRotations;
-    vector<Vector3d> evsTransforms;
-    vector<Matrix<double, 3, 3>> Ks;
-    vector<Matrix<double, 1, 4>> Ds;
+    int bpp = 4;
+    uint32_t bwidth = mWidth * bscaler;
+    uint32_t bheight = mHeight * bscaler;
+    uint32_t bstride = bwidth * bpp;
+    uint32_t birdeyesize = bheight * bstride;
+    char *birdeye_outbuf = nullptr;
+    shared_ptr<char> birdeye_outbuf_ptr(new char[birdeyesize],
+                std::default_delete<char[]>());
+    if(birdeye_outbuf_ptr != nullptr) {
+        birdeye_outbuf = birdeye_outbuf_ptr.get();
+        memset(birdeye_outbuf, 0, birdeyesize);
+    }
 
-    initCameraParameters(evsRotations, evsTransforms,
-        Ks, Ds);
-
-    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, Kb,
-         evsRotations, evsTransforms,
-         Ks, Ds));
+    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, bwidth, bheight, bstride,
+                birdeye_outbuf_ptr, true));
+    //Encoder the birdeye_output
+    char output[128];
+    memset(output, 0, sizeof(output));
+    sprintf(output, "/sdcard/birdeye-surround-s%f-h%f.jpg", bscaler, bird_height);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(bwidth, bheight, bstride, format,
+                birdeye_outbuf, output) == false)
+        return;
+    ShowImage(bwidth, bheight, birdeye_outbuf);
 }
 
-TEST(ImxSV, BEyeSurroundS1H4LUT) {
+TEST_F(ImxSV2DTest, BEyeSurroundS2H4) {
+    float bscaler = 2.0;
+    float bird_height = 4;
+    int bpp = 4;
+    uint32_t bwidth = mWidth * bscaler;
+    uint32_t bheight = mHeight * bscaler;
+    uint32_t bstride = bwidth * bpp;
+    uint32_t birdeyesize = bheight * bstride;
+    char *birdeye_outbuf = nullptr;
+    shared_ptr<char> birdeye_outbuf_ptr(new char[birdeyesize],
+                std::default_delete<char[]>());
+    if(birdeye_outbuf_ptr != nullptr) {
+        birdeye_outbuf = birdeye_outbuf_ptr.get();
+        memset(birdeye_outbuf, 0, birdeyesize);
+    }
+
+    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, bwidth, bheight, bstride,
+                birdeye_outbuf_ptr, false));
+    //Encoder the birdeye_output
+    char output[128];
+    memset(output, 0, sizeof(output));
+    sprintf(output, "/sdcard/birdeye-surround-none-lut-s%f-h%f.jpg", bscaler, bird_height);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(bwidth, bheight, bstride, format,
+                birdeye_outbuf, output) == false)
+        return;
+    ShowImage(bwidth, bheight, birdeye_outbuf);
+}
+
+TEST_F(ImxSV2DTest, BEyeSurroundS1H4LUT) {
     float bscaler = 1.0;
     float bird_height = 4;
-    Matrix<double, 3, 3> Kb;
-    Kb <<  607.8691721095306, 0.0,975.5686146375716,
-               0.0, 608.0112887189435, 481.1938786570715,
-               0.0, 0.0, 1.0;
-    vector<Vector3d> evsRotations;
-    vector<Vector3d> evsTransforms;
-    vector<Matrix<double, 3, 3>> Ks;
-    vector<Matrix<double, 1, 4>> Ds;
+    int bpp = 4;
+    uint32_t bwidth = mWidth * bscaler;
+    uint32_t bheight = mHeight * bscaler;
+    uint32_t bstride = bwidth * bpp;
+    uint32_t birdeyesize = bheight * bstride;
+    char *birdeye_outbuf = nullptr;
+    shared_ptr<char> birdeye_outbuf_ptr(new char[birdeyesize],
+                std::default_delete<char[]>());
+    if(birdeye_outbuf_ptr != nullptr) {
+        birdeye_outbuf = birdeye_outbuf_ptr.get();
+        memset(birdeye_outbuf, 0, birdeyesize);
+    }
 
-    initCameraParameters(evsRotations, evsTransforms,
-        Ks, Ds);
-
-    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, Kb,
-         evsRotations, evsTransforms,
-         Ks, Ds, true));
+    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, bwidth, bheight, bstride,
+                birdeye_outbuf_ptr, true));
+    //Encoder the birdeye_output
+    char output[128];
+    memset(output, 0, sizeof(output));
+    sprintf(output, "/sdcard/birdeye-surround-s%f-h%f.jpg", bscaler, bird_height);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(bwidth, bheight, bstride, format,
+                birdeye_outbuf, output) == false)
+        return;
+    ShowImage(bwidth, bheight, birdeye_outbuf);
 }
 
-TEST(ImxSV, BEyeSurroundS1H4) {
+TEST_F(ImxSV2DTest, BEyeSurroundS1H4) {
     float bscaler = 1.0;
     float bird_height = 4;
-    Matrix<double, 3, 3> Kb;
-    Kb <<  607.8691721095306, 0.0,975.5686146375716,
-               0.0, 608.0112887189435, 481.1938786570715,
-               0.0, 0.0, 1.0;
-    vector<Vector3d> evsRotations;
-    vector<Vector3d> evsTransforms;
-    vector<Matrix<double, 3, 3>> Ks;
-    vector<Matrix<double, 1, 4>> Ds;
 
-    initCameraParameters(evsRotations, evsTransforms,
-        Ks, Ds);
+    int bpp = 4;
+    uint32_t bwidth = mWidth * bscaler;
+    uint32_t bheight = mHeight * bscaler;
+    uint32_t bstride = bwidth * bpp;
+    uint32_t birdeyesize = bheight * bstride;
+    char *birdeye_outbuf = nullptr;
+    shared_ptr<char> birdeye_outbuf_ptr(new char[birdeyesize],
+                std::default_delete<char[]>());
+    if(birdeye_outbuf_ptr != nullptr) {
+        birdeye_outbuf = birdeye_outbuf_ptr.get();
+        memset(birdeye_outbuf, 0, birdeyesize);
+    }
 
-    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, Kb,
-         evsRotations, evsTransforms,
-         Ks, Ds));
+    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, bwidth, bheight, bstride,
+                birdeye_outbuf_ptr, true));
+    //Encoder the birdeye_output
+    char output[128];
+    memset(output, 0, sizeof(output));
+    sprintf(output, "/sdcard/birdeye-surround-s%f-h%f.jpg", bscaler, bird_height);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(bwidth, bheight, bstride, format,
+                birdeye_outbuf, output) == false)
+        return;
+    ShowImage(bwidth, bheight, birdeye_outbuf);
 }
 
-TEST(ImxSV, BEyeSurroundS1H8) {
-    float bscaler = 1.0;
-    float bird_height = 8;
-    Matrix<double, 3, 3> Kb;
-    Kb <<  607.8691721095306, 0.0,975.5686146375716,
-               0.0, 608.0112887189435, 481.1938786570715,
-               0.0, 0.0, 1.0;
-    vector<Vector3d> evsRotations;
-    vector<Vector3d> evsTransforms;
-    vector<Matrix<double, 3, 3>> Ks;
-    vector<Matrix<double, 1, 4>> Ds;
-
-    initCameraParameters(evsRotations, evsTransforms,
-        Ks, Ds);
-
-    ASSERT_TRUE(birdeye2DSurround(bscaler, bird_height, Kb,
-         evsRotations, evsTransforms,
-         Ks, Ds));
-}
-
-TEST(ImxSV, RotationVector) {
+TEST_F(ImxSV2DTest, RotationVector) {
     Vector3d v(1, 0, 0);
-
-    vector<Vector3d> evsRotations {
-        {2.26308, 0.0382788, -0.0220549},
-        {1.67415, -1.74075, 0.789399},
-        {-0.106409, -2.83697, 1.28629},
-        {1.63019, 1.76475, -0.827941}
-    };
-    vector<Vector3d> evsTransforms {
-        {-7.8028875403817685e-02, 1.4537396465103221e+00, -8.4197165554645001e-02},
-        {2.9715052384687407e-01, 1.1407102692699396e+00, 3.0074545273489206e-01},
-        {1.7115269161259747e-01, 1.4376160762596599e+00, -1.9028844233159006e-02},
-        {-3.0842691427126512e-01, 1.0884122033556984e+00, 3.4419058255954926e-01}
-    };
 
     for(int index = 0; index < evsRotations.size(); index ++) {
         auto &r = evsRotations[index];
@@ -1169,157 +1064,462 @@ TEST(ImxSV, RotationVector) {
         cout << "Camera "<< index << " cross with "<< index_next << " = \n"<< cross << endl;
         cout << "Camera "<< index << " angle with "<< index_next << " = "<< asin(cross.norm()/normal/rnextnormal)/M_PI << "pi" << endl;
     }
-
 }
 
-TEST(ImxCalibration, Image_Google_1dot0) {
+class ImxSVCali1Test: public ::testing::Test
+{
+protected:
+    virtual void SetUp() {
+        K <<  608.0026093794693, 0.0,968.699544102168,
+              0.0, 608.205469489769, 476.38843298898996,
+              0.0, 0.0, 1.0;
+
+        D << -0.03711481733589263,
+             -0.0014805627895442888,
+             -0.00030212056866592464,
+             -0.00020149538570397933;
+
+        char input[128];
+        memset(input, 0, sizeof(input));
+        sprintf(input, "/sdcard/%d.png", 0);
+        auto retValue = getImageInfo(input, &mWidth,
+                        &mHeight, &mStride);
+        if(!retValue)
+            return;
+
+        cout << "Get Image: width=" << mWidth << ", height=" << mHeight << ", stride=" \
+                << mStride << endl;
+
+        mComposerClient = new SurfaceComposerClient;
+        ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
+
+    }
+    
+    virtual void TearDown()  {
+    }
+
+    virtual void ShowImage(uint32_t width, uint32_t height, void *pixels)  {
+        mSurfaceControl = mComposerClient->createSurface(
+                String8("ImxSVSurface"), width, height, PIXEL_FORMAT_RGBA_8888, 0);
+        ASSERT_TRUE(mSurfaceControl != nullptr);
+        ASSERT_TRUE(mSurfaceControl->isValid());
+
+        Transaction t;
+        ASSERT_EQ(NO_ERROR, t.setLayer(mSurfaceControl, 0x7fffffff)
+                .show(mSurfaceControl)
+                .apply());
+
+        mSurface = mSurfaceControl->getSurface();
+        ASSERT_TRUE(mSurface != nullptr);
+        sp<ANativeWindow> anw(mSurface);
+        ASSERT_EQ(NO_ERROR, native_window_api_connect(anw.get(), NATIVE_WINDOW_API_CPU));
+        ASSERT_EQ(NO_ERROR, native_window_set_usage(anw.get(),
+            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
+
+        ANativeWindowBuffer* anb;
+        ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(anw.get(),
+            &anb));
+        ASSERT_TRUE(anb != nullptr);
+
+        sp<GraphicBuffer> buf(GraphicBuffer::from(anb));
+        // Fill the buffer with the a checkerboard pattern
+        uint8_t* img = nullptr;
+        buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
+        int size =  width * height * 4;
+        memcpy(img, pixels, size);
+        buf->unlock();
+        ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf->getNativeBuffer(),
+            -1));
+        sleep(3);
+    }
+
+    sp<Surface> mSurface;
+    sp<SurfaceComposerClient> mComposerClient;
+    sp<SurfaceControl> mSurfaceControl;
+
+    uint32_t mWidth = 0;
+    uint32_t mHeight = 0;
+    uint32_t mStride = 0;
     Matrix<double, 3, 3> K;
-    K <<  608.0026093794693, 0.0,968.699544102168,
-           0.0, 608.205469489769, 476.38843298898996,
-           0.0, 0.0, 1.0;
-
     Matrix<double, 1, 4> D;
-    D << -0.03711481733589263,
-          -0.0014805627895442888,
-          -0.00030212056866592464,
-          -0.00020149538570397933;
+};
 
+TEST_F(ImxSVCali1Test, Image_1dot0) {
     float scaler = 1;
+    uint32_t size = mHeight * mStride;
+    int bpp = 4;
+    uint32_t out_width = mWidth *scaler;
+    uint32_t out_height = mHeight *scaler;
+    uint32_t out_stride = out_width*bpp;
+    size_t out_size = out_stride *out_height;
+
+    shared_ptr<char> pixels_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(pixels_outbuf == nullptr)
+        return;
+    auto pixels = pixels_outbuf.get();
+    decodeImage(pixels, size, "/sdcard/0.png");
+    ShowImage(mWidth, mHeight, pixels);
+
+    shared_ptr<char> undistort_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(undistort_outbuf == nullptr)
+        return;
+    auto undistort = undistort_outbuf.get();
+
+    shared_ptr<char> dot_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(dot_outbuf == nullptr)
+        return;
+    auto dot = dot_outbuf.get();
+
+    ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot,
+                mWidth, mHeight, mStride,
+                undistort, out_size));
+
     char output[128];
     memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/google-1-undistorted-%f.jpg", scaler);
+    sprintf(output, "/sdcard/1-undistorted-%f.jpg", scaler);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(out_width, out_height, out_stride, format,
+            undistort, output) == false)
+        return;
+    ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
-    sprintf(dotfile, "/sdcard/google-1-distort-map-%f.jpg", scaler);
-
-    ASSERT_TRUE(calibrationImage(scaler, K, D, "/sdcard/1.png", output, dotfile));
+    sprintf(dotfile, "/sdcard/1-distort-map-%f.jpg", scaler);
+    if(encoderImage(mWidth, mHeight, mStride, format,
+            dot, dotfile) == false)
+        return;
+    ShowImage(mWidth, mHeight, dot);
 }
 
-TEST(ImxCalibration, Image_Google_1dot2) {
-    Matrix<double, 3, 3> K;
-    K <<  608.0026093794693, 0.0,968.699544102168,
-           0.0, 608.205469489769, 476.38843298898996,
-           0.0, 0.0, 1.0;
-
-    Matrix<double, 1, 4> D;
-    D << -0.03711481733589263,
-          -0.0014805627895442888,
-          -0.00030212056866592464,
-          -0.00020149538570397933;
-
+TEST_F(ImxSVCali1Test, Image_1dot2) {
     float scaler = 1.2;
+    uint32_t size = mHeight * mStride;
+    int bpp = 4;
+    uint32_t out_width = mWidth *scaler;
+    uint32_t out_height = mHeight *scaler;
+    uint32_t out_stride = out_width*bpp;
+    size_t out_size = out_stride *out_height;
+
+    shared_ptr<char> pixels_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(pixels_outbuf == nullptr)
+        return;
+    auto pixels = pixels_outbuf.get();
+    decodeImage(pixels, size, "/sdcard/0.png");
+    ShowImage(mWidth, mHeight, pixels);
+
+    shared_ptr<char> undistort_outbuf(new char[out_size],
+        std::default_delete<char[]>());
+    if(undistort_outbuf == nullptr)
+        return;
+    auto undistort = undistort_outbuf.get();
+
+    shared_ptr<char> dot_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(dot_outbuf == nullptr)
+        return;
+    auto dot = dot_outbuf.get();
+
+    ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot,
+                mWidth, mHeight, mStride,
+                undistort, out_size));
+
     char output[128];
     memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/google-1-undistorted-%f.jpg", scaler);
+    sprintf(output, "/sdcard/1-undistorted-%f.jpg", scaler);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(out_width, out_height, out_stride, format,
+            undistort, output) == false)
+        return;
+    ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
-    sprintf(dotfile, "/sdcard/google-1-distort-map-%f.jpg", scaler);
-
-    ASSERT_TRUE(calibrationImage(scaler, K, D, "/sdcard/1.png", output, dotfile));
+    sprintf(dotfile, "/sdcard/1-distort-map-%f.jpg", scaler);
+    if(encoderImage(mWidth, mHeight, mStride, format,
+            dot, dotfile) == false)
+        return;
+    ShowImage(mWidth, mHeight, dot);
 }
 
-TEST(ImxCalibration, Image_Google_2dot0) {
-    Matrix<double, 3, 3> K;
-    K <<  608.0026093794693, 0.0,968.699544102168,
-           0.0, 608.205469489769, 476.38843298898996,
-           0.0, 0.0, 1.0;
-
-    Matrix<double, 1, 4> D;
-    D << -0.03711481733589263,
-          -0.0014805627895442888,
-          -0.00030212056866592464,
-          -0.00020149538570397933;
-
+TEST_F(ImxSVCali1Test, Image_2dot0) {
     float scaler = 2.0;
+    uint32_t size = mHeight * mStride;
+    int bpp = 4;
+    uint32_t out_width = mWidth *scaler;
+    uint32_t out_height = mHeight *scaler;
+    uint32_t out_stride = out_width*bpp;
+    size_t out_size = out_stride *out_height;
+
+    shared_ptr<char> pixels_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(pixels_outbuf == nullptr)
+        return;
+    auto pixels = pixels_outbuf.get();
+    decodeImage(pixels, size, "/sdcard/0.png");
+    ShowImage(mWidth, mHeight, pixels);
+
+    shared_ptr<char> undistort_outbuf(new char[out_size],
+        std::default_delete<char[]>());
+    if(undistort_outbuf == nullptr)
+        return;
+    auto undistort = undistort_outbuf.get();
+
+    shared_ptr<char> dot_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(dot_outbuf == nullptr)
+        return;
+    auto dot = dot_outbuf.get();
+
+    ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot,
+                mWidth, mHeight, mStride,
+                undistort, out_size));
+
     char output[128];
     memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/google-1-undistorted-%f.jpg", scaler);
+    sprintf(output, "/sdcard/1-undistorted-%f.jpg", scaler);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(out_width, out_height, out_stride, format,
+            undistort, output) == false)
+        return;
+    ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
-    sprintf(dotfile, "/sdcard/google-1-distort-map-%f.jpg", scaler);
-
-    ASSERT_TRUE(calibrationImage(scaler, K, D, "/sdcard/1.png", output, dotfile));
+    sprintf(dotfile, "/sdcard/1-distort-map-%f.jpg", scaler);
+    if(encoderImage(mWidth, mHeight, mStride, format,
+            dot, dotfile) == false)
+        return;
+    ShowImage(mWidth, mHeight, dot);
 }
 
-TEST(ImxCalibration, Image_1dot0) {
+class ImxSVCali2Test: public ::testing::Test
+{
+protected:
+    virtual void SetUp() {
+        K << 421.05641911742293, 0.0, 623.1233368341417,
+             0.0, 435.3963639225523, 381.33950935388606,
+             0.0, 0.0, 1.0;
+        D << -0.03270810830898023,
+             0.058951819094913656,
+             -0.07417478474484326,
+             0.030368291431475524;
+
+        auto retValue = getImageInfo("/sdcard/distort.jpg", &mWidth,
+                        &mHeight, &mStride);
+        if(!retValue)
+            return;
+
+        cout << "Get Image: width=" << mWidth << ", height=" << mHeight << ", stride=" \
+                << mStride << endl;
+
+        mComposerClient = new SurfaceComposerClient;
+        ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
+    }
+    
+    virtual void TearDown()  {
+    }
+
+    virtual void ShowImage(uint32_t width, uint32_t height, void *pixels)  {
+        mSurfaceControl = mComposerClient->createSurface(
+                String8("ImxSVSurface"), width, height, PIXEL_FORMAT_RGBA_8888, 0);
+        ASSERT_TRUE(mSurfaceControl != nullptr);
+        ASSERT_TRUE(mSurfaceControl->isValid());
+
+        Transaction t;
+        ASSERT_EQ(NO_ERROR, t.setLayer(mSurfaceControl, 0x7fffffff)
+                .show(mSurfaceControl)
+                .apply());
+
+        mSurface = mSurfaceControl->getSurface();
+        ASSERT_TRUE(mSurface != nullptr);
+        sp<ANativeWindow> anw(mSurface);
+        ASSERT_EQ(NO_ERROR, native_window_api_connect(anw.get(), NATIVE_WINDOW_API_CPU));
+        ASSERT_EQ(NO_ERROR, native_window_set_usage(anw.get(),
+            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN));
+
+        ANativeWindowBuffer* anb;
+        ASSERT_EQ(NO_ERROR, native_window_dequeue_buffer_and_wait(anw.get(),
+            &anb));
+        ASSERT_TRUE(anb != nullptr);
+
+        sp<GraphicBuffer> buf(GraphicBuffer::from(anb));
+        // Fill the buffer with the a checkerboard pattern
+        uint8_t* img = nullptr;
+        buf->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)(&img));
+        int size =  width * height * 4;
+        memcpy(img, pixels, size);
+        buf->unlock();
+        ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf->getNativeBuffer(),
+            -1));
+        sleep(3);
+    }
+
+    sp<Surface> mSurface;
+    sp<SurfaceComposerClient> mComposerClient;
+    sp<SurfaceControl> mSurfaceControl;
+
+    uint32_t mWidth = 0;
+    uint32_t mHeight = 0;
+    uint32_t mStride = 0;
     Matrix<double, 3, 3> K;
-    K <<  421.05641911742293, 0.0, 623.1233368341417,
-          0.0, 435.3963639225523, 381.33950935388606,
-          0.0, 0.0, 1.0;
-
     Matrix<double, 1, 4> D;
-    D << -0.03270810830898023,
-         0.058951819094913656,
-         -0.07417478474484326,
-         0.030368291431475524;
+};
 
-
+TEST_F(ImxSVCali2Test, Image_1dot0) {
     float scaler = 1;
+    uint32_t size = mHeight * mStride;
+    int bpp = 4;
+    uint32_t out_width = mWidth *scaler;
+    uint32_t out_height = mHeight *scaler;
+    uint32_t out_stride = out_width*bpp;
+    size_t out_size = out_stride *out_height;
+
+    shared_ptr<char> pixels_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(pixels_outbuf == nullptr)
+        return;
+    auto pixels = pixels_outbuf.get();
+    decodeImage(pixels, size, "/sdcard/distort.jpg");
+    ShowImage(mWidth, mHeight, pixels);
+
+    shared_ptr<char> undistort_outbuf(new char[out_size],
+        std::default_delete<char[]>());
+    if(undistort_outbuf == nullptr)
+        return;
+    auto undistort = undistort_outbuf.get();
+
+    shared_ptr<char> dot_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(dot_outbuf == nullptr)
+        return;
+    auto dot = dot_outbuf.get();
+
+    ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot,
+                mWidth, mHeight, mStride,
+                undistort, out_size));
+
     char output[128];
     memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/undistorted-%f.jpg", scaler);
+    sprintf(output, "/sdcard/2-undistorted-%f.jpg", scaler);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(out_width, out_height, out_stride, format,
+            undistort, output) == false)
+        return;
+    ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
-    sprintf(dotfile, "/sdcard/distort-map-%f.jpg", scaler);
-
-    ASSERT_TRUE(calibrationImage(scaler, K, D, "/sdcard/distort.jpg", output, dotfile));
-    calibrationImage(scaler, K, D, "/sdcard/distort.jpg", output, dotfile);
+    sprintf(dotfile, "/sdcard/2-distort-map-%f.jpg", scaler);
+    if(encoderImage(mWidth, mHeight, mStride, format,
+            dot, dotfile) == false)
+        return;
+    ShowImage(mWidth, mHeight, dot);
 }
 
-TEST(ImxCalibration, Image_1dot2) {
-    Matrix<double, 3, 3> K;
-    K <<  421.05641911742293, 0.0, 623.1233368341417,
-          0.0, 435.3963639225523, 381.33950935388606,
-          0.0, 0.0, 1.0;
-
-    Matrix<double, 1, 4> D;
-    D << -0.03270810830898023,
-         0.058951819094913656,
-         -0.07417478474484326,
-         0.030368291431475524;
-
-
+TEST_F(ImxSVCali2Test, Image_1dot2) {
     float scaler = 1.2;
+    uint32_t size = mHeight * mStride;
+    int bpp = 4;
+    uint32_t out_width = mWidth *scaler;
+    uint32_t out_height = mHeight *scaler;
+    uint32_t out_stride = out_width*bpp;
+    size_t out_size = out_stride *out_height;
+
+    shared_ptr<char> pixels_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(pixels_outbuf == nullptr)
+        return;
+    auto pixels = pixels_outbuf.get();
+    decodeImage(pixels, size, "/sdcard/distort.jpg");
+    ShowImage(mWidth, mHeight, pixels);
+
+    shared_ptr<char> undistort_outbuf(new char[out_size],
+        std::default_delete<char[]>());
+    if(undistort_outbuf == nullptr)
+        return;
+    auto undistort = undistort_outbuf.get();
+
+    shared_ptr<char> dot_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(dot_outbuf == nullptr)
+        return;
+    auto dot = dot_outbuf.get();
+
+    ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot,
+                mWidth, mHeight, mStride,
+                undistort, out_size));
+
     char output[128];
     memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/undistorted-%f.jpg", scaler);
+    sprintf(output, "/sdcard/2-undistorted-%f.jpg", scaler);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(out_width, out_height, out_stride, format,
+            undistort, output) == false)
+        return;
+    ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
-    sprintf(dotfile, "/sdcard/distort-map-%f.jpg", scaler);
-
-    ASSERT_TRUE(calibrationImage(scaler, K, D, "/sdcard/distort.jpg", output, dotfile));
-    calibrationImage(scaler, K, D, "/sdcard/distort.jpg", output, dotfile);
+    sprintf(dotfile, "/sdcard/2-distort-map-%f.jpg", scaler);
+    if(encoderImage(mWidth, mHeight, mStride, format,
+            dot, dotfile) == false)
+        return;
+    ShowImage(mWidth, mHeight, dot);
 }
 
-TEST(ImxCalibration, Image_2dot0) {
-    Matrix<double, 3, 3> K;
-    K <<  421.05641911742293, 0.0, 623.1233368341417,
-          0.0, 435.3963639225523, 381.33950935388606,
-          0.0, 0.0, 1.0;
-
-    Matrix<double, 1, 4> D;
-    D << -0.03270810830898023,
-         0.058951819094913656,
-         -0.07417478474484326,
-         0.030368291431475524;
-
-
+TEST_F(ImxSVCali2Test, Image_2dot0) {
     float scaler = 2;
+    uint32_t size = mHeight * mStride;
+    int bpp = 4;
+    uint32_t out_width = mWidth *scaler;
+    uint32_t out_height = mHeight *scaler;
+    uint32_t out_stride = out_width*bpp;
+    size_t out_size = out_stride *out_height;
+
+    shared_ptr<char> pixels_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(pixels_outbuf == nullptr)
+        return;
+    auto pixels = pixels_outbuf.get();
+    decodeImage(pixels, size, "/sdcard/distort.jpg");
+    ShowImage(mWidth, mHeight, pixels);
+
+    shared_ptr<char> undistort_outbuf(new char[out_size],
+        std::default_delete<char[]>());
+    if(undistort_outbuf == nullptr)
+        return;
+    auto undistort = undistort_outbuf.get();
+
+    shared_ptr<char> dot_outbuf(new char[size],
+        std::default_delete<char[]>());
+    if(dot_outbuf == nullptr)
+        return;
+    auto dot = dot_outbuf.get();
+
+    ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot,
+                mWidth, mHeight, mStride,
+                undistort, out_size));
+
     char output[128];
     memset(output, 0, sizeof(output));
-    sprintf(output, "/sdcard/undistorted-%f.jpg", scaler);
+    sprintf(output, "/sdcard/2-undistorted-%f.jpg", scaler);
+    AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
+    if(encoderImage(out_width, out_height, out_stride, format,
+            undistort, output) == false)
+        return;
+    ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
-    sprintf(dotfile, "/sdcard/distort-map-%f.jpg", scaler);
-    ASSERT_TRUE(calibrationImage(scaler, K, D, "/sdcard/distort.jpg", output, dotfile));
-
-    ASSERT_TRUE(calibrationImage(scaler, K, D, "/sdcard/distort.jpg", output, dotfile));
-    calibrationImage(scaler, K, D, "/sdcard/distort.jpg", output, dotfile);
+    sprintf(dotfile, "/sdcard/2-distort-map-%f.jpg", scaler);
+    if(encoderImage(mWidth, mHeight, mStride, format,
+            dot, dotfile) == false)
+        return;
+    ShowImage(mWidth, mHeight, dot);
 }
 
