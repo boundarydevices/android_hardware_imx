@@ -572,7 +572,6 @@ static int start_output_stream(struct imx_stream_out *out)
     int card = -1;
     unsigned int port = 0;
     bool success = false;
-    int ret = 0;
     unsigned int flags = PCM_OUT | PCM_MONOTONIC;
     static int first = 1;
     struct listnode *node;
@@ -778,7 +777,6 @@ static int get_playback_delay(struct imx_stream_out *out,
 {
     unsigned int kernel_frames;
     int status;
-    struct imx_audio_device *adev = out->dev;
 
     /* Find the first active PCM to act as primary */
     if (out->pcm) {
@@ -981,15 +979,11 @@ exit:
     return status;
 }
 
-static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
+static int out_set_parameters(struct audio_stream *stream __unused, const char *kvpairs)
 {
-    struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *adev = out->dev;
-    struct imx_stream_in *in;
     struct str_parms *parms;
     char value[32];
-    int ret, val = 0;
-    bool force_input_standby = false;
+    int ret;
     int status = 0;
 
     ALOGD("%s: enter: kvpairs: %s", __func__, kvpairs);
@@ -1440,7 +1434,6 @@ static int out_get_render_position(const struct audio_stream_out *stream,
                                    uint32_t *dsp_frames)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *adev = out->dev;
     struct timespec timestamp;
     int64_t signed_frames = 0;
     pthread_mutex_lock(&out->lock);
@@ -1479,7 +1472,6 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
                                    uint64_t *frames, struct timespec *timestamp)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    struct imx_audio_device *adev = out->dev;
     int ret = -ENODATA;
 
     pthread_mutex_lock(&out->lock);
@@ -1494,7 +1486,7 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
                 signed_frames = (out->written - kernel_buffer_size + avail) * DSD_RATE_TO_PCM_RATE;
             else
                 signed_frames = out->written - (kernel_buffer_size - avail);
-            ALOGV("%s: avail: %u kernel_buffer_size: %zu written: %zu signed_frames: %ld", __func__, avail, kernel_buffer_size, out->written, (long)signed_frames);
+            ALOGV("%s: avail: %u kernel_buffer_size: %zu written: %lld signed_frames: %ld", __func__, avail, kernel_buffer_size, (long long)out->written, (long)signed_frames);
 
             if (signed_frames >= 0) {
                 *frames = signed_frames;
@@ -1602,7 +1594,6 @@ static int start_input_stream(struct imx_stream_in *in)
     struct imx_audio_device *adev = in->dev;
     int card = -1;
     unsigned int port = 0;
-    int format = 0;
 
     ALOGW("start_input_stream...., mode %d, in->device 0x%x", adev->mode, in->device);
 
@@ -2146,7 +2137,7 @@ static ssize_t process_frames(struct imx_stream_in *in, void* buffer, ssize_t fr
                                 "process_frames() failed to reallocate proc_buf_out");
                     proc_buf_out = in->proc_buf_out;
                 }
-                ALOGV("process_frames(): proc_buf_in %p extended to %d bytes",
+                ALOGV("process_frames(): proc_buf_in %p extended to %zu bytes",
                      in->proc_buf_in, in->proc_buf_size * in->requested_channel * sizeof(int16_t));
             }
             frames_rd = read_frames(in,
@@ -3362,7 +3353,6 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = (struct imx_audio_device *)dev;
-    int i;
     ALOGW("adev_close_output_stream...%p", out);
 
     pthread_mutex_lock(&out->dev->lock);
@@ -4020,7 +4010,7 @@ static int adev_close(hw_device_t *device)
     return 0;
 }
 
-static int adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
+static int __unused adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
 {
      int i;
      if (flag == PCM_OUT) {
@@ -4037,7 +4027,7 @@ static int adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devi
      return 0;
 }
 
-static int adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
+static int __unused adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
 {
      int i;
      if (flag == PCM_OUT) {
