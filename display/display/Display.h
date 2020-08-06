@@ -50,6 +50,7 @@ using android::Vector;
 
 #define DEFAULT_REFRESH_RATE             60
 #define FLOAT_TOLERANCE                  0.01
+#define RESERVED_DISPLAY_GROUP_ID        100
 
 class BufferSlot
 {

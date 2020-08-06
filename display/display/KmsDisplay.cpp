@@ -1460,19 +1460,26 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
     }
 
     DisplayConfig config;
-    if (mModePrefered >= 0)
+    if (format == -1)
+        format = FORMAT_RGBA8888; // set to default value
+
+    if (fabs(fps) < FLOAT_TOLERANCE)
+        fps = DEFAULT_REFRESH_RATE; // set to default value
+
+    if (mModePrefered >= 0) {
         config = mConfigs[mModePrefered];
-    else
+    } else {
         config.modeIdx = -1;
+        config.mXdpi = 160000;
+        config.mYdpi = 160000;
+        config.mVsyncPeriod  = 1000000000 / fps;
+        config.mBytespixel = getFormatSize(format);
+        config.cfgGroupId = RESERVED_DISPLAY_GROUP_ID;
+    }
     config.mXres = width;
     config.mYres = height;
-    if (format != -1)
-        config.mFormat = format;
-
-    if (fabs(fps) >= FLOAT_TOLERANCE)
-        config.mFps = fps;
-    else
-        config.mFps = DEFAULT_REFRESH_RATE;
+    config.mFormat = format;
+    config.mFps = fps;
 
     index = mConfigs.add(config);
 
