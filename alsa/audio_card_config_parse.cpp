@@ -15,6 +15,8 @@
  */
 /* Copyright 2020 NXP */
 
+#define LOG_TAG "audio_hw_primary"
+
 #include <android-base/file.h>
 #include <android-base/strings.h>
 #include <android-base/properties.h>
@@ -27,8 +29,6 @@
 #include <dirent.h>
 
 #include "audio_card_config_parse.h"
-
-#define LOG_TAG "audio_hw_primary"
 
 static const char* const g_kAudioConfigPath = "/vendor/etc/configs/audio";
 static const char* const g_key_driver_name = "driver_name";
@@ -52,7 +52,7 @@ static const char* const g_key_out_period_size = "out_period_size";
 static const char* const g_key_out_period_count = "out_period_count";
 
 struct audio_devcie_map {
-    char *name;
+    char const *name;
     unsigned int device;
 };
 
@@ -108,7 +108,7 @@ static bool parse_control(struct route_setting **pp_route, Json::Value ctrl_arra
     // Always "NULL" control at last, so "ctrl_num + 1".
     p_route = (struct route_setting *)calloc(ctrl_num + 1, sizeof(struct route_setting));
     if(p_route == NULL) {
-        ALOGE("%s: calloc struct route_setting, %d bytes failed", __func__, sizeof(struct route_setting));
+        ALOGE("%s: calloc struct route_setting, %zu bytes failed", __func__, sizeof(struct route_setting));
         return false;
     }
 
@@ -143,7 +143,7 @@ static bool parse_volume_control(struct route_setting **pp_route, Json::Value ct
     // Always "NULL" control at last, so "ctrl_num + 1".
     p_route = (struct route_setting *)calloc(ctrl_num + 1, sizeof(struct route_setting));
     if(p_route == NULL) {
-        ALOGE("%s: calloc struct route_setting, %d bytes failed", __func__, sizeof(struct route_setting));
+        ALOGE("%s: calloc struct route_setting, %zu bytes failed", __func__, sizeof(struct route_setting));
         return false;
     }
 
@@ -187,7 +187,7 @@ static bool parse_one_card(char *config_file, struct audio_card **pp_audio_card)
 
     p_audio_card = (struct audio_card *)calloc(1, sizeof(struct audio_card));
     if(p_audio_card == NULL) {
-        ALOGE("%s: calloc struct audio_card, %d bytes failed", __func__, sizeof(struct audio_card));
+        ALOGE("%s: calloc struct audio_card, %zu bytes failed", __func__, sizeof(struct audio_card));
         return false;
     }
 

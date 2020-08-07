@@ -29,9 +29,7 @@
 
 struct control *control_open(unsigned int card)
 {
-    struct snd_ctl_card_info tmp;
     struct control *control = NULL;
-    unsigned int n, m;
     int fd;
     char fn[256];
     int device = -1;
@@ -139,10 +137,6 @@ static void free_ctl_pcm_info(struct ctl_pcm_info* current) {
 
 void control_close(struct control *control)
 {
-    unsigned int n,m;
-    struct ctl_pcm_info      *current = NULL;
-    struct ctl_pcm_info      *p = NULL;
-
     if (!control)
         return;
 
