@@ -185,7 +185,6 @@ int pcm_get_near_param(unsigned int card, unsigned int device,
     char fn[256];
     int ret = 0;
     int min = 0, max = 0;
-    int mask = 0;
     int request_data = *data;
     *data = 0;
 
@@ -229,7 +228,6 @@ int pcm_get_near_param(unsigned int card, unsigned int device,
     else if(max > 0)  *data = max;
     else              *data = 0;
 
-fail_close:
     close(pcm->fd);
     pcm->fd = -1;
 fail:
@@ -245,8 +243,6 @@ int pcm_check_param_mask(unsigned int card, unsigned int device,
     struct snd_pcm_hw_params params;
     char fn[256];
     int ret = 0;
-    int min = 0, max = 0;
-    int mask = 0;
     int request_data = data;
 
     if (param_is_interval(type)) return 0;
@@ -279,7 +275,6 @@ int pcm_check_param_mask(unsigned int card, unsigned int device,
     } else
         ret = 0;
 
-fail_close:
     close(pcm->fd);
     pcm->fd = -1;
 fail:
