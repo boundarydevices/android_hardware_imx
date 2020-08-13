@@ -3298,6 +3298,11 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                 }
             }
         }
+        if (flags & AUDIO_OUTPUT_FLAG_DIRECT) {
+            ALOGE("%s: direct output stream should not come here", __func__);
+            ret = -EINVAL;
+            goto err_open;
+        }
         out->config = pcm_config_mm_out;
         out->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
         out->channel_mask = DEFAULT_OUTPUT_CHANNEL_MASK;
