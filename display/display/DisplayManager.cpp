@@ -398,6 +398,18 @@ void DisplayManager::setPrimaryDisplay(int index)
         }
     }
     mKmsDisplays[index]->invalidLayers();
+
+    int preId = mKmsDisplays[index]->getActiveId();
+    const DisplayConfig& cfg = mKmsDisplays[index]->getActiveConfig();
+    int idx = mKmsDisplays[0]->findDisplayConfig(cfg.mXres, cfg.mYres, cfg.mFps, -1);
+    if ((idx >= 0) && (idx != preId)) {
+        // find that config in mKmsDisplays[0], but the index is not equal to previous active config id
+        mKmsDisplays[0]->CopyAsActiveConfig(idx, preId);
+    } else if (idx < 0) {
+        ALOGI("%s Not find matched config in new connected display, copy default as first one", __func__);
+        int id = mKmsDisplays[0]->getActiveId();
+        mKmsDisplays[0]->CopyAsActiveConfig(id, 0);
+    }
 }
 
 int DisplayManager::enumFakeKmsDisplay()

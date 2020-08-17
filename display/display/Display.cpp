@@ -268,6 +268,18 @@ int Display::setActiveConfig(int config)
     return 0;
 }
 
+int Display::CopyAsActiveConfig(int srcId, int dstId)
+{
+    Mutex::Autolock _l(mLock);
+    if (mActiveConfig == dstId)
+        return mActiveConfig;
+
+    const DisplayConfig& cfg = mConfigs[srcId];
+    mConfigs.insertAt(cfg, dstId, 1);
+    mActiveConfig = dstId;
+    return dstId;
+}
+
 int Display::getActiveId()
 {
     Mutex::Autolock _l(mLock);
