@@ -111,6 +111,7 @@ Composer::Composer()
         mUnlockSurface = NULL;
         mAlignTile = NULL;
         mGetTileStatus = NULL;
+        mResolveTileStatus = NULL;
     }
     else {
         mGetAlignedSize = (hwc_func3)dlsym(mHelperHandle, "hwc_getAlignedSize");
@@ -121,6 +122,7 @@ Composer::Composer()
         mUnlockSurface = (hwc_func1)dlsym(mHelperHandle, "hwc_unlockSurface");
         mAlignTile = (hwc_func4)dlsym(mHelperHandle, "hwc_align_tile");
         mGetTileStatus = (hwc_func2)dlsym(mHelperHandle, "hwc_get_tileStatus");
+        mResolveTileStatus = (hwc_func1)dlsym(mHelperHandle, "hwc_resolve_tileStatus");
     }
 
     memset(path, 0, sizeof(path));
@@ -468,7 +470,12 @@ int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect
         surfaceX.tiling = tile;
     }
 
-    getTileStatus(handle, &surfaceX);
+    if (isFeatureSupported(G2D_FAST_CLEAR)) {
+        getTileStatus(handle, &surfaceX);
+    }
+    else {
+        resolveTileStatus(handle);
+    }
 
     int offset = 0;
     getFlipOffset(handle, &offset);
@@ -782,6 +789,15 @@ int Composer::getTileStatus(Memory *handle, struct g2d_surfaceEx *surfaceX)
     }
 
     return (*mGetTileStatus)(handle, surfaceX);
+}
+
+int Composer::resolveTileStatus(Memory *handle)
+{
+    if (mResolveTileStatus == NULL) {
+        return -EINVAL;
+    }
+
+    return (*mResolveTileStatus)(handle);
 }
 
 }
