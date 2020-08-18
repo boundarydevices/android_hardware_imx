@@ -861,6 +861,12 @@ int KmsDisplay::updateScreen()
         mKmsPlanes[0].setClientFence(mPset, mAcquireFence);
     }
 
+#ifdef DEBUG_DUMP_REFRESH_RATE
+    nsecs_t commit_time;
+    nsecs_t commit_start;
+    float refresh_rate = 0;
+    commit_start = systemTime(CLOCK_MONOTONIC);
+#endif
     // DRM driver will hold two frames in async mode.
     // So user space should wait two vsync interval when it is busy.
     for (uint32_t i=0; i<32; i++) {
@@ -876,6 +882,30 @@ int KmsDisplay::updateScreen()
         else if (ret != 0) {
             ALOGI("Failed to commit pset ret=%d", ret);
         }
+
+#ifdef DEBUG_DUMP_REFRESH_RATE
+        commit_time = systemTime(CLOCK_MONOTONIC);
+        char value[PROPERTY_VALUE_MAX];
+        property_get("hwc.debug.dump_refresh_rate", value, "0");
+        m_request_refresh_cnt = atoi(value);
+        if (m_request_refresh_cnt <= 0)
+            break;
+
+        if (m_pre_commit_time > 0) {
+            m_total_commit_time += commit_time - m_pre_commit_time;
+            m_total_commit_cost += commit_time - commit_start;
+            m_commit_cnt++;
+            if (m_commit_cnt >= m_request_refresh_cnt) {
+                refresh_rate = 1000000000 * m_commit_cnt / m_total_commit_time;
+                ALOGI("id= %d, refresh rate= %3.2f fps, cnt=%d, commit wait=%1.4fms per frame",
+                       mIndex, refresh_rate, m_commit_cnt, m_total_commit_cost/(m_commit_cnt * 1000000.0));
+                m_total_commit_time = 0;
+                m_total_commit_cost = 0;
+                m_commit_cnt = 0;
+            }
+        }
+        m_pre_commit_time = commit_time;
+#endif
         break;
     }
 

@@ -78,6 +78,13 @@ Display::Display()
     m_sw_sync_timeline_inc = NULL;
     m_sw_sync_fence_create = NULL;
 
+#ifdef DEBUG_DUMP_REFRESH_RATE
+    m_pre_commit_time = 0;
+    m_total_commit_time = 0;
+    m_total_commit_cost = 0;
+    m_commit_cnt = 0;
+    m_request_refresh_cnt = 0;
+#endif
     mSyncHandle = dlopen(SYNC_LIB_PATH, RTLD_NOW);
     if(mSyncHandle) {
         m_sw_sync_timeline_create = (sw_sync_timeline_create_func)dlsym(mSyncHandle, "sw_sync_timeline_create");

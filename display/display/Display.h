@@ -52,6 +52,8 @@ using android::Vector;
 #define FLOAT_TOLERANCE                  0.01
 #define RESERVED_DISPLAY_GROUP_ID        100
 
+#define DEBUG_DUMP_REFRESH_RATE
+
 class BufferSlot
 {
 public:
@@ -301,6 +303,13 @@ protected:
     sw_sync_timeline_create_func m_sw_sync_timeline_create;
     sw_sync_timeline_inc_func m_sw_sync_timeline_inc;
     sw_sync_fence_create_func m_sw_sync_fence_create;
+#ifdef DEBUG_DUMP_REFRESH_RATE
+    nsecs_t m_pre_commit_time;
+    nsecs_t m_total_commit_time;
+    nsecs_t m_total_commit_cost;
+    int m_request_refresh_cnt;
+    int m_commit_cnt;
+#endif
 };
 
 }
