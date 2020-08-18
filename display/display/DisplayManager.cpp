@@ -400,6 +400,9 @@ void DisplayManager::setPrimaryDisplay(int index)
     mKmsDisplays[index]->invalidLayers();
 
     int preId = mKmsDisplays[index]->getActiveId();
+    if (preId == -1) // The mKmsDisplays[index] is not valid
+        return;
+
     const DisplayConfig& cfg = mKmsDisplays[index]->getActiveConfig();
     int idx = mKmsDisplays[0]->findDisplayConfig(cfg.mXres, cfg.mYres, cfg.mFps, -1);
     if ((idx >= 0) && (idx != preId)) {
