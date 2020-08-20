@@ -79,7 +79,9 @@ Display::Display()
     m_sw_sync_fence_create = NULL;
 
 #ifdef DEBUG_DUMP_REFRESH_RATE
+    m_pre_commit_start = 0;
     m_pre_commit_time = 0;
+    m_total_sf_delay = 0;
     m_total_commit_time = 0;
     m_total_commit_cost = 0;
     m_commit_cnt = 0;

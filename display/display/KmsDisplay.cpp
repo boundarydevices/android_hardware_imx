@@ -894,16 +894,20 @@ int KmsDisplay::updateScreen()
         if (m_pre_commit_time > 0) {
             m_total_commit_time += commit_time - m_pre_commit_time;
             m_total_commit_cost += commit_time - commit_start;
+            m_total_sf_delay += (int64_t)commit_start - m_pre_commit_start - mConfigs[mActiveConfig].mVsyncPeriod;
             m_commit_cnt++;
             if (m_commit_cnt >= m_request_refresh_cnt) {
-                refresh_rate = 1000000000 * m_commit_cnt / m_total_commit_time;
-                ALOGI("id= %d, refresh rate= %3.2f fps, cnt=%d, commit wait=%1.4fms per frame",
-                       mIndex, refresh_rate, m_commit_cnt, m_total_commit_cost/(m_commit_cnt * 1000000.0));
+                refresh_rate = 1000000000.0 * m_commit_cnt / m_total_commit_time;
+                ALOGI("id= %d, refresh rate= %3.2f fps, commit wait=%1.4fms/frame, surfaceflinger delay=%1.4fms/frame",
+                       mIndex, refresh_rate, m_total_commit_cost/(m_commit_cnt * 1000000.0),
+                       m_total_sf_delay/(m_commit_cnt * 1000000.0));
+                m_total_sf_delay = 0;
                 m_total_commit_time = 0;
                 m_total_commit_cost = 0;
                 m_commit_cnt = 0;
             }
         }
+        m_pre_commit_start = commit_start;
         m_pre_commit_time = commit_time;
 #endif
         break;

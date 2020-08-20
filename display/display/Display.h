@@ -304,7 +304,9 @@ protected:
     sw_sync_timeline_inc_func m_sw_sync_timeline_inc;
     sw_sync_fence_create_func m_sw_sync_fence_create;
 #ifdef DEBUG_DUMP_REFRESH_RATE
+    nsecs_t m_pre_commit_start;
     nsecs_t m_pre_commit_time;
+    nsecs_t m_total_sf_delay; // surfaceflinger updatescreen delay(compare with vsync period)
     nsecs_t m_total_commit_time;
     nsecs_t m_total_commit_cost;
     int m_request_refresh_cnt;
