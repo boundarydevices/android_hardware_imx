@@ -54,11 +54,6 @@ constexpr int PULL_UP_DELAY = 500000;
 #define RNDIS_PATH FUNCTIONS_PATH "rndis.gs4"
 #define CONFIGURATION_PATH CONFIG_PATH "strings/0x409/configuration"
 
-#define CTL_START  "ctl.start"
-#define CTL_STOP  "ctl.stop"
-#define USB_FFS  "sys.usb.ffs.ready"
-#define ADBD  "adbd"
-
 namespace android {
 namespace hardware {
 namespace usb {
@@ -251,8 +246,6 @@ V1_0::Status UsbGadget::tearDownGadget() {
   if (!WriteStringToFile("none", PULLUP_PATH))
     ALOGI("Gadget cannot be pulled down");
 
-  SetProperty(CTL_STOP, ADBD);
-
   if (!WriteStringToFile("0", DEVICE_CLASS_PATH)) return Status::ERROR;
 
   if (!WriteStringToFile("0", DEVICE_SUB_CLASS_PATH)) return Status::ERROR;
@@ -388,18 +381,6 @@ V1_0::Status UsbGadget::setupFunctions(
   bool ffsEnabled = false;
   int i = 0;
   std::string bootMode = GetProperty(PERSISTENT_BOOT_MODE, "");
-
-  if ((functions & GadgetFunction::ADB) != 0 && GetProperty(USB_FFS, "") != "1" ) {
-    SetProperty(CTL_START, ADBD);
-  }
-
-  for (int i = 0; i < 20; i++) {
-    string value = GetProperty(USB_FFS, "");
-    if ("1" == value)
-      break;
-    else
-      usleep(20000);
-  }
 
   if (((functions & GadgetFunction::MTP) != 0)) {
     ffsEnabled = true;
