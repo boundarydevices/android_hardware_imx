@@ -525,14 +525,22 @@ int Display::getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers,
 
 bool Display::check2DComposition()
 {
+    bool use2DComposition = false;
+    bool rotationCap = mComposer.isFeatureSupported(G2D_ROTATION);
+
     // set device compose to false if composer is invalid or disabled.
     if (!mComposer.isValid() || mComposer.isDisabled()) {
         return false;
     }
 
+    // evs camera case force device composition.
+    if (forceVync()) {
+        return true;
+    }
+
     // set device compose if force set to 2DComposition.
     if (mComposer.is2DComposition()) {
-        return true;
+        use2DComposition = true;
     }
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
@@ -550,9 +558,27 @@ bool Display::check2DComposition()
         if (memory != nullptr && memory->fslFormat == FORMAT_NV12_TILED) {
             return true;
         }
+
+        // rotation case skip device composition.
+        if (mLayers[i]->transform != 0 && !rotationCap) {
+            use2DComposition = false;
+            ALOGV("g2d can't support rotation");
+        }
+
+#ifdef WORKAROUND_DPU_ALPHA_BLENDING
+        // pixel alpha + blending + global alpha case skip device composition.
+        if (memory != nullptr && mLayers[i]->planeAlpha != 0xff && mLayers[i]->blendMode == BLENDING_PREMULT &&
+            (memory->fslFormat == FORMAT_RGBA8888 || memory->fslFormat == FORMAT_BGRA8888 ||
+             memory->fslFormat == FORMAT_RGBA1010102 || memory->fslFormat == FORMAT_RGBAFP16))
+        {
+            use2DComposition = false;
+            ALOGV("%s,%d,%x,%x,%x",__func__,__LINE__,memory->fslFormat,mLayers[i]->planeAlpha,mLayers[i]->blendMode);
+        }
+#endif
+
     }
 
-    return false;
+    return use2DComposition;
 }
 
 bool Display::triggerComposition()
@@ -586,41 +612,24 @@ bool Display::directCompositionLocked()
 bool Display::verifyLayers()
 {
     bool deviceCompose = true;
-    bool rotationCap = mComposer.isFeatureSupported(G2D_ROTATION);
     mUiUpdate = false;
     static int only_overlay_cnt = 0;
 
     Mutex::Autolock _l(mLock);
     mLayerVector.clear();
 
-    // get deviceCompose init value
-    deviceCompose = check2DComposition();
-    bool forceHwc = forceVync();
     int lastComposeFlag = mComposeFlag;
     int lastTotalLayerNum = mTotalLayerNum;
     mTotalLayerNum = 0;
+
+    // get deviceCompose init value
+    deviceCompose = check2DComposition();
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
 
-        if (mLayers[i]->transform != 0 && !rotationCap) {
-            deviceCompose = false;
-            ALOGV("g2d can't support rotation");
-            break;
-        }
-#ifdef WORKAROUND_DPU_ALPHA_BLENDING
-        Memory* memory = mLayers[i]->handle;
-        if (memory != nullptr && mLayers[i]->planeAlpha != 0xff && mLayers[i]->blendMode == BLENDING_PREMULT &&
-            (memory->fslFormat == FORMAT_RGBA8888 || memory->fslFormat == FORMAT_BGRA8888 ||
-             memory->fslFormat == FORMAT_RGBA1010102 || memory->fslFormat == FORMAT_RGBAFP16) && !forceHwc)
-        {
-            deviceCompose = false;
-            ALOGV("%s,%d,%x,%x,%x",__func__,__LINE__,memory->fslFormat,mLayers[i]->planeAlpha,mLayers[i]->blendMode);
-            break;
-        }
-#endif
         if (mLayers[i]->flags & SKIP_LAYER) {
             deviceCompose = false;
             mLayers[i]->type = LAYER_TYPE_CLIENT;
