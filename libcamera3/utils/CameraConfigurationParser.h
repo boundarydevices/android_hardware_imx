@@ -78,6 +78,9 @@ struct CameraSensorMetadata {
   // camera node name
   char camera_name[32];
 
+  // device node name, In some case, need use the given node.
+  char device_node[32];
+
   // max pixel size
   int maxjpegsize;
 

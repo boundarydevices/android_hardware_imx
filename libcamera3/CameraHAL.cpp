@@ -403,6 +403,15 @@ int32_t CameraHAL::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t i
 
         ALOGI("matchNodeName: sensor:%s, dev:%s, node:%s, index:%d",
               sensorName, devNode, nodeName, index);
+
+        CameraSensorMetadata *camera_metadata;
+        camera_metadata = &(mCameraDef.camera_metadata[index]);
+        if(camera_metadata->device_node[0] && strcmp(devNode, camera_metadata->device_node)) {
+            ALOGI("matchNodeName: device node %s is not the given node %s", devNode, camera_metadata->device_node);
+            node = node->next;
+            continue;
+        }
+
         if (!strstr(sensorName, nodeName)) {
             node = node->next;
             continue;

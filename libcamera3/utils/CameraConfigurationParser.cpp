@@ -97,6 +97,7 @@ const char* const kCameraHwJpeg = "hw_jpeg_enc";
 const char* const kCameraMetadataKey = "camera_metadata";
 const char* const kCameraTypeKey = "camera_type";
 const char* const kCameraNameKey = "camera_name";
+const char* const kDeviceNodeKey = "device_node";
 const char* const kOrientationKey = "orientation";
 
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
@@ -231,6 +232,13 @@ bool ConfigureCameras(const Json::Value& value,
     strncpy(camera->camera_metadata[cam_index].camera_name,
               (*iter)[kCameraNameKey].asString().c_str(),
               strlen((*iter)[kCameraNameKey].asString().c_str()));
+
+    if(iter->isMember(kDeviceNodeKey))
+        strncpy(camera->camera_metadata[cam_index].device_node,
+              (*iter)[kDeviceNodeKey].asString().c_str(),
+              strlen((*iter)[kDeviceNodeKey].asString().c_str()));
+    else
+        camera->camera_metadata[cam_index].device_node[0] = 0;
 
     strncpy(camera->camera_metadata[cam_index].camera_type,
               (*iter)[kCameraTypeKey].asString().c_str(),

@@ -16,6 +16,8 @@
 
 #include "ISPCamera.h"
 
+#define V4L2_CID_VIV_SENSOR_MODE (V4L2_CID_PRIVATE_BASE + 0x01)
+
 ISPCamera::ISPCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
                                                 CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata)
    : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc)
@@ -167,6 +169,22 @@ int32_t ISPCamera::ISPCameraMMAPStream::onDeviceConfigureLocked()
     if (ret < 0) {
         ALOGE("%s: VIDIOC_S_FMT Failed: %s", __func__, strerror(errno));
         return ret;
+    }
+
+    /* set mode, ref ISP code video_test.cpp */
+    struct v4l2_control ctrl;
+    memset(&ctrl, 0, sizeof(ctrl));
+    ctrl.id = V4L2_CID_VIV_SENSOR_MODE;
+    if (ioctl(mDev, VIDIOC_G_CTRL, &ctrl) < 0) {
+        ALOGE("VIDIOC_G_CTRL: %s", strerror(errno));
+    } else {
+        ALOGI("Current sensor's mode: %d", ctrl.value);
+    }
+
+    if (ioctl(mDev, VIDIOC_S_CTRL, &ctrl) < 0) {
+        ALOGE("VIDIOC_S_CTRL: %s", strerror(errno));
+    } else {
+        ALOGI("Change sensor's mode to: %d", ctrl.value);
     }
 
     setOmitFrameCount(0);
