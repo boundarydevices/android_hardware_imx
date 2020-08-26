@@ -197,11 +197,6 @@ void *ImageProcess::getHandle()
         return NULL;
     }
 
-    handle = malloc(sizeof(void*));
-    if (handle == NULL) {
-        return NULL;
-    }
-
     openEngine(&handle);
     thread_store_set(&mTls, handle, threadDestructor);
     return handle;
@@ -214,7 +209,6 @@ void ImageProcess::threadDestructor(void *handle)
     }
 
     ImageProcess::getInstance()->closeEngine(handle);
-    free(handle);
 }
 
 int ImageProcess::openEngine(void** handle)
