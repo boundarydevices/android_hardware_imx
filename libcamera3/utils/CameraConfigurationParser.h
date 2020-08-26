@@ -45,6 +45,7 @@ struct OmitFrame {
 enum HalVersion { kHalV1, kHalV2, kHalV3 };
 
 #define OMIT_RESOLUTION_NUM 8
+#define META_STRING_SIZE 32
 
 // Camera properties and features.
 struct CameraSensorMetadata {
@@ -73,13 +74,13 @@ struct CameraSensorMetadata {
   float focallength;
 
   // "back" or "front"
-  char camera_type[32];
+  char camera_type[META_STRING_SIZE];
 
   // camera node name
-  char camera_name[32];
+  char camera_name[META_STRING_SIZE];
 
   // device node name, In some case, need use the given node.
-  char device_node[32];
+  char device_node[META_STRING_SIZE];
 
   // max pixel size
   int maxjpegsize;
