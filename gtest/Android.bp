@@ -1,4 +1,4 @@
-// Copyright 2019 NXP
+// Copyright 2019 - 2020 NXP
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ cc_test {
 }
 
 cc_test{
-
        name: "imx_stress_test",
        srcs: ["UsbGtest.cpp"],
        cflags: [
@@ -71,4 +70,35 @@ cc_test {
                "liblog",
                "libcrypto",
                ]
+}
+
+cc_test {
+    name: "imx_halevsv1_1test",
+    srcs: [
+        "evs/FrameHandler.cpp",
+        "evs/FrameHandlerUltrasonics.cpp",
+        "evs/VtsHalEvsV1_1TargetTest.cpp",
+    ],
+    defaults: ["VtsHalTargetTestDefaults"],
+    shared_libs: [
+        "libui",
+        "libcamera_metadata",
+        "libhidlmemory",
+        "android.hidl.allocator@1.0",
+        "android.hidl.memory@1.0",
+    ],
+    static_libs: [
+        "android.hardware.automotive.evs@1.0",
+        "android.hardware.automotive.evs@1.1",
+        "android.hardware.automotive.evs@common-default-lib",
+        "android.hardware.graphics.common@1.0",
+        "android.hardware.graphics.common@1.1",
+        "android.hardware.graphics.common@1.2",
+        "android.hardware.camera.device@3.2",
+    ],
+    test_suites: ["vts"],
+    cflags: [
+        "-O0",
+        "-g",
+    ],
 }
