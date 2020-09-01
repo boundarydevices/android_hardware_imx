@@ -101,6 +101,10 @@ status_t ISPCamera::initSensorStaticData()
     ALOGI("FrameDuration is %" PRId64 ", %" PRId64 "", mMinFrameDuration, mMaxFrameDuration);
 
     i = 0;
+    mTargetFpsRange[i++] = 10;
+    mTargetFpsRange[i++] = 30;
+    mTargetFpsRange[i++] = 15;
+    mTargetFpsRange[i++] = 30;
     mTargetFpsRange[i++] = 30;
     mTargetFpsRange[i++] = 30;
 
