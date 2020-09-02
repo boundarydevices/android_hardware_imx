@@ -924,6 +924,33 @@ static int out_dump(const struct audio_stream *stream __unused, int fd __unused)
     return 0;
 }
 
+static int out_pause_dummy(struct audio_stream_out* stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+
+    ALOGI("%s", __func__);
+
+    if (!out->pcm || out->paused)
+        return -ENODATA;
+    else {
+        out->paused = true;
+        return 0;
+    }
+}
+
+static int out_resume_dummy(struct audio_stream_out* stream)
+{
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+
+    ALOGI("%s", __func__);
+
+    if (out->paused) {
+        out->paused = false;
+        return 0;
+    } else
+        return -ENODATA;
+}
+
 #define PCM_IOCTL_PAUSE  1
 #define PCM_IOCTL_RESUME 0
 static int out_pause(struct audio_stream_out* stream)
@@ -3300,8 +3327,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         }
         if (flags & AUDIO_OUTPUT_FLAG_DIRECT) {
             ALOGE("%s: direct output stream should not come here", __func__);
-            ret = -EINVAL;
-            goto err_open;
+            // VtsHalAudioV6_0TargetTest asserts each stream declared in policy xml can be opened.
+            // In LPA image, if not set lpa.enable property, direct output stream will come here.
+            // Assign this stream's pause and resume interface to avoid below fatal error:
+            //    "HW_AV_SYNC requested but HAL does not implement pause and resume"
+            out->stream.pause = out_pause_dummy;
+            out->stream.resume = out_resume_dummy;
         }
         out->config = pcm_config_mm_out;
         out->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
