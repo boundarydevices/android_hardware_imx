@@ -513,7 +513,7 @@ static int get_card_for_hfp(struct imx_audio_device *adev, int *card_index)
     return card;
 }
 
-static int get_card_for_bus(struct imx_audio_device* adev, const char* bus, int *p_array_index) {
+static int get_card_for_bus(struct imx_audio_device* adev, const char* bus, int *p_array_index, int *pcm_device_id) {
     if (!adev || !bus) {
         ALOGE("Invalid audio device or bus");
         return -1;
@@ -525,6 +525,14 @@ static int get_card_for_bus(struct imx_audio_device* adev, const char* bus, int 
         if (adev->card_list[i]->bus_name) {
             if (!strcmp(bus, adev->card_list[i]->bus_name)) {
                 card = adev->card_list[i]->card;
+                break;
+            }
+        }
+        if (adev->card_list[i]->secondary_bus_name) {
+            if (!strcmp(bus, adev->card_list[i]->secondary_bus_name)) {
+                card = adev->card_list[i]->card;
+                if (pcm_device_id)
+                    *pcm_device_id = 1; // Hardcode the device index as 1 for secondary_bus_name
                 break;
             }
         }
@@ -613,7 +621,7 @@ static int start_output_stream(struct imx_stream_out *out)
     struct imx_audio_device *adev = out->dev;
     struct pcm_config *config = &out->config;
     int card = -1;
-    unsigned int port = 0;
+    int pcm_device_id = 0;
     bool success = false;
     unsigned int flags = PCM_OUT | PCM_MONOTONIC;
     static int first = 1;
@@ -663,20 +671,20 @@ static int start_output_stream(struct imx_stream_out *out)
         flags |= PCM_MMAP;
 
     if (out->device == AUDIO_DEVICE_OUT_BUS)
-        card = get_card_for_bus(adev, out->address, NULL);
+        card = get_card_for_bus(adev, out->address, NULL, &pcm_device_id);
     else if (out->format == AUDIO_FORMAT_DSD)
         card = get_card_for_dsd(adev, &out->card_index);
     else
         card = get_card_for_device(adev, out->device, PCM_OUT, &out->card_index);
 
-    ALOGD("%s: pcm_open: card: %d, rate: %d, channel: %d, format: %d, period_size: 0x%x, flag: %x",
-          __func__, card, config->rate, config->channels, config->format, config->period_size, flags);
+    ALOGD("%s: pcm_open: card: %d, pcm_device_id: %d, rate: %d, channel: %d, format: %d, period_size: 0x%x, flag: %x",
+          __func__, card, pcm_device_id, config->rate, config->channels, config->format, config->period_size, flags);
 
     if (card < 0) {
         ALOGE("%s: Invalid PCM card id: %d", __func__, card);
         return -EINVAL;
     }
-    out->pcm = pcm_open(card, port, flags, config);
+    out->pcm = pcm_open(card, pcm_device_id, flags, config);
     out->write_flags = flags;
 
     success = true;
@@ -2952,7 +2960,7 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
             ret = -EINVAL;
             return ret;
         }
-        if (-1 == get_card_for_bus(adev, bus_address, &card_index)) {
+        if (-1 == get_card_for_bus(adev, bus_address, &card_index, NULL)) {
             ALOGE("%s: No card available for config setting!", __func__);
             ret = -EINVAL;
             return ret;

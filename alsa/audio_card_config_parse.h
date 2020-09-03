@@ -33,7 +33,8 @@ struct route_setting
 
 struct audio_card {
     char * driver_name;
-    char* bus_name;  // Used in iot, sound card found by DEVICE -> bus -> card
+    char* bus_name; // Used in Android Automotive
+    char* secondary_bus_name; // Used for some sound cards which support multiple pcm device
     unsigned int  supported_out_devices;
     unsigned int  supported_in_devices;
     struct route_setting *init_ctl;

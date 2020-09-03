@@ -50,6 +50,7 @@ static const char* const g_key_support_multi_chn = "support_multi_chn";
 static const char* const g_key_support_lpa = "support_lpa";
 static const char* const g_key_out_period_size = "out_period_size";
 static const char* const g_key_out_period_count = "out_period_count";
+static const char* const g_key_secondary_bus_name = "secondary_bus_name";
 
 struct audio_devcie_map {
     char const *name;
@@ -257,16 +258,20 @@ static bool parse_one_card(char *config_file, struct audio_card **pp_audio_card)
     if(root.isMember(g_key_out_period_size))
         p_audio_card->out_period_size = root[g_key_out_period_size].asUInt();
 
+    if(root.isMember(g_key_secondary_bus_name))
+        p_audio_card->secondary_bus_name = strdup(root[g_key_secondary_bus_name].asCString());
+
     if(root.isMember(g_key_out_period_count))
         p_audio_card->out_period_count = root[g_key_out_period_count].asUInt();
 
-    ALOGI("%s: driver name %s, bus name %s, out_devices 0x%x, in_devices 0x%x, out_vol[%d, %d], dsd %d, hfp %d, hdmi %d, multi_chn %d, period_size %d, period_count %d",
+    ALOGI("%s: driver name %s, bus name %s, out_devices 0x%x, in_devices 0x%x, out_vol[%d, %d], dsd %d, hfp %d, hdmi %d, multi_chn %d, period_size %d, period_count %d, secondary_bus_name: %s",
        __func__, p_audio_card->driver_name, p_audio_card->bus_name,
       p_audio_card->supported_out_devices, p_audio_card->supported_in_devices,
       p_audio_card->out_volume_min, p_audio_card->out_volume_max,
       p_audio_card->support_dsd, p_audio_card->support_hfp,
       p_audio_card->is_hdmi_card, p_audio_card->support_multi_chn,
-      p_audio_card->out_period_size, p_audio_card->out_period_count);
+      p_audio_card->out_period_size, p_audio_card->out_period_count,
+      p_audio_card->secondary_bus_name);
 
     return true;
 
