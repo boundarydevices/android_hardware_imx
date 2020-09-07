@@ -31,10 +31,14 @@
 
 #define COLOR_HEIGHT 64
 #define COLOR_VALUE 0x86
+#define CAMERA_WIDTH 1280
+#define CAMERA_HEIGHT 720
 
 FakeCapture::FakeCapture(const char *deviceName)
     : EvsCamera(deviceName)
 {
+    mWidth = CAMERA_WIDTH;
+    mHeight = CAMERA_HEIGHT;
 }
 
 FakeCapture::~FakeCapture()
@@ -162,19 +166,56 @@ void FakeCapture::onFrameCollect(std::vector<struct forwardframe> &frames)
     return;
 }
 
-void FakeCapture::onMemoryCreate()
-{
-    EvsCamera::onMemoryCreate();
+int FakeCapture::getParameter(__attribute__((unused))v4l2_control& control) {
+    return 0;
+}
 
-    void *vaddr;
+int FakeCapture::setParameter(__attribute__((unused))v4l2_control& control) {
+    return 0;
+}
+
+std::set<uint32_t> FakeCapture::enumerateCameraControls() {
+    std::set<uint32_t> ctrlIDs;
+    return std::move(ctrlIDs);
+}
+
+void FakeCapture::onMemoryCreate() {
+    fsl::Memory *buffer = nullptr;
+    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+    fsl::MemoryDesc desc;
+    desc.mWidth = mWidth;
+    desc.mHeight = mHeight;
+    desc.mFormat = mFormat;
+    desc.mFslFormat = mFormat;
+    desc.mProduceUsage |= fsl::USAGE_HW_TEXTURE
+        | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
+    desc.mFlag = 0;
+    int ret = desc.checkFormat();
+    if (ret != 0) {
+        ALOGE("%s checkFormat failed", __func__);
+        return;
+    }
+    for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
+        buffer = nullptr;
+        allocator->allocMemory(desc, &buffer);
+        std::unique_lock <std::mutex> lock(mLock);
+        mBuffers[i] = buffer;
+    }
+}
+
+void FakeCapture::onMemoryDestroy() {
     fsl::Memory *buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
     for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
         {
             std::unique_lock <std::mutex> lock(mLock);
+            if (mBuffers[i] == nullptr) {
+                continue;
+            }
+
             buffer = mBuffers[i];
+            mBuffers[i] = nullptr;
         }
-        allocator->lock(buffer, buffer->usage, 0, 0,
-                buffer->width, buffer->height, &vaddr);
+        allocator->releaseMemory(buffer);
     }
 }

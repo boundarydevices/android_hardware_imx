@@ -361,35 +361,46 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
         closeCamera(pActiveCamera);
     }
 
-    if (sConfigManager != nullptr) {
-        unique_ptr<ConfigManager::CameraInfo> &camInfo = sConfigManager->getCameraInfo(cameraId);
-          /* currently do not support group metadta */
-//      unique_ptr<ConfigManager::CameraGroupInfo> &camInfo = sConfigManager->getCameraGroupInfo(cameraId);
-        int32_t streamId = -1, area = INT_MIN;
+    std::string fakeCamera(EVS_FAKE_NAME);
+    if (fakeCamera == pRecord->desc.v1.cameraId) {
+        pActiveCamera = new FakeCapture(pRecord->desc.v1.cameraId.c_str());
+    } else {
+        if (sConfigManager != nullptr) {
+            unique_ptr<ConfigManager::CameraInfo> &camInfo = sConfigManager->getCameraInfo(cameraId);
+            /* currently do not support group metadta */
+            //unique_ptr<ConfigManager::CameraGroupInfo> &camInfo = sConfigManager->getCameraGroupInfo(cameraId);
+            int32_t streamId = -1, area = INT_MIN;
 
-        if (camInfo != nullptr ) {
-            for (auto& [id, cfg] : camInfo->streamConfigurations) {
-                // RawConfiguration has id, width, height, format, direction, and
-                // fps.
-                if (cfg[3] == static_cast<uint32_t>(streamCfg.format)) {
-                    if (cfg[1] == streamCfg.width &&
-                        cfg[2] == streamCfg.height) {
-                        // Find exact match.
-                        streamId = id;
-                        break;
-                    } else if (streamCfg.width  > cfg[1] &&
-                               streamCfg.height > cfg[2] &&
-                               cfg[1] * cfg[2] > area) {
-                         streamId = id;
-                         area = cfg[1] * cfg[2];
+            if (camInfo != nullptr ) {
+                for (auto& [id, cfg] : camInfo->streamConfigurations) {
+                    // RawConfiguration has id, width, height, format, direction, and
+                    // fps.
+                    if (cfg[3] == static_cast<uint32_t>(streamCfg.format)) {
+                        if (cfg[1] == streamCfg.width &&
+                            cfg[2] == streamCfg.height) {
+                            // Find exact match.
+                            streamId = id;
+                            break;
+                        } else if (streamCfg.width  > cfg[1] &&
+                                   streamCfg.height > cfg[2] &&
+                                   cfg[1] * cfg[2] > area) {
+                             streamId = id;
+                             area = cfg[1] * cfg[2];
+                        }
                     }
                 }
-            }
 
-        pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(), camInfo->streamConfigurations[streamId][1],
-                   camInfo->streamConfigurations[streamId][2],
-                   camInfo->streamConfigurations[streamId][3],
-                   reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
+            pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(), camInfo->streamConfigurations[streamId][1],
+                       camInfo->streamConfigurations[streamId][2],
+                       camInfo->streamConfigurations[streamId][3],
+                       reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
+            } else {
+                pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
+                                                   kDefaultResolution[0],
+                                                   kDefaultResolution[1],
+                                                   HAL_PIXEL_FORMAT_YCBCR_422_I,
+                                                   reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
+            }
         } else {
             pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
                                                kDefaultResolution[0],
@@ -397,12 +408,6 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
                                                HAL_PIXEL_FORMAT_YCBCR_422_I,
                                                reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
         }
-    } else {
-        pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
-                                               kDefaultResolution[0],
-                                               kDefaultResolution[1],
-                                               HAL_PIXEL_FORMAT_YCBCR_422_I,
-                                               reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
     }
 
     if (pActiveCamera == nullptr) {
@@ -434,7 +439,6 @@ Return<sp<IEvsCamera_1_0>> EvsEnumerator::openCamera(const hidl_string& cameraId
     }
 
     // Construct a camera instance for the caller
-    std::string fakeCamera(EVS_FAKE_NAME);
     pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
                                                kDefaultResolution[0],
                                                kDefaultResolution[1],
