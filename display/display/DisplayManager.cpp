@@ -72,6 +72,7 @@ DisplayManager::DisplayManager()
 
     mListener = NULL;
     mDrmMode = false;
+    mFoundPrimaryPort = false;
     mDriverReady = true;
     enumKmsDisplays();
     if (mDrmMode && !mDriverReady) {
@@ -284,17 +285,6 @@ bool DisplayManager::isOverlay(int fb)
 
 int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary)
 {
-    char const *imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss"};
-    char value[PROPERTY_VALUE_MAX];
-    int len = property_get("ro.boot.primary_display", value, NULL);
-    if (len > 0) {
-        for (int i=0; i<sizeof(imx_drm_version)/sizeof(char*); i++)
-            if (strncmp(value, imx_drm_version[i], strlen(imx_drm_version[i]))) {
-                mDrmMode = true;
-                break;
-            }
-    }
-
     int drmFd = open(path, O_RDWR);
     if(drmFd < 0) {
         ALOGE("Failed to open dri-%s, error:%s", path, strerror(-errno));
@@ -318,13 +308,32 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     // get primary display name to match DRM.
     // the primary display can be fixed by name.
     int main = 0;
-    if (len > 0) {
-        drmVersionPtr version = drmGetVersion(drmFd);
-        if (version)
+    char const *imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss"};
+    char value[PROPERTY_VALUE_MAX];
+    int i, len;
+    int max_drm_num = sizeof(imx_drm_version)/sizeof(char*);
+
+    drmVersionPtr version = drmGetVersion(drmFd);
+    if (version) {
+        mDrmMode = true;
+        len = property_get("ro.boot.primary_display", value, NULL);
+        if (len > 0) {
             ALOGI("primary display in bootargs:%s, drm version of %s:%s",
                    value, path, version->name);
-        if (version && !strncmp(version->name, value, len)) {
-            main = 1;
+            for (i=0; i<max_drm_num; i++) {
+                if (!strncmp(value, imx_drm_version[i], strlen(imx_drm_version[i]))) {
+                    break;
+                }
+            }
+
+            if (i < max_drm_num && !strncmp(version->name, imx_drm_version[i], len)) {
+                mFoundPrimaryPort = true;
+                main = 1;
+            }
+        }
+
+        if (!strncmp(version->name, "mxsfb-drm", strlen("mxsfb-drm"))) {
+            setProperty("hwc.drm.fbTileSupport", "disable"); // disable fbTile when use lcdif on evk_8mq
         }
         drmFreeVersion(version);
     }
@@ -363,12 +372,6 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
             ALOGI("%s set %d as primary display", __func__, (*id));
             *foundPrimary = true;
             setPrimaryDisplay(*id);
-        }
-        // set actual primary display when it is not connected.
-        else if (!mKmsDisplays[0]->connected() && display->connected()) {
-            ALOGI("%s replace primary display with %d", __func__, (*id));
-            setPrimaryDisplay(*id);
-            (*id)++;
         }
         else {
             (*id)++;
@@ -429,10 +432,12 @@ int DisplayManager::enumKmsDisplays()
     char path[HWC_PATH_LENGTH];
     int ret = 0;
     char dri[PROPERTY_VALUE_MAX];
+    char value[PROPERTY_VALUE_MAX];
     int id = 1;
     bool foundPrimary = false;
     property_get("hwc.drm.device", dri, "/dev/dri");
     int count = -1;
+    int i, len;
 
     count = scandir(dri, &dirEntry, 0, alphasort);
     if(count < 0) {
@@ -451,6 +456,24 @@ int DisplayManager::enumKmsDisplays()
         free(dirEntry[i]);
     }
     free(dirEntry);
+
+    if (!mFoundPrimaryPort) { // No primary display port found, use other one instead
+        for (i=1; i<MAX_PHYSICAL_DISPLAY; i++) {
+            // select the first connected display as primary display
+            if (mKmsDisplays[i]->connected()) {
+                ALOGI("%s replace primary display with %d", __func__, mKmsDisplays[i]->index());
+                setPrimaryDisplay(mKmsDisplays[i]->index());
+                foundPrimary = true;
+                break;
+            }
+        }
+        // No other display connected, Check bootargs to regard it as car image or not
+        if (i >= MAX_PHYSICAL_DISPLAY) {
+            len = property_get("ro.boot.primary_display", value, NULL);
+            if (len > 0) // There are some bootargs setting for primary display
+                mDrmMode = true;
+        }
+    }
 
     if (foundPrimary) {
         mDriverReady = true;

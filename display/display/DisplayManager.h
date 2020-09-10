@@ -107,6 +107,7 @@ private:
     EventListener* mListener;
     bool mDriverReady;
     bool mDrmMode;
+    bool mFoundPrimaryPort;
 };
 
 }
