@@ -133,3 +133,17 @@ cc_test {
         "-g",
     ],
 }
+
+cc_test{
+    name: "storage_module_test",
+    srcs: ["storage_test.cpp"],
+        cflags: [
+            "-Wall",
+            "-Werror",
+        ],
+        shared_libs: [
+            "libfs_mgr",
+            "libbase",
+        ],
+}
+
