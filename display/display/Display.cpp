@@ -280,6 +280,11 @@ int Display::setActiveConfig(int config)
 int Display::CopyAsActiveConfig(int srcId, int dstId)
 {
     Mutex::Autolock _l(mLock);
+    return CopyAsActiveConfigLocked(srcId, dstId);
+}
+
+int Display::CopyAsActiveConfigLocked(int srcId, int dstId)
+{
     if (mActiveConfig == dstId)
         return mActiveConfig;
 

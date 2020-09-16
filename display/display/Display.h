@@ -226,6 +226,7 @@ public:
     // get display config with internal active index.
     const DisplayConfig& getActiveConfig();
     // copy the srcId config and insert to dstId, and use it as active config
+    int CopyAsActiveConfigLocked(int srcId, int dstId);
     int CopyAsActiveConfig(int srcId, int dstId);
     // get display active config index.
     int getActiveId();

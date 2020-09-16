@@ -616,15 +616,15 @@ void DisplayManager::handleKmsHotplug()
             continue;
         }
 
+        if (display->connected()) {
+            display->openKms();
+        }
+
         // primary display.
         if (i == DISPLAY_PRIMARY) {
             display->setFakeVSync(!display->connected());
             callback->onRefresh(i);
             continue;
-        }
-
-        if (display->connected()) {
-            display->openKms();
         }
 
         if (callback != NULL) {

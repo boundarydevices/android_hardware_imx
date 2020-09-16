@@ -735,7 +735,7 @@ int KmsDisplay::updateScreen()
     }
 
     if (!buffer || !(buffer->flags & FLAGS_FRAMEBUFFER)) {
-        ALOGE("%s buffer is invalid", __func__);
+        ALOGE("%s buffer is invalid for display %d", __func__, mIndex);
         return -EINVAL;
     }
 
@@ -743,6 +743,15 @@ int KmsDisplay::updateScreen()
     if (cfgThread != NULL && mRefreshRequired) {
         const nsecs_t refreshTime = systemTime(CLOCK_MONOTONIC);
         cfgThread->notifyNewFrame(refreshTime);
+    }
+
+    if (!mConnected) { // If the display device is not connected
+        mPresentFence = -1;
+        if (mAcquireFence != -1) {
+            close(mAcquireFence);
+            mAcquireFence = -1;
+        }
+        return -EINVAL;
     }
 
     const DisplayConfig& config = mConfigs[mActiveConfig];
@@ -880,7 +889,7 @@ int KmsDisplay::updateScreen()
             continue;
         }
         else if (ret != 0) {
-            ALOGI("Failed to commit pset ret=%d", ret);
+            ALOGI("Failed to commit pset to display %d, ret=%d", mIndex, ret);
         }
 
 #ifdef DEBUG_DUMP_REFRESH_RATE
@@ -1107,7 +1116,16 @@ int KmsDisplay::openKms()
     }
     drmModeFreeResources(pModeRes);
 
-    mActiveConfig = configId;
+    if ((mActiveConfig != -1) && (mActiveConfig != configId)) {
+        // When primary display port is found, but not connect display device.
+        // Plugging in display device will do openKms again. Here make sure the
+        // new active config id is same as previous default one.
+        int preActiveId = mActiveConfig;
+        mActiveConfig = -1;
+        CopyAsActiveConfigLocked(configId, preActiveId);
+    } else {
+        mActiveConfig = configId;
+    }
     prepareTargetsLocked();
     if (mConfigThread == NULL)
         mConfigThread = new ConfigThread(this);
@@ -1714,8 +1732,8 @@ int KmsDisplay::readConnection()
         return -ENODEV;
     }
 
-    ALOGI("%s: id:%d, connection:%d, count_modes:%d, count_encoders:%d",
-           __func__, mIndex, pConnector->connection,
+    ALOGI("%s: id:%d, connection: %s, count_modes:%d, count_encoders:%d",
+           __func__, mIndex, pConnector->connection == 1 ? "connected" : "disconnected",
            pConnector->count_modes, pConnector->count_encoders);
     if ((pConnector->connection == DRM_MODE_CONNECTED) &&
         (pConnector->count_modes > 0) &&
