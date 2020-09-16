@@ -1,0 +1,80 @@
+// Copyright 2020 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// This is the NXP camera module
+
+soong_namespace {
+  imports: [
+    "hardware/google/camera",
+  ],
+}
+
+cc_library_shared {
+    name: "libimxcamerahwl_impl",
+    owner: "nxp",
+    proprietary: true,
+    srcs: [
+        "CameraProviderHWLImpl.cpp",
+        "CameraDeviceHWLImpl.cpp",
+        "CameraDeviceSessionHWLImpl.cpp",
+        "CameraMetadata.cpp",
+        "VideoStream.cpp",
+        "MMAPStream.cpp",
+        "USPStream.cpp",
+        "DMAStream.cpp",
+        "UvcStream.cpp",
+        "CameraUtils.cpp",
+        "JpegBuilder.cpp",
+        "HwJpegEncoder.cpp",
+        "YuvToJpegEncoder.cpp",
+        "NV12_resize.cpp",
+        "TinyExif.cpp",
+        "ImageProcess.cpp",
+        "CameraConfigurationParser.cpp"
+    ],
+    cflags: [
+        "-Wextra",
+        "-Wall"
+    ],
+    shared_libs: [
+        "android.hardware.camera.provider@2.6",
+        "libbase",
+        "libcamera_metadata",
+        "libcutils",
+        "libhardware",
+        "libhidlbase",
+        "libgooglecamerahalutils",
+        "libjpeg",
+        "libjsoncpp",
+        "liblog",
+        "libutils",
+        "libbinder",
+        "libfsldisplay",
+    ],
+    static_libs: [
+        "android.hardware.camera.common@1.0-helper",
+    ],
+    include_dirs: [
+        "system/media/private/camera/include",
+        "frameworks/native/include",
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp-opensource/imx/opencl-2d",
+        "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp/fsl-proprietary/include",
+        "device/nxp/common/kernel-headers"
+    ],
+    header_libs: [
+        "libgooglecamerahal_headers",
+    ],
+}

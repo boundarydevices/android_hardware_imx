@@ -1,0 +1,80 @@
+/*
+ *  Copyright 2020 NXP.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+#ifndef _IMX_STREAM_H
+#define _IMX_STREAM_H
+
+//#include <inttypes.h>
+#include <linux/videodev2.h>
+#include "CameraUtils.h"
+
+namespace android {
+
+class VideoStream : public ImxStream
+{
+public:
+    VideoStream();
+    virtual ~VideoStream();
+
+    // open/close device stream.
+    int32_t openDev(const char* name);
+    int32_t closeDev();
+//    int32_t flushDev();
+
+    void setOmitFrameCount(uint32_t omitCount) { mOmitFrmCount = omitCount; }
+
+    // configure device.
+    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps) = 0; 
+    // start device.
+    virtual int32_t onDeviceStartLocked()  = 0;
+    // stop device.
+    virtual int32_t onDeviceStopLocked() = 0;
+
+    // get buffer from V4L2.
+    virtual ImxStreamBuffer* onFrameAcquireLocked()  = 0;
+    // put buffer back to V4L2.
+    virtual int32_t onFrameReturnLocked(ImxStreamBuffer& buf)  = 0;
+
+    // allocate buffers.
+    virtual int32_t allocateBuffersLocked()  = 0;
+    // free buffers.
+    virtual int32_t freeBuffersLocked()  = 0;
+
+    virtual int32_t onFlushLocked();
+
+public:
+    uint32_t mFps;
+    uint32_t mNumBuffers;
+
+
+protected:
+//    bool mPlane;
+//    char mPath[CAMERA_SENSOR_LENGTH];
+    int mDev;
+    uint32_t mAllocatedBuffers;
+    enum v4l2_memory mV4l2MemType;
+    enum v4l2_buf_type mV4l2BufType;
+    uint32_t mOmitFrames;
+    uint32_t mOmitFrmCount;
+
+    ImxStreamBuffer* mBuffers[MAX_STREAM_BUFFERS];
+    bool mCustomDriver;
+    bool mRegistered;
+};
+
+}  // namespace android
+
+#endif
