@@ -1,3 +1,4 @@
 service vendor.oemlock-1-0 /vendor/bin/hw/android.hardware.oemlock@1.0-service.imx
+    interface android.hardware.oemlock@1.0::IOemLock default
     user system
     group system
