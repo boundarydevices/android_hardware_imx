@@ -648,7 +648,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     ImxStream *dst = dstBuf.mStream;
 
     if ((src->width() != dst->width()) || (src->height() != dst->height())) {
-        ALOGE("%s:%d, Software don't support resize", __func__, __LINE__);
+        ALOGE("%s:%d, Software don't support resize %dx%d, %dx%d", __func__, __LINE__, src->width(), src->height(), dst->width(), dst->height());
         return -EINVAL;
     }
 

@@ -94,9 +94,10 @@ private:
     CameraDeviceHwlImpl(uint32_t camera_id, const char *devPath,
         CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata);
 
-    status_t Initialize();
+    virtual status_t Initialize();
     status_t initSensorStaticData();
 
+protected:
     status_t setMaxPictureResolutions();
     status_t adjustPreviewResolutions();
 

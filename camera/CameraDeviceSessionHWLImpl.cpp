@@ -19,6 +19,7 @@
 #include "CameraUtils.h"
 #include "CameraMetadata.h"
 #include "CameraDeviceSessionHWLImpl.h"
+#include "ISPCameraDeviceHWLImpl.h"
 #include "ImageProcess.h"
 
 #include <hardware/gralloc.h>
@@ -84,6 +85,8 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
 
     if (strstr(cam_metadata->camera_name, UVC_NAME))
         pVideoStream = new UvcStream(m_dev->mDevPath, cam_metadata->omit_frame);
+    else if(strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
+        pVideoStream = new ISPCameraMMAPStream();
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kMmap)
         pVideoStream = new MMAPStream();
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kDma)

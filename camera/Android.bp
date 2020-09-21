@@ -43,7 +43,8 @@ cc_library_shared {
                 "NV12_resize.cpp",
                 "TinyExif.cpp",
                 "ImageProcess.cpp",
-                "CameraConfigurationParser.cpp"
+                "CameraConfigurationParser.cpp",
+                "ISPCameraDeviceHWLImpl.cpp"
             ],
             cflags: [
                 "-Wextra",
