@@ -722,10 +722,6 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                 hal_stream.max_buffers = NUM_PREVIEW_BUFFER;
                 usage = CAMERA_GRALLOC_USAGE;
                 callbackIdx = i;
-                if ((captureIntent != ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE) &&
-                    (captureIntent != ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW) &&
-                    (captureIntent != ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD))
-                    configIdx = i;
                 break;
         }
 
@@ -763,7 +759,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
             fps = 15;
     }
 
-    pVideoStream->onDeviceConfigureLocked(pipeline_info->hal_streams->at(configIdx).override_format,
+    // v4l2 hard code to use yuv422i. If in future other foramts are used, need refine code, maybe configed in json
+    pVideoStream->onDeviceConfigureLocked(HAL_PIXEL_FORMAT_YCbCr_422_I,
                                           pipeline_info->streams->at(configIdx).width,
                                           pipeline_info->streams->at(configIdx).height,
                                           fps);

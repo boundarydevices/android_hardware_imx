@@ -210,7 +210,7 @@ int32_t USPStream::getFormatSize()
             break;
 
         default:
-            ALOGE("Error: %s format not supported", __func__);
+            ALOGE("Error: %s format 0x%x not supported", __func__, mFormat);
             break;
     }
 
