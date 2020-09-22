@@ -66,6 +66,9 @@ evs_defaults {
 cc_binary {
     name: "android.hardware.automotive.evs@1.1-EvsEnumeratorHw",
     defaults: ["evs_default"],
+    required: [
+        "imx_evs_configuration.xml",
+    ],
 }
 
 bootstrap_go_package {
