@@ -123,6 +123,7 @@ int32_t DMAStream::onDeviceStartLocked()
     }
 
     mOmitFrames = mOmitFrmCount;
+    mbStart = true;
 
     return 0;
 }
@@ -163,6 +164,7 @@ int32_t DMAStream::onDeviceStopLocked()
         return BAD_VALUE;
     }
 
+    mbStart = false;
 
     return 0;
 }

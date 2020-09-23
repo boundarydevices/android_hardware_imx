@@ -216,7 +216,7 @@ private:
     Stream* GetStreamFromStreamBuffer(StreamBuffer *buf);
 
     int CleanRequestsLocked();
-
+    status_t PickConfigStream(uint32_t pipeline_id, uint8_t intent);
 
 private:
     class WorkThread : public Thread
@@ -265,6 +265,11 @@ private:
 
     Mutex mLock;
     Condition mCondition;
+
+    int previewIdx;
+    int stillcapIdx;
+    int recordIdx;
+    int callbackIdx;
 };
 
 }  // namespace android

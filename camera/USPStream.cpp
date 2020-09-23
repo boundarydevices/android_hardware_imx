@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "USPStream"
+
 #include <IonAllocator.h>
 #include "USPStream.h"
 
@@ -110,6 +112,8 @@ int32_t USPStream::onDeviceStartLocked()
         return ret;
     }
 
+    mbStart = true;
+
     return 0;
 }
 
@@ -130,6 +134,8 @@ int32_t USPStream::onDeviceStopLocked()
         ALOGE("%s VIDIOC_STREAMOFF failed: %s", __func__, strerror(errno));
         return ret;
     }
+
+    mbStart = false;
 
     return 0;
 }

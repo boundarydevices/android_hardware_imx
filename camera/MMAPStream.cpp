@@ -72,7 +72,7 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
     memset(&param, 0, sizeof(param));
     param.type = buf_type;
     param.parm.capture.timeperframe.numerator = 1;
-    param.parm.capture.timeperframe.denominator = fps;
+    param.parm.capture.timeperframe.denominator = getFps(width, height, fps);
     param.parm.capture.capturemode = capturemode;
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
     if (ret < 0) {
@@ -225,6 +225,7 @@ int32_t MMAPStream::onDeviceStartLocked()
     }
 
     mOmitFrames = mOmitFrmCount;
+    mbStart = true;
 
     return 0;
 }
@@ -271,6 +272,8 @@ int32_t MMAPStream::onDeviceStopLocked()
         ALOGI("%s VIDIOC_REQBUFS failed: %s", __func__, strerror(errno));
         return BAD_VALUE;
     }
+
+    mbStart = false;
 
     return 0;
 }

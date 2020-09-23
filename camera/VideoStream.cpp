@@ -36,6 +36,7 @@ VideoStream::VideoStream()
     mOmitFrames = 0;
     mCustomDriver = false;
     mRegistered = false;
+    mbStart = false;
     memset(mBuffers, 0, sizeof(mBuffers));
 }
 
@@ -112,5 +113,75 @@ int32_t VideoStream::onFlushLocked() {
     return 0;
 }
 
+
+int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
+{
+    int ret = 0;
+
+    if((mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps)) {
+        ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d", __func__, format, width, height, fps);
+        return 0;
+    }
+
+    if(mbStart) {
+        ret = onDeviceStopLocked();
+        if(ret) {
+            ALOGE("%s, onDeviceStopLocked failed, ret %d", __func__, ret);
+            return ret;
+        }
+
+        ret = freeBuffersLocked();
+        if(ret) {
+            ALOGE("%s, freeBuffersLocked failed, ret %d", __func__, ret);
+            return ret;
+        }
+    }
+
+    ret = onDeviceConfigureLocked(format, width, height, fps);
+    if(ret) {
+        ALOGE("%s, onDeviceConfigureLocked failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    ret = allocateBuffersLocked();
+    if (ret) {
+        ALOGE("%s: allocateBuffersLocked failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    ret = onDeviceStartLocked();
+    if (ret) {
+        ALOGE("%s: onDeviceStartLocked failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    return 0;
+}
+
+int32_t VideoStream::Stop()
+{
+    int ret;
+
+    if(mbStart == false)
+        return 0;
+
+    ret = onDeviceStopLocked();
+    if(ret) {
+        ALOGE("%s, onDeviceStopLocked failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    ret = freeBuffersLocked();
+    if(ret) {
+        ALOGE("%s, freeBuffersLocked failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    mWidth = 0;
+    mHeight = 0;
+    mFps = 0;
+
+    return 0;
+}
 
 } // namespace android

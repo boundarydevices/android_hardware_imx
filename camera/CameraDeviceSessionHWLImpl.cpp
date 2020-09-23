@@ -255,7 +255,6 @@ status_t CameraDeviceSessionHwlImpl::HandleFrameLocked(std::vector<StreamBuffer>
 
 ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuffer(StreamBuffer *buf, Stream *stream)
 {
-    int ret;
     void *pBuf = NULL;
     fsl::Memory *handle = NULL;
 
@@ -657,11 +656,10 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     if (ret == 0)
         captureIntent = entry.data.u8[0];
 
-    int configIdx = -1;
-    int previewIdx = -1;
-    int stillcapIdx = -1;
-    int recordIdx = -1;
-    int callbackIdx = -1;
+    previewIdx = -1;
+    stillcapIdx = -1;
+    recordIdx = -1;
+    callbackIdx = -1;
 
     for (int i = 0; i < stream_num; i++) {
         Stream stream = request_config.streams[i];
@@ -692,8 +690,6 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                 hal_stream.max_buffers = NUM_CAPTURE_BUFFER;
                 usage = CAMERA_GRALLOC_USAGE_JPEG;
                 stillcapIdx = i;
-                if (captureIntent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE)
-                    configIdx = i;
                 break;
 
             case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
@@ -705,13 +701,9 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                     ALOGI("%s create video recording stream", __func__);
                     hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_420_888;
                     recordIdx = i;
-                    if (captureIntent == ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD)
-                        configIdx = i;
                 } else {
                     ALOGI("%s create preview stream", __func__);
                     previewIdx = i;
-                    if (captureIntent == ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW)
-                        configIdx = i;
                 }
 
                 break;
@@ -733,8 +725,34 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         pipeline_info->hal_streams->push_back(std::move(hal_stream));
     }
 
+    map_pipeline_info[pipeline_id_] = pipeline_info;
+    pipeline_id_++;
+
+    return OK;
+}
+
+int CameraDeviceSessionHwlImpl::PickConfigStream(uint32_t pipeline_id, uint8_t intent)
+{
+    auto iter = map_pipeline_info.find(pipeline_id);
+    if (iter == map_pipeline_info.end()) {
+        ALOGE("%s: Unknown pipeline ID: %u", __func__, pipeline_id);
+        return -1;
+    }
+
+    PipelineInfo *pipeline_info = iter->second;
+    if((pipeline_info == NULL) || (pipeline_info->streams == NULL)){
+        ALOGE("%s: pipeline_info or streams is NULL for id %d", __func__, pipeline_id);
+        return -1;
+    }
+
+    ALOGI("%s, previewIdx %d, callbackIdx %d, stillcapIdx %d, recordIdx %d, intent %d",
+        __func__, previewIdx, callbackIdx, stillcapIdx, recordIdx, intent);
+
+    int configIdx = -1;
+    if(intent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE)
+        configIdx = stillcapIdx;
+
     if (configIdx == -1) {
-        ALOGW("%s, no stream match the intent", __func__);
         if (previewIdx >= 0)
             configIdx = previewIdx;
         else if (callbackIdx >= 0)
@@ -745,30 +763,13 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
             configIdx = recordIdx;
         else {
             ALOGE("%s, no stream found to config v4l2", __func__);
-            return BAD_VALUE;
+            return -1;
         }
     }
 
-    pVideoStream->mNumBuffers = pipeline_info->hal_streams->at(configIdx).max_buffers + 1;
-    ALOGI("choose stream index %d as config stream, v4l2 buffer number %d", configIdx, pVideoStream->mNumBuffers);
+    ALOGI("choose stream index %d as config stream", configIdx);
 
-    uint32_t fps = 30;
-    ret = request_config.session_params->Get(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, &entry);
-    if ((ret == 0) && (entry.count > 1)) {
-        if (entry.data.i32[0] <= 15 && entry.data.i32[1] <= 15)
-            fps = 15;
-    }
-
-    // v4l2 hard code to use yuv422i. If in future other foramts are used, need refine code, maybe configed in json
-    pVideoStream->onDeviceConfigureLocked(HAL_PIXEL_FORMAT_YCbCr_422_I,
-                                          pipeline_info->streams->at(configIdx).width,
-                                          pipeline_info->streams->at(configIdx).height,
-                                          fps);
-
-    map_pipeline_info[pipeline_id_] = pipeline_info;
-    pipeline_id_++;
-
-    return OK;
+    return configIdx;
 }
 
 status_t CameraDeviceSessionHwlImpl::GetConfiguredHalStream(
@@ -825,18 +826,6 @@ status_t CameraDeviceSessionHwlImpl::BuildPipelines()
         return NO_INIT;
     }
 
-    ret = pVideoStream->allocateBuffersLocked();
-    if (ret) {
-        ALOGE("%s: allocateBuffersLocked failed, ret %d", __func__, ret);
-        return ret;
-    }
-
-    ret = pVideoStream->onDeviceStartLocked();
-    if (ret) {
-        ALOGE("%s: onDeviceStartLocked failed, ret %d", __func__, ret);
-        return ret;
-    }
-
     pipelines_built_ = true;
 
     return OK;
@@ -853,8 +842,7 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
         return;
     }
 
-    pVideoStream->onDeviceStopLocked();
-    pVideoStream->freeBuffersLocked();
+    pVideoStream->Stop();
 
     /* clear  map_pipeline_info */
     for (auto it = map_pipeline_info.begin(); it != map_pipeline_info.end(); it++) {
@@ -876,14 +864,15 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
     std::vector<HwlPipelineRequest> *pipeline_request = new std::vector<HwlPipelineRequest>(size);
 
     for (int i = 0; i < size; i++) {
+        uint32_t pipeline_id = requests[i].pipeline_id;
         ALOGV("%s, frame_number, request %d, pipeline_id %d, outbuffer num %d",
               __func__,
               frame_number,
               i,
-              (int)requests[i].pipeline_id,
+              (int)pipeline_id,
               (int)requests[i].output_buffers.size());
 
-        pipeline_request->at(i).pipeline_id = requests[i].pipeline_id;
+        pipeline_request->at(i).pipeline_id = pipeline_id;
         pipeline_request->at(i).settings = HalCameraMetadata::Clone(requests[i].settings.get());
         pipeline_request->at(i).output_buffers.reserve(requests[i].output_buffers.size());
         pipeline_request->at(i).output_buffers.assign(requests[i].output_buffers.begin(), requests[i].output_buffers.end());
@@ -891,6 +880,44 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
         pipeline_request->at(i).input_buffers.reserve(requests[i].input_buffers.size());
         pipeline_request->at(i).input_buffers.assign(requests[i].input_buffers.begin(), requests[i].input_buffers.end());
         pipeline_request->at(i).input_buffer_metadata.reserve(requests[i].input_buffer_metadata.size());
+
+        // process capture intent
+        uint8_t captureIntent = -1;
+        int configIdx = -1;
+        camera_metadata_ro_entry entry;
+        int ret;
+
+        if(requests[i].settings.get() == NULL)
+            continue;
+
+        ret = requests[i].settings->Get(ANDROID_CONTROL_CAPTURE_INTENT, &entry);
+        if (ret != 0)
+            continue;
+
+        captureIntent = entry.data.u8[0];
+        configIdx = PickConfigStream(pipeline_id, captureIntent);
+        if(configIdx < 0)
+            continue;
+
+        uint32_t fps = 30;
+        ret = requests[i].settings->Get(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, &entry);
+        if ((ret == 0) && (entry.count > 1)) {
+          if (entry.data.i32[0] <= 15 && entry.data.i32[1] <= 15)
+          fps = 15;
+        }
+
+        PipelineInfo *pipeline_info = map_pipeline_info[pipeline_id];
+        pVideoStream->SetBufferNumber(pipeline_info->hal_streams->at(configIdx).max_buffers + 1);
+
+        // v4l2 hard code to use yuv422i. If in future other foramts are used, need refine code, maybe configed in json
+        ret = pVideoStream->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
+                                            pipeline_info->streams->at(configIdx).width,
+                                            pipeline_info->streams->at(configIdx).height,
+                                            fps);
+        if (ret) {
+            ALOGE("%s: pVideoStream->ConfigAndStart failed, ret %d", __func__, ret);
+            return ret;
+        }
     }
 
     map_frame_request[frame_number] = pipeline_request;

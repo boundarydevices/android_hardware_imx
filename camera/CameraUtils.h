@@ -152,6 +152,7 @@ typedef struct tag_nxp_srream_buffer {
 int getCaptureMode(int fd, int width, int height);
 int convertPixelFormatToV4L2Format(PixelFormat format, bool invert = false);
 int32_t changeSensorFormats(int *src, int *dst, int len);
+int getFps(int width, int height, int defValue);
 
 } // namespace android
 
