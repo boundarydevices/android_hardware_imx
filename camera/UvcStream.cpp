@@ -36,16 +36,6 @@ int32_t UvcStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint
         }
     }
 
-    setOmitFrameCount(0);
-
-    struct OmitFrame *item;
-    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
-      if ((mWidth == item->width) && (mHeight == item->height)) {
-        setOmitFrameCount(item->omitnum);
-        break;
-      }
-    }
-
     return DMAStream::onDeviceConfigureLocked(format, width, height, fps);
 }
 

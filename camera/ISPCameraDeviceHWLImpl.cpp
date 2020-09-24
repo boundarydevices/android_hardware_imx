@@ -147,12 +147,9 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
         ALOGI("Change sensor's mode to: %d", ctrl.value);
     }
 
-    mWidth = width;
-    mHeight = height;
-    mFps = fps;
-    mFormat = format;
+    ret = postConfigure(format, width, height, fps);
 
-    return 0;
+    return ret;
 }
 
 }  // namespace android

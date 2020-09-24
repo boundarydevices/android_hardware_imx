@@ -25,11 +25,12 @@
 #include <log/log.h>
 
 #include "CameraUtils.h"
+#include "CameraDeviceSessionHWLImpl.h"
 #include "VideoStream.h"
 
 namespace android {
 
-VideoStream::VideoStream()
+VideoStream::VideoStream(CameraDeviceSessionHwlImpl *pSession)
 {
     mNumBuffers = 0;
     mOmitFrmCount = 0;
@@ -37,6 +38,7 @@ VideoStream::VideoStream()
     mCustomDriver = false;
     mRegistered = false;
     mbStart = false;
+    mSession = pSession;
     memset(mBuffers, 0, sizeof(mBuffers));
 }
 
@@ -180,6 +182,29 @@ int32_t VideoStream::Stop()
     mWidth = 0;
     mHeight = 0;
     mFps = 0;
+
+    return 0;
+}
+
+int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
+{
+    mWidth = width;
+    mHeight = height;
+    mFps = fps;
+    mFormat = format;
+
+    setOmitFrameCount(0);
+
+    struct OmitFrame *item;
+    CameraSensorMetadata *pSensorData = mSession->getSensorData();
+    struct OmitFrame *mOmitFrame = pSensorData->omit_frame;
+    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
+        if ((mWidth == item->width) && (mHeight == item->height)) {
+            setOmitFrameCount(item->omitnum);
+            ALOGI("%s, set omit frames %d for %dx%d", __func__, item->omitnum, mWidth, mHeight);
+            break;
+        }
+    }
 
     return 0;
 }

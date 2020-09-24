@@ -27,8 +27,8 @@ namespace android {
 class DMAStream : public USPStream
 {
 public:
-    DMAStream();
-    DMAStream(bool mplane);
+    DMAStream(CameraDeviceSessionHwlImpl *pSession);
+    DMAStream(bool mplane, CameraDeviceSessionHwlImpl *pSession);
     virtual ~DMAStream();
 
     // configure device.

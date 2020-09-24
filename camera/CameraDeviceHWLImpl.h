@@ -90,6 +90,8 @@ public:
 
     char *getHwEncoder() { return mJpegHw; }
 
+    CameraSensorMetadata* getSensorData() { return &mSensorData; }
+
 private:
     CameraDeviceHwlImpl(uint32_t camera_id, const char *devPath,
         CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata);

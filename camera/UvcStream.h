@@ -26,10 +26,9 @@ using namespace cameraconfigparser;
 
 class UvcStream : public DMAStream {
 public:
-    UvcStream(const char* name, struct OmitFrame *omit_frame)
-          : DMAStream() {
+    UvcStream(const char* name, CameraDeviceSessionHwlImpl *pSession)
+          : DMAStream(pSession) {
         strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH-1);
-        mOmitFrame = omit_frame;
     }
     virtual ~UvcStream() {}
 
@@ -49,7 +48,6 @@ public:
 
 protected:
     char mUvcPath[CAMAERA_FILENAME_LENGTH];
-    struct OmitFrame *mOmitFrame;
 };
 
 

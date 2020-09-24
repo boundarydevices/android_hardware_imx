@@ -77,7 +77,7 @@ typedef struct tag_pipeline_info {
 } PipelineInfo;
 
 // Implementation of CameraDeviceSessionHwl interface
-class CameraDeviceSessionHwlImpl : public CameraDeviceSessionHwl, public RefBase
+class CameraDeviceSessionHwlImpl : public CameraDeviceSessionHwl
 {
 public:
     static std::unique_ptr<CameraDeviceSessionHwlImpl> Create(
@@ -247,6 +247,12 @@ private:
        CameraDeviceSessionHwlImpl *mSession;
     };
 
+public:
+    CameraSensorMetadata* getSensorData() { return m_dev->getSensorData(); }
+
+private:
+    CameraDeviceHwlImpl *m_dev;
+
 private:
     // Protects the API entry points
     uint32_t camera_id_ = 0;
@@ -261,7 +267,6 @@ private:
     VideoStream* pVideoStream;
     sp<WorkThread> mWorkThread;
     sp<JpegBuilder> mJpegBuilder;
-    CameraDeviceHwlImpl *m_dev;
 
     Mutex mLock;
     Condition mCondition;

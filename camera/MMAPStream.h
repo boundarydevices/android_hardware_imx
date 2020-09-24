@@ -29,8 +29,8 @@ using google_camera_hal::Stream;
 class MMAPStream : public VideoStream
 {
 public:
-    MMAPStream();
-    MMAPStream(bool mplane);
+    MMAPStream(CameraDeviceSessionHwlImpl *pSession);
+    MMAPStream(CameraDeviceSessionHwlImpl *pSession, bool mplane);
     virtual ~MMAPStream();
 
     // configure device.

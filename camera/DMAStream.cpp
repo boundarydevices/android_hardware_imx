@@ -21,15 +21,15 @@
 
 namespace android {
 
-DMAStream::DMAStream()
-    : USPStream(), mStreamSize(0)
+DMAStream::DMAStream(CameraDeviceSessionHwlImpl *pSession)
+    : USPStream(pSession), mStreamSize(0)
 {
     mV4l2MemType = V4L2_MEMORY_DMABUF;
     mPlane = false;
 }
 
-DMAStream::DMAStream(bool mplane)
-    : USPStream(), mStreamSize(0)
+DMAStream::DMAStream(bool mplane, CameraDeviceSessionHwlImpl *pSession)
+    : USPStream(pSession), mStreamSize(0)
 {
     // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
     // true, else set it as false.

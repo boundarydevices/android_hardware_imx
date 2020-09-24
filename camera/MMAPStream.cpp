@@ -29,13 +29,13 @@
 
 namespace android {
 
-MMAPStream::MMAPStream()
+MMAPStream::MMAPStream(CameraDeviceSessionHwlImpl *pSession) : VideoStream(pSession)
 {
     mPlane = false;
     mV4l2MemType = V4L2_MEMORY_MMAP;
 }
 
-MMAPStream::MMAPStream(bool mplane) : VideoStream() {
+MMAPStream::MMAPStream(CameraDeviceSessionHwlImpl *pSession, bool mplane) : VideoStream(pSession) {
     // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
     // true, else set it as false.
     mPlane = mplane;
@@ -94,12 +94,9 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
         return ret;
     }
 
-    mWidth = width;
-    mHeight = height;
-    mFps = fps;
-    mFormat = format;
+    ret = postConfigure(format, width, height, fps);
 
-    return 0;
+    return ret;
 }
 
 int32_t MMAPStream::onDeviceStartLocked()

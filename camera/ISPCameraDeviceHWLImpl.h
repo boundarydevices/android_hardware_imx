@@ -31,6 +31,8 @@ private:
 class ISPCameraMMAPStream : public MMAPStream
 {
 public:
+    ISPCameraMMAPStream(CameraDeviceSessionHwlImpl *pSession) : MMAPStream(pSession) {}
+
     virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
 };
 

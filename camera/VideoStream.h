@@ -17,16 +17,17 @@
 #ifndef _IMX_STREAM_H
 #define _IMX_STREAM_H
 
-//#include <inttypes.h>
 #include <linux/videodev2.h>
 #include "CameraUtils.h"
 
 namespace android {
 
+class CameraDeviceSessionHwlImpl;
+
 class VideoStream : public ImxStream
 {
 public:
-    VideoStream();
+    VideoStream(CameraDeviceSessionHwlImpl *pSession);
     virtual ~VideoStream();
 
     // open/close device stream.
@@ -62,6 +63,9 @@ public:
 
     void SetBufferNumber(uint32_t num) { mNumBuffers = num; }
 
+protected:
+    virtual int32_t postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
+
 public:
     uint32_t mFps;
     uint32_t mNumBuffers;
@@ -81,6 +85,8 @@ protected:
     bool mCustomDriver;
     bool mRegistered;
     bool mbStart;
+
+    CameraDeviceSessionHwlImpl *mSession;
 };
 
 }  // namespace android

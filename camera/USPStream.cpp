@@ -22,8 +22,8 @@
 
 namespace android {
 
-USPStream::USPStream()
-    : MMAPStream()
+USPStream::USPStream(CameraDeviceSessionHwlImpl *pSession)
+    : MMAPStream(pSession)
 {
     mV4l2MemType = V4L2_MEMORY_USERPTR;
 }

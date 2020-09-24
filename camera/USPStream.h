@@ -27,7 +27,7 @@ namespace android {
 class USPStream : public MMAPStream
 {
 public:
-    USPStream();
+    USPStream(CameraDeviceSessionHwlImpl *pSession);
     virtual ~USPStream();
 
     // configure device.
