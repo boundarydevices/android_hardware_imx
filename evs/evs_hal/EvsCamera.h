@@ -100,7 +100,7 @@ public:
                                  getIntParameterRange_cb _hidl_cb) override;
 
     // Implementation details
-    EvsCamera(const char *deviceName);
+    EvsCamera(const char *videoName);
     virtual ~EvsCamera() override;
     void shutdown();
     void openup(const char *deviceName);

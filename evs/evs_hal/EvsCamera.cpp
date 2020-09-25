@@ -36,15 +36,14 @@ void EvsCamera::releaseResource(void)
     shutdown();
 }
 
-EvsCamera::EvsCamera(const char *deviceName)
+EvsCamera::EvsCamera(const char *videoName)
 {
     ALOGD("EvsCamera instantiated");
 
     // Initialize the stream params.
     mFormat = fsl::FORMAT_YUYV;
     mDeqIdx = -1;
-    mDescription.v1.cameraId = deviceName;
-
+    mDescription.v1.cameraId = videoName;
 }
 
 EvsCamera::~EvsCamera()

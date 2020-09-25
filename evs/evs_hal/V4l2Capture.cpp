@@ -29,8 +29,9 @@
 
 #include "V4l2Capture.h"
 
-V4l2Capture::V4l2Capture(const char *deviceName, __u32 width, __u32 height, int format, const camera_metadata_t *metadata)
-    : EvsCamera(deviceName)
+V4l2Capture::V4l2Capture(const char *deviceName, const char *videoName,
+                     __u32 width, __u32 height, int format, const camera_metadata_t *metadata)
+    : EvsCamera(videoName)
 {
     mV4lFormat = getV4lFormat(format);
     mWidth = width;

@@ -391,12 +391,14 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
                     }
                 }
 
-            pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(), camInfo->streamConfigurations[streamId][1],
+            pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(), pRecord->name.c_str(),
+                       camInfo->streamConfigurations[streamId][1],
                        camInfo->streamConfigurations[streamId][2],
                        camInfo->streamConfigurations[streamId][3],
                        reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
             } else {
                 pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
+                                                    pRecord->name.c_str(),
                                                    kDefaultResolution[0],
                                                    kDefaultResolution[1],
                                                    HAL_PIXEL_FORMAT_YCBCR_422_I,
@@ -404,6 +406,7 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
             }
         } else {
             pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
+                                               pRecord->name.c_str(),
                                                kDefaultResolution[0],
                                                kDefaultResolution[1],
                                                HAL_PIXEL_FORMAT_YCBCR_422_I,
@@ -441,6 +444,7 @@ Return<sp<IEvsCamera_1_0>> EvsEnumerator::openCamera(const hidl_string& cameraId
 
     // Construct a camera instance for the caller
     pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
+                                               pRecord->name.c_str(),
                                                kDefaultResolution[0],
                                                kDefaultResolution[1],
                                                HAL_PIXEL_FORMAT_YCBCR_422_I,

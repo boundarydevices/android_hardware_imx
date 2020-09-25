@@ -28,7 +28,8 @@ using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
 class V4l2Capture : public EvsCamera
 {
 public:
-    V4l2Capture(const char *deviceName, __u32 width, __u32 height, int format,
+    V4l2Capture(const char *deviceName, const char *videoName,
+                   __u32 width, __u32 height, int format,
                   const camera_metadata_t * metadata);
     virtual ~V4l2Capture();
 
