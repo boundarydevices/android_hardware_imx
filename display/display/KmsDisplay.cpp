@@ -1761,7 +1761,7 @@ extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
                            struct timespec *remain);
 
 KmsDisplay::VSyncThread::VSyncThread(KmsDisplay *ctx)
-    : Thread(false), mCtx(ctx), mEnabled(false),
+    : Thread(false), mCtx(ctx), mEnabled(false), mSendVsync(true),
       mFakeVSync(false), mNextFakeVSync(0)
 {
     mRefreshPeriod = 0;
@@ -1780,6 +1780,7 @@ int32_t KmsDisplay::VSyncThread::readyToRun()
 void KmsDisplay::VSyncThread::setEnabled(bool enabled) {
     Mutex::Autolock _l(mLock);
     mEnabled = enabled;
+    mSendVsync = enabled; // Actual Vsync event send or not
     mCondition.signal();
 }
 
@@ -1797,6 +1798,8 @@ bool KmsDisplay::VSyncThread::threadLoop()
             mCondition.wait(mLock);
         }
     }
+    if (mCtx->forceVync()) // For EVS case, always send vsync
+         mSendVsync = true;
 
     if (mFakeVSync || mCtx->mModeset) {
         performFakeVSync();
@@ -1832,7 +1835,7 @@ void KmsDisplay::VSyncThread::performFakeVSync()
         err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
     } while (err<0 && errno == EINTR);
 
-    if (err == 0 && mCtx != NULL) {
+    if (err == 0 && mCtx != NULL && mSendVsync) {
         mCtx->handleVsyncEvent(next_vsync);
     }
 }
@@ -1875,7 +1878,7 @@ void KmsDisplay::VSyncThread::performVSync()
     }
 
     lasttime = timestamp;
-    if (mCtx != NULL) {
+    if (mCtx != NULL && mSendVsync) {
         mCtx->handleVsyncEvent(timestamp);
     }
 }

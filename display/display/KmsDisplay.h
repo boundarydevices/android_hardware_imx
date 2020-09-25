@@ -216,6 +216,7 @@ protected:
         mutable Mutex mLock;
         Condition mCondition;
         bool mEnabled;
+        bool mSendVsync;
 
         bool mFakeVSync;
         mutable nsecs_t mNextFakeVSync;
