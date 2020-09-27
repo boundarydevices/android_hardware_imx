@@ -146,6 +146,7 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
     ALOGI("%s, mWorkThread exited", __func__);
 
     if (pVideoStream) {
+        pVideoStream->Stop();
         pVideoStream->closeDev();
         delete pVideoStream;
     }
@@ -845,7 +846,8 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
         return;
     }
 
-    pVideoStream->Stop();
+    if(strstr(m_dev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL)
+        pVideoStream->Stop();
 
     /* clear  map_pipeline_info */
     for (auto it = map_pipeline_info.begin(); it != map_pipeline_info.end(); it++) {
