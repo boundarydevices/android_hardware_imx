@@ -570,21 +570,27 @@ void V4l2Capture::onMemoryDestroy()
 bool V4l2Capture::onFrameReturn(int index, std::string deviceid)
 {
     // We're giving the frame back to the system, so clear the "ready" flag
+    std::string devicename = deviceid;
     if (index < 0 || index >= CAMERA_BUFFER_NUM) {
         ALOGE("%s invalid index:%d", __func__, index);
         return false;
     }
 
     int fd = -1;
+
+    if (devicename == "" && mPhysicalCamera.size() == 1) {
+        devicename = *mPhysicalCamera.begin();
+    }
+
     fsl::Memory *buffer = nullptr;
     {
         std::unique_lock <std::mutex> lock(mLock);
-        fd = mDeviceFd[deviceid];
-        // deviceid means the pyhsical camera name
-        // mDeviceFd[deviceid] means the pyhsical camera fd
-        // mCamBuffers[mDeviceFd[deviceid]]: every pyhsical camera fd have
+        fd = mDeviceFd[devicename];
+        // devicename means the pyhsical camera name
+        // mDeviceFd[devicename] means the pyhsical camera fd
+        // mCamBuffers[mDeviceFd[devicename]]: every pyhsical camera fd have
         // three buffer, onFrameReturn return index buffer
-        buffer = mCamBuffers[mDeviceFd[deviceid]].at(index);
+        buffer = mCamBuffers[mDeviceFd[devicename]].at(index);
     }
 
     if (fd < 0 || buffer == nullptr) {

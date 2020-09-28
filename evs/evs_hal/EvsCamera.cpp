@@ -265,8 +265,9 @@ Return<void> EvsCamera::stopVideoStream()
         appRecipient = mEvsAppRecipient;
 
         // Drop our reference to the client's stream receiver
-        mStream = nullptr;
         mEvsAppRecipient = nullptr;
+        if (appRecipient != nullptr)
+            mStream->unlinkToDeath(appRecipient);
     }
 
     if (mStream_1_1 != nullptr) {
@@ -276,8 +277,6 @@ Return<void> EvsCamera::stopVideoStream()
         if (!result.isOk()) {
             ALOGE("Error delivering end of stream event");
         }
-        mStream_1_1 = nullptr;
-        mStream     = nullptr;
     } else if (mStream != nullptr) {
         // Send one last NULL frame to signal the actual end of stream
         BufferDesc_1_0 nullBuff = {};
@@ -285,8 +284,6 @@ Return<void> EvsCamera::stopVideoStream()
         if (!result.isOk()) {
             ALOGE("Error delivering end of stream marker");
         }
-        mStream     = nullptr;
-        stream->unlinkToDeath(appRecipient);
     }
 
     return Void();
@@ -314,7 +311,7 @@ Return<void> EvsCamera::doneWithFrame(const BufferDesc_1_0& buffer)
 {
     ALOGV("doneWithFrame index %d", buffer.bufferId);
     mFramesInUse--;
-    doneWithFrame_impl(buffer.bufferId, buffer.memHandle, NULL);
+    doneWithFrame_impl(buffer.bufferId, buffer.memHandle, "");
     return Void();
 }
 
@@ -369,7 +366,6 @@ void EvsCamera::forwardFrame(std::vector<struct forwardframe> &fwframes)
         if (result.isOk()) {
             ALOGV("Delivered buffer as id %d",
                   bufDesc_1_1.bufferId);
-            fwframes.clear();
             return;
         }
     } else {
@@ -388,8 +384,8 @@ void EvsCamera::forwardFrame(std::vector<struct forwardframe> &fwframes)
             bufDesc_1_1.pixelSize,
             static_cast<uint32_t>(pDesc->format),
             static_cast<uint32_t>(pDesc->usage),
-            bufDesc_1_1.bufferId,
-            bufDesc_1_1.buffer.nativeHandle
+            static_cast<uint32_t>(fwframes[0].index),
+            fwframes[0].buf
         };
         mFramesInUse++;
         auto result = mStream->deliverFrame(bufDesc_1_0);
@@ -422,6 +418,7 @@ void EvsCamera::collectFrames()
     // Run until our atomic signal is cleared
     while (runMode == RUN) {
         // Wait for a buffer to be ready
+        physicalCamera.clear();
         onFrameCollect(physicalCamera);
         if (physicalCamera.size() > 0) {
             forwardFrame(physicalCamera);
