@@ -167,6 +167,9 @@ protected:
 
     int mNumInLogic;
 
+    unsigned mFramesAllowed;
+    unsigned mFramesInUse;
+
     // The thread we'll use to dispatch frames.
     std::thread mCaptureThread;
     // Used to signal the frame loop (see RunModes below).

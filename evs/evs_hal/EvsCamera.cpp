@@ -25,6 +25,8 @@ namespace evs {
 namespace V1_1 {
 namespace implementation {
 
+static const unsigned MAX_BUFFERS_IN_FLIGHT = 3;
+
 void EvsCamera::EvsAppRecipient::serviceDied(uint64_t /*cookie*/,
         const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/)
 {
@@ -44,6 +46,8 @@ EvsCamera::EvsCamera(const char *videoName)
     mFormat = fsl::FORMAT_YUYV;
     mDeqIdx = -1;
     mDescription.v1.cameraId = videoName;
+    mFramesInUse = 0;
+    mFramesAllowed = 0;
 }
 
 EvsCamera::~EvsCamera()
@@ -123,6 +127,10 @@ Return<EvsResult> EvsCamera::setMaxFramesInFlight(uint32_t bufferCount) {
         return EvsResult::INVALID_ARG;
     }
 
+    if (bufferCount > MAX_BUFFERS_IN_FLIGHT)
+        return EvsResult::BUFFER_NOT_AVAILABLE;
+
+     mFramesAllowed = bufferCount;
     // Update our internal state
     return EvsResult::OK;
 }
@@ -305,11 +313,13 @@ Return<void> EvsCamera::getIntParameterRange(CameraParam id,
 Return<void> EvsCamera::doneWithFrame(const BufferDesc_1_0& buffer)
 {
     ALOGV("doneWithFrame index %d", buffer.bufferId);
+    mFramesInUse--;
     doneWithFrame_impl(buffer.bufferId, buffer.memHandle, NULL);
     return Void();
 }
 
 Return<EvsResult> EvsCamera::doneWithFrame_1_1(const hidl_vec<BufferDesc_1_1>& buffers)  {
+    mFramesInUse--;
     for (auto&& buffer : buffers) {
         doneWithFrame_impl(buffer.bufferId, buffer.buffer.nativeHandle, buffer.deviceId);
     }
@@ -328,6 +338,12 @@ void EvsCamera::forwardFrame(std::vector<struct forwardframe> &fwframes)
         std::unique_lock <std::mutex> lock(mLock);
         stream = mStream;
     }
+
+    if (mFramesInUse > mFramesAllowed) {
+        ALOGI("Skipped a frame because too many are in flight");
+        return;
+    }
+
     // Issue the (asynchronous) callback to the client
     if (mStream_1_1 != nullptr) {
         int i = 0;
@@ -348,6 +364,7 @@ void EvsCamera::forwardFrame(std::vector<struct forwardframe> &fwframes)
             frames[i++] = bufDesc_1_1;
         }
 
+        mFramesInUse++;
         auto result = mStream_1_1->deliverFrame_1_1(frames);
         if (result.isOk()) {
             ALOGV("Delivered buffer as id %d",
@@ -374,6 +391,7 @@ void EvsCamera::forwardFrame(std::vector<struct forwardframe> &fwframes)
             bufDesc_1_1.bufferId,
             bufDesc_1_1.buffer.nativeHandle
         };
+        mFramesInUse++;
         auto result = mStream->deliverFrame(bufDesc_1_0);
         if (result.isOk()) {
             ALOGV("Delivered buffer as id %d",
