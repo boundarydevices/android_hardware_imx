@@ -716,6 +716,12 @@ int KmsDisplay::performOverlay()
 
 int KmsDisplay::updateScreen()
 {
+    sp<ConfigThread> cfgThread = mConfigThread;
+    if (cfgThread != NULL && mRefreshRequired) {
+        const nsecs_t refreshTime = systemTime(CLOCK_MONOTONIC);
+        cfgThread->notifyNewFrame(refreshTime);
+    }
+
     int drmfd = -1;
     Memory* buffer = NULL;
     {
@@ -737,12 +743,6 @@ int KmsDisplay::updateScreen()
     if (!buffer || !(buffer->flags & FLAGS_FRAMEBUFFER)) {
         ALOGE("%s buffer is invalid for display %d", __func__, mIndex);
         return -EINVAL;
-    }
-
-    sp<ConfigThread> cfgThread = mConfigThread;
-    if (cfgThread != NULL && mRefreshRequired) {
-        const nsecs_t refreshTime = systemTime(CLOCK_MONOTONIC);
-        cfgThread->notifyNewFrame(refreshTime);
     }
 
     if (!mConnected) { // If the display device is not connected
