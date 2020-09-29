@@ -846,9 +846,6 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
         return;
     }
 
-    if(strstr(m_dev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL)
-        pVideoStream->Stop();
-
     /* clear  map_pipeline_info */
     for (auto it = map_pipeline_info.begin(); it != map_pipeline_info.end(); it++) {
         auto pInfo = it->second;
