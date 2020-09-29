@@ -27,6 +27,8 @@ namespace implementation {
 
 using namespace android;
 using ::nxp::hardware::display::V1_0::Error;
+using ::android::frameworks::automotive::display::V1_0::HwDisplayConfig;
+using ::android::frameworks::automotive::display::V1_0::HwDisplayState;
 
 #define DISPLAY_WIDTH 1280
 #define DISPLAY_HEIGHT 720
@@ -380,10 +382,10 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc_1_0&
 }
 
 Return<void> EvsDisplay::getDisplayInfo_1_1(__attribute__ ((unused))getDisplayInfo_1_1_cb _info_cb) {
-    //    HwDisplayConfig nullConfig;
-    //    HwDisplayState  nullState;
+    HwDisplayConfig nullConfig;
+    HwDisplayState  nullState;
     // return null, because we have no display proxy
-    _info_cb({}, {});
+    _info_cb(nullConfig, nullState);
     return Void();
 }
 
