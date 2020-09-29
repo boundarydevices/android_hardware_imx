@@ -100,6 +100,7 @@ private:
 
     static bool EnumAvailableVideo();
     static bool qualifyCaptureDevice(const char* deviceName);
+    static bool filterVideoFromConfigure(char *deviceName);
     static CameraRecord* findCameraById(const std::string& cameraId);
 
     static std::unique_ptr<ConfigManager>   sConfigManager;

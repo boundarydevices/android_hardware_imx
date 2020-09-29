@@ -63,6 +63,19 @@ wp<EvsDisplay>                           EvsEnumerator::sActiveDisplay;
 std::mutex                               EvsEnumerator::sLock;
 std::unique_ptr<ConfigManager>        EvsEnumerator::sConfigManager;
 
+bool EvsEnumerator::filterVideoFromConfigure(char *deviceName) {
+    if (sConfigManager == nullptr)
+        return true;
+
+    vector<string>::iterator index;
+    vector<string> cameraList =
+                sConfigManager->getCameraIdList();
+    index = find(cameraList.begin(), cameraList.end(), deviceName);
+    if(index != cameraList.end())
+        return true;
+    else
+        return false;
+}
 
 bool EvsEnumerator::EnumAvailableVideo() {
     unsigned videoCount   = 0;
@@ -123,6 +136,9 @@ bool EvsEnumerator::EnumAvailableVideo() {
                 fclose(fp);
                 value[len_val] = '\0';
                 ALOGI("enum name:%s path:%s", value, deviceName.c_str());
+                if (!filterVideoFromConfigure(value)) {
+                    continue;
+                }
                 sCameraList.emplace_back(value, deviceName.c_str());
                 captureCount++;
             }
