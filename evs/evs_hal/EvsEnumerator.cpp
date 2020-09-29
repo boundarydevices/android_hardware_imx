@@ -365,6 +365,12 @@ Return<void> EvsEnumerator::getCameraList(getCameraList_cb _hidl_cb)  {
     return Void();
 }
 
+bool EvsEnumerator::validStreamCfg(const Stream& streamCfg) {
+
+    return (streamCfg.width > 0) &&
+           (streamCfg.height > 0);
+}
+
 Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& cameraId,
                                                          const Stream& streamCfg) {
     ALOGD("openCamera_1_1");
@@ -382,7 +388,7 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
     if (fakeCamera == pRecord->desc.v1.cameraId) {
         pActiveCamera = new FakeCapture(pRecord->desc.v1.cameraId.c_str());
     } else {
-        if (sConfigManager != nullptr) {
+        if (sConfigManager != nullptr && validStreamCfg(streamCfg)) {
             unique_ptr<ConfigManager::CameraInfo> &camInfo = sConfigManager->getCameraInfo(cameraId);
             /* currently do not support group metadta */
             //unique_ptr<ConfigManager::CameraGroupInfo> &camInfo = sConfigManager->getCameraGroupInfo(cameraId);

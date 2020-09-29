@@ -83,6 +83,7 @@ public:
     void cmdHelp(int fd);
     void cmdList(int fd, const hidl_vec<hidl_string>& options);
     void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
+    bool validStreamCfg(const Stream& streamCfg);
 
     // Implementation details
     EvsEnumerator(sp<IAutomotiveDisplayProxyService> proxyService = nullptr);
