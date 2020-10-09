@@ -1439,8 +1439,11 @@ static int hwc2_get_display_connection_type(hwc2_device_t* device, hwc2_display_
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    *outType = (pDisplay->getDisplayConnectionType() == DISPLAY_LDB ? HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL
-                                                                    : HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL);
+    if (display == DISPLAY_PRIMARY)
+        *outType = HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL; // Primary display should report as internal display
+    else
+        *outType = (pDisplay->getDisplayConnectionType() == DISPLAY_LDB ? HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL
+                                                                        : HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL);
 
     return HWC2_ERROR_NONE;
 }
