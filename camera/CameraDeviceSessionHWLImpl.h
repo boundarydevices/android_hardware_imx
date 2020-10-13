@@ -236,7 +236,7 @@ private:
 
         virtual bool threadLoop() {
             int ret = mSession->HandleRequest();
-            if (ret != 0) {
+            if (ret != OK) {
                 ALOGI("%s exit...", __func__);
                 return false;
             }

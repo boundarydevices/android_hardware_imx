@@ -163,6 +163,12 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 {
     Mutex::Autolock _l(mLock);
 
+    if(!pipelines_built_) {
+        ALOGV("%s: pipeline not built", __func__);
+        usleep(200);
+        return OK;
+    }
+
     if (map_frame_request.empty()) {
         ALOGV("map_frame_request empty, wait");
         mCondition.waitRelative(mLock, WAIT_TIME_OUT);
@@ -170,7 +176,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 
     if (map_frame_request.empty()) {
         ALOGW("map_frame_request still empty after %lld ns", WAIT_TIME_OUT);
-        return 0;
+        return OK;
     }
 
     for (auto it = map_frame_request.begin(); it != map_frame_request.end(); it++) {
@@ -189,6 +195,10 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
                   hwReq->settings.get());
 
             PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
+            if(pInfo == NULL) {
+                ALOGW("Unexpected, pipeline %d is invalid", pipeline_id);
+                continue;
+            }
 
             // notify shutter
             uint64_t timestamp = systemTime();
@@ -235,7 +245,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 
     CleanRequestsLocked();
 
-    return 0;
+    return OK;
 }
 
 status_t CameraDeviceSessionHwlImpl::HandleFrameLocked(std::vector<StreamBuffer> output_buffers, CameraMetadata &requestMeta)
@@ -835,6 +845,8 @@ status_t CameraDeviceSessionHwlImpl::BuildPipelines()
     return OK;
 }
 
+#define DESTROY_WAIT_MS 100
+#define DESTROY_WAIT_US (uint32_t)(DESTROY_WAIT_MS*1000)
 void CameraDeviceSessionHwlImpl::DestroyPipelines()
 {
     ALOGI("enter %s", __func__);
@@ -844,6 +856,19 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
         // Not an error - nothing to destroy
         ALOGV("%s nothing to destroy", __func__);
         return;
+    }
+
+    /* If still has un-processed requests, wait some time to finish */
+    if ( map_frame_request.empty() == false ) {
+        ALOGW("%s: still has %d requests to process, wait %d ms", __func__, map_frame_request.size(), DESTROY_WAIT_MS);
+        mLock.unlock();
+        usleep(DESTROY_WAIT_US);
+        mLock.lock();
+
+        if( map_frame_request.empty() == false ) {
+            ALOGW("%s: still has %d requests to process after wait, force clear", __func__, map_frame_request.size());
+            map_frame_request.clear();
+        }
     }
 
     /* clear  map_pipeline_info */
