@@ -824,12 +824,7 @@ int32_t CameraMetadata::getGpsCoordinates(double *pCoords, int count)
 {
     status_t ret;
     camera_metadata_ro_entry entry;
-/*
-    if((m_request_meta == NULL) || (m_request_meta->GetRawCameraMetadata() == NULL)) {
-        ALOGE("%s: m_request_meta %p", __func__, m_request_meta);
-        return BAD_VALUE;
-    }
-*/
+
     META_CHECK(m_request_meta);
 
     ret = m_request_meta->Get(ANDROID_JPEG_GPS_COORDINATES, &entry);
@@ -850,6 +845,8 @@ int32_t CameraMetadata::getGpsTimeStamp(int64_t &timeStamp)
     status_t ret;
     camera_metadata_ro_entry entry;
 
+    META_CHECK(m_request_meta);
+
     ret = m_request_meta->Get(ANDROID_JPEG_GPS_TIMESTAMP, &entry);
     if (ret == NAME_NOT_FOUND) {
         ALOGE("%s: error reading ANDROID_JPEG_GPS_TIMESTAMP", __func__);
@@ -864,6 +861,8 @@ int32_t CameraMetadata::getGpsProcessingMethod(uint8_t* src, int count)
 {
     status_t ret;
     camera_metadata_ro_entry entry;
+
+    META_CHECK(m_request_meta);
 
     ret = m_request_meta->Get(ANDROID_JPEG_GPS_PROCESSING_METHOD, &entry);
     if (ret == NAME_NOT_FOUND) {
@@ -885,6 +884,8 @@ int32_t CameraMetadata::getJpegRotation(int32_t &jpegRotation)
     status_t ret;
     camera_metadata_ro_entry entry;
 
+    META_CHECK(m_request_meta);
+
     ret = m_request_meta->Get(ANDROID_JPEG_ORIENTATION, &entry);
     if (ret == NAME_NOT_FOUND) {
         ALOGE("%s: error reading ANDROID_JPEG_QUALITY", __func__);
@@ -900,6 +901,8 @@ int32_t CameraMetadata::getJpegQuality(int32_t &quality)
     uint8_t u8Quality = 0;
     status_t ret;
     camera_metadata_ro_entry entry;
+
+    META_CHECK(m_request_meta);
 
     ret = m_request_meta->Get(ANDROID_JPEG_QUALITY, &entry);
     if (ret == NAME_NOT_FOUND) {
@@ -920,6 +923,8 @@ int32_t CameraMetadata::getJpegThumbQuality(int32_t &thumb)
     status_t ret;
     camera_metadata_ro_entry entry;
 
+    META_CHECK(m_request_meta);
+
     ret = m_request_meta->Get(ANDROID_JPEG_THUMBNAIL_QUALITY, &entry);
     if (ret == NAME_NOT_FOUND) {
         ALOGE("%s: error reading ANDROID_JPEG_THUMBNAIL_QUALITY", __func__);
@@ -938,6 +943,8 @@ int32_t CameraMetadata::getJpegThumbSize(int &width, int &height)
     status_t ret;
     camera_metadata_ro_entry entry;
 
+    META_CHECK(m_request_meta);
+
     ret = m_request_meta->Get(ANDROID_JPEG_THUMBNAIL_SIZE, &entry);
     if (ret == NAME_NOT_FOUND) {
         ALOGE("%s: error reading ANDROID_JPEG_THUMBNAIL_SIZE", __func__);
@@ -954,6 +961,8 @@ int32_t CameraMetadata::getMaxJpegSize(int &size)
     status_t ret;
     camera_metadata_ro_entry entry;
 
+    META_CHECK(m_request_meta);
+
     ret = m_request_meta->Get(ANDROID_JPEG_MAX_SIZE, &entry);
     if (ret == NAME_NOT_FOUND) {
         ALOGE("%s: error reading ANDROID_JPEG_MAX_SIZE", __func__);
@@ -968,6 +977,8 @@ int32_t CameraMetadata::getFocalLength(float &focalLength)
 {
     status_t ret;
     camera_metadata_ro_entry entry;
+
+    META_CHECK(m_request_meta);
 
     ret = m_request_meta->Get(ANDROID_LENS_FOCAL_LENGTH, &entry);
     if (ret == NAME_NOT_FOUND) {
