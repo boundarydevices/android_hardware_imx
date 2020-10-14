@@ -19,6 +19,7 @@
 #include <atomic>
 #include <thread>
 #include <functional>
+#include <unordered_set>
 #include "EvsCamera.h"
 
 using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
@@ -26,7 +27,7 @@ using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
 class FakeCapture : public EvsCamera
 {
 public:
-    FakeCapture(const char *deviceName);
+    FakeCapture(const char *deviceName, const camera_metadata_t * metadata);
     virtual ~FakeCapture();
 
     virtual bool onOpen(const char* deviceName);
@@ -44,9 +45,14 @@ public:
     virtual void onMemoryCreate();
     virtual void onMemoryDestroy();
     virtual std::set<uint32_t>  enumerateCameraControls();
+    void readFromPng(const char *file, void* buf);
 
 private:
-    unsigned int mFrameIndex = 0;
+    std::unordered_set<std::string> mPhysicalCamera;
+    bool mIslogicCamera;
+    // if the camera is logic camera, mDeviceFd will been instored according the mPhysicalCamera name.
+    // if the camera is pyhsical camera, mDeviceFd will been the fd of pyhsical camera
+    std::unordered_map<std::string, int> mDeviceFd;
 };
 
 #endif

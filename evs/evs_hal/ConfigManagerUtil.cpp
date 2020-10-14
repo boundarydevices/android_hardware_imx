@@ -72,6 +72,8 @@ bool ConfigManagerUtil::convertToPixelFormat(const string &format,
         pixFormat =  HAL_PIXEL_FORMAT_YCRCB_420_SP;
     } else if (!trimmed.compare("YCBCR_422_I")) {
         pixFormat =  HAL_PIXEL_FORMAT_YCBCR_422_I;
+    } else if (!trimmed.compare("RGB_888")) {
+        pixFormat =  HAL_PIXEL_FORMAT_RGB_888;
     } else {
         success = false;
     }

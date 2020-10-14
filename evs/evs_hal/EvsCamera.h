@@ -35,6 +35,7 @@
 #include <MemoryDesc.h>
 #include <MemoryManager.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <linux/videodev2.h>
 #include <system/camera_metadata.h>
 
@@ -77,6 +78,8 @@ public:
     Return <EvsResult> startVideoStream(const ::android::sp<IEvsCameraStream_1_0>& stream) override;
     Return<void> doneWithFrame(const BufferDesc_1_0& buffer) override;
     Return<EvsResult> doneWithFrame_1_1(const hidl_vec<BufferDesc_1_1>& buffer) override;
+    bool isLogicalCamera(const camera_metadata_t *metadata);
+    std::unordered_set<std::string> getPhysicalCameraInLogic(const camera_metadata_t *metadata);
     Return<void> stopVideoStream() override;
     Return <int32_t> getExtendedInfo(uint32_t opaqueIdentifier) override;
     Return <EvsResult> setExtendedInfo(uint32_t opaqueIdentifier, int32_t opaqueValue) override;
@@ -100,7 +103,8 @@ public:
                                  getIntParameterRange_cb _hidl_cb) override;
 
     // Implementation details
-    EvsCamera(const char *videoName);
+    EvsCamera(const char *videoName, const camera_metadata_t *metadata);
+    std::string getVideoDevice(const std::string videoname);
     virtual ~EvsCamera() override;
     void shutdown();
     void openup(const char *deviceName);

@@ -24,14 +24,19 @@
 #include <sys/mman.h>
 #include <log/log.h>
 #include <inttypes.h>
+#include <android-base/file.h>
 
 #include "assert.h"
 
 #include "V4l2Capture.h"
 
+//#define DEBUG_V4L2_CAMERA
+#ifdef DEBUG_V4L2_CAMERA
+static int nub;
+#endif
 V4l2Capture::V4l2Capture(const char *deviceName, const char *videoName,
                      __u32 width, __u32 height, int format, const camera_metadata_t *metadata)
-    : EvsCamera(videoName)
+    : EvsCamera(videoName, metadata)
 {
     mV4lFormat = getV4lFormat(format);
     mWidth = width;
@@ -47,64 +52,6 @@ V4l2Capture::V4l2Capture(const char *deviceName, const char *videoName,
 
 V4l2Capture::~V4l2Capture()
 {
-}
-
-std::unordered_set<std::string> V4l2Capture::getPhysicalCameraInLogic(const camera_metadata_t *metadata)
-{
-    // Look for physical camera identifiers
-    camera_metadata_ro_entry entry;
-    std::unordered_set<std::string> physicalCameras;
-
-    int rc = find_camera_metadata_ro_entry(metadata,
-                                           ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS,
-                                           &entry);
-
-    if (rc != 0) {
-        // No capabilities are found.
-        ALOGE("No physical camera ID is found for a logical camera device");
-    }
-
-    const uint8_t *ids = entry.data.u8;
-    size_t start = 0;
-    for (size_t i = 0; i < entry.count; ++i) {
-        if (ids[i] == '\0') {
-            if (start != i) {
-                std::string id(reinterpret_cast<const char *>(ids + start));
-                physicalCameras.emplace(id);
-            }
-            start = i + 1;
-        }
-    }
-
-    return physicalCameras;
-}
-
-bool V4l2Capture::isLogicalCamera(const camera_metadata_t *metadata)
-{
-    if (metadata == nullptr) {
-        // A logical camera device must have a valid camera metadata.
-        return false;
-    }
-
-    // Looking for LOGICAL_MULTI_CAMERA capability from metadata.
-    camera_metadata_ro_entry_t entry;
-    int rc = find_camera_metadata_ro_entry(metadata,
-                      ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
-                      &entry);
-    if (0 != rc) {
-        // No capabilities are found.
-        return false;
-    }
-
-    for (size_t i = 0; i < entry.count; ++i) {
-        uint8_t cap = entry.data.u8[i];
-        if (cap == ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA) {
-            return true;
-        }
-    }
-
-    return false;
-
 }
 
 int V4l2Capture::getCaptureMode(int fd, int width, int height)
@@ -143,6 +90,9 @@ int V4l2Capture::getV4lFormat(int format)
             break;
         case HAL_PIXEL_FORMAT_YCbCr_420_888:
             v4lFormat = V4L2_PIX_FMT_NV12;
+            break;
+        case HAL_PIXEL_FORMAT_RGB_888:
+            v4lFormat = V4L2_PIX_FMT_RGB24;
             break;
         default:
             ALOGE("%s unsupported format:0x%x", __func__, format);
@@ -532,6 +482,16 @@ void V4l2Capture::onMemoryCreate()
             allocator->allocMemory(desc, &buffer);
 
             std::unique_lock <std::mutex> lock(mLock);
+
+#ifdef DEBUG_V4L2_CAMERA
+            void *vaddr = NULL;
+            // handle->base which is instore virtual addr is only set after lock
+            // need lock the addr here, so that it can been used in onFrameCollect
+            allocator->lock(buffer,  buffer->usage |  fsl::USAGE_SW_READ_OFTEN
+                           | fsl::USAGE_SW_WRITE_OFTEN, 0, 0,
+                            buffer->width, buffer->height, &vaddr);
+#endif
+
             fsl_mem.push_back(buffer);
         }
         mCamBuffers[mDeviceFd[physical_cam]] = fsl_mem;
@@ -625,6 +585,9 @@ void V4l2Capture::onFrameCollect(std::vector<struct forwardframe> &frames)
     int fd = -1;
     fsl::Memory *buffer = nullptr;
     struct forwardframe frame;
+#ifdef DEBUG_V4L2_CAMERA
+    int index = 0;
+#endif
     for (const auto& physical_cam : mPhysicalCamera) {
         if (mDeviceFd[physical_cam] < 0)
             return;
@@ -659,10 +622,32 @@ void V4l2Capture::onFrameCollect(std::vector<struct forwardframe> &frames)
             std::unique_lock <std::mutex> lock(mLock);
             buffer = mCamBuffers[mDeviceFd[physical_cam]].at(buf.index);
         }
+#ifdef DEBUG_V4L2_CAMERA
+         char filename[128];
+         memset(filename, 0, 128);
+         if (nub%20 ==0) {
+             sprintf(filename, "/data/%s-frame_out-%d-%d.rgb",
+                       "EVS", nub, index);
+             int fd = 0;
+             int len = 0;
+             fd = open(filename, O_CREAT | O_RDWR, 0666);
+
+             if (fd<0) {
+                 ALOGE("failed to open");
+             } else {
+                 len = write(fd, (void *)buffer->base, buffer->stride * buffer->height  * 3);
+                 close(fd);
+             }
+         }
+         index++;
+#endif
         frame.buf = buffer;
         frame.index = buf.index;
         frame.deviceid = physical_cam;
         frames.push_back(frame);
     }
+#ifdef DEBUG_V4L2_CAMERA
+    nub++;
+#endif
 }
 

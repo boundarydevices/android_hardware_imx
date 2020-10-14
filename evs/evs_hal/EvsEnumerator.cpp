@@ -45,8 +45,12 @@ namespace implementation {
 #define MEDIA_FILE_PATH "/dev"
 #define EVS_VIDEO_READY "vendor.evs.video.ready"
 #define EVS_FAKE_SENSOR "mxc_isi.0.capture"
+#define EVS_FAKE_LOGIC_CAMERA "group0"
 #define EVS_FAKE_NAME   "fake.camera"
+#define EVS_FAKE_LOGIC_NAME   "fake.logic.camera"
 #define EVS_FAKE_PROP   "vendor.evs.fake.enable"
+#define FAKE_CAMERA_WIDTH 1920
+#define FAKE_CAMERA_HEIGHT 1024
 
 // Default camera output image resolution if the evs_app do not configure
 const std::array<int32_t, 2> kDefaultResolution = {1280, 720};
@@ -81,17 +85,70 @@ bool EvsEnumerator::EnumAvailableVideo() {
     unsigned videoCount   = 0;
     unsigned captureCount = 0;
     bool videoReady = false;
-
-    int enableFake = property_get_int32(EVS_FAKE_PROP, 0);
-    if (enableFake != 0) {
-        sCameraList.emplace_back(EVS_FAKE_SENSOR, EVS_FAKE_NAME);
-        captureCount++;
-    }
+    CameraDesc_1_1 aCamera;
 
     if (sConfigManager == nullptr) {
         /* loads and initializes ConfigManager in a separate thread */
         sConfigManager =
             ConfigManager::Create("/vendor/etc/automotive/evs/imx_evs_configuration.xml");
+    }
+
+    // if it's one fake camera, need fill the metadata in xml to sCameraList.
+    // otherwise app will not get the metadata
+    int enableFake = property_get_int32(EVS_FAKE_PROP, 0);
+    if (enableFake != 0) {
+        CameraRecord camrec_group(EVS_FAKE_LOGIC_CAMERA, NULL);
+        unique_ptr<ConfigManager::CameraGroupInfo> &tmpInfo =
+            sConfigManager->getCameraGroupInfo(EVS_FAKE_LOGIC_CAMERA);
+        if (tmpInfo != nullptr) {
+            aCamera.metadata.setToExternal(
+                (uint8_t *)tmpInfo->characteristics,
+                get_camera_metadata_size(tmpInfo->characteristics)
+            );
+            camera_metadata_entry_t streamCfgs;
+            if (!find_camera_metadata_entry(
+                reinterpret_cast<camera_metadata_t *>(aCamera.metadata.data()),
+                ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                &streamCfgs)) {
+                RawStreamConfig *ptr = reinterpret_cast<RawStreamConfig *>(streamCfgs.data.i32);
+                //set the first stream resolution to FAKE_CAMERA_WIDTH/FAKE_CAMERA_HEIGHT
+                ptr->width = FAKE_CAMERA_WIDTH;
+                ptr->height = FAKE_CAMERA_HEIGHT;
+            }
+
+            int32_t err = add_camera_metadata_entry(
+                reinterpret_cast<camera_metadata_t *>(aCamera.metadata.data()),
+                ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                streamCfgs.data.i32,
+                calculate_camera_metadata_entry_data_size(
+                    get_camera_metadata_tag_type(
+                    ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS
+                    ), streamCfgs.count));
+
+            if (err) {
+                ALOGE("Failed to add stream configurations to metadata, ignored");
+            }
+        }
+
+        aCamera.v1.cameraId = EVS_FAKE_LOGIC_NAME;
+        camrec_group.desc = aCamera;
+        sCameraList.push_back(camrec_group);
+        captureCount++;
+
+        CameraRecord camrec_single(EVS_FAKE_SENSOR, NULL);
+        unique_ptr<ConfigManager::CameraInfo> &tempInfo =
+            sConfigManager->getCameraInfo(EVS_FAKE_SENSOR);
+        if (tempInfo != nullptr) {
+            aCamera.metadata.setToExternal(
+                (uint8_t *)tempInfo->characteristics,
+                get_camera_metadata_size(tempInfo->characteristics)
+            );
+        }
+        aCamera.v1.cameraId = EVS_FAKE_NAME;
+        camrec_single.desc = aCamera;
+        sCameraList.push_back(camrec_single);
+
+        captureCount++;
     }
 
     // For every video* entry in the dev folder, see if it reports suitable capabilities
@@ -275,6 +332,7 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
     }
     hidl_vec<CameraDesc_1_1> hidlCameras;
     if (sConfigManager == nullptr) {
+
         const unsigned numCameras = sCameraList.size();
         hidlCameras.resize(numCameras);
         unsigned i = 0;
@@ -318,7 +376,6 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
 
         // Adding camera groups that represent logical camera devices
         for (auto&& id : camGroups) {
-
             unique_ptr<ConfigManager::CameraGroupInfo> &tempInfo =
                 sConfigManager->getCameraGroupInfo(id);
             CameraRecord camrec(id.c_str(), NULL);
@@ -373,7 +430,7 @@ bool EvsEnumerator::validStreamCfg(const Stream& streamCfg) {
 
 Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& cameraId,
                                                          const Stream& streamCfg) {
-    ALOGD("openCamera_1_1");
+    ALOGD("openCamera_1_1 %s", cameraId.c_str());
     CameraRecord *pRecord = findCameraById(cameraId);
     if (pRecord == nullptr) {
         ALOGD("camera does not exist!");
@@ -385,9 +442,14 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
     }
 
     std::string fakeCamera(EVS_FAKE_NAME);
-    if (fakeCamera == pRecord->desc.v1.cameraId) {
-        pActiveCamera = new FakeCapture(pRecord->desc.v1.cameraId.c_str());
+    std::string fakeLogicCamera(EVS_FAKE_LOGIC_NAME);
+    if (fakeCamera == pRecord->desc.v1.cameraId || fakeLogicCamera == pRecord->desc.v1.cameraId) {
+        // the camera is fake, and it's logic camera, it will beeen fakeLogicCamera
+        //  the camera is fake, and it's phsical camera, it will beeen fakeCamera
+        pActiveCamera = new FakeCapture(pRecord->desc.v1.cameraId.c_str(),
+                 reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
     } else {
+
         if (sConfigManager != nullptr && validStreamCfg(streamCfg)) {
             unique_ptr<ConfigManager::CameraInfo> &camInfo = sConfigManager->getCameraInfo(cameraId);
             /* currently do not support group metadta */
@@ -423,7 +485,7 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
                                                     pRecord->name.c_str(),
                                                    kDefaultResolution[0],
                                                    kDefaultResolution[1],
-                                                   HAL_PIXEL_FORMAT_YCBCR_422_I,
+                                                   HAL_PIXEL_FORMAT_RGB_888,
                                                    reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
             }
         } else {
@@ -431,7 +493,7 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
                                                pRecord->name.c_str(),
                                                kDefaultResolution[0],
                                                kDefaultResolution[1],
-                                               HAL_PIXEL_FORMAT_YCBCR_422_I,
+                                               HAL_PIXEL_FORMAT_RGB_888,
                                                reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
         }
     }
@@ -469,7 +531,7 @@ Return<sp<IEvsCamera_1_0>> EvsEnumerator::openCamera(const hidl_string& cameraId
                                                pRecord->name.c_str(),
                                                kDefaultResolution[0],
                                                kDefaultResolution[1],
-                                               HAL_PIXEL_FORMAT_YCBCR_422_I,
+                                               HAL_PIXEL_FORMAT_RGB_888,
                                                nullptr);
 
     pActiveCamera->openup(pRecord->desc.v1.cameraId.c_str());

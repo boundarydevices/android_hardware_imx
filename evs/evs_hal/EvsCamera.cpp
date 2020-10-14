@@ -17,6 +17,9 @@
 #include <log/log.h>
 #include <android/hardware_buffer.h>
 #include "EvsCamera.h"
+#include <system/camera_metadata.h>
+#include <android-base/file.h>
+#include <cutils/properties.h>
 
 namespace android {
 namespace hardware {
@@ -38,14 +41,19 @@ void EvsCamera::releaseResource(void)
     shutdown();
 }
 
-EvsCamera::EvsCamera(const char *videoName)
+EvsCamera::EvsCamera(const char *videoName, const camera_metadata_t *metadata)
 {
     ALOGD("EvsCamera instantiated");
 
     // Initialize the stream params.
-    mFormat = fsl::FORMAT_YUYV;
+    mFormat = fsl::FORMAT_RGB888;
     mDeqIdx = -1;
     mDescription.v1.cameraId = videoName;
+    // the camera metadata also need pass to EvsCamera, app may get metadata from api like getPhysicalCameraInfo
+    // SV will call this api to get metadata. you may also can get the metadata from api in EvsEnumerator
+    if (metadata != NULL) {
+        mDescription.metadata.setToExternal((uint8_t *)metadata, get_camera_metadata_size(metadata));
+    }
     mFramesInUse = 0;
     mFramesAllowed = 0;
 }
@@ -68,6 +76,109 @@ void EvsCamera::openup(const char *deviceName)
     mCameraControls = enumerateCameraControls();
 }
 
+// convert mxc_isi.x.capture in evs xml to /dev/video*
+std::string EvsCamera::getVideoDevice(const std::string videoname)
+{
+    DIR *vidDir = NULL;
+    char CamDevice[64];
+    struct dirent *dirEntry;
+    std::string buffer;
+    std::string retVideo;
+    char mDevPath[64];
+
+    vidDir = opendir("/sys/class/video4linux");
+    if (vidDir == NULL) {
+        return NULL;
+    }
+
+    while ((dirEntry = readdir(vidDir)) != NULL) {
+        if (strncmp(dirEntry->d_name, "video", 5)) {
+            continue;
+        }
+
+        sprintf(CamDevice, "/sys/class/video4linux/%s/name", dirEntry->d_name);
+        if (!android::base::ReadFileToString(std::string(CamDevice), &buffer)) {
+            ALOGE("can't read video device name");
+            break;
+        }
+
+        // the string read through ReadFileToString have '\n' in last byte
+        // so we just need compare length (buffer.length() - 1)
+        if (!strncmp(videoname.c_str(), buffer.c_str(), (buffer.length() - 1) )) {
+            sprintf(mDevPath, "/dev/%s", dirEntry->d_name);
+            retVideo = mDevPath;
+            return retVideo;
+            break;
+        }
+    }
+    return NULL;
+}
+
+// if it's v4l2 device, it will return /dev/video*
+// if it's fake camera, it will return mxc_isi.x.capture directly
+std::unordered_set<std::string> EvsCamera::getPhysicalCameraInLogic(const camera_metadata_t *metadata)
+{
+    // Look for physical camera identifiers
+    camera_metadata_ro_entry entry;
+    std::unordered_set<std::string> physicalCameras;
+    std::string cam;
+
+    int rc = find_camera_metadata_ro_entry(metadata,
+                                           ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS,
+                                           &entry);
+
+    if (rc != 0) {
+        // No capabilities are found.
+        ALOGE("No physical camera ID is found for a logical camera device");
+    }
+
+    const uint8_t *ids = entry.data.u8;
+    size_t start = 0;
+    for (size_t i = 0; i < entry.count; ++i) {
+        if (ids[i] == '\0') {
+            if (start != i) {
+                std::string id(reinterpret_cast<const char *>(ids + start));
+                if (property_get_int32("vendor.evs.fake.enable", 0))
+                    physicalCameras.emplace(id);
+                else {
+                    cam = getVideoDevice(id);
+                    physicalCameras.emplace(cam);
+                }
+            }
+            start = i + 1;
+        }
+    }
+
+    return physicalCameras;
+}
+
+bool EvsCamera::isLogicalCamera(const camera_metadata_t *metadata)
+{
+    if (metadata == nullptr) {
+        // A logical camera device must have a valid camera metadata.
+        return false;
+    }
+
+    // Looking for LOGICAL_MULTI_CAMERA capability from metadata.
+    camera_metadata_ro_entry_t entry;
+    int rc = find_camera_metadata_ro_entry(metadata,
+                      ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+                      &entry);
+    if (0 != rc) {
+        // No capabilities are found.
+        return false;
+    }
+
+    for (size_t i = 0; i < entry.count; ++i) {
+        uint8_t cap = entry.data.u8[i];
+        if (cap == ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA) {
+            return true;
+        }
+    }
+
+    return false;
+
+}
 //
 // This gets called if another caller "steals" ownership of the camera
 //

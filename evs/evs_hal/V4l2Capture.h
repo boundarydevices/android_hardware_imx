@@ -53,9 +53,7 @@ public:
 private:
     int getCaptureMode(int fd, int width, int height);
     int getV4lFormat(int format);
-    bool isLogicalCamera(const camera_metadata_t *metadata);
     // mPhysicalCamera return the physical camera
-    std::unordered_set<std::string> getPhysicalCameraInLogic(const camera_metadata_t *metadata);
     std::unordered_set<std::string> mPhysicalCamera;
 
     // if the camera is logic camera, mDeviceFd will been instored according the mPhysicalCamera name.

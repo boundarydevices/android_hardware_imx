@@ -54,6 +54,14 @@ using android::frameworks::automotive::display::V1_0::IAutomotiveDisplayProxySer
 class EvsCamera;    // from EvsCamera.h
 class EvsDisplay;    // from EvsDisplay.h
 
+typedef struct {
+    int32_t id;
+    int32_t width;
+    int32_t height;
+    int32_t format;
+    int32_t direction;
+    int32_t framerate;
+} RawStreamConfig;
 
 class EvsEnumerator : public IEvsEnumerator {
 public:

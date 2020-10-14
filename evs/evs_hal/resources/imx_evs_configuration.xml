@@ -35,7 +35,7 @@
             <caps>
                 <!-- list of stream configuration supported by all physical devices -->
                 <!-- nxp have camera ov10635 which support 720p for all evs cameras -->
-                <stream id='0' width='1280' height='720' format='YCBCR_422_I' framerate='30'/>
+                <stream id='0' width='1280' height='720' format='RGB_888' framerate='30'/>
             </caps>
 
             <!-- list of parameters -->
@@ -53,8 +53,32 @@
                     name='LOGICAL_MULTI_CAMERA_PHYSICAL_IDS'
                     type='byte[]'
                     size='2'
-                    value='/dev/video1,/dev/video2,/dev/video3,/dev/video4'
+                    value='mxc_isi.0.capture,mxc_isi.1.capture,mxc_isi.2.capture,mxc_isi.3.capture'
                 />
+                <parameter
+                    name='LENS_DISTORTION'
+                    type='float'
+                    size='5'
+                    value='-0.03711481733589263,-0.0014805627895442888,-0.00030212056866592464,-0.00020149538570397933,0.0'
+               />
+               <parameter
+                    name='LENS_INTRINSIC_CALIBRATION'
+                    type='float'
+                    size='5'
+                    value='608.0026093794693,608.205469489769,968.699544102168,476.38843298898996,0.0'
+               />
+               <parameter
+                   name='LENS_POSE_TRANSLATION'
+                   type='float'
+                   size='3'
+                   value='-7.8028875403817685e-02,1.4537396465103221e+00,-8.4197165554645001e-02'
+               />
+               <parameter
+                   name='LENS_POSE_ROTATION'
+                   type='float'
+                   size='4'
+                   value='0.9049874,0.0153074,-0.0088196,0.4250714'
+               />
             </characteristics>
         </group>
 
@@ -64,13 +88,39 @@
 
                 <!-- list of supported stream configurations -->
                 <!-- below configurations were taken from v4l2-ctrl query on Logitech Webcam C930e device -->
-                <stream id='0' width='1280' height='720'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='1' width='960'  height='540'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='2' width='848'  height='480'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='3' width='640'  height='360'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='4' width='480'  height='270'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='5' width='160'  height='120'  format='YCBCR_422_I' framerate='30'/>
+                <stream id='0' width='1280' height='720'  format='RGB_888' framerate='30'/>
+                <stream id='1' width='960'  height='540'  format='RGB_888' framerate='30'/>
+                <stream id='2' width='848'  height='480'  format='RGB_888' framerate='30'/>
+                <stream id='3' width='640'  height='360'  format='RGB_888' framerate='30'/>
+                <stream id='4' width='480'  height='270'  format='RGB_888' framerate='30'/>
+                <stream id='5' width='160'  height='120'  format='RGB_888' framerate='30'/>
             </caps>
+            <characteristics>
+                 <parameter
+                     name='LENS_DISTORTION'
+                     type='float'
+                     size='5'
+                     value='-0.03711481733589263,-0.0014805627895442888,-0.00030212056866592464,-0.00020149538570397933,0.0'
+                />
+                <parameter
+                     name='LENS_INTRINSIC_CALIBRATION'
+                     type='float'
+                     size='5'
+                     value='608.0026093794693,608.205469489769,968.699544102168,476.38843298898996,0.0'
+                />
+                <parameter
+                    name='LENS_POSE_TRANSLATION'
+                    type='float'
+                    size='3'
+                    value='-7.8028875403817685e-02,1.4537396465103221e+00,-8.4197165554645001e-02'
+                />
+                <parameter
+                    name='LENS_POSE_ROTATION'
+                    type='float'
+                    size='4'
+                    value='0.9049874,0.0153074,-0.0088196,0.4250714'
+                />
+            </characteristics>
         </device>
         <!-- camera device starts -->
         <device id='mxc_isi.1.capture' position='front'>
@@ -78,13 +128,39 @@
 
                 <!-- list of supported stream configurations -->
                 <!-- below configurations were taken from v4l2-ctrl query on Logitech Webcam C930e device -->
-                <stream id='0' width='1280' height='720'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='1' width='960'  height='540'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='2' width='848'  height='480'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='3' width='640'  height='360'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='4' width='480'  height='270'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='5' width='160'  height='120'  format='YCBCR_422_I' framerate='30'/>
+                <stream id='0' width='1280' height='720'  format='RGB_888' framerate='30'/>
+                <stream id='1' width='960'  height='540'  format='RGB_888' framerate='30'/>
+                <stream id='2' width='848'  height='480'  format='RGB_888' framerate='30'/>
+                <stream id='3' width='640'  height='360'  format='RGB_888' framerate='30'/>
+                <stream id='4' width='480'  height='270'  format='RGB_888' framerate='30'/>
+                <stream id='5' width='160'  height='120'  format='RGB_888' framerate='30'/>
             </caps>
+            <characteristics>
+                 <parameter
+                     name='LENS_DISTORTION'
+                     type='float'
+                     size='5'
+                     value='-0.040116809827977926,0.0028769489398543014,-0.002651039958977229,0.00024260630476736675,0.0'
+                />
+                <parameter
+                     name='LENS_INTRINSIC_CALIBRATION'
+                     type='float'
+                     size='5'
+                     value='607.8691721095306,608.0112887189435,975.5686146375716,481.1938786570715,0.0'
+                />
+                <parameter
+                    name='LENS_POSE_TRANSLATION'
+                    type='float'
+                    size='3'
+                    value='2.9715052384687407e-01,1.1407102692699396e+00,3.0074545273489206e-01'
+                />
+                <parameter
+                    name='LENS_POSE_ROTATION'
+                    type='float'
+                    size='4'
+                    value='0.6293863,-0.6544242,0.2967697,0.2958542'
+                />
+            </characteristics>
         </device>
         <!-- camera device starts -->
         <device id='mxc_isi.2.capture' position='right'>
@@ -92,13 +168,39 @@
 
                 <!-- list of supported stream configurations -->
                 <!-- below configurations were taken from v4l2-ctrl query on Logitech Webcam C930e device -->
-                <stream id='0' width='1280' height='720'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='1' width='960'  height='540'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='2' width='848'  height='480'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='3' width='640'  height='360'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='4' width='480'  height='270'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='5' width='160'  height='120'  format='YCBCR_422_I' framerate='30'/>
+                <stream id='0' width='1280' height='720'  format='RGB_888' framerate='30'/>
+                <stream id='1' width='960'  height='540'  format='RGB_888' framerate='30'/>
+                <stream id='2' width='848'  height='480'  format='RGB_888' framerate='30'/>
+                <stream id='3' width='640'  height='360'  format='RGB_888' framerate='30'/>
+                <stream id='4' width='480'  height='270'  format='RGB_888' framerate='30'/>
+                <stream id='5' width='160'  height='120'  format='RGB_888' framerate='30'/>
             </caps>
+            <characteristics>
+                 <parameter
+                     name='LENS_DISTORTION'
+                     type='float'
+                     size='5'
+                     value='-0.03998488563470043,0.0024786686909103388,-0.002354736769480817,0.00018369619088506146,0.0'
+                />
+                <parameter
+                     name='LENS_INTRINSIC_CALIBRATION'
+                     type='float'
+                     size='5'
+                     value='608.557299289448,608.8093878512448,960.1949354417656,474.74744054048256,0.0'
+                />
+                <parameter
+                    name='LENS_POSE_TRANSLATION'
+                    type='float'
+                    size='3'
+                    value='1.7115269161259747e-01,1.4376160762596599e+00,-1.9028844233159006e-02'
+                />
+                <parameter
+                    name='LENS_POSE_ROTATION'
+                    type='float'
+                    size='4'
+                    value='-0.0341381,-0.9101571,0.4126677,0.0124103'
+                />
+            </characteristics>
         </device>
         <!-- camera device starts -->
         <device id='mxc_isi.3.capture' position='left'>
@@ -106,13 +208,39 @@
 
                 <!-- list of supported stream configurations -->
                 <!-- below configurations were taken from v4l2-ctrl query on Logitech Webcam C930e device -->
-                <stream id='0' width='1280' height='720'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='1' width='960'  height='540'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='2' width='848'  height='480'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='3' width='640'  height='360'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='4' width='480'  height='270'  format='YCBCR_422_I' framerate='30'/>
-                <stream id='5' width='160'  height='120'  format='YCBCR_422_I' framerate='30'/>
+                <stream id='0' width='1280' height='720'  format='RGB_888' framerate='30'/>
+                <stream id='1' width='960'  height='540'  format='RGB_888' framerate='30'/>
+                <stream id='2' width='848'  height='480'  format='RGB_888' framerate='30'/>
+                <stream id='3' width='640'  height='360'  format='RGB_888' framerate='30'/>
+                <stream id='4' width='480'  height='270'  format='RGB_888' framerate='30'/>
+                <stream id='5' width='160'  height='120'  format='RGB_888' framerate='30'/>
             </caps>
+            <characteristics>
+                 <parameter
+                     name='LENS_DISTORTION'
+                     type='float'
+                     size='5'
+                     value='-0.038096507459563965,0.0004008114278766646,-0.0013549275607082035,-5.9961182248325556e-06,0.0'
+                />
+                <parameter
+                     name='LENS_INTRINSIC_CALIBRATION'
+                     type='float'
+                     size='5'
+                     value='608.1221963545495,608.0523818661524,943.6280444638576,474.8564698210861,0.0'
+                />
+                <parameter
+                    name='LENS_POSE_TRANSLATION'
+                    type='float'
+                    size='3'
+                    value='-3.0842691427126512e-01,1.0884122033556984e+00,3.4419058255954926e-01'
+                />
+                <parameter
+                    name='LENS_POSE_ROTATION'
+                    type='float'
+                    size='4'
+                    value='0.612825,0.6634091,-0.3112416,0.2957406'
+                />
+            </characteristics>
         </device>
     </camera>
 

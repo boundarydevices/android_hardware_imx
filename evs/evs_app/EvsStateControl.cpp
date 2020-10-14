@@ -347,7 +347,7 @@ bool EvsStateControl::configureEvsPipeline(State desiredState) {
 
                        for (unsigned idx = 0; idx < streamCfgSize; idx += kStreamCfgSz) {
                            if (ptr->direction == ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT &&
-                               ptr->format == HAL_PIXEL_FORMAT_YCBCR_422_I) {
+                               ptr->format == HAL_PIXEL_FORMAT_RGB_888) {
                                if (ptr->framerate >= minReqFps &&
                                    ptr->width * ptr->height > maxArea) {
                                    targetCfg->id = ptr->id;
@@ -365,7 +365,7 @@ bool EvsStateControl::configureEvsPipeline(State desiredState) {
             }
 
             targetCfg->format =
-                           static_cast<PixelFormat>(HAL_PIXEL_FORMAT_YCBCR_422_I);
+                           static_cast<PixelFormat>(HAL_PIXEL_FORMAT_RGB_888);
 
             mDesiredRenderer = std::make_unique<RenderDirectView>(mEvs,
                                                                    mCameraDescList[desiredState][0],
@@ -380,7 +380,7 @@ bool EvsStateControl::configureEvsPipeline(State desiredState) {
             targetCfg->width = WIDTH_FOR_TOP_VIEW;
             targetCfg->height = HEIGHT_FOR_TOP_VIEW;
             targetCfg->format =
-                            static_cast<PixelFormat>(HAL_PIXEL_FORMAT_YCBCR_422_I);
+                            static_cast<PixelFormat>(HAL_PIXEL_FORMAT_RGB_888);
 
             mDesiredRenderer = std::make_unique<RenderTopView>(mEvs,
                                                                mCameraList[desiredState],
