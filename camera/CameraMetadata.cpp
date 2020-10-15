@@ -61,7 +61,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
     /* android.control */
     m_static_meta->Set(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
                      pDev->mTargetFpsRange,
-                     2);
+                     ARRAY_SIZE(pDev->mTargetFpsRange));
 
     static const uint8_t aeAntibandingMode =
         ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
