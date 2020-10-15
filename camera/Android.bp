@@ -20,8 +20,8 @@ soong_namespace {
   ],
 }
 
-cc_library_shared {
-    name: "libimxcamerahwl_impl",
+imx_camera_defaults {
+    name: "imx_camera_default",
     owner: "nxp",
     proprietary: true,
     arch: {
@@ -82,4 +82,26 @@ cc_library_shared {
             ],
         },
     },
+}
+
+bootstrap_go_package {
+    name: "soong-camera",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/camera",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "camera.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cc_library_shared {
+    name: "libimxcamerahwl_impl",
+    defaults: ["imx_camera_default"],
 }
