@@ -136,6 +136,7 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl()
     pMemManager = NULL;
     m_meta = NULL;
     m_dev = NULL;
+    mSettings = NULL;
 }
 
 CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
@@ -156,6 +157,9 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
 
     if (mJpegBuilder != NULL)
         mJpegBuilder.clear();
+
+    if(mSettings != NULL)
+        mSettings.reset();
 }
 
 #define WAIT_TIME_OUT 100000000LL  // unit ns, wait 100ms
@@ -226,8 +230,15 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
             result->input_buffers.reserve(0);
             result->physical_camera_results.reserve(0);
 
-            if (hwReq->settings != NULL)
-                result->result_metadata = HalCameraMetadata::Clone(hwReq->settings.get());
+            if (hwReq->settings != NULL) {
+                if(mSettings != NULL)
+                    mSettings.reset();
+
+                mSettings = HalCameraMetadata::Clone(hwReq->settings.get());
+            }
+
+            if (mSettings != NULL)
+                result->result_metadata = HalCameraMetadata::Clone(mSettings.get());
             else
                 result->result_metadata = HalCameraMetadata::Create(1, 10);
 

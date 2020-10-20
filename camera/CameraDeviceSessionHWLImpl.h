@@ -275,6 +275,8 @@ private:
     int stillcapIdx;
     int recordIdx;
     int callbackIdx;
+
+    std::unique_ptr<HalCameraMetadata> mSettings;
 };
 
 }  // namespace android
