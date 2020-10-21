@@ -80,11 +80,7 @@ public:
         CameraBufferAllocatorHwl* camera_allocator_hwl,
         std::unique_ptr<CameraDeviceSessionHwl>* session) override;
 
-    bool IsStreamCombinationSupported(
-        const StreamConfiguration& stream_config __unused) override
-    {
-        return false;
-    }
+    bool IsStreamCombinationSupported(const StreamConfiguration& stream_config) override;
 
     // End of override functions in CameraDeviceHwl.
 
@@ -98,6 +94,7 @@ private:
 
     virtual status_t Initialize();
     status_t initSensorStaticData();
+    bool FoundResoulution(int width, int height, int *resArray, int size);
 
 protected:
     status_t setMaxPictureResolutions();

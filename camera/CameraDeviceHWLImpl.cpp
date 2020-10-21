@@ -288,4 +288,40 @@ status_t CameraDeviceHwlImpl::CreateCameraDeviceSessionHwl(
     return OK;
 }
 
+bool CameraDeviceHwlImpl::FoundResoulution(int width, int height, int *resArray, int size)
+{
+    if(resArray == NULL)
+        return false;
+
+    for (int i = 0; i < size; i += 2) {
+        if ( (width == resArray[i]) && (height == resArray[i+1]) )
+            return true;
+    }
+
+    return false;
+}
+
+bool CameraDeviceHwlImpl::IsStreamCombinationSupported(const StreamConfiguration& stream_config)
+{
+    for (const auto& stream : stream_config.streams) {
+        if(stream.stream_type != google_camera_hal::StreamType::kOutput) {
+            ALOGE("%s: only support stream type output, but it's %d", __func__, stream.stream_type);
+            return false;
+        }
+
+        bool bFound;
+        if(stream.format == HAL_PIXEL_FORMAT_BLOB)
+            bFound = FoundResoulution(stream.width, stream.height, mPictureResolutions, mPictureResolutionCount);
+        else
+            bFound = FoundResoulution(stream.width, stream.height, mPreviewResolutions, mPreviewResolutionCount);
+
+        if (bFound == false) {
+            ALOGE("%s: not support format 0x%x, resolution %dx%d", __func__, stream.format, stream.width, stream.height);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace android

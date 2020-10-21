@@ -386,6 +386,8 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
         return BAD_VALUE;
     }
 
+    device_map[camera_id] = (*camera_device_hwl).get();
+
     return OK;
 }
 
@@ -408,10 +410,48 @@ status_t CameraProviderHwlImpl::GetConcurrentStreamingCameraIds(
     }
 
     std::unordered_set<uint32_t> candidate_ids;
-    candidate_ids.insert(0);
+
+    for (auto id : camera_id_list) {
+        candidate_ids.insert(id);
+    }
 
     combinations->emplace_back(std::move(candidate_ids));
     return OK;
 }
 
+status_t CameraProviderHwlImpl::IsConcurrentStreamCombinationSupported(
+        const std::vector<CameraIdAndStreamConfiguration>& configs, bool* is_supported)
+{
+    if(is_supported == NULL)
+        return BAD_VALUE;
+
+    *is_supported = false;
+
+    // Judge the steam config by related camera. Not Judge the "combine" of 2 cameras.
+    // If there do have hardware limits for 2 cameras to work at the same time, need cosider it.
+    for (auto& config : configs) {
+        auto iter = device_map.find(config.camera_id);
+        if (iter == device_map.end()) {
+            ALOGE("%s: Unknown camera id: %u", __func__, config.camera_id);
+            return BAD_VALUE;
+        }
+
+        CameraDeviceHwl *pCamera = iter->second;
+        if(pCamera == NULL) {
+            ALOGE("%s: Unexpected, pCamera is null for id %d", __func__, config.camera_id);
+            return BAD_VALUE;
+        }
+
+        bool bSupport;
+        bSupport = pCamera->IsStreamCombinationSupported(config.stream_configuration);
+        if(bSupport == false) {
+            ALOGE("%s: stream config not supported by camera %d", __func__, config.camera_id);
+            return BAD_VALUE;
+        }
+    }
+
+    *is_supported = true;
+
+    return OK;
+}
 }  // namespace android

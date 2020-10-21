@@ -76,10 +76,7 @@ public:
         std::vector<std::unordered_set<uint32_t>>* combinations) override;
 
     status_t IsConcurrentStreamCombinationSupported(
-        const std::vector<CameraIdAndStreamConfiguration>&, bool*) override
-    {
-        return false;
-    }
+        const std::vector<CameraIdAndStreamConfiguration>& configs, bool* is_supported) override;
 
     status_t CreateCameraDeviceHwl(
         uint32_t camera_id,
@@ -115,6 +112,7 @@ private:
 //    int32_t mCameraCount;
 
     std::vector<std::uint32_t> camera_id_list;
+    std::map<uint32_t, CameraDeviceHwl*> device_map;
 };
 
 extern "C" CameraProviderHwl* CreateCameraProviderHwl()
