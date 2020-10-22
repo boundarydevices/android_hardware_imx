@@ -674,13 +674,6 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
     pipeline_info->streams->assign(request_config.streams.begin(), request_config.streams.end());
 
-    uint8_t captureIntent = -1;
-    camera_metadata_ro_entry entry;
-    int ret;
-    ret = request_config.session_params->Get(ANDROID_CONTROL_CAPTURE_INTENT, &entry);
-    if (ret == 0)
-        captureIntent = entry.data.u8[0];
-
     previewIdx = -1;
     stillcapIdx = -1;
     recordIdx = -1;
@@ -701,8 +694,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
               stream.rotation,
               stream.is_physical_camera_stream,
               stream.physical_camera_id,
-              stream.buffer_size,
-              captureIntent);
+              stream.buffer_size);
 
         HalStream hal_stream;
         memset(&hal_stream, 0, sizeof(hal_stream));
