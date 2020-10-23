@@ -18,6 +18,7 @@
 #ifndef _FSL_MEMORY_MANAGER_H
 #define _FSL_MEMORY_MANAGER_H
 
+#include <hardware/gralloc1.h>
 #include <hardware/gralloc.h>
 #include <utils/KeyedVector.h>
 #include <media/hardware/VideoAPI.h>

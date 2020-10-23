@@ -110,6 +110,11 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     else if (usage & USAGE_HW_VIDEO_ENCODER) {
         canHandle = false;
     }
+    else if ((usage == (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER | USAGE_HW_TEXTURE)) ||
+        (usage == (GRALLOC1_CONSUMER_USAGE_CPU_READ_OFTEN | GRALLOC1_PRODUCER_USAGE_CPU_WRITE_OFTEN
+        | USAGE_HW_RENDER | USAGE_HW_TEXTURE))) {
+        canHandle = false;
+    }
 #ifdef WORKAROUND_VIRTUAL_DISPLAY_FLICKER
     else if (usage == (USAGE_HW_TEXTURE | USAGE_HW_RENDER)) {
         canHandle = false;
