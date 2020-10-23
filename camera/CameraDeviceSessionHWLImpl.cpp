@@ -651,6 +651,12 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         return ALREADY_EXISTS;
     }
 
+    bool bSupport = m_dev->IsStreamCombinationSupported(request_config);
+    if (bSupport == false) {
+        ALOGI("%s: IsStreamCombinationSupported return false", __func__);
+        return BAD_VALUE;
+    }
+
     *pipeline_id = pipeline_id_;
 
     PipelineInfo *pipeline_info = (PipelineInfo *)calloc(1, sizeof(PipelineInfo));

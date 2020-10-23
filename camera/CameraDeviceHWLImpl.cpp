@@ -309,6 +309,11 @@ bool CameraDeviceHwlImpl::IsStreamCombinationSupported(const StreamConfiguration
             return false;
         }
 
+        if(stream.format == -1) {
+            ALOGE("%s: invalid format -1", __func__);
+            return false;
+        }
+
         bool bFound;
         if(stream.format == HAL_PIXEL_FORMAT_BLOB)
             bFound = FoundResoulution(stream.width, stream.height, mPictureResolutions, mPictureResolutionCount);
