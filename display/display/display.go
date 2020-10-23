@@ -100,5 +100,8 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("CFG_SECURE_DATA_PATH") == "y" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCFG_SECURE_DATA_PATH")
     }
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
+    }
     ctx.AppendProperties(p)
 }

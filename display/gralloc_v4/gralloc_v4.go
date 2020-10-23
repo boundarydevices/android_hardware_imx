@@ -11,9 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// ANDROIDMK TRANSLATION ERROR: unsupported conditional
-// ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
-package hwcomposer_v20
+
+package gralloc
 
 import (
         "android/soong/android"
@@ -23,35 +22,32 @@ import (
 )
 
 func init() {
-    android.RegisterModuleType("hwcomposer_v20_defaults", hwcomposer_v20DefaultsFactory)
+    android.RegisterModuleType("libnxp_gralloc_defaults", libgrallocDefaultsFactory)
 }
 
-func hwcomposer_v20DefaultsFactory() (android.Module) {
+func libgrallocDefaultsFactory() (android.Module) {
     module := cc.DefaultsFactory()
-    android.AddLoadHook(module, hwcomposer_v20Defaults)
+    android.AddLoadHook(module, libgrallocDefaults)
     return module
 }
 
-func hwcomposer_v20Defaults(ctx android.LoadHookContext) {
+func libgrallocDefaults(ctx android.LoadHookContext) {
     type props struct {
         Target struct {
                 Android struct {
                         Enabled *bool
+                        Cflags []string
                         Cppflags []string
                 }
         }
     }
-
     p := &props{}
     var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
-    var hwcomposer_version string = ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_HWCOMPOSER_VERSION")
-    if strings.Contains(board, "imx") && hwcomposer_version == "v2.0" {
+    if strings.Contains(board, "imx") && ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION")=="v4" {
         p.Target.Android.Enabled = proptools.BoolPtr(true)
     } else {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
-    if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
-        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
-    }
+    p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
     ctx.AppendProperties(p)
 }

@@ -30,8 +30,23 @@ Memory::Memory(MemoryDesc* desc, int fd, int fd2)
     fbHandle(0), fbId(0), surface(0)
 {
     version = sizeof(native_handle);
+#if !(GRALLOC_VERSION == 4)
     numInts = sNumInts();
     numFds = sNumFds;
+#else
+    fd_region = -1;
+    id = 0;
+    num_planes = 0;
+    format_modifier = 0;
+    reserved_region_size = 0;
+    total_size = 0;
+    memset(fd_reserved, 0, sizeof(fd_reserved));
+    memset(strides, 0, sizeof(strides));
+    memset(offsets, 0, sizeof(offsets));
+    memset(sizes, 0, sizeof(sizes));
+    memset(name, 0, sizeof(name));
+    memset(nxp_reserved, 0, sizeof(nxp_reserved));
+#endif
     memset(viv_reserved, 0, sizeof(viv_reserved));
 }
 

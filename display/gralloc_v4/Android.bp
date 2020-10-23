@@ -1,0 +1,193 @@
+/*
+ * Copyright 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+libnxp_gralloc_defaults {
+    name: "libnxp_gralloc_default",
+}
+
+
+cc_library_static {
+    name: "libgralloc_driver",
+    defaults: ["libnxp_gralloc_default"],
+
+    srcs: [
+        "gralloc_driver.cc",
+        "gralloc_helpers.cc",
+        "helpers.cc",
+    ],
+
+    cflags: [
+        "-D_GNU_SOURCE=1",
+        "-D_FILE_OFFSET_BITS=64",
+        "-Wall",
+        "-Wsign-compare",
+        "-Wpointer-arith",
+        "-Wcast-qual",
+        "-Wcast-align",
+        "-Wno-unused-parameter",
+    ],
+    cppflags: ["-std=c++14"],
+
+    include_dirs: [
+        "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp/fsl-proprietary/include",
+        "system/core/include",
+        "vendor/nxp-opensource/libdrm-imx",
+        "vendor/nxp-opensource/libdrm-imx/include/drm",
+        "frameworks/native/include",
+        "frameworks/native/libs/ui/",
+        "frameworks/native/libs/ui/include",
+        "frameworks/native/libs/arect/include",
+        "frameworks/native/libs/ui/include_private",
+        "hardware/libhardware_legacy/include",
+        "device/nxp/common/kernel-headers",
+    ],
+
+    vendor: true,
+
+    header_libs: [
+        "libhardware_headers",
+        "libnativebase_headers",
+        "libnativewindow_headers",
+        "libsystem_headers",
+    ],
+
+    export_header_lib_headers: [
+        "libhardware_headers",
+        "libnativebase_headers",
+        "libnativewindow_headers",
+        "libsystem_headers",
+    ],
+
+    shared_libs: [
+        "libcutils",
+        "libdrm",
+        "libnativewindow",
+        "libsync",
+        "liblog",
+    ],
+
+    static_libs: [
+       "libarect",
+       "libdrm",
+    ],
+
+    export_static_lib_headers: ["libarect"],
+
+    export_include_dirs: ["."],
+}
+
+cc_binary {
+    name: "android.hardware.graphics.allocator@4.0-service.imx",
+    defaults: ["libnxp_gralloc_default"],
+    proprietary: true,
+    relative_install_path: "hw",
+    vendor: true,
+    init_rc: ["android.hardware.graphics.allocator@4.0-service.imx.rc"],
+
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-DLOG_TAG=\"NxpAllocatorHal\""
+    ],
+
+    include_dirs: [
+        "vendor/nxp-opensource/imx/display/display",
+        "frameworks/native/include",
+    ],
+
+    shared_libs: [
+        "android.hardware.graphics.allocator@4.0",
+        "android.hardware.graphics.mapper@4.0",
+        "libbase",
+        "libcutils",
+        "libgralloctypes",
+        "libhidlbase",
+        "liblog",
+        "libsync",
+        "libutils",
+        "libfsldisplay",
+    ],
+
+    static_libs: [
+        "libdrm",
+        "libgralloc_driver",
+    ],
+
+    srcs: [
+        "NxpAllocator.cc",
+        "NxpAllocatorService.cc",
+        "NxpUtils.cc",
+    ],
+}
+
+cc_library_shared {
+    name: "android.hardware.graphics.mapper@4.0-impl.imx",
+    defaults: ["libnxp_gralloc_default"],
+    relative_install_path: "hw",
+    vendor: true,
+
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-DLOG_TAG=\"NxpMapperHal\"",
+    ],
+
+    include_dirs: [
+        "vendor/nxp-opensource/imx/display/display",
+        "frameworks/native/include",
+    ],
+
+    shared_libs: [
+        "android.hardware.graphics.mapper@4.0",
+        "libbase",
+        "libcutils",
+        "libgralloctypes",
+        "libhidlbase",
+        "liblog",
+        "libsync",
+        "libutils",
+        "libfsldisplay",
+    ],
+
+    static_libs: [
+        "libdrm",
+        "libgralloc_driver",
+    ],
+
+    srcs: [
+        "NxpMapper.cc",
+        "NxpUtils.cc",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-gralloc",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/display/gralloc_v4",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "gralloc_v4.go",
+    ],
+    pluginFor: ["soong_build"],
+}

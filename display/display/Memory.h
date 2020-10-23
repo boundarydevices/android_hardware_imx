@@ -30,6 +30,9 @@ namespace fsl {
 #define  ALIGN_PIXEL_64(x)  ((x+ 63) & ~63)
 #define  ALIGN_PIXEL_256(x)  ((x+ 255) & ~255)
 
+#define BUFFER_NAME_MAX_SIZE      64
+#define DRV_MAX_PLANES            4
+
 enum {
     /* below usage come from gralloc.h*/
     /* buffer is often read in software */
@@ -78,10 +81,12 @@ struct MemoryDesc;
 
 struct Memory : public native_handle
 {
+#if !(GRALLOC_VERSION == 4)
     static inline int sNumInts() {
         return (((sizeof(Memory) - sizeof(native_handle_t))/sizeof(int)) - sNumFds);
     }
     static const int sNumFds = 2;
+#endif
     static const int sMagic = 0x3141592;
 
     Memory(MemoryDesc* desc, int fd, int fd2);
@@ -90,6 +95,10 @@ struct Memory : public native_handle
 
     int  fd;
     int  fd_meta;
+#if GRALLOC_VERSION == 4
+    int  fd_region;
+    int  fd_reserved[8];
+#endif
     int  magic;
     int  flags;
     int  size;
@@ -102,6 +111,19 @@ struct Memory : public native_handle
     int stride;
     int usage;
     int pid;
+#if GRALLOC_VERSION == 4
+    uint32_t id;
+    uint32_t num_planes;
+    uint32_t strides[DRV_MAX_PLANES];
+    uint32_t offsets[DRV_MAX_PLANES];
+    uint32_t sizes[DRV_MAX_PLANES];
+    uint64_t format_modifier;
+    uint64_t reserved_region_size;
+    uint64_t total_size; /* Total allocation size */
+    char name[BUFFER_NAME_MAX_SIZE];
+    /*reserved some memory for future */
+    uint64_t nxp_reserved[32] __attribute__((aligned(8)));
+#endif
 
     int fslFormat;
     int kmsFd;

@@ -1,0 +1,357 @@
+/*
+ * Copyright 2017 The Chromium OS Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+#undef LOG_TAG
+#define LOG_TAG "gralloc_driver"
+
+#include "gralloc_driver.h"
+
+#include <inttypes.h>
+#include <cstdlib>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <xf86drm.h>
+
+//#include <android/hardware/graphics/common/1.2/types.h>
+#include <hardware/gralloc1.h>
+
+#include "../../include/graphics_ext.h"
+//#include "drv_priv.h"
+#include "helpers.h"
+#include "util.h"
+
+//using android::hardware::graphics::common::V1_2::BufferUsage;
+using namespace fsl;
+
+gralloc_driver::gralloc_driver() : pManager(nullptr)
+{
+}
+
+gralloc_driver::~gralloc_driver()
+{
+}
+
+int32_t gralloc_driver::init()
+{
+	pManager = MemoryManager::getInstance();
+	if (pManager == NULL) {
+		ALOGE("%s can't get memory manager", __func__);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+bool gralloc_driver::is_supported(const struct gralloc_buffer_descriptor *descriptor)
+{
+	ALOGI("%s check descriptor name=%s, width=%d, height=%d, droid_format=0x%x, usage=0x%x",
+		__func__, descriptor->name.c_str(), descriptor->width, descriptor->height,
+		descriptor->droid_format, descriptor->droid_usage);
+	return true;
+}
+
+int32_t create_reserved_region(const std::string &buffer_name, uint64_t reserved_region_size)
+{
+	int32_t reserved_region_fd;
+	std::string reserved_region_name = buffer_name + " reserved region";
+
+	reserved_region_fd = memfd_create(reserved_region_name.c_str(), FD_CLOEXEC);
+	if (reserved_region_fd == -1) {
+		ALOGE("Failed to create reserved region fd: %s.\n", strerror(errno));
+		return -errno;
+	}
+
+	if (ftruncate(reserved_region_fd, reserved_region_size)) {
+		ALOGE("Failed to set reserved region size: %s.\n", strerror(errno));
+		return -errno;
+	}
+
+	return reserved_region_fd;
+}
+
+int32_t gralloc_driver::allocate(const struct gralloc_buffer_descriptor *descriptor,
+				      buffer_handle_t *out_handle)
+{
+	MemoryDesc desc;
+	Memory* hnd = NULL;
+	int32_t reserved_region_fd;
+	int name_size;
+	int flags = 0;
+	uint64_t usage;
+
+	desc.mWidth = descriptor->width;
+	desc.mHeight = descriptor->height;
+	desc.mFormat = convert_pixel_format_to_gralloc_format(descriptor->droid_format);
+	desc.mFslFormat = convert_gralloc_format_to_nxp_format(desc.mFormat);
+	if (desc.mFslFormat == FORMAT_NV12_TILED ||
+		desc.mFslFormat == FORMAT_NV12_G1_TILED ||
+		desc.mFslFormat == FORMAT_NV12_G2_TILED ||
+		desc.mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+		desc.mFslFormat == FORMAT_P010 ||
+		desc.mFslFormat == FORMAT_P010_TILED ||
+		desc.mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
+		desc.mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+	}
+
+	usage = static_cast<uint64_t>(descriptor->droid_usage);
+	if (descriptor->use_flags & BO_USE_FRAMEBUFFER) {
+		flags |= FLAGS_FRAMEBUFFER;
+		usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER
+			| GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
+	}
+	if ((descriptor->use_flags & BO_USE_SW_READ_OFTEN) != 0
+		|| (descriptor->use_flags & BO_USE_SW_WRITE_OFTEN) != 0) {
+		flags |= FLAGS_CPU;
+	}
+
+	desc.mProduceUsage = usage;//convert_buffer_usage_to_nxp_usage(descriptor->droid_usage);
+	desc.mFlag = flags;//convert_bo_use_flages_to_nxp_flags(descriptor->use_flags);
+	desc.checkFormat();
+
+	int ret = pManager->allocMemory(desc, &hnd);
+	if (ret != 0) {
+		ALOGE("%s alloc memory failed", __func__);
+		return ret;
+	}
+	static std::atomic<uint32_t> next_buffer_id{ 1 };
+	int num_fds = 2; // TODO: the default fds include hnd->fd and hnd->fd_meta, here hardcode it
+	hnd->id = next_buffer_id++;
+        if (descriptor->reserved_region_size > 0) {
+                reserved_region_fd =
+                    create_reserved_region(descriptor->name, descriptor->reserved_region_size);
+                if (reserved_region_fd < 0) {
+                        return reserved_region_fd;
+                }
+		num_fds += 1;
+        } else {
+                reserved_region_fd = -1;
+        }
+	hnd->numFds = num_fds;
+	hnd->numInts = ((sizeof(Memory) - sizeof(native_handle_t))/sizeof(int)) - num_fds;
+
+	hnd->fd_region = reserved_region_fd;
+	hnd->reserved_region_size = descriptor->reserved_region_size;
+	hnd->total_size = hnd->size + hnd->reserved_region_size;
+	if (descriptor->name.size() > BUFFER_NAME_MAX_SIZE - 1)
+		name_size = BUFFER_NAME_MAX_SIZE;
+	else
+		name_size = descriptor->name.size() + 1;
+
+	snprintf(hnd->name,  name_size, "%s", descriptor->name.c_str());
+
+	hnd->num_planes = drv_num_planes_from_format(hnd->fslFormat);
+
+	uint32_t stride = 0;
+	stride = drv_stride_from_format(hnd->fslFormat, hnd->stride/*aligned_width*/, 0);
+
+	/* Calculate size and assign stride, size, offset to each plane based on format */
+	drv_bo_from_format(hnd, stride, hnd->height, hnd->fslFormat);
+
+	*out_handle = reinterpret_cast<buffer_handle_t>(hnd);
+	return 0;
+}
+
+int32_t gralloc_driver::retain(buffer_handle_t handle)
+{
+	int ret;
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	auto hnd = gralloc_convert_handle(handle);
+	if (!hnd) {
+		ALOGE("%s Invalid handle.", __func__);
+		return -EINVAL;
+	}
+
+	ret = pManager->retainMemory(const_cast<gralloc_handle *>(hnd));
+	if (ret != 0) {
+		ALOGE("%s retain memory failed", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int32_t gralloc_driver::release(buffer_handle_t handle)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	auto hnd = gralloc_convert_handle(handle);
+	if (!hnd) {
+		ALOGE("%s Invalid handle.", __func__);
+		return -EINVAL;
+	}
+
+	if (reserved_region_addrs.count(hnd)) {
+		munmap(reserved_region_addrs[hnd], hnd->reserved_region_size);
+		reserved_region_addrs.erase(hnd);
+	}
+	if (hnd->fd_region >= 0)
+		close(hnd->fd_region);
+
+	pManager->releaseMemory(const_cast<gralloc_handle *>(hnd));
+
+	return 0;
+}
+
+int32_t gralloc_driver::lock(buffer_handle_t handle, int32_t acquire_fence,
+				  bool close_acquire_fence, const struct rectangle *rect,
+				  uint32_t map_flags, uint8_t *addr[DRV_MAX_PLANES])
+{
+	int32_t ret = gralloc_sync_wait(acquire_fence, close_acquire_fence);
+	if (ret)
+		return ret;
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	auto hnd = gralloc_convert_handle(handle);
+	if (!hnd) {
+		ALOGE("%s Invalid handle.", __func__);
+		return -EINVAL;
+	}
+
+	void *vaddr = nullptr;
+	ret = pManager->lock(const_cast<gralloc_handle *>(hnd), hnd->usage, 0, 0, hnd->width, hnd->height, &vaddr);
+	if (ret != 0) {
+		ALOGE("%s lock memory failed", __func__);
+		return -EINVAL;
+	}
+	addr[0] = (uint8_t *)vaddr;
+	return 0;
+}
+
+int32_t gralloc_driver::unlock(buffer_handle_t handle, int32_t *release_fence)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	auto hnd = gralloc_convert_handle(handle);
+	if (!hnd) {
+		ALOGE("%s Invalid handle.", __func__);
+		return -EINVAL;
+	}
+
+	int ret = pManager->unlock(const_cast<gralloc_handle *>(hnd));
+	if (ret != 0) {
+		ALOGE("%s unlock memory failed", __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int32_t gralloc_driver::invalidate(buffer_handle_t handle)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	auto hnd = gralloc_convert_handle(handle);
+	if (!hnd) {
+		ALOGE("%s Invalid handle.", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int32_t gralloc_driver::flush(buffer_handle_t handle, int32_t *release_fence)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	auto hnd = gralloc_convert_handle(handle);
+	if (!hnd) {
+		ALOGE("%s Invalid handle.", __func__);
+		return -EINVAL;
+	}
+
+	int ret = pManager->flush(const_cast<gralloc_handle *>(hnd));
+	if (ret != 0) {
+		ALOGE("%s unlock memory failed", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int32_t gralloc_driver::validate_buffer(const struct gralloc_buffer_descriptor *descriptor,
+					buffer_handle_t handle)
+{
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        auto hnd = gralloc_convert_handle(handle);
+        if (!hnd) {
+                ALOGE("%s Invalid handle.", __func__);
+                return -EINVAL;
+        }
+
+	MemoryDesc desc;
+	uint64_t usage = static_cast<uint64_t>(descriptor->droid_usage);
+
+        desc.mWidth = descriptor->width;
+        desc.mHeight = descriptor->height;
+        desc.mFormat = convert_pixel_format_to_gralloc_format(descriptor->droid_format);
+        desc.mFslFormat = convert_gralloc_format_to_nxp_format(desc.mFormat);
+        if (desc.mFslFormat == FORMAT_NV12_TILED ||
+                desc.mFslFormat == FORMAT_NV12_G1_TILED ||
+                desc.mFslFormat == FORMAT_NV12_G2_TILED ||
+                desc.mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+                desc.mFslFormat == FORMAT_P010 ||
+                desc.mFslFormat == FORMAT_P010_TILED ||
+                desc.mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
+                desc.mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+        }
+
+        desc.mProduceUsage = usage;
+	if (hnd->usage & USAGE_HW_VIDEO_ENCODER) {
+		desc.mProduceUsage |= USAGE_HW_VIDEO_ENCODER;
+	}
+        desc.checkFormat();
+
+	int ret = 0;
+        ret = pManager->validateMemory(desc, const_cast<gralloc_handle *>(hnd));
+        if (ret != 0) {
+            ALOGE("%s failed, ret:%d", __func__,ret);
+        }
+
+	return ret;
+}
+
+int32_t gralloc_driver::get_reserved_region(buffer_handle_t handle,
+						 void **reserved_region_addr,
+						 uint64_t *reserved_region_size)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+
+	auto hnd = gralloc_convert_handle(handle);
+	if (!hnd) {
+		ALOGE("%s Invalid handle.", __func__);
+		return -EINVAL;
+	}
+
+        uint64_t reserved_region_size_;
+        void *reserved_region_addr_;
+
+	if (hnd->fd_region <= 0) {
+		ALOGE("%s Buffer does not have reserved region.", __func__);
+		return -EINVAL;
+	}
+
+	if (reserved_region_addrs.count(hnd)) {
+		reserved_region_addr_ = reserved_region_addrs[hnd];
+	} else {
+		reserved_region_addr_ = mmap(nullptr, hnd->reserved_region_size, PROT_WRITE | PROT_READ,
+					     MAP_SHARED, hnd->fd_region, 0);
+		if (reserved_region_addr_ == MAP_FAILED) {
+			ALOGE("%s Failed to mmap reserved region: %s.", __func__, strerror(errno));
+			return -errno;
+		}
+		reserved_region_addrs.emplace(hnd, reserved_region_addr_);
+	}
+
+	*reserved_region_addr = reserved_region_addr_;
+	*reserved_region_size = hnd->reserved_region_size;
+	return 0;
+}
+
+uint32_t gralloc_driver::get_resolved_drm_format(uint32_t drm_format, uint64_t usage)
+{
+	return drv_resolve_format(drm_format, usage);
+}

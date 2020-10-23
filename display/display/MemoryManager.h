@@ -64,6 +64,8 @@ public:
     int unlock(Memory* handle);
     // validate memory size
     int validateMemory(MemoryDesc& desc,Memory* handle);
+    // flush memory
+    int flush(Memory* handle);
 
     MetaData *getMetaData(Memory* handle);
 

@@ -410,4 +410,21 @@ MetaData *MemoryManager::getMetaData(Memory* handle)
     return (MetaData *)addr;
 }
 
+int MemoryManager::flush(Memory* handle)
+{
+    if (handle == NULL || !handle->isValid()) {
+        ALOGE("%s invalid handle", __func__);
+        return -EINVAL;
+    }
+
+    if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
+        // TODO: add flush operation for the buffer allocated in DRM
+        return 0;//mGPUModule->unlock(mGPUModule, handle);
+    } else {
+        if (handle->flags & FLAGS_CPU)
+            mIonManager->flushCache(handle);
+        return 0;
+    }
+}
+
 }
