@@ -108,12 +108,6 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
     int32_t vformat;
     vformat = convertPixelFormatToV4L2Format(format);
 
-    struct v4l2_frmivalenum frmival;
-    frmival.index = 0;
-    frmival.pixel_format = vformat;
-    frmival.width = width;
-    frmival.height = height;
-
     ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d", __func__, width, height,
         vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
 

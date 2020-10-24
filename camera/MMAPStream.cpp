@@ -52,6 +52,7 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
 {
     ALOGI("%s", __func__);
     int32_t ret = 0;
+    uint32_t vfps;
 
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
@@ -68,11 +69,29 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
     int buf_type = mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
     int num_planes = mPlane ? 1 : 0;
 
+    vfps = getFps(width, height, fps);
+
+    struct v4l2_frmivalenum frmival;
+    uint32_t max_fps = 0;
+    frmival.index = 0;
+    frmival.pixel_format = vformat;
+    frmival.width = width;
+    frmival.height = height;
+
+    while (ioctl(mDev, VIDIOC_ENUM_FRAMEINTERVALS,
+            &frmival) >= 0) {
+        if (max_fps < (frmival.discrete.denominator / frmival.discrete.numerator))
+            max_fps = frmival.discrete.denominator / frmival.discrete.numerator;
+        frmival.index++;
+    }
+
+    vfps = max_fps < vfps ? max_fps:vfps;
+
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = buf_type;
     param.parm.capture.timeperframe.numerator = 1;
-    param.parm.capture.timeperframe.denominator = getFps(width, height, fps);
+    param.parm.capture.timeperframe.denominator = vfps;
     param.parm.capture.capturemode = capturemode;
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
     if (ret < 0) {
