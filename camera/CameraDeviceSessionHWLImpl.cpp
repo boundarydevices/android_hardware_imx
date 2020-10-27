@@ -217,11 +217,25 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
                 pInfo->pipeline_callback.notify(pipeline_id, msg);
             }
 
-            CameraMetadata requestMeta(hwReq->settings.get());
+           // save the latest meta
+           if (hwReq->settings != NULL) {
+                if(mSettings != NULL)
+                    mSettings.reset();
+
+                mSettings = HalCameraMetadata::Clone(hwReq->settings.get());
+            }
+
+            auto result = std::make_unique<HwlPipelineResult>();
+            if (mSettings != NULL)
+                result->result_metadata = HalCameraMetadata::Clone(mSettings.get());
+            else
+                result->result_metadata = HalCameraMetadata::Create(1, 10);
+
+            // process frame
+            CameraMetadata requestMeta(result->result_metadata.get());
             HandleFrameLocked(hwReq->output_buffers, requestMeta);
 
             // return result
-            auto result = std::make_unique<HwlPipelineResult>();
             result->camera_id = camera_id_;
             result->pipeline_id = pipeline_id;
             result->frame_number = frame;
@@ -229,18 +243,6 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
             result->output_buffers.assign(hwReq->output_buffers.begin(), hwReq->output_buffers.end());
             result->input_buffers.reserve(0);
             result->physical_camera_results.reserve(0);
-
-            if (hwReq->settings != NULL) {
-                if(mSettings != NULL)
-                    mSettings.reset();
-
-                mSettings = HalCameraMetadata::Clone(hwReq->settings.get());
-            }
-
-            if (mSettings != NULL)
-                result->result_metadata = HalCameraMetadata::Clone(mSettings.get());
-            else
-                result->result_metadata = HalCameraMetadata::Create(1, 10);
 
             ALOGV("result->result_metadata %p, entry count %d",
                   result->result_metadata.get(),
