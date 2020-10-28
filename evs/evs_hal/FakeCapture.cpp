@@ -99,6 +99,8 @@ bool FakeCapture::onStart()
 {
     int fd = -1;
     fsl::Memory *buffer = nullptr;
+    onIncreaseMemoryBuffer(3);
+
     for (const auto& physical_cam : mPhysicalCamera) {
         if (mDeviceFd[physical_cam] < 0)
             continue;
@@ -256,7 +258,7 @@ std::set<uint32_t> FakeCapture::enumerateCameraControls() {
     return std::move(ctrlIDs);
 }
 
-void FakeCapture::onMemoryCreate() {
+void FakeCapture::onIncreaseMemoryBuffer(unsigned number) {
     std::vector<fsl::Memory*> fsl_mem;
     fsl::Memory *buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
@@ -268,6 +270,7 @@ void FakeCapture::onMemoryCreate() {
     desc.mProduceUsage |= fsl::USAGE_HW_TEXTURE
         | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
     desc.mFlag = 0;
+    ALOGD("the number is %d", number);
     int ret = desc.checkFormat();
     if (ret != 0) {
         ALOGE("%s checkFormat failed", __func__);

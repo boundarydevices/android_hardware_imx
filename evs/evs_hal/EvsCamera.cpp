@@ -28,8 +28,6 @@ namespace evs {
 namespace V1_1 {
 namespace implementation {
 
-static const unsigned MAX_BUFFERS_IN_FLIGHT = 3;
-
 void EvsCamera::EvsAppRecipient::serviceDied(uint64_t /*cookie*/,
         const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/)
 {
@@ -90,8 +88,6 @@ void EvsCamera::openup(const char *deviceName)
         return;
     }
 
-    // Initialize memory.
-    onMemoryCreate();
     mCameraControls = enumerateCameraControls();
 }
 
@@ -262,7 +258,7 @@ Return<EvsResult> EvsCamera::setMaxFramesInFlight(uint32_t bufferCount) {
     if (bufferCount > MAX_BUFFERS_IN_FLIGHT)
         return EvsResult::BUFFER_NOT_AVAILABLE;
 
-     mFramesAllowed = bufferCount;
+     onIncreaseMemoryBuffer(bufferCount);
     // Update our internal state
     return EvsResult::OK;
 }

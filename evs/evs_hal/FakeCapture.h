@@ -42,7 +42,7 @@ public:
     virtual void onFrameCollect(std::vector<struct forwardframe> &frame);
     virtual int getParameter(v4l2_control& control);
     virtual int setParameter(v4l2_control& control);
-    virtual void onMemoryCreate();
+    virtual void onIncreaseMemoryBuffer(unsigned number);
     virtual void onMemoryDestroy();
     virtual std::set<uint32_t>  enumerateCameraControls();
     void readFromPng(const char *file, void* buf);

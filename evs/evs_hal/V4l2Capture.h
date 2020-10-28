@@ -23,8 +23,11 @@
 #include <unordered_set>
 #include "EvsCamera.h"
 
+using ::std::condition_variable;
 using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
+using ::android::hardware::Return;
 
+#define V4L2_BUFFER_NUM 10
 class V4l2Capture : public EvsCamera
 {
 public:
@@ -33,6 +36,7 @@ public:
                   const camera_metadata_t * metadata);
     virtual ~V4l2Capture();
 
+    Return<EvsResult> setMaxFramesInFlight(uint32_t bufferCount);
     virtual bool onOpen(const char* deviceName);
     int onOpenSingleCamera(const char* deviceName);
     virtual void onClose();
@@ -47,8 +51,9 @@ public:
     virtual int getParameter(v4l2_control& control);
     virtual int setParameter(v4l2_control& control);
     virtual std::set<uint32_t>  enumerateCameraControls();
-    virtual void onMemoryCreate();
+    virtual void onIncreaseMemoryBuffer(unsigned number);
     virtual void onMemoryDestroy();
+    void onDecreaseMemoryBuffer(unsigned index);
 
 private:
     int getCaptureMode(int fd, int width, int height);
@@ -62,6 +67,8 @@ private:
     __u32 mV4lFormat = 0;
     // judge whether it's logic camera according the metadata
     bool mIslogicCamera;
+    unsigned mDecreasenum;
+    condition_variable mFramesSignal;
 };
 
 #endif

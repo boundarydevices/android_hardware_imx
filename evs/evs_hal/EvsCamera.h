@@ -67,6 +67,10 @@ namespace implementation {
 
 #define CAMERA_BUFFER_NUM 3
 
+// MAX_BUFFERS_IN_FLIGHT mean the max value of mFramesAllowed
+// currently v4l2 driver allocate 10 buffers now, so the max buffer is 10
+#define MAX_BUFFERS_IN_FLIGHT  10
+
 class EvsCamera : public IEvsCamera
 {
 public:
@@ -127,7 +131,9 @@ protected:
     virtual bool onFrameReturn(int index, std::string deviceid) = 0;
     virtual void onFrameCollect(std::vector<struct forwardframe> &frame) = 0;
 
-    virtual void onMemoryCreate() = 0;
+    // onIncreaseMemoryBuffer: increase number buffers for every camera
+    virtual void onIncreaseMemoryBuffer(unsigned number) = 0;
+    // destroy all available buffer
     virtual void onMemoryDestroy() = 0;
 
 private:
@@ -176,6 +182,9 @@ protected:
 
     unsigned mFramesAllowed;
     unsigned mFramesInUse;
+
+    // it will map the index between v4l2 buffer and the grolloc buffer
+    std::unordered_map<std::string, std::unordered_map<int, int>> mBufferMap;
 
     // The thread we'll use to dispatch frames.
     std::thread mCaptureThread;
