@@ -38,6 +38,7 @@
 #include <unordered_set>
 #include <linux/videodev2.h>
 #include <system/camera_metadata.h>
+#include "ConfigManager.h"
 
 using ::android::hardware::hidl_string;
 using ::android::hardware::camera::device::V3_2::Stream;
@@ -157,10 +158,12 @@ protected:
     sp <IEvsCameraStream_1_1> mStream_1_1 = nullptr;
     // The properties of this camera.
     CameraDesc mDescription = {};
+    std::unordered_map<std::string, CameraDesc> mLogicDescription;
 
     // Synchronization deconflict capture thread from main service thread.
     // Note that service interface remains single threaded (ie: not reentrant)
     std::mutex mLock;
+    bool mLogiccam;
 
     fsl::Memory* mBuffers[CAMERA_BUFFER_NUM] = {nullptr};
     std::unordered_map<int, std::vector<fsl::Memory*>> mCamBuffers;

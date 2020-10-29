@@ -49,6 +49,25 @@ EvsCamera::EvsCamera(const char *videoName, const camera_metadata_t *metadata)
     mFormat = fsl::FORMAT_RGB888;
     mDeqIdx = -1;
     mDescription.v1.cameraId = videoName;
+    mLogiccam = isLogicalCamera(metadata);
+    if (mLogiccam) {
+        std::unique_ptr<ConfigManager>  config;
+        config =
+           ConfigManager::Create("/vendor/etc/automotive/evs/imx_evs_configuration.xml");
+        vector<string> cameraList = config->getCameraIdList();
+        for (auto&cam : cameraList) {
+            CameraDesc aCamera;
+            unique_ptr<ConfigManager::CameraInfo> &tempInfo =
+                config->getCameraInfo(cam);
+            if (tempInfo != nullptr) {
+                aCamera.metadata.setToExternal(
+                    (uint8_t *)tempInfo->characteristics,
+                    get_camera_metadata_size(tempInfo->characteristics));
+            }
+            aCamera.v1.cameraId = cam;
+            mLogicDescription[cam] = aCamera;
+        }
+    }
     // the camera metadata also need pass to EvsCamera, app may get metadata from api like getPhysicalCameraInfo
     // SV will call this api to get metadata. you may also can get the metadata from api in EvsEnumerator
     if (metadata != NULL) {
@@ -208,8 +227,10 @@ Return<void> EvsCamera::getCameraInfo_1_1(getCameraInfo_1_1_cb _hidl_cb) {
 Return<void> EvsCamera::getPhysicalCameraInfo(const hidl_string& id,
                                      getCameraInfo_1_1_cb _hidl_cb) {
     // This method works exactly same as getCameraInfo_1_1() in EVS HW module.
-    (void)id;
-    _hidl_cb(mDescription);
+    if (mLogiccam)
+        _hidl_cb(mLogicDescription[id]);
+    else
+        _hidl_cb(mDescription);
     return Void();
 }
 
