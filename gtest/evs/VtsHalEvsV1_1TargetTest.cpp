@@ -25,6 +25,7 @@ static const int kMinimumFramesPerSecond = 10;
 //static const int kMillisecondsToMicroseconds = 1000;
 static const float kNanoToMilliseconds = 0.000001f;
 static const float kNanoToSeconds = 0.000000001f;
+static const int kMillisecondsToMicroseconds = 1000;
 
 
 #include "FrameHandler.h"
@@ -346,6 +347,124 @@ TEST_P(EvsHidlTest, LogicCameraStreamPerformance) {
 }
 
 
+// Sets frames in flight before and after start of stream and verfies success.
+TEST_P(EvsHidlTest, UltrasonicsSetFramesInFlight) {
+    LOG(INFO) << "Starting UltrasonicsSetFramesInFlight";
+
+    // Get the ultrasonics array list
+    loadUltrasonicsArrayList();
+
+    // For each ultrasonics array.
+    for (auto&& ultraInfo : ultrasonicsArraysInfo) {
+        LOG(DEBUG) << "Testing ultrasonics array: " << ultraInfo.ultrasonicsArrayId;
+
+        sp<IEvsUltrasonicsArray> pUltrasonicsArray =
+                pEnumerator->openUltrasonicsArray(ultraInfo.ultrasonicsArrayId);
+        ASSERT_NE(pUltrasonicsArray, nullptr);
+
+        EvsResult result = pUltrasonicsArray->setMaxFramesInFlight(10);
+        EXPECT_EQ(result, EvsResult::OK);
+
+        sp<FrameHandlerUltrasonics> frameHandler = new FrameHandlerUltrasonics(pUltrasonicsArray);
+
+        // Start stream.
+        result = pUltrasonicsArray->startStream(frameHandler);
+        ASSERT_EQ(result, EvsResult::OK);
+
+        result = pUltrasonicsArray->setMaxFramesInFlight(5);
+        EXPECT_EQ(result, EvsResult::OK);
+
+        // Stop stream.
+        pUltrasonicsArray->stopStream();
+
+        // Explicitly close the ultrasonics array so resources are released right away
+        pEnumerator->closeUltrasonicsArray(pUltrasonicsArray);
+    }
+}
+
+
+/*
+ * CameraStreamBuffering:
+ * Ensure the camera implementation behaves properly when the client holds onto buffers for more
+ * than one frame time.  The camera must cleanly skip frames until the client is ready again.
+ */
+TEST_P(EvsHidlTest, CameraStreamBuffering) {
+    LOG(INFO) << "Starting CameraStreamBuffering test";
+
+    // Arbitrary constant (should be > 1 and less than crazy)
+    static const unsigned int kBuffersToHold = 6;
+
+    // Get the camera list
+    loadCameraList();
+
+    // Using null stream configuration makes EVS uses the default resolution and
+    // output format.
+    Stream nullCfg = {};
+
+    // Test each reported camera
+    for (auto&& cam: cameraInfo) {
+        bool isLogicalCam = false;
+        getPhysicalCameraIds(cam.v1.cameraId, isLogicalCam);
+        if (mIsHwModule && isLogicalCam) {
+            LOG(INFO) << "Skip a logical device " << cam.v1.cameraId << " for HW target.";
+            continue;
+        }
+
+        sp<IEvsCamera_1_1> pCam =
+            IEvsCamera_1_1::castFrom(pEnumerator->openCamera_1_1(cam.v1.cameraId, nullCfg))
+            .withDefault(nullptr);
+        ASSERT_NE(pCam, nullptr);
+
+        // Store a camera handle for a clean-up
+        activeCameras.push_back(pCam);
+
+        // Ask for a crazy number of buffers in flight to ensure it errors correctly
+        Return<EvsResult> badResult = pCam->setMaxFramesInFlight(0xFFFFFFFF);
+        EXPECT_EQ(EvsResult::BUFFER_NOT_AVAILABLE, badResult);
+
+        // Now ask for exactly two buffers in flight as we'll test behavior in that case
+        Return<EvsResult> goodResult = pCam->setMaxFramesInFlight(kBuffersToHold);
+        EXPECT_EQ(EvsResult::OK, goodResult);
+
+
+        // Set up a frame receiver object which will fire up its own thread.
+        sp<FrameHandler> frameHandler = new FrameHandler(pCam, cam,
+                                                         nullptr,
+                                                         FrameHandler::eNoAutoReturn);
+
+        // Start the camera's video stream
+        bool startResult = frameHandler->startStream();
+        ASSERT_TRUE(startResult);
+
+        // Check that the video stream stalls once we've gotten exactly the number of buffers
+        // we requested since we told the frameHandler not to return them.
+        sleep(1);   // 1 second should be enough for at least 5 frames to be delivered worst case
+        unsigned framesReceived = 0;
+        frameHandler->getFramesCounters(&framesReceived, nullptr);
+        ASSERT_EQ(kBuffersToHold, framesReceived) << "Stream didn't stall at expected buffer limit";
+
+
+        // Give back one buffer
+        bool didReturnBuffer = frameHandler->returnHeldBuffer();
+        EXPECT_TRUE(didReturnBuffer);
+
+        // Once we return a buffer, it shouldn't take more than 1/10 second to get a new one
+        // filled since we require 10fps minimum -- but give a 10% allowance just in case.
+        usleep(220 * kMillisecondsToMicroseconds);
+        frameHandler->getFramesCounters(&framesReceived, nullptr);
+        EXPECT_EQ(kBuffersToHold+1, framesReceived) << "Stream should've resumed";
+
+        // Even when the camera pointer goes out of scope, the FrameHandler object will
+        // keep the stream alive unless we tell it to shutdown.
+        // Also note that the FrameHandle and the Camera have a mutual circular reference, so
+        // we have to break that cycle in order for either of them to get cleaned up.
+        frameHandler->shutdown();
+
+        // Explicitly release the camera
+        pEnumerator->closeCamera(pCam);
+        activeCameras.clear();
+    }
+}
 
 
 INSTANTIATE_TEST_SUITE_P(
