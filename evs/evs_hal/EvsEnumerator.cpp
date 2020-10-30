@@ -149,6 +149,7 @@ bool EvsEnumerator::EnumAvailableVideo() {
         sCameraList.push_back(camrec_single);
 
         captureCount++;
+        goto found;
     }
 
     // For every video* entry in the dev folder, see if it reports suitable capabilities
@@ -160,12 +161,14 @@ bool EvsEnumerator::EnumAvailableVideo() {
     //                   sCameraList.emplace_back("/dev/video0");
     //                   sCameraList.emplace_back("/dev/video1");
     ALOGI("Starting dev/video* enumeration");
-    DIR* dir = opendir("/dev");
+    DIR* dir;
+    dir = opendir("/dev");
     if (!dir) {
         LOG_FATAL("Failed to open /dev folder\n");
+        goto found;
     }
     struct dirent* entry;
-    FILE *fp = NULL;
+    FILE *fp;
     char devPath[HWC_PATH_LENGTH];
     char value[HWC_PATH_LENGTH];
     int len_val;
@@ -201,14 +204,15 @@ bool EvsEnumerator::EnumAvailableVideo() {
             }
         }
     }
+    closedir(dir);
 
+found:
     if (captureCount != 0) {
         videoReady = true;
         if (property_set(EVS_VIDEO_READY, "1") < 0)
             ALOGE("Can not set property %s", EVS_VIDEO_READY);
     }
 
-    closedir(dir);
     ALOGI("Found %d qualified video capture devices of %d checked\n", captureCount, videoCount);
     return videoReady;
 }
