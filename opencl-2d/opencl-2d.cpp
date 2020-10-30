@@ -18,6 +18,9 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <CL/opencl.h>
+#ifndef CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV
+#include <CL/cl_ext_viv.h>
+#endif
 
 #include <utils/threads.h>
 
