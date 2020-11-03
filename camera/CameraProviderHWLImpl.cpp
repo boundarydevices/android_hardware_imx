@@ -95,8 +95,8 @@ void CameraProviderHwlImpl::enumSensorSet()
     mSets[BACK_CAM_ID].mExisting = false;
 
     // get front camera property.
-    strncpy(mSets[FRONT_CAM_ID].mPropertyName, mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name, strlen(mCameraDef.camera_metadata[BACK_CAM_ID].camera_name));
-    mSets[FRONT_CAM_ID].mOrientation = mCameraDef.camera_metadata[BACK_CAM_ID].orientation;;
+    strncpy(mSets[FRONT_CAM_ID].mPropertyName, mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name, strlen(mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name));
+    mSets[FRONT_CAM_ID].mOrientation = mCameraDef.camera_metadata[FRONT_CAM_ID].orientation;;
     mSets[FRONT_CAM_ID].mFacing = CAMERA_FACING_FRONT;
     mSets[FRONT_CAM_ID].mExisting = false;
 
@@ -175,7 +175,7 @@ int32_t CameraProviderHwlImpl::matchNodeName(const char* nodeName, nodeSet* node
             continue;
         }
 
-        if (!strstr(sensorName, nodeName)) {
+        if ((strlen(nodeName) == 0) || !strstr(sensorName, nodeName)) {
             node = node->next;
             continue;
         }
