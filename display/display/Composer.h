@@ -87,6 +87,7 @@ private:
     int clearFunction(void* handle, struct g2d_surface* area);
     int enableFunction(void* handle, enum g2d_cap_mode cap, bool enable);
     int finishEngine(void* handle);
+    int display_orientation;
 
 private:
     static Mutex sLock;
