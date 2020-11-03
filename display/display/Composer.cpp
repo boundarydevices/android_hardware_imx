@@ -355,12 +355,73 @@ int Composer::clearWormHole(LayerVector& layers)
     return 0;
 }
 
+#ifdef PRIMARY_DISPLAY_ORIENTATION
+static_assert(PRIMARY_DISPLAY_ORIENTATION == 0 || PRIMARY_DISPLAY_ORIENTATION == 90 ||
+              PRIMARY_DISPLAY_ORIENTATION == 180 || PRIMARY_DISPLAY_ORIENTATION == 270,
+              "Primary display orientation must be 0/90/180/270");
+#endif
+
 int Composer::composeLayer(Layer* layer, bool bypass)
 {
+    int transform;
+
     if (layer == NULL || mTarget == NULL) {
         ALOGE("composeLayer: invalid layer or target");
         return -EINVAL;
     }
+
+#ifdef PRIMARY_DISPLAY_ORIENTATION
+    int rot = 0;
+
+    switch (layer->transform) {
+        case 0:
+            rot = 0;
+            break;
+        case TRANSFORM_ROT90:
+            rot = 1; // 90
+            break;
+        case TRANSFORM_ROT180:
+            rot = 2; // 180
+            break;
+        case TRANSFORM_ROT270:
+            rot = 3; // 270
+            break;
+    }
+
+    switch (PRIMARY_DISPLAY_ORIENTATION) {
+        case 0:
+            rot += 0;
+            break;
+        case 90:
+            rot += 1;
+            break;
+        case 180:
+            rot += 2;
+            break;
+        case 270:
+            rot += 3;
+            break;
+    }
+
+    switch (rot % 4) {
+        case 0:
+            transform = 0;
+            break;
+        case 1:
+            transform = TRANSFORM_ROT90;
+            break;
+        case 2:
+            transform = TRANSFORM_ROT180;
+            break;
+        case 3:
+            transform = TRANSFORM_ROT270;
+            break;
+    }
+
+    ALOGV("transform:0x%x -> 0x%x", layer->transform, transform);
+#else
+    transform = layer->transform;
+#endif
 
     if (bypass && layer->isSolidColor()) {
         ALOGV("composeLayer dim layer bypassed");
@@ -400,7 +461,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
             continue;
         }
 
-        setClipping(srect, drect, clip, layer->transform);
+        setClipping(srect, drect, clip, transform);
         ALOGV("index:%d, i:%d sourceCrop(l:%d,t:%d,r:%d,b:%d), "
              "visible(l:%d,t:%d,r:%d,b:%d), "
              "display(l:%d,t:%d,r:%d,b:%d)", layer->index, (int)i,
@@ -412,7 +473,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
                 layer->zorder, layer->handle->phys);
         }
         ALOGV("transform:0x%x, blend:0x%x, alpha:0x%x",
-                layer->transform, layer->blendMode, layer->planeAlpha);
+              transform, layer->blendMode, layer->planeAlpha);
 
         setG2dSurface(dSurfaceX, mTarget, drect);
 
@@ -437,7 +498,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
             return -EINVAL;
         }
 
-        convertRotation(layer->transform, sSurface, dSurface);
+        convertRotation(transform, sSurface, dSurface);
         if (!bypass) {
             convertBlending(layer->blendMode, sSurface, dSurface);
         }
