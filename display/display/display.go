@@ -98,5 +98,8 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("CFG_SECURE_DATA_PATH") == "y" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCFG_SECURE_DATA_PATH")
     }
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("SF_PRIMARY_DISPLAY_ORIENTATION") != "" {
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DPRIMARY_DISPLAY_ORIENTATION=" + ctx.Config().VendorConfig("IMXPLUGIN").String("SF_PRIMARY_DISPLAY_ORIENTATION"))
+    }
     ctx.AppendProperties(p)
 }
