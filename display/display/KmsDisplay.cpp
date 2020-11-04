@@ -57,7 +57,7 @@ static void dump_frame(char *pbuf, int size)
 
     if(!start_dump) {
         char value[PROPERTY_VALUE_MAX];
-        property_get("hwc.enable.dump_frame", value, "0");
+        property_get("vendor.hwc.enable.dump_frame", value, "0");
         request_frame_count = atoi(value);
         //Previous dump request finished, no more request catched
         if(prev_request_frame_count == request_frame_count)
@@ -497,7 +497,7 @@ void KmsDisplay::setFakeVSync(bool enable)
 bool KmsDisplay::checkOverlay(Layer* layer)
 {
     char value[PROPERTY_VALUE_MAX];
-    property_get("hwc.enable.overlay", value, "1");
+    property_get("vendor.hwc.enable.overlay", value, "1");
     int useOverlay = atoi(value);
     if (useOverlay == 0) {
         return false;

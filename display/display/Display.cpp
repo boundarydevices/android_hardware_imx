@@ -1036,7 +1036,7 @@ void Display::initBrightness()
     }
 
     char path[PROPERTY_VALUE_MAX];
-    property_get("hw.backlight.dev", path, DEF_BACKLIGHT_DEV);
+    property_get("vendor.hw.backlight.dev", path, DEF_BACKLIGHT_DEV);
     strcpy(mBrightnessPath, DEF_BACKLIGHT_PATH);
     strcat(mBrightnessPath, path);
     strcpy(path, mBrightnessPath);

@@ -343,9 +343,9 @@ int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer
         return 0;
     }
 
-    // dump the jpeg data into /data/dump.jpeg when set rw.camera.test
+    // dump the jpeg data into /data/dump.jpeg when set vendor.rw.camera.test
     // it need disable selinux when open dump option.
-    property_get("rw.camera.test", value, "");
+    property_get("vendor.rw.camera.test", value, "");
     if (strcmp(value, "true") == 0)
         vflg = true;
 

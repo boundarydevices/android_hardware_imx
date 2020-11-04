@@ -58,9 +58,9 @@ LightSensor::LightSensor()
         enable(0, 1);
     }
 
-    /* Default threshold lux is 10 if ro.lightsensor.threshold
+    /* Default threshold lux is 10 if vendor.ro.lightsensor.threshold
        isn't set */
-    property_get("ro.lightsensor.threshold", buffer, "10");
+    property_get("vendor.ro.lightsensor.threshold", buffer, "10");
     mThresholdLux = atoi(buffer);
 }
 

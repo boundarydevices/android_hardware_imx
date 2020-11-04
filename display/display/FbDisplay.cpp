@@ -196,7 +196,7 @@ int FbDisplay::getPresentFence(int32_t* outPresentFence)
 bool FbDisplay::checkOverlay(Layer* layer)
 {
     char value[PROPERTY_VALUE_MAX];
-    property_get("hwc.enable.overlay", value, "1");
+    property_get("vendor.hwc.enable.overlay", value, "1");
     int useOverlay = atoi(value);
     if (useOverlay == 0) {
         return false;

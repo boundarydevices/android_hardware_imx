@@ -308,7 +308,7 @@ static void bufferDump(StreamBuffer *frame, bool in)
     memset(value, 0, sizeof(value));
     bool vflg = false;
     static int dump_num = 1;
-    property_get("rw.camera.test", value, "");
+    property_get("vendor.rw.camera.test", value, "");
     if (strcmp(value, "true") == 0)
         vflg = true;
 

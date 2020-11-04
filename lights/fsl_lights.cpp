@@ -140,7 +140,7 @@ static int lights_device_open(const struct hw_module_t* module,
 
         *device = &dev->common;
 
-        property_get("hw.backlight.dev", value, DEF_BACKLIGHT_DEV);
+        property_get("vendor.hw.backlight.dev", value, DEF_BACKLIGHT_DEV);
         strcpy(path, DEF_BACKLIGHT_PATH);
         strcat(path, value);
         strcpy(max_path, path);
