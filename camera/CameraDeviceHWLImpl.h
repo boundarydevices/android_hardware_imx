@@ -34,6 +34,8 @@ using google_camera_hal::CameraResourceCost;
 using google_camera_hal::HalCameraMetadata;
 using google_camera_hal::StreamConfiguration;
 using google_camera_hal::TorchMode;
+using google_camera_hal::HwlCameraProviderCallback;
+using google_camera_hal::TorchModeStatus;
 
 using namespace cameraconfigparser;
 
@@ -43,7 +45,7 @@ class CameraDeviceHwlImpl : public CameraDeviceHwl
 {
 public:
     static std::unique_ptr<CameraDeviceHwl> Create(uint32_t camera_id, const char* devPath,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata);
+        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback);
 
     virtual ~CameraDeviceHwlImpl();
 
@@ -69,10 +71,7 @@ public:
         return INVALID_OPERATION;
     }
 
-    status_t SetTorchMode(TorchMode mode __unused) override
-    {
-        return INVALID_OPERATION;
-    }
+    status_t SetTorchMode(TorchMode mode) override;
 
     status_t DumpState(int fd) override;
 
@@ -90,7 +89,7 @@ public:
 
 private:
     CameraDeviceHwlImpl(uint32_t camera_id, const char *devPath,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata);
+        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback);
 
     virtual status_t Initialize();
     status_t initSensorStaticData();
@@ -105,6 +104,7 @@ private:
 
   //  std::unique_ptr<HalCameraMetadata> static_metadata_;
     CameraMetadata *m_meta;
+    HwlCameraProviderCallback mCallback;
 
 public:
     int mPreviewResolutions[MAX_RESOLUTION_SIZE];

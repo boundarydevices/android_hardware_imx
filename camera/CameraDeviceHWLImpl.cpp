@@ -28,13 +28,13 @@ namespace android {
 
 std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
     uint32_t camera_id, const char *devPath,
-    CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata)
+    CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback)
 {
     ALOGI("%s: id %d, path %s, copy hw %d, csc hw %d, hw_jpeg %s",
       __func__, camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg);
 
     auto device = std::unique_ptr<CameraDeviceHwlImpl>(
-        new CameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata));
+        new CameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata, callback));
 
     if (device == nullptr) {
         ALOGE("%s: Creating CameraDeviceHwlImpl failed.", __func__);
@@ -57,10 +57,12 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
 
 CameraDeviceHwlImpl::CameraDeviceHwlImpl(
     uint32_t camera_id, const char *devPath,
-    CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata)
+    CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata,
+    HwlCameraProviderCallback callback)
     : camera_id_(camera_id),
       mCamBlitCopyType(cam_copy_hw),
-      mCamBlitCscType(cam_csc_hw)
+      mCamBlitCscType(cam_csc_hw),
+      mCallback(callback)
 {
     strncpy(mDevPath, devPath, CAMAERA_FILENAME_LENGTH);
     mDevPath[CAMAERA_FILENAME_LENGTH - 1] = 0;
@@ -327,6 +329,16 @@ bool CameraDeviceHwlImpl::IsStreamCombinationSupported(const StreamConfiguration
     }
 
     return true;
+}
+
+status_t CameraDeviceHwlImpl::SetTorchMode(TorchMode mode)
+{
+    if(mCallback.torch_mode_status_change == NULL)
+        return BAD_VALUE;
+
+    TorchModeStatus status = (mode == TorchMode::kOn) ? TorchModeStatus::kAvailableOn:TorchModeStatus::kAvailableOff;
+    mCallback.torch_mode_status_change(camera_id_, status);
+    return OK;
 }
 
 }  // namespace android

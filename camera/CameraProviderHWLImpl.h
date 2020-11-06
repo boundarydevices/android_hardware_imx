@@ -69,7 +69,7 @@ public:
 
     bool IsSetTorchModeSupported() override
     {
-        return false;
+        return true;
     }
 
     status_t GetConcurrentStreamingCameraIds(
@@ -99,8 +99,8 @@ private:
 private:
 //    std::vector<std::unique_ptr<HalCameraMetadata>> static_metadata_;
 //    std::vector<CameraMetadata *> m_meta_list;
-    HwlTorchModeStatusChangeFunc torch_cb_;
-    HwlPhysicalCameraDeviceStatusChangeFunc physical_camera_status_cb_;
+
+    HwlCameraProviderCallback mCallback;
 
     std::mutex status_callback_future_lock_;
     std::future<void> status_callback_future_;

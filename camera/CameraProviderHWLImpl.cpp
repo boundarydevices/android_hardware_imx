@@ -65,6 +65,7 @@ status_t CameraProviderHwlImpl::Initialize()
 {
     mCameraCfgParser.Init();
     mCameraDef = mCameraCfgParser.mcamera();
+    memset(&mCallback, 0, sizeof(mCallback));
 
     ALOGI("%s, copy_hw %d, csc_hw %d, jpeg_hw %s, mplane %d, %d",
         __func__, mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw, mCameraDef.jpeg_hw.c_str(),
@@ -328,9 +329,8 @@ int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], siz
 status_t CameraProviderHwlImpl::SetCallback(
     const HwlCameraProviderCallback& callback)
 {
-    torch_cb_ = callback.torch_mode_status_change;
-    physical_camera_status_cb_ = callback.physical_camera_device_status_change;
-
+    ALOGI("%s", __func__);
+    mCallback = callback;
     return OK;
 }
 
@@ -379,7 +379,7 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
     }
 
     *camera_device_hwl = CameraDeviceHwlImpl::Create(camera_id, mSets[camera_id].mDevPath,
-      mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw, mCameraDef.jpeg_hw.c_str(), &mCameraDef.camera_metadata[camera_id]);
+      mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw, mCameraDef.jpeg_hw.c_str(), &mCameraDef.camera_metadata[camera_id], mCallback);
 
     if (*camera_device_hwl == nullptr) {
         ALOGE("%s: Cannot create CameraDeviceHWlImpl.", __func__);
