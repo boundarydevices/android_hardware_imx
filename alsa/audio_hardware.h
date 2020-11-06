@@ -118,7 +118,6 @@ struct imx_stream_out {
     char* address;
     struct audio_gain gain_stage;
     bool paused;
-    bool lpa_wakelock_acquired;
 
     uint32_t num_devices;
     audio_devices_t devices[AUDIO_PATCH_PORTS_MAX]; // TODO: use devices to specify stream's device type. Currently still uses device variable.

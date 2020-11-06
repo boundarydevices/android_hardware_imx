@@ -112,8 +112,6 @@ static int g_hsp_chns = 2;
 #define IMX7_BOARD_NAME "imx7"
 #define DEFAULT_ERROR_NAME_str "0"
 
-static const char* lpa_wakelock = "lpa_audio_wakelock";
-
 struct audio_card *audio_card_list[MAX_SUPPORT_CARD_LIST_SIZE];
 
 struct pcm_config pcm_config_mm_out = {
@@ -968,11 +966,6 @@ static int out_pause(struct audio_stream_out* stream)
 
     ALOGI("%s", __func__);
 
-    if (lpa_enable && out->lpa_wakelock_acquired) {
-        release_wake_lock(lpa_wakelock);
-        out->lpa_wakelock_acquired = false;
-    }
-
     pthread_mutex_lock(&out->lock);
     if (!out->paused) {
         status = pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
@@ -1401,19 +1394,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
         get_playback_delay(out, out_frames, &b);
         out->echo_reference->write(out->echo_reference, &b);
-    }
-
-    if (lpa_enable) {
-        if (pcm_get_htimestamp(out->pcm, &avail, &timestamp) == 0) {
-            ALOGV("%s: LPA buffer avail: %u", __func__, avail);
-            if (avail != 0 && !out->lpa_wakelock_acquired) {
-                acquire_wake_lock(PARTIAL_WAKE_LOCK, lpa_wakelock);
-                out->lpa_wakelock_acquired = true;
-            } else if (avail == 0 && out->lpa_wakelock_acquired) {
-                release_wake_lock(lpa_wakelock);
-                out->lpa_wakelock_acquired = false;
-            }
-        }
     }
 
     if (out->config.channels > 2)
@@ -3293,7 +3273,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         if (config->format != AUDIO_FORMAT_PCM_FLOAT)
             pcm_config_esai_multi.format = PCM_FORMAT_S16_LE;
         out->channel_mask = config->channel_mask;
-        out->lpa_wakelock_acquired = false;
 
         out->config = pcm_config_esai_multi;
         out->config.rate = config->sample_rate;
@@ -3457,11 +3436,6 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     if (out->resampler) {
         release_resampler(out->resampler);
         out->resampler = NULL;
-    }
-
-    if (lpa_enable && out->lpa_wakelock_acquired) {
-        release_wake_lock(lpa_wakelock);
-        out->lpa_wakelock_acquired = false;
     }
 
     pthread_mutex_lock(&adev->lock);
