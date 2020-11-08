@@ -41,6 +41,7 @@ V4l2Capture::V4l2Capture(const char *deviceName, const char *videoName,
     mV4lFormat = getV4lFormat(format);
     mWidth = width;
     mHeight = height;
+    mDecreasenum = 0;
 
     // check whether the camera is logic camera
     mIslogicCamera = isLogicalCamera(metadata);
@@ -452,6 +453,7 @@ Return<EvsResult> V4l2Capture::setMaxFramesInFlight(uint32_t bufferCount) {
         onIncreaseMemoryBuffer(needed);
     } else if (mFramesAllowed > bufferCount) {
         mDecreasenum = mFramesAllowed - bufferCount;
+        ALOGI("Decrease %d buffers for camera frames", mDecreasenum);
         // if neet reduce the buffer, it drop the return buffer in onFrameReturn
         // this buffer do not call QBUF again.
         // it will return until mDecreasenum = 0
