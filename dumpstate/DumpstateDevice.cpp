@@ -33,6 +33,8 @@
 
 #include "DumpstateUtil.h"
 
+#define VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY "persist.vendor.verbose_logging_enabled"
+
 using android::base::EqualsIgnoreCase;
 using android::base::StringPrintf;
 using android::base::WriteStringToFd;
@@ -45,11 +47,22 @@ using android::os::dumpstate::RunCommandToFd;
 namespace android {
 namespace hardware {
 namespace dumpstate {
-namespace V1_0 {
+namespace V1_1 {
 namespace implementation {
 
 // Methods from ::android::hardware::dumpstate::V1_0::IDumpstateDevice follow.
 Return<void> DumpstateDevice::dumpstateBoard(const hidl_handle& handle) {
+    /* Use default. */
+    dumpstateBoard_1_1(handle, DumpstateMode::DEFAULT, 30 * 1000 /* timeoutMillis */);
+    return Void();
+}
+
+Return<DumpstateStatus> DumpstateDevice::dumpstateBoard_1_1(const hidl_handle& handle,
+                                                            const DumpstateMode mode,
+                                                            const uint64_t timeoutMillis) {
+    // Unused timeoutMillis, fix build errors.
+    (void)timeoutMillis;
+
     // Exit when dump is completed since this is a lazy HAL.
     addPostCommandTask([]() {
         exit(0);
@@ -57,13 +70,27 @@ Return<void> DumpstateDevice::dumpstateBoard(const hidl_handle& handle) {
 
     if (handle == nullptr || handle->numFds < 1) {
         ALOGE("no FDs\n");
-        return Void();
+        return DumpstateStatus::ILLEGAL_ARGUMENT;
     }
 
+    // read the fd
     int fd = handle->data[0];
     if (fd < 0) {
         ALOGE("invalid FD: %d\n", handle->data[0]);
-        return Void();
+        return DumpstateStatus::ILLEGAL_ARGUMENT;
+    }
+
+    // check the modes, all supported modes will be equal to "DumpstateMode::DEFAULT".
+    bool isModeValid = false;
+    for (const auto dumpstateMode:hidl_enum_range<DumpstateMode>()) {
+        if (mode == dumpstateMode) {
+            isModeValid = true;
+            break;
+        }
+    }
+    if (!isModeValid) {
+        ALOGE("Invalid mode: %d\n", mode);
+        return DumpstateStatus::ILLEGAL_ARGUMENT;
     }
 
     RunCommandToFd(fd, "VENDOR PROPERTIES", {"/vendor/bin/getprop"});
@@ -79,7 +106,16 @@ Return<void> DumpstateDevice::dumpstateBoard(const hidl_handle& handle) {
     RunCommandToFd(fd, "USB Device Descriptors", {"/vendor/bin/sh", "-c", "cd /sys/bus/usb/devices/1-1 && cat product && cat bcdDevice; cat descriptors | od -t x1 -w16 -N96"});
     RunCommandToFd(fd, "Power supply properties", {"/vendor/bin/sh", "-c", "for f in `ls /sys/class/power_supply/*/uevent` ; do echo \"------ $f\\n`cat $f`\\n\" ; done"});
 
+    return DumpstateStatus::OK;
+}
+
+Return<void> DumpstateDevice::setVerboseLoggingEnabled(const bool enable) {
+    android::base::SetProperty(VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY, enable ? "true" : "false");
     return Void();
+}
+
+Return<bool> DumpstateDevice::getVerboseLoggingEnabled() {
+    return android::base::GetBoolProperty(VENDOR_VERBOSE_LOGGING_ENABLED_PROPERTY, false);
 }
 
 Return<void> DumpstateDevice::debug(const hidl_handle& fd , const hidl_vec<hidl_string>& options) {
@@ -174,7 +210,7 @@ void DumpstateDevice::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options
 }
 
 }  // namespace implementation
-}  // namespace V1_0
+}  // namespace V1_1
 }  // namespace dumpstate
 }  // namespace hardware
 }  // namespace android
