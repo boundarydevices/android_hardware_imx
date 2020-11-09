@@ -200,16 +200,25 @@ PixelFormat ImxCamera::getPreviewPixelFormat()
 int ImxCamera::isAutoFocusSupported(void)
 {
     struct v4l2_control c;
-    int result;
+    int result = -1;
+    int32_t fd_dev, fd_subdev;
 
-    int32_t fd = open(mAFDevPath, O_RDWR);
-    if (fd < 0)
-        return -1;
+    /* Open videoX device to power up sensor */
+    fd_dev = open(mDevPath, O_RDWR);
+    if (fd_dev < 0)
+        goto end;
+
+    /* Open v4l-subdevX device to talk to sensor directly */
+    fd_subdev = open(mAFDevPath, O_RDWR);
+    if (fd_subdev < 0)
+        goto free_fd_dev;
 
     c.id = V4L2_CID_AUTO_FOCUS_STATUS;
-    result = ioctl(fd, VIDIOC_G_CTRL, &c);
-    close(fd);
-
+    result = ioctl(fd_subdev, VIDIOC_G_CTRL, &c);
+    close(fd_subdev);
+free_fd_dev:
+    close(fd_dev);
+end:
     return result;
 }
 
