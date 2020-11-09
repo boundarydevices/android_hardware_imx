@@ -237,7 +237,8 @@ int32_t USPStream::allocateBuffersLocked()
         return 0;
     }
 
-    int32_t size = getFormatSize();
+//    int32_t size = getFormatSize();
+    int32_t size = ALIGN_PIXEL_16(mWidth) * ALIGN_PIXEL_16(mHeight) * 4;
     if ((mWidth == 0) || (mHeight == 0) || (size == 0)) {
         ALOGE("%s: width, height or size is 0", __func__);
         return BAD_VALUE;
