@@ -87,13 +87,16 @@ public:
 
     CameraSensorMetadata* getSensorData() { return &mSensorData; }
 
+    static bool StreamCombJudge(const StreamConfiguration& stream_config,
+        int *pPreviewResolutions, int nPreviewResolutionCount, int *pPictureResolutions, int nPictureResolutionCount);
+
 private:
     CameraDeviceHwlImpl(uint32_t camera_id, const char *devPath,
         CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback);
 
     virtual status_t Initialize();
     status_t initSensorStaticData();
-    bool FoundResoulution(int width, int height, int *resArray, int size);
+    static bool FoundResoulution(int width, int height, int *resArray, int size);
 
 protected:
     status_t setMaxPictureResolutions();

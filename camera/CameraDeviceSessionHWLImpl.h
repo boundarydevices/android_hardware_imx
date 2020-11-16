@@ -248,10 +248,7 @@ private:
     };
 
 public:
-    CameraSensorMetadata* getSensorData() { return m_dev->getSensorData(); }
-
-private:
-    CameraDeviceHwlImpl *m_dev;
+    CameraSensorMetadata* getSensorData() { return &mSensorData; }
 
 private:
     // Protects the API entry points
@@ -277,6 +274,16 @@ private:
     int callbackIdx;
 
     std::unique_ptr<HalCameraMetadata> mSettings;
+
+    CscHw mCamBlitCopyType;
+    CscHw mCamBlitCscType;
+    char mJpegHw[JPEG_HW_NAME_LEN] = { 0 };
+    CameraSensorMetadata mSensorData;
+
+    int mPreviewResolutions[MAX_RESOLUTION_SIZE];
+    int mPreviewResolutionCount;
+    int mPictureResolutions[MAX_RESOLUTION_SIZE];
+    int mPictureResolutionCount;
 };
 
 }  // namespace android

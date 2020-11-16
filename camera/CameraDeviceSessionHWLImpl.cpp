@@ -68,23 +68,22 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     int ret;
     camera_id_ = camera_id;
     m_meta = pMeta;
-    m_dev = pDev;
 
     if ((pMeta == NULL) || (pDev == NULL))
         return BAD_VALUE;
 
     ALOGI("Initialize, meta %p, entry count %d", m_meta->GetStaticMeta(), (int)m_meta->GetStaticMeta()->GetEntryCount());
 
-    CameraSensorMetadata *cam_metadata = &(m_dev->mSensorData);
+    CameraSensorMetadata *cam_metadata = &(pDev->mSensorData);
 
     ALOGI("%s: create video stream for camera %s, buffer type %d, path %s",
           __func__,
           cam_metadata->camera_name,
           cam_metadata->buffer_type,
-          m_dev->mDevPath);
+          pDev->mDevPath);
 
     if (strstr(cam_metadata->camera_name, UVC_NAME))
-        pVideoStream = new UvcStream(m_dev->mDevPath, this);
+        pVideoStream = new UvcStream(pDev->mDevPath, this);
     else if(strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
         pVideoStream = new ISPCameraMMAPStream(this);
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kMmap)
@@ -101,7 +100,7 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     if (pVideoStream == NULL)
         return BAD_VALUE;
 
-    ret = pVideoStream->openDev(m_dev->mDevPath);
+    ret = pVideoStream->openDev(pDev->mDevPath);
     if (ret) {
         ALOGE("pVideoStream->openDev failed, ret %d", ret);
         return BAD_VALUE;
@@ -123,6 +122,17 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
         return BAD_VALUE;
     }
 
+    // Device may be destroyed after create session, need copy some members from device.
+    mCamBlitCopyType = pDev->mCamBlitCopyType;
+    mCamBlitCscType = pDev->mCamBlitCscType;
+    memcpy(mJpegHw, pDev->mJpegHw, JPEG_HW_NAME_LEN);
+    mSensorData = pDev->mSensorData;
+
+    mPreviewResolutionCount = pDev->mPreviewResolutionCount;
+    memcpy(mPreviewResolutions, pDev->mPreviewResolutions, MAX_RESOLUTION_SIZE*sizeof(int));
+    mPictureResolutionCount = pDev->mPictureResolutionCount;
+    memcpy(mPictureResolutions, pDev->mPictureResolutions, MAX_RESOLUTION_SIZE*sizeof(int));
+
     return OK;
 }
 
@@ -135,7 +145,6 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl()
     pVideoStream = NULL;
     pMemManager = NULL;
     m_meta = NULL;
-    m_dev = NULL;
     mSettings = NULL;
 }
 
@@ -419,9 +428,9 @@ int32_t CameraDeviceSessionHwlImpl::processFrameBuffer(ImxStreamBuffer *srcBuf, 
     if (srcStream->mWidth == dstStream->mWidth &&
         srcStream->mHeight == dstStream->mHeight &&
         srcStream->format() == dstStream->format())
-        csc_hw = m_dev->mCamBlitCopyType;
+        csc_hw = mCamBlitCopyType;
     else
-        csc_hw = m_dev->mCamBlitCscType;
+        csc_hw = mCamBlitCscType;
 
     return imageProcess->handleFrame(*dstBuf, *srcBuf, csc_hw);
 }
@@ -436,7 +445,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     uint8_t *pDst = NULL;
     struct camera3_jpeg_blob *jpegBlob = NULL;
     uint32_t bufSize = 0;
-    int maxJpegSize = m_dev->mSensorData.maxjpegsize;
+    int maxJpegSize = mSensorData.maxjpegsize;
 
     if ((srcBuf == NULL) || (dstBuf == NULL) || (meta == NULL)) {
         ALOGE("%s srcBuf %p, dstBuf %p, meta %p", __func__, srcBuf, dstBuf, meta);
@@ -556,7 +565,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     }
 
     mJpegBuilder->prepareImage(srcBuf);
-    ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg, m_dev->getHwEncoder());
+    ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg, mJpegHw);
     if (ret != NO_ERROR) {
         ALOGE("%s encodeImage failed", __func__);
         goto err_out;
@@ -653,7 +662,10 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         return ALREADY_EXISTS;
     }
 
-    bool bSupport = m_dev->IsStreamCombinationSupported(request_config);
+    bool bSupport = CameraDeviceHwlImpl::StreamCombJudge(request_config,
+        mPreviewResolutions, mPreviewResolutionCount,
+        mPictureResolutions, mPictureResolutionCount);
+
     if (bSupport == false) {
         ALOGI("%s: IsStreamCombinationSupported return false", __func__);
         return BAD_VALUE;
