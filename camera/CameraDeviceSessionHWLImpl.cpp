@@ -689,8 +689,14 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         return BAD_VALUE;
     }
 
-    pipeline_info->streams = new std::vector<Stream>[stream_num];
-    pipeline_info->hal_streams = new std::vector<HalStream>[stream_num];
+    pipeline_info->streams = new std::vector<Stream>();
+    pipeline_info->hal_streams = new std::vector<HalStream>();
+
+    if ((pipeline_info->streams == NULL) || (pipeline_info->hal_streams == NULL)) {
+        ALOGE("%s: no memory, pipeline_info->streams %p, pipeline_info->hal_streams %p",
+            __func__, pipeline_info->streams, pipeline_info->hal_streams);
+        return BAD_VALUE;
+    }
 
     pipeline_info->streams->assign(request_config.streams.begin(), request_config.streams.end());
 
@@ -701,7 +707,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
     for (int i = 0; i < stream_num; i++) {
         Stream stream = request_config.streams[i];
-        ALOGI("%s, stream %d: id %d, type %d, res %dx%d, format 0x%x, usage 0x%llx, space 0x%x, rot %d, is_phy %d, phy_id %d, size %d, intent %d",
+        ALOGI("%s, stream %d: id %d, type %d, res %dx%d, format 0x%x, usage 0x%llx, space 0x%x, rot %d, is_phy %d, phy_id %d, size %d",
               __func__,
               i,
               stream.id,
@@ -897,8 +903,22 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
     /* clear  map_pipeline_info */
     for (auto it = map_pipeline_info.begin(); it != map_pipeline_info.end(); it++) {
         auto pInfo = it->second;
-        pInfo->streams->clear();
-        pInfo->hal_streams->clear();
+        if(pInfo == NULL) {
+            ALOGW("%s, no pipeline info for id %u", __func__, it->first);
+            continue;
+        }
+
+        if(pInfo->streams) {
+            pInfo->streams->clear();
+            delete pInfo->streams;
+        }
+
+        if(pInfo->hal_streams) {
+            pInfo->hal_streams->clear();
+            delete pInfo->hal_streams;
+        }
+
+        free(pInfo);
     }
 
     map_pipeline_info.clear();
@@ -984,8 +1004,12 @@ int CameraDeviceSessionHwlImpl::CleanRequestsLocked()
     for (auto it = map_frame_request.begin(); it != map_frame_request.end(); it++) {
         uint32_t frame = it->first;
         std::vector<HwlPipelineRequest> *request = it->second;
-        uint32_t reqNum = request->size();
+        if(request == NULL) {
+            ALOGW("%s: frame %d request is null", __func__, frame);
+            continue;
+        }
 
+        uint32_t reqNum = request->size();
         ALOGV("%s, map_frame_request, frame %d, reqNum %d", __func__, frame, reqNum);
 
         for (uint32_t i = 0; i < reqNum; i++) {
@@ -1001,6 +1025,7 @@ int CameraDeviceSessionHwlImpl::CleanRequestsLocked()
         }
 
         request->clear();
+        delete request;
     }
 
     map_frame_request.clear();

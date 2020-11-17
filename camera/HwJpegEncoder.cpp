@@ -398,6 +398,9 @@ void HwJpegEncoder::onEncoderStop(struct v4l2_buffer *buf_in, struct v4l2_buffer
     v4l2_munmap(buf_out, mBufferOutStart);
     v4l2_munmap(buf_in, mBufferInStart);
 
+    free(buf_out->m.planes);
+    free(buf_in->m.planes);
+
     memset(&bufreq_out, 0, sizeof(bufreq_out));
     memset(&bufreq_in, 0, sizeof(bufreq_in));
 
