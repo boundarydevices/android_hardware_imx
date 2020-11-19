@@ -27,6 +27,7 @@ cc_test {
         "-O0",
         "-DGL_GLEXT_PROTOTYPES",
         "-DEGL_EGLEXT_PROTOTYPES",
+        "-DENABLE_IMX_SV",
     ],
 
     header_libs: [

@@ -383,6 +383,65 @@ static void generateBirdView(int width, int height, int stride,
 static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
         vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds)
 {
+#ifdef ENABLE_IMX_SV
+    evsRotations = {
+        {1.81080639, -0.01254808, 0.22454604},
+        {1.56411997, 1.69873618, -0.66798416},
+        {-0.12984119, 2.49551644, -1.74079733},
+        {1.65667285, -1.56078896, 1.33886394}
+    };
+    evsTransforms = {
+        {0.00236236, 0.33980279, -0.05790999},
+        {-0.05558801, 0.38353284, 0.03021416},
+        {-0.02859015, 0.33999272, -0.05377325},
+        {-0.04265574, 0.36310098, -0.00825252}
+    };
+    Matrix<double, 3, 3> K0;
+    K0 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K0);
+    Matrix<double, 3, 3> K1;
+    K1 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K1);
+    Matrix<double, 3, 3> K2;
+    K2 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K2);
+    Matrix<double, 3, 3> K3;
+    K3 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K3);
+
+    Matrix<double, 1, 4> D0;
+    D0 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D0);
+    Matrix<double, 1, 4> D1;
+    D1 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D1);
+    Matrix<double, 1, 4> D2;
+    D2 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D2);
+    Matrix<double, 1, 4> D3;
+    D3 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D3);
+#else
     evsRotations = {
         {2.26308, 0.0382788, -0.0220549},
         {1.67415, -1.74075, 0.789399},
@@ -440,6 +499,7 @@ static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d
           -0.0013549275607082035,
           -5.9961182248325556e-06;
     Ds.push_back(D3);
+#endif
 }
 
 static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
@@ -746,9 +806,9 @@ protected:
                         }
                         else if((index != pMap->index0) &&
                                (index != pMap->index1)) {
-                            cout << "3 region:index="<< index <<", index0= "<< \
+                            /*cout << "3 region:index="<< index <<", index0= "<< \
                                 pMap->index0 << ", index1="<< pMap->index1 << endl;
-                            cout << "pixel:" << u << "x" << v << endl;
+                            cout << "pixel:" << u << "x" << v << endl; */
                         }
                     }
                 }
@@ -797,8 +857,15 @@ protected:
 TEST_F(ImxSV2DTest, SVLibFlatSurroundW16H12) {
     uint32_t flatw = 1024;
     uint32_t flath = 768;
-    float pw = 16.0;
-    float ph = 12.0;
+    float pw;
+    float ph;
+#ifdef ENABLE_IMX_SV
+    pw = 3.0;
+    ph = 3.0;
+#else
+    pw = 16.0;
+    ph = 12.0;
+#endif
     int bpp = 4;
 
     //prepare output buffer
@@ -842,8 +909,15 @@ TEST_F(ImxSV2DTest, SVLibFlatSurroundW16H12) {
 TEST_F(ImxSV2DTest, FlatSurroundW16H12) {
     uint32_t flatw = 1024;
     uint32_t flath = 768;
-    float pw = 16.0;
-    float ph = 12.0;
+    float ph;
+    float pw;
+#ifdef ENABLE_IMX_SV
+    pw = 3;
+    ph = 3;
+#else
+    pw = 16.0;
+    ph = 12.0;
+#endif
 
     int bpp = 4;
     uint32_t fstride = flatw * bpp;
@@ -1070,6 +1144,17 @@ class ImxSVCali1Test: public ::testing::Test
 {
 protected:
     virtual void SetUp() {
+#ifdef ENABLE_IMX_SV
+        K <<  435.92451924, 0.0,646.57033235,
+              0.0, 434.35194308, 390.30687001,
+              0.0, 0.0, 1.0;
+
+
+        D << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+#else
         K <<  608.0026093794693, 0.0,968.699544102168,
               0.0, 608.205469489769, 476.38843298898996,
               0.0, 0.0, 1.0;
@@ -1078,6 +1163,7 @@ protected:
              -0.0014805627895442888,
              -0.00030212056866592464,
              -0.00020149538570397933;
+#endif
 
         char input[128];
         memset(input, 0, sizeof(input));
@@ -1301,6 +1387,15 @@ class ImxSVCali2Test: public ::testing::Test
 {
 protected:
     virtual void SetUp() {
+#ifdef ENABLE_IMX_SV
+        K << 435.92451924, 0.0, 646.57033235,
+             0.0, 434.35194308, 390.30687001,
+             0.0, 0.0, 1.0;
+        D << -0.017278829037307854,
+             -0.008386205507497259,
+             0.007214656916952731,
+             -0.003014981423176122;
+#else
         K << 421.05641911742293, 0.0, 623.1233368341417,
              0.0, 435.3963639225523, 381.33950935388606,
              0.0, 0.0, 1.0;
@@ -1308,6 +1403,7 @@ protected:
              0.058951819094913656,
              -0.07417478474484326,
              0.030368291431475524;
+#endif
 
         auto retValue = getImageInfo("/sdcard/distort.jpg", &mWidth,
                         &mHeight, &mStride);
