@@ -51,6 +51,7 @@ using IEvsDisplay_1_1      = ::android::hardware::automotive::evs::V1_1::IEvsDis
 using IEvsCameraStream_1_0 = ::android::hardware::automotive::evs::V1_0::IEvsCameraStream;
 using IEvsCameraStream_1_1 = ::android::hardware::automotive::evs::V1_1::IEvsCameraStream;
 
+#define EVS_FAKE_PROP   "vendor.evs.fake.enable"
 struct forwardframe {
     fsl::Memory *buf;
     int index;

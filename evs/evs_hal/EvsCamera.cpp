@@ -50,8 +50,14 @@ EvsCamera::EvsCamera(const char *videoName, const camera_metadata_t *metadata)
     mLogiccam = isLogicalCamera(metadata);
     if (mLogiccam) {
         std::unique_ptr<ConfigManager>  config;
-        config =
-           ConfigManager::Create("/vendor/etc/automotive/evs/imx_evs_configuration.xml");
+        int enableFake = property_get_int32(EVS_FAKE_PROP, 0);
+        if (enableFake != 0)
+            config =
+                ConfigManager::Create("/vendor/etc/automotive/evs/fake_evs_configuration.xml");
+        else
+            config =
+                ConfigManager::Create("/vendor/etc/automotive/evs/imx_evs_configuration.xml");
+
         vector<string> cameraList = config->getCameraIdList();
         for (auto&cam : cameraList) {
             CameraDesc aCamera;

@@ -69,6 +69,7 @@ cc_binary {
     defaults: ["evs_default"],
     required: [
         "imx_evs_configuration.xml",
+        "fake_evs_configuration.xml",
     ],
 }
 
@@ -96,3 +97,9 @@ prebuilt_etc {
     sub_dir: "automotive/evs",
 }
 
+prebuilt_etc {
+    name: "fake_evs_configuration.xml",
+    soc_specific: true,
+    src: "resources/fake_evs_configuration.xml",
+    sub_dir: "automotive/evs",
+}

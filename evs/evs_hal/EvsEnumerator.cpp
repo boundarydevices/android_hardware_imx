@@ -48,7 +48,6 @@ namespace implementation {
 #define EVS_FAKE_LOGIC_CAMERA "group0"
 #define EVS_FAKE_NAME   "fake.camera"
 #define EVS_FAKE_LOGIC_NAME   "fake.logic.camera"
-#define EVS_FAKE_PROP   "vendor.evs.fake.enable"
 #define FAKE_CAMERA_WIDTH 1920
 #define FAKE_CAMERA_HEIGHT 1024
 
@@ -149,6 +148,9 @@ bool EvsEnumerator::EnumAvailableVideo() {
         sCameraList.push_back(camrec_single);
 
         captureCount++;
+
+        sConfigManager =
+            ConfigManager::Create("/vendor/etc/automotive/evs/fake_evs_configuration.xml");
         goto found;
     }
 
