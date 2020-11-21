@@ -59,6 +59,8 @@ struct audio_card {
     bool support_lpa;
     unsigned int out_period_size;
     unsigned int out_period_count;
+    unsigned int in_period_size;
+    unsigned int in_period_count;
 };
 
 bool parse_all_cards(struct audio_card **audio_card_list);

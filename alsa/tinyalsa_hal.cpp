@@ -1346,8 +1346,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     size_t out_frames = in_frames;
     bool force_input_standby = false;
     struct imx_stream_in *in;
-    unsigned int avail;
-    struct timespec timestamp;
 
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will return 1
     // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
@@ -4226,6 +4224,16 @@ static int scan_available_device(struct imx_audio_device *adev, bool queryInput,
                 if(audio_card_list[j]->out_period_count > 0) {
                     ALOGI("%s, set out period_count to %d", audio_card_list[j]->driver_name, audio_card_list[j]->out_period_count);
                     pcm_config_mm_out.period_count = audio_card_list[j]->out_period_count;
+                }
+
+                if (audio_card_list[j]->in_period_size > 0) {
+                    ALOGI("%s, set in period_size to %d", audio_card_list[j]->driver_name, audio_card_list[j]->in_period_size);
+                    pcm_config_mm_in.period_size = audio_card_list[j]->in_period_size;
+                }
+
+                if (audio_card_list[j]->in_period_count > 0) {
+                    ALOGI("%s, set in period_count to %d", audio_card_list[j]->driver_name, audio_card_list[j]->in_period_count);
+                    pcm_config_mm_in.period_count = audio_card_list[j]->in_period_count;
                 }
 
                 if(audio_card_list[j]->support_multi_chn) {
