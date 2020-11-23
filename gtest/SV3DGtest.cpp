@@ -103,6 +103,65 @@ static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
 static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
         vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds)
 {
+#ifdef ENABLE_IMX_SV
+    evsRotations = {
+        {1.81080639, -0.01254808, 0.22454604},
+        {1.56411997, 1.69873618, -0.66798416},
+        {-0.12984119, 2.49551644, -1.74079733},
+        {1.65667285, -1.56078896, 1.33886394}
+    };
+    evsTransforms = {
+        {0.00236236, 0.33980279, -0.05790999},
+        {-0.05558801, 0.38353284, 0.03021416},
+        {-0.02859015, 0.33999272, -0.05377325},
+        {-0.04265574, 0.36310098, -0.00825252}
+    };
+    Matrix<double, 3, 3> K0;
+    K0 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K0);
+    Matrix<double, 3, 3> K1;
+    K1 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K1);
+    Matrix<double, 3, 3> K2;
+    K2 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K2);
+    Matrix<double, 3, 3> K3;
+    K3 <<  435.92451924, 0.0, 646.57033235,
+           0.0, 434.35194308, 390.30687001,
+           0.0, 0.0, 1.0;
+    Ks.push_back(K3);
+
+    Matrix<double, 1, 4> D0;
+    D0 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D0);
+    Matrix<double, 1, 4> D1;
+    D1 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D1);
+    Matrix<double, 1, 4> D2;
+    D2 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D2);
+    Matrix<double, 1, 4> D3;
+    D3 << -0.017278829037307854,
+          -0.008386205507497259,
+          0.007214656916952731,
+          -0.003014981423176122;
+    Ds.push_back(D3);
+#else
     evsRotations = {
         {2.26308, 0.0382788, -0.0220549},
         {1.67415, -1.74075, 0.789399},
@@ -160,12 +219,17 @@ static void initCameraParameters(vector<Vector3d> &evsRotations, vector<Vector3d
           -0.0013549275607082035,
           -5.9961182248325556e-06;
     Ds.push_back(D3);
+#endif
 }
 
 #define SV_X_STEP (0.2)
 #define SV_Z_NOP (16)
 #define SV_ANGLES_IN_PI (64)
+#ifdef ENABLE_IMX_SV
+#define SV_RADIUS (0.75)
+#else
 #define SV_RADIUS (4.0)
+#endif
 
 #define CAR_ORIENTATION_X 90.0f 
 #define CAR_ORIENTATION_Y 180.0f
