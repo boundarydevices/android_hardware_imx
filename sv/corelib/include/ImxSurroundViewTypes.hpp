@@ -15,9 +15,24 @@
  */
 #ifndef IMX_SURROUNDVIEW_TYPES_HPP_
 #define IMX_SURROUNDVIEW_TYPES_HPP_
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
+using namespace Eigen;
 using namespace std;
 namespace imx {
+
+// surround view camera parameters with native types only.
+struct ImxSurroundViewCameraParams {
+    // All calibration data |intrinsics|, |rvec| and |tvec|
+    // follow OpenCV format excepting using native arrays, refer:
+    // https://docs.opencv.org/3.4.0/db/d58/group__calib3d__fisheye.html
+    // camera intrinsics. It is the 1d array of camera matrix(3X3) with row first.
+    vector<Vector3d> mEvsRotations;
+    vector<Vector3d> mEvsTransforms;
+    vector<Matrix<double, 3, 3>> mKs;
+    vector<Matrix<double, 1, 4>> mDs;
+};
 
 struct PixelMap{
         int index0;
