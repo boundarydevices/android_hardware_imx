@@ -22,11 +22,17 @@
 * DEALINGS IN THE SOFTWARE.
 */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <cutils/log.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <GLES/gl.h>
 #include <GLES/glext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
+#include <GLES3/gl3ext.h>
 
 #include "Imx3DView.hpp"
 
@@ -35,6 +41,43 @@ using namespace std;
 namespace imx {
 /***************************************************************************************
 ***************************************************************************************/
+string Imx3DView::getEGLError(void) {
+    switch (eglGetError()) {
+        case EGL_SUCCESS:
+            return "EGL_SUCCESS";
+        case EGL_NOT_INITIALIZED:
+            return "EGL_NOT_INITIALIZED";
+        case EGL_BAD_ACCESS:
+            return "EGL_BAD_ACCESS";
+        case EGL_BAD_ALLOC:
+            return "EGL_BAD_ALLOC";
+        case EGL_BAD_ATTRIBUTE:
+            return "EGL_BAD_ATTRIBUTE";
+        case EGL_BAD_CONTEXT:
+            return "EGL_BAD_CONTEXT";
+        case EGL_BAD_CONFIG:
+            return "EGL_BAD_CONFIG";
+        case EGL_BAD_CURRENT_SURFACE:
+            return "EGL_BAD_CURRENT_SURFACE";
+        case EGL_BAD_DISPLAY:
+            return "EGL_BAD_DISPLAY";
+        case EGL_BAD_SURFACE:
+            return "EGL_BAD_SURFACE";
+        case EGL_BAD_MATCH:
+            return "EGL_BAD_MATCH";
+        case EGL_BAD_PARAMETER:
+            return "EGL_BAD_PARAMETER";
+        case EGL_BAD_NATIVE_PIXMAP:
+            return "EGL_BAD_NATIVE_PIXMAP";
+        case EGL_BAD_NATIVE_WINDOW:
+            return "EGL_BAD_NATIVE_WINDOW";
+        case EGL_CONTEXT_LOST:
+            return "EGL_CONTEXT_LOST";
+        default:
+            return "Unknown error";
+    }
+}
+
 Imx3DView::Imx3DView()
 {
     current_prog = 0;
@@ -45,6 +88,24 @@ Imx3DView::Imx3DView()
     glEnable(GL_BLEND);
     //glEnable(GL_CULL_FACE);
     //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+Imx3DView::Imx3DView(vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
+                     vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds)
+{
+    current_prog = 0;
+    //glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
+    //glBlendFunc(GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    mInitial = false;
+    //glEnable(GL_CULL_FACE);
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    mEvsRotations = evsRotations;
+    mEvsTransforms = evsTransforms;
+    mKs = Ks;
+    mDs = Ds;
 }
 
 
@@ -113,6 +174,7 @@ int Imx3DView::addMesh(string filename)
 	vLoad(&vert, &vo_tmp.num, filename);
 
 	//////////////////////// Camera textures initialization /////////////////////////////
+
 	glGenVertexArrays(1, &vo_tmp.vao);
 	glGenBuffers(1, &vo_tmp.vbo);
 
@@ -328,6 +390,125 @@ void Imx3DView::renderView(shared_ptr<unsigned char> distort,
 	glFinish();
 }
 
+bool Imx3DView::prepareGL(uint32_t output_w, uint32_t output_h) {
+    EGLDisplay dpy;
+    EGLSurface surface;
+    dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (dpy == EGL_NO_DISPLAY) {
+        ALOGE("Failed to get egl display: %s", getEGLError().c_str());
+        return false;
+    }
+
+    EGLint majorVersion;
+    EGLint minorVersion;
+    if(!eglInitialize(dpy, &majorVersion, &minorVersion)) {
+        ALOGE("Failed to initialize EGL: %s", getEGLError().c_str());
+        return false;
+    }
+
+    // Hardcoded to RGBx output display
+    const EGLint config_attribs[] = {
+        // Tag                  Value
+        EGL_RENDERABLE_TYPE,    EGL_OPENGL_ES2_BIT,
+        EGL_RED_SIZE,           8,
+        EGL_GREEN_SIZE,         8,
+        EGL_BLUE_SIZE,          8,
+        EGL_NONE
+    };
+
+    // Select OpenGL ES v 3
+    const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+
+    // Select the configuration that "best" matches our desired characteristics
+    EGLConfig egl_config;
+    EGLint num_configs;
+    if (!eglChooseConfig(dpy, config_attribs, &egl_config, 1, &num_configs)) {
+        ALOGE("eglChooseConfig() failed with error %s", getEGLError().c_str());
+        return false;
+    }
+
+    EGLint surface_attribs[] = { EGL_WIDTH, (EGLint)output_w, EGL_HEIGHT, (EGLint)output_h, EGL_NONE };
+    surface = eglCreatePbufferSurface(dpy, egl_config,
+                            surface_attribs);
+    if (surface == EGL_NO_SURFACE) {
+        ALOGE("Failed to create OpenGL ES Context %s", getEGLError().c_str());
+        return false;
+    }
+
+    EGLContext context = eglCreateContext(dpy, egl_config,
+            EGL_NO_CONTEXT, context_attribs);
+    if (context == EGL_NO_CONTEXT) {
+        ALOGE("Failed to create OpenGL ES Context %s", getEGLError().c_str());
+        return false;
+    }
 
 
+    // Activate our render target for drawing
+    if (!eglMakeCurrent(dpy, surface, surface, context)) {
+        ALOGE("Failed to make the OpenGL ES Context current %s", getEGLError().c_str());
+        return false;
+    } else {
+        ALOGI("We made our context current!  :)");
+    }
+
+    if (addProgram(s_v_shader, s_f_shader) == -1)
+        return false;
+    if (addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return false;
+    if (addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return false;
+    if (setProgram(0) == -1)
+        return false;
+
+    mGrid = new CurvilinearGrid(SV_ANGLES_IN_PI, SV_Z_NOP, SV_X_STEP,
+                                output_w, output_h, mEvsRotations, mEvsTransforms, mKs, mDs);
+
+    mGrid->createGrid(SV_RADIUS); // Calculate grid points
+    cleanView();
+
+    if (setProgram(2) == 0) {
+        for(uint32_t index = 0; index < 4; index ++) {
+            float* data = nullptr;
+            int data_num = mGrid->getMashes(&data, index);
+            int grid_buf = addMesh(data, data_num / SV_ATTRIBUTE_NUM);
+            if(data != nullptr) {
+                free(data);
+                data = nullptr;
+            }
+            mAshes.push_back(grid_buf);
+        }
+
+        Vector3d r = { 1, 0, 0};
+        AngleAxisd rotation_vector(0, r);
+        Isometry3d T = Isometry3d::Identity();
+        T.rotate(rotation_vector);
+        auto modelMatrix = T.matrix();
+        float mvp_matrix[16];
+        for(int i = 0; i < 4; i ++)
+            for(int j = 0; j < 4; j ++){
+                mvp_matrix[i *4 + j] = (float)modelMatrix(i, j);
+            }
+
+        setMVPMatrix(2, mvp_matrix);
+    }
+    return true;
+}
+
+bool Imx3DView::renderSV(vector<shared_ptr<unsigned char>> images, char *outbuf,
+                           uint32_t input_w, uint32_t input_h,
+                           uint32_t output_w, uint32_t output_h) {
+
+    if (!mInitial) {
+        prepareGL(output_w, output_h);
+        mInitial = true;
+    }
+
+    for(uint32_t index = 0; index < 4; index ++)
+        renderView(images[index], input_w, input_h, mAshes[index]);
+
+    // read the buffer from surface
+    glReadPixels(0, 0, output_w, output_h, GL_RGBA, GL_UNSIGNED_BYTE, outbuf);
+
+    return true;
+}
 }//namespace imx

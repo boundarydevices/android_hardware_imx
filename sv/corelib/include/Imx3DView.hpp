@@ -45,6 +45,8 @@
 #include <string>
 
 //OpenGL
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <GLES3/gl3.h>
 #include <GLES2/gl2ext.h>
 
@@ -53,6 +55,7 @@
 #include "shaders.hpp"
 
 #include "ImxSurroundViewTypes.hpp"
+#include "Imx3DGrid.hpp"
 
 /**********************************************************************************************************************
  * Macros
@@ -68,6 +71,12 @@
 #define SV_ALPHA_NUM 1
 
 #define SV_ATTRIBUTE_NUM (SV_VERTEX_NUM + SV_TEXTURE_NUM + SV_ALPHA_NUM)
+
+#define SV_X_STEP (0.2)
+#define SV_Z_NOP (16)
+#define SV_ANGLES_IN_PI (64)
+#define SV_RADIUS (0.75)
+
 
 namespace imx {
 /**********************************************************************************************************************
@@ -88,8 +97,11 @@ struct vertices_obj
 class Imx3DView {
 public:
 	Imx3DView();
+	Imx3DView(vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
+                  vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds);
 	~Imx3DView();
 
+        string getEGLError(void);
 	int addProgram(const char* v_shader, const char* f_shader);
 	int setProgram(uint index);
 	void cleanView();
@@ -105,6 +117,10 @@ public:
 	                  uint32_t w, uint32_t h,
 	                  int mesh);
 	int addMesh(float *data, int data_num);
+	bool prepareGL(uint32_t output_w, uint32_t output_h);
+	bool renderSV(vector<shared_ptr<unsigned char>> images, char *outbuf,
+                                        uint32_t input_w, uint32_t input_h,
+                                        uint32_t output_w, uint32_t output_h);
 
 
 private:
@@ -112,9 +128,16 @@ private:
 	std::vector<Programs> render_prog;
 	std::vector<vertices_obj> v_obj;
 
+	vector<int> mAshes;
+	imx::CurvilinearGrid *mGrid;
 	void vLoad(GLfloat** vert, int* num, string filename);
 	void bufferObjectInit(GLuint* text_vao, GLuint* text_vbo, GLfloat* vert, int num);
 	void texture2dInit(GLuint* texture);
+	bool mInitial;
+	vector<Vector3d> mEvsRotations;
+	vector<Vector3d> mEvsTransforms;
+	vector<Matrix<double, 3, 3>> mKs;
+	vector<Matrix<double, 1, 4>> mDs;
 };
 } //namespace imx
 #endif /* SRC_RENDER_HPP_ */
