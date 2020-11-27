@@ -98,7 +98,6 @@
 #define SCO_IN_DEVICE AUDIO_DEVICE_IN_BUILTIN_MIC
 
 // sample rate requested by BT firmware on HSP
-// 8k on imx8mm(qcom 1pj BT), 16k on other imx8 Soc(NXP BT)
 static uint32_t g_hsp_sample_rate = 16000;
 static int g_hsp_chns = 2;
 
@@ -4143,11 +4142,6 @@ static void adjust_card_sequence(struct imx_audio_device *adev)
 
     memset(deviceName, 0, sizeof(deviceName));
     property_get(PRODUCT_DEVICE_PROPERTY, deviceName, DEFAULT_ERROR_NAME_str);
-
-    // Set HSP rate to 8k on evk_8mm. Maybe not graceful to set in this function.
-    // Will remove once evK_8mm use NXP BT chip.
-    if(strstr(deviceName, "evk_8mm"))
-        g_hsp_sample_rate = 8000;
 
     if(!strstr(deviceName, "mek_8q"))
         return;
