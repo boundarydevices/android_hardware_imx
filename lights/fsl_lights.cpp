@@ -149,9 +149,19 @@ static int lights_device_open(const struct hw_module_t* module,
 
         file = fopen(max_path, "r");
         if (!file) {
-            free(dev);
-            ALOGE("cannot open backlight file %s\n", max_path);
-            return status;
+            ALOGE("cannot open default backlight file %s\n", max_path);
+            property_get("vendor.hw.backlight_backup.dev", value, DEF_BACKLIGHT_DEV);
+            strcpy(path, DEF_BACKLIGHT_PATH);
+            strcat(path, value);
+            strcpy(max_path, path);
+            strcat(max_path, "/max_brightness");
+            strcat(path, "/brightness");
+            file = fopen(max_path, "r");
+            if (!file) {
+                free(dev);
+                ALOGE("cannot open backup backlight file %s\n", max_path);
+                return status;
+            }
         }
         fclose(file);
 

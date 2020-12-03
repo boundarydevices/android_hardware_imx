@@ -1046,7 +1046,19 @@ void Display::initBrightness()
     FILE *file = fopen(path, "r");
     if (!file) {
         mMaxBrightness = -1;
-        ALOGE("%s cannot open backlight file %s", __func__,path);
+        ALOGE("%s cannot open default backlight file %s", __func__,path);
+        property_get("vendor.hw.backlight_backup.dev", path, DEF_BACKLIGHT_DEV);
+        strcpy(mBrightnessPath, DEF_BACKLIGHT_PATH);
+        strcat(mBrightnessPath, path);
+        strcpy(path, mBrightnessPath);
+        strcat(mBrightnessPath, "/brightness");
+        strcat(path, "/max_brightness");
+        file = fopen(path, "r");
+    }
+
+    if (!file) {
+        mMaxBrightness = -1;
+        ALOGE("%s cannot open backup backlight file %s", __func__,path);
     }
     else {
         fread(&mMaxBrightness,1,3,file);
