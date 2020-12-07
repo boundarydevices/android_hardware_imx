@@ -1,0 +1,5 @@
+sh_binary {
+    name: "imx_ota_postinstall",
+    src: "imx_ota_postinstall.sh",
+    vendor: true,
+}
