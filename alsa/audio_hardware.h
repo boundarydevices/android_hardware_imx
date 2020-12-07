@@ -90,6 +90,7 @@ struct imx_audio_device {
     struct listnode out_streams; // record for output streams
     struct listnode in_streams;  // record for input streams
     audio_patch_handle_t next_patch_handle; // unique handle used in release/create_audio_patch
+    char device_name[128];
 };
 
 struct imx_stream_out {

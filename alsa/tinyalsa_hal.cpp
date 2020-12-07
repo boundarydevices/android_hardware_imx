@@ -103,12 +103,10 @@ static int g_hsp_chns = 2;
 
 /* product-specific defines */
 #define PRODUCT_DEVICE_PROPERTY "ro.product.device"
-#define PRODUCT_NAME_PROPERTY   "ro.product.name"
-#define PRODUCT_DEVICE_IMX      "imx"
-#define PRODUCT_DEVICE_AUTO     "sabreauto"
+#define PASSTHROUGH_PROPERTY "vendor.persist.audio.pass.through"
 
-#define IMX8_BOARD_NAME "imx8"
-#define IMX7_BOARD_NAME "imx7"
+#define PASSTHROUGH_PROPERTY_ENABLE 2000
+
 #define DEFAULT_ERROR_NAME_str "0"
 
 struct audio_card *audio_card_list[MAX_SUPPORT_CARD_LIST_SIZE];
@@ -143,6 +141,7 @@ struct pcm_config pcm_config_esai_multi = {
 };
 
 int lpa_enable = 0;
+bool passthrough_for_s24 = false;
 
 struct pcm_config pcm_config_dsd = {
     .channels = 2,
@@ -226,6 +225,24 @@ static enum pcm_format pcm_format_from_audio_format(audio_format_t format)
     case AUDIO_FORMAT_PCM_FLOAT:  /* there is no equivalent for float */
     default:
         return PCM_FORMAT_INVALID;
+    }
+}
+
+/* Standard passthrough data format is PCM_FORMAT_S16_LE */
+/* Wrap it to PCM_FORMAT_S24_LE for evk_8mp */
+static void convert_passthrough_data_for_s24(void *src, void *dst,
+        unsigned int frames)
+{
+    unsigned int i;
+    short *src_t = (short *)src; // source is 16 bit
+    int *dst_t = (int *)dst; // target is 24 bit
+    short left, right;
+
+    for (i = 0; i < frames; i++) {
+        left = *src_t++;
+        right = *src_t++;
+        *dst_t++ = (int)(left << 8);
+        *dst_t++ = (int)(right << 8);
     }
 }
 
@@ -709,6 +726,14 @@ static int start_output_stream(struct imx_stream_out *out)
                 out->resampler->reset(out->resampler);
         } else
             out->written = 0;
+
+        if (passthrough_for_s24) {
+            out->buffer_frames = out->config.period_size *
+                out->config.period_count;
+            if (out->buffer == NULL)
+                out->buffer = (char *)malloc(out->buffer_frames * \
+                        audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common));
+        }
 
         return 0;
     }
@@ -1396,12 +1421,23 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     if (out->config.channels > 2)
         convert_output_for_esai(buffer, bytes, out->config.channels);
 
+    if (passthrough_for_s24) {
+        convert_passthrough_data_for_s24((void *)buffer, (void *)(out->buffer),
+                out_frames);
+    }
+
     if (out->pcm) {
         if (((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) || (out->flags == AUDIO_OUTPUT_FLAG_NONE)) &&
                 (out->config.rate != DEFAULT_OUTPUT_SAMPLE_RATE)) {
             /* PCM resampled or channel converted.
                For bt-sai HSP case, stereo buffer converted to mono out->buffer */
             ret = pcm_write_wrapper(out->pcm, (void *)out->buffer, out_frames * frame_size, out->write_flags);
+        } else if (passthrough_for_s24) {
+            /* For 8mp passthrough case, audio data is converted from
+               PCM_FORMAT_S16_LE buffer to PCM_FORMAT_S24_LE out->buffer,
+               so here double the bytes to write */
+            ret = pcm_write_wrapper(out->pcm, (void *)out->buffer,
+                    out_frames * frame_size * 2, out->write_flags);
         } else {
             /* PCM uses native sample rate */
             ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
@@ -3243,6 +3279,14 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config = pcm_config_hdmi_multi;
         out->config.rate = config->sample_rate;
         out->config.channels = popcount(config->channel_mask);
+        if (strcmp(ladev->device_name, "evk_8mp") == 0) {
+            out->config.format = PCM_FORMAT_S24_LE;
+            if (property_get_int32(PASSTHROUGH_PROPERTY, 0) ==
+                    PASSTHROUGH_PROPERTY_ENABLE) {
+                passthrough_for_s24 = true;
+                ALOGI("%s, passthrough is enabled on evk_8mp", __func__);
+            }
+        }
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
               ((devices == AUDIO_DEVICE_OUT_SPEAKER) ||
                (devices == AUDIO_DEVICE_OUT_LINE) ||
@@ -4140,7 +4184,6 @@ static int pcm_get_near_param_wrap(unsigned int card, unsigned int device,
 static void adjust_card_sequence(struct imx_audio_device *adev)
 {
     int cardIdx;
-    char deviceName[128];
     struct audio_card *pcard_wm8960 = NULL;
     struct audio_card *pcard_cs42888 = NULL;
     struct mixer *pmixer_wm8960 = NULL;
@@ -4151,10 +4194,7 @@ static void adjust_card_sequence(struct imx_audio_device *adev)
     if((adev == NULL) || (adev->audio_card_num == 0))
         return;
 
-    memset(deviceName, 0, sizeof(deviceName));
-    property_get(PRODUCT_DEVICE_PROPERTY, deviceName, DEFAULT_ERROR_NAME_str);
-
-    if(!strstr(deviceName, "mek_8q"))
+    if(!strstr(adev->device_name, "mek_8q"))
         return;
 
     for(cardIdx = 0; cardIdx < adev->audio_card_num; cardIdx++) {
@@ -4444,6 +4484,11 @@ static int adev_open(const hw_module_t* module, const char* name,
 
     adev->voice_volume  = 1.0f;
     adev->tty_mode      = TTY_MODE_OFF;
+
+    memset(adev->device_name, 0, sizeof(adev->device_name));
+    property_get(PRODUCT_DEVICE_PROPERTY, adev->device_name,
+            DEFAULT_ERROR_NAME_str);
+
     pthread_mutex_unlock(&adev->lock);
 
     *device = &adev->hw_device.common;
