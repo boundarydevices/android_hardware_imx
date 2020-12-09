@@ -641,33 +641,46 @@ static int start_output_stream(struct imx_stream_out *out)
     static int first = 1;
     struct listnode *node;
 
-    // Disable primary output stream (like touch sound) if other stream opened the same pcm device.
-    if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) && (out->device != AUDIO_DEVICE_OUT_BUS)) {
+    // Consider such use case: opening a direct output media with touch sound
+    // They need use same pcm device at the same time
+    // Let direct stream have high priority than non-direct stream
+
+    // First: Standby non-direct stream if direct stream need open same device
+    if (out->flags & AUDIO_OUTPUT_FLAG_DIRECT) {
+        list_for_each(node, &adev->out_streams) {
+            struct imx_stream_out *stream = node_to_item(
+                    node, struct imx_stream_out, stream_node);
+            if ((stream->device == out->device) &&
+                    (!(stream->flags & AUDIO_OUTPUT_FLAG_DIRECT)) &&
+                    (!stream->standby)) {
+                pthread_mutex_lock(&stream->lock);
+                do_output_standby(stream, true);
+                pthread_mutex_unlock(&stream->lock);
+                ALOGI("%s: standby non-direct stream(%p) while " \
+                        "direct stream need open the same pcm device: %d.",
+                        __func__, stream, out->device);
+            }
+        }
+    }
+    // Second: Just return for non-direct stream if device is opened by other stream
+    if ((!(out->flags & AUDIO_OUTPUT_FLAG_DIRECT)) &&
+            (out->device != AUDIO_DEVICE_OUT_BUS)) {
         list_for_each(node, &adev->out_streams) {
             struct imx_stream_out *stream = node_to_item(
                     node, struct imx_stream_out, stream_node);
             if ((stream->device == out->device) && (!stream->standby)) {
                 if (first) {
                     first = 0;
-                    ALOGE("%s: disable primary output stream while " \
-                            "other stream opened the same pcm device: %d.", __func__, out->device);
+                    ALOGI("%s: disable non-direct stream(%p) while " \
+                            "other stream opened the same pcm device: %d.",
+                            __func__, out, out->device);
                 }
+                usleep(2000);
                 return -EBUSY;
             }
         }
     }
     first = 1;
-
-    // Standby active primary output stream if other stream need open same pcm device.
-    if (((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) == 0) && adev->primary_output &&
-            (!adev->primary_output->standby) && (out->device == adev->primary_output->device)) {
-        struct imx_stream_out *primary_out = adev->primary_output;
-        pthread_mutex_lock(&primary_out->lock);
-        do_output_standby(primary_out, true);
-        pthread_mutex_unlock(&primary_out->lock);
-        ALOGE("%s: standby primary output stream while " \
-                "other stream need open the same pcm device: %d.", __func__, out->device);
-    }
 
     ALOGI("%s: primary: %d, out: %p, device: %d, address: %s, mode: %d, flags 0x%x", __func__,
             (out == adev->primary_output), out, out->device, out->address, adev->mode, out->flags);
