@@ -437,6 +437,11 @@ void V4l2Capture::onStop()
 Return<EvsResult> V4l2Capture::setMaxFramesInFlight(uint32_t bufferCount) {
     ALOGD("setMaxFramesInFlight");
 
+    if (!isOpen()) {
+        ALOGE("Ignoring, because the camera is closed");
+        return EvsResult::OWNERSHIP_LOST;
+    }
+
     // We cannot function without at least one video buffer to send data
     if (bufferCount < 1) {
         ALOGE("Ignoring with less than one buffer requested");
