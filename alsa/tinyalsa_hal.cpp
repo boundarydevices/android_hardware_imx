@@ -1658,6 +1658,11 @@ static int start_input_stream(struct imx_stream_in *in)
     int card = -1;
     unsigned int port = 0;
 
+    // If input device is opened by HFP thread, just return error here
+    if (adev->b_sco_tx_running) {
+        usleep(2000);
+        return -EBUSY;
+    }
     ALOGW("start_input_stream...., mode %d, in->device 0x%x", adev->mode, in->device);
 
     adev->active_input = in;
@@ -3743,6 +3748,12 @@ static int sco_task_create(struct imx_audio_device *adev)
     ALOGW(" open mic, card %d, port %d", card, port);
     ALOGW("rate %d, channel %d, period_size 0x%x",
         adev->cap_config.rate, adev->cap_config.channels, adev->cap_config.period_size);
+
+    // Standby active input stream in HFP case
+    if (adev->active_input) {
+        do_input_standby(adev->active_input);
+        usleep(2000);
+    }
 
     adev->pcm_cap = pcm_open(card, port, PCM_IN, &adev->cap_config);
     if (adev->pcm_cap && !pcm_is_ready(adev->pcm_cap)) {
