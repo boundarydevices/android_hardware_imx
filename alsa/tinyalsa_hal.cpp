@@ -567,6 +567,9 @@ static int get_card_for_device(struct imx_audio_device *adev, int device, unsign
     int i;
     int card = -1;
 
+    if (device == AUDIO_DEVICE_NONE)
+        device = AUDIO_DEVICE_OUT_SPEAKER;
+
     if (flag == PCM_OUT ) {
         for(i = 0; i < adev->audio_card_num; i++) {
             if(adev->card_list[i]->supported_out_devices & device) {
