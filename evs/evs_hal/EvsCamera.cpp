@@ -709,7 +709,7 @@ EvsCamera::importExternalBuffers(const hidl_vec<BufferDesc_1_1>& /* buffers */,
 Return<EvsResult> EvsCamera::setExtendedInfo_1_1(uint32_t opaqueIdentifier,
                                      const hidl_vec<uint8_t>& opaqueValue) {
     mExtInfo.insert_or_assign(opaqueIdentifier, opaqueValue);
-    return EvsResult::INVALID_ARG;
+    return EvsResult::OK;
 }
 
 Return<void> EvsCamera::getExtendedInfo_1_1(uint32_t opaqueIdentifier,
