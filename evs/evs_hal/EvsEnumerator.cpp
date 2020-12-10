@@ -349,8 +349,9 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
         }
     } else {
         auto camGroups = sConfigManager->getCameraGroupIdList();
+        auto camList = sConfigManager->getCameraIdList();
         // Build up a packed array of CameraDesc for return
-        const unsigned numCameras = sCameraList.size();
+        const unsigned numCameras = camList.size();
         const unsigned numGroup = camGroups.size();
         hidlCameras.resize(numCameras + numGroup);
         unsigned i = 0;
@@ -364,7 +365,8 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
                     (uint8_t *)tempInfo->characteristics,
                      get_camera_metadata_size(tempInfo->characteristics)
                 );
-            }
+            } else
+                continue;
 #if 0
         camera_metadata_entry_t streamCfgs;
         if (!find_camera_metadata_entry(
@@ -395,8 +397,15 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
 
             aCamera.v1.cameraId = id;
             camrec.desc = aCamera;
-            sCameraList.push_back(camrec);
             hidlCameras[i++] = aCamera;
+            bool included_group_camera = false;
+            for(auto &&cam : sCameraList) {
+                if (cam.desc.v1.cameraId == id)
+                    included_group_camera = true;
+            }
+
+            if (!included_group_camera)
+                sCameraList.push_back(camrec);;
         }
 
     }
