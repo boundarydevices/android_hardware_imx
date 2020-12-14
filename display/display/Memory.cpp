@@ -30,10 +30,9 @@ Memory::Memory(MemoryDesc* desc, int fd, int fd2)
     fbHandle(0), fbId(0), surface(0)
 {
     version = sizeof(native_handle);
-#if !(GRALLOC_VERSION == 4)
     numInts = sNumInts();
     numFds = sNumFds;
-#else
+#if GRALLOC_VERSION == 4
     fd_region = -1;
     id = 0;
     num_planes = 0;

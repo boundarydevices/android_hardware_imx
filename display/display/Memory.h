@@ -81,12 +81,10 @@ struct MemoryDesc;
 
 struct Memory : public native_handle
 {
-#if !(GRALLOC_VERSION == 4)
     static inline int sNumInts() {
         return (((sizeof(Memory) - sizeof(native_handle_t))/sizeof(int)) - sNumFds);
     }
     static const int sNumFds = 2;
-#endif
     static const int sMagic = 0x3141592;
 
     Memory(MemoryDesc* desc, int fd, int fd2);
