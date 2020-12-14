@@ -17,6 +17,8 @@
 #include "EvsDisplay.h"
 
 #include <sync/sync.h>
+#include <ui/DisplayConfig.h>
+#include <ui/DisplayState.h>
 
 namespace android {
 namespace hardware {
@@ -382,10 +384,18 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc_1_0&
 }
 
 Return<void> EvsDisplay::getDisplayInfo_1_1(__attribute__ ((unused))getDisplayInfo_1_1_cb _info_cb) {
-    HwDisplayConfig nullConfig;
-    HwDisplayState  nullState;
+    android::DisplayConfig displayConfig;
+    android::ui::DisplayState displayState;
+    displayConfig.resolution = ui::Size(mWidth, mHeight);
+    displayConfig.refreshRate = 60.f;
+    displayState.layerStack = mLayer;
+    HwDisplayConfig activeConfig;
+    HwDisplayState  activeState;
+
+    activeConfig.setToExternal((uint8_t*)&displayConfig, sizeof(android::DisplayConfig));
+    activeState.setToExternal((uint8_t*)&displayState, sizeof(android::ui::DisplayState));
     // return null, because we have no display proxy
-    _info_cb(nullConfig, nullState);
+    _info_cb(activeConfig, activeState);
     return Void();
 }
 
