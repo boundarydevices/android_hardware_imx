@@ -59,7 +59,7 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
             nFormat = v4l2_fourcc('Y', 'V', '1', '2');
             break;
         case HAL_PIXEL_FORMAT_RGBA_8888:
-            nFormat = v4l2_fourcc('R', 'G', 'B', 'A');
+            nFormat = v4l2_fourcc('A', 'B', '2', '4');
             break;
 
         default:
