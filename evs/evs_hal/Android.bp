@@ -66,6 +66,7 @@ evs_defaults {
 
 cc_binary {
     name: "android.hardware.automotive.evs@1.1-EvsEnumeratorHw",
+    overrides: ["android.automotive.evs.manager@1.0"],
     defaults: ["evs_default"],
     required: [
         "imx_evs_configuration.xml",
