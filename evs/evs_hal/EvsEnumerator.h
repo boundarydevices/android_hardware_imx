@@ -138,6 +138,7 @@ private:
     static std::mutex                       sLock;
 
     static wp<EvsDisplay>          sActiveDisplay; // Weak pointer. Object destructs if client dies.
+    static unsigned mCameranum;
 };
 
 } // namespace implementation

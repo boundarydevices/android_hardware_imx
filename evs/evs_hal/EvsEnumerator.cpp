@@ -64,7 +64,8 @@ using ::android::base::WriteStringToFd;
 std::list<EvsEnumerator::CameraRecord>   EvsEnumerator::sCameraList;
 wp<EvsDisplay>                           EvsEnumerator::sActiveDisplay;
 std::mutex                               EvsEnumerator::sLock;
-std::unique_ptr<ConfigManager>        EvsEnumerator::sConfigManager;
+std::unique_ptr<ConfigManager>           EvsEnumerator::sConfigManager;
+unsigned                                 EvsEnumerator::mCameranum;;
 
 bool EvsEnumerator::filterVideoFromConfigure(char *deviceName) {
     if (sConfigManager == nullptr)
@@ -226,6 +227,9 @@ EvsEnumerator::EvsEnumerator(sp<IAutomotiveDisplayProxyService> proxyService) {
          ALOGD("proxy server is null");
     if (!EnumAvailableVideo())
         mPollVideoFileThread = new PollVideoFileThread();
+    vector<string> camList =
+                sConfigManager->getCameraIdList();
+    mCameranum = camList.size();
 }
 
 Return<void> EvsEnumerator::getDisplayIdList(getDisplayIdList_cb _list_cb) {
@@ -349,11 +353,9 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
         }
     } else {
         auto camGroups = sConfigManager->getCameraGroupIdList();
-        auto camList = sConfigManager->getCameraIdList();
         // Build up a packed array of CameraDesc for return
-        const unsigned numCameras = camList.size();
         const unsigned numGroup = camGroups.size();
-        hidlCameras.resize(numCameras + numGroup);
+        hidlCameras.resize(mCameranum + numGroup);
         unsigned i = 0;
         CameraDesc_1_1 aCamera;
 
