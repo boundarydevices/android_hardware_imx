@@ -470,7 +470,9 @@ int YuvToJpegEncoder::encode(void *inYuv,
                              void *outBuf,
                              int   outSize,
                              int   outWidth,
-                             int   outHeight) {
+                             int   outHeight,
+                             const void *app1Buffer,
+                             size_t app1Size) {
 #ifdef BOARD_HAVE_VPU
     //use vpu to encode
 	if((inWidth == outWidth) && (inHeight == outHeight) && supportVpu){
@@ -484,7 +486,6 @@ int YuvToJpegEncoder::encode(void *inYuv,
     jpegBuilder_error_mgr sk_err;
     uint8_t *resize_src = NULL;
     jpegBuilder_destination_mgr dest_mgr((uint8_t *)outBuf, outSize);
-
 
     memset(&cinfo, 0, sizeof(cinfo));
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
@@ -506,6 +507,13 @@ int YuvToJpegEncoder::encode(void *inYuv,
     setJpegCompressStruct(&cinfo, outWidth, outHeight, quality);
 
     jpeg_start_compress(&cinfo, TRUE);
+
+    /* If APP1 data was passed in, use it */
+    if(app1Buffer && app1Size)
+    {
+        jpeg_write_marker(&cinfo, JPEG_APP0 + 1,
+            static_cast<const JOCTET*>(app1Buffer), app1Size);
+    }
 
     compress(&cinfo, (uint8_t *)inYuv);
     jpeg_finish_compress(&cinfo);

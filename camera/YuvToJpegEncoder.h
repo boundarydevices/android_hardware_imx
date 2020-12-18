@@ -58,7 +58,9 @@ public:
                void *outBuf,
                int   outSize,
                int   outWidth,
-               int   outHeight);
+               int   outHeight,
+               const void *app1Buffer,
+               size_t app1Size);
 
     virtual ~YuvToJpegEncoder() {}
     int getColorFormat() {return mColorFormat;}

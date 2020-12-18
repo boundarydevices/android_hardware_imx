@@ -21,7 +21,6 @@
 #include "CameraUtils.h"
 #include <utils/RefBase.h>
 #include <utils/Errors.h>
-#include "TinyExif.h"
 #include "YuvToJpegEncoder.h"
 #include "HwJpegEncoder.h"
 #include "CameraMetadata.h"
@@ -131,33 +130,17 @@ public:
     JpegBuilder();
     ~JpegBuilder();
 
-    status_t prepareImage(const ImxStreamBuffer *streamBuf);
     status_t encodeImage(JpegParams *mainJpeg,
                          JpegParams *thumbNail,
-                         char *hw_jpeg_enc);
+                         char *hw_jpeg_enc,
+                         CameraMetadata &meta);
     size_t   getImageSize() { return mRequestSize; }
-    status_t buildImage(ImxStreamBuffer *streamBuf);
+    status_t buildImage(ImxStreamBuffer *streamBuf, char *hw_jpeg_enc);
     void     reset();
     void setMetadata(CameraMetadata *pMeta);
 
 private:
-    status_t insertElement(uint16_t tag,
-                           uint32_t val1,
-                           uint32_t val2,
-                           uint32_t val3,
-                           uint32_t val4,
-                           uint32_t val5,
-                           uint32_t val6,
-                           char *strVal);
-    void     insertExifToJpeg(unsigned char *jpeg,
-                              size_t         jpeg_size);
-    status_t insertExifThumbnailImage(const char *,
-                                      int);
-    void     saveJpeg(unsigned char *picture,
-                      size_t         jpeg_size);
-
-private:
-    status_t    encodeJpeg(JpegParams *input, char *hw_jpeg_enc);
+    status_t    encodeJpeg(JpegParams *input, char *hw_jpeg_enc,const void *app1Buffer,size_t app1Size);
     const char* degreesToExifOrientation(const char *);
     void        stringToRational(const    char *,
                                  unsigned int *,
@@ -169,18 +152,20 @@ private:
                                 int  & sec,
                                 int  & secDivisor);
 
+    int InsertEXIFAndJpeg(uint8_t* pMain, uint32_t mainSize,
+                          uint8_t* pDst, uint32_t dstSize);
+
 private:
     JpegParams *mMainInput;
     JpegParams *mThumbnailInput;
+
+    size_t exifDataSize;
+    const uint8_t* exifData;
 
     bool mCancelEncoding;
     EXIFData mEXIFData;
 
 private:
-    IFDEle table[MAX_EXIF_TAGS_SUPPORTED];
-    unsigned int  gps_tag_count;
-    unsigned int  position;
-    bool jpeg_opened;
     bool has_datetime_tag;
 
     CameraMetadata *mMeta;

@@ -45,6 +45,9 @@ public:
 
     CameraMetadata* Clone();
 
+    // Get a key's value by tag
+    status_t Get(uint32_t tag, camera_metadata_ro_entry* entry) const;
+
     status_t getRequestSettings(RequestTemplate type,
                                        std::unique_ptr<HalCameraMetadata>* default_settings);
     status_t setTemplate();
@@ -69,6 +72,8 @@ private:
     std::unique_ptr<HalCameraMetadata> m_static_meta;
     std::unique_ptr<HalCameraMetadata> m_template_meta[(uint32_t)RequestTemplate::kManual + 1];
     HalCameraMetadata *m_request_meta; // meta from framework
+
+    mutable std::mutex metadata_lock_;
 
     CameraDeviceHwlImpl *mDev;
 };

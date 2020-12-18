@@ -564,14 +564,13 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
                                    srcStream->format());
     }
 
-    mJpegBuilder->prepareImage(srcBuf);
-    ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg, mJpegHw);
+    ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg, mJpegHw, (*meta));
     if (ret != NO_ERROR) {
         ALOGE("%s encodeImage failed", __func__);
         goto err_out;
     }
 
-    ret = mJpegBuilder->buildImage(dstBuf);
+    ret = mJpegBuilder->buildImage(dstBuf, mJpegHw);
     if (ret != NO_ERROR) {
         ALOGE("%s buildImage failed", __func__);
         goto err_out;

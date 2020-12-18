@@ -820,6 +820,26 @@ do {\
     }\
 } while(0)
 
+status_t CameraMetadata::Get(uint32_t tag,
+                              camera_metadata_ro_entry* entry) const {
+    if (entry == nullptr) {
+        ALOGE("%s: entry is nullptr", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    std::unique_lock<std::mutex> lock(metadata_lock_);
+
+    META_CHECK(m_request_meta);
+
+    status_t ret = m_request_meta->Get(tag, entry);
+    if (ret == NAME_NOT_FOUND) {
+        ALOGE("%s: error reading tag", __func__);
+        return BAD_VALUE;
+    }
+
+    return NO_ERROR;
+}
+
 int32_t CameraMetadata::getGpsCoordinates(double *pCoords, int count)
 {
     status_t ret;

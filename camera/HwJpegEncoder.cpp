@@ -43,7 +43,9 @@ int HwJpegEncoder::encode(void *inYuv,
                void *outBuf,
                int   outSize,
                int   outWidth,
-               int   outHeight) {
+               int   outHeight,
+               const void *app1Buffer __unused,
+               size_t app1Size __unused) {
     struct encoder_args encoder_parameter;
 
     struct v4l2_buffer bufferin;

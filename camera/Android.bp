@@ -41,7 +41,7 @@ imx_camera_defaults {
                 "HwJpegEncoder.cpp",
                 "YuvToJpegEncoder.cpp",
                 "NV12_resize.cpp",
-                "TinyExif.cpp",
+                "ExifUtils.cpp",
                 "ImageProcess.cpp",
                 "CameraConfigurationParser.cpp",
                 "ISPCameraDeviceHWLImpl.cpp"
@@ -58,6 +58,7 @@ imx_camera_defaults {
                 "libhardware",
                 "libhidlbase",
                 "libgooglecamerahalutils",
+                "libexif",
                 "libjpeg",
                 "libjsoncpp",
                 "liblog",
