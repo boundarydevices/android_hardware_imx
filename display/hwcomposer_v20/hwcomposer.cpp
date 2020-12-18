@@ -1518,7 +1518,6 @@ static int hwc2_set_active_config_with_constraints(hwc2_device_t* device, hwc2_d
         outTimeline->refreshTimeNanos = (int64_t)refreshTime;
     }
 
-    ctx->useVsync_2_4 = true;
     return HWC2_ERROR_NONE;
 
 }
@@ -1908,7 +1907,6 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     dev->mListener = new DisplayListener(dev);
     dev->checkHDMI = true;
     dev->color_tranform = false;
-    dev->useVsync_2_4 = false;
 
     *device = &dev->device.common;
     ALOGI("%s,%d", __FUNCTION__, __LINE__);
@@ -1938,13 +1936,13 @@ DisplayListener::DisplayListener(struct hwc2_context_t* ctx)
 
 void DisplayListener::onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos)
 {
-    if (mCtx == NULL || mCtx->mVsync == NULL) {
+    if (mCtx == NULL) {
         return;
     }
 
-    if ((mCtx->mVsync_2_4 != NULL) && mCtx->useVsync_2_4)
+    if (mCtx->mVsync_2_4 != NULL)
         mCtx->mVsync_2_4(mCtx->mVsyncData_2_4, disp, timestamp, vsyncPeriodNanos);
-    else
+    else if (mCtx->mVsync != NULL)
         mCtx->mVsync(mCtx->mVsyncData, disp, timestamp);
 }
 

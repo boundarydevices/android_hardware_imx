@@ -288,7 +288,7 @@ int Display::CopyAsActiveConfigLocked(int srcId, int dstId)
     if (mActiveConfig == dstId)
         return mActiveConfig;
 
-    const DisplayConfig& cfg = mConfigs[srcId];
+    const DisplayConfig cfg = mConfigs[srcId];
     mConfigs.insertAt(cfg, dstId, 1);
     mActiveConfig = dstId;
     return dstId;

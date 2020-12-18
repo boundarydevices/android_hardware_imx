@@ -42,7 +42,6 @@ struct hwc2_context_t {
     hwc2_callback_data_t mSeamlessPossibleData;
     bool checkHDMI;
     bool color_tranform;
-    bool useVsync_2_4;
 };
 
 class DisplayListener : public EventListener
