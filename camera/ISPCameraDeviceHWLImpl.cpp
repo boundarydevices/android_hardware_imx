@@ -125,25 +125,38 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
         return ret;
     }
 
-    /* set mode, ref ISP code video_test.cpp */
-    struct v4l2_control ctrl;
-    memset(&ctrl, 0, sizeof(ctrl));
-    ctrl.id = V4L2_CID_VIV_SENSOR_MODE;
-    if (ioctl(mDev, VIDIOC_G_CTRL, &ctrl) < 0) {
-        ALOGE("VIDIOC_G_CTRL: %s", strerror(errno));
-    } else {
-        ALOGI("Current sensor's mode: %d", ctrl.value);
-    }
-
-    if (ioctl(mDev, VIDIOC_S_CTRL, &ctrl) < 0) {
-        ALOGW("VIDIOC_S_CTRL: %s", strerror(errno));
-    } else {
-        ALOGI("Change sensor's mode to: %d", ctrl.value);
-    }
-
     ret = postConfigure(format, width, height, fps);
 
     return ret;
+}
+
+int32_t ISPCameraMMAPStream::onDeviceStartLocked()
+{
+    int ret = MMAPStream::onDeviceStartLocked();
+
+    // When restart stream (shift between picture and record mode, or shift between APK), need recover to awb,
+    // or the image will blurry if previous mode is mwb.
+    // awb/aec need to be set after stream on.
+    m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO);
+    m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON);
+
+    return ret;
+}
+
+
+int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath, CameraSensorMetadata *pSensorData)
+{
+    int ret = 0;
+
+    m_IspWrapper = std::make_unique<ISPWrapper>(pSensorData);
+    ret = m_IspWrapper->init(pDevPath);
+
+    return ret;
+}
+
+int32_t ISPCameraMMAPStream::ISPProcess(void *pMeta)
+{
+    return m_IspWrapper->process((HalCameraMetadata *)pMeta);
 }
 
 }  // namespace android

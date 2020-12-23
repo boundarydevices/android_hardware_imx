@@ -84,8 +84,10 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
 
     if (strstr(cam_metadata->camera_name, UVC_NAME))
         pVideoStream = new UvcStream(pDev->mDevPath, this);
-    else if(strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
+    else if(strstr(cam_metadata->camera_name, ISP_SENSOR_NAME)) {
         pVideoStream = new ISPCameraMMAPStream(this);
+        ((ISPCameraMMAPStream *)pVideoStream)->createISPWrapper(pDev->mDevPath, &mSensorData);
+    }
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kMmap)
         pVideoStream = new MMAPStream(this);
     else if (cam_metadata->buffer_type == CameraSensorMetadata::kDma)
@@ -233,6 +235,8 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 
                 mSettings = HalCameraMetadata::Clone(hwReq->settings.get());
             }
+
+            pVideoStream->ISPProcess(mSettings.get());
 
             auto result = std::make_unique<HwlPipelineResult>();
             if (mSettings != NULL)
@@ -614,7 +618,7 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
         m3aState.aeState = ANDROID_CONTROL_AE_STATE_CONVERGED;
         ALOGV("ae precature trigger");
     } else {
-        m3aState.aeState = ANDROID_CONTROL_AE_STATE_INACTIVE;
+        m3aState.aeState = ANDROID_CONTROL_AE_STATE_CONVERGED;
     }
 
     resultMeta->Set(ANDROID_CONTROL_AE_STATE, &m3aState.aeState, 1);
@@ -640,7 +644,7 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
     resultMeta->Set(ANDROID_CONTROL_AF_STATE, &m3aState.afState, 1);
 
     // auto white balance control.
-    m3aState.awbState = ANDROID_CONTROL_AWB_STATE_INACTIVE;
+    m3aState.awbState = ANDROID_CONTROL_AWB_STATE_CONVERGED;
     resultMeta->Set(ANDROID_CONTROL_AWB_STATE, &m3aState.awbState, 1);
 
     return OK;

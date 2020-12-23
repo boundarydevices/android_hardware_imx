@@ -44,7 +44,8 @@ imx_camera_defaults {
                 "ExifUtils.cpp",
                 "ImageProcess.cpp",
                 "CameraConfigurationParser.cpp",
-                "ISPCameraDeviceHWLImpl.cpp"
+                "ISPCameraDeviceHWLImpl.cpp",
+                "ISPWrapper.cpp"
             ],
             cflags: [
                 "-Wextra",

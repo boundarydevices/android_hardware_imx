@@ -93,6 +93,16 @@ struct CameraSensorMetadata {
 
   struct OmitFrame omit_frame[OMIT_RESOLUTION_NUM];
   BufferType buffer_type;
+
+  // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_AE_COMPENSATION_RANGE
+  // and https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_AE_COMPENSATION_STEP.
+  // In short, EV(exposure value) = AeComp * AeCompStepNumerator / AeCompStepDenominator.
+  // Ref above link, One unit of EV compensation changes the brightness of the captured image by a factor of two.
+  // +1 EV doubles the image brightness, while -1 EV halves the image brightness.
+  int mAeCompMin;
+  int mAeCompMax;
+  int mAeCompStepNumerator;
+  int mAeCompStepDenominator;
 };
 
 struct CameraDefinition {

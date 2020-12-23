@@ -116,6 +116,11 @@ const char* const kOmitFrameWidthKey = "width";
 const char* const kOmitFrameHeightKey = "height";
 const char* const kOmitFrameNumKey = "omit_num";
 
+const char* const kAeCompMinKey = "ae_comp_min";
+const char* const kAeCompMaxKey = "ae_comp_max";
+const char* const kAeCompStepNumerator = "ae_comp_step_nummerator";
+const char* const kAeCompStepDenominator = "ae_comp_step_denominator";
+
 
 #define CSC_HW_GPU_2D "GPU_2D"
 #define CSC_HW_GPU_3D "GPU_3D"
@@ -347,6 +352,26 @@ bool ConfigureCameras(const Json::Value& value,
         ALOGE("%s: Invalid camera FocalLength. got %s.",
              __func__, (*iter)[kFocalLengthKey].asString().c_str());
     }
+
+    if(iter->isMember(kAeCompMinKey))
+        camera->camera_metadata[cam_index].mAeCompMin = strtol((*iter)[kAeCompMinKey].asString().c_str(), NULL, 10);
+    else
+        camera->camera_metadata[cam_index].mAeCompMin = -3;
+
+    if(iter->isMember(kAeCompMaxKey))
+        camera->camera_metadata[cam_index].mAeCompMax = strtol((*iter)[kAeCompMaxKey].asString().c_str(), NULL, 10);
+    else
+        camera->camera_metadata[cam_index].mAeCompMax = 3;
+
+    if(iter->isMember(kAeCompStepNumerator))
+        camera->camera_metadata[cam_index].mAeCompStepNumerator = strtol((*iter)[kAeCompStepNumerator].asString().c_str(), NULL, 10);
+    else
+        camera->camera_metadata[cam_index].mAeCompStepNumerator = 1;
+
+    if(iter->isMember(kAeCompStepDenominator))
+        camera->camera_metadata[cam_index].mAeCompStepDenominator = strtol((*iter)[kAeCompStepDenominator].asString().c_str(), NULL, 10);
+    else
+        camera->camera_metadata[cam_index].mAeCompStepDenominator = 1;
 
     int omit_index = 0;
     for (Json::ValueConstIterator omititer = (*iter)[kOmitFrameKey].begin();
