@@ -115,6 +115,26 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      android_lens_info_available_optical_stabilization,
                      ARRAY_SIZE(android_lens_info_available_optical_stabilization));
 
+    uint8_t android_lens_info_focus_distance_calibration[] = {
+            ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION_CALIBRATED};
+    m_static_meta->Set(ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION,
+            android_lens_info_focus_distance_calibration,
+            ARRAY_SIZE(android_lens_info_focus_distance_calibration));
+
+    // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#LENS_INFO_FOCUS_DISTANCE_CALIBRATION
+    // APPROXIMATE and CALIBRATED devices report the focus metadata in units of diopters (1/meter), so 0.0f represents focusing at infinity.
+    float android_lens_info_hyperfocal_distance[] = {0.0};
+    m_static_meta->Set(ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE,
+            android_lens_info_hyperfocal_distance,
+            ARRAY_SIZE(android_lens_info_hyperfocal_distance));
+
+    // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#LENS_INFO_MINIMUM_FOCUS_DISTANCE
+    // If the lens is fixed-focus, this will be 0.
+    float android_lens_info_minimum_focus_distance[] = {0.0};
+    m_static_meta->Set(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
+            android_lens_info_minimum_focus_distance,
+            ARRAY_SIZE(android_lens_info_minimum_focus_distance));
+
     /* android.request */
     int32_t android_request_max_num_output_streams[] = {0, 3, 1};
     m_static_meta->Set(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
@@ -418,6 +438,10 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
         ANDROID_LENS_FACING,
         ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
+        ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
+        ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION,
+        ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE,
+        ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
         ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES,
         ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
         ANDROID_REQUEST_PARTIAL_RESULT_COUNT,
@@ -470,6 +494,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                                        ANDROID_LENS_INFO_AVAILABLE_APERTURES,
                                        ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
                                        ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
+                                       ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
                                        ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
                                        ANDROID_COLOR_CORRECTION_ABERRATION_MODE,
                                        ANDROID_NOISE_REDUCTION_MODE,
