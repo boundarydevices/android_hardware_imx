@@ -99,6 +99,7 @@ const char* const kCameraTypeKey = "camera_type";
 const char* const kMPlaneKey = "mplane";
 const char* const kCameraNameKey = "camera_name";
 const char* const kDeviceNodeKey = "device_node";
+const char* const kBusInfoKey = "bus_info";
 const char* const kOrientationKey = "orientation";
 
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
@@ -247,6 +248,15 @@ bool ConfigureCameras(const Json::Value& value,
     }
     else
         camera->camera_metadata[cam_index].device_node[0] = 0;
+
+    if(iter->isMember(kBusInfoKey)) {
+        strncpy(camera->camera_metadata[cam_index].bus_info,
+              (*iter)[kBusInfoKey].asString().c_str(),
+              META_STRING_SIZE);
+        camera->camera_metadata[cam_index].bus_info[META_STRING_SIZE-1] = 0;
+    }
+    else
+        camera->camera_metadata[cam_index].bus_info[0] = 0;
 
     strncpy(camera->camera_metadata[cam_index].camera_type,
               (*iter)[kCameraTypeKey].asString().c_str(),

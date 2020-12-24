@@ -45,6 +45,7 @@ using namespace cameraconfigparser;
 struct nodeSet {
     char nodeName[CAMERA_SENSOR_LENGTH];
     char devNode[CAMERA_SENSOR_LENGTH];
+    char busInfo[CAMERA_SENSOR_LENGTH];
     bool isHeld;
     nodeSet* next;
 };
@@ -94,7 +95,7 @@ private:
     int32_t matchPropertyName(nodeSet* nodes, int32_t index);
     int32_t matchNodeName(const char* nodeName, nodeSet* nodes, int32_t index);
     int32_t matchDevNodes();
-    int32_t getNodeName(const char* devNode, char name[], size_t length);
+    int32_t getNodeName(const char* devNode, char name[], size_t length, char busInfo[], size_t busInfoLen);
 
 private:
 //    std::vector<std::unique_ptr<HalCameraMetadata>> static_metadata_;
