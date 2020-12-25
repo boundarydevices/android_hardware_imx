@@ -20,7 +20,6 @@
 #include <json/json.h>
 #include <json/reader.h>
 
-
 #define STR_AWB_ENABLE    (char *)"{<id>:<awb.s.en>; <enable>:true}"
 #define STR_AWB_DISABLE   (char *)"{<id>:<awb.s.en>; <enable>:false}"
 
@@ -54,6 +53,28 @@ static char* g_strWBList[] = {
     STR_AWB_SHADE
 };
 
+#define DWE_MODE_LDC        (char *)"{<id>:<dwe.s.mode>; <dwe>:{<mode>:1}}"
+#define DWE_MODE_DEWARP     (char *)"{<id>:<dwe.s.mode>; <dwe>:{<mode>:8}}"
+#define DWE_HFLIP_ON        (char *)"{<id>:<dwe.s.hflip>; <dwe>:{<hflip>:true}}"
+#define DWE_HFLIP_OFF        (char *)"{<id>:<dwe.s.hflip>; <dwe>:{<hflip>:false}}"
+#define DWE_VFLIP_ON        (char *)"{<id>:<dwe.s.vflip>; <dwe>:{<vflip>:true}}"
+#define DWE_VFLIP_OFF        (char *)"{<id>:<dwe.s.vflip>; <dwe>:{<vflip>:false}}"
+
+enum {
+    DEWARP_MODEL_LENS_DISTORTION_CORRECTION = 1 << 0,
+    DEWARP_MODEL_FISHEYE_EXPAND             = 1 << 1,
+    DEWARP_MODEL_SPLIT_SCREEN               = 1 << 2,
+    DEWARP_MODEL_FISHEYE_DEWARP             = 1 << 3,
+};
+
+typedef struct DWEPara {
+    int mode;
+    bool hflip;
+    bool vflip;
+    bool bypass;
+    double mat[17];
+} DWEPara;
+
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;
@@ -74,6 +95,10 @@ private:
     int viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Json::Value& jsonResponse);
     int processExposureGain(int32_t comp);
 
+    int processDewarp(bool bEnable);
+    int processHFlip(bool bEnable);
+    int processVFlip(bool bEnable);
+
 private:
     int m_fd;
     uint32_t m_ctrl_id;
@@ -82,6 +107,7 @@ private:
     uint8_t m_ae_mode;
     int32_t m_exposure_comp;
     double m_exposure_time;
+    DWEPara m_dwePara;
 };
 
 } // namespace android

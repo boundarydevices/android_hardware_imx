@@ -30,6 +30,7 @@
 #include "CameraDeviceHWLImpl.h"
 #include "CameraDeviceSessionHWLImpl.h"
 #include "vendor_tag_defs.h"
+#include "VendorTags.h"
 
 namespace android {
 
@@ -357,7 +358,8 @@ status_t CameraProviderHwlImpl::GetVendorTags(
         return BAD_VALUE;
     }
 
-    // Todo: add vendor tags
+    vendor_tag_sections->assign(kImxTagSections.begin(), kImxTagSections.end());
+
     return OK;
 }
 
@@ -464,4 +466,5 @@ status_t CameraProviderHwlImpl::IsConcurrentStreamCombinationSupported(
 
     return OK;
 }
+
 }  // namespace android

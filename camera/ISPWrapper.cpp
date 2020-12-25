@@ -25,6 +25,7 @@
 #include "hal_camera_metadata.h"
 #include "CameraConfigurationParser.h"
 #include "ISPWrapper.h"
+#include "VendorTags.h"
 
 #define VIV_CTRL_NAME "viv_ext_ctrl"
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -45,6 +46,9 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     m_exposure_comp = m_SensorData->mAeCompMax + 1;
     m_exposure_time = 0.0;
 
+    memset(&m_dwePara, 0, sizeof(m_dwePara));
+    // Align with daA3840_30mc_1080P.json
+    m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -117,6 +121,7 @@ int ISPWrapper::setFeature(const char *value)
     ALOGI("setFeature, fd %d, id 0x%x, str %s", m_fd, m_ctrl_id, value);
 
     ret = ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &ctrls);
+    ALOGI("setFeature, ret %d", ret);
     if(ret < 0)
         ALOGE("%s VIDIOC_S_EXT_CTRLS failed, value %s, errno %d, %s",
             __func__, value, errno, strerror(errno));
@@ -185,6 +190,18 @@ int ISPWrapper::process(HalCameraMetadata *pMeta)
     ret = pMeta->Get(ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION, &entry);
     if(ret == 0)
         processExposureGain(entry.data.i32[0]);
+
+    ret = pMeta->Get(VSI_DEWARP, &entry);
+    if(ret == 0)
+        processDewarp(entry.data.i32[0]);
+
+    ret = pMeta->Get(VSI_HFLIP, &entry);
+    if(ret == 0)
+        processHFlip(entry.data.i32[0]);
+
+    ret = pMeta->Get(VSI_VFLIP, &entry);
+    if(ret == 0)
+        processVFlip(entry.data.i32[0]);
 
 #if 0
     // The com.intermedia.hd.camera.professional.fbnps_8730133319.apk enalbes aec right
@@ -338,6 +355,72 @@ int ISPWrapper::processAeMode(uint8_t mode)
         m_exposure_comp = m_SensorData->mAeCompMax + 1;
         m_exposure_time = 0.0;
     }
+
+    return 0;
+}
+
+int ISPWrapper::processDewarp(bool bEnable)
+{
+    int ret = 0;
+
+    if(bEnable == true) {
+        if(m_dwePara.mode == DEWARP_MODEL_FISHEYE_DEWARP)
+            return 0;
+
+        ret = setFeature(DWE_MODE_DEWARP);
+        if(ret) {
+            ALOGE("%s, set DWE_MODE_DEWARP failed, ret %d", __func__, ret);
+            return BAD_VALUE;
+        }
+        m_dwePara.mode = DEWARP_MODEL_FISHEYE_DEWARP;
+    } else {
+        if(m_dwePara.mode == DEWARP_MODEL_LENS_DISTORTION_CORRECTION)
+            return 0;
+
+        ret = setFeature(DWE_MODE_LDC);
+        if(ret) {
+            ALOGE("%s, set DWE_MODE_LDC failed, ret %d", __func__, ret);
+            return BAD_VALUE;
+        }
+        m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
+    }
+
+#include <hal_types.h>
+    return 0;
+}
+
+int ISPWrapper::processHFlip(bool bEnable)
+{
+    int ret = 0;
+
+    if (bEnable == m_dwePara.hflip)
+        return 0;
+
+    const char *value = bEnable ? DWE_HFLIP_ON : DWE_HFLIP_OFF;
+
+    ret = setFeature(value);
+    if(ret)
+        return BAD_VALUE;
+
+    m_dwePara.hflip = bEnable;
+
+    return 0;
+}
+
+int ISPWrapper::processVFlip(bool bEnable)
+{
+    int ret = 0;
+
+    if (bEnable == m_dwePara.vflip)
+        return 0;
+
+    const char *value = bEnable ? DWE_VFLIP_ON : DWE_VFLIP_OFF;
+
+    ret = setFeature(value);
+    if(ret)
+        return BAD_VALUE;
+
+    m_dwePara.vflip = bEnable;
 
     return 0;
 }
