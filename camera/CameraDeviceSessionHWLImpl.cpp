@@ -154,8 +154,10 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
 {
     ALOGI("%s: this %p, %p, %p", __func__, this, mWorkThread.get(), &mWorkThread);
 
-    mWorkThread->requestExitAndWait();
-    ALOGI("%s, mWorkThread exited", __func__);
+    if(mWorkThread != NULL) {
+        mWorkThread->requestExitAndWait();
+        ALOGI("%s, mWorkThread exited", __func__);
+    }
 
     if (pVideoStream) {
         pVideoStream->Stop();
