@@ -333,7 +333,7 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
         }
 
         if (!strncmp(version->name, "mxsfb-drm", strlen("mxsfb-drm"))) {
-            setProperty("hwc.drm.fbTileSupport", "disable"); // disable fbTile when use lcdif on evk_8mq
+            setProperty("vendor.hwc.drm.fbTileSupport", "disable"); // disable fbTile when use lcdif on evk_8mq
         }
         drmFreeVersion(version);
     }
@@ -435,7 +435,7 @@ int DisplayManager::enumKmsDisplays()
     char value[PROPERTY_VALUE_MAX];
     int id = 1;
     bool foundPrimary = false;
-    property_get("hwc.drm.device", dri, "/dev/dri");
+    property_get("vendor.hwc.drm.device", dri, "/dev/dri");
     int count = -1;
     int i, len;
 

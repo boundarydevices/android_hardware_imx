@@ -83,7 +83,7 @@ Composer::Composer()
     mTls.has_tls = 0;
     pthread_mutex_init(&mTls.lock, NULL);
 
-    property_get("sys.hwc.disable", value, "0");
+    property_get("vendor.sys.hwc.disable", value, "0");
     mDisableHWC = atoi(value);
     if (mDisableHWC) {
         ALOGI("HWC disabled!");

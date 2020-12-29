@@ -895,7 +895,7 @@ int KmsDisplay::updateScreen()
 #ifdef DEBUG_DUMP_REFRESH_RATE
         commit_time = systemTime(CLOCK_MONOTONIC);
         char value[PROPERTY_VALUE_MAX];
-        property_get("hwc.debug.dump_refresh_rate", value, "0");
+        property_get("vendor.hwc.debug.dump_refresh_rate", value, "0");
         m_request_refresh_cnt = atoi(value);
         if (m_request_refresh_cnt <= 0)
             break;
