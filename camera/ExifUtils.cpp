@@ -713,6 +713,38 @@ bool ExifUtilsImpl::SetWhiteBalance(uint8_t white_balance) {
   uint16_t whiteBalance =
       (white_balance == ANDROID_CONTROL_AWB_MODE_AUTO) ? 0 : 1;
   SET_SHORT(EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, whiteBalance);
+
+  if (white_balance == ANDROID_CONTROL_AWB_MODE_AUTO)
+      return true;
+
+  // Ref https://exiftool.org/TagNames/EXIF.html#LightSource
+  uint16_t lightSource = 0;
+  switch(white_balance) {
+      case ANDROID_CONTROL_AWB_MODE_INCANDESCENT:
+          lightSource = 3;
+          break;
+      case ANDROID_CONTROL_AWB_MODE_FLUORESCENT:
+          lightSource = 2;
+          break;
+      case ANDROID_CONTROL_AWB_MODE_WARM_FLUORESCENT:
+          lightSource = 16;
+          break;
+      case ANDROID_CONTROL_AWB_MODE_DAYLIGHT:
+          lightSource = 1;
+          break;
+      case ANDROID_CONTROL_AWB_MODE_CLOUDY_DAYLIGHT:
+          lightSource = 10;
+          break;
+      case ANDROID_CONTROL_AWB_MODE_SHADE:
+          lightSource = 11;
+          break;
+      default :
+          lightSource = 255;
+          break;
+  }
+
+  SET_SHORT(EXIF_IFD_EXIF, EXIF_TAG_LIGHT_SOURCE, lightSource);
+
   return true;
 }
 
