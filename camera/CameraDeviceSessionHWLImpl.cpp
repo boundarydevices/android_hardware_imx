@@ -445,7 +445,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
 {
     int32_t ret = 0;
     int32_t encodeQuality = 100, thumbQuality = 100;
-    int32_t thumbWidth, thumbHeight;
+    int32_t thumbWidth = 0, thumbHeight = 0;
     JpegParams *mainJpeg = NULL, *thumbJpeg = NULL;
     void *rawBuf = NULL, *thumbBuf = NULL;
     uint8_t *pDst = NULL;
@@ -552,7 +552,6 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     ret = meta->getJpegThumbSize(thumbWidth, thumbHeight);
     if (ret != NO_ERROR) {
         ALOGE("%s getJpegThumbSize failed", __func__);
-        goto err_out;
     }
 
     if ((thumbWidth > 0) && (thumbHeight > 0)) {

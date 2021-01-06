@@ -264,16 +264,16 @@ status_t JpegBuilder::encodeImage(JpegParams *mainJpeg, JpegParams *thumbNail,
     utils->SetMake(EXIF_MODEL);
     utils->SetModel(EXIF_MAKENOTE);
 
+    size_t thumbCodeSize = 0;
     if (thumbNail) {
         ret = encodeJpeg(thumbNail, hw_jpeg_enc, 0, 0);
+        if (ret != NO_ERROR) {
+            ALOGE("%s encodeJpeg failed", __func__);
+            return ret;
+        }
+        thumbCodeSize = mThumbnailInput->jpeg_size;
     }
 
-    if (ret != NO_ERROR) {
-        ALOGE("%s encodeJpeg failed", __func__);
-        return ret;
-    }
-
-    size_t thumbCodeSize = mThumbnailInput->jpeg_size;
     ret = utils->GenerateApp1(thumbNail ? mThumbnailInput->dst : 0, thumbCodeSize);
     if (!ret) {
         ALOGE("%s: generating APP1 failed.", __FUNCTION__);
