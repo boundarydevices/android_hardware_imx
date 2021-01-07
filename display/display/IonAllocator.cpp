@@ -22,6 +22,7 @@
 #include <linux/mxc_ion.h>
 #include <ion_4.12.h>
 #include <linux/dma-buf.h>
+#include <linux/version.h>
 #ifdef CFG_SECURE_DATA_PATH
 #include <linux/secure_ion.h>
 #endif
@@ -73,17 +74,22 @@ IonAllocator::IonAllocator()
 
     // add heap ids from heap type.
     for (int i=0; i<heapCnt; i++) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 1)
+        if (ihd[i].type == ION_HEAP_TYPE_SYSTEM_CONTIG) {
+            mCCHeapIds |= 1 << ihd[i].heap_id;
+            continue;
+        }
         if (ihd[i].type == ION_HEAP_TYPE_DMA ||
              ihd[i].type == ION_HEAP_TYPE_CARVEOUT) {
+#else
+        if (ihd[i].type == ION_HEAP_TYPE_DMA) {
+#endif
             mCNHeapIds |=  1 << ihd[i].heap_id;
             continue;
         }
         if (ihd[i].type == ION_HEAP_TYPE_SYSTEM) {
             mNCHeapIds |= 1 << ihd[i].heap_id;
             continue;
-        }
-        if (ihd[i].type == ION_HEAP_TYPE_SYSTEM_CONTIG) {
-            mCCHeapIds |= 1 << ihd[i].heap_id;
         }
     }
 
