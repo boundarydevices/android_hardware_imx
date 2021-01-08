@@ -4477,6 +4477,10 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->support_lpa                       = false;
     adev->primary_output                    = NULL;
 
+    memset(adev->device_name, 0, sizeof(adev->device_name));
+    property_get(PRODUCT_DEVICE_PROPERTY, adev->device_name,
+            DEFAULT_ERROR_NAME_str);
+
     parse_all_cards(audio_card_list);
 
     ret = scan_available_device(adev, true, true);
@@ -4500,10 +4504,6 @@ static int adev_open(const hw_module_t* module, const char* name,
 
     adev->voice_volume  = 1.0f;
     adev->tty_mode      = TTY_MODE_OFF;
-
-    memset(adev->device_name, 0, sizeof(adev->device_name));
-    property_get(PRODUCT_DEVICE_PROPERTY, adev->device_name,
-            DEFAULT_ERROR_NAME_str);
 
     pthread_mutex_unlock(&adev->lock);
 
