@@ -1,5 +1,5 @@
 //
-// Copyright 2019 NXP
+// Copyright (C) 2021 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,36 +13,50 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 soong_namespace {
-    imports: ["hardware/google/pixel"],
+    imports: ["hardware/google/pixel",
+              "hardware/google/interfaces/power"
+    ],
+}
+
+cc_library {
+    name: "libdisppower-imx",
+    proprietary: true,
+    srcs: [
+        "InteractionHandler.cpp",
+    ],
+     shared_libs: [
+        "libbase",
+        "libcutils",
+        "liblog",
+        "libperfmgr",
+        "libutils",
+    ],
 }
 
 cc_library_headers {
     name: "imx_power_headers",
-    vendor_available: true,
+    vendor: true,
     export_include_dirs: ["."],
 }
 
 cc_binary {
-    name: "android.hardware.power@1.3-service.imx",
+    name: "android.hardware.power-service.imx",
     relative_install_path: "hw",
-    vintf_fragments: ["android.hardware.power@1.3-service.imx.xml"],
-    init_rc: ["android.hardware.power@1.3-service.imx.rc"],
-    srcs: ["service.cpp", "Power.cpp", "InteractionHandler.cpp"],
-    cflags: [
-        "-Wall",
-        "-Werror",
-    ],
+    init_rc: ["android.hardware.power-service.imx.rc"],
+    vintf_fragments: ["android.hardware.power-service.imx.xml"],
+    vendor: true,
     shared_libs: [
+        "android.hardware.power-ndk_platform",
         "libbase",
-        "libhidlbase",
+        "libcutils",
         "liblog",
         "libutils",
-        "libcutils",
-        "android.hardware.power@1.0",
-        "android.hardware.power@1.1",
-        "android.hardware.power@1.2",
-        "android.hardware.power@1.3",
+        "libbinder_ndk",
+        "libdisppower-imx",
         "libperfmgr",
     ],
-    proprietary: true,
+    srcs: [
+        "service.cpp",
+        "Power.cpp",
+    ],
 }
