@@ -25,6 +25,13 @@ namespace android {
 
 class ISPCameraDeviceHwlImpl : public CameraDeviceHwlImpl
 {
+public:
+    ISPCameraDeviceHwlImpl(uint32_t camera_id, const char *devPath,
+      CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback)
+      : CameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata, callback)
+    {
+    }
+
 private:
     virtual status_t initSensorStaticData();
 };

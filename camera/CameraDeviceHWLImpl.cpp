@@ -22,6 +22,7 @@
 #include <log/log.h>
 #include <hardware/camera_common.h>
 #include "CameraDeviceHWLImpl.h"
+#include "ISPCameraDeviceHWLImpl.h"
 #include "CameraDeviceSessionHWLImpl.h"
 
 namespace android {
@@ -33,8 +34,12 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
     ALOGI("%s: id %d, path %s, copy hw %d, csc hw %d, hw_jpeg %s",
       __func__, camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg);
 
-    auto device = std::unique_ptr<CameraDeviceHwlImpl>(
-        new CameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata, callback));
+    CameraDeviceHwlImpl *device = NULL;
+
+    if(strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
+        device = new ISPCameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata, callback);
+    else
+        device = new CameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata, callback);
 
     if (device == nullptr) {
         ALOGE("%s: Creating CameraDeviceHwlImpl failed.", __func__);
@@ -52,7 +57,7 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
 
     ALOGI("%s: Created CameraDeviceHwlImpl for camera %u", __func__, device->camera_id_);
 
-    return device;
+    return std::unique_ptr<CameraDeviceHwl>(device);
 }
 
 CameraDeviceHwlImpl::CameraDeviceHwlImpl(

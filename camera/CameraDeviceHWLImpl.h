@@ -90,12 +90,13 @@ public:
     static bool StreamCombJudge(const StreamConfiguration& stream_config,
         int *pPreviewResolutions, int nPreviewResolutionCount, int *pPictureResolutions, int nPictureResolutionCount);
 
-private:
+protected:
     CameraDeviceHwlImpl(uint32_t camera_id, const char *devPath,
         CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback);
 
+private:
     virtual status_t Initialize();
-    status_t initSensorStaticData();
+    virtual status_t initSensorStaticData();
     static bool FoundResoulution(int width, int height, int *resArray, int size);
 
 protected:

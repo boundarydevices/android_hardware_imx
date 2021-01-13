@@ -35,7 +35,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     }
 
     // first read sensor format.
-    int index = 0;
+    int ret = 0, index = 0;
     int sensorFormats[MAX_SENSOR_FORMAT];
     int availFormats[MAX_SENSOR_FORMAT];
     memset(sensorFormats, 0, sizeof(sensorFormats));
@@ -56,15 +56,65 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     mAvailableFormatCount =
         changeSensorFormats(availFormats, mAvailableFormats, index);
 
-    int previewCnt = 2, pictureCnt = 2;
+    int totalWaitUs = 0;
+query_frmsize:
+    ret = 0;
+    index = 0;
+    char TmpStr[20];
+    int previewCnt = 0, pictureCnt = 0;
+    struct v4l2_frmsizeenum cam_frmsize;
+    struct v4l2_frmivalenum vid_frmval;
+    while (ret == 0) {
+        memset(TmpStr, 0, 20);
+        memset(&cam_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
+        cam_frmsize.index = index++;
+        cam_frmsize.pixel_format =
+            convertPixelFormatToV4L2Format(mSensorFormats[0]);
+        ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
+        if (ret != 0) {
+            continue;
+        }
+        ALOGI("enum frame size w:%d, h:%d", cam_frmsize.discrete.width, cam_frmsize.discrete.height);
 
-    // Currently, VIDIOC_ENUM_FRAMESIZES, VIDIOC_ENUM_FRAMEINTERVALS are no supported.
-    // Resolutions if configed in json file. Fps is changed by isp commands.
-    // Hard code them. Will refine in the future.
-    mPictureResolutions[0] = 1920;
-    mPictureResolutions[1] = 1080;
-    mPreviewResolutions[0] = 1920;
-    mPreviewResolutions[1] = 1080;
+        if (cam_frmsize.discrete.width == 0 ||
+              cam_frmsize.discrete.height == 0) {
+            continue;
+        }
+        vid_frmval.index = 0;
+        vid_frmval.pixel_format = cam_frmsize.pixel_format;
+        vid_frmval.width = cam_frmsize.discrete.width;
+        vid_frmval.height = cam_frmsize.discrete.height;
+
+        ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
+        if (ret != 0) {
+            continue;
+        }
+
+        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator >= 5) {
+            mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.width;
+            mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.height;
+        }
+
+        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator >= 15) {
+            mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.width;
+            mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.height;
+        }
+    }  // end while
+
+#define WAIT_ITVL 100000 // 100ms
+#define WAIT_TIMEOUT 5000000 // 5s
+
+    if(previewCnt == 0) {
+        usleep(WAIT_ITVL);
+        totalWaitUs += WAIT_ITVL;
+        if(totalWaitUs > WAIT_TIMEOUT) {
+            ALOGE("%s, wait isp media server ready for %d Us", __func__, WAIT_TIMEOUT);
+            return BAD_VALUE;
+        }
+
+        ALOGI("%s, isp media server may not ready, retry after %d Us", __func__, WAIT_ITVL);
+        goto query_frmsize;
+    }
 
     mPreviewResolutionCount = previewCnt;
     mPictureResolutionCount = pictureCnt;
