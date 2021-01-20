@@ -98,7 +98,7 @@ void CameraProviderHwlImpl::enumSensorSet()
 
     // get front camera property.
     strncpy(mSets[FRONT_CAM_ID].mPropertyName, mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name, strlen(mCameraDef.camera_metadata[FRONT_CAM_ID].camera_name));
-    mSets[FRONT_CAM_ID].mOrientation = mCameraDef.camera_metadata[FRONT_CAM_ID].orientation;;
+    mSets[FRONT_CAM_ID].mOrientation = mCameraDef.camera_metadata[FRONT_CAM_ID].orientation;
     mSets[FRONT_CAM_ID].mFacing = CAMERA_FACING_FRONT;
     mSets[FRONT_CAM_ID].mExisting = false;
 
@@ -109,105 +109,72 @@ void CameraProviderHwlImpl::enumSensorSet()
 int32_t CameraProviderHwlImpl::matchPropertyName(nodeSet* nodes, int32_t index)
 {
     char *propName = NULL;
-    int32_t ret = 0;
 
     if (nodes == NULL) {
         return 0;
     }
 
     propName = mSets[index].mPropertyName;
-    ALOGI("matchPropertyName: index:%d, %s", index, propName);
-
-    ret = matchNodeName(propName, nodes, index);
-    if (ret != 0) {
-        ALOGE("do not find proper valid video node to match the setting");
+    if (strlen(propName) == 0) {
+        ALOGE("No such camera%d defined in camera config json.",index);
         return -1;
     }
 
-    return 0;
-}
-
-static bool IsVideoCaptureDevice(const char* devNode)
-{
-    if(devNode == NULL)
-        return false;
-
-    int fd = open(devNode, O_RDONLY);
-    if(fd < 0)
-        return false;
-
-    struct v4l2_fmtdesc vid_fmtdesc;
-    vid_fmtdesc.index = 0;
-    vid_fmtdesc.type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-    int ret = ioctl(fd, VIDIOC_ENUM_FMT, &vid_fmtdesc);
-    close(fd);
-
-    return (ret == 0) ? true : false;
-}
-
-int32_t CameraProviderHwlImpl::matchNodeName(const char* nodeName, nodeSet* nodes, int32_t index)
-{
-    if (nodes == NULL) {
-        return -1;
-    }
-
-    const char* sensorName = NULL;
+    const char* devNodeName = NULL;
     const char* devNode = NULL;
-    const char* busInfo = NULL;
-    int32_t ret = -1;
-
-    ALOGI("%s", __func__);
+    const char* devBusInfo = NULL;
     nodeSet* node = nodes;
+
     while (node != NULL) {
         devNode = node->devNode;
-        sensorName = node->nodeName;
-        busInfo = node->busInfo;
-        if (node->isHeld || strlen(sensorName) == 0) {
+        devNodeName = node->nodeName;
+        devBusInfo = node->busInfo;
+        if (node->isHeld || strlen(devNodeName) == 0) {
             node = node->next;
             continue;
         }
 
-        ALOGI("matchNodeName: sensor:%s, dev:%s, node:%s, index:%d",
-              sensorName, devNode, nodeName, index);
+        ALOGI("matchPropertyName: index:%d, target devName:%s, devNodeName:%s, devBusInfo:%s, devNode:%s",
+              index, propName, devNodeName, devBusInfo, devNode);
 
         CameraSensorMetadata *camera_metadata;
         camera_metadata = &(mCameraDef.camera_metadata[index]);
         if(camera_metadata->device_node[0] && strcmp(devNode, camera_metadata->device_node)) {
-            ALOGI("matchNodeName: device node %s is not the given node %s", devNode, camera_metadata->device_node);
+            ALOGI("matchPropertyName: device node %s is not the given node %s", devNode, camera_metadata->device_node);
             node = node->next;
             continue;
         }
 
-        if(camera_metadata->bus_info[0] && strcmp(busInfo, camera_metadata->bus_info)) {
-            ALOGI("matchNodeName: bus info unmatch, expect %s, actual %s", camera_metadata->bus_info, busInfo);
+        if(camera_metadata->bus_info[0] && strcmp(devBusInfo, camera_metadata->bus_info)) {
+            ALOGI("matchPropertyName: bus info unmatch, expect %s, actual %s", camera_metadata->bus_info, devBusInfo);
             node = node->next;
             continue;
         }
 
-        if ((strlen(nodeName) == 0) || !strstr(sensorName, nodeName)) {
+        if (!strstr(devNodeName, propName)) {
             node = node->next;
             continue;
         }
 
-        strncpy(mSets[index].mSensorName, sensorName, PROPERTY_VALUE_MAX-1);
+        strncpy(mSets[index].mSensorName, devNodeName, PROPERTY_VALUE_MAX-1);
         strncpy(mSets[index].mDevPath, devNode, CAMAERA_FILENAME_LENGTH);
         ALOGI("Camera ID %d: name %s, Facing %d, orientation %d, dev path %s",
                 index, mSets[index].mSensorName, mSets[index].mFacing,
                 mSets[index].mOrientation, mSets[index].mDevPath);
         mSets[index].mExisting = true;
         node->isHeld = true;
-        ret = 0;
         break;
     }
 
-    return ret;
+    return 0;
 }
 
 int32_t CameraProviderHwlImpl::matchDevNodes()
 {
     DIR *vidDir = NULL;
     struct dirent *dirEntry;
+    char mCamDevice[64];
+    std::string buffer;
     size_t nameLen = CAMERA_SENSOR_LENGTH - 1;
     nodeSet *nodes = NULL, *node = NULL, *last = NULL;
 
@@ -232,7 +199,23 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
 
         sprintf(node->devNode, "/dev/%s", dirEntry->d_name);
 
-        getNodeName(node->devNode, node->nodeName, nameLen, node->busInfo, nameLen);
+        int32_t ret = getNodeName(node->devNode, node->nodeName, nameLen, node->busInfo, nameLen);
+        if (ret < 0) {
+            ALOGW("%s: dev path %s getNodeName failed", __func__, node->devNode);
+            free(node);
+            continue;
+        }
+
+        sprintf(mCamDevice, "/sys/class/video4linux/%s/name", dirEntry->d_name);
+        if (!android::base::ReadFileToString(std::string(mCamDevice), &buffer)) {
+            ALOGE("can't read video device name");
+            break;
+        }
+        // string read from ReadFileToString have '\n' in last byte
+        // so we just need copy (buffer.length() - 1) length
+        strncat(node->nodeName, buffer.c_str(), (buffer.length() - 1));
+
+        ALOGI("NodeName: node name:%s \n", node->nodeName);
 
         if (strlen(node->nodeName) != 0) {
             if (nodes == NULL) {
@@ -264,23 +247,20 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
 int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], size_t length, char busInfo[], size_t busInfoLen)
 {
     int32_t ret = -1;
-    int32_t fd = -1;
     size_t strLen = 0;
     struct v4l2_capability vidCap;
-    struct v4l2_dbg_chip_ident vidChip;
 
     ALOGI("getNodeName: dev path:%s", devNode);
-    if ((fd = open(devNode, O_RDWR, O_NONBLOCK)) < 0) {
-        ALOGW("%s open dev path:%s failed:%s", __func__, devNode,
-                strerror(errno));
-        return ret;
+
+    base::unique_fd fd(::open(devNode, O_RDWR | O_NONBLOCK));
+    if (fd.get() < 0) {
+        ALOGE("%s open dev path:%s failed:%s", __func__, devNode, strerror(errno));
+        return -1;
     }
 
-    ret = ioctl(fd, VIDIOC_QUERYCAP, &vidCap);
+    ret = ioctl(fd.get(), VIDIOC_QUERYCAP, &vidCap);
     if (ret < 0) {
         ALOGW("%s QUERYCAP dev path:%s failed", __func__, devNode);
-        close(fd);
-        fd = -1;
         return ret;
     }
 
@@ -288,20 +268,7 @@ int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], siz
     if (!(vidCap.capabilities &
           (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_CAPTURE_MPLANE))) {
         ALOGW("%s dev path:%s is not capture", __func__, devNode);
-        close(fd);
-        fd = -1;
-        ret = -1;
-        return ret;
-    }
-
-    if(strstr((const char*)vidCap.driver, "uvc")) {
-        bool IsVideoCapDev = IsVideoCaptureDevice(devNode);
-        if(IsVideoCapDev == false) {
-            ALOGI("Although %s driver name has uvc, but it's a uvc meta device", devNode);
-            close(fd);
-            fd = -1;
-            return -1;
-        }
+        return -1;
     }
 
     strncpy(busInfo, (const char*)vidCap.bus_info, busInfoLen);
@@ -311,31 +278,10 @@ int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], siz
     length -= strLen;
     ALOGI("getNodeName: node name:%s, bus info: %s", name, vidCap.bus_info);
 
-    ret = ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vidChip);
-    if (ret < 0) {
-        ALOGI("%s CHIP_IDENT dev path:%s failed", __func__, devNode);
-        strncat(name, ",", length);
-        strLen = 1;
-        length -= strLen;
-        strncat(name, (const char*)vidCap.card, length);
-        ALOGI("getNodeNames: node name:%s", name);
-        close(fd);
-
-        fd = -1;
-        return ret;
-    }
-
     strncat(name, ",", length);
-    strLen = 1;
-    length -= strLen;
-    strncat(name, vidChip.match.name, length);
-
-    ALOGI("getNodeNames: node name:%s", name);
-    close(fd);
 
     return ret;
 }
-
 
 status_t CameraProviderHwlImpl::SetCallback(
     const HwlCameraProviderCallback& callback)
