@@ -219,10 +219,24 @@ size_t drv_num_planes_from_format(uint32_t format)
 uint32_t drv_height_from_format(uint32_t format, uint32_t height, size_t plane)
 {
 	const struct planar_layout *layout = layout_from_format(format);
+	uint32_t alignedh;
 
 	assert(plane < layout->num_planes);
 
-	return DIV_ROUND_UP(height, layout->vertical_subsampling[plane]);
+	switch (format) {
+	case FORMAT_NV12:
+	case FORMAT_NV21:
+	case FORMAT_I420:
+	case FORMAT_YV12:
+	case FORMAT_YUYV:
+		alignedh = ALIGN_PIXEL_4(height);
+		break;
+	default:
+		alignedh = height;
+		break;
+	}
+
+	return DIV_ROUND_UP(alignedh, layout->vertical_subsampling[plane]);
 }
 
 uint32_t drv_vertical_subsampling_from_format(uint32_t format, size_t plane)
