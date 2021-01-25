@@ -86,7 +86,7 @@ public:
     ISPWrapper(CameraSensorMetadata *pSensorData);
     ~ISPWrapper();
     int init(char *devPath);
-    int process(HalCameraMetadata *pMeta);
+    int process(HalCameraMetadata *pMeta, uint32_t format);
     int processAWB(uint8_t mode, bool force = false);
     int processAeMode(uint8_t mode, bool force = false);
 
@@ -99,6 +99,8 @@ private:
     int processHFlip(bool bEnable);
     int processVFlip(bool bEnable);
 
+    int EnableDWE(bool on);
+
 private:
     int m_fd;
     uint32_t m_ctrl_id;
@@ -108,6 +110,7 @@ private:
     int32_t m_exposure_comp;
     double m_exposure_time;
     DWEPara m_dwePara;
+    bool m_dwe_on;
 };
 
 } // namespace android

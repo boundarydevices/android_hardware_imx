@@ -214,9 +214,9 @@ int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath, CameraSensorMetada
     return ret;
 }
 
-int32_t ISPCameraMMAPStream::ISPProcess(void *pMeta)
+int32_t ISPCameraMMAPStream::ISPProcess(void *pMeta, uint32_t format)
 {
-    return m_IspWrapper->process((HalCameraMetadata *)pMeta);
+    return m_IspWrapper->process((HalCameraMetadata *)pMeta, format);
 }
 
 }  // namespace android

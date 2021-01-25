@@ -63,7 +63,7 @@ public:
 
     void SetBufferNumber(uint32_t num) { mNumBuffers = num; }
 
-    virtual int32_t ISPProcess(void *pMeta) { return 0; };
+    virtual int32_t ISPProcess(void *pMeta, uint32_t format = HAL_PIXEL_FORMAT_YCBCR_422_I) { return 0; };
 
 protected:
     virtual int32_t postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);

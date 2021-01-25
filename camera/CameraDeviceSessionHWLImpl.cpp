@@ -664,6 +664,7 @@ err_out:
     return ret;
 }
 
+#define EXP_TIME_DFT_NS  6535000 // ns
 status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraMetadata> &resultMeta, uint64_t timestamp)
 {
     status_t ret;
@@ -702,6 +703,29 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
     // auto white balance control.
     m3aState.awbState = ANDROID_CONTROL_AWB_STATE_CONVERGED;
     resultMeta->Set(ANDROID_CONTROL_AWB_STATE, &m3aState.awbState, 1);
+
+
+    if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
+        int64_t exposure_time = EXP_TIME_DFT_NS;
+        resultMeta->Set(ANDROID_SENSOR_EXPOSURE_TIME, &exposure_time, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#SENSOR_SENSITIVITY
+        // Ref value from GCH EmulatedCamera
+        int32_t sensitivity = 1000;
+        resultMeta->Set(ANDROID_SENSOR_SENSITIVITY, &sensitivity, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureRequest#CONTROL_POST_RAW_SENSITIVITY_BOOST
+        // Ref value from GCH EmulatedCamera
+        int32_t sensitivity_boost = 1000;
+        resultMeta->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST, &sensitivity_boost, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#SENSOR_NEUTRAL_COLOR_POINT
+        // Ref value from GCH EmulatedCamera
+        camera_metadata_rational_t android_sensor_neutral_color_point[] = { {255, 1}, {255, 1}, {255, 1} };
+        resultMeta->Set(ANDROID_SENSOR_NEUTRAL_COLOR_POINT,
+                        android_sensor_neutral_color_point,
+                        ARRAY_SIZE(android_sensor_neutral_color_point));
+    }
 
     return OK;
 }
@@ -1039,8 +1063,15 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
         PipelineInfo *pipeline_info = map_pipeline_info[pipeline_id];
         pVideoStream->SetBufferNumber(pipeline_info->hal_streams->at(configIdx).max_buffers + 1);
 
+        uint32_t format = HAL_PIXEL_FORMAT_YCbCr_422_I;
+        if(pipeline_info->hal_streams->at(configIdx).override_format == HAL_PIXEL_FORMAT_RAW16) {
+            format = HAL_PIXEL_FORMAT_RAW16;
+            // Before capture raw data, need first disable DWE.
+            pVideoStream->ISPProcess(NULL, format);
+        }
+
         // v4l2 hard code to use yuv422i. If in future other foramts are used, need refine code, maybe configed in json
-        ret = pVideoStream->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
+        ret = pVideoStream->ConfigAndStart(format,
                                             pipeline_info->streams->at(configIdx).width,
                                             pipeline_info->streams->at(configIdx).height,
                                             fps);

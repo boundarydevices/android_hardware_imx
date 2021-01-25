@@ -223,10 +223,70 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      availableSceneModes,
                      ARRAY_SIZE(availableSceneModes));
 
-    uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE};
-    m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+    if(strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME)) {
+        uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_RAW};
+        m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
                      available_capabilities,
                      ARRAY_SIZE(available_capabilities));
+
+        uint8_t color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GRBG;
+        m_static_meta->Set(ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT, &color_arrange, 1);
+
+        // Ref "blsData" in DAA3840_30MC_1080P.xml
+        int32_t android_sensor_black_level_pattern[] = {168, 168, 168, 168};
+        m_static_meta->Set(ANDROID_SENSOR_BLACK_LEVEL_PATTERN,
+                        android_sensor_black_level_pattern,
+                        ARRAY_SIZE(android_sensor_black_level_pattern));
+
+        int32_t white_level = 4095; // basler use 12bit raw data
+        m_static_meta->Set(ANDROID_SENSOR_INFO_WHITE_LEVEL, &white_level, 1);
+
+        uint8_t ref_illum = ANDROID_SENSOR_REFERENCE_ILLUMINANT1_DAYLIGHT;
+        m_static_meta->Set(ANDROID_SENSOR_REFERENCE_ILLUMINANT1, &ref_illum, 1);
+
+        // color matrix, transforms color values from CIE XYZ color space to reference sensor color space.
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#SENSOR_COLOR_TRANSFORM1
+        // The value refs from emu_camera_back.json.
+        camera_metadata_rational_t android_sensor_color_tramsform1[] = { {3209, 1024}, {-1655, 1024}, {-502, 1024}, \
+                                                                         {-1002, 1024}, {1962, 1024}, {34, 1024}, \
+                                                                         {73, 1024}, {-234, 1024}, {1438, 1024} };
+        m_static_meta->Set(ANDROID_SENSOR_COLOR_TRANSFORM1,
+                        android_sensor_color_tramsform1,
+                        ARRAY_SIZE(android_sensor_color_tramsform1));
+
+        // forward matrix, transforms white balanced camera colors from the reference sensor colorspace to the CIE XYZ colorspace with a D50 whitepoint. 
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#SENSOR_FORWARD_MATRIX1
+        // The value refs from emu_camera_back.json.
+        camera_metadata_rational_t android_sensor_forward_matrix1[] = { {446, 1024}, {394, 1024}, {146, 1024}, \
+                                                                           {227, 1024}, {734, 1024}, {62, 1024}, \
+                                                                           {14, 1024}, {99, 1024}, {731, 1024} };
+        m_static_meta->Set(ANDROID_SENSOR_FORWARD_MATRIX1,
+                        android_sensor_forward_matrix1,
+                        ARRAY_SIZE(android_sensor_forward_matrix1));
+
+
+        // calib matrix, transform matrix that maps from the reference sensor colorspace to the actual device sensor colorspace.
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#SENSOR_CALIBRATION_TRANSFORM1
+        camera_metadata_rational_t android_sensor_calib_tramsform1[] = { {1, 1}, {0, 1}, {0, 1}, \
+                                                                         {0, 1}, {1, 1}, {0, 1}, \
+                                                                         {0, 1}, {0, 1}, {1, 1} };
+        m_static_meta->Set(ANDROID_SENSOR_CALIBRATION_TRANSFORM1,
+                        android_sensor_calib_tramsform1,
+                        ARRAY_SIZE(android_sensor_calib_tramsform1));
+
+        int32_t correction_active_array_size[] = {0, 0, pDev->mMaxWidth, pDev->mMaxHeight};
+
+        m_static_meta->Set(ANDROID_SENSOR_INFO_PRE_CORRECTION_ACTIVE_ARRAY_SIZE,
+                         correction_active_array_size,
+                         ARRAY_SIZE(correction_active_array_size));
+
+    } else {
+        uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE};
+        m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+                     available_capabilities,
+                     ARRAY_SIZE(available_capabilities));
+    }
+
 
     uint8_t lensFacing = ANDROID_LENS_FACING_BACK;
     if(strstr(pDev->mSensorData.camera_type, "front"))
@@ -302,6 +362,25 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         stallDuration[streamConfigIdx + 1] = pDev->mPreviewResolutions[ResIdx * 2];
         stallDuration[streamConfigIdx + 2] = pDev->mPreviewResolutions[ResIdx * 2 + 1];
         stallDuration[streamConfigIdx + 3] = 0;
+    }
+
+    // add raw format for isp camera
+    if(strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME)) {
+        streamConfigIdx += 4;
+        streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_RAW16;
+        streamConfig[streamConfigIdx + 1] = pDev->mMaxWidth;
+        streamConfig[streamConfigIdx + 2] = pDev->mMaxHeight;
+        streamConfig[streamConfigIdx + 3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
+
+        minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_RAW16;
+        minFrmDuration[streamConfigIdx + 1] = pDev->mMaxWidth;
+        minFrmDuration[streamConfigIdx + 2] = pDev->mMaxHeight;
+        minFrmDuration[streamConfigIdx + 3] = 33333333;  // ns
+
+        stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_RAW16;
+        stallDuration[streamConfigIdx + 1] = pDev->mMaxWidth;
+        stallDuration[streamConfigIdx + 2] = pDev->mMaxHeight;
+        stallDuration[streamConfigIdx + 3] = 33333333;   // ns
     }
 
     m_static_meta->Set(ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,

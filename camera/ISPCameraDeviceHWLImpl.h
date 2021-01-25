@@ -42,7 +42,7 @@ public:
     ISPCameraMMAPStream(CameraDeviceSessionHwlImpl *pSession) : MMAPStream(pSession) {}
     int32_t createISPWrapper(char *pDevPath, CameraSensorMetadata *pSensorData);
 
-    virtual int32_t ISPProcess(void *pMeta);
+    virtual int32_t ISPProcess(void *pMeta, uint32_t format);
     virtual int32_t onDeviceStartLocked();
     virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
 

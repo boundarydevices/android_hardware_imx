@@ -49,6 +49,7 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     memset(&m_dwePara, 0, sizeof(m_dwePara));
     // Align with daA3840_30mc_1080P.json
     m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
+    m_dwe_on = true;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -173,12 +174,36 @@ int ISPWrapper::processAWB(uint8_t mode, bool force)
     return 0;
 }
 
+#define DWE_ON (char *)"{<id>:<pipeline.s.dwe.onoff>;<enable>: true}"
+#define DWE_OFF (char *)"{<id>:<pipeline.s.dwe.onoff>;<enable>: false}"
+
+int ISPWrapper::EnableDWE(bool on)
+{
+    if(on == m_dwe_on)
+        return 0;
+
+    char *str = on ? DWE_ON : DWE_OFF;
+    int ret = setFeature(str);
+    if(ret == 0)
+        m_dwe_on = on;
+
+    return ret;
+}
+
 // Current tactic: don't return if some meta process failed,
 // since may have other meta to process.
-int ISPWrapper::process(HalCameraMetadata *pMeta)
+int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
 {
+    // Capture raw data need fist dwe off.
+    if(format == HAL_PIXEL_FORMAT_RAW16) {
+        return EnableDWE(false);
+    }
+
     if(pMeta == NULL)
         return BAD_VALUE;
+
+    // If not raw data, recover to the init state, dew on.
+    EnableDWE(true);
 
     status_t ret;
     camera_metadata_ro_entry entry;
