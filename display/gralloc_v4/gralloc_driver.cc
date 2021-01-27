@@ -164,6 +164,7 @@ int32_t gralloc_driver::retain(buffer_handle_t handle)
 		ALOGE("%s Invalid handle.", __func__);
 		return -EINVAL;
 	}
+	const_cast<gralloc_handle *>(hnd)->base = 0; // virtual address should be cleared when import buffer handle
 
 	ret = pManager->retainMemory(const_cast<gralloc_handle *>(hnd));
 	if (ret != 0) {
