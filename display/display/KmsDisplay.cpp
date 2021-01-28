@@ -771,7 +771,13 @@ int KmsDisplay::updateScreen()
                 modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED_FC;
             else
 #endif
+            {
+#ifdef WORKAROUND_DISPLAY_UNDERRUN
+                modifiers[0] = DRM_FORMAT_MOD_VIVANTE_TILED;
+#else
                 modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED;
+#endif
+            }
         }
 
         pitches[0] = stride;

@@ -26,6 +26,9 @@
 namespace fsl {
 
 #define GPU_MODULE_ID "gralloc_viv"
+#ifdef WORKAROUND_DISPLAY_UNDERRUN
+#define DRM_VIV_GEM_TILING_TILED 0x02
+#endif
 
 MemoryManager* MemoryManager::sInstance(0);
 Mutex MemoryManager::sLock(Mutex::PRIVATE);
@@ -158,6 +161,11 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
         return -EINVAL;
     }
 
+#ifdef WORKAROUND_DISPLAY_UNDERRUN
+    if ((desc.mFlag & FLAGS_FRAMEBUFFER) && (desc.mProduceUsage & USAGE_GPU_TILED_VIV)) {
+        handle->fsl_reserved[0] = DRM_VIV_GEM_TILING_TILED;
+    }
+#endif
     allocMetaData(handle);
     retainMemory(handle);
     *out = handle;
