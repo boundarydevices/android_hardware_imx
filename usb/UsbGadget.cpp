@@ -258,8 +258,17 @@ V1_0::Status UsbGadget::tearDownGadget() {
 
   if (mMonitorCreated) {
     uint64_t flag = 100;
+    unsigned long ret;
+
     // Stop the monitor thread by writing into signal fd.
-    write(mEventFd, &flag, sizeof(flag));
+    ret = TEMP_FAILURE_RETRY(write(mEventFd, &flag, sizeof(flag)));
+    if (ret < 0) {
+        ALOGE("Error writing errno=%d", errno);
+    } else if (ret < sizeof(flag)) {
+        ALOGE("Short write length=%zd", ret);
+    }
+
+    ALOGI("mMonitor signalled to exit");
     mMonitor->join();
     mMonitorCreated = false;
     ALOGI("mMonitor destroyed");
@@ -504,53 +513,48 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
     uint64_t timeout) {
   std::unique_lock<std::mutex> lk(mLockSetCurrentFunction);
 
-  V1_0::Status status;
+  mCurrentUsbFunctions = functions;
+  mCurrentUsbFunctionsApplied = false;
 
-  if ((mCurrentUsbFunctions != functions) || (mCurrentUsbFunctionsApplied == false))
-  {
-    mCurrentUsbFunctions = functions;
-    mCurrentUsbFunctionsApplied = false;
-
-    // Unlink the gadget and stop the monitor if running.
-    status = tearDownGadget();
-    if (status != Status::SUCCESS) {
-      goto error;
-    }
-
-    if ((functions & GadgetFunction::RNDIS) == 0) {
-      if (access(RNDIS_PATH,F_OK) == 0) {
-         if (rmdir(RNDIS_PATH)) ALOGE("Error remove %s",RNDIS_PATH);
-      }
-    } else if ((functions & GadgetFunction::RNDIS)) {
-      if (mkdir(RNDIS_PATH,644)) goto error;
-    }
-
-    // Leave the gadget pulled down to give time for the host to sense disconnect.
-    usleep(DISCONNECT_WAIT_US);
-
-    if (functions == static_cast<uint64_t>(GadgetFunction::NONE)) {
-      if (callback == NULL) return Void();
-      Return<void> ret =
-          callback->setCurrentUsbFunctionsCb(functions, Status::SUCCESS);
-      if (!ret.isOk())
-        ALOGE("Error while calling setCurrentUsbFunctionsCb %s",
-              ret.description().c_str());
-      return Void();
-    }
-
-    status = validateAndSetVidPid(functions);
-
-    if (status != Status::SUCCESS) {
-      goto error;
-    }
-
-    status = setupFunctions(functions, callback, timeout);
-    if (status != Status::SUCCESS) {
-      goto error;
-    }
-
-    ALOGI("Usb Gadget setcurrent functions called successfully");
+  // Unlink the gadget and stop the monitor if running.
+  V1_0::Status status = tearDownGadget();
+  if (status != Status::SUCCESS) {
+    goto error;
   }
+
+  if ((functions & GadgetFunction::RNDIS) == 0) {
+    if (access(RNDIS_PATH,F_OK) == 0) {
+       if (rmdir(RNDIS_PATH)) ALOGE("Error remove %s",RNDIS_PATH);
+    }
+  } else if ((functions & GadgetFunction::RNDIS)) {
+    if (mkdir(RNDIS_PATH,644)) goto error;
+  }
+
+  // Leave the gadget pulled down to give time for the host to sense disconnect.
+  usleep(DISCONNECT_WAIT_US);
+
+  if (functions == static_cast<uint64_t>(GadgetFunction::NONE)) {
+    if (callback == NULL) return Void();
+    Return<void> ret =
+        callback->setCurrentUsbFunctionsCb(functions, Status::SUCCESS);
+    if (!ret.isOk())
+      ALOGE("Error while calling setCurrentUsbFunctionsCb %s",
+            ret.description().c_str());
+    return Void();
+  }
+
+  status = validateAndSetVidPid(functions);
+
+  if (status != Status::SUCCESS) {
+    goto error;
+  }
+
+  status = setupFunctions(functions, callback, timeout);
+  if (status != Status::SUCCESS) {
+    goto error;
+  }
+
+  ALOGI("Usb Gadget setcurrent functions called successfully");
   return Void();
 
 error:
