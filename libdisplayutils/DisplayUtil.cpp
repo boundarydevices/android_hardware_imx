@@ -98,6 +98,9 @@ int convert_gralloc_format_to_nxp_format(int format)
         case HAL_PIXEL_FORMAT_RGBA_FP16:
             fslFormat = FORMAT_RGBAFP16;
             break;
+        case HAL_PIXEL_FORMAT_RAW16:
+            fslFormat = FORMAT_RAW16;
+            break;
         default:
             ALOGE("%s invalid format:0x%x", __func__, format);
             break;
@@ -151,6 +154,8 @@ std::string getNxpFormatString(int format)
             return "P010_TILED";
         case FORMAT_P010_TILED_COMPRESSED:
             return "P010_TILED_COMPRESSED";
+        case FORMAT_RAW16:
+            return "FORMAT_RAW16";
         default:
             return android::base::StringPrintf("Unknown(0x%x)",format);
     }

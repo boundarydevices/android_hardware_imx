@@ -46,6 +46,7 @@ enum {
     FORMAT_P010                  = 0x108,
     FORMAT_P010_TILED            = 0x109,
     FORMAT_P010_TILED_COMPRESSED = 0x110,
+    FORMAT_RAW16  = 0x203,
 };
 
 struct MemoryDesc

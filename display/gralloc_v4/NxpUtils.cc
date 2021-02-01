@@ -137,6 +137,8 @@ std::string getDrmFormatString(uint32_t drmFormat) {
             return "DRM_FORMAT_YVU420";
         case DRM_FORMAT_YVYU:
             return "DRM_FORMAT_YVYU";
+        case DRM_FORMAT_RAW16:
+            return "DRM_FORMAT_RAW16";
     }
     return android::base::StringPrintf("Unknown(%d)", drmFormat);
 }
@@ -236,7 +238,7 @@ int convertToDrmFormat(PixelFormat format, uint32_t* outDrmFormat) {
         case PixelFormat::RAW12:
             return -EINVAL;
         case PixelFormat::RAW16:
-            *outDrmFormat = DRM_FORMAT_R16;
+            *outDrmFormat = DRM_FORMAT_RAW16;
             return 0;
         /* TODO use blob */
         case PixelFormat::RAW_OPAQUE:
@@ -648,6 +650,7 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                      }}},
 
                     {DRM_FORMAT_RGB888,
+
                      {{
                              .components = {{.type = android::gralloc4::PlaneLayoutComponentType_R,
                                              .offsetInBits = 0,
@@ -780,6 +783,17 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                               .horizontalSubsampling = 2,
                               .verticalSubsampling = 1,
                       }}},
+
+                    {DRM_FORMAT_RAW16,
+                     {{
+                              .components = {{.type = android::gralloc4::PlaneLayoutComponentType_RAW,
+                                              .offsetInBits = 0,
+                                              .sizeInBits = 16}},
+                              .sampleIncrementInBits = 16,
+                              .horizontalSubsampling = 1,
+                              .verticalSubsampling = 1,
+                      },
+                     }},
             });
     return *kPlaneLayoutsMap;
 }

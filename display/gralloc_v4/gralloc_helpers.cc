@@ -87,6 +87,8 @@ uint32_t drv_convert_nxp_format_to_drm_format(int format)
 		return DRM_FORMAT_NV16;//YCBCR_422_SP
         case FORMAT_I420://HAL_PIXEL_FORMAT_YCbCr_420_P
 		return DRM_FORMAT_YUV420;
+        case FORMAT_RAW16:
+            return DRM_FORMAT_RAW16;
         case FORMAT_NV12_TILED:
         case FORMAT_NV12_G1_TILED:
         case FORMAT_NV12_G2_TILED:

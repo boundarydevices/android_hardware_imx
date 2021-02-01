@@ -150,6 +150,7 @@ int MemoryDesc::checkFormat()
 
         case FORMAT_NV16:
         case FORMAT_YUYV:
+        case FORMAT_RAW16:
             alignedw = ALIGN_PIXEL_16(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
             size = alignedw * alignedh * 2;
