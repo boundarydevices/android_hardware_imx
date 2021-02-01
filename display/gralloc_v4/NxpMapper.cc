@@ -50,6 +50,18 @@ Return<void> NxpMapper::createDescriptor(const BufferDescriptorInfo& description
         return Void();
     }
 
+    if (description.layerCount != 1) {
+         ALOGE("%s layerCount=%d > 1 is unsupported", __func__, description.layerCount);
+         hidlCb(Error::UNSUPPORTED, descriptor);
+         return Void();
+    }
+
+    if (description.format == static_cast<PixelFormat>(0)) {
+        ALOGE("%s Bad parameter, format=0x%x", __func__, description.format);
+        hidlCb(Error::BAD_VALUE, descriptor);
+        return Void();
+    }
+
     int ret = android::gralloc4::encodeBufferDescriptorInfo(description, &descriptor);
     if (ret) {
         ALOGE("%s Failed to encode: %d.", __func__, ret);
@@ -144,6 +156,11 @@ Return<Error> NxpMapper::validateBufferSize(void* rawHandle,
     if (!memHandle) {
         ALOGE("%s Invalid handle.", __func__);
         return Error::BAD_BUFFER;
+    }
+
+    if (descriptor.layerCount != 1) {
+        ALOGE("%s layerCount only support 1, but is %d.", __func__, descriptor.layerCount);
+        return Error::BAD_VALUE;
     }
 
     /* gralloc driver will change some format to HAL_PIXEL_FORMAT_YCbCr_420_SP, so not check format*/
@@ -371,6 +388,12 @@ Return<void> NxpMapper::isSupported(const BufferDescriptorInfo& descriptor,
         ALOGE("%s Driver is uninitialized.", __func__);
         hidlCb(Error::BAD_VALUE, false);
         return Void();
+    }
+
+    if (descriptor.layerCount != 1) {
+         ALOGE("%s layerCount=%d != 1 is unsupported", __func__, descriptor.layerCount);
+         hidlCb(Error::NONE, false);
+         return Void();
     }
 
     struct gralloc_buffer_descriptor memDescriptor;
