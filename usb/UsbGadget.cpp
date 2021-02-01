@@ -97,31 +97,29 @@ static void *monitorFfs(void *param) {
   struct epoll_event events[EPOLL_EVENTS];
   steady_clock::time_point disconnect;
 
-  bool descriptorWritten = true;
-  for (int i = 0; i < static_cast<int>(usbGadget->mEndpointList.size()); i++) {
-    if (access(usbGadget->mEndpointList.at(i).c_str(), R_OK)) {
-      descriptorWritten = false;
-      break;
-    }
-  }
-
-  // notify here if the endpoints are already present.
-  if (descriptorWritten) {
-    usleep(PULL_UP_DELAY);
-    if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-      lock_guard<mutex> lock(usbGadget->mLock);
-      usbGadget->mCurrentUsbFunctionsApplied = true;
-      gadgetPullup = true;
-      writeUdc = false;
-      ALOGI("GADGET pulled up");
-      usbGadget->mCv.notify_all();
-    }
-  }
-
   while (!stopMonitor) {
-    int nrEvents = epoll_wait(usbGadget->mEpollFd, events, EPOLL_EVENTS, -1);
+    bool descriptorWritten = true;
+    for (int i = 0; i < static_cast<int>(usbGadget->mEndpointList.size()); i++) {
+      if (access(usbGadget->mEndpointList.at(i).c_str(), R_OK)) {
+        descriptorWritten = false;
+        break;
+      }
+    }
+
+    // notify here if the endpoints are already present.
+    if (descriptorWritten) {
+      usleep(PULL_UP_DELAY);
+      if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+        lock_guard<mutex> lock(usbGadget->mLock);
+        usbGadget->mCurrentUsbFunctionsApplied = true;
+        gadgetPullup = true;
+        writeUdc = false;
+        ALOGI("GADGET pulled up");
+        usbGadget->mCv.notify_all();
+      }
+    }
+    int nrEvents = epoll_wait(usbGadget->mEpollFd, events, EPOLL_EVENTS, 2000);
     if (nrEvents <= 0) {
-      ALOGE("epoll wait did not return descriptor number");
       continue;
     }
 
