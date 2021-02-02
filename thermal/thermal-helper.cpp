@@ -49,7 +49,7 @@ constexpr std::string_view kSensorTripPointTempZeroFile("trip_point_0_temp");
 constexpr std::string_view kSensorTripPointHystZeroFile("trip_point_0_hyst");
 constexpr std::string_view kUserSpaceSuffix("step_wise");
 constexpr std::string_view kCoolingDeviceCurStateSuffix("cur_state");
-constexpr std::string_view kConfigProperty("vendor.thermal.config");
+constexpr char kConfigProperty[] = "vendor.thermal.config";
 constexpr char kSocType[] = "ro.boot.soc_type";
 namespace {
 using android::base::StringPrintf;
@@ -171,10 +171,10 @@ ThermalHelper::ThermalHelper(const NotificationCallback &cb)
       cb_(cb),
       cooling_device_info_map_(ParseCoolingDevice(
               "/vendor/etc/configs/" +
-              android::base::GetProperty(kConfigProperty.data(), kConfigDefaultFileName.data()))),
+              android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()))),
       sensor_info_map_(ParseSensorInfo(
               "/vendor/etc/configs/" +
-              android::base::GetProperty(kConfigProperty.data(), kConfigDefaultFileName.data()))) {
+              android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()))) {
     for (auto const &name_status_pair : sensor_info_map_) {
         sensor_status_map_[name_status_pair.first] = {
             .severity = ThrottlingSeverity::NONE,
@@ -610,6 +610,26 @@ bool ThermalHelper::thermalWatcherCallbackFunc(const std::set<std::string> &ueve
     return thermal_triggered;
 }
 
+void ThermalHelper::enableCPU(std::string cpu, bool enable) {
+    int writeFd = 1;
+    std::string path = "/sys/devices/system/cpu/";
+    path.append(cpu);
+    path.append("/online");
+    int fd = open(path.c_str(), O_RDWR | O_CLOEXEC );
+    if (fd == -1) {
+        LOG(ERROR) << "open " << path << " failed";
+    }
+    if (enable) {
+        writeFd = write(fd, "1", sizeof("1"));
+    } else {
+        writeFd = write(fd, "0", sizeof("0"));
+    }
+    if (!writeFd) {
+        LOG(ERROR) << "failed to write state to fd";
+    }
+    close(fd);
+    return;
+}
 }  // namespace implementation
 }  // namespace V2_0
 }  // namespace thermal

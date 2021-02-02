@@ -15,11 +15,14 @@
  */
 
 #include <cerrno>
+#include <iterator>
 #include <mutex>
 #include <string>
 
 #include <android-base/file.h>
 #include <android-base/logging.h>
+#include <android-base/properties.h>
+#include <android-base/stringprintf.h>
 #include <hidl/HidlTransportSupport.h>
 
 #include "Thermal.h"
@@ -31,12 +34,16 @@ namespace thermal {
 namespace V2_0 {
 namespace implementation {
 
+constexpr char kConfigProperty[] = "vendor.thermal.config";
+constexpr char kSocType[] = "ro.boot.soc_type";
+
 namespace {
 
 using ::android::hardware::interfacesEqual;
 using ::android::hardware::thermal::V1_0::ThermalStatus;
 using ::android::hardware::thermal::V1_0::ThermalStatusCode;
 using ::android::hidl::base::V1_0::IBase;
+using android::base::StringPrintf;
 
 template <typename T, typename U>
 Return<void> setFailureAndCallback(T _hidl_cb, hidl_vec<U> data, std::string_view debug_msg) {
@@ -237,6 +244,37 @@ Return<void> Thermal::unregisterThermalChangedCallback(
 void Thermal::sendThermalChangedCallback(const std::vector<Temperature_2_0> &temps) {
     std::lock_guard<std::mutex> _lock(thermal_callback_mutex_);
     for (auto &t : temps) {
+        if (android::hardware::thermal::V2_0::toString(t.type) == "CPU") {
+            hidl_vec<TemperatureThreshold> tempThresholds;
+            hidl_vec<CpuUsage> cpu_usages;
+            static std::string kConfigDefaultFileName;
+            static std::vector<std::string> CPUInfo;
+            static bool tempThrottling = false;
+            if (!thermal_helper_.fillCpuUsages(&cpu_usages)) {
+                LOG(ERROR) << "Failed to get CPU usages." << std::endl;
+                return;
+            }
+            if (!thermal_helper_.fillTemperatureThresholds(true, TemperatureType_2_0::CPU, &tempThresholds)) {
+                LOG(ERROR) << "Failed to getTemperatureThresholds." << std::endl;
+                return;
+            }
+            const auto &tempThreshold = tempThresholds[0];
+            if(t.value >= tempThreshold.hotThrottlingThresholds[3] && !tempThrottling) {
+                kConfigDefaultFileName = android::base::StringPrintf("%s_%s%s","thermal_info_config",
+                          android::base::GetProperty(kSocType, "").c_str(),".json");
+                CPUInfo = ParseHotplugCPUInfo("/vendor/etc/configs/" +
+                          android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()));
+                for(std::vector<std::string>::iterator it = CPUInfo.begin(); it!=CPUInfo.end(); it++) {
+                    thermal_helper_.enableCPU(*it, false);
+                }
+                tempThrottling = true;
+            } else if(t.value < tempThreshold.hotThrottlingThresholds[2] && tempThrottling) {
+                for(std::vector<std::string>::iterator it = CPUInfo.begin(); it!=CPUInfo.end(); it++) {
+                    thermal_helper_.enableCPU(*it, true);
+                }
+                tempThrottling = false;
+            }
+        }
         callbacks_.erase(
             std::remove_if(callbacks_.begin(), callbacks_.end(),
                            [&](const CallbackSetting &c) {

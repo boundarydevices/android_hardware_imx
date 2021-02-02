@@ -18,6 +18,7 @@
 #include <android-base/strings.h>
 #include <cmath>
 #include <set>
+#include <vector>
 
 #include <json/reader.h>
 #include <json/value.h>
@@ -58,6 +59,40 @@ float getFloatFromValue(const Json::Value &value) {
 }
 
 }  // namespace
+
+std::vector<std::string> ParseHotplugCPUInfo(std::string_view config_path) {
+    std::string json_doc;
+    std::vector<std::string> HotplugCPU_parsed;
+    if (!android::base::ReadFileToString(config_path.data(), &json_doc)) {
+        LOG(ERROR) << "Failed to read JSON config from " << config_path;
+        return HotplugCPU_parsed;
+    }
+
+    Json::Value root;
+    Json::Reader reader;
+
+    if (!reader.parse(json_doc, root)) {
+        LOG(ERROR) << "Failed to parse JSON config";
+        return HotplugCPU_parsed;
+    }
+
+    Json::Value Hotplug_CPUs = root["HotplugCPUs"];
+    if (Hotplug_CPUs.size() < 1) {
+        LOG(ERROR) << "Failed to read HotplugCPUs values";
+        return HotplugCPU_parsed;
+    }
+    for (Json::Value::ArrayIndex j = 0; j < Hotplug_CPUs.size(); ++j) {
+        std::string Hotplug_CPU = Hotplug_CPUs[j].asString();
+        if (Hotplug_CPU.empty()) {
+            LOG(ERROR) << "Failed to read Hotplug_CPUs[" << j << "]";
+            HotplugCPU_parsed.clear();
+            return HotplugCPU_parsed;
+        }
+        LOG(INFO) << "HotplugCPUs[" << j << "] value is: " << Hotplug_CPU;
+        HotplugCPU_parsed.emplace_back(Hotplug_CPU);
+    }
+    return HotplugCPU_parsed;
+}
 
 std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) {
     std::string json_doc;

@@ -19,6 +19,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <android/hardware/thermal/2.0/IThermal.h>
 
@@ -49,6 +50,7 @@ struct SensorInfo {
 
 std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path);
 std::map<std::string, CoolingType> ParseCoolingDevice(std::string_view config_path);
+std::vector<std::string> ParseHotplugCPUInfo(std::string_view config_path);
 
 }  // namespace implementation
 }  // namespace V2_0

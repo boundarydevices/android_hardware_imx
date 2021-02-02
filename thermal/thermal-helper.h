@@ -104,6 +104,7 @@ class ThermalHelper {
     bool readCoolingDevice(std::string_view cooling_device, CoolingDevice_2_0 *out) const;
     // Get SensorInfo Map
     const std::map<std::string, SensorInfo> &GetSensorInfoMap() const { return sensor_info_map_; }
+    void enableCPU(std::string cpu, bool enable);
 
   private:
     bool initializeSensorMap(const std::map<std::string, std::string> &path_map);
