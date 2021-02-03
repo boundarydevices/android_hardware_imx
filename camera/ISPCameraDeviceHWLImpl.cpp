@@ -187,8 +187,8 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
     // When restart stream (shift between picture and record mode, or shift between APK), need recover to awb,
     // or the image will blurry if previous mode is mwb.
     // awb/aec need to be set after stream on.
-    m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO);
-    m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON);
+    m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO, true);
+    m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
 
     return ret;
 }

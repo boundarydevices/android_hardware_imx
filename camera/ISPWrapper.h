@@ -87,8 +87,8 @@ public:
     ~ISPWrapper();
     int init(char *devPath);
     int process(HalCameraMetadata *pMeta);
-    int processAWB(uint8_t mode);
-    int processAeMode(uint8_t mode);
+    int processAWB(uint8_t mode, bool force = false);
+    int processAeMode(uint8_t mode, bool force = false);
 
 private:
     int setFeature(const char *value);

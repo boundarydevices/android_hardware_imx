@@ -131,22 +131,22 @@ int ISPWrapper::setFeature(const char *value)
     return ret;
 }
 
-int ISPWrapper::processAWB(uint8_t mode)
+int ISPWrapper::processAWB(uint8_t mode, bool force)
 {
     int ret = 0;
     char *value = NULL;
 
-    ALOGV("%s, mode %d", __func__, mode);
+    ALOGV("%s, mode %d, force %d", __func__, mode, force);
 
     if(mode >= ARRAY_SIZE(g_strWBList)) {
         ALOGW("%s, unsupported awb mode %d", __func__, mode);
         return BAD_VALUE;
     }
 
-    if(mode == m_awb_mode)
+    if((mode == m_awb_mode) && (force == false))
         return 0;
 
-    ALOGI("%s, change WB mode from %d to %d", __func__, m_awb_mode, mode);
+    ALOGI("%s, change WB mode from %d to %d, force %d", __func__, m_awb_mode, mode, force);
 
     // If shift from AWB to MWB, first disable AWB.
     if( (m_awb_mode == ANDROID_CONTROL_AWB_MODE_AUTO) &&
@@ -323,17 +323,17 @@ int ISPWrapper::processExposureGain(int32_t comp)
     return 0;
 }
 
-int ISPWrapper::processAeMode(uint8_t mode)
+int ISPWrapper::processAeMode(uint8_t mode, bool force)
 {
     if((mode != ANDROID_CONTROL_AE_MODE_OFF) && (mode != ANDROID_CONTROL_AE_MODE_ON)) {
         ALOGW("%s: unsupported ae mode %d", __func__, mode);
         return BAD_VALUE;
     }
 
-    if(mode == m_ae_mode)
+    if((mode == m_ae_mode) && (force == false))
         return 0;
 
-    ALOGI("%s: set ae mode to %d", __func__, mode);
+    ALOGI("%s: set ae mode to %d, force %d", __func__, mode, force);
 
     bool enable = (mode == ANDROID_CONTROL_AE_MODE_ON);
     Json::Value jRequest, jResponse;
