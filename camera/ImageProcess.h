@@ -58,9 +58,9 @@ private:
     void cl_YUYVCopyByLine(void *g2dHandle,
              uint8_t *dst, uint32_t dstWidth,
              uint32_t dstHeight, uint8_t *src,
-             uint32_t srcWidth, uint32_t srcHeight, bool bInputCached);
+             uint32_t srcWidth, uint32_t srcHeight, bool bInputCached, bool bOutputCached);
     void cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
-             uint8_t *outputBuffer, int width, int height);
+             uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
     void *getHandle();
     static void threadDestructor(void *handle);
     int openEngine(void** handle);

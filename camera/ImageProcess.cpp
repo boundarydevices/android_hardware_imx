@@ -652,15 +652,26 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
         return -EINVAL;
     }
 
+    // Set output cache attrib based on usage.
+    // For input cache attrib, hard code to false, reason as below.
+    // 1) For DMA buffer type, the v4l2 buffer is allocated by ion in HAL, and it's un-cacheable.
+    // 2) For MMAP buffer type, the v4l2 buffer is allocated by driver and should be cacheable.
+    //    The v4l2 buffer will only be read by CPU.
+    //    GPU3D uses physical address, no need to flush the input buffer.
+    bool bOutputCached = dst->usage() & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
+
+    ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%llx, res %dx%d, format src 0x%x, dst 0x%x",
+       bOutputCached, dst->usage(), dst->width(), dst->height(), src->format(), dst->format());
+
     if (((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
         cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
-                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
     } else if (src->format() == dst->format()) {
         cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
                  dst->width(), dst->height(),
-                (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), true);
+                (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
     } else {
         ALOGI("%s:%d, opencl don't support format convert from 0x%x to 0x%x",
                  __func__, __LINE__, src->format(), dst->format());
@@ -706,19 +717,12 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
          uint8_t *output, uint32_t dstWidth,
          uint32_t dstHeight, uint8_t *input,
-         uint32_t srcWidth, uint32_t srcHeight, bool bInputCached)
+         uint32_t srcWidth, uint32_t srcHeight, bool bInputCached, bool bOutputCached)
 {
     struct cl_g2d_surface src,dst;
 
     src.format = CL_G2D_YUYV;
-    if(bInputCached){
-        //Input is buffer from usb v4l2 driver
-        //cachable buffer
-        src.usage = CL_G2D_CPU_MEMORY;
-    }
-    else
-        src.usage = CL_G2D_DEVICE_MEMORY;
-
+    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
     src.planes[0] = (long)input;
     src.left = 0;
     src.top = 0;
@@ -729,7 +733,7 @@ void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
     src.height = srcHeight;
 
     dst.format = CL_G2D_YUYV;
-    dst.usage = CL_G2D_DEVICE_MEMORY;
+    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
     dst.planes[0] = (long)output;
     dst.left = 0;
     dst.top = 0;
@@ -742,11 +746,11 @@ void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
     (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
 }
 void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
-         uint8_t *outputBuffer, int width, int height)
+         uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached)
 {
     struct cl_g2d_surface src,dst;
     src.format = CL_G2D_YUYV;
-    src.usage = CL_G2D_DEVICE_MEMORY;
+    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
     src.planes[0] = (long)inputBuffer;
     src.left = 0;
     src.top = 0;
@@ -757,7 +761,7 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
     src.height = height;
 
     dst.format = CL_G2D_NV12;
-    dst.usage = CL_G2D_DEVICE_MEMORY;
+    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
     dst.planes[0] = (long)outputBuffer;
     dst.planes[1] = (long)outputBuffer + width * height;
     dst.left = 0;

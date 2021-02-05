@@ -104,21 +104,24 @@ class ImxStream
 public:
     ImxStream() {}
 
-    ImxStream(uint32_t width, uint32_t height, int32_t format)
+    ImxStream(uint32_t width, uint32_t height, int32_t format, uint64_t usage)
     {
         mWidth = width;
         mHeight = height;
         mFormat = format;
+        mUsage = usage;
     }
 
     uint32_t width() {return mWidth;}
     uint32_t height() {return mHeight;}
     int32_t format() {return mFormat;}
+    uint64_t usage() {return mUsage;}
 
 public:
     uint32_t mWidth;
     uint32_t mHeight;
     int32_t mFormat;
+    uint64_t mUsage;
 };
 
 struct SensorSet

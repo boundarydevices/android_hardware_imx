@@ -328,7 +328,7 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
           stream->format,
           stream->buffer_size);
 
-    imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format);
+    imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format, stream->usage);
 
     if (imxBuf->mStream == NULL)
         goto error;
