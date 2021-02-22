@@ -166,4 +166,41 @@ int getFps(int width, int height, int defValue)
     return fps;
 }
 
+int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align)
+{
+    int32_t size = 0;
+    int alignedw, alignedh, c_stride;
+
+    if (align && (format == HAL_PIXEL_FORMAT_YCbCr_420_P)) {
+        alignedw = ALIGN_PIXEL_32(width);
+        alignedh = ALIGN_PIXEL_4(height);
+        c_stride = (alignedw/2+15)/16*16;
+        size = (alignedw + c_stride) * alignedh;
+        return size;
+    }
+
+    alignedw = align ? ALIGN_PIXEL_16(width) : width;
+    alignedh = align ? ALIGN_PIXEL_16(height) : height;
+
+    switch (format) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+            size = alignedw * alignedh * 3 / 2;
+            break;
+
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+        case HAL_PIXEL_FORMAT_RAW16:
+            size = alignedw * alignedh * 2;
+            break;
+
+        default:
+            ALOGE("Error: %s format 0x%x not supported", __func__, format);
+            break;
+    }
+
+    return size;
+}
+
 } // namespace android

@@ -178,6 +178,10 @@ int32_t MMAPStream::onDeviceStartLocked()
             mBuffers[i]->mSize = buf.length;
         }
 
+        mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
+        if(mBuffers[i]->mFormatSize == 0)
+            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+
         mBuffers[i]->mVirtAddr = (void*)mmap(NULL, mBuffers[i]->mSize, PROT_READ | PROT_WRITE, MAP_SHARED, mDev, mBuffers[i]->mPhyAddr);
 
         if (!mPlane) {

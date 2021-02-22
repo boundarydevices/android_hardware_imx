@@ -188,39 +188,7 @@ int32_t USPStream::onFrameReturnLocked(ImxStreamBuffer& buf)
 
 int32_t USPStream::getFormatSize()
 {
-    int32_t size = 0;
-    int alignedw, alignedh, c_stride;
-    switch (mFormat) {
-        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            alignedw = ALIGN_PIXEL_16(mWidth);
-            alignedh = ALIGN_PIXEL_16(mHeight);
-            size = alignedw * alignedh * 3 / 2;
-            break;
-
-        case HAL_PIXEL_FORMAT_YCbCr_420_P: {
-            alignedw = ALIGN_PIXEL_32(mWidth);
-            alignedh = ALIGN_PIXEL_4(mHeight);
-            c_stride = (alignedw/2+15)/16*16;
-            size = (alignedw + c_stride) * alignedh;
-            break;
-        }
-        case HAL_PIXEL_FORMAT_YCbCr_422_I:
-            alignedw = ALIGN_PIXEL_16(mWidth);
-            alignedh = ALIGN_PIXEL_16(mHeight);
-            size = alignedw * alignedh * 2;
-            break;
-        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-            alignedw = ALIGN_PIXEL_16(mWidth);
-            alignedh = ALIGN_PIXEL_16(mHeight);
-            size = alignedw * alignedh * 2;
-            break;
-
-        default:
-            ALOGE("Error: %s format 0x%x not supported", __func__, mFormat);
-            break;
-    }
-
-    return size;
+    return getSizeByForamtRes(mFormat, mWidth, mHeight, true);
 }
 
 int32_t USPStream::allocateBuffersLocked()
@@ -283,6 +251,9 @@ int32_t USPStream::allocateBuffersLocked()
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
         mBuffers[i]->index = i;
+        mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
+        if(mBuffers[i]->mFormatSize == 0)
+            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
     }
 
     mRegistered = true;

@@ -104,24 +104,27 @@ class ImxStream
 public:
     ImxStream() {}
 
-    ImxStream(uint32_t width, uint32_t height, int32_t format, uint64_t usage)
+    ImxStream(uint32_t width, uint32_t height, int32_t format, uint64_t usage, int32_t id)
     {
         mWidth = width;
         mHeight = height;
         mFormat = format;
         mUsage = usage;
+        mId = id;
     }
 
     uint32_t width() {return mWidth;}
     uint32_t height() {return mHeight;}
     int32_t format() {return mFormat;}
     uint64_t usage() {return mUsage;}
+    int32_t id() {return mId;}
 
 public:
     uint32_t mWidth;
     uint32_t mHeight;
     int32_t mFormat;
     uint64_t mUsage;
+    int32_t mId;
 };
 
 struct SensorSet
@@ -147,7 +150,8 @@ struct SensorSet
 typedef struct tag_nxp_srream_buffer {
     void* mVirtAddr;
     uint64_t mPhyAddr;
-    size_t mSize;
+    size_t mSize;        // the allocated buffer size, usually great than mFormatSize due to alignment.
+    size_t mFormatSize;  // the actual size caculated by format and resolution.
     int32_t index;
     buffer_handle_t buffer;
     int32_t mFd;
@@ -158,7 +162,7 @@ int getCaptureMode(int fd, int width, int height);
 int convertPixelFormatToV4L2Format(PixelFormat format, bool invert = false);
 int32_t changeSensorFormats(int *src, int *dst, int len);
 int getFps(int width, int height, int defValue);
-
+int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
 } // namespace android
 
 #endif  // CAMERA_UTILS_H

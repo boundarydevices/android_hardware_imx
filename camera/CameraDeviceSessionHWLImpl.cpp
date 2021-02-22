@@ -314,6 +314,9 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
     imxBuf->mPhyAddr = handle->phys;
     imxBuf->mSize = handle->size;
     imxBuf->buffer = buf->buffer;
+    imxBuf->mFormatSize = getSizeByForamtRes(handle->format, stream->width, stream->height, false);
+    if(imxBuf->mFormatSize == 0)
+        imxBuf->mFormatSize = imxBuf->mSize;
 
     ALOGV("%s, buffer: virt %p, phy 0x%llx, size %d, format 0x%x, acquire_fence %p, release_fence %p, stream: res %dx%d, format 0x%x, size %d",
           __func__,
@@ -328,7 +331,7 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
           stream->format,
           stream->buffer_size);
 
-    imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format, stream->usage);
+    imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format, stream->usage, stream->id);
 
     if (imxBuf->mStream == NULL)
         goto error;
@@ -386,6 +389,53 @@ Stream *CameraDeviceSessionHwlImpl::GetStreamFromStreamBuffer(StreamBuffer *buf)
     return NULL;
 }
 
+static void DumpStream(void *src, uint32_t srcSize, void *dst, uint32_t dstSize, int32_t id)
+{
+    char value[PROPERTY_VALUE_MAX];
+    int  fdSrc = -1;
+    int fdDst = -1;
+    int32_t streamIdBitVal = 0;
+
+    if ((src == NULL) || (srcSize == 0) || (dst == NULL) || (dstSize == 0))
+        return;
+
+
+    property_get("vendor.rw.camera.test", value, "");
+    if (strcmp(value, "") == 0)
+        return;
+
+    streamIdBitVal = atoi(value);
+    if ((streamIdBitVal & (1<<id)) == 0)
+        return;
+
+    ALOGI("%s: src size %d, dst size %d, stream id %d", __func__, srcSize, dstSize, id);
+
+    char srcFile[32];
+    char dstFile[32];
+
+    snprintf(srcFile, 32, "/data/%d-src.data", id);
+    srcFile[31] = 0;
+    snprintf(dstFile, 32, "/data/%d-dst.data", id);
+    dstFile[31] = 0;
+
+    fdSrc = open(srcFile, O_CREAT|O_APPEND|O_WRONLY, S_IRWXU|S_IRWXG);
+    fdDst = open(dstFile, O_CREAT|O_APPEND|O_WRONLY, S_IRWXU|S_IRWXG);
+
+    if ((fdSrc < 0) || (fdDst < 0)) {
+        ALOGW("%s: file open error, srcFile: %s, fd %d, dstFile: %s, fd %d",
+           __func__, srcFile, fdSrc, dstFile, fdDst);
+        return;
+    }
+
+    write(fdSrc, src, srcSize);
+    write(fdDst, dst, dstSize);
+
+    close(fdSrc);
+    close(fdDst);
+
+    return;
+}
+
 status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> output_buffers, CameraMetadata &requestMeta)
 {
     int ret = 0;
@@ -411,6 +461,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcB
             ret = processJpegBuffer(srcBuf, dstBuf, &requestMeta);
         } else
             processFrameBuffer(srcBuf, dstBuf, &requestMeta);
+
+        DumpStream(srcBuf->mVirtAddr, srcBuf->mFormatSize, dstBuf->mVirtAddr, dstBuf->mFormatSize, dstBuf->mStream->id());
 
         ReleaseImxStreamBuffer(dstBuf);
     }
