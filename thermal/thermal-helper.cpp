@@ -188,7 +188,8 @@ ThermalHelper::ThermalHelper(const NotificationCallback &cb)
 
     is_initialized_ = initializeSensorMap(tz_map) && initializeCoolingDevices(cdev_map);
     if (!is_initialized_) {
-        LOG(FATAL) << "ThermalHAL could not be initialized properly.";
+        LOG(ERROR) << "ThermalHAL could not be initialized properly.";
+        return;
     }
     std::set<std::string> cdev_paths;
     std::transform(cooling_device_info_map_.cbegin(), cooling_device_info_map_.cend(),
@@ -216,7 +217,7 @@ ThermalHelper::ThermalHelper(const NotificationCallback &cb)
     // Need start watching after status map initialized
     is_initialized_ = thermal_watcher_->startWatchingDeviceFiles();
     if (!is_initialized_) {
-        LOG(FATAL) << "ThermalHAL could not start watching thread properly.";
+        LOG(ERROR) << "ThermalHAL could not start watching thread properly.";
     }
 }
 
