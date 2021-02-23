@@ -312,6 +312,7 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     char value[PROPERTY_VALUE_MAX];
     int i, len;
     int max_drm_num = sizeof(imx_drm_version)/sizeof(char*);
+    int tileHwLimit = 0;
 
     drmVersionPtr version = drmGetVersion(drmFd);
     if (version) {
@@ -333,7 +334,7 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
         }
 
         if (!strncmp(version->name, "mxsfb-drm", strlen("mxsfb-drm"))) {
-            setProperty("vendor.hwc.drm.fbTileSupport", "disable"); // disable fbTile when use lcdif on evk_8mq
+            tileHwLimit = 1;
         }
         drmFreeVersion(version);
     }
@@ -353,6 +354,7 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
             continue;
         }
 
+        display->setDisplayLimitation(tileHwLimit);
         display->readType();
         display->readConnection();
         // primary display allow not connected.

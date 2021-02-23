@@ -67,6 +67,7 @@ Display::Display()
     mIndex = -1;
     mComposeFlag = 0;
     mEdid = NULL;
+    mTileHwLimit = 0;
     mResetHdrMode = false;
     mUiUpdate = false;
     mTotalLayerNum = 0;
@@ -1102,6 +1103,11 @@ bool Display::isDeviceComposition()
     return false;
 }
 
+void Display::setDisplayLimitation(int limit)
+{
+    mTileHwLimit = limit;
+}
+
 int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
                                           uint32_t size)
 {
@@ -1120,7 +1126,11 @@ int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x1E,
     };
 
-    *displayPort = mIndex;
+    if (mTileHwLimit > 0)
+        *displayPort = (uint8_t)((mTileHwLimit << 6) | mIndex);
+    else
+        *displayPort = (uint8_t)mIndex;
+
     if (size < EDID_LENGTH)
         return -1;
 

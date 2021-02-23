@@ -182,6 +182,8 @@ public:
     // display property.
     // set display vsync/hotplug callback.
     void setCallback(EventListener* callback);
+    // set some hardware limitation bits
+    void setDisplayLimitation(int limit);
     // set display power on/off.
     virtual int setPowerMode(int mode);
     // enable display vsync thread.
@@ -292,6 +294,7 @@ protected:
     int mAcquireFence;
     int mComposeFlag;
     Edid* mEdid;
+    int mTileHwLimit;
     bool mResetHdrMode;
     bool mUiUpdate;
     EventListener* mListener;
