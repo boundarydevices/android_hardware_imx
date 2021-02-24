@@ -70,6 +70,7 @@ imx_camera_defaults {
                 "libutils",
                 "libbinder",
                 "libfsldisplay",
+                "libui",
                 "libsync",
             ],
             static_libs: [

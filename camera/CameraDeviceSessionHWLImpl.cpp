@@ -1292,7 +1292,7 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
 }
 
 status_t CameraDeviceSessionHwlImpl::SubmitRequests(
-    uint32_t frame_number, const std::vector<HwlPipelineRequest> &requests)
+    uint32_t frame_number, std::vector<HwlPipelineRequest> &requests)
 {
     Mutex::Autolock _l(mLock);
 

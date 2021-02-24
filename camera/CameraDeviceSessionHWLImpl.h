@@ -135,7 +135,7 @@ public:
 
     status_t SubmitRequests(
         uint32_t frame_number,
-        const std::vector<HwlPipelineRequest>& requests) override;
+        std::vector<HwlPipelineRequest>& requests) override;
 
     status_t Flush() override;
 
