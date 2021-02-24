@@ -637,6 +637,19 @@ int ImageProcess::convertNV12toNV21(ImxStreamBuffer& dstBuf, ImxStreamBuffer& sr
     return 0;
 }
 
+static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels)
+{
+    ALOGV("enter Revert16BitEndian, src %p, dst %p, pixels %d", pSrc, pDst, pixels);
+
+    for(uint32_t i = 0; i < pixels; i++) {
+        uint32_t offset = i*2;
+        pDst[offset] = pSrc[offset + 1];
+        pDst[offset + 1] = pSrc[offset];
+    }
+
+    return;
+}
+
 int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
     // opencl g2d exists.
@@ -669,8 +682,11 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
         cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
                     (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
     } else if (src->format() == dst->format()) {
-        cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
-                 dst->width(), dst->height(),
+        if (HAL_PIXEL_FORMAT_RAW16 == src->format())
+            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
+        else
+            cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
+                dst->width(), dst->height(),
                 (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
     } else {
         ALOGI("%s:%d, opencl don't support format convert from 0x%x to 0x%x",
