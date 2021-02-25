@@ -77,6 +77,7 @@ fi
 loop_index=0
 flash_flag=0
 while [ loop_index -lt 2 ]; do
+	let loop_index=loop_index+1
 	log -p i -t imx_ota_postinstall "to write to $target_device with offset $target_device_offset"
 	dd if=$bootloader0_img of=$target_device bs=1k seek=$target_device_offset conv=fsync,notrunc
 	if [ $? != 0 ]; then
@@ -92,7 +93,6 @@ while [ loop_index -lt 2 ]; do
 		flash_flag=1
 		break
 	fi
-	let loop_index=loop_index+1
 done
 
 if [ ${boot_device_type} = "emmc" ]; then
