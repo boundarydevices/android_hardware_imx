@@ -811,9 +811,10 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         int usage = 0;
 
         switch (stream.format) {
+            case HAL_PIXEL_FORMAT_RAW16:
             case HAL_PIXEL_FORMAT_BLOB:
                 ALOGI("%s create capture stream", __func__);
-                hal_stream.override_format = HAL_PIXEL_FORMAT_BLOB;
+                hal_stream.override_format = stream.format;
                 hal_stream.max_buffers = NUM_CAPTURE_BUFFER;
                 usage = CAMERA_GRALLOC_USAGE_JPEG;
                 stillcapIdx = i;
