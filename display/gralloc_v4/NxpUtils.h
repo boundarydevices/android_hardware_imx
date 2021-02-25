@@ -17,10 +17,6 @@ std::string getDrmFormatString(uint32_t drmFormat);
 
 std::string getPixelFormatString(android::hardware::graphics::common::V1_2::PixelFormat format);
 
-std::string getUsageString(
-        android::hardware::hidl_bitfield<android::hardware::graphics::common::V1_2::BufferUsage>
-                usage);
-
 int convertToDrmFormat(android::hardware::graphics::common::V1_2::PixelFormat format,
                        uint32_t* outDrmFormat);
 

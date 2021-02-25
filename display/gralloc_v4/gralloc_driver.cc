@@ -18,6 +18,7 @@
 //#include <android/hardware/graphics/common/1.2/types.h>
 #include <hardware/gralloc1.h>
 
+#include <DisplayUtil.h>
 #include "../../include/graphics_ext.h"
 //#include "drv_priv.h"
 #include "helpers.h"
@@ -47,9 +48,10 @@ int32_t gralloc_driver::init()
 
 bool gralloc_driver::is_supported(const struct gralloc_buffer_descriptor *descriptor)
 {
-	ALOGI("%s check descriptor name=%s, width=%d, height=%d, droid_format=0x%x, usage=0x%x",
+	ALOGI("%s check descriptor name=%s, width=%d, height=%d, droid_format=%s, usage=%s",
 		__func__, descriptor->name.c_str(), descriptor->width, descriptor->height,
-		descriptor->droid_format, descriptor->droid_usage);
+		getGrallocFormatString(descriptor->droid_format).c_str(),
+		getUsageString(descriptor->droid_usage).c_str());
 	return true;
 }
 

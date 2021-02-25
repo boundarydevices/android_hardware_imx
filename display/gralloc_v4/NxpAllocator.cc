@@ -10,7 +10,9 @@
 #include <gralloctypes/Gralloc4.h>
 
 #include <cutils/log.h>
+#include <DisplayUtil.h>
 #include <Memory.h>
+
 #include "gralloc_helpers.h"
 #include "NxpUtils.h"
 

@@ -19,7 +19,6 @@ int32_t gralloc_sync_wait(int32_t fence, bool close_fence);
 
 uint32_t drv_convert_nxp_format_to_drm_format(int format);
 int convert_pixel_format_to_gralloc_format(int32_t format);
-int convert_gralloc_format_to_nxp_format(int format);
 int convert_drm_format_to_nxp_format(uint32_t drm_format);
 int convert_buffer_usage_to_nxp_usage(int32_t droid_usage);
 int convert_bo_use_flages_to_nxp_flags(uint64_t use_flags);

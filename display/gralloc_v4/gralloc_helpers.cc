@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "../../include/graphics_ext.h"
 #include <MemoryDesc.h>
 
 using namespace fsl;
@@ -103,84 +102,6 @@ uint32_t drv_convert_nxp_format_to_drm_format(int format)
 int convert_pixel_format_to_gralloc_format(int32_t format)
 {
 	return static_cast<int>(format);
-}
-
-int convert_gralloc_format_to_nxp_format(int format)
-{
-    int fslFormat = 0;
-    switch (format) {
-        case HAL_PIXEL_FORMAT_RGBA_8888:
-            fslFormat = FORMAT_RGBA8888;
-            break;
-        case HAL_PIXEL_FORMAT_RGBX_8888:
-            fslFormat = FORMAT_RGBX8888;
-            break;
-        case HAL_PIXEL_FORMAT_BGRA_8888:
-            fslFormat = FORMAT_BGRA8888;
-            break;
-        case HAL_PIXEL_FORMAT_RGB_888:
-            fslFormat = FORMAT_RGB888;
-            break;
-        case HAL_PIXEL_FORMAT_RGB_565:
-            fslFormat = FORMAT_RGB565;
-            break;
-        case HAL_PIXEL_FORMAT_YV12:
-            fslFormat = FORMAT_YV12;
-            break;
-        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-            fslFormat = FORMAT_NV16;
-            break;
-        case HAL_PIXEL_FORMAT_YCrCb_420_SP:
-            fslFormat = FORMAT_NV21;
-            break;
-        case HAL_PIXEL_FORMAT_YCbCr_422_I:
-            fslFormat = FORMAT_YUYV;
-            break;
-        case HAL_PIXEL_FORMAT_YCbCr_420_P:
-            fslFormat = FORMAT_I420;
-            break;
-        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            fslFormat = FORMAT_NV12;
-            break;
-        case HAL_PIXEL_FORMAT_YCbCr_420_888:
-            fslFormat = FORMAT_NV12;
-            break;
-        case HAL_PIXEL_FORMAT_BLOB:
-            fslFormat = FORMAT_BLOB;
-            break;
-        case HAL_PIXEL_FORMAT_NV12_TILED:
-            fslFormat = FORMAT_NV12_TILED;
-            break;
-        case HAL_PIXEL_FORMAT_NV12_G1_TILED:
-            fslFormat = FORMAT_NV12_G1_TILED;
-            break;
-        case HAL_PIXEL_FORMAT_NV12_G2_TILED:
-            fslFormat = FORMAT_NV12_G2_TILED;
-            break;
-        case HAL_PIXEL_FORMAT_NV12_G2_TILED_COMPRESSED:
-            fslFormat = FORMAT_NV12_G2_TILED_COMPRESSED;
-            break;
-        case HAL_PIXEL_FORMAT_P010:
-            fslFormat = FORMAT_P010;
-            break;
-        case HAL_PIXEL_FORMAT_P010_TILED:
-            fslFormat = FORMAT_P010_TILED;
-            break;
-        case HAL_PIXEL_FORMAT_P010_TILED_COMPRESSED:
-            fslFormat = FORMAT_P010_TILED_COMPRESSED;
-            break;
-        case HAL_PIXEL_FORMAT_RGBA_1010102:
-            fslFormat = FORMAT_RGBA1010102;
-            break;
-        case HAL_PIXEL_FORMAT_RGBA_FP16:
-            fslFormat = FORMAT_RGBAFP16;
-            break;
-        default:
-            ALOGE("%s invalid format:0x%x", __func__, format);
-            break;
-    }
-
-    return fslFormat;
 }
 
 int convert_drm_format_to_nxp_format(uint32_t drm_format)

@@ -14,6 +14,7 @@
 #include <gralloctypes/Gralloc4.h>
 
 #include <Memory.h>
+#include <DisplayUtil.h>
 
 #include "NxpMapper.h"
 #include "NxpUtils.h"

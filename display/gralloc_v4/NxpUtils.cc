@@ -18,6 +18,7 @@
 #include <cutils/native_handle.h>
 #include <gralloctypes/Gralloc4.h>
 #include <hardware/gralloc.h>
+#include <DisplayUtil.h>
 
 #include "drv.h"
 #include "gralloc_helpers.h"
@@ -200,84 +201,6 @@ std::string getPixelFormatString(PixelFormat format) {
             return "PixelFormat::YV12";
     }
     return android::base::StringPrintf("PixelFormat::Unknown(0x%x)", static_cast<uint32_t>(format));
-}
-
-std::string getUsageString(hidl_bitfield<BufferUsage> bufferUsage) {
-    using Underlying = typename std::underlying_type<BufferUsage>::type;
-
-    Underlying usage = static_cast<Underlying>(bufferUsage);
-
-    std::vector<std::string> usages;
-    if (usage & BufferUsage::CAMERA_INPUT) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CAMERA_INPUT);
-        usages.push_back("BufferUsage::CAMERA_INPUT");
-    }
-    if (usage & BufferUsage::CAMERA_OUTPUT) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CAMERA_OUTPUT);
-        usages.push_back("BufferUsage::CAMERA_OUTPUT");
-    }
-    if (usage & BufferUsage::COMPOSER_CURSOR) {
-        usage &= ~static_cast<Underlying>(BufferUsage::COMPOSER_CURSOR);
-        usages.push_back("BufferUsage::COMPOSER_CURSOR");
-    }
-    if (usage & BufferUsage::COMPOSER_OVERLAY) {
-        usage &= ~static_cast<Underlying>(BufferUsage::COMPOSER_OVERLAY);
-        usages.push_back("BufferUsage::COMPOSER_OVERLAY");
-    }
-    if (usage & BufferUsage::CPU_READ_OFTEN) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CPU_READ_OFTEN);
-        usages.push_back("BufferUsage::CPU_READ_OFTEN");
-    }
-    if (usage & BufferUsage::CPU_READ_NEVER) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CPU_READ_NEVER);
-        usages.push_back("BufferUsage::CPU_READ_NEVER");
-    }
-    if (usage & BufferUsage::CPU_READ_RARELY) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CPU_READ_RARELY);
-        usages.push_back("BufferUsage::CPU_READ_RARELY");
-    }
-    if (usage & BufferUsage::CPU_WRITE_NEVER) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CPU_WRITE_NEVER);
-        usages.push_back("BufferUsage::CPU_WRITE_NEVER");
-    }
-    if (usage & BufferUsage::CPU_WRITE_OFTEN) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CPU_WRITE_OFTEN);
-        usages.push_back("BufferUsage::CPU_WRITE_OFTEN");
-    }
-    if (usage & BufferUsage::CPU_WRITE_RARELY) {
-        usage &= ~static_cast<Underlying>(BufferUsage::CPU_WRITE_RARELY);
-        usages.push_back("BufferUsage::CPU_WRITE_RARELY");
-    }
-    if (usage & BufferUsage::GPU_RENDER_TARGET) {
-        usage &= ~static_cast<Underlying>(BufferUsage::GPU_RENDER_TARGET);
-        usages.push_back("BufferUsage::GPU_RENDER_TARGET");
-    }
-    if (usage & BufferUsage::GPU_TEXTURE) {
-        usage &= ~static_cast<Underlying>(BufferUsage::GPU_TEXTURE);
-        usages.push_back("BufferUsage::GPU_TEXTURE");
-    }
-    if (usage & BufferUsage::PROTECTED) {
-        usage &= ~static_cast<Underlying>(BufferUsage::PROTECTED);
-        usages.push_back("BufferUsage::PROTECTED");
-    }
-    if (usage & BufferUsage::RENDERSCRIPT) {
-        usage &= ~static_cast<Underlying>(BufferUsage::RENDERSCRIPT);
-        usages.push_back("BufferUsage::RENDERSCRIPT");
-    }
-    if (usage & BufferUsage::VIDEO_DECODER) {
-        usage &= ~static_cast<Underlying>(BufferUsage::VIDEO_DECODER);
-        usages.push_back("BufferUsage::VIDEO_DECODER");
-    }
-    if (usage & BufferUsage::VIDEO_ENCODER) {
-        usage &= ~static_cast<Underlying>(BufferUsage::VIDEO_ENCODER);
-        usages.push_back("BufferUsage::VIDEO_ENCODER");
-    }
-
-    if (usage) {
-        usages.push_back(android::base::StringPrintf("UnknownUsageBits-%" PRIu64 , usage));
-    }
-
-    return android::base::Join(usages, '|');
 }
 
 int convertToDrmFormat(PixelFormat format, uint32_t* outDrmFormat) {
