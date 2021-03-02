@@ -86,6 +86,8 @@ public:
     }
 
 #ifdef BOARD_HAVE_FLASHLIGHT
+    virtual void setFlashSettings(char *path, int brightness);
+    virtual void setTorchSettings(char *path, int brightness);
     virtual uint8_t setFlashlight(uint8_t mode);
 #endif
 
@@ -165,6 +167,14 @@ private:
     sp<Metadata> mTemplates[CAMERA3_TEMPLATE_COUNT];
     // Most recent request settings seen, memoized to be reused
     sp<Metadata> mSettings;
+
+#ifdef BOARD_HAVE_FLASHLIGHT
+#define PATH_LEN 256
+    char mFlashPath[PATH_LEN];
+    int mFlashBrightness;
+    char mTorchPath[PATH_LEN];
+    int mTorchBrightness;
+#endif
 
 protected:
     sp<VideoStream> mVideoStream;

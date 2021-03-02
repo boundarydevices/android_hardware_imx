@@ -116,6 +116,14 @@ CameraHAL::CameraHAL()
         else {
             mCameraCount++;
         }
+#ifdef BOARD_HAVE_FLASHLIGHT
+        if (index == BACK_CAM_ID) {
+            mCameras[index]->setFlashSettings(camera_metadata->flash_path,
+                                              camera_metadata->flash_brightness);
+            mCameras[index]->setTorchSettings(camera_metadata->torch_path,
+                                              camera_metadata->torch_brightness);
+        }
+#endif
     }
     ALOGI("camera number is %d", mCameraCount);
 

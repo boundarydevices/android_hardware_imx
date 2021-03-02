@@ -101,6 +101,13 @@ const char* const kDeviceNodeKey = "device_node";
 const char* const kSubdevPathKey = "subdev_path";
 const char* const kOrientationKey = "orientation";
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+const char* const kFlashPathKey = "flash_path";
+const char* const kFlashBrightnessKey = "flash_brightness";
+const char* const kTorchPathKey = "torch_path";
+const char* const kTorchBrightnessKey = "torch_brightness";
+#endif
+
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
 const char* const kActiveArrayHeightKey = "ActiveArrayHeight";
 const char* const kPixelArrayWidthKey = "PixelArrayWidth";
@@ -257,6 +264,46 @@ bool ConfigureCameras(const Json::Value& value,
         ALOGD("%s: no subdev path provided for cam %d", __FUNCTION__, cam_index);
         camera->camera_metadata[cam_index].subdev_path[0] = '\0';
     }
+
+#ifdef BOARD_HAVE_FLASHLIGHT
+    if (cam_index == BACK_CAM_ID) {
+        if (strlen((*iter)[kFlashPathKey].asString().c_str())) {
+            strncpy(camera->camera_metadata[cam_index].flash_path,
+                    (*iter)[kFlashPathKey].asString().c_str(),
+                    strlen((*iter)[kFlashPathKey].asString().c_str()));
+        } else {
+            ALOGD("%s: no flash path provided for cam %d", __FUNCTION__, cam_index);
+            camera->camera_metadata[cam_index].flash_path[0] = '\0';
+        }
+
+        camera->camera_metadata[cam_index].flash_brightness =
+            strtol((*iter)[kFlashBrightnessKey].asString().c_str(), &endptr, 10);
+        if (endptr != (*iter)[kFlashBrightnessKey].asString().c_str() +
+            (*iter)[kFlashBrightnessKey].asString().size() ||
+            (*iter)[kFlashBrightnessKey].asString().size() == 0) {
+            ALOGD("%s: Invalid or missing Flash brightness number.", __FUNCTION__);
+            camera->camera_metadata[cam_index].flash_brightness = -1;
+        }
+
+        if (strlen((*iter)[kTorchPathKey].asString().c_str())) {
+            strncpy(camera->camera_metadata[cam_index].torch_path,
+                    (*iter)[kTorchPathKey].asString().c_str(),
+                    strlen((*iter)[kTorchPathKey].asString().c_str()));
+        } else {
+            ALOGD("%s: no torch path provided for cam %d", __FUNCTION__, cam_index);
+            camera->camera_metadata[cam_index].torch_path[0] = '\0';
+        }
+
+        camera->camera_metadata[cam_index].torch_brightness =
+            strtol((*iter)[kTorchBrightnessKey].asString().c_str(), &endptr, 10);
+        if (endptr != (*iter)[kTorchBrightnessKey].asString().c_str() +
+            (*iter)[kTorchBrightnessKey].asString().size() ||
+            (*iter)[kTorchBrightnessKey].asString().size() == 0) {
+            ALOGD("%s: Invalid or missing Torch brightness number.", __FUNCTION__);
+            camera->camera_metadata[cam_index].torch_brightness = -1;
+        }
+    }
+#endif
 
     if (!ValueToCameraBufferType(
               (*iter)[kCameraBufferType].asString(),

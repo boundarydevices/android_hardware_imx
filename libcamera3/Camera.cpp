@@ -956,12 +956,29 @@ int32_t Camera::getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t
 #ifdef BOARD_HAVE_FLASHLIGHT
 #define TORCH_PATH      "/sys/class/leds/torch"
 #define FLASH_PATH      "/sys/class/leds/flash"
-#define PATH_LEN 256
+
+void Camera::setFlashSettings(char *path, int brightness)
+{
+    mFlashBrightness = brightness;
+    if (path[0] == '\0')
+        strncpy(mFlashPath, FLASH_PATH, PATH_LEN);
+    else
+        strncpy(mFlashPath, path, PATH_LEN);
+}
+
+void Camera::setTorchSettings(char *path, int brightness)
+{
+    mTorchBrightness = brightness;
+    if (path[0] == '\0')
+        strncpy(mTorchPath, TORCH_PATH, PATH_LEN);
+    else
+        strncpy(mTorchPath, path, PATH_LEN);
+}
 
 uint8_t Camera::setFlashlight(uint8_t mode)
 {
     FILE *file;
-    unsigned int brightness = 0;
+    int brightness = 0;
     bool on = false;
     char max_path[PATH_LEN], path[PATH_LEN];
 
@@ -971,20 +988,22 @@ uint8_t Camera::setFlashlight(uint8_t mode)
 
     switch (mode) {
         case ANDROID_FLASH_MODE_SINGLE:
-            snprintf(max_path, PATH_LEN, "%s/max_brightness", FLASH_PATH);
-            snprintf(path, PATH_LEN, "%s/brightness", FLASH_PATH);
+            snprintf(max_path, PATH_LEN, "%s/max_brightness", mFlashPath);
+            snprintf(path, PATH_LEN, "%s/brightness", mFlashPath);
             on = true;
+            brightness = mFlashBrightness;
             break;
         case ANDROID_FLASH_MODE_TORCH:
             on = true;
+            brightness = mTorchBrightness;
         case ANDROID_FLASH_MODE_OFF:
         default:
-            snprintf(max_path, PATH_LEN, "%s/max_brightness", TORCH_PATH);
-            snprintf(path, PATH_LEN, "%s/brightness", TORCH_PATH);
+            snprintf(max_path, PATH_LEN, "%s/max_brightness", mTorchPath);
+            snprintf(path, PATH_LEN, "%s/brightness", mTorchPath);
             break;
     };
 
-    if (on) {
+    if (on && (brightness <= 0)) {
         /* Read maximum value */
         file = fopen(max_path, "r");
         if (!file) {
