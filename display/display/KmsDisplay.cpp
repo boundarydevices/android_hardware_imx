@@ -824,7 +824,7 @@ int KmsDisplay::updateScreen()
     }
 
     uint32_t modeID = 0;
-    uint32_t flags = DRM_MODE_ATOMIC_NONBLOCK;
+    uint32_t flags = ((mOverlay != NULL) && (mCrtc.fence_ptr == 0)) ? 0 : DRM_MODE_ATOMIC_NONBLOCK;
     if (mModeset) {
         flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
         drmModeCreatePropertyBlob(drmfd, &mMode, sizeof(mMode), &modeID);
