@@ -1095,7 +1095,7 @@ int KmsDisplay::openKms()
     int height = mMode.vdisplay;
     getGUIResolution(width, height);
 
-    int configId = createDisplayConfig(width, height, DEFAULT_REFRESH_RATE, format);
+    int configId = createDisplayConfig(width, height, mMode.vrefresh, format);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
@@ -1502,10 +1502,8 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
         config.mFormat = format;
         config.mBytespixel = getFormatSize(format);
 
-        if (fabs(config.mFps - DEFAULT_REFRESH_RATE) < FLOAT_TOLERANCE)
+        if (fabs(config.mFps - mMode.vrefresh) < FLOAT_TOLERANCE)
             mConfigs.push_back(config);
-        else
-            mConfigs.push_front(config);
     }
 }
 
@@ -1513,7 +1511,7 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
 {
     int index;
     index = findDisplayConfig(width, height, fps, format);
-    if (index < mConfigs.size()) {
+    if (index >= 0 && index < mConfigs.size()) {
         return index;
     }
 
@@ -1524,16 +1522,12 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
     if (fabs(fps) < FLOAT_TOLERANCE)
         fps = DEFAULT_REFRESH_RATE; // set to default value
 
-    if (mModePrefered >= 0) {
-        config = mConfigs[mModePrefered];
-    } else {
-        config.modeIdx = -1;
-        config.mXdpi = 160000;
-        config.mYdpi = 160000;
-        config.mVsyncPeriod  = 1000000000 / fps;
-        config.mBytespixel = getFormatSize(format);
-        config.cfgGroupId = RESERVED_DISPLAY_GROUP_ID;
-    }
+    config.modeIdx = -1;
+    config.mXdpi = 160000;
+    config.mYdpi = 160000;
+    config.mVsyncPeriod  = 1000000000 / fps;
+    config.mBytespixel = getFormatSize(format);
+    config.cfgGroupId = RESERVED_DISPLAY_GROUP_ID;
     config.mXres = width;
     config.mYres = height;
     config.mFormat = format;
