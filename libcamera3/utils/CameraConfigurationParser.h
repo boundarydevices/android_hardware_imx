@@ -81,6 +81,18 @@ struct CameraSensorMetadata {
   // subdev node path
   char subdev_path[32];
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+  // flash node path
+  char flash_path[META_STRING_SIZE];
+  // flash brightness value
+  int flash_brightness;
+
+  // torch node path
+  char torch_path[META_STRING_SIZE];
+  // torch brightness value
+  int torch_brightness;
+#endif
+
   // max pixel size
   int maxjpegsize;
 
