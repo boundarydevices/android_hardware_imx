@@ -85,6 +85,10 @@ public:
         return mTmpBuf;
     }
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+    virtual uint8_t setFlashlight(uint8_t mode);
+#endif
+
 protected:
     // Initialize static camera characteristics for individual device
     virtual status_t initSensorStaticData() = 0;
@@ -102,10 +106,6 @@ protected:
 #pragma unused(y)
         return;
     }
-#ifdef BOARD_HAVE_FLASHLIGHT
-    virtual uint8_t setFlashlight(uint8_t mode);
-#endif
-
     virtual void setPreviewPixelFormat();
     virtual void setPicturePixelFormat();
 
