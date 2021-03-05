@@ -563,6 +563,22 @@ int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
     return ret;
 }
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+int CameraHAL::setTorchMode(const char* camera_id, bool enabled)
+{
+    char * pEnd;
+    long id = strtol(camera_id, &pEnd, 10);
+
+    if ((camera_id == pEnd) || (id != BACK_CAM_ID)) {
+        ALOGE("%s: invalid camera_id %s", __func__, camera_id);
+        return -EINVAL;
+    }
+
+    return mCameras[id]->setFlashlight(enabled ?
+                ANDROID_FLASH_MODE_TORCH : ANDROID_FLASH_MODE_OFF);
+}
+#endif
+
 extern "C" {
 
 static int get_number_of_cameras()
@@ -615,6 +631,14 @@ static void get_vendor_tag_ops(vendor_tag_ops_t* ops)
     ops->get_tag_type       = get_tag_type;
 }
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+static int set_torch_mode(const char* camera_id, bool enabled)
+{
+    ALOGV("%s: camera[%s]: %d", __func__, camera_id, enabled);
+    return gCameraHAL.setTorchMode(camera_id, enabled);
+}
+#endif
+
 static int open_dev(const hw_module_t* mod, const char* name, hw_device_t** dev)
 {
     return gCameraHAL.openDev(mod, name, dev);
@@ -627,7 +651,11 @@ static hw_module_methods_t gCameraModuleMethods = {
 camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
     .common = {
        .tag                = HARDWARE_MODULE_TAG,
+#ifdef BOARD_HAVE_FLASHLIGHT
+       .module_api_version = CAMERA_MODULE_API_VERSION_2_4,
+#else
        .module_api_version = CAMERA_MODULE_API_VERSION_2_2,
+#endif
        .hal_api_version    = HARDWARE_HAL_API_VERSION,
        .id                 = CAMERA_HARDWARE_MODULE_ID,
        .name               = "Default Camera HAL",
@@ -641,7 +669,11 @@ camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
    .set_callbacks         = set_callbacks,
    .get_vendor_tag_ops    = get_vendor_tag_ops,
    .open_legacy           = NULL,
+#ifdef BOARD_HAVE_FLASHLIGHT
+   .set_torch_mode        = set_torch_mode,
+#else
    .set_torch_mode        = NULL,
+#endif
    .init                  = NULL,
    .reserved              = {0},
 };

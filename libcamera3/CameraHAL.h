@@ -64,6 +64,10 @@ public:
     // Hardware Module Interface (see <hardware/hardware.h>)
     int openDev(const hw_module_t* mod, const char* name, hw_device_t** dev);
 
+#ifdef BOARD_HAVE_FLASHLIGHT
+    int setTorchMode(const char* camera_id, bool enabled);
+#endif
+
 private:
     int32_t matchDevNodes();
     int32_t getNodeName(const char* devNode, char name[], size_t length);
