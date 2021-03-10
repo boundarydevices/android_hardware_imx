@@ -983,29 +983,6 @@ void KmsDisplay::getGUIResolution(int &width, int &height)
     }
 }
 
-void KmsDisplay::getFakeGUIResolution(int &width, int &height)
-{
-    char value[PROPERTY_VALUE_MAX];
-    memset(value, 0, sizeof(value));
-    property_get("ro.boot.fake.ui_resolution", value, "p");
-    if (!strncmp(value, "4k", 2)) {
-        width = 3840;
-        height = 2160;
-    }
-    else if (!strncmp(value, "1080p", 5)) {
-        width = 1920;
-        height = 1080;
-    }
-    else if (!strncmp(value, "720p", 4)) {
-        width = 1280;
-        height = 720;
-    }
-    else if (!strncmp(value, "480p", 4)) {
-        width = 640;
-        height = 480;
-    }
-}
-
 int KmsDisplay::openKms()
 {
     Mutex::Autolock _l(mLock);
@@ -1142,11 +1119,10 @@ int KmsDisplay::openKms()
 int KmsDisplay::openFakeKms()
 {
     mType = DISPLAY_HDMI;
-    int width = 1920;
-    int height = 1080;
-    getFakeGUIResolution(width, height);
+    int width = 1920,height = 1080,vrefresh = 60,prefermode = 0;
+    parseDisplayMode(&width, &height, &vrefresh, &prefermode);
 
-    ssize_t configId = createDisplayConfig(width, height, DEFAULT_REFRESH_RATE, -1);
+    ssize_t configId = createDisplayConfig(width, height, vrefresh, -1);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
@@ -1201,7 +1177,7 @@ DisplayMode gDisplayModes[16] = {
  {"480p", 640, 480, 60}, // default as 60fps
 };
 
-static void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode)
+void KmsDisplay::parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode)
 {
     char value[PROPERTY_VALUE_MAX];
     memset(value, 0, sizeof(value));
@@ -1220,13 +1196,39 @@ static void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefer
     }
 
     if (i == modeCount) {
-        //Set default mode as 1080p60
-        *width = 1920;
-        *height = 1080;
-        *vrefresh = 60;
-        *prefermode = 1;
-    }
+        bool isValid = true;
+        char delim[] = "xp";
+        int modeResult[3]={0};
+        //displaymode format should be 1920x1080p60
+        if(strstr(value,"x") && strstr(value,"p")) {
+            char *s = strdup(value);
+            char *token;
+            for (i = 0,token = strsep(&s,delim); i < 3 && token != NULL; token = strsep(&s,delim),i++) {
+                modeResult[i]= atoi(token);
+                if (modeResult[i] <= 0) {
+                    isValid = false;
+                    break;
+                }
+            }
+        }
+        else {
+           isValid = false;
+        }
 
+        if (isValid) {
+            *width = modeResult[0];
+            *height = modeResult[1];
+            *vrefresh = modeResult[2];
+            *prefermode = 0;
+        }
+        else {
+            //Set default mode as 1080p60
+            *width = 1920;
+            *height = 1080;
+            *vrefresh = 60;
+            *prefermode = 1;
+        }
+    }
 }
 
 int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)

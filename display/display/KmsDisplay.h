@@ -151,8 +151,8 @@ private:
     void bindOutFence(drmModeAtomicReqPtr pset);
     void setHdrMetaData(drmModeAtomicReqPtr pset,hdr_output_metadata hdrMetaData);
     void getGUIResolution(int &width, int &height);
-    void getFakeGUIResolution(int &width, int &height);
     bool veritySourceSize(Layer* layer);
+    void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode);
 
 protected:
     int mDrmFd;
