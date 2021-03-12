@@ -56,69 +56,43 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     mAvailableFormatCount =
         changeSensorFormats(availFormats, mAvailableFormats, index);
 
-    int totalWaitUs = 0;
-query_frmsize:
     ret = 0;
     index = 0;
     char TmpStr[20];
     int previewCnt = 0, pictureCnt = 0;
     struct v4l2_frmsizeenum cam_frmsize;
     struct v4l2_frmivalenum vid_frmval;
-    while (ret == 0) {
-        memset(TmpStr, 0, 20);
-        memset(&cam_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
-        cam_frmsize.index = index++;
-        cam_frmsize.pixel_format =
-            convertPixelFormatToV4L2Format(mSensorFormats[0]);
-        ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
-        if (ret != 0) {
-            continue;
-        }
-        ALOGI("enum frame size w:%d, h:%d", cam_frmsize.discrete.width, cam_frmsize.discrete.height);
 
-        if (cam_frmsize.discrete.width == 0 ||
-              cam_frmsize.discrete.height == 0) {
-            continue;
-        }
-        vid_frmval.index = 0;
-        vid_frmval.pixel_format = cam_frmsize.pixel_format;
-        vid_frmval.width = cam_frmsize.discrete.width;
-        vid_frmval.height = cam_frmsize.discrete.height;
+    memset(TmpStr, 0, 20);
+    memset(&cam_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
+    cam_frmsize.index = index++;
+    cam_frmsize.pixel_format =
+        convertPixelFormatToV4L2Format(mSensorFormats[0]);
+    cam_frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE;
+    ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
+    if (ret != 0) {
+        ALOGE("%s VIDIOC_ENUM_FRAMESIZES failed, ret %d", __func__, ret);
+        close(fd);
+        return BAD_VALUE;
+    }
 
-        ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
-        if (ret != 0) {
-            continue;
-        }
+    ALOGI("enum frame size, width: min %d, max %d, step %d, height: min %d, max %d, step %d",
+        cam_frmsize.stepwise.min_width, cam_frmsize.stepwise.max_width, cam_frmsize.stepwise.step_width,
+        cam_frmsize.stepwise.min_height, cam_frmsize.stepwise.max_height, cam_frmsize.stepwise.step_height);
 
-        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator >= 5) {
-            mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.width;
-            mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.height;
-        }
-
-        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator >= 15) {
-            mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.width;
-            mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.height;
-        }
-    }  // end while
-
-#define WAIT_ITVL 100000 // 100ms
-#define WAIT_TIMEOUT 5000000 // 5s
-
-    if(previewCnt == 0) {
-        usleep(WAIT_ITVL);
-        totalWaitUs += WAIT_ITVL;
-        if(totalWaitUs > WAIT_TIMEOUT) {
-            ALOGE("%s, wait isp media server ready for %d Us", __func__, WAIT_TIMEOUT);
-            return BAD_VALUE;
-        }
-
-        ALOGI("%s, isp media server may not ready, retry after %d Us", __func__, WAIT_ITVL);
-        goto query_frmsize;
+    // Fix me. Will exposure multi resolutions once verified ok.
+    //static uint32_t ispRes[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1920, 1080};
+    static uint32_t ispRes[] = {1920, 1080};
+    uint32_t ispResNum = ARRAY_SIZE(ispRes)/2;
+    for(int i = 0; i < ispResNum; i++) {
+        mPictureResolutions[pictureCnt++] = ispRes[i*2];
+        mPictureResolutions[pictureCnt++] = ispRes[i*2 + 1];
+        mPreviewResolutions[previewCnt++] = ispRes[i*2];
+        mPreviewResolutions[previewCnt++] = ispRes[i*2 + 1];
     }
 
     mPreviewResolutionCount = previewCnt;
     mPictureResolutionCount = pictureCnt;
-
 
     int i;
     for (i = 0; i < MAX_RESOLUTION_SIZE && i < pictureCnt; i += 2) {

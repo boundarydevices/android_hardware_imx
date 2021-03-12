@@ -254,17 +254,20 @@ int ISPWrapper::viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Jso
 
     ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
     if (ret != 0) {
-        goto failed;
+        ALOGV("==== ret %, line %d", ret, __LINE__);
+  //      goto failed;
     }
     strcpy(ec.string, jsonRequest.toStyledString().c_str());
 
     ret = ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &ecs);
     if (ret != 0) {
+        ALOGI("==== ret %, line %d", ret, __LINE__);
         goto failed;
     }
     ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
     if (ret != 0) {
-        goto failed;
+        ALOGV("==== ret %, line %d", ret, __LINE__);
+      //  goto failed;
     }
 
     if (!reader.parse(ec.string, jsonResponse, true)) {
@@ -311,15 +314,7 @@ int ISPWrapper::processExposureGain(int32_t comp)
 
     // first disable aec
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
-
-    if(m_exposure_time == 0.0) {
-        viv_private_ioctl(IF_EC_G_CFG, jRequest, jResponse);
-        m_exposure_time = jResponse[EC_TIME_PARAMS].asDouble();
-        ALOGI("%s: get exposure time %f", __func__, m_exposure_time);
-
-        if(m_exposure_time == 0.0)
-            m_exposure_time = EXP_TIME_DFT;
-    }
+    m_exposure_time = EXP_TIME_DFT;
 
     jRequest[EC_GAIN_PARAMS] = gain;
     jRequest[EC_TIME_PARAMS] = m_exposure_time;
