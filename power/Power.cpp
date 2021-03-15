@@ -177,7 +177,7 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
 
             long long elapsed_time = calc_timespan_us(s_previous_boost_timespec, cur_boost_timespec);
             // don't hint if previous hint's duration covers this hint's duration
-            if ((s_previous_duration * 1000) > (elapsed_time + duration * 1000)) {
+            if (((long long)s_previous_duration * 1000) > (elapsed_time + duration * 1000)) {
                 break;
             }
 
