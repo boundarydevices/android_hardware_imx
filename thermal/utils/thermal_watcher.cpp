@@ -62,7 +62,11 @@ void ThermalWatcher::registerFilesToWatch(const std::set<std::string> &sensors_t
         return;
     }
 
-    fcntl(uevent_fd_, F_SETFL, O_NONBLOCK);
+    if(fcntl(uevent_fd_, F_SETFL, O_NONBLOCK) < 0) {
+        LOG(ERROR) << "failed to manipulate uevent socket";
+        is_polling_ = true;
+        return;
+    }
 
     looper_->addFd(uevent_fd_.get(), 0, Looper::EVENT_INPUT, nullptr, nullptr);
     is_polling_ = false;

@@ -374,8 +374,14 @@ sensors_poll_context_t::sensors_poll_context_t()
     int wakeFds[2];
     int result = pipe(wakeFds);
     ALOGE_IF(result<0, "error creating wake pipe (%s)", strerror(errno));
-    fcntl(wakeFds[0], F_SETFL, O_NONBLOCK);
-    fcntl(wakeFds[1], F_SETFL, O_NONBLOCK);
+    if(fcntl(wakeFds[0], F_SETFL, O_NONBLOCK) < 0) {
+        ALOGE("failed to manipulate wakeFds[0]");
+        return;
+    }
+    if(fcntl(wakeFds[1], F_SETFL, O_NONBLOCK) < 0) {
+        ALOGE("failed to manipulate wakeFds[1]");
+        return;
+    }
     mWritePipeFd = wakeFds[1];
 
     mPollFds[wake].fd = wakeFds[0];
