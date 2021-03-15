@@ -348,8 +348,8 @@ private:
 int sensors_poll_context_t::fillPollFd(){
     int i = 0;
     for(i = 0 ; i < numSensorDrivers; i++){
-    if(mSensors[i] != NULL)
-        mPollFds[i].fd = mSensors[i]->getFd();
+        if(mSensors[i] != NULL)
+            mPollFds[i].fd = mSensors[i]->getFd();
         mPollFds[i].events = POLLIN;
         mPollFds[i].revents = 0;
     }
