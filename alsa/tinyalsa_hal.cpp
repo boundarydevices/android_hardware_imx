@@ -1157,7 +1157,6 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
             i++;
         }
         str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, value);
-        str = strdup(str_parms_to_str(reply));
         checked = true;
     }
 
@@ -1165,8 +1164,6 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     if (ret >= 0) {
         value[0] = '\0';
         i = 0;
-        if (str != NULL)
-            free(str);
         while (out->sup_rates[i] != 0) {
             if (!first) {
                 strcat(value, "|");
@@ -1177,7 +1174,6 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
             i++;
         }
         str_parms_add_str(reply, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES, value);
-        str = strdup(str_parms_to_str(reply));
         checked = true;
     }
 
@@ -1378,7 +1374,7 @@ static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes,
 static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                          size_t bytes)
 {
-    int ret;
+    int ret = 0;
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     struct imx_audio_device *adev = out->dev;
     size_t frame_size = audio_stream_out_frame_size(stream);
@@ -3266,6 +3262,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
 
         ret = out_read_hdmi_rates(ladev, out);
+        if (ret != 0)
+            goto err_open;
 
         if (config->sample_rate == 0) {
             config->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
@@ -3546,7 +3544,7 @@ static void* sco_rx_task(void *arg)
     sco_rx_out_buffer = (char *)malloc(sco_rx_out_buffer_size);
     if(sco_rx_out_buffer == NULL) {
         ALOGE("sco_rx_task, malloc sco_rx_out_buffer %d bytes failed", sco_rx_out_buffer_size);
-        return NULL;
+        goto exit;
     }
 
     while(adev->b_sco_rx_running) {
@@ -3585,9 +3583,9 @@ static void* sco_rx_task(void *arg)
         }
     }
 
+    free(sco_rx_out_buffer);
 exit:
     free(buffer);
-    free(sco_rx_out_buffer);
     ALOGI("leave sco_rx_task");
 
     return NULL;

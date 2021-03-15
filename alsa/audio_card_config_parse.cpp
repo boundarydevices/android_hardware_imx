@@ -333,6 +333,7 @@ bool parse_all_cards(struct audio_card **audio_card_list)
             break;
    }
 
+    closedir(vidDir);
     ALOGI("leave parse_all_cards, supported card num %d", card_idx);
 
     return (card_idx > 0) ? true : false;
