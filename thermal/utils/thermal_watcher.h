@@ -44,7 +44,7 @@ using WatcherCallback = std::function<bool(const std::set<std::string> &name)>;
 class ThermalWatcher : public ::android::Thread {
   public:
     ThermalWatcher(const WatcherCallback &cb)
-        : Thread(false), cb_(cb), looper_(new Looper(true)) {}
+        : Thread(false), cb_(cb), looper_(new Looper(true)), thermal_triggered_(false), is_polling_(true) {}
     ~ThermalWatcher() = default;
 
     // Disallow copy and assign.
