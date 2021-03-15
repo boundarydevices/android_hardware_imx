@@ -45,6 +45,4 @@ int pcm_get_near_param(unsigned int card, unsigned int device,
 int pcm_check_param_mask(unsigned int card, unsigned int device,
                      unsigned int flags, int type, int data);
 
-int __attribute__((weak)) pcm_get_time_of_xrun(struct pcm *pcm);
-
 #endif

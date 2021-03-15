@@ -181,7 +181,6 @@ struct imx_stream_in {
     int read_status;
     size_t mute_500ms;
     struct imx_audio_device *dev;
-    int last_time_of_xrun;
     bool aux_channels_changed;
     uint32_t main_channels;
     uint32_t aux_channels;

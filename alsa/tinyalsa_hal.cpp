@@ -1847,7 +1847,6 @@ static int do_input_standby(struct imx_stream_in *in)
         ALOGW("do_in_standby..");
         pcm_close(in->pcm);
         in->pcm = NULL;
-        in->last_time_of_xrun = 0;
 
         adev->active_input = 0;
         if (adev->mode != AUDIO_MODE_IN_CALL) {
@@ -2400,22 +2399,9 @@ exit:
     return bytes;
 }
 
-static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
+static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream __unused)
 {
-    int times, diff;
-    struct imx_stream_in *in = (struct imx_stream_in *)stream;
-    if (in->pcm == NULL)  return 0;
-
-    if(pcm_get_time_of_xrun == NULL) {
-        times = 0;
-    } else {
-        times = pcm_get_time_of_xrun(in->pcm);
-    }
-
-    diff = times - in->last_time_of_xrun;
-    ALOGW_IF((diff != 0), "in_get_input_frames_lost %d ms total %d ms\n",diff, times);
-    in->last_time_of_xrun = times;
-    return diff * in->requested_rate / 1000;
+    return 0;
 }
 
 #define GET_COMMAND_STATUS(status, fct_status, cmd_status) \
