@@ -38,10 +38,13 @@ static const std::vector<std::string> fb_idle_patch = {"/sys/class/drm/card0/dev
 
 InteractionHandler::InteractionHandler(std::shared_ptr<HintManager> const &hint_manager)
     : mState(INTERACTION_STATE_UNINITIALIZED),
+      mIdleFd(0),
+      mEventFd(0),
       mWaitMs(100),
       mMinDurationMs(1400),
       mMaxDurationMs(5650),
       mDurationMs(0),
+      mLastTimespec({0,0}),
       mHintManager(hint_manager) {}
 
 InteractionHandler::~InteractionHandler() {
