@@ -30,6 +30,8 @@
 
 #include "audio_card_config_parse.h"
 
+static struct audio_card *s_audio_card_list[MAX_SUPPORT_CARD_LIST_SIZE];
+
 static const char* const g_kAudioConfigPath = "/vendor/etc/configs/audio";
 static const char* const g_key_driver_name = "driver_name";
 static const char* const g_key_bus_name = "bus_name";
@@ -297,7 +299,7 @@ parse_error:
     return false;
 }
 
-bool parse_all_cards(struct audio_card **audio_card_list)
+bool parse_all_cards(void)
 {
     DIR *vidDir = NULL;
     struct dirent *dirEntry;
@@ -305,9 +307,6 @@ bool parse_all_cards(struct audio_card **audio_card_list)
     int card_idx = 0;
 
     ALOGI("enter parse_all_cards");
-
-    if(audio_card_list == NULL)
-        return false;
 
     ALOGI("parse audio cards config under %s", g_kAudioConfigPath);
     vidDir = opendir(g_kAudioConfigPath);
@@ -322,7 +321,7 @@ bool parse_all_cards(struct audio_card **audio_card_list)
             continue;
 
         snprintf(config_file, PATH_MAX, "%s/%s", g_kAudioConfigPath, dirEntry->d_name);
-        parse_ok = parse_one_card(config_file, &audio_card_list[card_idx]);
+        parse_ok = parse_one_card(config_file, &s_audio_card_list[card_idx]);
         if(parse_ok == false) {
             ALOGW("!!!!!! parse %s failed", config_file);
             continue;
@@ -390,16 +389,32 @@ bool release_one_card(struct audio_card *audio_card) {
     return true;
 }
 
-bool release_all_cards(struct audio_card **audio_card_list) {
+bool release_all_cards(void) {
     int i = 0;
 
-    if(audio_card_list == NULL)
-        return false;
-
-    while(audio_card_list[i]) {
-        release_one_card(audio_card_list[i]);
+    while(s_audio_card_list[i]) {
+        release_one_card(s_audio_card_list[i]);
         i++;
     }
 
     return true;
+}
+
+struct audio_card *audio_card_get_by_name(const char *name)
+{
+    struct audio_card *audio_card;
+
+    if (!name)
+        return NULL;
+
+    for (int i = 0; i < MAX_SUPPORT_CARD_NUM; i++) {
+        audio_card = s_audio_card_list[i];
+        if (!audio_card) {
+            return NULL;
+        }
+        if (strstr(name, audio_card->driver_name) != NULL) {
+            return audio_card;
+        }
+    }
+    return NULL;
 }

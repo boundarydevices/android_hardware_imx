@@ -47,7 +47,6 @@
 #include <audio_effects/effect_aec.h>
 
 #include "audio_hardware.h"
-#include "control.h"
 #include "pcm_ext.h"
 
 
@@ -108,8 +107,6 @@ static int g_hsp_chns = 2;
 #define PASSTHROUGH_PROPERTY_ENABLE 2000
 
 #define DEFAULT_ERROR_NAME_str "0"
-
-struct audio_card *audio_card_list[MAX_SUPPORT_CARD_LIST_SIZE];
 
 struct pcm_config pcm_config_mm_out = {
     .channels = DEFAULT_OUTPUT_CHANNEL_COUNT,
@@ -197,13 +194,11 @@ static void select_input_device(struct imx_audio_device *adev);
 static int adev_set_voice_volume(struct audio_hw_device *dev, float volume);
 static int do_input_standby(struct imx_stream_in *in);
 static int do_output_standby(struct imx_stream_out *out, int force_standby);
-static int scan_available_device(struct imx_audio_device *adev, bool queryInput, bool queryOutput);
+static int scan_available_device(struct imx_audio_device *adev);
 static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
                                    struct resampler_buffer* buffer);
 static void release_buffer(struct resampler_buffer_provider *buffer_provider,
                                   struct resampler_buffer* buffer);
-static int adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
-static int adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
 static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
 static void in_update_aux_channels(struct imx_stream_in *in, effect_handle_t effect);
 static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes);
@@ -4118,43 +4113,9 @@ static int adev_close(hw_device_t *device)
 
     free(device);
 
-    release_all_cards(audio_card_list);
+    release_all_cards();
 
     return 0;
-}
-
-static int __unused adev_get_rate_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
-{
-     int i;
-     if (flag == PCM_OUT) {
-         for (i = 0; i < adev->audio_card_num; i ++) {
-                   if (adev->card_list[i]->supported_out_devices & devices)
-		       return adev->card_list[i]->out_rate;
-         }
-     } else {
-         for (i = 0; i < adev->audio_card_num; i ++) {
-                   if (adev->card_list[i]->supported_in_devices & devices)
-		       return adev->card_list[i]->in_rate;
-         }
-     }
-     return 0;
-}
-
-static int __unused adev_get_channels_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
-{
-     int i;
-     if (flag == PCM_OUT) {
-         for (i = 0; i < adev->audio_card_num; i ++) {
-                   if (adev->card_list[i]->supported_out_devices & devices)
-		       return adev->card_list[i]->out_channels;
-         }
-     } else {
-         for (i = 0; i < adev->audio_card_num; i ++) {
-                   if (adev->card_list[i]->supported_in_devices & devices)
-		       return adev->card_list[i]->in_channels;
-         }
-     }
-     return 0;
 }
 
 static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag)
@@ -4172,12 +4133,6 @@ static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t de
          }
      }
      return 0;
-}
-
-static int pcm_get_near_param_wrap(unsigned int card, unsigned int device,
-                     unsigned int flags, int type, int *data)
-{
-    return pcm_get_near_param(card, device, flags, type, data);
 }
 
 /* On imx8q board, we prefer use audio board(cs42888) as speaker and mic */
@@ -4224,167 +4179,106 @@ static void adjust_card_sequence(struct imx_audio_device *adev)
     return;
 }
 
-static int scan_available_device(struct imx_audio_device *adev, bool queryInput, bool queryOutput)
+static void audio_card_refine_config(struct audio_card *audio_card, struct imx_audio_device *adev)
 {
-    int i,j,k;
-    int m,n;
-    bool found;
-    bool scanned;
-    struct control *imx_control;
-    int left_out_devices = SUPPORTED_DEVICE_OUT_MODULE;
-    int left_in_devices = SUPPORTED_DEVICE_IN_MODULE;
-    int rate, channels, format;
-    /* open the mixer for main sound card, main sound cara is like sgtl5000, wm8958, cs428888*/
-    /* note: some platform do not have main sound card, only have auxiliary card.*/
-    /* max num of supported card is 2 */
-    k = adev->audio_card_num;
-    for(i = 0; i < k; i++) {
-        left_out_devices &= ~adev->card_list[i]->supported_out_devices;
-        left_in_devices &= ~adev->card_list[i]->supported_in_devices;
+    if (!audio_card || !adev)
+        return;
+
+    int card = audio_card->card;
+
+    if(strstr(audio_card->driver_name, "bt-sco-audio"))
+        g_hsp_chns = 1;
+
+    if(audio_card->support_multi_chn) {
+        ALOGI("%s support multichannel", audio_card->driver_name);
+        adev->support_multichannel = true;
     }
 
-    for (i = 0; i < MAX_AUDIO_CARD_NUM; i ++) {
-        found = false;
-        imx_control = control_open(i);
-        if(!imx_control)
-            break;
-        ALOGW("card %d, id %s, driver %s, name %s", i, control_card_info_get_id(imx_control),
-                                                      control_card_info_get_driver(imx_control),
-                                                      control_card_info_get_name(imx_control));
-        for(j = 0; ; j++) {
-            if(audio_card_list[j] == NULL)
-                break;
+    if(audio_card->support_lpa) {
+        ALOGI("%s support lpa", audio_card->driver_name);
+        adev->support_lpa = true;
+    }
 
-            if(strstr(control_card_info_get_driver(imx_control), audio_card_list[j]->driver_name) != NULL){
-                if(strstr(audio_card_list[j]->driver_name, "bt-sco-audio"))
-                    g_hsp_chns = 1;
-                // The default period size:count is 192:8. On some cards/platforms(rpmsg/imx7ulp), it's too small.
-                // Will Underrun due to the producer (MonoPipe::write) is schduled at lower frequency.
-                // Fix me, pcm_config_mm_out will impact all the cards on one board.
-                if(audio_card_list[j]->out_period_size > 0) {
-                    ALOGI("%s, set out period_size to %d", audio_card_list[j]->driver_name, audio_card_list[j]->out_period_size);
-                    pcm_config_mm_out.period_size = audio_card_list[j]->out_period_size;
-                }
+    // The default period size:count is 192:8. On some cards/platforms(rpmsg/imx7ulp), it's too small.
+    // Will Underrun due to the producer (MonoPipe::write) is schduled at lower frequency.
+    // Fix me, pcm_config_mm_out will impact all the cards on one board.
+    if(audio_card->out_period_size > 0) {
+        ALOGI("%s, set out period_size to %d", audio_card->driver_name, audio_card->out_period_size);
+        pcm_config_mm_out.period_size = audio_card->out_period_size;
+    }
 
-                if(audio_card_list[j]->out_period_count > 0) {
-                    ALOGI("%s, set out period_count to %d", audio_card_list[j]->driver_name, audio_card_list[j]->out_period_count);
-                    pcm_config_mm_out.period_count = audio_card_list[j]->out_period_count;
-                }
+    if(audio_card->out_period_count > 0) {
+        ALOGI("%s, set out period_count to %d", audio_card->driver_name, audio_card->out_period_count);
+        pcm_config_mm_out.period_count = audio_card->out_period_count;
+    }
 
-                if (audio_card_list[j]->in_period_size > 0) {
-                    ALOGI("%s, set in period_size to %d", audio_card_list[j]->driver_name, audio_card_list[j]->in_period_size);
-                    pcm_config_mm_in.period_size = audio_card_list[j]->in_period_size;
-                }
+    if (audio_card->in_period_size > 0) {
+        ALOGI("%s, set in period_size to %d", audio_card->driver_name, audio_card->in_period_size);
+        pcm_config_mm_in.period_size = audio_card->in_period_size;
+    }
 
-                if (audio_card_list[j]->in_period_count > 0) {
-                    ALOGI("%s, set in period_count to %d", audio_card_list[j]->driver_name, audio_card_list[j]->in_period_count);
-                    pcm_config_mm_in.period_count = audio_card_list[j]->in_period_count;
-                }
+    if (audio_card->in_period_count > 0) {
+        ALOGI("%s, set in period_count to %d", audio_card->driver_name, audio_card->in_period_count);
+        pcm_config_mm_in.period_count = audio_card->in_period_count;
+    }
 
-                if(audio_card_list[j]->support_multi_chn) {
-                    ALOGI("%s support multichannel", audio_card_list[j]->driver_name);
-                    adev->support_multichannel = true;
-                }
-
-                if(audio_card_list[j]->support_lpa) {
-                    ALOGI("%s support lpa", audio_card_list[j]->driver_name);
-                    adev->support_lpa = true;
-                }
-
-                // check if the device have been scaned before
-                scanned = false;
-                n = k;
-                for (m = 0; m < k; m++) {
-                    if (!strcmp(audio_card_list[j]->driver_name, adev->card_list[m]->driver_name)) {
-                         scanned = true;
-                         found = true;
-                    }
-                }
-                if (scanned) break;
-                if(n >= MAX_AUDIO_CARD_NUM) {
-                    break;
-                }
-                adev->card_list[n]  = audio_card_list[j];
-                adev->card_list[n]->card = i;
-                adev->mixer[n] = mixer_open(i);
-                if (!adev->mixer[n]) {
-                     ALOGE("Unable to open the mixer, aborting.");
-                     control_close(imx_control);
-                     return -EINVAL;
-                }
-
-                if (queryOutput) {
-                    rate = DEFAULT_OUTPUT_SAMPLE_RATE;
-                    if (pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_RATE, &rate) == 0)
-                        adev->card_list[n]->out_rate = rate;
-
-                    channels = DEFAULT_OUTPUT_CHANNEL_COUNT;
-                    if (pcm_get_near_param_wrap(i, 0, PCM_OUT, PCM_HW_PARAM_CHANNELS, &channels) == 0)
-                        adev->card_list[n]->out_channels = channels;
-
-                    format = PCM_FORMAT_S16_LE;
-                    if (pcm_check_param_mask(i, 0, PCM_OUT, PCM_HW_PARAM_FORMAT, format)) {
-                        adev->card_list[n]->out_format = format;
-                    }
-
-                    ALOGW("Supported output rate %d, channels %d, format %d",
-                            adev->card_list[n]->out_rate,
-                            adev->card_list[n]->out_channels,
-                            adev->card_list[n]->out_format);
-                }
-
-                if(queryInput) {
-                    rate = DEFAULT_INPUT_SAMPLE_RATE;
-                    if (pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_RATE, &rate) == 0)
-                        adev->card_list[n]->in_rate = rate;
-
-                    channels = DEFAULT_INPUT_CHANNEL_COUNT;
-                    if (pcm_get_near_param_wrap(i, 0, PCM_IN, PCM_HW_PARAM_CHANNELS, &channels) == 0)
-                        adev->card_list[n]->in_channels = channels;
-
-                    format = PCM_FORMAT_S16_LE;
-                    if (pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
-                        adev->card_list[n]->in_format = format;
-                    } else {
-                        format = PCM_FORMAT_S24_LE;
-                        if (pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
-                            adev->card_list[n]->in_format = format;
-                        } else {
-                            format = PCM_FORMAT_S32_LE;
-                            if (pcm_check_param_mask(i, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
-                                adev->card_list[n]->in_format = format;
-                            } else {
-                                adev->card_list[n]->in_format = PCM_FORMAT_S16_LE;
-                                ALOGE("No supported formats: S16_LE, S24_LE and S32_LE, use default one: S16_LE");
-                            }
-                        }
-                    }
-
-                    ALOGW("Supported input rate %d, channels %d, format %d",
-                            adev->card_list[n]->in_rate,
-                            adev->card_list[n]->in_channels,
-                            adev->card_list[n]->in_format);
-                }
-
-                left_out_devices &= ~audio_card_list[j]->supported_out_devices;
-                left_in_devices &= ~audio_card_list[j]->supported_in_devices;
-                k ++;
-                found = true;
-                break;
+    int format = PCM_FORMAT_S16_LE;
+    if (pcm_check_param_mask(card, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
+        audio_card->in_format = format;
+    } else {
+        format = PCM_FORMAT_S24_LE;
+        if (pcm_check_param_mask(card, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
+            audio_card->in_format = format;
+        } else {
+            format = PCM_FORMAT_S32_LE;
+            if (pcm_check_param_mask(card, 0, PCM_IN, PCM_HW_PARAM_FORMAT, format)) {
+                audio_card->in_format = format;
+            } else {
+                audio_card->in_format = PCM_FORMAT_S16_LE;
+                ALOGE("No supported formats: S16_LE, S24_LE and S32_LE, use default one: S16_LE");
             }
         }
-
-        control_close(imx_control);
-        if(!found){
-            ALOGW("unrecognized card found.");
-        }
     }
-    adev->audio_card_num = k;
+    ALOGW("Supported input format %d", audio_card->in_format);
+
+    return;
+}
+
+// Scan all cards listed in /proc/asound/cards
+static int scan_available_device(struct imx_audio_device *adev)
+{
+    struct mixer *mixer;
+    const char *card_name;
+    int card = 0;
+    int card_num = 0;
+
+    for (card = 0; card < MAX_AUDIO_CARD_NUM; card++) {
+        mixer = mixer_open(card);
+        if (!mixer) {
+            ALOGV("%s: Failed to open mixer for card%d", __func__, card);
+            continue;
+        }
+        card_name = mixer_get_name(mixer);
+        ALOGI("card%d: %s", card, card_name);
+
+        struct audio_card *audio_card = audio_card_get_by_name(card_name);
+        if (!audio_card) {
+            ALOGV("%s: card %s is not supported", __func__, card_name);
+            continue;
+        }
+        audio_card->card = card;
+        adev->card_list[card_num] = audio_card;
+        adev->mixer[card_num] = mixer;
+        card_num++;
+
+        audio_card_refine_config(audio_card, adev);
+    }
+    adev->audio_card_num = card_num;
 
     adjust_card_sequence(adev);
 
-    ALOGI("Total %d cards match", k);
-    for(int cardIdx = 0; cardIdx < k; cardIdx++) {
+    ALOGI("Total %d cards match", card_num);
+    for(int cardIdx = 0; cardIdx < card_num; cardIdx++) {
         ALOGI("card idx %d, name %s", cardIdx, adev->card_list[cardIdx]->driver_name);
     }
 
@@ -4465,9 +4359,9 @@ static int adev_open(const hw_module_t* module, const char* name,
     property_get(PRODUCT_DEVICE_PROPERTY, adev->device_name,
             DEFAULT_ERROR_NAME_str);
 
-    parse_all_cards(audio_card_list);
+    parse_all_cards();
 
-    ret = scan_available_device(adev, true, true);
+    ret = scan_available_device(adev);
     if (ret != 0) {
         free(adev);
         return ret;

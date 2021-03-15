@@ -19,7 +19,6 @@ audio_primary_defaults {
     relative_install_path: "hw",
     srcs: [
         "tinyalsa_hal.cpp",
-        "control.cpp",
         "pcm_ext.cpp",
         "audio_card_config_parse.cpp",
     ],

@@ -44,11 +44,7 @@ struct audio_card {
     struct route_setting *headset_mic_ctl;
     struct route_setting *out_volume_ctl;
     int  card;
-    unsigned int  out_rate;
-    int  out_channels;
     int  out_format;
-    unsigned int  in_rate;
-    int  in_channels;
     int  in_format;
     unsigned int out_volume_min;
     unsigned int out_volume_max;
@@ -63,7 +59,8 @@ struct audio_card {
     unsigned int in_period_count;
 };
 
-bool parse_all_cards(struct audio_card **audio_card_list);
-bool release_all_cards(struct audio_card **audio_card_list);
+bool parse_all_cards();
+bool release_all_cards();
+struct audio_card *audio_card_get_by_name(const char *name);
 
 #endif
