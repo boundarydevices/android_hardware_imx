@@ -389,7 +389,7 @@ void FSLSensorsHub::processEvent(int type ,int code, int value){
 int FSLSensorsHub::writeEnable(int what ,int isEnable) {
     char attr[PATH_MAX] = {'\0'};
     int err = 0;
-    if(mClassPath[0] == NULL)
+    if(mClassPath[what][0] == '\0')
         return -1;
 
     strcpy(attr, mClassPath[what]);
@@ -419,7 +419,7 @@ int FSLSensorsHub::writeEnable(int what ,int isEnable) {
 int FSLSensorsHub::writeDelay(int what,int64_t ns) {
     char attr[PATH_MAX] = {'\0'};
     int delay;
-    if(mClassPath[0] == NULL)
+    if(mClassPath[what][0] == '\0')
         return -1;
 
     strcpy(attr, mClassPath[what]);
