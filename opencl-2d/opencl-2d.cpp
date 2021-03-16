@@ -292,6 +292,11 @@ static cl_program CreateProgramFromBinary(cl_context context, cl_device_id devic
     size_t binarySize;
     fseek(fp, 0, SEEK_END);
     binarySize = ftell(fp);
+    if(binarySize < 0) {
+        g2d_printf("Error ftell %s.", fileName);
+        fclose(fp);
+        return NULL;
+    }
     rewind(fp);
     // Load binary from disk
     unsigned char *programBinary = new unsigned char[binarySize];
@@ -352,6 +357,13 @@ static cl_program CreateProgram(cl_context context, cl_device_id device,
     // get the length of the source code
     fseek(pFileStream, 0, SEEK_END);
     program_length = (size_t)ftell(pFileStream);
+    if(program_length < 0)
+    {
+        g2d_printf("Failed to ftell file %s\n", fileName);
+        fclose(pFileStream);
+        return NULL;
+    }
+
     fseek(pFileStream, 0, SEEK_SET);
 
     // allocate a buffer for the source code string and read it in
