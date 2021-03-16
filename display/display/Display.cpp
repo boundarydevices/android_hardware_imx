@@ -70,6 +70,7 @@ Display::Display()
     mTileHwLimit = 0;
     mResetHdrMode = false;
     mUiUpdate = false;
+    mListener = NULL;
     mTotalLayerNum = 0;
     mMaxBrightness = -1;
 
@@ -1062,9 +1063,10 @@ void Display::initBrightness()
         ALOGE("%s cannot open backup backlight file %s", __func__,path);
     }
     else {
-        fread(&mMaxBrightness,1,3,file);
-        mMaxBrightness = atoi((char *)&mMaxBrightness);
-        ALOGI("%s get maxBrightness:%d",__func__,mMaxBrightness);
+        if (fread(&mMaxBrightness,1,3,file) == 3) {
+            mMaxBrightness = atoi((char *)&mMaxBrightness);
+            ALOGI("%s get maxBrightness:%d",__func__,mMaxBrightness);
+        }
         fclose(file);
     }
 

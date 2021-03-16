@@ -569,6 +569,10 @@ static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
         ctx->mListener->onHotplug(HWC_DISPLAY_PRIMARY, true);
         for (int i = 1; i < MAX_PHYSICAL_DISPLAY; i++) {
             pDisplay = displayManager->getDisplay(i);
+            if (pDisplay == NULL) {
+                ALOGE("%s invalid display id:%" PRId64, __func__, i);
+                return HWC2_ERROR_BAD_PARAMETER;
+            }
             if (pDisplay->connected())
                 ctx->mListener->onHotplug(i, true);
         }

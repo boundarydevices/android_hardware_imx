@@ -1887,7 +1887,7 @@ void KmsDisplay::VSyncThread::performVSync()
 
 KmsDisplay::ConfigThread::ConfigThread(KmsDisplay *ctx)
     : Thread(false), mCtx(ctx), mNewChange(false),
-      mNewConfig(-1), mDesiredTime(0)
+      mNewConfig(-1), mDesiredTime(0), mRefreshTime(0)
 {
 }
 

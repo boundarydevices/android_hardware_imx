@@ -221,7 +221,10 @@ int MemoryManager::releaseMemory(Memory* handle)
             struct drm_gem_close gem_close;
             memset(&gem_close, 0, sizeof(gem_close));
             gem_close.handle = handle->fbHandle;
-            drmIoctl(handle->kmsFd, DRM_IOCTL_GEM_CLOSE, &gem_close);
+            if (drmIoctl(handle->kmsFd, DRM_IOCTL_GEM_CLOSE, &gem_close)) {
+                ALOGE("%s: gem close failed as errno %s", __func__,
+                    strerror(errno));
+            }
         }
     }
     handle->fbId = 0;
