@@ -376,8 +376,12 @@ static void * allocate_memory(ion_user_handle_t *ion_hnd,
         heap_mask = 0;
         // add heap ids from heap type.
         for (int i=0; i<heap_cnt; i++) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 1)
             if (ihd[i].type == ION_HEAP_TYPE_DMA ||
                  ihd[i].type == ION_HEAP_TYPE_CARVEOUT) {
+#else
+            if (ihd[i].type == ION_HEAP_TYPE_DMA) {
+#endif
                 heap_mask |=  1 << ihd[i].heap_id;
                 continue;
             }
