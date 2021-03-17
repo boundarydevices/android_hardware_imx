@@ -63,7 +63,7 @@ Return<void> OemLock::isOemUnlockAllowedByCarrier(isOemUnlockAllowedByCarrier_cb
 Return<OemLockStatus> OemLock::setOemUnlockAllowedByDevice(bool allowed) {
     LOG(INFO) << "Running OemLock::setOemUnlockAllowedByDevice: " << allowed;
 
-    avbError rc = mAvbOemUnlockIpc->writeDeviceUnlockPermission(allowed ? 1 : 0);
+    avbError rc = mAvbOemUnlockIpc.writeDeviceUnlockPermission(allowed ? 1 : 0);
     if (rc != avbError::AVB_ERROR_NONE) {
         LOG(ERROR) << "Failed to set device unlock status!";
         return OemLockStatus::FAILED;
@@ -76,7 +76,7 @@ Return<void> OemLock::isOemUnlockAllowedByDevice(isOemUnlockAllowedByDevice_cb _
 
     LOG(VERBOSE) << "Running OemLock::isOemUnlockAllowedByDevice";
 
-    avbError rc = mAvbOemUnlockIpc->readDeviceUnlockPermission(&status);
+    avbError rc = mAvbOemUnlockIpc.readDeviceUnlockPermission(&status);
     if (rc != avbError::AVB_ERROR_NONE) {
         LOG(ERROR) << "Failed to set device unlock status!";
        _hidl_cb(OemLockStatus::FAILED, false);

@@ -49,7 +49,7 @@ struct OemLock : public IOemLock {
     void cmdList(int fd, const hidl_vec<hidl_string>& options);
     void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
 private:
-    avbOemUnlockIpc *mAvbOemUnlockIpc;
+    avbOemUnlockIpc mAvbOemUnlockIpc;
 };
 
 } // namespace oemlock
