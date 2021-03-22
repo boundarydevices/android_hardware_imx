@@ -47,7 +47,7 @@ static struct route_setting defaults_SGTL5000[] = {
     },
     {
         .ctl_name = MIXER_SGTL5000_SPEAKER_VOLUME,
-        .intval = 156,
+        .intval = 192,
     },
     {
         .ctl_name = NULL,
