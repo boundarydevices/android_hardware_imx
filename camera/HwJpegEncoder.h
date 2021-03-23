@@ -45,7 +45,7 @@ public:
 
     int mFormat;
 
-    struct encoder_args mEncArgs;
+    struct encoder_args mEncArgs = {0, 0, 0, 0};
 
     // The data direction is jpeg hw -> RAM, the output of jpeg hw
     void *mBufferOutStart[2] = {0};
@@ -54,7 +54,7 @@ public:
     void *mBufferInStart[2] = {0};
 
     char mJpegDevPath[64];
-    int mJpegFd;
+    int mJpegFd = 0;
 
     virtual ~HwJpegEncoder() {};
 

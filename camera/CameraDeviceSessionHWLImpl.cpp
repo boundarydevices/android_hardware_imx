@@ -650,11 +650,11 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
           maxJpegSize);
 
 err_out:
-    if (mainJpeg) {
+    if (mainJpeg != NULL) {
         delete mainJpeg;
     }
 
-    if (thumbJpeg) {
+    if (thumbJpeg != NULL) {
         delete thumbJpeg;
     }
 
@@ -741,6 +741,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
     int stream_num = request_config.streams.size();
     if (stream_num == 0) {
+        free(pipeline_info);
         ALOGE("%s stream num 0", __func__);
         return BAD_VALUE;
     }
@@ -1041,6 +1042,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
                                             pipeline_info->streams->at(configIdx).height,
                                             fps);
         if (ret) {
+            delete(pipeline_request);
             ALOGE("%s: pVideoStream->ConfigAndStart failed, ret %d", __func__, ret);
             return ret;
         }

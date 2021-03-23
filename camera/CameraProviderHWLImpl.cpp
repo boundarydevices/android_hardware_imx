@@ -234,6 +234,9 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
         matchPropertyName(nodes, index);
     }
 
+    if (node != NULL)
+        free(node);
+
     node = nodes;
     while (node != NULL) {
         last = node->next;

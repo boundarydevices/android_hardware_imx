@@ -104,6 +104,8 @@ class ImxStream
 public:
     ImxStream() {}
 
+    virtual ~ImxStream() = default;
+
     ImxStream(uint32_t width, uint32_t height, int32_t format, uint64_t usage, int32_t id)
     {
         mWidth = width;
@@ -120,11 +122,11 @@ public:
     int32_t id() {return mId;}
 
 public:
-    uint32_t mWidth;
-    uint32_t mHeight;
-    int32_t mFormat;
-    uint64_t mUsage;
-    int32_t mId;
+    uint32_t mWidth = 0;
+    uint32_t mHeight = 0;
+    int32_t mFormat = 0;
+    uint64_t mUsage = 0;
+    int32_t mId = 0;
 };
 
 struct SensorSet

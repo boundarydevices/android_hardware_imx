@@ -464,4 +464,5 @@ void HwJpegEncoder::enumJpegEnc()
             break;
         }
     }
+    closedir(vidDir);
 }

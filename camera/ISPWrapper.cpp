@@ -232,6 +232,8 @@ int ISPWrapper::process(HalCameraMetadata *pMeta)
 
 int ISPWrapper::viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Json::Value& jsonResponse)
 {
+    int ret = 0;
+
     if (!cmd) {
         ALOGE("cmd should anot be null!");
         return -1;
@@ -249,18 +251,26 @@ int ISPWrapper::viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Jso
     ecs.controls = &ec;
     ecs.count = 1;
 
-    ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
-
-    strcpy(ec.string, jsonRequest.toStyledString().c_str());
-
-    int ret = ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &ecs);
+    ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
     if (ret != 0)
         return ret;
 
-    ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
+    strcpy(ec.string, jsonRequest.toStyledString().c_str());
+
+    ret = ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &ecs);
+    if (ret != 0)
+        return ret;
+
+    ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
+    if (ret != 0)
+        return ret;
 
     Json::Reader reader;
-    reader.parse(ec.string, jsonResponse, true);
+    if (!reader.parse(ec.string, jsonResponse, true)) {
+        ALOGE("Could not parse configuration file: %s",
+          reader.getFormattedErrorMessages().c_str());
+        return BAD_VALUE;
+    }
     delete ec.string;
     ec.string = NULL;
     return jsonResponse["MC_RET"].asInt();

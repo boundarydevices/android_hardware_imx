@@ -107,31 +107,31 @@ private:
     uint32_t camera_id_;
 
   //  std::unique_ptr<HalCameraMetadata> static_metadata_;
-    CameraMetadata *m_meta;
+    CameraMetadata *m_meta = nullptr;
     HwlCameraProviderCallback mCallback;
 
 public:
     int mPreviewResolutions[MAX_RESOLUTION_SIZE];
-    int mPreviewResolutionCount;
+    int mPreviewResolutionCount = 0;
     int mPictureResolutions[MAX_RESOLUTION_SIZE];
-    int mPictureResolutionCount;
+    int mPictureResolutionCount = 0;
     int mAvailableFormats[MAX_SENSOR_FORMAT];
-    int mAvailableFormatCount;
+    int mAvailableFormatCount = 0;
 
     int mTargetFpsRange[MAX_FPS_RANGE];
-    int mMaxWidth;
-    int mMaxHeight;
+    int mMaxWidth = 0;
+    int mMaxHeight = 0;
 
      // preview and picture format.
-    PixelFormat mPicturePixelFormat;
-    PixelFormat mPreviewPixelFormat;
+    PixelFormat mPicturePixelFormat = 0;
+    PixelFormat mPreviewPixelFormat = 0;
 
     // vpu and capture limitation.
     int mVpuSupportFmt[MAX_VPU_SUPPORT_FORMAT];
     int mPictureSupportFmt[MAX_PICTURE_SUPPORT_FORMAT];
 
     int mSensorFormats[MAX_SENSOR_FORMAT];
-    int mSensorFormatCount;
+    int mSensorFormatCount = 0;
     char mDevPath[CAMAERA_FILENAME_LENGTH];
 
 

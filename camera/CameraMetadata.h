@@ -71,11 +71,11 @@ public:
 private:
     std::unique_ptr<HalCameraMetadata> m_static_meta;
     std::unique_ptr<HalCameraMetadata> m_template_meta[(uint32_t)RequestTemplate::kManual + 1];
-    HalCameraMetadata *m_request_meta; // meta from framework
+    HalCameraMetadata *m_request_meta = nullptr; // meta from framework
 
     mutable std::mutex metadata_lock_;
 
-    CameraDeviceHwlImpl *mDev;
+    CameraDeviceHwlImpl *mDev = NULL;
 };
 
 }  // namespace android

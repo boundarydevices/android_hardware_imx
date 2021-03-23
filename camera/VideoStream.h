@@ -69,17 +69,17 @@ protected:
     virtual int32_t postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
 
 public:
-    uint32_t mFps;
-    uint32_t mNumBuffers;
+    uint32_t mFps = 0;
+    uint32_t mNumBuffers = 0;
 
 
 protected:
 //    bool mPlane;
 //    char mPath[CAMERA_SENSOR_LENGTH];
-    int mDev;
-    uint32_t mAllocatedBuffers;
-    enum v4l2_memory mV4l2MemType;
-    enum v4l2_buf_type mV4l2BufType;
+    int mDev = 0;
+    uint32_t mAllocatedBuffers = 0;
+    enum v4l2_memory mV4l2MemType = V4L2_MEMORY_MMAP;
+    enum v4l2_buf_type mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     uint32_t mOmitFrames;
     uint32_t mOmitFrmCount;
 
