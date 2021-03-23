@@ -208,6 +208,7 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
 
         sprintf(mCamDevice, "/sys/class/video4linux/%s/name", dirEntry->d_name);
         if (!android::base::ReadFileToString(std::string(mCamDevice), &buffer)) {
+            free(node);
             ALOGE("can't read video device name");
             break;
         }
@@ -233,9 +234,6 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
     for (int32_t index=0; index<MAX_CAMERAS; index++) {
         matchPropertyName(nodes, index);
     }
-
-    if (node != NULL)
-        free(node);
 
     node = nodes;
     while (node != NULL) {
