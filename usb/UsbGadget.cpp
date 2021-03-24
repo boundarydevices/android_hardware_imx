@@ -170,7 +170,10 @@ static void *monitorFfs(void *param) {
         }
       } else {
         uint64_t flag;
-        read(usbGadget->mEventFd, &flag, sizeof(flag));
+        int numRead = read(usbGadget->mEventFd, &flag, sizeof(flag));
+        if (numRead < 0) {
+          ALOGE("Error readding event fd");
+        }
         if (flag == 100) {
           stopMonitor = true;
           break;
@@ -256,7 +259,7 @@ V1_0::Status UsbGadget::tearDownGadget() {
 
   if (mMonitorCreated) {
     uint64_t flag = 100;
-    unsigned long ret;
+    ssize_t ret;
 
     // Stop the monitor thread by writing into signal fd.
     ret = TEMP_FAILURE_RETRY(write(mEventFd, &flag, sizeof(flag)));

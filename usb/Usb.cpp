@@ -237,6 +237,7 @@ Usb::Usb()
         ALOGE("pthread_condattr_destroy failed: %s", strerror(errno));
         abort();
     }
+    mPoll = pthread_t();
 }
 
 
@@ -651,6 +652,7 @@ void *work(void *param) {
   struct epoll_event ev;
   int nevents = 0;
   struct data payload;
+  int ret = 0;
 
   ALOGE("creating thread");
   std::string buffer;
@@ -680,7 +682,12 @@ void *work(void *param) {
   payload.uevent_fd = uevent_fd;
   payload.usb = (android::hardware::usb::V1_1::implementation::Usb *)param;
 
-  fcntl(uevent_fd, F_SETFL, O_NONBLOCK);
+  ret = fcntl(uevent_fd, F_SETFL, O_NONBLOCK);
+  if (ret != 0) {
+    ALOGE("uevent_init: set uevent_fd O_NONBLOCK flag failed\n");
+    close(uevent_fd);
+    return NULL;
+  }
 
   ev.events = EPOLLIN;
   ev.data.ptr = (void *)uevent_event;
