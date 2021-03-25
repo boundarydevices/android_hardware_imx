@@ -934,6 +934,7 @@ int KmsDisplay::updateScreen()
             ALOGV("%s invalid out fence:%d", __func__, mOutFence);
         }
         mOutFence = -1;
+        mOverlay->isOverlay = false;
         mOverlay = NULL;
     }
 
