@@ -524,9 +524,7 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
   }
 
   if ((functions & GadgetFunction::RNDIS) == 0) {
-    if (access(RNDIS_PATH,F_OK) == 0) {
-       if (rmdir(RNDIS_PATH)) ALOGE("Error remove %s",RNDIS_PATH);
-    }
+    if (rmdir(RNDIS_PATH) && errno != ENOENT) ALOGE("Error remove %s",RNDIS_PATH);
   } else if ((functions & GadgetFunction::RNDIS)) {
     if (mkdir(RNDIS_PATH,644)) goto error;
   }
