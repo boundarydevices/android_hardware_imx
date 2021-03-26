@@ -109,13 +109,15 @@ static void *monitorFfs(void *param) {
     // notify here if the endpoints are already present.
     if (descriptorWritten) {
       usleep(PULL_UP_DELAY);
-      if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-        lock_guard<mutex> lock(usbGadget->mLock);
-        usbGadget->mCurrentUsbFunctionsApplied = true;
-        gadgetPullup = true;
-        writeUdc = false;
-        ALOGI("GADGET pulled up");
-        usbGadget->mCv.notify_all();
+      if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
+        if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+          lock_guard<mutex> lock(usbGadget->mLock);
+          usbGadget->mCurrentUsbFunctionsApplied = true;
+          gadgetPullup = true;
+          writeUdc = false;
+          ALOGI("GADGET pulled up");
+          usbGadget->mCv.notify_all();
+        }
       }
     }
     int nrEvents = epoll_wait(usbGadget->mEpollFd, events, EPOLL_EVENTS, 2000);
