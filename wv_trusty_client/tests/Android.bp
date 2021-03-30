@@ -1,0 +1,20 @@
+cc_test {
+    name: "wv_trusty_client_unittest",
+
+    srcs: ["main.cpp"],
+
+    static_libs: [
+        "libwvtrustyclient",
+        "libtrusty",
+        "libtrustystorage",
+        "libtrustystorageinterface",
+        "libutils",
+    ],
+    vendor: true,
+
+    shared_libs: [
+        "liblog",
+        "libutils",
+    ],
+
+}
