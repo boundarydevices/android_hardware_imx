@@ -243,6 +243,7 @@ int ISPWrapper::viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Jso
 
     struct v4l2_ext_controls ecs;
     struct v4l2_ext_control ec;
+    Json::Reader reader;
     memset(&ecs, 0, sizeof(ecs));
     memset(&ec, 0, sizeof(ec));
     ec.string = new char[VIV_JSON_BUFFER_SIZE];
@@ -252,28 +253,32 @@ int ISPWrapper::viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Jso
     ecs.count = 1;
 
     ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
-    if (ret != 0)
-        return ret;
-
+    if (ret != 0) {
+        goto failed;
+    }
     strcpy(ec.string, jsonRequest.toStyledString().c_str());
 
     ret = ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &ecs);
-    if (ret != 0)
-        return ret;
-
+    if (ret != 0) {
+        goto failed;
+    }
     ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
-    if (ret != 0)
-        return ret;
+    if (ret != 0) {
+        goto failed;
+    }
 
-    Json::Reader reader;
     if (!reader.parse(ec.string, jsonResponse, true)) {
         ALOGE("Could not parse configuration file: %s",
           reader.getFormattedErrorMessages().c_str());
-        return BAD_VALUE;
-    }
+        ret = BAD_VALUE;
+        goto failed;
+    } else
+        ret = jsonResponse["MC_RET"].asInt();
+
+failed:
     delete ec.string;
     ec.string = NULL;
-    return jsonResponse["MC_RET"].asInt();
+    return ret;
 }
 
 
