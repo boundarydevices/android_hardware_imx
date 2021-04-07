@@ -987,6 +987,9 @@ int Display::setBrightness(float brightness)
     }
 
     int bright = (int)(mMaxBrightness * brightness);
+    /* Avoid 0 that turns off the backlight */
+    if (bright < 1)
+        bright = 1;
     FILE *file = fopen(mBrightnessPath, "w");
     if (!file) {
         ALOGE("%s can not open file %s\n", __func__,mBrightnessPath);
