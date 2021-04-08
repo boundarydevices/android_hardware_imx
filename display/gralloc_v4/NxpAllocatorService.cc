@@ -18,6 +18,13 @@ using android::hardware::joinRpcThreadpool;
 using android::hardware::graphics::allocator::V4_0::IAllocator;
 
 int main(int, char**) {
+    // sched policy is same as SF main thread
+    struct sched_param param = {0};
+    param.sched_priority = 2;
+    if (sched_setscheduler(0, SCHED_FIFO | SCHED_RESET_ON_FORK, &param) != 0) {
+        ALOGE("Couldn't set SCHED_FIFO: %d", errno);
+    }
+
     sp<IAllocator> allocator = new NxpAllocator();
     configureRpcThreadpool(4, true /* callerWillJoin */);
     if (allocator->registerAsService() != android::NO_ERROR) {
