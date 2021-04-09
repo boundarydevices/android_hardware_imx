@@ -126,11 +126,10 @@ Return<Error> NxpMapper::freeBuffer(void* rawHandle) {
         return Error::BAD_BUFFER;
     }
 
+    removeImportedBuffer(rawHandle);
     int ret = mDriver->release(bufferHandle);
     if (ret) {
         return Error::BAD_BUFFER;
-    } else {
-        removeImportedBuffer(rawHandle);
     }
 
     // TODO: The fd close operation and delete handle are done in ~gralloc_buffer()
