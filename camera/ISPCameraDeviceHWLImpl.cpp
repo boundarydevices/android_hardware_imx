@@ -145,7 +145,6 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     return NO_ERROR;
 }
 
-#define V4L2_CID_VIV_SENSOR_MODE (V4L2_CID_PRIVATE_BASE + 0x01)
 int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
 {
     ALOGI("%s", __func__);
@@ -160,6 +159,17 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
 
     ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d", __func__, width, height,
         vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
+
+    struct v4l2_streamparm param;
+    memset(&param, 0, sizeof(param));
+
+    param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    param.parm.capture.timeperframe.numerator = 1;
+    param.parm.capture.timeperframe.denominator = fps;
+    ret = ioctl(mDev, VIDIOC_S_PARM, &param);
+    if (ret < 0) {
+        ALOGW("%s: VIDIOC_S_PARM Failed: %s, fps %d", __func__, strerror(errno), fps);
+    }
 
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
