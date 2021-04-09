@@ -137,7 +137,17 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
             ALOGE("%s, freeBuffersLocked failed, ret %d", __func__, ret);
             return ret;
         }
+
+        if(strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
+            closeDev();
+            ret = openDev(mSession->getDevPath());
+            if(ret) {
+                ALOGE("%s, openDev %s failed, ret %d", __func__, mSession->getDevPath(), ret);
+                return ret;
+            }
+        }
     }
+
 
     ret = onDeviceConfigureLocked(format, width, height, fps);
     if(ret) {

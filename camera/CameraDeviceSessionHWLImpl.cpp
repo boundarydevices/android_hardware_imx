@@ -135,6 +135,9 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     mPictureResolutionCount = pDev->mPictureResolutionCount;
     memcpy(mPictureResolutions, pDev->mPictureResolutions, MAX_RESOLUTION_SIZE*sizeof(int));
 
+    strncpy(mDevPath, pDev->mDevPath, CAMAERA_FILENAME_LENGTH);
+    mDevPath[CAMAERA_FILENAME_LENGTH - 1] = 0;
+
     return OK;
 }
 

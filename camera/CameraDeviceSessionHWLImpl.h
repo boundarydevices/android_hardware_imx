@@ -249,6 +249,7 @@ private:
 
 public:
     CameraSensorMetadata* getSensorData() { return &mSensorData; }
+    char* getDevPath() { return mDevPath; }
 
 private:
     // Protects the API entry points
@@ -284,6 +285,8 @@ private:
     int mPreviewResolutionCount;
     int mPictureResolutions[MAX_RESOLUTION_SIZE];
     int mPictureResolutionCount;
+
+    char mDevPath[CAMAERA_FILENAME_LENGTH];
 };
 
 }  // namespace android

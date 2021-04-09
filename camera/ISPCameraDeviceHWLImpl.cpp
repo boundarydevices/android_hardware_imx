@@ -76,14 +76,40 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         return BAD_VALUE;
     }
 
-    ALOGI("enum frame size, width: min %d, max %d, step %d, height: min %d, max %d, step %d",
-        cam_frmsize.stepwise.min_width, cam_frmsize.stepwise.max_width, cam_frmsize.stepwise.step_width,
-        cam_frmsize.stepwise.min_height, cam_frmsize.stepwise.max_height, cam_frmsize.stepwise.step_height);
+    int w_min = cam_frmsize.stepwise.min_width;
+    int w_max = cam_frmsize.stepwise.max_width;
+    int w_step = cam_frmsize.stepwise.step_width;
+    int h_min = cam_frmsize.stepwise.min_height;
+    int h_max = cam_frmsize.stepwise.max_height;
+    int h_step = cam_frmsize.stepwise.step_height;
 
-    // Fix me. Will exposure multi resolutions once verified ok.
-    //static uint32_t ispRes[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1920, 1080};
-    static uint32_t ispRes[] = {1920, 1080};
-    uint32_t ispResNum = ARRAY_SIZE(ispRes)/2;
+    ALOGI("enum frame size, width: min %d, max %d, step %d, height: min %d, max %d, step %d",
+        w_min, w_max, w_step, h_min, h_max, h_step);
+
+    // Support resolutions requeted by CCD
+    uint32_t ispResCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1920, 1080};
+    uint32_t ispResCandidateNum = ARRAY_SIZE(ispResCandidate)/2;
+    uint32_t ispRes[MAX_RESOLUTION_SIZE];
+    uint32_t ispResNum = 0;
+
+    // filt out candidate
+    for(int i = 0; i < ispResCandidateNum; i++) {
+        int width = ispResCandidate[i*2];
+        int height = ispResCandidate[i*2 + 1];
+        if ( (width < w_min) || (width > w_max) || ((width - w_min) % w_step != 0) ||
+             (height < h_min) || (height > h_max) || ((height - h_min) % h_step != 0) ) {
+            ALOGW("%s, filt out %dx%d", __func__, width, height);
+            continue;
+        }
+
+        if(ispResNum * 2 >= MAX_RESOLUTION_SIZE)
+            break;
+
+        ispRes[ispResNum*2] = width;
+        ispRes[ispResNum*2 + 1] = height;
+        ispResNum++;
+    }
+
     for(int i = 0; i < ispResNum; i++) {
         mPictureResolutions[pictureCnt++] = ispRes[i*2];
         mPictureResolutions[pictureCnt++] = ispRes[i*2 + 1];
