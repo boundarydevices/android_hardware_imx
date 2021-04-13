@@ -76,6 +76,16 @@ typedef struct tag_pipeline_info {
     std::vector<HalStream>* hal_streams;
 } PipelineInfo;
 
+typedef struct tag_fence_fd_info {
+    int acquire_fence_fd;
+    int release_fence_fd;
+} FenceFdInfo;
+
+typedef struct tag_request {
+    HwlPipelineRequest hwlReq;
+    std::vector<FenceFdInfo> outBufferFences;
+} FrameRequest;
+
 // Implementation of CameraDeviceSessionHwl interface
 class CameraDeviceSessionHwlImpl : public CameraDeviceSessionHwl
 {
@@ -203,10 +213,10 @@ private:
     CameraDeviceSessionHwlImpl();
 
     int HandleRequest();
-    status_t HandleFrameLocked(std::vector<StreamBuffer> output_buffers, CameraMetadata& requestMeta);
+    status_t HandleFrameLocked(std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata& requestMeta);
     status_t HandleMetaLocked(std::unique_ptr<HalCameraMetadata>& resultMeta, uint64_t timestamp);
 
-    status_t ProcessCapturedBuffer(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> output_buffers, CameraMetadata& requestMeta);
+    status_t ProcessCapturedBuffer(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata& requestMeta);
     int32_t processJpegBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf, CameraMetadata *meta);
     int32_t processFrameBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf, CameraMetadata *meta);
 
@@ -258,7 +268,7 @@ private:
     bool pipelines_built_ = false;
     CameraMetadata *m_meta;
     std::map<uint32_t, PipelineInfo*> map_pipeline_info;
-    std::map<uint32_t, std::vector<HwlPipelineRequest>*> map_frame_request;
+    std::map<uint32_t, std::vector<FrameRequest>*> map_frame_request;
 
     autoState m3aState;
     fsl::MemoryManager* pMemManager;

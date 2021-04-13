@@ -66,6 +66,7 @@ imx_camera_defaults {
                 "libutils",
                 "libbinder",
                 "libfsldisplay",
+                "libsync",
             ],
             static_libs: [
                 "android.hardware.camera.common@1.0-helper",

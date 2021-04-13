@@ -28,11 +28,36 @@
 #include <utils/Trace.h>
 #include <binder/MemoryHeapBase.h>
 #include <hardware/camera3.h>
+#include <sync/sync.h>
 
 //using namespace fsl;
 using namespace cameraconfigparser;
 
 namespace android {
+
+// ImportFence and closeFence are refed from hardware/interfaces/camera/common/1.0/default/HandleImporter.cpp.
+// If use functions from HandleImporter.cpp, will lead to add a series of libs.
+static int importFence(const native_handle_t* handle) {
+    if (handle == nullptr || handle->numFds == 0)
+        return -1;
+
+    if (handle->numFds != 1) {
+        ALOGE("invalid fence handle with %d file descriptors", handle->numFds);
+        return -1;
+    }
+
+    int fd = dup(handle->data[0]);
+    if (fd < 0)
+        ALOGE("failed to dup fence fd %d, %s", handle->data[0], strerror(errno));
+
+    return fd;
+}
+
+static void closeFence(int fd) {
+    if (fd >= 0) {
+        close(fd);
+    }
+}
 
 std::unique_ptr<CameraDeviceSessionHwlImpl>
 CameraDeviceSessionHwlImpl::Create(
@@ -201,13 +226,14 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 
     for (auto it = map_frame_request.begin(); it != map_frame_request.end(); it++) {
         uint32_t frame = it->first;
-        std::vector<HwlPipelineRequest> *request = it->second;
+        std::vector<FrameRequest> *request = it->second;
         uint32_t reqNum = request->size();
 
         ALOGV("%s: frame %d, request num %d", __func__, frame, reqNum);
 
         for (uint32_t i = 0; i < reqNum; i++) {
-            HwlPipelineRequest *hwReq = &(request->at(i));
+            HwlPipelineRequest *hwReq = &(request->at(i).hwlReq);
+            std::vector<FenceFdInfo> outFences  = request->at(i).outBufferFences;
             uint32_t pipeline_id = hwReq->pipeline_id;
             ALOGV("request: pipeline_id %d, output buffer num %d, meta %p",
                   (int)pipeline_id,
@@ -251,7 +277,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 
             // process frame
             CameraMetadata requestMeta(result->result_metadata.get());
-            HandleFrameLocked(hwReq->output_buffers, requestMeta);
+            HandleFrameLocked(hwReq->output_buffers, outFences, requestMeta);
 
             // return result
             result->camera_id = camera_id_;
@@ -279,7 +305,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
     return OK;
 }
 
-status_t CameraDeviceSessionHwlImpl::HandleFrameLocked(std::vector<StreamBuffer> output_buffers, CameraMetadata &requestMeta)
+status_t CameraDeviceSessionHwlImpl::HandleFrameLocked(std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata &requestMeta)
 {
     int ret = 0;
     ImxStreamBuffer *pImxStreamBuffer;
@@ -291,7 +317,7 @@ status_t CameraDeviceSessionHwlImpl::HandleFrameLocked(std::vector<StreamBuffer>
         return 0;
     }
 
-    ret = ProcessCapturedBuffer(pImxStreamBuffer, output_buffers, requestMeta);
+    ret = ProcessCapturedBuffer(pImxStreamBuffer, output_buffers, outFences, requestMeta);
 
     pVideoStream->onFrameReturnLocked(*pImxStreamBuffer);
 
@@ -439,21 +465,48 @@ static void DumpStream(void *src, uint32_t srcSize, void *dst, uint32_t dstSize,
     return;
 }
 
-status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> output_buffers, CameraMetadata &requestMeta)
+status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata &requestMeta)
 {
     int ret = 0;
 
     if (srcBuf == NULL)
         return BAD_VALUE;
+    int outBufSize = output_buffers.size();
+    int outFencesSize = outFences.size();
 
-    for (auto it : output_buffers) {
-        Stream *pStream = GetStreamFromStreamBuffer(&it);
-        if (pStream == NULL) {
-            ALOGE("%s, dst buf belong to stream %d, but the stream is not configured", __func__, it.stream_id);
+    if(outBufSize != outFencesSize) {
+        ALOGE("%s: outBufSize(%d) != outFencesSize(%d)", __func__, outBufSize, outFencesSize);
+        return BAD_VALUE;
+    }
+
+    for (int i = 0; i < outBufSize; i++) {
+        StreamBuffer *it = &output_buffers[i];
+        if (it == NULL) {
+            ALOGE("%s: output_buffers[%d] is invalid", __func__, i);
             return BAD_VALUE;
         }
 
-        ImxStreamBuffer *dstBuf = CreateImxStreamBufferFromStreamBuffer(&it, pStream);
+        // If fence is valid, wait.  Ref the usage in EmulatedRequestProcessor.cpp.
+        int acquire_fence_fd = outFences[i].acquire_fence_fd;
+        if (acquire_fence_fd > -1) {
+            ALOGV("%s, before sync_wait fence fd %d", __func__, acquire_fence_fd);
+            ret = sync_wait(acquire_fence_fd, CAMERA_SYNC_TIMEOUT);
+            ALOGV("%s, after sync_wait fence fd %d", __func__, acquire_fence_fd);
+            ret = sync_wait(acquire_fence_fd, CAMERA_SYNC_TIMEOUT);
+            closeFence(acquire_fence_fd);
+            if (ret != OK) {
+                ALOGW("%s: Timeout waiting on acquire fence %d, on stream %d, buffer %d", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
+                continue;
+            }
+        }
+
+        Stream *pStream = GetStreamFromStreamBuffer(it);
+        if (pStream == NULL) {
+            ALOGE("%s, dst buf belong to stream %d, but the stream is not configured", __func__, it->stream_id);
+            return BAD_VALUE;
+        }
+
+        ImxStreamBuffer *dstBuf = CreateImxStreamBufferFromStreamBuffer(it, pStream);
         if (dstBuf == NULL)
             return BAD_VALUE;
 
@@ -1068,7 +1121,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
     Mutex::Autolock _l(mLock);
 
     int size = requests.size();
-    std::vector<HwlPipelineRequest> *pipeline_request = new std::vector<HwlPipelineRequest>(size);
+    std::vector<FrameRequest> *frame_request = new std::vector<FrameRequest>(size);
 
     for (int i = 0; i < size; i++) {
         uint32_t pipeline_id = requests[i].pipeline_id;
@@ -1078,14 +1131,24 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
               (int)pipeline_id,
               (int)requests[i].output_buffers.size());
 
-        pipeline_request->at(i).pipeline_id = pipeline_id;
-        pipeline_request->at(i).settings = HalCameraMetadata::Clone(requests[i].settings.get());
-        pipeline_request->at(i).output_buffers.reserve(requests[i].output_buffers.size());
-        pipeline_request->at(i).output_buffers.assign(requests[i].output_buffers.begin(), requests[i].output_buffers.end());
+        frame_request->at(i).hwlReq.pipeline_id = pipeline_id;
+        frame_request->at(i).hwlReq.settings = HalCameraMetadata::Clone(requests[i].settings.get());
+        frame_request->at(i).hwlReq.output_buffers.reserve(requests[i].output_buffers.size());
+        frame_request->at(i).hwlReq.output_buffers.assign(requests[i].output_buffers.begin(), requests[i].output_buffers.end());
 
-        pipeline_request->at(i).input_buffers.reserve(requests[i].input_buffers.size());
-        pipeline_request->at(i).input_buffers.assign(requests[i].input_buffers.begin(), requests[i].input_buffers.end());
-        pipeline_request->at(i).input_buffer_metadata.reserve(requests[i].input_buffer_metadata.size());
+        frame_request->at(i).hwlReq.input_buffers.reserve(requests[i].input_buffers.size());
+        frame_request->at(i).hwlReq.input_buffers.assign(requests[i].input_buffers.begin(), requests[i].input_buffers.end());
+        frame_request->at(i).hwlReq.input_buffer_metadata.reserve(requests[i].input_buffer_metadata.size());
+
+        // Record fence fd
+        uint32_t outBufNum = requests[i].output_buffers.size();
+        frame_request->at(i).outBufferFences.resize(outBufNum);
+        for (int j = 0; j < outBufNum; j++) {
+            FenceFdInfo fenceInfo = {-1};
+            fenceInfo.acquire_fence_fd = importFence(requests[i].output_buffers[j].acquire_fence);
+            ALOGV("%s, acquire_fence_fd %d", __func__, fenceInfo.acquire_fence_fd);
+            frame_request->at(i).outBufferFences[j] = fenceInfo;
+        }
 
         // process capture intent
         uint8_t captureIntent = -1;
@@ -1126,13 +1189,13 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
                                             pipeline_info->streams->at(configIdx).height,
                                             fps);
         if (ret) {
-            delete(pipeline_request);
+            delete(frame_request);
             ALOGE("%s: pVideoStream->ConfigAndStart failed, ret %d", __func__, ret);
             return ret;
         }
     }
 
-    map_frame_request[frame_number] = pipeline_request;
+    map_frame_request[frame_number] = frame_request;
     mCondition.signal();
 
     return OK;
@@ -1145,7 +1208,7 @@ int CameraDeviceSessionHwlImpl::CleanRequestsLocked()
 
     for (auto it = map_frame_request.begin(); it != map_frame_request.end(); it++) {
         uint32_t frame = it->first;
-        std::vector<HwlPipelineRequest> *request = it->second;
+        std::vector<FrameRequest> *request = it->second;
         if(request == NULL) {
             ALOGW("%s: frame %d request is null", __func__, frame);
             continue;
@@ -1155,7 +1218,7 @@ int CameraDeviceSessionHwlImpl::CleanRequestsLocked()
         ALOGV("%s, map_frame_request, frame %d, reqNum %d", __func__, frame, reqNum);
 
         for (uint32_t i = 0; i < reqNum; i++) {
-            HwlPipelineRequest *hwReq = &(request->at(i));
+            HwlPipelineRequest *hwReq = &(request->at(i).hwlReq);
             uint32_t pipeline_id = hwReq->pipeline_id;
             PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
 
