@@ -54,26 +54,15 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
 
 ISPWrapper::~ISPWrapper()
 {
-    if(m_fd > 0)
-        close(m_fd);
 }
 
-int ISPWrapper::init(char *devPath)
+int ISPWrapper::init(int fd)
 {
-    if(devPath == NULL)
-        return BAD_VALUE;
+    m_fd = fd;
 
     // already inited
     if(m_ctrl_id > 0)
         return 0;
-
-    int fd = open(devPath, O_RDWR);
-    if (fd < 0) {
-        ALOGE("%s: open %s failed", __func__, devPath);
-        return BAD_VALUE;
-    }
-
-    m_fd = fd;
 
     // get viv ctrl id by it's name "viv_ext_ctrl"
     struct v4l2_queryctrl queryctrl;
@@ -318,12 +307,12 @@ failed:
 
 #define EXP_TIME_DFT	 0.006535 // unit: seconds
 
-int ISPWrapper::processExposureGain(int32_t comp)
+int ISPWrapper::processExposureGain(int32_t comp, bool force)
 {
     int ret;
     Json::Value jRequest, jResponse;
 
-    if(m_exposure_comp == comp)
+    if((m_exposure_comp == comp) && (force == false))
         return 0;
 
     if(comp > m_SensorData->mAeCompMax) comp = m_SensorData->mAeCompMax;
@@ -344,8 +333,8 @@ int ISPWrapper::processExposureGain(int32_t comp)
     jRequest[EC_GAIN_PARAMS] = gain;
     jRequest[EC_TIME_PARAMS] = m_exposure_time;
 
-    ALOGI("%s: change comp from %d to %d, set exposure gain to %f, exposure time to %f",
-        __func__, m_exposure_comp, comp,  gain, m_exposure_time);
+    ALOGI("%s: change comp from %d to %d, set exposure gain to %f, exposure time to %f, force %d",
+        __func__, m_exposure_comp, comp,  gain, m_exposure_time, force);
 
     ret = viv_private_ioctl(IF_EC_S_CFG, jRequest, jResponse);
     if(ret) {
@@ -420,7 +409,6 @@ int ISPWrapper::processDewarp(bool bEnable)
         m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
     }
 
-#include <hal_types.h>
     return 0;
 }
 

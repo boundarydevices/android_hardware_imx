@@ -1067,8 +1067,6 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
         uint32_t format = HAL_PIXEL_FORMAT_YCbCr_422_I;
         if(pipeline_info->hal_streams->at(configIdx).override_format == HAL_PIXEL_FORMAT_RAW16) {
             format = HAL_PIXEL_FORMAT_RAW16;
-            // Before capture raw data, need first disable DWE.
-            pVideoStream->ISPProcess(NULL, format);
         }
 
         // v4l2 hard code to use yuv422i. If in future other foramts are used, need refine code, maybe configed in json

@@ -85,15 +85,15 @@ class ISPWrapper
 public:
     ISPWrapper(CameraSensorMetadata *pSensorData);
     ~ISPWrapper();
-    int init(char *devPath);
+    int init(int fd);
     int process(HalCameraMetadata *pMeta, uint32_t format);
     int processAWB(uint8_t mode, bool force = false);
     int processAeMode(uint8_t mode, bool force = false);
+    int processExposureGain(int32_t comp, bool force = false);
 
 private:
     int setFeature(const char *value);
     int viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Json::Value& jsonResponse);
-    int processExposureGain(int32_t comp);
 
     int processDewarp(bool bEnable);
     int processHFlip(bool bEnable);

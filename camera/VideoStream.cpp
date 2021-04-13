@@ -27,6 +27,7 @@
 #include "CameraUtils.h"
 #include "CameraDeviceSessionHWLImpl.h"
 #include "VideoStream.h"
+#include "ISPCameraDeviceHWLImpl.h"
 
 namespace android {
 
@@ -148,6 +149,13 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         }
     }
 
+    if (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
+        ((ISPCameraMMAPStream *)this)->getIspWrapper()->init(mDev);
+
+        // Before capture raw data, need first disable DWE.
+        if (format == HAL_PIXEL_FORMAT_RAW16)
+            ISPProcess(NULL, format);
+    }
 
     ret = onDeviceConfigureLocked(format, width, height, fps);
     if(ret) {

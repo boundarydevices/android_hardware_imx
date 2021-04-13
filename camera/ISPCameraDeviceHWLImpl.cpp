@@ -197,8 +197,14 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
     // When restart stream (shift between picture and record mode, or shift between APK), need recover to awb,
     // or the image will blurry if previous mode is mwb.
     // awb/aec need to be set after stream on.
-    m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO, true);
-    m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
+    if (mFormat != HAL_PIXEL_FORMAT_RAW16) {
+        m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO, true);
+        m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
+    } else {
+        // For raw data capture, no concept of aec and auto/manual wb.
+        // Need manually set exposure gain.
+        m_IspWrapper->processExposureGain(0, true);
+    }
 
     return ret;
 }
@@ -209,7 +215,6 @@ int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath, CameraSensorMetada
     int ret = 0;
 
     m_IspWrapper = std::make_unique<ISPWrapper>(pSensorData);
-    ret = m_IspWrapper->init(pDevPath);
 
     return ret;
 }
