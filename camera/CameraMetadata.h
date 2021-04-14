@@ -50,13 +50,7 @@ public:
 
     status_t getRequestSettings(RequestTemplate type,
                                        std::unique_ptr<HalCameraMetadata>* default_settings);
-    status_t setTemplate();
-
-    //private:
-    status_t createSettingTemplate(std::unique_ptr<HalCameraMetadata>& base,
-                                          RequestTemplate type);
-    //private:
-    // std::unique_ptr<HalCameraMetadata> hal_meta[(uint32_t)RequestTemplate::kManual + 1];
+    status_t setTemplate(CameraDeviceHwlImpl *pDev);
 
     int32_t getGpsCoordinates( double *pCoords, int count);
     int32_t getGpsTimeStamp(int64_t &timeStamp);
@@ -67,6 +61,12 @@ public:
     int32_t getJpegThumbQuality(int32_t &thumb);
     int32_t getJpegThumbSize(int &width, int &height);
     int32_t getMaxJpegSize(int &size);
+
+private:
+    status_t createSettingTemplate(std::unique_ptr<HalCameraMetadata>& base,
+                                          RequestTemplate type, CameraDeviceHwlImpl *pDev);
+
+    status_t MergeAndSetMeta(uint32_t tag, int32_t* array_keys_basic, int basic_size, int* array_keys_isp, int isp_size);
 
 private:
     std::unique_ptr<HalCameraMetadata> m_static_meta;

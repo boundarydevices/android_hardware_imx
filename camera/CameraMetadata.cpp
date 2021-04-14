@@ -280,6 +280,14 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                          correction_active_array_size,
                          ARRAY_SIZE(correction_active_array_size));
 
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES
+        uint8_t availableHotPixelMapModes[] = {ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE_OFF};
+        m_static_meta->Set(ANDROID_STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES, availableHotPixelMapModes, ARRAY_SIZE(availableHotPixelMapModes));
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE
+        int32_t post_raw_sensitivity_boot_range[] = {100, 100};
+        m_static_meta->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE, post_raw_sensitivity_boot_range, ARRAY_SIZE(post_raw_sensitivity_boot_range));
+
     } else {
         uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE};
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
@@ -446,7 +454,14 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
 #endif
 
     int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE};
-    m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, availableResultKeys, ARRAY_SIZE(availableResultKeys));
+    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL) {
+        m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, availableResultKeys, ARRAY_SIZE(availableResultKeys));
+    } else {
+        int32_t availableResultISPKeys[] = {ANDROID_SENSOR_NOISE_PROFILE, ANDROID_SENSOR_GREEN_SPLIT, ANDROID_SENSOR_NEUTRAL_COLOR_POINT};
+        MergeAndSetMeta(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
+                        availableResultKeys, sizeof(availableResultKeys),
+                        availableResultISPKeys, sizeof(availableResultISPKeys));
+    }
 
     static const uint8_t availableVstabModes[] = {ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF};
     m_static_meta->Set(ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES, availableVstabModes, ARRAY_SIZE(availableVstabModes));
@@ -535,9 +550,32 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         ANDROID_STATISTICS_INFO_MAX_FACE_COUNT,
         ANDROID_SYNC_MAX_LATENCY
     };
-    m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+
+    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL) {
+        m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
                      characteristics_keys_basic,
                      ARRAY_SIZE(characteristics_keys_basic));
+    }
+    else {
+        int32_t characteristics_keys_isp[] = {
+            ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST,
+            ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE,
+            ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT,
+            ANDROID_SENSOR_BLACK_LEVEL_PATTERN,
+            ANDROID_SENSOR_INFO_WHITE_LEVEL,
+            ANDROID_SENSOR_REFERENCE_ILLUMINANT1,
+            ANDROID_SENSOR_COLOR_TRANSFORM1,
+            ANDROID_SENSOR_FORWARD_MATRIX1,
+            ANDROID_SENSOR_CALIBRATION_TRANSFORM1,
+            ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
+            ANDROID_STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES,
+            ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE
+        };
+
+        MergeAndSetMeta(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+            characteristics_keys_basic, sizeof(characteristics_keys_basic),
+            characteristics_keys_isp, sizeof(characteristics_keys_isp));
+    }
 
     /* face detect mode */
     uint8_t availableFaceDetectModes[] = {ANDROID_STATISTICS_FACE_DETECT_MODE_OFF};
@@ -598,13 +636,45 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                                        ANDROID_CONTROL_EFFECT_MODE,
                                        ANDROID_FLASH_STATE,
                                        ANDROID_CONTROL_AE_AVAILABLE_MODES };
-    m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, availableRequestKeys, ARRAY_SIZE(availableRequestKeys));
+
+    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL)
+        m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, availableRequestKeys, ARRAY_SIZE(availableRequestKeys));
+    else {
+        int32_t availableRequestISPKeys[] = { ANDROID_HOT_PIXEL_MODE, ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE };
+
+        MergeAndSetMeta(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
+                      availableRequestKeys, sizeof(availableRequestKeys),
+                      availableRequestISPKeys, sizeof(availableRequestISPKeys));
+    }
+
+    return OK;
+}
+
+status_t CameraMetadata::MergeAndSetMeta(uint32_t tag, int32_t* array_keys_basic, int basic_size, int* array_keys_isp, int isp_size)
+{
+    int total_size = basic_size + isp_size;
+
+    if((array_keys_basic == NULL) || (array_keys_isp == NULL) || (basic_size == 0) || (isp_size == 0))
+        return BAD_VALUE;
+
+    int32_t *pIspTotalKeys = (int32_t *)malloc(total_size);
+    if(pIspTotalKeys == NULL) {
+        ALOGE("%s, malloc %d bytes for pIspTotalKeys failed", __func__, total_size);
+        return BAD_VALUE;
+    }
+
+    memcpy(pIspTotalKeys, array_keys_basic, basic_size);
+    memcpy((uint8_t *)pIspTotalKeys + basic_size, array_keys_isp, isp_size);
+
+    m_static_meta->Set(tag, pIspTotalKeys, total_size/sizeof(int32_t));
+
+    free(pIspTotalKeys);
 
     return OK;
 }
 
 status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata>& base,
-                                               RequestTemplate type)
+                                               RequestTemplate type, CameraDeviceHwlImpl *pDev)
 {
     /** android.request */
     static const uint8_t metadataMode = ANDROID_REQUEST_METADATA_MODE_NONE;
@@ -707,6 +777,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
             edgeMode = ANDROID_EDGE_MODE_FAST;
             break;
     }
+
     base->Set(ANDROID_HOT_PIXEL_MODE, &hotPixelMode, 1);
     base->Set(ANDROID_DEMOSAIC_MODE, &demosaicMode, 1);
     base->Set(ANDROID_NOISE_REDUCTION_MODE, &noiseMode, 1);
@@ -884,10 +955,20 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
         {1, 1}, {0, 1}, {0, 1}, {0, 1}, {1, 1}, {0, 1}, {0, 1}, {0, 1}, {1, 1}};
     base->Set(ANDROID_COLOR_CORRECTION_TRANSFORM, colorTransform, ARRAY_SIZE(colorTransform));
 
+    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME)) {
+        uint8_t hot_pixel_map_mode = ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE_OFF;
+        base->Set(ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE, &hot_pixel_map_mode, 1);
+
+        // In CameraDeviceTest.java, request the value is 100.
+        // private static final int DEFAULT_POST_RAW_SENSITIVITY_BOOST = 100;
+        int32_t sensitivity_boost = 100;
+        base->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST, &sensitivity_boost, 1);
+    }
+
     return OK;
 }
 
-status_t CameraMetadata::setTemplate()
+status_t CameraMetadata::setTemplate(CameraDeviceHwlImpl *pDev)
 {
     //status_t res;
 
@@ -895,7 +976,7 @@ status_t CameraMetadata::setTemplate()
          i <= (uint32_t)RequestTemplate::kManual;
          i++) {
         m_template_meta[i] = HalCameraMetadata::Create(1, 10);
-        createSettingTemplate(m_template_meta[i], RequestTemplate(i));
+        createSettingTemplate(m_template_meta[i], RequestTemplate(i), pDev);
     }
 
     return OK;

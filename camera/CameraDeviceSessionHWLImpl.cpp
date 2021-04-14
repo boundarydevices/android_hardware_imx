@@ -704,7 +704,6 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
     m3aState.awbState = ANDROID_CONTROL_AWB_STATE_CONVERGED;
     resultMeta->Set(ANDROID_CONTROL_AWB_STATE, &m3aState.awbState, 1);
 
-
     if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
         int64_t exposure_time = EXP_TIME_DFT_NS;
         resultMeta->Set(ANDROID_SENSOR_EXPOSURE_TIME, &exposure_time, 1);
@@ -716,7 +715,7 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
 
         // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureRequest#CONTROL_POST_RAW_SENSITIVITY_BOOST
         // Ref value from GCH EmulatedCamera
-        int32_t sensitivity_boost = 1000;
+        int32_t sensitivity_boost = 100;
         resultMeta->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST, &sensitivity_boost, 1);
 
         // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#SENSOR_NEUTRAL_COLOR_POINT
@@ -725,6 +724,18 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
         resultMeta->Set(ANDROID_SENSOR_NEUTRAL_COLOR_POINT,
                         android_sensor_neutral_color_point,
                         ARRAY_SIZE(android_sensor_neutral_color_point));
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#SENSOR_NOISE_PROFILE
+        // No such parameter for basler camera, ref emulated camera.
+        double noise_gain = 4.0;
+        double read_noise = 9.951316;
+        double noise_profile[] = {noise_gain, read_noise, noise_gain, read_noise, noise_gain, read_noise, noise_gain, read_noise};
+        resultMeta->Set(ANDROID_SENSOR_NOISE_PROFILE, noise_profile, ARRAY_SIZE(noise_profile));
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#SENSOR_GREEN_SPLIT
+        // No such parameter for basler camera, ref emulated camera.
+        float green_split = 1.0;
+        resultMeta->Set(ANDROID_SENSOR_GREEN_SPLIT, &green_split, 1);
     }
 
     return OK;

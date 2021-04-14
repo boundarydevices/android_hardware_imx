@@ -102,7 +102,7 @@ status_t CameraDeviceHwlImpl::Initialize()
 
     m_meta = new CameraMetadata();
     m_meta->createMetadata(this);
-    m_meta->setTemplate();
+    m_meta->setTemplate(this);
 
     return OK;
 }
