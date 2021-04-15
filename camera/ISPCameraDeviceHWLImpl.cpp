@@ -111,10 +111,16 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     }
 
     for(int i = 0; i < ispResNum; i++) {
-        mPictureResolutions[pictureCnt++] = ispRes[i*2];
-        mPictureResolutions[pictureCnt++] = ispRes[i*2 + 1];
-        mPreviewResolutions[previewCnt++] = ispRes[i*2];
-        mPreviewResolutions[previewCnt++] = ispRes[i*2 + 1];
+        int w = ispRes[i*2];
+        int h = ispRes[i*2 + 1];
+
+        if ((w != 176) || (h != 144)) {
+            mPictureResolutions[pictureCnt++] = w;
+            mPictureResolutions[pictureCnt++] = h;
+        }
+
+        mPreviewResolutions[previewCnt++] = w;
+        mPreviewResolutions[previewCnt++] = h;
     }
 
     mPreviewResolutionCount = previewCnt;
