@@ -75,6 +75,9 @@ typedef struct DWEPara {
     double mat[17];
 } DWEPara;
 
+#define EXP_TIME_DFT    0.006535 // unit: seconds
+#define EXP_TIME_DFT_NS  6535000 // ns
+
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;

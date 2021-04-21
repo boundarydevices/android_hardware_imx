@@ -31,6 +31,8 @@
 #include "JpegBuilder.h"
 #include "CameraMetadata.h"
 #include "ExifUtils.h"
+#include "CameraConfigurationParser.h"
+#include "ISPWrapper.h"
 
 extern "C" {
     #include "jpeglib.h"
@@ -261,8 +263,18 @@ status_t JpegBuilder::encodeImage(JpegParams *mainJpeg, JpegParams *thumbNail,
     utils->Initialize();
 
     utils->SetFromMetadata(meta, mainJpeg->out_width, mainJpeg->out_height);
-    utils->SetMake(EXIF_MODEL);
-    utils->SetModel(EXIF_MAKENOTE);
+
+    char value[PROPERTY_VALUE_MAX];
+    property_get("ro.product.manufacturer", value, "");
+    utils->SetMake(value);
+
+    property_get("ro.product.model", value, "");
+    utils->SetModel(value);
+
+    utils->SetExposureTime(EXP_TIME_DFT);
+
+    // When flash is not available, the last 2 parameters are not cared
+    utils->SetFlash(ANDROID_FLASH_INFO_AVAILABLE_FALSE, ANDROID_FLASH_STATE_UNAVAILABLE, ANDROID_CONTROL_AE_MODE_ON);
 
     size_t thumbCodeSize = 0;
     if (thumbNail) {

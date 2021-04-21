@@ -664,7 +664,6 @@ err_out:
     return ret;
 }
 
-#define EXP_TIME_DFT_NS  6535000 // ns
 status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraMetadata> &resultMeta, uint64_t timestamp)
 {
     status_t ret;
@@ -736,6 +735,40 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
         // No such parameter for basler camera, ref emulated camera.
         float green_split = 1.0;
         resultMeta->Set(ANDROID_SENSOR_GREEN_SPLIT, &green_split, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#SENSOR_ROLLING_SHUTTER_SKEW
+        // Ref emulated camera, use min frame duration, 1/30 s.
+        static const int64_t rolling_shutter_skew = 33333333; // ns
+        resultMeta->Set(ANDROID_SENSOR_ROLLING_SHUTTER_SKEW, &rolling_shutter_skew, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#STATISTICS_SCENE_FLICKER
+        uint8_t scene_flicker = ANDROID_STATISTICS_SCENE_FLICKER_NONE;
+        resultMeta->Set(ANDROID_STATISTICS_SCENE_FLICKER, &scene_flicker, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureRequest#STATISTICS_LENS_SHADING_MAP_MODE
+        uint8_t lens_shading_map_mode = ANDROID_STATISTICS_LENS_SHADING_MAP_MODE_OFF;
+        resultMeta->Set(ANDROID_STATISTICS_LENS_SHADING_MAP_MODE, &lens_shading_map_mode, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#LENS_STATE
+        uint8_t lens_state = ANDROID_LENS_STATE_STATIONARY;
+        resultMeta->Set(ANDROID_LENS_STATE, &lens_state, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#BLACK_LEVEL_LOCK
+        uint8_t black_level_lock = ANDROID_BLACK_LEVEL_LOCK_ON;
+        resultMeta->Set(ANDROID_BLACK_LEVEL_LOCK, &black_level_lock, 1);
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#LENS_FOCUS_RANGE
+        float focus_range[] = {0.f, 0.f};
+        resultMeta->Set(ANDROID_LENS_FOCUS_RANGE, focus_range, ARRAY_SIZE(focus_range));
+
+        ret = resultMeta->Get(ANDROID_CONTROL_AE_LOCK, &entry);
+        if (ret == OK) {
+            uint8_t lock = entry.data.u8[0];
+            if (lock == ANDROID_CONTROL_AE_LOCK_ON) {
+                uint8_t status = ANDROID_CONTROL_AE_STATE_LOCKED;
+                resultMeta->Set(ANDROID_CONTROL_AE_STATE, &status, 1);
+            }
+        }
     }
 
     return OK;
@@ -1031,10 +1064,9 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
 
     for (int i = 0; i < size; i++) {
         uint32_t pipeline_id = requests[i].pipeline_id;
-        ALOGV("%s, frame_number, request %d, pipeline_id %d, outbuffer num %d",
+        ALOGV("%s, frame_number %d, pipeline_id %d, outbuffer num %d",
               __func__,
               frame_number,
-              i,
               (int)pipeline_id,
               (int)requests[i].output_buffers.size());
 

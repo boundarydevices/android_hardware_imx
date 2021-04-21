@@ -305,7 +305,6 @@ failed:
 #define AE_ENABLE_PARAMS    "enable"
 #define IF_AE_S_EN          "ae.s.en"
 
-#define EXP_TIME_DFT	 0.006535 // unit: seconds
 
 int ISPWrapper::processExposureGain(int32_t comp, bool force)
 {

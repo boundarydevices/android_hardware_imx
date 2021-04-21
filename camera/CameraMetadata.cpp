@@ -224,10 +224,20 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      ARRAY_SIZE(availableSceneModes));
 
     if(strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME)) {
+        uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_FULL;
+        m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
+                     &supportedHwLvl,
+                     1);
+
         uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_RAW};
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
                      available_capabilities,
                      ARRAY_SIZE(available_capabilities));
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraMetadata#SYNC_MAX_LATENCY_PER_FRAME_CONTROL
+        // "full" level device must support ANDROID_SYNC_MAX_LATENCY_PER_FRAME_CONTROL.
+        static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_PER_FRAME_CONTROL;
+        m_static_meta->Set(ANDROID_SYNC_MAX_LATENCY, &maxLatency, 1);
 
         uint8_t color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GRBG;
         m_static_meta->Set(ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT, &color_arrange, 1);
@@ -289,10 +299,18 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         m_static_meta->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE, post_raw_sensitivity_boot_range, ARRAY_SIZE(post_raw_sensitivity_boot_range));
 
     } else {
+        uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
+        m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
+                     &supportedHwLvl,
+                     1);
+
         uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE};
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
                      available_capabilities,
                      ARRAY_SIZE(available_capabilities));
+
+        static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_UNKNOWN;
+        m_static_meta->Set(ANDROID_SYNC_MAX_LATENCY, &maxLatency, 1);
     }
 
 
@@ -402,14 +420,6 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
     m_static_meta->Set(ANDROID_SCALER_AVAILABLE_STALL_DURATIONS,
                      stallDuration,
                      streamConfigIdx + 4);
-
-    uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
-    m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
-                     &supportedHwLvl,
-                     1);
-
-    static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_UNKNOWN;
-    m_static_meta->Set(ANDROID_SYNC_MAX_LATENCY, &maxLatency, 1);
 
     static const uint8_t croppingType = ANDROID_SCALER_CROPPING_TYPE_FREEFORM;
     m_static_meta->Set(ANDROID_SCALER_CROPPING_TYPE, &croppingType, 1);
@@ -569,7 +579,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
             ANDROID_SENSOR_CALIBRATION_TRANSFORM1,
             ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
             ANDROID_STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES,
-            ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE
+            ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE,
         };
 
         MergeAndSetMeta(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
