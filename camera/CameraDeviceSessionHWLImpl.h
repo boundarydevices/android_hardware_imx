@@ -29,6 +29,7 @@
 #include "CameraMetadata.h"
 #include "JpegBuilder.h"
 #include "MemoryManager.h"
+#include "CameraConfigurationParser.h"
 
 #include <hardware/gralloc1.h>
 
@@ -84,6 +85,7 @@ typedef struct tag_fence_fd_info {
 typedef struct tag_request {
     HwlPipelineRequest hwlReq;
     std::vector<FenceFdInfo> outBufferFences;
+    std::vector<uint32_t> camera_ids;
 } FrameRequest;
 
 // Implementation of CameraDeviceSessionHwl interface
@@ -91,7 +93,7 @@ class CameraDeviceSessionHwlImpl : public CameraDeviceSessionHwl
 {
 public:
     static std::unique_ptr<CameraDeviceSessionHwlImpl> Create(
-        uint32_t camera_id, CameraMetadata *pMeta, CameraDeviceHwlImpl *pDev);
+        uint32_t camera_id, std::unique_ptr<HalCameraMetadata> static_meta, CameraDeviceHwlImpl *pDev, PhysicalMetaMapPtr physical_devices);
     virtual ~CameraDeviceSessionHwlImpl();
 
     // Override functions in CameraDeviceSessionHwl
@@ -106,24 +108,23 @@ public:
     }  // Noop for now
 
     status_t ConfigurePipeline(uint32_t physical_camera_id,
-                               HwlPipelineCallback hwl_pipeline_callback,
-                               const StreamConfiguration& request_config,
-                               const StreamConfiguration& overall_config,
-                               uint32_t* pipeline_id) override;
+                                HwlPipelineCallback hwl_pipeline_callback,
+                                const StreamConfiguration& request_config,
+                                const StreamConfiguration& overall_config,
+                                uint32_t* pipeline_id) override;
 
     status_t BuildPipelines() override;
 
     status_t PreparePipeline(uint32_t /*pipeline_id*/,
-                             uint32_t /*frame_number*/) override
+                                uint32_t /*frame_number*/) override
     {
         return OK;
     }  // Noop for now
 
     status_t GetRequiredIntputStreams(const StreamConfiguration& /*overall_config*/,
-                                      HwlOfflinePipelineRole /*pipeline_role*/,
-                                      std::vector<Stream>* /*streams*/) override
+                                        HwlOfflinePipelineRole /*pipeline_role*/,
+                                        std::vector<Stream>* /*streams*/) override
     {
-        // N/A
         return INVALID_OPERATION;
     }
 
@@ -140,13 +141,13 @@ public:
 
     uint32_t GetCameraId() const override;
 
-    std::vector<uint32_t> GetPhysicalCameraIds() const override
-    {
-        std::vector<uint32_t> ret;
-        return ret;
-    }
+    std::vector<uint32_t> GetPhysicalCameraIds() const override;
 
     status_t GetCameraCharacteristics(
+        std::unique_ptr<HalCameraMetadata>* characteristics) const override;
+
+    status_t GetPhysicalCameraCharacteristics(
+        uint32_t physical_camera_id,
         std::unique_ptr<HalCameraMetadata>* characteristics) const override;
 
     status_t SetSessionData(SessionDataKey /*key*/
@@ -183,7 +184,6 @@ public:
         const HalCameraMetadata* /*old_session*/,
         const HalCameraMetadata* /*new_session*/,
         bool* reconfiguration_required) const override
-
     {
         if (reconfiguration_required == nullptr) {
             return BAD_VALUE;
@@ -198,25 +198,21 @@ public:
         return nullptr;
     }
 
-    status_t GetPhysicalCameraCharacteristics(
-        uint32_t physical_camera_id __unused,
-        std::unique_ptr<HalCameraMetadata>* characteristics __unused) const
-    {
-        return INVALID_OPERATION;
-    }
     // End override functions in CameraDeviceSessionHwl
 
 private:
-    status_t Initialize(uint32_t camera_id,
-                        CameraMetadata *pMeta, CameraDeviceHwlImpl *pDev);
+    status_t Initialize(uint32_t camera_id, std::unique_ptr<HalCameraMetadata> static_meta, CameraDeviceHwlImpl *pDev);
 
-    CameraDeviceSessionHwlImpl();
+    CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physical_devices);
 
     int HandleRequest();
+
     status_t HandleFrameLocked(std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata& requestMeta);
     status_t HandleMetaLocked(std::unique_ptr<HalCameraMetadata>& resultMeta, uint64_t timestamp);
 
     status_t ProcessCapturedBuffer(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata& requestMeta);
+    status_t ProcessCapturedBuffer2(ImxStreamBuffer *srcBuf, StreamBuffer &output_buffers, FenceFdInfo &outFences, CameraMetadata &requestMeta);
+
     int32_t processJpegBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf, CameraMetadata *meta);
     int32_t processFrameBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf, CameraMetadata *meta);
 
@@ -259,22 +255,39 @@ private:
 
 public:
     CameraSensorMetadata* getSensorData() { return &mSensorData; }
-    char* getDevPath() { return mDevPath; }
+    char* getDevPath(int i) { return (*mDevPath[i]); }
 
 private:
     // Protects the API entry points
     uint32_t camera_id_ = 0;
     uint32_t pipeline_id_ = 0;
+
     bool pipelines_built_ = false;
     CameraMetadata *m_meta;
     std::map<uint32_t, PipelineInfo*> map_pipeline_info;
     std::map<uint32_t, std::vector<FrameRequest>*> map_frame_request;
 
+    std::vector<uint32_t> camera_ids;
+
     autoState m3aState;
     fsl::MemoryManager* pMemManager;
-    VideoStream* pVideoStream;
+    std::vector<VideoStream*> pVideoStreams;
+
     sp<WorkThread> mWorkThread;
     sp<JpegBuilder> mJpegBuilder;
+
+    PhysicalMetaMapPtr physical_device_map_;
+
+    std::unique_ptr<HalCameraMetadata> static_metadata_;
+
+    std::vector<std::shared_ptr<char*>> mDevPath;
+
+    bool is_logical_device_ = false;
+    bool is_logical_request_ = false;
+
+    // Maps particular focal length to physical device id
+    std::unordered_map<float, uint32_t> physical_focal_length_map_;
+    float current_focal_length_ = 0.f;
 
     Mutex mLock;
     Condition mCondition;
@@ -295,8 +308,6 @@ private:
     int mPreviewResolutionCount;
     int mPictureResolutions[MAX_RESOLUTION_SIZE];
     int mPictureResolutionCount;
-
-    char mDevPath[CAMAERA_FILENAME_LENGTH];
 };
 
 }  // namespace android

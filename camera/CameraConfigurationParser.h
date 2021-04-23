@@ -18,8 +18,10 @@
 
 #include <vector>
 #include <string>
-
+#include "hal_types.h"
 namespace cameraconfigparser {
+using android::google_camera_hal::CameraDeviceStatus;
+using android::google_camera_hal::HalCameraMetadata;
 
 enum CameraId {
   BACK_CAM_ID = 0,
@@ -46,6 +48,7 @@ enum HalVersion { kHalV1, kHalV2, kHalV3 };
 
 #define OMIT_RESOLUTION_NUM 8
 #define META_STRING_SIZE 32
+#define MAX_BASIC_CAMERA_NUM 24
 
 // Camera properties and features.
 struct CameraSensorMetadata {
@@ -108,27 +111,35 @@ struct CameraSensorMetadata {
   int mAeCompStepDenominator;
   int64_t mExposureNsMin;
   int64_t mExposureNsMax;
+  int mAvailableCapabilities;
 };
+
+typedef std::unordered_map<uint32_t, std::pair<CameraDeviceStatus, std::unique_ptr<CameraSensorMetadata>>> PhysicalDeviceMap;
+typedef std::unique_ptr<PhysicalDeviceMap> PhysicalDeviceMapPtr;
+
+typedef std::unordered_map<uint32_t, std::unique_ptr<HalCameraMetadata>> PhysicalMetaMap;
+typedef std::unique_ptr<PhysicalMetaMap> PhysicalMetaMapPtr;
 
 struct CameraDefinition {
   HalVersion hal_version;
   CscHw cam_blit_copy_hw;
   CscHw cam_blit_csc_hw;
   std::string jpeg_hw;
-  struct CameraSensorMetadata camera_metadata[2];
+  std::vector<CameraSensorMetadata> camera_metadata_vec;
+  std::unordered_map<uint32_t, std::vector<std::pair<CameraDeviceStatus, uint32_t>>> camera_id_map_;
 };
 
 class CameraConfigurationParser {
- public:
-  CameraConfigurationParser() {}
-  ~CameraConfigurationParser() {}
+  public:
+    CameraConfigurationParser() {}
+    ~CameraConfigurationParser() {}
 
-  CameraDefinition& mcamera()  { return mcamera_; }
+    CameraDefinition& mcamera()  { return mcamera_; }
 
-  bool Init();
+    bool Init();
 
- private:
-  CameraDefinition mcamera_;
+  private:
+    CameraDefinition mcamera_;
 };
 
 }  // namespace cameraconfigparser

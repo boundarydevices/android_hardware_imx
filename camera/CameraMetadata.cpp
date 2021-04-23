@@ -44,7 +44,7 @@ CameraMetadata* CameraMetadata::Clone()
     return pMeta;
 }
 
-status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
+status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorMetadata mSensorData)
 {
     /*
      * Setup static camera info.  This will have to customized per camera
@@ -53,8 +53,6 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
 
     if(pDev == NULL)
         return BAD_VALUE;
-
-    mDev = pDev;
 
     m_static_meta = HalCameraMetadata::Create(1, 10);
 
@@ -67,12 +65,12 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
     m_static_meta->Set(ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES, &aeAntibandingMode, 1);
 
-    int32_t android_control_ae_compensation_range[] = {mDev->mSensorData.mAeCompMin, mDev->mSensorData.mAeCompMax};
+    int32_t android_control_ae_compensation_range[] = {mSensorData.mAeCompMin, mSensorData.mAeCompMax};
     m_static_meta->Set(ANDROID_CONTROL_AE_COMPENSATION_RANGE,
                      android_control_ae_compensation_range,
                      ARRAY_SIZE(android_control_ae_compensation_range));
 
-    camera_metadata_rational_t android_control_ae_compensation_step[] = {{mDev->mSensorData.mAeCompStepNumerator, mDev->mSensorData.mAeCompStepDenominator}};
+    camera_metadata_rational_t android_control_ae_compensation_step[] = {{mSensorData.mAeCompStepNumerator, mSensorData.mAeCompStepDenominator}};
     m_static_meta->Set(ANDROID_CONTROL_AE_COMPENSATION_STEP,
                      android_control_ae_compensation_step,
                      ARRAY_SIZE(android_control_ae_compensation_step));
@@ -88,13 +86,13 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      android_jpeg_available_thumbnail_sizes,
                      ARRAY_SIZE(android_jpeg_available_thumbnail_sizes));
 
-    int32_t android_jpeg_max_size[] = {pDev->mSensorData.maxjpegsize};
+    int32_t android_jpeg_max_size[] = {mSensorData.maxjpegsize};
     m_static_meta->Set(ANDROID_JPEG_MAX_SIZE,
                      android_jpeg_max_size,
                      ARRAY_SIZE(android_jpeg_max_size));
 
     /* android.lens */
-    float android_lens_info_available_focal_lengths[] = {pDev->mSensorData.focallength};
+    float android_lens_info_available_focal_lengths[] = {mSensorData.focallength};
     m_static_meta->Set(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
                      android_lens_info_available_focal_lengths,
                      ARRAY_SIZE(android_lens_info_available_focal_lengths));
@@ -146,7 +144,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      pDev->mAvailableFormats,
                      pDev->mAvailableFormatCount);
 
-    int64_t android_scaler_available_jpeg_min_durations[] = {pDev->mSensorData.minframeduration};
+    int64_t android_scaler_available_jpeg_min_durations[] = {mSensorData.minframeduration};
     m_static_meta->Set(ANDROID_SCALER_AVAILABLE_JPEG_MIN_DURATIONS,
                      android_scaler_available_jpeg_min_durations,
                      ARRAY_SIZE(android_scaler_available_jpeg_min_durations));
@@ -160,7 +158,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      android_scaler_available_max_digital_zoom,
                      ARRAY_SIZE(android_scaler_available_max_digital_zoom));
 
-    int64_t android_scaler_available_processed_min_durations[] = {pDev->mSensorData.minframeduration};
+    int64_t android_scaler_available_processed_min_durations[] = {mSensorData.minframeduration};
     m_static_meta->Set(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS,
                      android_scaler_available_processed_min_durations,
                      ARRAY_SIZE(android_scaler_available_processed_min_durations));
@@ -169,7 +167,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      pDev->mPreviewResolutions,
                      pDev->mPreviewResolutionCount);
 
-    int64_t android_scaler_available_raw_min_durations[] = {pDev->mSensorData.minframeduration};
+    int64_t android_scaler_available_raw_min_durations[] = {mSensorData.minframeduration};
     m_static_meta->Set(ANDROID_SCALER_AVAILABLE_RAW_MIN_DURATIONS,
                      android_scaler_available_raw_min_durations,
                      ARRAY_SIZE(android_scaler_available_raw_min_durations));
@@ -182,10 +180,16 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
     /* android.sensor*/
 
     /* left, top, right, bottom */
-    int32_t android_sensor_info_active_array_size[] = {0, 0, pDev->mSensorData.activearraywidth,  pDev->mSensorData.activearrayheight};
+    int32_t android_sensor_info_active_array_size[] = {0, 0, mSensorData.activearraywidth,  mSensorData.activearrayheight};
     m_static_meta->Set(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
                      android_sensor_info_active_array_size,
                      ARRAY_SIZE(android_sensor_info_active_array_size));
+
+    /* left, top, right, bottom */
+    int32_t android_sensor_info_precorrection_active_array_size[] = {0, 0, mSensorData.activearraywidth,  mSensorData.activearrayheight};
+    m_static_meta->Set(ANDROID_SENSOR_INFO_PRE_CORRECTION_ACTIVE_ARRAY_SIZE,
+                     android_sensor_info_precorrection_active_array_size,
+                     ARRAY_SIZE(android_sensor_info_precorrection_active_array_size));
 
     int32_t android_sensor_info_sensitivity_range[] =
         {100, 1600};
@@ -193,7 +197,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      android_sensor_info_sensitivity_range,
                      ARRAY_SIZE(android_sensor_info_sensitivity_range));
 
-    int64_t android_sensor_info__max_frame_duration[] = {pDev->mSensorData.maxframeduration};
+    int64_t android_sensor_info__max_frame_duration[] = {mSensorData.maxframeduration};
     m_static_meta->Set(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
                      android_sensor_info__max_frame_duration,
                      ARRAY_SIZE(android_sensor_info__max_frame_duration));
@@ -201,17 +205,17 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
     int64_t kExposureTimeRange[2] = {pDev->mSensorData.mExposureNsMin, pDev->mSensorData.mExposureNsMax};
     m_static_meta->Set(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE, kExposureTimeRange, ARRAY_SIZE(kExposureTimeRange));
 
-    float android_sensor_info_physical_size[] = {pDev->mSensorData.physicalwidth, pDev->mSensorData.physicalheight};
+    float android_sensor_info_physical_size[] = {mSensorData.physicalwidth, mSensorData.physicalheight};
     m_static_meta->Set(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
                      android_sensor_info_physical_size,
                      ARRAY_SIZE(android_sensor_info_physical_size));
 
-    int32_t android_sensor_info_pixel_array_size[] = {pDev->mSensorData.pixelarraywidth, pDev->mSensorData.pixelarrayheight};
+    int32_t android_sensor_info_pixel_array_size[] = {mSensorData.pixelarraywidth, mSensorData.pixelarrayheight};
     m_static_meta->Set(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
                      android_sensor_info_pixel_array_size,
                      ARRAY_SIZE(android_sensor_info_pixel_array_size));
 
-    int32_t android_sensor_orientation[] = {pDev->mSensorData.orientation};
+    int32_t android_sensor_orientation[] = {mSensorData.orientation};
     m_static_meta->Set(ANDROID_SENSOR_ORIENTATION,
                      android_sensor_orientation,
                      ARRAY_SIZE(android_sensor_orientation));
@@ -223,7 +227,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      availableSceneModes,
                      ARRAY_SIZE(availableSceneModes));
 
-    if(strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME)) {
+    if(strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_FULL;
         m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
                      &supportedHwLvl,
@@ -320,7 +324,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
 
 
     uint8_t lensFacing = ANDROID_LENS_FACING_BACK;
-    if(strstr(pDev->mSensorData.camera_type, "front"))
+    if(strstr(mSensorData.camera_type, "front"))
         lensFacing = ANDROID_LENS_FACING_FRONT;
 
     m_static_meta->Set(ANDROID_LENS_FACING,
@@ -396,7 +400,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
     }
 
     // add raw format for isp camera
-    if(strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME)) {
+    if(strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
         streamConfigIdx += 4;
         streamConfig[streamConfigIdx] = HAL_PIXEL_FORMAT_RAW16;
         streamConfig[streamConfigIdx + 1] = pDev->mMaxWidth;
@@ -468,8 +472,8 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
     m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_SESSION_KEYS, session_keys, ARRAY_SIZE(session_keys));
 #endif
 
-    int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE};
-    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL) {
+    int32_t availableResultKeys[] = {ANDROID_SENSOR_TIMESTAMP, ANDROID_FLASH_STATE, ANDROID_CONTROL_ZOOM_RATIO};
+    if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME) == NULL) {
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, availableResultKeys, ARRAY_SIZE(availableResultKeys));
     } else {
         int32_t availableResultISPKeys[] = {ANDROID_SENSOR_NOISE_PROFILE, ANDROID_SENSOR_GREEN_SPLIT, ANDROID_SENSOR_NEUTRAL_COLOR_POINT};
@@ -558,6 +562,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE,
         ANDROID_SENSOR_AVAILABLE_TEST_PATTERN_MODES,
         ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
+        ANDROID_SENSOR_INFO_PRE_CORRECTION_ACTIVE_ARRAY_SIZE,
         ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
         ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
         ANDROID_SENSOR_ORIENTATION,
@@ -566,7 +571,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         ANDROID_SYNC_MAX_LATENCY
     };
 
-    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL) {
+    if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME) == NULL) {
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
                      characteristics_keys_basic,
                      ARRAY_SIZE(characteristics_keys_basic));
@@ -650,9 +655,10 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                                        ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE,
                                        ANDROID_CONTROL_EFFECT_MODE,
                                        ANDROID_FLASH_STATE,
+                                       ANDROID_CONTROL_ZOOM_RATIO,
                                        ANDROID_CONTROL_AE_AVAILABLE_MODES };
 
-    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME) == NULL)
+    if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME) == NULL)
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, availableRequestKeys, ARRAY_SIZE(availableRequestKeys));
     else {
         int32_t availableRequestISPKeys[] = { ANDROID_HOT_PIXEL_MODE, ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE };
@@ -689,7 +695,7 @@ status_t CameraMetadata::MergeAndSetMeta(uint32_t tag, int32_t* array_keys_basic
 }
 
 status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata>& base,
-                                               RequestTemplate type, CameraDeviceHwlImpl *pDev)
+                                               RequestTemplate type, CameraSensorMetadata mSensorData)
 {
     /** android.request */
     static const uint8_t metadataMode = ANDROID_REQUEST_METADATA_MODE_NONE;
@@ -707,7 +713,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
 
     static float aperture = 2.8;
     base->Set(ANDROID_LENS_APERTURE, &aperture, 1);
-    base->Set(ANDROID_LENS_FOCAL_LENGTH, &(mDev->mSensorData.focallength), 1);
+    base->Set(ANDROID_LENS_FOCAL_LENGTH, &(mSensorData.focallength), 1);
 
     static const float filterDensity = 0;
     base->Set(ANDROID_LENS_FILTER_DENSITY, &filterDensity, 1);
@@ -970,7 +976,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
         {1, 1}, {0, 1}, {0, 1}, {0, 1}, {1, 1}, {0, 1}, {0, 1}, {0, 1}, {1, 1}};
     base->Set(ANDROID_COLOR_CORRECTION_TRANSFORM, colorTransform, ARRAY_SIZE(colorTransform));
 
-    if (strstr(pDev->mSensorData.camera_name, ISP_SENSOR_NAME)) {
+    if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
         uint8_t hot_pixel_map_mode = ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE_OFF;
         base->Set(ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE, &hot_pixel_map_mode, 1);
 
@@ -987,7 +993,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
     return OK;
 }
 
-status_t CameraMetadata::setTemplate(CameraDeviceHwlImpl *pDev)
+status_t CameraMetadata::setTemplate(CameraSensorMetadata mSensorData)
 {
     //status_t res;
 
@@ -995,7 +1001,7 @@ status_t CameraMetadata::setTemplate(CameraDeviceHwlImpl *pDev)
          i <= (uint32_t)RequestTemplate::kManual;
          i++) {
         m_template_meta[i] = HalCameraMetadata::Create(1, 10);
-        createSettingTemplate(m_template_meta[i], RequestTemplate(i), pDev);
+        createSettingTemplate(m_template_meta[i], RequestTemplate(i),mSensorData);
     }
 
     return OK;

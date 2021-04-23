@@ -44,8 +44,8 @@ using namespace cameraconfigparser;
 class CameraDeviceHwlImpl : public CameraDeviceHwl
 {
 public:
-    static std::unique_ptr<CameraDeviceHwl> Create(uint32_t camera_id, const char* devPath,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback);
+    static std::unique_ptr<CameraDeviceHwl> Create(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
+        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback callback);
 
     virtual ~CameraDeviceHwlImpl();
 
@@ -65,11 +65,8 @@ public:
         std::unique_ptr<HalCameraMetadata>* characteristics) const override;
 
     status_t GetPhysicalCameraCharacteristics(
-        uint32_t physical_camera_id __unused,
-        std::unique_ptr<HalCameraMetadata>* characteristics __unused) const override
-    {
-        return INVALID_OPERATION;
-    }
+        uint32_t physical_camera_id,
+        std::unique_ptr<HalCameraMetadata>* characteristics) const override;
 
     status_t SetTorchMode(TorchMode mode) override;
 
@@ -91,8 +88,8 @@ public:
         int *pPreviewResolutions, int nPreviewResolutionCount, int *pPictureResolutions, int nPictureResolutionCount);
 
 protected:
-    CameraDeviceHwlImpl(uint32_t camera_id, const char *devPath,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback);
+    CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
+        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback callback);
 
 private:
     virtual status_t Initialize();
@@ -104,13 +101,13 @@ protected:
     status_t adjustPreviewResolutions();
 
 private:
-    uint32_t camera_id_;
+    uint32_t camera_id_ = 0;
 
-  //  std::unique_ptr<HalCameraMetadata> static_metadata_;
-    CameraMetadata *m_meta = nullptr;
     HwlCameraProviderCallback mCallback;
 
 public:
+    CameraMetadata *m_meta = nullptr;
+
     int mPreviewResolutions[MAX_RESOLUTION_SIZE];
     int mPreviewResolutionCount = 0;
     int mPictureResolutions[MAX_RESOLUTION_SIZE];
@@ -122,7 +119,7 @@ public:
     int mMaxWidth = 0;
     int mMaxHeight = 0;
 
-     // preview and picture format.
+    // preview and picture format.
     PixelFormat mPicturePixelFormat = 0;
     PixelFormat mPreviewPixelFormat = 0;
 
@@ -132,13 +129,17 @@ public:
 
     int mSensorFormats[MAX_SENSOR_FORMAT];
     int mSensorFormatCount = 0;
-    char mDevPath[CAMAERA_FILENAME_LENGTH];
 
+    std::vector<std::shared_ptr<char*>> mDevPath;
 
     CscHw mCamBlitCopyType;
     CscHw mCamBlitCscType;
     char mJpegHw[JPEG_HW_NAME_LEN] = { 0 };
     CameraSensorMetadata mSensorData;
+
+    PhysicalMetaMap physical_meta_map_;
+
+    PhysicalDeviceMapPtr physical_device_map_;
 };
 
 }  // namespace android

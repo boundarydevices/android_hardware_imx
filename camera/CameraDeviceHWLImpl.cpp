@@ -24,22 +24,23 @@
 #include "CameraDeviceHWLImpl.h"
 #include "ISPCameraDeviceHWLImpl.h"
 #include "CameraDeviceSessionHWLImpl.h"
-
 namespace android {
 
 std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
-    uint32_t camera_id, const char *devPath,
-    CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, HwlCameraProviderCallback callback)
+    uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
+    CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback callback)
 {
-    ALOGI("%s: id %d, path %s, copy hw %d, csc hw %d, hw_jpeg %s",
-      __func__, camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg);
+    ALOGI("%s: id %d, copy hw %d, csc hw %d, hw_jpeg %s",
+        __func__, camera_id, cam_copy_hw, cam_csc_hw, hw_jpeg);
 
     CameraDeviceHwlImpl *device = NULL;
 
     if(strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
-        device = new ISPCameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata, callback);
+        device = new ISPCameraDeviceHwlImpl(camera_id, devPaths, cam_copy_hw, cam_csc_hw,
+                            hw_jpeg, cam_metadata, std::move(physical_devices), callback);
     else
-        device = new CameraDeviceHwlImpl(camera_id, devPath, cam_copy_hw, cam_csc_hw, hw_jpeg, cam_metadata, callback);
+        device = new CameraDeviceHwlImpl(camera_id, devPaths, cam_copy_hw, cam_csc_hw,
+                            hw_jpeg, cam_metadata, std::move(physical_devices), callback);
 
     if (device == nullptr) {
         ALOGE("%s: Creating CameraDeviceHwlImpl failed.", __func__);
@@ -49,9 +50,7 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
     status_t res = device->Initialize();
     if (res != OK) {
         ALOGE("%s: Initializing CameraDeviceHwlImpl failed: %s (%d).",
-              __func__,
-              strerror(-res),
-              res);
+                __func__, strerror(-res), res);
         return nullptr;
     }
 
@@ -61,16 +60,19 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
 }
 
 CameraDeviceHwlImpl::CameraDeviceHwlImpl(
-    uint32_t camera_id, const char *devPath,
+    uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
     CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, CameraSensorMetadata *cam_metadata,
-    HwlCameraProviderCallback callback)
+    PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback callback)
     : camera_id_(camera_id),
-      mCamBlitCopyType(cam_copy_hw),
-      mCamBlitCscType(cam_csc_hw),
-      mCallback(callback)
+        mCamBlitCopyType(cam_copy_hw),
+        mCamBlitCscType(cam_csc_hw),
+        physical_device_map_(std::move(physical_devices)),
+        mCallback(callback)
 {
-    strncpy(mDevPath, devPath, CAMAERA_FILENAME_LENGTH);
-    mDevPath[CAMAERA_FILENAME_LENGTH - 1] = 0;
+    mDevPath = devPaths;
+    for (int i = 0; i<mDevPath.size(); ++i) {
+        ALOGE("%s, mDevPath[%d] %s", __func__, i, *mDevPath[i]);
+    }
 
     strncpy(mJpegHw, hw_jpeg, JPEG_HW_NAME_LEN);
     mJpegHw[JPEG_HW_NAME_LEN-1] = 0;
@@ -86,30 +88,122 @@ CameraDeviceHwlImpl::CameraDeviceHwlImpl(
 
 CameraDeviceHwlImpl::~CameraDeviceHwlImpl()
 {
-    if(m_meta)
-       delete(m_meta);
+    if(m_meta) {
+        delete m_meta;
+        m_meta = NULL;
+    }
 }
 
 status_t CameraDeviceHwlImpl::Initialize()
 {
     ALOGI("%s", __func__);
 
+    //TODO use for IsStreamCombinationSupported
     int ret = initSensorStaticData();
     if(ret) {
         ALOGE("%s: initSensorStaticData failed, ret %d", __func__, ret);
         return ret;
     }
 
+    //m_meta is logical or basic camera meta
     m_meta = new CameraMetadata();
-    m_meta->createMetadata(this);
-    m_meta->setTemplate(this);
+    m_meta->createMetadata(this, mSensorData);
+    m_meta->setTemplate(mSensorData);
+
+    if (mSensorData.mAvailableCapabilities == ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA) {
+        uint8_t logical_available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE,
+                                                ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA};
+        (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+                    logical_available_capabilities,
+                    ARRAY_SIZE(logical_available_capabilities));
+
+        uint8_t logical_sensor_sync_type = ANDROID_LOGICAL_MULTI_CAMERA_SENSOR_SYNC_TYPE_CALIBRATED;
+        (m_meta->GetStaticMeta())->Set(ANDROID_LOGICAL_MULTI_CAMERA_SENSOR_SYNC_TYPE,
+                    &logical_sensor_sync_type, 1);
+
+        // Update 'android.logicalMultiCamera.physicalIds' according to the assigned physical ids.
+        std::vector<uint8_t> physical_ids;
+        camera_metadata_ro_entry_t entry;
+        for (const auto &physical_device : *(physical_device_map_)) {
+            auto physical_id = std::to_string(physical_device.first);
+            physical_ids.insert(physical_ids.end(), physical_id.begin(),
+                            physical_id.end());
+            physical_ids.push_back('\0');
+
+            //construct physical cameras' HalCameraMetadata for the logical camera
+            CameraSensorMetadata *physical_chars = physical_device.second.second.get();
+            CameraMetadata *m_phy_meta;
+            m_phy_meta = new CameraMetadata();
+            m_phy_meta->createMetadata(this, *physical_chars);
+            m_phy_meta->setTemplate(*physical_chars);
+            physical_meta_map_.emplace(
+                physical_device.first, HalCameraMetadata::Clone(m_phy_meta->GetStaticMeta()));
+
+            if(m_phy_meta) {
+                delete m_phy_meta;
+                m_phy_meta = nullptr;
+            }
+        }
+
+        (m_meta->GetStaticMeta())->Set(ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS,
+                    physical_ids.data(), physical_ids.size());
+
+        // Additionally if possible try to emulate a logical camera device backed by
+        // physical devices with different focal lengths.
+        // Usually logical cameras will have device specific logic to switch between physical sensors.
+        std::set<float> focal_lengths;
+        for (const auto& it : physical_meta_map_) {
+            auto ret = it.second->Get(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS, &entry);
+            if ((ret == OK) && (entry.count > 0)) {
+                focal_lengths.insert(entry.data.f, entry.data.f + entry.count);
+            }
+        }
+
+        std::vector<float> focal_buffer;
+        focal_buffer.reserve(focal_lengths.size());
+        focal_buffer.insert(focal_buffer.end(), focal_lengths.begin(),
+                                focal_lengths.end());
+        (m_meta->GetStaticMeta())->Set(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
+                        focal_buffer.data(), focal_buffer.size());
+
+        (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, &entry);
+        std::set<int32_t> keys(entry.data.i32, entry.data.i32 + entry.count);
+        keys.emplace(ANDROID_LENS_FOCAL_LENGTH);
+        keys.emplace(ANDROID_LOGICAL_MULTI_CAMERA_ACTIVE_PHYSICAL_ID);
+        std::vector<int32_t> keys_buffer(keys.begin(), keys.end());
+        (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
+                        keys_buffer.data(), keys_buffer.size());
+
+        keys.clear();
+        keys_buffer.clear();
+        (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS, &entry);
+        keys.insert(entry.data.i32, entry.data.i32 + entry.count);
+        // Due to API limitations we currently don't support individual physical requests
+        (m_meta->GetStaticMeta())->Erase(ANDROID_REQUEST_AVAILABLE_PHYSICAL_CAMERA_REQUEST_KEYS);
+        keys.erase(ANDROID_REQUEST_AVAILABLE_PHYSICAL_CAMERA_REQUEST_KEYS);
+        keys.emplace(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+        keys.emplace(ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS);
+        keys_buffer.insert(keys_buffer.end(), keys.begin(), keys.end());
+        (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+                        keys_buffer.data(), keys_buffer.size());
+
+        keys.clear();
+        keys_buffer.clear();
+        (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, &entry);
+        keys.insert(entry.data.i32, entry.data.i32 + entry.count);
+        keys.emplace(ANDROID_LENS_FOCAL_LENGTH);
+        keys_buffer.insert(keys_buffer.end(), keys.begin(), keys.end());
+        (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
+                        keys_buffer.data(), keys_buffer.size());
+    }
 
     return OK;
 }
 
 status_t CameraDeviceHwlImpl::initSensorStaticData()
 {
-    int32_t fd = open(mDevPath, O_RDWR);
+    int32_t fd = open(*mDevPath[0], O_RDWR);
+
     if (fd < 0) {
         ALOGE("ImxCameraCameraDevice: initParameters sensor has not been opened");
         return BAD_VALUE;
@@ -155,7 +249,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
         ALOGI("enum frame size w:%d, h:%d", cam_frmsize.discrete.width, cam_frmsize.discrete.height);
 
         if (cam_frmsize.discrete.width == 0 ||
-              cam_frmsize.discrete.height == 0) {
+            cam_frmsize.discrete.height == 0) {
             continue;
         }
         vid_frmval.index = 0;
@@ -168,14 +262,12 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
             continue;
         }
 
-
         // If w/h ratio is not same with senserW/sensorH, framework assume that
         // first crop little width or little height, then scale.
         // 176x144 not work in this mode.
-
         if (!(cam_frmsize.discrete.width == 176 &&
-              cam_frmsize.discrete.height == 144) &&
-              vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator >= 5) {
+                cam_frmsize.discrete.height == 144) &&
+                vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator >= 5) {
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.width;
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.height;
         }
@@ -213,7 +305,6 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
     close(fd);
     return NO_ERROR;
 }
-
 
 status_t CameraDeviceHwlImpl::adjustPreviewResolutions()
 {
@@ -256,6 +347,24 @@ status_t CameraDeviceHwlImpl::setMaxPictureResolutions()
     return 0;
 }
 
+bool HasCapability(const HalCameraMetadata *metadata, uint8_t capability) {
+    if (metadata == nullptr) {
+        return false;
+    }
+
+    camera_metadata_ro_entry_t entry;
+    auto ret = metadata->Get(ANDROID_REQUEST_AVAILABLE_CAPABILITIES, &entry);
+    if (ret != OK) {
+        return false;
+    }
+    for (size_t i = 0; i < entry.count; i++) {
+        if (entry.data.u8[i] == capability) {
+            return true;
+        }
+    }
+    return false;
+}
+
 status_t CameraDeviceHwlImpl::GetCameraCharacteristics(
     std::unique_ptr<HalCameraMetadata>* characteristics) const
 {
@@ -263,7 +372,37 @@ status_t CameraDeviceHwlImpl::GetCameraCharacteristics(
         return BAD_VALUE;
     }
 
+    HalCameraMetadata* cammeta = m_meta->GetStaticMeta();
+    bool ret = HasCapability(cammeta, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA);
+    if (ret == true)
+        ALOGV("%s: This is a logical camera", __func__ );
+
     *characteristics = HalCameraMetadata::Clone(m_meta->GetStaticMeta());
+
+    return OK;
+}
+
+status_t CameraDeviceHwlImpl::GetPhysicalCameraCharacteristics(
+    uint32_t physical_camera_id,
+    std::unique_ptr<HalCameraMetadata> *characteristics) const
+{
+    if (characteristics == nullptr) {
+        return BAD_VALUE;
+    }
+
+    if (physical_device_map_.get() == nullptr) {
+        ALOGE("%s: Camera %d is not a logical device!", __func__, camera_id_);
+        return NO_INIT;
+    }
+
+    if (physical_device_map_->find(physical_camera_id) ==
+        physical_device_map_->end()) {
+        ALOGE("%s: Physical camera id %d is not part of logical camera %d!",
+                __func__, physical_camera_id, camera_id_);
+        return BAD_VALUE;
+    }
+
+    *characteristics = HalCameraMetadata::Clone((physical_meta_map_.at(physical_camera_id)).get());
 
     return OK;
 }
@@ -282,10 +421,17 @@ status_t CameraDeviceHwlImpl::CreateCameraDeviceSessionHwl(
         return BAD_VALUE;
     }
 
-    CameraMetadata *pMeta = m_meta->Clone();
+    HalCameraMetadata* cam_meta = m_meta->GetStaticMeta();
+    std::unique_ptr<HalCameraMetadata> pMeta =
+        HalCameraMetadata::Clone(cam_meta);
+
+    auto physical_meta_map_ptr = std::make_unique<PhysicalMetaMap>();
+    for (const auto& it : physical_meta_map_) {
+            physical_meta_map_ptr->emplace(it.first, HalCameraMetadata::Clone(it.second.get()));
+        }
 
     *session = CameraDeviceSessionHwlImpl::Create(
-        camera_id_, pMeta, this);
+        camera_id_,  std::move(pMeta), this, ClonePhysicalDeviceMap(physical_meta_map_ptr));
 
     if (*session == nullptr) {
         ALOGE("%s: Cannot create CameraDeviceSessionHWlImpl.", __func__);
@@ -311,8 +457,8 @@ bool CameraDeviceHwlImpl::FoundResoulution(int width, int height, int *resArray,
 bool CameraDeviceHwlImpl::IsStreamCombinationSupported(const StreamConfiguration& stream_config)
 {
     return StreamCombJudge(stream_config,
-         mPreviewResolutions, mPreviewResolutionCount,
-        mPictureResolutions, mPictureResolutionCount);
+                mPreviewResolutions, mPreviewResolutionCount,
+                mPictureResolutions, mPictureResolutionCount);
 }
 
 bool CameraDeviceHwlImpl::StreamCombJudge(const StreamConfiguration& stream_config,

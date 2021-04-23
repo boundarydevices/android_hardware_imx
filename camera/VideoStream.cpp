@@ -141,9 +141,9 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
 
         if(strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
             closeDev();
-            ret = openDev(mSession->getDevPath());
+            ret = openDev(mSession->getDevPath(0));
             if(ret) {
-                ALOGE("%s, openDev %s failed, ret %d", __func__, mSession->getDevPath(), ret);
+                ALOGE("%s, openDev %s failed, ret %d", __func__, mSession->getDevPath(0), ret);
                 return ret;
             }
         }

@@ -44,6 +44,9 @@
 #include <ui/PixelFormat.h>
 #include <graphics_ext.h>
 #include "Memory.h"
+#include "hal_camera_metadata.h"
+#include <hal_types.h>
+#include "CameraConfigurationParser.h"
 
 #define UVC_NAME "uvc"
 #define ISP_SENSOR_NAME "viv_v4l2"
@@ -98,6 +101,8 @@
 #define FUNC_TRACE() ALOGI("enter into %s", __func__)
 
 namespace android {
+using google_camera_hal::CameraDeviceStatus;
+using google_camera_hal::HalCameraMetadata;
 
 class ImxStream
 {
@@ -165,6 +170,7 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert = false);
 int32_t changeSensorFormats(int *src, int *dst, int len);
 int getFps(int width, int height, int defValue);
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
+cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(const cameraconfigparser::PhysicalMetaMapPtr& src);
 } // namespace android
 
 #endif  // CAMERA_UTILS_H

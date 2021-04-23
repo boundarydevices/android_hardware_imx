@@ -57,7 +57,10 @@ public:
     // again before the previous one is destroyed will fail.
     static std::unique_ptr<CameraProviderHwlImpl> Create();
 
-    virtual ~CameraProviderHwlImpl();
+    //virtual ~CameraProviderHwlImpl();
+    virtual ~CameraProviderHwlImpl() {
+        WaitForStatusCallbackFuture();
+    }
 
     // Override functions in CameraProviderHwl.
     status_t SetCallback(const HwlCameraProviderCallback& callback) override;
@@ -84,23 +87,21 @@ public:
         std::unique_ptr<CameraDeviceHwl>* camera_device_hwl) override;
 
     status_t CreateBufferAllocatorHwl(std::unique_ptr<CameraBufferAllocatorHwl>*
-                                          camera_buffer_allocator_hwl) override;
+                                        camera_buffer_allocator_hwl) override;
     // End of override functions in CameraProviderHwl.
 
 private:
     status_t Initialize();
-
-
     void enumSensorSet();
     int32_t matchPropertyName(nodeSet* nodes, int32_t index);
     int32_t matchDevNodes();
     int32_t getNodeName(const char* devNode, char name[], size_t length, char busInfo[], size_t busInfoLen);
+    void NotifyPhysicalCameraUnavailable();
+    void WaitForStatusCallbackFuture();
 
 private:
-//    std::vector<std::unique_ptr<HalCameraMetadata>> static_metadata_;
-//    std::vector<CameraMetadata *> m_meta_list;
-
     HwlCameraProviderCallback mCallback;
+    HwlPhysicalCameraDeviceStatusChangeFunc physical_camera_status_cb_;
 
     std::mutex status_callback_future_lock_;
     std::future<void> status_callback_future_;
@@ -108,10 +109,11 @@ private:
     CameraConfigurationParser mCameraCfgParser;
     CameraDefinition mCameraDef;
 
-    SensorSet mSets[MAX_CAMERAS];
-//    int32_t mCameraCount;
+    std::vector<SensorSet> mSets;
 
-    std::vector<std::uint32_t> camera_id_list;
+    // Logical to physical camera Id mapping. Empty value vector for basic camera
+    std::unordered_map<uint32_t, std::vector<std::pair<CameraDeviceStatus, uint32_t>>> camera_id_maps;
+
     std::map<uint32_t, CameraDeviceHwl*> device_map;
 };
 

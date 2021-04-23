@@ -24,6 +24,11 @@ imx_camera_defaults {
     name: "imx_camera_default",
     owner: "nxp",
     proprietary: true,
+
+    //sanitize: {
+    //    address: true,
+    //},
+
     arch: {
         arm64: {
             srcs: [

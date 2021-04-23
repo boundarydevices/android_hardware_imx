@@ -28,7 +28,7 @@ namespace android {
 
 status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
 {
-    int32_t fd = open(mDevPath, O_RDWR);
+    int32_t fd = open(*mDevPath[0], O_RDWR);
     if (fd < 0) {
         ALOGE("ImxCameraCameraDevice: initParameters sensor has not been opened");
         return BAD_VALUE;

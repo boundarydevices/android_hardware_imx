@@ -207,4 +207,12 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
     return size;
 }
 
+cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(const cameraconfigparser::PhysicalMetaMapPtr& src) {
+    auto ret = std::make_unique<cameraconfigparser::PhysicalMetaMap>();
+    for (const auto& it : *src) {
+        ret->emplace(it.first, HalCameraMetadata::Clone(it.second.get()));
+    }
+    return ret;
+}
+
 } // namespace android

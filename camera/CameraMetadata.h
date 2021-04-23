@@ -25,6 +25,7 @@
 #include <system/camera.h>
 #include <hal_types.h>
 #include "hal_camera_metadata.h"
+#include "CameraConfigurationParser.h"
 
 namespace android {
 
@@ -32,7 +33,7 @@ class CameraDeviceHwlImpl;
 
 using google_camera_hal::RequestTemplate;
 using google_camera_hal::HalCameraMetadata;
-
+using namespace cameraconfigparser;
 class CameraMetadata
 {
 public:
@@ -40,7 +41,7 @@ public:
     CameraMetadata(HalCameraMetadata *request_meta) { m_request_meta = request_meta; }
 
 public:
-    status_t createMetadata(CameraDeviceHwlImpl *pDev);
+    status_t createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorMetadata mSensorData);
     HalCameraMetadata* GetStaticMeta();
 
     CameraMetadata* Clone();
@@ -50,7 +51,8 @@ public:
 
     status_t getRequestSettings(RequestTemplate type,
                                        std::unique_ptr<HalCameraMetadata>* default_settings);
-    status_t setTemplate(CameraDeviceHwlImpl *pDev);
+
+    status_t setTemplate(CameraSensorMetadata mSensorData);
 
     int32_t getGpsCoordinates( double *pCoords, int count);
     int32_t getGpsTimeStamp(int64_t &timeStamp);
@@ -64,7 +66,7 @@ public:
 
 private:
     status_t createSettingTemplate(std::unique_ptr<HalCameraMetadata>& base,
-                                          RequestTemplate type, CameraDeviceHwlImpl *pDev);
+                                          RequestTemplate type, CameraSensorMetadata mSensorData);
 
     status_t MergeAndSetMeta(uint32_t tag, int32_t* array_keys_basic, int basic_size, int* array_keys_isp, int isp_size);
 
@@ -74,8 +76,6 @@ private:
     HalCameraMetadata *m_request_meta = nullptr; // meta from framework
 
     mutable std::mutex metadata_lock_;
-
-    CameraDeviceHwlImpl *mDev = NULL;
 };
 
 }  // namespace android
