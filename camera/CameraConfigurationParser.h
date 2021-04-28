@@ -106,6 +106,8 @@ struct CameraSensorMetadata {
   int mAeCompMax;
   int mAeCompStepNumerator;
   int mAeCompStepDenominator;
+  int64_t mExposureNsMin;
+  int64_t mExposureNsMax;
 };
 
 struct CameraDefinition {

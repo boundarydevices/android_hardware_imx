@@ -704,13 +704,21 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
     resultMeta->Set(ANDROID_CONTROL_AWB_STATE, &m3aState.awbState, 1);
 
     if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
-        int64_t exposure_time = EXP_TIME_DFT_NS;
+
+        std::unique_ptr<ISPWrapper>& ispWrapper = ((ISPCameraMMAPStream *)pVideoStream)->getIspWrapper();
+
+        int64_t exposure_time = ispWrapper->getExposureTime();
         resultMeta->Set(ANDROID_SENSOR_EXPOSURE_TIME, &exposure_time, 1);
 
         // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureResult#SENSOR_SENSITIVITY
-        // Ref value from GCH EmulatedCamera
-        int32_t sensitivity = 1000;
-        resultMeta->Set(ANDROID_SENSOR_SENSITIVITY, &sensitivity, 1);
+        ret = resultMeta->Get(ANDROID_SENSOR_SENSITIVITY, &entry);
+        // Currently, ISP not support to set sensitivity. So just return the vaule in the request (resultMeta is cloned from requestMeta).
+        // If there's no ANDROID_SENSOR_SENSITIVITY in request, also need set in resultMeta due to "full" level requirement.
+        if(ret != OK) {
+            // Ref value from GCH EmulatedCamera
+            int32_t sensitivity = 1000;
+            resultMeta->Set(ANDROID_SENSOR_SENSITIVITY, &sensitivity, 1);
+        }
 
         // Ref https://developer.android.com/reference/android/hardware/camera2/CaptureRequest#CONTROL_POST_RAW_SENSITIVITY_BOOST
         // Ref value from GCH EmulatedCamera

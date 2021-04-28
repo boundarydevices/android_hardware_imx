@@ -121,7 +121,8 @@ const char* const kAeCompMinKey = "ae_comp_min";
 const char* const kAeCompMaxKey = "ae_comp_max";
 const char* const kAeCompStepNumerator = "ae_comp_step_nummerator";
 const char* const kAeCompStepDenominator = "ae_comp_step_denominator";
-
+const char* const kExposureNsMin = "exposure_ns_min";
+const char* const kExposureNsMax = "exposure_ns_max";
 
 #define CSC_HW_GPU_2D "GPU_2D"
 #define CSC_HW_GPU_3D "GPU_3D"
@@ -382,6 +383,16 @@ bool ConfigureCameras(const Json::Value& value,
         camera->camera_metadata[cam_index].mAeCompStepDenominator = strtol((*iter)[kAeCompStepDenominator].asString().c_str(), NULL, 10);
     else
         camera->camera_metadata[cam_index].mAeCompStepDenominator = 1;
+
+    if(iter->isMember(kExposureNsMin))
+        camera->camera_metadata[cam_index].mExposureNsMin = (int64_t)strtoll((*iter)[kExposureNsMin].asString().c_str(), NULL, 10);
+    else
+        camera->camera_metadata[cam_index].mExposureNsMin = 1000L;
+
+    if(iter->isMember(kExposureNsMax))
+        camera->camera_metadata[cam_index].mExposureNsMax = (int64_t)strtoll((*iter)[kExposureNsMax].asString().c_str(), NULL, 10);
+    else
+        camera->camera_metadata[cam_index].mExposureNsMax = 300000000L;
 
     int omit_index = 0;
     for (Json::ValueConstIterator omititer = (*iter)[kOmitFrameKey].begin();

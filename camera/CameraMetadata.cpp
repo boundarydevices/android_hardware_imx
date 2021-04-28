@@ -198,7 +198,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      android_sensor_info__max_frame_duration,
                      ARRAY_SIZE(android_sensor_info__max_frame_duration));
 
-    int64_t kExposureTimeRange[2] = {1000L, 300000000L};
+    int64_t kExposureTimeRange[2] = {pDev->mSensorData.mExposureNsMin, pDev->mSensorData.mExposureNsMax};
     m_static_meta->Set(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE, kExposureTimeRange, ARRAY_SIZE(kExposureTimeRange));
 
     float android_sensor_info_physical_size[] = {pDev->mSensorData.physicalwidth, pDev->mSensorData.physicalheight};

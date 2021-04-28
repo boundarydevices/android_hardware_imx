@@ -93,6 +93,8 @@ public:
     int processAWB(uint8_t mode, bool force = false);
     int processAeMode(uint8_t mode, bool force = false);
     int processExposureGain(int32_t comp, bool force = false);
+    int processExposureTime(int64_t exposureNs, bool force = false);
+    int64_t getExposureTime() { return m_exposure_time > 0 ? m_exposure_time : EXP_TIME_DFT_NS; }
 
 private:
     int setFeature(const char *value);
@@ -111,7 +113,7 @@ private:
     uint8_t m_awb_mode;
     uint8_t m_ae_mode;
     int32_t m_exposure_comp;
-    double m_exposure_time;
+    int64_t m_exposure_time;
     DWEPara m_dwePara;
     bool m_dwe_on;
 };

@@ -205,6 +205,10 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
     if(ret == 0)
         processExposureGain(entry.data.i32[0]);
 
+    ret = pMeta->Get(ANDROID_SENSOR_EXPOSURE_TIME, &entry);
+    if(ret == 0)
+        processExposureTime(entry.data.i64[0]);
+
     ret = pMeta->Get(VSI_DEWARP, &entry);
     if(ret == 0)
         processDewarp(entry.data.i32[0]);
@@ -305,6 +309,7 @@ failed:
 #define AE_ENABLE_PARAMS    "enable"
 #define IF_AE_S_EN          "ae.s.en"
 
+#define NS_PER_SEC  1000000000
 
 int ISPWrapper::processExposureGain(int32_t comp, bool force)
 {
@@ -317,6 +322,9 @@ int ISPWrapper::processExposureGain(int32_t comp, bool force)
     if(comp > m_SensorData->mAeCompMax) comp = m_SensorData->mAeCompMax;
     if(comp < m_SensorData->mAeCompMin) comp = m_SensorData->mAeCompMin;
 
+    // first disable aec
+    processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
+
     // Fix me, currntly just linear map compensation value to gain.
     // In theory, should use (step * value) to calculate the exposure value.
     // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_AE_COMPENSATION_STEP.
@@ -325,15 +333,17 @@ int ISPWrapper::processExposureGain(int32_t comp, bool force)
     // But we don't know how much gain will double brightness.
     double gain = EC_GAIN_MIN + ((comp - m_SensorData->mAeCompMin) * (EC_GAIN_MAX - EC_GAIN_MIN)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
 
-    // first disable aec
-    processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
-    m_exposure_time = EXP_TIME_DFT;
+    // If never set exposure time, use default value.
+    if(m_exposure_time == 0)
+        m_exposure_time = EXP_TIME_DFT_NS;
+
+    double exposure_second = (double)m_exposure_time/NS_PER_SEC;
 
     jRequest[EC_GAIN_PARAMS] = gain;
-    jRequest[EC_TIME_PARAMS] = m_exposure_time;
+    jRequest[EC_TIME_PARAMS] = exposure_second;
 
     ALOGI("%s: change comp from %d to %d, set exposure gain to %f, exposure time to %f, force %d",
-        __func__, m_exposure_comp, comp,  gain, m_exposure_time, force);
+        __func__, m_exposure_comp, comp,  gain, exposure_second, force);
 
     ret = viv_private_ioctl(IF_EC_S_CFG, jRequest, jResponse);
     if(ret) {
@@ -342,6 +352,44 @@ int ISPWrapper::processExposureGain(int32_t comp, bool force)
     }
 
     m_exposure_comp = comp;
+
+    return 0;
+}
+
+int ISPWrapper::processExposureTime(int64_t exposureNs, bool force)
+{
+    int ret;
+    Json::Value jRequest, jResponse;
+
+    if((m_exposure_time == exposureNs) && (force == false))
+        return 0;
+
+    if(exposureNs > m_SensorData->mExposureNsMax) exposureNs = m_SensorData->mExposureNsMax;
+    if(exposureNs < m_SensorData->mExposureNsMin) exposureNs = m_SensorData->mExposureNsMin;
+
+    // first disable aec
+    processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
+
+    // If never set gain, use default comp vaule 0.
+    if ((m_exposure_comp < m_SensorData->mAeCompMin) || (m_exposure_comp > m_SensorData->mAeCompMax))
+        m_exposure_comp = 0;
+
+    double gain = EC_GAIN_MIN + ((m_exposure_comp - m_SensorData->mAeCompMin) * (EC_GAIN_MAX - EC_GAIN_MIN)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
+    double exposure_second = (double)exposureNs/NS_PER_SEC;
+
+    jRequest[EC_GAIN_PARAMS] = gain;
+    jRequest[EC_TIME_PARAMS] = exposure_second;
+
+    ALOGI("%s: change exposureNs from %d to %d, set exposure gain to %f, exposure time to %f, force %d",
+        __func__, m_exposure_time, exposureNs, gain, exposure_second, force);
+
+    ret = viv_private_ioctl(IF_EC_S_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    m_exposure_time = exposureNs;
 
     return 0;
 }
