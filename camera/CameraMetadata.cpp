@@ -229,7 +229,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
                      &supportedHwLvl,
                      1);
 
-        uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_RAW};
+        uint8_t available_capabilities[] = {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_RAW, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BURST_CAPTURE};
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
                      available_capabilities,
                      ARRAY_SIZE(available_capabilities));
@@ -297,6 +297,11 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev)
         // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE
         int32_t post_raw_sensitivity_boot_range[] = {100, 100};
         m_static_meta->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE, post_raw_sensitivity_boot_range, ARRAY_SIZE(post_raw_sensitivity_boot_range));
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#SENSOR_MAX_ANALOG_SENSITIVITY
+        // The value is refed from emu_camera_back.json.
+        int32_t max_analog_sensitivity = 1600;
+        m_static_meta->Set(ANDROID_SENSOR_MAX_ANALOG_SENSITIVITY, &max_analog_sensitivity, 1);
 
     } else {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
@@ -973,6 +978,10 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
         // private static final int DEFAULT_POST_RAW_SENSITIVITY_BOOST = 100;
         int32_t sensitivity_boost = 100;
         base->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST, &sensitivity_boost, 1);
+
+        // Hardware level at least "limited", need fps fixed.
+        static const int32_t aeTargetFpsRange[2] = {30, 30};
+        base->Set(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, aeTargetFpsRange, 2);
     }
 
     return OK;
