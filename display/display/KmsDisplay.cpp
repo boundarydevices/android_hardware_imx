@@ -1063,6 +1063,8 @@ int KmsDisplay::openKms()
         if (planePtr->formats[i] == DRM_FORMAT_ABGR8888) {
             format = FORMAT_RGBA8888;
             break;
+        } else if (planePtr->formats[i] == DRM_FORMAT_RGB565) {
+            format = FORMAT_RGB565;
         }
     }
     drmModeFreePlane(planePtr);
@@ -1405,7 +1407,7 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
         case FORMAT_RGBA8888:
             return DRM_FORMAT_ABGR8888;
         case FORMAT_RGB565:
-            return DRM_FORMAT_BGR565;
+            return DRM_FORMAT_RGB565;
         case FORMAT_NV12:
             return DRM_FORMAT_NV12;
         case FORMAT_NV21:

@@ -920,8 +920,8 @@ static int hwc2_get_client_target_support(hwc2_device_t* device,
 
     const DisplayConfig& config = pDisplay->getActiveConfig();
     if (config.mXres == (int)width && config.mYres == (int)height &&
-        format == HAL_PIXEL_FORMAT_RGBA_8888 &&
-        dataspace == HAL_DATASPACE_UNKNOWN) {
+        (format == HAL_PIXEL_FORMAT_RGBA_8888 || format == HAL_PIXEL_FORMAT_RGB_565) &&
+        (dataspace == HAL_DATASPACE_UNKNOWN || dataspace == HAL_DATASPACE_SRGB_LINEAR)) {
         return HWC2_ERROR_NONE;
     }
 
@@ -1617,8 +1617,9 @@ static int hwc2_get_client_target_property(hwc2_device_t* device, hwc2_display_t
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    outClientTargetProperty->pixelFormat = HAL_PIXEL_FORMAT_RGBA_8888;
-    outClientTargetProperty->dataspace = HAL_DATASPACE_UNKNOWN;
+    const DisplayConfig& config = pDisplay->getActiveConfig();
+    outClientTargetProperty->pixelFormat = config.mFormat;
+    outClientTargetProperty->dataspace = HAL_DATASPACE_SRGB_LINEAR;
 
     return HWC2_ERROR_NONE;
 }

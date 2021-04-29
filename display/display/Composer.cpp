@@ -384,6 +384,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
 
     memset(&dSurfaceX, 0, sizeof(dSurfaceX));
     size_t count = 0;
+    bool needDither = false;
     const Rect* visible = layer->visibleRegion.getArray(&count);
     for (size_t i=0; i<count; i++) {
         Rect srect = layer->sourceCrop;
@@ -421,6 +422,13 @@ int Composer::composeLayer(Layer* layer, bool bypass)
 
         if (!layer->isSolidColor() && layer->handle) {
             setG2dSurface(sSurfaceX, layer->handle, srect);
+            if ((mTarget->fslFormat == FORMAT_RGB565) &&
+                (layer->handle->fslFormat == FORMAT_RGBA8888 ||
+                 layer->handle->fslFormat == FORMAT_RGBX8888 ||
+                 layer->handle->fslFormat == FORMAT_BGRA8888)) {
+                needDither = true;
+            }
+
         }
         else if (mDimBuffer) {
             setG2dSurface(sSurfaceX, mDimBuffer, drect);
@@ -440,7 +448,11 @@ int Composer::composeLayer(Layer* layer, bool bypass)
             enableFunction(getHandle(), G2D_BLEND, true);
         }
 
+        if (needDither) enableFunction(getHandle(), G2D_DITHER, true);
+
         blitSurface(&sSurfaceX, &dSurfaceX);
+
+        if (needDither) enableFunction(getHandle(), G2D_DITHER, false);
 
         if (layer->blendMode != BLENDING_NONE && !bypass) {
             enableFunction(getHandle(), G2D_BLEND, false);
