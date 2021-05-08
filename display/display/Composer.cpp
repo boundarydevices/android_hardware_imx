@@ -257,6 +257,9 @@ int Composer::checkDimBuffer()
     desc.mProduceUsage |= USAGE_HW_COMPOSER |
                           USAGE_HW_2D | USAGE_HW_RENDER |
                           USAGE_SW_WRITE_OFTEN | USAGE_SW_READ_OFTEN;
+#ifdef HAVE_UNMAPPED_HEAP
+    desc.mProduceUsage |= USAGE_PROTECTED;
+#endif
     desc.mFlag = FLAGS_DIMBUFFER;
     desc.checkFormat();
     int ret = pManager->allocMemory(desc, &mDimBuffer);
