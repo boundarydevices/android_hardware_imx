@@ -492,7 +492,6 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcB
             ALOGV("%s, before sync_wait fence fd %d", __func__, acquire_fence_fd);
             ret = sync_wait(acquire_fence_fd, CAMERA_SYNC_TIMEOUT);
             ALOGV("%s, after sync_wait fence fd %d", __func__, acquire_fence_fd);
-            ret = sync_wait(acquire_fence_fd, CAMERA_SYNC_TIMEOUT);
             closeFence(acquire_fence_fd);
             if (ret != OK) {
                 ALOGW("%s: Timeout waiting on acquire fence %d, on stream %d, buffer %d", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
