@@ -87,7 +87,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         w_min, w_max, w_step, h_min, h_max, h_step);
 
     // Support resolutions requeted by CCD
-    uint32_t ispResCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1920, 1080};
+    uint32_t ispResCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1920, 1080, 3840, 2160};
     uint32_t ispResCandidateNum = ARRAY_SIZE(ispResCandidate)/2;
     uint32_t ispRes[MAX_RESOLUTION_SIZE];
     uint32_t ispResNum = 0;
