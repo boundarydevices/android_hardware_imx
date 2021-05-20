@@ -43,7 +43,6 @@ cc_library_static {
         "libprotobuf-cpp-lite",
     ],
     static_libs: [
-        "libqemu_pipe",
         "android.hardware.automotive.vehicle@2.0-libproto-native",
     ],
 }

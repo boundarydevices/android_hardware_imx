@@ -50,7 +50,7 @@ func evsDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
     }
-    p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DANDROID_SDK_VERSION="+ strconv.Itoa(ctx.AConfig().PlatformSdkVersionInt()))
+    p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DANDROID_SDK_VERSION="+ strconv.Itoa(ctx.AConfig().PlatformSdkVersion().FinalOrFutureInt()))
     ctx.AppendProperties(p)
 }
 

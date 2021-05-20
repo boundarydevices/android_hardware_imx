@@ -36,7 +36,7 @@ func cameraDefaults(ctx android.LoadHookContext) {
     } else {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
     }
-    cppflags = append(cppflags, "-DANDROID_SDK_VERSION=" + strconv.Itoa(ctx.AConfig().PlatformSdkVersionInt()))
+    cppflags = append(cppflags, "-DANDROID_SDK_VERSION=" + strconv.Itoa(ctx.AConfig().PlatformSdkVersion().FinalOrFutureInt()))
     if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
         cppflags = append(cppflags, "-DGRALLOC_VERSION=4")
     }

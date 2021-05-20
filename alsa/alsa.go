@@ -23,7 +23,7 @@ func alsaDefaults(ctx android.LoadHookContext) {
     }
 
     p := &props{}
-    cppflags = append(cppflags, "-DANDROID_SDK_VERSION=" + strconv.Itoa(ctx.AConfig().PlatformSdkVersionInt()))
+    cppflags = append(cppflags, "-DANDROID_SDK_VERSION=" + strconv.Itoa(ctx.AConfig().PlatformSdkVersion().FinalOrFutureInt()))
     p.Cflags = cppflags
     ctx.AppendProperties(p)
 }

@@ -46,7 +46,7 @@ cc_binary {
     vintf_fragments: ["android.hardware.power-service.imx.xml"],
     vendor: true,
     shared_libs: [
-        "android.hardware.power-ndk_platform",
+        "android.hardware.power-V1-ndk_platform",
         "libbase",
         "libcutils",
         "liblog",

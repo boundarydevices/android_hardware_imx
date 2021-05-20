@@ -29,7 +29,7 @@ audio_primary_defaults {
         "system/media/audio_utils/include",
         "system/media/audio_effects/include",
         "hardware/libhardware/include",
-        "system/core/base/include",
+        "system/libbase/include",
     ],
     shared_libs: [
         "liblog",
