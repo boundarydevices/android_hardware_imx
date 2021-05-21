@@ -115,6 +115,7 @@ public:
     int mAvailableFormats[MAX_SENSOR_FORMAT];
     int mAvailableFormatCount = 0;
 
+    int mFpsRangeCount = 0;
     int mTargetFpsRange[MAX_FPS_RANGE];
     int mMaxWidth = 0;
     int mMaxHeight = 0;

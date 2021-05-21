@@ -298,13 +298,10 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
         ALOGI("SupportedPreviewSizes: %d x %d", mPreviewResolutions[i], mPreviewResolutions[i + 1]);
     }
 
-    i = 0;
-    mTargetFpsRange[i++] = 10;
-    mTargetFpsRange[i++] = 30;
-    mTargetFpsRange[i++] = 15;
-    mTargetFpsRange[i++] = 30;
-    mTargetFpsRange[i++] = 30;
-    mTargetFpsRange[i++] = 30;
+    int fpsRange[] = {10, 30, 15, 30, 30, 30};
+    int rangeCount = ARRAY_SIZE(fpsRange);
+    mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+    memcpy(mTargetFpsRange, fpsRange, mFpsRangeCount*sizeof(int));
 
     setMaxPictureResolutions();
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);

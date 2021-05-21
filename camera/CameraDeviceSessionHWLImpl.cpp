@@ -1346,8 +1346,11 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
         uint32_t fps = 30;
         ret = requests[i].settings->Get(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, &entry);
         if ((ret == 0) && (entry.count > 1)) {
+            ALOGI("%s: request fps range[%d, %d]", __func__, entry.data.i32[0], entry.data.i32[1]);
             if (entry.data.i32[0] <= 15 && entry.data.i32[1] <= 15)
-            fps = 15;
+                fps = 15;
+            else
+                fps = entry.data.i32[0];
         }
 
         PipelineInfo *pipeline_info = map_pipeline_info[pipeline_id];

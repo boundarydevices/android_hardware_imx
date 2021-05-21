@@ -59,7 +59,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
     /* android.control */
     m_static_meta->Set(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
                      pDev->mTargetFpsRange,
-                     ARRAY_SIZE(pDev->mTargetFpsRange));
+                     pDev->mFpsRangeCount);
 
     static const uint8_t aeAntibandingMode =
         ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
@@ -362,7 +362,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
         minFrmDuration[streamConfigIdx + 1] = pDev->mPreviewResolutions[ResIdx * 2];
         minFrmDuration[streamConfigIdx + 2] = pDev->mPreviewResolutions[ResIdx * 2 + 1];
-        minFrmDuration[streamConfigIdx + 3] = 33333333;  // ns
+        minFrmDuration[streamConfigIdx + 3] = mSensorData.minframeduration;  // ns
 
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
         stallDuration[streamConfigIdx + 1] = pDev->mPreviewResolutions[ResIdx * 2];
@@ -382,12 +382,12 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
         minFrmDuration[streamConfigIdx + 1] = pDev->mPictureResolutions[ResIdx * 2];
         minFrmDuration[streamConfigIdx + 2] = pDev->mPictureResolutions[ResIdx * 2 + 1];
-        minFrmDuration[streamConfigIdx + 3] = 33333333;  // ns
+        minFrmDuration[streamConfigIdx + 3] = mSensorData.minframeduration;  // ns
 
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;
         stallDuration[streamConfigIdx + 1] = pDev->mPictureResolutions[ResIdx * 2];
         stallDuration[streamConfigIdx + 2] = pDev->mPictureResolutions[ResIdx * 2 + 1];
-        stallDuration[streamConfigIdx + 3] = 33333333;  // ns
+        stallDuration[streamConfigIdx + 3] = mSensorData.minframeduration;  // ns
     }
 
     ResCount = pDev->mPreviewResolutionCount / 2;
@@ -402,7 +402,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
         minFrmDuration[streamConfigIdx + 1] = pDev->mPreviewResolutions[ResIdx * 2];
         minFrmDuration[streamConfigIdx + 2] = pDev->mPreviewResolutions[ResIdx * 2 + 1];
-        minFrmDuration[streamConfigIdx + 3] = 33333333;  // ns
+        minFrmDuration[streamConfigIdx + 3] = mSensorData.minframeduration;  // ns
 
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_YCBCR_420_888;
         stallDuration[streamConfigIdx + 1] = pDev->mPreviewResolutions[ResIdx * 2];
@@ -421,12 +421,12 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         minFrmDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_RAW16;
         minFrmDuration[streamConfigIdx + 1] = pDev->mMaxWidth;
         minFrmDuration[streamConfigIdx + 2] = pDev->mMaxHeight;
-        minFrmDuration[streamConfigIdx + 3] = 33333333;  // ns
+        minFrmDuration[streamConfigIdx + 3] = mSensorData.minframeduration;  // ns
 
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_RAW16;
         stallDuration[streamConfigIdx + 1] = pDev->mMaxWidth;
         stallDuration[streamConfigIdx + 2] = pDev->mMaxHeight;
-        stallDuration[streamConfigIdx + 3] = 33333333;   // ns
+        stallDuration[streamConfigIdx + 3] = mSensorData.minframeduration;   // ns
     }
 
     m_static_meta->Set(ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
@@ -752,7 +752,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
               1);
 
     /** android.sensor */
-    static const int64_t frameDuration = 33333333L;  // 1/30 s
+    static const int64_t frameDuration = mSensorData.minframeduration;
     base->Set(ANDROID_SENSOR_FRAME_DURATION, &frameDuration, 1);
 
     /** android.flash */
@@ -1035,7 +1035,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
         base->Set(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST, &sensitivity_boost, 1);
 
         // Hardware level at least "limited", need fps fixed.
-        static const int32_t aeTargetFpsRange[2] = {30, 30};
+        static const int32_t aeTargetFpsRange[2] = {60, 60};
         base->Set(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, aeTargetFpsRange, 2);
     }
 
