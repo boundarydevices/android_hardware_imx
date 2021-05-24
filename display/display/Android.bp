@@ -28,6 +28,7 @@ cc_library_static {
         "system/memory/libion/kernel-headers/linux",
         "system/memory/libion/kernel-headers",
         "system/memory/libion",
+        "system/logging/liblog/include",
         "system/core/include",
         "device/nxp/common/kernel-headers",
     ],
