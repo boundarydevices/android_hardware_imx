@@ -34,6 +34,7 @@ namespace fsl {
 
 Composer* Composer::sInstance(0);
 Mutex Composer::sLock(Mutex::PRIVATE);
+thread_local void* Composer::sHandle(0);
 
 static bool getDefaultG2DLib(char *libName, int size)
 {
@@ -81,9 +82,6 @@ Composer::Composer()
     char path[PATH_MAX] = {0};
     char g2dlibName[PATH_MAX] = {0};
     char value[PROPERTY_VALUE_MAX];
-    mTls.tls = 0;
-    mTls.has_tls = 0;
-    pthread_mutex_init(&mTls.lock, NULL);
 
     property_get("vendor.sys.hwc.disable", value, "0");
     mDisableHWC = atoi(value);
@@ -174,36 +172,23 @@ Composer::~Composer()
     if (mHelperHandle != NULL) {
         dlclose(mHelperHandle);
     }
+    if (sHandle != NULL) {
+        closeEngine(sHandle);
+    }
 }
 
 void *Composer::getHandle()
 {
-    void *handle = thread_store_get(&mTls);
-    if (handle != NULL) {
-        return handle;
+    if (sHandle != NULL) {
+        return sHandle;
     }
 
     if (mOpenEngine == NULL) {
         return NULL;
     }
 
-    handle = malloc(sizeof(void*));
-    if (handle == NULL) {
-        return NULL;
-    }
-
-    openEngine(&handle);
-    thread_store_set(&mTls, handle, threadDestructor);
-    return handle;
-}
-
-void Composer::threadDestructor(void *handle)
-{
-    if (handle == NULL) {
-        return;
-    }
-
-    Composer::getInstance()->closeEngine(handle);
+    openEngine(&sHandle);
+    return sHandle;
 }
 
 bool Composer::isValid()

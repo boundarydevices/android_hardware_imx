@@ -19,7 +19,6 @@
 
 #include <stdint.h>
 #include <utils/Mutex.h>
-#include <cutils/threads.h>
 #include "Stream.h"
 #include "utils/CameraConfigurationParser.h"
 
@@ -62,7 +61,6 @@ private:
     void cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
              uint8_t *outputBuffer, int width, int height);
     void *getHandle();
-    static void threadDestructor(void *handle);
     int openEngine(void** handle);
     int closeEngine(void* handle);
     void getModule(char *path, const char *name);
@@ -71,13 +69,13 @@ private:
     ImageProcess();
     static Mutex sLock;
     static ImageProcess* sInstance;
+    static thread_local void *sHandle;
 
     int mIpuFd;
     int mPxpFd;
     int mChannel;
     int m2DEnable;
 
-    thread_store_t mTls;
     hwc_func1 mOpenEngine;
     hwc_func1 mCloseEngine;
     hwc_func1 mFinishEngine;

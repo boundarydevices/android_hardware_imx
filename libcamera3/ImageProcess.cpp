@@ -45,6 +45,7 @@ namespace fsl {
 
 ImageProcess* ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
+thread_local void* ImageProcess::sHandle(0);
 
 static bool getDefaultG2DLib(char *libName, int size)
 {
@@ -125,10 +126,6 @@ ImageProcess::ImageProcess()
         mBlitEngine = (hwc_func3)dlsym(mG2dModule, "g2d_blit");
     }
 
-    mTls.tls = 0;
-    mTls.has_tls = 0;
-    pthread_mutex_init(&mTls.lock, NULL);
-
     memset(path, 0, sizeof(path));
     getModule(path, CLENGINE);
     mCLModule = dlopen(path, RTLD_NOW);
@@ -184,37 +181,24 @@ ImageProcess::~ImageProcess()
     if (mCLModule != NULL) {
         dlclose(mCLModule);
     }
+
+    if (sHandle != NULL) {
+        closeEngine(sHandle);
+    }
 }
 
 void *ImageProcess::getHandle()
 {
-    void *handle = thread_store_get(&mTls);
-    if (handle != NULL) {
-        return handle;
+    if (sHandle != NULL) {
+        return sHandle;
     }
 
     if (mOpenEngine == NULL) {
         return NULL;
     }
 
-    handle = malloc(sizeof(void*));
-    if (handle == NULL) {
-        return NULL;
-    }
-
-    openEngine(&handle);
-    thread_store_set(&mTls, handle, threadDestructor);
-    return handle;
-}
-
-void ImageProcess::threadDestructor(void *handle)
-{
-    if (handle == NULL) {
-        return;
-    }
-
-    ImageProcess::getInstance()->closeEngine(handle);
-    free(handle);
+    openEngine(&sHandle);
+    return sHandle;
 }
 
 int ImageProcess::openEngine(void** handle)
