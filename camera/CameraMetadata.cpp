@@ -307,6 +307,17 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         int32_t max_analog_sensitivity = 1600;
         m_static_meta->Set(ANDROID_SENSOR_MAX_ANALOG_SENSITIVITY, &max_analog_sensitivity, 1);
 
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#SHADING_AVAILABLE_MODES
+        uint8_t available_shading_modes[] = {ANDROID_SHADING_MODE_OFF, ANDROID_SHADING_MODE_FAST};
+        m_static_meta->Set(ANDROID_SHADING_AVAILABLE_MODES,
+                     available_shading_modes,
+                     ARRAY_SIZE(available_shading_modes));
+
+        // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES
+        uint8_t available_lens_shading_map_modes[] = {ANDROID_STATISTICS_LENS_SHADING_MAP_MODE_OFF, ANDROID_STATISTICS_LENS_SHADING_MAP_MODE_ON};
+        m_static_meta->Set(ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
+                     available_lens_shading_map_modes,
+                     ARRAY_SIZE(available_lens_shading_map_modes));
     } else {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
         m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
@@ -590,6 +601,17 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
             ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
             ANDROID_STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES,
             ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE,
+            ANDROID_EDGE_AVAILABLE_EDGE_MODES,
+            ANDROID_LENS_INFO_AVAILABLE_APERTURES,
+            ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
+            ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE,
+            ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
+            ANDROID_SENSOR_INFO_SENSITIVITY_RANGE,
+            ANDROID_SENSOR_MAX_ANALOG_SENSITIVITY,
+            ANDROID_SHADING_AVAILABLE_MODES,
+            ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
+            ANDROID_TONEMAP_AVAILABLE_TONE_MAP_MODES,
+            ANDROID_TONEMAP_MAX_CURVE_POINTS
         };
 
         MergeAndSetMeta(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
@@ -661,7 +683,12 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
     if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME) == NULL)
         m_static_meta->Set(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, availableRequestKeys, ARRAY_SIZE(availableRequestKeys));
     else {
-        int32_t availableRequestISPKeys[] = { ANDROID_HOT_PIXEL_MODE, ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE };
+        int32_t availableRequestISPKeys[] = { ANDROID_HOT_PIXEL_MODE,
+                                              ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE,
+                                              ANDROID_EDGE_MODE,
+                                              ANDROID_TONEMAP_MODE,
+                                              ANDROID_LENS_FILTER_DENSITY,
+                                              ANDROID_LENS_APERTURE };
 
         MergeAndSetMeta(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
                       availableRequestKeys, sizeof(availableRequestKeys),
@@ -797,6 +824,28 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
             tonemapMode = ANDROID_TONEMAP_MODE_FAST;
             edgeMode = ANDROID_EDGE_MODE_FAST;
             break;
+    }
+
+    if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
+        switch (type) {
+            case RequestTemplate::kPreview:
+                tonemapMode = ANDROID_TONEMAP_MODE_FAST;
+                edgeMode = ANDROID_EDGE_MODE_FAST;
+                break;
+            case RequestTemplate::kStillCapture:
+                tonemapMode = ANDROID_TONEMAP_MODE_HIGH_QUALITY;
+                edgeMode = ANDROID_EDGE_MODE_HIGH_QUALITY;
+                break;
+            case RequestTemplate::kVideoRecord:
+                tonemapMode = ANDROID_TONEMAP_MODE_FAST;
+                edgeMode = ANDROID_EDGE_MODE_FAST;
+                break;
+            case RequestTemplate::kVideoSnapshot:
+                tonemapMode = ANDROID_TONEMAP_MODE_FAST;
+                break;
+            default:
+                break;
+        }
     }
 
     base->Set(ANDROID_HOT_PIXEL_MODE, &hotPixelMode, 1);
