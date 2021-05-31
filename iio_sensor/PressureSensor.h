@@ -57,10 +57,9 @@ class PressureSensor : public HWSensorBase {
     void run();
     void activate(bool enable);
     void setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
-    void processScanData(char* data,Event* evt);
+    void processScanData(char* data,Event* evt, int mChannelIndex);
   private:
     std::string mSysfspath;
-    int mChannelIndex;
 };
 
 }  // namespace implementation

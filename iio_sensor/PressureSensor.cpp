@@ -50,11 +50,6 @@ PressureSensor::PressureSensor(int32_t sensorHandle, ISensorsEventCallback* call
     mSensorInfo.minDelay = 2500;
     mSensorInfo.maxDelay = 500000;
     mSysfspath = iio_data.sysfspath;
-    if (iio_data.type == SensorType::PRESSURE) {
-        mChannelIndex = 0;
-    } else if(iio_data.type == SensorType::TEMPERATURE) {
-        mChannelIndex = 1;
-    }
     mRunThread = std::thread(std::bind(&PressureSensor::run, this));
 }
 
@@ -68,10 +63,17 @@ PressureSensor::~PressureSensor() {
     mRunThread.join();
 }
 
-void PressureSensor::processScanData(char* data, Event* evt) {
+void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) {
     unsigned int i, index = 0;
-    evt->sensorHandle = mSensorInfo.sensorHandle;
-    evt->sensorType = mSensorInfo.type;
+    if (mChannelIndex == 0) {
+        evt->sensorHandle = 3;
+        evt->sensorType = SensorType::PRESSURE;
+    }
+    if (mChannelIndex == 1) {
+        evt->sensorHandle = 4;
+        evt->sensorType = SensorType::TEMPERATURE;
+    }
+
     char *channel_data = data;
     uint64_t sign_mask;
     uint64_t value_mask;
@@ -175,15 +177,17 @@ void PressureSensor::activate(bool enable) {
             mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
             if (mPollFdIio.fd < 0)
                 ALOGI("Failed to open iio char device (%s).",  buffer_path.c_str());
+            else {
+                setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
+                enable_sensor(mIioData.sysfspath, enable);
+                mWaitCV.notify_all();
+            }
         } else {
             close(mPollFdIio.fd);
             mPollFdIio.fd = -1;
         }
 
         mIsEnabled = enable;
-        setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
-        enable_sensor(mIioData.sysfspath, enable);
-        mWaitCV.notify_all();
     }
 }
 
@@ -213,8 +217,11 @@ void PressureSensor::run() {
                     continue;
                 }
                 events.clear();
-                processScanData(readbuf, &event);
+                processScanData(readbuf, &event, 0);
                 events.push_back(event);
+                processScanData(readbuf, &event, 1);
+                events.push_back(event);
+
                 mCallback->postEvents(events, isWakeUpSensor());
             }
         }
