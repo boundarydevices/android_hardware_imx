@@ -119,16 +119,18 @@ static void *monitorFfs(void *param) {
     // notify here if the endpoints are already present.
     if (descriptorWritten) {
       usleep(PULL_UP_DELAY);
-      if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-        lock_guard<mutex> lock(usbGadget->mLock);
-        usbGadget->mCurrentUsbFunctionsApplied = true;
-        gadgetPullup = true;
-        writeUdc = false;
-        ALOGI("GADGET pulled up");
-        usbGadget->mCv.notify_all();
+      if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
+        if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+          lock_guard<mutex> lock(usbGadget->mLock);
+          usbGadget->mCurrentUsbFunctionsApplied = true;
+          gadgetPullup = true;
+          writeUdc = false;
+          ALOGI("GADGET pulled up");
+          usbGadget->mCv.notify_all();
+        }
       }
     }
-    int nrEvents = epoll_wait(usbGadget->mEpollFd, events, EPOLL_EVENTS, 2000);
+    int nrEvents = epoll_wait(usbGadget->mEpollFd, events, EPOLL_EVENTS, gadgetPullup? -1: 2000);
     if (nrEvents <= 0) {
       continue;
     }
@@ -167,14 +169,16 @@ static void *monitorFfs(void *param) {
                 < PULL_UP_DELAY)
               usleep(PULL_UP_DELAY);
 
-            if(!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-              lock_guard<mutex> lock(usbGadget->mLock);
-              usbGadget->mCurrentUsbFunctionsApplied = true;
-              ALOGI("GADGET pulled up");
-              writeUdc = false;
-              gadgetPullup = true;
-              // notify the main thread to signal userspace.
-              usbGadget->mCv.notify_all();
+            if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
+              if(!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+                lock_guard<mutex> lock(usbGadget->mLock);
+                usbGadget->mCurrentUsbFunctionsApplied = true;
+                ALOGI("GADGET pulled up");
+                writeUdc = false;
+                gadgetPullup = true;
+                // notify the main thread to signal userspace.
+                usbGadget->mCv.notify_all();
+              }
             }
           }
         }
@@ -262,8 +266,6 @@ V1_0::Status UsbGadget::tearDownGadget() {
 
   if (!WriteStringToFile("0", DESC_USE_PATH)) return Status::ERROR;
 
-  if (unlinkFunctions(CONFIG_PATH)) return Status::ERROR;
-
   if (mMonitorCreated) {
     uint64_t flag = 100;
     unsigned long ret;
@@ -283,6 +285,8 @@ V1_0::Status UsbGadget::tearDownGadget() {
   } else {
     ALOGI("mMonitor not running");
   }
+
+  if (unlinkFunctions(CONFIG_PATH)) return Status::ERROR;
 
   mInotifyFd.reset(-1);
   mEventFd.reset(-1);
