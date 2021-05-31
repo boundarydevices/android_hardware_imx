@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright 2021 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "GoogleIIOSensorSubHal"
+
+#define LOG_TAG "SensorsSubHal"
 
 #include "SensorsSubHal.h"
 #include <android/hardware/sensors/2.0/types.h>
@@ -50,11 +51,15 @@ static const char* gSensorConfigLocationList[] = {"/odm/etc/sensors/", "/vendor/
 static const int gSensorConfigLocationListSize =
         (sizeof(gSensorConfigLocationList) / sizeof(gSensorConfigLocationList[0]));
 
-#define MODULE_NAME "android.hardware.sensors@2.0-Google-IIO-Subhal"
+#define MODULE_NAME "android.hardware.sensors@2.0-nxp-IIO-Subhal"
 
 static const std::vector<sensors_supported_hal> sensors_supported = {
-        SENSOR_SUPPORTED("scmi.iio.accel", SensorType::ACCELEROMETER),
-        SENSOR_SUPPORTED("scmi.iio.gyro", SensorType::GYROSCOPE),
+        SENSOR_SUPPORTED("fxas21002c", SensorType::GYROSCOPE),
+        SENSOR_SUPPORTED("isl29023", SensorType::LIGHT),
+        SENSOR_SUPPORTED("mpl3115", SensorType::PRESSURE),
+        SENSOR_SUPPORTED("mpl3115", SensorType::TEMPERATURE),
+        SENSOR_SUPPORTED("fxos8700", SensorType::ACCELEROMETER),
+        SENSOR_SUPPORTED("fxos8700", SensorType::MAGNETIC_FIELD),
 };
 
 static std::optional<std::vector<Sensor>> readSensorsConfigFromXml() {
@@ -71,7 +76,6 @@ static std::optional<std::vector<Sensor>> readSensorsConfigFromXml() {
             }
         }
     }
-    ALOGI("Could not find the sensors configuration for module %s", MODULE_NAME);
     return std::nullopt;
 }
 
@@ -91,6 +95,7 @@ SensorsSubHal::SensorsSubHal() : mCallback(nullptr), mNextHandle(1) {
     std::vector<iio_device_data> iio_devices;
     const auto sensors_config_list = readSensorsConfigFromXml();
     err = load_iio_devices(&iio_devices, sensors_supported);
+
     if (err == 0) {
         for (auto& iio_device : iio_devices) {
             err = scan_elements(iio_device.sysfspath, &iio_device);
@@ -102,23 +107,19 @@ SensorsSubHal::SensorsSubHal() : mCallback(nullptr), mNextHandle(1) {
                         sensor_configuration = getSensorConfiguration(
                                 *sensors_config_list, iio_device.name, iio_device.type);
 
-                    if (iio_device.channelInfo.size() == NUM_OF_CHANNEL_SUPPORTED) {
                         AddSensor(iio_device, sensor_configuration);
-                    } else {
-                        ALOGE("SensorsSubHal(): Unexpected number of channels for sensor %s",
-                              iio_device.sysfspath.c_str());
-                    }
-                } else {
-                    ALOGE("SensorsSubHal(): Error in enabling_sensor %s to %d error code %d",
-                          iio_device.sysfspath.c_str(), false, err);
                 }
             } else {
-                ALOGE("SensorsSubHal(): Error in scanning channels for IIO device %s error code %d",
-                      iio_device.sysfspath.c_str(), err);
+                std::optional<std::vector<Configuration>> sensor_configuration = std::nullopt;
+                if (sensors_config_list)
+                    sensor_configuration = getSensorConfiguration(
+                            *sensors_config_list, iio_device.name, iio_device.type);
+
+                    AddSensor(iio_device, sensor_configuration);
             }
         }
     } else {
-        ALOGE("SensorsSubHal: load_iio_devices returned error %d", err);
+        ALOGE("sensorsSubHal: load_iio_devices returned error %d", err);
     }
 }
 
@@ -236,7 +237,7 @@ void SensorsSubHal::postEvents(const std::vector<Event>& events, bool wakeup) {
     ScopedWakelock wakelock = mCallback->createScopedWakelock(wakeup);
     mCallback->postEvents(events, std::move(wakelock));
 }
-void SensorsSubHal::AddSensor(const struct iio_device_data& iio_data,
+void SensorsSubHal::AddSensor(struct iio_device_data& iio_data,
                               const std::optional<std::vector<Configuration>>& config) {
     HWSensorBase* sensor = HWSensorBase::buildSensor(mNextHandle++ /* sensorHandle */,
                                                      this /* callback */, iio_data, config);

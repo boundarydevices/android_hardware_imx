@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright 2021 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "GoogleIIOSensorSubHal"
+
+#define LOG_TAG "Sensor"
 
 #include "Sensor.h"
+#include "LightSensor.h"
+#include "PressureSensor.h"
+#include "AnglvelSensor.h"
+#include "AccMagSensor.h"
 #include <hardware/sensors.h>
 #include <log/log.h>
 #include <utils/SystemClock.h>
 #include <cmath>
+#include "SensorsSubHal.h"
 
 namespace android {
 namespace hardware {
@@ -39,7 +45,7 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
     : mIsEnabled(false), mSamplingPeriodNs(0), mCallback(callback), mMode(OperationMode::NORMAL) {
     mSensorInfo.type = type;
     mSensorInfo.sensorHandle = sensorHandle;
-    mSensorInfo.vendor = "Google";
+    mSensorInfo.vendor = "nxp";
     mSensorInfo.version = 1;
     mSensorInfo.fifoReservedEventCount = 0;
     mSensorInfo.fifoMaxEventCount = 0;
@@ -49,31 +55,31 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
         case SensorType::ACCELEROMETER:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_ACCELEROMETER;
             break;
+        case SensorType::TEMPERATURE:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_TEMPERATURE;
+            break;
+        case SensorType::MAGNETIC_FIELD:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_MAGNETIC_FIELD;
+            break;
+        case SensorType::PRESSURE:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_PRESSURE;
+            break;
         case SensorType::GYROSCOPE:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_GYROSCOPE;
+            break;
+        case SensorType::LIGHT:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_LIGHT;
             break;
         default:
             ALOGE("unsupported sensor type %d", type);
             break;
     }
-    // TODO(jbhayana) : Make the threading policy configurable
-    mRunThread = std::thread(std::bind(&SensorBase::run, this));
 }
 
 SensorBase::~SensorBase() {
-    // Ensure that lock is unlocked before calling mRunThread.join() or a
-    // deadlock will occur.
-    {
-        std::unique_lock<std::mutex> lock(mRunMutex);
-        mStopThread = true;
-        mIsEnabled = false;
-        mWaitCV.notify_all();
-    }
-    mRunThread.join();
 }
 
 HWSensorBase::~HWSensorBase() {
-    close(mPollFdIio.fd);
 }
 
 const SensorInfo& SensorBase::getSensorInfo() const {
@@ -84,14 +90,15 @@ void HWSensorBase::batch(int32_t samplingPeriodNs) {
     samplingPeriodNs =
             std::clamp(samplingPeriodNs, mSensorInfo.minDelay * 1000, mSensorInfo.maxDelay * 1000);
     if (mSamplingPeriodNs != samplingPeriodNs) {
-        unsigned int sampling_frequency = ns_to_frequency(samplingPeriodNs);
-        int i = 0;
-        mSamplingPeriodNs = samplingPeriodNs;
-        std::vector<double>::iterator low =
-                std::lower_bound(mIioData.sampling_freq_avl.begin(),
-                                 mIioData.sampling_freq_avl.end(), sampling_frequency);
-        i = low - mIioData.sampling_freq_avl.begin();
-        set_sampling_frequency(mIioData.sysfspath, mIioData.sampling_freq_avl[i]);
+        //TODO: currently we still not support batch, disable it here.
+        //unsigned int sampling_frequency = ns_to_frequency(samplingPeriodNs);
+        //int i = 0;
+        //mSamplingPeriodNs = samplingPeriodNs;
+        //std::vector<double>::iterator low =
+        //        std::lower_bound(mIioData.sampling_freq_avl.begin(),
+        //                         mIioData.sampling_freq_avl.end(), sampling_frequency);
+        //i = low - mIioData.sampling_freq_avl.begin();
+        //set_sampling_frequency(mIioData.sysfspath, mIioData.sampling_freq_avl[i]);
         // Wake up the 'run' thread to check if a new event should be generated now
         mWaitCV.notify_all();
     }
@@ -117,7 +124,8 @@ void HWSensorBase::activate(bool enable) {
     if (mIsEnabled != enable) {
         mIsEnabled = enable;
         enable_sensor(mIioData.sysfspath, enable);
-        if (enable) sendAdditionalInfoReport();
+        if (enable)
+            sendAdditionalInfoReport();
         mWaitCV.notify_all();
     }
 }
@@ -167,44 +175,6 @@ void HWSensorBase::processScanData(uint8_t* data, Event* evt) {
             evt->timestamp = val;
         } else {
             channelData[chanIdx] = static_cast<float>(val) * mIioData.scale;
-        }
-    }
-
-    evt->u.vec3.x = getChannelData(channelData, mXMap, mXNegate);
-    evt->u.vec3.y = getChannelData(channelData, mYMap, mYNegate);
-    evt->u.vec3.z = getChannelData(channelData, mZMap, mZNegate);
-    evt->u.vec3.status = SensorStatus::ACCURACY_HIGH;
-}
-
-void HWSensorBase::run() {
-    int err;
-    int read_size;
-    std::vector<Event> events;
-    Event event;
-
-    while (!mStopThread) {
-        if (!mIsEnabled || mMode == OperationMode::DATA_INJECTION) {
-            std::unique_lock<std::mutex> runLock(mRunMutex);
-            mWaitCV.wait(runLock, [&] {
-                return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
-            });
-        } else {
-            err = poll(&mPollFdIio, 1, mSamplingPeriodNs * 1000);
-            if (err <= 0) {
-                ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
-                continue;
-            }
-            if (mPollFdIio.revents & POLLIN) {
-                read_size = read(mPollFdIio.fd, &mSensorRawData[0], mScanSize);
-                if (read_size <= 0) {
-                    ALOGE("%s: Failed to read data from iio char device.", mIioData.name.c_str());
-                    continue;
-                }
-                events.clear();
-                processScanData(&mSensorRawData[0], &event);
-                events.push_back(event);
-                mCallback->postEvents(events, isWakeUpSensor());
-            }
         }
     }
 }
@@ -429,7 +399,7 @@ status_t HWSensorBase::setAdditionalInfoFrames(
 }
 
 HWSensorBase* HWSensorBase::buildSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-                                        const struct iio_device_data& iio_data,
+                                        struct iio_device_data& iio_data,
                                         const std::optional<std::vector<Configuration>>& config) {
     if (checkOrientation(config) != OK) {
         ALOGE("Orientation of the sensor %s in the configuration file is invalid",
@@ -440,14 +410,27 @@ HWSensorBase* HWSensorBase::buildSensor(int32_t sensorHandle, ISensorsEventCallb
         ALOGE("IIO channel index of the sensor %s  is invalid", iio_data.name.c_str());
         return nullptr;
     }
-    return new HWSensorBase(sensorHandle, callback, iio_data, config);
+
+    if (iio_data.type == SensorType::LIGHT)
+        return new LightSensor(sensorHandle, callback, iio_data, config);
+    else if (iio_data.type == SensorType::PRESSURE)
+        return new PressureSensor(sensorHandle, callback, iio_data, config);
+    else if (iio_data.type == SensorType::TEMPERATURE)
+        return new PressureSensor(sensorHandle, callback, iio_data, config);
+    else if (iio_data.type == SensorType::ACCELEROMETER)
+        return new AccMagSensor(sensorHandle, callback, iio_data, config);
+    else if (iio_data.type == SensorType::MAGNETIC_FIELD)
+        return new AccMagSensor(sensorHandle, callback, iio_data, config);
+    else if (iio_data.type == SensorType::GYROSCOPE)
+        return new AnglvelSensor(sensorHandle, callback, iio_data, config);
+
+    return nullptr;
 }
 
 HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback,
                            const struct iio_device_data& data,
                            const std::optional<std::vector<Configuration>>& config)
     : SensorBase(sensorHandle, callback, data.type) {
-    std::string buffer_path;
     mSensorInfo.flags |= SensorFlagBits::CONTINUOUS_MODE;
     mSensorInfo.name = data.name;
     mSensorInfo.resolution = data.resolution;
@@ -469,14 +452,8 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
     mScanSize = calculateScanSize();
-    buffer_path = "/dev/iio:device";
-    buffer_path.append(std::to_string(mIioData.iio_dev_num));
-    mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
-    if (mPollFdIio.fd < 0) {
-        ALOGE("%s: Failed to open iio char device (%s).", data.name.c_str(), buffer_path.c_str());
-        return;
-    }
     mPollFdIio.events = POLLIN;
+    mPollFdIio.revents = 0;
     mSensorRawData.resize(mScanSize);
 }
 

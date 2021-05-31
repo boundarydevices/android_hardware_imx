@@ -16,9 +16,9 @@
 
 <sensorHalConfiguration version="1.0" xmlns:xi="http://www.w3.org/2001/XInclude">
     <modules>
-        <module halName="android.hardware.sensors@2.0-Google-IIO-Subhal" halVersion="2.0">
+        <module halName="android.hardware.sensors@2.0-nxp-IIO-Subhal" halVersion="2.0">
             <sensors>
-                <sensor name="scmi.iio.accel" type="1">
+                <sensor name="fxos8700" type="1">
                     <configuration>
                         <orientation rotate="true">
                             <x map="0" negate="false"/>
@@ -32,7 +32,7 @@
                         </location>
                     </configuration>
                 </sensor>
-                <sensor name="scmi.iio.gyro" type="4">
+                <sensor name="fxas21002c" type="4">
                     <configuration>
                         <orientation rotate="true">
                             <x map="0" negate="false"/>

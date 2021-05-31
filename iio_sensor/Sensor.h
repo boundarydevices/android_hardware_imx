@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright 2021 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef ANDROID_HARDWARE_SENSORS_V2_0_SENSOR_H
 #define ANDROID_HARDWARE_SENSORS_V2_0_SENSOR_H
 
@@ -78,9 +79,7 @@ class SensorBase {
     Result injectEvent(const Event& event);
 
   protected:
-    virtual void run() = 0;
     bool isWakeUpSensor();
-
     bool mIsEnabled;
     int64_t mSamplingPeriodNs;
     SensorInfo mSensorInfo;
@@ -96,14 +95,21 @@ class SensorBase {
 class HWSensorBase : public SensorBase {
   public:
     static HWSensorBase* buildSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-                                     const struct iio_device_data& iio_data,
+                                     struct iio_device_data& iio_data,
                                      const std::optional<std::vector<Configuration>>& config);
     ~HWSensorBase();
     void batch(int32_t samplingPeriodNs);
     void activate(bool enable);
     Result flush();
     struct iio_device_data mIioData;
+    struct pollfd mPollFdIio;
+    HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback,
+                 const struct iio_device_data& iio_data,
+                 const std::optional<std::vector<Configuration>>& config);
 
+    std::vector<uint8_t> mSensorRawData;
+    ssize_t mScanSize;
+    int64_t mXMap, mYMap, mZMap;
   private:
     static constexpr uint8_t LOCATION_X_IDX = 3;
     static constexpr uint8_t LOCATION_Y_IDX = 7;
@@ -112,19 +118,10 @@ class HWSensorBase : public SensorBase {
     static constexpr uint8_t ROTATION_Y_IDX = 1;
     static constexpr uint8_t ROTATION_Z_IDX = 2;
 
-    ssize_t mScanSize;
-    struct pollfd mPollFdIio;
-    std::vector<uint8_t> mSensorRawData;
-    int64_t mXMap, mYMap, mZMap;
     bool mXNegate, mYNegate, mZNegate;
     std::vector<AdditionalInfo> mAdditionalInfoFrames;
 
-    HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback,
-                 const struct iio_device_data& iio_data,
-                 const std::optional<std::vector<Configuration>>& config);
-
     ssize_t calculateScanSize();
-    void run();
     void setOrientation(std::optional<std::vector<Configuration>> config);
     void processScanData(uint8_t* data, Event* evt);
     void setAxisDefaultValues();
@@ -133,6 +130,7 @@ class HWSensorBase : public SensorBase {
     status_t getSensorPlacement(AdditionalInfo* sensorPlacement,
                                 const std::optional<std::vector<Configuration>>& config);
 };
+
 }  // namespace implementation
 }  // namespace subhal
 }  // namespace V2_0

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright 2021 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef ANDROID_HARDWARE_SENSORS_V2_0_SENSORS_SUBHAL_H
 #define ANDROID_HARDWARE_SENSORS_V2_0_SENSORS_SUBHAL_H
 
@@ -37,7 +38,7 @@ using ::sensor::hal::configuration::V1_0::Configuration;
 
 /**
  * Implementation of a ISensorsSubHal that can be used as a reference HAL implementation of sensors
- * multihal 2.0. See the README file for more details.
+ * multihal 2.0.
  */
 class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
     using Event = ::android::hardware::sensors::V1_0::Event;
@@ -74,7 +75,7 @@ class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
     Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
 
     // Methods from ::android::hardware::sensors::V2_0::implementation::ISensorsSubHal follow.
-    const std::string getName() override { return "Google-IIO-SensorsSubhal"; }
+    const std::string getName() override { return "nxp-IIO-SensorsSubhal"; }
 
     Return<Result> initialize(const sp<IHalProxyCallback>& halProxyCallback) override;
 
@@ -82,7 +83,7 @@ class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
     void postEvents(const std::vector<Event>& events, bool wakeup) override;
 
   protected:
-    void AddSensor(const struct iio_device_data& iio_data,
+    void AddSensor(struct iio_device_data& iio_data,
                    const std::optional<std::vector<Configuration>>& config);
 
     /**
