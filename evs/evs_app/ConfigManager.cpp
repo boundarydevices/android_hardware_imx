@@ -57,12 +57,14 @@ bool ConfigManager::initialize(const char* configFileName)
     std::ifstream configStream(configFileName);
 
     // Parse the stream into JSON objects
-    Json::Reader reader;
+    Json::CharReaderBuilder builder;
+
     Json::Value rootNode;
-    bool parseOk = reader.parse(configStream, rootNode, false /* don't need comments */);
+    std::string errorMessage;
+    bool parseOk = Json::parseFromStream(builder, configStream,  &rootNode, &errorMessage);
     if (!parseOk) {
         printf("Failed to read configuration file %s\n", configFileName);
-        printf("%s\n", reader.getFormatedErrorMessages().c_str());
+        printf("%s\n", errorMessage.c_str());
         return false;
     }
 
