@@ -897,7 +897,7 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
                 audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
 
-static uint32_t out_get_channels(const struct audio_stream *stream)
+static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     return out->channel_mask;
@@ -1807,7 +1807,7 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
                                  in->requested_channel_mask);
 }
 
-static uint32_t in_get_channels(const struct audio_stream *stream)
+static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
 {
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
 
@@ -2524,18 +2524,18 @@ static void in_read_audio_effect_channel_configs(struct imx_stream_in *in __unus
 }
 
 
-static uint32_t in_get_aux_channels(struct imx_stream_in *in)
+static audio_channel_mask_t in_get_aux_channels(struct imx_stream_in *in)
 {
     int i;
-    channel_config_t new_chcfg = {0, 0};
+    channel_config_t new_chcfg = {AUDIO_CHANNEL_NONE, AUDIO_CHANNEL_NONE};
 
     if (in->num_preprocessors == 0)
-        return 0;
+        return AUDIO_CHANNEL_NONE;
 
     /* do not enable dual mic configurations when capturing from other microphones than
      * main or sub */
     if (!(in->device & (AUDIO_DEVICE_IN_BUILTIN_MIC | AUDIO_DEVICE_IN_BACK_MIC)))
-        return 0;
+        return AUDIO_CHANNEL_NONE;
 
     /* retain most complex aux channels configuration compatible with requested main channels and
      * supported by audio driver and all pre processors */
@@ -2676,7 +2676,7 @@ static int in_reconfigure_channels(struct imx_stream_in *in,
 static void in_update_aux_channels(struct imx_stream_in *in,
                                    effect_handle_t effect)
 {
-    uint32_t aux_channels;
+    audio_channel_mask_t aux_channels;
     channel_config_t channel_config;
     int status;
 
@@ -2692,8 +2692,8 @@ static void in_update_aux_channels(struct imx_stream_in *in,
     if (status != 0) {
         ALOGV("in_update_aux_channels(): in_reconfigure_channels error %d", status);
         /* resetting aux channels configuration */
-        aux_channels = 0;
-        channel_config.aux_channels = 0;
+        aux_channels = AUDIO_CHANNEL_NONE;
+        channel_config.aux_channels = AUDIO_CHANNEL_NONE;
         in_reconfigure_channels(in, effect, &channel_config, true);
     }
     if (in->aux_channels != aux_channels) {

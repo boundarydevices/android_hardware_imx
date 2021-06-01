@@ -182,7 +182,7 @@ struct imx_stream_in {
     size_t mute_500ms;
     struct imx_audio_device *dev;
     bool aux_channels_changed;
-    uint32_t main_channels;
+    audio_channel_mask_t main_channels;
     uint32_t aux_channels;
     char* address;
 
