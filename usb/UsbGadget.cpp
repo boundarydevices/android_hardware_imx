@@ -45,6 +45,7 @@ constexpr int PULL_UP_DELAY = 500000;
 #define PULLUP_PATH GADGET_PATH "UDC"
 #define USB_CONTROLLER "vendor.usb.config"
 #define GADGET_NAME GetProperty(USB_CONTROLLER, "")
+#define USB_SYSFS_PATH GetProperty("vendor.usb.sysfs_path", "")
 #define PERSISTENT_BOOT_MODE "ro.bootmode"
 #define VENDOR_ID_PATH GADGET_PATH "idVendor"
 #define PRODUCT_ID_PATH GADGET_PATH "idProduct"
@@ -106,6 +107,8 @@ static void *monitorFfs(void *param) {
   bool writeUdc = true, stopMonitor = false;
   struct epoll_event events[EPOLL_EVENTS];
   steady_clock::time_point disconnect;
+
+  std::string bound_udc;
 
   while (!stopMonitor) {
     bool descriptorWritten = true;
@@ -170,6 +173,12 @@ static void *monitorFfs(void *param) {
               usleep(PULL_UP_DELAY);
 
             if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
+              android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
+              if (bound_udc != GADGET_NAME && bound_udc != "") {
+                WriteStringToFile("none", PULLUP_PATH);
+                usleep(PULL_UP_DELAY);
+            }
+
               if(!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
                 lock_guard<mutex> lock(usbGadget->mLock);
                 usbGadget->mCurrentUsbFunctionsApplied = true;
@@ -178,6 +187,26 @@ static void *monitorFfs(void *param) {
                 gadgetPullup = true;
                 // notify the main thread to signal userspace.
                 usbGadget->mCv.notify_all();
+              }
+            } else {
+             /* try to bind configfs with dummy udc only when usb controller sysfs path is watched
+              * on because it is used to trigger events when the board is connected to the host again */
+              if (usbGadget->mUsbSysfsPathWatch) {
+                ALOGI("try to bind configfs with dummy udc");
+                std::unique_ptr<DIR, decltype(&closedir)>dir(opendir("/sys/class/udc"), closedir);
+                if(dir) {
+                  dirent* dp;
+                  while ((dp = readdir(dir.get())) != nullptr) {
+                    if ( (dp->d_name[0] != '.') && strstr(dp->d_name, "dummy_udc") ) {
+                      android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
+                      if (bound_udc != "" && strncmp(bound_udc.c_str(), dp->d_name, bound_udc.size()-1)) {
+                        WriteStringToFile("none", PULLUP_PATH);
+                        usleep(PULL_UP_DELAY);
+                      }
+                      WriteStringToFile(dp->d_name, PULLUP_PATH);
+                    }
+                  }
+                }
               }
             }
           }
@@ -198,6 +227,7 @@ static void *monitorFfs(void *param) {
 UsbGadget::UsbGadget()
     : mMonitorCreated(false), mCurrentUsbFunctionsApplied(false) {
   mCurrentUsbFunctions = static_cast<uint64_t>(GadgetFunction::NONE);
+  mUsbSysfsPathWatch = false;
   if (access(OS_DESC_PATH, R_OK) != 0) ALOGE("configfs setup not done yet");
 }
 
@@ -470,6 +500,16 @@ V1_0::Status UsbGadget::setupFunctions(
       return Status::ERROR;
     if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/adb/", IN_ALL_EVENTS) == -1)
       return Status::ERROR;
+
+    if (inotify_add_watch(inotifyFd, USB_SYSFS_PATH.c_str(), IN_ALL_EVENTS) == -1) {
+      /* Do not return if fail to add watch on usb controller sysfs file path, as this is
+       * a feature to eliminate logs, while the logs does not break the usb gadget function.
+       */
+      ALOGE("fail to add watch on %s", USB_SYSFS_PATH.c_str());
+      mUsbSysfsPathWatch = false;
+    } else {
+      mUsbSysfsPathWatch = true;
+    }
 
     if (linkFunction("ffs.adb", i++)) return Status::ERROR;
     mEndpointList.push_back("/dev/usb-ffs/adb/ep1");

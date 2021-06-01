@@ -70,6 +70,7 @@ struct UsbGadget : public IUsbGadget {
 
   unique_ptr<thread> mMonitor;
   volatile bool mMonitorCreated;
+  volatile bool mUsbSysfsPathWatch;
   vector<string> mEndpointList;
   // protects the CV.
   std::mutex mLock;
