@@ -14,6 +14,8 @@ imx8mp_sd_bootloader0_offset=32
 imx8mq_emmc_bootloader0_offset=33
 imx8mq_sd_bootloader0_offset=33
 
+imx8ulp_emmc_bootloader0_offset=0
+
 imx8qm_reva_emmc_bootloader0_offset=33
 imx8qm_reva_sd_bootloader0_offset=33
 imx8qm_revb_emmc_bootloader0_offset=0
