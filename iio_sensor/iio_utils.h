@@ -87,6 +87,7 @@ int get_sensor_light(const std::string& device_dir, unsigned int* light);
 int get_sensor_acc(const std::string& device_dir, struct iio_acc_mac_data* light);
 int get_sensor_mag(const std::string& device_dir, struct iio_acc_mac_data* light);
 int add_trigger(const std::string& device_dir,uint8_t dev_num, const bool enable);
+int add_hrtimer_trigger(const std::string& device_dir,uint8_t dev_num, const bool enable);
 int trigger_data(int dev_num);
 int64_t get_timestamp();
 int get_pressure_scale(const std::string& file, float* scale);

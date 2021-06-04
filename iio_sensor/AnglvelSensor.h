@@ -27,6 +27,7 @@
 #include "iio_utils.h"
 #include "Sensor.h"
 #include "sensor_hal_configuration_V1_0.h"
+#include <android-base/properties.h>
 
 #define NUM_OF_CHANNEL_SUPPORTED 4
 // Subtract the timestamp channel to get the number of data channels
@@ -34,6 +35,7 @@
 
 using ::android::hardware::sensors::V1_0::Event;
 using ::sensor::hal::configuration::V1_0::Configuration;
+using ::android::base::GetProperty;
 
 namespace android {
 namespace hardware {
@@ -51,6 +53,7 @@ class AnglvelSensor : public HWSensorBase {
     void run();
     void activate(bool enable);
     void setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
+    void setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
     void processScanData(char* data,Event* evt);
   private:
     std::string mSysfspath;
