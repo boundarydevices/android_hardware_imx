@@ -369,8 +369,10 @@ Status getTypeCPortNamesHelper(std::unordered_map<std::string, bool> *names) {
   dp = opendir("/sys/class/typec");
   if (dp != NULL) {
     struct dirent *ep;
+    int nb_nodes = 0;
 
     while ((ep = readdir(dp))) {
+      nb_nodes++;
       if (ep->d_type == DT_LNK) {
         if (std::string::npos == std::string(ep->d_name).find("-partner")) {
           std::unordered_map<std::string, bool>::const_iterator portName =
@@ -384,10 +386,15 @@ Status getTypeCPortNamesHelper(std::unordered_map<std::string, bool> *names) {
       }
     }
     closedir(dp);
+    if (nb_nodes <= 2) {
+      ALOGE("/sys/class/typec dir is empty!");
+      goto error;
+    }
     return Status::SUCCESS;
   }
 
   ALOGE("Failed to open /sys/class/typec");
+error:
   return Status::ERROR;
 }
 
