@@ -28,6 +28,9 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 static const char* IIO_DEVICE_BASE = "iio:device";
 static const char* DEVICE_IIO_DIR = "/sys/bus/iio/devices/";
@@ -47,6 +50,7 @@ static const char* IIO_MAG_X_RAW = "in_magn_x_raw";
 static const char* IIO_MAG_Y_RAW = "in_magn_y_raw";
 static const char* IIO_MAG_Z_RAW = "in_magn_z_raw";
 static const char* IIO_TRIGGER = "/sys/devices/iio_sysfs_trigger/";
+static const char* IIO_HRTIMER_TRIGGER = "/config/iio/triggers/hrtimer/";
 static const char* IIO_CURRENT_TRIGGER = "/trigger/current_trigger";
 static const char* IIO_DATA_TRIGGER = "/sys/bus/iio/devices/iio_sysfs_trigger/";
 
@@ -262,6 +266,34 @@ int trigger_data(int dev_num) {
     }
 
     return 0;
+}
+
+int add_hrtimer_trigger(const std::string& device_dir, uint8_t dev_num, const bool enable) {
+    int err = -1;
+
+    std::string hrtimer_dir = IIO_HRTIMER_TRIGGER;
+    std::string tri_value = "hrtimer_trigger";
+    tri_value += std::to_string(dev_num);
+    hrtimer_dir += tri_value;
+
+    std::string current_trigger = device_dir;
+    current_trigger += IIO_CURRENT_TRIGGER;
+
+    if (enable) {
+        if(access(hrtimer_dir.c_str(), 0) == -1 && mkdir(hrtimer_dir.c_str(),644) == -1) {
+            ALOGI("mkdir error for %s\n", hrtimer_dir.c_str());
+            goto failed;
+        } else
+            err = sysfs_write_str(current_trigger, tri_value);
+    } else {
+        err = sysfs_write_str(current_trigger, "");
+    }
+
+    if (err != 0)
+        ALOGE("write current_trigger failed \n");
+
+failed:
+    return err;
 }
 
 int get_pressure_scale(const std::string& file, float* scale) {

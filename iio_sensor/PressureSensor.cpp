@@ -167,6 +167,10 @@ void PressureSensor::setupSysfsTrigger(const std::string& device_dir, uint8_t de
     add_trigger(device_dir, dev_num, enable);
 }
 
+void PressureSensor::setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable) {
+    add_hrtimer_trigger(device_dir, dev_num, enable);
+}
+
 void PressureSensor::activate(bool enable) {
     std::unique_lock<std::mutex> lock(mRunMutex);
     std::string buffer_path;
@@ -178,7 +182,10 @@ void PressureSensor::activate(bool enable) {
             if (mPollFdIio.fd < 0)
                 ALOGI("Failed to open iio char device (%s).",  buffer_path.c_str());
             else {
-                setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
+                if(GetProperty(kTriggerType, "") == "hrtimer_trigger")
+                    setupHrtimerTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
+                else if(GetProperty(kTriggerType, "") == "sysfs_trigger")
+                    setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
                 enable_sensor(mIioData.sysfspath, enable);
                 mWaitCV.notify_all();
             }
@@ -203,7 +210,8 @@ void PressureSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            trigger_data(mIioData.iio_dev_num);
+            if(GetProperty(kTriggerType, "") == "sysfs_trigger")
+                trigger_data(mIioData.iio_dev_num);
             err = poll(&mPollFdIio, 1, 500);
             if (err <= 0) {
                 ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
