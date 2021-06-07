@@ -670,14 +670,14 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcB
 
             ret = processJpegBuffer(srcBuf, dstBuf, &requestMeta);
         } else
-            processFrameBuffer(srcBuf, dstBuf, &requestMeta);
+            ret = processFrameBuffer(srcBuf, dstBuf, &requestMeta);
 
         DumpStream(srcBuf->mVirtAddr, srcBuf->mFormatSize, dstBuf->mVirtAddr, dstBuf->mFormatSize, dstBuf->mStream->id());
 
         ReleaseImxStreamBuffer(dstBuf);
     }
 
-    return 0;
+    return ret;
 }
 
 int32_t CameraDeviceSessionHwlImpl::processFrameBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf, CameraMetadata *meta)
@@ -860,9 +860,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
             maxJpegSize);
 
 err_out:
-    if (mainJpeg != NULL) {
-        delete mainJpeg;
-    }
+    delete mainJpeg;
 
     if (thumbJpeg != NULL) {
         delete thumbJpeg;

@@ -68,7 +68,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     cam_frmsize.index = index++;
     cam_frmsize.pixel_format =
         convertPixelFormatToV4L2Format(mSensorFormats[0]);
-    cam_frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE;
+    cam_frmsize.type = V4L2_FRMSIZE_TYPE_STEPWISE;
     ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
     if (ret != 0) {
         ALOGE("%s VIDIOC_ENUM_FRAMESIZES failed, ret %d", __func__, ret);

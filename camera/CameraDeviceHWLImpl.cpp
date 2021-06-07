@@ -51,6 +51,7 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
     if (res != OK) {
         ALOGE("%s: Initializing CameraDeviceHwlImpl failed: %s (%d).",
                 __func__, strerror(-res), res);
+        delete device;
         return nullptr;
     }
 
@@ -166,35 +167,41 @@ status_t CameraDeviceHwlImpl::Initialize()
         (m_meta->GetStaticMeta())->Set(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
                         focal_buffer.data(), focal_buffer.size());
 
-        (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, &entry);
-        std::set<int32_t> keys(entry.data.i32, entry.data.i32 + entry.count);
-        keys.emplace(ANDROID_LENS_FOCAL_LENGTH);
-        keys.emplace(ANDROID_LOGICAL_MULTI_CAMERA_ACTIVE_PHYSICAL_ID);
-        std::vector<int32_t> keys_buffer(keys.begin(), keys.end());
-        (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
+        auto ret = (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, &entry);
+        if (ret == OK) {
+            std::set<int32_t> keys(entry.data.i32, entry.data.i32 + entry.count);
+            keys.emplace(ANDROID_LENS_FOCAL_LENGTH);
+            keys.emplace(ANDROID_LOGICAL_MULTI_CAMERA_ACTIVE_PHYSICAL_ID);
+            std::vector<int32_t> keys_buffer(keys.begin(), keys.end());
+            (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
                         keys_buffer.data(), keys_buffer.size());
 
-        keys.clear();
-        keys_buffer.clear();
-        (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS, &entry);
-        keys.insert(entry.data.i32, entry.data.i32 + entry.count);
-        // Due to API limitations we currently don't support individual physical requests
-        (m_meta->GetStaticMeta())->Erase(ANDROID_REQUEST_AVAILABLE_PHYSICAL_CAMERA_REQUEST_KEYS);
-        keys.erase(ANDROID_REQUEST_AVAILABLE_PHYSICAL_CAMERA_REQUEST_KEYS);
-        keys.emplace(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
-        keys.emplace(ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS);
-        keys_buffer.insert(keys_buffer.end(), keys.begin(), keys.end());
-        (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
-                        keys_buffer.data(), keys_buffer.size());
+            keys.clear();
+            keys_buffer.clear();
+            auto ret = (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS, &entry);
+            if (ret == OK) {
+                keys.insert(entry.data.i32, entry.data.i32 + entry.count);
+                // Due to API limitations we currently don't support individual physical requests
+                (m_meta->GetStaticMeta())->Erase(ANDROID_REQUEST_AVAILABLE_PHYSICAL_CAMERA_REQUEST_KEYS);
+                keys.erase(ANDROID_REQUEST_AVAILABLE_PHYSICAL_CAMERA_REQUEST_KEYS);
+                keys.emplace(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                keys.emplace(ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS);
+                keys_buffer.insert(keys_buffer.end(), keys.begin(), keys.end());
+                (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+                            keys_buffer.data(), keys_buffer.size());
+            }
 
-        keys.clear();
-        keys_buffer.clear();
-        (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, &entry);
-        keys.insert(entry.data.i32, entry.data.i32 + entry.count);
-        keys.emplace(ANDROID_LENS_FOCAL_LENGTH);
-        keys_buffer.insert(keys_buffer.end(), keys.begin(), keys.end());
-        (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
-                        keys_buffer.data(), keys_buffer.size());
+            keys.clear();
+            keys_buffer.clear();
+            ret = (m_meta->GetStaticMeta())->Get(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, &entry);
+            if (ret == OK) {
+                keys.insert(entry.data.i32, entry.data.i32 + entry.count);
+                keys.emplace(ANDROID_LENS_FOCAL_LENGTH);
+                keys_buffer.insert(keys_buffer.end(), keys.begin(), keys.end());
+                (m_meta->GetStaticMeta())->Set(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
+                            keys_buffer.data(), keys_buffer.size());
+            }
+        }
     }
 
     return OK;
