@@ -110,21 +110,19 @@ void CameraProviderHwlImpl::enumSensorSet()
             //This is a basic camera definition
             CameraSensorMetadata basic_cam_meta= mCameraDef.camera_metadata_vec[logical_cam_id];
 
-            SensorSet mSet;
-            strncpy(mSet.mPropertyName, basic_cam_meta.camera_name, strlen(basic_cam_meta.camera_name));
-            mSet.mOrientation = basic_cam_meta.orientation;
+            strncpy(mSets[logical_cam_id].mPropertyName, basic_cam_meta.camera_name, strlen(basic_cam_meta.camera_name));
+            mSets[logical_cam_id].mOrientation = basic_cam_meta.orientation;
             // -1 means this is an invalid basic camera config node,
             // The node only can act as physical camera for logical camera group.
             if (strcmp(basic_cam_meta.camera_type, "back") == 0) {
-                mSet.mFacing = CAMERA_FACING_BACK;
+                mSets[logical_cam_id].mFacing = CAMERA_FACING_BACK;
             } else if(strcmp(basic_cam_meta.camera_type, "front") == 0) {
-                mSet.mFacing = CAMERA_FACING_FRONT;
+                mSets[logical_cam_id].mFacing = CAMERA_FACING_FRONT;
             } else {
-                mSet.mFacing = -1;
+                mSets[logical_cam_id].mFacing = -1;
             }
-            mSet.mExisting = false;
+            mSets[logical_cam_id].mExisting = false;
 
-            mSets[logical_cam_id] = mSet;
         }
         logical_cam_id++;
     }
@@ -137,7 +135,7 @@ void CameraProviderHwlImpl::enumSensorSet()
             CameraSensorMetadata physical_cam_meta= mCameraDef.camera_metadata_vec[physical_id];    
             strncpy(mSets[physical_id].mPropertyName, physical_cam_meta.camera_name, strlen(physical_cam_meta.camera_name));
             mSets[physical_id].mOrientation = physical_cam_meta.orientation;
-            if (physical_cam_meta.camera_type == "back")
+            if (strcmp(physical_cam_meta.camera_type, "back") == 0)
                 mSets[physical_id].mFacing = CAMERA_FACING_BACK;
             else
                 mSets[physical_id].mFacing = CAMERA_FACING_FRONT;

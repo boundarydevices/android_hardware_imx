@@ -135,12 +135,11 @@ const char* const kPhysicalNames = "PhysicalNames";
 
 HalVersion ValueToCameraHalVersion(const std::string &value) {
     int temp;
-    char *endptr;
+    char* endptr;
     HalVersion hal_version = kHalV1;
 
     temp = strtol(value.c_str(), &endptr, 10);
-    if (endptr != value.c_str() + value.size())
-    {
+    if (*endptr != '\0') {
         ALOGE("%s: Invalid camera HAL version. Expected number, got %s.",
                 __func__, value.c_str());
         return hal_version;
@@ -328,92 +327,81 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
     else
         static_meta[cam_index].mplane = 0;
 
-    static_meta[cam_index].orientation = strtol(root[kOrientationKey].asString().c_str(),
-                                                        &endptr, 10);
-    if (endptr != root[kOrientationKey].asString().c_str() +
-        root[kOrientationKey].asString().size()) {
-        ALOGE("%s: Invalid camera orientation. Expected number, got %s.",
-                __func__, root[kActiveArrayWidthKey].asString().c_str());
+    std::string kOrientationKeyStr = root[kOrientationKey].asString();
+    const char *kOrientationData = kOrientationKeyStr.c_str ();
+    static_meta[cam_index].orientation = strtol(kOrientationData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera orientation. got %s.", __func__, kOrientationData);
     }
 
-    static_meta[cam_index].activearraywidth = strtol(root[kActiveArrayWidthKey].asString().c_str(),
-                                                        &endptr, 10);
-    if (endptr != root[kActiveArrayWidthKey].asString().c_str() +
-        root[kActiveArrayWidthKey].asString().size()) {
-        ALOGE("%s: Invalid camera resolution width. Expected number, got %s.",
-                __func__, root[kActiveArrayWidthKey].asString().c_str());
+    std::string kActiveArrayWidthStr = root[kActiveArrayWidthKey].asString();
+    const char *kActiveArrayWidthData = kActiveArrayWidthStr.c_str ();
+    static_meta[cam_index].activearraywidth = strtol(kActiveArrayWidthData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera activearraywidth. got %s.", __func__, kActiveArrayWidthData);
     }
 
-    static_meta[cam_index].activearrayheight = strtol(root[kActiveArrayHeightKey].asString().c_str(),
-                                                        &endptr, 10);
-    if (endptr != root[kActiveArrayHeightKey].asString().c_str() +
-        root[kActiveArrayHeightKey].asString().size()) {
-        ALOGE("%s: Invalid camera ActiveArrayHeight. got %s.",
-                __func__, root[kActiveArrayHeightKey].asString().c_str());
+    std::string kActiveArrayHeightStr = root[kActiveArrayHeightKey].asString();
+    const char *kActiveArrayHeightData = kActiveArrayHeightStr.c_str ();
+    static_meta[cam_index].activearrayheight = strtol(kActiveArrayHeightData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera ActiveArrayHeight. got %s.", __func__, kActiveArrayHeightData);
     }
 
-    static_meta[cam_index].pixelarraywidth = strtol(root[kPixelArrayWidthKey].asString().c_str(),
-                                                        &endptr, 10);
-    if (endptr != root[kPixelArrayWidthKey].asString().c_str() +
-        root[kPixelArrayWidthKey].asString().size()) {
-        ALOGE("%s: Invalid camera PixelArrayWidth. got %s.",
-                __func__, root[kPixelArrayWidthKey].asString().c_str());
+    std::string kPixelArrayWidthStr = root[kPixelArrayWidthKey].asString();
+    const char *kPixelArrayWidthData = kPixelArrayWidthStr.c_str ();
+    static_meta[cam_index].pixelarraywidth = strtol(kPixelArrayWidthData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera PixelArrayWidth. got %s.", __func__, kPixelArrayWidthData);
     }
 
-    static_meta[cam_index].pixelarrayheight = strtol(root[kPixelArrayHeightKey].asString().c_str(),
-                                                    &endptr, 10);
-    if (endptr != root[kPixelArrayHeightKey].asString().c_str() +
-        root[kPixelArrayHeightKey].asString().size()) {
-        ALOGE("%s: Invalid camera PixelArrayHeight. got %s.",
-                __func__, root[kPixelArrayHeightKey].asString().c_str());
+    std::string kPixelArrayHeightStr = root[kPixelArrayHeightKey].asString();
+    const char *kPixelArrayHeightData = kPixelArrayHeightStr.c_str ();
+    static_meta[cam_index].pixelarrayheight = strtol(kPixelArrayHeightData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera PixelArrayHeight. got %s.", __func__, kPixelArrayHeightData);
     }
 
-    static_meta[cam_index].maxjpegsize = strtol(root[kMaxJpegSizeKey].asString().c_str(),
-                                                        &endptr, 10);
-    if (endptr != root[kMaxJpegSizeKey].asString().c_str() +
-        root[kMaxJpegSizeKey].asString().size()) {
-        ALOGE("%s: Invalid camera MaxJpegSize. got %s.",
-                __func__, root[kMaxJpegSizeKey].asString().c_str());
+    std::string kMaxJpegSizeStr = root[kMaxJpegSizeKey].asString();
+    const char *kMaxJpegSizeData = kMaxJpegSizeStr.c_str ();
+    static_meta[cam_index].maxjpegsize = strtol(kMaxJpegSizeData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera MaxJpegSize. got %s.", __func__, kMaxJpegSizeData);
     }
 
-    static_meta[cam_index].minframeduration = strtol(root[kMinFrameDurationKey].asString().c_str(),
-                                                        &endptr, 10);
-    if (endptr != root[kMinFrameDurationKey].asString().c_str() +
-        root[kMinFrameDurationKey].asString().size()) {
-        ALOGE("%s: Invalid camera MinFrameDuration. got %s.",
-                __func__, root[kMinFrameDurationKey].asString().c_str());
+    std::string kMinFrameDurationStr = root[kMinFrameDurationKey].asString();
+    const char *kMinFrameDurationData = kMinFrameDurationStr.c_str ();
+    static_meta[cam_index].minframeduration = strtol(kMinFrameDurationData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera MinFrameDuration. got %s.", __func__, kMinFrameDurationData);
     }
 
-    static_meta[cam_index].maxframeduration = strtol(root[kMaxFrameDurationKey].asString().c_str(),
-                                                    &endptr, 10);
-    if (endptr != root[kMaxFrameDurationKey].asString().c_str() +
-        root[kMaxFrameDurationKey].asString().size()) {
-        ALOGE("%s: Invalid camera MaxFrameDuration. got %s.",
-                __func__, root[kMaxFrameDurationKey].asString().c_str());
+    std::string kMaxFrameDurationStr = root[kMaxFrameDurationKey].asString();
+    const char *kMaxFrameDurationData = kMaxFrameDurationStr.c_str ();
+    static_meta[cam_index].maxframeduration = strtol(kMaxFrameDurationData, &endptr, 10);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera MaxFrameDuration. got %s.", __func__, kMaxFrameDurationData);
     }
 
-    static_meta[cam_index].physicalwidth = strtof(root[kPhysicalWidthKey].asString().c_str(),
-                                                    &endptr);
-    if (endptr != root[kPhysicalWidthKey].asString().c_str() +
-        root[kPhysicalWidthKey].asString().size()) {
-        ALOGE("%s: Invalid camera PhysicalWidth. got %s.",
-                __func__, root[kPhysicalWidthKey].asString().c_str());
+    std::string kPhysicalWidthStr = root[kPhysicalWidthKey].asString();
+    const char *kPhysicalWidthData = kPhysicalWidthStr.c_str ();
+    static_meta[cam_index].physicalwidth = strtof(kPhysicalWidthData, &endptr);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera PhysicalWidth. got %s.", __func__, kPhysicalWidthData);
     }
 
-    static_meta[cam_index].physicalheight = strtof(root[kPhysicalHeightKey].asString().c_str(),
-                                                    &endptr);
-    if (endptr != root[kPhysicalHeightKey].asString().c_str() +
-        root[kPhysicalHeightKey].asString().size()) {
-        ALOGE("%s: Invalid PhysicalHeight. got %s.",
-                __func__, root[kPhysicalHeightKey].asString().c_str());
+    std::string kPhysicalHeightStr = root[kPhysicalHeightKey].asString();
+    const char *kPhysicalHeightData = kPhysicalHeightStr.c_str ();
+    static_meta[cam_index].physicalheight = strtof(kPhysicalHeightData, &endptr);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid PhysicalHeight. got %s.", __func__, kPhysicalHeightData);
     }
 
-    static_meta[cam_index].focallength = strtof(root[kFocalLengthKey].asString().c_str(),
-                                                    &endptr);
-    if (endptr != root[kFocalLengthKey].asString().c_str() +
-        root[kFocalLengthKey].asString().size()) {
-        ALOGE("%s: Invalid camera FocalLength. got %s.",
-                __func__, root[kFocalLengthKey].asString().c_str());
+    std::string kFocalLengthStr = root[kFocalLengthKey].asString();
+    const char *kFocalLengthData = kFocalLengthStr.c_str ();
+    static_meta[cam_index].focallength = strtof(kFocalLengthData, &endptr);
+    if (*endptr != '\0') {
+        ALOGE("%s: Invalid camera FocalLength. got %s.", __func__, kFocalLengthData);
     }
 
     if(root.isMember(kAeCompMinKey))
@@ -455,28 +443,26 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
     int omit_index = 0;
     for (Json::ValueConstIterator omititer = root[kOmitFrameKey].begin();
                 omititer != root[kOmitFrameKey].end(); ++omititer) {
-        static_meta[cam_index].omit_frame[omit_index].width = strtol((*omititer)[kOmitFrameWidthKey].asString().c_str(),
-                                                                    &endptr, 10);
-        if (endptr != (*omititer)[kOmitFrameWidthKey].asString().c_str() +
-                (*omititer)[kOmitFrameWidthKey].asString().size()) {
-            ALOGE("%s: Invalid camera omit width. Expected number, got %s.",
-                    __func__, (*omititer)[kOmitFrameWidthKey].asString().c_str());
+
+        std::string kOmitFrameWidthStr = (*omititer)[kOmitFrameWidthKey].asString();
+        const char *kOmitFrameWidthData = kOmitFrameWidthStr.c_str ();
+        static_meta[cam_index].omit_frame[omit_index].width = strtol(kOmitFrameWidthData, &endptr, 10);
+        if (*endptr != '\0') {
+            ALOGE("%s: Invalid camera omitframewidth. got %s.", __func__, kOmitFrameWidthData);
         }
 
-        static_meta[cam_index].omit_frame[omit_index].height = strtol((*omititer)[kOmitFrameHeightKey].asString().c_str(),
-                                                                    &endptr, 10);
-        if (endptr != (*omititer)[kOmitFrameHeightKey].asString().c_str() +
-                (*omititer)[kOmitFrameHeightKey].asString().size()) {
-            ALOGE("%s: Invalid camera omit height. Expected number, got %s.",
-                    __func__, (*omititer)[kOmitFrameHeightKey].asString().c_str());
+        std::string kOmitFrameHeightStr = (*omititer)[kOmitFrameHeightKey].asString();
+        const char *kOmitFrameHeightData = kOmitFrameHeightStr.c_str ();
+        static_meta[cam_index].omit_frame[omit_index].height = strtol(kOmitFrameHeightData, &endptr, 10);
+        if (*endptr != '\0') {
+            ALOGE("%s: Invalid camera omitframeheight. got %s.", __func__, kOmitFrameHeightData);
         }
 
-        static_meta[cam_index].omit_frame[omit_index].omitnum = strtol((*omititer)[kOmitFrameNumKey].asString().c_str(),
-                                                                    &endptr, 10);
-        if (endptr != (*omititer)[kOmitFrameNumKey].asString().c_str() +
-                (*omititer)[kOmitFrameNumKey].asString().size()) {
-            ALOGE("%s: Invalid camera omit num. Expected number, got %s.",
-                    __func__, (*omititer)[kOmitFrameNumKey].asString().c_str());
+        std::string kOmitFrameNumStr = (*omititer)[kOmitFrameNumKey].asString();
+        const char *kOmitFrameNumData = kOmitFrameNumStr.c_str ();
+        static_meta[cam_index].omit_frame[omit_index].omitnum = strtol(kOmitFrameNumData, &endptr, 10);
+        if (*endptr != '\0') {
+            ALOGE("%s: Invalid camera omit num. got %s.", __func__, kOmitFrameNumData);
         }
         omit_index++;
 
