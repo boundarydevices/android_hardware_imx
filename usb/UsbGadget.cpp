@@ -109,6 +109,7 @@ static void *monitorFfs(void *param) {
   steady_clock::time_point disconnect;
 
   std::string bound_udc;
+  bool readUdc = false;
 
   while (!stopMonitor) {
     bool descriptorWritten = true;
@@ -173,8 +174,8 @@ static void *monitorFfs(void *param) {
               usleep(PULL_UP_DELAY);
 
             if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
-              android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
-              if (bound_udc != GADGET_NAME && bound_udc != "") {
+              readUdc = android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
+              if ((bound_udc != GADGET_NAME && bound_udc != "") || !readUdc) {
                 WriteStringToFile("none", PULLUP_PATH);
                 usleep(PULL_UP_DELAY);
             }
@@ -198,8 +199,8 @@ static void *monitorFfs(void *param) {
                   dirent* dp;
                   while ((dp = readdir(dir.get())) != nullptr) {
                     if ( (dp->d_name[0] != '.') && strstr(dp->d_name, "dummy_udc") ) {
-                      android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
-                      if (bound_udc != "" && strncmp(bound_udc.c_str(), dp->d_name, bound_udc.size()-1)) {
+                      readUdc = android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
+                      if ((bound_udc != "" && strncmp(bound_udc.c_str(), dp->d_name, bound_udc.size()-1)) || !readUdc) {
                         WriteStringToFile("none", PULLUP_PATH);
                         usleep(PULL_UP_DELAY);
                       }
@@ -213,7 +214,10 @@ static void *monitorFfs(void *param) {
         }
       } else {
         uint64_t flag;
-        read(usbGadget->mEventFd, &flag, sizeof(flag));
+        int numRead = read(usbGadget->mEventFd, &flag, sizeof(flag));
+        if (numRead < 0) {
+          ALOGE("Error readding event fd");
+        }
         if (flag == 100) {
           stopMonitor = true;
           break;
@@ -298,7 +302,7 @@ V1_0::Status UsbGadget::tearDownGadget() {
 
   if (mMonitorCreated) {
     uint64_t flag = 100;
-    unsigned long ret;
+    ssize_t ret;
 
     // Stop the monitor thread by writing into signal fd.
     ret = TEMP_FAILURE_RETRY(write(mEventFd, &flag, sizeof(flag)));
@@ -586,9 +590,7 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
   }
 
   if ((functions & GadgetFunction::RNDIS) == 0) {
-    if (access(RNDIS_PATH,F_OK) == 0) {
-       if (rmdir(RNDIS_PATH)) ALOGE("Error remove %s",RNDIS_PATH);
-    }
+    if (rmdir(RNDIS_PATH) && errno != ENOENT) ALOGE("Error remove %s",RNDIS_PATH);
   } else if ((functions & GadgetFunction::RNDIS)) {
     if (mkdir(RNDIS_PATH,644)) goto error;
   }
