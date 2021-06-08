@@ -18,7 +18,10 @@ libionallocator_defaults {
 cc_library_static {
     name: "libionallocator",
     defaults: ["libionallocator_default"],
-    srcs: ["IonAllocator.cpp"],
+    srcs: [
+        "Allocator.cpp",
+        "IonAllocator.cpp",
+    ],
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
         "system/memory/libion/include",
@@ -27,7 +30,6 @@ cc_library_static {
         "system/memory/libion",
         "system/core/include",
         "device/nxp/common/kernel-headers",
-
     ],
     vendor: true,
     cflags: ["-DLOG_TAG=\"ionalloc\""],

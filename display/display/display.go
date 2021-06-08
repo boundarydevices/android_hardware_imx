@@ -38,6 +38,9 @@ func libionallocatorDefaults(ctx android.LoadHookContext) {
                 Android struct {
                         Enabled *bool
                         Cppflags []string
+                        Static_libs []string
+                        Include_dirs []string
+                        Srcs []string
                 }
         }
     }
@@ -51,6 +54,13 @@ func libionallocatorDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("CFG_SECURE_DATA_PATH") == "y" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCFG_SECURE_DATA_PATH")
     }
+    if ctx.Config().VendorConfig("IMXPLUGIN").Bool("ENABLE_DMABUF_HEAP") {
+        p.Target.Android.Srcs = append(p.Target.Android.Srcs, "DmaHeapAllocator.cpp")
+        p.Target.Android.Static_libs = append(p.Target.Android.Static_libs, "libdmabufheap")
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DENABLE_DMABUF_HEAP")
+        p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "system/memory/libdmabufheap/include")
+    }
+
     ctx.AppendProperties(p)
 }
 
@@ -67,6 +77,8 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
                         Enabled *bool
                         Cflags []string
                         Cppflags []string
+                        Shared_libs []string
+                        Include_dirs []string
                 }
         }
     }
@@ -109,6 +121,10 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
+    }
+    if ctx.Config().VendorConfig("IMXPLUGIN").Bool("ENABLE_DMABUF_HEAP") {
+        p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libdmabufheap")
+        p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "system/memory/libdmabufheap/include")
     }
     ctx.AppendProperties(p)
 }

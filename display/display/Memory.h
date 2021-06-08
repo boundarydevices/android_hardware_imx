@@ -22,6 +22,11 @@
 
 namespace fsl {
 
+enum MEM_FLAGS {
+    MFLAGS_CONTIGUOUS = 1,
+    MFLAGS_CACHEABLE  = 2,
+    MFLAGS_SECURE     = 4
+};
 #define  ALIGN_PIXEL_2(x)  ((x+ 1) & ~1)
 #define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
 #define  ALIGN_PIXEL_8(x)  ((x+ 7) & ~7)

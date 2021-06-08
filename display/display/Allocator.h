@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 NXP.
+ * Copyright 2021 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,46 +14,34 @@
  * limitations under the License.
  */
 
-#ifndef _FSL_ION_ALLOCATOR_H_
-#define _FSL_ION_ALLOCATOR_H_
+#ifndef _FSL_ALLOCATOR_H_
+#define _FSL_ALLOCATOR_H_
 
 #include <utils/Mutex.h>
 #include "Memory.h"
-#include "Allocator.h"
 
+#define MEM_ALIGN 8
 namespace fsl {
 
 using android::Mutex;
-
-class IonAllocator : public Allocator
+class Allocator
 {
 public:
-    static IonAllocator* getInstance();
-    ~IonAllocator();
+    static Allocator* getInstance();
 
+    virtual ~Allocator() {};
     // alloc memory and return fd which represents this memory.
-    int allocMemory(int size, int align, int flags);
+    virtual int allocMemory(int size, int align, int flags)=0;
     // flush cacheable memory cache.
-    int flushCache(int fd);
+    virtual int flushCache(int fd)=0;
     // get contiguous memory physical address.
-    int getPhys(int fd, int size, uint64_t& addr);
+    virtual int getPhys(int fd, int size, uint64_t& addr)=0;
     // get memory virtual address.
-    int getVaddrs(int fd, int size, uint64_t& addr);
+    virtual int getVaddrs(int fd, int size, uint64_t& addr)=0;
 
 private:
-    IonAllocator();
     static Mutex sLock;
-    static IonAllocator *sInstance;
-
-    int mIonFd;
-    // contiguous cacheable memory ion heap ids.
-    int mCCHeapIds;
-    // contiguous non-cacheable memory ion heap ids.
-    int mCNHeapIds;
-    // non-contiguous cacheable memory ion heap ids.
-    int mNCHeapIds;
-    // secure ion heap ids.
-    int mSeHeapIds;
+    static Allocator *mInstance;
 };
 
 }

@@ -83,7 +83,7 @@ imx_camera_defaults {
                 "vendor/nxp-opensource/imx/opencl-2d",
                 "vendor/nxp-opensource/imx/display/display",
                 "vendor/nxp/fsl-proprietary/include",
-                "device/nxp/common/kernel-headers"
+                "device/nxp/common/kernel-headers",
             ],
             header_libs: [
                 "libgooglecamerahal_headers",

@@ -25,7 +25,7 @@ namespace fsl {
 IonManager::IonManager()
     : mAllocator(NULL)
 {
-    mAllocator = IonAllocator::getInstance();
+    mAllocator = (Allocator *)Allocator::getInstance();
 }
 
 IonManager::~IonManager()
@@ -48,7 +48,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 
     int sharedFd = -1;
     Memory* memory = NULL;
-    int align = ION_MEM_ALIGN;
+    int align = MEM_ALIGN;
     int flags = MFLAGS_CONTIGUOUS;
 
 #ifdef CFG_SECURE_DATA_PATH
