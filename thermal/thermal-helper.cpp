@@ -26,6 +26,7 @@
 #include <android-base/stringprintf.h>
 #include <android-base/strings.h>
 #include <hidl/HidlTransportSupport.h>
+#include <android-base/unique_fd.h>
 
 #include "thermal-helper.h"
 
@@ -612,23 +613,23 @@ bool ThermalHelper::thermalWatcherCallbackFunc(const std::set<std::string> &ueve
 }
 
 void ThermalHelper::enableCPU(std::string cpu, bool enable) {
-    int writeFd = 1;
+    int err = 0;
     std::string path = "/sys/devices/system/cpu/";
     path.append(cpu);
     path.append("/online");
-    int fd = open(path.c_str(), O_RDWR | O_CLOEXEC );
-    if (fd == -1) {
+    android::base::unique_fd fd(open(path.c_str(), O_RDWR | O_CLOEXEC));
+    if (fd.get() < 0) {
         LOG(ERROR) << "open " << path << " failed";
+        return;
     }
     if (enable) {
-        writeFd = write(fd, "1", sizeof("1"));
+        err = write(fd.get(), "1", sizeof("1"));
     } else {
-        writeFd = write(fd, "0", sizeof("0"));
+        err = write(fd.get(), "0", sizeof("0"));
     }
-    if (!writeFd) {
+    if (err < 0) {
         LOG(ERROR) << "failed to write state to fd";
     }
-    close(fd);
     return;
 }
 }  // namespace implementation
