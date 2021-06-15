@@ -77,9 +77,6 @@ struct ExternalCameraConfig {
     // Maximal size of a JPEG buffer, in bytes
     uint32_t maxJpegBufSize;
 
-    // Maximum Size that can sustain 30fps streaming
-    Size maxVideoSize;
-
     // Size of v4l2 buffer queue when streaming <= kMaxVideoSize
     uint32_t numVideoBuffers;
 

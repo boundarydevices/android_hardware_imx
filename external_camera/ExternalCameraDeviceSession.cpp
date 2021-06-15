@@ -234,6 +234,9 @@ void ExternalCameraDeviceSession::dumpState(const native_handle_t* handle) {
 
     if (isClosed()) {
         dprintf(fd, "External camera %s is closed\n", mCameraId.c_str());
+        if (intfLocked)
+            mInterfaceLock.unlock();
+
         return;
     }
 
@@ -2084,7 +2087,7 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(
 
     int fpsRet = setV4l2FpsLocked(fps);
     if (fpsRet != 0 && fpsRet != -EINVAL) {
-        ALOGE("%s: set fps failed: %s", __FUNCTION__, strerror(fpsRet));
+        ALOGE("%s: set fps failed: %d", __FUNCTION__, fpsRet);
         return fpsRet;
     }
 

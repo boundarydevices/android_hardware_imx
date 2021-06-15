@@ -142,6 +142,7 @@ Return<void> ExternalCameraDevice::open(
 
     unique_fd fd(::open(mDevicePath.c_str(), O_RDWR));
     if (fd.get() < 0) {
+        mLock.unlock();
         int numAttempt = 0;
         do {
             ALOGW("%s: v4l2 device %s open failed, wait 33ms and try again",
@@ -154,10 +155,11 @@ Return<void> ExternalCameraDevice::open(
         if (fd.get() < 0) {
             ALOGE("%s: v4l2 device open %s failed: %s",
                     __FUNCTION__, mDevicePath.c_str(), strerror(errno));
-            mLock.unlock();
             _hidl_cb(Status::INTERNAL_ERROR, nullptr);
             return Void();
         }
+
+        mLock.lock();
     }
 
     session = createSession(
