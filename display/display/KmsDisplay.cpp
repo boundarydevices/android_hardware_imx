@@ -795,6 +795,9 @@ int KmsDisplay::updateScreen()
                 (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
         }
         else {
+#ifdef WORKAROUND_DCNANO_BGRX
+            if (format == DRM_FORMAT_ARGB8888) format = DRM_FORMAT_XRGB8888;
+#endif
             drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
                     bo_handles, pitches, offsets, (uint32_t*)&buffer->fbId, 0);
         }
@@ -1067,6 +1070,11 @@ int KmsDisplay::openKms()
         if (planePtr->formats[i] == DRM_FORMAT_ABGR8888) {
             format = FORMAT_RGBA8888;
             break;
+#ifdef WORKAROUND_DCNANO_BGRX
+        } else if (planePtr->formats[i] == DRM_FORMAT_XRGB8888) {
+            format = FORMAT_BGRA8888;
+            break;
+#endif
         } else if (planePtr->formats[i] == DRM_FORMAT_RGB565) {
             format = FORMAT_RGB565;
         }
