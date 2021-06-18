@@ -39,6 +39,7 @@ public:
     ~ImageProcess();
 
     int handleFrame(ImxStreamBuffer& dst, ImxStreamBuffer& src, CscHw);
+    int resizeWrapper(ImxStreamBuffer& src, ImxStreamBuffer& dst);
 
 private:
     int convertNV12toNV21(ImxStreamBuffer& dst, ImxStreamBuffer& src);

@@ -469,7 +469,11 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
             stream->format,
             stream->buffer_size);
 
-    imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format, stream->usage, stream->id);
+    bool bPreview = false;
+    if ( (stream->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) && ((stream->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) == 0) )
+        bPreview = true;
+
+    imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format, stream->usage, stream->id, bPreview);
 
     if (imxBuf->mStream == NULL)
         goto error;

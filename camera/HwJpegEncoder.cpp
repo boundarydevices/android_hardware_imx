@@ -25,18 +25,21 @@
 #include <log/log.h>
 #include "CameraUtils.h"
 #include "HwJpegEncoder.h"
+#include <IonAllocator.h>
+#include "ImageProcess.h"
 
 #define NUM_BUFS 1
 #define JPEG_ENC_NAME "mxc-jpeg-enc"
 
+using namespace cameraconfigparser;
 
-HwJpegEncoder::HwJpegEncoder(int format) : YuvToJpegEncoder(){
+HwJpegEncoder::HwJpegEncoder(int format) : YuvToJpegEncoder(format){
     // convert the camera hal format to v4l2 format.
     mFormat = convertPixelFormatToV4L2Format(format);
 }
 
 int HwJpegEncoder::encode(void *inYuv,
-               void* inYuvPhy __unused,
+               void* inYuvPhy,
                int   inWidth,
                int   inHeight,
                int   quality __unused,
@@ -52,20 +55,35 @@ int HwJpegEncoder::encode(void *inYuv,
     struct v4l2_buffer bufferout;
     int jpeg_size = 0;
     int err;
-
-    uint8_t *resize_src = NULL;
+    uint64_t outPtr = 0;
+    int32_t sharedFd = -1;
+    int32_t ionSize;
+    int ret = 0;
+    bool bResize = false;
+    ImxStreamBuffer srcBuf = {0};;
+    ImxStreamBuffer resizeBuf = {0};
 
     // need resize the width&height before do hw jpeg encoder.
     // the resolution for input and out need to been align when do jpeg encode.
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
-        resize_src = (uint8_t *)malloc(outSize);
-        yuvResize((uint8_t *)inYuv,
-            inWidth,
-            inHeight,
-            resize_src,
-            outWidth,
-            outHeight);
-        inYuv = resize_src;
+        bResize = true;
+
+        resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
+        ret = AllocIonBuffer(resizeBuf);
+        if (ret) {
+            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            return 0;
+        }
+        resizeBuf.mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
+
+        srcBuf.mVirtAddr = inYuv;
+        srcBuf.mPhyAddr = (uint64_t)inYuvPhy;
+        srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
+
+        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+        imageProcess->resizeWrapper(srcBuf, resizeBuf);
+
+        inYuv = (void *)resizeBuf.mVirtAddr;
     }
 
     encoder_parameter.width = outWidth;
@@ -83,8 +101,11 @@ int HwJpegEncoder::encode(void *inYuv,
     onEncoderStop(&bufferin, &bufferout);
 
 failed:
-    if (resize_src != NULL)
-        free(resize_src);
+    if (bResize) {
+        FreeIonBuffer(resizeBuf);
+        delete(resizeBuf.mStream);
+        delete(srcBuf.mStream);
+    }
 
     if (mJpegFd > 0)
         close(mJpegFd);

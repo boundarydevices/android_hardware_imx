@@ -241,7 +241,7 @@ int32_t USPStream::allocateBuffersLocked()
             goto err;
 
         }
-        ALOGI("phyalloc ptr:0x%" PRIu64 ", phy:0x%" PRIu64 ", ionSize:%d", ptr, phyAddr, ionSize);
+        ALOGI("phyalloc ptr:0x%" PRIx64 ", phy:0x%" PRIx64 ", ionSize:%d", ptr, phyAddr, ionSize);
 
         mBuffers[i] = new ImxStreamBuffer();
         mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;

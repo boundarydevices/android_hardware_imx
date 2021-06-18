@@ -47,6 +47,43 @@ namespace fsl {
 ImageProcess* ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
 
+static void swithImxBuf(ImxStreamBuffer& imxBufA, ImxStreamBuffer& imxBufB)
+{
+    ImxStreamBuffer tmpBuf = imxBufA;
+    imxBufA = imxBufB;
+    imxBufB = tmpBuf;
+
+    return;
+}
+
+static bool IsCscSupportByCPU(int srcFormat, int dstFormat)
+{
+    // yuyv -> nv12
+    if ( ((dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
+          (dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
+         (srcFormat == HAL_PIXEL_FORMAT_YCbCr_422_I) )
+        return true;
+
+    // nv12 -> nv21
+    if ( (srcFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
+         (dstFormat == HAL_PIXEL_FORMAT_YCrCb_420_SP) )
+        return true;
+
+    return false;
+}
+
+static bool IsCscSupportByG3D(int srcFomat, int dstFormat)
+{
+    // yuyv -> nv12
+    if ( ((dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
+          (dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
+         (srcFomat == HAL_PIXEL_FORMAT_YCbCr_422_I) )
+        return true;
+
+    return false;
+}
+
+
 static bool getDefaultG2DLib(char *libName, int size)
 {
     char value[PROPERTY_VALUE_MAX];
@@ -471,11 +508,6 @@ int ImageProcess::handleFrameByG2DCopy(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
-    // can't do resize for YUV.
-    if (dst->width() != src->width() ||
-         dst->height() != src->height()) {
-        return -EINVAL;
-    }
 
     int dstFormat = convertPixelFormatToV4L2Format(dst->format());
     int srcFormat = convertPixelFormatToV4L2Format(src->format());
@@ -518,6 +550,14 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
          ((src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
          (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))))) {
         return -EINVAL;
+    }
+
+    // Adapt for Camra2.apk. The picture resolution may differ from preview resolution.
+    // If resize for preview stream, there will be obvious changes in the preview.
+    if ( ((src->width() != dst->width()) || (src->height() != src->height())) && dst->isPreview() ) {
+        ALOGW("%s: resize from %dx%d to %dx%d, skip preview stream",
+            __func__, src->width(), src->height(), dst->width(), dst->height());
+        return 0;
     }
 
     int ret;
@@ -571,8 +611,9 @@ int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     ImxStream *dst = dstBuf.mStream;
 
 
-    if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
-         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))
+    if ((src->format() == dst->format()) &&
+         (src->width() == dst->width()) &&
+         (src->height() == dst->height()))
         ret = handleFrameByG2DCopy(dstBuf, srcBuf);
     else
         ret = handleFrameByG2DBlit(dstBuf, srcBuf);
@@ -652,10 +693,9 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
 
-    if ((src->width() != dst->width()) || (src->height() != dst->height())) {
-        ALOGE("%s:%d, Software don't support resize %dx%d, %dx%d", __func__, __LINE__, src->width(), src->height(), dst->width(), dst->height());
-        return -EINVAL;
-    }
+    int ret = 0;
+    ImxStreamBuffer resizeBuf = {0};
+    bool bResize = false;
 
     // Set output cache attrib based on usage.
     // For input cache attrib, hard code to false, reason as below.
@@ -665,29 +705,69 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     //    GPU3D uses physical address, no need to flush the input buffer.
     bool bOutputCached = dst->usage() & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
 
-    ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%llx, res %dx%d, format src 0x%x, dst 0x%x",
-       bOutputCached, dst->usage(), dst->width(), dst->height(), src->format(), dst->format());
+    ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%llx, res src %dx%d, dst %dx%d, format src 0x%x, dst 0x%x",
+       bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(), src->format(), dst->format());
 
-    if (((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
-         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
-        (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
-        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
-                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
-    } else if (src->format() == dst->format()) {
+    // case 1: same format, same resolution, copy
+    if ( (src->format() == dst->format()) &&
+         (src->width() == dst->width()) &&
+         (src->height() == dst->height()) ) {
         if (HAL_PIXEL_FORMAT_RAW16 == src->format())
             Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
-        else
+        else {
             cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
                 dst->width(), dst->height(),
                 (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
-    } else {
-        ALOGI("%s:%d, opencl don't support format convert from 0x%x to 0x%x",
+            (*mCLFlush)(mCLHandle);
+            (*mCLFinish)(mCLHandle);
+        }
+
+        return 0;
+    }
+
+    // case 2: same format, different resolution, resize
+    if (src->format() == dst->format()) {
+        resizeWrapper(srcBuf, dstBuf);
+        return 0;
+    }
+
+    // filter out unsupported CSC format
+    if ( false == IsCscSupportByG3D(src->format(), dst->format()) ) {
+        ALOGE("%s:%d, G3D don't support format convert from 0x%x to 0x%x",
                  __func__, __LINE__, src->format(), dst->format());
         return -EINVAL;
     }
 
+    // case 3: diffrent format, different resolution
+    // first resize, then go through case 4.
+    if ( (src->width() != dst->width()) ||
+         (src->height() != dst->height()) ) {
+        resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
+        ret = AllocIonBuffer(resizeBuf);
+        if (ret) {
+            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            return -EINVAL;
+        }
+        resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
+
+        resizeWrapper(srcBuf, resizeBuf);
+        swithImxBuf(srcBuf, resizeBuf);
+
+        bResize = true;
+    }
+
+    // case 4: diffrent format, same resolution
+    cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
+                (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
+
     (*mCLFlush)(mCLHandle);
     (*mCLFinish)(mCLHandle);
+
+    if (bResize) {
+        swithImxBuf(srcBuf, resizeBuf);
+        FreeIonBuffer(resizeBuf);
+        delete(resizeBuf.mStream);
+    }
 
     return 0;
 }
@@ -696,12 +776,50 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 {
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
+    ImxStreamBuffer resizeBuf = {0};
+    int ret;
+    bool bResize = false;
 
-    if ((src->width() != dst->width()) || (src->height() != dst->height())) {
-        ALOGE("%s:%d, Software don't support resize", __func__, __LINE__);
+    // case 1: same format, same resolution, copy
+    if ( (src->format() == dst->format()) &&
+         (src->width() == dst->width()) &&
+         (src->height() == dst->height()) ) {
+        YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
+              (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
+        return 0;
+    }
+
+    // case 2: same format, different resolution, resize
+    if (src->format() == dst->format()) {
+        ret = resizeWrapper(srcBuf, dstBuf);
+        return ret;
+    }
+
+    // filter out unsupported CSC format
+    if ( false == IsCscSupportByCPU(src->format(), dst->format()) ) {
+        ALOGE("%s:%d, Software don't support format convert from 0x%x to 0x%x",
+                 __func__, __LINE__, src->format(), dst->format());
         return -EINVAL;
     }
 
+    // case 3: diffrent format, different resolution
+    // first resize, then go through case 4.
+    if ( (src->width() != dst->width()) ||
+         (src->height() != dst->height()) ) {
+        resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
+        ret = AllocIonBuffer(resizeBuf);
+        if (ret) {
+            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            return -EINVAL;
+        }
+        resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
+
+        resizeWrapper(srcBuf, resizeBuf);
+        swithImxBuf(srcBuf, resizeBuf);
+        bResize = true;
+    }
+
+    // case 4: diffrent format, same resolution
     if (((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
@@ -710,13 +828,15 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     } else if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
                (dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
         convertNV12toNV21(dstBuf, srcBuf);
-    } else if (src->format() == dst->format()) {
-        YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
-                 (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
-    } else {
-        ALOGE("%s:%d, Software don't support format convert from 0x%x to 0x%x",
-                 __func__, __LINE__, src->format(), dst->format());
-        return -EINVAL;
+    }
+    else {
+        ALOGE("%s:%d should not enter here", __func__, __LINE__);
+    }
+
+    if (bResize) {
+        swithImxBuf(srcBuf, resizeBuf);
+        FreeIonBuffer(resizeBuf);
+        delete(resizeBuf.mStream);
     }
 
     return 0;
@@ -872,6 +992,73 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer,
             }
         }
     }
+}
+
+int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf)
+{
+    int ret;
+    ImxStream *src = srcBuf.mStream;
+    ImxStream *dst = dstBuf.mStream;
+
+    ALOGV("enter resizeWrapper");
+
+    if (src == NULL || dst == NULL) {
+        ALOGE("%s: src %p, dst %p", __func__, src, dst);
+        return BAD_VALUE;
+    }
+
+    if (src->format() != dst->format()) {
+        ALOGE("%s: format are differet, src 0x%x, dst 0x%x", __func__, src->format(), dst->format());
+        return BAD_VALUE;
+    }
+
+    if ( (src->width() == dst->width()) &&
+         (src->height() == dst->height()) ) {
+        ALOGE("%s: resolution are same, %dx%d", __func__, src->width(), src->height());
+        return BAD_VALUE;
+    }
+
+    // Adapt for Camra2.apk. The picture resolution may differ from preview resolution.
+    // If resize for preview stream, there will be obvious changes in the preview.
+    if (dst->isPreview()) {
+        ALOGW("%s: resize from %dx%d to %dx%d, skip preview stream",
+            __func__, src->width(), src->height(), dst->width(), dst->height());
+        return 0;
+    }
+
+    // Once G2D dynamic security is ready, remove.
+    char value[PROPERTY_VALUE_MAX];
+    property_get("ro.boot.soc_type", value, "");
+    if (strcmp(value, "imx8mp") == 0) {
+        ALOGI("%s: use cpu resize for imx8mp");
+        goto cpu_resize;
+    }
+
+    ret = handleFrameByG2DBlit(dstBuf, srcBuf);
+    if (ret == 0) {
+
+        ALOGV("%s: resize format 0x%x, res %dx%d to %dx%d by g2d ok",
+           __func__, src->format(), src->width(), src->height(), dst->width(), dst->height());
+        return 0;
+    }
+
+cpu_resize:
+    if (src->format() == HAL_PIXEL_FORMAT_YCBCR_422_I)
+        ret = yuv422iResize((uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(),
+                            (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+    else if (src->format() == HAL_PIXEL_FORMAT_YCBCR_422_SP )
+        ret = yuv422spResize((uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(),
+                             (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+    else if (src->format() == HAL_PIXEL_FORMAT_YCBCR_420_888)
+        ret = yuv420spResize((uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(),
+                             (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+    else
+        ALOGE("%s: resize by CPU, unsupported format 0x%x", __func__, src->format());
+
+    ALOGV("%s: resize format 0x%x, res %dx%d to %dx%d by cpu, ret %d",
+        __func__, src->format(), src->width(), src->height(), dst->width(), dst->height(), ret);
+
+    return ret;
 }
 
 }

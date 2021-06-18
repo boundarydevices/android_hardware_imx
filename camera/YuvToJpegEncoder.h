@@ -40,13 +40,15 @@ extern "C" {
 
 #define DEINTERLEAVE_LINES_ONE_TIME  16
 
+using namespace android;
+
 class YuvToJpegEncoder {
 public:
     /** Create an encoder based on the YUV format.
      */
     static YuvToJpegEncoder* create(int pixelFormat);
 
-    YuvToJpegEncoder();
+    YuvToJpegEncoder(int format);
 
     /** Encode YUV data to jpeg,  which is output to a stream.
      */
@@ -69,6 +71,7 @@ protected:
     int fNumPlanes;
     int color;
     int mColorFormat;
+    int mPixelFormat;
 
     void setJpegCompressStruct(jpeg_compress_struct *cinfo,
                                int                   width,
@@ -88,7 +91,7 @@ protected:
 
 class Yuv420SpToJpegEncoder : public YuvToJpegEncoder {
 public:
-    Yuv420SpToJpegEncoder();
+    Yuv420SpToJpegEncoder(int pixelFormat);
     virtual ~Yuv420SpToJpegEncoder() {}
 
 private:
@@ -118,7 +121,7 @@ private:
 
 class Yuv422IToJpegEncoder : public YuvToJpegEncoder {
 public:
-    Yuv422IToJpegEncoder();
+    Yuv422IToJpegEncoder(int pixelFormat);
     virtual ~Yuv422IToJpegEncoder() {}
 
 private:
@@ -137,7 +140,7 @@ private:
 
 class Yuv422SpToJpegEncoder : public YuvToJpegEncoder {
     public:
-        Yuv422SpToJpegEncoder();
+        Yuv422SpToJpegEncoder(int pixelFormat);
         virtual ~Yuv422SpToJpegEncoder() {}
 
     private:

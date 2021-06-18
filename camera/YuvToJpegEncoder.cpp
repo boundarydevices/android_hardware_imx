@@ -21,6 +21,7 @@
 #include <hardware/hardware.h>
 #include <log/log.h>
 #include "NV12_resize.h"
+#include "ImageProcess.h"
 
 #ifdef BOARD_HAVE_VPU
 #include "vpu_wrapper.h"
@@ -444,26 +445,27 @@ YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
     // Only ImageFormat.NV21 and ImageFormat.YUY2 are supported
     // for now.
     if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
-        return new Yuv420SpToJpegEncoder();
+        return new Yuv420SpToJpegEncoder(format);
     } else if (format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
-        return new Yuv422IToJpegEncoder();
+        return new Yuv422IToJpegEncoder(format);
     } else if (format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
-        return new Yuv422SpToJpegEncoder();
+        return new Yuv422SpToJpegEncoder(format);
     } else {
         ALOGE("YuvToJpegEncoder:create format:%d not support", format);
         return NULL;
     }
 }
 
-YuvToJpegEncoder::YuvToJpegEncoder()
+YuvToJpegEncoder::YuvToJpegEncoder(int format)
     : fNumPlanes(1),
       color(1),
       mColorFormat(0),
-      supportVpu(false)
+      supportVpu(false),
+      mPixelFormat(format)
 {}
 
 int YuvToJpegEncoder::encode(void *inYuv,
-                             void* inYuvPhy __unused,
+                             void* inYuvPhy,
                              int   inWidth,
                              int   inHeight,
                              int   quality,
@@ -486,17 +488,32 @@ int YuvToJpegEncoder::encode(void *inYuv,
     jpegBuilder_error_mgr sk_err;
     uint8_t *resize_src = NULL;
     jpegBuilder_destination_mgr dest_mgr((uint8_t *)outBuf, outSize);
-
     memset(&cinfo, 0, sizeof(cinfo));
+
+    int ret = 0;
+    bool bResize = false;
+    ImxStreamBuffer srcBuf = {0};
+    ImxStreamBuffer resizeBuf = {0};
+
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
-        resize_src = (uint8_t *)malloc(outSize);
-        yuvResize((uint8_t *)inYuv,
-                  inWidth,
-                  inHeight,
-                  resize_src,
-                  outWidth,
-                  outHeight);
-        inYuv = resize_src;
+        bResize = true;
+
+        resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
+        ret = AllocIonBuffer(resizeBuf);
+        if (ret) {
+            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            return 0;
+        }
+        resizeBuf.mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
+
+        srcBuf.mPhyAddr = (uint64_t)inYuvPhy;
+        srcBuf.mVirtAddr = inYuv;
+        srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
+
+        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+        imageProcess->resizeWrapper(srcBuf, resizeBuf);
+
+        inYuv = (void *)resizeBuf.mVirtAddr;
     }
 
     cinfo.err = jpeg_std_error(&sk_err);
@@ -520,6 +537,12 @@ int YuvToJpegEncoder::encode(void *inYuv,
     jpeg_destroy_compress(&cinfo);
     if (resize_src != NULL) {
         free(resize_src);
+    }
+
+    if (bResize) {
+        FreeIonBuffer(resizeBuf);
+        delete(resizeBuf.mStream);
+        delete(srcBuf.mStream);
     }
 
     return dest_mgr.jpegsize;
@@ -549,158 +572,17 @@ int YuvToJpegEncoder::yuvResize(uint8_t *srcBuf,
                                     int      dstWidth,
                                     int      dstHeight)
 {
-    int i, j;
-    int h_offset;
-    int v_offset;
-    unsigned char *ptr, cc;
-    int h_scale_ratio;
-    int v_scale_ratio;
-
-    int srcStride;
-    int dstStride;
-
-    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight) return -1;
-
-    h_scale_ratio = srcWidth / dstWidth;
-    v_scale_ratio = srcHeight / dstHeight;
-
-    if((h_scale_ratio > 0) && (v_scale_ratio > 0))
-        goto reduce;
-    else if(h_scale_ratio + v_scale_ratio <= 1)
-        goto enlarge;
-
-    ALOGI("Yuv422IToJpegEncoder::yuvResize, not support resize %dx%d to %dx%d",
-        srcWidth, srcHeight, dstWidth, dstHeight);
-
-    return -1;
-
-reduce:
-    h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
-    v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
-
-    srcStride = srcWidth * 2;
-    dstStride = dstWidth * 2;
-
-    //for Y
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 2 * h_scale_ratio)
-        {
-            ptr = srcBuf + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc  = ptr[0];
-
-            ptr    = dstBuf + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
-            ptr[0] = cc;
-        }
-    }
-
-    //for U
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
-        {
-            ptr = srcBuf + 1 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc  = ptr[0];
-
-            ptr    = dstBuf + 1 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
-            ptr[0] = cc;
-        }
-    }
-
-    //for V
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
-        {
-            ptr = srcBuf + 3 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc  = ptr[0];
-
-            ptr    = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
-            ptr[0] = cc;
-        }
-    }
-
-    return 0;
-
-enlarge:
-    int h_offset_end;
-    int v_offset_end;
-    int srcRow;
-    int srcCol;
-
-    h_scale_ratio = dstWidth / srcWidth;
-    v_scale_ratio = dstHeight / srcHeight;
-
-    h_offset = (dstWidth - srcWidth * h_scale_ratio) / 2;
-    v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
-
-    h_offset_end = h_offset + srcWidth * h_scale_ratio;
-    v_offset_end = v_offset + srcHeight * v_scale_ratio;
-
-    srcStride = srcWidth * 2;
-    dstStride = dstWidth * 2;
-
-    ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d, h_offset_end %d, v_offset_end %d",
-            h_scale_ratio, v_scale_ratio, h_offset, v_offset, h_offset_end, v_offset_end);
-
-    // for Y
-    for (i = 0; i < dstHeight; i++)
-    {
-        // top, bottom black margin
-        if((i < v_offset) || (i >= v_offset_end)) {
-            for (j = 0; j < dstWidth; j++)
-            {
-                dstBuf[dstStride*i + j*2] = 0;
-            }
-            continue;
-        }
-
-        for (j = 0; j < dstWidth; j++)
-        {
-            // left, right black margin
-            if((j < h_offset) || (j >= h_offset_end)) {
-                dstBuf[dstStride*i + j*2] = 0;
-                continue;
-            }
-
-            srcRow = (i - v_offset)/v_scale_ratio;
-            srcCol = (j - h_offset)/h_scale_ratio;
-            dstBuf[dstStride*i + j*2] = srcBuf[srcStride * srcRow + srcCol*2];
-        }
-    }
-
-    // for UV
-    for (i = 0; i < dstHeight; i++)
-    {
-        // top, bottom black margin
-        if((i < v_offset) || (i >= v_offset_end)) {
-            for (j = 0; j < dstWidth; j++)
-            {
-                dstBuf[dstStride*i + j*2+1] = 128;
-            }
-            continue;
-        }
-
-        for (j = 0; j < dstWidth; j++)
-        {
-            // left, right black margin
-            if((j < h_offset) || (j >= h_offset_end)) {
-                dstBuf[dstStride*i + j*2+1] = 128;
-                continue;
-            }
-
-            srcRow = (i - v_offset)/v_scale_ratio;
-            srcCol = (j - h_offset)/h_scale_ratio;
-            dstBuf[dstStride*i + j*2+1] = srcBuf[srcStride * srcRow + srcCol*2+1];
-        }
-    }
-
-    return 0;
+    return yuv422iResize(srcBuf,
+                         srcWidth,
+                         srcHeight,
+                         dstBuf,
+                         dstWidth,
+                         dstHeight);
 }
 
 // /////////////////////////////////////////////////////////////////
-Yuv420SpToJpegEncoder::Yuv420SpToJpegEncoder() :
-    YuvToJpegEncoder() {
+Yuv420SpToJpegEncoder::Yuv420SpToJpegEncoder(int format) :
+    YuvToJpegEncoder(format) {
     fNumPlanes = 2;
     color=0;
 #ifdef BOARD_HAVE_VPU
@@ -794,38 +676,17 @@ int Yuv420SpToJpegEncoder::yuvResize(uint8_t *srcBuf,
                                      int      dstWidth,
                                      int      dstHeight)
 {
-    if (!srcBuf || !dstBuf) {
-        return -1;
-    }
-
-    structConvImage o_img_ptr, i_img_ptr;
-    memset(&o_img_ptr, 0, sizeof(o_img_ptr));
-    memset(&i_img_ptr, 0, sizeof(i_img_ptr));
-
-    // input
-    i_img_ptr.uWidth  =  srcWidth;
-    i_img_ptr.uStride =  i_img_ptr.uWidth;
-    i_img_ptr.uHeight =  srcHeight;
-    i_img_ptr.eFormat = IC_FORMAT_YCbCr420_lp;
-    i_img_ptr.imgPtr  = srcBuf;
-    i_img_ptr.clrPtr  = i_img_ptr.imgPtr + (i_img_ptr.uWidth * i_img_ptr.uHeight);
-
-    // ouput
-    o_img_ptr.uWidth  = dstWidth;
-    o_img_ptr.uStride = o_img_ptr.uWidth;
-    o_img_ptr.uHeight = dstHeight;
-    o_img_ptr.eFormat = IC_FORMAT_YCbCr420_lp;
-    o_img_ptr.imgPtr  = dstBuf;
-    o_img_ptr.clrPtr  = o_img_ptr.imgPtr + (o_img_ptr.uWidth * o_img_ptr.uHeight);
-
-    VT_resizeFrame_Video_opt2_lp(&i_img_ptr, &o_img_ptr, NULL, 0);
-
-    return 0;
+    return yuv420spResize(srcBuf,
+                          srcWidth,
+                          srcHeight,
+                          dstBuf,
+                          dstWidth,
+                          dstHeight);
 }
 
 // /////////////////////////////////////////////////////////////////////////////
-Yuv422IToJpegEncoder::Yuv422IToJpegEncoder() :
-    YuvToJpegEncoder() {
+Yuv422IToJpegEncoder::Yuv422IToJpegEncoder(int format) :
+    YuvToJpegEncoder(format) {
     fNumPlanes = 1;
     color=1;
 #ifdef BOARD_HAVE_VPU
@@ -918,8 +779,8 @@ void Yuv422IToJpegEncoder::configSamplingFactors(jpeg_compress_struct *cinfo) {
 }
 
 // /////////////////////////////////////////////////////////////////////////////////////////////
-Yuv422SpToJpegEncoder::Yuv422SpToJpegEncoder() :
-    YuvToJpegEncoder() {
+Yuv422SpToJpegEncoder::Yuv422SpToJpegEncoder(int format) :
+    YuvToJpegEncoder(format) {
         fNumPlanes = 1;
         color=1;
 #ifdef BOARD_HAVE_VPU
@@ -1018,60 +879,12 @@ int Yuv422SpToJpegEncoder::yuvResize(uint8_t *srcBuf,
         int      dstWidth,
         int      dstHeight)
 {
-    int i, j, s;
-    int h_offset;
-    int v_offset;
-    unsigned char *ptr, cc;
-    int h_scale_ratio;
-    int v_scale_ratio;
-
-    s = 0;
-
-_resize_begin:
-
-    if (!dstWidth) return -1;
-
-    if (!dstHeight) return -1;
-
-    h_scale_ratio = srcWidth / dstWidth;
-    if (!h_scale_ratio) return -1;
-
-    v_scale_ratio = srcHeight / dstHeight;
-    if (!v_scale_ratio) return -1;
-
-    h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
-    v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
-
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstWidth * h_scale_ratio; j += h_scale_ratio)
-        {
-            ptr = srcBuf + i * srcWidth + j + v_offset * srcWidth + h_offset;
-            cc  = ptr[0];
-
-            ptr    = dstBuf + (i / v_scale_ratio) * dstWidth + (j / h_scale_ratio);
-            ptr[0] = cc;
-        }
-    }
-
-    srcBuf += srcWidth * srcHeight;
-    dstBuf += dstWidth * dstHeight;
-
-    if (s < 2)
-    {
-        if (!s++)
-        {
-            srcWidth  >>= 1;
-            srcHeight >>= 1;
-
-            dstWidth  >>= 1;
-            dstHeight >>= 1;
-        }
-
-        goto _resize_begin;
-    }
-
-    return 0;
+    return yuv422spResize(srcBuf,
+                          srcWidth,
+                          srcHeight,
+                          dstBuf,
+                          dstWidth,
+                          dstHeight);
 }
 
 

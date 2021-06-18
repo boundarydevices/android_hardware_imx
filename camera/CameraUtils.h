@@ -111,13 +111,14 @@ public:
 
     virtual ~ImxStream() = default;
 
-    ImxStream(uint32_t width, uint32_t height, int32_t format, uint64_t usage, int32_t id)
+    ImxStream(uint32_t width, uint32_t height, int32_t format, uint64_t usage, int32_t id, bool bPreview = false)
     {
         mWidth = width;
         mHeight = height;
         mFormat = format;
         mUsage = usage;
         mId = id;
+        mbPreview = bPreview;
     }
 
     uint32_t width() {return mWidth;}
@@ -125,6 +126,7 @@ public:
     int32_t format() {return mFormat;}
     uint64_t usage() {return mUsage;}
     int32_t id() {return mId;}
+    bool isPreview() {return mbPreview;}
 
 public:
     uint32_t mWidth = 0;
@@ -132,6 +134,7 @@ public:
     int32_t mFormat = 0;
     uint64_t mUsage = 0;
     int32_t mId = 0;
+    bool mbPreview = false;
 };
 
 struct SensorSet
@@ -171,6 +174,31 @@ int32_t changeSensorFormats(int *src, int *dst, int len);
 int getFps(int width, int height, int defValue);
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
 cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(const cameraconfigparser::PhysicalMetaMapPtr& src);
+
+int AllocIonBuffer(ImxStreamBuffer &imxBuf);
+int FreeIonBuffer(ImxStreamBuffer &imxBuf);
+
+int yuv422iResize(uint8_t *srcBuf,
+        int      srcWidth,
+        int      srcHeight,
+        uint8_t *dstBuf,
+        int      dstWidth,
+        int      dstHeight);
+
+int yuv422spResize(uint8_t *srcBuf,
+        int      srcWidth,
+        int      srcHeight,
+        uint8_t *dstBuf,
+        int      dstWidth,
+        int      dstHeight);
+
+int yuv420spResize(uint8_t *srcBuf,
+        int      srcWidth,
+        int      srcHeight,
+        uint8_t *dstBuf,
+        int      dstWidth,
+        int      dstHeight);
+
 } // namespace android
 
 #endif  // CAMERA_UTILS_H
