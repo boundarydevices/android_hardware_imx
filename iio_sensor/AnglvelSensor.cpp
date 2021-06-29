@@ -23,7 +23,6 @@
 #include <utils/SystemClock.h>
 #include <cmath>
 #include <sys/socket.h>
-#include <inttypes.h>
 
 namespace android {
 namespace hardware {
@@ -36,7 +35,8 @@ AnglvelSensor::AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callba
                struct iio_device_data& iio_data,
 			   const std::optional<std::vector<Configuration>>& config)
 	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
-    mSensorInfo.power = 0.5f;
+    // no power_microwatts sys node, so mSensorInfo.power fake the default one.
+    mSensorInfo.power = 0.001f;
     std::string freq_file;
     freq_file = iio_data.sysfspath + "/sampling_frequency_available";
     get_sampling_frequency_available(freq_file, &iio_data.sampling_freq_avl);
@@ -66,6 +66,76 @@ AnglvelSensor::~AnglvelSensor() {
         mWaitCV.notify_all();
     }
     mRunThread.join();
+}
+
+void AnglvelSensor::batch(int32_t samplingPeriodNs) {
+    samplingPeriodNs =
+            std::clamp(samplingPeriodNs, mSensorInfo.minDelay * 1000, mSensorInfo.maxDelay * 1000);
+    if (mSamplingPeriodNs != samplingPeriodNs) {
+        unsigned int sampling_frequency = ns_to_frequency(samplingPeriodNs);
+        int i = 0;
+        mSamplingPeriodNs = samplingPeriodNs;
+        std::string freq_file;
+        freq_file = mIioData.sysfspath + "/sampling_frequency_available";
+        get_sampling_frequency_available(freq_file, &mIioData.sampling_freq_avl);
+        std::vector<double>::iterator low =
+                std::lower_bound(mIioData.sampling_freq_avl.begin(),
+                                 mIioData.sampling_freq_avl.end(), sampling_frequency);
+        i = low - mIioData.sampling_freq_avl.begin();
+        set_sampling_frequency(mIioData.sysfspath, mIioData.sampling_freq_avl[i]);
+        // Wake up the 'run' thread to check if a new event should be generated now
+        mWaitCV.notify_all();
+    }
+}
+
+bool AnglvelSensor::supportsDataInjection() const {
+    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::DATA_INJECTION);
+}
+
+Result AnglvelSensor::injectEvent(const Event& event) {
+    Result result = Result::OK;
+    if (event.sensorType == SensorType::ADDITIONAL_INFO) {
+        // When in OperationMode::NORMAL, SensorType::ADDITIONAL_INFO is used to push operation
+        // environment data into the device.
+    } else if (!supportsDataInjection()) {
+        result = Result::INVALID_OPERATION;
+    } else if (mMode == OperationMode::DATA_INJECTION) {
+        mCallback->postEvents(std::vector<Event>{event}, isWakeUpSensor());
+    } else {
+        result = Result::BAD_VALUE;
+    }
+    return result;
+}
+
+void AnglvelSensor::setOperationMode(OperationMode mode) {
+    std::unique_lock<std::mutex> lock(mRunMutex);
+    if (mMode != mode) {
+        mMode = mode;
+        mWaitCV.notify_all();
+    }
+}
+
+bool AnglvelSensor::isWakeUpSensor() {
+    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::WAKE_UP);
+}
+
+Result AnglvelSensor::flush() {
+    // Only generate a flush complete event if the sensor is enabled and if the sensor is not a
+    // one-shot sensor.
+    if (!mIsEnabled || (mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::ONE_SHOT_MODE))) {
+        return Result::BAD_VALUE;
+    }
+
+    // Note: If a sensor supports batching, write all of the currently batched events for the sensor
+    // to the Event FMQ prior to writing the flush complete event.
+
+    Event ev;
+    ev.sensorHandle = mSensorInfo.sensorHandle;
+    ev.sensorType = SensorType::META_DATA;
+    ev.u.meta.what = V1_0::MetaDataEventType::META_DATA_FLUSH_COMPLETE;
+    std::vector<Event> evs{ev};
+    mCallback->postEvents(evs, isWakeUpSensor());
+    return Result::OK;
 }
 
 template <size_t N>
@@ -134,9 +204,10 @@ void AnglvelSensor::processScanData(char* data, Event* evt) {
         }
     }
 
-    evt->u.vec3.x = getChannelData(channelData, mXMap, true);
-    evt->u.vec3.y = getChannelData(channelData, mYMap, true);
-    evt->u.vec3.z = getChannelData(channelData, mZMap, true);
+    // in_anglvel_scale value is 62.5, but to meet xTS required range, multiply data with 1/625.
+    evt->u.vec3.x = getChannelData(channelData, mXMap, true) / 625;
+    evt->u.vec3.y = getChannelData(channelData, mYMap, true) / 625;
+    evt->u.vec3.z = getChannelData(channelData, mZMap, true) / 625;
     evt->timestamp = get_timestamp();
 }
 
@@ -189,7 +260,7 @@ void AnglvelSensor::run() {
         } else {
             if(GetProperty(kTriggerType, "") == "sysfs_trigger")
                 trigger_data(mIioData.iio_dev_num);
-            err = poll(&mPollFdIio, 1, 500);
+            err = poll(&mPollFdIio, 1, mSamplingPeriodNs/1000000);
             if (err <= 0) {
                 ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
                 continue;

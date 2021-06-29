@@ -47,9 +47,15 @@ class AccMagSensor : public HWSensorBase {
            struct iio_device_data& iio_data,
            const std::optional<std::vector<Configuration>>& config);
     ~AccMagSensor();
+    void batch(int32_t samplingPeriodNs);
+    Result flush();
+    void setOperationMode(OperationMode mode);
+    bool isWakeUpSensor();
     void run();
     void activate(bool enable);
     void processScanData(Event* evt);
+    bool supportsDataInjection() const;
+    Result injectEvent(const Event& event);
   private:
     std::string mSysfspath;
 };

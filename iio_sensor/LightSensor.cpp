@@ -34,7 +34,9 @@ LightSensor::LightSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
                struct iio_device_data& iio_data,
 			   const std::optional<std::vector<Configuration>>& config)
 	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
-    mSensorInfo.power = 0.35f;
+    // no power_microwatts sys node, so mSensorInfo.power fake the default one.
+    mSensorInfo.power = 0.001f;
+    mSensorInfo.flags |= V1_0::SensorFlagBits::DATA_INJECTION | V1_0::SensorFlagBits::ON_CHANGE_MODE;
 
     std::string time_file;
     time_file = iio_data.sysfspath + "/in_illuminance_integration_time_available";
@@ -90,6 +92,33 @@ void LightSensor::processScanData(Event* evt) {
     evt->u.scalar = light;
 }
 
+bool LightSensor::supportsDataInjection() const {
+    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::DATA_INJECTION);
+}
+
+Result LightSensor::injectEvent(const Event& event) {
+    Result result = Result::OK;
+    if (event.sensorType == SensorType::ADDITIONAL_INFO) {
+        // When in OperationMode::NORMAL, SensorType::ADDITIONAL_INFO is used to push operation
+        // environment data into the device.
+    } else if (!supportsDataInjection()) {
+        result = Result::INVALID_OPERATION;
+    } else if (mMode == OperationMode::DATA_INJECTION) {
+        mCallback->postEvents(std::vector<Event>{event}, isWakeUpSensor());
+    } else {
+        result = Result::BAD_VALUE;
+    }
+    return result;
+}
+
+void LightSensor::setOperationMode(OperationMode mode) {
+    std::unique_lock<std::mutex> lock(mRunMutex);
+    if (mMode != mode) {
+        mMode = mode;
+        mWaitCV.notify_all();
+    }
+}
+
 void LightSensor::run() {
     int err;
     Event event;
@@ -101,14 +130,14 @@ void LightSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            err = poll(&mPollFdIio, 1, 500);
+            err = poll(&mPollFdIio, 1, 50);
             if (err <= 0) {
                 ALOGI("Sensor %s poll returned %d", mIioData.name.c_str(), err);
-                events.clear();
-                processScanData(&event);
-                events.push_back(event);
-                mCallback->postEvents(events, isWakeUpSensor());
             }
+            events.clear();
+            processScanData(&event);
+            events.push_back(event);
+            mCallback->postEvents(events, isWakeUpSensor());
         }
     }
 }

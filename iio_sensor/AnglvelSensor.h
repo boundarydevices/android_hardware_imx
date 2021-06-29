@@ -51,10 +51,16 @@ class AnglvelSensor : public HWSensorBase {
            const std::optional<std::vector<Configuration>>& config);
     ~AnglvelSensor();
     void run();
+    void batch(int32_t samplingPeriodNs);
+    Result flush();
+    void setOperationMode(OperationMode mode);
+    bool isWakeUpSensor();
     void activate(bool enable);
     void setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
     void setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
     void processScanData(char* data,Event* evt);
+    bool supportsDataInjection() const;
+    Result injectEvent(const Event& event);
   private:
     std::string mSysfspath;
 };

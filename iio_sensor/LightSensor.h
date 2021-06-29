@@ -56,6 +56,9 @@ class LightSensor : public HWSensorBase {
     void run();
     void activate(bool enable);
     void processScanData(Event* evt);
+    void setOperationMode(OperationMode mode);
+    bool supportsDataInjection() const;
+    Result injectEvent(const Event& event);
   private:
     std::string mSysfspath;
 };

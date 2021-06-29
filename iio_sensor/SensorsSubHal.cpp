@@ -172,8 +172,13 @@ Return<Result> SensorsSubHal::flush(int32_t sensorHandle) {
     return Result::BAD_VALUE;
 }
 
-Return<Result> SensorsSubHal::injectSensorData(const Event& /* event */) {
-    return Result::INVALID_OPERATION;
+Return<Result> SensorsSubHal::injectSensorData(const Event& event) {
+    auto sensor = mSensors.find(event.sensorHandle);
+    if (sensor != mSensors.end()) {
+        return sensor->second->injectEvent(event);
+    }
+
+    return Result::BAD_VALUE;
 }
 
 Return<void> SensorsSubHal::registerDirectChannel(const SharedMemInfo& /* mem */,

@@ -48,9 +48,10 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
     mSensorInfo.vendor = "nxp";
     mSensorInfo.version = 1;
     mSensorInfo.fifoReservedEventCount = 0;
-    mSensorInfo.fifoMaxEventCount = 0;
+    mSensorInfo.fifoMaxEventCount = 100;
     mSensorInfo.requiredPermission = "";
-    mSensorInfo.flags = 0;
+    mSensorInfo.flags = SensorFlagBits::DATA_INJECTION |
+                 SensorFlagBits::CONTINUOUS_MODE;
     switch (type) {
         case SensorType::ACCELEROMETER:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_ACCELEROMETER;

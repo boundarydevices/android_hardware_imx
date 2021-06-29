@@ -43,7 +43,8 @@ PressureSensor::PressureSensor(int32_t sensorHandle, ISensorsEventCallback* call
                struct iio_device_data& iio_data,
 			   const std::optional<std::vector<Configuration>>& config)
 	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
-    mSensorInfo.power = 0.5f;
+    // no power_microwatts sys node, so mSensorInfo.power fake the default one.
+    mSensorInfo.power = 0.001f;
 
     // currently mpl3115 do not support sampling freq setting, fake one value
     // it's align with old sensor hal
@@ -147,6 +148,10 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
 
     evt->u.scalar = scale * evt->u.scalar;
 
+    // To meet CTS required range, multiply pressure scale with 10.
+    if (mChannelIndex == 0)
+        evt->u.scalar *= 10;
+
     int timestamp_offset = 0;
     for (auto i = 0u; i < mIioData.channelInfo.size(); i++) {
         if ((mIioData.channelInfo.size()-1) > mIioData.channelInfo[i].index)
@@ -198,6 +203,33 @@ void PressureSensor::activate(bool enable) {
     }
 }
 
+bool PressureSensor::supportsDataInjection() const {
+    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::DATA_INJECTION);
+}
+
+Result PressureSensor::injectEvent(const Event& event) {
+    Result result = Result::OK;
+    if (event.sensorType == SensorType::ADDITIONAL_INFO) {
+        // When in OperationMode::NORMAL, SensorType::ADDITIONAL_INFO is used to push operation
+        // environment data into the device.
+    } else if (!supportsDataInjection()) {
+        result = Result::INVALID_OPERATION;
+    } else if (mMode == OperationMode::DATA_INJECTION) {
+        mCallback->postEvents(std::vector<Event>{event}, isWakeUpSensor());
+    } else {
+        result = Result::BAD_VALUE;
+    }
+    return result;
+}
+
+void PressureSensor::setOperationMode(OperationMode mode) {
+    std::unique_lock<std::mutex> lock(mRunMutex);
+    if (mMode != mode) {
+        mMode = mode;
+        mWaitCV.notify_all();
+    }
+}
+
 void PressureSensor::run() {
     int read_size;
     int err;
@@ -212,7 +244,7 @@ void PressureSensor::run() {
         } else {
             if(GetProperty(kTriggerType, "") == "sysfs_trigger")
                 trigger_data(mIioData.iio_dev_num);
-            err = poll(&mPollFdIio, 1, 500);
+            err = poll(&mPollFdIio, 1, 50);
             if (err <= 0) {
                 ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
                 continue;
