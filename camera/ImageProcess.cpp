@@ -82,7 +82,7 @@ ImageProcess* ImageProcess::getInstance()
 }
 
 ImageProcess::ImageProcess()
-    : mIpuFd(-1), mPxpFd(-1), mChannel(-1), m2DEnable(0), mG2dModule(NULL), mCLModule(NULL)
+    : mIpuFd(-1), mPxpFd(-1), mChannel(-1), mG2dModule(NULL), mCLModule(NULL)
 {
     /*
      * imx6dl support IPU device and PXP device.
@@ -152,10 +152,6 @@ ImageProcess::ImageProcess()
         if (ret != 0) {
             mCLHandle = NULL;
         }
-    }
-
-    if (property_get_bool("vendor.camera.2d.enable", false)) {
-        m2DEnable = 1;
     }
 
     if(mCLHandle != NULL) {
@@ -509,10 +505,6 @@ int ImageProcess::handleFrameByG2DCopy(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
     if (mBlitEngine == NULL) {
-        return -EINVAL;
-    }
-    //only can work on 8mm platform.
-    if (m2DEnable == 0) {
         return -EINVAL;
     }
 

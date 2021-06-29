@@ -75,7 +75,6 @@ private:
     int mIpuFd;
     int mPxpFd;
     int mChannel;
-    int m2DEnable;
 
     thread_store_t mTls;
     hwc_func1 mOpenEngine;
