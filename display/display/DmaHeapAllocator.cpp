@@ -16,10 +16,12 @@
 
 #include <string.h>
 #include <inttypes.h>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <cutils/log.h>
 #include <ion/ion.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-buf-imx.h>
 #include <linux/version.h>
 #include "DmaHeapAllocator.h"
 
@@ -102,11 +104,25 @@ int DmaHeapAllocator::getPhys(int fd, int size, uint64_t& addr)
 
     struct dma_buf_phys dma_phys;
     if (ioctl(fd, DMA_BUF_IOCTL_PHYS, &dma_phys) < 0) {
-        ALOGE("%s DMA_BUF_IOCTL_PHYS failed",__func__);
-        return -EINVAL;
+        ALOGV("%s DMA_BUF_IOCTL_PHYS failed",__func__);
+        struct dmabuf_imx_phys_data data;
+        int fd_;
+        fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
+        if (fd_ < 0) {
+            ALOGE("open /dev/dmabuf_imx failed: %s", strerror(errno));
+            return -EINVAL;
+        }
+        data.dmafd = fd;
+        if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
+            ALOGE("%s DMABUF_GET_PHYS  failed",__func__);
+            close(fd_);
+            return -EINVAL;
+        } else
+            phyAddr = data.phys;
+        close(fd_);
+    } else {
+        phyAddr = dma_phys.phys;
     }
-    phyAddr = dma_phys.phys;
-        ALOGE("%s DMA_BUF_IOCTL_PHYS %x\n",__func__, phyAddr);
 
     addr = phyAddr;
     return 0;
