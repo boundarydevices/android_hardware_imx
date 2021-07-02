@@ -545,6 +545,8 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
   char *cp;
   int n;
 
+  std::string udc_device = android::base::GetProperty(USB_CONTROLLER, "");
+
   n = uevent_kernel_multicast_recv(payload->uevent_fd, msg, UEVENT_MSG_LEN);
   if (n <= 0) return;
   if (n >= UEVENT_MSG_LEN) /* overflow -- discard */
@@ -562,7 +564,8 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
        pthread_cond_signal(&payload->usb->mPartnerCV);
        pthread_mutex_unlock(&payload->usb->mPartnerLock);
     } else if (!strncmp(cp, "USB_STATE=CONFIGURED", strlen("USB_STATE=CONFIGURED"))) {
-       acquire_wake_lock(PARTIAL_WAKE_LOCK, udc_wakelock);
+       if (!access(("/sys/class/udc/" + udc_device).c_str(),F_OK))
+          acquire_wake_lock(PARTIAL_WAKE_LOCK, udc_wakelock);
     } else if (!strncmp(cp, "USB_STATE=DISCONNECTED", strlen("USB_STATE=DISCONNECTED"))) {
        release_wake_lock(udc_wakelock);
     } else if (!strncmp(cp, "DEVTYPE=typec_", strlen("DEVTYPE=typec_"))) {
