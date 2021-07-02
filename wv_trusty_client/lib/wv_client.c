@@ -86,3 +86,28 @@ void set_secure_pipe(int enable) {
     }
     wv_tipc_disconnect();
 }
+
+void set_g2d_secure_pipe(int enable) {
+    ALOGE("will set g2d secure pipe mode: %d", enable);
+    if (wv_tipc_connect()) {
+        return;
+    }
+    if (enable) {
+        wv_smc_call(OEMCRYPTO_ENABLE_G2D_SECURE_MODE, NULL, sizeof(struct oemcrypto_message), NULL, 0);
+    } else {
+        wv_smc_call(OEMCRYPTO_DISABLE_G2D_SECURE_MODE, NULL, sizeof(struct oemcrypto_message), NULL, 0);
+    }
+    wv_tipc_disconnect();
+}
+
+enum g2d_secure_mode get_g2d_secure_pipe() {
+    if (wv_tipc_connect()) {
+        return -1;
+    }
+    int secure_mode = 0;
+    wv_smc_call(OEMCRYPTO_G2D_SECURE_MODE, NULL, sizeof(struct oemcrypto_message), &secure_mode, sizeof(secure_mode));
+    ALOGE("will get g2d secure pipe mode: %d", secure_mode);
+    wv_tipc_disconnect();
+    return secure_mode;
+}
+
