@@ -23,6 +23,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <utils/threads.h>
+#include <wv_client.h>
 
 #include "MemoryManager.h"
 #include "MemoryDesc.h"
@@ -153,6 +154,9 @@ private:
     void getGUIResolution(int &width, int &height);
     bool veritySourceSize(Layer* layer);
     void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode);
+#ifdef HAVE_UNMAPPED_HEAP
+    int checkSecureLayers();
+#endif
 
 protected:
     int mDrmFd;
@@ -160,6 +164,11 @@ protected:
 
     int mTargetIndex;
     Memory* mTargets[MAX_FRAMEBUFFERS];
+#ifdef HAVE_UNMAPPED_HEAP
+    int mSecTargetIndex;
+    Memory* mSecTargets[MAX_FRAMEBUFFERS];
+    enum g2d_secure_mode mG2dMode;
+#endif
 
     struct {
         uint32_t mode_id;

@@ -75,6 +75,8 @@ Composer::Composer()
     mDimBuffer = NULL;
     mHelperHandle = NULL;
     mG2dHandle = NULL;
+    mSecureMode = false;
+    mPreSecMode = false;
 
     char path[PATH_MAX] = {0};
     char g2dlibName[PATH_MAX] = {0};
@@ -219,6 +221,13 @@ bool Composer::is2DComposition()
     return (m2DComposition != 0);
 }
 
+#ifdef HAVE_UNMAPPED_HEAP
+void Composer::setSecureMode(bool secure)
+{
+    mSecureMode = secure;
+}
+#endif
+
 void Composer::getModule(char *path, const char *name)
 {
     snprintf(path, PATH_MAX, "%s/%s",
@@ -240,10 +249,12 @@ int Composer::checkDimBuffer()
 
     if ((mDimBuffer != NULL) && (mTarget->width == mDimBuffer->width &&
         mTarget->height == mDimBuffer->height &&
-        mTarget->fslFormat == mDimBuffer->fslFormat)) {
+        mTarget->fslFormat == mDimBuffer->fslFormat) &&
+        mSecureMode == mPreSecMode) {
         return 0;
     }
 
+    mPreSecMode = mSecureMode;
     MemoryManager* pManager = MemoryManager::getInstance();
     if (mDimBuffer != NULL) {
         pManager->releaseMemory(mDimBuffer);
@@ -258,7 +269,8 @@ int Composer::checkDimBuffer()
                           USAGE_HW_2D | USAGE_HW_RENDER |
                           USAGE_SW_WRITE_OFTEN | USAGE_SW_READ_OFTEN;
 #ifdef HAVE_UNMAPPED_HEAP
-    desc.mProduceUsage |= USAGE_PROTECTED;
+    if (mSecureMode)
+        desc.mProduceUsage |= USAGE_PROTECTED;
 #endif
     desc.mFlag = FLAGS_DIMBUFFER;
     desc.checkFormat();

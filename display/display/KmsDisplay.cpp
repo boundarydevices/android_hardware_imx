@@ -101,6 +101,10 @@ KmsDisplay::KmsDisplay()
     mConfigThread = NULL;
     mTargetIndex = 0;
     memset(&mTargets[0], 0, sizeof(mTargets));
+#ifdef HAVE_UNMAPPED_HEAP
+    mSecTargetIndex = 0;
+    memset(&mSecTargets[0], 0, sizeof(mSecTargets));
+#endif
     mMemoryManager = MemoryManager::getInstance();
     mModeset = true;
     mConnectorID = 0;
@@ -125,6 +129,10 @@ KmsDisplay::KmsDisplay()
     memset(&mConnector, 0, sizeof(mConnector));
     mListener = NULL;
     memset(&mLastHdrMetaData, 0, sizeof(mLastHdrMetaData));
+
+#ifdef HAVE_UNMAPPED_HEAP
+    mG2dMode = get_g2d_secure_pipe();
+#endif
 }
 
 KmsDisplay::~KmsDisplay()
@@ -1464,9 +1472,6 @@ void KmsDisplay::prepareTargetsLocked()
     desc.mFslFormat = config.mFormat;
     desc.mProduceUsage |= USAGE_HW_COMPOSER |
                           USAGE_HW_2D | USAGE_HW_RENDER;
-#ifdef HAVE_UNMAPPED_HEAP
-    desc.mProduceUsage |= USAGE_PROTECTED;
-#endif
     desc.mFlag = FLAGS_FRAMEBUFFER;
     desc.checkFormat();
 
@@ -1474,18 +1479,35 @@ void KmsDisplay::prepareTargetsLocked()
         mMemoryManager->allocMemory(desc, &mTargets[i]);
     }
     mTargetIndex = 0;
+
+#ifdef HAVE_UNMAPPED_HEAP
+    desc.mProduceUsage |= USAGE_PROTECTED;
+    for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
+        mMemoryManager->allocMemory(desc, &mSecTargets[i]);
+    }
+    mSecTargetIndex = 0;
+#endif
 }
 
 void KmsDisplay::releaseTargetsLocked()
 {
     for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
-        if (mTargets[i] == NULL) {
-            continue;
+        if (mTargets[i] != NULL) {
+            mMemoryManager->releaseMemory(mTargets[i]);
+            mTargets[i] = NULL;
         }
-        mMemoryManager->releaseMemory(mTargets[i]);
-        mTargets[i] = NULL;
+#ifdef HAVE_UNMAPPED_HEAP
+        if (mSecTargets[i] != NULL) {
+            mMemoryManager->releaseMemory(mSecTargets[i]);
+            mSecTargets[i] = NULL;
+        }
+#endif
     }
+
     mTargetIndex = 0;
+#ifdef HAVE_UNMAPPED_HEAP
+    mSecTargetIndex = 0;
+#endif
 }
 
 void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format)
@@ -1627,6 +1649,22 @@ int KmsDisplay::stopRefreshEvent()
     return 0;
 }
 
+#ifdef HAVE_UNMAPPED_HEAP
+int KmsDisplay::checkSecureLayers()
+{
+    int cnt = 0;
+    size_t count = mLayerVector.size();
+    for (size_t i=0; i<count; i++) {
+        Layer* layer = mLayerVector[i];
+        Memory *mem = layer->handle;
+
+        if (mem != NULL && (mem->usage & USAGE_PROTECTED))
+            cnt++;
+    }
+    return cnt;
+}
+#endif
+
 int KmsDisplay::composeLayers()
 {
     Mutex::Autolock _l(mLock);
@@ -1634,9 +1672,30 @@ int KmsDisplay::composeLayers()
     // mLayerVector's size > 0 means 2D composite.
     // only this case needs override mRenderTarget.
     if (mLayerVector.size() > 0 || directCompositionLocked()) {
-        mTargetIndex = mTargetIndex % MAX_FRAMEBUFFERS;
-        mRenderTarget = mTargets[mTargetIndex];
-        mTargetIndex++;
+#ifdef HAVE_UNMAPPED_HEAP
+        if (checkSecureLayers() > 0) {
+            mSecTargetIndex = mSecTargetIndex % MAX_FRAMEBUFFERS;
+            mRenderTarget = mSecTargets[mSecTargetIndex];
+            mSecTargetIndex++;
+            if (mG2dMode != SECURE) {
+                set_g2d_secure_pipe(true);
+                mComposer.setSecureMode(true);
+                mG2dMode = SECURE;
+            }
+        } else
+#endif
+        {
+            mTargetIndex = mTargetIndex % MAX_FRAMEBUFFERS;
+            mRenderTarget = mTargets[mTargetIndex];
+            mTargetIndex++;
+#ifdef HAVE_UNMAPPED_HEAP
+            if (mG2dMode != NON_SECURE) {
+                set_g2d_secure_pipe(false);
+                mComposer.setSecureMode(false);
+                mG2dMode = NON_SECURE;
+            }
+#endif
+        }
     }
 
     return composeLayersLocked();

@@ -58,6 +58,9 @@ public:
     int unlockSurface(Memory *handle);
     bool isFeatureSupported(g2d_feature feature);
     int alignTile(int *width, int *height, int format, int usage);
+#ifdef HAVE_UNMAPPED_HEAP
+    void setSecureMode(bool secure);
+#endif
 
 private:
     Composer();
@@ -118,6 +121,8 @@ private:
 
     int mDisableHWC;
     int m2DComposition;
+    bool mSecureMode;
+    bool mPreSecMode;
 
     void* mHelperHandle;
     void* mG2dHandle;
