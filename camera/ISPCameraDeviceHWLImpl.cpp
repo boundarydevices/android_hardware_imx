@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <linux/videodev2.h>
+#include <linux/dma-buf.h>
 #include <log/log.h>
 #include <hardware/camera_common.h>
 #include "ISPCameraDeviceHWLImpl.h"
@@ -199,6 +200,33 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
 int32_t ISPCameraMMAPStream::onDeviceStartLocked()
 {
     int ret = MMAPStream::onDeviceStartLocked();
+    if (ret) {
+        ALOGE("%s: MMAPStream::onDeviceStartLocked failed, ret %d", ret);
+        return ret;
+    }
+
+    for (uint32_t i = 0; i < mNumBuffers; i++) {
+        struct v4l2_exportbuffer expbuf;
+        memset(&expbuf, 0, sizeof(expbuf));
+        expbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        expbuf.index = i;
+        if (ioctl(mDev, VIDIOC_EXPBUF, &expbuf) < 0) {
+            ALOGE("VIDIOC_EXPBUF: %s", strerror(errno));
+            return BAD_VALUE;
+        }
+
+        struct dma_buf_phys buf_addrs;
+        if (ioctl(expbuf.fd, DMA_BUF_IOCTL_PHYS, &buf_addrs) < 0) {
+            ALOGE("DMA_BUF_IOCTL_PHYS: %s", strerror(errno));
+            close(expbuf.fd);
+            return BAD_VALUE;
+        }
+        mBuffers[i]->mPhyAddr = buf_addrs.phys;
+        mBuffers[i]->mFd = expbuf.fd;
+
+        ALOGI("%s, fd %d, phy 0x%x, virt %p, size %d",
+          __func__, expbuf.fd, mBuffers[i]->mPhyAddr, mBuffers[i]->mVirtAddr, (int)mBuffers[i]->mSize);
+    }
 
     // When restart stream (shift between picture and record mode, or shift between APK), need recover to awb,
     // or the image will blurry if previous mode is mwb.
@@ -214,7 +242,6 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
 
     return ret;
 }
-
 
 int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath, CameraSensorMetadata *pSensorData)
 {

@@ -554,7 +554,7 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 
     // Adapt for Camra2.apk. The picture resolution may differ from preview resolution.
     // If resize for preview stream, there will be obvious changes in the preview.
-    if ( ((src->width() != dst->width()) || (src->height() != src->height())) && dst->isPreview() ) {
+    if ( ((src->width() != dst->width()) || (src->height() != dst->height())) && dst->isPreview() ) {
         ALOGW("%s: resize from %dx%d to %dx%d, skip preview stream",
             __func__, src->width(), src->height(), dst->width(), dst->height());
         return 0;
@@ -1026,17 +1026,8 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
         return 0;
     }
 
-    // Once G2D dynamic security is ready, remove.
-    char value[PROPERTY_VALUE_MAX];
-    property_get("ro.boot.soc_type", value, "");
-    if (strcmp(value, "imx8mp") == 0) {
-        ALOGI("%s: use cpu resize for imx8mp");
-        goto cpu_resize;
-    }
-
     ret = handleFrameByG2DBlit(dstBuf, srcBuf);
     if (ret == 0) {
-
         ALOGV("%s: resize format 0x%x, res %dx%d to %dx%d by g2d ok",
            __func__, src->format(), src->width(), src->height(), dst->width(), dst->height());
         return 0;

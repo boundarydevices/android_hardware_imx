@@ -167,6 +167,7 @@ int32_t MMAPStream::onDeviceStartLocked()
         }
 
         mBuffers[i] = new ImxStreamBuffer();
+        mBuffers[i]->mFd = -1;
         mBuffers[i]->index = i;
         mBuffers[i]->mStream = this;
 
@@ -266,6 +267,9 @@ int32_t MMAPStream::onDeviceStopLocked()
         if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL
                                 && mBuffers[i]->mSize > 0) {
             munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
+            if(mBuffers[i]->mFd > 0)
+                close(mBuffers[i]->mFd);
+
             delete mBuffers[i];
             mBuffers[i] = NULL;
         }
