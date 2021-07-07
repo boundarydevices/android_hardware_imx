@@ -18,13 +18,13 @@
 #ifndef _DMA_STREAM_H
 #define _DMA_STREAM_H
 
-#include "USPStream.h"
+#include "MMAPStream.h"
 
 namespace android {
 
 // stream uses DMABUF buffers which allcated in user space.
 // that exports DMABUF handle.
-class DMAStream : public USPStream
+class DMAStream : public MMAPStream
 {
 public:
     DMAStream(CameraDeviceSessionHwlImpl *pSession);

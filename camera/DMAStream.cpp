@@ -17,19 +17,20 @@
 
 #define LOG_TAG "DMAStream"
 
+#include <Allocator.h>
 #include "DMAStream.h"
 
 namespace android {
 
 DMAStream::DMAStream(CameraDeviceSessionHwlImpl *pSession)
-    : USPStream(pSession), mStreamSize(0)
+    : MMAPStream(pSession), mStreamSize(0)
 {
     mV4l2MemType = V4L2_MEMORY_DMABUF;
     mPlane = false;
 }
 
 DMAStream::DMAStream(bool mplane, CameraDeviceSessionHwlImpl *pSession)
-    : USPStream(pSession), mStreamSize(0)
+    : MMAPStream(pSession), mStreamSize(0)
 {
     // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
     // true, else set it as false.
@@ -46,7 +47,7 @@ int32_t DMAStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint
 {
     ALOGI("%s", __func__);
 
-    return USPStream::onDeviceConfigureLocked(format, width, height, fps);
+    return MMAPStream::onDeviceConfigureLocked(format, width, height, fps);
 }
 
 int32_t DMAStream::onDeviceStartLocked()
@@ -250,24 +251,103 @@ int32_t DMAStream::onFrameReturnLocked(ImxStreamBuffer& buf)
 
 int32_t DMAStream::getDeviceBufferSize()
 {
-    return getFormatSize();
+    return getSizeByForamtRes(mFormat, mWidth, mHeight, true);
 }
 
 int32_t DMAStream::allocateBuffersLocked()
 {
     ALOGI("%s", __func__);
 
-    int32_t ret = USPStream::allocateBuffersLocked();
     mStreamSize = getDeviceBufferSize();
+    fsl::Allocator *allocator = fsl::Allocator::getInstance();
+    if (allocator == NULL) {
+        ALOGE("%s allocator invalid", __func__);
+        return BAD_VALUE;
+    }
 
-    return ret;
+    if (mRegistered) {
+        ALOGI("%s but buffer is already registered", __func__);
+        return 0;
+    }
+
+    int32_t size = ALIGN_PIXEL_16(mWidth) * ALIGN_PIXEL_16(mHeight) * 4;
+    if ((mWidth == 0) || (mHeight == 0) || (size == 0)) {
+        ALOGE("%s: width, height or size is 0", __func__);
+        return BAD_VALUE;
+    }
+
+    uint64_t ptr = 0;
+    int32_t sharedFd;
+    int32_t ionSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+
+    ALOGI("allocate buffer num:%d", mNumBuffers);
+    for (uint32_t i = 0; i < mNumBuffers; i++) {
+        sharedFd = allocator->allocMemory(ionSize,
+                        MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        if (sharedFd < 0) {
+            ALOGE("allocMemory failed.");
+            goto err;
+        }
+
+        int err = allocator->getVaddrs(sharedFd, ionSize, ptr);
+        if (err != 0) {
+            ALOGE("getVaddrs failed.");
+            close(sharedFd);
+            goto err;
+        }
+
+        mBuffers[i] = new ImxStreamBuffer();
+        mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;
+        mBuffers[i]->mSize      =  ionSize;
+        mBuffers[i]->buffer = NULL;
+        mBuffers[i]->mFd = sharedFd;
+        mBuffers[i]->mStream = this;
+        mBuffers[i]->index = i;
+        mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
+        if(mBuffers[i]->mFormatSize == 0)
+            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+    }
+
+    mRegistered = true;
+    mAllocatedBuffers = mNumBuffers;
+
+    return 0;
+
+err:
+    for (uint32_t i = 0; i < mNumBuffers; i++) {
+        if (mBuffers[i]->mVirtAddr == NULL) {
+            continue;
+        }
+
+        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
+        close(mBuffers[i]->mFd);
+        delete mBuffers[i];
+        mBuffers[i] = NULL;
+    }
+
+    return BAD_VALUE;
 }
 
 int32_t DMAStream::freeBuffersLocked()
 {
-    ALOGI("%s", __func__);
+    ALOGV("%s", __func__);
+    if (!mRegistered) {
+        ALOGI("%s but buffer is not registered", __func__);
+        return 0;
+    }
 
-    return USPStream::freeBuffersLocked();
+    ALOGI("freeBufferToIon buffer num:%d", mAllocatedBuffers);
+    for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
+        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
+        close(mBuffers[i]->mFd);
+        delete mBuffers[i];
+        mBuffers[i] = NULL;
+    }
+
+    mRegistered = false;
+    mAllocatedBuffers = 0;
+
+    return 0;
 }
 
 } // namespace android

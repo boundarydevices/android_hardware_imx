@@ -38,7 +38,6 @@ imx_camera_defaults {
                 "CameraMetadata.cpp",
                 "VideoStream.cpp",
                 "MMAPStream.cpp",
-                "USPStream.cpp",
                 "DMAStream.cpp",
                 "UvcStream.cpp",
                 "CameraUtils.cpp",
