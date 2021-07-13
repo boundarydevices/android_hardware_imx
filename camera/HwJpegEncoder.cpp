@@ -25,7 +25,6 @@
 #include <log/log.h>
 #include "CameraUtils.h"
 #include "HwJpegEncoder.h"
-#include <IonAllocator.h>
 #include "ImageProcess.h"
 
 #define NUM_BUFS 1
@@ -69,9 +68,9 @@ int HwJpegEncoder::encode(void *inYuv,
         bResize = true;
 
         resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
-        ret = AllocIonBuffer(resizeBuf);
+        ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
-            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return 0;
         }
         resizeBuf.mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
@@ -102,7 +101,7 @@ int HwJpegEncoder::encode(void *inYuv,
 
 failed:
     if (bResize) {
-        FreeIonBuffer(resizeBuf);
+        FreePhyBuffer(resizeBuf);
         delete(resizeBuf.mStream);
         delete(srcBuf.mStream);
     }

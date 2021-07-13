@@ -175,8 +175,8 @@ int getFps(int width, int height, int defValue);
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
 cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(const cameraconfigparser::PhysicalMetaMapPtr& src);
 
-int AllocIonBuffer(ImxStreamBuffer &imxBuf);
-int FreeIonBuffer(ImxStreamBuffer &imxBuf);
+int AllocPhyBuffer(ImxStreamBuffer &imxBuf);
+int FreePhyBuffer(ImxStreamBuffer &imxBuf);
 
 int yuv422iResize(uint8_t *srcBuf,
         int      srcWidth,

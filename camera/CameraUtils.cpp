@@ -19,7 +19,7 @@
 #include <log/log.h>
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
-#include "IonAllocator.h"
+#include "Allocator.h"
 #include "CameraUtils.h"
 #include "NV12_resize.h"
 
@@ -473,21 +473,21 @@ int yuv420spResize(uint8_t *srcBuf,
     return 0;
 }
 
-int AllocIonBuffer(ImxStreamBuffer &imxBuf)
+int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
 {
     int sharedFd;
     uint64_t phyAddr;
     uint64_t outPtr;
     uint32_t ionSize = (imxBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
-    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    fsl::Allocator *allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         ALOGE("%s ion allocator invalid", __func__);
         return -1;
     }
 
     sharedFd = allocator->allocMemory(ionSize,
-                    ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+                    MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
     if (sharedFd < 0) {
         ALOGE("%s: allocMemory failed.", __func__);
         return -1;
@@ -518,7 +518,7 @@ int AllocIonBuffer(ImxStreamBuffer &imxBuf)
     return 0;
 }
 
-int FreeIonBuffer(ImxStreamBuffer &imxBuf) {
+int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
     if (imxBuf.mVirtAddr)
         munmap(imxBuf.mVirtAddr, imxBuf.mSize);
 

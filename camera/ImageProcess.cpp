@@ -743,9 +743,9 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     if ( (src->width() != dst->width()) ||
          (src->height() != dst->height()) ) {
         resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
-        ret = AllocIonBuffer(resizeBuf);
+        ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
-            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return -EINVAL;
         }
         resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
@@ -765,7 +765,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
 
     if (bResize) {
         swithImxBuf(srcBuf, resizeBuf);
-        FreeIonBuffer(resizeBuf);
+        FreePhyBuffer(resizeBuf);
         delete(resizeBuf.mStream);
     }
 
@@ -807,9 +807,9 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     if ( (src->width() != dst->width()) ||
          (src->height() != dst->height()) ) {
         resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
-        ret = AllocIonBuffer(resizeBuf);
+        ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
-            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return -EINVAL;
         }
         resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
@@ -835,7 +835,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 
     if (bResize) {
         swithImxBuf(srcBuf, resizeBuf);
-        FreeIonBuffer(resizeBuf);
+        FreePhyBuffer(resizeBuf);
         delete(resizeBuf.mStream);
     }
 

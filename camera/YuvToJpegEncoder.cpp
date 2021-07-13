@@ -499,9 +499,9 @@ int YuvToJpegEncoder::encode(void *inYuv,
         bResize = true;
 
         resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
-        ret = AllocIonBuffer(resizeBuf);
+        ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
-            ALOGE("%s:%d AllocIonBuffer failed", __func__, __LINE__);
+            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return 0;
         }
         resizeBuf.mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
@@ -540,7 +540,7 @@ int YuvToJpegEncoder::encode(void *inYuv,
     }
 
     if (bResize) {
-        FreeIonBuffer(resizeBuf);
+        FreePhyBuffer(resizeBuf);
         delete(resizeBuf.mStream);
         delete(srcBuf.mStream);
     }
