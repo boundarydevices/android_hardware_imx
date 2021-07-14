@@ -278,28 +278,38 @@ int32_t DMAStream::allocateBuffersLocked()
 
     uint64_t ptr = 0;
     int32_t sharedFd;
-    int32_t ionSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+    uint64_t phyAddr;
+    int32_t memSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
     ALOGI("allocate buffer num:%d", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        sharedFd = allocator->allocMemory(ionSize,
+        sharedFd = allocator->allocMemory(memSize,
                         MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
         if (sharedFd < 0) {
             ALOGE("allocMemory failed.");
             goto err;
         }
 
-        int err = allocator->getVaddrs(sharedFd, ionSize, ptr);
+        int err = allocator->getVaddrs(sharedFd, memSize, ptr);
         if (err != 0) {
             ALOGE("getVaddrs failed.");
             close(sharedFd);
             goto err;
         }
 
+        err = allocator->getPhys(sharedFd, memSize, phyAddr);
+        if (err != 0) {
+            ALOGE("getPhys failed.");
+            munmap((void*)(uintptr_t)ptr, memSize);
+            close(sharedFd);
+            goto err;
+        }
+
         mBuffers[i] = new ImxStreamBuffer();
         mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;
-        mBuffers[i]->mSize      =  ionSize;
+        mBuffers[i]->mSize      =  memSize;
         mBuffers[i]->buffer = NULL;
+        mBuffers[i]->mPhyAddr   = phyAddr;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
         mBuffers[i]->index = i;
