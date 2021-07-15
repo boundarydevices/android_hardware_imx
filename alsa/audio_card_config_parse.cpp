@@ -21,6 +21,7 @@
 #include <android-base/strings.h>
 #include <android-base/properties.h>
 #include <system/audio-base.h>
+#include <system/audio-hal-enums.h>
 #include <log/log.h>
 #include <json/json.h>
 #include <json/reader.h>
