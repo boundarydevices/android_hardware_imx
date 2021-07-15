@@ -486,7 +486,6 @@ int YuvToJpegEncoder::encode(void *inYuv,
 
     jpeg_compress_struct  cinfo;
     jpegBuilder_error_mgr sk_err;
-    uint8_t *resize_src = NULL;
     jpegBuilder_destination_mgr dest_mgr((uint8_t *)outBuf, outSize);
     memset(&cinfo, 0, sizeof(cinfo));
 
@@ -535,9 +534,6 @@ int YuvToJpegEncoder::encode(void *inYuv,
     compress(&cinfo, (uint8_t *)inYuv);
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
-    if (resize_src != NULL) {
-        free(resize_src);
-    }
 
     if (bResize) {
         FreePhyBuffer(resizeBuf);
