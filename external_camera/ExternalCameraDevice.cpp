@@ -273,10 +273,11 @@ status_t ExternalCameraDevice::initAvailableCapabilities(
 
     bool hasDepth = false;
     bool hasColor = false;
+
     for (const auto& fmt : mSupportedFormats) {
         switch (fmt.fourcc) {
             case V4L2_PIX_FMT_Z16: hasDepth = true; break;
-            case V4L2_PIX_FMT_MJPEG: hasColor = true; break;
+            case V4L2_PIX_FMT_MJPEG:
             case V4L2_PIX_FMT_YUYV: hasColor = true; break;
             default: ALOGW("%s: Unsupported format found", __FUNCTION__);
         }
@@ -699,7 +700,8 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
     }
 
     bool hasDepth = false;
-    bool hasColor = false;
+    bool isMJPEG = false;
+    bool isYUYV = false;
 
     // For V4L2_PIX_FMT_Z16
     std::array<int, /*size*/ 1> halDepthFormats{{HAL_PIXEL_FORMAT_Y16}};
@@ -713,10 +715,10 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
                 hasDepth = true;
                 break;
             case V4L2_PIX_FMT_MJPEG:
-                hasColor = true;
+                isMJPEG = true;
                 break;
             case V4L2_PIX_FMT_YUYV:
-                hasColor = true;
+                isYUYV = true;
                 break;
             default:
                 ALOGW("%s: format %c%c%c%c is not supported!", __FUNCTION__,
@@ -732,15 +734,14 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
                 ANDROID_DEPTH_AVAILABLE_DEPTH_MIN_FRAME_DURATIONS,
                 ANDROID_DEPTH_AVAILABLE_DEPTH_STALL_DURATIONS);
     }
-    if (hasColor) {
+    if (isMJPEG) {
         initOutputCharskeysByFormat(metadata, V4L2_PIX_FMT_MJPEG, halFormats,
                 ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT,
                 ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
                 ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS,
                 ANDROID_SCALER_AVAILABLE_STALL_DURATIONS);
     }
-
-    if (hasColor) {
+    if (isYUYV) {
         initOutputCharskeysByFormat(metadata, V4L2_PIX_FMT_YUYV, halFormats,
                 ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT,
                 ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
@@ -852,8 +853,14 @@ void ExternalCameraDevice::trimSupportedFormats(
     float maxSizeAr = ASPECT_RATIO(maxSize);
 
     // Remove formats that has aspect ratio not croppable from largest size
+    // Remove YUYV format if MJPEG format is supported
+    bool needTrimFmt = false;
     std::vector<SupportedV4L2Format> out;
     for (const auto& fmt : sortedFmts) {
+        if (fmt.fourcc == V4L2_PIX_FMT_MJPEG) {
+            needTrimFmt = true;
+        }
+
         float ar = ASPECT_RATIO(fmt);
         if (isAspectRatioClose(ar, maxSizeAr)) {
             out.push_back(fmt);
@@ -868,7 +875,15 @@ void ExternalCameraDevice::trimSupportedFormats(
                 maxSize.width, maxSize.height);
         }
     }
-    sortedFmts = out;
+
+    std::vector<SupportedV4L2Format> trimFmts;
+    for (const auto& fmt : out) {
+        if (needTrimFmt && (fmt.fourcc != V4L2_PIX_FMT_YUYV)) {
+            trimFmts.push_back(fmt);
+        }
+    }
+
+    sortedFmts = trimFmts;
 }
 
 std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedFormatsLocked(
