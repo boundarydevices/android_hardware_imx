@@ -31,7 +31,7 @@
 #include "utils/Timers.h"
 #include <CameraMetadata.h>
 #include <HandleImporter.h>
-
+#include <cutils/properties.h>
 
 using ::android::hardware::graphics::mapper::V2_0::IMapper;
 using ::android::hardware::graphics::mapper::V2_0::YCbCrLayout;

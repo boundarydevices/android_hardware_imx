@@ -1240,6 +1240,37 @@ ssize_t ExternalCameraDeviceSession::getJpegBufferSize(
     return jpegBufferSize;
 }
 
+static void dumpStream(uint8_t *src, size_t srcSize, int32_t id) {
+    char value[PROPERTY_VALUE_MAX];
+    int fdSrc = -1;
+
+    if ((src == NULL) || (srcSize == 0))
+        return;
+
+    property_get("vendor.rw.camera.ext.test", value, "false");
+    if (!strcmp(value, "false"))
+        return;
+
+    ALOGI("%s: src size %zu, id %d", __func__, srcSize, id);
+
+    char srcFile[32];
+    snprintf(srcFile, 32, "/data/%d-ext-cam-src.data", id);
+    srcFile[31] = 0;
+
+    fdSrc = open(srcFile, O_CREAT|O_APPEND|O_WRONLY, S_IRWXU|S_IRWXG);
+
+    if (fdSrc < 0) {
+        ALOGW("%s: file open error, srcFile: %s, fd %d", __func__, srcFile, fdSrc);
+        return;
+    }
+
+    write(fdSrc, src, srcSize);
+
+    close(fdSrc);
+
+    return;
+}
+
 int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
         HalStreamBuffer &halBuf,
         const common::V1_0::helper::CameraMetadata& setting)
@@ -1470,6 +1501,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         return onDeviceError("%s: V4L2 buffer map failed", __FUNCTION__);
     }
 
+    dumpStream(inData, inDataSize, 0);
+
     // TODO: in some special case maybe we can decode jpg directly to gralloc output?
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
         ATRACE_BEGIN("MJPGtoI420");
@@ -1501,6 +1534,12 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             static_cast<uint8_t*>(mYu12FrameLayout.cb), mYu12FrameLayout.cStride,
             static_cast<uint8_t*>(mYu12FrameLayout.cr), mYu12FrameLayout.cStride,
             mYu12Frame->mWidth, mYu12Frame->mHeight);
+
+        uint8_t* cvtData;
+        size_t cvtDataSize;
+        mYu12Frame->getData(&cvtData, &cvtDataSize);
+        dumpStream(cvtData, cvtDataSize, 1);
+
         ATRACE_END();
 
         if (res != 0) {
