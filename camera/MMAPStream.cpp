@@ -95,11 +95,10 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
     }
 
     int vformat = convertPixelFormatToV4L2Format(format);
-    int capturemode = getCaptureMode(mDev, width, height);
 
-    ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d, capturemode %d",
+    ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d",
         __func__, (int)width, (int)height,
-        vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps, capturemode);
+        vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
 
     int buf_type = mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
     int num_planes = mPlane ? 1 : 0;
@@ -111,7 +110,6 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
     param.type = buf_type;
     param.parm.capture.timeperframe.numerator = 1;
     param.parm.capture.timeperframe.denominator = vfps;
-    param.parm.capture.capturemode = capturemode;
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
     if (ret < 0) {
         ALOGE("%s: VIDIOC_S_PARM Failed: %s", __func__, strerror(errno));
