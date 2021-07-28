@@ -46,7 +46,6 @@ namespace fsl {
 
 ImageProcess* ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
-thread_local void* ImageProcess::sHandle(0);
 
 static void swithImxBuf(ImxStreamBuffer& imxBufA, ImxStreamBuffer& imxBufB)
 {
@@ -156,6 +155,7 @@ ImageProcess::ImageProcess()
         mFinishEngine = NULL;
         mCopyEngine = NULL;
         mBlitEngine = NULL;
+        mG2dHandle = NULL;
     }
     else {
         mOpenEngine = (hwc_func1)dlsym(mG2dModule, "g2d_open");
@@ -163,6 +163,10 @@ ImageProcess::ImageProcess()
         mFinishEngine = (hwc_func1)dlsym(mG2dModule, "g2d_finish");
         mCopyEngine = (hwc_func4)dlsym(mG2dModule, "g2d_copy");
         mBlitEngine = (hwc_func3)dlsym(mG2dModule, "g2d_blit");
+        ret = mOpenEngine(&mG2dHandle);
+        if (ret != 0) {
+            mG2dHandle = NULL;
+        }
     }
 
     memset(path, 0, sizeof(path));
@@ -209,31 +213,25 @@ ImageProcess::~ImageProcess()
         (*mCLClose)(mCLHandle);
     }
 
-    if (mG2dModule != NULL) {
-        dlclose(mG2dModule);
-    }
-
     if (mCLModule != NULL) {
         dlclose(mCLModule);
     }
 
-    if (sHandle != NULL) {
-        closeEngine(sHandle);
+    if (mG2dHandle != NULL) {
+        closeEngine(mG2dHandle);
     }
+
+    if (mG2dModule != NULL) {
+        dlclose(mG2dModule);
+    }
+
+
+    sInstance = NULL;
 }
 
 void *ImageProcess::getHandle()
 {
-    if (sHandle != NULL) {
-        return sHandle;
-    }
-
-    if (mOpenEngine == NULL) {
-        return NULL;
-    }
-
-    openEngine(&sHandle);
-    return sHandle;
+    return mG2dHandle;
 }
 
 int ImageProcess::openEngine(void** handle)
@@ -509,6 +507,8 @@ int ImageProcess::handleFrameByG2DCopy(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
     s_buf.buf_vaddr = srcBuf.mVirtAddr;
     d_buf.buf_paddr = dstBuf.mPhyAddr;
     d_buf.buf_vaddr = dstBuf.mVirtAddr;
+
+    Mutex::Autolock _l(mG2dLock);
     int ret = mCopyEngine(g2dHandle, (void*)&d_buf, (void*)&s_buf,
                  (void*)(intptr_t)size);
     if (ret == 0) {
@@ -577,6 +577,7 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
     d_surface.height = dst->height();
     d_surface.rot    = G2D_ROTATION_0;
 
+    Mutex::Autolock _l(mG2dLock);
     ret = mBlitEngine(g2dHandle, (void*)&s_surface, (void*)&d_surface);
 
     if (ret == 0) {
@@ -593,7 +594,6 @@ int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
-
 
     if ((src->format() == dst->format()) &&
          (src->width() == dst->width()) &&
@@ -699,6 +699,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
         if (HAL_PIXEL_FORMAT_RAW16 == src->format())
             Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
         else {
+            Mutex::Autolock _l(mCLLock);
             cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
                 dst->width(), dst->height(),
                 (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
@@ -741,11 +742,14 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     }
 
     // case 4: diffrent format, same resolution
-    cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
-                (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
+    {
+        Mutex::Autolock _l(mCLLock);
+        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
+                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(), false, bOutputCached);
 
-    (*mCLFlush)(mCLHandle);
-    (*mCLFinish)(mCLHandle);
+        (*mCLFlush)(mCLHandle);
+        (*mCLFinish)(mCLHandle);
+    }
 
     if (bResize) {
         swithImxBuf(srcBuf, resizeBuf);

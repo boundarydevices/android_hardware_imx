@@ -19,6 +19,7 @@
 
 #include "CameraProviderHWLImpl.h"
 #include "CameraMetadata.h"
+#include "ImageProcess.h"
 
 #include <android-base/file.h>
 #include <android-base/strings.h>
@@ -89,7 +90,19 @@ status_t CameraProviderHwlImpl::Initialize()
         }
     }
 
+    // create singleton "ImageProcess" object, so the dlopen, g2d_open/cl_g2d_open
+    // can be done in HW init, save time for CTS.
+    fsl::ImageProcess::getInstance();
+
     return OK;
+}
+
+//virtual ~CameraProviderHwlImpl();
+CameraProviderHwlImpl::~CameraProviderHwlImpl() {
+    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+    delete imageProcess;
+
+    WaitForStatusCallbackFuture();
 }
 
 void CameraProviderHwlImpl::enumSensorSet()

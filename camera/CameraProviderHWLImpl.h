@@ -57,10 +57,7 @@ public:
     // again before the previous one is destroyed will fail.
     static std::unique_ptr<CameraProviderHwlImpl> Create();
 
-    //virtual ~CameraProviderHwlImpl();
-    virtual ~CameraProviderHwlImpl() {
-        WaitForStatusCallbackFuture();
-    }
+    virtual ~CameraProviderHwlImpl();
 
     // Override functions in CameraProviderHwl.
     status_t SetCallback(const HwlCameraProviderCallback& callback) override;

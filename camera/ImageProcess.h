@@ -70,19 +70,20 @@ private:
     ImageProcess();
     static Mutex sLock;
     static ImageProcess* sInstance;
-    static thread_local void *sHandle;
 
     int mIpuFd;
     int mPxpFd;
     int mChannel;
 
+    void *mG2dModule;
+    void *mG2dHandle;
     hwc_func1 mOpenEngine;
     hwc_func1 mCloseEngine;
     hwc_func1 mFinishEngine;
     hwc_func4 mCopyEngine;
     hwc_func3 mBlitEngine;
+    Mutex mG2dLock;
 
-    void *mG2dModule;
     void *mCLModule;
     void *mCLHandle;
     hwc_func1 mCLOpen;
@@ -90,6 +91,7 @@ private:
     hwc_func3 mCLBlit;
     hwc_func1 mCLFlush;
     hwc_func1 mCLFinish;
+    Mutex mCLLock;
 };
 
 }
