@@ -13,9 +13,9 @@
 #include <log/log.h>
 
 #define TRUSTY_DEVICE_NAME "/dev/trusty-ipc-dev0"
-
+#define UNUSED __attribute__((unused))
+#ifdef SUPPORT_WIDEVINE_L1
 static int handle_ = -1;
-
 static int wv_smc_call(uint32_t cmd, void *req, uint32_t req_len, void *rsp, uint32_t rsp_len) {
     if (handle_ < 0) {
         ALOGE("TIPC not inited!");
@@ -57,7 +57,6 @@ out:
 }
 
 static int wv_tipc_connect() {
-
     int rc = tipc_connect(TRUSTY_DEVICE_NAME, OEMCRYPTO_PORT);
     if (rc < 0) {
         ALOGE("TIPC Connect failed (%d)!", rc);
@@ -74,7 +73,10 @@ static void wv_tipc_disconnect() {
     }
     handle_ = -1;
 }
-void set_secure_pipe(int enable) {
+#endif
+
+void set_secure_pipe(int enable UNUSED) {
+#ifdef SUPPORT_WIDEVINE_L1
     ALOGE("will set secure pipe mode: %d", enable);
     if (wv_tipc_connect()) {
         return;
@@ -85,9 +87,11 @@ void set_secure_pipe(int enable) {
         wv_smc_call(OEMCRYPTO_DISABLE_SECURE_MODE, NULL, sizeof(struct oemcrypto_message), NULL, 0);
     }
     wv_tipc_disconnect();
+#endif
 }
 
-void set_g2d_secure_pipe(int enable) {
+void set_g2d_secure_pipe(int enable UNUSED) {
+#ifdef SUPPORT_WIDEVINE_L1
     ALOGE("will set g2d secure pipe mode: %d", enable);
     if (wv_tipc_connect()) {
         return;
@@ -98,9 +102,12 @@ void set_g2d_secure_pipe(int enable) {
         wv_smc_call(OEMCRYPTO_DISABLE_G2D_SECURE_MODE, NULL, sizeof(struct oemcrypto_message), NULL, 0);
     }
     wv_tipc_disconnect();
+#endif
+
 }
 
 enum g2d_secure_mode get_g2d_secure_pipe() {
+#ifdef SUPPORT_WIDEVINE_L1
     if (wv_tipc_connect()) {
         return -1;
     }
@@ -109,5 +116,8 @@ enum g2d_secure_mode get_g2d_secure_pipe() {
     ALOGE("will get g2d secure pipe mode: %d", secure_mode);
     wv_tipc_disconnect();
     return secure_mode;
+#else
+    return NON_SECURE;
+#endif
 }
 

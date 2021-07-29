@@ -13,11 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+libwvtrustyclient_defaults {
+    name: "libwvtrustyclient_default"
+}
 
 cc_library_static {
     name: "libwvtrustyclient",
     vendor: true,
-
+    defaults: ["libwvtrustyclient_default"],
     srcs: ["wv_client.c"],
 
     export_include_dirs: ["include"],
@@ -34,4 +37,21 @@ cc_library_static {
         "-Wall",
         "-Werror",
     ],
+}
+
+bootstrap_go_package {
+    name: "soong-wv_client",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/wv_trusty_client/lib",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "wv_client.go",
+    ],
+    pluginFor: ["soong_build"],
 }
