@@ -50,6 +50,8 @@ public:
     // free buffers.
     virtual int32_t freeBuffersLocked() {return 0;}
 
+    uint32_t PickValidFps(int vformat, uint32_t width, uint32_t height, uint32_t requestFps);
+
 public:
     bool mPlane;
 };

@@ -47,6 +47,41 @@ MMAPStream::~MMAPStream()
 {
 }
 
+uint32_t MMAPStream::PickValidFps(int vformat, uint32_t width, uint32_t height, uint32_t requestFps)
+{
+    uint32_t pickedFps;
+    uint32_t valid_fps = 0;
+    uint32_t fps_diff = 0;
+    uint32_t fps_diff_min = 1000;
+
+    struct v4l2_frmivalenum frmival = {0};
+    frmival.index = 0;
+    frmival.pixel_format = vformat;
+    frmival.width = width;
+    frmival.height = height;
+
+    while (ioctl(mDev, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) >= 0) {
+        if ((frmival.discrete.numerator == 0) || (frmival.discrete.denominator == 0)) {
+            frmival.index++;
+            continue;
+        }
+
+        valid_fps = frmival.discrete.denominator / frmival.discrete.numerator;
+        ALOGI("%s: res %dx%d, fps[%d] = %d", __func__, width, height, frmival.index, valid_fps);
+
+        fps_diff = (valid_fps >= requestFps) ? (valid_fps - requestFps) : (requestFps - valid_fps);
+        if (fps_diff < fps_diff_min) {
+            fps_diff_min = fps_diff;
+            pickedFps = valid_fps;
+        }
+        frmival.index++;
+    }
+
+    ALOGI("%s: requestFps requested %d, picked %d", __func__, requestFps, pickedFps);
+
+    return pickedFps;
+}
+
 // configure device.
 int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
 {
@@ -69,23 +104,7 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
     int buf_type = mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
     int num_planes = mPlane ? 1 : 0;
 
-    vfps = getFps(width, height, fps);
-
-    struct v4l2_frmivalenum frmival;
-    uint32_t max_fps = 0;
-    frmival.index = 0;
-    frmival.pixel_format = vformat;
-    frmival.width = width;
-    frmival.height = height;
-
-    while (ioctl(mDev, VIDIOC_ENUM_FRAMEINTERVALS,
-            &frmival) >= 0) {
-        if (max_fps < (frmival.discrete.denominator / frmival.discrete.numerator))
-            max_fps = frmival.discrete.denominator / frmival.discrete.numerator;
-        frmival.index++;
-    }
-
-    vfps = max_fps < vfps ? max_fps:vfps;
+    vfps = PickValidFps(vformat, width, height, fps);
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));

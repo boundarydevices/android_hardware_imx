@@ -1349,7 +1349,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
             ALOGI("%s: request fps range[%d, %d]", __func__, entry.data.i32[0], entry.data.i32[1]);
             if (entry.data.i32[0] <= 15 && entry.data.i32[1] <= 15)
                 fps = 15;
-            else
+            else if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME))
                 fps = entry.data.i32[0];
         }
 

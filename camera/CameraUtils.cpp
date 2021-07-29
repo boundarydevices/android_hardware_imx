@@ -154,24 +154,6 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
     return nFormat;
 }
 
-int getFps(int width, int height, int defValue)
-{
-    int fps = 0;
-    if((width == 2592) && (height == 1944)) {
-        fps = 8;
-    } else if ((width > 1920) || (height > 1080)) {
-        fps = 15;
-    } else if ((width <= 1024) || (height <= 768)) {
-        fps = 30;
-    } else if ((defValue > 0) && (defValue <= 30)){
-        fps = defValue;
-    } else {
-        fps = 30;
-    }
-
-    return fps;
-}
-
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align)
 {
     int32_t size = 0;
