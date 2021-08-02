@@ -47,6 +47,8 @@ namespace fsl {
 ImageProcess* ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
 
+static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels);
+
 static void swithImxBuf(ImxStreamBuffer& imxBufA, ImxStreamBuffer& imxBufB)
 {
     ImxStreamBuffer tmpBuf = imxBufA;
@@ -597,8 +599,12 @@ int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 
     if ((src->format() == dst->format()) &&
          (src->width() == dst->width()) &&
-         (src->height() == dst->height()))
-        ret = handleFrameByG2DCopy(dstBuf, srcBuf);
+         (src->height() == dst->height())) {
+        if (HAL_PIXEL_FORMAT_RAW16 == src->format())
+            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
+        else
+            ret = handleFrameByG2DCopy(dstBuf, srcBuf);
+    }
     else
         ret = handleFrameByG2DBlit(dstBuf, srcBuf);
 
@@ -772,8 +778,12 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     if ( (src->format() == dst->format()) &&
          (src->width() == dst->width()) &&
          (src->height() == dst->height()) ) {
-        YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
+        if (HAL_PIXEL_FORMAT_RAW16 == src->format())
+            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
+        else
+            YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
               (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
+
         return 0;
     }
 
