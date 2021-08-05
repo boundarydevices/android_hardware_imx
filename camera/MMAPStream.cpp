@@ -49,7 +49,7 @@ MMAPStream::~MMAPStream()
 
 uint32_t MMAPStream::PickValidFps(int vformat, uint32_t width, uint32_t height, uint32_t requestFps)
 {
-    uint32_t pickedFps;
+    uint32_t pickedFps = requestFps;
     uint32_t valid_fps = 0;
     uint32_t fps_diff = 0;
     uint32_t fps_diff_min = 1000;

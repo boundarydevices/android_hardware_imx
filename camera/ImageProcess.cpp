@@ -592,7 +592,7 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 
 int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
-    int ret;
+    int ret = 0;
 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
