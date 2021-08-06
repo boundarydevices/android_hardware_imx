@@ -430,30 +430,91 @@ int ISPWrapper::processAeMode(uint8_t mode, bool force)
     return 0;
 }
 
+void ISPWrapper::parseDewarpParams(Json::Value& node) {
+    Json::Value item;
+
+    // parse mode
+    item = node["mode"];
+    if (!item.isNull())
+        m_dwePara.mode = item.asInt();
+
+    // parse hflip
+    item = node["hflip"];
+    if (!item.isNull())
+        m_dwePara.hflip = item.asBool();
+
+    // parse vflip
+    item = node["vflip"];
+    if (!item.isNull())
+        m_dwePara.vflip = item.asBool();
+
+    // parse bypass
+    item = node["bypass"];
+    if (!item.isNull())
+        m_dwePara.bypass = item.asBool();
+
+    // parse mat
+    Json::Value cameraMat = node["mat"];
+    if (!cameraMat.isArray())
+        return;
+
+    int i = 0;
+    for (auto& item : cameraMat) {
+        if (i >= MAT_SIZE)
+            break;
+        m_dwePara.mat[i++] = item.asDouble();
+    }
+
+
+    ALOGI("%s: mode %d, hflip %d, vflip %d, bypass %d", __func__, m_dwePara.mode, m_dwePara.hflip, m_dwePara.vflip, m_dwePara.bypass);
+    for (int i = 0; i < MAT_SIZE; i++)
+        ALOGI("mat[%d] %f\n", i, m_dwePara.mat[i]);
+
+    return;
+}
+
+int ISPWrapper::setDewarpParams() {
+    Json::Value jRequest, jResponse;
+
+    jRequest["dwe"]["mode"] = m_dwePara.mode;
+    jRequest["dwe"]["hflip"] = m_dwePara.hflip;
+    jRequest["dwe"]["vflip"] = m_dwePara.vflip;
+    jRequest["dwe"]["bypass"] = m_dwePara.bypass;
+    for (int i = 0; i < MAT_SIZE; i++) {
+        jRequest["dwe"]["mat"][i] = m_dwePara.mat[i];
+    }
+
+    int ret = viv_private_ioctl(IF_DWE_S_PARAMS, jRequest, jResponse);
+    return ret;
+}
+
 int ISPWrapper::processDewarp(bool bEnable)
 {
     int ret = 0;
+    int orgMode = m_dwePara.mode;
 
     if(bEnable == true) {
-        if(m_dwePara.mode == DEWARP_MODEL_FISHEYE_DEWARP)
+        if(orgMode == DEWARP_MODEL_FISHEYE_DEWARP)
             return 0;
 
-        ret = setFeature(DWE_MODE_DEWARP);
-        if(ret) {
-            ALOGE("%s, set DWE_MODE_DEWARP failed, ret %d", __func__, ret);
-            return BAD_VALUE;
-        }
         m_dwePara.mode = DEWARP_MODEL_FISHEYE_DEWARP;
-    } else {
-        if(m_dwePara.mode == DEWARP_MODEL_LENS_DISTORTION_CORRECTION)
-            return 0;
-
-        ret = setFeature(DWE_MODE_LDC);
+        ret = setDewarpParams();
         if(ret) {
-            ALOGE("%s, set DWE_MODE_LDC failed, ret %d", __func__, ret);
+            m_dwePara.mode = orgMode;
+            ALOGE("%s, set DEWARP_MODEL_FISHEYE_DEWARP failed, ret %d", __func__, ret);
             return BAD_VALUE;
         }
+    } else {
+        if(orgMode == DEWARP_MODEL_LENS_DISTORTION_CORRECTION)
+            return 0;
+
         m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
+        ret = setDewarpParams();
+        if(ret) {
+            m_dwePara.mode = orgMode;
+            ALOGE("%s, set DEWARP_MODEL_LENS_DISTORTION_CORRECTION failed, ret %d", __func__, ret);
+            return BAD_VALUE;
+        }
     }
 
     return 0;
@@ -462,17 +523,17 @@ int ISPWrapper::processDewarp(bool bEnable)
 int ISPWrapper::processHFlip(bool bEnable)
 {
     int ret = 0;
+    bool orgHFlip = m_dwePara.hflip;
 
-    if (bEnable == m_dwePara.hflip)
+    if (bEnable == orgHFlip)
         return 0;
 
-    const char *value = bEnable ? DWE_HFLIP_ON : DWE_HFLIP_OFF;
-
-    ret = setFeature(value);
-    if(ret)
-        return BAD_VALUE;
-
     m_dwePara.hflip = bEnable;
+    ret = setDewarpParams();
+    if(ret) {
+        m_dwePara.hflip = orgHFlip;
+        return BAD_VALUE;
+    }
 
     return 0;
 }
@@ -480,17 +541,17 @@ int ISPWrapper::processHFlip(bool bEnable)
 int ISPWrapper::processVFlip(bool bEnable)
 {
     int ret = 0;
+    bool orgVFlip = m_dwePara.vflip;
 
-    if (bEnable == m_dwePara.vflip)
+    if (bEnable == orgVFlip)
         return 0;
 
-    const char *value = bEnable ? DWE_VFLIP_ON : DWE_VFLIP_OFF;
-
-    ret = setFeature(value);
-    if(ret)
-        return BAD_VALUE;
-
     m_dwePara.vflip = bEnable;
+    ret = setDewarpParams();
+    if(ret) {
+        m_dwePara.vflip = orgVFlip;
+        return BAD_VALUE;
+    }
 
     return 0;
 }

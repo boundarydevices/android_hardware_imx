@@ -60,6 +60,10 @@ static char* g_strWBList[] = {
 #define DWE_VFLIP_ON        (char *)"{<id>:<dwe.s.vflip>; <dwe>:{<vflip>:true}}"
 #define DWE_VFLIP_OFF        (char *)"{<id>:<dwe.s.vflip>; <dwe>:{<vflip>:false}}"
 
+#define IF_DWE_G_PARAMS "dwe.g.params"
+#define IF_DWE_S_PARAMS "dwe.s.params"
+
+
 enum {
     DEWARP_MODEL_LENS_DISTORTION_CORRECTION = 1 << 0,
     DEWARP_MODEL_FISHEYE_EXPAND             = 1 << 1,
@@ -67,12 +71,13 @@ enum {
     DEWARP_MODEL_FISHEYE_DEWARP             = 1 << 3,
 };
 
+#define MAT_SIZE  17
 typedef struct DWEPara {
     int mode;
     bool hflip;
     bool vflip;
     bool bypass;
-    double mat[17];
+    double mat[MAT_SIZE];
 } DWEPara;
 
 #define EXP_TIME_DFT    0.006535 // unit: seconds
@@ -95,11 +100,12 @@ public:
     int processExposureGain(int32_t comp, bool force = false);
     int processExposureTime(int64_t exposureNs, bool force = false);
     int64_t getExposureTime() { return m_exposure_time > 0 ? m_exposure_time : EXP_TIME_DFT_NS; }
+    int viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Json::Value& jsonResponse);
+    void parseDewarpParams(Json::Value& node);
 
 private:
     int setFeature(const char *value);
-    int viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Json::Value& jsonResponse);
-
+    int setDewarpParams();
     int processDewarp(bool bEnable);
     int processHFlip(bool bEnable);
     int processVFlip(bool bEnable);
