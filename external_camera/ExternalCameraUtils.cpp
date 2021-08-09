@@ -28,6 +28,7 @@
 #include <jpeglib.h>
 
 #include "ExternalCameraUtils.h"
+#include "Allocator.h"
 
 namespace {
 
@@ -36,6 +37,34 @@ buffer_handle_t sEmptyBuffer = nullptr;
 } // Anonymous namespace
 
 namespace android {
+
+int IMXAllocMem(int size) {
+    int flags = fsl::MFLAGS_CONTIGUOUS;
+    int align;
+    align = MEM_ALIGN;
+    fsl::Allocator * pAllocator = fsl::Allocator::getInstance();
+
+    return pAllocator->allocMemory(size, align, flags);
+}
+
+int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual) {
+    fsl::Allocator * pAllocator = fsl::Allocator::getInstance();
+    int ret = 0;
+
+    if (isVirtual)
+        ret = pAllocator->getVaddrs(fd, size, addr);
+    else
+        ret = pAllocator->getPhys(fd, size, addr);
+
+    if (ret != 0) {
+        addr = 0;
+        ALOGE("get %s address failed, fd %d, size %d, ret %d",
+                isVirtual ? "virtual" : "physical", fd, size, ret);
+    }
+
+    return ret;
+}
+
 namespace hardware {
 namespace camera {
 namespace device {

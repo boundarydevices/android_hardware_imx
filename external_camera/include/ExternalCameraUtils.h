@@ -40,6 +40,10 @@ using ::android::hardware::camera::common::V1_0::Status;
 using ::android::hardware::camera::device::V3_2::ErrorCode;
 
 namespace android {
+
+int IMXAllocMem(int size);
+int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual);
+
 namespace hardware {
 namespace camera {
 
@@ -141,7 +145,7 @@ public:
 class V4L2Frame : public Frame {
 public:
     V4L2Frame(uint32_t w, uint32_t h, uint32_t fourcc, int bufIdx, int fd,
-              uint32_t dataSize, uint64_t offset);
+                uint32_t dataSize, uint64_t offset);
     ~V4L2Frame() override;
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
@@ -170,9 +174,10 @@ public:
     int allocate(YCbCrLayout* out = nullptr);
     int getLayout(YCbCrLayout* out);
     int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+    std::vector<uint8_t> mData;
+
 private:
     std::mutex mLock;
-    std::vector<uint8_t> mData;
 };
 
 enum CroppingType {

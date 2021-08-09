@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+imx_ext_cam_defaults {
+    name: "imx_ext_cam_defaults",
+}
 
 cc_library_headers {
     name: "camera.device@3.4-external-imx-impl_headers",
@@ -20,16 +23,45 @@ cc_library_headers {
     export_include_dirs: ["include"],
 }
 
+bootstrap_go_package {
+    name: "soong-ext_cam",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/external_camera",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "vpu_dec.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
 cc_library_shared {
     name: "camera.device@3.4-external-imx-impl",
-    defaults: ["hidl_defaults"],
+    defaults: ["hidl_defaults", "imx_ext_cam_defaults"],
     proprietary: true,
     vendor: true,
     srcs: [
         "ExternalCameraDevice.cpp",
         "ExternalCameraDeviceSession.cpp",
         "ExternalCameraUtils.cpp",
+        "DecoderDev.cpp",
+        "HwDecoder.cpp",
     ],
+
+    header_libs: [
+        "libcodec2_headers",
+    ],
+
+    cflags: [
+        "-Wunused-variable",
+        "-Wno-unused-parameter",
+    ],
+
     shared_libs: [
         "libhidlbase",
         "libutils",
@@ -53,11 +85,25 @@ cc_library_shared {
         "libjpeg",
         "libexif",
         "libtinyxml2",
+        "libstagefright_foundation",
+        "libcodec2_vndk",
+        "libfsldisplay",
     ],
+
     static_libs: [
         "android.hardware.camera.common@1.0-helper",
     ],
     local_include_dirs: ["include"],
+
+    include_dirs: [
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp/imx_android_mm/extractor",
+        "device/nxp/common/kernel-headers",
+        "system/core/include/system",
+        "frameworks/av/media/codec2/vndk/include",
+    ],
+
     export_shared_lib_headers: [
         "libfmq",
     ],

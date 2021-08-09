@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2021 The Android Open Source Project
+ * Copyright 2021 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +37,7 @@
 #include "utils/Thread.h"
 #include "android-base/unique_fd.h"
 #include "ExternalCameraUtils.h"
+#include "HwDecoder.h"
 
 namespace android {
 namespace hardware {
@@ -131,6 +133,9 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
         // The remaining request list is returned for offline processing
         std::list<std::shared_ptr<HalRequest>> switchToOffline();
 
+        HwDecoder* mDecoder;
+        int initVpuThread();
+
     protected:
         // Methods to request output buffer in parallel
         // No-op for device@3.4. Implemented in device@3.5
@@ -166,6 +171,10 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
                                                   // mProcessingRequest and mProcessingFrameNumer
         std::condition_variable mRequestCond;     // signaled when a new request is submitted
         std::condition_variable mRequestDoneCond; // signaled when a request is done processing
+
+        mutable std::mutex mFramesSignalLock;
+        std::condition_variable mFramesSignal;
+
         std::list<std::shared_ptr<HalRequest>> mRequestList;
         bool mProcessingRequest = false;
         uint32_t mProcessingFrameNumer = 0;
@@ -390,7 +399,6 @@ protected:
     /* End of members not changed after initialize() */
 
 private:
-
     struct TrampolineSessionInterface_3_4 : public ICameraDeviceSession {
         TrampolineSessionInterface_3_4(sp<ExternalCameraDeviceSession> parent) :
                 mParent(parent) {}
