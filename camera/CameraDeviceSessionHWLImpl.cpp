@@ -1062,7 +1062,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
     for (int i = 0; i < stream_num; i++) {
         Stream stream = request_config.streams[i];
-        ALOGE("%s, stream %d: id %d, type %d, res %dx%d, format 0x%x, usage 0x%llx, space 0x%x, rot %d, is_phy %d, phy_id %d, size %d",
+        ALOGI("%s, stream %d: id %d, type %d, res %dx%d, format 0x%x, usage 0x%llx, space 0x%x, rot %d, is_phy %d, phy_id %d, size %d",
                 __func__,
                 i,
                 stream.id,
