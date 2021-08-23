@@ -217,6 +217,7 @@ int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t hei
     mHeight = height;
     mFps = fps;
     mFormat = format;
+    mFrames = 0;
 
     setOmitFrameCount(0);
 

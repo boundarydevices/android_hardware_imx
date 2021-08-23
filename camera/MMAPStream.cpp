@@ -256,11 +256,13 @@ int32_t MMAPStream::onDeviceStartLocked()
         bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     }
 
+    ALOGI("before VIDIOC_STREAMON");
     ret = ioctl(mDev, VIDIOC_STREAMON, &bufType);
     if (ret < 0) {
         ALOGE("%s VIDIOC_STREAMON failed:%s", __func__, strerror(errno));
         return ret;
     }
+    ALOGI("after VIDIOC_STREAMON");
 
     mOmitFrames = mOmitFrmCount;
     mbStart = true;
@@ -347,6 +349,10 @@ capture_data:
     }
 
     ALOGV("VIDIOC_DQBUF ok, idx %d", cfilledbuffer.index);
+
+    mFrames++;
+    if (mFrames == 1)
+        ALOGI("%s: first frame get for %dx%d", __func__, mWidth, mHeight);
 
     if (mOmitFrames > 0) {
         ALOGI("%s omit frame", __func__);
