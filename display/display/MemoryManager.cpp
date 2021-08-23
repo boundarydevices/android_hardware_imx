@@ -142,12 +142,10 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
                 (buffer_handle_t *)&handle, &desc.mStride);
         if (ret == 0 && handle != NULL) {
             handle->fslFormat = desc.mFslFormat;
-#ifdef FRAMEBUFFER_COMPRESSION
-            if (desc.mFlag & FLAGS_FRAMEBUFFER) {
+            if ((desc.mFlag & FLAGS_FRAMEBUFFER) || (desc.mProduceUsage & GRALLOC_USAGE_HW_COMPOSER)) {
                 mIonManager->getPhys(handle);
                 handle->flags = desc.mFlag;
             }
-#endif
         }
         allocMetaData(handle);
         *out = handle;

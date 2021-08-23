@@ -686,11 +686,19 @@ enum g2d_format Composer::alterFormat(Memory *handle, enum g2d_format format)
 
 int Composer::lockSurface(Memory *handle)
 {
+    int ret;
+
     if (mLockSurface == NULL) {
         return -EINVAL;
     }
-
-    return (*mLockSurface)(handle);
+#ifdef USE_DPU_HWC
+    uint64_t phys = handle->phys;
+    ret = (*mLockSurface)(handle);
+    handle->phys = phys;
+#else
+    ret = (*mLockSurface)(handle);
+#endif
+    return ret;
 }
 
 int Composer::unlockSurface(Memory *handle)
