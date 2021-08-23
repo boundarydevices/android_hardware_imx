@@ -183,8 +183,17 @@ int32_t MMAPStream::onDeviceStartLocked()
             return BAD_VALUE;
         }
 
+        struct v4l2_exportbuffer expbuf;
+        memset(&expbuf, 0, sizeof(expbuf));
+        expbuf.type = buf.type;
+        expbuf.index = i;
+        if (ioctl(mDev, VIDIOC_EXPBUF, &expbuf) < 0) {
+            ALOGE("VIDIOC_EXPBUF: %s", strerror(errno));
+            return BAD_VALUE;
+        }
+
         mBuffers[i] = new ImxStreamBuffer();
-        mBuffers[i]->mFd = -1;
+        mBuffers[i]->mFd = expbuf.fd;
         mBuffers[i]->index = i;
         mBuffers[i]->mStream = this;
 

@@ -39,6 +39,8 @@ HwJpegEncoder::HwJpegEncoder(int format) : YuvToJpegEncoder(format){
 
 int HwJpegEncoder::encode(void *inYuv,
                void* inYuvPhy,
+               int inSize,
+               int inFd,
                int   inWidth,
                int   inHeight,
                int   quality __unused,
@@ -77,6 +79,8 @@ int HwJpegEncoder::encode(void *inYuv,
 
         srcBuf.mVirtAddr = inYuv;
         srcBuf.mPhyAddr = (uint64_t)inYuvPhy;
+        srcBuf.mSize = inSize;
+        srcBuf.mFd = inFd;
         srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
 
         fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();

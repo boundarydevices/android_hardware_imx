@@ -96,6 +96,7 @@ struct JpegParams {
     JpegParams(uint8_t *uSrc,
 		  uint8_t*uSrcPhy,
                int     srcSize,
+               int     srcFd,
                uint8_t *uDst,
                int     dstSize,
                int     quality,
@@ -104,7 +105,7 @@ struct JpegParams {
                int     outWidth,
                int     outHeight,
                int     format)
-        : src(uSrc), srcPhy(uSrcPhy),src_size(srcSize), dst(uDst), dst_size(dstSize),
+        : src(uSrc), srcPhy(uSrcPhy),src_size(srcSize), src_fd(srcFd), dst(uDst), dst_size(dstSize),
           quality(quality), in_width(inWidth), in_height(inHeight),
           out_width(outWidth), out_height(outHeight), format(format),
           jpeg_size(0)
@@ -113,6 +114,7 @@ struct JpegParams {
     uint8_t    *src;
     uint8_t    *srcPhy;
     int         src_size;
+    int         src_fd;
     uint8_t    *dst;
     int         dst_size;
     int         quality;

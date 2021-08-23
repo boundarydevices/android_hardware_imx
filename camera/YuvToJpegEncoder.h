@@ -54,6 +54,8 @@ public:
      */
     virtual int encode(void *inYuv,
                void* inYuvPhy,
+               int inSize,
+               int inFd,
                int   inWidth,
                int   inHeight,
                int   quality,

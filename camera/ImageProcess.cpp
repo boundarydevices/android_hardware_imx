@@ -21,6 +21,9 @@
 
 #include "CameraUtils.h"
 #include "ImageProcess.h"
+#include "Composer.h"
+#include "Memory.h"
+#include "MemoryDesc.h"
 
 #include <g2d.h>
 #include <linux/ipu.h>
@@ -593,21 +596,65 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
     int ret = 0;
+    fsl::Memory *srcHandle = NULL;
+    fsl::Memory *dstHandle = NULL;
+    fsl::Composer *mComposer = NULL;
 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
 
     if ((src->format() == dst->format()) &&
-         (src->width() == dst->width()) &&
-         (src->height() == dst->height())) {
-        if (HAL_PIXEL_FORMAT_RAW16 == src->format())
-            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
-        else
-            ret = handleFrameByG2DCopy(dstBuf, srcBuf);
+        (src->width() == dst->width()) &&
+        (src->height() == dst->height()) &&
+        (HAL_PIXEL_FORMAT_RAW16 == src->format())) {
+        Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
+        return ret;
     }
-    else
-        ret = handleFrameByG2DBlit(dstBuf, srcBuf);
 
+    mComposer = fsl::Composer::getInstance();
+
+    if (srcBuf.mFd != -1) {
+        fsl::MemoryDesc desc;
+        desc.mFlag = 0;
+        desc.mWidth = desc.mStride = srcBuf.mSize / 4;
+        desc.mHeight = 1;
+        desc.mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
+        desc.mFslFormat = fsl::FORMAT_RGBA8888;
+        desc.mSize = srcBuf.mSize;
+        desc.mProduceUsage = 0;
+
+        srcHandle = new fsl::Memory(&desc ,srcBuf.mFd, -1);
+        srcHandle->phys = srcBuf.mPhyAddr;
+        mComposer->lockSurface(srcHandle);
+        srcBuf.mPhyAddr = srcHandle->phys;
+    }
+
+    if (dstBuf.buffer != NULL) {
+        dstHandle = (fsl::Memory *)(dstBuf.buffer);
+        mComposer->lockSurface(dstHandle);
+        dstBuf.mPhyAddr = dstHandle->phys;
+    }
+
+    if ((src->format() == dst->format()) &&
+        (src->width() == dst->width()) &&
+        (src->height() == dst->height())) {
+        ret = handleFrameByG2DCopy(dstBuf, srcBuf);
+    } else {
+        ret = handleFrameByG2DBlit(dstBuf, srcBuf);
+    }
+
+    if (srcHandle != NULL) {
+        mComposer->unlockSurface(srcHandle);
+        if (srcHandle->fd > 0) {
+            close(srcHandle->fd);
+            srcHandle->fd = 0;
+        }
+        delete srcHandle;
+    }
+
+    if (dstHandle != NULL) {
+        mComposer->unlockSurface(dstHandle);
+    }
     return ret;
 }
 
@@ -1024,7 +1071,7 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
         return 0;
     }
 
-    ret = handleFrameByG2DBlit(dstBuf, srcBuf);
+    ret = handleFrameByG2D(dstBuf, srcBuf);
     if (ret == 0) {
         ALOGV("%s: resize format 0x%x, res %dx%d to %dx%d by g2d ok",
            __func__, src->format(), src->width(), src->height(), dst->width(), dst->height());

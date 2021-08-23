@@ -22,6 +22,8 @@
 #include "Allocator.h"
 #include "CameraUtils.h"
 #include "NV12_resize.h"
+#include "Memory.h"
+#include "MemoryDesc.h"
 
 namespace android {
 
@@ -497,12 +499,26 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
         return -1;
     }
 
-    ALOGI("==== %s, outPtr:%p,  phy:%p, ionSize:%d, req:%d\n", __func__, (void *)outPtr, (void *)phyAddr, ionSize, imxBuf.mFormatSize);
+    ALOGI("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%d\n", __func__, (void *)outPtr, (void *)phyAddr, ionSize, imxBuf.mFormatSize);
 
     imxBuf.mVirtAddr = (void *)outPtr;
     imxBuf.mPhyAddr = phyAddr;
     imxBuf.mFd = sharedFd;
     imxBuf.mSize = ionSize;
+
+    fsl::MemoryDesc desc;
+    fsl::Memory *handle = NULL;
+
+    desc.mFlag = 0;
+    desc.mWidth = desc.mStride = imxBuf.mSize / 4;
+    desc.mHeight = 1;
+    desc.mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
+    desc.mFslFormat = fsl::FORMAT_RGBA8888;
+    desc.mSize = imxBuf.mSize;
+    desc.mProduceUsage = 0;
+
+    handle = new fsl::Memory(&desc, imxBuf.mFd, -1);
+    imxBuf.buffer = (buffer_handle_t)handle;
 
     return 0;
 }
@@ -513,6 +529,14 @@ int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
 
     if (imxBuf.mFd > 0)
         close(imxBuf.mFd);
+
+    fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
+    if (handle->fd > 0) {
+        close(handle->fd);
+        handle->fd = 0;
+    }
+
+    delete handle;
 
     return 0;
 }

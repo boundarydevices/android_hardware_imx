@@ -78,11 +78,16 @@ imx_camera_defaults {
             include_dirs: [
                 "system/media/private/camera/include",
                 "frameworks/native/include",
+                "frameworks/native/libs/ui/",
+                "frameworks/native/libs/ui/include",
+                "frameworks/native/libs/arect/include",
                 "vendor/nxp-opensource/imx/include",
                 "vendor/nxp-opensource/imx/opencl-2d",
                 "vendor/nxp-opensource/imx/display/display",
                 "vendor/nxp/fsl-proprietary/include",
                 "device/nxp/common/kernel-headers",
+                "vendor/nxp-opensource/libdrm-imx",
+                "vendor/nxp-opensource/libdrm-imx/include/drm",
             ],
             header_libs: [
                 "libgooglecamerahal_headers",
