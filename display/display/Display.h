@@ -247,8 +247,6 @@ public:
     int getMaxBrightness();
     // set display Brightness with brightness
     int setBrightness(float brightness);
-    // check whether display use DEVICE or CLIENT composition
-    bool isDeviceComposition();
     // get display identification data
     int getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data, uint32_t size);
     // get display connection type: internal or external

@@ -1163,7 +1163,6 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
         ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
-    bool isDeviceComose = pDisplay->isDeviceComposition();
     bool isLowLatencyModeSupport = pDisplay->isLowLatencyModeSupport();
 
     //Check DisplayCapability::Doze support
@@ -1183,7 +1182,7 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
     }
 
 
-    int numCapabilities = (isDeviceComose ? 1 : 0) + isDozeSupport
+    int numCapabilities = isDozeSupport
                             + (isBrightnessSupport ? 1 : 0) + (isLowLatencyModeSupport ? 1 : 0);
 
     if (outNumCapabilities == NULL) {
@@ -1197,9 +1196,6 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
 
     int i = 0;
     if (*outNumCapabilities >= numCapabilities) {
-        if (isDeviceComose) {
-            outCapabilities[i++] = HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM;
-        }
         if (isDozeSupport == 1) {
             outCapabilities[i++] = HWC2_DISPLAY_CAPABILITY_DOZE;
         }

@@ -1096,15 +1096,6 @@ int Display::setBrightness(float brightness)
     return 0;
 }
 
-bool Display::isDeviceComposition()
-{
-    Mutex::Autolock _l(mLock);
-    if (!mComposer.isDisabled() && mComposer.is2DComposition()) {
-        return true;
-    }
-    return false;
-}
-
 void Display::setDisplayLimitation(int limit)
 {
     mTileHwLimit = limit;
