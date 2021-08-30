@@ -593,12 +593,37 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 
 }
 
-int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
+static void LockG2dAddr(ImxStreamBuffer& imxBuf)
+{
+    fsl::MemoryDesc desc;
+    fsl::Memory *handle = NULL;
+    fsl::Composer *mComposer = fsl::Composer::getInstance();
+
+    if (imxBuf.buffer == NULL) {
+        ALOGE("%s: mFd %d, buffer %p", __func__, imxBuf.mFd, imxBuf.buffer);
+        return;
+    }
+
+    handle = (fsl::Memory *)imxBuf.buffer;
+    mComposer->lockSurface(handle);
+    imxBuf.mPhyAddr = handle->phys;
+
+    return;
+}
+
+static void UnLockG2dAddr(ImxStreamBuffer& imxBuf)
+{
+    fsl::Composer *mComposer = fsl::Composer::getInstance();
+    fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
+    if (handle)
+        mComposer->unlockSurface(handle);
+
+    return;
+}
+
+int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf, CscHw hw_type)
 {
     int ret = 0;
-    fsl::Memory *srcHandle = NULL;
-    fsl::Memory *dstHandle = NULL;
-    fsl::Composer *mComposer = NULL;
 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
@@ -611,28 +636,9 @@ int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
         return ret;
     }
 
-    mComposer = fsl::Composer::getInstance();
-
-    if (srcBuf.mFd != -1) {
-        fsl::MemoryDesc desc;
-        desc.mFlag = 0;
-        desc.mWidth = desc.mStride = srcBuf.mSize / 4;
-        desc.mHeight = 1;
-        desc.mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
-        desc.mFslFormat = fsl::FORMAT_RGBA8888;
-        desc.mSize = srcBuf.mSize;
-        desc.mProduceUsage = 0;
-
-        srcHandle = new fsl::Memory(&desc ,srcBuf.mFd, -1);
-        srcHandle->phys = srcBuf.mPhyAddr;
-        mComposer->lockSurface(srcHandle);
-        srcBuf.mPhyAddr = srcHandle->phys;
-    }
-
-    if (dstBuf.buffer != NULL) {
-        dstHandle = (fsl::Memory *)(dstBuf.buffer);
-        mComposer->lockSurface(dstHandle);
-        dstBuf.mPhyAddr = dstHandle->phys;
+    if (mBlitEngine && (hw_type == GPU_2D)) {
+        LockG2dAddr(srcBuf);
+        LockG2dAddr(dstBuf);
     }
 
     if ((src->format() == dst->format()) &&
@@ -643,29 +649,22 @@ int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
         ret = handleFrameByG2DBlit(dstBuf, srcBuf);
     }
 
-    if (srcHandle != NULL) {
-        mComposer->unlockSurface(srcHandle);
-        if (srcHandle->fd > 0) {
-            close(srcHandle->fd);
-            srcHandle->fd = 0;
-        }
-        delete srcHandle;
+    if (mBlitEngine && (hw_type == GPU_2D)) {
+        UnLockG2dAddr(srcBuf);
+        UnLockG2dAddr(dstBuf);
     }
 
-    if (dstHandle != NULL) {
-        mComposer->unlockSurface(dstHandle);
-    }
     return ret;
 }
 
 int ImageProcess::handleFrameByDPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
-    return handleFrameByG2D(dstBuf, srcBuf);
+    return handleFrameByG2D(dstBuf, srcBuf, DPU);
 }
 
 int ImageProcess::handleFrameByGPU_2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
-    return handleFrameByG2D(dstBuf, srcBuf);
+    return handleFrameByG2D(dstBuf, srcBuf, GPU_2D);
 }
 
 int ImageProcess::convertNV12toNV21(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
@@ -765,7 +764,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
 
     // case 2: same format, different resolution, resize
     if (src->format() == dst->format()) {
-        resizeWrapper(srcBuf, dstBuf);
+        resizeWrapper(srcBuf, dstBuf, GPU_3D);
         return 0;
     }
 
@@ -781,6 +780,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     if ( (src->width() != dst->width()) ||
          (src->height() != dst->height()) ) {
         resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
+        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
@@ -788,7 +788,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
         }
         resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
 
-        resizeWrapper(srcBuf, resizeBuf);
+        resizeWrapper(srcBuf, resizeBuf, GPU_3D);
         swithImxBuf(srcBuf, resizeBuf);
 
         bResize = true;
@@ -836,7 +836,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 
     // case 2: same format, different resolution, resize
     if (src->format() == dst->format()) {
-        ret = resizeWrapper(srcBuf, dstBuf);
+        ret = resizeWrapper(srcBuf, dstBuf, CPU);
         return ret;
     }
 
@@ -852,6 +852,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     if ( (src->width() != dst->width()) ||
          (src->height() != dst->height()) ) {
         resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
+        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
@@ -859,7 +860,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
         }
         resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
 
-        resizeWrapper(srcBuf, resizeBuf);
+        resizeWrapper(srcBuf, resizeBuf, CPU);
         swithImxBuf(srcBuf, resizeBuf);
         bResize = true;
     }
@@ -1039,7 +1040,7 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer,
     }
 }
 
-int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf)
+int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf, CscHw hw_type)
 {
     int ret;
     ImxStream *src = srcBuf.mStream;
@@ -1071,7 +1072,7 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
         return 0;
     }
 
-    ret = handleFrameByG2D(dstBuf, srcBuf);
+    ret = handleFrameByG2D(dstBuf, srcBuf, hw_type);
     if (ret == 0) {
         ALOGV("%s: resize format 0x%x, res %dx%d to %dx%d by g2d ok",
            __func__, src->format(), src->width(), src->height(), dst->width(), dst->height());

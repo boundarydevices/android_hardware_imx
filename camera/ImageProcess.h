@@ -37,8 +37,8 @@ public:
     static ImageProcess* getInstance();
     ~ImageProcess();
 
-    int handleFrame(ImxStreamBuffer& dst, ImxStreamBuffer& src, CscHw);
-    int resizeWrapper(ImxStreamBuffer& src, ImxStreamBuffer& dst);
+    int handleFrame(ImxStreamBuffer& dst, ImxStreamBuffer& src, CscHw hw_type);
+    int resizeWrapper(ImxStreamBuffer& src, ImxStreamBuffer& dst, CscHw hw_type);
 
 private:
     int convertNV12toNV21(ImxStreamBuffer& dst, ImxStreamBuffer& src);
@@ -50,7 +50,7 @@ private:
     int handleFrameByCPU(ImxStreamBuffer& dst, ImxStreamBuffer& src);
     int handleFrameByDPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
     int handleFrameByGPU_2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
-    int handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
+    int handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf, CscHw hw_type);
     void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
              uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
     void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,

@@ -30,6 +30,7 @@
 #define Align(ptr,align)	(((uintptr_t)ptr+(align)-1)/(align)*(align))
 #define VPU_ENC_MAX_NUM_MEM_REQS	(6)
 #define MAX_FRAME_NUM	(4)
+using namespace cameraconfigparser;
 
 #ifdef BOARD_HAVE_VPU
 typedef struct{
@@ -468,6 +469,7 @@ int YuvToJpegEncoder::encode(void *inYuv,
                              void* inYuvPhy,
                              int inSize,
                              int inFd,
+                             buffer_handle_t inHandle,
                              int   inWidth,
                              int   inHeight,
                              int   quality,
@@ -500,6 +502,7 @@ int YuvToJpegEncoder::encode(void *inYuv,
         bResize = true;
 
         resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
+        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
@@ -511,10 +514,14 @@ int YuvToJpegEncoder::encode(void *inYuv,
         srcBuf.mVirtAddr = inYuv;
         srcBuf.mSize = inSize;
         srcBuf.mFd = inFd;
+        srcBuf.buffer = inHandle;
         srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
 
         fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-        imageProcess->resizeWrapper(srcBuf, resizeBuf);
+        // The 3rd para is pass to handleFrameByG2D to judge whether need lock g2d address.
+        // Pass G2D is ok. For CPU, handleFrameByG2D will just return and use soft resize.
+        // BTW: DPU is used in resizeWrapper in HwJpegEncoder for 8q.
+        imageProcess->resizeWrapper(srcBuf, resizeBuf, GPU_2D);
 
         inYuv = (void *)resizeBuf.mVirtAddr;
     }

@@ -282,66 +282,32 @@ int32_t DMAStream::allocateBuffersLocked()
         return BAD_VALUE;
     }
 
-    uint64_t ptr = 0;
-    int32_t sharedFd;
-    uint64_t phyAddr;
     int32_t memSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
     ALOGI("allocate buffer num:%d", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        sharedFd = allocator->allocMemory(memSize,
-                        MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
-        if (sharedFd < 0) {
-            ALOGE("allocMemory failed.");
-            goto err;
-        }
-
-        int err = allocator->getVaddrs(sharedFd, memSize, ptr);
-        if (err != 0) {
-            ALOGE("getVaddrs failed.");
-            close(sharedFd);
-            goto err;
-        }
-
-        err = allocator->getPhys(sharedFd, memSize, phyAddr);
-        if (err != 0) {
-            ALOGE("getPhys failed.");
-            munmap((void*)(uintptr_t)ptr, memSize);
-            close(sharedFd);
-            goto err;
-        }
-
         mBuffers[i] = new ImxStreamBuffer();
-        mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;
-        mBuffers[i]->mSize      =  memSize;
-        mBuffers[i]->buffer = NULL;
-        mBuffers[i]->mPhyAddr   = phyAddr;
-        mBuffers[i]->mFd = sharedFd;
+        memset(mBuffers[i], 0, sizeof(ImxStreamBuffer));
+        mBuffers[i]->mSize = memSize;
         mBuffers[i]->mStream = this;
         mBuffers[i]->index = i;
         mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
         if(mBuffers[i]->mFormatSize == 0)
-            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+             mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+
+        int ret = AllocPhyBuffer(*mBuffers[i]);
+        if (ret) {
+            delete mBuffers[i];
+            mBuffers[i] = NULL;
+            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+            return -EINVAL;
+        }
     }
 
     mRegistered = true;
     mAllocatedBuffers = mNumBuffers;
 
     return 0;
-
-err:
-    for (uint32_t i = 0; i < mNumBuffers; i++) {
-        if (mBuffers[i]->mVirtAddr == NULL) {
-            continue;
-        }
-
-        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
-        close(mBuffers[i]->mFd);
-        delete mBuffers[i];
-        mBuffers[i] = NULL;
-    }
-
-    return BAD_VALUE;
 }
 
 int32_t DMAStream::freeBuffersLocked()
@@ -354,8 +320,10 @@ int32_t DMAStream::freeBuffersLocked()
 
     ALOGI("freeBufferToIon buffer num:%d", mAllocatedBuffers);
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
-        munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
-        close(mBuffers[i]->mFd);
+        if (mBuffers[i] == NULL)
+            continue;
+
+        FreePhyBuffer(*mBuffers[i]);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }

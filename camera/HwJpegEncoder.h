@@ -35,6 +35,7 @@ public:
                void* inYuvPhy,
                int inSize,
                int inFd,
+               buffer_handle_t inHandle,
                int   inWidth,
                int   inHeight,
                int   quality,

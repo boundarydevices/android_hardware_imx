@@ -222,6 +222,7 @@ int32_t MMAPStream::onDeviceStartLocked()
         }
 
         memset(mBuffers[i]->mVirtAddr, 0xFF, mBuffers[i]->mSize);
+        SetBufferHandle(*mBuffers[i]);
 
         ALOGI("%s, register buffer, phy 0x%x, virt %p, size %d", __func__, mBuffers[i]->mPhyAddr, mBuffers[i]->mVirtAddr, (int)mBuffers[i]->mSize);
     }
@@ -297,6 +298,13 @@ int32_t MMAPStream::onDeviceStopLocked()
             munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
             if(mBuffers[i]->mFd > 0)
                 close(mBuffers[i]->mFd);
+
+            fsl::Memory *handle = (fsl::Memory *)mBuffers[i]->buffer;
+            if (handle && (handle->fd > 0))
+                close(handle->fd);
+
+            if (handle)
+                delete handle;
 
             delete mBuffers[i];
             mBuffers[i] = NULL;

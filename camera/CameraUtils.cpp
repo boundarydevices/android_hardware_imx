@@ -469,7 +469,7 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
     int sharedFd;
     uint64_t phyAddr;
     uint64_t outPtr;
-    uint32_t ionSize = (imxBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+    uint32_t ionSize = imxBuf.mSize;
 
     fsl::Allocator *allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
@@ -504,8 +504,29 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
     imxBuf.mVirtAddr = (void *)outPtr;
     imxBuf.mPhyAddr = phyAddr;
     imxBuf.mFd = sharedFd;
-    imxBuf.mSize = ionSize;
+    SetBufferHandle(imxBuf);
 
+    return 0;
+}
+
+int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
+    if (imxBuf.mVirtAddr)
+        munmap(imxBuf.mVirtAddr, imxBuf.mSize);
+
+    if (imxBuf.mFd > 0)
+        close(imxBuf.mFd);
+
+    fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
+    if (handle && (handle->fd > 0))
+        close(handle->fd);
+
+    if (handle)
+      delete handle;
+
+    return 0;
+}
+
+void SetBufferHandle(ImxStreamBuffer &imxBuf) {
     fsl::MemoryDesc desc;
     fsl::Memory *handle = NULL;
 
@@ -519,27 +540,6 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
 
     handle = new fsl::Memory(&desc, imxBuf.mFd, -1);
     imxBuf.buffer = (buffer_handle_t)handle;
-
-    return 0;
 }
-
-int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
-    if (imxBuf.mVirtAddr)
-        munmap(imxBuf.mVirtAddr, imxBuf.mSize);
-
-    if (imxBuf.mFd > 0)
-        close(imxBuf.mFd);
-
-    fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
-    if (handle->fd > 0) {
-        close(handle->fd);
-        handle->fd = 0;
-    }
-
-    delete handle;
-
-    return 0;
-}
-
 
 } // namespace android

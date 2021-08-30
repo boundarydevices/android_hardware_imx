@@ -176,6 +176,7 @@ cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(const cameraconfig
 
 int AllocPhyBuffer(ImxStreamBuffer &imxBuf);
 int FreePhyBuffer(ImxStreamBuffer &imxBuf);
+void SetBufferHandle(ImxStreamBuffer &imxBuf);
 
 int yuv422iResize(uint8_t *srcBuf,
         int      srcWidth,

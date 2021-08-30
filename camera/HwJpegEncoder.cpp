@@ -41,6 +41,7 @@ int HwJpegEncoder::encode(void *inYuv,
                void* inYuvPhy,
                int inSize,
                int inFd,
+               buffer_handle_t inHandle,
                int   inWidth,
                int   inHeight,
                int   quality __unused,
@@ -56,9 +57,6 @@ int HwJpegEncoder::encode(void *inYuv,
     struct v4l2_buffer bufferout;
     int jpeg_size = 0;
     int err;
-    uint64_t outPtr = 0;
-    int32_t sharedFd = -1;
-    int32_t ionSize;
     int ret = 0;
     bool bResize = false;
     ImxStreamBuffer srcBuf = {0};;
@@ -70,6 +68,7 @@ int HwJpegEncoder::encode(void *inYuv,
         bResize = true;
 
         resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
+        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
@@ -81,10 +80,11 @@ int HwJpegEncoder::encode(void *inYuv,
         srcBuf.mPhyAddr = (uint64_t)inYuvPhy;
         srcBuf.mSize = inSize;
         srcBuf.mFd = inFd;
+        srcBuf.buffer = inHandle;
         srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
 
         fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-        imageProcess->resizeWrapper(srcBuf, resizeBuf);
+        imageProcess->resizeWrapper(srcBuf, resizeBuf, DPU);
 
         inYuv = (void *)resizeBuf.mVirtAddr;
     }
