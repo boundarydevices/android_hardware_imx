@@ -517,9 +517,6 @@ int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
         close(imxBuf.mFd);
 
     fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
-    if (handle && (handle->fd > 0))
-        close(handle->fd);
-
     if (handle)
       delete handle;
 

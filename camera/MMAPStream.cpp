@@ -300,9 +300,6 @@ int32_t MMAPStream::onDeviceStopLocked()
                 close(mBuffers[i]->mFd);
 
             fsl::Memory *handle = (fsl::Memory *)mBuffers[i]->buffer;
-            if (handle && (handle->fd > 0))
-                close(handle->fd);
-
             if (handle)
                 delete handle;
 
