@@ -125,6 +125,8 @@ const char* const kExposureNsMin = "exposure_ns_min";
 const char* const kExposureNsMax = "exposure_ns_max";
 const char* const kAvailableCapabilitiesKey = "AvailableCapabilities";
 const char* const kPhysicalNames = "PhysicalNames";
+const char* const kMaxWidth = "MaxWidth";
+const char* const kMaxHeight = "MaxHeight";
 
 #define CSC_HW_GPU_2D "GPU_2D"
 #define CSC_HW_GPU_3D "GPU_3D"
@@ -132,6 +134,9 @@ const char* const kPhysicalNames = "PhysicalNames";
 #define CSC_HW_PXP "PXP"
 #define CSC_HW_DPU "DPU"
 #define CSC_HW_CPU "CPU"
+
+#define MAX_SENSOR_WIDTH   3840
+#define MAX_SENSOR_HEIGHT  2160
 
 HalVersion ValueToCameraHalVersion(const std::string &value) {
     int temp;
@@ -439,6 +444,16 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
         static_meta[cam_index].mExposureNsMax = (int64_t)strtoll(root[kExposureNsMax].asString().c_str(), NULL, 10);
     else
         static_meta[cam_index].mExposureNsMax = 300000000L;
+
+    if(root.isMember(kMaxWidth))
+        static_meta[cam_index].mMaxWidth = strtol(root[kMaxWidth].asString().c_str(), NULL, 10);
+    else
+        static_meta[cam_index].mMaxWidth = MAX_SENSOR_WIDTH;
+
+    if(root.isMember(kMaxHeight))
+        static_meta[cam_index].mMaxHeight = strtol(root[kMaxHeight].asString().c_str(), NULL, 10);
+    else
+        static_meta[cam_index].mMaxHeight = MAX_SENSOR_HEIGHT;
 
     int omit_index = 0;
     for (Json::ValueConstIterator omititer = root[kOmitFrameKey].begin();

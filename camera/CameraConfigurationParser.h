@@ -112,6 +112,8 @@ struct CameraSensorMetadata {
   int64_t mExposureNsMin;
   int64_t mExposureNsMax;
   int mAvailableCapabilities;
+  int mMaxWidth;
+  int mMaxHeight;
 };
 
 typedef std::unordered_map<uint32_t, std::pair<CameraDeviceStatus, std::unique_ptr<CameraSensorMetadata>>> PhysicalDeviceMap;
