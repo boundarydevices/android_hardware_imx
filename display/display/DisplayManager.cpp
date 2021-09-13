@@ -308,7 +308,7 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     // get primary display name to match DRM.
     // the primary display can be fixed by name.
     int main = 0;
-    char const *imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss"};
+    char const *imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss", "imx-dcnano"};
     char value[PROPERTY_VALUE_MAX];
     int i, len;
     int max_drm_num = sizeof(imx_drm_version)/sizeof(char*);
