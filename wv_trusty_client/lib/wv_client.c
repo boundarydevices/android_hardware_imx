@@ -75,20 +75,6 @@ static void wv_tipc_disconnect() {
 }
 #endif
 
-void set_secure_pipe(int enable UNUSED) {
-#ifdef SUPPORT_WIDEVINE_L1
-    ALOGE("will set secure pipe mode: %d", enable);
-    if (wv_tipc_connect()) {
-        return;
-    }
-    if (enable) {
-        wv_smc_call(OEMCRYPTO_ENABLE_SECURE_MODE, NULL, sizeof(struct oemcrypto_message), NULL, 0);
-    } else {
-        wv_smc_call(OEMCRYPTO_DISABLE_SECURE_MODE, NULL, sizeof(struct oemcrypto_message), NULL, 0);
-    }
-    wv_tipc_disconnect();
-#endif
-}
 
 void set_g2d_secure_pipe(int enable UNUSED) {
 #ifdef SUPPORT_WIDEVINE_L1

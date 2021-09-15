@@ -7,7 +7,6 @@ enum g2d_secure_mode {
     NON_SECURE = 2
 };
 
-void set_secure_pipe(int enable);
 void set_g2d_secure_pipe(int enable);
 enum g2d_secure_mode get_g2d_secure_pipe();
 
