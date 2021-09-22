@@ -172,53 +172,6 @@ int32_t DMAStream::onDeviceStopLocked()
     return 0;
 }
 
-ImxStreamBuffer* DMAStream::onFrameAcquireLocked()
-{
-    ALOGV("%s", __func__);
-    int32_t ret = 0;
-    struct v4l2_buffer cfilledbuffer;
-    struct v4l2_plane planes;
-    memset(&planes, 0, sizeof(struct v4l2_plane));
-
-capture_data:
-    memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
-
-    if (mPlane) {
-        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-        cfilledbuffer.m.planes = &planes;
-        cfilledbuffer.length = 1;
-    } else {
-        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    }
-
-    cfilledbuffer.memory = V4L2_MEMORY_DMABUF;
-
-    ret = ioctl(mDev, VIDIOC_DQBUF, &cfilledbuffer);
-    if (ret < 0) {
-        ALOGE("%s: VIDIOC_DQBUF Failed: %s", __func__, strerror(errno));
-        return NULL;
-    }
-
-    ALOGV("acquire index:%d", cfilledbuffer.index);
-
-    mFrames++;
-    if (mFrames == 1)
-        ALOGI("%s: first frame get for %dx%d", __func__, mWidth, mHeight);
-
-    if (mOmitFrames > 0) {
-        ALOGI("%s omit frame", __func__);
-        ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
-        if (ret < 0) {
-            ALOGE("%s VIDIOC_QBUF Failed", __func__);
-            return NULL;
-        }
-        mOmitFrames--;
-        goto capture_data;
-    }
-
-    return mBuffers[cfilledbuffer.index];
-}
-
 int32_t DMAStream::onFrameReturnLocked(ImxStreamBuffer& buf)
 {
     //ALOGV("%s: index:%d", __func__, index);

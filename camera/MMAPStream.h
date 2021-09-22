@@ -40,8 +40,6 @@ public:
     // stop device.
     virtual int32_t onDeviceStopLocked();
 
-    // get buffer from V4L2.
-    virtual ImxStreamBuffer* onFrameAcquireLocked();
     // put buffer back to V4L2.
     virtual int32_t onFrameReturnLocked(ImxStreamBuffer& buf);
 
@@ -52,8 +50,6 @@ public:
 
     uint32_t PickValidFps(int vformat, uint32_t width, uint32_t height, uint32_t requestFps);
 
-public:
-    bool mPlane;
 };
 
 }  // namespace android

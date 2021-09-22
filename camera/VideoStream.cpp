@@ -40,6 +40,7 @@ VideoStream::VideoStream(CameraDeviceSessionHwlImpl *pSession)
     mRegistered = false;
     mbStart = false;
     mSession = pSession;
+    mRecoverCount = 0;
     memset(mBuffers, 0, sizeof(mBuffers));
 
     property_get("ro.boot.soc_type", soc_type, "");
@@ -59,7 +60,7 @@ int32_t VideoStream::openDev(const char* name)
 
     //Mutex::Autolock lock(mLock);
 
-    mDev = open(name, O_RDWR);
+    mDev = open(name, O_RDWR | O_NONBLOCK);
     if (mDev <= 0) {
         ALOGE("%s can not open camera devpath:%s", __func__, name);
         return BAD_VALUE;
@@ -119,9 +120,12 @@ int32_t VideoStream::onFlushLocked() {
 }
 
 
-int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
+#define ISP_CONTROL "vendor.rw.camera.isp.control"
+int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, bool recover)
 {
     int ret = 0;
+
+    ALOGI("%s: format 0x%x, res %dx%d, fps %d, recover %d", __func__, format, width, height, fps, recover);
 
     if (strstr(soc_type, "imx8mq") && (width == 320) && (height == 240)) {
         width = 640;
@@ -129,7 +133,7 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         ALOGI("%s, imx8mq, change 240p to 480p", __func__);
     }
 
-    if((mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps)) {
+    if((mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps) && (recover == false)) {
         ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d", __func__, format, width, height, fps);
         return 0;
     }
@@ -147,7 +151,15 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
             return ret;
         }
 
-        if(strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
+        if(recover && (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME))) {
+            if (property_set(ISP_CONTROL, "0") < 0)
+                ALOGW("%s: property_set %s 0 failed", __func__, ISP_CONTROL);
+
+            if (property_set(ISP_CONTROL, "1") < 0)
+                ALOGW("%s: property_set %s 1 failed", __func__, ISP_CONTROL);
+        }
+
+        if(recover || (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME))) {
             closeDev();
             ret = openDev(mSession->getDevPath(0));
             if(ret) {
@@ -241,6 +253,76 @@ int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t hei
     }
 
     return 0;
+}
+
+#define SELECT_TIMEOUT_SECONDS 3
+ImxStreamBuffer* VideoStream::onFrameAcquireLocked()
+{
+    ALOGV("%s", __func__);
+    int32_t ret = 0;
+    struct v4l2_buffer cfilledbuffer;
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
+
+capture_data:
+    memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));
+
+    if (mPlane) {
+        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        cfilledbuffer.m.planes = &planes;
+        cfilledbuffer.length = 1;
+    } else {
+        cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    }
+
+    cfilledbuffer.memory = mV4l2MemType;
+
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(mDev, &fds);
+    struct timeval timeout = {0};
+    timeout.tv_sec = SELECT_TIMEOUT_SECONDS;
+    timeout.tv_usec = 0;
+
+    select(mDev + 1, &fds, NULL, NULL, &timeout);
+    if (!FD_ISSET(mDev, &fds)) {
+        mRecoverCount++;
+        ALOGW("%s: select fd %d blocked %d s on %dx%d, %d fps, camera recover count %d",
+            __func__, mDev, SELECT_TIMEOUT_SECONDS, mWidth, mHeight, mFps, mRecoverCount);
+
+        ret = ConfigAndStart(mFormat, mWidth, mHeight, mFps, true);
+        if(ret) {
+            ALOGE("%s,  ConfigAndStar failed, ret %d", __func__, ret);
+            return NULL;
+        }
+
+        goto capture_data;
+    }
+
+    ret = ioctl(mDev, VIDIOC_DQBUF, &cfilledbuffer);
+    if (ret < 0) {
+        ALOGE("%s: VIDIOC_DQBUF Failed: %s", __func__, strerror(errno));
+        return NULL;
+    }
+
+    ALOGV("VIDIOC_DQBUF ok, idx %d", cfilledbuffer.index);
+
+    mFrames++;
+    if (mFrames == 1)
+        ALOGI("%s: first frame get for %dx%d", __func__, mWidth, mHeight);
+
+    if (mOmitFrames > 0) {
+        ALOGI("%s omit frame", __func__);
+        ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
+        if (ret < 0) {
+            ALOGE("%s VIDIOC_QBUF Failed", __func__);
+            return NULL;
+        }
+        mOmitFrames--;
+        goto capture_data;
+    }
+
+    return mBuffers[cfilledbuffer.index];
 }
 
 } // namespace android

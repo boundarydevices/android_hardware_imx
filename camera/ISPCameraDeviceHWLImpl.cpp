@@ -197,7 +197,7 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
 {
     int ret = MMAPStream::onDeviceStartLocked();
     if (ret) {
-        ALOGE("%s: MMAPStream::onDeviceStartLocked failed, ret %d", ret);
+        ALOGE("%s: MMAPStream::onDeviceStartLocked failed, ret %d", __func__, ret);
         return ret;
     }
 

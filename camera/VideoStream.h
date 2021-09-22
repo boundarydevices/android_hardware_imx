@@ -45,7 +45,7 @@ public:
     virtual int32_t onDeviceStopLocked() = 0;
 
     // get buffer from V4L2.
-    virtual ImxStreamBuffer* onFrameAcquireLocked()  = 0;
+    virtual ImxStreamBuffer* onFrameAcquireLocked();
     // put buffer back to V4L2.
     virtual int32_t onFrameReturnLocked(ImxStreamBuffer& buf)  = 0;
 
@@ -58,7 +58,7 @@ public:
 
     // Wrapper function for easy use when capture intent changed, succh as take picture when preview.
     // If same config, do nothing. If already start, need fisrt stop, free buffer, then config, alloc buffer, start.
-    virtual int32_t ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
+    virtual int32_t ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, bool recover = false);
     virtual int32_t Stop();
 
     void SetBufferNumber(uint32_t num) { mNumBuffers = num; }
@@ -71,7 +71,7 @@ protected:
 public:
     uint32_t mFps = 0;
     uint32_t mNumBuffers = 0;
-
+    bool mPlane;
 
 protected:
 //    bool mPlane;
@@ -92,6 +92,7 @@ protected:
 
     uint32_t mFrames;
     char soc_type[PROPERTY_VALUE_MAX];
+    uint32_t mRecoverCount;
 };
 
 }  // namespace android
