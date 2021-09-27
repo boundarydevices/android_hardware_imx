@@ -164,6 +164,7 @@ Composer::~Composer()
 {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (mDimBuffer != NULL) {
+        unlockSurface(mDimBuffer);
         pManager->releaseMemory(mDimBuffer);
     }
     if (mG2dHandle != NULL) {
@@ -242,6 +243,7 @@ int Composer::checkDimBuffer()
     mPreSecMode = mSecureMode;
     MemoryManager* pManager = MemoryManager::getInstance();
     if (mDimBuffer != NULL) {
+        unlockSurface(mDimBuffer);
         pManager->releaseMemory(mDimBuffer);
     }
 
@@ -265,6 +267,7 @@ int Composer::checkDimBuffer()
         rect.left = rect.top = 0;
         rect.right = mTarget->width;
         rect.bottom = mTarget->height;
+        lockSurface(mDimBuffer);
         clearRect(mDimBuffer, rect);
     }
 
