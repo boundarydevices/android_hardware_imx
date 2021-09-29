@@ -158,13 +158,6 @@ Composer::Composer()
         mFinishEngine = (hwc_func1)dlsym(mG2dHandle, "g2d_finish");
         mQueryFeature = (hwc_func3)dlsym(mG2dHandle, "g2d_query_feature");
     }
-
-#ifdef PRIMARY_DISPLAY_ORIENTATION
-    display_orientation = PRIMARY_DISPLAY_ORIENTATION;
-#else
-    display_orientation = property_get_int32("ro.boot.hwrotation", 0);
-#endif
-    ALOGD("display orientation %d", display_orientation);
 }
 
 Composer::~Composer()
@@ -370,63 +363,65 @@ static_assert(PRIMARY_DISPLAY_ORIENTATION == 0 || PRIMARY_DISPLAY_ORIENTATION ==
 
 int Composer::composeLayer(Layer* layer, bool bypass)
 {
-    int transform = layer->transform;
+    int transform;
 
     if (layer == NULL || mTarget == NULL) {
         ALOGE("composeLayer: invalid layer or target");
         return -EINVAL;
     }
 
-    if (display_orientation > 0) {
-        int rot = 0;
+#ifdef PRIMARY_DISPLAY_ORIENTATION
+    int rot = 0;
 
-        switch (layer->transform) {
-            case 0:
-                rot = 0;
-                break;
-            case TRANSFORM_ROT90:
-                rot = 1; // 90
-                break;
-            case TRANSFORM_ROT180:
-                rot = 2; // 180
-                break;
-            case TRANSFORM_ROT270:
-                rot = 3; // 270
-                break;
-        }
-
-        switch (display_orientation) {
-            case 0:
-                rot += 0;
-                break;
-            case 90:
-                rot += 1;
-                break;
-            case 180:
-                rot += 2;
-                break;
-            case 270:
-                rot += 3;
-                break;
-        }
-
-        switch (rot % 4) {
-            case 0:
-                transform = 0;
-                break;
-            case 1:
-                transform = TRANSFORM_ROT90;
-                break;
-            case 2:
-                transform = TRANSFORM_ROT180;
-                break;
-            case 3:
-                transform = TRANSFORM_ROT270;
-                break;
-        }
-
-        ALOGV("transform:0x%x -> 0x%x", layer->transform, transform);
+    switch (layer->transform) {
+        case 0:
+            rot = 0;
+            break;
+        case TRANSFORM_ROT90:
+            rot = 1; // 90
+            break;
+        case TRANSFORM_ROT180:
+            rot = 2; // 180
+            break;
+        case TRANSFORM_ROT270:
+            rot = 3; // 270
+            break;
     }
+
+    switch (PRIMARY_DISPLAY_ORIENTATION) {
+        case 0:
+            rot += 0;
+            break;
+        case 90:
+            rot += 1;
+            break;
+        case 180:
+            rot += 2;
+            break;
+        case 270:
+            rot += 3;
+            break;
+    }
+
+    switch (rot % 4) {
+        case 0:
+            transform = 0;
+            break;
+        case 1:
+            transform = TRANSFORM_ROT90;
+            break;
+        case 2:
+            transform = TRANSFORM_ROT180;
+            break;
+        case 3:
+            transform = TRANSFORM_ROT270;
+            break;
+    }
+
+    ALOGV("transform:0x%x -> 0x%x", layer->transform, transform);
+#else
+    transform = layer->transform;
+#endif
 
     if (bypass && layer->isSolidColor()) {
         ALOGV("composeLayer dim layer bypassed");
