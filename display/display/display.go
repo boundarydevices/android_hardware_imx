@@ -107,8 +107,5 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
     }
-    if ctx.Config().VendorConfig("IMXPLUGIN").String("SF_PRIMARY_DISPLAY_ORIENTATION") != "" {
-        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DPRIMARY_DISPLAY_ORIENTATION=" + ctx.Config().VendorConfig("IMXPLUGIN").String("SF_PRIMARY_DISPLAY_ORIENTATION"))
-    }
     ctx.AppendProperties(p)
 }
