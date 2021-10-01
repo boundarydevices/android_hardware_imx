@@ -317,6 +317,8 @@ private:
     int mMaxHeight = 0;
     struct viv_caps_supports caps_supports;
     int32_t m_raw_v4l2_format;
+
+    CameraDeviceHwlImpl *mCamDev;
 };
 
 }  // namespace android

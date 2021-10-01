@@ -94,6 +94,7 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     if (pDev == NULL)
         return BAD_VALUE;
 
+    mCamDev = pDev;
     m_meta = pDev->m_meta->Clone();
 
     ALOGI("Initialize, meta %p, entry count %zu", static_metadata_.get(), static_metadata_->GetEntryCount());
@@ -1038,18 +1039,70 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(std::unique_ptr<HalCameraM
     }
 
     resultMeta->Set(ANDROID_CONTROL_AE_PRECAPTURE_ID, &m3aState.aeTriggerId, 1);
-
-    ret = resultMeta->Get(ANDROID_CONTROL_AF_TRIGGER_ID, &entry);
-    if (ret != NAME_NOT_FOUND) {
-        m3aState.afTriggerId = entry.data.i32[0];
-    }
-
-    resultMeta->Set(ANDROID_CONTROL_AF_TRIGGER_ID, &m3aState.afTriggerId, 1);
-
     resultMeta->Set(ANDROID_SENSOR_TIMESTAMP, (int64_t *)&timestamp, 1);
 
     // auto focus control.
-    m3aState.afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    ret = resultMeta->Get(ANDROID_CONTROL_AF_MODE, &entry);
+    if (ret == NAME_NOT_FOUND) {
+        ALOGE("%s: No AF mode entry!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+    uint8_t afMode = (entry.count > 0) ?
+        entry.data.u8[0] : (uint8_t)ANDROID_CONTROL_AF_MODE_OFF;
+
+    ret = resultMeta->Get(ANDROID_CONTROL_AF_TRIGGER, &entry);
+    if (ret != NAME_NOT_FOUND) {
+        // save trigger value
+        uint8_t trigger = entry.data.u8[0];
+
+        // check if a ROI has been provided
+        ret = resultMeta->Get(ANDROID_CONTROL_AF_REGIONS, &entry);
+        if ((ret != NAME_NOT_FOUND) && (entry.count > 3)) {
+            int xavg = (entry.data.i32[0] + entry.data.i32[2]) / 2;
+            int yavg = (entry.data.i32[1] + entry.data.i32[3]) / 2;
+            if (xavg || yavg) {
+                ALOGV("%s: AF region: x %d y %d", __FUNCTION__, xavg, yavg);
+                mCamDev->setAutoFocusRegion(xavg, yavg);
+            }
+        }
+
+        // get and save trigger ID
+        ret = resultMeta->Get(ANDROID_CONTROL_AF_TRIGGER_ID, &entry);
+        if (ret != NAME_NOT_FOUND)
+            m3aState.afTriggerId = entry.data.i32[0];
+
+        // process trigger type
+        ALOGV("trigger: %d afMode %d afTriggerId %d", trigger, afMode, m3aState.afTriggerId);
+        switch (trigger) {
+            case ANDROID_CONTROL_AF_TRIGGER_CANCEL:
+                // in case of continuous focus, cancel means to stop manual focus only
+                if ((afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO) ||
+                    (afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE))
+                    m3aState.afState = mCamDev->doAutoFocus(afMode);
+                break;
+            case ANDROID_CONTROL_AF_TRIGGER_START:
+                m3aState.afState = mCamDev->doAutoFocus(afMode);
+                break;
+            case ANDROID_CONTROL_AF_TRIGGER_IDLE:
+                if ((afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO) ||
+                    (afMode == ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE))
+                    if (afMode != m3aState.afMode)
+                        m3aState.afState = mCamDev->doAutoFocus(afMode);
+                    else
+                        m3aState.afState = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+                else
+                    m3aState.afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
+                break;
+            default:
+                ALOGE("unknown trigger: %d", trigger);
+                m3aState.afState = ANDROID_CONTROL_AF_STATE_INACTIVE;
+        }
+        // save current mode
+        m3aState.afMode = afMode;
+    } else {
+        m3aState.afState = mCamDev->getAutoFocusStatus(afMode);
+    }
+    resultMeta->Set(ANDROID_CONTROL_AF_TRIGGER_ID, &m3aState.afTriggerId, 1);
     resultMeta->Set(ANDROID_CONTROL_AF_STATE, &m3aState.afState, 1);
 
     // auto white balance control.
