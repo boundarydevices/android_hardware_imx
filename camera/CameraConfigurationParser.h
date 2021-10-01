@@ -92,6 +92,9 @@ struct CameraSensorMetadata {
     // bus info, in some case, need use it to choose the v4l2 device
     char bus_info[META_STRING_SIZE];
 
+    // subdev node path
+    char subdev_path[META_STRING_SIZE];
+
     // max pixel size
     int maxjpegsize;
 

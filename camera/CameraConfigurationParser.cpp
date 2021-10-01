@@ -105,6 +105,7 @@ const char* const kDeviceNodeKey = "device_node";
 const char* const kBusInfoKey = "bus_info";
 const char* const kOrientationKey = "orientation";
 const char* const kV4l2FormatKey = "v4l2_format";
+const char* const kSubdevPathKey = "subdev_path";
 
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
 const char* const kActiveArrayHeightKey = "ActiveArrayHeight";
@@ -352,6 +353,14 @@ bool ParseCharacteristics(CameraDefinition* camera, const Json::Value& root,
         static_meta[cam_index].bus_info[META_STRING_SIZE - 1] = 0;
     } else
         static_meta[cam_index].bus_info[0] = 0;
+
+    if(root.isMember(kSubdevPathKey)) {
+        strncpy(static_meta[cam_index].subdev_path,
+            root[kSubdevPathKey].asString().c_str(), META_STRING_SIZE);
+        static_meta[cam_index].subdev_path[META_STRING_SIZE-1] = 0;
+    }
+    else
+        static_meta[cam_index].subdev_path[0] = 0;
 
     if (root.isMember(kV4l2FormatKey)) {
         strncpy(static_meta[cam_index].v4l2_format, root[kV4l2FormatKey].asString().c_str(),
