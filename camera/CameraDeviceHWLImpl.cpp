@@ -87,6 +87,9 @@ CameraDeviceHwlImpl::CameraDeviceHwlImpl(
 
     memset(mPreviewResolutions, 0, sizeof(mPreviewResolutions));
     memset(mPictureResolutions, 0, sizeof(mPictureResolutions));
+
+    if (isAutoFocusSupported())
+        mAFSupported = true;
 }
 
 CameraDeviceHwlImpl::~CameraDeviceHwlImpl()
@@ -524,6 +527,149 @@ status_t CameraDeviceHwlImpl::SetTorchMode(TorchMode mode)
     TorchModeStatus status = (mode == TorchMode::kOn) ? TorchModeStatus::kAvailableOn:TorchModeStatus::kAvailableOff;
     mCallback.torch_mode_status_change(camera_id_, status);
     return OK;
+}
+
+bool CameraDeviceHwlImpl::isAutoFocusSupported(void)
+{
+    struct v4l2_control c;
+    int result = -1;
+    int32_t fd_dev, fd_subdev;
+
+    /* Open videoX device to power up sensor */
+    fd_dev = open(*mDevPath[0], O_RDWR);
+    if (fd_dev < 0)
+        goto end;
+
+    fd_subdev = open(mSensorData.subdev_path, O_RDWR);
+    if (fd_subdev < 0)
+        goto free_fd_dev;
+
+    c.id = V4L2_CID_AUTO_FOCUS_STATUS;
+    result = ioctl(fd_subdev, VIDIOC_G_CTRL, &c);
+    close(fd_subdev);
+free_fd_dev:
+    close(fd_dev);
+end:
+    return (result == 0);
+}
+
+uint8_t CameraDeviceHwlImpl::getAutoFocusStatus(uint8_t mode)
+{
+    struct v4l2_control c;
+    uint8_t ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    int result;
+
+    if (!mAFSupported)
+        return ret;
+
+    int32_t fd = open(mSensorData.subdev_path, O_RDWR);
+    if (fd < 0) {
+        ALOGE("%s: couldn't open device %s", __func__, mSensorData.subdev_path);
+        return ret;
+    }
+
+    c.id = V4L2_CID_AUTO_FOCUS_STATUS;
+    result = ioctl(fd, VIDIOC_G_CTRL, &c);
+    if (result != 0) {
+        ALOGE("%s: ioctl error: %d", __func__, result);
+        goto end;
+    }
+
+    switch (c.value) {
+    case V4L2_AUTO_FOCUS_STATUS_BUSY:
+        if ((mode == ANDROID_CONTROL_AF_MODE_AUTO) ||
+            (mode == ANDROID_CONTROL_AF_MODE_MACRO))
+            ret = ANDROID_CONTROL_AF_STATE_ACTIVE_SCAN;
+        else
+            ret = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+        break;
+    case V4L2_AUTO_FOCUS_STATUS_REACHED:
+        ret = ANDROID_CONTROL_AF_STATE_FOCUSED_LOCKED;
+        break;
+    case V4L2_AUTO_FOCUS_STATUS_FAILED:
+    case V4L2_AUTO_FOCUS_STATUS_IDLE:
+    default:
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    }
+end:
+    close(fd);
+
+    return ret;
+}
+
+#define DEFAULT_AF_ZONE_ARRAY_WIDTH	80
+void CameraDeviceHwlImpl::setAutoFocusRegion(int x, int y)
+{
+    struct v4l2_control c;
+    int result;
+
+    if (!mAFSupported)
+        return;
+
+    /* Android provides coordinates scaled to max picture resolution */
+    float ratio = (float)mMaxWidth / mMaxHeight;
+    int scaled_x = x / (mMaxWidth / DEFAULT_AF_ZONE_ARRAY_WIDTH);
+    int scaled_y = y / (mMaxHeight / (DEFAULT_AF_ZONE_ARRAY_WIDTH / ratio));
+
+    int32_t fd = open(mSensorData.subdev_path, O_RDWR);
+    if (fd < 0) {
+        ALOGE("%s: couldn't open device %s", __func__, mSensorData.subdev_path);
+        return;
+    }
+
+    /* Using custom implementation of the absolute focus ioctl for ov5640 */
+    c.id = V4L2_CID_FOCUS_ABSOLUTE;
+    c.value = ((scaled_x & 0xFFFF) << 16) + (scaled_y & 0xFFFF);
+    result = ioctl(fd, VIDIOC_S_CTRL, &c);
+    if (result != 0)
+        ALOGE("%s: ioctl error: %d", __func__, result);
+
+    close(fd);
+
+    return;
+}
+
+uint8_t CameraDeviceHwlImpl::doAutoFocus(uint8_t mode)
+{
+    struct v4l2_control c;
+    uint8_t ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    int result;
+
+    if (!mAFSupported)
+        return ret;
+
+    int32_t fd = open(mSensorData.subdev_path, O_RDWR);
+    if (fd < 0) {
+        ALOGE("%s: couldn't open device %s", __func__, mSensorData.subdev_path);
+        return ret;
+    }
+
+    switch (mode) {
+    case ANDROID_CONTROL_AF_MODE_AUTO:
+    case ANDROID_CONTROL_AF_MODE_MACRO:
+        ret = ANDROID_CONTROL_AF_STATE_ACTIVE_SCAN;
+        c.id = V4L2_CID_AUTO_FOCUS_START;
+        break;
+    case ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO:
+    case ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE:
+        ret = ANDROID_CONTROL_AF_STATE_PASSIVE_SCAN;
+        c.id = V4L2_CID_FOCUS_AUTO;
+        c.value = 1;
+        break;
+    case ANDROID_CONTROL_AF_MODE_OFF:
+    default:
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+        c.id = V4L2_CID_AUTO_FOCUS_STOP;
+    }
+    result = ioctl(fd, VIDIOC_S_CTRL, &c);
+    if (result != 0) {
+        ALOGE("%s: ioctl error: %d", __func__, result);
+        ret = ANDROID_CONTROL_AF_STATE_INACTIVE;
+    }
+
+    close(fd);
+
+    return ret;
 }
 
 }  // namespace android
