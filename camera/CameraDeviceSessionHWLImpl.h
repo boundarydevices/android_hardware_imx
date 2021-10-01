@@ -308,6 +308,8 @@ private:
     int mPreviewResolutionCount;
     int mPictureResolutions[MAX_RESOLUTION_SIZE];
     int mPictureResolutionCount;
+
+    CameraDeviceHwlImpl *mCamDev;
 };
 
 }  // namespace android
