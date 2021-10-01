@@ -105,6 +105,10 @@ const char* const kBusInfoKey = "bus_info";
 const char* const kOrientationKey = "orientation";
 const char* const kV4l2FormatKey = "v4l2_format";
 const char* const kSubdevPathKey = "subdev_path";
+const char* const kFlashPathKey = "flash_path";
+const char* const kFlashBrightnessKey = "flash_brightness";
+const char* const kTorchPathKey = "torch_path";
+const char* const kTorchBrightnessKey = "torch_brightness";
 
 const char* const kActiveArrayWidthKey = "ActiveArrayWidth";
 const char* const kActiveArrayHeightKey = "ActiveArrayHeight";
@@ -348,6 +352,30 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
     }
     else
         strncpy(static_meta[cam_index].v4l2_format, "yuyv", META_STRING_SIZE);
+
+    if (cam_index == BACK_CAM_ID) {
+        if(root.isMember(kFlashPathKey)) {
+            strncpy(static_meta[cam_index].flash_path,
+                root[kFlashPathKey].asString().c_str(), META_STRING_SIZE);
+            static_meta[cam_index].flash_path[META_STRING_SIZE-1] = 0;
+        }
+        else
+            static_meta[cam_index].flash_path[0] = 0;
+
+        static_meta[cam_index].flash_brightness =
+            strtol(root[kFlashBrightnessKey].asString().c_str(), &endptr, 10);
+
+        if(root.isMember(kTorchPathKey)) {
+            strncpy(static_meta[cam_index].torch_path,
+                root[kTorchPathKey].asString().c_str(), META_STRING_SIZE);
+            static_meta[cam_index].torch_path[META_STRING_SIZE-1] = 0;
+        }
+        else
+            static_meta[cam_index].torch_path[0] = 0;
+
+        static_meta[cam_index].torch_brightness =
+            strtol(root[kTorchBrightnessKey].asString().c_str(), &endptr, 10);
+    }
 
     if (!ValueToCameraBufferType(
             root[kCameraBufferType].asString(),static_meta[cam_index]))
