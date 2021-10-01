@@ -73,7 +73,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev,
     m_static_meta->Set(ANDROID_CONTROL_AE_COMPENSATION_STEP, android_control_ae_compensation_step,
                        ARRAY_SIZE(android_control_ae_compensation_step));
 
-    int32_t android_control_max_regions[] = {/*AE*/ 0, /*AWB*/ 0, /*AF*/ 0};
+    int32_t android_control_max_regions[] = {/*AE*/ 1, /*AWB*/ 0, /*AF*/ 1};
     m_static_meta->Set(ANDROID_CONTROL_MAX_REGIONS, android_control_max_regions,
                        ARRAY_SIZE(android_control_max_regions));
 
@@ -129,6 +129,21 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev,
     m_static_meta->Set(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
                        android_lens_info_minimum_focus_distance,
                        ARRAY_SIZE(android_lens_info_minimum_focus_distance));
+
+    float minFocusDistance = 1.0/0.05; /* 5cm */
+    m_static_meta->Set(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE, &minFocusDistance, 1);
+
+    float hypFocusDistance = 1.0/0.05; /* 5cm */
+    m_static_meta->Set(ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE, &hypFocusDistance, 1);
+
+    const uint8_t availableAfModes[] = {
+        ANDROID_CONTROL_AF_MODE_OFF,
+        ANDROID_CONTROL_AF_MODE_AUTO,
+        ANDROID_CONTROL_AF_MODE_CONTINUOUS_PICTURE,
+        ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO,
+    };
+    m_static_meta->Set(ANDROID_CONTROL_AF_AVAILABLE_MODES, availableAfModes,
+                       sizeof(availableAfModes));
 
     /* android.request */
     int32_t android_request_max_num_output_streams[] = {0, 3, 1};
@@ -1003,6 +1018,12 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
 
     static const uint8_t aeAntibandingMode = ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
     base->Set(ANDROID_CONTROL_AE_ANTIBANDING_MODE, &aeAntibandingMode, 1);
+
+    static const int32_t controlRegions[5] = {
+        0, 0, 0, 0, 0
+    };
+    base->Set(ANDROID_CONTROL_AE_REGIONS, controlRegions, 5);
+    base->Set(ANDROID_CONTROL_AF_REGIONS, controlRegions, 5);
 
     uint8_t afMode = 0;
     switch (type) {
