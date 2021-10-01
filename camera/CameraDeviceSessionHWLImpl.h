@@ -397,6 +397,8 @@ private:
 
     uint64_t mInQueRequestIdx = 0;
     uint64_t mDeQueRequestIdx = 0;
+
+    CameraDeviceHwlImpl *mCamDev;
 };
 
 }  // namespace android
