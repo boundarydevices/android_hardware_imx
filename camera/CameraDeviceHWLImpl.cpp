@@ -537,6 +537,17 @@ status_t CameraDeviceHwlImpl::SetTorchMode(TorchMode mode)
     if(mCallback.torch_mode_status_change == NULL)
         return BAD_VALUE;
 
+    if (mSensorData.torch_path[0] != 0) {
+        int brightness = (mode == TorchMode::kOn) ? mSensorData.torch_brightness : 0;
+        FILE *file = fopen(mSensorData.torch_path, "w");
+        if (!file) {
+            ALOGE("can not open file %s\n", mSensorData.torch_path);
+            goto end;
+        }
+        fprintf(file, "%d", brightness);
+        fclose(file);
+    }
+end:
     TorchModeStatus status = (mode == TorchMode::kOn) ? TorchModeStatus::kAvailableOn:TorchModeStatus::kAvailableOff;
     mCallback.torch_mode_status_change(camera_id_, status);
     return OK;
