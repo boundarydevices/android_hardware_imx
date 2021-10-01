@@ -590,6 +590,18 @@ bool CameraDeviceHwlImpl::StreamCombJudge(const StreamConfiguration &stream_conf
 }
 
 status_t CameraDeviceHwlImpl::SetTorchMode(TorchMode mode __unused) {
+    if (mSensorData.torch_path[0] != 0) {
+        int brightness = (mode == TorchMode::kOn) ? mSensorData.torch_brightness : 0;
+        FILE *file = fopen(mSensorData.torch_path, "w");
+        if (!file) {
+            ALOGE("can not open file %s\n", mSensorData.torch_path);
+            goto end;
+        }
+        fprintf(file, "%d", brightness);
+        fclose(file);
+        return OK;
+    }
+end:
     return INVALID_OPERATION;
 }
 
