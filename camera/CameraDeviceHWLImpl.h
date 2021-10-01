@@ -87,6 +87,10 @@ public:
                                 int nPreviewResolutionCount, int *pPictureResolutions,
                                 int nPictureResolutionCount);
 
+    virtual uint8_t doAutoFocus(uint8_t mode);
+    virtual uint8_t getAutoFocusStatus(uint8_t mode);
+    virtual void    setAutoFocusRegion(int x, int y);
+
 protected:
     CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
                         std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw, ImxEngine cam_csc_hw,
@@ -99,6 +103,8 @@ private:
     virtual status_t Initialize();
     virtual status_t initSensorStaticData();
     static bool FoundResoulution(int width, int height, int *resArray, int size);
+    bool mAFSupported = false;
+    bool isAutoFocusSupported(void);
 
 protected:
     status_t setMaxPictureResolutions();
