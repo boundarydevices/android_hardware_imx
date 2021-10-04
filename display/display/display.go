@@ -100,18 +100,16 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
 		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DWORKAROUND_DISPLAY_UNDERRUN")
 		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DUSE_DPU_HWC")
 		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DENABLE_8QM_WIDEVINE")
-		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DHAVE_UNMAPPED_HEAP")
 	}
 	if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_CLASS") == "IMX8" {
 		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DIMX8")
 	}
-	if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MP" {
+	if ctx.Config().VendorConfig("IMXPLUGIN").Bool("BOARD_HAVE_SECURE_MEM") {
 		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DHAVE_UNMAPPED_HEAP")
 	}
 	if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MQ" {
 		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DFRAMEBUFFER_COMPRESSION")
 		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DWORKAROUND_DOWNSCALE_LIMITATION_DCSS")
-		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DHAVE_UNMAPPED_HEAP")
 		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DENABLE_HDR_CHECK")
 	}
 	if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MM" {
@@ -119,7 +117,6 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
 	}
 	if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8ULP" {
 		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DWORKAROUND_DCNANO_BGRX")
-		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DHAVE_UNMAPPED_HEAP")
 	}
 	if ctx.Config().VendorConfig("IMXPLUGIN").Bool("HAVE_FSL_IMX_GPU3D") {
 		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DUSE_SW_OPENGL")
