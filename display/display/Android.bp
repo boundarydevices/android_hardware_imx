@@ -71,6 +71,7 @@ cc_library_shared {
         "frameworks/native/libs/ui/include",
         "frameworks/native/libs/arect/include",
         "frameworks/native/libs/ui/include_private",
+        "frameworks/native/libs/math/include",
         "hardware/libhardware_legacy/include",
         "device/nxp/common/kernel-headers",
     ],
@@ -90,6 +91,7 @@ cc_library_shared {
     static_libs: [
         "libwvtrustyclient",
         "libtrusty",
+        "libmath",
     ],
     vendor: true,
     whole_static_libs: ["libionallocator"],
