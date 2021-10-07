@@ -27,6 +27,7 @@
 #include <string>
 
 constexpr char kSocType[] = "ro.boot.soc_type";
+constexpr char kVendorCfg[] = "persist.vendor.camera.config";
 
 namespace cameraconfigparser {
 namespace {
@@ -517,8 +518,10 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
 bool CameraConfigurationParser::Init() {
     std::string config;
     char name[PATH_MAX] = {0};
-    snprintf(name, PATH_MAX, "%s_%s%s", kCameraConfiguration, android::base::GetProperty(kSocType, "").c_str(), ".json");
+    snprintf(name, PATH_MAX, "%s_%s%s", kCameraConfiguration,
+             android::base::GetProperty(kVendorCfg, android::base::GetProperty(kSocType, "")).c_str(), ".json");
 
+    ALOGD("%s: Opening configuration file: %s", __func__, name);
     std::vector<const char*> configurationFileLocation;
     configurationFileLocation.emplace_back(name);
     mcamera_.camera_metadata_vec.resize(MAX_BASIC_CAMERA_NUM);
