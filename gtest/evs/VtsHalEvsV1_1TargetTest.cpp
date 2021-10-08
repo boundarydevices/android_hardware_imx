@@ -49,7 +49,7 @@ static const int kMillisecondsToMicroseconds = 1000;
 #include <android/hardware/camera/device/3.2/ICameraDevice.h>
 #include <android-base/logging.h>
 #include <system/camera_metadata.h>
-#include <ui/DisplayConfig.h>
+#include <ui/DisplayMode.h>
 #include <ui/DisplayState.h>
 #include <ui/GraphicBuffer.h>
 #include <ui/GraphicBufferAllocator.h>
