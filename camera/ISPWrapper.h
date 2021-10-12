@@ -83,6 +83,9 @@ typedef struct DWEPara {
 #define EXP_TIME_DFT    0.006535 // unit: seconds
 #define EXP_TIME_DFT_NS  6535000 // ns
 
+#define EXP_GAIN_MIN_DFT  1.0
+#define EXP_GAIN_MAX_DFT  6.879883
+
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;
@@ -102,6 +105,7 @@ public:
     int64_t getExposureTime() { return m_exposure_time > 0 ? m_exposure_time : EXP_TIME_DFT_NS; }
     int viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Json::Value& jsonResponse);
     void parseDewarpParams(Json::Value& node);
+    void getExpGainBoundary();
 
 private:
     int setFeature(const char *value);
@@ -122,6 +126,8 @@ private:
     int64_t m_exposure_time;
     DWEPara m_dwePara;
     bool m_dwe_on;
+    double m_ec_gain_min;
+    double m_ec_gain_max;
 };
 
 } // namespace android

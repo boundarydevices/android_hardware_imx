@@ -50,6 +50,9 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     // Align with daA3840_30mc_1080P.json
     m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
     m_dwe_on = true;
+
+    m_ec_gain_min = -1.0;
+    m_ec_gain_max = -1.0;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -237,12 +240,10 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
 
 #define IF_EC_S_CFG       "ec.s.cfg"
 #define IF_EC_G_CFG       "ec.g.cfg"
-
 #define EC_GAIN_PARAMS    "gain"
+#define EC_GAIN_MIN_PARAMS  "gain.min"
+#define EC_GAIN_MAX_PARAMS  "gain.max"
 #define EC_TIME_PARAMS    "time"
-#define EC_MAX_PARAMS     "max"
-#define EC_MIN_PARAMS     "min"
-#define EC_STEP_PARAMS    "step"
 
 #define VIV_CUSTOM_CID_BASE   (V4L2_CID_USER_BASE | 0xf000)
 #define V4L2_CID_VIV_EXTCTRL  (VIV_CUSTOM_CID_BASE + 1)
@@ -302,14 +303,26 @@ failed:
     return ret;
 }
 
-
-#define EC_GAIN_MIN   (double)2.900000
-#define EC_GAIN_MAX   (double)22.475000
-
 #define AE_ENABLE_PARAMS    "enable"
 #define IF_AE_S_EN          "ae.s.en"
 
 #define NS_PER_SEC  1000000000
+
+void ISPWrapper::getExpGainBoundary()
+{
+    Json::Value jRequest, jResponse;
+    double minGain, maxGain, currentGain, currentInt;
+    int ret = viv_private_ioctl(IF_EC_G_CFG, jRequest, jResponse);
+    if (ret == 0) {
+        m_ec_gain_min = jResponse[EC_GAIN_MIN_PARAMS].asDouble();
+        m_ec_gain_max = jResponse[EC_GAIN_MAX_PARAMS].asDouble();
+        ALOGI("%s: minGain %f, maxGain %f", __func__, m_ec_gain_min, m_ec_gain_max);
+    } else {
+        ALOGE("%s: EC gain get failed", __func__);
+    }
+
+    return;
+}
 
 int ISPWrapper::processExposureGain(int32_t comp, bool force)
 {
@@ -331,7 +344,7 @@ int ISPWrapper::processExposureGain(int32_t comp, bool force)
     // One unit of EV compensation changes the brightness of the captured image by a factor of two.
     // +1 EV doubles the image brightness, while -1 EV halves the image brightness.
     // But we don't know how much gain will double brightness.
-    double gain = EC_GAIN_MIN + ((comp - m_SensorData->mAeCompMin) * (EC_GAIN_MAX - EC_GAIN_MIN)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
+    double gain = m_ec_gain_min + ((comp - m_SensorData->mAeCompMin) * (m_ec_gain_max - m_ec_gain_min)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
 
     // If never set exposure time, use default value.
     if(m_exposure_time == 0)
@@ -374,7 +387,7 @@ int ISPWrapper::processExposureTime(int64_t exposureNs, bool force)
     if ((m_exposure_comp < m_SensorData->mAeCompMin) || (m_exposure_comp > m_SensorData->mAeCompMax))
         m_exposure_comp = 0;
 
-    double gain = EC_GAIN_MIN + ((m_exposure_comp - m_SensorData->mAeCompMin) * (EC_GAIN_MAX - EC_GAIN_MIN)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
+    double gain = m_ec_gain_min + ((m_exposure_comp - m_SensorData->mAeCompMin) * (m_ec_gain_max - m_ec_gain_min)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
     double exposure_second = (double)exposureNs/NS_PER_SEC;
 
     jRequest[EC_GAIN_PARAMS] = gain;
