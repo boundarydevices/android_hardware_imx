@@ -51,8 +51,8 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
     m_dwe_on = true;
 
-    m_ec_gain_min = -1.0;
-    m_ec_gain_max = -1.0;
+    m_ec_gain_min = EXP_GAIN_MIN_DFT;
+    m_ec_gain_max = EXP_GAIN_MAX_DFT;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -319,6 +319,11 @@ void ISPWrapper::getExpGainBoundary()
         ALOGI("%s: minGain %f, maxGain %f", __func__, m_ec_gain_min, m_ec_gain_max);
     } else {
         ALOGE("%s: EC gain get failed", __func__);
+    }
+
+    if ((ret != 0) || (m_ec_gain_min == m_ec_gain_max)) {
+        m_ec_gain_min = EXP_GAIN_MIN_DFT;
+        m_ec_gain_max = EXP_GAIN_MAX_DFT;
     }
 
     return;
