@@ -1464,7 +1464,7 @@ uint32_t CameraDeviceSessionHwlImpl::GetCameraId() const
 
 std::vector<uint32_t> CameraDeviceSessionHwlImpl::GetPhysicalCameraIds() const {
     if ((physical_device_map_->empty())) {
-        ALOGW("%s: GetPhysicalCameraIds is empty", __func__);
+        ALOGV("%s: GetPhysicalCameraIds is empty", __func__);
         return std::vector<uint32_t>{};
     }
 
