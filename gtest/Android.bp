@@ -82,13 +82,8 @@ cc_test{
 cc_test {
          name: "security_unit_test",
          defaults: ["VtsHalTargetTestDefaults"],
-         srcs: ["GtestHalGatekeeperV1_0TargetTest.cpp",
-                "HmacKeySharingTest.cpp",
-                "VerificationTokenTest.cpp",
-                "keymaster_hidl_hal_test.cpp",
-                "VtsHalOemLockV1_0TargetTest.cpp",
-                "Trusty_Test.cpp",
-               ],
+         srcs: ["Trusty_Test.cpp"],
+
          static_libs: ["android.hardware.gatekeeper@1.0",
                        "android.hardware.keymaster@4.0",
                        "libkeymaster4support",
