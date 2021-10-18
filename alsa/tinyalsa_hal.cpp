@@ -1751,7 +1751,7 @@ static int start_input_stream(struct imx_stream_in *in)
                                         in->requested_rate);
 
     /* this assumes routing is done previously */
-    in->pcm = pcm_open(card, port, PCM_IN, &in->config);
+    in->pcm = pcm_open(card, port, PCM_IN | PCM_MONOTONIC, &in->config);
     if (!pcm_is_ready(in->pcm)) {
         ALOGE("cannot open pcm_in driver: %s", pcm_get_error(in->pcm));
         pcm_close(in->pcm);
@@ -2386,6 +2386,9 @@ exit:
                in_get_sample_rate(&stream->common));
     }
     pthread_mutex_unlock(&in->lock);
+    if (bytes > 0) {
+        in->frames_read += frames_rq;
+    }
 
     return bytes;
 }
@@ -2393,6 +2396,35 @@ exit:
 static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream __unused)
 {
     return 0;
+}
+
+static int in_get_capture_position(const struct audio_stream_in *stream,
+                                   int64_t *frames, int64_t *time)
+{
+    if (stream == NULL || frames == NULL || time == NULL) {
+        return -EINVAL;
+    }
+    struct imx_stream_in *in = (struct imx_stream_in *)stream;
+    int ret = -ENOSYS;
+
+    pthread_mutex_lock(&in->lock);
+    if (in->standby) {
+        ALOGE_IF(in->pcm != NULL,
+                 "%s stream in standby but pcm not NULL for non ST session", __func__);
+        goto exit;
+    }
+    if (in->pcm) {
+        struct timespec timestamp;
+        unsigned int avail;
+        if (pcm_get_htimestamp(in->pcm, &avail, &timestamp) == 0) {
+            *frames = in->frames_read + avail;
+            *time = timestamp.tv_sec * 1000000000LL + timestamp.tv_nsec;
+            ret = 0;
+        }
+    }
+exit:
+    pthread_mutex_unlock(&in->lock);
+    return ret;
 }
 
 #define GET_COMMAND_STATUS(status, fct_status, cmd_status) \
@@ -4029,6 +4061,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.set_gain = in_set_gain;
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
+    in->stream.get_capture_position = in_get_capture_position;
 #if ANDROID_SDK_VERSION >= 28
     in->stream.get_active_microphones = in_get_active_microphones;
     in->stream.set_microphone_direction = in_set_microphone_direction;

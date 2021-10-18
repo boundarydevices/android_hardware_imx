@@ -185,6 +185,7 @@ struct imx_stream_in {
     audio_channel_mask_t main_channels;
     uint32_t aux_channels;
     char* address;
+    int64_t frames_read;
 
     audio_io_handle_t handle;
     audio_patch_handle_t patch_handle;
