@@ -3239,6 +3239,11 @@ static int adev_release_audio_patch(struct audio_hw_device *dev,
     return -EINVAL;
 }
 
+static int adev_get_audio_port(struct audio_hw_device *dev, struct audio_port *port)
+{
+    return 0;
+}
+
 static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_io_handle_t handle __unused,
                                    audio_devices_t devices,
@@ -4383,6 +4388,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.set_audio_port_config   = adev_set_audio_port_config;
     adev->hw_device.create_audio_patch      = adev_create_audio_patch;
     adev->hw_device.release_audio_patch     = adev_release_audio_patch;
+    adev->hw_device.get_audio_port          = adev_get_audio_port;
     adev->hw_device.dump                    = adev_dump;
     adev->support_multichannel              = false;
     adev->support_lpa                       = false;
