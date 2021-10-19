@@ -182,7 +182,7 @@ static bool parse_one_card(char *config_file, struct audio_card **pp_audio_card)
     std::unique_ptr<Json::CharReader> config_reader(builder.newCharReader());
     std::string errorMessage;
     Json::Value root;
-    if (!config_reader->parse(&*config.begin(), &*config.end(), &root, &errorMessage)) {
+    if (!config_reader->parse(config.data(), config.data() + config.length(), &root, &errorMessage)) {
         ALOGE("Could not parse configuration file: %s, %s",
             errorMessage.c_str(), config_file);
         return false;
