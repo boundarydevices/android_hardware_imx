@@ -312,6 +312,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
 
 status_t CameraDeviceHwlImpl::adjustPreviewResolutions()
 {
+    // Make sure max size is in the first.
     int xTmp, yTmp, xMax, yMax, idx;
     idx = 0;
     xTmp = xMax = mPreviewResolutions[0];
@@ -328,6 +329,25 @@ status_t CameraDeviceHwlImpl::adjustPreviewResolutions()
     mPreviewResolutions[1] = yMax;
     mPreviewResolutions[idx] = xTmp;
     mPreviewResolutions[idx+1] = yTmp;
+
+    // Sequence 1280x720 before 1024x768
+    int idx_720p = -1;
+    int idx_768p = -1;
+
+    for (int i=0; i<MAX_RESOLUTION_SIZE; i+=2) {
+        if ((mPreviewResolutions[i] == 1280) && (mPreviewResolutions[i+1] == 720))
+            idx_720p = i;
+
+        if ((mPreviewResolutions[i] == 1024) && (mPreviewResolutions[i+1] == 768))
+            idx_768p = i;
+    }
+
+    if ((idx_720p > 0) && (idx_768p > 0) && (idx_720p > idx_768p)) {
+        mPreviewResolutions[idx_768p] = 1280;
+        mPreviewResolutions[idx_768p + 1] = 720;
+        mPreviewResolutions[idx_720p] = 1024;
+        mPreviewResolutions[idx_720p + 1] = 768;
+    }
 
     return 0;
 }
