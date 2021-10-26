@@ -1439,7 +1439,7 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
         case FORMAT_P010:
         case FORMAT_P010_TILED:
         case FORMAT_P010_TILED_COMPRESSED:
-            return DRM_FORMAT_NV12_10LE40;
+            return DRM_FORMAT_NV15;
         case FORMAT_I420:
             return DRM_FORMAT_YUV420;
         case FORMAT_YV12:
