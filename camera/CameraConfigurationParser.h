@@ -96,6 +96,7 @@ struct CameraSensorMetadata {
   // max fps and min fps. the value is set 1/30s ~ 0.3s
   long minframeduration;
   long maxframeduration;
+  long minframeduration_blob_5M;
 
   struct OmitFrame omit_frame[OMIT_RESOLUTION_NUM];
   BufferType buffer_type;
