@@ -73,8 +73,18 @@ int MemoryDesc::checkFormat()
              */
 #if defined (IMX8)
             if (mProduceUsage & USAGE_GPU_TILED_VIV) {
-                alignedw = ALIGN_PIXEL_64(mWidth);
-                alignedh = ALIGN_PIXEL_64(mHeight);
+#ifdef WORKAROUND_DISPLAY_UNDERRUN
+                if (mFlag & FLAGS_FRAMEBUFFER)
+                {
+                    alignedw = ALIGN_PIXEL_16(mWidth);
+                    alignedh = ALIGN_PIXEL_16(mHeight);
+                }
+                else
+#endif
+                {
+                    alignedw = ALIGN_PIXEL_64(mWidth);
+                    alignedh = ALIGN_PIXEL_64(mHeight);
+                }
                 size = alignedw * alignedh * bpp + 128;
             }
             else
