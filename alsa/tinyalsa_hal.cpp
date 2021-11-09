@@ -735,8 +735,7 @@ static int start_output_stream(struct imx_stream_out *out)
 
             if (out->resampler)
                 out->resampler->reset(out->resampler);
-        } else
-            out->written = 0;
+        }
 
         if (passthrough_for_s24) {
             out->buffer_frames = out->config.period_size *
