@@ -37,6 +37,7 @@ namespace fsl {
 #define SYS_GRAPHICS "/sys/class/graphics"
 #define HWC_FB_SYS "/sys/class/graphics/fb"
 #define HWC_FB_DEV "/dev/graphics/fb"
+#define EPDC_STR_ID "mxc_epdc_fb"
 
 using android::Condition;
 
@@ -105,6 +106,7 @@ protected:
     int mOutFence;
     int mPresentFence;
     bool mCustomizeUI;
+    bool mEPDCDevice;
 
 protected:
     void handleVsyncEvent(nsecs_t timestamp);
