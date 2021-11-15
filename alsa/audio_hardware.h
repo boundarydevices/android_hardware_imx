@@ -126,6 +126,8 @@ struct imx_stream_out {
     audio_patch_handle_t patch_handle;
 
     struct listnode stream_node; // linked to imx_audio_device->out_streams
+    uint32_t frames_round;
+    bool dump;
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
@@ -191,6 +193,8 @@ struct imx_stream_in {
     audio_patch_handle_t patch_handle;
 
     struct listnode stream_node; // linked to imx_audio_device->in_streams
+    uint32_t frames_round;
+    bool dump;
 };
 #define STRING_TO_ENUM(string) { #string, string }
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))

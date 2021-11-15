@@ -201,7 +201,7 @@ static void release_buffer(struct resampler_buffer_provider *buffer_provider,
                                   struct resampler_buffer* buffer);
 static int adev_get_format_for_device(struct imx_audio_device *adev, uint32_t devices, unsigned int flag);
 static void in_update_aux_channels(struct imx_stream_in *in, effect_handle_t effect);
-static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes);
+static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes, bool dump);
 static void convert_output_for_esai(const void* buffer, size_t bytes, int channels);
 
 extern "C" int pcm_state(struct pcm *pcm);
@@ -1292,7 +1292,7 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
                      in->read_tmp_buf, size_in_bytes_tmp);
         }
 
-        in->read_status = pcm_read_wrapper(pcm, (void*)in->read_tmp_buf, size_in_bytes_tmp);
+        in->read_status = pcm_read_wrapper(pcm, (void*)in->read_tmp_buf, size_in_bytes_tmp, in->dump);
 
         if (in->read_status != 0) {
             ALOGE("get_next_buffer() pcm_read_wrapper error %d", in->read_status);
@@ -1302,13 +1302,36 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
         convert_record_data((void *)in->read_tmp_buf, (void *)data, frames_rq, bit_24b_2_16b, bit_32b_2_16b, mono2stereo, stereo2mono);
     }
     else {
-        in->read_status = pcm_read_wrapper(pcm, (void*)data, count);
+        in->read_status = pcm_read_wrapper(pcm, (void*)data, count, in->dump);
     }
 
     return in->read_status;
 }
 
-static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes)
+#define IN_SRC_FILE "/data/in_src.pcm"
+#define IN_DST_FILE "/data/in_dst.pcm"
+#define OUT_SRC_FILE "/data/out_src.pcm"
+#define OUT_DST_FILE "/data/out_dst.pcm"
+
+static void audio_dump(const void *buffer, size_t bytes, char *name)
+{
+    if ((buffer == NULL) || (bytes == 0) || (name == NULL))
+        return;
+
+    int fdDump = open(name, O_CREAT|O_APPEND|O_WRONLY, S_IRWXU|S_IRWXG);
+    if (fdDump < 0) {
+        ALOGW("%s: file open error, srcFile: %s, fd %d",
+                __func__, name, fdDump);
+        return;
+    }
+
+    write(fdDump, buffer, bytes);
+    close(fdDump);
+
+    return;
+}
+
+static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes, bool dump)
 {
     int ret = 0;
     ret = pcm_read(pcm, (void *)buffer, bytes);
@@ -1329,10 +1352,13 @@ static int pcm_read_wrapper(struct pcm *pcm, const void * buffer, size_t bytes)
          ret = pcm_read(pcm, (void *)buffer, bytes);
     }
 
+    if (dump)
+        audio_dump(buffer, bytes, IN_SRC_FILE);
+
     return ret;
 }
 
-static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes, int flags)
+static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes, int flags, bool dump)
 {
     int ret = 0;
 
@@ -1362,6 +1388,9 @@ static int pcm_write_wrapper(struct pcm *pcm, const void * buffer, size_t bytes,
             ret = pcm_write(pcm, (void *)buffer, bytes);
     }
 
+    if (dump)
+        audio_dump(buffer, bytes, OUT_DST_FILE);
+
     return ret;
 }
 
@@ -1376,6 +1405,9 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     size_t out_frames = in_frames;
     bool force_input_standby = false;
     struct imx_stream_in *in;
+
+    if (out->dump)
+        audio_dump(buffer, bytes, OUT_SRC_FILE);
 
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will return 1
     // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
@@ -1437,16 +1469,16 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                 (out->config.rate != DEFAULT_OUTPUT_SAMPLE_RATE)) {
             /* PCM resampled or channel converted.
                For bt-sai HSP case, stereo buffer converted to mono out->buffer */
-            ret = pcm_write_wrapper(out->pcm, (void *)out->buffer, out_frames * frame_size, out->write_flags);
+            ret = pcm_write_wrapper(out->pcm, (void *)out->buffer, out_frames * frame_size, out->write_flags, out->dump);
         } else if (passthrough_for_s24) {
             /* For 8mp passthrough case, audio data is converted from
                PCM_FORMAT_S16_LE buffer to PCM_FORMAT_S24_LE out->buffer,
                so here double the bytes to write */
             ret = pcm_write_wrapper(out->pcm, (void *)out->buffer,
-                    out_frames * frame_size * 2, out->write_flags);
+                    out_frames * frame_size * 2, out->write_flags, out->dump);
         } else {
             /* PCM uses native sample rate */
-            ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags);
+            ret = pcm_write_wrapper(out->pcm, (void *)buffer, bytes, out->write_flags, out->dump);
         }
 
         if (ret) {
@@ -1463,8 +1495,16 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     }
 
 exit:
+    size_t write_frames = bytes / frame_size;
     out->written += bytes / frame_size;
     pthread_mutex_unlock(&out->lock);
+
+    out->frames_round += write_frames;
+    if (out->frames_round >= out->sample_rate) {
+        ALOGV("out frames_round %d", out->frames_round);
+        out->frames_round -= out->sample_rate;
+        out->dump = property_get_bool("vendor.audio.dump", false);
+    }
 
     if (ret != 0) {
         ALOGV("write error, sleep few ms");
@@ -2387,6 +2427,16 @@ exit:
     pthread_mutex_unlock(&in->lock);
     if (bytes > 0) {
         in->frames_read += frames_rq;
+    }
+
+    if (in->dump)
+        audio_dump(buffer, bytes, IN_DST_FILE);
+
+    in->frames_round += frames_rq;
+    if (in->frames_round >= in->requested_rate) {
+        ALOGV("in frames_round %d", in->frames_round);
+        in->frames_round -= in->requested_rate;
+        in->dump = property_get_bool("vendor.audio.dump", false);
     }
 
     return bytes;
@@ -3605,7 +3655,7 @@ static void* sco_rx_task(void *arg)
         out_size = pcm_frames_to_bytes(out_pcm, out_frames);
 
         pthread_mutex_lock(&stream_out->lock);
-        ret = pcm_write_wrapper(out_pcm, sco_rx_out_buffer, out_size, flag);
+        ret = pcm_write_wrapper(out_pcm, sco_rx_out_buffer, out_size, flag, stream_out->dump);
         pthread_mutex_unlock(&stream_out->lock);
         if(ret) {
             ALOGE("sco_rx_task, pcm_write ret %d, size %d, %s",
