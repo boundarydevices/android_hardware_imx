@@ -51,6 +51,7 @@ cc_library_shared {
         "ExternalCameraUtils.cpp",
         "DecoderDev.cpp",
         "HwDecoder.cpp",
+        "ImageProcess.cpp",
     ],
 
     header_libs: [
@@ -97,11 +98,17 @@ cc_library_shared {
 
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
+        "vendor/nxp-opensource/imx/opencl-2d",
         "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp-opensource/libdrm-imx",
+        "vendor/nxp-opensource/libdrm-imx/include/drm",
         "vendor/nxp/imx_android_mm/extractor",
+        "vendor/nxp/fsl-proprietary/include",
         "device/nxp/common/kernel-headers",
         "system/core/include/system",
         "frameworks/av/media/codec2/vndk/include",
+        "frameworks/native/libs/ui/include",
+        "frameworks/native/libs/arect/include",
     ],
 
     export_shared_lib_headers: [

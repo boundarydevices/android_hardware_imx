@@ -1266,7 +1266,7 @@ void HwDecoder::dumpStream(void *src, size_t srcSize, int32_t id) {
     if ((src == NULL) || (srcSize == 0))
         return;
 
-    property_get("vendor.rw.camera.ext.test", value, "false");
+    property_get("vendor.rw.camera.ext.hwdecoder", value, "false");
     if (!strcmp(value, "false"))
         return;
 
@@ -1441,6 +1441,7 @@ void HwDecoder::notifyDecodeReady(int32_t mOutbufId) {
         return;
     }
 
+    mData.fd= info->mDMABufFd;
     mData.data = (uint8_t *)info->mVirtAddr;
     mData.width = mOutputFormat.width;
     mData.height = mOutputFormat.height;
