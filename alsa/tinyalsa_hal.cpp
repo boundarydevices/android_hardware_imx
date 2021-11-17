@@ -711,6 +711,7 @@ static int start_output_stream(struct imx_stream_out *out)
     }
     out->pcm = pcm_open(card, pcm_device_id, flags, config);
     out->write_flags = flags;
+    out->first_frame_written = false;
 
     success = true;
 
@@ -959,8 +960,21 @@ static int out_standby(struct audio_stream *stream)
     return status;
 }
 
-static int out_dump(const struct audio_stream *stream __unused, int fd __unused)
+static int out_dump(const struct audio_stream *stream, int fd)
 {
+    if ((stream == NULL) || (fd < 0))
+        return 0;
+
+    struct imx_stream_out *out = (struct imx_stream_out *)stream;
+
+    dprintf(fd, "audio write to HAL: rate %d, chns %d, audio format 0x%x\n", out->sample_rate, popcount(out->channel_mask), out->format);
+    dprintf(fd, "audio write to ALSA: rate %d, chns %d, alsa format 0x%x\n", out->config.rate, out->config.channels, out->config.format);
+    dprintf(fd, "device 0x%x, card index %d, frames round %d, total written %llu, first_frame_written %d, writeContiFailCount %d\n",
+        out->device, out->card_index, out->frames_round, out->written, out->first_frame_written, out->writeContiFailCount);
+
+    if (out->pcm)
+      dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(out->pcm));
+
     return 0;
 }
 
@@ -1305,6 +1319,11 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
         in->read_status = pcm_read_wrapper(pcm, (void*)data, count, in->dump);
     }
 
+    if ((in->first_frame_read == false) && (in->read_status == 0)) {
+        ALOGI("%s: first frame read, in stream %p", __func__, in);
+        in->first_frame_read = true;
+    }
+
     return in->read_status;
 }
 
@@ -1485,6 +1504,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             out->writeContiFailCount++;
         } else {
             out->writeContiFailCount = 0;
+
+          if (out->first_frame_written == false) {
+              ALOGI("%s: first frame write, out stream %p", __func__, out);
+              out->first_frame_written = true;
+          }
         }
     }
 
@@ -1662,7 +1686,7 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 static int spdif_in_rate_check(struct imx_stream_in *in)
 {
     struct imx_audio_device *adev = in->dev;
-    int i = adev->in_card_idx;
+    int i = in->card_index;
     int ret = 0;
 
     if(!strcmp(adev->card_list[i]->driver_name, "imx-spdif")) {
@@ -1758,7 +1782,7 @@ static int start_input_stream(struct imx_stream_in *in)
     for(i = 0; i < adev->audio_card_num; i++) {
         if(adev->in_device & adev->card_list[i]->supported_in_devices) {
             card = adev->card_list[i]->card;
-            adev->in_card_idx = i;
+            in->card_index = i;
             port = 0;
             break;
         }
@@ -1909,8 +1933,21 @@ static int in_standby(struct audio_stream *stream)
     return status;
 }
 
-static int in_dump(const struct audio_stream *stream __unused, int fd __unused)
+static int in_dump(const struct audio_stream *stream, int fd)
 {
+    if ((stream == NULL) || (fd < 0))
+        return 0;
+
+    struct imx_stream_in *in = (struct imx_stream_in *)stream;
+
+    dprintf(fd, "audio read from HAL: rate %d, chns %d, audio format 0x%x\n", in->requested_rate, popcount(in->requested_channel), in->requested_format);
+    dprintf(fd, "audio read from ALSA: rate %d, chns %d, alsa format 0x%x\n", in->config.rate, in->config.channels, in->config.format);
+    dprintf(fd, "device 0x%x, card index %d, frames round %d, first_frame_read %d, read_status %d\n",
+        in->device, in->card_index, in->frames_round, in->first_frame_read, in->read_status);
+
+    if (in->pcm)
+      dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(in->pcm));
+
     return 0;
 }
 
@@ -4181,8 +4218,21 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
     return;
 }
 
-static int adev_dump(const audio_hw_device_t *device __unused, int fd __unused)
+static int adev_dump(const audio_hw_device_t *device, int fd)
 {
+    if ((device == NULL) || (fd < 0))
+        return 0;
+
+    struct imx_audio_device *adev = (struct imx_audio_device *)device;
+
+    dprintf(fd, "Hal dev dump\n");
+    dprintf(fd, "audio card num %d\n", adev->audio_card_num);
+    for (int i = 0; i < adev->audio_card_num && i < MAX_AUDIO_CARD_NUM; i++) {
+        struct audio_card *acard = adev->card_list[i];
+        if (acard)
+            dprintf(fd, "card index %d, name %s, id %d\n", i, acard->driver_name,acard->card);
+    }
+
     return 0;
 }
 
