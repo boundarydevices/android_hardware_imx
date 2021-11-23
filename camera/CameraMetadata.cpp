@@ -909,7 +909,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
     static const int64_t gpsTimestamp = 0;
     base->Set(ANDROID_JPEG_GPS_TIMESTAMP, &gpsTimestamp, 1);
 
-    static const int32_t jpegOrientation = 0;
+    static const int32_t jpegOrientation = mSensorData.orientation;
     base->Set(ANDROID_JPEG_ORIENTATION, &jpegOrientation, 1);
 
     /** android.stats */
