@@ -365,6 +365,7 @@ Status getCurrentRoleHelper(const std::string &portName, bool connected,
 
 Status getTypeCPortNamesHelper(std::unordered_map<std::string, bool> *names) {
   DIR *dp;
+  bool has_typec_port = false;
 
   dp = opendir("/sys/class/typec");
   if (dp != NULL) {
@@ -372,6 +373,7 @@ Status getTypeCPortNamesHelper(std::unordered_map<std::string, bool> *names) {
 
     while ((ep = readdir(dp))) {
       if (ep->d_type == DT_LNK) {
+        has_typec_port = true;
         if (std::string::npos == std::string(ep->d_name).find("-partner")) {
           std::unordered_map<std::string, bool>::const_iterator portName =
               names->find(ep->d_name);
@@ -384,10 +386,11 @@ Status getTypeCPortNamesHelper(std::unordered_map<std::string, bool> *names) {
       }
     }
     closedir(dp);
-    return Status::SUCCESS;
+    if (has_typec_port)
+      return Status::SUCCESS;
   }
 
-  ALOGE("Failed to open /sys/class/typec");
+  ALOGE("Failed to open /sys/class/typec or there is no typec port");
   return Status::ERROR;
 }
 
