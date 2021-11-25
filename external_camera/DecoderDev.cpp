@@ -67,13 +67,24 @@ int32_t DecoderDev::Open() {
         memset(&sub, 0, sizeof(struct v4l2_event_subscription));
 
         sub.type = V4L2_EVENT_SOURCE_CHANGE;
-        ioctl(mFd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+        int32_t ret = ioctl(mFd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+        if (ret < 0) {
+            ALOGE("%s: VIDIOC_SUBSCRIBE_EVENT Failed: %s", __func__, strerror(errno));
+            return ret;
+        }
 
         sub.type = V4L2_EVENT_CODEC_ERROR;
-        ioctl(mFd, VIDIOC_SUBSCRIBE_EVENT, &sub);
-
+        ret = ioctl(mFd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+        if (ret < 0) {
+            ALOGE("%s: VIDIOC_SUBSCRIBE_EVENT Failed: %s", __func__, strerror(errno));
+            return ret;
+        }
         sub.type = V4L2_EVENT_SKIP;
-        ioctl(mFd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+        ret = ioctl(mFd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+        if (ret < 0) {
+            ALOGE("%s: VIDIOC_SUBSCRIBE_EVENT Failed: %s", __func__, strerror(errno));
+            return ret;
+        }
     }
 
     return mFd;

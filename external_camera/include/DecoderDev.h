@@ -35,7 +35,7 @@ namespace android {
 #define V4L2_DEV_POLL_OUTPUT 2
 #define V4L2_DEV_POLL_CAPTURE 4
 
-#define MAX_DEV_NAME_LEN (16)
+#define MAX_DEV_NAME_LEN (256)
 
 typedef struct {
     uint32_t color_format;

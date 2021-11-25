@@ -608,7 +608,7 @@ status_t HwDecoder::destroyFetchThread() {
 
 status_t HwDecoder::queueInputBuffer(std::unique_ptr<DecoderInputBuffer> input) {
     int result = 0;
-    int32_t index = -1;
+    int32_t index = 0;
     uint32_t buf_length = 0;
 
     if(input == nullptr)
