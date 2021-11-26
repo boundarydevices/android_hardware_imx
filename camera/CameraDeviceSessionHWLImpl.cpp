@@ -271,7 +271,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
             }
 
             // notify shutter
-            uint64_t timestamp = systemTime();
+            uint64_t timestamp = systemTime(SYSTEM_TIME_BOOTTIME);
 
             if (pInfo->pipeline_callback.notify) {
                 NotifyMessage msg{
