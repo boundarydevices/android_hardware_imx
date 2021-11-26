@@ -798,7 +798,15 @@ int KmsDisplay::updateScreen()
             if (format == DRM_FORMAT_XBGR8888) format = DRM_FORMAT_XRGB8888;
             if (format == DRM_FORMAT_ABGR8888) format = DRM_FORMAT_ARGB8888;
 
-            drmModeAddFB2WithModifiers(mDrmFd, ALIGN_PIXEL_64(buffer->width), ALIGN_PIXEL_64(buffer->height),
+            uint32_t alignedw, alignedh;
+#ifdef WORKAROUND_DISPLAY_UNDERRUN
+            alignedw = ALIGN_PIXEL_16(buffer->width);
+            alignedh = ALIGN_PIXEL_16(buffer->height);
+#else
+            alignedw = ALIGN_PIXEL_64(buffer->width);
+            alignedh = ALIGN_PIXEL_64(buffer->height);
+#endif
+            drmModeAddFB2WithModifiers(mDrmFd, alignedw, alignedh,
                 format, bo_handles, pitches, offsets, modifiers,
                 (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
         }
