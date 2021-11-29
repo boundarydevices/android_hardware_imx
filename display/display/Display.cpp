@@ -716,8 +716,18 @@ bool Display::verifyLayers()
         mLayerVector.add(mLayers[i]);
         mTotalLayerNum++;
     }
-    if (mTotalLayerNum < lastTotalLayerNum) {
+    if (mTotalLayerNum != lastTotalLayerNum) {
         mUiUpdate = true;
+    }
+
+    for (size_t i=0; i<MAX_LAYERS; i++) {
+        if (!mLayers[i]->busy) {
+            continue;
+        }
+        if (mLayers[i]->sourceCrop.left == 0 && mLayers[i]->sourceCrop.top == 0
+            && mLayers[i]->sourceCrop.right == 0 && mLayers[i]->sourceCrop.bottom == 0
+            && (mComposeFlag & OVERLAY_COMPOSE_MASK))
+            mLayers[i]->type = LAYER_TYPE_DEVICE; // always skip "Background for SurfaceView[xxx] layer"
     }
 
     // If all layer is in overlay state,add ONLY_OVERLAY_BIT to mComposeFlag.
