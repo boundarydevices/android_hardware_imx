@@ -302,6 +302,7 @@ private:
     CscHw mCamBlitCopyType;
     CscHw mCamBlitCscType;
     char mJpegHw[JPEG_HW_NAME_LEN] = { 0 };
+    int mUseCpuEncoder;
     CameraSensorMetadata mSensorData;
 
     int mPreviewResolutions[MAX_RESOLUTION_SIZE];

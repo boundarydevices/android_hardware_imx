@@ -447,7 +447,7 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
 
     *camera_device_hwl = CameraDeviceHwlImpl::Create(camera_id, devPaths,
         mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw, mCameraDef.jpeg_hw.c_str(),
-        &cam_metadata, std::move(target_physical_devices), mCallback);
+        mCameraDef.mUseCpuEncoder, &cam_metadata, std::move(target_physical_devices), mCallback);
 
     if (*camera_device_hwl == nullptr) {
         ALOGE("%s: Cannot create CameraDeviceHWlImpl.", __func__);

@@ -177,6 +177,7 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     mCamBlitCopyType = pDev->mCamBlitCopyType;
     mCamBlitCscType = pDev->mCamBlitCscType;
     memcpy(mJpegHw, pDev->mJpegHw, JPEG_HW_NAME_LEN);
+    mUseCpuEncoder = pDev->mUseCpuEncoder;
     mSensorData = pDev->mSensorData;
 
     mPreviewResolutionCount = pDev->mPreviewResolutionCount;
@@ -270,8 +271,12 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
                 continue;
             }
 
+            uint64_t timestamp = 0;
             // notify shutter
-            uint64_t timestamp = systemTime(SYSTEM_TIME_BOOTTIME);
+            if (mUseCpuEncoder)
+                timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+            else
+                timestamp = systemTime(SYSTEM_TIME_BOOTTIME);
 
             if (pInfo->pipeline_callback.notify) {
                 NotifyMessage msg{

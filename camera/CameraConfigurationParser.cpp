@@ -93,6 +93,7 @@ const char* const kCameraDefinitionHalVersionKey = "hal_version";
 const char* const kCameraBlitCopyKey = "cam_blit_copy";
 const char* const kCameraBlitCscKey = "cam_blit_csc";
 const char* const kCameraHwJpeg = "hw_jpeg_enc";
+const char* const kUseCpuEncoder = "use_cpu_encoder";
 
 const char* const kCameraMetadataKey = "camera_metadata";
 const char* const kCameraTypeKey = "camera_type";
@@ -232,6 +233,13 @@ bool ConfigureCameras(const Json::Value& value,
     if (value.isMember(kCameraHwJpeg)) {
         camera->jpeg_hw = value[kCameraHwJpeg].asString();
     }
+
+    if(value.isMember(kUseCpuEncoder))
+        camera->mUseCpuEncoder = strtol(value[kUseCpuEncoder].asString().c_str(), NULL, 10);
+    else
+        camera->mUseCpuEncoder = 0;
+
+    ALOGI("%s: mUseCpuEncoder %d", __func__, camera->mUseCpuEncoder);
 
     int camera_id = 0;
     size_t meta_size = value[kCameraMetadataKey].size();
