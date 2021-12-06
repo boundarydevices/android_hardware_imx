@@ -45,7 +45,8 @@ class CameraDeviceHwlImpl : public CameraDeviceHwl
 {
 public:
     static std::unique_ptr<CameraDeviceHwl> Create(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback callback);
+        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
+        PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
 
     virtual ~CameraDeviceHwlImpl();
 
@@ -89,7 +90,8 @@ public:
 
 protected:
     CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback callback);
+        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
+        PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
 
 private:
     virtual status_t Initialize();
