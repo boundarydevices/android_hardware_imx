@@ -1380,7 +1380,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
                 ret += pVideoStreams[index]->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
                                             pipeline_info->streams->at(i).width,
                                             pipeline_info->streams->at(i).height,
-                                            fps);
+                                            fps, captureIntent);
             }
         } else {
             pVideoStreams[0]->SetBufferNumber(pipeline_info->hal_streams->at(configIdx).max_buffers + 1);
@@ -1394,7 +1394,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
             ret = pVideoStreams[0]->ConfigAndStart(format,
                                                 pipeline_info->streams->at(configIdx).width,
                                                 pipeline_info->streams->at(configIdx).height,
-                                                fps);
+                                                fps, captureIntent);
         }
 
         if (ret) {

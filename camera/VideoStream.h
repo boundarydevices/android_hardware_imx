@@ -58,7 +58,7 @@ public:
 
     // Wrapper function for easy use when capture intent changed, succh as take picture when preview.
     // If same config, do nothing. If already start, need fisrt stop, free buffer, then config, alloc buffer, start.
-    virtual int32_t ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, bool recover = false);
+    virtual int32_t ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, uint8_t intent, bool recover = false);
     virtual int32_t Stop();
 
     void SetBufferNumber(uint32_t num) { mNumBuffers = num; }

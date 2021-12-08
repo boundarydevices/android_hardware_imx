@@ -121,11 +121,13 @@ int32_t VideoStream::onFlushLocked() {
 
 
 #define ISP_CONTROL "vendor.rw.camera.isp.control"
-int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, bool recover)
+int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, uint8_t intent, bool recover)
 {
     int ret = 0;
 
     ALOGI("%s: format 0x%x, res %dx%d, fps %d, recover %d", __func__, format, width, height, fps, recover);
+
+    mCaptureIntent = intent;
 
     if (strstr(soc_type, "imx8mq") && (width == 320) && (height == 240)) {
         width = 640;
@@ -291,7 +293,7 @@ capture_data:
         ALOGW("%s: select fd %d blocked %d s on %dx%d, %d fps, camera recover count %d",
             __func__, mDev, SELECT_TIMEOUT_SECONDS, mWidth, mHeight, mFps, mRecoverCount);
 
-        ret = ConfigAndStart(mFormat, mWidth, mHeight, mFps, true);
+        ret = ConfigAndStart(mFormat, mWidth, mHeight, mFps, mCaptureIntent, true);
         if(ret) {
             ALOGE("%s,  ConfigAndStar failed, ret %d", __func__, ret);
             return NULL;

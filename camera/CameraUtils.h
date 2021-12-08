@@ -127,6 +127,7 @@ public:
     uint64_t usage() {return mUsage;}
     int32_t id() {return mId;}
     bool isPreview() {return mbPreview;}
+    bool isPictureIntent() {return (mCaptureIntent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE);}
 
 public:
     uint32_t mWidth = 0;
@@ -135,6 +136,7 @@ public:
     uint64_t mUsage = 0;
     int32_t mId = 0;
     bool mbPreview = false;
+    uint8_t mCaptureIntent = -1;
 };
 
 struct SensorSet

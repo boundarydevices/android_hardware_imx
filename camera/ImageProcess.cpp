@@ -1065,9 +1065,9 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
     }
 
     // Adapt for Camra2.apk. The picture resolution may differ from preview resolution.
-    // If resize for preview stream, there will be obvious changes in the preview.
-    if (dst->isPreview()) {
-        ALOGW("%s: resize from %dx%d to %dx%d, skip preview stream",
+    // If resize for preview stream, there will be obvious changes in the preview when taking picture.
+    if (dst->isPreview() && src->isPictureIntent()) {
+        ALOGW("%s: resize from %dx%d to %dx%d, skip preview stream while taking picture",
             __func__, src->width(), src->height(), dst->width(), dst->height());
         return 0;
     }
