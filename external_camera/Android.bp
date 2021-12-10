@@ -109,6 +109,7 @@ cc_library_shared {
         "frameworks/av/media/codec2/vndk/include",
         "frameworks/native/libs/ui/include",
         "frameworks/native/libs/arect/include",
+        "frameworks/native/libs/math/include",
     ],
 
     export_shared_lib_headers: [
