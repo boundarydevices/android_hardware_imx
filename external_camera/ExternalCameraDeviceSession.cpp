@@ -165,11 +165,13 @@ bool ExternalCameraDeviceSession::initialize() {
         return true;
     }
 
+#ifdef HANTRO_V4L2
     status = mOutputThread->initVpuThread();
     if (status != OK) {
         ALOGE("%s: init VPU decoder thread failed!", __FUNCTION__);
         return true;
     }
+#endif
 
     mRequestMetadataQueue = std::make_unique<RequestMetadataQueue>(
             kMetadataMsgQueueSize, false /* non blocking */);
