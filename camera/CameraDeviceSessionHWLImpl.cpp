@@ -227,6 +227,79 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
         mSettings.reset();
 }
 
+int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
+{
+    uint8_t captureIntent = -1;
+    camera_metadata_ro_entry entry;
+    int ret;
+
+    if ((hwReq == NULL) || (hwReq->settings.get() == NULL))
+        return 0;
+
+    ret = hwReq->settings->Get(ANDROID_CONTROL_CAPTURE_INTENT, &entry);
+    if (ret != 0)
+        return 0;
+
+    captureIntent = entry.data.u8[0];
+
+    int configIdx = -1;
+    uint32_t pipeline_id = hwReq->pipeline_id;
+    configIdx = PickConfigStream(pipeline_id, captureIntent);
+    if(configIdx < 0)
+        return 0;
+
+    uint32_t fps = 30;
+    ret = hwReq->settings->Get(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, &entry);
+    if ((ret == 0) && (entry.count > 1)) {
+        ALOGI("%s: request fps range[%d, %d]", __func__, entry.data.i32[0], entry.data.i32[1]);
+        if (entry.data.i32[0] <= 15 && entry.data.i32[1] <= 15)
+            fps = 15;
+        else if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME))
+            fps = entry.data.i32[0];
+    }
+
+    PipelineInfo *pipeline_info = map_pipeline_info[pipeline_id];
+
+    //TODO need to refine for logical's configIdx ?
+    if(is_logical_request_) {
+        auto stat = hwReq->settings->Get(ANDROID_LENS_FOCAL_LENGTH, &entry);
+        if ((stat == OK) && (entry.count == 1)) {
+            current_focal_length_ = entry.data.f[0];
+            ALOGI("%s: requests' focal length set: %5.2f",__FUNCTION__, entry.data.f[0]);
+        } else {
+            ALOGW("%s: Focal length absent from request!", __FUNCTION__);
+        }
+
+        ret = 0;
+        for (size_t index = 0; index < pVideoStreams.size(); index++) {
+            pVideoStreams[index]->SetBufferNumber(pipeline_info->hal_streams->at(0).max_buffers + 1);
+            ret += pVideoStreams[index]->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
+                                        pipeline_info->streams->at(0).width,
+                                        pipeline_info->streams->at(0).height,
+                                        fps, captureIntent);
+            if (ret)
+                ALOGE("%s: pVideoStreams[%d]->ConfigAndStart failed, ret %d", __func__, index, ret);
+        }
+    } else {
+        pVideoStreams[0]->SetBufferNumber(pipeline_info->hal_streams->at(configIdx).max_buffers + 1);
+
+        uint32_t format = HAL_PIXEL_FORMAT_YCbCr_422_I;
+        if(pipeline_info->hal_streams->at(configIdx).override_format == HAL_PIXEL_FORMAT_RAW16) {
+            format = HAL_PIXEL_FORMAT_RAW16;
+        }
+
+        // v4l2 hard code to use yuv422i. If in future other foramts are used, need refine code, maybe configed in json
+        ret = pVideoStreams[0]->ConfigAndStart(format,
+                                            pipeline_info->streams->at(configIdx).width,
+                                            pipeline_info->streams->at(configIdx).height,
+                                            fps, captureIntent);
+        if (ret)
+            ALOGE("%s: pVideoStreams[0]->ConfigAndStart failed, ret %d", __func__, ret);
+    }
+
+    return ret;
+}
+
 #define WAIT_TIME_OUT 100000000LL  // unit ns, wait 100ms
 int CameraDeviceSessionHwlImpl::HandleRequest()
 {
@@ -270,6 +343,8 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
                 ALOGW("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
                 continue;
             }
+
+            HandleIntent(hwReq);
 
             uint64_t timestamp = 0;
             // notify shutter
@@ -1264,12 +1339,43 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
         mLock.unlock();
         usleep(DESTROY_WAIT_US);
         mLock.lock();
-
-        if( map_frame_request.empty() == false ) {
-            ALOGW("%s: still has %d requests to process after wait, force clear", __func__, map_frame_request.size());
-            map_frame_request.clear();
-        }
     }
+
+    // If still remain requests, just send out result to return buffers to framework.
+    for (auto it = map_frame_request.begin(); it != map_frame_request.end(); it++) {
+        uint32_t frame = it->first;
+        std::vector<FrameRequest> *request = it->second;
+        if(request == NULL) {
+            ALOGW("%s: frame %d request is null", __func__, frame);
+            continue;
+        }
+
+        uint32_t reqNum = request->size();
+        ALOGI("%s, frame %d still has %d requests to process, just send back result", __func__, frame, reqNum);
+
+        for (uint32_t i = 0; i < reqNum; i++) {
+            HwlPipelineRequest *hwReq = &(request->at(i).hwlReq);
+            uint32_t pipeline_id = hwReq->pipeline_id;
+            PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
+            if(pInfo == NULL) {
+                ALOGW("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
+                continue;
+            }
+
+            auto result = std::make_unique<HwlPipelineResult>();
+            result->camera_id = camera_id_;
+            result->pipeline_id = hwReq->pipeline_id;
+            result->frame_number = frame;
+            result->result_metadata = HalCameraMetadata::Clone(hwReq->settings.get());
+            result->input_buffers = hwReq->input_buffers;
+            result->output_buffers = hwReq->output_buffers;
+            result->partial_result = 1;
+            if (pInfo->pipeline_callback.process_pipeline_result)
+                pInfo->pipeline_callback.process_pipeline_result(std::move(result));
+       }
+    }
+
+    CleanRequestsLocked();
 
     /* clear  map_pipeline_info */
     for (auto it = map_pipeline_info.begin(); it != map_pipeline_info.end(); it++) {
@@ -1332,84 +1438,6 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
             fenceInfo.acquire_fence_fd = importFence(requests[i].output_buffers[j].acquire_fence);
             ALOGV("%s, acquire_fence_fd %d", __func__, fenceInfo.acquire_fence_fd);
             frame_request->at(i).outBufferFences[j] = fenceInfo;
-        }
-
-        // process capture intent
-        uint8_t captureIntent = -1;
-        camera_metadata_ro_entry entry;
-        int ret;
-
-        if(requests[i].settings.get() == NULL)
-            continue;
-
-        ret = requests[i].settings->Get(ANDROID_CONTROL_CAPTURE_INTENT, &entry);
-        if (ret != 0)
-            continue;
-        captureIntent = entry.data.u8[0];
-
-        int configIdx = -1;
-        configIdx = PickConfigStream(pipeline_id, captureIntent);
-        if(configIdx < 0)
-            continue;
-
-        uint32_t fps = 30;
-        ret = requests[i].settings->Get(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, &entry);
-        if ((ret == 0) && (entry.count > 1)) {
-            ALOGI("%s: request fps range[%d, %d]", __func__, entry.data.i32[0], entry.data.i32[1]);
-            if (entry.data.i32[0] <= 15 && entry.data.i32[1] <= 15)
-                fps = 15;
-            else if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME))
-                fps = entry.data.i32[0];
-        }
-
-        PipelineInfo *pipeline_info = map_pipeline_info[pipeline_id];
-
-        //TODO need to refine for logical's configIdx ?
-        if(is_logical_request_) {
-            auto stat = requests[i].settings->Get(ANDROID_LENS_FOCAL_LENGTH, &entry);
-            if ((stat == OK) && (entry.count == 1)) {
-                current_focal_length_ = entry.data.f[0];
-                ALOGI("%s: requests' focal length set: %5.2f",__FUNCTION__, entry.data.f[0]);
-            } else {
-                ALOGW("%s: Focal length absent from request!", __FUNCTION__);
-            }
-
-            ret = 0;
-            for (size_t index = 0; index < pVideoStreams.size(); index++) {
-                pVideoStreams[index]->SetBufferNumber(pipeline_info->hal_streams->at(i).max_buffers + 1);
-                ret += pVideoStreams[index]->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
-                                            pipeline_info->streams->at(i).width,
-                                            pipeline_info->streams->at(i).height,
-                                            fps, captureIntent);
-            }
-        } else {
-            pVideoStreams[0]->SetBufferNumber(pipeline_info->hal_streams->at(configIdx).max_buffers + 1);
-
-            uint32_t format = HAL_PIXEL_FORMAT_YCbCr_422_I;
-            if(pipeline_info->hal_streams->at(configIdx).override_format == HAL_PIXEL_FORMAT_RAW16) {
-                format = HAL_PIXEL_FORMAT_RAW16;
-            }
-
-            // v4l2 hard code to use yuv422i. If in future other foramts are used, need refine code, maybe configed in json
-            ret = pVideoStreams[0]->ConfigAndStart(format,
-                                                pipeline_info->streams->at(configIdx).width,
-                                                pipeline_info->streams->at(configIdx).height,
-                                                fps, captureIntent);
-        }
-
-        if (ret) {
-            delete(frame_request);
-            ALOGE("%s: pVideoStreams[%d]->ConfigAndStart failed, ret %d", __func__,i, ret);
-            int stream_size = pVideoStreams.size();
-            for (int i = 0; i < stream_size; ++i) {
-                if (pVideoStreams[i]) {
-                    pVideoStreams[i]->Stop();
-                    pVideoStreams[i]->closeDev();
-                    delete pVideoStreams[i];
-                    pVideoStreams[i] = NULL;
-                }
-            }
-            return ret;
         }
     }
 

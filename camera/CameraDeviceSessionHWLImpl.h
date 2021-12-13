@@ -223,6 +223,7 @@ private:
 
     int CleanRequestsLocked();
     status_t PickConfigStream(uint32_t pipeline_id, uint8_t intent);
+    int HandleIntent(HwlPipelineRequest *hwReq);
 
 private:
     class WorkThread : public Thread
