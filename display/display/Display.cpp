@@ -18,6 +18,9 @@
 #include <cutils/log.h>
 #include <sync/sync.h>
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #include "Memory.h"
 #include "MemoryDesc.h"
@@ -489,6 +492,20 @@ int Display::getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers,
 
         if (mLayers[i]->releaseFence != -1) {
             if (outLayers != NULL && outFences != NULL) {
+                if (mLayers[i]->releaseFence > 0) { // check if such release fence valid or not
+                    int fd = mLayers[i]->releaseFence;
+                    struct stat _stat;
+                    int ret = -1;
+                    if (!fcntl(fd, F_GETFL))
+                        if (!fstat(fd, &_stat))
+                            if (_stat.st_nlink >= 1)
+                                ret = 0;
+
+                    if (ret == -1) { // mark invalid release fence as -1
+                        mLayers[i]->releaseFence = -1;
+                        continue;
+                    }
+                }
                 outLayers[numElements] = (uint64_t)mLayers[i]->index;
                 outFences[numElements] = (int32_t)mLayers[i]->releaseFence;
             }
