@@ -107,7 +107,6 @@ FbDisplay::FbDisplay()
     mOvFd  = -1;
     memset(&mOvInfo, 0, sizeof(mOvInfo));
     mOvPowerMode = -1;
-    mOverlay = NULL;
     mListener = NULL;
     mOutFence = -1;
     mPresentFence = -1;
@@ -291,13 +290,6 @@ bool FbDisplay::checkOverlay(Layer* layer)
         ALOGV("work around to GPU composite");
         return false;
     }
-
-    if (mOverlay != NULL) {
-        ALOGW("only support one overlay now");
-        return false;
-    }
-
-    mOverlay = layer;
 
     return true;
 }

@@ -287,6 +287,7 @@ protected:
     LayerVector mLayerVector;
     Layer* mLayers[MAX_LAYERS];
     Layer* mHwLayers[MAX_LAYERS];
+    Layer* mOverlay;
     Composer& mComposer;
     Memory* mRenderTarget;
     int mAcquireFence;

@@ -117,7 +117,6 @@ KmsDisplay::KmsDisplay()
     mPowerMode = DRM_MODE_DPMS_OFF;
 
     mPset = NULL;
-    mOverlay = NULL;
     mNoResolve = false;
     mAllowModifier = false;
     mMetadataID = 0;
@@ -556,14 +555,6 @@ bool KmsDisplay::checkOverlay(Layer* layer)
         }
     }
 
-    if (mOverlay != NULL) {
-        ALOGW("only support one overlay now");
-        return false;
-    }
-
-    mOverlay = layer;
-    layer->isOverlay = true;
-
     return true;
 }
 
@@ -669,6 +660,7 @@ int KmsDisplay::performOverlay()
 
     if (buffer->fbId == 0) {
         ALOGE("%s invalid fbid", __func__);
+        mOverlay->isOverlay = false;
         mOverlay = NULL;
         return 0;
     }

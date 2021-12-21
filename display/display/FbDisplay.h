@@ -102,7 +102,6 @@ protected:
     int mOvFd;
     struct fb_var_screeninfo mOvInfo;
     int mOvPowerMode;
-    Layer* mOverlay;
     int mOutFence;
     int mPresentFence;
     bool mCustomizeUI;

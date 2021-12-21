@@ -196,7 +196,6 @@ protected:
     KmsPlane mKmsPlanes[KMS_PLANE_NUM];
     uint32_t mKmsPlaneNum;
     drmModeAtomicReqPtr mPset;
-    Layer* mOverlay;
     MemoryManager* mMemoryManager;
     bool mNoResolve;
     bool mAllowModifier;
