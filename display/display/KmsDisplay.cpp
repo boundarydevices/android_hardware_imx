@@ -33,6 +33,7 @@
 
 // uncomment below to enable frame dump feature
 //#define DEBUG_DUMP_FRAME
+//#define DEBUG_DUMP_OVERLAY
 
 #ifdef DEBUG_DUMP_FRAME
 static void dump_frame_to_file(char *pbuf, int size, char *filename)
@@ -48,7 +49,7 @@ static void dump_frame_to_file(char *pbuf, int size, char *filename)
     close(fd);
 }
 
-static void dump_frame(char *pbuf, int size)
+static void dump_frame(char *pbuf, int width, int height, int size)
 {
     static bool start_dump = false;
     static int prev_request_frame_count = 0;
@@ -72,19 +73,25 @@ static void dump_frame(char *pbuf, int size)
     }
 
     if((start_dump)&& (request_frame_count >= 1)) {
-        ALOGI("Dump %d frame buffer %p, size %d",
-                dumpped_count, pbuf, size);
+        ALOGI("Dump %d frame buffer %p, %d x %d, size %d",
+                dumpped_count, pbuf, width, height, size);
         if (pbuf != 0) {
             char filename[128];
             memset(filename, 0, 128);
             sprintf(filename, "/data/%s-frame-%d.rgba",
-                    "drm-display", dumpped_count);
+#ifdef DEBUG_DUMP_OVERLAY
+                    "drm-overlay",
+#else
+                    "drm-display",
+#endif
+                    dumpped_count);
             dump_frame_to_file(pbuf, size, filename);
             dumpped_count ++;
         }
         request_frame_count --;
         if(request_frame_count == 0){
             start_dump = false;
+            property_set("vendor.hwc.enable.dump_frame", "0"); // disable dump when completed
         }
     }
 
@@ -868,15 +875,24 @@ int KmsDisplay::updateScreen()
     }
 
 #ifdef DEBUG_DUMP_FRAME
-    if(buffer->base == 0) {
+#ifdef DEBUG_DUMP_OVERLAY
+    Memory *hnd;
+    if (mOverlay)
+        hnd = mOverlay->handle;
+    else
+        hnd = buffer;
+#else
+    Memory *hnd = buffer;
+#endif
+    if(hnd->base == 0) {
         void *vaddr = NULL;
-        mMemoryManager->lock(buffer, buffer->usage,
-                    0, 0, buffer->width, buffer->height, &vaddr);
-        dump_frame((char *)vaddr, buffer->size);
-        mMemoryManager->unlock(buffer);
+        int usage = hnd->usage | USAGE_SW_READ_OFTEN;
+        mMemoryManager->lock(hnd, usage, 0, 0, hnd->width, hnd->height, &vaddr);
+        dump_frame((char *)vaddr, hnd->width, hnd->height, hnd->size);
+        mMemoryManager->unlock(hnd);
     }
     else
-        dump_frame((char *)buffer->base, buffer->size);
+        dump_frame((char *)hnd->base, hnd->width, hnd->height, hnd->size);
 #endif
 
     bindCrtc(mPset, modeID);
