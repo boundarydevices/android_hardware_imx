@@ -2456,12 +2456,12 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     }
 
 exit:
+    pthread_mutex_unlock(&in->lock);
     if (ret < 0) {
         memset(buffer, 0, bytes);
         usleep(bytes * 1000000 / audio_stream_in_frame_size((const struct audio_stream_in *)&stream->common) /
                in_get_sample_rate(&stream->common));
     }
-    pthread_mutex_unlock(&in->lock);
     if (bytes > 0) {
         in->frames_read += frames_rq;
     }
