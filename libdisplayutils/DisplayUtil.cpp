@@ -101,6 +101,9 @@ int convert_gralloc_format_to_nxp_format(int format)
         case HAL_PIXEL_FORMAT_RAW16:
             fslFormat = FORMAT_RAW16;
             break;
+        case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+            fslFormat = FORMAT_NV12;
+            break;
         default:
             ALOGE("%s invalid format:0x%x", __func__, format);
             break;
