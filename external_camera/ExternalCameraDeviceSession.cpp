@@ -210,14 +210,15 @@ void ExternalCameraDeviceSession::closeOutputThread() {
 
 void ExternalCameraDeviceSession::closeOutputThreadImpl() {
     if (mOutputThread) {
+        mOutputThread->flush();
+        mOutputThread->requestExit();
+        mOutputThread->join();
+
         if (mOutputThread->mDecoder) {
             mOutputThread->mDecoder->Stop();
             mOutputThread->mDecoder->Destroy();
             mOutputThread->mDecoder->freeOutputBuffers();
         }
-        mOutputThread->flush();
-        mOutputThread->requestExit();
-        mOutputThread->join();
         mOutputThread.clear();
     }
 }
