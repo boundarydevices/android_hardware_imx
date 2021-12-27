@@ -1015,7 +1015,7 @@ static int out_pause(struct audio_stream_out* stream)
     ALOGI("%s", __func__);
 
     pthread_mutex_lock(&out->lock);
-    if (!out->paused) {
+    if ((!out->paused) && (out->pcm)) {
         status = pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
         if (!status)
             out->paused = true;
@@ -1033,7 +1033,7 @@ static int out_resume(struct audio_stream_out* stream)
     ALOGI("%s", __func__);
 
     pthread_mutex_lock(&out->lock);
-    if (out->paused) {
+    if ((out->paused) && (out->pcm)) {
         status= pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
         if (!status)
             out->paused = false;
