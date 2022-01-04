@@ -28,10 +28,9 @@ typedef int (*hwc_func1)(void* handle);
 typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 
-enum CscHw {
-    GPU_2D,
-    GPU_3D,
-    CPU,
+enum SrcFormat {
+    NV16,
+    NV12,
 };
 
 class ImageProcess {
@@ -39,31 +38,24 @@ public:
     static ImageProcess* getInstance();
     ~ImageProcess();
 
-    int handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, CscHw hw_type);
-
-private:
-    int handleFrameByGPU_3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height);
-
-    void cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer,
-            uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
-
-    void *getHandle();
-    int closeEngine(void* handle);
-    void getModule(char *path, const char *name);
+    int handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, SrcFormat src_fmt);
 
 private:
     ImageProcess();
+    void *getHandle();
+    void getModule(char *path, const char *name);
+
+    int handleNV12Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height);
+    void cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer,
+            uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
+
+    int handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height);
+    void cl_NV16toI420(void *g2dHandle, uint8_t *inputBuffer,
+            uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
+
+private:
     static Mutex sLock;
     static ImageProcess* sInstance;
-
-    void *mG2dModule;
-    void *mG2dHandle;
-    hwc_func1 mOpenEngine;
-    hwc_func1 mCloseEngine;
-    hwc_func1 mFinishEngine;
-    hwc_func4 mCopyEngine;
-    hwc_func3 mBlitEngine;
-    Mutex mG2dLock;
 
     void *mCLModule;
     void *mCLHandle;
