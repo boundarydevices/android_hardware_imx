@@ -27,41 +27,41 @@ extern "C"  {
 enum cl_buffer_usage
 {
     /*cached and non-continuous buffer*/
-     CL_G2D_CPU_MEMORY       = 0,
-     /* Uncached physical continuous buffer*/
-     CL_G2D_DEVICE_MEMORY    = 1,
+    CL_G2D_CPU_MEMORY       = 0,
+    /* Uncached physical continuous buffer*/
+    CL_G2D_DEVICE_MEMORY    = 1,
 };
 
 //rgb formats
 enum cl_g2d_format
 {
 //rgb formats
-     CL_G2D_RGB565               = 0,
-     CL_G2D_RGBA8888             = 1,
-     CL_G2D_RGBX8888             = 2,
-     CL_G2D_BGRA8888             = 3,
-     CL_G2D_BGRX8888             = 4,
-     CL_G2D_BGR565               = 5,
+    CL_G2D_RGB565               = 0,
+    CL_G2D_RGBA8888             = 1,
+    CL_G2D_RGBX8888             = 2,
+    CL_G2D_BGRA8888             = 3,
+    CL_G2D_BGRX8888             = 4,
+    CL_G2D_BGR565               = 5,
 
-     CL_G2D_ARGB8888             = 6,
-     CL_G2D_ABGR8888             = 7,
-     CL_G2D_XRGB8888             = 8,
-     CL_G2D_XBGR8888             = 9,
-     CL_G2D_RGB888               = 10,
+    CL_G2D_ARGB8888             = 6,
+    CL_G2D_ABGR8888             = 7,
+    CL_G2D_XRGB8888             = 8,
+    CL_G2D_XBGR8888             = 9,
+    CL_G2D_RGB888               = 10,
 
 //yuv formats
-     CL_G2D_NV12                 = 20,
-     CL_G2D_I420                 = 21,
-     CL_G2D_YV12                 = 22,
-     CL_G2D_NV21                 = 23,
-     CL_G2D_YUYV                 = 24,
-     CL_G2D_YVYU                 = 25,
-     CL_G2D_UYVY                 = 26,
-     CL_G2D_VYUY                 = 27,
-     CL_G2D_NV16                 = 28,
-     CL_G2D_NV61                 = 29,
-     CL_G2D_NV12_TILED           = 30,
-     CL_G2D_NV12_10BIT_TILED     = 31,
+    CL_G2D_NV12                 = 20,
+    CL_G2D_I420                 = 21,
+    CL_G2D_YV12                 = 22,
+    CL_G2D_NV21                 = 23,
+    CL_G2D_YUYV                 = 24,
+    CL_G2D_YVYU                 = 25,
+    CL_G2D_UYVY                 = 26,
+    CL_G2D_VYUY                 = 27,
+    CL_G2D_NV16                 = 28,
+    CL_G2D_NV61                 = 29,
+    CL_G2D_NV12_TILED           = 30,
+    CL_G2D_NV12_10BIT_TILED     = 31,
 };
 
 struct cl_g2d_buf

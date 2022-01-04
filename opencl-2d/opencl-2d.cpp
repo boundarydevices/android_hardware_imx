@@ -51,6 +51,7 @@
 #define NV12_TILED_TO_LINEAR_KERNEL "nv12_tiled_to_linear"
 #define NV12_10BIT_TILED_TO_LINEAR_KERNEL "nv12_10bit_tiled_to_linear"
 #define NV12_TO_I420_KERNEL "g2d_nv12_to_i420"
+#define NV16_TO_I420_KERNEL "g2d_nv16_to_i420"
 
 /*Assume max buffer are 3 buffers to be handle, align with cl_g2d_surface.planes[3] */
 #define MAX_CL_MEM_COUNT 3
@@ -70,8 +71,9 @@ typedef enum {
     NV12_TILED_TO_LINEAR_INDEX = 4,
     NV12_10BIT_TILED_TO_LINEAR_INDEX = 5,
     NV12_TO_I420_INDEX = 6,
+    NV16_TO_I420_INDEX = 7,
     /*Assume max kernel function to handle 2D convert */
-    MAX_CL_KERNEL_COUNT  = 7
+    MAX_CL_KERNEL_COUNT  = 8
 } cl_kernel_index;
 
 static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
@@ -82,6 +84,7 @@ static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
     NV12_TILED_TO_LINEAR_KERNEL,
     NV12_10BIT_TILED_TO_LINEAR_KERNEL,
     NV12_TO_I420_KERNEL,
+    NV16_TO_I420_KERNEL,
     NULL,
 };
 
@@ -141,6 +144,8 @@ static int g2d_get_planebpp(unsigned int format, int plane)
                 return 8;
             else
                 return 4;
+        case CL_G2D_NV16:
+                return 8;
         case CL_G2D_NV12_10BIT_TILED:
             if(plane == 0)
                 return 10;
@@ -183,6 +188,7 @@ static int g2d_get_planecount(unsigned int format)
          */
         case CL_G2D_NV12:
         case CL_G2D_NV21:
+        case CL_G2D_NV16:
         case CL_G2D_NV12_10BIT_TILED:
         case CL_G2D_NV12_TILED:
             return 2;
@@ -228,7 +234,7 @@ static bool CreateMemObjects(struct g2dContext *gcontext, struct cl_g2d_surface 
         int len = g2d_get_planesize(surface, i);
 
         if ((unsigned char *)surface->planes[i]== NULL) {
-            g2d_printf( "Error creating memory objects on null buffer.\n");
+            g2d_printf("%s: Error creating memory objects on null buffer.\n", __func__);
             return false;
         }
 
@@ -237,7 +243,7 @@ static bool CreateMemObjects(struct g2dContext *gcontext, struct cl_g2d_surface 
             len, (unsigned char *)surface->planes[i], NULL);
         if (memObject == NULL)
         {
-            g2d_printf( "Error creating memory objects.\n");
+            g2d_printf("%s: Error creating memory objects.\n", __func__);
             return false;
         }
         if (isInput) {
@@ -275,7 +281,7 @@ static bool ReadOutMemObjects(struct g2dContext *gContext)
                         CL_TRUE, 0, len, buf, 0, NULL, NULL);
                 if (errNum != CL_SUCCESS)
                 {
-                    g2d_printf("Error reading result buffer plane %d.\n", i);
+                    g2d_printf("%s: Error reading result buffer plane %d.\n", __func__, i);
                     return false;
                 }
             }
@@ -290,7 +296,7 @@ static cl_program CreateProgramFromBinary(cl_context context, cl_device_id devic
 {
     FILE *fp = fopen(fileName, "rb");
     if (fp == NULL) {
-        g2d_printf("Error read program binary %s.", fileName);
+        g2d_printf("%s: Error read program binary %s.", __func__, fileName);
         return NULL;
     }
 
@@ -299,7 +305,7 @@ static cl_program CreateProgramFromBinary(cl_context context, cl_device_id devic
     fseek(fp, 0, SEEK_END);
     binarySize = ftell(fp);
     if((int)binarySize < 0) {
-        g2d_printf("Error ftell %s.", fileName);
+        g2d_printf("%s: Error ftell %s.", __func__, fileName);
         fclose(fp);
         return NULL;
     }
@@ -322,12 +328,12 @@ static cl_program CreateProgramFromBinary(cl_context context, cl_device_id devic
     delete [] programBinary;
     if (errNum != CL_SUCCESS)
     {
-        g2d_printf("Error loading program binary.");
+        g2d_printf("%s: Error loading program binary.", __func__);
         return NULL;
     }
     if (binaryStatus != CL_SUCCESS)
     {
-        g2d_printf("Invalid binary for device");
+        g2d_printf("%s: Invalid binary for device", __func__);
         return NULL;
     }
     errNum = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
@@ -337,7 +343,7 @@ static cl_program CreateProgramFromBinary(cl_context context, cl_device_id devic
         char buildLog[16384];
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
                 sizeof(buildLog), buildLog, NULL);
-        g2d_printf("Error in program: ");
+        g2d_printf("%s: Error in program: ", __func__);
         g2d_printf("%s", buildLog);
         clReleaseProgram(program);
         return NULL;
@@ -356,7 +362,7 @@ static cl_program CreateProgram(cl_context context, cl_device_id device,
     pFileStream = fopen(fileName, "rb");
     if(pFileStream == 0)
     {
-        g2d_printf("Failed to open file %s for reading\n" ,fileName);
+        g2d_printf("%s: Failed to open file %s for reading\n", __func__, fileName);
         return NULL;
     }
 
@@ -365,7 +371,7 @@ static cl_program CreateProgram(cl_context context, cl_device_id device,
     program_length = (size_t)ftell(pFileStream);
     if((int)program_length < 0)
     {
-        g2d_printf("Failed to ftell file %s\n", fileName);
+        g2d_printf("%s: Failed to ftell file %s\n", __func__, fileName);
         fclose(pFileStream);
         return NULL;
     }
@@ -378,7 +384,7 @@ static cl_program CreateProgram(cl_context context, cl_device_id device,
     {
         fclose(pFileStream);
         free(source);
-        g2d_printf("Failed to open file %s for reading\n" ,fileName);
+        g2d_printf("%s: Failed to open file %s for reading\n", __func__, fileName);
         return NULL;
     }
     fclose(pFileStream);
@@ -389,7 +395,7 @@ static cl_program CreateProgram(cl_context context, cl_device_id device,
     free(source);
     if (program == NULL)
     {
-        g2d_printf("Failed to create CL program from source.\n");
+        g2d_printf("%s: Failed to create CL program from source.\n", __func__);
         return NULL;
     }
 
@@ -401,7 +407,7 @@ static cl_program CreateProgram(cl_context context, cl_device_id device,
         char buildLog[16384];
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
                 sizeof(buildLog), buildLog, NULL);
-        g2d_printf("Error in build kernel:\n");
+        g2d_printf("%s: Error in build kernel:\n", __func__);
         g2d_printf("%s", buildLog);
         clReleaseProgram(program);
         return NULL;
@@ -421,19 +427,19 @@ static cl_command_queue CreateCommandQueue(cl_context context,
             &deviceBufferSize);
     if (errNum != CL_SUCCESS)
     {
-        g2d_printf("Failed call to clGetContextInfo(...,GL_CONTEXT_DEVICES,...)\n");
+        g2d_printf("%s: Failed call to clGetContextInfo(...,GL_CONTEXT_DEVICES,...)\n", __func__);
         return NULL;
     }
     if (deviceBufferSize <= 0)
     {
-        g2d_printf("No devices available.\n");
+        g2d_printf("%s: No devices available.\n", __func__);
         return NULL;
     }
     // Allocate memory for the devices buffer
     devices = (cl_device_id *)malloc(deviceBufferSize);
     if(devices == NULL)
     {
-        g2d_printf("Failed to malloc %d bytes for devices\n", deviceBufferSize);
+        g2d_printf("%s: Failed to malloc %d bytes for devices\n", __func__, deviceBufferSize);
         return NULL;
     }
 
@@ -441,7 +447,7 @@ static cl_command_queue CreateCommandQueue(cl_context context,
     if (errNum != CL_SUCCESS)
     {
         free(devices);
-        g2d_printf("Failed to get device IDs\n");
+        g2d_printf("%s: Failed to get device IDs\n", __func__);
         return NULL;
     }
 
@@ -450,7 +456,7 @@ static cl_command_queue CreateCommandQueue(cl_context context,
     if (commandQueue == NULL)
     {
         free(devices);
-        g2d_printf("Failed to create commandQueue for device 0\n");
+        g2d_printf("%s: Failed to create commandQueue for device 0\n", __func__);
         return NULL;
     }
     *device = devices[0];
@@ -470,7 +476,7 @@ static cl_context CreateContext()
     errNum = clGetPlatformIDs(1, &firstPlatformId, &numPlatforms);
     if (errNum != CL_SUCCESS || numPlatforms <= 0)
     {
-        g2d_printf("Failed to find any OpenCL platforms.\n");
+        g2d_printf("%s: Failed to find any OpenCL platforms.\n", __func__);
         return NULL;
     }
 
@@ -486,13 +492,13 @@ static cl_context CreateContext()
             NULL, NULL, &errNum);
     if (errNum != CL_SUCCESS)
     {
-        g2d_printf("Could not create GPU context, trying CPU...\n");
+        g2d_printf("%s: Could not create GPU context, trying CPU...\n", __func__);
         context = clCreateContextFromType(contextProperties,
                 CL_DEVICE_TYPE_CPU,
                 NULL, NULL, &errNum);
         if (errNum != CL_SUCCESS)
         {
-            g2d_printf("Failed to create an OpenCL GPU or CPU context.\n");
+            g2d_printf("%s: Failed to create an OpenCL GPU or CPU context.\n", __func__);
             return NULL;
         }
     }
@@ -581,7 +587,7 @@ int cl_g2d_open(void **handle)
 
     gContext = (struct g2dContext *)calloc(1, sizeof(struct g2dContext));
     if (gContext == NULL) {
-        g2d_printf("malloc memory failed for g2dcontext!\n");
+        g2d_printf("%s: malloc memory failed for g2dcontext!\n", __func__);
         return -1;
     }
 
@@ -590,13 +596,13 @@ int cl_g2d_open(void **handle)
 
         gContext->context = CreateContext();
             if (gContext->context == NULL) {
-                    g2d_printf("failed for CreateContext\n");
+                    g2d_printf("%s: failed for CreateContext\n", __func__);
                     goto err2;
         }
 
         gContext->commandQueue = CreateCommandQueue(gContext->context, &device);
             if (gContext->commandQueue == NULL) {
-                    g2d_printf("failed for CreateCommandQueue\n");
+                    g2d_printf("%s: failed for CreateCommandQueue\n", __func__);
                     goto err2;
         }
         gContext->device = device;
@@ -608,7 +614,7 @@ int cl_g2d_open(void **handle)
         gContext->program = CreateProgramFromBinary(gContext->context, device, clFileName);
 #endif
         if (gContext->program == NULL) {
-            g2d_printf("failed for CreateProgramFromBinary %s\n", clFileName);
+            g2d_printf("%s: failed for CreateProgramFromBinary %s\n", __func__, clFileName);
             goto err2;
         }
 
@@ -688,7 +694,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
         NULL);
     if (memObject == NULL)
     {
-        g2d_printf( "Error creating input memory objects.\n");
+        g2d_printf("%s: Error creating input memory objects.\n", __func__);
         goto error;
     }
     gcontext->memInObjects[kernel_index][0] = memObject;
@@ -702,7 +708,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
         NULL);
     if (memObject == NULL)
     {
-        g2d_printf( "Error creating output memory objects.\n");
+        g2d_printf("%s: Error creating output memory objects.\n", __func__);
         goto error;
     }
     gcontext->memOutObjects[kernel_index][0] = memObject;
@@ -715,7 +721,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
                     sizeof(cl_mem), &size);
     if (errNum != CL_SUCCESS)
     {
-        g2d_printf("Error setting kernel arguments.\n");
+        g2d_printf("%s: Error setting kernel arguments.\n", __func__);
         ReleaseMemObjects(gcontext);
         goto error;
     }
@@ -726,8 +732,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
             0, NULL, NULL);
     if (errNum != CL_SUCCESS)
     {
-        g2d_printf("Error queuing kernel for execution as err = %d \n",
-                errNum );
+        g2d_printf("%s: Error queuing kernel for execution as err = %d \n", __func__, errNum);
         ReleaseMemObjects(gcontext);
         goto error;
     }
@@ -741,7 +746,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
         gcontext->dst[kernel_index]->usage = output_buf->usage;
     }
     //use cpu to handle the last 63 bytes, if the size is not n x 64 byptes
-    remain_size = size&CL_ATOMIC_COPY_MASK;
+    remain_size = size & CL_ATOMIC_COPY_MASK;
     if(remain_size > 0)
         memcpy((char *)input_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE,
                 (char *)output_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE, remain_size);
@@ -781,6 +786,9 @@ static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *d
     else if ((src->format == CL_G2D_NV12)&&
         (dst->format == CL_G2D_I420))
         kernel_index = NV12_TO_I420_INDEX;
+    else if ((src->format == CL_G2D_NV16)&&
+        (dst->format == CL_G2D_I420))
+        kernel_index = NV16_TO_I420_INDEX;
 
     return kernel_index;
 }
@@ -905,41 +913,52 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_stride));
         }
+        else if (kernel_index == NV16_TO_I420_INDEX) {
+            int width = src->width;
+            int src_stride = src->stride;
+            int dst_stride = dst->stride;
+
+            kernel_width = width / PLAT_VLOAD_BYTES;
+            kernel_height = src->height / 2;
+
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_stride));
+        }
 
         if (errNum != CL_SUCCESS) {
-            g2d_printf("Error setting kernel arguments.\n");
+            g2d_printf("%s: Error setting kernel arguments.\n", __func__);
             ReleaseMemObjects(gcontext);
             goto error;
         }
 
-        size_t globalWorkSize[2] = {(size_t)kernel_width, (size_t)kernel_height};
         //step 10: Running the kernel
         //Summit command
         if (kernel_index == NV12_TO_I420_INDEX) {
-
             int src_stride = src->stride;
             unsigned int  nPicHeight = dst->height;
             int leftover = 0;
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(int), &leftover);
             size_t global2d[2];
             size_t local2d [2];
-            size_t offset2d[2];
+
             global2d[0] = src_stride / PLAT_VLOAD_BYTES / PLAT_LOCAL_SIZE * PLAT_LOCAL_SIZE;
             global2d[1] = nPicHeight / 2;
+
             local2d [0] = PLAT_LOCAL_SIZE;
             local2d [1] = 1;
             errNum = clEnqueueNDRangeKernel(gcontext->commandQueue, kernel,
                                         2, NULL, global2d, local2d,
                                         0, NULL, NULL);
             if (errNum != CL_SUCCESS) {
-                g2d_printf("Error queuing kernel for execution as err = %d \n",
-                    errNum );
+                g2d_printf("%s: NV12_TO_I420-1: Error queuing kernel for execution as err = %d \n", __func__, errNum);
                 ReleaseMemObjects(gcontext);
                 goto error;
             }
             leftover = src_stride - global2d[0] * PLAT_VLOAD_BYTES;
             if (0 != leftover) {
                 leftover = leftover - PLAT_VLOAD_BYTES * PLAT_LOCAL_SIZE;
+                size_t offset2d[2];
                 offset2d[0] = global2d[0] - PLAT_LOCAL_SIZE;
                 offset2d[1] = 0;
                 local2d [0] = 1;
@@ -949,17 +968,18 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
                                             2, offset2d, global2d, local2d,
                                             0, NULL, NULL);
                 if (errNum != CL_SUCCESS) {
-                    g2d_printf("Error queuing kernel for execution as err = %d \n", errNum);
+                    g2d_printf("%s: NV12_TO_I420-2: Error queuing kernel for execution as err = %d \n", __func__, errNum);
                     ReleaseMemObjects(gcontext);
                     goto error;
                 }
             }
         } else {
+            size_t globalWorkSize[2] = {(size_t)kernel_width, (size_t)kernel_height};
             errNum = clEnqueueNDRangeKernel(gcontext->commandQueue, kernel,
                                         2, NULL, globalWorkSize, NULL,
                                         0, NULL, NULL);
             if (errNum != CL_SUCCESS) {
-                g2d_printf("Error queuing kernel for execution as err = %d \n", errNum );
+                g2d_printf("%s: Error queuing kernel for execution as err = %d \n", __func__, errNum );
                 ReleaseMemObjects(gcontext);
                 goto error;
             }
