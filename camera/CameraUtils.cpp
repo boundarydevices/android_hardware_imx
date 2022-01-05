@@ -499,7 +499,7 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
         return -1;
     }
 
-    ALOGI("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%d\n", __func__, (void *)outPtr, (void *)phyAddr, ionSize, imxBuf.mFormatSize);
+    ALOGV("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%d\n", __func__, (void *)outPtr, (void *)phyAddr, ionSize, imxBuf.mFormatSize);
 
     imxBuf.mVirtAddr = (void *)outPtr;
     imxBuf.mPhyAddr = phyAddr;
@@ -537,6 +537,15 @@ void SetBufferHandle(ImxStreamBuffer &imxBuf) {
 
     handle = new fsl::Memory(&desc, imxBuf.mFd, -1);
     imxBuf.buffer = (buffer_handle_t)handle;
+}
+
+void SwitchImxBuf(ImxStreamBuffer& imxBufA, ImxStreamBuffer& imxBufB)
+{
+    ImxStreamBuffer tmpBuf = imxBufA;
+    imxBufA = imxBufB;
+    imxBufB = tmpBuf;
+
+    return;
 }
 
 } // namespace android

@@ -52,15 +52,6 @@ Mutex ImageProcess::sLock(Mutex::PRIVATE);
 
 static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels);
 
-static void swithImxBuf(ImxStreamBuffer& imxBufA, ImxStreamBuffer& imxBufB)
-{
-    ImxStreamBuffer tmpBuf = imxBufA;
-    imxBufA = imxBufB;
-    imxBufB = tmpBuf;
-
-    return;
-}
-
 static bool IsCscSupportByCPU(int srcFormat, int dstFormat)
 {
     // yuyv -> nv12
@@ -531,6 +522,8 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
+    ImxStreamBuffer resizeBuf = {0};
+
     // can't do csc for some formats.
     if (!(((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
@@ -559,38 +552,107 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
     d_buf.buf_paddr = dstBuf.mPhyAddr;
     d_buf.buf_vaddr = dstBuf.mVirtAddr;
 
+    // zoom feature
+    uint32_t crop_left = 0;
+    uint32_t crop_top = 0;
+    uint32_t crop_width = src->width();
+    uint32_t crop_height =  src->height();
+
+    // currently, just suppport zoom in.
+    if (src->mZoomRatio > 1.0) {
+        crop_width = src->width()/src->mZoomRatio;
+        crop_height = src->height()/src->mZoomRatio;
+        crop_left = (src->width() - crop_width)/2;
+        crop_top = (src->height() - crop_height)/2;
+    }
+
     s_surface.format = (g2d_format)convertPixelFormatToG2DFormat(src->format());
     s_surface.planes[0] = (long)s_buf.buf_paddr;
-    s_surface.left = 0;
-    s_surface.top = 0;
-    s_surface.right = src->width();
-    s_surface.bottom = src->height();
+    s_surface.left = crop_left;
+    s_surface.top = crop_top;
+    s_surface.right = crop_left + crop_width;
+    s_surface.bottom = crop_top + crop_height;
     s_surface.stride = src->width();
     s_surface.width  = src->width();
     s_surface.height = src->height();
     s_surface.rot    = G2D_ROTATION_0;
 
-    d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dst->format());
-    d_surface.planes[0] = (long)d_buf.buf_paddr;
-    d_surface.planes[1] = (long)d_buf.buf_paddr + dst->width() * dst->height();
-    d_surface.left = 0;
-    d_surface.top = 0;
-    d_surface.right = dst->width();
-    d_surface.bottom = dst->height();
-    d_surface.stride = dst->width();
-    d_surface.width  = dst->width();
-    d_surface.height = dst->height();
-    d_surface.rot    = G2D_ROTATION_0;
+    ALOGV("%s: crop from (%d, %d), size %dx%d, srcBuf.mFormatSize %d, mZoomRatio %f",
+        __func__, crop_left, crop_top, crop_width, crop_height, srcBuf.mFormatSize, src->mZoomRatio);
 
-    Mutex::Autolock _l(mG2dLock);
-    ret = mBlitEngine(g2dHandle, (void*)&s_surface, (void*)&d_surface);
+    if ((src->format() == dst->format()) || (src->mZoomRatio <= 1.0)) { // just scale or just csc
+        d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dst->format());
+        d_surface.planes[0] = (long)d_buf.buf_paddr;
+        d_surface.planes[1] = (long)d_buf.buf_paddr + dst->width() * dst->height();
+        d_surface.left = 0;
+        d_surface.top = 0;
+        d_surface.right = dst->width();
+        d_surface.bottom = dst->height();
+        d_surface.stride = dst->width();
+        d_surface.width  = dst->width();
+        d_surface.height = dst->height();
+        d_surface.rot    = G2D_ROTATION_0;
 
-    if (ret == 0) {
+        Mutex::Autolock _l(mG2dLock);
+        ret = mBlitEngine(g2dHandle, (void*)&s_surface, (void*)&d_surface);
+        if (ret)
+            goto finish_blit;
+
+        mFinishEngine(g2dHandle);
+    } else {
+        struct g2d_surface tmp_surface;
+
+        resizeBuf.mFormatSize = srcBuf.mFormatSize;
+        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+        ret = AllocPhyBuffer(resizeBuf);
+        if (ret) {
+            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+            return BAD_VALUE;
+        }
+
+        // first scale on same format as source
+        tmp_surface.format = (g2d_format)convertPixelFormatToG2DFormat(src->format());
+        tmp_surface.planes[0] = (long)resizeBuf.mPhyAddr;
+        tmp_surface.planes[1] = (long)resizeBuf.mPhyAddr + dst->width() * dst->height();
+        tmp_surface.left = 0;
+        tmp_surface.top = 0;
+        tmp_surface.right = dst->width();
+        tmp_surface.bottom = dst->height();
+        tmp_surface.stride = dst->width();
+        tmp_surface.width  = dst->width();
+        tmp_surface.height = dst->height();
+        tmp_surface.rot    = G2D_ROTATION_0;
+
+        Mutex::Autolock _l(mG2dLock);
+        ret = mBlitEngine(g2dHandle, (void*)&s_surface, (void*)&tmp_surface);
+        if (ret)
+            goto finish_blit;
+
+        mFinishEngine(g2dHandle);
+
+        // then csc to dst format
+        d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dst->format());
+        d_surface.planes[0] = (long)d_buf.buf_paddr;
+        d_surface.planes[1] = (long)d_buf.buf_paddr + dst->width() * dst->height();
+        d_surface.left = 0;
+        d_surface.top = 0;
+        d_surface.right = dst->width();
+        d_surface.bottom = dst->height();
+        d_surface.stride = dst->width();
+        d_surface.width  = dst->width();
+        d_surface.height = dst->height();
+        d_surface.rot    = G2D_ROTATION_0;
+
+        ret = mBlitEngine(g2dHandle, (void*)&tmp_surface, (void*)&d_surface);
+        if (ret)
+            goto finish_blit;
+
         mFinishEngine(g2dHandle);
     }
 
+finish_blit:
+    FreePhyBuffer(resizeBuf);
     return ret;
-
 }
 
 static void LockG2dAddr(ImxStreamBuffer& imxBuf)
@@ -643,7 +705,8 @@ int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 
     if ((src->format() == dst->format()) &&
         (src->width() == dst->width()) &&
-        (src->height() == dst->height())) {
+        (src->height() == dst->height()) &&
+        (src->mZoomRatio <= 1.0)) {
         ret = handleFrameByG2DCopy(dstBuf, srcBuf);
     } else {
         ret = handleFrameByG2DBlit(dstBuf, srcBuf);
@@ -789,7 +852,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
         resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
 
         resizeWrapper(srcBuf, resizeBuf, GPU_3D);
-        swithImxBuf(srcBuf, resizeBuf);
+        SwitchImxBuf(srcBuf, resizeBuf);
 
         bResize = true;
     }
@@ -805,7 +868,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     }
 
     if (bResize) {
-        swithImxBuf(srcBuf, resizeBuf);
+        SwitchImxBuf(srcBuf, resizeBuf);
         FreePhyBuffer(resizeBuf);
         delete(resizeBuf.mStream);
     }
@@ -861,7 +924,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
         resizeBuf.mStream = new ImxStream(dst->width(), dst->height(), src->format(), 0, 0);
 
         resizeWrapper(srcBuf, resizeBuf, CPU);
-        swithImxBuf(srcBuf, resizeBuf);
+        SwitchImxBuf(srcBuf, resizeBuf);
         bResize = true;
     }
 
@@ -880,7 +943,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     }
 
     if (bResize) {
-        swithImxBuf(srcBuf, resizeBuf);
+        SwitchImxBuf(srcBuf, resizeBuf);
         FreePhyBuffer(resizeBuf);
         delete(resizeBuf.mStream);
     }

@@ -119,6 +119,7 @@ public:
         mUsage = usage;
         mId = id;
         mbPreview = bPreview;
+        mZoomRatio = 1.0;
     }
 
     uint32_t width() {return mWidth;}
@@ -137,6 +138,7 @@ public:
     int32_t mId = 0;
     bool mbPreview = false;
     uint8_t mCaptureIntent = -1;
+    float mZoomRatio = 1.0;
 };
 
 struct SensorSet
@@ -179,6 +181,7 @@ cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(const cameraconfig
 int AllocPhyBuffer(ImxStreamBuffer &imxBuf);
 int FreePhyBuffer(ImxStreamBuffer &imxBuf);
 void SetBufferHandle(ImxStreamBuffer &imxBuf);
+void SwitchImxBuf(ImxStreamBuffer& imxBufA, ImxStreamBuffer& imxBufB);
 
 int yuv422iResize(uint8_t *srcBuf,
         int      srcWidth,

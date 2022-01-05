@@ -506,6 +506,14 @@ status_t CameraDeviceSessionHwlImpl::HandleFrameLocked(std::vector<StreamBuffer>
             return 0;
         }
 
+        if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
+            camera_metadata_ro_entry entry;
+            ret = requestMeta.Get(ANDROID_CONTROL_ZOOM_RATIO, &entry);
+            if (ret == 0) {
+                pImxStreamBuffer->mStream->mZoomRatio = entry.data.f[0];
+            }
+        }
+
         ret = ProcessCapturedBuffer(pImxStreamBuffer, output_buffers, outFences, requestMeta);
 
         pVideoStreams[0]->onFrameReturnLocked(*pImxStreamBuffer);
@@ -779,7 +787,8 @@ int32_t CameraDeviceSessionHwlImpl::processFrameBuffer(ImxStreamBuffer *srcBuf, 
 
     if (srcStream->mWidth == dstStream->mWidth &&
         srcStream->mHeight == dstStream->mHeight &&
-        srcStream->format() == dstStream->format())
+        srcStream->format() == dstStream->format() &&
+        srcStream->mZoomRatio <= 1.0)
         csc_hw = mCamBlitCopyType;
     else
         csc_hw = mCamBlitCscType;
@@ -798,6 +807,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     struct camera3_jpeg_blob *jpegBlob = NULL;
     uint32_t bufSize = 0;
     int maxJpegSize = mSensorData.maxjpegsize;
+    ImxStreamBuffer resizeBuf = {0};
 
     if ((srcBuf == NULL) || (dstBuf == NULL) || (meta == NULL)) {
         ALOGE("%s srcBuf %p, dstBuf %p, meta %p", __func__, srcBuf, dstBuf, meta);
@@ -883,6 +893,23 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
         return BAD_VALUE;
     }
 
+    // Handle zoom in
+    if (srcStream->mZoomRatio > 1.0) {
+        resizeBuf.mFormatSize = srcBuf->mFormatSize;
+        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+        ret = AllocPhyBuffer(resizeBuf);
+        if (ret) {
+            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+            return BAD_VALUE;
+        }
+
+        resizeBuf.mStream = srcBuf->mStream;
+        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+        imageProcess->handleFrame(resizeBuf, *srcBuf, mCamBlitCscType);
+
+        SwitchImxBuf(*srcBuf, resizeBuf);
+    }
+
     mainJpeg = new JpegParams((uint8_t *)srcBuf->mVirtAddr,
                                 (uint8_t *)(uintptr_t)srcBuf->mPhyAddr,
                                 srcBuf->mSize,
@@ -948,10 +975,15 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
             maxJpegSize);
 
 err_out:
-    delete mainJpeg;
+    if (mainJpeg != NULL)
+        delete mainJpeg;
 
-    if (thumbJpeg != NULL) {
+    if (thumbJpeg != NULL)
         delete thumbJpeg;
+
+    if (resizeBuf.mPhyAddr > 0) {
+        SwitchImxBuf(*srcBuf, resizeBuf);
+        FreePhyBuffer(resizeBuf);
     }
 
     return ret;

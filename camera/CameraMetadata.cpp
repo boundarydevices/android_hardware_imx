@@ -318,6 +318,12 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         m_static_meta->Set(ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
                      available_lens_shading_map_modes,
                      ARRAY_SIZE(available_lens_shading_map_modes));
+
+        float android_control_zoom_ratio_range[] = {1.0, 4.0};
+        m_static_meta->Set(ANDROID_CONTROL_ZOOM_RATIO_RANGE,
+                     android_control_zoom_ratio_range,
+                     ARRAY_SIZE(android_control_zoom_ratio_range));
+
     } else {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
         m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
@@ -596,6 +602,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         int32_t characteristics_keys_isp[] = {
             ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST,
             ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE,
+            ANDROID_CONTROL_ZOOM_RATIO_RANGE,
             ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT,
             ANDROID_SENSOR_BLACK_LEVEL_PATTERN,
             ANDROID_SENSOR_INFO_WHITE_LEVEL,
@@ -616,7 +623,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
             ANDROID_SHADING_AVAILABLE_MODES,
             ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
             ANDROID_TONEMAP_AVAILABLE_TONE_MAP_MODES,
-            ANDROID_TONEMAP_MAX_CURVE_POINTS
+            ANDROID_TONEMAP_MAX_CURVE_POINTS,
         };
 
         MergeAndSetMeta(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
