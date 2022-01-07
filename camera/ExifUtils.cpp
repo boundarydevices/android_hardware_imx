@@ -1048,9 +1048,9 @@ bool ExifUtilsImpl::SetFromMetadata(const CameraMetadata& metadata,
   if (ret == OK) {
     int32_t iso = entry.data.i32[0];
     camera_metadata_ro_entry post_raw_sens_entry;
-    metadata.Get(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST,
+    ret = metadata.Get(ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST,
                  &post_raw_sens_entry);
-    if (post_raw_sens_entry.count > 0) {
+    if ((ret == 0) && (post_raw_sens_entry.count > 0)) {
       iso = iso * post_raw_sens_entry.data.i32[0] / 100;
     }
 
@@ -1079,13 +1079,14 @@ bool ExifUtilsImpl::SetFromMetadata(const CameraMetadata& metadata,
   }
 
   camera_metadata_ro_entry flash_state_entry;
-  metadata.Get(ANDROID_FLASH_STATE, &flash_state_entry);
-  camera_metadata_ro_entry ae_mode_entry;
-  metadata.Get(ANDROID_CONTROL_AE_MODE, &ae_mode_entry);
-  uint8_t flash_state = flash_state_entry.count > 0
+  ret = metadata.Get(ANDROID_FLASH_STATE, &flash_state_entry);
+  uint8_t flash_state = ((ret == 0) && (flash_state_entry.count > 0))
                             ? flash_state_entry.data.u8[0]
                             : ANDROID_FLASH_STATE_UNAVAILABLE;
-  uint8_t ae_mode = ae_mode_entry.count > 0 ? ae_mode_entry.data.u8[0]
+
+  camera_metadata_ro_entry ae_mode_entry;
+  ret = metadata.Get(ANDROID_CONTROL_AE_MODE, &ae_mode_entry);
+  uint8_t ae_mode = ((ret == 0) && (ae_mode_entry.count > 0)) ? ae_mode_entry.data.u8[0]
                                             : ANDROID_CONTROL_AE_MODE_OFF;
 
   ret = metadata.Get(ANDROID_CONTROL_AWB_MODE, &entry);
