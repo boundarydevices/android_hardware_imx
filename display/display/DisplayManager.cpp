@@ -620,6 +620,9 @@ void DisplayManager::handleKmsHotplug()
 
         if (display->connected()) {
             display->openKms();
+            display->setPowerMode(POWER_ON);
+        } else {
+            display->setPowerMode(POWER_OFF);
         }
 
         // primary display.
