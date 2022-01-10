@@ -324,6 +324,11 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
                      android_control_zoom_ratio_range,
                      ARRAY_SIZE(android_control_zoom_ratio_range));
 
+
+        uint8_t availableSceneModes[] = {ANDROID_CONTROL_SCENE_MODE_DISABLED, ANDROID_CONTROL_SCENE_MODE_HDR};
+        m_static_meta->Set(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
+                     availableSceneModes,
+                     ARRAY_SIZE(availableSceneModes));
     } else {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
         m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,

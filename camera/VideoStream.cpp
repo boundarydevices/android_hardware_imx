@@ -121,11 +121,12 @@ int32_t VideoStream::onFlushLocked() {
 
 
 #define ISP_CONTROL "vendor.rw.camera.isp.control"
-int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, uint8_t intent, bool recover)
+int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, uint8_t intent, uint8_t sceneMode, bool recover)
 {
     int ret = 0;
 
-    ALOGI("%s: format 0x%x, res %dx%d, fps %d, recover %d", __func__, format, width, height, fps, recover);
+    ALOGI("%s: format 0x%x, res %dx%d, fps %d, intent %d, sceneMode %d, recover %d",
+        __func__, format, width, height, fps, intent, sceneMode, recover);
 
     mCaptureIntent = intent;
 
@@ -135,8 +136,8 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         ALOGI("%s, imx8mq, change 240p to 480p", __func__);
     }
 
-    if((mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps) && (recover == false)) {
-        ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d", __func__, format, width, height, fps);
+    if((mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps) && (mSceneMode == sceneMode) && (recover == false)) {
+        ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, format, width, height, fps, sceneMode);
         return 0;
     }
 
@@ -172,8 +173,21 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     }
 
     if (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
-        ((ISPCameraMMAPStream *)this)->getIspWrapper()->init(mDev);
+        // set sensor mode
+        int sensorMode = (sceneMode == ANDROID_CONTROL_SCENE_MODE_DISABLED) ? \
+            SENSOR_MODE_1080P_LINEAR : SENSOR_MODE_1080P_HDR;
 
+        struct viv_caps_mode_s caps_mode;
+        memset(&caps_mode,0,sizeof(caps_mode));
+        caps_mode.mode = sensorMode;
+
+        ret = ioctl(mDev, VIV_VIDIOC_S_CAPS_MODE, &caps_mode);
+        if (ret) {
+            ALOGE("%s: Set sensor mode[%d] Failed\n", __func__, caps_mode.mode);
+            return BAD_VALUE;
+        }
+
+        ((ISPCameraMMAPStream *)this)->getIspWrapper()->init(mDev);
         // Before capture raw data, need first disable DWE.
         if (format == HAL_PIXEL_FORMAT_RAW16)
             ISPProcess(NULL, format);
@@ -203,7 +217,11 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         ((ISPCameraMMAPStream *)this)->getIspWrapper()->viv_private_ioctl(IF_DWE_G_PARAMS, jRequest, jResponse);
         ((ISPCameraMMAPStream *)this)->getIspWrapper()->parseDewarpParams(jResponse["dwe"]);
         ((ISPCameraMMAPStream *)this)->getIspWrapper()->getExpGainBoundary();
+
     }
+
+    // save mode
+    mSceneMode = sceneMode;
 
     return 0;
 }
@@ -293,7 +311,7 @@ capture_data:
         ALOGW("%s: select fd %d blocked %d s on %dx%d, %d fps, camera recover count %d",
             __func__, mDev, SELECT_TIMEOUT_SECONDS, mWidth, mHeight, mFps, mRecoverCount);
 
-        ret = ConfigAndStart(mFormat, mWidth, mHeight, mFps, mCaptureIntent, true);
+        ret = ConfigAndStart(mFormat, mWidth, mHeight, mFps, mCaptureIntent, mSceneMode, true);
         if(ret) {
             ALOGE("%s,  ConfigAndStar failed, ret %d", __func__, ret);
             return NULL;

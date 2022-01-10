@@ -120,6 +120,7 @@ public:
         mId = id;
         mbPreview = bPreview;
         mZoomRatio = 1.0;
+        mSceneMode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
     }
 
     uint32_t width() {return mWidth;}
@@ -139,6 +140,7 @@ public:
     bool mbPreview = false;
     uint8_t mCaptureIntent = -1;
     float mZoomRatio = 1.0;
+    uint8_t mSceneMode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
 };
 
 struct SensorSet

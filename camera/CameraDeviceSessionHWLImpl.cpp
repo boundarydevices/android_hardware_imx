@@ -229,23 +229,32 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
 
 int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
 {
-    uint8_t captureIntent = -1;
     camera_metadata_ro_entry entry;
-    int ret;
+    int ret = 0;
+    int retSceneMode = 0;
+    int retIntent = 0;
+    uint8_t sceneMode = pVideoStreams[0]->mSceneMode;
+    uint8_t captureIntent = pVideoStreams[0]->mCaptureIntent;
 
     if ((hwReq == NULL) || (hwReq->settings.get() == NULL))
         return 0;
 
-    ret = hwReq->settings->Get(ANDROID_CONTROL_CAPTURE_INTENT, &entry);
-    if (ret != 0)
-        return 0;
+    retSceneMode = hwReq->settings->Get(ANDROID_CONTROL_SCENE_MODE, &entry);
+    if (retSceneMode == 0)
+        sceneMode = entry.data.u8[0];
 
-    captureIntent = entry.data.u8[0];
+    retIntent = hwReq->settings->Get(ANDROID_CONTROL_CAPTURE_INTENT, &entry);
+    if (retIntent == 0)
+        captureIntent = entry.data.u8[0];
+
+    // Neither scene mode, nor capture intent in the meta, no need to handle, return.
+    if (retSceneMode && retIntent)
+        return 0;
 
     int configIdx = -1;
     uint32_t pipeline_id = hwReq->pipeline_id;
     configIdx = PickConfigStream(pipeline_id, captureIntent);
-    if(configIdx < 0)
+    if ((configIdx < 0) && retSceneMode)
         return 0;
 
     uint32_t fps = 30;
@@ -257,6 +266,10 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
         else if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME))
             fps = entry.data.i32[0];
     }
+
+    // In HDR mode, max fps is 30
+    if ((sceneMode == ANDROID_CONTROL_SCENE_MODE_HDR) && (fps > 30))
+        fps = 30;
 
     PipelineInfo *pipeline_info = map_pipeline_info[pipeline_id];
 
@@ -276,7 +289,7 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
             ret += pVideoStreams[index]->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
                                         pipeline_info->streams->at(0).width,
                                         pipeline_info->streams->at(0).height,
-                                        fps, captureIntent);
+                                        fps, captureIntent, sceneMode);
             if (ret)
                 ALOGE("%s: pVideoStreams[%d]->ConfigAndStart failed, ret %d", __func__, index, ret);
         }
@@ -292,7 +305,7 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
         ret = pVideoStreams[0]->ConfigAndStart(format,
                                             pipeline_info->streams->at(configIdx).width,
                                             pipeline_info->streams->at(configIdx).height,
-                                            fps, captureIntent);
+                                            fps, captureIntent, sceneMode);
         if (ret)
             ALOGE("%s: pVideoStreams[0]->ConfigAndStart failed, ret %d", __func__, ret);
     }

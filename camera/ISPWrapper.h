@@ -19,6 +19,7 @@
 
 #include <json/json.h>
 #include <json/reader.h>
+#include <VideoStream.h>
 
 #define STR_AWB_ENABLE    (char *)"{<id>:<awb.s.en>; <enable>:true}"
 #define STR_AWB_DISABLE   (char *)"{<id>:<awb.s.en>; <enable>:false}"
@@ -85,6 +86,16 @@ typedef struct DWEPara {
 
 #define EXP_GAIN_MIN_DFT  1.0
 #define EXP_GAIN_MAX_DFT  6.879883
+
+#define SENSOR_MODE_1080P_LINEAR 1
+#define SENSOR_MODE_1080P_HDR 3
+#define VIV_VIDIOC_S_CAPS_MODE          _IOW('V',  BASE_VIDIOC_PRIVATE + 9, struct viv_caps_mode_s)
+
+#define CALIBXML_FILE_NAME_SIZE 64
+struct viv_caps_mode_s {
+  int mode;
+  char CalibXmlName[CALIBXML_FILE_NAME_SIZE];
+};
 
 namespace android {
 
