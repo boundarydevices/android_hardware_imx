@@ -329,6 +329,9 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         m_static_meta->Set(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
                      availableSceneModes,
                      ARRAY_SIZE(availableSceneModes));
+
+        uint8_t sensor_info_lens_shading_applied = ANDROID_SENSOR_INFO_LENS_SHADING_APPLIED_FALSE;
+        m_static_meta->Set(ANDROID_SENSOR_INFO_LENS_SHADING_APPLIED, &sensor_info_lens_shading_applied, 1);
     } else {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
         m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,

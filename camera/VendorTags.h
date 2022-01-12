@@ -13,7 +13,8 @@ static const uint32_t kImxTagIdOffset = VENDOR_SECTION_START;
 typedef enum enumImxTag {
     VSI_DEWARP = kImxTagIdOffset,
     VSI_HFLIP,
-    VSI_VFLIP
+    VSI_VFLIP,
+    VSI_LSC
 } ImxTag;
 
 static const std::vector<VendorTagSection> kImxTagSections = {
@@ -34,6 +35,11 @@ static const std::vector<VendorTagSection> kImxTagSections = {
                 {
                     .tag_id = VSI_VFLIP,
                     .tag_name = "vflip.enable",
+                    .tag_type = CameraMetadataType::kInt32,
+                },
+                {
+                    .tag_id = VSI_LSC,
+                    .tag_name = "lsc.enable",
                     .tag_type = CameraMetadataType::kInt32,
                 },
             }

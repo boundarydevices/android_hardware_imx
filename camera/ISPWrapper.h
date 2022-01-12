@@ -97,6 +97,9 @@ struct viv_caps_mode_s {
   char CalibXmlName[CALIBXML_FILE_NAME_SIZE];
 };
 
+#define IF_LSC_S_EN         "lsc.s.en"
+#define LSC_ENABLE_PARAMS   "enable"
+
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;
@@ -124,6 +127,7 @@ private:
     int processDewarp(bool bEnable);
     int processHFlip(bool bEnable);
     int processVFlip(bool bEnable);
+    int processLSC(bool bEnable);
 
     int EnableDWE(bool on);
 
@@ -139,6 +143,7 @@ private:
     bool m_dwe_on;
     double m_ec_gain_min;
     double m_ec_gain_max;
+    bool mLSCEnable;
 };
 
 } // namespace android

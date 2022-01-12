@@ -54,6 +54,7 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
 
     m_ec_gain_min = EXP_GAIN_MIN_DFT;
     m_ec_gain_max = EXP_GAIN_MAX_DFT;
+    mLSCEnable = false;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -224,6 +225,10 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
     ret = pMeta->Get(VSI_VFLIP, &entry);
     if(ret == 0)
         processVFlip(entry.data.i32[0]);
+
+    ret = pMeta->Get(VSI_LSC, &entry);
+    if(ret == 0)
+        processLSC(entry.data.i32[0]);
 
 #if 0
     // The com.intermedia.hd.camera.professional.fbnps_8730133319.apk enalbes aec right
@@ -572,6 +577,26 @@ int ISPWrapper::processVFlip(bool bEnable)
         return BAD_VALUE;
     }
 
+    return 0;
+}
+
+int ISPWrapper::processLSC(bool bEnable)
+{
+    int ret = 0;
+
+    if (bEnable == mLSCEnable)
+        return 0;
+
+    Json::Value jRequest, jResponse;
+    jRequest[LSC_ENABLE_PARAMS] = bEnable;
+
+    ret = viv_private_ioctl(IF_LSC_S_EN, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    mLSCEnable = bEnable;
     return 0;
 }
 
