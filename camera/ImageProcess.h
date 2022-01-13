@@ -51,11 +51,13 @@ private:
     int handleFrameByDPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
     int handleFrameByGPU_2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
     int handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf, CscHw hw_type);
+    int handleYUYVFrameResize(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
+
     void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
              uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
     void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
              int width, int height);
-    void cl_YUYVCopyByLine(void *g2dHandle,
+    void cl_YUYVResize(void *g2dHandle,
              uint8_t *dst, uint32_t dstWidth,
              uint32_t dstHeight, uint8_t *src,
              uint32_t srcWidth, uint32_t srcHeight, bool bInputCached, bool bOutputCached);
