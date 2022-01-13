@@ -760,10 +760,12 @@ error:
 static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *dst)
 {
     int kernel_index = -1;
-    if ((src->width != dst->width)||
+    if (((src->width != dst->width)||
         (src->height != dst->height)||
         (src->width > src->stride)||
-        (dst->width > dst->stride)) {
+        (dst->width > dst->stride)) &&
+        (((src->format != CL_G2D_YUYV)&&
+        (dst->format != CL_G2D_YUYV)))) {
         g2d_printf("%s: src/dst width/height/stride should be matched\n", __func__);
         return -1;
     }
@@ -859,14 +861,57 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
         else if (kernel_index == YUYV_TO_YUYV_INDEX) {
             // for yuyv to yuyv, 8 pixels with one kernel calls
             // and based on dst width
-            int src_width = src->width / 8;
-            int dst_width = dst->stride / 8;
-            kernel_width = dst->stride / 8;
-            kernel_height = src->height;
-            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
-            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
-            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
-            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+
+            int srcWidth = src->width;
+            int srcHeight = src->height;
+            int srcStride = src->stride;
+
+            int dstWidth = dst->width;
+            int dstHeight = dst->height;
+            int dstStride = dst->stride;
+
+            /* Convert the input and output dimensions into floats for ease of math */
+            float fWin = static_cast<float>(srcWidth);
+            float fHin = static_cast<float>(srcHeight);
+            float fWout = static_cast<float>(dstWidth);
+            float fHout = static_cast<float>(dstHeight);
+            float minScaleFactor = std::min( fHin / fHout, fWin / fWout );
+            float maxScaleFactor = std::max( fHin / fHout, fWin / fWout );
+
+            if(minScaleFactor > 1.0f) {
+                //reduce
+                int src_width = src->width;
+                int dst_width = dst->width;
+                kernel_width = dstHeight;
+                kernel_height = dstWidth;
+
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+            } else if(maxScaleFactor < 1.0f) {
+                //enlarge
+                int src_width = src->width;
+                int dst_width = dst->width;
+                kernel_width = dstHeight;
+                kernel_height = dstWidth;
+
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+            } else {
+                // copy src to dst
+                int src_width = src->width;
+                int dst_width = dst->width;
+                kernel_width = src_width / 8;
+                kernel_height = src->height;
+
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
+                errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+            }
         }
         else if (kernel_index == NV12_TO_NV21_INDEX) {
             // for nv12 to nv21, 8 pixels with one kernel calls
