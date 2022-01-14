@@ -100,6 +100,11 @@ struct viv_caps_mode_s {
 #define IF_LSC_S_EN         "lsc.s.en"
 #define LSC_ENABLE_PARAMS   "enable"
 
+#define IF_GC_G_CFG         "gc.g.cfg"
+#define IF_GC_S_CURVE       "gc.s.curve"
+#define GC_MODE_PARAMS      "gc.mode"
+#define GC_CURVE_PARAMS     "gc.curve"
+
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;
@@ -128,6 +133,7 @@ private:
     int processHFlip(bool bEnable);
     int processVFlip(bool bEnable);
     int processLSC(bool bEnable);
+    int processGamma(float gamma);
 
     int EnableDWE(bool on);
 
@@ -144,6 +150,7 @@ private:
     double m_ec_gain_min;
     double m_ec_gain_max;
     bool mLSCEnable;
+    float m_gamma;
 };
 
 } // namespace android

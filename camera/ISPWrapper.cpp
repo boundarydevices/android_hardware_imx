@@ -55,6 +55,7 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     m_ec_gain_min = EXP_GAIN_MIN_DFT;
     m_ec_gain_max = EXP_GAIN_MAX_DFT;
     mLSCEnable = false;
+    m_gamma = 0.0;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -229,6 +230,10 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
     ret = pMeta->Get(VSI_LSC, &entry);
     if(ret == 0)
         processLSC(entry.data.i32[0]);
+
+    ret = pMeta->Get(ANDROID_TONEMAP_GAMMA, &entry);
+    if(ret == 0)
+        processGamma(entry.data.f[0]);
 
 #if 0
     // The com.intermedia.hd.camera.professional.fbnps_8730133319.apk enalbes aec right
@@ -598,6 +603,68 @@ int ISPWrapper::processLSC(bool bEnable)
 
     mLSCEnable = bEnable;
     return 0;
+}
+
+template<typename T>
+void writeArrayToNode(const T *array, Json::Value& node, const char *section, int size) {
+    for (int i = 0; i < size; i ++) {
+        node[section][i] = array[i];
+    }
+}
+#define JH_GET_TYPE(x) std::remove_reference<decltype((x))>::type
+#define addArray(x, y, z) writeArrayToNode<JH_GET_TYPE((x)[0])>(x, y, z, sizeof(x)/sizeof((x)[0]));
+#define GAMMA_MIN   (float)1.0
+#define GAMMA_MAX   (float)5.0
+
+int ISPWrapper::processGamma(float gamma)
+{
+    int ret = 0;
+
+    if ((gamma < GAMMA_MIN) || (gamma > GAMMA_MAX)) {
+        ALOGW("%s: unsupported gamma %f", __func__, gamma);
+        return BAD_VALUE;
+    }
+
+    if (gamma == m_gamma)
+        return 0;
+
+    uint16_t curve[17] = {0};
+    uint16_t gamma_x_equ[16] = {256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256};
+    uint16_t gamma_x_log[16] = {64, 64, 64, 64, 128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512, 512};
+    uint16_t *pTable;
+
+    Json::Value jRequest, jResponse;
+    ret = viv_private_ioctl(IF_GC_G_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_GC_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    int mode = 0;
+    Json::Value item = jResponse[GC_MODE_PARAMS];
+    if (!item.isNull())
+        mode = item.asInt();
+
+    jRequest = jResponse;
+    float dinvgamma = 1.0f/gamma;
+    float sumx = 0;
+    pTable = mode == 1 ? gamma_x_log : gamma_x_equ;
+
+    for(int i = 0; i < 16; i++) {
+        sumx += pTable[i];
+        curve[i+1]= std::min(1023.0f, std::max(0.f, pow(((float)sumx)/4096.0f, dinvgamma) * 1024));
+    }
+
+    addArray(curve, jRequest, GC_CURVE_PARAMS);
+    ret = viv_private_ioctl(IF_GC_S_CURVE, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_GC_S_CURVE failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    m_gamma = gamma;
+
+		return 0;
 }
 
 }  // namespace android

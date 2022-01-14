@@ -332,6 +332,9 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
 
         uint8_t sensor_info_lens_shading_applied = ANDROID_SENSOR_INFO_LENS_SHADING_APPLIED_FALSE;
         m_static_meta->Set(ANDROID_SENSOR_INFO_LENS_SHADING_APPLIED, &sensor_info_lens_shading_applied, 1);
+
+        static const uint8_t availableToneMapModes[] = {ANDROID_TONEMAP_MODE_CONTRAST_CURVE, ANDROID_TONEMAP_MODE_FAST, ANDROID_TONEMAP_MODE_HIGH_QUALITY, ANDROID_TONEMAP_MODE_GAMMA_VALUE};
+        m_static_meta->Set(ANDROID_TONEMAP_AVAILABLE_TONE_MAP_MODES, availableToneMapModes, ARRAY_SIZE(availableToneMapModes));
     } else {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY;
         m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
@@ -345,6 +348,9 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
 
         static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_UNKNOWN;
         m_static_meta->Set(ANDROID_SYNC_MAX_LATENCY, &maxLatency, 1);
+
+        static const uint8_t availableToneMapModes[] = {ANDROID_TONEMAP_MODE_CONTRAST_CURVE, ANDROID_TONEMAP_MODE_FAST, ANDROID_TONEMAP_MODE_HIGH_QUALITY};
+        m_static_meta->Set(ANDROID_TONEMAP_AVAILABLE_TONE_MAP_MODES, availableToneMapModes, ARRAY_SIZE(availableToneMapModes));
     }
 
 
@@ -523,9 +529,6 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
 
     static const uint8_t availableEdgeModes[] = {ANDROID_EDGE_MODE_OFF, ANDROID_EDGE_MODE_FAST, ANDROID_EDGE_MODE_HIGH_QUALITY};
     m_static_meta->Set(ANDROID_EDGE_AVAILABLE_EDGE_MODES, availableEdgeModes, ARRAY_SIZE(availableEdgeModes));
-
-    static const uint8_t availableToneMapModes[] = {ANDROID_TONEMAP_MODE_CONTRAST_CURVE, ANDROID_TONEMAP_MODE_FAST, ANDROID_TONEMAP_MODE_HIGH_QUALITY};
-    m_static_meta->Set(ANDROID_TONEMAP_AVAILABLE_TONE_MAP_MODES, availableToneMapModes, ARRAY_SIZE(availableToneMapModes));
 
     static const uint8_t availableNoiseReductionModes[] = {ANDROID_NOISE_REDUCTION_MODE_OFF, ANDROID_NOISE_REDUCTION_MODE_FAST, ANDROID_NOISE_REDUCTION_MODE_HIGH_QUALITY};
     m_static_meta->Set(ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES, availableNoiseReductionModes, ARRAY_SIZE(availableNoiseReductionModes));
