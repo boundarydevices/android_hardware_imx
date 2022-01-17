@@ -56,6 +56,11 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     m_ec_gain_max = EXP_GAIN_MAX_DFT;
     mLSCEnable = false;
     m_gamma = 0.0;
+
+    m_brightness =  BRIGHTNESS_MAX + 1;
+    m_contrast = CONTRAST_MAX + 1;
+    m_saturation = SATURATION_MAX + 1;
+    m_hue = HUE_MAX + 1;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -234,6 +239,22 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
     ret = pMeta->Get(ANDROID_TONEMAP_GAMMA, &entry);
     if(ret == 0)
         processGamma(entry.data.f[0]);
+
+    ret = pMeta->Get(VSI_BRIGHTNESS, &entry);
+    if(ret == 0)
+        processBrightness(entry.data.i32[0]);
+
+    ret = pMeta->Get(VSI_CONTRAST, &entry);
+    if(ret == 0)
+        processContrast(entry.data.f[0]);
+
+    ret = pMeta->Get(VSI_SATURATION, &entry);
+    if(ret == 0)
+        processSaturation(entry.data.f[0]);
+
+    ret = pMeta->Get(VSI_HUE, &entry);
+    if(ret == 0)
+        processHue(entry.data.i32[0]);
 
 #if 0
     // The com.intermedia.hd.camera.professional.fbnps_8730133319.apk enalbes aec right
@@ -665,6 +686,135 @@ int ISPWrapper::processGamma(float gamma)
     m_gamma = gamma;
 
 		return 0;
+}
+
+
+int ISPWrapper::processBrightness(int brightness)
+{
+    int ret = 0;
+
+    if ((brightness < BRIGHTNESS_MIN) || (brightness > BRIGHTNESS_MAX)) {
+        ALOGW("%s: unsupported brightness %d", __func__, brightness);
+        return BAD_VALUE;
+    }
+
+    if (brightness == m_brightness)
+        return 0;
+
+    Json::Value jRequest, jResponse;
+    ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    jRequest = jResponse;
+    jRequest[CPROC_BRIGHTNESS_PARAMS] = brightness;
+    ret = viv_private_ioctl(IF_CPROC_S_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_S_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    m_brightness = brightness;
+
+    return 0;
+}
+
+int ISPWrapper::processContrast(float contrast)
+{
+    int ret = 0;
+
+    if ((contrast < CONTRAST_MIN) || (contrast > CONTRAST_MAX)) {
+        ALOGW("%s: unsupported contrast %f", __func__, contrast);
+        return BAD_VALUE;
+    }
+
+    if (contrast == m_contrast)
+        return 0;
+
+    Json::Value jRequest, jResponse;
+    ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    jRequest = jResponse;
+    jRequest[CPROC_CONTRAST_PARAMS] = contrast;
+    ret = viv_private_ioctl(IF_CPROC_S_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_S_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    m_contrast = contrast;
+
+    return 0;
+}
+
+int ISPWrapper::processSaturation(float saturation)
+{
+    int ret = 0;
+
+    if ((saturation < SATURATION_MIN) || (saturation > SATURATION_MAX)) {
+        ALOGW("%s: unsupported saturation %f", __func__, saturation);
+        return BAD_VALUE;
+    }
+
+    if (saturation == m_saturation)
+        return 0;
+
+    Json::Value jRequest, jResponse;
+    ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    jRequest = jResponse;
+    jRequest[CPROC_SATURATION_PARAMS] = saturation;
+    ret = viv_private_ioctl(IF_CPROC_S_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_S_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    m_saturation = saturation;
+
+    return 0;
+}
+
+int ISPWrapper::processHue(int hue)
+{
+    int ret = 0;
+
+    if ((hue < HUE_MIN) || (hue > HUE_MAX)) {
+        ALOGW("%s: unsupported hue %d", __func__, hue);
+        return BAD_VALUE;
+    }
+
+    if (hue == m_hue)
+        return 0;
+
+    Json::Value jRequest, jResponse;
+    ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    jRequest = jResponse;
+    jRequest[CPROC_HUE_PARAMS] = hue;
+    ret = viv_private_ioctl(IF_CPROC_S_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_CPROC_S_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    m_hue = hue;
+
+    return 0;
 }
 
 }  // namespace android

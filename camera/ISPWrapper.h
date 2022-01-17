@@ -105,6 +105,22 @@ struct viv_caps_mode_s {
 #define GC_MODE_PARAMS      "gc.mode"
 #define GC_CURVE_PARAMS     "gc.curve"
 
+#define IF_CPROC_G_CFG              "cproc.g.cfg"
+#define IF_CPROC_S_CFG              "cproc.s.cfg"
+#define CPROC_BRIGHTNESS_PARAMS     "brightness"
+#define CPROC_CONTRAST_PARAMS       "contrast"
+#define CPROC_SATURATION_PARAMS     "saturation"
+#define CPROC_HUE_PARAMS            "hue"
+
+#define BRIGHTNESS_MIN      (int)(-127)
+#define BRIGHTNESS_MAX      (int)(127)
+#define CONTRAST_MIN        (float)(0.0)
+#define CONTRAST_MAX        (float)(1.99)
+#define SATURATION_MIN      (float)(0.0)
+#define SATURATION_MAX      (float)(1.99)
+#define HUE_MIN             (int)(-127)
+#define HUE_MAX             (int)(127)
+
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;
@@ -134,6 +150,10 @@ private:
     int processVFlip(bool bEnable);
     int processLSC(bool bEnable);
     int processGamma(float gamma);
+    int processBrightness(int brightness);
+    int processContrast(float contrast);
+    int processSaturation(float saturation);
+    int processHue(int hue);
 
     int EnableDWE(bool on);
 
@@ -151,6 +171,11 @@ private:
     double m_ec_gain_max;
     bool mLSCEnable;
     float m_gamma;
+
+    int m_brightness;
+    float m_contrast;
+    float m_saturation;
+    int m_hue;
 };
 
 } // namespace android

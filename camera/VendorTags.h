@@ -14,7 +14,11 @@ typedef enum enumImxTag {
     VSI_DEWARP = kImxTagIdOffset,
     VSI_HFLIP,
     VSI_VFLIP,
-    VSI_LSC
+    VSI_LSC,
+    VSI_BRIGHTNESS,
+    VSI_CONTRAST,
+    VSI_SATURATION,
+    VSI_HUE
 } ImxTag;
 
 static const std::vector<VendorTagSection> kImxTagSections = {
@@ -40,6 +44,26 @@ static const std::vector<VendorTagSection> kImxTagSections = {
                 {
                     .tag_id = VSI_LSC,
                     .tag_name = "lsc.enable",
+                    .tag_type = CameraMetadataType::kInt32,
+                },
+                {
+                    .tag_id = VSI_BRIGHTNESS,
+                    .tag_name = "brightness",
+                    .tag_type = CameraMetadataType::kInt32,
+                },
+                {
+                    .tag_id = VSI_CONTRAST,
+                    .tag_name = "contrast",
+                    .tag_type = CameraMetadataType::kFloat,
+                },
+                {
+                    .tag_id = VSI_SATURATION,
+                    .tag_name = "saturation",
+                    .tag_type = CameraMetadataType::kFloat,
+                },
+                {
+                    .tag_id = VSI_HUE,
+                    .tag_name = "hue",
                     .tag_type = CameraMetadataType::kInt32,
                 },
             }
