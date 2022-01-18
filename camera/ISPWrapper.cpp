@@ -61,6 +61,8 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     m_contrast = CONTRAST_MAX + 1;
     m_saturation = SATURATION_MAX + 1;
     m_hue = HUE_MAX + 1;
+
+    m_sharp_level = SHARP_LEVEL_MAX +1;
 }
 
 ISPWrapper::~ISPWrapper()
@@ -255,6 +257,10 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
     ret = pMeta->Get(VSI_HUE, &entry);
     if(ret == 0)
         processHue(entry.data.i32[0]);
+
+    ret = pMeta->Get(VSI_SHARP_LEVEL, &entry);
+    if(ret == 0)
+        processSharpLevel(entry.data.u8[0]);
 
 #if 0
     // The com.intermedia.hd.camera.professional.fbnps_8730133319.apk enalbes aec right
@@ -813,6 +819,38 @@ int ISPWrapper::processHue(int hue)
     }
 
     m_hue = hue;
+
+    return 0;
+}
+
+int ISPWrapper::processSharpLevel(uint8_t level)
+{
+    int ret = 0;
+
+    if ((level < SHARP_LEVEL_MIN) || (level > SHARP_LEVEL_MAX)) {
+        ALOGW("%s: unsupported sharp level %d", __func__, level);
+        return BAD_VALUE;
+    }
+
+    if (level == m_sharp_level)
+        return 0;
+
+    Json::Value jRequest, jResponse;
+    ret = viv_private_ioctl(IF_FILTER_G_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_FILTER_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    jRequest = jResponse;
+    jRequest[FILTER_SHARPEN_PARAMS] = level;
+    ret = viv_private_ioctl(IF_FILTER_S_CFG, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_FILTER_S_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    m_sharp_level = level;
 
     return 0;
 }

@@ -121,6 +121,15 @@ struct viv_caps_mode_s {
 #define HUE_MIN             (int)(-127)
 #define HUE_MAX             (int)(127)
 
+#define IF_FILTER_G_CFG           "filter.g.cfg"
+#define IF_FILTER_S_CFG           "filter.s.cfg"
+#define FILTER_SHARPEN_PARAMS     "sharpen"
+#define SHARP_LEVEL_MIN           (uint8_t)1
+#define SHARP_LEVEL_MAX           (uint8_t)10
+
+
+
+
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;
@@ -154,6 +163,7 @@ private:
     int processContrast(float contrast);
     int processSaturation(float saturation);
     int processHue(int hue);
+    int processSharpLevel(uint8_t level);
 
     int EnableDWE(bool on);
 
@@ -176,6 +186,8 @@ private:
     float m_contrast;
     float m_saturation;
     int m_hue;
+
+    uint8_t m_sharp_level;
 };
 
 } // namespace android
