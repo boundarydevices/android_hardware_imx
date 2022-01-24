@@ -146,6 +146,7 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
         static const int kFlushWaitTimeoutSec = 3; // 3 sec
         static const int kReqWaitTimeoutMs = 33;   // 33ms
         static const int kReqWaitTimesMax = 90;    // 33ms * 90 ~= 3 sec
+        static const int kDecWaitTimeoutMs = 100;   // 100ms
 
         void waitForNextRequest(std::shared_ptr<HalRequest>* out);
         void signalRequestDone();
@@ -172,8 +173,6 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
         std::condition_variable mRequestCond;     // signaled when a new request is submitted
         std::condition_variable mRequestDoneCond; // signaled when a request is done processing
 
-        mutable std::mutex mFramesSignalLock;
-        std::condition_variable mFramesSignal;
 
         std::list<std::shared_ptr<HalRequest>> mRequestList;
         bool mProcessingRequest = false;

@@ -962,7 +962,7 @@ ExternalCameraDeviceSession::OutputThread::~OutputThread() {
 
 int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
     const char* mime = "video/x-motion-jpeg";
-    mDecoder = new HwDecoder(mime, &mFramesSignal);
+    mDecoder = new HwDecoder(mime);
     if (!mDecoder) {
         ALOGE("%s: Create HwDecoder Instance for MJPEG failed \n", __FUNCTION__);
         return -errno;
@@ -1600,24 +1600,18 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         ATRACE_BEGIN("MJPGtoI420");
 
 #ifdef HANTRO_V4L2
-        {
-            int32_t inputId = 0;
-            std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
-            inputbuf->pInBuffer = inData;
-            inputbuf->id = inputId;
-            inputbuf->size = inDataSize;
+        std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
+        inputbuf->pInBuffer = inData;
+        inputbuf->id = 0;
+        inputbuf->size = inDataSize;
 
-            status_t err = UNKNOWN_ERROR;
-            err = mDecoder->queueInputBuffer(std::move(inputbuf));
+        status_t err = UNKNOWN_ERROR;
+        err = mDecoder->queueInputBuffer(std::move(inputbuf));
 
-            std::unique_lock<std::mutex> mlk(mFramesSignalLock);
-            mFramesSignal.wait(mlk);
-
-            //mjpeg decoded nv12/nv16 raw data
-            mDecodedData = mDecoder->exportDecodedBuf();
-        }
+        //mjpeg decoded nv12/nv16 raw data
+        res = mDecoder->exportDecodedBuf(mDecodedData, kDecWaitTimeoutMs);
 #else
-        int res = libyuv::MJPGToI420(
+        res = libyuv::MJPGToI420(
             inData, inDataSize, static_cast<uint8_t*>(mYu12FrameLayout.y), mYu12FrameLayout.yStride,
             static_cast<uint8_t*>(mYu12FrameLayout.cb), mYu12FrameLayout.cStride,
             static_cast<uint8_t*>(mYu12FrameLayout.cr), mYu12FrameLayout.cStride,
