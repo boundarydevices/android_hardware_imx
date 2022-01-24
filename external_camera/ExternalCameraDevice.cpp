@@ -939,6 +939,10 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
                             || frameSize.discrete.height < minStreamSize.height) {
                             continue;
                         }
+                        // Discard all formats which is not aligned in height
+                        if (frameSize.discrete.height % 4 != 0) {
+                            continue;
+                        }
                         SupportedV4L2Format format {
                             .width = frameSize.discrete.width,
                             .height = frameSize.discrete.height,
