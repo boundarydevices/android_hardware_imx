@@ -1668,6 +1668,70 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 
     ALOGV("%s processing new request", __FUNCTION__);
     const int kSyncWaitTimeoutMs = 500;
+
+    YCbCrLayout cropAndScaled;
+    fsl::Memory *dstBuffer = nullptr;
+#ifdef HANTRO_V4L2 // If vpu dec, first convert nv12/nv16 to I420
+    {
+         //Use openCL to do CSC to I420
+         fsl::SrcFormat src_fmt = fsl::NV12;
+         if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+             src_fmt = fsl::NV16;
+         } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+             src_fmt = fsl::NV12;
+         } else {
+             ALOGW("%s: unsupported decoded format 0x%x", __func__, mDecodedData.format);
+         }
+
+         fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+         fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+         fsl::MemoryDesc desc;
+         desc.mWidth = mDecodedData.width;
+         desc.mHeight = mDecodedData.height;
+         desc.mFormat = fsl::FORMAT_I420;
+         desc.mFslFormat = fsl::FORMAT_I420;
+         desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
+         desc.mFlag = 0;
+
+         int ret = desc.checkFormat();
+         if (ret != 0)
+             return onDeviceError("%s: checkFormat failed", __FUNCTION__);
+
+         allocator->allocMemory(desc, &dstBuffer);
+         allocator->lock(dstBuffer, dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN,
+                     0, 0, dstBuffer->width, dstBuffer->height, &dstBuf);
+
+         int fd = mDecodedData.fd;
+
+         int size = mDecodedData.width * mDecodedData.height * 3 / 2;
+
+         if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+             size = mDecodedData.width * mDecodedData.height * 2;
+         }
+
+         void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+         if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP)
+         {
+             dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 2, 3);
+         }
+         else
+             dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 3 / 2, 3);
+
+         imageProcess->handleFrame((uint8_t *)dstBuf, (uint8_t *)vaddr,
+                                 mDecodedData.width, mDecodedData.height, src_fmt);
+         munmap(vaddr, size);
+
+         dumpStream((uint8_t *)dstBuf, mDecodedData.width * mDecodedData.height * 3 / 2, 1);
+
+         cropAndScaled.y = (uint8_t*)dstBuf;
+         cropAndScaled.cb = (uint8_t*)dstBuf + mDecodedData.width * mDecodedData.height;
+         cropAndScaled.cr = (uint8_t*)dstBuf + mDecodedData.width * mDecodedData.height * 5 / 4;
+         cropAndScaled.yStride = mDecodedData.width;
+         cropAndScaled.cStride = mDecodedData.width / 2;
+         cropAndScaled.chromaStep = 1;
+     }
+#endif
+
     for (auto& halBuf : req->buffers) {
         if (*(halBuf.bufPtr) == nullptr) {
             ALOGW("%s: buffer for stream %d missing", __FUNCTION__, halBuf.streamId);
@@ -1686,68 +1750,6 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             continue;
         }
 
-        YCbCrLayout cropAndScaled;
-        fsl::Memory *dstBuffer = nullptr;
-#ifdef HANTRO_V4L2
-        {
-            //Use openCL to do CSC to I420
-            fsl::SrcFormat src_fmt = fsl::NV12;
-            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
-                src_fmt = fsl::NV16;
-            } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
-                src_fmt = fsl::NV12;
-            } else {
-                ALOGW("%s: unsupported decoded format 0x%x", __func__, mDecodedData.format);
-            }
-
-            fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-            fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-            fsl::MemoryDesc desc;
-            desc.mWidth = mDecodedData.width;
-            desc.mHeight = mDecodedData.height;
-            desc.mFormat = fsl::FORMAT_I420;
-            desc.mFslFormat = fsl::FORMAT_I420;
-            desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
-            desc.mFlag = 0;
-
-            int ret = desc.checkFormat();
-            if (ret != 0)
-                return onDeviceError("%s: checkFormat failed", __FUNCTION__);
-
-            allocator->allocMemory(desc, &dstBuffer);
-            allocator->lock(dstBuffer, dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN,
-                        0, 0, dstBuffer->width, dstBuffer->height, &dstBuf);
-
-            int fd = mDecodedData.fd;
-
-            int size = mDecodedData.width * mDecodedData.height * 3 / 2;
-
-            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
-                size = mDecodedData.width * mDecodedData.height * 2;
-            }
-
-            void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP)
-            {
-                dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 2, 3);
-            }
-            else
-                dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 3 / 2, 3);
-
-            imageProcess->handleFrame((uint8_t *)dstBuf, (uint8_t *)vaddr,
-                                    mDecodedData.width, mDecodedData.height, src_fmt);
-            munmap(vaddr, size);
-
-            dumpStream((uint8_t *)dstBuf, mDecodedData.width * mDecodedData.height * 3 / 2, 1);
-
-            cropAndScaled.y = (uint8_t*)dstBuf;
-            cropAndScaled.cb = (uint8_t*)dstBuf + mDecodedData.width * mDecodedData.height;
-            cropAndScaled.cr = (uint8_t*)dstBuf + mDecodedData.width * mDecodedData.height * 5 / 4;
-            cropAndScaled.yStride = mDecodedData.width;
-            cropAndScaled.cStride = mDecodedData.width / 2;
-            cropAndScaled.chromaStep = 1;
-        }
-#endif
 
         // Gralloc lockYCbCr the buffer
         switch (halBuf.format) {
@@ -1843,13 +1845,6 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 
                 dumpStream((uint8_t*)outLayout.y, halBuf.width * halBuf.height * 3 / 2, 2);
 
-                //free dstBuffer now for the one single request
-                if (dstBuffer) {
-                    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-                    allocator ->unlock(dstBuffer);
-                    allocator ->releaseMemory(dstBuffer);
-                }
-
                 int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
                 if (relFence >= 0) {
                     halBuf.acquireFence = relFence;
@@ -1860,6 +1855,14 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 return onDeviceError("%s: unknown output format %x", __FUNCTION__, halBuf.format);
         }
     } // for each buffer
+
+    //free dstBuffer now for the one single request
+    if (dstBuffer) {
+        fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+        allocator ->unlock(dstBuffer);
+        allocator ->releaseMemory(dstBuffer);
+    }
+
     mScaledYu12Frames.clear();
 
     // Don't hold the lock while calling back to parent
