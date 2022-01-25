@@ -167,7 +167,7 @@ private:
 
     std::vector<DecoderBufferInfo> mDecoderBuffers;
 
-    bool bNeedPostProcess; // For HANTRO_V4L2
+    bool bNeedPostProcess;
 
     status_t SetInputFormats();
     status_t allocateInputBuffers();

@@ -20,6 +20,7 @@
 
 #include <android/hardware/camera/device/3.2/ICameraDevice.h>
 #include <android/hardware/camera/device/3.4/ICameraDeviceSession.h>
+#include <android-base/properties.h>
 #include <fmq/MessageQueue.h>
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
@@ -85,6 +86,9 @@ using ::android::hardware::hidl_string;
 using ::android::sp;
 using ::android::Mutex;
 using ::android::base::unique_fd;
+using ::android::base::GetProperty;
+
+constexpr char kCameraMjpegDecoderType[] = "vendor.camera.mjpg.decoder";
 
 struct ExternalCameraDeviceSession : public virtual RefBase,
         public virtual OutputThreadInterface {
@@ -132,6 +136,8 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
 
         // The remaining request list is returned for offline processing
         std::list<std::shared_ptr<HalRequest>> switchToOffline();
+
+        void setMjpegDecoderType(bool type);
 
         HwDecoder* mDecoder;
         int initVpuThread();
@@ -196,6 +202,8 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
 
         std::string mExifMake;
         std::string mExifModel;
+
+        bool mHardwareDecoder;
     };
 
 protected:
@@ -398,6 +406,8 @@ protected:
 
     std::string mExifMake;
     std::string mExifModel;
+
+    bool mHardwareDecoder;
     /* End of members not changed after initialize() */
 
 private:

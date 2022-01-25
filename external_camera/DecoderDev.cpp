@@ -157,11 +157,6 @@ bool DecoderDev::isDecoderDevice(const char* devName) {
 status_t DecoderDev::GetNode() {
     bool mDecoderGet = false;
 
-#ifdef AMPHION_V4L2
-    strcpy((char *)mDevName, AMPHION_VPU_DEC_NODE);
-    return OK;
-#endif
-
     DIR* devdir = opendir(kDevicePath);
     if(devdir == 0) {
         ALOGE("%s: cannot open %s! Exiting", __func__, kDevicePath);
@@ -265,15 +260,8 @@ bool DecoderDev::IsCaptureFormatSupported(uint32_t format) {
 }
 
 static const COLOR_FORMAT_TABLE color_format_table[] = {
-#ifdef AMPHION_V4L2
-    { HAL_PIXEL_FORMAT_NV12_TILED, V4L2_PIX_FMT_NV12 },
-    { HAL_PIXEL_FORMAT_YCbCr_420_P, V4L2_PIX_FMT_NV12 }, // workaround
-#else
     { HAL_PIXEL_FORMAT_YCbCr_420_P, V4L2_PIX_FMT_YUV420 },
-#endif
-#ifdef HANTRO_V4L2
     { HAL_PIXEL_FORMAT_YCbCr_422_SP, V4L2_PIX_FMT_NV16 },
-#endif
     { HAL_PIXEL_FORMAT_YCbCr_420_SP, V4L2_PIX_FMT_NV12 },
     { HAL_PIXEL_FORMAT_YCbCr_422_I, V4L2_PIX_FMT_YUYV },
 };
