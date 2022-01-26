@@ -32,6 +32,9 @@
 #include <CameraMetadata.h>
 #include <HandleImporter.h>
 #include <cutils/properties.h>
+#include "Memory.h"
+#include "MemoryDesc.h"
+#include "MemoryManager.h"
 
 using ::android::hardware::graphics::mapper::V2_0::IMapper;
 using ::android::hardware::graphics::mapper::V2_0::YCbCrLayout;
@@ -171,13 +174,36 @@ public:
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
 
-    int allocate(YCbCrLayout* out = nullptr);
-    int getLayout(YCbCrLayout* out);
-    int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+    virtual int allocate(YCbCrLayout* out = nullptr);
+    virtual int getLayout(YCbCrLayout* out);
+    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+    virtual void flush() {}
+
     std::vector<uint8_t> mData;
 
-private:
+
+protected:
     std::mutex mLock;
+};
+
+// A RAII class representing a CPU allocated YUV frame used as intermeidate buffers
+// when generating output images.
+class AllocatedFramePhyMem : public AllocatedFrame {
+public:
+    AllocatedFramePhyMem(uint32_t w, uint32_t h); // only support V4L2_PIX_FMT_YUV420 for now
+    virtual ~AllocatedFramePhyMem() override;
+
+    virtual int getData(uint8_t** outData, size_t* dataSize) override;
+
+    virtual int allocate(YCbCrLayout* out = nullptr);
+    virtual int getLayout(YCbCrLayout* out);
+    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+
+    virtual void flush();
+
+private:
+    fsl::Memory *dstBuffer;
+    uint8_t *dstBuf;
 };
 
 enum CroppingType {

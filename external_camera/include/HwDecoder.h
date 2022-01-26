@@ -96,6 +96,7 @@ typedef struct {
         int width = 0;
         int height = 0;
         uint32_t format = 0x103; // HAL_PIXEL_FORMAT_YCbCr_420_SP
+        int32_t bufId;
 } DecodedData;
 
 struct DecoderInputBuffer {
@@ -121,6 +122,7 @@ public:
 
     void notifyDecodeReady(int32_t mOutbufId);
     int exportDecodedBuf(DecodedData &data, int32_t timeoutMs);
+    void returnOutputBufferToDecoder(int32_t bufId);
 
     DecodedData mData;
     mutable std::mutex mFramesSignalLock;
@@ -177,8 +179,6 @@ private:
     status_t allocateOutputBuffers();
     status_t allocateOutputBuffer(int bufId);
     status_t destroyOutputBuffers();
-
-    void returnOutputBufferToDecoder(int32_t bufId);
 
     status_t createPollThread();
     status_t destroyPollThread();

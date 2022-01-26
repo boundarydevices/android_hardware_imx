@@ -204,6 +204,9 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
         std::string mExifModel;
 
         bool mHardwareDecoder;
+
+    private:
+        int VpuDecAndCsc(uint8_t* inData, size_t inDataSize, YCbCrLayout& cropAndScaled);
     };
 
 protected:

@@ -36,6 +36,7 @@ func extCamDefaults(ctx android.LoadHookContext) {
         Target struct {
                 Android struct {
                         Enabled *bool
+                        Cppflags []string
                 }
         }
     }
@@ -45,6 +46,10 @@ func extCamDefaults(ctx android.LoadHookContext) {
         p.Target.Android.Enabled = proptools.BoolPtr(true)
     } else {
         p.Target.Android.Enabled = proptools.BoolPtr(false)
+    }
+
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
     }
 
     ctx.AppendProperties(p)
