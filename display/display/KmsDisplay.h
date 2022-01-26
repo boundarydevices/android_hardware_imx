@@ -171,6 +171,8 @@ protected:
     Memory* mSecTargets[MAX_FRAMEBUFFERS];
     enum g2d_secure_mode mG2dMode;
 #endif
+    bool mHDCPMode;
+    int mHDCPDisableCnt;
 
     struct {
         uint32_t mode_id;
@@ -188,6 +190,7 @@ protected:
         uint32_t crtc_id;
         uint32_t dpms_id;
         uint32_t hdr_meta_id;
+        uint32_t protection_id;
     } mConnector;
     uint32_t mConnectorID;
 

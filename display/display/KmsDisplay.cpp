@@ -139,6 +139,8 @@ KmsDisplay::KmsDisplay()
 #ifdef HAVE_UNMAPPED_HEAP
     mG2dMode = get_g2d_secure_pipe();
 #endif
+    mHDCPMode = false;
+    mHDCPDisableCnt = 0;
 }
 
 KmsDisplay::~KmsDisplay()
@@ -276,6 +278,7 @@ void KmsDisplay::getKmsProperty()
         {"CRTC_ID", &mConnector.crtc_id},
         {"DPMS", &mConnector.dpms_id},
         {"HDR_OUTPUT_METADATA", &mConnector.hdr_meta_id},
+        {"Content Protection", &mConnector.protection_id},
     };
 
     getTableProperty(mCrtcID,
@@ -592,6 +595,22 @@ int KmsDisplay::performOverlay()
 {
     Layer* layer = mOverlay;
     if (layer == NULL || layer->handle == NULL) {
+#ifdef HAVE_UNMAPPED_HEAP
+        if (mHDCPMode) {
+            mHDCPDisableCnt++;
+            if (mHDCPDisableCnt > 10) { // no overlay for more than 10 frames, disable HDCP
+                ALOGI("Disable HDCP");
+                int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
+                      mConnector.protection_id, 0);
+                if (err != 0) {
+                    ALOGE("failed to set HDCP property:0");
+                }
+                mModeset = true;
+                mHDCPMode = false;
+                mHDCPDisableCnt = 0;
+            }
+        }
+#endif
         return 0;
     }
 
@@ -613,6 +632,24 @@ int KmsDisplay::performOverlay()
         }
     }
 
+#ifdef HAVE_UNMAPPED_HEAP
+    bool enable = false;
+    Memory *ov_hnd = layer->handle;
+    if ((ov_hnd->usage & USAGE_PROTECTED) && (mConnector.protection_id > 0)) {
+        enable = true;
+    }
+    if (mHDCPMode != enable) {
+        ALOGI("%s HDCP feature", enable ? "Enable" : "Disable");
+        int val = enable? 1 : 0;
+        int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
+                      mConnector.protection_id, val);
+        if (err != 0) {
+            ALOGE("failed to set HDCP property:%d", val);
+        }
+        mModeset = true;
+        mHDCPMode = enable;
+    }
+#endif
     Memory* buffer = layer->handle;
     const DisplayConfig& config = mConfigs[mActiveConfig];
     if (buffer->fbId == 0) {
