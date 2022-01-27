@@ -259,7 +259,7 @@ int convertToDrmFormat(PixelFormat format, uint32_t* outDrmFormat) {
             *outDrmFormat = DRM_FORMAT_RGB565;
             return 0;
         case PixelFormat::RGB_888:
-            *outDrmFormat = DRM_FORMAT_RGB888;
+            *outDrmFormat = DRM_FORMAT_BGR888;
             return 0;
         case PixelFormat::STENCIL_8:
             return -EINVAL;
