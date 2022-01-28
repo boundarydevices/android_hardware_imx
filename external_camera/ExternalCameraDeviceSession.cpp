@@ -40,6 +40,26 @@
 
 #include "ImageProcess.h"
 
+class SingletonWrap {
+public:
+    SingletonWrap() {
+        ALOGI("%s", __func__);
+        fsl::ImageProcess::getInstance();
+        fsl::MemoryManager::getInstance();
+    }
+
+    ~SingletonWrap() {
+        ALOGI("%s", __func__);
+        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+        if (imageProcess) delete imageProcess;
+
+        fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+        if (allocator) delete allocator;
+    }
+};
+
+static SingletonWrap g_singletonWrapInExtCam;
+
 namespace android {
 namespace hardware {
 namespace camera {
@@ -241,9 +261,6 @@ Status ExternalCameraDeviceSession::initStatus() const {
 }
 
 ExternalCameraDeviceSession::~ExternalCameraDeviceSession() {
-    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-    delete imageProcess;
-
     if (!isClosed()) {
         ALOGE("ExternalCameraDeviceSession deleted before close!");
         close(/*callerIsDtor*/true);
@@ -963,8 +980,6 @@ ExternalCameraDeviceSession::OutputThread::OutputThread(
         mParent(parent), mCroppingType(ct), mCameraCharacteristics(chars) {}
 
 ExternalCameraDeviceSession::OutputThread::~OutputThread() {
-    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-    delete imageProcess;
 }
 
 void ExternalCameraDeviceSession::OutputThread::setMjpegDecoderType(bool type) {
