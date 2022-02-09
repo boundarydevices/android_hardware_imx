@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #define LOG_TAG "ImageProcess"
-//#define LOG_NDEBUG 0
 
 #include <stdio.h>
 #include <dlfcn.h>
@@ -79,6 +78,7 @@ static bool IsCscSupportByG3D(int srcFomat, int dstFormat)
 
     return false;
 }
+
 
 static bool getDefaultG2DLib(char *libName, int size)
 {
@@ -269,10 +269,9 @@ int ImageProcess::handleFrame(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf, 
         return -EINVAL;
     }
 
-    ALOGV("ImageProcess::handleFrame, src: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x, dst: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x, hw_type %d",
+    ALOGV("ImageProcess::handleFrame, src: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x, dst: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x",
         srcBuf.mVirtAddr, srcBuf.mPhyAddr, srcBuf.mSize, srcBuf.mStream->width(), srcBuf.mStream->height(), srcBuf.mStream->format(),
-        dstBuf.mVirtAddr, dstBuf.mPhyAddr, dstBuf.mSize, dstBuf.mStream->width(), dstBuf.mStream->height(), dstBuf.mStream->format(),
-        hw_type);
+        dstBuf.mVirtAddr, dstBuf.mPhyAddr, dstBuf.mSize, dstBuf.mStream->width(), dstBuf.mStream->height(), dstBuf.mStream->format());
 
     switch (hw_type) {
     case GPU_2D:
@@ -518,7 +517,6 @@ int ImageProcess::handleFrameByG2DCopy(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
     if (mBlitEngine == NULL) {
-        ALOGE("%s: mBlitEngine == NULL\n", __func__);
         return -EINVAL;
     }
 
@@ -756,7 +754,7 @@ int ImageProcess::convertNV12toNV21(ImxStreamBuffer& dstBuf, ImxStreamBuffer& sr
         d_buf.buf_paddr = dstBuf.mPhyAddr;
         d_buf.buf_vaddr = dstBuf.mVirtAddr;
         mCopyEngine(g2dHandle, (void*)&d_buf, (void*)&s_buf,
-                    (void*)(intptr_t)size);
+                     (void*)(intptr_t)size);
         mFinishEngine(g2dHandle);
     }
     else {
@@ -788,7 +786,6 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
 {
     // opencl g2d exists.
     if (mCLHandle == NULL) {
-        ALOGE("%s: mCLHandle == NULL\n", __func__);
         return -EINVAL;
     }
 
@@ -808,17 +805,17 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     bool bOutputCached = dst->usage() & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
 
     ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%llx, res src %dx%d, dst %dx%d, format src 0x%x, dst 0x%x",
-        bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(), src->format(), dst->format());
+       bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(), src->format(), dst->format());
 
     // case 1: same format, same resolution, copy
     if ( (src->format() == dst->format()) &&
-        (src->width() == dst->width()) &&
-        (src->height() == dst->height()) ) {
+         (src->width() == dst->width()) &&
+         (src->height() == dst->height()) ) {
         if (HAL_PIXEL_FORMAT_RAW16 == src->format())
             Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
         else {
             Mutex::Autolock _l(mCLLock);
-            cl_YUYVResize(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
+            cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
                 dst->width(), dst->height(),
                 (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
             (*mCLFlush)(mCLHandle);
@@ -837,14 +834,14 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     // filter out unsupported CSC format
     if ( false == IsCscSupportByG3D(src->format(), dst->format()) ) {
         ALOGE("%s:%d, G3D don't support format convert from 0x%x to 0x%x",
-                __func__, __LINE__, src->format(), dst->format());
+                 __func__, __LINE__, src->format(), dst->format());
         return -EINVAL;
     }
 
     // case 3: diffrent format, different resolution
     // first resize, then go through case 4.
     if ( (src->width() != dst->width()) ||
-        (src->height() != dst->height()) ) {
+         (src->height() != dst->height()) ) {
         resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
         resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
@@ -874,28 +871,6 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
         SwitchImxBuf(srcBuf, resizeBuf);
         FreePhyBuffer(resizeBuf);
         delete(resizeBuf.mStream);
-    }
-
-    return 0;
-}
-
-int ImageProcess::handleYUYVFrameResize(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf) {
-    // opencl g2d exists.
-    if (mCLHandle == NULL) {
-        ALOGE("%s: mCLHandle is NULL!\n", __func__);
-        return -EINVAL;
-    }
-
-    ImxStream *src = srcBuf.mStream;
-    ImxStream *dst = dstBuf.mStream;
-    bool bOutputCached = true;
-    {
-        Mutex::Autolock _l(mCLLock);
-        cl_YUYVResize(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
-                dst->width(), dst->height(),
-                (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
-        (*mCLFlush)(mCLHandle);
-        (*mCLFinish)(mCLHandle);
     }
 
     return 0;
@@ -976,7 +951,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     return 0;
 }
 
-void ImageProcess::cl_YUYVResize(void *g2dHandle,
+void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
          uint8_t *output, uint32_t dstWidth,
          uint32_t dstHeight, uint8_t *input,
          uint32_t srcWidth, uint32_t srcHeight, bool bInputCached, bool bOutputCached)
@@ -1007,7 +982,6 @@ void ImageProcess::cl_YUYVResize(void *g2dHandle,
 
     (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
 }
-
 void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
          uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached)
 {
@@ -1148,7 +1122,7 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
     }
 
     if ( (src->width() == dst->width()) &&
-        (src->height() == dst->height()) ) {
+         (src->height() == dst->height()) ) {
         ALOGE("%s: resolution are same, %dx%d", __func__, src->width(), src->height());
         return BAD_VALUE;
     }
@@ -1166,15 +1140,6 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
         ALOGV("%s: resize format 0x%x, res %dx%d to %dx%d by g2d ok",
            __func__, src->format(), src->width(), src->height(), dst->width(), dst->height());
         return 0;
-    }
-
-    if (src->format() == HAL_PIXEL_FORMAT_YCBCR_422_I) {
-        ret = handleYUYVFrameResize(dstBuf, srcBuf);
-        if (ret == 0) {
-            ALOGV("%s: resize format 0x%x, res %dx%d to %dx%d by OpenCL ok",
-               __func__, src->format(), src->width(), src->height(), dst->width(), dst->height());
-            return 0;
-        }
     }
 
 cpu_resize:
