@@ -210,8 +210,8 @@ __kernel void g2d_nv16_to_i420(
     vstore8(uv16_v.s13579bdf, x, output_v + y * (dst_stride / 2));
 }
 
-__kernel void g2d_yuyv_to_yuyv(__global const uchar *input,
-        __global uchar *output,
+__kernel void g2d_yuyv_to_yuyv(__global const uint4 *input,
+        __global uint4 *output,
         int src_width,
         int src_height,
         int dst_width,
@@ -219,68 +219,15 @@ __kernel void g2d_yuyv_to_yuyv(__global const uchar *input,
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
-
-    float fWin = convert_float(src_width);
-    float fHin = convert_float(src_height);
-    float fWout = convert_float(dst_width);
-    float fHout = convert_float(dts_height);
-    float minScaleFactor = min( fHin / fHout, fWin / fWout );
-    float maxScaleFactor = max( fHin / fHout, fWin / fWout );
-
-    if(minScaleFactor > 1.0f) {
-        //reduce
-        int h_scale_ratio = src_width / dst_width;
-        int v_scale_ratio = src_height / dts_height;
-        int h_offset = (src_width - dst_width * h_scale_ratio) / 2;
-        int v_offset = (src_height - dts_height * v_scale_ratio) / 2;
-        int srcStride = src_width * 2;
-        int dstStride = dst_width * 2;
-
-        if(x < dst_width && y < dts_height) {
-            uchar *yuyv_y = input + x * v_scale_ratio * srcStride + y * 2 * h_scale_ratio + v_offset * srcStride + h_offset * 2;
-            uchar *yuyv_u = input + x * v_scale_ratio * srcStride + y * 4 * h_scale_ratio + v_offset * srcStride + h_offset * 2 + 1;
-            uchar *yuyv_v = input + x * v_scale_ratio * srcStride + y * 4 * h_scale_ratio + v_offset * srcStride + h_offset * 2 + 3;
-
-            uchar *yuyv_y_dst = output + x * dstStride + y * 2;
-            uchar *yuyv_u_dst = output + x * dstStride + y * 4 + 1;
-            uchar *yuyv_v_dst = output + x * dstStride + y * 4 + 3;
-
-            (*yuyv_y_dst) = (*yuyv_y);
-            (*yuyv_u_dst) = (*yuyv_u);
-            (*yuyv_v_dst) = (*yuyv_v);
-        }
-    } else if(maxScaleFactor < 1.0f) {
-        // enlarge
-        int h_scale_ratio = dst_width / src_width;
-        int v_scale_ratio = dts_height / src_height;
-
-        int h_offset = (dst_width - src_width * h_scale_ratio) / 2;
-        int v_offset = (dts_height - src_height * v_scale_ratio) / 2;
-
-        int h_offset_end = h_offset + src_width * h_scale_ratio;
-        int v_offset_end = v_offset + src_height * v_scale_ratio;
-
-        int srcStride = src_width * 2;
-        int dstStride = dst_width * 2;
-
-        if((x < v_offset) || (x >= v_offset_end)) {
-            output[dstStride*x + y*2] = 0;
-            output[dstStride*x + y*2+1] = 128;
-        }
-
-        if((y < h_offset) || (y >= h_offset_end)) {
-            output[dstStride*x + y*2] = 0;
-            output[dstStride*x + y*2+1] = 128;
-        }
-
-        int srcRow = (x - v_offset)/v_scale_ratio;
-        int srcCol = (y - h_offset)/h_scale_ratio;
-        output[dstStride*x + y*2] = input[srcStride * srcRow + srcCol*2];
-        output[dstStride*x + y*2+1] = input[srcStride * srcRow + srcCol*2+1];
-    } else{
-        // copy
-        uchar16 yuyv = vload16(x, input + 2 * y * src_width );
-        vstore16(yuyv, x, output + 2 * y * dst_width);
+    int output_index = y*dst_width + x;
+    uint4 *output_buf = output + output_index;
+    if (x >= src_width){
+        *output_buf = (uint4)(0x80008000, 0x80008000, 0x80008000, 0x80008000);
+    }
+    else {
+        int input_index = y*src_width + x;
+        uint4 *input_buf = input + input_index;
+        *output_buf = *input_buf;
     }
 }
 
