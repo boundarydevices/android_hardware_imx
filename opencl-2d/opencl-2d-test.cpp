@@ -23,11 +23,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <ion/ion.h>
+#include <utils/Timers.h>
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
 #include <ion_4.12.h>
 #endif
 #include <linux/ion.h>
+#include <libyuv.h>
 
 #include <VX/vx.h>
 #include <VX/vx_api.h>
@@ -606,7 +608,7 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
         src->planes[1] = (long)(input_buf + gWidth * gHeight);
         break;
     default:
-        ALOGE("Unsupport input format\n");
+        ALOGE("Unsupport input format %d\n", src->format);
         return 0;
     }
 
@@ -627,12 +629,16 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
         dst->planes[0] = (long)output_buf;
         dst->planes[1] = (long)(output_buf + gOutWidth * gOutHeight);
         break;
-        break;
     case CL_G2D_YUYV:
         dst->planes[0] = (long)output_buf;
         break;
+    case CL_G2D_I420:
+        dst->planes[0] = (long)output_buf;
+        dst->planes[1] = (long)(output_buf + gOutWidth * gOutHeight);
+        dst->planes[2] = (long)(output_buf + gOutWidth * gOutHeight * 5 / 4);
+        break;
     default:
-        ALOGE("Unsupport input format\n");
+        ALOGE("Unsupport output format %d\n", dst->format);
         return -1;
     }
 
@@ -836,6 +842,169 @@ binary_out:
     return ret;
 }
 
+int yuv422iResize(uint8_t *srcBuf,
+                                    int      srcWidth,
+                                    int      srcHeight,
+                                    uint8_t *dstBuf,
+                                    int      dstWidth,
+                                    int      dstHeight)
+{
+    int i, j;
+    int h_offset;
+    int v_offset;
+    unsigned char *ptr, cc;
+    int h_scale_ratio;
+    int v_scale_ratio;
+
+    int srcStride;
+    int dstStride;
+
+    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight) return -1;
+
+    h_scale_ratio = srcWidth / dstWidth;
+    v_scale_ratio = srcHeight / dstHeight;
+
+    if((h_scale_ratio > 0) && (v_scale_ratio > 0))
+        goto reduce;
+    else if(h_scale_ratio + v_scale_ratio <= 1)
+        goto enlarge;
+
+    ALOGE("%s, not support resize %dx%d to %dx%d",
+        __func__, srcWidth, srcHeight, dstWidth, dstHeight);
+
+    return -1;
+
+reduce:
+    h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
+    v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
+
+    srcStride = srcWidth * 2;
+    dstStride = dstWidth * 2;
+
+    //for Y
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
+    {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 2 * h_scale_ratio)
+        {
+            ptr = srcBuf + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc  = ptr[0];
+
+            ptr    = dstBuf + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
+    }
+
+    //for U
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
+    {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
+        {
+            ptr = srcBuf + 1 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc  = ptr[0];
+
+
+            ptr    = dstBuf + 1 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
+    }
+
+    //for V
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
+    {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
+        {
+            ptr = srcBuf + 3 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc  = ptr[0];
+
+            ptr    = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
+    }
+
+    return 0;
+
+enlarge:
+    int h_offset_end;
+    int v_offset_end;
+    int srcRow;
+    int srcCol;
+
+    h_scale_ratio = dstWidth / srcWidth;
+    v_scale_ratio = dstHeight / srcHeight;
+
+    h_offset = (dstWidth - srcWidth * h_scale_ratio) / 2;
+    v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
+
+    h_offset_end = h_offset + srcWidth * h_scale_ratio;
+    v_offset_end = v_offset + srcHeight * v_scale_ratio;
+
+    srcStride = srcWidth * 2;
+    v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
+
+    h_offset_end = h_offset + srcWidth * h_scale_ratio;
+    v_offset_end = v_offset + srcHeight * v_scale_ratio;
+
+    srcStride = srcWidth * 2;
+    dstStride = dstWidth * 2;
+
+    ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d, h_offset_end %d, v_offset_end %d",
+            h_scale_ratio, v_scale_ratio, h_offset, v_offset, h_offset_end, v_offset_end);
+
+    // for Y
+    for (i = 0; i < dstHeight; i++)
+    {
+        // top, bottom black margin
+        if((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++)
+            {
+                dstBuf[dstStride*i + j*2] = 0;
+            }
+            continue;
+        }
+
+        for (j = 0; j < dstWidth; j++)
+        {
+            // left, right black margin
+            if((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride*i + j*2] = 0;
+                continue;
+            }
+
+            srcRow = (i - v_offset)/v_scale_ratio;
+            srcCol = (j - h_offset)/h_scale_ratio;
+            dstBuf[dstStride*i + j*2] = srcBuf[srcStride * srcRow + srcCol*2];
+        }
+    }
+
+    // for UV
+    for (i = 0; i < dstHeight; i++)
+    {
+        // top, bottom black margin
+        if((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++)
+            {
+                dstBuf[dstStride*i + j*2+1] = 128;
+            }
+            continue;
+        }
+
+        for (j = 0; j < dstWidth; j++)
+        {
+            // left, right black margin
+            if((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride*i + j*2+1] = 128;
+                continue;
+            }
+
+            srcRow = (i - v_offset)/v_scale_ratio;
+            srcCol = (j - h_offset)/h_scale_ratio;
+            dstBuf[dstStride*i + j*2+1] = srcBuf[srcStride * srcRow + srcCol*2+1];
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     int rt;
@@ -1014,8 +1183,10 @@ int main(int argc, char** argv)
         goto clean;
     }
 
+    uint64_t t1, t2;
+    ALOGI("Start openCL 2d blit");
+    t1 = systemTime();
     for(int loop = 0; loop < G2D_TEST_LOOP; loop ++) {
-        ALOGI("Start openCL 2d blit at loop %d", loop);
         if (!gMemTest) {
             update_surface_parameters(&src, (char *)input_buf,
                 &dst, (char *)output_buf);
@@ -1041,28 +1212,49 @@ int main(int argc, char** argv)
         }
         cl_g2d_flush(g2dHandle);
         cl_g2d_finish(g2dHandle);
-        ALOGI("End openCL 2d blit at loop %d", loop);
     }
+    t2 = systemTime();
+    ALOGI("End openCL 2d blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP, t2-t1, (t2-t1)/G2D_TEST_LOOP);
 
     ALOGI("Start CPU 2d blit");
+    t1 = systemTime();
     if (!gMemTest) {
         if ((src.format == CL_G2D_YUYV) && (dst.format == CL_G2D_NV12)) {
             convertYUYVtoNV12SP((uint8_t *)input_buf, (uint8_t *)output_benchmark_buf,
                     gOutWidth, gOutHeight);
         }
         else if ((src.format == CL_G2D_YUYV) && (dst.format == CL_G2D_YUYV)) {
-            YUYVCopyByLine((uint8_t *)output_benchmark_buf, gOutWidth, gOutHeight,
-                (uint8_t *)input_buf, gWidth, gHeight);
+            if ((gWidth == gOutWidth) && (gHeight == gOutHeight))
+                YUYVCopyByLine((uint8_t *)output_benchmark_buf, gOutWidth, gOutHeight,
+                  (uint8_t *)input_buf, gWidth, gHeight);
+            else
+                yuv422iResize((uint8_t *)input_buf, gWidth, gHeight, (uint8_t *)output_benchmark_buf, gOutWidth, gOutHeight);
         }
         else if ((src.format == CL_G2D_NV12) && (dst.format == CL_G2D_NV21)) {
             convertNV12toNV21((uint8_t *)output_benchmark_buf, gOutWidth, gOutHeight,
                 (uint8_t *)input_buf);
+        } else if((src.format == CL_G2D_NV12) && (dst.format == CL_G2D_I420) && (gWidth == gOutWidth) && (gHeight == gOutHeight)) {
+            uint8_t *nv12_y = (uint8_t *)input_buf;
+            uint8_t *nv12_uv = (uint8_t *)input_buf + gWidth*gHeight;
+            int nv12_y_stride = gWidth;
+            int nv12_uv_stride = gWidth;
+
+            libyuv::NV12ToI420(
+                nv12_y, nv12_y_stride, nv12_uv, nv12_uv_stride,
+                (uint8_t *)output_benchmark_buf, gWidth,
+                (uint8_t *)output_benchmark_buf + gWidth*gHeight, gWidth/2,
+                (uint8_t *)output_benchmark_buf + gWidth*gHeight*5/4, gWidth/2,
+                gWidth, gHeight);
+        } else {
+            ALOGW("unsupported by CPU blit, src.format %d, dst.format %d", src.format, dst.format);
         }
     } else {
         memcpy(output_benchmark_buf, input_buf, gCopyLen);
     }
-    ALOGI("End CPU 2d blit");
+    t2 = systemTime();
+    ALOGI("End CPU 2d blit, use %lld ns", t2-t1);
 
+#if 0
     ALOGI("Start openVX blit");
     {
         vx_status status;
@@ -1126,7 +1318,7 @@ int main(int argc, char** argv)
         }
     }
     ALOGI("End openVX blit");
-
+#endif
 
     if (!gMemTest) {
         if (dst.format == CL_G2D_YUYV) {

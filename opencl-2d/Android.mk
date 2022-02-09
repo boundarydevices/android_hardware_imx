@@ -50,7 +50,8 @@ LOCAL_C_INCLUDES += \
                     system/memory/libion/include \
                     system/memory/libion/kernel-headers/linux \
                     system/memory/libion \
-                    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include
+                    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
+                    external/libyuv/files/include
 
 LOCAL_C_INCLUDES += \
                     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include/VX
@@ -61,7 +62,9 @@ LOCAL_SHARED_LIBRARIES := liblog \
                           libOpenCL \
                           libOpenVX \
                           libOpenVXU \
-                          libg2d-opencl
+                          libg2d-opencl \
+                          libutils \
+                          libyuv
 
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID
 LOCAL_MODULE_TAGS := optional
