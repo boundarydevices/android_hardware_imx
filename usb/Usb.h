@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2017 The Android Open Source Project
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,52 +15,53 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_USB_V1_1_USB_H
-#define ANDROID_HARDWARE_USB_V1_1_USB_H
+#ifndef ANDROID_HARDWARE_USB_V1_3_USB_H
+#define ANDROID_HARDWARE_USB_V1_3_USB_H
 
+#include <string>
 #include <android-base/file.h>
 #include <android-base/properties.h>
-#include <android/hardware/usb/1.1/IUsb.h>
-#include <android/hardware/usb/1.1/types.h>
-#include <android/hardware/usb/1.1/IUsbCallback.h>
+#include <android/hardware/usb/1.2/IUsbCallback.h>
+#include <android/hardware/usb/1.2/types.h>
+#include <android/hardware/usb/1.3/IUsb.h>
 #include <hidl/Status.h>
 #include <utils/Log.h>
-
-#define UEVENT_MSG_LEN 2048
-// The type-c stack waits for 4.5 - 5.5 secs before declaring a port non-pd.
-// The -partner directory would not be created until this is done.
-// Having a margin of ~3 secs for the directory and other related bookeeping
-// structures created and uvent fired.
-#define PORT_TYPE_TIMEOUT 8
-
-#define UDC_CONFIGURED "configured"
-#define USB_CONTROLLER "vendor.usb.config"
-#define UDC_STATE_VALUE_MAX 64
 
 namespace android {
 namespace hardware {
 namespace usb {
-namespace V1_1 {
+namespace V1_3 {
 namespace implementation {
 
-using ::android::hardware::usb::V1_0::PortRole;
-using ::android::hardware::usb::V1_0::PortRoleType;
-using ::android::hardware::usb::V1_0::PortDataRole;
-using ::android::hardware::usb::V1_0::PortPowerRole;
-using ::android::hardware::usb::V1_0::Status;
-using ::android::hardware::usb::V1_1::IUsb;
-using ::android::hardware::usb::V1_1::IUsbCallback;
-using ::android::hardware::usb::V1_1::PortMode_1_1;
-using ::android::hardware::usb::V1_1::PortStatus_1_1;
-using ::android::hidl::base::V1_0::DebugInfo;
-using ::android::hidl::base::V1_0::IBase;
+using ::std::string;
+using ::android::sp;
+using ::android::base::GetProperty;
+using ::android::base::WriteStringToFile;
 using ::android::hardware::hidl_array;
 using ::android::hardware::hidl_memory;
 using ::android::hardware::hidl_string;
 using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
-using ::android::sp;
+using ::android::hardware::usb::V1_0::PortDataRole;
+using ::android::hardware::usb::V1_0::PortPowerRole;
+using ::android::hardware::usb::V1_0::PortRole;
+using ::android::hardware::usb::V1_0::PortRoleType;
+using ::android::hardware::usb::V1_0::Status;
+using ::android::hardware::usb::V1_1::PortMode_1_1;
+using ::android::hardware::usb::V1_1::PortStatus_1_1;
+using ::android::hardware::usb::V1_2::PortStatus;
+using ::android::hardware::usb::V1_2::IUsbCallback;
+using ::android::hardware::usb::V1_3::IUsb;
+using ::android::hidl::base::V1_0::DebugInfo;
+using ::android::hidl::base::V1_0::IBase;
+
+enum class HALVersion{
+    V1_0,
+    V1_1,
+    V1_2,
+    V1_3
+};
 
 struct Usb : public IUsb {
     Usb();
@@ -68,7 +69,9 @@ struct Usb : public IUsb {
     Return<void> switchRole(const hidl_string& portName, const V1_0::PortRole& role) override;
     Return<void> setCallback(const sp<V1_0::IUsbCallback>& callback) override;
     Return<void> queryPortStatus() override;
-
+    Return<void> enableContaminantPresenceDetection(const hidl_string& portName, bool enable);
+    Return<void> enableContaminantPresenceProtection(const hidl_string& portName, bool enable);
+    Return<bool> enableUsbDataSignal(bool enable) override;
 
     sp<V1_0::IUsbCallback> mCallback_1_0;
     // Protects mCallback variable
@@ -94,9 +97,9 @@ struct Usb : public IUsb {
 };
 
 }  // namespace implementation
-}  // namespace V1_0
+}  // namespace V1_3
 }  // namespace usb
 }  // namespace hardware
 }  // namespace android
 
-#endif  // ANDROID_HARDWARE_USB_V1_1_USB_H
+#endif  // ANDROID_HARDWARE_USB_V1_3_USB_H

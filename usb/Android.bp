@@ -14,13 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 cc_binary {
-    name: "android.hardware.usb@1.1-service.imx",
+    name: "android.hardware.usb@1.3-service.imx",
     relative_install_path: "hw",
     defaults: ["hidl_defaults"],
     vendor: true,
-    init_rc: ["android.hardware.usb@1.1-service.imx.rc"],
+    init_rc: ["android.hardware.usb@1.3-service.imx.rc"],
     vintf_fragments: [
-        "android.hardware.usb@1.1-service.imx.xml"],
+        "android.hardware.usb@1.3-service.imx.xml"],
     srcs: ["service.cpp", "Usb.cpp"],
     shared_libs: [
         "libbase",
@@ -30,6 +30,8 @@ cc_binary {
         "libhardware",
         "android.hardware.usb@1.0",
         "android.hardware.usb@1.1",
+        "android.hardware.usb@1.2",
+        "android.hardware.usb@1.3",
         "libcutils",
         "libpower",
     ],
