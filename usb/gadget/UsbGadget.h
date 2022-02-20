@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 The Android Open Source Project
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,14 @@
  * limitations under the License.
  */
 
+#ifndef ANDROID_HARDWARE_USB_GADGET_V1_2_USBGADGET_H
+#define ANDROID_HARDWARE_USB_GADGET_V1_2_USBGADGET_H
 #include <android-base/file.h>
+#include <android-base/strings.h>
 #include <android-base/properties.h>
 #include <android-base/unique_fd.h>
-#include <android/hardware/usb/gadget/1.1/IUsbGadget.h>
+#include <android/hardware/usb/gadget/1.2/IUsbGadget.h>
+#include <android/hardware/usb/gadget/1.2/types.h>
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
 #include <sys/epoll.h>
@@ -34,23 +38,24 @@ namespace android {
 namespace hardware {
 namespace usb {
 namespace gadget {
-namespace V1_1 {
+namespace V1_2 {
 namespace implementation {
 
 using ::android::sp;
+using ::android::base::Trim;
+using ::android::base::unique_fd;
 using ::android::base::GetProperty;
 using ::android::base::SetProperty;
-using ::android::base::unique_fd;
-using ::android::base::WriteStringToFile;
+using ::android::base::WriteStringToFd;
 using ::android::hardware::hidl_array;
 using ::android::hardware::hidl_memory;
 using ::android::hardware::hidl_string;
 using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
-using ::android::hardware::usb::gadget::V1_0::GadgetFunction;
+using ::android::hardware::usb::gadget::V1_2::GadgetFunction;
 using ::android::hardware::usb::gadget::V1_0::Status;
-using ::android::hardware::usb::gadget::V1_1::IUsbGadget;
+//using ::android::hardware::usb::gadget::V1_1::IUsbGadget;
 using ::std::lock_guard;
 using ::std::move;
 using ::std::mutex;
@@ -80,6 +85,7 @@ struct UsbGadget : public IUsbGadget {
   std::mutex mLockSetCurrentFunction;
   uint64_t mCurrentUsbFunctions;
   bool mCurrentUsbFunctionsApplied;
+    UsbSpeed mUsbSpeed;
 
   Return<void> setCurrentUsbFunctions(uint64_t functions,
                                       const sp<V1_0::IUsbGadgetCallback> &callback,
@@ -89,6 +95,8 @@ struct UsbGadget : public IUsbGadget {
 
   Return<Status> reset() override;
 
+  Return<void> getUsbSpeed(const sp<V1_2::IUsbGadgetCallback>& callback) override;
+
   // Dump apis
   Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
   void cmdDump(int fd, const hidl_vec<hidl_string>& options);
@@ -97,14 +105,16 @@ struct UsbGadget : public IUsbGadget {
   void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
 
   private:
-  Status tearDownGadget();
-  Status setupFunctions(uint64_t functions, const sp<V1_0::IUsbGadgetCallback> &callback,
-                        uint64_t timeout);
+    V1_0::Status tearDownGadget();
+    V1_0::Status setupFunctions(uint64_t functions, const sp<V1_0::IUsbGadgetCallback>& callback,
+                                uint64_t timeout);
 };
 
 }  // namespace implementation
-}  // namespace V1_1
+}  // namespace V1_2
 }  // namespace gadget
 }  // namespace usb
 }  // namespace hardware
 }  // namespace android
+
+#endif  // ANDROID_HARDWARE_USB_V1_2_USBGADGET_H

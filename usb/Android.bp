@@ -1,6 +1,6 @@
 //
 // Copyright (C) 2017 The Android Open Source Project
-// Copyright 2018-2020 NXP
+// Copyright 2018-2022 NXP
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 cc_binary {
     name: "android.hardware.usb@1.1-service.imx",
     relative_install_path: "hw",
+    defaults: ["hidl_defaults"],
+    vendor: true,
     init_rc: ["android.hardware.usb@1.1-service.imx.rc"],
     vintf_fragments: [
-        "android.hardware.usb@1.1-service.imx.xml",
-        "android.hardware.usb.gadget@1.1-service.imx.xml",
-    ],
-    srcs: ["service.cpp", "Usb.cpp", "UsbGadget.cpp"],
+        "android.hardware.usb@1.1-service.imx.xml"],
+    srcs: ["service.cpp", "Usb.cpp"],
     shared_libs: [
         "libbase",
         "libhidlbase",
@@ -30,8 +30,6 @@ cc_binary {
         "libhardware",
         "android.hardware.usb@1.0",
         "android.hardware.usb@1.1",
-        "android.hardware.usb.gadget@1.0",
-        "android.hardware.usb.gadget@1.1",
         "libcutils",
         "libpower",
     ],

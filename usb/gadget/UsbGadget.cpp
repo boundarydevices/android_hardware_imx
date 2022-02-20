@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2018 The Android Open Source Project
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "android.hardware.usb.gadget@1.1-service.imx"
+#define LOG_TAG "android.hardware.usb.gadget@1.2-service.imx"
 
 #include "UsbGadget.h"
 #include <dirent.h>
@@ -60,19 +60,21 @@ constexpr int PULL_UP_DELAY = 500000;
 #define FUNCTION_PATH CONFIG_PATH FUNCTION_NAME
 #define RNDIS_PATH FUNCTIONS_PATH "rndis.gs4"
 #define CONFIGURATION_PATH CONFIG_PATH "strings/0x409/configuration"
+#define SPEED_PATH "/current_speed"
 
 namespace android {
 namespace hardware {
 namespace usb {
 namespace gadget {
-namespace V1_1 {
+namespace V1_2 {
 namespace implementation {
 
-using ::android::base::EqualsIgnoreCase;
-using ::android::base::StringPrintf;
-using ::android::base::WriteStringToFd;
-
 volatile bool gadgetPullup;
+
+using android::base::WriteStringToFile;
+using android::base::ReadFileToString;
+using android::base::EqualsIgnoreCase;
+using android::base::StringPrintf;
 
 // Used for debug.
 static void displayInotifyEvent(struct inotify_event *i) {
@@ -154,8 +156,7 @@ static void *monitorFfs(void *param) {
           p += sizeof(struct inotify_event) + event->len;
 
           bool descriptorPresent = true;
-          for (int j = 0; j < static_cast<int>(usbGadget->mEndpointList.size());
-               j++) {
+          for (int j = 0; j < static_cast<int>(usbGadget->mEndpointList.size()); j++) {
             if (access(usbGadget->mEndpointList.at(j).c_str(), R_OK)) {
               if (DEBUG)
                 ALOGI("%s absent", usbGadget->mEndpointList.at(j).c_str());
@@ -176,7 +177,7 @@ static void *monitorFfs(void *param) {
               usleep(PULL_UP_DELAY);
 
             if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
-              readUdc = android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
+              readUdc = ReadFileToString(PULLUP_PATH, &bound_udc);
               if ((bound_udc != GADGET_NAME && bound_udc != "") || !readUdc) {
                 WriteStringToFile("none", PULLUP_PATH);
                 usleep(PULL_UP_DELAY);
@@ -194,7 +195,7 @@ static void *monitorFfs(void *param) {
                 usbGadget->mCv.notify_all();
               }
             } else {
-             /* try to bind configfs with dummy udc only when usb controller sysfs path is watched
+              /* try to bind configfs with dummy udc only when usb controller sysfs path is watched
               * on because it is used to trigger events when the board is connected to the host again */
               if (usbGadget->mUsbSysfsPathWatch) {
                 ALOGI("try to bind configfs with dummy udc");
@@ -203,7 +204,7 @@ static void *monitorFfs(void *param) {
                   dirent* dp;
                   while ((dp = readdir(dir.get())) != nullptr) {
                     if ( (dp->d_name[0] != '.') && strstr(dp->d_name, "dummy_udc") ) {
-                      readUdc = android::base::ReadFileToString(PULLUP_PATH, &bound_udc);
+                      readUdc = ReadFileToString(PULLUP_PATH, &bound_udc);
                       if ((bound_udc != "" && strncmp(bound_udc.c_str(), dp->d_name, bound_udc.size()-1)) || !readUdc) {
                         WriteStringToFile("none", PULLUP_PATH);
                         usleep(PULL_UP_DELAY);
@@ -238,7 +239,7 @@ static void *monitorFfs(void *param) {
 
 UsbGadget::UsbGadget()
     : mMonitorCreated(false), mCurrentUsbFunctionsApplied(false) {
-  mCurrentUsbFunctions = static_cast<uint64_t>(GadgetFunction::NONE);
+  mCurrentUsbFunctions = static_cast<uint64_t>(V1_2::GadgetFunction::NONE);
   mUsbSysfsPathWatch = false;
   if (access(OS_DESC_PATH, R_OK) != 0) ALOGE("configfs setup not done yet");
 }
@@ -294,19 +295,63 @@ Return<void> UsbGadget::getCurrentUsbFunctions(
   return Void();
 }
 
+Return<void> UsbGadget::getUsbSpeed(const sp<V1_2::IUsbGadgetCallback>& callback) {
+    std::string current_speed;
+    if (ReadFileToString(string("/sys/class/udc/" + GADGET_NAME + SPEED_PATH).c_str(), &current_speed)) {
+        current_speed = Trim(current_speed);
+        ALOGI("current USB speed is %s", current_speed.c_str());
+        if (current_speed == "low-speed")
+            mUsbSpeed = UsbSpeed::LOWSPEED;
+        else if (current_speed == "full-speed")
+            mUsbSpeed = UsbSpeed::FULLSPEED;
+        else if (current_speed == "high-speed")
+            mUsbSpeed = UsbSpeed::HIGHSPEED;
+        else if (current_speed == "super-speed")
+            mUsbSpeed = UsbSpeed::SUPERSPEED;
+        else if (current_speed == "super-speed-plus")
+            mUsbSpeed = UsbSpeed::SUPERSPEED_10Gb;
+        else if (current_speed == "UNKNOWN")
+            mUsbSpeed = UsbSpeed::UNKNOWN;
+        else {
+            /**
+             * This part is used for USB4 or reserved speed.
+             *
+             * If reserved speed is detected, it needs to convert to other speeds.
+             * For example:
+             * If the bandwidth of new speed is 7G, adding new if
+             * statement and set mUsbSpeed to SUPERSPEED.
+             * If the bandwidth of new speed is 80G, adding new if
+             * statement and set mUsbSpeed to USB4_GEN3_40Gb.
+             */
+            mUsbSpeed = UsbSpeed::RESERVED_SPEED;
+        }
+    } else {
+        ALOGE("Fail to read current speed");
+        mUsbSpeed = UsbSpeed::UNKNOWN;
+    }
+
+    if (callback) {
+        Return<void> ret = callback->getUsbSpeedCb(mUsbSpeed);
+
+        if (!ret.isOk()) ALOGE("Call to getUsbSpeedCb failed %s", ret.description().c_str());
+    }
+
+    return Void();
+}
+
 V1_0::Status UsbGadget::tearDownGadget() {
   ALOGI("setCurrentUsbFunctions None");
 
   if (!WriteStringToFile("none", PULLUP_PATH))
     ALOGI("Gadget cannot be pulled down");
 
-  if (!WriteStringToFile("0", DEVICE_CLASS_PATH)) return Status::ERROR;
+  if (!WriteStringToFile("0", DEVICE_CLASS_PATH)) return V1_0::Status::ERROR;
 
-  if (!WriteStringToFile("0", DEVICE_SUB_CLASS_PATH)) return Status::ERROR;
+  if (!WriteStringToFile("0", DEVICE_SUB_CLASS_PATH)) return V1_0::Status::ERROR;
 
-  if (!WriteStringToFile("0", DEVICE_PROTOCOL_PATH)) return Status::ERROR;
+  if (!WriteStringToFile("0", DEVICE_PROTOCOL_PATH)) return V1_0::Status::ERROR;
 
-  if (!WriteStringToFile("0", DESC_USE_PATH)) return Status::ERROR;
+  if (!WriteStringToFile("0", DESC_USE_PATH)) return V1_0::Status::ERROR;
 
   if (mMonitorCreated) {
     uint64_t flag = 100;
@@ -328,22 +373,28 @@ V1_0::Status UsbGadget::tearDownGadget() {
     ALOGI("mMonitor not running");
   }
 
-  if (unlinkFunctions(CONFIG_PATH)) return Status::ERROR;
+  if (unlinkFunctions(CONFIG_PATH)) return V1_0::Status::ERROR;
 
   mInotifyFd.reset(-1);
   mEventFd.reset(-1);
   mEpollFd.reset(-1);
   mEndpointList.clear();
-  return Status::SUCCESS;
+  return V1_0::Status::SUCCESS;
 }
 
-Return<Status> UsbGadget::reset() {
+Return<V1_0::Status> UsbGadget::reset() {
     if (!WriteStringToFile("none", PULLUP_PATH)) {
         ALOGI("Gadget cannot be pulled down");
-        return Status::ERROR;
+        return V1_0::Status::ERROR;
+    }
+    usleep(DISCONNECT_WAIT_US);
+
+    if (!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+        ALOGI("Gadget cannot be pulled up");
+        return V1_0::Status::ERROR;
     }
 
-    return Status::SUCCESS;
+    return V1_0::Status::SUCCESS;
 }
 
 static int linkFunction(const char *function, int index) {
@@ -360,81 +411,89 @@ static int linkFunction(const char *function, int index) {
 }
 
 static V1_0::Status setVidPid(const char *vid, const char *pid) {
-  if (!WriteStringToFile(vid, VENDOR_ID_PATH)) return Status::ERROR;
+  if (!WriteStringToFile(vid, VENDOR_ID_PATH)) return V1_0::Status::ERROR;
 
-  if (!WriteStringToFile(pid, PRODUCT_ID_PATH)) return Status::ERROR;
+  if (!WriteStringToFile(pid, PRODUCT_ID_PATH)) return V1_0::Status::ERROR;
 
-  return Status::SUCCESS;
+  return V1_0::Status::SUCCESS;
 }
 
 static V1_0::Status validateAndSetVidPid(uint64_t functions) {
-  V1_0::Status ret = Status::SUCCESS;
+    V1_0::Status ret = V1_0::Status::SUCCESS;
 
   switch (functions) {
-    case static_cast<uint64_t>(GadgetFunction::MTP):
+    case static_cast<uint64_t>(V1_2::GadgetFunction::MTP):
         WriteStringToFile("mtp", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee1");
       break;
-    case GadgetFunction::ADB | GadgetFunction::MTP:
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::MTP:
         WriteStringToFile("adb|mtp", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee2");
       break;
-    case static_cast<uint64_t>(GadgetFunction::RNDIS):
+    case static_cast<uint64_t>(V1_2::GadgetFunction::RNDIS):
         WriteStringToFile("rndis", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee3");
       break;
-    case GadgetFunction::ADB | GadgetFunction::RNDIS:
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::RNDIS:
         WriteStringToFile("adb|rndis", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee4");
       break;
-    case static_cast<uint64_t>(GadgetFunction::PTP):
+    case static_cast<uint64_t>(V1_2::GadgetFunction::PTP):
       WriteStringToFile("ptp", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee5");
       break;
-    case GadgetFunction::ADB | GadgetFunction::PTP:
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::PTP:
       WriteStringToFile("adb|ptp", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee6");
       break;
-    case static_cast<uint64_t>(GadgetFunction::ADB):
+    case static_cast<uint64_t>(V1_2::GadgetFunction::ADB):
         WriteStringToFile("adb", CONFIGURATION_PATH);
         ret = setVidPid("0x18d1", "0x4ee7");
       break;
-    case static_cast<uint64_t>(GadgetFunction::MIDI):
+    case static_cast<uint64_t>(V1_2::GadgetFunction::MIDI):
       WriteStringToFile("midi", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee8");
       break;
-    case GadgetFunction::ADB | GadgetFunction::MIDI:
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::MIDI:
       WriteStringToFile("adb|midi", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x4ee9");
       break;
-    case static_cast<uint64_t>(GadgetFunction::ACCESSORY):
+    case static_cast<uint64_t>(V1_2::GadgetFunction::NCM):
+      WriteStringToFile("ncm", CONFIGURATION_PATH);
+      ret = setVidPid("0x18d1", "0x4eeb");
+      break;
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::NCM:
+      WriteStringToFile("adb|ncm", CONFIGURATION_PATH);
+      ret = setVidPid("0x18d1", "0x4eec");
+      break;
+    case static_cast<uint64_t>(V1_2::GadgetFunction::ACCESSORY):
       WriteStringToFile("accessory", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d00");
       break;
-    case GadgetFunction::ADB | GadgetFunction::ACCESSORY:
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::ACCESSORY:
       WriteStringToFile("adb|accessory", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d01");
       break;
-    case static_cast<uint64_t>(GadgetFunction::AUDIO_SOURCE):
+    case static_cast<uint64_t>(V1_2::GadgetFunction::AUDIO_SOURCE):
       WriteStringToFile("audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d02");
       break;
-    case GadgetFunction::ADB | GadgetFunction::AUDIO_SOURCE:
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::AUDIO_SOURCE:
       WriteStringToFile("adb|audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d03");
       break;
-    case GadgetFunction::ACCESSORY | GadgetFunction::AUDIO_SOURCE:
+    case V1_2::GadgetFunction::ACCESSORY | V1_2::GadgetFunction::AUDIO_SOURCE:
       WriteStringToFile("accessory|audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d04");
       break;
-    case GadgetFunction::ADB | GadgetFunction::ACCESSORY |
-         GadgetFunction::AUDIO_SOURCE:
+    case V1_2::GadgetFunction::ADB | V1_2::GadgetFunction::ACCESSORY |
+          V1_2::GadgetFunction::AUDIO_SOURCE:
       WriteStringToFile("adb|accessory|audio_source", CONFIGURATION_PATH);
       ret = setVidPid("0x18d1", "0x2d05");
       break;
     default:
       ALOGE("Combination not supported");
-      ret = Status::CONFIGURATION_NOT_SUPPORTED;
+      ret = V1_0::Status::CONFIGURATION_NOT_SUPPORTED;
   }
   return ret;
 }
@@ -447,37 +506,37 @@ V1_0::Status UsbGadget::setupFunctions(
   unique_fd inotifyFd(inotify_init());
   if (inotifyFd < 0) {
     ALOGE("inotify init failed");
-    return Status::ERROR;
+    return V1_0::Status::ERROR;
   }
 
   bool ffsEnabled = false;
   int i = 0;
   std::string bootMode = GetProperty(PERSISTENT_BOOT_MODE, "");
 
-  if (((functions & GadgetFunction::MTP) != 0)) {
+  if (((functions & V1_2::GadgetFunction::MTP) != 0)) {
     ffsEnabled = true;
     ALOGI("setCurrentUsbFunctions mtp");
-    if (!WriteStringToFile("1", DESC_USE_PATH)) return Status::ERROR;
+    if (!WriteStringToFile("1", DESC_USE_PATH)) return V1_0::Status::ERROR;
 
     if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/mtp/", IN_ALL_EVENTS) == -1)
-      return Status::ERROR;
+      return V1_0::Status::ERROR;
 
-    if (linkFunction("ffs.mtp", i++)) return Status::ERROR;
+    if (linkFunction("ffs.mtp", i++)) return V1_0::Status::ERROR;
 
     // Add endpoints to be monitored.
     mEndpointList.push_back("/dev/usb-ffs/mtp/ep1");
     mEndpointList.push_back("/dev/usb-ffs/mtp/ep2");
     mEndpointList.push_back("/dev/usb-ffs/mtp/ep3");
-  } else if (((functions & GadgetFunction::PTP) != 0)) {
+  } else if (((functions & V1_2::GadgetFunction::PTP) != 0)) {
     ffsEnabled = true;
     ALOGI("setCurrentUsbFunctions ptp");
-    if (!WriteStringToFile("1", DESC_USE_PATH)) return Status::ERROR;
+    if (!WriteStringToFile("1", DESC_USE_PATH)) return V1_0::Status::ERROR;
 
     if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/ptp/", IN_ALL_EVENTS) == -1)
-      return Status::ERROR;
+      return V1_0::Status::ERROR;
 
 
-    if (linkFunction("ffs.ptp", i++)) return Status::ERROR;
+    if (linkFunction("ffs.ptp", i++)) return V1_0::Status::ERROR;
 
     // Add endpoints to be monitored.
     mEndpointList.push_back("/dev/usb-ffs/ptp/ep1");
@@ -485,33 +544,38 @@ V1_0::Status UsbGadget::setupFunctions(
     mEndpointList.push_back("/dev/usb-ffs/ptp/ep3");
   }
 
-  if ((functions & GadgetFunction::MIDI) != 0) {
+  if ((functions & V1_2::GadgetFunction::MIDI) != 0) {
     ALOGI("setCurrentUsbFunctions MIDI");
-    if (linkFunction("midi.gs5", i++)) return Status::ERROR;
+    if (linkFunction("midi.gs5", i++)) return V1_0::Status::ERROR;
   }
 
-  if ((functions & GadgetFunction::ACCESSORY) != 0) {
+  if ((functions & V1_2::GadgetFunction::ACCESSORY) != 0) {
     ALOGI("setCurrentUsbFunctions Accessory");
-    if (linkFunction("accessory.gs2", i++)) return Status::ERROR;
+    if (linkFunction("accessory.gs2", i++)) return V1_0::Status::ERROR;
   }
 
-  if ((functions & GadgetFunction::AUDIO_SOURCE) != 0) {
+  if ((functions & V1_2::GadgetFunction::AUDIO_SOURCE) != 0) {
     ALOGI("setCurrentUsbFunctions Audio Source");
-    if (linkFunction("audio_source.gs3", i++)) return Status::ERROR;
+    if (linkFunction("audio_source.gs3", i++)) return V1_0::Status::ERROR;
   }
 
-  if ((functions & GadgetFunction::RNDIS) != 0) {
+  if ((functions & V1_2::GadgetFunction::RNDIS) != 0) {
     ALOGI("setCurrentUsbFunctions rndis");
-    if (linkFunction("rndis.gs4", i++)) return Status::ERROR;
+    if (linkFunction("rndis.gs4", i++)) return V1_0::Status::ERROR;
   }
 
-  if ((functions & GadgetFunction::ADB) != 0) {
+  if ((functions & V1_2::GadgetFunction::NCM) != 0) {
+    ALOGE("setCurrentUsbFunctions ncm");
+    if (linkFunction("ncm.gs6", i++)) return V1_0::Status::ERROR;
+  }
+
+  if ((functions & V1_2::GadgetFunction::ADB) != 0) {
     ffsEnabled = true;
     ALOGI("setCurrentUsbFunctions Adb");
     if (!WriteStringToFile("1", DESC_USE_PATH))
-      return Status::ERROR;
+      return V1_0::Status::ERROR;
     if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/adb/", IN_ALL_EVENTS) == -1)
-      return Status::ERROR;
+      return V1_0::Status::ERROR;
 
     if (inotify_add_watch(inotifyFd, USB_SYSFS_PATH.c_str(), IN_ALL_EVENTS) == -1) {
       /* Do not return if fail to add watch on usb controller sysfs file path, as this is
@@ -523,7 +587,7 @@ V1_0::Status UsbGadget::setupFunctions(
       mUsbSysfsPathWatch = true;
     }
 
-    if (linkFunction("ffs.adb", i++)) return Status::ERROR;
+    if (linkFunction("ffs.adb", i++)) return V1_0::Status::ERROR;
     mEndpointList.push_back("/dev/usb-ffs/adb/ep1");
     mEndpointList.push_back("/dev/usb-ffs/adb/ep2");
     ALOGI("Service started");
@@ -531,28 +595,28 @@ V1_0::Status UsbGadget::setupFunctions(
 
   // Pull up the gadget right away when there are no ffs functions.
   if (!ffsEnabled) {
-    if (!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) return Status::ERROR;
+    if (!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) return V1_0::Status::ERROR;
     mCurrentUsbFunctionsApplied = true;
     if (callback)
-      callback->setCurrentUsbFunctionsCb(functions, Status::SUCCESS);
-    return Status::SUCCESS;
+      callback->setCurrentUsbFunctionsCb(functions, V1_0::Status::SUCCESS);
+    return V1_0::Status::SUCCESS;
   }
 
   unique_fd eventFd(eventfd(0, 0));
   if (eventFd == -1) {
     ALOGE("mEventFd failed to create %d", errno);
-    return Status::ERROR;
+    return V1_0::Status::ERROR;
   }
 
   unique_fd epollFd(epoll_create(2));
   if (epollFd == -1) {
     ALOGE("mEpollFd failed to create %d", errno);
-    return Status::ERROR;
+    return V1_0::Status::ERROR;
   }
 
-  if (addEpollFd(epollFd, inotifyFd) == -1) return Status::ERROR;
+  if (addEpollFd(epollFd, inotifyFd) == -1) return V1_0::Status::ERROR;
 
-  if (addEpollFd(epollFd, eventFd) == -1) return Status::ERROR;
+  if (addEpollFd(epollFd, eventFd) == -1) return V1_0::Status::ERROR;
 
   mEpollFd = move(epollFd);
   mInotifyFd = move(inotifyFd);
@@ -575,12 +639,12 @@ V1_0::Status UsbGadget::setupFunctions(
       // point.
     }
     Return<void> ret = callback->setCurrentUsbFunctionsCb(
-        functions, gadgetPullup ? Status::SUCCESS : Status::ERROR);
+        functions, gadgetPullup ? V1_0::Status::SUCCESS : V1_0::Status::ERROR);
     if (!ret.isOk())
       ALOGE("setCurrentUsbFunctionsCb error %s", ret.description().c_str());
   }
 
-  return Status::SUCCESS;
+  return V1_0::Status::SUCCESS;
 }
 
 Return<void> UsbGadget::setCurrentUsbFunctions(
@@ -593,23 +657,23 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
 
   // Unlink the gadget and stop the monitor if running.
   V1_0::Status status = tearDownGadget();
-  if (status != Status::SUCCESS) {
+  if (status != V1_0::Status::SUCCESS) {
     goto error;
   }
 
-  if ((functions & GadgetFunction::RNDIS) == 0) {
+  if ((functions & V1_2::GadgetFunction::RNDIS) == 0) {
     if (rmdir(RNDIS_PATH) && errno != ENOENT) ALOGE("Error remove %s",RNDIS_PATH);
-  } else if ((functions & GadgetFunction::RNDIS)) {
+  } else if ((functions & V1_2::GadgetFunction::RNDIS)) {
     if (mkdir(RNDIS_PATH,644) && errno != EEXIST) goto error;
   }
 
   // Leave the gadget pulled down to give time for the host to sense disconnect.
   usleep(DISCONNECT_WAIT_US);
 
-  if (functions == static_cast<uint64_t>(GadgetFunction::NONE)) {
+  if (functions == static_cast<uint64_t>(V1_2::GadgetFunction::NONE)) {
     if (callback == NULL) return Void();
     Return<void> ret =
-        callback->setCurrentUsbFunctionsCb(functions, Status::SUCCESS);
+        callback->setCurrentUsbFunctionsCb(functions, V1_0::Status::SUCCESS);
     if (!ret.isOk())
       ALOGE("Error while calling setCurrentUsbFunctionsCb %s",
             ret.description().c_str());
@@ -618,12 +682,12 @@ Return<void> UsbGadget::setCurrentUsbFunctions(
 
   status = validateAndSetVidPid(functions);
 
-  if (status != Status::SUCCESS) {
+  if (status != V1_0::Status::SUCCESS) {
     goto error;
   }
 
   status = setupFunctions(functions, callback, timeout);
-  if (status != Status::SUCCESS) {
+  if (status != V1_0::Status::SUCCESS) {
     goto error;
   }
 
@@ -695,7 +759,7 @@ void UsbGadget::cmdList(int fd, const hidl_vec<hidl_string>& options) {
         }
         if(listoption1) {
             WriteStringToFd(StringPrintf("list option1 dump options, default is --list listoption1.\n"),fd);
-         }
+        }
 
         if(listoption2) {
             WriteStringToFd(StringPrintf("list option2 dump options, default is --list listoption2.\n"),fd);
@@ -703,7 +767,7 @@ void UsbGadget::cmdList(int fd, const hidl_vec<hidl_string>& options) {
     } else {
         WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"),fd);
         cmdHelp(fd);
-     }
+    }
 }
 
 void UsbGadget::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
@@ -732,7 +796,7 @@ void UsbGadget::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
 }
 
 }  // namespace implementation
-}  // namespace V1_1
+}  // namespace V1_2
 }  // namespace gadget
 }  // namespace usb
 }  // namespace hardware
