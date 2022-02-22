@@ -1886,7 +1886,7 @@ bool KmsDisplay::VSyncThread::threadLoop()
     { // scope for lock
         Mutex::Autolock _l(mLock);
         while (!mEnabled && !mCtx->forceVync()) {
-            mCondition.wait(mLock);
+            mCondition.waitRelative(mLock, KMS_FORCE_VYNC_WAIT);
         }
     }
     if (mCtx->forceVync()) // For EVS case, always send vsync

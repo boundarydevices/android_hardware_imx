@@ -38,6 +38,8 @@ namespace fsl {
 #define MAX_FRAMEBUFFERS NUM_FRAMEBUFFER_SURFACE_BUFFERS
 #endif
 
+#define KMS_FORCE_VYNC_WAIT 100000000LL  // unit ns, wait 100ms
+
 using android::Condition;
 
 #define ARRAY_LEN(_arr) (sizeof(_arr) / sizeof(_arr[0]))
