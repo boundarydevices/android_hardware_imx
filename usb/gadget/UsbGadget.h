@@ -85,7 +85,7 @@ struct UsbGadget : public IUsbGadget {
   std::mutex mLockSetCurrentFunction;
   uint64_t mCurrentUsbFunctions;
   bool mCurrentUsbFunctionsApplied;
-    UsbSpeed mUsbSpeed;
+  UsbSpeed mUsbSpeed = UsbSpeed::UNKNOWN;
 
   Return<void> setCurrentUsbFunctions(uint64_t functions,
                                       const sp<V1_0::IUsbGadgetCallback> &callback,
