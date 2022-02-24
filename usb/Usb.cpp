@@ -617,9 +617,10 @@ Status getPortStatusHelper(hidl_vec<PortStatus> *currentPortStatus_1_2, HALVersi
           ALOGI("HAL version V1_1");
         else
           ALOGI("HAL version V1_2");
-          (*currentPortStatus_1_2)[i].status_1_1.supportedModes = 0 | PortMode_1_1::DRP;
-          (*currentPortStatus_1_2)[i].status_1_1.status.supportedModes = V1_0::PortMode::NONE;
-          (*currentPortStatus_1_2)[i].status_1_1.status.currentMode = V1_0::PortMode::NONE;
+
+        (*currentPortStatus_1_2)[i].status_1_1.supportedModes = 0 | PortMode_1_1::DRP;
+        (*currentPortStatus_1_2)[i].status_1_1.status.supportedModes = V1_0::PortMode::NONE;
+        (*currentPortStatus_1_2)[i].status_1_1.status.currentMode = V1_0::PortMode::NONE;
       }
 
       ALOGI(
@@ -743,9 +744,7 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
                   strlen("POWER_SUPPLY_MOISTURE_DETECTED"))) {
       hidl_vec<PortStatus> currentPortStatus_1_2;
       ALOGI("uevent received %s", cp);
-      pthread_mutex_lock(&payload->usb->mLock);
       queryVersionHelper(payload->usb, &currentPortStatus_1_2);
-      pthread_mutex_unlock(&payload->usb->mLock);
 
       //Role switch is not in progress and port is in disconnected state
       if (!pthread_mutex_trylock(&payload->usb->mRoleSwitchLock)) {
