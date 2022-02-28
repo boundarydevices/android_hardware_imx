@@ -73,4 +73,15 @@ interface IDisplay {
     @exit
     @callflow(next="*")
     presentLayer(uint32_t layer, uint32_t slot, handle buffer) generates (Error error);
+
+    /**
+     *  set secure ui enable status.
+     *
+     * @param enable is the secure display status to set.
+     * @return error is NONE upon success.
+     */
+    @entry
+    @exit
+    @callflow(next="*")
+    setSecureDisplayEnable(bool enable);
 };
