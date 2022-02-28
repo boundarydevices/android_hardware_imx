@@ -338,6 +338,13 @@ void DisplayHal::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
     }
 }
 
+Return<void> DisplayHal::setSecureDisplayEnable(bool enable) {
+    ALOGI("%s enable %s", __func__, enable?"true":"false");
+    fsl::DisplayManager* displayManager = fsl::DisplayManager::getInstance();
+    displayManager->setSecureDisplayEnable(enable);
+    return Void();
+}
+
 }  // namespace implementation
 }  // namespace V1_0
 }  // namespace display

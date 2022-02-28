@@ -813,4 +813,15 @@ bool DisplayManager::PollFileThread::threadLoop()
     return true;
 }
 
+void DisplayManager::setSecureDisplayEnable(bool enable) {
+    int ret = mKmsDisplays[DISPLAY_PRIMARY]->setSecureDisplayEnable(enable);
+    if (!ret) {
+        if (mListener != NULL) {
+            mListener->onRefresh(0);
+        } else {
+            ALOGE("set secure display enable fail");
+       }
+    }
+}
+
 }

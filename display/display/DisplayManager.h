@@ -58,6 +58,7 @@ public:
     void handleHotplugEvent();
     void handleKmsHotplug();
     int setProperty(const char *name, const char *value);
+    void setSecureDisplayEnable(bool enable);
 
 private:
     void setPrimaryDisplay(int index);
