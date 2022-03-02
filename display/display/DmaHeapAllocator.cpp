@@ -102,27 +102,22 @@ int DmaHeapAllocator::getPhys(int fd, int size, uint64_t& addr)
         return -EINVAL;
     }
 
-    struct dma_buf_phys dma_phys;
-    if (ioctl(fd, DMA_BUF_IOCTL_PHYS, &dma_phys) < 0) {
-        ALOGV("%s DMA_BUF_IOCTL_PHYS failed",__func__);
-        struct dmabuf_imx_phys_data data;
-        int fd_;
-        fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
-        if (fd_ < 0) {
-            ALOGE("open /dev/dmabuf_imx failed: %s", strerror(errno));
-            return -EINVAL;
-        }
-        data.dmafd = fd;
-        if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
-            ALOGE("%s DMABUF_GET_PHYS  failed",__func__);
-            close(fd_);
-            return -EINVAL;
-        } else
-            phyAddr = data.phys;
-        close(fd_);
-    } else {
-        phyAddr = dma_phys.phys;
+    struct dmabuf_imx_phys_data data;
+    int fd_;
+    fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
+    if (fd_ < 0) {
+        ALOGE("open /dev/dmabuf_imx failed: %s", strerror(errno));
+        return -EINVAL;
     }
+    data.dmafd = fd;
+    if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
+        ALOGE("%s DMABUF_GET_PHYS  failed",__func__);
+        close(fd_);
+        return -EINVAL;
+    } else
+        phyAddr = data.phys;
+
+    close(fd_);
 
     addr = phyAddr;
     return 0;

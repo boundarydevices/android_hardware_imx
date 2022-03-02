@@ -20,7 +20,6 @@ cc_library_static {
     defaults: ["libionallocator_default"],
     srcs: [
         "Allocator.cpp",
-        "IonAllocator.cpp",
     ],
     include_dirs: [
         "vendor/nxp-opensource/imx/include",

@@ -59,6 +59,8 @@ func libionallocatorDefaults(ctx android.LoadHookContext) {
         p.Target.Android.Static_libs = append(p.Target.Android.Static_libs, "libdmabufheap")
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DENABLE_DMABUF_HEAP")
         p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "system/memory/libdmabufheap/include")
+    } else {
+        p.Target.Android.Srcs = append(p.Target.Android.Srcs, "IonAllocator.cpp")
     }
 
     ctx.AppendProperties(p)
