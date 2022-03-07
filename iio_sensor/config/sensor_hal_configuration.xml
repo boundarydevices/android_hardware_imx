@@ -32,6 +32,8 @@
                         </location>
                     </configuration>
                 </sensor>
+                <sensor name="rpmsg-iio-pedometer" type="19">
+                </sensor>
                 <sensor name="fxas21002c" type="4">
                     <configuration>
                         <orientation rotate="true">

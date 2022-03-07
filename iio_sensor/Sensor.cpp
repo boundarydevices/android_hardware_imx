@@ -20,6 +20,7 @@
 #include "LightSensor.h"
 #include "PressureSensor.h"
 #include "AnglvelSensor.h"
+#include "StepCounterSensor.h"
 #include "AccMagSensor.h"
 #include <hardware/sensors.h>
 #include <log/log.h>
@@ -70,6 +71,9 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
             break;
         case SensorType::LIGHT:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_LIGHT;
+            break;
+        case SensorType::STEP_COUNTER:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_STEP_COUNTER;
             break;
         default:
             ALOGE("unsupported sensor type %d", type);
@@ -412,6 +416,7 @@ HWSensorBase* HWSensorBase::buildSensor(int32_t sensorHandle, ISensorsEventCallb
         return nullptr;
     }
 
+#ifdef CONFIG_LEGACY_SENSOR
     if (iio_data.type == SensorType::LIGHT)
         return new LightSensor(sensorHandle, callback, iio_data, config);
     else if (iio_data.type == SensorType::PRESSURE)
@@ -424,7 +429,11 @@ HWSensorBase* HWSensorBase::buildSensor(int32_t sensorHandle, ISensorsEventCallb
         return new AccMagSensor(sensorHandle, callback, iio_data, config);
     else if (iio_data.type == SensorType::GYROSCOPE)
         return new AnglvelSensor(sensorHandle, callback, iio_data, config);
-
+#endif
+#ifdef CONFIG_SENSOR_PEDOMETER
+    if (iio_data.type == SensorType::STEP_COUNTER)
+        return new StepCounterSensor(sensorHandle, callback, iio_data, config);
+#endif
     return nullptr;
 }
 

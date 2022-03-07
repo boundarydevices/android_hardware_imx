@@ -14,20 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-cc_library {
-    name: "android.hardware.sensors@2.0-nxp-IIO-Subhal",
+iio_sensor_defaults {
+    name: "iio_sensor_default",
     vendor: true,
+    header_libs: [
+        "android.hardware.sensors@2.0-multihal.header",
+    ],
     srcs: [
         "iio_utils.cpp",
         "Sensor.cpp",
-        "LightSensor.cpp",
-        "PressureSensor.cpp",
-        "AnglvelSensor.cpp",
-        "AccMagSensor.cpp",
         "SensorsSubHal.cpp",
-    ],
-    header_libs: [
-        "android.hardware.sensors@2.0-multihal.header",
     ],
     shared_libs: [
         "android.hardware.sensors@1.0",
@@ -53,4 +49,26 @@ cc_library {
     ],
     generated_sources: ["sensor_hal_configuration_V1_0_nxp"],
     generated_headers: ["sensor_hal_configuration_V1_0_nxp"],
+}
+
+bootstrap_go_package {
+    name: "soong-iio_sensor",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/iio_sensor",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "iio_sensor.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cc_library {
+    name: "android.hardware.sensors@2.0-nxp-IIO-Subhal",
+    defaults: ["iio_sensor_default"],
 }

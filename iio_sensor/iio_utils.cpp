@@ -38,10 +38,12 @@ static const char* IIO_SCAN_ELEMENTS_EN = "_en";
 static const char* IIO_SCALE_FILENAME = "_scale";
 static const char* IIO_SAMPLING_FREQUENCY = "_sampling_frequency";
 static const char* IIO_BUFFER_ENABLE = "buffer/enable";
+static const char* IIO_STEP_BUFFER_ENABLE = "in_steps_en";
 static const char* IIO_BUFFER_LENGTH = "buffer/length";
 static const char* IIO_POWER_FILENAME = "sensor_power";
 static const char* IIO_MAX_RANGE_FILENAME = "sensor_max_range";
 static const char* IIO_RESOLUTION_FILENAME = "sensor_resolution";
+static const char* IIO_STEPCOUNTER_INPUT = "/events/in_steps_change_value";
 static const char* IIO_LIGHT_INPUT = "in_illuminance0_input";
 static const char* IIO_ACC_X_RAW = "in_accel_x_raw";
 static const char* IIO_ACC_Y_RAW = "in_accel_y_raw";
@@ -199,6 +201,17 @@ int enable_sensor(const std::string& device_dir, const bool enable) {
         err = sysfs_write_uint(enable_file, enable);
     }
 
+    return err;
+}
+
+int enable_step_sensor(const std::string& device_dir, const bool enable) {
+    int err = check_file(device_dir);
+    if (!err) {
+        std::string enable_file = device_dir;
+        enable_file += "/";
+        enable_file += IIO_STEP_BUFFER_ENABLE;
+        err = sysfs_write_uint(enable_file, enable);
+    }
     return err;
 }
 
@@ -395,6 +408,12 @@ int get_sensor_light(const std::string& device_dir, unsigned int* light) {
     const std::string filename = device_dir + "/" + IIO_LIGHT_INPUT;
 
     return sysfs_read_uint(filename, light);
+}
+
+int get_sensor_stepcounter(const std::string& device_dir, unsigned int* stepcounter) {
+    const std::string filename = device_dir + "/" + IIO_STEPCOUNTER_INPUT;
+
+    return sysfs_read_uint(filename, stepcounter);
 }
 
 int get_sensor_acc(const std::string& device_dir, struct iio_acc_mac_data* data) {
