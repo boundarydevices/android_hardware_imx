@@ -132,9 +132,6 @@ struct DisplayConfig
     int modeIdx; // drmModeModeInfo index
 };
 
-typedef int (*sw_sync_timeline_create_func)(void);
-typedef int (*sw_sync_timeline_inc_func)(int fd, unsigned count);
-typedef int (*sw_sync_fence_create_func)(int fd, const char *name, unsigned value);
 class Display
 {
 public:
@@ -300,12 +297,6 @@ protected:
     int mTotalLayerNum;
     int mMaxBrightness;
     char mBrightnessPath[PROPERTY_VALUE_MAX];
-    int mTimelineFd;
-    unsigned mNextSyncPoint;
-    void* mSyncHandle;
-    sw_sync_timeline_create_func m_sw_sync_timeline_create;
-    sw_sync_timeline_inc_func m_sw_sync_timeline_inc;
-    sw_sync_fence_create_func m_sw_sync_fence_create;
 #ifdef DEBUG_DUMP_REFRESH_RATE
     nsecs_t m_pre_commit_start;
     nsecs_t m_pre_commit_time;

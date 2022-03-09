@@ -17,7 +17,6 @@
 #include <inttypes.h>
 #include <cutils/log.h>
 #include <sync/sync.h>
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -26,14 +25,6 @@
 #include "MemoryDesc.h"
 #include <g2dExt.h>
 #include "Display.h"
-//#include "sw_sync.h"
-
-#if defined(__LP64__)
-#define SYNC_LIB_PATH "/system/lib64/libsync.so"
-#else
-#define SYNC_LIB_PATH "/system/lib/libsync.so"
-#endif
-
 
 namespace fsl {
 
@@ -78,12 +69,6 @@ Display::Display()
     mMaxBrightness = -1;
     mOverlay = NULL;
 
-    mNextSyncPoint = 1;
-    mTimelineFd = -1;
-    m_sw_sync_timeline_create = NULL;
-    m_sw_sync_timeline_inc = NULL;
-    m_sw_sync_fence_create = NULL;
-
 #ifdef DEBUG_DUMP_REFRESH_RATE
     m_pre_commit_start = 0;
     m_pre_commit_time = 0;
@@ -93,19 +78,6 @@ Display::Display()
     m_commit_cnt = 0;
     m_request_refresh_cnt = 0;
 #endif
-    mSyncHandle = dlopen(SYNC_LIB_PATH, RTLD_NOW);
-    if(mSyncHandle) {
-        m_sw_sync_timeline_create = (sw_sync_timeline_create_func)dlsym(mSyncHandle, "sw_sync_timeline_create");
-        m_sw_sync_timeline_inc = (sw_sync_timeline_inc_func)dlsym(mSyncHandle, "sw_sync_timeline_inc");
-        m_sw_sync_fence_create = (sw_sync_fence_create_func)dlsym(mSyncHandle, "sw_sync_fence_create");
-
-        // Need all 3 interfaces valid, or there's no sense to create time line.
-        if(m_sw_sync_timeline_create && m_sw_sync_timeline_inc && m_sw_sync_fence_create)
-          mTimelineFd = m_sw_sync_timeline_create();
-    }
-
-    ALOGI("Display ctor, mSyncHandle %p, m_sw_sync_timeline_create %p, mTimelineFd %d",
-      mSyncHandle, m_sw_sync_timeline_create, mTimelineFd);
 }
 
 Display::~Display()
@@ -125,14 +97,6 @@ Display::~Display()
     if (mAcquireFence != -1) {
         close(mAcquireFence);
         mAcquireFence = -1;
-    }
-
-    if(mTimelineFd > 0) {
-        close(mTimelineFd);
-    }
-
-    if(mSyncHandle) {
-        dlclose(mSyncHandle);
     }
 }
 
@@ -1053,11 +1017,6 @@ int Display::composeLayersLocked()
 
         ret = mComposer.composeLayer(layer, i==0);
 
-        // The layer is composed, create a release fence for it.
-        if(mTimelineFd > 0) {
-            layer->releaseFence = m_sw_sync_fence_create(mTimelineFd, "LayerReleaseFence", mNextSyncPoint);
-        }
-
         if (layer->handle != NULL && !(layer->flags & BUFFER_SLOT))
             mComposer.unlockSurface(layer->handle);
 
@@ -1069,12 +1028,6 @@ int Display::composeLayersLocked()
 
     mComposer.unlockSurface(mRenderTarget);
     mComposer.finishComposite();
-
-    // Finish compose, increase time line to signal fences.
-    if(mTimelineFd > 0) {
-        m_sw_sync_timeline_inc(mTimelineFd, 1);
-        mNextSyncPoint++;
-    }
 
     return ret;
 }
