@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <IonAllocator.h>
+#include <Allocator.h>
 #include "USPStream.h"
 
 USPStream::USPStream(Camera* device)
@@ -216,7 +216,7 @@ int32_t USPStream::getFormatSize()
 int32_t USPStream::allocateBuffersLocked()
 {
     ALOGV("%s", __func__);
-    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    fsl::Allocator *allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
@@ -241,7 +241,7 @@ int32_t USPStream::allocateBuffersLocked()
     ALOGI("allocateBufferFromIon buffer num:%d", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
         sharedFd = allocator->allocMemory(ionSize,
-                        ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+                        MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
         if (sharedFd < 0) {
             ALOGE("allocMemory failed.");
             goto err;

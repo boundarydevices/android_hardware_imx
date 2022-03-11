@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <IonAllocator.h>
+#include <Allocator.h>
 #include "MJPGStream.h"
 
 int32_t mVPUBuffersIndex=0;
@@ -403,7 +403,7 @@ int32_t MJPGStream::getDeviceBufferSize()
 int32_t MJPGStream::allocateSensorBuffersLocked()
 {
     ALOGV("%s", __func__);
-    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    fsl::Allocator *allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
@@ -757,7 +757,7 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
         return 0;
     }
 
-    fsl::IonAllocator *allocator = fsl::IonAllocator::getInstance();
+    fsl::Allocator *allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;

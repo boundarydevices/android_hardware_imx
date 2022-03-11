@@ -100,7 +100,7 @@ int32_t VideoStream::configure(sp<Stream> stream)
 
     ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
            __func__, params->mWidth, params->mHeight, params->mFormat, stream->format(), params->mFps, params->mBuffers);
-    mMessageQueue.postMessage(new CMessage(MSG_CONFIG, (uintptr_t)params), 0);
+    mMessageQueue.postMessage(new CMessage(MSG_CONFIG, (uint64_t)params), 0);
 
     return 0;
 }
@@ -115,6 +115,7 @@ int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
         return 0;
     }
 
+    ALOGI("==== this %p, params %p", this, params);
     // when width&height&format are same, keep it to reduce start/stop time.
     if ((mWidth == params->mWidth) && (mHeight == params->mHeight)
          && (mFormat == params->mFormat)  && (params->mIsJpeg || (mFps == params->mFps))) {
@@ -495,7 +496,7 @@ int32_t VideoStream::handleMessage()
     switch (msg->what) {
         case MSG_CONFIG: {
             Mutex::Autolock lock(mLock);
-            ConfigureParam* params = (ConfigureParam*)(uintptr_t)msg->arg0;
+            ConfigureParam* params = (ConfigureParam*)msg->arg0;
             ret = handleConfigureLocked(params);
             if (params != NULL) {
                 delete params;

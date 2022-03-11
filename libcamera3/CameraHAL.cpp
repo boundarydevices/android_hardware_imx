@@ -485,7 +485,6 @@ int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
     int32_t fd = -1;
     size_t strLen = 0;
     struct v4l2_capability vidCap;
-    struct v4l2_dbg_chip_ident vidChip;
 
     ALOGI("getNodeName: dev path:%s", devNode);
     if ((fd = open(devNode, O_RDWR, O_NONBLOCK)) < 0) {
@@ -527,25 +526,6 @@ int32_t CameraHAL::getNodeName(const char* devNode, char name[], size_t length)
     length -= strLen;
     ALOGI("getNodeName: node name:%s", name);
 
-    ret = ioctl(fd, VIDIOC_DBG_G_CHIP_IDENT, &vidChip);
-    if (ret < 0) {
-        ALOGI("%s CHIP_IDENT dev path:%s failed", __func__, devNode);
-        strncat(name, ",", length);
-        strLen = 1;
-        length -= strLen;
-        strncat(name, (const char*)vidCap.card, length);
-        ALOGI("getNodeNames: node name:%s", name);
-        close(fd);
-        fd = -1;
-        return ret;
-    }
-
-    strncat(name, ",", length);
-    strLen = 1;
-    length -= strLen;
-    strncat(name, vidChip.match.name, length);
-
-    ALOGI("getNodeNames: node name:%s", name);
     close(fd);
 
     return ret;

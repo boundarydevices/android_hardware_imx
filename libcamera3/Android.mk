@@ -35,7 +35,7 @@ LOCAL_C_INCLUDES += \
     vendor/nxp/vpu_wrapper \
     $(IMX_PATH)/imx/display/display \
     $(IMX_PATH)/imx/opencl-2d \
-    system/memory/libion/include \
+    system/memory/libdmabufheap/include \
     hardware/libhardware/include \
     frameworks/av/include \
 	frameworks/av/camera/include \
@@ -73,7 +73,7 @@ LOCAL_SHARED_LIBRARIES := \
     libutils \
     libc \
     libjpeg \
-    libion \
+    libdmabufheap \
     libbinder \
     libhardware_legacy \
     libjsoncpp \
