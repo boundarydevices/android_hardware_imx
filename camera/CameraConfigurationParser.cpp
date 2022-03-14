@@ -23,6 +23,7 @@
 #include <log/log.h>
 #include <json/json.h>
 #include <json/reader.h>
+#include <cutils/properties.h>
 #include <stdlib.h>
 #include <string>
 
@@ -512,10 +513,20 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
 }
 }  // namespace
 
+#define PROP_CAMERA_LAYOUT "ro.boot.camera.layout"
 bool CameraConfigurationParser::Init() {
     std::string config;
     char name[PATH_MAX] = {0};
-    snprintf(name, PATH_MAX, "%s_%s%s", kCameraConfiguration, android::base::GetProperty(kSocType, "").c_str(), ".json");
+
+    char layout[PROPERTY_VALUE_MAX] = {0};
+    property_get(PROP_CAMERA_LAYOUT, layout, "");
+
+    if (strcmp(layout, "") == 0)
+        snprintf(name, PATH_MAX, "%s_%s%s", kCameraConfiguration, android::base::GetProperty(kSocType, "").c_str(), ".json");
+    else
+        snprintf(name, PATH_MAX, "%s_%s-%s%s", kCameraConfiguration, android::base::GetProperty(kSocType, "").c_str(), layout, ".json");
+
+    ALOGI("%s: parse %s", __func__, name);
 
     std::vector<const char*> configurationFileLocation;
     configurationFileLocation.emplace_back(name);
