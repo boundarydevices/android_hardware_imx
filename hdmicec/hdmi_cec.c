@@ -512,7 +512,7 @@ struct hw_module_t HAL_MODULE_INFO_SYM = {
     .version_major = 1,
     .version_minor = 0,
     .id = HDMI_CEC_HARDWARE_MODULE_ID,
-    .name = "YUKAWA HDMI CEC module",
+    .name = "HDMI CEC module",
     .author = "The Android Open Source Project",
     .methods = &hdmi_cec_module_methods,
 };
