@@ -18,6 +18,27 @@ soong_namespace {
     ],
 }
 
+imx_power_defaults {
+    name: "imx_power_defaults",
+}
+
+bootstrap_go_package {
+    name: "soong-power",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/power",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "power.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
 cc_library {
     name: "libdisppower-imx",
     proprietary: true,
@@ -41,12 +62,12 @@ cc_library_headers {
 
 cc_binary {
     name: "android.hardware.power-service.imx",
+    defaults: ["imx_power_defaults"],
     relative_install_path: "hw",
     init_rc: ["android.hardware.power-service.imx.rc"],
     vintf_fragments: ["android.hardware.power-service.imx.xml"],
     vendor: true,
     shared_libs: [
-        "android.hardware.power-V1-ndk_platform",
         "libbase",
         "libcutils",
         "liblog",
