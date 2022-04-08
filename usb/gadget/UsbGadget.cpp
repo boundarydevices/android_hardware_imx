@@ -211,9 +211,15 @@ static void *monitorFfs(void *param) {
                       }
                       // this is a workaround to wait the framework to clear the notifications
                       sleep(3);
-                      WriteStringToFile(dp->d_name, PULLUP_PATH);
-                      SetProperty("persist.adb.notify", "0");
-                      SetProperty("persist.charging.notify", "0");
+                      if(!!WriteStringToFile(dp->d_name, PULLUP_PATH)) {
+                        SetProperty("persist.adb.notify", "0");
+                        SetProperty("persist.charging.notify", "0");
+                        lock_guard<mutex> lock(usbGadget->mLock);
+                        usbGadget->mCurrentUsbFunctionsApplied = true;
+                        gadgetPullup = true;
+                        // notify the main thread to signal userspace.
+                        usbGadget->mCv.notify_all();
+                      }
                     }
                   }
                 }
