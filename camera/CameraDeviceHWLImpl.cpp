@@ -261,6 +261,12 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
             cam_frmsize.discrete.height == 0) {
             continue;
         }
+
+        if (cam_frmsize.discrete.width <= 160 ||
+            cam_frmsize.discrete.height <= 120) {
+            continue;
+        }
+
         vid_frmval.index = 0;
         vid_frmval.pixel_format = cam_frmsize.pixel_format;
         vid_frmval.width = cam_frmsize.discrete.width;
