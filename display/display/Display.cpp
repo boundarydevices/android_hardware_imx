@@ -212,6 +212,17 @@ int Display::getConfigNum()
     return mConfigs.size();
 }
 
+bool Display::isOverlayEnabled()
+{
+    char value[PROPERTY_VALUE_MAX];
+    property_get("vendor.hwc.enable.overlay", value, "0");
+    int useOverlay = atoi(value);
+    if (useOverlay == 1) {
+        return true;
+    }
+    return false;
+}
+
 bool Display::isHdrSupported()
 {
     Mutex::Autolock _l(mLock);

@@ -574,10 +574,7 @@ bool KmsDisplay::checkOverlay(Layer* layer)
             return false;
         }
     }
-    char value[PROPERTY_VALUE_MAX];
-    property_get("vendor.hwc.enable.overlay", value, "1");
-    int useOverlay = atoi(value);
-    if (useOverlay == 0) {
+    if (!isOverlayEnabled()) {
         return false;
     }
 
@@ -1538,11 +1535,15 @@ int KmsDisplay::getPrimaryPlane()
 
 bool KmsDisplay::isHdrSupported()
 {
+#ifdef ENABLE_HDR_CHECK
     // Android framework will check whether display support HDR10 or not.
     // And force ClientComposition without passing layer to HWC if not support.
     // Here if display suport overlay,return HDR10 is supported to framework.
     // Then HWC can handle this layer.
-    return Display::isHdrSupported() || (mKmsPlaneNum > 1);
+    return Display::isHdrSupported() || isOverlayEnabled();
+#else
+    return false;
+#endif
 }
 
 int KmsDisplay::closeKms()
