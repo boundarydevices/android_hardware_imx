@@ -176,6 +176,7 @@ protected:
 #endif
     bool mHDCPMode;
     int mHDCPDisableCnt;
+    bool mHDCPEnable;
 
     struct {
         uint32_t mode_id;

@@ -152,6 +152,15 @@ KmsDisplay::KmsDisplay()
     } else {
         mUseOverlayAndroidUI = false;
     }
+
+    memset(prop, 0, PROPERTY_VALUE_MAX);
+    property_get("ro.boot.support_hdcp", prop, "");
+    if((prop[0] != '\0') && (strcmp(prop, "enable") == 0)) {
+        mHDCPEnable = true;
+    } else {
+        mHDCPEnable = false;
+    }
+
 }
 
 KmsDisplay::~KmsDisplay()
@@ -659,7 +668,7 @@ int KmsDisplay::performOverlay()
     }
     if (layer == NULL || layer->handle == NULL) {
 #ifdef HAVE_UNMAPPED_HEAP
-        if (mHDCPMode) {
+        if (mHDCPMode && mHDCPEnable) {
             mHDCPDisableCnt++;
             if (mHDCPDisableCnt > 10) { // no overlay for more than 10 frames, disable HDCP
                 ALOGI("Disable HDCP");
@@ -696,21 +705,23 @@ int KmsDisplay::performOverlay()
     }
 
 #ifdef HAVE_UNMAPPED_HEAP
-    bool enable = false;
-    Memory *ov_hnd = layer->handle;
-    if ((ov_hnd->usage & USAGE_PROTECTED) && (mConnector.protection_id > 0)) {
-        enable = true;
-    }
-    if (mHDCPMode != enable) {
-        ALOGI("%s HDCP feature", enable ? "Enable" : "Disable");
-        int val = enable? 1 : 0;
-        int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
-                      mConnector.protection_id, val);
-        if (err != 0) {
-            ALOGE("failed to set HDCP property:%d", val);
+    if (mHDCPEnable) {
+        bool enable = false;
+        Memory *ov_hnd = layer->handle;
+        if ((ov_hnd->usage & USAGE_PROTECTED) && (mConnector.protection_id > 0)) {
+            enable = true;
         }
-        mModeset = true;
-        mHDCPMode = enable;
+        if (mHDCPMode != enable) {
+            ALOGI("%s HDCP feature", enable ? "Enable" : "Disable");
+            int val = enable? 1 : 0;
+            int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
+                          mConnector.protection_id, val);
+            if (err != 0) {
+                ALOGE("failed to set HDCP property:%d", val);
+            }
+            mModeset = true;
+            mHDCPMode = enable;
+        }
     }
 #endif
     Memory* buffer = layer->handle;
