@@ -878,9 +878,11 @@ void ExternalCameraDevice::trimSupportedFormats(
 
     std::vector<SupportedV4L2Format> trimFmts;
     for (const auto& fmt : out) {
-        if (needTrimFmt && (fmt.fourcc != V4L2_PIX_FMT_YUYV)) {
-            trimFmts.push_back(fmt);
+        if (needTrimFmt && (fmt.fourcc == V4L2_PIX_FMT_YUYV)) {
+            // On camera devices that support MJPEG, crop YUYV
+            continue;
         }
+        trimFmts.push_back(fmt);
     }
 
     sortedFmts = trimFmts;
