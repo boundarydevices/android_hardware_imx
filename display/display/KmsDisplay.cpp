@@ -661,7 +661,7 @@ bool KmsDisplay::veritySourceSize(Layer* layer)
 int KmsDisplay::performOverlay()
 {
     Layer* layer = NULL;
-    if (mUseOverlayAndroidUI) {
+    if (mUseOverlayAndroidUI && mSecureDisplay) {
         return 0;
     } else {
         layer = mOverlay;
