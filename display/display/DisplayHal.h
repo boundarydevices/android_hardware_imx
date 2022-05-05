@@ -45,7 +45,7 @@ public:
     Return<Error> putLayer(uint32_t layer) override;
     Return<void> getSlot(uint32_t layer, getSlot_cb _hidl_cb) override;
     Return<Error> presentLayer(uint32_t layer, uint32_t slot, const hidl_handle& buffer) override;
-    Return<void> setSecureDisplayEnable(bool enable) override;
+    Return<void> setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w, uint32_t h) override;
 
     // Dump apis
     Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;

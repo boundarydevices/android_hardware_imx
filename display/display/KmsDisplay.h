@@ -89,7 +89,7 @@ class KmsDisplay : public Display
 public:
     KmsDisplay();
     virtual ~KmsDisplay();
-    int setSecureDisplayEnable(bool enable);
+    int setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
     // set display power on/off.
     virtual int setPowerMode(int mode);
     // enable display vsync thread.
@@ -162,6 +162,7 @@ private:
     bool mSecureDisplay;
     bool mForceModeSet;
     Memory* mDummyTarget;
+    Layer* mDummylayer;
     bool mUseOverlayAndroidUI;
 protected:
     int mDrmFd;

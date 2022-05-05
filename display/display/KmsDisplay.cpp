@@ -160,7 +160,7 @@ KmsDisplay::KmsDisplay()
     } else {
         mHDCPEnable = false;
     }
-
+    mDummylayer = NULL;
 }
 
 KmsDisplay::~KmsDisplay()
@@ -190,48 +190,61 @@ KmsDisplay::~KmsDisplay()
     if (mEdid != NULL) {
         delete mEdid;
     }
+    if(mDummylayer != NULL) {
+        delete mDummylayer;
+    }
 }
-int KmsDisplay::setSecureDisplayEnable(bool enable) {
+int KmsDisplay::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     mSecureDisplay = enable;
-    if (!enable && mUseOverlayAndroidUI)
+    if (!enable && mUseOverlayAndroidUI) {
         mForceModeSet = true;
-    if (!mUseOverlayAndroidUI) {
-        if (mSecureDisplay) {
-          // create one dummy memory
-          MemoryDesc desc;
-          desc.mWidth = 1920;
-          desc.mHeight = 1080;
-          desc.mFormat = FORMAT_RGBA8888;
-          desc.mFslFormat = FORMAT_RGBA8888;
-          desc.mProduceUsage |= (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER | USAGE_HW_TEXTURE);
-          desc.mFlag = FLAGS_FRAMEBUFFER;
-          desc.checkFormat();
-          {
-              Mutex::Autolock _l(mLock);
-              if (mDummyTarget == NULL) {
-                  int ret = mMemoryManager->allocMemory(desc, &mDummyTarget);
-                  if (ret == 0 && mDummyTarget != NULL) {
-                          ALOGI("allocate dummy memory ok stride is %d",mDummyTarget->stride);
-                  } else {
-                          ALOGE("allocate dummy buffer failed");
-                          return -1;
-                  }
-                  void *vaddr = NULL;
-                  mMemoryManager->lock(mDummyTarget, mDummyTarget->usage,
-                          0, 0, mDummyTarget->width, mDummyTarget->height, &vaddr);
-                  mMemoryManager->unlock(mDummyTarget);
-                  mDummyTarget->base = (uintptr_t)vaddr;
+    }
+    if (mSecureDisplay) {
+      // create one dummy memory
+      MemoryDesc desc;
+      desc.mWidth = w;
+      desc.mHeight = h;
+      desc.mFormat = FORMAT_RGBA8888;
+      desc.mFslFormat = FORMAT_RGBA8888;
+      desc.mProduceUsage |= (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER | USAGE_HW_TEXTURE);
+      desc.mFlag = FLAGS_FRAMEBUFFER;
+      desc.checkFormat();
+      {
+          Mutex::Autolock _l(mLock);
+          if (mDummyTarget == NULL) {
+              int ret = mMemoryManager->allocMemory(desc, &mDummyTarget);
+              if (ret == 0 && mDummyTarget != NULL) {
+                      ALOGI("allocate dummy memory ok stride is %d",mDummyTarget->stride);
+              } else {
+                      ALOGE("allocate dummy buffer failed");
+                      return -1;
+              }
+              void *vaddr = NULL;
+              mMemoryManager->lock(mDummyTarget, mDummyTarget->usage,
+                      0, 0, mDummyTarget->width, mDummyTarget->height, &vaddr);
+              mMemoryManager->unlock(mDummyTarget);
+              mDummyTarget->base = (uintptr_t)vaddr;
 
-                  if (mDummyTarget->base != 0) {
-                      memset((void*)mDummyTarget->base, 0xff, mDummyTarget->size);
-                  }
+              if (mDummyTarget->base != 0) {
+                  memset((void*)mDummyTarget->base, 0xff, mDummyTarget->size);
               }
           }
-        } else {
-            if (mDummyTarget != NULL) {
-                mMemoryManager->releaseMemory(mDummyTarget);
-                mDummyTarget = NULL;
-            }
+          mDummylayer = new Layer();
+          mDummylayer->sourceCrop.left = 0;
+          mDummylayer->sourceCrop.top = 0;
+          mDummylayer->sourceCrop.right = w;
+          mDummylayer->sourceCrop.bottom = h;
+          mDummylayer->displayFrame.left = x;
+          mDummylayer->displayFrame.top = y;
+          mDummylayer->displayFrame.right = x + w;
+          mDummylayer->displayFrame.bottom = y + h;
+          mDummylayer->handle = mDummyTarget;
+      }
+    } else {
+        if (mDummyTarget != NULL) {
+            mMemoryManager->releaseMemory(mDummyTarget);
+            mDummyTarget = NULL;
+            delete mDummylayer;
         }
     }
     return 0;
@@ -661,8 +674,12 @@ bool KmsDisplay::veritySourceSize(Layer* layer)
 int KmsDisplay::performOverlay()
 {
     Layer* layer = NULL;
+    uint8_t gloable_stride = 1;
+    int overlay_plane_index = mKmsPlaneNum - 1;
     if (mUseOverlayAndroidUI && mSecureDisplay) {
-        return 0;
+        layer = mDummylayer;
+        gloable_stride = 4;
+        overlay_plane_index = 0;
     } else {
         layer = mOverlay;
     }
@@ -728,7 +745,7 @@ int KmsDisplay::performOverlay()
     const DisplayConfig& config = mConfigs[mActiveConfig];
     if (buffer->fbId == 0) {
         int format = convertFormatToDrm(buffer->fslFormat);
-        int stride = buffer->stride * 1;
+        int stride = buffer->stride * gloable_stride;
         uint32_t bo_handles[4] = {0};
         uint32_t pitches[4] = {0};
         uint32_t offsets[4] = {0};
@@ -752,15 +769,19 @@ int KmsDisplay::performOverlay()
             modifiers[0] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
             modifiers[1] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
         }
-
-        pitches[0] = stride;
-        pitches[1] = stride;
-        offsets[0] = 0;
-        offsets[1] = stride * buffer->height;
         drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
-        bo_handles[0] = buffer->fbHandle;
-        bo_handles[1] = buffer->fbHandle;
-
+        if (mSecureDisplay) {
+            pitches[0] = stride;
+            bo_handles[0] = buffer->fbHandle;
+            offsets[0] = 0;
+        } else if(!mSecureDisplay) {
+            pitches[0] = stride;
+            pitches[1] = stride;
+            offsets[0] = 0;
+            offsets[1] = stride * buffer->height;
+            bo_handles[0] = buffer->fbHandle;
+            bo_handles[1] = buffer->fbHandle;
+        }
         if (buffer->fslFormat == FORMAT_NV12_TILED ||
             buffer->fslFormat == FORMAT_NV12_G1_TILED ||
             buffer->fslFormat == FORMAT_NV12_G2_TILED ||
@@ -784,51 +805,56 @@ int KmsDisplay::performOverlay()
         mOverlay = NULL;
         return 0;
     }
-
-    bindOutFence(mPset);
-    if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_output_metadata))) {
-        // Only pass HDR metadata and flag on HDR supported display.
-        if (mEdid != NULL && mEdid->isHdrSupported() &&
-                mEdid->isHdrEotfSupported(layer->hdrMetadata.hdmi_metadata_type1.eotf)) {
-            setHdrMetaData(mPset,layer->hdrMetadata);
-            layer->isHdrMode = true;
-            mLastHdrMetaData = layer->hdrMetadata;
+    if (!mSecureDisplay) {
+        bindOutFence(mPset);
+        if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_output_metadata))) {
+            // Only pass HDR metadata and flag on HDR supported display.
+            if (mEdid != NULL && mEdid->isHdrSupported()) {
+                setHdrMetaData(mPset,layer->hdrMetadata);
+                layer->isHdrMode = true;
+                mLastHdrMetaData = layer->hdrMetadata;
+            }
         }
+        MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
+        if (meta != NULL && meta->mFlags & FLAGS_COMPRESSED_OFFSET) {
+            mKmsPlanes[overlay_plane_index].setTableOffset(mPset, meta);
+            meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
+        }
+    } else {
+        bindOutFence(mPset);
     }
-    MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
-    if (meta != NULL && meta->mFlags & FLAGS_COMPRESSED_OFFSET) {
-        mKmsPlanes[mKmsPlaneNum - 1].setTableOffset(mPset, meta);
-        meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
-    }
-
-    mKmsPlanes[mKmsPlaneNum - 1].connectCrtc(mPset, mCrtcID, buffer->fbId);
+    mKmsPlanes[overlay_plane_index].connectCrtc(mPset, mCrtcID, buffer->fbId);
 
     Rect *rect = &layer->displayFrame;
     int x = rect->left * mMode.hdisplay / config.mXres;
     int y = rect->top * mMode.vdisplay / config.mYres;
     int w = (rect->right - rect->left) * mMode.hdisplay / config.mXres;
     int h = (rect->bottom - rect->top) * mMode.vdisplay / config.mYres;
+    if (!mSecureDisplay) {
 #if defined(WORKAROUND_DOWNSCALE_LIMITATION) || defined(WORKAROUND_DOWNSCALE_LIMITATION_DCSS)
-    mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
+        mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
 #else
-    mKmsPlanes[mKmsPlaneNum - 1].setDisplayFrame(mPset, x, y, w, h);
+        mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, x, y, w, h);
 #endif
+    } else {
+        mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top);
+    }
     rect = &layer->sourceCrop;
+    if (!mSecureDisplay) {
 #ifdef WORKAROUND_DOWNSCALE_LIMITATION
-    int srcW = rect->right - rect->left;
-    int srcH = rect->bottom - rect->top;
-    if (srcW < w) w = srcW;
-    if (srcH < h) h = srcH;
-    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, 0, 0,
-                    ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
+        int srcW = rect->right - rect->left;
+        int srcH = rect->bottom - rect->top;
+        if (srcW < w) w = srcW;
+        if (srcH < h) h = srcH;
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, 0, 0, ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
 #elif defined(WORKAROUND_DOWNSCALE_LIMITATION_DCSS)
-    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, rect->left, rect->top,
-                    ALIGN_PIXEL_2(rect->right - rect->left -1),
-                    ALIGN_PIXEL_2(rect->bottom - rect->top -1));
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top, ALIGN_PIXEL_2(rect->right - rect->left -1), ALIGN_PIXEL_2(rect->bottom - rect->top -1));
 #else
-    mKmsPlanes[mKmsPlaneNum - 1].setSourceSurface(mPset, rect->left, rect->top,
-                    rect->right - rect->left, rect->bottom - rect->top);
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top);
 #endif
+    } else {
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top);
+    }
     return true;
 }
 
