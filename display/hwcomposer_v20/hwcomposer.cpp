@@ -193,10 +193,28 @@ static int hwc2_set_layer_display_frame(hwc2_device_t* device, hwc2_display_t di
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_layer_dataspace(hwc2_device_t* /*device*/, hwc2_display_t /*display*/,
-                                    hwc2_layer_t /*layer*/, int32_t /*dataspace*/)
+static int hwc2_set_layer_dataspace(hwc2_device_t* device, hwc2_display_t display,
+                                    hwc2_layer_t layer, int32_t dataspace)
 {
+    if (!device) {
+        ALOGE("%s invalid device", __func__);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Display* pDisplay = NULL;
+    DisplayManager* displayManager = DisplayManager::getInstance();
+    pDisplay = displayManager->getDisplay(display);
+    if (pDisplay == NULL) {
+        ALOGE("%s invalid display id:%" PRId64, __func__, display);
+        return HWC2_ERROR_BAD_DISPLAY;
+    }
+    Layer* pLayer = hwc2_get_layer(display, layer);
+    if (pLayer == NULL) {
+        ALOGE("%s get layer failed", __func__);
+        return HWC2_ERROR_BAD_LAYER;
+    }
+    pLayer->dataspace = dataspace;
     return HWC2_ERROR_NONE;
+
 }
 
 static int hwc2_set_layer_composition_type(hwc2_device_t* device, hwc2_display_t display,
@@ -658,11 +676,12 @@ static int hwc2_get_hdr_capabilities(hwc2_device_t* device, hwc2_display_t displ
     memset(&hdrMetaData, 0, sizeof(hdrMetaData));
     if (pDisplay->isHdrSupported() && (pDisplay->getHdrMetaData(&hdrMetaData) == 0) ) {
         if (outTypes == NULL) {
-            if (outNumTypes != NULL)
-                *outNumTypes = 1;
+            if (outNumTypes != NULL) {
+                pDisplay->getHdrSupportTypes(outNumTypes, NULL);
+            }
         }
         else {
-            *outTypes = HAL_HDR_HDR10;
+            pDisplay->getHdrSupportTypes(outNumTypes, outTypes);
             if (outMaxLuminance != NULL)
                 *outMaxLuminance = hdrMetaData.max_cll;
             if (outMaxAverageLuminance != NULL)
@@ -1381,6 +1400,11 @@ static int hwc2_set_layer_per_frame_metadata(hwc2_device_t* device, hwc2_display
     pLayer->hdrMetadata.metadata_type = 0;
     pLayer->hdrMetadata.hdmi_metadata_type1.eotf = SMPTE_ST2084;
     pLayer->hdrMetadata.hdmi_metadata_type1.metadata_type = 1;
+
+    if (HAL_DATASPACE_TRANSFER_HLG == (pLayer->dataspace & HAL_DATASPACE_TRANSFER_MASK)) {
+        pLayer->hdrMetadata.hdmi_metadata_type1.eotf = BT_2100_HLG;
+    }
+
     for (uint32_t i = 0; i < numElements; i++) {
         switch (keys[i]) {
         case HWC2_DISPLAY_RED_PRIMARY_X:

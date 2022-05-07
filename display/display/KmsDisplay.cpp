@@ -788,7 +788,8 @@ int KmsDisplay::performOverlay()
     bindOutFence(mPset);
     if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_output_metadata))) {
         // Only pass HDR metadata and flag on HDR supported display.
-        if (mEdid != NULL && mEdid->isHdrSupported()) {
+        if (mEdid != NULL && mEdid->isHdrSupported() &&
+                mEdid->isHdrEotfSupported(layer->hdrMetadata.hdmi_metadata_type1.eotf)) {
             setHdrMetaData(mPset,layer->hdrMetadata);
             layer->isHdrMode = true;
             mLastHdrMetaData = layer->hdrMetadata;

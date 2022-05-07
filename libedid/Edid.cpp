@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <drm_mode.h>
+#include <system/graphics-base-v1.0.h>
 #include "Edid.h"
 
 Edid::Edid(int fd,uint32_t connectorID)
@@ -56,6 +58,41 @@ int Edid::getEdidRawData(uint8_t *buf, int size)
     memcpy(buf, mRawData, EDID_LENGTH);
 
     return EDID_LENGTH;
+}
+
+int Edid::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes)
+{
+    if (!numTypes)
+        return -1;
+
+    int i;
+
+    typedef struct {
+        int32_t eotf;
+        int32_t hdr;
+    } EotfHdrTable;
+
+    EotfHdrTable hdrTable[2] = {
+            {SMPTE_ST2084, HAL_HDR_HDR10},
+            {BT_2100_HLG, HAL_HDR_HLG},
+        };
+
+    *numTypes = 0;
+    for (i = 0; i < sizeof(hdrTable)/sizeof(hdrTable[0]); i++) {
+        if (mHdrMetaData.eotf & (1 << hdrTable[i].eotf)) {
+            if (hdrTypes) {
+                hdrTypes[*numTypes] = hdrTable[i].hdr;
+            }
+            (*numTypes)++;
+        }
+    }
+
+    return 0;
+}
+
+bool Edid::isHdrEotfSupported(uint32_t eotf)
+{
+    return (mHdrMetaData.eotf & (1 << eotf));
 }
 
 void Edid::getEdidDataFromDrm(int fd,uint32_t connectorID)
@@ -149,6 +186,7 @@ bool Edid::isHdrMetadataBlock(unsigned char *db)
 void Edid::parseHdrMetadataBlock(unsigned char *db)
 {
     int len = getDataBlockLen(db);
+    mHdrMetaData.eotf = db[2];
     if (len == 6) {
         mHdrMetaData.max_cll  = db[4];
         mHdrMetaData.max_fall = db[5];

@@ -239,6 +239,7 @@ public:
     virtual bool isHdrSupported();
     // get HDR metadata
     int getHdrMetaData(HdrMetaData* hdrMetaData);
+    int getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes);
     bool triggerComposition();
     // init display brightness check
     void initBrightness();

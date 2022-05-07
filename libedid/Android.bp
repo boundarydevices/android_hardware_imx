@@ -18,6 +18,7 @@ libedid_defaults {
     include_dirs: [
         "vendor/nxp-opensource/libdrm-imx",
         "vendor/nxp-opensource/libdrm-imx/include/drm",
+        "system/core/include/",
     ],
     shared_libs: [
         "liblog",

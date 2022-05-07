@@ -239,6 +239,14 @@ int Display::getHdrMetaData(HdrMetaData* hdrMetaData)
     return mEdid->getHdrMetaData(hdrMetaData);
 }
 
+int Display::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes)
+{
+    Mutex::Autolock _l(mLock);
+    if(mEdid == NULL)
+        return -EINVAL;
+    return mEdid->getHdrSupportTypes(numTypes, hdrTypes);
+}
+
 const DisplayConfig& Display::getConfig(int config)
 {
     Mutex::Autolock _l(mLock);

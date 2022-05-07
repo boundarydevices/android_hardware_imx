@@ -27,6 +27,7 @@
 #define TAG_SHIFT   5
 
 struct HdrMetaData {
+    uint8_t eotf;
     float max_cll;
     float max_fall;
     float min_cll;
@@ -46,6 +47,12 @@ public:
 
     //get edid raw data. return the actual size it get
     int getEdidRawData(uint8_t *buf, int size);
+
+    // get supported HDR types
+    int getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes);
+
+    // check HDR eotf is supported or not
+    bool isHdrEotfSupported(uint32_t eotf);
 
 private:
     bool mIsHdrSupported;
