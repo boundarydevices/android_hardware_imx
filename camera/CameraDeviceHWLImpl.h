@@ -23,7 +23,7 @@
 #include <hal_types.h>
 #include "CameraMetadata.h"
 #include "CameraConfigurationParser.h"
-
+#include "ISPWrapper.h"
 
 namespace android {
 
@@ -144,6 +144,9 @@ public:
     PhysicalMetaMap physical_meta_map_;
 
     PhysicalDeviceMapPtr physical_device_map_;
+
+    // used for isp camera
+    struct viv_caps_supports caps_supports;
 };
 
 }  // namespace android

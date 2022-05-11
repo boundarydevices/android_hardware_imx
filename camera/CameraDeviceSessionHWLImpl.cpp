@@ -185,6 +185,10 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     mPictureResolutionCount = pDev->mPictureResolutionCount;
     memcpy(mPictureResolutions, pDev->mPictureResolutions, MAX_RESOLUTION_SIZE*sizeof(int));
 
+    mMaxWidth = pDev->mMaxWidth;
+    mMaxHeight = pDev->mMaxHeight;
+    caps_supports = pDev->caps_supports;
+
     return OK;
 }
 
@@ -193,6 +197,7 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physic
     ALOGI("%s: this %p", __func__, this);
 
     memset(&m3aState, 0, sizeof(m3aState));
+    memset(&caps_supports, 0, sizeof(caps_supports));
 
     pMemManager = NULL;
     m_meta = NULL;
@@ -1602,6 +1607,26 @@ status_t CameraDeviceSessionHwlImpl::ConstructDefaultRequestSettings(
     Mutex::Autolock _l(mLock);
 
     return m_meta->getRequestSettings(type, default_settings);
+}
+
+int CameraDeviceSessionHwlImpl::getCapsMode(uint8_t sceneMode)
+{
+    bool bHdr = (sceneMode == ANDROID_CONTROL_SCENE_MODE_HDR);
+
+    for(unsigned int i = 0; i < caps_supports.count; i++) {
+        struct viv_caps_mode_info_s &mode = caps_supports.mode[i];
+        if ( ((bHdr && mode.hdr_mode > 0) || (!bHdr && mode.hdr_mode == 0)) &&
+             (mMaxWidth == mode.bounds_width) && (mMaxHeight == mode.bounds_height) ) {
+            ALOGI("%s: check idx %d, find ISP mode %d for size %dx%d, bHdr %d, caps count %d",
+                __func__, i, mode.index, mMaxWidth, mMaxHeight, bHdr, caps_supports.count);
+            return mode.index;
+        }
+    }
+
+    ALOGW("%s: can't find ISP mode for size %dx%d, bHdr %d, caps count %d, just return 0",
+        __func__, mMaxWidth, mMaxHeight, bHdr, caps_supports.count);
+
+    return 0;
 }
 
 }  // namespace android

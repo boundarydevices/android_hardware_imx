@@ -147,6 +147,34 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     setMaxPictureResolutions();
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
 
+    /* get caps */
+    ret = ioctl(fd, VIV_VIDIOC_GET_CAPS_SUPPORTS, &caps_supports);
+    if (ret) {
+        ALOGE("%s: Get Caps Supports Failed, ret %d", __func__, ret);
+        close(fd);
+        return BAD_VALUE;
+    }
+
+    ALOGI("%s: caps supports:{", __func__);
+    ALOGI("\tcount = %d",caps_supports.count);
+    for(unsigned int i = 0; i < caps_supports.count; i++) {
+        ALOGI("\t{");
+        ALOGI("\tindex            = %d", caps_supports.mode[i].index);
+        ALOGI("\tbounds_width     = %d", caps_supports.mode[i].bounds_width);
+        ALOGI("\tbounds_height    = %d", caps_supports.mode[i].bounds_height);
+        ALOGI("\ttop              = %d", caps_supports.mode[i].top);
+        ALOGI("\tleft             = %d", caps_supports.mode[i].left);
+        ALOGI("\twidth            = %d", caps_supports.mode[i].width);
+        ALOGI("\theight           = %d", caps_supports.mode[i].height);
+        ALOGI("\thdr_mode         = %d", caps_supports.mode[i].hdr_mode);
+        ALOGI("\tstitching_mode   = %d", caps_supports.mode[i].stitching_mode);
+        ALOGI("\tbit_width        = %d", caps_supports.mode[i].bit_width);
+        ALOGI("\tbayer_pattern    = %d", caps_supports.mode[i].bayer_pattern);
+        ALOGI("\tfps              = %d", caps_supports.mode[i].fps);
+        ALOGI("\t}");
+    }
+    ALOGI("}");
+
     close(fd);
     return NO_ERROR;
 }

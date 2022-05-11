@@ -87,14 +87,34 @@ typedef struct DWEPara {
 #define EXP_GAIN_MIN_DFT  1.0
 #define EXP_GAIN_MAX_DFT  6.879883
 
-#define SENSOR_MODE_1080P_LINEAR 1
-#define SENSOR_MODE_1080P_HDR 3
 #define VIV_VIDIOC_S_CAPS_MODE          _IOW('V',  BASE_VIDIOC_PRIVATE + 9, struct viv_caps_mode_s)
 
 #define CALIBXML_FILE_NAME_SIZE 64
 struct viv_caps_mode_s {
   int mode;
   char CalibXmlName[CALIBXML_FILE_NAME_SIZE];
+};
+
+#define VIV_VIDIOC_GET_CAPS_SUPPORTS    _IOWR('V', BASE_VIDIOC_PRIVATE + 12, struct viv_caps_supports)
+struct viv_caps_mode_info_s{
+  unsigned int index;
+  unsigned int bounds_width;
+  unsigned int bounds_height;
+  unsigned int top;
+  unsigned int left;
+  unsigned int width;
+  unsigned int height;
+  unsigned int hdr_mode;
+  unsigned int stitching_mode;
+  unsigned int bit_width;
+  unsigned int bayer_pattern;
+  unsigned int fps;
+};
+
+#define VIV_CAPS_MODE_MAX_COUNT    20
+struct viv_caps_supports{
+  unsigned int count;
+  struct viv_caps_mode_info_s mode[VIV_CAPS_MODE_MAX_COUNT];
 };
 
 #define IF_LSC_S_EN         "lsc.s.en"

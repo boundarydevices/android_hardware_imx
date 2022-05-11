@@ -120,6 +120,8 @@ int32_t VideoStream::onFlushLocked() {
 }
 
 
+
+
 #define ISP_CONTROL "vendor.rw.camera.isp.control"
 int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, uint8_t intent, uint8_t sceneMode, bool recover)
 {
@@ -173,9 +175,7 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     }
 
     if (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
-        // set sensor mode
-        int sensorMode = (sceneMode == ANDROID_CONTROL_SCENE_MODE_DISABLED) ? \
-            SENSOR_MODE_1080P_LINEAR : SENSOR_MODE_1080P_HDR;
+        int sensorMode = mSession->getCapsMode(sceneMode);
 
         struct viv_caps_mode_s caps_mode;
         memset(&caps_mode,0,sizeof(caps_mode));

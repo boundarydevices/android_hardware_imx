@@ -257,6 +257,7 @@ private:
 public:
     CameraSensorMetadata* getSensorData() { return &mSensorData; }
     char* getDevPath(int i) { return (*mDevPath[i]); }
+    int getCapsMode(uint8_t sceneMode);
 
 private:
     // Protects the API entry points
@@ -310,6 +311,10 @@ private:
     int mPreviewResolutionCount;
     int mPictureResolutions[MAX_RESOLUTION_SIZE];
     int mPictureResolutionCount;
+
+    int mMaxWidth = 0;
+    int mMaxHeight = 0;
+    struct viv_caps_supports caps_supports;
 };
 
 }  // namespace android
