@@ -78,10 +78,14 @@ interface IDisplay {
      *  set secure ui enable status.
      *
      * @param enable is the secure display status to set.
+     * @param x is secure ui pos_x.
+     * @param y is secure ui pos_y.
+     * @param w is secure ui width.
+     * @param h is secure ui height.
      * @return error is NONE upon success.
      */
     @entry
     @exit
     @callflow(next="*")
-    setSecureDisplayEnable(bool enable);
+    setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 };
