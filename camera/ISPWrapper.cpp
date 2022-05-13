@@ -134,6 +134,34 @@ int ISPWrapper::setFeature(const char *value)
     return ret;
 }
 
+// Keep same sequence as camera_metadata_enum_android_control_awb_mode_t defined in camera_metadata_tags.h
+#define WB_MODE_NUM 9
+static WbGains wb_gains_list[WB_MODE_NUM] = {
+    {1.0, 1.0, 1.0, 1.0}, // ANDROID_CONTROL_AWB_MODE_OFF, don't care the value, just match android tag.
+    {1.0, 1.0, 1.0, 1.0}, // ANDROID_CONTROL_AWB_MODE_AUTO, don't care the value, just match android tag.
+    {1.09915, 1.0, 1.0, 3.1024}, // ANDROID_CONTROL_AWB_MODE_INCANDESCENT
+    {1.58448, 1.0, 1.0, 2.5385}, // ANDROID_CONTROL_AWB_MODE_FLUORESCENT
+    {1.28448, 1.2, 1.2, 2.1385}, // ANDROID_CONTROL_AWB_MODE_WARM_FLUORESCENT
+    {1.66425, 1.0, 1.0, 1.9972}, // ANDROID_CONTROL_AWB_MODE_DAYLIGHT
+    {1.94499, 1.0, 1.0, 1.6718}, // ANDROID_CONTROL_AWB_MODE_CLOUDY_DAYLIGHT
+    {1.36191, 1.0, 1.0, 2.4337}, // ANDROID_CONTROL_AWB_MODE_TWILIGHT
+    {1.36191, 1.0, 1.0, 2.4337}  // ANDROID_CONTROL_AWB_MODE_SHADE
+};
+
+int ISPWrapper::enableAWB(bool enable)
+{
+    Json::Value jRequest, jResponse;
+
+    jRequest[AWB_ENABLE_PARAMS] = enable;
+    int ret = viv_private_ioctl(IF_AWB_S_EN, jRequest, jResponse);
+    if(ret) {
+        ALOGE("%s, enable %d, viv_private_ioctl failed, ret %d", __func__, enable, ret);
+        return BAD_VALUE;
+    }
+
+    return 0;
+}
+
 int ISPWrapper::processAWB(uint8_t mode, bool force)
 {
     int ret = 0;
@@ -141,7 +169,7 @@ int ISPWrapper::processAWB(uint8_t mode, bool force)
 
     ALOGV("%s, mode %d, force %d", __func__, mode, force);
 
-    if(mode >= ARRAY_SIZE(g_strWBList)) {
+    if(mode >= WB_MODE_NUM) {
         ALOGW("%s, unsupported awb mode %d", __func__, mode);
         return BAD_VALUE;
     }
@@ -151,23 +179,30 @@ int ISPWrapper::processAWB(uint8_t mode, bool force)
 
     ALOGI("%s, change WB mode from %d to %d, force %d", __func__, m_awb_mode, mode, force);
 
-    // If shift from AWB to MWB, first disable AWB.
-    if( (m_awb_mode == ANDROID_CONTROL_AWB_MODE_AUTO) &&
-        (mode != ANDROID_CONTROL_AWB_MODE_AUTO) &&
-        (mode != ANDROID_CONTROL_AWB_MODE_OFF) ) {
-        value = STR_AWB_DISABLE;
-        ret = setFeature(value);
-        if(ret) {
-            ALOGE("%s, mode %d, disable awb failed", __func__, mode);
-            return BAD_VALUE;
-        }
+    if ((mode == ANDROID_CONTROL_AWB_MODE_AUTO) || (mode == ANDROID_CONTROL_AWB_MODE_OFF)) {
+        bool bEnable = (mode == ANDROID_CONTROL_AWB_MODE_AUTO) ? true : false;
+        ret = enableAWB(bEnable);
+        return ret;
     }
 
-    value = g_strWBList[mode];
+    // If shift from AWB to MWB, first disable AWB.
+    if (m_awb_mode == ANDROID_CONTROL_AWB_MODE_AUTO) {
+        ret = enableAWB(false);
+        if (ret)
+            return ret;
+    }
 
-    ret = setFeature(value);
+    WbGains gains = wb_gains_list[mode];
+    Json::Value jRequest, jResponse;
+
+    jRequest[WB_RED_PARAMS]     = gains.Red;
+    jRequest[WB_GREEN_R_PARAMS] = gains.GreenR;
+    jRequest[WB_GREEN_B_PARAMS] = gains.GreenB;
+    jRequest[WB_BLUE_PARAMS]    = gains.Blue;
+
+    ret = viv_private_ioctl(IF_WB_S_GAIN, jRequest, jResponse);
     if(ret) {
-        ALOGE("%s, set wb mode %d failed, ret %d", __func__, mode, ret);
+        ALOGE("%s, set wb mode %d failed, IF_WB_S_GAIN ret %d", __func__, mode, ret);
         return BAD_VALUE;
     }
 

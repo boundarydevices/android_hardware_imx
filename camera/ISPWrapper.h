@@ -32,27 +32,25 @@
 // CLOUDY_DAYLIGHT  -> D65
 // TWILIGHT -> TL84
 // SHADE -> ???
-#define STR_AWB_INCANDESCENT (char *)"{<id>:<awb.s.gain>; <red>:1.09915;<green.b>:1.0;<green.r>:1.0;<blue>:3.1024}"
-#define STR_AWB_FLUORESCENT (char *)"{<id>:<awb.s.gain>; <red>:1.58448;<green.b>:1.0;<green.r>:1.0;<blue>:2.5385}"
-#define STR_AWB_WARM_FLUORESCENT (char *)"{<id>:<awb.s.gain>; <red>:1.28448;<green.b>:1.2;<green.r>:1.2;<blue>:2.1385}"
-#define STR_AWB_DAYLIGHT (char *)"{<id>:<awb.s.gain>; <red>:1.66425;<green.b>:1.0;<green.r>:1.0;<blue>:1.9972}"
-#define STR_AWB_CLOUDY_DAYLIGHT (char *)"{<id>:<awb.s.gain>; <red>:1.94499;<green.b>:1.0;<green.r>:1.0;<blue>:1.6718}"
-#define STR_AWB_TWILIGHT (char *)"{<id>:<awb.s.gain>; <red>:1.36191;<green.b>:1.0;<green.r>:1.0;<blue>:2.4337}"
-// To be refine once get the data, currently just copy STR_AWB_TWILIGHT
-#define STR_AWB_SHADE (char *)"{<id>:<awb.s.gain>; <red>:1.36191;<green.b>:1.0;<green.r>:1.0;<blue>:2.4337}"
 
-// Keep same sequence as camera_metadata_enum_android_control_awb_mode_t defined in camera_metadata_tags.h
-static char* g_strWBList[] = {
-    STR_AWB_DISABLE,
-    STR_AWB_ENABLE,
-    STR_AWB_INCANDESCENT,
-    STR_AWB_FLUORESCENT,
-    STR_AWB_WARM_FLUORESCENT,
-    STR_AWB_DAYLIGHT,
-    STR_AWB_CLOUDY_DAYLIGHT,
-    STR_AWB_TWILIGHT,
-    STR_AWB_SHADE
-};
+#define IF_WB_S_CFG               "wb.s.cfg"
+#define IF_WB_G_CFG               "wb.g.cfg"
+#define IF_AWB_S_EN               "awb.s.en"
+#define WB_GAINS_PARAMS           "wb.gains"
+#define AWB_ENABLE_PARAMS          "enable"
+#define IF_WB_S_GAIN               "wb.s.gain"
+#define WB_RED_PARAMS              "red"
+#define WB_GREEN_PARAMS            "green"
+#define WB_BLUE_PARAMS             "blue"
+#define WB_GREEN_R_PARAMS          "green.r"
+#define WB_GREEN_B_PARAMS          "green.b"
+
+typedef struct CamEngineWbGains_s {
+      float Red;
+      float GreenR;
+      float GreenB;
+      float Blue;
+} WbGains;
 
 #define DWE_MODE_LDC        (char *)"{<id>:<dwe.s.mode>; <dwe>:{<mode>:1}}"
 #define DWE_MODE_DEWARP     (char *)"{<id>:<dwe.s.mode>; <dwe>:{<mode>:8}}"
@@ -186,6 +184,7 @@ private:
     int processSharpLevel(uint8_t level);
 
     int EnableDWE(bool on);
+    int enableAWB(bool enable);
 
 private:
     int m_fd;
