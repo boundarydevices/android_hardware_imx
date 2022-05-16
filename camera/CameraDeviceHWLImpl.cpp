@@ -87,6 +87,7 @@ CameraDeviceHwlImpl::CameraDeviceHwlImpl(
 
     memset(mPreviewResolutions, 0, sizeof(mPreviewResolutions));
     memset(mPictureResolutions, 0, sizeof(mPictureResolutions));
+    memset(&caps_supports, 0, sizeof(caps_supports));
 }
 
 CameraDeviceHwlImpl::~CameraDeviceHwlImpl()
