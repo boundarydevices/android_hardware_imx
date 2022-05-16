@@ -14,32 +14,18 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "StepCounterSensor"
-
 #include "StepCounterSensor.h"
-#include "iio_utils.h"
-#include <hardware/sensors.h>
-#include <log/log.h>
-#include <utils/SystemClock.h>
-#include <cmath>
 
-namespace android {
-namespace hardware {
-namespace sensors {
-namespace V2_0 {
-namespace subhal {
-namespace implementation {
+namespace nxp_sensors_subhal {
 
 StepCounterSensor::StepCounterSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-			   const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
+               struct iio_device_data& iio_data)
+	: HWSensorBase(sensorHandle, callback, iio_data)  {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
-    mSensorInfo.flags |= V1_0::SensorFlagBits::DATA_INJECTION | V1_0::SensorFlagBits::ON_CHANGE_MODE;
+    mSensorInfo.flags |= SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
 
-    std::string period_file;
-    period_file = iio_data.sysfspath + "/events/in_steps_change_period";
+    std::string period_file = iio_data.sysfspath + "/events/in_steps_change_period";
     mSensorInfo.maxDelay = 500;
     mSensorInfo.minDelay = 3600000;
     mSysfspath = iio_data.sysfspath;
@@ -84,11 +70,11 @@ void StepCounterSensor::processScanData(Event* evt) {
     evt->sensorType = mSensorInfo.type;
     get_sensor_stepcounter(mSysfspath, &stepcounter);
     evt->timestamp = get_timestamp();
-    evt->u.scalar = stepcounter;
+    evt->u.stepCount = stepcounter;
 }
 
 bool StepCounterSensor::supportsDataInjection() const {
-    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::DATA_INJECTION);
+    return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::DATA_INJECTION);
 }
 
 Result StepCounterSensor::injectEvent(const Event& event) {
@@ -138,9 +124,4 @@ void StepCounterSensor::run() {
     }
 }
 
-}  // namespace implementation
-}  // namespace subhal
-}  // namespace V2_0
-}  // namespace sensors
-}  // namespace hardware
-}  // namespace android
+}  // namespace nxp_sensors_subhal

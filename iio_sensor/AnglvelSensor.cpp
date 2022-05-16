@@ -14,45 +14,31 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "AnglvelSensor"
-
 #include "AnglvelSensor.h"
-#include "iio_utils.h"
-#include <hardware/sensors.h>
-#include <log/log.h>
-#include <utils/SystemClock.h>
-#include <cmath>
-#include <sys/socket.h>
 
-namespace android {
-namespace hardware {
-namespace sensors {
-namespace V2_0 {
-namespace subhal {
-namespace implementation {
+namespace nxp_sensors_subhal {
 
 AnglvelSensor::AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-			   const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
+               struct iio_device_data& iio_data)
+	: HWSensorBase(sensorHandle, callback, iio_data)  {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
-    std::string freq_file;
-    freq_file = iio_data.sysfspath + "/sampling_frequency_available";
+    std::string freq_file = iio_data.sysfspath + "/sampling_frequency_available";
     get_sampling_frequency_available(freq_file, &iio_data.sampling_freq_avl);
 
     unsigned int max_sampling_frequency = 0;
     unsigned int min_sampling_frequency = UINT_MAX;
     for (auto i = 0u; i < iio_data.sampling_freq_avl.size(); i++) {
-        if (max_sampling_frequency < iio_data.sampling_freq_avl[i])
-            max_sampling_frequency = iio_data.sampling_freq_avl[i];
-        if (min_sampling_frequency > iio_data.sampling_freq_avl[i])
-            min_sampling_frequency = iio_data.sampling_freq_avl[i];
+        max_sampling_frequency = max_sampling_frequency < iio_data.sampling_freq_avl[i]
+                                 ? max_sampling_frequency : iio_data.sampling_freq_avl[i];
+        min_sampling_frequency = min_sampling_frequency > iio_data.sampling_freq_avl[i]
+                                 ? min_sampling_frequency : iio_data.sampling_freq_avl[i];
     }
 
     mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
     mSysfspath = iio_data.sysfspath;
+    mIioData = iio_data;
     mRunThread = std::thread(std::bind(&AnglvelSensor::run, this));
 }
 
@@ -75,9 +61,6 @@ void AnglvelSensor::batch(int32_t samplingPeriodNs) {
         unsigned int sampling_frequency = ns_to_frequency(samplingPeriodNs);
         int i = 0;
         mSamplingPeriodNs = samplingPeriodNs;
-        std::string freq_file;
-        freq_file = mIioData.sysfspath + "/sampling_frequency_available";
-        get_sampling_frequency_available(freq_file, &mIioData.sampling_freq_avl);
         std::vector<double>::iterator low =
                 std::lower_bound(mIioData.sampling_freq_avl.begin(),
                                  mIioData.sampling_freq_avl.end(), sampling_frequency);
@@ -89,7 +72,7 @@ void AnglvelSensor::batch(int32_t samplingPeriodNs) {
 }
 
 bool AnglvelSensor::supportsDataInjection() const {
-    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::DATA_INJECTION);
+    return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::DATA_INJECTION);
 }
 
 Result AnglvelSensor::injectEvent(const Event& event) {
@@ -116,13 +99,13 @@ void AnglvelSensor::setOperationMode(OperationMode mode) {
 }
 
 bool AnglvelSensor::isWakeUpSensor() {
-    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::WAKE_UP);
+    return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::WAKE_UP);
 }
 
 Result AnglvelSensor::flush() {
     // Only generate a flush complete event if the sensor is enabled and if the sensor is not a
     // one-shot sensor.
-    if (!mIsEnabled || (mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::ONE_SHOT_MODE))) {
+    if (!mIsEnabled || (mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::ONE_SHOT_MODE))) {
         return Result::BAD_VALUE;
     }
 
@@ -132,7 +115,7 @@ Result AnglvelSensor::flush() {
     Event ev;
     ev.sensorHandle = mSensorInfo.sensorHandle;
     ev.sensorType = SensorType::META_DATA;
-    ev.u.meta.what = V1_0::MetaDataEventType::META_DATA_FLUSH_COMPLETE;
+    ev.u.meta.what = MetaDataEventType::META_DATA_FLUSH_COMPLETE;
     std::vector<Event> evs{ev};
     mCallback->postEvents(evs, isWakeUpSensor());
     return Result::OK;
@@ -281,9 +264,4 @@ void AnglvelSensor::run() {
     }
 }
 
-}  // namespace implementation
-}  // namespace subhal
-}  // namespace V2_0
-}  // namespace sensors
-}  // namespace hardware
-}  // namespace android
+}  // namespace nxp_sensors_subhal

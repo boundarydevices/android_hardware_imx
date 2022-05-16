@@ -14,37 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ANDROID_HARDWARE_SENSORS_V2_0_SENSOR_H
-#define ANDROID_HARDWARE_SENSORS_V2_0_SENSOR_H
-
-#include <android/hardware/sensors/1.0/types.h>
+#pragma once
+#include <android/hardware/sensors/2.1/types.h>
 #include <poll.h>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <android-base/properties.h>
+#include <hardware/sensors.h>
+#include <log/log.h>
+#include <utils/SystemClock.h>
+#include <cmath>
+#include <sys/socket.h>
+#include <inttypes.h>
 #include "iio_utils.h"
-#include "sensor_hal_configuration_V1_0.h"
 
 #define NUM_OF_CHANNEL_SUPPORTED 4
 // Subtract the timestamp channel to get the number of data channels
 #define NUM_OF_DATA_CHANNELS NUM_OF_CHANNEL_SUPPORTED - 1
 
 using ::android::hardware::sensors::V1_0::AdditionalInfo;
-using ::android::hardware::sensors::V1_0::Event;
 using ::android::hardware::sensors::V1_0::OperationMode;
 using ::android::hardware::sensors::V1_0::Result;
-using ::android::hardware::sensors::V1_0::SensorInfo;
-using ::android::hardware::sensors::V1_0::SensorType;
-using ::sensor::hal::configuration::V1_0::Configuration;
+using ::android::hardware::sensors::V1_0::SensorFlagBits;
+using ::android::hardware::sensors::V1_0::MetaDataEventType;
+using ::android::hardware::sensors::V2_1::SensorInfo;
+using ::android::hardware::sensors::V2_1::SensorType;
+using ::android::hardware::sensors::V2_1::Event;
+using ::android::hardware::sensors::V1_0::SensorStatus;
 
-namespace android {
-namespace hardware {
-namespace sensors {
-namespace V2_0 {
-namespace subhal {
-namespace implementation {
+using ::android::hardware::Return;
+using ::android::status_t;
+using ::android::base::GetProperty;
+
+namespace nxp_sensors_subhal {
 
 static constexpr unsigned int frequency_to_us(unsigned int x) {
     return (1E6 / x);
@@ -97,8 +102,7 @@ class SensorBase {
 class HWSensorBase : public SensorBase {
   public:
     static HWSensorBase* buildSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-                                     struct iio_device_data& iio_data,
-                                     const std::optional<std::vector<Configuration>>& config);
+                                     struct iio_device_data& iio_data);
     ~HWSensorBase();
     void batch(int32_t samplingPeriodNs);
     void activate(bool enable);
@@ -106,37 +110,15 @@ class HWSensorBase : public SensorBase {
     struct iio_device_data mIioData;
     struct pollfd mPollFdIio;
     HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback,
-                 const struct iio_device_data& iio_data,
-                 const std::optional<std::vector<Configuration>>& config);
+                 const struct iio_device_data& iio_data);
 
     std::vector<uint8_t> mSensorRawData;
     ssize_t mScanSize;
     int64_t mXMap, mYMap, mZMap;
   private:
-    static constexpr uint8_t LOCATION_X_IDX = 3;
-    static constexpr uint8_t LOCATION_Y_IDX = 7;
-    static constexpr uint8_t LOCATION_Z_IDX = 11;
-    static constexpr uint8_t ROTATION_X_IDX = 0;
-    static constexpr uint8_t ROTATION_Y_IDX = 1;
-    static constexpr uint8_t ROTATION_Z_IDX = 2;
-
-    bool mXNegate, mYNegate, mZNegate;
-    std::vector<AdditionalInfo> mAdditionalInfoFrames;
 
     ssize_t calculateScanSize();
-    void setOrientation(std::optional<std::vector<Configuration>> config);
     void processScanData(uint8_t* data, Event* evt);
-    void setAxisDefaultValues();
-    status_t setAdditionalInfoFrames(const std::optional<std::vector<Configuration>>& config);
-    void sendAdditionalInfoReport();
-    status_t getSensorPlacement(AdditionalInfo* sensorPlacement,
-                                const std::optional<std::vector<Configuration>>& config);
 };
 
 }  // namespace implementation
-}  // namespace subhal
-}  // namespace V2_0
-}  // namespace sensors
-}  // namespace hardware
-}  // namespace android
-#endif  // ANDROID_HARDWARE_SENSORS_V2_0_SENSOR_H

@@ -14,28 +14,13 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "AccMagSensor"
-
 #include "AccMagSensor.h"
-#include "iio_utils.h"
-#include <hardware/sensors.h>
-#include <log/log.h>
-#include <utils/SystemClock.h>
-#include <cmath>
 
-namespace android {
-namespace hardware {
-namespace sensors {
-namespace V2_0 {
-namespace subhal {
-namespace implementation {
+namespace nxp_sensors_subhal {
 
 AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-			   const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
-    std::string freq_file_name;
-
+               struct iio_device_data& iio_data)
+	: HWSensorBase(sensorHandle, callback, iio_data)  {
     // no power_microwatts/resolution sys node, so mSensorInfo.power/resolution fake the default one,
     // no maxRange sys node, so fake maxRange, which is set according to the CTS requirement.
     if (iio_data.type == SensorType::ACCELEROMETER) {
@@ -50,22 +35,22 @@ AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback
         freq_file_name = "/in_magn_sampling_frequency_available";
     }
 
-    std::string freq_file;
-    freq_file = iio_data.sysfspath + freq_file_name;
+    std::string freq_file = iio_data.sysfspath + freq_file_name;
     get_sampling_frequency_available(freq_file, &iio_data.sampling_freq_avl);
 
     unsigned int max_sampling_frequency = 0;
     unsigned int min_sampling_frequency = UINT_MAX;
     for (auto i = 0u; i < iio_data.sampling_freq_avl.size(); i++) {
-        if (max_sampling_frequency < iio_data.sampling_freq_avl[i])
-            max_sampling_frequency = iio_data.sampling_freq_avl[i];
-        if (min_sampling_frequency > iio_data.sampling_freq_avl[i])
-            min_sampling_frequency = iio_data.sampling_freq_avl[i];
+        max_sampling_frequency = max_sampling_frequency < iio_data.sampling_freq_avl[i]
+                                 ? max_sampling_frequency : iio_data.sampling_freq_avl[i];
+        min_sampling_frequency = min_sampling_frequency > iio_data.sampling_freq_avl[i]
+                                 ? min_sampling_frequency : iio_data.sampling_freq_avl[i];
     }
 
     mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
     mSysfspath = iio_data.sysfspath;
+    mIioData = iio_data;
     mRunThread = std::thread(std::bind(&AccMagSensor::run, this));
 }
 
@@ -89,17 +74,6 @@ void AccMagSensor::batch(int32_t samplingPeriodNs) {
         int i = 0;
         mSamplingPeriodNs = samplingPeriodNs;
 
-        std::string freq_file_name;
-        if (mIioData.type == SensorType::ACCELEROMETER) {
-            freq_file_name = "/in_accel_sampling_frequency_available";
-        } else if (mIioData.type == SensorType::MAGNETIC_FIELD) {
-            freq_file_name = "/in_magn_sampling_frequency_available";
-        }
-
-        std::string freq_file;
-        freq_file = mIioData.sysfspath + freq_file_name;
-        get_sampling_frequency_available(freq_file, &mIioData.sampling_freq_avl);
-
         std::vector<double>::iterator low =
                 std::lower_bound(mIioData.sampling_freq_avl.begin(),
                                  mIioData.sampling_freq_avl.end(), sampling_frequency);
@@ -111,7 +85,7 @@ void AccMagSensor::batch(int32_t samplingPeriodNs) {
 }
 
 bool AccMagSensor::supportsDataInjection() const {
-    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::DATA_INJECTION);
+    return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::DATA_INJECTION);
 }
 
 Result AccMagSensor::injectEvent(const Event& event) {
@@ -138,13 +112,13 @@ void AccMagSensor::setOperationMode(OperationMode mode) {
 }
 
 bool AccMagSensor::isWakeUpSensor() {
-    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::WAKE_UP);
+    return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::WAKE_UP);
 }
 
 Result AccMagSensor::flush() {
     // Only generate a flush complete event if the sensor is enabled and if the sensor is not a
     // one-shot sensor.
-    if (!mIsEnabled || (mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::ONE_SHOT_MODE))) {
+    if (!mIsEnabled || (mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::ONE_SHOT_MODE))) {
         return Result::BAD_VALUE;
     }
 
@@ -153,7 +127,7 @@ Result AccMagSensor::flush() {
     Event ev;
     ev.sensorHandle = mSensorInfo.sensorHandle;
     ev.sensorType = SensorType::META_DATA;
-    ev.u.meta.what = V1_0::MetaDataEventType::META_DATA_FLUSH_COMPLETE;
+    ev.u.meta.what = MetaDataEventType::META_DATA_FLUSH_COMPLETE;
     std::vector<Event> evs{ev};
     mCallback->postEvents(evs, isWakeUpSensor());
     return Result::OK;
@@ -226,9 +200,4 @@ void AccMagSensor::run() {
     }
 }
 
-}  // namespace implementation
-}  // namespace subhal
-}  // namespace V2_0
-}  // namespace sensors
-}  // namespace hardware
-}  // namespace android
+}  // namespace nxp_sensors_subhal

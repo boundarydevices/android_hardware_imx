@@ -14,35 +14,13 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "PressureSensor"
-
 #include "PressureSensor.h"
-#include "iio_utils.h"
-#include <hardware/sensors.h>
-#include <log/log.h>
-#include <utils/SystemClock.h>
-#include <cmath>
-#include <sys/socket.h>
-#include <inttypes.h>
 
-namespace android {
-namespace hardware {
-namespace sensors {
-namespace V2_0 {
-namespace subhal {
-namespace implementation {
-
-using ::android::hardware::sensors::V1_0::AdditionalInfoType;
-using ::android::hardware::sensors::V1_0::MetaDataEventType;
-using ::android::hardware::sensors::V1_0::SensorFlagBits;
-using ::android::hardware::sensors::V1_0::SensorStatus;
-using ::sensor::hal::configuration::V1_0::Location;
-using ::sensor::hal::configuration::V1_0::Orientation;
+namespace nxp_sensors_subhal {
 
 PressureSensor::PressureSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-			   const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
+               struct iio_device_data& iio_data)
+	: HWSensorBase(sensorHandle, callback, iio_data)  {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
 
@@ -204,7 +182,7 @@ void PressureSensor::activate(bool enable) {
 }
 
 bool PressureSensor::supportsDataInjection() const {
-    return mSensorInfo.flags & static_cast<uint32_t>(V1_0::SensorFlagBits::DATA_INJECTION);
+    return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::DATA_INJECTION);
 }
 
 Result PressureSensor::injectEvent(const Event& event) {
@@ -268,9 +246,4 @@ void PressureSensor::run() {
     }
 }
 
-}  // namespace implementation
-}  // namespace subhal
-}  // namespace V2_0
-}  // namespace sensors
-}  // namespace hardware
-}  // namespace android
+}  // namespace nxp_sensors_subhal

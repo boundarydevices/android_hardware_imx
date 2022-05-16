@@ -18,7 +18,7 @@ iio_sensor_defaults {
     name: "iio_sensor_default",
     vendor: true,
     header_libs: [
-        "android.hardware.sensors@2.0-multihal.header",
+        "android.hardware.sensors@2.X-multihal.header",
     ],
     srcs: [
         "iio_utils.cpp",
@@ -28,6 +28,7 @@ iio_sensor_defaults {
     shared_libs: [
         "android.hardware.sensors@1.0",
         "android.hardware.sensors@2.0",
+        "android.hardware.sensors@2.1",
         "android.hardware.sensors@2.0-ScopedWakelock",
         "libcutils",
         "libfmq",
@@ -46,9 +47,8 @@ iio_sensor_defaults {
         "-Wall",
         "-Wextra",
         "-Werror",
+        "-DLOG_TAG=\"android.hardware.sensors@2.1-nxp-IIO-Subhal\"",
     ],
-    generated_sources: ["sensor_hal_configuration_V1_0_nxp"],
-    generated_headers: ["sensor_hal_configuration_V1_0_nxp"],
 }
 
 bootstrap_go_package {
@@ -69,6 +69,6 @@ bootstrap_go_package {
 }
 
 cc_library {
-    name: "android.hardware.sensors@2.0-nxp-IIO-Subhal",
+    name: "android.hardware.sensors@2.1-nxp-IIO-Subhal",
     defaults: ["iio_sensor_default"],
 }

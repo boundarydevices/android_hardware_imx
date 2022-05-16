@@ -14,42 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ANDROID_HARDWARE_SENSORS_V2_0_SENSORS_SUBHAL_H
-#define ANDROID_HARDWARE_SENSORS_V2_0_SENSORS_SUBHAL_H
 
-#include <vector>
+#pragma once
 #include "Sensor.h"
-#include "SubHal.h"
+#include <V2_1/SubHal.h>
 
-using ::android::hardware::sensors::V1_0::SensorType;
+namespace nxp_sensors_subhal {
 
-namespace android {
-namespace hardware {
-namespace sensors {
-namespace V2_0 {
-namespace subhal {
-namespace implementation {
+using ::android::hardware::sensors::V2_1::implementation::IHalProxyCallback;
 
-using ::android::hardware::sensors::V1_0::OperationMode;
-using ::android::hardware::sensors::V1_0::Result;
-using ::android::hardware::sensors::V2_0::implementation::IHalProxyCallback;
-using ::android::hardware::sensors::V2_0::subhal::implementation::ISensorsEventCallback;
-using ::sensor::hal::configuration::V1_0::Configuration;
+using ::android::hardware::sensors::V1_0::RateLevel;
+using ::android::hardware::sensors::V1_0::SharedMemInfo;
+
+using ::android::hardware::hidl_handle;
+using ::android::hardware::hidl_string;
+using ::android::hardware::hidl_vec;
+using ::android::sp;
 
 /**
  * Implementation of a ISensorsSubHal that can be used as a reference HAL implementation of sensors
  * multihal 2.0.
  */
-class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
-    using Event = ::android::hardware::sensors::V1_0::Event;
-    using RateLevel = ::android::hardware::sensors::V1_0::RateLevel;
-    using SharedMemInfo = ::android::hardware::sensors::V1_0::SharedMemInfo;
+class SensorsSubHal : public ::android::hardware::sensors::V2_1::implementation::ISensorsSubHal, public ISensorsEventCallback {
 
   public:
     SensorsSubHal();
+    ~SensorsSubHal();
 
-    // Methods from ::android::hardware::sensors::V2_0::ISensors follow.
-    Return<void> getSensorsList(getSensorsList_cb _hidl_cb) override;
+    // Methods from ::android::hardware::sensors::V2_1::ISensors follow.
+    Return<void> getSensorsList_2_1(getSensorsList_2_1_cb _hidl_cb) override;
 
     Return<Result> setOperationMode(OperationMode mode) override;
 
@@ -62,7 +55,7 @@ class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
 
     Return<Result> flush(int32_t sensorHandle) override;
 
-    Return<Result> injectSensorData(const Event& event) override;
+    Return<Result> injectSensorData_2_1(const Event& event) override;
 
     Return<void> registerDirectChannel(const SharedMemInfo& mem,
                                        registerDirectChannel_cb _hidl_cb) override;
@@ -83,8 +76,7 @@ class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
     void postEvents(const std::vector<Event>& events, bool wakeup) override;
 
   protected:
-    void AddSensor(struct iio_device_data& iio_data,
-                   const std::optional<std::vector<Configuration>>& config);
+    void AddSensor(struct iio_device_data& iio_data);
 
     /**
      * A map of the available sensors
@@ -111,10 +103,4 @@ class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
     int32_t mNextHandle;
 };
 
-}  // namespace implementation
-}  // namespace subhal
-}  // namespace V2_0
-}  // namespace sensors
-}  // namespace hardware
-}  // namespace android
-#endif
+}  // namespace nxp_sensors_subhal

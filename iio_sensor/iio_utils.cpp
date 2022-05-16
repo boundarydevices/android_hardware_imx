@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "iio_utils"
 
 #include "iio_utils.h"
 #include <errno.h>
@@ -56,12 +55,7 @@ static const char* IIO_HRTIMER_TRIGGER = "/config/iio/triggers/hrtimer/";
 static const char* IIO_CURRENT_TRIGGER = "/trigger/current_trigger";
 static const char* IIO_DATA_TRIGGER = "/sys/bus/iio/devices/iio_sysfs_trigger/";
 
-namespace android {
-namespace hardware {
-namespace sensors {
-namespace V2_0 {
-namespace subhal {
-namespace implementation {
+namespace nxp_sensors_subhal {
 
 using DirPtr = std::unique_ptr<DIR, decltype(&closedir)>;
 using FilePtr = std::unique_ptr<FILE, decltype(&fclose)>;
@@ -621,9 +615,4 @@ int scan_elements(const std::string& device_dir, struct iio_device_data* iio_dat
     return ret;
 }
 
-}  // namespace implementation
-}  // namespace subhal
-}  // namespace V2_0
-}  // namespace sensors
-}  // namespace hardware
-}  // namespace android
+}  // namespace nxp_sensors_subhal
