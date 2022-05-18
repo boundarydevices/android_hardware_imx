@@ -26,6 +26,7 @@
 
 namespace android {
 
+#define PROP_CAMERA_LAYOUT "ro.boot.camera.layout"
 status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
 {
     int32_t fd = open(*mDevPath[0], O_RDWR);
@@ -174,6 +175,16 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         ALOGI("\t}");
     }
     ALOGI("}");
+
+    char layout[PROPERTY_VALUE_MAX] = {0};
+    property_get(PROP_CAMERA_LAYOUT, layout, "");
+
+    if ( ((strcmp(layout, "") == 0) || strstr(layout, "basler")) &&
+         (caps_supports.count >= 4) ) {
+        ALOGI("%s: hard code basler mode 2, 3 to hdr mode", __func__);
+        caps_supports.mode[2].hdr_mode = 1;
+        caps_supports.mode[3].hdr_mode = 1;
+    }
 
     close(fd);
     return NO_ERROR;
