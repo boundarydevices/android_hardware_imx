@@ -85,6 +85,14 @@ public:
 
     status_t CreateBufferAllocatorHwl(std::unique_ptr<CameraBufferAllocatorHwl>*
                                         camera_buffer_allocator_hwl) override;
+
+#if ANDROID_SDK_VERSION >  __ANDROID_API_S__
+    status_t NotifyDeviceStateChange(google_camera_hal::DeviceState device_state) override
+    {
+        return 0;
+    }
+#endif
+
     // End of override functions in CameraProviderHwl.
 
 private:
