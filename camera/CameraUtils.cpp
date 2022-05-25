@@ -58,9 +58,6 @@ int32_t changeSensorFormats(int *src, int *dst, int len)
                 dst[k++] = HAL_PIXEL_FORMAT_BLOB;
                 break;
 
-            case v4l2_fourcc('B', 'A', '1', '2'):
-                dst[k++] = HAL_PIXEL_FORMAT_RAW16;
-                break;
             case v4l2_fourcc('N', 'V', '1', '6'):
                 dst[k++] = HAL_PIXEL_FORMAT_YCbCr_422_SP;
                 break;
@@ -141,10 +138,6 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
             break;
         case HAL_PIXEL_FORMAT_RGBA_8888:
             nFormat = v4l2_fourcc('A', 'B', '2', '4');
-            break;
-        case HAL_PIXEL_FORMAT_RAW16:
-            // VSI ISP camera use GR/BG 12bit format, stored in 16bit, the highest 4 bits are 0.
-            nFormat = v4l2_fourcc('B', 'A', '1', '2'); // V4L2_PIX_FMT_SGRBG12
             break;
 
         default:

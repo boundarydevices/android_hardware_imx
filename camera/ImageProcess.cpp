@@ -24,6 +24,7 @@
 #include "Composer.h"
 #include "Memory.h"
 #include "MemoryDesc.h"
+#include "VideoStream.h"
 
 #include <g2d.h>
 #include <linux/ipu.h>
@@ -50,7 +51,7 @@ namespace fsl {
 ImageProcess* ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
 
-static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels);
+static void Revert16BitEndianAndShift(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels, int32_t v4l2Format);
 
 static bool IsCscSupportByCPU(int srcFormat, int dstFormat)
 {
@@ -694,7 +695,7 @@ int ImageProcess::handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
         (src->width() == dst->width()) &&
         (src->height() == dst->height()) &&
         (HAL_PIXEL_FORMAT_RAW16 == src->format())) {
-        Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
+        Revert16BitEndianAndShift((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height(), ((VideoStream *)src)->mV4l2Format);
         return ret;
     }
 
@@ -769,9 +770,9 @@ int ImageProcess::convertNV12toNV21(ImxStreamBuffer& dstBuf, ImxStreamBuffer& sr
     return 0;
 }
 
-static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels)
+static void Revert16BitEndianAndShift(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels, int32_t v4l2Format)
 {
-    ALOGV("enter Revert16BitEndian, src %p, dst %p, pixels %d", pSrc, pDst, pixels);
+    ALOGI("enter Revert16BitEndianAndShift, src %p, dst %p, pixels %d, v4l2Format 0x%x", pSrc, pDst, pixels, v4l2Format);
 
     for(uint32_t i = 0; i < pixels; i++) {
         uint32_t offset = i*2;
@@ -779,8 +780,20 @@ static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels)
         pDst[offset + 1] = pSrc[offset];
     }
 
+    // left shift 2 bits for 10 bits raw data
+    if ((v4l2Format == V4L2_PIX_FMT_SBGGR10) || (v4l2Format == V4L2_PIX_FMT_SGBRG10) ||
+        (v4l2Format == V4L2_PIX_FMT_SGRBG10) || (v4l2Format == V4L2_PIX_FMT_SRGGB10)) {
+        ALOGI("left shift 2 bits");
+        uint16_t *pWordDst = (uint16_t *)pDst;
+        for(uint32_t i = 0; i < pixels; i++) {
+            *pWordDst = (*pWordDst) << 2;
+            pWordDst++;
+        }
+    }
+
     return;
 }
+
 
 int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf)
 {
@@ -812,7 +825,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
          (src->width() == dst->width()) &&
          (src->height() == dst->height()) ) {
         if (HAL_PIXEL_FORMAT_RAW16 == src->format())
-            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
+            Revert16BitEndianAndShift((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height(), ((VideoStream *)src)->mV4l2Format);
         else {
             Mutex::Autolock _l(mCLLock);
             cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
@@ -889,7 +902,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
          (src->width() == dst->width()) &&
          (src->height() == dst->height()) ) {
         if (HAL_PIXEL_FORMAT_RAW16 == src->format())
-            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height());
+            Revert16BitEndianAndShift((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height(), ((VideoStream *)src)->mV4l2Format);
         else
             YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
               (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());

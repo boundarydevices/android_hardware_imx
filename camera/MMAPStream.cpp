@@ -130,7 +130,7 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
         return ret;
     }
 
-    ret = postConfigure(format, width, height, fps);
+    ret = postConfigure(format, width, height, fps, vformat);
 
     return ret;
 }

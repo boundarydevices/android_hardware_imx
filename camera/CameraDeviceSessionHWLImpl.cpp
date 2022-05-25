@@ -188,6 +188,7 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     mMaxWidth = pDev->mMaxWidth;
     mMaxHeight = pDev->mMaxHeight;
     caps_supports = pDev->caps_supports;
+    m_raw_v4l2_format = pDev->m_raw_v4l2_format;
 
     return OK;
 }

@@ -31,10 +31,14 @@ public:
       PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
       : CameraDeviceHwlImpl(camera_id, /*devPath,*/ devPaths, cam_copy_hw, cam_csc_hw, hw_jpeg, use_cpu_encoder, cam_metadata, std::move(physical_devices), callback)
     {
+        m_color_arrange = -1;
     }
+
+    uint8_t m_color_arrange;
 
 private:
     virtual status_t initSensorStaticData();
+    int32_t GetRawFormat(int fd);
 };
 
 class ISPCameraMMAPStream : public MMAPStream

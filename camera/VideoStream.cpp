@@ -42,6 +42,7 @@ VideoStream::VideoStream(CameraDeviceSessionHwlImpl *pSession)
     mSession = pSession;
     mRecoverCount = 0;
     memset(mBuffers, 0, sizeof(mBuffers));
+    mV4l2Format = -1;
 
     property_get("ro.boot.soc_type", soc_type, "");
 }
@@ -252,12 +253,13 @@ int32_t VideoStream::Stop()
     return 0;
 }
 
-int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
+int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, int32_t v4l2Format)
 {
     mWidth = width;
     mHeight = height;
     mFps = fps;
     mFormat = format;
+    mV4l2Format = v4l2Format;
     mFrames = 0;
 
     setOmitFrameCount(0);

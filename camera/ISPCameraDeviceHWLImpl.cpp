@@ -186,8 +186,93 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         caps_supports.mode[3].hdr_mode = 1;
     }
 
+    /* get raw format */
+    ret = GetRawFormat(fd);
+    if (ret) {
+        ALOGE("%s: GetRawFormat Failed, ret %d", __func__, ret);
+        close(fd);
+        return BAD_VALUE;
+    }
+
     close(fd);
     return NO_ERROR;
+}
+
+int32_t ISPCameraDeviceHwlImpl::GetRawFormat(int fd)
+{
+    if (fd < 0)
+      return BAD_VALUE;
+
+    v4l2_fmtdesc formatDescriptions;
+    formatDescriptions.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    for (int i=0; true; i++) {
+        formatDescriptions.index = i;
+        if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescriptions) != 0)
+            break;
+
+        ALOGI("format %2d: %s 0x%08X 0x%X",
+              i,
+              formatDescriptions.description,
+              formatDescriptions.pixelformat,
+              formatDescriptions.flags
+        );
+
+        /* bits */
+        switch(formatDescriptions.pixelformat)
+        {
+            case V4L2_PIX_FMT_SBGGR10:
+            case V4L2_PIX_FMT_SGBRG10:
+            case V4L2_PIX_FMT_SGRBG10:
+            case V4L2_PIX_FMT_SRGGB10:
+            case V4L2_PIX_FMT_SBGGR12:
+            case V4L2_PIX_FMT_SGBRG12:
+            case V4L2_PIX_FMT_SGRBG12:
+            case V4L2_PIX_FMT_SRGGB12:
+            case V4L2_PIX_FMT_SBGGR16:
+            case V4L2_PIX_FMT_SGBRG16:
+            case V4L2_PIX_FMT_SGRBG16:
+            case V4L2_PIX_FMT_SRGGB16:
+                m_raw_v4l2_format = formatDescriptions.pixelformat;
+                break;
+            default:
+                break;
+        }
+
+        /* color arrange */
+        switch(formatDescriptions.pixelformat)
+        {
+            case V4L2_PIX_FMT_SBGGR10:
+            case V4L2_PIX_FMT_SBGGR12:
+            case V4L2_PIX_FMT_SBGGR16:
+                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_BGGR;
+                break;
+            case V4L2_PIX_FMT_SGBRG10:
+            case V4L2_PIX_FMT_SGBRG12:
+            case V4L2_PIX_FMT_SGBRG16:
+                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GBRG;
+                break;
+            case V4L2_PIX_FMT_SGRBG10:
+            case V4L2_PIX_FMT_SGRBG12:
+            case V4L2_PIX_FMT_SGRBG16:
+                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GRBG;
+                break;
+            case V4L2_PIX_FMT_SRGGB10:
+            case V4L2_PIX_FMT_SRGGB12:
+            case V4L2_PIX_FMT_SRGGB16:
+                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_RGGB;
+                break;
+            default:
+                break;
+        }
+    }
+
+    ALOGI("%s: m_raw_v4l2_format 0x%x, m_color_arrange %d", __func__, m_raw_v4l2_format, m_color_arrange);
+
+    if ((m_raw_v4l2_format == -1) || (m_color_arrange == -1)) {
+        return BAD_VALUE;
+    }
+
+    return 0;
 }
 
 int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
@@ -200,7 +285,10 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
     }
 
     int32_t vformat;
-    vformat = convertPixelFormatToV4L2Format(format);
+    if (format == HAL_PIXEL_FORMAT_RAW16)
+        vformat = mSession->getRawV4l2Format();
+    else
+        vformat = convertPixelFormatToV4L2Format(format);
 
     ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d", __func__, width, height,
         vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
@@ -230,7 +318,7 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
         return ret;
     }
 
-    ret = postConfigure(format, width, height, fps);
+    ret = postConfigure(format, width, height, fps, vformat);
 
     return ret;
 }
