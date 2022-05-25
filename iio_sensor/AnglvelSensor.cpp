@@ -30,9 +30,9 @@ AnglvelSensor::AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callba
     unsigned int min_sampling_frequency = UINT_MAX;
     for (auto i = 0u; i < iio_data.sampling_freq_avl.size(); i++) {
         max_sampling_frequency = max_sampling_frequency < iio_data.sampling_freq_avl[i]
-                                 ? max_sampling_frequency : iio_data.sampling_freq_avl[i];
+                                 ? iio_data.sampling_freq_avl[i] : max_sampling_frequency;
         min_sampling_frequency = min_sampling_frequency > iio_data.sampling_freq_avl[i]
-                                 ? min_sampling_frequency : iio_data.sampling_freq_avl[i];
+                                 ? iio_data.sampling_freq_avl[i] : min_sampling_frequency;
     }
 
     mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
@@ -188,9 +188,9 @@ void AnglvelSensor::processScanData(char* data, Event* evt) {
     }
 
     // in_anglvel_scale value is 62.5, but to meet xTS required range, multiply data with 1/625.
-    evt->u.vec3.x = getChannelData(channelData, mXMap, true) / 625;
-    evt->u.vec3.y = getChannelData(channelData, mYMap, true) / 625;
-    evt->u.vec3.z = getChannelData(channelData, mZMap, true) / 625;
+    evt->u.vec3.x = getChannelData(channelData, mXMap, true) * 0.00125;
+    evt->u.vec3.y = getChannelData(channelData, mYMap, true) * 0.00125;
+    evt->u.vec3.z = getChannelData(channelData, mZMap, true) * 0.00125;
     evt->timestamp = get_timestamp();
 }
 
@@ -245,7 +245,7 @@ void AnglvelSensor::run() {
                 trigger_data(mIioData.iio_dev_num);
             err = poll(&mPollFdIio, 1, mSamplingPeriodNs/1000000);
             if (err <= 0) {
-                ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
+                ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
                 continue;
             }
             char readbuf[16];

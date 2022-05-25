@@ -42,11 +42,10 @@ AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback
     unsigned int min_sampling_frequency = UINT_MAX;
     for (auto i = 0u; i < iio_data.sampling_freq_avl.size(); i++) {
         max_sampling_frequency = max_sampling_frequency < iio_data.sampling_freq_avl[i]
-                                 ? max_sampling_frequency : iio_data.sampling_freq_avl[i];
+                                 ? iio_data.sampling_freq_avl[i] : max_sampling_frequency;
         min_sampling_frequency = min_sampling_frequency > iio_data.sampling_freq_avl[i]
-                                 ? min_sampling_frequency : iio_data.sampling_freq_avl[i];
+                                 ? iio_data.sampling_freq_avl[i] : min_sampling_frequency;
     }
-
     mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
     mSysfspath = iio_data.sysfspath;
@@ -162,9 +161,9 @@ void AccMagSensor::processScanData(Event* evt) {
     if (mSensorInfo.type == SensorType::ACCELEROMETER) {
         get_sensor_acc(mSysfspath, &data);
         // scale sys node is not valid, to meet xTS required range, multiply raw data with 0.005.
-        evt->u.vec3.x  = data.x_raw * 0.005;
-        evt->u.vec3.y  = data.y_raw * 0.005;
-        evt->u.vec3.z  = data.z_raw * 0.005;
+        evt->u.vec3.x  = data.x_raw * 0.000244;
+        evt->u.vec3.y  = data.y_raw * 0.000244;
+        evt->u.vec3.z  = data.z_raw * 0.000244;
     } else if(mSensorInfo.type == SensorType::MAGNETIC_FIELD) {
         get_sensor_mag(mSysfspath, &data);
         // 0.000244 is read from sys node in_magn_scale.
@@ -190,7 +189,7 @@ void AccMagSensor::run() {
             // change to use 2000000 for that need to take processScanData time into account.
             err = poll(&mPollFdIio, 1, mSamplingPeriodNs/2000000);
             if (err <= 0) {
-                ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
+                ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
             }
             events.clear();
             processScanData(&event);
