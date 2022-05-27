@@ -120,10 +120,12 @@ static const struct planar_layout *layout_from_format(uint32_t format)
 	case DRM_FORMAT_FLEX_YCbCr_420_888:
 	case FORMAT_NV21://DRM_FORMAT_NV21    ????
 	case FORMAT_NV12: //DRM_FORMAT_NV12    ????
+	case FORMAT_NV12_TILED:
 		return &biplanar_yuv_420_layout;
 
 	case DRM_FORMAT_P010:
 	case FORMAT_P010://DRM_FORMAT_P010
+	case FORMAT_P010_TILED:
 		return &biplanar_yuv_p010_layout;
 
 	case DRM_FORMAT_ABGR1555:
@@ -191,11 +193,9 @@ static const struct planar_layout *layout_from_format(uint32_t format)
 	case FORMAT_NV16:
 		return &biplanar_yuv_422_layout;
 
-	case FORMAT_NV12_TILED:
 	case FORMAT_NV12_G1_TILED:
 	case FORMAT_NV12_G2_TILED:
 	case FORMAT_NV12_G2_TILED_COMPRESSED:
-	case FORMAT_P010_TILED:
 	case FORMAT_P010_TILED_COMPRESSED:
 	default:
 		ALOGE("%s UNKNOWN FORMAT 0x%x", __func__, format);
