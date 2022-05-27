@@ -244,7 +244,8 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         static const int32_t maxLatency = ANDROID_SYNC_MAX_LATENCY_PER_FRAME_CONTROL;
         m_static_meta->Set(ANDROID_SYNC_MAX_LATENCY, &maxLatency, 1);
 
-        m_static_meta->Set(ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT, &((ISPCameraDeviceHwlImpl*)pDev)->m_color_arrange, 1);
+        const uint8_t color_arrange = ((ISPCameraDeviceHwlImpl*)pDev)->m_color_arrange;
+        m_static_meta->Set(ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT, &color_arrange, 1);
 
         // Ref "blsData" in DAA3840_30MC_1080P.xml
         int32_t android_sensor_black_level_pattern[] = {168, 168, 168, 168};

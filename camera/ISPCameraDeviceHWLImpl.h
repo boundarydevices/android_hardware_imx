@@ -34,7 +34,7 @@ public:
         m_color_arrange = -1;
     }
 
-    uint8_t m_color_arrange;
+    int8_t m_color_arrange;
 
 private:
     virtual status_t initSensorStaticData();

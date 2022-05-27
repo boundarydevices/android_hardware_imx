@@ -215,10 +215,13 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     if (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
         // get the default dwe para.
         Json::Value jRequest, jResponse;
-        ((ISPCameraMMAPStream *)this)->getIspWrapper()->viv_private_ioctl(IF_DWE_G_PARAMS, jRequest, jResponse);
-        ((ISPCameraMMAPStream *)this)->getIspWrapper()->parseDewarpParams(jResponse["dwe"]);
-        ((ISPCameraMMAPStream *)this)->getIspWrapper()->getExpGainBoundary();
-
+        ret = ((ISPCameraMMAPStream *)this)->getIspWrapper()->viv_private_ioctl(IF_DWE_G_PARAMS, jRequest, jResponse);
+        if (ret == 0) {
+            ((ISPCameraMMAPStream *)this)->getIspWrapper()->parseDewarpParams(jResponse["dwe"]);
+            ((ISPCameraMMAPStream *)this)->getIspWrapper()->getExpGainBoundary();
+        } else {
+            ALOGW("%s: IF_DWE_G_PARAMS failed, ret %d", __func__, ret);
+        }
     }
 
     // save mode
