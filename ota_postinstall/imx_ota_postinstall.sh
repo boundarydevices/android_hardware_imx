@@ -39,6 +39,27 @@ soc_rev=`getprop ro.boot.soc_rev`
 log -p i -t imx_ota_postinstall "the soc is $soc_type:$soc_rev"
 
 boot_device=`getprop ro.boot.boot_device_root`
+# the property ro.boot.boot_device_root may not exist
+# search for other properties related to boot device
+if [ -z ${boot_device} ]; then
+	boot_device_uevent_sub_path=`getprop ro.boot.boot_devices`
+
+	all_boot_device_props=`getprop | grep ro.boot.boot_devices_`
+	for boot_device_prop in ${all_boot_device_props}
+	do
+		if [ "$(echo $boot_device_prop | grep "ro.boot.boot_devices_")" != "" ]; then
+			boot_device_prop=${boot_device_prop#*[}
+			boot_device_prop=${boot_device_prop%]*}
+			boot_device_prop_value=`getprop ${boot_device_prop}`
+			if [ "${boot_device_uevent_sub_path}" = "${boot_device_prop_value}" ]; then
+				boot_device=${boot_device_prop##*_}
+				log -p i -t imx_ota_postinstall "found the boot device: ${boot_device}"
+				break
+			fi
+		fi
+	done
+fi
+
 # check whether the boot device is eMMC based on whether the device file named
 # "/dev/block/$(device_root}boot0" can be accessed or not.
 ls /dev/block/${boot_device}boot0 1>/dev/null 2>/dev/null
