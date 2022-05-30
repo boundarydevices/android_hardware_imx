@@ -140,10 +140,21 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         ALOGI("SupportedPreviewSizes: %d x %d", mPreviewResolutions[i], mPreviewResolutions[i + 1]);
     }
 
-    int fpsRange[] = {15, 30, 30, 30, 15, 60, 60, 60};
-    int rangeCount = ARRAY_SIZE(fpsRange);
-    mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
-    memcpy(mTargetFpsRange, fpsRange, mFpsRangeCount*sizeof(int));
+    char layout[PROPERTY_VALUE_MAX] = {0};
+    property_get(PROP_CAMERA_LAYOUT, layout, "");
+
+    int fpsRangeBasler[] = {15, 30, 30, 30, 15, 60, 60, 60};
+    int fpsRangeOs08a20[] = {20, 20, 15, 30, 30, 30, 15, 60, 60, 60};
+
+    if (strstr(layout, "os08a20")) {
+        int rangeCount = ARRAY_SIZE(fpsRangeOs08a20);
+        mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+        memcpy(mTargetFpsRange, fpsRangeOs08a20, mFpsRangeCount*sizeof(int));
+    } else {
+        int rangeCount = ARRAY_SIZE(fpsRangeBasler);
+        mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+        memcpy(mTargetFpsRange, fpsRangeBasler, mFpsRangeCount*sizeof(int));
+    }
 
     setMaxPictureResolutions();
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
@@ -175,9 +186,6 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         ALOGI("\t}");
     }
     ALOGI("}");
-
-    char layout[PROPERTY_VALUE_MAX] = {0};
-    property_get(PROP_CAMERA_LAYOUT, layout, "");
 
     if ( ((strcmp(layout, "") == 0) || strstr(layout, "basler")) &&
          (caps_supports.count >= 4) ) {
