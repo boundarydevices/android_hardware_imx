@@ -18,6 +18,11 @@
 
 #include <android-base/logging.h>
 #include <thread>
+#include <utils/Log.h>
+#include <cutils/log.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 namespace aidl {
 namespace android {
@@ -45,11 +50,70 @@ ndk::ScopedAStatus Vibrator::getCapabilities(int32_t* _aidl_return) {
                     IVibrator::CAP_ALWAYS_ON_CONTROL | IVibrator::CAP_GET_RESONANT_FREQUENCY |
                     IVibrator::CAP_GET_Q_FACTOR | IVibrator::CAP_FREQUENCY_CONTROL |
                     IVibrator::CAP_COMPOSE_PWLE_EFFECTS;
+    initBrightness();
     return ndk::ScopedAStatus::ok();
+}
+
+void Vibrator::initBrightness()
+{
+    Mutex::Autolock _l(mLock);
+    // default strength
+    mStrength = VIBRATOR_STRENGTH_MEDIUM;
+
+    char path[PROPERTY_VALUE_MAX];
+    property_get("vendor.hw.vibrator.dev", path, DEF_VIBRATOR_DEV);
+    strcpy(mBrightnessPath, DEF_VIBRATOR_PATH);
+    strcat(mBrightnessPath, path);
+    // now mBrightnessPath=/sys/class/leds/vibrator  path=vibrator
+    strcpy(path, mBrightnessPath);
+    strcat(mBrightnessPath, "/brightness");
+    strcat(path, "/max_brightness");
+    ALOGI("%s:mBrightnessPath:%s    path:%s ", __func__, mBrightnessPath, path);
+
+    FILE *file = fopen(path, "r");
+    if (!file) {
+        mMaxBrightness = -1;
+        ALOGE("%s cannot open vibrator file %s", __func__, path);
+    } else {
+        if (fread(&mMaxBrightness,1,3,file) == 3) {
+            mMaxBrightness = atoi((char *)&mMaxBrightness);
+            ALOGI("%s get maxBrightness:%d", __func__, mMaxBrightness);
+        }
+        fclose(file);
+    }
+}
+
+int Vibrator::setBrightness(float brightness)
+{
+    ALOGI("%s:orignal float brightness %f", __func__, brightness);
+    Mutex::Autolock _l(mLock);
+    if (mMaxBrightness == -1) {
+        ALOGE("%s:mMaxBrightness is -1", __func__);
+        return -1;
+    }
+
+    int bright = (int)(mMaxBrightness * brightness);
+    FILE *file = fopen(mBrightnessPath, "w");
+    if (!file) {
+        ALOGE("%s can not open file %s\n", __func__, mBrightnessPath);
+        return -1;
+    }
+    fprintf(file, "%d", bright);
+    ALOGI("%s: set bright:%d", __func__, bright);
+
+    fclose(file);
+    return 0;
+}
+
+int Vibrator::getMaxBrightness()
+{
+    Mutex::Autolock _l(mLock);
+    return mMaxBrightness;
 }
 
 ndk::ScopedAStatus Vibrator::off() {
     LOG(INFO) << "Vibrator off";
+    setBrightness(VIBRATOR_STRENGTH_OFF);
     return ndk::ScopedAStatus::ok();
 }
 
@@ -59,6 +123,7 @@ ndk::ScopedAStatus Vibrator::on(int32_t timeoutMs,
     if (callback != nullptr) {
         std::thread([=] {
             LOG(INFO) << "Starting on on another thread";
+            setBrightness(mStrength);
             usleep(timeoutMs * 1000);
             LOG(INFO) << "Notifying on complete";
             if (!callback->onComplete().isOk()) {
@@ -73,7 +138,7 @@ ndk::ScopedAStatus Vibrator::perform(Effect effect, EffectStrength strength,
                                      const std::shared_ptr<IVibratorCallback>& callback,
                                      int32_t* _aidl_return) {
     LOG(INFO) << "Vibrator perform";
-
+    ALOGI("%s: effect:%d, strength:%hhd", __func__, effect, strength);
     if (effect != Effect::CLICK && effect != Effect::TICK) {
         return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
     }
@@ -82,11 +147,27 @@ ndk::ScopedAStatus Vibrator::perform(Effect effect, EffectStrength strength,
         return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
     }
 
+    // Adapt strength
+    switch (strength) {
+        case EffectStrength::LIGHT:
+            mStrength = VIBRATOR_STRENGTH_LIGHT;
+            break;
+        case EffectStrength::MEDIUM:
+            mStrength = VIBRATOR_STRENGTH_MEDIUM;
+            break;
+        case EffectStrength::STRONG:
+            mStrength = VIBRATOR_STRENGTH_STRONG;
+            break;
+        default:
+            mStrength = VIBRATOR_STRENGTH_MEDIUM;
+    }
+
     constexpr size_t kEffectMillis = 100;
 
     if (callback != nullptr) {
         std::thread([=] {
             LOG(INFO) << "Starting perform on another thread";
+            setBrightness(mStrength);
             usleep(kEffectMillis * 1000);
             LOG(INFO) << "Notifying perform complete";
             callback->onComplete();

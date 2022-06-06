@@ -17,11 +17,21 @@
 #pragma once
 
 #include <aidl/android/hardware/vibrator/BnVibrator.h>
+#include <utils/Mutex.h>
+#include <utils/threads.h>
+#include <cutils/properties.h>
 
 namespace aidl {
 namespace android {
 namespace hardware {
 namespace vibrator {
+using ::android::Mutex;
+#define DEF_VIBRATOR_DEV "vibrator"
+#define DEF_VIBRATOR_PATH "/sys/class/leds/"
+#define VIBRATOR_STRENGTH_OFF    0
+#define VIBRATOR_STRENGTH_LIGHT  0.2
+#define VIBRATOR_STRENGTH_MEDIUM 0.6
+#define VIBRATOR_STRENGTH_STRONG 1
 
 class Vibrator : public BnVibrator {
     ndk::ScopedAStatus getCapabilities(int32_t* _aidl_return) override;
@@ -54,7 +64,15 @@ class Vibrator : public BnVibrator {
     ndk::ScopedAStatus getSupportedBraking(std::vector<Braking>* supported) override;
     ndk::ScopedAStatus composePwle(const std::vector<PrimitivePwle> &composite,
                                    const std::shared_ptr<IVibratorCallback> &callback) override;
-
+    private:
+        void initBrightness();
+        int setBrightness(float brightness);
+        int getMaxBrightness();
+    protected:
+        Mutex mLock;
+        int mMaxBrightness;
+        char mBrightnessPath[PROPERTY_VALUE_MAX];
+        double mStrength;
 };
 
 }  // namespace vibrator
