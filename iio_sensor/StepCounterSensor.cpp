@@ -26,8 +26,9 @@ StepCounterSensor::StepCounterSensor(int32_t sensorHandle, ISensorsEventCallback
     mSensorInfo.flags |= SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
 
     std::string period_file = iio_data.sysfspath + "/events/in_steps_change_period";
-    mSensorInfo.maxDelay = 500;
-    mSensorInfo.minDelay = 3600000;
+    mSensorInfo.minDelay = 500;
+    mSensorInfo.maxDelay = 3600000;
+    mSensorInfo.maxRange = 1e100;
     mSysfspath = iio_data.sysfspath;
 
     mRunThread = std::thread(std::bind(&StepCounterSensor::run, this));
