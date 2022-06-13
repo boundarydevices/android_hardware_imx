@@ -182,6 +182,9 @@ int ISPWrapper::processAWB(uint8_t mode, bool force)
     if ((mode == ANDROID_CONTROL_AWB_MODE_AUTO) || (mode == ANDROID_CONTROL_AWB_MODE_OFF)) {
         bool bEnable = (mode == ANDROID_CONTROL_AWB_MODE_AUTO) ? true : false;
         ret = enableAWB(bEnable);
+        if (ret == 0)
+            m_awb_mode = mode;
+
         return ret;
     }
 
