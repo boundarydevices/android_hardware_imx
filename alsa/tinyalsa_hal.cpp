@@ -2949,81 +2949,71 @@ static int in_set_microphone_field_dimension(const struct audio_stream_in *strea
 
 static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx_stream_out *out) {
 
-    int count = 0;
-    int sup_channels[MAX_SUP_CHANNEL_NUM]; //temp buffer for supported channels
     int card = -1;
     int i = 0;
-    int j = 0;
-    struct mixer *mixer_hdmi = NULL;
 
     for (i = 0; i < adev->audio_card_num; i ++) {
         if(adev->card_list[i]->is_hdmi_card) {
-             mixer_hdmi = adev->mixer[i];
              card = adev->card_list[i]->card;
              break;
          }
     }
 
-    if (mixer_hdmi) {
-        struct mixer_ctl *ctl;
-        ctl = mixer_get_ctl_by_name(mixer_hdmi, "HDMI Support Channels");
-        if (ctl) {
-            count = mixer_ctl_get_num_values(ctl);
-            for(i = 0; i < count; i ++) {
-                sup_channels[i] = mixer_ctl_get_value(ctl, i);
-                ALOGW("out_read_hdmi_channel_masks() card %d got %d sup channels", card, sup_channels[i]);
-            }
-        }
-    } else {
-        return 0;
+    struct pcm_params *params = pcm_params_get(card, 0, PCM_OUT);
+    if (params == NULL) {
+        ALOGE("%s: failed to get pcm params for card %d", __func__, card);
+        return -ENOSYS;
     }
 
-    /*when channel is 6, the mask is 5.1,when channel is 8, the mask is 7.1*/
-    for(i = 0; i < count; i++ ) {
-       if(sup_channels[i] == 2) {
-          out->sup_channel_masks[j]   = AUDIO_CHANNEL_OUT_STEREO;
-          j++;
-       }
-       if(sup_channels[i] == 6) {
-          out->sup_channel_masks[j]   = AUDIO_CHANNEL_OUT_5POINT1;
-          j++;
-       }
-       if(sup_channels[i] == 8) {
-          out->sup_channel_masks[j]   = AUDIO_CHANNEL_OUT_7POINT1;
-          j++;
-       }
+    int channels = pcm_params_get_max(params, PCM_PARAM_CHANNELS);
+    ALOGI("%s: card %d got %d max channels", __func__, card, channels);
+
+    switch (channels) {
+        case 6:
+            out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
+            out->sup_channel_masks[1] = AUDIO_CHANNEL_OUT_5POINT1;
+            break;
+        case 8:
+            out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
+            out->sup_channel_masks[1] = AUDIO_CHANNEL_OUT_5POINT1;
+            out->sup_channel_masks[2] = AUDIO_CHANNEL_OUT_7POINT1;
+            break;
+        default:
+            out->sup_channel_masks[0] = AUDIO_CHANNEL_OUT_STEREO;
+            break;
     }
-    /*if HDMI device does not support 2,6,8 channels, then return error*/
-    if (j == 0) return -ENOSYS;
 
     return 0;
 }
+
+const unsigned int hdmi_supported_rates[] = {32000, 44100, 48000, 88200, 96000, 176400, 192000};
 
 static int out_read_hdmi_rates(struct imx_audio_device *adev, struct imx_stream_out *out) {
 
     int count = 0;
     int card = -1;
     int i = 0;
-    struct mixer *mixer_hdmi = NULL;
 
     for (i = 0; i < adev->audio_card_num; i ++) {
          if(adev->card_list[i]->is_hdmi_card) {
-             mixer_hdmi = adev->mixer[i];
              card = adev->card_list[i]->card;
              break;
          }
     }
 
-    if (mixer_hdmi) {
-        struct mixer_ctl *ctl;
-        ctl = mixer_get_ctl_by_name(mixer_hdmi, "HDMI Support Rates");
-        if (ctl) {
-            count = mixer_ctl_get_num_values(ctl);
-            for(i = 0; i < count; i ++) {
-                out->sup_rates[i] = mixer_ctl_get_value(ctl, i);
-                ALOGW("out_read_hdmi_rates() card %d got %d sup rates", card, out->sup_rates[i]);
-            }
-        }
+    struct pcm_params *params = pcm_params_get(card, 0, PCM_OUT);
+    if (params == NULL) {
+        ALOGE("%s: failed to get pcm params for card %d", __func__, card);
+        return -ENOSYS;
+    }
+
+    int min = pcm_params_get_min(params, PCM_PARAM_RATE);
+    int max = pcm_params_get_max(params, PCM_PARAM_RATE);
+    ALOGI("%s: card %d got sample rates: (%d-%d)", __func__, card, min, max);
+
+    for (i = 0; i < sizeof(hdmi_supported_rates)/sizeof(unsigned int); i ++) {
+        if (hdmi_supported_rates[i] >= min && hdmi_supported_rates[i] <= max)
+            out->sup_rates[count++] = hdmi_supported_rates[i];
     }
 
     return 0;
