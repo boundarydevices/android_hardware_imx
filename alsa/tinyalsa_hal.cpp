@@ -138,6 +138,7 @@ struct pcm_config pcm_config_esai_multi = {
 };
 
 int lpa_enable = 0;
+bool passthrough_enabled = false;
 bool passthrough_for_s24 = false;
 
 struct pcm_config pcm_config_dsd = {
@@ -941,6 +942,10 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
             out->echo_reference->write(out->echo_reference, NULL);
             out->echo_reference = NULL;
         }
+
+        /* Clear written for passthrough only */
+        if (passthrough_enabled)
+            out->written = 0;
 
         out->standby = 1;
     }
@@ -3387,10 +3392,16 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config = pcm_config_hdmi_multi;
         out->config.rate = config->sample_rate;
         out->config.channels = popcount(config->channel_mask);
+
+        if (property_get_int32(PASSTHROUGH_PROPERTY, 0) ==
+                    PASSTHROUGH_PROPERTY_ENABLE)
+            passthrough_enabled = true;
+        else
+            passthrough_enabled = false;
+
         if (strcmp(ladev->device_name, "evk_8mp") == 0) {
             out->config.format = PCM_FORMAT_S24_LE;
-            if (property_get_int32(PASSTHROUGH_PROPERTY, 0) ==
-                    PASSTHROUGH_PROPERTY_ENABLE) {
+            if (passthrough_enabled) {
                 passthrough_for_s24 = true;
                 ALOGI("%s, passthrough is enabled on evk_8mp", __func__);
             }
