@@ -610,6 +610,10 @@ bool KmsDisplay::checkOverlay(Layer* layer)
         return false;
     }
 
+    if (layer->transform != 0) {
+        return false;
+    }
+
     Memory* memory = layer->handle;
     if ((memory->fslFormat >= FORMAT_RGBA8888) &&
         (memory->fslFormat <= FORMAT_BGRA8888)) {
