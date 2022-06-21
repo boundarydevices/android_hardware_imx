@@ -628,6 +628,15 @@ static int refine_input_parameters(uint32_t *sample_rate, audio_format_t *format
     return 0;
 }
 
+static void update_passthrough_status(void)
+{
+    if (property_get_int32(PASSTHROUGH_PROPERTY, 0) ==
+            PASSTHROUGH_PROPERTY_ENABLE)
+        passthrough_enabled = true;
+    else
+        passthrough_enabled = false;
+}
+
 /* must be called with hw device and output stream mutexes locked */
 static int start_output_stream(struct imx_stream_out *out)
 {
@@ -678,6 +687,16 @@ static int start_output_stream(struct imx_stream_out *out)
                 return -EBUSY;
             }
         }
+    }
+    update_passthrough_status();
+    if (passthrough_enabled && !(out->flags & AUDIO_OUTPUT_FLAG_DIRECT)) {
+        if (first) {
+            first = 0;
+            ALOGI("%s: disable non-direct stream(%p) while " \
+                    "passthrough enabled", __func__, out);
+        }
+        usleep(2000);
+        return -EBUSY;
     }
     first = 1;
 
@@ -2972,6 +2991,7 @@ static int out_read_hdmi_channel_masks(struct imx_audio_device *adev, struct imx
 
     int channels = pcm_params_get_max(params, PCM_PARAM_CHANNELS);
     ALOGI("%s: card %d got %d max channels", __func__, card, channels);
+    pcm_params_free(params);
 
     switch (channels) {
         case 6:
@@ -3015,6 +3035,7 @@ static int out_read_hdmi_rates(struct imx_audio_device *adev, struct imx_stream_
     int min = pcm_params_get_min(params, PCM_PARAM_RATE);
     int max = pcm_params_get_max(params, PCM_PARAM_RATE);
     ALOGI("%s: card %d got sample rates: (%d-%d)", __func__, card, min, max);
+    pcm_params_free(params);
 
     for (i = 0; i < sizeof(hdmi_supported_rates)/sizeof(unsigned int); i ++) {
         if (hdmi_supported_rates[i] >= min && hdmi_supported_rates[i] <= max)
@@ -3393,12 +3414,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config.rate = config->sample_rate;
         out->config.channels = popcount(config->channel_mask);
 
-        if (property_get_int32(PASSTHROUGH_PROPERTY, 0) ==
-                    PASSTHROUGH_PROPERTY_ENABLE)
-            passthrough_enabled = true;
-        else
-            passthrough_enabled = false;
-
+        update_passthrough_status();
         if (strcmp(ladev->device_name, "evk_8mp") == 0) {
             out->config.format = PCM_FORMAT_S24_LE;
             if (passthrough_enabled) {
