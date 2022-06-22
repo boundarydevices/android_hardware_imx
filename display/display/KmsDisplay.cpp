@@ -1157,11 +1157,12 @@ int KmsDisplay::updateScreen()
     return 0;
 }
 
-void KmsDisplay::getGUIResolution(int &width, int &height)
+bool KmsDisplay::getGUIResolution(int &width, int &height)
 {
+    bool ret = true;
     // keep resolution if less than 1080p.
     if (width <= 1920) {
-        return;
+        return false;
     }
 
     char value[PROPERTY_VALUE_MAX];
@@ -1182,7 +1183,11 @@ void KmsDisplay::getGUIResolution(int &width, int &height)
     else if (!strncmp(value, "480p", 4)) {
         width = 640;
         height = 480;
+    } else {
+        ret = false;
     }
+
+    return ret;
 }
 
 int KmsDisplay::openKms()
@@ -1277,18 +1282,19 @@ int KmsDisplay::openKms()
 
     buildDisplayConfigs(pConnector->mmWidth, pConnector->mmHeight, format);
 
-    int width = mMode.hdisplay;
-    int height = mMode.vdisplay;
-    getGUIResolution(width, height);
-
-    int configId = createDisplayConfig(width, height, mMode.vrefresh, format);
-    if (configId < 0) {
-        ALOGE("can't find config: w:%d, h:%d", width, height);
-        return -1;
+    int width, height;
+    int configId;
+    if (getGUIResolution(width, height)) {
+        configId = createDisplayConfig(width, height, mMode.vrefresh, format);
+    } else {
+        configId = findDisplayConfig(mMode.hdisplay, mMode.vdisplay, mMode.vrefresh, format);
+        if (configId < 0) {
+            ALOGE("can't find config: w:%d, h:%d", width, height);
+            return -1;
+        }
     }
 
-
-    DisplayConfig& config = mConfigs.editItemAt(configId);
+    DisplayConfig& config = mConfigs[configId];
     ALOGW("Display index= %d \n"
           "configId     = %d \n"
           "xres         = %d px\n"
@@ -1308,16 +1314,8 @@ int KmsDisplay::openKms()
     }
     drmModeFreeResources(pModeRes);
 
-    if ((mActiveConfig != -1) && (mActiveConfig != configId)) {
-        // When primary display port is found, but not connect display device.
-        // Plugging in display device will do openKms again. Here make sure the
-        // new active config id is same as previous default one.
-        int preActiveId = mActiveConfig;
-        mActiveConfig = -1;
-        CopyAsActiveConfigLocked(configId, preActiveId);
-    } else {
-        mActiveConfig = configId;
-    }
+    mActiveConfig = configId;
+
     prepareTargetsLocked();
     if (mConfigThread == NULL)
         mConfigThread = new ConfigThread(this);
@@ -1335,13 +1333,17 @@ int KmsDisplay::openFakeKms()
     int width = 1920,height = 1080,vrefresh = 60,prefermode = 0;
     parseDisplayMode(&width, &height, &vrefresh, &prefermode);
 
+    if ((mBackupConfig.mXres > 0) && (mBackupConfig.mYres > 0)) {
+        width = mBackupConfig.mXres;
+        height = mBackupConfig.mYres;
+    }
     ssize_t configId = createDisplayConfig(width, height, vrefresh, -1);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
     }
 
-    DisplayConfig& config = mConfigs.editItemAt(configId);
+    DisplayConfig& config = mConfigs[configId];
     config.mXdpi = 160000;
     config.mYdpi = 160000;
 
@@ -1349,7 +1351,8 @@ int KmsDisplay::openFakeKms()
     config.mVsyncPeriod  = 1000000000 / config.mFps;
     config.mFormat = FORMAT_RGBA8888;
     config.mBytespixel = 4;
-    ALOGW("xres         = %d px\n"
+    ALOGW("Placeholder of primary display, config:\n"
+          "xres         = %d px\n"
           "yres         = %d px\n"
           "format       = %d\n"
           "xdpi         = %.2f ppi\n"
@@ -1600,10 +1603,21 @@ int KmsDisplay::closeKms()
         close(mAcquireFence);
         mAcquireFence = -1;
     }
+
+    mModePrefered = -1;
+    mDrmModes.clear();
+    mFirstConfigId = mFirstConfigId + mConfigs.size();
+    if (mActiveConfig >= 0)
+        mBackupConfig = mConfigs[mActiveConfig];
     mConfigs.clear();
     mActiveConfig = -1;
     mKmsPlaneNum = 1;
     memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
+
+    if (mEdid != NULL) {
+        delete mEdid;
+        mEdid = NULL;
+    }
 
     releaseTargetsLocked();
     return 0;
@@ -1712,6 +1726,7 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
         format = FORMAT_RGBA8888;
 
     mConfigs.clear();
+    int configId = mFirstConfigId;
     for (int i=0; i<mDrmModes.size(); i++) {
         mode = mDrmModes.itemAt(i);
         config.mXres = mode.hdisplay;
@@ -1738,17 +1753,20 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
         config.mFormat = format;
         config.mBytespixel = getFormatSize(format);
 
-        if (fabs(config.mFps - mMode.vrefresh) < FLOAT_TOLERANCE)
-            mConfigs.push_back(config);
+        if (fabs(config.mFps - mMode.vrefresh) < FLOAT_TOLERANCE) {
+            mConfigs.emplace(configId, config);
+            configId++;
+        }
     }
 }
 
 int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format)
 {
-    int index;
-    index = findDisplayConfig(width, height, fps, format);
-    if (index >= 0 && index < mConfigs.size()) {
-        return index;
+    int id;
+    id = findDisplayConfig(width, height, fps, format);
+    if (id >= mFirstConfigId && id < mFirstConfigId + mConfigs.size()
+        && (mConfigs[id].modeIdx == mModePrefered)) {
+        return id;
     }
 
     DisplayConfig config;
@@ -1758,7 +1776,7 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
     if (fabs(fps) < FLOAT_TOLERANCE)
         fps = DEFAULT_REFRESH_RATE; // set to default value
 
-    config.modeIdx = -1;
+    config.modeIdx = mModePrefered;
     config.mXdpi = 160000;
     config.mYdpi = 160000;
     config.mVsyncPeriod  = 1000000000 / fps;
@@ -1769,9 +1787,10 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
     config.mFormat = format;
     config.mFps = fps;
 
-    index = mConfigs.add(config);
+    id = mFirstConfigId + mConfigs.size();
+    mConfigs.emplace(id, config);
 
-    return index;
+    return id;
 }
 
 int KmsDisplay::setNewDrmMode(int index)
@@ -1791,7 +1810,7 @@ int KmsDisplay::setActiveConfigLocked(int configId)
         return 0;
     }
 
-    if (configId < 0 || configId >= (int)mConfigs.size()) {
+    if (configId < mFirstConfigId || configId >= mFirstConfigId + (int)mConfigs.size()) {
         ALOGI("invalid config id:%d", configId);
         return -EINVAL;
     }

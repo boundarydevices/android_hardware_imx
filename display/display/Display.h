@@ -25,6 +25,7 @@
 #include "Composer.h"
 #include "Edid.h"
 #include <vector>
+#include <unordered_map>
 
 namespace fsl {
 
@@ -224,15 +225,14 @@ public:
     const DisplayConfig& getConfig(int config);
     // get display config with internal active index.
     const DisplayConfig& getActiveConfig();
-    // copy the srcId config and insert to dstId, and use it as active config
-    int CopyAsActiveConfigLocked(int srcId, int dstId);
-    int CopyAsActiveConfig(int srcId, int dstId);
     // get display active config index.
     int getActiveId();
     // find the config index of specific parameters
     int findDisplayConfig(int width, int height, float fps, int format);
     // get display config number.
     int getConfigNum();
+    // get first display config id.
+    int getFirstConfigId();
     // check whether display enable overlay or not
     bool isOverlayEnabled();
     // check whether display support HDR or not
@@ -281,7 +281,9 @@ protected:
     int mType;
 
     int mActiveConfig;
-    Vector<DisplayConfig> mConfigs;
+    std::unordered_map<int, DisplayConfig> mConfigs;
+    int mFirstConfigId;
+    DisplayConfig mBackupConfig;
     bool mRefreshRequired;
 
     LayerVector mLayerVector;

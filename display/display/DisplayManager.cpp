@@ -73,6 +73,7 @@ DisplayManager::DisplayManager()
     mListener = NULL;
     mDrmMode = false;
     mFoundPrimaryPort = false;
+    mPrimaryIsFake = false;
     mDriverReady = true;
     enumKmsDisplays();
     if (mDrmMode && !mDriverReady) {
@@ -385,15 +386,13 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     return 0;
 }
 
-void DisplayManager::setPrimaryDisplay(int index)
+void DisplayManager::setPrimaryDisplay(int index) // only used to replace fake display
 {
     KmsDisplay* tmp = mKmsDisplays[0];
     mKmsDisplays[0] = mKmsDisplays[index];
     mKmsDisplays[index] = tmp;
     mKmsDisplays[0]->setIndex(0);
-    mKmsDisplays[0]->setPowerMode(POWER_ON);
     mKmsDisplays[index]->setIndex(index);
-    mKmsDisplays[index]->setPowerMode(POWER_OFF);
     mKmsDisplays[0]->setCallback(mListener);
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
@@ -402,22 +401,7 @@ void DisplayManager::setPrimaryDisplay(int index)
             mKmsDisplays[0]->setLayerInfo(i,pLayer);
         }
     }
-    mKmsDisplays[index]->invalidLayers();
-
-    int preId = mKmsDisplays[index]->getActiveId();
-    if (preId == -1) // The mKmsDisplays[index] is not valid
-        return;
-
-    const DisplayConfig& cfg = mKmsDisplays[index]->getActiveConfig();
-    int idx = mKmsDisplays[0]->findDisplayConfig(cfg.mXres, cfg.mYres, cfg.mFps, -1);
-    if ((idx >= 0) && (idx != preId)) {
-        // find that config in mKmsDisplays[0], but the index is not equal to previous active config id
-        mKmsDisplays[0]->CopyAsActiveConfig(idx, preId);
-    } else if (idx < 0) {
-        ALOGI("%s Not find matched config in new connected display, copy default as first one", __func__);
-        int id = mKmsDisplays[0]->getActiveId();
-        mKmsDisplays[0]->CopyAsActiveConfig(id, 0);
-    }
+    mKmsDisplays[index]->closeKms();
 }
 
 int DisplayManager::enumFakeKmsDisplay()
@@ -425,6 +409,9 @@ int DisplayManager::enumFakeKmsDisplay()
     KmsDisplay* display = mKmsDisplays[DISPLAY_PRIMARY];
     if (display->openFakeKms() != 0)
         display->closeKms();
+
+    mPrimaryIsFake = true;
+
     return 0;
 }
 
@@ -618,26 +605,30 @@ void DisplayManager::handleKmsHotplug()
             continue;
         }
 
+        int idx = i;
         if (display->connected()) {
+            if (mPrimaryIsFake) {
+                setPrimaryDisplay(idx);
+                display = mKmsDisplays[DISPLAY_PRIMARY];
+                idx = DISPLAY_PRIMARY;
+                mPrimaryIsFake = false;
+            }
             display->openKms();
             display->setPowerMode(POWER_ON);
         } else {
-            display->setPowerMode(POWER_OFF);
-        }
-
-        // primary display.
-        if (i == DISPLAY_PRIMARY) {
-            display->setFakeVSync(!display->connected());
-            callback->onRefresh(i);
-            continue;
-        }
-
-        if (callback != NULL) {
-            callback->onHotplug(i, display->connected());
-        }
-
-        if (!display->connected()) {
             display->closeKms();
+            display->setPowerMode(POWER_OFF);
+            if (idx == DISPLAY_PRIMARY) {
+                display->openFakeKms();
+            }
+        }
+
+        if (idx == DISPLAY_PRIMARY) {
+            display->setFakeVSync(!display->connected());
+            // always send connected hotplug event to framework for primary display
+            callback->onHotplug(idx, true);
+        } else {
+            callback->onHotplug(idx, display->connected());
         }
     }
 }

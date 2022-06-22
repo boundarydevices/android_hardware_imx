@@ -109,6 +109,7 @@ private:
     bool mDriverReady;
     bool mDrmMode;
     bool mFoundPrimaryPort;
+    bool mPrimaryIsFake;
 };
 
 }

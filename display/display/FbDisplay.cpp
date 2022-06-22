@@ -501,7 +501,7 @@ int FbDisplay::readConfigLocked()
         return -1;
     }
 
-    DisplayConfig& config = mConfigs.editItemAt(configId);
+    DisplayConfig& config = mConfigs[configId];
     config.mXdpi = 1000 * (config.mXres * 25.4f) / info.width;
     config.mYdpi = 1000 * (config.mYres * 25.4f) / info.height;
     config.mFps  = refreshRate / 1000.0f;
@@ -535,7 +535,7 @@ int FbDisplay::readConfigLocked()
         if (i == (size_t)configId) {
             continue;
         }
-        DisplayConfig& item = mConfigs.editItemAt(i);
+        DisplayConfig& item = mConfigs[i];
         item.mXdpi = config.mXdpi;
         item.mYdpi = config.mYdpi;
         item.mVsyncPeriod = config.mVsyncPeriod;
@@ -628,6 +628,7 @@ int FbDisplay::closeFb()
         close(mAcquireFence);
         mAcquireFence = -1;
     }
+    mFirstConfigId = mFirstConfigId + mConfigs.size();
     mConfigs.clear();
     mActiveConfig = -1;
 
@@ -704,17 +705,18 @@ void FbDisplay::releaseTargetsLocked()
 
 int FbDisplay::getConfigIdLocked(int width, int height)
 {
-    int index = -1;
+    int id = -1;
     DisplayConfig config;
     config.mXres = width;
     config.mYres = height;
 
-    index = findDisplayConfig(width, height, DEFAULT_REFRESH_RATE, -1);
-    if (index < 0) {
-        index = mConfigs.add(config);
+    id = findDisplayConfig(width, height, DEFAULT_REFRESH_RATE, -1);
+    if (id < 0) {
+        mConfigs.emplace(mFirstConfigId, config);
+        return mFirstConfigId;
+    } else {
+        return id;
     }
-
-    return index;
 }
 
 int FbDisplay::setDefaultFormatLocked()

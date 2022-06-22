@@ -541,6 +541,10 @@ static int hwc2_set_active_config(hwc2_device_t* device, hwc2_display_t display,
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
+    int cfgId = pDisplay->getFirstConfigId();
+    if ((config < cfgId) || (config > cfgId + pDisplay->getConfigNum()))
+        return HWC2_ERROR_BAD_CONFIG;
+
     return pDisplay->setActiveConfig(config);
 }
 
@@ -826,9 +830,10 @@ static int hwc2_get_display_configs(hwc2_device_t* device, hwc2_display_t displa
         *outNumConfigs = numConfigs;
     }
 
+    int cfgId = pDisplay->getFirstConfigId();
     if (outConfigs != NULL) {
         for (int i=0; i<numConfigs; i++) {
-            outConfigs[i] = i;
+            outConfigs[i] = cfgId + i;
         }
     }
 
@@ -850,6 +855,10 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
         ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }
+
+    int cfgId = pDisplay->getFirstConfigId();
+    if ((hwconfig < cfgId) || (hwconfig > cfgId + pDisplay->getConfigNum()))
+        return HWC2_ERROR_BAD_CONFIG;
 
     const DisplayConfig& config = pDisplay->getConfig(hwconfig);
     switch(attribute) {
@@ -1509,7 +1518,8 @@ static int hwc2_set_active_config_with_constraints(hwc2_device_t* device, hwc2_d
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    if (config >= pDisplay->getConfigNum())
+    int cfgId = pDisplay->getFirstConfigId();
+    if ((config < cfgId) || (config > cfgId + pDisplay->getConfigNum()))
         return HWC2_ERROR_BAD_CONFIG;
 
     struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;

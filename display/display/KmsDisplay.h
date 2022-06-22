@@ -153,7 +153,7 @@ private:
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
     void bindOutFence(drmModeAtomicReqPtr pset);
     void setHdrMetaData(drmModeAtomicReqPtr pset,hdr_output_metadata hdrMetaData);
-    void getGUIResolution(int &width, int &height);
+    bool getGUIResolution(int &width, int &height);
     bool veritySourceSize(Layer* layer);
     void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode);
 #ifdef HAVE_UNMAPPED_HEAP
