@@ -4340,7 +4340,7 @@ static void audio_card_refine_config(struct audio_card *audio_card, struct imx_a
 
     int card = audio_card->card;
 
-    if(strstr(audio_card->driver_name, "bt-sco-audio"))
+    if(strstr(audio_card->driver_name, "sco-audio"))
         g_hsp_chns = 1;
 
     if(audio_card->support_multi_chn) {
