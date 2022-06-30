@@ -1282,12 +1282,12 @@ int KmsDisplay::openKms()
 
     buildDisplayConfigs(pConnector->mmWidth, pConnector->mmHeight, format);
 
-    int width, height;
+    int width = mMode.hdisplay, height = mMode.vdisplay;
     int configId;
     if (getGUIResolution(width, height)) {
         configId = createDisplayConfig(width, height, mMode.vrefresh, format);
     } else {
-        configId = findDisplayConfig(mMode.hdisplay, mMode.vdisplay, mMode.vrefresh, format);
+        configId = findDisplayConfig(width, height, mMode.vrefresh, format);
         if (configId < 0) {
             ALOGE("can't find config: w:%d, h:%d", width, height);
             return -1;
