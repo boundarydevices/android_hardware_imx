@@ -16,6 +16,9 @@
 
 #pragma once
 #include "Sensor.h"
+#include <android-base/unique_fd.h>
+
+using android::base::unique_fd;
 
 namespace nxp_sensors_subhal {
 // HWSensorBase represents the actual physical sensor provided as the IIO device
@@ -36,6 +39,9 @@ class AccMagSensor : public HWSensorBase {
   private:
     std::string mSysfspath;
     std::string freq_file_name;
+    unique_fd fdx;
+    unique_fd fdy;
+    unique_fd fdz;
 };
 
 }  // namespace nxp_sensors_subhal

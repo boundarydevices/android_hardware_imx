@@ -50,6 +50,21 @@ AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
     mSysfspath = iio_data.sysfspath;
     mIioData = iio_data;
+
+    if (mIioData.type == SensorType::ACCELEROMETER) {
+        static const char* IIO_ACC_X_RAW = "in_accel_x_raw";
+        static const char* IIO_ACC_Y_RAW = "in_accel_y_raw";
+        static const char* IIO_ACC_Z_RAW = "in_accel_z_raw";
+
+        std::string x_filename = mSysfspath + "/" + IIO_ACC_X_RAW;
+        std::string y_filename = mSysfspath + "/" + IIO_ACC_Y_RAW;
+        std::string z_filename = mSysfspath + "/" + IIO_ACC_Z_RAW;
+
+        fdx = unique_fd(open(x_filename.c_str(), O_RDONLY));
+        fdy = unique_fd(open(y_filename.c_str(), O_RDONLY));
+        fdz = unique_fd(open(z_filename.c_str(), O_RDONLY));
+    }
+
     mRunThread = std::thread(std::bind(&AccMagSensor::run, this));
 }
 
@@ -159,11 +174,19 @@ void AccMagSensor::processScanData(Event* evt) {
     evt->sensorHandle = mSensorInfo.sensorHandle;
     evt->sensorType = mSensorInfo.type;
     if (mSensorInfo.type == SensorType::ACCELEROMETER) {
-        get_sensor_acc(mSysfspath, &data);
+        char bufx[64], bufy[64], bufz[64];
+
+        read(fdx, bufx, sizeof(bufx));
+        lseek(fdx,0L,SEEK_SET);
+        read(fdy, bufy, sizeof(bufy));
+        lseek(fdy,0L,SEEK_SET);
+        read(fdz, bufz, sizeof(bufz));
+        lseek(fdz,0L,SEEK_SET);
+
         // scale sys node is not valid, to meet xTS required range, multiply raw data with 0.005.
-        evt->u.vec3.x  = data.x_raw * 0.000244;
-        evt->u.vec3.y  = data.y_raw * 0.000244;
-        evt->u.vec3.z  = data.z_raw * 0.000244;
+        evt->u.vec3.x  = atoi(bufx) * 0.000244;
+        evt->u.vec3.y  = atoi(bufy) * 0.000244;
+        evt->u.vec3.z  = atoi(bufz) * 0.000244;
     } else if(mSensorInfo.type == SensorType::MAGNETIC_FIELD) {
         get_sensor_mag(mSysfspath, &data);
         // 0.000244 is read from sys node in_magn_scale.
@@ -185,9 +208,7 @@ void AccMagSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            // The standard convert should be "mSamplingPeriodNs/1000000".
-            // change to use 2000000 for that need to take processScanData time into account.
-            err = poll(&mPollFdIio, 1, mSamplingPeriodNs/2000000);
+            err = poll(&mPollFdIio, 1, 500);
             if (err <= 0) {
                 ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
             }

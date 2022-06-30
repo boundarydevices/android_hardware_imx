@@ -80,7 +80,6 @@ int get_sampling_time_available(const std::string& file,
 int get_sampling_frequency_available(const std::string& file,
                                           std::vector<double>* sfa);
 int get_sensor_light(const std::string& device_dir, unsigned int* light);
-int get_sensor_acc(const std::string& device_dir, struct iio_acc_mac_data* acc_mag);
 int get_sensor_mag(const std::string& device_dir, struct iio_acc_mac_data* acc_mag);
 int get_sensor_stepcounter(const std::string& device_dir, unsigned int* stepcounter);
 int add_trigger(const std::string& device_dir,uint8_t dev_num, const bool enable);

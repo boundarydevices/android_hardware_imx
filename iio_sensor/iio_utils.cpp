@@ -30,6 +30,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <android-base/unique_fd.h>
+
+using android::base::unique_fd;
 
 static const char* IIO_DEVICE_BASE = "iio:device";
 static const char* DEVICE_IIO_DIR = "/sys/bus/iio/devices/";
@@ -44,9 +47,6 @@ static const char* IIO_MAX_RANGE_FILENAME = "sensor_max_range";
 static const char* IIO_RESOLUTION_FILENAME = "sensor_resolution";
 static const char* IIO_STEPCOUNTER_INPUT = "/events/in_steps_change_value";
 static const char* IIO_LIGHT_INPUT = "in_illuminance0_input";
-static const char* IIO_ACC_X_RAW = "in_accel_x_raw";
-static const char* IIO_ACC_Y_RAW = "in_accel_y_raw";
-static const char* IIO_ACC_Z_RAW = "in_accel_z_raw";
 static const char* IIO_MAG_X_RAW = "in_magn_x_raw";
 static const char* IIO_MAG_Y_RAW = "in_magn_y_raw";
 static const char* IIO_MAG_Z_RAW = "in_magn_z_raw";
@@ -408,16 +408,6 @@ int get_sensor_stepcounter(const std::string& device_dir, unsigned int* stepcoun
     const std::string filename = device_dir + "/" + IIO_STEPCOUNTER_INPUT;
 
     return sysfs_read_uint(filename, stepcounter);
-}
-
-int get_sensor_acc(const std::string& device_dir, struct iio_acc_mac_data* data) {
-    const std::string x_filename = device_dir + "/" + IIO_ACC_X_RAW;
-    const std::string y_filename = device_dir + "/" + IIO_ACC_Y_RAW;
-    const std::string z_filename = device_dir + "/" + IIO_ACC_Z_RAW;
-    sysfs_read_int(x_filename, &data->x_raw);
-    sysfs_read_int(y_filename, &data->y_raw);
-    sysfs_read_int(z_filename, &data->z_raw);
-    return 0;
 }
 
 int get_sensor_mag(const std::string& device_dir, struct iio_acc_mac_data* data) {
