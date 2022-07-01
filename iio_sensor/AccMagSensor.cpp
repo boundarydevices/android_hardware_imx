@@ -208,13 +208,26 @@ void AccMagSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            err = poll(&mPollFdIio, 1, 500);
-            if (err <= 0) {
-                ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
+            if(mIioData.type == SensorType::MAGNETIC_FIELD) {
+                err = poll(&mPollFdIio, 1, mSamplingPeriodNs/2000000);
+                if (err <= 0) {
+                    ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
+                }
+                events.clear();
+                processScanData(&event);
+                events.push_back(event);
+            } else if(mIioData.type == SensorType::ACCELEROMETER) {
+                err = poll(&mPollFdIio, 1, mSamplingPeriodNs/200000);
+                if (err <= 0) {
+                    ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
+                }
+                events.clear();
+                processScanData(&event);
+                for (int i = 0; i < 10; i++) {
+                    event.timestamp += mSamplingPeriodNs/2000000;
+                    events.push_back(event);
+                }
             }
-            events.clear();
-            processScanData(&event);
-            events.push_back(event);
             mCallback->postEvents(events, isWakeUpSensor());
         }
     }
