@@ -19,8 +19,9 @@
 namespace nxp_sensors_subhal {
 
 AnglvelSensor::AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data)
-	: HWSensorBase(sensorHandle, callback, iio_data)  {
+               struct iio_device_data& iio_data,
+           const std::optional<std::vector<Configuration>>& config)
+	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
     std::string freq_file = iio_data.sysfspath + "/sampling_frequency_available";

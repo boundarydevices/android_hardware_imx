@@ -22,7 +22,8 @@ namespace nxp_sensors_subhal {
 class StepCounterSensor : public HWSensorBase {
   public:
     StepCounterSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-           struct iio_device_data& iio_data);
+           struct iio_device_data& iio_data,
+           const std::optional<std::vector<Configuration>>& config);
     ~StepCounterSensor();
     void run();
     void activate(bool enable);

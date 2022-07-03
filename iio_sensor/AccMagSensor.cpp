@@ -19,8 +19,9 @@
 namespace nxp_sensors_subhal {
 
 AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data)
-	: HWSensorBase(sensorHandle, callback, iio_data)  {
+               struct iio_device_data& iio_data,
+           const std::optional<std::vector<Configuration>>& config)
+	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
     // no power_microwatts/resolution sys node, so mSensorInfo.power/resolution fake the default one,
     // no maxRange sys node, so fake maxRange, which is set according to the CTS requirement.
     if (iio_data.type == SensorType::ACCELEROMETER) {
@@ -183,10 +184,10 @@ void AccMagSensor::processScanData(Event* evt) {
         read(fdz, bufz, sizeof(bufz));
         lseek(fdz,0L,SEEK_SET);
 
-        // scale sys node is not valid, to meet xTS required range, multiply raw data with 0.005.
-        evt->u.vec3.x  = atoi(bufx) * 0.000244;
-        evt->u.vec3.y  = atoi(bufy) * 0.000244;
-        evt->u.vec3.z  = atoi(bufz) * 0.000244;
+        // scale sys node is not valid, to meet xTS required range, multiply raw data with 0.0005.
+        evt->u.vec3.x  = atoi(bufx) * 0.0005;
+        evt->u.vec3.y  = atoi(bufy) * 0.0005;
+        evt->u.vec3.z  = atoi(bufz) * 0.0005;
     } else if(mSensorInfo.type == SensorType::MAGNETIC_FIELD) {
         get_sensor_mag(mSysfspath, &data);
         // 0.000244 is read from sys node in_magn_scale.

@@ -22,7 +22,8 @@ namespace nxp_sensors_subhal {
 class PressureSensor : public HWSensorBase {
   public:
     PressureSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-           struct iio_device_data& iio_data);
+           struct iio_device_data& iio_data,
+           const std::optional<std::vector<Configuration>>& config);
     ~PressureSensor();
     void run();
     void activate(bool enable);

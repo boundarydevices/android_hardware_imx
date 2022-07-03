@@ -47,8 +47,10 @@ iio_sensor_defaults {
         "-Wall",
         "-Wextra",
         "-Werror",
-        "-DLOG_TAG=\"android.hardware.sensors@2.1-nxp-IIO-Subhal\"",
     ],
+    generated_sources: ["sensor_hal_configuration_V1_0_nxp"],
+    generated_headers: ["sensor_hal_configuration_V1_0_nxp"],
+
 }
 
 bootstrap_go_package {

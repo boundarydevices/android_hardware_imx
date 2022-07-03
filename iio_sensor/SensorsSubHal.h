@@ -76,7 +76,8 @@ class SensorsSubHal : public ::android::hardware::sensors::V2_1::implementation:
     void postEvents(const std::vector<Event>& events, bool wakeup) override;
 
   protected:
-    void AddSensor(struct iio_device_data& iio_data);
+    void AddSensor(struct iio_device_data& iio_data,
+                   const std::optional<std::vector<Configuration>>& config);
 
     /**
      * A map of the available sensors

@@ -25,7 +25,8 @@ namespace nxp_sensors_subhal {
 class AccMagSensor : public HWSensorBase {
   public:
     AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-           struct iio_device_data& iio_data);
+           struct iio_device_data& iio_data,
+           const std::optional<std::vector<Configuration>>& config);
     ~AccMagSensor();
     void batch(int32_t samplingPeriodNs);
     Result flush();

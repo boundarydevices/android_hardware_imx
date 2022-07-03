@@ -21,7 +21,8 @@ namespace nxp_sensors_subhal {
 class AnglvelSensor : public HWSensorBase {
   public:
     AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-           struct iio_device_data& iio_data);
+           struct iio_device_data& iio_data,
+           const std::optional<std::vector<Configuration>>& config);
     ~AnglvelSensor();
     void run();
     void batch(int32_t samplingPeriodNs);
