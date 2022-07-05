@@ -324,12 +324,6 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 {
     Mutex::Autolock _l(mLock);
 
-    if(!pipelines_built_) {
-        ALOGV("%s: pipeline not built", __func__);
-        usleep(200);
-        return OK;
-    }
-
     if (map_frame_request.empty()) {
         ALOGV("map_frame_request empty, wait");
         mCondition.waitRelative(mLock, WAIT_TIME_OUT);
