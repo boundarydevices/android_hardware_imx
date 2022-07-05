@@ -61,9 +61,21 @@ AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback
         std::string y_filename = mSysfspath + "/" + IIO_ACC_Y_RAW;
         std::string z_filename = mSysfspath + "/" + IIO_ACC_Z_RAW;
 
-        fdx = unique_fd(open(x_filename.c_str(), O_RDONLY));
-        fdy = unique_fd(open(y_filename.c_str(), O_RDONLY));
-        fdz = unique_fd(open(z_filename.c_str(), O_RDONLY));
+        fd_acc_x = unique_fd(open(x_filename.c_str(), O_RDONLY));
+        fd_acc_y = unique_fd(open(y_filename.c_str(), O_RDONLY));
+        fd_acc_z = unique_fd(open(z_filename.c_str(), O_RDONLY));
+    } else if (mIioData.type == SensorType::MAGNETIC_FIELD) {
+        static const char* IIO_MAG_X_RAW = "in_magn_x_raw";
+        static const char* IIO_MAG_Y_RAW = "in_magn_y_raw";
+        static const char* IIO_MAG_Z_RAW = "in_magn_z_raw";
+
+        std::string x_filename = mSysfspath + "/" + IIO_MAG_X_RAW;
+        std::string y_filename = mSysfspath + "/" + IIO_MAG_Y_RAW;
+        std::string z_filename = mSysfspath + "/" + IIO_MAG_Z_RAW;
+
+        fd_mag_x = unique_fd(open(x_filename.c_str(), O_RDONLY));
+        fd_mag_y = unique_fd(open(y_filename.c_str(), O_RDONLY));
+        fd_mag_z = unique_fd(open(z_filename.c_str(), O_RDONLY));
     }
 
     mRunThread = std::thread(std::bind(&AccMagSensor::run, this));
@@ -171,35 +183,41 @@ void AccMagSensor::activate(bool enable) {
 }
 
 void AccMagSensor::processScanData(Event* evt) {
-    iio_acc_mac_data data;
     evt->sensorHandle = mSensorInfo.sensorHandle;
     evt->sensorType = mSensorInfo.type;
     if (mSensorInfo.type == SensorType::ACCELEROMETER) {
-        char bufx[64], bufy[64], bufz[64];
+        char buf_acc_x[64], buf_acc_y[64], buf_acc_z[64];
 
-        read(fdx, bufx, sizeof(bufx));
-        lseek(fdx,0L,SEEK_SET);
-        read(fdy, bufy, sizeof(bufy));
-        lseek(fdy,0L,SEEK_SET);
-        read(fdz, bufz, sizeof(bufz));
-        lseek(fdz,0L,SEEK_SET);
+        read(fd_acc_x, buf_acc_x, sizeof(buf_acc_x));
+        lseek(fd_acc_x,0L,SEEK_SET);
+        read(fd_acc_y, buf_acc_y, sizeof(buf_acc_y));
+        lseek(fd_acc_y,0L,SEEK_SET);
+        read(fd_acc_z, buf_acc_z, sizeof(buf_acc_z));
+        lseek(fd_acc_z,0L,SEEK_SET);
 
         // scale sys node is not valid, to meet xTS required range, multiply raw data with 0.0005.
-        evt->u.vec3.x  = atoi(bufx) * 0.0005;
-        evt->u.vec3.y  = atoi(bufy) * 0.0005;
-        evt->u.vec3.z  = atoi(bufz) * 0.0005;
+        evt->u.vec3.x  = atoi(buf_acc_x) * 0.0005;
+        evt->u.vec3.y  = atoi(buf_acc_y) * 0.0005;
+        evt->u.vec3.z  = atoi(buf_acc_z) * 0.0005;
     } else if(mSensorInfo.type == SensorType::MAGNETIC_FIELD) {
-        get_sensor_mag(mSysfspath, &data);
+        char buf_mag_x[64], buf_mag_y[64], buf_mag_z[64];
+
+        read(fd_mag_x, buf_mag_x, sizeof(buf_mag_x));
+        lseek(fd_mag_x,0L,SEEK_SET);
+        read(fd_mag_y, buf_mag_y, sizeof(buf_mag_y));
+        lseek(fd_mag_y,0L,SEEK_SET);
+        read(fd_mag_z, buf_mag_z, sizeof(buf_mag_z));
+        lseek(fd_mag_z,0L,SEEK_SET);
+
         // 0.000244 is read from sys node in_magn_scale.
-        evt->u.vec3.x  = data.x_raw * 0.000244;
-        evt->u.vec3.y  = data.y_raw * 0.000244;
-        evt->u.vec3.z  = data.z_raw * 0.000244;
+        evt->u.vec3.x  = atoi(buf_mag_x) * 0.000244;
+        evt->u.vec3.y  = atoi(buf_mag_y) * 0.000244;
+        evt->u.vec3.z  = atoi(buf_mag_z) * 0.000244;
     }
     evt->timestamp = get_timestamp();
 }
 
 void AccMagSensor::run() {
-    int err;
     Event event;
     std::vector<Event> events;
     while (!mStopThread) {
@@ -209,28 +227,15 @@ void AccMagSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            if(mIioData.type == SensorType::MAGNETIC_FIELD) {
-                err = poll(&mPollFdIio, 1, mSamplingPeriodNs/2000000);
-                if (err <= 0) {
-                    ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
-                }
-                events.clear();
-                processScanData(&event);
-                events.push_back(event);
-            } else if(mIioData.type == SensorType::ACCELEROMETER) {
-                err = poll(&mPollFdIio, 1, mSamplingPeriodNs/200000);
-                if (err <= 0) {
-                    ALOGV("Sensor %s poll returned %d", mIioData.name.c_str(), err);
-                }
-                events.clear();
-                processScanData(&event);
+            usleep(mSamplingPeriodNs/100);
+            events.clear();
+            processScanData(&event);
                 for (int i = 0; i < 10; i++) {
-                    event.timestamp += mSamplingPeriodNs/2000000;
+                    event.timestamp += mSamplingPeriodNs/1000;
                     events.push_back(event);
                 }
-            }
-            mCallback->postEvents(events, isWakeUpSensor());
         }
+        mCallback->postEvents(events, isWakeUpSensor());
     }
 }
 

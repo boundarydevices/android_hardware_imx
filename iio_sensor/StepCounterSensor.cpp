@@ -103,7 +103,6 @@ void StepCounterSensor::setOperationMode(OperationMode mode) {
 }
 
 void StepCounterSensor::run() {
-    int err;
     Event event;
     std::vector<Event> events;
     while (!mStopThread) {
@@ -113,11 +112,7 @@ void StepCounterSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-           err = poll(&mPollFdIio, 1, 500);
-            if (err <= 0) {
-                ALOGI("Sensor %s poll returned %d", mIioData.name.c_str(), err);
-            }
-
+            usleep(500000);
             events.clear();
             processScanData(&event);
             events.push_back(event);

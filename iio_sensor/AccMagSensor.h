@@ -40,9 +40,12 @@ class AccMagSensor : public HWSensorBase {
   private:
     std::string mSysfspath;
     std::string freq_file_name;
-    unique_fd fdx;
-    unique_fd fdy;
-    unique_fd fdz;
+    unique_fd fd_acc_x;
+    unique_fd fd_acc_y;
+    unique_fd fd_acc_z;
+    unique_fd fd_mag_x;
+    unique_fd fd_mag_y;
+    unique_fd fd_mag_z;
 };
 
 }  // namespace nxp_sensors_subhal
