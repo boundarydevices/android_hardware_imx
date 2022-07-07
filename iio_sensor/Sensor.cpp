@@ -50,8 +50,8 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
         case SensorType::ACCELEROMETER:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_ACCELEROMETER;
             break;
-        case SensorType::TEMPERATURE:
-            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_TEMPERATURE;
+        case SensorType::AMBIENT_TEMPERATURE:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE;
             break;
         case SensorType::MAGNETIC_FIELD:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_MAGNETIC_FIELD;
@@ -412,7 +412,7 @@ HWSensorBase* HWSensorBase::buildSensor(int32_t sensorHandle, ISensorsEventCallb
         return new LightSensor(sensorHandle, callback, iio_data, config);
     else if (iio_data.type == SensorType::PRESSURE)
         return new PressureSensor(sensorHandle, callback, iio_data, config);
-    else if (iio_data.type == SensorType::TEMPERATURE)
+    else if (iio_data.type == SensorType::AMBIENT_TEMPERATURE)
         return new PressureSensor(sensorHandle, callback, iio_data, config);
     else if (iio_data.type == SensorType::ACCELEROMETER)
         return new AccMagSensor(sensorHandle, callback, iio_data, config);

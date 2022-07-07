@@ -51,7 +51,7 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
     }
     if (mChannelIndex == 1) {
         evt->sensorHandle = 4;
-        evt->sensorType = SensorType::TEMPERATURE;
+        evt->sensorType = SensorType::AMBIENT_TEMPERATURE;
     }
 
     char *channel_data = data;

@@ -50,7 +50,7 @@ static const std::vector<sensors_supported_hal> sensors_supported = {
         SENSOR_SUPPORTED("fxas21002c", SensorType::GYROSCOPE),
         SENSOR_SUPPORTED("isl29023", SensorType::LIGHT),
         SENSOR_SUPPORTED("mpl3115", SensorType::PRESSURE),
-        SENSOR_SUPPORTED("mpl3115", SensorType::TEMPERATURE),
+        SENSOR_SUPPORTED("mpl3115", SensorType::AMBIENT_TEMPERATURE),
         SENSOR_SUPPORTED("fxos8700", SensorType::ACCELEROMETER),
         SENSOR_SUPPORTED("fxos8700", SensorType::MAGNETIC_FIELD),
 };
