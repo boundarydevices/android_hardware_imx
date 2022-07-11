@@ -624,6 +624,7 @@ bool Display::verifyLayers()
     // get deviceCompose init value
     deviceCompose = check2DComposition();
 
+    std::vector<int32_t> zorderVector;
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
@@ -705,6 +706,7 @@ bool Display::verifyLayers()
             mLayers[idx]->type = LAYER_TYPE_CLIENT;
             mComposeFlag |= 1 << CLIENT_COMPOSE_BIT;
             mTotalLayerNum++;
+            zorderVector.emplace_back(mLayers[idx]->zorder);
 
             // Here compare current layer info with previous one to determine
             // whether UI has update. IF no update,won't commit to framebuffer
@@ -723,11 +725,26 @@ bool Display::verifyLayers()
         mLayerVector.add(mLayers[idx]);
         mTotalLayerNum++;
     }
+
     if (ovIdx >= 0) {
-        mOverlay = mLayers[ovIdx];
-        mOverlay->isOverlay = true;
-        mOverlay->type = LAYER_TYPE_DEVICE;
-        mComposeFlag |= 1 << OVERLAY_COMPOSE_BIT;
+        bool shouldOverlay = true;
+        for (auto zorder : zorderVector) {
+            if (zorder < mLayers[ovIdx]->zorder) {
+                shouldOverlay = false;
+                break;
+            }
+        }
+
+        if (shouldOverlay) {
+            mOverlay = mLayers[ovIdx];
+            mOverlay->isOverlay = true;
+            mOverlay->type = LAYER_TYPE_DEVICE;
+            mComposeFlag |= 1 << OVERLAY_COMPOSE_BIT;
+        } else {
+            mLayers[ovIdx]->type = LAYER_TYPE_CLIENT;
+            mComposeFlag |= 1 << CLIENT_COMPOSE_BIT;
+            mTotalLayerNum++;
+        }
     }
 
     if (mTotalLayerNum != lastTotalLayerNum) {
