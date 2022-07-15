@@ -259,8 +259,8 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
         sprintf(mCamDevice, "/sys/class/video4linux/%s/name", dirEntry->d_name);
         if (!android::base::ReadFileToString(std::string(mCamDevice), &buffer)) {
             free(node);
-            ALOGE("can't read video device name");
-            break;
+            ALOGW("can't read video device name");
+            continue;
         }
         // string read from ReadFileToString have '\n' in last byte
         // so we just need copy (buffer.length() - 1) length
