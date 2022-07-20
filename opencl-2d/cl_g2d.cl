@@ -138,6 +138,47 @@ __kernel void g2d_yuyv_to_nv12(__global const uchar8 *input,
     }
 }
 
+__kernel void g2d_yuyv_to_i420(__global const uchar8 *input,
+        __global uchar4 *output_y,
+        __global uchar2 *output_u,
+        __global uchar2 *output_v,
+        int src_width,
+        int src_height,
+        int dst_width,
+        int dst_height)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    int index = y*src_width + x;
+
+    uchar2 *u_buf = output_u + index/4;
+    uchar2 *v_buf = output_v + index/4;
+    uchar4 *y_buf = output_y + index;
+
+    uchar8 p_yuyv = *(input + index);
+
+    /*
+     *y_buf = p_yuyv.even;
+     */
+    (*y_buf).x = p_yuyv.s0;
+    (*y_buf).y = p_yuyv.s2;
+    (*y_buf).z = p_yuyv.s4;
+    (*y_buf).w = p_yuyv.s6;
+
+    if (!(y & 0x1)){
+       /*
+        *uv_buf = p_yuyv.odd;
+       */
+        int uv_index = y/2*src_width + x;
+        uchar2 *u_buf = output_u + uv_index;
+        uchar2 *v_buf = output_v + uv_index;
+        (*u_buf).s0 = p_yuyv.s1;
+        (*u_buf).s1 = p_yuyv.s5;
+        (*v_buf).s0 = p_yuyv.s3;
+        (*v_buf).s1 = p_yuyv.s7;
+    }
+}
+
 __kernel void g2d_nv12_to_nv21(__global const uchar8 *input_y,
         __global const uchar4 *input_uv,
         __global uchar8 *output_y,

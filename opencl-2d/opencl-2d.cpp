@@ -52,6 +52,7 @@
 #define NV12_10BIT_TILED_TO_LINEAR_KERNEL "nv12_10bit_tiled_to_linear"
 #define NV12_TO_I420_KERNEL "g2d_nv12_to_i420"
 #define NV16_TO_I420_KERNEL "g2d_nv16_to_i420"
+#define YUYV_TO_I420_KERNEL "g2d_yuyv_to_i420"
 
 /*Assume max buffer are 3 buffers to be handle, align with cl_g2d_surface.planes[3] */
 #define MAX_CL_MEM_COUNT 3
@@ -72,8 +73,9 @@ typedef enum {
     NV12_10BIT_TILED_TO_LINEAR_INDEX = 5,
     NV12_TO_I420_INDEX = 6,
     NV16_TO_I420_INDEX = 7,
+    YUYV_TO_I420_INDEX = 8,
     /*Assume max kernel function to handle 2D convert */
-    MAX_CL_KERNEL_COUNT  = 8
+    MAX_CL_KERNEL_COUNT  = 9
 } cl_kernel_index;
 
 static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
@@ -85,6 +87,7 @@ static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
     NV12_10BIT_TILED_TO_LINEAR_KERNEL,
     NV12_TO_I420_KERNEL,
     NV16_TO_I420_KERNEL,
+    YUYV_TO_I420_KERNEL,
     NULL,
 };
 
@@ -789,6 +792,9 @@ static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *d
     else if ((src->format == CL_G2D_NV16)&&
         (dst->format == CL_G2D_I420))
         kernel_index = NV16_TO_I420_INDEX;
+    else if ((src->format == CL_G2D_YUYV)&&
+        (dst->format == CL_G2D_I420))
+        kernel_index = YUYV_TO_I420_INDEX;
 
     return kernel_index;
 }
@@ -925,6 +931,20 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_stride));
         }
+        else if (kernel_index == YUYV_TO_I420_INDEX) {
+            // for yuyv to i420, 4 pixels with one kernel calls
+            // and based on src width
+            int src_width = src->width / 4;
+            int dst_width = dst->width / 4;
+            kernel_width = src->width / 4;
+            kernel_height = src->height;
+
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+        }
+
 
         if (errNum != CL_SUCCESS) {
             g2d_printf("%s: Error setting kernel arguments.\n", __func__);
