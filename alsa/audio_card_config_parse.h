@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* Copyright 2020 NXP */
+/* Copyright 2020-2022 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_CARD_CONFIG_H
 #define ANDROID_INCLUDE_IMX_AUDIO_CARD_CONFIG_H
@@ -50,6 +50,7 @@ struct audio_card {
     unsigned int out_volume_max;
     bool support_hfp;
     bool support_dsd;
+    bool support_compress;
     bool is_hdmi_card;
     bool support_multi_chn;
     bool support_lpa;
