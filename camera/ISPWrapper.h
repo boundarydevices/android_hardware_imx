@@ -193,6 +193,7 @@ private:
     uint8_t m_awb_mode;
     uint8_t m_ae_mode;
     int32_t m_exposure_comp;
+    int32_t m_exposure_gain;
     int64_t m_exposure_time;
     DWEPara m_dwePara;
     bool m_dwe_on;
