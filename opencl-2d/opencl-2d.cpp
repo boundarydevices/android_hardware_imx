@@ -721,7 +721,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     errNum |= clSetKernelArg(kernel, 1,
                     sizeof(cl_mem), &gcontext->memOutObjects[kernel_index][0]);
     errNum |= clSetKernelArg(kernel, 2,
-                    sizeof(cl_mem), &size);
+                    sizeof(cl_int), &size);
     if (errNum != CL_SUCCESS)
     {
         g2d_printf("%s: Error setting kernel arguments.\n", __func__);
