@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
-/* Copyright 2017-2020 NXP */
+/* Copyright 2017-2022 NXP */
 
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
@@ -22,6 +22,9 @@
 #include <stdlib.h>
 #include <cutils/list.h>
 #include <tinyalsa/asoundlib.h>
+#include <tinycompress/tinycompress.h>
+#include <sound/compress_params.h>
+#include <sound/compress_offload.h>
 
 #include <hardware/hardware.h>
 
@@ -97,7 +100,9 @@ struct imx_stream_out {
 
     pthread_mutex_t lock;       /* see note below on mutex acquisition order */
     struct pcm_config config;
+    struct compr_config compr_config;
     struct pcm *pcm;
+    struct compress *compr;
     int writeContiFailCount;
     struct resampler_itfe *resampler;
     char *buffer;
@@ -128,6 +133,7 @@ struct imx_stream_out {
     uint32_t frames_round;
     bool dump;
     bool first_frame_written;
+    bool playback_started;
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */

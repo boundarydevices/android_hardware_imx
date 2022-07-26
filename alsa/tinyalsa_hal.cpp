@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
-/* Copyright 2017-2020 NXP */
+/* Copyright 2017-2022 NXP */
 
 #define LOG_TAG "audio_hw_primary"
 //#define LOG_NDEBUG 0
@@ -80,6 +80,11 @@
 #define DSD_RATE_TO_PCM_RATE 32
 // DSD pcm param: 2 channel, 32 bit
 #define DSD_FRAMESIZE_BYTES 8
+
+/* compress offload default params */
+#define COMPRESS_OFFLOAD_FRAGMENT_SIZE 3840
+#define COMPRESS_OFFLOAD_NUM_FRAGMENTS 2
+#define COMPRESS_OFFLOAD_PLAYBACK_LATENCY 96
 
 // Limit LPA max latency to 300ms
 #define LPA_LATENCY_MS 300
@@ -499,6 +504,30 @@ static int get_card_for_dsd(struct imx_audio_device *adev, int *card_index)
     return card;
 }
 
+static int get_card_for_compress(struct imx_audio_device *adev, int *card_index)
+{
+    int i;
+    int card = -1;
+
+    if (!adev) {
+        ALOGE("%s: Invalid audio device", __func__);
+        return -1;
+    }
+
+    for (i = 0; i < adev->audio_card_num; i++) {
+        if (adev->card_list[i]->support_compress) {
+              card = adev->card_list[i]->card;
+              break;
+        }
+    }
+
+    if (card_index && (i != adev->audio_card_num))
+        *card_index = i;
+
+    ALOGD("%s: card: %d", __func__, card);
+    return card;
+}
+
 static int get_card_for_hfp(struct imx_audio_device *adev, int *card_index)
 {
     int i;
@@ -637,6 +666,75 @@ static void update_passthrough_status(void)
         passthrough_enabled = false;
 }
 
+static bool is_supported_compress_format(audio_format_t format)
+{
+    switch (format) {
+        case AUDIO_FORMAT_MP3:
+        case AUDIO_FORMAT_AAC_LC:
+        case AUDIO_FORMAT_AAC_HE_V1:
+        case AUDIO_FORMAT_AAC_HE_V2:
+            return true;
+        default:
+            break;
+    }
+    return false;
+}
+
+static int get_snd_codec_id(audio_format_t format)
+{
+    int id = 0;
+
+    switch (format & AUDIO_FORMAT_MAIN_MASK) {
+        case AUDIO_FORMAT_MP3:
+            id = SND_AUDIOCODEC_MP3;
+            break;
+        case AUDIO_FORMAT_AAC:
+            id = SND_AUDIOCODEC_AAC;
+            break;
+        default:
+            ALOGE("%s: Unsupported audio format", __func__);
+            break;
+    }
+
+    return id;
+}
+
+static bool is_compress_offload_supported(struct imx_audio_device *adev,
+        struct audio_config *config)
+{
+    struct snd_codec codec;
+    int card = get_card_for_compress(adev, NULL);
+
+    if (card == -1)
+        return false;
+
+    codec.id = get_snd_codec_id(config->offload_info.format);
+    if (is_codec_supported(card, 0, COMPRESS_IN, &codec) != true) {
+        return false;
+    }
+
+    if (config->offload_info.version != AUDIO_INFO_INITIALIZER.version ||
+            config->offload_info.size != AUDIO_INFO_INITIALIZER.size) {
+        ALOGE("%s: Unsupported Offload information", __func__);
+        return false;
+    }
+    if (!is_supported_compress_format(config->offload_info.format)) {
+        ALOGE("%s: Unsupported audio format", __func__);
+        return false;
+    }
+
+    return true;
+}
+
+/* must be called with out->lock locked */
+static void stop_compressed_output_l(struct imx_stream_out *out)
+{
+    out->playback_started = false;
+    if (out->compr != NULL) {
+        compress_stop(out->compr);
+    }
+}
+
 /* must be called with hw device and output stream mutexes locked */
 static int start_output_stream(struct imx_stream_out *out)
 {
@@ -719,6 +817,8 @@ static int start_output_stream(struct imx_stream_out *out)
         card = get_card_for_bus(adev, out->address, NULL, &pcm_device_id);
     else if (out->format == AUDIO_FORMAT_DSD)
         card = get_card_for_dsd(adev, &out->card_index);
+    else if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD)
+        card = get_card_for_compress(adev, &out->card_index);
     else
         card = get_card_for_device(adev, out->device, PCM_OUT, &out->card_index);
 
@@ -729,21 +829,35 @@ static int start_output_stream(struct imx_stream_out *out)
         ALOGE("%s: Invalid PCM card id: %d", __func__, card);
         return -EINVAL;
     }
-    out->pcm = pcm_open(card, pcm_device_id, flags, config);
+
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        out->pcm = NULL;
+        out->compr = compress_open(card, pcm_device_id,
+                                   COMPRESS_IN, &out->compr_config);
+        if (out->compr && !is_compress_ready(out->compr)) {
+            ALOGE("%s: %s", __func__, compress_get_error(out->compr));
+            compress_close(out->compr);
+            out->compr = NULL;
+            return -EIO;
+        }
+        return 0;
+    } else {
+        out->pcm = pcm_open(card, pcm_device_id, flags, config);
+
+        /* Close any PCMs that could not be opened properly and return an error */
+        if (out->pcm && !pcm_is_ready(out->pcm)) {
+            ALOGE("%s: %s", __func__, pcm_get_error(out->pcm));
+            if (out->pcm != NULL) {
+                pcm_close(out->pcm);
+                out->pcm = NULL;
+            }
+            return -EIO;
+        }
+        success = true;
+    }
+
     out->write_flags = flags;
     out->first_frame_written = false;
-
-    success = true;
-
-    /* Close any PCMs that could not be opened properly and return an error */
-    if (out->pcm && !pcm_is_ready(out->pcm)) {
-        ALOGE("%s: pcm_open error: %s", __func__, pcm_get_error(out->pcm));
-        if (out->pcm != NULL) {
-            pcm_close(out->pcm);
-            out->pcm = NULL;
-        }
-        success = false;
-    }
 
     if (success) {
         if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) || (out->flags == AUDIO_OUTPUT_FLAG_NONE)) {
@@ -907,6 +1021,9 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     int multiplier = 1;
 
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        return out->compr_config.fragment_size;
+    }
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_frame_size will return 1
     // But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
     if (out->format == AUDIO_FORMAT_DSD) {
@@ -946,15 +1063,22 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
         return 0;
     }
     if (!out->standby) {
+        out->standby = 1;
+        ALOGI("%s... %p", __func__, out);
+        if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+            stop_compressed_output_l(out);
+            if (out->compr != NULL) {
+                compress_close(out->compr);
+                out->compr = NULL;
+            }
+            return 0;
+        }
 
         if (out->pcm) {
             pcm_close(out->pcm);
             out->pcm = NULL;
         }
-
         out->writeContiFailCount = 0;
-
-        ALOGW("do_out_standby... %p",out);
 
         /* stop writing to echo reference */
         if (out->echo_reference != NULL) {
@@ -966,7 +1090,6 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby)
         if (passthrough_enabled)
             out->written = 0;
 
-        out->standby = 1;
     }
     return 0;
 }
@@ -1034,36 +1157,42 @@ static int out_resume_dummy(struct audio_stream_out* stream)
 static int out_pause(struct audio_stream_out* stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    int status = 0;
-
-    ALOGI("%s", __func__);
+    int status = -ENODATA;
 
     pthread_mutex_lock(&out->lock);
-    if ((!out->paused) && (out->pcm)) {
-        status = pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
-        if (!status)
-            out->paused = true;
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        if (out->compr != NULL && out->paused == false)
+            status = compress_pause(out->compr);
+    } else {
+        if (out->pcm != NULL && out->paused == false)
+            status = pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
     }
+    if (!status)
+        out->paused = true;
     pthread_mutex_unlock(&out->lock);
 
+    ALOGI("%s: status: %d", __func__, status);
     return status;
 }
 
 static int out_resume(struct audio_stream_out* stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
-    int status = 0;
-
-    ALOGI("%s", __func__);
+    int status = -ENODATA;
 
     pthread_mutex_lock(&out->lock);
-    if ((out->paused) && (out->pcm)) {
-        status= pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
-        if (!status)
-            out->paused = false;
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        if (out->compr != NULL && out->paused == true)
+            status = compress_resume(out->compr);
+    } else {
+        if (out->pcm != NULL && out->paused == true)
+            status = pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
     }
+    if (!status)
+        out->paused = false;
     pthread_mutex_unlock(&out->lock);
 
+    ALOGI("%s: status: %d", __func__, status);
     return status;
 }
 #undef PCM_IOCTL_PAUSE
@@ -1080,6 +1209,10 @@ static int out_flush(struct audio_stream_out* stream)
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
 
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        stop_compressed_output_l(out);
+        goto exit;
+    }
     out->written = 0;
     if(out->pcm) {
         pcm_close(out->pcm);
@@ -1095,13 +1228,18 @@ static int out_flush(struct audio_stream_out* stream)
     if(out->pcm)
         out->standby = 0;
 
-    out->paused = false;
-
 exit:
+    out->paused = false;
     pthread_mutex_unlock(&out->lock);
     pthread_mutex_unlock(&adev->lock);
 
     return status;
+}
+
+static int out_drain(struct audio_stream_out* stream __unused, audio_drain_type_t type __unused)
+{
+    ALOGI("%s", __func__);
+    return 0;
 }
 
 static int out_set_parameters(struct audio_stream *stream __unused, const char *kvpairs)
@@ -1226,6 +1364,9 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     uint32_t latency;
+
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD)
+        return COMPRESS_OFFLOAD_PLAYBACK_LATENCY;
 
     latency = (out->config.period_count * out->config.period_size * 1000) /
               (out->config.rate);
@@ -1507,7 +1648,23 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                 out_frames);
     }
 
-    if (out->pcm) {
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        ALOGV("%s: writing buffer (%zu bytes) to compress device", __func__, bytes);
+        ret = compress_write(out->compr, buffer, bytes);
+        ALOGV("%s: writing buffer (%zu bytes) to compress device returned %d",
+                __func__, bytes, ret);
+        if (ret > 0 && !out->playback_started) {
+            compress_start(out->compr);
+            out->playback_started = true;
+        }
+        if (ret < 0) {
+            ALOGE("%s: compress write failed: %d", __func__, ret);
+        } else {
+            out->written += ret; // accumulate bytes written for offload.
+        }
+        pthread_mutex_unlock(&out->lock);
+        return ret;
+    } else if (out->pcm) {
         if (((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) || (out->flags == AUDIO_OUTPUT_FLAG_NONE)) &&
                 (out->config.rate != DEFAULT_OUTPUT_SAMPLE_RATE)) {
             /* PCM resampled or channel converted.
@@ -1666,10 +1823,25 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 {
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
     int ret = -ENODATA;
+    unsigned long dsp_frames;
 
     pthread_mutex_lock(&out->lock);
 
-    if (out->pcm) {
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        if (out->compr != NULL) {
+            ret = compress_get_tstamp(out->compr, &dsp_frames,
+                    &out->sample_rate);
+            if (ret)
+                ALOGE("%s: error to get tstamp: %d", __func__, ret);
+            ALOGV("%s rendered frames %ld sample_rate %d",
+                   __func__, dsp_frames, out->sample_rate);
+            /* *frames = dsp_frames; */
+            /* Use software written number to evaluate dsp frames before feature ready */
+            *frames = out->written * 3;
+            ret = 0;
+            clock_gettime(CLOCK_MONOTONIC, timestamp);
+        }
+    } else if (out->pcm) {
         unsigned int avail;
         if (pcm_get_htimestamp(out->pcm, &avail, timestamp) == 0) {
             size_t kernel_buffer_size = out->config.period_size * out->config.period_count;
@@ -3374,6 +3546,40 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->format = config->format;
 
     if (flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        if (is_compress_offload_supported(ladev, config) != true) {
+            ret = -EINVAL;
+            goto err_open;
+        }
+        out->sample_rate = config->offload_info.sample_rate;
+        if (config->offload_info.channel_mask != AUDIO_CHANNEL_NONE)
+            out->channel_mask = config->offload_info.channel_mask;
+        else if (config->channel_mask != AUDIO_CHANNEL_NONE)
+            out->channel_mask = config->channel_mask;
+        else
+            out->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
+
+        out->format = config->offload_info.format;
+        out->stream.pause = out_pause;
+        out->stream.resume = out_resume;
+        out->stream.drain = out_drain;
+        out->stream.flush = out_flush;
+
+        out->compr_config.codec = (struct snd_codec *)
+                                    calloc(1, sizeof(struct snd_codec));
+        out->compr_config.codec->id = get_snd_codec_id(config->offload_info.format);
+        out->compr_config.fragment_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
+        out->compr_config.fragments = COMPRESS_OFFLOAD_NUM_FRAGMENTS;
+        out->compr_config.codec->sample_rate = out->sample_rate;
+        out->compr_config.codec->bit_rate = config->offload_info.bit_rate;
+        out->compr_config.codec->ch_in =
+            audio_channel_count_from_out_mask(out->channel_mask);
+        out->compr_config.codec->ch_out = out->compr_config.codec->ch_in;
+        ALOGI("%s: offloaded output offload_info version %04x bit rate %d",
+                __func__, config->offload_info.version,
+                config->offload_info.bit_rate);
+    }
+    /* Disable DSD handling before it is ready */
+    /* else if (flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
         ALOGW("%s: compress offload stream", __func__);
         if (out->format != AUDIO_FORMAT_DSD) {
             ALOGE("%s: Unsupported audio format", __func__);
@@ -3388,7 +3594,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         pcm_config_dsd.rate = config->sample_rate / DSD_RATE_TO_PCM_RATE;
         out->config = pcm_config_dsd;
         out->stream.flush = out_flush;
-    } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
+    } */ else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
                devices == AUDIO_DEVICE_OUT_AUX_DIGITAL) {
         ALOGW("adev_open_output_stream() HDMI multichannel");
         ret = out_read_hdmi_channel_masks(ladev, out);
@@ -3605,6 +3811,11 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     do_output_standby(out, true);
     pthread_mutex_unlock(&out->lock);
     pthread_mutex_unlock(&out->dev->lock);
+
+    if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
+        if (out->compr_config.codec != NULL)
+            free(out->compr_config.codec);
+    }
 
     if (out->buffer)
         free(out->buffer);

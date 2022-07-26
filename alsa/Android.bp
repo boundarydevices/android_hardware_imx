@@ -1,4 +1,4 @@
-// Copyright 2019 NXP
+// Copyright 2019, 2022 NXP
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ audio_primary_defaults {
     vendor: true,
     include_dirs: [
         "external/tinyalsa/include",
+        "external/tinycompress/include",
         "system/media/audio_utils/include",
         "system/media/audio_effects/include",
         "hardware/libhardware/include",
@@ -35,6 +36,7 @@ audio_primary_defaults {
         "liblog",
         "libcutils",
         "libtinyalsa",
+        "libtinycompress",
         "libaudioutils",
         "libdl",
         "libpower",
