@@ -120,6 +120,10 @@ int ImageProcess::handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, 
         ALOGV("%s: handle NV16 Frame!\n", __func__);
         ret = handleNV16Frame(dstBuf, srcBuf, width, height);
         break;
+    case YUYV:
+        ALOGV("%s: handle YUYV Frame!\n", __func__);
+        ret = handleYUYVFrame(dstBuf, srcBuf, width, height);
+        break;
     default:
         ALOGE("%s: src_fmt cannot be handled!\n", __func__);
         return -EINVAL;
@@ -204,6 +208,55 @@ void ImageProcess::cl_NV16toI420(void *g2dHandle, uint8_t *inputBuffer,
     src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
     src.planes[0] = (long)inputBuffer;
     src.planes[1] = (long)inputBuffer + width * height;
+    src.left = 0;
+    src.top = 0;
+    src.right = width;
+    src.bottom = height;
+    src.stride = width;
+    src.width  = width;
+    src.height = height;
+
+    dst.format = CL_G2D_I420;
+    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    dst.planes[0] = (long)outputBuffer;
+    dst.planes[1] = (long)outputBuffer + width * height;
+    dst.planes[2] = (long)outputBuffer + width * height * 5 / 4;
+    dst.left = 0;
+    dst.top = 0;
+    dst.right = width;
+    dst.bottom = height;
+    dst.stride = width;
+    dst.width  = width;
+    dst.height = height;
+
+    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+}
+
+int ImageProcess::handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height) {
+    if (mCLHandle == NULL) {
+        ALOGE("%s: mCLHandle is NULL!\n", __func__);
+        return -EINVAL;
+    }
+
+    bool bOutputCached = true;
+    //diffrent format, same resolution
+    {
+        Mutex::Autolock _l(mCLLock);
+        cl_YUYVtoI420(mCLHandle, srcBuf, dstBuf, width, height, false, bOutputCached);
+        (*mCLFlush)(mCLHandle);
+        (*mCLFinish)(mCLHandle);
+    }
+
+    return 0;
+}
+
+void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer,
+         uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached) {
+    struct cl_g2d_surface src, dst;
+
+    src.format = CL_G2D_YUYV;
+    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    src.planes[0] = (long)inputBuffer;
     src.left = 0;
     src.top = 0;
     src.right = width;

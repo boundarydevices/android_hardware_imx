@@ -42,9 +42,15 @@ typedef struct {
     uint32_t v4l2_format;
 } COLOR_FORMAT_TABLE;
 
+enum socType {
+    IMX8MQ = 0,
+    IMX8QM = 1,
+};
+
 class DecoderDev {
 public:
     explicit DecoderDev();
+    int32_t mSocType;
     int32_t Open();
     status_t Close();
     status_t GetVideoBufferType(enum v4l2_buf_type *outType, enum v4l2_buf_type *capType);
@@ -52,8 +58,10 @@ public:
     bool IsCaptureFormatSupported(uint32_t format);
 
     status_t GetFormatFrameInfo(uint32_t format, struct v4l2_frmsizeenum * info);
-    status_t GetColorFormatByV4l2(uint32_t v4l2_format, uint32_t * color_format);
-    status_t GetV4l2FormatByColor(uint32_t color_format, uint32_t * v4l2_format);
+    status_t GetColorFormatByV4l2(uint32_t v4l2_format, uint32_t * color_format,
+        COLOR_FORMAT_TABLE *color_format_table, uint8_t tableSize);
+    status_t GetV4l2FormatByColor(uint32_t color_format, uint32_t * v4l2_format,
+        COLOR_FORMAT_TABLE *color_format_table, uint8_t tableSize);
 
     uint32_t Poll();
     status_t SetPollInterrupt();

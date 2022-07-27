@@ -31,6 +31,7 @@ typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 enum SrcFormat {
     NV16,
     NV12,
+    YUYV,
 };
 
 class ImageProcess {
@@ -51,6 +52,10 @@ private:
 
     int handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height);
     void cl_NV16toI420(void *g2dHandle, uint8_t *inputBuffer,
+            uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
+
+    int handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height);
+    void cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer,
             uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
 
 private:
