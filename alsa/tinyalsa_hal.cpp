@@ -1117,7 +1117,7 @@ static int out_dump(const struct audio_stream *stream, int fd)
     dprintf(fd, "audio write to HAL: rate %d, chns %d, audio format 0x%x\n", out->sample_rate, popcount(out->channel_mask), out->format);
     dprintf(fd, "audio write to ALSA: rate %d, chns %d, alsa format 0x%x\n", out->config.rate, out->config.channels, out->config.format);
     dprintf(fd, "device 0x%x, card index %d, frames round %d, total written %llu, first_frame_written %d, writeContiFailCount %d\n",
-        out->device, out->card_index, out->frames_round, out->written, out->first_frame_written, out->writeContiFailCount);
+        out->device, out->card_index, out->frames_round, (long long)out->written, out->first_frame_written, out->writeContiFailCount);
 
     if (out->pcm)
       dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(out->pcm));
@@ -1497,7 +1497,7 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
 #define OUT_SRC_FILE "/data/out_src.pcm"
 #define OUT_DST_FILE "/data/out_dst.pcm"
 
-static void audio_dump(const void *buffer, size_t bytes, char *name)
+static void audio_dump(const void *buffer, size_t bytes, const char *name)
 {
     if ((buffer == NULL) || (bytes == 0) || (name == NULL))
         return;
@@ -3513,7 +3513,7 @@ static int adev_release_audio_patch(struct audio_hw_device *dev,
     return -EINVAL;
 }
 
-static int adev_get_audio_port(struct audio_hw_device *dev, struct audio_port *port)
+static int adev_get_audio_port(struct audio_hw_device *dev __unused, struct audio_port *port __unused)
 {
     return 0;
 }
