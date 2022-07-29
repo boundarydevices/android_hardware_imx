@@ -742,7 +742,6 @@ static int start_output_stream(struct imx_stream_out *out)
     struct pcm_config *config = &out->config;
     int card = -1;
     int pcm_device_id = 0;
-    bool success = false;
     unsigned int flags = PCM_OUT | PCM_MONOTONIC;
     static int first = 1;
     struct listnode *node;
@@ -840,7 +839,6 @@ static int start_output_stream(struct imx_stream_out *out)
             out->compr = NULL;
             return -EIO;
         }
-        return 0;
     } else {
         out->pcm = pcm_open(card, pcm_device_id, flags, config);
 
@@ -853,13 +851,9 @@ static int start_output_stream(struct imx_stream_out *out)
             }
             return -EIO;
         }
-        success = true;
-    }
+        out->write_flags = flags;
+        out->first_frame_written = false;
 
-    out->write_flags = flags;
-    out->first_frame_written = false;
-
-    if (success) {
         if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) || (out->flags == AUDIO_OUTPUT_FLAG_NONE)) {
             out->buffer_frames = pcm_config_mm_out.period_size * 2;
             if (out->buffer == NULL)
@@ -879,11 +873,9 @@ static int start_output_stream(struct imx_stream_out *out)
                 out->buffer = (char *)malloc(out->buffer_frames * \
                         audio_stream_out_frame_size((const struct audio_stream_out *)&out->stream.common));
         }
-
-        return 0;
     }
 
-    return -ENOMEM;
+    return 0;
 }
 
 static int check_input_parameters(uint32_t sample_rate, audio_format_t format,
