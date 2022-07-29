@@ -48,6 +48,7 @@ DecoderDev::DecoderDev() {
     mStreamType = V4L2_PIX_FMT_H264;
     mOutBufType = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
     mCapBufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    mSocType = IMX8MQ;
 }
 
 int32_t DecoderDev::Open() {

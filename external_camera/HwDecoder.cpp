@@ -81,6 +81,8 @@ HwDecoder::HwDecoder(const char* mime):
 
     mInFormat = V4L2_PIX_FMT_JPEG;
     mOutFormat = V4L2_PIX_FMT_NV12;
+    mTableSize = 0;
+    color_format_table = NULL;
 }
 
 HwDecoder::~HwDecoder() {
@@ -111,13 +113,13 @@ status_t HwDecoder::Init(const char* socType) {
     if (strcmp(socType, "imx8qm") == 0) {
         pDev->mSocType = IMX8QM;
         mOutFormat = V4L2_PIX_FMT_NV12M;
-        mTableSize = sizeof(color_format_table_8qm)/sizeof(color_format_table_8qm[0]);
+        mTableSize = sizeof(color_format_table_8qm) / sizeof(color_format_table_8qm[0]);
         color_format_table = color_format_table_8qm;
 
     } else {
         pDev->mSocType = IMX8MQ;
         mOutFormat = V4L2_PIX_FMT_NV12;
-        mTableSize = sizeof(color_format_table_8mq)/sizeof(color_format_table_8mq[0]);
+        mTableSize = sizeof(color_format_table_8mq) / sizeof(color_format_table_8mq[0]);
         color_format_table = color_format_table_8mq;
     }
 
