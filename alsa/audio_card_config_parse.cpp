@@ -401,6 +401,7 @@ bool release_all_cards(void) {
 
     while(s_audio_card_list[i]) {
         release_one_card(s_audio_card_list[i]);
+        s_audio_card_list[i] = NULL;
         i++;
     }
 

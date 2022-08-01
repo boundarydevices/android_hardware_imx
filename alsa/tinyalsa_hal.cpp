@@ -195,6 +195,9 @@ const struct string_to_enum out_channels_name_to_enum_table[] = {
  * NOTE: when multiple mutexes have to be acquired, always respect the following order:
  *        hw device > in stream > out stream
  */
+static struct imx_audio_device *adev = NULL;
+static pthread_mutex_t adev_init_lock = PTHREAD_MUTEX_INITIALIZER;
+static unsigned int audio_device_ref_count;
 static void select_output_device(struct imx_audio_device *adev);
 static void select_input_device(struct imx_audio_device *adev);
 static int adev_set_voice_volume(struct audio_hw_device *dev, float volume);
@@ -4458,20 +4461,27 @@ static int adev_dump(const audio_hw_device_t *device, int fd)
 
 static int adev_close(hw_device_t *device)
 {
-    struct imx_audio_device *adev = (struct imx_audio_device *)device;
     int i;
-    for(i = 0; i < adev->audio_card_num; i++)
-        if(adev->mixer[i])
-            mixer_close(adev->mixer[i]);
 
-    if (adev->out_bus_stream_map) {
-        hashmapFree(adev->out_bus_stream_map);
+    pthread_mutex_lock(&adev_init_lock);
+    if (!device || ((struct imx_audio_device *)device != adev))
+        goto done;
+
+    if ((--audio_device_ref_count) == 0) {
+        for (i = 0; i < adev->audio_card_num; i++)
+            if (adev->mixer[i])
+                mixer_close(adev->mixer[i]);
+
+        if (adev->out_bus_stream_map) {
+            hashmapFree(adev->out_bus_stream_map);
+        }
+
+        free(device);
+        adev = NULL;
+        release_all_cards();
     }
-
-    free(device);
-
-    release_all_cards();
-
+done:
+    pthread_mutex_unlock(&adev_init_lock);
     return 0;
 }
 
@@ -4672,16 +4682,26 @@ static int str_hash_fn(void *str) {
 static int adev_open(const hw_module_t* module, const char* name,
                      hw_device_t** device)
 {
-    struct imx_audio_device *adev;
     int ret = 0;
     int i;
 
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
         return -EINVAL;
 
+    pthread_mutex_lock(&adev_init_lock);
+    if (audio_device_ref_count != 0) {
+        *device = &adev->hw_device.common;
+        audio_device_ref_count++;
+        ALOGV("%s: returning existing instance of adev", __func__);
+        ALOGV("%s: exit", __func__);
+        pthread_mutex_unlock(&adev_init_lock);
+        return 0;
+    }
     adev = (struct imx_audio_device *)calloc(1, sizeof(struct imx_audio_device));
-    if (!adev)
+    if (!adev) {
+        pthread_mutex_unlock(&adev_init_lock);
         return -ENOMEM;
+    }
 
     adev->hw_device.common.tag      = HARDWARE_DEVICE_TAG;
     adev->hw_device.common.version  = AUDIO_DEVICE_API_VERSION_3_0;
@@ -4722,8 +4742,12 @@ static int adev_open(const hw_module_t* module, const char* name,
     ret = scan_available_device(adev);
     if (ret != 0) {
         free(adev);
+        *device = NULL;
+        pthread_mutex_unlock(&adev_init_lock);
         return ret;
     }
+
+    audio_device_ref_count++;
 
     /* Set the default route before the PCM stream is opened */
     pthread_mutex_lock(&adev->lock);
@@ -4750,6 +4774,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     // Initialize the bus address to output stream map
     adev->out_bus_stream_map = hashmapCreate(5, str_hash_fn, str_eq);
 
+    pthread_mutex_unlock(&adev_init_lock);
     return 0;
 }
 
