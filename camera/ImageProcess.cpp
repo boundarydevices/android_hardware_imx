@@ -183,6 +183,7 @@ ImageProcess::ImageProcess()
         mCLFlush = (hwc_func1)dlsym(mCLModule, "cl_g2d_flush");
         mCLFinish = (hwc_func1)dlsym(mCLModule, "cl_g2d_finish");
         mCLBlit = (hwc_func3)dlsym(mCLModule, "cl_g2d_blit");
+        mCLCopy = (hwc_func4)dlsym(mCLModule, "cl_g2d_copy");
         ret = (*mCLOpen)((void*)&mCLHandle);
         if (ret != 0) {
             mCLHandle = NULL;
@@ -273,6 +274,15 @@ int ImageProcess::handleFrame(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf, 
     ALOGV("ImageProcess::handleFrame, src: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x, dst: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x",
         srcBuf.mVirtAddr, srcBuf.mPhyAddr, srcBuf.mSize, srcBuf.mStream->width(), srcBuf.mStream->height(), srcBuf.mStream->format(),
         dstBuf.mVirtAddr, dstBuf.mPhyAddr, dstBuf.mSize, dstBuf.mStream->width(), dstBuf.mStream->height(), dstBuf.mStream->format());
+
+    // unify HAL_PIXEL_FORMAT_YCbCr_420_SP to HAL_PIXEL_FORMAT_YCBCR_420_888
+    if (srcBuf.mStream->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+        srcBuf.mStream->mFormat = HAL_PIXEL_FORMAT_YCBCR_420_888;
+    }
+
+    if (dstBuf.mStream->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+        dstBuf.mStream->mFormat = HAL_PIXEL_FORMAT_YCBCR_420_888;
+    }
 
     switch (hw_type) {
     case GPU_2D:
@@ -817,8 +827,8 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     //    GPU3D uses physical address, no need to flush the input buffer.
     bool bOutputCached = dst->usage() & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
 
-    ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%llx, res src %dx%d, dst %dx%d, format src 0x%x, dst 0x%x",
-       bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(), src->format(), dst->format());
+    ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%llx, res src %dx%d, dst %dx%d, format src 0x%x, dst 0x%x, size %d",
+       bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(), src->format(), dst->format(), srcBuf.mFormatSize);
 
     // case 1: same format, same resolution, copy
     if ( (src->format() == dst->format()) &&
@@ -828,9 +838,15 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
             Revert16BitEndianAndShift((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height(), ((VideoStream *)src)->mV4l2Format);
         else {
             Mutex::Autolock _l(mCLLock);
-            cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
-                dst->width(), dst->height(),
-                (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
+
+            if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) || (src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
+                cl_Copy(mCLHandle, (uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr, srcBuf.mFormatSize, false, bOutputCached);
+            }
+            else
+                cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
+                    dst->width(), dst->height(),
+                   (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), false, bOutputCached);
+
             (*mCLFlush)(mCLHandle);
             (*mCLFinish)(mCLHandle);
         }
@@ -903,9 +919,13 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
          (src->height() == dst->height()) ) {
         if (HAL_PIXEL_FORMAT_RAW16 == src->format())
             Revert16BitEndianAndShift((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, src->width()*src->height(), ((VideoStream *)src)->mV4l2Format);
-        else
-            YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
-              (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
+        else {
+            if (src->format() == HAL_PIXEL_FORMAT_YCBCR_420_888)
+                memcpy((uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr, dstBuf.mFormatSize);
+            else
+                YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
+                  (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
+        }
 
         return 0;
     }
@@ -964,13 +984,30 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     return 0;
 }
 
+
+void ImageProcess::cl_Copy(void *g2dHandle,
+         uint8_t *output, uint8_t *input, uint32_t size, bool bInputCached, bool bOutputCached)
+{
+    struct cl_g2d_buf g2d_output_buf;
+    struct cl_g2d_buf g2d_input_buf;
+
+    g2d_output_buf.buf_vaddr = output;
+    g2d_output_buf.buf_size = size;
+    g2d_output_buf.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+
+    g2d_input_buf.buf_vaddr = input;
+    g2d_input_buf.buf_size = size;
+    g2d_input_buf.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+
+    (*mCLCopy)(g2dHandle, &g2d_output_buf, &g2d_input_buf, (void*)(intptr_t)size);
+}
+
 void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
          uint8_t *output, uint32_t dstWidth,
          uint32_t dstHeight, uint8_t *input,
          uint32_t srcWidth, uint32_t srcHeight, bool bInputCached, bool bOutputCached)
 {
     struct cl_g2d_surface src,dst;
-
     src.format = CL_G2D_YUYV;
     src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
     src.planes[0] = (long)input;
@@ -1162,9 +1199,10 @@ cpu_resize:
     else if (src->format() == HAL_PIXEL_FORMAT_YCBCR_422_SP )
         ret = yuv422spResize((uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(),
                              (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
-    else if (src->format() == HAL_PIXEL_FORMAT_YCBCR_420_888)
+    else if ((src->format() == HAL_PIXEL_FORMAT_YCBCR_420_888) || (src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
         ret = yuv420spResize((uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(),
                              (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+    }
     else
         ALOGE("%s: resize by CPU, unsupported format 0x%x", __func__, src->format());
 

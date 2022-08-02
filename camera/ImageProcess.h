@@ -55,6 +55,9 @@ private:
              uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
     void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
              int width, int height);
+
+    void cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uint32_t size, bool bInputCached, bool bOutputCached);
+
     void cl_YUYVCopyByLine(void *g2dHandle,
              uint8_t *dst, uint32_t dstWidth,
              uint32_t dstHeight, uint8_t *src,
@@ -89,6 +92,7 @@ private:
     hwc_func1 mCLOpen;
     hwc_func1 mCLClose;
     hwc_func3 mCLBlit;
+    hwc_func4 mCLCopy;
     hwc_func1 mCLFlush;
     hwc_func1 mCLFinish;
     Mutex mCLLock;

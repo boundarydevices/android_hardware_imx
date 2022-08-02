@@ -303,6 +303,9 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
         pVideoStreams[0]->SetBufferNumber(pipeline_info->hal_streams->at(configIdx).max_buffers + 1);
 
         uint32_t format = HAL_PIXEL_FORMAT_YCbCr_422_I;
+        if (strcmp(mSensorData.v4l2_format, "nv12") == 0)
+            format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+
         if(pipeline_info->hal_streams->at(configIdx).override_format == HAL_PIXEL_FORMAT_RAW16) {
             format = HAL_PIXEL_FORMAT_RAW16;
         }
@@ -865,6 +868,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
             captureSize = alignedw * alignedh + c_stride * alignedh;
             break;
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
             alignedw = ALIGN_PIXEL_16(capture->mWidth);
             alignedh = ALIGN_PIXEL_16(capture->mHeight);
             captureSize = alignedw * alignedh * 3 / 2;
@@ -887,7 +891,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
             break;
 
         default:
-            ALOGE("Error: %s format not supported", __func__);
+            ALOGE("Error: %s format 0x%x not supported", __func__, srcStream->format());
     }
 
     sp<MemoryHeapBase> rawFrame(
@@ -1224,7 +1228,11 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                 break;
 
             case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
-                hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
+                if (strcmp(mSensorData.v4l2_format, "nv12") == 0)
+                    hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_420_888;
+                else
+                    hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
+
                 hal_stream.max_buffers = NUM_PREVIEW_BUFFER;
                 usage = CAMERA_GRALLOC_USAGE;
 

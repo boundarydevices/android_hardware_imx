@@ -100,6 +100,7 @@ struct CameraSensorMetadata {
 
   struct OmitFrame omit_frame[OMIT_RESOLUTION_NUM];
   BufferType buffer_type;
+  char v4l2_format[META_STRING_SIZE];
 
   // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_AE_COMPENSATION_RANGE
   // and https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_AE_COMPENSATION_STEP.

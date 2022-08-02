@@ -445,7 +445,8 @@ finish:
 YuvToJpegEncoder * YuvToJpegEncoder::create(int format) {
     // Only ImageFormat.NV21 and ImageFormat.YUY2 are supported
     // for now.
-    if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+    ALOGI("YuvToJpegEncoder::create, format 0x%x", format);
+    if ((format == HAL_PIXEL_FORMAT_YCbCr_420_SP) || (format == HAL_PIXEL_FORMAT_YCbCr_420_888)){
         return new Yuv420SpToJpegEncoder(format);
     } else if (format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
         return new Yuv422IToJpegEncoder(format);

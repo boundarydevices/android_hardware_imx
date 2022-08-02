@@ -228,8 +228,14 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
     memset(availFormats, 0, sizeof(availFormats));
 
     // Don't support enum format, now hard code here.
-    sensorFormats[index] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-    availFormats[index++] = v4l2_fourcc('Y', 'U', 'Y', 'V');
+    if (strcmp(mSensorData.v4l2_format, "nv12") == 0) {
+        sensorFormats[index] = v4l2_fourcc('N', 'V', '1', '2');
+        availFormats[index++] = v4l2_fourcc('N', 'V', '1', '2');
+    } else {
+        sensorFormats[index] = v4l2_fourcc('Y', 'U', 'Y', 'V');
+        availFormats[index++] = v4l2_fourcc('Y', 'U', 'Y', 'V');
+    }
+
     mSensorFormatCount =
         changeSensorFormats(sensorFormats, mSensorFormats, index);
     if (mSensorFormatCount == 0) {
@@ -237,7 +243,6 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
         close(fd);
         return BAD_VALUE;
     }
-
     availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
     mAvailableFormatCount =
         changeSensorFormats(availFormats, mAvailableFormats, index);
@@ -257,7 +262,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
         if (ret != 0) {
             continue;
         }
-        ALOGI("enum frame size w:%d, h:%d", cam_frmsize.discrete.width, cam_frmsize.discrete.height);
+        ALOGI("enum frame size w:%d, h:%d, format 0x%x", cam_frmsize.discrete.width, cam_frmsize.discrete.height, cam_frmsize.pixel_format);
 
         if (cam_frmsize.discrete.width == 0 ||
             cam_frmsize.discrete.height == 0) {

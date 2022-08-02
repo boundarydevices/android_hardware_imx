@@ -88,6 +88,7 @@ int32_t VideoStream::closeDev()
 int32_t VideoStream::onFlushLocked() {
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
+
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
@@ -120,15 +121,15 @@ int32_t VideoStream::onFlushLocked() {
     return 0;
 }
 
-
-
-
 #define ISP_CONTROL "vendor.rw.camera.isp.control"
 int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, uint8_t intent, uint8_t sceneMode, bool recover)
 {
     int ret = 0;
 
-    ALOGI("%s: format 0x%x, res %dx%d, fps %d, intent %d, sceneMode %d, recover %d",
+    ALOGI("%s: current format 0x%x, res %dx%d, fps %d, sceneMode %d",
+        __func__, mFormat, mWidth, mHeight, mFps, mSceneMode);
+
+    ALOGI("%s: to set format 0x%x, res %dx%d, fps %d, intent %d, sceneMode %d, recover %d",
         __func__, format, width, height, fps, intent, sceneMode, recover);
 
     mCaptureIntent = intent;
@@ -138,6 +139,10 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         height = 480;
         ALOGI("%s, imx8mq, change 240p to 480p", __func__);
     }
+
+    if ( ((mFormat ==  HAL_PIXEL_FORMAT_YCbCr_420_SP) || (mFormat ==  HAL_PIXEL_FORMAT_YCbCr_420_888)) &&
+          ((format ==  HAL_PIXEL_FORMAT_YCbCr_420_SP) || (format ==  HAL_PIXEL_FORMAT_YCbCr_420_888)) )
+        format = mFormat;
 
     if((mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps) && (mSceneMode == sceneMode) && (recover == false)) {
         ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, format, width, height, fps, sceneMode);
