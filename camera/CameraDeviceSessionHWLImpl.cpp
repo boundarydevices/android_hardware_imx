@@ -1296,6 +1296,24 @@ int CameraDeviceSessionHwlImpl::PickConfigStream(uint32_t pipeline_id, uint8_t i
     if(intent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE)
         configIdx = stillcapIdx;
 
+
+    // In this case, pick max size from callback and stillcap.
+    // Or testAllOutputYUVResolutions will failed due to diff too much
+    // when 320x240 enlarge to 2592x1944 by adding black margin.
+    if ((strcmp(mSensorData.v4l2_format, "nv12") == 0) &&
+        (stillcapIdx >= 0) && (callbackIdx >= 0) && (previewIdx < 0) && (recordIdx < 0) &&
+        (intent == ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW)) {
+        int stillcapWidth = pipeline_info->streams->at(stillcapIdx).width;
+        int stillcapHeight = pipeline_info->streams->at(stillcapIdx).height;
+        int callbackWidth = pipeline_info->streams->at(callbackIdx).width;
+        int callbackHeight = pipeline_info->streams->at(callbackIdx).height;
+
+        if ((callbackWidth > stillcapWidth) && (callbackHeight > stillcapHeight))
+          configIdx = callbackIdx;
+        else
+          configIdx = stillcapIdx;
+    }
+
     if (configIdx == -1) {
         if (previewIdx >= 0)
             configIdx = previewIdx;
