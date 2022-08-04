@@ -175,6 +175,7 @@ ImageProcess::ImageProcess()
         mCLFlush = NULL;
         mCLFinish = NULL;
         mCLBlit = NULL;
+        mCLCopy = NULL;
         mCLHandle = NULL;
     }
     else {
