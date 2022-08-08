@@ -1,5 +1,5 @@
 /*
- *  Copyright 2021 NXP.
+ *  Copyright 2021-2022 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -266,6 +266,55 @@ bool DecoderDev::IsCaptureFormatSupported(uint32_t format) {
         }
     }
     return false;
+}
+
+typedef struct {
+    uint32_t noncontiguous_format;
+    uint32_t contiguous_format;
+} CONTINUGUOUS_FORMAT_TABLE;
+
+//TODO: add android pixel format
+static const CONTINUGUOUS_FORMAT_TABLE contiguous_format_table[]={
+    { V4L2_PIX_FMT_NV12M, V4L2_PIX_FMT_NV12},
+    { V4L2_PIX_FMT_YUV420M, V4L2_PIX_FMT_YUV420},
+    { V4L2_PIX_FMT_YVU420M, V4L2_PIX_FMT_YVU420},
+    { V4L2_PIX_FMT_NV12M_8L128, V4L2_PIX_FMT_NV12_8L128},
+    { V4L2_PIX_FMT_NV12M_10BE_8L128, V4L2_PIX_FMT_NV12_10BE_8L128},
+};
+
+status_t DecoderDev:: GetContiguousV4l2Format(uint32_t format, uint32_t *contiguous_format)
+{
+    status_t ret = BAD_VALUE;
+    for (size_t i = 0; i < sizeof(contiguous_format_table)/sizeof(CONTINUGUOUS_FORMAT_TABLE); i++) {
+        if (format == contiguous_format_table[i].noncontiguous_format) {
+            *contiguous_format = contiguous_format_table[i].contiguous_format;
+            ret = OK;
+            break;
+        }
+    }
+
+    if (ret)
+        ALOGE("unknown contiguous v4l2 format 0x%x", format);
+
+    return ret;
+}
+
+status_t DecoderDev:: GetCaptureFormat(uint32_t *format, uint32_t i)
+{
+    status_t ret = OK;
+
+    if(capture_formats.empty()){
+        ret = QueryFormats(mCapBufType);
+        if(ret != OK)
+            return ret;
+    }
+
+    if (i >= capture_formats.size())
+        return BAD_VALUE;
+
+    *format = capture_formats.at(i);
+
+    return ret;
 }
 
 status_t DecoderDev::GetColorFormatByV4l2(uint32_t v4l2_format, uint32_t * color_format,
