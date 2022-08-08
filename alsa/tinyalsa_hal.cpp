@@ -1830,9 +1830,7 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
                 ALOGE("%s: error to get tstamp: %d", __func__, ret);
             ALOGV("%s rendered frames %ld sample_rate %d",
                    __func__, dsp_frames, out->sample_rate);
-            /* *frames = dsp_frames; */
-            /* Use software written number to evaluate dsp frames before feature ready */
-            *frames = out->written * 3;
+            *frames = dsp_frames;
             ret = 0;
             clock_gettime(CLOCK_MONOTONIC, timestamp);
         }
