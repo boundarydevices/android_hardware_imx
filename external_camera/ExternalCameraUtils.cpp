@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2021 The Android Open Source Project
+ * Copyright 2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -263,6 +264,9 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     allocator->lock(dstBuffer, dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN,
                      0, 0, dstBuffer->width, dstBuffer->height, (void **)(&dstBuf));
 
+    ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
+    if (ret) mPhyAddr = 0;
+
     if (out != nullptr) {
         out->y = dstBuf;
         out->yStride = mWidth;
@@ -293,6 +297,10 @@ int AllocatedFramePhyMem::getData(uint8_t** outData, size_t* dataSize) {
     *dataSize = dstBuffer->size;
 
     return 0;
+}
+
+void AllocatedFramePhyMem::getPhyAddr(uint64_t &phyAddr) {
+    phyAddr = mPhyAddr;
 }
 
 int AllocatedFramePhyMem::getLayout(YCbCrLayout* out) {

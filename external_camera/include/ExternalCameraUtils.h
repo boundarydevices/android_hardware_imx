@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2021 The Android Open Source Project
+ * Copyright 2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -203,9 +204,12 @@ public:
 
     virtual void flush();
 
+    void getPhyAddr(uint64_t &phyAddr);
+
 private:
     fsl::Memory *dstBuffer;
     uint8_t *dstBuf;
+    uint64_t mPhyAddr;
 };
 
 enum CroppingType {

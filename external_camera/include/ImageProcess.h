@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 NXP.
+ * Copyright 2018-2022 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ public:
     static ImageProcess* getInstance();
     ~ImageProcess();
 
-    int handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, SrcFormat src_fmt);
+    int handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, SrcFormat src_fmt, uint64_t dstPhyAddr = 0, uint64_t srcPhyAddr = 0);
 
 private:
     ImageProcess();
@@ -54,7 +54,9 @@ private:
     void cl_NV16toI420(void *g2dHandle, uint8_t *inputBuffer,
             uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
 
-    int handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height);
+    int handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width, uint32_t height);
+    int handleYUYVFrameByG3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height);
+    int handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, uint64_t dstPhyAddr, uint64_t srcPhyAddr);
     void cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer,
             uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
 
@@ -70,6 +72,16 @@ private:
     hwc_func1 mCLFlush;
     hwc_func1 mCLFinish;
     Mutex mCLLock;
+
+    void *mG2dModule;
+    void *mG2dHandle;
+    hwc_func1 mOpenEngine;
+    hwc_func1 mCloseEngine;
+    hwc_func1 mFinishEngine;
+    hwc_func4 mCopyEngine;
+    hwc_func3 mBlitEngine;
+    Mutex mG2dLock;
+
 };
 
 }
