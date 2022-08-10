@@ -16,8 +16,13 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+vibrator_defaults {
+    name: "vibrator_default",
+}
+
 cc_library_static {
     name: "libvibratorimximpl",
+    defaults: ["vibrator_default"],
     vendor: true,
     shared_libs: [
         "libc",
@@ -28,7 +33,6 @@ cc_library_static {
         "libsync",
         "libbase",
         "libbinder_ndk",
-        "android.hardware.vibrator-V2-ndk_platform",
     ],
     export_include_dirs: ["include"],
     srcs: [
@@ -44,6 +48,7 @@ cc_library_static {
 
 cc_binary {
     name: "android.hardware.vibrator-service.imx",
+    defaults: ["vibrator_default"],
     relative_install_path: "hw",
     init_rc: ["vibrator-default.imx.rc"],
     vintf_fragments: ["vibrator-default.imx.xml"],
@@ -54,10 +59,26 @@ cc_binary {
         "libutils",
         "libbase",
         "libbinder_ndk",
-        "android.hardware.vibrator-V2-ndk_platform",
     ],
     static_libs: [
         "libvibratorimximpl",
     ],
     srcs: ["main.cpp"],
+}
+
+bootstrap_go_package {
+    name: "soong-vibrator",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/vibrator",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "vibrator.go",
+    ],
+    pluginFor: ["soong_build"],
 }
