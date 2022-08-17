@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2020 The Android Open Source Project
+ * Copyright 2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +37,7 @@ ndk::ScopedAStatus Memtrack::getMemory(int pid, MemtrackType type,
 
 ndk::ScopedAStatus Memtrack::getGpuDeviceInfo(std::vector<DeviceInfo>* _aidl_return) {
     _aidl_return->clear();
-    DeviceInfo dev_info = {.id = 0, .name = "virtio_gpu"};
+    DeviceInfo dev_info = {.id = 0, .name = "vivante_gpu"};
     _aidl_return->emplace_back(dev_info);
     return ndk::ScopedAStatus::ok();
 }

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2020 The Android Open Source Project
+ * Copyright 2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@
 #include <aidl/android/hardware/memtrack/DeviceInfo.h>
 #include <aidl/android/hardware/memtrack/MemtrackRecord.h>
 #include <aidl/android/hardware/memtrack/MemtrackType.h>
+#include <cutils/log.h>
 
 namespace aidl {
 namespace android {
