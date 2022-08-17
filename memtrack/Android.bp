@@ -1,10 +1,10 @@
-// Copyright 2019 NXP
+// Copyright (C) 2020 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//       http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,40 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-memtrack_defaults {
-    name: "memtrack_default",
-    include_dirs: ["hardware/libhardware/include"] + ["system/core/include"],
-    clang: true,
-    vendor: true,
-    relative_install_path: "hw",
-    srcs: ["memtrack.cpp"],
-    shared_libs: [
-        "liblog",
-        "libcutils",
-    ],
-
-    cflags: ["-DLOG_TAG=\"memtrack\""],
-
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "hardware_interfaces_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["hardware_interfaces_license"],
 }
 
-bootstrap_go_package {
-    name: "soong-memtrack",
-    pkgPath: "android/soong/vendor/nxp-opensource/imx/memtrack",
-    deps: [
-        "blueprint",
-        "blueprint-pathtools",
-        "soong",
-        "soong-android",
-        "soong-cc",
-        "soong-genrule",
+cc_binary {
+    name: "android.hardware.memtrack-service.example",
+    relative_install_path: "hw",
+    init_rc: ["memtrack-default.rc"],
+    vintf_fragments: ["memtrack-default.xml"],
+    vendor: true,
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "android.hardware.memtrack-V1-ndk_platform",
     ],
     srcs: [
-        "memtrack.go",
+        "main.cpp",
+        "Memtrack.cpp",
     ],
-    pluginFor: ["soong_build"],
-}
-
-cc_library_shared {
-    name: "memtrack.imx",
-    defaults: ["memtrack_default"],
 }
