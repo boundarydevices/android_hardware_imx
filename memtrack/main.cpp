@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2020 The Android Open Source Project
+ * Copyright 2022 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +31,7 @@ int main() {
     binder_status_t status =
             AServiceManager_addService(memtrack->asBinder().get(), instance.c_str());
     CHECK(status == STATUS_OK);
+    ALOGI("addService: %s",instance.c_str());
 
     ABinderProcess_joinThreadPool();
     return EXIT_FAILURE;  // Unreachable

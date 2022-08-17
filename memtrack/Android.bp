@@ -1,4 +1,5 @@
 // Copyright (C) 2020 The Android Open Source Project
+// Copyright 2019-2022 NXP
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,27 +14,48 @@
 // limitations under the License.
 
 package {
-    // See: http://go/android-license-faq
-    // A large-scale-change added 'default_applicable_licenses' to import
-    // all of the 'license_kinds' from "hardware_interfaces_license"
-    // to get the below license kinds:
-    //   SPDX-license-identifier-Apache-2.0
-    default_applicable_licenses: ["hardware_interfaces_license"],
+    default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-cc_binary {
-    name: "android.hardware.memtrack-service.example",
+memtrack_defaults {
+    name: "memtrack_default",
     relative_install_path: "hw",
-    init_rc: ["memtrack-default.rc"],
-    vintf_fragments: ["memtrack-default.xml"],
+    init_rc: ["memtrack.imx.rc"],
+    vintf_fragments: ["memtrack.imx.xml"],
     vendor: true,
     shared_libs: [
         "libbase",
         "libbinder_ndk",
-        "android.hardware.memtrack-V1-ndk_platform",
+        "libcutils",
+        "liblog",
     ],
     srcs: [
         "main.cpp",
         "Memtrack.cpp",
     ],
+    cflags: [
+        "-DLOG_TAG=\"memtrack\"",
+    ],
+}
+
+bootstrap_go_package {
+    name: "soong-memtrack",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/memtrack",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "memtrack.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cc_binary {
+    name: "android.hardware.memtrack-service.imx",
+    defaults: ["memtrack_default"],
 }
