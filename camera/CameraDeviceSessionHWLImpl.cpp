@@ -772,6 +772,7 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcB
         if (dstBuf == NULL)
             return BAD_VALUE;
 
+        uint64_t t1 = systemTime();
         if (dstBuf->mStream->format() == HAL_PIXEL_FORMAT_BLOB) {
             mJpegBuilder->reset();
             mJpegBuilder->setMetadata(&requestMeta);
@@ -779,6 +780,16 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcB
             ret = processJpegBuffer(srcBuf, dstBuf, &requestMeta);
         } else
             ret = processFrameBuffer(srcBuf, dstBuf, &requestMeta);
+        uint64_t t2 = systemTime();
+
+        char value[PROPERTY_VALUE_MAX];
+        property_get("vendor.rw.camera.test", value, "");
+        if (strcmp(value, "timestat") == 0) {
+            ALOGI("ProcessCapturedBuffer, process buf %d, use %lld ms, src: size %dx%d, format 0x%x, dst: size %dx%d, format 0x%x",
+                i, (t2-t1)/1000000,
+                srcBuf->mStream->width(), srcBuf->mStream->height(), srcBuf->mStream->format(),
+                dstBuf->mStream->width(), dstBuf->mStream->height(), dstBuf->mStream->format());
+        }
 
         DumpStream(srcBuf->mVirtAddr, srcBuf->mFormatSize, dstBuf->mVirtAddr, dstBuf->mFormatSize, dstBuf->mStream->id());
 
