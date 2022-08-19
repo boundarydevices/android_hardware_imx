@@ -87,7 +87,7 @@ public:
                                         camera_buffer_allocator_hwl) override;
 
 #if ANDROID_SDK_VERSION >  __ANDROID_API_S__
-    status_t NotifyDeviceStateChange(google_camera_hal::DeviceState device_state) override
+    status_t NotifyDeviceStateChange(google_camera_hal::DeviceState device_state __unused) override
     {
         return 0;
     }

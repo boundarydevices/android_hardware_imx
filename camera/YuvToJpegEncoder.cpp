@@ -462,8 +462,8 @@ YuvToJpegEncoder::YuvToJpegEncoder(int format)
     : fNumPlanes(1),
       color(1),
       mColorFormat(0),
-      supportVpu(false),
-      mPixelFormat(format)
+      mPixelFormat(format),
+      supportVpu(false)
 {}
 
 int YuvToJpegEncoder::encode(void *inYuv,
@@ -496,8 +496,10 @@ int YuvToJpegEncoder::encode(void *inYuv,
 
     int ret = 0;
     bool bResize = false;
-    ImxStreamBuffer srcBuf = {0};
-    ImxStreamBuffer resizeBuf = {0};
+    ImxStreamBuffer srcBuf;
+    memset(&srcBuf, 0, sizeof(srcBuf));
+    ImxStreamBuffer resizeBuf;
+    memset(&resizeBuf, 0, sizeof(resizeBuf));
 
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         bResize = true;

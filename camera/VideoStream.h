@@ -65,7 +65,7 @@ public:
 
     void SetBufferNumber(uint32_t num) { mNumBuffers = num; }
 
-    virtual int32_t ISPProcess(void *pMeta, uint32_t format = HAL_PIXEL_FORMAT_YCBCR_422_I) { return 0; };
+    virtual int32_t ISPProcess(void *pMeta __unused, uint32_t format __unused = HAL_PIXEL_FORMAT_YCBCR_422_I) { return 0; };
     CameraDeviceSessionHwlImpl *getSession() { return mSession; }
 
 protected:

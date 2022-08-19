@@ -54,8 +54,8 @@ uint32_t MMAPStream::PickValidFps(int vformat, uint32_t width, uint32_t height, 
     uint32_t fps_diff = 0;
     uint32_t fps_diff_min = 1000;
 
-    struct v4l2_frmivalenum frmival = {0};
-    frmival.index = 0;
+    struct v4l2_frmivalenum frmival;
+    memset(&frmival, 0, sizeof(frmival));
     frmival.pixel_format = vformat;
     frmival.width = width;
     frmival.height = height;
@@ -224,7 +224,7 @@ int32_t MMAPStream::onDeviceStartLocked()
         memset(mBuffers[i]->mVirtAddr, 0xFF, mBuffers[i]->mSize);
         SetBufferHandle(*mBuffers[i]);
 
-        ALOGI("%s, register buffer, phy 0x%x, virt %p, size %d", __func__, mBuffers[i]->mPhyAddr, mBuffers[i]->mVirtAddr, (int)mBuffers[i]->mSize);
+        ALOGI("%s, register buffer, phy 0x%lx, virt %p, size %d", __func__, mBuffers[i]->mPhyAddr, mBuffers[i]->mVirtAddr, (int)mBuffers[i]->mSize);
     }
 
     int32_t ret = 0;
@@ -244,7 +244,7 @@ int32_t MMAPStream::onDeviceStartLocked()
             cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
             cfilledbuffer.m.offset = mBuffers[i]->mPhyAddr;
             cfilledbuffer.length = mBuffers[i]->mSize;
-            ALOGI("%s VIDIOC_QBUF phy:0x%x", __func__, mBuffers[i]->mPhyAddr);
+            ALOGI("%s VIDIOC_QBUF phy:0x%lx", __func__, mBuffers[i]->mPhyAddr);
         }
 
         cfilledbuffer.memory = V4L2_MEMORY_MMAP;

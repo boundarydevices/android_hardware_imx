@@ -87,7 +87,6 @@ int32_t VideoStream::closeDev()
 
 int32_t VideoStream::onFlushLocked() {
     int32_t ret = 0;
-    struct v4l2_buffer cfilledbuffer;
 
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
@@ -144,7 +143,7 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
           ((format ==  HAL_PIXEL_FORMAT_YCbCr_420_SP) || (format ==  HAL_PIXEL_FORMAT_YCbCr_420_888)) )
         format = mFormat;
 
-    if((mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps) && (mSceneMode == sceneMode) && (recover == false)) {
+    if(((uint32_t)mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps) && (mSceneMode == sceneMode) && (recover == false)) {
         ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, format, width, height, fps, sceneMode);
         return 0;
     }
@@ -276,7 +275,7 @@ int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t hei
     CameraSensorMetadata *pSensorData = mSession->getSensorData();
     struct OmitFrame *mOmitFrame = pSensorData->omit_frame;
     for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
-        if ((mWidth == item->width) && (mHeight == item->height)) {
+        if ((mWidth == (uint32_t)item->width) && (mHeight == (uint32_t)item->height)) {
             setOmitFrameCount(item->omitnum);
             ALOGI("%s, set omit frames %d for %dx%d", __func__, item->omitnum, mWidth, mHeight);
             break;
@@ -311,7 +310,7 @@ capture_data:
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(mDev, &fds);
-    struct timeval timeout = {0};
+    struct timeval timeout = {0, 0};
     timeout.tv_sec = SELECT_TIMEOUT_SECONDS;
     timeout.tv_usec = 0;
 
