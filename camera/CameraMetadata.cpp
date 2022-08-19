@@ -407,7 +407,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         if ((minFrmDuration[streamConfigIdx + 1] == 2592) && (minFrmDuration[streamConfigIdx + 2]  == 1944) &&
            (mSensorData.minframeduration_blob_5M > 0)) {
             minFrmDuration[streamConfigIdx + 3] = mSensorData.minframeduration_blob_5M;
-            ALOGI("%s: set minFrmDuration of 5M picture to %lld ns", __func__, mSensorData.minframeduration_blob_5M);
+            ALOGI("%s: set minFrmDuration of 5M picture to %ld ns", __func__, mSensorData.minframeduration_blob_5M);
         }
 
         stallDuration[streamConfigIdx] = HAL_PIXEL_FORMAT_BLOB;

@@ -1080,14 +1080,9 @@ bool ExifUtilsImpl::SetFromMetadata(const CameraMetadata& metadata,
 
   camera_metadata_ro_entry flash_state_entry;
   ret = metadata.Get(ANDROID_FLASH_STATE, &flash_state_entry);
-  uint8_t flash_state = ((ret == 0) && (flash_state_entry.count > 0))
-                            ? flash_state_entry.data.u8[0]
-                            : ANDROID_FLASH_STATE_UNAVAILABLE;
 
   camera_metadata_ro_entry ae_mode_entry;
   ret = metadata.Get(ANDROID_CONTROL_AE_MODE, &ae_mode_entry);
-  uint8_t ae_mode = ((ret == 0) && (ae_mode_entry.count > 0)) ? ae_mode_entry.data.u8[0]
-                                            : ANDROID_CONTROL_AE_MODE_OFF;
 
   ret = metadata.Get(ANDROID_CONTROL_AWB_MODE, &entry);
   if (ret == OK) {

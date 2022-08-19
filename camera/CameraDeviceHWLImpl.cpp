@@ -66,15 +66,15 @@ CameraDeviceHwlImpl::CameraDeviceHwlImpl(
     CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
     PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
     : camera_id_(camera_id),
+        mCallback(callback),
         mCamBlitCopyType(cam_copy_hw),
         mCamBlitCscType(cam_csc_hw),
         mUseCpuEncoder(use_cpu_encoder),
-        physical_device_map_(std::move(physical_devices)),
-        mCallback(callback)
+        physical_device_map_(std::move(physical_devices))
 {
     mDevPath = devPaths;
-    for (int i = 0; i<mDevPath.size(); ++i) {
-        ALOGE("%s, mDevPath[%d] %s", __func__, i, *mDevPath[i]);
+    for (int i = 0; i < (int)mDevPath.size(); ++i) {
+        ALOGI("%s, mDevPath[%d] %s", __func__, i, *mDevPath[i]);
     }
 
     strncpy(mJpegHw, hw_jpeg, JPEG_HW_NAME_LEN);

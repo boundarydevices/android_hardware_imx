@@ -46,7 +46,7 @@ int HwJpegEncoder::encode(void *inYuv,
                int   inHeight,
                int   quality __unused,
                void *outBuf,
-               int   outSize,
+               int   outSize __unused,
                int   outWidth,
                int   outHeight,
                const void *app1Buffer __unused,
@@ -59,8 +59,10 @@ int HwJpegEncoder::encode(void *inYuv,
     int err;
     int ret = 0;
     bool bResize = false;
-    ImxStreamBuffer srcBuf = {0};;
-    ImxStreamBuffer resizeBuf = {0};
+    ImxStreamBuffer srcBuf;
+    memset(&srcBuf, 0, sizeof(srcBuf));
+    ImxStreamBuffer resizeBuf;
+    memset(&resizeBuf, 0, sizeof(resizeBuf));
 
     // need resize the width&height before do hw jpeg encoder.
     // the resolution for input and out need to been align when do jpeg encode.

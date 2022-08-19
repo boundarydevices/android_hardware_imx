@@ -70,14 +70,14 @@ status_t CameraProviderHwlImpl::Initialize()
         if (iter->second.size() >= 2) {
             //logical camera group
             bool logical_exist = true;
-            for(int32_t phy_index = 0; phy_index < iter->second.size(); phy_index++) {
+            for(int32_t phy_index = 0; phy_index < (int32_t)iter->second.size(); phy_index++) {
                 logical_exist = logical_exist && (mSets[(iter->second[phy_index]).second].mExisting);
             }
 
             if(logical_exist == true) {
                 camera_id_maps.emplace(iter->first, std::vector<std::pair<CameraDeviceStatus, uint32_t>>());
                 camera_id_maps[iter->first].reserve(iter->second.size());
-                for(int32_t physical_index = 0; physical_index < iter->second.size(); physical_index++) {
+                for(int32_t physical_index = 0; physical_index < (int32_t)iter->second.size(); physical_index++) {
                     int to_add_phy_cam_id = iter->second[physical_index].second;
                     auto device_status =  CameraDeviceStatus::kPresent;
                     camera_id_maps[iter->first].push_back(std::make_pair(device_status, to_add_phy_cam_id));
@@ -107,7 +107,6 @@ CameraProviderHwlImpl::~CameraProviderHwlImpl() {
 
 void CameraProviderHwlImpl::enumSensorSet()
 {
-    size_t i = 0;
     ALOGI("%s", __func__);
 
     int cam_meta_size = mCameraDef.camera_metadata_vec.size();
@@ -281,12 +280,12 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
     closedir(vidDir);
 
     //basic camera
-    for (int32_t index=0; index < mCameraDef.camera_id_map_.size(); index++) {
+    for (int32_t index=0; index < (int32_t)mCameraDef.camera_id_map_.size(); index++) {
         matchPropertyName(nodes, index);
     }
 
     //physical camera
-    for (int32_t phyindex = MAX_BASIC_CAMERA_NUM; phyindex < mCameraDef.camera_metadata_vec.size(); phyindex++) {
+    for (int32_t phyindex = MAX_BASIC_CAMERA_NUM; phyindex < (int32_t)mCameraDef.camera_metadata_vec.size(); phyindex++) {
         matchPropertyName(nodes, phyindex);
     }
 

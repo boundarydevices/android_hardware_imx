@@ -288,7 +288,7 @@ bool ConfigureCameras(const Json::Value& value,
     return true;
 }
 
-bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size_t meta_size, ssize_t id) {
+bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size_t meta_size __unused, ssize_t id) {
     CameraSensorMetadata static_meta[2];
     int cam_index = 0;
     uint32_t camera_id = id;
@@ -299,7 +299,6 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
     if(root.isMember(kCameraTypeKey)) {
         strncpy(static_meta[cam_index].camera_type,
             root[kCameraTypeKey].asString().c_str(), META_STRING_SIZE);
-        char * type=(char*)root[kCameraTypeKey].asString().c_str();
         static_meta[cam_index].camera_type[META_STRING_SIZE - 1] = 0;
     } else {
         is_logical = false;

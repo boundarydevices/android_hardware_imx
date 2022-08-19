@@ -96,12 +96,12 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
 
     m_meta = pDev->m_meta->Clone();
 
-    ALOGI("Initialize, meta %p, entry count %d", static_metadata_.get(), static_metadata_->GetEntryCount());
+    ALOGI("Initialize, meta %p, entry count %zu", static_metadata_.get(), static_metadata_->GetEntryCount());
 
     mDevPath = pDev->mDevPath;
     CameraSensorMetadata *cam_metadata = &(pDev->mSensorData);
     pVideoStreams.resize(mDevPath.size());
-    for (int i = 0; i < mDevPath.size(); ++i) {
+    for (int i = 0; i < (int)mDevPath.size(); ++i) {
         ALOGI("%s: create video stream for camera %s, buffer type %d, path %s",
                 __func__,
                 cam_metadata->camera_name,
@@ -297,7 +297,7 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
                                         pipeline_info->streams->at(0).height,
                                         fps, captureIntent, sceneMode);
             if (ret)
-                ALOGE("%s: pVideoStreams[%d]->ConfigAndStart failed, ret %d", __func__, index, ret);
+                ALOGE("%s: pVideoStreams[%zu]->ConfigAndStart failed, ret %d", __func__, index, ret);
         }
     } else {
         pVideoStreams[0]->SetBufferNumber(pipeline_info->hal_streams->at(configIdx).max_buffers + 1);
@@ -387,7 +387,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
                 mSettings = HalCameraMetadata::Clone(hwReq->settings.get());
             }
 
-            for (int stream_id = 0; stream_id < pVideoStreams.size(); ++stream_id) {
+            for (int stream_id = 0; stream_id < (int)pVideoStreams.size(); ++stream_id) {
                 pVideoStreams[stream_id]->ISPProcess(mSettings.get());
             }
 
@@ -410,12 +410,11 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 
             if(is_logical_request_) {
                 std::unique_ptr<std::set<uint32_t>> physical_camera_output_ids = std::make_unique<std::set<uint32_t>>();
-                std::vector<HalStream> *hal_streams = pInfo->hal_streams;
 
                 int output_buffers_size = (int)hwReq->output_buffers.size();
                 for (int output_buf_id = 0; output_buf_id < output_buffers_size; output_buf_id++) {
                     int phyid_cam_id = request->at(i).camera_ids[output_buf_id];
-                    if (phyid_cam_id != camera_id_) {
+                    if (phyid_cam_id != (int)camera_id_) {
                         physical_camera_output_ids->emplace(phyid_cam_id);
                     }
                 }
@@ -424,7 +423,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
                     (!physical_camera_output_ids->empty())) {
                     result->physical_camera_results.reserve(physical_camera_output_ids->size());
 
-                    for(int id = 0; id < hwReq->output_buffers.size(); id++) {
+                    for(int id = 0; id < (int)hwReq->output_buffers.size(); id++) {
                         auto phy_result = std::make_unique<HwlPipelineResult>();
                         // return physical buffer
                         phy_result->camera_id = camera_ids[id];
@@ -498,7 +497,7 @@ status_t CameraDeviceSessionHwlImpl::HandleFrameLocked(std::vector<StreamBuffer>
         for (size_t index = 0; index < output_buffers.size(); index++) {
             ImxStreamBuffer *pImxStreamBuffer;
             int video_num = index;
-            if (video_num >= pVideoStreams.size()) {
+            if (video_num >= (int)pVideoStreams.size()) {
                 video_num = video_num - pVideoStreams.size();
             }
             pImxStreamBuffer = pVideoStreams[video_num]->onFrameAcquireLocked();
@@ -560,7 +559,7 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
     if(imxBuf->mFormatSize == 0)
         imxBuf->mFormatSize = imxBuf->mSize;
 
-    ALOGV("%s, buffer: virt %p, phy 0x%llx, size %d, format 0x%x, acquire_fence %p, release_fence %p, stream: res %dx%d, format 0x%x, size %d",
+    ALOGV("%s, buffer: virt %p, phy 0x%lx, size %zu, format 0x%x, acquire_fence %p, release_fence %p, stream: res %dx%d, format 0x%x, size %d",
             __func__,
             imxBuf->mVirtAddr,
             imxBuf->mPhyAddr,
@@ -698,7 +697,7 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer2(ImxStreamBuffer *src
         ALOGV("%s, after sync_wait fence fd %d", __func__, acquire_fence_fd);
         closeFence(acquire_fence_fd);
         if (ret != OK) {
-            ALOGW("%s: Timeout waiting on acquire fence %d, on stream %d, buffer %d", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
+            ALOGW("%s: Timeout waiting on acquire fence %d, on stream %d, buffer %lu", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
         }
     }
 
@@ -756,11 +755,11 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcB
             ALOGV("%s, after sync_wait fence fd %d", __func__, acquire_fence_fd);
             closeFence(acquire_fence_fd);
             if (ret != OK) {
-                ALOGW("%s: Timeout waiting on acquire fence %d, on stream %d, buffer %d", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
+                ALOGW("%s: Timeout waiting on acquire fence %d, on stream %d, buffer %lu", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
                 continue;
             }
         }
-        ALOGV("%s: fence %d, on stream %d, buffer %d", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
+        ALOGV("%s: fence %d, on stream %d, buffer %lu", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
 
         Stream *pStream = GetStreamFromStreamBuffer(it);
         if (pStream == NULL) {
@@ -785,7 +784,7 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapturedBuffer(ImxStreamBuffer *srcB
         char value[PROPERTY_VALUE_MAX];
         property_get("vendor.rw.camera.test", value, "");
         if (strcmp(value, "timestat") == 0) {
-            ALOGI("ProcessCapturedBuffer, process buf %d, use %lld ms, src: size %dx%d, format 0x%x, dst: size %dx%d, format 0x%x",
+            ALOGI("ProcessCapturedBuffer, process buf %d, use %lu ms, src: size %dx%d, format 0x%x, dst: size %dx%d, format 0x%x",
                 i, (t2-t1)/1000000,
                 srcBuf->mStream->width(), srcBuf->mStream->height(), srcBuf->mStream->format(),
                 dstBuf->mStream->width(), dstBuf->mStream->height(), dstBuf->mStream->format());
@@ -834,7 +833,8 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf, I
     struct camera3_jpeg_blob *jpegBlob = NULL;
     uint32_t bufSize = 0;
     int maxJpegSize = mSensorData.maxjpegsize;
-    ImxStreamBuffer resizeBuf = {0};
+    ImxStreamBuffer resizeBuf;
+    memset(&resizeBuf, 0, sizeof(resizeBuf));
 
     if ((srcBuf == NULL) || (dstBuf == NULL) || (meta == NULL)) {
         ALOGE("%s srcBuf %p, dstBuf %p, meta %p", __func__, srcBuf, dstBuf, meta);
@@ -1385,8 +1385,6 @@ status_t CameraDeviceSessionHwlImpl::GetConfiguredHalStream(
 
 status_t CameraDeviceSessionHwlImpl::BuildPipelines()
 {
-    int ret = 0;
-
     Mutex::Autolock _l(mLock);
 
     if (pipelines_built_) {
@@ -1417,7 +1415,7 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
 
     /* If still has un-processed requests, wait some time to finish */
     if ( map_frame_request.empty() == false ) {
-        ALOGW("%s: still has %d requests to process, wait %d ms", __func__, map_frame_request.size(), DESTROY_WAIT_MS);
+        ALOGW("%s: still has %lu requests to process, wait %d ms", __func__, map_frame_request.size(), DESTROY_WAIT_MS);
         mLock.unlock();
         usleep(DESTROY_WAIT_US);
         mLock.lock();
@@ -1515,8 +1513,8 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
         // Record fence fd
         uint32_t outBufNum = requests[i].output_buffers.size();
         frame_request->at(i).outBufferFences.resize(outBufNum);
-        for (int j = 0; j < outBufNum; j++) {
-            FenceFdInfo fenceInfo = {-1};
+        for (int j = 0; j < (int)outBufNum; j++) {
+            FenceFdInfo fenceInfo = {-1, -1};
             fenceInfo.acquire_fence_fd = importFence(requests[i].output_buffers[j].acquire_fence);
             ALOGV("%s, acquire_fence_fd %d", __func__, fenceInfo.acquire_fence_fd);
             frame_request->at(i).outBufferFences[j] = fenceInfo;
@@ -1547,8 +1545,6 @@ int CameraDeviceSessionHwlImpl::CleanRequestsLocked()
 
         for (uint32_t i = 0; i < reqNum; i++) {
             HwlPipelineRequest *hwReq = &(request->at(i).hwlReq);
-            uint32_t pipeline_id = hwReq->pipeline_id;
-            PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
 
             // clear hwReq
             hwReq->settings.reset();
@@ -1648,7 +1644,7 @@ int CameraDeviceSessionHwlImpl::getCapsMode(uint8_t sceneMode)
     for(unsigned int i = 0; i < caps_supports.count; i++) {
         struct viv_caps_mode_info_s &mode = caps_supports.mode[i];
         if ( ((bHdr && mode.hdr_mode > 0) || (!bHdr && mode.hdr_mode == 0)) &&
-             (mMaxWidth == mode.bounds_width) && (mMaxHeight == mode.bounds_height) ) {
+             (mMaxWidth == (int)mode.bounds_width) && (mMaxHeight == (int)mode.bounds_height) ) {
             ALOGI("%s: check idx %d, find ISP mode %d for size %dx%d, bHdr %d, caps count %d",
                 __func__, i, mode.index, mMaxWidth, mMaxHeight, bHdr, caps_supports.count);
             return mode.index;

@@ -62,7 +62,6 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     char TmpStr[20];
     int previewCnt = 0, pictureCnt = 0;
     struct v4l2_frmsizeenum cam_frmsize;
-    struct v4l2_frmivalenum vid_frmval;
 
     memset(TmpStr, 0, 20);
     memset(&cam_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
@@ -94,7 +93,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     uint32_t ispResNum = 0;
 
     // filt out candidate
-    for(int i = 0; i < ispResCandidateNum; i++) {
+    for(uint32_t i = 0; i < ispResCandidateNum; i++) {
         int width = ispResCandidate[i*2];
         int height = ispResCandidate[i*2 + 1];
         if ( (width < w_min) || (width > w_max) || ((width - w_min) % w_step != 0) ||
@@ -114,7 +113,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         ispResNum++;
     }
 
-    for(int i = 0; i < ispResNum; i++) {
+    for(uint32_t i = 0; i < ispResNum; i++) {
         int w = ispRes[i*2];
         int h = ispRes[i*2 + 1];
 
@@ -354,7 +353,7 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
     return ret;
 }
 
-int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath, CameraSensorMetadata *pSensorData)
+int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath __unused, CameraSensorMetadata *pSensorData)
 {
     int ret = 0;
 

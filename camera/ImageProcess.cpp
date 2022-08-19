@@ -272,9 +272,9 @@ int ImageProcess::handleFrame(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf, 
         return -EINVAL;
     }
 
-    ALOGV("ImageProcess::handleFrame, src: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x, dst: virt %p, phy 0x%llx, size %d, res %dx%d, format 0x%x",
-        srcBuf.mVirtAddr, srcBuf.mPhyAddr, srcBuf.mSize, srcBuf.mStream->width(), srcBuf.mStream->height(), srcBuf.mStream->format(),
-        dstBuf.mVirtAddr, dstBuf.mPhyAddr, dstBuf.mSize, dstBuf.mStream->width(), dstBuf.mStream->height(), dstBuf.mStream->format());
+    ALOGV("ImageProcess::handleFrame, src: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, dst: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x",
+        srcBuf.mVirtAddr, srcBuf.mPhyAddr, (int)srcBuf.mSize, srcBuf.mStream->width(), srcBuf.mStream->height(), srcBuf.mStream->format(),
+        dstBuf.mVirtAddr, dstBuf.mPhyAddr, (int)dstBuf.mSize, dstBuf.mStream->width(), dstBuf.mStream->height(), dstBuf.mStream->format());
 
     // unify HAL_PIXEL_FORMAT_YCbCr_420_SP to HAL_PIXEL_FORMAT_YCBCR_420_888
     if (srcBuf.mStream->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
@@ -396,9 +396,9 @@ int ImageProcess::handleFrameByPXP(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
         out_param->pixel_fmt = PXP_PIX_FMT_ARGB32;
     }
 
-    ALOGV("src: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d",
+    ALOGV("src: %ux%u, 0x%x, phy 0x%lx, v4l2 0x%x, stride %d",
       src->width(), src->height(), src->format(), srcBuf.mPhyAddr, src_param->pixel_fmt, src_param->stride);
-    ALOGV("dst: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d",
+    ALOGV("dst: %ux%u, 0x%x, phy 0x%lx, v4l2 0x%x, stride %d",
       dst->width(), dst->height(), dst->format(), dstBuf.mPhyAddr, out_param->pixel_fmt, out_param->stride);
 
     ret = ioctl(mPxpFd, PXP_IOC_CONFIG_CHAN, &pxp_conf);
@@ -534,7 +534,8 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
 
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
-    ImxStreamBuffer resizeBuf = {0};
+    ImxStreamBuffer resizeBuf;
+    memset(&resizeBuf, 0, sizeof(resizeBuf));
 
     // can't do csc for some formats.
     if (!(((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
@@ -590,7 +591,7 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
     s_surface.rot    = G2D_ROTATION_0;
 
     ALOGV("%s: crop from (%d, %d), size %dx%d, srcBuf.mFormatSize %d, mZoomRatio %f",
-        __func__, crop_left, crop_top, crop_width, crop_height, srcBuf.mFormatSize, src->mZoomRatio);
+        __func__, crop_left, crop_top, crop_width, crop_height, (int)srcBuf.mFormatSize, src->mZoomRatio);
 
     if ((src->format() == dst->format()) || (src->mZoomRatio <= 1.0)) { // just scale or just csc
         d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dst->format());
@@ -817,7 +818,8 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     ImxStream *dst = dstBuf.mStream;
 
     int ret = 0;
-    ImxStreamBuffer resizeBuf = {0};
+    ImxStreamBuffer resizeBuf;
+    memset(&resizeBuf, 0, sizeof(resizeBuf));
     bool bResize = false;
 
     // Set output cache attrib based on usage.
@@ -828,8 +830,8 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& 
     //    GPU3D uses physical address, no need to flush the input buffer.
     bool bOutputCached = dst->usage() & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
 
-    ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%llx, res src %dx%d, dst %dx%d, format src 0x%x, dst 0x%x, size %d",
-       bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(), src->format(), dst->format(), srcBuf.mFormatSize);
+    ALOGV("handleFrameByGPU_3D, bOutputCached %d, usage 0x%lx, res src %ux%u, dst %ux%u, format src 0x%x, dst 0x%x, size %d",
+       bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(), src->format(), dst->format(), (int)srcBuf.mFormatSize);
 
     // case 1: same format, same resolution, copy
     if ( (src->format() == dst->format()) &&
@@ -910,7 +912,8 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
 {
     ImxStream *src = srcBuf.mStream;
     ImxStream *dst = dstBuf.mStream;
-    ImxStreamBuffer resizeBuf = {0};
+    ImxStreamBuffer resizeBuf;
+    memset(&resizeBuf, 0, sizeof(resizeBuf));
     int ret;
     bool bResize = false;
 
@@ -1193,7 +1196,7 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
         return 0;
     }
 
-cpu_resize:
+    // cpu resize
     if (src->format() == HAL_PIXEL_FORMAT_YCBCR_422_I)
         ret = yuv422iResize((uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(),
                             (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());

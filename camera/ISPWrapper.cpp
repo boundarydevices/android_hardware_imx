@@ -166,7 +166,6 @@ int ISPWrapper::enableAWB(bool enable)
 int ISPWrapper::processAWB(uint8_t mode, bool force)
 {
     int ret = 0;
-    char *value = NULL;
 
     ALOGV("%s, mode %d, force %d", __func__, mode, force);
 
@@ -352,20 +351,18 @@ int ISPWrapper::viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Jso
 
     ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
     if (ret != 0) {
-        ALOGV("==== ret %, line %d", ret, __LINE__);
-  //      goto failed;
+        ALOGV("%s: ret %d, line %d", __func__, ret, __LINE__);
     }
     strcpy(ec.string, jsonRequest.toStyledString().c_str());
 
     ret = ioctl(m_fd, VIDIOC_S_EXT_CTRLS, &ecs);
     if (ret != 0) {
-        ALOGI("==== ret %, line %d", ret, __LINE__);
+        ALOGI("%s: ret %d, line %d", __func__, ret, __LINE__);
         goto failed;
     }
     ret = ioctl(m_fd, VIDIOC_G_EXT_CTRLS, &ecs);
     if (ret != 0) {
-        ALOGV("==== ret %, line %d", ret, __LINE__);
-      //  goto failed;
+        ALOGV("%s: ret %d, line %d", __func__, ret, __LINE__);
     }
 
     if (!reader.parse(ec.string, jsonResponse, true)) {
@@ -385,12 +382,13 @@ failed:
 #define AE_ENABLE_PARAMS    "enable"
 #define IF_AE_S_EN          "ae.s.en"
 
+#ifndef NS_PER_SEC
 #define NS_PER_SEC  1000000000
+#endif
 
 void ISPWrapper::getExpGainBoundary()
 {
     Json::Value jRequest, jResponse;
-    double minGain, maxGain, currentGain, currentInt;
     int ret = viv_private_ioctl(IF_EC_G_CFG, jRequest, jResponse);
     if (ret == 0) {
         m_ec_gain_min = jResponse[EC_GAIN_MIN_PARAMS].asDouble();
@@ -475,7 +473,7 @@ int ISPWrapper::processExposureTime(int64_t exposureNs, bool force)
     jRequest[EC_GAIN_PARAMS] = gain;
     jRequest[EC_TIME_PARAMS] = exposure_second;
 
-    ALOGI("%s: change exposureNs from %d to %d, set exposure gain to %f, exposure time to %f, force %d",
+    ALOGI("%s: change exposureNs from %ld to %ld, set exposure gain to %f, exposure time to %f, force %d",
         __func__, m_exposure_time, exposureNs, gain, exposure_second, force);
 
     ret = viv_private_ioctl(IF_EC_S_CFG, jRequest, jResponse);

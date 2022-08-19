@@ -443,11 +443,9 @@ void decreaseNV12WithCut(uint8_t *srcBuf,
 
     int WidthMargin = (srcWidth - dstWidth)/2;
     int leftOffset = WidthMargin;
-    int rightOffset = srcWidth - WidthMargin;
 
     int HeightMargin = (srcHeight - dstHeight)/2;
     int topOffset = HeightMargin;
-    int bottomOffset = srcHeight - HeightMargin;
 
     /*======== process Y ======== */
     for (int dstRow = 0; dstRow < dstHeight; dstRow++) {
@@ -487,11 +485,9 @@ void enlargeNV12WithBlackMargin(uint8_t *srcBuf,
     }
 
     int row = 0;
-    int col = 0;
 
     int YSrcStrideBytes = srcWidth;
     int YDstStrideBytes = dstWidth;
-    int UVSrcStrideBytes = srcWidth/2;
     int UVDstStrideBytes = dstWidth/2;
 
     int WidthMargin = (dstWidth - srcWidth)/2;
@@ -630,7 +626,7 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
         return -1;
     }
 
-    ALOGV("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%d\n", __func__, (void *)outPtr, (void *)phyAddr, ionSize, imxBuf.mFormatSize);
+    ALOGV("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%zu\n", __func__, (void *)outPtr, (void *)phyAddr, ionSize, imxBuf.mFormatSize);
 
     imxBuf.mVirtAddr = (void *)outPtr;
     imxBuf.mPhyAddr = phyAddr;
