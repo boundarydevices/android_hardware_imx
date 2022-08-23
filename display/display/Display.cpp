@@ -624,6 +624,9 @@ bool Display::verifyLayers()
     // get deviceCompose init value
     deviceCompose = check2DComposition();
 
+#ifdef HAVE_UNMAPPED_HEAP
+    bool hasSecureLayer = false;
+#endif
     std::vector<int32_t> zorderVector;
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
@@ -697,6 +700,7 @@ bool Display::verifyLayers()
                     mLayers[ovIdx]->isOverlay = false;
                     idx = ovIdx; // previous overlay layer restore to CLIENT type
                     ovIdx = i;
+                    hasSecureLayer = true;
                 }
             }
 #endif
@@ -735,6 +739,11 @@ bool Display::verifyLayers()
             }
         }
 
+#ifdef HAVE_UNMAPPED_HEAP
+        if (hasSecureLayer) {
+            shouldOverlay = true; //SecureLayer always use overlay
+        }
+#endif
         if (shouldOverlay) {
             mOverlay = mLayers[ovIdx];
             mOverlay->isOverlay = true;
