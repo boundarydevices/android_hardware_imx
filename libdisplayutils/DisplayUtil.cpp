@@ -83,6 +83,9 @@ int convert_gralloc_format_to_nxp_format(int format)
         case HAL_PIXEL_FORMAT_NV12_G2_TILED_COMPRESSED:
             fslFormat = FORMAT_NV12_G2_TILED_COMPRESSED;
             break;
+        case HAL_PIXEL_FORMAT_YCBCR_P010:
+            fslFormat = FORMAT_YCBCR_P010;
+            break;
         case HAL_PIXEL_FORMAT_P010:
             fslFormat = FORMAT_P010;
             break;
@@ -151,6 +154,8 @@ std::string getNxpFormatString(int format)
             return "NV12_G2_TILED";
         case FORMAT_NV12_G2_TILED_COMPRESSED:
             return "NV12_G2_TILED_COMPRESSED";
+        case FORMAT_YCBCR_P010:
+            return "YCBCR_P010";
         case FORMAT_P010:
             return "P010";
         case FORMAT_P010_TILED:

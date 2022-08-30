@@ -123,6 +123,7 @@ static const struct planar_layout *layout_from_format(uint32_t format)
 	case FORMAT_NV12_TILED:
 		return &biplanar_yuv_420_layout;
 
+	case FORMAT_YCBCR_P010:
 	case DRM_FORMAT_P010:
 	case FORMAT_P010://DRM_FORMAT_P010
 	case FORMAT_P010_TILED:

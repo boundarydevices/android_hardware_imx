@@ -628,6 +628,7 @@ bool KmsDisplay::checkOverlay(Layer* layer)
         memory->fslFormat != FORMAT_NV12_G1_TILED &&
         memory->fslFormat != FORMAT_NV12_G2_TILED &&
         memory->fslFormat != FORMAT_NV12_G2_TILED_COMPRESSED &&
+        memory->fslFormat != FORMAT_YCBCR_P010 &&
         memory->fslFormat != FORMAT_P010 &&
         memory->fslFormat != FORMAT_P010_TILED &&
         memory->fslFormat != FORMAT_P010_TILED_COMPRESSED) {
@@ -1640,6 +1641,8 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
             return DRM_FORMAT_NV12;
         case FORMAT_NV21:
             return DRM_FORMAT_NV21;
+        case FORMAT_YCBCR_P010:
+            return DRM_FORMAT_P010;
         case FORMAT_P010:
         case FORMAT_P010_TILED:
         case FORMAT_P010_TILED_COMPRESSED:

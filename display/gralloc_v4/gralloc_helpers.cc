@@ -63,6 +63,7 @@ uint32_t drv_convert_nxp_format_to_drm_format(int format)
                 return DRM_FORMAT_YVU420_ANDROID;
         case FORMAT_NV21://DRM_FORMAT_NV21    ????
                 return DRM_FORMAT_NV21;
+        case FORMAT_YCBCR_P010:
         case FORMAT_P010://DRM_FORMAT_P010
                 return DRM_FORMAT_P010;
         case FORMAT_RGB565://DRM_FORMAT_RGB565

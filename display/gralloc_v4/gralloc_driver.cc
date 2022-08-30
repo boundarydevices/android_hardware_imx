@@ -92,6 +92,7 @@ int32_t gralloc_driver::allocate(const struct gralloc_buffer_descriptor *descrip
 		desc.mFslFormat == FORMAT_NV12_G1_TILED ||
 		desc.mFslFormat == FORMAT_NV12_G2_TILED ||
 		desc.mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+		desc.mFslFormat == FORMAT_YCBCR_P010 ||
 		desc.mFslFormat == FORMAT_P010 ||
 		desc.mFslFormat == FORMAT_P010_TILED ||
 		desc.mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
@@ -296,6 +297,7 @@ int32_t gralloc_driver::validate_buffer(const struct gralloc_buffer_descriptor *
                 desc.mFslFormat == FORMAT_NV12_G1_TILED ||
                 desc.mFslFormat == FORMAT_NV12_G2_TILED ||
                 desc.mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+                desc.mFslFormat == FORMAT_YCBCR_P010 ||
                 desc.mFslFormat == FORMAT_P010 ||
                 desc.mFslFormat == FORMAT_P010_TILED ||
                 desc.mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
