@@ -325,7 +325,7 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
         return ret;
     }
 
-    ret = postConfigure(format, width, height, fps, vformat);
+    ret = postConfigureLocked(format, width, height, fps, vformat);
 
     return ret;
 }

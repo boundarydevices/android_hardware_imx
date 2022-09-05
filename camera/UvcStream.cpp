@@ -58,16 +58,16 @@ int32_t UvcStream::onDeviceStartLocked()
     return DMAStream::onDeviceStartLocked();
 }
 
-ImxStreamBuffer* UvcStream::onFrameAcquireLocked()
+ImxStreamBuffer* UvcStream::onFrameAcquire()
 {
     ALOGV("%s", __func__);
-    return DMAStream::onFrameAcquireLocked();
+    return DMAStream::onFrameAcquire();
 }
 
-int32_t UvcStream::onFrameReturnLocked(ImxStreamBuffer& buf)
+int32_t UvcStream::onFrameReturn(ImxStreamBuffer& buf)
 {
     ALOGV("%s", __func__);
-    return DMAStream::onFrameReturnLocked(buf);
+    return DMAStream::onFrameReturn(buf);
 }
 
 // usb camera require the specific buffer size.

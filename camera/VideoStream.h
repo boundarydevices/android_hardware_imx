@@ -37,24 +37,11 @@ public:
 
     void setOmitFrameCount(uint32_t omitCount) { mOmitFrmCount = omitCount; }
 
-    // configure device.
-    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps) = 0; 
-    // start device.
-    virtual int32_t onDeviceStartLocked()  = 0;
-    // stop device.
-    virtual int32_t onDeviceStopLocked() = 0;
-
     // get buffer from V4L2.
-    virtual ImxStreamBuffer* onFrameAcquireLocked();
+    virtual ImxStreamBuffer* onFrameAcquire();
     // put buffer back to V4L2.
-    virtual int32_t onFrameReturnLocked(ImxStreamBuffer& buf)  = 0;
-
-    // allocate buffers.
-    virtual int32_t allocateBuffersLocked()  = 0;
-    // free buffers.
-    virtual int32_t freeBuffersLocked()  = 0;
-
-    virtual int32_t onFlushLocked();
+    virtual int32_t onFrameReturn(ImxStreamBuffer& buf)  = 0;
+    virtual int32_t onFlush();
 
     // Wrapper function for easy use when capture intent changed, succh as take picture when preview.
     // If same config, do nothing. If already start, need fisrt stop, free buffer, then config, alloc buffer, start.
@@ -69,7 +56,20 @@ public:
     CameraDeviceSessionHwlImpl *getSession() { return mSession; }
 
 protected:
-    virtual int32_t postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, int32_t v4l2Format);
+    virtual int32_t postConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, int32_t v4l2Format);
+
+private:
+    // configure device.
+    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps) = 0;
+    // start device.
+    virtual int32_t onDeviceStartLocked()  = 0;
+    // stop device.
+    virtual int32_t onDeviceStopLocked() = 0;
+
+    // allocate buffers.
+    virtual int32_t allocateBuffersLocked()  = 0;
+    // free buffers.
+    virtual int32_t freeBuffersLocked()  = 0;
 
 public:
     uint32_t mFps = 0;
@@ -97,6 +97,8 @@ protected:
     uint32_t mFrames;
     char soc_type[PROPERTY_VALUE_MAX];
     uint32_t mRecoverCount;
+
+    Mutex mV4l2Lock;
 };
 
 }  // namespace android

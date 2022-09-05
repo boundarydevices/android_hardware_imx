@@ -172,9 +172,11 @@ int32_t DMAStream::onDeviceStopLocked()
     return 0;
 }
 
-int32_t DMAStream::onFrameReturnLocked(ImxStreamBuffer& buf)
+int32_t DMAStream::onFrameReturn(ImxStreamBuffer& buf)
 {
     //ALOGV("%s: index:%d", __func__, index);
+    Mutex::Autolock _l(mV4l2Lock);
+
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes;

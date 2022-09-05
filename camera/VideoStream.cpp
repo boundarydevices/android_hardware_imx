@@ -54,12 +54,11 @@ VideoStream::~VideoStream()
 int32_t VideoStream::openDev(const char* name)
 {
     ALOGI("%s", __func__);
+
     if (name == NULL) {
         ALOGE("invalid dev name");
         return BAD_VALUE;
     }
-
-    //Mutex::Autolock lock(mLock);
 
     mDev = open(name, O_RDWR | O_NONBLOCK);
     if (mDev <= 0) {
@@ -85,7 +84,9 @@ int32_t VideoStream::closeDev()
     return 0;
 }
 
-int32_t VideoStream::onFlushLocked() {
+int32_t VideoStream::onFlush() {
+    Mutex::Autolock _l(mV4l2Lock);
+
     int32_t ret = 0;
 
     struct v4l2_plane planes;
@@ -147,6 +148,11 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, format, width, height, fps, sceneMode);
         return 0;
     }
+
+    // Drain images in mImageList, or the returned v4l2 buffers may not math the latest config.
+    getSession()->getImgProcThread()->drainImages(2000);
+
+    Mutex::Autolock _l(mV4l2Lock);
 
     if(mbStart) {
         ret = onDeviceStopLocked();
@@ -238,6 +244,8 @@ int32_t VideoStream::Stop()
 {
     int ret;
 
+    Mutex::Autolock _l(mV4l2Lock);
+
     if(mbStart == false)
         return 0;
 
@@ -260,7 +268,7 @@ int32_t VideoStream::Stop()
     return 0;
 }
 
-int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, int32_t v4l2Format)
+int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, int32_t v4l2Format)
 {
     mWidth = width;
     mHeight = height;
@@ -286,9 +294,10 @@ int32_t VideoStream::postConfigure(uint32_t format, uint32_t width, uint32_t hei
 }
 
 #define SELECT_TIMEOUT_SECONDS 3
-ImxStreamBuffer* VideoStream::onFrameAcquireLocked()
+ImxStreamBuffer* VideoStream::onFrameAcquire()
 {
     ALOGV("%s", __func__);
+
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes;
@@ -329,9 +338,12 @@ capture_data:
         goto capture_data;
     }
 
+    mV4l2Lock.lock();
+
     ret = ioctl(mDev, VIDIOC_DQBUF, &cfilledbuffer);
     if (ret < 0) {
         ALOGE("%s: VIDIOC_DQBUF Failed: %s", __func__, strerror(errno));
+        mV4l2Lock.unlock();
         return NULL;
     }
 
@@ -346,12 +358,15 @@ capture_data:
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
             ALOGE("%s VIDIOC_QBUF Failed", __func__);
+            mV4l2Lock.unlock();
             return NULL;
         }
         mOmitFrames--;
+        mV4l2Lock.unlock();
         goto capture_data;
     }
 
+    mV4l2Lock.unlock();
     return mBuffers[cfilledbuffer.index];
 }
 

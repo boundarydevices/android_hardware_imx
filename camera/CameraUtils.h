@@ -90,7 +90,7 @@
                                  GRALLOC_USAGE_SW_WRITE_NEVER | \
                                  GRALLOC_USAGE_HW_CAMERA_WRITE
 
-#define NUM_PREVIEW_BUFFER      2
+#define NUM_PREVIEW_BUFFER      3
 #define NUM_CAPTURE_BUFFER      1
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))

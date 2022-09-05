@@ -24,6 +24,7 @@
 #include <camera_device_session_hwl.h>
 #include <set>
 #include <map>
+#include <list>
 #include "CameraDeviceHWLImpl.h"
 #include "UvcStream.h"
 #include "CameraMetadata.h"
@@ -86,6 +87,13 @@ typedef struct tag_request {
     HwlPipelineRequest hwlReq;
     std::vector<FenceFdInfo> outBufferFences;
     std::vector<uint32_t> camera_ids;
+
+    // In SubmitRequests(), FrameRequest is a vector, although till now the vector size is 1.
+    // In imgProc::HandleImage(), FrameRequest is proced one by one.
+    // So need free the vector when last FrameRequest is processed.
+    int idx;
+    int num;
+    void *vector; // save "std::vector<FrameRequest> *frame_request"
 } FrameRequest;
 
 // Implementation of CameraDeviceSessionHwl interface
@@ -206,12 +214,10 @@ private:
     CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physical_devices);
 
     int HandleRequest();
-
-    status_t HandleFrameLocked(std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata& requestMeta);
     status_t HandleMetaLocked(std::unique_ptr<HalCameraMetadata>& resultMeta, uint64_t timestamp);
 
-    status_t ProcessCapturedBuffer(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata& requestMeta);
-    status_t ProcessCapturedBuffer2(ImxStreamBuffer *srcBuf, StreamBuffer &output_buffers, FenceFdInfo &outFences, CameraMetadata &requestMeta);
+    status_t ProcessCapbuf2MultiOutbuf(ImxStreamBuffer *srcBuf, std::vector<StreamBuffer> &output_buffers, std::vector<FenceFdInfo> &outFences, CameraMetadata& requestMeta);
+    status_t ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBuf, StreamBuffer &output_buffers, FenceFdInfo &outFences, CameraMetadata &requestMeta);
 
     int32_t processJpegBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf, CameraMetadata *meta);
     int32_t processFrameBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf, CameraMetadata *meta);
@@ -224,6 +230,10 @@ private:
     int CleanRequestsLocked();
     status_t PickConfigStream(uint32_t pipeline_id, uint8_t intent);
     int HandleIntent(HwlPipelineRequest *hwReq);
+
+    int HandleImage();
+    status_t CapAndFeed(uint32_t frame, FrameRequest *frameRequest);
+    void DumpRequest();
 
 private:
     class WorkThread : public Thread
@@ -254,11 +264,66 @@ private:
        CameraDeviceSessionHwlImpl *mSession;
     };
 
+    typedef struct tag_ImageFeed {
+        uint32_t frame;
+        ImxStreamBuffer *v4l2Buffer;
+        FrameRequest *frameRequest;
+        std::vector<ImxStreamBuffer *> v4l2BufferList; // for logical camera
+    } ImageFeed;
+
+    class ImgProcThread : public Thread
+    {
+    public:
+        ImgProcThread(CameraDeviceSessionHwlImpl *pSession)
+            : Thread(false), mSession(pSession)
+            { }
+
+        virtual void onFirstRef() {
+            run("ImgProcThread", PRIORITY_URGENT_DISPLAY);
+        }
+
+        virtual status_t readyToRun() {
+            return 0;
+        }
+
+        virtual bool threadLoop() {
+            int ret = mSession->HandleImage();
+            if (ret != OK) {
+                ALOGI("%s exit...", __func__);
+                return false;
+            }
+            return true;
+        }
+
+        int feed(ImageFeed *imgFeed);
+        void releaseImgFeed(ImageFeed *imgFeed);
+        void drainImages(uint32_t waitItvlUs);
+        void DumpImage();
+
+    public:
+        CameraDeviceSessionHwlImpl *mSession;
+
+    public:
+        Mutex mImageListLock;
+        Condition mImageListCond;
+        std::list<ImageFeed *> mImageList;
+        uint64_t mLatestImageIdx;
+        uint64_t mProcdImageIdx;
+        uint32_t mLatestFrame;
+        uint32_t mProcdFrame;
+    };
+
 public:
     CameraSensorMetadata* getSensorData() { return &mSensorData; }
     char* getDevPath(int i) { return (*mDevPath[i]); }
     int getCapsMode(uint8_t sceneMode);
     int32_t getRawV4l2Format() { return m_raw_v4l2_format; }
+    uint32_t cameraId() { return camera_id_; }
+    sp<ImgProcThread>& getImgProcThread() { return mImgProcThread; }
+
+private:
+    Mutex mLock;
+    Condition mCondition;
 
 private:
     // Protects the API entry points
@@ -277,9 +342,10 @@ private:
     std::vector<VideoStream*> pVideoStreams;
 
     sp<WorkThread> mWorkThread;
+    sp<ImgProcThread> mImgProcThread;
     sp<JpegBuilder> mJpegBuilder;
 
-    PhysicalMetaMapPtr physical_device_map_;
+    PhysicalMetaMapPtr physical_meta_map_;
 
     std::unique_ptr<HalCameraMetadata> static_metadata_;
 
@@ -292,8 +358,6 @@ private:
     std::unordered_map<float, uint32_t> physical_focal_length_map_;
     float current_focal_length_ = 0.f;
 
-    Mutex mLock;
-    Condition mCondition;
 
     int previewIdx;
     int stillcapIdx;
@@ -317,6 +381,11 @@ private:
     int mMaxHeight = 0;
     struct viv_caps_supports caps_supports;
     int32_t m_raw_v4l2_format;
+
+    bool mDebug;
+    uint64_t mPreHandleImageTime;
+    uint64_t mPreCapAndFeedTime;
+    uint64_t mPreSubmitRequestTime;
 };
 
 }  // namespace android

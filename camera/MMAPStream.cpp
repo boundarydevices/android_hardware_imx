@@ -130,7 +130,7 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
         return ret;
     }
 
-    ret = postConfigure(format, width, height, fps, vformat);
+    ret = postConfigureLocked(format, width, height, fps, vformat);
 
     return ret;
 }
@@ -335,9 +335,12 @@ int32_t MMAPStream::onDeviceStopLocked()
     return 0;
 }
 
-int32_t MMAPStream::onFrameReturnLocked(ImxStreamBuffer& buf)
+int32_t MMAPStream::onFrameReturn(ImxStreamBuffer& buf)
 {
     ALOGV("%s", __func__);
+
+    Mutex::Autolock _l(mV4l2Lock);
+
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes;

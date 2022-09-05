@@ -39,7 +39,7 @@ public:
     virtual int32_t onDeviceStopLocked();
 
     // put buffer back to V4L2.
-    virtual int32_t onFrameReturnLocked(ImxStreamBuffer& buf);
+    virtual int32_t onFrameReturn(ImxStreamBuffer& buf);
 
     // allocate buffers.
     virtual int32_t allocateBuffersLocked();

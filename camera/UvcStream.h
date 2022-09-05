@@ -39,9 +39,9 @@ public:
     // stop device.
     virtual int32_t onDeviceStopLocked();
     // get buffer from V4L2.
-    virtual ImxStreamBuffer* onFrameAcquireLocked();
+    virtual ImxStreamBuffer* onFrameAcquire();
     // put buffer back to V4L2.
-    virtual int32_t onFrameReturnLocked(ImxStreamBuffer& buf);
+    virtual int32_t onFrameReturn(ImxStreamBuffer& buf);
 
     // get device buffer required size.
     virtual int32_t getDeviceBufferSize();
