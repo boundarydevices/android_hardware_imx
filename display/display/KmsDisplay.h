@@ -23,7 +23,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <utils/threads.h>
-#include <wv_client.h>
+#include <hwsecure_client.h>
 
 #include "MemoryManager.h"
 #include "MemoryDesc.h"

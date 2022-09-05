@@ -1,10 +1,10 @@
 cc_test {
-    name: "wv_trusty_client_unittest",
+    name: "wv_hwsecure_client_unittest",
 
     srcs: ["main.cpp"],
 
     static_libs: [
-        "libwvtrustyclient",
+        "libhwsecureclient",
         "libtrusty",
         "libtrustystorage",
         "libtrustystorageinterface",

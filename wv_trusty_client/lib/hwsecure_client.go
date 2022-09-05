@@ -1,4 +1,4 @@
-package wv_client
+package hwsecure_client
 
 import (
         "android/soong/android"
@@ -6,16 +6,16 @@ import (
 )
 
 func init() {
-    android.RegisterModuleType("libwvtrustyclient_defaults", libwvtrustyclientDefaultsFactory)
+    android.RegisterModuleType("libhwsecureclient_defaults", libhwsecureclientDefaultsFactory)
 }
 
-func libwvtrustyclientDefaultsFactory() (android.Module) {
+func libhwsecureclientDefaultsFactory() (android.Module) {
     module := cc.DefaultsFactory()
-    android.AddLoadHook(module, libwvtrustyclientsDefault)
+    android.AddLoadHook(module, libhwsecureclientDefault)
     return module
 }
 
-func libwvtrustyclientsDefault(ctx android.LoadHookContext) {
+func libhwsecureclientDefault(ctx android.LoadHookContext) {
     type props struct {
         Target struct {
                 Android struct {
