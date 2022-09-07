@@ -29,6 +29,13 @@ PressureSensor::PressureSensor(int32_t sensorHandle, ISensorsEventCallback* call
     // it's align with old sensor hal
     mSensorInfo.minDelay = 2500;
     mSensorInfo.maxDelay = 500000;
+    if (iio_data.type == SensorType::AMBIENT_TEMPERATURE)
+        mSensorInfo.flags = SensorFlagBits::DATA_INJECTION |
+                 SensorFlagBits::ON_CHANGE_MODE;
+    if (iio_data.type == SensorType::PRESSURE)
+        mSensorInfo.flags = SensorFlagBits::DATA_INJECTION |
+                 SensorFlagBits::CONTINUOUS_MODE;
+
     mSysfspath = iio_data.sysfspath;
     mRunThread = std::thread(std::bind(&PressureSensor::run, this));
 }
