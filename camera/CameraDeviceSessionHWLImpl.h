@@ -235,6 +235,8 @@ private:
     status_t CapAndFeed(uint32_t frame, FrameRequest *frameRequest);
     void DumpRequest();
 
+    VideoStream* GetVideoStreamByPhysicalId(uint32_t physical_id);
+
 private:
     class WorkThread : public Thread
     {
@@ -350,6 +352,7 @@ private:
     std::unique_ptr<HalCameraMetadata> static_metadata_;
 
     std::vector<std::shared_ptr<char*>> mDevPath;
+    std::vector<uint32_t> mPhysicalIds;
 
     bool is_logical_device_ = false;
     bool is_logical_request_ = false;

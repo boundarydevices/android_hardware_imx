@@ -121,6 +121,7 @@ public:
         mbPreview = bPreview;
         mZoomRatio = 1.0;
         mSceneMode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
+        mPhysicalId = 0;
     }
 
     uint32_t width() {return mWidth;}
@@ -130,6 +131,7 @@ public:
     int32_t id() {return mId;}
     bool isPreview() {return mbPreview;}
     bool isPictureIntent() {return (mCaptureIntent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE);}
+    void setPhysicalId(uint32_t physicalId) { mPhysicalId = physicalId; }
 
 public:
     uint32_t mWidth = 0;
@@ -141,6 +143,7 @@ public:
     uint8_t mCaptureIntent = -1;
     float mZoomRatio = 1.0;
     uint8_t mSceneMode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
+    uint32_t mPhysicalId = 0;
 };
 
 struct SensorSet

@@ -111,14 +111,17 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
     ALOGI("Initialize, meta %p, entry count %zu", static_metadata_.get(), static_metadata_->GetEntryCount());
 
     mDevPath = pDev->mDevPath;
+    mPhysicalIds = pDev->mPhysicalIds;
+
     CameraSensorMetadata *cam_metadata = &(pDev->mSensorData);
     pVideoStreams.resize(mDevPath.size());
     for (int i = 0; i < (int)mDevPath.size(); ++i) {
-        ALOGI("%s: create video stream for camera %s, buffer type %d, path %s",
+        ALOGI("%s: create video stream for camera %s, buffer type %d, path %s, physical id %d",
                 __func__,
                 cam_metadata->camera_name,
                 cam_metadata->buffer_type,
-                *mDevPath[i]);
+                *mDevPath[i],
+                mPhysicalIds[i]);
 
         if (strstr(cam_metadata->camera_name, UVC_NAME)) {
             pVideoStreams[i] = new UvcStream(*mDevPath[i], this);
@@ -144,6 +147,8 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
             ALOGE("pVideoStreams[%d]->openDev failed, ret %d",i, ret);
             return BAD_VALUE;
         }
+
+        pVideoStreams[i]->setPhysicalId(mPhysicalIds[i]);
     }
 
     if ((physical_meta_map_.get() != nullptr) && (!physical_meta_map_->empty())) {
@@ -428,6 +433,18 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
     return OK;
 }
 
+VideoStream* CameraDeviceSessionHwlImpl::GetVideoStreamByPhysicalId(uint32_t physical_id)
+{
+    for (int i = 0; i < (int)pVideoStreams.size(); i++) {
+        if (physical_id == pVideoStreams[i]->mPhysicalId) {
+            return pVideoStreams[i];
+            break;
+        }
+    }
+
+    return NULL;
+}
+
 status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *frameRequest)
 {
     ImxStreamBuffer *pImxStreamBuffer = NULL;
@@ -438,18 +455,54 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
         return BAD_VALUE;
 
     if (is_logical_request_) {
-        size_t outbufNum = frameRequest->hwlReq.output_buffers.size();
-        v4l2BufferList.resize(outbufNum);
+        std::vector<StreamBuffer> &output_buffers = frameRequest->hwlReq.output_buffers;
+        int outbufNum = (int)output_buffers.size();
 
-        for (size_t index = 0; index < outbufNum; index++) {
-            size_t video_idx = index % pVideoStreams.size();
-            v4l2BufferList[index] = pVideoStreams[video_idx]->onFrameAcquire();
-            if (v4l2BufferList[index] == NULL) {
-                ALOGW("%s: onFrameAcquire failed, buf idx %zu, video indx %zu",
-                    __func__, index, video_idx);
+        for (int outBufIdx = 0; outBufIdx < outbufNum; outBufIdx++) {
+             Stream *pStream = GetStreamFromStreamBuffer(&output_buffers[outBufIdx]);
+             if (pStream == NULL) {
+                ALOGE("%s, dst buf belong to stream %d, but the stream is not configured", __func__, output_buffers[outBufIdx].stream_id);
                 goto fail;
             }
+
+            uint32_t physical_id = pStream->physical_camera_id;
+            bool bCaptured = false;
+
+            ALOGV("%s: outBufIdx %d, physical_id %d", __func__, outBufIdx, physical_id);
+
+            for (auto it = v4l2BufferList.begin(); it != v4l2BufferList.end(); it++) {
+                pImxStreamBuffer = *it;
+                if (pImxStreamBuffer->mStream->mPhysicalId == physical_id) {
+                    bCaptured = true;
+                    break;
+                }
+            }
+
+            if (bCaptured) {
+                ALOGV("%s: physical_camera_id %d already captured, outBufIdx %d", __func__, physical_id, outBufIdx);
+                continue;
+            }
+
+            VideoStream *pVideoStream = GetVideoStreamByPhysicalId(physical_id);
+
+            if (pVideoStream == NULL) {
+                ALOGW("%s: pVideoStream is NULL for physical_camera_id %u, outBufIdx %d",
+                    __func__, physical_id, outBufIdx);
+                goto fail;
+            }
+
+
+            pImxStreamBuffer = pVideoStream->onFrameAcquire();
+            if (pImxStreamBuffer == NULL) {
+                ALOGW("%s: onFrameAcquire failed, physical_camera_id %u, outBufIdx %d",
+                    __func__, physical_id, outBufIdx);
+                goto fail;
+            }
+
+            v4l2BufferList.push_back(pImxStreamBuffer);
         }
+
+        ALOGV("%s: v4l2BufferList.size %zu", __func__, v4l2BufferList.size());
 
     } else {
         pImxStreamBuffer = pVideoStreams[0]->onFrameAcquire();
@@ -622,10 +675,24 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     }
 
     // Image process
-    size_t outBufNum = hwReq.output_buffers.size();
+    int outBufNum = (int)hwReq.output_buffers.size();
     if(is_logical_request_) {
-        for (size_t i = 0; i < outBufNum; i++) {
-            ProcessCapbuf2Outbuf(imgFeed->v4l2BufferList[i], hwReq.output_buffers[i], frameRequest->outBufferFences[i], requestMeta);
+        for (int outBufIdx = 0; outBufIdx < outBufNum; outBufIdx++) {
+            Stream *pStream = GetStreamFromStreamBuffer(&hwReq.output_buffers[outBufIdx]);
+            if (pStream == NULL) {
+                ALOGW("%s: unexptect!!! no stream found for outBuf %d", __func__, outBufIdx);
+                continue;
+            }
+
+            uint32_t physical_id = pStream->physical_camera_id;
+
+            // Find a v4l2 buffer bind to physical_id, then process to the output buffer.
+            for (int j = 0; j < (int)imgFeed->v4l2BufferList.size(); j++) {
+                if (imgFeed->v4l2BufferList[j]->mStream->mPhysicalId == physical_id) {
+                    ProcessCapbuf2Outbuf(imgFeed->v4l2BufferList[j], hwReq.output_buffers[outBufIdx], frameRequest->outBufferFences[outBufIdx], requestMeta);
+                    break;
+                }
+            }
         }
     } else {
         ProcessCapbuf2MultiOutbuf(imgFeed->v4l2Buffer, hwReq.output_buffers, frameRequest->outBufferFences, requestMeta);
@@ -638,10 +705,10 @@ int CameraDeviceSessionHwlImpl::HandleImage()
 
     // return v4l2 buffer
     if(is_logical_request_) {
-      for (size_t i = 0; i < outBufNum; i++) {
-          size_t videoIdx = i % pVideoStreams.size();
-          pVideoStreams[videoIdx]->onFrameReturn(*(imgFeed->v4l2BufferList[i]));
-      }
+        for (int i = 0; i < (int)imgFeed->v4l2BufferList.size(); i++) {
+            VideoStream *pVideoStream = (VideoStream *)imgFeed->v4l2BufferList[i]->mStream;
+            pVideoStream->onFrameReturn(*(imgFeed->v4l2BufferList[i]));
+        }
     } else {
         pVideoStreams[0]->onFrameReturn(*(imgFeed->v4l2Buffer));
     }

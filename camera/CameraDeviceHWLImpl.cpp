@@ -27,7 +27,7 @@
 namespace android {
 
 std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
-    uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
+    uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
     CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
     PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
 {
@@ -37,10 +37,10 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
     CameraDeviceHwlImpl *device = NULL;
 
     if(strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
-        device = new ISPCameraDeviceHwlImpl(camera_id, devPaths, cam_copy_hw, cam_csc_hw,
+        device = new ISPCameraDeviceHwlImpl(camera_id, devPaths, physicalIds, cam_copy_hw, cam_csc_hw,
                             hw_jpeg, use_cpu_encoder, cam_metadata, std::move(physical_devices), callback);
     else
-        device = new CameraDeviceHwlImpl(camera_id, devPaths, cam_copy_hw, cam_csc_hw,
+        device = new CameraDeviceHwlImpl(camera_id, devPaths, physicalIds, cam_copy_hw, cam_csc_hw,
                             hw_jpeg, use_cpu_encoder, cam_metadata, std::move(physical_devices), callback);
 
     if (device == nullptr) {
@@ -62,7 +62,7 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
 }
 
 CameraDeviceHwlImpl::CameraDeviceHwlImpl(
-    uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
+    uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
     CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
     PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
     : camera_id_(camera_id),
@@ -75,6 +75,11 @@ CameraDeviceHwlImpl::CameraDeviceHwlImpl(
     mDevPath = devPaths;
     for (int i = 0; i < (int)mDevPath.size(); ++i) {
         ALOGI("%s, mDevPath[%d] %s", __func__, i, *mDevPath[i]);
+    }
+
+    mPhysicalIds = physicalIds;
+    for (int i = 0; i < (int)mPhysicalIds.size(); ++i) {
+        ALOGI("%s, mPhysicalIds %u", __func__, mPhysicalIds[i]);
     }
 
     strncpy(mJpegHw, hw_jpeg, JPEG_HW_NAME_LEN);

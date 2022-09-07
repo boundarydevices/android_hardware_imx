@@ -277,6 +277,8 @@ bool ConfigureCameras(const Json::Value& value,
                         int phy_camera_id = camera->camera_metadata_vec.size() - 1;
                         auto device_status =  CameraDeviceStatus::kPresent;
                         camera->camera_id_map_[camera_index].push_back(std::make_pair(device_status, phy_camera_id));
+                        ALOGI("%s: camera_id_map_, camera_index %d, phy_camera_id %d, name %s, camera->camera_metadata_vec size %zu",
+                            __func__, camera_index, phy_camera_id, temp.camera_name, camera->camera_metadata_vec.size());
                         break;
                     }
                 }
@@ -516,6 +518,7 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
 
     // store parsed camera metadata
     camera->camera_metadata_vec[camera_id] = (static_meta[cam_index]);
+    ALOGI("%s: camera->camera_metadata_vec size %lu, camera_id %d, cam_index %d", __func__, camera->camera_metadata_vec.size(), camera_id, cam_index);
 
     return true;
 }

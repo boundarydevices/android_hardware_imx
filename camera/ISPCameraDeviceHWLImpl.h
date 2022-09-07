@@ -26,10 +26,10 @@ namespace android {
 class ISPCameraDeviceHwlImpl : public CameraDeviceHwlImpl
 {
 public:
-    ISPCameraDeviceHwlImpl(uint32_t camera_id, /*std::vector<char*> devPath,*/ std::vector<std::shared_ptr<char*>> devPaths,
+    ISPCameraDeviceHwlImpl(uint32_t camera_id, /*std::vector<char*> devPath,*/ std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
       CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
       PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
-      : CameraDeviceHwlImpl(camera_id, /*devPath,*/ devPaths, cam_copy_hw, cam_csc_hw, hw_jpeg, use_cpu_encoder, cam_metadata, std::move(physical_devices), callback)
+      : CameraDeviceHwlImpl(camera_id, devPaths, physicalIds, cam_copy_hw, cam_csc_hw, hw_jpeg, use_cpu_encoder, cam_metadata, std::move(physical_devices), callback)
     {
         m_color_arrange = -1;
     }

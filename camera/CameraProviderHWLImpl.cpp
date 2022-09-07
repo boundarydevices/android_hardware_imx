@@ -139,6 +139,8 @@ void CameraProviderHwlImpl::enumSensorSet()
         logical_cam_id++;
     }
 
+    ALOGI("%s: mCameraDef.camera_metadata_vec size %lu", __func__, mCameraDef.camera_metadata_vec.size());
+
     // physical camera
     int first_physical_cam_id = MAX_BASIC_CAMERA_NUM; //24
     //At least need two physical cameras to compose logical camera group
@@ -424,13 +426,16 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
         return BAD_VALUE;
     }
 
+    ALOGI("%s: camera_id %u, camera_id_maps size %zu", __func__, camera_id, camera_id_maps[camera_id].size());
     CameraSensorMetadata cam_metadata = mCameraDef.camera_metadata_vec[camera_id];
 
     std::vector<std::shared_ptr<char*>> devPaths;
+    std::vector<uint32_t> physicalIds;
     auto target_physical_devices = std::make_unique<PhysicalDeviceMap>();
     if (camera_id_maps[camera_id].size() >= 2) {
         //Here only map the physical cameras' CameraSensorMetadata under the logical camera!
         for (const auto& physical_device : camera_id_maps[camera_id]) {
+            ALOGI("%s: physical_device.second %d", __func__, physical_device.second);
             target_physical_devices->emplace(physical_device.second,
                 std::make_pair(physical_device.first,
                     std::unique_ptr<CameraSensorMetadata>(new CameraSensorMetadata(
@@ -438,13 +443,16 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
         }
 
         for (const auto &physical_device : *target_physical_devices) {
+            ALOGI("%s: devPaths.push_back %s, id %d", __func__, mSets[physical_device.first].mDevPath, physical_device.first);
             devPaths.push_back(std::make_shared<char*>(mSets[physical_device.first].mDevPath));
+            physicalIds.push_back(physical_device.first);
         }
     } else {
         devPaths.push_back(std::make_shared<char*>(mSets[camera_id].mDevPath));
+        physicalIds.push_back(0);
     }
 
-    *camera_device_hwl = CameraDeviceHwlImpl::Create(camera_id, devPaths,
+    *camera_device_hwl = CameraDeviceHwlImpl::Create(camera_id, devPaths, physicalIds,
         mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw, mCameraDef.jpeg_hw.c_str(),
         mCameraDef.mUseCpuEncoder, &cam_metadata, std::move(target_physical_devices), mCallback);
 

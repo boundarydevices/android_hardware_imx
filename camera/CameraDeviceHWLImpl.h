@@ -44,7 +44,7 @@ using namespace cameraconfigparser;
 class CameraDeviceHwlImpl : public CameraDeviceHwl
 {
 public:
-    static std::unique_ptr<CameraDeviceHwl> Create(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
+    static std::unique_ptr<CameraDeviceHwl> Create(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
         CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
         PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
 
@@ -89,7 +89,7 @@ public:
         int *pPreviewResolutions, int nPreviewResolutionCount, int *pPictureResolutions, int nPictureResolutionCount);
 
 protected:
-    CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths,
+    CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
         CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
         PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
 
@@ -134,6 +134,7 @@ public:
     int mSensorFormatCount = 0;
 
     std::vector<std::shared_ptr<char*>> mDevPath;
+    std::vector<uint32_t> mPhysicalIds;
 
     CscHw mCamBlitCopyType;
     CscHw mCamBlitCscType;
