@@ -265,6 +265,8 @@ public:
     int getConfigGroup(int config);
     virtual int changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool seamlessRequired,
                             nsecs_t *outAppliedTime, bool *outRefresh, nsecs_t *outRefreshTime);
+    // return whether Rect outer contains Rect inner or not
+    bool contains(const Rect& outer, const Rect& inner);
 
 
 protected:
