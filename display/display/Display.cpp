@@ -608,6 +608,11 @@ bool Display::directCompositionLocked()
     return force;
 }
 
+bool Display::contains(const Rect& outer, const Rect& inner) {
+    return outer.left <= inner.left && outer.right >= inner.right && outer.top <= inner.top &&
+            outer.bottom >= inner.bottom;
+}
+
 bool Display::verifyLayers()
 {
     bool deviceCompose = true;
@@ -624,10 +629,7 @@ bool Display::verifyLayers()
     // get deviceCompose init value
     deviceCompose = check2DComposition();
 
-#ifdef HAVE_UNMAPPED_HEAP
-    bool hasSecureLayer = false;
-#endif
-    std::vector<int32_t> zorderVector;
+    std::unordered_map<int32_t,Rect> layerZVector;
     for (size_t i=0; i<MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
@@ -700,7 +702,6 @@ bool Display::verifyLayers()
                     mLayers[ovIdx]->isOverlay = false;
                     idx = ovIdx; // previous overlay layer restore to CLIENT type
                     ovIdx = i;
-                    hasSecureLayer = true;
                 }
             }
 #endif
@@ -710,7 +711,7 @@ bool Display::verifyLayers()
             mLayers[idx]->type = LAYER_TYPE_CLIENT;
             mComposeFlag |= 1 << CLIENT_COMPOSE_BIT;
             mTotalLayerNum++;
-            zorderVector.emplace_back(mLayers[idx]->zorder);
+            layerZVector.emplace(mLayers[idx]->zorder,mLayers[idx]->displayFrame);
 
             // Here compare current layer info with previous one to determine
             // whether UI has update. IF no update,won't commit to framebuffer
@@ -732,18 +733,13 @@ bool Display::verifyLayers()
 
     if (ovIdx >= 0) {
         bool shouldOverlay = true;
-        for (auto zorder : zorderVector) {
-            if (zorder < mLayers[ovIdx]->zorder) {
+        for (auto& v : layerZVector) {
+            if (v.first < mLayers[ovIdx]->zorder && contains(v.second,mLayers[ovIdx]->displayFrame)) {
                 shouldOverlay = false;
                 break;
             }
         }
 
-#ifdef HAVE_UNMAPPED_HEAP
-        if (hasSecureLayer) {
-            shouldOverlay = true; //SecureLayer always use overlay
-        }
-#endif
         if (shouldOverlay) {
             mOverlay = mLayers[ovIdx];
             mOverlay->isOverlay = true;
