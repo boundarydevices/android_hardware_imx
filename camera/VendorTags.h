@@ -19,8 +19,7 @@ typedef enum enumImxTag {
     VSI_CONTRAST,
     VSI_SATURATION,
     VSI_HUE,
-    VSI_SHARP_LEVEL,
-    VSI_EXPOSURE_GAIN
+    VSI_SHARP_LEVEL
 } ImxTag;
 
 static const std::vector<VendorTagSection> kImxTagSections = {
@@ -72,11 +71,6 @@ static const std::vector<VendorTagSection> kImxTagSections = {
                     .tag_id = VSI_SHARP_LEVEL,
                     .tag_name = "sharp.level",
                     .tag_type = CameraMetadataType::kByte,
-                },
-                {
-                    .tag_id = VSI_EXPOSURE_GAIN,
-                    .tag_name = "exposure.gain",
-                    .tag_type = CameraMetadataType::kInt32,
                 },
             }
     }
