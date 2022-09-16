@@ -145,9 +145,6 @@ struct viv_caps_supports{
 #define SHARP_LEVEL_MIN           (uint8_t)1
 #define SHARP_LEVEL_MAX           (uint8_t)10
 
-
-
-
 namespace android {
 
 using google_camera_hal::HalCameraMetadata;
@@ -156,7 +153,7 @@ using cameraconfigparser::CameraSensorMetadata;
 class ISPWrapper
 {
 public:
-    ISPWrapper(CameraSensorMetadata *pSensorData);
+    ISPWrapper(CameraSensorMetadata *pSensorData, void *stream);
     ~ISPWrapper();
     int init(int fd);
     int process(HalCameraMetadata *pMeta, uint32_t format);
@@ -168,6 +165,8 @@ public:
     int viv_private_ioctl(const char *cmd, Json::Value& jsonRequest, Json::Value& jsonResponse);
     void parseDewarpParams(Json::Value& node);
     void getExpGainBoundary();
+    void getLatestExpWB();
+    int recoverExpWB();
 
 private:
     int setFeature(const char *value);
@@ -185,6 +184,8 @@ private:
 
     int EnableDWE(bool on);
     int enableAWB(bool enable);
+    int setExposure(double gain, double time);
+    int setWB(float r, float gr, float gb, float b);
 
 private:
     int m_fd;
@@ -208,6 +209,14 @@ private:
     int m_hue;
 
     uint8_t m_sharp_level;
+    double m_last_exposure_gain;
+    double m_last_exposure_time;
+    float m_last_wb_r;
+    float m_last_wb_gr;
+    float m_last_wb_gb;
+    float m_last_wb_b;
+
+    void *m_stream; // ISPCameraMMAPStream*
 };
 
 } // namespace android

@@ -332,24 +332,36 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
 
 int32_t ISPCameraMMAPStream::onDeviceStartLocked()
 {
-    int ret = MMAPStream::onDeviceStartLocked();
-    if (ret) {
-        ALOGE("%s: MMAPStream::onDeviceStartLocked failed, ret %d", __func__, ret);
-        return ret;
-    }
-
     // When restart stream (shift between picture and record mode, or shift between APK), need recover to awb,
     // or the image will blurry if previous mode is mwb.
     // awb/aec need to be set after stream on.
     if (mFormat != HAL_PIXEL_FORMAT_RAW16) {
-        m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO, true);
-        m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
+        if (isPictureIntent()) {
+            m_IspWrapper->recoverExpWB();
+        } else {
+            m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO, true);
+            m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
+        }
     } else {
         // For raw data capture, no concept of aec and auto/manual wb.
         // Need manually set exposure gain.
         m_IspWrapper->processExposureGain(0, true);
     }
 
+    int ret = MMAPStream::onDeviceStartLocked();
+    if (ret) {
+        ALOGE("%s: MMAPStream::onDeviceStartLocked failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    return ret;
+}
+
+int32_t ISPCameraMMAPStream::onDeviceStopLocked()
+{
+    m_IspWrapper->getLatestExpWB();
+
+    int ret = MMAPStream::onDeviceStopLocked();
     return ret;
 }
 
@@ -357,7 +369,7 @@ int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath __unused, CameraSen
 {
     int ret = 0;
 
-    m_IspWrapper = std::make_unique<ISPWrapper>(pSensorData);
+    m_IspWrapper = std::make_unique<ISPWrapper>(pSensorData, (void *)this);
 
     return ret;
 }
