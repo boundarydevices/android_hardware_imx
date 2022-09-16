@@ -3614,11 +3614,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config.channels = popcount(config->channel_mask);
 
         update_passthrough_status();
-        if (strcmp(ladev->device_name, "evk_8mp") == 0) {
+        if (strcmp(ladev->device_name, "evk_8mp") == 0 ||
+                strcmp(ladev->device_name, "evk_8ulp") == 0) {
             out->config.format = PCM_FORMAT_S24_LE;
             if (passthrough_enabled) {
                 passthrough_for_s24 = true;
-                ALOGI("%s, passthrough is enabled on evk_8mp", __func__);
+                ALOGI("%s, passthrough is enabled", __func__);
             }
         }
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT &&
