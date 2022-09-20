@@ -111,7 +111,7 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
         format == FORMAT_BLOB) {
         canHandle = false;
     }
-    else if (usage & USAGE_HW_VIDEO_ENCODER) {
+    else if (usage & USAGE_HW_VIDEO_ENCODER || usage & USAGE_PROTECTED) {
         canHandle = false;
     }
     else if ((usage == (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER | USAGE_HW_TEXTURE)) ||

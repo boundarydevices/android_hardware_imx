@@ -117,6 +117,7 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8ULP" {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DWORKAROUND_DCNANO_BGRX")
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DHAVE_UNMAPPED_HEAP")
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").Bool("HAVE_FSL_IMX_GPU3D") {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags,"-DUSE_SW_OPENGL")
