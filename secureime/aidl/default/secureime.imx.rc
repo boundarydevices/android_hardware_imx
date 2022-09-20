@@ -1,0 +1,3 @@
+service vendor.secureime-default /vendor/bin/hw/nxp.hardware.secureime-service
+    user system
+    group system

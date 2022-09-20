@@ -1,0 +1,42 @@
+// Copyright (C) 2020 The Android Open Source Project
+// Copyright 2022 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+cc_binary {
+    name: "nxp.hardware.secureime-service",
+    relative_install_path: "hw",
+    init_rc: ["secureime.imx.rc"],
+    vintf_fragments: ["secureime.imx.xml"],
+    vendor: true,
+    shared_libs: [
+        "libbase",
+        "libbinder",
+        "libbinder_ndk",
+        "libutils",
+        "liblog",
+        "libhardware",
+        "nxp.hardware.secureime-V1-ndk",
+    ],
+    static_libs: [
+        "libtrusty",
+    ],
+    srcs: [
+        "main.cpp",
+        "SecureIME.cpp",
+    ],
+}
