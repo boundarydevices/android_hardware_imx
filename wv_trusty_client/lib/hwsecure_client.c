@@ -30,7 +30,8 @@
 
 #define TRUSTY_DEVICE_NAME "/dev/trusty-ipc-dev0"
 #define UNUSED __attribute__((unused))
-#ifdef SUPPORT_WIDEVINE_L1
+
+#if defined(SUPPORT_WIDEVINE_L1) || defined(SUPPORT_SECUREIME)
 static int handle_ = -1;
 static int hwsecure_client_smc_call(uint32_t cmd, void *rsp, uint32_t rsp_len) {
     if (handle_ < 0) {
@@ -82,7 +83,7 @@ out:
     return rc;
 }
 
-static int wv_tipc_connect() {
+static int hwsecure_connect() {
     int rc = tipc_connect(TRUSTY_DEVICE_NAME, HWSECURE_CLIENT_PORT);
     if (rc < 0) {
         ALOGE("TIPC Connect failed (%d)!", rc);
@@ -93,7 +94,7 @@ static int wv_tipc_connect() {
     return 0;
 }
 
-static void wv_tipc_disconnect() {
+static void hwsecure_disconnect() {
     if (handle_ >= 0) {
         tipc_close(handle_);
     }
@@ -105,7 +106,7 @@ static void wv_tipc_disconnect() {
 void set_g2d_secure_pipe(int enable UNUSED) {
 #ifdef SUPPORT_WIDEVINE_L1
     ALOGD("will set g2d secure pipe mode: %d", enable);
-    if (wv_tipc_connect()) {
+    if (hwsecure_connect()) {
         return;
     }
     struct hwsecure_client_resp resp;
@@ -114,23 +115,48 @@ void set_g2d_secure_pipe(int enable UNUSED) {
     } else {
         hwsecure_client_smc_call(DISABLE_G2D_SECURE_MODE, &resp, sizeof(struct hwsecure_client_resp));
     }
-    wv_tipc_disconnect();
+    hwsecure_disconnect();
+#endif
+#ifdef SUPPORT_SECUREIME
+    ALOGD("will set secure_ime secure policy mode: %d", enable);
+    if (hwsecure_connect()) {
+        return;
+    }
+    struct hwsecure_client_resp resp;
+    if (enable) {
+        hwsecure_client_smc_call(SECURE_IME_ENABLE_SECURE_POLICY, &resp, sizeof(struct hwsecure_client_resp));
+    } else {
+        hwsecure_client_smc_call(SECURE_IME_DISABLE_SECURE_POLICY, &resp, sizeof(struct hwsecure_client_resp));
+    }
+    hwsecure_disconnect();
 #endif
 }
 
 enum g2d_secure_mode get_g2d_secure_pipe() {
 #ifdef SUPPORT_WIDEVINE_L1
-    if (wv_tipc_connect()) {
+    if (hwsecure_connect()) {
         return -1;
     }
     struct hwsecure_client_resp resp;
     resp.mode.g2d_secure_mode = 0;
     hwsecure_client_smc_call(GET_G2D_SECURE_MODE, &resp, sizeof(struct hwsecure_client_resp));
     ALOGD("will get g2d secure pipe mode: %d", resp.mode.g2d_secure_mode);
-    wv_tipc_disconnect();
+    hwsecure_disconnect();
     return resp.mode.g2d_secure_mode;
-#else
-    return NON_SECURE;
 #endif
+
+#ifdef SUPPORT_SECUREIME
+    if (hwsecure_connect()) {
+        return -1;
+    }
+    struct hwsecure_client_resp resp;
+    resp.mode.secureime_secure_mode = 0;
+    hwsecure_client_smc_call(SECURE_IME_GET_SECURE_MODE, &resp, sizeof(struct hwsecure_client_resp));
+    ALOGD("Get secureime_secure_mode: %d", resp.mode.secureime_secure_mode);
+    hwsecure_disconnect();
+    return resp.mode.secureime_secure_mode;
+#endif
+
+    return NON_SECURE;
 }
 

@@ -27,6 +27,10 @@ enum hwsecure_client_cmd : uint32_t {
     ENABLE_G2D_SECURE_MODE= (1 << HWSECURE_CLIENT_REQ_SHIFT),
     DISABLE_G2D_SECURE_MODE = (2 << HWSECURE_CLIENT_REQ_SHIFT),
     GET_G2D_SECURE_MODE = (3 << HWSECURE_CLIENT_REQ_SHIFT),
+
+    SECURE_IME_ENABLE_SECURE_POLICY =   (4 << HWSECURE_CLIENT_REQ_SHIFT),
+    SECURE_IME_DISABLE_SECURE_POLICY =  (5 << HWSECURE_CLIENT_REQ_SHIFT),
+    SECURE_IME_GET_SECURE_MODE =        (6 << HWSECURE_CLIENT_REQ_SHIFT),
 };
 
 struct hwsecure_client_req {
@@ -38,6 +42,7 @@ struct hwsecure_client_resp {
     uint32_t result;
     union secure_mode {
         uint32_t g2d_secure_mode;
+        uint32_t secureime_secure_mode;
     } mode;
 };
 

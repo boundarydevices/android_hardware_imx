@@ -27,5 +27,8 @@ func libhwsecureclientDefault(ctx android.LoadHookContext) {
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8MP" {
          p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DSUPPORT_WIDEVINE_L1")
     }
+    if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX8ULP" {
+         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DSUPPORT_SECUREIME")
+    }
     ctx.AppendProperties(p)
 }
