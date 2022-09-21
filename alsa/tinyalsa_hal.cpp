@@ -51,7 +51,7 @@
 
 
 /*align the definition in kernel for hdmi audio*/
-#define HDMI_PERIOD_SIZE       192
+#define HDMI_PERIOD_SIZE       960
 #define PLAYBACK_HDMI_PERIOD_COUNT      8
 
 #define ESAI_PERIOD_SIZE       1024
