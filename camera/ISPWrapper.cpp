@@ -46,6 +46,7 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData)
     // When init, aec is on. m_exposure_comp is only valid when aec is off, set to an invalid value.
     m_exposure_comp = m_SensorData->mAeCompMax + 1;
     m_exposure_time = 0.0;
+    m_exposure_gain = 0;
 
     memset(&m_dwePara, 0, sizeof(m_dwePara));
     // Align with daA3840_30mc_1080P.json
@@ -251,7 +252,19 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
     if(ret == 0)
         processAWB(entry.data.u8[0]);
 
+// ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION is a para related to AEC.
+// Not the exposure gain of VSI ISP lib, it needs disable AEC.
+#if 0
     ret = pMeta->Get(ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION, &entry);
+    if(ret == 0)
+        processExposureGain(entry.data.i32[0]);
+#endif
+
+    ret = pMeta->Get(ANDROID_CONTROL_AE_MODE, &entry);
+    if(ret == 0)
+        processAeMode(entry.data.u8[0]);
+
+    ret = pMeta->Get(VSI_EXPOSURE_GAIN, &entry);
     if(ret == 0)
         processExposureGain(entry.data.i32[0]);
 
@@ -298,16 +311,6 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format)
     ret = pMeta->Get(VSI_SHARP_LEVEL, &entry);
     if(ret == 0)
         processSharpLevel(entry.data.u8[0]);
-
-#if 0
-    // The com.intermedia.hd.camera.professional.fbnps_8730133319.apk enalbes aec right
-    // after set exposure value, so the brightness will recover very quickly, hard to demo
-    // the effect. Will uncomment the code after find a suitable APK.
-
-    ret = pMeta->Get(ANDROID_CONTROL_AE_MODE, &entry);
-    if(ret == 0)
-        processAeMode(entry.data.u8[0]);
-#endif
 
     return 0;
 }
@@ -403,27 +406,25 @@ void ISPWrapper::getExpGainBoundary()
     return;
 }
 
-int ISPWrapper::processExposureGain(int32_t comp, bool force)
+#define GAIN_LEVEL_MIN 1
+#define GAIN_LEVEL_MAX 10
+
+int ISPWrapper::processExposureGain(int32_t gain, bool force)
 {
     int ret;
     Json::Value jRequest, jResponse;
 
-    if((m_exposure_comp == comp) && (force == false))
+    if((m_exposure_gain == gain) && (force == false))
         return 0;
 
-    if(comp > m_SensorData->mAeCompMax) comp = m_SensorData->mAeCompMax;
-    if(comp < m_SensorData->mAeCompMin) comp = m_SensorData->mAeCompMin;
+    if(gain > GAIN_LEVEL_MAX) gain = GAIN_LEVEL_MAX;
+    if(gain < GAIN_LEVEL_MIN) gain = GAIN_LEVEL_MIN;
 
     // first disable aec
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
 
-    // Fix me, currntly just linear map compensation value to gain.
-    // In theory, should use (step * value) to calculate the exposure value.
-    // Ref https://developer.android.com/reference/android/hardware/camera2/CameraCharacteristics#CONTROL_AE_COMPENSATION_STEP.
-    // One unit of EV compensation changes the brightness of the captured image by a factor of two.
-    // +1 EV doubles the image brightness, while -1 EV halves the image brightness.
-    // But we don't know how much gain will double brightness.
-    double gain = m_ec_gain_min + ((comp - m_SensorData->mAeCompMin) * (m_ec_gain_max - m_ec_gain_min)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
+    // calc the value to set
+    double exposure_gain = m_ec_gain_min + ((gain - GAIN_LEVEL_MIN) * (m_ec_gain_max - m_ec_gain_min)) / (GAIN_LEVEL_MAX - GAIN_LEVEL_MIN);
 
     // If never set exposure time, use default value.
     if(m_exposure_time == 0)
@@ -431,11 +432,11 @@ int ISPWrapper::processExposureGain(int32_t comp, bool force)
 
     double exposure_second = (double)m_exposure_time/NS_PER_SEC;
 
-    jRequest[EC_GAIN_PARAMS] = gain;
+    jRequest[EC_GAIN_PARAMS] = exposure_gain;
     jRequest[EC_TIME_PARAMS] = exposure_second;
 
-    ALOGI("%s: change comp from %d to %d, set exposure gain to %f, exposure time to %f, force %d",
-        __func__, m_exposure_comp, comp,  gain, exposure_second, force);
+    ALOGI("%s: change gain from %d to %d, set exposure gain to %f, exposure time to %f, force %d",
+        __func__, m_exposure_gain, gain, exposure_gain, exposure_second, force);
 
     ret = viv_private_ioctl(IF_EC_S_CFG, jRequest, jResponse);
     if(ret) {
@@ -443,7 +444,7 @@ int ISPWrapper::processExposureGain(int32_t comp, bool force)
         return ret;
     }
 
-    m_exposure_comp = comp;
+    m_exposure_gain = gain;
 
     return 0;
 }
