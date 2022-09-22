@@ -2473,6 +2473,7 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(
     return OK;
 }
 
+#define SELECT_TIMEOUT_SECONDS 3
 sp<V4L2Frame> ExternalCameraDeviceSession::dequeueV4l2FrameLocked(/*out*/nsecs_t* shutterTs) {
     ATRACE_CALL();
     sp<V4L2Frame> ret = nullptr;
@@ -2490,6 +2491,21 @@ sp<V4L2Frame> ExternalCameraDeviceSession::dequeueV4l2FrameLocked(/*out*/nsecs_t
                 return ret;
             }
         }
+    }
+
+
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(mV4l2Fd.get(), &fds);
+    struct timeval timeout = {0, 0};
+    timeout.tv_sec = SELECT_TIMEOUT_SECONDS;
+    timeout.tv_usec = 0;
+
+    select(mV4l2Fd.get() + 1, &fds, NULL, NULL, &timeout);
+    if (!FD_ISSET(mV4l2Fd.get(), &fds)) {
+        ALOGE("%s: select fd %d blocked %d seconds",
+            __func__, mV4l2Fd.get(), SELECT_TIMEOUT_SECONDS);
+        return ret;
     }
 
     ATRACE_BEGIN("VIDIOC_DQBUF");
