@@ -1955,7 +1955,6 @@ static int start_input_stream(struct imx_stream_in *in)
 
     // If input device is opened by HFP thread, just return error here
     if (adev->b_sco_tx_running) {
-        usleep(2000);
         return -EBUSY;
     }
     ALOGW("start_input_stream...., mode %d, in->device 0x%x", adev->mode, in->device);
