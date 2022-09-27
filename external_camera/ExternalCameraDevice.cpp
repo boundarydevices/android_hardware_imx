@@ -171,6 +171,8 @@ Return<void> ExternalCameraDevice::open(
         _hidl_cb(Status::INTERNAL_ERROR, nullptr);
         return Void();
     }
+
+    session->mSessionNeedHardwareDec = mNeedHardwareDec;
     if (session->isInitFailed()) {
         ALOGE("%s: camera device session init failed", __FUNCTION__);
         session = nullptr;
@@ -899,6 +901,16 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
 
     struct v4l2_capability vidCap;
     ret = TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_QUERYCAP, &vidCap));
+    ALOGI("%s: name=%s, card name=%s, bus info %s\n", __func__, (char*)vidCap.driver, (char*)vidCap.card, (char*)vidCap.bus_info);
+    if ((strstr((char*)vidCap.card, "C93") != NULL) || (strstr((char*)vidCap.card, "C920") != NULL)
+        || (strstr((char*)vidCap.card, "C270") != NULL)) {
+        mNeedHardwareDec = true;
+        ALOGI("%s: mNeedHardwareDec is true \n", __func__);
+    } else {
+        mNeedHardwareDec = false;
+        ALOGI("%s: mNeedHardwareDec is false \n", __func__);
+    }
+
     struct v4l2_fmtdesc fmtdesc;
     fmtdesc.index = 0;
     if (vidCap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) {
@@ -909,11 +921,12 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
 
     while (ret == 0) {
         ret = TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc));
-        ALOGV("index:%d,ret:%d, format:%c%c%c%c", fmtdesc.index, ret,
+        ALOGI("index:%d,ret:%d, format:%c%c%c%c  :%s", fmtdesc.index, ret,
                 fmtdesc.pixelformat & 0xFF,
                 (fmtdesc.pixelformat >> 8) & 0xFF,
                 (fmtdesc.pixelformat >> 16) & 0xFF,
-                (fmtdesc.pixelformat >> 24) & 0xFF);
+                (fmtdesc.pixelformat >> 24) & 0xFF,
+                fmtdesc.description);
         if (ret == 0 && !(fmtdesc.flags & V4L2_FMT_FLAG_EMULATED)) {
             auto it = std::find (
                     kSupportedFourCCs.begin(), kSupportedFourCCs.end(), fmtdesc.pixelformat);

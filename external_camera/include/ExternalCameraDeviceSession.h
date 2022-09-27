@@ -106,6 +106,7 @@ struct ExternalCameraDeviceSession : public virtual RefBase,
     // Caller must use this method to check if CameraDeviceSession ctor failed
     bool isInitFailed();
     bool isClosed();
+    bool mSessionNeedHardwareDec;
 
     // Retrieve the HIDL interface, split into its own class to avoid inheritance issues when
     // dealing with minor version revs and simultaneous implementation and interface inheritance
@@ -265,6 +266,9 @@ protected:
 
     virtual void notifyError(uint32_t frameNumber, int32_t streamId, ErrorCode ec) override;
     // End of OutputThreadInterface methods
+
+    // Get the hardwareDec flag according to the usb camera
+    virtual bool getHardwareDecFlag() const override;
 
     Status constructDefaultRequestSettingsRaw(RequestTemplate type,
             V3_2::CameraMetadata *outMetadata);

@@ -135,7 +135,7 @@ protected:
             std::vector<SupportedV4L2Format>& outFmts);
 
     // Get candidate supported formats list of input cropping type.
-    static std::vector<SupportedV4L2Format> getCandidateSupportedFormatsLocked(
+    std::vector<SupportedV4L2Format> getCandidateSupportedFormatsLocked(
             int fd, CroppingType cropType,
             const std::vector<ExternalCameraConfig::FpsLimitation>& fpsLimits,
             const std::vector<ExternalCameraConfig::FpsLimitation>& depthFpsLimits,
@@ -153,6 +153,7 @@ protected:
     const ExternalCameraConfig& mCfg;
     std::vector<SupportedV4L2Format> mSupportedFormats;
     CroppingType mCroppingType = HORIZONTAL;
+    bool mNeedHardwareDec = false;
 
     wp<ExternalCameraDeviceSession> mSession = nullptr;
 
