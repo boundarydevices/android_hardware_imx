@@ -479,7 +479,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
     static const uint8_t tonemapMode = ANDROID_TONEMAP_MODE_FAST;
     m_static_meta->Set(ANDROID_TONEMAP_MODE, &tonemapMode, 1);
 
-    static const uint8_t pipelineMaxDepth = 3;
+    static const uint8_t pipelineMaxDepth = 8;
     m_static_meta->Set(ANDROID_REQUEST_PIPELINE_MAX_DEPTH, &pipelineMaxDepth, 1);
 
     static const int32_t partialResultCount = 1;
@@ -1039,7 +1039,7 @@ status_t CameraMetadata::createSettingTemplate(std::unique_ptr<HalCameraMetadata
     static const uint8_t flashState = ANDROID_FLASH_STATE_UNAVAILABLE;
     base->Set(ANDROID_FLASH_STATE, &flashState, 1);
 
-    static const uint8_t pipelineDepth = 3;
+    static const uint8_t pipelineDepth = 8;
     base->Set(ANDROID_REQUEST_PIPELINE_DEPTH, &pipelineDepth, 1);
 
     static const float colorGains[4] = {1.0f, 1.0f, 1.0f, 1.0f};
