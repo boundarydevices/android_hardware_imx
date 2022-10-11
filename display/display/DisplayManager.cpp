@@ -779,6 +779,7 @@ bool DisplayManager::PollFileThread::threadLoop()
                     pDisplay->setVsyncEnabled(true);
                     EventListener* callback = NULL;
                     callback = mCtx->getCallback();
+                    callback->onHotplug(DISPLAY_PRIMARY, true);
                     if (callback != NULL) {
                         callback->onRefresh(0);
                         for (int i = 1; i < MAX_PHYSICAL_DISPLAY; i++) {
