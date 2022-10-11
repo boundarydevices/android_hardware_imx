@@ -316,7 +316,6 @@ int convertToDrmFormat(PixelFormat format, uint32_t* outDrmFormat) {
         case HAL_PIXEL_FORMAT_NV12_G2_TILED_COMPRESSED:
             *outDrmFormat = DRM_FORMAT_NV12_G2_TILED_COMPRESSED;
             return 0;
-        case HAL_PIXEL_FORMAT_YCBCR_P010:
         case HAL_PIXEL_FORMAT_P010:
             *outDrmFormat = DRM_FORMAT_P010;
             return 0;
