@@ -178,7 +178,6 @@ typedef struct tag_nxp_srream_buffer {
     buffer_handle_t buffer;
     int32_t mFd;
     ImxStream *mStream;
-    uint64_t mTimeStamp = 0;
 } ImxStreamBuffer;
 
 int getCaptureMode(int fd, int width, int height);

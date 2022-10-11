@@ -271,6 +271,8 @@ private:
 
     typedef struct tag_ImageFeed {
         uint32_t frame;
+        uint64_t timestamp_ns;
+        uint64_t readout_timestamp_ns;
         ImxStreamBuffer *v4l2Buffer;
         FrameRequest *frameRequest;
         std::vector<ImxStreamBuffer *> v4l2BufferList; // for logical camera
