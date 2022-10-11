@@ -467,7 +467,7 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
                      stallDuration,
                      streamConfigIdx + 4);
 
-    static const uint8_t croppingType = ANDROID_SCALER_CROPPING_TYPE_FREEFORM;
+    static const uint8_t croppingType = ANDROID_SCALER_CROPPING_TYPE_CENTER_ONLY;
     m_static_meta->Set(ANDROID_SCALER_CROPPING_TYPE, &croppingType, 1);
 
     static const int32_t tonemapCurvePoints = 128;
