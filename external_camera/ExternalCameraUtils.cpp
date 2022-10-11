@@ -215,6 +215,7 @@ AllocatedFramePhyMem::~AllocatedFramePhyMem() {
         allocator->releaseMemory(dstBuffer);
         dstBuffer = NULL;
         dstBuf = NULL;
+        mPhyAddr = 0;
     }
 }
 

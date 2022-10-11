@@ -1416,9 +1416,9 @@ status_t HwDecoder::allocateOutputBuffer(int bufId) {
     mInfo.mVirtAddr = virt_addr;
     mInfo.mCapacity = mbufferSize;
     mInfo.bInUse = false;
+    ALOGI("%s: Allocated fd=%d phys_addr=%p vaddr=%p mInfo.mCapacity:%d", __FUNCTION__, fd, (void*)phys_addr, (void*)virt_addr, mInfo.mCapacity);
     mDecoderBuffers.push_back(std::move(mInfo));
 
-    ALOGI("%s: Allocated fd=%d phys_addr=%p vaddr=%p mInfo.mCapacity:%d", __FUNCTION__, fd, (void*)phys_addr, (void*)virt_addr, mInfo.mCapacity);
     return OK;
 }
 
