@@ -534,14 +534,9 @@ bool CameraDeviceHwlImpl::StreamCombJudge(const StreamConfiguration& stream_conf
     return true;
 }
 
-status_t CameraDeviceHwlImpl::SetTorchMode(TorchMode mode)
+status_t CameraDeviceHwlImpl::SetTorchMode(TorchMode mode __unused)
 {
-    if(mCallback.torch_mode_status_change == NULL)
-        return BAD_VALUE;
-
-    TorchModeStatus status = (mode == TorchMode::kOn) ? TorchModeStatus::kAvailableOn:TorchModeStatus::kAvailableOff;
-    mCallback.torch_mode_status_change(camera_id_, status);
-    return OK;
+    return INVALID_OPERATION;
 }
 
 }  // namespace android

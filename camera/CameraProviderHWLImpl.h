@@ -70,7 +70,7 @@ public:
 
     bool IsSetTorchModeSupported() override
     {
-        return true;
+        return false;
     }
 
     status_t GetConcurrentStreamingCameraIds(
