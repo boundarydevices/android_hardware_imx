@@ -309,10 +309,10 @@ private:
         Mutex mImageListLock;
         Condition mImageListCond;
         std::list<ImageFeed *> mImageList;
-        uint64_t mLatestImageIdx;
-        uint64_t mProcdImageIdx;
-        uint32_t mLatestFrame;
-        uint32_t mProcdFrame;
+        uint64_t mLatestImageIdx = 0;
+        uint64_t mProcdImageIdx = 0;
+        uint32_t mLatestFrame = 0;
+        uint32_t mProcdFrame = 0;
     };
 
 public:

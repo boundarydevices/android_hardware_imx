@@ -670,7 +670,7 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
         camera_metadata_ro_entry entry;
         ret = requestMeta.Get(ANDROID_CONTROL_ZOOM_RATIO, &entry);
-        if (ret == 0)
+        if ((ret == 0) && imgFeed->v4l2Buffer && imgFeed->v4l2Buffer->mStream)
             imgFeed->v4l2Buffer->mStream->mZoomRatio = entry.data.f[0];
     }
 
@@ -1512,7 +1512,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
         pipeline_info->hal_streams->push_back(std::move(hal_stream));
 
-        if (hal_stream.is_physical_camera_stream != 0) {
+        if (stream.is_physical_camera_stream != 0) {
             is_logical_request_ = true;
         }
     }
