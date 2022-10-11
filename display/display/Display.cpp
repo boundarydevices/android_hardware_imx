@@ -191,6 +191,7 @@ int Display::createDisplayConfig(int width, int height, float fps, int format)
     int id = findDisplayConfig(width, height, fps, format);
     if (id < 0) {
         DisplayConfig config;
+        memset(&config, 0, sizeof(config));
         config.mXres = width;
         config.mYres = height;
         if (format != -1) {

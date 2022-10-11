@@ -1729,6 +1729,7 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
         format = FORMAT_RGBA8888;
 
     mConfigs.clear();
+    memset(&config, 0, sizeof(config));
     int configId = mFirstConfigId;
     for (int i=0; i<mDrmModes.size(); i++) {
         mode = mDrmModes.itemAt(i);
@@ -1751,8 +1752,11 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
         else {
             config.mYdpi = 160000;
         }
+        if (mode.vrefresh > 0)
+            config.mVsyncPeriod  = 1000000000 / mode.vrefresh;
+        else
+            config.mVsyncPeriod  = 1000000000 / DEFAULT_REFRESH_RATE;
 
-        config.mVsyncPeriod  = 1000000000 / mode.vrefresh;
         config.mFormat = format;
         config.mBytespixel = getFormatSize(format);
 
@@ -1779,6 +1783,7 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
     if (fabs(fps) < FLOAT_TOLERANCE)
         fps = DEFAULT_REFRESH_RATE; // set to default value
 
+    memset(&config, 0, sizeof(config));
     config.modeIdx = mModePrefered;
     config.mXdpi = 160000;
     config.mYdpi = 160000;

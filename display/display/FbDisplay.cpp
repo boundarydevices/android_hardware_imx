@@ -707,6 +707,7 @@ int FbDisplay::getConfigIdLocked(int width, int height)
 {
     int id = -1;
     DisplayConfig config;
+    memset(&config, 0, sizeof(config));
     config.mXres = width;
     config.mYres = height;
 
