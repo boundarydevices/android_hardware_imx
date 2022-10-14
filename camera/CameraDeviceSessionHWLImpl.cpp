@@ -523,6 +523,7 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
         ALOGE("%s: imgFeed is null", __func__);
         goto fail;
     }
+    memset(imgFeed, 0, sizeof(ImageFeed));
 
     if (is_logical_request_)
       imgFeed->v4l2BufferList.assign(v4l2BufferList.begin(), v4l2BufferList.end());
