@@ -207,6 +207,7 @@ AllocatedFramePhyMem::AllocatedFramePhyMem(
         AllocatedFrame(w, h) {
     dstBuffer = NULL;
     dstBuf = NULL;
+    mPhyAddr = 0;
 }
 
 AllocatedFramePhyMem::~AllocatedFramePhyMem() {
