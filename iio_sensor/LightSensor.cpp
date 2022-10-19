@@ -24,7 +24,7 @@ LightSensor::LightSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
 	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
-    mSensorInfo.flags |= SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
+    mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
 
     std::string time_file = iio_data.sysfspath + "/in_illuminance_integration_time_available";
     get_sampling_time_available(time_file, &iio_data.sampling_time_avl);

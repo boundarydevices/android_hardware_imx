@@ -432,7 +432,6 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
                            const struct iio_device_data& data,
                            const std::optional<std::vector<Configuration>>& config)
     : SensorBase(sensorHandle, callback, data.type) {
-    mSensorInfo.flags |= SensorFlagBits::CONTINUOUS_MODE;
     mSensorInfo.name = data.name;
     mSensorInfo.resolution = data.resolution;
     mSensorInfo.maxRange = data.max_range * data.scale;
