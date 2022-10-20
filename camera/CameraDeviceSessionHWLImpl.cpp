@@ -637,6 +637,11 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     if ((imgFeed->v4l2Buffer == NULL) && (is_logical_request_ == false)) {
         ALOGE("%s: v4l2Buffer NULL, notify error to framework", __func__);
 
+        mImgProcThread->mImageListLock.lock();
+        mImgProcThread->mProcdImageIdx++;
+        mImgProcThread->mProcdFrame = frame;
+        mImgProcThread->mImageListLock.unlock();
+
         if (pInfo->pipeline_callback.notify) {
             NotifyMessage msg{
                 .type = MessageType::kError,
@@ -1671,7 +1676,7 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::drainImages(uint32_t waitItvlUs)
 
     /* Must wait all the images are processed, or v4l2 buffer maybe read after destroied. */
     /* Even list size is 0, may still has on-fly image under processing, so compare the idx */
-    while (!mImageList.empty()) {
+    while (mLatestImageIdx != mProcdImageIdx) {
         ALOGW("%s: mLatestImageIdx %lu, mProcdImageIdx %lu, list size %zu, wait %d us, cycle %d",
             __func__, mLatestImageIdx, mProcdImageIdx, mImageList.size(), waitItvlUs, cycle);
 
