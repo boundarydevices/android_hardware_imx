@@ -210,6 +210,11 @@ int32_t MMAPStream::onDeviceStartLocked()
             mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
 
         mBuffers[i]->mVirtAddr = (void*)mmap(NULL, mBuffers[i]->mSize, PROT_READ | PROT_WRITE, MAP_SHARED, mDev, mBuffers[i]->mPhyAddr);
+        if (mBuffers[i]->mVirtAddr == MAP_FAILED) {
+            ALOGE("%s: mmap buf %d, size %zu, fd %d, offset 0x%x failed, errno %d",
+                __func__, i, mBuffers[i]->mSize, mDev, (unsigned int)mBuffers[i]->mPhyAddr, errno);
+            return BAD_VALUE;
+        }
 
         if (!mPlane) {
             // For mx6s capture driver, it need to query twice to get the phy

@@ -293,6 +293,7 @@ int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32
     return 0;
 }
 
+#define MAX_RECOVER_COUNT 1
 #define SELECT_TIMEOUT_SECONDS 3
 ImxStreamBuffer* VideoStream::onFrameAcquire()
 {
@@ -326,6 +327,11 @@ capture_data:
     select(mDev + 1, &fds, NULL, NULL, &timeout);
     if (!FD_ISSET(mDev, &fds)) {
         mRecoverCount++;
+        if (mRecoverCount > MAX_RECOVER_COUNT) {
+            ALOGE("%s: camera recover too much times, the error can't fix in user space", __func__);
+            return NULL;
+        }
+
         ALOGW("%s: select fd %d blocked %d s on %dx%d, %d fps, camera recover count %d",
             __func__, mDev, SELECT_TIMEOUT_SECONDS, mWidth, mHeight, mFps, mRecoverCount);
 
@@ -350,8 +356,10 @@ capture_data:
     ALOGV("VIDIOC_DQBUF ok, idx %d", cfilledbuffer.index);
 
     mFrames++;
-    if (mFrames == 1)
+    if (mFrames == 1) {
+        mRecoverCount = 0;
         ALOGI("%s: first frame get for %dx%d", __func__, mWidth, mHeight);
+    }
 
     if (mOmitFrames > 0) {
         ALOGI("%s omit frame", __func__);

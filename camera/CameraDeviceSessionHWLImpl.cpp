@@ -510,8 +510,7 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
         // tactic, should not return NULL. If so, need handle the request properly.
         // Same for the logical request, may also return valid v4l2Buffer。
         if (pImxStreamBuffer == NULL) {
-            ALOGW("onFrameAcquire failed");
-            goto fail;
+            ALOGE("%s: onFrameAcquire failed", __func__);
         }
     }
 
@@ -585,8 +584,15 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::DumpImage()
 
     for (auto it = mImageList.begin(); it != mImageList.end(); it++) {
         ImageFeed *imgFeed = *it;
-        ALOGI("%s: frame %u, v4l2 buffer addr virt %p, phy 0x%lx",
-            __func__, imgFeed->frame, imgFeed->v4l2Buffer->mVirtAddr, imgFeed->v4l2Buffer->mPhyAddr);
+        if (imgFeed == NULL)
+            continue;
+
+        // If driver has issue, v4l2Buffer can be NULL, ref CapAndFeed().
+        if (imgFeed->v4l2Buffer)
+            ALOGI("%s: frame %u, v4l2 buffer addr virt %p, phy 0x%lx",
+                __func__, imgFeed->frame, imgFeed->v4l2Buffer->mVirtAddr, imgFeed->v4l2Buffer->mPhyAddr);
+        else
+            ALOGI("%s: frame %u", __func__, imgFeed->frame);
     }
 }
 
@@ -614,10 +620,9 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     mImgProcThread->mImageList.pop_front();
     mImgProcThread->mImageListLock.unlock();
 
-    if ((imgFeed == NULL) || (imgFeed->frameRequest == NULL) ||
-        ((imgFeed->v4l2Buffer == NULL) && (is_logical_request_ == false))) {
-        ALOGE("%s: unexpected!!! imgFeed %p, imgFeed->frameRequest %p, imgFeed->v4l2Buffer %p",
-            __func__, imgFeed, imgFeed->frameRequest, imgFeed->v4l2Buffer);
+    if ((imgFeed == NULL) || (imgFeed->frameRequest == NULL)) {
+        ALOGE("%s: unexpected!!! imgFeed %p, or imgFeed->frameRequest is NULL",
+            __func__, imgFeed);
         return 0;
     }
 
@@ -627,6 +632,25 @@ int CameraDeviceSessionHwlImpl::HandleImage()
 
     uint32_t pipeline_id = hwReq.pipeline_id;
     PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
+
+    // If capture NULL buffer, notify error and return
+    if ((imgFeed->v4l2Buffer == NULL) && (is_logical_request_ == false)) {
+        ALOGE("%s: v4l2Buffer NULL, notify error to framework", __func__);
+
+        if (pInfo->pipeline_callback.notify) {
+            NotifyMessage msg{
+                .type = MessageType::kError,
+                .message.error = {
+                .frame_number = frame,
+                .error_stream_id = -1,
+                .error_code = ErrorCode::kErrorDevice}};
+
+            pInfo->pipeline_callback.notify(pipeline_id, msg);
+        }
+
+        mImgProcThread->releaseImgFeed(imgFeed);
+        return 0;
+    }
 
     uint64_t timestamp = 0;
     if (mUseCpuEncoder)
@@ -1647,7 +1671,7 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::drainImages(uint32_t waitItvlUs)
 
     /* Must wait all the images are processed, or v4l2 buffer maybe read after destroied. */
     /* Even list size is 0, may still has on-fly image under processing, so compare the idx */
-    while (mLatestImageIdx != mProcdImageIdx) {
+    while (!mImageList.empty()) {
         ALOGW("%s: mLatestImageIdx %lu, mProcdImageIdx %lu, list size %zu, wait %d us, cycle %d",
             __func__, mLatestImageIdx, mProcdImageIdx, mImageList.size(), waitItvlUs, cycle);
 
