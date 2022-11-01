@@ -236,6 +236,7 @@ private:
     void DumpRequest();
 
     VideoStream* GetVideoStreamByPhysicalId(uint32_t physical_id);
+    PipelineInfo* GetPipelineInfo(uint32_t id);
 
 private:
     class WorkThread : public Thread

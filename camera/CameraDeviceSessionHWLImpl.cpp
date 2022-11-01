@@ -271,6 +271,15 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
         mSettings.reset();
 }
 
+PipelineInfo* CameraDeviceSessionHwlImpl::GetPipelineInfo(uint32_t id)
+{
+    auto it = map_pipeline_info.find(id);
+    if (it != map_pipeline_info.end())
+        return it->second;
+
+    return NULL;
+}
+
 int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
 {
     camera_metadata_ro_entry entry;
@@ -315,7 +324,11 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq)
     if ((sceneMode == ANDROID_CONTROL_SCENE_MODE_HDR) && (fps > 30))
         fps = 30;
 
-    PipelineInfo *pipeline_info = map_pipeline_info[pipeline_id];
+    PipelineInfo *pipeline_info = GetPipelineInfo(pipeline_id);
+    if (pipeline_info == NULL) {
+        ALOGW("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
+        return 0;
+    }
 
     //TODO need to refine for logical's configIdx ?
     if(is_logical_request_) {
@@ -418,7 +431,7 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
                 (int)hwReq->output_buffers.size(),
                 hwReq->settings.get());
 
-        PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
+        PipelineInfo *pInfo = GetPipelineInfo(pipeline_id);
         if(pInfo == NULL) {
             ALOGW("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
             continue;
@@ -631,7 +644,11 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     HwlPipelineRequest &hwReq = frameRequest->hwlReq;
 
     uint32_t pipeline_id = hwReq.pipeline_id;
-    PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
+    PipelineInfo *pInfo = GetPipelineInfo(pipeline_id);
+    if(pInfo == NULL) {
+        ALOGE("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
+        return 0;
+    }
 
     // If capture NULL buffer, notify error and return
     if ((imgFeed->v4l2Buffer == NULL) && (is_logical_request_ == false)) {
@@ -1555,13 +1572,12 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
 int CameraDeviceSessionHwlImpl::PickConfigStream(uint32_t pipeline_id, uint8_t intent)
 {
-    auto iter = map_pipeline_info.find(pipeline_id);
-    if (iter == map_pipeline_info.end()) {
-        ALOGE("%s: Unknown pipeline ID: %u", __func__, pipeline_id);
+    PipelineInfo *pipeline_info = GetPipelineInfo(pipeline_id);
+    if(pipeline_info == NULL) {
+        ALOGE("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
         return -1;
     }
 
-    PipelineInfo *pipeline_info = iter->second;
     if((pipeline_info == NULL) || (pipeline_info->streams == NULL)){
         ALOGE("%s: pipeline_info or streams is NULL for id %d", __func__, pipeline_id);
         return -1;
@@ -1728,7 +1744,8 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
         for (uint32_t i = 0; i < reqNum; i++) {
             HwlPipelineRequest *hwReq = &(request->at(i).hwlReq);
             uint32_t pipeline_id = hwReq->pipeline_id;
-            PipelineInfo *pInfo = map_pipeline_info[pipeline_id];
+
+            PipelineInfo *pInfo = GetPipelineInfo(pipeline_id);
             if(pInfo == NULL) {
                 ALOGW("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
                 continue;
