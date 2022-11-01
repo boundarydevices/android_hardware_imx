@@ -190,6 +190,9 @@ status_t CameraDeviceSessionHwlImpl::Initialize(
         return BAD_VALUE;
     }
 
+    mInQueRequestIdx = 0;
+    mDeQueRequestIdx = 0;
+
     // create image process thread
     mImgProcThread = new ImgProcThread(this);
     if (mImgProcThread == NULL) {
@@ -442,6 +445,13 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
         // capture v4l2 buffer and feed to mImageList
         CapAndFeed(frame, frameRequest);
     }
+
+    mLock.lock();
+    mDeQueRequestIdx++;
+    mLock.unlock();
+
+    if (mDebug)
+        ALOGI("%s: mDeQueRequestIdx %lu", __func__, mDeQueRequestIdx);
 
     return OK;
 }
@@ -1705,8 +1715,8 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::drainImages(uint32_t waitItvlUs)
     return;
 }
 
-#define DESTROY_WAIT_MS 100
-#define DESTROY_WAIT_US (uint32_t)(DESTROY_WAIT_MS*1000)
+#define WAIT_ITVL_MS 5
+#define WAIT_ITVL_US (uint32_t)(WAIT_ITVL_MS*1000)
 void CameraDeviceSessionHwlImpl::DestroyPipelines()
 {
     ALOGI("enter %s", __func__);
@@ -1718,51 +1728,16 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
         return;
     }
 
-
-    mImgProcThread->drainImages(2000);
-
-    /* If still has un-processed requests, wait some time to finish */
-    if ( map_frame_request.empty() == false ) {
-        ALOGW("%s: still has %lu requests to process, wait %d ms", __func__, map_frame_request.size(), DESTROY_WAIT_MS);
+    /* If still has on-fly requests from map_frame_request, wait to finish */
+    while (mDeQueRequestIdx != mInQueRequestIdx) {
+        ALOGW("%s: still has requests to process, wait %d ms, DeQueIdx %lu, InQueIdx %lu",
+            __func__, WAIT_ITVL_MS, mDeQueRequestIdx, mInQueRequestIdx);
         mLock.unlock();
-        usleep(DESTROY_WAIT_US);
+        usleep(WAIT_ITVL_US);
         mLock.lock();
     }
 
-    // If still remain requests, just send out result to return buffers to framework.
-    for (auto it = map_frame_request.begin(); it != map_frame_request.end(); it++) {
-        uint32_t frame = it->first;
-        std::vector<FrameRequest> *request = it->second;
-        if(request == NULL) {
-            ALOGW("%s: frame %d request is null", __func__, frame);
-            continue;
-        }
-
-        uint32_t reqNum = request->size();
-        ALOGI("%s, frame %d still has %d requests to process, just send back result", __func__, frame, reqNum);
-
-        for (uint32_t i = 0; i < reqNum; i++) {
-            HwlPipelineRequest *hwReq = &(request->at(i).hwlReq);
-            uint32_t pipeline_id = hwReq->pipeline_id;
-
-            PipelineInfo *pInfo = GetPipelineInfo(pipeline_id);
-            if(pInfo == NULL) {
-                ALOGW("%s: Unexpected, pipeline %d is invalid",__func__, pipeline_id);
-                continue;
-            }
-
-            auto result = std::make_unique<HwlPipelineResult>();
-            result->camera_id = camera_id_;
-            result->pipeline_id = hwReq->pipeline_id;
-            result->frame_number = frame;
-            result->result_metadata = HalCameraMetadata::Clone(hwReq->settings.get());
-            result->input_buffers = hwReq->input_buffers;
-            result->output_buffers = hwReq->output_buffers;
-            result->partial_result = 1;
-            if (pInfo->pipeline_callback.process_pipeline_result)
-                pInfo->pipeline_callback.process_pipeline_result(std::move(result));
-       }
-    }
+    mImgProcThread->drainImages(WAIT_ITVL_MS);
 
     CleanRequestsLocked();
 
@@ -1834,14 +1809,17 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
 
     Mutex::Autolock _l(mLock);
     map_frame_request[frame_number] = frame_request;
+    mInQueRequestIdx++;
     mCondition.signal();
 
     char value[PROPERTY_VALUE_MAX];
     property_get("vendor.rw.camera.test", value, "");
     mDebug = (strcmp(value, "debug") == 0) ? true : false;
 
-    if (mDebug)
+    if (mDebug) {
+        ALOGI("%s: mInQueRequestIdx %lu", __func__, mInQueRequestIdx);
         ItvlStat(mPreSubmitRequestTime, (char *)"SubmitRequests");
+    }
 
     return OK;
 }

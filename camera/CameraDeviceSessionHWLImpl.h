@@ -390,6 +390,9 @@ private:
     uint64_t mPreHandleImageTime;
     uint64_t mPreCapAndFeedTime;
     uint64_t mPreSubmitRequestTime;
+
+    uint64_t mInQueRequestIdx = 0;
+    uint64_t mDeQueRequestIdx = 0;
 };
 
 }  // namespace android
