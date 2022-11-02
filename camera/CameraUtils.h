@@ -100,6 +100,9 @@
 
 #define FUNC_TRACE() ALOGI("enter into %s", __func__)
 
+#define WAIT_ITVL_MS 5
+#define WAIT_ITVL_US (uint32_t)(WAIT_ITVL_MS*1000)
+
 namespace android {
 using google_camera_hal::CameraDeviceStatus;
 using google_camera_hal::HalCameraMetadata;

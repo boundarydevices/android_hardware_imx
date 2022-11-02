@@ -1712,11 +1712,11 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::drainImages(uint32_t waitItvlUs)
         mImageListLock.lock();
     }
 
+    ALOGI("%s: leave, mLatestImageIdx %lu, mProcdImageIdx %lu", __func__, mLatestImageIdx, mProcdImageIdx);
+
     return;
 }
 
-#define WAIT_ITVL_MS 5
-#define WAIT_ITVL_US (uint32_t)(WAIT_ITVL_MS*1000)
 void CameraDeviceSessionHwlImpl::DestroyPipelines()
 {
     ALOGI("enter %s", __func__);
@@ -1730,14 +1730,16 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines()
 
     /* If still has on-fly requests from map_frame_request, wait to finish */
     while (mDeQueRequestIdx != mInQueRequestIdx) {
-        ALOGW("%s: still has requests to process, wait %d ms, DeQueIdx %lu, InQueIdx %lu",
-            __func__, WAIT_ITVL_MS, mDeQueRequestIdx, mInQueRequestIdx);
+        ALOGW("%s: still has requests to process, wait %d us, DeQueIdx %lu, InQueIdx %lu",
+            __func__, WAIT_ITVL_US, mDeQueRequestIdx, mInQueRequestIdx);
         mLock.unlock();
         usleep(WAIT_ITVL_US);
         mLock.lock();
     }
 
-    mImgProcThread->drainImages(WAIT_ITVL_MS);
+    ALOGI("%s: on on-fly requests, mDeQueRequestIdx %lu, mInQueRequestIdx %lu", __func__, mDeQueRequestIdx, mInQueRequestIdx);
+
+    mImgProcThread->drainImages(WAIT_ITVL_US);
 
     CleanRequestsLocked();
 
