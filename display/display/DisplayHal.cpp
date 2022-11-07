@@ -187,7 +187,7 @@ Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
     fsl::Display* pDisplay = NULL;
     fsl::DisplayManager* displayManager = fsl::DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(MAIN_DISPLAY);
-    if (pDisplay == NULL) {
+    if (pDisplay == NULL || (pDisplay->getActiveId() < 0)) {
         ALOGE("%s get main display failed", __func__);
         return Error::NO_RESOURCES;
     }

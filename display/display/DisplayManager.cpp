@@ -612,9 +612,11 @@ void DisplayManager::handleKmsHotplug()
                 display = mKmsDisplays[DISPLAY_PRIMARY];
                 idx = DISPLAY_PRIMARY;
                 mPrimaryIsFake = false;
+            } else if (idx == DISPLAY_PRIMARY) {
+                display->closeKms();
             }
-            display->openKms();
             display->setPowerMode(POWER_ON);
+            display->openKms();
         } else {
             display->closeKms();
             display->setPowerMode(POWER_OFF);

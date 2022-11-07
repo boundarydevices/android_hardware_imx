@@ -629,8 +629,8 @@ int FbDisplay::closeFb()
         mAcquireFence = -1;
     }
     mFirstConfigId = mFirstConfigId + mConfigs.size();
-    mConfigs.clear();
     mActiveConfig = -1;
+    mConfigs.clear();
 
     if (!mOpened) {
         return 0;
@@ -1038,8 +1038,13 @@ bool FbDisplay::VSyncThread::threadLoop()
 
 void FbDisplay::VSyncThread::performFakeVSync()
 {
-    const DisplayConfig& config = mCtx->getActiveConfig();
-    mRefreshPeriod = config.mVsyncPeriod;
+    int id = mCtx->getActiveId();
+    if (id >= 0) {
+        const DisplayConfig& config = mCtx->getActiveConfig();
+        mRefreshPeriod = config.mVsyncPeriod;
+    } else {
+        mRefreshPeriod = 1000000000 / DEFAULT_REFRESH_RATE;
+    }
     const nsecs_t period = mRefreshPeriod;
     const nsecs_t now = systemTime(CLOCK_MONOTONIC);
     nsecs_t next_vsync = mNextFakeVSync;

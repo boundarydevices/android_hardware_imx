@@ -946,11 +946,13 @@ static int hwc2_get_client_target_support(hwc2_device_t* device,
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    const DisplayConfig& config = pDisplay->getActiveConfig();
-    if (config.mXres == (int)width && config.mYres == (int)height &&
-        (format == HAL_PIXEL_FORMAT_RGBA_8888 || format == HAL_PIXEL_FORMAT_RGB_565) &&
-        (dataspace == HAL_DATASPACE_UNKNOWN || dataspace == HAL_DATASPACE_SRGB_LINEAR)) {
-        return HWC2_ERROR_NONE;
+    if (pDisplay->getActiveId() >= 0) {
+        const DisplayConfig& config = pDisplay->getActiveConfig();
+        if (config.mXres == (int)width && config.mYres == (int)height &&
+            (format == HAL_PIXEL_FORMAT_RGBA_8888 || format == HAL_PIXEL_FORMAT_RGB_565) &&
+            (dataspace == HAL_DATASPACE_UNKNOWN || dataspace == HAL_DATASPACE_SRGB_LINEAR)) {
+            return HWC2_ERROR_NONE;
+        }
     }
 
     return HWC2_ERROR_UNSUPPORTED;
@@ -1642,7 +1644,7 @@ static int hwc2_get_client_target_property(hwc2_device_t* device, hwc2_display_t
     Display* pDisplay = NULL;
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
-    if (pDisplay == NULL) {
+    if (pDisplay == NULL || (pDisplay->getActiveId() < 0)) {
         ALOGE("%s invalid display id:%" PRId64, __func__, display);
         return HWC2_ERROR_BAD_DISPLAY;
     }

@@ -1338,7 +1338,7 @@ int KmsDisplay::openFakeKms()
         width = mBackupConfig.mXres;
         height = mBackupConfig.mYres;
     }
-    ssize_t configId = createDisplayConfig(width, height, vrefresh, -1);
+    int configId = createDisplayConfig(width, height, vrefresh, -1);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", width, height);
         return -1;
@@ -1353,12 +1353,14 @@ int KmsDisplay::openFakeKms()
     config.mFormat = FORMAT_RGBA8888;
     config.mBytespixel = 4;
     ALOGW("Placeholder of primary display, config:\n"
+          "configId     = %d \n"
           "xres         = %d px\n"
           "yres         = %d px\n"
           "format       = %d\n"
           "xdpi         = %.2f ppi\n"
           "ydpi         = %.2f ppi\n"
           "fps          = %.2f Hz\n",
+          configId,
           config.mXres, config.mYres, config.mFormat, config.mXdpi / 1000.0f,
           config.mYdpi / 1000.0f, config.mFps);
 
@@ -1595,7 +1597,6 @@ bool KmsDisplay::isHdrSupported()
 int KmsDisplay::closeKms()
 {
     ALOGV("close kms");
-    invalidLayers();
 
     Mutex::Autolock _l(mLock);
 
@@ -1610,8 +1611,8 @@ int KmsDisplay::closeKms()
     mFirstConfigId = mFirstConfigId + mConfigs.size();
     if (mActiveConfig >= 0)
         mBackupConfig = mConfigs[mActiveConfig];
-    mConfigs.clear();
     mActiveConfig = -1;
+    mConfigs.clear();
     mKmsPlaneNum = 1;
     memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
 
@@ -1917,6 +1918,9 @@ int KmsDisplay::composeLayers()
             }
 #endif
         }
+
+        if (mRenderTarget == NULL)
+            return 0;
     }
 
     return composeLayersLocked();
@@ -1933,7 +1937,6 @@ void KmsDisplay::handleVsyncEvent(nsecs_t timestamp)
     if (callback == NULL) {
         return;
     }
-    triggerRefresh();
     callback->onVSync(DISPLAY_PRIMARY, timestamp, mConfigs[mActiveConfig].mVsyncPeriod);
 }
 
@@ -2111,8 +2114,13 @@ bool KmsDisplay::VSyncThread::threadLoop()
 
 void KmsDisplay::VSyncThread::performFakeVSync()
 {
-    const DisplayConfig& config = mCtx->getActiveConfig();
-    mRefreshPeriod = config.mVsyncPeriod;
+    int id = mCtx->getActiveId();
+    if (id >= 0) {
+        const DisplayConfig& config = mCtx->getActiveConfig();
+        mRefreshPeriod = config.mVsyncPeriod;
+    } else {
+        mRefreshPeriod = 1000000000 / DEFAULT_REFRESH_RATE;
+    }
     const nsecs_t period = mRefreshPeriod;
     const nsecs_t now = systemTime(CLOCK_MONOTONIC);
     nsecs_t next_vsync = mNextFakeVSync;
