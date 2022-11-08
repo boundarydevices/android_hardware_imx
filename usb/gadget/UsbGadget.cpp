@@ -127,8 +127,6 @@ static void *monitorFfs(void *param) {
       usleep(PULL_UP_DELAY);
       if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
         if (!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-          SetProperty("persist.adb.notify", "");
-          SetProperty("persist.charging.notify", "");
           lock_guard<mutex> lock(usbGadget->mLock);
           usbGadget->mCurrentUsbFunctionsApplied = true;
           gadgetPullup = true;
@@ -184,8 +182,6 @@ static void *monitorFfs(void *param) {
             }
 
               if(!!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
-                SetProperty("persist.adb.notify", "");
-                SetProperty("persist.charging.notify", "");
                 lock_guard<mutex> lock(usbGadget->mLock);
                 usbGadget->mCurrentUsbFunctionsApplied = true;
                 ALOGI("GADGET pulled up");
@@ -209,11 +205,7 @@ static void *monitorFfs(void *param) {
                         WriteStringToFile("none", PULLUP_PATH);
                         usleep(PULL_UP_DELAY);
                       }
-                      // this is a workaround to wait the framework to clear the notifications
-                      sleep(3);
                       WriteStringToFile(dp->d_name, PULLUP_PATH);
-                      SetProperty("persist.adb.notify", "0");
-                      SetProperty("persist.charging.notify", "0");
                     }
                   }
                 }
