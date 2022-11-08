@@ -32,6 +32,7 @@
 #include <android-base/stringprintf.h>
 #include <android-base/file.h>
 #include <android-base/unique_fd.h>
+#include <android-base/parsebool.h>
 
 constexpr int BUFFER_SIZE = 512;
 constexpr int MAX_FILE_PATH_LENGTH = 256;
@@ -229,11 +230,26 @@ static void *monitorFfs(void *param) {
   return NULL;
 }
 
+static void *monitorUsbSysfsPath() {
+  while (true) {
+    if (!access(string("/sys/class/udc/" + GADGET_NAME).c_str(), F_OK)) {
+      if (base::ParseBool(GetProperty("vendor.sys.usb.adb.disabled", "")) != base::ParseBoolResult::kFalse)
+        SetProperty("vendor.sys.usb.adb.disabled", "0");
+    } else {
+      if (base::ParseBool(GetProperty("vendor.sys.usb.adb.disabled", "")) != base::ParseBoolResult::kTrue)
+        SetProperty("vendor.sys.usb.adb.disabled", "1");
+    }
+    std::this_thread::sleep_for(1s);
+  }
+  return NULL;
+}
+
 UsbGadget::UsbGadget()
     : mMonitorCreated(false), mCurrentUsbFunctionsApplied(false) {
   mCurrentUsbFunctions = static_cast<uint64_t>(V1_2::GadgetFunction::NONE);
   mUsbSysfsPathWatch = false;
   if (access(OS_DESC_PATH, R_OK) != 0) ALOGE("configfs setup not done yet");
+  std::thread(monitorUsbSysfsPath).detach();
 }
 
 static int unlinkFunctions(const char *path) {
