@@ -139,8 +139,11 @@ struct viv_caps_supports{
 #define HUE_MIN             (int)(-127)
 #define HUE_MAX             (int)(127)
 
+#define IF_FILTER_S_EN            "filter.s.en"
+#define FILTER_ENABLE_PARAMS      "enable"
 #define IF_FILTER_G_CFG           "filter.g.cfg"
 #define IF_FILTER_S_CFG           "filter.s.cfg"
+#define FILTER_AUTO_PARAMS        "auto"
 #define FILTER_SHARPEN_PARAMS     "sharpen"
 #define SHARP_LEVEL_MIN           (uint8_t)1
 #define SHARP_LEVEL_MAX           (uint8_t)10

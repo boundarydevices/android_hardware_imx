@@ -893,18 +893,35 @@ int ISPWrapper::processSharpLevel(uint8_t level)
     if (level == m_sharp_level)
         return 0;
 
+    // disable filter
     Json::Value jRequest, jResponse;
+    jRequest[FILTER_ENABLE_PARAMS] = false;
+    ret = viv_private_ioctl(IF_FILTER_S_EN, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_FILTER_S_EN false failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    // set manual mode and sharp level
     ret = viv_private_ioctl(IF_FILTER_G_CFG, jRequest, jResponse);
     if(ret) {
         ALOGI("%s: viv_private_ioctl IF_FILTER_G_CFG failed, ret %d", __func__, ret);
         return ret;
     }
 
-    jRequest = jResponse;
+    jRequest[FILTER_AUTO_PARAMS] = false;
     jRequest[FILTER_SHARPEN_PARAMS] = level;
     ret = viv_private_ioctl(IF_FILTER_S_CFG, jRequest, jResponse);
     if(ret) {
         ALOGI("%s: viv_private_ioctl IF_FILTER_S_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    // enable filter
+    jRequest[FILTER_ENABLE_PARAMS] = true;
+    ret = viv_private_ioctl(IF_FILTER_S_EN, jRequest, jResponse);
+    if(ret) {
+        ALOGI("%s: viv_private_ioctl IF_FILTER_S_EN true failed, ret %d", __func__, ret);
         return ret;
     }
 
