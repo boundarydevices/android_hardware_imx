@@ -537,6 +537,10 @@ int KmsDisplay::setPowerMode(int mode)
         mModeset = true;
     }
 
+    if (!mConnected && (mode == POWER_ON)) {
+        mPowerMode = DRM_MODE_DPMS_OFF;
+        return 0;
+    }
     // Audio/Video share same clock on HDMI interface.
     // Power off HDMI will also break HDMI Audio clock.
     // So HDMI need to keep power on.
