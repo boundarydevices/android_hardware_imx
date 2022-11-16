@@ -170,6 +170,7 @@ public:
     void getExpGainBoundary();
     void getLatestExpWB();
     int recoverExpWB();
+    void dump();
 
 private:
     int setFeature(const char *value);

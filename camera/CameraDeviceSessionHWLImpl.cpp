@@ -442,6 +442,11 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
 
         HandleIntent(hwReq);
 
+        // ISP process based on meta
+        for (int stream_id = 0; stream_id < (int)pVideoStreams.size(); ++stream_id) {
+            pVideoStreams[stream_id]->ISPProcess(hwReq->settings.get());
+        }
+
         // capture v4l2 buffer and feed to mImageList
         CapAndFeed(frame, frameRequest);
     }
@@ -716,10 +721,6 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     else
         result->result_metadata = HalCameraMetadata::Create(1, 10);
 
-    // ISP process based on meta
-    for (int stream_id = 0; stream_id < (int)pVideoStreams.size(); ++stream_id) {
-        pVideoStreams[stream_id]->ISPProcess(mSettings.get());
-    }
 
     // Set zoom ratio for ISP camera
     CameraMetadata requestMeta(result->result_metadata.get());
@@ -1776,7 +1777,9 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
 
     for (int i = 0; i < size; i++) {
         uint32_t pipeline_id = requests[i].pipeline_id;
-        ALOGV("%s, frame_number %d, pipeline_id %d, outbuffer num %d",
+
+        if (mDebug)
+            ALOGI("%s, frame_number %d, pipeline_id %d, outbuffer num %d",
                 __func__,
                 frame_number,
                 (int)pipeline_id,

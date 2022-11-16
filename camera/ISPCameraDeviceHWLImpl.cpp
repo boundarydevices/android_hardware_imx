@@ -338,6 +338,7 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
     if (isPictureIntent()) {
         m_IspWrapper->recoverExpWB();
     } else {
+        m_IspWrapper->recoverExpWB();
         m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO, true);
         m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
     }

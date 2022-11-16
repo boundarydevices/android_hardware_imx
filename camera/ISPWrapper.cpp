@@ -1025,4 +1025,9 @@ int ISPWrapper::recoverExpWB()
     return 0;
 }
 
+void ISPWrapper::dump()
+{
+    getLatestExpWB();
+}
+
 }  // namespace android

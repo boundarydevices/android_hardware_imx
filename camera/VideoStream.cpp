@@ -152,6 +152,8 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
 
     Mutex::Autolock _l(mV4l2Lock);
 
+    mCaptureIntent = intent;
+
     if(mbStart) {
         ret = onDeviceStopLocked();
         if(ret) {
@@ -232,9 +234,8 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         }
     }
 
-    // save mode and intent
+    // save mode
     mSceneMode = sceneMode;
-    mCaptureIntent = intent;
 
 
     return 0;
@@ -354,6 +355,10 @@ capture_data:
     }
 
     ALOGV("VIDIOC_DQBUF ok, idx %d", cfilledbuffer.index);
+
+    if (mSession->mDebug && strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
+        ((ISPCameraMMAPStream *)this)->getIspWrapper()->dump();
+    }
 
     mFrames++;
     if (mFrames == 1) {
