@@ -132,8 +132,6 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     ALOGI("%s: to set format 0x%x, res %dx%d, fps %d, intent %d, sceneMode %d, recover %d",
         __func__, format, width, height, fps, intent, sceneMode, recover);
 
-    mCaptureIntent = intent;
-
     if (strstr(soc_type, "imx8mq") && (width == 320) && (height == 240)) {
         width = 640;
         height = 480;
@@ -234,8 +232,10 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         }
     }
 
-    // save mode
+    // save mode and intent
     mSceneMode = sceneMode;
+    mCaptureIntent = intent;
+
 
     return 0;
 }
