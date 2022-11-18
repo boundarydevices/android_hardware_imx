@@ -56,6 +56,16 @@ DmaHeapAllocator::~DmaHeapAllocator()
         FreeDmabufHeapBufferAllocator(mBufferAllocator);
 }
 
+int DmaHeapAllocator::allocSystemMemeory(uint64_t size)
+{
+    int fd = -1;
+    fd = DmabufHeapAlloc(mBufferAllocator, "system", size, 0, 0);
+    if (fd < 0) {
+        ALOGE("%s DmabufHeapAlloc alloc failed", __func__);
+    }
+    return fd;
+}
+
 int DmaHeapAllocator::allocMemory(int size, int align, int flags)
 {
     int fd = -1;

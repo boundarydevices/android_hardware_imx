@@ -55,22 +55,12 @@ bool gralloc_driver::is_supported(const struct gralloc_buffer_descriptor *descri
 	return true;
 }
 
-int32_t create_reserved_region(const std::string &buffer_name, uint64_t reserved_region_size)
+int32_t gralloc_driver::create_reserved_region(uint64_t reserved_region_size)
 {
-	int32_t reserved_region_fd;
-	std::string reserved_region_name = buffer_name + " reserved region";
-
-	reserved_region_fd = memfd_create(reserved_region_name.c_str(), FD_CLOEXEC);
-	if (reserved_region_fd == -1) {
-		ALOGE("Failed to create reserved region fd: %s.\n", strerror(errno));
-		return -errno;
+	int32_t reserved_region_fd = pManager->allocSystemMemeory(reserved_region_size);
+	if (reserved_region_fd < 0) {
+		ALOGI("Failed to create reserved_region");
 	}
-
-	if (ftruncate(reserved_region_fd, reserved_region_size)) {
-		ALOGE("Failed to set reserved region size: %s.\n", strerror(errno));
-		return -errno;
-	}
-
 	return reserved_region_fd;
 }
 
@@ -124,7 +114,7 @@ int32_t gralloc_driver::allocate(const struct gralloc_buffer_descriptor *descrip
 	hnd->id = next_buffer_id++;
         if (descriptor->reserved_region_size > 0) {
                 reserved_region_fd =
-                    create_reserved_region(descriptor->name, descriptor->reserved_region_size);
+                    create_reserved_region(descriptor->reserved_region_size);
                 if (reserved_region_fd < 0) {
                         return reserved_region_fd;
                 }
@@ -331,7 +321,6 @@ int32_t gralloc_driver::get_reserved_region(buffer_handle_t handle,
 		return -EINVAL;
 	}
 
-        uint64_t reserved_region_size_;
         void *reserved_region_addr_;
 
 	if (hnd->fd_region <= 0) {

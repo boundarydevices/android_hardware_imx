@@ -128,6 +128,13 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     return canHandle;
 }
 
+int MemoryManager::allocSystemMemeory(uint64_t size)
+{
+    int ret = -1;
+    ret = mIonManager->allocSystemMemeory(size);
+    return ret;
+}
+
 int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
 {
     Memory *handle = NULL;

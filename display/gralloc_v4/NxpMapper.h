@@ -9,6 +9,7 @@
 
 #include "gralloc_driver.h"
 #include "gralloc_handle.h"
+#include "gralloc_metadata.h"
 
 class GrallocImportedBufferPool {
    public:
@@ -137,6 +138,10 @@ class NxpMapper : public android::hardware::graphics::mapper::V4_0::IMapper {
     android::hardware::Return<void> get(gralloc_handle_t crosHandle,
                                         const MetadataType& metadataType, get_cb hidlCb);
 
+    android::hardware::graphics::mapper::V4_0::Error set(
+            gralloc_handle_t memHandle, const MetadataType& metadataType,
+            const android::hardware::hidl_vec<uint8_t>& metadata);
+
     android::hardware::Return<void> dumpBuffer(gralloc_handle_t crosHandle,
                                                dumpBuffer_cb hidlCb);
 
@@ -144,6 +149,25 @@ class NxpMapper : public android::hardware::graphics::mapper::V4_0::IMapper {
                              uint64_t bufferUsage, uint32_t* outDrmFormat);
 
     std::unique_ptr<gralloc_driver> mDriver;
+
+    enum class ReservedRegionArea {
+        /* gralloc_metadata */
+        MAPPER4_METADATA,
+
+        /* External user metadata */
+        USER_METADATA,
+    };
+
+    android::hardware::graphics::mapper::V4_0::Error getReservedRegionArea(
+            gralloc_handle_t memHandle, ReservedRegionArea area, void** outAddr,
+            uint64_t* outSize);
+
+    android::hardware::graphics::mapper::V4_0::Error getMetadata(
+            gralloc_handle_t memHandle, const gralloc_metadata** outMetadata);
+
+    android::hardware::graphics::mapper::V4_0::Error getMutableMetadata(
+            gralloc_handle_t memHandle, gralloc_metadata** outMetadata);
+
 };
 
 extern "C" android::hardware::graphics::mapper::V4_0::IMapper* HIDL_FETCH_IMapper(const char* name);

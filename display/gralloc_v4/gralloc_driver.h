@@ -40,6 +40,7 @@ class gralloc_driver
 	int32_t get_backing_store(buffer_handle_t handle, uint64_t *out_store);
 	int32_t validate_buffer(const struct gralloc_buffer_descriptor *descriptor,
                                         buffer_handle_t handle);
+	int32_t create_reserved_region(uint64_t reserved_region_size);
 	int32_t get_reserved_region(buffer_handle_t handle, void **reserved_region_addr,
 				    uint64_t *reserved_region_size);
 

@@ -32,6 +32,16 @@ IonManager::~IonManager()
 {
 }
 
+int IonManager::allocSystemMemeory(uint64_t size)
+{
+    int sharedFd = -1;
+    sharedFd = mAllocator->allocSystemMemeory(size);
+    if (sharedFd < 0) {
+        ALOGE("IonManager allocMemory failed");
+    }
+    return sharedFd;
+}
+
 int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
 {
     if (out == NULL || mAllocator == NULL) {

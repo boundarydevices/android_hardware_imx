@@ -455,6 +455,19 @@ Return<void> NxpMapper::get(gralloc_handle_t memHandle, const MetadataType& meta
         return Void();
     }
 
+    const gralloc_metadata* grallocMetadata = nullptr;
+    if (metadataType == android::gralloc4::MetadataType_BlendMode ||
+        metadataType == android::gralloc4::MetadataType_Cta861_3 ||
+        metadataType == android::gralloc4::MetadataType_Dataspace ||
+        metadataType == android::gralloc4::MetadataType_Smpte2086) {
+        Error error = getMetadata(memHandle, &grallocMetadata);
+        if (error != Error::NONE) {
+            ALOGI("Failed to get. Failed to get buffer metadata.\n");
+            hidlCb(Error::NO_RESOURCES, encodedMetadata);
+            return Void();
+        }
+    }
+
     android::status_t status = android::NO_ERROR;
     if (metadataType == android::gralloc4::MetadataType_BufferId) {
         status = android::gralloc4::encodeBufferId(memHandle->id, &encodedMetadata);
@@ -520,13 +533,13 @@ Return<void> NxpMapper::get(gralloc_handle_t memHandle, const MetadataType& meta
 
         status = android::gralloc4::encodeCrop(crops, &encodedMetadata);
     } else if (metadataType == android::gralloc4::MetadataType_Dataspace) {
-        status = android::gralloc4::encodeDataspace(Dataspace::UNKNOWN, &encodedMetadata);
+        status = android::gralloc4::encodeDataspace(grallocMetadata->dataspace, &encodedMetadata);
     } else if (metadataType == android::gralloc4::MetadataType_BlendMode) {
-        status = android::gralloc4::encodeBlendMode(BlendMode::INVALID, &encodedMetadata);
+        status = android::gralloc4::encodeBlendMode(grallocMetadata->blendMode, &encodedMetadata);
     } else if (metadataType == android::gralloc4::MetadataType_Smpte2086) {
-        status = android::gralloc4::encodeSmpte2086(std::nullopt, &encodedMetadata);
+        status = android::gralloc4::encodeSmpte2086(grallocMetadata->smpte2086, &encodedMetadata);
     } else if (metadataType == android::gralloc4::MetadataType_Cta861_3) {
-        status = android::gralloc4::encodeCta861_3(std::nullopt, &encodedMetadata);
+        status = android::gralloc4::encodeCta861_3(grallocMetadata->cta861_3, &encodedMetadata);
     } else if (metadataType == android::gralloc4::MetadataType_Smpte2094_40) {
         status = android::gralloc4::encodeSmpte2094_40(std::nullopt, &encodedMetadata);
     } else {
@@ -545,7 +558,7 @@ Return<void> NxpMapper::get(gralloc_handle_t memHandle, const MetadataType& meta
 }
 
 Return<Error> NxpMapper::set(void* rawHandle, const MetadataType& metadataType,
-                                      const hidl_vec<uint8_t>& /*metadata*/) {
+                                      const hidl_vec<uint8_t>& encodedMetadata) {
     if (!mDriver) {
         ALOGE("%s Driver is uninitialized.", __func__);
         return Error::NO_RESOURCES;
@@ -579,7 +592,59 @@ Return<Error> NxpMapper::set(void* rawHandle, const MetadataType& metadataType,
         return Error::BAD_VALUE;
     }
 
-    return Error::UNSUPPORTED;
+    if (metadataType != android::gralloc4::MetadataType_BlendMode &&
+        metadataType != android::gralloc4::MetadataType_Cta861_3 &&
+        metadataType != android::gralloc4::MetadataType_Dataspace &&
+        metadataType != android::gralloc4::MetadataType_Smpte2086) {
+        return Error::UNSUPPORTED;
+    }
+    Error error = Error::NONE;
+    error = set(memHandle,metadataType, encodedMetadata);
+    return error;
+}
+
+Error NxpMapper::set(gralloc_handle_t memHandle, const MetadataType& metadataType,
+                              const android::hardware::hidl_vec<uint8_t>& encodedMetadata) {
+    if (!mDriver) {
+        ALOGI("Failed to set. Driver is uninitialized.");
+        return Error::NO_RESOURCES;
+    }
+    if (!memHandle) {
+        ALOGI("Failed to set. Invalid buffer.");
+        return Error::BAD_BUFFER;
+    }
+    gralloc_metadata* grallocMetadata = nullptr;
+    Error error = getMutableMetadata(memHandle, &grallocMetadata);
+    if (error != Error::NONE) {
+        ALOGI("Failed to set. Failed to get buffer metadata.");
+        return Error::UNSUPPORTED;
+    }
+    if (metadataType == android::gralloc4::MetadataType_BlendMode) {
+        auto status = android::gralloc4::decodeBlendMode(encodedMetadata, &grallocMetadata->blendMode);
+        if (status != android::NO_ERROR) {
+            ALOGI("Failed to set. Failed to decode blend mode.");
+            return Error::UNSUPPORTED;
+        }
+    } else if (metadataType == android::gralloc4::MetadataType_Cta861_3) {
+        auto status = android::gralloc4::decodeCta861_3(encodedMetadata, &grallocMetadata->cta861_3);
+        if (status != android::NO_ERROR) {
+            ALOGI("Failed to set. Failed to decode cta861_3.");
+            return Error::UNSUPPORTED;
+        }
+    } else if (metadataType == android::gralloc4::MetadataType_Dataspace) {
+        auto status = android::gralloc4::decodeDataspace(encodedMetadata, &grallocMetadata->dataspace);
+        if (status != android::NO_ERROR) {
+            ALOGI("Failed to set. Failed to decode dataspace.");
+            return Error::UNSUPPORTED;
+        }
+    } else if (metadataType == android::gralloc4::MetadataType_Smpte2086) {
+        auto status = android::gralloc4::decodeSmpte2086(encodedMetadata, &grallocMetadata->smpte2086);
+        if (status != android::NO_ERROR) {
+            ALOGI("Failed to set. Failed to decode smpte2086.");
+            return Error::UNSUPPORTED;
+        }
+    }
+    return Error::NONE;
 }
 
 int NxpMapper::getResolvedDrmFormat(PixelFormat pixelFormat, uint64_t bufferUsage,
@@ -800,25 +865,25 @@ Return<void> NxpMapper::listSupportedMetadataTypes(listSupportedMetadataTypes_cb
                     android::gralloc4::MetadataType_Dataspace,
                     "",
                     /*isGettable=*/true,
-                    /*isSettable=*/false,
+                    /*isSettable=*/true,
             },
             {
                     android::gralloc4::MetadataType_BlendMode,
                     "",
                     /*isGettable=*/true,
-                    /*isSettable=*/false,
+                    /*isSettable=*/true,
             },
             {
                     android::gralloc4::MetadataType_Smpte2086,
                     "",
                     /*isGettable=*/true,
-                    /*isSettable=*/false,
+                    /*isSettable=*/true,
             },
             {
                     android::gralloc4::MetadataType_Cta861_3,
                     "",
                     /*isGettable=*/true,
-                    /*isSettable=*/false,
+                    /*isSettable=*/true,
             },
             {
                     android::gralloc4::MetadataType_Smpte2094_40,
@@ -968,6 +1033,75 @@ Return<void> NxpMapper::dumpBuffers(dumpBuffers_cb hidlCb) {
     return Void();
 }
 
+Error NxpMapper::getReservedRegionArea(gralloc_handle_t memHandle,
+                                                ReservedRegionArea area, void** outAddr,
+                                                uint64_t* outSize) {
+    if (!mDriver) {
+        ALOGE("Failed to getReservedRegionArea. Driver is uninitialized.");
+        return Error::NO_RESOURCES;
+    }
+
+    if (!memHandle) {
+        ALOGE("Failed to getReservedRegionArea. Invalid buffer.");
+        return Error::BAD_BUFFER;
+    }
+
+    int ret = mDriver->get_reserved_region(memHandle,outAddr, outSize);
+    if (ret) {
+        ALOGE("Failed to getReservedRegionArea.");
+        *outAddr = nullptr;
+        *outSize = 0;
+        return Error::NO_RESOURCES;
+    }
+
+    switch (area) {
+        case ReservedRegionArea::MAPPER4_METADATA: {
+            // gralloc_metadata resides at the beginning reserved region.
+            *outSize = sizeof(gralloc_metadata);
+            break;
+        }
+        case ReservedRegionArea::USER_METADATA: {
+            // User metadata resides after the gralloc_metadata.
+            *outAddr = reinterpret_cast<void*>(reinterpret_cast<char*>(*outAddr) +
+                                               sizeof(gralloc_metadata));
+            *outSize = *outSize - sizeof(gralloc_metadata);
+            break;
+        }
+    }
+
+    return Error::NONE;
+}
+
+Error NxpMapper::getMetadata(gralloc_handle_t memHandle,
+                                      const gralloc_metadata** outMetadata) {
+    void* addr = nullptr;
+    uint64_t size;
+
+    Error error =
+            getReservedRegionArea(memHandle, ReservedRegionArea::MAPPER4_METADATA, &addr, &size);
+    if (error != Error::NONE) {
+        return error;
+    }
+
+    *outMetadata = reinterpret_cast<const gralloc_metadata*>(addr);
+    return Error::NONE;
+}
+
+Error NxpMapper::getMutableMetadata(gralloc_handle_t memHandle,
+                                             gralloc_metadata** outMetadata) {
+    void* addr = nullptr;
+    uint64_t size;
+
+    Error error =
+            getReservedRegionArea(memHandle, ReservedRegionArea::MAPPER4_METADATA, &addr, &size);
+    if (error != Error::NONE) {
+        return error;
+    }
+
+    *outMetadata = reinterpret_cast<gralloc_metadata*>(addr);
+    return Error::NONE;
+}
+
 Return<void> NxpMapper::getReservedRegion(void* rawHandle, getReservedRegion_cb hidlCb) {
     if (!mDriver) {
         ALOGE("%s Driver is uninitialized.", __func__);
@@ -991,8 +1125,10 @@ Return<void> NxpMapper::getReservedRegion(void* rawHandle, getReservedRegion_cb 
 
     void* reservedRegionAddr = nullptr;
     uint64_t reservedRegionSize = 0;
-    int ret = mDriver->get_reserved_region(bufferHandle, &reservedRegionAddr, &reservedRegionSize);
-    if (ret) {
+
+    Error error = getReservedRegionArea(memHandle, ReservedRegionArea::USER_METADATA, &reservedRegionAddr, &reservedRegionSize);
+
+    if (error != Error::NONE) {
         ALOGE("Failed to getReservedRegion.");
         hidlCb(Error::BAD_BUFFER, nullptr, 0);
         return Void();

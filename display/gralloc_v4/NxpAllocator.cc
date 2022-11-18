@@ -24,6 +24,8 @@ using android::hardware::graphics::common::V1_2::BufferUsage;
 using android::hardware::graphics::common::V1_2::PixelFormat;
 using android::hardware::graphics::mapper::V4_0::Error;
 
+using aidl::android::hardware::graphics::common::BlendMode;
+using aidl::android::hardware::graphics::common::Dataspace;
 using BufferDescriptorInfo =
         android::hardware::graphics::mapper::V4_0::IMapper::BufferDescriptorInfo;
 
@@ -32,6 +34,37 @@ NxpAllocator::NxpAllocator() : mDriver(std::make_unique<gralloc_driver>()) {
         ALOGE("Failed to initialize driver.");
         mDriver = nullptr;
     }
+}
+
+Error NxpAllocator::initializeMetadata(
+        gralloc_handle_t memHandle,
+        const struct gralloc_buffer_descriptor& memDescriptor) {
+    if (!mDriver) {
+        ALOGE("Failed to initializeMetadata. Driver is uninitialized.");
+        return Error::NO_RESOURCES;
+    }
+
+    if (!memHandle) {
+        ALOGE("Failed to initializeMetadata. Invalid handle.");
+        return Error::BAD_BUFFER;
+    }
+
+    void* reservedRegionAddr = nullptr;
+    uint64_t reservedRegionSize = 0;
+    int ret = mDriver->get_reserved_region(memHandle, &reservedRegionAddr, &reservedRegionSize);
+    if (ret) {
+        ALOGE("Failed to initializeMetadata. Failed to getReservedRegion.");
+        return Error::NO_RESOURCES;
+    }
+
+    gralloc_metadata* grallocMetadata = reinterpret_cast<gralloc_metadata*>(reservedRegionAddr);
+
+    snprintf(grallocMetadata->name, GRALLOC_METADATA_MAX_NAME_SIZE, "%s",
+             memDescriptor.name.c_str());
+    grallocMetadata->dataspace = Dataspace::UNKNOWN;
+    grallocMetadata->blendMode = BlendMode::INVALID;
+
+    return Error::NONE;
 }
 
 Error NxpAllocator::allocate(const BufferDescriptorInfo& descriptor, uint32_t* outStride,
@@ -49,6 +82,8 @@ Error NxpAllocator::allocate(const BufferDescriptorInfo& descriptor, uint32_t* o
     if (convertToMemDescriptor(descriptor, &memDescriptor)) {
         return Error::UNSUPPORTED;
     }
+
+    memDescriptor.reserved_region_size += sizeof(gralloc_metadata);
 
     bool supported = mDriver->is_supported(&memDescriptor);
     if (!supported && (descriptor.usage & BufferUsage::COMPOSER_OVERLAY)) {
@@ -74,6 +109,11 @@ Error NxpAllocator::allocate(const BufferDescriptorInfo& descriptor, uint32_t* o
     gralloc_handle_t memHandle = gralloc_convert_handle(handle);
     if (!memHandle) {
         return Error::NO_RESOURCES;
+    }
+
+    Error error = initializeMetadata(memHandle, memDescriptor);
+    if (error != Error::NONE) {
+        return error;
     }
 
     *outHandle = handle;

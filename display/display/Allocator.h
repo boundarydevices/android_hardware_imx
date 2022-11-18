@@ -30,6 +30,9 @@ public:
     static Allocator* getInstance();
 
     virtual ~Allocator() {};
+
+    // alloc system memory and return fd which represents this memory.
+    virtual int allocSystemMemeory(uint64_t size)=0;
     // alloc memory and return fd which represents this memory.
     virtual int allocMemory(int size, int align, int flags)=0;
     // flush cacheable memory cache.

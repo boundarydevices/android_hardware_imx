@@ -45,6 +45,8 @@ public:
 
     static MemoryManager* getInstance();
 
+    // allocate system memory
+    int allocSystemMemeory(uint64_t size);
     // allocate memory interface.
     int allocMemory(MemoryDesc& desc, Memory** out);
     // release memory interface.

@@ -31,6 +31,8 @@ public:
     static IonAllocator* getInstance();
     ~IonAllocator();
 
+    // alloc system memory and return fd which represents this memory.
+    int allocSystemMemeory(uint64_t size);
     // alloc memory and return fd which represents this memory.
     int allocMemory(int size, int align, int flags);
     // flush cacheable memory cache.

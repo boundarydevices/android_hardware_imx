@@ -116,6 +116,21 @@ IonAllocator::~IonAllocator()
     }
 }
 
+int IonAllocator::allocSystemMemeory(uint64_t size)
+{
+    int ret = 0;
+    int fd = -1;
+    if (mIonFd <= 0) {
+        ALOGE("%s invalid parameters", __func__);
+        return fd;
+    }
+    ret = ion_alloc_fd(mIonFd, size, 0, 0, 0, &fd);
+    if (ret != 0) {
+        ALOGE("ion_alloc failed 0x%08X",ret);
+    }
+    return fd;
+}
+
 int IonAllocator::allocMemory(int size, int align, int flags)
 {
     int ret = 0;

@@ -31,6 +31,7 @@ public:
     IonManager();
     ~IonManager();
 
+    int allocSystemMemeory(uint64_t size);
     int allocMemory(MemoryDesc& desc, Memory** out);
 
     int flushCache(Memory* memory);

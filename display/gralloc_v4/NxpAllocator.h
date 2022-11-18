@@ -8,6 +8,7 @@
 #include <android/hardware/graphics/mapper/4.0/IMapper.h>
 
 #include "gralloc_driver.h"
+#include "gralloc_metadata.h"
 
 class NxpAllocator : public android::hardware::graphics::allocator::V4_0::IAllocator {
   public:
@@ -17,6 +18,10 @@ class NxpAllocator : public android::hardware::graphics::allocator::V4_0::IAlloc
                                              uint32_t count, allocate_cb hidl_cb) override;
 
   private:
+    android::hardware::graphics::mapper::V4_0::Error initializeMetadata(
+            gralloc_handle_t memHandle,
+            const struct gralloc_buffer_descriptor& memDescriptor);
+
     android::hardware::graphics::mapper::V4_0::Error allocate(
             const android::hardware::graphics::mapper::V4_0::IMapper::BufferDescriptorInfo&
                     description,
