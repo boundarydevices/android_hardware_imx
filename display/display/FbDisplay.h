@@ -104,7 +104,6 @@ protected:
     int mOvPowerMode;
     int mOutFence;
     int mPresentFence;
-    bool mCustomizeUI;
     bool mEPDCDevice;
 
 protected:

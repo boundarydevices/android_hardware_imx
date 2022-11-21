@@ -118,6 +118,12 @@ enum {
     DISP_CONTENT_TYPE_GAME = 4,
 };
 
+enum {
+    UI_SCALE_NONE = 0,
+    UI_SCALE_SOFTWARE = 1,
+    UI_SCALE_HARDWARE = 2,
+};
+
 struct DisplayConfig
 {
     int mXres;
@@ -287,6 +293,7 @@ protected:
     int mFirstConfigId;
     DisplayConfig mBackupConfig;
     bool mRefreshRequired;
+    int mCustomizeUI;
 
     LayerVector mLayerVector;
     Layer* mLayers[MAX_LAYERS];

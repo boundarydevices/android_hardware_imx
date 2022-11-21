@@ -110,7 +110,6 @@ FbDisplay::FbDisplay()
     mListener = NULL;
     mOutFence = -1;
     mPresentFence = -1;
-    mCustomizeUI = false;
     mEPDCDevice = false;
 }
 
@@ -368,7 +367,7 @@ int FbDisplay::updateScreen()
         ALOGE("%s invalid config",__func__);
         return -EINVAL;
     }
-    if (!mCustomizeUI) {
+    if (mCustomizeUI == UI_SCALE_NONE) {
         const DisplayConfig& config = mConfigs[mActiveConfig];
         if (buffer->width != config.mXres || buffer->height != config.mYres ||
             buffer->fslFormat != config.mFormat) {
@@ -440,7 +439,7 @@ void FbDisplay::getGUIResolution(int &width, int &height)
     memset(h_buf, 0, sizeof(h_buf));
     property_get("ro.boot.ui_resolution", value, "imx");
     if (!strncmp(value, "imx", 3)) {
-        mCustomizeUI = false;
+        mCustomizeUI = UI_SCALE_NONE;
         return;
     }
     if (sscanf(value,"%[0-9]x%[0-9]",w_buf,h_buf) == 2) {
@@ -450,7 +449,7 @@ void FbDisplay::getGUIResolution(int &width, int &height)
             ALOGI("Set ui resolution failed! width,height:[%dx%d] can not exceed [%dx%d]",w,h,width,height);
             return;
         }
-        mCustomizeUI = true;
+        mCustomizeUI = UI_SCALE_SOFTWARE;
         width = w;
         height = h;
     }
@@ -659,7 +658,7 @@ void FbDisplay::prepareTargetsLocked()
         return;
     }
     const DisplayConfig& config = mConfigs[mActiveConfig];
-    if (!mCustomizeUI) {
+    if (mCustomizeUI == UI_SCALE_NONE) {
         desc.mWidth = config.mXres;
         desc.mHeight = config.mYres;
     } else {

@@ -48,6 +48,7 @@ Display::Display()
     mFirstConfigId = 0;
     memset(&mBackupConfig, 0, sizeof(mBackupConfig));
     mRefreshRequired = false;
+    mCustomizeUI = UI_SCALE_NONE;
 
     for (size_t i=0; i<MAX_LAYERS; i++) {
         mLayers[i] = new Layer();
