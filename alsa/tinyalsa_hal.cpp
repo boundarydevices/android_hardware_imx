@@ -4514,9 +4514,6 @@ static void adjust_card_sequence(struct imx_audio_device *adev)
     if((adev == NULL) || (adev->audio_card_num == 0))
         return;
 
-    if(!strstr(adev->device_name, "mek_8q"))
-        return;
-
     for(cardIdx = 0; cardIdx < adev->audio_card_num; cardIdx++) {
         if(strstr(adev->card_list[cardIdx]->driver_name, "wm8960")) {
             pcard_wm8960 = adev->card_list[cardIdx];
