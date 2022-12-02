@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013-2016 Freescale Semiconductor, Inc.
- * Copyright 2017 NXP.
+ * Copyright 2017-2022 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -222,6 +222,15 @@ int MemoryManager::releaseMemory(Memory* handle)
     }
     handle->fbId = 0;
     handle->fbHandle = 0;
+
+    if (handle->fd_region > 0) {
+        int ret = close(handle->fd_region);
+        handle->fd_region = 0;
+        if(ret != 0) {
+            ALOGE("%s: close fd_region failed as errno %s", __func__,
+                strerror(errno));
+        }
+    }
 
     if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         if (handle->fd_meta > 0) {

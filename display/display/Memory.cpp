@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP.
+ * Copyright 2017-2022 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,11 @@ Memory::~Memory()
     if (fd > 0) {
         close(fd);
     }
+#if GRALLOC_VERSION == 4
+    if (fd_region > 0) {
+        close(fd_region);
+    }
+#endif
 }
 
 bool Memory::isValid()

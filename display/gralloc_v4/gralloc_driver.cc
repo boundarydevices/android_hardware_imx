@@ -1,5 +1,6 @@
 /*
  * Copyright 2017 The Chromium OS Authors. All rights reserved.
+ * Copyright 2022 NXP.
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
@@ -26,6 +27,8 @@
 
 //using android::hardware::graphics::common::V1_2::BufferUsage;
 using namespace fsl;
+std::unordered_map<gralloc_handle_t, void*> reserved_region_addrs;
+pthread_mutex_t reserved_region_addrs_lock = PTHREAD_MUTEX_INITIALIZER;
 
 gralloc_driver::gralloc_driver() : pManager(nullptr)
 {
@@ -180,10 +183,10 @@ int32_t gralloc_driver::release(buffer_handle_t handle)
 
 	if (reserved_region_addrs.count(hnd)) {
 		munmap(reserved_region_addrs[hnd], hnd->reserved_region_size);
+		pthread_mutex_lock(&reserved_region_addrs_lock);
 		reserved_region_addrs.erase(hnd);
+		pthread_mutex_unlock(&reserved_region_addrs_lock);
 	}
-	if (hnd->fd_region >= 0)
-		close(hnd->fd_region);
 
 	pManager->releaseMemory(const_cast<gralloc_handle *>(hnd));
 
@@ -337,7 +340,9 @@ int32_t gralloc_driver::get_reserved_region(buffer_handle_t handle,
 			ALOGE("%s Failed to mmap reserved region: %s.", __func__, strerror(errno));
 			return -errno;
 		}
+		pthread_mutex_lock(&reserved_region_addrs_lock);
 		reserved_region_addrs.emplace(hnd, reserved_region_addr_);
+		pthread_mutex_unlock(&reserved_region_addrs_lock);
 	}
 
 	*reserved_region_addr = reserved_region_addr_;

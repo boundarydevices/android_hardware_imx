@@ -1,5 +1,6 @@
 /*
  * Copyright 2017 The Chromium OS Authors. All rights reserved.
+ * Copyright 2022 NXP.
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
@@ -52,7 +53,6 @@ class gralloc_driver
 
 	fsl::MemoryManager *pManager;
 	std::mutex mutex_;
-	std::unordered_map<gralloc_handle_t, void*> reserved_region_addrs;
 };
 
 #endif
