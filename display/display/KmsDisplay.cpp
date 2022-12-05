@@ -1982,6 +1982,7 @@ void KmsDisplay::handleVsyncEvent(nsecs_t timestamp)
     if (callback == NULL) {
         return;
     }
+    triggerRefresh();
     callback->onVSync(DISPLAY_PRIMARY, timestamp, mConfigs[mActiveConfig].mVsyncPeriod);
 }
 
