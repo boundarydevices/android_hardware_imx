@@ -239,6 +239,8 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physic
     mPreHandleImageTime = 0;
     mPreCapAndFeedTime = 0;
     mPreSubmitRequestTime = 0;
+    mImgProcThread = NULL;
+    mWorkThread = NULL;
 
     physical_meta_map_ = std::move(physical_devices);
 }
@@ -627,6 +629,12 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::DumpImage()
 int CameraDeviceSessionHwlImpl::HandleImage()
 {
     int ret = 0;
+
+    if (mImgProcThread == NULL) {
+        ALOGW("%s: wait mImgProcThread to be valid", __func__);
+        usleep(WAIT_ITVL_US);
+        return 0;
+    }
 
     mImgProcThread->mImageListLock.lock();
 

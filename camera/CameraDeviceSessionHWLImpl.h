@@ -251,6 +251,7 @@ private:
         }
 
         virtual status_t readyToRun() {
+            ALOGI("WorkThread, readyToRun");
             return 0;
         }
 
@@ -286,6 +287,7 @@ private:
         }
 
         virtual status_t readyToRun() {
+            ALOGI("ImgProcThread, readyToRun");
             return 0;
         }
 
