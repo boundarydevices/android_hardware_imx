@@ -216,12 +216,6 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         return ret;
     }
 
-    ret = onDeviceStartLocked();
-    if (ret) {
-        ALOGE("%s: onDeviceStartLocked failed, ret %d", __func__, ret);
-        return ret;
-    }
-
     if (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
         // get the default dwe para.
         Json::Value jRequest, jResponse;
@@ -232,6 +226,12 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         } else {
             ALOGW("%s: IF_DWE_G_PARAMS failed, ret %d", __func__, ret);
         }
+    }
+
+    ret = onDeviceStartLocked();
+    if (ret) {
+        ALOGE("%s: onDeviceStartLocked failed, ret %d", __func__, ret);
+        return ret;
     }
 
     // save mode

@@ -332,18 +332,33 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
 
 int32_t ISPCameraMMAPStream::onDeviceStartLocked()
 {
+    int ret = 0;
+
+    // Get the default dwe para.
+    Json::Value jRequest, jResponse;
+    ret = m_IspWrapper->viv_private_ioctl(IF_DWE_G_PARAMS, jRequest, jResponse);
+    if (ret == 0) {
+        m_IspWrapper->parseDewarpParams(jResponse["dwe"]);
+    } else {
+        ALOGW("%s: IF_DWE_G_PARAMS failed, ret %d", __func__, ret);
+    }
+
+    // Get exposure gain boundary.
+    m_IspWrapper->getExpGainBoundary();
+
     // When restart stream (shift between picture and record mode, or shift between APK), need recover to awb,
     // or the image will blurry if previous mode is mwb.
     // awb/aec need to be set after stream on.
     if (isPictureIntent()) {
         m_IspWrapper->recoverExpWB();
+        m_IspWrapper->recoverFeatures();
     } else {
         m_IspWrapper->recoverExpWB();
         m_IspWrapper->processAWB(ANDROID_CONTROL_AWB_MODE_AUTO, true);
         m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, true);
     }
 
-    int ret = MMAPStream::onDeviceStartLocked();
+    ret = MMAPStream::onDeviceStartLocked();
     if (ret) {
         ALOGE("%s: MMAPStream::onDeviceStartLocked failed, ret %d", __func__, ret);
         return ret;
@@ -355,6 +370,7 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
 int32_t ISPCameraMMAPStream::onDeviceStopLocked()
 {
     m_IspWrapper->getLatestExpWB();
+    m_IspWrapper->getLatestFeatures();
 
     int ret = MMAPStream::onDeviceStopLocked();
     return ret;

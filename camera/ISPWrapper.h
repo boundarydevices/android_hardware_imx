@@ -170,6 +170,8 @@ public:
     void getExpGainBoundary();
     void getLatestExpWB();
     int recoverExpWB();
+    void getLatestFeatures();
+    int recoverFeatures();
     void dump();
 
 private:
@@ -178,13 +180,13 @@ private:
     int processDewarp(bool bEnable);
     int processHFlip(bool bEnable);
     int processVFlip(bool bEnable);
-    int processLSC(bool bEnable);
-    int processGamma(float gamma);
-    int processBrightness(int brightness);
-    int processContrast(float contrast);
-    int processSaturation(float saturation);
-    int processHue(int hue);
-    int processSharpLevel(uint8_t level);
+    int processLSC(bool bEnable, bool force = false);
+    int processGamma(float gamma, bool force = false);
+    int processBrightness(int brightness, bool force = false);
+    int processContrast(float contrast, bool force = false);
+    int processSaturation(float saturation, bool force = false);
+    int processHue(int hue, bool force = false);
+    int processSharpLevel(uint8_t level, bool force = false);
 
     int EnableDWE(bool on);
     int enableAWB(bool enable);
@@ -201,6 +203,7 @@ private:
     int32_t m_exposure_gain;
     int64_t m_exposure_time;
     DWEPara m_dwePara;
+    DWEPara m_dweParaLast;
     bool m_dwe_on;
     double m_ec_gain_min;
     double m_ec_gain_max;

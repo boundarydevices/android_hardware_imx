@@ -49,6 +49,8 @@ ISPWrapper::ISPWrapper(CameraSensorMetadata *pSensorData, void *stream)
     m_exposure_time = 0.0;
     m_exposure_gain = 0;
 
+    memset(&m_dweParaLast, 0, sizeof(m_dwePara));
+
     memset(&m_dwePara, 0, sizeof(m_dwePara));
     // Align with daA3840_30mc_1080P.json
     m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
@@ -679,11 +681,11 @@ int ISPWrapper::processVFlip(bool bEnable)
     return 0;
 }
 
-int ISPWrapper::processLSC(bool bEnable)
+int ISPWrapper::processLSC(bool bEnable, bool force)
 {
     int ret = 0;
 
-    if (bEnable == mLSCEnable)
+    if ((force == false) && (bEnable == mLSCEnable))
         return 0;
 
     Json::Value jRequest, jResponse;
@@ -710,7 +712,7 @@ void writeArrayToNode(const T *array, Json::Value& node, const char *section, in
 #define GAMMA_MIN   (float)1.0
 #define GAMMA_MAX   (float)5.0
 
-int ISPWrapper::processGamma(float gamma)
+int ISPWrapper::processGamma(float gamma, bool force)
 {
     int ret = 0;
 
@@ -719,7 +721,7 @@ int ISPWrapper::processGamma(float gamma)
         return BAD_VALUE;
     }
 
-    if (gamma == m_gamma)
+    if ((force == false) && (gamma == m_gamma))
         return 0;
 
     uint16_t curve[17] = {0};
@@ -762,7 +764,7 @@ int ISPWrapper::processGamma(float gamma)
 }
 
 
-int ISPWrapper::processBrightness(int brightness)
+int ISPWrapper::processBrightness(int brightness, bool force)
 {
     int ret = 0;
 
@@ -771,7 +773,7 @@ int ISPWrapper::processBrightness(int brightness)
         return BAD_VALUE;
     }
 
-    if (brightness == m_brightness)
+    if ((force == false) && (brightness == m_brightness))
         return 0;
 
     Json::Value jRequest, jResponse;
@@ -794,7 +796,7 @@ int ISPWrapper::processBrightness(int brightness)
     return 0;
 }
 
-int ISPWrapper::processContrast(float contrast)
+int ISPWrapper::processContrast(float contrast, bool force)
 {
     int ret = 0;
 
@@ -803,7 +805,7 @@ int ISPWrapper::processContrast(float contrast)
         return BAD_VALUE;
     }
 
-    if (contrast == m_contrast)
+    if ((force == false) && (contrast == m_contrast))
         return 0;
 
     Json::Value jRequest, jResponse;
@@ -826,7 +828,7 @@ int ISPWrapper::processContrast(float contrast)
     return 0;
 }
 
-int ISPWrapper::processSaturation(float saturation)
+int ISPWrapper::processSaturation(float saturation, bool force)
 {
     int ret = 0;
 
@@ -835,7 +837,7 @@ int ISPWrapper::processSaturation(float saturation)
         return BAD_VALUE;
     }
 
-    if (saturation == m_saturation)
+    if ((force == false) && (saturation == m_saturation))
         return 0;
 
     Json::Value jRequest, jResponse;
@@ -858,7 +860,7 @@ int ISPWrapper::processSaturation(float saturation)
     return 0;
 }
 
-int ISPWrapper::processHue(int hue)
+int ISPWrapper::processHue(int hue, bool force)
 {
     int ret = 0;
 
@@ -867,7 +869,7 @@ int ISPWrapper::processHue(int hue)
         return BAD_VALUE;
     }
 
-    if (hue == m_hue)
+    if ((force == false) && (hue == m_hue))
         return 0;
 
     Json::Value jRequest, jResponse;
@@ -890,7 +892,7 @@ int ISPWrapper::processHue(int hue)
     return 0;
 }
 
-int ISPWrapper::processSharpLevel(uint8_t level)
+int ISPWrapper::processSharpLevel(uint8_t level, bool force)
 {
     int ret = 0;
 
@@ -899,7 +901,7 @@ int ISPWrapper::processSharpLevel(uint8_t level)
         return BAD_VALUE;
     }
 
-    if (level == m_sharp_level)
+    if ((force == false) && (level == m_sharp_level))
         return 0;
 
     // disable filter
@@ -1031,6 +1033,52 @@ int ISPWrapper::recoverExpWB()
         return BAD_VALUE;
     }
 
+    return 0;
+}
+
+void ISPWrapper::getLatestFeatures()
+{
+    m_dweParaLast = m_dwePara;
+}
+
+int ISPWrapper::recoverFeatures()
+{
+    ALOGI("enter recoverFeatures");
+
+    if (m_dwe_on) {
+        // mat(camera matrix) is related with resolution, should not compare.
+        if ((m_dwePara.mode != m_dweParaLast.mode) || (m_dwePara.hflip != m_dweParaLast.hflip) ||
+            (m_dwePara.vflip != m_dweParaLast.vflip) || (m_dwePara.bypass != m_dweParaLast.bypass)) {
+            m_dwePara.mode = m_dweParaLast.mode;
+            m_dwePara.hflip = m_dweParaLast.hflip;
+            m_dwePara.vflip = m_dweParaLast.vflip;
+            m_dwePara.bypass = m_dweParaLast.bypass;
+            setDewarpParams();
+        }
+    }
+
+    if (mLSCEnable)
+        processLSC(true, true);
+
+    if (m_gamma > 0.0)
+        processGamma(m_gamma, true);
+
+    if (m_brightness != BRIGHTNESS_MAX + 1)
+        processBrightness(m_brightness, true);
+
+    if (m_contrast != CONTRAST_MAX + 1)
+        processContrast(m_contrast, true);
+
+    if (m_saturation != SATURATION_MAX + 1)
+        processSaturation(m_saturation, true);
+
+    if (m_hue != HUE_MAX + 1)
+        processHue(m_hue, true);
+
+    if (m_sharp_level != SHARP_LEVEL_MAX +1)
+        processSharpLevel(m_sharp_level, true);
+
+    ALOGI("leave recoverFeatures");
     return 0;
 }
 
