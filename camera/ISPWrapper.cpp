@@ -438,20 +438,24 @@ int ISPWrapper::processExposureGain(int32_t gain, bool force)
     // first disable aec
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
 
+    // get current val
+    ret = viv_private_ioctl(IF_EC_G_CFG, jRequest, jResponse);
+    if (ret == 0) {
+        m_last_exposure_gain = jResponse[EC_GAIN_PARAMS].asDouble();
+        m_last_exposure_time = jResponse[EC_TIME_PARAMS].asDouble();
+        ALOGI("%s: exposure current gain %f, time %f", __func__, m_last_exposure_gain, m_last_exposure_time);
+    } else {
+        ALOGE("%s: IF_EC_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
+
     // calc the value to set
     double exposure_gain = m_ec_gain_min + ((gain - GAIN_LEVEL_MIN) * (m_ec_gain_max - m_ec_gain_min)) / (GAIN_LEVEL_MAX - GAIN_LEVEL_MIN);
-
-    // If never set exposure time, use default value.
-    if(m_exposure_time == 0)
-        m_exposure_time = EXP_TIME_DFT_NS;
-
-    double exposure_second = (double)m_exposure_time/NS_PER_SEC;
-
     jRequest[EC_GAIN_PARAMS] = exposure_gain;
-    jRequest[EC_TIME_PARAMS] = exposure_second;
+    jRequest[EC_TIME_PARAMS] = m_last_exposure_time;
 
     ALOGI("%s: change gain from %d to %d, set exposure gain to %f, exposure time to %f, force %d",
-        __func__, m_exposure_gain, gain, exposure_gain, exposure_second, force);
+        __func__, m_exposure_gain, gain, exposure_gain, m_last_exposure_time, force);
 
     ret = viv_private_ioctl(IF_EC_S_CFG, jRequest, jResponse);
     if(ret) {
@@ -478,18 +482,23 @@ int ISPWrapper::processExposureTime(int64_t exposureNs, bool force)
     // first disable aec
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
 
-    // If never set gain, use default comp vaule 0.
-    if ((m_exposure_comp < m_SensorData->mAeCompMin) || (m_exposure_comp > m_SensorData->mAeCompMax))
-        m_exposure_comp = 0;
+    // get current val
+    ret = viv_private_ioctl(IF_EC_G_CFG, jRequest, jResponse);
+    if (ret == 0) {
+        m_last_exposure_gain = jResponse[EC_GAIN_PARAMS].asDouble();
+        m_last_exposure_time = jResponse[EC_TIME_PARAMS].asDouble();
+        ALOGI("%s: exposure current gain %f, time %f", __func__, m_last_exposure_gain, m_last_exposure_time);
+    } else {
+        ALOGE("%s: IF_EC_G_CFG failed, ret %d", __func__, ret);
+        return ret;
+    }
 
-    double gain = m_ec_gain_min + ((m_exposure_comp - m_SensorData->mAeCompMin) * (m_ec_gain_max - m_ec_gain_min)) / (m_SensorData->mAeCompMax - m_SensorData->mAeCompMin);
     double exposure_second = (double)exposureNs/NS_PER_SEC;
-
-    jRequest[EC_GAIN_PARAMS] = gain;
+    jRequest[EC_GAIN_PARAMS] = m_last_exposure_gain;
     jRequest[EC_TIME_PARAMS] = exposure_second;
 
     ALOGI("%s: change exposureNs from %ld to %ld, set exposure gain to %f, exposure time to %f, force %d",
-        __func__, m_exposure_time, exposureNs, gain, exposure_second, force);
+        __func__, m_exposure_time, exposureNs, m_last_exposure_gain, exposure_second, force);
 
     ret = viv_private_ioctl(IF_EC_S_CFG, jRequest, jResponse);
     if(ret) {
