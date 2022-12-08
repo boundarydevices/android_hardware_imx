@@ -186,7 +186,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     }
     ALOGI("}");
 
-    if ( ((strcmp(layout, "") == 0) || strstr(layout, "basler")) &&
+    if ( strstr(layout, "basler") &&
          (caps_supports.count >= 4) ) {
         ALOGI("%s: hard code basler mode 2, 3 to hdr mode", __func__);
         caps_supports.mode[2].hdr_mode = 1;
