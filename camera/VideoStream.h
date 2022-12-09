@@ -55,6 +55,9 @@ public:
     virtual int32_t ISPProcess(void *pMeta __unused, uint32_t format __unused = HAL_PIXEL_FORMAT_YCBCR_422_I) { return 0; };
     CameraDeviceSessionHwlImpl *getSession() { return mSession; }
 
+    // For isp sensors, right after open device, need prepare such as set mode.
+    virtual int32_t onPrepareLocked(uint32_t format __unused, uint8_t sceneMode __unused) {return 0;}
+
 protected:
     virtual int32_t postConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, int32_t v4l2Format);
 

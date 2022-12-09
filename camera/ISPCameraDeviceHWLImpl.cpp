@@ -26,6 +26,8 @@
 
 namespace android {
 
+static int32_t GetRawFormat(int fd, int32_t& raw_v4l2_format, int8_t& color_arrange);
+
 #define PROP_CAMERA_LAYOUT "ro.boot.camera.layout"
 status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
 {
@@ -193,8 +195,10 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
         caps_supports.mode[3].hdr_mode = 1;
     }
 
-    /* get raw format */
-    ret = GetRawFormat(fd);
+    // m_color_arrange is used for static meta ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT.
+    // Luckly, for os0a20, 4 modes all use BGBG/GRGR.
+    // for basler, 4 modes all use GRGR/BGBG.
+    ret = GetRawFormat(fd, m_raw_v4l2_format, m_color_arrange);
     if (ret) {
         ALOGE("%s: GetRawFormat Failed, ret %d", __func__, ret);
         close(fd);
@@ -205,7 +209,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     return NO_ERROR;
 }
 
-int32_t ISPCameraDeviceHwlImpl::GetRawFormat(int fd)
+static int32_t GetRawFormat(int fd, int32_t& raw_v4l2_format, int8_t& color_arrange)
 {
     if (fd < 0)
       return BAD_VALUE;
@@ -239,7 +243,7 @@ int32_t ISPCameraDeviceHwlImpl::GetRawFormat(int fd)
             case V4L2_PIX_FMT_SGBRG16:
             case V4L2_PIX_FMT_SGRBG16:
             case V4L2_PIX_FMT_SRGGB16:
-                m_raw_v4l2_format = formatDescriptions.pixelformat;
+                raw_v4l2_format = formatDescriptions.pixelformat;
                 break;
             default:
                 break;
@@ -251,36 +255,69 @@ int32_t ISPCameraDeviceHwlImpl::GetRawFormat(int fd)
             case V4L2_PIX_FMT_SBGGR10:
             case V4L2_PIX_FMT_SBGGR12:
             case V4L2_PIX_FMT_SBGGR16:
-                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_BGGR;
+                color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_BGGR;
                 break;
             case V4L2_PIX_FMT_SGBRG10:
             case V4L2_PIX_FMT_SGBRG12:
             case V4L2_PIX_FMT_SGBRG16:
-                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GBRG;
+                color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GBRG;
                 break;
             case V4L2_PIX_FMT_SGRBG10:
             case V4L2_PIX_FMT_SGRBG12:
             case V4L2_PIX_FMT_SGRBG16:
-                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GRBG;
+                color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_GRBG;
                 break;
             case V4L2_PIX_FMT_SRGGB10:
             case V4L2_PIX_FMT_SRGGB12:
             case V4L2_PIX_FMT_SRGGB16:
-                m_color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_RGGB;
+                color_arrange = ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT_RGGB;
                 break;
             default:
                 break;
         }
     }
 
-    ALOGI("%s: m_raw_v4l2_format 0x%x, m_color_arrange %d", __func__, m_raw_v4l2_format, m_color_arrange);
+    ALOGI("%s: raw_v4l2_format 0x%x, color_arrange %d", __func__, raw_v4l2_format, color_arrange);
 
-    if ((m_raw_v4l2_format == -1) || (m_color_arrange == -1)) {
+    if ((raw_v4l2_format == -1) || (color_arrange == -1)) {
         return BAD_VALUE;
     }
 
     return 0;
 }
+
+
+int32_t ISPCameraMMAPStream::onPrepareLocked(uint32_t format, uint8_t sceneMode)
+{
+    int ret = 0;
+    int sensorMode = mSession->getCapsMode(sceneMode);
+
+    struct viv_caps_mode_s caps_mode;
+    memset(&caps_mode,0,sizeof(caps_mode));
+    caps_mode.mode = sensorMode;
+
+    ret = ioctl(mDev, VIV_VIDIOC_S_CAPS_MODE, &caps_mode);
+    if (ret) {
+        ALOGE("%s: Set sensor mode[%d] Failed\n", __func__, caps_mode.mode);
+        return BAD_VALUE;
+    }
+
+    // Since raw format may change with mode, need update after set mode. 
+    ret = GetRawFormat(mDev, mSession->m_raw_v4l2_format, mSession->m_color_arrange);
+    if (ret) {
+        ALOGE("%s: GetRawFormat Failed, ret %d", __func__, ret);
+        return BAD_VALUE;
+    }
+
+    m_IspWrapper->init(mDev);
+
+    // Before capture raw data, need first disable DWE.
+    if (format == HAL_PIXEL_FORMAT_RAW16)
+        ISPProcess(NULL, format);
+
+    return 0;
+}
+
 
 int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
 {

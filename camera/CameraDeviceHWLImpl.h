@@ -149,6 +149,7 @@ public:
     // used for isp camera
     struct viv_caps_supports caps_supports;
     int32_t m_raw_v4l2_format;
+    int8_t m_color_arrange;
 };
 
 }  // namespace android

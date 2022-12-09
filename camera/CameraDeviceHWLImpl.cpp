@@ -94,6 +94,7 @@ CameraDeviceHwlImpl::CameraDeviceHwlImpl(
     memset(mPictureResolutions, 0, sizeof(mPictureResolutions));
     memset(&caps_supports, 0, sizeof(caps_supports));
     m_raw_v4l2_format = -1;
+    m_color_arrange = -1;
 }
 
 CameraDeviceHwlImpl::~CameraDeviceHwlImpl()

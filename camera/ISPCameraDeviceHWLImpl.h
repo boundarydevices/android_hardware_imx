@@ -31,14 +31,11 @@ public:
       PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
       : CameraDeviceHwlImpl(camera_id, devPaths, physicalIds, cam_copy_hw, cam_csc_hw, hw_jpeg, use_cpu_encoder, cam_metadata, std::move(physical_devices), callback)
     {
-        m_color_arrange = -1;
     }
 
-    int8_t m_color_arrange;
 
 private:
     virtual status_t initSensorStaticData();
-    int32_t GetRawFormat(int fd);
 };
 
 class ISPCameraMMAPStream : public MMAPStream
@@ -51,6 +48,7 @@ public:
     virtual int32_t onDeviceStartLocked();
     virtual int32_t onDeviceStopLocked();
     virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
+    virtual int32_t onPrepareLocked(uint32_t format, uint8_t sceneMode);
     std::unique_ptr<ISPWrapper>& getIspWrapper() { return m_IspWrapper; }
 
 private:

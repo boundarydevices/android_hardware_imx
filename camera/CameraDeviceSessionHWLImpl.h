@@ -389,7 +389,6 @@ private:
     int mMaxWidth = 0;
     int mMaxHeight = 0;
     struct viv_caps_supports caps_supports;
-    int32_t m_raw_v4l2_format;
 
     uint64_t mPreHandleImageTime;
     uint64_t mPreCapAndFeedTime;
@@ -397,6 +396,10 @@ private:
 
     uint64_t mInQueRequestIdx = 0;
     uint64_t mDeQueRequestIdx = 0;
+
+public:
+    int32_t m_raw_v4l2_format = -1;
+    int8_t m_color_arrange = -1;
 };
 
 }  // namespace android
