@@ -1506,6 +1506,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     stillcapIdx = -1;
     recordIdx = -1;
     callbackIdx = -1;
+    cameraRWIdx = -1;
     is_logical_request_ = false;
 
     for (int i = 0; i < stream_num; i++) {
@@ -1555,6 +1556,9 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                     ALOGI("%s create video recording stream", __func__);
                     hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_420_888;
                     recordIdx = i;
+                } else if (stream.usage & (GRALLOC_USAGE_HW_CAMERA_WRITE|GRALLOC_USAGE_HW_CAMERA_READ)) {
+                    ALOGI("%s create camera rw stream", __func__);
+                    cameraRWIdx = i;
                 } else {
                     ALOGI("%s create preview stream", __func__);
                     previewIdx = i;
@@ -1603,8 +1607,8 @@ int CameraDeviceSessionHwlImpl::PickConfigStream(uint32_t pipeline_id, uint8_t i
         return -1;
     }
 
-    ALOGI("%s: previewIdx %d, callbackIdx %d, stillcapIdx %d, recordIdx %d, intent %d",
-        __func__, previewIdx, callbackIdx, stillcapIdx, recordIdx, intent);
+    ALOGI("%s: previewIdx %d, callbackIdx %d, stillcapIdx %d, recordIdx %d, cameraRWIdx %d, intent %d",
+        __func__, previewIdx, callbackIdx, stillcapIdx, recordIdx, cameraRWIdx, intent);
 
     int configIdx = -1;
     if(intent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE)
@@ -1637,6 +1641,8 @@ int CameraDeviceSessionHwlImpl::PickConfigStream(uint32_t pipeline_id, uint8_t i
             configIdx = stillcapIdx;
         else if (recordIdx >= 0)
             configIdx = recordIdx;
+        else if (cameraRWIdx >= 0)
+            configIdx = cameraRWIdx;
         else {
             ALOGE("%s, no stream found to config v4l2", __func__);
             return -1;

@@ -372,6 +372,7 @@ private:
     int stillcapIdx;
     int recordIdx;
     int callbackIdx;
+    int cameraRWIdx;
 
     std::unique_ptr<HalCameraMetadata> mSettings;
 
