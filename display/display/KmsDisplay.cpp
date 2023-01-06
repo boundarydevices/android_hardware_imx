@@ -1184,7 +1184,7 @@ int KmsDisplay::updateScreen()
 bool KmsDisplay::getGUIResolution(int &width, int &height)
 {
     bool ret = true;
-    int w = 0, h = 0;
+    int w = 0, h = 0, temp = 0;
 
     char value[PROPERTY_VALUE_MAX];
     char w_buf[PROPERTY_VALUE_MAX];
@@ -1217,6 +1217,11 @@ bool KmsDisplay::getGUIResolution(int &width, int &height)
             h = 480;
         } else {
             ret = false;
+        }
+        if (width < height) {
+            temp = w;
+            w = h;
+            h = temp;
         }
     }
     if (w > 0 && h > 0) {
