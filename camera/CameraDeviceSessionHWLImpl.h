@@ -379,7 +379,6 @@ private:
     CscHw mCamBlitCopyType;
     CscHw mCamBlitCscType;
     char mJpegHw[JPEG_HW_NAME_LEN] = { 0 };
-    int mUseCpuEncoder;
     CameraSensorMetadata mSensorData;
 
     int mPreviewResolutions[MAX_RESOLUTION_SIZE];
@@ -401,6 +400,7 @@ private:
 public:
     int32_t m_raw_v4l2_format = -1;
     int8_t m_color_arrange = -1;
+    int mUseCpuEncoder;
 };
 
 }  // namespace android

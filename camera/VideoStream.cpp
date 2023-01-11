@@ -341,6 +341,12 @@ capture_data:
         return NULL;
     }
 
+    uint64_t timestamp = 0;
+    if (mSession->mUseCpuEncoder)
+        timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+    else
+        timestamp = systemTime(SYSTEM_TIME_BOOTTIME);
+
     ALOGV("VIDIOC_DQBUF ok, idx %d", cfilledbuffer.index);
 
     if (mSession->mDebug && strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
@@ -367,6 +373,8 @@ capture_data:
     }
 
     mV4l2Lock.unlock();
+
+    mBuffers[cfilledbuffer.index]->mTimeStamp = timestamp;
     return mBuffers[cfilledbuffer.index];
 }
 

@@ -699,10 +699,10 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     }
 
     uint64_t timestamp = 0;
-    if (mUseCpuEncoder)
-        timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+    if (is_logical_request_)
+        timestamp = imgFeed->v4l2BufferList[0]->mTimeStamp;
     else
-        timestamp = systemTime(SYSTEM_TIME_BOOTTIME);
+        timestamp = imgFeed->v4l2Buffer->mTimeStamp;
 
     // notify shutter
     if (pInfo->pipeline_callback.notify) {
