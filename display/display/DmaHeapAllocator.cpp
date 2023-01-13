@@ -167,4 +167,41 @@ int DmaHeapAllocator::flushCache(int fd)
     return 0;
 
 }
+int DmaHeapAllocator::getHeapType(int fd){
+    int type = 0;
+    if (fd < 0) {
+        ALOGE("%s invalid parameters", __func__);
+        return -EINVAL;
+    }
+
+    struct dmabuf_imx_heap_name data;
+    int fd_;
+    fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
+    if (fd_ < 0) {
+        ALOGE("open /dev/dmabuf_imx failed: %s", strerror(errno));
+        return -EINVAL;
+    }
+    data.dmafd = fd;
+    if (ioctl(fd_, DMABUF_GET_HEAP_NAME, &data) < 0) {
+        ALOGE("%s DMABUF_GET_PHYS  failed",__func__);
+        close(fd_);
+        return -EINVAL;
+    }
+
+    if(!strcmp((char*)data.name, "system-uncached"))
+        type = DMA_HEAP_SYSTEM_UNCACHED;
+    else if(!strcmp((char*)data.name, "system"))
+        type = DMA_HEAP_SYSTEM;
+    else if(!strcmp((char*)data.name, "reserved-uncached"))
+        type = DMA_HEAP_CMA_UNCACHED;
+    else if(!strcmp((char*)data.name, "reserved"))
+        type = DMA_HEAP_CMA;
+    else if(!strcmp((char*)data.name, "secure"))
+        type = DMA_HEAP_SECURE;
+
+    close(fd_);
+
+    return type;
+}
+
 }

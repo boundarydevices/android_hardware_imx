@@ -42,7 +42,7 @@ public:
     int getPhys(int fd, int size, uint64_t& addr);
     // get memory virtual address.
     int getVaddrs(int fd, int size, uint64_t& addr);
-
+    int getHeapType(int fd);
 private:
     DmaHeapAllocator();
     static DmaHeapAllocator *sInstance;

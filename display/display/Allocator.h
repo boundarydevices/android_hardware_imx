@@ -24,6 +24,16 @@
 namespace fsl {
 
 using android::Mutex;
+
+typedef enum{
+    DMA_HEAP_UNKNOWN = 0,
+    DMA_HEAP_SYSTEM,
+    DMA_HEAP_SYSTEM_UNCACHED,
+    DMA_HEAP_CMA,
+    DMA_HEAP_CMA_UNCACHED,
+    DMA_HEAP_SECURE,
+}DMA_HEAP_TYPE;
+
 class Allocator
 {
 public:
@@ -41,6 +51,8 @@ public:
     virtual int getPhys(int fd, int size, uint64_t& addr)=0;
     // get memory virtual address.
     virtual int getVaddrs(int fd, int size, uint64_t& addr)=0;
+    // get buffer heap type
+    virtual int getHeapType(int fd)=0;
 
 private:
     static Mutex sLock;
