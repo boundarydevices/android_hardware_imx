@@ -4007,6 +4007,7 @@ static int sco_release_resource(struct imx_audio_device *adev)
     if(adev->tid_sco_rx) {
         adev->b_sco_rx_running = false;
         pthread_join(adev->tid_sco_rx, NULL);
+        adev->tid_sco_rx = NULL;
     }
 
     if(adev->pcm_sco_rx) {
@@ -4023,6 +4024,7 @@ static int sco_release_resource(struct imx_audio_device *adev)
     if(adev->tid_sco_tx) {
         adev->b_sco_tx_running = false;
         pthread_join(adev->tid_sco_tx, NULL);
+        adev->tid_sco_tx = NULL;
     }
 
     if(adev->pcm_sco_tx) {
