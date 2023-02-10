@@ -169,6 +169,7 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
         case HAL_PIXEL_FORMAT_YCbCr_420_888:
+        case HAL_PIXEL_FORMAT_YV12:
             size = alignedw * alignedh * 3 / 2;
             break;
 

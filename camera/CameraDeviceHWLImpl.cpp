@@ -256,6 +256,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
     index = 0;
     char TmpStr[20];
     int previewCnt = 0, pictureCnt = 0;
+    int frmfps = 30;
     struct v4l2_frmsizeenum cam_frmsize;
     struct v4l2_frmivalenum vid_frmval;
     while (ret == 0) {
@@ -285,22 +286,22 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
         vid_frmval.width = cam_frmsize.discrete.width;
         vid_frmval.height = cam_frmsize.discrete.height;
 
-        ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
-        if (ret != 0) {
-            continue;
+        // some camera did not support the VIDIOC_ENUM_FRAMEINTERVALS, such as ap1302
+        int ret2 = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
+        if (ret2 == 0) {
+            frmfps = vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator;
         }
 
         // If w/h ratio is not same with senserW/sensorH, framework assume that
         // first crop little width or little height, then scale.
         // 176x144 not work in this mode.
         if (!(cam_frmsize.discrete.width == 176 &&
-                cam_frmsize.discrete.height == 144) &&
-                vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator >= 5) {
+                cam_frmsize.discrete.height == 144) && frmfps >= 5) {
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.width;
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.height;
         }
 
-        if (vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator >= 15) {
+        if (frmfps >= 15) {
             mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.width;
             mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.height;
         }

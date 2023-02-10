@@ -1532,6 +1532,9 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         HalStream hal_stream;
         memset(&hal_stream, 0, sizeof(hal_stream));
         int usage = 0;
+        char socType[128] = {0};
+        property_get("ro.boot.soc_type", socType, "");
+        ALOGI("%s: socType :%s \n", __FUNCTION__, socType);
 
         switch (stream.format) {
             case HAL_PIXEL_FORMAT_RAW16:
@@ -1544,9 +1547,13 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                 break;
 
             case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
-                if (strcmp(mSensorData.v4l2_format, "nv12") == 0)
-                    hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_420_888;
-                else
+                if (strcmp(mSensorData.v4l2_format, "nv12") == 0) {
+                    if (strstr(socType, "imx93")) {
+                        hal_stream.override_format = HAL_PIXEL_FORMAT_YV12 ;
+                    } else {
+                        hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_420_888 ;
+                    }
+                } else
                     hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
                 hal_stream.max_buffers = NUM_PREVIEW_BUFFER;

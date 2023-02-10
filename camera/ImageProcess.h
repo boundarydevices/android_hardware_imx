@@ -55,6 +55,8 @@ private:
              uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
     void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
              int width, int height);
+    void convertNV12toYV12(uint8_t *inputBuffer, uint8_t *outputBuffer,
+             int width, int height);
 
     void cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uint32_t size, bool bInputCached, bool bOutputCached);
 

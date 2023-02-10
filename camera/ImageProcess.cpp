@@ -66,6 +66,12 @@ static bool IsCscSupportByCPU(int srcFormat, int dstFormat)
          (dstFormat == HAL_PIXEL_FORMAT_YCrCb_420_SP) )
         return true;
 
+    // nv12 -> yv12
+    if ( (srcFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
+         (srcFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) &&
+         (dstFormat == HAL_PIXEL_FORMAT_YV12) )
+        return true;
+
     return false;
 }
 
@@ -782,6 +788,32 @@ int ImageProcess::convertNV12toNV21(ImxStreamBuffer& dstBuf, ImxStreamBuffer& sr
     return 0;
 }
 
+void ImageProcess::convertNV12toYV12(uint8_t *inputBuffer,
+            uint8_t *outputBuffer, int width, int height)
+{
+    int size = width * height;
+    // Y
+    memcpy(outputBuffer, inputBuffer, size);
+    // V
+    uint8_t *ptrV1 = outputBuffer + size;
+    uint8_t *ptrV2 = inputBuffer + size + 1;
+    // U
+    uint8_t *ptrU1 = outputBuffer + size * 5 / 4;
+    uint8_t *ptrU2 = inputBuffer + size;
+    int n = 0;
+    while (n < size / 4)
+    {
+        *(ptrV1) = *(ptrV2);
+        ptrV1++;
+        ptrV2 = ptrV2 + 2;
+
+        *(ptrU1) = *(ptrU2);
+        ptrU1++;
+        ptrU2 = ptrU2 + 2;
+        n++;
+    }
+}
+
 static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels, int32_t v4l2Format)
 {
     ALOGI("enter Revert16BitEndian, src %p, dst %p, pixels %d, v4l2Format 0x%x", pSrc, pDst, pixels, v4l2Format);
@@ -963,8 +995,12 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& src
     } else if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
                (dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
         convertNV12toNV21(dstBuf, srcBuf);
-    }
-    else {
+    } else if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP ||
+               (src->format() == HAL_PIXEL_FORMAT_YCbCr_420_888)) &&
+               (dst->format() == HAL_PIXEL_FORMAT_YV12)) {
+        convertNV12toYV12((uint8_t *)srcBuf.mVirtAddr,
+                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+    } else {
         ALOGE("%s:%d should not enter here", __func__, __LINE__);
     }
 
