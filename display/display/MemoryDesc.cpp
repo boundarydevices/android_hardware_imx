@@ -146,18 +146,13 @@ int MemoryDesc::checkFormat()
         case FORMAT_P010:
         case FORMAT_P010_TILED:
         case FORMAT_P010_TILED_COMPRESSED:
-            if (mFslFormat == FORMAT_P010) {
-                alignedw = ALIGN_PIXEL_16(mWidth) * 5 / 4;
-            }
-            else {
-                alignedw = ALIGN_PIXEL_16(mWidth) * 5 / 4;
-            }
+            alignedw = ALIGN_PIXEL_16(mWidth * 5 / 4);
             alignedh = ALIGN_PIXEL_4(mHeight);
-            size = alignedw * alignedh * 3 / 2 * 5 / 4;
+            size = alignedw * alignedh * 3 / 2;
             //hantro vpu need more buffer size for decoding
             if(mProduceUsage & USAGE_PADDING_BUFFER) {
                 alignedh = ALIGN_PIXEL_16(mHeight);
-                size = alignedw * alignedh * 3 / 2 * 5 / 4 + alignedw * alignedh / 4 + 32;
+                size = alignedw * alignedh * 3 / 2 + alignedw * alignedh / 4 + 32;
             }
             break;
 
