@@ -275,6 +275,11 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl()
 
     if(mSettings != NULL)
         mSettings.reset();
+
+    if(m_meta) {
+        delete m_meta;
+        m_meta = NULL;
+    }
 }
 
 PipelineInfo* CameraDeviceSessionHwlImpl::GetPipelineInfo(uint32_t id)
