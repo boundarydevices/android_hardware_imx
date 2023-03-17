@@ -599,7 +599,8 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
     ALOGV("%s: crop from (%d, %d), size %dx%d, srcBuf.mFormatSize %d, mZoomRatio %f",
         __func__, crop_left, crop_top, crop_width, crop_height, (int)srcBuf.mFormatSize, src->mZoomRatio);
 
-    if ((src->format() == dst->format()) || (src->mZoomRatio <= 1.0)) { // just scale or just csc
+    if ((src->format() == dst->format()) || (src->mZoomRatio <= 1.0 &&
+        (src->width() == dst->width() && src->height() == dst->height()))) { // just scale or just csc
         d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dst->format());
         d_surface.planes[0] = (long)d_buf.buf_paddr;
         d_surface.planes[1] = (long)d_buf.buf_paddr + dst->width() * dst->height();
@@ -621,13 +622,14 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
     } else {
         struct g2d_surface tmp_surface;
 
-        resizeBuf.mFormatSize = srcBuf.mFormatSize;
+        resizeBuf.mFormatSize = getSizeByForamtRes(src->format(), dst->width(), dst->height(), false);
         resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
         ret = AllocPhyBuffer(resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return BAD_VALUE;
         }
+        ALOGV("%s: resizeBuf.mFormatSize %d, resizeBuf.mSize %d", __func__, (int)resizeBuf.mFormatSize, (int)resizeBuf.mSize);
 
         // first scale on same format as source
         tmp_surface.format = (g2d_format)convertPixelFormatToG2DFormat(src->format());

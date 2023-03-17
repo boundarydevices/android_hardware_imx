@@ -739,7 +739,7 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     // Set zoom ratio for ISP camera
     CameraMetadata requestMeta(result->result_metadata.get());
 
-    if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
+    if (mCamBlitCscType == GPU_2D) {
         camera_metadata_ro_entry entry;
         ret = requestMeta.Get(ANDROID_CONTROL_ZOOM_RATIO, &entry);
         if ((ret == 0) && imgFeed->v4l2Buffer && imgFeed->v4l2Buffer->mStream)

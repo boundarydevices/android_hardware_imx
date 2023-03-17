@@ -228,6 +228,11 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
                      availableSceneModes,
                      ARRAY_SIZE(availableSceneModes));
 
+    float android_control_zoom_ratio_range[] = {1.0, 4.0};
+    m_static_meta->Set(ANDROID_CONTROL_ZOOM_RATIO_RANGE,
+                    android_control_zoom_ratio_range,
+                    ARRAY_SIZE(android_control_zoom_ratio_range));
+
     if(strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
         uint8_t supportedHwLvl = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_FULL;
         m_static_meta->Set(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
@@ -319,12 +324,6 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         m_static_meta->Set(ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
                      available_lens_shading_map_modes,
                      ARRAY_SIZE(available_lens_shading_map_modes));
-
-        float android_control_zoom_ratio_range[] = {1.0, 4.0};
-        m_static_meta->Set(ANDROID_CONTROL_ZOOM_RATIO_RANGE,
-                     android_control_zoom_ratio_range,
-                     ARRAY_SIZE(android_control_zoom_ratio_range));
-
 
         uint8_t availableSceneModes[] = {ANDROID_CONTROL_SCENE_MODE_DISABLED, ANDROID_CONTROL_SCENE_MODE_HDR};
         m_static_meta->Set(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
@@ -602,7 +601,8 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         ANDROID_SENSOR_ORIENTATION,
         ANDROID_STATISTICS_INFO_AVAILABLE_FACE_DETECT_MODES,
         ANDROID_STATISTICS_INFO_MAX_FACE_COUNT,
-        ANDROID_SYNC_MAX_LATENCY
+        ANDROID_SYNC_MAX_LATENCY,
+        ANDROID_CONTROL_ZOOM_RATIO_RANGE,
     };
 
     if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME) == NULL) {
@@ -614,7 +614,6 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorM
         int32_t characteristics_keys_isp[] = {
             ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST,
             ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE,
-            ANDROID_CONTROL_ZOOM_RATIO_RANGE,
             ANDROID_SENSOR_INFO_COLOR_FILTER_ARRANGEMENT,
             ANDROID_SENSOR_BLACK_LEVEL_PATTERN,
             ANDROID_SENSOR_INFO_WHITE_LEVEL,
