@@ -539,7 +539,7 @@ Return<void> ExternalCameraDeviceSession::close(bool callerIsDtor) {
         // free all buffers
         {
             Mutex::Autolock _l(mCbsLock);
-            for(auto pair : mStreamMap) {
+            for(auto &pair : mStreamMap) {
                 cleanupBuffersLocked(/*Stream ID*/pair.first);
             }
         }
