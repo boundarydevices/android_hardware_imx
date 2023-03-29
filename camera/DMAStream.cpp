@@ -52,6 +52,8 @@ int32_t DMAStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint
 
 int32_t DMAStream::onDeviceStartLocked()
 {
+    int32_t ret = 0;
+
     ALOGI("%s", __func__);
 
     if (mDev <= 0) {
@@ -60,18 +62,14 @@ int32_t DMAStream::onDeviceStartLocked()
     }
 
     //-------register buffers----------
+    enum v4l2_buf_type bufType = mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
     struct v4l2_requestbuffers req;
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
     memset(&req, 0, sizeof (req));
     req.count = mNumBuffers;
-
-    if (mPlane) {
-        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    } else {
-        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    }
+    req.type = bufType;
 
     req.memory = V4L2_MEMORY_DMABUF;
     if (ioctl(mDev, VIDIOC_REQBUFS, &req) < 0) {
@@ -79,24 +77,23 @@ int32_t DMAStream::onDeviceStartLocked()
         return BAD_VALUE;
     }
 
-    int32_t ret = 0;
     //----------qbuf----------
     struct v4l2_buffer cfilledbuffer;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
         memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
         if (mPlane) {
             memset(&planes, 0, sizeof(planes));
-            cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
             cfilledbuffer.m.planes = &planes;
             cfilledbuffer.m.planes->length = mStreamSize;
             cfilledbuffer.length = 1;
             cfilledbuffer.m.planes->m.fd = mBuffers[i]->mFd;
         } else {
-            cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
             cfilledbuffer.m.fd = mBuffers[i]->mFd;
             cfilledbuffer.length = mStreamSize;
             ALOGI("buf[%d] length:%d", i, cfilledbuffer.length);
         }
+
+        cfilledbuffer.type = bufType;
         cfilledbuffer.memory = V4L2_MEMORY_DMABUF;
         cfilledbuffer.index    = i;
 
@@ -104,24 +101,18 @@ int32_t DMAStream::onDeviceStartLocked()
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
             ALOGE("%s VIDIOC_QBUF Failed: %s", __func__, strerror(errno));
-            return BAD_VALUE;
+            ret = BAD_VALUE;
+            goto err;
         }
     }
 
     //-------stream on-------
-    enum v4l2_buf_type bufType;
-
-    if (mPlane) {
-        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    } else {
-        bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    }
-
     ALOGI("before VIDIOC_STREAMON");
+
     ret = ioctl(mDev, VIDIOC_STREAMON, &bufType);
     if (ret < 0) {
         ALOGE("%s VIDIOC_STREAMON failed: %s", __func__, strerror(errno));
-        return ret;
+        goto err;
     }
     ALOGI(" after VIDIOC_STREAMON");
 
@@ -129,6 +120,20 @@ int32_t DMAStream::onDeviceStartLocked()
     mbStart = true;
 
     return 0;
+
+err:
+    ALOGI("%s: clean up before return error", __func__);
+
+    memset(&req, 0, sizeof(req));
+    req.count = 0;
+    req.type = bufType;
+    req.memory = V4L2_MEMORY_DMABUF;
+
+    if (ioctl(mDev, VIDIOC_REQBUFS, &req) < 0) {
+        ALOGW("%s VIDIOC_REQBUFS with count 0 failed: %s", __func__, strerror(errno));
+    }
+
+    return ret;
 }
 
 int32_t DMAStream::onDeviceStopLocked()
@@ -217,6 +222,8 @@ int32_t DMAStream::getDeviceBufferSize()
 
 int32_t DMAStream::allocateBuffersLocked()
 {
+    int32_t ret = 0;
+
     ALOGI("%s", __func__);
 
     mStreamSize = getDeviceBufferSize();
@@ -252,10 +259,9 @@ int32_t DMAStream::allocateBuffersLocked()
 
         int ret = AllocPhyBuffer(*mBuffers[i]);
         if (ret) {
-            delete mBuffers[i];
-            mBuffers[i] = NULL;
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
-            return -EINVAL;
+            ret = -EINVAL;
+            goto err;
         }
     }
 
@@ -263,6 +269,20 @@ int32_t DMAStream::allocateBuffersLocked()
     mAllocatedBuffers = mNumBuffers;
 
     return 0;
+
+err:
+    ALOGI("%s: clean up before return error", __func__);
+
+    for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
+        if (mBuffers[i] == NULL)
+            continue;
+
+        FreePhyBuffer(*mBuffers[i]);
+        delete mBuffers[i];
+        mBuffers[i] = NULL;
+    }
+
+    return ret;
 }
 
 int32_t DMAStream::freeBuffersLocked()
