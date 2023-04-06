@@ -234,6 +234,7 @@ private:
     int HandleImage();
     status_t CapAndFeed(uint32_t frame, FrameRequest *frameRequest);
     void DumpRequest();
+    void ReleaseFrameRequest(FrameRequest &frameRequest);
 
     VideoStream* GetVideoStreamByPhysicalId(uint32_t physical_id);
     PipelineInfo* GetPipelineInfo(uint32_t id);

@@ -34,9 +34,11 @@
 using namespace cameraconfigparser;
 namespace android {
 
+static uint32_t importCount;
+static uint32_t freeCount;
 // ImportFence and closeFence are refed from hardware/interfaces/camera/common/1.0/default/HandleImporter.cpp.
 // If use functions from HandleImporter.cpp, will lead to add a series of libs.
-static int importFence(const native_handle_t* handle) {
+static int importFence(const native_handle_t* handle, bool debug) {
     if (handle == nullptr || handle->numFds == 0)
         return -1;
 
@@ -49,12 +51,21 @@ static int importFence(const native_handle_t* handle) {
     if (fd < 0)
         ALOGE("failed to dup fence fd %d, %s", handle->data[0], strerror(errno));
 
+    importCount++;
+    if (debug)
+        ALOGI("importFence, fd %d, importCount %u, freeCount %u", fd, importCount, freeCount);
+
     return fd;
 }
 
-static void closeFence(int fd) {
+static void closeFence(int fd, bool debug) {
     if (fd >= 0) {
+        freeCount++;
+        if (debug)
+            ALOGI("freeFence, fd %d, importCount %u, freeCount %u", fd, importCount, freeCount);
+
         close(fd);
+
     }
 }
 
@@ -398,6 +409,30 @@ void CameraDeviceSessionHwlImpl::DumpRequest()
     }
 }
 
+void CameraDeviceSessionHwlImpl::ReleaseFrameRequest(FrameRequest &frameRequest)
+{
+    HwlPipelineRequest &hwReq = frameRequest.hwlReq;
+
+    // clear hwReq
+    hwReq.settings.reset();
+    hwReq.output_buffers.clear();
+    hwReq.input_buffers.clear();
+    hwReq.input_buffer_metadata.clear();
+
+    // close fence
+    int size = frameRequest.outBufferFences.size();
+    for (int i = 0; i < size; i++) {
+        int acquire_fence_fd = frameRequest.outBufferFences[i].acquire_fence_fd;
+        if (acquire_fence_fd > -1)
+            closeFence(acquire_fence_fd, mDebug);
+
+        frameRequest.outBufferFences[i].acquire_fence_fd = -1;
+    }
+    frameRequest.outBufferFences.clear();
+
+    return;
+}
+
 int CameraDeviceSessionHwlImpl::HandleRequest()
 {
     mLock.lock();
@@ -456,7 +491,9 @@ int CameraDeviceSessionHwlImpl::HandleRequest()
         }
 
         // capture v4l2 buffer and feed to mImageList
-        CapAndFeed(frame, frameRequest);
+        status_t ret = CapAndFeed(frame, frameRequest);
+        if (ret)
+            ReleaseFrameRequest(*frameRequest);
     }
 
     mLock.lock();
@@ -592,13 +629,10 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::releaseImgFeed(ImageFeed *imgFee
         return;
 
     FrameRequest *frameRequest = imgFeed->frameRequest;
-    HwlPipelineRequest &hwReq = frameRequest->hwlReq;
+    if (frameRequest == NULL)
+      return;
 
-    // clear hwReq
-    hwReq.settings.reset();
-    hwReq.output_buffers.clear();
-    hwReq.input_buffers.clear();
-    hwReq.input_buffer_metadata.clear();
+    mSession->ReleaseFrameRequest(*frameRequest);
 
     if (frameRequest && (frameRequest->idx == frameRequest->num - 1)) {
         std::vector<FrameRequest> *request = (std::vector<FrameRequest> *)frameRequest->vector;
@@ -867,7 +901,7 @@ int CameraDeviceSessionHwlImpl::HandleImage()
     if (mDebug)
         ItvlStat(mPreHandleImageTime, (char *)"HandleImage(), process_pipeline_result");
 
-    // release imgFeed->and it's request
+    // release imgFeed and it's request
     mImgProcThread->releaseImgFeed(imgFeed);
 
     return 0;
@@ -1032,7 +1066,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
         ALOGV("%s, before sync_wait fence fd %d", __func__, acquire_fence_fd);
         ret = sync_wait(acquire_fence_fd, CAMERA_SYNC_TIMEOUT);
         ALOGV("%s, after sync_wait fence fd %d", __func__, acquire_fence_fd);
-        closeFence(acquire_fence_fd);
+        closeFence(acquire_fence_fd, mDebug);
+        outFences.acquire_fence_fd = -1;
         if (ret != OK) {
             ALOGW("%s: Timeout waiting on acquire fence %d, on stream %d, buffer %lu", __func__, acquire_fence_fd, it->stream_id, it->buffer_id);
         }
@@ -1833,7 +1868,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(
         frame_request->at(i).outBufferFences.resize(outBufNum);
         for (int j = 0; j < (int)outBufNum; j++) {
             FenceFdInfo fenceInfo = {-1, -1};
-            fenceInfo.acquire_fence_fd = importFence(requests[i].output_buffers[j].acquire_fence);
+            fenceInfo.acquire_fence_fd = importFence(requests[i].output_buffers[j].acquire_fence, mDebug);
             ALOGV("%s, acquire_fence_fd %d", __func__, fenceInfo.acquire_fence_fd);
             frame_request->at(i).outBufferFences[j] = fenceInfo;
         }
@@ -1872,15 +1907,8 @@ int CameraDeviceSessionHwlImpl::CleanRequestsLocked()
         uint32_t reqNum = request->size();
         ALOGV("%s, map_frame_request, frame %d, reqNum %d", __func__, frame, reqNum);
 
-        for (uint32_t i = 0; i < reqNum; i++) {
-            HwlPipelineRequest *hwReq = &(request->at(i).hwlReq);
-
-            // clear hwReq
-            hwReq->settings.reset();
-            hwReq->output_buffers.clear();
-            hwReq->input_buffers.clear();
-            hwReq->input_buffer_metadata.clear();
-        }
+        for (uint32_t i = 0; i < reqNum; i++)
+            ReleaseFrameRequest(request->at(i));
 
         request->clear();
         delete request;
