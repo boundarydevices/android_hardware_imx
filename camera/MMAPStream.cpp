@@ -119,10 +119,17 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
     fmt.type = buf_type;
-    fmt.fmt.pix.width = width & 0xFFFFFFF8;
-    fmt.fmt.pix.height = height & 0xFFFFFFF8;
-    fmt.fmt.pix.pixelformat = vformat;
-    fmt.fmt.pix_mp.num_planes = num_planes;
+
+    if (buf_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+        fmt.fmt.pix.pixelformat = vformat;
+        fmt.fmt.pix.width = width & 0xFFFFFFF8;
+        fmt.fmt.pix.height = height & 0xFFFFFFF8;
+    } else {
+        fmt.fmt.pix_mp.pixelformat = vformat;
+        fmt.fmt.pix_mp.width = width & 0xFFFFFFF8;
+        fmt.fmt.pix_mp.height = height & 0xFFFFFFF8;
+        fmt.fmt.pix_mp.num_planes = num_planes;
+    }
 
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
     if (ret < 0) {
