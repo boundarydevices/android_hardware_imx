@@ -202,35 +202,24 @@ void JpegBuilder::setMetadata(CameraMetadata *meta)
     }
 
     int64_t gpsTimestamp;
+    mEXIFData.mGPSData.mTimeStampValid = false;
+    mEXIFData.mGPSData.mDatestampValid = false;
     ret = mMeta->getGpsTimeStamp(gpsTimestamp);
     if (ret == 0) {
-        struct tm *timeinfo = gmtime((time_t *)&(gpsTimestamp));
+        time_t time = (time_t)gpsTimestamp;
+        struct tm *timeinfo = gmtime(&time);
         if (NULL != timeinfo) {
             mEXIFData.mGPSData.mTimeStampHour  = timeinfo->tm_hour;
             mEXIFData.mGPSData.mTimeStampMin   = timeinfo->tm_min;
             mEXIFData.mGPSData.mTimeStampSec   = timeinfo->tm_sec;
             mEXIFData.mGPSData.mTimeStampValid = true;
-        }
-        else {
-            mEXIFData.mGPSData.mTimeStampValid = false;
-        }
 
-        long gpsDatestamp = gpsTimestamp;
-        timeinfo = gmtime((time_t *)&(gpsDatestamp));
-        if (NULL != timeinfo) {
             strftime(mEXIFData.mGPSData.mDatestamp,
                      GPS_DATESTAMP_SIZE,
                      "%Y:%m:%d",
                      timeinfo);
             mEXIFData.mGPSData.mDatestampValid = true;
         }
-        else {
-            mEXIFData.mGPSData.mDatestampValid = false;
-        }
-    }
-    else {
-        mEXIFData.mGPSData.mTimeStampValid = false;
-        mEXIFData.mGPSData.mDatestampValid = false;
     }
 
     uint8_t gpsProcessingMethod[GPS_PROCESSING_SIZE];
