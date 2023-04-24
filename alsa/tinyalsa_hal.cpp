@@ -417,6 +417,7 @@ static void select_mode(struct imx_audio_device *adev)
             } else
                 adev->out_device &= ~AUDIO_DEVICE_OUT_SPEAKER;
             select_output_device(adev);
+            select_input_device(adev);
 
             adev_set_voice_volume(&adev->hw_device, adev->voice_volume);
             adev->in_call = 1;
