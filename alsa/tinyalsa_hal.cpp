@@ -42,6 +42,7 @@
 
 #include <tinyalsa/asoundlib.h>
 #include <audio_utils/resampler.h>
+#include <audio_utils/channels.h>
 #include <audio_utils/echo_reference.h>
 #include <hardware/audio_effect.h>
 #include <audio_effects/effect_aec.h>
@@ -3935,10 +3936,13 @@ static void* sco_tx_task(void *arg)
     int ret = 0;
     uint32_t size = 0;
     uint32_t frames = 0;
+    uint32_t sample_size_bytes = 0;
     uint8_t *buffer = NULL;
     uint32_t out_frames = 0;
     uint32_t out_size = 0;
     uint8_t *out_buffer = NULL;
+    uint8_t *mono_buffer = NULL;
+    int16_t *p_mono_buffer = NULL;
 
     struct imx_audio_device *adev = (struct imx_audio_device *)arg;
     if(adev == NULL)
@@ -3962,7 +3966,22 @@ static void* sco_tx_task(void *arg)
         ALOGE("sco_tx_task, malloc out_buffer %d bytes failed", out_size);
         return NULL;
     }
-
+    /* Check whether conversion to mono needed */
+    if (adev->cap_config.channels > 1) {
+        /* Allocate buffer for 1 channel audio for SCO */
+        mono_buffer = (uint8_t *)malloc(size / 2);
+        if(mono_buffer == NULL) {
+            ALOGE("sco_tx_task, mono_buffer malloc %d bytes failed", size / 2);
+            free(buffer);
+            free(out_buffer);
+            return NULL;
+        }
+        p_mono_buffer = (int16_t *)mono_buffer;
+    } else {
+        p_mono_buffer = (int16_t *)buffer;
+    }
+    /* Calculate sample size */
+    sample_size_bytes = pcm_format_to_bits(adev->cap_config.format) >> 3;
     while(adev->b_sco_tx_running) {
         ret = pcm_read(adev->pcm_cap, buffer, size);
         if(ret) {
@@ -3970,11 +3989,19 @@ static void* sco_tx_task(void *arg)
                 ret, size, pcm_get_error(adev->pcm_cap));
             continue;
         }
-
-        frames = adev->cap_config.period_size;
+        if (mono_buffer) {
+            /* Convert to mono */
+            ret = adjust_channels(buffer, adev->cap_config.channels, mono_buffer, 1, sample_size_bytes, size);
+            if (ret != (size / 2)) {
+                ALOGE("sco_tx_task, adjust_channels ret %d", ret);
+            }
+            frames = ret / sample_size_bytes;
+        } else {
+            frames = adev->cap_config.period_size;
+        }
         out_frames = pcm_config_sco_out.period_size;
         adev->rsmpl_sco_tx->resample_from_input(adev->rsmpl_sco_tx,
-                                                (int16_t *)buffer,
+                                                p_mono_buffer,
                                                 (size_t *)&frames,
                                                 (int16_t *)out_buffer,
                                                 (size_t *)&out_frames);
@@ -3993,6 +4020,9 @@ static void* sco_tx_task(void *arg)
 
     free(buffer);
     free(out_buffer);
+    if (mono_buffer) {
+        free(mono_buffer);
+    }
     ALOGI("leave sco_tx_task");
 
     return NULL;
@@ -4126,9 +4156,15 @@ static int sco_task_create(struct imx_audio_device *adev)
         goto error;
     }
 
+    /* Gets card for buildin mic capturing. */
     card = get_card_for_device(adev, SCO_IN_DEVICE, PCM_IN, NULL);
     adev->cap_config = pcm_config_sco_out;
+    /* As we play 2 channel 48 kHz audio we should also capture 2 channels
+      for sound cards with shared TX/RX clocks (WM8960, WM8962) */
     adev->cap_config.rate = 48000;
+    if(strstr(adev->card_list[card]->driver_name, "wm896")) {
+        adev->cap_config.channels = 2;
+    }
     adev->cap_config.period_size = pcm_config_sco_out.period_size * adev->cap_config.rate / pcm_config_sco_out.rate;
     ALOGW(" open mic, card %d, port %d", card, port);
     ALOGW("rate %d, channel %d, period_size 0x%x",
