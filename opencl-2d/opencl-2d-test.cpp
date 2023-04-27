@@ -41,6 +41,7 @@
 #endif
 
 #include "opencl-2d.h"
+#include "Allocator.h"
 
 #define LOG_TAG "opencl-2d-test"
 #define DEBUG 1
@@ -1005,6 +1006,75 @@ enlarge:
     return 0;
 }
 
+struct testPhyBuffer {
+    void* mVirtAddr;
+    uint64_t mPhyAddr;
+    size_t mSize;
+    int32_t mFd;
+};
+
+int AllocPhyBuffer(struct testPhyBuffer *phyBufs)
+{
+    int sharedFd;
+    uint64_t phyAddr;
+    uint64_t outPtr;
+    uint32_t ionSize = phyBufs->mSize;
+
+    if (phyBufs == NULL)
+        return -1;
+
+    fsl::Allocator *allocator = fsl::Allocator::getInstance();
+    if (allocator == NULL) {
+        printf("%s ion allocator invalid\n", __func__);
+        return -1;
+    }
+
+    sharedFd = allocator->allocMemory(ionSize,
+                    MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+    if (sharedFd < 0) {
+        printf("%s: allocMemory failed.\n", __func__);
+        return -1;
+    }
+
+    int err = allocator->getVaddrs(sharedFd, ionSize, outPtr);
+    if (err != 0) {
+        printf("%s: getVaddrs failed.\n", __func__);
+        close(sharedFd);
+        return -1;
+    }
+
+    err = allocator->getPhys(sharedFd, ionSize, phyAddr);
+    if (err != 0) {
+        printf("%s: getPhys failed.\n", __func__);
+        munmap((void*)(uintptr_t)outPtr, ionSize);
+        close(sharedFd);
+        return -1;
+    }
+
+    printf("%s, outPtr:%p,  phy:%p, virt: %p, ionSize:%d\n", __func__, (void *)outPtr, (void *)phyAddr, (void *)outPtr, ionSize);
+
+    phyBufs->mVirtAddr = (void *)outPtr;
+    phyBufs->mPhyAddr = phyAddr;
+    phyBufs->mFd = sharedFd;
+
+    return 0;
+}
+
+int FreePhyBuffer(struct testPhyBuffer *phyBufs)
+{
+    if (phyBufs == NULL)
+        return -1;
+
+    if (phyBufs->mVirtAddr)
+        munmap(phyBufs->mVirtAddr, phyBufs->mSize);
+
+    if (phyBufs->mFd > 0)
+        close(phyBufs->mFd);
+
+    return 0;
+}
+
+
 int main(int argc, char** argv)
 {
     int rt;
@@ -1151,22 +1221,57 @@ int main(int argc, char** argv)
         ALOGE("No valid file %s for this test", input_file);
         goto clean;
     }
+
+/*
     input_buf  = allocate_memory(&input_ion_hnd, &input_ion_buf_fd,
             inputlen);
     if(input_buf  == NULL) {
         ALOGE("Cannot allocate input buffer");
         goto clean;
     }
+*/
+    struct testPhyBuffer InPhyBuffer;
+    struct testPhyBuffer OutPhyBuffer;
+    struct testPhyBuffer OutVXPhyBuffer;
+    struct testPhyBuffer OutBenchMarkPhyBuffer;
+    memset(&InPhyBuffer, 0, sizeof(InPhyBuffer));
+    memset(&OutPhyBuffer, 0, sizeof(OutPhyBuffer));
+    memset(&OutVXPhyBuffer, 0, sizeof(OutVXPhyBuffer));
+    memset(&OutBenchMarkPhyBuffer, 0, sizeof(OutBenchMarkPhyBuffer));
+
+    InPhyBuffer.mSize = inputlen;
+    AllocPhyBuffer(&InPhyBuffer);
+    input_buf = InPhyBuffer.mVirtAddr;
+    if(input_buf == NULL) {
+        ALOGE("Cannot allocate input buffer");
+        goto clean;
+    }
+
     read_len = read_from_file((char *)input_buf, inputlen, input_file);
     dump_buffer((char *)input_buf, 64, "input");
 
+
     outputlen = get_buf_size(gOutput_format, gOutWidth, gOutHeight, gMemTest, gCopyLen);
-    output_buf  = allocate_memory(&output_ion_hnd, &output_ion_buf_fd,
+/*    output_buf  = allocate_memory(&output_ion_hnd, &output_ion_buf_fd,
             outputlen);
     output_vx_buf  = allocate_memory(&output_vx_ion_hnd, &output_vx_ion_buf_fd,
             outputlen);
     output_benchmark_buf  = allocate_memory(&benchmark_ion_hnd, &benchmark_ion_buf_fd,
             outputlen);
+*/
+
+    OutPhyBuffer.mSize = outputlen;
+    AllocPhyBuffer(&OutPhyBuffer);
+    output_buf = OutPhyBuffer.mVirtAddr;
+
+    OutVXPhyBuffer.mSize = outputlen;
+    AllocPhyBuffer(&OutVXPhyBuffer);
+    output_vx_buf = OutVXPhyBuffer.mVirtAddr;
+
+    OutBenchMarkPhyBuffer.mSize = outputlen;
+    AllocPhyBuffer(&OutBenchMarkPhyBuffer);
+    output_benchmark_buf = OutBenchMarkPhyBuffer.mVirtAddr;
+
     if((output_buf  == NULL)||(output_benchmark_buf == NULL)||(output_vx_buf == NULL)) {
         ALOGE("Cannot allocate output buffer");
         goto clean;
@@ -1184,13 +1289,14 @@ int main(int argc, char** argv)
     }
 
     uint64_t t1, t2;
-    ALOGI("Start openCL 2d blit");
+    ALOGI("Start openCL 2d blit, in size %d, out size %d", inputlen, outputlen);
     t1 = systemTime();
     for(int loop = 0; loop < G2D_TEST_LOOP; loop ++) {
         if (!gMemTest) {
             update_surface_parameters(&src, (char *)input_buf,
                 &dst, (char *)output_buf);
 
+            ALOGI("call cl_g2d_blit");
             cl_g2d_blit(g2dHandle, &src, &dst);
         }
         else {
@@ -1207,6 +1313,7 @@ int main(int argc, char** argv)
                 g2d_output_buf.usage = CL_G2D_CPU_MEMORY;
                 g2d_input_buf.usage = CL_G2D_CPU_MEMORY;
             }
+            ALOGI("call cl_g2d_copy");
             cl_g2d_copy(g2dHandle, &g2d_output_buf,
                     &g2d_input_buf, (unsigned int)gCopyLen);
         }
@@ -1357,6 +1464,7 @@ int main(int argc, char** argv)
     write_from_file((char *)output_benchmark_buf, outputlen, output_benchmark_file);
 
 clean:
+/*
     if(input_buf  == NULL)
         free_memory(input_buf, input_ion_hnd,
                 input_ion_buf_fd, inputlen);
@@ -1369,6 +1477,13 @@ clean:
     if(output_benchmark_buf  == NULL)
         free_memory(output_benchmark_buf, benchmark_ion_hnd,
                 benchmark_ion_buf_fd, outputlen);
+*/
+
+    FreePhyBuffer(&InPhyBuffer);
+    FreePhyBuffer(&OutPhyBuffer);
+    FreePhyBuffer(&OutVXPhyBuffer);
+    FreePhyBuffer(&OutBenchMarkPhyBuffer);
+
     if(g2dHandle  == NULL)
         cl_g2d_close(g2dHandle);
     if(gIonFd == 0)
