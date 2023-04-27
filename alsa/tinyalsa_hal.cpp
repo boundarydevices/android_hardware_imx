@@ -4079,8 +4079,9 @@ static int sco_release_resource(struct imx_audio_device *adev)
 static int sco_task_create(struct imx_audio_device *adev)
 {
     int ret = 0;
+    int card_index = -1;
+    int card = -1;
     unsigned int port = 0;
-    unsigned int card = 0;
     pthread_t tid_sco_rx = 0;
     pthread_t tid_sco_tx = 0;
     pthread_attr_t attr;
@@ -4093,6 +4094,11 @@ static int sco_task_create(struct imx_audio_device *adev)
     ALOGI("prepare bt rx task");
     //open sco card for read
     card = get_card_for_hfp(adev, NULL);
+    if (card == -1) {
+        ret = -1;
+        ALOGE("cannot find card for hfp.");
+        goto error;
+    }
     pcm_config_sco_in.period_size =  pcm_config_mm_out.period_size * pcm_config_sco_in.rate / pcm_config_mm_out.rate;
     pcm_config_sco_in.period_count = pcm_config_mm_out.period_count;
 
@@ -4145,7 +4151,6 @@ static int sco_task_create(struct imx_audio_device *adev)
     /*=============== create tx task ===============*/
     ALOGI("prepare bt tx task");
     //open sco card for write
-    card = get_card_for_hfp(adev, NULL);
     ALOGI("open sco for write, card %d, port %d", card, port);
     ALOGI("rate %d, channel %d, period_size 0x%x",
         pcm_config_sco_out.rate, pcm_config_sco_out.channels, pcm_config_sco_out.period_size);
@@ -4158,12 +4163,17 @@ static int sco_task_create(struct imx_audio_device *adev)
     }
 
     /* Gets card for buildin mic capturing. */
-    card = get_card_for_device(adev, SCO_IN_DEVICE, PCM_IN, NULL);
+    card = get_card_for_device(adev, SCO_IN_DEVICE, PCM_IN, &card_index);
+    if (card_index == -1) {
+        ret = -1;
+        ALOGE("cannot find card for sco input: %d.", SCO_IN_DEVICE);
+        goto error;
+    }
     adev->cap_config = pcm_config_sco_out;
     /* As we play 2 channel 48 kHz audio we should also capture 2 channels
       for sound cards with shared TX/RX clocks (WM8960, WM8962) */
     adev->cap_config.rate = 48000;
-    if(strstr(adev->card_list[card]->driver_name, "wm896")) {
+    if(strstr(adev->card_list[card_index]->driver_name, "wm896")) {
         adev->cap_config.channels = 2;
     }
     adev->cap_config.period_size = pcm_config_sco_out.period_size * adev->cap_config.rate / pcm_config_sco_out.rate;
