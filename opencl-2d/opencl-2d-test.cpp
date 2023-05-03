@@ -1065,15 +1065,19 @@ int FreePhyBuffer(struct testPhyBuffer *phyBufs)
     if (phyBufs == NULL)
         return -1;
 
-    if (phyBufs->mVirtAddr)
-        munmap(phyBufs->mVirtAddr, phyBufs->mSize);
+    /* If already freed or never allocated, just return */
+    if (phyBufs->mVirtAddr == NULL)
+        return 0;
+
+    munmap(phyBufs->mVirtAddr, phyBufs->mSize);
 
     if (phyBufs->mFd > 0)
         close(phyBufs->mFd);
 
+    memset(phyBufs, 0, sizeof(struct testPhyBuffer));
+
     return 0;
 }
-
 
 int main(int argc, char** argv)
 {
@@ -1222,6 +1226,8 @@ int main(int argc, char** argv)
         goto clean;
     }
 
+    outputlen = get_buf_size(gOutput_format, gOutWidth, gOutHeight, gMemTest, gCopyLen);
+
 /*
     input_buf  = allocate_memory(&input_ion_hnd, &input_ion_buf_fd,
             inputlen);
@@ -1230,39 +1236,14 @@ int main(int argc, char** argv)
         goto clean;
     }
 */
-    struct testPhyBuffer InPhyBuffer;
-    struct testPhyBuffer OutPhyBuffer;
+    struct testPhyBuffer InPhyBuffer[G2D_TEST_LOOP];
+    struct testPhyBuffer OutPhyBuffer[G2D_TEST_LOOP];
     struct testPhyBuffer OutVXPhyBuffer;
     struct testPhyBuffer OutBenchMarkPhyBuffer;
     memset(&InPhyBuffer, 0, sizeof(InPhyBuffer));
     memset(&OutPhyBuffer, 0, sizeof(OutPhyBuffer));
     memset(&OutVXPhyBuffer, 0, sizeof(OutVXPhyBuffer));
     memset(&OutBenchMarkPhyBuffer, 0, sizeof(OutBenchMarkPhyBuffer));
-
-    InPhyBuffer.mSize = inputlen;
-    AllocPhyBuffer(&InPhyBuffer);
-    input_buf = InPhyBuffer.mVirtAddr;
-    if(input_buf == NULL) {
-        ALOGE("Cannot allocate input buffer");
-        goto clean;
-    }
-
-    read_len = read_from_file((char *)input_buf, inputlen, input_file);
-    dump_buffer((char *)input_buf, 64, "input");
-
-
-    outputlen = get_buf_size(gOutput_format, gOutWidth, gOutHeight, gMemTest, gCopyLen);
-/*    output_buf  = allocate_memory(&output_ion_hnd, &output_ion_buf_fd,
-            outputlen);
-    output_vx_buf  = allocate_memory(&output_vx_ion_hnd, &output_vx_ion_buf_fd,
-            outputlen);
-    output_benchmark_buf  = allocate_memory(&benchmark_ion_hnd, &benchmark_ion_buf_fd,
-            outputlen);
-*/
-
-    OutPhyBuffer.mSize = outputlen;
-    AllocPhyBuffer(&OutPhyBuffer);
-    output_buf = OutPhyBuffer.mVirtAddr;
 
     OutVXPhyBuffer.mSize = outputlen;
     AllocPhyBuffer(&OutVXPhyBuffer);
@@ -1272,12 +1253,11 @@ int main(int argc, char** argv)
     AllocPhyBuffer(&OutBenchMarkPhyBuffer);
     output_benchmark_buf = OutBenchMarkPhyBuffer.mVirtAddr;
 
-    if((output_buf  == NULL)||(output_benchmark_buf == NULL)||(output_vx_buf == NULL)) {
+    if((output_benchmark_buf == NULL)||(output_vx_buf == NULL)) {
         ALOGE("Cannot allocate output buffer");
         goto clean;
     }
-    memset(output_buf, 0, outputlen);
-    ALOGI("Get openCL output ptr %p", output_buf);
+
     memset(output_vx_buf, 0, outputlen);
     ALOGI("Get openVX output ptr %p", output_vx_buf);
     memset(output_benchmark_buf, 0, outputlen);
@@ -1292,6 +1272,28 @@ int main(int argc, char** argv)
     ALOGI("Start openCL 2d blit, in size %d, out size %d", inputlen, outputlen);
     t1 = systemTime();
     for(int loop = 0; loop < G2D_TEST_LOOP; loop ++) {
+        ALOGI("loop %d", loop);
+        InPhyBuffer[loop].mSize = inputlen;
+        AllocPhyBuffer(&InPhyBuffer[loop]);
+        input_buf = InPhyBuffer[loop].mVirtAddr;
+        if(input_buf == NULL) {
+            ALOGE("Cannot allocate input buffer");
+            goto clean;
+        }
+
+        read_len = read_from_file((char *)input_buf, inputlen, input_file);
+        if (loop == 0)
+            dump_buffer((char *)input_buf, 64, "input");
+
+        outputlen = get_buf_size(gOutput_format, gOutWidth, gOutHeight, gMemTest, gCopyLen);
+        OutPhyBuffer[loop].mSize = outputlen;
+        AllocPhyBuffer(&OutPhyBuffer[loop]);
+        output_buf = OutPhyBuffer[loop].mVirtAddr;
+        if(output_buf == NULL) {
+            ALOGE("Cannot allocate output buffer");
+            goto clean;
+        }
+
         if (!gMemTest) {
             update_surface_parameters(&src, (char *)input_buf,
                 &dst, (char *)output_buf);
@@ -1319,6 +1321,12 @@ int main(int argc, char** argv)
         }
         cl_g2d_flush(g2dHandle);
         cl_g2d_finish(g2dHandle);
+
+        // leave last index not free, so input_buf and output_buf can be used for rest code
+        if (loop < G2D_TEST_LOOP - 1) {
+            FreePhyBuffer(&InPhyBuffer[loop]);
+            FreePhyBuffer(&OutPhyBuffer[loop]);
+        }
     }
     t2 = systemTime();
     ALOGI("End openCL 2d blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP, t2-t1, (t2-t1)/G2D_TEST_LOOP);
@@ -1456,6 +1464,7 @@ int main(int argc, char** argv)
     }
 
     write_from_file((char *)output_buf, outputlen, output_file);
+
     strncpy(output_vx_file, output_file, strlen(output_file));
     strcat(output_vx_file, "_vx");
     write_from_file((char *)output_vx_buf, outputlen, output_vx_file);
@@ -1479,8 +1488,11 @@ clean:
                 benchmark_ion_buf_fd, outputlen);
 */
 
-    FreePhyBuffer(&InPhyBuffer);
-    FreePhyBuffer(&OutPhyBuffer);
+    for (int i = 0; i < G2D_TEST_LOOP; i++) {
+        FreePhyBuffer(&InPhyBuffer[i]);
+        FreePhyBuffer(&OutPhyBuffer[i]);
+    }
+
     FreePhyBuffer(&OutVXPhyBuffer);
     FreePhyBuffer(&OutBenchMarkPhyBuffer);
 
