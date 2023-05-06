@@ -196,9 +196,9 @@ void AccMagSensor::processScanData(Event* evt) {
         lseek(fd_acc_z,0L,SEEK_SET);
 
         // scale sys node is not valid, to meet xTS required range, multiply raw data with 0.0005.
-        evt->u.vec3.x  = atoi(buf_acc_x) * 0.0005;
-        evt->u.vec3.y  = atoi(buf_acc_y) * 0.0005;
-        evt->u.vec3.z  = atoi(buf_acc_z) * 0.0005;
+        evt->u.vec3.x  = atoi(buf_acc_x) * 0.00976;
+        evt->u.vec3.y  = atoi(buf_acc_y) * 0.00976;
+        evt->u.vec3.z  = atoi(buf_acc_z) * 0.00976;
     } else if(mSensorInfo.type == SensorType::MAGNETIC_FIELD) {
         char buf_mag_x[64], buf_mag_y[64], buf_mag_z[64];
 
@@ -210,9 +210,9 @@ void AccMagSensor::processScanData(Event* evt) {
         lseek(fd_mag_z,0L,SEEK_SET);
 
         // 0.000244 is read from sys node in_magn_scale.
-        evt->u.vec3.x  = atoi(buf_mag_x) * 0.000244;
-        evt->u.vec3.y  = atoi(buf_mag_y) * 0.000244;
-        evt->u.vec3.z  = atoi(buf_mag_z) * 0.000244;
+        evt->u.vec3.x  = atoi(buf_mag_x) * 0.001;
+        evt->u.vec3.y  = atoi(buf_mag_y) * 0.001;
+        evt->u.vec3.z  = atoi(buf_mag_z) * 0.001;
     }
     evt->timestamp = get_timestamp();
 }
