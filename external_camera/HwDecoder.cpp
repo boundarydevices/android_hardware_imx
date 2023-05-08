@@ -1507,12 +1507,12 @@ int HwDecoder::exportDecodedBuf(DecodedData &data, int32_t timeoutMs) {
 
     std::chrono::milliseconds timeout = std::chrono::milliseconds(timeoutMs);
     auto st = mFramesSignal.wait_for(mlk, timeout);
+    data = mData;
     if (st == std::cv_status::timeout) {
         ALOGW("%s: wait decoder output timeout!", __FUNCTION__);
         return BAD_VALUE;
     }
 
-    data = mData;
     return OK;
 }
 
