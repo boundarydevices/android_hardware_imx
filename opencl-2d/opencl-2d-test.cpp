@@ -1236,8 +1236,9 @@ int main(int argc, char** argv)
         goto clean;
     }
 */
-    struct testPhyBuffer InPhyBuffer[G2D_TEST_LOOP];
-    struct testPhyBuffer OutPhyBuffer[G2D_TEST_LOOP];
+#define TEST_BUFFER_NUM 3
+    struct testPhyBuffer InPhyBuffer[TEST_BUFFER_NUM];
+    struct testPhyBuffer OutPhyBuffer[TEST_BUFFER_NUM];
     struct testPhyBuffer OutVXPhyBuffer;
     struct testPhyBuffer OutBenchMarkPhyBuffer;
     memset(&InPhyBuffer, 0, sizeof(InPhyBuffer));
@@ -1263,6 +1264,22 @@ int main(int argc, char** argv)
     memset(output_benchmark_buf, 0, outputlen);
     ALOGI("Get CPU output ptr %p", output_benchmark_buf);
 
+    for (int i = 0; i < TEST_BUFFER_NUM; i++) {
+        InPhyBuffer[i].mSize = inputlen;
+        AllocPhyBuffer(&InPhyBuffer[i]);
+        if(InPhyBuffer[i].mVirtAddr == NULL) {
+            ALOGE("Cannot allocate input buffer, i %d", i);
+            goto clean;
+        }
+
+        OutPhyBuffer[i].mSize = outputlen;
+        AllocPhyBuffer(&OutPhyBuffer[i]);
+        if(OutPhyBuffer[i].mVirtAddr == NULL) {
+            ALOGE("Cannot allocate output buffer, i %d", i);
+            goto clean;
+        }
+    }
+
     if(cl_g2d_open(&g2dHandle) == -1 || g2dHandle == NULL) {
         ALOGE("Fail to open g2d device!\n");
         goto clean;
@@ -1272,23 +1289,15 @@ int main(int argc, char** argv)
     ALOGI("Start openCL 2d blit, in size %d, out size %d", inputlen, outputlen);
     t1 = systemTime();
     for(int loop = 0; loop < G2D_TEST_LOOP; loop ++) {
-        ALOGI("loop %d", loop);
-        InPhyBuffer[loop].mSize = inputlen;
-        AllocPhyBuffer(&InPhyBuffer[loop]);
-        input_buf = InPhyBuffer[loop].mVirtAddr;
-        if(input_buf == NULL) {
-            ALOGE("Cannot allocate input buffer");
-            goto clean;
-        }
+        int test_buffer_index = loop%TEST_BUFFER_NUM;
+        ALOGI("loop %d, test_buffer_index %d", loop, test_buffer_index);
+        input_buf = InPhyBuffer[test_buffer_index].mVirtAddr;
 
         read_len = read_from_file((char *)input_buf, inputlen, input_file);
         if (loop == 0)
             dump_buffer((char *)input_buf, 64, "input");
 
-        outputlen = get_buf_size(gOutput_format, gOutWidth, gOutHeight, gMemTest, gCopyLen);
-        OutPhyBuffer[loop].mSize = outputlen;
-        AllocPhyBuffer(&OutPhyBuffer[loop]);
-        output_buf = OutPhyBuffer[loop].mVirtAddr;
+        output_buf = OutPhyBuffer[test_buffer_index].mVirtAddr;
         if(output_buf == NULL) {
             ALOGE("Cannot allocate output buffer");
             goto clean;
@@ -1321,12 +1330,6 @@ int main(int argc, char** argv)
         }
         cl_g2d_flush(g2dHandle);
         cl_g2d_finish(g2dHandle);
-
-        // leave last index not free, so input_buf and output_buf can be used for rest code
-        if (loop < G2D_TEST_LOOP - 1) {
-            FreePhyBuffer(&InPhyBuffer[loop]);
-            FreePhyBuffer(&OutPhyBuffer[loop]);
-        }
     }
     t2 = systemTime();
     ALOGI("End openCL 2d blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP, t2-t1, (t2-t1)/G2D_TEST_LOOP);
@@ -1488,7 +1491,7 @@ clean:
                 benchmark_ion_buf_fd, outputlen);
 */
 
-    for (int i = 0; i < G2D_TEST_LOOP; i++) {
+    for (int i = 0; i < TEST_BUFFER_NUM; i++) {
         FreePhyBuffer(&InPhyBuffer[i]);
         FreePhyBuffer(&OutPhyBuffer[i]);
     }
