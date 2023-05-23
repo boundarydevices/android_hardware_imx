@@ -185,6 +185,7 @@ protected:
         uint32_t fence_ptr;
         uint32_t present_fence_ptr;
         uint32_t force_modeset_id;
+        uint32_t disp_xfer_id;
     } mCrtc;
     uint32_t mCrtcID;
     int mCrtcIndex;

@@ -350,6 +350,7 @@ void KmsDisplay::getKmsProperty()
         {"ANDROID_OUT_FENCE_PTR", &mCrtc.fence_ptr},
         {"OUT_FENCE_PTR", &mCrtc.present_fence_ptr},
         {"force_modeset", &mCrtc.force_modeset_id},
+        {"DISPLAY_TRANSFER", &mCrtc.disp_xfer_id},
     };
 
     struct TableProperty connectorTable[] = {
@@ -548,10 +549,23 @@ int KmsDisplay::setPowerMode(int mode)
         return 0;
     }
 
-    int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
-                  mConnector.dpms_id, mPowerMode);
-    if (err != 0) {
-        ALOGE("failed to set DPMS mode:%d", mPowerMode);
+    int err, disp;
+    if (mCrtc.disp_xfer_id > 0) {
+        if (mPowerMode == DRM_MODE_DPMS_ON)
+            disp = 1; // indicate APD display unblank
+        else
+            disp = 2; // indicate APD display blank
+        err = drmModeObjectSetProperty(mDrmFd, mCrtcID, DRM_MODE_OBJECT_CRTC,
+                      mCrtc.disp_xfer_id, disp);
+        if (err != 0) {
+            ALOGE("failed to set display transfer property:%d", disp);
+        }
+    } else {
+        err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
+                                          mConnector.dpms_id, mPowerMode);
+        if (err != 0) {
+            ALOGE("failed to set DPMS mode:%d", mPowerMode);
+        }
     }
 
     return err;
