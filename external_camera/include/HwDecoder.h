@@ -127,6 +127,7 @@ public:
     DecodedData mData;
     mutable std::mutex mFramesSignalLock;
     std::condition_variable mFramesSignal;
+    bool mDecReady;
 
 private:
     //const char* mMime;
