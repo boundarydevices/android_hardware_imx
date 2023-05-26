@@ -39,11 +39,11 @@ LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := opencl-2d-test
+LOCAL_MODULE := 2d-test
 LOCAL_MULTILIB := both
-LOCAL_MODULE_STEM_32 := opencl-2d-test_32
-LOCAL_MODULE_STEM_64 := opencl-2d-test_64
-LOCAL_SRC_FILES := opencl-2d-test.cpp
+LOCAL_MODULE_STEM_32 := 2d-test_32
+LOCAL_MODULE_STEM_64 := 2d-test_64
+LOCAL_SRC_FILES := 2d-test.cpp
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
