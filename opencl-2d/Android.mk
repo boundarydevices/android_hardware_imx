@@ -63,7 +63,6 @@ LOCAL_SHARED_LIBRARIES := liblog \
                           libOpenCL \
                           libOpenVX \
                           libOpenVXU \
-                          libg2d-opencl \
                           libutils \
                           libfsldisplay \
                           libyuv
