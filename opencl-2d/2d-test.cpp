@@ -95,7 +95,8 @@ static int gStride = 0;
 static int gOutWidth = 0;
 static int gOutHeight = 0;
 static int gOutStride = 0;
-static int gMemory_type = 0;
+static int gInputMemory_type = 0;
+static int gOutputMemory_type = 0;
 static bool gMemTest = false;
 static bool gCLBuildTest = false;
 static int gCopyLen = 0;
@@ -378,7 +379,7 @@ static void * allocate_memory(ion_user_handle_t *ion_hnd,
         int *ion_buf_fd,int size)
 {
     int err;
-    if (gMemory_type == 0) {
+    if (gInputMemory_type == 0 || gOutputMemory_type == 0) {
         *ion_hnd = -1;
         return malloc(size);
     }
@@ -472,7 +473,7 @@ static void * allocate_memory(ion_user_handle_t *ion_hnd,
 static void free_memory(void* pbuf, ion_user_handle_t ion_hnd,
         int ion_buf_fd, int size)
 {
-    if (gMemory_type == 0) {
+    if (gInputMemory_type == 0 || gOutputMemory_type == 0) {
         free(pbuf);
     }
     else {
@@ -606,7 +607,7 @@ static void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
 void usage(char *app)
 {
     printf("%s test program.\n", app);
-    printf("Usage: %s [-h] [-c] [-l len] [-w width] [-g height] [-i input_file] [-s input_format] [-o output_file] [-d output_format] [-m memory_type]\n", app);
+    printf("Usage: %s [-h] [-c] [-l len] [-w width] [-g height] [-i input_file] [-s input_format] [-o output_file] [-d output_format] [-m InputMemory_type] [-n Outputmemory_type]\n", app);
     printf("\t-h\t  Print this message\n");
     printf("\t-b\t  Generate CL Binary as output file from input file\n");
     printf("\t-c\t  Memory copy test\n");
@@ -623,7 +624,8 @@ void usage(char *app)
     printf("\t-x\t  output width\n");
     printf("\t-y\t  output height\n");
     printf("\t-z\t  output stride\n");
-    printf("\t-m\t  memory_type\n");
+    printf("\t-m\t  InputMemory_type\n");
+    printf("\t-n\t  Outputmemory_type\n");
     printf("\t\t\t  0:Cached memory,1:Non-cached ION memory\n");
     printf("\t-v\t  v4l2 device(such as /dev/video0, /dev/video1, ...)\n");
     printf("\tex\t  copy: 2d-test_64 -i 1080p.yuyv -o 1080p_cp.yuyv -c\n");
@@ -633,9 +635,12 @@ void usage(char *app)
 static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf,
         struct cl_g2d_surface *dst, char *output_buf)
 {
-    src->format = gInput_format;
-    if (gMemory_type == 1)
+    if (gInputMemory_type == 1)
         src->usage = CL_G2D_DEVICE_MEMORY;
+    else
+        src->usage = CL_G2D_CPU_MEMORY;
+
+    src->format = gInput_format;
     switch (src->format) {
     case CL_G2D_YUYV:
         src->planes[0] = (long)input_buf;
@@ -658,9 +663,12 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
     src->width  = gWidth;
     src->height = gHeight;
 
-    dst->format = gOutput_format;
-    if (gMemory_type == 1)
+    if (gOutputMemory_type == 1)
         dst->usage = CL_G2D_DEVICE_MEMORY;
+    else
+        dst->usage = CL_G2D_CPU_MEMORY;
+
+    dst->format = gOutput_format;
     switch (dst->format) {
     case CL_G2D_NV12:
     case CL_G2D_NV21:
@@ -1208,12 +1216,13 @@ struct testPhyBuffer {
     int32_t mFd;
 };
 
-int AllocPhyBuffer(struct testPhyBuffer *phyBufs)
+int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached)
 {
     int sharedFd;
     uint64_t phyAddr;
     uint64_t outPtr;
     uint32_t ionSize = phyBufs->mSize;
+    uint32_t cachedFlag;
 
     if (phyBufs == NULL)
         return -1;
@@ -1224,8 +1233,12 @@ int AllocPhyBuffer(struct testPhyBuffer *phyBufs)
         return -1;
     }
 
+    cachedFlag = fsl::MFLAGS_CONTIGUOUS;
+    if (bCached) {
+        cachedFlag |= fsl::MFLAGS_CACHEABLE;
+    }
     sharedFd = allocator->allocMemory(ionSize,
-                    MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+                    MEM_ALIGN, cachedFlag);
     if (sharedFd < 0) {
         printf("%s: allocMemory failed.\n", __func__);
         return -1;
@@ -1453,7 +1466,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:t:m:x:y:z:v:")) >= 0) {
+    while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:t:m:n:x:y:z:v:")) >= 0) {
         switch (rt) {
         case 'h':
             usage(argv[0]);
@@ -1496,7 +1509,10 @@ int main(int argc, char** argv)
              gOutStride = atoi(optarg);
             break;
         case 'm':
-            gMemory_type = atoi(optarg);
+            gInputMemory_type = atoi(optarg);
+            break;
+        case 'n':
+            gOutputMemory_type = atoi(optarg);
             break;
         case 'o':
             memset(output_file, 0, MAX_FILE_LEN);
@@ -1590,11 +1606,11 @@ int main(int argc, char** argv)
     memset(&OutBenchMarkPhyBuffer, 0, sizeof(OutBenchMarkPhyBuffer));
 
     OutVXPhyBuffer.mSize = outputlen;
-    AllocPhyBuffer(&OutVXPhyBuffer);
+    AllocPhyBuffer(&OutVXPhyBuffer, false);
     output_vx_buf = OutVXPhyBuffer.mVirtAddr;
 
     OutBenchMarkPhyBuffer.mSize = outputlen;
-    AllocPhyBuffer(&OutBenchMarkPhyBuffer);
+    AllocPhyBuffer(&OutBenchMarkPhyBuffer, true);
     output_benchmark_buf = OutBenchMarkPhyBuffer.mVirtAddr;
 
     if((output_benchmark_buf == NULL)||(output_vx_buf == NULL)) {
@@ -1622,7 +1638,7 @@ int main(int argc, char** argv)
     } else {
         for (int i = 0; i < TEST_BUFFER_NUM; i++) {
             InPhyBuffer[i].mSize = inputlen;
-            AllocPhyBuffer(&InPhyBuffer[i]);
+            AllocPhyBuffer(&InPhyBuffer[i], (bool)gInputMemory_type);
             if(InPhyBuffer[i].mVirtAddr == NULL) {
                 ALOGE("Cannot allocate input buffer, i %d", i);
                 goto clean;
@@ -1632,7 +1648,7 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < TEST_BUFFER_NUM; i++) {
         OutPhyBuffer[i].mSize = outputlen;
-        AllocPhyBuffer(&OutPhyBuffer[i]);
+        AllocPhyBuffer(&OutPhyBuffer[i], (bool)gOutputMemory_type);
         if(OutPhyBuffer[i].mVirtAddr == NULL) {
             ALOGE("Cannot allocate output buffer, i %d", i);
             goto clean;
@@ -1713,12 +1729,16 @@ int main(int argc, char** argv)
                 cl_output_buf.buf_size = gCopyLen;
                 cl_input_buf.buf_vaddr = input_buf;
                 cl_input_buf.buf_size = gCopyLen;
-                if (gMemory_type == 1) {
-                    cl_output_buf.usage = CL_G2D_DEVICE_MEMORY;
+
+                if (gInputMemory_type == 1) {
                     cl_input_buf.usage = CL_G2D_DEVICE_MEMORY;
                 } else {
-                    cl_output_buf.usage = CL_G2D_CPU_MEMORY;
                     cl_input_buf.usage = CL_G2D_CPU_MEMORY;
+                }
+                if (gOutputMemory_type == 1) {
+                    cl_output_buf.usage = CL_G2D_DEVICE_MEMORY;
+                } else {
+                    cl_output_buf.usage = CL_G2D_CPU_MEMORY;
                 }
                 ALOGV("call cl_g2d_copy");
                 mCLCopy(CLHandle, &cl_output_buf,
