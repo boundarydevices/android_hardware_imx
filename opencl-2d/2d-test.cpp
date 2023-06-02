@@ -1222,7 +1222,7 @@ int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached)
     uint64_t phyAddr;
     uint64_t outPtr;
     uint32_t ionSize = phyBufs->mSize;
-    uint32_t cachedFlag;
+    uint32_t flag;
 
     if (phyBufs == NULL)
         return -1;
@@ -1233,12 +1233,12 @@ int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached)
         return -1;
     }
 
-    cachedFlag = fsl::MFLAGS_CONTIGUOUS;
+    flag = fsl::MFLAGS_CONTIGUOUS;
     if (bCached) {
-        cachedFlag |= fsl::MFLAGS_CACHEABLE;
+        flag |= fsl::MFLAGS_CACHEABLE;
     }
     sharedFd = allocator->allocMemory(ionSize,
-                    MEM_ALIGN, cachedFlag);
+                    MEM_ALIGN, flag);
     if (sharedFd < 0) {
         printf("%s: allocMemory failed.\n", __func__);
         return -1;
@@ -1433,6 +1433,8 @@ int main(int argc, char** argv)
     int inputlen = 0;
     int outputlen = 0;
     int read_len = 0;
+    bool bInputMemCached = false;
+    bool bOutputMemCached = false;
 
     void *input_buf = NULL;
     uint64_t inputPhy_buf = 0;
@@ -1605,12 +1607,15 @@ int main(int argc, char** argv)
     memset(&OutVXPhyBuffer, 0, sizeof(OutVXPhyBuffer));
     memset(&OutBenchMarkPhyBuffer, 0, sizeof(OutBenchMarkPhyBuffer));
 
+    bInputMemCached = gInputMemory_type ? false: true;
+    bOutputMemCached = gOutputMemory_type ? false: true;
+
     OutVXPhyBuffer.mSize = outputlen;
-    AllocPhyBuffer(&OutVXPhyBuffer, false);
+    AllocPhyBuffer(&OutVXPhyBuffer, bOutputMemCached);
     output_vx_buf = OutVXPhyBuffer.mVirtAddr;
 
     OutBenchMarkPhyBuffer.mSize = outputlen;
-    AllocPhyBuffer(&OutBenchMarkPhyBuffer, true);
+    AllocPhyBuffer(&OutBenchMarkPhyBuffer, bOutputMemCached);
     output_benchmark_buf = OutBenchMarkPhyBuffer.mVirtAddr;
 
     if((output_benchmark_buf == NULL)||(output_vx_buf == NULL)) {
@@ -1638,7 +1643,7 @@ int main(int argc, char** argv)
     } else {
         for (int i = 0; i < TEST_BUFFER_NUM; i++) {
             InPhyBuffer[i].mSize = inputlen;
-            AllocPhyBuffer(&InPhyBuffer[i], (bool)gInputMemory_type);
+            AllocPhyBuffer(&InPhyBuffer[i], bInputMemCached);
             if(InPhyBuffer[i].mVirtAddr == NULL) {
                 ALOGE("Cannot allocate input buffer, i %d", i);
                 goto clean;
@@ -1648,7 +1653,7 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < TEST_BUFFER_NUM; i++) {
         OutPhyBuffer[i].mSize = outputlen;
-        AllocPhyBuffer(&OutPhyBuffer[i], (bool)gOutputMemory_type);
+        AllocPhyBuffer(&OutPhyBuffer[i], bOutputMemCached);
         if(OutPhyBuffer[i].mVirtAddr == NULL) {
             ALOGE("Cannot allocate output buffer, i %d", i);
             goto clean;
