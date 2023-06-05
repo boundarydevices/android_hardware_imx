@@ -715,13 +715,16 @@ int createCLProgram(const char* fileSrcName, const char*fileBinName)
 
     // Allocate memory for the devices buffer
     devices = new cl_device_id[numDevices];
+
     errNum = clGetContextInfo(context, CL_CONTEXT_DEVICES,
             deviceBufferSize, devices, NULL);
     if (errNum != CL_SUCCESS) {
         ALOGE("Failed to get device IDs\n");
         return -1;
     }
-    device = devices[0];
+    if (devices != NULL) {
+        device = devices[0];
+    }
 
     pSrcFileStream = fopen(fileSrcName, "rb");
     if(pSrcFileStream == 0) {
@@ -733,6 +736,11 @@ int createCLProgram(const char* fileSrcName, const char*fileBinName)
     // get the length of the source code
     fseek(pSrcFileStream, 0, SEEK_END);
     program_length = ftell(pSrcFileStream);
+    if (program_length < 0) {
+        ALOGE("Failed to return the file position for the file %s\n" ,fileSrcName);
+        ret = -1;
+        goto binary_out;
+    }
     fseek(pSrcFileStream, 0, SEEK_SET);
 
     // allocate a buffer for the source code string and read it in
@@ -1022,12 +1030,13 @@ int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached)
     int sharedFd;
     uint64_t phyAddr;
     uint64_t outPtr;
-    uint32_t ionSize = phyBufs->mSize;
+    uint32_t ionSize;
     uint32_t flag;
 
     if (phyBufs == NULL)
         return -1;
 
+    ionSize = phyBufs->mSize;
     fsl::Allocator *allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         printf("%s ion allocator invalid\n", __func__);
@@ -1201,7 +1210,6 @@ static int AllocV4l2Buffers()
 
 static int FreeV4l2Buffers()
 {
-  enum v4l2_buf_type type;
   struct v4l2_requestbuffers req;
   int ret;
 
@@ -1212,14 +1220,14 @@ static int FreeV4l2Buffers()
   printf("unmap memory, g_mem_type %d, V4L2_MEMORY_MMAP %d, TEST_BUFFER_NUM %d\n", g_mem_type, V4L2_MEMORY_MMAP, TEST_BUFFER_NUM);
   for (int i = 0; i < TEST_BUFFER_NUM; i++) {
     if (InPhyBuffer[i].mVirtAddr) {
-      printf("unmap %p, size %u\n", InPhyBuffer[i].mVirtAddr, InPhyBuffer[i].mSize);
+      printf("unmap %p, size %lu\n", InPhyBuffer[i].mVirtAddr, InPhyBuffer[i].mSize);
       munmap(InPhyBuffer[i].mVirtAddr, InPhyBuffer[i].mSize);
     }
   }
 
   memset(&req, 0, sizeof (req));
   req.count = 0;
-  req.type = type;
+  req.type = g_buf_type;
   req.memory = g_mem_type;
 
   ret = ioctl(g_fd_v4l, VIDIOC_REQBUFS, &req);
@@ -1272,7 +1280,7 @@ int main(int argc, char** argv)
             break;
         case 'i':
             memset(input_file, 0, MAX_FILE_LEN);
-            strncpy(input_file, optarg, MAX_FILE_LEN);
+            strncpy(input_file, optarg, strlen(optarg));
             break;
         case 's':
             gInput_format = (enum cl_g2d_format)atoi(optarg);
@@ -1306,7 +1314,7 @@ int main(int argc, char** argv)
             break;
         case 'o':
             memset(output_file, 0, MAX_FILE_LEN);
-            strncpy(output_file, optarg, MAX_FILE_LEN);
+            strncpy(output_file, optarg, strlen(optarg));
             break;
         case 'v':
             g_v4l_device = optarg;
@@ -1473,6 +1481,7 @@ int main(int argc, char** argv)
         dump_buffer((char *)input_buf, gCopyLen>256?256:gCopyLen, "g2d_input");
         dumpOutPutBuffer((char *)output_buf, "g2d");
 
+        memset(output_2d_file, 0, MAX_FILE_LEN);
         strncpy(output_2d_file, output_file, strlen(output_file));
         strcat(output_2d_file, "_2d");
         write_from_file((char *)output_buf, outputlen, output_2d_file);
@@ -1528,6 +1537,7 @@ int main(int argc, char** argv)
         dump_buffer((char *)input_buf, gCopyLen>256?256:gCopyLen, "cl_input");
         dumpOutPutBuffer((char *)output_buf, "cl");
 
+        memset(output_cl_file, 0, MAX_FILE_LEN);
         strncpy(output_cl_file, output_file, strlen(output_file));
         strcat(output_cl_file, "_cl");
         write_from_file((char *)output_buf, outputlen, output_cl_file);
@@ -1575,6 +1585,7 @@ int main(int argc, char** argv)
     ALOGI("End CPU 2d blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP, t2-t1, (t2-t1)/G2D_TEST_LOOP);
     dumpOutPutBuffer((char *)output_benchmark_buf, "benchmark");
 
+    memset(output_benchmark_file, 0, MAX_FILE_LEN);
     strncpy(output_benchmark_file, output_file, strlen(output_file));
     strcat(output_benchmark_file, "_benchmark");
     write_from_file((char *)output_benchmark_buf, outputlen, output_benchmark_file);
