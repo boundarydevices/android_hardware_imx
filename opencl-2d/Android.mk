@@ -26,7 +26,6 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_SHARED_LIBRARIES := liblog \
                           libcutils \
-                          libion \
                           libOpenCL
 
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID -DUSE_CL_SOURCECODE
@@ -47,22 +46,13 @@ LOCAL_SRC_FILES := 2d-test.cpp
 
 LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
-                    system/memory/libion/include \
-                    system/memory/libion/kernel-headers/linux \
-                    system/memory/libion \
                     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
                     vendor/nxp-opensource/imx/display/display \
                     external/libyuv/files/include
 
-LOCAL_C_INCLUDES += \
-                    $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include/VX
-
 LOCAL_SHARED_LIBRARIES := liblog \
                           libcutils \
-                          libion \
                           libOpenCL \
-                          libOpenVX \
-                          libOpenVXU \
                           libutils \
                           libfsldisplay \
                           libyuv

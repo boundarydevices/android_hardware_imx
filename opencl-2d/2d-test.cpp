@@ -24,18 +24,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
-#include <ion/ion.h>
 #include <utils/Timers.h>
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
-#include <ion_4.12.h>
-#endif
-#include <linux/ion.h>
 #include <libyuv.h>
-
-#include <VX/vx.h>
-#include <VX/vx_api.h>
-#include <VX/vxu.h>
 
 #include <CL/opencl.h>
 #ifdef BUILD_FOR_ANDROID
@@ -85,7 +75,6 @@ static char input_file[MAX_FILE_LEN];
 static char output_file[MAX_FILE_LEN];
 static char output_2d_file[MAX_FILE_LEN];
 static char output_cl_file[MAX_FILE_LEN];
-static char output_vx_file[MAX_FILE_LEN];
 static char output_benchmark_file[MAX_FILE_LEN];
 static enum cl_g2d_format gInput_format = CL_G2D_YUYV;
 static enum cl_g2d_format gOutput_format = CL_G2D_YUYV;
@@ -100,7 +89,6 @@ static int gOutputMemory_type = 0;
 static bool gMemTest = false;
 static bool gCLBuildTest = false;
 static int gCopyLen = 0;
-static int gIonFd;
 
 static int get_buf_size(enum cl_g2d_format format, int width, int height, bool copyTest, int copyLen)
 {
@@ -305,186 +293,6 @@ static int g2d_get_planesize(enum cl_g2d_format format, int w_stride, int h_stri
     return w_stride * h_stride * bpp / 8;
 }
 
-
-static vx_df_image imagetype_to_openvx(enum cl_g2d_format format)
-{
-    switch(format) {
-    case CL_G2D_YUYV:
-        return VX_DF_IMAGE_YUYV;
-        break;
-    case CL_G2D_NV12:
-        return VX_DF_IMAGE_NV12;
-        break;
-    case CL_G2D_NV21:
-        return VX_DF_IMAGE_NV21;
-        break;
-    default:
-        break;
-    }
-    return -1;
-}
-
-static bool imagepatch_to_openvx(enum cl_g2d_format format, int w_stride,
-        int height, vx_imagepatch_addressing_t *frameFormats)
-{
-    if(frameFormats == NULL)
-        return false;
-
-    memset(frameFormats, 0, sizeof(frameFormats));
-    switch(format) {
-    case CL_G2D_YUYV:
-        frameFormats[0].dim_x = gStride;
-        frameFormats[0].dim_y = gHeight;
-        frameFormats[0].stride_x = 2;
-        frameFormats[0].stride_y = gStride * 2;
-        break;
-    case CL_G2D_NV12:
-    case CL_G2D_NV21:
-        frameFormats[0].dim_x = gStride;
-        frameFormats[0].dim_y = gHeight;
-        frameFormats[0].stride_x = 1;
-        frameFormats[0].stride_y = gStride;
-        frameFormats[1].dim_x = gStride;
-        frameFormats[1].dim_y = gHeight;
-        frameFormats[1].stride_x = 1;
-        frameFormats[1].stride_y = gStride/2;
-        break;
-    default:
-        break;
-    }
-    return true;
-}
-
-static bool planeptrs_fill_openvx(enum cl_g2d_format format, void *input_ptr, int w_stride,
-                        int h_stride,void * plane_ptrs[])
-{
-    if((input_ptr == NULL) || (plane_ptrs == NULL))
-        return false;
-    int plane_count = g2d_get_planecount(format);
-    char *in_ptr = (char *)input_ptr;
-    for(int i = 0; i < plane_count; i ++) {
-        plane_ptrs[i] = in_ptr;
-        in_ptr += g2d_get_planesize(format, w_stride, h_stride, i);
-    }
-    return true;
-}
-
-
-//default ion heap
-#define ION_BUFFER_HEAP 1
-//64bit buffer alignment
-#define ION_BUFFER_ALIGN 8
-
-static void * allocate_memory(ion_user_handle_t *ion_hnd,
-        int *ion_buf_fd,int size)
-{
-    int err;
-    if (gInputMemory_type == 0 || gOutputMemory_type == 0) {
-        *ion_hnd = -1;
-        return malloc(size);
-    }
-    else {
-        unsigned char *ptr = NULL;
-        *ion_hnd = -1;
-        *ion_buf_fd = -1;
-        if (gIonFd <= 0) {
-            gIonFd = ion_open();
-        }
-
-        if (gIonFd <= 0) {
-            ALOGE("%s ion open failed", __func__);
-            return NULL;
-        }
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
-        int heap_cnt;
-        int heap_mask = 0;
-        struct ion_heap_data ihd[16];
-        err = ion_query_heap_cnt(gIonFd, &heap_cnt);
-        if (err != 0 || heap_cnt == 0) {
-            ALOGE("can't query heap count");
-            return NULL;
-        }
-
-        memset(&ihd, 0, sizeof(ihd));
-        err = ion_query_get_heaps(gIonFd, heap_cnt, &ihd);
-        if (err != 0) {
-            ALOGE("can't get ion heaps");
-            return NULL;
-        }
-        heap_mask = 0;
-        // add heap ids from heap type.
-        for (int i=0; i<heap_cnt; i++) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 1)
-            if (ihd[i].type == ION_HEAP_TYPE_DMA ||
-                 ihd[i].type == ION_HEAP_TYPE_CARVEOUT) {
-#else
-            if (ihd[i].type == ION_HEAP_TYPE_DMA) {
-#endif
-                heap_mask |=  1 << ihd[i].heap_id;
-                continue;
-            }
-        }
-        err = ion_alloc_fd(gIonFd, size, ION_BUFFER_ALIGN, heap_mask, ION_FLAG_CACHED, ion_buf_fd);
-        if (err) {
-            ALOGE("ion allocation failed!\n");
-            return NULL;
-        }
-
-        ptr = (unsigned char*)mmap(0, size, PROT_READ|PROT_WRITE,
-                     MAP_SHARED, *ion_buf_fd, 0);
-        if (ptr == MAP_FAILED) {
-            ALOGE("mmap failed!\n");
-            close(*ion_buf_fd);
-            return NULL;
-        }
-#else
-        err = ion_alloc(gIonFd,
-            size,
-            ION_BUFFER_ALIGN,
-            ION_BUFFER_HEAP,
-            0,
-            ion_hnd);
-        if (err) {
-            ALOGE("ion_alloc failed");
-            return NULL;
-        }
-
-        err = ion_map(gIonFd,
-                *ion_hnd,
-                size,
-                PROT_READ | PROT_WRITE,
-                MAP_SHARED,
-                0,
-                &ptr,
-                ion_buf_fd);
-        if (err) {
-            ALOGE("ion_map failed.");
-            ion_free(gIonFd, *ion_hnd);
-            return NULL;
-        }
-#endif
-
-        ALOGI("ion allocator: %p, size %d", ptr, size);
-        return ptr;
-    }
-}
-
-static void free_memory(void* pbuf, ion_user_handle_t ion_hnd,
-        int ion_buf_fd, int size)
-{
-    if (gInputMemory_type == 0 || gOutputMemory_type == 0) {
-        free(pbuf);
-    }
-    else {
-        munmap(pbuf, size);
-        if (ion_hnd > 0)
-            ion_free(gIonFd, ion_hnd);
-        if (ion_buf_fd > 0)
-            close(ion_buf_fd);
-    }
-}
-
 static void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
         uint8_t *src, uint32_t srcWidth, uint32_t srcHeight)
 {
@@ -626,7 +434,7 @@ void usage(char *app)
     printf("\t-z\t  output stride\n");
     printf("\t-m\t  InputMemory_type\n");
     printf("\t-n\t  Outputmemory_type\n");
-    printf("\t\t\t  0:Cached memory,1:Non-cached ION memory\n");
+    printf("\t\t\t  0:Cached memory,1:Non-cached memory\n");
     printf("\t-v\t  v4l2 device(such as /dev/video0, /dev/video1, ...)\n");
     printf("\tex\t  copy: 2d-test_64 -i 1080p.yuyv -o 1080p_cp.yuyv -c\n");
     printf("\t  \t  csc:  2d-test_64 -i 1080p.yuyv -s 24 -d 20 -o 1080p-out.nv12 -w 1920 -g 1080 -t 1920 -x 1920 -y 1080 -z 1920\n");
@@ -816,8 +624,6 @@ static void dumpOutPutBuffer(char *output_buf, const char *title)
             dump_buffer(output_buf, gCopyLen>256?256:gCopyLen, "cl_output_cp");
         } else if (strcmp(title, "benchmark") == 0) {
             dump_buffer(output_buf, gCopyLen>256?256:gCopyLen, "benchmark_output_cp");
-        } else if (strcmp(title, "vx") == 0) {
-            dump_buffer(output_buf, gCopyLen>256?256:gCopyLen, "vx_output_cp");
         }
         return;
     }
@@ -830,8 +636,6 @@ static void dumpOutPutBuffer(char *output_buf, const char *title)
             dump_buffer(output_buf, 128, "cl_output_yuyv");
         } else if (strcmp(title, "benchmark") == 0) {
             dump_buffer(output_buf, 128, "output_benchmark_yuyv");
-        } else if (strcmp(title, "vx") == 0) {
-            dump_buffer(output_buf, 128, "vx_output_yuyv");
         }
         break;
 
@@ -846,9 +650,6 @@ static void dumpOutPutBuffer(char *output_buf, const char *title)
         } else if (strcmp(title, "benchmark") == 0) {
             dump_buffer(output_buf, 64, "output_benchmark_y");
             dump_buffer(output_buf + gOutWidth*gOutHeight, 64, "benchmark_output_uv");
-        } else if (strcmp(title, "vx") == 0) {
-            dump_buffer(output_buf, 64, "vx_output_y");
-            dump_buffer(output_buf + gOutWidth*gOutHeight, 64, "vx_output_uv");
         }
         break;
         default:
@@ -1438,21 +1239,10 @@ int main(int argc, char** argv)
 
     void *input_buf = NULL;
     uint64_t inputPhy_buf = 0;
-    ion_user_handle_t input_ion_hnd = 0;
-    int input_ion_buf_fd = 0;
-
     void *output_buf = NULL;
     uint64_t outputPhy_buf = 0;
-    ion_user_handle_t output_ion_hnd = 0;
-    int output_ion_buf_fd = 0;
 
     void *output_benchmark_buf = NULL;
-    ion_user_handle_t benchmark_ion_hnd = 0;
-    int benchmark_ion_buf_fd = 0;
-
-    void *output_vx_buf = NULL;
-    ion_user_handle_t output_vx_ion_hnd = 0;
-    int output_vx_ion_buf_fd = 0;
 
     struct cl_g2d_surface src,dst;
     void *CLHandle = NULL;
@@ -1460,8 +1250,6 @@ int main(int argc, char** argv)
     struct g2d_buf s_buf, d_buf;
     struct g2d_surface s_surface, d_surface;
     void *G2dHandle = NULL;
-
-    vx_context context = NULL;
 
     if (argc < 3) {
         usage(argv[0]);
@@ -1591,40 +1379,22 @@ int main(int argc, char** argv)
         ALOGI("copy len: %d", gCopyLen);
     }
 
-/*
-    input_buf  = allocate_memory(&input_ion_hnd, &input_ion_buf_fd,
-            inputlen);
-    if(input_buf  == NULL) {
-        ALOGE("Cannot allocate input buffer");
-        goto clean;
-    }
-*/
     struct testPhyBuffer OutPhyBuffer[TEST_BUFFER_NUM];
-    struct testPhyBuffer OutVXPhyBuffer;
     struct testPhyBuffer OutBenchMarkPhyBuffer;
     memset(&InPhyBuffer, 0, sizeof(InPhyBuffer));
     memset(&OutPhyBuffer, 0, sizeof(OutPhyBuffer));
-    memset(&OutVXPhyBuffer, 0, sizeof(OutVXPhyBuffer));
     memset(&OutBenchMarkPhyBuffer, 0, sizeof(OutBenchMarkPhyBuffer));
 
     bInputMemCached = gInputMemory_type ? false: true;
     bOutputMemCached = gOutputMemory_type ? false: true;
 
-    OutVXPhyBuffer.mSize = outputlen;
-    AllocPhyBuffer(&OutVXPhyBuffer, bOutputMemCached);
-    output_vx_buf = OutVXPhyBuffer.mVirtAddr;
-
     OutBenchMarkPhyBuffer.mSize = outputlen;
     AllocPhyBuffer(&OutBenchMarkPhyBuffer, bOutputMemCached);
     output_benchmark_buf = OutBenchMarkPhyBuffer.mVirtAddr;
-
-    if((output_benchmark_buf == NULL)||(output_vx_buf == NULL)) {
+    if(output_benchmark_buf == NULL) {
         ALOGE("Cannot allocate output buffer");
         goto clean;
     }
-
-    memset(output_vx_buf, 0, outputlen);
-    ALOGI("Get openVX output ptr %p", output_vx_buf);
     memset(output_benchmark_buf, 0, outputlen);
     ALOGI("Get CPU output ptr %p", output_benchmark_buf);
 
@@ -1803,98 +1573,13 @@ int main(int argc, char** argv)
     }
     t2 = systemTime();
     ALOGI("End CPU 2d blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP, t2-t1, (t2-t1)/G2D_TEST_LOOP);
-
     dumpOutPutBuffer((char *)output_benchmark_buf, "benchmark");
-    dumpOutPutBuffer((char *)output_vx_buf, "vx");
-#if 0
-    ALOGI("Start openVX blit");
-    {
-        vx_status status;
-        void *input_planes[3] = { NULL, NULL, NULL};
-        void *output_planes[3] = { NULL, NULL, NULL};
-        vx_df_image src_type = imagetype_to_openvx(src.format);
-        vx_df_image dst_type = imagetype_to_openvx(dst.format);
-        vx_imagepatch_addressing_t frameFormats[3];
 
-        planeptrs_fill_openvx(src.format, input_buf, gStride,
-                        gHeight, input_planes);
-        planeptrs_fill_openvx(dst.format, output_vx_buf, gStride,
-                        gHeight, output_planes);
-
-        context = vxCreateContext();
-        ALOGI("Create openVX inputput Image based on plan 0: 0x%p, plane 1: 0x%p",
-                input_planes[0], input_planes[1]);
-        imagepatch_to_openvx(src.format, gStride, gHeight, frameFormats);
-        vx_image im = vxCreateImageFromHandle(context, src_type,
-                                            frameFormats, input_planes, VX_MEMORY_TYPE_HOST);
-        status = vxGetStatus((vx_reference)im);
-        if (status != VX_SUCCESS) {
-            ALOGI("Falied to create input vx image with error %d", status);
-            goto clean;
-        }
-
-        ALOGI("Create openVX output Image based on plan 0: 0x%p, plane 1: 0x%p",
-                output_planes[0], output_planes[1]);
-        imagepatch_to_openvx(dst.format, gStride, gHeight, frameFormats);
-        vx_image om = vxCreateImageFromHandle(context, dst_type,
-                                            frameFormats, output_planes, VX_MEMORY_TYPE_HOST);
-        status = vxGetStatus((vx_reference)om);
-        if (status != VX_SUCCESS) {
-            ALOGI("Falied to create output vx image");
-            goto clean;
-        }
-
-        status = vxuColorConvert(context, im, om);
-        if (status != VX_SUCCESS) {
-            ALOGI("Falied to convert vx image");
-            goto clean;
-        }
-        vx_imagepatch_addressing_t addr;
-        vx_map_id map_id;
-        void* ptr = 0;
-        vx_rectangle_t rect;
-        rect.start_x = 0;
-        rect.start_y =0;
-        rect.end_x = gOutWidth;
-        rect.end_y = gOutHeight;
-        status = vxMapImagePatch(om, &rect, 0, &map_id, &addr, &ptr, VX_READ_ONLY, VX_MEMORY_TYPE_HOST, 0);
-        if (status != VX_SUCCESS) {
-            ALOGI("Falied to map output vx image");
-            goto clean;
-        }
-        ALOGI("Get openVX output ptr %p", ptr);
-        status = vxUnmapImagePatch(om, map_id);
-        if (status != VX_SUCCESS) {
-            ALOGI("Falied to unmap output vx image");
-            goto clean;
-        }
-    }
-    ALOGI("End openVX blit");
-#endif
-
-    strncpy(output_vx_file, output_file, strlen(output_file));
-    strcat(output_vx_file, "_vx");
-    write_from_file((char *)output_vx_buf, outputlen, output_vx_file);
     strncpy(output_benchmark_file, output_file, strlen(output_file));
     strcat(output_benchmark_file, "_benchmark");
     write_from_file((char *)output_benchmark_buf, outputlen, output_benchmark_file);
 
 clean:
-/*
-    if(input_buf  == NULL)
-        free_memory(input_buf, input_ion_hnd,
-                input_ion_buf_fd, inputlen);
-    if(output_buf  == NULL)
-        free_memory(output_buf, output_ion_hnd,
-                output_ion_buf_fd, outputlen);
-    if(output_vx_buf  == NULL)
-        free_memory(output_vx_buf, output_vx_ion_hnd,
-                output_vx_ion_buf_fd, outputlen);
-    if(output_benchmark_buf  == NULL)
-        free_memory(output_benchmark_buf, benchmark_ion_hnd,
-                benchmark_ion_buf_fd, outputlen);
-*/
-
     if (g_use_v4l2_buffer) {
         FreeV4l2Buffers();
         ExitV4l2();
@@ -1908,7 +1593,6 @@ clean:
         FreePhyBuffer(&OutPhyBuffer[i]);
     }
 
-    FreePhyBuffer(&OutVXPhyBuffer);
     FreePhyBuffer(&OutBenchMarkPhyBuffer);
 
     if(G2dHandle  != NULL) {
@@ -1917,11 +1601,6 @@ clean:
     if (CLHandle != NULL) {
         mCLClose(CLHandle);
     }
-
-    if(gIonFd == 0)
-        ion_close(gIonFd);
-    if (context != nullptr)
-        vxReleaseContext(&context);
 
     return 0;
 }
