@@ -675,6 +675,7 @@ int createCLProgram(const char* fileSrcName, const char*fileBinName)
     FILE* pSrcFileStream = NULL;
     char* source = NULL;
     int ret = 0;
+    long int res;
 
     errNum = clGetPlatformIDs(1, &firstPlatformId, &numPlatforms);
     if (errNum != CL_SUCCESS || numPlatforms <= 0) {
@@ -735,12 +736,14 @@ int createCLProgram(const char* fileSrcName, const char*fileBinName)
 
     // get the length of the source code
     fseek(pSrcFileStream, 0, SEEK_END);
-    program_length = ftell(pSrcFileStream);
-    if (program_length < 0) {
+    res = ftell(pSrcFileStream);
+    if (res == -1) {
+        fclose(pSrcFileStream);
         ALOGE("Failed to return the file position for the file %s\n" ,fileSrcName);
         ret = -1;
         goto binary_out;
     }
+    program_length = res;
     fseek(pSrcFileStream, 0, SEEK_SET);
 
     // allocate a buffer for the source code string and read it in
@@ -1280,6 +1283,10 @@ int main(int argc, char** argv)
             break;
         case 'i':
             memset(input_file, 0, MAX_FILE_LEN);
+            if (strlen(optarg) >= MAX_FILE_LEN) {
+                ALOGE("input file name too long to process: %s", optarg);
+                return 0;
+            }
             strncpy(input_file, optarg, strlen(optarg));
             break;
         case 's':
@@ -1314,6 +1321,10 @@ int main(int argc, char** argv)
             break;
         case 'o':
             memset(output_file, 0, MAX_FILE_LEN);
+            if (strlen(optarg) >= MAX_FILE_LEN) {
+                ALOGE("output file name too long to process: %s", optarg);
+                return 0;
+            }
             strncpy(output_file, optarg, strlen(optarg));
             break;
         case 'v':
