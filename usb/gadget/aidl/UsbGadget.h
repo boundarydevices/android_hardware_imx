@@ -58,33 +58,61 @@ using ::ndk::ScopedAStatus;
 using ::std::shared_ptr;
 using ::std::string;
 
-constexpr char kGadgetName[] = "11110000.dwc3";
-constexpr char kProcInterruptsPath[] = "/proc/interrupts";
-constexpr char kProcIrqPath[] = "/proc/irq/";
-constexpr char kSmpAffinityList[] = "/smp_affinity_list";
-#ifndef UDC_PATH
-#define UDC_PATH "/sys/class/udc/11110000.dwc3/"
-#endif
-// static MonitorFfs monitorFfs(kGadgetName);
+using ::std::lock_guard;
+using ::std::move;
+using ::std::mutex;
+using ::std::thread;
+using ::std::unique_ptr;
+using ::std::vector;
+using ::std::chrono::steady_clock;
+using namespace std::chrono;
+using namespace std::chrono_literals;
 
-#define SPEED_PATH UDC_PATH "current_speed"
+constexpr int BUFFER_SIZE = 512;
+constexpr int MAX_FILE_PATH_LENGTH = 256;
+constexpr int EPOLL_EVENTS = 10;
+constexpr bool DEBUG = false;
+constexpr int DISCONNECT_WAIT_US = 100000;
+constexpr int PULL_UP_DELAY = 500000;
 
-#define BIG_CORE "6"
-#define MEDIUM_CORE "4"
 
-#define POWER_SUPPLY_PATH "/sys/class/power_supply/usb/"
-#define USB_PORT0_PATH "/sys/class/typec/port0/"
+#define GADGET_PATH "/config/usb_gadget/g1/"
+#define PULLUP_PATH GADGET_PATH "UDC"
+#define VENDOR_ID_PATH GADGET_PATH "idVendor"
+#define PRODUCT_ID_PATH GADGET_PATH "idProduct"
+#define DEVICE_CLASS_PATH GADGET_PATH "bDeviceClass"
+#define DEVICE_SUB_CLASS_PATH GADGET_PATH "bDeviceSubClass"
+#define DEVICE_PROTOCOL_PATH GADGET_PATH "bDeviceProtocol"
+#define DESC_USE_PATH GADGET_PATH "os_desc/use"
+#define OS_DESC_PATH GADGET_PATH "os_desc/b.1"
+#define CONFIG_PATH GADGET_PATH "configs/b.1/"
+#define FUNCTIONS_PATH GADGET_PATH "functions/"
+#define FUNCTION_NAME "function"
+#define FUNCTION_PATH CONFIG_PATH FUNCTION_NAME
+#define RNDIS_PATH FUNCTIONS_PATH "rndis.gs4"
+#define CONFIGURATION_PATH CONFIG_PATH "strings/0x409/configuration"
 
-#define CURRENT_MAX_PATH POWER_SUPPLY_PATH "current_max"
-#define CURRENT_USB_TYPE_PATH POWER_SUPPLY_PATH "usb_type"
-#define CURRENT_USB_POWER_OPERATION_MODE_PATH USB_PORT0_PATH "power_operation_mode"
+#define USB_CONTROLLER "vendor.usb.config"
+#define GADGET_NAME GetProperty(USB_CONTROLLER, "")
+#define SPEED_PATH "/current_speed"
 
 struct UsbGadget : public BnUsbGadget {
     UsbGadget();
 
+    unique_fd mInotifyFd;
+    unique_fd mEventFd;
+    unique_fd mEpollFd;
+
+    unique_ptr<thread> mMonitor;
+    volatile bool mMonitorCreated;
+    vector<string> mEndpointList;
+
+    // protects the CV.
+    std::mutex mLock;
+    std::condition_variable mCv;
+
     // Makes sure that only one request is processed at a time.
     std::mutex mLockSetCurrentFunction;
-    std::string mGadgetIrqPath;
     long mCurrentUsbFunctions;
     bool mCurrentUsbFunctionsApplied;
     UsbSpeed mUsbSpeed;
