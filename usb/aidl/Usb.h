@@ -29,6 +29,10 @@
 // structures created and uvent fired.
 #define PORT_TYPE_TIMEOUT 8
 
+#define UDC_CONFIGURED "configured"
+#define USB_CONTROLLER "vendor.usb.config"
+#define UDC_STATE_VALUE_MAX 64
+
 namespace aidl {
 namespace android {
 namespace hardware {
@@ -42,6 +46,12 @@ using ::android::sp;
 using ::ndk::ScopedAStatus;
 using ::std::shared_ptr;
 using ::std::string;
+
+#define GADGET_PATH "/config/usb_gadget/g1/"
+#define PULLUP_PATH GADGET_PATH "UDC"
+
+#define USB_CONTROLLER "vendor.usb.config"
+#define GADGET_NAME GetProperty(USB_CONTROLLER, "")
 
 struct Usb : public BnUsb {
     Usb();

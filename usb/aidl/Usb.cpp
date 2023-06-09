@@ -36,6 +36,8 @@
 #include <utils/Errors.h>
 #include <utils/StrongPointer.h>
 
+#include <hardware_legacy/power.h>
+
 #include "Usb.h"
 
 using android::base::GetProperty;
@@ -50,6 +52,8 @@ constexpr char kTypecPath[] = "/sys/class/typec/";
 constexpr char kDataRoleNode[] = "/data_role";
 constexpr char kPowerRoleNode[] = "/power_role";
 
+static const char* udc_wakelock = "usb_wakelock";
+
 // Set by the signal handler to destroy the thread
 volatile bool destroyThread;
 
@@ -57,12 +61,40 @@ void queryVersionHelper(android::hardware::usb::Usb *usb,
                         std::vector<PortStatus> *currentPortStatus);
 
 ScopedAStatus Usb::enableUsbData(const string& in_portName, bool in_enable, int64_t in_transactionId) {
+    bool result = true;
     std::vector<PortStatus> currentPortStatus;
+    string pullup;
+
+    ALOGI("Userspace turn %s USB data signaling. opID:%ld", in_enable ? "on" : "off",
+            in_transactionId);
+
+    if (in_enable) {
+        if (ReadFileToString(PULLUP_PATH, &pullup)) {
+            pullup = Trim(pullup);
+            if (pullup != GADGET_NAME) {
+                if (!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) {
+                    ALOGE("Gadget cannot be pulled up");
+                    result = false;
+                }
+            }
+        }
+    } else {
+        if (ReadFileToString(PULLUP_PATH, &pullup)) {
+            pullup = Trim(pullup);
+            if (pullup == GADGET_NAME) {
+                if (!WriteStringToFile("none", PULLUP_PATH)) {
+                    ALOGE("Gadget cannot be pulled down");
+                    result = false;
+                }
+            }
+        }
+    }
+
 
     pthread_mutex_lock(&mLock);
     if (mCallback != NULL) {
         ScopedAStatus ret = mCallback->notifyEnableUsbDataStatus(
-            in_portName, true, in_enable ? Status::SUCCESS : Status::ERROR, in_transactionId);
+            in_portName, in_enable, result ? Status::SUCCESS : Status::ERROR, in_transactionId);
         if (!ret.isOk())
             ALOGE("notifyEnableUsbDataStatus error %s", ret.getDescription().c_str());
     } else {
@@ -91,11 +123,20 @@ ScopedAStatus Usb::enableUsbDataWhileDocked(const string& in_portName, int64_t i
 }
 
 ScopedAStatus Usb::resetUsbPort(const string& in_portName, int64_t in_transactionId) {
+    bool result = true;
+    std::vector<PortStatus> currentPortStatus;
+
+    ALOGI("Userspace reset USB Port. opID:%ld", in_transactionId);
+
+    if (!WriteStringToFile("none", PULLUP_PATH)) {
+        ALOGI("Gadget cannot be pulled down");
+        result = false;
+    }
 
     pthread_mutex_lock(&mLock);
     if (mCallback != NULL) {
         ScopedAStatus ret = mCallback->notifyResetUsbPortStatus(
-            in_portName, Status::NOT_SUPPORTED, in_transactionId);
+            in_portName, result ? Status::SUCCESS : Status::ERROR, in_transactionId);
         if (!ret.isOk())
             ALOGE("notifyResetUsbPortStatus error %s", ret.getDescription().c_str());
     } else {
@@ -273,6 +314,7 @@ Usb::Usb()
         ALOGE("pthread_condattr_destroy failed: %s", strerror(errno));
         abort();
     }
+    mPoll = pthread_t();
 }
 
 ScopedAStatus Usb::switchRole(const string& in_portName,
@@ -430,6 +472,7 @@ Status getCurrentRoleHelper(const string &portName, bool connected, PortRole *cu
 
 Status getTypeCPortNamesHelper(std::unordered_map<string, bool> *names) {
     DIR *dp;
+    bool has_typec_port = false;
 
     dp = opendir(kTypecPath);
     if (dp != NULL) {
@@ -437,6 +480,7 @@ Status getTypeCPortNamesHelper(std::unordered_map<string, bool> *names) {
 
         while ((ep = readdir(dp))) {
             if (ep->d_type == DT_LNK) {
+                has_typec_port = true;
                 if (string::npos == string(ep->d_name).find("-partner")) {
                     std::unordered_map<string, bool>::const_iterator portName =
                         names->find(ep->d_name);
@@ -449,10 +493,12 @@ Status getTypeCPortNamesHelper(std::unordered_map<string, bool> *names) {
             }
         }
         closedir(dp);
-        return Status::SUCCESS;
+
+        if (has_typec_port)
+            return Status::SUCCESS;
     }
 
-    ALOGE("Failed to open /sys/class/typec");
+    ALOGE("Failed to open /sys/class/typec or there is no typec port");
     return Status::ERROR;
 }
 
@@ -523,6 +569,26 @@ Status getPortStatusHelper(std::vector<PortStatus> *currentPortStatus) {
                   (*currentPortStatus)[i].canChangePowerRole, 0,
                   (*currentPortStatus)[i].plugOrientation);
         }
+
+        return Status::SUCCESS;
+    } else {
+        //For legacy device has no type-c implementation
+        ALOGE("Legacy device has no type-c implementation\n");
+        currentPortStatus->resize(1);
+        (*currentPortStatus)[0].portName = "port0";
+        (*currentPortStatus)[0].currentPowerRole = PortPowerRole::SINK;
+        (*currentPortStatus)[0].currentDataRole = PortDataRole::DEVICE;
+        (*currentPortStatus)[0].currentMode = PortMode::UFP;
+        (*currentPortStatus)[0].canChangeMode = false;
+        (*currentPortStatus)[0].canChangeDataRole = false;
+        (*currentPortStatus)[0].canChangePowerRole = false;
+        (*currentPortStatus)[0].supportedModes.push_back(PortMode::DRP);
+        (*currentPortStatus)[0].usbDataStatus.push_back(UsbDataStatus::UNKNOWN);
+
+        ALOGI("Legacy: canChangeMode:%d canChagedata:%d canChangePower:%d",
+                (*currentPortStatus)[0].canChangeMode,
+                (*currentPortStatus)[0].canChangeDataRole,
+                (*currentPortStatus)[0].canChangePowerRole);
 
         return Status::SUCCESS;
     }
@@ -596,6 +662,8 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
     char *cp;
     int n;
 
+    std::string udc_device = ::android::base::GetProperty(USB_CONTROLLER, "");
+
     n = uevent_kernel_multicast_recv(payload->uevent_fd, msg, UEVENT_MSG_LEN);
     if (n <= 0)
         return;
@@ -613,6 +681,11 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
             payload->usb->mPartnerUp = true;
             pthread_cond_signal(&payload->usb->mPartnerCV);
             pthread_mutex_unlock(&payload->usb->mPartnerLock);
+        } else if (!strncmp(cp, "USB_STATE=CONFIGURED", strlen("USB_STATE=CONFIGURED"))) {
+            if (!access(("/sys/class/udc/" + udc_device).c_str(),F_OK))
+                acquire_wake_lock(PARTIAL_WAKE_LOCK, udc_wakelock);
+        } else if (!strncmp(cp, "USB_STATE=DISCONNECTED", strlen("USB_STATE=DISCONNECTED"))) {
+            release_wake_lock(udc_wakelock);
         } else if (!strncmp(cp, "DEVTYPE=typec_", strlen("DEVTYPE=typec_"))) {
             std::vector<PortStatus> currentPortStatus;
             queryVersionHelper(payload->usb, &currentPortStatus);
@@ -640,10 +713,28 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
 }
 
 void *work(void *param) {
-    int epoll_fd, uevent_fd;
+    int epoll_fd = 0, uevent_fd = 0;
     struct epoll_event ev;
     int nevents = 0;
     struct data payload;
+
+    ALOGE("creating thread");
+    std::string buffer;
+    std::string usb_state = GetProperty(USB_CONTROLLER, "");
+    if (usb_state !=  "") {
+        char udc_state[UDC_STATE_VALUE_MAX];
+        sprintf(udc_state, "/sys/class/udc/%s/state", usb_state.c_str());
+
+        if (!::android::base::ReadFileToString(std::string(udc_state), &buffer)) {
+            ALOGE("can't read udc_state");
+        }
+    }
+
+    // the usb hal is not started when usb driver probe, the uevent send in usb probe stage is not handled in time.
+    // if device is configured when start usb hal, hold one wakelock.
+    if (!strncmp(buffer.c_str(), UDC_CONFIGURED, strlen(UDC_CONFIGURED))) {
+        acquire_wake_lock(PARTIAL_WAKE_LOCK, udc_wakelock);
+    }
 
     uevent_fd = uevent_open_socket(UEVENT_MAX_EVENTS * UEVENT_MSG_LEN, true);
 
@@ -655,7 +746,10 @@ void *work(void *param) {
     payload.uevent_fd = uevent_fd;
     payload.usb = (::aidl::android::hardware::usb::Usb *)param;
 
-    fcntl(uevent_fd, F_SETFL, O_NONBLOCK);
+    if (fcntl(uevent_fd, F_SETFL, O_NONBLOCK)) {
+        ALOGE("fcntl fail to set uevent_fd as nonblock mode");
+        goto error;
+    }
 
     ev.events = EPOLLIN;
     ev.data.ptr = (void *)uevent_event;
