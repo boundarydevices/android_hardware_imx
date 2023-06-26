@@ -144,7 +144,6 @@ int MemoryDesc::checkFormat()
             break;
 
         case FORMAT_P010:
-        case FORMAT_P010_TILED:
         case FORMAT_P010_TILED_COMPRESSED:
             alignedw = ALIGN_PIXEL_16(mWidth * 5 / 4);
             alignedh = ALIGN_PIXEL_4(mHeight);
@@ -177,7 +176,11 @@ int MemoryDesc::checkFormat()
             alignedh = ALIGN_PIXEL_256(mHeight);
             size = alignedw * alignedh * 3 / 2;
             break;
-
+        case FORMAT_P010_TILED:
+            alignedw = ALIGN_PIXEL_256(mWidth * 5 / 4);
+            alignedh = ALIGN_PIXEL_256(mHeight);
+            size = alignedw * alignedh * 3 / 2;
+            break;
         default:
             ALOGE("%s unsupported format:0x%x", __func__, mFslFormat);
             return -EINVAL;
