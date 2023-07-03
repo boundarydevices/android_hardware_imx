@@ -404,6 +404,9 @@ public:
     int32_t m_raw_v4l2_format = -1;
     int8_t m_color_arrange = -1;
     int mUseCpuEncoder;
+
+private:
+    std::set<uint64_t> setDstPhyAddr;
 };
 
 }  // namespace android

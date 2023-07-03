@@ -553,14 +553,6 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer& dstBuf, ImxStreamBuffer&
         return -EINVAL;
     }
 
-    // Adapt for Camra2.apk. The picture resolution may differ from preview resolution.
-    // If resize for preview stream, there will be obvious changes in the preview.
-    if ( ((src->width() != dst->width()) || (src->height() != dst->height())) && dst->isPreview() ) {
-        ALOGW("%s: resize from %dx%d to %dx%d, skip preview stream",
-            __func__, src->width(), src->height(), dst->width(), dst->height());
-        return 0;
-    }
-
     int ret;
     void* g2dHandle = getHandle();
     struct g2d_buf s_buf, d_buf;
@@ -1206,14 +1198,6 @@ int ImageProcess::resizeWrapper(ImxStreamBuffer& srcBuf, ImxStreamBuffer& dstBuf
          (src->height() == dst->height()) ) {
         ALOGE("%s: resolution are same, %dx%d", __func__, src->width(), src->height());
         return BAD_VALUE;
-    }
-
-    // Adapt for Camra2.apk. The picture resolution may differ from preview resolution.
-    // If resize for preview stream, there will be obvious changes in the preview when taking picture.
-    if (dst->isPreview() && src->isPictureIntent()) {
-        ALOGW("%s: resize from %dx%d to %dx%d, skip preview stream while taking picture",
-            __func__, src->width(), src->height(), dst->width(), dst->height());
-        return 0;
     }
 
     ret = handleFrameByG2D(dstBuf, srcBuf, hw_type);
