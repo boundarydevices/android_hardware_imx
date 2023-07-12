@@ -256,7 +256,8 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
     index = 0;
     char TmpStr[20];
     int previewCnt = 0, pictureCnt = 0;
-    int frmfps = 30;
+    int maxFrmfps = 0;
+    int frmfps = 0;
     struct v4l2_frmsizeenum cam_frmsize;
     struct v4l2_frmivalenum vid_frmval;
     while (ret == 0) {
@@ -286,22 +287,34 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
         vid_frmval.width = cam_frmsize.discrete.width;
         vid_frmval.height = cam_frmsize.discrete.height;
 
-        // some camera did not support the VIDIOC_ENUM_FRAMEINTERVALS, such as ap1302
-        int ret2 = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval);
-        if (ret2 == 0) {
+        maxFrmfps = 0;
+        while (ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval) == 0) {
+            if (vid_frmval.discrete.numerator == 0)
+                break;
+
             frmfps = vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator;
+            ALOGI("fps %d", frmfps);
+            if (frmfps > maxFrmfps)
+              maxFrmfps = frmfps;
+
+            vid_frmval.index++;
         }
+        ALOGI("maxFrmfps %d", maxFrmfps);
+
+        // some camera did not support the VIDIOC_ENUM_FRAMEINTERVALS, such as ap1302
+        if (maxFrmfps == 0)
+            maxFrmfps = 30;
 
         // If w/h ratio is not same with senserW/sensorH, framework assume that
         // first crop little width or little height, then scale.
         // 176x144 not work in this mode.
         if (!(cam_frmsize.discrete.width == 176 &&
-                cam_frmsize.discrete.height == 144) && frmfps >= 5) {
+                cam_frmsize.discrete.height == 144) && maxFrmfps >= 5) {
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.width;
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.height;
         }
 
-        if (frmfps >= 15) {
+        if (maxFrmfps >= 15) {
             mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.width;
             mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.height;
         }

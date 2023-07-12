@@ -320,8 +320,8 @@ capture_data:
             return NULL;
         }
 
-        ALOGW("%s: select fd %d blocked %d s on %dx%d, %d fps, camera recover count %d",
-            __func__, mDev, SELECT_TIMEOUT_SECONDS, mWidth, mHeight, mFps, mRecoverCount);
+        ALOGW("%s: select fd %d blocked %d s at frame %d, on %dx%d, %d fps, camera recover count %d",
+            __func__, mDev, SELECT_TIMEOUT_SECONDS, mFrames, mWidth, mHeight, mFps, mRecoverCount);
 
         ret = ConfigAndStart(mFormat, mWidth, mHeight, mFps, mCaptureIntent, mSceneMode, true);
         if(ret) {
