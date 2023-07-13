@@ -96,6 +96,7 @@ if [ ${boot_device_type} = "emmc" ]; then
 	fi
 fi
 
+encryted_boot=`getprop ro.boot.encrypted_boot_ota`
 
 loop_index=0
 flash_flag=0
@@ -104,19 +105,32 @@ while [ loop_index -lt 2 ]; do
 	log -p i -t imx_ota_postinstall "to write to $target_device with offset $target_device_offset"
 	dd if=$bootloader0_img of=$target_device bs=1k seek=$target_device_offset conv=fsync,notrunc
 	if [ $? != 0 ]; then
-		log -p e -t imx_ota_postinstall "dd command exit with error"
+		log -p e -t imx_ota_postinstall "spl: dd command exit with error"
 		continue
 	fi
 	sync
 	echo 3 > /proc/sys/vm/drop_caches
 	sync
-	read_back_md5sum=`dd if=$target_device bs=1k skip=$target_device_offset iflag=count_bytes count=$bootloader0_img_size 2>/dev/null | md5sum | cut -d ' ' -f1`
-	log -p i -t imx_ota_postinstall "read_back_md5sum is $read_back_md5sum"
-	if [ "$read_back_md5sum" = "$bootloader0_img_md5sum" ]; then
+	read_back_md5sum_spl=`dd if=$target_device bs=1k skip=$target_device_offset iflag=count_bytes count=$bootloader0_img_size 2>/dev/null | md5sum | cut -d ' ' -f1`
+	log -p i -t imx_ota_postinstall "spl: read_back_md5sum is $read_back_md5sum_spl"
+	if [ "$read_back_md5sum_spl" = "$bootloader0_img_md5sum" ]; then
 		flash_flag=1
 		break
 	fi
 done
+
+if [ $encryted_boot = "true" ]; then
+	if [ -f "/postinstall/bin/imx_dek_inserter" ]; then
+		/postinstall/bin/imx_dek_inserter -s $soc_type -S $target_device_offset -t $target_device
+	else
+		log -p e -t imx_ota_postinstall "/postinstall/bin/imx_dek_inserter not exist, exit!"
+		exit 1
+	fi
+	if [ $? != 0 ]; then
+		log -p e -t imx_ota_postinstall "spl: imx_dek_inserter exit with error"
+		flash_flag=0
+	fi
+fi
 
 if [ ${boot_device_type} = "emmc" ]; then
 	echo 1 > /sys/block/${boot_device}boot0/force_ro
@@ -127,5 +141,54 @@ if [ $flash_flag != 1 ]; then
 	exit 1
 else
 	log -p i -t imx_ota_postinstall "finished to update bootloader0 partition"
-	exit 0
 fi
+
+if [ $encryted_boot = "true" ]; then
+	bootloader_slot=`getprop ro.boot.slot_suffix`
+	if [ ${bootloader_slot} != "_a" && ${bootloader_slot} != "_b" ]; then
+		log -p e -t imx_ota_postinstall "fail to get boot slot"
+		exit 1
+	fi
+	[ ${bootloader_slot} = "_a" ] && bootloader_slot="_b" || bootloader_slot="_a"
+	bootloader_ab_device=/dev/block/by-name/bootloader${bootloader_slot}
+	log -p e -t imx_ota_postinstall "Start to update bootloader, the target path is $bootloader_ab_device"
+
+	bootloader_ab_img=/postinstall/etc/bootloader_ab.img
+	bootloader_ab_img_size=`wc -c $bootloader_ab_img | cut -d ' ' -f1`
+	bootloader_ab_img_md5sum=`md5sum $bootloader_ab_img | cut -d ' ' -f1`
+
+	log -p i -t imx_ota_postinstall "bootloader_ab image md5sum is $bootloader_ab_img_md5sum, size is $bootloader_ab_img_size"
+
+	log -p i -t imx_ota_postinstall "to write to $bootloader_ab_device with offset 0"
+	dd if=$bootloader_ab_img of=$bootloader_ab_device bs=1k seek=0 conv=fsync,notrunc
+	if [ $? != 0 ]; then
+		log -p e -t imx_ota_postinstall "bootloader: dd command exit with error"
+		exit 1
+	fi
+	sync
+	echo 3 > /proc/sys/vm/drop_caches
+	sync
+
+	read_back_md5sum_bl=`dd if=$bootloader_ab_device bs=1k skip=0 iflag=count_bytes count=$bootloader_ab_img_size 2>/dev/null | md5sum | cut -d ' ' -f1`
+	log -p i -t imx_ota_postinstall "bootloader: read_back_md5sum is $read_back_md5sum_bl"
+
+	if [ "$read_back_md5sum_bl" != "$bootloader_ab_img_md5sum" ]; then
+		log -p e -t imx_ota_postinstall "fail to update bootloader_a/b partition, the system may fail to reboot"
+		exit 1
+	fi
+
+	if [ -f "/postinstall/bin/imx_dek_inserter" ]; then
+		/postinstall/bin/imx_dek_inserter -s $soc_type -B -t $bootloader_ab_device
+	else
+		log -p e -t imx_ota_postinstall "/postinstall/bin/imx_dek_inserter not exist, exit!"
+		exit 1
+	fi
+
+	if [ $? != 0 ]; then
+		log -p e -t imx_ota_postinstall "bootloader: imx_dek_inserter exit with error"
+		exit 1
+	fi
+	log -p i -t imx_ota_postinstall "finished to update bootloader_a/b partition"
+fi
+
+exit 0
