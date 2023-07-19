@@ -28,6 +28,7 @@
 #include <tinyxml2.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <cutils/properties.h>
 
 using ::aidl::android::hardware::camera::common::Status;
 using ::aidl::android::hardware::camera::device::CaptureResult;
