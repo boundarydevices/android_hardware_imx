@@ -40,6 +40,10 @@ using ::android::hardware::camera::common::V1_0::helper::CameraMetadata;
 using ::android::hardware::camera::common::V1_0::helper::HandleImporter;
 
 namespace android {
+
+int IMXAllocMem(int size);
+int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual);
+
 namespace hardware {
 namespace camera {
 

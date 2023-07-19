@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -186,6 +187,12 @@ bool ExternalCameraDeviceSession::initialize() {
         return true;
     }
 
+    status = mOutputThread->initVpuThread();
+    if (status != OK) {
+        ALOGE("%s: init VPU decoder thread failed!", __FUNCTION__);
+        return true;
+    }
+
     mRequestMetadataQueue =
             std::make_unique<RequestMetadataQueue>(kMetadataMsgQueueSize, false /* non blocking */);
     if (!mRequestMetadataQueue->isValid()) {
@@ -229,6 +236,11 @@ void ExternalCameraDeviceSession::closeOutputThread() {
 
 void ExternalCameraDeviceSession::closeOutputThreadImpl() {
     if (mOutputThread != nullptr) {
+        if (mOutputThread->mDecoder) {
+            mOutputThread->mDecoder->Stop();
+            mOutputThread->mDecoder->Destroy();
+            mOutputThread->mDecoder->freeOutputBuffers();
+        }
         mOutputThread->flush();
         mOutputThread->requestExitAndWait();
         mOutputThread.reset();
@@ -1092,7 +1104,7 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
     if ((bufferSize == 0) || (bufferSize > expectedMaxBufferSize)) {
         ALOGE("%s: V4L2 buffer size: %u looks invalid. Expected maximum size: %u", __FUNCTION__,
               bufferSize, expectedMaxBufferSize);
-        return -EINVAL;
+        //return -EINVAL;
     }
     mMaxV4L2BufferSize = bufferSize;
 
@@ -2268,6 +2280,35 @@ void ExternalCameraDeviceSession::OutputThread::dump(int fd) {
     dprintf(fd, "\n");
 }
 
+int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
+    const char* mime = "video/x-motion-jpeg";
+    mDecoder = new HwDecoder(mime, &mFramesSignal);
+    if (!mDecoder) {
+        ALOGE("%s: Create HwDecoder Instance for MJPEG failed \n", __FUNCTION__);
+        return -errno;
+    }
+
+    status_t err = UNKNOWN_ERROR;
+    err = mDecoder->Init();
+    if (err) {
+        if (mDecoder) {
+            mDecoder->Destroy();
+            mDecoder->freeOutputBuffers();
+        }
+        return -errno;
+    }
+
+    err = mDecoder->Start();
+    if (err) {
+        if (mDecoder) {
+            mDecoder->Destroy();
+            mDecoder->freeOutputBuffers();
+        }
+        return -errno;
+    }
+    return OK;
+}
+
 void ExternalCameraDeviceSession::OutputThread::setExifMakeModel(const std::string& make,
                                                                  const std::string& model) {
     mExifMake = make;
@@ -2825,7 +2866,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         }
     }
 
-    dumpStream(inData, inDataSize, 0);
+    dumpStream(inData, inDataSize, 0); //mjpeg from camera sensor
 
     // TODO: in some special case maybe we can decode jpg directly to gralloc output?
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
@@ -2840,12 +2881,43 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     mYu12Frame->mWidth, mYu12Frame->mHeight, mYu12Frame->mWidth,
                     mYu12Frame->mHeight, libyuv::kRotate0, libyuv::FOURCC_RAW);
         } else {
+#ifdef HANTRO_V4L2
+            {
+                int32_t inputId = 0;
+                std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
+                inputbuf->pInBuffer = inData;
+                inputbuf->id = inputId;
+                inputbuf->size = inDataSize;
+
+                status_t err = UNKNOWN_ERROR;
+                err = mDecoder->queueInputBuffer(std::move(inputbuf));
+
+                std::unique_lock <std::mutex> mlk(mFramesSignalLock);
+                mFramesSignal.wait(mlk);
+
+                DecodedData mDecodedData;
+                mDecodedData = mDecoder->exportDecodedBuf();
+
+                const uint8_t *nv12_y = mDecodedData.data;
+                int nv12_y_stride = mDecodedData.width;
+                const uint8_t *nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
+                int nv12_uv_stride = nv12_y_stride;
+
+                libyuv::NV12ToI420(
+                    nv12_y, nv12_y_stride, nv12_uv, nv12_uv_stride,
+                    static_cast<uint8_t*>(mYu12FrameLayout.y), mYu12Frame->mWidth,
+                    static_cast<uint8_t*>(mYu12FrameLayout.cb), (mYu12Frame->mWidth >> 1),
+                    static_cast<uint8_t*>(mYu12FrameLayout.cr), (mYu12Frame->mWidth >> 1),
+                    mYu12Frame->mWidth, mYu12Frame->mHeight);
+            }
+#else
             res = libyuv::MJPGToI420(
                     inData, inDataSize, static_cast<uint8_t*>(mYu12FrameLayout.y),
                     mYu12FrameLayout.yStride, static_cast<uint8_t*>(mYu12FrameLayout.cb),
                     mYu12FrameLayout.cStride, static_cast<uint8_t*>(mYu12FrameLayout.cr),
                     mYu12FrameLayout.cStride, mYu12Frame->mWidth, mYu12Frame->mHeight,
                     mYu12Frame->mWidth, mYu12Frame->mHeight);
+#endif
         }
         ATRACE_END();
 
@@ -2861,6 +2933,11 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             return true;
         }
     }
+
+    uint8_t* cvtData;
+    size_t cvtDataSize;
+    mYu12Frame->getData(&cvtData, &cvtDataSize);
+    dumpStream(cvtData, cvtDataSize, 1);
 
     ATRACE_BEGIN("Wait for BufferRequest done");
     res = waitForBufferRequestDone(&req->buffers);

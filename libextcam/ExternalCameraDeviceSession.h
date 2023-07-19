@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2023 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +29,7 @@
 #include <utils/Thread.h>
 #include <deque>
 #include <list>
+#include "HwDecoder.h"
 
 namespace android {
 namespace hardware {
@@ -177,6 +179,9 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         // The remaining request list is returned for offline processing
         std::list<std::shared_ptr<HalRequest>> switchToOffline();
 
+        HwDecoder* mDecoder;
+        int initVpuThread();
+
       protected:
         static const int kFlushWaitTimeoutSec = 3;  // 3 sec
         static const int kReqWaitTimeoutMs = 33;    // 33ms
@@ -209,6 +214,9 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
                                                    // mProcessingRequest and mProcessingFrameNumber
         std::condition_variable mRequestCond;      // signaled when a new request is submitted
         std::condition_variable mRequestDoneCond;  // signaled when a request is done processing
+        mutable std::mutex mFramesSignalLock;
+        std::condition_variable mFramesSignal;
+
         std::list<std::shared_ptr<HalRequest>> mRequestList;
         bool mProcessingRequest = false;
         uint32_t mProcessingFrameNumber = 0;
