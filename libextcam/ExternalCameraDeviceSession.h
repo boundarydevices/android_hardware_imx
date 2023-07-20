@@ -237,6 +237,9 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         bool mCameraMuted = false;
         uint32_t mBlobBufferSize = 0;  // 0 -> HAL derive buffer size, else: use given size
 
+        void *dstBuf = NULL;
+        DecodedData mDecodedData;
+
         std::string mExifMake;
         std::string mExifModel;
 

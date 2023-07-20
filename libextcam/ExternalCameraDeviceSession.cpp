@@ -21,6 +21,11 @@
 
 #include "ExternalCameraDeviceSession.h"
 
+#include "Memory.h"
+#include "MemoryDesc.h"
+#include "MemoryManager.h"
+#include <graphics_ext.h>
+
 #include <Exif.h>
 #include <ExternalCameraOfflineSession.h>
 #include <aidl/android/hardware/camera/device/CameraBlob.h>
@@ -43,6 +48,7 @@
 #define HAVE_JPEG  // required for libyuv.h to export MJPEG decode APIs
 #include <libyuv.h>
 #include <libyuv/convert.h>
+#include "ImageProcess.h"
 
 namespace android {
 namespace hardware {
@@ -258,6 +264,9 @@ Status ExternalCameraDeviceSession::initStatus() const {
 }
 
 ExternalCameraDeviceSession::~ExternalCameraDeviceSession() {
+    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+    delete imageProcess;
+
     if (!isClosed()) {
         ALOGE("ExternalCameraDeviceSession deleted before close!");
         close(/*callerIsDtor*/ true);
@@ -2150,7 +2159,10 @@ ExternalCameraDeviceSession::OutputThread::OutputThread(
       mCameraCharacteristics(chars),
       mBufferRequestThread(bufReqThread) {}
 
-ExternalCameraDeviceSession::OutputThread::~OutputThread() {}
+ExternalCameraDeviceSession::OutputThread::~OutputThread() {
+    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+    delete imageProcess;
+}
 
 Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
         const Size& v4lSize, const Size& thumbSize, const std::vector<Stream>& streams,
@@ -2907,6 +2919,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 
     dumpStream(inData, inDataSize, 0); //mjpeg from camera sensor
 
+		YCbCrLayout cropAndScaled;
+
     // TODO: in some special case maybe we can decode jpg directly to gralloc output?
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
         ATRACE_BEGIN("MJPGtoI420");
@@ -2934,35 +2948,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             std::unique_lock<std::mutex> mlk(mFramesSignalLock);
             mFramesSignal.wait(mlk);
 
-            DecodedData mDecodedData;
+						//mjpeg decoded nv12/nv16 raw data
             mDecodedData = mDecoder->exportDecodedBuf();
-
-            uint8_t *nv12_y;
-            uint8_t *nv12_uv;
-            int nv12_y_stride = mDecodedData.width;
-            int nv12_uv_stride = nv12_y_stride;
-
-            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
-                uint8_t *nv12_buff = (uint8_t *)malloc(mDecodedData.width * mDecodedData.height * 3 / 2);
-                uint8_t *nv16_buff = mDecodedData.data;
-                pixel_format_nv16_to_nv12(nv16_buff, nv12_buff, mDecodedData.width, mDecodedData.height);
-
-                nv12_y = nv12_buff;
-                nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
-            } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
-                nv12_y = mDecodedData.data;
-                nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
-            }
-
-            libyuv::NV12ToI420(
-                nv12_y, nv12_y_stride, nv12_uv, nv12_uv_stride,
-                static_cast<uint8_t *>(mYu12FrameLayout.y), mYu12Frame->mWidth,
-                static_cast<uint8_t *>(mYu12FrameLayout.cb), (mYu12Frame->mWidth >> 1),
-                static_cast<uint8_t *>(mYu12FrameLayout.cr), (mYu12Frame->mWidth >> 1),
-                mYu12Frame->mWidth, mYu12Frame->mHeight);
-
-            if(nv12_y != NULL)
-                free(nv12_y);
         }
 #else
             res = libyuv::MJPGToI420(
@@ -2987,11 +2974,6 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             return true;
         }
     }
-
-    uint8_t* cvtData;
-    size_t cvtDataSize;
-    mYu12Frame->getData(&cvtData, &cvtDataSize);
-    dumpStream(cvtData, cvtDataSize, 1);
 
     ATRACE_BEGIN("Wait for BufferRequest done");
     res = waitForBufferRequestDone(&req->buffers);
@@ -3023,9 +3005,79 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             continue;
         }
 
+        fsl::Memory *dstBuffer = nullptr;
+#ifdef HANTRO_V4L2
+        {
+            //nv12 to I420 hw format covert
+            fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+            fsl::CscHw csc_hw = fsl::GPU_3D;
+
+            fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+            fsl::MemoryDesc desc;
+            desc.mWidth = mDecodedData.width;
+            desc.mHeight = mDecodedData.height;
+            desc.mFormat = fsl::FORMAT_YUYV;
+            desc.mFslFormat = fsl::FORMAT_YUYV;
+            desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
+            desc.mFlag = 0;
+
+            int ret = desc.checkFormat();
+            if (ret != 0)
+                return onDeviceError("%s: checkFormat failed", __FUNCTION__);
+
+            allocator->allocMemory(desc, &dstBuffer);
+            allocator->lock(dstBuffer, dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN,
+                        0, 0, dstBuffer->width, dstBuffer->height, &dstBuf);
+
+            int fd = mDecodedData.fd;
+            int size = mDecodedData.width * mDecodedData.height * 3 / 2;
+            void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+            imageProcess->handleFrame((uint8_t *)dstBuf, (uint8_t *)vaddr,
+                                    mDecodedData.width, mDecodedData.height, csc_hw);
+            munmap(vaddr, size);
+
+            dumpStream((uint8_t *)dstBuf, mDecodedData.width * mDecodedData.height * 3 / 2, 1);
+
+            cropAndScaled.y = (uint8_t*)dstBuf;
+            cropAndScaled.cb = (uint8_t*)dstBuf + mDecodedData.width * mDecodedData.height;
+            cropAndScaled.cr = (uint8_t*)dstBuf + mDecodedData.width * mDecodedData.height * 5 / 4;
+            cropAndScaled.yStride = mDecodedData.width;
+            cropAndScaled.cStride = mDecodedData.width / 2;
+            cropAndScaled.chromaStep = 1;
+        }
+#endif
+
         // Gralloc lockYCbCr the buffer
         switch (halBuf.format) {
             case PixelFormat::BLOB: {
+                uint8_t *nv12_y = nullptr;
+                uint8_t *nv12_uv = nullptr;
+                uint8_t *nv12_buff = nullptr;
+                int nv12_y_stride = mDecodedData.width;
+                int nv12_uv_stride = nv12_y_stride;
+
+                if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+                    nv12_buff = (uint8_t *)malloc(mDecodedData.width * mDecodedData.height * 3 / 2);
+                    uint8_t *nv16_buff = mDecodedData.data;
+                    pixel_format_nv16_to_nv12(nv16_buff, nv12_buff, mDecodedData.width, mDecodedData.height);
+
+                    nv12_y = nv12_buff;
+                    nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
+                } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+                    nv12_y = mDecodedData.data;
+                    nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
+                }
+
+                libyuv::NV12ToI420(
+                    nv12_y, nv12_y_stride, nv12_uv, nv12_uv_stride,
+                    static_cast<uint8_t *>(mYu12FrameLayout.y), mYu12Frame->mWidth,
+                    static_cast<uint8_t *>(mYu12FrameLayout.cb), (mYu12Frame->mWidth >> 1),
+                    static_cast<uint8_t *>(mYu12FrameLayout.cr), (mYu12Frame->mWidth >> 1),
+                    mYu12Frame->mWidth, mYu12Frame->mHeight);
+
+                if (nv12_buff != NULL)
+                    free(nv12_buff);
+
                 int ret = createJpegLocked(halBuf, req->setting);
 
                 if (ret != 0) {
@@ -3060,7 +3112,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                       (outputFourcc >> 8) & 0xFF, (outputFourcc >> 16) & 0xFF,
                       (outputFourcc >> 24) & 0xFF);
 
-                YCbCrLayout cropAndScaled;
+#ifndef HANTRO_V4L2
                 ATRACE_BEGIN("cropAndScaleLocked");
                 int ret = cropAndScaleLocked(mYu12Frame, Size{halBuf.width, halBuf.height},
                                              &cropAndScaled);
@@ -3069,15 +3121,26 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     lk.unlock();
                     return onDeviceError("%s: crop and scale failed!", __FUNCTION__);
                 }
+#endif
 
-                Size sz{halBuf.width, halBuf.height};
+                Size sz {halBuf.width, halBuf.height};
                 ATRACE_BEGIN("formatConvert");
-                ret = formatConvert(cropAndScaled, outLayout, sz, outputFourcc);
+                int fcret = formatConvert(cropAndScaled, outLayout, sz, outputFourcc);
                 ATRACE_END();
-                if (ret != 0) {
+                if (fcret != 0) {
                     lk.unlock();
-                    return onDeviceError("%s: format conversion failed!", __FUNCTION__);
+                    return onDeviceError("%s: format coversion failed!", __FUNCTION__);
                 }
+
+                dumpStream((uint8_t*)outLayout.y, halBuf.width * halBuf.height * 3 / 2, 2);
+
+                //free dstBuffer now for the one single request
+                if (dstBuffer) {
+                    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+                    allocator ->unlock(dstBuffer);
+                    allocator ->releaseMemory(dstBuffer);
+                }
+
                 int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
                 if (relFence >= 0) {
                     halBuf.acquireFence = relFence;
