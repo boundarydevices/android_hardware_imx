@@ -1361,12 +1361,16 @@ status_t HwDecoder::allocateOutputBuffer(int bufId) {
     int ret = IMXGetBufferAddr(fd, mOutputFormat.bufferSize, phys_addr, false);
     if (ret != 0) {
         ALOGE("%s: DmaBuffer getPhys failed", __FUNCTION__);
+        if (fd > 0)
+            close(fd);
         return BAD_VALUE;
     }
 
     ret = IMXGetBufferAddr(fd, mOutputFormat.bufferSize, virt_addr, true);
     if (ret != 0) {
         ALOGE("%s: DmaBuffer getVaddrs failed", __FUNCTION__);
+        if (fd > 0)
+            close(fd);
         return BAD_VALUE;
     }
 
