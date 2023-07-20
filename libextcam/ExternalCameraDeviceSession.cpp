@@ -2795,6 +2795,45 @@ void ExternalCameraDeviceSession::OutputThread::clearIntermediateBuffers() {
     mBlobBufferSize = 0;
 }
 
+int pixel_format_nv16_to_nv12(uint8_t *nv16_buff, uint8_t *nv12_buff, int w, int h) {
+    uint8_t *nv16_y = NULL;
+    uint8_t *nv16_uv = NULL;
+    uint8_t *nv12_y = NULL;
+    uint8_t *nv12_u = NULL;
+    uint8_t *nv12_v = NULL;
+    int i, j, offset;
+
+    /* get the right point */
+    nv16_y = (uint8_t *)nv16_buff;
+    nv16_uv = (uint8_t *)nv16_buff + w * h;
+    nv12_y = (uint8_t *)nv12_buff;
+    nv12_u = (uint8_t *)nv12_buff + w * h;
+    nv12_v = nv12_u + 1;
+
+    /* copy y dates directly */
+    memcpy(nv12_y, nv16_y, w * h);
+
+    offset = 0;
+    for (i = 0; i < h; i += 2) {
+        offset = i * w;
+        for (j = 0; j < w; j += 2) {
+            *nv12_u = *(nv16_uv + offset + j);
+            nv12_u += 2;
+        }
+    }
+
+    offset = 0;
+    for (i = 1; i < h; i += 2) {
+        offset = i * w;
+        for (j = 1; j < w; j += 2) {
+            *nv12_v = *(nv16_uv + offset + j);
+            nv12_v += 2;
+        }
+    }
+
+    return 0;
+}
+
 bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     std::shared_ptr<HalRequest> req;
     auto parent = mParent.lock();
@@ -2882,34 +2921,49 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     mYu12Frame->mHeight, libyuv::kRotate0, libyuv::FOURCC_RAW);
         } else {
 #ifdef HANTRO_V4L2
-            {
-                int32_t inputId = 0;
-                std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
-                inputbuf->pInBuffer = inData;
-                inputbuf->id = inputId;
-                inputbuf->size = inDataSize;
+        {
+            int32_t inputId = 0;
+            std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
+            inputbuf->pInBuffer = inData;
+            inputbuf->id = inputId;
+            inputbuf->size = inDataSize;
 
-                status_t err = UNKNOWN_ERROR;
-                err = mDecoder->queueInputBuffer(std::move(inputbuf));
+            status_t err = UNKNOWN_ERROR;
+            err = mDecoder->queueInputBuffer(std::move(inputbuf));
 
-                std::unique_lock <std::mutex> mlk(mFramesSignalLock);
-                mFramesSignal.wait(mlk);
+            std::unique_lock<std::mutex> mlk(mFramesSignalLock);
+            mFramesSignal.wait(mlk);
 
-                DecodedData mDecodedData;
-                mDecodedData = mDecoder->exportDecodedBuf();
+            DecodedData mDecodedData;
+            mDecodedData = mDecoder->exportDecodedBuf();
 
-                const uint8_t *nv12_y = mDecodedData.data;
-                int nv12_y_stride = mDecodedData.width;
-                const uint8_t *nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
-                int nv12_uv_stride = nv12_y_stride;
+            uint8_t *nv12_y;
+            uint8_t *nv12_uv;
+            int nv12_y_stride = mDecodedData.width;
+            int nv12_uv_stride = nv12_y_stride;
 
-                libyuv::NV12ToI420(
-                    nv12_y, nv12_y_stride, nv12_uv, nv12_uv_stride,
-                    static_cast<uint8_t*>(mYu12FrameLayout.y), mYu12Frame->mWidth,
-                    static_cast<uint8_t*>(mYu12FrameLayout.cb), (mYu12Frame->mWidth >> 1),
-                    static_cast<uint8_t*>(mYu12FrameLayout.cr), (mYu12Frame->mWidth >> 1),
-                    mYu12Frame->mWidth, mYu12Frame->mHeight);
+            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+                uint8_t *nv12_buff = (uint8_t *)malloc(mDecodedData.width * mDecodedData.height * 3 / 2);
+                uint8_t *nv16_buff = mDecodedData.data;
+                pixel_format_nv16_to_nv12(nv16_buff, nv12_buff, mDecodedData.width, mDecodedData.height);
+
+                nv12_y = nv12_buff;
+                nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
+            } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+                nv12_y = mDecodedData.data;
+                nv12_uv = nv12_y + nv12_y_stride * mDecodedData.height;
             }
+
+            libyuv::NV12ToI420(
+                nv12_y, nv12_y_stride, nv12_uv, nv12_uv_stride,
+                static_cast<uint8_t *>(mYu12FrameLayout.y), mYu12Frame->mWidth,
+                static_cast<uint8_t *>(mYu12FrameLayout.cb), (mYu12Frame->mWidth >> 1),
+                static_cast<uint8_t *>(mYu12FrameLayout.cr), (mYu12Frame->mWidth >> 1),
+                mYu12Frame->mWidth, mYu12Frame->mHeight);
+
+            if(nv12_y != NULL)
+                free(nv12_y);
+        }
 #else
             res = libyuv::MJPGToI420(
                     inData, inDataSize, static_cast<uint8_t*>(mYu12FrameLayout.y),

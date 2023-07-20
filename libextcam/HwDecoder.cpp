@@ -301,7 +301,7 @@ status_t HwDecoder::SetOutputFormats() {
 		format.fmt.pix.sizeimage = mOutputPlaneSize[0];
     }
 
-    ALOGV("%s w=%d,h=%d,fmt=0x%x", __FUNCTION__, mOutputFormat.width, mOutputFormat.height, mOutFormat);
+    ALOGV("%s: mOutputFormat w=%d,h=%d,fmt=0x%x", __FUNCTION__, mOutputFormat.width, mOutputFormat.height, mOutFormat);  
 
     result = ioctl (mFd, VIDIOC_S_FMT, &format);
     if(result != 0) {
@@ -1106,6 +1106,7 @@ status_t HwDecoder::handleFormatChanged() {
 
         mOutFormat = v4l2_pixel_format;
         mOutputFormat.pixelFormat = static_cast<int>(pixel_format);
+        mData.format = mOutputFormat.pixelFormat;
 
 #ifdef AMPHION_V4L2
         if(mOutputFormat.pixelFormat == HAL_PIXEL_FORMAT_P010_TILED) {
@@ -1156,7 +1157,7 @@ status_t HwDecoder::handleFormatChanged() {
         mOutputFormat.rect.left = crop.c.left;
     }
 
-    ALOGD("%s w=%d,h=%d, bufferNum=%d, buffer size[0]=%d,size[1]=%d, pixelFormat=0x%x",
+    ALOGD("%s: OutputFormat w=%d, h=%d, bufferNum=%d, buffer size[0]=%d, size[1]=%d, pixelFormat=0x%x",
         __FUNCTION__, mOutputFormat.width, mOutputFormat.height,
         mOutputFormat.bufferNum, mOutputPlaneSize[0], mOutputPlaneSize[1], mOutputFormat.pixelFormat);
 

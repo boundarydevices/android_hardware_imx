@@ -91,9 +91,10 @@ struct OutputBufferMap {
 };
 
 typedef struct {
-    uint8_t* data;
-    int width;
-    int height;
+    uint8_t* data = nullptr;
+    int width = 0;
+    int height = 0;
+    uint32_t format = 0x103; // HAL_PIXEL_FORMAT_YCbCr_420_SP
 } DecodedData;
 
 struct DecoderInputBuffer {
