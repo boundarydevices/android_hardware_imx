@@ -1101,8 +1101,10 @@ status_t HwDecoder::handleFormatChanged() {
         }
 
         ret = pDev->GetColorFormatByV4l2(v4l2_pixel_format, &pixel_format);
-        if(ret != OK)
+        if(ret != OK) {
+            ALOGE("%s GetColorFormatByV4l2 error", __FUNCTION__);
             return ret;
+        }
 
         mOutFormat = v4l2_pixel_format;
         mOutputFormat.pixelFormat = static_cast<int>(pixel_format);
@@ -1128,8 +1130,10 @@ status_t HwDecoder::handleFormatChanged() {
         memset(&ctl, 0, sizeof(struct v4l2_control));
         ctl.id = V4L2_CID_MIN_BUFFERS_FOR_CAPTURE;
         result = ioctl(mFd, VIDIOC_G_CTRL, &ctl);
-        if(result < 0)
+        if(result < 0) {
+            ALOGE("%s VIDIOC_G_CTRL error", __FUNCTION__);
             return UNKNOWN_ERROR;
+        }
 
         mOutputFormat.bufferNum = ctl.value;
 
@@ -1140,21 +1144,24 @@ status_t HwDecoder::handleFormatChanged() {
         mOutputFormat.bufferNum += HANTRO_FRAME_PLUS;
 #endif
 
-        struct v4l2_crop crop;
-        crop.type = mCapBufType;
-        result = ioctl (mFd, VIDIOC_G_CROP, &crop);
-        if(result < 0)
+        struct v4l2_selection sel;
+        sel.type = mCapBufType;
+        sel.target = V4L2_SEL_TGT_COMPOSE;
+        result = ioctl (mFd, VIDIOC_G_SELECTION, &sel);
+        if(result < 0) {
+            ALOGE("%s VIDIOC_G_CROP error, result=%d", __FUNCTION__, result);
             return UNKNOWN_ERROR;
+        }
 
-        if(crop.c.width == 0 && crop.c.height == 0) {
+        if(sel.r.width == 0 && sel.r.height == 0) {
             ALOGE("%s flushed return", __FUNCTION__);
             return OK;
         }
 
-        mOutputFormat.rect.right = crop.c.width;
-        mOutputFormat.rect.bottom = crop.c.height;
-        mOutputFormat.rect.top = crop.c.top;
-        mOutputFormat.rect.left = crop.c.left;
+        mOutputFormat.rect.right = sel.r.width;
+        mOutputFormat.rect.bottom = sel.r.height;
+        mOutputFormat.rect.top = sel.r.top;
+        mOutputFormat.rect.left = sel.r.left;
     }
 
     ALOGD("%s: OutputFormat w=%d, h=%d, bufferNum=%d, buffer size[0]=%d, size[1]=%d, pixelFormat=0x%x",
