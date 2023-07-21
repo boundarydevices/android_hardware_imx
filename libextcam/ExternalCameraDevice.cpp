@@ -877,8 +877,7 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
     struct v4l2_capability vidCap;
     int ret = TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_QUERYCAP, &vidCap));
     ALOGI("%s: name=%s, card name=%s, bus info %s\n", __func__, (char*)vidCap.driver, (char*)vidCap.card, (char*)vidCap.bus_info);
-    if ((strstr((char*)vidCap.card, "C93") != NULL) || (strstr((char*)vidCap.card, "C920") != NULL)
-        || (strstr((char*)vidCap.card, "C270") != NULL)) {
+    if ((strstr((char*)vidCap.card, "C93") != NULL) || (strstr((char*)vidCap.card, "C920") != NULL)) {
         mNeedHardwareDec = true;
         ALOGI("%s: mNeedHardwareDec is true \n", __func__);
     } else {
