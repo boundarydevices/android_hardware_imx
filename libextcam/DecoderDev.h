@@ -1,5 +1,5 @@
 /*
- *  Copyright 2023 NXP.
+ *  Copyright 2021-2023 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -36,6 +36,12 @@ namespace android {
 #define V4L2_DEV_POLL_CAPTURE 4
 
 #define MAX_DEV_NAME_LEN (256)
+#define V4L2_FORMAT_IS_NON_CONTIGUOUS_PLANES(fmt) \
+	((fmt) == V4L2_PIX_FMT_NV12M        \
+	 || (fmt) == V4L2_PIX_FMT_YUV420M   \
+     || (fmt) == V4L2_PIX_FMT_YVU420M   \
+	 || (fmt) == V4L2_PIX_FMT_NV12M_8L128   \
+     || (fmt) == V4L2_PIX_FMT_NV12M_10BE_8L128)
 
 typedef struct {
     uint32_t color_format;
@@ -57,6 +63,8 @@ public:
     bool IsOutputFormatSupported(uint32_t format);
     bool IsCaptureFormatSupported(uint32_t format);
 
+    status_t GetContiguousV4l2Format(uint32_t format, uint32_t *contiguous_format);
+    status_t GetCaptureFormat(uint32_t *format, uint32_t i);
     status_t GetFormatFrameInfo(uint32_t format, struct v4l2_frmsizeenum * info);
     status_t GetColorFormatByV4l2(uint32_t v4l2_format, uint32_t * color_format,
         COLOR_FORMAT_TABLE *color_format_table, uint8_t tableSize);
