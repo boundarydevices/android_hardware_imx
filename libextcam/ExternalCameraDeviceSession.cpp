@@ -3099,11 +3099,20 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         // Gralloc lockYCbCr the buffer
         switch (halBuf.format) {
             case PixelFormat::BLOB: {
-                int ret = createJpegLocked(halBuf, req->setting);
+                if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
+                    void* outLayout = sHandleImporter.lock(*(halBuf.bufPtr), (uint64_t)halBuf.usage, inDataSize);
+                    std::memcpy(outLayout, inData, inDataSize);
 
-                if (ret != 0) {
-                    lk.unlock();
-                    return onDeviceError("%s: createJpegLocked failed with %d", __FUNCTION__, ret);
+                    int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
+                    if (relFence >= 0) {
+                        halBuf.acquireFence = relFence;
+                    }
+                } else {
+                    int ret = createJpegLocked(halBuf, req->setting);
+                    if (ret != 0) {
+                        lk.unlock();
+                        return onDeviceError("%s: createJpegLocked failed with %d", __FUNCTION__, ret);
+                    }
                 }
             } break;
             case PixelFormat::Y16: {
