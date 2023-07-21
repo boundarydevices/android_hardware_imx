@@ -82,6 +82,7 @@ cc_library_shared {
         "libyuv",
         "libstagefright_foundation",
         "libfsldisplay",
+        "libbase",
     ],
     static_libs: [
         "android.hardware.camera.common@1.0-helper",

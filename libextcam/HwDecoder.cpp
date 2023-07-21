@@ -58,14 +58,9 @@ HwDecoder::HwDecoder(const char* mime):
 
     bNeedPostProcess = false;
 
-// TODO: use pDev->GetFormatFrameInfo to get align size
-#ifdef AMPHION_V4L2
-    mFrameAlignW = AMPHION_FRAME_ALIGN;
-    mFrameAlignH = AMPHION_FRAME_ALIGN;
-#else
     mFrameAlignW = HANTRO_FRAME_ALIGN_WIDTH;
     mFrameAlignH = HANTRO_FRAME_ALIGN_HEIGHT;
-#endif
+
 
     mInputFormat.bufferNum = DEFAULT_INPUT_BUFFER_COUNT;
     mInputFormat.bufferSize = DEFAULT_INPUT_BUFFER_SIZE_4K;
@@ -1108,13 +1103,6 @@ status_t HwDecoder::handleFormatChanged() {
         mOutputFormat.pixelFormat = static_cast<int>(pixel_format);
         mData.format = mOutputFormat.pixelFormat;
 
-#ifdef AMPHION_V4L2
-        if(mOutputFormat.pixelFormat == HAL_PIXEL_FORMAT_P010_TILED) {
-            bNeedPostProcess = true;
-            ALOGV("%s: 10bit video stride=%d", __FUNCTION__, newBytesperline);
-        }
-#endif
-
         mOutputFormat.width = Align(newWidth, mFrameAlignW);
         mOutputFormat.height = Align(newHeight, mFrameAlignH);
         mOutputFormat.stride = mOutputFormat.width;
@@ -1134,14 +1122,7 @@ status_t HwDecoder::handleFormatChanged() {
         }
 
         mOutputFormat.bufferNum = ctl.value;
-
-#ifdef AMPHION_V4L2
-        mOutputFormat.bufferNum += AMPHION_FRAME_PLUS;
-#endif
-#ifdef HANTRO_V4L2
         mOutputFormat.bufferNum += HANTRO_FRAME_PLUS;
-#endif
-
 
         struct v4l2_selection sel;
         sel.type = mCapBufType;

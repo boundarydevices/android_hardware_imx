@@ -152,6 +152,12 @@ bool ExternalCameraDeviceSession::initialize() {
         return true;
     }
 
+    if (GetProperty(kCameraMjpegDecoderType, "software") == "hardware") {
+        mHardwareDecoder = true;
+    } else {
+        mHardwareDecoder = false;
+    }
+
     struct v4l2_capability capability;
     int ret = ioctl(mV4l2Fd.get(), VIDIOC_QUERYCAP, &capability);
     std::string make, model;
@@ -185,6 +191,8 @@ bool ExternalCameraDeviceSession::initialize() {
         ALOGE("%s: init OutputThread failed!", __FUNCTION__);
         return true;
     }
+
+    mOutputThread->setMjpegDecoderType(mHardwareDecoder);
     mOutputThread->setExifMakeModel(mExifMake, mExifModel);
 
     status_t status = initDefaultRequests();
@@ -193,13 +201,13 @@ bool ExternalCameraDeviceSession::initialize() {
         return true;
     }
 
-#ifdef HANTRO_V4L2
-    status = mOutputThread->initVpuThread();
-    if (status != OK) {
-        ALOGE("%s: init VPU decoder thread failed!", __FUNCTION__);
-        return true;
+    if (mHardwareDecoder) {
+        status = mOutputThread->initVpuThread();
+        if (status != OK) {
+            ALOGE("%s: init VPU decoder thread failed!", __FUNCTION__);
+            return true;
+        }
     }
-#endif
 
     mRequestMetadataQueue =
             std::make_unique<RequestMetadataQueue>(kMetadataMsgQueueSize, false /* non blocking */);
@@ -2295,6 +2303,10 @@ void ExternalCameraDeviceSession::OutputThread::dump(int fd) {
     dprintf(fd, "\n");
 }
 
+void ExternalCameraDeviceSession::OutputThread::setMjpegDecoderType(bool type) {
+    mHardwareDecoder = type;
+}
+
 int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
     const char* mime = "video/x-motion-jpeg";
     mDecoder = new HwDecoder(mime);
@@ -2937,26 +2949,27 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     mYu12Frame->mWidth, mYu12Frame->mHeight, mYu12Frame->mWidth,
                     mYu12Frame->mHeight, libyuv::kRotate0, libyuv::FOURCC_RAW);
         } else {
-#ifdef HANTRO_V4L2
-            std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
-            inputbuf->pInBuffer = inData;
-            inputbuf->id = 0;
-            inputbuf->size = inDataSize;
+            if (mHardwareDecoder) {
+                std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
+                inputbuf->pInBuffer = inData;
+                inputbuf->id = 0;
+                inputbuf->size = inDataSize;
 
-            status_t err = UNKNOWN_ERROR;
-            err = mDecoder->queueInputBuffer(std::move(inputbuf));
+                status_t err = UNKNOWN_ERROR;
+                err = mDecoder->queueInputBuffer(std::move(inputbuf));
 
-            //mjpeg decoded nv12/nv16 raw data
-            res = mDecoder->exportDecodedBuf(mDecodedData, kDecWaitTimeoutMs);
-#else
-            res = libyuv::MJPGToI420(
-                    inData, inDataSize, static_cast<uint8_t*>(mYu12FrameLayout.y),
-                    mYu12FrameLayout.yStride, static_cast<uint8_t*>(mYu12FrameLayout.cb),
-                    mYu12FrameLayout.cStride, static_cast<uint8_t*>(mYu12FrameLayout.cr),
-                    mYu12FrameLayout.cStride, mYu12Frame->mWidth, mYu12Frame->mHeight,
-                    mYu12Frame->mWidth, mYu12Frame->mHeight);
-#endif
+                //mjpeg decoded nv12/nv16 raw data
+                res = mDecoder->exportDecodedBuf(mDecodedData, kDecWaitTimeoutMs);
+            } else {
+                res = libyuv::MJPGToI420(
+                        inData, inDataSize, static_cast<uint8_t*>(mYu12FrameLayout.y),
+                        mYu12FrameLayout.yStride, static_cast<uint8_t*>(mYu12FrameLayout.cb),
+                        mYu12FrameLayout.cStride, static_cast<uint8_t*>(mYu12FrameLayout.cr),
+                        mYu12FrameLayout.cStride, mYu12Frame->mWidth, mYu12Frame->mHeight,
+                        mYu12Frame->mWidth, mYu12Frame->mHeight);
+            }
         }
+
         ATRACE_END();
 
         if (res != 0) {
@@ -2984,11 +2997,10 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 
     ALOGV("%s processing new request", __FUNCTION__);
     const int kSyncWaitTimeoutMs = 500;
-    YCbCrLayout cropAndScaled;
     fsl::Memory *dstBuffer = nullptr;
 
-#ifdef HANTRO_V4L2 // If vpu dec, first convert nv12/nv16 to I420
-    {
+    if (mHardwareDecoder) {
+         // If vpu dec, first convert nv12/nv16 to I420
          //Use openCL to do CSC to I420
          fsl::SrcFormat src_fmt = fsl::NV12;
          if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
@@ -3045,9 +3057,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
          cropAndScaled.yStride = mDecodedData.width;
          cropAndScaled.cStride = mDecodedData.width / 2;
          cropAndScaled.chromaStep = 1;
-     }
-#endif
-
+    }
+      
     for (auto& halBuf : req->buffers) {
         if (*(halBuf.bufPtr) == nullptr) {
             ALOGW("%s: buffer for stream %d missing", __FUNCTION__, halBuf.streamId);
@@ -3131,16 +3142,16 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                       (outputFourcc >> 8) & 0xFF, (outputFourcc >> 16) & 0xFF,
                       (outputFourcc >> 24) & 0xFF);
 
-#ifndef HANTRO_V4L2
-                ATRACE_BEGIN("cropAndScaleLocked");
-                int ret = cropAndScaleLocked(mYu12Frame, Size{halBuf.width, halBuf.height},
-                                             &cropAndScaled);
-                ATRACE_END();
-                if (ret != 0) {
-                    lk.unlock();
-                    return onDeviceError("%s: crop and scale failed!", __FUNCTION__);
+                if (!mHardwareDecoder) {
+                    ATRACE_BEGIN("cropAndScaleLocked");
+                    int ret = cropAndScaleLocked(mYu12Frame, Size{halBuf.width, halBuf.height},
+                                                 &cropAndScaled);
+                    ATRACE_END();
+                    if (ret != 0) {
+                        lk.unlock();
+                        return onDeviceError("%s: crop and scale failed!", __FUNCTION__);
+                    }
                 }
-#endif
 
                 Size sz {halBuf.width, halBuf.height};
                 ATRACE_BEGIN("formatConvert");

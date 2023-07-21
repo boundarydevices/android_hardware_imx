@@ -30,6 +30,7 @@
 #include <deque>
 #include <list>
 #include "HwDecoder.h"
+#include <android-base/properties.h>
 
 namespace android {
 namespace hardware {
@@ -58,6 +59,9 @@ using ::android::hardware::camera::common::helper::SimpleThread;
 using ::android::hardware::camera::external::common::ExternalCameraConfig;
 using ::android::hardware::camera::external::common::SizeHasher;
 using ::ndk::ScopedAStatus;
+using ::android::base::GetProperty;
+
+constexpr char kCameraMjpegDecoderType[] = "vendor.camera.mjpg.decoder";
 
 class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputThreadInterface {
   public:
@@ -179,6 +183,8 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         // The remaining request list is returned for offline processing
         std::list<std::shared_ptr<HalRequest>> switchToOffline();
 
+        void setMjpegDecoderType(bool type);
+
         HwDecoder* mDecoder;
         int initVpuThread();
 
@@ -241,6 +247,8 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
         std::string mExifMake;
         std::string mExifModel;
+
+        bool mHardwareDecoder;
 
         const std::shared_ptr<BufferRequestThread> mBufferRequestThread;
     };
@@ -396,6 +404,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
     std::string mExifMake;
     std::string mExifModel;
+    bool mHardwareDecoder;  
     /* End of members not changed after initialize() */
 };
 
