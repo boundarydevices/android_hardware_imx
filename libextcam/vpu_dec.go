@@ -18,6 +18,7 @@ import (
         "android/soong/android"
         "android/soong/cc"
         "strings"
+        "github.com/google/blueprint/proptools"
 )
 
 func init() {
@@ -41,6 +42,13 @@ func extCamDefaults(ctx android.LoadHookContext) {
         }
     }
     p := &props{}
+    var platform string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
+    if strings.Contains(platform, "imx") {
+        p.Target.Android.Enabled = proptools.BoolPtr(true)
+    } else {
+        p.Target.Android.Enabled = proptools.BoolPtr(false)
+    }
+
     var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE")
     if (strings.Contains(board, "IMX8Q") || strings.Contains(board, "IMX8MP") || strings.Contains(board, "IMX8MQ") || strings.Contains(board, "IMX8MM")) {
         if (strings.Contains(board, "IMX8Q")) {
