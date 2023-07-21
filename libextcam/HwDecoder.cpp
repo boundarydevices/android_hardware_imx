@@ -143,6 +143,9 @@ static int pxlfmt2bpp(int pxlfmt) {
     case HAL_PIXEL_FORMAT_NV12_TILED:
         bpp = 12;
         break;
+    case HAL_PIXEL_FORMAT_YCBCR_P010:
+        bpp = 24;
+        break;
     case HAL_PIXEL_FORMAT_P010:
     case HAL_PIXEL_FORMAT_P010_TILED:
     case HAL_PIXEL_FORMAT_P010_TILED_COMPRESSED:
