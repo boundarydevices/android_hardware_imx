@@ -39,15 +39,13 @@ namespace android {
 #define HANTRO_FRAME_ALIGN_WIDTH (HANTRO_FRAME_ALIGN*2)
 #define HANTRO_FRAME_ALIGN_HEIGHT (HANTRO_FRAME_ALIGN_WIDTH)
 
-HwDecoder::HwDecoder(const char* mime, std::condition_variable * FramesSignal):
+HwDecoder::HwDecoder(const char* mime):
     mPollThread(0),
     mFetchThread(0),
     pDev(NULL),
     mFd(-1),
     mOutBufType(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE),
     mCapBufType(V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-
-    mFramesSignal = FramesSignal;
 
     mDecState = UNINITIALIZED;
     mPollState = UNINITIALIZED;
@@ -301,7 +299,7 @@ status_t HwDecoder::SetOutputFormats() {
 		format.fmt.pix.sizeimage = mOutputPlaneSize[0];
     }
 
-    ALOGV("%s: mOutputFormat w=%d,h=%d,fmt=0x%x", __FUNCTION__, mOutputFormat.width, mOutputFormat.height, mOutFormat);  
+    ALOGV("%s: mOutputFormat w=%d,h=%d,fmt=0x%x", __FUNCTION__, mOutputFormat.width, mOutputFormat.height, mOutFormat);
 
     result = ioctl (mFd, VIDIOC_S_FMT, &format);
     if(result != 0) {
@@ -608,7 +606,7 @@ status_t HwDecoder::destroyFetchThread() {
 
 status_t HwDecoder::queueInputBuffer(std::unique_ptr<DecoderInputBuffer> input) {
     int result = 0;
-    int32_t index = -1;
+    int32_t index = 0;
     uint32_t buf_length = 0;
 
     if(input == nullptr)
@@ -1144,6 +1142,7 @@ status_t HwDecoder::handleFormatChanged() {
         mOutputFormat.bufferNum += HANTRO_FRAME_PLUS;
 #endif
 
+
         struct v4l2_selection sel;
         sel.type = mCapBufType;
         sel.target = V4L2_SEL_TGT_COMPOSE;
@@ -1452,6 +1451,8 @@ void HwDecoder::notifyDecodeReady(int32_t mOutbufId) {
         return;
     }
 
+    std::unique_lock<std::mutex> mlk(mFramesSignalLock);
+
     mData.fd= info->mDMABufFd;
     mData.data = (uint8_t *)info->mVirtAddr;
     mData.width = mOutputFormat.width;
@@ -1459,11 +1460,27 @@ void HwDecoder::notifyDecodeReady(int32_t mOutbufId) {
 
     SetDecoderBufferState(mOutbufId, false);
 
-    mFramesSignal->notify_all();
+    mFramesSignal.notify_all();
 }
 
-DecodedData HwDecoder::exportDecodedBuf() {
-    return mData;
+int HwDecoder::exportDecodedBuf(DecodedData &data, int32_t timeoutMs) {
+    std::unique_lock<std::mutex> mlk(mFramesSignalLock);
+
+    if (timeoutMs == -1) {
+        mFramesSignal.wait(mlk);
+        data = mData;
+        return OK;
+    }
+
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(timeoutMs);
+    auto st = mFramesSignal.wait_for(mlk, timeout);
+    if (st == std::cv_status::timeout) {
+        ALOGW("%s: wait decoder output timeout!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    data = mData;
+    return OK;
 }
 
 }

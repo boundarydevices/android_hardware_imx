@@ -91,11 +91,11 @@ struct OutputBufferMap {
 };
 
 typedef struct {
-    uint8_t* data = nullptr;
-    int fd = -1;
-    int width = 0;
-    int height = 0;
-    uint32_t format = 0x103; // HAL_PIXEL_FORMAT_YCbCr_420_SP
+        uint8_t* data = nullptr;
+        int fd = -1;
+        int width = 0;
+        int height = 0;
+        uint32_t format = 0x103; // HAL_PIXEL_FORMAT_YCbCr_420_SP
 } DecodedData;
 
 struct DecoderInputBuffer {
@@ -106,7 +106,7 @@ struct DecoderInputBuffer {
 
 class HwDecoder {
 public:
-    HwDecoder(const char* mime, std::condition_variable * mFramesSignal);
+    HwDecoder(const char* mime);
     virtual ~HwDecoder();
 
     status_t Init();
@@ -120,11 +120,11 @@ public:
     status_t freeOutputBuffers();
 
     void notifyDecodeReady(int32_t mOutbufId);
-    DecodedData exportDecodedBuf();
+    int exportDecodedBuf(DecodedData &data, int32_t timeoutMs);
 
     DecodedData mData;
-
-    std::condition_variable * mFramesSignal;
+    mutable std::mutex mFramesSignalLock;
+    std::condition_variable mFramesSignal;
 
 private:
     //const char* mMime;
