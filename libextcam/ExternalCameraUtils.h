@@ -315,6 +315,8 @@ struct OutputThreadInterface {
             std::shared_ptr<HalRequest>&) = 0;
 
     virtual ssize_t getJpegBufferSize(int32_t width, int32_t height) const = 0;
+
+    virtual bool getHardwareDecFlag() const { return false; }
 };
 
 // A CPU copy of a mapped V4L2Frame. Will map the input V4L2 frame.

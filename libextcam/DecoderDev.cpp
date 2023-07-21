@@ -207,7 +207,7 @@ status_t DecoderDev::QueryFormats(uint32_t format_type) {
             }
 
             output_formats.push_back(fmt.pixelformat);
-            ALOGV("%s: add output format %x,  %s\n", __func__, fmt.pixelformat, fmt.description);
+            ALOGI("%s: add output format %x,  %s\n", __func__, fmt.pixelformat, fmt.description);
             i++;
         }
         if(output_formats.size() > 0)
@@ -223,7 +223,7 @@ status_t DecoderDev::QueryFormats(uint32_t format_type) {
                 break;
 
             capture_formats.push_back(fmt.pixelformat);
-            ALOGV("%s: add capture format %x,  %s\n", __func__, fmt.pixelformat, fmt.description);
+            ALOGI("%s: add capture format %x,  %s\n", __func__, fmt.pixelformat, fmt.description);
             i++;
         }
 

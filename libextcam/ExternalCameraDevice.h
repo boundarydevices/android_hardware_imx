@@ -114,7 +114,7 @@ class ExternalCameraDevice : public BnCameraDevice {
                                 std::vector<SupportedV4L2Format>& outFmts);
 
     // Get candidate supported formats list of input cropping type.
-    static std::vector<SupportedV4L2Format> getCandidateSupportedFormatsLocked(
+    std::vector<SupportedV4L2Format> getCandidateSupportedFormatsLocked(
             int fd, CroppingType cropType,
             const std::vector<ExternalCameraConfig::FpsLimitation>& fpsLimits,
             const std::vector<ExternalCameraConfig::FpsLimitation>& depthFpsLimits,
@@ -131,6 +131,7 @@ class ExternalCameraDevice : public BnCameraDevice {
     const ExternalCameraConfig& mCfg;
     std::vector<SupportedV4L2Format> mSupportedFormats;
     CroppingType mCroppingType;
+    bool mNeedHardwareDec = false;
 
     std::weak_ptr<ExternalCameraDeviceSession> mSession =
             std::weak_ptr<ExternalCameraDeviceSession>();

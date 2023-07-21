@@ -221,7 +221,7 @@ bool ExternalCameraDeviceSession::initialize() {
         return true;
     }
 
-    if (mHardwareDecoder) {
+    if (mHardwareDecoder && mSessionNeedHardwareDec) {
         status = mOutputThread->initVpuThread();
         if (status != OK) {
             ALOGE("%s: init VPU decoder thread failed!", __FUNCTION__);
@@ -2194,6 +2194,12 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
         const Size& v4lSize, const Size& thumbSize, const std::vector<Stream>& streams,
         uint32_t blobBufferSize) {
     std::lock_guard<std::mutex> lk(mBufferLock);
+    auto parent = mParent.lock();
+    if (parent == nullptr) {
+        ALOGE("%s: session has been disconnected!", __FUNCTION__);
+        return Status::INTERNAL_ERROR;
+    }
+
     if (!mScaledYu12Frames.empty()) {
         ALOGE("%s: intermediate buffer pool has %zu inflight buffers! (expect 0)", __FUNCTION__,
               mScaledYu12Frames.size());
@@ -2204,7 +2210,7 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
     if (mYu12Frame == nullptr || mYu12Frame->mWidth != v4lSize.width ||
         mYu12Frame->mHeight != v4lSize.height) {
         mYu12Frame.reset();
-        if (mHardwareDecoder)
+        if (mHardwareDecoder && parent->getHardwareDecFlag())
             mYu12Frame = std::make_shared<AllocatedFramePhyMem>(ALIGN_PIXEL_16(v4lSize.width), ALIGN_PIXEL_16(v4lSize.height));
         else
             mYu12Frame = std::make_shared<AllocatedFrame>(v4lSize.width, v4lSize.height);
@@ -2961,6 +2967,10 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
     return 0;
 }
 
+bool ExternalCameraDeviceSession::getHardwareDecFlag() const {
+    return mSessionNeedHardwareDec;
+}
+
 bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     std::shared_ptr<HalRequest> req;
     auto parent = mParent.lock();
@@ -3049,7 +3059,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     mYu12Frame->mWidth, mYu12Frame->mHeight, mYu12Frame->mWidth,
                     mYu12Frame->mHeight, libyuv::kRotate0, libyuv::FOURCC_RAW);
         } else {
-            if (mHardwareDecoder) {
+            if (mHardwareDecoder && parent->getHardwareDecFlag()) {
                 res = VpuDecAndCsc(inData, inDataSize, cropAndScaled);
             } else {
                 res = libyuv::MJPGToI420(
@@ -3153,7 +3163,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                       (outputFourcc >> 8) & 0xFF, (outputFourcc >> 16) & 0xFF,
                       (outputFourcc >> 24) & 0xFF);
 
-                if (!mHardwareDecoder) {
+                if (!(mHardwareDecoder && parent->getHardwareDecFlag())) {
                     ATRACE_BEGIN("cropAndScaleLocked");
                     int ret = cropAndScaleLocked(mYu12Frame, Size{halBuf.width, halBuf.height},
                                                  &cropAndScaled);

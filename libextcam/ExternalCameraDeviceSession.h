@@ -76,6 +76,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     // Caller must use this method to check if CameraDeviceSession ctor failed
     bool isInitFailed();
     bool isClosed();
+    bool mSessionNeedHardwareDec;
 
     ScopedAStatus close() override;
 
@@ -113,6 +114,9 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
     Status processCaptureResult(std::shared_ptr<HalRequest>& ptr) override;
     ssize_t getJpegBufferSize(int32_t width, int32_t height) const override;
+
+    // Get the hardwareDec flag according to the usb camera
+    virtual bool getHardwareDecFlag() const override;
 
     // Called by CameraDevice to dump active device states
     binder_status_t dump(int fd, const char** args, uint32_t numArgs) override;
