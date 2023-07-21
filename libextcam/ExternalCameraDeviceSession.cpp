@@ -2205,7 +2205,7 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
         mYu12Frame->mHeight != v4lSize.height) {
         mYu12Frame.reset();
         if (mHardwareDecoder)
-            mYu12Frame = std::make_shared<AllocatedFramePhyMem>(v4lSize.width, v4lSize.height);
+            mYu12Frame = std::make_shared<AllocatedFramePhyMem>(ALIGN_PIXEL_16(v4lSize.width), ALIGN_PIXEL_16(v4lSize.height));
         else
             mYu12Frame = std::make_shared<AllocatedFrame>(v4lSize.width, v4lSize.height);
 
@@ -2231,7 +2231,9 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
     // Allocating scaled buffers
     for (const auto& stream : streams) {
         Size sz = {stream.width, stream.height};
-        if (sz == v4lSize) {
+        Size alignedV4lSize = {ALIGN_PIXEL_16(v4lSize.width), ALIGN_PIXEL_16(v4lSize.height)};
+
+        if (sz == alignedV4lSize) {
             continue;  // Don't need an intermediate buffer same size as v4lBuffer
         }
         if (mIntermediateBuffers.count(sz) == 0) {

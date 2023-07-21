@@ -44,6 +44,8 @@ using ::android::hardware::camera::common::V1_0::helper::HandleImporter;
 
 namespace android {
 
+#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
+
 int IMXAllocMem(int size);
 int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual);
 

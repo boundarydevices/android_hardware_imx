@@ -435,7 +435,6 @@ AllocatedFramePhyMem::~AllocatedFramePhyMem() {
     }
 }
 
-#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
 int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     std::lock_guard<std::mutex> lk(mLock);
     if ((mWidth % 2) || (mHeight % 2)) {
@@ -459,8 +458,6 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
 
     // VPU decoder output is 16 pixels aligned, so v4l2 res such as 1920x1080 is decoded to 1920x1088.
     // Need allocate I420 with aligned size, to avoid out memory boundary when csc from decoded buffer to mYu12Frame.
-    // Can't adjust mWidth/mHeight themselves. Or will meet error as
-    // "cropAndScaleLocked: failed to find intermediate buffer size 1920x1080".
     fsl::MemoryDesc desc;
     desc.mWidth = ALIGN_PIXEL_16(mWidth);
     desc.mHeight = ALIGN_PIXEL_16(mHeight);
