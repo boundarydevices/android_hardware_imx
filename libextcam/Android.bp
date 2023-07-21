@@ -30,7 +30,7 @@ bootstrap_go_package {
         "soong-genrule",
     ],
     srcs: [
-        "vpu_dec.go",
+        "ext_cam_aidl.go",
     ],
     pluginFor: ["soong_build"],
 }

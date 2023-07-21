@@ -251,6 +251,9 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         bool mHardwareDecoder;
 
         const std::shared_ptr<BufferRequestThread> mBufferRequestThread;
+
+    private:
+        int VpuDecAndCsc(uint8_t* inData, size_t inDataSize, YCbCrLayout& cropAndScaled);
     };
 
   private:

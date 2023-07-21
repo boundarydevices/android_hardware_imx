@@ -29,6 +29,9 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cutils/properties.h>
+#include "Memory.h"
+#include "MemoryDesc.h"
+#include "MemoryManager.h"
 
 using ::aidl::android::hardware::camera::common::Status;
 using ::aidl::android::hardware::camera::device::CaptureResult;
@@ -178,14 +181,38 @@ class AllocatedFrame : public Frame {
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
 
-    int allocate(YCbCrLayout* out = nullptr);
-    int getLayout(YCbCrLayout* out);
-    int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out);  // return non-zero for bad input
-  private:
+    virtual int allocate(YCbCrLayout* out = nullptr);
+    virtual int getLayout(YCbCrLayout* out);
+    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out);  // return non-zero for bad input
+    virtual void flush() {}
+
+  protected:
     std::mutex mLock;
+
+  private:
     std::vector<uint8_t> mData;
     size_t mBufferSize;  // size of mData before padding. Actual size of mData might be slightly
                          // bigger to horizontally pad the frame for jpeglib.
+};
+
+// A RAII class representing a CPU allocated YUV frame used as intermeidate buffers
+// when generating output images.
+class AllocatedFramePhyMem : public AllocatedFrame {
+public:
+    AllocatedFramePhyMem(uint32_t w, uint32_t h); // only support V4L2_PIX_FMT_YUV420 for now
+    virtual ~AllocatedFramePhyMem() override;
+
+    virtual int getData(uint8_t** outData, size_t* dataSize) override;
+
+    virtual int allocate(YCbCrLayout* out = nullptr);
+    virtual int getLayout(YCbCrLayout* out);
+    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+
+    virtual void flush();
+
+private:
+    fsl::Memory *dstBuffer;
+    uint8_t *dstBuf;
 };
 
 enum CroppingType { HORIZONTAL = 0, VERTICAL = 1 };

@@ -418,6 +418,137 @@ int AllocatedFrame::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayout* out
     return 0;
 }
 
+// AllocatedFramePhyMem class
+AllocatedFramePhyMem::AllocatedFramePhyMem(
+        uint32_t w, uint32_t h) :
+        AllocatedFrame(w, h) {
+    dstBuffer = NULL;
+    dstBuf = NULL;
+}
+
+AllocatedFramePhyMem::~AllocatedFramePhyMem() {
+    if (dstBuffer) {
+        fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+        allocator->releaseMemory(dstBuffer);
+        dstBuffer = NULL;
+        dstBuf = NULL;
+    }
+}
+
+#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
+int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
+    std::lock_guard<std::mutex> lk(mLock);
+    if ((mWidth % 2) || (mHeight % 2)) {
+        ALOGE("%s: bad dimension %dx%d (not multiple of 2)", __FUNCTION__, mWidth, mHeight);
+        return -EINVAL;
+    }
+
+    ALOGV("%s: resolution %dx%d, dstBuffer %p, dstBuf %p", __func__, mWidth, mHeight, dstBuffer, dstBuf);
+
+    uint32_t dataSize = mWidth * mHeight * 3 / 2; // YUV420
+    if ((dstBuffer) && (dstBuffer->size >= dataSize) && dstBuf) {
+        return 0;
+    }
+
+    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+    if (dstBuffer) {
+        allocator->releaseMemory(dstBuffer);
+        dstBuf = NULL;
+        dstBuffer = NULL;
+    }
+
+    // VPU decoder output is 16 pixels aligned, so v4l2 res such as 1920x1080 is decoded to 1920x1088.
+    // Need allocate I420 with aligned size, to avoid out memory boundary when csc from decoded buffer to mYu12Frame.
+    // Can't adjust mWidth/mHeight themselves. Or will meet error as
+    // "cropAndScaleLocked: failed to find intermediate buffer size 1920x1080".
+    fsl::MemoryDesc desc;
+    desc.mWidth = ALIGN_PIXEL_16(mWidth);
+    desc.mHeight = ALIGN_PIXEL_16(mHeight);
+    desc.mFormat = fsl::FORMAT_I420;
+    desc.mFslFormat = fsl::FORMAT_I420;
+    desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
+    desc.mFlag = 0;
+
+    int ret = desc.checkFormat();
+    if (ret != 0) {
+        ALOGE("%s: checkFormat failed, ret %d", __FUNCTION__, ret);
+        return -EINVAL;
+    }
+
+    ret = allocator->allocMemory(desc, &dstBuffer);
+    if (ret != 0) {
+        ALOGE("%s: allocMemory failed, ret %d", __FUNCTION__, ret);
+        return -EINVAL;
+    }
+
+    allocator->lock(dstBuffer, dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN,
+                     0, 0, dstBuffer->width, dstBuffer->height, (void **)(&dstBuf));
+
+    if (out != nullptr) {
+        out->y = dstBuf;
+        out->yStride = mWidth;
+        uint8_t* cbStart = dstBuf + mWidth * mHeight;
+        uint8_t* crStart = cbStart + mWidth * mHeight / 4;
+        out->cb = cbStart;
+        out->cr = crStart;
+        out->cStride = mWidth / 2;
+        out->chromaStep = 1;
+    }
+    return 0;
+}
+
+void AllocatedFramePhyMem::flush() {
+    if (dstBuffer) {
+        fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+        allocator->flush(dstBuffer);
+    }
+}
+
+int AllocatedFramePhyMem::getData(uint8_t** outData, size_t* dataSize) {
+    YCbCrLayout layout;
+    int ret = allocate(&layout);
+    if (ret != 0) {
+        return ret;
+    }
+    *outData = dstBuf;
+    *dataSize = dstBuffer->size;
+
+    return 0;
+}
+
+int AllocatedFramePhyMem::getLayout(YCbCrLayout* out) {
+    IMapper::Rect noCrop = {0, 0,
+            static_cast<int32_t>(mWidth),
+            static_cast<int32_t>(mHeight)};
+    return getCroppedLayout(noCrop, out);
+}
+
+int AllocatedFramePhyMem::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayout* out) {
+    if (out == nullptr) {
+        ALOGE("%s: null out", __FUNCTION__);
+        return -1;
+    }
+
+    std::lock_guard<std::mutex> lk(mLock);
+    if ((rect.left + rect.width) > static_cast<int>(mWidth) ||
+        (rect.top + rect.height) > static_cast<int>(mHeight) ||
+            (rect.left % 2) || (rect.top % 2) || (rect.width % 2) || (rect.height % 2)) {
+        ALOGE("%s: bad rect left %d top %d w %d h %d", __FUNCTION__,
+                rect.left, rect.top, rect.width, rect.height);
+        return -1;
+    }
+
+    out->y = dstBuf + mWidth * rect.top + rect.left;
+    out->yStride = mWidth;
+    uint8_t* cbStart = dstBuf + mWidth * mHeight;
+    uint8_t* crStart = cbStart + mWidth * mHeight / 4;
+    out->cb = cbStart + mWidth * rect.top / 4 + rect.left / 2;
+    out->cr = crStart + mWidth * rect.top / 4 + rect.left / 2;
+    out->cStride = mWidth / 2;
+    out->chromaStep = 1;
+    return 0;
+}
+
 bool isAspectRatioClose(float ar1, float ar2) {
     constexpr float kAspectRatioMatchThres = 0.025f;  // This threshold is good enough to
                                                       // distinguish 4:3/16:9/20:9 1.33/1.78/2

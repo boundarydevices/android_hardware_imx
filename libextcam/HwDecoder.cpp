@@ -1438,8 +1438,7 @@ void HwDecoder::notifyDecodeReady(int32_t mOutbufId) {
     mData.data = (uint8_t *)info->mVirtAddr;
     mData.width = mOutputFormat.width;
     mData.height = mOutputFormat.height;
-
-    SetDecoderBufferState(mOutbufId, false);
+    mData.bufId = mOutbufId;
 
     mFramesSignal.notify_all();
 }
