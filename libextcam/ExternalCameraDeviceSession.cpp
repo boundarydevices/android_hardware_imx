@@ -3011,16 +3011,23 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         fsl::Memory *dstBuffer = nullptr;
 #ifdef HANTRO_V4L2
         {
-            //nv12 to I420 hw format covert
-            fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-            fsl::CscHw csc_hw = fsl::GPU_3D;
+            //Use openCL to do CSC to I420
+            fsl::SrcFormat src_fmt = fsl::NV12;
+            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+                src_fmt = fsl::NV16;
+            } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
+                src_fmt = fsl::NV12;
+            } else {
+                ALOGW("%s: unsupported decoded format 0x%x", __func__, mDecodedData.format);
+            }
 
+            fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
             fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
             fsl::MemoryDesc desc;
             desc.mWidth = mDecodedData.width;
             desc.mHeight = mDecodedData.height;
-            desc.mFormat = fsl::FORMAT_YUYV;
-            desc.mFslFormat = fsl::FORMAT_YUYV;
+            desc.mFormat = fsl::FORMAT_I420;
+            desc.mFslFormat = fsl::FORMAT_I420;
             desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
             desc.mFlag = 0;
 
@@ -3033,10 +3040,23 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                         0, 0, dstBuffer->width, dstBuffer->height, &dstBuf);
 
             int fd = mDecodedData.fd;
+
             int size = mDecodedData.width * mDecodedData.height * 3 / 2;
+
+            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+                size = mDecodedData.width * mDecodedData.height * 2;
+            }
+
             void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+            if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP)
+            {
+                dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 2, 3);
+            }
+            else
+                dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 3 / 2, 3);
+
             imageProcess->handleFrame((uint8_t *)dstBuf, (uint8_t *)vaddr,
-                                    mDecodedData.width, mDecodedData.height, csc_hw);
+                                    mDecodedData.width, mDecodedData.height, src_fmt);
             munmap(vaddr, size);
 
             dumpStream((uint8_t *)dstBuf, mDecodedData.width * mDecodedData.height * 3 / 2, 1);
