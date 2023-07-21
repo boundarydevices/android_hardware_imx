@@ -110,7 +110,7 @@ status_t HwDecoder::Init(const char* socType) {
     if(pDev == NULL)
         return ret;
 
-    if (strcmp(socType, "imx8qm") == 0) {
+    if ((strcmp(socType, "imx8qm") == 0) || (strcmp(socType, "imx8qxp") == 0)) {
         pDev->mSocType = IMX8QM;
         mOutFormat = V4L2_PIX_FMT_NV12M;
         mTableSize = sizeof(color_format_table_8qm) / sizeof(color_format_table_8qm[0]);
