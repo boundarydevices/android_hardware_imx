@@ -918,6 +918,11 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
                     continue;
                 }
 
+                // Discard all formats which is not aligned in height
+                if (frameSize.discrete.height % 4 != 0) {
+                    continue;
+                }
+
                 SupportedV4L2Format format{
                         .width = static_cast<int32_t>(frameSize.discrete.width),
                         .height = static_cast<int32_t>(frameSize.discrete.height),
