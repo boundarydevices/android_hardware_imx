@@ -212,9 +212,12 @@ public:
 
     virtual void flush();
 
+    void getPhyAddr(uint64_t &phyAddr);
+
 private:
     fsl::Memory *dstBuffer;
     uint8_t *dstBuf;
+    uint64_t mPhyAddr;
 };
 
 enum CroppingType { HORIZONTAL = 0, VERTICAL = 1 };

@@ -481,6 +481,9 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     allocator->lock(dstBuffer, dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN,
                      0, 0, dstBuffer->width, dstBuffer->height, (void **)(&dstBuf));
 
+    ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
+    if (ret) mPhyAddr = 0;
+
     if (out != nullptr) {
         out->y = dstBuf;
         out->yStride = mWidth;
@@ -492,6 +495,10 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
         out->chromaStep = 1;
     }
     return 0;
+}
+
+void AllocatedFramePhyMem::getPhyAddr(uint64_t &phyAddr) {
+    phyAddr = mPhyAddr;
 }
 
 void AllocatedFramePhyMem::flush() {

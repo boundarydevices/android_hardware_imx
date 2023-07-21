@@ -2930,18 +2930,21 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
     int fd = mDecodedData.fd;
 
     void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP || mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
-        dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 2, 3);
-    } else
-        dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 3 / 2, 3);
+    dumpStream((uint8_t *)vaddr, size, 3);
+
+    uint64_t srcPhyAddr = 0;
+    IMXGetBufferAddr(fd, size, srcPhyAddr, false);
 
     uint8_t* outData;
     size_t dataSize;
     mYu12Frame->getData(&outData, &dataSize);
     dstBuf = (void *)outData;
 
+    uint64_t dstPhyAddr = 0;
+    ((AllocatedFramePhyMem *)mYu12Frame.get())->getPhyAddr(dstPhyAddr);
+
     imageProcess->handleFrame((uint8_t *)dstBuf, (uint8_t *)vaddr,
-                            mDecodedData.width, mDecodedData.height, src_fmt);
+                            mDecodedData.width, mDecodedData.height, src_fmt, dstPhyAddr, srcPhyAddr);
     mYu12Frame->flush();
     munmap(vaddr, size);
     mDecoder->returnOutputBufferToDecoder(mDecodedData.bufId);
