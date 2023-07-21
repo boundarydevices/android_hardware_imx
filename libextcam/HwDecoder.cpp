@@ -82,6 +82,7 @@ HwDecoder::HwDecoder(const char* mime):
     mOutFormat = V4L2_PIX_FMT_NV12;
     mTableSize = 0;
     color_format_table = NULL;
+    mDecReady = false;
 }
 
 HwDecoder::~HwDecoder() {
@@ -109,7 +110,7 @@ status_t HwDecoder::Init(const char* socType) {
     if(pDev == NULL)
         return ret;
 
-    if (strcmp(socType, "imx8qm") == 0) {
+    if ((strcmp(socType, "imx8qm") == 0) || (strcmp(socType, "imx8qxp") == 0)) {
         pDev->mSocType = IMX8QM;
         mOutFormat = V4L2_PIX_FMT_NV12M;
         mTableSize = sizeof(color_format_table_8qm) / sizeof(color_format_table_8qm[0]);
@@ -245,6 +246,7 @@ status_t HwDecoder::Start() {
         return ret;
 
     mDecState = RUNNING;
+    mDecReady = false;
 
     ALOGV("%s: ret=%d", __FUNCTION__, ret);
     return ret;
@@ -1416,9 +1418,9 @@ status_t HwDecoder::allocateOutputBuffer(int bufId) {
     mInfo.mVirtAddr = virt_addr;
     mInfo.mCapacity = mbufferSize;
     mInfo.bInUse = false;
+    ALOGI("%s: Allocated fd=%d phys_addr=%p vaddr=%p mInfo.mCapacity:%d", __FUNCTION__, fd, (void*)phys_addr, (void*)virt_addr, mInfo.mCapacity);
     mDecoderBuffers.push_back(std::move(mInfo));
 
-    ALOGI("%s: Allocated fd=%d phys_addr=%p vaddr=%p mInfo.mCapacity:%d", __FUNCTION__, fd, (void*)phys_addr, (void*)virt_addr, mInfo.mCapacity);
     return OK;
 }
 
@@ -1492,6 +1494,7 @@ void HwDecoder::notifyDecodeReady(int32_t mOutbufId) {
     mData.width = mOutputFormat.width;
     mData.height = mOutputFormat.height;
     mData.bufId = mOutbufId;
+    mDecReady = true;
 
     mFramesSignal.notify_all();
 }
@@ -1500,18 +1503,25 @@ int HwDecoder::exportDecodedBuf(DecodedData &data, int32_t timeoutMs) {
     std::unique_lock<std::mutex> mlk(mFramesSignalLock);
 
     if (timeoutMs == -1) {
-        mFramesSignal.wait(mlk);
+        while (!mDecReady)
+            mFramesSignal.wait(mlk);
+
+        mDecReady = false;
         data = mData;
         return OK;
     }
 
     std::chrono::milliseconds timeout = std::chrono::milliseconds(timeoutMs);
-    auto st = mFramesSignal.wait_for(mlk, timeout);
-    data = mData;
-    if (st == std::cv_status::timeout) {
-        ALOGW("%s: wait decoder output timeout!", __FUNCTION__);
-        return BAD_VALUE;
+    while (!mDecReady) {
+        auto st = mFramesSignal.wait_for(mlk, timeout);
+        if (st == std::cv_status::timeout) {
+            ALOGW("%s: wait decoder output timeout!", __FUNCTION__);
+            return BAD_VALUE;
+        }
     }
+
+    mDecReady = false;
+    data = mData;
 
     return OK;
 }

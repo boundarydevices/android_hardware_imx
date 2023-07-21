@@ -2924,11 +2924,8 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
 
     // mjpeg decoded to nv12/nv16 raw data
     ret = mDecoder->exportDecodedBuf(mDecodedData, kDecWaitTimeoutMs);
-    if (ret) {
-        // when timeout, the buff needs to be returned, or the buff nums will decrease until they are exhausted
-        mDecoder->returnOutputBufferToDecoder(mDecodedData.bufId);
+    if (ret)
         return ret;
-    }
 
     ALOGV("%s: mDecodedData.width:%d, mDecodedData.height:%d", __func__, mDecodedData.width, mDecodedData.height);
 
