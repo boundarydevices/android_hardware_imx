@@ -110,7 +110,7 @@ public:
     HwDecoder(const char* mime);
     virtual ~HwDecoder();
 
-    status_t Init();
+    status_t Init(const char* socType);
     status_t Start();
     status_t Flush();
     status_t Stop();
@@ -170,6 +170,8 @@ private:
     std::vector<DecoderBufferInfo> mDecoderBuffers;
 
     bool bNeedPostProcess;
+    uint8_t mTableSize;
+    COLOR_FORMAT_TABLE *color_format_table;
 
     status_t SetInputFormats();
     status_t allocateInputBuffers();

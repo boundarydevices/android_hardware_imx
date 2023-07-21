@@ -2337,7 +2337,10 @@ int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
     }
 
     status_t err = UNKNOWN_ERROR;
-    err = mDecoder->Init();
+    char socType[128] = {0};
+    property_get("ro.boot.soc_type", socType, "");
+    ALOGI("%s: socType :%s \n", __FUNCTION__, socType);
+    err = mDecoder->Init(socType);
     if (err) {
         if (mDecoder) {
             mDecoder->Destroy();
@@ -2903,11 +2906,16 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
     if (ret)
       return ret;
 
+    ALOGV("%s: mDecodedData.width:%d, mDecodedData.height:%d", __func__, mDecodedData.width, mDecodedData.height);
+
     // convert nv12/nv16 to I420
     int size = 0;
     fsl::SrcFormat src_fmt = fsl::NV12;
     if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
         src_fmt = fsl::NV16;
+        size = mDecodedData.width * mDecodedData.height * 2;
+    } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
+        src_fmt = fsl::YUYV;
         size = mDecodedData.width * mDecodedData.height * 2;
     } else if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_420_SP) {
         src_fmt = fsl::NV12;
@@ -2922,7 +2930,7 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
     int fd = mDecodedData.fd;
 
     void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP) {
+    if (mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_SP || mDecodedData.format == HAL_PIXEL_FORMAT_YCbCr_422_I) {
         dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 2, 3);
     } else
         dumpStream((uint8_t *)vaddr, mDecodedData.width * mDecodedData.height * 3 / 2, 3);
