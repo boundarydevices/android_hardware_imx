@@ -1,0 +1,134 @@
+/*
+ * Copyright 2020 The Android Open Source Project
+ * Copyright 2023 NXP
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+cc_defaults {
+    name: "display_nxp_defaults",
+
+    cflags: [
+        "-D_GNU_SOURCE=1",
+        "-D_FILE_OFFSET_BITS=64",
+        "-Wall",
+        "-Wsign-compare",
+        "-Wpointer-arith",
+        "-Wcast-qual",
+        "-Wcast-align",
+        "-Wno-unused-parameter",
+    ],
+
+    product_variables: {
+        platform_sdk_version: {
+            cflags: ["-DANDROID_API_LEVEL=%d"],
+        },
+    },
+}
+
+cc_library_headers {
+    name: "gralloc_nxp_headers",
+    host_supported: true,
+    vendor_available: true,
+    export_include_dirs: ["."],
+}
+
+libnxp_gralloc_v5_defaults {
+    name: "libnxp_gralloc_v5_default",
+
+    defaults: ["display_nxp_defaults"],
+
+    vendor: true,
+
+    header_libs: [
+        "libhardware_headers",
+        "libnativebase_headers",
+        "libnativewindow_headers",
+        "libsystem_headers",
+        "gralloc_nxp_headers",
+    ],
+    export_header_lib_headers: [
+        "libhardware_headers",
+        "libnativebase_headers",
+        "libnativewindow_headers",
+        "libsystem_headers",
+    ],
+
+    static_libs: [
+       "libaidlcommonsupport",
+       "libarect",
+       "libdrm",
+    ],
+
+    include_dirs: [
+        "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp-opensource/imx/display/gralloc",
+        "vendor/nxp-opensource/imx/display/gralloc/mapper_stablec",
+        "vendor/nxp-opensource/imx/libdisplayutils",
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp/fsl-proprietary/include",
+        "system/core/include",
+        "vendor/nxp-opensource/libdrm-imx",
+        "vendor/nxp-opensource/libdrm-imx/include/drm",
+        "frameworks/native/include",
+        "frameworks/native/libs/ui/",
+        "frameworks/native/libs/ui/include",
+        "frameworks/native/libs/arect/include",
+        "frameworks/native/libs/ui/include_private",
+        "hardware/libhardware_legacy/include",
+        "device/nxp/common/kernel-headers",
+    ],
+    export_include_dirs: ["."],
+
+    export_static_lib_headers: ["libarect"],
+
+    shared_libs: [
+        "libcutils",
+        "libdisplayutils",
+        "libnativewindow",
+        "libsync",
+        "liblog",
+    ],
+}
+
+
+cc_library_static {
+    name: "libnxp_gralloc_driver",
+    defaults: ["libnxp_gralloc_v5_default"],
+
+    srcs: [
+        "gralloc_driver.cpp",
+        "gralloc_helpers.cpp",
+        "helpers.cpp",
+    ],
+
+    cppflags: ["-std=c++14"],
+}
+
+
+bootstrap_go_package {
+    name: "soong-gralloc-nxp",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/display/gralloc",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "gralloc.go",
+    ],
+    pluginFor: ["soong_build"],
+}
