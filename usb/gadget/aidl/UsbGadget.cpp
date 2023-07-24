@@ -401,6 +401,14 @@ static Status validateAndSetVidPid(int64_t functions) {
             WriteStringToFile("adb|ncm", CONFIGURATION_PATH);
             ret = setVidPid("0x18d1", "0x4eec");
             break;
+        case GadgetFunction::ADB | GadgetFunction::UVC:
+            WriteStringToFile("adb|uvc", CONFIGURATION_PATH);
+            ret = setVidPid("0x18d1", "0x4eed");
+            break;
+        case GadgetFunction::UVC:
+            WriteStringToFile("uvc", CONFIGURATION_PATH);
+            ret = setVidPid("0x18d1", "0x4eef");
+            break;
         case GadgetFunction::ACCESSORY:
             WriteStringToFile("accessory", CONFIGURATION_PATH);
             ret = setVidPid("0x18d1", "0x2d00");
@@ -519,6 +527,10 @@ Status UsbGadget::setupFunctions(long functions, const shared_ptr<IUsbGadgetCall
         ALOGI("Service started");
     }
 
+    if ((functions & GadgetFunction::UVC) != 0) {
+        ALOGI("setCurrentUsbFunctions uvc");
+        if (linkFunction("uvc.0", i++)) return Status::ERROR;
+    }
 
     // Pull up the gadget right away when there are no ffs functions.
     if (!ffsEnabled) {
