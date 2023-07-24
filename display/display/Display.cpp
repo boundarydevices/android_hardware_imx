@@ -557,7 +557,11 @@ bool Display::check2DComposition()
 
         // vpu tile format must be handled by device.
         Memory* memory = mLayers[i]->handle;
+#ifdef ENABLE_8QM_WIDEVINE
+        if (memory != nullptr && (memory->fslFormat == FORMAT_NV12_TILED || memory->usage & USAGE_PROTECTED)) {
+#else
         if (memory != nullptr && memory->fslFormat == FORMAT_NV12_TILED) {
+#endif
             return true;
         }
 

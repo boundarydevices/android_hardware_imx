@@ -1757,7 +1757,11 @@ void KmsDisplay::prepareTargetsLocked()
     mTargetIndex = 0;
 
 #ifdef HAVE_UNMAPPED_HEAP
+#ifndef ENABLE_8QM_WIDEVINE
     desc.mProduceUsage |= USAGE_PROTECTED;
+#else
+    desc.mProduceUsage |= USAGE_PROTECTED | GRALLOC_USAGE_HW_VIDEO_ENCODER ;
+#endif
     for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
         mMemoryManager->allocMemory(desc, &mSecTargets[i]);
     }

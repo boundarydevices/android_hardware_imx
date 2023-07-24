@@ -99,6 +99,8 @@ func libfsldisplayDefaults(ctx android.LoadHookContext) {
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DWORKAROUND_DPU_ALPHA_BLENDING")
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DWORKAROUND_DISPLAY_UNDERRUN")
         p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DUSE_DPU_HWC")
+        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DENABLE_8QM_WIDEVINE")
+        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DHAVE_UNMAPPED_HEAP")
     }
     if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_CLASS") == "IMX8" {
         p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DIMX8")
