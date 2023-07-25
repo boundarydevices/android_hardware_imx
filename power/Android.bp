@@ -46,7 +46,7 @@ cc_binary {
     vintf_fragments: ["android.hardware.power-service.imx.xml"],
     vendor: true,
     shared_libs: [
-        "android.hardware.power-V3-ndk",
+        "android.hardware.power-V4-ndk",
         "libbase",
         "libcutils",
         "liblog",
@@ -58,5 +58,6 @@ cc_binary {
     srcs: [
         "service.cpp",
         "Power.cpp",
+        "PowerHintSession.cpp",
     ],
 }
