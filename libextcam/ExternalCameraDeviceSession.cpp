@@ -3137,6 +3137,13 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         ATRACE_END();
 
         if (res != 0) {
+            res = waitForBufferRequestDone(&req->buffers);
+            if (res != 0) {
+                ALOGE("%s: wait for BufferRequest done failed! res %d, line %d", __FUNCTION__, res, __LINE__);
+                lk.unlock();
+                return onDeviceError("%s: failed to process buffer request error! line %d", __FUNCTION__, __LINE__);
+            }
+
             // For some webcam, the first few V4L2 frames might be malformed...
             ALOGE("%s: Convert V4L2 frame to YU12 failed! res %d", __FUNCTION__, res);
             lk.unlock();
