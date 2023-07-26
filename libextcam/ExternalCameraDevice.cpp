@@ -1012,6 +1012,7 @@ void ExternalCameraDevice::trimSupportedFormats(CroppingType cropType,
 
     // Remove formats that has aspect ratio not croppable from largest size
     // Remove YUYV format if MJPEG format is supported
+    bool needTrimFmt = false;
     std::vector<SupportedV4L2Format> out;
     for (const auto& fmt : sortedFmts) {
         if (fmt.fourcc == V4L2_PIX_FMT_MJPEG) {
@@ -1034,9 +1035,11 @@ void ExternalCameraDevice::trimSupportedFormats(CroppingType cropType,
 
     std::vector<SupportedV4L2Format> trimFmts;
     for (const auto& fmt : out) {
-        if (needTrimFmt && (fmt.fourcc != V4L2_PIX_FMT_YUYV)) {
-            trimFmts.push_back(fmt);
+        if (needTrimFmt && (fmt.fourcc == V4L2_PIX_FMT_YUYV)) {
+            // On camera devices that support MJPEG, crop YUYV
+            continue;
         }
+        trimFmts.push_back(fmt);
     }
 
     sortedFmts = trimFmts;
