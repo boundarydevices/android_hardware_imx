@@ -39,8 +39,8 @@ namespace {
 // Other formats to consider in the future:
 // * V4L2_PIX_FMT_YVU420 (== YV12)
 // * V4L2_PIX_FMT_YVYU (YVYU: can be converted to YV12 or other YUV420_888 formats)
-const std::array<uint32_t, /*size*/ 2> kSupportedFourCCs{
-        {V4L2_PIX_FMT_MJPEG, V4L2_PIX_FMT_Z16}};  // double braces required in C++11
+const std::array<uint32_t, /*size*/ 3> kSupportedFourCCs{
+        {V4L2_PIX_FMT_MJPEG, V4L2_PIX_FMT_Z16, V4L2_PIX_FMT_YUYV}};  // double braces required in C++11
 
 constexpr int MAX_RETRY = 5;                  // Allow retry v4l2 open failures a few times.
 constexpr int OPEN_RETRY_SLEEP_US = 100'000;  // 100ms * MAX_RETRY = 0.5 seconds
@@ -333,6 +333,9 @@ status_t ExternalCameraDevice::initAvailableCapabilities(
                 hasDepth = true;
                 break;
             case V4L2_PIX_FMT_MJPEG:
+                hasColor = true;
+                break;
+            case V4L2_PIX_FMT_YUYV:
                 hasColor = true;
                 break;
             default:
@@ -630,7 +633,7 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
 
     // For V4L2_PIX_FMT_Z16
     std::array<int, /*size*/ 1> halDepthFormats{{HAL_PIXEL_FORMAT_Y16}};
-    // For V4L2_PIX_FMT_MJPEG
+    // For V4L2_PIX_FMT_MJPEG and V4L2_PIX_FMT_YUYV
     std::array<int, /*size*/ 3> halFormats{{HAL_PIXEL_FORMAT_BLOB, HAL_PIXEL_FORMAT_YCbCr_420_888,
                                             HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED}};
 
@@ -640,6 +643,9 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
                 hasDepth = true;
                 break;
             case V4L2_PIX_FMT_MJPEG:
+                hasColor = true;
+                break;
+            case V4L2_PIX_FMT_YUYV:
                 hasColor = true;
                 break;
             default:
@@ -665,6 +671,18 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
     if (hasColor) {
         status_t ret =
                 initOutputCharsKeysByFormat(metadata, V4L2_PIX_FMT_MJPEG, halFormats,
+                                            ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT,
+                                            ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                                            ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS,
+                                            ANDROID_SCALER_AVAILABLE_STALL_DURATIONS);
+        if (ret != OK) {
+            ALOGE("%s: Unable to initialize color format keys: %s", __FUNCTION__,
+                  statusToString(ret).c_str());
+            return ret;
+        }
+
+        ret =
+                initOutputCharsKeysByFormat(metadata, V4L2_PIX_FMT_YUYV, halFormats,
                                             ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT,
                                             ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
                                             ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS,
@@ -849,12 +867,12 @@ void ExternalCameraDevice::updateFpsBounds(
     for (const auto& limit : fpsLimits) {
         if (cropType == VERTICAL) {
             if (format.width <= limit.size.width) {
-                fpsUpperBound = limit.fpsUpperBound;
+                fpsUpperBound = 60;
                 break;
             }
         } else {  // HORIZONTAL
             if (format.height <= limit.size.height) {
-                fpsUpperBound = limit.fpsUpperBound;
+                fpsUpperBound = 60;
                 break;
             }
         }
@@ -886,10 +904,16 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
     }
 
     std::vector<SupportedV4L2Format> outFmts;
-    struct v4l2_fmtdesc fmtdesc {
-        .index = 0, .type = V4L2_BUF_TYPE_VIDEO_CAPTURE
-    };
-    ret = 0;
+
+    ret = TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_QUERYCAP, &vidCap));
+    struct v4l2_fmtdesc fmtdesc;
+    fmtdesc.index = 0;
+    if (vidCap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) {
+        fmtdesc.type =V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    } else {
+        fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    }
+
     while (ret == 0) {
         ret = TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc));
         ALOGI("index:%d,ret:%d, format:%c%c%c%c  :%s", fmtdesc.index, ret,

@@ -186,6 +186,10 @@ bool ExternalCameraDeviceSession::initialize() {
         mExifMake = "Generic UVC webcam";
         mExifModel = "Generic UVC webcam";
     } else {
+        if (capability.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) {
+            mPlane = true;
+            mCaptureType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        }
         // capability.card is UTF-8 encoded
         char card[32];
         int j = 0;
@@ -1106,7 +1110,9 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
 
     // VIDIOC_S_FMT w/h/fmt
     v4l2_format fmt;
-    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (mPlane)
+        fmt.fmt.pix_mp.num_planes = 1;
+    fmt.type = mCaptureType;
     fmt.fmt.pix.width = v4l2Fmt.width;
     fmt.fmt.pix.height = v4l2Fmt.height;
     fmt.fmt.pix.pixelformat = v4l2Fmt.fourcc;
@@ -1183,7 +1189,7 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
 
     // VIDIOC_REQBUFS: create buffers
     v4l2_requestbuffers req_buffers{};
-    req_buffers.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req_buffers.type = mCaptureType;
     req_buffers.memory = V4L2_MEMORY_MMAP;
     req_buffers.count = v4lBufferCount;
     if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_REQBUFS, &req_buffers)) < 0) {
@@ -1201,9 +1207,19 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
     // VIDIOC_QUERYBUF:  get buffer offset in the V4L2 fd
     // VIDIOC_QBUF: send buffer to driver
     mV4L2BufferCount = req_buffers.count;
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
+
     for (uint32_t i = 0; i < req_buffers.count; i++) {
-        v4l2_buffer buffer = {
-                .index = i, .type = V4L2_BUF_TYPE_VIDEO_CAPTURE, .memory = V4L2_MEMORY_MMAP};
+        struct v4l2_buffer  buffer;
+        memset(&buffer, 0, sizeof(buffer));
+        if (mPlane) {
+            buffer.m.planes = &planes;
+            buffer.length = 1; /* plane num */
+        }
+        buffer.type = mCaptureType;
+        buffer.index = i,
+        buffer.memory = V4L2_MEMORY_MMAP;
 
         if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_QUERYBUF, &buffer)) < 0) {
             ALOGE("%s: QUERYBUF %d failed: %s", __FUNCTION__, i, strerror(errno));
@@ -1218,10 +1234,9 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
 
     {
         // VIDIOC_STREAMON: start streaming
-        v4l2_buf_type capture_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         int numAttempt = 0;
         do {
-            ret = TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_STREAMON, &capture_type));
+            ret = TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_STREAMON, &mCaptureType));
             if (numAttempt == MAX_RETRY) {
                 break;
             }
@@ -1239,8 +1254,15 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
 
     // Swallow first few frames after streamOn to account for bad frames from some devices
     for (int i = 0; i < kBadFramesAfterStreamOn; i++) {
-        v4l2_buffer buffer{};
-        buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        struct v4l2_plane planes;
+        memset(&planes, 0, sizeof(struct v4l2_plane));
+        struct v4l2_buffer  buffer;
+        memset(&buffer, 0, sizeof(buffer));
+        if (mPlane) {
+            buffer.m.planes = &planes;
+            buffer.length = 1;
+        }
+        buffer.type = mCaptureType;
         buffer.memory = V4L2_MEMORY_MMAP;
         if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_DQBUF, &buffer)) < 0) {
             ALOGE("%s: DQBUF fails: %s", __FUNCTION__, strerror(errno));
@@ -1293,8 +1315,16 @@ std::unique_ptr<V4L2Frame> ExternalCameraDeviceSession::dequeueV4l2FrameLocked(n
     }
 
     ATRACE_BEGIN("VIDIOC_DQBUF");
-    v4l2_buffer buffer{};
-    buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
+    struct v4l2_buffer  buffer;
+    memset(&buffer, 0, sizeof(buffer));
+
+    if (mPlane) {
+        buffer.m.planes = &planes;
+        buffer.length = 1;
+    }
+    buffer.type = mCaptureType;
     buffer.memory = V4L2_MEMORY_MMAP;
     if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_DQBUF, &buffer)) < 0) {
         ALOGE("%s: DQBUF fails: %s", __FUNCTION__, strerror(errno));
@@ -1332,17 +1362,30 @@ std::unique_ptr<V4L2Frame> ExternalCameraDeviceSession::dequeueV4l2FrameLocked(n
         mNumDequeuedV4l2Buffers++;
     }
 
-    return std::make_unique<V4L2Frame>(mV4l2StreamingFmt.width, mV4l2StreamingFmt.height,
-                                       mV4l2StreamingFmt.fourcc, buffer.index, mV4l2Fd.get(),
-                                       buffer.bytesused, buffer.m.offset);
+    if (mPlane) {
+        return std::make_unique<V4L2Frame>(mV4l2StreamingFmt.width, mV4l2StreamingFmt.height,
+                                           mV4l2StreamingFmt.fourcc, buffer.index, mV4l2Fd.get(),
+                                           buffer.m.planes->length, buffer.m.planes->m.mem_offset);
+    } else {
+        return std::make_unique<V4L2Frame>(mV4l2StreamingFmt.width, mV4l2StreamingFmt.height,
+                                           mV4l2StreamingFmt.fourcc, buffer.index, mV4l2Fd.get(),
+                                           buffer.bytesused, buffer.m.offset);
+    }
 }
 
 void ExternalCameraDeviceSession::enqueueV4l2Frame(const std::shared_ptr<V4L2Frame>& frame) {
     ATRACE_CALL();
     frame->unmap();
     ATRACE_BEGIN("VIDIOC_QBUF");
-    v4l2_buffer buffer{};
-    buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    struct v4l2_plane planes;
+    memset(&planes, 0, sizeof(struct v4l2_plane));
+    struct v4l2_buffer  buffer;
+    memset(&buffer, 0, sizeof(buffer));
+    if (mPlane) {
+        buffer.m.planes = &planes;
+        buffer.length = 1;
+    }
+    buffer.type = mCaptureType;
     buffer.memory = V4L2_MEMORY_MMAP;
     buffer.index = frame->mBufferIndex;
     if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_QBUF, &buffer)) < 0) {
@@ -1536,15 +1579,14 @@ int ExternalCameraDeviceSession::v4l2StreamOffLocked() {
     mV4L2BufferCount = 0;
 
     // VIDIOC_STREAMOFF
-    v4l2_buf_type capture_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_STREAMOFF, &capture_type)) < 0) {
+    if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_STREAMOFF, &mCaptureType)) < 0) {
         ALOGE("%s: STREAMOFF failed: %s", __FUNCTION__, strerror(errno));
         return -errno;
     }
 
     // VIDIOC_REQBUFS: clear buffers
     v4l2_requestbuffers req_buffers{};
-    req_buffers.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req_buffers.type = mCaptureType;
     req_buffers.memory = V4L2_MEMORY_MMAP;
     req_buffers.count = 0;
     if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_REQBUFS, &req_buffers)) < 0) {
@@ -1558,36 +1600,35 @@ int ExternalCameraDeviceSession::v4l2StreamOffLocked() {
 
 int ExternalCameraDeviceSession::setV4l2FpsLocked(double fps) {
     // VIDIOC_G_PARM/VIDIOC_S_PARM: set fps
-    v4l2_streamparm streamparm = {.type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
+    struct v4l2_streamparm streamparm = { .type = mCaptureType };
     // The following line checks that the driver knows about framerate get/set.
     int ret = TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_G_PARM, &streamparm));
     if (ret != 0) {
         if (errno == -EINVAL) {
             ALOGW("%s: device does not support VIDIOC_G_PARM", __FUNCTION__);
         }
-        return -errno;
     }
     // Now check if the device is able to accept a capture framerate set.
     if (!(streamparm.parm.capture.capability & V4L2_CAP_TIMEPERFRAME)) {
         ALOGW("%s: device does not support V4L2_CAP_TIMEPERFRAME", __FUNCTION__);
-        return -EINVAL;
-    }
+    } else {
+        // only do ioctl VIDIOC_S_PARM when device is able to accept capture framerate set.
+        // fps is float, approximate by a fraction.
+        const int kFrameRatePrecision = 10000;
+        streamparm.parm.capture.timeperframe.numerator = kFrameRatePrecision;
+        streamparm.parm.capture.timeperframe.denominator = (fps * kFrameRatePrecision);
 
-    // fps is float, approximate by a fraction.
-    const int kFrameRatePrecision = 10000;
-    streamparm.parm.capture.timeperframe.numerator = kFrameRatePrecision;
-    streamparm.parm.capture.timeperframe.denominator = (fps * kFrameRatePrecision);
+        if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_S_PARM, &streamparm)) < 0) {
+            ALOGE("%s: failed to set framerate to %f: %s", __FUNCTION__, fps, strerror(errno));
+            return -1;
+        }
 
-    if (TEMP_FAILURE_RETRY(ioctl(mV4l2Fd.get(), VIDIOC_S_PARM, &streamparm)) < 0) {
-        ALOGE("%s: failed to set framerate to %f: %s", __FUNCTION__, fps, strerror(errno));
-        return -1;
-    }
-
-    double retFps = streamparm.parm.capture.timeperframe.denominator /
-                    static_cast<double>(streamparm.parm.capture.timeperframe.numerator);
-    if (std::fabs(fps - retFps) > 1.0) {
-        ALOGE("%s: expect fps %f, got %f instead", __FUNCTION__, fps, retFps);
-        return -1;
+        double retFps = streamparm.parm.capture.timeperframe.denominator /
+                        static_cast<double>(streamparm.parm.capture.timeperframe.numerator);
+        if (std::fabs(fps - retFps) > 1.0) {
+            ALOGE("%s: expect fps %f, got %f instead", __FUNCTION__, fps, retFps);
+            return -1;
+        }
     }
     mV4l2StreamingFps = fps;
     return 0;
@@ -3016,7 +3057,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         return false;
     };
 
-    if (req->frameIn->mFourcc != V4L2_PIX_FMT_MJPEG && req->frameIn->mFourcc != V4L2_PIX_FMT_Z16) {
+    if (req->frameIn->mFourcc != V4L2_PIX_FMT_MJPEG && req->frameIn->mFourcc != V4L2_PIX_FMT_Z16
+            && req->frameIn->mFourcc != V4L2_PIX_FMT_YUYV) {
         return onDeviceError("%s: do not support V4L2 format %c%c%c%c", __FUNCTION__,
                              req->frameIn->mFourcc & 0xFF, (req->frameIn->mFourcc >> 8) & 0xFF,
                              (req->frameIn->mFourcc >> 16) & 0xFF,
@@ -3092,6 +3134,29 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             }
         }
 
+        ATRACE_END();
+
+        if (res != 0) {
+            // For some webcam, the first few V4L2 frames might be malformed...
+            ALOGE("%s: Convert V4L2 frame to YU12 failed! res %d", __FUNCTION__, res);
+            lk.unlock();
+            Status st = parent->processCaptureRequestError(req);
+            if (st != Status::OK) {
+                return onDeviceError("%s: failed to process capture request error!", __FUNCTION__);
+            }
+            signalRequestDone();
+            return true;
+        }
+    }
+
+    if (req->frameIn->mFourcc == V4L2_PIX_FMT_YUYV) {
+        ATRACE_BEGIN("YUYVtoI420");
+        int res = libyuv::YUY2ToI420(
+            inData, req->frameIn->mWidth*2,
+            static_cast<uint8_t*>(mYu12FrameLayout.y), mYu12FrameLayout.yStride,
+            static_cast<uint8_t*>(mYu12FrameLayout.cb), mYu12FrameLayout.cStride,
+            static_cast<uint8_t*>(mYu12FrameLayout.cr), mYu12FrameLayout.cStride,
+            mYu12Frame->mWidth, mYu12Frame->mHeight);
         ATRACE_END();
 
         if (res != 0) {

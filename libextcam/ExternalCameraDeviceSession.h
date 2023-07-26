@@ -362,7 +362,8 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     SupportedV4L2Format mV4l2StreamingFmt;
     double mV4l2StreamingFps = 0.0;
     size_t mV4L2BufferCount = 0;
-
+    bool mPlane = false;
+    enum v4l2_buf_type mCaptureType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     static const int kBufferWaitTimeoutSec = 3;  // TODO: handle long exposure (or not allowing)
     std::mutex mV4l2BufferLock;                  // protect the buffer count and condition below
     std::condition_variable mV4L2BufferReturned;
