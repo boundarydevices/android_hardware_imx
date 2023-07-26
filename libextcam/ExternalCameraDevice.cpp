@@ -333,8 +333,6 @@ status_t ExternalCameraDevice::initAvailableCapabilities(
                 hasDepth = true;
                 break;
             case V4L2_PIX_FMT_MJPEG:
-                hasColor = true;
-                break;
             case V4L2_PIX_FMT_YUYV:
                 hasColor = true;
                 break;
@@ -629,7 +627,8 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
     }
 
     bool hasDepth = false;
-    bool hasColor = false;
+    bool isMJPEG = false;
+    bool isYUYV = false;
 
     // For V4L2_PIX_FMT_Z16
     std::array<int, /*size*/ 1> halDepthFormats{{HAL_PIXEL_FORMAT_Y16}};
@@ -643,10 +642,10 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
                 hasDepth = true;
                 break;
             case V4L2_PIX_FMT_MJPEG:
-                hasColor = true;
+                isMJPEG = true;
                 break;
             case V4L2_PIX_FMT_YUYV:
-                hasColor = true;
+                isYUYV = true;
                 break;
             default:
                 ALOGW("%s: format %c%c%c%c is not supported!", __FUNCTION__,
@@ -668,7 +667,7 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
             return ret;
         }
     }
-    if (hasColor) {
+    if (isMJPEG) {
         status_t ret =
                 initOutputCharsKeysByFormat(metadata, V4L2_PIX_FMT_MJPEG, halFormats,
                                             ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT,
@@ -680,8 +679,10 @@ status_t ExternalCameraDevice::initOutputCharsKeys(
                   statusToString(ret).c_str());
             return ret;
         }
+    }
 
-        ret =
+    if (isYUYV) {
+        status_t ret =
                 initOutputCharsKeysByFormat(metadata, V4L2_PIX_FMT_YUYV, halFormats,
                                             ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT,
                                             ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
@@ -1010,8 +1011,13 @@ void ExternalCameraDevice::trimSupportedFormats(CroppingType cropType,
     float maxSizeAr = ASPECT_RATIO(maxSize);
 
     // Remove formats that has aspect ratio not croppable from largest size
+    // Remove YUYV format if MJPEG format is supported
     std::vector<SupportedV4L2Format> out;
     for (const auto& fmt : sortedFmts) {
+        if (fmt.fourcc == V4L2_PIX_FMT_MJPEG) {
+            needTrimFmt = true;
+        }
+
         float ar = ASPECT_RATIO(fmt);
         if (isAspectRatioClose(ar, maxSizeAr)) {
             out.push_back(fmt);
@@ -1025,7 +1031,15 @@ void ExternalCameraDevice::trimSupportedFormats(CroppingType cropType,
                   maxSize.width, maxSize.height);
         }
     }
-    sortedFmts = out;
+
+    std::vector<SupportedV4L2Format> trimFmts;
+    for (const auto& fmt : out) {
+        if (needTrimFmt && (fmt.fourcc != V4L2_PIX_FMT_YUYV)) {
+            trimFmts.push_back(fmt);
+        }
+    }
+
+    sortedFmts = trimFmts;
 }
 
 binder_status_t ExternalCameraDevice::dump(int fd, const char** args, uint32_t numArgs) {
