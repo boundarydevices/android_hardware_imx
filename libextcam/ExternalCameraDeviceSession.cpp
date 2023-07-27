@@ -3110,9 +3110,9 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 		YCbCrLayout cropAndScaled;
 
     // TODO: in some special case maybe we can decode jpg directly to gralloc output?
+    res = 0;
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
         ATRACE_BEGIN("MJPGtoI420");
-        res = 0;
         if (mCameraMuted) {
             res = libyuv::ConvertToI420(
                     mMuteTestPatternFrame.data(), mMuteTestPatternFrame.size(),
@@ -3135,49 +3135,38 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         }
 
         ATRACE_END();
-
-        if (res != 0) {
-            res = waitForBufferRequestDone(&req->buffers);
-            if (res != 0) {
-                ALOGE("%s: wait for BufferRequest done failed! res %d, line %d", __FUNCTION__, res, __LINE__);
-                lk.unlock();
-                return onDeviceError("%s: failed to process buffer request error! line %d", __FUNCTION__, __LINE__);
-            }
-
-            // For some webcam, the first few V4L2 frames might be malformed...
-            ALOGE("%s: Convert V4L2 frame to YU12 failed! res %d", __FUNCTION__, res);
-            lk.unlock();
-            Status st = parent->processCaptureRequestError(req);
-            if (st != Status::OK) {
-                return onDeviceError("%s: failed to process capture request error!", __FUNCTION__);
-            }
-            signalRequestDone();
-            return true;
-        }
     }
 
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_YUYV) {
         ATRACE_BEGIN("YUYVtoI420");
-        int res = libyuv::YUY2ToI420(
+        res = libyuv::YUY2ToI420(
             inData, req->frameIn->mWidth*2,
             static_cast<uint8_t*>(mYu12FrameLayout.y), mYu12FrameLayout.yStride,
             static_cast<uint8_t*>(mYu12FrameLayout.cb), mYu12FrameLayout.cStride,
             static_cast<uint8_t*>(mYu12FrameLayout.cr), mYu12FrameLayout.cStride,
             mYu12Frame->mWidth, mYu12Frame->mHeight);
         ATRACE_END();
-
-        if (res != 0) {
-            // For some webcam, the first few V4L2 frames might be malformed...
-            ALOGE("%s: Convert V4L2 frame to YU12 failed! res %d", __FUNCTION__, res);
-            lk.unlock();
-            Status st = parent->processCaptureRequestError(req);
-            if (st != Status::OK) {
-                return onDeviceError("%s: failed to process capture request error!", __FUNCTION__);
-            }
-            signalRequestDone();
-            return true;
-        }
     }
+
+    if (res != 0) {
+        res = waitForBufferRequestDone(&req->buffers);
+        if (res != 0) {
+            ALOGE("%s: wait for BufferRequest done failed! res %d, line %d", __FUNCTION__, res, __LINE__);
+            lk.unlock();
+            return onDeviceError("%s: failed to process buffer request error! line %d", __FUNCTION__, __LINE__);
+        }
+
+        // For some webcam, the first few V4L2 frames might be malformed...
+        ALOGE("%s: Convert V4L2 frame to YU12 failed! res %d", __FUNCTION__, res);
+        lk.unlock();
+        Status st = parent->processCaptureRequestError(req);
+        if (st != Status::OK) {
+            return onDeviceError("%s: failed to process capture request error!", __FUNCTION__);
+        }
+        signalRequestDone();
+        return true;
+    }
+
 
     ATRACE_BEGIN("Wait for BufferRequest done");
     res = waitForBufferRequestDone(&req->buffers);
