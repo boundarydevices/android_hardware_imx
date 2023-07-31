@@ -342,6 +342,12 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
 
     close(fd);
+
+    if ((mMaxWidth == 0) || (mMaxHeight == 0)) {
+        ALOGI("%s: remove camera id %d due to max size is %dx%d", __func__, camera_id_, mMaxWidth, mMaxHeight);
+        mCallback.camera_device_status_change(camera_id_, CameraDeviceStatus::kNotPresent);
+    }
+
     return NO_ERROR;
 }
 
