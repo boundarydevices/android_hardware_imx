@@ -332,7 +332,7 @@ camera_metadata_t* Metadata::createStaticInfo(SensorData& sensor, camera_info &c
             ARRAY_SIZE(android_sensor_info_pixel_array_size),
             android_sensor_info_pixel_array_size);
 
-    int32_t android_sensor_orientation[] = {0};
+    int32_t android_sensor_orientation[] = {camInfo.orientation};
     m.addInt32(ANDROID_SENSOR_ORIENTATION,
             ARRAY_SIZE(android_sensor_orientation),
             android_sensor_orientation);
