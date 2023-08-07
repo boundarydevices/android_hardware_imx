@@ -248,8 +248,43 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
 
         memset(node, 0, sizeof(nodeSet));
 
-        sprintf(node->devNode, "/dev/%s", dirEntry->d_name);
+        sprintf(mCamDevice, "/sys/class/video4linux/%s/name", dirEntry->d_name);
+        if (!android::base::ReadFileToString(std::string(mCamDevice), &buffer)) {
+            free(node);
+            ALOGW("can't read video device name");
+            continue;
+        }
+        ALOGI("%s: /sys/class/video4linux/%s/name is %s", __func__, dirEntry->d_name, buffer.c_str());
 
+        // Use "/sys/class/video4linux/%s/name" to filter out unsupported video devices.
+        // So no need to open none-camera devices such as VPU.
+        // If it's neithor basic camera nor physical camera, skip.
+        bool bOnBoardCamera = false;
+
+        //basic camera
+        for (int32_t index=0; index < (int32_t)mCameraDef.camera_id_map_.size(); index++) {
+            if (strstr(buffer.c_str(), mSets[index].mPropertyName)) {
+                bOnBoardCamera = true;
+                break;
+            }
+        }
+
+        //physical camera
+        for (int32_t phyindex = MAX_BASIC_CAMERA_NUM; phyindex < (int32_t)mCameraDef.camera_metadata_vec.size(); phyindex++) {
+            if (strstr(buffer.c_str(), mSets[phyindex].mPropertyName)) {
+                bOnBoardCamera = true;
+                break;
+            }
+        }
+
+        if (bOnBoardCamera == false) {
+            ALOGI("%s: %s is not on-board camera deivce, skip", __func__, dirEntry->d_name);
+            free(node);
+            continue;
+        }
+
+        // open camera node to query
+        sprintf(node->devNode, "/dev/%s", dirEntry->d_name);
         int32_t ret = getNodeName(node->devNode, node->nodeName, nameLen, node->busInfo, nameLen);
         if (ret < 0) {
             ALOGW("%s: dev path %s getNodeName failed", __func__, node->devNode);
@@ -257,12 +292,6 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
             continue;
         }
 
-        sprintf(mCamDevice, "/sys/class/video4linux/%s/name", dirEntry->d_name);
-        if (!android::base::ReadFileToString(std::string(mCamDevice), &buffer)) {
-            free(node);
-            ALOGW("can't read video device name");
-            continue;
-        }
         // string read from ReadFileToString have '\n' in last byte
         // so we just need copy (buffer.length() - 1) length
         strncat(node->nodeName, buffer.c_str(), (buffer.length() - 1));
