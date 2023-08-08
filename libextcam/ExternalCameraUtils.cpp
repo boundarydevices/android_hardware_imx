@@ -196,6 +196,19 @@ ExternalCameraConfig ExternalCameraConfig::loadFromCfg(const char* cfgPath) {
         ret.orientation = orientation->IntAttribute("degree", /*Default*/ kDefaultOrientation);
     }
 
+    XMLElement* hardwareDecDevice = deviceCfg->FirstChildElement("HardwareDecDevice");
+    if (hardwareDecDevice == nullptr) {
+        ALOGI("%s: no HardwareDecDevice specified", __FUNCTION__);
+    } else {
+        const char *hardwareDecDeviceList = NULL;
+        err = hardwareDecDevice->QueryAttribute("list", &hardwareDecDeviceList);
+        if (err == XML_SUCCESS) {
+            strncpy(ret.hardwareDecDeviceList, hardwareDecDeviceList, HARDWARE_DEC_DEVICE_SIZE);
+            ret.hardwareDecDeviceList[HARDWARE_DEC_DEVICE_SIZE-1] = 0;
+            ALOGI("%s: hardwareDecDeviceList %s", __func__, hardwareDecDeviceList);
+        }
+    }
+
     ALOGI("%s: external camera cfg loaded: maxJpgBufSize %d,"
           " num video buffers %d, num still buffers %d, orientation %d",
           __FUNCTION__, ret.maxJpegBufSize, ret.numVideoBuffers, ret.numStillBuffers,
@@ -254,6 +267,7 @@ ExternalCameraConfig::ExternalCameraConfig()
     fpsLimits.push_back(
             {/* size */ {/* width */ 1920, /* height */ 1080}, /* fpsUpperBound */ 5.0});
     minStreamSize = {0, 0};
+    memset(hardwareDecDeviceList, 0, HARDWARE_DEC_DEVICE_SIZE);
 }
 
 }  // namespace common

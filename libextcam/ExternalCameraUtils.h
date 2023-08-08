@@ -73,6 +73,7 @@ struct SizeHasher {
     }
 };
 
+#define HARDWARE_DEC_DEVICE_SIZE 64
 struct ExternalCameraConfig {
     static const char* kDefaultCfgPath;
     static ExternalCameraConfig loadFromCfg(const char* cfgPath = kDefaultCfgPath);
@@ -110,6 +111,9 @@ struct ExternalCameraConfig {
 
     // The value of android.sensor.orientation
     int32_t orientation;
+
+    // Devices that use hardware MJPG decoder
+    char hardwareDecDeviceList[HARDWARE_DEC_DEVICE_SIZE];
 
   private:
     ExternalCameraConfig();
