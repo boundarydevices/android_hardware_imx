@@ -1,0 +1,30 @@
+cc_binary_host {
+    name: "package_tool",
+    srcs: [
+        "firmware_loader_package_tool.cpp",
+        "cose.cpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-Wno-unused-variable",
+        "-O0",
+        "-DLOG_TAG=\"package_tool\"",
+    ],
+
+    include_dirs: [
+        "vendor/nxp-opensource/imx/package_firmware_tool",
+    ],
+
+    static_libs: [
+        "libcppbor_external",
+        "libcrypto",
+        "liblog",
+        "libcutils",
+        "libutils",
+        "libbase",
+    ],
+
+    stl: "libc++_static",
+}
