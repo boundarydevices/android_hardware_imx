@@ -60,6 +60,9 @@ ExternalCameraDevice::ExternalCameraDevice(const std::string& devicePath,
     } else {
         ALOGE("%s: device path match failed for %s", __FUNCTION__, mDevicePath.c_str());
     }
+
+    if (strstr(mCfg.interBufFormat, "i420"))
+        mInterBufFormat = V4L2_PIX_FMT_YUV420;
 }
 
 ExternalCameraDevice::~ExternalCameraDevice() {}
@@ -156,6 +159,8 @@ ndk::ScopedAStatus ExternalCameraDevice::open(
     }
 
     session->mSessionNeedHardwareDec = mNeedHardwareDec;
+    session->mInterBufFormat = mInterBufFormat;
+
     if (session->isInitFailed()) {
         ALOGE("%s: camera device session init failed", __FUNCTION__);
         return fromStatus(Status::INTERNAL_ERROR);

@@ -77,6 +77,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     bool isInitFailed();
     bool isClosed();
     bool mSessionNeedHardwareDec;
+    uint32_t mInterBufFormat = V4L2_PIX_FMT_NV12;
 
     ScopedAStatus close() override;
 
@@ -176,7 +177,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
         Status allocateIntermediateBuffers(const Size& v4lSize, const Size& thumbSize,
                                            const std::vector<Stream>& streams,
-                                           uint32_t blobBufferSize);
+                                           uint32_t blobBufferSize, uint32_t format = V4L2_PIX_FMT_NV12);
         Status submitRequest(const std::shared_ptr<HalRequest>&);
         void flush();
         void dump(int fd);
@@ -190,6 +191,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         void setMjpegDecoderType(bool type);
 
         HwDecoder* mDecoder;
+        uint64_t mDecedFrames = 0;
         int initVpuThread();
 
       protected:
@@ -246,18 +248,19 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         bool mCameraMuted = false;
         uint32_t mBlobBufferSize = 0;  // 0 -> HAL derive buffer size, else: use given size
 
-        void *dstBuf = NULL;
         DecodedData mDecodedData;
 
         std::string mExifMake;
         std::string mExifModel;
 
         bool mHardwareDecoder;
+        bool mDebug;
+        uint32_t mInterBufFormat = V4L2_PIX_FMT_NV12;
 
         const std::shared_ptr<BufferRequestThread> mBufferRequestThread;
 
     private:
-        int VpuDecAndCsc(uint8_t* inData, size_t inDataSize, YCbCrLayout& cropAndScaled);
+        int VpuDecAndCsc(uint8_t* inData, size_t inDataSize);
     };
 
   private:
@@ -412,7 +415,8 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
     std::string mExifMake;
     std::string mExifModel;
-    bool mHardwareDecoder;  
+    bool mHardwareDecoder;
+
     /* End of members not changed after initialize() */
 };
 

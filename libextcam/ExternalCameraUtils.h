@@ -34,6 +34,8 @@
 #include "MemoryDesc.h"
 #include "MemoryManager.h"
 
+#include <linux/videodev2.h>
+
 using ::aidl::android::hardware::camera::common::Status;
 using ::aidl::android::hardware::camera::device::CaptureResult;
 using ::aidl::android::hardware::camera::device::ErrorCode;
@@ -75,6 +77,7 @@ struct SizeHasher {
 };
 
 #define HARDWARE_DEC_DEVICE_SIZE 64
+#define INTERBUF_FORMAT_SIZE 8
 struct ExternalCameraConfig {
     static const char* kDefaultCfgPath;
     static ExternalCameraConfig loadFromCfg(const char* cfgPath = kDefaultCfgPath);
@@ -115,6 +118,9 @@ struct ExternalCameraConfig {
 
     // Devices that use hardware MJPG decoder
     char hardwareDecDeviceList[HARDWARE_DEC_DEVICE_SIZE];
+
+    // Intermediate Buffers format, nv12(default) or i420.
+    char interBufFormat[INTERBUF_FORMAT_SIZE];
 
   private:
     ExternalCameraConfig();
@@ -183,7 +189,7 @@ class V4L2Frame : public Frame {
 // when generating output images.
 class AllocatedFrame : public Frame {
   public:
-    AllocatedFrame(uint32_t w, uint32_t h);  // only support V4L2_PIX_FMT_YUV420 for now
+    AllocatedFrame(uint32_t w, uint32_t h, uint32_t format = V4L2_PIX_FMT_NV12);  // support V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_NV12
     ~AllocatedFrame() override;
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
@@ -206,7 +212,7 @@ class AllocatedFrame : public Frame {
 // when generating output images.
 class AllocatedFramePhyMem : public AllocatedFrame {
 public:
-    AllocatedFramePhyMem(uint32_t w, uint32_t h); // only support V4L2_PIX_FMT_YUV420 for now
+    AllocatedFramePhyMem(uint32_t w, uint32_t h, uint32_t format = V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_YUV420);  // support V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_NV12
     virtual ~AllocatedFramePhyMem() override;
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
@@ -281,7 +287,7 @@ uint32_t getFourCcFromLayout(const YCbCrLayout&);
 using ::android::hardware::camera::external::common::Size;
 int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMapper::Rect* out);
 
-int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format);
+int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format, uint32_t srcFmt = V4L2_PIX_FMT_NV12);
 
 int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
                    const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,

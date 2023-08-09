@@ -210,6 +210,19 @@ ExternalCameraConfig ExternalCameraConfig::loadFromCfg(const char* cfgPath) {
         }
     }
 
+    XMLElement* interBufFormat = deviceCfg->FirstChildElement("InterBufFormat");
+    if (interBufFormat == nullptr) {
+        ALOGI("%s: no InterBufFormat specified, will use default nv12", __FUNCTION__);
+    } else {
+        const char *format = NULL;
+        err = interBufFormat->QueryAttribute("format", &format);
+        if (err == XML_SUCCESS) {
+            strncpy(ret.interBufFormat, format, INTERBUF_FORMAT_SIZE);
+            ret.interBufFormat[INTERBUF_FORMAT_SIZE-1] = 0;
+            ALOGI("%s: InterBufFormat %s", __func__, ret.interBufFormat);
+        }
+    }
+
     ALOGI("%s: external camera cfg loaded: maxJpgBufSize %d,"
           " num video buffers %d, num still buffers %d, orientation %d",
           __FUNCTION__, ret.maxJpegBufSize, ret.numVideoBuffers, ret.numStillBuffers,
@@ -269,6 +282,7 @@ ExternalCameraConfig::ExternalCameraConfig()
             {/* size */ {/* width */ 1920, /* height */ 1080}, /* fpsUpperBound */ 5.0});
     minStreamSize = {0, 0};
     memset(hardwareDecDeviceList, 0, HARDWARE_DEC_DEVICE_SIZE);
+    memset(interBufFormat, 0, INTERBUF_FORMAT_SIZE);
 }
 
 }  // namespace common
@@ -333,7 +347,7 @@ int V4L2Frame::unmap() {
     return 0;
 }
 
-AllocatedFrame::AllocatedFrame(uint32_t w, uint32_t h) : Frame(w, h, V4L2_PIX_FMT_YUV420) {}
+AllocatedFrame::AllocatedFrame(uint32_t w, uint32_t h, uint32_t format) : Frame(w, h, format) {}
 AllocatedFrame::~AllocatedFrame() {}
 
 int AllocatedFrame::getData(uint8_t** outData, size_t* dataSize) {
@@ -389,7 +403,10 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
         mBufferSize = dataSize;
     }
 
-    if (out != nullptr) {
+    if (out == NULL)
+        return 0;
+
+    if (mFourcc == V4L2_PIX_FMT_YUV420) {
         out->y = mData.data();
         out->yStride = mWidth;
         uint8_t* cbStart = mData.data() + mWidth * mHeight;
@@ -398,7 +415,17 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
         out->cr = crStart;
         out->cStride = mWidth / 2;
         out->chromaStep = 1;
+    } else if (mFourcc == V4L2_PIX_FMT_NV12) {
+        out->y = mData.data();
+        out->yStride = mWidth;
+        uint8_t* cbStart = mData.data() + mWidth * mHeight;
+        uint8_t* crStart = cbStart + 1;
+        out->cb = cbStart;
+        out->cr = crStart;
+        out->cStride = mWidth;
+        out->chromaStep = 2;
     }
+
     return 0;
 }
 
@@ -422,21 +449,33 @@ int AllocatedFrame::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayout* out
         return -1;
     }
 
-    out->y = mData.data() + mWidth * rect.top + rect.left;
-    out->yStride = mWidth;
-    uint8_t* cbStart = mData.data() + mWidth * mHeight;
-    uint8_t* crStart = cbStart + mWidth * mHeight / 4;
-    out->cb = cbStart + mWidth * rect.top / 4 + rect.left / 2;
-    out->cr = crStart + mWidth * rect.top / 4 + rect.left / 2;
-    out->cStride = mWidth / 2;
-    out->chromaStep = 1;
+    if (mFourcc == V4L2_PIX_FMT_YUV420) {
+        out->y = mData.data() + mWidth * rect.top + rect.left;
+        out->yStride = mWidth;
+        uint8_t* cbStart = mData.data() + mWidth * mHeight;
+        uint8_t* crStart = cbStart + mWidth * mHeight / 4;
+        out->cb = cbStart + mWidth * rect.top / 4 + rect.left / 2;
+        out->cr = crStart + mWidth * rect.top / 4 + rect.left / 2;
+        out->cStride = mWidth / 2;
+        out->chromaStep = 1;
+    } else if (mFourcc == V4L2_PIX_FMT_NV12) {
+        out->y = mData.data() + mWidth * rect.top + rect.left;
+        out->yStride = mWidth;
+        uint8_t* cbStart = mData.data() + mWidth * mHeight;
+        uint8_t* crStart = cbStart + 1;
+        out->cb = cbStart + mWidth * rect.top / 2 + rect.left;
+        out->cr = crStart + 1;
+        out->cStride = mWidth;
+        out->chromaStep = 2;
+    }
+
     return 0;
 }
 
 // AllocatedFramePhyMem class
 AllocatedFramePhyMem::AllocatedFramePhyMem(
-        uint32_t w, uint32_t h) :
-        AllocatedFrame(w, h) {
+        uint32_t w, uint32_t h, uint32_t format) :
+        AllocatedFrame(w, h, format) {
     dstBuffer = NULL;
     dstBuf = NULL;
 }
@@ -476,10 +515,16 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     fsl::MemoryDesc desc;
     desc.mWidth = ALIGN_PIXEL_16(mWidth);
     desc.mHeight = ALIGN_PIXEL_16(mHeight);
-    desc.mFormat = fsl::FORMAT_I420;
-    desc.mFslFormat = fsl::FORMAT_I420;
     desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
     desc.mFlag = 0;
+
+    if (mFourcc == V4L2_PIX_FMT_YUV420) {
+        desc.mFormat = fsl::FORMAT_I420;
+        desc.mFslFormat = fsl::FORMAT_I420;
+    } else if (mFourcc == V4L2_PIX_FMT_NV12) {
+        desc.mFormat = fsl::FORMAT_NV12;
+        desc.mFslFormat = fsl::FORMAT_NV12;
+    }
 
     int ret = desc.checkFormat();
     if (ret != 0) {
@@ -499,7 +544,10 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
     if (ret) mPhyAddr = 0;
 
-    if (out != nullptr) {
+    if (out == nullptr)
+        return 0;
+
+    if (mFourcc == V4L2_PIX_FMT_YUV420) {
         out->y = dstBuf;
         out->yStride = mWidth;
         uint8_t* cbStart = dstBuf + mWidth * mHeight;
@@ -508,7 +556,17 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
         out->cr = crStart;
         out->cStride = mWidth / 2;
         out->chromaStep = 1;
+    } else if (mFourcc == V4L2_PIX_FMT_NV12) {
+        out->y = dstBuf;
+        out->yStride = mWidth;
+        uint8_t* cbStart = dstBuf + mWidth * mHeight;
+        uint8_t* crStart = cbStart + 1;
+        out->cb = cbStart;
+        out->cr = crStart;
+        out->cStride = mWidth;
+        out->chromaStep = 2;
     }
+
     return 0;
 }
 
@@ -557,14 +615,26 @@ int AllocatedFramePhyMem::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayou
         return -1;
     }
 
-    out->y = dstBuf + mWidth * rect.top + rect.left;
-    out->yStride = mWidth;
-    uint8_t* cbStart = dstBuf + mWidth * mHeight;
-    uint8_t* crStart = cbStart + mWidth * mHeight / 4;
-    out->cb = cbStart + mWidth * rect.top / 4 + rect.left / 2;
-    out->cr = crStart + mWidth * rect.top / 4 + rect.left / 2;
-    out->cStride = mWidth / 2;
-    out->chromaStep = 1;
+    if (mFourcc == V4L2_PIX_FMT_YUV420) {
+        out->y = dstBuf + mWidth * rect.top + rect.left;
+        out->yStride = mWidth;
+        uint8_t* cbStart = dstBuf + mWidth * mHeight;
+        uint8_t* crStart = cbStart + mWidth * mHeight / 4;
+        out->cb = cbStart + mWidth * rect.top / 4 + rect.left / 2;
+        out->cr = crStart + mWidth * rect.top / 4 + rect.left / 2;
+        out->cStride = mWidth / 2;
+        out->chromaStep = 1;
+    } else if (mFourcc == V4L2_PIX_FMT_NV12) {
+        out->y = dstBuf + mWidth * rect.top + rect.left;
+        out->yStride = mWidth;
+        uint8_t* cbStart = dstBuf + mWidth * mHeight;
+        uint8_t* crStart = cbStart + 1;
+        out->cb = cbStart + mWidth * rect.top / 2 + rect.left;
+        out->cr = crStart + 1;
+        out->cStride = mWidth;
+        out->chromaStep = 2;
+    }
+
     return 0;
 }
 
@@ -685,7 +755,24 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
     return 0;
 }
 
-int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format) {
+static int formatConvertSrcNV12(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format) {
+    if (format != V4L2_PIX_FMT_NV12) {
+        ALOGE("%s: only support convert to NV12", __func__);
+        return -1;
+    }
+
+    uint32_t ySize = sz.width*sz.height;
+
+    // TODO: use g2d/g3d copy
+    // Due to VPU 16 pixels alignment, 1080p will be decoded to 1920x1088.
+    // So need copy y and uv seperately.
+    memcpy(out.y, in.y, ySize);
+    memcpy(out.cb, in.cb, ySize/2);
+
+    return 0;
+}
+
+static int formatConvertSrcI420(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format) {
     int ret = 0;
     switch (format) {
         case V4L2_PIX_FMT_NV21:
@@ -740,6 +827,17 @@ int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32
             return -1;
     }
     return 0;
+}
+
+int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format, uint32_t srcFmt) {
+    int ret = 0;
+
+    if (srcFmt == V4L2_PIX_FMT_NV12)
+        ret = formatConvertSrcNV12(in, out, sz, format);
+    else
+        ret = formatConvertSrcI420(in, out, sz, format);
+
+    return ret;
 }
 
 int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,

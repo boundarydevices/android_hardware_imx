@@ -133,6 +133,7 @@ class ExternalCameraDevice : public BnCameraDevice {
     std::vector<SupportedV4L2Format> mSupportedFormats;
     CroppingType mCroppingType;
     bool mNeedHardwareDec = false;
+    uint32_t mInterBufFormat = V4L2_PIX_FMT_NV12;
 
     std::weak_ptr<ExternalCameraDeviceSession> mSession =
             std::weak_ptr<ExternalCameraDeviceSession>();
