@@ -656,7 +656,6 @@ static int hwc2_get_hdr_capabilities(hwc2_device_t* device, hwc2_display_t displ
         }
     } else {
         if (outNumTypes != NULL) *outNumTypes = 0;
-        if (outTypes != NULL) *outTypes = 0;
         if (outMaxLuminance != NULL) *outMaxLuminance = 0.0f;
         if (outMaxAverageLuminance != NULL) *outMaxAverageLuminance = 0.0f;
         if (outMinLuminance != NULL) *outMinLuminance = 0.0f;
