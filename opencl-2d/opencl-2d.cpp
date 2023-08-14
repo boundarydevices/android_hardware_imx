@@ -53,6 +53,7 @@
 #define NV12_TO_I420_KERNEL "g2d_nv12_to_i420"
 #define NV16_TO_I420_KERNEL "g2d_nv16_to_i420"
 #define YUYV_TO_I420_KERNEL "g2d_yuyv_to_i420"
+#define NV16_TO_NV12_KERNEL "g2d_nv16_to_nv12"
 
 /*Assume max buffer are 3 buffers to be handle, align with cl_g2d_surface.planes[3] */
 #define MAX_CL_MEM_COUNT 3
@@ -74,8 +75,9 @@ typedef enum {
     NV12_TO_I420_INDEX = 6,
     NV16_TO_I420_INDEX = 7,
     YUYV_TO_I420_INDEX = 8,
+    NV16_TO_NV12_INDEX = 9,
     /*Assume max kernel function to handle 2D convert */
-    MAX_CL_KERNEL_COUNT  = 9
+    MAX_CL_KERNEL_COUNT  = 10
 } cl_kernel_index;
 
 static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
@@ -88,6 +90,7 @@ static const char * kernel_name_list[MAX_CL_KERNEL_COUNT + 1] = {
     NV12_TO_I420_KERNEL,
     NV16_TO_I420_KERNEL,
     YUYV_TO_I420_KERNEL,
+    NV16_TO_NV12_KERNEL,
     NULL,
 };
 
@@ -795,6 +798,9 @@ static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *d
     else if ((src->format == CL_G2D_YUYV)&&
         (dst->format == CL_G2D_I420))
         kernel_index = YUYV_TO_I420_INDEX;
+    else if ((src->format == CL_G2D_NV16)&&
+        (dst->format == CL_G2D_NV12))
+        kernel_index = NV16_TO_NV12_INDEX;
 
     return kernel_index;
 }
@@ -943,6 +949,18 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src->height));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_width));
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst->height));
+        }
+        else if (kernel_index == NV16_TO_NV12_INDEX) {
+            int width = src->width;
+            int src_stride = src->stride;
+            int dst_stride = dst->stride;
+
+            kernel_width = width / PLAT_VLOAD_BYTES;
+            kernel_height = src->height / 2;
+
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(width));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(src_stride));
+            errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(dst_stride));
         }
 
 

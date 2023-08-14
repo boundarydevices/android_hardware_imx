@@ -249,7 +249,30 @@ __kernel void g2d_nv16_to_i420(
     uchar16 uv16_v = vload16(x, input_uv + (2 * y + 1) * src_stride);
     vstore8(uv16_u.s02468ace, x, output_u + y * (dst_stride / 2));
     vstore8(uv16_v.s13579bdf, x, output_v + y * (dst_stride / 2));
+
 }
+__kernel void g2d_nv16_to_nv12(
+    __global uchar *input_y,
+    __global uchar *input_uv,
+    __global uchar *output_y,
+    __global uchar *output_uv,
+    int width,
+    int src_stride,
+    int dst_stride)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+
+    uchar16 y16 = vload16(x, input_y + 2 * y * src_stride );
+    vstore16(y16, x, output_y + 2 * y * dst_stride);
+    uchar16 y16_line2 = vload16(x, input_y + (2 * y + 1) * src_stride);
+    vstore16(y16_line2, x, output_y + (2 * y + 1)* dst_stride);
+
+    uchar16 uv16_uv = vload16(x, input_uv + 2 * y * src_stride);
+    vstore16(uv16_uv, x, output_uv + y * dst_stride);
+}
+
+
 
 __kernel void g2d_yuyv_to_yuyv(__global const uint4 *input,
         __global uint4 *output,

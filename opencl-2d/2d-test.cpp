@@ -422,9 +422,9 @@ void usage(char *app)
     printf("\t-l\t  Copy length\n");
     printf("\t-i\t  Input file\n");
     printf("\t-s\t  input format\n");
-    printf("\t\t\t  24:YUYV,20:NV12, 21:I420, 23:NV21\n");
+    printf("\t\t\t  24:YUYV,20:NV12, 21:I420, 23:NV21, 28:NV16\n");
     printf("\t-d\t  output format\n");
-    printf("\t\t\t  24:YUYV,20:NV12, 21:I420, 23:NV21\n");
+    printf("\t\t\t  24:YUYV,20:NV12, 21:I420, 23:NV21, 28:NV16\n");
     printf("\t-o\t  output to output_file\n");
     printf("\t-w\t  input width\n");
     printf("\t-g\t  intput height\n");
@@ -455,6 +455,10 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
         break;
     case CL_G2D_NV12:
     case CL_G2D_NV21:
+        src->planes[0] = (long)input_buf;
+        src->planes[1] = (long)(input_buf + gWidth * gHeight);
+        break;
+    case CL_G2D_NV16:
         src->planes[0] = (long)input_buf;
         src->planes[1] = (long)(input_buf + gWidth * gHeight);
         break;
