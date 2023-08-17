@@ -39,12 +39,12 @@ cc_library_static {
     ],
 }
 
-cc_library_static {
-    name: "libfirmwareloaderclient",
+cc_binary {
+    name: "firmware_loader",
     vendor: true,
     srcs: ["firmware_loader_client.cpp"],
 
-    export_include_dirs: ["include"],
+    local_include_dirs: ["include"],
 
     static_libs: [
         "libtrusty",
@@ -78,4 +78,28 @@ bootstrap_go_package {
         "hwsecure_client.go",
     ],
     pluginFor: ["soong_build"],
+}
+
+cc_library_static {
+    name: "libfirmwareloaderclient",
+    vendor: true,
+    srcs: ["firmware_loader_client.cpp"],
+
+    export_include_dirs: ["include"],
+
+    static_libs: [
+        "libtrusty",
+    ],
+    shared_libs: [
+        "liblog",
+        "libbase",
+        "libdmabufheap",
+        "libc",
+    ],
+
+    cflags: [
+        "-fvisibility=hidden",
+        "-Wall",
+        "-Werror",
+    ],
 }
