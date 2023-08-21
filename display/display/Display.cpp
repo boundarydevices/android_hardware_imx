@@ -519,6 +519,12 @@ bool Display::check2DComposition() {
             ALOGV("g2d can't support rotation");
         }
 
+        // video nv12 full range should be handled by client
+        if (memory != nullptr && memory->fslFormat == FORMAT_NV12 &&
+                (mLayers[i]->dataspace & HAL_DATASPACE_RANGE_MASK) == HAL_DATASPACE_RANGE_FULL) {
+            use2DComposition = false;
+        }
+
 #ifdef WORKAROUND_DPU_ALPHA_BLENDING
         // pixel alpha + blending + global alpha case skip device composition.
         if (memory != nullptr && mLayers[i]->planeAlpha != 0xff &&
