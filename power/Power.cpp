@@ -30,10 +30,10 @@
 #include <utils/Log.h>
 #include <utils/Trace.h>
 
+namespace aidl {
 namespace android {
 namespace hardware {
 namespace power {
-namespace aidl {
 namespace impl {
 
 constexpr char kPowerHalStateProp[] = "vendor.powerhal.state";
@@ -223,15 +223,22 @@ ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool *_aidl_return) {
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus Power::createHintSession(int32_t, int32_t, const std::vector<int32_t>&, int64_t,
+ndk::ScopedAStatus Power::createHintSession(int32_t, int32_t, const std::vector<int32_t>& tids, int64_t,
                                             std::shared_ptr<IPowerHintSession>* _aidl_return) {
-    *_aidl_return = nullptr;
-    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+    if (tids.size() == 0) {
+        *_aidl_return = nullptr;
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+    }
+    std::shared_ptr<IPowerHintSession> powerHintSession =
+        ndk::SharedRefBase::make<PowerHintSession>();
+    mPowerHintSessions.push_back(powerHintSession);
+    *_aidl_return = powerHintSession;
+    return ndk::ScopedAStatus::ok();
 }
 
 ndk::ScopedAStatus Power::getHintSessionPreferredRate(int64_t* outNanoseconds) {
-    *outNanoseconds = -1;
-    return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+    *outNanoseconds = std::chrono::nanoseconds(1ms).count();
+    return ndk::ScopedAStatus::ok();
 }
 
 constexpr const char *boolToString(bool b) {
@@ -254,7 +261,7 @@ binder_status_t Power::dump(int fd, const char **, uint32_t) {
 }
 
 }  // namespace impl
-}  // namespace aidl
 }  // namespace power
 }  // namespace hardware
 }  // namespace android
+}  // namespace aidl

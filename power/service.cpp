@@ -25,7 +25,7 @@
 
 #include "Power.h"
 
-using android::hardware::power::aidl::impl::Power;
+using aidl::android::hardware::power::impl::Power;
 using ::android::perfmgr::HintManager;
 
 constexpr char kPowerHalConfigPath[] = "/vendor/etc/configs/powerhint";

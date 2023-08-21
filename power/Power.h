@@ -24,11 +24,12 @@
 #include <perfmgr/HintManager.h>
 
 #include "InteractionHandler.h"
+#include "PowerHintSession.h"
 
+namespace aidl {
 namespace android {
 namespace hardware {
 namespace power {
-namespace aidl {
 namespace impl {
 
 using ::InteractionHandler;
@@ -36,6 +37,7 @@ using ::aidl::android::hardware::power::Boost;
 using ::aidl::android::hardware::power::IPowerHintSession;
 using ::aidl::android::hardware::power::Mode;
 using ::android::perfmgr::HintManager;
+using namespace std::chrono_literals;
 
 class Power : public ::aidl::android::hardware::power::BnPower {
   public:
@@ -55,10 +57,11 @@ class Power : public ::aidl::android::hardware::power::BnPower {
     std::shared_ptr<HintManager> mHintManager;
     std::unique_ptr<InteractionHandler> mInteractionHandler;
     std::atomic<bool> mSustainedPerfModeOn;
+    std::vector<std::shared_ptr<IPowerHintSession>> mPowerHintSessions;
 };
 
 }  // namespace impl
-}  // namespace aidl
 }  // namespace power
 }  // namespace hardware
 }  // namespace android
+}  // namespace aidl
