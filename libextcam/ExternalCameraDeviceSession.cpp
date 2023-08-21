@@ -2290,6 +2290,20 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
             return Status::INTERNAL_ERROR;
         }
 
+        if (mInterBufFormat == V4L2_PIX_FMT_NV12) {
+            mI420Frame.reset();
+            if (mHardwareDecoder && parent->getHardwareDecFlag())
+                mI420Frame = std::make_shared<AllocatedFramePhyMem>(v4lSize.width, v4lSize.height, V4L2_PIX_FMT_YUV420);
+            else
+                mI420Frame = std::make_shared<AllocatedFrame>(v4lSize.width, v4lSize.height, V4L2_PIX_FMT_YUV420);
+
+            int ret = mI420Frame->allocate(&mI420FrameLayout);
+            if (ret != 0) {
+                ALOGE("%s: allocating I420 frame failed!", __FUNCTION__);
+                return Status::INTERNAL_ERROR;
+            }
+        }
+
         ALOGI("%s: mYu12Frame size %ux%u, format 0x%x", __func__, mYu12Frame->mWidth, mYu12Frame->mHeight, mYu12Frame->mFourcc);
     }
 
@@ -2843,9 +2857,22 @@ int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
     /* Temporary thumbnail code buffer */
     std::vector<uint8_t> thumbCode(outputThumbnail ? maxThumbCodeSize : 0);
 
+    if (mInterBufFormat == V4L2_PIX_FMT_NV12) {
+        libyuv::NV12ToI420(
+            static_cast<uint8_t*>(mYu12FrameLayout.y), static_cast<int32_t>(mYu12FrameLayout.yStride),
+            static_cast<uint8_t*>(mYu12FrameLayout.cb), static_cast<int32_t>(mYu12FrameLayout.cStride),
+            static_cast<uint8_t*>(mI420FrameLayout.y), static_cast<int32_t>(mI420FrameLayout.yStride),
+            static_cast<uint8_t*>(mI420FrameLayout.cb), static_cast<int32_t>(mI420FrameLayout.cStride),
+            static_cast<uint8_t*>(mI420FrameLayout.cr), static_cast<int32_t>(mI420FrameLayout.cStride),
+            static_cast<int32_t>(mYu12Frame->mWidth), static_cast<int32_t>(mYu12Frame->mHeight));
+    }
+
     YCbCrLayout yu12Thumb;
     if (outputThumbnail) {
-        ret = cropAndScaleThumbLocked(mYu12Frame, thumbSize, &yu12Thumb);
+        if (mInterBufFormat == V4L2_PIX_FMT_YUV420)
+            ret = cropAndScaleThumbLocked(mYu12Frame, thumbSize, &yu12Thumb);
+        else
+            ret = cropAndScaleThumbLocked(mI420Frame, thumbSize, &yu12Thumb);
 
         if (ret != 0) {
             return lfail("%s: crop and scale thumbnail failed!", __FUNCTION__);
@@ -2853,7 +2880,10 @@ int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
     }
 
     /* Scale and crop main jpeg */
-    ret = cropAndScaleLocked(mYu12Frame, jpegSize, &yu12Main);
+    if (mInterBufFormat == V4L2_PIX_FMT_YUV420)
+        ret = cropAndScaleLocked(mYu12Frame, jpegSize, &yu12Main);
+    else
+        ret = cropAndScaleLocked(mI420Frame, jpegSize, &yu12Main);
 
     if (ret != 0) {
         return lfail("%s: crop and scale main failed!", __FUNCTION__);
@@ -2932,6 +2962,7 @@ int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
 void ExternalCameraDeviceSession::OutputThread::clearIntermediateBuffers() {
     std::lock_guard<std::mutex> lk(mBufferLock);
     mYu12Frame.reset();
+    mI420Frame.reset();
     mYu12ThumbFrame.reset();
     mIntermediateBuffers.clear();
     mMuteTestPatternFrame.clear();
