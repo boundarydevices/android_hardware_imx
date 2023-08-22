@@ -762,12 +762,23 @@ static int formatConvertSrcNV12(const YCbCrLayout& in, const YCbCrLayout& out, S
     }
 
     uint32_t ySize = sz.width*sz.height;
+    uint32_t cSize = ySize/2;
 
-    // TODO: use g2d/g3d copy
-    // Due to VPU 16 pixels alignment, 1080p will be decoded to 1920x1088.
-    // So need copy y and uv seperately.
-    memcpy(out.y, in.y, ySize);
-    memcpy(out.cb, in.cb, ySize/2);
+    // Ref http://lsv11326.swis.cn-sha01.nxp.com:8084/source/xref/external/libyuv/files/source/row_neon64.cc?r=211e09de#683
+    // CopyRow_NEON will copy multiple of 32.
+    int copyYSizeNeon = ySize/32 * 32;
+    int copyYSizeCpu = ySize - copyYSizeNeon;
+
+    int copyCSizeNeon = cSize/32 * 32;
+    int copyCSizeCpu = cSize - copyCSizeNeon;
+
+    libyuv::CopyRow_NEON((const uint8_t*)in.y, (uint8_t*)out.y, copyYSizeNeon);
+    if (copyYSizeCpu)
+        memcpy((void *)((uint8_t*)out.y + copyYSizeNeon), (void *)((uint8_t*)in.y + copyYSizeNeon), copyYSizeCpu);
+
+    libyuv::CopyRow_NEON((const uint8_t*)in.cb, (uint8_t*)out.cb, copyCSizeNeon);
+    if (copyCSizeCpu)
+        memcpy((void *)((uint8_t*)out.cb + copyCSizeNeon), (void *)((uint8_t*)in.cb + copyCSizeNeon), copyCSizeCpu);
 
     return 0;
 }
