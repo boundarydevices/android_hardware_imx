@@ -105,8 +105,11 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
             continue;
         }
 
-        if ((width > mSensorData.mMaxWidth) || (height > mSensorData.mMaxHeight))
+        bool bPicked = PickResByMetaData(width, height);
+        if (!bPicked) {
+            ALOGI("%s: res %dx%d is not picked due to settings in config json", __func__, width, height);
             continue;
+        }
 
         if(ispResNum * 2 >= MAX_RESOLUTION_SIZE)
             break;

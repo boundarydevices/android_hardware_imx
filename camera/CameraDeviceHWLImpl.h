@@ -92,6 +92,7 @@ protected:
     CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
         CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
         PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
+    bool PickResByMetaData(int width, int height);
 
 private:
     virtual status_t Initialize();

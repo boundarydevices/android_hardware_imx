@@ -218,6 +218,30 @@ status_t CameraDeviceHwlImpl::Initialize()
     return OK;
 }
 
+bool CameraDeviceHwlImpl::PickResByMetaData(int width, int height)
+{
+    bool bPicked = true;
+
+    if (mSensorData.mGivenResNum > 0) {
+        bPicked = false;
+        for (int i = 0; i < mSensorData.mGivenResNum; i++) {
+            if ((mSensorData.mGivenRes[i].width == width) && (mSensorData.mGivenRes[i].height == height)) {
+                bPicked = true;
+                break;
+            }
+        }
+    }
+
+    if (!bPicked)
+        return false;
+
+    if ((width >= mSensorData.mMinWidth) && (height >= mSensorData.mMinHeight) &&
+        (width <= mSensorData.mMaxWidth) && (height <= mSensorData.mMaxHeight))
+        return true;
+
+    return false;
+}
+
 status_t CameraDeviceHwlImpl::initSensorStaticData()
 {
     int32_t fd = open(*mDevPath[0], O_RDWR);
@@ -272,6 +296,12 @@ status_t CameraDeviceHwlImpl::initSensorStaticData()
             continue;
         }
         ALOGI("enum frame size w:%d, h:%d, format 0x%x", cam_frmsize.discrete.width, cam_frmsize.discrete.height, cam_frmsize.pixel_format);
+
+        bool bPicked = PickResByMetaData(cam_frmsize.discrete.width, cam_frmsize.discrete.height);
+        if (!bPicked) {
+            ALOGI("%s: res %dx%d is not picked due to settings in config json", __func__, cam_frmsize.discrete.width, cam_frmsize.discrete.height);
+            continue;
+        }
 
         if (cam_frmsize.discrete.width == 0 ||
             cam_frmsize.discrete.height == 0) {

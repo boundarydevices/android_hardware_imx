@@ -131,6 +131,11 @@ const char* const kAvailableCapabilitiesKey = "AvailableCapabilities";
 const char* const kPhysicalNames = "PhysicalNames";
 const char* const kMaxWidth = "MaxWidth";
 const char* const kMaxHeight = "MaxHeight";
+const char* const kMinWidth = "MinWidth";
+const char* const kMinHeight = "MinHeight";
+const char* const kGivenResKey = "GivenRes";
+const char* const kGivenResWidthKey = "width";
+const char* const kGivenResHeightKey = "height";
 
 #define CSC_HW_GPU_2D "GPU_2D"
 #define CSC_HW_GPU_3D "GPU_3D"
@@ -139,8 +144,8 @@ const char* const kMaxHeight = "MaxHeight";
 #define CSC_HW_DPU "DPU"
 #define CSC_HW_CPU "CPU"
 
-#define MAX_SENSOR_WIDTH   3840
-#define MAX_SENSOR_HEIGHT  2160
+#define MAX_SENSOR_WIDTH   INT_MAX
+#define MAX_SENSOR_HEIGHT  INT_MAX
 
 HalVersion ValueToCameraHalVersion(const std::string &value) {
     int temp;
@@ -296,6 +301,8 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
     uint32_t camera_id = id;
     char* endptr;
     bool is_logical =true;
+
+    memset(static_meta, 0, sizeof(static_meta));
 
     // If one camera definition has no kCameraTypeKey meta, then it can only act as a physical camera for logical cameras
     if(root.isMember(kCameraTypeKey)) {
@@ -485,6 +492,45 @@ bool ParseCharacteristics(CameraDefinition* camera,const Json::Value& root, size
         static_meta[cam_index].mMaxHeight = strtol(root[kMaxHeight].asString().c_str(), NULL, 10);
     else
         static_meta[cam_index].mMaxHeight = MAX_SENSOR_HEIGHT;
+
+    if(root.isMember(kMinWidth))
+        static_meta[cam_index].mMinWidth = strtol(root[kMinWidth].asString().c_str(), NULL, 10);
+    else
+        static_meta[cam_index].mMinWidth = 0;
+
+    if(root.isMember(kMinHeight))
+        static_meta[cam_index].mMinHeight = strtol(root[kMinHeight].asString().c_str(), NULL, 10);
+    else
+        static_meta[cam_index].mMinHeight = 0;
+
+    ALOGI("%s: res min %dx%d, max %dx%d", __func__,
+        static_meta[cam_index].mMinWidth, static_meta[cam_index].mMinHeight, static_meta[cam_index].mMaxWidth, static_meta[cam_index].mMaxHeight);
+
+    int given_res_index = 0;
+    for (Json::ValueConstIterator resIter = root[kGivenResKey].begin();
+                resIter != root[kGivenResKey].end(); ++resIter) {
+
+        std::string kGivenResWidthStr = (*resIter)[kGivenResWidthKey].asString();
+        const char *kGivenResWidthData = kGivenResWidthStr.c_str ();
+        static_meta[cam_index].mGivenRes[given_res_index].width = strtol(kGivenResWidthData, &endptr, 10);
+        if (*endptr != '\0') {
+            ALOGE("%s: Invalid camera given width. got %s.", __func__, kGivenResWidthData);
+        }
+
+        std::string kGivenResHeightStr = (*resIter)[kGivenResHeightKey].asString();
+        const char *kGivenResHeightData = kGivenResHeightStr.c_str ();
+        static_meta[cam_index].mGivenRes[given_res_index].height = strtol(kGivenResHeightData, &endptr, 10);
+        if (*endptr != '\0') {
+            ALOGE("%s: Invalid camera given height. got %s.", __func__, kGivenResHeightData);
+        }
+
+        ALOGI("%s: given resolution %dx%d", __func__, static_meta[cam_index].mGivenRes[given_res_index].width, static_meta[cam_index].mGivenRes[given_res_index].height);
+
+        given_res_index++;
+        if(given_res_index >= GIVEN_RESOLUTION_NUM)
+            break;
+    }
+    static_meta[cam_index].mGivenResNum = given_res_index;
 
     int omit_index = 0;
     for (Json::ValueConstIterator omititer = root[kOmitFrameKey].begin();

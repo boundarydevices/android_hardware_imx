@@ -44,9 +44,15 @@ struct OmitFrame {
   int omitnum;
 };
 
+struct Resolution {
+  int width;
+  int height;
+};
+
 enum HalVersion { kHalV1, kHalV2, kHalV3 };
 
 #define OMIT_RESOLUTION_NUM 8
+#define GIVEN_RESOLUTION_NUM 8
 #define META_STRING_SIZE 32
 #define MAX_BASIC_CAMERA_NUM 24
 
@@ -116,6 +122,12 @@ struct CameraSensorMetadata {
   int mAvailableCapabilities;
   int mMaxWidth;
   int mMaxHeight;
+  int mMinWidth;
+  int mMinHeight;
+
+  // use can set given resoluitons.
+  struct Resolution mGivenRes[GIVEN_RESOLUTION_NUM];
+  int mGivenResNum;
 };
 
 typedef std::unordered_map<uint32_t, std::pair<CameraDeviceStatus, std::unique_ptr<CameraSensorMetadata>>> PhysicalDeviceMap;
