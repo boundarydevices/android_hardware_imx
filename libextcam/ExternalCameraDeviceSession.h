@@ -263,6 +263,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
     private:
         int VpuDecAndCsc(uint8_t* inData, size_t inDataSize);
+        bool mUseHalBufManager = false;
     };
 
   private:
@@ -418,6 +419,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     std::string mExifMake;
     std::string mExifModel;
     bool mHardwareDecoder;
+    bool mUseHalBufManager = false;
 
     /* End of members not changed after initialize() */
 };

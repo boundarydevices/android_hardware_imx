@@ -150,7 +150,14 @@ ExternalCameraDeviceSession::ExternalCameraDeviceSession(
       mCameraId(cameraId),
       mV4l2Fd(std::move(v4l2Fd)),
       mMaxThumbResolution(getMaxThumbResolution()),
-      mMaxJpegResolution(getMaxJpegResolution()) {}
+      mMaxJpegResolution(getMaxJpegResolution()) {
+    camera_metadata_ro_entry entry = chars.find(ANDROID_INFO_SUPPORTED_BUFFER_MANAGEMENT_VERSION);
+    if (entry.count > 0) {
+        mUseHalBufManager = (entry.data.u8[0] ==
+            ANDROID_INFO_SUPPORTED_BUFFER_MANAGEMENT_VERSION_HIDL_DEVICE_3_5);
+    }
+    ALOGI("%s: mUseHalBufManager %d", __func__, mUseHalBufManager);
+}
 
 Size ExternalCameraDeviceSession::getMaxThumbResolution() const {
     return getMaxThumbnailResolution(mCameraCharacteristics);
@@ -264,8 +271,10 @@ void ExternalCameraDeviceSession::initOutputThread() {
     // Grab a shared_ptr to 'this' from ndk::SharedRefBase::ref()
     std::shared_ptr<ExternalCameraDeviceSession> thiz = ref<ExternalCameraDeviceSession>();
 
-    mBufferRequestThread = std::make_shared<BufferRequestThread>(/*parent=*/thiz, mCallback);
-    mBufferRequestThread->run();
+    if (mUseHalBufManager) {
+        mBufferRequestThread = std::make_shared<BufferRequestThread>(/*parent=*/thiz, mCallback);
+        mBufferRequestThread->run();
+    }
     mOutputThread = std::make_shared<OutputThread>(/*parent=*/thiz, mCroppingType,
                                                    mCameraCharacteristics, mBufferRequestThread);
 }
@@ -2254,7 +2263,14 @@ ExternalCameraDeviceSession::OutputThread::OutputThread(
     : mParent(parent),
       mCroppingType(ct),
       mCameraCharacteristics(chars),
-      mBufferRequestThread(bufReqThread) {}
+      mBufferRequestThread(bufReqThread) {
+    camera_metadata_ro_entry entry = chars.find(ANDROID_INFO_SUPPORTED_BUFFER_MANAGEMENT_VERSION);
+    if (entry.count > 0) {
+        mUseHalBufManager = (entry.data.u8[0] ==
+            ANDROID_INFO_SUPPORTED_BUFFER_MANAGEMENT_VERSION_HIDL_DEVICE_3_5);
+    }
+    ALOGI("%s: mUseHalBufManager %d, bufReqThread %p", __func__, mUseHalBufManager, bufReqThread.get());
+}
 
 ExternalCameraDeviceSession::OutputThread::~OutputThread() {
 }
@@ -3139,10 +3155,13 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                              (req->frameIn->mFourcc >> 24) & 0xFF);
     }
 
-    int res = requestBufferStart(req->buffers);
-    if (res != 0) {
-        ALOGE("%s: send BufferRequest failed! res %d", __FUNCTION__, res);
-        return onDeviceError("%s: failed to send buffer request!", __FUNCTION__);
+    int res = 0;
+    if (mUseHalBufManager) {
+        res = requestBufferStart(req->buffers);
+        if (res != 0) {
+            ALOGE("%s: send BufferRequest failed! res %d", __FUNCTION__, res);
+            return onDeviceError("%s: failed to send buffer request!", __FUNCTION__);
+        }
     }
 
     std::unique_lock<std::mutex> lk(mBufferLock);
@@ -3284,9 +3303,11 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     }
 
 
-    ATRACE_BEGIN("Wait for BufferRequest done");
-    res = waitForBufferRequestDone(&req->buffers);
-    ATRACE_END();
+    if (mUseHalBufManager) {
+        ATRACE_BEGIN("Wait for BufferRequest done");
+        res = waitForBufferRequestDone(&req->buffers);
+        ATRACE_END();
+    }
 
     if (res != 0) {
         ALOGE("%s: wait for BufferRequest done failed! res %d", __FUNCTION__, res);
