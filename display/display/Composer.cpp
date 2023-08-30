@@ -488,8 +488,8 @@ int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory* handle, Rect
             int stride = alignWidth;
 
             surface.stride = alignWidth;
-            surface.planes[1] = surface.planes[0] + stride * handle->height;
-            surface.planes[2] = surface.planes[1] + c_stride * handle->height / 2;
+            surface.planes[1] = surface.planes[0] + stride * alignHeight;
+            surface.planes[2] = surface.planes[1] + c_stride * alignHeight / 2;
         } break;
 
         default:
