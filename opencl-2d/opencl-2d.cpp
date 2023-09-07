@@ -754,8 +754,8 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf,
     //use cpu to handle the last 63 bytes, if the size is not n x 64 byptes
     remain_size = size & CL_ATOMIC_COPY_MASK;
     if(remain_size > 0)
-        memcpy((char *)input_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE,
-                (char *)output_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE, remain_size);
+        memcpy((char *)output_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE,
+                (char *)input_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE, remain_size);
 
     return 0;
 
