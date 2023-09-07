@@ -15,36 +15,36 @@
 package libedid
 
 import (
-        "android/soong/android"
-        "android/soong/cc"
-        "strings"
-        "github.com/google/blueprint/proptools"
+	"android/soong/android"
+	"android/soong/cc"
+	"github.com/google/blueprint/proptools"
+	"strings"
 )
 
 func init() {
-    android.RegisterModuleType("libedid_defaults", libedidDefaultsFactory)
+	android.RegisterModuleType("libedid_defaults", libedidDefaultsFactory)
 }
 
-func libedidDefaultsFactory() (android.Module) {
-    module := cc.DefaultsFactory()
-    android.AddLoadHook(module, libedidDefaults)
-    return module
+func libedidDefaultsFactory() android.Module {
+	module := cc.DefaultsFactory()
+	android.AddLoadHook(module, libedidDefaults)
+	return module
 }
 
 func libedidDefaults(ctx android.LoadHookContext) {
-    type props struct {
-        Target struct {
-                Android struct {
-                        Enabled *bool
-                }
-        }
-    }
-    p := &props{}
-    var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
-    if strings.Contains(board, "imx") {
-        p.Target.Android.Enabled = proptools.BoolPtr(true)
-    } else {
-        p.Target.Android.Enabled = proptools.BoolPtr(false)
-    }
-    ctx.AppendProperties(p)
+	type props struct {
+		Target struct {
+			Android struct {
+				Enabled *bool
+			}
+		}
+	}
+	p := &props{}
+	var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
+	if strings.Contains(board, "imx") {
+		p.Target.Android.Enabled = proptools.BoolPtr(true)
+	} else {
+		p.Target.Android.Enabled = proptools.BoolPtr(false)
+	}
+	ctx.AppendProperties(p)
 }

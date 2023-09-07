@@ -15,37 +15,37 @@
 package gralloc_v3
 
 import (
-        "android/soong/android"
-        "android/soong/cc"
-        "strings"
-        "github.com/google/blueprint/proptools"
+	"android/soong/android"
+	"android/soong/cc"
+	"github.com/google/blueprint/proptools"
+	"strings"
 )
 
 func init() {
-    android.RegisterModuleType("gralloc_v3_defaults", gralloc_v3DefaultsFactory)
+	android.RegisterModuleType("gralloc_v3_defaults", gralloc_v3DefaultsFactory)
 }
 
-func gralloc_v3DefaultsFactory() (android.Module) {
-    module := cc.DefaultsFactory()
-    android.AddLoadHook(module, gralloc_v3Defaults)
-    return module
+func gralloc_v3DefaultsFactory() android.Module {
+	module := cc.DefaultsFactory()
+	android.AddLoadHook(module, gralloc_v3Defaults)
+	return module
 }
 
 func gralloc_v3Defaults(ctx android.LoadHookContext) {
-    type props struct {
-        Target struct {
-                Android struct {
-                        Enabled *bool
-                }
-        }
-    }
+	type props struct {
+		Target struct {
+			Android struct {
+				Enabled *bool
+			}
+		}
+	}
 
-    p := &props{}
-    var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
-    if strings.Contains(board, "imx") && ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION")=="v3" {
-        p.Target.Android.Enabled = proptools.BoolPtr(true)
-    } else {
-        p.Target.Android.Enabled = proptools.BoolPtr(false)
-    }
-    ctx.AppendProperties(p)
+	p := &props{}
+	var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
+	if strings.Contains(board, "imx") && ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v3" {
+		p.Target.Android.Enabled = proptools.BoolPtr(true)
+	} else {
+		p.Target.Android.Enabled = proptools.BoolPtr(false)
+	}
+	ctx.AppendProperties(p)
 }

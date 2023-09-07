@@ -15,40 +15,40 @@
 package gralloc_v1
 
 import (
-        "android/soong/android"
-        "android/soong/cc"
-        "strings"
-        "github.com/google/blueprint/proptools"
+	"android/soong/android"
+	"android/soong/cc"
+	"github.com/google/blueprint/proptools"
+	"strings"
 )
 
 func init() {
-    android.RegisterModuleType("gralloc_v1_defaults", gralloc_v1DefaultsFactory)
+	android.RegisterModuleType("gralloc_v1_defaults", gralloc_v1DefaultsFactory)
 }
 
-func gralloc_v1DefaultsFactory() (android.Module) {
-    module := cc.DefaultsFactory()
-    android.AddLoadHook(module, gralloc_v1Defaults)
-    return module
+func gralloc_v1DefaultsFactory() android.Module {
+	module := cc.DefaultsFactory()
+	android.AddLoadHook(module, gralloc_v1Defaults)
+	return module
 }
 
 func gralloc_v1Defaults(ctx android.LoadHookContext) {
-    type props struct {
-        Target struct {
-                Android struct {
-                        Enabled *bool
-                        Cflags []string
-                }
-        }
-    }
-    p := &props{}
-    var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
-    if strings.Contains(board, "imx") && ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION")=="v1" {
-        p.Target.Android.Enabled = proptools.BoolPtr(true)
-    } else {
-        p.Target.Android.Enabled = proptools.BoolPtr(false)
-    }
-    if ctx.Config().VendorConfig("IMXPLUGIN").Bool("TARGET_USE_PAN_DISPLAY") {
-        p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DUSE_PAN_DISPLAY=1")
-    }
-    ctx.AppendProperties(p)
+	type props struct {
+		Target struct {
+			Android struct {
+				Enabled *bool
+				Cflags  []string
+			}
+		}
+	}
+	p := &props{}
+	var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
+	if strings.Contains(board, "imx") && ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v1" {
+		p.Target.Android.Enabled = proptools.BoolPtr(true)
+	} else {
+		p.Target.Android.Enabled = proptools.BoolPtr(false)
+	}
+	if ctx.Config().VendorConfig("IMXPLUGIN").Bool("TARGET_USE_PAN_DISPLAY") {
+		p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DUSE_PAN_DISPLAY=1")
+	}
+	ctx.AppendProperties(p)
 }

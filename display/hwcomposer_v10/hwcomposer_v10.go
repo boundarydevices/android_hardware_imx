@@ -15,37 +15,37 @@
 package hwcomposer_v10
 
 import (
-        "android/soong/android"
-        "android/soong/cc"
-        "strings"
-        "github.com/google/blueprint/proptools"
+	"android/soong/android"
+	"android/soong/cc"
+	"github.com/google/blueprint/proptools"
+	"strings"
 )
 
 func init() {
-    android.RegisterModuleType("hwcomposer_v10_defaults", hwcomposer_v10DefaultsFactory)
+	android.RegisterModuleType("hwcomposer_v10_defaults", hwcomposer_v10DefaultsFactory)
 }
 
-func hwcomposer_v10DefaultsFactory() (android.Module) {
-    module := cc.DefaultsFactory()
-    android.AddLoadHook(module, hwcomposer_v10Defaults)
-    return module
+func hwcomposer_v10DefaultsFactory() android.Module {
+	module := cc.DefaultsFactory()
+	android.AddLoadHook(module, hwcomposer_v10Defaults)
+	return module
 }
 
 func hwcomposer_v10Defaults(ctx android.LoadHookContext) {
-    type props struct {
-        Target struct {
-                Android struct {
-                        Enabled *bool
-                }
-        }
-    }
-    p := &props{}
-    var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
-    var hwcomposer_version string = ctx.Config().VendorConfig("IMXPLUGIN").String("HWCOMPOSER_VERSION")
-    if strings.Contains(board, "imx") && hwcomposer_version == "v1.0" {
-        p.Target.Android.Enabled = proptools.BoolPtr(true)
-    } else {
-        p.Target.Android.Enabled = proptools.BoolPtr(false)
-    }
-    ctx.AppendProperties(p)
+	type props struct {
+		Target struct {
+			Android struct {
+				Enabled *bool
+			}
+		}
+	}
+	p := &props{}
+	var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
+	var hwcomposer_version string = ctx.Config().VendorConfig("IMXPLUGIN").String("HWCOMPOSER_VERSION")
+	if strings.Contains(board, "imx") && hwcomposer_version == "v1.0" {
+		p.Target.Android.Enabled = proptools.BoolPtr(true)
+	} else {
+		p.Target.Android.Enabled = proptools.BoolPtr(false)
+	}
+	ctx.AppendProperties(p)
 }

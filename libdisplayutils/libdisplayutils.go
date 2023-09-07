@@ -15,36 +15,36 @@
 package libdisplayutils
 
 import (
-        "android/soong/android"
-        "android/soong/cc"
-        "strings"
-        "github.com/google/blueprint/proptools"
+	"android/soong/android"
+	"android/soong/cc"
+	"github.com/google/blueprint/proptools"
+	"strings"
 )
 
 func init() {
-    android.RegisterModuleType("libdisplayutils_defaults", libdisplayutilsDefaultsFactory)
+	android.RegisterModuleType("libdisplayutils_defaults", libdisplayutilsDefaultsFactory)
 }
 
-func libdisplayutilsDefaultsFactory() (android.Module) {
-    module := cc.DefaultsFactory()
-    android.AddLoadHook(module, libdisplayutilsDefaults)
-    return module
+func libdisplayutilsDefaultsFactory() android.Module {
+	module := cc.DefaultsFactory()
+	android.AddLoadHook(module, libdisplayutilsDefaults)
+	return module
 }
 
 func libdisplayutilsDefaults(ctx android.LoadHookContext) {
-    type props struct {
-        Target struct {
-                Android struct {
-                        Enabled *bool
-                }
-        }
-    }
-    p := &props{}
-    var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
-    if strings.Contains(board, "imx") {
-        p.Target.Android.Enabled = proptools.BoolPtr(true)
-    } else {
-        p.Target.Android.Enabled = proptools.BoolPtr(false)
-    }
-    ctx.AppendProperties(p)
+	type props struct {
+		Target struct {
+			Android struct {
+				Enabled *bool
+			}
+		}
+	}
+	p := &props{}
+	var board string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
+	if strings.Contains(board, "imx") {
+		p.Target.Android.Enabled = proptools.BoolPtr(true)
+	} else {
+		p.Target.Android.Enabled = proptools.BoolPtr(false)
+	}
+	ctx.AppendProperties(p)
 }

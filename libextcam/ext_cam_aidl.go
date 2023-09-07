@@ -15,43 +15,42 @@
 package ext_cam_aidl
 
 import (
-        "android/soong/android"
-        "android/soong/cc"
-        "strings"
-        "github.com/google/blueprint/proptools"
+	"android/soong/android"
+	"android/soong/cc"
+	"github.com/google/blueprint/proptools"
+	"strings"
 )
 
 func init() {
-    android.RegisterModuleType("imx_ext_cam_aidl_defaults", extCamDefaultsFactory)
+	android.RegisterModuleType("imx_ext_cam_aidl_defaults", extCamDefaultsFactory)
 }
 
-func extCamDefaultsFactory() (android.Module) {
-    module := cc.DefaultsFactory()
-    android.AddLoadHook(module, extCamDefaults)
-    return module
+func extCamDefaultsFactory() android.Module {
+	module := cc.DefaultsFactory()
+	android.AddLoadHook(module, extCamDefaults)
+	return module
 }
 
 func extCamDefaults(ctx android.LoadHookContext) {
-    type props struct {
-        Target struct {
-                Android struct {
-                        Enabled *bool
-                        Cppflags []string
-                }
-        }
-    }
-    p := &props{}
-    var platform string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
-    if strings.Contains(platform, "imx") {
-        p.Target.Android.Enabled = proptools.BoolPtr(true)
-    } else {
-        p.Target.Android.Enabled = proptools.BoolPtr(false)
-    }
+	type props struct {
+		Target struct {
+			Android struct {
+				Enabled  *bool
+				Cppflags []string
+			}
+		}
+	}
+	p := &props{}
+	var platform string = ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_PLATFORM")
+	if strings.Contains(platform, "imx") {
+		p.Target.Android.Enabled = proptools.BoolPtr(true)
+	} else {
+		p.Target.Android.Enabled = proptools.BoolPtr(false)
+	}
 
-    if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
-        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
-    }
+	if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
+		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
+	}
 
-    ctx.AppendProperties(p)
+	ctx.AppendProperties(p)
 }
-

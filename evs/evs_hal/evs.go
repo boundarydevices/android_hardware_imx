@@ -15,42 +15,41 @@
 package evs
 
 import (
-        "android/soong/android"
-        "android/soong/cc"
-        "strconv"
-        "github.com/google/blueprint/proptools"
+	"android/soong/android"
+	"android/soong/cc"
+	"github.com/google/blueprint/proptools"
+	"strconv"
 )
 
 func init() {
-    android.RegisterModuleType("evs_defaults", evsDefaultsFactory)
+	android.RegisterModuleType("evs_defaults", evsDefaultsFactory)
 }
 
-func evsDefaultsFactory() (android.Module) {
-    module := cc.DefaultsFactory()
-    android.AddLoadHook(module, evsDefaults)
-    return module
+func evsDefaultsFactory() android.Module {
+	module := cc.DefaultsFactory()
+	android.AddLoadHook(module, evsDefaults)
+	return module
 }
 
 func evsDefaults(ctx android.LoadHookContext) {
-    type props struct {
-        Target struct {
-                Android struct {
-                        Enabled *bool
-                        Cflags []string
-                        Cppflags []string
-                }
-        }
-    }
-    p := &props{}
-    if ctx.Config().VendorConfig("IMXPLUGIN").Bool("BOARD_HAVE_IMX_EVS") {
-        p.Target.Android.Enabled = proptools.BoolPtr(true)
-    } else {
-        p.Target.Android.Enabled = proptools.BoolPtr(false)
-    }
-    if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
-        p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
-    }
-    p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DANDROID_SDK_VERSION="+ strconv.Itoa(ctx.AConfig().PlatformSdkVersion().FinalOrFutureInt()))
-    ctx.AppendProperties(p)
+	type props struct {
+		Target struct {
+			Android struct {
+				Enabled  *bool
+				Cflags   []string
+				Cppflags []string
+			}
+		}
+	}
+	p := &props{}
+	if ctx.Config().VendorConfig("IMXPLUGIN").Bool("BOARD_HAVE_IMX_EVS") {
+		p.Target.Android.Enabled = proptools.BoolPtr(true)
+	} else {
+		p.Target.Android.Enabled = proptools.BoolPtr(false)
+	}
+	if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
+		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DGRALLOC_VERSION=4")
+	}
+	p.Target.Android.Cflags = append(p.Target.Android.Cflags, "-DANDROID_SDK_VERSION="+strconv.Itoa(ctx.AConfig().PlatformSdkVersion().FinalOrFutureInt()))
+	ctx.AppendProperties(p)
 }
-
