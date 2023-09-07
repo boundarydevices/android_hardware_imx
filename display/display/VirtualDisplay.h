@@ -17,29 +17,26 @@
 #ifndef _VIRTUAL_DISPLAY_H_
 #define _VIRTUAL_DISPLAY_H_
 
-#include <limits.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <cutils/ashmem.h>
+#include <cutils/atomic.h>
+#include <cutils/log.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
-
-#include <cutils/ashmem.h>
-#include <cutils/log.h>
-#include <cutils/atomic.h>
+#include <unistd.h>
 
 #include "Display.h"
 
 namespace fsl {
 
-class VirtualDisplay : public Display
-{
+class VirtualDisplay : public Display {
 public:
     VirtualDisplay();
     virtual ~VirtualDisplay();
@@ -52,5 +49,5 @@ private:
     bool mBusy;
 };
 
-}
+} // namespace fsl
 #endif

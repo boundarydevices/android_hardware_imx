@@ -44,12 +44,12 @@ using TimePoint = std::chrono::time_point<Clock, Nanos>;
 
 using FakeValueGeneratorPtr = std::unique_ptr<FakeValueGenerator>;
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_FakeValueGenerator_H_

@@ -20,11 +20,10 @@
 #include "VideoStream.h"
 
 // stream uses memory map buffers which allcated in kernel space.
-class MMAPStream : public VideoStream
-{
+class MMAPStream : public VideoStream {
 public:
     MMAPStream(Camera* device);
-    MMAPStream(Camera *device, bool mplane);
+    MMAPStream(Camera* device, bool mplane);
     virtual ~MMAPStream();
 
     // configure device.
@@ -40,13 +39,12 @@ public:
     virtual int32_t onFrameReturnLocked(int32_t index, StreamBuffer& buf);
 
     // allocate buffers.
-    virtual int32_t allocateBuffersLocked() {return 0;}
+    virtual int32_t allocateBuffersLocked() { return 0; }
     // free buffers.
-    virtual int32_t freeBuffersLocked() {return 0;}
+    virtual int32_t freeBuffersLocked() { return 0; }
 
 private:
     bool mPlane;
-
 };
 
 #endif

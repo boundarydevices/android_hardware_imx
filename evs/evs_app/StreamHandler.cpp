@@ -15,29 +15,25 @@
  */
 
 #include "StreamHandler.h"
-#include "FormatConvert.h"
 
+#include <cutils/native_handle.h>
+#include <log/log.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <log/log.h>
-#include <cutils/native_handle.h>
+#include "FormatConvert.h"
 using ::android::hardware::automotive::evs::V1_0::EvsResult;
 using EvsDisplayState = ::android::hardware::automotive::evs::V1_0::DisplayState;
-using BufferDesc_1_0  = ::android::hardware::automotive::evs::V1_0::BufferDesc;
-using BufferDesc_1_1  = ::android::hardware::automotive::evs::V1_1::BufferDesc;
+using BufferDesc_1_0 = ::android::hardware::automotive::evs::V1_0::BufferDesc;
+using BufferDesc_1_1 = ::android::hardware::automotive::evs::V1_1::BufferDesc;
 
-StreamHandler::StreamHandler(android::sp <IEvsCamera> pCamera) :
-    mCamera(pCamera)
-{
+StreamHandler::StreamHandler(android::sp<IEvsCamera> pCamera) : mCamera(pCamera) {
     // We rely on the camera having at least two buffers available since we'll hold one and
     // expect the camera to be able to capture a new image in the background.
     pCamera->setMaxFramesInFlight(3);
 }
 
-
-void StreamHandler::shutdown()
-{
+void StreamHandler::shutdown() {
     // Make sure we're not still streaming
     blockingStopStream();
 
@@ -46,13 +42,12 @@ void StreamHandler::shutdown()
     mCamera = nullptr;
 }
 
-
 bool StreamHandler::startStream() {
     std::unique_lock<std::mutex> lock(mLock);
 
     if (!mRunning) {
         // Tell the camera to start streaming
-        Return <EvsResult> result = mCamera->startVideoStream(this);
+        Return<EvsResult> result = mCamera->startVideoStream(this);
         if (result != EvsResult::OK) {
             return false;
         }
@@ -64,13 +59,11 @@ bool StreamHandler::startStream() {
     return true;
 }
 
-
 void StreamHandler::asyncStopStream() {
     // Tell the camera to stop streaming.
     // This will result in a null frame being delivered when the stream actually stops.
     mCamera->stopVideoStream();
 }
-
 
 void StreamHandler::blockingStopStream() {
     // Tell the stream to stop
@@ -83,18 +76,15 @@ void StreamHandler::blockingStopStream() {
     }
 }
 
-
 bool StreamHandler::isRunning() {
     std::unique_lock<std::mutex> lock(mLock);
     return mRunning;
 }
 
-
 bool StreamHandler::newFrameAvailable() {
     std::unique_lock<std::mutex> lock(mLock);
     return (mReadyBuffer >= 0);
 }
-
 
 const BufferDesc& StreamHandler::getNewFrame() {
     std::unique_lock<std::mutex> lock(mLock);
@@ -103,8 +93,9 @@ const BufferDesc& StreamHandler::getNewFrame() {
         ALOGE("Ignored call for new frame while still holding the old one.");
     } else {
         if (mReadyBuffer < 0) {
-            ALOGE("Returning invalid buffer because we don't have any.  Call newFrameAvailable first?");
-            mReadyBuffer = 0;   // This is a lie!
+            ALOGE("Returning invalid buffer because we don't have any.  Call newFrameAvailable "
+                  "first?");
+            mReadyBuffer = 0; // This is a lie!
         }
 
         // Move the ready buffer into the held position, and clear the ready position
@@ -114,7 +105,6 @@ const BufferDesc& StreamHandler::getNewFrame() {
 
     return mBuffers[mHeldBuffer];
 }
-
 
 void StreamHandler::doneWithFrame(const BufferDesc_1_1& bufDesc_1_1) {
     std::unique_lock<std::mutex> lock(mLock);
@@ -134,13 +124,12 @@ void StreamHandler::doneWithFrame(const BufferDesc_1_1& bufDesc_1_1) {
     mHeldBuffer = -1;
 }
 
-
 Return<void> StreamHandler::deliverFrame(const BufferDesc_1_0& buffer) {
     ALOGV("Received a frame from the camera (%p)", buffer.memHandle.getNativeHandle());
 
     // Take the lock to protect our frame slots and running state variable
     {
-        std::unique_lock <std::mutex> lock(mLock);
+        std::unique_lock<std::mutex> lock(mLock);
 
         if (buffer.memHandle.getNativeHandle() == nullptr) {
             // Signal that the last frame has been received and the stream is stopped
@@ -149,19 +138,17 @@ Return<void> StreamHandler::deliverFrame(const BufferDesc_1_0& buffer) {
             // Do we already have a "ready" frame?
             if (mReadyBuffer >= 0) {
                 // Send the previously saved buffer back to the camera unused
-                AHardwareBuffer_Desc* pDesc =
-                    reinterpret_cast<AHardwareBuffer_Desc *>(&mBuffers[mReadyBuffer].buffer.description);
+                AHardwareBuffer_Desc* pDesc = reinterpret_cast<AHardwareBuffer_Desc*>(
+                        &mBuffers[mReadyBuffer].buffer.description);
 
-                BufferDesc_1_0 bufDesc_1_0 = {
-                    pDesc->width,
-                    pDesc->height,
-                    pDesc->stride,
-                    mBuffers[mReadyBuffer].pixelSize,
-                    static_cast<uint32_t>(pDesc->format),
-                    static_cast<uint32_t>(pDesc->usage),
-                    mBuffers[mReadyBuffer].bufferId,
-                    mBuffers[mReadyBuffer].buffer.nativeHandle
-                };
+                BufferDesc_1_0 bufDesc_1_0 = {pDesc->width,
+                                              pDesc->height,
+                                              pDesc->stride,
+                                              mBuffers[mReadyBuffer].pixelSize,
+                                              static_cast<uint32_t>(pDesc->format),
+                                              static_cast<uint32_t>(pDesc->usage),
+                                              mBuffers[mReadyBuffer].bufferId,
+                                              mBuffers[mReadyBuffer].buffer.nativeHandle};
                 mCamera->doneWithFrame(bufDesc_1_0);
 
                 // We'll reuse the same ready buffer index
@@ -189,7 +176,7 @@ Return<void> StreamHandler::deliverFrame_1_1(const hidl_vec<BufferDesc_1_1>& buf
 
     // Take the lock to protect our frame slots and running state variable
     {
-        std::unique_lock <std::mutex> lock(mLock);
+        std::unique_lock<std::mutex> lock(mLock);
         BufferDesc_1_1 bufDesc = buffers[0];
 
         if (bufDesc.buffer.nativeHandle.getNativeHandle() == nullptr) {
@@ -225,9 +212,8 @@ Return<void> StreamHandler::deliverFrame_1_1(const hidl_vec<BufferDesc_1_1>& buf
 }
 
 Return<void> StreamHandler::notify(const EvsEventDesc& event) {
-    switch(event.aType) {
-        case EvsEventType::STREAM_STOPPED:
-        {
+    switch (event.aType) {
+        case EvsEventType::STREAM_STOPPED: {
             {
                 std::lock_guard<std::mutex> lock(mLock);
 
@@ -244,9 +230,9 @@ Return<void> StreamHandler::notify(const EvsEventDesc& event) {
 
         // Below events are ignored in reference implementation.
         case EvsEventType::STREAM_STARTED:
-        [[fallthrough]];
+            [[fallthrough]];
         case EvsEventType::FRAME_DROPPED:
-        [[fallthrough]];
+            [[fallthrough]];
         case EvsEventType::TIMEOUT:
             ALOGI("Event %d is received but ignored.", static_cast<unsigned>(event.aType));
             break;

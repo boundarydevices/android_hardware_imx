@@ -17,9 +17,8 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_VehiclePropConfigIndex_H_
 #define android_hardware_automotive_vehicle_V2_0_VehiclePropConfigIndex_H_
 
-#include <utils/KeyedVector.h>
-
 #include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
+#include <utils/KeyedVector.h>
 
 namespace android {
 namespace hardware {
@@ -33,22 +32,16 @@ namespace V2_0 {
  */
 class VehiclePropConfigIndex {
 public:
-    VehiclePropConfigIndex(
-        const std::vector<VehiclePropConfig>& properties)
-        : mConfigs(properties), mPropToConfig(mConfigs)
-    {}
+    VehiclePropConfigIndex(const std::vector<VehiclePropConfig>& properties)
+          : mConfigs(properties), mPropToConfig(mConfigs) {}
 
-    bool hasConfig(int32_t property) const {
-        return mPropToConfig.indexOfKey(property) >= 0;
-    }
+    bool hasConfig(int32_t property) const { return mPropToConfig.indexOfKey(property) >= 0; }
 
     const VehiclePropConfig& getConfig(int32_t property) const {
         return *mPropToConfig.valueFor(property);
     }
 
-    const std::vector<VehiclePropConfig>& getAllConfigs() const {
-        return mConfigs;
-    }
+    const std::vector<VehiclePropConfig>& getAllConfigs() const { return mConfigs; }
 
 private:
     typedef KeyedVector<int32_t, const VehiclePropConfig*> PropConfigMap;
@@ -60,21 +53,22 @@ private:
                 add(config.prop, &config);
             }
         }
+
     public:
-        using PropConfigMap::valueFor;
         using PropConfigMap::indexOfKey;
+        using PropConfigMap::valueFor;
     };
 
 private:
     const std::vector<VehiclePropConfig> mConfigs;
-    const ImmutablePropConfigMap mPropToConfig;  // mConfigs must be declared
-                                                 // first.
+    const ImmutablePropConfigMap mPropToConfig; // mConfigs must be declared
+                                                // first.
 };
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
 #endif // android_hardware_automotive_vehicle_V2_0_VehiclePropConfigIndex_H_

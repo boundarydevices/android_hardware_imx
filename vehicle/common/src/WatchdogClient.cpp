@@ -16,10 +16,9 @@
 
 #define LOG_TAG "automotive.vehicle@2.0-watchdog"
 
-#include <common/include/vhal_v2_0/WatchdogClient.h>
-
 #include <android/binder_manager.h>
 #include <android/hardware/automotive/vehicle/2.0/types.h>
+#include <common/include/vhal_v2_0/WatchdogClient.h>
 
 using aidl::android::automotive::watchdog::ICarWatchdog;
 using aidl::android::automotive::watchdog::TimeoutLength;
@@ -28,7 +27,7 @@ namespace {
 
 enum { WHAT_CHECK_ALIVE = 1 };
 
-}  // namespace
+} // namespace
 
 namespace android {
 namespace hardware {
@@ -37,7 +36,7 @@ namespace vehicle {
 namespace V2_0 {
 
 WatchdogClient::WatchdogClient(const sp<Looper>& handlerLooper, VehicleHalManager* vhalManager)
-    : mHandlerLooper(handlerLooper), mVhalManager(vhalManager), mCurrentSessionId(-1) {
+      : mHandlerLooper(handlerLooper), mVhalManager(vhalManager), mCurrentSessionId(-1) {
     mMessageHandler = new MessageHandlerImpl(this);
 }
 
@@ -133,8 +132,8 @@ void WatchdogClient::MessageHandlerImpl::handleMessage(const Message& message) {
     }
 }
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

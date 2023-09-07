@@ -16,15 +16,16 @@
  */
 
 #include "CameraUtils.h"
+
 #include <linux/videodev2.h>
+
+#include "MemoryManager.h"
 #include "Metadata.h"
 #include "Stream.h"
-#include "MemoryManager.h"
 
 using namespace android;
 
-int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
-{
+int convertPixelFormatToV4L2Format(PixelFormat format, bool invert) {
     int nFormat = 0;
 
     switch (format) {
@@ -37,8 +38,7 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
             if (!invert) {
                 nFormat = v4l2_fourcc('Y', 'U', '1', '2');
-            }
-            else {
+            } else {
                 nFormat = v4l2_fourcc('Y', 'V', '1', '2');
             }
             break;
@@ -66,21 +66,16 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
             ALOGE("Error: format:0x%x not supported!", format);
             break;
     }
-    ALOGV("v4l2 format: %c%c%c%c", nFormat&0xFF, (nFormat>>8)&0xFF,
-                            (nFormat>>16)&0xFF, (nFormat>>24)&0xFF);
+    ALOGV("v4l2 format: %c%c%c%c", nFormat & 0xFF, (nFormat >> 8) & 0xFF, (nFormat >> 16) & 0xFF,
+          (nFormat >> 24) & 0xFF);
     return nFormat;
 }
 
-StreamBuffer::StreamBuffer()
-{
-}
+StreamBuffer::StreamBuffer() {}
 
-StreamBuffer::~StreamBuffer()
-{
-}
+StreamBuffer::~StreamBuffer() {}
 
-void StreamBuffer::initialize(buffer_handle_t* buf_h)
-{
+void StreamBuffer::initialize(buffer_handle_t *buf_h) {
     if (buf_h == NULL) {
         return;
     }
@@ -89,29 +84,27 @@ void StreamBuffer::initialize(buffer_handle_t* buf_h)
     mBufHandle = buf_h;
 
     void *vaddr = NULL;
-    fsl::MemoryManager* pMemManager = fsl::MemoryManager::getInstance();
+    fsl::MemoryManager *pMemManager = fsl::MemoryManager::getInstance();
     if (pMemManager == NULL) {
         ALOGE("%s, unexpected, pMemManager is null !!!", __func__);
     } else {
         pMemManager->lock(handle, handle->usage, 0, 0, handle->width, handle->height, &vaddr);
     }
 
-    mVirtAddr  = vaddr;
-    mPhyAddr   = handle->phys;
-    mSize      = handle->size;
+    mVirtAddr = vaddr;
+    mPhyAddr = handle->phys;
+    mSize = handle->size;
 
-    //for uvc jpeg stream
-    mpFrameBuf  = NULL;
+    // for uvc jpeg stream
+    mpFrameBuf = NULL;
 }
 
-void StreamBuffer::MapVirtAddr()
-{
+void StreamBuffer::MapVirtAddr() {
     fsl::Memory *handle = (fsl::Memory *)(*mBufHandle);
 
     ALOGW("%s, StreamBuffer %p, handle->base is 0, map it", __func__, this);
 
-    void* mappedAddress = mmap(
-        0, handle->size, PROT_READ | PROT_WRITE, MAP_SHARED, handle->fd, 0);
+    void *mappedAddress = mmap(0, handle->size, PROT_READ | PROT_WRITE, MAP_SHARED, handle->fd, 0);
     if (mappedAddress == MAP_FAILED) {
         ALOGW("Could not mmap %s", strerror(errno));
     } else {
@@ -121,17 +114,15 @@ void StreamBuffer::MapVirtAddr()
     return;
 }
 
-void StreamBuffer::UnMapVirtAddr()
-{
+void StreamBuffer::UnMapVirtAddr() {
     if (mBufHandle == NULL) {
         return;
     }
 
-    struct fsl::Memory* handle = (struct fsl::Memory*)(*mBufHandle);
-    if (handle == NULL)
-        return;
+    struct fsl::Memory *handle = (struct fsl::Memory *)(*mBufHandle);
+    if (handle == NULL) return;
 
-    if(mVirtAddr) {
+    if (mVirtAddr) {
         munmap(mVirtAddr, handle->size);
         mVirtAddr = NULL;
     }
@@ -140,26 +131,20 @@ void StreamBuffer::UnMapVirtAddr()
 }
 
 //--------------------CaptureRequest----------------------
-CaptureRequest::CaptureRequest()
-    : mOutBuffersNumber(0)
-{
+CaptureRequest::CaptureRequest() : mOutBuffersNumber(0) {
     for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
         mOutBuffers[i] = NULL;
     }
 }
 
-CaptureRequest::~CaptureRequest()
-{
+CaptureRequest::~CaptureRequest() {
     for (uint32_t i = 0; i < mOutBuffersNumber; i++) {
-        if (mOutBuffers[i] != NULL)
-            delete mOutBuffers[i];
+        if (mOutBuffers[i] != NULL) delete mOutBuffers[i];
     }
 }
 
-void CaptureRequest::init(camera3_capture_request* request,
-              camera3_callback_ops* callback,
-              sp<Metadata> settings)
-{
+void CaptureRequest::init(camera3_capture_request *request, camera3_callback_ops *callback,
+                          sp<Metadata> settings) {
     mFrameNumber = request->frame_number;
     mSettings = settings;
     mOutBuffersNumber = request->num_output_buffers;
@@ -169,15 +154,14 @@ void CaptureRequest::init(camera3_capture_request* request,
     ALOGV("CaptureRequest fm:%d, bn:%d", mFrameNumber, mOutBuffersNumber);
     for (uint32_t i = 0; i < request->num_output_buffers; i++) {
         mOutBuffers[i] = new StreamBuffer();
-        mOutBuffers[i]->mStream = reinterpret_cast<Stream*>(
-                            request->output_buffers[i].stream->priv);
+        mOutBuffers[i]->mStream =
+                reinterpret_cast<Stream *>(request->output_buffers[i].stream->priv);
         mOutBuffers[i]->mAcquireFence = request->output_buffers[i].acquire_fence;
         mOutBuffers[i]->initialize(request->output_buffers[i].buffer);
     }
 }
 
-int32_t CaptureRequest::onCaptureError()
-{
+int32_t CaptureRequest::onCaptureError() {
     camera3_stream_buffer_t cameraBuffer;
     camera3_capture_result_t result;
 
@@ -191,8 +175,8 @@ int32_t CaptureRequest::onCaptureError()
     result.num_output_buffers = 1;
     result.output_buffers = &cameraBuffer;
 
-    for (uint32_t i=0; i<mOutBuffersNumber; i++) {
-        StreamBuffer* out = mOutBuffers[i];
+    for (uint32_t i = 0; i < mOutBuffersNumber; i++) {
+        StreamBuffer *out = mOutBuffers[i];
         cameraBuffer.stream = out->mStream->stream();
         cameraBuffer.buffer = out->mBufHandle;
         mCallbackOps->process_capture_result(mCallbackOps, &result);
@@ -201,15 +185,14 @@ int32_t CaptureRequest::onCaptureError()
     return 0;
 }
 
-int32_t CaptureRequest::onCaptureDone(StreamBuffer* buffer)
-{
+int32_t CaptureRequest::onCaptureDone(StreamBuffer *buffer) {
     if (buffer == NULL || buffer->mBufHandle == NULL || mCallbackOps == NULL) {
         return 0;
     }
 
     fsl::Memory *handle = (fsl::Memory *)(*buffer->mBufHandle);
 
-    fsl::MemoryManager* pMemManager = fsl::MemoryManager::getInstance();
+    fsl::MemoryManager *pMemManager = fsl::MemoryManager::getInstance();
     if (pMemManager == NULL) {
         ALOGE("%s, unexpected, pMemManager is null !!!", __func__);
     } else {
@@ -239,8 +222,7 @@ int32_t CaptureRequest::onCaptureDone(StreamBuffer* buffer)
     return 0;
 }
 
-int32_t CaptureRequest::onSettingsDone(sp<Metadata> meta)
-{
+int32_t CaptureRequest::onSettingsDone(sp<Metadata> meta) {
     if (meta == NULL || (meta->get() == NULL) || mCallbackOps == NULL) {
         return 0;
     }
@@ -268,8 +250,7 @@ int32_t CaptureRequest::onSettingsDone(sp<Metadata> meta)
 }
 
 //------------------SensorData------------------------
-SensorData::SensorData()
-{
+SensorData::SensorData() {
     mVpuSupportFmt[0] = HAL_PIXEL_FORMAT_YCbCr_420_SP;
     mVpuSupportFmt[1] = HAL_PIXEL_FORMAT_YCbCr_420_P;
 
@@ -286,13 +267,10 @@ SensorData::SensorData()
     mMaxJpegSize = 4 * 1024 * 1024;
 }
 
-SensorData::~SensorData()
-{
-}
+SensorData::~SensorData() {}
 
-int32_t SensorData::getSensorFormat(int32_t availFormat)
-{
-    for (int32_t i=0; i<mSensorFormatCount; i++) {
+int32_t SensorData::getSensorFormat(int32_t availFormat) {
+    for (int32_t i = 0; i < mSensorFormatCount; i++) {
         if (availFormat == mSensorFormats[i]) {
             return availFormat;
         }
@@ -301,15 +279,14 @@ int32_t SensorData::getSensorFormat(int32_t availFormat)
     return mSensorFormats[0];
 }
 
-int32_t SensorData::changeSensorFormats(int *src, int *dst, int len)
-{
+int32_t SensorData::changeSensorFormats(int *src, int *dst, int len) {
     if (src == NULL || dst == NULL || len == 0) {
         ALOGE("%s invalid parameters", __func__);
         return 0;
     }
 
     int32_t k = 0;
-    for (int32_t i=0; i<len && i<MAX_SENSOR_FORMAT; i++) {
+    for (int32_t i = 0; i < len && i < MAX_SENSOR_FORMAT; i++) {
         switch (src[i]) {
             case v4l2_fourcc('N', 'V', '1', '2'):
                 dst[k++] = HAL_PIXEL_FORMAT_YCbCr_420_SP;
@@ -319,7 +296,7 @@ int32_t SensorData::changeSensorFormats(int *src, int *dst, int len)
                 dst[k++] = HAL_PIXEL_FORMAT_YCrCb_420_SP;
                 break;
 
-            //camera service will use HAL_PIXEL_FORMAT_YV12 to match YV12 format.
+            // camera service will use HAL_PIXEL_FORMAT_YV12 to match YV12 format.
             case v4l2_fourcc('Y', 'V', '1', '2'):
                 dst[k++] = HAL_PIXEL_FORMAT_YV12;
                 break;
@@ -343,8 +320,8 @@ int32_t SensorData::changeSensorFormats(int *src, int *dst, int len)
                 break;
 
             default:
-                ALOGE("Error: format:%c%c%c%c not supported!", src[i]&0xFF,
-                      (src[i]>>8)&0xFF, (src[i]>>16)&0xFF, (src[i]>>24)&0xFF);
+                ALOGE("Error: format:%c%c%c%c not supported!", src[i] & 0xFF, (src[i] >> 8) & 0xFF,
+                      (src[i] >> 16) & 0xFF, (src[i] >> 24) & 0xFF);
                 break;
         }
     }
@@ -352,51 +329,40 @@ int32_t SensorData::changeSensorFormats(int *src, int *dst, int len)
     return k;
 }
 
-int SensorData::getCaptureMode(int width, int height)
-{
+int SensorData::getCaptureMode(int width, int height) {
     int capturemode = 0;
 
     if ((width == 640) && (height == 480)) {
         capturemode = 0;
-    }
-    else if ((width == 320) && (height == 240)) {
+    } else if ((width == 320) && (height == 240)) {
         capturemode = 1;
-    }
-    else if ((width == 720) && (height == 480)) {
+    } else if ((width == 720) && (height == 480)) {
         capturemode = 2;
-    }
-    else if ((width == 720) && (height == 576)) {
+    } else if ((width == 720) && (height == 576)) {
         capturemode = 3;
-    }
-    else if ((width == 1280) && (height == 720)) {
+    } else if ((width == 1280) && (height == 720)) {
         capturemode = 4;
-    }
-    else if ((width == 1920) && (height == 1080)) {
+    } else if ((width == 1920) && (height == 1080)) {
         capturemode = 5;
-    }
-    else if ((width == 2592) && (height == 1944)) {
+    } else if ((width == 2592) && (height == 1944)) {
         capturemode = 6;
-    }
-    else if ((width == 176) && (height == 144)) {
+    } else if ((width == 176) && (height == 144)) {
         capturemode = 7;
-    }
-    else if ((width == 1024) && (height == 768)) {
+    } else if ((width == 1024) && (height == 768)) {
         capturemode = 8;
-    }
-    else {
+    } else {
         ALOGE("width:%d height:%d is not supported.", width, height);
     }
     return capturemode;
 }
 
-int SensorData::getFps(int width, int height, int defValue)
-{
+int SensorData::getFps(int width, int height, int defValue) {
     int fps = 0;
     if ((width > 1920) || (height > 1080)) {
         fps = 15;
     } else if ((width <= 1024) || (height <= 768)) {
         fps = 30;
-    } else if ((defValue > 0) && (defValue <= 30)){
+    } else if ((defValue > 0) && (defValue <= 30)) {
         fps = defValue;
     } else {
         fps = 30;
@@ -405,16 +371,15 @@ int SensorData::getFps(int width, int height, int defValue)
     return fps;
 }
 
-status_t SensorData::adjustPreviewResolutions()
-{
+status_t SensorData::adjustPreviewResolutions() {
     int xTmp, yTmp, xMax, yMax, idx;
     idx = 0;
     xTmp = xMax = mPreviewResolutions[0];
     yTmp = yMax = mPreviewResolutions[1];
-    for (int i=0; i<MAX_RESOLUTION_SIZE; i+=2) {
+    for (int i = 0; i < MAX_RESOLUTION_SIZE; i += 2) {
         if (mPreviewResolutions[i] > xMax) {
             xMax = mPreviewResolutions[i];
-            yMax = mPreviewResolutions[i+1];
+            yMax = mPreviewResolutions[i + 1];
             idx = i;
         }
     }
@@ -422,21 +387,20 @@ status_t SensorData::adjustPreviewResolutions()
     mPreviewResolutions[0] = xMax;
     mPreviewResolutions[1] = yMax;
     mPreviewResolutions[idx] = xTmp;
-    mPreviewResolutions[idx+1] = yTmp;
+    mPreviewResolutions[idx + 1] = yTmp;
 
     return 0;
 }
 
-status_t SensorData::setMaxPictureResolutions()
-{
+status_t SensorData::setMaxPictureResolutions() {
     int xMax, yMax;
     xMax = mPictureResolutions[0];
     yMax = mPictureResolutions[1];
 
-    for (int i=0; i<MAX_RESOLUTION_SIZE; i+=2) {
-        if (mPictureResolutions[i] > xMax || mPictureResolutions[i+1] > yMax) {
+    for (int i = 0; i < MAX_RESOLUTION_SIZE; i += 2) {
+        if (mPictureResolutions[i] > xMax || mPictureResolutions[i + 1] > yMax) {
             xMax = mPictureResolutions[i];
-            yMax = mPictureResolutions[i+1];
+            yMax = mPictureResolutions[i + 1];
         }
     }
 
@@ -446,9 +410,7 @@ status_t SensorData::setMaxPictureResolutions()
     return 0;
 }
 
-PixelFormat SensorData::getMatchFormat(int *sfmt, int  slen,
-                                         int *dfmt, int  dlen)
-{
+PixelFormat SensorData::getMatchFormat(int *sfmt, int slen, int *dfmt, int dlen) {
     if ((sfmt == NULL) || (slen == 0) || (dfmt == NULL) || (dlen == 0)) {
         ALOGE("getMatchFormat invalid parameters");
         return 0;
@@ -460,7 +422,7 @@ PixelFormat SensorData::getMatchFormat(int *sfmt, int  slen,
         for (int j = 0; j < dlen; j++) {
             if (sfmt[i] == dfmt[j]) {
                 matchFormat = dfmt[j];
-                live        = false;
+                live = false;
                 break;
             }
         }
@@ -468,4 +430,3 @@ PixelFormat SensorData::getMatchFormat(int *sfmt, int  slen,
 
     return matchFormat;
 }
-

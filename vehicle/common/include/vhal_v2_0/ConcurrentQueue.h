@@ -17,15 +17,15 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_ConcurrentQueue_H_
 #define android_hardware_automotive_vehicle_V2_0_ConcurrentQueue_H_
 
-#include <queue>
 #include <atomic>
-#include <thread>
 #include <condition_variable>
 #include <iostream>
+#include <queue>
+#include <thread>
 
 namespace android {
 
-template<typename T>
+template <typename T>
 class ConcurrentQueue {
 public:
     void waitForItems() {
@@ -68,13 +68,14 @@ public:
             MuxGuard g(mLock);
             mIsActive = false;
         }
-        mCond.notify_all();  // To unblock all waiting consumers.
+        mCond.notify_all(); // To unblock all waiting consumers.
     }
 
     ConcurrentQueue() = default;
 
-    ConcurrentQueue(const ConcurrentQueue &) = delete;
-    ConcurrentQueue &operator=(const ConcurrentQueue &) = delete;
+    ConcurrentQueue(const ConcurrentQueue&) = delete;
+    ConcurrentQueue& operator=(const ConcurrentQueue&) = delete;
+
 private:
     using MuxGuard = std::lock_guard<std::mutex>;
 
@@ -84,7 +85,7 @@ private:
     std::queue<T> mQueue;
 };
 
-template<typename T>
+template <typename T>
 class BatchingConsumer {
 private:
     enum class State {
@@ -97,24 +98,20 @@ private:
 public:
     BatchingConsumer() : mState(State::INIT) {}
 
-    BatchingConsumer(const BatchingConsumer &) = delete;
-    BatchingConsumer &operator=(const BatchingConsumer &) = delete;
+    BatchingConsumer(const BatchingConsumer&) = delete;
+    BatchingConsumer& operator=(const BatchingConsumer&) = delete;
 
     using OnBatchReceivedFunc = std::function<void(const std::vector<T>& vec)>;
 
-    void run(ConcurrentQueue<T>* queue,
-             std::chrono::nanoseconds batchInterval,
+    void run(ConcurrentQueue<T>* queue, std::chrono::nanoseconds batchInterval,
              const OnBatchReceivedFunc& func) {
         mQueue = queue;
         mBatchInterval = batchInterval;
 
-        mWorkerThread = std::thread(
-            &BatchingConsumer<T>::runInternal, this, func);
+        mWorkerThread = std::thread(&BatchingConsumer<T>::runInternal, this, func);
     }
 
-    void requestStop() {
-        mState = State::STOP_REQUESTED;
-    }
+    void requestStop() { mState = State::STOP_REQUESTED; }
 
     void waitStopped() {
         if (mWorkerThread.joinable()) {
@@ -151,6 +148,6 @@ private:
     ConcurrentQueue<T>* mQueue;
 };
 
-}  // namespace android
+} // namespace android
 
-#endif //android_hardware_automotive_vehicle_V2_0_ConcurrentQueue_H_
+#endif // android_hardware_automotive_vehicle_V2_0_ConcurrentQueue_H_

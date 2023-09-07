@@ -26,15 +26,16 @@
 #include <aidl/android/hardware/camera/device/NotifyMsg.h>
 #include <aidl/android/hardware/graphics/common/BufferUsage.h>
 #include <aidl/android/hardware/graphics/common/PixelFormat.h>
+#include <cutils/properties.h>
+#include <linux/videodev2.h>
 #include <tinyxml2.h>
+
 #include <unordered_map>
 #include <unordered_set>
-#include <cutils/properties.h>
+
 #include "Memory.h"
 #include "MemoryDesc.h"
 #include "MemoryManager.h"
-
-#include <linux/videodev2.h>
 
 using ::aidl::android::hardware::camera::common::Status;
 using ::aidl::android::hardware::camera::device::CaptureResult;
@@ -47,7 +48,7 @@ using ::android::hardware::camera::common::V1_0::helper::HandleImporter;
 
 namespace android {
 
-#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
+#define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
 
 int IMXAllocMem(int size);
 int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual);
@@ -122,13 +123,13 @@ struct ExternalCameraConfig {
     // Intermediate Buffers format, nv12(default) or i420.
     char interBufFormat[INTERBUF_FORMAT_SIZE];
 
-  private:
+private:
     ExternalCameraConfig();
     static bool updateFpsList(tinyxml2::XMLElement* fpsList, std::vector<FpsLimitation>& fpsLimits);
 };
 
-}  // namespace common
-}  // namespace external
+} // namespace common
+} // namespace external
 
 namespace device {
 namespace implementation {
@@ -142,16 +143,16 @@ struct SupportedV4L2Format {
         // Duration (in seconds) of a single frame.
         // Numerator and denominator of the frame duration are stored separately.
         // For ex. a frame lasting 1/30 of a second will be stored as {1, 30}
-        uint32_t durationNumerator;         // frame duration numerator.   Ex: 1
-        uint32_t durationDenominator;       // frame duration denominator. Ex: 30
-        double getFramesPerSecond() const;  // FPS as double.        Ex: 30.0
+        uint32_t durationNumerator;        // frame duration numerator.   Ex: 1
+        uint32_t durationDenominator;      // frame duration denominator. Ex: 30
+        double getFramesPerSecond() const; // FPS as double.        Ex: 30.0
     };
     std::vector<FrameRate> frameRates;
 };
 
 // A Base class with basic information about a frame
 struct Frame : public std::enable_shared_from_this<Frame> {
-  public:
+public:
     Frame(uint32_t width, uint32_t height, uint32_t fourcc);
     virtual ~Frame();
     const int32_t mWidth;
@@ -165,22 +166,22 @@ struct Frame : public std::enable_shared_from_this<Frame> {
 // A class provide access to a dequeued V4L2 frame buffer (mostly in MJPG format)
 // Also contains necessary information to enqueue the buffer back to V4L2 buffer queue
 class V4L2Frame : public Frame {
-  public:
+public:
     V4L2Frame(uint32_t w, uint32_t h, uint32_t fourcc, int bufIdx, int fd, uint32_t dataSize,
               uint64_t offset);
     virtual ~V4L2Frame();
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
 
-    const int mBufferIndex;  // for later enqueue
+    const int mBufferIndex; // for later enqueue
     int map(uint8_t** data, size_t* dataSize);
     int unmap();
 
-  private:
+private:
     std::mutex mLock;
-    const int mFd;  // used for mmap but doesn't claim ownership
+    const int mFd; // used for mmap but doesn't claim ownership
     const size_t mDataSize;
-    const uint64_t mOffset;  // used for mmap
+    const uint64_t mOffset; // used for mmap
     uint8_t* mData = nullptr;
     bool mMapped = false;
 };
@@ -188,46 +189,53 @@ class V4L2Frame : public Frame {
 // A RAII class representing a CPU allocated YUV frame used as intermediate buffers
 // when generating output images.
 class AllocatedFrame : public Frame {
-  public:
-    AllocatedFrame(uint32_t w, uint32_t h, uint32_t format = V4L2_PIX_FMT_NV12);  // support V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_NV12
+public:
+    AllocatedFrame(
+            uint32_t w, uint32_t h,
+            uint32_t format = V4L2_PIX_FMT_NV12); // support V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_NV12
     ~AllocatedFrame() override;
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
 
     virtual int allocate(YCbCrLayout* out = nullptr);
     virtual int getLayout(YCbCrLayout* out);
-    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out);  // return non-zero for bad input
+    virtual int getCroppedLayout(const IMapper::Rect&,
+                                 YCbCrLayout* out); // return non-zero for bad input
     virtual void flush() {}
 
-  protected:
+protected:
     std::mutex mLock;
 
-  private:
+private:
     std::vector<uint8_t> mData;
-    size_t mBufferSize;  // size of mData before padding. Actual size of mData might be slightly
-                         // bigger to horizontally pad the frame for jpeglib.
+    size_t mBufferSize; // size of mData before padding. Actual size of mData might be slightly
+                        // bigger to horizontally pad the frame for jpeglib.
 };
 
 // A RAII class representing a CPU allocated YUV frame used as intermeidate buffers
 // when generating output images.
 class AllocatedFramePhyMem : public AllocatedFrame {
 public:
-    AllocatedFramePhyMem(uint32_t w, uint32_t h, uint32_t format = V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_YUV420);  // support V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_NV12
+    AllocatedFramePhyMem(
+            uint32_t w, uint32_t h,
+            uint32_t format = V4L2_PIX_FMT_YUV420 /
+                    V4L2_PIX_FMT_YUV420); // support V4L2_PIX_FMT_YUV420/V4L2_PIX_FMT_NV12
     virtual ~AllocatedFramePhyMem() override;
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
 
     virtual int allocate(YCbCrLayout* out = nullptr);
     virtual int getLayout(YCbCrLayout* out);
-    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+    virtual int getCroppedLayout(const IMapper::Rect&,
+                                 YCbCrLayout* out); // return non-zero for bad input
 
     virtual void flush();
 
-    void getPhyAddr(uint64_t &phyAddr);
+    void getPhyAddr(uint64_t& phyAddr);
 
 private:
-    fsl::Memory *dstBuffer;
-    uint8_t *dstBuf;
+    fsl::Memory* dstBuffer;
+    uint8_t* dstBuf;
     uint64_t mPhyAddr;
 };
 
@@ -277,9 +285,9 @@ aidl::android::hardware::camera::common::Status importBufferImpl(
         buffer_handle_t buf,
         /*out*/ buffer_handle_t** outBufPtr);
 
-static const uint32_t FLEX_YUV_GENERIC =
-        static_cast<uint32_t>('F') | static_cast<uint32_t>('L') << 8 |
-        static_cast<uint32_t>('E') << 16 | static_cast<uint32_t>('X') << 24;
+static const uint32_t FLEX_YUV_GENERIC = static_cast<uint32_t>('F') |
+        static_cast<uint32_t>('L') << 8 | static_cast<uint32_t>('E') << 16 |
+        static_cast<uint32_t>('X') << 24;
 
 // returns FLEX_YUV_GENERIC for formats other than YV12/YU12/NV12/NV21
 uint32_t getFourCcFromLayout(const YCbCrLayout&);
@@ -287,7 +295,8 @@ uint32_t getFourCcFromLayout(const YCbCrLayout&);
 using ::android::hardware::camera::external::common::Size;
 int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMapper::Rect* out);
 
-int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format, uint32_t srcFmt = V4L2_PIX_FMT_NV12);
+int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format,
+                  uint32_t srcFmt = V4L2_PIX_FMT_NV12);
 
 int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
                    const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
@@ -332,19 +341,19 @@ struct OutputThreadInterface {
 
 // A CPU copy of a mapped V4L2Frame. Will map the input V4L2 frame.
 class AllocatedV4L2Frame : public Frame {
-  public:
+public:
     AllocatedV4L2Frame(std::shared_ptr<V4L2Frame> frameIn);
     ~AllocatedV4L2Frame() override;
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
 
-  private:
+private:
     std::vector<uint8_t> mData;
 };
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android
 
-#endif  // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_EXTERNALCAMERAUTILS_H_
+#endif // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_EXTERNALCAMERAUTILS_H_

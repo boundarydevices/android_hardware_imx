@@ -16,5 +16,5 @@ int convert_gralloc_format_to_nxp_format(int format);
 std::string getNxpFormatString(int format);
 std::string getGrallocFormatString(int format);
 std::string getUsageString(uint64_t bufferUsage);
-}
+} // namespace fsl
 #endif //_NXP_DISPLAY_UTIL_H_

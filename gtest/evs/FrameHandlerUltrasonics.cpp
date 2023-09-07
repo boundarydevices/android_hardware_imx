@@ -17,21 +17,21 @@
 #include "FrameHandlerUltrasonics.h"
 
 #include <android-base/logging.h>
-#include <hidlmemory/mapping.h>
 #include <android/hidl/memory/1.0/IMemory.h>
+#include <hidlmemory/mapping.h>
 
-using ::android::hidl::memory::V1_0::IMemory;
-using ::android::hardware::Return;
 using ::android::sp;
+using ::android::hardware::Return;
+using ::android::hidl::memory::V1_0::IMemory;
 
-using ::android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArrayStream;
-using ::android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArray;
-using ::android::hardware::automotive::evs::V1_1::UltrasonicsDataFrameDesc;
 using ::android::hardware::automotive::evs::V1_1::EvsEventDesc;
 using ::android::hardware::automotive::evs::V1_1::EvsEventType;
+using ::android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArray;
+using ::android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArrayStream;
+using ::android::hardware::automotive::evs::V1_1::UltrasonicsDataFrameDesc;
 
-FrameHandlerUltrasonics::FrameHandlerUltrasonics(sp<IEvsUltrasonicsArray> pEvsUltrasonicsArray) :
-    mEvsUltrasonicsArray(pEvsUltrasonicsArray), mReceiveFramesCount(0) {
+FrameHandlerUltrasonics::FrameHandlerUltrasonics(sp<IEvsUltrasonicsArray> pEvsUltrasonicsArray)
+      : mEvsUltrasonicsArray(pEvsUltrasonicsArray), mReceiveFramesCount(0) {
     // Nothing but member initialization
 }
 
@@ -59,7 +59,7 @@ struct WaveformData {
 // De-serializes shared memory to vector of WaveformData.
 // TODO(b/149950362): Add a common library for serialiazing and deserializing waveform data.
 std::vector<WaveformData> DeSerializeWaveformData(std::vector<uint32_t> recvReadingsCountList,
-        uint8_t* pData) {
+                                                  uint8_t* pData) {
     std::vector<WaveformData> waveformDataList(recvReadingsCountList.size());
 
     for (int i = 0; i < waveformDataList.size(); i++) {
@@ -83,13 +83,12 @@ std::vector<WaveformData> DeSerializeWaveformData(std::vector<uint32_t> recvRead
 }
 
 bool DataFrameValidator(const UltrasonicsDataFrameDesc& dataFrameDesc) {
-
     if (dataFrameDesc.receiversIdList.size() != dataFrameDesc.receiversReadingsCountList.size()) {
         LOG(ERROR) << "Size mismatch of receiversIdList and receiversReadingsCountList";
         return false;
     }
 
-    if(!dataFrameDesc.waveformsData.valid()) {
+    if (!dataFrameDesc.waveformsData.valid()) {
         LOG(ERROR) << "Data frame does not valid hidl memory";
         return false;
     }
@@ -105,27 +104,27 @@ bool DataFrameValidator(const UltrasonicsDataFrameDesc& dataFrameDesc) {
     }
 
     sp<IMemory> pIMemory = mapMemory(dataFrameDesc.waveformsData);
-    if(pIMemory.get() == nullptr) {
+    if (pIMemory.get() == nullptr) {
         LOG(ERROR) << "Failed to map hidl memory";
         return false;
     }
 
     uint8_t* pData = (uint8_t*)((void*)pIMemory->getPointer());
-    if(pData == nullptr) {
+    if (pData == nullptr) {
         LOG(ERROR) << "Failed getPointer from mapped shared memory";
         return false;
     }
 
-    const std::vector<WaveformData> waveformDataList = DeSerializeWaveformData(
-            dataFrameDesc.receiversReadingsCountList, pData);
+    const std::vector<WaveformData> waveformDataList =
+            DeSerializeWaveformData(dataFrameDesc.receiversReadingsCountList, pData);
 
     // Verify the waveforms data.
-    for(int i = 0; i < waveformDataList.size(); i++) {
+    for (int i = 0; i < waveformDataList.size(); i++) {
         if (waveformDataList[i].receiverId != dataFrameDesc.receiversIdList[i]) {
             LOG(ERROR) << "Receiver Id mismatch";
             return false;
         }
-        for(auto& reading : waveformDataList[i].readings) {
+        for (auto& reading : waveformDataList[i].readings) {
             if (reading.second < 0.0f || reading.second > 1.0f) {
                 LOG(ERROR) << "Resonance reading is not in range [0, 1]";
                 return false;
@@ -142,7 +141,7 @@ Return<void> FrameHandlerUltrasonics::deliverDataFrame(
     mReceiveFramesCount++;
     mLastReceivedFrames = dataFrameDesc;
 
-    if(!DataFrameValidator(dataFrameDesc)) {
+    if (!DataFrameValidator(dataFrameDesc)) {
         mAllFramesValid = false;
     }
 

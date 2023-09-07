@@ -28,11 +28,11 @@ namespace hardware {
 namespace dumpstate {
 
 class Dumpstate : public BnDumpstateDevice {
-  private:
+private:
     bool getVerboseLoggingEnabledImpl();
     ::ndk::ScopedAStatus dumpstateBoardImpl(const int fd, const bool full);
 
-  public:
+public:
     ::ndk::ScopedAStatus dumpstateBoard(const std::vector<::ndk::ScopedFileDescriptor>& in_fds,
                                         IDumpstateDevice::DumpstateMode in_mode,
                                         int64_t in_timeoutMillis) override;
@@ -42,7 +42,7 @@ class Dumpstate : public BnDumpstateDevice {
     ::ndk::ScopedAStatus setVerboseLoggingEnabled(bool in_enable) override;
 };
 
-}  // namespace dumpstate
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace dumpstate
+} // namespace hardware
+} // namespace android
+} // namespace aidl

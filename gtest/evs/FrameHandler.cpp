@@ -17,31 +17,26 @@
 #define LOG_TAG "VtsHalEvsTest"
 
 #include "FrameHandler.h"
-#include "FormatConvert.h"
-
-#include <stdio.h>
-#include <string.h>
-#include <chrono>
 
 #include <android/log.h>
 #include <cutils/native_handle.h>
+#include <stdio.h>
+#include <string.h>
 #include <ui/GraphicBuffer.h>
+
+#include <chrono>
+
+#include "FormatConvert.h"
 
 using namespace std::chrono_literals;
 
-FrameHandler::FrameHandler(android::sp <IEvsCamera> pCamera, CameraDesc cameraInfo,
-                           android::sp <IEvsDisplay> pDisplay,
-                           BufferControlFlag mode) :
-    mCamera(pCamera),
-    mCameraInfo(cameraInfo),
-    mDisplay(pDisplay),
-    mReturnMode(mode) {
+FrameHandler::FrameHandler(android::sp<IEvsCamera> pCamera, CameraDesc cameraInfo,
+                           android::sp<IEvsDisplay> pDisplay, BufferControlFlag mode)
+      : mCamera(pCamera), mCameraInfo(cameraInfo), mDisplay(pDisplay), mReturnMode(mode) {
     // Nothing but member initialization here...
 }
 
-
-void FrameHandler::shutdown()
-{
+void FrameHandler::shutdown() {
     // Make sure we're not still streaming
     blockingStopStream();
 
@@ -50,7 +45,6 @@ void FrameHandler::shutdown()
     mCamera = nullptr;
     mDisplay = nullptr;
 }
-
 
 bool FrameHandler::startStream() {
     // Tell the camera to start streaming
@@ -67,13 +61,11 @@ bool FrameHandler::startStream() {
     return true;
 }
 
-
 void FrameHandler::asyncStopStream() {
     // Tell the camera to stop streaming.
     // This will result in a null frame being delivered when the stream actually stops.
     mCamera->stopVideoStream();
 }
-
 
 void FrameHandler::blockingStopStream() {
     // Tell the stream to stop
@@ -85,7 +77,6 @@ void FrameHandler::blockingStopStream() {
         mEventSignal.wait(lock, [this]() { return !mRunning; });
     }
 }
-
 
 bool FrameHandler::returnHeldBuffer() {
     std::lock_guard<std::mutex> lock(mLock);
@@ -103,21 +94,16 @@ bool FrameHandler::returnHeldBuffer() {
     return true;
 }
 
-
 bool FrameHandler::isRunning() {
     std::lock_guard<std::mutex> lock(mLock);
     return mRunning;
 }
 
-
 void FrameHandler::waitForFrameCount(unsigned frameCount) {
     // Wait until we've seen at least the requested number of frames (could be more)
     std::unique_lock<std::mutex> lock(mLock);
-    mFrameSignal.wait(lock, [this, frameCount](){
-                                return mFramesReceived >= frameCount;
-                            });
+    mFrameSignal.wait(lock, [this, frameCount]() { return mFramesReceived >= frameCount; });
 }
-
 
 void FrameHandler::getFramesCounters(unsigned* received, unsigned* displayed) {
     std::lock_guard<std::mutex> lock(mLock);
@@ -130,7 +116,6 @@ void FrameHandler::getFramesCounters(unsigned* received, unsigned* displayed) {
     }
 }
 
-
 Return<void> FrameHandler::deliverFrame(const BufferDesc_1_0& bufferArg) {
     ALOGW("A frame delivered via v1.0 method is rejected.");
     mCamera->doneWithFrame(bufferArg);
@@ -139,30 +124,27 @@ Return<void> FrameHandler::deliverFrame(const BufferDesc_1_0& bufferArg) {
 
 void FrameHandler::dumpCameraBuffer(const BufferDesc_1_1& tgtBuffer) {
     const AHardwareBuffer_Desc* pTgtDesc =
-        reinterpret_cast<const AHardwareBuffer_Desc *>(&tgtBuffer.buffer.description);
-    sp<android::GraphicBuffer> tgt = new android::GraphicBuffer(
-            tgtBuffer.buffer.nativeHandle, android::GraphicBuffer::CLONE_HANDLE,
-            pTgtDesc->width,
-            pTgtDesc->height,
-            pTgtDesc->format,
-            1,
-            pTgtDesc->usage,
-            pTgtDesc->stride);
+            reinterpret_cast<const AHardwareBuffer_Desc*>(&tgtBuffer.buffer.description);
+    sp<android::GraphicBuffer> tgt =
+            new android::GraphicBuffer(tgtBuffer.buffer.nativeHandle,
+                                       android::GraphicBuffer::CLONE_HANDLE, pTgtDesc->width,
+                                       pTgtDesc->height, pTgtDesc->format, 1, pTgtDesc->usage,
+                                       pTgtDesc->stride);
 
-    unsigned char*  tgtPixels = nullptr;
+    unsigned char* tgtPixels = nullptr;
     tgt->lock(GRALLOC_USAGE_SW_WRITE_OFTEN, (void**)&tgtPixels);
 
     if (tgtPixels) {
-         FILE *pf = NULL;
-         char name[100];
-         snprintf(name, 100, "/data/dump/camera_dump_%d.data", mFramesDisplayed);
-         pf = fopen(name, "wb");
-         if (pf == NULL) {
-             ALOGI("open %s failed", name);
-         } else {
-             fwrite(tgtPixels, pTgtDesc->width * pTgtDesc->height * 3, 1, pf);
-             fclose(pf);
-         }
+        FILE* pf = NULL;
+        char name[100];
+        snprintf(name, 100, "/data/dump/camera_dump_%d.data", mFramesDisplayed);
+        pf = fopen(name, "wb");
+        if (pf == NULL) {
+            ALOGI("open %s failed", name);
+        } else {
+            fwrite(tgtPixels, pTgtDesc->width * pTgtDesc->height * 3, 1, pf);
+            fclose(pf);
+        }
     }
 }
 
@@ -174,13 +156,13 @@ Return<void> FrameHandler::deliverFrame_1_1(const hidl_vec<BufferDesc_1_1>& buff
     mLock.unlock();
 
     const AHardwareBuffer_Desc* pDesc =
-        reinterpret_cast<const AHardwareBuffer_Desc *>(&buffer.buffer.description);
-    ALOGD("Received a frame from the camera (%p) %d",
-          buffer.buffer.nativeHandle.getNativeHandle(), mFramesDisplayed);
+            reinterpret_cast<const AHardwareBuffer_Desc*>(&buffer.buffer.description);
+    ALOGD("Received a frame from the camera (%p) %d", buffer.buffer.nativeHandle.getNativeHandle(),
+          mFramesDisplayed);
 
-    //if (mFramesDisplayed == 100 || mFramesDisplayed == 101)
-    //    dumpCameraBuffer(buffer);
-    // Store a dimension of a received frame.
+    // if (mFramesDisplayed == 100 || mFramesDisplayed == 101)
+    //     dumpCameraBuffer(buffer);
+    //  Store a dimension of a received frame.
     mFrameWidth = pDesc->width;
     mFrameHeight = pDesc->height;
 
@@ -190,10 +172,7 @@ Return<void> FrameHandler::deliverFrame_1_1(const hidl_vec<BufferDesc_1_1>& buff
     if (mDisplay.get()) {
         // Get the output buffer we'll use to display the imagery
         BufferDesc_1_0 tgtBuffer = {};
-        mDisplay->getTargetBuffer([&tgtBuffer](const BufferDesc_1_0& buff) {
-                                      tgtBuffer = buff;
-                                  }
-        );
+        mDisplay->getTargetBuffer([&tgtBuffer](const BufferDesc_1_0& buff) { tgtBuffer = buff; });
 
         if (tgtBuffer.memHandle == nullptr) {
             printf("Didn't get target buffer - frame lost\n");
@@ -212,7 +191,7 @@ Return<void> FrameHandler::deliverFrame_1_1(const hidl_vec<BufferDesc_1_1>& buff
             } else if (result != EvsResult::OK) {
                 printf("Display reported error - frame lost\n");
                 ALOGE("We encountered error %d when returning a buffer to the display!",
-                      (EvsResult) result);
+                      (EvsResult)result);
             } else {
                 // Everything looks good!
                 // Keep track so tests or watch dogs can monitor progress
@@ -229,22 +208,21 @@ Return<void> FrameHandler::deliverFrame_1_1(const hidl_vec<BufferDesc_1_1>& buff
     mFrameSignal.notify_all();
 
     switch (mReturnMode) {
-    case eAutoReturn:
-        // Send the camera buffer back now that the client has seen it
-        ALOGD("Calling doneWithFrame");
-        mCamera->doneWithFrame_1_1(buffers);
-        break;
-    case eNoAutoReturn:
-        // Hang onto the buffer handles for now -- the client will return it explicitly later
-        mHeldBuffers.push(buffers);
-        break;
+        case eAutoReturn:
+            // Send the camera buffer back now that the client has seen it
+            ALOGD("Calling doneWithFrame");
+            mCamera->doneWithFrame_1_1(buffers);
+            break;
+        case eNoAutoReturn:
+            // Hang onto the buffer handles for now -- the client will return it explicitly later
+            mHeldBuffers.push(buffers);
+            break;
     }
 
     ALOGD("Frame handling complete");
 
     return Void();
 }
-
 
 Return<void> FrameHandler::notify(const EvsEventDesc& event) {
     // Local flag we use to keep track of when the stream is stopping
@@ -256,8 +234,8 @@ Return<void> FrameHandler::notify(const EvsEventDesc& event) {
         // Signal that the last frame has been received and the stream is stopped
         mRunning = false;
     } else if (mLatestEventDesc.aType == EvsEventType::PARAMETER_CHANGED) {
-        ALOGD("Camera parameter 0x%X is changed to 0x%X",
-              mLatestEventDesc.payload[0], mLatestEventDesc.payload[1]);
+        ALOGD("Camera parameter 0x%X is changed to 0x%X", mLatestEventDesc.payload[0],
+              mLatestEventDesc.payload[1]);
     } else {
         ALOGD("Received an event %s", eventToString(mLatestEventDesc.aType));
     }
@@ -267,35 +245,25 @@ Return<void> FrameHandler::notify(const EvsEventDesc& event) {
     return Void();
 }
 
-
 bool FrameHandler::copyBufferContents(const BufferDesc_1_0& tgtBuffer,
                                       const BufferDesc_1_1& srcBuffer) {
     bool success = true;
     const AHardwareBuffer_Desc* pSrcDesc =
-        reinterpret_cast<const AHardwareBuffer_Desc *>(&srcBuffer.buffer.description);
+            reinterpret_cast<const AHardwareBuffer_Desc*>(&srcBuffer.buffer.description);
 
     // Make sure we don't run off the end of either buffer
-    const unsigned width  = std::min(tgtBuffer.width,
-                                     pSrcDesc->width);
-    const unsigned height = std::min(tgtBuffer.height,
-                                     pSrcDesc->height);
+    const unsigned width = std::min(tgtBuffer.width, pSrcDesc->width);
+    const unsigned height = std::min(tgtBuffer.height, pSrcDesc->height);
 
-    sp<android::GraphicBuffer> tgt = new android::GraphicBuffer(tgtBuffer.memHandle,
-                                                                android::GraphicBuffer::CLONE_HANDLE,
-                                                                tgtBuffer.width,
-                                                                tgtBuffer.height,
-                                                                tgtBuffer.format,
-                                                                1,
-                                                                tgtBuffer.usage,
-                                                                tgtBuffer.stride);
-    sp<android::GraphicBuffer> src = new android::GraphicBuffer(srcBuffer.buffer.nativeHandle,
-                                                                android::GraphicBuffer::CLONE_HANDLE,
-                                                                pSrcDesc->width,
-                                                                pSrcDesc->height,
-                                                                pSrcDesc->format,
-                                                                pSrcDesc->layers,
-                                                                pSrcDesc->usage,
-                                                                pSrcDesc->stride);
+    sp<android::GraphicBuffer> tgt =
+            new android::GraphicBuffer(tgtBuffer.memHandle, android::GraphicBuffer::CLONE_HANDLE,
+                                       tgtBuffer.width, tgtBuffer.height, tgtBuffer.format, 1,
+                                       tgtBuffer.usage, tgtBuffer.stride);
+    sp<android::GraphicBuffer> src =
+            new android::GraphicBuffer(srcBuffer.buffer.nativeHandle,
+                                       android::GraphicBuffer::CLONE_HANDLE, pSrcDesc->width,
+                                       pSrcDesc->height, pSrcDesc->format, pSrcDesc->layers,
+                                       pSrcDesc->usage, pSrcDesc->stride);
 
     // Lock our source buffer for reading (current expectation are for this to be NV21 format)
     uint8_t* srcPixels = nullptr;
@@ -308,21 +276,15 @@ bool FrameHandler::copyBufferContents(const BufferDesc_1_0& tgtBuffer,
     if (srcPixels && tgtPixels) {
         using namespace ::android::hardware::automotive::evs::common;
         if (tgtBuffer.format == HAL_PIXEL_FORMAT_RGBA_8888) {
-            if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCRCB_420_SP) {   // 420SP == NV21
-                Utils::copyNV21toRGB32(width, height,
-                                       srcPixels,
-                                       tgtPixels, tgtBuffer.stride);
+            if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCRCB_420_SP) { // 420SP == NV21
+                Utils::copyNV21toRGB32(width, height, srcPixels, tgtPixels, tgtBuffer.stride);
             } else if (pSrcDesc->format == HAL_PIXEL_FORMAT_YV12) { // YUV_420P == YV12
-                Utils::copyYV12toRGB32(width, height,
-                                       srcPixels,
-                                       tgtPixels, tgtBuffer.stride);
+                Utils::copyYV12toRGB32(width, height, srcPixels, tgtPixels, tgtBuffer.stride);
             } else if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCBCR_422_I) { // YUYV
-                Utils::copyYUYVtoRGB32(width, height,
-                                       srcPixels, pSrcDesc->stride,
-                                       tgtPixels, tgtBuffer.stride);
-            } else if (pSrcDesc->format == tgtBuffer.format) {  // 32bit RGBA
-                Utils::copyMatchedInterleavedFormats(width, height,
-                                                     srcPixels, pSrcDesc->stride,
+                Utils::copyYUYVtoRGB32(width, height, srcPixels, pSrcDesc->stride, tgtPixels,
+                                       tgtBuffer.stride);
+            } else if (pSrcDesc->format == tgtBuffer.format) { // 32bit RGBA
+                Utils::copyMatchedInterleavedFormats(width, height, srcPixels, pSrcDesc->stride,
                                                      tgtPixels, tgtBuffer.stride,
                                                      tgtBuffer.pixelSize);
             } else {
@@ -330,21 +292,15 @@ bool FrameHandler::copyBufferContents(const BufferDesc_1_0& tgtBuffer,
                 success = false;
             }
         } else if (tgtBuffer.format == HAL_PIXEL_FORMAT_BGRA_8888) {
-            if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCRCB_420_SP) {   // 420SP == NV21
-                Utils::copyNV21toBGR32(width, height,
-                                       srcPixels,
-                                       tgtPixels, tgtBuffer.stride);
+            if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCRCB_420_SP) { // 420SP == NV21
+                Utils::copyNV21toBGR32(width, height, srcPixels, tgtPixels, tgtBuffer.stride);
             } else if (pSrcDesc->format == HAL_PIXEL_FORMAT_YV12) { // YUV_420P == YV12
-                Utils::copyYV12toBGR32(width, height,
-                                       srcPixels,
-                                       tgtPixels, tgtBuffer.stride);
+                Utils::copyYV12toBGR32(width, height, srcPixels, tgtPixels, tgtBuffer.stride);
             } else if (pSrcDesc->format == HAL_PIXEL_FORMAT_YCBCR_422_I) { // YUYV
-                Utils::copyYUYVtoBGR32(width, height,
-                                       srcPixels, pSrcDesc->stride,
-                                       tgtPixels, tgtBuffer.stride);
-            } else if (pSrcDesc->format == tgtBuffer.format) {  // 32bit RGBA
-                Utils::copyMatchedInterleavedFormats(width, height,
-                                                     srcPixels, pSrcDesc->stride,
+                Utils::copyYUYVtoBGR32(width, height, srcPixels, pSrcDesc->stride, tgtPixels,
+                                       tgtBuffer.stride);
+            } else if (pSrcDesc->format == tgtBuffer.format) { // 32bit RGBA
+                Utils::copyMatchedInterleavedFormats(width, height, srcPixels, pSrcDesc->stride,
                                                      tgtPixels, tgtBuffer.stride,
                                                      tgtBuffer.pixelSize);
             } else {
@@ -381,26 +337,30 @@ void FrameHandler::getFrameDimension(unsigned* width, unsigned* height) {
     }
 }
 
-bool FrameHandler::waitForEvent(const EvsEventDesc& aTargetEvent,
-                                      EvsEventDesc& aReceivedEvent,
-                                      bool ignorePayload) {
+bool FrameHandler::waitForEvent(const EvsEventDesc& aTargetEvent, EvsEventDesc& aReceivedEvent,
+                                bool ignorePayload) {
     // Wait until we get an expected parameter change event.
     std::unique_lock<std::mutex> lock(mEventLock);
     auto now = std::chrono::system_clock::now();
     bool found = false;
     while (!found) {
-        bool result = mEventSignal.wait_until(lock, now + 5s,
-            [this, aTargetEvent, ignorePayload, &aReceivedEvent, &found](){
-                found = (mLatestEventDesc.aType == aTargetEvent.aType) &&
-                        (ignorePayload || (mLatestEventDesc.payload[0] == aTargetEvent.payload[0] &&
-                                           mLatestEventDesc.payload[1] == aTargetEvent.payload[1]));
+        bool result =
+                mEventSignal.wait_until(lock, now + 5s,
+                                        [this, aTargetEvent, ignorePayload, &aReceivedEvent,
+                                         &found]() {
+                                            found = (mLatestEventDesc.aType ==
+                                                     aTargetEvent.aType) &&
+                                                    (ignorePayload ||
+                                                     (mLatestEventDesc.payload[0] ==
+                                                              aTargetEvent.payload[0] &&
+                                                      mLatestEventDesc.payload[1] ==
+                                                              aTargetEvent.payload[1]));
 
-                aReceivedEvent.aType = mLatestEventDesc.aType;
-                aReceivedEvent.payload[0] = mLatestEventDesc.payload[0];
-                aReceivedEvent.payload[1] = mLatestEventDesc.payload[1];
-                return found;
-            }
-        );
+                                            aReceivedEvent.aType = mLatestEventDesc.aType;
+                                            aReceivedEvent.payload[0] = mLatestEventDesc.payload[0];
+                                            aReceivedEvent.payload[1] = mLatestEventDesc.payload[1];
+                                            return found;
+                                        });
 
         if (!result) {
             ALOGW("A timer is expired before a target event has happened.");
@@ -411,7 +371,7 @@ bool FrameHandler::waitForEvent(const EvsEventDesc& aTargetEvent,
     return found;
 }
 
-const char *FrameHandler::eventToString(const EvsEventType aType) {
+const char* FrameHandler::eventToString(const EvsEventType aType) {
     switch (aType) {
         case EvsEventType::STREAM_STARTED:
             return "STREAM_STARTED";
@@ -429,4 +389,3 @@ const char *FrameHandler::eventToString(const EvsEventType aType) {
             return "Unknown";
     }
 }
-

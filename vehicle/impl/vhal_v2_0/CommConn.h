@@ -18,6 +18,7 @@
 #define android_hardware_automotive_vehicle_V2_0_impl_CommBase_H_
 
 #include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
+
 #include <string>
 #include <thread>
 #include <vector>
@@ -37,7 +38,7 @@ namespace impl {
  * over a CommConn.
  */
 class MessageProcessor {
-   public:
+public:
     virtual ~MessageProcessor() = default;
 
     /**
@@ -53,7 +54,7 @@ class MessageProcessor {
  * connection will listen for commands on a separate 'read' thread.
  */
 class CommConn {
-   public:
+public:
     CommConn(MessageProcessor* messageProcessor) : mMessageProcessor(messageProcessor) {}
 
     virtual ~CommConn() {}
@@ -95,7 +96,7 @@ class CommConn {
      */
     void sendMessage(vhal_proto::EmulatorMessage const& msg);
 
-   protected:
+protected:
     std::unique_ptr<std::thread> mReadThread;
     MessageProcessor* mMessageProcessor;
 
@@ -106,12 +107,12 @@ class CommConn {
     void readThread();
 };
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_CommBase_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_CommBase_H_

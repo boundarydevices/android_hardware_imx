@@ -17,9 +17,8 @@
 #include "ImxCamera.h"
 
 ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
-                                                CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata)
-   : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc)
-{
+                     CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata)
+      : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc) {
     mCameraMetadata = cam_metadata;
 
     if (cam_metadata->buffer_type == CameraSensorMetadata::kMmap)
@@ -28,13 +27,9 @@ ImxCamera::ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path
         mVideoStream = new ImxCameraDMAStream(this, cam_metadata->omit_frame);
 }
 
-ImxCamera::~ImxCamera()
-{
-}
+ImxCamera::~ImxCamera() {}
 
-
-int ImxCamera::ImxCameraMMAPStream::getCaptureMode(int width, int height)
-{
+int ImxCamera::ImxCameraMMAPStream::getCaptureMode(int width, int height) {
     int index = 0;
     int ret = 0;
     int capturemode = 0;
@@ -44,8 +39,8 @@ int ImxCamera::ImxCameraMMAPStream::getCaptureMode(int width, int height)
         cam_frmsize.index = index++;
         cam_frmsize.pixel_format = v4l2_fourcc('Y', 'U', 'Y', 'V');
         ret = ioctl(mDev, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
-        if ((cam_frmsize.discrete.width == (uint32_t)width) && (cam_frmsize.discrete.height == (uint32_t)height)
-            && (ret == 0)) {
+        if ((cam_frmsize.discrete.width == (uint32_t)width) &&
+            (cam_frmsize.discrete.height == (uint32_t)height) && (ret == 0)) {
             capturemode = cam_frmsize.index;
             break;
         }
@@ -54,8 +49,7 @@ int ImxCamera::ImxCameraMMAPStream::getCaptureMode(int width, int height)
     return capturemode;
 }
 
-status_t ImxCamera::initSensorStaticData()
-{
+status_t ImxCamera::initSensorStaticData() {
     int32_t fd = open(mDevPath, O_RDWR);
     if (fd < 0) {
         ALOGE("ImxCameraCameraDevice: initParameters sensor has not been opened");
@@ -72,8 +66,7 @@ status_t ImxCamera::initSensorStaticData()
     // Don't support enum format, now hard code here.
     sensorFormats[index] = v4l2_fourcc('Y', 'U', 'Y', 'V');
     availFormats[index++] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-    mSensorFormatCount =
-        changeSensorFormats(sensorFormats, mSensorFormats, index);
+    mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
     if (mSensorFormatCount == 0) {
         ALOGE("%s no sensor format enum", __func__);
         close(fd);
@@ -81,8 +74,7 @@ status_t ImxCamera::initSensorStaticData()
     }
 
     availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
-    mAvailableFormatCount =
-        changeSensorFormats(availFormats, mAvailableFormats, index);
+    mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
     index = 0;
     char TmpStr[20];
@@ -93,16 +85,15 @@ status_t ImxCamera::initSensorStaticData()
         memset(TmpStr, 0, 20);
         memset(&cam_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
         cam_frmsize.index = index++;
-        cam_frmsize.pixel_format =
-            convertPixelFormatToV4L2Format(mSensorFormats[0]);
+        cam_frmsize.pixel_format = convertPixelFormatToV4L2Format(mSensorFormats[0]);
         ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
         if (ret != 0) {
             continue;
         }
-        ALOGI("enum frame size w:%d, h:%d", cam_frmsize.discrete.width, cam_frmsize.discrete.height);
+        ALOGI("enum frame size w:%d, h:%d", cam_frmsize.discrete.width,
+              cam_frmsize.discrete.height);
 
-        if (cam_frmsize.discrete.width == 0 ||
-              cam_frmsize.discrete.height == 0) {
+        if (cam_frmsize.discrete.width == 0 || cam_frmsize.discrete.height == 0) {
             continue;
         }
 
@@ -116,23 +107,21 @@ status_t ImxCamera::initSensorStaticData()
             continue;
         }
 
-
         // If w/h ratio is not same with senserW/sensorH, framework assume that
         // first crop little width or little height, then scale.
         // 176x144 not work in this mode.
 
-        if (!(cam_frmsize.discrete.width == 176 &&
-              cam_frmsize.discrete.height == 144) &&
-              vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator >= 5) {
+        if (!(cam_frmsize.discrete.width == 176 && cam_frmsize.discrete.height == 144) &&
+            vid_frmval.discrete.denominator / vid_frmval.discrete.numerator >= 5) {
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.width;
             mPictureResolutions[pictureCnt++] = cam_frmsize.discrete.height;
         }
 
-        if (vid_frmval.discrete.denominator /  vid_frmval.discrete.numerator >= 15) {
+        if (vid_frmval.discrete.denominator / vid_frmval.discrete.numerator >= 15) {
             mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.width;
             mPreviewResolutions[previewCnt++] = cam_frmsize.discrete.height;
         }
-    }  // end while
+    } // end while
 
     mPreviewResolutionCount = previewCnt;
     mPictureResolutionCount = pictureCnt;
@@ -170,24 +159,20 @@ status_t ImxCamera::initSensorStaticData()
     mPixelArrayHeight = mCameraMetadata->pixelarrayheight;
     mMaxJpegSize = mCameraMetadata->maxjpegsize;
 
-    ALOGI("ImxdpuCsi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
-          mFocalLength,
-          mPhysicalWidth,
-          mPhysicalHeight);
+    ALOGI("ImxdpuCsi, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f", mFocalLength,
+          mPhysicalWidth, mPhysicalHeight);
 
     close(fd);
     return NO_ERROR;
 }
 
-PixelFormat ImxCamera::getPreviewPixelFormat()
-{
+PixelFormat ImxCamera::getPreviewPixelFormat() {
     ALOGI("%s", __func__);
     return HAL_PIXEL_FORMAT_YCbCr_422_I;
 }
 
 // configure device.
-int32_t ImxCamera::ImxCameraMMAPStream::onDeviceConfigureLocked()
-{
+int32_t ImxCamera::ImxCameraMMAPStream::onDeviceConfigureLocked() {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     if (mDev <= 0) {
@@ -216,13 +201,13 @@ int32_t ImxCamera::ImxCameraMMAPStream::onDeviceConfigureLocked()
         frmival.index++;
     }
 
-    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF, (vformat >> 8) & 0xFF,
-        (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
+    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF,
+          (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    param.parm.capture.timeperframe.numerator   = 1;
+    param.parm.capture.timeperframe.numerator = 1;
     param.parm.capture.timeperframe.denominator = fps;
     param.parm.capture.capturemode = getCaptureMode(mWidth, mHeight);
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
@@ -234,12 +219,12 @@ int32_t ImxCamera::ImxCameraMMAPStream::onDeviceConfigureLocked()
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
 
-    fmt.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width        = mWidth & 0xFFFFFFF8;
-    fmt.fmt.pix.height       = mHeight & 0xFFFFFFF8;
-    fmt.fmt.pix.pixelformat  = vformat;
-    fmt.fmt.pix.priv         = 0;
-    fmt.fmt.pix.sizeimage    = 0;
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width = mWidth & 0xFFFFFFF8;
+    fmt.fmt.pix.height = mHeight & 0xFFFFFFF8;
+    fmt.fmt.pix.pixelformat = vformat;
+    fmt.fmt.pix.priv = 0;
+    fmt.fmt.pix.sizeimage = 0;
     fmt.fmt.pix.bytesperline = 0;
 
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
@@ -251,19 +236,18 @@ int32_t ImxCamera::ImxCameraMMAPStream::onDeviceConfigureLocked()
     setOmitFrameCount(0);
 
     struct OmitFrame *item;
-    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
-      if ((mWidth == item->width) && (mHeight == item->height)) {
-        setOmitFrameCount(item->omitnum);
-        break;
-      }
+    for (item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
+        if ((mWidth == item->width) && (mHeight == item->height)) {
+            setOmitFrameCount(item->omitnum);
+            break;
+        }
     }
 
     return 0;
 }
 
 // configure device.
-int32_t ImxCamera::ImxCameraDMAStream::onDeviceConfigureLocked()
-{
+int32_t ImxCamera::ImxCameraDMAStream::onDeviceConfigureLocked() {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     if (mDev <= 0) {
@@ -292,14 +276,14 @@ int32_t ImxCamera::ImxCameraDMAStream::onDeviceConfigureLocked()
         frmival.index++;
     }
 
-    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF, (vformat >> 8) & 0xFF,
-        (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
+    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF,
+          (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    param.parm.capture.timeperframe.numerator   = 1;
+    param.parm.capture.timeperframe.numerator = 1;
     param.parm.capture.timeperframe.denominator = fps;
     param.parm.capture.capturemode = getCaptureMode(mWidth, mHeight);
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
@@ -315,7 +299,8 @@ int32_t ImxCamera::ImxCameraDMAStream::onDeviceConfigureLocked()
     fmt.fmt.pix_mp.pixelformat = vformat;
     fmt.fmt.pix_mp.width = mWidth & 0xFFFFFFF8;
     fmt.fmt.pix_mp.height = mHeight & 0xFFFFFFF8;
-    fmt.fmt.pix_mp.num_planes = 1;  /*ov5640 use YUYV format, is packed storage mode, set num_planes 1*/
+    fmt.fmt.pix_mp.num_planes =
+            1; /*ov5640 use YUYV format, is packed storage mode, set num_planes 1*/
 
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
     if (ret < 0) {
@@ -326,18 +311,17 @@ int32_t ImxCamera::ImxCameraDMAStream::onDeviceConfigureLocked()
     setOmitFrameCount(0);
 
     struct OmitFrame *item;
-    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
-      if ((mWidth == item->width) && (mHeight == item->height)) {
-        setOmitFrameCount(item->omitnum);
-        break;
-      }
+    for (item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
+        if ((mWidth == item->width) && (mHeight == item->height)) {
+            setOmitFrameCount(item->omitnum);
+            break;
+        }
     }
 
     return 0;
 }
 
-int ImxCamera::ImxCameraDMAStream::getCaptureMode(int width, int height)
-{
+int ImxCamera::ImxCameraDMAStream::getCaptureMode(int width, int height) {
     int index = 0;
     int ret = 0;
     int capturemode = 0;
@@ -347,8 +331,8 @@ int ImxCamera::ImxCameraDMAStream::getCaptureMode(int width, int height)
         cam_frmsize.index = index++;
         cam_frmsize.pixel_format = v4l2_fourcc('Y', 'U', 'Y', 'V');
         ret = ioctl(mDev, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
-        if ((cam_frmsize.discrete.width == (uint32_t)width) && (cam_frmsize.discrete.height == (uint32_t)height)
-            && (ret == 0)) {
+        if ((cam_frmsize.discrete.width == (uint32_t)width) &&
+            (cam_frmsize.discrete.height == (uint32_t)height) && (ret == 0)) {
             capturemode = cam_frmsize.index;
             break;
         }

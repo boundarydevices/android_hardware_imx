@@ -14,47 +14,40 @@
  * limitations under the License.
  */
 
-#include <stdint.h>
-#include <errno.h>
-#include <unistd.h>
-#include <poll.h>
-#include <string.h>
-
-#include <sys/cdefs.h>
-#include <sys/types.h>
-
-#include <linux/input.h>
+#include "InputEventReader.h"
 
 #include <cutils/log.h>
-
-#include "InputEventReader.h"
+#include <errno.h>
+#include <linux/input.h>
+#include <poll.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 /*****************************************************************************/
 
 struct input_event;
 
 InputEventCircularReader::InputEventCircularReader(size_t numEvents)
-    : mBuffer(new input_event[numEvents * 2]),
-      mBufferEnd(mBuffer + numEvents),
-      mHead(mBuffer),
-      mCurr(mBuffer),
-      mFreeSpace(numEvents)
-{
+      : mBuffer(new input_event[numEvents * 2]),
+        mBufferEnd(mBuffer + numEvents),
+        mHead(mBuffer),
+        mCurr(mBuffer),
+        mFreeSpace(numEvents) {}
+
+InputEventCircularReader::~InputEventCircularReader() {
+    delete[] mBuffer;
 }
 
-InputEventCircularReader::~InputEventCircularReader()
-{
-    delete [] mBuffer;
-}
-
-ssize_t InputEventCircularReader::fill(int fd)
-{
+ssize_t InputEventCircularReader::fill(int fd) {
     size_t numEventsRead = 0;
     if (mFreeSpace) {
         const ssize_t nread = read(fd, mHead, mFreeSpace * sizeof(input_event));
-        if (nread<0 || nread % sizeof(input_event)) {
+        if (nread < 0 || nread % sizeof(input_event)) {
             // we got a partial event!!
-            return nread<0 ? -errno : -EINVAL;
+            return nread < 0 ? -errno : -EINVAL;
         }
 
         numEventsRead = nread / sizeof(input_event);
@@ -72,15 +65,13 @@ ssize_t InputEventCircularReader::fill(int fd)
     return numEventsRead;
 }
 
-ssize_t InputEventCircularReader::readEvent(input_event const** events)
-{
+ssize_t InputEventCircularReader::readEvent(input_event const** events) {
     *events = mCurr;
     ssize_t available = (mBufferEnd - mBuffer) - mFreeSpace;
     return available ? 1 : 0;
 }
 
-void InputEventCircularReader::next()
-{
+void InputEventCircularReader::next() {
     mCurr++;
     mFreeSpace++;
     if (mCurr >= mBufferEnd) {

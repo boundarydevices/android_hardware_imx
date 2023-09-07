@@ -19,6 +19,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+
 #include "ImxSurroundViewTypes.hpp"
 
 using namespace std;
@@ -27,62 +28,58 @@ using namespace Eigen;
 namespace imx {
 
 struct ImxSV2DParams {
-  // fisheye image resolution (width, height).
-  Size2dInteger cam_resolution;
+    // fisheye image resolution (width, height).
+    Size2dInteger cam_resolution;
 
-  // surround view 2d image resolution (width, height).
-  Size2dInteger resolution;
+    // surround view 2d image resolution (width, height).
+    Size2dInteger resolution;
 
-  // the physical size of surround view 2d area in surround view coordinate.
-  // (surround view coordinate is defined as X rightward, Y forward and
-  // the origin lies on the center of the (symmetric) bowl (ground).
-  // When bowl is not used, surround view coordinate origin lies on the
-  // center of car model bounding box.)
-  // The unit should be consistent with camera extrinsics (translation).
-  Size2dFloat physical_size;
+    // the physical size of surround view 2d area in surround view coordinate.
+    // (surround view coordinate is defined as X rightward, Y forward and
+    // the origin lies on the center of the (symmetric) bowl (ground).
+    // When bowl is not used, surround view coordinate origin lies on the
+    // center of car model bounding box.)
+    // The unit should be consistent with camera extrinsics (translation).
+    Size2dFloat physical_size;
 
-  ImxSV2DParams()
-      : cam_resolution{0, 0},
-        resolution{0, 0},
-        physical_size{0.0f, 0.0f}{}
+    ImxSV2DParams() : cam_resolution{0, 0}, resolution{0, 0}, physical_size{0.0f, 0.0f} {}
 
-  ImxSV2DParams(Size2dInteger cam_resolution_, 
-          Size2dInteger resolution_, Size2dFloat physical_size_)
-      : cam_resolution(cam_resolution_),
-        resolution(resolution_),
-        physical_size(physical_size_){}
+    ImxSV2DParams(Size2dInteger cam_resolution_, Size2dInteger resolution_,
+                  Size2dFloat physical_size_)
+          : cam_resolution(cam_resolution_),
+            resolution(resolution_),
+            physical_size(physical_size_) {}
 
-  bool IsValid() const {
-    return resolution.IsValid() && physical_size.IsValid() && cam_resolution.IsValid();
-  }
+    bool IsValid() const {
+        return resolution.IsValid() && physical_size.IsValid() && cam_resolution.IsValid();
+    }
 
-  bool operator==(const ImxSV2DParams& rhs) const {
-    return resolution == rhs.resolution && physical_size == rhs.physical_size &&
-        cam_resolution == rhs.cam_resolution;
-  }
+    bool operator==(const ImxSV2DParams &rhs) const {
+        return resolution == rhs.resolution && physical_size == rhs.physical_size &&
+                cam_resolution == rhs.cam_resolution;
+    }
 
-  ImxSV2DParams& operator=(const ImxSV2DParams& rhs) {
-    cam_resolution = rhs.cam_resolution;
-    resolution = rhs.resolution;
-    physical_size = rhs.physical_size;
-    return *this;
-  }
+    ImxSV2DParams &operator=(const ImxSV2DParams &rhs) {
+        cam_resolution = rhs.cam_resolution;
+        resolution = rhs.resolution;
+        physical_size = rhs.physical_size;
+        return *this;
+    }
 };
 
 class Imx2DSV {
-    public:
+public:
     virtual ~Imx2DSV() = default;
     Imx2DSV();
-    
+
     bool startSV();
     bool stopSV();
-    bool SetConfigs(ImxSV2DParams &sv2DParams,
-            vector<Vector3d> &evsRotations, vector<Vector3d> &evsTransforms,
-            vector<Matrix<double, 3, 3>> &Ks, vector<Matrix<double, 1, 4>> &Ds);
-    bool GetSVBuffer(vector<shared_ptr<char>> &distorts, void *flat_outbuf,
-            uint32_t bpp);
+    bool SetConfigs(ImxSV2DParams &sv2DParams, vector<Vector3d> &evsRotations,
+                    vector<Vector3d> &evsTransforms, vector<Matrix<double, 3, 3>> &Ks,
+                    vector<Matrix<double, 1, 4>> &Ds);
+    bool GetSVBuffer(vector<shared_ptr<char>> &distorts, void *flat_outbuf, uint32_t bpp);
 
-    private:
+private:
     bool updateLUT();
 
     ImxSV2DParams m2DParams;
@@ -93,5 +90,5 @@ class Imx2DSV {
     shared_ptr<PixelMap> mLookupPtr;
 };
 
-} //namespace
+} // namespace imx
 #endif

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
+#include "vhal_v2_0/ProtoMessageConverter.h"
 
+#include <gtest/gtest.h>
 #include <utils/SystemClock.h>
 
 #include "vhal_v2_0/DefaultConfig.h"
-#include "vhal_v2_0/ProtoMessageConverter.h"
 #include "vhal_v2_0/VehicleUtils.h"
 
 namespace android {
@@ -99,12 +99,12 @@ TEST(ProtoMessageConverterTest, basic) {
     }
 }
 
-}  // namespace
+} // namespace
 
-}  // namespace proto_msg_converter
-}  // namespace impl
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace proto_msg_converter
+} // namespace impl
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

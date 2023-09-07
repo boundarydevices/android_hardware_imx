@@ -17,9 +17,9 @@
 #ifndef ANDROID_FSL_PEDOMETER_SENSOR_H
 #define ANDROID_FSL_PEDOMETER_SENSOR_H
 
-#include "sensors.h"
-#include "SensorBase.h"
 #include "InputEventReader.h"
+#include "SensorBase.h"
+#include "sensors.h"
 
 /*****************************************************************************/
 
@@ -34,7 +34,7 @@ public:
     void processEvent(int code, int value);
 
 private:
-    int sensor_get_class_path(char *class_path);
+    int sensor_get_class_path(char* class_path);
     int is_sensor_enabled();
     int enable_sensor();
     int disable_sensor();
@@ -53,4 +53,4 @@ private:
 
 /*****************************************************************************/
 
-#endif  // ANDROID_FSL_ACCEL_SENSOR_H
+#endif // ANDROID_FSL_ACCEL_SENSOR_H

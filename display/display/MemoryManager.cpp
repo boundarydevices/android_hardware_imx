@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-#include <sys/mman.h>
+#include "MemoryManager.h"
+
+#include <cutils/ashmem.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
-#include <cutils/ashmem.h>
+#include <sys/mman.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include "MemoryManager.h"
 
 namespace fsl {
 
@@ -33,8 +34,7 @@ namespace fsl {
 MemoryManager* MemoryManager::sInstance(0);
 Mutex MemoryManager::sLock(Mutex::PRIVATE);
 
-MemoryManager* MemoryManager::getInstance()
-{
+MemoryManager* MemoryManager::getInstance() {
     Mutex::Autolock _l(sLock);
     if (sInstance != NULL) {
         return sInstance;
@@ -45,8 +45,7 @@ MemoryManager* MemoryManager::getInstance()
     return sInstance;
 }
 
-MemoryManager::MemoryManager()
-{
+MemoryManager::MemoryManager() {
     mIonManager = new IonManager();
 
     mGPUModule = NULL;
@@ -54,27 +53,24 @@ MemoryManager::MemoryManager()
     ALOGI("open gpu gralloc module!");
     if (hw_get_module(GPU_MODULE_ID, (const hw_module_t**)&mGPUModule) == 0) {
         int status = gralloc_open((const hw_module_t*)mGPUModule, &mGPUAlloc);
-        if(status || !mGPUAlloc){
+        if (status || !mGPUAlloc) {
             ALOGI("no gpu gralloc device!");
         }
-    }
-    else {
+    } else {
         ALOGI("no gpu gralloc module!");
     }
 }
 
-MemoryManager::~MemoryManager()
-{
+MemoryManager::~MemoryManager() {
     if (mIonManager != NULL) {
         delete mIonManager;
     }
     if (mGPUAlloc != NULL) {
-        mGPUAlloc->common.close((struct hw_device_t *)mGPUAlloc);
+        mGPUAlloc->common.close((struct hw_device_t*)mGPUAlloc);
     }
 }
 
-bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
-{
+bool MemoryManager::isDrmAlloc(int flags, int format, int usage) {
     bool canHandle = true;
 
     /* The following conditions decide allocator.
@@ -86,37 +82,33 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
      * 6) encoder memory should use ION.
      * 7) all YUV format use ION.
      * 8) other conditions can use DRM Gralloc.
-    */
+     */
 #ifdef FRAMEBUFFER_COMPRESSION
     if (flags & (FLAGS_SECURE | FLAGS_DIMBUFFER)) {
 #else
     if (flags & (FLAGS_FRAMEBUFFER | FLAGS_SECURE | FLAGS_DIMBUFFER)) {
 #endif
         canHandle = false;
-    }
-    else if (mGPUAlloc == NULL) {
+    } else if (mGPUAlloc == NULL) {
         canHandle = false;
-    }
-    else if ((format == FORMAT_RGB565) && (usage & USAGE_PADDING_BUFFER)) {
+    } else if ((format == FORMAT_RGB565) && (usage & USAGE_PADDING_BUFFER)) {
         canHandle = false;
-    }
-    else if ((format == FORMAT_NV12) || (format == FORMAT_NV21) ||
-        (format == FORMAT_NV16) || (format == FORMAT_YUYV) ||
-        (format == FORMAT_YV12) || (format == FORMAT_I420) ||
-        (format == FORMAT_NV12_TILED) ||
-        format == FORMAT_NV12_G1_TILED || format == FORMAT_NV12_G2_TILED ||
-        format == FORMAT_NV12_G2_TILED_COMPRESSED || format == FORMAT_P010 ||
-        format == FORMAT_P010_TILED || format == FORMAT_P010_TILED_COMPRESSED ||
-        format == FORMAT_YCBCR_P010 ||
-        format == FORMAT_BLOB) {
+    } else if ((format == FORMAT_NV12) || (format == FORMAT_NV21) || (format == FORMAT_NV16) ||
+               (format == FORMAT_YUYV) || (format == FORMAT_YV12) || (format == FORMAT_I420) ||
+               (format == FORMAT_NV12_TILED) || format == FORMAT_NV12_G1_TILED ||
+               format == FORMAT_NV12_G2_TILED || format == FORMAT_NV12_G2_TILED_COMPRESSED ||
+               format == FORMAT_P010 || format == FORMAT_P010_TILED ||
+               format == FORMAT_P010_TILED_COMPRESSED || format == FORMAT_YCBCR_P010 ||
+               format == FORMAT_BLOB) {
         canHandle = false;
-    }
-    else if (usage & USAGE_HW_VIDEO_ENCODER || usage & USAGE_PROTECTED) {
+    } else if (usage & USAGE_HW_VIDEO_ENCODER || usage & USAGE_PROTECTED) {
         canHandle = false;
-    }
-    else if ((usage == (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER | USAGE_HW_TEXTURE)) ||
-        (usage == (GRALLOC1_CONSUMER_USAGE_CPU_READ_OFTEN | GRALLOC1_PRODUCER_USAGE_CPU_WRITE_OFTEN
-        | USAGE_HW_RENDER | USAGE_HW_TEXTURE))) {
+    } else if ((usage ==
+                (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER |
+                 USAGE_HW_TEXTURE)) ||
+               (usage ==
+                (GRALLOC1_CONSUMER_USAGE_CPU_READ_OFTEN | GRALLOC1_PRODUCER_USAGE_CPU_WRITE_OFTEN |
+                 USAGE_HW_RENDER | USAGE_HW_TEXTURE))) {
         canHandle = false;
     }
 #ifdef WORKAROUND_VIRTUAL_DISPLAY_FLICKER
@@ -128,16 +120,14 @@ bool MemoryManager::isDrmAlloc(int flags, int format, int usage)
     return canHandle;
 }
 
-int MemoryManager::allocSystemMemeory(uint64_t size)
-{
+int MemoryManager::allocSystemMemeory(uint64_t size) {
     int ret = -1;
     ret = mIonManager->allocSystemMemeory(size);
     return ret;
 }
 
-int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
-{
-    Memory *handle = NULL;
+int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out) {
+    Memory* handle = NULL;
     int ret = 0;
 
     if (desc.mProduceUsage & USAGE_PROTECTED) {
@@ -145,12 +135,12 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
     }
 
     if (isDrmAlloc(desc.mFlag, desc.mFslFormat, desc.mProduceUsage)) {
-        ret = mGPUAlloc->alloc(mGPUAlloc, desc.mWidth, desc.mHeight,
-                desc.mFormat, (int)desc.mProduceUsage,
-                (buffer_handle_t *)&handle, &desc.mStride);
+        ret = mGPUAlloc->alloc(mGPUAlloc, desc.mWidth, desc.mHeight, desc.mFormat,
+                               (int)desc.mProduceUsage, (buffer_handle_t*)&handle, &desc.mStride);
         if (ret == 0 && handle != NULL) {
             handle->fslFormat = desc.mFslFormat;
-            if ((desc.mFlag & FLAGS_FRAMEBUFFER) || (desc.mProduceUsage & GRALLOC_USAGE_HW_COMPOSER)) {
+            if ((desc.mFlag & FLAGS_FRAMEBUFFER) ||
+                (desc.mProduceUsage & GRALLOC_USAGE_HW_COMPOSER)) {
                 mIonManager->getPhys(handle);
                 handle->flags = desc.mFlag;
             }
@@ -178,8 +168,7 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out)
     return 0;
 }
 
-int MemoryManager::retainMemory(Memory* handle)
-{
+int MemoryManager::retainMemory(Memory* handle) {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
@@ -195,8 +184,7 @@ int MemoryManager::retainMemory(Memory* handle)
     return 0;
 }
 
-int MemoryManager::releaseMemory(Memory* handle)
-{
+int MemoryManager::releaseMemory(Memory* handle) {
     int ret;
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
@@ -205,7 +193,7 @@ int MemoryManager::releaseMemory(Memory* handle)
 
     /* kmsFd, fbHandle and fbId are created in KmsDisplay.
      * It is hard to put free memory code to KmsDisplay.
-    */
+     */
     if (handle->kmsFd > 0) {
         if (handle->fbId != 0) {
             drmModeRmFB(handle->kmsFd, handle->fbId);
@@ -215,8 +203,7 @@ int MemoryManager::releaseMemory(Memory* handle)
             memset(&gem_close, 0, sizeof(gem_close));
             gem_close.handle = handle->fbHandle;
             if (drmIoctl(handle->kmsFd, DRM_IOCTL_GEM_CLOSE, &gem_close)) {
-                ALOGE("%s: gem close failed as errno %s", __func__,
-                    strerror(errno));
+                ALOGE("%s: gem close failed as errno %s", __func__, strerror(errno));
             }
         }
     }
@@ -226,9 +213,8 @@ int MemoryManager::releaseMemory(Memory* handle)
     if (handle->fd_region > 0) {
         int ret = close(handle->fd_region);
         handle->fd_region = 0;
-        if(ret != 0) {
-            ALOGE("%s: close fd_region failed as errno %s", __func__,
-                strerror(errno));
+        if (ret != 0) {
+            ALOGE("%s: close fd_region failed as errno %s", __func__, strerror(errno));
         }
     }
 
@@ -236,9 +222,9 @@ int MemoryManager::releaseMemory(Memory* handle)
         if (handle->fd_meta > 0) {
             ret = close(handle->fd_meta);
             handle->fd_meta = 0;
-            if(ret != 0){
+            if (ret != 0) {
                 ALOGE("%s: close DRM allocated fd_meta failed as errno %s", __func__,
-                        strerror(errno));
+                      strerror(errno));
             }
         }
         return mGPUAlloc->free(mGPUAlloc, handle);
@@ -251,9 +237,8 @@ int MemoryManager::releaseMemory(Memory* handle)
     if (handle->fd > 0) {
         ret = close(handle->fd);
         handle->fd = 0;
-        if(ret != 0){
-            ALOGE("%s: close fd failed as errno %s", __func__,
-                strerror(errno));
+        if (ret != 0) {
+            ALOGE("%s: close fd failed as errno %s", __func__, strerror(errno));
         }
     }
 
@@ -266,9 +251,8 @@ int MemoryManager::releaseMemory(Memory* handle)
     if (handle->fd_meta > 0) {
         ret = close(handle->fd_meta);
         handle->fd_meta = 0;
-        if(ret != 0){
-            ALOGE("%s: close fd_meta failed as errno %s", __func__,
-                strerror(errno));
+        if (ret != 0) {
+            ALOGE("%s: close fd_meta failed as errno %s", __func__, strerror(errno));
         }
     }
 
@@ -277,34 +261,28 @@ int MemoryManager::releaseMemory(Memory* handle)
     return 0;
 }
 
-int MemoryManager::lock(Memory* handle, int usage,
-        int l, int t, int w, int h, void** vaddr)
-{
+int MemoryManager::lock(Memory* handle, int usage, int l, int t, int w, int h, void** vaddr) {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
     }
 
     if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
-        return mGPUModule->lock(mGPUModule, handle, usage,
-                    l, t, w, h, vaddr);
+        return mGPUModule->lock(mGPUModule, handle, usage, l, t, w, h, vaddr);
     }
 
     return mIonManager->lock(handle, usage, l, t, w, h, vaddr);
 }
 
-int MemoryManager::lockYCbCr(Memory* handle, int usage,
-            int l, int t, int w, int h,
-            android_ycbcr* ycbcr)
-{
+int MemoryManager::lockYCbCr(Memory* handle, int usage, int l, int t, int w, int h,
+                             android_ycbcr* ycbcr) {
     if (handle == NULL || !handle->isValid() || ycbcr == NULL) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
     }
 
     if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
-        return mGPUModule->lock_ycbcr(mGPUModule, handle, usage,
-                    l, t, w, h, ycbcr);
+        return mGPUModule->lock_ycbcr(mGPUModule, handle, usage, l, t, w, h, ycbcr);
     }
 
     int ret = mIonManager->lockYCbCr(handle, usage, l, t, w, h, ycbcr);
@@ -318,7 +296,7 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cb = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
+            ycbcr->cb = (void*)(handle->base + handle->stride * ALIGN_PIXEL_4(handle->height));
             ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + 1);
             ycbcr->chroma_step = 2;
             break;
@@ -327,7 +305,7 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cr = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
+            ycbcr->cr = (void*)(handle->base + handle->stride * ALIGN_PIXEL_4(handle->height));
             ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + 1);
             ycbcr->chroma_step = 2;
             break;
@@ -336,8 +314,9 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cb = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
-            ycbcr->cr = (void*)((uintptr_t)ycbcr->cb + ycbcr->cstride*ALIGN_PIXEL_4(handle->height)/2);
+            ycbcr->cb = (void*)(handle->base + handle->stride * ALIGN_PIXEL_4(handle->height));
+            ycbcr->cr = (void*)((uintptr_t)ycbcr->cb +
+                                ycbcr->cstride * ALIGN_PIXEL_4(handle->height) / 2);
             ycbcr->chroma_step = 1;
             break;
 
@@ -345,8 +324,9 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
             ycbcr->ystride = handle->stride;
             ycbcr->cstride = ycbcr->ystride / 2;
             ycbcr->y = (void*)handle->base;
-            ycbcr->cr = (void*)(handle->base + handle->stride*ALIGN_PIXEL_4(handle->height));
-            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr + ycbcr->cstride*ALIGN_PIXEL_4(handle->height)/2);
+            ycbcr->cr = (void*)(handle->base + handle->stride * ALIGN_PIXEL_4(handle->height));
+            ycbcr->cb = (void*)((uintptr_t)ycbcr->cr +
+                                ycbcr->cstride * ALIGN_PIXEL_4(handle->height) / 2);
             ycbcr->chroma_step = 1;
             break;
 
@@ -367,8 +347,7 @@ int MemoryManager::lockYCbCr(Memory* handle, int usage,
     return 0;
 }
 
-int MemoryManager::unlock(Memory* handle)
-{
+int MemoryManager::unlock(Memory* handle) {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
@@ -381,22 +360,20 @@ int MemoryManager::unlock(Memory* handle)
     return mIonManager->unlock(handle);
 }
 
-int MemoryManager::validateMemory(MemoryDesc& desc,Memory* handle)
-{
+int MemoryManager::validateMemory(MemoryDesc& desc, Memory* handle) {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
     }
 
     if (isDrmAlloc(desc.mFlag, desc.mFslFormat, desc.mProduceUsage)) {
-        return mGPUModule->validateBufferSize(mGPUModule, handle,desc.mWidth,
-                    desc.mHeight,desc.mFormat, (int)desc.mProduceUsage,desc.mStride);
+        return mGPUModule->validateBufferSize(mGPUModule, handle, desc.mWidth, desc.mHeight,
+                                              desc.mFormat, (int)desc.mProduceUsage, desc.mStride);
     }
     return desc.mSize != handle->size;
 }
 
-int MemoryManager::allocMetaData(Memory* handle)
-{
+int MemoryManager::allocMetaData(Memory* handle) {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
@@ -407,8 +384,7 @@ int MemoryManager::allocMetaData(Memory* handle)
     return handle->fd_meta > 0;
 }
 
-MetaData *MemoryManager::getMetaData(Memory* handle)
-{
+MetaData* MemoryManager::getMetaData(Memory* handle) {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return NULL;
@@ -420,10 +396,10 @@ MetaData *MemoryManager::getMetaData(Memory* handle)
 
     if (mMetaMap.indexOfKey(handle) >= 0) {
         uint64_t addr = mMetaMap.valueFor(handle);
-        return (MetaData *)addr;
+        return (MetaData*)addr;
     }
 
-    void *addr = NULL;
+    void* addr = NULL;
     int fd = handle->fd_meta;
     size_t size = sizeof(MetaData);
     addr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -432,11 +408,10 @@ MetaData *MemoryManager::getMetaData(Memory* handle)
     }
 
     mMetaMap.add(handle, (uint64_t)addr);
-    return (MetaData *)addr;
+    return (MetaData*)addr;
 }
 
-int MemoryManager::flush(Memory* handle)
-{
+int MemoryManager::flush(Memory* handle) {
     if (handle == NULL || !handle->isValid()) {
         ALOGE("%s invalid handle", __func__);
         return -EINVAL;
@@ -444,12 +419,11 @@ int MemoryManager::flush(Memory* handle)
 
     if (isDrmAlloc(handle->flags, handle->fslFormat, handle->usage)) {
         // TODO: add flush operation for the buffer allocated in DRM
-        return 0;//mGPUModule->unlock(mGPUModule, handle);
+        return 0; // mGPUModule->unlock(mGPUModule, handle);
     } else {
-        if (handle->flags & FLAGS_CPU)
-            mIonManager->flushCache(handle);
+        if (handle->flags & FLAGS_CPU) mIonManager->flushCache(handle);
         return 0;
     }
 }
 
-}
+} // namespace fsl

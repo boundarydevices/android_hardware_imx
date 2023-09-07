@@ -16,21 +16,19 @@
 #ifndef HWC_CONTEXT_H_
 #define HWC_CONTEXT_H_
 
-#include <hardware/hardware.h>
-
-#include <fcntl.h>
-#include <errno.h>
-
-#include <cutils/log.h>
-#include <cutils/atomic.h>
-#include <cutils/properties.h>
-#include <utils/threads.h>
-#include <hardware/hwcomposer.h>
-#include <utils/StrongPointer.h>
-
-#include <linux/mxcfb.h>
-#include <linux/ioctl.h>
 #include <EGL/egl.h>
+#include <cutils/atomic.h>
+#include <cutils/log.h>
+#include <cutils/properties.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <hardware/hardware.h>
+#include <hardware/hwcomposer.h>
+#include <linux/ioctl.h>
+#include <linux/mxcfb.h>
+#include <utils/StrongPointer.h>
+#include <utils/threads.h>
+
 #include "hwc_vsync.h"
 /*****************************************************************************/
 #define HWC_PRIMARY_DISPLAY "/dev/graphics/fb0"
@@ -38,10 +36,10 @@
 #define HWC_STRING_LENGTH 32
 
 enum {
-    HWC_DISPLAY_LDB =  1,
+    HWC_DISPLAY_LDB = 1,
     HWC_DISPLAY_HDMI = 2,
-    HWC_DISPLAY_DVI =  3,
-    HWC_DISPLAY_LCD =  4,
+    HWC_DISPLAY_DVI = 3,
+    HWC_DISPLAY_LCD = 4,
     HWC_DISPLAY_EPDC = 5
 };
 

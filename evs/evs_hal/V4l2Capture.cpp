@@ -13,31 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "V4l2Capture.h"
+
+#include <android-base/file.h>
+#include <errno.h>
+#include <error.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <log/log.h>
+#include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <error.h>
-#include <errno.h>
-#include <memory.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <log/log.h>
-#include <inttypes.h>
-#include <android-base/file.h>
+#include <unistd.h>
 
 #include "assert.h"
 
-#include "V4l2Capture.h"
-
-//#define DEBUG_V4L2_CAMERA
+// #define DEBUG_V4L2_CAMERA
 #ifdef DEBUG_V4L2_CAMERA
 static int nub;
 #endif
-V4l2Capture::V4l2Capture(const char *deviceName, const char *videoName,
-                     __u32 width, __u32 height, int format, const camera_metadata_t *metadata)
-    : EvsCamera(videoName, metadata)
-{
+V4l2Capture::V4l2Capture(const char* deviceName, const char* videoName, __u32 width, __u32 height,
+                         int format, const camera_metadata_t* metadata)
+      : EvsCamera(videoName, metadata) {
     mV4lFormat = getV4lFormat(format);
     mWidth = width;
     mHeight = height;
@@ -51,12 +50,9 @@ V4l2Capture::V4l2Capture(const char *deviceName, const char *videoName,
         mPhysicalCamera.emplace(deviceName);
 }
 
-V4l2Capture::~V4l2Capture()
-{
-}
+V4l2Capture::~V4l2Capture() {}
 
-int V4l2Capture::getCaptureMode(int fd, int width, int height)
-{
+int V4l2Capture::getCaptureMode(int fd, int width, int height) {
     int index = 0;
     int ret = 0;
     int capturemode = 0;
@@ -72,8 +68,7 @@ int V4l2Capture::getCaptureMode(int fd, int width, int height)
         vid_frmsize.pixel_format = mV4lFormat;
         ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &vid_frmsize);
         if ((vid_frmsize.discrete.width == (uint32_t)width) &&
-            (vid_frmsize.discrete.height == (uint32_t)height)
-            && (ret == 0)) {
+            (vid_frmsize.discrete.height == (uint32_t)height) && (ret == 0)) {
             capturemode = vid_frmsize.index;
             break;
         }
@@ -82,8 +77,7 @@ int V4l2Capture::getCaptureMode(int fd, int width, int height)
     return capturemode;
 }
 
-int V4l2Capture::getV4lFormat(int format)
-{
+int V4l2Capture::getV4lFormat(int format) {
     int v4lFormat = -1;
     switch (format) {
         case HAL_PIXEL_FORMAT_YCBCR_422_I:
@@ -104,8 +98,7 @@ int V4l2Capture::getV4lFormat(int format)
 }
 
 // support both logic camera and physical camera.
-bool V4l2Capture::onOpen(const char* deviceName)
-{
+bool V4l2Capture::onOpen(const char* deviceName) {
     // If we want polling interface for getting frames, we would use O_NONBLOCK
     // int mDeviceFd = open(deviceName, O_RDWR | O_NONBLOCK, 0);
     int pyhic_cam_fd;
@@ -131,7 +124,7 @@ bool V4l2Capture::onOpen(const char* deviceName)
 
     // init v4l2 buffer index to -1, which mean it do not map one grolloc buffer
     std::unordered_map<int, int> init_index;
-    for (int i=0; i<V4L2_BUFFER_NUM; i++) {
+    for (int i = 0; i < V4L2_BUFFER_NUM; i++) {
         init_index[i] = -1;
     }
 
@@ -142,8 +135,7 @@ bool V4l2Capture::onOpen(const char* deviceName)
     return true;
 }
 
-int V4l2Capture::onOpenSingleCamera(const char* deviceName)
-{
+int V4l2Capture::onOpenSingleCamera(const char* deviceName) {
     int fd = -1;
 
     if (deviceName == nullptr) {
@@ -152,17 +144,15 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
     }
     fd = ::open(deviceName, O_RDWR, 0);
     if (fd < 0) {
-        ALOGE("failed to open device %s (%d = %s)",
-                deviceName, errno, strerror(errno));
+        ALOGE("failed to open device %s (%d = %s)", deviceName, errno, strerror(errno));
         return fd;
     }
 
     v4l2_capability caps;
     {
         int result = ioctl(fd, VIDIOC_QUERYCAP, &caps);
-        if (result  < 0) {
-            ALOGE("failed to get device caps for %s (%d = %s)",
-                    deviceName, errno, strerror(errno));
+        if (result < 0) {
+            ALOGE("failed to get device caps for %s (%d = %s)", deviceName, errno, strerror(errno));
             return -EINVAL;
         }
     }
@@ -171,10 +161,8 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
     ALOGV("Open Device: %s (fd=%d)", deviceName, fd);
     ALOGV("  Driver: %s", caps.driver);
     ALOGV("  Card: %s", caps.card);
-    ALOGV("  Version: %u.%u.%u",
-            (caps.version >> 16) & 0xFF,
-            (caps.version >> 8)  & 0xFF,
-            (caps.version)       & 0xFF);
+    ALOGV("  Version: %u.%u.%u", (caps.version >> 16) & 0xFF, (caps.version >> 8) & 0xFF,
+          (caps.version) & 0xFF);
     ALOGV("  All Caps: %08X", caps.capabilities);
     ALOGV("  Dev Caps: %08X", caps.device_caps);
 
@@ -182,17 +170,12 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
     ALOGI("Supported capture formats:");
     v4l2_fmtdesc formatDescriptions;
     formatDescriptions.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    for (int i=0; true; i++) {
+    for (int i = 0; true; i++) {
         formatDescriptions.index = i;
         if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescriptions) == 0) {
-            ALOGI("  %2d: %s 0x%08X 0x%X",
-                   i,
-                   formatDescriptions.description,
-                   formatDescriptions.pixelformat,
-                   formatDescriptions.flags
-            );
-        }
-        else {
+            ALOGI("  %2d: %s 0x%08X 0x%X", i, formatDescriptions.description,
+                  formatDescriptions.pixelformat, formatDescriptions.flags);
+        } else {
             // No more formats available
             break;
         }
@@ -203,13 +186,14 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
         !(caps.capabilities & V4L2_CAP_STREAMING)) {
         // Can't do streaming capture.
         ALOGE("Streaming capture not supported by %s.", deviceName);
-        return -EINVAL;;
+        return -EINVAL;
+        ;
     }
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    param.parm.capture.timeperframe.numerator   = 1;
+    param.parm.capture.timeperframe.numerator = 1;
     param.parm.capture.timeperframe.denominator = 30;
     param.parm.capture.capturemode = getCaptureMode(fd, mWidth, mHeight);
     int ret = ioctl(fd, VIDIOC_S_PARM, &param);
@@ -227,12 +211,9 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
     // TODO:  Do we need to specify this?
     format.fmt.pix_mp.field = V4L2_FIELD_ALTERNATE;
     format.fmt.pix_mp.num_planes = 1;
-    ALOGI("Requesting format %c%c%c%c (0x%08X)",
-          ((char*)&format.fmt.pix.pixelformat)[0],
-          ((char*)&format.fmt.pix.pixelformat)[1],
-          ((char*)&format.fmt.pix.pixelformat)[2],
-          ((char*)&format.fmt.pix.pixelformat)[3],
-          format.fmt.pix.pixelformat);
+    ALOGI("Requesting format %c%c%c%c (0x%08X)", ((char*)&format.fmt.pix.pixelformat)[0],
+          ((char*)&format.fmt.pix.pixelformat)[1], ((char*)&format.fmt.pix.pixelformat)[2],
+          ((char*)&format.fmt.pix.pixelformat)[3], format.fmt.pix.pixelformat);
     if (ioctl(fd, VIDIOC_S_FMT, &format) < 0) {
         ALOGE("VIDIOC_S_FMT: %s", strerror(errno));
     }
@@ -240,17 +221,12 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
     // Report the current output format
     format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     if (ioctl(fd, VIDIOC_G_FMT, &format) == 0) {
-
         mV4lFormat = format.fmt.pix_mp.pixelformat;
-        mWidth  = format.fmt.pix_mp.width;
+        mWidth = format.fmt.pix_mp.width;
         mHeight = format.fmt.pix_mp.height;
-        ALOGI("Current output format:  fmt=0x%X, %dx%d",
-               format.fmt.pix_mp.pixelformat,
-               format.fmt.pix_mp.width,
-               format.fmt.pix_mp.height
-        );
-    }
-    else {
+        ALOGI("Current output format:  fmt=0x%X, %dx%d", format.fmt.pix_mp.pixelformat,
+              format.fmt.pix_mp.width, format.fmt.pix_mp.height);
+    } else {
         ALOGE("VIDIOC_G_FMT: %s", strerror(errno));
         return -EINVAL;
     }
@@ -264,7 +240,7 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
         ALOGE("VIDIOC_REQBUFS: %s", strerror(errno));
     }
 
-    std::unique_lock <std::mutex> lock(mLock);
+    std::unique_lock<std::mutex> lock(mLock);
     // Make sure we're initialized to the STOPPED state
     mRunMode = STOPPED;
 
@@ -272,19 +248,15 @@ int V4l2Capture::onOpenSingleCamera(const char* deviceName)
     return fd;
 }
 
-std::set<uint32_t>  V4l2Capture::enumerateCameraControls()
-{
+std::set<uint32_t> V4l2Capture::enumerateCameraControls() {
     // Retrieve available camera controls
-    struct v4l2_queryctrl ctrl = {
-        .id = V4L2_CTRL_FLAG_NEXT_CTRL
-    };
+    struct v4l2_queryctrl ctrl = {.id = V4L2_CTRL_FLAG_NEXT_CTRL};
 
     std::set<uint32_t> ctrlIDs;
 
     // enum the last camera control info, need refine this part later
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            continue;
+        if (mDeviceFd[physical_cam] < 0) continue;
         while (0 == ioctl(mDeviceFd[physical_cam], VIDIOC_QUERYCTRL, &ctrl)) {
             if (!(ctrl.flags & V4L2_CTRL_FLAG_DISABLED)) {
                 ctrlIDs.emplace(ctrl.id);
@@ -304,8 +276,7 @@ int V4l2Capture::setParameter(v4l2_control& control) {
     int status = 0;
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            continue;
+        if (mDeviceFd[physical_cam] < 0) continue;
 
         int status = ioctl(mDeviceFd[physical_cam], VIDIOC_S_CTRL, &control);
         if (status < 0) {
@@ -315,13 +286,11 @@ int V4l2Capture::setParameter(v4l2_control& control) {
     return status;
 }
 
-
 int V4l2Capture::getParameter(v4l2_control& control) {
     int status = 0;
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            continue;
+        if (mDeviceFd[physical_cam] < 0) continue;
 
         // TODO: just get the last camera control info, currently getIntParameter do not support
         // multi-camera.
@@ -334,20 +303,17 @@ int V4l2Capture::getParameter(v4l2_control& control) {
     return status;
 }
 
-bool V4l2Capture::isOpen()
-{
-    std::unique_lock <std::mutex> lock(mLock);
+bool V4l2Capture::isOpen() {
+    std::unique_lock<std::mutex> lock(mLock);
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            return false;
+        if (mDeviceFd[physical_cam] < 0) return false;
     }
 
     return true;
 }
 
-void V4l2Capture::onClose()
-{
+void V4l2Capture::onClose() {
     ALOGD("V4l2Capture close logic/physical camera");
 
     if (!isOpen()) {
@@ -355,7 +321,7 @@ void V4l2Capture::onClose()
     }
 
     {
-        std::unique_lock <std::mutex> lock(mLock);
+        std::unique_lock<std::mutex> lock(mLock);
         // Stream should be stopped first!
         assert(mRunMode == STOPPED);
         for (const auto& physical_cam : mPhysicalCamera) {
@@ -367,21 +333,18 @@ void V4l2Capture::onClose()
     ALOGD("closing video device file handled");
 }
 
-bool V4l2Capture::onStart()
-{
+bool V4l2Capture::onStart() {
     // if user space do not allocate buffer when start,
     // allocate 3 buffer for every camera
     // evs_app allocate buffer through setMaxFramesInFlight in app,
     // while sv_app do not allocate by default. So set one default value here
-    if (mFramesAllowed == 0)
-        setMaxFramesInFlight(3);
+    if (mFramesAllowed == 0) setMaxFramesInFlight(3);
 
     int fd = -1;
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            continue;
+        if (mDeviceFd[physical_cam] < 0) continue;
         {
-            std::unique_lock <std::mutex> lock(mLock);
+            std::unique_lock<std::mutex> lock(mLock);
             fd = mDeviceFd[physical_cam];
         }
 
@@ -403,17 +366,14 @@ bool V4l2Capture::onStart()
     return true;
 }
 
-
-void V4l2Capture::onStop()
-{
+void V4l2Capture::onStop() {
     int fd = -1;
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            return;
+        if (mDeviceFd[physical_cam] < 0) return;
 
         {
-            std::unique_lock <std::mutex> lock(mLock);
+            std::unique_lock<std::mutex> lock(mLock);
             fd = mDeviceFd[physical_cam];
         }
 
@@ -448,8 +408,7 @@ Return<EvsResult> V4l2Capture::setMaxFramesInFlight(uint32_t bufferCount) {
         return EvsResult::INVALID_ARG;
     }
 
-    if (bufferCount > MAX_BUFFERS_IN_FLIGHT)
-        return EvsResult::BUFFER_NOT_AVAILABLE;
+    if (bufferCount > MAX_BUFFERS_IN_FLIGHT) return EvsResult::BUFFER_NOT_AVAILABLE;
 
     if (mFramesAllowed < bufferCount) {
         unsigned needed = bufferCount - mFramesAllowed;
@@ -463,10 +422,9 @@ Return<EvsResult> V4l2Capture::setMaxFramesInFlight(uint32_t bufferCount) {
         // this buffer do not call QBUF again.
         // it will return until mDecreasenum = 0
         {
-            std::unique_lock <std::mutex> lock(mLock);
+            std::unique_lock<std::mutex> lock(mLock);
             mFramesSignal.wait(lock);
-            if (mDecreasenum > 0)
-                ALOGE("mDecreasenum should been 0 ! ");
+            if (mDecreasenum > 0) ALOGE("mDecreasenum should been 0 ! ");
         }
     }
 
@@ -474,18 +432,17 @@ Return<EvsResult> V4l2Capture::setMaxFramesInFlight(uint32_t bufferCount) {
     return EvsResult::OK;
 }
 
-void V4l2Capture::onIncreaseMemoryBuffer(unsigned number)
-{
+void V4l2Capture::onIncreaseMemoryBuffer(unsigned number) {
     unsigned added = 0;
-    fsl::Memory *buffer = nullptr;
+    fsl::Memory* buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
     fsl::MemoryDesc desc;
     desc.mWidth = mWidth;
     desc.mHeight = mHeight;
     desc.mFormat = mFormat;
     desc.mFslFormat = mFormat;
-    desc.mProduceUsage |= fsl::USAGE_HW_TEXTURE
-            | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
+    desc.mProduceUsage |=
+            fsl::USAGE_HW_TEXTURE | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
     desc.mFlag = 0;
     int ret = desc.checkFormat();
     if (ret != 0) {
@@ -496,8 +453,7 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number)
     while (added < number) {
         // allocate mFramesAllowed buffer for every physical camera
         for (const auto& physical_cam : mPhysicalCamera) {
-            if (mDeviceFd[physical_cam] < 0)
-                return;
+            if (mDeviceFd[physical_cam] < 0) return;
 
             buffer = nullptr;
             allocator->allocMemory(desc, &buffer);
@@ -508,7 +464,7 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number)
             bool stored = false;
             for (auto mem_singal : fsl_mem) {
                 {
-                    std::unique_lock <std::mutex> lock(mLock);
+                    std::unique_lock<std::mutex> lock(mLock);
                     if (mem_singal == nullptr) {
                         mem_singal = buffer;
                         stored = true;
@@ -531,9 +487,8 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number)
             buf.m.planes = &planes;
 
             // find the first unmap buffer in v4l2 buffer
-            for (v4l2_index=0; v4l2_index<V4L2_BUFFER_NUM; v4l2_index++) {
-                if (mBufferMap[physical_cam].at(v4l2_index) == -1)
-                    break;
+            for (v4l2_index = 0; v4l2_index < V4L2_BUFFER_NUM; v4l2_index++) {
+                if (mBufferMap[physical_cam].at(v4l2_index) == -1) break;
             }
 
             // map the v4l2 buffer and gralloc buffer
@@ -544,10 +499,9 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number)
                 // find the first unmap gralloc buffer
                 // map v4l2 buffer with gralloc buffer through
                 // mBufferMap[physical_cam].at(v4l2_index) = i;
-                for(i=0; i<(mFramesAllowed + 1); i++) {
-                    for (j=0; j<V4L2_BUFFER_NUM; j++) {
-                        if (mBufferMap[physical_cam].at(j) == i)
-                           break;
+                for (i = 0; i < (mFramesAllowed + 1); i++) {
+                    for (j = 0; j < V4L2_BUFFER_NUM; j++) {
+                        if (mBufferMap[physical_cam].at(j) == i) break;
                     }
                     if (j == V4L2_BUFFER_NUM) {
                         mBufferMap[physical_cam].at(v4l2_index) = i;
@@ -567,12 +521,12 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number)
             }
 
 #ifdef DEBUG_V4L2_CAMERA
-            void *vaddr = NULL;
+            void* vaddr = NULL;
             // handle->base which is instore virtual addr is only set after lock
             // need lock the addr here, so that it can been used in onFrameCollect
-            allocator->lock(buffer,  buffer->usage |  fsl::USAGE_SW_READ_OFTEN
-                           | fsl::USAGE_SW_WRITE_OFTEN, 0, 0,
-                           buffer->width, buffer->height, &vaddr);
+            allocator->lock(buffer,
+                            buffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN, 0,
+                            0, buffer->width, buffer->height, &vaddr);
 #endif
             mCamBuffers[mDeviceFd[physical_cam]] = fsl_mem;
         }
@@ -583,43 +537,39 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number)
 
 // release the gralloc buffer which map the v4l2 buffer whose index is parameter "index"
 // it only been called when return buffer and the mDecreasenum is not 0
-void V4l2Capture::onDecreaseMemoryBuffer(unsigned index)
-{
-    fsl::Memory *buffer = nullptr;
+void V4l2Capture::onDecreaseMemoryBuffer(unsigned index) {
+    fsl::Memory* buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
 
     // destroy CAMERA_BUFFER_NUM buffer for every physical camera
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            continue;
+        if (mDeviceFd[physical_cam] < 0) continue;
 
         std::vector<fsl::Memory*> fsl_mem;
 
         {
-            std::unique_lock <std::mutex> lock(mLock);
+            std::unique_lock<std::mutex> lock(mLock);
             buffer = mCamBuffers[mDeviceFd[physical_cam]].at(mBufferMap[physical_cam].at(index));
             allocator->releaseMemory(buffer);
             mCamBuffers[mDeviceFd[physical_cam]].at(mBufferMap[physical_cam].at(index)) = nullptr;
             mBufferMap[physical_cam].at(index) = -1;
             mFramesAllowed--;
         }
-
     }
 }
 
 void V4l2Capture::onMemoryDestroy() {
-    fsl::Memory *buffer = nullptr;
+    fsl::Memory* buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            continue;
+        if (mDeviceFd[physical_cam] < 0) continue;
 
         std::vector<fsl::Memory*> fsl_mem;
         fsl_mem = mCamBuffers[mDeviceFd[physical_cam]];
 
         for (auto mem_singal : fsl_mem) {
             {
-                std::unique_lock <std::mutex> lock(mLock);
+                std::unique_lock<std::mutex> lock(mLock);
                 if (mem_singal == nullptr) {
                     continue;
                 }
@@ -633,8 +583,7 @@ void V4l2Capture::onMemoryDestroy() {
     }
 }
 
-bool V4l2Capture::onFrameReturn(int index, std::string deviceid)
-{
+bool V4l2Capture::onFrameReturn(int index, std::string deviceid) {
     // We're giving the frame back to the system, so clear the "ready" flag
     std::string devicename = deviceid;
     if (index < 0 || index >= V4L2_BUFFER_NUM) {
@@ -655,16 +604,15 @@ bool V4l2Capture::onFrameReturn(int index, std::string deviceid)
         onDecreaseMemoryBuffer(index);
         mDecreasenum--;
 
-        if (mDecreasenum == 0)
-            mFramesSignal.notify_all();
+        if (mDecreasenum == 0) mFramesSignal.notify_all();
 
         ALOGI("onFrameReturn drop one frame");
         return true;
     }
 
-    fsl::Memory *buffer = nullptr;
+    fsl::Memory* buffer = nullptr;
     {
-        std::unique_lock <std::mutex> lock(mLock);
+        std::unique_lock<std::mutex> lock(mLock);
         fd = mDeviceFd[devicename];
         // devicename means the pyhsical camera name
         // mDeviceFd[devicename] means the pyhsical camera fd
@@ -698,22 +646,19 @@ bool V4l2Capture::onFrameReturn(int index, std::string deviceid)
     return true;
 }
 
-
 // This runs on a background thread to receive and dispatch video frames
-void V4l2Capture::onFrameCollect(std::vector<struct forwardframe> &frames)
-{
+void V4l2Capture::onFrameCollect(std::vector<struct forwardframe>& frames) {
     int fd = -1;
-    fsl::Memory *buffer = nullptr;
+    fsl::Memory* buffer = nullptr;
     struct forwardframe frame;
 #ifdef DEBUG_V4L2_CAMERA
     int index = 0;
 #endif
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0)
-            return;
+        if (mDeviceFd[physical_cam] < 0) return;
 
         {
-            std::unique_lock <std::mutex> lock(mLock);
+            std::unique_lock<std::mutex> lock(mLock);
             fd = mDeviceFd[physical_cam];
         }
 
@@ -739,28 +684,29 @@ void V4l2Capture::onFrameCollect(std::vector<struct forwardframe> &frames)
         }
 
         {
-            std::unique_lock <std::mutex> lock(mLock);
-            // buf.index means the index of v4l2 buffer, mBufferMap[mDeviceFd[physical_cam]][buf.index] means the index of grolloc buffer
-            buffer = mCamBuffers[mDeviceFd[physical_cam]].at(mBufferMap[physical_cam].at(buf.index));
+            std::unique_lock<std::mutex> lock(mLock);
+            // buf.index means the index of v4l2 buffer,
+            // mBufferMap[mDeviceFd[physical_cam]][buf.index] means the index of grolloc buffer
+            buffer =
+                    mCamBuffers[mDeviceFd[physical_cam]].at(mBufferMap[physical_cam].at(buf.index));
         }
 #ifdef DEBUG_V4L2_CAMERA
-         char filename[128];
-         memset(filename, 0, 128);
-         if (nub%20 ==0) {
-             sprintf(filename, "/data/%s-frame_out-%d-%d.rgb",
-                       "EVS", nub, index);
-             int fd = 0;
-             int len = 0;
-             fd = open(filename, O_CREAT | O_RDWR, 0666);
+        char filename[128];
+        memset(filename, 0, 128);
+        if (nub % 20 == 0) {
+            sprintf(filename, "/data/%s-frame_out-%d-%d.rgb", "EVS", nub, index);
+            int fd = 0;
+            int len = 0;
+            fd = open(filename, O_CREAT | O_RDWR, 0666);
 
-             if (fd<0) {
-                 ALOGE("failed to open");
-             } else {
-                 len = write(fd, (void *)buffer->base, buffer->stride * buffer->height  * 3);
-                 close(fd);
-             }
-         }
-         index++;
+            if (fd < 0) {
+                ALOGE("failed to open");
+            } else {
+                len = write(fd, (void*)buffer->base, buffer->stride * buffer->height * 3);
+                close(fd);
+            }
+        }
+        index++;
 #endif
         frame.buf = buffer;
         frame.index = buf.index;
@@ -771,4 +717,3 @@ void V4l2Capture::onFrameCollect(std::vector<struct forwardframe> &frames)
     nub++;
 #endif
 }
-

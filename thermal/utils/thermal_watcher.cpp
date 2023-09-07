@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "thermal_watcher.h"
+
+#include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/strings.h>
 #include <cutils/uevent.h>
 #include <dirent.h>
 #include <sys/inotify.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+
 #include <chrono>
 #include <fstream>
-
-#include <android-base/file.h>
-#include <android-base/logging.h>
-#include <android-base/strings.h>
-
-#include "thermal_watcher.h"
 
 namespace android {
 namespace hardware {
@@ -49,7 +49,7 @@ void ThermalWatcher::registerFilesToWatch(const std::set<std::string> &sensors_t
         return;
     }
 
-    if(fcntl(uevent_fd_, F_SETFL, O_NONBLOCK) < 0) {
+    if (fcntl(uevent_fd_, F_SETFL, O_NONBLOCK) < 0) {
         LOG(ERROR) << "failed to manipulate uevent socket";
         is_polling_ = true;
         return;
@@ -153,8 +153,8 @@ bool ThermalWatcher::threadLoop() {
     return true;
 }
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android

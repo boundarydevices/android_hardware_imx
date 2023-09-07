@@ -17,11 +17,11 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_VmsUtils_H_
 #define android_hardware_automotive_vehicle_V2_0_VmsUtils_H_
 
+#include <android/hardware/automotive/vehicle/2.0/types.h>
+
 #include <memory>
 #include <string>
 #include <unordered_set>
-
-#include <android/hardware/automotive/vehicle/2.0/types.h>
 
 namespace android {
 namespace hardware {
@@ -45,23 +45,23 @@ struct VmsLayer {
     int version;
     bool operator==(const VmsLayer& layer) const {
         return this->type == layer.type && this->subtype == layer.subtype &&
-               this->version == layer.version;
+                this->version == layer.version;
     }
 
     // Class for hash function
     class VmsLayerHashFunction {
-      public:
+    public:
         // Hash of the variables is returned.
         size_t operator()(const VmsLayer& layer) const {
             return std::hash<int>()(layer.type) ^ std::hash<int>()(layer.type) ^
-                   std::hash<int>()(layer.type);
+                    std::hash<int>()(layer.type);
         }
     };
 };
 
 struct VmsLayerAndPublisher {
     VmsLayerAndPublisher(VmsLayer layer, int publisher_id)
-        : layer(std::move(layer)), publisher_id(publisher_id) {}
+          : layer(std::move(layer)), publisher_id(publisher_id) {}
     VmsLayer layer;
     int publisher_id;
 };
@@ -70,7 +70,7 @@ struct VmsLayerAndPublisher {
 // are acceptable for a given layer.
 struct VmsAssociatedLayer {
     VmsAssociatedLayer(VmsLayer layer, std::vector<int> publisher_ids)
-        : layer(std::move(layer)), publisher_ids(std::move(publisher_ids)) {}
+          : layer(std::move(layer)), publisher_ids(std::move(publisher_ids)) {}
     VmsLayer layer;
     std::vector<int> publisher_ids;
 };
@@ -79,7 +79,7 @@ struct VmsAssociatedLayer {
 // its dependencies. Dependencies can be empty.
 struct VmsLayerOffering {
     VmsLayerOffering(VmsLayer layer, std::vector<VmsLayer> dependencies)
-        : layer(std::move(layer)), dependencies(std::move(dependencies)) {}
+          : layer(std::move(layer)), dependencies(std::move(dependencies)) {}
     VmsLayerOffering(VmsLayer layer) : layer(layer), dependencies() {}
     VmsLayer layer;
     std::vector<VmsLayer> dependencies;
@@ -89,7 +89,7 @@ struct VmsLayerOffering {
 // with the specified publisher ID.
 struct VmsOffers {
     VmsOffers(int publisher_id, std::vector<VmsLayerOffering> offerings)
-        : publisher_id(publisher_id), offerings(std::move(offerings)) {}
+          : publisher_id(publisher_id), offerings(std::move(offerings)) {}
     int publisher_id;
     std::vector<VmsLayerOffering> offerings;
 };
@@ -132,7 +132,7 @@ std::unique_ptr<VehiclePropValue> createSubscribeMessage(const VmsLayer& layer);
 // VmsMessageType.SUBSCRIBE_TO_PUBLISHER, specifying to the VMS service
 // which layer and publisher_id to subscribe to.
 std::unique_ptr<VehiclePropValue> createSubscribeToPublisherMessage(
-    const VmsLayerAndPublisher& layer);
+        const VmsLayerAndPublisher& layer);
 
 // Creates a VehiclePropValue containing a message of type
 // VmsMessageType.UNSUBSCRIBE, specifying to the VMS service
@@ -143,7 +143,7 @@ std::unique_ptr<VehiclePropValue> createUnsubscribeMessage(const VmsLayer& layer
 // VmsMessageType.UNSUBSCRIBE_TO_PUBLISHER, specifying to the VMS service
 // which layer and publisher_id to unsubscribe from.
 std::unique_ptr<VehiclePropValue> createUnsubscribeToPublisherMessage(
-    const VmsLayerAndPublisher& layer);
+        const VmsLayerAndPublisher& layer);
 
 // Creates a VehiclePropValue containing a message of type
 // VmsMessageType.OFFERING, specifying to the VMS service which layers are being
@@ -251,11 +251,11 @@ int32_t getSequenceNumberForAvailabilityState(const VehiclePropValue& availabili
 // sequence number.
 std::vector<VmsAssociatedLayer> getAvailableLayers(const VehiclePropValue& availability_state);
 
-}  // namespace vms
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace vms
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_VmsUtils_H_
+#endif // android_hardware_automotive_vehicle_V2_0_VmsUtils_H_

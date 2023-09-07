@@ -17,13 +17,11 @@
 #ifndef CAR_EVS_APP_RENDERDIRECTVIEW_H
 #define CAR_EVS_APP_RENDERDIRECTVIEW_H
 
-
-#include "RenderBase.h"
-
 #include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
-#include "ConfigManager.h"
-#include "VideoTex.h"
 
+#include "ConfigManager.h"
+#include "RenderBase.h"
+#include "VideoTex.h"
 
 using namespace ::android::hardware::automotive::evs::V1_1;
 using ::android::hardware::camera::device::V3_2::Stream;
@@ -31,10 +29,10 @@ using ::android::hardware::camera::device::V3_2::Stream;
 /*
  * Renders the view from a single specified camera directly to the full display.
  */
-class RenderDirectView: public RenderBase {
+class RenderDirectView : public RenderBase {
 public:
     RenderDirectView(sp<IEvsEnumerator> enumerator, const CameraDesc& cam,
-                               std::unique_ptr<Stream> targetCfg);
+                     std::unique_ptr<Stream> targetCfg);
 
     virtual bool activate() override;
     virtual void deactivate() override;
@@ -43,17 +41,16 @@ public:
     void renderColorLines();
 
 protected:
-    sp<IEvsEnumerator>              mEnumerator;
-    ConfigManager::CameraInfo       mCameraInfo;
+    sp<IEvsEnumerator> mEnumerator;
+    ConfigManager::CameraInfo mCameraInfo;
 
-    CameraDesc                      mCameraDesc;
-    std::unique_ptr<Stream>         mTargetCfg;
+    CameraDesc mCameraDesc;
+    std::unique_ptr<Stream> mTargetCfg;
 
-    std::unique_ptr<VideoTex>       mTexture;
+    std::unique_ptr<VideoTex> mTexture;
 
-    GLuint                          mShaderProgram = 0;
-    GLuint                          mLineShaderProgram = 0;
+    GLuint mShaderProgram = 0;
+    GLuint mLineShaderProgram = 0;
 };
 
-
-#endif //CAR_EVS_APP_RENDERDIRECTVIEW_H
+#endif // CAR_EVS_APP_RENDERDIRECTVIEW_H

@@ -17,12 +17,13 @@
 #ifndef CAMERA_DEVICE_HWL_IMPL_H
 #define CAMERA_DEVICE_HWL_IMPL_H
 
-#include <ui/PixelFormat.h>
-#include "CameraUtils.h"
 #include <camera_device_hwl.h>
 #include <hal_types.h>
-#include "CameraMetadata.h"
+#include <ui/PixelFormat.h>
+
 #include "CameraConfigurationParser.h"
+#include "CameraMetadata.h"
+#include "CameraUtils.h"
 #include "ISPWrapper.h"
 
 namespace android {
@@ -32,66 +33,66 @@ using google_camera_hal::CameraDeviceHwl;
 using google_camera_hal::CameraDeviceSessionHwl;
 using google_camera_hal::CameraResourceCost;
 using google_camera_hal::HalCameraMetadata;
+using google_camera_hal::HwlCameraProviderCallback;
 using google_camera_hal::StreamConfiguration;
 using google_camera_hal::TorchMode;
-using google_camera_hal::HwlCameraProviderCallback;
 using google_camera_hal::TorchModeStatus;
 
 using namespace cameraconfigparser;
 
 #define JPEG_HW_NAME_LEN 32
 
-class CameraDeviceHwlImpl : public CameraDeviceHwl
-{
+class CameraDeviceHwlImpl : public CameraDeviceHwl {
 public:
-    static std::unique_ptr<CameraDeviceHwl> Create(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
-        PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
+    static std::unique_ptr<CameraDeviceHwl> Create(
+            uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
+            std::vector<uint32_t> physicalIds, CscHw cam_copy_hw, CscHw cam_csc_hw,
+            const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
+            PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
 
     virtual ~CameraDeviceHwlImpl();
 
-    uint32_t GetCameraId() const
-    {
-        return camera_id_;
-    }
+    uint32_t GetCameraId() const { return camera_id_; }
 
     // Override functions in CameraDeviceHwl.
-    status_t GetResourceCost(CameraResourceCost* cost) const override
-    {
+    status_t GetResourceCost(CameraResourceCost *cost) const override {
         cost->resource_cost = 100;
         return OK;
     }
 
     status_t GetCameraCharacteristics(
-        std::unique_ptr<HalCameraMetadata>* characteristics) const override;
+            std::unique_ptr<HalCameraMetadata> *characteristics) const override;
 
     status_t GetPhysicalCameraCharacteristics(
-        uint32_t physical_camera_id,
-        std::unique_ptr<HalCameraMetadata>* characteristics) const override;
+            uint32_t physical_camera_id,
+            std::unique_ptr<HalCameraMetadata> *characteristics) const override;
 
     status_t SetTorchMode(TorchMode mode) override;
 
     status_t DumpState(int fd) override;
 
     status_t CreateCameraDeviceSessionHwl(
-        CameraBufferAllocatorHwl* camera_allocator_hwl,
-        std::unique_ptr<CameraDeviceSessionHwl>* session) override;
+            CameraBufferAllocatorHwl *camera_allocator_hwl,
+            std::unique_ptr<CameraDeviceSessionHwl> *session) override;
 
-    bool IsStreamCombinationSupported(const StreamConfiguration& stream_config) override;
+    bool IsStreamCombinationSupported(const StreamConfiguration &stream_config) override;
 
     // End of override functions in CameraDeviceHwl.
 
     char *getHwEncoder() { return mJpegHw; }
 
-    CameraSensorMetadata* getSensorData() { return &mSensorData; }
+    CameraSensorMetadata *getSensorData() { return &mSensorData; }
 
-    static bool StreamCombJudge(const StreamConfiguration& stream_config,
-        int *pPreviewResolutions, int nPreviewResolutionCount, int *pPictureResolutions, int nPictureResolutionCount);
+    static bool StreamCombJudge(const StreamConfiguration &stream_config, int *pPreviewResolutions,
+                                int nPreviewResolutionCount, int *pPictureResolutions,
+                                int nPictureResolutionCount);
 
 protected:
-    CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char*>> devPaths, std::vector<uint32_t> physicalIds,
-        CscHw cam_copy_hw, CscHw cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
-        PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
+    CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
+                        std::vector<uint32_t> physicalIds, CscHw cam_copy_hw, CscHw cam_csc_hw,
+                        const char *hw_jpeg, int use_cpu_encoder,
+                        CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices,
+                        HwlCameraProviderCallback &callback);
     bool PickResByMetaData(int width, int height);
 
 private:
@@ -134,12 +135,12 @@ public:
     int mSensorFormats[MAX_SENSOR_FORMAT];
     int mSensorFormatCount = 0;
 
-    std::vector<std::shared_ptr<char*>> mDevPath;
+    std::vector<std::shared_ptr<char *>> mDevPath;
     std::vector<uint32_t> mPhysicalIds;
 
     CscHw mCamBlitCopyType;
     CscHw mCamBlitCscType;
-    char mJpegHw[JPEG_HW_NAME_LEN] = { 0 };
+    char mJpegHw[JPEG_HW_NAME_LEN] = {0};
     int mUseCpuEncoder;
     CameraSensorMetadata mSensorData;
 
@@ -153,6 +154,6 @@ public:
     int8_t m_color_arrange;
 };
 
-}  // namespace android
+} // namespace android
 
-#endif  // CAMERA_DEVICE_HWL_IMPL_H
+#endif // CAMERA_DEVICE_HWL_IMPL_H

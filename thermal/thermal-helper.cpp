@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-#include <iterator>
-#include <set>
-#include <sstream>
-#include <thread>
-#include <vector>
+#include "thermal-helper.h"
 
 #include <android-base/file.h>
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 #include <android-base/strings.h>
-#include <hidl/HidlTransportSupport.h>
 #include <android-base/unique_fd.h>
+#include <hidl/HidlTransportSupport.h>
 
-#include "thermal-helper.h"
+#include <iterator>
+#include <set>
+#include <sstream>
+#include <thread>
+#include <vector>
 
 namespace android {
 namespace hardware {
@@ -55,7 +55,9 @@ constexpr char kSocType[] = "ro.boot.soc_type";
 namespace {
 using android::base::StringPrintf;
 
-std::string kConfigDefaultFileName = android::base::StringPrintf("%s_%s%s","thermal_info_config",android::base::GetProperty(kSocType, "").c_str(),".json");
+std::string kConfigDefaultFileName =
+        android::base::StringPrintf("%s_%s%s", "thermal_info_config",
+                                    android::base::GetProperty(kSocType, "").c_str(), ".json");
 
 std::size_t getNumberOfCores() {
     std::string file;
@@ -151,15 +153,15 @@ std::map<std::string, std::string> parseThermalPathMap(std::string_view prefix) 
             continue;
         }
 
-        path_map.emplace(
-                android::base::Trim(name),
-                android::base::StringPrintf("%s/%s", kThermalSensorsRoot.data(), dp->d_name));
+        path_map.emplace(android::base::Trim(name),
+                         android::base::StringPrintf("%s/%s", kThermalSensorsRoot.data(),
+                                                     dp->d_name));
     }
 
     return path_map;
 }
 
-}  // namespace
+} // namespace
 
 /*
  * Populate the sensor_name_to_file_map_ map by walking through the file tree,
@@ -167,20 +169,20 @@ std::map<std::string, std::string> parseThermalPathMap(std::string_view prefix) 
  * not succeed, abort.
  */
 ThermalHelper::ThermalHelper(const NotificationCallback &cb)
-    : thermal_watcher_(new ThermalWatcher(
-              std::bind(&ThermalHelper::thermalWatcherCallbackFunc, this, std::placeholders::_1))),
-      cb_(cb),
-      cooling_device_info_map_(ParseCoolingDevice(
-              "/vendor/etc/configs/" +
-              android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()))),
-      sensor_info_map_(ParseSensorInfo(
-              "/vendor/etc/configs/" +
-              android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()))) {
+      : thermal_watcher_(new ThermalWatcher(std::bind(&ThermalHelper::thermalWatcherCallbackFunc,
+                                                      this, std::placeholders::_1))),
+        cb_(cb),
+        cooling_device_info_map_(ParseCoolingDevice(
+                "/vendor/etc/configs/" +
+                android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()))),
+        sensor_info_map_(ParseSensorInfo(
+                "/vendor/etc/configs/" +
+                android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()))) {
     for (auto const &name_status_pair : sensor_info_map_) {
         sensor_status_map_[name_status_pair.first] = {
-            .severity = ThrottlingSeverity::NONE,
-            .prev_hot_severity = ThrottlingSeverity::NONE,
-            .prev_cold_severity = ThrottlingSeverity::NONE,
+                .severity = ThrottlingSeverity::NONE,
+                .prev_hot_severity = ThrottlingSeverity::NONE,
+                .prev_cold_severity = ThrottlingSeverity::NONE,
         };
     }
 
@@ -247,16 +249,16 @@ bool ThermalHelper::readTemperature(std::string_view sensor_name, Temperature_1_
 
     const SensorInfo &sensor_info = sensor_info_map_.at(sensor_name.data());
     TemperatureType_1_0 type =
-        (static_cast<int>(sensor_info.type) > static_cast<int>(TemperatureType_1_0::SKIN))
+            (static_cast<int>(sensor_info.type) > static_cast<int>(TemperatureType_1_0::SKIN))
             ? TemperatureType_1_0::UNKNOWN
             : static_cast<TemperatureType_1_0>(sensor_info.type);
     out->type = type;
     out->name = sensor_name.data();
     out->currentValue = std::stof(temp) * sensor_info.multiplier;
     out->throttlingThreshold =
-        sensor_info.hot_thresholds[static_cast<size_t>(ThrottlingSeverity::SEVERE)];
+            sensor_info.hot_thresholds[static_cast<size_t>(ThrottlingSeverity::SEVERE)];
     out->shutdownThreshold =
-        sensor_info.hot_thresholds[static_cast<size_t>(ThrottlingSeverity::SHUTDOWN)];
+            sensor_info.hot_thresholds[static_cast<size_t>(ThrottlingSeverity::SHUTDOWN)];
     out->vrThrottlingThreshold = sensor_info.vr_threshold;
 
     return true;
@@ -284,7 +286,7 @@ bool ThermalHelper::readTemperature(
     out->value = std::stof(temp) * sensor_info.multiplier;
 
     std::pair<ThrottlingSeverity, ThrottlingSeverity> status =
-        std::make_pair(ThrottlingSeverity::NONE, ThrottlingSeverity::NONE);
+            std::make_pair(ThrottlingSeverity::NONE, ThrottlingSeverity::NONE);
     // Only update status if the thermal sensor is being monitored
     if (sensor_info.is_monitor) {
         ThrottlingSeverity prev_hot_severity, prev_cold_severity;
@@ -303,8 +305,8 @@ bool ThermalHelper::readTemperature(
     }
 
     out->throttlingStatus = static_cast<size_t>(status.first) > static_cast<size_t>(status.second)
-                                ? status.first
-                                : status.second;
+            ? status.first
+            : status.second;
 
     return true;
 }
@@ -331,10 +333,10 @@ bool ThermalHelper::readTemperatureThreshold(std::string_view sensor_name,
 }
 
 std::pair<ThrottlingSeverity, ThrottlingSeverity> ThermalHelper::getSeverityFromThresholds(
-    const ThrottlingArray &hot_thresholds, const ThrottlingArray &cold_thresholds,
-    const ThrottlingArray &hot_hysteresis, const ThrottlingArray &cold_hysteresis,
-    ThrottlingSeverity prev_hot_severity, ThrottlingSeverity prev_cold_severity,
-    float value) const {
+        const ThrottlingArray &hot_thresholds, const ThrottlingArray &cold_thresholds,
+        const ThrottlingArray &hot_hysteresis, const ThrottlingArray &cold_hysteresis,
+        ThrottlingSeverity prev_hot_severity, ThrottlingSeverity prev_cold_severity,
+        float value) const {
     ThrottlingSeverity ret_hot = ThrottlingSeverity::NONE;
     ThrottlingSeverity ret_hot_hysteresis = ThrottlingSeverity::NONE;
     ThrottlingSeverity ret_cold = ThrottlingSeverity::NONE;
@@ -378,8 +380,9 @@ bool ThermalHelper::initializeSensorMap(const std::map<std::string, std::string>
             LOG(ERROR) << "Could not find " << sensor_name << " in sysfs";
             continue;
         }
-        std::string path = android::base::StringPrintf(
-                "%s/%s", path_map.at(sensor_name.data()).c_str(), kSensorTempSuffix.data());
+        std::string path =
+                android::base::StringPrintf("%s/%s", path_map.at(sensor_name.data()).c_str(),
+                                            kSensorTempSuffix.data());
         if (!thermal_sensors_.addThermalFile(sensor_name, path)) {
             LOG(ERROR) << "Could not add " << sensor_name << "to sensors map";
         }
@@ -397,9 +400,10 @@ bool ThermalHelper::initializeCoolingDevices(const std::map<std::string, std::st
             LOG(ERROR) << "Could not find " << cooling_device_name << " in sysfs";
             continue;
         }
-        std::string path = android::base::StringPrintf(
-                "%s/%s", path_map.at(cooling_device_name.data()).c_str(),
-                kCoolingDeviceCurStateSuffix.data());
+        std::string path =
+                android::base::StringPrintf("%s/%s",
+                                            path_map.at(cooling_device_name.data()).c_str(),
+                                            kCoolingDeviceCurStateSuffix.data());
         if (!cooling_devices_.addThermalFile(cooling_device_name, path)) {
             LOG(ERROR) << "Could not add " << cooling_device_name << "to cooling device map";
             continue;
@@ -622,8 +626,8 @@ void ThermalHelper::enableCPU(std::string cpu, bool enable) {
     }
     return;
 }
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android

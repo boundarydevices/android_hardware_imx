@@ -17,13 +17,13 @@
 #ifndef _FSL_LAYER_H_
 #define _FSL_LAYER_H_
 
-#include <utils/SortedVector.h>
 #include <ui/Rect.h>
 #include <ui/Region.h>
-
-#include "Memory.h"
+#include <utils/SortedVector.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+
+#include "Memory.h"
 
 namespace fsl {
 
@@ -44,27 +44,26 @@ enum {
 
 enum {
     TRANSFORM_INVALID = 0,
-    TRANSFORM_FLIPH =  0x01,
-    TRANSFORM_FLIPV =  0x02,
-    TRANSFORM_ROT90 =  0x04,
+    TRANSFORM_FLIPH = 0x01,
+    TRANSFORM_FLIPV = 0x02,
+    TRANSFORM_ROT90 = 0x04,
     TRANSFORM_ROT180 = 0x03,
     TRANSFORM_ROT270 = 0x07,
 };
 
 enum {
-    BLENDING_NONE     = 0x0100,
-    BLENDING_PREMULT  = 0x0105,
+    BLENDING_NONE = 0x0100,
+    BLENDING_PREMULT = 0x0105,
     BLENDING_COVERAGE = 0x0405,
-    BLENDING_DIM      = 0x0805,
+    BLENDING_DIM = 0x0805,
 };
 
 enum {
-    SKIP_LAYER          = 0x00000001,
-    BUFFER_SLOT         = 0x40000000,
+    SKIP_LAYER = 0x00000001,
+    BUFFER_SLOT = 0x40000000,
 };
 
-class Layer
-{
+class Layer {
 public:
     Layer();
     bool isSolidColor();
@@ -106,5 +105,5 @@ public:
     virtual int do_compare(const void* lhs, const void* rhs) const;
 };
 
-}
+} // namespace fsl
 #endif

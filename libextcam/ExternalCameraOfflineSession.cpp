@@ -15,8 +15,6 @@
  */
 
 #define LOG_TAG "ExtCamOfflnSsn"
-#include <android/log.h>
-
 #include "ExternalCameraOfflineSession.h"
 
 #include <aidl/android/hardware/camera/device/BufferStatus.h>
@@ -24,12 +22,13 @@
 #include <aidl/android/hardware/camera/device/ShutterMsg.h>
 #include <aidl/android/hardware/camera/device/StreamBuffer.h>
 #include <aidlcommonsupport/NativeHandle.h>
+#include <android/log.h>
 #include <convert.h>
 #include <linux/videodev2.h>
 #include <sync/sync.h>
 #include <utils/Trace.h>
 
-#define HAVE_JPEG  // required for libyuv.h to export MJPEG decode APIs
+#define HAVE_JPEG // required for libyuv.h to export MJPEG decode APIs
 #include <libyuv.h>
 
 namespace {
@@ -37,7 +36,7 @@ namespace {
 // Size of request/result metadata fast message queue. Change to 0 to always use hwbinder buffer.
 constexpr size_t kMetadataMsgQueueSize = 1 << 18 /* 256kB */;
 
-}  // anonymous namespace
+} // anonymous namespace
 
 namespace android {
 namespace hardware {
@@ -59,16 +58,16 @@ ExternalCameraOfflineSession::ExternalCameraOfflineSession(
         uint32_t blobBufferSize, bool afTrigger, const std::vector<Stream>& offlineStreams,
         std::deque<std::shared_ptr<HalRequest>>& offlineReqs,
         const std::map<int, CirculatingBuffers>& circulatingBuffers)
-    : mCroppingType(croppingType),
-      mChars(chars),
-      mCameraId(cameraId),
-      mExifMake(exifMake),
-      mExifModel(exifModel),
-      mBlobBufferSize(blobBufferSize),
-      mAfTrigger(afTrigger),
-      mOfflineStreams(offlineStreams),
-      mOfflineReqs(offlineReqs),
-      mCirculatingBuffers(circulatingBuffers) {}
+      : mCroppingType(croppingType),
+        mChars(chars),
+        mCameraId(cameraId),
+        mExifMake(exifMake),
+        mExifModel(exifModel),
+        mBlobBufferSize(blobBufferSize),
+        mAfTrigger(afTrigger),
+        mOfflineStreams(offlineStreams),
+        mOfflineReqs(offlineReqs),
+        mCirculatingBuffers(circulatingBuffers) {}
 
 ExternalCameraOfflineSession::~ExternalCameraOfflineSession() {
     close();
@@ -188,9 +187,9 @@ void ExternalCameraOfflineSession::invokeProcessCaptureResultCallback(
     if (tryWriteFmq && mResultMetadataQueue->availableToWrite() > 0) {
         for (CaptureResult& result : results) {
             if (!result.result.metadata.empty()) {
-                if (mResultMetadataQueue->write(
-                            reinterpret_cast<int8_t*>(result.result.metadata.data()),
-                            result.result.metadata.size())) {
+                if (mResultMetadataQueue->write(reinterpret_cast<int8_t*>(
+                                                        result.result.metadata.data()),
+                                                result.result.metadata.size())) {
                     result.fmqResultSize = result.result.metadata.size();
                     result.result.metadata.clear();
                 } else {
@@ -412,12 +411,14 @@ bool ExternalCameraOfflineSession::OutputThread::threadLoop() {
     // TODO: in some special case maybe we can decode jpg directly to gralloc output?
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
         ATRACE_BEGIN("MJPGtoI420");
-        int convRes = libyuv::MJPGToI420(
-                inData, inDataSize, static_cast<uint8_t*>(mYu12FrameLayout.y),
-                mYu12FrameLayout.yStride, static_cast<uint8_t*>(mYu12FrameLayout.cb),
-                mYu12FrameLayout.cStride, static_cast<uint8_t*>(mYu12FrameLayout.cr),
-                mYu12FrameLayout.cStride, mYu12Frame->mWidth, mYu12Frame->mHeight,
-                mYu12Frame->mWidth, mYu12Frame->mHeight);
+        int convRes =
+                libyuv::MJPGToI420(inData, inDataSize, static_cast<uint8_t*>(mYu12FrameLayout.y),
+                                   mYu12FrameLayout.yStride,
+                                   static_cast<uint8_t*>(mYu12FrameLayout.cb),
+                                   mYu12FrameLayout.cStride,
+                                   static_cast<uint8_t*>(mYu12FrameLayout.cr),
+                                   mYu12FrameLayout.cStride, mYu12Frame->mWidth,
+                                   mYu12Frame->mHeight, mYu12Frame->mWidth, mYu12Frame->mHeight);
         ATRACE_END();
 
         if (convRes != 0) {
@@ -474,8 +475,9 @@ bool ExternalCameraOfflineSession::OutputThread::threadLoop() {
                 }
             } break;
             case PixelFormat::Y16: {
-                void* outLayout = sHandleImporter.lock(
-                        *(halBuf.bufPtr), static_cast<uint64_t>(halBuf.usage), inDataSize);
+                void* outLayout =
+                        sHandleImporter.lock(*(halBuf.bufPtr), static_cast<uint64_t>(halBuf.usage),
+                                             inDataSize);
 
                 std::memcpy(outLayout, inData, inDataSize);
 
@@ -488,8 +490,9 @@ bool ExternalCameraOfflineSession::OutputThread::threadLoop() {
             case PixelFormat::YV12: {
                 IMapper::Rect outRect{0, 0, static_cast<int32_t>(halBuf.width),
                                       static_cast<int32_t>(halBuf.height)};
-                YCbCrLayout outLayout = sHandleImporter.lockYCbCr(
-                        *(halBuf.bufPtr), static_cast<uint64_t>(halBuf.usage), outRect);
+                YCbCrLayout outLayout =
+                        sHandleImporter.lockYCbCr(*(halBuf.bufPtr),
+                                                  static_cast<uint64_t>(halBuf.usage), outRect);
                 ALOGV("%s: outLayout y %p cb %p cr %p y_str %d c_str %d c_step %d", __FUNCTION__,
                       outLayout.y, outLayout.cb, outLayout.cr, outLayout.yStride, outLayout.cStride,
                       outLayout.chromaStep);
@@ -527,7 +530,7 @@ bool ExternalCameraOfflineSession::OutputThread::threadLoop() {
                 lk.unlock();
                 return onDeviceError("%s: unknown output format %x", __FUNCTION__, halBuf.format);
         }
-    }  // for each buffer
+    } // for each buffer
     mScaledYu12Frames.clear();
 
     // Don't hold the lock while calling back to parent
@@ -540,8 +543,8 @@ bool ExternalCameraOfflineSession::OutputThread::threadLoop() {
     return true;
 }
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android

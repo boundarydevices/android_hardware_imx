@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-#include <string.h>
-#include <stdio.h>
-#include <sys/uio.h>
-#include <avb_ipc.h>
-#include <trusty/tipc.h>
 #include <android-base/logging.h>
+#include <avb_ipc.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/uio.h>
+#include <trusty/tipc.h>
 
 #define TRUSTY_DEVICE_NAME "/dev/trusty-ipc-dev0"
 #define AVB_PORT "com.android.trusty.avb"
 
-avbError avbOemUnlockIpc::avbCall(int handler, avbCommand cmd, void* in,
-                         uint32_t in_size, void* out, uint32_t* out_size) {
+avbError avbOemUnlockIpc::avbCall(int handler, avbCommand cmd, void* in, uint32_t in_size,
+                                  void* out, uint32_t* out_size) {
     struct iovec iov[2];
     struct avbMessage msg;
     int rc = 0;
@@ -60,14 +60,13 @@ avbError avbOemUnlockIpc::avbCall(int handler, avbCommand cmd, void* in,
         LOG(ERROR) << "failed to retrieve response for cmd:" << cmd << "to:" << AVB_PORT;
         return avbError::AVB_ERROR_INTERNAL;
     }
-    if (out_size != NULL)
-        *out_size = ((int)rc - sizeof(struct avbMessage));
+    if (out_size != NULL) *out_size = ((int)rc - sizeof(struct avbMessage));
 
     /* everything goes well, return OK. */
     return avbError::AVB_ERROR_NONE;
 }
 
-avbError avbOemUnlockIpc::readDeviceUnlockPermission(uint8_t *status) {
+avbError avbOemUnlockIpc::readDeviceUnlockPermission(uint8_t* status) {
     int handler;
     uint32_t out_size;
     avbError rc;
@@ -79,8 +78,8 @@ avbError avbOemUnlockIpc::readDeviceUnlockPermission(uint8_t *status) {
         return avbError::AVB_ERROR_INTERNAL;
     }
 
-    rc = avbCall(handler, avbCommand::READ_OEM_UNLOCK_DEVICE_PERMISSION,
-                 NULL, 0, status, &out_size);
+    rc = avbCall(handler, avbCommand::READ_OEM_UNLOCK_DEVICE_PERMISSION, NULL, 0, status,
+                 &out_size);
 
     /* Close Tipc channel */
     tipc_close(handler);
@@ -103,8 +102,8 @@ avbError avbOemUnlockIpc::writeDeviceUnlockPermission(uint8_t status) {
         return avbError::AVB_ERROR_INTERNAL;
     }
 
-    rc = avbCall(handler, avbCommand::WRITE_OEM_UNLOCK_DEVICE_PERMISSION,
-                 &status, sizeof(uint8_t), NULL, 0);
+    rc = avbCall(handler, avbCommand::WRITE_OEM_UNLOCK_DEVICE_PERMISSION, &status, sizeof(uint8_t),
+                 NULL, 0);
 
     /* Close Tipc channel */
     tipc_close(handler);

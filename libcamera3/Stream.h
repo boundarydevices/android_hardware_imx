@@ -20,13 +20,14 @@
 
 #include <hardware/camera3.h>
 #include <hardware/gralloc.h>
+#include <ion/ion.h>
+#include <ion_ext.h>
+#include <linux/ipu.h>
+#include <linux/mxc_ion.h>
 #include <system/graphics.h>
 #include <utils/Mutex.h>
 #include <utils/RefBase.h>
-#include <linux/ipu.h>
-#include <ion/ion.h>
-#include <linux/mxc_ion.h>
-#include <ion_ext.h>
+
 #include "JpegBuilder.h"
 #include "utils/CameraConfigurationParser.h"
 
@@ -34,33 +35,31 @@ using namespace android;
 
 class Camera;
 // Stream represents a single input or output stream for a camera device.
-class Stream : public LightRefBase<Stream>
-{
+class Stream : public LightRefBase<Stream> {
 public:
     Stream(Camera* camera);
-    Stream(int id, camera3_stream_t *s, Camera* camera);
+    Stream(int id, camera3_stream_t* s, Camera* camera);
     virtual ~Stream();
 
     // validate that astream's parameters match this stream's parameters
-    bool isValidReuseStream(int id, camera3_stream_t *s);
+    bool isValidReuseStream(int id, camera3_stream_t* s);
 
-    int32_t processCaptureBuffer(StreamBuffer& buf,
-                                 sp<Metadata> meta);
+    int32_t processCaptureBuffer(StreamBuffer& buf, sp<Metadata> meta);
 
-    void setCurrentBuffer(StreamBuffer* out) {mCurrent = out;}
-    virtual void* getG2dHandle() {return NULL;}
-    bool isPreview() {return mPreview;}
-    bool isJpeg() {return mJpeg;}
-    bool isCallback() {return mCallback;}
-    bool isRecord() {return mRecord;}
-    uint32_t width() {return mWidth;}
-    uint32_t height() {return mHeight;}
-    int32_t format() {return mFormat;}
-    uint32_t bufferNum() {return mNumBuffers;}
-    camera3_stream_t* stream() {return mStream;}
-    void setReuse(bool reuse) {mReuse = reuse;}
-    void setFps(uint32_t fps) {mFps = fps;}
-    uint32_t fps() {return mFps;};
+    void setCurrentBuffer(StreamBuffer* out) { mCurrent = out; }
+    virtual void* getG2dHandle() { return NULL; }
+    bool isPreview() { return mPreview; }
+    bool isJpeg() { return mJpeg; }
+    bool isCallback() { return mCallback; }
+    bool isRecord() { return mRecord; }
+    uint32_t width() { return mWidth; }
+    uint32_t height() { return mHeight; }
+    int32_t format() { return mFormat; }
+    uint32_t bufferNum() { return mNumBuffers; }
+    camera3_stream_t* stream() { return mStream; }
+    void setReuse(bool reuse) { mReuse = reuse; }
+    void setFps(uint32_t fps) { mFps = fps; }
+    uint32_t fps() { return mFps; };
 
     int getType();
     bool isInputType();
@@ -69,10 +68,8 @@ public:
     void dump(int fd);
 
 protected:
-    int32_t processJpegBuffer(StreamBuffer& src,
-                              sp<Metadata> meta);
-    int32_t processFrameBuffer(StreamBuffer& src,
-                               sp<Metadata> meta);
+    int32_t processJpegBuffer(StreamBuffer& src, sp<Metadata> meta);
+    int32_t processFrameBuffer(StreamBuffer& src, sp<Metadata> meta);
 
 protected:
     // This stream is being reused. Used in stream configuration passes
@@ -84,7 +81,7 @@ protected:
     // The camera device id this stream belongs to
     const int mId;
     // Handle to framework's stream, used as a cookie for buffers
-    camera3_stream_t *mStream;
+    camera3_stream_t* mStream;
     // Stream type: CAMERA3_STREAM_* (see <hardware/camera3.h>)
     const int mType;
     // Width in pixels of the buffers in this stream

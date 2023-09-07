@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-#include <stdio.h>
 #include <EGL/egl.h>
 #include <GLES3/gl3.h>
-
+#include <stdio.h>
 
 const char *getEGLError(void) {
     switch (eglGetError()) {
@@ -56,20 +55,19 @@ const char *getEGLError(void) {
     }
 }
 
-
 const char *getGLFramebufferError(void) {
     switch (glCheckFramebufferStatus(GL_FRAMEBUFFER)) {
-    case GL_FRAMEBUFFER_COMPLETE:
-        return "GL_FRAMEBUFFER_COMPLETE";
-    case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-        return "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
-    case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-        return "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
-    case GL_FRAMEBUFFER_UNSUPPORTED:
-        return "GL_FRAMEBUFFER_UNSUPPORTED";
-    case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-        return "GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS";
-    default:
-        return "Unknown error";
+        case GL_FRAMEBUFFER_COMPLETE:
+            return "GL_FRAMEBUFFER_COMPLETE";
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+            return "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+            return "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
+        case GL_FRAMEBUFFER_UNSUPPORTED:
+            return "GL_FRAMEBUFFER_UNSUPPORTED";
+        case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+            return "GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS";
+        default:
+            return "Unknown error";
     }
 }

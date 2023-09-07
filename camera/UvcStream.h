@@ -26,14 +26,14 @@ using namespace cameraconfigparser;
 
 class UvcStream : public DMAStream {
 public:
-    UvcStream(const char* name, CameraDeviceSessionHwlImpl *pSession)
-          : DMAStream(pSession) {
-        strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH-1);
+    UvcStream(const char* name, CameraDeviceSessionHwlImpl* pSession) : DMAStream(pSession) {
+        strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH - 1);
     }
     virtual ~UvcStream() {}
 
     // configure device.
-    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
+    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height,
+                                            uint32_t fps);
     // start device.
     virtual int32_t onDeviceStartLocked();
     // stop device.
@@ -49,7 +49,6 @@ public:
 protected:
     char mUvcPath[CAMAERA_FILENAME_LENGTH];
 };
-
 
 } // namespace android
 #endif

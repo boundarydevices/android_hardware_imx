@@ -15,6 +15,7 @@
  */
 #include <android-base/logging.h>
 #include <hidl/HidlTransportSupport.h>
+
 #include "Thermal.h"
 
 using ::android::OK;
@@ -33,7 +34,7 @@ static int shutdown() {
     return 1;
 }
 
-int main(int /* argc */, char ** /* argv */) {
+int main(int /* argc */, char** /* argv */) {
     status_t status;
     android::sp<IThermal> service = nullptr;
 

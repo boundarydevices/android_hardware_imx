@@ -35,7 +35,7 @@ class Memtrack : public BnMemtrack {
     ndk::ScopedAStatus getGpuDeviceInfo(std::vector<DeviceInfo>* _aidl_return) override;
 };
 
-}  // namespace memtrack
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace memtrack
+} // namespace hardware
+} // namespace android
+} // namespace aidl

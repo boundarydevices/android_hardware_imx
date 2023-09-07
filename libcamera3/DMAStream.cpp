@@ -16,36 +16,28 @@
 
 #include "DMAStream.h"
 
-DMAStream::DMAStream(Camera* device)
-    : USPStream(device), mStreamSize(0)
-{
+DMAStream::DMAStream(Camera* device) : USPStream(device), mStreamSize(0) {
     mV4l2MemType = V4L2_MEMORY_DMABUF;
     mPlane = false;
 }
 
-DMAStream::DMAStream(Camera* device, bool mplane)
-    : USPStream(device), mStreamSize(0)
-{
+DMAStream::DMAStream(Camera* device, bool mplane) : USPStream(device), mStreamSize(0) {
     // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
     // true, else set it as false.
     mPlane = mplane;
     mV4l2MemType = V4L2_MEMORY_DMABUF;
 }
 
-DMAStream::~DMAStream()
-{
-}
+DMAStream::~DMAStream() {}
 
 // configure device.
-int32_t DMAStream::onDeviceConfigureLocked()
-{
+int32_t DMAStream::onDeviceConfigureLocked() {
     ALOGI("%s", __func__);
 
     return USPStream::onDeviceConfigureLocked();
 }
 
-int32_t DMAStream::onDeviceStartLocked()
-{
+int32_t DMAStream::onDeviceStartLocked() {
     ALOGV("%s", __func__);
 
     if (mDev <= 0) {
@@ -58,7 +50,7 @@ int32_t DMAStream::onDeviceStartLocked()
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = mNumBuffers;
 
     if (mPlane) {
@@ -77,7 +69,7 @@ int32_t DMAStream::onDeviceStartLocked()
     //----------qbuf----------
     struct v4l2_buffer cfilledbuffer;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+        memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
 
         if (mPlane) {
             memset(&planes, 0, sizeof(planes));
@@ -93,8 +85,7 @@ int32_t DMAStream::onDeviceStartLocked()
             ALOGI("buf[%d] length:%d", i, cfilledbuffer.length);
         }
         cfilledbuffer.memory = V4L2_MEMORY_DMABUF;
-        cfilledbuffer.index    = i;
-
+        cfilledbuffer.index = i;
 
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
@@ -123,8 +114,7 @@ int32_t DMAStream::onDeviceStartLocked()
     return 0;
 }
 
-int32_t DMAStream::onDeviceStopLocked()
-{
+int32_t DMAStream::onDeviceStopLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_requestbuffers req;
@@ -142,14 +132,13 @@ int32_t DMAStream::onDeviceStopLocked()
         bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     }
 
-
     ret = ioctl(mDev, VIDIOC_STREAMOFF, &bufType);
     if (ret < 0) {
         ALOGE("%s VIDIOC_STREAMOFF failed:%s", __func__, strerror(errno));
         return ret;
     }
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = 0;
     req.type = bufType;
     req.memory = V4L2_MEMORY_DMABUF;
@@ -159,12 +148,10 @@ int32_t DMAStream::onDeviceStopLocked()
         return BAD_VALUE;
     }
 
-
     return 0;
 }
 
-int32_t DMAStream::onFrameAcquireLocked()
-{
+int32_t DMAStream::onFrameAcquireLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
@@ -172,7 +159,7 @@ int32_t DMAStream::onFrameAcquireLocked()
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
 capture_data:
-    memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
+    memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));
 
     if (mPlane) {
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -203,19 +190,17 @@ capture_data:
         goto capture_data;
     }
 
-
     return cfilledbuffer.index;
 }
 
-int32_t DMAStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
-{
+int32_t DMAStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf) {
     ALOGV("%s: index:%d", __func__, index);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
-    memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+    memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
 
     if (mPlane) {
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -241,13 +226,11 @@ int32_t DMAStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     return 0;
 }
 
-int32_t DMAStream::getDeviceBufferSize()
-{
+int32_t DMAStream::getDeviceBufferSize() {
     return getFormatSize();
 }
 
-int32_t DMAStream::allocateBuffersLocked()
-{
+int32_t DMAStream::allocateBuffersLocked() {
     ALOGI("%s", __func__);
 
     int32_t ret = USPStream::allocateBuffersLocked();
@@ -256,10 +239,8 @@ int32_t DMAStream::allocateBuffersLocked()
     return ret;
 }
 
-int32_t DMAStream::freeBuffersLocked()
-{
+int32_t DMAStream::freeBuffersLocked() {
     ALOGI("%s", __func__);
 
     return USPStream::freeBuffersLocked();
 }
-

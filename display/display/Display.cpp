@@ -14,35 +14,31 @@
  * limitations under the License.
  */
 
-#include <inttypes.h>
+#include "Display.h"
+
 #include <cutils/log.h>
-#include <sync/sync.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <g2dExt.h>
+#include <inttypes.h>
+#include <sync/sync.h>
 #include <sys/stat.h>
 
 #include "Memory.h"
 #include "MemoryDesc.h"
-#include <g2dExt.h>
-#include "Display.h"
 
 namespace fsl {
 
-static inline int compare_type(const DisplayConfig& lhs, const DisplayConfig& rhs)
-{
+static inline int compare_type(const DisplayConfig& lhs, const DisplayConfig& rhs) {
     if (lhs.mXres == rhs.mXres && lhs.mYres == rhs.mYres) {
         return 0;
-    }
-    else if (lhs.mXres > rhs.mXres || lhs.mYres > rhs.mYres) {
+    } else if (lhs.mXres > rhs.mXres || lhs.mYres > rhs.mYres) {
         return 1;
     }
     return -1;
 }
 
-Display::Display()
-    : mLock(Mutex::PRIVATE),
-      mComposer(*Composer::getInstance())
-{
+Display::Display() : mLock(Mutex::PRIVATE), mComposer(*Composer::getInstance()) {
     mConfigs.clear();
     mActiveConfig = -1;
     mFirstConfigId = 0;
@@ -50,7 +46,7 @@ Display::Display()
     mRefreshRequired = false;
     mCustomizeUI = UI_SCALE_NONE;
 
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         mLayers[i] = new Layer();
         mLayers[i]->index = i;
         mHwLayers[i] = nullptr;
@@ -83,13 +79,12 @@ Display::Display()
 #endif
 }
 
-Display::~Display()
-{
+Display::~Display() {
     invalidLayers();
 
     Mutex::Autolock _l(mLock);
     mConfigs.clear();
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (mLayers[i]) {
             delete mLayers[i];
             mLayers[i] = NULL;
@@ -103,93 +98,76 @@ Display::~Display()
     }
 }
 
-void Display::setCallback(EventListener* callback)
-{
+void Display::setCallback(EventListener* callback) {
     Mutex::Autolock _l(mLock);
     mListener = callback;
 }
 
-int Display::setPowerMode(int /*mode*/)
-{
+int Display::setPowerMode(int /*mode*/) {
     return -1;
 }
 
-void Display::enableVsync()
-{
-}
+void Display::enableVsync() {}
 
-void Display::setVsyncEnabled(bool /*enabled*/)
-{
-}
+void Display::setVsyncEnabled(bool /*enabled*/) {}
 
-void Display::setFakeVSync(bool)
-{
-}
+void Display::setFakeVSync(bool) {}
 
-void Display::setConnected(bool connected)
-{
+void Display::setConnected(bool connected) {
     Mutex::Autolock _l(mLock);
     mConnected = connected;
 }
 
-bool Display::connected()
-{
+bool Display::connected() {
     Mutex::Autolock _l(mLock);
     return mConnected;
 }
 
-void Display::setType(int type)
-{
+void Display::setType(int type) {
     Mutex::Autolock _l(mLock);
     mType = type;
 }
 
-int Display::type()
-{
+int Display::type() {
     Mutex::Autolock _l(mLock);
     return mType;
 }
 
-void Display::setIndex(int index)
-{
+void Display::setIndex(int index) {
     Mutex::Autolock _l(mLock);
     mIndex = index;
 }
 
-int Display::index()
-{
+int Display::index() {
     Mutex::Autolock _l(mLock);
     return mIndex;
 }
 
-void Display::clearConfigs()
-{
+void Display::clearConfigs() {
     Mutex::Autolock _l(mLock);
 
     mConfigs.clear();
     mActiveConfig = -1;
 }
 
-int Display::findDisplayConfig(int width, int height, float fps, int format)
-{
+int Display::findDisplayConfig(int width, int height, float fps, int format) {
     int i;
-    for (i=0; i<mConfigs.size(); i++) {
-        if (mConfigs.count(mFirstConfigId + i) == 0)
-            continue;
+    for (i = 0; i < mConfigs.size(); i++) {
+        if (mConfigs.count(mFirstConfigId + i) == 0) continue;
 
         const DisplayConfig& cfg = mConfigs[mFirstConfigId + i];
         // if not specify the format(0), only compare the resolution
         // if the foramt is not 0, both format and resolution need to compare
-        if ((((format != -1) && (cfg.mFormat == format)) || (format == -1))
-            && (cfg.mXres == width) && (cfg.mYres == height) && (fabs(cfg.mFps - fps) < FLOAT_TOLERANCE))
+        if ((((format != -1) && (cfg.mFormat == format)) || (format == -1)) &&
+            (cfg.mXres == width) && (cfg.mYres == height) &&
+            (fabs(cfg.mFps - fps) < FLOAT_TOLERANCE))
             break;
     }
 
     return i >= mConfigs.size() ? -1 : mFirstConfigId + i;
 }
 
-int Display::createDisplayConfig(int width, int height, float fps, int format)
-{
+int Display::createDisplayConfig(int width, int height, float fps, int format) {
     Mutex::Autolock _l(mLock);
 
     int id = findDisplayConfig(width, height, fps, format);
@@ -214,19 +192,16 @@ int Display::createDisplayConfig(int width, int height, float fps, int format)
     return id;
 }
 
-int Display::getConfigNum()
-{
+int Display::getConfigNum() {
     Mutex::Autolock _l(mLock);
     return mConfigs.size();
 }
 
-int Display::getFirstConfigId()
-{
+int Display::getFirstConfigId() {
     return mFirstConfigId;
 }
 
-bool Display::isOverlayEnabled()
-{
+bool Display::isOverlayEnabled() {
     char value[PROPERTY_VALUE_MAX];
     property_get("vendor.hwc.enable.overlay", value, "0");
     int useOverlay = atoi(value);
@@ -236,57 +211,46 @@ bool Display::isOverlayEnabled()
     return false;
 }
 
-bool Display::isHdrSupported()
-{
+bool Display::isHdrSupported() {
     Mutex::Autolock _l(mLock);
-    if(mEdid == NULL)
-        return false;
+    if (mEdid == NULL) return false;
     return mEdid->isHdrSupported();
 }
 
-int Display::getHdrMetaData(HdrMetaData* hdrMetaData)
-{
+int Display::getHdrMetaData(HdrMetaData* hdrMetaData) {
     Mutex::Autolock _l(mLock);
-    if(mEdid == NULL)
-        return -EINVAL;
+    if (mEdid == NULL) return -EINVAL;
     return mEdid->getHdrMetaData(hdrMetaData);
 }
 
-int Display::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes)
-{
+int Display::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes) {
     Mutex::Autolock _l(mLock);
-    if(mEdid == NULL)
-        return -EINVAL;
+    if (mEdid == NULL) return -EINVAL;
     return mEdid->getHdrSupportTypes(numTypes, hdrTypes);
 }
 
-const DisplayConfig& Display::getConfig(int config)
-{
+const DisplayConfig& Display::getConfig(int config) {
     Mutex::Autolock _l(mLock);
     return mConfigs[config];
 }
 
-const DisplayConfig& Display::getActiveConfig()
-{
+const DisplayConfig& Display::getActiveConfig() {
     Mutex::Autolock _l(mLock);
     return mConfigs[mActiveConfig];
 }
 
-int Display::setActiveConfig(int config)
-{
+int Display::setActiveConfig(int config) {
     Mutex::Autolock _l(mLock);
     mActiveConfig = config;
     return 0;
 }
 
-int Display::getActiveId()
-{
+int Display::getActiveId() {
     Mutex::Autolock _l(mLock);
     return mActiveConfig;
 }
 
-int Display::getFormatSize(int format)
-{
+int Display::getFormatSize(int format) {
     int bpp;
     switch (format) {
         case FORMAT_RGBA8888:
@@ -312,23 +276,19 @@ int Display::getFormatSize(int format)
     return bpp;
 }
 
-bool Display::checkOverlay(Layer* /*layer*/)
-{
+bool Display::checkOverlay(Layer* /*layer*/) {
     return false;
 }
 
-int Display::performOverlay()
-{
+int Display::performOverlay() {
     return 0;
 }
 
-int Display::updateScreen()
-{
+int Display::updateScreen() {
     return -EINVAL;
 }
 
-int Display::setRenderTarget(Memory* buffer, int acquireFence)
-{
+int Display::setRenderTarget(Memory* buffer, int acquireFence) {
     Mutex::Autolock _l(mLock);
     if (mAcquireFence != -1) {
         close(mAcquireFence);
@@ -340,8 +300,7 @@ int Display::setRenderTarget(Memory* buffer, int acquireFence)
     return 0;
 }
 
-void Display::resetLayerLocked(Layer* layer)
-{
+void Display::resetLayerLocked(Layer* layer) {
     if (layer == NULL) {
         return;
     }
@@ -372,8 +331,7 @@ void Display::resetLayerLocked(Layer* layer)
     memset(&layer->hdrMetadata, 0, sizeof(layer->hdrMetadata));
 }
 
-void Display::releaseLayer(int index)
-{
+void Display::releaseLayer(int index) {
     if (index < 0 || index >= MAX_LAYERS) {
         ALOGE("%s invalid index:%d", __func__, index);
         return;
@@ -391,8 +349,7 @@ void Display::releaseLayer(int index)
     mLayerVector.remove(mLayers[index]);
 }
 
-Layer* Display::getLayer(int index)
-{
+Layer* Display::getLayer(int index) {
     if (index < 0 || index >= MAX_LAYERS) {
         ALOGE("%s invalid index:%d", __func__, index);
         return NULL;
@@ -401,17 +358,15 @@ Layer* Display::getLayer(int index)
     Mutex::Autolock _l(mLock);
     if (mLayers[index]->busy) {
         return mLayers[index];
-    }
-    else {
+    } else {
         return NULL;
     }
 }
 
-Layer* Display::getLayerByPriv(void* priv)
-{
+Layer* Display::getLayerByPriv(void* priv) {
     Mutex::Autolock _l(mLock);
     Layer* layer = NULL;
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
@@ -425,11 +380,10 @@ Layer* Display::getLayerByPriv(void* priv)
     return layer;
 }
 
-Layer* Display::getFreeLayer()
-{
+Layer* Display::getFreeLayer() {
     Mutex::Autolock _l(mLock);
     Layer* layer = NULL;
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             mLayers[i]->busy = true;
             layer = mLayers[i];
@@ -440,9 +394,8 @@ Layer* Display::getFreeLayer()
     return layer;
 }
 
-int Display::getRequests(int32_t* outDisplayRequests, uint32_t* outNumRequests,
-                         uint64_t* outLayers, int32_t* outLayerRequests)
-{
+int Display::getRequests(int32_t* outDisplayRequests, uint32_t* outNumRequests, uint64_t* outLayers,
+                         int32_t* outLayerRequests) {
     if (outDisplayRequests != NULL) {
         *outDisplayRequests = 0;
     }
@@ -459,13 +412,11 @@ int Display::getRequests(int32_t* outDisplayRequests, uint32_t* outNumRequests,
     return 0;
 }
 
-int Display::getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers,
-                              int32_t* outFences)
-{
+int Display::getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers, int32_t* outFences) {
     uint32_t numElements = 0;
 
     Mutex::Autolock _l(mLock);
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
@@ -476,8 +427,7 @@ int Display::getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers,
             int ret = -1;
             if (!fcntl(fd, F_GETFL))
                 if (!fstat(fd, &_stat))
-                    if (_stat.st_nlink >= 1)
-                        ret = 0;
+                    if (_stat.st_nlink >= 1) ret = 0;
 
             if (ret == -1) { // mark invalid release fence as -1
                 mLayers[i]->releaseFence = -1;
@@ -498,13 +448,11 @@ int Display::getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers,
     return 0;
 }
 
-int Display::getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers,
-                             int32_t* outTypes)
-{
+int Display::getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers, int32_t* outTypes) {
     uint32_t numTypes = 0;
 
     Mutex::Autolock _l(mLock);
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
@@ -525,8 +473,7 @@ int Display::getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers,
     return 0;
 }
 
-bool Display::check2DComposition()
-{
+bool Display::check2DComposition() {
     bool use2DComposition = false;
     bool rotationCap = mComposer.isFeatureSupported(G2D_ROTATION);
 
@@ -545,7 +492,7 @@ bool Display::check2DComposition()
         use2DComposition = true;
     }
 
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         // hw layer must be handled by device.
         if (mHwLayers[i] != nullptr) {
             return true;
@@ -558,7 +505,8 @@ bool Display::check2DComposition()
         // vpu tile format must be handled by device.
         Memory* memory = mLayers[i]->handle;
 #ifdef ENABLE_8QM_WIDEVINE
-        if (memory != nullptr && (memory->fslFormat == FORMAT_NV12_TILED || memory->usage & USAGE_PROTECTED)) {
+        if (memory != nullptr &&
+            (memory->fslFormat == FORMAT_NV12_TILED || memory->usage & USAGE_PROTECTED)) {
 #else
         if (memory != nullptr && memory->fslFormat == FORMAT_NV12_TILED) {
 #endif
@@ -573,39 +521,36 @@ bool Display::check2DComposition()
 
 #ifdef WORKAROUND_DPU_ALPHA_BLENDING
         // pixel alpha + blending + global alpha case skip device composition.
-        if (memory != nullptr && mLayers[i]->planeAlpha != 0xff && mLayers[i]->blendMode == BLENDING_PREMULT &&
+        if (memory != nullptr && mLayers[i]->planeAlpha != 0xff &&
+            mLayers[i]->blendMode == BLENDING_PREMULT &&
             (memory->fslFormat == FORMAT_RGBA8888 || memory->fslFormat == FORMAT_BGRA8888 ||
-             memory->fslFormat == FORMAT_RGBA1010102 || memory->fslFormat == FORMAT_RGBAFP16))
-        {
+             memory->fslFormat == FORMAT_RGBA1010102 || memory->fslFormat == FORMAT_RGBAFP16)) {
             use2DComposition = false;
-            ALOGV("%s,%d,%x,%x,%x",__func__,__LINE__,memory->fslFormat,mLayers[i]->planeAlpha,mLayers[i]->blendMode);
+            ALOGV("%s,%d,%x,%x,%x", __func__, __LINE__, memory->fslFormat, mLayers[i]->planeAlpha,
+                  mLayers[i]->blendMode);
         }
 #endif
-
     }
 
     return use2DComposition;
 }
 
-bool Display::triggerComposition()
-{
+bool Display::triggerComposition() {
     Mutex::Autolock _l(mLock);
     return directCompositionLocked();
-
 }
-bool Display::directCompositionLocked()
-{
+bool Display::directCompositionLocked() {
     bool force = false;
 
     // surfaceflinger layers triggered by surfaceflinger.
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (mLayers[i]->busy) {
             return force;
         }
     }
 
     // hw layers.
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (mHwLayers[i] != nullptr) {
             force = true;
             break;
@@ -620,8 +565,7 @@ bool Display::contains(const Rect& outer, const Rect& inner) {
             outer.bottom >= inner.bottom;
 }
 
-bool Display::verifyLayers()
-{
+bool Display::verifyLayers() {
     bool deviceCompose = true;
     mUiUpdate = false;
     static int only_overlay_cnt = 0;
@@ -636,8 +580,8 @@ bool Display::verifyLayers()
     // get deviceCompose init value
     deviceCompose = check2DComposition();
 
-    std::unordered_map<int32_t,Rect> layerZVector;
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    std::unordered_map<int32_t, Rect> layerZVector;
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
@@ -660,7 +604,7 @@ bool Display::verifyLayers()
                 break;
 
             case LAYER_TYPE_SIDEBAND:
-                //set side band parameters.
+                // set side band parameters.
                 mLayers[i]->type = LAYER_TYPE_SIDEBAND;
                 break;
 
@@ -688,7 +632,7 @@ bool Display::verifyLayers()
     int ovIdx = -1, idx;
     mComposeFlag &= OVERLAY_COMPOSE_MASK;
     mComposeFlag = mComposeFlag << (LAST_OVERLAY_BIT - OVERLAY_COMPOSE_BIT);
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
@@ -702,10 +646,10 @@ bool Display::verifyLayers()
             }
 #ifdef HAVE_UNMAPPED_HEAP
             else {
-                Memory *ov_hnd = mLayers[ovIdx]->handle;
-                Memory *hnd = mLayers[i]->handle;
-                if (hnd != NULL && (hnd->usage & USAGE_PROTECTED)
-                    && ov_hnd != NULL && !(ov_hnd->usage & USAGE_PROTECTED)) {
+                Memory* ov_hnd = mLayers[ovIdx]->handle;
+                Memory* hnd = mLayers[i]->handle;
+                if (hnd != NULL && (hnd->usage & USAGE_PROTECTED) && ov_hnd != NULL &&
+                    !(ov_hnd->usage & USAGE_PROTECTED)) {
                     mLayers[ovIdx]->isOverlay = false;
                     idx = ovIdx; // previous overlay layer restore to CLIENT type
                     ovIdx = i;
@@ -718,14 +662,14 @@ bool Display::verifyLayers()
             mLayers[idx]->type = LAYER_TYPE_CLIENT;
             mComposeFlag |= 1 << CLIENT_COMPOSE_BIT;
             mTotalLayerNum++;
-            layerZVector.emplace(mLayers[idx]->zorder,mLayers[idx]->displayFrame);
+            layerZVector.emplace(mLayers[idx]->zorder, mLayers[idx]->displayFrame);
 
             // Here compare current layer info with previous one to determine
             // whether UI has update. IF no update,won't commit to framebuffer
             // to avoid UI re-composition.
             if (mLayers[idx]->handle != mLayers[idx]->lastHandle ||
-                    mLayers[idx]->lastSourceCrop != mLayers[idx]->sourceCrop ||
-                    mLayers[idx]->lastDisplayFrame != mLayers[idx]->displayFrame){
+                mLayers[idx]->lastSourceCrop != mLayers[idx]->sourceCrop ||
+                mLayers[idx]->lastDisplayFrame != mLayers[idx]->displayFrame) {
                 mUiUpdate = true;
             }
 
@@ -741,7 +685,8 @@ bool Display::verifyLayers()
     if (ovIdx >= 0) {
         bool shouldOverlay = true;
         for (auto& v : layerZVector) {
-            if (v.first < mLayers[ovIdx]->zorder && contains(v.second,mLayers[ovIdx]->displayFrame)) {
+            if (v.first < mLayers[ovIdx]->zorder &&
+                contains(v.second, mLayers[ovIdx]->displayFrame)) {
                 shouldOverlay = false;
                 break;
             }
@@ -763,57 +708,56 @@ bool Display::verifyLayers()
         mUiUpdate = true;
     }
 
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
-        if (mLayers[i]->sourceCrop.left == 0 && mLayers[i]->sourceCrop.top == 0
-            && mLayers[i]->sourceCrop.right == 0 && mLayers[i]->sourceCrop.bottom == 0
-            && (mComposeFlag & OVERLAY_COMPOSE_MASK))
-            mLayers[i]->type = LAYER_TYPE_DEVICE; // always skip "Background for SurfaceView[xxx] layer"
+        if (mLayers[i]->sourceCrop.left == 0 && mLayers[i]->sourceCrop.top == 0 &&
+            mLayers[i]->sourceCrop.right == 0 && mLayers[i]->sourceCrop.bottom == 0 &&
+            (mComposeFlag & OVERLAY_COMPOSE_MASK))
+            mLayers[i]->type =
+                    LAYER_TYPE_DEVICE; // always skip "Background for SurfaceView[xxx] layer"
     }
 
     // If all layer is in overlay state,add ONLY_OVERLAY_BIT to mComposeFlag.
     // But only add it at the first time.
     lastComposeFlag &= ~ONLY_OVERLAY_MASK;
-    if ( ((mComposeFlag & CLIENT_COMPOSE_MASK) ^ CLIENT_COMPOSE_MASK) &&
-        mComposeFlag & OVERLAY_COMPOSE_MASK ) {
+    if (((mComposeFlag & CLIENT_COMPOSE_MASK) ^ CLIENT_COMPOSE_MASK) &&
+        mComposeFlag & OVERLAY_COMPOSE_MASK) {
         if (lastComposeFlag & CLIENT_COMPOSE_MASK) {
             only_overlay_cnt = 1; // clear target buffer at least twice
         }
 
-        if ( lastComposeFlag == mComposeFlag) {
+        if (lastComposeFlag == mComposeFlag) {
             if (only_overlay_cnt) {
                 only_overlay_cnt--;
                 mComposeFlag |= 1 << ONLY_OVERLAY_BIT;
             } else {
                 mComposeFlag &= ~ONLY_OVERLAY_MASK;
             }
-        }
-        else {
+        } else {
             mComposeFlag |= 1 << ONLY_OVERLAY_BIT;
         }
     }
 
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (mHwLayers[i] == nullptr) {
             continue;
         }
         if (!deviceCompose) {
-            ALOGI("please enable hwc property, valid:%d, disabled:%d",
-                    mComposer.isValid(), mComposer.isDisabled());
+            ALOGI("please enable hwc property, valid:%d, disabled:%d", mComposer.isValid(),
+                  mComposer.isDisabled());
             break;
         }
     }
 
-    if ((mComposeFlag & 1 << OVERLAY_COMPOSE_BIT) &&
-            (mComposeFlag & 1 << LAST_OVERLAY_BIT) && !mUiUpdate) {
-        for (size_t i=0; i<MAX_LAYERS; i++) {
+    if ((mComposeFlag & 1 << OVERLAY_COMPOSE_BIT) && (mComposeFlag & 1 << LAST_OVERLAY_BIT) &&
+        !mUiUpdate) {
+        for (size_t i = 0; i < MAX_LAYERS; i++) {
             if (!mLayers[i]->busy) {
                 continue;
             }
-            if (mLayers[i]->isOverlay)
-                continue;
+            if (mLayers[i]->isOverlay) continue;
             if (mLayers[i]->type == LAYER_TYPE_CLIENT) {
                 mLayers[i]->type = LAYER_TYPE_DEVICE;
             }
@@ -823,10 +767,9 @@ bool Display::verifyLayers()
     return deviceCompose;
 }
 
-int Display::invalidLayers()
-{
+int Display::invalidLayers() {
     Mutex::Autolock _l(mLock);
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         resetLayerLocked(mLayers[i]);
     }
     mLayerVector.clear();
@@ -834,8 +777,7 @@ int Display::invalidLayers()
     return 0;
 }
 
-void Display::setLayerInfo(int index, Layer* layer)
-{
+void Display::setLayerInfo(int index, Layer* layer) {
     if (index < 0 || index >= MAX_LAYERS) {
         ALOGE("%s invalid index:%d", __func__, index);
         return;
@@ -873,10 +815,9 @@ void Display::setLayerInfo(int index, Layer* layer)
     mLayers[index]->priv = layer->priv;
 }
 
-int Display::setSkipLayer(bool skip)
-{
+int Display::setSkipLayer(bool skip) {
     Mutex::Autolock _l(mLock);
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (skip)
             mLayers[i]->flags |= SKIP_LAYER;
         else
@@ -886,8 +827,7 @@ int Display::setSkipLayer(bool skip)
     return 0;
 }
 
-int Display::addHwLayer(uint32_t index, Layer *layer)
-{
+int Display::addHwLayer(uint32_t index, Layer* layer) {
     if (layer == nullptr || index >= MAX_LAYERS) {
         return -EINVAL;
     }
@@ -901,8 +841,7 @@ int Display::addHwLayer(uint32_t index, Layer *layer)
     return 0;
 }
 
-int Display::removeHwLayer(uint32_t index)
-{
+int Display::removeHwLayer(uint32_t index) {
     if (index >= MAX_LAYERS) {
         return -EINVAL;
     }
@@ -918,17 +857,15 @@ int Display::removeHwLayer(uint32_t index)
     return 0;
 }
 
-int Display::composeLayers()
-{
+int Display::composeLayers() {
     Mutex::Autolock _l(mLock);
 
     return composeLayersLocked();
 }
 
-void Display::waitOnFenceLocked()
-{
+void Display::waitOnFenceLocked() {
     // release all layer fence.
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (!mLayers[i]->busy) {
             continue;
         }
@@ -941,8 +878,7 @@ void Display::waitOnFenceLocked()
     }
 }
 
-bool Display::forceVync()
-{
+bool Display::forceVync() {
     for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (mHwLayers[i] == nullptr) {
             continue;
@@ -952,7 +888,7 @@ bool Display::forceVync()
             continue;
         }
 
-        BufferSlot *queue = (BufferSlot*)mHwLayers[i]->priv;
+        BufferSlot* queue = (BufferSlot*)mHwLayers[i]->priv;
         if (queue == nullptr) {
             ALOGE("%s hw layer without queue", __func__);
             continue;
@@ -963,8 +899,7 @@ bool Display::forceVync()
     return false;
 }
 
-void Display::triggerRefresh()
-{
+void Display::triggerRefresh() {
     for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (mHwLayers[i] == nullptr) {
             continue;
@@ -974,7 +909,7 @@ void Display::triggerRefresh()
             continue;
         }
 
-        BufferSlot *queue = (BufferSlot*)mHwLayers[i]->priv;
+        BufferSlot* queue = (BufferSlot*)mHwLayers[i]->priv;
         if (queue == nullptr) {
             ALOGE("%s hw layer without queue", __func__);
             continue;
@@ -986,8 +921,7 @@ void Display::triggerRefresh()
     }
 }
 
-int Display::composeLayersLocked()
-{
+int Display::composeLayersLocked() {
     int ret = 0;
 
     waitOnFenceLocked();
@@ -1004,7 +938,7 @@ int Display::composeLayersLocked()
     }
 
     // handle hw layers.
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         if (mHwLayers[i] == nullptr) {
             continue;
         }
@@ -1013,7 +947,7 @@ int Display::composeLayersLocked()
             continue;
         }
 
-        BufferSlot *queue = (BufferSlot*)mHwLayers[i]->priv;
+        BufferSlot* queue = (BufferSlot*)mHwLayers[i]->priv;
         if (queue == nullptr) {
             ALOGE("%s hw layer without queue", __func__);
             continue;
@@ -1039,22 +973,22 @@ int Display::composeLayersLocked()
 
     // to do composite.
     size_t count = mLayerVector.size();
-    for (size_t i=0; i<count; i++) {
+    for (size_t i = 0; i < count; i++) {
         Layer* layer = mLayerVector[i];
-        if (!layer->busy){
+        if (!layer->busy) {
             ALOGE("compose invalid layer");
             continue;
         }
 
         if (layer->type == LAYER_TYPE_SIDEBAND) {
-            //set side band parameters.
+            // set side band parameters.
             continue;
         }
 
         if (layer->handle != NULL && !(layer->flags & BUFFER_SLOT))
             mComposer.lockSurface(layer->handle);
 
-        ret = mComposer.composeLayer(layer, i==0);
+        ret = mComposer.composeLayer(layer, i == 0);
 
         if (layer->handle != NULL && !(layer->flags & BUFFER_SLOT))
             mComposer.unlockSurface(layer->handle);
@@ -1071,8 +1005,7 @@ int Display::composeLayersLocked()
     return ret;
 }
 
-void Display::initBrightness()
-{
+void Display::initBrightness() {
     Mutex::Autolock _l(mLock);
     if (mIndex != DISPLAY_PRIMARY) {
         mMaxBrightness = -1;
@@ -1087,10 +1020,10 @@ void Display::initBrightness()
     strcat(mBrightnessPath, "/brightness");
     strcat(path, "/max_brightness");
 
-    FILE *file = fopen(path, "r");
+    FILE* file = fopen(path, "r");
     if (!file) {
         mMaxBrightness = -1;
-        ALOGE("%s cannot open default backlight file %s", __func__,path);
+        ALOGE("%s cannot open default backlight file %s", __func__, path);
         property_get("vendor.hw.backlight_backup.dev", path, DEF_BACKLIGHT_DEV);
         strcpy(mBrightnessPath, DEF_BACKLIGHT_PATH);
         strcat(mBrightnessPath, path);
@@ -1102,35 +1035,31 @@ void Display::initBrightness()
 
     if (!file) {
         mMaxBrightness = -1;
-        ALOGE("%s cannot open backup backlight file %s", __func__,path);
-    }
-    else {
-        if (fread(&mMaxBrightness,1,3,file) == 3) {
-            mMaxBrightness = atoi((char *)&mMaxBrightness);
-            ALOGI("%s get maxBrightness:%d",__func__,mMaxBrightness);
+        ALOGE("%s cannot open backup backlight file %s", __func__, path);
+    } else {
+        if (fread(&mMaxBrightness, 1, 3, file) == 3) {
+            mMaxBrightness = atoi((char*)&mMaxBrightness);
+            ALOGI("%s get maxBrightness:%d", __func__, mMaxBrightness);
         }
         fclose(file);
     }
-
 }
 
-int Display::getMaxBrightness()
-{
+int Display::getMaxBrightness() {
     Mutex::Autolock _l(mLock);
     return mMaxBrightness;
 }
 
-int Display::setBrightness(float brightness)
-{
+int Display::setBrightness(float brightness) {
     Mutex::Autolock _l(mLock);
     if (mIndex != DISPLAY_PRIMARY || mMaxBrightness == -1) {
         return -1;
     }
 
     int bright = (int)(mMaxBrightness * brightness);
-    FILE *file = fopen(mBrightnessPath, "w");
+    FILE* file = fopen(mBrightnessPath, "w");
     if (!file) {
-        ALOGE("%s can not open file %s\n", __func__,mBrightnessPath);
+        ALOGE("%s can not open file %s\n", __func__, mBrightnessPath);
         return -1;
     }
     fprintf(file, "%d", bright);
@@ -1138,27 +1067,26 @@ int Display::setBrightness(float brightness)
     return 0;
 }
 
-void Display::setDisplayLimitation(int limit)
-{
+void Display::setDisplayLimitation(int limit) {
     mTileHwLimit = limit;
 }
 
-int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
-                                          uint32_t size)
-{
+int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t* data, uint32_t size) {
     int len;
     uint8_t default_edid[EDID_LENGTH] = {
-        // Basic info of the default edid:
-        // Vendor ID: NXP, Product ID: 0, Serial Number: 0, Mfg Week: 1, Mfg Year: 2019
-        // EDID Structure Version: 1.3, Monitor Name: NXP Android
-        0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00,0x3B,0x10,0x00,0x00,0x00,0x00,0x00,0x00,
-        0x01,0x1D,0x01,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-        0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-        0x01,0x01,0x01,0x01,0x01,0x01,0x64,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFC,0x00,0x4E,0x58,0x50,
-        0x20,0x41,0x6E,0x64,0x72,0x6F,0x69,0x64,0x0A,0x0A,0x00,0x00,0x00,0x10,0x00,0x00,
-        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x10,
-        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x1E,
+            // Basic info of the default edid:
+            // Vendor ID: NXP, Product ID: 0, Serial Number: 0, Mfg Week: 1, Mfg Year: 2019
+            // EDID Structure Version: 1.3, Monitor Name: NXP Android
+            0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x3B, 0x10, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01, 0x1D, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+            0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+            0x01, 0x01, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x4E,
+            0x58, 0x50, 0x20, 0x41, 0x6E, 0x64, 0x72, 0x6F, 0x69, 0x64, 0x0A, 0x0A, 0x00,
+            0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E,
     };
 
     if (mTileHwLimit > 0)
@@ -1166,8 +1094,7 @@ int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
     else
         *displayPort = (uint8_t)mIndex;
 
-    if (size < EDID_LENGTH)
-        return -1;
+    if (size < EDID_LENGTH) return -1;
 
     if ((mEdid == NULL) || ((len = mEdid->getEdidRawData(data, size)) <= 0)) {
         // Use NXP default EDID data if no data get from driver
@@ -1178,24 +1105,21 @@ int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data,
     return len;
 }
 
-int Display::getDisplayConnectionType()
-{
+int Display::getDisplayConnectionType() {
     Mutex::Autolock _l(mLock);
     return mType;
 }
 
-nsecs_t Display::getDisplayVsyncPeroid()
-{
+nsecs_t Display::getDisplayVsyncPeroid() {
     Mutex::Autolock _l(mLock);
     return mConfigs[mActiveConfig].mVsyncPeriod;
 }
 
-bool Display::isLowLatencyModeSupport()
-{
+bool Display::isLowLatencyModeSupport() {
     /* Need display to support low latency mode. If the display
-    * is connected via HDMI 2.1, then Auto Low Latency Mode should be triggered. If the display is
-    * internally connected, then a custom low latency mode should be triggered (if available).
-    */
+     * is connected via HDMI 2.1, then Auto Low Latency Mode should be triggered. If the display is
+     * internally connected, then a custom low latency mode should be triggered (if available).
+     */
     Mutex::Autolock _l(mLock);
     // TODO: Need to consider the EDID inforamtion
     if (mType == DISPLAY_HDMI || mType == DISPLAY_HDMI_ON_BOARD)
@@ -1204,15 +1128,13 @@ bool Display::isLowLatencyModeSupport()
         return false;
 }
 
-int Display::setAutoLowLatencyMode(bool /*on*/)
-{
+int Display::setAutoLowLatencyMode(bool /*on*/) {
     /* Need display to support low latency mode.
-    */
+     */
     return 0;
 }
 
-int Display::getSupportedContentTypes(int num, uint32_t *supportedTypes)
-{
+int Display::getSupportedContentTypes(int num, uint32_t* supportedTypes) {
     // HDMI spec feature, assume it support all types
     // This list must not change after initialization.
     int i = 0;
@@ -1223,26 +1145,24 @@ int Display::getSupportedContentTypes(int num, uint32_t *supportedTypes)
         supportedTypes[i++] = DISP_CONTENT_TYPE_GAME;
     }
 
-    return DISP_CONTENT_TYPE_GAME;  // assume support all types
+    return DISP_CONTENT_TYPE_GAME; // assume support all types
 }
 
-int Display::setContentType(int /*contentType*/)
-{
+int Display::setContentType(int /*contentType*/) {
     /* According to the HDMI 1.4 specification, supporting all content types is optional. Whether
      * the display supports a given content type is reported by getSupportedContentTypes.
      */
     return 0;
 }
 
-int Display::getConfigGroup(int config)
-{
+int Display::getConfigGroup(int config) {
     Mutex::Autolock _l(mLock);
     return mConfigs[config].cfgGroupId;
 }
 
-int Display::changeDisplayConfig(int config, nsecs_t /*desiredTimeNanos*/, bool /*seamlessRequired*/,
-                        nsecs_t* /*outAppliedTime*/, bool* /*outRefresh*/, nsecs_t* /*outRefreshTime*/)
-{
+int Display::changeDisplayConfig(int config, nsecs_t /*desiredTimeNanos*/,
+                                 bool /*seamlessRequired*/, nsecs_t* /*outAppliedTime*/,
+                                 bool* /*outRefresh*/, nsecs_t* /*outRefreshTime*/) {
     Mutex::Autolock _l(mLock);
     setActiveConfig(config);
 
@@ -1250,17 +1170,16 @@ int Display::changeDisplayConfig(int config, nsecs_t /*desiredTimeNanos*/, bool 
 }
 
 // ------------------BufferSlot-----------------------------
-BufferSlot::BufferSlot(uint32_t count)
-{
+BufferSlot::BufferSlot(uint32_t count) {
     if (count > MAX_COUNT) {
         count = MAX_COUNT;
     }
 
-    for (uint32_t i=0; i<MAX_COUNT; i++) {
+    for (uint32_t i = 0; i < MAX_COUNT; i++) {
         mBuffers[i] = nullptr;
     }
 
-    for (uint32_t i=0; i<count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         mFreeSlot.emplace_back(i);
     }
     mPresentSlot.clear();
@@ -1268,11 +1187,10 @@ BufferSlot::BufferSlot(uint32_t count)
     mPresentTotal = 0;
 }
 
-BufferSlot::~BufferSlot()
-{
-    native_handle_t *handle;
+BufferSlot::~BufferSlot() {
+    native_handle_t* handle;
     Mutex::Autolock _l(mLock);
-    for (uint32_t i=0; i<MAX_COUNT; i++) {
+    for (uint32_t i = 0; i < MAX_COUNT; i++) {
         if (mBuffers[i] == nullptr) {
             continue;
         }
@@ -1282,8 +1200,7 @@ BufferSlot::~BufferSlot()
     }
 }
 
-int32_t BufferSlot::getFreeSlot()
-{
+int32_t BufferSlot::getFreeSlot() {
     Mutex::Autolock _l(mLock);
     if (mFreeSlot.empty()) {
         mCondition.wait(mLock);
@@ -1297,20 +1214,17 @@ int32_t BufferSlot::getFreeSlot()
     return slot;
 }
 
-int32_t BufferSlot::presentSlotCount()
-{
+int32_t BufferSlot::presentSlotCount() {
     Mutex::Autolock _l(mLock);
     return mPresentSlot.size();
 }
 
-int32_t BufferSlot::presentTotal()
-{
+int32_t BufferSlot::presentTotal() {
     Mutex::Autolock _l(mLock);
     return mPresentTotal;
 }
 
-int32_t BufferSlot::getPresentSlot()
-{
+int32_t BufferSlot::getPresentSlot() {
     Mutex::Autolock _l(mLock);
     if (mPresentSlot.empty()) {
         return mLastPresent;
@@ -1329,8 +1243,7 @@ int32_t BufferSlot::getPresentSlot()
     return slot;
 }
 
-Memory* BufferSlot::getPresentBuffer(int32_t slot)
-{
+Memory* BufferSlot::getPresentBuffer(int32_t slot) {
     if (slot < 0 || slot >= (int32_t)MAX_COUNT) {
         return nullptr;
     }
@@ -1339,18 +1252,17 @@ Memory* BufferSlot::getPresentBuffer(int32_t slot)
     return mBuffers[slot];
 }
 
-void BufferSlot::addPresentSlot(int32_t slot, Memory* buffer)
-{
+void BufferSlot::addPresentSlot(int32_t slot, Memory* buffer) {
     if (slot < 0 || slot >= (int32_t)MAX_COUNT || buffer == nullptr) {
         return;
     }
 
     Mutex::Autolock _l(mLock);
     mPresentSlot.emplace_back(slot);
-    mPresentTotal ++;
+    mPresentTotal++;
     if (mBuffers[slot] == nullptr) {
         mBuffers[slot] = (Memory*)native_handle_clone(buffer);
     }
 }
 
-}
+} // namespace fsl

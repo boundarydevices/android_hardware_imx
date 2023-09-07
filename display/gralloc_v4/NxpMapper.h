@@ -5,6 +5,7 @@
  */
 
 #include <android/hardware/graphics/mapper/4.0/IMapper.h>
+
 #include <unordered_set>
 
 #include "gralloc_driver.h"
@@ -12,7 +13,7 @@
 #include "gralloc_metadata.h"
 
 class GrallocImportedBufferPool {
-   public:
+public:
     static GrallocImportedBufferPool& getInstance() {
         static GrallocImportedBufferPool* singleton = new GrallocImportedBufferPool;
         return *singleton;
@@ -44,21 +45,20 @@ class GrallocImportedBufferPool {
         return mBufferHandles.count(bufferHandle) == 1 ? bufferHandle : nullptr;
     }
 
-    void forEachHandle(const std::function<void(gralloc_handle_t)> &function)
-    {
+    void forEachHandle(const std::function<void(gralloc_handle_t)>& function) {
         std::lock_guard<std::mutex> lock(mMutex);
-        for (const auto &hnd : mBufferHandles) {
-                function(static_cast<gralloc_handle_t>(hnd));
+        for (const auto& hnd : mBufferHandles) {
+            function(static_cast<gralloc_handle_t>(hnd));
         }
     }
 
-   private:
+private:
     std::mutex mMutex;
     std::unordered_set<const native_handle_t*> mBufferHandles;
 };
 
 class NxpMapper : public android::hardware::graphics::mapper::V4_0::IMapper {
-  public:
+public:
     NxpMapper();
 
     android::hardware::Return<void> createDescriptor(const BufferDescriptorInfo& description,
@@ -112,7 +112,7 @@ class NxpMapper : public android::hardware::graphics::mapper::V4_0::IMapper {
     android::hardware::Return<void> getReservedRegion(void* rawHandle,
                                                       getReservedRegion_cb hidlCb) override;
 
-  protected:
+protected:
     void* addImportedBuffer(native_handle_t* bufferHandle) {
         return GrallocImportedBufferPool::getInstance().add(bufferHandle);
     }
@@ -129,12 +129,11 @@ class NxpMapper : public android::hardware::graphics::mapper::V4_0::IMapper {
         return GrallocImportedBufferPool::getInstance().getConst(buffer);
     }
 
-    void forEachGrallocHandle(const std::function<void(gralloc_handle_t)> &function) {
+    void forEachGrallocHandle(const std::function<void(gralloc_handle_t)>& function) {
         return GrallocImportedBufferPool::getInstance().forEachHandle(function);
     }
 
-
-  private:
+private:
     android::hardware::Return<void> get(gralloc_handle_t crosHandle,
                                         const MetadataType& metadataType, get_cb hidlCb);
 
@@ -142,8 +141,7 @@ class NxpMapper : public android::hardware::graphics::mapper::V4_0::IMapper {
             gralloc_handle_t memHandle, const MetadataType& metadataType,
             const android::hardware::hidl_vec<uint8_t>& metadata);
 
-    android::hardware::Return<void> dumpBuffer(gralloc_handle_t crosHandle,
-                                               dumpBuffer_cb hidlCb);
+    android::hardware::Return<void> dumpBuffer(gralloc_handle_t crosHandle, dumpBuffer_cb hidlCb);
 
     int getResolvedDrmFormat(android::hardware::graphics::common::V1_2::PixelFormat pixelFormat,
                              uint64_t bufferUsage, uint32_t* outDrmFormat);
@@ -159,15 +157,13 @@ class NxpMapper : public android::hardware::graphics::mapper::V4_0::IMapper {
     };
 
     android::hardware::graphics::mapper::V4_0::Error getReservedRegionArea(
-            gralloc_handle_t memHandle, ReservedRegionArea area, void** outAddr,
-            uint64_t* outSize);
+            gralloc_handle_t memHandle, ReservedRegionArea area, void** outAddr, uint64_t* outSize);
 
     android::hardware::graphics::mapper::V4_0::Error getMetadata(
             gralloc_handle_t memHandle, const gralloc_metadata** outMetadata);
 
     android::hardware::graphics::mapper::V4_0::Error getMutableMetadata(
             gralloc_handle_t memHandle, gralloc_metadata** outMetadata);
-
 };
 
 extern "C" android::hardware::graphics::mapper::V4_0::IMapper* HIDL_FETCH_IMapper(const char* name);

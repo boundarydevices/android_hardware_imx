@@ -21,8 +21,7 @@
 
 // stream uses user pointer buffers which allocated in user space.
 // that exports physical address.
-class USPStream : public MMAPStream
-{
+class USPStream : public MMAPStream {
 public:
     USPStream(Camera* device);
     virtual ~USPStream();
@@ -48,7 +47,6 @@ protected:
     int32_t getFormatSize();
 
 private:
-
 };
 
 #endif

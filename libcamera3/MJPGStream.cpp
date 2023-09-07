@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include <Allocator.h>
 #include "MJPGStream.h"
 
-int32_t mVPUBuffersIndex=0;
+#include <Allocator.h>
+
+int32_t mVPUBuffersIndex = 0;
 
 #if 0
 static u8 g_hufTab[] = { \
@@ -51,20 +52,20 @@ static u8 g_hufTab[] = { \
           0xe8, 0xe9, 0xea, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa };
 #endif
 
-#define MAX_SERCH_SIZE (u32)(64*1024)
+#define MAX_SERCH_SIZE (u32)(64 * 1024)
 
 typedef struct tagSecHead {
     u8 secStart;
     u8 secID;
     u8 secLenH;
     u8 secLenL;
-}TSecHead;
-#define SEC_START   0xff
+} TSecHead;
+#define SEC_START 0xff
 
-#define ID_SOI  0xd8
+#define ID_SOI 0xd8
 #define ID_SOF0 0xc0
-#define ID_DHT  0xc4
-#define ID_SOS  0xda
+#define ID_DHT 0xc4
+#define ID_SOS 0xda
 
 #if 0
 static int SearchHufTabPos(u8 *pSrc, u32 nSrcSize, bool *pbExist, u32 *pdwExptDHTPos) {
@@ -177,26 +178,21 @@ static int CheckAndInsertHufTab(u8 *pDst, u8 *pSrc, u32 nDstSize, u32 nSrcSize) 
 }
 #endif
 
-MJPGStream::MJPGStream(Camera* device): DMAStream(device), mStreamSize(0)
-{
+MJPGStream::MJPGStream(Camera* device) : DMAStream(device), mStreamSize(0) {
     mVPUHandle = 0;
     meOutColorFmt = DEC_OUT_UNKNOWN;
 
-    memset(&mVPUPhyAddr,0,sizeof(mVPUPhyAddr));
-    memset(&mVPUVirtAddr,0,sizeof(mVPUVirtAddr));
-    memset(&mSensorBuffers,0,sizeof(mSensorBuffers));
-    memset(&mDecMemInfo,0,sizeof(DecMemInfo));
+    memset(&mVPUPhyAddr, 0, sizeof(mVPUPhyAddr));
+    memset(&mVPUVirtAddr, 0, sizeof(mVPUVirtAddr));
+    memset(&mSensorBuffers, 0, sizeof(mSensorBuffers));
+    memset(&mDecMemInfo, 0, sizeof(DecMemInfo));
     memset(&mDecContxt, 0, sizeof(mDecContxt));
 }
 
-MJPGStream::~MJPGStream()
-{
-
-}
+MJPGStream::~MJPGStream() {}
 
 // configure device.
-int32_t MJPGStream::onDeviceConfigureLocked()
-{
+int32_t MJPGStream::onDeviceConfigureLocked() {
     ALOGI("%s", __func__);
 
     int32_t ret = 0;
@@ -213,14 +209,13 @@ int32_t MJPGStream::onDeviceConfigureLocked()
         fps = 15;
     }
 
-    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d",
-            mWidth, mHeight, vformat&0xFF, (vformat>>8)&0xFF,
-            (vformat>>16)&0xFF, (vformat>>24)&0xFF, fps);
+    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF,
+          (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    param.parm.capture.timeperframe.numerator   = 1;
+    param.parm.capture.timeperframe.numerator = 1;
     param.parm.capture.timeperframe.denominator = fps;
     param.parm.capture.capturemode = mCamera->getCaptureMode(mWidth, mHeight);
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
@@ -231,22 +226,21 @@ int32_t MJPGStream::onDeviceConfigureLocked()
 
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
-    fmt.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width        = mWidth & 0xFFFFFFF8;
-    fmt.fmt.pix.height       = mHeight & 0xFFFFFFF8;
-    fmt.fmt.pix.pixelformat  = vformat;
-    fmt.fmt.pix.priv         = 0;
-    fmt.fmt.pix.sizeimage    = 0;
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width = mWidth & 0xFFFFFFF8;
+    fmt.fmt.pix.height = mHeight & 0xFFFFFFF8;
+    fmt.fmt.pix.pixelformat = vformat;
+    fmt.fmt.pix.priv = 0;
+    fmt.fmt.pix.sizeimage = 0;
     fmt.fmt.pix.bytesperline = 0;
 
-    if(vformat == v4l2_fourcc('M', 'J', 'P', 'G')){
-        int32_t stride = (mWidth+31)/32*32;
-        int32_t c_stride = (stride/2+15)/16*16;
+    if (vformat == v4l2_fourcc('M', 'J', 'P', 'G')) {
+        int32_t stride = (mWidth + 31) / 32 * 32;
+        int32_t c_stride = (stride / 2 + 15) / 16 * 16;
         fmt.fmt.pix.bytesperline = stride;
-        fmt.fmt.pix.sizeimage    = stride*mHeight+c_stride * mHeight;
-        ALOGI("Special handling for MJPG on Stride %d, size %d",
-                fmt.fmt.pix.bytesperline,
-                fmt.fmt.pix.sizeimage);
+        fmt.fmt.pix.sizeimage = stride * mHeight + c_stride * mHeight;
+        ALOGI("Special handling for MJPG on Stride %d, size %d", fmt.fmt.pix.bytesperline,
+              fmt.fmt.pix.sizeimage);
     }
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
     if (ret < 0) {
@@ -257,8 +251,7 @@ int32_t MJPGStream::onDeviceConfigureLocked()
     return 0;
 }
 
-int32_t MJPGStream::onDeviceStartLocked()
-{
+int32_t MJPGStream::onDeviceStartLocked() {
     ALOGV("%s", __func__);
 
     if (mDev <= 0) {
@@ -270,7 +263,7 @@ int32_t MJPGStream::onDeviceStartLocked()
     //-------init vpu----------
     int vpuRet;
     vpuRet = VPUInit();
-    if(vpuRet) {
+    if (vpuRet) {
         ALOGE("VPUInit failed, vpuRet %d", vpuRet);
         return BAD_VALUE;
     }
@@ -278,7 +271,7 @@ int32_t MJPGStream::onDeviceStartLocked()
     //-------register buffers----------
     struct v4l2_requestbuffers req;
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = mNumBuffers;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_DMABUF;
@@ -291,7 +284,7 @@ int32_t MJPGStream::onDeviceStartLocked()
     //----------qbuf----------
     struct v4l2_buffer cfilledbuffer;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+        memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         cfilledbuffer.memory = V4L2_MEMORY_DMABUF;
         cfilledbuffer.m.fd = mSensorBuffers[i]->mFd;
@@ -317,8 +310,7 @@ int32_t MJPGStream::onDeviceStartLocked()
     return 0;
 }
 
-int32_t MJPGStream::onDeviceStopLocked()
-{
+int32_t MJPGStream::onDeviceStopLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
 
@@ -341,17 +333,15 @@ int32_t MJPGStream::onDeviceStopLocked()
         return -1;
     }
 
-
     return 0;
 }
 
-int32_t MJPGStream::onFrameAcquireLocked()
-{
+int32_t MJPGStream::onFrameAcquireLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     int32_t ret2 = 0;
     struct v4l2_buffer cfilledbuffer;
-    memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
+    memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_DMABUF;
     ret = ioctl(mDev, VIDIOC_DQBUF, &cfilledbuffer);
@@ -365,45 +355,40 @@ int32_t MJPGStream::onFrameAcquireLocked()
     int JPGLen;
     int VPUIndex;
     JPGLen = cfilledbuffer.length;
-    VPUIndex = VPUDec((u8 *)mSensorBuffers[index]->mVirtAddr, JPGLen, index);
+    VPUIndex = VPUDec((u8*)mSensorBuffers[index]->mVirtAddr, JPGLen, index);
     ret2 = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
     if (ret < 0) {
         ALOGE("%s: VIDIOC_QBUF Failed: %s", __func__, strerror(errno));
         return BAD_VALUE;
     }
     return VPUIndex;
-
 }
 
-int32_t MJPGStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
-{
+int32_t MJPGStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf) {
     ALOGV("%s: index:%d", __func__, index);
     int32_t ret = 0;
 
     Mutex::Autolock lock(mVPULock);
 
-    if(buf.mpFrameBuf) {
+    if (buf.mpFrameBuf) {
         VpuDecRetCode retCode;
-        retCode = VPU_DecOutFrameDisplayed(mVPUHandle, (VpuFrameBuffer *)buf.mpFrameBuf);
-        if(VPU_DEC_RET_SUCCESS != retCode) {
-            ALOGI("%s: vpu clear frame display failure: ret=%d \r\n",__FUNCTION__,ret);
+        retCode = VPU_DecOutFrameDisplayed(mVPUHandle, (VpuFrameBuffer*)buf.mpFrameBuf);
+        if (VPU_DEC_RET_SUCCESS != retCode) {
+            ALOGI("%s: vpu clear frame display failure: ret=%d \r\n", __FUNCTION__, ret);
             ret = BAD_VALUE;
         }
     }
 
-
     return 0;
 }
 
-int32_t MJPGStream::getDeviceBufferSize()
-{
+int32_t MJPGStream::getDeviceBufferSize() {
     return getFormatSize();
 }
 
-int32_t MJPGStream::allocateSensorBuffersLocked()
-{
+int32_t MJPGStream::allocateSensorBuffersLocked() {
     ALOGV("%s", __func__);
-    fsl::Allocator *allocator = fsl::Allocator::getInstance();
+    fsl::Allocator* allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
@@ -420,15 +405,13 @@ int32_t MJPGStream::allocateSensorBuffersLocked()
         return BAD_VALUE;
     }
 
-
     mStreamSize = getDeviceBufferSize();
     uint64_t Sensorptr = 0;
     int32_t sharedFd;
     uint64_t phyAddr;
     int32_t ionSize = mStreamSize;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        sharedFd = allocator->allocMemory(ionSize,
-                        ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        sharedFd = allocator->allocMemory(ionSize, ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
         if (sharedFd < 0) {
             ALOGE("allocMemory failed.");
             goto err;
@@ -449,13 +432,13 @@ int32_t MJPGStream::allocateSensorBuffersLocked()
         }
 
         mSensorBuffers[i] = new StreamBuffer();
-        mSensorBuffers[i]->mVirtAddr  = (void*)(uintptr_t)Sensorptr;
-        mSensorBuffers[i]->mPhyAddr   = phyAddr;
-        mSensorBuffers[i]->mSize      = ionSize;
+        mSensorBuffers[i]->mVirtAddr = (void*)(uintptr_t)Sensorptr;
+        mSensorBuffers[i]->mPhyAddr = phyAddr;
+        mSensorBuffers[i]->mSize = ionSize;
         mSensorBuffers[i]->mBufHandle = NULL;
         mSensorBuffers[i]->mFd = sharedFd;
         mSensorBuffers[i]->mStream = this;
-        mSensorBuffers[i]->mpFrameBuf  = NULL;
+        mSensorBuffers[i]->mpFrameBuf = NULL;
     }
 
     mRegistered = true;
@@ -478,8 +461,7 @@ err:
     return BAD_VALUE;
 }
 
-int32_t MJPGStream::freeSensorBuffersLocked()
-{
+int32_t MJPGStream::freeSensorBuffersLocked() {
     ALOGV("%s", __func__);
     if (!mRegistered) {
         ALOGI("%s but buffer is not registered", __func__);
@@ -500,100 +482,93 @@ int32_t MJPGStream::freeSensorBuffersLocked()
     return 0;
 }
 
-
-int MJPGStream::VPUInit()
-{
+int MJPGStream::VPUInit() {
     VpuVersionInfo ver;
     VpuDecRetCode ret;
     VpuWrapperVersionInfo w_ver;
     VpuMemInfo memInfo;
     VpuDecOpenParam decOpenParam;
-    int capability=0;
+    int capability = 0;
 
-    //Initial decode context
+    // Initial decode context
     mDecContxt.nCodec = 11; // -f (Fixed as JPG)
     mDecContxt.nChromaInterleave = 1;
     mDecContxt.nMapType = 0;
     mDecContxt.nTile2LinearEnable = 0;
 
-
-    //clear 0
-    memset(&ver,0,sizeof(ver));
-    memset(&w_ver,0,sizeof(w_ver));
-    memset(&memInfo,0,sizeof(memInfo));
-    memset(&mDecMemInfo,0,sizeof(mDecMemInfo));
+    // clear 0
+    memset(&ver, 0, sizeof(ver));
+    memset(&w_ver, 0, sizeof(w_ver));
+    memset(&memInfo, 0, sizeof(memInfo));
+    memset(&mDecMemInfo, 0, sizeof(mDecMemInfo));
 
     ALOGI("UvcMJPGDevice::VPUInit");
 
-    //load vpu
+    // load vpu
     ret = VPU_DecLoad();
-    if (ret != VPU_DEC_RET_SUCCESS)
-    {
-        ALOGE("%s: vpu load failure: ret=%d \r\n",__FUNCTION__,ret);
+    if (ret != VPU_DEC_RET_SUCCESS) {
+        ALOGE("%s: vpu load failure: ret=%d \r\n", __FUNCTION__, ret);
         return 1;
     }
     ret = VPU_DecGetVersionInfo(&ver);
-    if (ret != VPU_DEC_RET_SUCCESS){
-        ALOGE("%s: vpu get version failure: ret=%d \r\n",  __FUNCTION__, ret);
+    if (ret != VPU_DEC_RET_SUCCESS) {
+        ALOGE("%s: vpu get version failure: ret=%d \r\n", __FUNCTION__, ret);
         goto bail;
     }
 
-    ALOGI("vpu lib version : major.minor.rel=%d.%d.%d \r\n",ver.nLibMajor,ver.nLibMinor,ver.nLibRelease);
-    ALOGI("vpu fw version : major.minor.rel_rcode=%d.%d.%d_r%d \r\n",ver.nFwMajor,ver.nFwMinor,ver.nFwRelease,ver.nFwCode);
+    ALOGI("vpu lib version : major.minor.rel=%d.%d.%d \r\n", ver.nLibMajor, ver.nLibMinor,
+          ver.nLibRelease);
+    ALOGI("vpu fw version : major.minor.rel_rcode=%d.%d.%d_r%d \r\n", ver.nFwMajor, ver.nFwMinor,
+          ver.nFwRelease, ver.nFwCode);
 
-    //wrapper version info
+    // wrapper version info
     ret = VPU_DecGetWrapperVersionInfo(&w_ver);
-    if (ret != VPU_DEC_RET_SUCCESS)
-    {
-        ALOGE("%s: vpu get wrapper version failure: ret=%d \r\n",__FUNCTION__,ret);
+    if (ret != VPU_DEC_RET_SUCCESS) {
+        ALOGE("%s: vpu get wrapper version failure: ret=%d \r\n", __FUNCTION__, ret);
         goto bail;
     }
-    ALOGI("vpu wrapper version : major.minor.rel=%d.%d.%d: %s \r\n",w_ver.nMajor,w_ver.nMinor,w_ver.nRelease,w_ver.pBinary);
+    ALOGI("vpu wrapper version : major.minor.rel=%d.%d.%d: %s \r\n", w_ver.nMajor, w_ver.nMinor,
+          w_ver.nRelease, w_ver.pBinary);
 
-    //query memory
+    // query memory
     ret = VPU_DecQueryMem(&memInfo);
-    if (ret != VPU_DEC_RET_SUCCESS)
-    {
-        ALOGE("%s: vpu query memory failure: ret=%d \r\n",__FUNCTION__,ret);
+    if (ret != VPU_DEC_RET_SUCCESS) {
+        ALOGE("%s: vpu query memory failure: ret=%d \r\n", __FUNCTION__, ret);
         goto bail;
     }
 
-    //malloc memory for vpu wrapper
-    if(MallocMemBlock(&memInfo,&mDecMemInfo) == 0)
-    {
-        ALOGE("%s: malloc memory failure: \r\n",__FUNCTION__);
+    // malloc memory for vpu wrapper
+    if (MallocMemBlock(&memInfo, &mDecMemInfo) == 0) {
+        ALOGE("%s: malloc memory failure: \r\n", __FUNCTION__);
         goto bail;
     }
 
     memset(&decOpenParam, 0, sizeof(decOpenParam));
-    //set open params
-    if(ConvertCodecFormat(mDecContxt.nCodec, &decOpenParam.CodecFormat) == 0)
-    {
-        ALOGE("%s: unsupported codec format: id=%d \r\n",__FUNCTION__, mDecContxt.nCodec);
+    // set open params
+    if (ConvertCodecFormat(mDecContxt.nCodec, &decOpenParam.CodecFormat) == 0) {
+        ALOGE("%s: unsupported codec format: id=%d \r\n", __FUNCTION__, mDecContxt.nCodec);
         goto bail;
     }
 
-    decOpenParam.nReorderEnable=1;  //for H264
-    decOpenParam.nEnableFileMode=0; //unit test: using stream mode
+    decOpenParam.nReorderEnable = 1;  // for H264
+    decOpenParam.nEnableFileMode = 0; // unit test: using stream mode
 
-    //check capabilities
+    // check capabilities
     VPU_DecGetCapability((VpuDecHandle)NULL, VPU_DEC_CAP_FILEMODE, &capability);
-    ALOGI("capability: file mode supported: %d \r\n",capability);
+    ALOGI("capability: file mode supported: %d \r\n", capability);
     VPU_DecGetCapability((VpuDecHandle)NULL, VPU_DEC_CAP_TILE, &capability);
-    ALOGI("capability: tile format supported: %d \r\n",capability);
-    if((capability==0)&&(mDecContxt.nMapType!=0))
-    {
+    ALOGI("capability: tile format supported: %d \r\n", capability);
+    if ((capability == 0) && (mDecContxt.nMapType != 0)) {
         ALOGW("WARNING: tile format is not supported \r\n");
     }
 
-    decOpenParam.nChromaInterleave=mDecContxt.nChromaInterleave;
-    decOpenParam.nMapType=mDecContxt.nMapType;
-    decOpenParam.nTiled2LinearEnable=mDecContxt.nTile2LinearEnable;
+    decOpenParam.nChromaInterleave = mDecContxt.nChromaInterleave;
+    decOpenParam.nMapType = mDecContxt.nMapType;
+    decOpenParam.nTiled2LinearEnable = mDecContxt.nTile2LinearEnable;
 
     // open vpu
     ret = VPU_DecOpen(&mVPUHandle, &decOpenParam, &memInfo);
-    if (ret != VPU_DEC_RET_SUCCESS)
-    {
+    if (ret != VPU_DEC_RET_SUCCESS) {
         ALOGE("%s: vpu open failure: ret=%d \r\n", __FUNCTION__, ret);
         return 1;
     }
@@ -601,55 +576,48 @@ int MJPGStream::VPUInit()
     return 0;
 
 bail:
-    //release mem
-    if(0==FreeMemBlock(&mDecMemInfo))
-    {
-        ALOGE("%s: mmfree memory failure:  \r\n",__FUNCTION__);
+    // release mem
+    if (0 == FreeMemBlock(&mDecMemInfo)) {
+        ALOGE("%s: mmfree memory failure:  \r\n", __FUNCTION__);
     }
 
-
-    //unload
+    // unload
     ret = VPU_DecUnLoad();
-    if (ret != VPU_DEC_RET_SUCCESS)
-    {
-        ALOGE("%s: vpu unload failure: ret=%d \r\n",__FUNCTION__,ret);
+    if (ret != VPU_DEC_RET_SUCCESS) {
+        ALOGE("%s: vpu unload failure: ret=%d \r\n", __FUNCTION__, ret);
     }
 
     return 1;
 }
 
-int MJPGStream::VPUExit()
-{
+int MJPGStream::VPUExit() {
     VpuDecRetCode ret;
 
     ALOGI("UvcMJPGDevice::VPUExit");
 
     // close vpu
     ret = VPU_DecClose(mVPUHandle);
-    if (ret != VPU_DEC_RET_SUCCESS)
-    {
+    if (ret != VPU_DEC_RET_SUCCESS) {
         ALOGE("%s: vpu close failure: ret=%d \r\n", __FUNCTION__, ret);
         return 1;
     }
 
-    //release mem
+    // release mem
     ALOGI("FreeMemBlock");
-    if(0==FreeMemBlock(&mDecMemInfo))
-    {
-        ALOGE("%s: mmfree memory failure:  \r\n",__FUNCTION__);
+    if (0 == FreeMemBlock(&mDecMemInfo)) {
+        ALOGE("%s: mmfree memory failure:  \r\n", __FUNCTION__);
         return 1;
     }
 
     return 0;
 }
 
-int MJPGStream::VPUDec(u8 *InVirAddr, u32 inLen, unsigned int nUVCBufIdx __unused)
-{
+int MJPGStream::VPUDec(u8* InVirAddr, u32 inLen, unsigned int nUVCBufIdx __unused) {
 DecLogic:
     VpuDecRetCode ret;
     int bufRetCode = 0;
 
-    //DecContxt * decContxt;
+    // DecContxt * decContxt;
     DecMemInfo pDecMemInfo;
 
     VpuBufferNode InData;
@@ -668,96 +636,94 @@ DecLogic:
     ret = VPU_DecDecodeBuf(mVPUHandle, &InData, &bufRetCode);
 
     // check init info
-    if(bufRetCode & VPU_DEC_INIT_OK) {
+    if (bufRetCode & VPU_DEC_INIT_OK) {
         ALOGI("%s: vpu & VPU_DEC_INIT_OK \r\n", __FUNCTION__);
         int nFrmNum;
         VpuDecInitInfo InitInfo;
-	 memset(&InitInfo, 0, sizeof(InitInfo));
+        memset(&InitInfo, 0, sizeof(InitInfo));
 
-        //process init info
-        if(ProcessInitInfo(&InitInfo, &pDecMemInfo, &nFrmNum, NULL, &mVPUBuffersIndex) == 0)
-        {
-        ALOGI("%s: vpu process init info failure: \r\n", __FUNCTION__);
+        // process init info
+        if (ProcessInitInfo(&InitInfo, &pDecMemInfo, &nFrmNum, NULL, &mVPUBuffersIndex) == 0) {
+            ALOGI("%s: vpu process init info failure: \r\n", __FUNCTION__);
             return 0;
         }
 
         goto DecLogic;
     }
 
-    //check output buff
-    if((bufRetCode & VPU_DEC_OUTPUT_DIS) ||(bufRetCode & VPU_DEC_OUTPUT_MOSAIC_DIS))
-    {
+    // check output buff
+    if ((bufRetCode & VPU_DEC_OUTPUT_DIS) || (bufRetCode & VPU_DEC_OUTPUT_MOSAIC_DIS)) {
         VpuDecOutFrameInfo frameInfo;
 
         // get output frame
         ret = VPU_DecGetOutputFrame(mVPUHandle, &frameInfo);
-        if(ret != VPU_DEC_RET_SUCCESS)
-        {
-            ALOGE("%s: vpu get output frame failure: ret=%d \r\n",__FUNCTION__,ret);
+        if (ret != VPU_DEC_RET_SUCCESS) {
+            ALOGE("%s: vpu get output frame failure: ret=%d \r\n", __FUNCTION__, ret);
             return 0;
         }
 
         unsigned int i;
-        for(i = 0; i < mNumBuffers; i++) {
-            if(frameInfo.pDisplayFrameBuf->pbufY == (unsigned char* )(uintptr_t)mBuffers[i]->mPhyAddr) {
+        for (i = 0; i < mNumBuffers; i++) {
+            if (frameInfo.pDisplayFrameBuf->pbufY ==
+                (unsigned char*)(uintptr_t)mBuffers[i]->mPhyAddr) {
                 VPUIndex = i;
                 break;
             }
         }
 
-            mBuffers[VPUIndex]->mpFrameBuf = (void *)frameInfo.pDisplayFrameBuf;
+        mBuffers[VPUIndex]->mpFrameBuf = (void*)frameInfo.pDisplayFrameBuf;
 
-    } else if(bufRetCode & VPU_DEC_NO_ENOUGH_BUF) {
+    } else if (bufRetCode & VPU_DEC_NO_ENOUGH_BUF) {
         mVPULock.unlock();
         usleep(10000);
         ALOGI("VPU_DEC_NO_ENOUGH_BUF, wait 10ms, goto DecLogic");
         goto DecLogic;
     }
 
-      return VPUIndex;
+    return VPUIndex;
 }
 
-int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMemInfo*/, int*pOutFrmNum, unsigned char** rptr __unused, int32_t* vpuindex)
-{
+int MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMemInfo*/,
+                                int* pOutFrmNum, unsigned char** rptr __unused, int32_t* vpuindex) {
     VpuDecRetCode ret;
     VpuFrameBuffer frameBuf[MAX_FRAME_NUM];
     int requestedBufNum;
-    int totalSize=0;
-    int mvSize=0;
-    int ySize=0;
-    int uSize=0;
-    int vSize=0;
-    int yStride=0;
-    int uStride=0;
-    int vStride=0;
+    int totalSize = 0;
+    int mvSize = 0;
+    int ySize = 0;
+    int uSize = 0;
+    int vSize = 0;
+    int yStride = 0;
+    int uStride = 0;
+    int vStride = 0;
     unsigned char* ptr;
     unsigned char* ptrVirt;
     unsigned char* pPhyAddr;
     unsigned char* pVirtAddr;
     int nAlign;
-    int multifactor=1;
+    int multifactor = 1;
 
     ALOGI("enter ProcessInitInfo");
 
-    //get init info
-    ret=VPU_DecGetInitialInfo(mVPUHandle, pInitInfo);
-    if(VPU_DEC_RET_SUCCESS!=ret)
-    {
-        ALOGE("%s: vpu get init info failure: ret=%d \r\n",__FUNCTION__,ret);
+    // get init info
+    ret = VPU_DecGetInitialInfo(mVPUHandle, pInitInfo);
+    if (VPU_DEC_RET_SUCCESS != ret) {
+        ALOGE("%s: vpu get init info failure: ret=%d \r\n", __FUNCTION__, ret);
         return 0;
     }
 
-    //malloc frame buffs
-    requestedBufNum=pInitInfo->nMinFrameBufferCount+FRAME_SURPLUS;
-    ALOGI("VPU requested requestedBufNum %d, minCount %d", requestedBufNum, pInitInfo->nMinFrameBufferCount);
+    // malloc frame buffs
+    requestedBufNum = pInitInfo->nMinFrameBufferCount + FRAME_SURPLUS;
+    ALOGI("VPU requested requestedBufNum %d, minCount %d", requestedBufNum,
+          pInitInfo->nMinFrameBufferCount);
 
-    if(requestedBufNum>MAX_FRAME_NUM)
-    {
-        ALOGE("%s: vpu request too many frames : num=0x%X \r\n",__FUNCTION__,pInitInfo->nMinFrameBufferCount);
+    if (requestedBufNum > MAX_FRAME_NUM) {
+        ALOGE("%s: vpu request too many frames : num=0x%X \r\n", __FUNCTION__,
+              pInitInfo->nMinFrameBufferCount);
         return 0;
     }
 
-    fsl::Allocator *allocator = fsl::Allocator::getInstance();
+    fsl::Allocator* allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
@@ -768,8 +734,7 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
     int32_t sharedFd;
     int32_t ionSize = getDeviceBufferSize();
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        sharedFd = allocator->allocMemory(ionSize,
-                        ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        sharedFd = allocator->allocMemory(ionSize, ION_MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
         if (sharedFd < 0) {
             ALOGE("allocMemory failed.");
             return BAD_VALUE;
@@ -790,268 +755,245 @@ int  MJPGStream::ProcessInitInfo(VpuDecInitInfo* pInitInfo, DecMemInfo* /*pDecMe
             return BAD_VALUE;
         }
 
-        pPhyAddr=(unsigned char*)(uintptr_t)phyAddr;
-        pVirtAddr=(unsigned char*)(uintptr_t)base;
+        pPhyAddr = (unsigned char*)(uintptr_t)phyAddr;
+        pVirtAddr = (unsigned char*)(uintptr_t)base;
         mBuffers[i] = new StreamBuffer();
-        mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)base;
-        mBuffers[i]->mPhyAddr   = (uintptr_t)phyAddr;
-        mBuffers[i]->mSize      =  ionSize;
+        mBuffers[i]->mVirtAddr = (void*)(uintptr_t)base;
+        mBuffers[i]->mPhyAddr = (uintptr_t)phyAddr;
+        mBuffers[i]->mSize = ionSize;
         mBuffers[i]->mBufHandle = NULL;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
-        mBuffers[i]->mpFrameBuf  = NULL;
+        mBuffers[i]->mpFrameBuf = NULL;
     }
 
-    yStride=Align(pInitInfo->nPicWidth,FRAME_ALIGN);
+    yStride = Align(pInitInfo->nPicWidth, FRAME_ALIGN);
 
-    if(pInitInfo->nInterlace)
-    {
-        ySize = Align(pInitInfo->nPicWidth,FRAME_ALIGN)*Align(pInitInfo->nPicHeight,(2*FRAME_ALIGN));
-    }
-    else
-    {
-        ySize = Align(pInitInfo->nPicWidth,FRAME_ALIGN)*Align(pInitInfo->nPicHeight,FRAME_ALIGN);
+    if (pInitInfo->nInterlace) {
+        ySize = Align(pInitInfo->nPicWidth, FRAME_ALIGN) *
+                Align(pInitInfo->nPicHeight, (2 * FRAME_ALIGN));
+    } else {
+        ySize = Align(pInitInfo->nPicWidth, FRAME_ALIGN) *
+                Align(pInitInfo->nPicHeight, FRAME_ALIGN);
     }
 
     ALOGI("nInterlace %d, ySize %d", pInitInfo->nInterlace, ySize);
 
-
-    //for MJPG: we need to check 4:4:4/4:2:2/4:2:0/4:0:0
+    // for MJPG: we need to check 4:4:4/4:2:2/4:2:0/4:0:0
     VpuCodStd vpuCodec = VPU_V_MPEG4;
 
     ConvertCodecFormat(mDecContxt.nCodec, &vpuCodec);
-    if(VPU_V_MJPG==vpuCodec)
-    {
-        switch(pInitInfo->nMjpgSourceFormat)
-        {
-            case 0: //4:2:0
+    if (VPU_V_MJPG == vpuCodec) {
+        switch (pInitInfo->nMjpgSourceFormat) {
+            case 0: // 4:2:0
                 ALOGI("MJPG: 4:2:0 \r\n");
-                uStride=yStride/2;
-                vStride=uStride;
-                uSize=ySize/4;
-                vSize=uSize;
-                mvSize=uSize;
-                mDecContxt.eOutColorFmt=DEC_OUT_420;
+                uStride = yStride / 2;
+                vStride = uStride;
+                uSize = ySize / 4;
+                vSize = uSize;
+                mvSize = uSize;
+                mDecContxt.eOutColorFmt = DEC_OUT_420;
                 break;
-            case 1: //4:2:2 hor
+            case 1: // 4:2:2 hor
                 ALOGI("MJPG: 4:2:2 hor \r\n");
-                uStride=yStride/2;
-                vStride=uStride;
-                uSize=ySize/2;
-                vSize=uSize;
-                mvSize=uSize;
-                mDecContxt.eOutColorFmt=DEC_OUT_422H;
+                uStride = yStride / 2;
+                vStride = uStride;
+                uSize = ySize / 2;
+                vSize = uSize;
+                mvSize = uSize;
+                mDecContxt.eOutColorFmt = DEC_OUT_422H;
                 break;
-            case 2: //4:2:2 ver
+            case 2: // 4:2:2 ver
                 ALOGI("MJPG: 4:2:2 ver \r\n");
-                uStride=yStride;
-                vStride=uStride;
-                uSize=ySize/2;
-                vSize=uSize;
-                mvSize=uSize;
-                mDecContxt.eOutColorFmt=DEC_OUT_422V;
+                uStride = yStride;
+                vStride = uStride;
+                uSize = ySize / 2;
+                vSize = uSize;
+                mvSize = uSize;
+                mDecContxt.eOutColorFmt = DEC_OUT_422V;
                 break;
-            case 3: //4:4:4
+            case 3: // 4:4:4
                 ALOGI("MJPG: 4:4:4 \r\n");
-                uStride=yStride;
-                vStride=uStride;
-                uSize=ySize;
-                vSize=uSize;
-                mvSize=uSize;
-                mDecContxt.eOutColorFmt=DEC_OUT_444;
+                uStride = yStride;
+                vStride = uStride;
+                uSize = ySize;
+                vSize = uSize;
+                mvSize = uSize;
+                mDecContxt.eOutColorFmt = DEC_OUT_444;
                 break;
-            case 4: //4:0:0
+            case 4: // 4:0:0
                 ALOGI("MJPG: 4:0:0 \r\n");
-                uStride=0;
-                vStride=uStride;
-                uSize=0;
-                vSize=uSize;
-                mvSize=uSize;
-                mDecContxt.eOutColorFmt=DEC_OUT_400;
+                uStride = 0;
+                vStride = uStride;
+                uSize = 0;
+                vSize = uSize;
+                mvSize = uSize;
+                mDecContxt.eOutColorFmt = DEC_OUT_400;
                 break;
-            default:        //4:2:0
-                ALOGI("unknown color format: %d \r\n",vpuCodec);
-                uStride=yStride/2;
-                vStride=uStride;
-                uSize=ySize/4;
-                vSize=uSize;
-                mvSize=uSize;
-                mDecContxt.eOutColorFmt=DEC_OUT_420;
+            default: // 4:2:0
+                ALOGI("unknown color format: %d \r\n", vpuCodec);
+                uStride = yStride / 2;
+                vStride = uStride;
+                uSize = ySize / 4;
+                vSize = uSize;
+                mvSize = uSize;
+                mDecContxt.eOutColorFmt = DEC_OUT_420;
                 break;
         }
+    } else {
+        // 4:2:0 for all video
+        uStride = yStride / 2;
+        vStride = uStride;
+        uSize = ySize / 4;
+        vSize = uSize;
+        mvSize = uSize;
+        mDecContxt.eOutColorFmt = DEC_OUT_420;
     }
-    else
-    {
-        //4:2:0 for all video
-        uStride=yStride/2;
-        vStride=uStride;
-        uSize=ySize/4;
-        vSize=uSize;
-        mvSize=uSize;
-        mDecContxt.eOutColorFmt=DEC_OUT_420;
-    }
-
 
     meOutColorFmt = mDecContxt.eOutColorFmt;
 
-
     nAlign = pInitInfo->nAddressAlignment;
-    if(mDecContxt.nMapType == 2)
-    {
-        //only consider Y since interleave must be enabled
-        multifactor = 2;        //for field, we need to consider alignment for top and bot
+    if (mDecContxt.nMapType == 2) {
+        // only consider Y since interleave must be enabled
+        multifactor = 2; // for field, we need to consider alignment for top and bot
     }
-    if(nAlign > 1)
-    {
-        ySize=Align(ySize,multifactor*nAlign);
-        uSize=Align(uSize,nAlign);
-        vSize=Align(vSize,nAlign);
+    if (nAlign > 1) {
+        ySize = Align(ySize, multifactor * nAlign);
+        uSize = Align(uSize, nAlign);
+        vSize = Align(vSize, nAlign);
     }
 
     ALOGI("ySize %d", ySize);
 
-    for(uint32_t i=0;i<mNumBuffers;i++)
-    {
-        totalSize=(ySize+uSize+vSize+mvSize+nAlign)*1;
+    for (uint32_t i = 0; i < mNumBuffers; i++) {
+        totalSize = (ySize + uSize + vSize + mvSize + nAlign) * 1;
 
-        ptr=(unsigned char*)(uintptr_t)(mBuffers[i]->mPhyAddr);
-        ptrVirt=(unsigned char*)(mBuffers[i]->mVirtAddr);
+        ptr = (unsigned char*)(uintptr_t)(mBuffers[i]->mPhyAddr);
+        ptrVirt = (unsigned char*)(mBuffers[i]->mVirtAddr);
 
         /*align the base address*/
-        if(nAlign>1)
-        {
-            ptr=(unsigned char*)Align(ptr,nAlign);
-            ptrVirt=(unsigned char*)Align(ptrVirt,nAlign);
+        if (nAlign > 1) {
+            ptr = (unsigned char*)Align(ptr, nAlign);
+            ptrVirt = (unsigned char*)Align(ptrVirt, nAlign);
         }
 
         ALOGI("VPU reg buf, idx %d, ptr phy %p, vir %p", i, ptr, ptrVirt);
 
         /* fill stride info */
-        frameBuf[i].nStrideY=yStride;
-        frameBuf[i].nStrideC=uStride;
+        frameBuf[i].nStrideY = yStride;
+        frameBuf[i].nStrideC = uStride;
 
         /* fill phy addr*/
-        frameBuf[i].pbufY=ptr;
-        frameBuf[i].pbufCb=ptr+ySize;
-        frameBuf[i].pbufCr=ptr+ySize+uSize;
-        frameBuf[i].pbufMvCol=ptr+ySize+uSize+vSize;
+        frameBuf[i].pbufY = ptr;
+        frameBuf[i].pbufCb = ptr + ySize;
+        frameBuf[i].pbufCr = ptr + ySize + uSize;
+        frameBuf[i].pbufMvCol = ptr + ySize + uSize + vSize;
 
         /* fill virt addr */
-        frameBuf[i].pbufVirtY=ptrVirt;
-        frameBuf[i].pbufVirtCb=ptrVirt+ySize;
-        frameBuf[i].pbufVirtCr=ptrVirt+ySize+uSize;
-        frameBuf[i].pbufVirtMvCol=ptrVirt+ySize+uSize+vSize;
+        frameBuf[i].pbufVirtY = ptrVirt;
+        frameBuf[i].pbufVirtCb = ptrVirt + ySize;
+        frameBuf[i].pbufVirtCr = ptrVirt + ySize + uSize;
+        frameBuf[i].pbufVirtMvCol = ptrVirt + ySize + uSize + vSize;
 
         /* fill bottom address for field tile*/
-        if(mDecContxt.nMapType==2)
-        {
-            frameBuf[i].pbufY_tilebot=frameBuf[i].pbufY+ySize/2;
-            frameBuf[i].pbufCb_tilebot=frameBuf[i].pbufCr;
-            frameBuf[i].pbufVirtY_tilebot=frameBuf[i].pbufVirtY+ySize/2;
-            frameBuf[i].pbufVirtCb_tilebot=frameBuf[i].pbufVirtCr;
-        }
-        else
-        {
-            frameBuf[i].pbufY_tilebot=0;
-            frameBuf[i].pbufCb_tilebot=0;
-            frameBuf[i].pbufVirtY_tilebot=0;
-            frameBuf[i].pbufVirtCb_tilebot=0;
+        if (mDecContxt.nMapType == 2) {
+            frameBuf[i].pbufY_tilebot = frameBuf[i].pbufY + ySize / 2;
+            frameBuf[i].pbufCb_tilebot = frameBuf[i].pbufCr;
+            frameBuf[i].pbufVirtY_tilebot = frameBuf[i].pbufVirtY + ySize / 2;
+            frameBuf[i].pbufVirtCb_tilebot = frameBuf[i].pbufVirtCr;
+        } else {
+            frameBuf[i].pbufY_tilebot = 0;
+            frameBuf[i].pbufCb_tilebot = 0;
+            frameBuf[i].pbufVirtY_tilebot = 0;
+            frameBuf[i].pbufVirtCb_tilebot = 0;
         }
         *vpuindex = i;
         memset(frameBuf[i].nReserved, 0, sizeof(frameBuf[i].nReserved));
     }
 
-    //register frame buffs
-    ret=VPU_DecRegisterFrameBuffer(mVPUHandle, frameBuf, mNumBuffers);
-    if(VPU_DEC_RET_SUCCESS!=ret)
-    {
-        ALOGE("%s: vpu register frame failure: ret=%d \r\n",__FUNCTION__,ret);
+    // register frame buffs
+    ret = VPU_DecRegisterFrameBuffer(mVPUHandle, frameBuf, mNumBuffers);
+    if (VPU_DEC_RET_SUCCESS != ret) {
+        ALOGE("%s: vpu register frame failure: ret=%d \r\n", __FUNCTION__, ret);
         return 0;
     }
 
-    *pOutFrmNum=requestedBufNum;
+    *pOutFrmNum = requestedBufNum;
     return 1;
 }
 
-int MJPGStream::FreeMemBlock(DecMemInfo* pDecMem)
-{
+int MJPGStream::FreeMemBlock(DecMemInfo* pDecMem) {
     int i;
     VpuMemDesc vpuMem;
     VpuDecRetCode vpuRet;
-    int retOk=1;
+    int retOk = 1;
 
-    //free virtual mem
-    for(i=0;i<pDecMem->nVirtNum;i++)
-    {
-        if((void*)(uintptr_t)pDecMem->virtMem[i]) free((void*)(uintptr_t)pDecMem->virtMem[i]);
+    // free virtual mem
+    for (i = 0; i < pDecMem->nVirtNum; i++) {
+        if ((void*)(uintptr_t)pDecMem->virtMem[i]) free((void*)(uintptr_t)pDecMem->virtMem[i]);
     }
-    pDecMem->nVirtNum=0;
+    pDecMem->nVirtNum = 0;
 
-    //free physical mem
-    for(i=0;i<pDecMem->nPhyNum;i++)
-    {
-        vpuMem.nPhyAddr=pDecMem->phyMem_phyAddr[i];
-        vpuMem.nVirtAddr=pDecMem->phyMem_virtAddr[i];
-        vpuMem.nCpuAddr=pDecMem->phyMem_cpuAddr[i];
-        vpuMem.nSize=pDecMem->phyMem_size[i];
-        vpuMem.nType=VPU_MEM_DESC_NORMAL;
+    // free physical mem
+    for (i = 0; i < pDecMem->nPhyNum; i++) {
+        vpuMem.nPhyAddr = pDecMem->phyMem_phyAddr[i];
+        vpuMem.nVirtAddr = pDecMem->phyMem_virtAddr[i];
+        vpuMem.nCpuAddr = pDecMem->phyMem_cpuAddr[i];
+        vpuMem.nSize = pDecMem->phyMem_size[i];
+        vpuMem.nType = VPU_MEM_DESC_NORMAL;
 
-        vpuRet=VPU_DecFreeMem(&vpuMem);
-        if(vpuRet!=VPU_DEC_RET_SUCCESS)
-        {
-        ALOGE("%s: free vpu memory failure : ret=%d \r\n",__FUNCTION__,vpuRet);
-            retOk=0;
+        vpuRet = VPU_DecFreeMem(&vpuMem);
+        if (vpuRet != VPU_DEC_RET_SUCCESS) {
+            ALOGE("%s: free vpu memory failure : ret=%d \r\n", __FUNCTION__, vpuRet);
+            retOk = 0;
         }
     }
-    pDecMem->nPhyNum    =0;
+    pDecMem->nPhyNum = 0;
 
     return retOk;
 }
 
-int  MJPGStream::MallocMemBlock(VpuMemInfo* pMemBlock,DecMemInfo* pDecMem)
-{
+int MJPGStream::MallocMemBlock(VpuMemInfo* pMemBlock, DecMemInfo* pDecMem) {
     int i;
-    unsigned char * ptr=NULL;
+    unsigned char* ptr = NULL;
     int size;
 
-    for(i=0;i<pMemBlock->nSubBlockNum;i++)
-    {
-        size=pMemBlock->MemSubBlock[i].nAlignment+pMemBlock->MemSubBlock[i].nSize;
-        if(pMemBlock->MemSubBlock[i].MemType==VPU_MEM_VIRT)
-        {
-            ptr=(unsigned char *)malloc(size);
-            if(ptr==NULL)
-            {
-                ALOGE("%s: get virtual memory failure, size=%d \r\n",__FUNCTION__,size);
+    for (i = 0; i < pMemBlock->nSubBlockNum; i++) {
+        size = pMemBlock->MemSubBlock[i].nAlignment + pMemBlock->MemSubBlock[i].nSize;
+        if (pMemBlock->MemSubBlock[i].MemType == VPU_MEM_VIRT) {
+            ptr = (unsigned char*)malloc(size);
+            if (ptr == NULL) {
+                ALOGE("%s: get virtual memory failure, size=%d \r\n", __FUNCTION__, size);
                 goto failure;
             }
-            pMemBlock->MemSubBlock[i].pVirtAddr=(unsigned char*)Align(ptr,pMemBlock->MemSubBlock[i].nAlignment);
+            pMemBlock->MemSubBlock[i].pVirtAddr =
+                    (unsigned char*)Align(ptr, pMemBlock->MemSubBlock[i].nAlignment);
 
-            //record virtual base addr
-            pDecMem->virtMem[pDecMem->nVirtNum]=(uintptr_t)ptr;
+            // record virtual base addr
+            pDecMem->virtMem[pDecMem->nVirtNum] = (uintptr_t)ptr;
             pDecMem->nVirtNum++;
-        }
-        else// if(memInfo.MemSubBlock[i].MemType==VPU_MEM_PHY)
+        } else // if(memInfo.MemSubBlock[i].MemType==VPU_MEM_PHY)
         {
             VpuMemDesc vpuMem;
             VpuDecRetCode ret;
-            vpuMem.nSize=size;
-            vpuMem.nType=VPU_MEM_DESC_NORMAL;
+            vpuMem.nSize = size;
+            vpuMem.nType = VPU_MEM_DESC_NORMAL;
 
-            ret=VPU_DecGetMem(&vpuMem);
-            if(ret!=VPU_DEC_RET_SUCCESS)
-            {
-                ALOGE("%s: get vpu memory failure, size=%d, ret=%d \r\n",__FUNCTION__,size,ret);
+            ret = VPU_DecGetMem(&vpuMem);
+            if (ret != VPU_DEC_RET_SUCCESS) {
+                ALOGE("%s: get vpu memory failure, size=%d, ret=%d \r\n", __FUNCTION__, size, ret);
                 goto failure;
             }
-            pMemBlock->MemSubBlock[i].pVirtAddr=(unsigned char*)Align(vpuMem.nVirtAddr,pMemBlock->MemSubBlock[i].nAlignment);
-            pMemBlock->MemSubBlock[i].pPhyAddr=(unsigned char*)Align(vpuMem.nPhyAddr,pMemBlock->MemSubBlock[i].nAlignment);
+            pMemBlock->MemSubBlock[i].pVirtAddr =
+                    (unsigned char*)Align(vpuMem.nVirtAddr, pMemBlock->MemSubBlock[i].nAlignment);
+            pMemBlock->MemSubBlock[i].pPhyAddr =
+                    (unsigned char*)Align(vpuMem.nPhyAddr, pMemBlock->MemSubBlock[i].nAlignment);
 
-            //record physical base addr
-            pDecMem->phyMem_phyAddr[pDecMem->nPhyNum]=(unsigned int)vpuMem.nPhyAddr;
-            pDecMem->phyMem_virtAddr[pDecMem->nPhyNum]=(unsigned int)vpuMem.nVirtAddr;
-            pDecMem->phyMem_cpuAddr[pDecMem->nPhyNum]=(unsigned int)vpuMem.nCpuAddr;
-            pDecMem->phyMem_size[pDecMem->nPhyNum]=size;
+            // record physical base addr
+            pDecMem->phyMem_phyAddr[pDecMem->nPhyNum] = (unsigned int)vpuMem.nPhyAddr;
+            pDecMem->phyMem_virtAddr[pDecMem->nPhyNum] = (unsigned int)vpuMem.nVirtAddr;
+            pDecMem->phyMem_cpuAddr[pDecMem->nPhyNum] = (unsigned int)vpuMem.nCpuAddr;
+            pDecMem->phyMem_size[pDecMem->nPhyNum] = size;
             pDecMem->nPhyNum++;
         }
     }
@@ -1062,55 +1004,52 @@ failure:
     return 0;
 }
 
-int MJPGStream::ConvertCodecFormat(int codec, VpuCodStd* pCodec)
-{
-    switch (codec)
-    {
+int MJPGStream::ConvertCodecFormat(int codec, VpuCodStd* pCodec) {
+    switch (codec) {
         case 1:
-            *pCodec=VPU_V_MPEG2;
+            *pCodec = VPU_V_MPEG2;
             break;
         case 2:
-            *pCodec=VPU_V_MPEG4;
+            *pCodec = VPU_V_MPEG4;
             break;
         case 3:
-            *pCodec=VPU_V_DIVX3;
+            *pCodec = VPU_V_DIVX3;
             break;
         case 4:
-            *pCodec=VPU_V_DIVX4;
+            *pCodec = VPU_V_DIVX4;
             break;
         case 5:
-            *pCodec=VPU_V_DIVX56;
+            *pCodec = VPU_V_DIVX56;
             break;
         case 6:
-            *pCodec=VPU_V_XVID;
+            *pCodec = VPU_V_XVID;
             break;
         case 7:
-            *pCodec=VPU_V_H263;
+            *pCodec = VPU_V_H263;
             break;
         case 8:
-            *pCodec=VPU_V_AVC;
+            *pCodec = VPU_V_AVC;
             break;
         case 9:
-            *pCodec=VPU_V_VC1; //VPU_V_VC1_AP
+            *pCodec = VPU_V_VC1; // VPU_V_VC1_AP
             break;
         case 10:
-            *pCodec=VPU_V_RV;
+            *pCodec = VPU_V_RV;
             break;
         case 11:
-            *pCodec=VPU_V_MJPG;
+            *pCodec = VPU_V_MJPG;
             break;
         case 12:
-            *pCodec=VPU_V_AVS;
+            *pCodec = VPU_V_AVS;
             break;
         case 13:
-            *pCodec=VPU_V_VP8;
+            *pCodec = VPU_V_VP8;
             break;
         case 14:
-            *pCodec=VPU_V_AVC_MVC;
+            *pCodec = VPU_V_AVC_MVC;
             break;
         default:
             return 0;
     }
     return 1;
 }
-

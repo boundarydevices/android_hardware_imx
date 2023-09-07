@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-#include "Dumpstate.h"
-
 #include <android-base/logging.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
+
+#include "Dumpstate.h"
 
 using aidl::android::hardware::dumpstate::Dumpstate;
 
@@ -34,5 +34,5 @@ int main() {
     CHECK_EQ(status, STATUS_OK);
 
     ABinderProcess_joinThreadPool();
-    return EXIT_FAILURE;  // Unreachable
+    return EXIT_FAILURE; // Unreachable
 }

@@ -40,64 +40,60 @@ typedef enum enumImxTag {
 } ImxTag;
 
 static const std::vector<VendorTagSection> kImxTagSections = {
-    {
-        .section_name = "vsi",
-        .tags =
-            {
-                {
-                    .tag_id = VSI_DEWARP,
-                    .tag_name = "dewarp.enable",
-                    .tag_type = CameraMetadataType::kInt32,
-                },
-                {
-                    .tag_id = VSI_HFLIP,
-                    .tag_name = "hflip.enable",
-                    .tag_type = CameraMetadataType::kInt32,
-                },
-                {
-                    .tag_id = VSI_VFLIP,
-                    .tag_name = "vflip.enable",
-                    .tag_type = CameraMetadataType::kInt32,
-                },
-                {
-                    .tag_id = VSI_LSC,
-                    .tag_name = "lsc.enable",
-                    .tag_type = CameraMetadataType::kInt32,
-                },
-                {
-                    .tag_id = VSI_BRIGHTNESS,
-                    .tag_name = "brightness",
-                    .tag_type = CameraMetadataType::kInt32,
-                },
-                {
-                    .tag_id = VSI_CONTRAST,
-                    .tag_name = "contrast",
-                    .tag_type = CameraMetadataType::kFloat,
-                },
-                {
-                    .tag_id = VSI_SATURATION,
-                    .tag_name = "saturation",
-                    .tag_type = CameraMetadataType::kFloat,
-                },
-                {
-                    .tag_id = VSI_HUE,
-                    .tag_name = "hue",
-                    .tag_type = CameraMetadataType::kInt32,
-                },
-                {
-                    .tag_id = VSI_SHARP_LEVEL,
-                    .tag_name = "sharp.level",
-                    .tag_type = CameraMetadataType::kByte,
-                },
-                {
-                    .tag_id = VSI_EXPOSURE_GAIN,
-                    .tag_name = "exposure.gain",
-                    .tag_type = CameraMetadataType::kInt32,
-                },
-            }
-    }
-};
+        {.section_name = "vsi",
+         .tags = {
+                 {
+                         .tag_id = VSI_DEWARP,
+                         .tag_name = "dewarp.enable",
+                         .tag_type = CameraMetadataType::kInt32,
+                 },
+                 {
+                         .tag_id = VSI_HFLIP,
+                         .tag_name = "hflip.enable",
+                         .tag_type = CameraMetadataType::kInt32,
+                 },
+                 {
+                         .tag_id = VSI_VFLIP,
+                         .tag_name = "vflip.enable",
+                         .tag_type = CameraMetadataType::kInt32,
+                 },
+                 {
+                         .tag_id = VSI_LSC,
+                         .tag_name = "lsc.enable",
+                         .tag_type = CameraMetadataType::kInt32,
+                 },
+                 {
+                         .tag_id = VSI_BRIGHTNESS,
+                         .tag_name = "brightness",
+                         .tag_type = CameraMetadataType::kInt32,
+                 },
+                 {
+                         .tag_id = VSI_CONTRAST,
+                         .tag_name = "contrast",
+                         .tag_type = CameraMetadataType::kFloat,
+                 },
+                 {
+                         .tag_id = VSI_SATURATION,
+                         .tag_name = "saturation",
+                         .tag_type = CameraMetadataType::kFloat,
+                 },
+                 {
+                         .tag_id = VSI_HUE,
+                         .tag_name = "hue",
+                         .tag_type = CameraMetadataType::kInt32,
+                 },
+                 {
+                         .tag_id = VSI_SHARP_LEVEL,
+                         .tag_name = "sharp.level",
+                         .tag_type = CameraMetadataType::kByte,
+                 },
+                 {
+                         .tag_id = VSI_EXPOSURE_GAIN,
+                         .tag_name = "exposure.gain",
+                         .tag_type = CameraMetadataType::kInt32,
+                 },
+         }}};
 
-}  // namespace android
+} // namespace android
 
 #endif // VENDOR_TAGS_H

@@ -17,14 +17,14 @@
 #include "ISPCamera.h"
 
 ISPCamera::ISPCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
-                                                CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata)
-   : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc)
-{
+                     CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata)
+      : Camera(id, facing, orientation, path, cam_copy_hw, cam_csc_hw, hw_jpeg_enc) {
     ALOGI("create ISP Camera");
     mCameraMetadata = cam_metadata;
 
     if (cam_metadata->buffer_type != CameraSensorMetadata::kMmap) {
-        ALOGW("ISPCamera only support mmap buffer type, change tyep %d to kMmap", cam_metadata->buffer_type);
+        ALOGW("ISPCamera only support mmap buffer type, change tyep %d to kMmap",
+              cam_metadata->buffer_type);
         cam_metadata->buffer_type = CameraSensorMetadata::kMmap;
     }
 
@@ -33,12 +33,9 @@ ISPCamera::ISPCamera(int32_t id, int32_t facing, int32_t orientation, char *path
     mVideoStream = new ISPCameraMMAPStream(this, cam_metadata->omit_frame);
 }
 
-ISPCamera::~ISPCamera()
-{
-}
+ISPCamera::~ISPCamera() {}
 
-status_t ISPCamera::initSensorStaticData()
-{
+status_t ISPCamera::initSensorStaticData() {
     int32_t fd = open(mDevPath, O_RDWR);
     if (fd < 0) {
         ALOGE("ISPCameraCameraDevice: initParameters sensor has not been opened");
@@ -55,8 +52,7 @@ status_t ISPCamera::initSensorStaticData()
     // Don't support enum format, now hard code here.
     sensorFormats[index] = v4l2_fourcc('Y', 'U', 'Y', 'V');
     availFormats[index++] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-    mSensorFormatCount =
-        changeSensorFormats(sensorFormats, mSensorFormats, index);
+    mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
     if (mSensorFormatCount == 0) {
         ALOGE("%s no sensor format enum", __func__);
         close(fd);
@@ -64,8 +60,7 @@ status_t ISPCamera::initSensorStaticData()
     }
 
     availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
-    mAvailableFormatCount =
-        changeSensorFormats(availFormats, mAvailableFormats, index);
+    mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
     index = 0;
     char TmpStr[20];
@@ -114,24 +109,20 @@ status_t ISPCamera::initSensorStaticData()
     mPixelArrayHeight = mCameraMetadata->pixelarrayheight;
     mMaxJpegSize = mCameraMetadata->maxjpegsize;
 
-    ALOGI("ISP Camera, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f",
-          mFocalLength,
-          mPhysicalWidth,
-          mPhysicalHeight);
+    ALOGI("ISP Camera, mFocalLength:%f, mPhysicalWidth:%f, mPhysicalHeight %f", mFocalLength,
+          mPhysicalWidth, mPhysicalHeight);
 
     close(fd);
     return NO_ERROR;
 }
 
-PixelFormat ISPCamera::getPreviewPixelFormat()
-{
+PixelFormat ISPCamera::getPreviewPixelFormat() {
     ALOGI("%s", __func__);
     return HAL_PIXEL_FORMAT_YCbCr_422_I;
 }
 
 // configure device.
-int32_t ISPCamera::ISPCameraMMAPStream::onDeviceConfigureLocked()
-{
+int32_t ISPCamera::ISPCameraMMAPStream::onDeviceConfigureLocked() {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     if (mDev <= 0) {
@@ -149,18 +140,19 @@ int32_t ISPCamera::ISPCameraMMAPStream::onDeviceConfigureLocked()
     frmival.width = mWidth;
     frmival.height = mHeight;
 
-    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d, mFps %d", mWidth, mHeight, vformat & 0xFF, (vformat >> 8) & 0xFF,
-        (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps, mFps);
+    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d, mFps %d", mWidth, mHeight,
+          vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF,
+          fps, mFps);
 
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
 
-    fmt.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width        = mWidth & 0xFFFFFFF8;
-    fmt.fmt.pix.height       = mHeight & 0xFFFFFFF8;
-    fmt.fmt.pix.pixelformat  = vformat;
-    fmt.fmt.pix.priv         = 0;
-    fmt.fmt.pix.sizeimage    = 0;
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width = mWidth & 0xFFFFFFF8;
+    fmt.fmt.pix.height = mHeight & 0xFFFFFFF8;
+    fmt.fmt.pix.pixelformat = vformat;
+    fmt.fmt.pix.priv = 0;
+    fmt.fmt.pix.sizeimage = 0;
     fmt.fmt.pix.bytesperline = 0;
 
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
@@ -172,14 +164,12 @@ int32_t ISPCamera::ISPCameraMMAPStream::onDeviceConfigureLocked()
     setOmitFrameCount(0);
 
     struct OmitFrame *item;
-    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
-      if ((mWidth == item->width) && (mHeight == item->height)) {
-        setOmitFrameCount(item->omitnum);
-        break;
-      }
+    for (item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
+        if ((mWidth == item->width) && (mHeight == item->height)) {
+            setOmitFrameCount(item->omitnum);
+            break;
+        }
     }
 
     return 0;
 }
-
-

@@ -19,33 +19,39 @@
 namespace fsl {
 
 Layer::Layer()
-  : busy(false), zorder(0), origType(LAYER_TYPE_INVALID),
-    type(LAYER_TYPE_INVALID), handle(NULL), lastHandle(NULL),
-    transform(0), blendMode(BLENDING_NONE), planeAlpha(0),
-    color(0), flags(0), acquireFence(-1),releaseFence(-1),
-    index(-1), isHdrMode(false), isOverlay(false), priv(NULL),
-    dataspace(0)
-{
+      : busy(false),
+        zorder(0),
+        origType(LAYER_TYPE_INVALID),
+        type(LAYER_TYPE_INVALID),
+        handle(NULL),
+        lastHandle(NULL),
+        transform(0),
+        blendMode(BLENDING_NONE),
+        planeAlpha(0),
+        color(0),
+        flags(0),
+        acquireFence(-1),
+        releaseFence(-1),
+        index(-1),
+        isHdrMode(false),
+        isOverlay(false),
+        priv(NULL),
+        dataspace(0) {
     sourceCrop.clear();
     displayFrame.clear();
     visibleRegion.clear();
     memset(&hdrMetadata, 0, sizeof(hdrMetadata));
 }
 
-bool Layer::isSolidColor()
-{
+bool Layer::isSolidColor() {
     return type == LAYER_TYPE_SOLID_COLOR;
 }
 
-LayerVector::LayerVector() {
-}
+LayerVector::LayerVector() {}
 
-LayerVector::LayerVector(const LayerVector& rhs)
-    : SortedVector<Layer*>(rhs) {
-}
+LayerVector::LayerVector(const LayerVector& rhs) : SortedVector<Layer*>(rhs) {}
 
-int LayerVector::do_compare(const void* lhs, const void* rhs) const
-{
+int LayerVector::do_compare(const void* lhs, const void* rhs) const {
     // sort layers per layer-stack, then by z-order and finally by sequence
     const Layer* l = (*(Layer**)lhs);
     const Layer* r = (*(Layer**)rhs);
@@ -55,4 +61,4 @@ int LayerVector::do_compare(const void* lhs, const void* rhs) const
     return ls - rs;
 }
 
-}
+} // namespace fsl

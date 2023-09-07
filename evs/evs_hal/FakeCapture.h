@@ -17,17 +17,17 @@
 #define _FSL_FAKE_CAPTURE_H_
 
 #include <atomic>
-#include <thread>
 #include <functional>
+#include <thread>
 #include <unordered_set>
+
 #include "EvsCamera.h"
 
 using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
 
-class FakeCapture : public EvsCamera
-{
+class FakeCapture : public EvsCamera {
 public:
-    FakeCapture(const char *deviceName, const camera_metadata_t * metadata);
+    FakeCapture(const char* deviceName, const camera_metadata_t* metadata);
     virtual ~FakeCapture();
 
     virtual bool onOpen(const char* deviceName);
@@ -39,19 +39,19 @@ public:
     virtual bool isOpen();
     // Valid only after open()
     virtual bool onFrameReturn(int index, std::string deviceid);
-    virtual void onFrameCollect(std::vector<struct forwardframe> &frame);
+    virtual void onFrameCollect(std::vector<struct forwardframe>& frame);
     virtual int getParameter(v4l2_control& control);
     virtual int setParameter(v4l2_control& control);
     virtual void onIncreaseMemoryBuffer(unsigned number);
     virtual void onMemoryDestroy();
-    virtual std::set<uint32_t>  enumerateCameraControls();
-    void readFromPng(const char *file, void* buf);
+    virtual std::set<uint32_t> enumerateCameraControls();
+    void readFromPng(const char* file, void* buf);
 
 private:
     std::unordered_set<std::string> mPhysicalCamera;
     bool mIslogicCamera;
-    // if the camera is logic camera, mDeviceFd will been instored according the mPhysicalCamera name.
-    // if the camera is pyhsical camera, mDeviceFd will been the fd of pyhsical camera
+    // if the camera is logic camera, mDeviceFd will been instored according the mPhysicalCamera
+    // name. if the camera is pyhsical camera, mDeviceFd will been the fd of pyhsical camera
     std::unordered_map<std::string, int> mDeviceFd;
 };
 

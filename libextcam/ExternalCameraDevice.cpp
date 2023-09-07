@@ -17,13 +17,13 @@
 
 #define LOG_TAG "ExtCamDev"
 // #define LOG_NDEBUG 0
-#include <log/log.h>
-
 #include "ExternalCameraDevice.h"
 
 #include <aidl/android/hardware/camera/common/Status.h>
 #include <convert.h>
 #include <linux/videodev2.h>
+#include <log/log.h>
+
 #include <regex>
 #include <set>
 
@@ -41,19 +41,20 @@ namespace {
 // * V4L2_PIX_FMT_YVU420 (== YV12)
 // * V4L2_PIX_FMT_YVYU (YVYU: can be converted to YV12 or other YUV420_888 formats)
 const std::array<uint32_t, /*size*/ 3> kSupportedFourCCs{
-        {V4L2_PIX_FMT_MJPEG, V4L2_PIX_FMT_Z16, V4L2_PIX_FMT_YUYV}};  // double braces required in C++11
+        {V4L2_PIX_FMT_MJPEG, V4L2_PIX_FMT_Z16,
+         V4L2_PIX_FMT_YUYV}}; // double braces required in C++11
 
-constexpr int MAX_RETRY = 5;                  // Allow retry v4l2 open failures a few times.
-constexpr int OPEN_RETRY_SLEEP_US = 100'000;  // 100ms * MAX_RETRY = 0.5 seconds
+constexpr int MAX_RETRY = 5;                 // Allow retry v4l2 open failures a few times.
+constexpr int OPEN_RETRY_SLEEP_US = 100'000; // 100ms * MAX_RETRY = 0.5 seconds
 
 const std::regex kDevicePathRE("/dev/video([0-9]+)");
-}  // namespace
+} // namespace
 
 std::string ExternalCameraDevice::kDeviceVersion = "1.1";
 
 ExternalCameraDevice::ExternalCameraDevice(const std::string& devicePath,
                                            const ExternalCameraConfig& config)
-    : mCameraId("-1"), mDevicePath(devicePath), mCfg(config) {
+      : mCameraId("-1"), mDevicePath(devicePath), mCfg(config) {
     std::smatch sm;
     if (std::regex_match(mDevicePath, sm, kDevicePathRE)) {
         mCameraId = std::to_string(mCfg.cameraIdOffset + std::stoi(sm[1]));
@@ -61,8 +62,7 @@ ExternalCameraDevice::ExternalCameraDevice(const std::string& devicePath,
         ALOGE("%s: device path match failed for %s", __FUNCTION__, mDevicePath.c_str());
     }
 
-    if (strstr(mCfg.interBufFormat, "i420"))
-        mInterBufFormat = V4L2_PIX_FMT_YUV420;
+    if (strstr(mCfg.interBufFormat, "i420")) mInterBufFormat = V4L2_PIX_FMT_YUV420;
 }
 
 ExternalCameraDevice::~ExternalCameraDevice() {}
@@ -140,7 +140,7 @@ ndk::ScopedAStatus ExternalCameraDevice::open(
         // Previous retry attempts failed. Retry opening the device at most MAX_RETRY times
         ALOGW("%s: v4l2 device %s open failed, wait 33ms and try again", __FUNCTION__,
               mDevicePath.c_str());
-        usleep(OPEN_RETRY_SLEEP_US);  // sleep and try again
+        usleep(OPEN_RETRY_SLEEP_US); // sleep and try again
         fd.reset(::open(mDevicePath.c_str(), O_RDWR));
         numAttempt++;
     }
@@ -193,8 +193,9 @@ std::shared_ptr<ExternalCameraDeviceSession> ExternalCameraDevice::createSession
         const std::vector<SupportedV4L2Format>& sortedFormats, const CroppingType& croppingType,
         const common::V1_0::helper::CameraMetadata& chars, const std::string& cameraId,
         unique_fd v4l2Fd) {
-    return ndk::SharedRefBase::make<ExternalCameraDeviceSession>(
-            cb, cfg, sortedFormats, croppingType, chars, cameraId, std::move(v4l2Fd));
+    return ndk::SharedRefBase::make<ExternalCameraDeviceSession>(cb, cfg, sortedFormats,
+                                                                 croppingType, chars, cameraId,
+                                                                 std::move(v4l2Fd));
 }
 
 bool ExternalCameraDevice::isInitFailed() {
@@ -444,10 +445,10 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
     // stalling), and processed (but stalling). For usb limited mode, raw sensor
     // is not supported. Stalling stream is JPEG. Non-stalling streams are
     // YUV_420_888 or YV12.
-    const int32_t requestMaxNumOutputStreams[] = {
-            /*RAW*/ 0,
-            /*Processed*/ ExternalCameraDeviceSession::kMaxProcessedStream,
-            /*Stall*/ ExternalCameraDeviceSession::kMaxStallStream};
+    const int32_t requestMaxNumOutputStreams[] =
+            {/*RAW*/ 0,
+             /*Processed*/ ExternalCameraDeviceSession::kMaxProcessedStream,
+             /*Stall*/ ExternalCameraDeviceSession::kMaxStallStream};
     UPDATE(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS, requestMaxNumOutputStreams,
            ARRAY_SIZE(requestMaxNumOutputStreams));
 
@@ -877,7 +878,7 @@ void ExternalCameraDevice::updateFpsBounds(
                 fpsUpperBound = 60;
                 break;
             }
-        } else {  // HORIZONTAL
+        } else { // HORIZONTAL
             if (format.height <= limit.size.height) {
                 fpsUpperBound = 60;
                 break;
@@ -901,13 +902,14 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
         const Size& minStreamSize, bool depthEnabled) {
     struct v4l2_capability vidCap;
     int ret = TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_QUERYCAP, &vidCap));
-    ALOGI("%s: name=%s, card name=%s, bus info %s\n", __func__, (char*)vidCap.driver, (char*)vidCap.card, (char*)vidCap.bus_info);
+    ALOGI("%s: name=%s, card name=%s, bus info %s\n", __func__, (char*)vidCap.driver,
+          (char*)vidCap.card, (char*)vidCap.bus_info);
 
     mNeedHardwareDec = false;
     char hardwareDecDeviceList[HARDWARE_DEC_DEVICE_SIZE];
-    strcpy(hardwareDecDeviceList, (char *)mCfg.hardwareDecDeviceList);
+    strcpy(hardwareDecDeviceList, (char*)mCfg.hardwareDecDeviceList);
 
-    char *hardDecDev = strtok(hardwareDecDeviceList, ";");
+    char* hardDecDev = strtok(hardwareDecDeviceList, ";");
     while (hardDecDev) {
         ALOGI("%s:  hardDecDev %s\n", __func__, hardDecDev);
         if (strstr((char*)vidCap.card, hardDecDev)) {
@@ -925,7 +927,7 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
     struct v4l2_fmtdesc fmtdesc;
     fmtdesc.index = 0;
     if (vidCap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) {
-        fmtdesc.type =V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+        fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     } else {
         fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     }
@@ -933,11 +935,9 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
     while (ret == 0) {
         ret = TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc));
         ALOGI("index:%d,ret:%d, format:%c%c%c%c  :%s", fmtdesc.index, ret,
-                fmtdesc.pixelformat & 0xFF,
-                (fmtdesc.pixelformat >> 8) & 0xFF,
-                (fmtdesc.pixelformat >> 16) & 0xFF,
-                (fmtdesc.pixelformat >> 24) & 0xFF,
-                fmtdesc.description);
+              fmtdesc.pixelformat & 0xFF, (fmtdesc.pixelformat >> 8) & 0xFF,
+              (fmtdesc.pixelformat >> 16) & 0xFF, (fmtdesc.pixelformat >> 24) & 0xFF,
+              fmtdesc.description);
 
         if (ret != 0 || (fmtdesc.flags & V4L2_FMT_FLAG_EMULATED)) {
             // Skip if IOCTL failed, or if the format is emulated
@@ -978,10 +978,10 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
                     continue;
                 }
 
-                SupportedV4L2Format format{
-                        .width = static_cast<int32_t>(frameSize.discrete.width),
-                        .height = static_cast<int32_t>(frameSize.discrete.height),
-                        .fourcc = fmtdesc.pixelformat};
+                SupportedV4L2Format format{.width = static_cast<int32_t>(frameSize.discrete.width),
+                                           .height =
+                                                   static_cast<int32_t>(frameSize.discrete.height),
+                                           .fourcc = fmtdesc.pixelformat};
 
                 if (format.fourcc == V4L2_PIX_FMT_Z16 && depthEnabled) {
                     updateFpsBounds(fd, cropType, depthFpsLimits, format, outFmts);
@@ -1070,8 +1070,8 @@ binder_status_t ExternalCameraDevice::dump(int fd, const char** args, uint32_t n
     return session->dump(fd, args, numArgs);
 }
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android

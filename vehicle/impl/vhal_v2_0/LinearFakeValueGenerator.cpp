@@ -16,10 +16,10 @@
 
 #define LOG_TAG "LinearFakeValueGenerator"
 
+#include "LinearFakeValueGenerator.h"
+
 #include <log/log.h>
 #include <vhal_v2_0/VehicleUtils.h>
-
-#include "LinearFakeValueGenerator.h"
 
 namespace android {
 namespace hardware {
@@ -32,12 +32,12 @@ namespace impl {
 LinearFakeValueGenerator::LinearFakeValueGenerator(const VehiclePropValue& request) {
     const auto& v = request.value;
     mGenCfg = GeneratorCfg{
-        .propId = v.int32Values[1],
-        .initialValue = v.floatValues[0],
-        .currentValue = v.floatValues[0],
-        .dispersion = v.floatValues[1],
-        .increment = v.floatValues[2],
-        .interval = Nanos(v.int64Values[0]),
+            .propId = v.int32Values[1],
+            .initialValue = v.floatValues[0],
+            .currentValue = v.floatValues[0],
+            .dispersion = v.floatValues[1],
+            .increment = v.floatValues[2],
+            .interval = Nanos(v.int64Values[0]),
     };
 }
 
@@ -74,10 +74,10 @@ bool LinearFakeValueGenerator::hasNext() {
     return true;
 }
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

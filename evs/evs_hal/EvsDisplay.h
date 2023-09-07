@@ -17,20 +17,18 @@
 #ifndef _FSL_EVS_HW_DISPLAY_H
 #define _FSL_EVS_HW_DISPLAY_H
 
-#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
-#include <nxp/hardware/display/1.0/IDisplay.h>
-
 #include <Memory.h>
 #include <MemoryDesc.h>
 #include <MemoryManager.h>
+#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
+#include <nxp/hardware/display/1.0/IDisplay.h>
 
 using EvsDisplayState = ::android::hardware::automotive::evs::V1_0::DisplayState;
-using BufferDesc_1_0  = ::android::hardware::automotive::evs::V1_0::BufferDesc;
+using BufferDesc_1_0 = ::android::hardware::automotive::evs::V1_0::BufferDesc;
 using ::android::hardware::automotive::evs::V1_0::DisplayDesc;
 using ::android::hardware::automotive::evs::V1_1::IEvsDisplay;
-using EvsResult   = ::android::hardware::automotive::evs::V1_0::EvsResult;
+using EvsResult = ::android::hardware::automotive::evs::V1_0::EvsResult;
 using ::android::frameworks::automotive::display::V1_0::HwDisplayConfig;
-
 
 namespace android {
 namespace hardware {
@@ -42,15 +40,14 @@ namespace implementation {
 using ::nxp::hardware::display::V1_0::IDisplay;
 #define DISPLAY_BUFFER_NUM 3
 
-
 class EvsDisplay : public IEvsDisplay {
 public:
     // Methods from ::android::hardware::automotive::evs::V1_0::IEvsDisplay follow.
-    Return<void> getDisplayInfo(getDisplayInfo_cb _hidl_cb)  override;
-    Return<EvsResult> setDisplayState(EvsDisplayState state)  override;
-    Return<EvsDisplayState> getDisplayState()  override;
-    Return<void> getTargetBuffer(getTargetBuffer_cb _hidl_cb)  override;
-    Return<EvsResult> returnTargetBufferForDisplay(const BufferDesc_1_0& buffer)  override;
+    Return<void> getDisplayInfo(getDisplayInfo_cb _hidl_cb) override;
+    Return<EvsResult> setDisplayState(EvsDisplayState state) override;
+    Return<EvsDisplayState> getDisplayState() override;
+    Return<void> getTargetBuffer(getTargetBuffer_cb _hidl_cb) override;
+    Return<EvsResult> returnTargetBufferForDisplay(const BufferDesc_1_0& buffer) override;
     Return<void> getDisplayInfo_1_1(getDisplayInfo_1_1_cb _info_cb) override;
 
     // Implementation details
@@ -68,7 +65,7 @@ private:
 private:
     std::mutex mLock;
     int mFormat = 0;
-    int mWidth  = 0;
+    int mWidth = 0;
     int mHeight = 0;
 
     int mIndex = -1;
@@ -82,10 +79,10 @@ private:
 };
 
 } // namespace implementation
-} // namespace V1_0
+} // namespace V1_1
 } // namespace evs
 } // namespace automotive
 } // namespace hardware
 } // namespace android
 
-#endif  // _FSL_EVS_DISPLAY_H
+#endif // _FSL_EVS_DISPLAY_H

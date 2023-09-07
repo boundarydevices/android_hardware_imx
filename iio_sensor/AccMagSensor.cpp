@@ -19,11 +19,11 @@
 namespace nxp_sensors_subhal {
 
 AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-           const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
-    // no power_microwatts/resolution sys node, so mSensorInfo.power/resolution fake the default one,
-    // no maxRange sys node, so fake maxRange, which is set according to the CTS requirement.
+                           struct iio_device_data& iio_data,
+                           const std::optional<std::vector<Configuration>>& config)
+      : HWSensorBase(sensorHandle, callback, iio_data, config) {
+    // no power_microwatts/resolution sys node, so mSensorInfo.power/resolution fake the default
+    // one, no maxRange sys node, so fake maxRange, which is set according to the CTS requirement.
     if (iio_data.type == SensorType::ACCELEROMETER) {
         mSensorInfo.power = 0.001f;
         mSensorInfo.maxRange = 39.20f;
@@ -43,9 +43,11 @@ AccMagSensor::AccMagSensor(int32_t sensorHandle, ISensorsEventCallback* callback
     unsigned int min_sampling_frequency = UINT_MAX;
     for (auto i = 0u; i < iio_data.sampling_freq_avl.size(); i++) {
         max_sampling_frequency = max_sampling_frequency < iio_data.sampling_freq_avl[i]
-                                 ? iio_data.sampling_freq_avl[i] : max_sampling_frequency;
+                ? iio_data.sampling_freq_avl[i]
+                : max_sampling_frequency;
         min_sampling_frequency = min_sampling_frequency > iio_data.sampling_freq_avl[i]
-                                 ? iio_data.sampling_freq_avl[i] : min_sampling_frequency;
+                ? iio_data.sampling_freq_avl[i]
+                : min_sampling_frequency;
     }
     mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
@@ -169,7 +171,7 @@ void AccMagSensor::activate(bool enable) {
         if (enable) {
             mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
             if (mPollFdIio.fd < 0) {
-                ALOGI("Failed to open iio char device (%s).",  buffer_path.c_str());
+                ALOGI("Failed to open iio char device (%s).", buffer_path.c_str());
             }
         } else {
             close(mPollFdIio.fd);
@@ -189,30 +191,30 @@ void AccMagSensor::processScanData(Event* evt) {
         char buf_acc_x[64], buf_acc_y[64], buf_acc_z[64];
 
         read(fd_acc_x, buf_acc_x, sizeof(buf_acc_x));
-        lseek(fd_acc_x,0L,SEEK_SET);
+        lseek(fd_acc_x, 0L, SEEK_SET);
         read(fd_acc_y, buf_acc_y, sizeof(buf_acc_y));
-        lseek(fd_acc_y,0L,SEEK_SET);
+        lseek(fd_acc_y, 0L, SEEK_SET);
         read(fd_acc_z, buf_acc_z, sizeof(buf_acc_z));
-        lseek(fd_acc_z,0L,SEEK_SET);
+        lseek(fd_acc_z, 0L, SEEK_SET);
 
         // scale sys node is not valid, to meet xTS required range, multiply raw data with 0.0005.
-        evt->u.vec3.x  = atoi(buf_acc_x) * 0.00976;
-        evt->u.vec3.y  = atoi(buf_acc_y) * 0.00976;
-        evt->u.vec3.z  = atoi(buf_acc_z) * 0.00976;
-    } else if(mSensorInfo.type == SensorType::MAGNETIC_FIELD) {
+        evt->u.vec3.x = atoi(buf_acc_x) * 0.00976;
+        evt->u.vec3.y = atoi(buf_acc_y) * 0.00976;
+        evt->u.vec3.z = atoi(buf_acc_z) * 0.00976;
+    } else if (mSensorInfo.type == SensorType::MAGNETIC_FIELD) {
         char buf_mag_x[64], buf_mag_y[64], buf_mag_z[64];
 
         read(fd_mag_x, buf_mag_x, sizeof(buf_mag_x));
-        lseek(fd_mag_x,0L,SEEK_SET);
+        lseek(fd_mag_x, 0L, SEEK_SET);
         read(fd_mag_y, buf_mag_y, sizeof(buf_mag_y));
-        lseek(fd_mag_y,0L,SEEK_SET);
+        lseek(fd_mag_y, 0L, SEEK_SET);
         read(fd_mag_z, buf_mag_z, sizeof(buf_mag_z));
-        lseek(fd_mag_z,0L,SEEK_SET);
+        lseek(fd_mag_z, 0L, SEEK_SET);
 
         // 0.000244 is read from sys node in_magn_scale.
-        evt->u.vec3.x  = atoi(buf_mag_x) * 0.001;
-        evt->u.vec3.y  = atoi(buf_mag_y) * 0.001;
-        evt->u.vec3.z  = atoi(buf_mag_z) * 0.001;
+        evt->u.vec3.x = atoi(buf_mag_x) * 0.001;
+        evt->u.vec3.y = atoi(buf_mag_y) * 0.001;
+        evt->u.vec3.z = atoi(buf_mag_z) * 0.001;
     }
     evt->timestamp = get_timestamp();
 }
@@ -227,16 +229,16 @@ void AccMagSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            usleep(mSamplingPeriodNs/100);
+            usleep(mSamplingPeriodNs / 100);
             events.clear();
             processScanData(&event);
-                for (int i = 0; i < 10; i++) {
-                    event.timestamp += mSamplingPeriodNs/1000;
-                    events.push_back(event);
-                }
+            for (int i = 0; i < 10; i++) {
+                event.timestamp += mSamplingPeriodNs / 1000;
+                events.push_back(event);
+            }
         }
         mCallback->postEvents(events, isWakeUpSensor());
     }
 }
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

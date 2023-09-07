@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#include <inttypes.h>
-#include <stdlib.h>
-#include <cutils/log.h>
-#include <hardware/hardware.h>
-#include <hardware/gralloc1.h>
 #include <Memory.h>
 #include <MemoryManager.h>
-#include <sync/sync.h>
+#include <cutils/log.h>
 #include <graphics_ext.h>
+#include <hardware/gralloc1.h>
+#include <hardware/hardware.h>
+#include <inttypes.h>
+#include <stdlib.h>
+#include <sync/sync.h>
 
 using namespace fsl;
 
@@ -34,8 +34,7 @@ struct gralloc_context {
     gralloc1_device_t device;
 };
 
-int convertAndroidFormat(int format)
-{
+int convertAndroidFormat(int format) {
     int fslFormat = 0;
     switch (format) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
@@ -112,21 +111,17 @@ int convertAndroidFormat(int format)
     return fslFormat;
 }
 
-static int checkDesc(MemoryDesc* desc)
-{
+static int checkDesc(MemoryDesc* desc) {
     if (!desc || !desc->isValid() || desc->mWidth < 0 || desc->mHeight < 0) {
-        ALOGI("%s invalid descriptor",__func__);
+        ALOGI("%s invalid descriptor", __func__);
         return -1;
     }
     desc->mFslFormat = convertAndroidFormat(desc->mFormat);
 
-    if (desc->mFslFormat == FORMAT_NV12_TILED ||
-        desc->mFslFormat == FORMAT_NV12_G1_TILED ||
+    if (desc->mFslFormat == FORMAT_NV12_TILED || desc->mFslFormat == FORMAT_NV12_G1_TILED ||
         desc->mFslFormat == FORMAT_NV12_G2_TILED ||
-        desc->mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
-        desc->mFslFormat == FORMAT_P010 ||
-        desc->mFslFormat == FORMAT_P010_TILED ||
-        desc->mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
+        desc->mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED || desc->mFslFormat == FORMAT_P010 ||
+        desc->mFslFormat == FORMAT_P010_TILED || desc->mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
         desc->mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
     }
 
@@ -134,10 +129,8 @@ static int checkDesc(MemoryDesc* desc)
     return 0;
 }
 
-static int gralloc_unlock(gralloc1_device_t* device,
-                   buffer_handle_t buffer,
-                   int32_t* outReleaseFence)
-{
+static int gralloc_unlock(gralloc1_device_t* device, buffer_handle_t buffer,
+                          int32_t* outReleaseFence) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -168,14 +161,10 @@ static int gralloc_unlock(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_lock(gralloc1_device_t* device,
-                   buffer_handle_t buffer,
-                   uint64_t /*produceUsage*/,
-                   uint64_t /*consumeUsage*/,
-                   const gralloc1_rect_t* /*accessRegion*/,
-                   void** outData,
-                   int32_t acquireFence)
-{
+static int gralloc_lock(gralloc1_device_t* device, buffer_handle_t buffer,
+                        uint64_t /*produceUsage*/, uint64_t /*consumeUsage*/,
+                        const gralloc1_rect_t* /*accessRegion*/, void** outData,
+                        int32_t acquireFence) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -207,9 +196,8 @@ static int gralloc_lock(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_get_num_flex_planes(gralloc1_device_t* /*device*/,
-                   buffer_handle_t buffer, uint32_t* outNumPlanes)
-{
+static int gralloc_get_num_flex_planes(gralloc1_device_t* /*device*/, buffer_handle_t buffer,
+                                       uint32_t* outNumPlanes) {
     if (!outNumPlanes) {
         return GRALLOC1_ERROR_BAD_VALUE;
     }
@@ -246,14 +234,10 @@ static int gralloc_get_num_flex_planes(gralloc1_device_t* /*device*/,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_lock_flex(gralloc1_device_t* /*device*/,
-                   buffer_handle_t buffer,
-                   uint64_t /*produceUsage*/,
-                   uint64_t /*consumeUsage*/,
-                   const gralloc1_rect_t* /*accessRegion*/,
-                   struct android_flex_layout* layout,
-                   int32_t acquireFence)
-{
+static int gralloc_lock_flex(gralloc1_device_t* /*device*/, buffer_handle_t buffer,
+                             uint64_t /*produceUsage*/, uint64_t /*consumeUsage*/,
+                             const gralloc1_rect_t* /*accessRegion*/,
+                             struct android_flex_layout* layout, int32_t acquireFence) {
     if (acquireFence != -1) {
         sync_wait(acquireFence, -1);
         close(acquireFence);
@@ -276,7 +260,8 @@ static int gralloc_lock_flex(gralloc1_device_t* /*device*/,
     }
 
     android_ycbcr ycbcr;
-    int ret = pManager->lockYCbCr(memory, memory->usage, 0, 0, memory->width, memory->height, &ycbcr);
+    int ret =
+            pManager->lockYCbCr(memory, memory->usage, 0, 0, memory->width, memory->height, &ycbcr);
     if (ret != 0) {
         ALOGE("%s lock memory failed", __func__);
         return GRALLOC1_ERROR_NO_RESOURCES;
@@ -294,25 +279,23 @@ static int gralloc_lock_flex(gralloc1_device_t* /*device*/,
         layout->planes[i].v_subsampling = 2;
     }
 
-    layout->planes[0].top_left = static_cast<uint8_t *>(ycbcr.y);
+    layout->planes[0].top_left = static_cast<uint8_t*>(ycbcr.y);
     layout->planes[0].component = FLEX_COMPONENT_Y;
     layout->planes[0].v_increment = static_cast<int32_t>(ycbcr.ystride);
 
-    layout->planes[1].top_left = static_cast<uint8_t *>(ycbcr.cb);
+    layout->planes[1].top_left = static_cast<uint8_t*>(ycbcr.cb);
     layout->planes[1].component = FLEX_COMPONENT_Cb;
     layout->planes[1].h_increment = static_cast<int32_t>(ycbcr.chroma_step);
     layout->planes[1].v_increment = static_cast<int32_t>(ycbcr.cstride);
 
-    layout->planes[2].top_left = static_cast<uint8_t *>(ycbcr.cr);
+    layout->planes[2].top_left = static_cast<uint8_t*>(ycbcr.cr);
     layout->planes[2].component = FLEX_COMPONENT_Cr;
     layout->planes[2].h_increment = static_cast<int32_t>(ycbcr.chroma_step);
     layout->planes[2].v_increment = static_cast<int32_t>(ycbcr.cstride);
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_release(gralloc1_device_t* device,
-                   buffer_handle_t buffer)
-{
+static int gralloc_release(gralloc1_device_t* device, buffer_handle_t buffer) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -339,9 +322,7 @@ static int gralloc_release(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_retain(gralloc1_device_t* device,
-                   buffer_handle_t buffer)
-{
+static int gralloc_retain(gralloc1_device_t* device, buffer_handle_t buffer) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -368,11 +349,9 @@ static int gralloc_retain(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_allocate(gralloc1_device_t* device,
-                   uint32_t numDescriptors,
-                   const gralloc1_buffer_descriptor_t* descriptors,
-                   buffer_handle_t* outBuffers)
-{
+static int gralloc_allocate(gralloc1_device_t* device, uint32_t numDescriptors,
+                            const gralloc1_buffer_descriptor_t* descriptors,
+                            buffer_handle_t* outBuffers) {
     if (!device || !outBuffers) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -389,7 +368,7 @@ static int gralloc_allocate(gralloc1_device_t* device,
         return -EINVAL;
     }
 
-    for (uint32_t i=0; i<numDescriptors; i++) {
+    for (uint32_t i = 0; i < numDescriptors; i++) {
         Memory* memory = NULL;
         MemoryDesc* desc = (MemoryDesc*)descriptors[i];
 
@@ -409,10 +388,8 @@ static int gralloc_allocate(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_get_stride(gralloc1_device_t* device,
-                   buffer_handle_t buffer,
-                   uint32_t* outStride)
-{
+static int gralloc_get_stride(gralloc1_device_t* device, buffer_handle_t buffer,
+                              uint32_t* outStride) {
     if (!device || !outStride) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -428,10 +405,8 @@ static int gralloc_get_stride(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_get_produce_usage(gralloc1_device_t* device,
-                   buffer_handle_t buffer,
-                   uint64_t* outUsage)
-{
+static int gralloc_get_produce_usage(gralloc1_device_t* device, buffer_handle_t buffer,
+                                     uint64_t* outUsage) {
     if (!device || !outUsage) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -447,10 +422,8 @@ static int gralloc_get_produce_usage(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_get_format(gralloc1_device_t* device,
-                   buffer_handle_t buffer,
-                   int32_t* outFormat)
-{
+static int gralloc_get_format(gralloc1_device_t* device, buffer_handle_t buffer,
+                              int32_t* outFormat) {
     if (!device || !outFormat) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -466,10 +439,8 @@ static int gralloc_get_format(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_get_dimension(gralloc1_device_t* device,
-                   buffer_handle_t buffer,
-                   uint32_t* outWidth, uint32_t* outHeight)
-{
+static int gralloc_get_dimension(gralloc1_device_t* device, buffer_handle_t buffer,
+                                 uint32_t* outWidth, uint32_t* outHeight) {
     if (!device || !outWidth || !outHeight) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -486,10 +457,8 @@ static int gralloc_get_dimension(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_get_consume_usage(gralloc1_device_t* device,
-                   buffer_handle_t buffer,
-                   uint64_t* outUsage)
-{
+static int gralloc_get_consume_usage(gralloc1_device_t* device, buffer_handle_t buffer,
+                                     uint64_t* outUsage) {
     if (!device || !outUsage) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -505,17 +474,13 @@ static int gralloc_get_consume_usage(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_get_backing_store(gralloc1_device_t* /*device*/,
-                   buffer_handle_t /*buffer*/,
-                   gralloc1_backing_store_t* /*outStore*/)
-{
+static int gralloc_get_backing_store(gralloc1_device_t* /*device*/, buffer_handle_t /*buffer*/,
+                                     gralloc1_backing_store_t* /*outStore*/) {
     return GRALLOC1_ERROR_UNSUPPORTED;
 }
 
-static int gralloc_set_produce_usage(gralloc1_device_t *device,
-                   gralloc1_buffer_descriptor_t descriptor,
-                   uint64_t usage)
-{
+static int gralloc_set_produce_usage(gralloc1_device_t* device,
+                                     gralloc1_buffer_descriptor_t descriptor, uint64_t usage) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -530,8 +495,7 @@ static int gralloc_set_produce_usage(gralloc1_device_t *device,
     int flags = 0;
     if (usage & GRALLOC1_CONSUMER_USAGE_CLIENT_TARGET) {
         flags |= FLAGS_FRAMEBUFFER;
-        usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER
-              | GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
+        usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER | GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
     }
 
     if ((usage & GRALLOC1_PRODUCER_USAGE_CPU_READ_OFTEN) != 0 ||
@@ -544,10 +508,8 @@ static int gralloc_set_produce_usage(gralloc1_device_t *device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_set_format(gralloc1_device_t *device,
-                   gralloc1_buffer_descriptor_t descriptor,
-                   int32_t format)
-{
+static int gralloc_set_format(gralloc1_device_t* device, gralloc1_buffer_descriptor_t descriptor,
+                              int32_t format) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -563,10 +525,8 @@ static int gralloc_set_format(gralloc1_device_t *device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_set_dimension(gralloc1_device_t *device,
-                   gralloc1_buffer_descriptor_t descriptor,
-                   uint32_t width, uint32_t height)
-{
+static int gralloc_set_dimension(gralloc1_device_t* device, gralloc1_buffer_descriptor_t descriptor,
+                                 uint32_t width, uint32_t height) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -583,10 +543,8 @@ static int gralloc_set_dimension(gralloc1_device_t *device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_set_consume_usage(gralloc1_device_t *device,
-                   gralloc1_buffer_descriptor_t descriptor,
-                   uint64_t usage)
-{
+static int gralloc_set_consume_usage(gralloc1_device_t* device,
+                                     gralloc1_buffer_descriptor_t descriptor, uint64_t usage) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -601,8 +559,7 @@ static int gralloc_set_consume_usage(gralloc1_device_t *device,
     int flags = 0;
     if (usage & GRALLOC1_CONSUMER_USAGE_CLIENT_TARGET) {
         flags |= FLAGS_FRAMEBUFFER;
-        usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER
-              | GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
+        usage |= GRALLOC1_CONSUMER_USAGE_HWCOMPOSER | GRALLOC1_PRODUCER_USAGE_GPU_RENDER_TARGET;
     }
 
     if ((usage & GRALLOC1_CONSUMER_USAGE_CPU_READ_OFTEN) != 0) {
@@ -614,9 +571,8 @@ static int gralloc_set_consume_usage(gralloc1_device_t *device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static int gralloc_destroy_descriptor(gralloc1_device_t *device,
-                   gralloc1_buffer_descriptor_t descriptor)
-{
+static int gralloc_destroy_descriptor(gralloc1_device_t* device,
+                                      gralloc1_buffer_descriptor_t descriptor) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -633,8 +589,7 @@ static int gralloc_destroy_descriptor(gralloc1_device_t *device,
 }
 
 static int gralloc_create_descriptor(gralloc1_device_t* device,
-                   gralloc1_buffer_descriptor_t* outDescriptor)
-{
+                                     gralloc1_buffer_descriptor_t* outDescriptor) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -651,14 +606,12 @@ static int gralloc_create_descriptor(gralloc1_device_t* device,
     return GRALLOC1_ERROR_NONE;
 }
 
-static void gralloc_dump(gralloc1_device_t* /*device*/,
-                         uint32_t* /*outSize*/, char* /*outBuffer*/)
-{
-}
+static void gralloc_dump(gralloc1_device_t* /*device*/, uint32_t* /*outSize*/,
+                         char* /*outBuffer*/) {}
 
 static int gralloc_validate_buffer_size(gralloc1_device_t* device, buffer_handle_t buffer,
-                    const gralloc1_buffer_descriptor_info_t* descriptorInfo, uint32_t /*stride*/)
-{
+                                        const gralloc1_buffer_descriptor_info_t* descriptorInfo,
+                                        uint32_t /*stride*/) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -670,7 +623,7 @@ static int gralloc_validate_buffer_size(gralloc1_device_t* device, buffer_handle
         return GRALLOC1_ERROR_BAD_HANDLE;
     }
 
-    if (descriptorInfo->layerCount >1) {
+    if (descriptorInfo->layerCount > 1) {
         return GRALLOC1_ERROR_BAD_VALUE;
     }
 
@@ -699,15 +652,14 @@ static int gralloc_validate_buffer_size(gralloc1_device_t* device, buffer_handle
 
     int ret = pManager->validateMemory(*desc, memory);
     if (ret != 0) {
-        ALOGE("%s failed, ret:%d", __func__,ret);
+        ALOGE("%s failed, ret:%d", __func__, ret);
         return GRALLOC1_ERROR_BAD_VALUE;
     }
     return GRALLOC1_ERROR_NONE;
 }
 
 static int gralloc_get_transport_size(gralloc1_device_t* device, buffer_handle_t buffer,
-                    uint32_t *outNumFds, uint32_t *outNumInts)
-{
+                                      uint32_t* outNumFds, uint32_t* outNumInts) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -730,8 +682,7 @@ static int gralloc_get_transport_size(gralloc1_device_t* device, buffer_handle_t
 }
 
 static int gralloc_import_buffer(gralloc1_device_t* device, const buffer_handle_t rawHandle,
-                    buffer_handle_t* outBuffer)
-{
+                                 buffer_handle_t* outBuffer) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -742,12 +693,12 @@ static int gralloc_import_buffer(gralloc1_device_t* device, const buffer_handle_
     }
 
     // Drop the virtual address which is mapped in the exporter process.
-    Memory *memory = (Memory *)bufferHandle;
+    Memory* memory = (Memory*)bufferHandle;
     memory->base = 0;
 
-    int ret = gralloc_retain(device,bufferHandle);
+    int ret = gralloc_retain(device, bufferHandle);
     if (ret != GRALLOC1_ERROR_NONE) {
-        ALOGI("%s fail ret:%d",__func__,ret);
+        ALOGI("%s fail ret:%d", __func__, ret);
         native_handle_close(bufferHandle);
         native_handle_delete(bufferHandle);
         return ret;
@@ -758,10 +709,8 @@ static int gralloc_import_buffer(gralloc1_device_t* device, const buffer_handle_
     return GRALLOC1_ERROR_NONE;
 }
 
-static gralloc1_function_pointer_t gralloc_get_function(
-                    struct gralloc1_device* device,
-                    int32_t descriptor)
-{
+static gralloc1_function_pointer_t gralloc_get_function(struct gralloc1_device* device,
+                                                        int32_t descriptor) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return NULL;
@@ -846,9 +795,8 @@ static gralloc1_function_pointer_t gralloc_get_function(
     return func;
 }
 
-static void gralloc_get_capabilities(struct gralloc1_device* device,
-                          uint32_t* outCount, int32_t* outCapabilities)
-{
+static void gralloc_get_capabilities(struct gralloc1_device* device, uint32_t* outCount,
+                                     int32_t* outCapabilities) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return;
@@ -856,15 +804,13 @@ static void gralloc_get_capabilities(struct gralloc1_device* device,
 
     if (outCapabilities) {
         if (outCount != NULL && *outCount >= 1)
-        *outCapabilities = GRALLOC1_CAPABILITY_RELEASE_IMPLY_DELETE;
-    }
-    else if (outCount) {
+            *outCapabilities = GRALLOC1_CAPABILITY_RELEASE_IMPLY_DELETE;
+    } else if (outCount) {
         *outCount = 1;
     }
 }
 
-static int gralloc_device_close(struct hw_device_t *device)
-{
+static int gralloc_device_close(struct hw_device_t* device) {
     gralloc_context* ctx = reinterpret_cast<gralloc_context*>(device);
     if (ctx) {
         free(ctx);
@@ -873,9 +819,8 @@ static int gralloc_device_close(struct hw_device_t *device)
     return 0;
 }
 
-static int gralloc1_device_open(const struct hw_module_t *module,
-                         const char *name, hw_device_t **device)
-{
+static int gralloc1_device_open(const struct hw_module_t* module, const char* name,
+                                hw_device_t** device) {
     if (!module || strcmp(name, GRALLOC_HARDWARE_MODULE_ID)) {
         ALOGE("%s invalid name:%s", __func__, name);
         return GRALLOC1_ERROR_BAD_VALUE;
@@ -899,21 +844,19 @@ static int gralloc1_device_open(const struct hw_module_t *module,
     return 0;
 }
 
-static struct hw_module_methods_t gralloc_module_methods = {
-    .open = gralloc1_device_open
-};
+static struct hw_module_methods_t gralloc_module_methods = {.open = gralloc1_device_open};
 
 struct private_module_t HAL_MODULE_INFO_SYM = {
-    .base = {
-        .tag = HARDWARE_MODULE_TAG,
-        .version_major = GRALLOC_MODULE_API_VERSION_1_0,
-        .version_minor = 0,
-        .id = GRALLOC_HARDWARE_MODULE_ID,
-        .name = "Graphics Memory Module",
-        .author = "Freescale Semiconductor, Inc.",
-        .methods = &gralloc_module_methods,
-        .dso = 0,
-        .reserved = {0},
-    },
+        .base =
+                {
+                        .tag = HARDWARE_MODULE_TAG,
+                        .version_major = GRALLOC_MODULE_API_VERSION_1_0,
+                        .version_minor = 0,
+                        .id = GRALLOC_HARDWARE_MODULE_ID,
+                        .name = "Graphics Memory Module",
+                        .author = "Freescale Semiconductor, Inc.",
+                        .methods = &gralloc_module_methods,
+                        .dso = 0,
+                        .reserved = {0},
+                },
 };
-

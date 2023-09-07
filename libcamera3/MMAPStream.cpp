@@ -16,26 +16,21 @@
 
 #include "MMAPStream.h"
 
-MMAPStream::MMAPStream(Camera* device)
-    : VideoStream(device)
-{
+MMAPStream::MMAPStream(Camera* device) : VideoStream(device) {
     mPlane = false;
 }
 
-MMAPStream::MMAPStream(Camera *device, bool mplane) : VideoStream(device) {
+MMAPStream::MMAPStream(Camera* device, bool mplane) : VideoStream(device) {
     // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
     // true, else set it as false.
     mPlane = mplane;
     mV4l2MemType = V4L2_MEMORY_MMAP;
 }
 
-MMAPStream::~MMAPStream()
-{
-}
+MMAPStream::~MMAPStream() {}
 
 // configure device.
-int32_t MMAPStream::onDeviceConfigureLocked()
-{
+int32_t MMAPStream::onDeviceConfigureLocked() {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     if (mDev <= 0) {
@@ -46,14 +41,14 @@ int32_t MMAPStream::onDeviceConfigureLocked()
     int32_t vformat;
     vformat = convertPixelFormatToV4L2Format(mFormat);
 
-    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d",
-          mWidth, mHeight, vformat&0xFF, (vformat>>8)&0xFF,
-          (vformat>>16)&0xFF, (vformat>>24)&0xFF, mCamera->getFps(mWidth, mHeight, mFps));
+    ALOGI("Width * Height %d x %d format %c%c%c%c, fps: %d", mWidth, mHeight, vformat & 0xFF,
+          (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF,
+          mCamera->getFps(mWidth, mHeight, mFps));
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
     param.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    param.parm.capture.timeperframe.numerator   = 1;
+    param.parm.capture.timeperframe.numerator = 1;
     param.parm.capture.timeperframe.denominator = mCamera->getFps(mWidth, mHeight, mFps);
     param.parm.capture.capturemode = mCamera->getCaptureMode(mWidth, mHeight);
     ret = ioctl(mDev, VIDIOC_S_PARM, &param);
@@ -64,16 +59,16 @@ int32_t MMAPStream::onDeviceConfigureLocked()
 
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
-    fmt.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width        = mWidth & 0xFFFFFFF8;
-    fmt.fmt.pix.height       = mHeight & 0xFFFFFFF8;
-    fmt.fmt.pix.pixelformat  = vformat;
-    fmt.fmt.pix.priv         = 0;
-    fmt.fmt.pix.sizeimage    = 0;
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width = mWidth & 0xFFFFFFF8;
+    fmt.fmt.pix.height = mHeight & 0xFFFFFFF8;
+    fmt.fmt.pix.pixelformat = vformat;
+    fmt.fmt.pix.priv = 0;
+    fmt.fmt.pix.sizeimage = 0;
     fmt.fmt.pix.bytesperline = 0;
 
     // Special stride alignment for YU12
-    if (vformat == v4l2_fourcc('Y', 'U', '1', '2')){
+    if (vformat == v4l2_fourcc('Y', 'U', '1', '2')) {
         // Goolge define the the stride and c_stride for YUV420 format
         // y_size = stride * height
         // c_stride = ALIGN(stride/2, 16)
@@ -94,13 +89,12 @@ int32_t MMAPStream::onDeviceConfigureLocked()
         // GPU has the Y stride to be 32 alignment, and UV stride to be
         // 16 alignment.
         // IPU have the Y stride to be 2x of the UV stride alignment
-        int32_t stride = (mWidth+31)/32*32;
-        int32_t c_stride = (stride/2+15)/16*16;
+        int32_t stride = (mWidth + 31) / 32 * 32;
+        int32_t c_stride = (stride / 2 + 15) / 16 * 16;
         fmt.fmt.pix.bytesperline = stride;
-        fmt.fmt.pix.sizeimage    = stride*mHeight+c_stride * mHeight;
-        ALOGI("Special handling for YV12 on Stride %d, size %d",
-            fmt.fmt.pix.bytesperline,
-            fmt.fmt.pix.sizeimage);
+        fmt.fmt.pix.sizeimage = stride * mHeight + c_stride * mHeight;
+        ALOGI("Special handling for YV12 on Stride %d, size %d", fmt.fmt.pix.bytesperline,
+              fmt.fmt.pix.sizeimage);
     }
 
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
@@ -112,8 +106,7 @@ int32_t MMAPStream::onDeviceConfigureLocked()
     return 0;
 }
 
-int32_t MMAPStream::onDeviceStartLocked()
-{
+int32_t MMAPStream::onDeviceStartLocked() {
     ALOGI("%s", __func__);
     if (mDev <= 0) {
         ALOGE("%s invalid dev node", __func__);
@@ -126,7 +119,7 @@ int32_t MMAPStream::onDeviceStartLocked()
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = mNumBuffers;
 
     if (mPlane) {
@@ -142,7 +135,7 @@ int32_t MMAPStream::onDeviceStartLocked()
     }
 
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        memset(&buf, 0, sizeof (buf));
+        memset(&buf, 0, sizeof(buf));
 
         if (mPlane) {
             buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -170,9 +163,8 @@ int32_t MMAPStream::onDeviceStartLocked()
             mBuffers[i]->mSize = buf.length;
         }
 
-        mBuffers[i]->mVirtAddr = (void *)mmap(NULL, mBuffers[i]->mSize,
-                    PROT_READ | PROT_WRITE, MAP_SHARED, mDev,
-                    mBuffers[i]->mPhyAddr);
+        mBuffers[i]->mVirtAddr = (void*)mmap(NULL, mBuffers[i]->mSize, PROT_READ | PROT_WRITE,
+                                             MAP_SHARED, mDev, mBuffers[i]->mPhyAddr);
         mBuffers[i]->mStream = this;
 
         if (!mPlane) {
@@ -192,7 +184,7 @@ int32_t MMAPStream::onDeviceStartLocked()
     //----------qbuf----------
     struct v4l2_buffer cfilledbuffer;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+        memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
 
         if (mPlane) {
             memset(&planes, 0, sizeof(planes));
@@ -238,8 +230,7 @@ int32_t MMAPStream::onDeviceStartLocked()
     return 0;
 }
 
-int32_t MMAPStream::onDeviceStopLocked()
-{
+int32_t MMAPStream::onDeviceStopLocked() {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     enum v4l2_buf_type bufType;
@@ -251,8 +242,7 @@ int32_t MMAPStream::onDeviceStopLocked()
     }
 
     for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
-        if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL
-                                && mBuffers[i]->mSize > 0) {
+        if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL && mBuffers[i]->mSize > 0) {
             munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
             delete mBuffers[i];
             mBuffers[i] = NULL;
@@ -271,7 +261,7 @@ int32_t MMAPStream::onDeviceStopLocked()
         return ret;
     }
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = 0;
     req.type = bufType;
     req.memory = V4L2_MEMORY_MMAP;
@@ -284,8 +274,7 @@ int32_t MMAPStream::onDeviceStopLocked()
     return 0;
 }
 
-int32_t MMAPStream::onFrameAcquireLocked()
-{
+int32_t MMAPStream::onFrameAcquireLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
@@ -293,7 +282,7 @@ int32_t MMAPStream::onFrameAcquireLocked()
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
 capture_data:
-    memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
+    memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));
 
     if (mPlane) {
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -315,8 +304,8 @@ capture_data:
         ALOGI("%s omit frame", __func__);
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
-          ALOGE("%s VIDIOC_QBUF Failed", __func__);
-          return BAD_VALUE;
+            ALOGE("%s VIDIOC_QBUF Failed", __func__);
+            return BAD_VALUE;
         }
         mOmitFrames--;
         goto capture_data;
@@ -325,15 +314,14 @@ capture_data:
     return cfilledbuffer.index;
 }
 
-int32_t MMAPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
-{
+int32_t MMAPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf) {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
-    memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+    memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
 
     if (mPlane) {
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -358,4 +346,3 @@ int32_t MMAPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
 
     return ret;
 }
-

@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-#include <cutils/log.h>
 #include "Stepcounter.h"
 
-#define STEPC_DATA_NAME    "step_counter"
-#define STEPC_SYSFS_PATH   "/sys/class/misc/step_counter"
-#define STEPC_SYSFS_DELAY  "poll_delay"
+#include <cutils/log.h>
+
+#define STEPC_DATA_NAME "step_counter"
+#define STEPC_SYSFS_PATH "/sys/class/misc/step_counter"
+#define STEPC_SYSFS_DELAY "poll_delay"
 #define STEPC_SYSFS_ENABLE "enable"
 
-Stepcounter::Stepcounter()
-: SensorBase(NULL, STEPC_DATA_NAME),
-  mPendingMask(0),
-  mInputReader(4) {
+Stepcounter::Stepcounter() : SensorBase(NULL, STEPC_DATA_NAME), mPendingMask(0), mInputReader(4) {
     ALOGD("step counter init");
     memset(&mPendingEvent, 0, sizeof(sensors_event_t));
     memset(mClassPath, '\0', sizeof(mClassPath));
@@ -34,24 +32,22 @@ Stepcounter::Stepcounter()
     mEnabled = 0;
     mDelay = 0;
     mPendingEvent.version = sizeof(sensors_event_t);
-    mPendingEvent.sensor  = ID_SC;
-    mPendingEvent.type    = SENSOR_TYPE_STEP_COUNTER;
+    mPendingEvent.sensor = ID_SC;
+    mPendingEvent.type = SENSOR_TYPE_STEP_COUNTER;
     mPendingEvent.magnetic.status = SENSOR_STATUS_ACCURACY_MEDIUM;
     mPendingEvent.version = sizeof(sensors_event_t);
 
     strcpy(mClassPath, STEPC_SYSFS_PATH);
 }
 
-Stepcounter::~Stepcounter() {
-}
+Stepcounter::~Stepcounter() {}
 
 int Stepcounter::setEnable(int32_t handle, int en) {
     int err = 0;
-    if(en) {
+    if (en) {
         mEnabled = 1;
         err = enable_sensor();
-    }
-    else {
+    } else {
         mEnabled = 0;
         err = disable_sensor();
     }
@@ -62,10 +58,8 @@ int Stepcounter::setEnable(int32_t handle, int en) {
     return err;
 }
 
-int Stepcounter::setDelay(int32_t handle, int64_t ns)
-{
-    if (ns < 0)
-        return -EINVAL;
+int Stepcounter::setDelay(int32_t handle, int64_t ns) {
+    if (ns < 0) return -EINVAL;
 
     mDelay = ns;
     return update_delay();
@@ -78,18 +72,14 @@ int Stepcounter::update_delay() {
         return 0;
 }
 
-void Stepcounter::processEvent(int code, int value) {
-}
+void Stepcounter::processEvent(int code, int value) {}
 
-int Stepcounter::readEvents(sensors_event_t* data, int count)
-{
+int Stepcounter::readEvents(sensors_event_t* data, int count) {
     int i;
-    if (count < 1)
-        return -EINVAL;
+    if (count < 1) return -EINVAL;
 
     ssize_t n = mInputReader.fill(data_fd);
-    if (n < 0)
-        return n;
+    if (n < 0) return n;
 
     int numEventReceived = 0;
     input_event const* event;
@@ -112,12 +102,11 @@ int Stepcounter::readEvents(sensors_event_t* data, int count)
 
 int Stepcounter::writeEnable(int isEnable) {
     char attr[PATH_MAX] = {'\0'};
-    if(mClassPath[0] == '\0')
-        return -1;
+    if (mClassPath[0] == '\0') return -1;
 
     strcpy(attr, mClassPath);
-    strcat(attr,"/");
-    strcat(attr,STEPC_SYSFS_ENABLE);
+    strcat(attr, "/");
+    strcat(attr, STEPC_SYSFS_ENABLE);
 
     int fd = open(attr, O_RDWR);
     if (0 > fd) {
@@ -151,12 +140,11 @@ int Stepcounter::writeEnable(int isEnable) {
 
 int Stepcounter::writeDelay(int64_t ns) {
     char attr[PATH_MAX] = {'\0'};
-    if(mClassPath[0] == '\0')
-        return -1;
+    if (mClassPath[0] == '\0') return -1;
 
     strcpy(attr, mClassPath);
-    strcat(attr,"/");
-    strcat(attr,STEPC_SYSFS_DELAY);
+    strcat(attr, "/");
+    strcat(attr, STEPC_SYSFS_DELAY);
 
     int fd = open(attr, O_RDWR);
     if (0 > fd) {
@@ -171,11 +159,10 @@ int Stepcounter::writeDelay(int64_t ns) {
     }
 
     char buf[80];
-    sprintf(buf, "%lld", ns/1000/1000);
-    write(fd, buf, strlen(buf)+1);
+    sprintf(buf, "%lld", ns / 1000 / 1000);
+    write(fd, buf, strlen(buf) + 1);
     close(fd);
     return 0;
-
 }
 
 int Stepcounter::enable_sensor() {
@@ -195,4 +182,3 @@ int Stepcounter::getEnable(int32_t handle) {
 }
 
 /*****************************************************************************/
-

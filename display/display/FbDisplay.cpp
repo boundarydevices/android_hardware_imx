@@ -14,79 +14,71 @@
  * limitations under the License.
  */
 
-#include <inttypes.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
+#include "FbDisplay.h"
+
 #include <cutils/log.h>
 #include <cutils/properties.h>
-#include <sync/sync.h>
-
+#include <fcntl.h>
+#include <inttypes.h>
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
 #include <linux/videodev2.h>
+#include <sync/sync.h>
+#include <sys/ioctl.h>
 
+#include "Layer.h"
 #include "Memory.h"
 #include "MemoryManager.h"
-#include "FbDisplay.h"
-#include "Layer.h"
 
 // uncomment below to enable frame dump feature
-//#define DEBUG_DUMP_FRAME
+// #define DEBUG_DUMP_FRAME
 
 #ifdef DEBUG_DUMP_FRAME
-static void dump_frame_to_file(char *pbuf, int size, char *filename)
-{
+static void dump_frame_to_file(char* pbuf, int size, char* filename) {
     int fd = 0;
     int len = 0;
     fd = open(filename, O_CREAT | O_RDWR, 0666);
-    if (fd<0) {
-        ALOGE("Unable to open file [%s]\n",
-             filename);
+    if (fd < 0) {
+        ALOGE("Unable to open file [%s]\n", filename);
     }
     len = write(fd, pbuf, size);
     close(fd);
 }
 
-static void dump_frame(char *pbuf, int size)
-{
+static void dump_frame(char* pbuf, int size) {
     static bool start_dump = false;
     static int prev_request_frame_count = 0;
     static int request_frame_count = 0;
     static int dumpped_count = 0;
 
-    if(!start_dump) {
+    if (!start_dump) {
         char value[PROPERTY_VALUE_MAX];
         property_get("vendor.hwc.enable.dump_frame", value, "0");
         request_frame_count = atoi(value);
-        //Previous dump request finished, no more request catched
-        if(prev_request_frame_count == request_frame_count)
-            return;
+        // Previous dump request finished, no more request catched
+        if (prev_request_frame_count == request_frame_count) return;
 
         prev_request_frame_count = request_frame_count;
         if (request_frame_count >= 1)
             start_dump = true;
         else
             start_dump = false;
-
     }
 
-    if((start_dump)&& (request_frame_count >= 1)) {
-        ALOGI("Dump %d frame buffer %p, size %d",
-                dumpped_count, pbuf, size);
+    if ((start_dump) && (request_frame_count >= 1)) {
+        ALOGI("Dump %d frame buffer %p, size %d", dumpped_count, pbuf, size);
         if (pbuf != 0) {
             char filename[128];
             memset(filename, 0, 128);
-            sprintf(filename, "/data/%s-frame-%d.rgba",
-                    "fb-display", dumpped_count);
+            sprintf(filename, "/data/%s-frame-%d.rgba", "fb-display", dumpped_count);
             dump_frame_to_file(pbuf, size, filename);
             dumpped_count++;
         }
         request_frame_count--;
-        if(request_frame_count == 0){
+        if (request_frame_count == 0) {
             start_dump = false;
         }
     }
-
 }
 
 #endif
@@ -95,8 +87,7 @@ namespace fsl {
 
 #define VSYNC_STRING_LEN 128
 
-FbDisplay::FbDisplay()
-{
+FbDisplay::FbDisplay() {
     mFb = -1;
     mFd = -1;
     mPowerMode = POWER_ON;
@@ -104,7 +95,7 @@ FbDisplay::FbDisplay()
     mOpened = false;
     mTargetIndex = 0;
     memset(&mTargets[0], 0, sizeof(mTargets));
-    mOvFd  = -1;
+    mOvFd = -1;
     memset(&mOvInfo, 0, sizeof(mOvInfo));
     mOvPowerMode = -1;
     mListener = NULL;
@@ -113,8 +104,7 @@ FbDisplay::FbDisplay()
     mEPDCDevice = false;
 }
 
-FbDisplay::~FbDisplay()
-{
+FbDisplay::~FbDisplay() {
     sp<VSyncThread> vsync = NULL;
     {
         Mutex::Autolock _l(mLock);
@@ -128,8 +118,7 @@ FbDisplay::~FbDisplay()
     closeFb();
 }
 
-int FbDisplay::setPowerMode(int mode)
-{
+int FbDisplay::setPowerMode(int mode) {
     Mutex::Autolock _l(mLock);
 
     switch (mode) {
@@ -149,8 +138,8 @@ int FbDisplay::setPowerMode(int mode)
             mPowerMode = FB_BLANK_UNBLANK;
             break;
     }
-    //HDMI need to keep unblank since audio need to be able to output
-    //through HDMI cable. Blank the HDMI will lost the HDMI clock
+    // HDMI need to keep unblank since audio need to be able to output
+    // through HDMI cable. Blank the HDMI will lost the HDMI clock
     if (mType == DISPLAY_HDMI) {
         return 0;
     }
@@ -164,8 +153,7 @@ int FbDisplay::setPowerMode(int mode)
     return err;
 }
 
-void FbDisplay::enableVsync()
-{
+void FbDisplay::enableVsync() {
     Mutex::Autolock _l(mLock);
     if (mFd < 0) {
         return;
@@ -174,8 +162,7 @@ void FbDisplay::enableVsync()
     mVsyncThread = new VSyncThread(this);
 }
 
-void FbDisplay::setVsyncEnabled(bool enabled)
-{
+void FbDisplay::setVsyncEnabled(bool enabled) {
     sp<VSyncThread> vsync = NULL;
     {
         Mutex::Autolock _l(mLock);
@@ -187,8 +174,7 @@ void FbDisplay::setVsyncEnabled(bool enabled)
     }
 }
 
-void FbDisplay::setFakeVSync(bool enable)
-{
+void FbDisplay::setFakeVSync(bool enable) {
     sp<VSyncThread> vsync = NULL;
     {
         Mutex::Autolock _l(mLock);
@@ -200,8 +186,7 @@ void FbDisplay::setFakeVSync(bool enable)
     }
 }
 
-int FbDisplay::convertFormatInfo(int format, int* bpp)
-{
+int FbDisplay::convertFormatInfo(int format, int* bpp) {
     int vformat = V4L2_PIX_FMT_NV12, bits = 8;
     switch (format) {
         case FORMAT_NV12:
@@ -241,8 +226,7 @@ int FbDisplay::convertFormatInfo(int format, int* bpp)
     return vformat;
 }
 
-int FbDisplay::getPresentFence(int32_t* outPresentFence)
-{
+int FbDisplay::getPresentFence(int32_t* outPresentFence) {
     if (outPresentFence != NULL) {
         if (mPresentFence == -1) {
             ALOGV("%s invalid present fence:%d", __func__, mPresentFence);
@@ -253,8 +237,7 @@ int FbDisplay::getPresentFence(int32_t* outPresentFence)
     return 0;
 }
 
-bool FbDisplay::checkOverlay(Layer* layer)
-{
+bool FbDisplay::checkOverlay(Layer* layer) {
     if (!isOverlayEnabled()) {
         return false;
     }
@@ -270,8 +253,7 @@ bool FbDisplay::checkOverlay(Layer* layer)
         return false;
     }
 
-    if ((memory->fslFormat >= FORMAT_RGBA8888) &&
-        (memory->fslFormat <= FORMAT_BGRA8888)) {
+    if ((memory->fslFormat >= FORMAT_RGBA8888) && (memory->fslFormat <= FORMAT_BGRA8888)) {
         ALOGV("updateOverlay: invalid format");
         return false;
     }
@@ -290,13 +272,12 @@ bool FbDisplay::checkOverlay(Layer* layer)
     return true;
 }
 
-int FbDisplay::performOverlay()
-{
+int FbDisplay::performOverlay() {
     Layer* layer = mOverlay;
     if (layer == NULL) {
         if (mOvPowerMode == FB_BLANK_UNBLANK) {
-            //mOvPowerMode = FB_BLANK_POWERDOWN;
-            //ioctl(mOvFd, FBIOBLANK, mOvPowerMode);
+            // mOvPowerMode = FB_BLANK_POWERDOWN;
+            // ioctl(mOvFd, FBIOBLANK, mOvPowerMode);
         }
         return 0;
     }
@@ -312,9 +293,8 @@ int FbDisplay::performOverlay()
     Memory* memory = layer->handle;
     int bitspix = 0;
     int vformat = convertFormatInfo(memory->fslFormat, &bitspix);
-    if ((int)mOvInfo.xres != memory->width
-        || (int)mOvInfo.yres != memory->height
-        || (int)mOvInfo.grayscale != vformat) {
+    if ((int)mOvInfo.xres != memory->width || (int)mOvInfo.yres != memory->height ||
+        (int)mOvInfo.grayscale != vformat) {
         mOvInfo.xoffset = mOvInfo.yoffset = 0;
         mOvInfo.xres = mOvInfo.xres_virtual = memory->width;
         mOvInfo.yres = mOvInfo.yres_virtual = memory->height;
@@ -343,8 +323,7 @@ int FbDisplay::performOverlay()
     return true;
 }
 
-int FbDisplay::updateScreen()
-{
+int FbDisplay::updateScreen() {
     Mutex::Autolock _l(mLock);
 
     if (!mConnected && mFb != 0) {
@@ -364,31 +343,29 @@ int FbDisplay::updateScreen()
     }
 
     if (mActiveConfig < 0) {
-        ALOGE("%s invalid config",__func__);
+        ALOGE("%s invalid config", __func__);
         return -EINVAL;
     }
     if (mCustomizeUI == UI_SCALE_NONE) {
         const DisplayConfig& config = mConfigs[mActiveConfig];
         if (buffer->width != config.mXres || buffer->height != config.mYres ||
             buffer->fslFormat != config.mFormat) {
-            ALOGE("%s buffer not match: w:%d, h:%d, f:%d, xres:%d, yres:%d, mf:%d",
-                  __func__, buffer->width, buffer->height, buffer->fslFormat,
-                  config.mXres, config.mYres, config.mFormat);
+            ALOGE("%s buffer not match: w:%d, h:%d, f:%d, xres:%d, yres:%d, mf:%d", __func__,
+                  buffer->width, buffer->height, buffer->fslFormat, config.mXres, config.mYres,
+                  config.mFormat);
             return -EINVAL;
         }
     }
 
 #ifdef DEBUG_DUMP_FRAME
-    if(buffer->base == 0) {
-        void *vaddr = NULL;
+    if (buffer->base == 0) {
+        void* vaddr = NULL;
         MemoryManager* pManager = MemoryManager::getInstance();
-        pManager->lock(buffer, buffer->usage,
-                    0, 0, buffer->width, buffer->height, &vaddr);
-        dump_frame((char *)vaddr, buffer->size);
+        pManager->lock(buffer, buffer->usage, 0, 0, buffer->width, buffer->height, &vaddr);
+        dump_frame((char*)vaddr, buffer->size);
         pManager->unlock(buffer);
-    }
-    else
-        dump_frame((char *)buffer->base, buffer->size);
+    } else
+        dump_frame((char*)buffer->base, buffer->size);
 #endif
 
     struct mxcfb_datainfo mxcbuf;
@@ -429,8 +406,7 @@ int FbDisplay::updateScreen()
     return 0;
 }
 
-void FbDisplay::getGUIResolution(int &width, int &height)
-{
+void FbDisplay::getGUIResolution(int& width, int& height) {
     char value[PROPERTY_VALUE_MAX];
     char w_buf[PROPERTY_VALUE_MAX];
     char h_buf[PROPERTY_VALUE_MAX];
@@ -442,11 +418,12 @@ void FbDisplay::getGUIResolution(int &width, int &height)
         mCustomizeUI = UI_SCALE_NONE;
         return;
     }
-    if (sscanf(value,"%[0-9]x%[0-9]",w_buf,h_buf) == 2) {
+    if (sscanf(value, "%[0-9]x%[0-9]", w_buf, h_buf) == 2) {
         int w = atoi(w_buf);
         int h = atoi(h_buf);
         if (w > width || h > height) {
-            ALOGI("Set ui resolution failed! width,height:[%dx%d] can not exceed [%dx%d]",w,h,width,height);
+            ALOGI("Set ui resolution failed! width,height:[%dx%d] can not exceed [%dx%d]", w, h,
+                  width, height);
             return;
         }
         mCustomizeUI = UI_SCALE_SOFTWARE;
@@ -455,8 +432,7 @@ void FbDisplay::getGUIResolution(int &width, int &height)
     }
 }
 
-int FbDisplay::readConfigLocked()
-{
+int FbDisplay::readConfigLocked() {
     struct fb_var_screeninfo info;
     if (ioctl(mFd, FBIOGET_VSCREENINFO, &info) == -1) {
         ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __func__, __LINE__);
@@ -472,29 +448,26 @@ int FbDisplay::readConfigLocked()
     }
 
     int refreshRate = 1000000000000000LLU /
-    (
-            uint64_t(info.upper_margin + info.lower_margin + info.yres + info.vsync_len)
-            * (info.left_margin  + info.right_margin + info.xres + info.hsync_len)
-            * info.pixclock
-    );
+            (uint64_t(info.upper_margin + info.lower_margin + info.yres + info.vsync_len) *
+             (info.left_margin + info.right_margin + info.xres + info.hsync_len) * info.pixclock);
 
     if (refreshRate == 0) {
         // bleagh, bad info from the driver
-        refreshRate = 60000;  // 60 Hz
+        refreshRate = 60000; // 60 Hz
     }
 
     if (int(info.width) <= 0 || int(info.height) <= 0) {
         // the driver doesn't return that information
         // default to 160 dpi
-        info.width  = ((info.xres * 25.4f)/160.0f + 0.5f);
-        info.height = ((info.yres * 25.4f)/160.0f + 0.5f);
+        info.width = ((info.xres * 25.4f) / 160.0f + 0.5f);
+        info.height = ((info.yres * 25.4f) / 160.0f + 0.5f);
     }
 
     int width = info.xres;
     int height = info.yres;
     getGUIResolution(width, height);
 
-    ssize_t configId = getConfigIdLocked(width,height);
+    ssize_t configId = getConfigIdLocked(width, height);
     if (configId < 0) {
         ALOGE("can't find config: w:%d, h:%d", info.xres, info.yres);
         return -1;
@@ -503,7 +476,7 @@ int FbDisplay::readConfigLocked()
     DisplayConfig& config = mConfigs[configId];
     config.mXdpi = 1000 * (config.mXres * 25.4f) / info.width;
     config.mYdpi = 1000 * (config.mYres * 25.4f) / info.height;
-    config.mFps  = refreshRate / 1000.0f;
+    config.mFps = refreshRate / 1000.0f;
     ALOGW("xres         = %d px\n"
           "yres         = %d px\n"
           "fps          = %.2f Hz\n"
@@ -511,26 +484,23 @@ int FbDisplay::readConfigLocked()
           "r            = %2u:%u\n"
           "g            = %2u:%u\n"
           "b            = %2u:%u\n",
-          config.mXres, config.mYres, config.mFps, info.bits_per_pixel,
-          info.red.offset, info.red.length, info.green.offset,
-          info.green.length, info.blue.offset, info.blue.length);
+          config.mXres, config.mYres, config.mFps, info.bits_per_pixel, info.red.offset,
+          info.red.length, info.green.offset, info.green.length, info.blue.offset,
+          info.blue.length);
 
-    config.mVsyncPeriod  = 1000000000000 / refreshRate;
+    config.mVsyncPeriod = 1000000000000 / refreshRate;
     if (info.grayscale == 0) {
         config.mFormat = (info.bits_per_pixel == 32)
-                       ? ((info.red.offset == 0) ? FORMAT_RGBA8888 :
-                            FORMAT_BGRA8888)
-                       : FORMAT_RGB565;
-    }
-    else {
-        config.mFormat = (info.grayscale == V4L2_PIX_FMT_ARGB32)
-                       ? FORMAT_RGBA8888
-                       : FORMAT_BGRA8888;
+                ? ((info.red.offset == 0) ? FORMAT_RGBA8888 : FORMAT_BGRA8888)
+                : FORMAT_RGB565;
+    } else {
+        config.mFormat =
+                (info.grayscale == V4L2_PIX_FMT_ARGB32) ? FORMAT_RGBA8888 : FORMAT_BGRA8888;
     }
     config.mBytespixel = info.bits_per_pixel >> 3;
     config.mStride = finfo.line_length;
 
-    for (size_t i=0; i<mConfigs.size(); i++) {
+    for (size_t i = 0; i < mConfigs.size(); i++) {
         if (i == (size_t)configId) {
             continue;
         }
@@ -544,8 +514,7 @@ int FbDisplay::readConfigLocked()
     return configId;
 }
 
-int FbDisplay::openFb()
-{
+int FbDisplay::openFb() {
     Mutex::Autolock _l(mLock);
 
     if (mFb < 0) {
@@ -562,15 +531,15 @@ int FbDisplay::openFb()
     ALOGV("open fb:%d", mFb);
     mFd = -1;
     char name[64];
-    snprintf(name, 64, HWC_FB_DEV"%d", mFb);
+    snprintf(name, 64, HWC_FB_DEV "%d", mFb);
     mFd = open(name, O_RDWR, 0);
     if (mFd < 0) {
         ALOGE("<%s,%d> open %s failed", __func__, __LINE__, name);
         return -errno;
     }
 
-    if(mFb != 0) {
-        if(ioctl(mFd, FBIOBLANK, POWER_ON) < 0) {
+    if (mFb != 0) {
+        if (ioctl(mFd, FBIOBLANK, POWER_ON) < 0) {
             ALOGE("<%s, %d> ioctl FBIOBLANK failed", __func__, __LINE__);
         }
     }
@@ -594,11 +563,11 @@ int FbDisplay::openFb()
 
     mActiveConfig = readConfigLocked();
     prepareTargetsLocked();
-    mPowerMode  = POWER_ON;
+    mPowerMode = POWER_ON;
     mOpened = true;
 
     // open overlay fd.
-    snprintf(name, 64, HWC_FB_DEV"%d", mFb + 1);
+    snprintf(name, 64, HWC_FB_DEV "%d", mFb + 1);
     mOvFd = open(name, O_RDWR, 0);
     if (mOvFd < 0) {
         ALOGI("open overlay failed");
@@ -616,8 +585,7 @@ int FbDisplay::openFb()
     return 0;
 }
 
-int FbDisplay::closeFb()
-{
+int FbDisplay::closeFb() {
     invalidLayers();
 
     Mutex::Autolock _l(mLock);
@@ -645,8 +613,7 @@ int FbDisplay::closeFb()
     return 0;
 }
 
-void FbDisplay::prepareTargetsLocked()
-{
+void FbDisplay::prepareTargetsLocked() {
     if (!mComposer.isValid()) {
         ALOGI("no need to alloc memory");
         return;
@@ -654,7 +621,7 @@ void FbDisplay::prepareTargetsLocked()
 
     MemoryDesc desc;
     if (mActiveConfig < 0) {
-        ALOGE("%s invalid config",__func__);
+        ALOGE("%s invalid config", __func__);
         return;
     }
     const DisplayConfig& config = mConfigs[mActiveConfig];
@@ -674,13 +641,12 @@ void FbDisplay::prepareTargetsLocked()
 
     desc.mFormat = config.mFormat;
     desc.mFslFormat = config.mFormat;
-    desc.mProduceUsage |= USAGE_HW_COMPOSER |
-                          USAGE_HW_2D | USAGE_HW_RENDER;
+    desc.mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
     desc.mFlag = FLAGS_FRAMEBUFFER;
     desc.checkFormat();
 
     MemoryManager* pManager = MemoryManager::getInstance();
-    for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
+    for (int i = 0; i < MAX_FRAMEBUFFERS; i++) {
         pManager->allocMemory(desc, &mTargets[i]);
         if (mTargets[i]->stride != (config.mStride / config.mBytespixel)) {
             ALOGE("%s buffer stride not match!", __func__);
@@ -689,10 +655,9 @@ void FbDisplay::prepareTargetsLocked()
     mTargetIndex = 0;
 }
 
-void FbDisplay::releaseTargetsLocked()
-{
+void FbDisplay::releaseTargetsLocked() {
     MemoryManager* pManager = MemoryManager::getInstance();
-    for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
+    for (int i = 0; i < MAX_FRAMEBUFFERS; i++) {
         if (mTargets[i] == NULL) {
             continue;
         }
@@ -702,8 +667,7 @@ void FbDisplay::releaseTargetsLocked()
     mTargetIndex = 0;
 }
 
-int FbDisplay::getConfigIdLocked(int width, int height)
-{
+int FbDisplay::getConfigIdLocked(int width, int height) {
     int id = -1;
     DisplayConfig config;
     memset(&config, 0, sizeof(config));
@@ -719,8 +683,7 @@ int FbDisplay::getConfigIdLocked(int width, int height)
     }
 }
 
-int FbDisplay::setDefaultFormatLocked()
-{
+int FbDisplay::setDefaultFormatLocked() {
     struct fb_var_screeninfo info;
     if (ioctl(mFd, FBIOGET_VSCREENINFO, &info) == -1) {
         ALOGE("<%s,%d> FBIOGET_VSCREENINFO failed", __func__, __LINE__);
@@ -728,29 +691,28 @@ int FbDisplay::setDefaultFormatLocked()
         return -errno;
     }
 
-    if ( mEPDCDevice) {
+    if (mEPDCDevice) {
         info.bits_per_pixel = 16;
         info.grayscale = 0;
         info.yoffset = 0;
         info.rotate = FB_ROTATE_UR;
         info.activate = FB_ACTIVATE_FORCE;
-    }
-    else {
+    } else {
         /*
          * Explicitly request RGBA 8/8/8/8
          */
-        info.bits_per_pixel   = 32;
-        info.red.offset       = 0;
-        info.red.length       = 8;
-        info.red.msb_right    = 0;
-        info.green.offset     = 8;
-        info.green.length     = 8;
-        info.green.msb_right  = 0;
-        info.blue.offset      = 16;
-        info.blue.length      = 8;
-        info.blue.msb_right   = 0;
-        info.transp.offset    = 24;
-        info.transp.length    = 8;
+        info.bits_per_pixel = 32;
+        info.red.offset = 0;
+        info.red.length = 8;
+        info.red.msb_right = 0;
+        info.green.offset = 8;
+        info.green.length = 8;
+        info.green.msb_right = 0;
+        info.blue.offset = 16;
+        info.blue.length = 8;
+        info.blue.msb_right = 0;
+        info.transp.offset = 24;
+        info.transp.length = 8;
         info.transp.msb_right = 0;
         info.grayscale = V4L2_PIX_FMT_ARGB32;
         info.reserved[0] = 0;
@@ -767,16 +729,13 @@ int FbDisplay::setDefaultFormatLocked()
     if (!strncmp(value, "4k", 2)) {
         info.xres = info.xres_virtual = 3840;
         info.yres = info.yres_virtual = 2160;
-    }
-    else if (!strncmp(value, "1080p", 5)) {
+    } else if (!strncmp(value, "1080p", 5)) {
         info.xres = info.xres_virtual = 1920;
         info.yres = info.yres_virtual = 1080;
-    }
-    else if (!strncmp(value, "720p", 4)) {
+    } else if (!strncmp(value, "720p", 4)) {
         info.xres = info.xres_virtual = 1280;
         info.yres = info.yres_virtual = 720;
-    }
-    else if (!strncmp(value, "480p", 4)) {
+    } else if (!strncmp(value, "480p", 4)) {
         info.xres = info.xres_virtual = 640;
         info.yres = info.yres_virtual = 480;
     }
@@ -789,8 +748,7 @@ int FbDisplay::setDefaultFormatLocked()
     return 0;
 }
 
-int FbDisplay::setActiveConfig(int configId)
-{
+int FbDisplay::setActiveConfig(int configId) {
     Mutex::Autolock _l(mLock);
     if (mActiveConfig == configId) {
         ALOGI("the same config, no need to change");
@@ -831,8 +789,7 @@ int FbDisplay::setActiveConfig(int configId)
     return 0;
 }
 
-int FbDisplay::composeLayers()
-{
+int FbDisplay::composeLayers() {
     Mutex::Autolock _l(mLock);
 
     // mLayerVector's size > 0 means 2D composite.
@@ -846,8 +803,7 @@ int FbDisplay::composeLayers()
     return composeLayersLocked();
 }
 
-void FbDisplay::handleVsyncEvent(nsecs_t timestamp)
-{
+void FbDisplay::handleVsyncEvent(nsecs_t timestamp) {
     EventListener* callback = NULL;
     {
         Mutex::Autolock _l(mLock);
@@ -861,31 +817,27 @@ void FbDisplay::handleVsyncEvent(nsecs_t timestamp)
     callback->onVSync(DISPLAY_PRIMARY, timestamp, mConfigs[mActiveConfig].mVsyncPeriod);
 }
 
-void FbDisplay::setFb(int fb)
-{
+void FbDisplay::setFb(int fb) {
     Mutex::Autolock _l(mLock);
     mFb = fb;
 }
 
-int FbDisplay::fb()
-{
+int FbDisplay::fb() {
     Mutex::Autolock _l(mLock);
     return mFb;
 }
 
-int FbDisplay::powerMode()
-{
+int FbDisplay::powerMode() {
     Mutex::Autolock _l(mLock);
     return mPowerMode;
 }
 
-int FbDisplay::readType()
-{
+int FbDisplay::readType() {
     char fb_path[HWC_PATH_LENGTH];
     char value[HWC_STRING_LENGTH];
-    FILE *fp = NULL;
+    FILE* fp = NULL;
 
-    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS"%d/fsl_disp_dev_property", mFb);
+    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS "%d/fsl_disp_dev_property", mFb);
     if (!(fp = fopen(fb_path, "r"))) {
         ALOGW("open %s failed", fb_path);
         Mutex::Autolock _l(mLock);
@@ -906,13 +858,11 @@ int FbDisplay::readType()
         ALOGI("fb%d is %s device", mFb, value);
         Mutex::Autolock _l(mLock);
         mType = DISPLAY_HDMI;
-    }
-    else if (strstr(value, "dvi")) {
+    } else if (strstr(value, "dvi")) {
         ALOGI("fb%d is %s device", mFb, value);
         Mutex::Autolock _l(mLock);
         mType = DISPLAY_DVI;
-    }
-    else {
+    } else {
         ALOGI("fb%d is %s device", mFb, value);
         Mutex::Autolock _l(mLock);
         mType = DISPLAY_LDB;
@@ -922,11 +872,10 @@ int FbDisplay::readType()
     return 0;
 }
 
-int FbDisplay::readConnection()
-{
+int FbDisplay::readConnection() {
     char fb_path[HWC_PATH_LENGTH];
     char value[HWC_STRING_LENGTH];
-    FILE *fp = NULL;
+    FILE* fp = NULL;
 
     {
         Mutex::Autolock _l(mLock);
@@ -940,7 +889,7 @@ int FbDisplay::readConnection()
         }
     }
 
-    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS"%d/disp_dev/cable_state", mFb);
+    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS "%d/disp_dev/cable_state", mFb);
     if (!(fp = fopen(fb_path, "r"))) {
         ALOGW("open %s failed", fb_path);
         Mutex::Autolock _l(mLock);
@@ -961,8 +910,7 @@ int FbDisplay::readConnection()
         ALOGI("fb%d device %s", mFb, value);
         Mutex::Autolock _l(mLock);
         mConnected = true;
-    }
-    else {
+    } else {
         ALOGI("fb%d device %s", mFb, value);
         Mutex::Autolock _l(mLock);
         mConnected = false;
@@ -973,27 +921,25 @@ int FbDisplay::readConnection()
 }
 
 //----------------------------------------------------------
-extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
-                           const struct timespec *request,
-                           struct timespec *remain);
+extern "C" int clock_nanosleep(clockid_t clock_id, int flags, const struct timespec* request,
+                               struct timespec* remain);
 
-FbDisplay::VSyncThread::VSyncThread(FbDisplay *ctx)
-    : Thread(false), mCtx(ctx), mEnabled(false),
-      mFakeVSync(false), mNextFakeVSync(0), mFd(-1)
-{
+FbDisplay::VSyncThread::VSyncThread(FbDisplay* ctx)
+      : Thread(false), mCtx(ctx), mEnabled(false), mFakeVSync(false), mNextFakeVSync(0), mFd(-1) {
     mRefreshPeriod = 0;
 }
 
-void FbDisplay::VSyncThread::onFirstRef()
-{
+void FbDisplay::VSyncThread::onFirstRef() {
     run("HWC-VSYNC-Thread", android::PRIORITY_URGENT_DISPLAY);
 }
 
-int32_t FbDisplay::VSyncThread::readyToRun()
-{
+int32_t FbDisplay::VSyncThread::readyToRun() {
     char fb_path[HWC_PATH_LENGTH];
     memset(fb_path, 0, sizeof(fb_path));
-    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS"%d""/vsync", DISPLAY_PRIMARY);
+    snprintf(fb_path, HWC_PATH_LENGTH,
+             HWC_FB_SYS "%d"
+                        "/vsync",
+             DISPLAY_PRIMARY);
 
     mFd = open(fb_path, O_RDONLY);
     if (mFd <= 0) {
@@ -1010,14 +956,12 @@ void FbDisplay::VSyncThread::setEnabled(bool enabled) {
     mCondition.signal();
 }
 
-void FbDisplay::VSyncThread::setFakeVSync(bool enable)
-{
+void FbDisplay::VSyncThread::setFakeVSync(bool enable) {
     Mutex::Autolock _l(mLock);
     mFakeVSync = enable;
 }
 
-bool FbDisplay::VSyncThread::threadLoop()
-{
+bool FbDisplay::VSyncThread::threadLoop() {
     { // scope for lock
         Mutex::Autolock _l(mLock);
         while (!mEnabled) {
@@ -1027,16 +971,14 @@ bool FbDisplay::VSyncThread::threadLoop()
 
     if (mFakeVSync) {
         performFakeVSync();
-    }
-    else {
+    } else {
         performVSync();
     }
 
     return true;
 }
 
-void FbDisplay::VSyncThread::performFakeVSync()
-{
+void FbDisplay::VSyncThread::performFakeVSync() {
     int id = mCtx->getActiveId();
     if (id >= 0) {
         const DisplayConfig& config = mCtx->getActiveConfig();
@@ -1056,27 +998,26 @@ void FbDisplay::VSyncThread::performFakeVSync()
     mNextFakeVSync = next_vsync + period;
 
     struct timespec spec;
-    spec.tv_sec  = next_vsync / 1000000000;
+    spec.tv_sec = next_vsync / 1000000000;
     spec.tv_nsec = next_vsync % 1000000000;
 
     int err;
     do {
         err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
-    } while (err<0 && errno == EINTR);
+    } while (err < 0 && errno == EINTR);
 
     if (err == 0 && mCtx != NULL) {
         mCtx->handleVsyncEvent(next_vsync);
     }
 }
 
-void FbDisplay::VSyncThread::performVSync()
-{
+void FbDisplay::VSyncThread::performVSync() {
     uint64_t timestamp = 0;
     char buf[VSYNC_STRING_LEN];
     memset(buf, 0, VSYNC_STRING_LEN);
     static uint64_t lasttime = 0;
 
-    ssize_t len = pread(mFd, buf, VSYNC_STRING_LEN-1, 0);
+    ssize_t len = pread(mFd, buf, VSYNC_STRING_LEN - 1, 0);
     if (len < 0) {
         ALOGE("unable to read vsync event error: %s", strerror(errno));
         return;
@@ -1096,4 +1037,4 @@ void FbDisplay::VSyncThread::performVSync()
     }
 }
 
-}
+} // namespace fsl

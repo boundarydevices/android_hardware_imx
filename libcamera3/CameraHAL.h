@@ -18,10 +18,11 @@
 #define CAMERA_HAL_H_
 
 #include <cutils/bitops.h>
-#include <hardware/hardware.h>
 #include <hardware/camera_common.h>
+#include <hardware/hardware.h>
 #include <hardware_legacy/uevent.h>
 #include <system/camera_vendor_tags.h>
+
 #include "Camera.h"
 #include "VendorTags.h"
 #include "utils/CameraConfigurationParser.h"
@@ -47,16 +48,15 @@ struct nodeSet {
 
 // CameraHAL contains all module state that isn't specific to an individual
 // camera device.
-class CameraHAL
-{
+class CameraHAL {
 public:
     CameraHAL();
     ~CameraHAL();
 
     // Camera Module Interface (see <hardware/camera_common.h>)
     int getNumberOfCameras();
-    int getCameraInfo(int camera_id, struct camera_info *info);
-    int setCallbacks(const camera_module_callbacks_t *callbacks);
+    int getCameraInfo(int camera_id, struct camera_info* info);
+    int setCallbacks(const camera_module_callbacks_t* callbacks);
     void getVendorTagOps(vendor_tag_ops_t* ops);
     CameraConfigurationParser mCameraCfgParser;
     CameraDefinition mCameraDef;
@@ -90,15 +90,12 @@ private:
      */
     class HotplugThread : public android::Thread {
     public:
-        HotplugThread(CameraHAL *hal)
-            : Thread(false), mModule(hal) {}
+        HotplugThread(CameraHAL* hal) : Thread(false), mModule(hal) {}
         ~HotplugThread() {}
 
-        virtual void onFirstRef() {
-            run("HotplugThread", PRIORITY_URGENT_DISPLAY);
-        }
+        virtual void onFirstRef() { run("HotplugThread", PRIORITY_URGENT_DISPLAY); }
 
-        virtual status_t readyToRun(){
+        virtual status_t readyToRun() {
             uevent_init();
             return 0;
         }
@@ -122,7 +119,7 @@ private:
         }
 
     private:
-        CameraHAL *mModule;
+        CameraHAL* mModule;
     };
 
 private:
@@ -130,9 +127,9 @@ private:
     // Number of cameras
     int32_t mCameraCount;
     // Callback handle
-    const camera_module_callbacks_t *mCallbacks;
+    const camera_module_callbacks_t* mCallbacks;
     // Array of camera devices, contains mCameraCount device pointers
-    Camera **mCameras;
+    Camera** mCameras;
     // camera hotplug handle thread.
     sp<HotplugThread> mHotplugThread;
 };

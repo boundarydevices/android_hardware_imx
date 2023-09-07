@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-#include "SecureIME.h"
-
 #include <android-base/logging.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
-#include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
+#include <binder/ProcessState.h>
+
+#include "SecureIME.h"
 
 using aidl::nxp::hardware::secureime::SecureIME;
 
@@ -33,8 +33,8 @@ int main() {
     binder_status_t status =
             AServiceManager_addService(secureime->asBinder().get(), instance.c_str());
     CHECK(status == STATUS_OK);
-    ALOGI("addService: %s",instance.c_str());
+    ALOGI("addService: %s", instance.c_str());
 
     ABinderProcess_joinThreadPool();
-    return EXIT_FAILURE;  // Unreachable
+    return EXIT_FAILURE; // Unreachable
 }

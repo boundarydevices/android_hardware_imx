@@ -17,41 +17,36 @@
 
 #define LOG_TAG "DMAStream"
 
-#include <Allocator.h>
 #include "DMAStream.h"
+
+#include <Allocator.h>
 
 namespace android {
 
-DMAStream::DMAStream(CameraDeviceSessionHwlImpl *pSession)
-    : MMAPStream(pSession), mStreamSize(0)
-{
+DMAStream::DMAStream(CameraDeviceSessionHwlImpl *pSession) : MMAPStream(pSession), mStreamSize(0) {
     mV4l2MemType = V4L2_MEMORY_DMABUF;
     mPlane = false;
 }
 
 DMAStream::DMAStream(bool mplane, CameraDeviceSessionHwlImpl *pSession)
-    : MMAPStream(pSession), mStreamSize(0)
-{
+      : MMAPStream(pSession), mStreamSize(0) {
     // If driver support V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, will set mplane as
     // true, else set it as false.
     mPlane = mplane;
     mV4l2MemType = V4L2_MEMORY_DMABUF;
 }
 
-DMAStream::~DMAStream()
-{
-}
+DMAStream::~DMAStream() {}
 
 // configure device.
-int32_t DMAStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
-{
+int32_t DMAStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height,
+                                           uint32_t fps) {
     ALOGI("%s", __func__);
 
     return MMAPStream::onDeviceConfigureLocked(format, width, height, fps);
 }
 
-int32_t DMAStream::onDeviceStartLocked()
-{
+int32_t DMAStream::onDeviceStartLocked() {
     int32_t ret = 0;
 
     ALOGI("%s", __func__);
@@ -62,12 +57,13 @@ int32_t DMAStream::onDeviceStartLocked()
     }
 
     //-------register buffers----------
-    enum v4l2_buf_type bufType = mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    enum v4l2_buf_type bufType =
+            mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
     struct v4l2_requestbuffers req;
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = mNumBuffers;
     req.type = bufType;
 
@@ -80,7 +76,7 @@ int32_t DMAStream::onDeviceStartLocked()
     //----------qbuf----------
     struct v4l2_buffer cfilledbuffer;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+        memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
         if (mPlane) {
             memset(&planes, 0, sizeof(planes));
             cfilledbuffer.m.planes = &planes;
@@ -95,8 +91,7 @@ int32_t DMAStream::onDeviceStartLocked()
 
         cfilledbuffer.type = bufType;
         cfilledbuffer.memory = V4L2_MEMORY_DMABUF;
-        cfilledbuffer.index    = i;
-
+        cfilledbuffer.index = i;
 
         ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
         if (ret < 0) {
@@ -136,8 +131,7 @@ err:
     return ret;
 }
 
-int32_t DMAStream::onDeviceStopLocked()
-{
+int32_t DMAStream::onDeviceStopLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_requestbuffers req;
@@ -155,14 +149,13 @@ int32_t DMAStream::onDeviceStopLocked()
         bufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     }
 
-
     ret = ioctl(mDev, VIDIOC_STREAMOFF, &bufType);
     if (ret < 0) {
         ALOGE("%s VIDIOC_STREAMOFF failed:%s", __func__, strerror(errno));
         return ret;
     }
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = 0;
     req.type = bufType;
     req.memory = V4L2_MEMORY_DMABUF;
@@ -177,9 +170,8 @@ int32_t DMAStream::onDeviceStopLocked()
     return 0;
 }
 
-int32_t DMAStream::onFrameReturn(ImxStreamBuffer& buf)
-{
-    //ALOGV("%s: index:%d", __func__, index);
+int32_t DMAStream::onFrameReturn(ImxStreamBuffer &buf) {
+    // ALOGV("%s: index:%d", __func__, index);
     Mutex::Autolock _l(mV4l2Lock);
 
     int32_t ret = 0;
@@ -187,7 +179,7 @@ int32_t DMAStream::onFrameReturn(ImxStreamBuffer& buf)
     struct v4l2_plane planes;
 
     memset(&planes, 0, sizeof(struct v4l2_plane));
-    memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+    memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
 
     if (mPlane) {
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -215,13 +207,11 @@ int32_t DMAStream::onFrameReturn(ImxStreamBuffer& buf)
     return 0;
 }
 
-int32_t DMAStream::getDeviceBufferSize()
-{
+int32_t DMAStream::getDeviceBufferSize() {
     return getSizeByForamtRes(mFormat, mWidth, mHeight, true);
 }
 
-int32_t DMAStream::allocateBuffersLocked()
-{
+int32_t DMAStream::allocateBuffersLocked() {
     int32_t ret = 0;
 
     ALOGI("%s", __func__);
@@ -254,8 +244,7 @@ int32_t DMAStream::allocateBuffersLocked()
         mBuffers[i]->mStream = this;
         mBuffers[i]->index = i;
         mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
-        if(mBuffers[i]->mFormatSize == 0)
-             mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+        if (mBuffers[i]->mFormatSize == 0) mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
 
         int ret = AllocPhyBuffer(*mBuffers[i]);
         if (ret) {
@@ -274,8 +263,7 @@ err:
     ALOGI("%s: clean up before return error", __func__);
 
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
-        if (mBuffers[i] == NULL)
-            continue;
+        if (mBuffers[i] == NULL) continue;
 
         FreePhyBuffer(*mBuffers[i]);
         delete mBuffers[i];
@@ -285,8 +273,7 @@ err:
     return ret;
 }
 
-int32_t DMAStream::freeBuffersLocked()
-{
+int32_t DMAStream::freeBuffersLocked() {
     ALOGV("%s", __func__);
     if (!mRegistered) {
         ALOGI("%s but buffer is not registered", __func__);
@@ -295,8 +282,7 @@ int32_t DMAStream::freeBuffersLocked()
 
     ALOGI("freeBufferToIon buffer num:%d", mAllocatedBuffers);
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
-        if (mBuffers[i] == NULL)
-            continue;
+        if (mBuffers[i] == NULL) continue;
 
         FreePhyBuffer(*mBuffers[i]);
         delete mBuffers[i];

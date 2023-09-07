@@ -16,13 +16,14 @@
 
 #define LOG_TAG "automotive.vehicle@2.0-connector"
 
-#include <fstream>
+#include "EmulatedVehicleConnector.h"
 
 #include <android-base/logging.h>
 #include <utils/SystemClock.h>
 
+#include <fstream>
+
 #include "DefaultConfig.h"
-#include "EmulatedVehicleConnector.h"
 #include "JsonFakeValueGenerator.h"
 #include "LinearFakeValueGenerator.h"
 #include "Obd2SensorStore.h"
@@ -36,7 +37,7 @@ namespace V2_0 {
 namespace impl {
 
 class EmulatedPassthroughConnector : public PassthroughConnector {
-  public:
+public:
     bool onDump(const hidl_handle& fd, const hidl_vec<hidl_string>& options) override;
 };
 
@@ -72,10 +73,10 @@ PassthroughConnectorPtr makeEmulatedPassthroughConnector() {
     return std::make_unique<EmulatedPassthroughConnector>();
 }
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

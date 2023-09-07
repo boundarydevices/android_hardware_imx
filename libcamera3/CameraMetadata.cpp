@@ -17,38 +17,30 @@
 // #define LOG_NDEBUG 0
 
 #define LOG_TAG "Camera2-Metadata"
-#include <utils/Log.h>
-#include <utils/Errors.h>
-
 #include <binder/Parcel.h>
 #include <camera/CameraMetadata.h>
 #include <camera/VendorTagDescriptor.h>
+#include <utils/Errors.h>
+#include <utils/Log.h>
 
 namespace android {
 
-#define ALIGN_TO(val, alignment) \
-    (((uintptr_t)(val) + ((alignment) - 1)) & ~((alignment) - 1))
+#define ALIGN_TO(val, alignment) (((uintptr_t)(val) + ((alignment)-1)) & ~((alignment)-1))
 
 typedef Parcel::WritableBlob WritableBlob;
 typedef Parcel::ReadableBlob ReadableBlob;
 
-CameraMetadata::CameraMetadata() :
-        mBuffer(NULL), mLocked(false) {
-}
+CameraMetadata::CameraMetadata() : mBuffer(NULL), mLocked(false) {}
 
-CameraMetadata::CameraMetadata(size_t entryCapacity, size_t dataCapacity) :
-        mLocked(false)
-{
+CameraMetadata::CameraMetadata(size_t entryCapacity, size_t dataCapacity) : mLocked(false) {
     mBuffer = allocate_camera_metadata(entryCapacity, dataCapacity);
 }
 
-CameraMetadata::CameraMetadata(const CameraMetadata &other) :
-        mLocked(false) {
+CameraMetadata::CameraMetadata(const CameraMetadata &other) : mLocked(false) {
     mBuffer = clone_camera_metadata(other.mBuffer);
 }
 
-CameraMetadata::CameraMetadata(camera_metadata_t *buffer) :
-        mBuffer(NULL), mLocked(false) {
+CameraMetadata::CameraMetadata(camera_metadata_t *buffer) : mBuffer(NULL), mLocked(false) {
     acquire(buffer);
 }
 
@@ -75,7 +67,7 @@ CameraMetadata::~CameraMetadata() {
     clear();
 }
 
-const camera_metadata_t* CameraMetadata::getAndLock() const {
+const camera_metadata_t *CameraMetadata::getAndLock() const {
     mLocked = true;
     return mBuffer;
 }
@@ -86,15 +78,14 @@ status_t CameraMetadata::unlock(const camera_metadata_t *buffer) const {
         return INVALID_OPERATION;
     }
     if (buffer != mBuffer) {
-        ALOGE("%s: Can't unlock CameraMetadata with wrong pointer!",
-                __FUNCTION__);
+        ALOGE("%s: Can't unlock CameraMetadata with wrong pointer!", __FUNCTION__);
         return BAD_VALUE;
     }
     mLocked = false;
     return OK;
 }
 
-camera_metadata_t* CameraMetadata::release() {
+camera_metadata_t *CameraMetadata::release() {
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return NULL;
@@ -123,9 +114,8 @@ void CameraMetadata::acquire(camera_metadata_t *buffer) {
     clear();
     mBuffer = buffer;
 
-    ALOGE_IF(validate_camera_metadata_structure(mBuffer, /*size*/NULL) != OK,
-             "%s: Failed to validate metadata structure %p",
-             __FUNCTION__, buffer);
+    ALOGE_IF(validate_camera_metadata_structure(mBuffer, /*size*/ NULL) != OK,
+             "%s: Failed to validate metadata structure %p", __FUNCTION__, buffer);
 }
 
 void CameraMetadata::acquire(CameraMetadata &other) {
@@ -140,7 +130,7 @@ status_t CameraMetadata::append(const CameraMetadata &other) {
     return append(other.mBuffer);
 }
 
-status_t CameraMetadata::append(const camera_metadata_t* other) {
+status_t CameraMetadata::append(const camera_metadata_t *other) {
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
@@ -153,8 +143,7 @@ status_t CameraMetadata::append(const camera_metadata_t* other) {
 }
 
 size_t CameraMetadata::entryCount() const {
-    return (mBuffer == NULL) ? 0 :
-            get_camera_metadata_entry_count(mBuffer);
+    return (mBuffer == NULL) ? 0 : get_camera_metadata_entry_count(mBuffer);
 }
 
 bool CameraMetadata::isEmpty() const {
@@ -171,111 +160,104 @@ status_t CameraMetadata::sort() {
 
 status_t CameraMetadata::checkType(uint32_t tag, uint8_t expectedType) {
     int tagType = get_local_camera_metadata_tag_type(tag, mBuffer);
-    if ( CC_UNLIKELY(tagType == -1)) {
+    if (CC_UNLIKELY(tagType == -1)) {
         ALOGE("Update metadata entry: Unknown tag %d", tag);
         return INVALID_OPERATION;
     }
-    if ( CC_UNLIKELY(tagType != expectedType) ) {
+    if (CC_UNLIKELY(tagType != expectedType)) {
         ALOGE("Mismatched tag type when updating entry %s (%d) of type %s; "
-                "got type %s data instead ",
-                get_local_camera_metadata_tag_name(tag, mBuffer), tag,
-                camera_metadata_type_names[tagType],
-                camera_metadata_type_names[expectedType]);
+              "got type %s data instead ",
+              get_local_camera_metadata_tag_name(tag, mBuffer), tag,
+              camera_metadata_type_names[tagType], camera_metadata_type_names[expectedType]);
         return INVALID_OPERATION;
     }
     return OK;
 }
 
-status_t CameraMetadata::update(uint32_t tag,
-        const int32_t *data, size_t data_count) {
+status_t CameraMetadata::update(uint32_t tag, const int32_t *data, size_t data_count) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(tag, TYPE_INT32)) != OK) {
+    if ((res = checkType(tag, TYPE_INT32)) != OK) {
         return res;
     }
-    return updateImpl(tag, (const void*)data, data_count);
+    return updateImpl(tag, (const void *)data, data_count);
 }
 
-status_t CameraMetadata::update(uint32_t tag,
-        const uint8_t *data, size_t data_count) {
+status_t CameraMetadata::update(uint32_t tag, const uint8_t *data, size_t data_count) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(tag, TYPE_BYTE)) != OK) {
+    if ((res = checkType(tag, TYPE_BYTE)) != OK) {
         return res;
     }
-    return updateImpl(tag, (const void*)data, data_count);
+    return updateImpl(tag, (const void *)data, data_count);
 }
 
-status_t CameraMetadata::update(uint32_t tag,
-        const float *data, size_t data_count) {
+status_t CameraMetadata::update(uint32_t tag, const float *data, size_t data_count) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(tag, TYPE_FLOAT)) != OK) {
+    if ((res = checkType(tag, TYPE_FLOAT)) != OK) {
         return res;
     }
-    return updateImpl(tag, (const void*)data, data_count);
+    return updateImpl(tag, (const void *)data, data_count);
 }
 
-status_t CameraMetadata::update(uint32_t tag,
-        const int64_t *data, size_t data_count) {
+status_t CameraMetadata::update(uint32_t tag, const int64_t *data, size_t data_count) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(tag, TYPE_INT64)) != OK) {
+    if ((res = checkType(tag, TYPE_INT64)) != OK) {
         return res;
     }
-    return updateImpl(tag, (const void*)data, data_count);
+    return updateImpl(tag, (const void *)data, data_count);
 }
 
-status_t CameraMetadata::update(uint32_t tag,
-        const double *data, size_t data_count) {
+status_t CameraMetadata::update(uint32_t tag, const double *data, size_t data_count) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(tag, TYPE_DOUBLE)) != OK) {
+    if ((res = checkType(tag, TYPE_DOUBLE)) != OK) {
         return res;
     }
-    return updateImpl(tag, (const void*)data, data_count);
+    return updateImpl(tag, (const void *)data, data_count);
 }
 
-status_t CameraMetadata::update(uint32_t tag,
-        const camera_metadata_rational_t *data, size_t data_count) {
+status_t CameraMetadata::update(uint32_t tag, const camera_metadata_rational_t *data,
+                                size_t data_count) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(tag, TYPE_RATIONAL)) != OK) {
+    if ((res = checkType(tag, TYPE_RATIONAL)) != OK) {
         return res;
     }
-    return updateImpl(tag, (const void*)data, data_count);
+    return updateImpl(tag, (const void *)data, data_count);
 }
 
-status_t CameraMetadata::update(uint32_t tag,
-        const String8 &string) {
+status_t CameraMetadata::update(uint32_t tag, const String8 &string) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(tag, TYPE_BYTE)) != OK) {
+    if ((res = checkType(tag, TYPE_BYTE)) != OK) {
         return res;
     }
     // string.size() doesn't count the null termination character.
-    return updateImpl(tag, (const void*)string.string(), string.size() + 1);
+    return updateImpl(tag, (const void *)string.string(), string.size() + 1);
 }
 
 status_t CameraMetadata::update(const camera_metadata_ro_entry &entry) {
@@ -284,14 +266,13 @@ status_t CameraMetadata::update(const camera_metadata_ro_entry &entry) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return INVALID_OPERATION;
     }
-    if ( (res = checkType(entry.tag, entry.type)) != OK) {
+    if ((res = checkType(entry.tag, entry.type)) != OK) {
         return res;
     }
-    return updateImpl(entry.tag, (const void*)entry.data.u8, entry.count);
+    return updateImpl(entry.tag, (const void *)entry.data.u8, entry.count);
 }
 
-status_t CameraMetadata::updateImpl(uint32_t tag, const void *data,
-        size_t data_count) {
+status_t CameraMetadata::updateImpl(uint32_t tag, const void *data, size_t data_count) {
     status_t res;
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
@@ -308,13 +289,11 @@ status_t CameraMetadata::updateImpl(uint32_t tag, const void *data,
     uintptr_t bufAddr = reinterpret_cast<uintptr_t>(mBuffer);
     uintptr_t dataAddr = reinterpret_cast<uintptr_t>(data);
     if (dataAddr > bufAddr && dataAddr < (bufAddr + bufferSize)) {
-        ALOGE("%s: Update attempted with data from the same metadata buffer!",
-                __FUNCTION__);
+        ALOGE("%s: Update attempted with data from the same metadata buffer!", __FUNCTION__);
         return INVALID_OPERATION;
     }
 
-    size_t data_size = calculate_camera_metadata_entry_data_size(type,
-            data_count);
+    size_t data_size = calculate_camera_metadata_entry_data_size(type, data_count);
 
     res = resizeIfNeeded(1, data_size);
 
@@ -322,27 +301,23 @@ status_t CameraMetadata::updateImpl(uint32_t tag, const void *data,
         camera_metadata_entry_t entry;
         res = find_camera_metadata_entry(mBuffer, tag, &entry);
         if (res == NAME_NOT_FOUND) {
-            res = add_camera_metadata_entry(mBuffer,
-                    tag, data, data_count);
+            res = add_camera_metadata_entry(mBuffer, tag, data, data_count);
         } else if (res == OK) {
-            res = update_camera_metadata_entry(mBuffer,
-                    entry.index, data, data_count, NULL);
+            res = update_camera_metadata_entry(mBuffer, entry.index, data, data_count, NULL);
         }
     }
 
     if (res != OK) {
-        ALOGE("%s: Unable to update metadata entry %s.%s (%x): %s (%d)",
-                __FUNCTION__, get_local_camera_metadata_section_name(tag, mBuffer),
-                get_local_camera_metadata_tag_name(tag, mBuffer), tag,
-                strerror(-res), res);
+        ALOGE("%s: Unable to update metadata entry %s.%s (%x): %s (%d)", __FUNCTION__,
+              get_local_camera_metadata_section_name(tag, mBuffer),
+              get_local_camera_metadata_tag_name(tag, mBuffer), tag, strerror(-res), res);
     }
 
     IF_ALOGV() {
-        ALOGE_IF(validate_camera_metadata_structure(mBuffer, /*size*/NULL) !=
-                 OK,
+        ALOGE_IF(validate_camera_metadata_structure(mBuffer, /*size*/ NULL) != OK,
 
-                 "%s: Failed to validate metadata structure after update %p",
-                 __FUNCTION__, mBuffer);
+                 "%s: Failed to validate metadata structure after update %p", __FUNCTION__,
+                 mBuffer);
     }
 
     return res;
@@ -363,7 +338,7 @@ camera_metadata_entry_t CameraMetadata::find(uint32_t tag) {
         return entry;
     }
     res = find_camera_metadata_entry(mBuffer, tag, &entry);
-    if (CC_UNLIKELY( res != OK )) {
+    if (CC_UNLIKELY(res != OK)) {
         entry.count = 0;
         entry.data.u8 = NULL;
     }
@@ -374,7 +349,7 @@ camera_metadata_ro_entry_t CameraMetadata::find(uint32_t tag) const {
     status_t res;
     camera_metadata_ro_entry entry;
     res = find_camera_metadata_ro_entry(mBuffer, tag, &entry);
-    if (CC_UNLIKELY( res != OK )) {
+    if (CC_UNLIKELY(res != OK)) {
         entry.count = 0;
         entry.data.u8 = NULL;
     }
@@ -392,20 +367,16 @@ status_t CameraMetadata::erase(uint32_t tag) {
     if (res == NAME_NOT_FOUND) {
         return OK;
     } else if (res != OK) {
-        ALOGE("%s: Error looking for entry %s.%s (%x): %s %d",
-                __FUNCTION__,
-                get_local_camera_metadata_section_name(tag, mBuffer),
-                get_local_camera_metadata_tag_name(tag, mBuffer),
-                tag, strerror(-res), res);
+        ALOGE("%s: Error looking for entry %s.%s (%x): %s %d", __FUNCTION__,
+              get_local_camera_metadata_section_name(tag, mBuffer),
+              get_local_camera_metadata_tag_name(tag, mBuffer), tag, strerror(-res), res);
         return res;
     }
     res = delete_camera_metadata_entry(mBuffer, entry.index);
     if (res != OK) {
-        ALOGE("%s: Error deleting entry %s.%s (%x): %s %d",
-                __FUNCTION__,
-                get_local_camera_metadata_section_name(tag, mBuffer),
-                get_local_camera_metadata_tag_name(tag, mBuffer),
-                tag, strerror(-res), res);
+        ALOGE("%s: Error deleting entry %s.%s (%x): %s %d", __FUNCTION__,
+              get_local_camera_metadata_section_name(tag, mBuffer),
+              get_local_camera_metadata_tag_name(tag, mBuffer), tag, strerror(-res), res);
     }
     return res;
 }
@@ -424,23 +395,17 @@ status_t CameraMetadata::resizeIfNeeded(size_t extraEntries, size_t extraData) {
     } else {
         size_t currentEntryCount = get_camera_metadata_entry_count(mBuffer);
         size_t currentEntryCap = get_camera_metadata_entry_capacity(mBuffer);
-        size_t newEntryCount = currentEntryCount +
-                extraEntries;
-        newEntryCount = (newEntryCount > currentEntryCap) ?
-                newEntryCount * 2 : currentEntryCap;
+        size_t newEntryCount = currentEntryCount + extraEntries;
+        newEntryCount = (newEntryCount > currentEntryCap) ? newEntryCount * 2 : currentEntryCap;
 
         size_t currentDataCount = get_camera_metadata_data_count(mBuffer);
         size_t currentDataCap = get_camera_metadata_data_capacity(mBuffer);
-        size_t newDataCount = currentDataCount +
-                extraData;
-        newDataCount = (newDataCount > currentDataCap) ?
-                newDataCount * 2 : currentDataCap;
+        size_t newDataCount = currentDataCount + extraData;
+        newDataCount = (newDataCount > currentDataCap) ? newDataCount * 2 : currentDataCap;
 
-        if (newEntryCount > currentEntryCap ||
-                newDataCount > currentDataCap) {
+        if (newEntryCount > currentEntryCap || newDataCount > currentDataCap) {
             camera_metadata_t *oldBuffer = mBuffer;
-            mBuffer = allocate_camera_metadata(newEntryCount,
-                    newDataCount);
+            mBuffer = allocate_camera_metadata(newEntryCount, newDataCount);
             if (mBuffer == NULL) {
                 ALOGE("%s: Can't allocate larger metadata buffer", __FUNCTION__);
                 return NO_MEMORY;
@@ -452,12 +417,10 @@ status_t CameraMetadata::resizeIfNeeded(size_t extraEntries, size_t extraData) {
     return OK;
 }
 
-status_t CameraMetadata::readFromParcel(const Parcel& data,
-                                        camera_metadata_t** out) {
-
+status_t CameraMetadata::readFromParcel(const Parcel &data, camera_metadata_t **out) {
     status_t err = OK;
 
-    camera_metadata_t* metadata = NULL;
+    camera_metadata_t *metadata = NULL;
 
     if (out) {
         *out = NULL;
@@ -467,8 +430,7 @@ status_t CameraMetadata::readFromParcel(const Parcel& data,
     // arg0 = blobSize (int32)
     int32_t blobSizeTmp = -1;
     if ((err = data.readInt32(&blobSizeTmp)) != OK) {
-        ALOGE("%s: Failed to read metadata size (error %d %s)",
-              __FUNCTION__, err, strerror(-err));
+        ALOGE("%s: Failed to read metadata size (error %d %s)", __FUNCTION__, err, strerror(-err));
         return err;
     }
     const size_t blobSize = static_cast<size_t>(blobSizeTmp);
@@ -482,7 +444,7 @@ status_t CameraMetadata::readFromParcel(const Parcel& data,
 
     if (blobSize <= alignment) {
         ALOGE("%s: metadata blob is malformed, blobSize(%zu) should be larger than alignment(%zu)",
-                __FUNCTION__, blobSize, alignment);
+              __FUNCTION__, blobSize, alignment);
         return BAD_VALUE;
     }
 
@@ -505,23 +467,22 @@ status_t CameraMetadata::readFromParcel(const Parcel& data,
         // Must be after blob since we don't know offset until after writeBlob.
         int32_t offsetTmp;
         if ((err = data.readInt32(&offsetTmp)) != OK) {
-            ALOGE("%s: Failed to read metadata offsetTmp (error %d %s)",
-                  __FUNCTION__, err, strerror(-err));
+            ALOGE("%s: Failed to read metadata offsetTmp (error %d %s)", __FUNCTION__, err,
+                  strerror(-err));
             break;
         }
         const size_t offset = static_cast<size_t>(offsetTmp);
         if (offset >= alignment) {
-            ALOGE("%s: metadata offset(%zu) should be less than alignment(%zu)",
-                    __FUNCTION__, blobSize, alignment);
+            ALOGE("%s: metadata offset(%zu) should be less than alignment(%zu)", __FUNCTION__,
+                  blobSize, alignment);
             err = BAD_VALUE;
             break;
         }
 
         const uintptr_t metadataStart = reinterpret_cast<uintptr_t>(blob.data()) + offset;
-        const camera_metadata_t* tmp =
-                       reinterpret_cast<const camera_metadata_t*>(metadataStart);
-        ALOGV("%s: alignment is: %zu, metadata start: %p, offset: %zu",
-                __FUNCTION__, alignment, tmp, offset);
+        const camera_metadata_t *tmp = reinterpret_cast<const camera_metadata_t *>(metadataStart);
+        ALOGV("%s: alignment is: %zu, metadata start: %p, offset: %zu", __FUNCTION__, alignment,
+              tmp, offset);
         metadata = allocate_copy_camera_metadata_checked(tmp, metadataSize);
         if (metadata == NULL) {
             // We consider that allocation only fails if the validation
@@ -529,7 +490,7 @@ status_t CameraMetadata::readFromParcel(const Parcel& data,
             ALOGE("%s: metadata allocation and copy failed", __FUNCTION__);
             err = BAD_VALUE;
         }
-    } while(0);
+    } while (0);
     blob.release();
 
     if (out) {
@@ -543,8 +504,7 @@ status_t CameraMetadata::readFromParcel(const Parcel& data,
     return err;
 }
 
-status_t CameraMetadata::writeToParcel(Parcel& data,
-                                       const camera_metadata_t* metadata) {
+status_t CameraMetadata::writeToParcel(Parcel &data, const camera_metadata_t *metadata) {
     status_t res = OK;
 
     /**
@@ -617,19 +577,17 @@ status_t CameraMetadata::writeToParcel(Parcel& data,
         }
         const uintptr_t metadataStart = ALIGN_TO(blob.data(), alignment);
         offset = metadataStart - reinterpret_cast<uintptr_t>(blob.data());
-        ALOGV("%s: alignment is: %zu, metadata start: %p, offset: %zu",
-                __FUNCTION__, alignment,
-                reinterpret_cast<const void *>(metadataStart), offset);
-        copy_camera_metadata(reinterpret_cast<void*>(metadataStart), metadataSize, metadata);
+        ALOGV("%s: alignment is: %zu, metadata start: %p, offset: %zu", __FUNCTION__, alignment,
+              reinterpret_cast<const void *>(metadataStart), offset);
+        copy_camera_metadata(reinterpret_cast<void *>(metadataStart), metadataSize, metadata);
 
         // Not too big of a problem since receiving side does hard validation
         // Don't check the size since the compact size could be larger
-        if (validate_camera_metadata_structure(metadata, /*size*/NULL) != OK) {
-            ALOGW("%s: Failed to validate metadata %p before writing blob",
-                   __FUNCTION__, metadata);
+        if (validate_camera_metadata_structure(metadata, /*size*/ NULL) != OK) {
+            ALOGW("%s: Failed to validate metadata %p before writing blob", __FUNCTION__, metadata);
         }
 
-    } while(false);
+    } while (false);
     blob.release();
 
     // arg2 = offset (int32)
@@ -639,7 +597,6 @@ status_t CameraMetadata::writeToParcel(Parcel& data,
 }
 
 status_t CameraMetadata::readFromParcel(const Parcel *parcel) {
-
     ALOGV("%s: parcel = %p", __FUNCTION__, parcel);
 
     status_t res = OK;
@@ -659,8 +616,7 @@ status_t CameraMetadata::readFromParcel(const Parcel *parcel) {
     res = CameraMetadata::readFromParcel(*parcel, &buffer);
 
     if (res != NO_ERROR) {
-        ALOGE("%s: Failed to read from parcel. Metadata is unchanged.",
-              __FUNCTION__);
+        ALOGE("%s: Failed to read from parcel. Metadata is unchanged.", __FUNCTION__);
         return res;
     }
 
@@ -671,7 +627,6 @@ status_t CameraMetadata::readFromParcel(const Parcel *parcel) {
 }
 
 status_t CameraMetadata::writeToParcel(Parcel *parcel) const {
-
     ALOGV("%s: parcel = %p", __FUNCTION__, parcel);
 
     if (parcel == NULL) {
@@ -682,7 +637,7 @@ status_t CameraMetadata::writeToParcel(Parcel *parcel) const {
     return CameraMetadata::writeToParcel(*parcel, mBuffer);
 }
 
-void CameraMetadata::swap(CameraMetadata& other) {
+void CameraMetadata::swap(CameraMetadata &other) {
     if (mLocked) {
         ALOGE("%s: CameraMetadata is locked", __FUNCTION__);
         return;
@@ -691,16 +646,15 @@ void CameraMetadata::swap(CameraMetadata& other) {
         return;
     }
 
-    camera_metadata* thisBuf = mBuffer;
-    camera_metadata* otherBuf = other.mBuffer;
+    camera_metadata *thisBuf = mBuffer;
+    camera_metadata *otherBuf = other.mBuffer;
 
     other.mBuffer = thisBuf;
     mBuffer = otherBuf;
 }
 
-status_t CameraMetadata::getTagFromName(const char *name,
-        const VendorTagDescriptor* vTags, uint32_t *tag) {
-
+status_t CameraMetadata::getTagFromName(const char *name, const VendorTagDescriptor *vTags,
+                                        uint32_t *tag) {
     if (name == nullptr || tag == nullptr) return BAD_VALUE;
 
     size_t nameLength = strlen(name);
@@ -719,9 +673,9 @@ status_t CameraMetadata::getTagFromName(const char *name,
     size_t sectionLength = 0;
     size_t totalSectionCount = ANDROID_SECTION_COUNT + vendorSectionCount;
     for (size_t i = 0; i < totalSectionCount; ++i) {
-
-        const char *str = (i < ANDROID_SECTION_COUNT) ? camera_metadata_section_names[i] :
-                (*vendorSections)[i - ANDROID_SECTION_COUNT].string();
+        const char *str = (i < ANDROID_SECTION_COUNT)
+                ? camera_metadata_section_names[i]
+                : (*vendorSections)[i - ANDROID_SECTION_COUNT].string();
 
         ALOGV("%s: Trying to match against section '%s'", __FUNCTION__, str);
 
@@ -746,8 +700,7 @@ status_t CameraMetadata::getTagFromName(const char *name,
     if (section == NULL) {
         return NAME_NOT_FOUND;
     } else {
-        ALOGV("%s: Found matched section '%s' (%zu)",
-              __FUNCTION__, section, sectionIndex);
+        ALOGV("%s: Found matched section '%s' (%zu)", __FUNCTION__, section, sectionIndex);
     }
 
     // Get the tag name component of the name
@@ -768,8 +721,7 @@ status_t CameraMetadata::getTagFromName(const char *name,
             const char *tagName = get_camera_metadata_tag_name(candidateTag);
 
             if (strcmp(nameTagName, tagName) == 0) {
-                ALOGV("%s: Found matched tag '%s' (%d)",
-                      __FUNCTION__, tagName, candidateTag);
+                ALOGV("%s: Found matched tag '%s' (%d)", __FUNCTION__, tagName, candidateTag);
                 break;
             }
         }
@@ -791,6 +743,5 @@ status_t CameraMetadata::getTagFromName(const char *name,
     *tag = candidateTag;
     return OK;
 }
-
 
 }; // namespace android

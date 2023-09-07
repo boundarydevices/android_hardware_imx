@@ -17,12 +17,13 @@
 #ifndef _CAMERA_H_
 #define _CAMERA_H_
 
-#include <hardware/hardware.h>
 #include <hardware/camera3.h>
+#include <hardware/hardware.h>
 #include <utils/Mutex.h>
+
+#include "CameraUtils.h"
 #include "Metadata.h"
 #include "Stream.h"
-#include "CameraUtils.h"
 #include "utils/CameraConfigurationParser.h"
 
 using namespace cameraconfigparser;
@@ -33,16 +34,15 @@ class VideoStream;
 // again.
 // This is an abstract class, containing all logic and data shared between all
 // camera devices (front, back, etc) and common to the ISP.
-class Camera : public camera_info, public SensorData
-{
+class Camera : public camera_info, public SensorData {
 public:
     // id is used to distinguish cameras. 0 <= id < NUM_CAMERAS.
     // module is a handle to the HAL module, used when the device is opened.
-    Camera(int32_t id, int32_t facing, int32_t orientation, char* path, CscHw, CscHw, const char *);
+    Camera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw, CscHw, const char *);
     virtual ~Camera();
 
-    static Camera* createCamera(int32_t id,
-                                char* path, CscHw cam_copy_hw, CscHw cam_csc_hw,const char *hw_jpeg, CameraSensorMetadata *cam_metadata);
+    static Camera *createCamera(int32_t id, char *path, CscHw cam_copy_hw, CscHw cam_csc_hw,
+                                const char *hw_jpeg, CameraSensorMetadata *cam_metadata);
     // do advanced character set.
     int32_t processSettings(sp<Metadata> settings, uint32_t frame);
     // Common Camera Device Operations (see <hardware/camera_common.h>)
@@ -50,7 +50,7 @@ public:
     int32_t getInfo(struct camera_info *info);
     int32_t closeDev();
     int32_t flushDev();
-    virtual bool isHotplug() {return false;}
+    virtual bool isHotplug() { return false; }
 
     // Camera v3 Device Operations (see <hardware/camera3.h>)
     int32_t initializeDev(const camera3_callback_ops_t *callback_ops);
@@ -58,31 +58,27 @@ public:
     int32_t registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set);
     const camera_metadata_t *constructDefaultRequestSettings(int32_t type);
     int32_t processCaptureRequest(camera3_capture_request_t *request);
-    CscHw getBlitCopyHw() {return mCamBlitCopyType;}
-    CscHw getBlitCscHw() {return mCamBlitCscType;}
+    CscHw getBlitCopyHw() { return mCamBlitCopyType; }
+    CscHw getBlitCscHw() { return mCamBlitCscType; }
 
-    char *getHwEncoder() {return mJpegHw;};
+    char *getHwEncoder() { return mJpegHw; };
     void dumpDev(int32_t fd);
     int32_t usemx6s;
 
     CscHw mCamBlitCopyType;
     CscHw mCamBlitCscType;
 
-    char mJpegHw[32] = { 0 };;
+    char mJpegHw[32] = {0};
+    ;
     // some camera's resolution is not 16 pixels aligned, while gralloc is 16
     // pixels aligned.
     // Is just copy data from v4l2 to gralloc buffer, image  distortion
-    virtual int32_t getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t *pV4l2Width, uint32_t *pV4l2Height);
+    virtual int32_t getV4l2Res(uint32_t streamWidth, uint32_t streamHeight, uint32_t *pV4l2Width,
+                               uint32_t *pV4l2Height);
 
-    virtual int32_t allocTmpBuf(uint32_t /*size*/)
-    {
-        return 0;
-    }
+    virtual int32_t allocTmpBuf(uint32_t /*size*/) { return 0; }
     virtual void freeTmpBuf(){};
-    uint8_t *getTmpBuf()
-    {
-        return mTmpBuf;
-    }
+    uint8_t *getTmpBuf() { return mTmpBuf; }
 
 protected:
     // Initialize static camera characteristics for individual device
@@ -98,7 +94,7 @@ protected:
     // Accessor used by initDevice() to set the templates' metadata
     int32_t setTemplate(int32_t type, camera_metadata_t *static_info);
     // Prettyprint32_t template names
-    const char* templateToString(int32_t type);
+    const char *templateToString(int32_t type);
 
     // Initialize each template metadata controls
     int32_t setPreviewTemplate();
@@ -151,7 +147,7 @@ private:
 protected:
     sp<VideoStream> mVideoStream;
     autoState m3aState;
-    uint8_t *mTmpBuf;  // used for soft csc temp buffer
+    uint8_t *mTmpBuf; // used for soft csc temp buffer
 };
 
 #endif // CAMERA_H_

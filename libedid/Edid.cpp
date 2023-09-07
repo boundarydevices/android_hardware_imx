@@ -13,57 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <log/log.h>
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <drm_mode.h>
-#include <system/graphics-base-v1.0.h>
 #include "Edid.h"
 
-Edid::Edid(int fd,uint32_t connectorID)
-{
+#include <drm_mode.h>
+#include <errno.h>
+#include <log/log.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <system/graphics-base-v1.0.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
+Edid::Edid(int fd, uint32_t connectorID) {
     mIsValid = false;
     mIsHdrSupported = false;
     memset(&mHdrMetaData, 0, sizeof(mHdrMetaData));
-    getEdidDataFromDrm(fd,connectorID);
+    getEdidDataFromDrm(fd, connectorID);
 }
 
-Edid::~Edid()
-{
-}
+Edid::~Edid() {}
 
-bool Edid::isHdrSupported()
-{
+bool Edid::isHdrSupported() {
     return mIsHdrSupported;
 }
 
-int Edid::getHdrMetaData(HdrMetaData* hdrMetaData)
-{
-    if (hdrMetaData == NULL)
-        return -EINVAL;
+int Edid::getHdrMetaData(HdrMetaData *hdrMetaData) {
+    if (hdrMetaData == NULL) return -EINVAL;
     *hdrMetaData = mHdrMetaData;
     return 0;
 }
 
-int Edid::getEdidRawData(uint8_t *buf, int size)
-{
+int Edid::getEdidRawData(uint8_t *buf, int size) {
     int i;
-    if ((buf == NULL) || (size < EDID_LENGTH) || (!mIsValid))
-        return -1;
+    if ((buf == NULL) || (size < EDID_LENGTH) || (!mIsValid)) return -1;
 
     memcpy(buf, mRawData, EDID_LENGTH);
 
     return EDID_LENGTH;
 }
 
-int Edid::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes)
-{
-    if (!numTypes)
-        return -1;
+int Edid::getHdrSupportTypes(uint32_t *numTypes, int32_t *hdrTypes) {
+    if (!numTypes) return -1;
 
     int i;
 
@@ -75,10 +66,10 @@ int Edid::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes)
     EotfHdrTable hdrTable[2] = {
             {SMPTE_ST2084, HAL_HDR_HDR10},
             {BT_2100_HLG, HAL_HDR_HLG},
-        };
+    };
 
     *numTypes = 0;
-    for (i = 0; i < sizeof(hdrTable)/sizeof(hdrTable[0]); i++) {
+    for (i = 0; i < sizeof(hdrTable) / sizeof(hdrTable[0]); i++) {
         if (mHdrMetaData.eotf & (1 << hdrTable[i].eotf)) {
             if (hdrTypes) {
                 hdrTypes[*numTypes] = hdrTable[i].hdr;
@@ -90,39 +81,36 @@ int Edid::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes)
     return 0;
 }
 
-bool Edid::isHdrEotfSupported(uint32_t eotf)
-{
+bool Edid::isHdrEotfSupported(uint32_t eotf) {
     return (mHdrMetaData.eotf & (1 << eotf));
 }
 
-void Edid::getEdidDataFromDrm(int fd,uint32_t connectorID)
-{
-    ALOGI("Try to check fd %d connector:%d edid info",fd,connectorID);
+void Edid::getEdidDataFromDrm(int fd, uint32_t connectorID) {
+    ALOGI("Try to check fd %d connector:%d edid info", fd, connectorID);
 
-    //Step1: get edid blobid for specified card and connector
+    // Step1: get edid blobid for specified card and connector
     uint32_t edidBlobId = 0;
     drmModeObjectPropertiesPtr props;
-    props = drmModeObjectGetProperties(fd,connectorID,DRM_MODE_OBJECT_CONNECTOR);
+    props = drmModeObjectGetProperties(fd, connectorID, DRM_MODE_OBJECT_CONNECTOR);
     if (!props) {
-        ALOGE("%s No properties: %s", __FUNCTION__,strerror(errno));
+        ALOGE("%s No properties: %s", __FUNCTION__, strerror(errno));
         return;
     }
-    for (uint32_t i=0; i<props->count_props; i++)
-    {
+    for (uint32_t i = 0; i < props->count_props; i++) {
         drmModePropertyPtr prop;
         prop = drmModeGetProperty(fd, props->props[i]);
-        if (strcmp(prop->name,"EDID") == 0) {
-            edidBlobId = props->prop_values[i];//find EDID blob
+        if (strcmp(prop->name, "EDID") == 0) {
+            edidBlobId = props->prop_values[i]; // find EDID blob
         }
         drmModeFreeProperty(prop);
     }
     drmModeFreeObjectProperties(props);
 
-    //Step2: get edid data by edid blobid
+    // Step2: get edid data by edid blobid
     drmModePropertyBlobPtr blob;
     blob = drmModeGetPropertyBlob(fd, edidBlobId);
     if (!blob) {
-        ALOGE("%s drmModeGetPropertyBlob failed %d",__FUNCTION__,errno);
+        ALOGE("%s drmModeGetPropertyBlob failed %d", __FUNCTION__, errno);
         return;
     }
     unsigned char *edid;
@@ -137,15 +125,12 @@ void Edid::getEdidDataFromDrm(int fd,uint32_t connectorID)
     drmModeFreePropertyBlob(blob);
 }
 
-bool Edid::isEdidValid(unsigned char *edid)
-{
-    if (edid == NULL)
-        return false;
-    unsigned char check = edid[EDID_LENGTH-1];
+bool Edid::isEdidValid(unsigned char *edid) {
+    if (edid == NULL) return false;
+    unsigned char check = edid[EDID_LENGTH - 1];
     unsigned char sum = 0;
 
-    for (int i=0; i<EDID_LENGTH-1; i++)
-        sum += edid[i];
+    for (int i = 0; i < EDID_LENGTH - 1; i++) sum += edid[i];
     if ((unsigned char)(check + sum) != 0) {
         ALOGE("Checksum should be 0x%x", -sum & 0xff);
         return false;
@@ -153,15 +138,13 @@ bool Edid::isEdidValid(unsigned char *edid)
     return true;
 }
 
-unsigned char* Edid::getCeaExtensionData(unsigned char *edid)
-{
+unsigned char *Edid::getCeaExtensionData(unsigned char *edid) {
     int extension_num = edid[EXTENSION_NUM];
-    for (int i=1; i<=extension_num; i++) {
-        unsigned char* edidExt = edid + EDID_LENGTH * i;
-        if (!isEdidValid(edidExt))
-            return NULL;
+    for (int i = 1; i <= extension_num; i++) {
+        unsigned char *edidExt = edid + EDID_LENGTH * i;
+        if (!isEdidValid(edidExt)) return NULL;
 
-        if (edidExt[0] != CEA_EXTENSION)//CEA extension block
+        if (edidExt[0] != CEA_EXTENSION) // CEA extension block
             continue;
 
         return edidExt;
@@ -169,51 +152,44 @@ unsigned char* Edid::getCeaExtensionData(unsigned char *edid)
     return NULL;
 }
 
-int Edid::getDataBlockLen(unsigned char *db)
-{
+int Edid::getDataBlockLen(unsigned char *db) {
     return db[0] & LEN_MASK;
 }
 
-bool Edid::isHdrMetadataBlock(unsigned char *db)
-{
-    if (db[0]>>TAG_SHIFT != DATA_BLOCK_EXTENDED_TAG)
-        return false;
-    if (db[1] != HDR_STATIC_METADATA_BLOCK)
-        return false;
+bool Edid::isHdrMetadataBlock(unsigned char *db) {
+    if (db[0] >> TAG_SHIFT != DATA_BLOCK_EXTENDED_TAG) return false;
+    if (db[1] != HDR_STATIC_METADATA_BLOCK) return false;
     return true;
 }
 
-void Edid::parseHdrMetadataBlock(unsigned char *db)
-{
+void Edid::parseHdrMetadataBlock(unsigned char *db) {
     int len = getDataBlockLen(db);
     mHdrMetaData.eotf = db[2];
     if (len == 6) {
-        mHdrMetaData.max_cll  = db[4];
+        mHdrMetaData.max_cll = db[4];
         mHdrMetaData.max_fall = db[5];
-        mHdrMetaData.min_cll  = db[6];
+        mHdrMetaData.min_cll = db[6];
     } else if (len == 5) {
-        mHdrMetaData.max_cll  = db[4];
+        mHdrMetaData.max_cll = db[4];
         mHdrMetaData.max_fall = db[5];
     } else if (len == 4) {
-        mHdrMetaData.max_cll  = db[4];
+        mHdrMetaData.max_cll = db[4];
     } else if (len == 3) {
-        if (db[2]& 0x1) {
-            mHdrMetaData.max_cll  = SDR_DEFAULT_LUMINANCE;
+        if (db[2] & 0x1) {
+            mHdrMetaData.max_cll = SDR_DEFAULT_LUMINANCE;
             mHdrMetaData.max_fall = SDR_DEFAULT_LUMINANCE;
-            mHdrMetaData.min_cll  = SDR_DEFAULT_LUMINANCE;
+            mHdrMetaData.min_cll = SDR_DEFAULT_LUMINANCE;
         }
     }
 }
 
-void Edid::parseCeaExtData(unsigned char *edidExt)
-{
-    if (!isEdidValid(edidExt))
-        return;
+void Edid::parseCeaExtData(unsigned char *edidExt) {
+    if (!isEdidValid(edidExt)) return;
 
     int ceaDbStart = 4;
     int ceaDbLen = edidExt[2];
     int len = 0;
-    for (int i = ceaDbStart; i < ceaDbLen; i += len +1) {
+    for (int i = ceaDbStart; i < ceaDbLen; i += len + 1) {
         unsigned char *ceaDb = &edidExt[i];
         len = getDataBlockLen(&edidExt[i]);
         if (isHdrMetadataBlock(ceaDb)) {
@@ -223,8 +199,7 @@ void Edid::parseCeaExtData(unsigned char *edidExt)
     }
 }
 
-void Edid::dumpHdrMetaData()
-{
-    ALOGI("hdrMetaData：isHdrSupported:%d maxcll:%f,max_fall:%f,min_cll:%f",
-        mIsHdrSupported,mHdrMetaData.max_cll,mHdrMetaData.max_fall,mHdrMetaData.min_cll);
+void Edid::dumpHdrMetaData() {
+    ALOGI("hdrMetaData：isHdrSupported:%d maxcll:%f,max_fall:%f,min_cll:%f", mIsHdrSupported,
+          mHdrMetaData.max_cll, mHdrMetaData.max_fall, mHdrMetaData.min_cll);
 }

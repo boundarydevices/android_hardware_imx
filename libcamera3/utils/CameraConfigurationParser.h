@@ -16,30 +16,30 @@
 #ifndef HALS_CAMERACAMERACONFIGURATIONPARSER_H_
 #define HALS_CAMERACAMERACONFIGURATIONPARSER_H_
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace cameraconfigparser {
 
 enum CameraId {
-  BACK_CAM_ID = 0,
-  FRONT_CAM_ID,
-  NUM_CAM_ID,
+    BACK_CAM_ID = 0,
+    FRONT_CAM_ID,
+    NUM_CAM_ID,
 };
 
 enum CscHw {
-  GPU_2D,
-  GPU_3D,
-  DPU,
-  PXP,
-  IPU,
-  CPU,
+    GPU_2D,
+    GPU_3D,
+    DPU,
+    PXP,
+    IPU,
+    CPU,
 };
 
 struct OmitFrame {
-  int width;
-  int height;
-  int omitnum;
+    int width;
+    int height;
+    int omitnum;
 };
 
 enum HalVersion { kHalV1, kHalV2, kHalV3 };
@@ -48,68 +48,68 @@ enum HalVersion { kHalV1, kHalV2, kHalV3 };
 
 // Camera properties and features.
 struct CameraSensorMetadata {
-  // Camera recognized HAL versions.
-  enum BufferType { kMmap, kDma };
+    // Camera recognized HAL versions.
+    enum BufferType { kMmap, kDma };
 
-  int orientation;
-  // the max active pixel width for camera sensor
-  int activearraywidth;
-  // the max active pixel height for camera sensor
-  int activearrayheight;
+    int orientation;
+    // the max active pixel width for camera sensor
+    int activearraywidth;
+    // the max active pixel height for camera sensor
+    int activearrayheight;
 
-  // the max pixel for camera sensor
-  int pixelarraywidth;
-  // the max pixel for camera sensor
-  int pixelarrayheight;
+    // the max pixel for camera sensor
+    int pixelarraywidth;
+    // the max pixel for camera sensor
+    int pixelarrayheight;
 
-  // max_pixel_width * physical size of one pixel
-  // physical size of one pixel for ov5640 is 1.4um
-  // physical size of one pixel for max9286 is 4.2um
-  float physicalwidth;
-  // max_pixel_height * physical size of one pixel
-  float physicalheight;
+    // max_pixel_width * physical size of one pixel
+    // physical size of one pixel for ov5640 is 1.4um
+    // physical size of one pixel for max9286 is 4.2um
+    float physicalwidth;
+    // max_pixel_height * physical size of one pixel
+    float physicalheight;
 
-  // focal size
-  float focallength;
+    // focal size
+    float focallength;
 
-  // "back" or "front"
-  char camera_type[32];
+    // "back" or "front"
+    char camera_type[32];
 
-  // camera node name
-  char camera_name[32];
+    // camera node name
+    char camera_name[32];
 
-  // max pixel size
-  int maxjpegsize;
+    // max pixel size
+    int maxjpegsize;
 
-  // max fps and min fps. the value is set 1/30s ~ 0.3s
-  long minframeduration;
-  long maxframeduration;
+    // max fps and min fps. the value is set 1/30s ~ 0.3s
+    long minframeduration;
+    long maxframeduration;
 
-  struct OmitFrame omit_frame[OMIT_RESOLUTION_NUM];
-  BufferType buffer_type;
+    struct OmitFrame omit_frame[OMIT_RESOLUTION_NUM];
+    BufferType buffer_type;
 };
 
 struct CameraDefinition {
-  HalVersion hal_version;
-  CscHw cam_blit_copy_hw;
-  CscHw cam_blit_csc_hw;
-  std::string jpeg_hw;
-  struct CameraSensorMetadata camera_metadata[2];
+    HalVersion hal_version;
+    CscHw cam_blit_copy_hw;
+    CscHw cam_blit_csc_hw;
+    std::string jpeg_hw;
+    struct CameraSensorMetadata camera_metadata[2];
 };
 
 class CameraConfigurationParser {
- public:
-  CameraConfigurationParser() {}
-  ~CameraConfigurationParser() {}
+public:
+    CameraConfigurationParser() {}
+    ~CameraConfigurationParser() {}
 
-  CameraDefinition& mcamera()  { return mcamera_; }
+    CameraDefinition& mcamera() { return mcamera_; }
 
-  bool Init();
+    bool Init();
 
- private:
-  CameraDefinition mcamera_;
+private:
+    CameraDefinition mcamera_;
 };
 
-}  // namespace cameraconfigparser
+} // namespace cameraconfigparser
 
-#endif  // HALS_CAMERACAMERACONFIGURATIONPARSER_H_
+#endif // HALS_CAMERACAMERACONFIGURATIONPARSER_H_

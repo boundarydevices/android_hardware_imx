@@ -24,7 +24,7 @@ namespace hardware {
 namespace vibrator {
 
 class VibratorManager : public BnVibratorManager {
-  public:
+public:
     VibratorManager(std::shared_ptr<IVibrator> vibrator) : mDefaultVibrator(std::move(vibrator)){};
     ndk::ScopedAStatus getCapabilities(int32_t* _aidl_return) override;
     ndk::ScopedAStatus getVibratorIds(std::vector<int32_t>* _aidl_return) override;
@@ -34,11 +34,11 @@ class VibratorManager : public BnVibratorManager {
     ndk::ScopedAStatus triggerSynced(const std::shared_ptr<IVibratorCallback>& callback) override;
     ndk::ScopedAStatus cancelSynced() override;
 
-  private:
+private:
     std::shared_ptr<IVibrator> mDefaultVibrator;
 };
 
-}  // namespace vibrator
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace vibrator
+} // namespace hardware
+} // namespace android
+} // namespace aidl

@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
-#include <inttypes.h>
-#include <string>
-#include <math.h>
-#include <hardware/hardware.h>
-#include <hardware/hwcomposer2.h>
+#include <DisplayManager.h>
 #include <Memory.h>
 #include <MemoryDesc.h>
-#include <DisplayManager.h>
+#include <hardware/hardware.h>
+#include <hardware/hwcomposer2.h>
+#include <inttypes.h>
+#include <math.h>
 #include <sync/sync.h>
+
+#include <string>
+
 #include "context.h"
 
-static Layer* hwc2_get_layer(hwc2_display_t display, hwc2_layer_t layer)
-{
+static Layer* hwc2_get_layer(hwc2_display_t display, hwc2_layer_t layer) {
     Display* pDisplay = NULL;
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
@@ -44,9 +45,8 @@ static Layer* hwc2_get_layer(hwc2_display_t display, hwc2_layer_t layer)
     return pLayer;
 }
 
-static int hwc2_set_layer_zorder(hwc2_device_t* device, hwc2_display_t display,
-                                        hwc2_layer_t layer, uint32_t z)
-{
+static int hwc2_set_layer_zorder(hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+                                 uint32_t z) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -63,8 +63,7 @@ static int hwc2_set_layer_zorder(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_set_layer_visible_region(hwc2_device_t* device, hwc2_display_t display,
-                                        hwc2_layer_t layer, hwc_region_t visible)
-{
+                                         hwc2_layer_t layer, hwc_region_t visible) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -77,9 +76,9 @@ static int hwc2_set_layer_visible_region(hwc2_device_t* device, hwc2_display_t d
     }
 
     pLayer->visibleRegion.clear();
-    for (size_t n=0; n<visible.numRects; n++) {
+    for (size_t n = 0; n < visible.numRects; n++) {
         Rect rect;
-        const hwc_rect_t &hrect = visible.rects[n];
+        const hwc_rect_t& hrect = visible.rects[n];
         rect.left = hrect.left;
         rect.top = hrect.top;
         rect.right = hrect.right;
@@ -94,8 +93,7 @@ static int hwc2_set_layer_visible_region(hwc2_device_t* device, hwc2_display_t d
 }
 
 static int hwc2_set_layer_transform(hwc2_device_t* device, hwc2_display_t display,
-                                        hwc2_layer_t layer, int32_t transform)
-{
+                                    hwc2_layer_t layer, int32_t transform) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -113,8 +111,7 @@ static int hwc2_set_layer_transform(hwc2_device_t* device, hwc2_display_t displa
 }
 
 static int hwc2_set_layer_source_crop(hwc2_device_t* device, hwc2_display_t display,
-                                        hwc2_layer_t layer, hwc_frect_t crop)
-{
+                                      hwc2_layer_t layer, hwc_frect_t crop) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -134,8 +131,7 @@ static int hwc2_set_layer_source_crop(hwc2_device_t* device, hwc2_display_t disp
 }
 
 static int hwc2_set_layer_sideband_stream(hwc2_device_t* device, hwc2_display_t display,
-                                        hwc2_layer_t layer, const native_handle_t* stream)
-{
+                                          hwc2_layer_t layer, const native_handle_t* stream) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -153,8 +149,7 @@ static int hwc2_set_layer_sideband_stream(hwc2_device_t* device, hwc2_display_t 
 }
 
 static int hwc2_set_layer_plane_alpha(hwc2_device_t* device, hwc2_display_t display,
-                                        hwc2_layer_t layer, float alpha)
-{
+                                      hwc2_layer_t layer, float alpha) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -172,8 +167,7 @@ static int hwc2_set_layer_plane_alpha(hwc2_device_t* device, hwc2_display_t disp
 }
 
 static int hwc2_set_layer_display_frame(hwc2_device_t* device, hwc2_display_t display,
-                                        hwc2_layer_t layer, hwc_rect_t frame)
-{
+                                        hwc2_layer_t layer, hwc_rect_t frame) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -194,8 +188,7 @@ static int hwc2_set_layer_display_frame(hwc2_device_t* device, hwc2_display_t di
 }
 
 static int hwc2_set_layer_dataspace(hwc2_device_t* device, hwc2_display_t display,
-                                    hwc2_layer_t layer, int32_t dataspace)
-{
+                                    hwc2_layer_t layer, int32_t dataspace) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -214,12 +207,10 @@ static int hwc2_set_layer_dataspace(hwc2_device_t* device, hwc2_display_t displa
     }
     pLayer->dataspace = dataspace;
     return HWC2_ERROR_NONE;
-
 }
 
 static int hwc2_set_layer_composition_type(hwc2_device_t* device, hwc2_display_t display,
-                                           hwc2_layer_t layer, int32_t type)
-{
+                                           hwc2_layer_t layer, int32_t type) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -235,9 +226,8 @@ static int hwc2_set_layer_composition_type(hwc2_device_t* device, hwc2_display_t
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_layer_color(hwc2_device_t* device, hwc2_display_t display,
-                                hwc2_layer_t layer, hwc_color_t color)
-{
+static int hwc2_set_layer_color(hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+                                hwc_color_t color) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -256,8 +246,7 @@ static int hwc2_set_layer_color(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_set_layer_blend_mode(hwc2_device_t* device, hwc2_display_t display,
-                                     hwc2_layer_t layer, int32_t mode)
-{
+                                     hwc2_layer_t layer, int32_t mode) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -272,8 +261,7 @@ static int hwc2_set_layer_blend_mode(hwc2_device_t* device, hwc2_display_t displ
     int blend = BLENDING_NONE;
     if (mode == HWC2_BLEND_MODE_PREMULTIPLIED) {
         blend = BLENDING_PREMULT;
-    }
-    else if (mode == HWC2_BLEND_MODE_COVERAGE) {
+    } else if (mode == HWC2_BLEND_MODE_COVERAGE) {
         blend = BLENDING_COVERAGE;
     }
 
@@ -282,15 +270,12 @@ static int hwc2_set_layer_blend_mode(hwc2_device_t* device, hwc2_display_t displ
 }
 
 static int hwc2_set_layer_surface_dmage(hwc2_device_t* /*device*/, hwc2_display_t /*display*/,
-                                        hwc2_layer_t /*layer*/, hwc_region_t /*damage*/)
-{
+                                        hwc2_layer_t /*layer*/, hwc_region_t /*damage*/) {
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_layer_buffer(hwc2_device_t* device, hwc2_display_t display,
-                                 hwc2_layer_t layer, buffer_handle_t buffer,
-                                 int32_t acquireFence)
-{
+static int hwc2_set_layer_buffer(hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+                                 buffer_handle_t buffer, int32_t acquireFence) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -313,19 +298,17 @@ static int hwc2_set_layer_buffer(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_set_cursor_position(hwc2_device_t* /*device*/, hwc2_display_t /*display*/,
-                                    hwc2_layer_t /*layer*/, int32_t /*x*/, int32_t /*y*/)
-{
+                                    hwc2_layer_t /*layer*/, int32_t /*x*/, int32_t /*y*/) {
     return HWC2_ERROR_UNSUPPORTED;
 }
 
 static int hwc2_validate_display(hwc2_device_t* device, hwc2_display_t display,
-                                 uint32_t* outNumTypes, uint32_t* outNumRequests)
-{
+                                 uint32_t* outNumTypes, uint32_t* outNumRequests) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
     }
-    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
+    struct hwc2_context_t* ctx = (struct hwc2_context_t*)device;
 
     Display* pDisplay = NULL;
     DisplayManager* displayManager = DisplayManager::getInstance();
@@ -344,9 +327,7 @@ static int hwc2_validate_display(hwc2_device_t* device, hwc2_display_t display,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_vsync_enable(hwc2_device_t* device, hwc2_display_t display,
-                                 int32_t enabled)
-{
+static int hwc2_set_vsync_enable(hwc2_device_t* device, hwc2_display_t display, int32_t enabled) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -372,9 +353,7 @@ static int hwc2_set_vsync_enable(hwc2_device_t* device, hwc2_display_t display,
 static int hwc2_get_doze_support(hwc2_device_t* device, hwc2_display_t display,
                                  int32_t* outSupport);
 
-static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display,
-                               int32_t mode)
-{
+static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display, int32_t mode) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -391,30 +370,26 @@ static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display,
     int power = POWER_ON;
     if (mode == HWC2_POWER_MODE_ON) {
         power = POWER_ON;
-    }
-    else if (mode == HWC2_POWER_MODE_OFF) {
+    } else if (mode == HWC2_POWER_MODE_OFF) {
         power = POWER_OFF;
-    }
-    else if (mode == HWC2_POWER_MODE_DOZE) {
+    } else if (mode == HWC2_POWER_MODE_DOZE) {
         power = POWER_DOZE;
-    }
-    else if (mode == HWC2_POWER_MODE_DOZE_SUSPEND) {
+    } else if (mode == HWC2_POWER_MODE_DOZE_SUSPEND) {
         power = POWER_DOZE_SUSPEND;
-    }
-    else {
+    } else {
         ALOGE("%s invalid power mode:%d", __func__, mode);
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
-    //Check DisplayCapability::Doze support
+    // Check DisplayCapability::Doze support
     int32_t isDozeSupport = 0;
-    int status = hwc2_get_doze_support(device,display,&isDozeSupport);
+    int status = hwc2_get_doze_support(device, display, &isDozeSupport);
     if (status != HWC2_ERROR_NONE) {
-        ALOGE("%s failed to get doze support %d",__func__,status);
+        ALOGE("%s failed to get doze support %d", __func__, status);
         return status;
     }
-    if ((mode == HWC2_POWER_MODE_DOZE || mode == HWC2_POWER_MODE_DOZE_SUSPEND)
-         && isDozeSupport == 0 ) {
+    if ((mode == HWC2_POWER_MODE_DOZE || mode == HWC2_POWER_MODE_DOZE_SUSPEND) &&
+        isDozeSupport == 0) {
         return HWC2_ERROR_UNSUPPORTED;
     }
     int type = pDisplay->type();
@@ -426,8 +401,7 @@ static int hwc2_set_power_mode(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_set_output_buffer(hwc2_device_t* device, hwc2_display_t display,
-                                  buffer_handle_t buffer, int32_t releaseFence)
-{
+                                  buffer_handle_t buffer, int32_t releaseFence) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -454,26 +428,23 @@ static int hwc2_set_output_buffer(hwc2_device_t* device, hwc2_display_t display,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_color_transform(hwc2_device_t* *device, hwc2_display_t /*display*/,
-                                    const float* /*matrix*/, int32_t hint)
-{
+static int hwc2_set_color_transform(hwc2_device_t** device, hwc2_display_t /*display*/,
+                                    const float* /*matrix*/, int32_t hint) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
-    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
+    struct hwc2_context_t* ctx = (struct hwc2_context_t*)device;
 
-    if( hint == HAL_COLOR_TRANSFORM_IDENTITY )
+    if (hint == HAL_COLOR_TRANSFORM_IDENTITY)
         ctx->color_tranform = false;
     else
         ctx->color_tranform = true;
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_color_mode(hwc2_device_t* device, hwc2_display_t display,
-                               int32_t mode)
-{
+static int hwc2_set_color_mode(hwc2_device_t* device, hwc2_display_t display, int32_t mode) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -496,8 +467,7 @@ static int hwc2_set_color_mode(hwc2_device_t* device, hwc2_display_t display,
 
 static int hwc2_set_client_target(hwc2_device_t* device, hwc2_display_t display,
                                   buffer_handle_t target, int32_t acquireFence,
-                                  int32_t /*dataspace*/, hwc_region_t /*damage*/)
-{
+                                  int32_t /*dataspace*/, hwc_region_t /*damage*/) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -526,8 +496,7 @@ static int hwc2_set_client_target(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_set_active_config(hwc2_device_t* device, hwc2_display_t display,
-                                  hwc2_config_t config)
-{
+                                  hwc2_config_t config) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -549,14 +518,14 @@ static int hwc2_set_active_config(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
-                                  hwc2_callback_data_t callbackData, hwc2_function_pointer_t pointer)
-{
+                                  hwc2_callback_data_t callbackData,
+                                  hwc2_function_pointer_t pointer) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
-    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
+    struct hwc2_context_t* ctx = (struct hwc2_context_t*)device;
     switch (descriptor) {
         case HWC2_CALLBACK_HOTPLUG:
             ctx->mHotplug = reinterpret_cast<HWC2_PFN_HOTPLUG>(pointer);
@@ -575,7 +544,8 @@ static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
             ctx->mVsyncData_2_4 = callbackData;
             break;
         case HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED:
-            ctx->mVsyncPeriodTimingChanged = reinterpret_cast<HWC2_PFN_VSYNC_PERIOD_TIMING_CHANGED>(pointer);
+            ctx->mVsyncPeriodTimingChanged =
+                    reinterpret_cast<HWC2_PFN_VSYNC_PERIOD_TIMING_CHANGED>(pointer);
             ctx->mVsyncPeriodTimingChangedData = callbackData;
             break;
         case HWC2_CALLBACK_SEAMLESS_POSSIBLE:
@@ -595,8 +565,7 @@ static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
                 ALOGE("%s invalid display id:%" PRId64, __func__, i);
                 return HWC2_ERROR_BAD_PARAMETER;
             }
-            if (pDisplay->connected())
-                ctx->mListener->onHotplug(i, true);
+            if (pDisplay->connected()) ctx->mListener->onHotplug(i, true);
         }
     }
 
@@ -604,8 +573,7 @@ static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
 }
 
 static int hwc2_present_display(hwc2_device_t* device, hwc2_display_t display,
-                                int32_t* outPresentFence)
-{
+                                int32_t* outPresentFence) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -629,9 +597,8 @@ static int hwc2_present_display(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_get_release_fences(hwc2_device_t* device, hwc2_display_t display,
-                                   uint32_t* outNumElements,
-                                   hwc2_layer_t* outLayers, int32_t* outFences)
-{
+                                   uint32_t* outNumElements, hwc2_layer_t* outLayers,
+                                   int32_t* outFences) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -648,8 +615,7 @@ static int hwc2_get_release_fences(hwc2_device_t* device, hwc2_display_t display
     return pDisplay->getReleaseFences(outNumElements, outLayers, outFences);
 }
 
-static int hwc2_get_max_virtual_display_count(hwc2_device_t* device)
-{
+static int hwc2_get_max_virtual_display_count(hwc2_device_t* device) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -661,8 +627,7 @@ static int hwc2_get_max_virtual_display_count(hwc2_device_t* device)
 static int hwc2_get_hdr_capabilities(hwc2_device_t* device, hwc2_display_t display,
                                      uint32_t* outNumTypes, int32_t* outTypes,
                                      float* outMaxLuminance, float* outMaxAverageLuminance,
-                                     float* outMinLuminance)
-{
+                                     float* outMinLuminance) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -678,41 +643,30 @@ static int hwc2_get_hdr_capabilities(hwc2_device_t* device, hwc2_display_t displ
 
     HdrMetaData hdrMetaData;
     memset(&hdrMetaData, 0, sizeof(hdrMetaData));
-    if (pDisplay->isHdrSupported() && (pDisplay->getHdrMetaData(&hdrMetaData) == 0) ) {
+    if (pDisplay->isHdrSupported() && (pDisplay->getHdrMetaData(&hdrMetaData) == 0)) {
         if (outTypes == NULL) {
             if (outNumTypes != NULL) {
                 pDisplay->getHdrSupportTypes(outNumTypes, NULL);
             }
-        }
-        else {
+        } else {
             pDisplay->getHdrSupportTypes(outNumTypes, outTypes);
-            if (outMaxLuminance != NULL)
-                *outMaxLuminance = hdrMetaData.max_cll;
-            if (outMaxAverageLuminance != NULL)
-                *outMaxAverageLuminance = hdrMetaData.max_fall;
-            if (outMinLuminance != NULL)
-                *outMinLuminance = hdrMetaData.min_cll;
+            if (outMaxLuminance != NULL) *outMaxLuminance = hdrMetaData.max_cll;
+            if (outMaxAverageLuminance != NULL) *outMaxAverageLuminance = hdrMetaData.max_fall;
+            if (outMinLuminance != NULL) *outMinLuminance = hdrMetaData.min_cll;
         }
-    }
-    else {
-        if (outNumTypes != NULL)
-            *outNumTypes = 0;
-        if (outTypes != NULL)
-            *outTypes = 0;
-        if (outMaxLuminance != NULL)
-            *outMaxLuminance = 0.0f;
-        if (outMaxAverageLuminance != NULL)
-            *outMaxAverageLuminance = 0.0f;
-        if (outMinLuminance != NULL)
-            *outMinLuminance = 0.0f;
+    } else {
+        if (outNumTypes != NULL) *outNumTypes = 0;
+        if (outTypes != NULL) *outTypes = 0;
+        if (outMaxLuminance != NULL) *outMaxLuminance = 0.0f;
+        if (outMaxAverageLuminance != NULL) *outMaxAverageLuminance = 0.0f;
+        if (outMinLuminance != NULL) *outMinLuminance = 0.0f;
     }
 
     return HWC2_ERROR_NONE;
 }
 
 static int hwc2_get_doze_support(hwc2_device_t* device, hwc2_display_t display,
-                                 int32_t* outSupport)
-{
+                                 int32_t* outSupport) {
     if (!device || !outSupport) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -730,9 +684,7 @@ static int hwc2_get_doze_support(hwc2_device_t* device, hwc2_display_t display,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_get_display_type(hwc2_device_t* device, hwc2_display_t display,
-                                 int32_t* outType)
-{
+static int hwc2_get_display_type(hwc2_device_t* device, hwc2_display_t display, int32_t* outType) {
     if (!device || !outType) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -749,11 +701,9 @@ static int hwc2_get_display_type(hwc2_device_t* device, hwc2_display_t display,
     int type = pDisplay->type();
     if (type == DISPLAY_VIRTUAL) {
         *outType = HWC2_DISPLAY_TYPE_VIRTUAL;
-    }
-    else if (type >= DISPLAY_LDB && type < DISPLAY_VIRTUAL) {
+    } else if (type >= DISPLAY_LDB && type < DISPLAY_VIRTUAL) {
         *outType = HWC2_DISPLAY_TYPE_PHYSICAL;
-    }
-    else {
+    } else {
         *outType = HWC2_DISPLAY_TYPE_INVALID;
     }
 
@@ -762,8 +712,7 @@ static int hwc2_get_display_type(hwc2_device_t* device, hwc2_display_t display,
 
 static int hwc2_get_display_requests(hwc2_device_t* device, hwc2_display_t display,
                                      int32_t* outDisplayRequests, uint32_t* outNumElements,
-                                     hwc2_layer_t* outLayers, int32_t* outLayerRequests)
-{
+                                     hwc2_layer_t* outLayers, int32_t* outLayerRequests) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -780,9 +729,8 @@ static int hwc2_get_display_requests(hwc2_device_t* device, hwc2_display_t displ
     return pDisplay->getRequests(outDisplayRequests, outNumElements, outLayers, outLayerRequests);
 }
 
-static int hwc2_get_display_name(hwc2_device_t* device, hwc2_display_t display,
-                                 uint32_t* outSize, char* outName)
-{
+static int hwc2_get_display_name(hwc2_device_t* device, hwc2_display_t display, uint32_t* outSize,
+                                 char* outName) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -810,8 +758,7 @@ static int hwc2_get_display_name(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_get_display_configs(hwc2_device_t* device, hwc2_display_t display,
-                                    uint32_t* outNumConfigs, hwc2_config_t* outConfigs)
-{
+                                    uint32_t* outNumConfigs, hwc2_config_t* outConfigs) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -832,7 +779,7 @@ static int hwc2_get_display_configs(hwc2_device_t* device, hwc2_display_t displa
 
     int cfgId = pDisplay->getFirstConfigId();
     if (outConfigs != NULL) {
-        for (int i=0; i<numConfigs; i++) {
+        for (int i = 0; i < numConfigs; i++) {
             outConfigs[i] = cfgId + i;
         }
     }
@@ -841,8 +788,8 @@ static int hwc2_get_display_configs(hwc2_device_t* device, hwc2_display_t displa
 }
 
 static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t display,
-                                      hwc2_config_t hwconfig, int32_t attribute, int32_t* outValue)
-{
+                                      hwc2_config_t hwconfig, int32_t attribute,
+                                      int32_t* outValue) {
     if (!device || !outValue) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -861,7 +808,7 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
         return HWC2_ERROR_BAD_CONFIG;
 
     const DisplayConfig& config = pDisplay->getConfig(hwconfig);
-    switch(attribute) {
+    switch (attribute) {
         case HWC2_ATTRIBUTE_VSYNC_PERIOD:
             *outValue = config.mVsyncPeriod;
             break;
@@ -875,14 +822,14 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
             break;
 
         case HWC2_ATTRIBUTE_DPI_X:
-            if(pDisplay->type() == DISPLAY_LDB)
+            if (pDisplay->type() == DISPLAY_LDB)
                 *outValue = config.mXdpi;
             else
                 *outValue = -1;
             break;
 
         case HWC2_ATTRIBUTE_DPI_Y:
-            if(pDisplay->type() == DISPLAY_LDB)
+            if (pDisplay->type() == DISPLAY_LDB)
                 *outValue = config.mYdpi;
             else
                 *outValue = -1;
@@ -901,8 +848,7 @@ static int hwc2_get_display_attribute(hwc2_device_t* device, hwc2_display_t disp
 }
 
 static int hwc2_get_color_modes(hwc2_device_t* device, hwc2_display_t display,
-                               uint32_t* outNumModes, int32_t* outModes)
-{
+                                uint32_t* outNumModes, int32_t* outModes) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -928,11 +874,9 @@ static int hwc2_get_color_modes(hwc2_device_t* device, hwc2_display_t display,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_get_client_target_support(hwc2_device_t* device,
-                                          hwc2_display_t display,
-                                          uint32_t width, uint32_t height,
-                                          int32_t format, int32_t dataspace)
-{
+static int hwc2_get_client_target_support(hwc2_device_t* device, hwc2_display_t display,
+                                          uint32_t width, uint32_t height, int32_t format,
+                                          int32_t dataspace) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -958,12 +902,9 @@ static int hwc2_get_client_target_support(hwc2_device_t* device,
     return HWC2_ERROR_UNSUPPORTED;
 }
 
-static int hwc2_get_changed_composition_types(hwc2_device_t* device,
-                                              hwc2_display_t display,
-                                              uint32_t* outNumElements,
-                                              hwc2_layer_t* outLayers,
-                                              int32_t* outTypes)
-{
+static int hwc2_get_changed_composition_types(hwc2_device_t* device, hwc2_display_t display,
+                                              uint32_t* outNumElements, hwc2_layer_t* outLayers,
+                                              int32_t* outTypes) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -980,10 +921,8 @@ static int hwc2_get_changed_composition_types(hwc2_device_t* device,
     return pDisplay->getChangedTypes(outNumElements, outLayers, outTypes);
 }
 
-static int hwc2_get_active_config(hwc2_device_t* device,
-                                  hwc2_display_t display,
-                                  hwc2_config_t* outConfig)
-{
+static int hwc2_get_active_config(hwc2_device_t* device, hwc2_display_t display,
+                                  hwc2_config_t* outConfig) {
     if (!device || !outConfig) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -1001,9 +940,7 @@ static int hwc2_get_active_config(hwc2_device_t* device,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_destroy_virtual_display(hwc2_device_t* device,
-                                       hwc2_display_t display)
-{
+static int hwc2_destroy_virtual_display(hwc2_device_t* device, hwc2_display_t display) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -1019,10 +956,8 @@ static int hwc2_destroy_virtual_display(hwc2_device_t* device,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_create_virtual_display(hwc2_device_t* device, uint32_t width,
-                                       uint32_t height, int32_t* format,
-                                       hwc2_display_t* outDisplay)
-{
+static int hwc2_create_virtual_display(hwc2_device_t* device, uint32_t width, uint32_t height,
+                                       int32_t* format, hwc2_display_t* outDisplay) {
     if (!device || !outDisplay) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -1041,9 +976,7 @@ static int hwc2_create_virtual_display(hwc2_device_t* device, uint32_t width,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_destroy_layer(hwc2_device_t* device, hwc2_display_t display,
-                             hwc2_layer_t layer)
-{
+static int hwc2_destroy_layer(hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1068,8 +1001,7 @@ static int hwc2_destroy_layer(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_create_layer(hwc2_device_t* device, hwc2_display_t display,
-                             hwc2_layer_t* outLayer)
-{
+                             hwc2_layer_t* outLayer) {
     if (!device || !outLayer) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -1094,8 +1026,7 @@ static int hwc2_create_layer(hwc2_device_t* device, hwc2_display_t display,
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_accept_display_changes(hwc2_device_t* device, hwc2_display_t display)
-{
+static int hwc2_accept_display_changes(hwc2_device_t* device, hwc2_display_t display) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_PARAMETER;
@@ -1112,17 +1043,14 @@ static int hwc2_accept_display_changes(hwc2_device_t* device, hwc2_display_t dis
     return HWC2_ERROR_NONE;
 }
 
-static void hwc2_dump(struct hwc2_device* /*device*/,
-                      uint32_t* outSize, char* /*outBuffer*/)
-{
+static void hwc2_dump(struct hwc2_device* /*device*/, uint32_t* outSize, char* /*outBuffer*/) {
     if (outSize != NULL) {
         *outSize = 0;
     }
 }
 
 static int hwc2_get_display_brightness_support(hwc2_device_t* device, hwc2_display_t display,
-                                               bool* outSupport)
-{
+                                               bool* outSupport) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1141,8 +1069,7 @@ static int hwc2_get_display_brightness_support(hwc2_device_t* device, hwc2_displ
 }
 
 static int hwc2_set_display_brightness(hwc2_device_t* device, hwc2_display_t display,
-                                       float brightness)
-{
+                                       float brightness) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1156,9 +1083,9 @@ static int hwc2_set_display_brightness(hwc2_device_t* device, hwc2_display_t dis
     }
 
     bool isBrightnessSupport = false;
-    int status = hwc2_get_display_brightness_support(device,display,&isBrightnessSupport);
+    int status = hwc2_get_display_brightness_support(device, display, &isBrightnessSupport);
     if (status != HWC2_ERROR_NONE) {
-        ALOGE("%s failed to get brightness support %d",__func__,status);
+        ALOGE("%s failed to get brightness support %d", __func__, status);
         return status;
     }
     if (!isBrightnessSupport) {
@@ -1167,25 +1094,22 @@ static int hwc2_set_display_brightness(hwc2_device_t* device, hwc2_display_t dis
 
     if (brightness == -1.0f) {
         brightness = 0.0f;
-    }
-    else if (brightness < 0.0f || brightness >1.0f) {
+    } else if (brightness < 0.0f || brightness > 1.0f) {
         return HWC2_ERROR_BAD_PARAMETER;
-    }
-    else if (pDisplay->setBrightness(brightness) != HWC2_ERROR_NONE) {
+    } else if (pDisplay->setBrightness(brightness) != HWC2_ERROR_NONE) {
         return HWC2_ERROR_NO_RESOURCES;
     }
     return HWC2_ERROR_NONE;
 }
 
 static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t display,
-                                         uint32_t* outNumCapabilities,uint32_t* outCapabilities)
-{
+                                         uint32_t* outNumCapabilities, uint32_t* outCapabilities) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    //Check DisplayCapability::SkipClientColorTransform support
+    // Check DisplayCapability::SkipClientColorTransform support
     Display* pDisplay = NULL;
     DisplayManager* displayManager = DisplayManager::getInstance();
     pDisplay = displayManager->getDisplay(display);
@@ -1195,25 +1119,24 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
     }
     bool isLowLatencyModeSupport = pDisplay->isLowLatencyModeSupport();
 
-    //Check DisplayCapability::Doze support
+    // Check DisplayCapability::Doze support
     int32_t isDozeSupport = 0;
-    int status = hwc2_get_doze_support(device,display,&isDozeSupport);
+    int status = hwc2_get_doze_support(device, display, &isDozeSupport);
     if (status != HWC2_ERROR_NONE) {
-        ALOGE("%s failed to get doze support %d",__func__,status);
+        ALOGE("%s failed to get doze support %d", __func__, status);
         return status;
     }
 
-    //Check DisplayCapability::Brightness support
+    // Check DisplayCapability::Brightness support
     bool isBrightnessSupport = false;
-    status = hwc2_get_display_brightness_support(device,display,&isBrightnessSupport);
+    status = hwc2_get_display_brightness_support(device, display, &isBrightnessSupport);
     if (status != HWC2_ERROR_NONE) {
-        ALOGE("%s failed to get brightness support %d",__func__,status);
+        ALOGE("%s failed to get brightness support %d", __func__, status);
         return status;
     }
 
-
-    int numCapabilities = isDozeSupport
-                            + (isBrightnessSupport ? 1 : 0) + (isLowLatencyModeSupport ? 1 : 0);
+    int numCapabilities =
+            isDozeSupport + (isBrightnessSupport ? 1 : 0) + (isLowLatencyModeSupport ? 1 : 0);
 
     if (outNumCapabilities == NULL) {
         return HWC2_ERROR_BAD_PARAMETER;
@@ -1242,8 +1165,8 @@ static int hwc2_get_display_capabilities(hwc2_device_t* device, hwc2_display_t d
 }
 
 static int hwc2_get_display_identification_data(hwc2_device_t* device, hwc2_display_t display,
-                                          uint8_t* outPort,uint32_t* outDataSize, uint8_t* outData)
-{
+                                                uint8_t* outPort, uint32_t* outDataSize,
+                                                uint8_t* outData) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1271,10 +1194,9 @@ static int hwc2_get_display_identification_data(hwc2_device_t* device, hwc2_disp
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_function_get_render_intents(hwc2_device_t* device,hwc2_display_t display,
-                                        int32_t mode,uint32_t* outNumIntents,
-                                        int32_t* /*android_render_intent_v1_1_t*/ outIntents)
-{
+static int hwc2_function_get_render_intents(hwc2_device_t* device, hwc2_display_t display,
+                                            int32_t mode, uint32_t* outNumIntents,
+                                            int32_t* /*android_render_intent_v1_1_t*/ outIntents) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1304,10 +1226,9 @@ static int hwc2_function_get_render_intents(hwc2_device_t* device,hwc2_display_t
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_function_set_color_mode_with_render_intent(hwc2_device_t* device, hwc2_display_t display,
-                                                           int32_t /*android_color_mode_t*/ mode,
-                                                           int32_t /*android_render_intent_v1_1_t */ intent)
-{
+static int hwc2_function_set_color_mode_with_render_intent(
+        hwc2_device_t* device, hwc2_display_t display, int32_t /*android_color_mode_t*/ mode,
+        int32_t /*android_render_intent_v1_1_t */ intent) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1323,7 +1244,8 @@ static int hwc2_function_set_color_mode_with_render_intent(hwc2_device_t* device
     if ((mode < HAL_COLOR_MODE_NATIVE) || (mode > HAL_COLOR_MODE_DISPLAY_P3)) {
         return HWC2_ERROR_BAD_PARAMETER;
     }
-    if ((intent < HAL_RENDER_INTENT_COLORIMETRIC) || (intent > HAL_RENDER_INTENT_TONE_MAP_ENHANCE)) {
+    if ((intent < HAL_RENDER_INTENT_COLORIMETRIC) ||
+        (intent > HAL_RENDER_INTENT_TONE_MAP_ENHANCE)) {
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
@@ -1335,8 +1257,8 @@ static int hwc2_function_set_color_mode_with_render_intent(hwc2_device_t* device
 }
 
 static int hwc2_get_per_frame_metadata_keys(hwc2_device_t* device, hwc2_display_t display,
-                                            uint32_t* outNumKeys,int32_t* /*hwc2_per_frame_metadata_key_t*/ outKeys)
-{
+                                            uint32_t* outNumKeys,
+                                            int32_t* /*hwc2_per_frame_metadata_key_t*/ outKeys) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1350,8 +1272,8 @@ static int hwc2_get_per_frame_metadata_keys(hwc2_device_t* device, hwc2_display_
     }
 
     uint32_t count = 0;
-    int error = hwc2_get_hdr_capabilities(device,display,&count,NULL,NULL,NULL,NULL);
-    if (error != HWC2_ERROR_NONE || count <1) {
+    int error = hwc2_get_hdr_capabilities(device, display, &count, NULL, NULL, NULL, NULL);
+    if (error != HWC2_ERROR_NONE || count < 1) {
         return HWC2_ERROR_UNSUPPORTED;
     }
 
@@ -1380,10 +1302,9 @@ static int hwc2_get_per_frame_metadata_keys(hwc2_device_t* device, hwc2_display_
 }
 
 static int hwc2_set_layer_per_frame_metadata(hwc2_device_t* device, hwc2_display_t display,
-                                             hwc2_layer_t layer,uint32_t numElements,
+                                             hwc2_layer_t layer, uint32_t numElements,
                                              const int32_t* /*hw2_per_frame_metadata_key_t*/ keys,
-                                             const float* metadata)
-{
+                                             const float* metadata) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1397,8 +1318,8 @@ static int hwc2_set_layer_per_frame_metadata(hwc2_device_t* device, hwc2_display
     }
 
     uint32_t count = 0;
-    int error = hwc2_get_per_frame_metadata_keys(device,display,&count,NULL);
-    if (error != HWC2_ERROR_NONE || count <1) {
+    int error = hwc2_get_per_frame_metadata_keys(device, display, &count, NULL);
+    if (error != HWC2_ERROR_NONE || count < 1) {
         return HWC2_ERROR_UNSUPPORTED;
     }
 
@@ -1418,50 +1339,59 @@ static int hwc2_set_layer_per_frame_metadata(hwc2_device_t* device, hwc2_display
 
     for (uint32_t i = 0; i < numElements; i++) {
         switch (keys[i]) {
-        case HWC2_DISPLAY_RED_PRIMARY_X:
-            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[0].x = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_DISPLAY_RED_PRIMARY_Y:
-            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[0].y = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_DISPLAY_GREEN_PRIMARY_X:
-            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[1].x = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_DISPLAY_GREEN_PRIMARY_Y:
-            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[1].y = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_DISPLAY_BLUE_PRIMARY_X:
-            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[2].x = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_DISPLAY_BLUE_PRIMARY_Y:
-            pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[2].y = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_WHITE_POINT_X:
-            pLayer->hdrMetadata.hdmi_metadata_type1.white_point.x = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_WHITE_POINT_Y:
-            pLayer->hdrMetadata.hdmi_metadata_type1.white_point.y = (uint16_t)(metadata[i] * 50000);
-            break;
-        case HWC2_MAX_LUMINANCE:
-            pLayer->hdrMetadata.hdmi_metadata_type1.max_display_mastering_luminance = (uint16_t)(metadata[i]);
-            break;
-        case HWC2_MIN_LUMINANCE:
-            pLayer->hdrMetadata.hdmi_metadata_type1.min_display_mastering_luminance = (uint16_t)(metadata[i] * 10000);
-            break;
-        case HWC2_MAX_CONTENT_LIGHT_LEVEL:
-            pLayer->hdrMetadata.hdmi_metadata_type1.max_cll = (uint16_t)(metadata[i]);
-            break;
-        case HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL:
-            pLayer->hdrMetadata.hdmi_metadata_type1.max_fall = (uint16_t)(metadata[i]);
-            break;
+            case HWC2_DISPLAY_RED_PRIMARY_X:
+                pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[0].x =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_DISPLAY_RED_PRIMARY_Y:
+                pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[0].y =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_DISPLAY_GREEN_PRIMARY_X:
+                pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[1].x =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_DISPLAY_GREEN_PRIMARY_Y:
+                pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[1].y =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_DISPLAY_BLUE_PRIMARY_X:
+                pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[2].x =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_DISPLAY_BLUE_PRIMARY_Y:
+                pLayer->hdrMetadata.hdmi_metadata_type1.display_primaries[2].y =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_WHITE_POINT_X:
+                pLayer->hdrMetadata.hdmi_metadata_type1.white_point.x =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_WHITE_POINT_Y:
+                pLayer->hdrMetadata.hdmi_metadata_type1.white_point.y =
+                        (uint16_t)(metadata[i] * 50000);
+                break;
+            case HWC2_MAX_LUMINANCE:
+                pLayer->hdrMetadata.hdmi_metadata_type1.max_display_mastering_luminance =
+                        (uint16_t)(metadata[i]);
+                break;
+            case HWC2_MIN_LUMINANCE:
+                pLayer->hdrMetadata.hdmi_metadata_type1.min_display_mastering_luminance =
+                        (uint16_t)(metadata[i] * 10000);
+                break;
+            case HWC2_MAX_CONTENT_LIGHT_LEVEL:
+                pLayer->hdrMetadata.hdmi_metadata_type1.max_cll = (uint16_t)(metadata[i]);
+                break;
+            case HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL:
+                pLayer->hdrMetadata.hdmi_metadata_type1.max_fall = (uint16_t)(metadata[i]);
+                break;
         }
     }
     return HWC2_ERROR_NONE;
 }
 
 static int hwc2_get_display_connection_type(hwc2_device_t* device, hwc2_display_t display,
-                                            uint32_t* /*hwc2_display_connection_type_t*/ outType)
-{
+                                            uint32_t* /*hwc2_display_connection_type_t*/ outType) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1475,17 +1405,18 @@ static int hwc2_get_display_connection_type(hwc2_device_t* device, hwc2_display_
     }
 
     if (display == DISPLAY_PRIMARY)
-        *outType = HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL; // Primary display should report as internal display
+        *outType = HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL; // Primary display should report as
+                                                          // internal display
     else
-        *outType = (pDisplay->getDisplayConnectionType() == DISPLAY_LDB ? HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL
-                                                                        : HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL);
+        *outType = (pDisplay->getDisplayConnectionType() == DISPLAY_LDB
+                            ? HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL
+                            : HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL);
 
     return HWC2_ERROR_NONE;
 }
 
 static int hwc2_get_display_vsync_period(hwc2_device_t* device, hwc2_display_t display,
-                                         hwc2_vsync_period_t* outVsyncPeriod)
-{
+                                         hwc2_vsync_period_t* outVsyncPeriod) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1503,11 +1434,10 @@ static int hwc2_get_display_vsync_period(hwc2_device_t* device, hwc2_display_t d
     return HWC2_ERROR_NONE;
 }
 
-static int hwc2_set_active_config_with_constraints(hwc2_device_t* device, hwc2_display_t display,
-                                                   hwc2_config_t config,
-                                                   hwc_vsync_period_change_constraints_t* vsyncPeriodChangeConstraints,
-                                                   hwc_vsync_period_change_timeline_t* outTimeline)
-{
+static int hwc2_set_active_config_with_constraints(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_config_t config,
+        hwc_vsync_period_change_constraints_t* vsyncPeriodChangeConstraints,
+        hwc_vsync_period_change_timeline_t* outTimeline) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1524,7 +1454,7 @@ static int hwc2_set_active_config_with_constraints(hwc2_device_t* device, hwc2_d
     if ((config < cfgId) || (config > cfgId + pDisplay->getConfigNum()))
         return HWC2_ERROR_BAD_CONFIG;
 
-    struct hwc2_context_t *ctx = (struct hwc2_context_t*)device;
+    struct hwc2_context_t* ctx = (struct hwc2_context_t*)device;
 
     nsecs_t appliedTime;
     bool bRefresh;
@@ -1538,8 +1468,8 @@ static int hwc2_set_active_config_with_constraints(hwc2_device_t* device, hwc2_d
     } else if (pDisplay->getConfigGroup(activeCfg) == group) {
         // If the new config shares the same config group as the current config,
         // only the vsync period shall change.
-        if (pDisplay->changeDisplayConfig(config, desiredTime, seamlessRequired,
-                                          &appliedTime, &bRefresh, &refreshTime) != 0)
+        if (pDisplay->changeDisplayConfig(config, desiredTime, seamlessRequired, &appliedTime,
+                                          &bRefresh, &refreshTime) != 0)
             return HWC2_ERROR_SEAMLESS_NOT_POSSIBLE;
         outTimeline->newVsyncAppliedTimeNanos = (int64_t)appliedTime;
         outTimeline->refreshRequired = bRefresh ? 1 : 0;
@@ -1547,19 +1477,17 @@ static int hwc2_set_active_config_with_constraints(hwc2_device_t* device, hwc2_d
     } else if (seamlessRequired) {
         return HWC2_ERROR_SEAMLESS_NOT_ALLOWED;
     } else {
-        pDisplay->changeDisplayConfig(config, desiredTime, false,
-                                      &appliedTime, &bRefresh, &refreshTime);
+        pDisplay->changeDisplayConfig(config, desiredTime, false, &appliedTime, &bRefresh,
+                                      &refreshTime);
         outTimeline->newVsyncAppliedTimeNanos = (int64_t)appliedTime;
         outTimeline->refreshRequired = bRefresh ? 1 : 0;
         outTimeline->refreshTimeNanos = (int64_t)refreshTime;
     }
 
     return HWC2_ERROR_NONE;
-
 }
 
-static int hwc2_set_auto_low_latency_mode(hwc2_device_t* device, hwc2_display_t display, bool on)
-{
+static int hwc2_set_auto_low_latency_mode(hwc2_device_t* device, hwc2_display_t display, bool on) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1581,8 +1509,8 @@ static int hwc2_set_auto_low_latency_mode(hwc2_device_t* device, hwc2_display_t 
 }
 
 static int hwc2_get_supported_content_types(hwc2_device_t* device, hwc2_display_t display,
-                                            uint32_t* outNumSupportedContentTypes, uint32_t* outSupportedContentTypes)
-{
+                                            uint32_t* outNumSupportedContentTypes,
+                                            uint32_t* outSupportedContentTypes) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1601,14 +1529,14 @@ static int hwc2_get_supported_content_types(hwc2_device_t* device, hwc2_display_
     else if (outSupportedContentTypes == NULL)
         *outNumSupportedContentTypes = HWC2_CONTENT_TYPE_GAME;
     else
-        *outNumSupportedContentTypes = pDisplay->getSupportedContentTypes(HWC2_CONTENT_TYPE_GAME, outSupportedContentTypes);
+        *outNumSupportedContentTypes = pDisplay->getSupportedContentTypes(HWC2_CONTENT_TYPE_GAME,
+                                                                          outSupportedContentTypes);
 
     return HWC2_ERROR_NONE;
 }
 
 static int hwc2_set_content_type(hwc2_device_t* device, hwc2_display_t display,
-                                 int32_t /* hwc2_content_type_t */ contentType)
-{
+                                 int32_t /* hwc2_content_type_t */ contentType) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1622,9 +1550,9 @@ static int hwc2_set_content_type(hwc2_device_t* device, hwc2_display_t display,
         return HWC2_ERROR_BAD_DISPLAY;
     }
 
-    if ((contentType != HWC2_CONTENT_TYPE_GRAPHICS) && (contentType != HWC2_CONTENT_TYPE_PHOTO)
-         && (contentType != HWC2_CONTENT_TYPE_CINEMA) && (contentType != HWC2_CONTENT_TYPE_GAME)
-         && (contentType != HWC2_CONTENT_TYPE_NONE)) {
+    if ((contentType != HWC2_CONTENT_TYPE_GRAPHICS) && (contentType != HWC2_CONTENT_TYPE_PHOTO) &&
+        (contentType != HWC2_CONTENT_TYPE_CINEMA) && (contentType != HWC2_CONTENT_TYPE_GAME) &&
+        (contentType != HWC2_CONTENT_TYPE_NONE)) {
         return HWC2_ERROR_BAD_PARAMETER;
     }
 
@@ -1634,8 +1562,7 @@ static int hwc2_set_content_type(hwc2_device_t* device, hwc2_display_t display,
 }
 
 static int hwc2_get_client_target_property(hwc2_device_t* device, hwc2_display_t display,
-                                           hwc_client_target_property_t* outClientTargetProperty)
-{
+                                           hwc_client_target_property_t* outClientTargetProperty) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1657,9 +1584,9 @@ static int hwc2_get_client_target_property(hwc2_device_t* device, hwc2_display_t
 }
 
 static int hwc2_set_layer_generic_metadata(hwc2_device_t* device, hwc2_display_t display,
-                                           hwc2_layer_t /*layer*/, uint32_t /*keyLength*/, const char* /*key*/,
-                                           bool /*mandatory*/, uint32_t /*valueLength*/, const uint8_t* /*value*/)
-{
+                                           hwc2_layer_t /*layer*/, uint32_t /*keyLength*/,
+                                           const char* /*key*/, bool /*mandatory*/,
+                                           uint32_t /*valueLength*/, const uint8_t* /*value*/) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1677,8 +1604,8 @@ static int hwc2_set_layer_generic_metadata(hwc2_device_t* device, hwc2_display_t
 }
 
 static int hwc2_get_layer_generic_metadata_key(hwc2_device_t* device, uint32_t /*keyIndex*/,
-        uint32_t* outKeyLength, char* /*outKey*/, bool* /*outMandatory*/)
-{
+                                               uint32_t* outKeyLength, char* /*outKey*/,
+                                               bool* /*outMandatory*/) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return HWC2_ERROR_BAD_DISPLAY;
@@ -1695,9 +1622,7 @@ static int hwc2_get_layer_generic_metadata_key(hwc2_device_t* device, uint32_t /
     return HWC2_ERROR_UNSUPPORTED;
 }
 
-static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
-                                                int32_t descriptor)
-{
+static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device, int32_t descriptor) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return NULL;
@@ -1850,7 +1775,8 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_function_get_render_intents);
             break;
         case HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT:
-            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_function_set_color_mode_with_render_intent);
+            func = reinterpret_cast<hwc2_function_pointer_t>(
+                    hwc2_function_set_color_mode_with_render_intent);
             break;
         case HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS:
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_per_frame_metadata_keys);
@@ -1865,7 +1791,8 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_get_display_vsync_period);
             break;
         case HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS:
-            func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_active_config_with_constraints);
+            func = reinterpret_cast<hwc2_function_pointer_t>(
+                    hwc2_set_active_config_with_constraints);
             break;
         case HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE:
             func = reinterpret_cast<hwc2_function_pointer_t>(hwc2_set_auto_low_latency_mode);
@@ -1894,8 +1821,7 @@ static hwc2_function_pointer_t hwc_get_function(struct hwc2_device* device,
 }
 
 static void hwc_get_capabilities(struct hwc2_device* device, uint32_t* outCount,
-                                int32_t* outCapabilities)
-{
+                                 int32_t* outCapabilities) {
     if (!device) {
         ALOGE("%s invalid device", __func__);
         return;
@@ -1905,14 +1831,12 @@ static void hwc_get_capabilities(struct hwc2_device* device, uint32_t* outCount,
         if (outCount != NULL && *outCount >= 1) {
             outCapabilities[0] = HWC2_CAPABILITY_SIDEBAND_STREAM;
         }
-    }
-    else if (outCount) {
+    } else if (outCount) {
         *outCount = 1;
     }
 }
 
-static int hwc_device_close(struct hw_device_t* device)
-{
+static int hwc_device_close(struct hw_device_t* device) {
     struct hwc_context_t* ctx = (struct hwc_context_t*)device;
     if (ctx) {
         free(ctx);
@@ -1921,10 +1845,9 @@ static int hwc_device_close(struct hw_device_t* device)
 }
 
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
-        struct hw_device_t** device)
-{
+                           struct hw_device_t** device) {
     int status = -EINVAL;
-    struct hwc2_context_t *dev = NULL;
+    struct hwc2_context_t* dev = NULL;
     if (strcmp(name, HWC_HARDWARE_COMPOSER)) {
         return status;
     }
@@ -1950,29 +1873,23 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     return 0;
 }
 
-static struct hw_module_methods_t hwc_module_methods = {
-    .open = hwc_device_open
-};
+static struct hw_module_methods_t hwc_module_methods = {.open = hwc_device_open};
 
-hw_module_t HAL_MODULE_INFO_SYM = {
-    .tag = HARDWARE_MODULE_TAG,
-    .version_major = 3,
-    .version_minor = 0,
-    .id = HWC_HARDWARE_MODULE_ID,
-    .name = "Freescale i.MX hwcomposer module",
-    .author = "Freescale Semiconductor, Inc.",
-    .methods = &hwc_module_methods,
-    .dso = NULL,
-    .reserved = {0}
-};
+hw_module_t HAL_MODULE_INFO_SYM = {.tag = HARDWARE_MODULE_TAG,
+                                   .version_major = 3,
+                                   .version_minor = 0,
+                                   .id = HWC_HARDWARE_MODULE_ID,
+                                   .name = "Freescale i.MX hwcomposer module",
+                                   .author = "Freescale Semiconductor, Inc.",
+                                   .methods = &hwc_module_methods,
+                                   .dso = NULL,
+                                   .reserved = {0}};
 
-DisplayListener::DisplayListener(struct hwc2_context_t* ctx)
-{
+DisplayListener::DisplayListener(struct hwc2_context_t* ctx) {
     mCtx = ctx;
 }
 
-void DisplayListener::onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos)
-{
+void DisplayListener::onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos) {
     if (mCtx == NULL) {
         return;
     }
@@ -1983,19 +1900,17 @@ void DisplayListener::onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos)
         mCtx->mVsync(mCtx->mVsyncData, disp, timestamp);
 }
 
-void DisplayListener::onHotplug(int disp, bool connected)
-{
+void DisplayListener::onHotplug(int disp, bool connected) {
     if (mCtx == NULL || mCtx->mHotplug == NULL) {
         return;
     }
 
-    hwc2_connection_t connection = connected ? HWC2_CONNECTION_CONNECTED
-                                             : HWC2_CONNECTION_DISCONNECTED;
+    hwc2_connection_t connection =
+            connected ? HWC2_CONNECTION_CONNECTED : HWC2_CONNECTION_DISCONNECTED;
     mCtx->mHotplug(mCtx->mHotplugData, disp, connection);
 }
 
-void DisplayListener::onRefresh(int disp)
-{
+void DisplayListener::onRefresh(int disp) {
     if (mCtx == NULL || mCtx->mRefresh == NULL) {
         return;
     }
@@ -2004,18 +1919,17 @@ void DisplayListener::onRefresh(int disp)
 }
 
 void DisplayListener::onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos,
-                                                 bool refreshRequired, nsecs_t refreshTimeNanos)
-{
+                                                 bool refreshRequired, nsecs_t refreshTimeNanos) {
     if (mCtx == NULL || mCtx->mVsyncPeriodTimingChanged == NULL) {
         return;
     }
 
-    hwc_vsync_period_change_timeline_t updated_timeline = {newVsyncAppliedTimeNanos, refreshRequired, refreshTimeNanos};
+    hwc_vsync_period_change_timeline_t updated_timeline = {newVsyncAppliedTimeNanos,
+                                                           refreshRequired, refreshTimeNanos};
     mCtx->mVsyncPeriodTimingChanged(mCtx->mVsyncPeriodTimingChangedData, disp, &updated_timeline);
 }
 
-void DisplayListener::onSeamlessPossible(int disp)
-{
+void DisplayListener::onSeamlessPossible(int disp) {
     if (mCtx == NULL || mCtx->mSeamlessPossible == NULL) {
         return;
     }

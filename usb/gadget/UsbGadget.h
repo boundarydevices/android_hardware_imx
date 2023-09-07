@@ -18,8 +18,8 @@
 #ifndef ANDROID_HARDWARE_USB_GADGET_V1_2_USBGADGET_H
 #define ANDROID_HARDWARE_USB_GADGET_V1_2_USBGADGET_H
 #include <android-base/file.h>
-#include <android-base/strings.h>
 #include <android-base/properties.h>
+#include <android-base/strings.h>
 #include <android-base/unique_fd.h>
 #include <android/hardware/usb/gadget/1.2/IUsbGadget.h>
 #include <android/hardware/usb/gadget/1.2/types.h>
@@ -28,6 +28,7 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <utils/Log.h>
+
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -42,10 +43,10 @@ namespace V1_2 {
 namespace implementation {
 
 using ::android::sp;
-using ::android::base::Trim;
-using ::android::base::unique_fd;
 using ::android::base::GetProperty;
 using ::android::base::SetProperty;
+using ::android::base::Trim;
+using ::android::base::unique_fd;
 using ::android::base::WriteStringToFd;
 using ::android::hardware::hidl_array;
 using ::android::hardware::hidl_memory;
@@ -53,9 +54,9 @@ using ::android::hardware::hidl_string;
 using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
-using ::android::hardware::usb::gadget::V1_2::GadgetFunction;
 using ::android::hardware::usb::gadget::V1_0::Status;
-//using ::android::hardware::usb::gadget::V1_1::IUsbGadget;
+using ::android::hardware::usb::gadget::V1_2::GadgetFunction;
+// using ::android::hardware::usb::gadget::V1_1::IUsbGadget;
 using ::std::lock_guard;
 using ::std::move;
 using ::std::mutex;
@@ -68,52 +69,52 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 struct UsbGadget : public IUsbGadget {
-  UsbGadget();
-  unique_fd mInotifyFd;
-  unique_fd mEventFd;
-  unique_fd mEpollFd;
+    UsbGadget();
+    unique_fd mInotifyFd;
+    unique_fd mEventFd;
+    unique_fd mEpollFd;
 
-  unique_ptr<thread> mMonitor;
-  volatile bool mMonitorCreated;
-  vector<string> mEndpointList;
-  // protects the CV.
-  std::mutex mLock;
-  std::condition_variable mCv;
+    unique_ptr<thread> mMonitor;
+    volatile bool mMonitorCreated;
+    vector<string> mEndpointList;
+    // protects the CV.
+    std::mutex mLock;
+    std::condition_variable mCv;
 
-  // Makes sure that only one request is processed at a time.
-  std::mutex mLockSetCurrentFunction;
-  uint64_t mCurrentUsbFunctions;
-  bool mCurrentUsbFunctionsApplied;
-  UsbSpeed mUsbSpeed = UsbSpeed::UNKNOWN;
+    // Makes sure that only one request is processed at a time.
+    std::mutex mLockSetCurrentFunction;
+    uint64_t mCurrentUsbFunctions;
+    bool mCurrentUsbFunctionsApplied;
+    UsbSpeed mUsbSpeed = UsbSpeed::UNKNOWN;
 
-  Return<void> setCurrentUsbFunctions(uint64_t functions,
-                                      const sp<V1_0::IUsbGadgetCallback> &callback,
-                                      uint64_t timeout) override;
+    Return<void> setCurrentUsbFunctions(uint64_t functions,
+                                        const sp<V1_0::IUsbGadgetCallback>& callback,
+                                        uint64_t timeout) override;
 
-  Return<void> getCurrentUsbFunctions(const sp<V1_0::IUsbGadgetCallback> &callback) override;
+    Return<void> getCurrentUsbFunctions(const sp<V1_0::IUsbGadgetCallback>& callback) override;
 
-  Return<Status> reset() override;
+    Return<Status> reset() override;
 
-  Return<void> getUsbSpeed(const sp<V1_2::IUsbGadgetCallback>& callback) override;
+    Return<void> getUsbSpeed(const sp<V1_2::IUsbGadgetCallback>& callback) override;
 
-  // Dump apis
-  Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
-  void cmdDump(int fd, const hidl_vec<hidl_string>& options);
-  void cmdHelp(int fd);
-  void cmdList(int fd, const hidl_vec<hidl_string>& options);
-  void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
+    // Dump apis
+    Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
+    void cmdDump(int fd, const hidl_vec<hidl_string>& options);
+    void cmdHelp(int fd);
+    void cmdList(int fd, const hidl_vec<hidl_string>& options);
+    void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
 
-  private:
+private:
     V1_0::Status tearDownGadget();
     V1_0::Status setupFunctions(uint64_t functions, const sp<V1_0::IUsbGadgetCallback>& callback,
                                 uint64_t timeout);
 };
 
-}  // namespace implementation
-}  // namespace V1_2
-}  // namespace gadget
-}  // namespace usb
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V1_2
+} // namespace gadget
+} // namespace usb
+} // namespace hardware
+} // namespace android
 
-#endif  // ANDROID_HARDWARE_USB_V1_2_USBGADGET_H
+#endif // ANDROID_HARDWARE_USB_V1_2_USBGADGET_H

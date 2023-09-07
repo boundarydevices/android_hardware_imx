@@ -18,6 +18,7 @@
 #define LOG_TAG "android.hardware.usb@1.3-service.imx"
 
 #include <hidl/HidlTransportSupport.h>
+
 #include "Usb.h"
 
 using android::sp;

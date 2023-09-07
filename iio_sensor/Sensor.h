@@ -15,22 +15,23 @@
  * limitations under the License.
  */
 #pragma once
+#include <android-base/properties.h>
 #include <android/hardware/sensors/2.1/types.h>
+#include <hardware/sensors.h>
+#include <inttypes.h>
+#include <log/log.h>
 #include <poll.h>
+#include <sys/socket.h>
+#include <utils/SystemClock.h>
+
+#include <cmath>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
-#include <android-base/properties.h>
-#include <hardware/sensors.h>
-#include <log/log.h>
-#include <utils/SystemClock.h>
-#include <cmath>
-#include <sys/socket.h>
-#include <inttypes.h>
-#include "iio_utils.h"
 
+#include "iio_utils.h"
 #include "sensor_hal_configuration_V1_0.h"
 
 #define NUM_OF_CHANNEL_SUPPORTED 4
@@ -38,18 +39,18 @@
 #define NUM_OF_DATA_CHANNELS NUM_OF_CHANNEL_SUPPORTED - 1
 
 using ::android::hardware::sensors::V1_0::AdditionalInfo;
+using ::android::hardware::sensors::V1_0::MetaDataEventType;
 using ::android::hardware::sensors::V1_0::OperationMode;
 using ::android::hardware::sensors::V1_0::Result;
 using ::android::hardware::sensors::V1_0::SensorFlagBits;
-using ::android::hardware::sensors::V1_0::MetaDataEventType;
+using ::android::hardware::sensors::V1_0::SensorStatus;
+using ::android::hardware::sensors::V2_1::Event;
 using ::android::hardware::sensors::V2_1::SensorInfo;
 using ::android::hardware::sensors::V2_1::SensorType;
-using ::android::hardware::sensors::V2_1::Event;
-using ::android::hardware::sensors::V1_0::SensorStatus;
 
-using ::android::hardware::Return;
 using ::android::status_t;
 using ::android::base::GetProperty;
+using ::android::hardware::Return;
 
 using ::sensor::hal::configuration::V1_0::Configuration;
 
@@ -71,14 +72,14 @@ constexpr auto SENSOR_VOLTAGE_DEFAULT = 3.6f;
 static constexpr char kTriggerType[] = "vendor.sensor.trigger";
 
 class ISensorsEventCallback {
-  public:
+public:
     virtual ~ISensorsEventCallback() = default;
     virtual void postEvents(const std::vector<Event>& events, bool wakeup) = 0;
 };
 
 // Virtual Base Class for Sensor
 class SensorBase {
-  public:
+public:
     SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, SensorType type);
     virtual ~SensorBase();
     const SensorInfo& getSensorInfo() const;
@@ -89,7 +90,7 @@ class SensorBase {
     bool supportsDataInjection() const;
     Result injectEvent(const Event& event);
 
-  protected:
+protected:
     bool isWakeUpSensor();
     bool mIsEnabled;
     int64_t mSamplingPeriodNs;
@@ -104,7 +105,7 @@ class SensorBase {
 
 // HWSensorBase represents the actual physical sensor provided as the IIO device
 class HWSensorBase : public SensorBase {
-  public:
+public:
     static HWSensorBase* buildSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
                                      struct iio_device_data& iio_data,
                                      const std::optional<std::vector<Configuration>>& config);
@@ -121,7 +122,8 @@ class HWSensorBase : public SensorBase {
     std::vector<uint8_t> mSensorRawData;
     ssize_t mScanSize;
     int64_t mXMap, mYMap, mZMap;
-  private:
+
+private:
     static constexpr uint8_t LOCATION_X_IDX = 3;
     static constexpr uint8_t LOCATION_Y_IDX = 7;
     static constexpr uint8_t LOCATION_Z_IDX = 11;
@@ -142,4 +144,4 @@ class HWSensorBase : public SensorBase {
     void processScanData(uint8_t* data, Event* evt);
 };
 
-}  // namespace implementation
+} // namespace nxp_sensors_subhal

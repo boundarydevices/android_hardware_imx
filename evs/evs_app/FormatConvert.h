@@ -17,12 +17,13 @@
 #ifndef EVS_VTS_FORMATCONVERT_H
 #define EVS_VTS_FORMATCONVERT_H
 
-#include "ui/GraphicBuffer.h"
-#include <queue>
-#include <stdint.h>
-
 #include <android/hardware/automotive/evs/1.0/types.h>
 #include <android/hardware/automotive/evs/1.1/types.h>
+#include <stdint.h>
+
+#include <queue>
+
+#include "ui/GraphicBuffer.h"
 
 using BufferDesc_1_0 = ::android::hardware::automotive::evs::V1_0::BufferDesc;
 using BufferDesc_1_1 = ::android::hardware::automotive::evs::V1_1::BufferDesc;
@@ -31,36 +32,29 @@ using BufferDesc_1_1 = ::android::hardware::automotive::evs::V1_1::BufferDesc;
 // The NV21 format provides a Y array of 8bit values, followed by a 1/2 x 1/2 interleaved
 // U/V array.  It assumes an even width and height for the overall image, and a horizontal
 // stride that is an even multiple of 16 bytes for both the Y and UV arrays.
-void copyNV21toRGB32(unsigned width, unsigned height,
-                     uint8_t* src,
-                     uint32_t* dst, unsigned dstStridePixels);
-
+void copyNV21toRGB32(unsigned width, unsigned height, uint8_t* src, uint32_t* dst,
+                     unsigned dstStridePixels);
 
 // Given an image buffer in YV12 format (HAL_PIXEL_FORMAT_YV12), output 32bit RGBx values.
 // The YV12 format provides a Y array of 8bit values, followed by a 1/2 x 1/2 U array, followed
 // by another 1/2 x 1/2 V array.  It assumes an even width and height for the overall image,
 // and a horizontal stride that is an even multiple of 16 bytes for each of the Y, U,
 // and V arrays.
-void copyYV12toRGB32(unsigned width, unsigned height,
-                     uint8_t* src,
-                     uint32_t* dst, unsigned dstStridePixels);
-
+void copyYV12toRGB32(unsigned width, unsigned height, uint8_t* src, uint32_t* dst,
+                     unsigned dstStridePixels);
 
 // Given an image buffer in YUYV format (HAL_PIXEL_FORMAT_YCBCR_422_I), output 32bit RGBx values.
 // The NV21 format provides a Y array of 8bit values, followed by a 1/2 x 1/2 interleaved
 // U/V array.  It assumes an even width and height for the overall image, and a horizontal
 // stride that is an even multiple of 16 bytes for both the Y and UV arrays.
-void copyYUYVtoRGB32(unsigned width, unsigned height,
-                     uint8_t* src, unsigned srcStrideBytes,
+void copyYUYVtoRGB32(unsigned width, unsigned height, uint8_t* src, unsigned srcStrideBytes,
                      uint32_t* dst, unsigned dstStrideBytes);
-
 
 // Given an simple rectangular image buffer with an integer number of bytes per pixel,
 // copy the pixel values into a new rectangular buffer (potentially with a different stride).
 // This is typically used to copy RGBx data into an RGBx output buffer.
-void copyMatchedInterleavedFormats(unsigned width, unsigned height,
-                                   void* src, unsigned srcStridePixels,
-                                   void* dst, unsigned dstStridePixels,
+void copyMatchedInterleavedFormats(unsigned width, unsigned height, void* src,
+                                   unsigned srcStridePixels, void* dst, unsigned dstStridePixels,
                                    unsigned pixelSize);
 
 BufferDesc_1_1 convertBufferDesc(const BufferDesc_1_0& src);

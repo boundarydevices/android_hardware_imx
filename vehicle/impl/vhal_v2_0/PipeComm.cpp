@@ -16,14 +16,13 @@
 
 #define LOG_TAG "PipeComm"
 
+#include "PipeComm.h"
+
 #include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 #include <log/log.h>
 #include <qemu_pipe.h>
 
-#include "PipeComm.h"
-
 #define CAR_SERVICE_NAME "pipe:qemud:car"
-
 
 namespace android {
 namespace hardware {
@@ -92,14 +91,10 @@ int PipeComm::write(const std::vector<uint8_t>& data) {
     return retVal;
 }
 
+} // namespace impl
 
-}  // impl
-
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
-
-
-
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

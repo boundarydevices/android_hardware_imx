@@ -22,11 +22,10 @@
 #include "utils/CameraConfigurationParser.h"
 
 using namespace cameraconfigparser;
-class ISPCamera: public Camera
-{
+class ISPCamera : public Camera {
 public:
     ISPCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
-                                 CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata);
+              CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata);
     ~ISPCamera();
 
     CameraSensorMetadata *mCameraMetadata;
@@ -34,11 +33,11 @@ public:
     virtual PixelFormat getPreviewPixelFormat();
 
 private:
-    class ISPCameraMMAPStream : public MMAPStream
-    {
+    class ISPCameraMMAPStream : public MMAPStream {
     public:
-        ISPCameraMMAPStream(Camera *device, struct OmitFrame *omit_frame)
-            : MMAPStream(device) { mOmitFrame = omit_frame; }
+        ISPCameraMMAPStream(Camera *device, struct OmitFrame *omit_frame) : MMAPStream(device) {
+            mOmitFrame = omit_frame;
+        }
         virtual ~ISPCameraMMAPStream() {}
 
         // configure device.

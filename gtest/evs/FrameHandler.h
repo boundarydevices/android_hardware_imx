@@ -17,23 +17,22 @@
 #ifndef EVS_VTS_FRAMEHANDLER_H
 #define EVS_VTS_FRAMEHANDLER_H
 
+#include <android/hardware/automotive/evs/1.0/IEvsDisplay.h>
+#include <android/hardware/automotive/evs/1.1/IEvsCamera.h>
+#include <android/hardware/automotive/evs/1.1/IEvsCameraStream.h>
+
 #include <queue>
 
-#include <android/hardware/automotive/evs/1.1/IEvsCameraStream.h>
-#include <android/hardware/automotive/evs/1.1/IEvsCamera.h>
-#include <android/hardware/automotive/evs/1.0/IEvsDisplay.h>
-
 using namespace ::android::hardware::automotive::evs::V1_1;
+using ::android::sp;
+using ::android::hardware::hidl_handle;
+using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
-using ::android::hardware::hidl_vec;
-using ::android::hardware::hidl_handle;
-using ::android::sp;
-using ::android::hardware::automotive::evs::V1_0::IEvsDisplay;
 using ::android::hardware::automotive::evs::V1_0::EvsResult;
+using ::android::hardware::automotive::evs::V1_0::IEvsDisplay;
 using BufferDesc_1_0 = ::android::hardware::automotive::evs::V1_0::BufferDesc;
 using BufferDesc_1_1 = ::android::hardware::automotive::evs::V1_1::BufferDesc;
-
 
 /*
  * FrameHandler:
@@ -50,9 +49,8 @@ public:
         eNoAutoReturn,
     };
 
-    FrameHandler(android::sp <IEvsCamera> pCamera, CameraDesc cameraInfo,
-                 android::sp <IEvsDisplay> pDisplay = nullptr,
-                 BufferControlFlag mode = eAutoReturn);
+    FrameHandler(android::sp<IEvsCamera> pCamera, CameraDesc cameraInfo,
+                 android::sp<IEvsDisplay> pDisplay = nullptr, BufferControlFlag mode = eAutoReturn);
     virtual ~FrameHandler() {
         if (mCamera != nullptr) {
             /* shutdown a camera explicitly */
@@ -71,9 +69,8 @@ public:
     bool isRunning();
 
     void waitForFrameCount(unsigned frameCount);
-    bool waitForEvent(const EvsEventDesc& aTargetEvent,
-                            EvsEventDesc& aReceivedEvent,
-                            bool ignorePayload = false);
+    bool waitForEvent(const EvsEventDesc& aTargetEvent, EvsEventDesc& aReceivedEvent,
+                      bool ignorePayload = false);
     void getFramesCounters(unsigned* received, unsigned* displayed);
     void getFrameDimension(unsigned* width, unsigned* height);
 
@@ -88,30 +85,29 @@ private:
 
     // Local implementation details
     bool copyBufferContents(const BufferDesc_1_0& tgtBuffer, const BufferDesc_1_1& srcBuffer);
-    const char *eventToString(const EvsEventType aType);
+    const char* eventToString(const EvsEventType aType);
 
     // Values initialized as startup
-    android::sp <IEvsCamera>    mCamera;
-    CameraDesc                  mCameraInfo;
-    android::sp <IEvsDisplay>   mDisplay;
-    BufferControlFlag           mReturnMode;
+    android::sp<IEvsCamera> mCamera;
+    CameraDesc mCameraInfo;
+    android::sp<IEvsDisplay> mDisplay;
+    BufferControlFlag mReturnMode;
 
     // Since we get frames delivered to us asynchronously via the IEvsCameraStream interface,
     // we need to protect all member variables that may be modified while we're streaming
     // (ie: those below)
-    std::mutex                            mLock;
-    std::mutex                            mEventLock;
-    std::condition_variable               mEventSignal;
-    std::condition_variable               mFrameSignal;
-    std::queue<hidl_vec<BufferDesc_1_1>>  mHeldBuffers;
+    std::mutex mLock;
+    std::mutex mEventLock;
+    std::condition_variable mEventSignal;
+    std::condition_variable mFrameSignal;
+    std::queue<hidl_vec<BufferDesc_1_1>> mHeldBuffers;
 
-    bool                        mRunning = false;
-    unsigned                    mFramesReceived = 0;    // Simple counter -- rolls over eventually!
-    unsigned                    mFramesDisplayed = 0;   // Simple counter -- rolls over eventually!
-    unsigned                    mFrameWidth = 0;
-    unsigned                    mFrameHeight = 0;
-    EvsEventDesc                mLatestEventDesc;
+    bool mRunning = false;
+    unsigned mFramesReceived = 0;  // Simple counter -- rolls over eventually!
+    unsigned mFramesDisplayed = 0; // Simple counter -- rolls over eventually!
+    unsigned mFrameWidth = 0;
+    unsigned mFrameHeight = 0;
+    EvsEventDesc mLatestEventDesc;
 };
 
-
-#endif //EVS_VTS_FRAMEHANDLER_H
+#endif // EVS_VTS_FRAMEHANDLER_H

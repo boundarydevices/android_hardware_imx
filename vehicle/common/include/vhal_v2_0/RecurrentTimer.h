@@ -37,6 +37,7 @@ private:
     using Nanos = std::chrono::nanoseconds;
     using Clock = std::chrono::steady_clock;
     using TimePoint = std::chrono::time_point<Clock, Nanos>;
+
 public:
     using Action = std::function<void(const std::vector<int32_t>& cookies)>;
 
@@ -44,9 +45,7 @@ public:
         mTimerThread = std::thread(&RecurrentTimer::loop, this, action);
     }
 
-    virtual ~RecurrentTimer() {
-        stop();
-    }
+    virtual ~RecurrentTimer() { stop(); }
 
     /**
      * Registers recurrent event for a given interval. Registred events are distinguished by
@@ -61,7 +60,7 @@ public:
 
         {
             std::lock_guard<std::mutex> g(mLock);
-            mCookieToEventsMap[cookie] = { interval, cookie, absoluteTime };
+            mCookieToEventsMap[cookie] = {interval, cookie, absoluteTime};
         }
         mCond.notify_one();
     }
@@ -74,13 +73,11 @@ public:
         mCond.notify_one();
     }
 
-
 private:
-
     struct RecurrentEvent {
         Nanos interval;
         int32_t cookie;
-        TimePoint absoluteTime;  // Absolute time of the next event.
+        TimePoint absoluteTime; // Absolute time of the next event.
 
         void updateNextEventTime(TimePoint now) {
             // We want to move time to next event by adding some number of intervals (usually 1)
@@ -122,7 +119,7 @@ private:
             }
 
             std::unique_lock<std::mutex> g(mLock);
-            mCond.wait_until(g, nextEventTime);  // nextEventTime can be nanoseconds::max()
+            mCond.wait_until(g, nextEventTime); // nextEventTime can be nanoseconds::max()
         }
     }
 
@@ -137,14 +134,14 @@ private:
             mTimerThread.join();
         }
     }
+
 private:
     mutable std::mutex mLock;
     std::thread mTimerThread;
     std::condition_variable mCond;
-    std::atomic_bool mStopRequested { false };
+    std::atomic_bool mStopRequested{false};
     Action mAction;
     std::unordered_map<int32_t, RecurrentEvent> mCookieToEventsMap;
 };
 
-
-#endif  // android_hardware_automotive_vehicle_V2_0_RecurrentTimer_H
+#endif // android_hardware_automotive_vehicle_V2_0_RecurrentTimer_H

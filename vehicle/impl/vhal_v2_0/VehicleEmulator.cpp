@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 #define LOG_TAG "VehicleEmulator_v2_0"
-#include <android/log.h>
+#include "VehicleEmulator.h"
 
 #include <android-base/properties.h>
+#include <android/log.h>
 #include <log/log.h>
 #include <utils/SystemClock.h>
-#include <algorithm>
-
 #include <vhal_v2_0/VehicleUtils.h>
+
+#include <algorithm>
 
 #include "PipeComm.h"
 #include "ProtoMessageConverter.h"
 #include "SocketComm.h"
-
-#include "VehicleEmulator.h"
 
 namespace android {
 namespace hardware {
@@ -168,23 +167,23 @@ void VehicleEmulator::doSetProperty(VehicleEmulator::EmulatorMessage const& rxMs
     }
 
     if (protoVal.has_bytes_value()) {
-        val.value.bytes = std::vector<uint8_t> { protoVal.bytes_value().begin(),
-                                                 protoVal.bytes_value().end() };
+        val.value.bytes =
+                std::vector<uint8_t>{protoVal.bytes_value().begin(), protoVal.bytes_value().end()};
     }
 
     if (protoVal.int32_values_size() > 0) {
-        val.value.int32Values = std::vector<int32_t> { protoVal.int32_values().begin(),
-                                                       protoVal.int32_values().end() };
+        val.value.int32Values = std::vector<int32_t>{protoVal.int32_values().begin(),
+                                                     protoVal.int32_values().end()};
     }
 
     if (protoVal.int64_values_size() > 0) {
-        val.value.int64Values = std::vector<int64_t> { protoVal.int64_values().begin(),
-                                                       protoVal.int64_values().end() };
+        val.value.int64Values = std::vector<int64_t>{protoVal.int64_values().begin(),
+                                                     protoVal.int64_values().end()};
     }
 
     if (protoVal.float_values_size() > 0) {
-        val.value.floatValues = std::vector<float> { protoVal.float_values().begin(),
-                                                     protoVal.float_values().end() };
+        val.value.floatValues =
+                std::vector<float>{protoVal.float_values().begin(), protoVal.float_values().end()};
     }
 
     bool halRes = mHal->setPropertyFromVehicle(val);
@@ -226,10 +225,10 @@ void VehicleEmulator::populateProtoVehiclePropValue(vhal_proto::VehiclePropValue
     return proto_msg_converter::toProto(protoVal, *val);
 }
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

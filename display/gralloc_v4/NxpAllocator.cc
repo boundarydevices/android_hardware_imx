@@ -6,15 +6,14 @@
 
 #include "NxpAllocator.h"
 
-#include <android/hardware/graphics/mapper/4.0/IMapper.h>
-#include <gralloctypes/Gralloc4.h>
-
-#include <cutils/log.h>
 #include <DisplayUtil.h>
 #include <Memory.h>
+#include <android/hardware/graphics/mapper/4.0/IMapper.h>
+#include <cutils/log.h>
+#include <gralloctypes/Gralloc4.h>
 
-#include "gralloc_helpers.h"
 #include "NxpUtils.h"
+#include "gralloc_helpers.h"
 
 using android::hardware::hidl_handle;
 using android::hardware::hidl_vec;
@@ -36,9 +35,8 @@ NxpAllocator::NxpAllocator() : mDriver(std::make_unique<gralloc_driver>()) {
     }
 }
 
-Error NxpAllocator::initializeMetadata(
-        gralloc_handle_t memHandle,
-        const struct gralloc_buffer_descriptor& memDescriptor) {
+Error NxpAllocator::initializeMetadata(gralloc_handle_t memHandle,
+                                       const struct gralloc_buffer_descriptor& memDescriptor) {
     if (!mDriver) {
         ALOGE("Failed to initializeMetadata. Driver is uninitialized.");
         return Error::NO_RESOURCES;
@@ -68,7 +66,7 @@ Error NxpAllocator::initializeMetadata(
 }
 
 Error NxpAllocator::allocate(const BufferDescriptorInfo& descriptor, uint32_t* outStride,
-                                      const native_handle_t** /* hidl_handle* */ outHandle) {
+                             const native_handle_t** /* hidl_handle* */ outHandle) {
     if (!mDriver) {
         ALOGE("%s Driver is uninitialized.", __func__);
         return Error::NO_RESOURCES;
@@ -96,7 +94,7 @@ Error NxpAllocator::allocate(const BufferDescriptorInfo& descriptor, uint32_t* o
         std::string pixelFormatString = getPixelFormatString(descriptor.format);
         std::string usageString = getUsageString(descriptor.usage);
         ALOGE("%s Unsupported combination -- pixel format: %s, drm format:%s, usage: %s", __func__,
-                pixelFormatString.c_str(), drmFormatString.c_str(), usageString.c_str());
+              pixelFormatString.c_str(), drmFormatString.c_str(), usageString.c_str());
         return Error::UNSUPPORTED;
     }
 
@@ -123,7 +121,7 @@ Error NxpAllocator::allocate(const BufferDescriptorInfo& descriptor, uint32_t* o
 }
 
 Return<void> NxpAllocator::allocate(const hidl_vec<uint8_t>& descriptor, uint32_t count,
-                                             allocate_cb hidlCb) {
+                                    allocate_cb hidlCb) {
     hidl_vec<hidl_handle> handles;
 
     if (!mDriver) {

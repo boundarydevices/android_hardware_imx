@@ -15,18 +15,15 @@
  */
 
 #include <hardware_legacy/uevent.h>
-
+#include <linux/netlink.h>
 #include <malloc.h>
-#include <string.h>
-#include <unistd.h>
 #include <poll.h>
 #include <pthread.h>
-
+#include <string.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/queue.h>
-#include <linux/netlink.h>
-
+#include <unistd.h>
 
 LIST_HEAD(uevent_handler_head, uevent_handler) uevent_handler_list;
 pthread_mutex_t uevent_handler_list_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -40,10 +37,9 @@ struct uevent_handler {
 static int fd = -1;
 
 /* Returns 0 on failure, 1 on success */
-int uevent_init()
-{
+int uevent_init() {
     struct sockaddr_nl addr;
-    int sz = 64*1024;
+    int sz = 64 * 1024;
     int s;
 
     memset(&addr, 0, sizeof(addr));
@@ -52,12 +48,11 @@ int uevent_init()
     addr.nl_groups = 0xffffffff;
 
     s = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
-    if(s < 0)
-        return 0;
+    if (s < 0) return 0;
 
     setsockopt(s, SOL_SOCKET, SO_RCVBUFFORCE, &sz, sizeof(sz));
 
-    if(bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+    if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         close(s);
         return 0;
     }
@@ -66,31 +61,30 @@ int uevent_init()
     return (fd > 0);
 }
 
-int uevent_next_event(char* buffer, int buffer_length)
-{
+int uevent_next_event(char *buffer, int buffer_length) {
     while (1) {
         struct pollfd fds;
         int nr;
-    
+
         fds.fd = fd;
         fds.events = POLLIN;
         fds.revents = 0;
         nr = poll(&fds, 1, -1);
-     
-        if(nr > 0 && (fds.revents & POLLIN)) {
+
+        if (nr > 0 && (fds.revents & POLLIN)) {
             int count = recv(fd, buffer, buffer_length, 0);
             if (count > 0) {
                 struct uevent_handler *h;
                 pthread_mutex_lock(&uevent_handler_list_lock);
                 LIST_FOREACH(h, &uevent_handler_list, list)
-                    h->handler(h->handler_data, buffer, buffer_length);
+                h->handler(h->handler_data, buffer, buffer_length);
                 pthread_mutex_unlock(&uevent_handler_list_lock);
 
                 return count;
-            } 
+            }
         }
     }
-    
+
     // won't get here
     return 0;
 }

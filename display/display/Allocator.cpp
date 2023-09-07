@@ -15,6 +15,7 @@
  */
 
 #include "Allocator.h"
+
 #include "IonAllocator.h"
 #ifdef ENABLE_DMABUF_HEAP
 #include "DmaHeapAllocator.h"
@@ -25,8 +26,7 @@ namespace fsl {
 Allocator* Allocator::mInstance(0);
 Mutex Allocator::sLock(Mutex::PRIVATE);
 
-Allocator* Allocator::getInstance()
-{
+Allocator* Allocator::getInstance() {
     Mutex::Autolock _l(sLock);
 
     if (mInstance != NULL) {
@@ -42,4 +42,4 @@ Allocator* Allocator::getInstance()
     return mInstance;
 }
 
-}
+} // namespace fsl

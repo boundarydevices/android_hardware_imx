@@ -24,22 +24,22 @@ namespace android {
 
 // stream uses DMABUF buffers which allcated in user space.
 // that exports DMABUF handle.
-class DMAStream : public MMAPStream
-{
+class DMAStream : public MMAPStream {
 public:
     DMAStream(CameraDeviceSessionHwlImpl *pSession);
     DMAStream(bool mplane, CameraDeviceSessionHwlImpl *pSession);
     virtual ~DMAStream();
 
     // configure device.
-    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
+    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height,
+                                            uint32_t fps);
     // start device.
     virtual int32_t onDeviceStartLocked();
     // stop device.
     virtual int32_t onDeviceStopLocked();
 
     // put buffer back to V4L2.
-    virtual int32_t onFrameReturn(ImxStreamBuffer& buf);
+    virtual int32_t onFrameReturn(ImxStreamBuffer &buf);
 
     // allocate buffers.
     virtual int32_t allocateBuffersLocked();
@@ -53,6 +53,6 @@ private:
     int32_t mStreamSize;
 };
 
-} // namespace android {
+} // namespace android
 
 #endif

@@ -20,10 +20,10 @@
 namespace nxp_sensors_subhal {
 // HWSensorBase represents the actual physical sensor provided as the IIO device
 class StepCounterSensor : public HWSensorBase {
-  public:
+public:
     StepCounterSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-           struct iio_device_data& iio_data,
-           const std::optional<std::vector<Configuration>>& config);
+                      struct iio_device_data& iio_data,
+                      const std::optional<std::vector<Configuration>>& config);
     ~StepCounterSensor();
     void run();
     void activate(bool enable);
@@ -31,8 +31,9 @@ class StepCounterSensor : public HWSensorBase {
     void setOperationMode(OperationMode mode);
     bool supportsDataInjection() const;
     Result injectEvent(const Event& event);
-  private:
+
+private:
     std::string mSysfspath;
 };
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

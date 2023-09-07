@@ -17,31 +17,30 @@
 #ifndef _METADATA_H_
 #define _METADATA_H_
 
-#include <stdint.h>
-#include <hardware/camera3.h>
-#include <system/camera_metadata.h>
 #include <camera/CameraMetadata.h>
+#include <hardware/camera3.h>
+#include <stdint.h>
+#include <system/camera_metadata.h>
+
 #include "CameraUtils.h"
 
 // Metadata is a convenience class for dealing with libcamera_metadata
-class Metadata : public LightRefBase<Metadata>
-{
+class Metadata : public LightRefBase<Metadata> {
 public:
     Metadata() {}
     Metadata(const camera_metadata_t *metadata);
     ~Metadata();
 
-    static camera_metadata_t* createStaticInfo(SensorData& sensor, camera_info &camInfo);
-    static void createSettingTemplate(Metadata& base, SensorData& sensor,
-                                      int request_template);
+    static camera_metadata_t *createStaticInfo(SensorData &sensor, camera_info &camInfo);
+    static void createSettingTemplate(Metadata &base, SensorData &sensor, int request_template);
 
     camera_metadata_entry_t find(uint32_t tag);
-    //void clear();
+    // void clear();
     int32_t getRequestType();
 
     int32_t getGpsCoordinates(double *pCoords, int count);
     int32_t getGpsTimeStamp(int64_t &timeStamp);
-    int32_t getGpsProcessingMethod(uint8_t* src, int count);
+    int32_t getGpsProcessingMethod(uint8_t *src, int count);
     int32_t getFocalLength(float &focalLength);
     int32_t getJpegRotation(int32_t &jpegRotation);
     int32_t getJpegQuality(int32_t &quality);
@@ -49,7 +48,7 @@ public:
     int32_t getJpegThumbSize(int &width, int &height);
 
     // Initialize with framework metadata
-    //int init(const camera_metadata_t *metadata);
+    // int init(const camera_metadata_t *metadata);
 
     // Parse and add an entry. Allocates and copies new storage for *data.
     int addUInt8(uint32_t tag, int count, const uint8_t *data);
@@ -58,8 +57,7 @@ public:
     int addFloat(uint32_t tag, int count, const float *data);
     int addInt64(uint32_t tag, int count, const int64_t *data);
     int addDouble(uint32_t tag, int count, const double *data);
-    int addRational(uint32_t tag, int count,
-            const camera_metadata_rational_t *data);
+    int addRational(uint32_t tag, int count, const camera_metadata_rational_t *data);
 
     /**
      * Is the buffer empty (no entires)
@@ -67,7 +65,7 @@ public:
     bool isEmpty() const;
     // Get a handle to the current metadata
     // This is not a durable handle, and may be destroyed by add*/init
-    camera_metadata_t* get();
+    camera_metadata_t *get();
 
 private:
     // Actual internal storage

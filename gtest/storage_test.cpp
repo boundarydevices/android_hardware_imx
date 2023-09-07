@@ -1,14 +1,14 @@
-#include <unistd.h>
-#include <fstab/fstab.h>
 #include <android-base/logging.h>
 #include <android-base/properties.h>
-#include <gtest/gtest.h>
-
-#include <string>
-#include <cstring>
-#include <fnmatch.h>
-#include <sys/types.h>
 #include <dirent.h>
+#include <fnmatch.h>
+#include <fstab/fstab.h>
+#include <gtest/gtest.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <cstring>
+#include <string>
 
 using android::fs_mgr::Fstab;
 
@@ -17,8 +17,7 @@ constexpr char kDefaultFstabPath[] = "/vendor/etc/fstab.";
 bool udisk_accessiable = false;
 std::string global_pattern;
 
-std::string find_next_sub_pattern(std::string::size_type start_idx)
-{
+std::string find_next_sub_pattern(std::string::size_type start_idx) {
     if (start_idx > global_pattern.size()) {
         return std::string();
     }
@@ -32,8 +31,8 @@ std::string find_next_sub_pattern(std::string::size_type start_idx)
     return ret;
 }
 
-void entry_exist_or_not(std::string dir, std::string entry_pattern, std::string::size_type entry_pattern_idx)
-{
+void entry_exist_or_not(std::string dir, std::string entry_pattern,
+                        std::string::size_type entry_pattern_idx) {
     if (entry_pattern.empty()) {
         udisk_accessiable = true;
         return;
@@ -46,24 +45,24 @@ void entry_exist_or_not(std::string dir, std::string entry_pattern, std::string:
 
     struct dirent *dir_entry;
     std::string next_entry_pattern;
-    while((dir_entry = readdir(dir_instance))) {
-        if(!strncmp(dir_entry->d_name, ".", 1) || !strncmp(dir_entry->d_name, "..", 2))
-            continue;
+    while ((dir_entry = readdir(dir_instance))) {
+        if (!strncmp(dir_entry->d_name, ".", 1) || !strncmp(dir_entry->d_name, "..", 2)) continue;
 
-        if(!fnmatch(entry_pattern.c_str() ,dir_entry->d_name, 0)) {
-            next_entry_pattern = find_next_sub_pattern(entry_pattern_idx + entry_pattern.size() + 1);
-            entry_exist_or_not(dir + dir_entry->d_name + "/", next_entry_pattern, entry_pattern_idx + entry_pattern.size() + 1);
+        if (!fnmatch(entry_pattern.c_str(), dir_entry->d_name, 0)) {
+            next_entry_pattern =
+                    find_next_sub_pattern(entry_pattern_idx + entry_pattern.size() + 1);
+            entry_exist_or_not(dir + dir_entry->d_name + "/", next_entry_pattern,
+                               entry_pattern_idx + entry_pattern.size() + 1);
         }
     }
     closedir(dir_instance);
 }
 
-bool usb_disk_mount_point_valid()
-{
+bool usb_disk_mount_point_valid() {
     Fstab fstab_entries;
     auto hardware = android::base::GetProperty("ro.hardware", "");
     ReadFstabFromFile(kDefaultFstabPath + hardware, &fstab_entries);
-    if(fstab_entries.empty()) {
+    if (fstab_entries.empty()) {
         LOG(ERROR) << "Fail to read the fstab file";
         return udisk_accessiable;
     }
@@ -72,7 +71,7 @@ bool usb_disk_mount_point_valid()
          * 2. The value for "voldmanaged" parameter, it often has "usb" string,
          *    it's a label name give by us.
          */
-        if((it.blk_device.find("usb") != it.blk_device.npos) || it.label == "usb") {
+        if ((it.blk_device.find("usb") != it.blk_device.npos) || it.label == "usb") {
             global_pattern = it.blk_device;
             /* In vold, when usb disk is plugged, vold compares the udisk block device uevent path
              * with the "blk_device" found in the fstab file, with fnmatch() library function.
@@ -90,7 +89,6 @@ bool usb_disk_mount_point_valid()
 }
 
 // check whether a udisk can be well mounted
-TEST(StorageModuleTest, UsbDiskTest)
-{
+TEST(StorageModuleTest, UsbDiskTest) {
     ASSERT_TRUE(usb_disk_mount_point_valid());
 }

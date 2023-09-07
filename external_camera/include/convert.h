@@ -18,8 +18,9 @@
 #define HARDWARE_INTERFACES_CAMERA_DEVICE_V3_4_DEFAULT_INCLUDE_CONVERT_H_
 
 #include <android/hardware/camera/device/3.4/types.h>
-#include "hardware/camera3.h"
+
 #include "../../3.3/default/include/convert.h"
+#include "hardware/camera3.h"
 
 namespace android {
 namespace hardware {
@@ -34,13 +35,13 @@ void convertToHidl(const Camera3Stream* src, HalStream* dst);
 
 void convertToHidl(const camera3_stream_configuration_t& src, HalStreamConfiguration* dst);
 
-void convertFromHidl(const Stream &src, Camera3Stream* dst);
+void convertFromHidl(const Stream& src, Camera3Stream* dst);
 
-}  // namespace implementation
-}  // namespace V3_4
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V3_4
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android
 
-#endif  // HARDWARE_INTERFACES_CAMERA_DEVICE_V3_4_DEFAULT_INCLUDE_CONVERT_H_
+#endif // HARDWARE_INTERFACES_CAMERA_DEVICE_V3_4_DEFAULT_INCLUDE_CONVERT_H_

@@ -19,9 +19,9 @@
 namespace nxp_sensors_subhal {
 
 StepCounterSensor::StepCounterSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-           const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
+                                     struct iio_device_data& iio_data,
+                                     const std::optional<std::vector<Configuration>>& config)
+      : HWSensorBase(sensorHandle, callback, iio_data, config) {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
     mSensorInfo.flags |= SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
@@ -54,7 +54,7 @@ void StepCounterSensor::activate(bool enable) {
         if (enable) {
             mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
             if (mPollFdIio.fd < 0) {
-                ALOGI("Failed to open iio char device (%s).",  buffer_path.c_str());
+                ALOGI("Failed to open iio char device (%s).", buffer_path.c_str());
             }
         } else {
             close(mPollFdIio.fd);
@@ -121,4 +121,4 @@ void StepCounterSensor::run() {
     }
 }
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

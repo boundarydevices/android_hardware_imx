@@ -18,15 +18,14 @@
 #ifndef ANDROID_FSL_PRESS_SENSOR_H
 #define ANDROID_FSL_PRESS_SENSOR_H
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-
-#include "sensors.h"
-#include "SensorBase.h"
 #include "InputEventReader.h"
+#include "SensorBase.h"
+#include "sensors.h"
 
 /*****************************************************************************/
 
@@ -42,11 +41,11 @@ public:
 
 private:
     enum {
-        press       = 0,
+        press = 0,
         temperature = 1,
-        sensors     = 2,
+        sensors = 2,
     };
-    int sensor_get_class_path(char *class_path);
+    int sensor_get_class_path(char* class_path);
     int is_sensor_enabled();
     int enable_sensor();
     int disable_sensor();
@@ -65,4 +64,4 @@ private:
 
 /*****************************************************************************/
 
-#endif  // ANDROID_FSL_ACCEL_SENSOR_H
+#endif // ANDROID_FSL_ACCEL_SENSOR_H

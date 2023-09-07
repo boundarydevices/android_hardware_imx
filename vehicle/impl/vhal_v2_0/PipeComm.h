@@ -19,6 +19,7 @@
 
 #include <mutex>
 #include <vector>
+
 #include "CommConn.h"
 
 namespace android {
@@ -37,7 +38,7 @@ namespace impl {
  * at a time.
  */
 class PipeComm : public CommConn {
-   public:
+public:
     PipeComm(MessageProcessor* messageProcessor);
 
     void start() override;
@@ -48,17 +49,16 @@ class PipeComm : public CommConn {
 
     inline bool isOpen() override { return mPipeFd > 0; }
 
-   private:
+private:
     int mPipeFd;
 };
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_PipeComm_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_PipeComm_H_

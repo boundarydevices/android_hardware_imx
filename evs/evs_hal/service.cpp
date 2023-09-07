@@ -14,29 +14,26 @@
  * limitations under the License.
  */
 
-#include <unistd.h>
-
 #include <hidl/HidlTransportSupport.h>
+#include <unistd.h>
 #include <utils/Errors.h>
-#include <utils/StrongPointer.h>
 #include <utils/Log.h>
+#include <utils/StrongPointer.h>
 
-#include "ServiceNames.h"
 #include "EvsEnumerator.h"
-
+#include "ServiceNames.h"
 
 // libhidl:
 using android::hardware::configureRpcThreadpool;
 using android::hardware::joinRpcThreadpool;
 
 // Generated HIDL files
-using android::hardware::automotive::evs::V1_1::IEvsEnumerator;
 using android::hardware::automotive::evs::V1_1::IEvsDisplay;
+using android::hardware::automotive::evs::V1_1::IEvsEnumerator;
 
 // The namespace in which all our implementation code lives
 using namespace android::hardware::automotive::evs::V1_1::implementation;
 using namespace android;
-
 
 int main() {
     ALOGI("EVS Hardware Enumerator service is starting");

@@ -59,4 +59,4 @@ ScopedAStatus PowerHintSession::setThreads(const std::vector<int32_t>& threadIds
     return ScopedAStatus::ok();
 }
 
-}  // namespace aidl::android::hardware::power::impl
+} // namespace aidl::android::hardware::power::impl

@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <stdio.h>
-#include <dlfcn.h>
-#include <cutils/log.h>
-
-#include "Stream.h"
-#include "CameraUtils.h"
 #include "ImageProcess.h"
 
+#include <cutils/log.h>
+#include <dlfcn.h>
 #include <g2d.h>
 #include <linux/ipu.h>
+#include <stdio.h>
+
+#include "CameraUtils.h"
+#include "Stream.h"
 #include "opencl-2d.h"
 
 using namespace cameraconfigparser;
@@ -43,24 +43,21 @@ extern "C" {
 
 namespace fsl {
 
-ImageProcess* ImageProcess::sInstance(0);
+ImageProcess *ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
-thread_local void* ImageProcess::sHandle(0);
+thread_local void *ImageProcess::sHandle(0);
 
-static bool getDefaultG2DLib(char *libName, int size)
-{
+static bool getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if((libName == NULL)||(size < strlen(G2DENGINE) + strlen(".so")))
-        return false;
+    if ((libName == NULL) || (size < strlen(G2DENGINE) + strlen(".so"))) return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
-    if(strcmp(value, "") == 0) {
+    if (strcmp(value, "") == 0) {
         ALOGI("No g2d lib available to be used!");
         return false;
-    }
-    else {
+    } else {
         strncpy(libName, G2DENGINE, strlen(G2DENGINE));
         strcat(libName, "-");
         strcat(libName, value);
@@ -70,8 +67,7 @@ static bool getDefaultG2DLib(char *libName, int size)
     return true;
 }
 
-ImageProcess* ImageProcess::getInstance()
-{
+ImageProcess *ImageProcess::getInstance() {
     Mutex::Autolock _l(sLock);
     if (sInstance != NULL) {
         return sInstance;
@@ -82,8 +78,7 @@ ImageProcess* ImageProcess::getInstance()
 }
 
 ImageProcess::ImageProcess()
-    : mIpuFd(-1), mPxpFd(-1), mChannel(-1), m2DEnable(0), mG2dModule(NULL), mCLModule(NULL)
-{
+      : mIpuFd(-1), mPxpFd(-1), mChannel(-1), m2DEnable(0), mG2dModule(NULL), mCLModule(NULL) {
     /*
      * imx6dl support IPU device and PXP device.
      * imx6q and imx6qp support IPU device.
@@ -93,12 +88,12 @@ ImageProcess::ImageProcess()
     mIpuFd = open("/dev/mxc_ipu", O_RDWR, 0);
     mPxpFd = open("/dev/pxp_device", O_RDWR, 0);
 
-    //When open pxp device, need allocate a channel at the same time.
+    // When open pxp device, need allocate a channel at the same time.
     int32_t ret = -1;
     if (mPxpFd > 0) {
         ret = ioctl(mPxpFd, PXP_IOC_GET_CHAN, &mChannel);
         if (ret < 0) {
-            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __func__, __LINE__ ,ret);
+            ALOGE("%s:%d, PXP_IOC_GET_CHAN failed %d", __func__, __LINE__, ret);
             close(mPxpFd);
             mPxpFd = -1;
         }
@@ -106,7 +101,7 @@ ImageProcess::ImageProcess()
 
     char path[PATH_MAX] = {0};
     char g2dlibName[PATH_MAX] = {0};
-    if(getDefaultG2DLib(g2dlibName, PATH_MAX)){
+    if (getDefaultG2DLib(g2dlibName, PATH_MAX)) {
         getModule(path, g2dlibName);
         mG2dModule = dlopen(path, RTLD_NOW);
     }
@@ -117,8 +112,7 @@ ImageProcess::ImageProcess()
         mFinishEngine = NULL;
         mCopyEngine = NULL;
         mBlitEngine = NULL;
-    }
-    else {
+    } else {
         mOpenEngine = (hwc_func1)dlsym(mG2dModule, "g2d_open");
         mCloseEngine = (hwc_func1)dlsym(mG2dModule, "g2d_close");
         mFinishEngine = (hwc_func1)dlsym(mG2dModule, "g2d_finish");
@@ -136,14 +130,13 @@ ImageProcess::ImageProcess()
         mCLFinish = NULL;
         mCLBlit = NULL;
         mCLHandle = NULL;
-    }
-    else {
+    } else {
         mCLOpen = (hwc_func1)dlsym(mCLModule, "cl_g2d_open");
         mCLClose = (hwc_func1)dlsym(mCLModule, "cl_g2d_close");
         mCLFlush = (hwc_func1)dlsym(mCLModule, "cl_g2d_flush");
         mCLFinish = (hwc_func1)dlsym(mCLModule, "cl_g2d_finish");
         mCLBlit = (hwc_func3)dlsym(mCLModule, "cl_g2d_blit");
-        ret = (*mCLOpen)((void*)&mCLHandle);
+        ret = (*mCLOpen)((void *)&mCLHandle);
         if (ret != 0) {
             mCLHandle = NULL;
         }
@@ -153,13 +146,12 @@ ImageProcess::ImageProcess()
         m2DEnable = 1;
     }
 
-    if(mCLHandle != NULL) {
+    if (mCLHandle != NULL) {
         ALOGW("opencl g2d device is used!\n");
     }
 }
 
-ImageProcess::~ImageProcess()
-{
+ImageProcess::~ImageProcess() {
     if (mIpuFd > 0) {
         close(mIpuFd);
         mIpuFd = -1;
@@ -187,8 +179,7 @@ ImageProcess::~ImageProcess()
     }
 }
 
-void *ImageProcess::getHandle()
-{
+void *ImageProcess::getHandle() {
     if (sHandle != NULL) {
         return sHandle;
     }
@@ -201,17 +192,15 @@ void *ImageProcess::getHandle()
     return sHandle;
 }
 
-int ImageProcess::openEngine(void** handle)
-{
+int ImageProcess::openEngine(void **handle) {
     if (mOpenEngine == NULL) {
         return -EINVAL;
     }
 
-    return (*mOpenEngine)((void*)handle);
+    return (*mOpenEngine)((void *)handle);
 }
 
-int ImageProcess::closeEngine(void* handle)
-{
+int ImageProcess::closeEngine(void *handle) {
     if (mCloseEngine == NULL) {
         return -EINVAL;
     }
@@ -219,21 +208,15 @@ int ImageProcess::closeEngine(void* handle)
     return (*mCloseEngine)(handle);
 }
 
-void ImageProcess::getModule(char *path, const char *name)
-{
-    snprintf(path, PATH_MAX, "%s/%s",
-                                 LIB_PATH1, name);
-    if (access(path, R_OK) == 0)
-        return;
-    snprintf(path, PATH_MAX, "%s/%s",
-                                 LIB_PATH2, name);
-    if (access(path, R_OK) == 0)
-        return;
+void ImageProcess::getModule(char *path, const char *name) {
+    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
+    if (access(path, R_OK) == 0) return;
+    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
+    if (access(path, R_OK) == 0) return;
     return;
 }
 
-int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf, CscHw hw_type)
-{
+int ImageProcess::handleFrame(StreamBuffer &dstBuf, StreamBuffer &srcBuf, CscHw hw_type) {
     int ret = 0;
 
     if (srcBuf.mStream == NULL || dstBuf.mStream == NULL) {
@@ -241,34 +224,33 @@ int ImageProcess::handleFrame(StreamBuffer& dstBuf, StreamBuffer& srcBuf, CscHw 
     }
 
     switch (hw_type) {
-    case GPU_2D:
-        ret = handleFrameByGPU_2D(dstBuf, srcBuf);
-        break;
-    case GPU_3D:
-        ret = handleFrameByGPU_3D(dstBuf, srcBuf);
-        break;
-    case DPU:
-        ret = handleFrameByDPU(dstBuf, srcBuf);
-        break;
-    case PXP:
-        ret = handleFrameByPXP(dstBuf, srcBuf);
-        break;
-    case IPU:
-        ret = handleFrameByIPU(dstBuf, srcBuf);
-        break;
-    case CPU:
-        ret = handleFrameByCPU(dstBuf, srcBuf);
-        break;
-    default:
-        ALOGE("hw_type is not correct");
-        return -EINVAL;
+        case GPU_2D:
+            ret = handleFrameByGPU_2D(dstBuf, srcBuf);
+            break;
+        case GPU_3D:
+            ret = handleFrameByGPU_3D(dstBuf, srcBuf);
+            break;
+        case DPU:
+            ret = handleFrameByDPU(dstBuf, srcBuf);
+            break;
+        case PXP:
+            ret = handleFrameByPXP(dstBuf, srcBuf);
+            break;
+        case IPU:
+            ret = handleFrameByIPU(dstBuf, srcBuf);
+            break;
+        case CPU:
+            ret = handleFrameByCPU(dstBuf, srcBuf);
+            break;
+        default:
+            ALOGE("hw_type is not correct");
+            return -EINVAL;
     }
 
     return ret;
 }
 
-int convertPixelFormatToG2DFormat(PixelFormat format)
-{
+int convertPixelFormatToG2DFormat(PixelFormat format) {
     int nFormat = 0;
 
     switch (format) {
@@ -289,8 +271,7 @@ int convertPixelFormatToG2DFormat(PixelFormat format)
     return nFormat;
 }
 
-int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByPXP(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     ALOGV("%s", __func__);
     // pxp exists.
     if (mPxpFd <= 0) {
@@ -304,15 +285,14 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     struct pxp_layer_param *src_param = NULL, *out_param = NULL;
     int32_t ret = -1;
 
-
     memset(&pxp_conf, 0, sizeof(struct pxp_config_data));
 
     src_param = &(pxp_conf.s0_param);
     out_param = &(pxp_conf.out_param);
 
     /*
-    * Initialize src parameters
-    */
+     * Initialize src parameters
+     */
     src_param->paddr = srcBuf.mPhyAddr;
 
     src_param->width = src->width();
@@ -327,8 +307,8 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     pxp_conf.proc_data.srect.height = src->height();
 
     /*
-    * Initialize out parameters
-    */
+     * Initialize out parameters
+     */
     out_param->paddr = dstBuf.mPhyAddr;
     out_param->width = dst->width();
     out_param->height = dst->height();
@@ -340,45 +320,46 @@ int ImageProcess::handleFrameByPXP(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     pxp_conf.proc_data.drect.width = dst->width();
     pxp_conf.proc_data.drect.height = dst->height();
 
-    if((src_param->stride == 0) || (out_param->stride == 0)) {
-        ALOGE("%s:%d, src stride %d, dst stride %d", __func__, __LINE__, src_param->stride, out_param->stride);
+    if ((src_param->stride == 0) || (out_param->stride == 0)) {
+        ALOGE("%s:%d, src stride %d, dst stride %d", __func__, __LINE__, src_param->stride,
+              out_param->stride);
         return -EINVAL;
     }
 
     // The fb dirver treat r as bit[0:7], but PXP convert r to bit[24:31].
     // For preview, do some trick to set format as G2D_YVYU.
-    if((src_param->pixel_fmt == PXP_PIX_FMT_YUYV) && (out_param->pixel_fmt == PXP_PIX_FMT_RGBA32)) {
+    if ((src_param->pixel_fmt == PXP_PIX_FMT_YUYV) &&
+        (out_param->pixel_fmt == PXP_PIX_FMT_RGBA32)) {
         src_param->pixel_fmt = PXP_PIX_FMT_YVYU;
         out_param->pixel_fmt = PXP_PIX_FMT_ARGB32;
     }
 
-    ALOGV("src: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d",
-      src->width(), src->height(), src->format(), srcBuf.mPhyAddr, src_param->pixel_fmt, src_param->stride);
-    ALOGV("dst: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d",
-      dst->width(), dst->height(), dst->format(), dstBuf.mPhyAddr, out_param->pixel_fmt, out_param->stride);
+    ALOGV("src: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d", src->width(), src->height(),
+          src->format(), srcBuf.mPhyAddr, src_param->pixel_fmt, src_param->stride);
+    ALOGV("dst: %dx%d, 0x%x, phy 0x%x, v4l2 0x%x, stride %d", dst->width(), dst->height(),
+          dst->format(), dstBuf.mPhyAddr, out_param->pixel_fmt, out_param->stride);
 
     ret = ioctl(mPxpFd, PXP_IOC_CONFIG_CHAN, &pxp_conf);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_CONFIG_CHAN failed %d", __func__, __LINE__ ,ret);
+    if (ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_CONFIG_CHAN failed %d", __func__, __LINE__, ret);
         return ret;
     }
 
     ret = ioctl(mPxpFd, PXP_IOC_START_CHAN, &(pxp_conf.handle));
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_START_CHAN failed %d", __func__, __LINE__ ,ret);
+    if (ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_START_CHAN failed %d", __func__, __LINE__, ret);
         return ret;
     }
 
     ret = ioctl(mPxpFd, PXP_IOC_WAIT4CMPLT, &pxp_conf);
-    if(ret < 0) {
-        ALOGE("%s:%d, PXP_IOC_WAIT4CMPLT failed %d", __func__, __LINE__ ,ret);
+    if (ret < 0) {
+        ALOGE("%s:%d, PXP_IOC_WAIT4CMPLT failed %d", __func__, __LINE__, ret);
     }
 
     return ret;
 }
 
-int ImageProcess::handleFrameByIPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByIPU(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     ALOGV("%s", __func__);
     if (mIpuFd <= 0) {
         return -EINVAL;
@@ -414,10 +395,10 @@ int ImageProcess::handleFrameByIPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     mTask.output.paddr = dstBuf.mPhyAddr;
 
     int32_t ret = IPU_CHECK_ERR_INPUT_CROP;
-    while(ret != IPU_CHECK_OK && ret > IPU_CHECK_ERR_MIN) {
+    while (ret != IPU_CHECK_OK && ret > IPU_CHECK_ERR_MIN) {
         ret = ioctl(mIpuFd, IPU_CHECK_TASK, &mTask);
         ALOGV("%s:%d, IPU_CHECK_TASK ret=%d", __func__, __LINE__, ret);
-        switch(ret) {
+        switch (ret) {
             case IPU_CHECK_OK:
                 break;
             case IPU_CHECK_ERR_SPLIT_INPUTW_OVER:
@@ -430,7 +411,8 @@ int ImageProcess::handleFrameByIPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
                 mTask.output.crop.w -= 8;
                 break;
             case IPU_CHECK_ERR_SPLIT_OUTPUTH_OVER:
-                mTask.output.crop.h -= 8;;
+                mTask.output.crop.h -= 8;
+                ;
                 break;
             default:
                 ALOGE("%s:%d, IPU_CHECK_TASK ret=%d", __func__, __LINE__, ret);
@@ -439,15 +421,14 @@ int ImageProcess::handleFrameByIPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     }
 
     ret = ioctl(mIpuFd, IPU_QUEUE_TASK, &mTask);
-    if(ret < 0) {
-        ALOGE("%s:%d, IPU_QUEUE_TASK failed %d", __func__, __LINE__ ,ret);
+    if (ret < 0) {
+        ALOGE("%s:%d, IPU_QUEUE_TASK failed %d", __func__, __LINE__, ret);
     }
 
     return ret;
 }
 
-int ImageProcess::handleFrameByG2DCopy(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByG2DCopy(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     // gpu 2d exists.
     if (mCopyEngine == NULL) {
         return -EINVAL;
@@ -456,20 +437,18 @@ int ImageProcess::handleFrameByG2DCopy(StreamBuffer& dstBuf, StreamBuffer& srcBu
     src = srcBuf.mStream;
     dst = dstBuf.mStream;
     // can't do resize for YUV.
-    if (dst->width() != src->width() ||
-         dst->height() != src->height()) {
+    if (dst->width() != src->width() || dst->height() != src->height()) {
         return -EINVAL;
     }
 
     int dstFormat = convertPixelFormatToV4L2Format(dst->format());
     int srcFormat = convertPixelFormatToV4L2Format(src->format());
     // can't do csc for YUV.
-    if ((dst->format() != src->format()) &&
-        (dstFormat != srcFormat)) {
+    if ((dst->format() != src->format()) && (dstFormat != srcFormat)) {
         return -EINVAL;
     }
 
-    void* g2dHandle = getHandle();
+    void *g2dHandle = getHandle();
     int size = (srcBuf.mSize > dstBuf.mSize) ? dstBuf.mSize : srcBuf.mSize;
 
     struct g2d_buf s_buf, d_buf;
@@ -477,8 +456,7 @@ int ImageProcess::handleFrameByG2DCopy(StreamBuffer& dstBuf, StreamBuffer& srcBu
     s_buf.buf_vaddr = srcBuf.mVirtAddr;
     d_buf.buf_paddr = dstBuf.mPhyAddr;
     d_buf.buf_vaddr = dstBuf.mVirtAddr;
-    int ret = mCopyEngine(g2dHandle, (void*)&d_buf, (void*)&s_buf,
-                 (void*)(intptr_t)size);
+    int ret = mCopyEngine(g2dHandle, (void *)&d_buf, (void *)&s_buf, (void *)(intptr_t)size);
     if (ret == 0) {
         mFinishEngine(g2dHandle);
     }
@@ -486,12 +464,11 @@ int ImageProcess::handleFrameByG2DCopy(StreamBuffer& dstBuf, StreamBuffer& srcBu
     return ret;
 }
 
-int ImageProcess::handleFrameByG2DBlit(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByG2DBlit(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     if (mBlitEngine == NULL) {
         return -EINVAL;
     }
-    //only can work on 8mm platform.
+    // only can work on 8mm platform.
     if (m2DEnable == 0) {
         return -EINVAL;
     }
@@ -501,16 +478,16 @@ int ImageProcess::handleFrameByG2DBlit(StreamBuffer& dstBuf, StreamBuffer& srcBu
     dst = dstBuf.mStream;
     // can't do csc for some formats.
     if (!(((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
-         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
-         ((dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP) &&
-         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) ||
-         ((src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
-         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))))) {
+           (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
+           ((dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP) &&
+            (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) ||
+           ((src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
+            (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))))) {
         return -EINVAL;
     }
 
     int ret;
-    void* g2dHandle = getHandle();
+    void *g2dHandle = getHandle();
     struct g2d_buf s_buf, d_buf;
     struct g2d_surface s_surface, d_surface;
 
@@ -526,9 +503,9 @@ int ImageProcess::handleFrameByG2DBlit(StreamBuffer& dstBuf, StreamBuffer& srcBu
     s_surface.right = src->width();
     s_surface.bottom = src->height();
     s_surface.stride = src->width();
-    s_surface.width  = src->width();
+    s_surface.width = src->width();
     s_surface.height = src->height();
-    s_surface.rot    = G2D_ROTATION_0;
+    s_surface.rot = G2D_ROTATION_0;
 
     d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dst->format());
     d_surface.planes[0] = (long)d_buf.buf_paddr;
@@ -538,29 +515,27 @@ int ImageProcess::handleFrameByG2DBlit(StreamBuffer& dstBuf, StreamBuffer& srcBu
     d_surface.right = dst->width();
     d_surface.bottom = dst->height();
     d_surface.stride = dst->width();
-    d_surface.width  = dst->width();
+    d_surface.width = dst->width();
     d_surface.height = dst->height();
-    d_surface.rot    = G2D_ROTATION_0;
+    d_surface.rot = G2D_ROTATION_0;
 
-    ret = mBlitEngine(g2dHandle, (void*)&s_surface, (void*)&d_surface);
+    ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&d_surface);
 
     if (ret == 0) {
         mFinishEngine(g2dHandle);
     }
 
     return ret;
-
 }
 
-int ImageProcess::handleFrameByG2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByG2D(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     int ret;
     sp<Stream> src, dst;
     src = srcBuf.mStream;
     dst = dstBuf.mStream;
 
     if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I) &&
-         (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))
+        (dst->format() == HAL_PIXEL_FORMAT_YCbCr_422_I))
         ret = handleFrameByG2DCopy(dstBuf, srcBuf);
     else
         ret = handleFrameByG2DBlit(dstBuf, srcBuf);
@@ -568,18 +543,15 @@ int ImageProcess::handleFrameByG2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     return ret;
 }
 
-int ImageProcess::handleFrameByDPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByDPU(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     return handleFrameByG2D(dstBuf, srcBuf);
 }
 
-int ImageProcess::handleFrameByGPU_2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByGPU_2D(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     return handleFrameByG2D(dstBuf, srcBuf);
 }
 
-int ImageProcess::convertNV12toNV21(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::convertNV12toNV21(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     sp<Stream> src, dst;
     src = srcBuf.mStream;
     dst = dstBuf.mStream;
@@ -589,37 +561,34 @@ int ImageProcess::convertNV12toNV21(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     uint32_t *UVout;
     int size = (srcBuf.mSize > dstBuf.mSize) ? dstBuf.mSize : srcBuf.mSize;
 
-    Ysize  = src->width() * src->height();
+    Ysize = src->width() * src->height();
     UVsize = src->width() * src->height() >> 2;
     srcIn = (uint8_t *)srcBuf.mVirtAddr;
     dstOut = (uint8_t *)dstBuf.mVirtAddr;
     UVout = (uint32_t *)(dstOut + Ysize);
 
     if (mCopyEngine != NULL) {
-        void* g2dHandle = getHandle();
+        void *g2dHandle = getHandle();
         struct g2d_buf s_buf, d_buf;
         s_buf.buf_paddr = srcBuf.mPhyAddr;
         s_buf.buf_vaddr = srcBuf.mVirtAddr;
         d_buf.buf_paddr = dstBuf.mPhyAddr;
         d_buf.buf_vaddr = dstBuf.mVirtAddr;
-        mCopyEngine(g2dHandle, (void*)&d_buf, (void*)&s_buf,
-                     (void*)(intptr_t)size);
+        mCopyEngine(g2dHandle, (void *)&d_buf, (void *)&s_buf, (void *)(intptr_t)size);
         mFinishEngine(g2dHandle);
-    }
-    else {
+    } else {
         memcpy(dstOut, srcIn, size);
     }
 
-    for (int k = 0; k < UVsize/2; k++) {
-        __asm volatile ("rev16 %0, %0" : "+r"(*UVout));
+    for (int k = 0; k < UVsize / 2; k++) {
+        __asm volatile("rev16 %0, %0" : "+r"(*UVout));
         UVout += 1;
     }
 
     return 0;
 }
 
-int ImageProcess::handleFrameByGPU_3D(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByGPU_3D(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     // opencl g2d exists.
     if (mCLHandle == NULL) {
         return -EINVAL;
@@ -637,15 +606,14 @@ int ImageProcess::handleFrameByGPU_3D(StreamBuffer& dstBuf, StreamBuffer& srcBuf
     if (((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
-        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr,
-                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
+                        dst->width(), dst->height());
     } else if (src->format() == dst->format()) {
-        cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr,
-                 dst->width(), dst->height(),
-                (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), true);
+        cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
+                          (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height(), true);
     } else {
-        ALOGI("%s:%d, opencl don't support format convert from 0x%x to 0x%x",
-                 __func__, __LINE__, src->format(), dst->format());
+        ALOGI("%s:%d, opencl don't support format convert from 0x%x to 0x%x", __func__, __LINE__,
+              src->format(), dst->format());
         return -EINVAL;
     }
 
@@ -655,8 +623,7 @@ int ImageProcess::handleFrameByGPU_3D(StreamBuffer& dstBuf, StreamBuffer& srcBuf
     return 0;
 }
 
-int ImageProcess::handleFrameByCPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
-{
+int ImageProcess::handleFrameByCPU(StreamBuffer &dstBuf, StreamBuffer &srcBuf) {
     sp<Stream> src, dst;
     src = srcBuf.mStream;
     dst = dstBuf.mStream;
@@ -669,46 +636,43 @@ int ImageProcess::handleFrameByCPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf)
     if (((dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dst->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
         (src->format() == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
-        convertYUYVtoNV12SP((uint8_t *)srcBuf.mVirtAddr,
-                    (uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height());
+        convertYUYVtoNV12SP((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, dst->width(),
+                            dst->height());
     } else if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
                (dst->format() == HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
         convertNV12toNV21(dstBuf, srcBuf);
     } else if (src->format() == dst->format()) {
         YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
-                 (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
+                       (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
     } else {
-        ALOGE("%s:%d, Software don't support format convert from 0x%x to 0x%x",
-                 __func__, __LINE__, src->format(), dst->format());
+        ALOGE("%s:%d, Software don't support format convert from 0x%x to 0x%x", __func__, __LINE__,
+              src->format(), dst->format());
         return -EINVAL;
     }
 
     return 0;
 }
 
-void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
-         uint8_t *output, uint32_t dstWidth,
-         uint32_t dstHeight, uint8_t *input,
-         uint32_t srcWidth, uint32_t srcHeight, bool bInputCached)
-{
-    struct cl_g2d_surface src,dst;
+void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle, uint8_t *output, uint32_t dstWidth,
+                                     uint32_t dstHeight, uint8_t *input, uint32_t srcWidth,
+                                     uint32_t srcHeight, bool bInputCached) {
+    struct cl_g2d_surface src, dst;
 
     src.format = CL_G2D_YUYV;
-    if(bInputCached){
-        //Input is buffer from usb v4l2 driver
-        //cachable buffer
+    if (bInputCached) {
+        // Input is buffer from usb v4l2 driver
+        // cachable buffer
         src.usage = CL_G2D_CPU_MEMORY;
-    }
-    else
+    } else
         src.usage = CL_G2D_DEVICE_MEMORY;
 
     src.planes[0] = (long)input;
     src.left = 0;
     src.top = 0;
-    src.right  = srcWidth;
+    src.right = srcWidth;
     src.bottom = srcHeight;
     src.stride = srcWidth;
-    src.width  = srcWidth;
+    src.width = srcWidth;
     src.height = srcHeight;
 
     dst.format = CL_G2D_YUYV;
@@ -716,18 +680,17 @@ void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle,
     dst.planes[0] = (long)output;
     dst.left = 0;
     dst.top = 0;
-    dst.right  = dstWidth;
+    dst.right = dstWidth;
     dst.bottom = dstHeight;
     dst.stride = dstWidth;
-    dst.width  = dstWidth;
+    dst.width = dstWidth;
     dst.height = dstHeight;
 
-    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+    (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
-void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
-         uint8_t *outputBuffer, int width, int height)
-{
-    struct cl_g2d_surface src,dst;
+void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
+                                   int width, int height) {
+    struct cl_g2d_surface src, dst;
     src.format = CL_G2D_YUYV;
     src.usage = CL_G2D_DEVICE_MEMORY;
     src.planes[0] = (long)inputBuffer;
@@ -736,7 +699,7 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
     src.right = width;
     src.bottom = height;
     src.stride = width;
-    src.width  = width;
+    src.width = width;
     src.height = height;
 
     dst.format = CL_G2D_NV12;
@@ -748,15 +711,14 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
     dst.right = width;
     dst.bottom = height;
     dst.stride = width;
-    dst.width  = width;
+    dst.width = width;
     dst.height = height;
 
-    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+    (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
 
-void ImageProcess::YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth,
-     uint32_t dstHeight, uint8_t *src, uint32_t srcWidth, uint32_t srcHeight)
-{
+void ImageProcess::YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight, uint8_t *src,
+                                  uint32_t srcWidth, uint32_t srcHeight) {
     uint32_t i;
     int BytesPerPixel = 2;
     uint8_t *pDstLine = dst;
@@ -787,9 +749,8 @@ void ImageProcess::YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth,
     return;
 }
 
-void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer,
-            uint8_t *outputBuffer, int width, int height)
-{
+void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width,
+                                       int height) {
 #define u32 unsigned int
 #define u8 unsigned char
 
@@ -809,23 +770,17 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer,
             for (w = 0; w < nWidthDiv4; w++) {
                 value = (*pYSrcOffset);
                 value2 = (*(pYSrcOffset + 1));
-                //use bitwise operation to get data from src to improve performance.
-                *pYDstOffset = ((value & 0x000000ff) >> 0) |
-                               ((value & 0x00ff0000) >> 8) |
-                               ((value2 & 0x000000ff) << 16) |
-                               ((value2 & 0x00ff0000) << 8);
+                // use bitwise operation to get data from src to improve performance.
+                *pYDstOffset = ((value & 0x000000ff) >> 0) | ((value & 0x00ff0000) >> 8) |
+                        ((value2 & 0x000000ff) << 16) | ((value2 & 0x00ff0000) << 8);
                 pYDstOffset += 1;
 
 #ifdef PLATFORM_VERSION_4
-                *pUVDstOffset = ((value & 0xff000000) >> 24) |
-                                ((value & 0x0000ff00) >> 0) |
-                                ((value2 & 0xff000000) >> 8) |
-                                ((value2 & 0x0000ff00) << 16);
+                *pUVDstOffset = ((value & 0xff000000) >> 24) | ((value & 0x0000ff00) >> 0) |
+                        ((value2 & 0xff000000) >> 8) | ((value2 & 0x0000ff00) << 16);
 #else
-                *pUVDstOffset = ((value & 0x0000ff00) >> 8) |
-                                ((value & 0xff000000) >> 16) |
-                                ((value2 & 0x0000ff00) << 8) |
-                                ((value2 & 0xff000000) << 0);
+                *pUVDstOffset = ((value & 0x0000ff00) >> 8) | ((value & 0xff000000) >> 16) |
+                        ((value2 & 0x0000ff00) << 8) | ((value2 & 0xff000000) << 0);
 #endif
                 pUVDstOffset += 1;
                 pYSrcOffset += 2;
@@ -834,10 +789,8 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer,
             for (w = 0; w < nWidthDiv4; w++) {
                 value = (*pYSrcOffset);
                 value2 = (*(pYSrcOffset + 1));
-                *pYDstOffset = ((value & 0x000000ff) >> 0) |
-                               ((value & 0x00ff0000) >> 8) |
-                               ((value2 & 0x000000ff) << 16) |
-                               ((value2 & 0x00ff0000) << 8);
+                *pYDstOffset = ((value & 0x000000ff) >> 0) | ((value & 0x00ff0000) >> 8) |
+                        ((value2 & 0x000000ff) << 16) | ((value2 & 0x00ff0000) << 8);
                 pYSrcOffset += 2;
                 pYDstOffset += 1;
             }
@@ -845,4 +798,4 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer,
     }
 }
 
-}
+} // namespace fsl

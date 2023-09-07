@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 #include <utils/Mutex.h>
-//#include "ImxStream.h"
+// #include "ImxStream.h"
 #include "CameraConfigurationParser.h"
 
 namespace fsl {
@@ -31,8 +31,7 @@ typedef int (*hwc_func1)(void* handle);
 typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 
-class ImageProcess
-{
+class ImageProcess {
 public:
     static ImageProcess* getInstance();
     ~ImageProcess();
@@ -51,25 +50,23 @@ private:
     int handleFrameByDPU(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
     int handleFrameByGPU_2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf);
     int handleFrameByG2D(ImxStreamBuffer& dstBuf, ImxStreamBuffer& srcBuf, CscHw hw_type);
-    void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
-             uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
-    void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
-             int width, int height);
-    void convertNV12toYV12(uint8_t *inputBuffer, uint8_t *outputBuffer,
-             int width, int height);
+    void YUYVCopyByLine(uint8_t* dst, uint32_t dstWidth, uint32_t dstHeight, uint8_t* src,
+                        uint32_t srcWidth, uint32_t srcHeight);
+    void convertYUYVtoNV12SP(uint8_t* inputBuffer, uint8_t* outputBuffer, int width, int height);
+    void convertNV12toYV12(uint8_t* inputBuffer, uint8_t* outputBuffer, int width, int height);
 
-    void cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uint32_t size, bool bInputCached, bool bOutputCached);
+    void cl_Copy(void* g2dHandle, uint8_t* output, uint8_t* input, uint32_t size, bool bInputCached,
+                 bool bOutputCached);
 
-    void cl_YUYVCopyByLine(void *g2dHandle,
-             uint8_t *dst, uint32_t dstWidth,
-             uint32_t dstHeight, uint8_t *src,
-             uint32_t srcWidth, uint32_t srcHeight, bool bInputCached, bool bOutputCached);
-    void cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
-             uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached);
-    void *getHandle();
+    void cl_YUYVCopyByLine(void* g2dHandle, uint8_t* dst, uint32_t dstWidth, uint32_t dstHeight,
+                           uint8_t* src, uint32_t srcWidth, uint32_t srcHeight, bool bInputCached,
+                           bool bOutputCached);
+    void cl_YUYVtoNV12SP(void* g2dHandle, uint8_t* inputBuffer, uint8_t* outputBuffer, int width,
+                         int height, bool bInputCached, bool bOutputCached);
+    void* getHandle();
     int openEngine(void** handle);
     int closeEngine(void* handle);
-    void getModule(char *path, const char *name);
+    void getModule(char* path, const char* name);
 
 private:
     ImageProcess();
@@ -80,8 +77,8 @@ private:
     int mPxpFd;
     int mChannel;
 
-    void *mG2dModule;
-    void *mG2dHandle;
+    void* mG2dModule;
+    void* mG2dHandle;
     hwc_func1 mOpenEngine;
     hwc_func1 mCloseEngine;
     hwc_func1 mFinishEngine;
@@ -89,8 +86,8 @@ private:
     hwc_func3 mBlitEngine;
     Mutex mG2dLock;
 
-    void *mCLModule;
-    void *mCLHandle;
+    void* mCLModule;
+    void* mCLHandle;
     hwc_func1 mCLOpen;
     hwc_func1 mCLClose;
     hwc_func3 mCLBlit;
@@ -100,5 +97,5 @@ private:
     Mutex mCLLock;
 };
 
-}
+} // namespace fsl
 #endif

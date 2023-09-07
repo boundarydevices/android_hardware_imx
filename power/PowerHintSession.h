@@ -20,10 +20,10 @@
 #include <aidl/android/hardware/power/SessionHint.h>
 #include <aidl/android/hardware/power/WorkDuration.h>
 
-namespace aidl::android::hardware::power::impl{
+namespace aidl::android::hardware::power::impl {
 
 class PowerHintSession : public BnPowerHintSession {
-  public:
+public:
     explicit PowerHintSession();
     ndk::ScopedAStatus updateTargetWorkDuration(int64_t targetDurationNanos) override;
     ndk::ScopedAStatus reportActualWorkDuration(
@@ -35,4 +35,4 @@ class PowerHintSession : public BnPowerHintSession {
     ndk::ScopedAStatus setThreads(const std::vector<int32_t>& threadIds) override;
 };
 
-}  // namespace aidl::android::hardware::power::impl
+} // namespace aidl::android::hardware::power::impl

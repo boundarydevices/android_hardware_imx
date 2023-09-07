@@ -13,35 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <vector>
-#include <stdio.h>
-#include <fcntl.h>
+#include "VideoTex.h"
+
 #include <alloca.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
+#include <fcntl.h>
 #include <malloc.h>
 #include <png.h>
-
-#include "VideoTex.h"
-#include "glError.h"
-
+#include <stdio.h>
+#include <sys/ioctl.h>
 #include <ui/GraphicBuffer.h>
+#include <unistd.h>
+
+#include <vector>
+
+#include "glError.h"
 
 // Eventually we shouldn't need this dependency, but for now the
 // graphics allocator interface isn't fully supported on all platforms
 // and this is our work around.
 using ::android::GraphicBuffer;
 
-
-VideoTex::VideoTex(sp<IEvsEnumerator> pEnum,
-                   sp<IEvsCamera> pCamera,
-                   sp<StreamHandler> pStreamHandler,
-                   EGLDisplay glDisplay)
-    : TexWrapper()
-    , mEnumerator(pEnum)
-    , mCamera(pCamera)
-    , mStreamHandler(pStreamHandler)
-    , mDisplay(glDisplay) {
+VideoTex::VideoTex(sp<IEvsEnumerator> pEnum, sp<IEvsCamera> pCamera,
+                   sp<StreamHandler> pStreamHandler, EGLDisplay glDisplay)
+      : TexWrapper(),
+        mEnumerator(pEnum),
+        mCamera(pCamera),
+        mStreamHandler(pStreamHandler),
+        mDisplay(glDisplay) {
     // Nothing but initialization here...
 }
 
@@ -58,7 +56,6 @@ VideoTex::~VideoTex() {
         mKHRimage = EGL_NO_IMAGE_KHR;
     }
 }
-
 
 // Return true if the texture contents are changed
 bool VideoTex::refresh() {
@@ -82,19 +79,15 @@ bool VideoTex::refresh() {
     // Get the new image we want to use as our contents
     mImageBuffer = mStreamHandler->getNewFrame();
 
-
     // create a GraphicBuffer from the existing handle
     const AHardwareBuffer_Desc* pDesc =
-         reinterpret_cast<const AHardwareBuffer_Desc *>(&mImageBuffer.buffer.description);
+            reinterpret_cast<const AHardwareBuffer_Desc*>(&mImageBuffer.buffer.description);
 
-    sp<GraphicBuffer> pGfxBuffer = new GraphicBuffer(mImageBuffer.buffer.nativeHandle,
-                                                     GraphicBuffer::CLONE_HANDLE,
-                                                     pDesc->width,
-                                                     pDesc->height,
-                                                     pDesc->format,
-                                                     1, // layer count
-                                                     GRALLOC_USAGE_HW_TEXTURE,
-                                                     pDesc->stride);
+    sp<GraphicBuffer> pGfxBuffer =
+            new GraphicBuffer(mImageBuffer.buffer.nativeHandle, GraphicBuffer::CLONE_HANDLE,
+                              pDesc->width, pDesc->height, pDesc->format,
+                              1, // layer count
+                              GRALLOC_USAGE_HW_TEXTURE, pDesc->stride);
     if (pGfxBuffer.get() == nullptr) {
         ALOGE("Failed to allocate GraphicBuffer to wrap image handle");
         // Returning "true" in this error condition because we already released the
@@ -105,11 +98,10 @@ bool VideoTex::refresh() {
     // Get a GL compatible reference to the graphics buffer we've been given
     EGLint eglImageAttributes[] = {EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE};
     EGLClientBuffer clientBuf = static_cast<EGLClientBuffer>(pGfxBuffer->getNativeBuffer());
-    mKHRimage = eglCreateImageKHR(mDisplay, EGL_NO_CONTEXT,
-                                  EGL_NATIVE_BUFFER_ANDROID, clientBuf,
+    mKHRimage = eglCreateImageKHR(mDisplay, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, clientBuf,
                                   eglImageAttributes);
     if (mKHRimage == EGL_NO_IMAGE_KHR) {
-        const char *msg = getEGLError();
+        const char* msg = getEGLError();
         ALOGE("error creating EGLImage: %s", msg);
     } else {
         // Update the texture handle we already created to refer to this gralloc buffer
@@ -131,11 +123,8 @@ bool VideoTex::refresh() {
     return true;
 }
 
-
-VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum,
-                             const char* evsCameraId,
-                             std::unique_ptr<Stream> streamCfg,
-                             EGLDisplay glDisplay) {
+VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum, const char* evsCameraId,
+                             std::unique_ptr<Stream> streamCfg, EGLDisplay glDisplay) {
     // Set up the camera to feed this texture
     sp<IEvsCamera> pCamera = nullptr;
     if (streamCfg != nullptr) {

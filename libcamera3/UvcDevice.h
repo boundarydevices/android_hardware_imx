@@ -22,30 +22,28 @@
 #include "utils/CameraConfigurationParser.h"
 using namespace cameraconfigparser;
 
-class UvcDevice : public Camera
-{
+class UvcDevice : public Camera {
 public:
-    UvcDevice(int32_t id, int32_t facing, int32_t orientation,
-              char* path, CscHw cam_copy_hw = GPU_2D, CscHw cam_csc_hw = GPU_2D, const char *hw_jpeg_enc = NULL,
-              bool createStream = true, CameraSensorMetadata *cam_metadata = NULL);
+    UvcDevice(int32_t id, int32_t facing, int32_t orientation, char* path,
+              CscHw cam_copy_hw = GPU_2D, CscHw cam_csc_hw = GPU_2D, const char* hw_jpeg_enc = NULL,
+              bool createStream = true, CameraSensorMetadata* cam_metadata = NULL);
 
     virtual ~UvcDevice();
 
-    static Camera* newInstance(int32_t id, char* name, int32_t facing,
-                               int32_t orientation, char* path,
-                               CscHw cam_copy_hw, CscHw cam_csc_hw,const char *hw_jpeg_enc,
-                               CameraSensorMetadata *cam_metadata);
+    static Camera* newInstance(int32_t id, char* name, int32_t facing, int32_t orientation,
+                               char* path, CscHw cam_copy_hw, CscHw cam_csc_hw,
+                               const char* hw_jpeg_enc, CameraSensorMetadata* cam_metadata);
 
-    CameraSensorMetadata *mCameraMetadata;
+    CameraSensorMetadata* mCameraMetadata;
     virtual status_t initSensorStaticData();
-    virtual bool isHotplug() {return true;}
+    virtual bool isHotplug() { return true; }
 
 protected:
     class UvcStream : public DMAStream {
     public:
-        UvcStream(Camera* device, const char* name, struct OmitFrame *omit_frame)
+        UvcStream(Camera* device, const char* name, struct OmitFrame* omit_frame)
               : DMAStream(device) {
-            strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH-1);
+            strncpy(mUvcPath, name, CAMAERA_FILENAME_LENGTH - 1);
             mOmitFrame = omit_frame;
         }
         virtual ~UvcStream() {}
@@ -66,7 +64,7 @@ protected:
 
     protected:
         char mUvcPath[CAMAERA_FILENAME_LENGTH];
-        struct OmitFrame *mOmitFrame;
+        struct OmitFrame* mOmitFrame;
     };
 };
 

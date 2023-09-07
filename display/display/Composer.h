@@ -17,10 +17,11 @@
 #ifndef _FSL_COMPOSER_H_
 #define _FSL_COMPOSER_H_
 
-#include <utils/threads.h>
 #include <g2dExt.h>
-#include "Memory.h"
+#include <utils/threads.h>
+
 #include "Layer.h"
+#include "Memory.h"
 
 namespace fsl {
 
@@ -32,8 +33,7 @@ typedef int (*hwc_func5)(void* handle, void* arg1, void* arg2, void* arg3, void*
 
 using android::Mutex;
 
-class Composer
-{
+class Composer {
 public:
     ~Composer();
     static Composer* getInstance();
@@ -52,37 +52,35 @@ public:
     // sync 2D blit engine.
     int finishComposite();
     // lock surface to get GPU specific resource.
-    int lockSurface(Memory *handle);
+    int lockSurface(Memory* handle);
     // unlock surface to release resource.
-    int unlockSurface(Memory *handle);
+    int unlockSurface(Memory* handle);
     bool isFeatureSupported(g2d_feature feature);
-    int alignTile(int *width, int *height, int format, int usage);
+    int alignTile(int* width, int* height, int format, int usage);
 #ifdef HAVE_UNMAPPED_HEAP
     void setSecureMode(bool secure);
 #endif
 
 private:
     Composer();
-    void *getHandle();
-    int setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect& rect);
-    enum g2d_format convertFormat(int format, Memory *handle);
-    int convertRotation(int transform, struct g2d_surface& src,
-                        struct g2d_surface& dst);
-    int convertBlending(int blending, struct g2d_surface& src,
-                        struct g2d_surface& dst);
-	void getModule(char *path, const char *name);
+    void* getHandle();
+    int setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory* handle, Rect& rect);
+    enum g2d_format convertFormat(int format, Memory* handle);
+    int convertRotation(int transform, struct g2d_surface& src, struct g2d_surface& dst);
+    int convertBlending(int blending, struct g2d_surface& src, struct g2d_surface& dst);
+    void getModule(char* path, const char* name);
     int checkDimBuffer();
     int clearRect(Memory* target, Rect& rect);
 
-    int getAlignedSize(Memory *handle, int *width, int *height);
-    int getFlipOffset(Memory *handle, int *offset);
-    int getTiling(Memory *handle, enum g2d_tiling* tile);
-    int getTileStatus(Memory *handle, struct g2d_surfaceEx *surfaceX);
-    int resolveTileStatus(Memory *handle);
-    enum g2d_format alterFormat(Memory *handle, enum g2d_format format);
+    int getAlignedSize(Memory* handle, int* width, int* height);
+    int getFlipOffset(Memory* handle, int* offset);
+    int getTiling(Memory* handle, enum g2d_tiling* tile);
+    int getTileStatus(Memory* handle, struct g2d_surfaceEx* surfaceX);
+    int resolveTileStatus(Memory* handle);
+    enum g2d_format alterFormat(Memory* handle, enum g2d_format format);
 
     int setClipping(Rect& src, Rect& dst, Rect& clip, int rotation);
-    int blitSurface(struct g2d_surfaceEx *srcEx, struct g2d_surfaceEx *dstEx);
+    int blitSurface(struct g2d_surfaceEx* srcEx, struct g2d_surfaceEx* dstEx);
     int openEngine(void** handle);
     int closeEngine(void* handle);
     int clearFunction(void* handle, struct g2d_surface* area);
@@ -92,7 +90,7 @@ private:
 private:
     static Mutex sLock;
     static Composer* sInstance;
-    static thread_local void *sHandle;
+    static thread_local void* sHandle;
 
     Memory* mTarget;
     Memory* mDimBuffer;
@@ -126,5 +124,5 @@ private:
     void* mG2dHandle;
 };
 
-}
+} // namespace fsl
 #endif

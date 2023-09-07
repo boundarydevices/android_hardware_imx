@@ -14,69 +14,55 @@
  * limitations under the License.
  */
 
-
-#include <hardware/hardware.h>
-
-#include <fcntl.h>
-#include <errno.h>
-
-#include <cutils/log.h>
-#include <cutils/atomic.h>
-#include <cutils/properties.h>
-#include <utils/threads.h>
-#include <hardware/hwcomposer.h>
-#include <utils/StrongPointer.h>
-
-#include <linux/mxcfb.h>
-#include <linux/ioctl.h>
 #include <EGL/egl.h>
 #include <GLES/gl.h>
+#include <cutils/atomic.h>
+#include <cutils/log.h>
+#include <cutils/properties.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <hardware/hardware.h>
+#include <hardware/hwcomposer.h>
+#include <linux/ioctl.h>
+#include <linux/mxcfb.h>
+#include <utils/StrongPointer.h>
+#include <utils/threads.h>
 
 #include "hwc_context.h"
 #include "hwc_vsync.h"
 
 /*****************************************************************************/
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
-        struct hw_device_t** device);
+                           struct hw_device_t** device);
 
-static struct hw_module_methods_t hwc_module_methods = {
-    open: hwc_device_open
-};
+static struct hw_module_methods_t hwc_module_methods = {open : hwc_device_open};
 
 hwc_module_t HAL_MODULE_INFO_SYM = {
-    common: {
-        tag: HARDWARE_MODULE_TAG,
-        version_major: 1,
-        version_minor: 0,
-        id: HWC_HARDWARE_MODULE_ID,
-        name: "Freescale i.MX hwcomposer module",
-        author: "Freescale Semiconductor, Inc.",
-        methods: &hwc_module_methods,
-        dso: NULL,
-        reserved: {0}
+    common : {
+        tag : HARDWARE_MODULE_TAG,
+        version_major : 1,
+        version_minor : 0,
+        id : HWC_HARDWARE_MODULE_ID,
+        name : "Freescale i.MX hwcomposer module",
+        author : "Freescale Semiconductor, Inc.",
+        methods : &hwc_module_methods,
+        dso : NULL,
+        reserved : {0}
     }
 };
 
 /*****************************************************************************/
-static void dump_layer(hwc_layer_1_t const* l)
-{
+static void dump_layer(hwc_layer_1_t const* l) {
     ALOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
-            l->compositionType, l->flags, l->handle, l->transform, l->blending,
-            l->sourceCrop.left,
-            l->sourceCrop.top,
-            l->sourceCrop.right,
-            l->sourceCrop.bottom,
-            l->displayFrame.left,
-            l->displayFrame.top,
-            l->displayFrame.right,
-            l->displayFrame.bottom);
+          l->compositionType, l->flags, l->handle, l->transform, l->blending, l->sourceCrop.left,
+          l->sourceCrop.top, l->sourceCrop.right, l->sourceCrop.bottom, l->displayFrame.left,
+          l->displayFrame.top, l->displayFrame.right, l->displayFrame.bottom);
 }
 
 /***********************************************************************/
-static int hwc_prepare(hwc_composer_device_1_t *dev,
-        size_t numDisplays, hwc_display_contents_1_t** displays)
-{
-    struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
+static int hwc_prepare(hwc_composer_device_1_t* dev, size_t numDisplays,
+                       hwc_display_contents_1_t** displays) {
+    struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     if (ctx == NULL || numDisplays == 0 || displays == NULL) {
         return 0;
     }
@@ -85,10 +71,9 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
     return 0;
 }
 
-static int hwc_set(hwc_composer_device_1_t *dev,
-        size_t numDisplays, hwc_display_contents_1_t** displays)
-{
-    struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
+static int hwc_set(hwc_composer_device_1_t* dev, size_t numDisplays,
+                   hwc_display_contents_1_t** displays) {
+    struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     EGLBoolean success = EGL_TRUE;
 
     if (ctx == NULL || numDisplays == 0 || displays == NULL) {
@@ -102,8 +87,7 @@ static int hwc_set(hwc_composer_device_1_t *dev,
 
     // only need to do swap buffers.
     if (displays[0]->dpy != NULL && displays[0]->sur != NULL) {
-        success = eglSwapBuffers((EGLDisplay)displays[0]->dpy,
-            (EGLSurface)displays[0]->sur);
+        success = eglSwapBuffers((EGLDisplay)displays[0]->dpy, (EGLSurface)displays[0]->sur);
     }
 
     if (!success) {
@@ -113,11 +97,9 @@ static int hwc_set(hwc_composer_device_1_t *dev,
     return 0;
 }
 
-static void hwc_registerProcs(struct hwc_composer_device_1 *dev,
-                              hwc_procs_t const* procs)
-{
+static void hwc_registerProcs(struct hwc_composer_device_1* dev, hwc_procs_t const* procs) {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
-    if(ctx == NULL) {
+    if (ctx == NULL) {
         return;
     }
 
@@ -125,11 +107,10 @@ static void hwc_registerProcs(struct hwc_composer_device_1 *dev,
     ctx->mCallback = (hwc_procs_t*)procs;
 }
 
-static int hwc_eventControl(struct hwc_composer_device_1* dev,
-                            int/* disp*/, int event, int enabled)
-{
+static int hwc_eventControl(struct hwc_composer_device_1* dev, int /* disp*/, int event,
+                            int enabled) {
     int ret = 0;
-    hwc_context_t *ctx = (hwc_context_t *) dev;
+    hwc_context_t* ctx = (hwc_context_t*)dev;
     if (ctx == NULL) {
         return ret;
     }
@@ -147,8 +128,7 @@ static int hwc_eventControl(struct hwc_composer_device_1* dev,
     return ret;
 }
 
-static int hwc_blank(struct hwc_composer_device_1* dev, int disp, int blank)
-{
+static int hwc_blank(struct hwc_composer_device_1* dev, int disp, int blank) {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
 
     if (!ctx || disp < 0 || disp >= HWC_NUM_DISPLAY_TYPES) {
@@ -157,8 +137,7 @@ static int hwc_blank(struct hwc_composer_device_1* dev, int disp, int blank)
 
     ctx->mBlank = blank;
     // HDMI and EPDC can't blank.
-    if (ctx->mDisplayType == HWC_DISPLAY_HDMI ||
-        ctx->mDisplayType == HWC_DISPLAY_EPDC) {
+    if (ctx->mDisplayType == HWC_DISPLAY_HDMI || ctx->mDisplayType == HWC_DISPLAY_EPDC) {
         return 0;
     }
 
@@ -179,9 +158,7 @@ static int hwc_blank(struct hwc_composer_device_1* dev, int disp, int blank)
     return 0;
 }
 
-static int hwc_query(struct hwc_composer_device_1 *dev,
-                     int what, int* value)
-{
+static int hwc_query(struct hwc_composer_device_1* dev, int what, int* value) {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     if (ctx == NULL || value == NULL) {
         return 0;
@@ -204,15 +181,14 @@ static int hwc_query(struct hwc_composer_device_1 *dev,
     return 0;
 }
 
-static int hwc_device_close(struct hw_device_t *dev)
-{
+static int hwc_device_close(struct hw_device_t* dev) {
     struct hwc_context_t* ctx = (struct hwc_context_t*)dev;
     if (ctx == NULL) {
         return 0;
     }
 
     // exit and destroy vsync thread.
-    if(ctx->mVsyncThread != NULL) {
+    if (ctx->mVsyncThread != NULL) {
         ctx->mVsyncThread->requestExitAndWait();
         ctx->mVsyncThread = 0;
     }
@@ -228,13 +204,12 @@ static int hwc_device_close(struct hw_device_t *dev)
 
 /*****************************************************************************/
 static int hwc_device_open(const struct hw_module_t* module, const char* name,
-                           struct hw_device_t** device)
-{
+                           struct hw_device_t** device) {
     if (strcmp(name, HWC_HARDWARE_COMPOSER) != 0) {
         return -EINVAL;
     }
 
-    struct hwc_context_t *dev = NULL;
+    struct hwc_context_t* dev = NULL;
     dev = (hwc_context_t*)malloc(sizeof(*dev));
     if (dev == NULL) {
         ALOGE("%s malloc failed", __FUNCTION__);

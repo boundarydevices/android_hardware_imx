@@ -17,23 +17,21 @@
 #ifndef SHADER_REVERSE_LINE_H
 #define SHADER_REVERSE_LINE_H
 
-static const char vtxShader_reverseLine[] =
-    "#version 300 es\n"
-    "layout(location = 0) in vec4 vPosition;\n"
-    "layout(location = 1) in vec4 aColor;\n"
-    "out vec4 vColor;\n"
-    "void main() {\n"
-    "  vColor = aColor;\n"
-    "  gl_Position = vPosition;\n"
-    "}\n";
+static const char vtxShader_reverseLine[] = "#version 300 es\n"
+                                            "layout(location = 0) in vec4 vPosition;\n"
+                                            "layout(location = 1) in vec4 aColor;\n"
+                                            "out vec4 vColor;\n"
+                                            "void main() {\n"
+                                            "  vColor = aColor;\n"
+                                            "  gl_Position = vPosition;\n"
+                                            "}\n";
 
-static const char pixShader_reverseLine[] =
-    "#version 300 es\n"
-    "precision mediump float;\n"
-    "in vec4 vColor;\n"
-    "out vec4 gColor;\n"
-    "void main() {\n"
-    "  gColor = vColor;\n"
-    "}\n";
+static const char pixShader_reverseLine[] = "#version 300 es\n"
+                                            "precision mediump float;\n"
+                                            "in vec4 vColor;\n"
+                                            "out vec4 gColor;\n"
+                                            "void main() {\n"
+                                            "  gColor = vColor;\n"
+                                            "}\n";
 
 #endif // SHADER_SIMPLE_TEX_H

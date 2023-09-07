@@ -17,23 +17,22 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_impl_EmulatedVehicleHal_H_
 #define android_hardware_automotive_vehicle_V2_0_impl_EmulatedVehicleHal_H_
 
-#include <map>
-#include <memory>
 #include <sys/socket.h>
-#include <thread>
-#include <unordered_set>
-
 #include <utils/SystemClock.h>
-
 #include <vhal_v2_0/RecurrentTimer.h>
 #include <vhal_v2_0/VehicleHal.h>
-#include "vhal_v2_0/VehiclePropertyStore.h"
+
+#include <map>
+#include <memory>
+#include <thread>
+#include <unordered_set>
 
 #include "DefaultConfig.h"
 #include "EmulatedUserHal.h"
 #include "EmulatedVehicleConnector.h"
 #include "GeneratorHub.h"
 #include "VehicleEmulator.h"
+#include "vhal_v2_0/VehiclePropertyStore.h"
 
 namespace android {
 namespace hardware {
@@ -94,13 +93,12 @@ private:
     EmulatedUserHal* mEmulatedUserHal;
 };
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_EmulatedVehicleHal_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_EmulatedVehicleHal_H_

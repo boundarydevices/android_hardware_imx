@@ -14,34 +14,29 @@
  * limitations under the License.
  */
 
-#include <sys/mman.h>
-#include <dlfcn.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include <cutils/log.h>
-#include <cutils/atomic.h>
-#include <sync/sync.h>
-
 #include "VirtualDisplay.h"
+
+#include <cutils/atomic.h>
+#include <cutils/log.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sync/sync.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
 
 namespace fsl {
 
-VirtualDisplay::VirtualDisplay()
-{
+VirtualDisplay::VirtualDisplay() {
     mType = DISPLAY_VIRTUAL;
     mBusy = false;
 }
 
-VirtualDisplay::~VirtualDisplay()
-{
-}
+VirtualDisplay::~VirtualDisplay() {}
 
-void VirtualDisplay::reset()
-{
+void VirtualDisplay::reset() {
     invalidLayers();
 
     Mutex::Autolock _l(mLock);
@@ -55,16 +50,14 @@ void VirtualDisplay::reset()
     mActiveConfig = -1;
 }
 
-bool VirtualDisplay::busy()
-{
+bool VirtualDisplay::busy() {
     Mutex::Autolock _l(mLock);
     return mBusy;
 }
 
-void VirtualDisplay::setBusy(bool busy)
-{
+void VirtualDisplay::setBusy(bool busy) {
     Mutex::Autolock _l(mLock);
     mBusy = busy;
 }
 
-}
+} // namespace fsl

@@ -14,59 +14,46 @@
  * limitations under the License.
  */
 
-
 #ifndef _MESSAGE_QUEUE_H
 #define _MESSAGE_QUEUE_H
 
-#include <stdint.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <utils/threads.h>
-#include <utils/Timers.h>
-#include <utils/List.h>
 #include <semaphore.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <utils/List.h>
+#include <utils/Timers.h>
+#include <utils/threads.h>
 
 using namespace android;
 class CMessage;
 
 class CMessageList {
-    List< sp<CMessage> > mList;
-    typedef List< sp<CMessage> > LIST;
+    List<sp<CMessage> > mList;
+    typedef List<sp<CMessage> > LIST;
 
 public:
-    inline LIST::iterator begin() {
-        return mList.begin();
-    }
+    inline LIST::iterator begin() { return mList.begin(); }
 
-    inline LIST::const_iterator begin() const {
-        return mList.begin();
-    }
+    inline LIST::const_iterator begin() const { return mList.begin(); }
 
-    inline LIST::iterator end() {
-        return mList.end();
-    }
+    inline LIST::iterator end() { return mList.end(); }
 
-    inline LIST::const_iterator end() const {
-        return mList.end();
-    }
+    inline LIST::const_iterator end() const { return mList.end(); }
 
-    inline bool isEmpty() const {
-        return mList.empty();
-    }
+    inline bool isEmpty() const { return mList.empty(); }
 
     void insert(const sp<CMessage>& node);
     void remove(LIST::iterator pos);
     void clear();
 };
 
-class CMessage : public LightRefBase<CMessage>{
+class CMessage : public LightRefBase<CMessage> {
 public:
     int32_t what;
     uint64_t arg0;
 
-    CMessage(int32_t what,
-             uint64_t arg0 = 0)
-        : what(what), arg0(arg0) {}
+    CMessage(int32_t what, uint64_t arg0 = 0) : what(what), arg0(arg0) {}
 
     virtual ~CMessage() {}
 
@@ -75,21 +62,19 @@ private:
 };
 
 class CMessageQueue {
-    typedef List< sp<CMessage> > LIST;
+    typedef List<sp<CMessage> > LIST;
 
 public:
     CMessageQueue();
     ~CMessageQueue();
 
     sp<CMessage> waitMessage(nsecs_t timeout = -1);
-    status_t     postMessage(const sp<CMessage> message,
-                             int32_t             flags = 0);
-	void clearMessages();
-	void clearCommands();
+    status_t postMessage(const sp<CMessage> message, int32_t flags = 0);
+    void clearMessages();
+    void clearCommands();
 
 private:
-    status_t queueMessage(const sp<CMessage>& message,
-                          int32_t             flags);
+    status_t queueMessage(const sp<CMessage>& message, int32_t flags);
 
     Mutex mLock;
     Condition mCondition;

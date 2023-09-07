@@ -22,11 +22,10 @@
 #include "utils/CameraConfigurationParser.h"
 
 using namespace cameraconfigparser;
-class ImxCamera: public Camera
-{
+class ImxCamera : public Camera {
 public:
     ImxCamera(int32_t id, int32_t facing, int32_t orientation, char *path, CscHw cam_copy_hw,
-                                 CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata);
+              CscHw cam_csc_hw, const char *hw_jpeg_enc, CameraSensorMetadata *cam_metadata);
     ~ImxCamera();
 
     CameraSensorMetadata *mCameraMetadata;
@@ -34,11 +33,11 @@ public:
     virtual PixelFormat getPreviewPixelFormat();
 
 private:
-    class ImxCameraMMAPStream : public MMAPStream
-    {
+    class ImxCameraMMAPStream : public MMAPStream {
     public:
-        ImxCameraMMAPStream(Camera *device, struct OmitFrame *omit_frame)
-            : MMAPStream(device) { mOmitFrame = omit_frame; }
+        ImxCameraMMAPStream(Camera *device, struct OmitFrame *omit_frame) : MMAPStream(device) {
+            mOmitFrame = omit_frame;
+        }
         virtual ~ImxCameraMMAPStream() {}
 
         virtual int getCaptureMode(int width, int height);
@@ -46,13 +45,11 @@ private:
         virtual int32_t onDeviceConfigureLocked();
         struct OmitFrame *mOmitFrame;
     };
-    class ImxCameraDMAStream : public DMAStream
-    {
+    class ImxCameraDMAStream : public DMAStream {
     public:
-        ImxCameraDMAStream(Camera *device, struct OmitFrame *omit_frame)
-            :  DMAStream(device, true) {
-               mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-               mOmitFrame = omit_frame;
+        ImxCameraDMAStream(Camera *device, struct OmitFrame *omit_frame) : DMAStream(device, true) {
+            mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+            mOmitFrame = omit_frame;
         }
         virtual ~ImxCameraDMAStream() {}
 

@@ -16,14 +16,14 @@
 
 #define LOG_TAG "JsonFakeValueGenerator"
 
-#include <fstream>
-#include <type_traits>
-#include <typeinfo>
+#include "JsonFakeValueGenerator.h"
 
 #include <log/log.h>
 #include <vhal_v2_0/VehicleUtils.h>
 
-#include "JsonFakeValueGenerator.h"
+#include <fstream>
+#include <type_traits>
+#include <typeinfo>
 
 namespace android {
 namespace hardware {
@@ -41,8 +41,8 @@ JsonFakeValueGenerator::JsonFakeValueGenerator(const VehiclePropValue& request) 
         ALOGE("%s: couldn't open %s for parsing.", __func__, file);
     }
     mGenCfg = {
-        .index = 0,
-        .events = parseFakeValueJson(ifs),
+            .index = 0,
+            .events = parseFakeValueJson(ifs),
     };
     // Iterate infinitely if repetition number is not provided
     mNumOfIterations = v.int32Values.size() < 2 ? -1 : v.int32Values[1];
@@ -54,8 +54,8 @@ JsonFakeValueGenerator::JsonFakeValueGenerator(std::string path) {
         ALOGE("%s: couldn't open %s for parsing.", __func__, path.c_str());
     }
     mGenCfg = {
-        .index = 0,
-        .events = parseFakeValueJson(ifs),
+            .index = 0,
+            .events = parseFakeValueJson(ifs),
     };
     mNumOfIterations = mGenCfg.events.size();
 }
@@ -189,11 +189,11 @@ void JsonFakeValueGenerator::copyJsonArray(hidl_vec<T>& dest, const Json::Value&
 
 bool JsonFakeValueGenerator::isDiagnosticProperty(int32_t prop) {
     return prop == (int32_t)VehicleProperty::OBD2_LIVE_FRAME ||
-           prop == (int32_t)VehicleProperty::OBD2_FREEZE_FRAME;
+            prop == (int32_t)VehicleProperty::OBD2_FREEZE_FRAME;
 }
 
 hidl_vec<uint8_t> JsonFakeValueGenerator::generateDiagnosticBytes(
-    const VehiclePropValue::RawValue& diagnosticValue) {
+        const VehiclePropValue::RawValue& diagnosticValue) {
     size_t byteSize = ((size_t)DiagnosticIntegerSensorIndex::LAST_SYSTEM_INDEX +
                        (size_t)DiagnosticFloatSensorIndex::LAST_SYSTEM_INDEX + 2);
     hidl_vec<uint8_t> bytes(byteSize % 8 == 0 ? byteSize / 8 : byteSize / 8 + 1);
@@ -219,10 +219,10 @@ void JsonFakeValueGenerator::setBit(hidl_vec<uint8_t>& bytes, size_t idx) {
     bytes[idx / 8] |= mask;
 }
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

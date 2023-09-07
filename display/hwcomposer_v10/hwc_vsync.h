@@ -16,22 +16,20 @@
 #ifndef HWC_VSYNC_H_
 #define HWC_VSYNC_H_
 
-#include <hardware/hardware.h>
-
-#include <fcntl.h>
-#include <errno.h>
-
-#include <cutils/log.h>
+#include <EGL/egl.h>
 #include <cutils/atomic.h>
+#include <cutils/log.h>
 #include <cutils/properties.h>
-#include <utils/threads.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include <hardware_legacy/uevent.h>
-#include <utils/StrongPointer.h>
-
-#include <linux/mxcfb.h>
 #include <linux/ioctl.h>
-#include <EGL/egl.h>
+#include <linux/mxcfb.h>
+#include <utils/StrongPointer.h>
+#include <utils/threads.h>
+
 #include "hwc_context.h"
 /*****************************************************************************/
 #define FB_VSYNC_EVENT "change@/devices/platform/mxc_sdc_fb.0/graphics/fb0"
@@ -39,13 +37,11 @@
 
 using namespace android;
 
-extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
-                           const struct timespec *request,
-                           struct timespec *remain);
+extern "C" int clock_nanosleep(clockid_t clock_id, int flags, const struct timespec *request,
+                               struct timespec *remain);
 struct hwc_context_t;
 
-class VSyncThread : public Thread
-{
+class VSyncThread : public Thread {
 public:
     explicit VSyncThread(hwc_context_t *ctx);
     void setEnabled(bool enabled);

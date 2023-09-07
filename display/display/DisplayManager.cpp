@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "DisplayManager.h"
+
 #include <ctype.h>
-#include <dirent.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
+#include <dirent.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 
+#include "DisplayHal.h"
 #include "FbDisplay.h"
 #include "KmsDisplay.h"
-#include "DisplayManager.h"
-#include "DisplayHal.h"
 
 namespace fsl {
 
@@ -36,14 +37,13 @@ using nxp::hardware::display::V1_0::implementation::DisplayHal;
 #define HDMI_HOTPLUG "HOTPLUG=1"
 
 constexpr char kPrimaryDispReady[] = "vendor.display.state";
-constexpr char DISP_STATE_READY[]  = "1";
+constexpr char DISP_STATE_READY[] = "1";
 
 static sp<DisplayHal> mDisplayHal;
 DisplayManager* DisplayManager::sInstance(0);
 Mutex DisplayManager::sLock(Mutex::PRIVATE);
 
-DisplayManager* DisplayManager::getInstance()
-{
+DisplayManager* DisplayManager::getInstance() {
     Mutex::Autolock _l(sLock);
     if (sInstance != NULL) {
         return sInstance;
@@ -53,21 +53,20 @@ DisplayManager* DisplayManager::getInstance()
     return sInstance;
 }
 
-DisplayManager::DisplayManager()
-{
-    for (int i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+DisplayManager::DisplayManager() {
+    for (int i = 0; i < MAX_PHYSICAL_DISPLAY; i++) {
         mFbDisplays[i] = new FbDisplay();
         mFbDisplays[i]->setIndex(i);
     }
 
-    for (int i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+    for (int i = 0; i < MAX_PHYSICAL_DISPLAY; i++) {
         mKmsDisplays[i] = new KmsDisplay();
         mKmsDisplays[i]->setIndex(i);
     }
 
-    for (int i=0; i<MAX_VIRTUAL_DISPLAY; i++) {
+    for (int i = 0; i < MAX_VIRTUAL_DISPLAY; i++) {
         mVirtualDisplays[i] = new VirtualDisplay();
-        mVirtualDisplays[i]->setIndex(i+MAX_PHYSICAL_DISPLAY);
+        mVirtualDisplays[i]->setIndex(i + MAX_PHYSICAL_DISPLAY);
     }
 
     mListener = NULL;
@@ -89,12 +88,11 @@ DisplayManager::DisplayManager()
     // now only main display vsync valid.
     if (mDrmMode) {
         mKmsDisplays[DISPLAY_PRIMARY]->enableVsync();
-    }
-    else {
+    } else {
         mFbDisplays[DISPLAY_PRIMARY]->enableVsync();
     }
 
-    //allow primary display plug-out then plug-in.
+    // allow primary display plug-out then plug-in.
     Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
     if (display->connected() == false) {
         display->setFakeVSync(true);
@@ -108,8 +106,7 @@ DisplayManager::DisplayManager()
     }
 }
 
-DisplayManager::~DisplayManager()
-{
+DisplayManager::~DisplayManager() {
     if (mHotplugThread != NULL) {
         mHotplugThread->requestExit();
     }
@@ -120,27 +117,26 @@ DisplayManager::~DisplayManager()
     Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
     display->setVsyncEnabled(false);
 
-    for (int i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+    for (int i = 0; i < MAX_PHYSICAL_DISPLAY; i++) {
         if (mFbDisplays[i] != NULL) {
             delete mFbDisplays[i];
         }
     }
 
-    for (int i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+    for (int i = 0; i < MAX_PHYSICAL_DISPLAY; i++) {
         if (mKmsDisplays[i] != NULL) {
             delete mKmsDisplays[i];
         }
     }
 
-    for (int i=0; i<MAX_VIRTUAL_DISPLAY; i++) {
+    for (int i = 0; i < MAX_VIRTUAL_DISPLAY; i++) {
         if (mVirtualDisplays[i] != NULL) {
             delete mVirtualDisplays[i];
         }
     }
 }
 
-int DisplayManager::setProperty(const char *name, const char *value)
-{
+int DisplayManager::setProperty(const char* name, const char* value) {
     int ret;
 
     if (property_set(name, value) < 0) {
@@ -153,31 +149,25 @@ int DisplayManager::setProperty(const char *name, const char *value)
     return ret;
 }
 
-Display* DisplayManager::getDisplay(int id)
-{
+Display* DisplayManager::getDisplay(int id) {
     Display* pDisplay = NULL;
     Mutex::Autolock _l(mLock);
     if (id >= 0 && id < MAX_PHYSICAL_DISPLAY) {
         if (mDrmMode) {
             pDisplay = (Display*)mKmsDisplays[id];
-        }
-        else {
+        } else {
             pDisplay = (Display*)mFbDisplays[id];
         }
-    }
-    else if (id >= MAX_PHYSICAL_DISPLAY &&
-             id < MAX_PHYSICAL_DISPLAY + MAX_VIRTUAL_DISPLAY) {
-        pDisplay = (Display*)mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY];
-    }
-    else {
+    } else if (id >= MAX_PHYSICAL_DISPLAY && id < MAX_PHYSICAL_DISPLAY + MAX_VIRTUAL_DISPLAY) {
+        pDisplay = (Display*)mVirtualDisplays[id - MAX_PHYSICAL_DISPLAY];
+    } else {
         ALOGE("%s invalid display id:%d", __func__, id);
     }
 
     return pDisplay;
 }
 
-Display* DisplayManager::getPhysicalDisplay(int id)
-{
+Display* DisplayManager::getPhysicalDisplay(int id) {
     Mutex::Autolock _l(mLock);
     if (id < 0 || id >= MAX_PHYSICAL_DISPLAY) {
         ALOGE("%s invalid id %d", __func__, __LINE__);
@@ -190,23 +180,20 @@ Display* DisplayManager::getPhysicalDisplay(int id)
     return mFbDisplays[id];
 }
 
-VirtualDisplay* DisplayManager::getVirtualDisplay(int id)
-{
+VirtualDisplay* DisplayManager::getVirtualDisplay(int id) {
     Mutex::Autolock _l(mLock);
-    if (id < MAX_PHYSICAL_DISPLAY ||
-        id >= MAX_PHYSICAL_DISPLAY + MAX_VIRTUAL_DISPLAY) {
+    if (id < MAX_PHYSICAL_DISPLAY || id >= MAX_PHYSICAL_DISPLAY + MAX_VIRTUAL_DISPLAY) {
         ALOGE("%s invalid id %d", __func__, id);
         return NULL;
     }
 
-    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->setConnected(true);
-    return mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY];
+    mVirtualDisplays[id - MAX_PHYSICAL_DISPLAY]->setConnected(true);
+    return mVirtualDisplays[id - MAX_PHYSICAL_DISPLAY];
 }
 
-VirtualDisplay* DisplayManager::createVirtualDisplay()
-{
+VirtualDisplay* DisplayManager::createVirtualDisplay() {
     VirtualDisplay* display = NULL;
-    for (int i=0; i<MAX_VIRTUAL_DISPLAY; i++) {
+    for (int i = 0; i < MAX_VIRTUAL_DISPLAY; i++) {
         {
             Mutex::Autolock _l(mLock);
             display = mVirtualDisplays[i];
@@ -221,24 +208,21 @@ VirtualDisplay* DisplayManager::createVirtualDisplay()
     return NULL;
 }
 
-int DisplayManager::destroyVirtualDisplay(int id)
-{
+int DisplayManager::destroyVirtualDisplay(int id) {
     Mutex::Autolock _l(mLock);
-    if (id < MAX_PHYSICAL_DISPLAY ||
-        id >= MAX_PHYSICAL_DISPLAY + MAX_VIRTUAL_DISPLAY) {
+    if (id < MAX_PHYSICAL_DISPLAY || id >= MAX_PHYSICAL_DISPLAY + MAX_VIRTUAL_DISPLAY) {
         ALOGE("%s invalid id %d", __func__, id);
         return -EINVAL;
     }
 
-    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->setConnected(false);
-    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->reset();
-    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->clearConfigs();
-    mVirtualDisplays[id-MAX_PHYSICAL_DISPLAY]->setBusy(false);
+    mVirtualDisplays[id - MAX_PHYSICAL_DISPLAY]->setConnected(false);
+    mVirtualDisplays[id - MAX_PHYSICAL_DISPLAY]->reset();
+    mVirtualDisplays[id - MAX_PHYSICAL_DISPLAY]->clearConfigs();
+    mVirtualDisplays[id - MAX_PHYSICAL_DISPLAY]->setBusy(false);
     return 0;
 }
 
-void DisplayManager::setCallback(EventListener* callback)
-{
+void DisplayManager::setCallback(EventListener* callback) {
     Display* display = getPhysicalDisplay(DISPLAY_PRIMARY);
     {
         Mutex::Autolock _l(mLock);
@@ -250,19 +234,17 @@ void DisplayManager::setCallback(EventListener* callback)
     }
 }
 
-EventListener* DisplayManager::getCallback()
-{
+EventListener* DisplayManager::getCallback() {
     Mutex::Autolock _l(mLock);
     return mListener;
 }
 
-bool DisplayManager::isOverlay(int fb)
-{
+bool DisplayManager::isOverlay(int fb) {
     char fb_path[HWC_PATH_LENGTH];
     char value[HWC_STRING_LENGTH];
-    FILE *fp = NULL;
+    FILE* fp = NULL;
 
-    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS"%d/name", fb);
+    snprintf(fb_path, HWC_PATH_LENGTH, HWC_FB_SYS "%d/name", fb);
     if (!(fp = fopen(fb_path, "r"))) {
         ALOGW("open %s failed", fb_path);
         return false;
@@ -284,10 +266,9 @@ bool DisplayManager::isOverlay(int fb)
     return false;
 }
 
-int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary)
-{
+int DisplayManager::enumKmsDisplay(const char* path, int* id, bool* foundPrimary) {
     int drmFd = open(path, O_RDWR);
-    if(drmFd < 0) {
+    if (drmFd < 0) {
         ALOGE("Failed to open dri-%s, error:%s", path, strerror(-errno));
         return -ENODEV;
     }
@@ -309,10 +290,10 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
     // get primary display name to match DRM.
     // the primary display can be fixed by name.
     int main = 0;
-    char const *imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss", "imx-dcnano"};
+    char const* imx_drm_version[] = {"imx-drm", "mxsfb-drm", "imx-dcss", "imx-dcnano"};
     char value[PROPERTY_VALUE_MAX];
     int i, len;
-    int max_drm_num = sizeof(imx_drm_version)/sizeof(char*);
+    int max_drm_num = sizeof(imx_drm_version) / sizeof(char*);
     int tileHwLimit = 0;
 
     drmVersionPtr version = drmGetVersion(drmFd);
@@ -320,9 +301,9 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
         mDrmMode = true;
         len = property_get("ro.boot.primary_display", value, NULL);
         if (len > 0) {
-            ALOGI("primary display in bootargs:%s, drm version of %s:%s",
-                   value, path, version->name);
-            for (i=0; i<max_drm_num; i++) {
+            ALOGI("primary display in bootargs:%s, drm version of %s:%s", value, path,
+                  version->name);
+            for (i = 0; i < max_drm_num; i++) {
                 if (!strncmp(value, imx_drm_version[i], strlen(imx_drm_version[i]))) {
                     break;
                 }
@@ -375,8 +356,7 @@ int DisplayManager::enumKmsDisplay(const char *path, int *id, bool *foundPrimary
             ALOGI("%s set %d as primary display", __func__, (*id));
             *foundPrimary = true;
             setPrimaryDisplay(*id);
-        }
-        else {
+        } else {
             (*id)++;
         }
     }
@@ -395,29 +375,26 @@ void DisplayManager::setPrimaryDisplay(int index) // only used to replace fake d
     mKmsDisplays[index]->setIndex(index);
     mKmsDisplays[0]->setCallback(mListener);
 
-    for (size_t i=0; i<MAX_LAYERS; i++) {
+    for (size_t i = 0; i < MAX_LAYERS; i++) {
         Layer* pLayer = mKmsDisplays[index]->getLayer(i);
         if (pLayer != NULL) {
-            mKmsDisplays[0]->setLayerInfo(i,pLayer);
+            mKmsDisplays[0]->setLayerInfo(i, pLayer);
         }
     }
     mKmsDisplays[index]->closeKms();
 }
 
-int DisplayManager::enumFakeKmsDisplay()
-{
+int DisplayManager::enumFakeKmsDisplay() {
     KmsDisplay* display = mKmsDisplays[DISPLAY_PRIMARY];
-    if (display->openFakeKms() != 0)
-        display->closeKms();
+    if (display->openFakeKms() != 0) display->closeKms();
 
     mPrimaryIsFake = true;
 
     return 0;
 }
 
-int DisplayManager::enumKmsDisplays()
-{
-    struct dirent **dirEntry;
+int DisplayManager::enumKmsDisplays() {
+    struct dirent** dirEntry;
     char path[HWC_PATH_LENGTH];
     int ret = 0;
     char dri[PROPERTY_VALUE_MAX];
@@ -429,11 +406,11 @@ int DisplayManager::enumKmsDisplays()
     int i, len;
 
     count = scandir(dri, &dirEntry, 0, alphasort);
-    if(count < 0) {
+    if (count < 0) {
         ALOGE("%s open %s failed", __func__, dri);
         return -EINVAL;
     }
-    for(int i=0; i<count; i++) {
+    for (int i = 0; i < count; i++) {
         if (strncmp(dirEntry[i]->d_name, "card", 4)) {
             free(dirEntry[i]);
             continue;
@@ -447,7 +424,7 @@ int DisplayManager::enumKmsDisplays()
     free(dirEntry);
 
     if (!mFoundPrimaryPort) { // No primary display port found, use other one instead
-        for (i=1; i<MAX_PHYSICAL_DISPLAY; i++) {
+        for (i = 1; i < MAX_PHYSICAL_DISPLAY; i++) {
             // select the first connected display as primary display
             if (mKmsDisplays[i]->connected()) {
                 ALOGI("%s replace primary display with %d", __func__, mKmsDisplays[i]->index());
@@ -466,8 +443,7 @@ int DisplayManager::enumKmsDisplays()
 
     if (foundPrimary) {
         mDriverReady = true;
-    }
-    else if (mDrmMode){
+    } else if (mDrmMode) {
         ALOGI("drm driver may not ready or bootargs is not correct");
         enumFakeKmsDisplay();
         mDriverReady = false;
@@ -477,12 +453,11 @@ int DisplayManager::enumKmsDisplays()
     return ret;
 }
 
-int DisplayManager::enumFbDisplays()
-{
-    DIR *dir = NULL;
-    struct dirent *dirEntry;
+int DisplayManager::enumFbDisplays() {
+    DIR* dir = NULL;
+    struct dirent* dirEntry;
     char fb_path[HWC_PATH_LENGTH];
-    FILE *fp;
+    FILE* fp;
     int id = 1;
     int fb = -1;
 
@@ -494,8 +469,7 @@ int DisplayManager::enumFbDisplays()
 
     while ((dirEntry = readdir(dir)) != NULL) {
         fb = -1;
-        if (strncmp(dirEntry->d_name, "fb", 2) ||
-            strlen(dirEntry->d_name) < 3 ||
+        if (strncmp(dirEntry->d_name, "fb", 2) || strlen(dirEntry->d_name) < 3 ||
             !isdigit(*(dirEntry->d_name + 2))) {
             continue;
         }
@@ -506,8 +480,8 @@ int DisplayManager::enumFbDisplays()
         }
 
         memset(fb_path, 0, sizeof(fb_path));
-        snprintf(fb_path, HWC_PATH_LENGTH, SYS_GRAPHICS"/%s", dirEntry->d_name);
-        //check the fb device exist.
+        snprintf(fb_path, HWC_PATH_LENGTH, SYS_GRAPHICS "/%s", dirEntry->d_name);
+        // check the fb device exist.
         if (!(fp = fopen(fb_path, "r"))) {
             ALOGW("open %s failed", fb_path);
             continue;
@@ -524,11 +498,10 @@ int DisplayManager::enumFbDisplays()
             return 0;
         }
 
-        FbDisplay *display = NULL;
+        FbDisplay* display = NULL;
         if (fb == 0) {
             display = mFbDisplays[0];
-        }
-        else {
+        } else {
             display = mFbDisplays[id];
             id++;
         }
@@ -544,9 +517,8 @@ int DisplayManager::enumFbDisplays()
     return 0;
 }
 
-void DisplayManager::handleHotplugEvent()
-{
-    for (uint32_t i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+void DisplayManager::handleHotplugEvent() {
+    for (uint32_t i = 0; i < MAX_PHYSICAL_DISPLAY; i++) {
         FbDisplay* display = NULL;
         {
             Mutex::Autolock _l(mLock);
@@ -584,9 +556,8 @@ void DisplayManager::handleHotplugEvent()
     }
 }
 
-void DisplayManager::handleKmsHotplug()
-{
-    for (uint32_t i=0; i<MAX_PHYSICAL_DISPLAY; i++) {
+void DisplayManager::handleKmsHotplug() {
+    for (uint32_t i = 0; i < MAX_PHYSICAL_DISPLAY; i++) {
         KmsDisplay* display = NULL;
         {
             Mutex::Autolock _l(mLock);
@@ -636,29 +607,22 @@ void DisplayManager::handleKmsHotplug()
 }
 
 //------------------------------------------------------------
-DisplayManager::HotplugThread::HotplugThread(DisplayManager *ctx)
-   : Thread(false), mCtx(ctx)
-{
-}
+DisplayManager::HotplugThread::HotplugThread(DisplayManager* ctx) : Thread(false), mCtx(ctx) {}
 
-void DisplayManager::HotplugThread::onFirstRef()
-{
+void DisplayManager::HotplugThread::onFirstRef() {
     run("HWC-UEvent-Thread", android::PRIORITY_URGENT_DISPLAY);
 }
 
-int32_t DisplayManager::HotplugThread::readyToRun()
-{
+int32_t DisplayManager::HotplugThread::readyToRun() {
     uevent_init();
     return 0;
 }
 
-bool DisplayManager::HotplugThread::stringInString(char *uevent_desc, const char* sub_string)
-{
-    char *cp;
+bool DisplayManager::HotplugThread::stringInString(char* uevent_desc, const char* sub_string) {
+    char* cp;
     cp = uevent_desc;
-    while(*cp) {
-        if(!strncmp(cp, sub_string, strlen(sub_string)))
-            return true;
+    while (*cp) {
+        if (!strncmp(cp, sub_string, strlen(sub_string))) return true;
         if (*cp) {
             cp += strlen(cp) + 1;
         }
@@ -666,24 +630,23 @@ bool DisplayManager::HotplugThread::stringInString(char *uevent_desc, const char
     return false;
 }
 
-bool DisplayManager::HotplugThread::threadLoop()
-{
+bool DisplayManager::HotplugThread::threadLoop() {
     char uevent_desc[EVENT_MSG_LEN + 2];
 
     bool kms;
     memset(uevent_desc, 0, sizeof(uevent_desc));
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
-    if (len <= 0 || len >= EVENT_MSG_LEN)
-        return true;
+    if (len <= 0 || len >= EVENT_MSG_LEN) return true;
     uevent_desc[len] = '\0';
-    uevent_desc[len+1] = '\0';
+    uevent_desc[len + 1] = '\0';
 
     if ((stringInString(uevent_desc, HDMI_PLUG_EVENT) &&
-         stringInString(uevent_desc, HDMI_PLUG_CHANGE)  &&
-         stringInString(uevent_desc, HDMI_EXTCON)) || stringInString(uevent_desc, HDMI_SII902_PLUG_EVENT)) {
+         stringInString(uevent_desc, HDMI_PLUG_CHANGE) &&
+         stringInString(uevent_desc, HDMI_EXTCON)) ||
+        stringInString(uevent_desc, HDMI_SII902_PLUG_EVENT)) {
         kms = false;
     } else if (stringInString(uevent_desc, HDMI_DEVTYPE_DRM) &&
-             stringInString(uevent_desc, HDMI_HOTPLUG)) {
+               stringInString(uevent_desc, HDMI_HOTPLUG)) {
         kms = true;
     } else {
         ALOGV("%s invalid uevent %s", __func__, uevent_desc);
@@ -692,43 +655,38 @@ bool DisplayManager::HotplugThread::threadLoop()
 
     if (kms) {
         mCtx->handleKmsHotplug();
-    }
-    else {
+    } else {
         mCtx->handleHotplugEvent();
     }
 
     return true;
 }
 
-DisplayManager::PollFileThread::PollFileThread(DisplayManager *ctx)
-   : Thread(false), mCtx(ctx), mINotifyFd(-1), mINotifyWd(-1), mEpollFd(-1)
-{
-}
+DisplayManager::PollFileThread::PollFileThread(DisplayManager* ctx)
+      : Thread(false), mCtx(ctx), mINotifyFd(-1), mINotifyWd(-1), mEpollFd(-1) {}
 
-void DisplayManager::PollFileThread::onFirstRef()
-{
+void DisplayManager::PollFileThread::onFirstRef() {
     run("HWC-Poll-Thread", android::PRIORITY_URGENT_DISPLAY);
 }
 
-int32_t DisplayManager::PollFileThread::readyToRun()
-{
+int32_t DisplayManager::PollFileThread::readyToRun() {
     mINotifyFd = inotify_init();
     if (mINotifyFd < 0) {
-        ALOGE("Fail to initialize inotify fd, error:%s",strerror(errno));
+        ALOGE("Fail to initialize inotify fd, error:%s", strerror(errno));
         return -1;
     }
 
     mINotifyWd = inotify_add_watch(mINotifyFd, DRM_DRI_PATH, IN_CREATE);
     if (mINotifyWd < 0) {
-        ALOGE("Fail to add watch for %s,error:%s",DRM_DRI_PATH,strerror(errno));
+        ALOGE("Fail to add watch for %s,error:%s", DRM_DRI_PATH, strerror(errno));
         close(mINotifyFd);
         return -1;
     }
 
     mEpollFd = epoll_create(1);
     if (mEpollFd == -1) {
-        ALOGE("Fail to create epoll instance, error:%s",strerror(errno));
-        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        ALOGE("Fail to create epoll instance, error:%s", strerror(errno));
+        inotify_rm_watch(mINotifyFd, mINotifyWd);
         close(mINotifyFd);
         return -1;
     }
@@ -738,8 +696,8 @@ int32_t DisplayManager::PollFileThread::readyToRun()
     eventItem.data.fd = mINotifyFd;
     int result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mINotifyFd, &eventItem);
     if (result == -1) {
-        ALOGE("Fail to add inotify to epoll instance, error:%s",strerror(errno));
-        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        ALOGE("Fail to add inotify to epoll instance, error:%s", strerror(errno));
+        inotify_rm_watch(mINotifyFd, mINotifyWd);
         close(mINotifyFd);
         close(mEpollFd);
         return -1;
@@ -747,34 +705,34 @@ int32_t DisplayManager::PollFileThread::readyToRun()
     return 0;
 }
 
-bool DisplayManager::PollFileThread::threadLoop()
-{
+bool DisplayManager::PollFileThread::threadLoop() {
     int numEpollEvent = 0;
     epoll_event epollItems[EPOLL_MAX_EVENTS];
     numEpollEvent = epoll_wait(mEpollFd, epollItems, EPOLL_MAX_EVENTS, -1);
     if (numEpollEvent <= 0) {
-        ALOGE("Fail to wait requested events,numEpollEvent:%d,error:%s",numEpollEvent,strerror(errno));
+        ALOGE("Fail to wait requested events,numEpollEvent:%d,error:%s", numEpollEvent,
+              strerror(errno));
         return true;
     }
 
-    for (int i=0; i<numEpollEvent; i++) {
-        if (epollItems[i].events & (EPOLLERR|EPOLLHUP)) {
+    for (int i = 0; i < numEpollEvent; i++) {
+        if (epollItems[i].events & (EPOLLERR | EPOLLHUP)) {
             continue;
         }
         if (epollItems[i].events & EPOLLIN) {
             char buf[BUFFER_SIZE];
-            int numINotifyItem = read(mINotifyFd,buf,BUFFER_SIZE);
+            int numINotifyItem = read(mINotifyFd, buf, BUFFER_SIZE);
             if (numINotifyItem < 0) {
-                ALOGE("Fail to read from INotifyFd,error:%s",strerror(errno));
+                ALOGE("Fail to read from INotifyFd,error:%s", strerror(errno));
                 continue;
             }
 
-            //Each successful read returns a buffer containing one or more of struct inotify_event
-            //The length of each inotify_event structure is sizeof(struct inotify_event)+len.
-            for (char *inotifyItemBuf = buf;inotifyItemBuf < buf+numINotifyItem;) {
-                struct inotify_event *inotifyItem = (struct inotify_event *)inotifyItemBuf;
-                if (strstr(inotifyItem->name,"card")) {
-                    //detect /dev/dri/card%d has been created
+            // Each successful read returns a buffer containing one or more of struct inotify_event
+            // The length of each inotify_event structure is sizeof(struct inotify_event)+len.
+            for (char* inotifyItemBuf = buf; inotifyItemBuf < buf + numINotifyItem;) {
+                struct inotify_event* inotifyItem = (struct inotify_event*)inotifyItemBuf;
+                if (strstr(inotifyItem->name, "card")) {
+                    // detect /dev/dri/card%d has been created
                     mCtx->enumKmsDisplays();
                     Display* pDisplay = mCtx->getPhysicalDisplay(DISPLAY_PRIMARY);
                     pDisplay->enableVsync();
@@ -786,11 +744,10 @@ bool DisplayManager::PollFileThread::threadLoop()
                         callback->onRefresh(0);
                         for (int i = 1; i < MAX_PHYSICAL_DISPLAY; i++) {
                             pDisplay = mCtx->getPhysicalDisplay(i);
-                            if (pDisplay->connected())
-                                callback->onHotplug(i, true);
+                            if (pDisplay->connected()) callback->onHotplug(i, true);
                         }
                     }
-                    inotify_rm_watch(mINotifyFd,mINotifyWd);
+                    inotify_rm_watch(mINotifyFd, mINotifyWd);
                     close(mEpollFd);
                     close(mINotifyFd);
 
@@ -807,16 +764,16 @@ bool DisplayManager::PollFileThread::threadLoop()
     return true;
 }
 
-void DisplayManager::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y,
-                                  uint32_t w, uint32_t h) {
+void DisplayManager::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w,
+                                            uint32_t h) {
     int ret = mKmsDisplays[DISPLAY_PRIMARY]->setSecureDisplayEnable(enable, x, y, w, h);
     if (!ret) {
         if (mListener != NULL) {
             mListener->onRefresh(0);
         } else {
             ALOGE("set secure display enable fail");
-       }
+        }
     }
 }
 
-}
+} // namespace fsl

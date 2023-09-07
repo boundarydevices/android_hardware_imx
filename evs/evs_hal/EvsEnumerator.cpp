@@ -16,21 +16,21 @@
  */
 
 #include "EvsEnumerator.h"
-#include "V4l2Capture.h"
-#include "FakeCapture.h"
-#include "EvsDisplay.h"
 
+#include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/stringprintf.h>
+#include <android-base/strings.h>
+#include <android-base/unique_fd.h>
 #include <cutils/properties.h>
 #include <dirent.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 
-#include <android-base/logging.h>
-#include <android-base/strings.h>
-#include <android-base/stringprintf.h>
-#include <android-base/file.h>
-#include <android-base/unique_fd.h>
+#include "EvsDisplay.h"
+#include "FakeCapture.h"
+#include "V4l2Capture.h"
 
 namespace android {
 namespace hardware {
@@ -46,8 +46,8 @@ namespace implementation {
 #define EVS_VIDEO_READY "vendor.evs.video.ready"
 #define EVS_FAKE_SENSOR "mxc_isi.0.capture"
 #define EVS_FAKE_LOGIC_CAMERA "group0"
-#define EVS_FAKE_NAME   "fake.camera"
-#define EVS_FAKE_LOGIC_NAME   "fake.logic.camera"
+#define EVS_FAKE_NAME "fake.camera"
+#define EVS_FAKE_LOGIC_NAME "fake.logic.camera"
 #define FAKE_CAMERA_WIDTH 1920
 #define FAKE_CAMERA_HEIGHT 1024
 
@@ -61,28 +61,27 @@ using ::android::base::WriteStringToFd;
 // NOTE:  All members values are static so that all clients operate on the same state
 //        That is to say, this is effectively a singleton despite the fact that HIDL
 //        constructs a new instance for each client.
-std::list<EvsEnumerator::CameraRecord>   EvsEnumerator::sCameraList;
-wp<EvsDisplay>                           EvsEnumerator::sActiveDisplay;
-std::mutex                               EvsEnumerator::sLock;
-std::unique_ptr<ConfigManager>           EvsEnumerator::sConfigManager;
-unsigned                                 EvsEnumerator::mCameranum;;
+std::list<EvsEnumerator::CameraRecord> EvsEnumerator::sCameraList;
+wp<EvsDisplay> EvsEnumerator::sActiveDisplay;
+std::mutex EvsEnumerator::sLock;
+std::unique_ptr<ConfigManager> EvsEnumerator::sConfigManager;
+unsigned EvsEnumerator::mCameranum;
+;
 
 bool EvsEnumerator::filterVideoFromConfigure(char *deviceName) {
-    if (sConfigManager == nullptr)
-        return true;
+    if (sConfigManager == nullptr) return true;
 
     vector<string>::iterator index;
-    vector<string> cameraList =
-                sConfigManager->getCameraIdList();
+    vector<string> cameraList = sConfigManager->getCameraIdList();
     index = find(cameraList.begin(), cameraList.end(), deviceName);
-    if(index != cameraList.end())
+    if (index != cameraList.end())
         return true;
     else
         return false;
 }
 
 bool EvsEnumerator::EnumAvailableVideo() {
-    unsigned videoCount   = 0;
+    unsigned videoCount = 0;
     unsigned captureCount = 0;
     bool videoReady = false;
     CameraDesc_1_1 aCamera;
@@ -90,7 +89,7 @@ bool EvsEnumerator::EnumAvailableVideo() {
     if (sConfigManager == nullptr) {
         /* loads and initializes ConfigManager in a separate thread */
         sConfigManager =
-            ConfigManager::Create("/vendor/etc/automotive/evs/imx_evs_configuration.xml");
+                ConfigManager::Create("/vendor/etc/automotive/evs/imx_evs_configuration.xml");
     }
 
     // if it's one fake camera, need fill the metadata in xml to sCameraList.
@@ -99,31 +98,28 @@ bool EvsEnumerator::EnumAvailableVideo() {
     if (enableFake != 0) {
         CameraRecord camrec_group(EVS_FAKE_LOGIC_CAMERA, NULL);
         unique_ptr<ConfigManager::CameraGroupInfo> &tmpInfo =
-            sConfigManager->getCameraGroupInfo(EVS_FAKE_LOGIC_CAMERA);
+                sConfigManager->getCameraGroupInfo(EVS_FAKE_LOGIC_CAMERA);
         if (tmpInfo != nullptr) {
-            aCamera.metadata.setToExternal(
-                (uint8_t *)tmpInfo->characteristics,
-                get_camera_metadata_size(tmpInfo->characteristics)
-            );
+            aCamera.metadata.setToExternal((uint8_t *)tmpInfo->characteristics,
+                                           get_camera_metadata_size(tmpInfo->characteristics));
             camera_metadata_entry_t streamCfgs;
-            if (!find_camera_metadata_entry(
-                reinterpret_cast<camera_metadata_t *>(aCamera.metadata.data()),
-                ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
-                &streamCfgs)) {
+            if (!find_camera_metadata_entry(reinterpret_cast<camera_metadata_t *>(
+                                                    aCamera.metadata.data()),
+                                            ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                                            &streamCfgs)) {
                 RawStreamConfig *ptr = reinterpret_cast<RawStreamConfig *>(streamCfgs.data.i32);
-                //set the first stream resolution to FAKE_CAMERA_WIDTH/FAKE_CAMERA_HEIGHT
+                // set the first stream resolution to FAKE_CAMERA_WIDTH/FAKE_CAMERA_HEIGHT
                 ptr->width = FAKE_CAMERA_WIDTH;
                 ptr->height = FAKE_CAMERA_HEIGHT;
             }
 
             int32_t err = add_camera_metadata_entry(
-                reinterpret_cast<camera_metadata_t *>(aCamera.metadata.data()),
-                ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
-                streamCfgs.data.i32,
-                calculate_camera_metadata_entry_data_size(
-                    get_camera_metadata_tag_type(
-                    ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS
-                    ), streamCfgs.count));
+                    reinterpret_cast<camera_metadata_t *>(aCamera.metadata.data()),
+                    ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS, streamCfgs.data.i32,
+                    calculate_camera_metadata_entry_data_size(
+                            get_camera_metadata_tag_type(
+                                    ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS),
+                            streamCfgs.count));
 
             if (err) {
                 ALOGE("Failed to add stream configurations to metadata, ignored");
@@ -137,12 +133,10 @@ bool EvsEnumerator::EnumAvailableVideo() {
 
         CameraRecord camrec_single(EVS_FAKE_SENSOR, NULL);
         unique_ptr<ConfigManager::CameraInfo> &tempInfo =
-            sConfigManager->getCameraInfo(EVS_FAKE_SENSOR);
+                sConfigManager->getCameraInfo(EVS_FAKE_SENSOR);
         if (tempInfo != nullptr) {
-            aCamera.metadata.setToExternal(
-                (uint8_t *)tempInfo->characteristics,
-                get_camera_metadata_size(tempInfo->characteristics)
-            );
+            aCamera.metadata.setToExternal((uint8_t *)tempInfo->characteristics,
+                                           get_camera_metadata_size(tempInfo->characteristics));
         }
         aCamera.v1.cameraId = EVS_FAKE_NAME;
         camrec_single.desc = aCamera;
@@ -151,7 +145,7 @@ bool EvsEnumerator::EnumAvailableVideo() {
         captureCount++;
 
         sConfigManager =
-            ConfigManager::Create("/vendor/etc/automotive/evs/fake_evs_configuration.xml");
+                ConfigManager::Create("/vendor/etc/automotive/evs/fake_evs_configuration.xml");
         goto found;
     }
 
@@ -164,13 +158,13 @@ bool EvsEnumerator::EnumAvailableVideo() {
     //                   sCameraList.emplace_back("/dev/video0");
     //                   sCameraList.emplace_back("/dev/video1");
     ALOGI("Starting dev/video* enumeration");
-    DIR* dir;
+    DIR *dir;
     dir = opendir("/dev");
     if (!dir) {
         LOG_FATAL("Failed to open /dev folder\n");
         goto found;
     }
-    struct dirent* entry;
+    struct dirent *entry;
     FILE *fp;
     char devPath[HWC_PATH_LENGTH];
     char value[HWC_PATH_LENGTH];
@@ -182,13 +176,12 @@ bool EvsEnumerator::EnumAvailableVideo() {
             deviceName += entry->d_name;
             videoCount++;
             if (qualifyCaptureDevice(deviceName.c_str())) {
-                snprintf(devPath, HWC_PATH_LENGTH,
-                    "/sys/class/video4linux/%s/name", entry->d_name);
+                snprintf(devPath, HWC_PATH_LENGTH, "/sys/class/video4linux/%s/name", entry->d_name);
                 if ((fp = fopen(devPath, "r")) == nullptr) {
                     ALOGE("can't open %s", devPath);
                     continue;
                 }
-                if(fgets(value, sizeof(value), fp) == nullptr) {
+                if (fgets(value, sizeof(value), fp) == nullptr) {
                     fclose(fp);
                     ALOGE("can't read %s", devPath);
                     continue;
@@ -223,12 +216,9 @@ found:
 EvsEnumerator::EvsEnumerator(sp<IAutomotiveDisplayProxyService> proxyService) {
     ALOGD("EvsEnumerator created");
 
-    if (proxyService == nullptr)
-         ALOGD("proxy server is null");
-    if (!EnumAvailableVideo())
-        mPollVideoFileThread = new PollVideoFileThread();
-    vector<string> camList =
-                sConfigManager->getCameraIdList();
+    if (proxyService == nullptr) ALOGD("proxy server is null");
+    if (!EnumAvailableVideo()) mPollVideoFileThread = new PollVideoFileThread();
+    vector<string> camList = sConfigManager->getCameraIdList();
     mCameranum = camList.size();
 }
 
@@ -241,21 +231,17 @@ Return<void> EvsEnumerator::getDisplayIdList(getDisplayIdList_cb _list_cb) {
 }
 
 EvsEnumerator::PollVideoFileThread::PollVideoFileThread()
-    :Thread(false), mINotifyFd(-1), mINotifyWd(-1), mEpollFd(-1)
-{
-}
+      : Thread(false), mINotifyFd(-1), mINotifyWd(-1), mEpollFd(-1) {}
 
-void EvsEnumerator::PollVideoFileThread::onFirstRef()
-{
+void EvsEnumerator::PollVideoFileThread::onFirstRef() {
     run("VideoFile-Poll-Thread", PRIORITY_NORMAL);
 }
 
-int32_t EvsEnumerator::PollVideoFileThread::readyToRun()
-{
+int32_t EvsEnumerator::PollVideoFileThread::readyToRun() {
     epoll_event eventItem;
     mINotifyFd = inotify_init();
     if (mINotifyFd < 0) {
-        ALOGE("Fail to initialize inotify fd, error:%s",strerror(errno));
+        ALOGE("Fail to initialize inotify fd, error:%s", strerror(errno));
         return -1;
     }
     mINotifyWd = inotify_add_watch(mINotifyFd, MEDIA_FILE_PATH, IN_CREATE);
@@ -267,8 +253,8 @@ int32_t EvsEnumerator::PollVideoFileThread::readyToRun()
 
     mEpollFd = epoll_create(1);
     if (mEpollFd == -1) {
-        ALOGE("Fail to create epoll instance, error:%s",strerror(errno));
-        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        ALOGE("Fail to create epoll instance, error:%s", strerror(errno));
+        inotify_rm_watch(mINotifyFd, mINotifyWd);
         close(mINotifyFd);
         return -1;
     }
@@ -278,8 +264,8 @@ int32_t EvsEnumerator::PollVideoFileThread::readyToRun()
     eventItem.data.fd = mINotifyFd;
     int result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mINotifyFd, &eventItem);
     if (result == -1) {
-        ALOGE("Fail to add inotify to epoll instance, error:%s",strerror(errno));
-        inotify_rm_watch(mINotifyFd,mINotifyWd);
+        ALOGE("Fail to add inotify to epoll instance, error:%s", strerror(errno));
+        inotify_rm_watch(mINotifyFd, mINotifyWd);
         close(mINotifyFd);
         close(mEpollFd);
         return -1;
@@ -287,36 +273,36 @@ int32_t EvsEnumerator::PollVideoFileThread::readyToRun()
     return 0;
 }
 
-bool EvsEnumerator::PollVideoFileThread::threadLoop()
-{
+bool EvsEnumerator::PollVideoFileThread::threadLoop() {
     int numEpollEvent = 0;
     epoll_event epollItems[EPOLL_MAX_EVENTS];
     numEpollEvent = epoll_wait(mEpollFd, epollItems, EPOLL_MAX_EVENTS, -1);
     if (numEpollEvent <= 0) {
-        ALOGE("Fail to wait requested events,numEpollEvent:%d,error:%s",numEpollEvent,strerror(errno));
+        ALOGE("Fail to wait requested events,numEpollEvent:%d,error:%s", numEpollEvent,
+              strerror(errno));
         return true;
     }
 
-    for (int i=0; i < numEpollEvent; i++) {
-        if (epollItems[i].events & (EPOLLERR|EPOLLHUP)) {
+    for (int i = 0; i < numEpollEvent; i++) {
+        if (epollItems[i].events & (EPOLLERR | EPOLLHUP)) {
             continue;
         }
         if (epollItems[i].events & EPOLLIN) {
             char buf[BUFFER_SIZE];
             int numINotifyItem = read(mINotifyFd, buf, BUFFER_SIZE);
             if (numINotifyItem < 0) {
-                ALOGE("Fail to read from INotifyFd,error:%s",strerror(errno));
+                ALOGE("Fail to read from INotifyFd,error:%s", strerror(errno));
                 continue;
             }
 
-            //Each successful read returns a buffer containing one or more of struct inotify_event
-            //The length of each inotify_event structure is sizeof(struct inotify_event)+len.
-            for (char *inotifyItemBuf = buf; inotifyItemBuf < buf+numINotifyItem;) {
+            // Each successful read returns a buffer containing one or more of struct inotify_event
+            // The length of each inotify_event structure is sizeof(struct inotify_event)+len.
+            for (char *inotifyItemBuf = buf; inotifyItemBuf < buf + numINotifyItem;) {
                 struct inotify_event *inotifyItem = (struct inotify_event *)inotifyItemBuf;
-                if (strstr(inotifyItem->name,"media")) {
-                    //detect /dev/media* has been created
-                    if(EnumAvailableVideo()) {
-                        inotify_rm_watch(mINotifyFd,mINotifyWd);
+                if (strstr(inotifyItem->name, "media")) {
+                    // detect /dev/media* has been created
+                    if (EnumAvailableVideo()) {
+                        inotify_rm_watch(mINotifyFd, mINotifyWd);
                         close(mEpollFd);
                         close(mINotifyFd);
                         return false;
@@ -330,26 +316,25 @@ bool EvsEnumerator::PollVideoFileThread::threadLoop()
     return true;
 }
 
-Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
+Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb) {
     ALOGD("getCameraList_1_1");
 
     {
         std::unique_lock<std::mutex> lock(sLock);
         if (sCameraList.size() < 1) {
             // No qualified device has been found.  Wait until new device is ready,
-               ALOGD("Timer expired.  No new device has been added.");
+            ALOGD("Timer expired.  No new device has been added.");
         }
     }
     hidl_vec<CameraDesc_1_1> hidlCameras;
     if (sConfigManager == nullptr) {
-
         const unsigned numCameras = sCameraList.size();
         hidlCameras.resize(numCameras);
         unsigned i = 0;
         CameraDesc_1_1 aCamera;
-        for (auto&cam : sCameraList) {
-             aCamera.v1.cameraId = cam.name.c_str();
-             hidlCameras[i++] = aCamera;
+        for (auto &cam : sCameraList) {
+            aCamera.v1.cameraId = cam.name.c_str();
+            hidlCameras[i++] = aCamera;
         }
     } else {
         auto camGroups = sConfigManager->getCameraGroupIdList();
@@ -359,14 +344,12 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
         unsigned i = 0;
         CameraDesc_1_1 aCamera;
 
-        for (auto&cam : sCameraList) {
+        for (auto &cam : sCameraList) {
             unique_ptr<ConfigManager::CameraInfo> &tempInfo =
-                sConfigManager->getCameraInfo(cam.name);
+                    sConfigManager->getCameraInfo(cam.name);
             if (tempInfo != nullptr) {
-                aCamera.metadata.setToExternal(
-                    (uint8_t *)tempInfo->characteristics,
-                     get_camera_metadata_size(tempInfo->characteristics)
-                );
+                aCamera.metadata.setToExternal((uint8_t *)tempInfo->characteristics,
+                                               get_camera_metadata_size(tempInfo->characteristics));
             } else
                 continue;
 #if 0
@@ -385,38 +368,33 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb)  {
         }
 
         // Adding camera groups that represent logical camera devices
-        for (auto&& id : camGroups) {
+        for (auto &&id : camGroups) {
             unique_ptr<ConfigManager::CameraGroupInfo> &tempInfo =
-                sConfigManager->getCameraGroupInfo(id);
+                    sConfigManager->getCameraGroupInfo(id);
             CameraRecord camrec(id.c_str(), NULL);
             if (tempInfo != nullptr) {
-
-                aCamera.metadata.setToExternal(
-                    (uint8_t *)tempInfo->characteristics,
-                     get_camera_metadata_size(tempInfo->characteristics)
-                );
+                aCamera.metadata.setToExternal((uint8_t *)tempInfo->characteristics,
+                                               get_camera_metadata_size(tempInfo->characteristics));
             }
 
             aCamera.v1.cameraId = id;
             camrec.desc = aCamera;
             hidlCameras[i++] = aCamera;
             bool included_group_camera = false;
-            for(auto &&cam : sCameraList) {
-                if (cam.desc.v1.cameraId == id)
-                    included_group_camera = true;
+            for (auto &&cam : sCameraList) {
+                if (cam.desc.v1.cameraId == id) included_group_camera = true;
             }
 
-            if (!included_group_camera)
-                sCameraList.push_back(camrec);;
+            if (!included_group_camera) sCameraList.push_back(camrec);
+            ;
         }
-
     }
     _hidl_cb(hidlCameras);
     return Void();
 }
 
 // Methods from ::android::hardware::automotive::evs::V1_0::IEvsEnumerator follow.
-Return<void> EvsEnumerator::getCameraList(getCameraList_cb _hidl_cb)  {
+Return<void> EvsEnumerator::getCameraList(getCameraList_cb _hidl_cb) {
     ALOGD("getCameraList");
 
     const unsigned numCameras = sCameraList.size();
@@ -426,7 +404,7 @@ Return<void> EvsEnumerator::getCameraList(getCameraList_cb _hidl_cb)  {
     hidlCameras.resize(numCameras);
     unsigned i = 0;
     CameraDesc_1_0 aCamera;
-    for (const auto& cam : sCameraList) {
+    for (const auto &cam : sCameraList) {
         aCamera.cameraId = cam.name.c_str();
         hidlCameras[i++] = aCamera;
     }
@@ -439,14 +417,12 @@ Return<void> EvsEnumerator::getCameraList(getCameraList_cb _hidl_cb)  {
     return Void();
 }
 
-bool EvsEnumerator::validStreamCfg(const Stream& streamCfg) {
-
-    return (streamCfg.width > 0) &&
-           (streamCfg.height > 0);
+bool EvsEnumerator::validStreamCfg(const Stream &streamCfg) {
+    return (streamCfg.width > 0) && (streamCfg.height > 0);
 }
 
-Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& cameraId,
-                                                         const Stream& streamCfg) {
+Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string &cameraId,
+                                                         const Stream &streamCfg) {
     ALOGD("openCamera_1_1 %s", cameraId.c_str());
     CameraRecord *pRecord = findCameraById(cameraId);
     if (pRecord == nullptr) {
@@ -464,54 +440,54 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
         // the camera is fake, and it's logic camera, it will beeen fakeLogicCamera
         //  the camera is fake, and it's phsical camera, it will beeen fakeCamera
         pActiveCamera = new FakeCapture(pRecord->desc.v1.cameraId.c_str(),
-                 reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
+                                        reinterpret_cast<camera_metadata_t *>(
+                                                pRecord->desc.metadata.data()));
     } else {
-
         if (sConfigManager != nullptr && validStreamCfg(streamCfg)) {
-            unique_ptr<ConfigManager::CameraInfo> &camInfo = sConfigManager->getCameraInfo(cameraId);
+            unique_ptr<ConfigManager::CameraInfo> &camInfo =
+                    sConfigManager->getCameraInfo(cameraId);
             /* currently do not support group metadta */
-            //unique_ptr<ConfigManager::CameraGroupInfo> &camInfo = sConfigManager->getCameraGroupInfo(cameraId);
+            // unique_ptr<ConfigManager::CameraGroupInfo> &camInfo =
+            // sConfigManager->getCameraGroupInfo(cameraId);
             int32_t streamId = -1, area = INT_MIN;
 
-            if (camInfo != nullptr ) {
-                for (auto& [id, cfg] : camInfo->streamConfigurations) {
+            if (camInfo != nullptr) {
+                for (auto &[id, cfg] : camInfo->streamConfigurations) {
                     // RawConfiguration has id, width, height, format, direction, and
                     // fps.
                     if (cfg[3] == static_cast<uint32_t>(streamCfg.format)) {
-                        if (cfg[1] == streamCfg.width &&
-                            cfg[2] == streamCfg.height) {
+                        if (cfg[1] == streamCfg.width && cfg[2] == streamCfg.height) {
                             // Find exact match.
                             streamId = id;
                             break;
-                        } else if (streamCfg.width  > cfg[1] &&
-                                   streamCfg.height > cfg[2] &&
+                        } else if (streamCfg.width > cfg[1] && streamCfg.height > cfg[2] &&
                                    cfg[1] * cfg[2] > area) {
-                             streamId = id;
-                             area = cfg[1] * cfg[2];
+                            streamId = id;
+                            area = cfg[1] * cfg[2];
                         }
                     }
                 }
 
-            pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(), pRecord->name.c_str(),
-                       camInfo->streamConfigurations[streamId][1],
-                       camInfo->streamConfigurations[streamId][2],
-                       camInfo->streamConfigurations[streamId][3],
-                       reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
+                pActiveCamera =
+                        new V4l2Capture(pRecord->desc.v1.cameraId.c_str(), pRecord->name.c_str(),
+                                        camInfo->streamConfigurations[streamId][1],
+                                        camInfo->streamConfigurations[streamId][2],
+                                        camInfo->streamConfigurations[streamId][3],
+                                        reinterpret_cast<camera_metadata_t *>(
+                                                pRecord->desc.metadata.data()));
             } else {
                 pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
-                                                    pRecord->name.c_str(),
-                                                   kDefaultResolution[0],
-                                                   kDefaultResolution[1],
-                                                   HAL_PIXEL_FORMAT_RGB_888,
-                                                   reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
+                                                pRecord->name.c_str(), kDefaultResolution[0],
+                                                kDefaultResolution[1], HAL_PIXEL_FORMAT_RGB_888,
+                                                reinterpret_cast<camera_metadata_t *>(
+                                                        pRecord->desc.metadata.data()));
             }
         } else {
             pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
-                                               pRecord->name.c_str(),
-                                               kDefaultResolution[0],
-                                               kDefaultResolution[1],
-                                               HAL_PIXEL_FORMAT_RGB_888,
-                                               reinterpret_cast<camera_metadata_t *>(pRecord->desc.metadata.data()));
+                                            pRecord->name.c_str(), kDefaultResolution[0],
+                                            kDefaultResolution[1], HAL_PIXEL_FORMAT_RGB_888,
+                                            reinterpret_cast<camera_metadata_t *>(
+                                                    pRecord->desc.metadata.data()));
         }
     }
 
@@ -526,7 +502,7 @@ Return<sp<IEvsCamera_1_1>> EvsEnumerator::openCamera_1_1(const hidl_string& came
     return pActiveCamera;
 }
 
-Return<sp<IEvsCamera_1_0>> EvsEnumerator::openCamera(const hidl_string& cameraId) {
+Return<sp<IEvsCamera_1_0>> EvsEnumerator::openCamera(const hidl_string &cameraId) {
     ALOGD("openCamera");
 
     // Is this a recognized camera id?
@@ -544,24 +520,21 @@ Return<sp<IEvsCamera_1_0>> EvsEnumerator::openCamera(const hidl_string& cameraId
     }
 
     // Construct a camera instance for the caller
-    pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(),
-                                               pRecord->name.c_str(),
-                                               kDefaultResolution[0],
-                                               kDefaultResolution[1],
-                                               HAL_PIXEL_FORMAT_RGB_888,
-                                               nullptr);
+    pActiveCamera = new V4l2Capture(pRecord->desc.v1.cameraId.c_str(), pRecord->name.c_str(),
+                                    kDefaultResolution[0], kDefaultResolution[1],
+                                    HAL_PIXEL_FORMAT_RGB_888, nullptr);
 
     pActiveCamera->openup(pRecord->desc.v1.cameraId.c_str());
     pRecord->activeInstance = pActiveCamera;
     if (pActiveCamera == nullptr) {
-        ALOGE("Failed to allocate new EvsCamera object for %s\n", pRecord->desc.v1.cameraId.c_str());
+        ALOGE("Failed to allocate new EvsCamera object for %s\n",
+              pRecord->desc.v1.cameraId.c_str());
     }
 
     return pActiveCamera;
 }
 
-
-Return<void> EvsEnumerator::closeCamera(const ::android::sp<IEvsCamera_1_0>& pCamera) {
+Return<void> EvsEnumerator::closeCamera(const ::android::sp<IEvsCamera_1_0> &pCamera) {
     ALOGD("closeCamera");
 
     if (pCamera == nullptr) {
@@ -571,10 +544,7 @@ Return<void> EvsEnumerator::closeCamera(const ::android::sp<IEvsCamera_1_0>& pCa
 
     // Get the camera id so we can find it in our list
     std::string cameraId;
-    pCamera->getCameraInfo([&cameraId](CameraDesc_1_0 desc) {
-                               cameraId = desc.cameraId;
-                           }
-    );
+    pCamera->getCameraInfo([&cameraId](CameraDesc_1_0 desc) { cameraId = desc.cameraId; });
 
     // Find the named camera
     CameraRecord *pRecord = findCameraById(cameraId);
@@ -586,9 +556,11 @@ Return<void> EvsEnumerator::closeCamera(const ::android::sp<IEvsCamera_1_0>& pCa
         sp<EvsCamera> pActiveCamera = pRecord->activeInstance.promote();
 
         if (pActiveCamera == nullptr) {
-            ALOGE("Somehow a camera is being destroyed when the enumerator didn't know one existed");
+            ALOGE("Somehow a camera is being destroyed when the enumerator didn't know one "
+                  "existed");
         } else if (pActiveCamera != pCamera) {
-            // This can happen if the camera was aggressively reopened, orphaning this previous instance
+            // This can happen if the camera was aggressively reopened, orphaning this previous
+            // instance
             ALOGW("Ignoring close of previously orphaned camera - why did a client steal?");
         } else {
             // Drop the active camera
@@ -636,8 +608,7 @@ Return<sp<IEvsDisplay_1_0>> EvsEnumerator::openDisplay() {
     return pActiveDisplay;
 }
 
-
-Return<void> EvsEnumerator::closeDisplay(const ::android::sp<IEvsDisplay_1_0>& pDisplay) {
+Return<void> EvsEnumerator::closeDisplay(const ::android::sp<IEvsDisplay_1_0> &pDisplay) {
     ALOGD("closeDisplay");
 
     // Do we still have a display object we think should be active?
@@ -655,8 +626,7 @@ Return<void> EvsEnumerator::closeDisplay(const ::android::sp<IEvsDisplay_1_0>& p
     return Void();
 }
 
-
-Return<EvsDisplayState> EvsEnumerator::getDisplayState()  {
+Return<EvsDisplayState> EvsEnumerator::getDisplayState() {
     ALOGD("getDisplayState");
 
     // Do we still have a display object we think should be active?
@@ -668,17 +638,18 @@ Return<EvsDisplayState> EvsEnumerator::getDisplayState()  {
     }
 }
 
-
-bool EvsEnumerator::qualifyCaptureDevice(const char* deviceName) {
+bool EvsEnumerator::qualifyCaptureDevice(const char *deviceName) {
     class FileHandleWrapper {
     public:
-        FileHandleWrapper(int fd)   { mFd = fd; }
-        ~FileHandleWrapper()        { if (mFd > 0) close(mFd); }
-        operator int() const        { return mFd; }
+        FileHandleWrapper(int fd) { mFd = fd; }
+        ~FileHandleWrapper() {
+            if (mFd > 0) close(mFd);
+        }
+        operator int() const { return mFd; }
+
     private:
         int mFd = -1;
     };
-
 
     FileHandleWrapper fd = open(deviceName, O_RDWR, 0);
     if (fd < 0) {
@@ -687,32 +658,39 @@ bool EvsEnumerator::qualifyCaptureDevice(const char* deviceName) {
 
     v4l2_capability caps;
     int result = ioctl(fd, VIDIOC_QUERYCAP, &caps);
-    if (result  < 0) {
+    if (result < 0) {
         return false;
     }
     if (((caps.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) == 0) ||
-        ((caps.capabilities & V4L2_CAP_STREAMING)     == 0)) {
+        ((caps.capabilities & V4L2_CAP_STREAMING) == 0)) {
         return false;
     }
 
     // Enumerate the available capture formats (if any)
     v4l2_fmtdesc formatDescription;
     formatDescription.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-    for (int i=0; true; i++) {
+    for (int i = 0; true; i++) {
         formatDescription.index = i;
         if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescription) == 0) {
-            switch (formatDescription.pixelformat)
-            {
-                case V4L2_PIX_FMT_YUYV:     return true;
-                case V4L2_PIX_FMT_NV21:     return true;
-                case V4L2_PIX_FMT_NV16:     return true;
-                case V4L2_PIX_FMT_YVU420:   return true;
-                case V4L2_PIX_FMT_RGB32:    return true;
-#ifdef V4L2_PIX_FMT_ARGB32  // introduced with kernel v3.17
-                case V4L2_PIX_FMT_ARGB32:   return true;
-                case V4L2_PIX_FMT_XRGB32:   return true;
+            switch (formatDescription.pixelformat) {
+                case V4L2_PIX_FMT_YUYV:
+                    return true;
+                case V4L2_PIX_FMT_NV21:
+                    return true;
+                case V4L2_PIX_FMT_NV16:
+                    return true;
+                case V4L2_PIX_FMT_YVU420:
+                    return true;
+                case V4L2_PIX_FMT_RGB32:
+                    return true;
+#ifdef V4L2_PIX_FMT_ARGB32 // introduced with kernel v3.17
+                case V4L2_PIX_FMT_ARGB32:
+                    return true;
+                case V4L2_PIX_FMT_XRGB32:
+                    return true;
 #endif // V4L2_PIX_FMT_ARGB32
-                default:                    break;
+                default:
+                    break;
             }
         } else {
             // No more formats available
@@ -724,14 +702,12 @@ bool EvsEnumerator::qualifyCaptureDevice(const char* deviceName) {
     return false;
 }
 
-
-EvsEnumerator::CameraRecord* EvsEnumerator::findCameraById(const std::string& cameraId) {
+EvsEnumerator::CameraRecord *EvsEnumerator::findCameraById(const std::string &cameraId) {
     // Find the named camera
     // the cameraId from evs app is camera name.
     // and sometimes it is camera dev path.
     for (auto &&cam : sCameraList) {
-        if (strstr(cam.name.c_str(), cameraId.c_str()) ||
-                (cam.desc.v1.cameraId == cameraId)) {
+        if (strstr(cam.name.c_str(), cameraId.c_str()) || (cam.desc.v1.cameraId == cameraId)) {
             // Found a match!
             return &cam;
         }
@@ -743,23 +719,23 @@ EvsEnumerator::CameraRecord* EvsEnumerator::findCameraById(const std::string& ca
 
 // there is not Ultrasonics sensor on imx device, so have no UltrasonicsArray implement
 Return<sp<IEvsUltrasonicsArray>> EvsEnumerator::openUltrasonicsArray(
-     const hidl_string& ultrasonicsArrayId) {
-     (void)ultrasonicsArrayId;
-     return sp<IEvsUltrasonicsArray>();
+        const hidl_string &ultrasonicsArrayId) {
+    (void)ultrasonicsArrayId;
+    return sp<IEvsUltrasonicsArray>();
 }
 Return<void> EvsEnumerator::getUltrasonicsArrayList(getUltrasonicsArrayList_cb _hidl_cb) {
-     hidl_vec<UltrasonicsArrayDesc> ultrasonicsArrayDesc;
-     _hidl_cb(ultrasonicsArrayDesc);
-     return Void();
+    hidl_vec<UltrasonicsArrayDesc> ultrasonicsArrayDesc;
+    _hidl_cb(ultrasonicsArrayDesc);
+    return Void();
 }
 
 Return<void> EvsEnumerator::closeUltrasonicsArray(
-    const ::android::sp<IEvsUltrasonicsArray>& evsUltrasonicsArray)  {
+        const ::android::sp<IEvsUltrasonicsArray> &evsUltrasonicsArray) {
     (void)evsUltrasonicsArray;
     return Void();
 }
 
-Return<void> EvsEnumerator::debug(const hidl_handle& fd , const hidl_vec<hidl_string>& options) {
+Return<void> EvsEnumerator::debug(const hidl_handle &fd, const hidl_vec<hidl_string> &options) {
     if (fd.getNativeHandle() != nullptr && fd->numFds > 0) {
         cmdDump(fd->data[0], options);
     } else {
@@ -769,7 +745,7 @@ Return<void> EvsEnumerator::debug(const hidl_handle& fd , const hidl_vec<hidl_st
     return {};
 }
 
-void EvsEnumerator::cmdDump(int fd, const hidl_vec<hidl_string>& options) {
+void EvsEnumerator::cmdDump(int fd, const hidl_vec<hidl_string> &options) {
     if (options.size() == 0) {
         WriteStringToFd("No option is given.\n", fd);
         cmdHelp(fd);
@@ -784,22 +760,24 @@ void EvsEnumerator::cmdDump(int fd, const hidl_vec<hidl_string>& options) {
     } else if (EqualsIgnoreCase(option, "--dump")) {
         cmdDumpDevice(fd, options);
     } else {
-        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()),fd);
+        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()), fd);
         cmdHelp(fd);
     }
 }
 
 void EvsEnumerator::cmdHelp(int fd) {
     WriteStringToFd("--help: shows this help.\n"
-                    "--list: [option1|option2|...|all]: lists all the dump options: option1 or option2 or ... or all\n"
+                    "--list: [option1|option2|...|all]: lists all the dump options: option1 or "
+                    "option2 or ... or all\n"
                     "available to EvsEnumerator Hal.\n"
                     "--dump option1: shows current status of the option1\n"
                     "--dump option2: shows current status of the option2\n"
-                    "--dump all: shows current status of all the options\n", fd);
+                    "--dump all: shows current status of all the options\n",
+                    fd);
     return;
 }
 
-void EvsEnumerator::cmdList(int fd, const hidl_vec<hidl_string>& options) {
+void EvsEnumerator::cmdList(int fd, const hidl_vec<hidl_string> &options) {
     bool listoption1 = false;
     bool listoption2 = false;
     if (options.size() > 1) {
@@ -808,24 +786,28 @@ void EvsEnumerator::cmdList(int fd, const hidl_vec<hidl_string>& options) {
         listoption1 = listAll || EqualsIgnoreCase(option, "option1");
         listoption2 = listAll || EqualsIgnoreCase(option, "option2");
         if (!listoption1 && !listoption2) {
-            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"), fd);
             cmdHelp(fd);
             return;
         }
-        if(listoption1) {
-            WriteStringToFd(StringPrintf("list option1 dump options, default is --list listoption1.\n"),fd);
-         }
+        if (listoption1) {
+            WriteStringToFd(StringPrintf(
+                                    "list option1 dump options, default is --list listoption1.\n"),
+                            fd);
+        }
 
-        if(listoption2) {
-            WriteStringToFd(StringPrintf("list option2 dump options, default is --list listoption2.\n"),fd);
+        if (listoption2) {
+            WriteStringToFd(StringPrintf(
+                                    "list option2 dump options, default is --list listoption2.\n"),
+                            fd);
         }
     } else {
-        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"),fd);
+        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"), fd);
         cmdHelp(fd);
-     }
+    }
 }
 
-void EvsEnumerator::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
+void EvsEnumerator::cmdDumpDevice(int fd, const hidl_vec<hidl_string> &options) {
     bool listoption1 = false;
     bool listoption2 = false;
     if (options.size() > 1) {
@@ -834,18 +816,18 @@ void EvsEnumerator::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) 
         listoption1 = listAll || EqualsIgnoreCase(option, "option1");
         listoption2 = listAll || EqualsIgnoreCase(option, "option2");
         if (!listoption1 && !listoption2) {
-            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"), fd);
             cmdHelp(fd);
             return;
         }
-        if(listoption1) {
-            WriteStringToFd(StringPrintf("dump option1 info.\n"),fd);
+        if (listoption1) {
+            WriteStringToFd(StringPrintf("dump option1 info.\n"), fd);
         }
-        if(listoption2) {
-            WriteStringToFd(StringPrintf("dump option2 info.\n"),fd);
+        if (listoption2) {
+            WriteStringToFd(StringPrintf("dump option2 info.\n"), fd);
         }
     } else {
-        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"),fd);
+        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"), fd);
         cmdHelp(fd);
     }
 }

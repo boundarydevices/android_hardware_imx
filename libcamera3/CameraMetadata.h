@@ -17,11 +17,11 @@
 #ifndef ANDROID_CLIENT_CAMERA2_CAMERAMETADATA_CPP
 #define ANDROID_CLIENT_CAMERA2_CAMERAMETADATA_CPP
 
-#include "system/camera_metadata.h"
-
+#include <binder/Parcelable.h>
 #include <utils/String8.h>
 #include <utils/Vector.h>
-#include <binder/Parcelable.h>
+
+#include "system/camera_metadata.h"
 
 namespace android {
 
@@ -30,8 +30,8 @@ class VendorTagDescriptor;
 /**
  * A convenience wrapper around the C-based camera_metadata_t library.
  */
-class CameraMetadata: public Parcelable {
-  public:
+class CameraMetadata : public Parcelable {
+public:
     /** Creates an empty object; best used when expecting to acquire contents
      * from elsewhere */
     CameraMetadata();
@@ -59,7 +59,7 @@ class CameraMetadata: public Parcelable {
      * thread-safety, it simply prevents the camera_metadata_t pointer returned
      * here from being accidentally invalidated by CameraMetadata operations.
      */
-    const camera_metadata_t* getAndLock() const;
+    const camera_metadata_t *getAndLock() const;
 
     /**
      * Unlock the CameraMetadata for use again. After this unlock, the pointer
@@ -76,7 +76,7 @@ class CameraMetadata: public Parcelable {
      * free_camera_metadata()), or for handing it to another CameraMetadata
      * instance.
      */
-    camera_metadata_t* release();
+    camera_metadata_t *release();
 
     /**
      * Clear the metadata buffer and free all storage used by it
@@ -88,7 +88,7 @@ class CameraMetadata: public Parcelable {
      * the caller no longer owns the raw buffer, and must not free or manipulate it.
      * If CameraMetadata already contains metadata, it is freed.
      */
-    void acquire(camera_metadata_t* buffer);
+    void acquire(camera_metadata_t *buffer);
 
     /**
      * Acquires raw buffer from other CameraMetadata object. After the call, the argument
@@ -104,7 +104,7 @@ class CameraMetadata: public Parcelable {
     /**
      * Append metadata from a raw camera_metadata buffer
      */
-    status_t append(const camera_metadata* other);
+    status_t append(const camera_metadata *other);
 
     /**
      * Number of metadata entries.
@@ -126,24 +126,16 @@ class CameraMetadata: public Parcelable {
      * will reallocate the buffer if insufficient space exists. Overloaded for
      * the various types of valid data.
      */
-    status_t update(uint32_t tag,
-            const uint8_t *data, size_t data_count);
-    status_t update(uint32_t tag,
-            const int32_t *data, size_t data_count);
-    status_t update(uint32_t tag,
-            const float *data, size_t data_count);
-    status_t update(uint32_t tag,
-            const int64_t *data, size_t data_count);
-    status_t update(uint32_t tag,
-            const double *data, size_t data_count);
-    status_t update(uint32_t tag,
-            const camera_metadata_rational_t *data, size_t data_count);
-    status_t update(uint32_t tag,
-            const String8 &string);
+    status_t update(uint32_t tag, const uint8_t *data, size_t data_count);
+    status_t update(uint32_t tag, const int32_t *data, size_t data_count);
+    status_t update(uint32_t tag, const float *data, size_t data_count);
+    status_t update(uint32_t tag, const int64_t *data, size_t data_count);
+    status_t update(uint32_t tag, const double *data, size_t data_count);
+    status_t update(uint32_t tag, const camera_metadata_rational_t *data, size_t data_count);
+    status_t update(uint32_t tag, const String8 &string);
     status_t update(const camera_metadata_ro_entry &entry);
 
-
-    template<typename T>
+    template <typename T>
     status_t update(uint32_t tag, Vector<T> data) {
         return update(tag, data.array(), data.size());
     }
@@ -195,21 +187,19 @@ class CameraMetadata: public Parcelable {
     virtual status_t writeToParcel(Parcel *parcel) const override;
 
     /**
-      * Caller becomes the owner of the new metadata
-      * 'const Parcel' doesnt prevent us from calling the read functions.
-      *  which is interesting since it changes the internal state
-      *
-      * NULL can be returned when no metadata was sent, OR if there was an issue
-      * unpacking the serialized data (i.e. bad parcel or invalid structure).
-      */
-    static status_t readFromParcel(const Parcel &parcel,
-                                   camera_metadata_t** out);
+     * Caller becomes the owner of the new metadata
+     * 'const Parcel' doesnt prevent us from calling the read functions.
+     *  which is interesting since it changes the internal state
+     *
+     * NULL can be returned when no metadata was sent, OR if there was an issue
+     * unpacking the serialized data (i.e. bad parcel or invalid structure).
+     */
+    static status_t readFromParcel(const Parcel &parcel, camera_metadata_t **out);
     /**
-      * Caller retains ownership of metadata
-      * - Write 2 (int32 + blob) args in the current position
-      */
-    static status_t writeToParcel(Parcel &parcel,
-                                  const camera_metadata_t* metadata);
+     * Caller retains ownership of metadata
+     * - Write 2 (int32 + blob) args in the current position
+     */
+    static status_t writeToParcel(Parcel &parcel, const camera_metadata_t *metadata);
 
     /**
      * Find tag id for a given tag name, also checking vendor tags if available.
@@ -217,12 +207,12 @@ class CameraMetadata: public Parcelable {
      *
      * This is a slow method.
      */
-    static status_t getTagFromName(const char *name,
-            const VendorTagDescriptor* vTags, uint32_t *tag);
+    static status_t getTagFromName(const char *name, const VendorTagDescriptor *vTags,
+                                   uint32_t *tag);
 
-  private:
+private:
     camera_metadata_t *mBuffer;
-    mutable bool       mLocked;
+    mutable bool mLocked;
 
     /**
      * Check if tag has a given type
@@ -238,7 +228,6 @@ class CameraMetadata: public Parcelable {
      * Resize metadata buffer if needed by reallocating it and copying it over.
      */
     status_t resizeIfNeeded(size_t extraEntries, size_t extraData);
-
 };
 
 namespace hardware {
@@ -246,9 +235,9 @@ namespace camera2 {
 namespace impl {
 using ::android::CameraMetadata;
 typedef CameraMetadata CameraMetadataNative;
-}
-}
-}
+} // namespace impl
+} // namespace camera2
+} // namespace hardware
 
 } // namespace android
 

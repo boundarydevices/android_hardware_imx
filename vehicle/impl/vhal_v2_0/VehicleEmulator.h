@@ -18,16 +18,16 @@
 #define android_hardware_automotive_vehicle_V2_0_impl_VehicleHalEmulator_H_
 
 #include <log/log.h>
+
 #include <memory>
 #include <thread>
 #include <vector>
-
-#include "vhal_v2_0/VehicleHal.h"
 
 #include "CommConn.h"
 #include "PipeComm.h"
 #include "SocketComm.h"
 #include "VehicleHalProto.pb.h"
+#include "vhal_v2_0/VehicleHal.h"
 
 namespace android {
 namespace hardware {
@@ -37,7 +37,7 @@ namespace V2_0 {
 
 namespace impl {
 
-class VehicleEmulator;  // Forward declaration.
+class VehicleEmulator; // Forward declaration.
 
 /** Extension of VehicleHal that used by VehicleEmulator. */
 class EmulatedVehicleHalIface : public VehicleHal {
@@ -67,7 +67,7 @@ private:
  * Emulates vehicle by providing controlling interface from host side either through ADB or Pipe.
  */
 class VehicleEmulator : public MessageProcessor {
-   public:
+public:
     VehicleEmulator(EmulatedVehicleHalIface* hal);
     virtual ~VehicleEmulator();
 
@@ -75,7 +75,7 @@ class VehicleEmulator : public MessageProcessor {
     void processMessage(vhal_proto::EmulatorMessage const& rxMsg,
                         vhal_proto::EmulatorMessage& respMsg) override;
 
-   private:
+private:
     friend class ConnectionThread;
     using EmulatorMessage = vhal_proto::EmulatorMessage;
 
@@ -95,12 +95,12 @@ private:
     std::unique_ptr<PipeComm> mPipeComm;
 };
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
 #endif // android_hardware_automotive_vehicle_V2_0_impl_VehicleHalEmulator_H_

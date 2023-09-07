@@ -20,22 +20,22 @@ namespace nxp_sensors_subhal {
 
 // HWSensorBase represents the actual physical sensor provided as the IIO device
 class PressureSensor : public HWSensorBase {
-  public:
+public:
     PressureSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-           struct iio_device_data& iio_data,
-           const std::optional<std::vector<Configuration>>& config);
+                   struct iio_device_data& iio_data,
+                   const std::optional<std::vector<Configuration>>& config);
     ~PressureSensor();
     void run();
     void activate(bool enable);
     void setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
     void setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
-    void processScanData(char* data,Event* evt, int mChannelIndex);
+    void processScanData(char* data, Event* evt, int mChannelIndex);
     void setOperationMode(OperationMode mode);
     bool supportsDataInjection() const;
     Result injectEvent(const Event& event);
 
-  private:
+private:
     std::string mSysfspath;
 };
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

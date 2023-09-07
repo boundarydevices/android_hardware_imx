@@ -30,6 +30,7 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <utils/Log.h>
+
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -74,7 +75,6 @@ constexpr int EPOLL_EVENTS = 10;
 constexpr bool DEBUG = false;
 constexpr int DISCONNECT_WAIT_US = 100000;
 constexpr int PULL_UP_DELAY = 500000;
-
 
 #define GADGET_PATH "/config/usb_gadget/g1/"
 #define PULLUP_PATH GADGET_PATH "UDC"
@@ -124,21 +124,21 @@ struct UsbGadget : public BnUsbGadget {
     ScopedAStatus getCurrentUsbFunctions(const shared_ptr<IUsbGadgetCallback>& callback,
                                          int64_t in_transactionId) override;
 
-    ScopedAStatus reset(const shared_ptr<IUsbGadgetCallback> &callback,
-            int64_t in_transactionId) override;
+    ScopedAStatus reset(const shared_ptr<IUsbGadgetCallback>& callback,
+                        int64_t in_transactionId) override;
 
     ScopedAStatus getUsbSpeed(const shared_ptr<IUsbGadgetCallback>& callback,
                               int64_t in_transactionId) override;
 
-  private:
+private:
     Status tearDownGadget();
     Status getUsbGadgetIrqPath();
     Status setupFunctions(long functions, const shared_ptr<IUsbGadgetCallback>& callback,
                           uint64_t timeout, int64_t in_transactionId);
 };
 
-}  // namespace gadget
-}  // namespace usb
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace gadget
+} // namespace usb
+} // namespace hardware
+} // namespace android
+} // namespace aidl

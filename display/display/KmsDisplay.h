@@ -17,17 +17,18 @@
 #ifndef _KMS_DISPLAY_H_
 #define _KMS_DISPLAY_H_
 
-#include <chrono>
-#include <condition_variable>
 #include <drm/drm_fourcc.h>
+#include <hwsecure_client.h>
+#include <utils/threads.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include <utils/threads.h>
-#include <hwsecure_client.h>
 
-#include "MemoryManager.h"
-#include "MemoryDesc.h"
+#include <chrono>
+#include <condition_variable>
+
 #include "Display.h"
+#include "MemoryDesc.h"
+#include "MemoryManager.h"
 
 namespace fsl {
 
@@ -38,24 +39,18 @@ namespace fsl {
 #define MAX_FRAMEBUFFERS NUM_FRAMEBUFFER_SURFACE_BUFFERS
 #endif
 
-#define KMS_FORCE_VYNC_WAIT 100000000LL  // unit ns, wait 100ms
+#define KMS_FORCE_VYNC_WAIT 100000000LL // unit ns, wait 100ms
 
 using android::Condition;
 
 #define ARRAY_LEN(_arr) (sizeof(_arr) / sizeof(_arr[0]))
 #define KMS_PLANE_NUM 2
 
-struct KmsPlane
-{
+struct KmsPlane {
     void getPropertyIds();
-    void connectCrtc(drmModeAtomicReqPtr pset,
-                    uint32_t crtc, uint32_t fb);
-    void setDisplayFrame(drmModeAtomicReqPtr pset,
-                    uint32_t x, uint32_t y,
-                    uint32_t w, uint32_t h);
-    void setSourceSurface(drmModeAtomicReqPtr pset,
-                    uint32_t x, uint32_t y,
-                    uint32_t w, uint32_t h);
+    void connectCrtc(drmModeAtomicReqPtr pset, uint32_t crtc, uint32_t fb);
+    void setDisplayFrame(drmModeAtomicReqPtr pset, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+    void setSourceSurface(drmModeAtomicReqPtr pset, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
     void setAlpha(drmModeAtomicReqPtr pset, uint32_t alpha);
     void setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta);
     void setClientFence(drmModeAtomicReqPtr pset, int fd);
@@ -78,14 +73,12 @@ struct KmsPlane
     int mDrmFd;
 };
 
-struct TableProperty
-{
+struct TableProperty {
     const char *name;
     uint32_t *ptr;
 };
 
-class KmsDisplay : public Display
-{
+class KmsDisplay : public Display {
 public:
     KmsDisplay();
     virtual ~KmsDisplay();
@@ -105,10 +98,11 @@ public:
     virtual int setActiveConfig(int configId);
     // update composite buffer to screen.
     virtual int updateScreen();
-    virtual int getPresentFence(int32_t* outPresentFence);
+    virtual int getPresentFence(int32_t *outPresentFence);
     // switch to new display config
     virtual int changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool seamlessRequired,
-                        nsecs_t *outAppliedTime, bool *outRefresh, nsecs_t *outRefreshTime);
+                                    nsecs_t *outAppliedTime, bool *outRefresh,
+                                    nsecs_t *outRefreshTime);
 
     // open drm device.
     int openKms();
@@ -123,22 +117,21 @@ public:
     // set display drm fd and connector id.
     int setDrm(int drmfd, size_t connectorId);
     // get display drm fd.
-    int drmfd() {return mDrmFd;}
+    int drmfd() { return mDrmFd; }
     // get crtc pipe.
-    int crtcpipe() {return mCrtcIndex;}
+    int crtcpipe() { return mCrtcIndex; }
     // get display power mode.
     int powerMode();
 
-    virtual bool checkOverlay(Layer* layer);
+    virtual bool checkOverlay(Layer *layer);
     virtual int performOverlay();
     static void getTableProperty(uint32_t objectID, uint32_t objectType,
-                      struct TableProperty *table,
-                      size_t tableLen, int drmfd);
-    static void getPropertyValue(uint32_t objectID, uint32_t objectType,
-                          const char *propName, uint32_t* propId,
-                          uint64_t* value, int drmfd);
+                                 struct TableProperty *table, size_t tableLen, int drmfd);
+    static void getPropertyValue(uint32_t objectID, uint32_t objectType, const char *propName,
+                                 uint32_t *propId, uint64_t *value, int drmfd);
     // check whether display support HDR or not
     virtual bool isHdrSupported();
+
 private:
     int setActiveConfigLocked(int configId);
     void buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format);
@@ -152,27 +145,28 @@ private:
 
     void bindCrtc(drmModeAtomicReqPtr pset, uint32_t mode);
     void bindOutFence(drmModeAtomicReqPtr pset);
-    void setHdrMetaData(drmModeAtomicReqPtr pset,hdr_output_metadata hdrMetaData);
+    void setHdrMetaData(drmModeAtomicReqPtr pset, hdr_output_metadata hdrMetaData);
     bool getGUIResolution(int &width, int &height);
-    bool veritySourceSize(Layer* layer);
+    bool veritySourceSize(Layer *layer);
     void parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode);
 #ifdef HAVE_UNMAPPED_HEAP
     int checkSecureLayers();
 #endif
     bool mSecureDisplay;
     bool mForceModeSet;
-    Memory* mDummyTarget;
-    Layer* mDummylayer;
+    Memory *mDummyTarget;
+    Layer *mDummylayer;
     bool mUseOverlayAndroidUI;
+
 protected:
     int mDrmFd;
     int mPowerMode;
 
     int mTargetIndex;
-    Memory* mTargets[MAX_FRAMEBUFFERS];
+    Memory *mTargets[MAX_FRAMEBUFFERS];
 #ifdef HAVE_UNMAPPED_HEAP
     int mSecTargetIndex;
-    Memory* mSecTargets[MAX_FRAMEBUFFERS];
+    Memory *mSecTargets[MAX_FRAMEBUFFERS];
     enum g2d_secure_mode mG2dMode;
 #endif
     bool mHDCPMode;
@@ -208,7 +202,7 @@ protected:
     KmsPlane mKmsPlanes[KMS_PLANE_NUM];
     uint32_t mKmsPlaneNum;
     drmModeAtomicReqPtr mPset;
-    MemoryManager* mMemoryManager;
+    MemoryManager *mMemoryManager;
     bool mNoResolve;
     bool mAllowModifier;
     uint32_t mMetadataID;
@@ -270,5 +264,5 @@ protected:
     sp<ConfigThread> mConfigThread;
 };
 
-}
+} // namespace fsl
 #endif

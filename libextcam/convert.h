@@ -45,14 +45,14 @@ bool convertFromAidl(const CameraMetadata& src, const camera_metadata_t** dst);
 
 inline ndk::ScopedAStatus fromStatus(Status status) {
     return status == Status::OK
-                   ? ndk::ScopedAStatus::ok()
-                   : ndk::ScopedAStatus::fromServiceSpecificError(static_cast<int32_t>(status));
+            ? ndk::ScopedAStatus::ok()
+            : ndk::ScopedAStatus::fromServiceSpecificError(static_cast<int32_t>(status));
 }
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android
 
-#endif  // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_CONVERT_H_
+#endif // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_CONVERT_H_

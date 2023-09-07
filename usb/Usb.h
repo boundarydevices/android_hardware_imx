@@ -18,7 +18,6 @@
 #ifndef ANDROID_HARDWARE_USB_V1_3_USB_H
 #define ANDROID_HARDWARE_USB_V1_3_USB_H
 
-#include <string>
 #include <android-base/file.h>
 #include <android-base/properties.h>
 #include <android/hardware/usb/1.2/IUsbCallback.h>
@@ -27,13 +26,14 @@
 #include <hidl/Status.h>
 #include <utils/Log.h>
 
+#include <string>
+
 namespace android {
 namespace hardware {
 namespace usb {
 namespace V1_3 {
 namespace implementation {
 
-using ::std::string;
 using ::android::sp;
 using ::android::base::GetProperty;
 using ::android::base::WriteStringToFile;
@@ -50,18 +50,14 @@ using ::android::hardware::usb::V1_0::PortRoleType;
 using ::android::hardware::usb::V1_0::Status;
 using ::android::hardware::usb::V1_1::PortMode_1_1;
 using ::android::hardware::usb::V1_1::PortStatus_1_1;
-using ::android::hardware::usb::V1_2::PortStatus;
 using ::android::hardware::usb::V1_2::IUsbCallback;
+using ::android::hardware::usb::V1_2::PortStatus;
 using ::android::hardware::usb::V1_3::IUsb;
 using ::android::hidl::base::V1_0::DebugInfo;
 using ::android::hidl::base::V1_0::IBase;
+using ::std::string;
 
-enum class HALVersion{
-    V1_0,
-    V1_1,
-    V1_2,
-    V1_3
-};
+enum class HALVersion { V1_0, V1_1, V1_2, V1_3 };
 
 struct Usb : public IUsb {
     Usb();
@@ -92,14 +88,14 @@ struct Usb : public IUsb {
     void cmdList(int fd, const hidl_vec<hidl_string>& options);
     void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
 
-    private:
-        pthread_t mPoll;
+private:
+    pthread_t mPoll;
 };
 
-}  // namespace implementation
-}  // namespace V1_3
-}  // namespace usb
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V1_3
+} // namespace usb
+} // namespace hardware
+} // namespace android
 
-#endif  // ANDROID_HARDWARE_USB_V1_3_USB_H
+#endif // ANDROID_HARDWARE_USB_V1_3_USB_H

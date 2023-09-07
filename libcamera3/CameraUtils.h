@@ -20,32 +20,32 @@
 
 #undef LOG_TAG
 #define LOG_TAG "FslCameraHAL"
-#include <utils/Log.h>
-
-#include <inttypes.h>
-#include <string.h>
-#include <unistd.h>
-#include <time.h>
-#include <dlfcn.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <linux/time.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <utils/threads.h>
-#include <utils/RefBase.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
 #include <camera/CameraParameters.h>
-#include <utils/Vector.h>
-#include <utils/KeyedVector.h>
 #include <cutils/properties.h>
-#include <hardware_legacy/power.h>
-#include <ui/PixelFormat.h>
+#include <dlfcn.h>
+#include <fcntl.h>
 #include <graphics_ext.h>
 #include <hardware/camera3.h>
+#include <hardware_legacy/power.h>
+#include <inttypes.h>
+#include <linux/time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <ui/PixelFormat.h>
+#include <unistd.h>
+#include <utils/KeyedVector.h>
+#include <utils/Log.h>
+#include <utils/RefBase.h>
+#include <utils/Vector.h>
+#include <utils/threads.h>
+
 #include "Memory.h"
 
 #define MAX_CAMERAS 2
@@ -58,12 +58,12 @@
 #define IMX7_BOARD_NAME "imx7"
 
 #define CAMAERA_FILENAME_LENGTH 256
-#define CAMERA_SENSOR_LENGTH    92
-#define CAMERA_FORMAT_LENGTH    32
+#define CAMERA_SENSOR_LENGTH 92
+#define CAMERA_FORMAT_LENGTH 32
 #define CAMER_PARAM_BUFFER_SIZE 512
 #define PARAMS_DELIMITER ","
 
-#define MAX_RESOLUTION_SIZE   64
+#define MAX_RESOLUTION_SIZE 64
 #define MAX_FPS_RANGE 6
 #define MAX_SENSOR_FORMAT 20
 
@@ -73,35 +73,30 @@
 #define CAMERA_SYNC_TIMEOUT 5000 // in msecs
 #define MAX_STREAM_BUFFERS 32
 
-#define CAMERA_GRALLOC_USAGE_JPEG GRALLOC_USAGE_HW_TEXTURE | \
-    GRALLOC_USAGE_HW_RENDER |                           \
-    GRALLOC_USAGE_SW_READ_RARELY |                      \
-    GRALLOC_USAGE_SW_WRITE_NEVER |                      \
-    GRALLOC_USAGE_HW_CAMERA_WRITE
+#define CAMERA_GRALLOC_USAGE_JPEG                                                       \
+    GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_SW_READ_RARELY | \
+            GRALLOC_USAGE_SW_WRITE_NEVER | GRALLOC_USAGE_HW_CAMERA_WRITE
 
-#define CAMERA_GRALLOC_USAGE GRALLOC_USAGE_HW_TEXTURE |         \
-                                 GRALLOC_USAGE_HW_RENDER |      \
-                                 GRALLOC_USAGE_SW_READ_NEVER | \
-                                 GRALLOC_USAGE_SW_WRITE_NEVER | \
-                                 GRALLOC_USAGE_HW_CAMERA_WRITE
+#define CAMERA_GRALLOC_USAGE                                                           \
+    GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_SW_READ_NEVER | \
+            GRALLOC_USAGE_SW_WRITE_NEVER | GRALLOC_USAGE_HW_CAMERA_WRITE
 
-#define NUM_PREVIEW_BUFFER      2
-#define NUM_CAPTURE_BUFFER      1
+#define NUM_PREVIEW_BUFFER 2
+#define NUM_CAPTURE_BUFFER 1
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-#define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
-#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
-#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
+#define ALIGN_PIXEL_4(x) ((x + 3) & ~3)
+#define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
+#define ALIGN_PIXEL_32(x) ((x + 31) & ~31)
 
 using namespace android;
 
-int convertPixelFormatToV4L2Format(PixelFormat format, bool invert=false);
+int convertPixelFormatToV4L2Format(PixelFormat format, bool invert = false);
 
 class Metadata;
 class Stream;
 
-struct SensorSet
-{
+struct SensorSet {
     // parameters from init.rc
     char mPropertyName[PROPERTY_VALUE_MAX];
     int32_t mFacing;
@@ -121,8 +116,7 @@ struct SensorSet
 };
 
 // 3aState
-struct autoState
-{
+struct autoState {
     uint8_t aeMode;
     uint8_t afMode;
     uint8_t awbMode;
@@ -133,8 +127,7 @@ struct autoState
     int32_t aeTriggerId;
 };
 
-class StreamBuffer
-{
+class StreamBuffer {
 public:
     StreamBuffer();
     ~StreamBuffer();
@@ -146,23 +139,18 @@ public:
     int32_t mAcquireFence;
 
     buffer_handle_t* mBufHandle;
-    void*   mVirtAddr;
+    void* mVirtAddr;
     int32_t mPhyAddr;
-    size_t  mSize;
+    size_t mSize;
     int32_t mFd;
 
-    //for uvc jpeg stream
-    void *mpFrameBuf;
+    // for uvc jpeg stream
+    void* mpFrameBuf;
 };
 
-enum RequestType {
-    TYPE_PREVIEW = 1,
-    TYPE_SNAPSHOT = 2,
-    TYPE_STILLCAP = 3
-};
+enum RequestType { TYPE_PREVIEW = 1, TYPE_SNAPSHOT = 2, TYPE_STILLCAP = 3 };
 
-class CaptureRequest : public LightRefBase<CaptureRequest>
-{
+class CaptureRequest : public LightRefBase<CaptureRequest> {
 public:
     CaptureRequest();
     ~CaptureRequest();
@@ -180,11 +168,10 @@ public:
     StreamBuffer* mOutBuffers[MAX_STREAM_BUFFERS];
 
     camera3_capture_request* mRequest;
-    camera3_callback_ops *mCallbackOps;
+    camera3_callback_ops* mCallbackOps;
 };
 
-class SensorData
-{
+class SensorData {
 public:
     SensorData();
     virtual ~SensorData();
@@ -192,22 +179,16 @@ public:
     virtual int getCaptureMode(int width, int height);
     virtual int getFps(int width, int height, int defValue);
 
-    virtual PixelFormat getPreviewPixelFormat()
-    {
-        return mPreviewPixelFormat;
-    }
+    virtual PixelFormat getPreviewPixelFormat() { return mPreviewPixelFormat; }
 
-    PixelFormat getPicturePixelFormat() {
-        return mPicturePixelFormat;
-    }
+    PixelFormat getPicturePixelFormat() { return mPicturePixelFormat; }
 
-    PixelFormat getMatchFormat(int *sfmt, int  slen,
-                               int *dfmt, int  dlen);
+    PixelFormat getMatchFormat(int* sfmt, int slen, int* dfmt, int dlen);
 
     int32_t getSensorFormat(int32_t availFormat);
 
 protected:
-    int32_t changeSensorFormats(int *src, int *dst, int len);
+    int32_t changeSensorFormats(int* src, int* dst, int len);
     status_t adjustPreviewResolutions();
     status_t setMaxPictureResolutions();
 

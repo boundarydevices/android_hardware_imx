@@ -17,9 +17,9 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_Obd2SensorStore_H_
 #define android_hardware_automotive_vehicle_V2_0_Obd2SensorStore_H_
 
-#include <vector>
-
 #include <android/hardware/automotive/vehicle/2.0/types.h>
+
+#include <vector>
 
 namespace android {
 namespace hardware {
@@ -32,7 +32,7 @@ namespace V2_0 {
 // and returning appropriately laid out storage of sensor values suitable
 // for being returned via a VehicleHal implementation.
 class Obd2SensorStore {
-   public:
+public:
     // Creates a sensor storage with a given number of vendor-specific sensors.
     Obd2SensorStore(size_t numVendorIntegerSensors, size_t numVendorFloatSensors);
 
@@ -56,9 +56,9 @@ class Obd2SensorStore {
     // Given a stringValue, fill in a VehiclePropValue
     void fillPropValue(const std::string& dtc, VehiclePropValue* propValue) const;
 
-   private:
+private:
     class BitmaskInVector {
-       public:
+    public:
         BitmaskInVector(size_t numBits = 0);
         void resize(size_t numBits);
         bool get(size_t index) const;
@@ -66,7 +66,7 @@ class Obd2SensorStore {
 
         const std::vector<uint8_t>& getBitmask() const;
 
-       private:
+    private:
         std::vector<uint8_t> mStorage;
     };
 
@@ -75,10 +75,10 @@ class Obd2SensorStore {
     BitmaskInVector mSensorsBitmask;
 };
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_Obd2SensorStore_H_
+#endif // android_hardware_automotive_vehicle_V2_0_Obd2SensorStore_H_

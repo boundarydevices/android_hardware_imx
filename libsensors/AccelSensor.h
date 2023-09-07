@@ -18,14 +18,14 @@
 #ifndef ANDROID_FSL_ACCEL_SENSOR_H
 #define ANDROID_FSL_ACCEL_SENSOR_H
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include "sensors.h"
-#include "SensorBase.h"
 #include "InputEventReader.h"
+#include "SensorBase.h"
+#include "sensors.h"
 
 #define MMA8X5X_FIFO_SIZE 32
 
@@ -38,33 +38,34 @@ public:
     virtual int setEnable(int32_t handle, int enabled);
     virtual int getEnable(int32_t handle);
     virtual int readEvents(sensors_event_t* data, int count);
-	virtual bool hasPendingEvents();
+    virtual bool hasPendingEvents();
     void processEvent(int code, int value);
-	int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
-	int flush(int handle);
+    int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
+    int flush(int handle);
+
 private:
-	int sensor_get_class_path(char *class_path);
-	int is_sensor_enabled();
-	int enable_sensor();
-	int disable_sensor();
-	int set_delay(int64_t ns);
-	int update_delay();
-	int readDisable();
-	int writeEnable(int isEnable);
-	int writeDelay(int64_t ns);
-	int fifo(int64_t period_ns,int64_t timeout_ns,int wakeup);
-	int read_fifo();
-	int mUser;
-	int mEnabled;
-	int mPendingMask;
-	char mClassPath[PATH_MAX];
-	InputEventCircularReader mInputReader;
-	sensors_event_t mPendingEvent;
-	int mFifoCount;
-	sensors_event_t mFifoPendingEvent[MMA8X5X_FIFO_SIZE];
-	int64_t mDelay;
+    int sensor_get_class_path(char* class_path);
+    int is_sensor_enabled();
+    int enable_sensor();
+    int disable_sensor();
+    int set_delay(int64_t ns);
+    int update_delay();
+    int readDisable();
+    int writeEnable(int isEnable);
+    int writeDelay(int64_t ns);
+    int fifo(int64_t period_ns, int64_t timeout_ns, int wakeup);
+    int read_fifo();
+    int mUser;
+    int mEnabled;
+    int mPendingMask;
+    char mClassPath[PATH_MAX];
+    InputEventCircularReader mInputReader;
+    sensors_event_t mPendingEvent;
+    int mFifoCount;
+    sensors_event_t mFifoPendingEvent[MMA8X5X_FIFO_SIZE];
+    int64_t mDelay;
 };
 
 /*****************************************************************************/
 
-#endif  // ANDROID_FSL_ACCEL_SENSOR_H
+#endif // ANDROID_FSL_ACCEL_SENSOR_H

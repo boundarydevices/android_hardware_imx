@@ -16,9 +16,9 @@
 #ifndef HWC2_CONTEXT_H_
 #define HWC2_CONTEXT_H_
 
+#include <Display.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer2.h>
-#include <Display.h>
 
 using namespace fsl;
 
@@ -44,14 +44,14 @@ struct hwc2_context_t {
     bool color_tranform;
 };
 
-class DisplayListener : public EventListener
-{
+class DisplayListener : public EventListener {
 public:
     DisplayListener(struct hwc2_context_t* ctx);
     virtual void onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos);
     virtual void onHotplug(int disp, bool connected);
     virtual void onRefresh(int disp);
-    virtual void onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos, bool refreshRequired, nsecs_t refreshTimeNanos);
+    virtual void onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos,
+                                            bool refreshRequired, nsecs_t refreshTimeNanos);
     virtual void onSeamlessPossible(int disp);
 
 private:

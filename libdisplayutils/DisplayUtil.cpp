@@ -6,21 +6,22 @@
  */
 
 #include "DisplayUtil.h"
-#include "MemoryDesc.h"
-#include <android/hardware/graphics/common/1.2/types.h>
+
 #include <android-base/stringprintf.h>
 #include <android-base/strings.h>
+#include <android/hardware/graphics/common/1.2/types.h>
 #include <cutils/log.h>
-#include <hardware/gralloc.h>
 #include <graphics_ext.h>
+#include <hardware/gralloc.h>
 #include <inttypes.h>
+
+#include "MemoryDesc.h"
 
 namespace fsl {
 
 using android::hardware::graphics::common::V1_2::BufferUsage;
 
-int convert_gralloc_format_to_nxp_format(int format)
-{
+int convert_gralloc_format_to_nxp_format(int format) {
     int fslFormat = 0;
     switch (format) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
@@ -106,8 +107,7 @@ int convert_gralloc_format_to_nxp_format(int format)
     return fslFormat;
 }
 
-std::string getNxpFormatString(int format)
-{
+std::string getNxpFormatString(int format) {
     switch (format) {
         case FORMAT_RGBA8888:
             return "RGBA8888";
@@ -156,18 +156,16 @@ std::string getNxpFormatString(int format)
         case FORMAT_RAW16:
             return "FORMAT_RAW16";
         default:
-            return android::base::StringPrintf("Unknown(0x%x)",format);
+            return android::base::StringPrintf("Unknown(0x%x)", format);
     }
 }
 
-std::string getGrallocFormatString(int format)
-{
+std::string getGrallocFormatString(int format) {
     int nxpFormat = convert_gralloc_format_to_nxp_format(format);
     return getNxpFormatString(nxpFormat);
 }
 
-std::string getUsageString(uint64_t bufferUsage)
-{
+std::string getUsageString(uint64_t bufferUsage) {
     using Underlying = typename std::underlying_type<BufferUsage>::type;
 
     Underlying usage = static_cast<Underlying>(bufferUsage);
@@ -238,26 +236,26 @@ std::string getUsageString(uint64_t bufferUsage)
         usages.push_back("VIDEO_ENCODER");
     }
 
-    if (usage & GRALLOC_USAGE_PRIVATE_0 ) {
+    if (usage & GRALLOC_USAGE_PRIVATE_0) {
         usage &= ~static_cast<Underlying>(GRALLOC_USAGE_PRIVATE_0);
         usages.push_back("PRIVATE_0");
     }
-    if (usage & GRALLOC_USAGE_PRIVATE_1 ) {
+    if (usage & GRALLOC_USAGE_PRIVATE_1) {
         usage &= ~static_cast<Underlying>(GRALLOC_USAGE_PRIVATE_1);
         usages.push_back("PRIVATE_1");
     }
-    if (usage & GRALLOC_USAGE_PRIVATE_2 ) {
+    if (usage & GRALLOC_USAGE_PRIVATE_2) {
         usage &= ~static_cast<Underlying>(GRALLOC_USAGE_PRIVATE_2);
         usages.push_back("PRIVATE_2");
     }
-    if (usage & GRALLOC_USAGE_PRIVATE_3 ) {
+    if (usage & GRALLOC_USAGE_PRIVATE_3) {
         usage &= ~static_cast<Underlying>(GRALLOC_USAGE_PRIVATE_3);
         usages.push_back("PRIVATE_3");
     }
     if (usage & BufferUsage::VENDOR_MASK) {
-        usages.push_back(android::base::StringPrintf("UnknownUsageBits-%" PRIu64 , usage));
+        usages.push_back(android::base::StringPrintf("UnknownUsageBits-%" PRIu64, usage));
     }
 
     return android::base::Join(usages, '|');
 }
-}
+} // namespace fsl

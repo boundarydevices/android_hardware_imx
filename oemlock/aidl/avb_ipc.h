@@ -32,20 +32,20 @@
 
 enum avbCommand {
     AVB_REQ_SHIFT = 1,
-    AVB_RESP_BIT  = 1,
+    AVB_RESP_BIT = 1,
 
-    READ_ROLLBACK_INDEX                = (0 << AVB_REQ_SHIFT),
-    WRITE_ROLLBACK_INDEX               = (1 << AVB_REQ_SHIFT),
-    AVB_GET_VERSION                    = (2 << AVB_REQ_SHIFT),
-    READ_PERMANENT_ATTRIBUTES          = (3 << AVB_REQ_SHIFT),
-    WRITE_PERMANENT_ATTRIBUTES         = (4 << AVB_REQ_SHIFT),
-    READ_LOCK_STATE                    = (5 << AVB_REQ_SHIFT),
-    WRITE_LOCK_STATE                   = (6 << AVB_REQ_SHIFT),
-    LOCK_BOOT_STATE                    = (7 << AVB_REQ_SHIFT),
-    READ_VBMETA_PUBLIC_KEY             = (8 << AVB_REQ_SHIFT),
-    WRITE_VBMETA_PUBLIC_KEY            = (9 << AVB_REQ_SHIFT),
+    READ_ROLLBACK_INDEX = (0 << AVB_REQ_SHIFT),
+    WRITE_ROLLBACK_INDEX = (1 << AVB_REQ_SHIFT),
+    AVB_GET_VERSION = (2 << AVB_REQ_SHIFT),
+    READ_PERMANENT_ATTRIBUTES = (3 << AVB_REQ_SHIFT),
+    WRITE_PERMANENT_ATTRIBUTES = (4 << AVB_REQ_SHIFT),
+    READ_LOCK_STATE = (5 << AVB_REQ_SHIFT),
+    WRITE_LOCK_STATE = (6 << AVB_REQ_SHIFT),
+    LOCK_BOOT_STATE = (7 << AVB_REQ_SHIFT),
+    READ_VBMETA_PUBLIC_KEY = (8 << AVB_REQ_SHIFT),
+    WRITE_VBMETA_PUBLIC_KEY = (9 << AVB_REQ_SHIFT),
     WRITE_OEM_UNLOCK_DEVICE_PERMISSION = (10 << AVB_REQ_SHIFT),
-    READ_OEM_UNLOCK_DEVICE_PERMISSION  = (11 << AVB_REQ_SHIFT),
+    READ_OEM_UNLOCK_DEVICE_PERMISSION = (11 << AVB_REQ_SHIFT),
 };
 
 /**
@@ -55,8 +55,8 @@ enum avbCommand {
  * @AVB_ERROR_INTERNAL:     Error occurred during an operation in Trusty
  */
 enum avbError {
-    AVB_ERROR_NONE     = 0,
-    AVB_ERROR_INVALID  = -1,
+    AVB_ERROR_NONE = 0,
+    AVB_ERROR_INVALID = -1,
     AVB_ERROR_INTERNAL = -2,
 };
 
@@ -74,12 +74,11 @@ struct avbMessage {
 };
 
 class avbOemUnlockIpc {
-
 public:
-    avbError avbCall(int handler, avbCommand cmd, void* in,
-                             uint32_t in_size, void* out, uint32_t* out_size);
-    avbError readDeviceUnlockPermission (uint8_t *status);
-    avbError writeDeviceUnlockPermission (uint8_t status);
+    avbError avbCall(int handler, avbCommand cmd, void* in, uint32_t in_size, void* out,
+                     uint32_t* out_size);
+    avbError readDeviceUnlockPermission(uint8_t* status);
+    avbError writeDeviceUnlockPermission(uint8_t status);
 };
 
 #endif /* AVB_TRUSTY_H_ */

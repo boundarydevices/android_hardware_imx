@@ -17,25 +17,25 @@
 #ifndef FRAME_HANDLER_ULTRASONICS_H
 #define FRAME_HANDLER_ULTRASONICS_H
 
-#include <android/hardware/automotive/evs/1.1/types.h>
-#include <android/hardware/automotive/evs/1.1/IEvsUltrasonicsArrayStream.h>
 #include <android/hardware/automotive/evs/1.1/IEvsUltrasonicsArray.h>
+#include <android/hardware/automotive/evs/1.1/IEvsUltrasonicsArrayStream.h>
+#include <android/hardware/automotive/evs/1.1/types.h>
 
 #include <vector>
 
-class FrameHandlerUltrasonics : public
-        android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArrayStream {
+class FrameHandlerUltrasonics
+      : public android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArrayStream {
 public:
     FrameHandlerUltrasonics(
             android::sp<android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArray>
-            pEvsUltrasonicsArray);
+                    pEvsUltrasonicsArray);
 
     // Implementation for ::android::hardware::automotive::evs::V1_1::IEvsUltrasonicsArrayStream
     android::hardware::Return<void> notify(
             const android::hardware::automotive::evs::V1_1::EvsEventDesc& evsEvent) override;
     android::hardware::Return<void> deliverDataFrame(
-            const android::hardware::automotive::evs::V1_1::UltrasonicsDataFrameDesc&
-             dataFrameDesc) override;
+            const android::hardware::automotive::evs::V1_1::UltrasonicsDataFrameDesc& dataFrameDesc)
+            override;
 
     bool checkEventReceived(android::hardware::automotive::evs::V1_1::EvsEventDesc evsEvent);
     int getReceiveFramesCount();
@@ -50,4 +50,4 @@ private:
     bool mAllFramesValid = true;
 };
 
-#endif //FRAME_HANDLER_ULTRASONICS_H
+#endif // FRAME_HANDLER_ULTRASONICS_H

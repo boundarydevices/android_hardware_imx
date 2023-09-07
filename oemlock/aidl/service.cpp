@@ -29,7 +29,8 @@ int main() {
     std::shared_ptr<OemLock> oemlock = ndk::SharedRefBase::make<OemLock>();
 
     const std::string instance = std::string() + OemLock::descriptor + "/default";
-    binder_status_t status = AServiceManager_addService(oemlock->asBinder().get(), instance.c_str());
+    binder_status_t status =
+            AServiceManager_addService(oemlock->asBinder().get(), instance.c_str());
     CHECK_EQ(status, STATUS_OK);
 
     ABinderProcess_joinThreadPool();

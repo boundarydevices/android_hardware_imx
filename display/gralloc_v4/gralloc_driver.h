@@ -16,43 +16,41 @@
 
 #include "gralloc_helpers.h"
 
-class gralloc_driver
-{
-      public:
-	gralloc_driver();
-	~gralloc_driver();
+class gralloc_driver {
+public:
+    gralloc_driver();
+    ~gralloc_driver();
 
-	int32_t init();
-	bool is_supported(const struct gralloc_buffer_descriptor *descriptor);
-	int32_t allocate(const struct gralloc_buffer_descriptor *descriptor,
-			 buffer_handle_t *out_handle);
+    int32_t init();
+    bool is_supported(const struct gralloc_buffer_descriptor *descriptor);
+    int32_t allocate(const struct gralloc_buffer_descriptor *descriptor,
+                     buffer_handle_t *out_handle);
 
-	int32_t retain(buffer_handle_t handle);
-	int32_t release(buffer_handle_t handle);
+    int32_t retain(buffer_handle_t handle);
+    int32_t release(buffer_handle_t handle);
 
-	int32_t lock(buffer_handle_t handle, int32_t acquire_fence, bool close_acquire_fence,
-		     const struct rectangle *rect, uint32_t map_flags,
-		     uint8_t *addr[DRV_MAX_PLANES]);
-	int32_t unlock(buffer_handle_t handle, int32_t *release_fence);
+    int32_t lock(buffer_handle_t handle, int32_t acquire_fence, bool close_acquire_fence,
+                 const struct rectangle *rect, uint32_t map_flags, uint8_t *addr[DRV_MAX_PLANES]);
+    int32_t unlock(buffer_handle_t handle, int32_t *release_fence);
 
-	int32_t invalidate(buffer_handle_t handle);
-	int32_t flush(buffer_handle_t handle, int32_t *release_fence);
+    int32_t invalidate(buffer_handle_t handle);
+    int32_t flush(buffer_handle_t handle, int32_t *release_fence);
 
-	int32_t get_backing_store(buffer_handle_t handle, uint64_t *out_store);
-	int32_t validate_buffer(const struct gralloc_buffer_descriptor *descriptor,
-                                        buffer_handle_t handle);
-	int32_t create_reserved_region(uint64_t reserved_region_size);
-	int32_t get_reserved_region(buffer_handle_t handle, void **reserved_region_addr,
-				    uint64_t *reserved_region_size);
+    int32_t get_backing_store(buffer_handle_t handle, uint64_t *out_store);
+    int32_t validate_buffer(const struct gralloc_buffer_descriptor *descriptor,
+                            buffer_handle_t handle);
+    int32_t create_reserved_region(uint64_t reserved_region_size);
+    int32_t get_reserved_region(buffer_handle_t handle, void **reserved_region_addr,
+                                uint64_t *reserved_region_size);
 
-	uint32_t get_resolved_drm_format(uint32_t drm_format, uint64_t usage);
+    uint32_t get_resolved_drm_format(uint32_t drm_format, uint64_t usage);
 
-      private:
-	gralloc_driver(gralloc_driver const &);
-	gralloc_driver operator=(gralloc_driver const &);
+private:
+    gralloc_driver(gralloc_driver const &);
+    gralloc_driver operator=(gralloc_driver const &);
 
-	fsl::MemoryManager *pManager;
-	std::mutex mutex_;
+    fsl::MemoryManager *pManager;
+    std::mutex mutex_;
 };
 
 #endif

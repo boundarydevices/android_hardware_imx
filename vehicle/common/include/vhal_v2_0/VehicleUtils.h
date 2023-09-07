@@ -35,19 +35,17 @@ namespace V2_0 {
 constexpr int32_t kAllSupportedAreas = 0;
 
 /** Returns underlying (integer) value for given enum. */
-template<typename ENUM, typename U = typename std::underlying_type<ENUM>::type>
+template <typename ENUM, typename U = typename std::underlying_type<ENUM>::type>
 inline constexpr U toInt(ENUM const value) {
     return static_cast<U>(value);
 }
 
 inline constexpr VehiclePropertyType getPropType(int32_t prop) {
-    return static_cast<VehiclePropertyType>(
-            prop & toInt(VehiclePropertyType::MASK));
+    return static_cast<VehiclePropertyType>(prop & toInt(VehiclePropertyType::MASK));
 }
 
 inline constexpr VehiclePropertyGroup getPropGroup(int32_t prop) {
-    return static_cast<VehiclePropertyGroup>(
-            prop & toInt(VehiclePropertyGroup::MASK));
+    return static_cast<VehiclePropertyGroup>(prop & toInt(VehiclePropertyGroup::MASK));
 }
 
 inline constexpr VehicleArea getPropArea(int32_t prop) {
@@ -62,30 +60,28 @@ inline constexpr bool isSystemProperty(int32_t prop) {
     return VehiclePropertyGroup::SYSTEM == getPropGroup(prop);
 }
 
-std::unique_ptr<VehiclePropValue> createVehiclePropValue(
-    VehiclePropertyType type, size_t vecSize);
+std::unique_ptr<VehiclePropValue> createVehiclePropValue(VehiclePropertyType type, size_t vecSize);
 
-size_t getVehicleRawValueVectorSize(
-    const VehiclePropValue::RawValue& value, VehiclePropertyType type);
+size_t getVehicleRawValueVectorSize(const VehiclePropValue::RawValue& value,
+                                    VehiclePropertyType type);
 
-void copyVehicleRawValue(VehiclePropValue::RawValue* dest,
-                                const VehiclePropValue::RawValue& src);
+void copyVehicleRawValue(VehiclePropValue::RawValue* dest, const VehiclePropValue::RawValue& src);
 
 #ifdef __ANDROID__
 
-template<typename T>
+template <typename T>
 void shallowCopyHidlVec(hidl_vec<T>* dest, const hidl_vec<T>& src);
 
 void shallowCopyHidlStr(hidl_string* dest, const hidl_string& src);
 
 void shallowCopy(VehiclePropValue* dest, const VehiclePropValue& src);
 
-#endif  // __ANDROID__
+#endif // __ANDROID__
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
 #endif // android_hardware_automotive_vehicle_V2_0_VehicleUtils_H_

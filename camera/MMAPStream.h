@@ -17,8 +17,9 @@
 #ifndef _MMAP_STREAM_H
 #define _MMAP_STREAM_H
 
-#include <inttypes.h>
 #include <hal_types.h>
+#include <inttypes.h>
+
 #include "VideoStream.h"
 
 namespace android {
@@ -26,32 +27,31 @@ namespace android {
 using google_camera_hal::Stream;
 
 // stream uses memory map buffers which allcated in kernel space.
-class MMAPStream : public VideoStream
-{
+class MMAPStream : public VideoStream {
 public:
     MMAPStream(CameraDeviceSessionHwlImpl *pSession);
     MMAPStream(CameraDeviceSessionHwlImpl *pSession, bool mplane);
     virtual ~MMAPStream();
 
     // configure device.
-    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps);
+    virtual int32_t onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height,
+                                            uint32_t fps);
     // start device.
     virtual int32_t onDeviceStartLocked();
     // stop device.
     virtual int32_t onDeviceStopLocked();
 
     // put buffer back to V4L2.
-    virtual int32_t onFrameReturn(ImxStreamBuffer& buf);
+    virtual int32_t onFrameReturn(ImxStreamBuffer &buf);
 
     // allocate buffers.
-    virtual int32_t allocateBuffersLocked() {return 0;}
+    virtual int32_t allocateBuffersLocked() { return 0; }
     // free buffers.
-    virtual int32_t freeBuffersLocked() {return 0;}
+    virtual int32_t freeBuffersLocked() { return 0; }
 
     uint32_t PickValidFps(int vformat, uint32_t width, uint32_t height, uint32_t requestFps);
-
 };
 
-}  // namespace android
+} // namespace android
 
 #endif

@@ -17,46 +17,47 @@
 #ifndef CAMERA_METADATA_H
 #define CAMERA_METADATA_H
 
-#include <string>
-#include <stdint.h>
+#include <hal_types.h>
 #include <inttypes.h>
 #include <log/log.h>
-#include <system/graphics.h>
+#include <stdint.h>
 #include <system/camera.h>
-#include <hal_types.h>
-#include "hal_camera_metadata.h"
+#include <system/graphics.h>
+
+#include <string>
+
 #include "CameraConfigurationParser.h"
+#include "hal_camera_metadata.h"
 
 namespace android {
 
 class CameraDeviceHwlImpl;
 
-using google_camera_hal::RequestTemplate;
 using google_camera_hal::HalCameraMetadata;
+using google_camera_hal::RequestTemplate;
 using namespace cameraconfigparser;
-class CameraMetadata
-{
+class CameraMetadata {
 public:
     CameraMetadata() {}
     CameraMetadata(HalCameraMetadata *request_meta) { m_request_meta = request_meta; }
 
 public:
     status_t createMetadata(CameraDeviceHwlImpl *pDev, CameraSensorMetadata mSensorData);
-    HalCameraMetadata* GetStaticMeta();
+    HalCameraMetadata *GetStaticMeta();
 
-    CameraMetadata* Clone();
+    CameraMetadata *Clone();
 
     // Get a key's value by tag
-    status_t Get(uint32_t tag, camera_metadata_ro_entry* entry) const;
+    status_t Get(uint32_t tag, camera_metadata_ro_entry *entry) const;
 
     status_t getRequestSettings(RequestTemplate type,
-                                       std::unique_ptr<HalCameraMetadata>* default_settings);
+                                std::unique_ptr<HalCameraMetadata> *default_settings);
 
     status_t setTemplate(CameraSensorMetadata mSensorData);
 
-    int32_t getGpsCoordinates( double *pCoords, int count);
+    int32_t getGpsCoordinates(double *pCoords, int count);
     int32_t getGpsTimeStamp(int64_t &timeStamp);
-    int32_t getGpsProcessingMethod(uint8_t* src, int count);
+    int32_t getGpsProcessingMethod(uint8_t *src, int count);
     int32_t getFocalLength(float &focalLength);
     int32_t getJpegRotation(int32_t &jpegRotation);
     int32_t getJpegQuality(int32_t &quality);
@@ -65,10 +66,11 @@ public:
     int32_t getMaxJpegSize(int &size);
 
 private:
-    status_t createSettingTemplate(std::unique_ptr<HalCameraMetadata>& base,
-                                          RequestTemplate type, CameraSensorMetadata mSensorData);
+    status_t createSettingTemplate(std::unique_ptr<HalCameraMetadata> &base, RequestTemplate type,
+                                   CameraSensorMetadata mSensorData);
 
-    status_t MergeAndSetMeta(uint32_t tag, int32_t* array_keys_basic, int basic_size, int* array_keys_isp, int isp_size);
+    status_t MergeAndSetMeta(uint32_t tag, int32_t *array_keys_basic, int basic_size,
+                             int *array_keys_isp, int isp_size);
 
 private:
     std::unique_ptr<HalCameraMetadata> m_static_meta;
@@ -78,5 +80,5 @@ private:
     mutable std::mutex metadata_lock_;
 };
 
-}  // namespace android
+} // namespace android
 #endif

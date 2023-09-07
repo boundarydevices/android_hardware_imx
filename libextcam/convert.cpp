@@ -15,13 +15,12 @@
  */
 
 #define LOG_TAG "android.hardware.camera.device@3.4-convert-impl"
-#include <log/log.h>
-
 #include "convert.h"
 
 #include <aidl/android/hardware/graphics/common/BufferUsage.h>
 #include <aidl/android/hardware/graphics/common/PixelFormat.h>
 #include <hardware/camera_common.h>
+#include <log/log.h>
 
 namespace android {
 namespace hardware {
@@ -64,8 +63,8 @@ bool convertFromAidl(const CameraMetadata& src, const camera_metadata_t** dst) {
     return true;
 }
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android

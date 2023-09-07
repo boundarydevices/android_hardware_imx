@@ -18,34 +18,36 @@
 #ifndef ANDROID_HARDWARE_CAMERA_DEVICE_V3_4_EXTCAMUTIL_H
 #define ANDROID_HARDWARE_CAMERA_DEVICE_V3_4_EXTCAMUTIL_H
 
+#include <CameraMetadata.h>
+#include <HandleImporter.h>
 #include <android/hardware/camera/common/1.0/types.h>
 #include <android/hardware/camera/device/3.2/types.h>
 #include <android/hardware/graphics/common/1.0/types.h>
 #include <android/hardware/graphics/mapper/2.0/IMapper.h>
+#include <cutils/properties.h>
 #include <inttypes.h>
+
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "tinyxml2.h"  // XML parsing
-#include "utils/LightRefBase.h"
-#include "utils/Timers.h"
-#include <CameraMetadata.h>
-#include <HandleImporter.h>
-#include <cutils/properties.h>
+
 #include "Memory.h"
 #include "MemoryDesc.h"
 #include "MemoryManager.h"
+#include "tinyxml2.h" // XML parsing
+#include "utils/LightRefBase.h"
+#include "utils/Timers.h"
 
+using ::android::hardware::camera::common::V1_0::Status;
+using ::android::hardware::camera::common::V1_0::helper::HandleImporter;
+using ::android::hardware::camera::device::V3_2::ErrorCode;
 using ::android::hardware::graphics::mapper::V2_0::IMapper;
 using ::android::hardware::graphics::mapper::V2_0::YCbCrLayout;
-using ::android::hardware::camera::common::V1_0::helper::HandleImporter;
-using ::android::hardware::camera::common::V1_0::Status;
-using ::android::hardware::camera::device::V3_2::ErrorCode;
 
 namespace android {
 
-#define  ALIGN_PIXEL_16(x)  ((x+ 15) & ~15)
+#define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
 
 int IMXAllocMem(int size);
 int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual);
@@ -114,8 +116,8 @@ private:
     static bool updateFpsList(tinyxml2::XMLElement* fpsList, std::vector<FpsLimitation>& fpsLimits);
 };
 
-} // common
-} // external
+} // namespace common
+} // namespace external
 
 namespace device {
 namespace V3_4 {
@@ -150,8 +152,8 @@ public:
 // Also contains necessary information to enqueue the buffer back to V4L2 buffer queue
 class V4L2Frame : public Frame {
 public:
-    V4L2Frame(uint32_t w, uint32_t h, uint32_t fourcc, int bufIdx, int fd,
-                uint32_t dataSize, uint64_t offset);
+    V4L2Frame(uint32_t w, uint32_t h, uint32_t fourcc, int bufIdx, int fd, uint32_t dataSize,
+              uint64_t offset);
     ~V4L2Frame() override;
 
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
@@ -159,13 +161,14 @@ public:
     const int mBufferIndex; // for later enqueue
     int map(uint8_t** data, size_t* dataSize);
     int unmap();
+
 private:
     std::mutex mLock;
     const int mFd; // used for mmap but doesn't claim ownership
     const size_t mDataSize;
     const uint64_t mOffset; // used for mmap
     uint8_t* mData = nullptr;
-    bool  mMapped = false;
+    bool mMapped = false;
 };
 
 // A RAII class representing a CPU allocated YUV frame used as intermeidate buffers
@@ -179,11 +182,11 @@ public:
 
     virtual int allocate(YCbCrLayout* out = nullptr);
     virtual int getLayout(YCbCrLayout* out);
-    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+    virtual int getCroppedLayout(const IMapper::Rect&,
+                                 YCbCrLayout* out); // return non-zero for bad input
     virtual void flush() {}
 
     std::vector<uint8_t> mData;
-
 
 protected:
     std::mutex mLock;
@@ -200,22 +203,20 @@ public:
 
     virtual int allocate(YCbCrLayout* out = nullptr);
     virtual int getLayout(YCbCrLayout* out);
-    virtual int getCroppedLayout(const IMapper::Rect&, YCbCrLayout* out); // return non-zero for bad input
+    virtual int getCroppedLayout(const IMapper::Rect&,
+                                 YCbCrLayout* out); // return non-zero for bad input
 
     virtual void flush();
 
-    void getPhyAddr(uint64_t &phyAddr);
+    void getPhyAddr(uint64_t& phyAddr);
 
 private:
-    fsl::Memory *dstBuffer;
-    uint8_t *dstBuf;
+    fsl::Memory* dstBuffer;
+    uint8_t* dstBuf;
     uint64_t mPhyAddr;
 };
 
-enum CroppingType {
-    HORIZONTAL = 0,
-    VERTICAL = 1
-};
+enum CroppingType { HORIZONTAL = 0, VERTICAL = 1 };
 
 // Aspect ratio is defined as width/height here and ExternalCameraDevice
 // will guarantee all supported sizes has width >= height (so aspect ratio >= 1.0)
@@ -256,12 +257,10 @@ static const uint64_t BUFFER_ID_NO_BUFFER = 0;
 typedef std::unordered_map<uint64_t, buffer_handle_t> CirculatingBuffers;
 
 ::android::hardware::camera::common::V1_0::Status importBufferImpl(
-        /*inout*/std::map<int, CirculatingBuffers>& circulatingBuffers,
-        /*inout*/HandleImporter& handleImporter,
-        int32_t streamId,
-        uint64_t bufId, buffer_handle_t buf,
-        /*out*/buffer_handle_t** outBufPtr,
-        bool allowEmptyBuf);
+        /*inout*/ std::map<int, CirculatingBuffers>& circulatingBuffers,
+        /*inout*/ HandleImporter& handleImporter, int32_t streamId, uint64_t bufId,
+        buffer_handle_t buf,
+        /*out*/ buffer_handle_t** outBufPtr, bool allowEmptyBuf);
 
 static const uint32_t FLEX_YUV_GENERIC = static_cast<uint32_t>('F') |
         static_cast<uint32_t>('L') << 8 | static_cast<uint32_t>('E') << 16 |
@@ -271,29 +270,26 @@ static const uint32_t FLEX_YUV_GENERIC = static_cast<uint32_t>('F') |
 uint32_t getFourCcFromLayout(const YCbCrLayout&);
 
 using ::android::hardware::camera::external::common::Size;
-int getCropRect(CroppingType ct, const Size& inSize,
-        const Size& outSize, IMapper::Rect* out);
+int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMapper::Rect* out);
 
 int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format);
 
-int encodeJpegYU12(const Size &inSz,
-        const YCbCrLayout& inLayout, int jpegQuality,
-        const void *app1Buffer, size_t app1Size,
-        void *out, size_t maxOutSize,
-        size_t &actualCodeSize);
+int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
+                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
+                   size_t& actualCodeSize);
 
 Size getMaxThumbnailResolution(const common::V1_0::helper::CameraMetadata&);
 
 void freeReleaseFences(hidl_vec<V3_2::CaptureResult>&);
 
 status_t fillCaptureResultCommon(common::V1_0::helper::CameraMetadata& md, nsecs_t timestamp,
-        camera_metadata_ro_entry& activeArraySize);
+                                 camera_metadata_ro_entry& activeArraySize);
 
 // Interface for OutputThread calling back to parent
 struct OutputThreadInterface : public virtual RefBase {
     virtual ::android::hardware::camera::common::V1_0::Status importBuffer(
             int32_t streamId, uint64_t bufId, buffer_handle_t buf,
-            /*out*/buffer_handle_t** outBufPtr, bool allowEmptyBuf) = 0;
+            /*out*/ buffer_handle_t** outBufPtr, bool allowEmptyBuf) = 0;
 
     virtual void notifyError(uint32_t frameNumber, int32_t streamId, ErrorCode ec) = 0;
 
@@ -302,8 +298,8 @@ struct OutputThreadInterface : public virtual RefBase {
     // fire the callback later
     virtual ::android::hardware::camera::common::V1_0::Status processCaptureRequestError(
             const std::shared_ptr<HalRequest>&,
-            /*out*/std::vector<V3_2::NotifyMsg>* msgs = nullptr,
-            /*out*/std::vector<V3_2::CaptureResult>* results = nullptr) = 0;
+            /*out*/ std::vector<V3_2::NotifyMsg>* msgs = nullptr,
+            /*out*/ std::vector<V3_2::CaptureResult>* results = nullptr) = 0;
 
     virtual ::android::hardware::camera::common::V1_0::Status processCaptureResult(
             std::shared_ptr<HalRequest>&) = 0;
@@ -313,8 +309,8 @@ struct OutputThreadInterface : public virtual RefBase {
     virtual bool getHardwareDecFlag() const = 0;
 };
 
-}  // namespace implementation
-}  // namespace V3_4
+} // namespace implementation
+} // namespace V3_4
 
 namespace V3_6 {
 namespace implementation {
@@ -325,15 +321,16 @@ public:
     AllocatedV4L2Frame(sp<V3_4::implementation::V4L2Frame> frameIn);
     ~AllocatedV4L2Frame() override;
     virtual int getData(uint8_t** outData, size_t* dataSize) override;
+
 private:
     std::vector<uint8_t> mData;
 };
 
 } // namespace implementation
 } // namespace V3_6
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android
 
-#endif  // ANDROID_HARDWARE_CAMERA_DEVICE_V3_4_EXTCAMUTIL_H
+#endif // ANDROID_HARDWARE_CAMERA_DEVICE_V3_4_EXTCAMUTIL_H

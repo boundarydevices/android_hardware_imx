@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-#include "Memtrack.h"
-
 #include <android-base/logging.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
+
+#include "Memtrack.h"
 
 using aidl::android::hardware::memtrack::Memtrack;
 
@@ -31,8 +31,8 @@ int main() {
     binder_status_t status =
             AServiceManager_addService(memtrack->asBinder().get(), instance.c_str());
     CHECK(status == STATUS_OK);
-    ALOGI("addService: %s",instance.c_str());
+    ALOGI("addService: %s", instance.c_str());
 
     ABinderProcess_joinThreadPool();
-    return EXIT_FAILURE;  // Unreachable
+    return EXIT_FAILURE; // Unreachable
 }

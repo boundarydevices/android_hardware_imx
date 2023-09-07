@@ -44,7 +44,7 @@ namespace impl {
 class GeneratorHub {
 private:
     struct VhalEvent {
-        int32_t cookie;  // Cookie is used to find the associated generator.
+        int32_t cookie; // Cookie is used to find the associated generator.
         VehiclePropValue val;
     };
     // Comparator used by priority queue to keep track of soonest event.
@@ -86,12 +86,12 @@ private:
     std::thread mThread;
 };
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_GeneratorHub_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_GeneratorHub_H_

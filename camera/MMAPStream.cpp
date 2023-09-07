@@ -16,21 +16,21 @@
 
 #define LOG_TAG "MMAPStream"
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "MMAPStream.h"
+
 #include <fcntl.h>
 #include <linux/videodev2.h>
+#include <log/log.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <log/log.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "CameraUtils.h"
-#include "MMAPStream.h"
 
 namespace android {
 
-MMAPStream::MMAPStream(CameraDeviceSessionHwlImpl *pSession) : VideoStream(pSession)
-{
+MMAPStream::MMAPStream(CameraDeviceSessionHwlImpl *pSession) : VideoStream(pSession) {
     mPlane = false;
     mV4l2MemType = V4L2_MEMORY_MMAP;
 }
@@ -42,13 +42,10 @@ MMAPStream::MMAPStream(CameraDeviceSessionHwlImpl *pSession, bool mplane) : Vide
     mV4l2MemType = V4L2_MEMORY_MMAP;
 }
 
+MMAPStream::~MMAPStream() {}
 
-MMAPStream::~MMAPStream()
-{
-}
-
-uint32_t MMAPStream::PickValidFps(int vformat, uint32_t width, uint32_t height, uint32_t requestFps)
-{
+uint32_t MMAPStream::PickValidFps(int vformat, uint32_t width, uint32_t height,
+                                  uint32_t requestFps) {
     uint32_t pickedFps = requestFps;
     uint32_t valid_fps = 0;
     uint32_t fps_diff = 0;
@@ -83,8 +80,8 @@ uint32_t MMAPStream::PickValidFps(int vformat, uint32_t width, uint32_t height, 
 }
 
 // configure device.
-int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
-{
+int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height,
+                                            uint32_t fps) {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     uint32_t vfps;
@@ -96,9 +93,9 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
 
     int vformat = convertPixelFormatToV4L2Format(format);
 
-    ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d",
-        __func__, (int)width, (int)height,
-        vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
+    ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d", __func__, (int)width, (int)height,
+          vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF,
+          fps);
 
     int buf_type = mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
     int num_planes = mPlane ? 1 : 0;
@@ -142,8 +139,7 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
     return ret;
 }
 
-int32_t MMAPStream::onDeviceStartLocked()
-{
+int32_t MMAPStream::onDeviceStartLocked() {
     int32_t ret = 0;
 
     ALOGI("%s", __func__);
@@ -153,7 +149,8 @@ int32_t MMAPStream::onDeviceStartLocked()
     }
 
     //-------register buffers----------
-    enum v4l2_buf_type bufType = mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    enum v4l2_buf_type bufType =
+            mPlane ? V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE : V4L2_BUF_TYPE_VIDEO_CAPTURE;
     struct v4l2_buffer buf;
     struct v4l2_requestbuffers req;
     struct v4l2_plane planes;
@@ -212,13 +209,13 @@ int32_t MMAPStream::onDeviceStartLocked()
         }
 
         mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
-        if(mBuffers[i]->mFormatSize == 0)
-            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+        if (mBuffers[i]->mFormatSize == 0) mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
 
-        mBuffers[i]->mVirtAddr = (void*)mmap(NULL, mBuffers[i]->mSize, PROT_READ | PROT_WRITE, MAP_SHARED, mDev, mBuffers[i]->mPhyAddr);
+        mBuffers[i]->mVirtAddr = (void *)mmap(NULL, mBuffers[i]->mSize, PROT_READ | PROT_WRITE,
+                                              MAP_SHARED, mDev, mBuffers[i]->mPhyAddr);
         if (mBuffers[i]->mVirtAddr == MAP_FAILED) {
-            ALOGE("%s: mmap buf %d, size %zu, fd %d, offset 0x%x failed, errno %d",
-                __func__, i, mBuffers[i]->mSize, mDev, (unsigned int)mBuffers[i]->mPhyAddr, errno);
+            ALOGE("%s: mmap buf %d, size %zu, fd %d, offset 0x%x failed, errno %d", __func__, i,
+                  mBuffers[i]->mSize, mDev, (unsigned int)mBuffers[i]->mPhyAddr, errno);
             ret = BAD_VALUE;
             goto err;
         }
@@ -237,7 +234,8 @@ int32_t MMAPStream::onDeviceStartLocked()
         memset(mBuffers[i]->mVirtAddr, 0xFF, mBuffers[i]->mSize);
         SetBufferHandle(*mBuffers[i]);
 
-        ALOGI("%s, register buffer, phy 0x%lx, virt %p, size %d", __func__, mBuffers[i]->mPhyAddr, mBuffers[i]->mVirtAddr, (int)mBuffers[i]->mSize);
+        ALOGI("%s, register buffer, phy 0x%lx, virt %p, size %d", __func__, mBuffers[i]->mPhyAddr,
+              mBuffers[i]->mVirtAddr, (int)mBuffers[i]->mSize);
     }
 
     //----------qbuf----------
@@ -288,15 +286,12 @@ err:
     ALOGI("%s: clean up before return error", __func__);
 
     for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
-        if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL
-                                && mBuffers[i]->mSize > 0) {
+        if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL && mBuffers[i]->mSize > 0) {
             munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
-            if(mBuffers[i]->mFd > 0)
-                close(mBuffers[i]->mFd);
+            if (mBuffers[i]->mFd > 0) close(mBuffers[i]->mFd);
 
             fsl::Memory *handle = (fsl::Memory *)mBuffers[i]->buffer;
-            if (handle)
-                delete handle;
+            if (handle) delete handle;
 
             delete mBuffers[i];
             mBuffers[i] = NULL;
@@ -315,8 +310,7 @@ err:
     return ret;
 }
 
-int32_t MMAPStream::onDeviceStopLocked()
-{
+int32_t MMAPStream::onDeviceStopLocked() {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     enum v4l2_buf_type bufType;
@@ -328,15 +322,12 @@ int32_t MMAPStream::onDeviceStopLocked()
     }
 
     for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
-        if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL
-                                && mBuffers[i]->mSize > 0) {
+        if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL && mBuffers[i]->mSize > 0) {
             munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
-            if(mBuffers[i]->mFd > 0)
-                close(mBuffers[i]->mFd);
+            if (mBuffers[i]->mFd > 0) close(mBuffers[i]->mFd);
 
             fsl::Memory *handle = (fsl::Memory *)mBuffers[i]->buffer;
-            if (handle)
-                delete handle;
+            if (handle) delete handle;
 
             delete mBuffers[i];
             mBuffers[i] = NULL;
@@ -370,8 +361,7 @@ int32_t MMAPStream::onDeviceStopLocked()
     return 0;
 }
 
-int32_t MMAPStream::onFrameReturn(ImxStreamBuffer& buf)
-{
+int32_t MMAPStream::onFrameReturn(ImxStreamBuffer &buf) {
     ALOGV("%s", __func__);
 
     Mutex::Autolock _l(mV4l2Lock);
@@ -409,4 +399,4 @@ int32_t MMAPStream::onFrameReturn(ImxStreamBuffer& buf)
     return ret;
 }
 
-}  // namespace android
+} // namespace android

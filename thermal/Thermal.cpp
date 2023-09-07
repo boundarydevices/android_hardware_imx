@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-#include <cerrno>
-#include <iterator>
-#include <mutex>
-#include <string>
+#include "Thermal.h"
 
 #include <android-base/file.h>
 #include <android-base/logging.h>
@@ -25,7 +22,11 @@
 #include <android-base/stringprintf.h>
 #include <hidl/HidlTransportSupport.h>
 
-#include "Thermal.h"
+#include <cerrno>
+#include <iterator>
+#include <mutex>
+#include <string>
+
 #include "thermal-helper.h"
 
 namespace android {
@@ -39,11 +40,11 @@ constexpr char kSocType[] = "ro.boot.soc_type";
 
 namespace {
 
+using android::base::StringPrintf;
 using ::android::hardware::interfacesEqual;
 using ::android::hardware::thermal::V1_0::ThermalStatus;
 using ::android::hardware::thermal::V1_0::ThermalStatusCode;
 using ::android::hidl::base::V1_0::IBase;
-using android::base::StringPrintf;
 
 template <typename T, typename U>
 Return<void> setFailureAndCallback(T _hidl_cb, hidl_vec<U> data, std::string_view debug_msg) {
@@ -59,7 +60,7 @@ Return<void> setInitFailureAndCallback(T _hidl_cb, hidl_vec<U> data) {
     return setFailureAndCallback(_hidl_cb, data, "Failure initializing thermal HAL");
 }
 
-}  // namespace
+} // namespace
 
 // On init we will spawn a thread which will continually watch for
 // throttling.  When throttling is seen, if we have a callback registered
@@ -67,8 +68,8 @@ Return<void> setInitFailureAndCallback(T _hidl_cb, hidl_vec<U> data) {
 // throttling event and do nothing.  The thread is only killed when
 // Thermal() is killed.
 Thermal::Thermal()
-    : thermal_helper_(
-          std::bind(&Thermal::sendThermalChangedCallback, this, std::placeholders::_1)) {}
+      : thermal_helper_(
+                std::bind(&Thermal::sendThermalChangedCallback, this, std::placeholders::_1)) {}
 
 // Methods from ::android::hardware::thermal::V1_0::IThermal.
 Return<void> Thermal::getTemperatures(getTemperatures_cb _hidl_cb) {
@@ -205,7 +206,7 @@ Return<void> Thermal::registerThermalChangedCallback(const sp<IThermalChangedCal
 }
 
 Return<void> Thermal::unregisterThermalChangedCallback(
-    const sp<IThermalChangedCallback> &callback, unregisterThermalChangedCallback_cb _hidl_cb) {
+        const sp<IThermalChangedCallback> &callback, unregisterThermalChangedCallback_cb _hidl_cb) {
     ThermalStatus status;
     if (callback == nullptr) {
         status.code = ThermalStatusCode::FAILURE;
@@ -218,20 +219,20 @@ Return<void> Thermal::unregisterThermalChangedCallback(
     }
     bool removed = false;
     std::lock_guard<std::mutex> _lock(thermal_callback_mutex_);
-    callbacks_.erase(
-        std::remove_if(callbacks_.begin(), callbacks_.end(),
-                       [&](const CallbackSetting &c) {
-                           if (interfacesEqual(c.callback, callback)) {
-                               LOG(INFO)
-                                   << "a callback has been unregistered to ThermalHAL, isFilter: "
-                                   << c.is_filter_type << " Type: "
-                                   << android::hardware::thermal::V2_0::toString(c.type);
-                               removed = true;
-                               return true;
-                           }
-                           return false;
-                       }),
-        callbacks_.end());
+    callbacks_.erase(std::remove_if(callbacks_.begin(), callbacks_.end(),
+                                    [&](const CallbackSetting &c) {
+                                        if (interfacesEqual(c.callback, callback)) {
+                                            LOG(INFO) << "a callback has been unregistered to "
+                                                         "ThermalHAL, isFilter: "
+                                                      << c.is_filter_type << " Type: "
+                                                      << android::hardware::thermal::V2_0::toString(
+                                                                 c.type);
+                                            removed = true;
+                                            return true;
+                                        }
+                                        return false;
+                                    }),
+                     callbacks_.end());
     if (!removed) {
         status.code = ThermalStatusCode::FAILURE;
         status.debugMessage = "The callback was not registered before";
@@ -254,39 +255,45 @@ void Thermal::sendThermalChangedCallback(const std::vector<Temperature_2_0> &tem
                 LOG(ERROR) << "Failed to get CPU usages." << std::endl;
                 return;
             }
-            if (!thermal_helper_.fillTemperatureThresholds(true, TemperatureType_2_0::CPU, &tempThresholds)) {
+            if (!thermal_helper_.fillTemperatureThresholds(true, TemperatureType_2_0::CPU,
+                                                           &tempThresholds)) {
                 LOG(ERROR) << "Failed to getTemperatureThresholds." << std::endl;
                 return;
             }
             const auto &tempThreshold = tempThresholds[0];
-            if(t.value >= tempThreshold.hotThrottlingThresholds[3] && !tempThrottling) {
-                kConfigDefaultFileName = android::base::StringPrintf("%s_%s%s","thermal_info_config",
-                          android::base::GetProperty(kSocType, "").c_str(),".json");
-                CPUInfo = ParseHotplugCPUInfo("/vendor/etc/configs/" +
-                          android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()));
-                for(std::vector<std::string>::iterator it = CPUInfo.begin(); it!=CPUInfo.end(); it++) {
+            if (t.value >= tempThreshold.hotThrottlingThresholds[3] && !tempThrottling) {
+                kConfigDefaultFileName =
+                        android::base::StringPrintf("%s_%s%s", "thermal_info_config",
+                                                    android::base::GetProperty(kSocType, "")
+                                                            .c_str(),
+                                                    ".json");
+                CPUInfo = ParseHotplugCPUInfo(
+                        "/vendor/etc/configs/" +
+                        android::base::GetProperty(kConfigProperty, kConfigDefaultFileName.data()));
+                for (std::vector<std::string>::iterator it = CPUInfo.begin(); it != CPUInfo.end();
+                     it++) {
                     thermal_helper_.enableCPU(*it, false);
                 }
                 tempThrottling = true;
-            } else if(t.value < tempThreshold.hotThrottlingThresholds[2] && tempThrottling) {
-                for(std::vector<std::string>::iterator it = CPUInfo.begin(); it!=CPUInfo.end(); it++) {
+            } else if (t.value < tempThreshold.hotThrottlingThresholds[2] && tempThrottling) {
+                for (std::vector<std::string>::iterator it = CPUInfo.begin(); it != CPUInfo.end();
+                     it++) {
                     thermal_helper_.enableCPU(*it, true);
                 }
                 tempThrottling = false;
             }
         }
-        callbacks_.erase(
-            std::remove_if(callbacks_.begin(), callbacks_.end(),
-                           [&](const CallbackSetting &c) {
-                               if (!c.is_filter_type || t.type == c.type) {
-                                   Return<void> ret = c.callback->notifyThrottling(t);
-                                   return !ret.isOk();
-                               }
-                               LOG(ERROR)
-                                   << "a Thermal callback is dead, removed from callback list.";
-                               return false;
-                           }),
-            callbacks_.end());
+        callbacks_.erase(std::remove_if(callbacks_.begin(), callbacks_.end(),
+                                        [&](const CallbackSetting &c) {
+                                            if (!c.is_filter_type || t.type == c.type) {
+                                                Return<void> ret = c.callback->notifyThrottling(t);
+                                                return !ret.isOk();
+                                            }
+                                            LOG(ERROR) << "a Thermal callback is dead, removed "
+                                                          "from callback list.";
+                                            return false;
+                                        }),
+                         callbacks_.end());
     }
 }
 
@@ -421,8 +428,8 @@ Return<void> Thermal::debug(const hidl_handle &handle, const hidl_vec<hidl_strin
     return Void();
 }
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android

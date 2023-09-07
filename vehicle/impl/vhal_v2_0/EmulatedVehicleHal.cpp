@@ -15,15 +15,17 @@
  */
 #define LOG_TAG "DefaultVehicleHal_v2_0"
 
+#include "EmulatedVehicleHal.h"
+
 #include <android-base/macros.h>
 #include <android-base/properties.h>
 #include <android/log.h>
 #include <dirent.h>
 #include <sys/system_properties.h>
+
 #include <fstream>
 #include <regex>
 
-#include "EmulatedVehicleHal.h"
 #include "JsonFakeValueGenerator.h"
 #include "LinearFakeValueGenerator.h"
 #include "Obd2SensorStore.h"
@@ -39,7 +41,7 @@ namespace impl {
 static std::unique_ptr<Obd2SensorStore> fillDefaultObd2Frame(size_t numVendorIntegerSensors,
                                                              size_t numVendorFloatSensors) {
     std::unique_ptr<Obd2SensorStore> sensorStore(
-        new Obd2SensorStore(numVendorIntegerSensors, numVendorFloatSensors));
+            new Obd2SensorStore(numVendorIntegerSensors, numVendorFloatSensors));
 
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::FUEL_SYSTEM_STATUS,
                                   toInt(Obd2FuelSystemStatus::CLOSED_LOOP));
@@ -48,19 +50,21 @@ static std::unique_ptr<Obd2SensorStore> fillDefaultObd2Frame(size_t numVendorInt
                                   toInt(Obd2IgnitionMonitorKind::SPARK));
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::IGNITION_SPECIFIC_MONITORS,
                                   Obd2CommonIgnitionMonitors::COMPONENTS_AVAILABLE |
-                                      Obd2CommonIgnitionMonitors::MISFIRE_AVAILABLE |
-                                      Obd2SparkIgnitionMonitors::AC_REFRIGERANT_AVAILABLE |
-                                      Obd2SparkIgnitionMonitors::EVAPORATIVE_SYSTEM_AVAILABLE);
+                                          Obd2CommonIgnitionMonitors::MISFIRE_AVAILABLE |
+                                          Obd2SparkIgnitionMonitors::AC_REFRIGERANT_AVAILABLE |
+                                          Obd2SparkIgnitionMonitors::EVAPORATIVE_SYSTEM_AVAILABLE);
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::INTAKE_AIR_TEMPERATURE, 35);
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::COMMANDED_SECONDARY_AIR_STATUS,
                                   toInt(Obd2SecondaryAirStatus::FROM_OUTSIDE_OR_OFF));
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::NUM_OXYGEN_SENSORS_PRESENT, 1);
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::RUNTIME_SINCE_ENGINE_START, 500);
-    sensorStore->setIntegerSensor(
-        DiagnosticIntegerSensorIndex::DISTANCE_TRAVELED_WITH_MALFUNCTION_INDICATOR_LIGHT_ON, 0);
+    sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::
+                                          DISTANCE_TRAVELED_WITH_MALFUNCTION_INDICATOR_LIGHT_ON,
+                                  0);
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::WARMUPS_SINCE_CODES_CLEARED, 51);
-    sensorStore->setIntegerSensor(
-        DiagnosticIntegerSensorIndex::DISTANCE_TRAVELED_SINCE_CODES_CLEARED, 365);
+    sensorStore
+            ->setIntegerSensor(DiagnosticIntegerSensorIndex::DISTANCE_TRAVELED_SINCE_CODES_CLEARED,
+                               365);
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::ABSOLUTE_BAROMETRIC_PRESSURE, 30);
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::CONTROL_MODULE_VOLTAGE, 12);
     sensorStore->setIntegerSensor(DiagnosticIntegerSensorIndex::AMBIENT_AIR_TEMPERATURE, 18);
@@ -94,12 +98,12 @@ static std::unique_ptr<Obd2SensorStore> fillDefaultObd2Frame(size_t numVendorInt
 
 EmulatedVehicleHal::EmulatedVehicleHal(VehiclePropertyStore* propStore, VehicleHalClient* client,
                                        EmulatedUserHal* emulatedUserHal)
-    : mPropStore(propStore),
-      mHvacPowerProps(std::begin(kHvacPowerProperties), std::end(kHvacPowerProperties)),
-      mRecurrentTimer(std::bind(&EmulatedVehicleHal::onContinuousPropertyTimer, this,
-                                std::placeholders::_1)),
-      mVehicleClient(client),
-      mEmulatedUserHal(emulatedUserHal) {
+      : mPropStore(propStore),
+        mHvacPowerProps(std::begin(kHvacPowerProperties), std::end(kHvacPowerProperties)),
+        mRecurrentTimer(std::bind(&EmulatedVehicleHal::onContinuousPropertyTimer, this,
+                                  std::placeholders::_1)),
+        mVehicleClient(client),
+        mEmulatedUserHal(emulatedUserHal) {
     initStaticConfig();
     for (size_t i = 0; i < arraysize(kVehicleProperties); i++) {
         mPropStore->registerProperty(kVehicleProperties[i].config);
@@ -133,8 +137,8 @@ void EmulatedVehicleHal::getAllPropertiesOverride() {
     }
 }
 
-VehicleHal::VehiclePropValuePtr EmulatedVehicleHal::get(
-        const VehiclePropValue& requestedPropValue, StatusCode* outStatus) {
+VehicleHal::VehiclePropValuePtr EmulatedVehicleHal::get(const VehiclePropValue& requestedPropValue,
+                                                        StatusCode* outStatus) {
     auto propId = requestedPropValue.prop;
     ALOGV("get(%d)", propId);
 
@@ -201,14 +205,15 @@ StatusCode EmulatedVehicleHal::set(const VehiclePropValue& propValue) {
         auto status = mVehicleClient->setProperty(propValue, updateStatus);
         return status;
     } else if (mHvacPowerProps.count(propValue.prop)) {
-        auto hvacPowerOn = mPropStore->readValueOrNull(
-            toInt(VehicleProperty::HVAC_POWER_ON),
-            (VehicleAreaSeat::ROW_1_LEFT | VehicleAreaSeat::ROW_1_RIGHT |
-             VehicleAreaSeat::ROW_2_LEFT | VehicleAreaSeat::ROW_2_CENTER |
-             VehicleAreaSeat::ROW_2_RIGHT));
+        auto hvacPowerOn = mPropStore->readValueOrNull(toInt(VehicleProperty::HVAC_POWER_ON),
+                                                       (VehicleAreaSeat::ROW_1_LEFT |
+                                                        VehicleAreaSeat::ROW_1_RIGHT |
+                                                        VehicleAreaSeat::ROW_2_LEFT |
+                                                        VehicleAreaSeat::ROW_2_CENTER |
+                                                        VehicleAreaSeat::ROW_2_RIGHT));
 
-        if (hvacPowerOn && hvacPowerOn->value.int32Values.size() == 1
-                && hvacPowerOn->value.int32Values[0] == 0) {
+        if (hvacPowerOn && hvacPowerOn->value.int32Values.size() == 1 &&
+            hvacPowerOn->value.int32Values[0] == 0) {
             return StatusCode::NOT_AVAILABLE;
         }
     } else {
@@ -278,7 +283,7 @@ static bool isInEmulator() {
     bool isEmulator = (__system_property_get("ro.kernel.qemu", propValue) != 0);
     if (!isEmulator) {
         isEmulator = (__system_property_get("ro.hardware", propValue) != 0) &&
-                     (!strcmp(propValue, "ranchu") || !strcmp(propValue, "goldfish"));
+                (!strcmp(propValue, "ranchu") || !strcmp(propValue, "goldfish"));
     }
     return isEmulator;
 }
@@ -322,8 +327,8 @@ void EmulatedVehicleHal::onCreate() {
                 if (valueForAreaIt != it.initialAreaValues.end()) {
                     prop.value = valueForAreaIt->second;
                 } else {
-                    ALOGW("%s failed to get default value for prop 0x%x area 0x%x",
-                            __func__, cfg.prop, curArea);
+                    ALOGW("%s failed to get default value for prop 0x%x area 0x%x", __func__,
+                          cfg.prop, curArea);
                 }
             } else {
                 prop.value = it.initialValue;
@@ -344,7 +349,7 @@ void EmulatedVehicleHal::onCreate() {
     ALOGD("mInEmulator=%s", mInEmulator ? "true" : "false");
 }
 
-std::vector<VehiclePropConfig> EmulatedVehicleHal::listProperties()  {
+std::vector<VehiclePropConfig> EmulatedVehicleHal::listProperties() {
     return mPropStore->getAllConfigs();
 }
 
@@ -401,7 +406,7 @@ bool EmulatedVehicleHal::setPropertyFromVehicle(const VehiclePropValue& propValu
     return mVehicleClient->setProperty(propValue, updateStatus) == StatusCode::OK;
 }
 
-std::vector<VehiclePropValue> EmulatedVehicleHal::getAllProperties() const  {
+std::vector<VehiclePropValue> EmulatedVehicleHal::getAllProperties() const {
     return mPropStore->readAllValues();
 }
 
@@ -512,10 +517,10 @@ StatusCode EmulatedVehicleHal::fillObd2DtcInfo(VehiclePropValue* outValue) {
     return StatusCode::OK;
 }
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

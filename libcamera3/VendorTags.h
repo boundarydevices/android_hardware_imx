@@ -23,37 +23,32 @@
 
 // VendorTags contains all vendor-specific metadata tag functionality
 class VendorTags {
-    public:
-        VendorTags();
-        ~VendorTags();
+public:
+    VendorTags();
+    ~VendorTags();
 
-        // Vendor Tags Operations (see <hardware/camera_common.h>)
-        int getTagCount(const vendor_tag_ops_t* ops);
-        void getAllTags(const vendor_tag_ops_t* ops, uint32_t* tag_array);
-        const char* getSectionName(const vendor_tag_ops_t* ops, uint32_t tag);
-        const char* getTagName(const vendor_tag_ops_t* ops, uint32_t tag);
-        int getTagType(const vendor_tag_ops_t* ops, uint32_t tag);
+    // Vendor Tags Operations (see <hardware/camera_common.h>)
+    int getTagCount(const vendor_tag_ops_t* ops);
+    void getAllTags(const vendor_tag_ops_t* ops, uint32_t* tag_array);
+    const char* getSectionName(const vendor_tag_ops_t* ops, uint32_t tag);
+    const char* getTagName(const vendor_tag_ops_t* ops, uint32_t tag);
+    int getTagType(const vendor_tag_ops_t* ops, uint32_t tag);
 
-    private:
-        // Total number of vendor tags
-        int mTagCount;
+private:
+    // Total number of vendor tags
+    int mTagCount;
 };
 
 // Tag sections start at the beginning of vendor tags (0x8000_0000)
 // See <system/camera_metadata.h>
-enum {
-    DEMO_WIZARDRY,
-    DEMO_SORCERY,
-    DEMO_MAGIC,
-    DEMO_SECTION_COUNT
-};
+enum { DEMO_WIZARDRY, DEMO_SORCERY, DEMO_MAGIC, DEMO_SECTION_COUNT };
 
 const uint32_t vendor_section_start = VENDOR_SECTION_START;
 
 // Each section starts at increments of 0x1_0000
 const uint32_t demo_wizardry_start = (DEMO_WIZARDRY + VENDOR_SECTION) << 16;
-const uint32_t demo_sorcery_start  = (DEMO_SORCERY  + VENDOR_SECTION) << 16;
-const uint32_t demo_magic_start    = (DEMO_MAGIC    + VENDOR_SECTION) << 16;
+const uint32_t demo_sorcery_start = (DEMO_SORCERY + VENDOR_SECTION) << 16;
+const uint32_t demo_magic_start = (DEMO_MAGIC + VENDOR_SECTION) << 16;
 
 // Vendor Tag values, start value begins each section
 const uint32_t demo_wizardry_dimension_size = demo_wizardry_start;

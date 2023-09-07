@@ -20,6 +20,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+
 #include "CommConn.h"
 
 namespace android {
@@ -37,7 +38,7 @@ class SocketConn;
  * adb's TCP port-forwarding to enable a host PC to connect to the VehicleHAL.
  */
 class SocketComm {
-   public:
+public:
     SocketComm(MessageProcessor* messageProcessor);
     virtual ~SocketComm();
 
@@ -49,7 +50,7 @@ class SocketComm {
      */
     void sendMessage(vhal_proto::EmulatorMessage const& msg);
 
-   private:
+private:
     int mListenFd;
     std::unique_ptr<std::thread> mListenThread;
     std::vector<std::unique_ptr<SocketConn>> mOpenConnections;
@@ -81,7 +82,7 @@ class SocketComm {
  * SocketConn represents a single connection to a client.
  */
 class SocketConn : public CommConn {
-   public:
+public:
     SocketConn(MessageProcessor* messageProcessor, int sfd);
     virtual ~SocketConn() = default;
 
@@ -109,17 +110,16 @@ class SocketConn : public CommConn {
 
     inline bool isOpen() override { return mSockFd > 0; }
 
-   private:
+private:
     int mSockFd;
 };
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_SocketComm_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_SocketComm_H_

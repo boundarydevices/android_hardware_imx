@@ -18,19 +18,20 @@
 #ifndef _FSL_MEMORY_MANAGER_H
 #define _FSL_MEMORY_MANAGER_H
 
-#include <hardware/gralloc1.h>
 #include <hardware/gralloc.h>
-#include <utils/KeyedVector.h>
+#include <hardware/gralloc1.h>
 #include <media/hardware/VideoAPI.h>
+#include <utils/KeyedVector.h>
+
+#include "IonManager.h"
 #include "Memory.h"
 #include "MemoryDesc.h"
-#include "IonManager.h"
 
 namespace fsl {
 
-using android::KeyedVector;
 using android::ColorAspects;
 using android::HDRStaticInfo;
+using android::KeyedVector;
 
 struct MetaData {
     int32_t mFlags;
@@ -38,8 +39,7 @@ struct MetaData {
     uint32_t mUVOffset;
 };
 
-class MemoryManager
-{
+class MemoryManager {
 public:
     virtual ~MemoryManager();
 
@@ -55,21 +55,17 @@ public:
     // keep memory reference and import it.
     int retainMemory(Memory* handle);
     // lock memory to get virtual address for CPU access.
-    int lock(Memory* handle, int usage,
-            int l, int t, int w, int h,
-            void** vaddr);
+    int lock(Memory* handle, int usage, int l, int t, int w, int h, void** vaddr);
     // lock YUV memory to get virtual address for CPU access.
-    int lockYCbCr(Memory* handle, int usage,
-            int l, int t, int w, int h,
-            android_ycbcr* ycbcr);
+    int lockYCbCr(Memory* handle, int usage, int l, int t, int w, int h, android_ycbcr* ycbcr);
     // unlock memory after CPU access.
     int unlock(Memory* handle);
     // validate memory size
-    int validateMemory(MemoryDesc& desc,Memory* handle);
+    int validateMemory(MemoryDesc& desc, Memory* handle);
     // flush memory
     int flush(Memory* handle);
 
-    MetaData *getMetaData(Memory* handle);
+    MetaData* getMetaData(Memory* handle);
 
 protected:
     MemoryManager();
@@ -77,8 +73,8 @@ protected:
     int allocMetaData(Memory* handle);
 
 private:
-    IonManager *mIonManager;
-    alloc_device_t *mGPUAlloc;
+    IonManager* mIonManager;
+    alloc_device_t* mGPUAlloc;
     gralloc_module_t* mGPUModule;
     KeyedVector<Memory*, uint64_t> mMetaMap;
 
@@ -87,5 +83,5 @@ private:
     static MemoryManager* sInstance;
 };
 
-}
+} // namespace fsl
 #endif

@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <utils/Mutex.h>
+
 #include "Stream.h"
 #include "utils/CameraConfigurationParser.h"
 
@@ -31,8 +32,7 @@ typedef int (*hwc_func1)(void* handle);
 typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 
-class ImageProcess
-{
+class ImageProcess {
 public:
     static ImageProcess* getInstance();
     ~ImageProcess();
@@ -50,26 +50,23 @@ private:
     int handleFrameByDPU(StreamBuffer& dstBuf, StreamBuffer& srcBuf);
     int handleFrameByGPU_2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf);
     int handleFrameByG2D(StreamBuffer& dstBuf, StreamBuffer& srcBuf);
-    void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight,
-             uint8_t *src, uint32_t srcWidth, uint32_t srcHeight);
-    void convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer,
-             int width, int height);
-    void cl_YUYVCopyByLine(void *g2dHandle,
-             uint8_t *dst, uint32_t dstWidth,
-             uint32_t dstHeight, uint8_t *src,
-             uint32_t srcWidth, uint32_t srcHeight, bool bInputCached);
-    void cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer,
-             uint8_t *outputBuffer, int width, int height);
-    void *getHandle();
+    void YUYVCopyByLine(uint8_t* dst, uint32_t dstWidth, uint32_t dstHeight, uint8_t* src,
+                        uint32_t srcWidth, uint32_t srcHeight);
+    void convertYUYVtoNV12SP(uint8_t* inputBuffer, uint8_t* outputBuffer, int width, int height);
+    void cl_YUYVCopyByLine(void* g2dHandle, uint8_t* dst, uint32_t dstWidth, uint32_t dstHeight,
+                           uint8_t* src, uint32_t srcWidth, uint32_t srcHeight, bool bInputCached);
+    void cl_YUYVtoNV12SP(void* g2dHandle, uint8_t* inputBuffer, uint8_t* outputBuffer, int width,
+                         int height);
+    void* getHandle();
     int openEngine(void** handle);
     int closeEngine(void* handle);
-    void getModule(char *path, const char *name);
+    void getModule(char* path, const char* name);
 
 private:
     ImageProcess();
     static Mutex sLock;
     static ImageProcess* sInstance;
-    static thread_local void *sHandle;
+    static thread_local void* sHandle;
 
     int mIpuFd;
     int mPxpFd;
@@ -82,9 +79,9 @@ private:
     hwc_func4 mCopyEngine;
     hwc_func3 mBlitEngine;
 
-    void *mG2dModule;
-    void *mCLModule;
-    void *mCLHandle;
+    void* mG2dModule;
+    void* mCLModule;
+    void* mCLHandle;
     hwc_func1 mCLOpen;
     hwc_func1 mCLClose;
     hwc_func3 mCLBlit;
@@ -92,5 +89,5 @@ private:
     hwc_func1 mCLFinish;
 };
 
-}
+} // namespace fsl
 #endif

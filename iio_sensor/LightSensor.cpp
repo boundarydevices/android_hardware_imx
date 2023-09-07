@@ -19,9 +19,9 @@
 namespace nxp_sensors_subhal {
 
 LightSensor::LightSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-           const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
+                         struct iio_device_data& iio_data,
+                         const std::optional<std::vector<Configuration>>& config)
+      : HWSensorBase(sensorHandle, callback, iio_data, config) {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
     mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
@@ -29,10 +29,9 @@ LightSensor::LightSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
     std::string time_file = iio_data.sysfspath + "/in_illuminance_integration_time_available";
     get_sampling_time_available(time_file, &iio_data.sampling_time_avl);
 
-    mSensorInfo.maxDelay =
-              iio_data.sampling_time_avl[0] * 1000000;
+    mSensorInfo.maxDelay = iio_data.sampling_time_avl[0] * 1000000;
     mSensorInfo.minDelay =
-              iio_data.sampling_time_avl[iio_data.sampling_time_avl.size() - 1] * 1000000;
+            iio_data.sampling_time_avl[iio_data.sampling_time_avl.size() - 1] * 1000000;
     mSysfspath = iio_data.sysfspath;
 
     mRunThread = std::thread(std::bind(&LightSensor::run, this));
@@ -57,7 +56,7 @@ void LightSensor::activate(bool enable) {
         if (enable) {
             mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
             if (mPollFdIio.fd < 0) {
-                ALOGI("Failed to open iio char device (%s).",  buffer_path.c_str());
+                ALOGI("Failed to open iio char device (%s).", buffer_path.c_str());
             }
         } else {
             close(mPollFdIio.fd);
@@ -129,4 +128,4 @@ void LightSensor::run() {
     }
 }
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

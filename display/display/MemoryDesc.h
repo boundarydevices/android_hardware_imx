@@ -27,31 +27,30 @@ using android::Mutex;
 enum {
     FORMAT_RGBA8888 = 1,
     FORMAT_RGBX8888 = 2,
-    FORMAT_RGB888   = 3,
-    FORMAT_RGB565   = 4,
+    FORMAT_RGB888 = 3,
+    FORMAT_RGB565 = 4,
     FORMAT_BGRA8888 = 5,
     FORMAT_RGBA1010102 = 0x2B,
     FORMAT_RGBAFP16 = 0x16,
-    FORMAT_BLOB  = 0x21,
-    FORMAT_YCBCR_P010  = 0x36,
-    FORMAT_YV12  = 0x32315659, // YCrCb 4:2:0 Planar
-    FORMAT_NV16  = 0x10, // NV16
-    FORMAT_NV21  = 0x11, // NV21
-    FORMAT_YUYV  = 0x14, // YUY2
-    FORMAT_I420  = 0x101,
-    FORMAT_NV12  = 0x103,
+    FORMAT_BLOB = 0x21,
+    FORMAT_YCBCR_P010 = 0x36,
+    FORMAT_YV12 = 0x32315659, // YCrCb 4:2:0 Planar
+    FORMAT_NV16 = 0x10,       // NV16
+    FORMAT_NV21 = 0x11,       // NV21
+    FORMAT_YUYV = 0x14,       // YUY2
+    FORMAT_I420 = 0x101,
+    FORMAT_NV12 = 0x103,
     FORMAT_NV12_TILED = 0x104,
     FORMAT_NV12_G1_TILED = 0x105,
     FORMAT_NV12_G2_TILED = 0x106,
     FORMAT_NV12_G2_TILED_COMPRESSED = 0x107,
-    FORMAT_P010                  = 0x108,
-    FORMAT_P010_TILED            = 0x109,
+    FORMAT_P010 = 0x108,
+    FORMAT_P010_TILED = 0x109,
     FORMAT_P010_TILED_COMPRESSED = 0x110,
-    FORMAT_RAW16  = 0x203,
+    FORMAT_RAW16 = 0x203,
 };
 
-struct MemoryDesc
-{
+struct MemoryDesc {
     static const int sMagic = 0x31415920;
     MemoryDesc();
     bool isValid();
@@ -70,5 +69,5 @@ struct MemoryDesc
     int64_t mConsumeUsage;
 };
 
-}
+} // namespace fsl
 #endif /* GRALLOC_PRIV_H_ */

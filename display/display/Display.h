@@ -18,21 +18,23 @@
 #define _FSL_DISPLAY_H_
 
 #include <cutils/properties.h>
-#include <utils/threads.h>
 #include <math.h>
-#include "Memory.h"
-#include "Layer.h"
+#include <utils/threads.h>
+
+#include <unordered_map>
+#include <vector>
+
 #include "Composer.h"
 #include "Edid.h"
-#include <vector>
-#include <unordered_map>
+#include "Layer.h"
+#include "Memory.h"
 
 namespace fsl {
 
-using android::Mutex;
 using android::Condition;
-using android::Thread;
+using android::Mutex;
 using android::sp;
+using android::Thread;
 using android::Vector;
 
 #define DISPLAY_PRIMARY 0
@@ -49,14 +51,13 @@ using android::Vector;
 #define DEF_BACKLIGHT_DEV "pwm-backlight"
 #define DEF_BACKLIGHT_PATH "/sys/class/backlight/"
 
-#define DEFAULT_REFRESH_RATE             60
-#define FLOAT_TOLERANCE                  0.01
-#define RESERVED_DISPLAY_GROUP_ID        100
+#define DEFAULT_REFRESH_RATE 60
+#define FLOAT_TOLERANCE 0.01
+#define RESERVED_DISPLAY_GROUP_ID 100
 
 #define DEBUG_DUMP_REFRESH_RATE
 
-class BufferSlot
-{
+class BufferSlot {
 public:
     static const uint32_t MAX_COUNT = 32;
     BufferSlot(uint32_t count);
@@ -80,17 +81,17 @@ private:
     std::vector<int32_t> mPresentSlot;
     int32_t mLastPresent;
     int32_t mPresentTotal;
-    Memory *mBuffers[MAX_COUNT];
+    Memory* mBuffers[MAX_COUNT];
 };
 
-class EventListener
-{
+class EventListener {
 public:
     virtual ~EventListener() {}
     virtual void onVSync(int disp, nsecs_t timestamp, int vsyncPeriodNanos) = 0;
     virtual void onHotplug(int disp, bool connected) = 0;
     virtual void onRefresh(int disp) = 0;
-    virtual void onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos, bool refreshRequired, nsecs_t refreshTimeNanos) = 0;
+    virtual void onVSyncPeriodTimingChanged(int disp, nsecs_t newVsyncAppliedTimeNanos,
+                                            bool refreshRequired, nsecs_t refreshTimeNanos) = 0;
     virtual void onSeamlessPossible(int disp) = 0;
 };
 
@@ -124,8 +125,7 @@ enum {
     UI_SCALE_HARDWARE = 2,
 };
 
-struct DisplayConfig
-{
+struct DisplayConfig {
     int mXres;
     int mYres;
     int mFormat;
@@ -139,8 +139,7 @@ struct DisplayConfig
     int modeIdx; // drmModeModeInfo index
 };
 
-class Display
-{
+class Display {
 public:
     Display();
     virtual ~Display();
@@ -160,13 +159,11 @@ public:
     // set or unset SKIP_LAYER flag for all layers.
     int setSkipLayer(bool skip);
     // get changed composition types for all layers.
-    int getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers,
-                        int32_t* outTypes);
+    int getChangedTypes(uint32_t* outNumTypes, uint64_t* outLayers, int32_t* outTypes);
     // get display&layer request for all layers.
-    int getRequests(int32_t* outDisplayRequests, uint32_t* outNumRequests,
-                    uint64_t* outLayers, int32_t* outLayerRequests);
-    int getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers,
-                         int32_t* outFences);
+    int getRequests(int32_t* outDisplayRequests, uint32_t* outNumRequests, uint64_t* outLayers,
+                    int32_t* outLayerRequests);
+    int getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers, int32_t* outFences);
     // verify all layers and marks if device can handle.
     bool verifyLayers();
     // set display composite target buffer.
@@ -179,7 +176,7 @@ public:
     bool forceVync();
 
     // add hw layer.
-    int addHwLayer(uint32_t index, Layer *layer);
+    int addHwLayer(uint32_t index, Layer* layer);
     // remove hw layer.
     int removeHwLayer(uint32_t index);
 
@@ -217,8 +214,7 @@ public:
     virtual int setActiveConfig(int configId);
     virtual int createDisplayConfig(int width, int height, float fps, int format);
     virtual int getPresentFence(int32_t* outPresentFence) {
-        if (outPresentFence != NULL)
-            *outPresentFence = -1;
+        if (outPresentFence != NULL) *outPresentFence = -1;
         return 0;
     }
     // get display mode format size
@@ -254,7 +250,7 @@ public:
     // set display Brightness with brightness
     int setBrightness(float brightness);
     // get display identification data
-    int getDisplayIdentificationData(uint8_t* displayPort, uint8_t *data, uint32_t size);
+    int getDisplayIdentificationData(uint8_t* displayPort, uint8_t* data, uint32_t size);
     // get display connection type: internal or external
     int getDisplayConnectionType();
     // get the VSYNC period of the display
@@ -264,16 +260,16 @@ public:
     // set display low latency mode
     int setAutoLowLatencyMode(bool on);
     // get display supported content types
-    int getSupportedContentTypes(int num, uint32_t *supportedTypes);
+    int getSupportedContentTypes(int num, uint32_t* supportedTypes);
     // set display content type
     int setContentType(int contentType);
     // get group id of the display configuration
     int getConfigGroup(int config);
     virtual int changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool seamlessRequired,
-                            nsecs_t *outAppliedTime, bool *outRefresh, nsecs_t *outRefreshTime);
+                                    nsecs_t* outAppliedTime, bool* outRefresh,
+                                    nsecs_t* outRefreshTime);
     // return whether Rect outer contains Rect inner or not
     bool contains(const Rect& outer, const Rect& inner);
-
 
 protected:
     int composeLayersLocked();
@@ -322,5 +318,5 @@ protected:
 #endif
 };
 
-}
+} // namespace fsl
 #endif

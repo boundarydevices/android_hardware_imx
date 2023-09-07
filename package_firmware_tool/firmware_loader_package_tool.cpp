@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -58,25 +59,17 @@ static const struct option _lopts[] = {
 static void print_usage_and_exit(const char* prog, int code) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "\t%s --mode <mode> [options] ...\n", prog);
-    fprintf(stderr, "\t%s --mode build [options] <output> <ELF> <manifest>\n",
-            prog);
-    fprintf(stderr,
-            "\t%s --mode sign [options] <output> <input> <key> <key id>\n",
-            prog);
+    fprintf(stderr, "\t%s --mode build [options] <output> <ELF> <manifest>\n", prog);
+    fprintf(stderr, "\t%s --mode sign [options] <output> <input> <key> <key id>\n", prog);
     fprintf(stderr, "\t%s --mode verify [options] <input> <key>\n", prog);
-    fprintf(stderr,
-            "\t%s --mode encrypt [options] <output> <input> <key> <key id>\n",
-            prog);
-    fprintf(stderr, "\t%s --mode decrypt [options] <output> <input> <key>\n",
-            prog);
+    fprintf(stderr, "\t%s --mode encrypt [options] <output> <input> <key> <key id>\n", prog);
+    fprintf(stderr, "\t%s --mode decrypt [options] <output> <input> <key>\n", prog);
     fprintf(stderr, "\t%s --mode info [options] <input>\n", prog);
     fprintf(stderr, "\n");
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "\t-h, --help            prints this message and exit\n");
-    fprintf(stderr,
-            "\t-m, --mode            mode; one of: build, sign, verify, encrypt\n");
-    fprintf(stderr,
-            "\t-s, --strict          verify signature in strict mode\n");
+    fprintf(stderr, "\t-m, --mode            mode; one of: build, sign, verify, encrypt\n");
+    fprintf(stderr, "\t-s, --strict          verify signature in strict mode\n");
     fprintf(stderr, "\n");
     exit(code);
 }
@@ -92,38 +85,38 @@ static void parse_options(int argc, char** argv) {
         }
 
         switch (c) {
-        case 'h':
-            print_usage_and_exit(argv[0], EXIT_SUCCESS);
-            break;
+            case 'h':
+                print_usage_and_exit(argv[0], EXIT_SUCCESS);
+                break;
 
-        case 'm':
-            if (!strcmp(optarg, "build")) {
-                mode = Mode::BUILD;
-            } else if (!strcmp(optarg, "sign")) {
-                mode = Mode::SIGN;
-            } else if (!strcmp(optarg, "verify")) {
-                mode = Mode::VERIFY;
-            } else if (!strcmp(optarg, "encrypt")) {
-                mode = Mode::ENCRYPT;
-            } else if (!strcmp(optarg, "decrypt")) {
-                mode = Mode::DECRYPT;
-            } else if (!strcmp(optarg, "info")) {
-                mode = Mode::INFO;
-            } else {
-                fprintf(stderr, "Unrecognized command mode: %s\n", optarg);
-                /*
-                 * Set the mode to UNKNOWN so main prints the usage and exits
-                 */
-                mode = Mode::UNKNOWN;
-            }
-            break;
+            case 'm':
+                if (!strcmp(optarg, "build")) {
+                    mode = Mode::BUILD;
+                } else if (!strcmp(optarg, "sign")) {
+                    mode = Mode::SIGN;
+                } else if (!strcmp(optarg, "verify")) {
+                    mode = Mode::VERIFY;
+                } else if (!strcmp(optarg, "encrypt")) {
+                    mode = Mode::ENCRYPT;
+                } else if (!strcmp(optarg, "decrypt")) {
+                    mode = Mode::DECRYPT;
+                } else if (!strcmp(optarg, "info")) {
+                    mode = Mode::INFO;
+                } else {
+                    fprintf(stderr, "Unrecognized command mode: %s\n", optarg);
+                    /*
+                     * Set the mode to UNKNOWN so main prints the usage and exits
+                     */
+                    mode = Mode::UNKNOWN;
+                }
+                break;
 
-        case 's':
-            strict = true;
-            break;
+            case 's':
+                strict = true;
+                break;
 
-        default:
-            print_usage_and_exit(argv[0], EXIT_FAILURE);
+            default:
+                print_usage_and_exit(argv[0], EXIT_FAILURE);
         }
     }
 }
@@ -151,16 +144,14 @@ static std::string read_entire_file(const char* file_name) {
     return ss.str();
 }
 
-static void write_entire_file(const char* file_name,
-                              const std::vector<uint8_t>& data) {
+static void write_entire_file(const char* file_name, const std::vector<uint8_t>& data) {
     /*
      * Disable synchronization between C++ streams and FILE* functions for a
      * performance boost
      */
     std::ios::sync_with_stdio(false);
 
-    std::ofstream ofs(file_name,
-                      std::ios::out | std::ios::binary | std::ios::trunc);
+    std::ofstream ofs(file_name, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!ofs || !ofs.is_open()) {
         fprintf(stderr, "Failed to create file '%s'\n", file_name);
         exit(EXIT_FAILURE);
@@ -173,9 +164,8 @@ static void write_entire_file(const char* file_name,
     }
 }
 
-static void build_package(const char* output_path,
-                          const char* elf_path,
-			  const char* manifest_path) {
+static void build_package(const char* output_path, const char* elf_path,
+                          const char* manifest_path) {
     auto elf = read_entire_file(elf_path);
     auto manifest = read_entire_file(manifest_path);
 
@@ -214,9 +204,7 @@ static uint8_t parse_key_id(const char* key_id) {
     return static_cast<uint8_t>(int_key_id);
 }
 
-static void sign_package(const char* output_path,
-                         const char* input_path,
-                         const char* key_path,
+static void sign_package(const char* output_path, const char* input_path, const char* key_path,
                          uint8_t key_id) {
     auto input = string_to_vector(read_entire_file(input_path));
     if (coseIsSigned({input.data(), input.size()}, nullptr)) {
@@ -231,8 +219,7 @@ static void sign_package(const char* output_path,
     protected_headers.add(COSE_LABEL_TRUSTY, std::move(trusty_array));
 
     auto key = string_to_vector(read_entire_file(key_path));
-    auto sig = coseSignEcDsa(key, key_id, input, std::move(protected_headers),
-                             {}, true, true);
+    auto sig = coseSignEcDsa(key, key_id, input, std::move(protected_headers), {}, true, true);
     if (!sig) {
         fprintf(stderr, "Failed to sign package\n");
         exit(EXIT_FAILURE);
@@ -254,8 +241,7 @@ static void verify_package(const char* input_path, const char* key_path) {
     auto key = string_to_vector(read_entire_file(key_path));
     bool signature_ok;
     if (strict) {
-        auto get_key = [&key](uint8_t key_id)
-                -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
+        auto get_key = [&key](uint8_t key_id) -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
             auto key_data = std::make_unique<uint8_t[]>(key.size());
             if (!key_data) {
                 return {};
@@ -264,11 +250,10 @@ static void verify_package(const char* input_path, const char* key_path) {
             memcpy(key_data.get(), key.data(), key.size());
             return {std::move(key_data), key.size()};
         };
-        signature_ok = strictCheckEcDsaSignature(input.data(), input.size(),
-                                                 get_key, nullptr, nullptr);
+        signature_ok =
+                strictCheckEcDsaSignature(input.data(), input.size(), get_key, nullptr, nullptr);
     } else {
-        std::vector<uint8_t> payload(input.begin() + signature_length,
-                                     input.end());
+        std::vector<uint8_t> payload(input.begin() + signature_length, input.end());
         input.resize(signature_length);
         signature_ok = coseCheckEcDsaSignature(input, payload, key);
     }
@@ -286,8 +271,7 @@ struct ContentIsCoseEncrypt {
     bool value;
 };
 
-static std::optional<ContentIsCoseEncrypt> find_content_is_cose_encrypt(
-        cppbor::Map* headers) {
+static std::optional<ContentIsCoseEncrypt> find_content_is_cose_encrypt(cppbor::Map* headers) {
     std::optional<ContentIsCoseEncrypt> res;
     for (auto& [label_item, value_item] : *headers) {
         auto* label_uint = label_item->asUint();
@@ -295,8 +279,7 @@ static std::optional<ContentIsCoseEncrypt> find_content_is_cose_encrypt(
             label_uint->unsignedValue() ==
                     FIRMWARELOADER_PACKAGE_HEADER_LABEL_CONTENT_IS_COSE_ENCRYPT) {
             if (res.has_value()) {
-                fprintf(stderr,
-                        "Duplicate content_is_cose_encrypt header fields\n");
+                fprintf(stderr, "Duplicate content_is_cose_encrypt header fields\n");
                 exit(EXIT_FAILURE);
             }
 
@@ -309,26 +292,22 @@ static std::optional<ContentIsCoseEncrypt> find_content_is_cose_encrypt(
                 exit(EXIT_FAILURE);
             }
 
-            auto* content_is_cose_encrypt_bool =
-                    content_is_cose_encrypt_simple->asBool();
+            auto* content_is_cose_encrypt_bool = content_is_cose_encrypt_simple->asBool();
             if (content_is_cose_encrypt_bool == nullptr) {
                 fprintf(stderr,
                         "Invalid content_is_cose_encrypt CBOR simple type, "
                         "got: 0x%x\n",
-                        static_cast<int>(
-                                content_is_cose_encrypt_simple->simpleType()));
+                        static_cast<int>(content_is_cose_encrypt_simple->simpleType()));
                 exit(EXIT_FAILURE);
             }
 
-            res = ContentIsCoseEncrypt{std::ref(value_item),
-                                       content_is_cose_encrypt_bool->value()};
+            res = ContentIsCoseEncrypt{std::ref(value_item), content_is_cose_encrypt_bool->value()};
         }
     }
     return res;
 }
 
-static void update_header_content_is_cose_encrypt(cppbor::Map* headers,
-                                                  bool new_value) {
+static void update_header_content_is_cose_encrypt(cppbor::Map* headers, bool new_value) {
     // Walk the entire headers map to replace the content type value.
     // We need to do this because cppbor::Map::get() returns a const reference.
     auto content_is_cose_encrypt = find_content_is_cose_encrypt(headers);
@@ -339,8 +318,7 @@ static void update_header_content_is_cose_encrypt(cppbor::Map* headers,
         }
 
         // Update the content flag
-        content_is_cose_encrypt->item_ref.get() =
-                std::make_unique<cppbor::Bool>(new_value);
+        content_is_cose_encrypt->item_ref.get() = std::make_unique<cppbor::Bool>(new_value);
     } else if (new_value) {
         headers->add(FIRMWARELOADER_PACKAGE_HEADER_LABEL_CONTENT_IS_COSE_ENCRYPT,
                      cppbor::Bool(true));
@@ -364,8 +342,8 @@ struct PackageInfo {
 };
 
 static PackageInfo parse_package(std::string_view input, bool check_sign_tag) {
-    auto [item, pos, err] = cppbor::parseWithViews(
-            reinterpret_cast<const uint8_t*>(input.data()), input.size());
+    auto [item, pos, err] =
+            cppbor::parseWithViews(reinterpret_cast<const uint8_t*>(input.data()), input.size());
     if (!item) {
         fprintf(stderr, "Failed to parse input file as CBOR\n");
         exit(EXIT_FAILURE);
@@ -394,8 +372,7 @@ static PackageInfo parse_package(std::string_view input, bool check_sign_tag) {
     }
 
     if (root_array->size() != 4) {
-        fprintf(stderr, "Invalid number of CBOR array elements: %zd\n",
-                root_array->size());
+        fprintf(stderr, "Invalid number of CBOR array elements: %zd\n", root_array->size());
         exit(EXIT_FAILURE);
     }
 
@@ -406,11 +383,8 @@ static PackageInfo parse_package(std::string_view input, bool check_sign_tag) {
         exit(EXIT_FAILURE);
     }
     if (version->unsignedValue() != FIRMWARELOADER_PACKAGE_FORMAT_VERSION_CURRENT) {
-        fprintf(stderr,
-                "Invalid package version, expected %" PRIu64 " got %" PRIu64
-                "\n",
-                FIRMWARELOADER_PACKAGE_FORMAT_VERSION_CURRENT,
-                version->unsignedValue());
+        fprintf(stderr, "Invalid package version, expected %" PRIu64 " got %" PRIu64 "\n",
+                FIRMWARELOADER_PACKAGE_FORMAT_VERSION_CURRENT, version->unsignedValue());
         exit(EXIT_FAILURE);
     }
 
@@ -420,13 +394,10 @@ static PackageInfo parse_package(std::string_view input, bool check_sign_tag) {
                 static_cast<int>(root_array->get(1)->type()));
         exit(EXIT_FAILURE);
     }
-    return PackageInfo{std::move(item), *root_array, *headers,
-                       std::ref(root_array->get(2))};
+    return PackageInfo{std::move(item), *root_array, *headers, std::ref(root_array->get(2))};
 }
 
-static void encrypt_package(const char* output_path,
-                            const char* input_path,
-                            const char* key_path,
+static void encrypt_package(const char* output_path, const char* input_path, const char* key_path,
                             uint8_t key_id) {
     auto input = read_entire_file(input_path);
     auto pkg_info = parse_package(input, true);
@@ -447,8 +418,8 @@ static void encrypt_package(const char* output_path,
     protected_headers.add(COSE_LABEL_TRUSTY, "TrustyApp");
 
     std::vector<uint8_t> elf_vec(elf->view().begin(), elf->view().end());
-    auto cose_encrypt = coseEncryptAes128GcmKeyWrap(
-            key, key_id, elf_vec, {}, std::move(protected_headers), {}, false);
+    auto cose_encrypt = coseEncryptAes128GcmKeyWrap(key, key_id, elf_vec, {},
+                                                    std::move(protected_headers), {}, false);
     if (!cose_encrypt) {
         fprintf(stderr, "Failed to encrypt ELF file\n");
         exit(EXIT_FAILURE);
@@ -472,9 +443,7 @@ static void encrypt_package(const char* output_path,
     write_entire_file(output_path, encoded_package);
 }
 
-static void decrypt_package(const char* output_path,
-                            const char* input_path,
-                            const char* key_path) {
+static void decrypt_package(const char* output_path, const char* input_path, const char* key_path) {
     auto input = read_entire_file(input_path);
     auto pkg_info = parse_package(input, true);
     if (pkg_info.elf_item_ref.get()->asArray() == nullptr) {
@@ -489,8 +458,7 @@ static void decrypt_package(const char* output_path,
         exit(EXIT_FAILURE);
     }
 
-    auto get_key = [&key](
-            uint8_t key_id) -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
+    auto get_key = [&key](uint8_t key_id) -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
         auto key_data = std::make_unique<uint8_t[]>(key.size());
         if (!key_data) {
             return {};
@@ -502,9 +470,8 @@ static void decrypt_package(const char* output_path,
 
     const uint8_t* package_start;
     size_t package_size;
-    if (!coseDecryptAes128GcmKeyWrapInPlace(pkg_info.elf_item_ref.get(),
-                                            get_key, {}, false, &package_start,
-                                            &package_size)) {
+    if (!coseDecryptAes128GcmKeyWrapInPlace(pkg_info.elf_item_ref.get(), get_key, {}, false,
+                                            &package_start, &package_size)) {
         fprintf(stderr, "Failed to decrypt ELF file\n");
         exit(EXIT_FAILURE);
     }
@@ -535,19 +502,16 @@ static void print_package_info(const char* input_path) {
 
     auto input = read_entire_file(input_path);
     size_t signature_length = 0;
-    if (coseIsSigned({reinterpret_cast<uint8_t*>(input.data()), input.size()},
-                     &signature_length)) {
+    if (coseIsSigned({reinterpret_cast<uint8_t*>(input.data()), input.size()}, &signature_length)) {
         printf("Signed: YES\n");
 
         // Call into cose.cpp with a callback that prints the key id
-        auto print_key_id = [
-        ](uint8_t key_id) -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
+        auto print_key_id = [](uint8_t key_id) -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
             printf("Signature key id: %" PRIu8 "\n", key_id);
             return {};
         };
-        strictCheckEcDsaSignature(
-                reinterpret_cast<const uint8_t*>(input.data()), input.size(),
-                print_key_id, nullptr, nullptr);
+        strictCheckEcDsaSignature(reinterpret_cast<const uint8_t*>(input.data()), input.size(),
+                                  print_key_id, nullptr, nullptr);
     } else {
         printf("Signed: NO\n");
     }
@@ -555,14 +519,12 @@ static void print_package_info(const char* input_path) {
     std::string_view signed_package{input.data() + signature_length,
                                     input.size() - signature_length};
     auto pkg_info = parse_package(signed_package, false);
-    auto content_is_cose_encrypt =
-            find_content_is_cose_encrypt(&pkg_info.headers);
+    auto content_is_cose_encrypt = find_content_is_cose_encrypt(&pkg_info.headers);
     if (content_is_cose_encrypt && content_is_cose_encrypt->value) {
         printf("Encrypted: YES\n");
 
         // Call into cose.cpp with a callback that prints the key id
-        auto print_key_id = [
-        ](uint8_t key_id) -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
+        auto print_key_id = [](uint8_t key_id) -> std::tuple<std::unique_ptr<uint8_t[]>, size_t> {
             printf("Encryption key id: %" PRIu8 "\n", key_id);
             return {};
         };
@@ -575,8 +537,7 @@ static void print_package_info(const char* input_path) {
 
         const uint8_t* package_start;
         size_t package_size;
-        coseDecryptAes128GcmKeyWrapInPlace(pkg_info.elf_item_ref.get(),
-                                           print_key_id, {}, false,
+        coseDecryptAes128GcmKeyWrapInPlace(pkg_info.elf_item_ref.get(), print_key_id, {}, false,
                                            &package_start, &package_size);
     } else {
         printf("Encrypted: NO\n");
@@ -590,53 +551,53 @@ int main(int argc, char** argv) {
     parse_options(argc, argv);
 
     switch (mode) {
-    case Mode::BUILD:
-        if (optind + 3 != argc) {
-            print_usage_and_exit(argv[0], EXIT_FAILURE);
-        }
-        build_package(argv[optind], argv[optind + 1], argv[optind + 2]);
-        break;
+        case Mode::BUILD:
+            if (optind + 3 != argc) {
+                print_usage_and_exit(argv[0], EXIT_FAILURE);
+            }
+            build_package(argv[optind], argv[optind + 1], argv[optind + 2]);
+            break;
 
-    case Mode::SIGN:
-        if (optind + 4 != argc) {
-            print_usage_and_exit(argv[0], EXIT_FAILURE);
-        }
-        sign_package(argv[optind], argv[optind + 1], argv[optind + 2],
-                     parse_key_id(argv[optind + 3]));
-        break;
+        case Mode::SIGN:
+            if (optind + 4 != argc) {
+                print_usage_and_exit(argv[0], EXIT_FAILURE);
+            }
+            sign_package(argv[optind], argv[optind + 1], argv[optind + 2],
+                         parse_key_id(argv[optind + 3]));
+            break;
 
-    case Mode::VERIFY:
-        if (optind + 2 != argc) {
-            print_usage_and_exit(argv[0], EXIT_FAILURE);
-        }
-        verify_package(argv[optind], argv[optind + 1]);
-        break;
+        case Mode::VERIFY:
+            if (optind + 2 != argc) {
+                print_usage_and_exit(argv[0], EXIT_FAILURE);
+            }
+            verify_package(argv[optind], argv[optind + 1]);
+            break;
 
-    case Mode::ENCRYPT:
-        if (optind + 4 != argc) {
-            print_usage_and_exit(argv[0], EXIT_FAILURE);
-        }
-        encrypt_package(argv[optind], argv[optind + 1], argv[optind + 2],
-                        parse_key_id(argv[optind + 3]));
-        break;
+        case Mode::ENCRYPT:
+            if (optind + 4 != argc) {
+                print_usage_and_exit(argv[0], EXIT_FAILURE);
+            }
+            encrypt_package(argv[optind], argv[optind + 1], argv[optind + 2],
+                            parse_key_id(argv[optind + 3]));
+            break;
 
-    case Mode::DECRYPT:
-        if (optind + 3 != argc) {
-            print_usage_and_exit(argv[0], EXIT_FAILURE);
-        }
-        decrypt_package(argv[optind], argv[optind + 1], argv[optind + 2]);
-        break;
+        case Mode::DECRYPT:
+            if (optind + 3 != argc) {
+                print_usage_and_exit(argv[0], EXIT_FAILURE);
+            }
+            decrypt_package(argv[optind], argv[optind + 1], argv[optind + 2]);
+            break;
 
-    case Mode::INFO:
-        if (optind + 1 != argc) {
-            print_usage_and_exit(argv[0], EXIT_FAILURE);
-        }
-        print_package_info(argv[optind]);
-        break;
+        case Mode::INFO:
+            if (optind + 1 != argc) {
+                print_usage_and_exit(argv[0], EXIT_FAILURE);
+            }
+            print_package_info(argv[optind]);
+            break;
 
-    default:
-        print_usage_and_exit(argv[0], EXIT_FAILURE);
-        break;
+        default:
+            print_usage_and_exit(argv[0], EXIT_FAILURE);
+            break;
     }
 
     return 0;

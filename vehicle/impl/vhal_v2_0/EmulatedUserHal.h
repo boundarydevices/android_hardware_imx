@@ -18,7 +18,6 @@
 #define android_hardware_automotive_vehicle_V2_0_impl_EmulatedUserHal_H_
 
 #include <android-base/result.h>
-
 #include <android/hardware/automotive/vehicle/2.0/types.h>
 
 namespace android {
@@ -35,7 +34,7 @@ constexpr char kUserHalDumpOption[] = "--user-hal";
  * Class used to emulate User HAL behavior through lshal debug requests.
  */
 class EmulatedUserHal {
-  public:
+public:
     EmulatedUserHal() {}
 
     ~EmulatedUserHal() = default;
@@ -71,7 +70,7 @@ class EmulatedUserHal {
      */
     void dump(int fd, std::string indent);
 
-  private:
+private:
     /**
      * INITIAL_USER_INFO is called by Android when it starts, and it's expecting a property change
      * indicating what the initial user should be.
@@ -140,12 +139,12 @@ class EmulatedUserHal {
     std::unique_ptr<VehiclePropValue> mSetUserIdentificationAssociationResponseFromCmd;
 };
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_EmulatedUserHal_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_EmulatedUserHal_H_

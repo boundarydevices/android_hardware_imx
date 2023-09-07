@@ -16,24 +16,24 @@
 #ifndef _FSL_V4L2_CAPTURE_H_
 #define _FSL_V4L2_CAPTURE_H_
 
-#include <atomic>
-#include <thread>
-#include <functional>
 #include <linux/videodev2.h>
+
+#include <atomic>
+#include <functional>
+#include <thread>
 #include <unordered_set>
+
 #include "EvsCamera.h"
 
-using ::std::condition_variable;
-using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
 using ::android::hardware::Return;
+using ::android::hardware::automotive::evs::V1_1::implementation::EvsCamera;
+using ::std::condition_variable;
 
 #define V4L2_BUFFER_NUM 10
-class V4l2Capture : public EvsCamera
-{
+class V4l2Capture : public EvsCamera {
 public:
-    V4l2Capture(const char *deviceName, const char *videoName,
-                   __u32 width, __u32 height, int format,
-                  const camera_metadata_t * metadata);
+    V4l2Capture(const char* deviceName, const char* videoName, __u32 width, __u32 height,
+                int format, const camera_metadata_t* metadata);
     virtual ~V4l2Capture();
 
     Return<EvsResult> setMaxFramesInFlight(uint32_t bufferCount);
@@ -47,10 +47,10 @@ public:
     virtual bool isOpen();
     // Valid only after open()
     virtual bool onFrameReturn(int index, std::string deviceid);
-    virtual void onFrameCollect(std::vector<struct forwardframe> &frame);
+    virtual void onFrameCollect(std::vector<struct forwardframe>& frame);
     virtual int getParameter(v4l2_control& control);
     virtual int setParameter(v4l2_control& control);
-    virtual std::set<uint32_t>  enumerateCameraControls();
+    virtual std::set<uint32_t> enumerateCameraControls();
     virtual void onIncreaseMemoryBuffer(unsigned number);
     virtual void onMemoryDestroy();
     void onDecreaseMemoryBuffer(unsigned index);
@@ -61,8 +61,8 @@ private:
     // mPhysicalCamera return the physical camera
     std::unordered_set<std::string> mPhysicalCamera;
 
-    // if the camera is logic camera, mDeviceFd will been instored according the mPhysicalCamera name.
-    // if the camera is pyhsical camera, mDeviceFd will been the fd of pyhsical camera
+    // if the camera is logic camera, mDeviceFd will been instored according the mPhysicalCamera
+    // name. if the camera is pyhsical camera, mDeviceFd will been the fd of pyhsical camera
     std::unordered_map<std::string, int> mDeviceFd;
     __u32 mV4lFormat = 0;
     // judge whether it's logic camera according the metadata

@@ -15,52 +15,51 @@
  * limitations under the License.
  */
 
-#include <stdio.h>
-#include <hardware/camera3.h>
-#include <hardware/gralloc.h>
-#include <system/graphics.h>
-#include <graphics_ext.h>
-#include <utils/Mutex.h>
-#include <utils/StrongPointer.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
+#include <graphics_ext.h>
+#include <hardware/camera3.h>
+#include <hardware/gralloc.h>
+#include <stdio.h>
 #include <sync/sync.h>
+#include <system/graphics.h>
+#include <utils/Mutex.h>
+#include <utils/StrongPointer.h>
 
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 
 #include <cutils/log.h>
+
 #include "Camera.h"
-#include "Stream.h"
 #include "CameraUtils.h"
 #include "ImageProcess.h"
+#include "Stream.h"
 
-Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
-  : mReuse(false),
-    mPreview(false),
-    mJpeg(false),
-    mCallback(false),
-    mRecord(false),
-    mId(id),
-    mStream(s),
-    mType(s->stream_type),
-    mWidth(s->width),
-    mHeight(s->height),
-    mFormat(s->format),
-    mUsage(0),
-    mFps(30),
-    mNumBuffers(0),
-    mRegistered(false),
-    mCustomDriver(false),
-    mCamera(camera)
-{
+Stream::Stream(int id, camera3_stream_t *s, Camera *camera)
+      : mReuse(false),
+        mPreview(false),
+        mJpeg(false),
+        mCallback(false),
+        mRecord(false),
+        mId(id),
+        mStream(s),
+        mType(s->stream_type),
+        mWidth(s->width),
+        mHeight(s->height),
+        mFormat(s->format),
+        mUsage(0),
+        mFps(30),
+        mNumBuffers(0),
+        mRegistered(false),
+        mCustomDriver(false),
+        mCamera(camera) {
     if (s->format == HAL_PIXEL_FORMAT_BLOB) {
         ALOGI("%s create capture stream", __func__);
         mJpeg = true;
         mFormat = s->format;
         mUsage = CAMERA_GRALLOC_USAGE_JPEG;
         mNumBuffers = NUM_CAPTURE_BUFFER;
-    }
-    else if (s->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
+    } else if (s->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
         ALOGI("%s create preview stream", __func__);
         mFormat = mCamera->getPreviewPixelFormat();
         mUsage = CAMERA_GRALLOC_USAGE;
@@ -73,8 +72,7 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
             mRecord = true;
         }
         s->format = mFormat;
-    }
-    else {
+    } else {
         ALOGI("%s create callback stream", __func__);
         mCallback = true;
         mUsage = CAMERA_GRALLOC_USAGE;
@@ -85,45 +83,40 @@ Stream::Stream(int id, camera3_stream_t *s, Camera* camera)
     s->max_buffers = mNumBuffers;
     mNumBuffers += 1;
 
-    ALOGI("stream: w:%d, h:%d, format:0x%x, usage:0x%x, buffers:%d",
-          s->width, s->height, s->format, s->usage, mNumBuffers);
+    ALOGI("stream: w:%d, h:%d, format:0x%x, usage:0x%x, buffers:%d", s->width, s->height, s->format,
+          s->usage, mNumBuffers);
 
-    for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
+    for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
     }
 
     mJpegBuilder = new JpegBuilder();
 }
 
-Stream::Stream(Camera* camera)
-  : mReuse(false),
-    mPreview(false),
-    mJpeg(false),
-    mId(-1),
-    mStream(NULL),
-    mType(-1),
-    mWidth(0),
-    mHeight(0),
-    mFormat(0),
-    mUsage(0),
-    mFps(30),
-    mNumBuffers(0),
-    mRegistered(false),
-    mCustomDriver(false),
-    mCamera(camera)
-{
-    for (uint32_t i=0; i<MAX_STREAM_BUFFERS; i++) {
+Stream::Stream(Camera *camera)
+      : mReuse(false),
+        mPreview(false),
+        mJpeg(false),
+        mId(-1),
+        mStream(NULL),
+        mType(-1),
+        mWidth(0),
+        mHeight(0),
+        mFormat(0),
+        mUsage(0),
+        mFps(30),
+        mNumBuffers(0),
+        mRegistered(false),
+        mCustomDriver(false),
+        mCamera(camera) {
+    for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
         mBuffers[i] = NULL;
     }
 }
 
-Stream::~Stream()
-{
-}
+Stream::~Stream() {}
 
-int32_t Stream::processJpegBuffer(StreamBuffer& src,
-                                  sp<Metadata> meta)
-{
+int32_t Stream::processJpegBuffer(StreamBuffer &src, sp<Metadata> meta) {
     int32_t ret = 0;
     int32_t encodeQuality = 100, thumbQuality = 100;
     int32_t thumbWidth, thumbHeight;
@@ -134,8 +127,8 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     struct camera3_jpeg_blob *jpegBlob = NULL;
     uint32_t bufSize = 0;
 
-    StreamBuffer* dstBuf = mCurrent;
-    sp<Stream>& srcStream = src.mStream;
+    StreamBuffer *dstBuf = mCurrent;
+    sp<Stream> &srcStream = src.mStream;
 
     ret = mCamera->getV4l2Res(srcStream->mWidth, srcStream->mHeight, &v4l2Width, &v4l2Height);
     if (ret) {
@@ -144,10 +137,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     }
 
     ALOGI("%s srcStream->mWidth:%d, srcStream->mHeight:%d, v4l2Width:%d, v4l2Height:%d", __func__,
-        srcStream->mWidth,
-        srcStream->mHeight,
-        v4l2Width,
-        v4l2Height);
+          srcStream->mWidth, srcStream->mHeight, v4l2Width, v4l2Height);
     // just set to actual v4l2 res
     srcStream->mWidth = v4l2Width;
     srcStream->mHeight = v4l2Height;
@@ -157,7 +147,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
         return BAD_VALUE;
     }
 
-    sp<Stream>& capture = dstBuf->mStream;
+    sp<Stream> &capture = dstBuf->mStream;
 
     ret = meta->getJpegQuality(encodeQuality);
     if (ret != NO_ERROR) {
@@ -185,7 +175,7 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
             alignedw = ALIGN_PIXEL_32(capture->mWidth);
             alignedh = ALIGN_PIXEL_4(capture->mHeight);
-            c_stride = (alignedw/2+15)/16*16;
+            c_stride = (alignedw / 2 + 15) / 16 * 16;
             captureSize = alignedw * alignedh + c_stride * alignedh;
             break;
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
@@ -214,33 +204,24 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
             ALOGE("Error: %s format not supported", __FUNCTION__);
     }
 
-    sp<MemoryHeapBase> rawFrame(
-        new MemoryHeapBase(captureSize, 0, "rawFrame"));
+    sp<MemoryHeapBase> rawFrame(new MemoryHeapBase(captureSize, 0, "rawFrame"));
     rawBuf = rawFrame->getBase();
     if (rawBuf == MAP_FAILED) {
         ALOGE("%s new MemoryHeapBase failed", __FUNCTION__);
         return BAD_VALUE;
     }
 
-    sp<MemoryHeapBase> thumbFrame(
-        new MemoryHeapBase(captureSize, 0, "thumbFrame"));
+    sp<MemoryHeapBase> thumbFrame(new MemoryHeapBase(captureSize, 0, "thumbFrame"));
     thumbBuf = thumbFrame->getBase();
     if (thumbBuf == MAP_FAILED) {
         ALOGE("%s new MemoryHeapBase failed", __FUNCTION__);
         return BAD_VALUE;
     }
 
-    mainJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
-                              (uint8_t *)(uintptr_t)src.mPhyAddr,
-                              src.mSize,
-                              (uint8_t *)rawBuf,
-                              captureSize,
-                              encodeQuality,
-                              srcStream->mWidth,
-                              srcStream->mHeight,
-                              capture->mWidth,
-                              capture->mHeight,
-                              srcStream->format());
+    mainJpeg = new JpegParams((uint8_t *)src.mVirtAddr, (uint8_t *)(uintptr_t)src.mPhyAddr,
+                              src.mSize, (uint8_t *)rawBuf, captureSize, encodeQuality,
+                              srcStream->mWidth, srcStream->mHeight, capture->mWidth,
+                              capture->mHeight, srcStream->format());
 
     ret = meta->getJpegThumbSize(thumbWidth, thumbHeight);
     if (ret != NO_ERROR) {
@@ -250,17 +231,10 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
 
     if ((thumbWidth > 0) && (thumbHeight > 0)) {
         int thumbSize = captureSize;
-        thumbJpeg = new JpegParams((uint8_t *)src.mVirtAddr,
-                           (uint8_t *)(uintptr_t)src.mPhyAddr,
-                           src.mSize,
-                           (uint8_t *)thumbBuf,
-                           thumbSize,
-                           thumbQuality,
-                           srcStream->mWidth,
-                           srcStream->mHeight,
-                           thumbWidth,
-                           thumbHeight,
-                           srcStream->format());
+        thumbJpeg = new JpegParams((uint8_t *)src.mVirtAddr, (uint8_t *)(uintptr_t)src.mPhyAddr,
+                                   src.mSize, (uint8_t *)thumbBuf, thumbSize, thumbQuality,
+                                   srcStream->mWidth, srcStream->mHeight, thumbWidth, thumbHeight,
+                                   srcStream->format());
     }
 
     mJpegBuilder->prepareImage(&src);
@@ -280,13 +254,12 @@ int32_t Stream::processJpegBuffer(StreamBuffer& src,
     pDst = (uint8_t *)dstBuf->mVirtAddr;
     bufSize = (mCamera->mMaxJpegSize <= dstBuf->mSize) ? mCamera->mMaxJpegSize : dstBuf->mSize;
 
-    jpegBlob = (struct camera3_jpeg_blob *)(pDst + bufSize -
-                                            sizeof(struct camera3_jpeg_blob));
+    jpegBlob = (struct camera3_jpeg_blob *)(pDst + bufSize - sizeof(struct camera3_jpeg_blob));
     jpegBlob->jpeg_blob_id = CAMERA3_JPEG_BLOB_ID;
     jpegBlob->jpeg_size = mJpegBuilder->getImageSize();
 
-    ALOGI("%s, dstbuf size %d, jpeg_size %d, max jpeg size %d",
-           __func__, dstBuf->mSize, jpegBlob->jpeg_size, mCamera->mMaxJpegSize);
+    ALOGI("%s, dstbuf size %d, jpeg_size %d, max jpeg size %d", __func__, dstBuf->mSize,
+          jpegBlob->jpeg_size, mCamera->mMaxJpegSize);
 
 err_out:
     if (mainJpeg) {
@@ -300,8 +273,7 @@ err_out:
     return ret;
 }
 
-static void bufferDump(StreamBuffer *frame, bool in)
-{
+static void bufferDump(StreamBuffer *frame, bool in) {
     // for test code
     char value[100];
     char name[100];
@@ -309,19 +281,16 @@ static void bufferDump(StreamBuffer *frame, bool in)
     bool vflg = false;
     static int dump_num = 1;
     property_get("vendor.rw.camera.test", value, "");
-    if (strcmp(value, "true") == 0)
-        vflg = true;
+    if (strcmp(value, "true") == 0) vflg = true;
 
     if (vflg) {
         FILE *pf = NULL;
         memset(name, 0, sizeof(name));
-        snprintf(name, 100, "/data/dump/camera_dump_%s_%d.data",
-                   in ? "in" : "out", dump_num++);
+        snprintf(name, 100, "/data/dump/camera_dump_%s_%d.data", in ? "in" : "out", dump_num++);
         pf = fopen(name, "wb");
         if (pf == NULL) {
             ALOGI("open %s failed", name);
-        }
-        else {
+        } else {
             ALOGV("write yuv data");
             fwrite(frame->mVirtAddr, frame->mSize, 1, pf);
             fclose(pf);
@@ -329,17 +298,15 @@ static void bufferDump(StreamBuffer *frame, bool in)
     }
 }
 
-int32_t Stream::processFrameBuffer(StreamBuffer& src,
-                                   sp<Metadata> meta __unused)
-{
+int32_t Stream::processFrameBuffer(StreamBuffer &src, sp<Metadata> meta __unused) {
     ALOGV("%s", __func__);
-    sp<Stream>& device = src.mStream;
+    sp<Stream> &device = src.mStream;
     if (device == NULL) {
         ALOGE("%s invalid device stream", __func__);
         return 0;
     }
 
-    StreamBuffer* out = mCurrent;
+    StreamBuffer *out = mCurrent;
     if (out == NULL || out->mBufHandle == NULL) {
         ALOGE("%s invalid buffer handle", __func__);
         return 0;
@@ -347,25 +314,22 @@ int32_t Stream::processFrameBuffer(StreamBuffer& src,
 
     fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
     CscHw csc_hw;
-    sp<Stream>& srcStream = src.mStream;
-    sp<Stream>& dstStream = out->mStream;
-    if (srcStream->mWidth == dstStream->mWidth &&
-        srcStream->mHeight == dstStream->mHeight &&
+    sp<Stream> &srcStream = src.mStream;
+    sp<Stream> &dstStream = out->mStream;
+    if (srcStream->mWidth == dstStream->mWidth && srcStream->mHeight == dstStream->mHeight &&
         srcStream->format() == dstStream->format())
         csc_hw = mCamera->getBlitCopyHw();
     else
         csc_hw = mCamera->getBlitCscHw();
-    //ImageProcess *imageProcess = ImageProcess::getInstance();
+    // ImageProcess *imageProcess = ImageProcess::getInstance();
     return imageProcess->handleFrame(*out, src, csc_hw);
 }
 
-int32_t Stream::processCaptureBuffer(StreamBuffer& src,
-        sp<Metadata> meta)
-{
+int32_t Stream::processCaptureBuffer(StreamBuffer &src, sp<Metadata> meta) {
     int32_t res = 0;
 
     ALOGV("%s", __func__);
-    StreamBuffer* out = mCurrent;
+    StreamBuffer *out = mCurrent;
     if (out == NULL || out->mBufHandle == NULL) {
         ALOGE("%s invalid buffer handle", __func__);
         return 0;
@@ -374,12 +338,11 @@ int32_t Stream::processCaptureBuffer(StreamBuffer& src,
     if (out->mAcquireFence != -1) {
         res = sync_wait(out->mAcquireFence, CAMERA_SYNC_TIMEOUT);
         if (res == -ETIME) {
-            ALOGE("%s: Timeout waiting on buffer acquire fence",
-                    __func__);
+            ALOGE("%s: Timeout waiting on buffer acquire fence", __func__);
             return res;
         } else if (res) {
-            ALOGE("%s: Error waiting on buffer acquire fence: %s(%d)",
-                    __func__, strerror(-res), res);
+            ALOGE("%s: Error waiting on buffer acquire fence: %s(%d)", __func__, strerror(-res),
+                  res);
             ALOGV("fence id:%d", out->mAcquireFence);
         }
         close(out->mAcquireFence);
@@ -391,69 +354,58 @@ int32_t Stream::processCaptureBuffer(StreamBuffer& src,
 
         res = processJpegBuffer(src, meta);
         mJpegBuilder->setMetadata(NULL);
-    }
-    else {
+    } else {
         res = processFrameBuffer(src, meta);
     }
 
     return res;
 }
 
-int Stream::getType()
-{
+int Stream::getType() {
     return mType;
 }
 
-bool Stream::isInputType()
-{
-    return mType == CAMERA3_STREAM_INPUT ||
-        mType == CAMERA3_STREAM_BIDIRECTIONAL;
+bool Stream::isInputType() {
+    return mType == CAMERA3_STREAM_INPUT || mType == CAMERA3_STREAM_BIDIRECTIONAL;
 }
 
-bool Stream::isOutputType()
-{
-    return mType == CAMERA3_STREAM_OUTPUT ||
-        mType == CAMERA3_STREAM_BIDIRECTIONAL;
+bool Stream::isOutputType() {
+    return mType == CAMERA3_STREAM_OUTPUT || mType == CAMERA3_STREAM_BIDIRECTIONAL;
 }
 
-bool Stream::isRegistered()
-{
+bool Stream::isRegistered() {
     return mRegistered;
 }
 
-bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
-{
+bool Stream::isValidReuseStream(int id, camera3_stream_t *s) {
     if (id != mId) {
-        ALOGE("%s:%d: Invalid camera id for reuse. Got %d expect %d",
-                __func__, mId, id, mId);
+        ALOGE("%s:%d: Invalid camera id for reuse. Got %d expect %d", __func__, mId, id, mId);
         return false;
     }
 
     if (s != mStream || s->stream_type != mType) {
-        ALOGE("%s:%d: Invalid stream handle for reuse. Got %p expect %p",
-                __func__, mId, s, mStream);
+        ALOGE("%s:%d: Invalid stream handle for reuse. Got %p expect %p", __func__, mId, s,
+              mStream);
         return false;
     }
 
     if (s->width != mWidth || s->height != mHeight || s->format != mFormat) {
         ALOGE("%s:%d: Mismatched reused stream."
               "Got w:%d, h:%d, f:%d expect w:%d, h:%d, f:%d",
-                __func__, mId, s->width, s->height, s->format,
-                mWidth, mHeight, mFormat);
+              __func__, mId, s->width, s->height, s->format, mWidth, mHeight, mFormat);
         return false;
     }
 
-    ALOGV("%s:%d: Mismatched reused stream. usage got:0x%x expect:0x%x",
-            __func__, mId, s->usage, mUsage);
+    ALOGV("%s:%d: Mismatched reused stream. usage got:0x%x expect:0x%x", __func__, mId, s->usage,
+          mUsage);
     s->usage |= mUsage;
-    //max_buffers is mNumBuffers-1 which is set in Stream constructor.
-    s->max_buffers = mNumBuffers -1;
+    // max_buffers is mNumBuffers-1 which is set in Stream constructor.
+    s->max_buffers = mNumBuffers - 1;
 
     return true;
 }
 
-void Stream::dump(int fd)
-{
+void Stream::dump(int fd) {
     android::Mutex::Autolock al(mLock);
 
     dprintf(fd, "Stream ID: %d (%p)\n", mId, mStream);
@@ -465,10 +417,7 @@ void Stream::dump(int fd)
     dprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
     dprintf(fd, "Number of Buffers: %d\n", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        if(mBuffers[i] == NULL)
-            continue;
-        dprintf(fd, "Buffer %d %d : %p\n", i, mNumBuffers,
-                mBuffers[i]->mBufHandle);
+        if (mBuffers[i] == NULL) continue;
+        dprintf(fd, "Buffer %d %d : %p\n", i, mNumBuffers, mBuffers[i]->mBufHandle);
     }
 }
-

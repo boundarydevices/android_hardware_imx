@@ -26,18 +26,17 @@ namespace automotive {
 namespace vehicle {
 namespace V2_0 {
 
-//namespace utils {
+// namespace utils {
 
-std::unique_ptr<VehiclePropValue> createVehiclePropValue(
-    VehiclePropertyType type, size_t vecSize) {
+std::unique_ptr<VehiclePropValue> createVehiclePropValue(VehiclePropertyType type, size_t vecSize) {
     auto val = std::unique_ptr<VehiclePropValue>(new VehiclePropValue);
     switch (type) {
-        case VehiclePropertyType::INT32:      // fall through
-        case VehiclePropertyType::INT32_VEC:  // fall through
+        case VehiclePropertyType::INT32:     // fall through
+        case VehiclePropertyType::INT32_VEC: // fall through
         case VehiclePropertyType::BOOLEAN:
             val->value.int32Values.resize(vecSize);
             break;
-        case VehiclePropertyType::FLOAT:      // fall through
+        case VehiclePropertyType::FLOAT: // fall through
         case VehiclePropertyType::FLOAT_VEC:
             val->value.floatValues.resize(vecSize);
             break;
@@ -58,14 +57,14 @@ std::unique_ptr<VehiclePropValue> createVehiclePropValue(
     return val;
 }
 
-size_t getVehicleRawValueVectorSize(
-    const VehiclePropValue::RawValue& value, VehiclePropertyType type) {
+size_t getVehicleRawValueVectorSize(const VehiclePropValue::RawValue& value,
+                                    VehiclePropertyType type) {
     switch (type) {
-        case VehiclePropertyType::INT32:      // fall through
-        case VehiclePropertyType::INT32_VEC:  // fall through
+        case VehiclePropertyType::INT32:     // fall through
+        case VehiclePropertyType::INT32_VEC: // fall through
         case VehiclePropertyType::BOOLEAN:
             return value.int32Values.size();
-        case VehiclePropertyType::FLOAT:      // fall through
+        case VehiclePropertyType::FLOAT: // fall through
         case VehiclePropertyType::FLOAT_VEC:
             return value.floatValues.size();
         case VehiclePropertyType::INT64:
@@ -78,8 +77,7 @@ size_t getVehicleRawValueVectorSize(
     }
 }
 
-void copyVehicleRawValue(VehiclePropValue::RawValue* dest,
-                         const VehiclePropValue::RawValue& src) {
+void copyVehicleRawValue(VehiclePropValue::RawValue* dest, const VehiclePropValue::RawValue& src) {
     dest->int32Values = src.int32Values;
     dest->floatValues = src.floatValues;
     dest->int64Values = src.int64Values;
@@ -89,15 +87,15 @@ void copyVehicleRawValue(VehiclePropValue::RawValue* dest,
 
 #ifdef __ANDROID__
 
-template<typename T>
-inline void copyHidlVec(hidl_vec <T>* dest, const hidl_vec <T>& src) {
+template <typename T>
+inline void copyHidlVec(hidl_vec<T>* dest, const hidl_vec<T>& src) {
     for (size_t i = 0; i < std::min(dest->size(), src.size()); i++) {
         (*dest)[i] = src[i];
     }
 }
 
-template<typename T>
-void shallowCopyHidlVec(hidl_vec <T>* dest, const hidl_vec <T>& src) {
+template <typename T>
+void shallowCopyHidlVec(hidl_vec<T>* dest, const hidl_vec<T>& src) {
     if (src.size() > 0) {
         dest->setToExternal(const_cast<T*>(&src[0]), src.size());
     } else if (dest->size() > 0) {
@@ -125,12 +123,12 @@ void shallowCopy(VehiclePropValue* dest, const VehiclePropValue& src) {
     shallowCopyHidlStr(&dest->value.stringValue, src.value.stringValue);
 }
 
-#endif  // __ANDROID__
+#endif // __ANDROID__
 
 //}  // namespace utils
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

@@ -19,18 +19,19 @@
 using namespace android;
 
 VideoStream::VideoStream(Camera* device)
-    : Stream(device), mState(STATE_INVALID),
-      mChanged(false), mDev(-1),
-      mAllocatedBuffers(0),
-      mOmitFrames(0), mOmitFrmCount(0)
-{
-    mV4l2MemType =  V4L2_MEMORY_MMAP;
+      : Stream(device),
+        mState(STATE_INVALID),
+        mChanged(false),
+        mDev(-1),
+        mAllocatedBuffers(0),
+        mOmitFrames(0),
+        mOmitFrmCount(0) {
+    mV4l2MemType = V4L2_MEMORY_MMAP;
     mV4l2BufType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     mMessageThread = new MessageThread(this);
 }
 
-VideoStream::~VideoStream()
-{
+VideoStream::~VideoStream() {
     ALOGI("%s", __func__);
     destroyStream();
     mMessageQueue.clearMessages();
@@ -39,8 +40,7 @@ VideoStream::~VideoStream()
     mMessageThread = NULL;
 }
 
-void VideoStream::destroyStream()
-{
+void VideoStream::destroyStream() {
     ALOGI("%s", __func__);
     {
         Mutex::Autolock lock(mLock);
@@ -58,8 +58,7 @@ void VideoStream::destroyStream()
     ALOGI("%s finished!!", __func__);
 }
 
-int32_t VideoStream::openDev(const char* name)
-{
+int32_t VideoStream::openDev(const char* name) {
     ALOGI("%s", __func__);
     if (name == NULL) {
         ALOGE("invalid dev name");
@@ -77,11 +76,9 @@ int32_t VideoStream::openDev(const char* name)
     return 0;
 }
 
-int32_t VideoStream::configure(sp<Stream> stream)
-{
+int32_t VideoStream::configure(sp<Stream> stream) {
     ALOGV("%s", __func__);
-    if ((stream->width() == 0) || (stream->height() == 0)
-         || (stream->format() == 0)) {
+    if ((stream->width() == 0) || (stream->height() == 0) || (stream->format() == 0)) {
         ALOGE("%s: invalid stream parameters", __func__);
         return BAD_VALUE;
     }
@@ -91,23 +88,23 @@ int32_t VideoStream::configure(sp<Stream> stream)
     Mutex::Autolock lock(mLock);
 
     ConfigureParam* params = new ConfigureParam();
-    params->mWidth  = stream->width();
+    params->mWidth = stream->width();
     params->mHeight = stream->height();
     params->mFormat = sensorFormat;
     params->mFps = stream->fps();
     params->mBuffers = stream->bufferNum();
     params->mIsJpeg = stream->isJpeg();
 
-    ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d",
-           __func__, params->mWidth, params->mHeight, params->mFormat, stream->format(), params->mFps, params->mBuffers);
+    ALOGI("%s: w:%d, h:%d, sensor format:0x%x, stream format:0x%x, fps:%d, num:%d", __func__,
+          params->mWidth, params->mHeight, params->mFormat, stream->format(), params->mFps,
+          params->mBuffers);
     mMessageQueue.postMessage(new CMessage(MSG_CONFIG, (uint64_t)params), 0);
 
     return 0;
 }
 
-int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
-{
-    int32_t ret   = 0;
+int32_t VideoStream::handleConfigureLocked(ConfigureParam* params) {
+    int32_t ret = 0;
     ALOGV("%s", __func__);
 
     if (params == NULL) {
@@ -117,10 +114,10 @@ int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
 
     ALOGI("==== this %p, params %p", this, params);
     // when width&height&format are same, keep it to reduce start/stop time.
-    if ((mWidth == params->mWidth) && (mHeight == params->mHeight)
-         && (mFormat == params->mFormat)  && (params->mIsJpeg || (mFps == params->mFps))) {
-        ALOGI("%s, same config, res %dx%d, fmt 0x%x, fps %d, %d, jpg %d",
-          __func__, mWidth, mHeight, mFormat, mFps, params->mFps, params->mIsJpeg);
+    if ((mWidth == params->mWidth) && (mHeight == params->mHeight) &&
+        (mFormat == params->mFormat) && (params->mIsJpeg || (mFps == params->mFps))) {
+        ALOGI("%s, same config, res %dx%d, fmt 0x%x, fps %d, %d, jpg %d", __func__, mWidth, mHeight,
+              mFormat, mFps, params->mFps, params->mIsJpeg);
         flushDevLocked();
         return 0;
     }
@@ -138,8 +135,7 @@ int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
     }
 
     // only invalid&stop&config state can go into config state.
-    if ((mState != STATE_INVALID) && (mState != STATE_STOP) &&
-        (mState != STATE_CONFIG)) {
+    if ((mState != STATE_INVALID) && (mState != STATE_STOP) && (mState != STATE_CONFIG)) {
         ALOGE("invalid state:0x%x go into config state", mState);
         return 0;
     }
@@ -161,8 +157,7 @@ int32_t VideoStream::handleConfigureLocked(ConfigureParam* params)
     return 0;
 }
 
-int32_t VideoStream::handleStartLocked(bool force)
-{
+int32_t VideoStream::handleStartLocked(bool force) {
     int32_t ret = 0;
     ALOGV("%s", __func__);
 
@@ -193,10 +188,9 @@ int32_t VideoStream::handleStartLocked(bool force)
 }
 
 #define CLOSE_WAIT_ITVL_MS 5
-#define CLOSE_WAIT_ITVL_US (uint32_t)(CLOSE_WAIT_ITVL_MS*1000)
+#define CLOSE_WAIT_ITVL_US (uint32_t)(CLOSE_WAIT_ITVL_MS * 1000)
 
-int32_t VideoStream::closeDev()
-{
+int32_t VideoStream::closeDev() {
     ALOGI("%s", __func__);
     Mutex::Autolock lock(mLock);
 
@@ -206,21 +200,20 @@ int32_t VideoStream::closeDev()
         // The working thread maybe in the middle of the image process.
         // Make sure there's no frame under process.
         int count = 0;
-        while(mState == STATE_START) {
+        while (mState == STATE_START) {
             // Unlock to let mMessageThread to be scheduled.
             mLock.unlock();
 
             usleep(CLOSE_WAIT_ITVL_US);
             count++;
-            if(count % 20 == 0) {
-                ALOGW("%s, !!! %d ms passed, current image still under processing",
-                    __func__, count * CLOSE_WAIT_ITVL_MS);
+            if (count % 20 == 0) {
+                ALOGW("%s, !!! %d ms passed, current image still under processing", __func__,
+                      count * CLOSE_WAIT_ITVL_MS);
             }
 
             mLock.lock();
         }
-    }
-    else {
+    } else {
         ALOGI("%s thread is exit", __func__);
         if (mDev > 0) {
             close(mDev);
@@ -231,8 +224,7 @@ int32_t VideoStream::closeDev()
     return 0;
 }
 
-int32_t VideoStream::handleStopLocked(bool force)
-{
+int32_t VideoStream::handleStopLocked(bool force) {
     int32_t ret = 0;
     ALOGV("%s", __func__);
 
@@ -246,8 +238,7 @@ int32_t VideoStream::handleStopLocked(bool force)
     if (ret < 0) {
         mState = STATE_ERROR;
         ALOGE("StopStreaming: Unable to stop capture: %s", strerror(errno));
-    }
-    else {
+    } else {
         mState = STATE_STOP;
     }
 
@@ -271,16 +262,14 @@ int32_t VideoStream::handleStopLocked(bool force)
     return ret;
 }
 
-int32_t VideoStream::flushDev()
-{
+int32_t VideoStream::flushDev() {
     Mutex::Autolock lock(mLock);
     return flushDevLocked();
 }
 
-int32_t VideoStream::flushDevLocked()
-{
+int32_t VideoStream::flushDevLocked() {
     if (mState != STATE_ERROR && mMessageThread->isRunning()) {
-       mMessageQueue.postMessage(new CMessage(MSG_FLUSH, 0), 1);
+        mMessageQueue.postMessage(new CMessage(MSG_FLUSH, 0), 1);
     } else {
         ALOGI("%s flushDev failed", __func__);
         return -1;
@@ -314,7 +303,7 @@ int32_t VideoStream::onFlushLocked() {
         cfilledbuffer.memory = mV4l2MemType;
         cfilledbuffer.type = mV4l2BufType;
 
-        if(mV4l2BufType == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+        if (mV4l2BufType == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
             cfilledbuffer.m.planes = &planes;
             cfilledbuffer.length = 1;
         }
@@ -329,13 +318,12 @@ int32_t VideoStream::onFlushLocked() {
             ALOGE("%s: VIDIOC_QBUF Failed: %s (%d)", __func__, strerror(errno), errno);
             return BAD_VALUE;
         }
-      }
+    }
 
     return 0;
 }
 
-int32_t VideoStream::requestCapture(sp<CaptureRequest> req)
-{
+int32_t VideoStream::requestCapture(sp<CaptureRequest> req) {
     Mutex::Autolock lock(mLock);
 
     mRequests.push_back(req);
@@ -345,8 +333,7 @@ int32_t VideoStream::requestCapture(sp<CaptureRequest> req)
     return 0;
 }
 
-StreamBuffer* VideoStream::acquireFrameLocked()
-{
+StreamBuffer* VideoStream::acquireFrameLocked() {
     int32_t index = onFrameAcquireLocked();
     if (index >= MAX_STREAM_BUFFERS || index < 0) {
         ALOGE("%s: invalid index %d", __func__, index);
@@ -356,9 +343,8 @@ StreamBuffer* VideoStream::acquireFrameLocked()
     return mBuffers[index];
 }
 
-int32_t VideoStream::getBufferIndexLocked(StreamBuffer& buf)
-{
-    for (uint32_t i=0; i<mNumBuffers; i++) {
+int32_t VideoStream::getBufferIndexLocked(StreamBuffer& buf) {
+    for (uint32_t i = 0; i < mNumBuffers; i++) {
         if (mBuffers[i]->mPhyAddr == buf.mPhyAddr) {
             return i;
         }
@@ -367,8 +353,7 @@ int32_t VideoStream::getBufferIndexLocked(StreamBuffer& buf)
     return -1;
 }
 
-int32_t VideoStream::returnFrameLocked(StreamBuffer& buf)
-{
+int32_t VideoStream::returnFrameLocked(StreamBuffer& buf) {
     ALOGV("%s", __func__);
     int32_t i = getBufferIndexLocked(buf);
     if (i < 0 || i >= MAX_STREAM_BUFFERS) {
@@ -378,14 +363,13 @@ int32_t VideoStream::returnFrameLocked(StreamBuffer& buf)
     return onFrameReturnLocked(i, buf);
 }
 
-int32_t VideoStream::handleCaptureFrame()
-{
+int32_t VideoStream::handleCaptureFrame() {
     int32_t ret = 0;
     ALOGV("%s", __func__);
 
-    List< sp<CaptureRequest> >::iterator cur;
+    List<sp<CaptureRequest> >::iterator cur;
     sp<CaptureRequest> req = NULL;
-    StreamBuffer *buf = NULL;
+    StreamBuffer* buf = NULL;
     {
         Mutex::Autolock lock(mLock);
         if (mRequests.empty()) {
@@ -395,7 +379,7 @@ int32_t VideoStream::handleCaptureFrame()
         cur = mRequests.begin();
         req = *cur;
     }
-    //advanced character.
+    // advanced character.
     ret = processCaptureSettings(req);
     if (ret != 0) {
         Mutex::Autolock lock(mLock);
@@ -432,12 +416,10 @@ int32_t VideoStream::handleCaptureFrame()
     return 0;
 }
 
-int32_t VideoStream::processCaptureRequest(StreamBuffer& src,
-                         sp<CaptureRequest> req)
-{
+int32_t VideoStream::processCaptureRequest(StreamBuffer& src, sp<CaptureRequest> req) {
     int32_t ret = 0;
     ALOGV("%s", __func__);
-    for (uint32_t i=0; i<req->mOutBuffersNumber; i++) {
+    for (uint32_t i = 0; i < req->mOutBuffersNumber; i++) {
         StreamBuffer* out = req->mOutBuffers[i];
         sp<Stream>& stream = out->mStream;
         // stream to process buffer.
@@ -454,8 +436,7 @@ int32_t VideoStream::processCaptureRequest(StreamBuffer& src,
 }
 
 // process advanced character.
-int32_t VideoStream::processCaptureSettings(sp<CaptureRequest> req)
-{
+int32_t VideoStream::processCaptureSettings(sp<CaptureRequest> req) {
     ALOGV("%s", __func__);
     sp<Metadata> meta = req->mSettings;
     if (meta == NULL || meta->get() == NULL) {
@@ -483,8 +464,7 @@ int32_t VideoStream::processCaptureSettings(sp<CaptureRequest> req)
     return ret;
 }
 
-int32_t VideoStream::handleMessage()
-{
+int32_t VideoStream::handleMessage() {
     int32_t ret = 0;
 
     sp<CMessage> msg = mMessageQueue.waitMessage();
@@ -501,8 +481,7 @@ int32_t VideoStream::handleMessage()
             if (params != NULL) {
                 delete params;
             }
-        }
-        break;
+        } break;
 
         case MSG_CLOSE: {
             Mutex::Autolock lock(mLock);
@@ -511,8 +490,7 @@ int32_t VideoStream::handleMessage()
                 close(mDev);
                 mDev = -1;
             }
-        }
-        break;
+        } break;
 
         case MSG_FRAME: {
             Mutex::Autolock lock(mLock);
@@ -526,8 +504,8 @@ int32_t VideoStream::handleMessage()
                 }
             }
         }
-        ret = handleCaptureFrame();
-        break;
+            ret = handleCaptureFrame();
+            break;
 
         case MSG_EXIT: {
             Mutex::Autolock lock(mLock);
@@ -537,23 +515,19 @@ int32_t VideoStream::handleMessage()
             }
 
             ret = -1;
-        }
-        break;
+        } break;
 
         case MSG_FLUSH: {
             Mutex::Autolock lock(mLock);
             if (mState == STATE_START) {
                 handleFlushLocked();
             }
-        }
-        break;
+        } break;
 
         default: {
             ALOGE("%s invalid message what:%d", __func__, msg->what);
-        }
-        break;
+        } break;
     }
 
     return ret;
 }
-

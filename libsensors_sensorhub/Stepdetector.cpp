@@ -15,41 +15,37 @@
  * limitations under the License.
  */
 
-#include <cutils/log.h>
 #include "Stepdetector.h"
 
-#define STEPC_DATA_NAME    "step_detector"
-#define STEPC_SYSFS_PATH   "/sys/class/misc/step_detector"
+#include <cutils/log.h>
+
+#define STEPC_DATA_NAME "step_detector"
+#define STEPC_SYSFS_PATH "/sys/class/misc/step_detector"
 #define STEPC_SYSFS_ENABLE "enable"
 
-Stepdetector::Stepdetector()
-: SensorBase(NULL, STEPC_DATA_NAME),
-  mPendingMask(0),
-  mInputReader(4) {
+Stepdetector::Stepdetector() : SensorBase(NULL, STEPC_DATA_NAME), mPendingMask(0), mInputReader(4) {
     ALOGD("step detector init");
     memset(&mPendingEvent, 0, sizeof(sensors_event_t));
     memset(mClassPath, '\0', sizeof(mClassPath));
 
     mEnabled = 0;
     mPendingEvent.version = sizeof(sensors_event_t);
-    mPendingEvent.sensor  = ID_SD;
-    mPendingEvent.type    = SENSOR_TYPE_STEP_DETECTOR;
+    mPendingEvent.sensor = ID_SD;
+    mPendingEvent.type = SENSOR_TYPE_STEP_DETECTOR;
     mPendingEvent.magnetic.status = SENSOR_STATUS_ACCURACY_MEDIUM;
     mPendingEvent.version = sizeof(sensors_event_t);
 
     strcpy(mClassPath, STEPC_SYSFS_PATH);
 }
 
-Stepdetector::~Stepdetector() {
-}
+Stepdetector::~Stepdetector() {}
 
 int Stepdetector::setEnable(int32_t handle, int en) {
     int err = 0;
-    if(en) {
+    if (en) {
         mEnabled = 1;
         err = enable_sensor();
-    }
-    else {
+    } else {
         mEnabled = 0;
         err = disable_sensor();
     }
@@ -57,23 +53,18 @@ int Stepdetector::setEnable(int32_t handle, int en) {
     return err;
 }
 
-int Stepdetector::setDelay(int32_t handle, int64_t ns)
-{
+int Stepdetector::setDelay(int32_t handle, int64_t ns) {
     return 0;
 }
 
-void Stepdetector::processEvent(int code, int value) {
-}
+void Stepdetector::processEvent(int code, int value) {}
 
-int Stepdetector::readEvents(sensors_event_t* data, int count)
-{
+int Stepdetector::readEvents(sensors_event_t* data, int count) {
     int i;
-    if (count < 1)
-        return -EINVAL;
+    if (count < 1) return -EINVAL;
 
     ssize_t n = mInputReader.fill(data_fd);
-    if (n < 0)
-        return n;
+    if (n < 0) return n;
 
     int numEventReceived = 0;
     input_event const* event;
@@ -82,8 +73,8 @@ int Stepdetector::readEvents(sensors_event_t* data, int count)
         int type = event->type;
         if (type == EV_REL) {
             if (event->value) {
-               mPendingEvent.data[0] = 1;
-               mPendingEvent.data[1] = 0;
+                mPendingEvent.data[0] = 1;
+                mPendingEvent.data[1] = 0;
             }
             mPendingEvent.timestamp = timevalToNano(event->time);
             *data++ = mPendingEvent;
@@ -99,12 +90,11 @@ int Stepdetector::readEvents(sensors_event_t* data, int count)
 
 int Stepdetector::writeEnable(int isEnable) {
     char attr[PATH_MAX] = {'\0'};
-    if(mClassPath[0] == '\0')
-        return -1;
+    if (mClassPath[0] == '\0') return -1;
 
     strcpy(attr, mClassPath);
-    strcat(attr,"/");
-    strcat(attr,STEPC_SYSFS_ENABLE);
+    strcat(attr, "/");
+    strcat(attr, STEPC_SYSFS_ENABLE);
 
     int fd = open(attr, O_RDWR);
     if (0 > fd) {
@@ -149,4 +139,3 @@ int Stepdetector::getEnable(int32_t handle) {
 }
 
 /*****************************************************************************/
-

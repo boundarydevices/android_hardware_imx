@@ -16,34 +16,33 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
-#include <vector>
 #include <string>
-
+#include <vector>
 
 class ConfigManager {
 public:
     struct CameraInfo {
-        std::string cameraId = "";  // The name of the camera from the point of view of the HAL
-        std::string function = "";  // The expected use for this camera ("reverse", "left", "right")
-        float position[3] = {0};    // x, y, z -> right, fwd, up in the units of car space
-        float yaw   = 0;    // radians positive to the left (right hand rule about global z axis)
-        float pitch = 0;    // positive upward (ie: right hand rule about local x axis)
-        float hfov  = 0;    // radians
-        float vfov  = 0;    // radians
+        std::string cameraId = ""; // The name of the camera from the point of view of the HAL
+        std::string function = ""; // The expected use for this camera ("reverse", "left", "right")
+        float position[3] = {0};   // x, y, z -> right, fwd, up in the units of car space
+        float yaw = 0;   // radians positive to the left (right hand rule about global z axis)
+        float pitch = 0; // positive upward (ie: right hand rule about local x axis)
+        float hfov = 0;  // radians
+        float vfov = 0;  // radians
     };
 
     bool initialize(const char* configFileName);
 
     // World space dimensions of the car
-    float getCarWidth() const   { return mCarWidth; };
-    float getCarLength() const  { return mWheelBase + mFrontExtent + mRearExtent; };
-    float getWheelBase() const  { return mWheelBase; };
+    float getCarWidth() const { return mCarWidth; };
+    float getCarLength() const { return mWheelBase + mFrontExtent + mRearExtent; };
+    float getWheelBase() const { return mWheelBase; };
 
     // Car space (world space centered on the rear axel) edges of the car
-    float getFrontLocation() const  { return mWheelBase + mFrontExtent; };
-    float getRearLocation() const   { return -mRearExtent; };
-    float getRightLocation() const  { return mCarWidth*0.5f; };
-    float getLeftLocation() const   { return -mCarWidth*0.5f; };
+    float getFrontLocation() const { return mWheelBase + mFrontExtent; };
+    float getRearLocation() const { return -mRearExtent; };
+    float getRightLocation() const { return mCarWidth * 0.5f; };
+    float getLeftLocation() const { return -mCarWidth * 0.5f; };
 
     // Where are the edges of the top down display in car space?
     float getDisplayTopLocation() const {
@@ -54,7 +53,7 @@ public:
         // From the rear axel (origin) to the back bumper, and then beyond by the back range
         return -mRearExtent - mRearRangeInCarSpace;
     };
-    float getDisplayRightLocation(float aspectRatio) const   {
+    float getDisplayRightLocation(float aspectRatio) const {
         // Given the display aspect ratio (width over height), how far can we see to the right?
         return (getDisplayTopLocation() - getDisplayBottomLocation()) * 0.5f * aspectRatio;
     };
@@ -64,10 +63,10 @@ public:
     };
 
     // At which texel (vertically in the image) are the front and rear bumpers of the car?
-    float carGraphicFrontPixel() const      { return mCarGraphicFrontPixel; };
-    float carGraphicRearPixel() const       { return mCarGraphicRearPixel; };
+    float carGraphicFrontPixel() const { return mCarGraphicFrontPixel; };
+    float carGraphicRearPixel() const { return mCarGraphicRearPixel; };
 
-    const std::vector<CameraInfo>& getCameras() const   { return mCameras; };
+    const std::vector<CameraInfo>& getCameras() const { return mCameras; };
 
 private:
     // Camera information
@@ -83,12 +82,12 @@ private:
     float mRearExtent;
 
     // Display information
-    float    mFrontRangeInCarSpace;     // How far the display extends in front of the car
-    float    mRearRangeInCarSpace;      // How far the display extends behind the car
+    float mFrontRangeInCarSpace; // How far the display extends in front of the car
+    float mRearRangeInCarSpace;  // How far the display extends behind the car
 
     // Top view car image information
-    float mCarGraphicFrontPixel;    // How many pixels from the top of the image does the car start
-    float mCarGraphicRearPixel;     // How many pixels from the top of the image does the car end
+    float mCarGraphicFrontPixel; // How many pixels from the top of the image does the car start
+    float mCarGraphicRearPixel;  // How many pixels from the top of the image does the car end
 };
 
 #endif // CONFIG_MANAGER_H

@@ -27,7 +27,7 @@ namespace V2_0 {
 namespace implementation {
 
 class ThermalFiles {
-  public:
+public:
     ThermalFiles() = default;
     ~ThermalFiles() = default;
     ThermalFiles(const ThermalFiles &) = delete;
@@ -42,14 +42,14 @@ class ThermalFiles {
     bool readThermalFile(std::string_view thermal_name, std::string *data) const;
     size_t getNumThermalFiles() const { return thermal_name_to_path_map_.size(); }
 
-  private:
+private:
     std::unordered_map<std::string, std::string> thermal_name_to_path_map_;
 };
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android
 
-#endif  // THERMAL_UTILS_THERMAL_FILES_H_
+#endif // THERMAL_UTILS_THERMAL_FILES_H_

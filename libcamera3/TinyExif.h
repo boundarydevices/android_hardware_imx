@@ -49,14 +49,8 @@ typedef struct st_IFDEle {
     char* strVal;
 } IFDEle;
 
-int InsertEXIFAndThumbnail(IFDEle* pIFDEle,
-                           uint32_t eleNum,
-                           uint8_t* pThumb,
-                           uint32_t thumbSize,
-                           uint8_t* pMain,
-                           uint32_t mainSize,
-                           uint8_t* pDst,
-                           uint32_t dstSize,
-                           uint32_t *pRequestSize);
+int InsertEXIFAndThumbnail(IFDEle* pIFDEle, uint32_t eleNum, uint8_t* pThumb, uint32_t thumbSize,
+                           uint8_t* pMain, uint32_t mainSize, uint8_t* pDst, uint32_t dstSize,
+                           uint32_t* pRequestSize);
 
 #endif

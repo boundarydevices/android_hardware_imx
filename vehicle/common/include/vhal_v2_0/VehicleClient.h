@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <vector>
-
 #include <android/hardware/automotive/vehicle/2.0/types.h>
+
+#include <vector>
 
 namespace android::hardware::automotive::vehicle::V2_0 {
 
@@ -31,7 +31,7 @@ namespace android::hardware::automotive::vehicle::V2_0 {
  *  Client lives on the Android (HAL) side to talk to the vehicle
  */
 class IVehicleClient {
-  public:
+public:
     IVehicleClient() = default;
 
     IVehicleClient(const IVehicleClient&) = delete;
@@ -62,4 +62,4 @@ class IVehicleClient {
     }
 };
 
-}  // namespace android::hardware::automotive::vehicle::V2_0
+} // namespace android::hardware::automotive::vehicle::V2_0

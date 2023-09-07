@@ -28,16 +28,8 @@ class HwJpegEncoder : public YuvToJpegEncoder {
 public:
     HwJpegEncoder(int format);
 
-    int encode(void *inYuv,
-               void* inYuvPhy,
-               int   inWidth,
-               int   inHeight,
-               int   quality,
-               void *outBuf,
-               int   outSize,
-               int   outWidth,
-               int   outHeight);
-
+    int encode(void *inYuv, void *inYuvPhy, int inWidth, int inHeight, int quality, void *outBuf,
+               int outSize, int outWidth, int outHeight);
 
     int mFormat;
 
@@ -52,21 +44,17 @@ public:
     char mJpegDevPath[64];
     int mJpegFd;
 
-    virtual ~HwJpegEncoder() {};
+    virtual ~HwJpegEncoder(){};
 
 private:
-    int v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
-                   void *buf_start[]);
-    void v4l2_munmap(struct v4l2_buffer *buf,
-                   void *buf_start[]);
-    void get_out_buffer_size(struct encoder_args* ec_args, int fmt);
+    int v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf, void *buf_start[]);
+    void v4l2_munmap(struct v4l2_buffer *buf, void *buf_start[]);
+    void get_out_buffer_size(struct encoder_args *ec_args, int fmt);
     int onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct v4l2_buffer *bufferin,
-                                          struct v4l2_buffer *bufferout);
+                        struct v4l2_buffer *bufferout);
 
-    int onEncoderStart(struct v4l2_buffer *buf_cap, struct v4l2_buffer *buf_out,
-                              char *dstbuf);
+    int onEncoderStart(struct v4l2_buffer *buf_cap, struct v4l2_buffer *buf_out, char *dstbuf);
     void onEncoderStop(struct v4l2_buffer *buf_cap, struct v4l2_buffer *buf_out);
     void enumJpegEnc();
-
 };
 #endif

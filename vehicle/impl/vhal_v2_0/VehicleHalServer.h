@@ -28,7 +28,7 @@ namespace android::hardware::automotive::vehicle::V2_0::impl {
 // both native and virtualized VHAL server. Notice that in the virtualized
 // scenario, the server may be run on a different OS than Android.
 class VehicleHalServer : public IVehicleServer {
-  public:
+public:
     // Methods from IVehicleServer
 
     std::vector<VehiclePropConfig> onGetAllPropertyConfig() const override;
@@ -40,7 +40,7 @@ class VehicleHalServer : public IVehicleServer {
 
     EmulatedUserHal* getEmulatedUserHal();
 
-  private:
+private:
     using VehiclePropValuePtr = recyclable_ptr<VehiclePropValue>;
 
     GeneratorHub* getGenerator();
@@ -58,14 +58,14 @@ class VehicleHalServer : public IVehicleServer {
 
     // data members
 
-  protected:
+protected:
     EmulatedUserHal mEmulatedUserHal;
 
-  private:
+private:
     GeneratorHub mGeneratorHub{
             std::bind(&VehicleHalServer::onFakeValueGenerated, this, std::placeholders::_1)};
 
     VehiclePropValuePool* mValuePool{nullptr};
 };
 
-}  // namespace android::hardware::automotive::vehicle::V2_0::impl
+} // namespace android::hardware::automotive::vehicle::V2_0::impl

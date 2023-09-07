@@ -14,33 +14,26 @@
  * limitations under the License.
  */
 
-#include <stdio.h>
-
-#include <hidl/HidlTransportSupport.h>
-#include <utils/Errors.h>
-#include <utils/StrongPointer.h>
-#include <utils/Log.h>
-
-#include "android-base/macros.h"    // arraysize
-
-#include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
 #include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
-
+#include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
+#include <hidl/HidlTransportSupport.h>
 #include <hwbinder/ProcessState.h>
+#include <stdio.h>
+#include <utils/Errors.h>
+#include <utils/Log.h>
+#include <utils/StrongPointer.h>
 
+#include "ConfigManager.h"
 #include "EvsStateControl.h"
 #include "EvsVehicleListener.h"
-#include "ConfigManager.h"
-
+#include "android-base/macros.h" // arraysize
 
 // libhidl:
 using android::hardware::configureRpcThreadpool;
 using android::hardware::joinRpcThreadpool;
 
-
 // Helper to subscribe to VHal notifications
-static bool subscribeToVHal(sp<IVehicle> pVnet,
-                            sp<IVehicleCallback> listener,
+static bool subscribeToVHal(sp<IVehicle> pVnet, sp<IVehicleCallback> listener,
                             VehicleProperty propertyId) {
     assert(pVnet != nullptr);
     assert(listener != nullptr);
@@ -48,12 +41,9 @@ static bool subscribeToVHal(sp<IVehicle> pVnet,
     // Register for vehicle state change callbacks we care about
     // Changes in these values are what will trigger a reconfiguration of the EVS pipeline
     SubscribeOptions optionsData[] = {
-        {
-            .propId = static_cast<int32_t>(propertyId),
-            .flags  = SubscribeFlags::EVENTS_FROM_CAR
-        },
+            {.propId = static_cast<int32_t>(propertyId), .flags = SubscribeFlags::EVENTS_FROM_CAR},
     };
-    hidl_vec <SubscribeOptions> options;
+    hidl_vec<SubscribeOptions> options;
     options.setToExternal(optionsData, arraysize(optionsData));
     StatusCode status = pVnet->subscribe(listener, options);
     if (status != StatusCode::OK) {
@@ -64,17 +54,15 @@ static bool subscribeToVHal(sp<IVehicle> pVnet,
     return true;
 }
 
-
 // Main entry point
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     ALOGI("EVS app starting\n");
 
     // Set up default behavior, then check for command line options
     bool useVehicleHal = true;
     bool printHelp = false;
     const char* evsServiceName = "default";
-    for (int i=1; i< argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--test") == 0) {
             useVehicleHal = false;
         } else if (strcmp(argv[i], "--hw") == 0) {
@@ -121,7 +109,7 @@ int main(int argc, char** argv)
 
     // Request exclusive access to the EVS display
     ALOGI("Acquiring EVS Display");
-    android::sp <IEvsDisplay> pDisplay;
+    android::sp<IEvsDisplay> pDisplay;
     pDisplay = pEvs->openDisplay_1_1(0);
     if (pDisplay.get() == nullptr) {
         ALOGE("EVS Display unavailable.  Exiting.");
@@ -153,7 +141,7 @@ int main(int argc, char** argv)
 
     // Configure ourselves for the current vehicle state at startup
     ALOGI("Constructing state controller");
-    EvsStateControl *pStateController = new EvsStateControl(pVnet, pEvs, pDisplay, config);
+    EvsStateControl* pStateController = new EvsStateControl(pVnet, pEvs, pDisplay, config);
     if (!pStateController->startUpdateLoop()) {
         ALOGE("Initial configuration failed.  Exiting.");
         return 1;

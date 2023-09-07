@@ -18,8 +18,8 @@
 #ifndef ANDROID_INPUT_EVENT_READER_H
 #define ANDROID_INPUT_EVENT_READER_H
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
@@ -27,8 +27,7 @@
 
 struct input_event;
 
-class InputEventCircularReader
-{
+class InputEventCircularReader {
     struct input_event* const mBuffer;
     struct input_event* const mBufferEnd;
     struct input_event* mHead;
@@ -45,4 +44,4 @@ public:
 
 /*****************************************************************************/
 
-#endif  // ANDROID_INPUT_EVENT_READER_H
+#endif // ANDROID_INPUT_EVENT_READER_H

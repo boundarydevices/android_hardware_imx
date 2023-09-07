@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
+#include <OemLock.h>
 #include <android-base/logging.h>
 #include <hidl/HidlTransportSupport.h>
 #include <utils/StrongPointer.h>
-
-#include <OemLock.h>
 
 using ::android::OK;
 using ::android::sp;
@@ -41,7 +40,7 @@ int main() {
     sp<OemLock> oemlock = new OemLock;
     const status_t status = oemlock->registerAsService();
     if (status != OK) {
-      LOG(FATAL) << "Failed to register OemLock as a service (status: " << status << ")";
+        LOG(FATAL) << "Failed to register OemLock as a service (status: " << status << ")";
     }
 
     joinRpcThreadpool();

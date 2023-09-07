@@ -16,6 +16,7 @@
  */
 
 #include "SensorsSubHal.h"
+
 #include <log/log.h>
 
 using ::android::hardware::sensors::V2_1::implementation::ISensorsSubHal;
@@ -102,18 +103,19 @@ SensorsSubHal::SensorsSubHal() : mCallback(nullptr), mNextHandle(1) {
                 if (err == 0) {
                     std::optional<std::vector<Configuration>> sensor_configuration = std::nullopt;
                     if (sensors_config_list)
-                        sensor_configuration = getSensorConfiguration(
-                                *sensors_config_list, iio_device.name, iio_device.type);
+                        sensor_configuration =
+                                getSensorConfiguration(*sensors_config_list, iio_device.name,
+                                                       iio_device.type);
 
-                        AddSensor(iio_device, sensor_configuration);
+                    AddSensor(iio_device, sensor_configuration);
                 }
             } else {
                 std::optional<std::vector<Configuration>> sensor_configuration = std::nullopt;
                 if (sensors_config_list)
-                    sensor_configuration = getSensorConfiguration(
-                            *sensors_config_list, iio_device.name, iio_device.type);
+                    sensor_configuration = getSensorConfiguration(*sensors_config_list,
+                                                                  iio_device.name, iio_device.type);
 
-                    AddSensor(iio_device, sensor_configuration);
+                AddSensor(iio_device, sensor_configuration);
             }
         }
     } else {
@@ -255,4 +257,4 @@ void SensorsSubHal::AddSensor(struct iio_device_data& iio_data,
         ALOGE("Unable to add sensor %s as buildSensor returned null", iio_data.name.c_str());
 }
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

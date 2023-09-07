@@ -7,11 +7,11 @@
 #ifndef GRALLOC_HANDLE_H
 #define GRALLOC_HANDLE_H
 
-#include <cstdint>
-#include <cutils/native_handle.h>
-#include <string>
-
 #include <Memory.h>
+#include <cutils/native_handle.h>
+
+#include <cstdint>
+#include <string>
 
 using namespace fsl;
 
@@ -19,14 +19,14 @@ typedef struct Memory gralloc_handle;
 typedef const struct Memory *gralloc_handle_t;
 
 struct gralloc_buffer_descriptor {
-        uint32_t width;
-        uint32_t height;
-        int32_t droid_format;
-        int32_t droid_usage;
-        uint32_t drm_format;
-        uint64_t use_flags;
-        uint64_t reserved_region_size;
-        std::string name;
+    uint32_t width;
+    uint32_t height;
+    int32_t droid_format;
+    int32_t droid_usage;
+    uint32_t drm_format;
+    uint64_t use_flags;
+    uint64_t reserved_region_size;
+    std::string name;
 };
 
 #endif

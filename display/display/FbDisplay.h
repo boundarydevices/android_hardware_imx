@@ -41,8 +41,7 @@ namespace fsl {
 
 using android::Condition;
 
-class FbDisplay : public Display
-{
+class FbDisplay : public Display {
 public:
     FbDisplay();
     virtual ~FbDisplay();
@@ -88,7 +87,7 @@ private:
     void prepareTargetsLocked();
     void releaseTargetsLocked();
     int convertFormatInfo(int format, int* bpp);
-    void getGUIResolution(int &width, int &height);
+    void getGUIResolution(int& width, int& height);
 
 protected:
     int mFb;
@@ -110,7 +109,7 @@ protected:
     void handleVsyncEvent(nsecs_t timestamp);
     class VSyncThread : public Thread {
     public:
-        explicit VSyncThread(FbDisplay *ctx);
+        explicit VSyncThread(FbDisplay* ctx);
         void setEnabled(bool enabled);
         void setFakeVSync(bool enable);
 
@@ -121,7 +120,7 @@ protected:
         void performFakeVSync();
         void performVSync();
 
-        FbDisplay *mCtx;
+        FbDisplay* mCtx;
         mutable Mutex mLock;
         Condition mCondition;
         bool mEnabled;
@@ -135,5 +134,5 @@ protected:
     sp<VSyncThread> mVsyncThread;
 };
 
-}
+} // namespace fsl
 #endif

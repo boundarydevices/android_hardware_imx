@@ -16,20 +16,20 @@
 
 #define LOG_TAG "SocketComm"
 
+#include "SocketComm.h"
+
 #include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 #include <android/log.h>
 #include <arpa/inet.h>
-#include <log/log.h>
 #include <linux/netlink.h>
+#include <log/log.h>
 #include <netinet/in.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-
-#include "SocketComm.h"
+#include <sys/types.h>
 
 typedef struct user_msg_info {
-	struct nlmsghdr hdr;
-	char  msg[1024];
+    struct nlmsghdr hdr;
+    char msg[1024];
 } user_socket_info;
 
 #define MAX_PLOAD 1024
@@ -46,13 +46,11 @@ namespace V2_0 {
 namespace impl {
 
 SocketComm::SocketComm(MessageProcessor* messageProcessor)
-    : mListenFd(-1), mMessageProcessor(messageProcessor) {}
+      : mListenFd(-1), mMessageProcessor(messageProcessor) {}
 
-SocketComm::~SocketComm() {
-}
+SocketComm::~SocketComm() {}
 
 void SocketComm::start() {
-
     mListenThread = std::make_unique<std::thread>(std::bind(&SocketComm::listenThread, this));
 }
 
@@ -89,8 +87,8 @@ int SocketComm::listen() {
     servAddr.nl_pid = getpid();
     servAddr.nl_groups = 0;
 
-    retVal = bind(mListenFd, (struct sockaddr *)&servAddr, sizeof(servAddr));
-    if(retVal < 0) {
+    retVal = bind(mListenFd, (struct sockaddr*)&servAddr, sizeof(servAddr));
+    if (retVal < 0) {
         ALOGE("%s: Error on binding: retVal=%d, errno=%d", __FUNCTION__, retVal, errno);
         close(mListenFd);
         mListenFd = -1;
@@ -111,8 +109,8 @@ void SocketComm::listenThread() {
 
     conn->start();
     {
-            std::lock_guard<std::mutex> lock(mMutex);
-            mOpenConnections.push_back(std::unique_ptr<SocketConn>(conn));
+        std::lock_guard<std::mutex> lock(mMutex);
+        mOpenConnections.push_back(std::unique_ptr<SocketConn>(conn));
     }
 }
 
@@ -126,7 +124,7 @@ void SocketComm::removeClosedConnections() {
 }
 
 SocketConn::SocketConn(MessageProcessor* messageProcessor, int sfd)
-    : CommConn(messageProcessor), mSockFd(sfd) {}
+      : CommConn(messageProcessor), mSockFd(sfd) {}
 
 std::vector<uint8_t> SocketConn::read() {
     int ret;
@@ -141,13 +139,14 @@ std::vector<uint8_t> SocketConn::read() {
     nl_socket.nl_pid = 0;
     nl_socket.nl_groups = 0;
 
-    ret = recvfrom(mSockFd, &u_info, sizeof(u_info), 0, (struct sockaddr *)&nl_socket, &nl_socket_len);
-    if(ret < 0) {
+    ret = recvfrom(mSockFd, &u_info, sizeof(u_info), 0, (struct sockaddr*)&nl_socket,
+                   &nl_socket_len);
+    if (ret < 0) {
         ALOGE("recv message failed \n");
         return std::vector<uint8_t>();
     } else {
         message_size = u_info.hdr.nlmsg_len - sizeof(struct nlmsghdr);
-        std::vector<uint8_t> msg = std::vector<uint8_t> (message_size);
+        std::vector<uint8_t> msg = std::vector<uint8_t>(message_size);
         memcpy(msg.data(), u_info.msg, message_size);
         return msg;
     }
@@ -163,14 +162,14 @@ void SocketConn::stop() {
 int SocketConn::write(const std::vector<uint8_t>& data) {
     int ret;
     struct sockaddr_nl daddr;
-    struct nlmsghdr *nlh = NULL;
+    struct nlmsghdr* nlh = NULL;
     memset(&daddr, 0, sizeof(daddr));
     daddr.nl_family = AF_NETLINK;
     // 0 means this message is to kernel
     daddr.nl_pid = 0;
     daddr.nl_groups = 0;
 
-    nlh = (struct nlmsghdr *)malloc(NLMSG_SPACE(MAX_PLOAD));
+    nlh = (struct nlmsghdr*)malloc(NLMSG_SPACE(MAX_PLOAD));
     memset(nlh, 0, sizeof(struct nlmsghdr));
     nlh->nlmsg_len = NLMSG_LENGTH(data.size());
     nlh->nlmsg_flags = 0;
@@ -178,8 +177,9 @@ int SocketConn::write(const std::vector<uint8_t>& data) {
     nlh->nlmsg_seq = 0;
     nlh->nlmsg_pid = getpid();
     memcpy(NLMSG_DATA(nlh), data.data(), data.size());
-    ret = sendto(mSockFd, nlh, nlh->nlmsg_len, 0, (struct sockaddr *)&daddr, sizeof(struct sockaddr_nl));
-    if(!ret) {
+    ret = sendto(mSockFd, nlh, nlh->nlmsg_len, 0, (struct sockaddr*)&daddr,
+                 sizeof(struct sockaddr_nl));
+    if (!ret) {
         ALOGE("send message failed.\n");
         return -1;
     }
@@ -187,11 +187,10 @@ int SocketConn::write(const std::vector<uint8_t>& data) {
     return 0;
 }
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
-
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

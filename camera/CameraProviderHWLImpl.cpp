@@ -14,30 +14,28 @@
  *  limitations under the License.
  */
 
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 #define LOG_TAG "CameraProviderHwlImpl"
 
 #include "CameraProviderHWLImpl.h"
-#include "CameraMetadata.h"
-#include "ImageProcess.h"
 
 #include <android-base/file.h>
 #include <android-base/strings.h>
 #include <cutils/properties.h>
 #include <hardware/camera_common.h>
-#include <log/log.h>
 #include <linux/videodev2.h>
+#include <log/log.h>
 
 #include "CameraDeviceHWLImpl.h"
 #include "CameraDeviceSessionHWLImpl.h"
-#include "vendor_tag_defs.h"
+#include "CameraMetadata.h"
+#include "ImageProcess.h"
 #include "VendorTags.h"
+#include "vendor_tag_defs.h"
 
 namespace android {
-std::unique_ptr<CameraProviderHwlImpl> CameraProviderHwlImpl::Create()
-{
-    auto provider = std::unique_ptr<CameraProviderHwlImpl>(
-        new CameraProviderHwlImpl());
+std::unique_ptr<CameraProviderHwlImpl> CameraProviderHwlImpl::Create() {
+    auto provider = std::unique_ptr<CameraProviderHwlImpl>(new CameraProviderHwlImpl());
 
     if (provider == nullptr) {
         ALOGE("%s: Creating CameraProviderHwlImpl failed.", __func__);
@@ -46,8 +44,8 @@ std::unique_ptr<CameraProviderHwlImpl> CameraProviderHwlImpl::Create()
 
     status_t res = provider->Initialize();
     if (res != OK) {
-        ALOGE("%s: Initializing CameraProviderHwlImpl failed: %s (%d).",
-                __func__, strerror(-res), res);
+        ALOGE("%s: Initializing CameraProviderHwlImpl failed: %s (%d).", __func__, strerror(-res),
+              res);
         return nullptr;
     }
 
@@ -56,8 +54,7 @@ std::unique_ptr<CameraProviderHwlImpl> CameraProviderHwlImpl::Create()
     return provider;
 }
 
-status_t CameraProviderHwlImpl::Initialize()
-{
+status_t CameraProviderHwlImpl::Initialize() {
     mCameraCfgParser.Init();
     mCameraDef = mCameraCfgParser.mcamera();
     memset(&mCallback, 0, sizeof(mCallback));
@@ -66,27 +63,33 @@ status_t CameraProviderHwlImpl::Initialize()
     enumSensorSet();
 
     // check if camera exists.
-    for (auto iter = mCameraDef.camera_id_map_.begin(); iter != mCameraDef.camera_id_map_.end(); ++iter) {
+    for (auto iter = mCameraDef.camera_id_map_.begin(); iter != mCameraDef.camera_id_map_.end();
+         ++iter) {
         if (iter->second.size() >= 2) {
-            //logical camera group
+            // logical camera group
             bool logical_exist = true;
-            for(int32_t phy_index = 0; phy_index < (int32_t)iter->second.size(); phy_index++) {
-                logical_exist = logical_exist && (mSets[(iter->second[phy_index]).second].mExisting);
+            for (int32_t phy_index = 0; phy_index < (int32_t)iter->second.size(); phy_index++) {
+                logical_exist =
+                        logical_exist && (mSets[(iter->second[phy_index]).second].mExisting);
             }
 
-            if(logical_exist == true) {
-                camera_id_maps.emplace(iter->first, std::vector<std::pair<CameraDeviceStatus, uint32_t>>());
+            if (logical_exist == true) {
+                camera_id_maps.emplace(iter->first,
+                                       std::vector<std::pair<CameraDeviceStatus, uint32_t>>());
                 camera_id_maps[iter->first].reserve(iter->second.size());
-                for(int32_t physical_index = 0; physical_index < (int32_t)iter->second.size(); physical_index++) {
+                for (int32_t physical_index = 0; physical_index < (int32_t)iter->second.size();
+                     physical_index++) {
                     int to_add_phy_cam_id = iter->second[physical_index].second;
-                    auto device_status =  CameraDeviceStatus::kPresent;
-                    camera_id_maps[iter->first].push_back(std::make_pair(device_status, to_add_phy_cam_id));
+                    auto device_status = CameraDeviceStatus::kPresent;
+                    camera_id_maps[iter->first].push_back(
+                            std::make_pair(device_status, to_add_phy_cam_id));
                 }
             }
         } else {
-            //basic camera
-            if((mSets[iter->first].mFacing != -1) && (mSets[iter->first].mExisting == true))
-                camera_id_maps.emplace(iter->first, std::vector<std::pair<CameraDeviceStatus, uint32_t>>());
+            // basic camera
+            if ((mSets[iter->first].mFacing != -1) && (mSets[iter->first].mExisting == true))
+                camera_id_maps.emplace(iter->first,
+                                       std::vector<std::pair<CameraDeviceStatus, uint32_t>>());
         }
     }
 
@@ -97,16 +100,15 @@ status_t CameraProviderHwlImpl::Initialize()
     return OK;
 }
 
-//virtual ~CameraProviderHwlImpl();
+// virtual ~CameraProviderHwlImpl();
 CameraProviderHwlImpl::~CameraProviderHwlImpl() {
-    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
+    fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
     delete imageProcess;
 
     WaitForStatusCallbackFuture();
 }
 
-void CameraProviderHwlImpl::enumSensorSet()
-{
+void CameraProviderHwlImpl::enumSensorSet() {
     ALOGI("%s", __func__);
 
     int cam_meta_size = mCameraDef.camera_metadata_vec.size();
@@ -115,39 +117,44 @@ void CameraProviderHwlImpl::enumSensorSet()
 
     // basic camera
     int logical_cam_id = 0;
-    for (auto iter = mCameraDef.camera_id_map_.begin(); iter != mCameraDef.camera_id_map_.end(); ++iter) {
+    for (auto iter = mCameraDef.camera_id_map_.begin(); iter != mCameraDef.camera_id_map_.end();
+         ++iter) {
         int physical_cam_size = iter->second.size();
-        ALOGI("%s: logical camera id is: %d; it's physical camera size is %d \n", __func__, logical_cam_id, physical_cam_size);
+        ALOGI("%s: logical camera id is: %d; it's physical camera size is %d \n", __func__,
+              logical_cam_id, physical_cam_size);
         if (physical_cam_size < 2) {
-            //This is a basic camera definition
-            CameraSensorMetadata basic_cam_meta= mCameraDef.camera_metadata_vec[logical_cam_id];
+            // This is a basic camera definition
+            CameraSensorMetadata basic_cam_meta = mCameraDef.camera_metadata_vec[logical_cam_id];
 
-            strncpy(mSets[logical_cam_id].mPropertyName, basic_cam_meta.camera_name, strlen(basic_cam_meta.camera_name));
+            strncpy(mSets[logical_cam_id].mPropertyName, basic_cam_meta.camera_name,
+                    strlen(basic_cam_meta.camera_name));
             mSets[logical_cam_id].mOrientation = basic_cam_meta.orientation;
             // -1 means this is an invalid basic camera config node,
             // The node only can act as physical camera for logical camera group.
             if (strcmp(basic_cam_meta.camera_type, "back") == 0) {
                 mSets[logical_cam_id].mFacing = CAMERA_FACING_BACK;
-            } else if(strcmp(basic_cam_meta.camera_type, "front") == 0) {
+            } else if (strcmp(basic_cam_meta.camera_type, "front") == 0) {
                 mSets[logical_cam_id].mFacing = CAMERA_FACING_FRONT;
             } else {
                 mSets[logical_cam_id].mFacing = -1;
             }
             mSets[logical_cam_id].mExisting = false;
-
         }
         logical_cam_id++;
     }
 
-    ALOGI("%s: mCameraDef.camera_metadata_vec size %lu", __func__, mCameraDef.camera_metadata_vec.size());
+    ALOGI("%s: mCameraDef.camera_metadata_vec size %lu", __func__,
+          mCameraDef.camera_metadata_vec.size());
 
     // physical camera
-    int first_physical_cam_id = MAX_BASIC_CAMERA_NUM; //24
-    //At least need two physical cameras to compose logical camera group
+    int first_physical_cam_id = MAX_BASIC_CAMERA_NUM; // 24
+    // At least need two physical cameras to compose logical camera group
     if (cam_meta_size >= (MAX_BASIC_CAMERA_NUM + 1)) {
-        for (auto physical_id = first_physical_cam_id; physical_id != cam_meta_size; ++physical_id) {
-            CameraSensorMetadata physical_cam_meta= mCameraDef.camera_metadata_vec[physical_id];    
-            strncpy(mSets[physical_id].mPropertyName, physical_cam_meta.camera_name, strlen(physical_cam_meta.camera_name));
+        for (auto physical_id = first_physical_cam_id; physical_id != cam_meta_size;
+             ++physical_id) {
+            CameraSensorMetadata physical_cam_meta = mCameraDef.camera_metadata_vec[physical_id];
+            strncpy(mSets[physical_id].mPropertyName, physical_cam_meta.camera_name,
+                    strlen(physical_cam_meta.camera_name));
             mSets[physical_id].mOrientation = physical_cam_meta.orientation;
             if (strcmp(physical_cam_meta.camera_type, "back") == 0)
                 mSets[physical_id].mFacing = CAMERA_FACING_BACK;
@@ -161,9 +168,8 @@ void CameraProviderHwlImpl::enumSensorSet()
     matchDevNodes();
 }
 
-int32_t CameraProviderHwlImpl::matchPropertyName(nodeSet* nodes, int32_t index)
-{
-    char *propName = NULL;
+int32_t CameraProviderHwlImpl::matchPropertyName(nodeSet* nodes, int32_t index) {
+    char* propName = NULL;
 
     if (nodes == NULL) {
         return 0;
@@ -185,19 +191,20 @@ int32_t CameraProviderHwlImpl::matchPropertyName(nodeSet* nodes, int32_t index)
         devNodeName = node->nodeName;
         devBusInfo = node->busInfo;
 
-        //We may have one sensor binded to more than one camera instance
-        //since it may act as 1 normal camera and also as physical camera for one logical camera
-        if (/*node->isHeld || */strlen(devNodeName) == 0) {
+        // We may have one sensor binded to more than one camera instance
+        // since it may act as 1 normal camera and also as physical camera for one logical camera
+        if (/*node->isHeld || */ strlen(devNodeName) == 0) {
             node = node->next;
             continue;
         }
 
         ALOGI("%s: index:%d, target devName:%s, devNodeName:%s, devBusInfo:%s, devNode:%s",
-                __func__, index, propName, devNodeName, devBusInfo, devNode);
+              __func__, index, propName, devNodeName, devBusInfo, devNode);
 
         CameraSensorMetadata camera_metadata = mCameraDef.camera_metadata_vec[index];
-        if(camera_metadata.bus_info[0] && strcmp(devBusInfo, camera_metadata.bus_info)) {
-            ALOGI("%s: bus info unmatch, expect %s, actual %s", __func__, camera_metadata.bus_info, devBusInfo);
+        if (camera_metadata.bus_info[0] && strcmp(devBusInfo, camera_metadata.bus_info)) {
+            ALOGI("%s: bus info unmatch, expect %s, actual %s", __func__, camera_metadata.bus_info,
+                  devBusInfo);
             node = node->next;
             continue;
         }
@@ -207,11 +214,11 @@ int32_t CameraProviderHwlImpl::matchPropertyName(nodeSet* nodes, int32_t index)
             continue;
         }
 
-        strncpy(mSets[index].mSensorName, devNodeName, PROPERTY_VALUE_MAX-1);
+        strncpy(mSets[index].mSensorName, devNodeName, PROPERTY_VALUE_MAX - 1);
         strncpy(mSets[index].mDevPath, devNode, CAMAERA_FILENAME_LENGTH);
-        ALOGI("Camera index %d: name %s, Facing %d, orientation %d, dev path %s",
-                index, mSets[index].mSensorName, mSets[index].mFacing,
-                mSets[index].mOrientation, mSets[index].mDevPath);
+        ALOGI("Camera index %d: name %s, Facing %d, orientation %d, dev path %s", index,
+              mSets[index].mSensorName, mSets[index].mFacing, mSets[index].mOrientation,
+              mSets[index].mDevPath);
         mSets[index].mExisting = true;
         node->isHeld = true;
         break;
@@ -220,10 +227,9 @@ int32_t CameraProviderHwlImpl::matchPropertyName(nodeSet* nodes, int32_t index)
     return 0;
 }
 
-int32_t CameraProviderHwlImpl::matchDevNodes()
-{
-    DIR *vidDir = NULL;
-    struct dirent *dirEntry;
+int32_t CameraProviderHwlImpl::matchDevNodes() {
+    DIR* vidDir = NULL;
+    struct dirent* dirEntry;
     char mCamDevice[64];
     std::string buffer;
     size_t nameLen = CAMERA_SENSOR_LENGTH - 1;
@@ -254,23 +260,25 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
             ALOGW("can't read video device name");
             continue;
         }
-        ALOGI("%s: /sys/class/video4linux/%s/name is %s", __func__, dirEntry->d_name, buffer.c_str());
+        ALOGI("%s: /sys/class/video4linux/%s/name is %s", __func__, dirEntry->d_name,
+              buffer.c_str());
 
         // Use "/sys/class/video4linux/%s/name" to filter out unsupported video devices.
         // So no need to open none-camera devices such as VPU.
         // If it's neithor basic camera nor physical camera, skip.
         bool bOnBoardCamera = false;
 
-        //basic camera
-        for (int32_t index=0; index < (int32_t)mCameraDef.camera_id_map_.size(); index++) {
+        // basic camera
+        for (int32_t index = 0; index < (int32_t)mCameraDef.camera_id_map_.size(); index++) {
             if (strstr(buffer.c_str(), mSets[index].mPropertyName)) {
                 bOnBoardCamera = true;
                 break;
             }
         }
 
-        //physical camera
-        for (int32_t phyindex = MAX_BASIC_CAMERA_NUM; phyindex < (int32_t)mCameraDef.camera_metadata_vec.size(); phyindex++) {
+        // physical camera
+        for (int32_t phyindex = MAX_BASIC_CAMERA_NUM;
+             phyindex < (int32_t)mCameraDef.camera_metadata_vec.size(); phyindex++) {
             if (strstr(buffer.c_str(), mSets[phyindex].mPropertyName)) {
                 bOnBoardCamera = true;
                 break;
@@ -300,8 +308,7 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
         if (strlen(node->nodeName) != 0) {
             if (nodes == NULL) {
                 nodes = node;
-            }
-            else {
+            } else {
                 last->next = node;
             }
             last = node;
@@ -310,13 +317,14 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
 
     closedir(vidDir);
 
-    //basic camera
-    for (int32_t index=0; index < (int32_t)mCameraDef.camera_id_map_.size(); index++) {
+    // basic camera
+    for (int32_t index = 0; index < (int32_t)mCameraDef.camera_id_map_.size(); index++) {
         matchPropertyName(nodes, index);
     }
 
-    //physical camera
-    for (int32_t phyindex = MAX_BASIC_CAMERA_NUM; phyindex < (int32_t)mCameraDef.camera_metadata_vec.size(); phyindex++) {
+    // physical camera
+    for (int32_t phyindex = MAX_BASIC_CAMERA_NUM;
+         phyindex < (int32_t)mCameraDef.camera_metadata_vec.size(); phyindex++) {
         matchPropertyName(nodes, phyindex);
     }
 
@@ -330,8 +338,8 @@ int32_t CameraProviderHwlImpl::matchDevNodes()
     return 0;
 }
 
-int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], size_t length, char busInfo[], size_t busInfoLen)
-{
+int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], size_t length,
+                                           char busInfo[], size_t busInfoLen) {
     int32_t ret = -1;
     size_t strLen = 0;
     struct v4l2_capability vidCap;
@@ -351,8 +359,7 @@ int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], siz
     }
 
     ALOGI("video capabilities 0x%x\n", vidCap.capabilities);
-    if (!(vidCap.capabilities &
-            (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_CAPTURE_MPLANE))) {
+    if (!(vidCap.capabilities & (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_CAPTURE_MPLANE))) {
         ALOGW("%s dev path:%s is not capture", __func__, devNode);
         return -1;
     }
@@ -369,9 +376,7 @@ int32_t CameraProviderHwlImpl::getNodeName(const char* devNode, char name[], siz
     return ret;
 }
 
-status_t CameraProviderHwlImpl::SetCallback(
-    const HwlCameraProviderCallback& callback)
-{
+status_t CameraProviderHwlImpl::SetCallback(const HwlCameraProviderCallback& callback) {
     ALOGI("%s", __func__);
     physical_camera_status_cb_ = callback.physical_camera_device_status_change;
 
@@ -388,20 +393,21 @@ void CameraProviderHwlImpl::NotifyPhysicalCameraUnavailable() {
 
             uint32_t logical_camera_id = one_map.first;
             uint32_t physical_camera_id = physical_device.second;
-            physical_camera_status_cb_(logical_camera_id, physical_camera_id, CameraDeviceStatus::kNotPresent);
+            physical_camera_status_cb_(logical_camera_id, physical_camera_id,
+                                       CameraDeviceStatus::kNotPresent);
         }
     }
 }
 
-status_t CameraProviderHwlImpl::TriggerDeferredCallbacks()
-{
+status_t CameraProviderHwlImpl::TriggerDeferredCallbacks() {
     std::lock_guard<std::mutex> lock(status_callback_future_lock_);
     if (status_callback_future_.valid()) {
         return OK;
     }
 
-    status_callback_future_ = std::async(
-        std::launch::async,&CameraProviderHwlImpl::NotifyPhysicalCameraUnavailable, this);
+    status_callback_future_ =
+            std::async(std::launch::async, &CameraProviderHwlImpl::NotifyPhysicalCameraUnavailable,
+                       this);
     return OK;
 }
 
@@ -414,9 +420,7 @@ void CameraProviderHwlImpl::WaitForStatusCallbackFuture() {
     status_callback_future_.wait();
 }
 
-status_t CameraProviderHwlImpl::GetVendorTags(
-    std::vector<VendorTagSection>* vendor_tag_sections)
-{
+status_t CameraProviderHwlImpl::GetVendorTags(std::vector<VendorTagSection>* vendor_tag_sections) {
     if (vendor_tag_sections == nullptr) {
         ALOGE("%s: vendor_tag_sections is nullptr.", __func__);
         return BAD_VALUE;
@@ -427,9 +431,7 @@ status_t CameraProviderHwlImpl::GetVendorTags(
     return OK;
 }
 
-status_t CameraProviderHwlImpl::GetVisibleCameraIds(
-    std::vector<std::uint32_t>* camera_ids)
-{
+status_t CameraProviderHwlImpl::GetVisibleCameraIds(std::vector<std::uint32_t>* camera_ids) {
     if (camera_ids == nullptr) {
         ALOGE("%s: camera_ids is nullptr.", __func__);
         return BAD_VALUE;
@@ -443,8 +445,7 @@ status_t CameraProviderHwlImpl::GetVisibleCameraIds(
 }
 
 status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
-    uint32_t camera_id, std::unique_ptr<CameraDeviceHwl>* camera_device_hwl)
-{
+        uint32_t camera_id, std::unique_ptr<CameraDeviceHwl>* camera_device_hwl) {
     if (camera_device_hwl == nullptr) {
         ALOGE("%s: camera_device_hwl is nullptr.", __func__);
         return BAD_VALUE;
@@ -455,24 +456,29 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
         return BAD_VALUE;
     }
 
-    ALOGI("%s: camera_id %u, camera_id_maps size %zu", __func__, camera_id, camera_id_maps[camera_id].size());
+    ALOGI("%s: camera_id %u, camera_id_maps size %zu", __func__, camera_id,
+          camera_id_maps[camera_id].size());
     CameraSensorMetadata cam_metadata = mCameraDef.camera_metadata_vec[camera_id];
 
     std::vector<std::shared_ptr<char*>> devPaths;
     std::vector<uint32_t> physicalIds;
     auto target_physical_devices = std::make_unique<PhysicalDeviceMap>();
     if (camera_id_maps[camera_id].size() >= 2) {
-        //Here only map the physical cameras' CameraSensorMetadata under the logical camera!
+        // Here only map the physical cameras' CameraSensorMetadata under the logical camera!
         for (const auto& physical_device : camera_id_maps[camera_id]) {
             ALOGI("%s: physical_device.second %d", __func__, physical_device.second);
-            target_physical_devices->emplace(physical_device.second,
-                std::make_pair(physical_device.first,
-                    std::unique_ptr<CameraSensorMetadata>(new CameraSensorMetadata(
-                        mCameraDef.camera_metadata_vec[physical_device.second]))));
+            target_physical_devices
+                    ->emplace(physical_device.second,
+                              std::make_pair(physical_device.first,
+                                             std::unique_ptr<CameraSensorMetadata>(
+                                                     new CameraSensorMetadata(
+                                                             mCameraDef.camera_metadata_vec
+                                                                     [physical_device.second]))));
         }
 
-        for (const auto &physical_device : *target_physical_devices) {
-            ALOGI("%s: devPaths.push_back %s, id %d", __func__, mSets[physical_device.first].mDevPath, physical_device.first);
+        for (const auto& physical_device : *target_physical_devices) {
+            ALOGI("%s: devPaths.push_back %s, id %d", __func__,
+                  mSets[physical_device.first].mDevPath, physical_device.first);
             devPaths.push_back(std::make_shared<char*>(mSets[physical_device.first].mDevPath));
             physicalIds.push_back(physical_device.first);
         }
@@ -481,9 +487,12 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
         physicalIds.push_back(0);
     }
 
-    *camera_device_hwl = CameraDeviceHwlImpl::Create(camera_id, devPaths, physicalIds,
-        mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw, mCameraDef.jpeg_hw.c_str(),
-        mCameraDef.mUseCpuEncoder, &cam_metadata, std::move(target_physical_devices), mCallback);
+    *camera_device_hwl =
+            CameraDeviceHwlImpl::Create(camera_id, devPaths, physicalIds,
+                                        mCameraDef.cam_blit_copy_hw, mCameraDef.cam_blit_csc_hw,
+                                        mCameraDef.jpeg_hw.c_str(), mCameraDef.mUseCpuEncoder,
+                                        &cam_metadata, std::move(target_physical_devices),
+                                        mCallback);
 
     if (*camera_device_hwl == nullptr) {
         ALOGE("%s: Cannot create CameraDeviceHWlImpl.", __func__);
@@ -496,8 +505,7 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
 }
 
 status_t CameraProviderHwlImpl::CreateBufferAllocatorHwl(
-    std::unique_ptr<CameraBufferAllocatorHwl>* camera_buffer_allocator_hwl)
-{
+        std::unique_ptr<CameraBufferAllocatorHwl>* camera_buffer_allocator_hwl) {
     if (camera_buffer_allocator_hwl == nullptr) {
         ALOGE("%s: camera_buffer_allocator_hwl is nullptr.", __func__);
         return BAD_VALUE;
@@ -507,8 +515,7 @@ status_t CameraProviderHwlImpl::CreateBufferAllocatorHwl(
 }
 
 status_t CameraProviderHwlImpl::GetConcurrentStreamingCameraIds(
-    std::vector<std::unordered_set<uint32_t>>* combinations)
-{
+        std::vector<std::unordered_set<uint32_t>>* combinations) {
     if (combinations == nullptr) {
         return BAD_VALUE;
     }
@@ -523,10 +530,8 @@ status_t CameraProviderHwlImpl::GetConcurrentStreamingCameraIds(
 }
 
 status_t CameraProviderHwlImpl::IsConcurrentStreamCombinationSupported(
-        const std::vector<CameraIdAndStreamConfiguration>& configs, bool* is_supported)
-{
-    if(is_supported == NULL)
-        return BAD_VALUE;
+        const std::vector<CameraIdAndStreamConfiguration>& configs, bool* is_supported) {
+    if (is_supported == NULL) return BAD_VALUE;
 
     *is_supported = false;
 
@@ -539,15 +544,15 @@ status_t CameraProviderHwlImpl::IsConcurrentStreamCombinationSupported(
             return BAD_VALUE;
         }
 
-        CameraDeviceHwl *pCamera = iter->second;
-        if(pCamera == NULL) {
+        CameraDeviceHwl* pCamera = iter->second;
+        if (pCamera == NULL) {
             ALOGE("%s: Unexpected, pCamera is null for id %d", __func__, config.camera_id);
             return BAD_VALUE;
         }
 
         bool bSupport;
         bSupport = pCamera->IsStreamCombinationSupported(config.stream_configuration);
-        if(bSupport == false) {
+        if (bSupport == false) {
             ALOGE("%s: stream config not supported by camera %d", __func__, config.camera_id);
             return BAD_VALUE;
         }
@@ -558,4 +563,4 @@ status_t CameraProviderHwlImpl::IsConcurrentStreamCombinationSupported(
     return OK;
 }
 
-}  // namespace android
+} // namespace android

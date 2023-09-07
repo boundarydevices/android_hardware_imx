@@ -23,7 +23,7 @@ namespace android::hardware::automotive::vehicle::V2_0::impl {
 // The common client operations that may be used by both native and
 // virtualized VHAL clients.
 class VehicleHalClient : public IVehicleClient {
-  public:
+public:
     // Type of callback function for handling the new property values
     using PropertyCallBackType = std::function<void(const VehiclePropValue&, bool updateStatus)>;
 
@@ -32,8 +32,8 @@ class VehicleHalClient : public IVehicleClient {
 
     void registerPropertyValueCallback(PropertyCallBackType&& callback);
 
-  private:
+private:
     PropertyCallBackType mPropCallback;
 };
 
-}  // namespace android::hardware::automotive::vehicle::V2_0::impl
+} // namespace android::hardware::automotive::vehicle::V2_0::impl

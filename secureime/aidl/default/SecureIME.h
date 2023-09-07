@@ -28,13 +28,13 @@ namespace secureime {
 
 #define SECUREIME_PORT_NAME "com.android.trusty.secureime"
 
-enum secureime_command: uint32_t {
-     SECURE_IME_REQ_SHIFT = 1,
-     SECURE_IME_RESP_BIT = 1,
+enum secureime_command : uint32_t {
+    SECURE_IME_REQ_SHIFT = 1,
+    SECURE_IME_RESP_BIT = 1,
 
-     SECURE_IME_CMD_INIT   = (0 << SECURE_IME_REQ_SHIFT),
-     SECURE_IME_CMD_INPUT  = (1 << SECURE_IME_REQ_SHIFT),
-     SECURE_IME_CMD_EXIT   = (2 << SECURE_IME_REQ_SHIFT),
+    SECURE_IME_CMD_INIT = (0 << SECURE_IME_REQ_SHIFT),
+    SECURE_IME_CMD_INPUT = (1 << SECURE_IME_REQ_SHIFT),
+    SECURE_IME_CMD_EXIT = (2 << SECURE_IME_REQ_SHIFT),
 };
 
 struct secureime_req {
@@ -54,22 +54,24 @@ struct secureime_resp {
 };
 
 class SecureIME : public BnSecureIME {
-	::ndk::ScopedAStatus SecureIMEInit(const ::ndk::ScopedFileDescriptor& in_fd, int32_t in_buffer_size,
-						int32_t in_stride, int32_t in_width, int32_t in_height, int32_t* _aidl_return) override;
-	::ndk::ScopedAStatus SecureIMEHandleTouch(int32_t in_x, int32_t in_y, int32_t* _aidl_return) override;
-	::ndk::ScopedAStatus SecureIMEExit(int32_t* _aidl_return) override;
+    ::ndk::ScopedAStatus SecureIMEInit(const ::ndk::ScopedFileDescriptor& in_fd,
+                                       int32_t in_buffer_size, int32_t in_stride, int32_t in_width,
+                                       int32_t in_height, int32_t* _aidl_return) override;
+    ::ndk::ScopedAStatus SecureIMEHandleTouch(int32_t in_x, int32_t in_y,
+                                              int32_t* _aidl_return) override;
+    ::ndk::ScopedAStatus SecureIMEExit(int32_t* _aidl_return) override;
 
 private:
-	int tipc_fd = -1;
-	int connectIME();
-	int tipc_read(struct secureime_resp *resp, int cmd);
-	int secureIMEInit(int fd, int buffer_size, int stride, int width, int height);
-	int secureIMEHandleTouch(int x, int y, int *key);
-	int secureIMEExit();
-	void closeIME();
+    int tipc_fd = -1;
+    int connectIME();
+    int tipc_read(struct secureime_resp* resp, int cmd);
+    int secureIMEInit(int fd, int buffer_size, int stride, int width, int height);
+    int secureIMEHandleTouch(int x, int y, int* key);
+    int secureIMEExit();
+    void closeIME();
 };
 
-}  // namespace secureime
-}  // namespace hardware
-}  // namespace nxp
-}  // namespace aidl
+} // namespace secureime
+} // namespace hardware
+} // namespace nxp
+} // namespace aidl

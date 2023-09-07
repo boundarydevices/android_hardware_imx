@@ -19,16 +19,19 @@
 // #define LOG_NDEBUG 0
 
 #include "ExternalCameraUtils.h"
-#include "Allocator.h"
+
 #include <aidlcommonsupport/NativeHandle.h>
 #include <jpeglib.h>
 #include <linux/videodev2.h>
 #include <log/log.h>
+
 #include <algorithm>
 #include <cinttypes>
 #include <cmath>
 
-#define HAVE_JPEG  // required for libyuv.h to export MJPEG decode APIs
+#include "Allocator.h"
+
+#define HAVE_JPEG // required for libyuv.h to export MJPEG decode APIs
 #include <libyuv.h>
 
 namespace android {
@@ -37,13 +40,13 @@ int IMXAllocMem(int size) {
     int flags = fsl::MFLAGS_CONTIGUOUS;
     int align;
     align = MEM_ALIGN;
-    fsl::Allocator * pAllocator = fsl::Allocator::getInstance();
+    fsl::Allocator* pAllocator = fsl::Allocator::getInstance();
 
     return pAllocator->allocMemory(size, align, flags);
 }
 
 int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual) {
-    fsl::Allocator * pAllocator = fsl::Allocator::getInstance();
+    fsl::Allocator* pAllocator = fsl::Allocator::getInstance();
     int ret = 0;
 
     if (isVirtual)
@@ -53,8 +56,8 @@ int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual) {
 
     if (ret != 0) {
         addr = 0;
-        ALOGE("get %s address failed, fd %d, size %d, ret %d",
-                isVirtual ? "virtual" : "physical", fd, size, ret);
+        ALOGE("get %s address failed, fd %d, size %d, ret %d", isVirtual ? "virtual" : "physical",
+              fd, size, ret);
     }
 
     return ret;
@@ -68,12 +71,12 @@ namespace common {
 
 namespace {
 const int kDefaultCameraIdOffset = 100;
-const int kDefaultJpegBufSize = 5 << 20;  // 5MB
+const int kDefaultJpegBufSize = 5 << 20; // 5MB
 const int kDefaultNumVideoBuffer = 4;
 const int kDefaultNumStillBuffer = 2;
-const int kDefaultOrientation = 0;  // suitable for natural landscape displays like tablet/TV
-                                    // For phone devices 270 is better
-}  // anonymous namespace
+const int kDefaultOrientation = 0; // suitable for natural landscape displays like tablet/TV
+                                   // For phone devices 270 is better
+} // anonymous namespace
 
 const char* ExternalCameraConfig::kDefaultCfgPath = "/vendor/etc/external_camera_config.xml";
 
@@ -185,9 +188,10 @@ ExternalCameraConfig ExternalCameraConfig::loadFromCfg(const char* cfgPath) {
     if (minStreamSize == nullptr) {
         ALOGI("%s: no minimum stream size specified", __FUNCTION__);
     } else {
-        ret.minStreamSize = {
-                static_cast<int32_t>(minStreamSize->UnsignedAttribute("width", /*Default*/ 0)),
-                static_cast<int32_t>(minStreamSize->UnsignedAttribute("height", /*Default*/ 0))};
+        ret.minStreamSize = {static_cast<int32_t>(
+                                     minStreamSize->UnsignedAttribute("width", /*Default*/ 0)),
+                             static_cast<int32_t>(
+                                     minStreamSize->UnsignedAttribute("height", /*Default*/ 0))};
     }
 
     XMLElement* orientation = deviceCfg->FirstChildElement("Orientation");
@@ -201,11 +205,11 @@ ExternalCameraConfig ExternalCameraConfig::loadFromCfg(const char* cfgPath) {
     if (hardwareDecDevice == nullptr) {
         ALOGI("%s: no HardwareDecDevice specified", __FUNCTION__);
     } else {
-        const char *hardwareDecDeviceList = NULL;
+        const char* hardwareDecDeviceList = NULL;
         err = hardwareDecDevice->QueryAttribute("list", &hardwareDecDeviceList);
         if (err == XML_SUCCESS) {
             strncpy(ret.hardwareDecDeviceList, hardwareDecDeviceList, HARDWARE_DEC_DEVICE_SIZE);
-            ret.hardwareDecDeviceList[HARDWARE_DEC_DEVICE_SIZE-1] = 0;
+            ret.hardwareDecDeviceList[HARDWARE_DEC_DEVICE_SIZE - 1] = 0;
             ALOGI("%s: hardwareDecDeviceList %s", __func__, hardwareDecDeviceList);
         }
     }
@@ -214,11 +218,11 @@ ExternalCameraConfig ExternalCameraConfig::loadFromCfg(const char* cfgPath) {
     if (interBufFormat == nullptr) {
         ALOGI("%s: no InterBufFormat specified, will use default nv12", __FUNCTION__);
     } else {
-        const char *format = NULL;
+        const char* format = NULL;
         err = interBufFormat->QueryAttribute("format", &format);
         if (err == XML_SUCCESS) {
             strncpy(ret.interBufFormat, format, INTERBUF_FORMAT_SIZE);
-            ret.interBufFormat[INTERBUF_FORMAT_SIZE-1] = 0;
+            ret.interBufFormat[INTERBUF_FORMAT_SIZE - 1] = 0;
             ALOGI("%s: InterBufFormat %s", __func__, ret.interBufFormat);
         }
     }
@@ -247,11 +251,11 @@ bool ExternalCameraConfig::updateFpsList(tinyxml2::XMLElement* fpsList,
     XMLElement* row = fpsList->FirstChildElement("Limit");
     while (row != nullptr) {
         FpsLimitation prevLimit{{0, 0}, 1000.0};
-        FpsLimitation limit = {
-                {/* width */ static_cast<int32_t>(row->UnsignedAttribute("width", /*Default*/ 0)),
-                 /* height */ static_cast<int32_t>(
-                         row->UnsignedAttribute("height", /*Default*/ 0))},
-                /* fpsUpperBound */ row->DoubleAttribute("fpsBound", /*Default*/ 1000.0)};
+        FpsLimitation limit =
+                {{/* width */ static_cast<int32_t>(row->UnsignedAttribute("width", /*Default*/ 0)),
+                  /* height */
+                  static_cast<int32_t>(row->UnsignedAttribute("height", /*Default*/ 0))},
+                 /* fpsUpperBound */ row->DoubleAttribute("fpsBound", /*Default*/ 1000.0)};
         if (limit.size.width <= prevLimit.size.width ||
             limit.size.height <= prevLimit.size.height ||
             limit.fpsUpperBound >= prevLimit.fpsUpperBound) {
@@ -270,12 +274,12 @@ bool ExternalCameraConfig::updateFpsList(tinyxml2::XMLElement* fpsList,
 }
 
 ExternalCameraConfig::ExternalCameraConfig()
-    : cameraIdOffset(kDefaultCameraIdOffset),
-      maxJpegBufSize(kDefaultJpegBufSize),
-      numVideoBuffers(kDefaultNumVideoBuffer),
-      numStillBuffers(kDefaultNumStillBuffer),
-      depthEnabled(false),
-      orientation(kDefaultOrientation) {
+      : cameraIdOffset(kDefaultCameraIdOffset),
+        maxJpegBufSize(kDefaultJpegBufSize),
+        numVideoBuffers(kDefaultNumVideoBuffer),
+        numStillBuffers(kDefaultNumStillBuffer),
+        depthEnabled(false),
+        orientation(kDefaultOrientation) {
     fpsLimits.push_back({/* size */ {/* width */ 640, /* height */ 480}, /* fpsUpperBound */ 30.0});
     fpsLimits.push_back({/* size */ {/* width */ 1280, /* height */ 720}, /* fpsUpperBound */ 7.5});
     fpsLimits.push_back(
@@ -285,8 +289,8 @@ ExternalCameraConfig::ExternalCameraConfig()
     memset(interBufFormat, 0, INTERBUF_FORMAT_SIZE);
 }
 
-}  // namespace common
-}  // namespace external
+} // namespace common
+} // namespace external
 
 namespace device {
 namespace implementation {
@@ -296,12 +300,12 @@ double SupportedV4L2Format::FrameRate::getFramesPerSecond() const {
 }
 
 Frame::Frame(uint32_t width, uint32_t height, uint32_t fourcc)
-    : mWidth(width), mHeight(height), mFourcc(fourcc) {}
+      : mWidth(width), mHeight(height), mFourcc(fourcc) {}
 Frame::~Frame() {}
 
 V4L2Frame::V4L2Frame(uint32_t w, uint32_t h, uint32_t fourcc, int bufIdx, int fd, uint32_t dataSize,
                      uint64_t offset)
-    : Frame(w, h, fourcc), mBufferIndex(bufIdx), mFd(fd), mDataSize(dataSize), mOffset(offset) {}
+      : Frame(w, h, fourcc), mBufferIndex(bufIdx), mFd(fd), mDataSize(dataSize), mOffset(offset) {}
 
 V4L2Frame::~V4L2Frame() {
     unmap();
@@ -391,7 +395,7 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
     // reading the last row. Effectively, we only need to ensure that the last row of Cr component
     // has width that is an integral multiple of DCTSIZE.
 
-    size_t dataSize = mWidth * mHeight * 3 / 2;  // YUV420
+    size_t dataSize = mWidth * mHeight * 3 / 2; // YUV420
 
     size_t cbWidth = mWidth / 2;
     size_t requiredCbWidth = DCTSIZE * ((cbWidth + DCTSIZE - 1) / DCTSIZE);
@@ -403,8 +407,7 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
         mBufferSize = dataSize;
     }
 
-    if (out == NULL)
-        return 0;
+    if (out == NULL) return 0;
 
     if (mFourcc == V4L2_PIX_FMT_YUV420) {
         out->y = mData.data();
@@ -473,9 +476,8 @@ int AllocatedFrame::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayout* out
 }
 
 // AllocatedFramePhyMem class
-AllocatedFramePhyMem::AllocatedFramePhyMem(
-        uint32_t w, uint32_t h, uint32_t format) :
-        AllocatedFrame(w, h, format) {
+AllocatedFramePhyMem::AllocatedFramePhyMem(uint32_t w, uint32_t h, uint32_t format)
+      : AllocatedFrame(w, h, format) {
     dstBuffer = NULL;
     dstBuf = NULL;
 }
@@ -496,7 +498,8 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
         return -EINVAL;
     }
 
-    ALOGV("%s: resolution %dx%d, dstBuffer %p, dstBuf %p", __func__, mWidth, mHeight, dstBuffer, dstBuf);
+    ALOGV("%s: resolution %dx%d, dstBuffer %p, dstBuf %p", __func__, mWidth, mHeight, dstBuffer,
+          dstBuf);
 
     uint32_t dataSize = mWidth * mHeight * 3 / 2; // YUV420
     if ((dstBuffer) && (dstBuffer->size >= dataSize) && dstBuf) {
@@ -510,8 +513,9 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
         dstBuffer = NULL;
     }
 
-    // VPU decoder output is 16 pixels aligned, so v4l2 res such as 1920x1080 is decoded to 1920x1088.
-    // Need allocate I420 with aligned size, to avoid out memory boundary when csc from decoded buffer to mYu12Frame.
+    // VPU decoder output is 16 pixels aligned, so v4l2 res such as 1920x1080 is decoded to
+    // 1920x1088. Need allocate I420 with aligned size, to avoid out memory boundary when csc from
+    // decoded buffer to mYu12Frame.
     fsl::MemoryDesc desc;
     desc.mWidth = ALIGN_PIXEL_16(mWidth);
     desc.mHeight = ALIGN_PIXEL_16(mHeight);
@@ -538,14 +542,14 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
         return -EINVAL;
     }
 
-    allocator->lock(dstBuffer, dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN,
-                     0, 0, dstBuffer->width, dstBuffer->height, (void **)(&dstBuf));
+    allocator->lock(dstBuffer,
+                    dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN, 0, 0,
+                    dstBuffer->width, dstBuffer->height, (void**)(&dstBuf));
 
     ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
     if (ret) mPhyAddr = 0;
 
-    if (out == nullptr)
-        return 0;
+    if (out == nullptr) return 0;
 
     if (mFourcc == V4L2_PIX_FMT_YUV420) {
         out->y = dstBuf;
@@ -570,7 +574,7 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     return 0;
 }
 
-void AllocatedFramePhyMem::getPhyAddr(uint64_t &phyAddr) {
+void AllocatedFramePhyMem::getPhyAddr(uint64_t& phyAddr) {
     phyAddr = mPhyAddr;
 }
 
@@ -594,9 +598,7 @@ int AllocatedFramePhyMem::getData(uint8_t** outData, size_t* dataSize) {
 }
 
 int AllocatedFramePhyMem::getLayout(YCbCrLayout* out) {
-    IMapper::Rect noCrop = {0, 0,
-            static_cast<int32_t>(mWidth),
-            static_cast<int32_t>(mHeight)};
+    IMapper::Rect noCrop = {0, 0, static_cast<int32_t>(mWidth), static_cast<int32_t>(mHeight)};
     return getCroppedLayout(noCrop, out);
 }
 
@@ -608,10 +610,10 @@ int AllocatedFramePhyMem::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayou
 
     std::lock_guard<std::mutex> lk(mLock);
     if ((rect.left + rect.width) > static_cast<int>(mWidth) ||
-        (rect.top + rect.height) > static_cast<int>(mHeight) ||
-            (rect.left % 2) || (rect.top % 2) || (rect.width % 2) || (rect.height % 2)) {
-        ALOGE("%s: bad rect left %d top %d w %d h %d", __FUNCTION__,
-                rect.left, rect.top, rect.width, rect.height);
+        (rect.top + rect.height) > static_cast<int>(mHeight) || (rect.left % 2) || (rect.top % 2) ||
+        (rect.width % 2) || (rect.height % 2)) {
+        ALOGE("%s: bad rect left %d top %d w %d h %d", __FUNCTION__, rect.left, rect.top,
+              rect.width, rect.height);
         return -1;
     }
 
@@ -639,8 +641,8 @@ int AllocatedFramePhyMem::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayou
 }
 
 bool isAspectRatioClose(float ar1, float ar2) {
-    constexpr float kAspectRatioMatchThres = 0.025f;  // This threshold is good enough to
-                                                      // distinguish 4:3/16:9/20:9 1.33/1.78/2
+    constexpr float kAspectRatioMatchThres = 0.025f; // This threshold is good enough to
+                                                     // distinguish 4:3/16:9/20:9 1.33/1.78/2
     return std::abs(ar1 - ar2) < kAspectRatioMatchThres;
 }
 
@@ -688,9 +690,9 @@ uint32_t getFourCcFromLayout(const YCbCrLayout& layout) {
     } else if (layout.chromaStep == 1) {
         // Planar format
         if (layout.cb > layout.cr) {
-            return V4L2_PIX_FMT_YVU420;  // YV12
+            return V4L2_PIX_FMT_YVU420; // YV12
         } else {
-            return V4L2_PIX_FMT_YUV420;  // YU12
+            return V4L2_PIX_FMT_YUV420; // YU12
         }
     } else {
         return FLEX_YUV_GENERIC;
@@ -727,7 +729,7 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
                   __FUNCTION__, outW, outH, inW, inH);
             return -1;
         }
-        scaledOutH = scaledOutH & ~0x1;  // make it multiple of 2
+        scaledOutH = scaledOutH & ~0x1; // make it multiple of 2
 
         out->left = 0;
         out->top = static_cast<int32_t>((inH - scaledOutH) / 2) & ~0x1;
@@ -742,7 +744,7 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
                   __FUNCTION__, outW, outH, inW, inH);
             return -1;
         }
-        scaledOutW = scaledOutW & ~0x1;  // make it multiple of 2
+        scaledOutW = scaledOutW & ~0x1; // make it multiple of 2
 
         out->left = static_cast<int32_t>((inW - scaledOutW) / 2) & ~0x1;
         out->top = 0;
@@ -755,65 +757,74 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
     return 0;
 }
 
-static int formatConvertSrcNV12(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format) {
+static int formatConvertSrcNV12(const YCbCrLayout& in, const YCbCrLayout& out, Size sz,
+                                uint32_t format) {
     if (format != V4L2_PIX_FMT_NV12) {
         ALOGE("%s: only support convert to NV12", __func__);
         return -1;
     }
 
-    uint32_t ySize = sz.width*sz.height;
-    uint32_t cSize = ySize/2;
+    uint32_t ySize = sz.width * sz.height;
+    uint32_t cSize = ySize / 2;
 
-    // Ref http://lsv11326.swis.cn-sha01.nxp.com:8084/source/xref/external/libyuv/files/source/row_neon64.cc?r=211e09de#683
+    // Ref
+    // http://lsv11326.swis.cn-sha01.nxp.com:8084/source/xref/external/libyuv/files/source/row_neon64.cc?r=211e09de#683
     // CopyRow_NEON will copy multiple of 32.
-    int copyYSizeNeon = ySize/32 * 32;
+    int copyYSizeNeon = ySize / 32 * 32;
     int copyYSizeCpu = ySize - copyYSizeNeon;
 
-    int copyCSizeNeon = cSize/32 * 32;
+    int copyCSizeNeon = cSize / 32 * 32;
     int copyCSizeCpu = cSize - copyCSizeNeon;
 
     libyuv::CopyRow_NEON((const uint8_t*)in.y, (uint8_t*)out.y, copyYSizeNeon);
     if (copyYSizeCpu)
-        memcpy((void *)((uint8_t*)out.y + copyYSizeNeon), (void *)((uint8_t*)in.y + copyYSizeNeon), copyYSizeCpu);
+        memcpy((void*)((uint8_t*)out.y + copyYSizeNeon), (void*)((uint8_t*)in.y + copyYSizeNeon),
+               copyYSizeCpu);
 
     libyuv::CopyRow_NEON((const uint8_t*)in.cb, (uint8_t*)out.cb, copyCSizeNeon);
     if (copyCSizeCpu)
-        memcpy((void *)((uint8_t*)out.cb + copyCSizeNeon), (void *)((uint8_t*)in.cb + copyCSizeNeon), copyCSizeCpu);
+        memcpy((void*)((uint8_t*)out.cb + copyCSizeNeon), (void*)((uint8_t*)in.cb + copyCSizeNeon),
+               copyCSizeCpu);
 
     return 0;
 }
 
-static int formatConvertSrcI420(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format) {
+static int formatConvertSrcI420(const YCbCrLayout& in, const YCbCrLayout& out, Size sz,
+                                uint32_t format) {
     int ret = 0;
     switch (format) {
         case V4L2_PIX_FMT_NV21:
-            ret = libyuv::I420ToNV21(
-                    static_cast<uint8_t*>(in.y), static_cast<int32_t>(in.yStride),
-                    static_cast<uint8_t*>(in.cb), static_cast<int32_t>(in.cStride),
-                    static_cast<uint8_t*>(in.cr), static_cast<int32_t>(in.cStride),
-                    static_cast<uint8_t*>(out.y), static_cast<int32_t>(out.yStride),
-                    static_cast<uint8_t*>(out.cr), static_cast<int32_t>(out.cStride),
-                    static_cast<int32_t>(sz.width), static_cast<int32_t>(sz.height));
+            ret = libyuv::I420ToNV21(static_cast<uint8_t*>(in.y), static_cast<int32_t>(in.yStride),
+                                     static_cast<uint8_t*>(in.cb), static_cast<int32_t>(in.cStride),
+                                     static_cast<uint8_t*>(in.cr), static_cast<int32_t>(in.cStride),
+                                     static_cast<uint8_t*>(out.y),
+                                     static_cast<int32_t>(out.yStride),
+                                     static_cast<uint8_t*>(out.cr),
+                                     static_cast<int32_t>(out.cStride),
+                                     static_cast<int32_t>(sz.width),
+                                     static_cast<int32_t>(sz.height));
             if (ret != 0) {
                 ALOGE("%s: convert to NV21 buffer failed! ret %d", __FUNCTION__, ret);
                 return ret;
             }
             break;
         case V4L2_PIX_FMT_NV12:
-            ret = libyuv::I420ToNV12(
-                    static_cast<uint8_t*>(in.y), static_cast<int32_t>(in.yStride),
-                    static_cast<uint8_t*>(in.cb), static_cast<int32_t>(in.cStride),
-                    static_cast<uint8_t*>(in.cr), static_cast<int32_t>(in.cStride),
-                    static_cast<uint8_t*>(out.y), static_cast<int32_t>(out.yStride),
-                    static_cast<uint8_t*>(out.cb), static_cast<int32_t>(out.cStride),
-                    static_cast<int32_t>(sz.width), static_cast<int32_t>(sz.height));
+            ret = libyuv::I420ToNV12(static_cast<uint8_t*>(in.y), static_cast<int32_t>(in.yStride),
+                                     static_cast<uint8_t*>(in.cb), static_cast<int32_t>(in.cStride),
+                                     static_cast<uint8_t*>(in.cr), static_cast<int32_t>(in.cStride),
+                                     static_cast<uint8_t*>(out.y),
+                                     static_cast<int32_t>(out.yStride),
+                                     static_cast<uint8_t*>(out.cb),
+                                     static_cast<int32_t>(out.cStride),
+                                     static_cast<int32_t>(sz.width),
+                                     static_cast<int32_t>(sz.height));
             if (ret != 0) {
                 ALOGE("%s: convert to NV12 buffer failed! ret %d", __FUNCTION__, ret);
                 return ret;
             }
             break;
-        case V4L2_PIX_FMT_YVU420:  // YV12
-        case V4L2_PIX_FMT_YUV420:  // YU12
+        case V4L2_PIX_FMT_YVU420: // YV12
+        case V4L2_PIX_FMT_YUV420: // YU12
             // TODO: maybe we can speed up here by somehow save this copy?
             ret = libyuv::I420Copy(static_cast<uint8_t*>(in.y), static_cast<int32_t>(in.yStride),
                                    static_cast<uint8_t*>(in.cb), static_cast<int32_t>(in.cStride),
@@ -840,7 +851,8 @@ static int formatConvertSrcI420(const YCbCrLayout& in, const YCbCrLayout& out, S
     return 0;
 }
 
-int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format, uint32_t srcFmt) {
+int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format,
+                  uint32_t srcFmt) {
     int ret = 0;
 
     if (srcFmt == V4L2_PIX_FMT_NV12)
@@ -1115,7 +1127,7 @@ status_t fillCaptureResultCommon(CameraMetadata& md, nsecs_t timestamp,
 #undef UPDATE
 
 AllocatedV4L2Frame::AllocatedV4L2Frame(std::shared_ptr<V4L2Frame> frameIn)
-    : Frame(frameIn->mWidth, frameIn->mHeight, frameIn->mFourcc) {
+      : Frame(frameIn->mWidth, frameIn->mHeight, frameIn->mFourcc) {
     uint8_t* dataIn;
     size_t dataSize;
     if (frameIn->getData(&dataIn, &dataSize) != 0) {
@@ -1140,8 +1152,8 @@ int AllocatedV4L2Frame::getData(uint8_t** outData, size_t* dataSize) {
     return 0;
 }
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android

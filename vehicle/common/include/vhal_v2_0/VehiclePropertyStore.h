@@ -17,12 +17,12 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_impl_PropertyDb_H_
 #define android_hardware_automotive_vehicle_V2_0_impl_PropertyDb_H_
 
+#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
+
 #include <cstdint>
-#include <unordered_map>
 #include <memory>
 #include <mutex>
-
-#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
+#include <unordered_map>
 
 namespace android {
 namespace hardware {
@@ -92,13 +92,13 @@ private:
     mutable std::mutex mLock;
     std::unordered_map<int32_t /* VehicleProperty */, RecordConfig> mConfigs;
 
-    PropertyMap mPropertyValues;  // Sorted map of RecordId : VehiclePropValue.
+    PropertyMap mPropertyValues; // Sorted map of RecordId : VehiclePropValue.
 };
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif //android_hardware_automotive_vehicle_V2_0_impl_PropertyDb_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_PropertyDb_H_

@@ -11,21 +11,21 @@
 #include "gralloc_metadata.h"
 
 class NxpAllocator : public android::hardware::graphics::allocator::V4_0::IAllocator {
-  public:
+public:
     NxpAllocator();
 
     android::hardware::Return<void> allocate(const android::hardware::hidl_vec<uint8_t>& descriptor,
                                              uint32_t count, allocate_cb hidl_cb) override;
 
-  private:
+private:
     android::hardware::graphics::mapper::V4_0::Error initializeMetadata(
-            gralloc_handle_t memHandle,
-            const struct gralloc_buffer_descriptor& memDescriptor);
+            gralloc_handle_t memHandle, const struct gralloc_buffer_descriptor& memDescriptor);
 
     android::hardware::graphics::mapper::V4_0::Error allocate(
             const android::hardware::graphics::mapper::V4_0::IMapper::BufferDescriptorInfo&
                     description,
-            uint32_t* outStride, const native_handle_t** /*android::hardware::hidl_handle* */outHandle);
+            uint32_t* outStride,
+            const native_handle_t** /*android::hardware::hidl_handle* */ outHandle);
 
     std::unique_ptr<gralloc_driver> mDriver;
 };

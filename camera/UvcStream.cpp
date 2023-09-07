@@ -17,13 +17,14 @@
 
 #define LOG_TAG "UVCStream"
 
-#include "CameraConfigurationParser.h"
 #include "UvcStream.h"
+
+#include "CameraConfigurationParser.h"
 
 namespace android {
 
-int32_t UvcStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
-{
+int32_t UvcStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height,
+                                           uint32_t fps) {
     ALOGI("%s", __func__);
 
     if (mDev <= 0) {
@@ -39,8 +40,7 @@ int32_t UvcStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint
     return DMAStream::onDeviceConfigureLocked(format, width, height, fps);
 }
 
-int32_t UvcStream::onDeviceStopLocked()
-{
+int32_t UvcStream::onDeviceStopLocked() {
     ALOGI("%s", __func__);
     int32_t ret = DMAStream::onDeviceStopLocked();
     // usb camera must close device after stream off.
@@ -52,43 +52,39 @@ int32_t UvcStream::onDeviceStopLocked()
     return ret;
 }
 
-int32_t UvcStream::onDeviceStartLocked()
-{
+int32_t UvcStream::onDeviceStartLocked() {
     ALOGI("%s", __func__);
     return DMAStream::onDeviceStartLocked();
 }
 
-ImxStreamBuffer* UvcStream::onFrameAcquire()
-{
+ImxStreamBuffer* UvcStream::onFrameAcquire() {
     ALOGV("%s", __func__);
     return DMAStream::onFrameAcquire();
 }
 
-int32_t UvcStream::onFrameReturn(ImxStreamBuffer& buf)
-{
+int32_t UvcStream::onFrameReturn(ImxStreamBuffer& buf) {
     ALOGV("%s", __func__);
     return DMAStream::onFrameReturn(buf);
 }
 
 // usb camera require the specific buffer size.
-int32_t UvcStream::getDeviceBufferSize()
-{
+int32_t UvcStream::getDeviceBufferSize() {
     int32_t size = 0;
     switch (mFormat) {
         case HAL_PIXEL_FORMAT_YCbCr_420_SP:
             size = ((mWidth + 16) & (~15)) * mHeight * 3 / 2;
             break;
 
-         case HAL_PIXEL_FORMAT_YCbCr_420_P: {
-            int32_t stride = (mWidth+31)/32*32;
-            int32_t c_stride = (stride/2+15)/16*16;
+        case HAL_PIXEL_FORMAT_YCbCr_420_P: {
+            int32_t stride = (mWidth + 31) / 32 * 32;
+            int32_t c_stride = (stride / 2 + 15) / 16 * 16;
             size = (stride + c_stride) * mHeight;
-             break;
-         }
+            break;
+        }
 
-         case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
             size = mWidth * mHeight * 2;
-             break;
+            break;
 
         default:
             ALOGE("Error: %s format not supported", __func__);

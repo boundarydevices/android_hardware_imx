@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 #define LOG_TAG "ImageProcess"
 
-#include <stdio.h>
-#include <dlfcn.h>
+#include "ImageProcess.h"
+
 #include <cutils/log.h>
 #include <cutils/properties.h>
+#include <dlfcn.h>
 #include <g2d.h>
+#include <stdio.h>
 
-#include "ImageProcess.h"
 #include "Composer.h"
 #include "Memory.h"
 #include "MemoryDesc.h"
@@ -41,10 +42,10 @@
 
 namespace fsl {
 
-ImageProcess* ImageProcess::sInstance(0);
+ImageProcess *ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
 
-ImageProcess* ImageProcess::getInstance() {
+ImageProcess *ImageProcess::getInstance() {
     Mutex::Autolock _l(sLock);
     if (sInstance != NULL) {
         return sInstance;
@@ -54,20 +55,17 @@ ImageProcess* ImageProcess::getInstance() {
     return sInstance;
 }
 
-static bool getDefaultG2DLib(char *libName, int size)
-{
+static bool getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if((libName == NULL)||(size < (int)strlen(G2DENGINE) + (int)strlen(".so")))
-        return false;
+    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so"))) return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
-    if(strcmp(value, "") == 0) {
+    if (strcmp(value, "") == 0) {
         ALOGI("No g2d lib available to be used!");
         return false;
-    }
-    else {
+    } else {
         strncpy(libName, G2DENGINE, strlen(G2DENGINE));
         strcat(libName, "-");
         strcat(libName, value);
@@ -77,8 +75,7 @@ static bool getDefaultG2DLib(char *libName, int size)
     return true;
 }
 
-ImageProcess::ImageProcess()
-    : mCLModule(NULL) {
+ImageProcess::ImageProcess() : mCLModule(NULL) {
     int32_t ret = -1;
     char path[PATH_MAX] = {0};
 
@@ -99,18 +96,18 @@ ImageProcess::ImageProcess()
         mCLFlush = (hwc_func1)dlsym(mCLModule, "cl_g2d_flush");
         mCLFinish = (hwc_func1)dlsym(mCLModule, "cl_g2d_finish");
         mCLBlit = (hwc_func3)dlsym(mCLModule, "cl_g2d_blit");
-        ret = (*mCLOpen)((void*)&mCLHandle);
+        ret = (*mCLOpen)((void *)&mCLHandle);
         if (ret != 0) {
             mCLHandle = NULL;
         }
     }
 
-    if(mCLHandle != NULL) {
+    if (mCLHandle != NULL) {
         ALOGI("%s: opencl g2d device is used!\n", __func__);
     }
 
     char g2dlibName[PATH_MAX] = {0};
-    if(getDefaultG2DLib(g2dlibName, PATH_MAX)){
+    if (getDefaultG2DLib(g2dlibName, PATH_MAX)) {
         getModule(path, g2dlibName);
         mG2dModule = dlopen(path, RTLD_NOW);
     }
@@ -122,8 +119,7 @@ ImageProcess::ImageProcess()
         mCopyEngine = NULL;
         mBlitEngine = NULL;
         mG2dHandle = NULL;
-    }
-    else {
+    } else {
         mOpenEngine = (hwc_func1)dlsym(mG2dModule, "g2d_open");
         mCloseEngine = (hwc_func1)dlsym(mG2dModule, "g2d_close");
         mFinishEngine = (hwc_func1)dlsym(mG2dModule, "g2d_finish");
@@ -135,7 +131,7 @@ ImageProcess::ImageProcess()
         }
     }
 
-    if(mG2dHandle != NULL) {
+    if (mG2dHandle != NULL) {
         ALOGI("%s: g2d device is used!\n", __func__);
     }
 }
@@ -162,59 +158,59 @@ ImageProcess::~ImageProcess() {
 
 void ImageProcess::getModule(char *path, const char *name) {
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
-    if (access(path, R_OK) == 0)
-        return;
+    if (access(path, R_OK) == 0) return;
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
-    if (access(path, R_OK) == 0)
-        return;
+    if (access(path, R_OK) == 0) return;
     return;
 }
 
 int ImageProcess::handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
-        ImgFormat dst_fmt, ImgFormat src_fmt, uint64_t dstPhyAddr, uint64_t srcPhyAddr) {
+                              ImgFormat dst_fmt, ImgFormat src_fmt, uint64_t dstPhyAddr,
+                              uint64_t srcPhyAddr) {
     int ret = 0;
 
     ALOGV("%s: src_fmt %d, dst_fmt %d, size %dx%d", __func__, src_fmt, dst_fmt, width, height);
 
-    if (!((dst_fmt == NV12)||(dst_fmt == I420))) {
+    if (!((dst_fmt == NV12) || (dst_fmt == I420))) {
         ALOGI("%s: unsupported dst_fmt %d", __func__, dst_fmt);
         return -1;
     }
 
     switch (src_fmt) {
-    case NV12:
-        ALOGV("%s: handle NV12 Frame\n", __func__);
-        ret = handleNV12Frame(dstBuf, srcBuf, width, height, dst_fmt);
-        break;
-    case NV16:
-        ALOGV("%s: handle NV16 Frame!\n", __func__);
-        ret = handleNV16Frame(dstBuf, srcBuf, width, height, dst_fmt);
-        break;
-    case YUYV:
-        ALOGV("%s: handle YUYV Frame!\n", __func__);
-        ret = handleYUYVFrame(dstBuf, srcBuf, width, height, dstPhyAddr, srcPhyAddr, dst_fmt);
-        break;
-    default:
-        ALOGE("%s: src_fmt cannot be handled!\n", __func__);
-        return -EINVAL;
+        case NV12:
+            ALOGV("%s: handle NV12 Frame\n", __func__);
+            ret = handleNV12Frame(dstBuf, srcBuf, width, height, dst_fmt);
+            break;
+        case NV16:
+            ALOGV("%s: handle NV16 Frame!\n", __func__);
+            ret = handleNV16Frame(dstBuf, srcBuf, width, height, dst_fmt);
+            break;
+        case YUYV:
+            ALOGV("%s: handle YUYV Frame!\n", __func__);
+            ret = handleYUYVFrame(dstBuf, srcBuf, width, height, dstPhyAddr, srcPhyAddr, dst_fmt);
+            break;
+        default:
+            ALOGE("%s: src_fmt cannot be handled!\n", __func__);
+            return -EINVAL;
     }
 
     return ret;
 }
 
-int ImageProcess::handleNV12Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, ImgFormat dst_fmt) {
+int ImageProcess::handleNV12Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+                                  ImgFormat dst_fmt) {
     if (mCLHandle == NULL) {
         ALOGE("%s: mCLHandle is NULL!\n", __func__);
         return -EINVAL;
     }
 
     if (dst_fmt == NV12) {
-        memcpy(dstBuf, srcBuf, width*height*3/2);
+        memcpy(dstBuf, srcBuf, width * height * 3 / 2);
         return 0;
     }
 
     bool bOutputCached = true;
-    //diffrent format, same resolution
+    // diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
         cl_NV12toI420(mCLHandle, srcBuf, dstBuf, width, height, false, bOutputCached);
@@ -225,8 +221,8 @@ int ImageProcess::handleNV12Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t wid
     return 0;
 }
 
-void ImageProcess::cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer,
-         uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached) {
+void ImageProcess::cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
+                                 int width, int height, bool bInputCached, bool bOutputCached) {
     struct cl_g2d_surface src, dst;
 
     src.format = CL_G2D_NV12;
@@ -238,7 +234,7 @@ void ImageProcess::cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer,
     src.right = width;
     src.bottom = height;
     src.stride = width;
-    src.width  = width;
+    src.width = width;
     src.height = height;
 
     dst.format = CL_G2D_I420;
@@ -251,13 +247,14 @@ void ImageProcess::cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer,
     dst.right = width;
     dst.bottom = height;
     dst.stride = width;
-    dst.width  = width;
+    dst.width = width;
     dst.height = height;
 
-    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+    (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
 
-int ImageProcess::handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, ImgFormat dst_fmt){
+int ImageProcess::handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+                                  ImgFormat dst_fmt) {
     if (mCLHandle == NULL) {
         ALOGE("%s: mCLHandle is NULL!\n", __func__);
         return -EINVAL;
@@ -274,10 +271,10 @@ int ImageProcess::handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t wid
     return ret;
 }
 
-int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer,
-         uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached, ImgFormat dst_fmt) {
-
-    if ( !((dst_fmt == NV12) || (dst_fmt == I420)) ) {
+int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
+                             int width, int height, bool bInputCached, bool bOutputCached,
+                             ImgFormat dst_fmt) {
+    if (!((dst_fmt == NV12) || (dst_fmt == I420))) {
         ALOGE("%s: unsupported dst_fmt %d", __func__, dst_fmt);
         return -1;
     }
@@ -293,7 +290,7 @@ int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer,
     src.right = width;
     src.bottom = height;
     src.stride = width;
-    src.width  = width;
+    src.width = width;
     src.height = height;
 
     dst.format = (dst_fmt == I420) ? CL_G2D_I420 : CL_G2D_NV12;
@@ -306,23 +303,23 @@ int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer,
     dst.right = width;
     dst.bottom = height;
     dst.stride = width;
-    dst.width  = width;
+    dst.width = width;
     dst.height = height;
 
-    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+    (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 
     return 0;
 }
 
-int ImageProcess::handleYUYVFrameByG3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, ImgFormat dst_fmt) {
-
+int ImageProcess::handleYUYVFrameByG3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width,
+                                       uint32_t height, ImgFormat dst_fmt) {
     if (mCLHandle == NULL) {
         ALOGE("%s: mCLHandle is NULL!\n", __func__);
         return -EINVAL;
     }
 
     bool bOutputCached = true;
-    //diffrent format, same resolution
+    // diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
         cl_YUYVtoI420(mCLHandle, srcBuf, dstBuf, width, height, false, bOutputCached);
@@ -333,15 +330,16 @@ int ImageProcess::handleYUYVFrameByG3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_
     return 0;
 }
 
-int ImageProcess::handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height, uint64_t dstPhyAddr, uint64_t srcPhyAddr, ImgFormat dst_fmt) {
+int ImageProcess::handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+                                  uint64_t dstPhyAddr, uint64_t srcPhyAddr, ImgFormat dst_fmt) {
     if (mG2dHandle)
-      return handleYUYVFrameByG2D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
+        return handleYUYVFrameByG2D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
     else
-      return handleYUYVFrameByG3D(dstBuf, srcBuf, width, height, dst_fmt);
+        return handleYUYVFrameByG3D(dstBuf, srcBuf, width, height, dst_fmt);
 }
 
-void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer,
-         uint8_t *outputBuffer, int width, int height, bool bInputCached, bool bOutputCached) {
+void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
+                                 int width, int height, bool bInputCached, bool bOutputCached) {
     struct cl_g2d_surface src, dst;
 
     src.format = CL_G2D_YUYV;
@@ -352,7 +350,7 @@ void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer,
     src.right = width;
     src.bottom = height;
     src.stride = width;
-    src.width  = width;
+    src.width = width;
     src.height = height;
 
     dst.format = CL_G2D_I420;
@@ -365,20 +363,20 @@ void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer,
     dst.right = width;
     dst.bottom = height;
     dst.stride = width;
-    dst.width  = width;
+    dst.width = width;
     dst.height = height;
 
-    (*mCLBlit)(g2dHandle, (void*)&src, (void*)&dst);
+    (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
 
-int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width, uint32_t height, ImgFormat dst_fmt)
-{
+int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
+                                       uint32_t height, ImgFormat dst_fmt) {
     if (mBlitEngine == NULL) {
         return -EINVAL;
     }
 
     int ret;
-    void* g2dHandle = mG2dHandle;
+    void *g2dHandle = mG2dHandle;
     struct g2d_surface s_surface, d_surface;
 
     s_surface.format = G2D_YUYV;
@@ -388,9 +386,9 @@ int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr,
     s_surface.right = width;
     s_surface.bottom = height;
     s_surface.stride = width;
-    s_surface.width  = width;
+    s_surface.width = width;
     s_surface.height = height;
-    s_surface.rot    = G2D_ROTATION_0;
+    s_surface.rot = G2D_ROTATION_0;
 
     d_surface.format = (dst_fmt == I420) ? G2D_I420 : G2D_NV12;
     d_surface.planes[0] = (long)dstPhyAddr;
@@ -401,14 +399,13 @@ int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr,
     d_surface.right = width;
     d_surface.bottom = height;
     d_surface.stride = width;
-    d_surface.width  = width;
+    d_surface.width = width;
     d_surface.height = height;
-    d_surface.rot    = G2D_ROTATION_0;
+    d_surface.rot = G2D_ROTATION_0;
 
     Mutex::Autolock _l(mG2dLock);
-    ret = mBlitEngine(g2dHandle, (void*)&s_surface, (void*)&d_surface);
-    if (ret)
-        goto finish_blit;
+    ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&d_surface);
+    if (ret) goto finish_blit;
 
     mFinishEngine(g2dHandle);
 
@@ -416,5 +413,4 @@ finish_blit:
     return ret;
 }
 
-}
-
+} // namespace fsl

@@ -30,6 +30,8 @@
 #ifndef THERMAL_THERMAL_HELPER_H__
 #define THERMAL_THERMAL_HELPER_H__
 
+#include <android/hardware/thermal/2.0/IThermal.h>
+
 #include <array>
 #include <chrono>
 #include <mutex>
@@ -39,8 +41,6 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-
-#include <android/hardware/thermal/2.0/IThermal.h>
 
 #include "utils/config_parser.h"
 #include "utils/thermal_files.h"
@@ -75,7 +75,7 @@ struct SensorStatus {
 };
 
 class ThermalHelper {
-  public:
+public:
     ThermalHelper(const NotificationCallback &cb);
     ~ThermalHelper() = default;
 
@@ -106,7 +106,7 @@ class ThermalHelper {
     const std::map<std::string, SensorInfo> &GetSensorInfoMap() const { return sensor_info_map_; }
     void enableCPU(std::string cpu, bool enable);
 
-  private:
+private:
     bool initializeSensorMap(const std::map<std::string, std::string> &path_map);
     bool initializeCoolingDevices(const std::map<std::string, std::string> &path_map);
     bool initializeTrip(const std::map<std::string, std::string> &path_map);
@@ -115,10 +115,10 @@ class ThermalHelper {
     bool thermalWatcherCallbackFunc(const std::set<std::string> &uevent_sensors);
     // Return hot and cold severity status as std::pair
     std::pair<ThrottlingSeverity, ThrottlingSeverity> getSeverityFromThresholds(
-        const ThrottlingArray &hot_thresholds, const ThrottlingArray &cold_thresholds,
-        const ThrottlingArray &hot_hysteresis, const ThrottlingArray &cold_hysteresis,
-        ThrottlingSeverity prev_hot_severity, ThrottlingSeverity prev_cold_severity,
-        float value) const;
+            const ThrottlingArray &hot_thresholds, const ThrottlingArray &cold_thresholds,
+            const ThrottlingArray &hot_hysteresis, const ThrottlingArray &cold_hysteresis,
+            ThrottlingSeverity prev_hot_severity, ThrottlingSeverity prev_cold_severity,
+            float value) const;
 
     sp<ThermalWatcher> thermal_watcher_;
     ThermalFiles thermal_sensors_;
@@ -132,10 +132,10 @@ class ThermalHelper {
     std::map<std::string, SensorStatus> sensor_status_map_;
 };
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android
 
-#endif  // THERMAL_THERMAL_HELPER_H__
+#endif // THERMAL_THERMAL_HELPER_H__

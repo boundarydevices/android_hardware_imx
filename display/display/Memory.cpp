@@ -14,21 +14,34 @@
  * limitations under the License.
  */
 
-#include <string.h>
 #include "Memory.h"
+
+#include <string.h>
+
 #include "MemoryDesc.h"
 
 namespace fsl {
 
 Memory::Memory(MemoryDesc* desc, int fd, int fd2)
-  : fd(dup(fd)), fd_meta(fd2), magic(sMagic), flags(desc->mFlag),
-    size(desc->mSize), offset(0), base(0),  phys(0),
-    width(desc->mWidth), height(desc->mHeight),
-    format(desc->mFormat), stride(desc->mStride),
-    usage(desc->mProduceUsage), pid(getpid()),
-    fslFormat(desc->mFslFormat), kmsFd(-1),
-    fbHandle(0), fbId(0), surface(0)
-{
+      : fd(dup(fd)),
+        fd_meta(fd2),
+        magic(sMagic),
+        flags(desc->mFlag),
+        size(desc->mSize),
+        offset(0),
+        base(0),
+        phys(0),
+        width(desc->mWidth),
+        height(desc->mHeight),
+        format(desc->mFormat),
+        stride(desc->mStride),
+        usage(desc->mProduceUsage),
+        pid(getpid()),
+        fslFormat(desc->mFslFormat),
+        kmsFd(-1),
+        fbHandle(0),
+        fbId(0),
+        surface(0) {
     version = sizeof(native_handle);
     numInts = sNumInts();
     numFds = sNumFds;
@@ -49,8 +62,7 @@ Memory::Memory(MemoryDesc* desc, int fd, int fd2)
     memset(viv_reserved, 0, sizeof(viv_reserved));
 }
 
-Memory::~Memory()
-{
+Memory::~Memory() {
     magic = 0;
     if (fd_meta > 0) {
         close(fd_meta);
@@ -66,9 +78,8 @@ Memory::~Memory()
 #endif
 }
 
-bool Memory::isValid()
-{
+bool Memory::isValid() {
     return (magic == sMagic);
 }
 
-}
+} // namespace fsl

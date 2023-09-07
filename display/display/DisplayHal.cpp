@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-#include <inttypes.h>
-#include <Memory.h>
-#include <MemoryDesc.h>
-#include <DisplayManager.h>
-#include <Display.h>
-#include <sync/sync.h>
-
 #include "DisplayHal.h"
 
-#include <android-base/logging.h>
-#include <android-base/strings.h>
-#include <android-base/stringprintf.h>
+#include <Display.h>
+#include <DisplayManager.h>
+#include <Memory.h>
+#include <MemoryDesc.h>
 #include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/stringprintf.h>
+#include <android-base/strings.h>
 #include <android-base/unique_fd.h>
+#include <inttypes.h>
+#include <sync/sync.h>
 
 namespace nxp {
 namespace hardware {
@@ -42,14 +41,13 @@ using ::android::base::StringPrintf;
 using ::android::base::WriteStringToFd;
 
 // Methods from ::android::hardware::graphics::display::V1_0::IDisplay follow.
-Return<void> DisplayHal::getLayer(uint32_t count, getLayer_cb _hidl_cb)
-{
+Return<void> DisplayHal::getLayer(uint32_t count, getLayer_cb _hidl_cb) {
     uint32_t layer = -1;
 
     // create hw layer and buffer slot.
     {
         std::lock_guard<std::mutex> lock(mLock);
-        for (uint32_t i=0; i<MAX_LAYERS; i++) {
+        for (uint32_t i = 0; i < MAX_LAYERS; i++) {
             if (mLayers[i] != nullptr) {
                 continue;
             }
@@ -77,8 +75,7 @@ Return<void> DisplayHal::getLayer(uint32_t count, getLayer_cb _hidl_cb)
     return Void();
 }
 
-Return<Error> DisplayHal::putLayer(uint32_t layer)
-{
+Return<Error> DisplayHal::putLayer(uint32_t layer) {
     ALOGI("%s index:%d", __func__, layer);
 
     if (layer >= MAX_LAYERS) {
@@ -92,8 +89,7 @@ Return<Error> DisplayHal::putLayer(uint32_t layer)
     pDisplay = displayManager->getDisplay(MAIN_DISPLAY);
     if (pDisplay == NULL) {
         ALOGE("%s get main display failed", __func__);
-    }
-    else {
+    } else {
         pDisplay->removeHwLayer(layer);
     }
 
@@ -120,8 +116,7 @@ Return<Error> DisplayHal::putLayer(uint32_t layer)
     return Error::NONE;
 }
 
-Return<void> DisplayHal::getSlot(uint32_t layer, getSlot_cb _hidl_cb)
-{
+Return<void> DisplayHal::getSlot(uint32_t layer, getSlot_cb _hidl_cb) {
     uint32_t slot = -1;
     if (layer >= MAX_LAYERS) {
         ALOGE("%s invalid layer", __func__);
@@ -143,7 +138,7 @@ Return<void> DisplayHal::getSlot(uint32_t layer, getSlot_cb _hidl_cb)
     }
 
     // check the hw layer property.
-    fsl::BufferSlot *queue = (fsl::BufferSlot *)pLayer->priv;
+    fsl::BufferSlot* queue = (fsl::BufferSlot*)pLayer->priv;
     if (!(pLayer->flags & fsl::BUFFER_SLOT) || queue == nullptr) {
         ALOGE("%s flags:0x%x, queue:%p", __func__, pLayer->flags, queue);
         ALOGE("%s layer without BUFFER_SLOT flag", __func__);
@@ -157,9 +152,7 @@ Return<void> DisplayHal::getSlot(uint32_t layer, getSlot_cb _hidl_cb)
     return Void();
 }
 
-Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
-              const hidl_handle& buffer)
-{
+Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot, const hidl_handle& buffer) {
     if (layer >= MAX_LAYERS) {
         ALOGE("%s invalid layer", __func__);
         return Error::BAD_VALUE;
@@ -176,13 +169,13 @@ Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
         pLayer = mLayers[layer];
     }
 
-    fsl::BufferSlot *queue = (fsl::BufferSlot *)pLayer->priv;
+    fsl::BufferSlot* queue = (fsl::BufferSlot*)pLayer->priv;
     if (!(pLayer->flags & fsl::BUFFER_SLOT) || queue == nullptr) {
         ALOGE("%s layer without BUFFER_SLOT flag", __func__);
         return Error::BAD_VALUE;
     }
 
-    const fsl::Memory *handle = (const fsl::Memory *)buffer.getNativeHandle();
+    const fsl::Memory* handle = (const fsl::Memory*)buffer.getNativeHandle();
 
     fsl::Display* pDisplay = NULL;
     fsl::DisplayManager* displayManager = fsl::DisplayManager::getInstance();
@@ -198,14 +191,14 @@ Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
         pLayer->planeAlpha = 255;
         pLayer->color = 0;
         // set source crop to buffer size.
-        Rect &src = pLayer->sourceCrop;
+        Rect& src = pLayer->sourceCrop;
         src.left = src.top = 0;
         src.right = handle->width;
         src.bottom = handle->height;
 
         // set display frame to display resolution.
         const fsl::DisplayConfig& config = pDisplay->getActiveConfig();
-        Rect &dst = pLayer->displayFrame;
+        Rect& dst = pLayer->displayFrame;
         dst.left = dst.top = 0;
         dst.right = config.mXres;
         dst.bottom = config.mYres;
@@ -219,7 +212,7 @@ Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
         pDisplay->addHwLayer(layer, pLayer);
     }
 
-    queue->addPresentSlot(slot, (fsl::Memory *)handle);
+    queue->addPresentSlot(slot, (fsl::Memory*)handle);
 
     if (pDisplay->triggerComposition()) {
         pDisplay->composeLayers();
@@ -234,20 +227,20 @@ Return<Error> DisplayHal::presentLayer(uint32_t layer, uint32_t slot,
         return Error::NONE;
     }
 
-    //For the first frame, vync maybe disabled
-    //Menually trigger the onRefresh for composer
-    if(queue->presentTotal() == 1) {
+    // For the first frame, vync maybe disabled
+    // Menually trigger the onRefresh for composer
+    if (queue->presentTotal() == 1) {
         fsl::EventListener* callback = NULL;
         callback = displayManager->getCallback();
         if (callback != NULL) {
-             callback->onRefresh(0);
+            callback->onRefresh(0);
         }
     }
 
     return Error::NONE;
 }
 
-Return<void> DisplayHal::debug(const hidl_handle& fd , const hidl_vec<hidl_string>& options) {
+Return<void> DisplayHal::debug(const hidl_handle& fd, const hidl_vec<hidl_string>& options) {
     if (fd.getNativeHandle() != nullptr && fd->numFds > 0) {
         cmdDump(fd->data[0], options);
     } else {
@@ -272,18 +265,20 @@ void DisplayHal::cmdDump(int fd, const hidl_vec<hidl_string>& options) {
     } else if (EqualsIgnoreCase(option, "--dump")) {
         cmdDumpDevice(fd, options);
     } else {
-        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()),fd);
+        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()), fd);
         cmdHelp(fd);
     }
 }
 
 void DisplayHal::cmdHelp(int fd) {
     WriteStringToFd("--help: shows this help.\n"
-                    "--list: [option1|option2|...|all]: lists all the dump options: option1 or option2 or ... or all\n"
+                    "--list: [option1|option2|...|all]: lists all the dump options: option1 or "
+                    "option2 or ... or all\n"
                     "available to Display Hal.\n"
                     "--dump option1: shows current status of the option1\n"
                     "--dump option2: shows current status of the option2\n"
-                    "--dump all: shows current status of all the options\n", fd);
+                    "--dump all: shows current status of all the options\n",
+                    fd);
     return;
 }
 
@@ -296,21 +291,25 @@ void DisplayHal::cmdList(int fd, const hidl_vec<hidl_string>& options) {
         listoption1 = listAll || EqualsIgnoreCase(option, "option1");
         listoption2 = listAll || EqualsIgnoreCase(option, "option2");
         if (!listoption1 && !listoption2) {
-            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"), fd);
             cmdHelp(fd);
             return;
         }
-        if(listoption1) {
-            WriteStringToFd(StringPrintf("list option1 dump options, default is --list listoption1.\n"),fd);
-         }
+        if (listoption1) {
+            WriteStringToFd(StringPrintf(
+                                    "list option1 dump options, default is --list listoption1.\n"),
+                            fd);
+        }
 
-        if(listoption2) {
-            WriteStringToFd(StringPrintf("list option2 dump options, default is --list listoption2.\n"),fd);
+        if (listoption2) {
+            WriteStringToFd(StringPrintf(
+                                    "list option2 dump options, default is --list listoption2.\n"),
+                            fd);
         }
     } else {
-        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"),fd);
+        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"), fd);
         cmdHelp(fd);
-     }
+    }
 }
 
 void DisplayHal::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
@@ -322,32 +321,32 @@ void DisplayHal::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
         listoption1 = listAll || EqualsIgnoreCase(option, "option1");
         listoption2 = listAll || EqualsIgnoreCase(option, "option2");
         if (!listoption1 && !listoption2) {
-            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"), fd);
             cmdHelp(fd);
             return;
         }
-        if(listoption1) {
-            WriteStringToFd(StringPrintf("dump option1 info.\n"),fd);
+        if (listoption1) {
+            WriteStringToFd(StringPrintf("dump option1 info.\n"), fd);
         }
-        if(listoption2) {
-            WriteStringToFd(StringPrintf("dump option2 info.\n"),fd);
+        if (listoption2) {
+            WriteStringToFd(StringPrintf("dump option2 info.\n"), fd);
         }
     } else {
-        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"),fd);
+        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"), fd);
         cmdHelp(fd);
     }
 }
 
-Return<void> DisplayHal::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y,
-          uint32_t w, uint32_t h) {
-    ALOGI("%s enable %s", __func__, enable?"true":"false");
+Return<void> DisplayHal::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w,
+                                                uint32_t h) {
+    ALOGI("%s enable %s", __func__, enable ? "true" : "false");
     fsl::DisplayManager* displayManager = fsl::DisplayManager::getInstance();
     displayManager->setSecureDisplayEnable(enable, x, y, w, h);
     return Void();
 }
 
-}  // namespace implementation
-}  // namespace V1_0
-}  // namespace display
-}  // namespace hardware
-}  // namespace nxp
+} // namespace implementation
+} // namespace V1_0
+} // namespace display
+} // namespace hardware
+} // namespace nxp

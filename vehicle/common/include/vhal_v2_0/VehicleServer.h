@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include <vector>
-
 #include <android/hardware/automotive/vehicle/2.0/types.h>
+
+#include <vector>
 
 namespace android::hardware::automotive::vehicle::V2_0 {
 
@@ -27,7 +27,7 @@ namespace android::hardware::automotive::vehicle::V2_0 {
  *  Note that the server may not be run on Android
  */
 class IVehicleServer {
-  public:
+public:
     IVehicleServer() = default;
 
     IVehicleServer(const IVehicleServer&) = delete;
@@ -62,7 +62,7 @@ class IVehicleServer {
                         const hidl_vec<hidl_string>& /* options */) {
         return true;
     }
-#endif  // __ANDROID__
+#endif // __ANDROID__
 };
 
-}  // namespace android::hardware::automotive::vehicle::V2_0
+} // namespace android::hardware::automotive::vehicle::V2_0

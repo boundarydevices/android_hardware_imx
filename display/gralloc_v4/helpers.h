@@ -15,7 +15,8 @@
 uint32_t drv_height_from_format(uint32_t format, uint32_t height, size_t plane);
 uint32_t drv_vertical_subsampling_from_format(uint32_t format, size_t plane);
 uint32_t drv_size_from_format(uint32_t format, uint32_t stride, uint32_t height, size_t plane);
-int drv_bo_from_format(gralloc_handle *hnd, uint32_t stride, uint32_t aligned_height, uint32_t format);
+int drv_bo_from_format(gralloc_handle *hnd, uint32_t stride, uint32_t aligned_height,
+                       uint32_t format);
 int drv_bo_from_format_and_padding(gralloc_handle *hnd, uint32_t stride, uint32_t aligned_height,
-				   uint32_t format, uint32_t padding[DRV_MAX_PLANES]);
+                                   uint32_t format, uint32_t padding[DRV_MAX_PLANES]);
 #endif

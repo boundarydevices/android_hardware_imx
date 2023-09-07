@@ -6,10 +6,7 @@
 
 #include "NxpUtils.h"
 
-#include <inttypes.h>
-#include <array>
-#include <unordered_map>
-
+#include <DisplayUtil.h>
 #include <aidl/android/hardware/graphics/common/PlaneLayoutComponent.h>
 #include <aidl/android/hardware/graphics/common/PlaneLayoutComponentType.h>
 #include <android-base/stringprintf.h>
@@ -18,11 +15,14 @@
 #include <cutils/native_handle.h>
 #include <gralloctypes/Gralloc4.h>
 #include <hardware/gralloc.h>
-#include <DisplayUtil.h>
+#include <inttypes.h>
 
+#include <array>
+#include <unordered_map>
+
+#include "../../include/graphics_ext.h"
 #include "drv.h"
 #include "gralloc_helpers.h"
-#include "../../include/graphics_ext.h"
 
 using aidl::android::hardware::graphics::common::PlaneLayout;
 using aidl::android::hardware::graphics::common::PlaneLayoutComponent;
@@ -296,7 +296,7 @@ int convertToDrmFormat(PixelFormat format, uint32_t* outDrmFormat) {
             *outDrmFormat = DRM_FORMAT_YUV422;
             return 0;
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
-            *outDrmFormat = DRM_FORMAT_YUV420;// same as FORMAT_I420  ?
+            *outDrmFormat = DRM_FORMAT_YUV420; // same as FORMAT_I420  ?
             return 0;
         case HAL_PIXEL_FORMAT_CbYCrY_422_I:
             *outDrmFormat = DRM_FORMAT_UYVY;
@@ -383,7 +383,6 @@ int convertToBufferUsage(uint64_t grallocUsage, uint64_t* outBufferUsage) {
         bufferUsage |= BO_USE_HW_VIDEO_DECODER;
     }
 
-
     if (grallocUsage & BufferUsage::COMPOSER_CLIENT_TARGET) {
         bufferUsage |= BO_USE_FRAMEBUFFER;
     }
@@ -403,7 +402,7 @@ int convertToBufferUsage(uint64_t grallocUsage, uint64_t* outBufferUsage) {
 }
 
 int convertToMemDescriptor(const BufferDescriptorInfo& descriptor,
-                            struct gralloc_buffer_descriptor* outMemDescriptor) {
+                           struct gralloc_buffer_descriptor* outMemDescriptor) {
     outMemDescriptor->name = descriptor.name;
     outMemDescriptor->width = descriptor.width;
     outMemDescriptor->height = descriptor.height;
@@ -682,7 +681,7 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                              .verticalSubsampling = 1,
                      }}},
 
-                    {DRM_FORMAT_YUV420,//I420
+                    {DRM_FORMAT_YUV420, // I420
                      {
                              {
                                      .components = {{.type = android::gralloc4::
@@ -713,7 +712,7 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                              },
                      }},
 
-                    {DRM_FORMAT_YVU420_ANDROID,//YV12
+                    {DRM_FORMAT_YVU420_ANDROID, // YV12
                      {
                              {
                                      .components = {{.type = android::gralloc4::
@@ -745,24 +744,27 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                      }},
 
                     {DRM_FORMAT_YUYV,
-                     {{
-                              .components = {{.type = android::gralloc4::PlaneLayoutComponentType_Y,
-                                              .offsetInBits = 0,
-                                              .sizeInBits = 8},
-                                             {.type = android::gralloc4::PlaneLayoutComponentType_CB,
-                                              .offsetInBits = 8,
-                                              .sizeInBits = 8},
-                                             {.type = android::gralloc4::PlaneLayoutComponentType_CR,
-                                              .offsetInBits = 8,
-                                              .sizeInBits = 8}
-                                            },
-                              .sampleIncrementInBits = 8,
-                              .horizontalSubsampling = 1,
-                              .verticalSubsampling = 1,
-                      },
+                     {
+                             {
+                                     .components = {{.type = android::gralloc4::
+                                                             PlaneLayoutComponentType_Y,
+                                                     .offsetInBits = 0,
+                                                     .sizeInBits = 8},
+                                                    {.type = android::gralloc4::
+                                                             PlaneLayoutComponentType_CB,
+                                                     .offsetInBits = 8,
+                                                     .sizeInBits = 8},
+                                                    {.type = android::gralloc4::
+                                                             PlaneLayoutComponentType_CR,
+                                                     .offsetInBits = 8,
+                                                     .sizeInBits = 8}},
+                                     .sampleIncrementInBits = 8,
+                                     .horizontalSubsampling = 1,
+                                     .verticalSubsampling = 1,
+                             },
                      }},
 
-                    {DRM_FORMAT_NV16,//HAL_PIXEL_FORMAT_YCbCr_422_SP
+                    {DRM_FORMAT_NV16, // HAL_PIXEL_FORMAT_YCbCr_422_SP
                      {{
                               .components = {{.type = android::gralloc4::PlaneLayoutComponentType_Y,
                                               .offsetInBits = 0,
@@ -785,14 +787,16 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                       }}},
 
                     {DRM_FORMAT_RAW16,
-                     {{
-                              .components = {{.type = android::gralloc4::PlaneLayoutComponentType_RAW,
-                                              .offsetInBits = 0,
-                                              .sizeInBits = 16}},
-                              .sampleIncrementInBits = 16,
-                              .horizontalSubsampling = 1,
-                              .verticalSubsampling = 1,
-                      },
+                     {
+                             {
+                                     .components = {{.type = android::gralloc4::
+                                                             PlaneLayoutComponentType_RAW,
+                                                     .offsetInBits = 0,
+                                                     .sizeInBits = 16}},
+                                     .sampleIncrementInBits = 16,
+                                     .horizontalSubsampling = 1,
+                                     .verticalSubsampling = 1,
+                             },
                      }},
             });
     return *kPlaneLayoutsMap;

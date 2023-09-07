@@ -19,56 +19,50 @@
 #ifndef ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 #define ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H
 
-#include <stdlib.h>
 #include <cutils/list.h>
+#include <hardware/hardware.h>
+#include <sound/compress_offload.h>
+#include <sound/compress_params.h>
+#include <stdlib.h>
 #include <tinyalsa/asoundlib.h>
 #include <tinycompress/tinycompress.h>
-#include <sound/compress_params.h>
-#include <sound/compress_offload.h>
-
-#include <hardware/hardware.h>
 
 #include "audio_card_config_parse.h"
 
 #define MIN(x, y) ((x) > (y) ? (y) : (x))
 
-#define DEFAULT_OUTPUT_SAMPLE_RATE      48000
+#define DEFAULT_OUTPUT_SAMPLE_RATE 48000
 
-#define DEFAULT_OUTPUT_CHANNEL_MASK     AUDIO_CHANNEL_OUT_STEREO
-#define DEFAULT_OUTPUT_CHANNEL_COUNT    2
+#define DEFAULT_OUTPUT_CHANNEL_MASK AUDIO_CHANNEL_OUT_STEREO
+#define DEFAULT_OUTPUT_CHANNEL_COUNT 2
 
-#define DEFAULT_OUTPUT_FORMAT           AUDIO_FORMAT_PCM_16_BIT
-#define DEFAULT_OUTPUT_FORMAT_PCM       PCM_FORMAT_S16_LE
+#define DEFAULT_OUTPUT_FORMAT AUDIO_FORMAT_PCM_16_BIT
+#define DEFAULT_OUTPUT_FORMAT_PCM PCM_FORMAT_S16_LE
 
-#define DEFAULT_INPUT_SAMPLE_RATE       48000
+#define DEFAULT_INPUT_SAMPLE_RATE 48000
 
-#define DEFAULT_INPUT_CHANNEL_MASK      AUDIO_CHANNEL_IN_STEREO
-#define DEFAULT_INPUT_CHANNEL_COUNT     2
+#define DEFAULT_INPUT_CHANNEL_MASK AUDIO_CHANNEL_IN_STEREO
+#define DEFAULT_INPUT_CHANNEL_COUNT 2
 
-#define DEFAULT_INPUT_FORMAT            AUDIO_FORMAT_PCM_16_BIT
-#define DEFAULT_INPUT_FORMAT_PCM        PCM_FORMAT_S16_LE
+#define DEFAULT_INPUT_FORMAT AUDIO_FORMAT_PCM_16_BIT
+#define DEFAULT_INPUT_FORMAT_PCM PCM_FORMAT_S16_LE
 
-enum tty_modes {
-    TTY_MODE_OFF,
-    TTY_MODE_VCO,
-    TTY_MODE_HCO,
-    TTY_MODE_FULL
-};
+enum tty_modes { TTY_MODE_OFF, TTY_MODE_VCO, TTY_MODE_HCO, TTY_MODE_FULL };
 
-#define MAX_AUDIO_CARD_NUM  10
-#define MAX_SUP_CHANNEL_NUM  20
-#define MAX_SUP_RATE_NUM     20
+#define MAX_AUDIO_CARD_NUM 10
+#define MAX_SUP_CHANNEL_NUM 20
+#define MAX_SUP_RATE_NUM 20
 
 struct imx_audio_device {
     struct audio_hw_device hw_device;
 
-    pthread_mutex_t lock;       /* see note below on mutex acquisition order */
+    pthread_mutex_t lock; /* see note below on mutex acquisition order */
     int mode;
     int in_device;
     int out_device;
     int in_call;
     float voice_volume;
-    struct imx_stream_in  *active_input;                /*1 input stream, 2 outout stream*/
+    struct imx_stream_in *active_input; /*1 input stream, 2 outout stream*/
     struct imx_stream_out *primary_output;
     bool mic_mute;
     int tty_mode;
@@ -89,8 +83,8 @@ struct imx_audio_device {
     struct pcm *pcm_cap;
     struct pcm_config cap_config;
     Hashmap *out_bus_stream_map;
-    struct listnode out_streams; // record for output streams
-    struct listnode in_streams;  // record for input streams
+    struct listnode out_streams;            // record for output streams
+    struct listnode in_streams;             // record for input streams
     audio_patch_handle_t next_patch_handle; // unique handle used in release/create_audio_patch
     char device_name[128];
 };
@@ -98,7 +92,7 @@ struct imx_audio_device {
 struct imx_stream_out {
     struct audio_stream_out stream;
 
-    pthread_mutex_t lock;       /* see note below on mutex acquisition order */
+    pthread_mutex_t lock; /* see note below on mutex acquisition order */
     struct pcm_config config;
     struct compr_config compr_config;
     struct pcm *pcm;
@@ -120,12 +114,13 @@ struct imx_stream_out {
     audio_output_flags_t flags;
     int sup_rates[MAX_SUP_RATE_NUM];
     audio_format_t format;
-    char* address;
+    char *address;
     struct audio_gain gain_stage;
     bool paused;
 
     uint32_t num_devices;
-    audio_devices_t devices[AUDIO_PATCH_PORTS_MAX]; // TODO: use devices to specify stream's device type. Currently still uses device variable.
+    audio_devices_t devices[AUDIO_PATCH_PORTS_MAX]; // TODO: use devices to specify stream's device
+                                                    // type. Currently still uses device variable.
     audio_io_handle_t handle;
     audio_patch_handle_t patch_handle;
 
@@ -140,21 +135,21 @@ struct imx_stream_out {
 struct effect_info_s {
     effect_handle_t effect_itfe;
     size_t num_channel_configs;
-    channel_config_t* channel_configs;
+    channel_config_t *channel_configs;
 };
 
 #define NUM_IN_AUX_CNL_CONFIGS 2
-channel_config_t in_aux_cnl_configs[NUM_IN_AUX_CNL_CONFIGS] = {
-    { AUDIO_CHANNEL_IN_FRONT , AUDIO_CHANNEL_IN_BACK},
-    { AUDIO_CHANNEL_IN_STEREO , AUDIO_CHANNEL_IN_RIGHT}
-};
+channel_config_t in_aux_cnl_configs[NUM_IN_AUX_CNL_CONFIGS] = {{AUDIO_CHANNEL_IN_FRONT,
+                                                                AUDIO_CHANNEL_IN_BACK},
+                                                               {AUDIO_CHANNEL_IN_STEREO,
+                                                                AUDIO_CHANNEL_IN_RIGHT}};
 
 #define MAX_NUM_CHANNEL_CONFIGS 10
 
 struct imx_stream_in {
     struct audio_stream_in stream;
 
-    pthread_mutex_t lock;       /* see note below on mutex acquisition order */
+    pthread_mutex_t lock; /* see note below on mutex acquisition order */
     struct pcm_config config;
     struct pcm *pcm;
     int device;
@@ -192,7 +187,7 @@ struct imx_stream_in {
     bool aux_channels_changed;
     audio_channel_mask_t main_channels;
     uint32_t aux_channels;
-    char* address;
+    char *address;
     int64_t frames_read;
 
     audio_io_handle_t handle;
@@ -204,7 +199,8 @@ struct imx_stream_in {
     int card_index;
     bool first_frame_read;
 };
-#define STRING_TO_ENUM(string) { #string, string }
+#define STRING_TO_ENUM(string) \
+    { #string, string }
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 struct string_to_enum {
@@ -212,32 +208,17 @@ struct string_to_enum {
     uint32_t value;
 };
 
-#define SUPPORTED_DEVICE_OUT_MODULE               \
-          ( AUDIO_DEVICE_OUT_EARPIECE |          \
-            AUDIO_DEVICE_OUT_SPEAKER |           \
-            AUDIO_DEVICE_OUT_WIRED_HEADSET |     \
-            AUDIO_DEVICE_OUT_WIRED_HEADPHONE |   \
-            AUDIO_DEVICE_OUT_ALL_SCO |           \
-            AUDIO_DEVICE_OUT_AUX_DIGITAL |       \
-            AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET | \
-            AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET | \
-            AUDIO_DEVICE_OUT_REMOTE_SUBMIX |     \
-            AUDIO_DEVICE_OUT_DEFAULT)
+#define SUPPORTED_DEVICE_OUT_MODULE                                                               \
+    (AUDIO_DEVICE_OUT_EARPIECE | AUDIO_DEVICE_OUT_SPEAKER | AUDIO_DEVICE_OUT_WIRED_HEADSET |      \
+     AUDIO_DEVICE_OUT_WIRED_HEADPHONE | AUDIO_DEVICE_OUT_ALL_SCO | AUDIO_DEVICE_OUT_AUX_DIGITAL | \
+     AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET | AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET |                    \
+     AUDIO_DEVICE_OUT_REMOTE_SUBMIX | AUDIO_DEVICE_OUT_DEFAULT)
 
-#define SUPPORTED_DEVICE_IN_MODULE               \
-          ( AUDIO_DEVICE_IN_COMMUNICATION |      \
-            AUDIO_DEVICE_IN_AMBIENT |            \
-            AUDIO_DEVICE_IN_BUILTIN_MIC |        \
-            AUDIO_DEVICE_IN_ALL_SCO |            \
-            AUDIO_DEVICE_IN_WIRED_HEADSET |      \
-            AUDIO_DEVICE_IN_AUX_DIGITAL |        \
-            AUDIO_DEVICE_IN_VOICE_CALL   |       \
-            AUDIO_DEVICE_IN_BACK_MIC   |         \
-            AUDIO_DEVICE_IN_REMOTE_SUBMIX |      \
-            AUDIO_DEVICE_IN_ANLG_DOCK_HEADSET |  \
-            AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET |  \
-            AUDIO_DEVICE_IN_USB_ACCESSORY |      \
-            AUDIO_DEVICE_IN_USB_DEVICE  |        \
-            AUDIO_DEVICE_IN_DEFAULT )
+#define SUPPORTED_DEVICE_IN_MODULE                                                           \
+    (AUDIO_DEVICE_IN_COMMUNICATION | AUDIO_DEVICE_IN_AMBIENT | AUDIO_DEVICE_IN_BUILTIN_MIC | \
+     AUDIO_DEVICE_IN_ALL_SCO | AUDIO_DEVICE_IN_WIRED_HEADSET | AUDIO_DEVICE_IN_AUX_DIGITAL | \
+     AUDIO_DEVICE_IN_VOICE_CALL | AUDIO_DEVICE_IN_BACK_MIC | AUDIO_DEVICE_IN_REMOTE_SUBMIX | \
+     AUDIO_DEVICE_IN_ANLG_DOCK_HEADSET | AUDIO_DEVICE_IN_DGTL_DOCK_HEADSET |                 \
+     AUDIO_DEVICE_IN_USB_ACCESSORY | AUDIO_DEVICE_IN_USB_DEVICE | AUDIO_DEVICE_IN_DEFAULT)
 
-#endif  /* ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H */
+#endif /* ANDROID_INCLUDE_IMX_AUDIO_HARDWARE_H */

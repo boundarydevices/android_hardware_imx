@@ -18,15 +18,14 @@
 
 #include <GLES2/gl2.h>
 
-
 class TexWrapper {
 public:
     TexWrapper(GLuint textureId, unsigned width, unsigned height);
     virtual ~TexWrapper();
 
-    GLuint glId()       { return id; };
-    unsigned width()    { return w; };
-    unsigned height()   { return h; };
+    GLuint glId() { return id; };
+    unsigned width() { return w; };
+    unsigned height() { return h; };
 
 protected:
     TexWrapper();
@@ -35,7 +34,6 @@ protected:
     unsigned w;
     unsigned h;
 };
-
 
 TexWrapper* createTextureFromPng(const char* filename);
 

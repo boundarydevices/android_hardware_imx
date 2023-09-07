@@ -19,9 +19,9 @@
 namespace nxp_sensors_subhal {
 
 PressureSensor::PressureSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-               struct iio_device_data& iio_data,
-           const std::optional<std::vector<Configuration>>& config)
-	: HWSensorBase(sensorHandle, callback, iio_data, config)  {
+                               struct iio_device_data& iio_data,
+                               const std::optional<std::vector<Configuration>>& config)
+      : HWSensorBase(sensorHandle, callback, iio_data, config) {
     // no power_microwatts sys node, so mSensorInfo.power fake the default one.
     mSensorInfo.power = 0.001f;
 
@@ -30,11 +30,9 @@ PressureSensor::PressureSensor(int32_t sensorHandle, ISensorsEventCallback* call
     mSensorInfo.minDelay = 2500;
     mSensorInfo.maxDelay = 500000;
     if (iio_data.type == SensorType::AMBIENT_TEMPERATURE)
-        mSensorInfo.flags = SensorFlagBits::DATA_INJECTION |
-                 SensorFlagBits::ON_CHANGE_MODE;
+        mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
     if (iio_data.type == SensorType::PRESSURE)
-        mSensorInfo.flags = SensorFlagBits::DATA_INJECTION |
-                 SensorFlagBits::CONTINUOUS_MODE;
+        mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::CONTINUOUS_MODE;
 
     mSysfspath = iio_data.sysfspath;
     mRunThread = std::thread(std::bind(&PressureSensor::run, this));
@@ -61,12 +59,12 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
         evt->sensorType = SensorType::AMBIENT_TEMPERATURE;
     }
 
-    char *channel_data = data;
+    char* channel_data = data;
     uint64_t sign_mask;
     uint64_t value_mask;
 
     int64_t val = 0;
-    for (i =0; i < mIioData.channelInfo.size(); i++) {
+    for (i = 0; i < mIioData.channelInfo.size(); i++) {
         if (strstr(mIioData.channelInfo[i].name.c_str(), "pressure") && mChannelIndex == 0) {
             index = i;
             break;
@@ -76,7 +74,7 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
         }
     }
 
-    for(i = 0; i < mIioData.channelInfo.size(); i++) {
+    for (i = 0; i < mIioData.channelInfo.size(); i++) {
         if (mIioData.channelInfo[index].index <= mIioData.channelInfo[i].index)
             continue;
         else {
@@ -85,10 +83,10 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
     }
 
     if (mIioData.channelInfo[index].big_endian)
-        for (i=0; i<mIioData.channelInfo[index].storage_bytes; i++)
+        for (i = 0; i < mIioData.channelInfo[index].storage_bytes; i++)
             val = (val << 8) | channel_data[i];
     else
-        for (i=mIioData.channelInfo[index].storage_bytes -1; i>=0; i--)
+        for (i = mIioData.channelInfo[index].storage_bytes - 1; i >= 0; i--)
             val = (val << 8) | channel_data[i];
 
     val = (val >> mIioData.channelInfo[index].shift) & (~0ULL >> mIioData.channelInfo[index].shift);
@@ -96,37 +94,38 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
     if (!mIioData.channelInfo[index].sign)
         evt->u.scalar = (int64_t)val;
     else {
-        switch(mIioData.channelInfo[index].bits_used) {
-                case 0 ... 1:
-                    evt->u.scalar = 0;
-                    break;
-                case 8:
-                    evt->u.scalar = (int64_t)(int8_t)val;
-                    break;
-                case 16:
-                    evt->u.scalar = (int64_t)(int16_t)val;
-                    break;
-                case 32:
-                    evt->u.scalar = (int64_t)(int32_t)val;
-                    break;
-                case 64:
-                    evt->u.scalar = (int64_t)val;
-                    break;
-                default:
-                    sign_mask = 1 << (mIioData.channelInfo[i].bits_used-1);
-                    value_mask = sign_mask - 1;
-                    if (val & sign_mask)
-                        evt->u.scalar = - ((~val & value_mask) + 1); /* Negative value: return 2-complement */
-                    else
-                        evt->u.scalar = (int64_t)val;           /* Positive value */
-         }
+        switch (mIioData.channelInfo[index].bits_used) {
+            case 0 ... 1:
+                evt->u.scalar = 0;
+                break;
+            case 8:
+                evt->u.scalar = (int64_t)(int8_t)val;
+                break;
+            case 16:
+                evt->u.scalar = (int64_t)(int16_t)val;
+                break;
+            case 32:
+                evt->u.scalar = (int64_t)(int32_t)val;
+                break;
+            case 64:
+                evt->u.scalar = (int64_t)val;
+                break;
+            default:
+                sign_mask = 1 << (mIioData.channelInfo[i].bits_used - 1);
+                value_mask = sign_mask - 1;
+                if (val & sign_mask)
+                    evt->u.scalar =
+                            -((~val & value_mask) + 1); /* Negative value: return 2-complement */
+                else
+                    evt->u.scalar = (int64_t)val; /* Positive value */
+        }
     }
 
     float scale;
     std::string scale_file;
     if (mChannelIndex == 0) {
         scale_file = mSysfspath + "/in_pressure_scale";
-    } else if(mChannelIndex == 1) {
+    } else if (mChannelIndex == 1) {
         scale_file = mSysfspath + "/in_temp_scale";
     }
 
@@ -135,30 +134,29 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
     evt->u.scalar = scale * evt->u.scalar;
 
     // To meet CTS required range, multiply pressure scale with 10.
-    if (mChannelIndex == 0)
-        evt->u.scalar *= 10;
+    if (mChannelIndex == 0) evt->u.scalar *= 10;
 
     int timestamp_offset = 0;
     for (auto i = 0u; i < mIioData.channelInfo.size(); i++) {
-        if ((mIioData.channelInfo.size()-1) > mIioData.channelInfo[i].index)
+        if ((mIioData.channelInfo.size() - 1) > mIioData.channelInfo[i].index)
             timestamp_offset += mIioData.channelInfo[i].storage_bytes;
     }
 
-    const int64_t timestamp =
-             *reinterpret_cast<int64_t*>(data + timestamp_offset * 8);
+    const int64_t timestamp = *reinterpret_cast<int64_t*>(data + timestamp_offset * 8);
 
     if (timestamp == 0)
         evt->timestamp = get_timestamp();
     else
         evt->timestamp = timestamp;
-
 }
 
-void PressureSensor::setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable) {
+void PressureSensor::setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num,
+                                       bool enable) {
     add_trigger(device_dir, dev_num, enable);
 }
 
-void PressureSensor::setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable) {
+void PressureSensor::setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num,
+                                         bool enable) {
     add_hrtimer_trigger(device_dir, dev_num, enable);
 }
 
@@ -171,11 +169,11 @@ void PressureSensor::activate(bool enable) {
         if (enable) {
             mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
             if (mPollFdIio.fd < 0)
-                ALOGI("Failed to open iio char device (%s).",  buffer_path.c_str());
+                ALOGI("Failed to open iio char device (%s).", buffer_path.c_str());
             else {
-                if(GetProperty(kTriggerType, "") == "hrtimer_trigger")
+                if (GetProperty(kTriggerType, "") == "hrtimer_trigger")
                     setupHrtimerTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
-                else if(GetProperty(kTriggerType, "") == "sysfs_trigger")
+                else if (GetProperty(kTriggerType, "") == "sysfs_trigger")
                     setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
                 enable_sensor(mIioData.sysfspath, enable);
                 mWaitCV.notify_all();
@@ -228,7 +226,7 @@ void PressureSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            if(GetProperty(kTriggerType, "") == "sysfs_trigger")
+            if (GetProperty(kTriggerType, "") == "sysfs_trigger")
                 trigger_data(mIioData.iio_dev_num);
             err = poll(&mPollFdIio, 1, 50);
             if (err <= 0) {
@@ -239,7 +237,8 @@ void PressureSensor::run() {
             if (mPollFdIio.revents & POLLIN) {
                 read_size = pread(mPollFdIio.fd, readbuf, 16, 0);
                 if (read_size <= 0) {
-                    ALOGE("%s: Failed to read data from iio char device. %d", mIioData.name.c_str(), errno);
+                    ALOGE("%s: Failed to read data from iio char device. %d", mIioData.name.c_str(),
+                          errno);
                     continue;
                 }
                 events.clear();
@@ -254,4 +253,4 @@ void PressureSensor::run() {
     }
 }
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

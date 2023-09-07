@@ -19,18 +19,18 @@
 #define _VIDEO_STREAM_H
 
 #include <utils/threads.h>
-#include "MessageQueue.h"
-#include "CameraUtils.h"
-#include "Stream.h"
+
 #include "Camera.h"
+#include "CameraUtils.h"
+#include "MessageQueue.h"
+#include "Stream.h"
 #include "utils/CameraConfigurationParser.h"
 
 using namespace android;
 
 class Camera;
 
-class ConfigureParam
-{
+class ConfigureParam {
 public:
     int32_t mWidth;
     int32_t mHeight;
@@ -40,8 +40,7 @@ public:
     int32_t mIsJpeg;
 };
 
-class VideoStream : public Stream
-{
+class VideoStream : public Stream {
 public:
     VideoStream(Camera* device);
     virtual ~VideoStream();
@@ -49,7 +48,7 @@ public:
 
     // configure device stream.
     int32_t configure(sp<Stream> stream);
-    //send capture request for stream.
+    // send capture request for stream.
     int32_t requestCapture(sp<CaptureRequest> req);
 
     // open/close device stream.
@@ -58,20 +57,21 @@ public:
     int32_t flushDev();
 
     void setOmitFrameCount(uint32_t omitCount) { mOmitFrmCount = omitCount; }
+
 private:
     // message type.
     static const int32_t MSG_CONFIG = 0x100;
     static const int32_t MSG_FRAME = 0x103;
     static const int32_t MSG_CLOSE = 0x104;
-    static const int32_t MSG_EXIT  = 0x105;
+    static const int32_t MSG_EXIT = 0x105;
     static const int32_t MSG_FLUSH = 0x106;
 
     // device stream state.
     static const int32_t STATE_INVALID = 0x201;
     static const int32_t STATE_CONFIG = 0x202;
     static const int32_t STATE_START = 0x203;
-    static const int32_t STATE_STOP  = 0x204;
-    static const int32_t STATE_ERROR  = 0x205;
+    static const int32_t STATE_STOP = 0x204;
+    static const int32_t STATE_ERROR = 0x205;
 
 protected:
     // handle configure message internally.
@@ -111,20 +111,13 @@ protected:
     int32_t flushDevLocked();
 
 private:
-    class MessageThread : public Thread
-    {
+    class MessageThread : public Thread {
     public:
-        MessageThread(VideoStream *device)
-            : Thread(false), mStream(device)
-            {}
+        MessageThread(VideoStream* device) : Thread(false), mStream(device) {}
 
-        virtual void onFirstRef() {
-            run("MessageThread", PRIORITY_URGENT_DISPLAY);
-        }
+        virtual void onFirstRef() { run("MessageThread", PRIORITY_URGENT_DISPLAY); }
 
-        virtual status_t readyToRun() {
-            return 0;
-        }
+        virtual status_t readyToRun() { return 0; }
 
         virtual bool threadLoop() {
             int ret = mStream->handleMessage();
@@ -148,7 +141,7 @@ protected:
     sp<MessageThread> mMessageThread;
     int32_t mState;
 
-    List< sp<CaptureRequest> > mRequests;
+    List<sp<CaptureRequest> > mRequests;
     int32_t mChanged;
 
     // camera dev node.

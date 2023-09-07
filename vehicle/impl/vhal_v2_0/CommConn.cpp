@@ -16,12 +16,12 @@
 
 #define LOG_TAG "CommConn"
 
-#include <thread>
+#include "CommConn.h"
 
 #include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 #include <log/log.h>
 
-#include "CommConn.h"
+#include <thread>
 
 namespace android {
 namespace hardware {
@@ -69,10 +69,10 @@ void CommConn::readThread() {
     }
 }
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

@@ -18,15 +18,14 @@
 #ifndef ANDROID_FSL_SENSORS_HUB_H
 #define ANDROID_FSL_SENSORS_HUB_H
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-
-#include "sensors.h"
-#include "SensorBase.h"
 #include "InputEventReader.h"
+#include "SensorBase.h"
+#include "sensors.h"
 
 /*****************************************************************************/
 
@@ -39,27 +38,27 @@ public:
     virtual int getEnable(int32_t handle);
     virtual int readEvents(sensors_event_t* data, int count);
     void processEvent(int code, int value);
-    void processEvent(int type ,int code, int value);
+    void processEvent(int type, int code, int value);
 
 private:
     enum {
-        accel          = 1,
-        mag            = 2,
-        gyro           = 3,
-        orn            = 4,
-        rv             = 5,
-        la             = 6,
-        gravt          = 7,
+        accel = 1,
+        mag = 2,
+        gyro = 3,
+        orn = 4,
+        rv = 5,
+        la = 6,
+        gravt = 7,
         sensors,
     };
 
     int is_sensor_enabled();
     int enable_sensor(int what);
     int disable_sensor(int what);
-    int update_delay(int sensor_type,int64_t ns);
+    int update_delay(int sensor_type, int64_t ns);
     int readDisable();
-    int writeEnable(int what,int isEnable);
-    int writeDelay(int what,int64_t ns);
+    int writeEnable(int what, int isEnable);
+    int writeDelay(int what, int64_t ns);
     int mEnabled[sensors];
     int mPendingMask;
     char mClassPath[sensors][PATH_MAX];
@@ -70,4 +69,4 @@ private:
 
 /*****************************************************************************/
 
-#endif  // ANDROID_FSL_ACCEL_SENSOR_H
+#endif // ANDROID_FSL_ACCEL_SENSOR_H

@@ -16,14 +16,13 @@
 
 #define LOG_TAG "ProtoMsgConverter"
 
-#include <memory>
-#include <vector>
+#include "ProtoMessageConverter.h"
 
 #include <log/log.h>
-
 #include <vhal_v2_0/VehicleUtils.h>
 
-#include "ProtoMessageConverter.h"
+#include <memory>
+#include <vector>
 
 namespace android {
 namespace hardware {
@@ -58,17 +57,19 @@ namespace proto_msg_converter {
 
 // If protobuf message has value in field PROTO_VARNAME,
 // then copying it to VHAL_TYPE_VALUE->VHAL_TYPE_VARNAME
-#define CHECK_COPY_PROTOBUF_VAR_TO_VHAL_TYPE(PROTO_VALUE, PROTO_VARNAME, VHAL_TYPE_VALUE, \
-                                             VHAL_TYPE_VARNAME)                           \
-    CHECK_CAST_COPY_PROTOBUF_VAR_TO_VHAL_TYPE(                                            \
-            PROTO_VALUE, PROTO_VARNAME, VHAL_TYPE_VALUE, VHAL_TYPE_VARNAME, /*NO CAST*/)
+#define CHECK_COPY_PROTOBUF_VAR_TO_VHAL_TYPE(PROTO_VALUE, PROTO_VARNAME, VHAL_TYPE_VALUE,  \
+                                             VHAL_TYPE_VARNAME)                            \
+    CHECK_CAST_COPY_PROTOBUF_VAR_TO_VHAL_TYPE(PROTO_VALUE, PROTO_VARNAME, VHAL_TYPE_VALUE, \
+                                              VHAL_TYPE_VARNAME,                           \
+                                              /*NO CAST*/)
 
 // Copying the vector PROTO_VECNAME of protobuf class PROTO_VALUE to
 // VHAL_TYPE_VALUE->VHAL_TYPE_VECNAME
-#define COPY_PROTOBUF_VEC_TO_VHAL_TYPE(PROTO_VALUE, PROTO_VECNAME, VHAL_TYPE_VALUE, \
-                                       VHAL_TYPE_VECNAME)                           \
-    CAST_COPY_PROTOBUF_VEC_TO_VHAL_TYPE(                                            \
-            PROTO_VALUE, PROTO_VECNAME, VHAL_TYPE_VALUE, VHAL_TYPE_VECNAME, /*NO CAST*/)
+#define COPY_PROTOBUF_VEC_TO_VHAL_TYPE(PROTO_VALUE, PROTO_VECNAME, VHAL_TYPE_VALUE,  \
+                                       VHAL_TYPE_VECNAME)                            \
+    CAST_COPY_PROTOBUF_VEC_TO_VHAL_TYPE(PROTO_VALUE, PROTO_VECNAME, VHAL_TYPE_VALUE, \
+                                        VHAL_TYPE_VECNAME,                           \
+                                        /*NO CAST*/)
 
 void toProto(vhal_proto::VehiclePropConfig* protoCfg, const VehiclePropConfig& cfg) {
     protoCfg->set_prop(cfg.prop);
@@ -205,12 +206,12 @@ void fromProto(VehiclePropValue* val, const vhal_proto::VehiclePropValue& protoV
 #undef CAST_COPY_PROTOBUF_VEC_TO_VHAL_TYPE
 #undef CHECK_CAST_COPY_PROTOBUF_VAR_TO_VHAL_TYPE
 
-}  // namespace proto_msg_converter
+} // namespace proto_msg_converter
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

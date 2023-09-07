@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2020 The Android Open Source Project
  * Copyright 2022 NXP
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,6 +18,7 @@
 #define LOG_TAG "android.hardware.usb.gadget@1.2-service.imx"
 
 #include <hidl/HidlTransportSupport.h>
+
 #include "UsbGadget.h"
 
 using android::sp;

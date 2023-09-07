@@ -7,11 +7,10 @@
 #ifndef __GRALLOC_HELPERS_H
 #define __GRALLOC_HELPERS_H
 
-#include "drv.h"
-#include "gralloc_handle.h"
-
 #include <system/graphics.h>
 
+#include "drv.h"
+#include "gralloc_handle.h"
 
 gralloc_handle_t gralloc_convert_handle(buffer_handle_t handle);
 

@@ -4,19 +4,19 @@
  * found in the LICENSE file.
  */
 
-#include <inttypes.h>
+#include "NxpMapper.h"
+
+#include <DisplayUtil.h>
+#include <Memory.h>
 #include <aidl/android/hardware/graphics/common/BlendMode.h>
 #include <aidl/android/hardware/graphics/common/Dataspace.h>
 #include <aidl/android/hardware/graphics/common/PlaneLayout.h>
 #include <aidl/android/hardware/graphics/common/Rect.h>
-#include <cutils/native_handle.h>
 #include <cutils/log.h>
+#include <cutils/native_handle.h>
 #include <gralloctypes/Gralloc4.h>
+#include <inttypes.h>
 
-#include <Memory.h>
-#include <DisplayUtil.h>
-
-#include "NxpMapper.h"
 #include "NxpUtils.h"
 #include "helpers.h"
 
@@ -41,20 +41,20 @@ NxpMapper::NxpMapper() : mDriver(std::make_unique<gralloc_driver>()) {
 }
 
 Return<void> NxpMapper::createDescriptor(const BufferDescriptorInfo& description,
-                                                  createDescriptor_cb hidlCb) {
+                                         createDescriptor_cb hidlCb) {
     hidl_vec<uint8_t> descriptor;
 
     if ((description.width == 0) || (description.height == 0) || (description.layerCount == 0)) {
         ALOGE("%s Bad parameters, width: %d, height: %d, layer count: %d.", __func__,
-                 description.width, description.height, description.layerCount);
+              description.width, description.height, description.layerCount);
         hidlCb(Error::BAD_VALUE, descriptor);
         return Void();
     }
 
     if (description.layerCount != 1) {
-         ALOGE("%s layerCount=%d > 1 is unsupported", __func__, description.layerCount);
-         hidlCb(Error::UNSUPPORTED, descriptor);
-         return Void();
+        ALOGE("%s layerCount=%d > 1 is unsupported", __func__, description.layerCount);
+        hidlCb(Error::UNSUPPORTED, descriptor);
+        return Void();
     }
 
     if (description.format == static_cast<PixelFormat>(0)) {
@@ -133,14 +133,13 @@ Return<Error> NxpMapper::freeBuffer(void* rawHandle) {
     }
 
     // TODO: The fd close operation and delete handle are done in ~gralloc_buffer()
-    //native_handle_close(bufferHandle);
-    //native_handle_delete(bufferHandle);
+    // native_handle_close(bufferHandle);
+    // native_handle_delete(bufferHandle);
     return Error::NONE;
 }
 
-Return<Error> NxpMapper::validateBufferSize(void* rawHandle,
-                                                     const BufferDescriptorInfo& descriptor,
-                                                     uint32_t stride) {
+Return<Error> NxpMapper::validateBufferSize(void* rawHandle, const BufferDescriptorInfo& descriptor,
+                                            uint32_t stride) {
     if (!mDriver) {
         ALOGE("%s Driver is uninitialized.", __func__);
         return Error::NO_RESOURCES;
@@ -163,13 +162,14 @@ Return<Error> NxpMapper::validateBufferSize(void* rawHandle,
         return Error::BAD_VALUE;
     }
 
-    /* gralloc driver will change some format to HAL_PIXEL_FORMAT_YCbCr_420_SP, so not check format*/
-/*    PixelFormat memHandleFormat = static_cast<PixelFormat>(memHandle->format);
-    if (descriptor.format != memHandleFormat) {
-        ALOGE("%s Format mismatch (0x%x vs 0x%x).", __func__, descriptor.format, memHandleFormat);
-        return Error::BAD_BUFFER;
-    }
-*/
+    /* gralloc driver will change some format to HAL_PIXEL_FORMAT_YCbCr_420_SP, so not check
+     * format*/
+    /*    PixelFormat memHandleFormat = static_cast<PixelFormat>(memHandle->format);
+        if (descriptor.format != memHandleFormat) {
+            ALOGE("%s Format mismatch (0x%x vs 0x%x).", __func__, descriptor.format,
+       memHandleFormat); return Error::BAD_BUFFER;
+        }
+    */
 
     if (descriptor.width != memHandle->width) {
         ALOGE("%s Width mismatch (%d vs %d).", __func__, descriptor.width, memHandle->width);
@@ -220,7 +220,7 @@ Return<void> NxpMapper::getTransportSize(void* rawHandle, getTransportSize_cb hi
 }
 
 Return<void> NxpMapper::lock(void* rawBuffer, uint64_t cpuUsage, const Rect& region,
-                                      const hidl_handle& acquireFence, lock_cb hidlCb) {
+                             const hidl_handle& acquireFence, lock_cb hidlCb) {
     if (!mDriver) {
         ALOGE("%s Driver is uninitialized.", __func__);
         hidlCb(Error::NO_RESOURCES, nullptr);
@@ -254,10 +254,10 @@ Return<void> NxpMapper::lock(void* rawBuffer, uint64_t cpuUsage, const Rect& reg
         return Void();
     }
 
-    if ((region.left < 0) || (region.top < 0) || (region.width < 0) || (region.height < 0)
-          || (region.width > memHandle->width) || (region.height > memHandle->height)) {
-        ALOGE("%s Invalid region: left= %d, top= %d, width= %d, height= %d", __func__,
-               region.left, region.top, region.width, region.height);
+    if ((region.left < 0) || (region.top < 0) || (region.width < 0) || (region.height < 0) ||
+        (region.width > memHandle->width) || (region.height > memHandle->height)) {
+        ALOGE("%s Invalid region: left= %d, top= %d, width= %d, height= %d", __func__, region.left,
+              region.top, region.width, region.height);
         hidlCb(Error::BAD_VALUE, nullptr);
         return Void();
     }
@@ -382,8 +382,7 @@ Return<Error> NxpMapper::rereadLockedBuffer(void* rawHandle) {
     return Error::NONE;
 }
 
-Return<void> NxpMapper::isSupported(const BufferDescriptorInfo& descriptor,
-                                             isSupported_cb hidlCb) {
+Return<void> NxpMapper::isSupported(const BufferDescriptorInfo& descriptor, isSupported_cb hidlCb) {
     if (!mDriver) {
         ALOGE("%s Driver is uninitialized.", __func__);
         hidlCb(Error::BAD_VALUE, false);
@@ -391,9 +390,9 @@ Return<void> NxpMapper::isSupported(const BufferDescriptorInfo& descriptor,
     }
 
     if (descriptor.layerCount != 1) {
-         ALOGE("%s layerCount=%d != 1 is unsupported", __func__, descriptor.layerCount);
-         hidlCb(Error::NONE, false);
-         return Void();
+        ALOGE("%s layerCount=%d != 1 is unsupported", __func__, descriptor.layerCount);
+        hidlCb(Error::NONE, false);
+        return Void();
     }
 
     struct gralloc_buffer_descriptor memDescriptor;
@@ -412,8 +411,7 @@ Return<void> NxpMapper::isSupported(const BufferDescriptorInfo& descriptor,
     return Void();
 }
 
-Return<void> NxpMapper::get(void* rawHandle, const MetadataType& metadataType,
-                                     get_cb hidlCb) {
+Return<void> NxpMapper::get(void* rawHandle, const MetadataType& metadataType, get_cb hidlCb) {
     hidl_vec<uint8_t> encodedMetadata;
 
     if (!mDriver) {
@@ -440,7 +438,8 @@ Return<void> NxpMapper::get(void* rawHandle, const MetadataType& metadataType,
     return Void();
 }
 
-Return<void> NxpMapper::get(gralloc_handle_t memHandle, const MetadataType& metadataType, get_cb hidlCb) {
+Return<void> NxpMapper::get(gralloc_handle_t memHandle, const MetadataType& metadataType,
+                            get_cb hidlCb) {
     hidl_vec<uint8_t> encodedMetadata;
 
     if (!mDriver) {
@@ -558,7 +557,7 @@ Return<void> NxpMapper::get(gralloc_handle_t memHandle, const MetadataType& meta
 }
 
 Return<Error> NxpMapper::set(void* rawHandle, const MetadataType& metadataType,
-                                      const hidl_vec<uint8_t>& encodedMetadata) {
+                             const hidl_vec<uint8_t>& encodedMetadata) {
     if (!mDriver) {
         ALOGE("%s Driver is uninitialized.", __func__);
         return Error::NO_RESOURCES;
@@ -599,12 +598,12 @@ Return<Error> NxpMapper::set(void* rawHandle, const MetadataType& metadataType,
         return Error::UNSUPPORTED;
     }
     Error error = Error::NONE;
-    error = set(memHandle,metadataType, encodedMetadata);
+    error = set(memHandle, metadataType, encodedMetadata);
     return error;
 }
 
 Error NxpMapper::set(gralloc_handle_t memHandle, const MetadataType& metadataType,
-                              const android::hardware::hidl_vec<uint8_t>& encodedMetadata) {
+                     const android::hardware::hidl_vec<uint8_t>& encodedMetadata) {
     if (!mDriver) {
         ALOGI("Failed to set. Driver is uninitialized.");
         return Error::NO_RESOURCES;
@@ -620,25 +619,29 @@ Error NxpMapper::set(gralloc_handle_t memHandle, const MetadataType& metadataTyp
         return Error::UNSUPPORTED;
     }
     if (metadataType == android::gralloc4::MetadataType_BlendMode) {
-        auto status = android::gralloc4::decodeBlendMode(encodedMetadata, &grallocMetadata->blendMode);
+        auto status =
+                android::gralloc4::decodeBlendMode(encodedMetadata, &grallocMetadata->blendMode);
         if (status != android::NO_ERROR) {
             ALOGI("Failed to set. Failed to decode blend mode.");
             return Error::UNSUPPORTED;
         }
     } else if (metadataType == android::gralloc4::MetadataType_Cta861_3) {
-        auto status = android::gralloc4::decodeCta861_3(encodedMetadata, &grallocMetadata->cta861_3);
+        auto status =
+                android::gralloc4::decodeCta861_3(encodedMetadata, &grallocMetadata->cta861_3);
         if (status != android::NO_ERROR) {
             ALOGI("Failed to set. Failed to decode cta861_3.");
             return Error::UNSUPPORTED;
         }
     } else if (metadataType == android::gralloc4::MetadataType_Dataspace) {
-        auto status = android::gralloc4::decodeDataspace(encodedMetadata, &grallocMetadata->dataspace);
+        auto status =
+                android::gralloc4::decodeDataspace(encodedMetadata, &grallocMetadata->dataspace);
         if (status != android::NO_ERROR) {
             ALOGI("Failed to set. Failed to decode dataspace.");
             return Error::UNSUPPORTED;
         }
     } else if (metadataType == android::gralloc4::MetadataType_Smpte2086) {
-        auto status = android::gralloc4::decodeSmpte2086(encodedMetadata, &grallocMetadata->smpte2086);
+        auto status =
+                android::gralloc4::decodeSmpte2086(encodedMetadata, &grallocMetadata->smpte2086);
         if (status != android::NO_ERROR) {
             ALOGI("Failed to set. Failed to decode smpte2086.");
             return Error::UNSUPPORTED;
@@ -648,7 +651,7 @@ Error NxpMapper::set(gralloc_handle_t memHandle, const MetadataType& metadataTyp
 }
 
 int NxpMapper::getResolvedDrmFormat(PixelFormat pixelFormat, uint64_t bufferUsage,
-                                             uint32_t* outDrmFormat) {
+                                    uint32_t* outDrmFormat) {
     uint32_t drmFormat;
     if (convertToDrmFormat(pixelFormat, &drmFormat)) {
         std::string pixelFormatString = getPixelFormatString(pixelFormat);
@@ -675,9 +678,9 @@ int NxpMapper::getResolvedDrmFormat(PixelFormat pixelFormat, uint64_t bufferUsag
     return 0;
 }
 
-Return<void> NxpMapper::getFromBufferDescriptorInfo(
-        const BufferDescriptorInfo& descriptor, const MetadataType& metadataType,
-        getFromBufferDescriptorInfo_cb hidlCb) {
+Return<void> NxpMapper::getFromBufferDescriptorInfo(const BufferDescriptorInfo& descriptor,
+                                                    const MetadataType& metadataType,
+                                                    getFromBufferDescriptorInfo_cb hidlCb) {
     hidl_vec<uint8_t> encodedMetadata;
 
     if (!mDriver) {
@@ -923,8 +926,7 @@ Return<void> NxpMapper::dumpBuffer(void* rawHandle, dumpBuffer_cb hidlCb) {
     return dumpBuffer(memHandle, hidlCb);
 }
 
-Return<void> NxpMapper::dumpBuffer(gralloc_handle_t memHandle,
-                                            dumpBuffer_cb hidlCb) {
+Return<void> NxpMapper::dumpBuffer(gralloc_handle_t memHandle, dumpBuffer_cb hidlCb) {
     BufferDump bufferDump;
 
     if (!mDriver) {
@@ -1033,9 +1035,8 @@ Return<void> NxpMapper::dumpBuffers(dumpBuffers_cb hidlCb) {
     return Void();
 }
 
-Error NxpMapper::getReservedRegionArea(gralloc_handle_t memHandle,
-                                                ReservedRegionArea area, void** outAddr,
-                                                uint64_t* outSize) {
+Error NxpMapper::getReservedRegionArea(gralloc_handle_t memHandle, ReservedRegionArea area,
+                                       void** outAddr, uint64_t* outSize) {
     if (!mDriver) {
         ALOGE("Failed to getReservedRegionArea. Driver is uninitialized.");
         return Error::NO_RESOURCES;
@@ -1046,7 +1047,7 @@ Error NxpMapper::getReservedRegionArea(gralloc_handle_t memHandle,
         return Error::BAD_BUFFER;
     }
 
-    int ret = mDriver->get_reserved_region(memHandle,outAddr, outSize);
+    int ret = mDriver->get_reserved_region(memHandle, outAddr, outSize);
     if (ret) {
         ALOGE("Failed to getReservedRegionArea.");
         *outAddr = nullptr;
@@ -1072,8 +1073,7 @@ Error NxpMapper::getReservedRegionArea(gralloc_handle_t memHandle,
     return Error::NONE;
 }
 
-Error NxpMapper::getMetadata(gralloc_handle_t memHandle,
-                                      const gralloc_metadata** outMetadata) {
+Error NxpMapper::getMetadata(gralloc_handle_t memHandle, const gralloc_metadata** outMetadata) {
     void* addr = nullptr;
     uint64_t size;
 
@@ -1087,8 +1087,7 @@ Error NxpMapper::getMetadata(gralloc_handle_t memHandle,
     return Error::NONE;
 }
 
-Error NxpMapper::getMutableMetadata(gralloc_handle_t memHandle,
-                                             gralloc_metadata** outMetadata) {
+Error NxpMapper::getMutableMetadata(gralloc_handle_t memHandle, gralloc_metadata** outMetadata) {
     void* addr = nullptr;
     uint64_t size;
 
@@ -1126,7 +1125,8 @@ Return<void> NxpMapper::getReservedRegion(void* rawHandle, getReservedRegion_cb 
     void* reservedRegionAddr = nullptr;
     uint64_t reservedRegionSize = 0;
 
-    Error error = getReservedRegionArea(memHandle, ReservedRegionArea::USER_METADATA, &reservedRegionAddr, &reservedRegionSize);
+    Error error = getReservedRegionArea(memHandle, ReservedRegionArea::USER_METADATA,
+                                        &reservedRegionAddr, &reservedRegionSize);
 
     if (error != Error::NONE) {
         ALOGE("Failed to getReservedRegion.");

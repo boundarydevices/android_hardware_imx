@@ -19,16 +19,15 @@
 
 #include "Power.h"
 
-#include <mutex>
-
 #include <android-base/file.h>
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 #include <android-base/strings.h>
-
 #include <utils/Log.h>
 #include <utils/Trace.h>
+
+#include <mutex>
 
 namespace aidl {
 namespace android {
@@ -46,9 +45,7 @@ static int s_previous_duration;
 #define NSINUS 1000L
 
 Power::Power(std::shared_ptr<HintManager> hm)
-    : mHintManager(hm),
-      mInteractionHandler(nullptr),
-      mSustainedPerfModeOn(false) {
+      : mHintManager(hm), mInteractionHandler(nullptr), mSustainedPerfModeOn(false) {
     mInteractionHandler = std::make_unique<InteractionHandler>(mHintManager);
     mInteractionHandler->Init();
 
@@ -167,26 +164,27 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
             if (mSustainedPerfModeOn) {
                 break;
             } else {
-            int duration = 1500; // 1.5s by default
-            if (durationMs) {
-                int input_duration = durationMs + 750;
-                if (input_duration > duration) {
-                    duration = (input_duration > 5750) ? 5750 : input_duration;
+                int duration = 1500; // 1.5s by default
+                if (durationMs) {
+                    int input_duration = durationMs + 750;
+                    if (input_duration > duration) {
+                        duration = (input_duration > 5750) ? 5750 : input_duration;
+                    }
                 }
-            }
-            struct timespec cur_boost_timespec;
-            clock_gettime(CLOCK_MONOTONIC, &cur_boost_timespec);
+                struct timespec cur_boost_timespec;
+                clock_gettime(CLOCK_MONOTONIC, &cur_boost_timespec);
 
-            long long elapsed_time = calc_timespan_us(s_previous_boost_timespec, cur_boost_timespec);
-            // don't hint if previous hint's duration covers this hint's duration
-            if (((long long)s_previous_duration * 1000) > (elapsed_time + duration * 1000)) {
-                break;
-            }
+                long long elapsed_time =
+                        calc_timespan_us(s_previous_boost_timespec, cur_boost_timespec);
+                // don't hint if previous hint's duration covers this hint's duration
+                if (((long long)s_previous_duration * 1000) > (elapsed_time + duration * 1000)) {
+                    break;
+                }
 
-            s_previous_boost_timespec = cur_boost_timespec;
-            s_previous_duration = duration;
+                s_previous_boost_timespec = cur_boost_timespec;
+                s_previous_duration = duration;
 
-            mHintManager->DoHint("INTERACTION", std::chrono::seconds(1));
+                mHintManager->DoHint("INTERACTION", std::chrono::seconds(1));
             }
             break;
         case Boost::DISPLAY_UPDATE_IMMINENT:
@@ -223,20 +221,21 @@ ndk::ScopedAStatus Power::isBoostSupported(Boost type, bool *_aidl_return) {
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus Power::createHintSession(int32_t, int32_t, const std::vector<int32_t>& tids, int64_t,
-                                            std::shared_ptr<IPowerHintSession>* _aidl_return) {
+ndk::ScopedAStatus Power::createHintSession(int32_t, int32_t, const std::vector<int32_t> &tids,
+                                            int64_t,
+                                            std::shared_ptr<IPowerHintSession> *_aidl_return) {
     if (tids.size() == 0) {
         *_aidl_return = nullptr;
         return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
     }
     std::shared_ptr<IPowerHintSession> powerHintSession =
-        ndk::SharedRefBase::make<PowerHintSession>();
+            ndk::SharedRefBase::make<PowerHintSession>();
     mPowerHintSessions.push_back(powerHintSession);
     *_aidl_return = powerHintSession;
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus Power::getHintSessionPreferredRate(int64_t* outNanoseconds) {
+ndk::ScopedAStatus Power::getHintSessionPreferredRate(int64_t *outNanoseconds) {
     *outNanoseconds = std::chrono::nanoseconds(1ms).count();
     return ndk::ScopedAStatus::ok();
 }
@@ -246,11 +245,10 @@ constexpr const char *boolToString(bool b) {
 }
 
 binder_status_t Power::dump(int fd, const char **, uint32_t) {
-    std::string buf(::android::base::StringPrintf(
-            "HintManager Running: %s\n"
-            "SustainedPerformanceMode: %s\n",
-            boolToString(mHintManager->IsRunning()),
-            boolToString(mSustainedPerfModeOn)));
+    std::string buf(::android::base::StringPrintf("HintManager Running: %s\n"
+                                                  "SustainedPerformanceMode: %s\n",
+                                                  boolToString(mHintManager->IsRunning()),
+                                                  boolToString(mSustainedPerfModeOn)));
     // Dump nodes through libperfmgr
     mHintManager->DumpToFd(fd);
     if (!::android::base::WriteStringToFd(buf, fd)) {
@@ -260,8 +258,8 @@ binder_status_t Power::dump(int fd, const char **, uint32_t) {
     return STATUS_OK;
 }
 
-}  // namespace impl
-}  // namespace power
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace impl
+} // namespace power
+} // namespace hardware
+} // namespace android
+} // namespace aidl

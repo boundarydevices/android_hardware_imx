@@ -37,12 +37,12 @@
 #define PCM_HW_PARAM_TICK_TIME 19
 #define PCM_HW_PARAM_FIRST_INTERVAL PCM_HW_PARAM_SAMPLE_BITS
 #define PCM_HW_PARAM_LAST_INTERVAL PCM_HW_PARAM_TICK_TIME
-#define PCM_HW_PARAMS_NORESAMPLE (1<<0)
+#define PCM_HW_PARAMS_NORESAMPLE (1 << 0)
 
-int pcm_get_near_param(unsigned int card, unsigned int device,
-                     unsigned int flags, int type, int *data);
+int pcm_get_near_param(unsigned int card, unsigned int device, unsigned int flags, int type,
+                       int *data);
 
-int pcm_check_param_mask(unsigned int card, unsigned int device,
-                     unsigned int flags, int type, int data);
+int pcm_check_param_mask(unsigned int card, unsigned int device, unsigned int flags, int type,
+                         int data);
 
 #endif

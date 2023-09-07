@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-#include <string.h>
-#include <inttypes.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <cutils/log.h>
-#include <ion/ion.h>
-#include <linux/dma-buf.h>
-#include <linux/dma-buf-imx.h>
-#include <linux/version.h>
 #include "DmaHeapAllocator.h"
+
+#include <cutils/log.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <ion/ion.h>
+#include <linux/dma-buf-imx.h>
+#include <linux/dma-buf.h>
+#include <linux/version.h>
+#include <string.h>
+#include <sys/mman.h>
 
 namespace fsl {
 
 DmaHeapAllocator* DmaHeapAllocator::sInstance(0);
 Mutex DmaHeapAllocator::sLock(Mutex::PRIVATE);
 
-DmaHeapAllocator* DmaHeapAllocator::getInstance()
-{
+DmaHeapAllocator* DmaHeapAllocator::getInstance() {
     Mutex::Autolock _l(sLock);
     if (sInstance != NULL) {
         return sInstance;
@@ -42,22 +42,18 @@ DmaHeapAllocator* DmaHeapAllocator::getInstance()
     return sInstance;
 }
 
-DmaHeapAllocator::DmaHeapAllocator()
-{
+DmaHeapAllocator::DmaHeapAllocator() {
     mBufferAllocator = CreateDmabufHeapBufferAllocator();
     if (!mBufferAllocator) {
         ALOGE("create CreateDmabufHeapBufferAllocator failed");
     }
 }
 
-DmaHeapAllocator::~DmaHeapAllocator()
-{
-    if (mBufferAllocator)
-        FreeDmabufHeapBufferAllocator(mBufferAllocator);
+DmaHeapAllocator::~DmaHeapAllocator() {
+    if (mBufferAllocator) FreeDmabufHeapBufferAllocator(mBufferAllocator);
 }
 
-int DmaHeapAllocator::allocSystemMemeory(uint64_t size)
-{
+int DmaHeapAllocator::allocSystemMemeory(uint64_t size) {
     int fd = -1;
     fd = DmabufHeapAlloc(mBufferAllocator, "system", size, 0, 0);
     if (fd < 0) {
@@ -66,8 +62,7 @@ int DmaHeapAllocator::allocSystemMemeory(uint64_t size)
     return fd;
 }
 
-int DmaHeapAllocator::allocMemory(int size, int align, int flags)
-{
+int DmaHeapAllocator::allocMemory(int size, int align, int flags) {
     int fd = -1;
 
     // VPU decoder needs 32k physical address alignment.
@@ -76,26 +71,21 @@ int DmaHeapAllocator::allocMemory(int size, int align, int flags)
     // contiguous memory includes cacheable/non-cacheable.
     if (flags & MFLAGS_SECURE) {
         fd = DmabufHeapAlloc(mBufferAllocator, "secure", size, 0, 0);
-        if (fd < 0)
-             ALOGE("%s DmabufHeapAlloc MFLAGS_SECURE failed ", __func__);
-    }
-    else if (flags & MFLAGS_CONTIGUOUS) {
+        if (fd < 0) ALOGE("%s DmabufHeapAlloc MFLAGS_SECURE failed ", __func__);
+    } else if (flags & MFLAGS_CONTIGUOUS) {
         if (flags & MFLAGS_CACHEABLE)
             fd = DmabufHeapAlloc(mBufferAllocator, "reserved", size, 0, 0);
         else
             fd = DmabufHeapAlloc(mBufferAllocator, "reserved-uncached", size, 0, 0);
 
-        if (fd < 0)
-            ALOGE("%s DmabufHeapAlloc MFLAGS_CONTIGUOUS failed ", __func__);
+        if (fd < 0) ALOGE("%s DmabufHeapAlloc MFLAGS_CONTIGUOUS failed ", __func__);
     }
     // cacheable memory includes non-contiguous.
     // it will not go into this logic currently, it always allocate continue memory
     else if (flags & MFLAGS_CACHEABLE) {
         fd = DmabufHeapAlloc(mBufferAllocator, "system", size, 0, 0);
-        if (fd < 0)
-             ALOGE("%s DmabufHeapAlloc MFLAGS_CACHEABLE failed ", __func__);
-    }
-    else {
+        if (fd < 0) ALOGE("%s DmabufHeapAlloc MFLAGS_CACHEABLE failed ", __func__);
+    } else {
         ALOGE("%s invalid flags:0x%x", __func__, flags);
         return fd;
     }
@@ -103,8 +93,7 @@ int DmaHeapAllocator::allocMemory(int size, int align, int flags)
     return fd;
 }
 
-int DmaHeapAllocator::getPhys(int fd, int size, uint64_t& addr)
-{
+int DmaHeapAllocator::getPhys(int fd, int size, uint64_t& addr) {
     uint64_t phyAddr = -1;
 
     if (fd < 0) {
@@ -121,7 +110,7 @@ int DmaHeapAllocator::getPhys(int fd, int size, uint64_t& addr)
     }
     data.dmafd = fd;
     if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
-        ALOGE("%s DMABUF_GET_PHYS  failed",__func__);
+        ALOGE("%s DMABUF_GET_PHYS  failed", __func__);
         close(fd_);
         return -EINVAL;
     } else
@@ -133,14 +122,13 @@ int DmaHeapAllocator::getPhys(int fd, int size, uint64_t& addr)
     return 0;
 }
 
-int DmaHeapAllocator::getVaddrs(int fd, int size, uint64_t& addr)
-{
+int DmaHeapAllocator::getVaddrs(int fd, int size, uint64_t& addr) {
     if (fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
 
-    void* vaddr = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (vaddr == MAP_FAILED) {
         ALOGE("Could not mmap %s", strerror(errno));
         return -EINVAL;
@@ -150,8 +138,7 @@ int DmaHeapAllocator::getVaddrs(int fd, int size, uint64_t& addr)
     return 0;
 }
 
-int DmaHeapAllocator::flushCache(int fd)
-{
+int DmaHeapAllocator::flushCache(int fd) {
     if (fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
@@ -160,14 +147,13 @@ int DmaHeapAllocator::flushCache(int fd)
     struct dma_buf_sync dma_sync;
     dma_sync.flags = DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END;
     if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &dma_sync) < 0) {
-        ALOGE("%s DMA_BUF_IOCTL_SYNC failed",__func__);
+        ALOGE("%s DMA_BUF_IOCTL_SYNC failed", __func__);
         return -EINVAL;
     }
 
     return 0;
-
 }
-int DmaHeapAllocator::getHeapType(int fd){
+int DmaHeapAllocator::getHeapType(int fd) {
     int type = 0;
     if (fd < 0) {
         ALOGE("%s invalid parameters", __func__);
@@ -183,20 +169,20 @@ int DmaHeapAllocator::getHeapType(int fd){
     }
     data.dmafd = fd;
     if (ioctl(fd_, DMABUF_GET_HEAP_NAME, &data) < 0) {
-        ALOGE("%s DMABUF_GET_PHYS  failed",__func__);
+        ALOGE("%s DMABUF_GET_PHYS  failed", __func__);
         close(fd_);
         return -EINVAL;
     }
 
-    if(!strcmp((char*)data.name, "system-uncached"))
+    if (!strcmp((char*)data.name, "system-uncached"))
         type = DMA_HEAP_SYSTEM_UNCACHED;
-    else if(!strcmp((char*)data.name, "system"))
+    else if (!strcmp((char*)data.name, "system"))
         type = DMA_HEAP_SYSTEM;
-    else if(!strcmp((char*)data.name, "reserved-uncached"))
+    else if (!strcmp((char*)data.name, "reserved-uncached"))
         type = DMA_HEAP_CMA_UNCACHED;
-    else if(!strcmp((char*)data.name, "reserved"))
+    else if (!strcmp((char*)data.name, "reserved"))
         type = DMA_HEAP_CMA;
-    else if(!strcmp((char*)data.name, "secure"))
+    else if (!strcmp((char*)data.name, "secure"))
         type = DMA_HEAP_SECURE;
 
     close(fd_);
@@ -204,4 +190,4 @@ int DmaHeapAllocator::getHeapType(int fd){
     return type;
 }
 
-}
+} // namespace fsl

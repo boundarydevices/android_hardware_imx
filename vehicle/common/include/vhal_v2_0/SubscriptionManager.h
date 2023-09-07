@@ -17,16 +17,15 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_SubscriptionManager_H_
 #define android_hardware_automotive_vehicle_V2_0_SubscriptionManager_H_
 
-#include <memory>
-#include <map>
-#include <set>
-#include <list>
-
+#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 #include <android/log.h>
 #include <hidl/HidlSupport.h>
 #include <utils/SortedVector.h>
 
-#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
+#include <list>
+#include <map>
+#include <memory>
+#include <set>
 
 #include "ConcurrentQueue.h"
 #include "VehicleObjectPool.h"
@@ -39,16 +38,14 @@ namespace V2_0 {
 
 class HalClient : public android::RefBase {
 public:
-    HalClient(const sp<IVehicleCallback> &callback)
-        : mCallback(callback) {}
+    HalClient(const sp<IVehicleCallback>& callback) : mCallback(callback) {}
 
     virtual ~HalClient() {}
-public:
-    sp<IVehicleCallback> getCallback() const {
-        return mCallback;
-    }
 
-    void addOrUpdateSubscription(const SubscribeOptions &opts);
+public:
+    sp<IVehicleCallback> getCallback() const { return mCallback; }
+
+    void addOrUpdateSubscription(const SubscribeOptions& opts);
     bool isSubscribed(int32_t propId, SubscribeFlags flags);
     std::vector<int32_t> getSubscribedProperties() const;
 
@@ -58,24 +55,22 @@ private:
     std::map<int32_t, SubscribeOptions> mSubscriptions;
 };
 
-class HalClientVector : private SortedVector<sp<HalClient>> , public RefBase {
+class HalClientVector : private SortedVector<sp<HalClient>>, public RefBase {
 public:
     virtual ~HalClientVector() {}
 
-    inline void addOrUpdate(const sp<HalClient> &client) {
-        SortedVector::add(client);
-    }
+    inline void addOrUpdate(const sp<HalClient>& client) { SortedVector::add(client); }
 
+    using SortedVector::indexOf;
+    using SortedVector::isEmpty;
+    using SortedVector::itemAt;
     using SortedVector::remove;
     using SortedVector::size;
-    using SortedVector::indexOf;
-    using SortedVector::itemAt;
-    using SortedVector::isEmpty;
 };
 
 struct HalClientValues {
     sp<HalClient> client;
-    std::list<VehiclePropValue *> values;
+    std::list<VehiclePropValue*> values;
 };
 
 using ClientId = uint64_t;
@@ -90,10 +85,10 @@ public:
      * @param onPropertyUnsubscribed - called when no more clients are subscribed to the property.
      */
     SubscriptionManager(const OnPropertyUnsubscribed& onPropertyUnsubscribed)
-            : mOnPropertyUnsubscribed(onPropertyUnsubscribed),
-                mCallbackDeathRecipient(new DeathRecipient(
-                    std::bind(&SubscriptionManager::onCallbackDead, this, std::placeholders::_1)))
-    {}
+          : mOnPropertyUnsubscribed(onPropertyUnsubscribed),
+            mCallbackDeathRecipient(new DeathRecipient(
+                    std::bind(&SubscriptionManager::onCallbackDead, this, std::placeholders::_1))) {
+    }
 
     ~SubscriptionManager() = default;
 
@@ -101,8 +96,7 @@ public:
      * Updates subscription. Returns the vector of properties subscription that
      * needs to be updated in VehicleHAL.
      */
-    StatusCode addOrUpdateSubscription(ClientId clientId,
-                                       const sp<IVehicleCallback>& callback,
+    StatusCode addOrUpdateSubscription(ClientId clientId, const sp<IVehicleCallback>& callback,
                                        const hidl_vec<SubscribeOptions>& optionList,
                                        std::list<SubscribeOptions>* outUpdatedOptions);
 
@@ -120,9 +114,9 @@ public:
      * in the constructor will be called.
      */
     void unsubscribe(ClientId clientId, int32_t propId);
+
 private:
-    std::list<sp<HalClient>> getSubscribedClientsLocked(int32_t propId,
-                                                        SubscribeFlags flags) const;
+    std::list<sp<HalClient>> getSubscribedClientsLocked(int32_t propId, SubscribeFlags flags) const;
 
     bool updateHalEventSubscriptionLocked(const SubscribeOptions& opts, SubscribeOptions* out);
 
@@ -140,17 +134,17 @@ private:
 
     class DeathRecipient : public hidl_death_recipient {
     public:
-        DeathRecipient(const OnClientDead& onClientDead)
-            : mOnClientDead(onClientDead) {}
+        DeathRecipient(const OnClientDead& onClientDead) : mOnClientDead(onClientDead) {}
         ~DeathRecipient() = default;
 
-        DeathRecipient(const DeathRecipient& ) = delete;
+        DeathRecipient(const DeathRecipient&) = delete;
         DeathRecipient& operator=(const DeathRecipient&) = delete;
 
         void serviceDied(uint64_t cookie,
                          const wp<::android::hidl::base::V1_0::IBase>& /* who */) override {
             mOnClientDead(cookie);
         }
+
     private:
         OnClientDead mOnClientDead;
     };
@@ -168,12 +162,10 @@ private:
     sp<DeathRecipient> mCallbackDeathRecipient;
 };
 
-
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
-
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
 #endif // android_hardware_automotive_vehicle_V2_0_SubscriptionManager_H_

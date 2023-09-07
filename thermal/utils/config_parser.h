@@ -17,11 +17,11 @@
 #ifndef THERMAL_UTILS_CONFIG_PARSER_H__
 #define THERMAL_UTILS_CONFIG_PARSER_H__
 
+#include <android/hardware/thermal/2.0/IThermal.h>
+
 #include <map>
 #include <string>
 #include <vector>
-
-#include <android/hardware/thermal/2.0/IThermal.h>
 
 namespace android {
 namespace hardware {
@@ -33,8 +33,9 @@ using ::android::hardware::hidl_enum_range;
 using ::android::hardware::thermal::V2_0::CoolingType;
 using TemperatureType_2_0 = ::android::hardware::thermal::V2_0::TemperatureType;
 using ::android::hardware::thermal::V2_0::ThrottlingSeverity;
-constexpr size_t kThrottlingSeverityCount = std::distance(
-    hidl_enum_range<ThrottlingSeverity>().begin(), hidl_enum_range<ThrottlingSeverity>().end());
+constexpr size_t kThrottlingSeverityCount =
+        std::distance(hidl_enum_range<ThrottlingSeverity>().begin(),
+                      hidl_enum_range<ThrottlingSeverity>().end());
 using ThrottlingArray = std::array<float, static_cast<size_t>(kThrottlingSeverityCount)>;
 
 struct SensorInfo {
@@ -52,10 +53,10 @@ std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path);
 std::map<std::string, CoolingType> ParseCoolingDevice(std::string_view config_path);
 std::vector<std::string> ParseHotplugCPUInfo(std::string_view config_path);
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android
 
-#endif  // THERMAL_UTILS_CONFIG_PARSER_H__
+#endif // THERMAL_UTILS_CONFIG_PARSER_H__

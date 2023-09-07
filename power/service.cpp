@@ -16,12 +16,12 @@
 
 #define LOG_TAG "android.hardware.power-service.imx"
 
-#include <thread>
-
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
+
+#include <thread>
 
 #include "Power.h"
 
@@ -37,7 +37,8 @@ int main() {
 
     char name[PATH_MAX] = {0};
     android::base::WaitForProperty(kPowerHalInitProp, "1");
-    snprintf(name, PATH_MAX, "%s_%s%s", kPowerHalConfigPath, android::base::GetProperty(kSocType, "").c_str(), ".json");
+    snprintf(name, PATH_MAX, "%s_%s%s", kPowerHalConfigPath,
+             android::base::GetProperty(kSocType, "").c_str(), ".json");
 
     // Parse config but do not start the looper
     std::shared_ptr<HintManager> hm = HintManager::GetFromJSON(name, true);

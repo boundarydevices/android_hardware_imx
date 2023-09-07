@@ -16,17 +16,17 @@
 
 #ifndef V4L2_DEV_H
 #define V4L2_DEV_H
-#include <stdint.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <linux/videodev2.h>
-#include <utils/Errors.h>
-#include <fcntl.h>
-#include <log/log.h>
-#include <vector>
-#include <android-base/file.h>
 #include <android-base/file.h>
 #include <android-base/strings.h>
+#include <fcntl.h>
+#include <linux/videodev2.h>
+#include <log/log.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <utils/Errors.h>
+
+#include <vector>
 
 namespace android {
 
@@ -36,12 +36,10 @@ namespace android {
 #define V4L2_DEV_POLL_CAPTURE 4
 
 #define MAX_DEV_NAME_LEN (256)
-#define V4L2_FORMAT_IS_NON_CONTIGUOUS_PLANES(fmt) \
-	((fmt) == V4L2_PIX_FMT_NV12M        \
-	 || (fmt) == V4L2_PIX_FMT_YUV420M   \
-     || (fmt) == V4L2_PIX_FMT_YVU420M   \
-	 || (fmt) == V4L2_PIX_FMT_NV12M_8L128   \
-     || (fmt) == V4L2_PIX_FMT_NV12M_10BE_8L128)
+#define V4L2_FORMAT_IS_NON_CONTIGUOUS_PLANES(fmt)                          \
+    ((fmt) == V4L2_PIX_FMT_NV12M || (fmt) == V4L2_PIX_FMT_YUV420M ||       \
+     (fmt) == V4L2_PIX_FMT_YVU420M || (fmt) == V4L2_PIX_FMT_NV12M_8L128 || \
+     (fmt) == V4L2_PIX_FMT_NV12M_10BE_8L128)
 
 typedef struct {
     uint32_t color_format;
@@ -65,11 +63,11 @@ public:
 
     status_t GetContiguousV4l2Format(uint32_t format, uint32_t *contiguous_format);
     status_t GetCaptureFormat(uint32_t *format, uint32_t i);
-    status_t GetFormatFrameInfo(uint32_t format, struct v4l2_frmsizeenum * info);
-    status_t GetColorFormatByV4l2(uint32_t v4l2_format, uint32_t * color_format,
-        COLOR_FORMAT_TABLE *color_format_table, uint8_t tableSize);
-    status_t GetV4l2FormatByColor(uint32_t color_format, uint32_t * v4l2_format,
-        COLOR_FORMAT_TABLE *color_format_table, uint8_t tableSize);
+    status_t GetFormatFrameInfo(uint32_t format, struct v4l2_frmsizeenum *info);
+    status_t GetColorFormatByV4l2(uint32_t v4l2_format, uint32_t *color_format,
+                                  COLOR_FORMAT_TABLE *color_format_table, uint8_t tableSize);
+    status_t GetV4l2FormatByColor(uint32_t color_format, uint32_t *v4l2_format,
+                                  COLOR_FORMAT_TABLE *color_format_table, uint8_t tableSize);
 
     uint32_t Poll();
     status_t SetPollInterrupt();
@@ -88,10 +86,9 @@ private:
     std::vector<uint32_t> capture_formats;
 
     status_t GetNode();
-    bool isDecoderDevice(const char* devName);
+    bool isDecoderDevice(const char *devName);
     status_t QueryFormats(uint32_t format_type);
 };
 
-}
+} // namespace android
 #endif
-

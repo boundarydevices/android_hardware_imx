@@ -16,46 +16,40 @@
  * limitations under the License.
  */
 
-#include <limits.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <MemoryManager.h>
+#include <cutils/ashmem.h>
+#include <cutils/atomic.h>
+#include <cutils/log.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <graphics_ext.h>
+#include <hardware/gralloc.h>
+#include <hardware/hardware.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
-
-#include <cutils/ashmem.h>
-#include <cutils/log.h>
-#include <cutils/atomic.h>
-
-#include <hardware/hardware.h>
-#include <hardware/gralloc.h>
-
-#include <graphics_ext.h>
-#include <MemoryManager.h>
+#include <unistd.h>
 
 using namespace fsl;
 
-#define  ALIGN_PIXEL_4(x)  ((x+ 3) & ~3)
-#define  ALIGN_PIXEL_32(x)  ((x+ 31) & ~31)
-extern int fb_device_open(const hw_module_t* module, const char* name,
-        hw_device_t** device);
+#define ALIGN_PIXEL_4(x) ((x + 3) & ~3)
+#define ALIGN_PIXEL_32(x) ((x + 31) & ~31)
+extern int fb_device_open(const hw_module_t* module, const char* name, hw_device_t** device);
 
 struct gralloc_context_t {
-    alloc_device_t  device;
+    alloc_device_t device;
 };
 
 struct private_module_t {
     gralloc_module_t base;
 };
 
-int convertAndroidFormat(int format)
-{
+int convertAndroidFormat(int format) {
     int fslFormat = 0;
     switch (format) {
         case HAL_PIXEL_FORMAT_RGBA_8888:
@@ -102,10 +96,8 @@ int convertAndroidFormat(int format)
     return fslFormat;
 }
 
-int gralloc_alloc(alloc_device_t* /*dev*/,
-        int w, int h, int format, int usage,
-        buffer_handle_t* handle, int* stride)
-{
+int gralloc_alloc(alloc_device_t* /*dev*/, int w, int h, int format, int usage,
+                  buffer_handle_t* handle, int* stride) {
     if (!handle) {
         ALOGE("%s invalide parameters", __func__);
         return -EINVAL;
@@ -113,7 +105,7 @@ int gralloc_alloc(alloc_device_t* /*dev*/,
 
     MemoryManager* pManager = MemoryManager::getInstance();
     if (pManager == NULL) {
-	ALOGE("%s can't get memory manager", __func__);
+        ALOGE("%s can't get memory manager", __func__);
         return -EINVAL;
     }
 
@@ -128,13 +120,10 @@ int gralloc_alloc(alloc_device_t* /*dev*/,
     if (usage & GRALLOC_USAGE_HW_FB) {
         usage &= ~GRALLOC_USAGE_HW_FB;
         flags |= FLAGS_FRAMEBUFFER;
-        usage |= GRALLOC_USAGE_HW_COMPOSER
-                | GRALLOC_USAGE_HW_2D
-                | GRALLOC_USAGE_HW_RENDER;
+        usage |= GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_2D | GRALLOC_USAGE_HW_RENDER;
     }
 
-    if ((usage & GRALLOC_USAGE_SW_READ_MASK) != 0 ||
-        (usage & GRALLOC_USAGE_SW_WRITE_MASK) != 0) {
+    if ((usage & GRALLOC_USAGE_SW_READ_MASK) != 0 || (usage & GRALLOC_USAGE_SW_WRITE_MASK) != 0) {
         flags |= FLAGS_CPU;
     }
 
@@ -173,75 +162,62 @@ int gralloc_alloc(alloc_device_t* /*dev*/,
     return 0;
 }
 
-int gralloc_free(alloc_device_t* /*dev*/, buffer_handle_t handle)
-{
+int gralloc_free(alloc_device_t* /*dev*/, buffer_handle_t handle) {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (pManager == NULL) {
-	ALOGE("%s can't get memory manager", __func__);
+        ALOGE("%s can't get memory manager", __func__);
         return -EINVAL;
     }
 
     return pManager->releaseMemory((Memory*)handle);
 }
 
-int gralloc_register_buffer(gralloc_module_t const* /*module*/,
-                                buffer_handle_t handle)
-{
+int gralloc_register_buffer(gralloc_module_t const* /*module*/, buffer_handle_t handle) {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (pManager == NULL) {
-	ALOGE("%s can't get memory manager", __func__);
+        ALOGE("%s can't get memory manager", __func__);
         return -EINVAL;
     }
 
     return pManager->retainMemory((Memory*)handle);
 }
 
-int gralloc_unregister_buffer(gralloc_module_t const* /*module*/,
-        buffer_handle_t handle)
-{
+int gralloc_unregister_buffer(gralloc_module_t const* /*module*/, buffer_handle_t handle) {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (pManager == NULL) {
-	ALOGE("%s can't get memory manager", __func__);
+        ALOGE("%s can't get memory manager", __func__);
         return -EINVAL;
     }
 
     return pManager->releaseMemory((Memory*)handle);
 }
 
-int gralloc_lock(gralloc_module_t const* /*module*/,
-        buffer_handle_t handle, int usage,
-        int l, int t, int w, int h,
-        void** vaddr)
-{
+int gralloc_lock(gralloc_module_t const* /*module*/, buffer_handle_t handle, int usage, int l,
+                 int t, int w, int h, void** vaddr) {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (pManager == NULL) {
-	ALOGE("%s can't get memory manager", __func__);
+        ALOGE("%s can't get memory manager", __func__);
         return -EINVAL;
     }
 
     return pManager->lock((Memory*)handle, usage, l, t, w, h, vaddr);
 }
 
-int gralloc_lockYCbCr(gralloc_module_t const* /*module*/,
-        buffer_handle_t handle, int usage,
-        int l, int t, int w, int h,
-        android_ycbcr* ycbcr)
-{
+int gralloc_lockYCbCr(gralloc_module_t const* /*module*/, buffer_handle_t handle, int usage, int l,
+                      int t, int w, int h, android_ycbcr* ycbcr) {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (pManager == NULL) {
-	ALOGE("%s can't get memory manager", __func__);
+        ALOGE("%s can't get memory manager", __func__);
         return -EINVAL;
     }
 
     return pManager->lockYCbCr((Memory*)handle, usage, l, t, w, h, ycbcr);
 }
 
-int gralloc_unlock(gralloc_module_t const* /*module*/,
-        buffer_handle_t handle)
-{
+int gralloc_unlock(gralloc_module_t const* /*module*/, buffer_handle_t handle) {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (pManager == NULL) {
-	ALOGE("%s can't get memory manager", __func__);
+        ALOGE("%s can't get memory manager", __func__);
         return -EINVAL;
     }
 
@@ -249,8 +225,7 @@ int gralloc_unlock(gralloc_module_t const* /*module*/,
 }
 
 /*****************************************************************************/
-int gralloc_device_close(struct hw_device_t *dev)
-{
+int gralloc_device_close(struct hw_device_t* dev) {
     gralloc_context_t* ctx = reinterpret_cast<gralloc_context_t*>(dev);
     if (ctx) {
         free(ctx);
@@ -259,18 +234,16 @@ int gralloc_device_close(struct hw_device_t *dev)
     return 0;
 }
 
-int gralloc_device_open(const hw_module_t* module, const char* name,
-        hw_device_t** device)
-{
+int gralloc_device_open(const hw_module_t* module, const char* name, hw_device_t** device) {
     int status = -EINVAL;
-    hw_module_t *hw = const_cast<hw_module_t *>(module);
+    hw_module_t* hw = const_cast<hw_module_t*>(module);
     if (hw == NULL) {
         ALOGE("%s invalid module", __func__);
         return status;
     }
 
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
-        gralloc_context_t *dev;
+        gralloc_context_t* dev;
         dev = (gralloc_context_t*)malloc(sizeof(*dev));
 
         /* initialize our state here */
@@ -282,13 +255,12 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         dev->device.common.module = const_cast<hw_module_t*>(module);
         dev->device.common.close = gralloc_device_close;
 
-        dev->device.alloc   = gralloc_alloc;
-        dev->device.free    = gralloc_free;
+        dev->device.alloc = gralloc_alloc;
+        dev->device.free = gralloc_free;
 
         *device = &dev->device.common;
         status = 0;
-    }
-    else {
+    } else {
         status = fb_device_open(module, name, device);
     }
 
@@ -296,33 +268,26 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
 }
 
 /*****************************************************************************/
-static struct hw_module_methods_t gralloc_module_methods = {
-        .open = gralloc_device_open
-};
+static struct hw_module_methods_t gralloc_module_methods = {.open = gralloc_device_open};
 
 struct private_module_t HAL_MODULE_INFO_SYM = {
-    .base = {
-        .common = {
-            .tag = HARDWARE_MODULE_TAG,
-            .version_major = 1,
-            .version_minor = 0,
-            .id = GRALLOC_HARDWARE_MODULE_ID,
-            .name = "Graphics Memory Allocator Module",
-            .author = "Freescale Semiconductor, Inc.",
-            .methods = &gralloc_module_methods,
-            .dso = NULL,
-            .reserved = {0}
-        },
-        .registerBuffer = gralloc_register_buffer,
-        .unregisterBuffer = gralloc_unregister_buffer,
-        .lock = gralloc_lock,
-        .unlock = gralloc_unlock,
-        .perform = 0,
-        .lock_ycbcr = gralloc_lockYCbCr,
-        .lockAsync = 0,
-        .unlockAsync = 0,
-        .lockAsync_ycbcr = 0,
-        .reserved_proc = {0}
-    },
+        .base = {.common = {.tag = HARDWARE_MODULE_TAG,
+                            .version_major = 1,
+                            .version_minor = 0,
+                            .id = GRALLOC_HARDWARE_MODULE_ID,
+                            .name = "Graphics Memory Allocator Module",
+                            .author = "Freescale Semiconductor, Inc.",
+                            .methods = &gralloc_module_methods,
+                            .dso = NULL,
+                            .reserved = {0}},
+                 .registerBuffer = gralloc_register_buffer,
+                 .unregisterBuffer = gralloc_unregister_buffer,
+                 .lock = gralloc_lock,
+                 .unlock = gralloc_unlock,
+                 .perform = 0,
+                 .lock_ycbcr = gralloc_lockYCbCr,
+                 .lockAsync = 0,
+                 .unlockAsync = 0,
+                 .lockAsync_ycbcr = 0,
+                 .reserved_proc = {0}},
 };
-

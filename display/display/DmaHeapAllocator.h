@@ -19,15 +19,15 @@
 
 #include <BufferAllocator/BufferAllocatorWrapper.h>
 #include <utils/Mutex.h>
-#include "Memory.h"
+
 #include "Allocator.h"
+#include "Memory.h"
 
 namespace fsl {
 
 using android::Mutex;
 
-class DmaHeapAllocator  : public Allocator
-{
+class DmaHeapAllocator : public Allocator {
 public:
     static DmaHeapAllocator* getInstance();
     ~DmaHeapAllocator();
@@ -43,13 +43,13 @@ public:
     // get memory virtual address.
     int getVaddrs(int fd, int size, uint64_t& addr);
     int getHeapType(int fd);
+
 private:
     DmaHeapAllocator();
-    static DmaHeapAllocator *sInstance;
+    static DmaHeapAllocator* sInstance;
     BufferAllocator* mBufferAllocator;
     static Mutex sLock;
-
 };
 
-}
+} // namespace fsl
 #endif

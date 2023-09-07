@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-#include <Allocator.h>
 #include "USPStream.h"
 
-USPStream::USPStream(Camera* device)
-    : MMAPStream(device)
-{
+#include <Allocator.h>
+
+USPStream::USPStream(Camera* device) : MMAPStream(device) {
     mV4l2MemType = V4L2_MEMORY_USERPTR;
 }
 
-USPStream::~USPStream()
-{
-}
+USPStream::~USPStream() {}
 
 // configure device.
-int32_t USPStream::onDeviceConfigureLocked()
-{
+int32_t USPStream::onDeviceConfigureLocked() {
     ALOGI("%s", __func__);
     if (mDev <= 0) {
         ALOGE("%s invalid fd handle", __func__);
@@ -39,8 +35,7 @@ int32_t USPStream::onDeviceConfigureLocked()
     return MMAPStream::onDeviceConfigureLocked();
 }
 
-int32_t USPStream::onDeviceStartLocked()
-{
+int32_t USPStream::onDeviceStartLocked() {
     ALOGV("%s", __func__);
     if (mDev <= 0) {
         ALOGE("%s invalid dev node", __func__);
@@ -51,7 +46,7 @@ int32_t USPStream::onDeviceStartLocked()
     struct v4l2_buffer buf;
     struct v4l2_requestbuffers req;
 
-    memset(&req, 0, sizeof (req));
+    memset(&req, 0, sizeof(req));
     req.count = mNumBuffers;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_USERPTR;
@@ -61,12 +56,12 @@ int32_t USPStream::onDeviceStartLocked()
     }
 
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        memset(&buf, 0, sizeof (buf));
+        memset(&buf, 0, sizeof(buf));
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.index = i;
         buf.memory = V4L2_MEMORY_USERPTR;
         buf.m.offset = mBuffers[i]->mPhyAddr;
-        buf.length   = mBuffers[i]->mSize;
+        buf.length = mBuffers[i]->mSize;
         if (ioctl(mDev, VIDIOC_QUERYBUF, &buf) < 0) {
             ALOGE("%s VIDIOC_QUERYBUF error", __func__);
             return BAD_VALUE;
@@ -77,16 +72,15 @@ int32_t USPStream::onDeviceStartLocked()
     //----------qbuf----------
     struct v4l2_buffer cfilledbuffer;
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+        memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
         cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-        cfilledbuffer.index    = i;
+        cfilledbuffer.index = i;
 
         if (!mCustomDriver) {
             cfilledbuffer.m.userptr = (unsigned long)mBuffers[i]->mVirtAddr;
             cfilledbuffer.length = mBuffers[i]->mSize;
-        }
-        else {
+        } else {
             cfilledbuffer.m.offset = mBuffers[i]->mPhyAddr;
         }
 
@@ -110,8 +104,7 @@ int32_t USPStream::onDeviceStartLocked()
     return 0;
 }
 
-int32_t USPStream::onDeviceStopLocked()
-{
+int32_t USPStream::onDeviceStopLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
 
@@ -131,12 +124,11 @@ int32_t USPStream::onDeviceStopLocked()
     return 0;
 }
 
-int32_t USPStream::onFrameAcquireLocked()
-{
+int32_t USPStream::onFrameAcquireLocked() {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
-    memset(&cfilledbuffer, 0, sizeof (cfilledbuffer));
+    memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
 
@@ -149,21 +141,19 @@ int32_t USPStream::onFrameAcquireLocked()
     return cfilledbuffer.index;
 }
 
-int32_t USPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
-{
+int32_t USPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf) {
     ALOGV("%s", __func__);
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
-    memset(&cfilledbuffer, 0, sizeof (struct v4l2_buffer));
+    memset(&cfilledbuffer, 0, sizeof(struct v4l2_buffer));
     cfilledbuffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     cfilledbuffer.memory = V4L2_MEMORY_USERPTR;
-    cfilledbuffer.index    = index;
+    cfilledbuffer.index = index;
 
-    if(!mCustomDriver) {
+    if (!mCustomDriver) {
         cfilledbuffer.m.userptr = (unsigned long)buf.mVirtAddr;
         cfilledbuffer.length = buf.mSize;
-    }
-    else {
+    } else {
         cfilledbuffer.m.offset = buf.mPhyAddr;
     }
 
@@ -176,8 +166,7 @@ int32_t USPStream::onFrameReturnLocked(int32_t index, StreamBuffer& buf)
     return ret;
 }
 
-int32_t USPStream::getFormatSize()
-{
+int32_t USPStream::getFormatSize() {
     int32_t size = 0;
     int alignedw, alignedh, c_stride;
     switch (mFormat) {
@@ -190,7 +179,7 @@ int32_t USPStream::getFormatSize()
         case HAL_PIXEL_FORMAT_YCbCr_420_P: {
             alignedw = ALIGN_PIXEL_32(mWidth);
             alignedh = ALIGN_PIXEL_4(mHeight);
-            c_stride = (alignedw/2+15)/16*16;
+            c_stride = (alignedw / 2 + 15) / 16 * 16;
             size = (alignedw + c_stride) * alignedh;
             break;
         }
@@ -213,10 +202,9 @@ int32_t USPStream::getFormatSize()
     return size;
 }
 
-int32_t USPStream::allocateBuffersLocked()
-{
+int32_t USPStream::allocateBuffersLocked() {
     ALOGV("%s", __func__);
-    fsl::Allocator *allocator = fsl::Allocator::getInstance();
+    fsl::Allocator* allocator = fsl::Allocator::getInstance();
     if (allocator == NULL) {
         ALOGE("%s ion allocator invalid", __func__);
         return BAD_VALUE;
@@ -240,8 +228,7 @@ int32_t USPStream::allocateBuffersLocked()
 
     ALOGI("allocateBufferFromIon buffer num:%d", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        sharedFd = allocator->allocMemory(ionSize,
-                        MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+        sharedFd = allocator->allocMemory(ionSize, MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
         if (sharedFd < 0) {
             ALOGE("allocMemory failed.");
             goto err;
@@ -263,9 +250,9 @@ int32_t USPStream::allocateBuffersLocked()
         }
         ALOGI("phyalloc ptr:0x%" PRIu64 ", phy:0x%" PRIu64 ", ionSize:%d", ptr, phyAddr, ionSize);
         mBuffers[i] = new StreamBuffer();
-        mBuffers[i]->mVirtAddr  = (void*)(uintptr_t)ptr;
-        mBuffers[i]->mPhyAddr   = phyAddr;
-        mBuffers[i]->mSize      =  ionSize;
+        mBuffers[i]->mVirtAddr = (void*)(uintptr_t)ptr;
+        mBuffers[i]->mPhyAddr = phyAddr;
+        mBuffers[i]->mSize = ionSize;
         mBuffers[i]->mBufHandle = NULL;
         mBuffers[i]->mFd = sharedFd;
         mBuffers[i]->mStream = this;
@@ -298,8 +285,7 @@ err:
     return BAD_VALUE;
 }
 
-int32_t USPStream::freeBuffersLocked()
-{
+int32_t USPStream::freeBuffersLocked() {
     ALOGV("%s", __func__);
     if (!mRegistered) {
         ALOGI("%s but buffer is not registered", __func__);
@@ -321,4 +307,3 @@ int32_t USPStream::freeBuffersLocked()
 
     return 0;
 }
-

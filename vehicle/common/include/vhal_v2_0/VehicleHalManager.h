@@ -17,6 +17,7 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_VehicleHalManager_H_
 #define android_hardware_automotive_vehicle_V2_0_VehicleHalManager_H_
 
+#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -25,8 +26,6 @@
 #include <map>
 #include <memory>
 #include <set>
-
-#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 
 #include "ConcurrentQueue.h"
 #include "SubscriptionManager.h"
@@ -49,9 +48,9 @@ namespace V2_0 {
 class VehicleHalManager : public IVehicle {
 public:
     VehicleHalManager(VehicleHal* vehicleHal)
-        : mHal(vehicleHal),
-          mSubscriptionManager(std::bind(&VehicleHalManager::onAllClientsUnsubscribed,
-                                         this, std::placeholders::_1)) {
+          : mHal(vehicleHal),
+            mSubscriptionManager(std::bind(&VehicleHalManager::onAllClientsUnsubscribed, this,
+                                           std::placeholders::_1)) {
         init();
     }
 
@@ -61,41 +60,38 @@ public:
 
     // ---------------------------------------------------------------------------------------------
     // Methods derived from IVehicle
-    Return<void> getAllPropConfigs(getAllPropConfigs_cb _hidl_cb)  override;
+    Return<void> getAllPropConfigs(getAllPropConfigs_cb _hidl_cb) override;
     Return<void> getPropConfigs(const hidl_vec<int32_t>& properties,
-                                getPropConfigs_cb _hidl_cb)  override;
-    Return<void> get(const VehiclePropValue& requestedPropValue,
-                     get_cb _hidl_cb)  override;
-    Return<StatusCode> set(const VehiclePropValue& value)  override;
+                                getPropConfigs_cb _hidl_cb) override;
+    Return<void> get(const VehiclePropValue& requestedPropValue, get_cb _hidl_cb) override;
+    Return<StatusCode> set(const VehiclePropValue& value) override;
     Return<StatusCode> subscribe(const sp<IVehicleCallback>& callback,
-                                const hidl_vec<SubscribeOptions>& options)  override;
-    Return<StatusCode> unsubscribe(const sp<IVehicleCallback>& callback,
-                                   int32_t propId)  override;
+                                 const hidl_vec<SubscribeOptions>& options) override;
+    Return<StatusCode> unsubscribe(const sp<IVehicleCallback>& callback, int32_t propId) override;
     Return<void> debugDump(debugDump_cb _hidl_cb = nullptr) override;
 
     Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& options) override;
 
-  private:
+private:
     using VehiclePropValuePtr = VehicleHal::VehiclePropValuePtr;
     // Returns true if needs to call again shortly.
     using RetriableAction = std::function<bool()>;
 
     // ---------------------------------------------------------------------------------------------
     // Events received from VehicleHal
-    void onHalEvent(VehiclePropValuePtr  v);
-    void onHalPropertySetError(StatusCode errorCode, int32_t property,
-                               int32_t areaId);
+    void onHalEvent(VehiclePropValuePtr v);
+    void onHalPropertySetError(StatusCode errorCode, int32_t property, int32_t areaId);
 
     // ---------------------------------------------------------------------------------------------
     // This method will be called from BatchingConsumer thread
-    void onBatchHalEvent(const std::vector<VehiclePropValuePtr >& values);
+    void onBatchHalEvent(const std::vector<VehiclePropValuePtr>& values);
 
     void handlePropertySetEvent(const VehiclePropValue& value);
 
     const VehiclePropConfig* getPropConfigOrNull(int32_t prop) const;
 
-    bool checkWritePermission(const VehiclePropConfig &config) const;
-    bool checkReadPermission(const VehiclePropConfig &config) const;
+    bool checkWritePermission(const VehiclePropConfig& config) const;
+    bool checkReadPermission(const VehiclePropConfig& config) const;
     void onAllClientsUnsubscribed(int32_t propertyId);
 
     // Dump and commands
@@ -114,12 +110,11 @@ public:
     void cmdDumpSpecificProperties(int fd, const hidl_vec<hidl_string>& options);
     void cmdSetOneProperty(int fd, const hidl_vec<hidl_string>& options);
 
-    static bool isSubscribable(const VehiclePropConfig& config,
-                               SubscribeFlags flags);
+    static bool isSubscribable(const VehiclePropConfig& config, SubscribeFlags flags);
     static bool isSampleRateFixed(VehiclePropertyChangeMode mode);
-    static float checkSampleRate(const VehiclePropConfig& config,
-                                 float sampleRate);
+    static float checkSampleRate(const VehiclePropConfig& config, float sampleRate);
     static ClientId getClientId(const sp<IVehicleCallback>& callback);
+
 private:
     VehicleHal* mHal;
     std::unique_ptr<VehiclePropConfigIndex> mConfigIndex;
@@ -132,11 +127,10 @@ private:
     VehiclePropValuePool mValueObjectPool;
 };
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
-
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
 #endif // android_hardware_automotive_vehicle_V2_0_VehicleHalManager_H_

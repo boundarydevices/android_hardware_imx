@@ -16,6 +16,10 @@
 #ifndef THERMAL_UTILS_THERMAL_WATCHER_H_
 #define THERMAL_UTILS_THERMAL_WATCHER_H_
 
+#include <android-base/unique_fd.h>
+#include <utils/Looper.h>
+#include <utils/Thread.h>
+
 #include <chrono>
 #include <condition_variable>
 #include <future>
@@ -26,10 +30,6 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-
-#include <android-base/unique_fd.h>
-#include <utils/Looper.h>
-#include <utils/Thread.h>
 
 namespace android {
 namespace hardware {
@@ -42,9 +42,13 @@ using WatcherCallback = std::function<bool(const std::set<std::string> &name)>;
 
 // A helper class for monitoring thermal files changes.
 class ThermalWatcher : public ::android::Thread {
-  public:
+public:
     ThermalWatcher(const WatcherCallback &cb)
-        : Thread(false), cb_(cb), looper_(new Looper(true)), thermal_triggered_(false), is_polling_(true) {}
+          : Thread(false),
+            cb_(cb),
+            looper_(new Looper(true)),
+            thermal_triggered_(false),
+            is_polling_(true) {}
     ~ThermalWatcher() = default;
 
     // Disallow copy and assign.
@@ -61,7 +65,7 @@ class ThermalWatcher : public ::android::Thread {
     // in any thread.
     void wake();
 
-  private:
+private:
     // The work done by the watcher thread. This will use inotify to check for
     // modifications to the files to watch. If any modification is seen this
     // will callback the registered function with the new data read from the
@@ -92,10 +96,10 @@ class ThermalWatcher : public ::android::Thread {
     bool is_polling_;
 };
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android
 
-#endif  // THERMAL_UTILS_THERMAL_WATCHER_H_
+#endif // THERMAL_UTILS_THERMAL_WATCHER_H_

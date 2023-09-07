@@ -24,6 +24,7 @@
 #include <aidl/android/hardware/camera/device/Stream.h>
 #include <fmq/AidlMessageQueue.h>
 #include <utils/RefBase.h>
+
 #include <deque>
 
 namespace android {
@@ -42,7 +43,7 @@ using ::aidl::android::hardware::common::fmq::SynchronizedReadWrite;
 class ExternalCameraOfflineSession final : public BnCameraOfflineSession,
                                            public virtual RefBase,
                                            public virtual OutputThreadInterface {
-  public:
+public:
     ExternalCameraOfflineSession(const CroppingType& croppingType,
                                  const common::V1_0::helper::CameraMetadata& chars,
                                  const std::string& cameraId, const std::string& exifMake,
@@ -75,22 +76,22 @@ class ExternalCameraOfflineSession final : public BnCameraOfflineSession,
             MQDescriptor<int8_t, SynchronizedReadWrite>* _aidl_return) override;
     ScopedAStatus close() override;
 
-  private:
+private:
     class OutputThread : public ExternalCameraDeviceSession::OutputThread {
-      public:
+    public:
         OutputThread(std::weak_ptr<OutputThreadInterface> parent, CroppingType ct,
                      const common::V1_0::helper::CameraMetadata& chars,
                      std::shared_ptr<ExternalCameraDeviceSession::BufferRequestThread> bufReqThread,
                      std::deque<std::shared_ptr<HalRequest>>& offlineReqs)
-            : ExternalCameraDeviceSession::OutputThread(std::move(parent), ct, chars,
-                                                        std::move(bufReqThread)),
-              mOfflineReqs(offlineReqs) {}
+              : ExternalCameraDeviceSession::OutputThread(std::move(parent), ct, chars,
+                                                          std::move(bufReqThread)),
+                mOfflineReqs(offlineReqs) {}
 
         bool threadLoop() override;
 
-      protected:
+    protected:
         std::deque<std::shared_ptr<HalRequest>> mOfflineReqs;
-    };  // OutputThread
+    }; // OutputThread
 
     status_t fillCaptureResult(common::V1_0::helper::CameraMetadata md, nsecs_t timestamp);
     void invokeProcessCaptureResultCallback(std::vector<CaptureResult>& results, bool tryWriteFmq);
@@ -100,7 +101,7 @@ class ExternalCameraOfflineSession final : public BnCameraOfflineSession,
     // Protect (most of) HIDL interface methods from synchronized-entering
     mutable Mutex mInterfaceLock;
 
-    mutable Mutex mLock;  // Protect all data members except otherwise noted
+    mutable Mutex mLock; // Protect all data members except otherwise noted
 
     bool mClosed = false;
     const CroppingType mCroppingType;
@@ -110,7 +111,7 @@ class ExternalCameraOfflineSession final : public BnCameraOfflineSession,
     const std::string mExifModel;
     const uint32_t mBlobBufferSize;
 
-    std::mutex mAfTriggerLock;  // protect mAfTrigger
+    std::mutex mAfTriggerLock; // protect mAfTrigger
     bool mAfTrigger;
 
     const std::vector<Stream> mOfflineStreams;
@@ -134,10 +135,10 @@ class ExternalCameraOfflineSession final : public BnCameraOfflineSession,
     std::shared_ptr<OutputThread> mOutputThread;
 };
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android
 
-#endif  // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_EXTERNALCAMERAOFFLINESESSION_H_
+#endif // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_EXTERNALCAMERAOFFLINESESSION_H_

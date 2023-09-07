@@ -17,17 +17,15 @@
 #ifndef GRALLOC_PRIV_H_
 #define GRALLOC_PRIV_H_
 
-#include <stdint.h>
-#include <limits.h>
-#include <sys/cdefs.h>
-#include <hardware/gralloc.h>
-#include <pthread.h>
-#include <errno.h>
-#include <unistd.h>
-
 #include <cutils/native_handle.h>
-
+#include <errno.h>
+#include <hardware/gralloc.h>
+#include <limits.h>
 #include <linux/fb.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <sys/cdefs.h>
+#include <unistd.h>
 
 /*****************************************************************************/
 
@@ -62,47 +60,39 @@ struct private_handle_t {
     struct native_handle nativeHandle;
 #endif
 
-    enum {
-        PRIV_FLAGS_FRAMEBUFFER = 0x00000001
-    };
+    enum { PRIV_FLAGS_FRAMEBUFFER = 0x00000001 };
 
     // file-descriptors
-    int     fd;
+    int fd;
     // ints
-    int     magic;
-    int     flags;
-    int     size;
-    int     offset;
+    int magic;
+    int flags;
+    int size;
+    int offset;
 
     // FIXME: the attributes below should be out-of-line
     uint64_t base __attribute__((aligned(8)));
-    int     pid;
+    int pid;
 
 #ifdef __cplusplus
     static inline int sNumInts() {
-        return (((sizeof(private_handle_t) - sizeof(native_handle_t))/sizeof(int)) - sNumFds);
+        return (((sizeof(private_handle_t) - sizeof(native_handle_t)) / sizeof(int)) - sNumFds);
     }
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
-    private_handle_t(int fd, int size, int flags) :
-        fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
-        base(0), pid(getpid())
-    {
+    private_handle_t(int fd, int size, int flags)
+          : fd(fd), magic(sMagic), flags(flags), size(size), offset(0), base(0), pid(getpid()) {
         version = sizeof(native_handle);
         numInts = sNumInts();
         numFds = sNumFds;
     }
-    ~private_handle_t() {
-        magic = 0;
-    }
+    ~private_handle_t() { magic = 0; }
 
     static int validate(const native_handle* h) {
         const private_handle_t* hnd = (const private_handle_t*)h;
-        if (!h || h->version != sizeof(native_handle) ||
-                h->numInts != sNumInts() || h->numFds != sNumFds ||
-                hnd->magic != sMagic)
-        {
+        if (!h || h->version != sizeof(native_handle) || h->numInts != sNumInts() ||
+            h->numFds != sNumFds || hnd->magic != sMagic) {
             ALOGE("invalid gralloc handle (at %p)", h);
             return -EINVAL;
         }

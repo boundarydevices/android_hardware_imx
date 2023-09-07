@@ -17,6 +17,8 @@
 #define LOG_TAG "android.hardware.power@-service.imx"
 #define ATRACE_TAG (ATRACE_TAG_POWER | ATRACE_TAG_HAL)
 
+#include "InteractionHandler.h"
+
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/eventfd.h>
@@ -24,9 +26,8 @@
 #include <unistd.h>
 #include <utils/Log.h>
 #include <utils/Trace.h>
-#include <memory>
 
-#include "InteractionHandler.h"
+#include <memory>
 
 #define MAX_LENGTH 64
 
@@ -37,15 +38,15 @@ static const std::vector<std::string> fb_idle_patch = {"/sys/class/drm/card0/dev
                                                        "/sys/class/graphics/fb0/idle_state"};
 
 InteractionHandler::InteractionHandler(std::shared_ptr<HintManager> const &hint_manager)
-    : mState(INTERACTION_STATE_UNINITIALIZED),
-      mIdleFd(0),
-      mEventFd(0),
-      mWaitMs(100),
-      mMinDurationMs(1400),
-      mMaxDurationMs(5650),
-      mDurationMs(0),
-      mLastTimespec({0,0}),
-      mHintManager(hint_manager) {}
+      : mState(INTERACTION_STATE_UNINITIALIZED),
+        mIdleFd(0),
+        mEventFd(0),
+        mWaitMs(100),
+        mMinDurationMs(1400),
+        mMaxDurationMs(5650),
+        mDurationMs(0),
+        mLastTimespec({0, 0}),
+        mHintManager(hint_manager) {}
 
 InteractionHandler::~InteractionHandler() {
     Exit();
@@ -55,8 +56,7 @@ static int fb_idle_open(void) {
     int fd;
     for (auto &path : fb_idle_patch) {
         fd = open(path.c_str(), O_RDONLY);
-        if (fd >= 0)
-            return fd;
+        if (fd >= 0) return fd;
     }
     ALOGE("Unable to open fb idle state path (%d)", errno);
     return -1;
@@ -65,12 +65,10 @@ static int fb_idle_open(void) {
 bool InteractionHandler::Init() {
     std::lock_guard<std::mutex> lk(mLock);
 
-    if (mState != INTERACTION_STATE_UNINITIALIZED)
-        return true;
+    if (mState != INTERACTION_STATE_UNINITIALIZED) return true;
 
     int fd = fb_idle_open();
-    if (fd < 0)
-        return false;
+    if (fd < 0) return false;
     mIdleFd = fd;
 
     mEventFd = eventfd(0, EFD_NONBLOCK);
@@ -88,8 +86,7 @@ bool InteractionHandler::Init() {
 
 void InteractionHandler::Exit() {
     std::unique_lock<std::mutex> lk(mLock);
-    if (mState == INTERACTION_STATE_UNINITIALIZED)
-        return;
+    if (mState == INTERACTION_STATE_UNINITIALIZED) return;
 
     AbortWaitLocked();
     mState = INTERACTION_STATE_UNINITIALIZED;
@@ -188,8 +185,7 @@ void InteractionHandler::Release() {
 void InteractionHandler::AbortWaitLocked() {
     uint64_t val = 1;
     ssize_t ret = write(mEventFd, &val, sizeof(val));
-    if (ret != sizeof(val))
-        ALOGW("Unable to write to event fd (%zd)", ret);
+    if (ret != sizeof(val)) ALOGW("Unable to write to event fd (%zd)", ret);
 }
 
 void InteractionHandler::WaitForIdle(int32_t wait_ms, int32_t timeout_ms) {
@@ -243,8 +239,7 @@ void InteractionHandler::Routine() {
     while (true) {
         lk.lock();
         mCond.wait(lk, [&] { return mState != INTERACTION_STATE_IDLE; });
-        if (mState == INTERACTION_STATE_UNINITIALIZED)
-            return;
+        if (mState == INTERACTION_STATE_UNINITIALIZED) return;
         mState = INTERACTION_STATE_WAITING;
         lk.unlock();
 

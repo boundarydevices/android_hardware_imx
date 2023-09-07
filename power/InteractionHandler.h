@@ -17,13 +17,13 @@
 #ifndef POWER_LIBPERFMGR_INTERACTIONHANDLER_H_
 #define POWER_LIBPERFMGR_INTERACTIONHANDLER_H_
 
+#include <perfmgr/HintManager.h>
+
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
-
-#include <perfmgr/HintManager.h>
 
 using ::android::perfmgr::HintManager;
 
@@ -35,14 +35,14 @@ enum interaction_state {
 };
 
 class InteractionHandler {
-  public:
+public:
     InteractionHandler(std::shared_ptr<HintManager> const &hint_manager);
     ~InteractionHandler();
     bool Init();
     void Exit();
     void Acquire(int32_t duration);
 
-  private:
+private:
     void Release();
     void WaitForIdle(int32_t wait_ms, int32_t timeout_ms);
     void AbortWaitLocked();
@@ -71,4 +71,4 @@ class InteractionHandler {
     std::shared_ptr<HintManager> mHintManager;
 };
 
-#endif  // POWER_LIBPERFMGR_INTERACTIONHANDLER_H_
+#endif // POWER_LIBPERFMGR_INTERACTIONHANDLER_H_

@@ -18,16 +18,16 @@
 #ifndef ANDROID_LIGHT_SENSOR_H
 #define ANDROID_LIGHT_SENSOR_H
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include "sensors.h"
-#include "SensorBase.h"
 #include "InputEventReader.h"
+#include "SensorBase.h"
+#include "sensors.h"
 
-#define ISL29023_ALS_CONT_MODE   5
+#define ISL29023_ALS_CONT_MODE 5
 
 /*****************************************************************************/
 
@@ -58,4 +58,4 @@ private:
 
 /*****************************************************************************/
 
-#endif  // ANDROID_LIGHT_SENSOR_H
+#endif // ANDROID_LIGHT_SENSOR_H

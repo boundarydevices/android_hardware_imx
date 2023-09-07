@@ -41,7 +41,7 @@ void SecureIME::closeIME() {
     tipc_fd = -1;
 }
 
-int SecureIME::tipc_read(struct secureime_resp *resp, int cmd) {
+int SecureIME::tipc_read(struct secureime_resp* resp, int cmd) {
     int rc = 0;
 
     rc = read(tipc_fd, resp, sizeof(struct secureime_resp));
@@ -67,18 +67,17 @@ err:
 }
 
 int SecureIME::secureIMEInit(int fd, int buffer_size, int stride, int width, int height) {
-
     int rc;
     struct secureime_resp resp;
 
     struct secureime_req req = {
-        .cmd = SECURE_IME_CMD_INIT,
-        .buffer_size = buffer_size,
-        .stride = stride,
-        .width = width,
-        .height = height,
-        .x = 0,
-        .y = 0,
+            .cmd = SECURE_IME_CMD_INIT,
+            .buffer_size = buffer_size,
+            .stride = stride,
+            .width = width,
+            .height = height,
+            .x = 0,
+            .y = 0,
     };
 
     struct iovec tx = {&req, sizeof(req)};
@@ -99,17 +98,16 @@ err:
     return rc;
 }
 
-int SecureIME::secureIMEHandleTouch(int x, int y, int *key) {
-
+int SecureIME::secureIMEHandleTouch(int x, int y, int* key) {
     int rc = 0;
     struct secureime_resp resp;
 
     struct secureime_req req = {
-        .cmd = SECURE_IME_CMD_INPUT,
-        .x = x,
-        .y = y,
+            .cmd = SECURE_IME_CMD_INPUT,
+            .x = x,
+            .y = y,
     };
-    struct iovec tx = { &req, sizeof(req) };
+    struct iovec tx = {&req, sizeof(req)};
 
     rc = tipc_send(tipc_fd, &tx, 1, NULL, 0);
     if (rc < 0) {
@@ -132,16 +130,18 @@ err:
 
 int SecureIME::secureIMEExit() {
     struct secureime_req req = {
-        .cmd = SECURE_IME_CMD_EXIT,
+            .cmd = SECURE_IME_CMD_EXIT,
     };
 
-    struct iovec tx = { &req, sizeof(req) };
+    struct iovec tx = {&req, sizeof(req)};
 
     return tipc_send(tipc_fd, &tx, 1, NULL, 0);
 }
 
-::ndk::ScopedAStatus SecureIME::SecureIMEInit(const ::ndk::ScopedFileDescriptor& in_fd, int32_t in_buffer_size, int32_t in_stride,
-                                              int32_t in_width, int32_t in_height, int32_t* _aidl_return) {
+::ndk::ScopedAStatus SecureIME::SecureIMEInit(const ::ndk::ScopedFileDescriptor& in_fd,
+                                              int32_t in_buffer_size, int32_t in_stride,
+                                              int32_t in_width, int32_t in_height,
+                                              int32_t* _aidl_return) {
     if (connectIME()) {
         *_aidl_return = -1;
         return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
@@ -157,7 +157,8 @@ int SecureIME::secureIMEExit() {
     return ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus SecureIME::SecureIMEHandleTouch(int32_t in_x, int32_t in_y, int32_t* _aidl_return) {
+::ndk::ScopedAStatus SecureIME::SecureIMEHandleTouch(int32_t in_x, int32_t in_y,
+                                                     int32_t* _aidl_return) {
     if (secureIMEHandleTouch(in_x, in_y, _aidl_return) < 0) {
         return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
     } else {
@@ -177,7 +178,7 @@ int SecureIME::secureIMEExit() {
     }
 }
 
-}  // namespace secureime
-}  // namespace hardware
-}  // namespac nxp
-}  // namespace aidl
+} // namespace secureime
+} // namespace hardware
+} // namespace nxp
+} // namespace aidl

@@ -14,34 +14,28 @@
  *  limitations under the License.
  */
 
+#include "HwJpegEncoder.h"
+
+#include <android-base/file.h>
+#include <android-base/strings.h>
+#include <cutils/properties.h>
 #include <dirent.h>
 #include <linux/v4l2-common.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/v4l2-subdev.h>
-#include <cutils/properties.h>
-#include <android-base/strings.h>
-#include <android-base/file.h>
+
 #include "CameraUtils.h"
-#include "HwJpegEncoder.h"
 
 #define NUM_BUFS 1
 #define JPEG_ENC_NAME "mxc-jpeg-enc"
 
-
-HwJpegEncoder::HwJpegEncoder(int format) : YuvToJpegEncoder(){
+HwJpegEncoder::HwJpegEncoder(int format) : YuvToJpegEncoder() {
     // convert the camera hal format to v4l2 format.
     mFormat = convertPixelFormatToV4L2Format(format);
 }
 
-int HwJpegEncoder::encode(void *inYuv,
-               void* inYuvPhy,
-               int   inWidth,
-               int   inHeight,
-               int   quality,
-               void *outBuf,
-               int   outSize,
-               int   outWidth,
-               int   outHeight) {
+int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inWidth, int inHeight, int quality,
+                          void *outBuf, int outSize, int outWidth, int outHeight) {
     struct encoder_args encoder_parameter;
 
     struct v4l2_buffer bufferin;
@@ -55,12 +49,7 @@ int HwJpegEncoder::encode(void *inYuv,
     // the resolution for input and out need to been align when do jpeg encode.
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         resize_src = (uint8_t *)malloc(outSize);
-        yuvResize((uint8_t *)inYuv,
-            inWidth,
-            inHeight,
-            resize_src,
-            outWidth,
-            outHeight);
+        yuvResize((uint8_t *)inYuv, inWidth, inHeight, resize_src, outWidth, outHeight);
         inYuv = resize_src;
     }
 
@@ -79,28 +68,21 @@ int HwJpegEncoder::encode(void *inYuv,
     onEncoderStop(&bufferin, &bufferout);
 
 failed:
-    if (resize_src != NULL)
-        free(resize_src);
+    if (resize_src != NULL) free(resize_src);
 
-    if (mJpegFd > 0)
-        close(mJpegFd);
+    if (mJpegFd > 0) close(mJpegFd);
 
     return jpeg_size;
 }
 
-int HwJpegEncoder::v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
-                              void *buf_start[])
-{
+int HwJpegEncoder::v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf, void *buf_start[]) {
     unsigned int i;
 
     /* multi-planar */
     for (i = 0; i < buf->length; i++) {
-        buf_start[i] = mmap(NULL,
-                            buf->m.planes[i].length, /* set by driver */
-                            PROT_READ | PROT_WRITE,
-                            MAP_SHARED,
-                            vdev_fd,
-                            buf->m.planes[i].m.mem_offset);
+        buf_start[i] =
+                mmap(NULL, buf->m.planes[i].length, /* set by driver */
+                     PROT_READ | PROT_WRITE, MAP_SHARED, vdev_fd, buf->m.planes[i].m.mem_offset);
         if (buf_start[i] == MAP_FAILED) {
             ALOGE("mmap failed with error %d", errno);
             return -1;
@@ -112,20 +94,16 @@ int HwJpegEncoder::v4l2_mmap(int vdev_fd, struct v4l2_buffer *buf,
     return 0;
 }
 
-void HwJpegEncoder::v4l2_munmap(struct v4l2_buffer *buf,
-                                void *buf_start[])
-{
+void HwJpegEncoder::v4l2_munmap(struct v4l2_buffer *buf, void *buf_start[]) {
     unsigned int i;
 
     for (i = 0; i < buf->length; i++) {
-        if (buf_start[i] != NULL)
-            munmap(buf_start[i], buf->m.planes[i].length);
+        if (buf_start[i] != NULL) munmap(buf_start[i], buf->m.planes[i].length);
     }
 }
 
-void HwJpegEncoder::get_out_buffer_size(struct encoder_args* ec_args, int fmt)
-{
-    switch(fmt) {
+void HwJpegEncoder::get_out_buffer_size(struct encoder_args *ec_args, int fmt) {
+    switch (fmt) {
         case V4L2_PIX_FMT_YUYV:
             ec_args->size = ec_args->width * ec_args->height * 2;
             break;
@@ -140,8 +118,8 @@ void HwJpegEncoder::get_out_buffer_size(struct encoder_args* ec_args, int fmt)
     }
 }
 
-int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct v4l2_buffer *bufferin,
-                                          struct v4l2_buffer *bufferout){
+int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf,
+                                   struct v4l2_buffer *bufferin, struct v4l2_buffer *bufferout) {
     struct v4l2_capability capabilities;
     struct v4l2_format out_fmt;
     struct v4l2_format cap_fmt;
@@ -167,8 +145,7 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct
     support_m2m = capabilities.capabilities & V4L2_CAP_VIDEO_M2M;
     support_mp = capabilities.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE;
     if (!support_m2m && !support_mp) {
-        ALOGE(
-            "Device doesn't handle M2M video capture\n");
+        ALOGE("Device doesn't handle M2M video capture\n");
         goto failed;
     }
 
@@ -249,10 +226,8 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct
         goto failed;
     }
 
-    ALOGI("Plane 0 bytesused=%d, length=%d, data_offset=%d",
-               bufferin->m.planes[0].bytesused,
-               bufferin->m.planes[0].length,
-               bufferin->m.planes[0].data_offset);
+    ALOGI("Plane 0 bytesused=%d, length=%d, data_offset=%d", bufferin->m.planes[0].bytesused,
+          bufferin->m.planes[0].length, bufferin->m.planes[0].data_offset);
 
     memset(bufferout, 0, sizeof(*bufferout));
     bufferout->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -260,26 +235,21 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct
     bufferout->memory = V4L2_MEMORY_MMAP;
     bufferout->index = 0;
     bufferout->length = 1;
-    bufferout->m.planes = (struct v4l2_plane *)calloc(bufferout->length,
-                                 sizeof(struct v4l2_plane));
+    bufferout->m.planes = (struct v4l2_plane *)calloc(bufferout->length, sizeof(struct v4l2_plane));
 
     if (ioctl(mJpegFd, VIDIOC_QUERYBUF, bufferout) < 0) {
         ALOGE("VIDIOC_QUERYBUF failed for out buffer");
         goto failed;
     }
 
-    ALOGI("Plane 0 bytesused=%d, length=%d, data_offset=%d\n",
-               bufferout->m.planes[0].bytesused,
-               bufferout->m.planes[0].length,
-               bufferout->m.planes[0].data_offset);
+    ALOGI("Plane 0 bytesused=%d, length=%d, data_offset=%d\n", bufferout->m.planes[0].bytesused,
+          bufferout->m.planes[0].length, bufferout->m.planes[0].data_offset);
 
     ret = v4l2_mmap(mJpegFd, bufferout, mBufferOutStart);
-    if (ret < 0)
-        goto failed;
+    if (ret < 0) goto failed;
 
-    ret =v4l2_mmap(mJpegFd, bufferin, mBufferInStart);
-    if (ret < 0)
-        goto failed;
+    ret = v4l2_mmap(mJpegFd, bufferin, mBufferInStart);
+    if (ret < 0) goto failed;
 
     /*
      * fill output buffer with the contents of the input raw file
@@ -290,11 +260,11 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf, struct
 
     return 0;
 failed:
-   return -1;
+    return -1;
 }
 
 int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer *buf_out,
-                              char *dstbuf){
+                                  char *dstbuf) {
     int type_cap, type_out;
     unsigned int plane;
     FILE *fout;
@@ -318,11 +288,11 @@ int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer
     }
 
     /*
-    * repeatedly enqueue/dequeue 1 output buffer and 1 capture buffer,
-    * the output buffer is filled once by the application and the result
-    * is expected to be filled by the device in the capture buffer,
-    * this is just to enable a stress test for the driver & the device
-    */
+     * repeatedly enqueue/dequeue 1 output buffer and 1 capture buffer,
+     * the output buffer is filled once by the application and the result
+     * is expected to be filled by the device in the capture buffer,
+     * this is just to enable a stress test for the driver & the device
+     */
     if (ioctl(mJpegFd, VIDIOC_QBUF, buf_out) < 0) {
         ALOGE("VIDIOC_QBUF failed for cap stream");
         return 0;
@@ -346,8 +316,7 @@ int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer
     // dump the jpeg data into /data/dump.jpeg when set vendor.rw.camera.test
     // it need disable selinux when open dump option.
     property_get("vendor.rw.camera.test", value, "");
-    if (strcmp(value, "true") == 0)
-        vflg = true;
+    if (strcmp(value, "true") == 0) vflg = true;
 
     if (vflg) {
         fout = fopen("/data/dump.jpeg", "wb");
@@ -358,23 +327,22 @@ int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer
 
     for (plane = 0; plane < buf_out->length; plane++) {
         ALOGI("Plane %d payload: %d bytes buf_start[plane] %p\n", plane,
-            buf_out->m.planes[plane].bytesused, mBufferOutStart[plane]);
+              buf_out->m.planes[plane].bytesused, mBufferOutStart[plane]);
         if (vflg) {
-            fwrite(mBufferOutStart[plane],
-                 buf_out->m.planes[plane].bytesused, 1, fout);
+            fwrite(mBufferOutStart[plane], buf_out->m.planes[plane].bytesused, 1, fout);
         }
 
         if (buf_out->m.planes[plane].bytesused > 0)
-            memcpy((char *)(dstbuf + return_bytes), (char *)mBufferOutStart[plane], buf_out->m.planes[plane].bytesused);
+            memcpy((char *)(dstbuf + return_bytes), (char *)mBufferOutStart[plane],
+                   buf_out->m.planes[plane].bytesused);
         return_bytes += buf_out->m.planes[plane].bytesused;
     }
-    if (vflg)
-        fclose(fout);
+    if (vflg) fclose(fout);
 
     return return_bytes;
 }
 
-void HwJpegEncoder::onEncoderStop(struct v4l2_buffer *buf_in, struct v4l2_buffer *buf_out){
+void HwJpegEncoder::onEncoderStop(struct v4l2_buffer *buf_in, struct v4l2_buffer *buf_out) {
     int type_cap, type_out;
 
     struct v4l2_requestbuffers bufreq_out;
@@ -426,9 +394,7 @@ void HwJpegEncoder::onEncoderStop(struct v4l2_buffer *buf_in, struct v4l2_buffer
     }
 }
 
-
-void HwJpegEncoder::enumJpegEnc()
-{
+void HwJpegEncoder::enumJpegEnc() {
     DIR *vidDir = NULL;
     char jpegEncName[64];
     struct dirent *dirEntry;
@@ -451,8 +417,9 @@ void HwJpegEncoder::enumJpegEnc()
         }
 
         // the string read through ReadFileToString have '\n' in last byte
-        // the last byte is \0 in mJpegEnc.mJpegHwName, so we just need compare length (buffer.length() - 1)
-        if (!strncmp(JPEG_ENC_NAME, buffer.c_str(), (buffer.length() - 1) )) {
+        // the last byte is \0 in mJpegEnc.mJpegHwName, so we just need compare length
+        // (buffer.length() - 1)
+        if (!strncmp(JPEG_ENC_NAME, buffer.c_str(), (buffer.length() - 1))) {
             sprintf(mJpegDevPath, "/dev/%s", dirEntry->d_name);
             break;
         }

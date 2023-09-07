@@ -14,66 +14,56 @@
  * limitations under the License.
  */
 
-
-#include <stdint.h>
-#include <errno.h>
-#include <sys/types.h>
-
-#include <utils/threads.h>
-#include <utils/Timers.h>
-#include <utils/Log.h>
-#include <binder/IPCThreadState.h>
-
 #include "MessageQueue.h"
+
+#include <binder/IPCThreadState.h>
+#include <errno.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <utils/Log.h>
+#include <utils/Timers.h>
+#include <utils/threads.h>
 
 using namespace android;
 
-void CMessageList::insert(const sp<CMessage>& node)
-{
+void CMessageList::insert(const sp<CMessage>& node) {
     mList.push_back(node);
 }
 
-void CMessageList::remove(CMessageList::LIST::iterator pos)
-{
+void CMessageList::remove(CMessageList::LIST::iterator pos) {
     mList.erase(pos);
 }
 
-void CMessageList::clear()
-{
+void CMessageList::clear() {
     mList.clear();
 }
 
-CMessageQueue::CMessageQueue()
-{
+CMessageQueue::CMessageQueue() {
     Mutex::Autolock _l(mLock);
     mMessages.clear();
     mCommands.clear();
 }
 
-CMessageQueue::~CMessageQueue()
-{
+CMessageQueue::~CMessageQueue() {
     Mutex::Autolock _l(mLock);
 
     mMessages.clear();
     mCommands.clear();
 }
-void CMessageQueue::clearMessages()
-{
+void CMessageQueue::clearMessages() {
     Mutex::Autolock _l(mLock);
 
     mMessages.clear();
 }
 
-void CMessageQueue::clearCommands()
-{
+void CMessageQueue::clearCommands() {
     Mutex::Autolock _l(mLock);
 
     mCommands.clear();
 }
 
-sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout)
-{
-    sp<CMessage>    result;
+sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout) {
+    sp<CMessage> result;
     nsecs_t timeoutTime = systemTime() + timeout;
     while (true) {
         Mutex::Autolock _l(mLock);
@@ -116,25 +106,19 @@ sp<CMessage> CMessageQueue::waitMessage(nsecs_t timeout)
     return result;
 }
 
-status_t CMessageQueue::postMessage(const sp<CMessage> message,
-                                    int32_t             flags)
-{
+status_t CMessageQueue::postMessage(const sp<CMessage> message, int32_t flags) {
     return queueMessage(message, flags);
 }
 
-status_t CMessageQueue::queueMessage(const sp<CMessage>& message,
-                                     int32_t             flags)
-{
+status_t CMessageQueue::queueMessage(const sp<CMessage>& message, int32_t flags) {
     Mutex::Autolock _l(mLock);
 
     if (flags == 0) {
         mMessages.insert(message);
-    }
-    else {
+    } else {
         mCommands.insert(message);
     }
 
     mCondition.signal();
     return NO_ERROR;
 }
-

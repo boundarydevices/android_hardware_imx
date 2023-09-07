@@ -24,13 +24,15 @@
 #include <aidl/android/hardware/camera/device/BnCameraDeviceSession.h>
 #include <aidl/android/hardware/camera/device/BufferRequest.h>
 #include <aidl/android/hardware/camera/device/Stream.h>
+#include <android-base/properties.h>
 #include <android-base/unique_fd.h>
 #include <fmq/AidlMessageQueue.h>
 #include <utils/Thread.h>
+
 #include <deque>
 #include <list>
+
 #include "HwDecoder.h"
-#include <android-base/properties.h>
 
 namespace android {
 namespace hardware {
@@ -54,17 +56,17 @@ using ::aidl::android::hardware::camera::device::StreamConfiguration;
 using ::aidl::android::hardware::common::fmq::MQDescriptor;
 using ::aidl::android::hardware::common::fmq::SynchronizedReadWrite;
 using ::android::AidlMessageQueue;
+using ::android::base::GetProperty;
 using ::android::base::unique_fd;
 using ::android::hardware::camera::common::helper::SimpleThread;
 using ::android::hardware::camera::external::common::ExternalCameraConfig;
 using ::android::hardware::camera::external::common::SizeHasher;
 using ::ndk::ScopedAStatus;
-using ::android::base::GetProperty;
 
 constexpr char kCameraMjpegDecoderType[] = "vendor.camera.mjpg.decoder";
 
 class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputThreadInterface {
-  public:
+public:
     ExternalCameraDeviceSession(const std::shared_ptr<ICameraDeviceCallback>&,
                                 const ExternalCameraConfig& cfg,
                                 const std::vector<SupportedV4L2Format>& sortedFormats,
@@ -132,7 +134,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     static const uint32_t kMaxBytesPerPixel = 2;
 
     class BufferRequestThread : public SimpleThread {
-      public:
+    public:
         BufferRequestThread(std::weak_ptr<OutputThreadInterface> parent,
                             std::shared_ptr<ICameraDeviceCallback> callbacks);
 
@@ -142,7 +144,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
         bool threadLoop() override;
 
-      private:
+    private:
         void waitForNextRequest();
 
         const std::weak_ptr<OutputThreadInterface> mParent;
@@ -163,13 +165,13 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         static const int kReqProcTimeoutMs = 66;
 
         static const int kReqWaitTimeoutMs = 33;
-        static const int kReqWaitTimesWarn = 90;   // 33ms * 90 ~= 3 sec
-        std::condition_variable mRequestCond;      // signaled when a new buffer request incoming
-        std::condition_variable mRequestDoneCond;  // signaled when a request is done
+        static const int kReqWaitTimesWarn = 90;  // 33ms * 90 ~= 3 sec
+        std::condition_variable mRequestCond;     // signaled when a new buffer request incoming
+        std::condition_variable mRequestDoneCond; // signaled when a request is done
     };
 
     class OutputThread : public SimpleThread {
-      public:
+    public:
         OutputThread(std::weak_ptr<OutputThreadInterface> parent, CroppingType,
                      const common::V1_0::helper::CameraMetadata&,
                      std::shared_ptr<BufferRequestThread> bufReqThread);
@@ -177,7 +179,8 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
 
         Status allocateIntermediateBuffers(const Size& v4lSize, const Size& thumbSize,
                                            const std::vector<Stream>& streams,
-                                           uint32_t blobBufferSize, uint32_t format = V4L2_PIX_FMT_NV12);
+                                           uint32_t blobBufferSize,
+                                           uint32_t format = V4L2_PIX_FMT_NV12);
         Status submitRequest(const std::shared_ptr<HalRequest>&);
         void flush();
         void dump(int fd);
@@ -194,11 +197,11 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         uint64_t mDecedFrames = 0;
         int initVpuThread();
 
-      protected:
-        static const int kFlushWaitTimeoutSec = 3;  // 3 sec
-        static const int kReqWaitTimeoutMs = 33;    // 33ms
-        static const int kReqWaitTimesMax = 90;     // 33ms * 90 ~= 3 sec
-        static const int kDecWaitTimeoutMs = 100;   // 100ms
+    protected:
+        static const int kFlushWaitTimeoutSec = 3; // 3 sec
+        static const int kReqWaitTimeoutMs = 33;   // 33ms
+        static const int kReqWaitTimesMax = 90;    // 33ms * 90 ~= 3 sec
+        static const int kDecWaitTimeoutMs = 100;  // 100ms
 
         // Methods to request output buffer in parallel
         int requestBufferStart(const std::vector<HalStreamBuffer>&);
@@ -223,10 +226,10 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         const CroppingType mCroppingType;
         const common::V1_0::helper::CameraMetadata mCameraCharacteristics;
 
-        mutable std::mutex mRequestListLock;       // Protect access to mRequestList,
-                                                   // mProcessingRequest and mProcessingFrameNumber
-        std::condition_variable mRequestCond;      // signaled when a new request is submitted
-        std::condition_variable mRequestDoneCond;  // signaled when a request is done processing
+        mutable std::mutex mRequestListLock;      // Protect access to mRequestList,
+                                                  // mProcessingRequest and mProcessingFrameNumber
+        std::condition_variable mRequestCond;     // signaled when a new request is submitted
+        std::condition_variable mRequestDoneCond; // signaled when a request is done processing
 
         std::list<std::shared_ptr<HalRequest>> mRequestList;
         bool mProcessingRequest = false;
@@ -236,19 +239,20 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         // (MJPG decode)-> mYu12Frame
         // (Scale)-> mScaledYu12Frames
         // (Format convert) -> output gralloc frames
-        mutable std::mutex mBufferLock;  // Protect access to intermediate buffers
+        mutable std::mutex mBufferLock; // Protect access to intermediate buffers
         std::shared_ptr<AllocatedFrame> mYu12Frame;
         std::shared_ptr<AllocatedFrame> mYu12ThumbFrame;
         std::unordered_map<Size, std::shared_ptr<AllocatedFrame>, SizeHasher> mIntermediateBuffers;
         std::unordered_map<Size, std::shared_ptr<AllocatedFrame>, SizeHasher> mScaledYu12Frames;
         YCbCrLayout mYu12FrameLayout;
         YCbCrLayout mYu12ThumbFrameLayout;
-        std::shared_ptr<AllocatedFrame> mI420Frame; // If media buffer format (mYu12Frame) is NV12, convert to I420, then encode jpeg.
+        std::shared_ptr<AllocatedFrame> mI420Frame; // If media buffer format (mYu12Frame) is NV12,
+                                                    // convert to I420, then encode jpeg.
         YCbCrLayout mI420FrameLayout;
         std::vector<uint8_t> mMuteTestPatternFrame;
         uint32_t mTestPatternData[4] = {0, 0, 0, 0};
         bool mCameraMuted = false;
-        uint32_t mBlobBufferSize = 0;  // 0 -> HAL derive buffer size, else: use given size
+        uint32_t mBlobBufferSize = 0; // 0 -> HAL derive buffer size, else: use given size
 
         DecodedData mDecodedData;
 
@@ -266,7 +270,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
         bool mUseHalBufManager = false;
     };
 
-  private:
+private:
     bool initialize();
     // To init/close different version of output thread
     void initOutputThread();
@@ -284,7 +288,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     int setV4l2FpsLocked(double fps);
 
     std::unique_ptr<V4L2Frame> dequeueV4l2FrameLocked(
-            /*out*/ nsecs_t* shutterTs);  // Called with mLock held
+            /*out*/ nsecs_t* shutterTs); // Called with mLock held
 
     void enqueueV4l2Frame(const std::shared_ptr<V4L2Frame>&);
 
@@ -342,7 +346,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     // Protect (most of) HIDL interface methods from synchronized-entering
     mutable Mutex mInterfaceLock;
 
-    mutable Mutex mLock;  // Protect all private members except otherwise noted
+    mutable Mutex mLock; // Protect all private members except otherwise noted
     const std::shared_ptr<ICameraDeviceCallback> mCallback;
     const ExternalCameraConfig& mCfg;
     const common::V1_0::helper::CameraMetadata mCameraCharacteristics;
@@ -370,8 +374,8 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     size_t mV4L2BufferCount = 0;
     bool mPlane = false;
     enum v4l2_buf_type mCaptureType = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    static const int kBufferWaitTimeoutSec = 3;  // TODO: handle long exposure (or not allowing)
-    std::mutex mV4l2BufferLock;                  // protect the buffer count and condition below
+    static const int kBufferWaitTimeoutSec = 3; // TODO: handle long exposure (or not allowing)
+    std::mutex mV4l2BufferLock;                 // protect the buffer count and condition below
     std::condition_variable mV4L2BufferReturned;
     size_t mNumDequeuedV4l2Buffers = 0;
     uint32_t mMaxV4L2BufferSize = 0;
@@ -382,7 +386,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     // Stream ID -> Stream cache
     std::unordered_map<int, Stream> mStreamMap;
 
-    std::mutex mInflightFramesLock;  // protect mInflightFrames
+    std::mutex mInflightFramesLock; // protect mInflightFrames
     std::unordered_set<uint32_t> mInflightFrames;
 
     // Stream ID -> circulating buffers map
@@ -390,7 +394,7 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     // Protect mCirculatingBuffers, must not lock mLock after acquiring this lock
     mutable Mutex mCbsLock;
 
-    std::mutex mAfTriggerLock;  // protect mAfTrigger
+    std::mutex mAfTriggerLock; // protect mAfTrigger
     bool mAfTrigger = false;
 
     uint32_t mBlobBufferSize = 0;
@@ -424,10 +428,10 @@ class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputT
     /* End of members not changed after initialize() */
 };
 
-}  // namespace implementation
-}  // namespace device
-}  // namespace camera
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace device
+} // namespace camera
+} // namespace hardware
+} // namespace android
 
-#endif  // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_EXTERNALCAMERADEVICESESSION_H_
+#endif // HARDWARE_INTERFACES_CAMERA_DEVICE_DEFAULT_EXTERNALCAMERADEVICESESSION_H_

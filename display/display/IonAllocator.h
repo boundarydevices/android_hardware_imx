@@ -18,15 +18,15 @@
 #define _FSL_ION_ALLOCATOR_H_
 
 #include <utils/Mutex.h>
-#include "Memory.h"
+
 #include "Allocator.h"
+#include "Memory.h"
 
 namespace fsl {
 
 using android::Mutex;
 
-class IonAllocator : public Allocator
-{
+class IonAllocator : public Allocator {
 public:
     static IonAllocator* getInstance();
     ~IonAllocator();
@@ -45,7 +45,7 @@ public:
 private:
     IonAllocator();
     static Mutex sLock;
-    static IonAllocator *sInstance;
+    static IonAllocator* sInstance;
 
     int mIonFd;
     // contiguous cacheable memory ion heap ids.
@@ -58,5 +58,5 @@ private:
     int mSeHeapIds;
 };
 
-}
+} // namespace fsl
 #endif

@@ -17,13 +17,15 @@
  */
 
 #include "OemLock.h"
-#include <memory>
+
 #include <android-base/endian.h>
-#include <android-base/logging.h>
-#include <android-base/strings.h>
-#include <android-base/stringprintf.h>
 #include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/stringprintf.h>
+#include <android-base/strings.h>
 #include <android-base/unique_fd.h>
+
+#include <memory>
 
 using android::base::EqualsIgnoreCase;
 using android::base::StringPrintf;
@@ -43,8 +45,7 @@ Return<void> OemLock::getName(getName_cb _hidl_cb) {
 }
 
 Return<OemLockSecureStatus> OemLock::setOemUnlockAllowedByCarrier(
-    bool allowed, const hidl_vec<uint8_t>& signature) {
-
+        bool allowed, const hidl_vec<uint8_t>& signature) {
     /* Carrier unlock is not supported, so we just return here. */
     LOG(INFO) << "Running OemLock::setOemUnlockAllowedByCarrier...";
     LOG(INFO) << "carrier unlock is not supported, return ok here...";
@@ -52,7 +53,6 @@ Return<OemLockSecureStatus> OemLock::setOemUnlockAllowedByCarrier(
 }
 
 Return<void> OemLock::isOemUnlockAllowedByCarrier(isOemUnlockAllowedByCarrier_cb _hidl_cb) {
-
     /* Carrier unlock is not supported, so we always allow the carrier unlock */
     LOG(INFO) << "Running OemLock::isOemUnlockAllowedByCarrier...";
     LOG(INFO) << "carrier unlock is not supported, return ok here...";
@@ -79,15 +79,15 @@ Return<void> OemLock::isOemUnlockAllowedByDevice(isOemUnlockAllowedByDevice_cb _
     avbError rc = mAvbOemUnlockIpc.readDeviceUnlockPermission(&status);
     if (rc != avbError::AVB_ERROR_NONE) {
         LOG(ERROR) << "Failed to set device unlock status!";
-       _hidl_cb(OemLockStatus::FAILED, false);
+        _hidl_cb(OemLockStatus::FAILED, false);
     } else {
-       _hidl_cb(OemLockStatus::OK, status? true: false);
+        _hidl_cb(OemLockStatus::OK, status ? true : false);
     }
 
     return Void();
 }
 
-Return<void> OemLock::debug(const hidl_handle& fd , const hidl_vec<hidl_string>& options) {
+Return<void> OemLock::debug(const hidl_handle& fd, const hidl_vec<hidl_string>& options) {
     if (fd.getNativeHandle() != nullptr && fd->numFds > 0) {
         cmdDump(fd->data[0], options);
     } else {
@@ -112,18 +112,20 @@ void OemLock::cmdDump(int fd, const hidl_vec<hidl_string>& options) {
     } else if (EqualsIgnoreCase(option, "--dump")) {
         cmdDumpDevice(fd, options);
     } else {
-        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()),fd);
+        WriteStringToFd(StringPrintf("Invalid option: %s\n", option.c_str()), fd);
         cmdHelp(fd);
     }
 }
 
 void OemLock::cmdHelp(int fd) {
     WriteStringToFd("--help: shows this help.\n"
-                    "--list: [option1|option2|...|all]: lists all the dump options: option1 or option2 or ... or all\n"
+                    "--list: [option1|option2|...|all]: lists all the dump options: option1 or "
+                    "option2 or ... or all\n"
                     "available to OemLock Hal.\n"
                     "--dump option1: shows current status of the option1\n"
                     "--dump option2: shows current status of the option2\n"
-                    "--dump all: shows current status of all the options\n", fd);
+                    "--dump all: shows current status of all the options\n",
+                    fd);
     return;
 }
 
@@ -136,21 +138,25 @@ void OemLock::cmdList(int fd, const hidl_vec<hidl_string>& options) {
         listoption1 = listAll || EqualsIgnoreCase(option, "option1");
         listoption2 = listAll || EqualsIgnoreCase(option, "option2");
         if (!listoption1 && !listoption2) {
-            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"), fd);
             cmdHelp(fd);
             return;
         }
-        if(listoption1) {
-            WriteStringToFd(StringPrintf("list option1 dump options, default is --list listoption1.\n"),fd);
-         }
+        if (listoption1) {
+            WriteStringToFd(StringPrintf(
+                                    "list option1 dump options, default is --list listoption1.\n"),
+                            fd);
+        }
 
-        if(listoption2) {
-            WriteStringToFd(StringPrintf("list option2 dump options, default is --list listoption2.\n"),fd);
+        if (listoption2) {
+            WriteStringToFd(StringPrintf(
+                                    "list option2 dump options, default is --list listoption2.\n"),
+                            fd);
         }
     } else {
-        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"),fd);
+        WriteStringToFd(StringPrintf("Invalid input, need to append list option.\n\n"), fd);
         cmdHelp(fd);
-     }
+    }
 }
 
 void OemLock::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
@@ -162,18 +168,18 @@ void OemLock::cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options) {
         listoption1 = listAll || EqualsIgnoreCase(option, "option1");
         listoption2 = listAll || EqualsIgnoreCase(option, "option2");
         if (!listoption1 && !listoption2) {
-            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"),fd);
+            WriteStringToFd(StringPrintf("Unrecognized option is ignored.\n\n"), fd);
             cmdHelp(fd);
             return;
         }
-        if(listoption1) {
-            WriteStringToFd(StringPrintf("dump option1 info.\n"),fd);
+        if (listoption1) {
+            WriteStringToFd(StringPrintf("dump option1 info.\n"), fd);
         }
-        if(listoption2) {
-            WriteStringToFd(StringPrintf("dump option2 info.\n"),fd);
+        if (listoption2) {
+            WriteStringToFd(StringPrintf("dump option2 info.\n"), fd);
         }
     } else {
-        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"),fd);
+        WriteStringToFd(StringPrintf("Invalid input, need to append dump option.\n\n"), fd);
         cmdHelp(fd);
     }
 }

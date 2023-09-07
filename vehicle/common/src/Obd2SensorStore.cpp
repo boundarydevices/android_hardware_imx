@@ -17,6 +17,7 @@
 #include "Obd2SensorStore.h"
 
 #include <utils/SystemClock.h>
+
 #include "VehicleUtils.h"
 
 namespace android {
@@ -55,7 +56,7 @@ const std::vector<uint8_t>& Obd2SensorStore::BitmaskInVector::getBitmask() const
 Obd2SensorStore::Obd2SensorStore(size_t numVendorIntegerSensors, size_t numVendorFloatSensors) {
     // because the last index is valid *inclusive*
     const size_t numSystemIntegerSensors =
-        toInt(DiagnosticIntegerSensorIndex::LAST_SYSTEM_INDEX) + 1;
+            toInt(DiagnosticIntegerSensorIndex::LAST_SYSTEM_INDEX) + 1;
     const size_t numSystemFloatSensors = toInt(DiagnosticFloatSensorIndex::LAST_SYSTEM_INDEX) + 1;
     mIntegerSensors = std::vector<int32_t>(numSystemIntegerSensors + numVendorIntegerSensors, 0);
     mFloatSensors = std::vector<float>(numSystemFloatSensors + numVendorFloatSensors, 0);
@@ -101,8 +102,8 @@ void Obd2SensorStore::fillPropValue(const std::string& dtc, VehiclePropValue* pr
     propValue->value.stringValue = dtc;
 }
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

@@ -16,36 +16,33 @@
 #ifndef HWC_CONTEXT_H_
 #define HWC_CONTEXT_H_
 
-#include <fcntl.h>
-#include <errno.h>
-#include <cutils/log.h>
+#include <Display.h>
 #include <cutils/atomic.h>
+#include <cutils/log.h>
 #include <cutils/properties.h>
-#include <utils/threads.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 #include <hardware_legacy/uevent.h>
-#include <utils/StrongPointer.h>
-
-#include <linux/mxcfb.h>
 #include <linux/ioctl.h>
-#include <Display.h>
+#include <linux/mxcfb.h>
+#include <utils/StrongPointer.h>
+#include <utils/threads.h>
 
 using namespace fsl;
 
 class DisplayListener;
 
-struct hwc_context_t
-{
+struct hwc_context_t {
     hwc_composer_device_1 device;
     /* our private state goes below here */
     const hwc_procs_t* m_callback;
-    //bool mDeviceComposite[HWC_NUM_DISPLAY_TYPES];
+    // bool mDeviceComposite[HWC_NUM_DISPLAY_TYPES];
     DisplayListener* mListener;
 };
 
-class DisplayListener : public EventListener
-{
+class DisplayListener : public EventListener {
 public:
     DisplayListener(struct hwc_context_t* ctx);
     virtual void onVSync(int disp, nsecs_t timestamp);

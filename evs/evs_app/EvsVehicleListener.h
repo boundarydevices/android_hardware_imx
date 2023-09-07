@@ -27,7 +27,7 @@
 class EvsVehicleListener : public IVehicleCallback {
 public:
     // Methods from ::android::hardware::automotive::vehicle::V2_0::IVehicleCallback follow.
-    Return<void> onPropertyEvent(const hidl_vec <VehiclePropValue> & /*values*/) override {
+    Return<void> onPropertyEvent(const hidl_vec<VehiclePropValue> & /*values*/) override {
         {
             // Our use case is so simple, we don't actually need to update a variable,
             // but the docs seem to say we have to take the lock anyway to keep
@@ -43,9 +43,8 @@ public:
         return Return<void>();
     }
 
-    Return<void> onPropertySetError(StatusCode      /* errorCode */,
-                                    int32_t         /* propId */,
-                                    int32_t         /* areaId */) override {
+    Return<void> onPropertySetError(StatusCode /* errorCode */, int32_t /* propId */,
+                                    int32_t /* areaId */) override {
         // We don't set values, so we don't listen for set errors
         return Return<void>();
     }
@@ -64,9 +63,9 @@ public:
 
             // If we were delivered an event (or it's been a while) update as necessary
             EvsStateControl::Command cmd = {
-                .operation = EvsStateControl::Op::CHECK_VEHICLE_STATE,
-                .arg1      = 0,
-                .arg2      = 0,
+                    .operation = EvsStateControl::Op::CHECK_VEHICLE_STATE,
+                    .arg1 = 0,
+                    .arg2 = 0,
             };
             pStateController->postCommand(cmd);
         }
@@ -77,4 +76,4 @@ private:
     std::condition_variable mEventCond;
 };
 
-#endif //CAR_EVS_APP_VEHICLELISTENER_H
+#endif // CAR_EVS_APP_VEHICLELISTENER_H

@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 
+#include <cutils/log.h>
+#include <cutils/properties.h>
+#include <cutils/uevent.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <unistd.h>
-#include <cutils/uevent.h>
-#include <cutils/properties.h>
-#include <cutils/log.h>
-#include <errno.h>
 
 #define UEVENT_MSG_LEN 2048
-#define RPMSG_CAN_EVENT  "vendor.vehicle.event"
+#define RPMSG_CAN_EVENT "vendor.vehicle.event"
 #define RPMSG_CAN_REGISTER "vendor.vehicle.register"
-static void
-handle_events(int uevent_fd)
-{
-    char msg[UEVENT_MSG_LEN+2];
+static void handle_events(int uevent_fd) {
+    char msg[UEVENT_MSG_LEN + 2];
     int n;
     int i;
     char *cp;
@@ -38,19 +36,22 @@ handle_events(int uevent_fd)
 
     // add two '\0' which means this is the end of msg
     msg[n] = '\0';
-    msg[n+1] = '\0';
+    msg[n + 1] = '\0';
     cp = msg;
     while (*cp) {
         if (!strncmp(cp, "STATE=VEHICLE_RPMSG_EVENT=0", strlen("STATE=VEHICLE_RPMSG_EVENT=0"))) {
             if (property_set(RPMSG_CAN_EVENT, "0") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_EVENT", __FUNCTION__);
-        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_EVENT=1", strlen("STATE=VEHICLE_RPMSG_EVENT=1"))) {
+        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_EVENT=1",
+                            strlen("STATE=VEHICLE_RPMSG_EVENT=1"))) {
             if (property_set(RPMSG_CAN_EVENT, "1") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_EVENT", __FUNCTION__);
-        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_REGISTER=0", strlen("STATE=VEHICLE_RPMSG_REGISTER=0"))) {
+        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_REGISTER=0",
+                            strlen("STATE=VEHICLE_RPMSG_REGISTER=0"))) {
             if (property_set(RPMSG_CAN_REGISTER, "0") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_REGISTER", __FUNCTION__);
-        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_REGISTER=1", strlen("STATE=VEHICLERPMSG_REGISTER=1"))) {
+        } else if (!strncmp(cp, "STATE=VEHICLE_RPMSG_REGISTER=1",
+                            strlen("STATE=VEHICLERPMSG_REGISTER=1"))) {
             if (property_set(RPMSG_CAN_REGISTER, "1") < 0)
                 ALOGE("%s: could not set property RPMSG_CAN_REGISTER", __FUNCTION__);
         }
@@ -63,12 +64,13 @@ handle_events(int uevent_fd)
          * NAME=virtio1.rpmsg-vehicle-channel.-1.1\0
          * STATE=VEHICLERPMSG_EVENT=0\0
          */
-        if (*cp) { cp += strlen(cp) + 1;}
+        if (*cp) {
+            cp += strlen(cp) + 1;
+        }
     }
 }
 
-int main(int argc,char *argv[])
-{
+int main(int argc, char *argv[]) {
     int epoll_fd, uevent_fd;
     int nevents = 0;
     struct epoll_event ev;
@@ -89,7 +91,7 @@ int main(int argc,char *argv[])
         return -1;
     }
 
-    for ( ; ; ) {
+    for (;;) {
         struct epoll_event events[64];
         nevents = epoll_wait(epoll_fd, events, 64, -1);
         if (nevents < 0) {
@@ -102,4 +104,3 @@ int main(int argc,char *argv[])
     }
     return 0;
 }
-

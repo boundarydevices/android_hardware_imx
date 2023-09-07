@@ -28,20 +28,19 @@ namespace V1_1 {
 namespace implementation {
 
 using namespace android;
-using ::nxp::hardware::display::V1_0::Error;
 using ::android::frameworks::automotive::display::V1_0::HwDisplayConfig;
 using ::android::frameworks::automotive::display::V1_0::HwDisplayState;
+using ::nxp::hardware::display::V1_0::Error;
 
 #define DISPLAY_WIDTH 1280
 #define DISPLAY_HEIGHT 720
 
-EvsDisplay::EvsDisplay()
-{
+EvsDisplay::EvsDisplay() {
     ALOGD("EvsDisplay instantiated");
 
     // Set up our self description
     // NOTE:  These are arbitrary values chosen for testing
-    mInfo.displayId   = "evs hal Display";
+    mInfo.displayId = "evs hal Display";
     mInfo.vendorFlags = 3870;
 
     mWidth = DISPLAY_WIDTH;
@@ -51,25 +50,19 @@ EvsDisplay::EvsDisplay()
     initialize();
 }
 
-EvsDisplay::~EvsDisplay()
-{
+EvsDisplay::~EvsDisplay() {
     ALOGD("EvsDisplay being destroyed");
     forceShutdown();
 }
 
-void EvsDisplay::showWindow()
-{
+void EvsDisplay::showWindow() {
     ALOGI("%s window is showing", __func__);
 }
 
-
-void EvsDisplay::hideWindow()
-{
-}
+void EvsDisplay::hideWindow() {}
 
 // Main entry point
-bool EvsDisplay::initialize()
-{
+bool EvsDisplay::initialize() {
     //
     //  Create the native full screen window and get a suitable configuration to match it
     //
@@ -83,11 +76,10 @@ bool EvsDisplay::initialize()
         }
     }
 
-    display->getLayer(DISPLAY_BUFFER_NUM,
-        [&](const auto& tmpError, const auto& tmpLayer) {
-            if (tmpError == Error::NONE) {
-                layer = tmpLayer;
-            }
+    display->getLayer(DISPLAY_BUFFER_NUM, [&](const auto& tmpError, const auto& tmpLayer) {
+        if (tmpError == Error::NONE) {
+            layer = tmpLayer;
+        }
     });
 
     if (layer == (uint32_t)-1) {
@@ -103,15 +95,15 @@ bool EvsDisplay::initialize()
     }
 
     // allocate memory.
-    fsl::Memory *buffer = nullptr;
+    fsl::Memory* buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
     fsl::MemoryDesc desc;
     desc.mWidth = mWidth;
     desc.mHeight = mHeight;
     desc.mFormat = mFormat;
     desc.mFslFormat = mFormat;
-    desc.mProduceUsage |= fsl::USAGE_HW_TEXTURE
-            | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
+    desc.mProduceUsage |=
+            fsl::USAGE_HW_TEXTURE | fsl::USAGE_HW_RENDER | fsl::USAGE_HW_VIDEO_ENCODER;
     desc.mFlag = 0;
     int ret = desc.checkFormat();
     if (ret != 0) {
@@ -133,8 +125,7 @@ bool EvsDisplay::initialize()
 /**
  * This gets called if another caller "steals" ownership of the display
  */
-void EvsDisplay::forceShutdown()
-{
+void EvsDisplay::forceShutdown() {
     ALOGD("EvsDisplay forceShutdown");
     int layer;
     sp<IDisplay> display;
@@ -149,7 +140,7 @@ void EvsDisplay::forceShutdown()
         display->putLayer(layer);
     }
 
-    fsl::Memory *buffer = nullptr;
+    fsl::Memory* buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
     for (int i = 0; i < DISPLAY_BUFFER_NUM; i++) {
         {
@@ -174,8 +165,7 @@ void EvsDisplay::forceShutdown()
  * Returns basic information about the EVS display provided by the system.
  * See the description of the DisplayDesc structure for details.
  */
-Return<void> EvsDisplay::getDisplayInfo(getDisplayInfo_cb _hidl_cb)
-{
+Return<void> EvsDisplay::getDisplayInfo(getDisplayInfo_cb _hidl_cb) {
     ALOGD("getDisplayInfo");
 
     // Send back our self description
@@ -192,8 +182,7 @@ Return<void> EvsDisplay::getDisplayInfo(getDisplayInfo_cb _hidl_cb)
  * then begin providing video.  When the display is no longer required, the client
  * is expected to request the NOT_VISIBLE state after passing the last video frame.
  */
-Return<EvsResult> EvsDisplay::setDisplayState(EvsDisplayState state)
-{
+Return<EvsResult> EvsDisplay::setDisplayState(EvsDisplayState state) {
     ALOGD("setDisplayState");
 
     {
@@ -211,14 +200,14 @@ Return<EvsResult> EvsDisplay::setDisplayState(EvsDisplayState state)
     }
 
     switch (state) {
-    case EvsDisplayState::NOT_VISIBLE:
-        hideWindow();
-        break;
-    case EvsDisplayState::VISIBLE:
-        showWindow();
-        break;
-    default:
-        break;
+        case EvsDisplayState::NOT_VISIBLE:
+            hideWindow();
+            break;
+        case EvsDisplayState::VISIBLE:
+            showWindow();
+            break;
+        default:
+            break;
     }
 
     std::lock_guard<std::mutex> lock(mLock);
@@ -235,8 +224,7 @@ Return<EvsResult> EvsDisplay::setDisplayState(EvsDisplayState state)
  * the device layer, making it undesirable for the HAL implementation to
  * spontaneously change display states.
  */
-Return<EvsDisplayState> EvsDisplay::getDisplayState()
-{
+Return<EvsDisplayState> EvsDisplay::getDisplayState() {
     ALOGD("getDisplayState");
 
     std::lock_guard<std::mutex> lock(mLock);
@@ -249,8 +237,7 @@ Return<EvsDisplayState> EvsDisplay::getDisplayState()
  * must be returned via a call to returnTargetBufferForDisplay() even if the
  * display is no longer visible.
  */
-Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
-{
+Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb) {
     ALOGV("getTargetBuffer");
 
     BufferDesc_1_0 hbuf = {};
@@ -272,7 +259,7 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
         display = mDisplay;
         layer = mLayer;
     }
-    if (display == nullptr)  {
+    if (display == nullptr) {
         ALOGE("%s invalid display", __func__);
         _hidl_cb(hbuf);
         return Void();
@@ -290,7 +277,7 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
         return Void();
     }
 
-    fsl::Memory *buffer = nullptr;
+    fsl::Memory* buffer = nullptr;
     {
         std::lock_guard<std::mutex> lock(mLock);
         if (mBuffers[slot] == nullptr) {
@@ -303,44 +290,42 @@ Return<void> EvsDisplay::getTargetBuffer(getTargetBuffer_cb _hidl_cb)
 
     // Assemble the buffer description we'll use for our render target
     // hard code the resolution 640*480
-    hbuf.width     = buffer->width;
-    hbuf.height    = buffer->height;
-    hbuf.stride    = buffer->stride;
-    hbuf.format    = buffer->format;
-    hbuf.usage     = buffer->usage;
-    hbuf.bufferId  = slot;
+    hbuf.width = buffer->width;
+    hbuf.height = buffer->height;
+    hbuf.stride = buffer->stride;
+    hbuf.format = buffer->format;
+    hbuf.usage = buffer->usage;
+    hbuf.bufferId = slot;
     hbuf.pixelSize = 4;
     hbuf.memHandle = buffer;
 
     // Send the buffer to the client
-    ALOGV("Providing display buffer handle %p as id %d",
-          hbuf.memHandle.getNativeHandle(), hbuf.bufferId);
+    ALOGV("Providing display buffer handle %p as id %d", hbuf.memHandle.getNativeHandle(),
+          hbuf.bufferId);
     _hidl_cb(hbuf);
     return Void();
 }
-
 
 /**
  * This call tells the display that the buffer is ready for display.
  * The buffer is no longer valid for use by the client after this call.
  */
-Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc_1_0& buffer)
-{
+Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc_1_0& buffer) {
     ALOGV("returnTargetBufferForDisplay %p", buffer.memHandle.getNativeHandle());
     // Nobody should call us with a null handle
     if (!buffer.memHandle.getNativeHandle()) {
-        ALOGE ("%s invalid buffer handle.\n", __func__);
+        ALOGE("%s invalid buffer handle.\n", __func__);
         return EvsResult::INVALID_ARG;
     }
 
     if (buffer.bufferId >= DISPLAY_BUFFER_NUM) {
-        ALOGE ("%s invalid buffer id.\n", __func__);
+        ALOGE("%s invalid buffer id.\n", __func__);
         return EvsResult::INVALID_ARG;
     }
 
     EvsDisplayState state;
     sp<IDisplay> display;
-    fsl::Memory *abuffer = nullptr;
+    fsl::Memory* abuffer = nullptr;
     int layer;
     {
         std::lock_guard<std::mutex> lock(mLock);
@@ -351,7 +336,7 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc_1_0&
     }
 
     if (abuffer == nullptr) {
-        ALOGE ("%s abuffer invalid.\n", __func__);
+        ALOGE("%s abuffer invalid.\n", __func__);
         return EvsResult::INVALID_ARG;
     }
 
@@ -375,22 +360,22 @@ Return<EvsResult> EvsDisplay::returnTargetBufferForDisplay(const BufferDesc_1_0&
     if (state != EvsDisplayState::VISIBLE) {
         // Not sure why a client would send frames back when we're not visible.
         ALOGW("Got a frame returned while not visible - ignoring.\n");
-    }
-    else {
+    } else {
         ALOGV("Got a visible frame %d returned.\n", buffer.bufferId);
     }
 
     return EvsResult::OK;
 }
 
-Return<void> EvsDisplay::getDisplayInfo_1_1(__attribute__ ((unused))getDisplayInfo_1_1_cb _info_cb) {
+Return<void> EvsDisplay::getDisplayInfo_1_1(__attribute__((unused))
+                                            getDisplayInfo_1_1_cb _info_cb) {
     android::DisplayConfig displayConfig;
     android::ui::DisplayState displayState;
     displayConfig.resolution = ui::Size(mWidth, mHeight);
     displayConfig.refreshRate = 60.f;
     displayState.layerStack = mLayer;
     HwDisplayConfig activeConfig;
-    HwDisplayState  activeState;
+    HwDisplayState activeState;
 
     activeConfig.setToExternal((uint8_t*)&displayConfig, sizeof(android::DisplayConfig));
     activeState.setToExternal((uint8_t*)&displayState, sizeof(android::ui::DisplayState));
@@ -400,7 +385,7 @@ Return<void> EvsDisplay::getDisplayInfo_1_1(__attribute__ ((unused))getDisplayIn
 }
 
 } // namespace implementation
-} // namespace V1_0
+} // namespace V1_1
 } // namespace evs
 } // namespace automotive
 } // namespace hardware

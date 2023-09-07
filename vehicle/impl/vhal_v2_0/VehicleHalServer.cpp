@@ -18,10 +18,10 @@
 
 #include "VehicleHalServer.h"
 
-#include <fstream>
-
 #include <android-base/logging.h>
 #include <utils/SystemClock.h>
+
+#include <fstream>
 
 #include "DefaultConfig.h"
 #include "JsonFakeValueGenerator.h"
@@ -143,12 +143,12 @@ StatusCode VehicleHalServer::handleGenerateFakeDataRequest(const VehiclePropValu
             int32_t keyCode = request.value.int32Values[2];
             int32_t display = request.value.int32Values[3];
             // Send back to HAL
-            onPropertyValueFromCar(
-                    *createHwInputKeyProp(VehicleHwKeyInputAction::ACTION_DOWN, keyCode, display),
-                    updateStatus);
-            onPropertyValueFromCar(
-                    *createHwInputKeyProp(VehicleHwKeyInputAction::ACTION_UP, keyCode, display),
-                    updateStatus);
+            onPropertyValueFromCar(*createHwInputKeyProp(VehicleHwKeyInputAction::ACTION_DOWN,
+                                                         keyCode, display),
+                                   updateStatus);
+            onPropertyValueFromCar(*createHwInputKeyProp(VehicleHwKeyInputAction::ACTION_UP,
+                                                         keyCode, display),
+                                   updateStatus);
             break;
         }
         default: {
@@ -253,9 +253,9 @@ StatusCode VehicleHalServer::onSetProperty(const VehiclePropValue& value, bool u
                     // CPMS is in WAIT_FOR_FINISH state, send the FINISHED command
                     // Send back to HAL
                     // ALWAYS update status for generated property value
-                    onPropertyValueFromCar(
-                            *createApPowerStateReq(VehicleApPowerStateReq::FINISHED, 0),
-                            true /* updateStatus */);
+                    onPropertyValueFromCar(*createApPowerStateReq(VehicleApPowerStateReq::FINISHED,
+                                                                  0),
+                                           true /* updateStatus */);
                     break;
                 case toInt(VehicleApPowerStateReport::ON):
                 case toInt(VehicleApPowerStateReport::SHUTDOWN_POSTPONE):
@@ -280,4 +280,4 @@ StatusCode VehicleHalServer::onSetProperty(const VehiclePropValue& value, bool u
     return StatusCode::OK;
 }
 
-}  // namespace android::hardware::automotive::vehicle::V2_0::impl
+} // namespace android::hardware::automotive::vehicle::V2_0::impl

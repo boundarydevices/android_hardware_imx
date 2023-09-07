@@ -17,6 +17,7 @@
  */
 
 #include "OemLock.h"
+
 #include <android-base/logging.h>
 #include <android-base/strings.h>
 
@@ -32,7 +33,9 @@ namespace oemlock {
     return ::ndk::ScopedAStatus::ok();
 }
 
-::ndk::ScopedAStatus OemLock::setOemUnlockAllowedByCarrier(bool in_allowed, const std::vector<uint8_t> &in_signature, OemLockSecureStatus *_aidl_return) {
+::ndk::ScopedAStatus OemLock::setOemUnlockAllowedByCarrier(bool in_allowed,
+                                                           const std::vector<uint8_t> &in_signature,
+                                                           OemLockSecureStatus *_aidl_return) {
     (void)in_signature;
     (void)in_allowed;
 
@@ -45,7 +48,6 @@ namespace oemlock {
 }
 
 ::ndk::ScopedAStatus OemLock::isOemUnlockAllowedByCarrier(bool *out_allowed) {
-
     /* Carrier unlock is not supported, so we always allow the carrier unlock */
     LOG(INFO) << "Running OemLock::isOemUnlockAllowedByCarrier...";
     LOG(INFO) << "carrier unlock is not supported, return ok here...";
@@ -87,4 +89,4 @@ namespace oemlock {
 } // namespace oemlock
 } // namespace hardware
 } // namespace android
-} // aidl
+} // namespace aidl

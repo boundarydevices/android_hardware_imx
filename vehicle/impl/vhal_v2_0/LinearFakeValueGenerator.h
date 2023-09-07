@@ -36,9 +36,9 @@ private:
     struct GeneratorCfg {
         int32_t propId;
         float initialValue;
-        float currentValue;  //  Should be in range (initialValue +/- dispersion).
-        float dispersion;    //  Defines minimum and maximum value based on initial value.
-        float increment;     //  Value that we will be added to currentValue with each timer tick.
+        float currentValue; //  Should be in range (initialValue +/- dispersion).
+        float dispersion;   //  Defines minimum and maximum value based on initial value.
+        float increment;    //  Value that we will be added to currentValue with each timer tick.
         Nanos interval;
     };
 
@@ -54,12 +54,12 @@ private:
     GeneratorCfg mGenCfg;
 };
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_LinearFakeValueGenerator_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_LinearFakeValueGenerator_H_

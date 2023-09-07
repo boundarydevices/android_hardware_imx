@@ -18,14 +18,15 @@
 #ifndef ANDROID_SENSOR_BASE_H
 #define ANDROID_SENSOR_BASE_H
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
 #include "InputEventReader.h"
 #include "sensors.h"
 
-#define SENSORS_MAX  20
+#define SENSORS_MAX 20
 
 /*****************************************************************************/
 class SensorBase {
@@ -42,7 +43,7 @@ protected:
     static int64_t getTimestamp();
 
     static int64_t timevalToNano(timeval const& t) {
-        return t.tv_sec*1000000000LL + t.tv_usec*1000;
+        return t.tv_sec * 1000000000LL + t.tv_usec * 1000;
     }
 
     int open_device();
@@ -51,8 +52,8 @@ protected:
     int close_fifo_device();
 
 public:
-    SensorBase(const char* dev_name,const char* data_name);
-    SensorBase(const char* dev_name,const char* data_name,const char* fifo_name);
+    SensorBase(const char* dev_name, const char* data_name);
+    SensorBase(const char* dev_name, const char* data_name, const char* fifo_name);
     virtual ~SensorBase();
     virtual bool hasPendingEvents() const;
     virtual int getFd() const;
@@ -67,4 +68,4 @@ public:
 
 /*****************************************************************************/
 
-#endif  // ANDROID_SENSOR_BASE_H
+#endif // ANDROID_SENSOR_BASE_H

@@ -16,9 +16,10 @@
  */
 
 #include <system/camera_metadata.h>
+
 #include "Metadata.h"
 
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 #include <cutils/log.h>
 
 #include "VendorTags.h"
@@ -30,7 +31,7 @@ namespace {
 // Describes a single vendor tag entry
 struct Entry {
     const char* name;
-    uint8_t     type;
+    uint8_t type;
 };
 // Describes a vendor tag section
 struct Section {
@@ -41,50 +42,28 @@ struct Section {
 };
 
 // Entry arrays for each section
-const Entry DemoWizardry[demo_wizardry_end - demo_wizardry_start] = {
-    [demo_wizardry_dimension_size - demo_wizardry_start] =
-        {"dimensionSize",   TYPE_INT32},
-    [demo_wizardry_dimensions - demo_wizardry_start] =
-        {"dimensions",      TYPE_INT32},
-    [demo_wizardry_familiar - demo_wizardry_start] =
-        {"familiar",        TYPE_BYTE},
-    [demo_wizardry_fire - demo_wizardry_start] =
-        {"fire",            TYPE_RATIONAL}
-};
+const Entry DemoWizardry[demo_wizardry_end - demo_wizardry_start] =
+        {[demo_wizardry_dimension_size - demo_wizardry_start] = {"dimensionSize", TYPE_INT32},
+         [demo_wizardry_dimensions - demo_wizardry_start] = {"dimensions", TYPE_INT32},
+         [demo_wizardry_familiar - demo_wizardry_start] = {"familiar", TYPE_BYTE},
+         [demo_wizardry_fire - demo_wizardry_start] = {"fire", TYPE_RATIONAL}};
 
-const Entry DemoSorcery[demo_sorcery_end - demo_sorcery_start] = {
-    [demo_sorcery_difficulty - demo_sorcery_start] =
-        {"difficulty",      TYPE_INT64},
-    [demo_sorcery_light - demo_sorcery_start] =
-        {"light",           TYPE_BYTE}
-};
+const Entry DemoSorcery[demo_sorcery_end - demo_sorcery_start] =
+        {[demo_sorcery_difficulty - demo_sorcery_start] = {"difficulty", TYPE_INT64},
+         [demo_sorcery_light - demo_sorcery_start] = {"light", TYPE_BYTE}};
 
-const Entry DemoMagic[demo_magic_end - demo_magic_start] = {
-    [demo_magic_card_trick - demo_magic_start] =
-        {"cardTrick",       TYPE_DOUBLE},
-    [demo_magic_levitation - demo_magic_start] =
-        {"levitation",      TYPE_FLOAT}
-};
+const Entry DemoMagic[demo_magic_end - demo_magic_start] =
+        {[demo_magic_card_trick - demo_magic_start] = {"cardTrick", TYPE_DOUBLE},
+         [demo_magic_levitation - demo_magic_start] = {"levitation", TYPE_FLOAT}};
 
 // Array of all sections
-const Section DemoSections[DEMO_SECTION_COUNT] = {
-    [DEMO_WIZARDRY] = { "demo.wizardry",
-                        demo_wizardry_start,
-                        demo_wizardry_end,
-                        DemoWizardry },
-    [DEMO_SORCERY]  = { "demo.sorcery",
-                        demo_sorcery_start,
-                        demo_sorcery_end,
-                        DemoSorcery },
-    [DEMO_MAGIC]    = { "demo.magic",
-                        demo_magic_start,
-                        demo_magic_end,
-                        DemoMagic }
-};
+const Section DemoSections[DEMO_SECTION_COUNT] =
+        {[DEMO_WIZARDRY] = {"demo.wizardry", demo_wizardry_start, demo_wizardry_end, DemoWizardry},
+         [DEMO_SORCERY] = {"demo.sorcery", demo_sorcery_start, demo_sorcery_end, DemoSorcery},
+         [DEMO_MAGIC] = {"demo.magic", demo_magic_start, demo_magic_end, DemoMagic}};
 
 // Get a static handle to a specific vendor tag section
-const Section* getSection(uint32_t tag)
-{
+const Section* getSection(uint32_t tag) {
     uint32_t section = (tag - vendor_section_start) >> 16;
 
     if (tag < vendor_section_start) {
@@ -101,13 +80,11 @@ const Section* getSection(uint32_t tag)
 }
 
 // Get a static handle to a specific vendor tag entry
-const Entry* getEntry(uint32_t tag)
-{
+const Entry* getEntry(uint32_t tag) {
     const Section* section = getSection(tag);
     int index;
 
-    if (section == NULL)
-        return NULL;
+    if (section == NULL) return NULL;
 
     if (tag >= section->end) {
         ALOGE("%s: Tag 0x%x outside section", __func__, tag);
@@ -119,64 +96,51 @@ const Entry* getEntry(uint32_t tag)
 }
 } // namespace
 
-VendorTags::VendorTags()
-  : mTagCount(0)
-{
+VendorTags::VendorTags() : mTagCount(0) {
     for (int i = 0; i < DEMO_SECTION_COUNT; i++) {
         mTagCount += DemoSections[i].end - DemoSections[i].start;
     }
 }
 
-VendorTags::~VendorTags()
-{
-}
+VendorTags::~VendorTags() {}
 
-int VendorTags::getTagCount(const vendor_tag_ops_t* ops __unused)
-{
+int VendorTags::getTagCount(const vendor_tag_ops_t* ops __unused) {
     return mTagCount;
 }
 
-void VendorTags::getAllTags(const vendor_tag_ops_t* ops __unused, uint32_t* tag_array)
-{
+void VendorTags::getAllTags(const vendor_tag_ops_t* ops __unused, uint32_t* tag_array) {
     if (tag_array == NULL) {
         ALOGE("%s: NULL tag_array", __func__);
         return;
     }
 
     for (int i = 0; i < DEMO_SECTION_COUNT; i++) {
-        for (uint32_t tag = DemoSections[i].start;
-                tag < DemoSections[i].end; tag++) {
+        for (uint32_t tag = DemoSections[i].start; tag < DemoSections[i].end; tag++) {
             *tag_array++ = tag;
         }
     }
 }
 
-const char* VendorTags::getSectionName(const vendor_tag_ops_t* ops __unused, uint32_t tag)
-{
+const char* VendorTags::getSectionName(const vendor_tag_ops_t* ops __unused, uint32_t tag) {
     const Section* section = getSection(tag);
 
-    if (section == NULL)
-        return NULL;
+    if (section == NULL) return NULL;
 
     return section->name;
 }
 
-const char* VendorTags::getTagName(const vendor_tag_ops_t* ops __unused, uint32_t tag)
-{
+const char* VendorTags::getTagName(const vendor_tag_ops_t* ops __unused, uint32_t tag) {
     const Entry* entry = getEntry(tag);
 
-    if (entry == NULL)
-        return NULL;
+    if (entry == NULL) return NULL;
 
     return entry->name;
 }
 
-int VendorTags::getTagType(const vendor_tag_ops_t* ops __unused, uint32_t tag)
-{
+int VendorTags::getTagType(const vendor_tag_ops_t* ops __unused, uint32_t tag) {
     const Entry* entry = getEntry(tag);
 
-    if (entry == NULL)
-        return -1;
+    if (entry == NULL) return -1;
 
     return entry->type;
 }

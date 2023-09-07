@@ -17,12 +17,12 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_WatchdogClient_H_
 #define android_hardware_automotive_vehicle_V2_0_WatchdogClient_H_
 
-#include "VehicleHalManager.h"
-
 #include <aidl/android/automotive/watchdog/BnCarWatchdog.h>
 #include <aidl/android/automotive/watchdog/BnCarWatchdogClient.h>
 #include <utils/Looper.h>
 #include <utils/Mutex.h>
+
+#include "VehicleHalManager.h"
 
 namespace android {
 namespace hardware {
@@ -31,7 +31,7 @@ namespace vehicle {
 namespace V2_0 {
 
 class WatchdogClient : public aidl::android::automotive::watchdog::BnCarWatchdogClient {
-  public:
+public:
     explicit WatchdogClient(const ::android::sp<::android::Looper>& handlerLooper,
                             VehicleHalManager* vhalManager);
 
@@ -41,21 +41,21 @@ class WatchdogClient : public aidl::android::automotive::watchdog::BnCarWatchdog
 
     bool initialize();
 
-  private:
+private:
     class MessageHandlerImpl : public ::android::MessageHandler {
-      public:
+    public:
         explicit MessageHandlerImpl(WatchdogClient* client);
         void handleMessage(const ::android::Message& message) override;
 
-      private:
+    private:
         WatchdogClient* mClient;
     };
 
-  private:
+private:
     void respondToWatchdog();
     bool isClientHealthy() const;
 
-  private:
+private:
     ::android::sp<::android::Looper> mHandlerLooper;
     ::android::sp<MessageHandlerImpl> mMessageHandler;
     std::shared_ptr<aidl::android::automotive::watchdog::ICarWatchdog> mWatchdogServer;
@@ -65,10 +65,10 @@ class WatchdogClient : public aidl::android::automotive::watchdog::BnCarWatchdog
     int mCurrentSessionId GUARDED_BY(mMutex);
 };
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_WatchdogClient_H_
+#endif // android_hardware_automotive_vehicle_V2_0_WatchdogClient_H_

@@ -19,10 +19,10 @@
 namespace nxp_sensors_subhal {
 // HWSensorBase represents the actual physical sensor provided as the IIO device
 class AnglvelSensor : public HWSensorBase {
-  public:
+public:
     AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
-           struct iio_device_data& iio_data,
-           const std::optional<std::vector<Configuration>>& config);
+                  struct iio_device_data& iio_data,
+                  const std::optional<std::vector<Configuration>>& config);
     ~AnglvelSensor();
     void run();
     void batch(int32_t samplingPeriodNs);
@@ -32,12 +32,13 @@ class AnglvelSensor : public HWSensorBase {
     void activate(bool enable);
     void setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
     void setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
-    void processScanData(char* data,Event* evt);
+    void processScanData(char* data, Event* evt);
     bool supportsDataInjection() const;
     Result injectEvent(const Event& event);
-  private:
+
+private:
     std::string mSysfspath;
     std::string freq_file_name;
 };
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

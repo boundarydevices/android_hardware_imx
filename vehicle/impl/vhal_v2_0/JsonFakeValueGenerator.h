@@ -17,10 +17,10 @@
 #ifndef android_hardware_automotive_vehicle_V2_0_impl_JsonFakeValueGenerator_H_
 #define android_hardware_automotive_vehicle_V2_0_impl_JsonFakeValueGenerator_H_
 
+#include <json/json.h>
+
 #include <chrono>
 #include <iostream>
-
-#include <json/json.h>
 
 #include "FakeValueGenerator.h"
 
@@ -66,12 +66,12 @@ private:
     int32_t mNumOfIterations;
 };
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
-#endif  // android_hardware_automotive_vehicle_V2_0_impl_JsonFakeValueGenerator_H_
+#endif // android_hardware_automotive_vehicle_V2_0_impl_JsonFakeValueGenerator_H_

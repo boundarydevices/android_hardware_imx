@@ -17,9 +17,9 @@
 #pragma once
 
 #include <aidl/android/hardware/vibrator/BnVibrator.h>
+#include <cutils/properties.h>
 #include <utils/Mutex.h>
 #include <utils/threads.h>
-#include <cutils/properties.h>
 
 namespace aidl {
 namespace android {
@@ -28,8 +28,8 @@ namespace vibrator {
 using ::android::Mutex;
 #define DEF_VIBRATOR_DEV "vibrator"
 #define DEF_VIBRATOR_PATH "/sys/class/leds/"
-#define VIBRATOR_STRENGTH_OFF    0
-#define VIBRATOR_STRENGTH_LIGHT  0.2
+#define VIBRATOR_STRENGTH_OFF 0
+#define VIBRATOR_STRENGTH_LIGHT 0.2
 #define VIBRATOR_STRENGTH_MEDIUM 0.6
 #define VIBRATOR_STRENGTH_STRONG 1
 
@@ -54,28 +54,30 @@ class Vibrator : public BnVibrator {
     ndk::ScopedAStatus getSupportedAlwaysOnEffects(std::vector<Effect>* _aidl_return) override;
     ndk::ScopedAStatus alwaysOnEnable(int32_t id, Effect effect, EffectStrength strength) override;
     ndk::ScopedAStatus alwaysOnDisable(int32_t id) override;
-    ndk::ScopedAStatus getResonantFrequency(float *resonantFreqHz) override;
-    ndk::ScopedAStatus getQFactor(float *qFactor) override;
-    ndk::ScopedAStatus getFrequencyResolution(float *freqResolutionHz) override;
-    ndk::ScopedAStatus getFrequencyMinimum(float *freqMinimumHz) override;
-    ndk::ScopedAStatus getBandwidthAmplitudeMap(std::vector<float> *_aidl_return) override;
-    ndk::ScopedAStatus getPwlePrimitiveDurationMax(int32_t *durationMs) override;
-    ndk::ScopedAStatus getPwleCompositionSizeMax(int32_t *maxSize) override;
+    ndk::ScopedAStatus getResonantFrequency(float* resonantFreqHz) override;
+    ndk::ScopedAStatus getQFactor(float* qFactor) override;
+    ndk::ScopedAStatus getFrequencyResolution(float* freqResolutionHz) override;
+    ndk::ScopedAStatus getFrequencyMinimum(float* freqMinimumHz) override;
+    ndk::ScopedAStatus getBandwidthAmplitudeMap(std::vector<float>* _aidl_return) override;
+    ndk::ScopedAStatus getPwlePrimitiveDurationMax(int32_t* durationMs) override;
+    ndk::ScopedAStatus getPwleCompositionSizeMax(int32_t* maxSize) override;
     ndk::ScopedAStatus getSupportedBraking(std::vector<Braking>* supported) override;
-    ndk::ScopedAStatus composePwle(const std::vector<PrimitivePwle> &composite,
-                                   const std::shared_ptr<IVibratorCallback> &callback) override;
-    private:
-        void initBrightness();
-        int setBrightness(float brightness);
-        int getMaxBrightness();
-    protected:
-        Mutex mLock;
-        int mMaxBrightness;
-        char mBrightnessPath[PROPERTY_VALUE_MAX];
-        double mStrength;
+    ndk::ScopedAStatus composePwle(const std::vector<PrimitivePwle>& composite,
+                                   const std::shared_ptr<IVibratorCallback>& callback) override;
+
+private:
+    void initBrightness();
+    int setBrightness(float brightness);
+    int getMaxBrightness();
+
+protected:
+    Mutex mLock;
+    int mMaxBrightness;
+    char mBrightnessPath[PROPERTY_VALUE_MAX];
+    double mStrength;
 };
 
-}  // namespace vibrator
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace vibrator
+} // namespace hardware
+} // namespace android
+} // namespace aidl

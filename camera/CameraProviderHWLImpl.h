@@ -21,11 +21,12 @@
 #include <hal_types.h>
 #include <json/json.h>
 #include <json/reader.h>
+
 #include <future>
 
-#include "CameraUtils.h"
-#include "CameraMetadata.h"
 #include "CameraConfigurationParser.h"
+#include "CameraMetadata.h"
+#include "CameraUtils.h"
 
 namespace android {
 
@@ -50,8 +51,7 @@ struct nodeSet {
     nodeSet* next;
 };
 
-class CameraProviderHwlImpl : public CameraProviderHwl
-{
+class CameraProviderHwlImpl : public CameraProviderHwl {
 public:
     // Return a unique pointer to CameraProviderHwlImpl. Calling Create()
     // again before the previous one is destroyed will fail.
@@ -63,32 +63,28 @@ public:
     status_t SetCallback(const HwlCameraProviderCallback& callback) override;
     status_t TriggerDeferredCallbacks() override;
 
-    status_t GetVendorTags(
-        std::vector<VendorTagSection>* vendor_tag_sections) override;
+    status_t GetVendorTags(std::vector<VendorTagSection>* vendor_tag_sections) override;
 
     status_t GetVisibleCameraIds(std::vector<std::uint32_t>* camera_ids) override;
 
-    bool IsSetTorchModeSupported() override
-    {
-        return false;
-    }
+    bool IsSetTorchModeSupported() override { return false; }
 
     status_t GetConcurrentStreamingCameraIds(
-        std::vector<std::unordered_set<uint32_t>>* combinations) override;
+            std::vector<std::unordered_set<uint32_t>>* combinations) override;
 
     status_t IsConcurrentStreamCombinationSupported(
-        const std::vector<CameraIdAndStreamConfiguration>& configs, bool* is_supported) override;
+            const std::vector<CameraIdAndStreamConfiguration>& configs,
+            bool* is_supported) override;
 
-    status_t CreateCameraDeviceHwl(
-        uint32_t camera_id,
-        std::unique_ptr<CameraDeviceHwl>* camera_device_hwl) override;
+    status_t CreateCameraDeviceHwl(uint32_t camera_id,
+                                   std::unique_ptr<CameraDeviceHwl>* camera_device_hwl) override;
 
-    status_t CreateBufferAllocatorHwl(std::unique_ptr<CameraBufferAllocatorHwl>*
-                                        camera_buffer_allocator_hwl) override;
+    status_t CreateBufferAllocatorHwl(
+            std::unique_ptr<CameraBufferAllocatorHwl>* camera_buffer_allocator_hwl) override;
 
-#if ANDROID_SDK_VERSION >  __ANDROID_API_S__
-    status_t NotifyDeviceStateChange(google_camera_hal::DeviceState device_state __unused) override
-    {
+#if ANDROID_SDK_VERSION > __ANDROID_API_S__
+    status_t NotifyDeviceStateChange(
+            google_camera_hal::DeviceState device_state __unused) override {
         return 0;
     }
 #endif
@@ -100,7 +96,8 @@ private:
     void enumSensorSet();
     int32_t matchPropertyName(nodeSet* nodes, int32_t index);
     int32_t matchDevNodes();
-    int32_t getNodeName(const char* devNode, char name[], size_t length, char busInfo[], size_t busInfoLen);
+    int32_t getNodeName(const char* devNode, char name[], size_t length, char busInfo[],
+                        size_t busInfoLen);
     void NotifyPhysicalCameraUnavailable();
     void WaitForStatusCallbackFuture();
 
@@ -117,17 +114,17 @@ private:
     std::vector<SensorSet> mSets;
 
     // Logical to physical camera Id mapping. Empty value vector for basic camera
-    std::unordered_map<uint32_t, std::vector<std::pair<CameraDeviceStatus, uint32_t>>> camera_id_maps;
+    std::unordered_map<uint32_t, std::vector<std::pair<CameraDeviceStatus, uint32_t>>>
+            camera_id_maps;
 
     std::map<uint32_t, CameraDeviceHwl*> device_map;
 };
 
-extern "C" CameraProviderHwl* CreateCameraProviderHwl()
-{
+extern "C" CameraProviderHwl* CreateCameraProviderHwl() {
     auto provider = CameraProviderHwlImpl::Create();
     return provider.release();
 }
 
-}  // namespace android
+} // namespace android
 
-#endif  // CAMERA_PROVIDER_HWL_IMPL_H
+#endif // CAMERA_PROVIDER_HWL_IMPL_H

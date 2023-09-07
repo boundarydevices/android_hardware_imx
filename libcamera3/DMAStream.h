@@ -21,11 +21,10 @@
 
 // stream uses DMABUF buffers which allcated in user space.
 // that exports DMABUF handle.
-class DMAStream : public USPStream
-{
+class DMAStream : public USPStream {
 public:
     DMAStream(Camera* device);
-    DMAStream(Camera *device, bool mplane);
+    DMAStream(Camera* device, bool mplane);
     virtual ~DMAStream();
 
     // configure device.

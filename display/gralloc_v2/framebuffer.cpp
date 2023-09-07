@@ -16,24 +16,21 @@
  * limitations under the License.
  */
 
-#include <sys/mman.h>
-#include <dlfcn.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include <cutils/log.h>
-#include <cutils/atomic.h>
-#include <cutils/properties.h>
-#include <utils/String8.h>
-
-#include <hardware/hardware.h>
-#include <hardware/gralloc.h>
-
 #include <DisplayManager.h>
 #include <FbDisplay.h>
+#include <cutils/atomic.h>
+#include <cutils/log.h>
+#include <cutils/properties.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <hardware/gralloc.h>
+#include <hardware/hardware.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <utils/String8.h>
 
 using namespace fsl;
 
@@ -42,28 +39,22 @@ struct fb_context_t {
     Display* display;
 };
 
-int fb_setSwapInterval(struct framebuffer_device_t* dev, int interval)
-{
+int fb_setSwapInterval(struct framebuffer_device_t* dev, int interval) {
     fb_context_t* ctx = (fb_context_t*)dev;
-    if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval)
-        return -EINVAL;
+    if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval) return -EINVAL;
     // FIXME: implement fb_setSwapInterval
     return 0;
 }
 
-int fb_setUpdateRect(struct framebuffer_device_t* dev,
-        int l, int t, int w, int h)
-{
-    if (!dev || ((w|h) <= 0) || ((l|t)<0))
-        return -EINVAL;
+int fb_setUpdateRect(struct framebuffer_device_t* dev, int l, int t, int w, int h) {
+    if (!dev || ((w | h) <= 0) || ((l | t) < 0)) return -EINVAL;
 
     fb_context_t* ctx = (fb_context_t*)dev;
 
     return 0;
 }
 
-int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
-{
+int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer) {
     if (!buffer || !dev) {
         ALOGE("%s invalid parameters", __FUNCTION__);
         return -EINVAL;
@@ -74,17 +65,15 @@ int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
     return ctx->display->updateScreen();
 }
 
-int fb_compositionComplete(struct framebuffer_device_t* dev)
-{
+int fb_compositionComplete(struct framebuffer_device_t* dev) {
     fb_context_t* ctx = (fb_context_t*)dev;
 
     return 0;
 }
 
-int fb_close(struct hw_device_t *dev)
-{
+int fb_close(struct hw_device_t* dev) {
     fb_context_t* ctx = (fb_context_t*)dev;
-    if(ctx == NULL) {
+    if (ctx == NULL) {
         return 0;
     }
 
@@ -94,15 +83,13 @@ int fb_close(struct hw_device_t *dev)
     return 0;
 }
 
-int fb_device_open(hw_module_t const* module, const char* name,
-        hw_device_t** device)
-{
+int fb_device_open(hw_module_t const* module, const char* name, hw_device_t** device) {
     if (strcmp(name, GRALLOC_HARDWARE_FB0)) {
         return -EINVAL;
     }
 
     /* initialize our state here */
-    fb_context_t *dev = (fb_context_t*)malloc(sizeof(*dev));
+    fb_context_t* dev = (fb_context_t*)malloc(sizeof(*dev));
     memset(dev, 0, sizeof(*dev));
 
     /* initialize the procs */
@@ -135,12 +122,12 @@ int fb_device_open(hw_module_t const* module, const char* name,
     const_cast<uint32_t&>(dev->device.height) = config.mYres;
     const_cast<int&>(dev->device.stride) = config.mStride / config.mBytespixel;
     const_cast<int&>(dev->device.format) = config.mFormat;
-    const_cast<float&>(dev->device.xdpi) = config.mXdpi/1000;
-    const_cast<float&>(dev->device.ydpi) = config.mYdpi/1000;
+    const_cast<float&>(dev->device.xdpi) = config.mXdpi / 1000;
+    const_cast<float&>(dev->device.ydpi) = config.mYdpi / 1000;
     const_cast<float&>(dev->device.fps) = config.mFps;
     const_cast<int&>(dev->device.minSwapInterval) = 1;
     const_cast<int&>(dev->device.maxSwapInterval) = 1;
-    const_cast<int &>(dev->device.numFramebuffers) = MAX_FRAMEBUFFERS;
+    const_cast<int&>(dev->device.numFramebuffers) = MAX_FRAMEBUFFERS;
 
     dev->device.reserved[0] = MAX_FRAMEBUFFERS;
     dev->display = display;

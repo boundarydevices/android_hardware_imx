@@ -19,14 +19,14 @@
 #define _FSL_ION_MANAGER_H_
 
 #include <hardware/gralloc.h>
+
+#include "Allocator.h"
 #include "Memory.h"
 #include "MemoryDesc.h"
-#include "Allocator.h"
 
 namespace fsl {
 
-class IonManager
-{
+class IonManager {
 public:
     IonManager();
     ~IonManager();
@@ -38,17 +38,13 @@ public:
     int getPhys(Memory* memory);
     int getVaddrs(Memory* memory);
 
-    int lock(Memory* handle, int usage,
-            int l, int t, int w, int h,
-            void** vaddr);
-    int lockYCbCr(Memory* handle, int usage,
-            int l, int t, int w, int h,
-            android_ycbcr* ycbcr);
+    int lock(Memory* handle, int usage, int l, int t, int w, int h, void** vaddr);
+    int lockYCbCr(Memory* handle, int usage, int l, int t, int w, int h, android_ycbcr* ycbcr);
     int unlock(Memory* handle);
 
 private:
     Allocator* mAllocator;
 };
 
-}
+} // namespace fsl
 #endif

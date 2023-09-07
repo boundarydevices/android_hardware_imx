@@ -53,9 +53,8 @@ constexpr int OBD2_FREEZE_FRAME_CLEAR = (int)VehicleProperty::OBD2_FREEZE_FRAME_
 constexpr int TRACTION_CONTROL_ACTIVE = (int)VehicleProperty::TRACTION_CONTROL_ACTIVE;
 constexpr int VEHICLE_MAP_SERVICE = (int)VehicleProperty::VEHICLE_MAP_SERVICE;
 constexpr int WHEEL_TICK = (int)VehicleProperty::WHEEL_TICK;
-constexpr int ALL_WHEELS =
-    (int)(VehicleAreaWheel::LEFT_FRONT | VehicleAreaWheel::RIGHT_FRONT |
-          VehicleAreaWheel::LEFT_REAR | VehicleAreaWheel::RIGHT_REAR);
+constexpr int ALL_WHEELS = (int)(VehicleAreaWheel::LEFT_FRONT | VehicleAreaWheel::RIGHT_FRONT |
+                                 VehicleAreaWheel::LEFT_REAR | VehicleAreaWheel::RIGHT_REAR);
 constexpr int SEAT_1_LEFT = (int)(VehicleAreaSeat::ROW_1_LEFT);
 constexpr int SEAT_1_RIGHT = (int)(VehicleAreaSeat::ROW_1_RIGHT);
 constexpr int HVAC_LEFT = (int)(VehicleAreaSeat::ROW_1_LEFT | VehicleAreaSeat::ROW_2_LEFT |
@@ -63,13 +62,17 @@ constexpr int HVAC_LEFT = (int)(VehicleAreaSeat::ROW_1_LEFT | VehicleAreaSeat::R
 constexpr int HVAC_RIGHT = (int)(VehicleAreaSeat::ROW_1_RIGHT | VehicleAreaSeat::ROW_2_RIGHT);
 constexpr int HVAC_ALL = HVAC_LEFT | HVAC_RIGHT;
 constexpr int VENDOR_EXTENSION_BOOLEAN_PROPERTY =
-    (int)(0x101 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::BOOLEAN | VehicleArea::DOOR);
+        (int)(0x101 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::BOOLEAN |
+              VehicleArea::DOOR);
 constexpr int VENDOR_EXTENSION_FLOAT_PROPERTY =
-    (int)(0x102 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::FLOAT | VehicleArea::SEAT);
+        (int)(0x102 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::FLOAT |
+              VehicleArea::SEAT);
 constexpr int VENDOR_EXTENSION_INT_PROPERTY =
-    (int)(0x103 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::INT32 | VehicleArea::WINDOW);
+        (int)(0x103 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::INT32 |
+              VehicleArea::WINDOW);
 constexpr int VENDOR_EXTENSION_STRING_PROPERTY =
-    (int)(0x104 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::STRING | VehicleArea::GLOBAL);
+        (int)(0x104 | VehiclePropertyGroup::VENDOR | VehiclePropertyType::STRING |
+              VehicleArea::GLOBAL);
 constexpr int FUEL_DOOR_REAR_LEFT = (int)PortLocationType::REAR_LEFT;
 constexpr int CHARGE_PORT_FRONT_LEFT = (int)PortLocationType::FRONT_LEFT;
 constexpr int CHARGE_PORT_REAR_LEFT = (int)PortLocationType::REAR_LEFT;
@@ -85,7 +88,7 @@ constexpr int WHEEL_REAR_RIGHT = (int)VehicleAreaWheel::RIGHT_REAR;
  * is referencing this property definition: packages/services/Car/tests/vehiclehal_test
  */
 const int32_t kGenerateFakeDataControllingProperty =
-    0x0666 | VehiclePropertyGroup::VENDOR | VehicleArea::GLOBAL | VehiclePropertyType::MIXED;
+        0x0666 | VehiclePropertyGroup::VENDOR | VehicleArea::GLOBAL | VehiclePropertyType::MIXED;
 
 /**
  * This property is used for test purpose to set properties' value from vehicle.
@@ -177,8 +180,8 @@ enum class FakeDataCommand : int32_t {
 };
 
 const int32_t kHvacPowerProperties[] = {
-    toInt(VehicleProperty::HVAC_FAN_SPEED),
-    toInt(VehicleProperty::HVAC_FAN_DIRECTION),
+        toInt(VehicleProperty::HVAC_FAN_SPEED),
+        toInt(VehicleProperty::HVAC_FAN_DIRECTION),
 };
 
 struct ConfigDeclaration {
@@ -403,7 +406,7 @@ const ConfigDeclaration kVehicleProperties[]{
                          .minSampleRate = 1.0f,
                          .maxSampleRate = 2.0f,
                  },
-         .initialValue = {.floatValues = {100.0f}}},  // units in meters
+         .initialValue = {.floatValues = {100.0f}}}, // units in meters
 
         {.config =
                  {
@@ -433,7 +436,7 @@ const ConfigDeclaration kVehicleProperties[]{
                          .minSampleRate = 1.0f,
                          .maxSampleRate = 2.0f,
                  },
-         .initialValue = {.floatValues = {200.0f}}},  // units in kPa
+         .initialValue = {.floatValues = {200.0f}}}, // units in kPa
 
         {.config =
                  {
@@ -504,7 +507,7 @@ const ConfigDeclaration kVehicleProperties[]{
                                             .areaId = toInt(VehicleAreaWindow::FRONT_WINDSHIELD)},
                                     VehicleAreaConfig{
                                             .areaId = toInt(VehicleAreaWindow::REAR_WINDSHIELD)}}},
-                .initialValue = {.int32Values = {0}}  // Will be used for all areas.
+                .initialValue = {.int32Values = {0}} // Will be used for all areas.
         },
         {
                 .config = {.prop = toInt(VehicleProperty::HVAC_ELECTRIC_DEFROSTER_ON),
@@ -515,7 +518,7 @@ const ConfigDeclaration kVehicleProperties[]{
                                             .areaId = toInt(VehicleAreaWindow::FRONT_WINDSHIELD)},
                                     VehicleAreaConfig{
                                             .areaId = toInt(VehicleAreaWindow::REAR_WINDSHIELD)}}},
-                .initialValue = {.int32Values = {0}}  // Will be used for all areas.
+                .initialValue = {.int32Values = {0}} // Will be used for all areas.
         },
 
         {.config = {.prop = toInt(VehicleProperty::HVAC_MAX_DEFROST_ON),
@@ -563,8 +566,9 @@ const ConfigDeclaration kVehicleProperties[]{
         {.config = {.prop = toInt(VehicleProperty::HVAC_FAN_SPEED),
                     .access = VehiclePropertyAccess::READ_WRITE,
                     .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
-                    .areaConfigs = {VehicleAreaConfig{
-                            .areaId = HVAC_ALL, .minInt32Value = 1, .maxInt32Value = 7}}},
+                    .areaConfigs = {VehicleAreaConfig{.areaId = HVAC_ALL,
+                                                      .minInt32Value = 1,
+                                                      .maxInt32Value = 7}}},
          .initialValue = {.int32Values = {3}}},
 
         {.config = {.prop = toInt(VehicleProperty::HVAC_FAN_DIRECTION),
@@ -594,14 +598,15 @@ const ConfigDeclaration kVehicleProperties[]{
                                             .maxInt32Value = 3,
                                     }}},
          .initialValue =
-                 {.int32Values = {0}}},  // 0 is off and +ve values indicate ventilation level.
+                 {.int32Values = {0}}}, // 0 is off and +ve values indicate ventilation level.
 
         {.config = {.prop = toInt(VehicleProperty::HVAC_STEERING_WHEEL_HEAT),
                     .access = VehiclePropertyAccess::READ_WRITE,
                     .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
-                    .areaConfigs = {VehicleAreaConfig{
-                            .areaId = (0), .minInt32Value = -2, .maxInt32Value = 2}}},
-         .initialValue = {.int32Values = {0}}},  // +ve values for heating and -ve for cooling
+                    .areaConfigs = {VehicleAreaConfig{.areaId = (0),
+                                                      .minInt32Value = -2,
+                                                      .maxInt32Value = 2}}},
+         .initialValue = {.int32Values = {0}}}, // +ve values for heating and -ve for cooling
 
         {.config = {.prop = toInt(VehicleProperty::HVAC_SEAT_TEMPERATURE),
                     .access = VehiclePropertyAccess::READ_WRITE,
@@ -616,7 +621,7 @@ const ConfigDeclaration kVehicleProperties[]{
                                             .minInt32Value = -2,
                                             .maxInt32Value = 2,
                                     }}},
-         .initialValue = {.int32Values = {0}}},  // +ve values for heating and -ve for cooling
+         .initialValue = {.int32Values = {0}}}, // +ve values for heating and -ve for cooling
 
         {.config = {.prop = toInt(VehicleProperty::HVAC_TEMPERATURE_SET),
                     .access = VehiclePropertyAccess::READ_WRITE,
@@ -675,8 +680,8 @@ const ConfigDeclaration kVehicleProperties[]{
                          .access = VehiclePropertyAccess::READ,
                          .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
                          .configArray = {toInt(VehicleGear::GEAR_PARK),
-                             toInt(VehicleGear::GEAR_REVERSE),
-                             toInt(VehicleGear::GEAR_DRIVE)},
+                                         toInt(VehicleGear::GEAR_REVERSE),
+                                         toInt(VehicleGear::GEAR_DRIVE)},
                  },
          .initialValue = {.int32Values = {toInt(VehicleGear::GEAR_REVERSE)}}},
 
@@ -709,8 +714,8 @@ const ConfigDeclaration kVehicleProperties[]{
                          .prop = toInt(VehicleProperty::ENGINE_OIL_TEMP),
                          .access = VehiclePropertyAccess::READ,
                          .changeMode = VehiclePropertyChangeMode::CONTINUOUS,
-                         .minSampleRate = 0.1,  // 0.1 Hz, every 10 seconds
-                         .maxSampleRate = 10,   // 10 Hz, every 100 ms
+                         .minSampleRate = 0.1, // 0.1 Hz, every 10 seconds
+                         .maxSampleRate = 10,  // 10 Hz, every 100 ms
                  },
          .initialValue = {.floatValues = {101.0f}}},
 
@@ -782,26 +787,28 @@ const ConfigDeclaration kVehicleProperties[]{
         {.config = {.prop = toInt(VehicleProperty::DOOR_POS),
                     .access = VehiclePropertyAccess::READ_WRITE,
                     .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
-                    .areaConfigs =
-                            {VehicleAreaConfig{
-                                     .areaId = DOOR_1_LEFT, .minInt32Value = 0, .maxInt32Value = 1},
-                             VehicleAreaConfig{.areaId = DOOR_1_RIGHT,
-                                               .minInt32Value = 0,
-                                               .maxInt32Value = 1},
-                             VehicleAreaConfig{
-                                     .areaId = DOOR_2_LEFT, .minInt32Value = 0, .maxInt32Value = 1},
-                             VehicleAreaConfig{.areaId = DOOR_2_RIGHT,
-                                               .minInt32Value = 0,
-                                               .maxInt32Value = 1},
-                             VehicleAreaConfig{
-                                     .areaId = DOOR_REAR, .minInt32Value = 0, .maxInt32Value = 1}}},
+                    .areaConfigs = {VehicleAreaConfig{.areaId = DOOR_1_LEFT,
+                                                      .minInt32Value = 0,
+                                                      .maxInt32Value = 1},
+                                    VehicleAreaConfig{.areaId = DOOR_1_RIGHT,
+                                                      .minInt32Value = 0,
+                                                      .maxInt32Value = 1},
+                                    VehicleAreaConfig{.areaId = DOOR_2_LEFT,
+                                                      .minInt32Value = 0,
+                                                      .maxInt32Value = 1},
+                                    VehicleAreaConfig{.areaId = DOOR_2_RIGHT,
+                                                      .minInt32Value = 0,
+                                                      .maxInt32Value = 1},
+                                    VehicleAreaConfig{.areaId = DOOR_REAR,
+                                                      .minInt32Value = 0,
+                                                      .maxInt32Value = 1}}},
          .initialValue = {.int32Values = {0}}},
 
         {.config = {.prop = toInt(VehicleProperty::WINDOW_LOCK),
                     .access = VehiclePropertyAccess::READ_WRITE,
                     .changeMode = VehiclePropertyChangeMode::ON_CHANGE,
                     .areaConfigs = {VehicleAreaConfig{.areaId = WINDOW_1_RIGHT | WINDOW_2_LEFT |
-                                                                WINDOW_2_RIGHT}}},
+                                                              WINDOW_2_RIGHT}}},
          .initialAreaValues = {{WINDOW_1_RIGHT | WINDOW_2_LEFT | WINDOW_2_RIGHT,
                                 {.int32Values = {0}}}}},
 
@@ -1065,12 +1072,12 @@ const ConfigDeclaration kVehicleProperties[]{
         },
 };
 
-}  // impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android
 
 #endif // android_hardware_automotive_vehicle_V2_0_impl_DefaultConfig_H_

@@ -18,17 +18,16 @@
 
 #include "VehicleHalManager.h"
 
-#include <cmath>
-#include <fstream>
-
 #include <android-base/parseint.h>
 #include <android-base/strings.h>
 #include <android/hardware/automotive/vehicle/2.0/BpHwVehicleCallback.h>
 #include <android/log.h>
-
 #include <hwbinder/IPCThreadState.h>
 #include <private/android_filesystem_config.h>
 #include <utils/SystemClock.h>
+
+#include <cmath>
+#include <fstream>
 
 #include "VehicleUtils.h"
 
@@ -59,16 +58,14 @@ Return<void> VehicleHalManager::getAllPropConfigs(getAllPropConfigs_cb _hidl_cb)
     hidl_vec<VehiclePropConfig> hidlConfigs;
     auto& halConfig = mConfigIndex->getAllConfigs();
 
-    hidlConfigs.setToExternal(
-            const_cast<VehiclePropConfig *>(halConfig.data()),
-            halConfig.size());
+    hidlConfigs.setToExternal(const_cast<VehiclePropConfig*>(halConfig.data()), halConfig.size());
 
     _hidl_cb(hidlConfigs);
 
     return Void();
 }
 
-Return<void> VehicleHalManager::getPropConfigs(const hidl_vec<int32_t> &properties,
+Return<void> VehicleHalManager::getPropConfigs(const hidl_vec<int32_t>& properties,
                                                getPropConfigs_cb _hidl_cb) {
     std::vector<VehiclePropConfig> configs;
     for (size_t i = 0; i < properties.size(); i++) {
@@ -89,8 +86,7 @@ Return<void> VehicleHalManager::getPropConfigs(const hidl_vec<int32_t> &properti
 Return<void> VehicleHalManager::get(const VehiclePropValue& requestedPropValue, get_cb _hidl_cb) {
     const auto* config = getPropConfigOrNull(requestedPropValue.prop);
     if (config == nullptr) {
-        ALOGE("Failed to get value: config not found, property: 0x%x",
-              requestedPropValue.prop);
+        ALOGE("Failed to get value: config not found, property: 0x%x", requestedPropValue.prop);
         _hidl_cb(StatusCode::INVALID_ARG, kEmptyValue);
         return Void();
     }
@@ -104,11 +100,10 @@ Return<void> VehicleHalManager::get(const VehiclePropValue& requestedPropValue, 
     auto value = mHal->get(requestedPropValue, &status);
     _hidl_cb(status, value.get() ? *value : kEmptyValue);
 
-
     return Void();
 }
 
-Return<StatusCode> VehicleHalManager::set(const VehiclePropValue &value) {
+Return<StatusCode> VehicleHalManager::set(const VehiclePropValue& value) {
     auto prop = value.prop;
     const auto* config = getPropConfigOrNull(prop);
     if (config == nullptr) {
@@ -127,8 +122,8 @@ Return<StatusCode> VehicleHalManager::set(const VehiclePropValue &value) {
     return Return<StatusCode>(status);
 }
 
-Return<StatusCode> VehicleHalManager::subscribe(const sp<IVehicleCallback> &callback,
-                                                const hidl_vec<SubscribeOptions> &options) {
+Return<StatusCode> VehicleHalManager::subscribe(const sp<IVehicleCallback>& callback,
+                                                const hidl_vec<SubscribeOptions>& options) {
     hidl_vec<SubscribeOptions> verifiedOptions(options);
     for (size_t i = 0; i < verifiedOptions.size(); i++) {
         SubscribeOptions& ops = verifiedOptions[i];
@@ -136,8 +131,7 @@ Return<StatusCode> VehicleHalManager::subscribe(const sp<IVehicleCallback> &call
 
         const auto* config = getPropConfigOrNull(prop);
         if (config == nullptr) {
-            ALOGE("Failed to subscribe: config not found, property: 0x%x",
-                  prop);
+            ALOGE("Failed to subscribe: config not found, property: 0x%x", prop);
             return StatusCode::INVALID_ARG;
         }
 
@@ -147,8 +141,7 @@ Return<StatusCode> VehicleHalManager::subscribe(const sp<IVehicleCallback> &call
         }
 
         if (!isSubscribable(*config, ops.flags)) {
-            ALOGE("Failed to subscribe: property 0x%x is not subscribable",
-                  prop);
+            ALOGE("Failed to subscribe: property 0x%x is not subscribable", prop);
             return StatusCode::INVALID_ARG;
         }
 
@@ -156,9 +149,8 @@ Return<StatusCode> VehicleHalManager::subscribe(const sp<IVehicleCallback> &call
     }
 
     std::list<SubscribeOptions> updatedOptions;
-    auto res = mSubscriptionManager.addOrUpdateSubscription(getClientId(callback),
-                                                            callback, verifiedOptions,
-                                                            &updatedOptions);
+    auto res = mSubscriptionManager.addOrUpdateSubscription(getClientId(callback), callback,
+                                                            verifiedOptions, &updatedOptions);
     if (StatusCode::OK != res) {
         ALOGW("%s failed to subscribe, error code: %d", __func__, res);
         return res;
@@ -432,23 +424,17 @@ void VehicleHalManager::init() {
 
     mHidlVecOfVehiclePropValuePool.resize(kMaxHidlVecOfVehiclPropValuePoolSize);
 
+    mBatchingConsumer.run(&mEventQueue, kHalEventBatchingTimeWindow,
+                          std::bind(&VehicleHalManager::onBatchHalEvent, this, _1));
 
-    mBatchingConsumer.run(&mEventQueue,
-                          kHalEventBatchingTimeWindow,
-                          std::bind(&VehicleHalManager::onBatchHalEvent,
-                                    this, _1));
-
-    mHal->init(&mValueObjectPool,
-               std::bind(&VehicleHalManager::onHalEvent, this, _1),
-               std::bind(&VehicleHalManager::onHalPropertySetError, this,
-                         _1, _2, _3));
+    mHal->init(&mValueObjectPool, std::bind(&VehicleHalManager::onHalEvent, this, _1),
+               std::bind(&VehicleHalManager::onHalPropertySetError, this, _1, _2, _3));
 
     // Initialize index with vehicle configurations received from VehicleHal.
     auto supportedPropConfigs = mHal->listProperties();
     mConfigIndex.reset(new VehiclePropConfigIndex(supportedPropConfigs));
 
-    std::vector<int32_t> supportedProperties(
-        supportedPropConfigs.size());
+    std::vector<int32_t> supportedProperties(supportedPropConfigs.size());
     for (const auto& config : supportedPropConfigs) {
         supportedProperties.push_back(config.prop);
     }
@@ -467,11 +453,10 @@ void VehicleHalManager::onHalEvent(VehiclePropValuePtr v) {
     mEventQueue.push(std::move(v));
 }
 
-void VehicleHalManager::onHalPropertySetError(StatusCode errorCode,
-                                              int32_t property,
+void VehicleHalManager::onHalPropertySetError(StatusCode errorCode, int32_t property,
                                               int32_t areaId) {
     const auto& clients =
-        mSubscriptionManager.getSubscribedClients(property, SubscribeFlags::EVENTS_FROM_CAR);
+            mSubscriptionManager.getSubscribedClients(property, SubscribeFlags::EVENTS_FROM_CAR);
 
     for (const auto& client : clients) {
         client->getCallback()->onPropertySetError(errorCode, property, areaId);
@@ -480,7 +465,7 @@ void VehicleHalManager::onHalPropertySetError(StatusCode errorCode,
 
 void VehicleHalManager::onBatchHalEvent(const std::vector<VehiclePropValuePtr>& values) {
     const auto& clientValues =
-        mSubscriptionManager.distributeValuesToClients(values, SubscribeFlags::EVENTS_FROM_CAR);
+            mSubscriptionManager.distributeValuesToClients(values, SubscribeFlags::EVENTS_FROM_CAR);
 
     for (const HalClientValues& cv : clientValues) {
         auto vecSize = cv.values.size();
@@ -497,8 +482,7 @@ void VehicleHalManager::onBatchHalEvent(const std::vector<VehiclePropValuePtr>& 
         }
         auto status = cv.client->getCallback()->onPropertyEvent(vec);
         if (!status.isOk()) {
-            ALOGE("Failed to notify client %s, err: %s",
-                  toString(cv.client->getCallback()).c_str(),
+            ALOGE("Failed to notify client %s, err: %s", toString(cv.client->getCallback()).c_str(),
                   status.description().c_str());
         }
     }
@@ -508,31 +492,31 @@ bool VehicleHalManager::isSampleRateFixed(VehiclePropertyChangeMode mode) {
     return (mode & VehiclePropertyChangeMode::ON_CHANGE);
 }
 
-float VehicleHalManager::checkSampleRate(const VehiclePropConfig &config,
-                                         float sampleRate) {
+float VehicleHalManager::checkSampleRate(const VehiclePropConfig& config, float sampleRate) {
     if (isSampleRateFixed(config.changeMode)) {
         if (std::abs(sampleRate) > std::numeric_limits<float>::epsilon()) {
             ALOGW("Sample rate is greater than zero for on change type. "
-                      "Ignoring it.");
+                  "Ignoring it.");
         }
         return 0.0;
     } else {
         if (sampleRate > config.maxSampleRate) {
             ALOGW("Sample rate %f is higher than max %f. Setting sampling rate "
-                      "to max.", sampleRate, config.maxSampleRate);
+                  "to max.",
+                  sampleRate, config.maxSampleRate);
             return config.maxSampleRate;
         }
         if (sampleRate < config.minSampleRate) {
             ALOGW("Sample rate %f is lower than min %f. Setting sampling rate "
-                      "to min.", sampleRate, config.minSampleRate);
+                  "to min.",
+                  sampleRate, config.minSampleRate);
             return config.minSampleRate;
         }
     }
-    return sampleRate;  // Provided sample rate was good, no changes.
+    return sampleRate; // Provided sample rate was good, no changes.
 }
 
-bool VehicleHalManager::isSubscribable(const VehiclePropConfig& config,
-                                       SubscribeFlags flags) {
+bool VehicleHalManager::isSubscribable(const VehiclePropConfig& config, SubscribeFlags flags) {
     bool isReadable = config.access & VehiclePropertyAccess::READ;
 
     if (!isReadable && (SubscribeFlags::EVENTS_FROM_CAR & flags)) {
@@ -546,7 +530,7 @@ bool VehicleHalManager::isSubscribable(const VehiclePropConfig& config,
     return true;
 }
 
-bool VehicleHalManager::checkWritePermission(const VehiclePropConfig &config) const {
+bool VehicleHalManager::checkWritePermission(const VehiclePropConfig& config) const {
     if (!(config.access & VehiclePropertyAccess::WRITE)) {
         ALOGW("Property 0%x has no write access", config.prop);
         return false;
@@ -555,7 +539,7 @@ bool VehicleHalManager::checkWritePermission(const VehiclePropConfig &config) co
     }
 }
 
-bool VehicleHalManager::checkReadPermission(const VehiclePropConfig &config) const {
+bool VehicleHalManager::checkReadPermission(const VehiclePropConfig& config) const {
     if (!(config.access & VehiclePropertyAccess::READ)) {
         ALOGW("Property 0%x has no read access", config.prop);
         return false;
@@ -565,17 +549,15 @@ bool VehicleHalManager::checkReadPermission(const VehiclePropConfig &config) con
 }
 
 void VehicleHalManager::handlePropertySetEvent(const VehiclePropValue& value) {
-    auto clients =
-        mSubscriptionManager.getSubscribedClients(value.prop, SubscribeFlags::EVENTS_FROM_ANDROID);
+    auto clients = mSubscriptionManager.getSubscribedClients(value.prop,
+                                                             SubscribeFlags::EVENTS_FROM_ANDROID);
     for (const auto& client : clients) {
         client->getCallback()->onPropertySet(value);
     }
 }
 
-const VehiclePropConfig* VehicleHalManager::getPropConfigOrNull(
-        int32_t prop) const {
-    return mConfigIndex->hasConfig(prop)
-           ? &mConfigIndex->getConfig(prop) : nullptr;
+const VehiclePropConfig* VehicleHalManager::getPropConfigOrNull(int32_t prop) const {
+    return mConfigIndex->hasConfig(prop) ? &mConfigIndex->getConfig(prop) : nullptr;
 }
 
 void VehicleHalManager::onAllClientsUnsubscribed(int32_t propertyId) {
@@ -583,8 +565,8 @@ void VehicleHalManager::onAllClientsUnsubscribed(int32_t propertyId) {
 }
 
 ClientId VehicleHalManager::getClientId(const sp<IVehicleCallback>& callback) {
-    //TODO(b/32172906): rework this to get some kind of unique id for callback interface when this
-    // feature is ready in HIDL.
+    // TODO(b/32172906): rework this to get some kind of unique id for callback interface when this
+    //  feature is ready in HIDL.
 
     if (callback->isRemote()) {
         BpHwVehicleCallback* hwCallback = static_cast<BpHwVehicleCallback*>(callback.get());
@@ -594,8 +576,8 @@ ClientId VehicleHalManager::getClientId(const sp<IVehicleCallback>& callback) {
     }
 }
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

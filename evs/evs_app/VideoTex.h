@@ -22,12 +22,10 @@
 #include <GLES2/gl2ext.h>
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
-
 #include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
 
-#include "TexWrapper.h"
 #include "StreamHandler.h"
-
+#include "TexWrapper.h"
 
 using namespace ::android::hardware::automotive::evs::V1_1;
 using ::android::hardware::camera::device::V3_2::Stream;
@@ -41,37 +39,30 @@ typedef struct {
     int32_t framerate;
 } RawStreamConfig;
 
-class VideoTex: public TexWrapper {
-    friend VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum,
-                                        const char * evsCameraId,
-                                        std::unique_ptr<Stream> streamCfg,
-                                        EGLDisplay glDisplay);
+class VideoTex : public TexWrapper {
+    friend VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum, const char* evsCameraId,
+                                        std::unique_ptr<Stream> streamCfg, EGLDisplay glDisplay);
 
 public:
     VideoTex() = delete;
     virtual ~VideoTex();
 
-    bool refresh();     // returns true if the texture contents were updated
+    bool refresh(); // returns true if the texture contents were updated
 
 private:
-    VideoTex(sp<IEvsEnumerator> pEnum,
-             sp<IEvsCamera> pCamera,
-             sp<StreamHandler> pStreamHandler,
+    VideoTex(sp<IEvsEnumerator> pEnum, sp<IEvsCamera> pCamera, sp<StreamHandler> pStreamHandler,
              EGLDisplay glDisplay);
 
-    sp<IEvsEnumerator>  mEnumerator;
-    sp<IEvsCamera>      mCamera;
-    sp<StreamHandler>   mStreamHandler;
-    BufferDesc          mImageBuffer;
+    sp<IEvsEnumerator> mEnumerator;
+    sp<IEvsCamera> mCamera;
+    sp<StreamHandler> mStreamHandler;
+    BufferDesc mImageBuffer;
 
-    EGLDisplay          mDisplay;
+    EGLDisplay mDisplay;
     EGLImageKHR mKHRimage = EGL_NO_IMAGE_KHR;
 };
 
-
-VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum,
-                             const char * deviceName,
-                             std::unique_ptr<Stream> streamCfg,
-                             EGLDisplay glDisplay);
+VideoTex* createVideoTexture(sp<IEvsEnumerator> pEnum, const char* deviceName,
+                             std::unique_ptr<Stream> streamCfg, EGLDisplay glDisplay);
 
 #endif // VIDEOTEX_H

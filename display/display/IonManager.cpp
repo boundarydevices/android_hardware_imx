@@ -15,25 +15,21 @@
  * limitations under the License.
  */
 
-#include <cutils/log.h>
 #include "IonManager.h"
+
+#include <cutils/log.h>
 
 #define ION_DECODED_BUFFER_VPU_ALIGN 8
 
 namespace fsl {
 
-IonManager::IonManager()
-    : mAllocator(NULL)
-{
-    mAllocator = (Allocator *)Allocator::getInstance();
+IonManager::IonManager() : mAllocator(NULL) {
+    mAllocator = (Allocator*)Allocator::getInstance();
 }
 
-IonManager::~IonManager()
-{
-}
+IonManager::~IonManager() {}
 
-int IonManager::allocSystemMemeory(uint64_t size)
-{
+int IonManager::allocSystemMemeory(uint64_t size) {
     int sharedFd = -1;
     sharedFd = mAllocator->allocSystemMemeory(size);
     if (sharedFd < 0) {
@@ -42,8 +38,7 @@ int IonManager::allocSystemMemeory(uint64_t size)
     return sharedFd;
 }
 
-int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
-{
+int IonManager::allocMemory(MemoryDesc& desc, Memory** out) {
     if (out == NULL || mAllocator == NULL) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
@@ -62,8 +57,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     int flags = MFLAGS_CONTIGUOUS;
 
 #ifdef CFG_SECURE_DATA_PATH
-    if (desc.mFlag & FLAGS_SECURE)
-    {
+    if (desc.mFlag & FLAGS_SECURE) {
         align = ION_DECODED_BUFFER_VPU_ALIGN;
         flags = MFLAGS_SECURE;
     }
@@ -91,8 +85,7 @@ int IonManager::allocMemory(MemoryDesc& desc, Memory** out)
     return 0;
 }
 
-int IonManager::getPhys(Memory* memory)
-{
+int IonManager::getPhys(Memory* memory) {
     if (mAllocator == NULL || memory == NULL || memory->fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
@@ -109,8 +102,7 @@ int IonManager::getPhys(Memory* memory)
     return 0;
 }
 
-int IonManager::getVaddrs(Memory* memory)
-{
+int IonManager::getVaddrs(Memory* memory) {
     if (mAllocator == NULL || memory == NULL || memory->fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
@@ -127,8 +119,7 @@ int IonManager::getVaddrs(Memory* memory)
     return 0;
 }
 
-int IonManager::flushCache(Memory* memory)
-{
+int IonManager::flushCache(Memory* memory) {
     if (mAllocator == NULL || memory == NULL || memory->fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
@@ -137,20 +128,18 @@ int IonManager::flushCache(Memory* memory)
     return mAllocator->flushCache(memory->fd);
 }
 
-int IonManager::lock(Memory* handle, int /*usage*/,
-        int /*l*/, int /*t*/, int /*w*/, int /*h*/, void** vaddr)
-{
+int IonManager::lock(Memory* handle, int /*usage*/, int /*l*/, int /*t*/, int /*w*/, int /*h*/,
+                     void** vaddr) {
     if (handle->base == 0) {
         getVaddrs(handle);
     }
-    *vaddr = (void *)handle->base;
+    *vaddr = (void*)handle->base;
 
     return 0;
 }
 
-int IonManager::lockYCbCr(Memory* handle, int /*usage*/,
-        int /*l*/, int /*t*/, int /*w*/, int /*h*/, android_ycbcr* /*ycbcr*/)
-{
+int IonManager::lockYCbCr(Memory* handle, int /*usage*/, int /*l*/, int /*t*/, int /*w*/, int /*h*/,
+                          android_ycbcr* /*ycbcr*/) {
     if (handle->base == 0) {
         getVaddrs(handle);
     }
@@ -158,8 +147,7 @@ int IonManager::lockYCbCr(Memory* handle, int /*usage*/,
     return 0;
 }
 
-int IonManager::unlock(Memory* handle)
-{
+int IonManager::unlock(Memory* handle) {
     if (handle->flags & FLAGS_CPU) {
         flushCache(handle);
     }
@@ -167,4 +155,4 @@ int IonManager::unlock(Memory* handle)
     return 0;
 }
 
-}
+} // namespace fsl

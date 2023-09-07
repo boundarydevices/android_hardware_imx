@@ -15,10 +15,10 @@
  */
 #define LOG_TAG "EmulatedUserHal"
 
+#include "EmulatedUserHal.h"
+
 #include <cutils/log.h>
 #include <utils/SystemClock.h>
-
-#include "EmulatedUserHal.h"
 
 namespace android {
 namespace hardware {
@@ -66,7 +66,7 @@ android::base::Result<std::unique_ptr<VehiclePropValue>> EmulatedUserHal::onSetP
             return onSetUserIdentificationAssociation(value);
         default:
             return android::base::Error(static_cast<int>(StatusCode::INVALID_ARG))
-                   << "Unsupported property: " << toString(value);
+                    << "Unsupported property: " << toString(value);
     }
 }
 
@@ -80,13 +80,13 @@ android::base::Result<std::unique_ptr<VehiclePropValue>> EmulatedUserHal::onGetP
         case REMOVE_USER:
             ALOGE("onGetProperty(): %d is only supported on SET", value.prop);
             return android::base::Error(static_cast<int>(StatusCode::INVALID_ARG))
-                   << "only supported on SET";
+                    << "only supported on SET";
         case USER_IDENTIFICATION_ASSOCIATION:
             return onGetUserIdentificationAssociation(value);
         default:
             ALOGE("onGetProperty(): %d is not supported", value.prop);
             return android::base::Error(static_cast<int>(StatusCode::INVALID_ARG))
-                   << "not supported by User HAL";
+                    << "not supported by User HAL";
     }
 }
 
@@ -114,7 +114,7 @@ EmulatedUserHal::onSetInitialUserInfoResponse(const VehiclePropValue& value) {
     if (value.value.int32Values.size() == 0) {
         ALOGE("set(INITIAL_USER_INFO): no int32values, ignoring it: %s", toString(value).c_str());
         return android::base::Error(static_cast<int>(StatusCode::INVALID_ARG))
-               << "no int32values on " << toString(value);
+                << "no int32values on " << toString(value);
     }
 
     if (value.areaId != 0) {
@@ -151,7 +151,7 @@ android::base::Result<std::unique_ptr<VehiclePropValue>> EmulatedUserHal::onSetS
     if (value.value.int32Values.size() == 0) {
         ALOGE("set(SWITCH_USER): no int32values, ignoring it: %s", toString(value).c_str());
         return android::base::Error(static_cast<int>(StatusCode::INVALID_ARG))
-               << "no int32values on " << toString(value);
+                << "no int32values on " << toString(value);
     }
 
     if (value.areaId != 0) {
@@ -202,7 +202,7 @@ android::base::Result<std::unique_ptr<VehiclePropValue>> EmulatedUserHal::onSetC
     if (value.value.int32Values.size() == 0) {
         ALOGE("set(CREATE_USER): no int32values, ignoring it: %s", toString(value).c_str());
         return android::base::Error(static_cast<int>(StatusCode::INVALID_ARG))
-               << "no int32values on " << toString(value);
+                << "no int32values on " << toString(value);
     }
 
     if (value.areaId != 0) {
@@ -238,7 +238,7 @@ EmulatedUserHal::onSetUserIdentificationAssociation(const VehiclePropValue& valu
         ALOGE("set(USER_IDENTIFICATION_ASSOCIATION): no int32values, ignoring it: %s",
               toString(value).c_str());
         return android::base::Error(static_cast<int>(StatusCode::INVALID_ARG))
-               << "no int32values on " << toString(value);
+                << "no int32values on " << toString(value);
     }
 
     if (value.areaId != 0) {
@@ -285,12 +285,12 @@ android::base::Result<std::unique_ptr<VehiclePropValue>> EmulatedUserHal::sendUs
             ALOGD("not generating a property change event because of lshal prop: %s",
                   toString(*response).c_str());
             return android::base::Error(static_cast<int>(StatusCode::NOT_AVAILABLE))
-                   << "not generating a property change event because of lshal prop: "
-                   << toString(*response);
+                    << "not generating a property change event because of lshal prop: "
+                    << toString(*response);
         default:
             ALOGE("invalid action on lshal response: %s", toString(*response).c_str());
             return android::base::Error(static_cast<int>(StatusCode::INTERNAL_ERROR))
-                   << "invalid action on lshal response: " << toString(*response);
+                    << "invalid action on lshal response: " << toString(*response);
     }
 
     ALOGD("updating property to: %s", toString(*response).c_str());
@@ -329,10 +329,10 @@ void EmulatedUserHal::dump(int fd, std::string indent) {
     }
 }
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

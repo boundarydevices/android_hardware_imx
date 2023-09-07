@@ -17,8 +17,8 @@
 #ifndef _FSL_DISPLAY_MANAGER_H_
 #define _FSL_DISPLAY_MANAGER_H_
 
-#include <utils/StrongPointer.h>
 #include <hardware_legacy/uevent.h>
+#include <utils/StrongPointer.h>
 
 #include "VirtualDisplay.h"
 
@@ -27,7 +27,7 @@
 #define EPOLL_MAX_EVENTS 8
 
 #define MAX_PHYSICAL_DISPLAY 10
-#define MAX_VIRTUAL_DISPLAY  16
+#define MAX_VIRTUAL_DISPLAY 16
 
 #define EVENT_MSG_LEN 4096
 
@@ -36,8 +36,7 @@ namespace fsl {
 class FbDisplay;
 class KmsDisplay;
 
-class DisplayManager
-{
+class DisplayManager {
 public:
     virtual ~DisplayManager();
 
@@ -50,14 +49,14 @@ public:
 
     bool isOverlay(int fb);
     int enumFbDisplays();
-    int enumKmsDisplay(const char *path, int *id, bool *foundPrimary);
+    int enumKmsDisplay(const char* path, int* id, bool* foundPrimary);
     int enumFakeKmsDisplay();
     int enumKmsDisplays();
     void setCallback(EventListener* callback);
     EventListener* getCallback();
     void handleHotplugEvent();
     void handleKmsHotplug();
-    int setProperty(const char *name, const char *value);
+    int setProperty(const char* name, const char* value);
     void setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
 private:
@@ -67,29 +66,29 @@ private:
      * hotplugin event needs to be care. */
     class HotplugThread : public Thread {
     public:
-        HotplugThread(DisplayManager *ctx);
+        HotplugThread(DisplayManager* ctx);
 
     private:
         virtual void onFirstRef();
         virtual int32_t readyToRun();
         virtual bool threadLoop();
-        virtual bool stringInString(char *uevent_desc, const char *sub_string);
+        virtual bool stringInString(char* uevent_desc, const char* sub_string);
 
-        DisplayManager *mCtx;
+        DisplayManager* mCtx;
     };
 
     sp<HotplugThread> mHotplugThread;
 
     class PollFileThread : public Thread {
     public:
-        PollFileThread(DisplayManager *ctx);
+        PollFileThread(DisplayManager* ctx);
 
     private:
         virtual void onFirstRef();
         virtual int32_t readyToRun();
         virtual bool threadLoop();
 
-        DisplayManager *mCtx;
+        DisplayManager* mCtx;
         int mINotifyFd;
         int mINotifyWd;
         int mEpollFd;
@@ -112,5 +111,5 @@ private:
     bool mPrimaryIsFake;
 };
 
-}
+} // namespace fsl
 #endif

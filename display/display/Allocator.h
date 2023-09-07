@@ -18,6 +18,7 @@
 #define _FSL_ALLOCATOR_H_
 
 #include <utils/Mutex.h>
+
 #include "Memory.h"
 
 #define MEM_ALIGN 8
@@ -25,39 +26,38 @@ namespace fsl {
 
 using android::Mutex;
 
-typedef enum{
+typedef enum {
     DMA_HEAP_UNKNOWN = 0,
     DMA_HEAP_SYSTEM,
     DMA_HEAP_SYSTEM_UNCACHED,
     DMA_HEAP_CMA,
     DMA_HEAP_CMA_UNCACHED,
     DMA_HEAP_SECURE,
-}DMA_HEAP_TYPE;
+} DMA_HEAP_TYPE;
 
-class Allocator
-{
+class Allocator {
 public:
     static Allocator* getInstance();
 
-    virtual ~Allocator() {};
+    virtual ~Allocator(){};
 
     // alloc system memory and return fd which represents this memory.
-    virtual int allocSystemMemeory(uint64_t size)=0;
+    virtual int allocSystemMemeory(uint64_t size) = 0;
     // alloc memory and return fd which represents this memory.
-    virtual int allocMemory(int size, int align, int flags)=0;
+    virtual int allocMemory(int size, int align, int flags) = 0;
     // flush cacheable memory cache.
-    virtual int flushCache(int fd)=0;
+    virtual int flushCache(int fd) = 0;
     // get contiguous memory physical address.
-    virtual int getPhys(int fd, int size, uint64_t& addr)=0;
+    virtual int getPhys(int fd, int size, uint64_t& addr) = 0;
     // get memory virtual address.
-    virtual int getVaddrs(int fd, int size, uint64_t& addr)=0;
+    virtual int getVaddrs(int fd, int size, uint64_t& addr) = 0;
     // get buffer heap type
-    virtual int getHeapType(int fd)=0;
+    virtual int getHeapType(int fd) = 0;
 
 private:
     static Mutex sLock;
-    static Allocator *mInstance;
+    static Allocator* mInstance;
 };
 
-}
+} // namespace fsl
 #endif

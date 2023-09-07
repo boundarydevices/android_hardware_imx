@@ -19,6 +19,7 @@
 #pragma once
 
 #include <aidl/android/hardware/oemlock/BnOemLock.h>
+
 #include "avb_ipc.h"
 
 namespace aidl {
@@ -37,14 +38,16 @@ public:
     ::ndk::ScopedAStatus getName(std::string* out_name) override;
     ::ndk::ScopedAStatus isOemUnlockAllowedByCarrier(bool* out_allowed) override;
     ::ndk::ScopedAStatus isOemUnlockAllowedByDevice(bool* out_allowed) override;
-    ::ndk::ScopedAStatus setOemUnlockAllowedByCarrier(bool in_allowed, const std::vector<uint8_t>& in_signature, OemLockSecureStatus* _aidl_return) override;
+    ::ndk::ScopedAStatus setOemUnlockAllowedByCarrier(bool in_allowed,
+                                                      const std::vector<uint8_t>& in_signature,
+                                                      OemLockSecureStatus* _aidl_return) override;
     ::ndk::ScopedAStatus setOemUnlockAllowedByDevice(bool in_allowed) override;
 
-  private:
+private:
     avbOemUnlockIpc mAvbOemUnlockIpc;
 };
 
 } // namespace oemlock
 } // namespace hardware
 } // namespace android
-} // aidl
+} // namespace aidl

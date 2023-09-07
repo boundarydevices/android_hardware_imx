@@ -61,11 +61,12 @@ std::unique_ptr<VehiclePropValue> createSubscribeMessage(const VmsLayer& layer) 
 }
 
 std::unique_ptr<VehiclePropValue> createSubscribeToPublisherMessage(
-    const VmsLayerAndPublisher& layer_publisher) {
+        const VmsLayerAndPublisher& layer_publisher) {
     auto result = createBaseVmsMessage(kMessageTypeSize + kLayerAndPublisherSize);
-    result->value.int32Values = hidl_vec<int32_t>{
-        toInt(VmsMessageType::SUBSCRIBE_TO_PUBLISHER), layer_publisher.layer.type,
-        layer_publisher.layer.subtype, layer_publisher.layer.version, layer_publisher.publisher_id};
+    result->value.int32Values =
+            hidl_vec<int32_t>{toInt(VmsMessageType::SUBSCRIBE_TO_PUBLISHER),
+                              layer_publisher.layer.type, layer_publisher.layer.subtype,
+                              layer_publisher.layer.version, layer_publisher.publisher_id};
     return result;
 }
 
@@ -77,11 +78,12 @@ std::unique_ptr<VehiclePropValue> createUnsubscribeMessage(const VmsLayer& layer
 }
 
 std::unique_ptr<VehiclePropValue> createUnsubscribeToPublisherMessage(
-    const VmsLayerAndPublisher& layer_publisher) {
+        const VmsLayerAndPublisher& layer_publisher) {
     auto result = createBaseVmsMessage(kMessageTypeSize + kLayerAndPublisherSize);
-    result->value.int32Values = hidl_vec<int32_t>{
-        toInt(VmsMessageType::UNSUBSCRIBE_TO_PUBLISHER), layer_publisher.layer.type,
-        layer_publisher.layer.subtype, layer_publisher.layer.version, layer_publisher.publisher_id};
+    result->value.int32Values =
+            hidl_vec<int32_t>{toInt(VmsMessageType::UNSUBSCRIBE_TO_PUBLISHER),
+                              layer_publisher.layer.type, layer_publisher.layer.subtype,
+                              layer_publisher.layer.version, layer_publisher.publisher_id};
     return result;
 }
 
@@ -113,7 +115,7 @@ std::unique_ptr<VehiclePropValue> createOfferingMessage(const VmsOffers& offers)
 std::unique_ptr<VehiclePropValue> createAvailabilityRequest() {
     auto result = createBaseVmsMessage(kMessageTypeSize);
     result->value.int32Values = hidl_vec<int32_t>{
-        toInt(VmsMessageType::AVAILABILITY_REQUEST),
+            toInt(VmsMessageType::AVAILABILITY_REQUEST),
     };
     return result;
 }
@@ -121,7 +123,7 @@ std::unique_ptr<VehiclePropValue> createAvailabilityRequest() {
 std::unique_ptr<VehiclePropValue> createSubscriptionsRequest() {
     auto result = createBaseVmsMessage(kMessageTypeSize);
     result->value.int32Values = hidl_vec<int32_t>{
-        toInt(VmsMessageType::SUBSCRIPTIONS_REQUEST),
+            toInt(VmsMessageType::SUBSCRIPTIONS_REQUEST),
     };
     return result;
 }
@@ -129,9 +131,10 @@ std::unique_ptr<VehiclePropValue> createSubscriptionsRequest() {
 std::unique_ptr<VehiclePropValue> createDataMessageWithLayerPublisherInfo(
         const VmsLayerAndPublisher& layer_publisher, const std::string& vms_packet) {
     auto result = createBaseVmsMessage(kMessageTypeSize + kLayerAndPublisherSize);
-    result->value.int32Values = hidl_vec<int32_t>{
-            toInt(VmsMessageType::DATA), layer_publisher.layer.type, layer_publisher.layer.subtype,
-            layer_publisher.layer.version, layer_publisher.publisher_id};
+    result->value.int32Values =
+            hidl_vec<int32_t>{toInt(VmsMessageType::DATA), layer_publisher.layer.type,
+                              layer_publisher.layer.subtype, layer_publisher.layer.version,
+                              layer_publisher.publisher_id};
     result->value.bytes = std::vector<uint8_t>(vms_packet.begin(), vms_packet.end());
     return result;
 }
@@ -374,9 +377,9 @@ std::vector<VmsAssociatedLayer> getAvailableLayers(const VehiclePropValue& avail
     return {};
 }
 
-}  // namespace vms
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace vms
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

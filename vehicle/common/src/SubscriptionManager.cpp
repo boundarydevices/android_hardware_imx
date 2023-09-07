@@ -18,10 +18,10 @@
 
 #include "SubscriptionManager.h"
 
-#include <cmath>
+#include <android/log.h>
 #include <inttypes.h>
 
-#include <android/log.h>
+#include <cmath>
 
 #include "VehicleUtils.h"
 
@@ -31,9 +31,8 @@ namespace automotive {
 namespace vehicle {
 namespace V2_0 {
 
-bool mergeSubscribeOptions(const SubscribeOptions &oldOpts,
-                           const SubscribeOptions &newOpts,
-                           SubscribeOptions *outResult) {
+bool mergeSubscribeOptions(const SubscribeOptions& oldOpts, const SubscribeOptions& newOpts,
+                           SubscribeOptions* outResult) {
     float updatedRate = std::max(oldOpts.sampleRate, newOpts.sampleRate);
     SubscribeFlags updatedFlags = SubscribeFlags(oldOpts.flags | newOpts.flags);
 
@@ -47,7 +46,7 @@ bool mergeSubscribeOptions(const SubscribeOptions &oldOpts,
     return updated;
 }
 
-void HalClient::addOrUpdateSubscription(const SubscribeOptions &opts)  {
+void HalClient::addOrUpdateSubscription(const SubscribeOptions& opts) {
     ALOGI("%s opts.propId: 0x%x", __func__, opts.propId);
 
     auto it = mSubscriptions.find(opts.propId);
@@ -63,8 +62,7 @@ void HalClient::addOrUpdateSubscription(const SubscribeOptions &opts)  {
     }
 }
 
-bool HalClient::isSubscribed(int32_t propId,
-                             SubscribeFlags flags) {
+bool HalClient::isSubscribed(int32_t propId, SubscribeFlags flags) {
     auto it = mSubscriptions.find(propId);
     if (it == mSubscriptions.end()) {
         return false;
@@ -77,16 +75,16 @@ bool HalClient::isSubscribed(int32_t propId,
 std::vector<int32_t> HalClient::getSubscribedProperties() const {
     std::vector<int32_t> props;
     for (const auto& subscription : mSubscriptions) {
-        ALOGI("%s propId: 0x%x, propId: 0x%x", __func__, subscription.first, subscription.second.propId);
+        ALOGI("%s propId: 0x%x, propId: 0x%x", __func__, subscription.first,
+              subscription.second.propId);
         props.push_back(subscription.first);
     }
     return props;
 }
 
 StatusCode SubscriptionManager::addOrUpdateSubscription(
-        ClientId clientId,
-        const sp<IVehicleCallback> &callback,
-        const hidl_vec<SubscribeOptions> &optionList,
+        ClientId clientId, const sp<IVehicleCallback>& callback,
+        const hidl_vec<SubscribeOptions>& optionList,
         std::list<SubscribeOptions>* outUpdatedSubscriptions) {
     outUpdatedSubscriptions->clear();
 
@@ -124,7 +122,7 @@ std::list<HalClientValues> SubscriptionManager::distributeValuesToClients(
 
     {
         MuxGuard g(mLock);
-        for (const auto& propValue: propValues) {
+        for (const auto& propValue : propValues) {
             VehiclePropValue* v = propValue.get();
             auto clients = getSubscribedClientsLocked(v->prop, flags);
             for (const auto& client : clients) {
@@ -135,10 +133,7 @@ std::list<HalClientValues> SubscriptionManager::distributeValuesToClients(
 
     std::list<HalClientValues> clientValues;
     for (const auto& entry : clientValuesMap) {
-        clientValues.push_back(HalClientValues {
-            .client = entry.first,
-            .values = entry.second
-        });
+        clientValues.push_back(HalClientValues{.client = entry.first, .values = entry.second});
     }
 
     return clientValues;
@@ -151,7 +146,7 @@ std::list<sp<HalClient>> SubscriptionManager::getSubscribedClients(int32_t propI
 }
 
 std::list<sp<HalClient>> SubscriptionManager::getSubscribedClientsLocked(
-    int32_t propId, SubscribeFlags flags) const {
+        int32_t propId, SubscribeFlags flags) const {
     std::list<sp<HalClient>> subscribedClients;
 
     sp<HalClientVector> propClients = getClientsForPropertyLocked(propId);
@@ -167,8 +162,8 @@ std::list<sp<HalClient>> SubscriptionManager::getSubscribedClientsLocked(
     return subscribedClients;
 }
 
-bool SubscriptionManager::updateHalEventSubscriptionLocked(
-        const SubscribeOptions &opts, SubscribeOptions *outUpdated) {
+bool SubscriptionManager::updateHalEventSubscriptionLocked(const SubscribeOptions& opts,
+                                                           SubscribeOptions* outUpdated) {
     bool updated = false;
     auto it = mHalEventSubscribeOptions.find(opts.propId);
     if (it == mHalEventSubscribeOptions.end()) {
@@ -188,8 +183,7 @@ bool SubscriptionManager::updateHalEventSubscriptionLocked(
     return updated;
 }
 
-void SubscriptionManager::addClientToPropMapLocked(
-        int32_t propId, const sp<HalClient> &client) {
+void SubscriptionManager::addClientToPropMapLocked(int32_t propId, const sp<HalClient>& client) {
     auto it = mPropToClients.find(propId);
     sp<HalClientVector> propClients;
     if (it == mPropToClients.end()) {
@@ -201,8 +195,7 @@ void SubscriptionManager::addClientToPropMapLocked(
     propClients->addOrUpdate(client);
 }
 
-sp<HalClientVector> SubscriptionManager::getClientsForPropertyLocked(
-        int32_t propId) const {
+sp<HalClientVector> SubscriptionManager::getClientsForPropertyLocked(int32_t propId) const {
     auto it = mPropToClients.find(propId);
     return it == mPropToClients.end() ? nullptr : it->second;
 }
@@ -215,9 +208,9 @@ sp<HalClient> SubscriptionManager::getOrCreateHalClientLocked(
         uint64_t cookie = reinterpret_cast<uint64_t>(clientId);
         ALOGI("Creating new client and linking to death recipient, cookie: 0x%" PRIx64, cookie);
         auto res = callback->linkToDeath(mCallbackDeathRecipient, cookie);
-        if (!res.isOk()) {  // Client is already dead?
-            ALOGW("%s failed to link to death, client %p, err: %s",
-                  __func__, callback.get(), res.description().c_str());
+        if (!res.isOk()) { // Client is already dead?
+            ALOGW("%s failed to link to death, client %p, err: %s", __func__, callback.get(),
+                  res.description().c_str());
             return nullptr;
         }
 
@@ -229,8 +222,7 @@ sp<HalClient> SubscriptionManager::getOrCreateHalClientLocked(
     }
 }
 
-void SubscriptionManager::unsubscribe(ClientId clientId,
-                                      int32_t propId) {
+void SubscriptionManager::unsubscribe(ClientId clientId, int32_t propId) {
     MuxGuard g(mLock);
     auto propertyClients = getClientsForPropertyLocked(propId);
     auto clientIter = mClients.find(clientId);
@@ -258,8 +250,8 @@ void SubscriptionManager::unsubscribe(ClientId clientId,
         if (!isClientSubscribedToOtherProps) {
             auto res = client->getCallback()->unlinkToDeath(mCallbackDeathRecipient);
             if (!res.isOk()) {
-                ALOGW("%s failed to unlink to death, client: %p, err: %s",
-                      __func__, client->getCallback().get(), res.description().c_str());
+                ALOGW("%s failed to unlink to death, client: %p, err: %s", __func__,
+                      client->getCallback().get(), res.description().c_str());
             }
             mClients.erase(clientIter);
         }
@@ -280,7 +272,7 @@ void SubscriptionManager::onCallbackDead(uint64_t cookie) {
         MuxGuard g(mLock);
         const auto& it = mClients.find(clientId);
         if (it == mClients.end()) {
-            return;  // Nothing to do here, client wasn't subscribed to any properties.
+            return; // Nothing to do here, client wasn't subscribed to any properties.
         }
         const auto& halClient = it->second;
         props = halClient->getSubscribedProperties();
@@ -291,9 +283,8 @@ void SubscriptionManager::onCallbackDead(uint64_t cookie) {
     }
 }
 
-
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

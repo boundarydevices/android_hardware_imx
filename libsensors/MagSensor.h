@@ -18,15 +18,14 @@
 #ifndef ANDROID_FSL_MAG_SENSOR_H
 #define ANDROID_FSL_MAG_SENSOR_H
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-
-#include "sensors.h"
-#include "SensorBase.h"
 #include "InputEventReader.h"
+#include "SensorBase.h"
+#include "sensors.h"
 
 /*****************************************************************************/
 
@@ -38,33 +37,33 @@ public:
     virtual int setEnable(int32_t handle, int enabled);
     virtual int getEnable(int32_t handle);
     virtual int readEvents(sensors_event_t* data, int count);
-	virtual bool hasPendingEvents(); 
-	virtual int flush(int handle);
+    virtual bool hasPendingEvents();
+    virtual int flush(int handle);
     void processEvent(int code, int value);
 
 private:
-	  enum {
-        mag     	= 0,
-        orn 		= 1,
-        sensors  	= 2,			
+    enum {
+        mag = 0,
+        orn = 1,
+        sensors = 2,
     };
-	int sensor_get_class_path(char *class_path);
-	int is_sensor_enabled();
-	int enable_sensor();
-	int disable_sensor();
-	int set_delay(int64_t ns);
-	int update_delay(int sensor_type);
-	int readDisable();
-	int writeEnable(int isEnable);
-	int writeDelay(int64_t ns);
-	int mEnabled[sensors];
-	int mPendingMask;
-	char mClassPath[PATH_MAX];
-	InputEventCircularReader mInputReader;
-	sensors_event_t mPendingEvent[sensors];
-	int64_t mDelay[sensors];
+    int sensor_get_class_path(char* class_path);
+    int is_sensor_enabled();
+    int enable_sensor();
+    int disable_sensor();
+    int set_delay(int64_t ns);
+    int update_delay(int sensor_type);
+    int readDisable();
+    int writeEnable(int isEnable);
+    int writeDelay(int64_t ns);
+    int mEnabled[sensors];
+    int mPendingMask;
+    char mClassPath[PATH_MAX];
+    InputEventCircularReader mInputReader;
+    sensors_event_t mPendingEvent[sensors];
+    int64_t mDelay[sensors];
 };
 
 /*****************************************************************************/
 
-#endif  // ANDROID_FSL_ACCEL_SENSOR_H
+#endif // ANDROID_FSL_ACCEL_SENSOR_H

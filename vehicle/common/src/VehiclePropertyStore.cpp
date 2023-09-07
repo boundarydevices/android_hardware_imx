@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 #define LOG_TAG "VehiclePropertyStore"
-#include <log/log.h>
+#include "VehiclePropertyStore.h"
 
 #include <common/include/vhal_v2_0/VehicleUtils.h>
-#include "VehiclePropertyStore.h"
+#include <log/log.h>
 
 namespace android {
 namespace hardware {
@@ -29,27 +29,25 @@ bool VehiclePropertyStore::RecordId::operator==(const VehiclePropertyStore::Reco
     return prop == other.prop && area == other.area && token == other.token;
 }
 
-bool VehiclePropertyStore::RecordId::operator<(const VehiclePropertyStore::RecordId& other) const  {
-    return prop < other.prop
-           || (prop == other.prop && area < other.area)
-           || (prop == other.prop && area == other.area && token < other.token);
+bool VehiclePropertyStore::RecordId::operator<(const VehiclePropertyStore::RecordId& other) const {
+    return prop < other.prop || (prop == other.prop && area < other.area) ||
+            (prop == other.prop && area == other.area && token < other.token);
 }
 
 void VehiclePropertyStore::registerProperty(const VehiclePropConfig& config,
                                             VehiclePropertyStore::TokenFunction tokenFunc) {
     MuxGuard g(mLock);
-    mConfigs.insert({ config.prop, RecordConfig { config, tokenFunc } });
+    mConfigs.insert({config.prop, RecordConfig{config, tokenFunc}});
 }
 
-bool VehiclePropertyStore::writeValue(const VehiclePropValue& propValue,
-                                        bool updateStatus) {
+bool VehiclePropertyStore::writeValue(const VehiclePropValue& propValue, bool updateStatus) {
     MuxGuard g(mLock);
     if (!mConfigs.count(propValue.prop)) return false;
 
     RecordId recId = getRecordIdLocked(propValue);
     VehiclePropValue* valueToUpdate = const_cast<VehiclePropValue*>(getValueOrNullLocked(recId));
     if (valueToUpdate == nullptr) {
-        mPropertyValues.insert({ recId, propValue });
+        mPropertyValues.insert({recId, propValue});
         return true;
     }
 
@@ -112,20 +110,19 @@ std::unique_ptr<VehiclePropValue> VehiclePropertyStore::readValueOrNull(
     return internalValue ? std::make_unique<VehiclePropValue>(*internalValue) : nullptr;
 }
 
-std::unique_ptr<VehiclePropValue> VehiclePropertyStore::readValueOrNull(
-        int32_t prop, int32_t area, int64_t token) const {
-    RecordId recId = {prop, isGlobalProp(prop) ? 0 : area, token };
+std::unique_ptr<VehiclePropValue> VehiclePropertyStore::readValueOrNull(int32_t prop, int32_t area,
+                                                                        int64_t token) const {
+    RecordId recId = {prop, isGlobalProp(prop) ? 0 : area, token};
     MuxGuard g(mLock);
     const VehiclePropValue* internalValue = getValueOrNullLocked(recId);
     return internalValue ? std::make_unique<VehiclePropValue>(*internalValue) : nullptr;
 }
 
-
 std::vector<VehiclePropConfig> VehiclePropertyStore::getAllConfigs() const {
     MuxGuard g(mLock);
     std::vector<VehiclePropConfig> configs;
     configs.reserve(mConfigs.size());
-    for (auto&& recordConfigIt: mConfigs) {
+    for (auto&& recordConfigIt : mConfigs) {
         configs.push_back(recordConfigIt.second.propConfig);
     }
     return configs;
@@ -148,11 +145,9 @@ const VehiclePropConfig* VehiclePropertyStore::getConfigOrDie(int32_t propId) co
 
 VehiclePropertyStore::RecordId VehiclePropertyStore::getRecordIdLocked(
         const VehiclePropValue& valuePrototype) const {
-    RecordId recId = {
-        .prop = valuePrototype.prop,
-        .area = isGlobalProp(valuePrototype.prop) ? 0 : valuePrototype.areaId,
-        .token = 0
-    };
+    RecordId recId = {.prop = valuePrototype.prop,
+                      .area = isGlobalProp(valuePrototype.prop) ? 0 : valuePrototype.areaId,
+                      .token = 0};
 
     auto it = mConfigs.find(recId.prop);
     if (it == mConfigs.end()) return {};
@@ -164,21 +159,21 @@ VehiclePropertyStore::RecordId VehiclePropertyStore::getRecordIdLocked(
 }
 
 const VehiclePropValue* VehiclePropertyStore::getValueOrNullLocked(
-        const VehiclePropertyStore::RecordId& recId) const  {
+        const VehiclePropertyStore::RecordId& recId) const {
     auto it = mPropertyValues.find(recId);
     return it == mPropertyValues.end() ? nullptr : &it->second;
 }
 
 VehiclePropertyStore::PropertyMapRange VehiclePropertyStore::findRangeLocked(int32_t propId) const {
     // Based on the fact that mPropertyValues is a sorted map by RecordId.
-    auto beginIt = mPropertyValues.lower_bound( RecordId { propId, INT32_MIN, 0 });
-    auto endIt = mPropertyValues.lower_bound( RecordId { propId + 1, INT32_MIN, 0 });
+    auto beginIt = mPropertyValues.lower_bound(RecordId{propId, INT32_MIN, 0});
+    auto endIt = mPropertyValues.lower_bound(RecordId{propId + 1, INT32_MIN, 0});
 
-    return  PropertyMapRange { beginIt, endIt };
+    return PropertyMapRange{beginIt, endIt};
 }
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

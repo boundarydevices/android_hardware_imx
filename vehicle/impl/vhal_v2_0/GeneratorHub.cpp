@@ -16,9 +16,9 @@
 
 #define LOG_TAG "GeneratorHub"
 
-#include <log/log.h>
-
 #include "GeneratorHub.h"
+
+#include <log/log.h>
 
 namespace android {
 namespace hardware {
@@ -29,7 +29,7 @@ namespace V2_0 {
 namespace impl {
 
 GeneratorHub::GeneratorHub(const OnHalEvent& onHalEvent)
-    : mOnHalEvent(onHalEvent), mThread(&GeneratorHub::run, this) {}
+      : mOnHalEvent(onHalEvent), mThread(&GeneratorHub::run, this) {}
 
 void GeneratorHub::registerGenerator(int32_t cookie, FakeValueGeneratorPtr generator) {
     {
@@ -61,9 +61,9 @@ void GeneratorHub::run() {
     while (true) {
         std::unique_lock<std::mutex> g(mLock);
         // Pop events whose generator does not exist (may be already unregistered)
-        while (!mEventQueue.empty()
-               && mGenerators.find(mEventQueue.top().cookie) == mGenerators.end()) {
-             mEventQueue.pop();
+        while (!mEventQueue.empty() &&
+               mGenerators.find(mEventQueue.top().cookie) == mGenerators.end()) {
+            mEventQueue.pop();
         }
         // Wait until event queue is not empty
         mCond.wait(g, [this] { return !mEventQueue.empty(); });
@@ -73,8 +73,9 @@ void GeneratorHub::run() {
         TimePoint eventTime(Nanos(curEvent.val.timestamp));
         // Wait until the soonest event happen
         if (mCond.wait_until(g, eventTime) != std::cv_status::timeout) {
-        // It is possible that a new generator is registered and produced a sooner event, or current
-        // generator is unregistered, in this case the thread will re-evaluate the soonest event
+            // It is possible that a new generator is registered and produced a sooner event, or
+            // current generator is unregistered, in this case the thread will re-evaluate the
+            // soonest event
             ALOGI("Something happened while waiting");
             continue;
         }
@@ -96,10 +97,10 @@ bool GeneratorHub::hasNext(int32_t cookie) {
     return mGenerators.find(cookie) != mGenerators.end() && mGenerators[cookie]->hasNext();
 }
 
-}  // namespace impl
+} // namespace impl
 
-}  // namespace V2_0
-}  // namespace vehicle
-}  // namespace automotive
-}  // namespace hardware
-}  // namespace android
+} // namespace V2_0
+} // namespace vehicle
+} // namespace automotive
+} // namespace hardware
+} // namespace android

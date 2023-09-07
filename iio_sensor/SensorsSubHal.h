@@ -16,8 +16,9 @@
  */
 
 #pragma once
-#include "Sensor.h"
 #include <V2_1/SubHal.h>
+
+#include "Sensor.h"
 
 namespace nxp_sensors_subhal {
 
@@ -26,18 +27,18 @@ using ::android::hardware::sensors::V2_1::implementation::IHalProxyCallback;
 using ::android::hardware::sensors::V1_0::RateLevel;
 using ::android::hardware::sensors::V1_0::SharedMemInfo;
 
+using ::android::sp;
 using ::android::hardware::hidl_handle;
 using ::android::hardware::hidl_string;
 using ::android::hardware::hidl_vec;
-using ::android::sp;
 
 /**
  * Implementation of a ISensorsSubHal that can be used as a reference HAL implementation of sensors
  * multihal 2.0.
  */
-class SensorsSubHal : public ::android::hardware::sensors::V2_1::implementation::ISensorsSubHal, public ISensorsEventCallback {
-
-  public:
+class SensorsSubHal : public ::android::hardware::sensors::V2_1::implementation::ISensorsSubHal,
+                      public ISensorsEventCallback {
+public:
     SensorsSubHal();
     ~SensorsSubHal();
 
@@ -75,7 +76,7 @@ class SensorsSubHal : public ::android::hardware::sensors::V2_1::implementation:
     // Method from ISensorsEventCallback.
     void postEvents(const std::vector<Event>& events, bool wakeup) override;
 
-  protected:
+protected:
     void AddSensor(struct iio_device_data& iio_data,
                    const std::optional<std::vector<Configuration>>& config);
 
@@ -91,7 +92,7 @@ class SensorsSubHal : public ::android::hardware::sensors::V2_1::implementation:
      */
     sp<IHalProxyCallback> mCallback;
 
-  private:
+private:
     /**
      * The current operation mode of the multihal framework. Ensures that all subhals are set to
      * the same operation mode.
@@ -104,4 +105,4 @@ class SensorsSubHal : public ::android::hardware::sensors::V2_1::implementation:
     int32_t mNextHandle;
 };
 
-}  // namespace nxp_sensors_subhal
+} // namespace nxp_sensors_subhal

@@ -17,6 +17,7 @@
 #include "vibrator-impl/VibratorManager.h"
 
 #include <android-base/logging.h>
+
 #include <thread>
 
 namespace aidl {
@@ -28,8 +29,7 @@ static constexpr int32_t kDefaultVibratorId = 1;
 
 ndk::ScopedAStatus VibratorManager::getCapabilities(int32_t* _aidl_return) {
     LOG(INFO) << "Vibrator manager reporting capabilities";
-    *_aidl_return =
-            IVibratorManager::CAP_SYNC | IVibratorManager::CAP_PREPARE_ON |
+    *_aidl_return = IVibratorManager::CAP_SYNC | IVibratorManager::CAP_PREPARE_ON |
             IVibratorManager::CAP_PREPARE_PERFORM | IVibratorManager::CAP_PREPARE_COMPOSE |
             IVibratorManager::CAP_MIXED_TRIGGER_ON | IVibratorManager::CAP_MIXED_TRIGGER_PERFORM |
             IVibratorManager::CAP_MIXED_TRIGGER_COMPOSE | IVibratorManager::CAP_TRIGGER_CALLBACK;
@@ -81,7 +81,7 @@ ndk::ScopedAStatus VibratorManager::cancelSynced() {
     return ndk::ScopedAStatus::ok();
 }
 
-}  // namespace vibrator
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace vibrator
+} // namespace hardware
+} // namespace android
+} // namespace aidl

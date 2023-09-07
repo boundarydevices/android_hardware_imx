@@ -20,20 +20,20 @@
 #define ANDROID_HARDWARE_OEMLOCK_OEMLOCK_H
 
 #include <android/hardware/oemlock/1.0/IOemLock.h>
+
 #include "avb_ipc.h"
 
 namespace android {
 namespace hardware {
 namespace oemlock {
 
+using ::android::hardware::hidl_vec;
+using ::android::hardware::Return;
 using ::android::hardware::oemlock::V1_0::IOemLock;
 using ::android::hardware::oemlock::V1_0::OemLockSecureStatus;
 using ::android::hardware::oemlock::V1_0::OemLockStatus;
-using ::android::hardware::hidl_vec;
-using ::android::hardware::Return;
 
 struct OemLock : public IOemLock {
-
     // Methods from ::android::hardware::oemlock::V1_0::IOemLock follow.
     Return<void> getName(getName_cb _hidl_cb) override;
     Return<OemLockSecureStatus> setOemUnlockAllowedByCarrier(
@@ -48,6 +48,7 @@ struct OemLock : public IOemLock {
     void cmdHelp(int fd);
     void cmdList(int fd, const hidl_vec<hidl_string>& options);
     void cmdDumpDevice(int fd, const hidl_vec<hidl_string>& options);
+
 private:
     avbOemUnlockIpc mAvbOemUnlockIpc;
 };

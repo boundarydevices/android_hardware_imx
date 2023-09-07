@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <inttypes.h>
-#include <dlfcn.h>
 #include "Composer.h"
-#include "MemoryManager.h"
+
 #include <cutils/properties.h>
+#include <dlfcn.h>
+#include <inttypes.h>
+
+#include "MemoryManager.h"
 
 #if defined(__LP64__)
 #define LIB_PATH1 "/system/lib64"
@@ -36,20 +38,17 @@ Composer* Composer::sInstance(0);
 Mutex Composer::sLock(Mutex::PRIVATE);
 thread_local void* Composer::sHandle(0);
 
-static bool getDefaultG2DLib(char *libName, int size)
-{
+static bool getDefaultG2DLib(char* libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if((libName == NULL)||(size < strlen(G2DENGINE) + strlen(".so")))
-        return false;
+    if ((libName == NULL) || (size < strlen(G2DENGINE) + strlen(".so"))) return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
-    if(strcmp(value, "") == 0) {
+    if (strcmp(value, "") == 0) {
         ALOGI("No g2d lib available to be used!");
         return false;
-    }
-    else {
+    } else {
         strncpy(libName, G2DENGINE, strlen(G2DENGINE));
         strcat(libName, "-");
         strcat(libName, value);
@@ -59,8 +58,7 @@ static bool getDefaultG2DLib(char *libName, int size)
     return true;
 }
 
-Composer* Composer::getInstance()
-{
+Composer* Composer::getInstance() {
     Mutex::Autolock _l(sLock);
     if (sInstance != NULL) {
         return sInstance;
@@ -70,8 +68,7 @@ Composer* Composer::getInstance()
     return sInstance;
 }
 
-Composer::Composer()
-{
+Composer::Composer() {
     mTarget = NULL;
     mDimBuffer = NULL;
     mHelperHandle = NULL;
@@ -93,8 +90,7 @@ Composer::Composer()
     m2DComposition = atoi(value);
     if (m2DComposition && !mDisableHWC) {
         ALOGI("g2d 2D composition enabled!");
-    }
-    else {
+    } else {
         ALOGI("Opengl ES 3D composition enabled!");
     }
 
@@ -112,8 +108,7 @@ Composer::Composer()
         mAlignTile = NULL;
         mGetTileStatus = NULL;
         mResolveTileStatus = NULL;
-    }
-    else {
+    } else {
         mGetAlignedSize = (hwc_func3)dlsym(mHelperHandle, "hwc_getAlignedSize");
         mGetFlipOffset = (hwc_func2)dlsym(mHelperHandle, "hwc_getFlipOffset");
         mGetTiling = (hwc_func2)dlsym(mHelperHandle, "hwc_getTiling");
@@ -126,7 +121,7 @@ Composer::Composer()
     }
 
     memset(path, 0, sizeof(path));
-    if(getDefaultG2DLib(g2dlibName, PATH_MAX)){
+    if (getDefaultG2DLib(g2dlibName, PATH_MAX)) {
         getModule(path, g2dlibName);
         mG2dHandle = dlopen(path, RTLD_NOW);
     }
@@ -142,8 +137,7 @@ Composer::Composer()
         mDisableFunction = NULL;
         mFinishEngine = NULL;
         mQueryFeature = NULL;
-    }
-    else {
+    } else {
         ALOGI("load %s library!", path);
         mSetClipping = (hwc_func5)dlsym(mG2dHandle, "g2d_set_clipping");
         mBlitFunction = (hwc_func3)dlsym(mG2dHandle, "g2d_blitEx");
@@ -160,8 +154,7 @@ Composer::Composer()
     }
 }
 
-Composer::~Composer()
-{
+Composer::~Composer() {
     MemoryManager* pManager = MemoryManager::getInstance();
     if (mDimBuffer != NULL) {
         unlockSurface(mDimBuffer);
@@ -178,8 +171,7 @@ Composer::~Composer()
     }
 }
 
-void *Composer::getHandle()
-{
+void* Composer::getHandle() {
     if (sHandle != NULL) {
         return sHandle;
     }
@@ -192,50 +184,40 @@ void *Composer::getHandle()
     return sHandle;
 }
 
-bool Composer::isValid()
-{
+bool Composer::isValid() {
     return (getHandle() != NULL && mBlitFunction != NULL);
 }
 
-bool Composer::isDisabled()
-{
+bool Composer::isDisabled() {
     return (mDisableHWC != 0);
 }
 
-bool Composer::is2DComposition()
-{
+bool Composer::is2DComposition() {
     return (m2DComposition != 0);
 }
 
 #ifdef HAVE_UNMAPPED_HEAP
-void Composer::setSecureMode(bool secure)
-{
+void Composer::setSecureMode(bool secure) {
     mSecureMode = secure;
 }
 #endif
 
-void Composer::getModule(char *path, const char *name)
-{
-    snprintf(path, PATH_MAX, "%s/%s",
-                                 LIB_PATH1, name);
-    if (access(path, R_OK) == 0)
-        return;
-    snprintf(path, PATH_MAX, "%s/%s",
-                                 LIB_PATH2, name);
-    if (access(path, R_OK) == 0)
-        return;
+void Composer::getModule(char* path, const char* name) {
+    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
+    if (access(path, R_OK) == 0) return;
+    snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
+    if (access(path, R_OK) == 0) return;
     return;
 }
 
-int Composer::checkDimBuffer()
-{
+int Composer::checkDimBuffer() {
     if (mTarget == NULL) {
         return 0;
     }
 
-    if ((mDimBuffer != NULL) && (mTarget->width == mDimBuffer->width &&
-        mTarget->height == mDimBuffer->height &&
-        mTarget->fslFormat == mDimBuffer->fslFormat) &&
+    if ((mDimBuffer != NULL) &&
+        (mTarget->width == mDimBuffer->width && mTarget->height == mDimBuffer->height &&
+         mTarget->fslFormat == mDimBuffer->fslFormat) &&
         mSecureMode == mPreSecMode) {
         return 0;
     }
@@ -252,12 +234,10 @@ int Composer::checkDimBuffer()
     desc.mHeight = mTarget->height;
     desc.mFormat = mTarget->format;
     desc.mFslFormat = mTarget->fslFormat;
-    desc.mProduceUsage |= USAGE_HW_COMPOSER |
-                          USAGE_HW_2D | USAGE_HW_RENDER |
-                          USAGE_SW_WRITE_OFTEN | USAGE_SW_READ_OFTEN;
+    desc.mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER | USAGE_SW_WRITE_OFTEN |
+            USAGE_SW_READ_OFTEN;
 #ifdef HAVE_UNMAPPED_HEAP
-    if (mSecureMode)
-        desc.mProduceUsage |= USAGE_PROTECTED;
+    if (mSecureMode) desc.mProduceUsage |= USAGE_PROTECTED;
 #endif
     desc.mFlag = FLAGS_DIMBUFFER;
     desc.checkFormat();
@@ -274,20 +254,17 @@ int Composer::checkDimBuffer()
     return ret;
 }
 
-int Composer::finishComposite()
-{
+int Composer::finishComposite() {
     finishEngine(getHandle());
     return 0;
 }
 
-int Composer::setRenderTarget(Memory* memory)
-{
+int Composer::setRenderTarget(Memory* memory) {
     mTarget = memory;
     return 0;
 }
 
-int Composer::clearRect(Memory* target, Rect& rect)
-{
+int Composer::clearRect(Memory* target, Rect& rect) {
     if (target == NULL || rect.isEmpty()) {
         return 0;
     }
@@ -295,8 +272,7 @@ int Composer::clearRect(Memory* target, Rect& rect)
     struct g2d_surfaceEx surfaceX;
     memset(&surfaceX, 0, sizeof(surfaceX));
     struct g2d_surface& surface = surfaceX.base;
-    ALOGV("clearRect: rect(l:%d,t:%d,r:%d,b:%d)",
-            rect.left, rect.top, rect.right, rect.bottom);
+    ALOGV("clearRect: rect(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right, rect.bottom);
     setG2dSurface(surfaceX, target, rect);
     surface.clrcolor = 0xff << 24;
     clearFunction(getHandle(), &surface);
@@ -304,8 +280,7 @@ int Composer::clearRect(Memory* target, Rect& rect)
     return 0;
 }
 
-int Composer::clearWormHole(LayerVector& layers)
-{
+int Composer::clearWormHole(LayerVector& layers) {
     if (mTarget == NULL) {
         ALOGE("clearWormHole: no effective render buffer");
         return -EINVAL;
@@ -314,17 +289,17 @@ int Composer::clearWormHole(LayerVector& layers)
     // calculate opaque region.
     Region opaque;
     size_t count = layers.size();
-    for (size_t i=0; i<count; i++) {
+    for (size_t i = 0; i < count; i++) {
         Layer* layer = layers[i];
-        if (!layer->busy){
+        if (!layer->busy) {
             ALOGE("clearWormHole: compose invalid layer");
             continue;
         }
 
         if ((layer->blendMode == BLENDING_NONE) ||
-             (i==0 && layer->blendMode == BLENDING_PREMULT) ||
-             ((i!=0) && (layer->blendMode == BLENDING_DIM) &&
-              ((layer->color >> 24)&0xff) == 0xff)) {
+            (i == 0 && layer->blendMode == BLENDING_PREMULT) ||
+            ((i != 0) && (layer->blendMode == BLENDING_DIM) &&
+             ((layer->color >> 24) & 0xff) == 0xff)) {
             opaque.orSelf(layer->visibleRegion);
         }
     }
@@ -332,21 +307,20 @@ int Composer::clearWormHole(LayerVector& layers)
     // calculate worm hole.
     Region screen(Rect(mTarget->width, mTarget->height));
     screen.subtractSelf(opaque);
-    const Rect *holes = NULL;
+    const Rect* holes = NULL;
     size_t numRect = 0;
     holes = screen.getArray(&numRect);
     // clear worm hole.
     struct g2d_surfaceEx surfaceX;
     memset(&surfaceX, 0, sizeof(surfaceX));
     struct g2d_surface& surface = surfaceX.base;
-    for (size_t i=0; i<numRect; i++) {
+    for (size_t i = 0; i < numRect; i++) {
         if (holes[i].isEmpty()) {
             continue;
         }
 
         Rect& rect = (Rect&)holes[i];
-        ALOGV("clearhole: hole(l:%d,t:%d,r:%d,b:%d)",
-                rect.left, rect.top, rect.right, rect.bottom);
+        ALOGV("clearhole: hole(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right, rect.bottom);
         setG2dSurface(surfaceX, mTarget, rect);
         surface.clrcolor = 0xff << 24;
         clearFunction(getHandle(), &surface);
@@ -355,8 +329,7 @@ int Composer::clearWormHole(LayerVector& layers)
     return 0;
 }
 
-int Composer::composeLayer(Layer* layer, bool bypass)
-{
+int Composer::composeLayer(Layer* layer, bool bypass) {
     if (layer == NULL || mTarget == NULL) {
         ALOGE("composeLayer: invalid layer or target");
         return -EINVAL;
@@ -372,8 +345,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
     struct g2d_surfaceEx dSurfaceX;
     struct g2d_surface& dSurface = dSurfaceX.base;
 
-    if ((srect.isEmpty() && !layer->isSolidColor())
-         || drect.isEmpty()) {
+    if ((srect.isEmpty() && !layer->isSolidColor()) || drect.isEmpty()) {
         ALOGE("composeLayer: invalid srect or drect");
         return 0;
     }
@@ -386,7 +358,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
     size_t count = 0;
     bool needDither = false;
     const Rect* visible = layer->visibleRegion.getArray(&count);
-    for (size_t i=0; i<count; i++) {
+    for (size_t i = 0; i < count; i++) {
         Rect srect = layer->sourceCrop;
         Rect clip = visible[i];
         if (clip.isEmpty()) {
@@ -402,17 +374,15 @@ int Composer::composeLayer(Layer* layer, bool bypass)
 
         setClipping(srect, drect, clip, layer->transform);
         ALOGV("index:%d, i:%d sourceCrop(l:%d,t:%d,r:%d,b:%d), "
-             "visible(l:%d,t:%d,r:%d,b:%d), "
-             "display(l:%d,t:%d,r:%d,b:%d)", layer->index, (int)i,
-             srect.left, srect.top, srect.right, srect.bottom,
-             clip.left, clip.top, clip.right, clip.bottom,
-             drect.left, drect.top, drect.right, drect.bottom);
+              "visible(l:%d,t:%d,r:%d,b:%d), "
+              "display(l:%d,t:%d,r:%d,b:%d)",
+              layer->index, (int)i, srect.left, srect.top, srect.right, srect.bottom, clip.left,
+              clip.top, clip.right, clip.bottom, drect.left, drect.top, drect.right, drect.bottom);
         if (layer->handle != nullptr) {
-            ALOGV("zorder:0x%x, layer phys:0x%" PRIx64,
-                layer->zorder, layer->handle->phys);
+            ALOGV("zorder:0x%x, layer phys:0x%" PRIx64, layer->zorder, layer->handle->phys);
         }
-        ALOGV("transform:0x%x, blend:0x%x, alpha:0x%x",
-                layer->transform, layer->blendMode, layer->planeAlpha);
+        ALOGV("transform:0x%x, blend:0x%x, alpha:0x%x", layer->transform, layer->blendMode,
+              layer->planeAlpha);
 
         setG2dSurface(dSurfaceX, mTarget, drect);
 
@@ -429,11 +399,9 @@ int Composer::composeLayer(Layer* layer, bool bypass)
                 needDither = true;
             }
 
-        }
-        else if (mDimBuffer) {
+        } else if (mDimBuffer) {
             setG2dSurface(sSurfaceX, mDimBuffer, drect);
-        }
-        else {
+        } else {
             return -EINVAL;
         }
 
@@ -463,8 +431,7 @@ int Composer::composeLayer(Layer* layer, bool bypass)
     return 0;
 }
 
-int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect& rect)
-{
+int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory* handle, Rect& rect) {
     int alignWidth = 0, alignHeight = 0;
     struct g2d_surface& surface = surfaceX.base;
 
@@ -480,15 +447,13 @@ int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect
     getTiling(handle, &tile);
     if (handle->fslFormat == FORMAT_NV12_TILED) {
         surfaceX.tiling = G2D_AMPHION_TILED;
-    }
-    else {
+    } else {
         surfaceX.tiling = tile;
     }
 
     if (isFeatureSupported(G2D_FAST_CLEAR)) {
         getTileStatus(handle, &surfaceX);
-    }
-    else {
+    } else {
         resolveTileStatus(handle);
     }
 
@@ -513,13 +478,13 @@ int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect
 
         case G2D_I420:
         case G2D_YV12: {
-            int c_stride = (alignWidth/2+15)/16*16;
+            int c_stride = (alignWidth / 2 + 15) / 16 * 16;
             int stride = alignWidth;
 
             surface.stride = alignWidth;
             surface.planes[1] = surface.planes[0] + stride * handle->height;
-            surface.planes[2] = surface.planes[1] + c_stride * handle->height/2;
-            } break;
+            surface.planes[2] = surface.planes[1] + c_stride * handle->height / 2;
+        } break;
 
         default:
             ALOGI("does not support format:%d", surface.format);
@@ -535,8 +500,7 @@ int Composer::setG2dSurface(struct g2d_surfaceEx& surfaceX, Memory *handle, Rect
     return 0;
 }
 
-enum g2d_format Composer::convertFormat(int format, Memory *handle)
-{
+enum g2d_format Composer::convertFormat(int format, Memory* handle) {
     enum g2d_format halFormat;
     switch (format) {
         case FORMAT_RGBA8888:
@@ -584,48 +548,43 @@ enum g2d_format Composer::convertFormat(int format, Memory *handle)
     return halFormat;
 }
 
-int Composer::convertRotation(int transform, struct g2d_surface& src,
-                        struct g2d_surface& dst)
-{
+int Composer::convertRotation(int transform, struct g2d_surface& src, struct g2d_surface& dst) {
     switch (transform) {
         case 0:
             dst.rot = G2D_ROTATION_0;
             break;
         case TRANSFORM_ROT90:
-            dst.rot =  G2D_ROTATION_90;
+            dst.rot = G2D_ROTATION_90;
             break;
         case TRANSFORM_FLIPH | TRANSFORM_FLIPV:
-            dst.rot =  G2D_ROTATION_180;
+            dst.rot = G2D_ROTATION_180;
             break;
-        case TRANSFORM_FLIPH | TRANSFORM_FLIPV
-             | HAL_TRANSFORM_ROT_90:
-            dst.rot =  G2D_ROTATION_270;
+        case TRANSFORM_FLIPH | TRANSFORM_FLIPV | HAL_TRANSFORM_ROT_90:
+            dst.rot = G2D_ROTATION_270;
             break;
         case TRANSFORM_FLIPH:
-            dst.rot =  G2D_FLIP_H;
+            dst.rot = G2D_FLIP_H;
             break;
         case TRANSFORM_FLIPV:
-            dst.rot =  G2D_FLIP_V;
+            dst.rot = G2D_FLIP_V;
             break;
         case TRANSFORM_FLIPH | TRANSFORM_ROT90:
-            dst.rot =  G2D_ROTATION_90;
-            src.rot =  G2D_FLIP_H;
+            dst.rot = G2D_ROTATION_90;
+            src.rot = G2D_FLIP_H;
             break;
         case TRANSFORM_FLIPV | TRANSFORM_ROT90:
-            dst.rot =  G2D_ROTATION_90;
-            src.rot =  G2D_FLIP_V;
+            dst.rot = G2D_ROTATION_90;
+            src.rot = G2D_FLIP_V;
             break;
         default:
-            dst.rot =  G2D_ROTATION_0;
+            dst.rot = G2D_ROTATION_0;
             break;
     }
 
     return 0;
 }
 
-int Composer::convertBlending(int blending, struct g2d_surface& src,
-                        struct g2d_surface& dst)
-{
+int Composer::convertBlending(int blending, struct g2d_surface& src, struct g2d_surface& dst) {
     switch (blending) {
         case BLENDING_PREMULT:
             src.blendfunc = G2D_ONE;
@@ -651,8 +610,7 @@ int Composer::convertBlending(int blending, struct g2d_surface& src,
     return 0;
 }
 
-int Composer::getAlignedSize(Memory *handle, int *width, int *height)
-{
+int Composer::getAlignedSize(Memory* handle, int* width, int* height) {
     if (mGetAlignedSize == NULL) {
         return -EINVAL;
     }
@@ -660,8 +618,7 @@ int Composer::getAlignedSize(Memory *handle, int *width, int *height)
     return (*mGetAlignedSize)(handle, (void*)width, (void*)height);
 }
 
-int Composer::getFlipOffset(Memory *handle, int *offset)
-{
+int Composer::getFlipOffset(Memory* handle, int* offset) {
     if (mGetFlipOffset == NULL) {
         return -EINVAL;
     }
@@ -669,8 +626,7 @@ int Composer::getFlipOffset(Memory *handle, int *offset)
     return (*mGetFlipOffset)(handle, (void*)offset);
 }
 
-int Composer::getTiling(Memory *handle, enum g2d_tiling* tile)
-{
+int Composer::getTiling(Memory* handle, enum g2d_tiling* tile) {
     if (mGetTiling == NULL) {
         return -EINVAL;
     }
@@ -678,8 +634,7 @@ int Composer::getTiling(Memory *handle, enum g2d_tiling* tile)
     return (*mGetTiling)(handle, (void*)tile);
 }
 
-enum g2d_format Composer::alterFormat(Memory *handle, enum g2d_format format)
-{
+enum g2d_format Composer::alterFormat(Memory* handle, enum g2d_format format) {
     if (mAlterFormat == NULL) {
         return format;
     }
@@ -687,8 +642,7 @@ enum g2d_format Composer::alterFormat(Memory *handle, enum g2d_format format)
     return (enum g2d_format)(*mAlterFormat)(handle, (void*)format);
 }
 
-int Composer::lockSurface(Memory *handle)
-{
+int Composer::lockSurface(Memory* handle) {
     int ret;
 
     if (mLockSurface == NULL) {
@@ -704,8 +658,7 @@ int Composer::lockSurface(Memory *handle)
     return ret;
 }
 
-int Composer::unlockSurface(Memory *handle)
-{
+int Composer::unlockSurface(Memory* handle) {
     if (mUnlockSurface == NULL) {
         return -EINVAL;
     }
@@ -713,19 +666,16 @@ int Composer::unlockSurface(Memory *handle)
     return (*mUnlockSurface)(handle);
 }
 
-int Composer::setClipping(Rect& /*src*/, Rect& /*dst*/, Rect& clip, int /*rotation*/)
-{
+int Composer::setClipping(Rect& /*src*/, Rect& /*dst*/, Rect& clip, int /*rotation*/) {
     if (mSetClipping == NULL) {
         return -EINVAL;
     }
 
-    return (*mSetClipping)(getHandle(), (void*)(intptr_t)clip.left,
-            (void*)(intptr_t)clip.top, (void*)(intptr_t)clip.right,
-            (void*)(intptr_t)clip.bottom);
+    return (*mSetClipping)(getHandle(), (void*)(intptr_t)clip.left, (void*)(intptr_t)clip.top,
+                           (void*)(intptr_t)clip.right, (void*)(intptr_t)clip.bottom);
 }
 
-int Composer::blitSurface(struct g2d_surfaceEx *srcEx, struct g2d_surfaceEx *dstEx)
-{
+int Composer::blitSurface(struct g2d_surfaceEx* srcEx, struct g2d_surfaceEx* dstEx) {
     if (mBlitFunction == NULL) {
         return -EINVAL;
     }
@@ -733,8 +683,7 @@ int Composer::blitSurface(struct g2d_surfaceEx *srcEx, struct g2d_surfaceEx *dst
     return (*mBlitFunction)(getHandle(), srcEx, dstEx);
 }
 
-int Composer::openEngine(void** handle)
-{
+int Composer::openEngine(void** handle) {
     if (mOpenEngine == NULL) {
         return -EINVAL;
     }
@@ -742,8 +691,7 @@ int Composer::openEngine(void** handle)
     return (*mOpenEngine)((void*)handle);
 }
 
-int Composer::closeEngine(void* handle)
-{
+int Composer::closeEngine(void* handle) {
     if (mCloseEngine == NULL) {
         return -EINVAL;
     }
@@ -751,8 +699,7 @@ int Composer::closeEngine(void* handle)
     return (*mCloseEngine)(handle);
 }
 
-int Composer::clearFunction(void* handle, struct g2d_surface* area)
-{
+int Composer::clearFunction(void* handle, struct g2d_surface* area) {
     if (mClearFunction == NULL) {
         return -EINVAL;
     }
@@ -760,8 +707,7 @@ int Composer::clearFunction(void* handle, struct g2d_surface* area)
     return (*mClearFunction)(handle, area);
 }
 
-int Composer::enableFunction(void* handle, enum g2d_cap_mode cap, bool enable)
-{
+int Composer::enableFunction(void* handle, enum g2d_cap_mode cap, bool enable) {
     if (mEnableFunction == NULL || mDisableFunction == NULL) {
         return -EINVAL;
     }
@@ -769,16 +715,14 @@ int Composer::enableFunction(void* handle, enum g2d_cap_mode cap, bool enable)
     int ret = 0;
     if (enable) {
         ret = (*mEnableFunction)(handle, (void*)cap);
-    }
-    else {
+    } else {
         ret = (*mDisableFunction)(handle, (void*)cap);
     }
 
     return ret;
 }
 
-int Composer::finishEngine(void* handle)
-{
+int Composer::finishEngine(void* handle) {
     if (mFinishEngine == NULL) {
         return -EINVAL;
     }
@@ -786,8 +730,7 @@ int Composer::finishEngine(void* handle)
     return (*mFinishEngine)(handle);
 }
 
-bool Composer::isFeatureSupported(g2d_feature feature)
-{
+bool Composer::isFeatureSupported(g2d_feature feature) {
     if (mQueryFeature == NULL || getHandle() == NULL) {
         return false;
     }
@@ -797,16 +740,14 @@ bool Composer::isFeatureSupported(g2d_feature feature)
     return (enable != 0);
 }
 
-int Composer::alignTile(int *width, int *height, int format, int usage)
-{
+int Composer::alignTile(int* width, int* height, int format, int usage) {
     if (mAlignTile == NULL) {
         return -EINVAL;
     }
     return (*mAlignTile)(width, height, (void*)(intptr_t)format, (void*)(intptr_t)usage);
 }
 
-int Composer::getTileStatus(Memory *handle, struct g2d_surfaceEx *surfaceX)
-{
+int Composer::getTileStatus(Memory* handle, struct g2d_surfaceEx* surfaceX) {
     if (mGetTileStatus == NULL) {
         return -EINVAL;
     }
@@ -814,8 +755,7 @@ int Composer::getTileStatus(Memory *handle, struct g2d_surfaceEx *surfaceX)
     return (*mGetTileStatus)(handle, surfaceX);
 }
 
-int Composer::resolveTileStatus(Memory *handle)
-{
+int Composer::resolveTileStatus(Memory* handle) {
     if (mResolveTileStatus == NULL) {
         return -EINVAL;
     }
@@ -823,4 +763,4 @@ int Composer::resolveTileStatus(Memory *handle)
     return (*mResolveTileStatus)(handle);
 }
 
-}
+} // namespace fsl

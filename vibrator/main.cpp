@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include "vibrator-impl/Vibrator.h"
-#include "vibrator-impl/VibratorManager.h"
-
 #include <android-base/logging.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
 #include <utils/Log.h>
+
+#include "vibrator-impl/Vibrator.h"
+#include "vibrator-impl/VibratorManager.h"
 using aidl::android::hardware::vibrator::Vibrator;
 using aidl::android::hardware::vibrator::VibratorManager;
 
@@ -42,5 +42,5 @@ int main() {
     CHECK(status == STATUS_OK);
     ALOGI("Vibrator manager service vibManagerName:%s", vibManagerName.c_str());
     ABinderProcess_joinThreadPool();
-    return EXIT_FAILURE;  // should not reach
+    return EXIT_FAILURE; // should not reach
 }

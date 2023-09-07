@@ -16,12 +16,12 @@
 #ifndef ANDROID_HARDWARE_THERMAL_V2_0_THERMAL_H
 #define ANDROID_HARDWARE_THERMAL_V2_0_THERMAL_H
 
-#include <mutex>
-#include <thread>
-
 #include <android/hardware/thermal/2.0/IThermal.h>
 #include <android/hardware/thermal/2.0/IThermalChangedCallback.h>
 #include <hidl/Status.h>
+
+#include <mutex>
+#include <thread>
 
 #include "thermal-helper.h"
 
@@ -40,14 +40,14 @@ using ::android::hardware::thermal::V2_0::IThermalChangedCallback;
 struct CallbackSetting {
     CallbackSetting(sp<IThermalChangedCallback> callback, bool is_filter_type,
                     TemperatureType_2_0 type)
-        : callback(callback), is_filter_type(is_filter_type), type(type) {}
+          : callback(callback), is_filter_type(is_filter_type), type(type) {}
     sp<IThermalChangedCallback> callback;
     bool is_filter_type;
     TemperatureType_2_0 type;
 };
 
 class Thermal : public IThermal {
-  public:
+public:
     Thermal();
     ~Thermal() = default;
 
@@ -65,12 +65,12 @@ class Thermal : public IThermal {
                                         getCurrentTemperatures_cb _hidl_cb) override;
     Return<void> getTemperatureThresholds(bool filterType, TemperatureType_2_0 type,
                                           getTemperatureThresholds_cb _hidl_cb) override;
-    Return<void> registerThermalChangedCallback(const sp<IThermalChangedCallback> &callback,
-                                                bool filterType, TemperatureType_2_0 type,
-                                                registerThermalChangedCallback_cb _hidl_cb) override;
+    Return<void> registerThermalChangedCallback(
+            const sp<IThermalChangedCallback> &callback, bool filterType, TemperatureType_2_0 type,
+            registerThermalChangedCallback_cb _hidl_cb) override;
     Return<void> unregisterThermalChangedCallback(
-        const sp<IThermalChangedCallback> &callback,
-        unregisterThermalChangedCallback_cb _hidl_cb) override;
+            const sp<IThermalChangedCallback> &callback,
+            unregisterThermalChangedCallback_cb _hidl_cb) override;
     Return<void> getCurrentCoolingDevices(bool filterType, CoolingType type,
                                           getCurrentCoolingDevices_cb _hidl_cb) override;
 
@@ -80,16 +80,16 @@ class Thermal : public IThermal {
     // Helper function for calling callbacks
     void sendThermalChangedCallback(const std::vector<Temperature_2_0> &temps);
 
-  private:
+private:
     ThermalHelper thermal_helper_;
     std::mutex thermal_callback_mutex_;
     std::vector<CallbackSetting> callbacks_;
 };
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android
 
-#endif  // ANDROID_HARDWARE_THERMAL_V2_0_THERMAL_H
+#endif // ANDROID_HARDWARE_THERMAL_V2_0_THERMAL_H

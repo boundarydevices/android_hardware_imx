@@ -17,6 +17,7 @@
 #pragma once
 
 #include <stddef.h>
+
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -51,14 +52,11 @@ constexpr size_t kAes128GcmKeySize = 16;
 
 using CoseByteView = std::basic_string_view<uint8_t>;
 
-using GetKeyFn =
-        std::function<std::tuple<std::unique_ptr<uint8_t[]>, size_t>(uint8_t)>;
-using DecryptFn = std::function<bool(CoseByteView key,
-                                     CoseByteView nonce,
-                                     uint8_t* encryptedData,
-                                     size_t encryptedDataSize,
-                                     CoseByteView additionalAuthenticatedData,
-                                     size_t* outPlaintextSize)>;
+using GetKeyFn = std::function<std::tuple<std::unique_ptr<uint8_t[]>, size_t>(uint8_t)>;
+using DecryptFn =
+        std::function<bool(CoseByteView key, CoseByteView nonce, uint8_t* encryptedData,
+                           size_t encryptedDataSize, CoseByteView additionalAuthenticatedData,
+                           size_t* outPlaintextSize)>;
 
 /**
  * coseSetSilenceErrors() - Enable or disable the silencing of errors;
@@ -101,12 +99,10 @@ bool coseSetSilenceErrors(bool value);
  *         ```COSE_Sign1``` structure if the signing algorithm succeeds,
  *         or an uninitalized pointer otherwise.
  */
-std::unique_ptr<cppbor::Item> coseSignEcDsa(const std::vector<uint8_t>& key,
-                                            uint8_t keyId,
+std::unique_ptr<cppbor::Item> coseSignEcDsa(const std::vector<uint8_t>& key, uint8_t keyId,
                                             const std::vector<uint8_t>& data,
                                             cppbor::Map protectedHeaders,
-                                            cppbor::Map unprotectedHeaders,
-                                            bool detachContent,
+                                            cppbor::Map unprotectedHeaders, bool detachContent,
                                             bool tagged);
 
 /**
@@ -157,11 +153,8 @@ bool coseCheckEcDsaSignature(const std::vector<uint8_t>& signatureCoseSign1,
  *
  * Returns: %true if the signature verification passes, %false otherwise.
  */
-bool strictCheckEcDsaSignature(const uint8_t* packageStart,
-                               size_t packageSize,
-                               GetKeyFn keyFn,
-                               const uint8_t** outPackageStart,
-                               size_t* outPackageSize);
+bool strictCheckEcDsaSignature(const uint8_t* packageStart, size_t packageSize, GetKeyFn keyFn,
+                               const uint8_t** outPackageStart, size_t* outPackageSize);
 
 /**
  * coseEncryptAes128GcmKeyWrap() - Encrypt a block of data using AES-128-GCM
@@ -197,13 +190,9 @@ bool strictCheckEcDsaSignature(const uint8_t* packageStart,
  *         or an default-initialized &std::unique_ptr otherwise.
  */
 std::unique_ptr<cppbor::Item> coseEncryptAes128GcmKeyWrap(
-        const std::vector<uint8_t>& key,
-        uint8_t keyId,
-        const std::vector<uint8_t>& data,
-        const std::vector<uint8_t>& externalAad,
-        cppbor::Map protectedHeaders,
-        cppbor::Map unprotectedHeaders,
-        bool tagged);
+        const std::vector<uint8_t>& key, uint8_t keyId, const std::vector<uint8_t>& data,
+        const std::vector<uint8_t>& externalAad, cppbor::Map protectedHeaders,
+        cppbor::Map unprotectedHeaders, bool tagged);
 
 /**
  * coseDecryptAes128GcmKeyWrapInPlace() - Decrypt a block of data containing a
@@ -226,11 +215,7 @@ std::unique_ptr<cppbor::Item> coseEncryptAes128GcmKeyWrap(
  *
  * Returns: %true if the decryption succeeds, %false otherwise.
  */
-bool coseDecryptAes128GcmKeyWrapInPlace(
-        const std::unique_ptr<cppbor::Item>& item,
-        GetKeyFn keyFn,
-        const std::vector<uint8_t>& externalAad,
-        bool checkTag,
-        const uint8_t** outPackageStart,
-        size_t* outPackageSize,
-        DecryptFn decryptFn = DecryptFn());
+bool coseDecryptAes128GcmKeyWrapInPlace(const std::unique_ptr<cppbor::Item>& item, GetKeyFn keyFn,
+                                        const std::vector<uint8_t>& externalAad, bool checkTag,
+                                        const uint8_t** outPackageStart, size_t* outPackageSize,
+                                        DecryptFn decryptFn = DecryptFn());

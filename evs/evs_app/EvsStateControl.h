@@ -17,27 +17,25 @@
 #ifndef CAR_EVS_APP_EVSSTATECONTROL_H
 #define CAR_EVS_APP_EVSSTATECONTROL_H
 
-#include "StreamHandler.h"
-#include "ConfigManager.h"
-#include "RenderBase.h"
-
-#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
-#include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
-#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
 #include <android/hardware/automotive/evs/1.1/IEvsCamera.h>
+#include <android/hardware/automotive/evs/1.1/IEvsDisplay.h>
+#include <android/hardware/automotive/evs/1.1/IEvsEnumerator.h>
+#include <android/hardware/automotive/vehicle/2.0/IVehicle.h>
 
 #include <thread>
 
+#include "ConfigManager.h"
+#include "RenderBase.h"
+#include "StreamHandler.h"
 
 using EvsDisplayState = ::android::hardware::automotive::evs::V1_0::DisplayState;
 using namespace ::android::hardware::automotive::evs::V1_1;
 using namespace ::android::hardware::automotive::vehicle::V2_0;
+using ::android::sp;
+using ::android::hardware::hidl_handle;
+using ::android::hardware::hidl_vec;
 using ::android::hardware::Return;
 using ::android::hardware::Void;
-using ::android::hardware::hidl_vec;
-using ::android::hardware::hidl_handle;
-using ::android::sp;
-
 
 /*
  * This class runs the main update loop for the EVS application.  It will sleep when it has
@@ -46,10 +44,8 @@ using ::android::sp;
  */
 class EvsStateControl {
 public:
-    EvsStateControl(android::sp <IVehicle>       pVnet,
-                    android::sp <IEvsEnumerator> pEvs,
-                    android::sp <IEvsDisplay>    pDisplay,
-                    const ConfigManager&         config);
+    EvsStateControl(android::sp<IVehicle> pVnet, android::sp<IEvsEnumerator> pEvs,
+                    android::sp<IEvsDisplay> pDisplay, const ConfigManager& config);
 
     enum State {
         OFF = 0,
@@ -57,7 +53,7 @@ public:
         LEFT,
         RIGHT,
         PARKING,
-        NUM_STATES  // Must come last
+        NUM_STATES // Must come last
     };
 
     enum class Op {
@@ -67,9 +63,9 @@ public:
     };
 
     struct Command {
-        Op          operation;
-        uint32_t    arg1;
-        uint32_t    arg2;
+        Op operation;
+        uint32_t arg1;
+        uint32_t arg2;
     };
 
     // This spawns a new thread that is expected to run continuously
@@ -80,32 +76,31 @@ public:
 
 private:
     void updateLoop();
-    StatusCode invokeGet(VehiclePropValue *pRequestedPropValue);
+    StatusCode invokeGet(VehiclePropValue* pRequestedPropValue);
     bool selectStateForCurrentConditions();
-    bool configureEvsPipeline(State desiredState);  // Only call from one thread!
+    bool configureEvsPipeline(State desiredState); // Only call from one thread!
 
-    sp<IVehicle>                mVehicle;
-    sp<IEvsEnumerator>          mEvs;
-    sp<IEvsDisplay>             mDisplay;
-    const ConfigManager&        mConfig;
+    sp<IVehicle> mVehicle;
+    sp<IEvsEnumerator> mEvs;
+    sp<IEvsDisplay> mDisplay;
+    const ConfigManager& mConfig;
 
-    VehiclePropValue            mGearValue;
-    VehiclePropValue            mTurnSignalValue;
+    VehiclePropValue mGearValue;
+    VehiclePropValue mTurnSignalValue;
 
-    State                       mCurrentState = OFF;
+    State mCurrentState = OFF;
 
-    std::vector<ConfigManager::CameraInfo>  mCameraList[NUM_STATES];
+    std::vector<ConfigManager::CameraInfo> mCameraList[NUM_STATES];
     std::vector<CameraDesc> mCameraDescList[NUM_STATES];
     std::unique_ptr<RenderBase> mCurrentRenderer;
     std::unique_ptr<RenderBase> mDesiredRenderer;
 
-    std::thread                 mRenderThread;  // The thread that runs the main rendering loop
+    std::thread mRenderThread; // The thread that runs the main rendering loop
 
     // Other threads may want to spur us into action, so we provide a thread safe way to do that
-    std::mutex                  mLock;
-    std::condition_variable     mWakeSignal;
-    std::queue<Command>         mCommandQueue;
+    std::mutex mLock;
+    std::condition_variable mWakeSignal;
+    std::queue<Command> mCommandQueue;
 };
 
-
-#endif //CAR_EVS_APP_EVSSTATECONTROL_H
+#endif // CAR_EVS_APP_EVSSTATECONTROL_H

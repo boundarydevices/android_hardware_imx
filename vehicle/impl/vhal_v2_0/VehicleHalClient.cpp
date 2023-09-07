@@ -36,4 +36,4 @@ void VehicleHalClient::registerPropertyValueCallback(PropertyCallBackType&& call
     mPropCallback = std::move(callback);
 }
 
-}  // namespace android::hardware::automotive::vehicle::V2_0::impl
+} // namespace android::hardware::automotive::vehicle::V2_0::impl

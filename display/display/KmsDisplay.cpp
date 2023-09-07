@@ -14,67 +14,62 @@
  * limitations under the License.
  */
 
-#include <inttypes.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <cutils/log.h>
-#include <sync/sync.h>
-#include <cutils/properties.h>
+#include "KmsDisplay.h"
 
+#include <cutils/log.h>
+#include <cutils/properties.h>
+#include <drm_fourcc.h>
+#include <fcntl.h>
+#include <inttypes.h>
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
-#include <drm_fourcc.h>
+#include <sync/sync.h>
+#include <sys/ioctl.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
 #include "Memory.h"
 #include "MemoryManager.h"
-#include "KmsDisplay.h"
 
 // uncomment below to enable frame dump feature
-//#define DEBUG_DUMP_FRAME
-//#define DEBUG_DUMP_OVERLAY
+// #define DEBUG_DUMP_FRAME
+// #define DEBUG_DUMP_OVERLAY
 
 #ifdef DEBUG_DUMP_FRAME
-static void dump_frame_to_file(char *pbuf, int size, char *filename)
-{
+static void dump_frame_to_file(char *pbuf, int size, char *filename) {
     int fd = 0;
     int len = 0;
     fd = open(filename, O_CREAT | O_RDWR, 0666);
-    if (fd<0) {
-        ALOGE("Unable to open file [%s]\n",
-             filename);
+    if (fd < 0) {
+        ALOGE("Unable to open file [%s]\n", filename);
     }
     len = write(fd, pbuf, size);
     close(fd);
 }
 
-static void dump_frame(char *pbuf, int width, int height, int size)
-{
+static void dump_frame(char *pbuf, int width, int height, int size) {
     static bool start_dump = false;
     static int prev_request_frame_count = 0;
     static int request_frame_count = 0;
     static int dumpped_count = 0;
 
-    if(!start_dump) {
+    if (!start_dump) {
         char value[PROPERTY_VALUE_MAX];
         property_get("vendor.hwc.enable.dump_frame", value, "0");
         request_frame_count = atoi(value);
-        //Previous dump request finished, no more request catched
-        if(prev_request_frame_count == request_frame_count)
-            return;
+        // Previous dump request finished, no more request catched
+        if (prev_request_frame_count == request_frame_count) return;
 
         prev_request_frame_count = request_frame_count;
         if (request_frame_count >= 1)
             start_dump = true;
         else
             start_dump = false;
-
     }
 
-    if((start_dump)&& (request_frame_count >= 1)) {
-        ALOGI("Dump %d frame buffer %p, %d x %d, size %d",
-                dumpped_count, pbuf, width, height, size);
+    if ((start_dump) && (request_frame_count >= 1)) {
+        ALOGI("Dump %d frame buffer %p, %d x %d, size %d", dumpped_count, pbuf, width, height,
+              size);
         if (pbuf != 0) {
             char filename[128];
             memset(filename, 0, 128);
@@ -86,23 +81,21 @@ static void dump_frame(char *pbuf, int width, int height, int size)
 #endif
                     dumpped_count);
             dump_frame_to_file(pbuf, size, filename);
-            dumpped_count ++;
+            dumpped_count++;
         }
-        request_frame_count --;
-        if(request_frame_count == 0){
+        request_frame_count--;
+        if (request_frame_count == 0) {
             start_dump = false;
             property_set("vendor.hwc.enable.dump_frame", "0"); // disable dump when completed
         }
     }
-
 }
 
 #endif
 
 namespace fsl {
 
-KmsDisplay::KmsDisplay()
-{
+KmsDisplay::KmsDisplay() {
     mDrmFd = -1;
     mVsyncThread = NULL;
     mConfigThread = NULL;
@@ -118,7 +111,8 @@ KmsDisplay::KmsDisplay()
     mKmsPlaneNum = 1;
     memset(mKmsPlanes, 0, sizeof(mKmsPlanes));
     memset(&mMode, 0, sizeof(mMode));
-    mDrmModes.clear();;
+    mDrmModes.clear();
+    ;
     mModePrefered = -1;
     mCrtcID = 0;
     mPowerMode = DRM_MODE_DPMS_OFF;
@@ -147,7 +141,7 @@ KmsDisplay::KmsDisplay()
 
     char prop[PROPERTY_VALUE_MAX] = {};
     property_get("ro.boot.androidui.overlay", prop, "");
-    if((prop[0] != '\0') && (strcmp(prop, "enable") == 0)) {
+    if ((prop[0] != '\0') && (strcmp(prop, "enable") == 0)) {
         mUseOverlayAndroidUI = true;
     } else {
         mUseOverlayAndroidUI = false;
@@ -155,7 +149,7 @@ KmsDisplay::KmsDisplay()
 
     memset(prop, 0, PROPERTY_VALUE_MAX);
     property_get("ro.boot.support_hdcp", prop, "");
-    if((prop[0] != '\0') && (strcmp(prop, "enable") == 0)) {
+    if ((prop[0] != '\0') && (strcmp(prop, "enable") == 0)) {
         mHDCPEnable = true;
     } else {
         mHDCPEnable = false;
@@ -163,8 +157,7 @@ KmsDisplay::KmsDisplay()
     mDummylayer = NULL;
 }
 
-KmsDisplay::~KmsDisplay()
-{
+KmsDisplay::~KmsDisplay() {
     sp<VSyncThread> vsync = NULL;
     {
         Mutex::Autolock _l(mLock);
@@ -190,56 +183,58 @@ KmsDisplay::~KmsDisplay()
     if (mEdid != NULL) {
         delete mEdid;
     }
-    if(mDummylayer != NULL) {
+    if (mDummylayer != NULL) {
         delete mDummylayer;
     }
 }
-int KmsDisplay::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+int KmsDisplay::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint32_t w,
+                                       uint32_t h) {
     mSecureDisplay = enable;
     if (!enable && mUseOverlayAndroidUI) {
         mForceModeSet = true;
     }
     if (mSecureDisplay) {
-      // create one dummy memory
-      MemoryDesc desc;
-      desc.mWidth = w;
-      desc.mHeight = h;
-      desc.mFormat = FORMAT_RGBA8888;
-      desc.mFslFormat = FORMAT_RGBA8888;
-      desc.mProduceUsage |= (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER | USAGE_HW_TEXTURE);
-      desc.mFlag = FLAGS_FRAMEBUFFER;
-      desc.checkFormat();
-      {
-          Mutex::Autolock _l(mLock);
-          if (mDummyTarget == NULL) {
-              int ret = mMemoryManager->allocMemory(desc, &mDummyTarget);
-              if (ret == 0 && mDummyTarget != NULL) {
-                      ALOGI("allocate dummy memory ok stride is %d",mDummyTarget->stride);
-              } else {
-                      ALOGE("allocate dummy buffer failed");
-                      return -1;
-              }
-              void *vaddr = NULL;
-              mMemoryManager->lock(mDummyTarget, mDummyTarget->usage,
-                      0, 0, mDummyTarget->width, mDummyTarget->height, &vaddr);
-              mMemoryManager->unlock(mDummyTarget);
-              mDummyTarget->base = (uintptr_t)vaddr;
+        // create one dummy memory
+        MemoryDesc desc;
+        desc.mWidth = w;
+        desc.mHeight = h;
+        desc.mFormat = FORMAT_RGBA8888;
+        desc.mFslFormat = FORMAT_RGBA8888;
+        desc.mProduceUsage |=
+                (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN | USAGE_HW_RENDER | USAGE_HW_TEXTURE);
+        desc.mFlag = FLAGS_FRAMEBUFFER;
+        desc.checkFormat();
+        {
+            Mutex::Autolock _l(mLock);
+            if (mDummyTarget == NULL) {
+                int ret = mMemoryManager->allocMemory(desc, &mDummyTarget);
+                if (ret == 0 && mDummyTarget != NULL) {
+                    ALOGI("allocate dummy memory ok stride is %d", mDummyTarget->stride);
+                } else {
+                    ALOGE("allocate dummy buffer failed");
+                    return -1;
+                }
+                void *vaddr = NULL;
+                mMemoryManager->lock(mDummyTarget, mDummyTarget->usage, 0, 0, mDummyTarget->width,
+                                     mDummyTarget->height, &vaddr);
+                mMemoryManager->unlock(mDummyTarget);
+                mDummyTarget->base = (uintptr_t)vaddr;
 
-              if (mDummyTarget->base != 0) {
-                  memset((void*)mDummyTarget->base, 0xff, mDummyTarget->size);
-              }
-          }
-          mDummylayer = new Layer();
-          mDummylayer->sourceCrop.left = 0;
-          mDummylayer->sourceCrop.top = 0;
-          mDummylayer->sourceCrop.right = w;
-          mDummylayer->sourceCrop.bottom = h;
-          mDummylayer->displayFrame.left = x;
-          mDummylayer->displayFrame.top = y;
-          mDummylayer->displayFrame.right = x + w;
-          mDummylayer->displayFrame.bottom = y + h;
-          mDummylayer->handle = mDummyTarget;
-      }
+                if (mDummyTarget->base != 0) {
+                    memset((void *)mDummyTarget->base, 0xff, mDummyTarget->size);
+                }
+            }
+            mDummylayer = new Layer();
+            mDummylayer->sourceCrop.left = 0;
+            mDummylayer->sourceCrop.top = 0;
+            mDummylayer->sourceCrop.right = w;
+            mDummylayer->sourceCrop.bottom = h;
+            mDummylayer->displayFrame.left = x;
+            mDummylayer->displayFrame.top = y;
+            mDummylayer->displayFrame.right = x + w;
+            mDummylayer->displayFrame.bottom = y + h;
+            mDummylayer->handle = mDummyTarget;
+        }
     } else {
         if (mDummyTarget != NULL) {
             mMemoryManager->releaseMemory(mDummyTarget);
@@ -252,15 +247,13 @@ int KmsDisplay::setSecureDisplayEnable(bool enable, uint32_t x, uint32_t y, uint
 /*
  * Find the property IDs and value that match its name.
  */
-void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType,
-                          const char *propName, uint32_t* propId,
-                          uint64_t* value, int drmfd)
-{
+void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType, const char *propName,
+                                  uint32_t *propId, uint64_t *value, int drmfd) {
     uint64_t ivalue = 0;
     uint32_t id = 0;
 
     drmModeObjectPropertiesPtr pModeObjectProperties =
-        drmModeObjectGetProperties(drmfd, objectID, objectType);
+            drmModeObjectGetProperties(drmfd, objectID, objectType);
 
     if (pModeObjectProperties == NULL) {
         ALOGE("drmModeObjectGetProperties failed.");
@@ -268,8 +261,7 @@ void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType,
     }
 
     for (uint32_t i = 0; i < pModeObjectProperties->count_props; i++) {
-        drmModePropertyPtr pProperty =
-            drmModeGetProperty(drmfd, pModeObjectProperties->props[i]);
+        drmModePropertyPtr pProperty = drmModeGetProperty(drmfd, pModeObjectProperties->props[i]);
         if (pProperty == NULL) {
             ALOGE("drmModeGetProperty failed.");
             continue;
@@ -297,14 +289,10 @@ void KmsDisplay::getPropertyValue(uint32_t objectID, uint32_t objectType,
     }
 }
 
-void KmsDisplay::getTableProperty(uint32_t objectID,
-                                  uint32_t objectType,
-                                  struct TableProperty *table,
-                                  size_t tableLen, int drmfd)
-{
+void KmsDisplay::getTableProperty(uint32_t objectID, uint32_t objectType,
+                                  struct TableProperty *table, size_t tableLen, int drmfd) {
     for (uint32_t i = 0; i < tableLen; i++) {
-        getPropertyValue(objectID, objectType, table[i].name,
-                 table[i].ptr, NULL, drmfd);
+        getPropertyValue(objectID, objectType, table[i].name, table[i].ptr, NULL, drmfd);
         if (*(table[i].ptr) == 0) {
             ALOGE("can't find property ID for \'%s\'.", table[i].name);
         }
@@ -314,62 +302,45 @@ void KmsDisplay::getTableProperty(uint32_t objectID,
 /*
  * Find the property IDs in group with type.
  */
-void KmsPlane::getPropertyIds()
-{
+void KmsPlane::getPropertyIds() {
     struct TableProperty planeTable[] = {
-        {"SRC_X",   &src_x},
-        {"SRC_Y",   &src_y},
-        {"SRC_W",   &src_w},
-        {"SRC_H",   &src_h},
-        {"CRTC_X",  &crtc_x},
-        {"CRTC_Y",  &crtc_y},
-        {"CRTC_W",  &crtc_w},
-        {"CRTC_H",  &crtc_h},
-        {"alpha",   &alpha_id},
-        {"dtrc_table_ofs",   &ofs_id},
-        {"FB_ID",   &fb_id},
-        {"CRTC_ID", &crtc_id},
-        {"IN_FENCE_FD", &fence_id},
+            {"SRC_X", &src_x},           {"SRC_Y", &src_y},   {"SRC_W", &src_w},
+            {"SRC_H", &src_h},           {"CRTC_X", &crtc_x}, {"CRTC_Y", &crtc_y},
+            {"CRTC_W", &crtc_w},         {"CRTC_H", &crtc_h}, {"alpha", &alpha_id},
+            {"dtrc_table_ofs", &ofs_id}, {"FB_ID", &fb_id},   {"CRTC_ID", &crtc_id},
+            {"IN_FENCE_FD", &fence_id},
     };
 
-    KmsDisplay::getTableProperty(mPlaneID,
-                     DRM_MODE_OBJECT_PLANE,
-                     planeTable, ARRAY_LEN(planeTable),
-                     mDrmFd);
+    KmsDisplay::getTableProperty(mPlaneID, DRM_MODE_OBJECT_PLANE, planeTable, ARRAY_LEN(planeTable),
+                                 mDrmFd);
 }
 
 /*
  * Find the property IDs in group with type.
  */
-void KmsDisplay::getKmsProperty()
-{
+void KmsDisplay::getKmsProperty() {
     mCrtc.fence_ptr = 0;
     struct TableProperty crtcTable[] = {
-        {"MODE_ID", &mCrtc.mode_id},
-        {"ACTIVE",  &mCrtc.active},
-        {"ANDROID_OUT_FENCE_PTR", &mCrtc.fence_ptr},
-        {"OUT_FENCE_PTR", &mCrtc.present_fence_ptr},
-        {"force_modeset", &mCrtc.force_modeset_id},
-        {"DISPLAY_TRANSFER", &mCrtc.disp_xfer_id},
+            {"MODE_ID", &mCrtc.mode_id},
+            {"ACTIVE", &mCrtc.active},
+            {"ANDROID_OUT_FENCE_PTR", &mCrtc.fence_ptr},
+            {"OUT_FENCE_PTR", &mCrtc.present_fence_ptr},
+            {"force_modeset", &mCrtc.force_modeset_id},
+            {"DISPLAY_TRANSFER", &mCrtc.disp_xfer_id},
     };
 
     struct TableProperty connectorTable[] = {
-        {"CRTC_ID", &mConnector.crtc_id},
-        {"DPMS", &mConnector.dpms_id},
-        {"HDR_OUTPUT_METADATA", &mConnector.hdr_meta_id},
-        {"Content Protection", &mConnector.protection_id},
+            {"CRTC_ID", &mConnector.crtc_id},
+            {"DPMS", &mConnector.dpms_id},
+            {"HDR_OUTPUT_METADATA", &mConnector.hdr_meta_id},
+            {"Content Protection", &mConnector.protection_id},
     };
 
-    getTableProperty(mCrtcID,
-                     DRM_MODE_OBJECT_CRTC,
-                     crtcTable, ARRAY_LEN(crtcTable),
-                     mDrmFd);
-    getTableProperty(mConnectorID,
-                     DRM_MODE_OBJECT_CONNECTOR,
-                     connectorTable, ARRAY_LEN(connectorTable),
-                     mDrmFd);
+    getTableProperty(mCrtcID, DRM_MODE_OBJECT_CRTC, crtcTable, ARRAY_LEN(crtcTable), mDrmFd);
+    getTableProperty(mConnectorID, DRM_MODE_OBJECT_CONNECTOR, connectorTable,
+                     ARRAY_LEN(connectorTable), mDrmFd);
 
-    for (uint32_t i=0; i<mKmsPlaneNum; i++) {
+    for (uint32_t i = 0; i < mKmsPlaneNum; i++) {
         mKmsPlanes[i].getPropertyIds();
     }
 }
@@ -377,46 +348,35 @@ void KmsDisplay::getKmsProperty()
 /*
  * add properties to a drmModeAtomicReqPtr object.
  */
-void KmsDisplay::setHdrMetaData(drmModeAtomicReqPtr pset,hdr_output_metadata hdrMetaData)
-{
-    drmModeCreatePropertyBlob(mDrmFd, &hdrMetaData,
-             sizeof(hdrMetaData), &mMetadataID);
-    drmModeAtomicAddProperty(pset, mConnectorID,
-                         mConnector.hdr_meta_id, mMetadataID);
+void KmsDisplay::setHdrMetaData(drmModeAtomicReqPtr pset, hdr_output_metadata hdrMetaData) {
+    drmModeCreatePropertyBlob(mDrmFd, &hdrMetaData, sizeof(hdrMetaData), &mMetadataID);
+    drmModeAtomicAddProperty(pset, mConnectorID, mConnector.hdr_meta_id, mMetadataID);
     mModeset = true;
 }
 
-void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID)
-{
+void KmsDisplay::bindCrtc(drmModeAtomicReqPtr pset, uint32_t modeID) {
     /* Specify the mode to use on the CRTC, and make the CRTC active. */
     if (mModeset) {
         ALOGI("Do mode set for display %d", mIndex);
-        drmModeAtomicAddProperty(pset, mCrtcID,
-                             mCrtc.mode_id, modeID);
-        drmModeAtomicAddProperty(pset, mCrtcID,
-                             mCrtc.active, 1);
+        drmModeAtomicAddProperty(pset, mCrtcID, mCrtc.mode_id, modeID);
+        drmModeAtomicAddProperty(pset, mCrtcID, mCrtc.active, 1);
 
         /* Tell the connector to receive pixels from the CRTC. */
-        drmModeAtomicAddProperty(pset, mConnectorID,
-                             mConnector.crtc_id, mCrtcID);
+        drmModeAtomicAddProperty(pset, mConnectorID, mConnector.crtc_id, mCrtcID);
     }
 
     if (mCrtc.present_fence_ptr != 0) {
-        drmModeAtomicAddProperty(pset, mCrtcID,
-                         mCrtc.present_fence_ptr, (uint64_t)&mPresentFence);
+        drmModeAtomicAddProperty(pset, mCrtcID, mCrtc.present_fence_ptr, (uint64_t)&mPresentFence);
     }
 }
 
-void KmsDisplay::bindOutFence(drmModeAtomicReqPtr pset)
-{
+void KmsDisplay::bindOutFence(drmModeAtomicReqPtr pset) {
     if (mCrtc.fence_ptr != 0) {
-        drmModeAtomicAddProperty(pset, mCrtcID,
-                         mCrtc.fence_ptr, (uint64_t)&mOutFence);
+        drmModeAtomicAddProperty(pset, mCrtcID, mCrtc.fence_ptr, (uint64_t)&mOutFence);
     }
 }
 
-int KmsDisplay::getPresentFence(int32_t* outPresentFence)
-{
+int KmsDisplay::getPresentFence(int32_t *outPresentFence) {
     if (outPresentFence != NULL) {
         if (mPresentFence == -1) {
             ALOGV("%s invalid present fence:%d", __func__, mPresentFence);
@@ -427,38 +387,27 @@ int KmsDisplay::getPresentFence(int32_t* outPresentFence)
     return 0;
 }
 
-void KmsPlane::connectCrtc(drmModeAtomicReqPtr pset,
-                    uint32_t crtc, uint32_t fb)
-{
+void KmsPlane::connectCrtc(drmModeAtomicReqPtr pset, uint32_t crtc, uint32_t fb) {
     /*
      * Specify the surface to display in the plane, and connect the
      * plane to the CRTC.
      */
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             fb_id, fb);
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             crtc_id, crtc);
-
+    drmModeAtomicAddProperty(pset, mPlaneID, fb_id, fb);
+    drmModeAtomicAddProperty(pset, mPlaneID, crtc_id, crtc);
 }
 
-void KmsPlane::setAlpha(drmModeAtomicReqPtr pset,
-                    uint32_t alpha)
-{
+void KmsPlane::setAlpha(drmModeAtomicReqPtr pset, uint32_t alpha) {
     /*
      * Specify the alpha of source surface to display.
      */
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             alpha_id, alpha);
+    drmModeAtomicAddProperty(pset, mPlaneID, alpha_id, alpha);
 }
 
-void KmsPlane::setClientFence(drmModeAtomicReqPtr pset, int fd)
-{
-    if (fence_id > 0)
-        drmModeAtomicAddProperty(pset, mPlaneID, fence_id, fd);
+void KmsPlane::setClientFence(drmModeAtomicReqPtr pset, int fd) {
+    if (fence_id > 0) drmModeAtomicAddProperty(pset, mPlaneID, fence_id, fd);
 }
 
-void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta)
-{
+void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta) {
     if (meta == NULL) {
         return;
     }
@@ -469,50 +418,35 @@ void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta)
     /*
      * Specify the offset of table to plane.
      */
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             ofs_id, yoff | ((uint64_t)uvoff) << 32);
+    drmModeAtomicAddProperty(pset, mPlaneID, ofs_id, yoff | ((uint64_t)uvoff) << 32);
 }
 
-void KmsPlane::setSourceSurface(drmModeAtomicReqPtr pset,
-                    uint32_t x, uint32_t y,
-                    uint32_t w, uint32_t h)
-{
+void KmsPlane::setSourceSurface(drmModeAtomicReqPtr pset, uint32_t x, uint32_t y, uint32_t w,
+                                uint32_t h) {
     /*
      * Specify the region of source surface to display (i.e., the
      * "ViewPortIn").  Note these values are in 16.16 format, so shift
      * up by 16.
      */
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             src_x, x);
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             src_y, y);
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             src_w, w << 16);
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             src_h, h << 16);
-
+    drmModeAtomicAddProperty(pset, mPlaneID, src_x, x);
+    drmModeAtomicAddProperty(pset, mPlaneID, src_y, y);
+    drmModeAtomicAddProperty(pset, mPlaneID, src_w, w << 16);
+    drmModeAtomicAddProperty(pset, mPlaneID, src_h, h << 16);
 }
 
-void KmsPlane::setDisplayFrame(drmModeAtomicReqPtr pset,
-                    uint32_t x, uint32_t y,
-                    uint32_t w, uint32_t h)
-{
+void KmsPlane::setDisplayFrame(drmModeAtomicReqPtr pset, uint32_t x, uint32_t y, uint32_t w,
+                               uint32_t h) {
     /*
      * Specify the region within the mode where the image should be
      * displayed (i.e., the "ViewPortOut").
      */
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             crtc_x, x);
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             crtc_y, y);
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             crtc_w, w);
-    drmModeAtomicAddProperty(pset, mPlaneID,
-                             crtc_h, h);
+    drmModeAtomicAddProperty(pset, mPlaneID, crtc_x, x);
+    drmModeAtomicAddProperty(pset, mPlaneID, crtc_y, y);
+    drmModeAtomicAddProperty(pset, mPlaneID, crtc_w, w);
+    drmModeAtomicAddProperty(pset, mPlaneID, crtc_h, h);
 }
 
-int KmsDisplay::setPowerMode(int mode)
-{
+int KmsDisplay::setPowerMode(int mode) {
     Mutex::Autolock _l(mLock);
 
     switch (mode) {
@@ -555,14 +489,13 @@ int KmsDisplay::setPowerMode(int mode)
             disp = 1; // indicate APD display unblank
         else
             disp = 2; // indicate APD display blank
-        err = drmModeObjectSetProperty(mDrmFd, mCrtcID, DRM_MODE_OBJECT_CRTC,
-                      mCrtc.disp_xfer_id, disp);
+        err = drmModeObjectSetProperty(mDrmFd, mCrtcID, DRM_MODE_OBJECT_CRTC, mCrtc.disp_xfer_id,
+                                       disp);
         if (err != 0) {
             ALOGE("failed to set display transfer property:%d", disp);
         }
     } else {
-        err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
-                                          mConnector.dpms_id, mPowerMode);
+        err = drmModeConnectorSetProperty(mDrmFd, mConnectorID, mConnector.dpms_id, mPowerMode);
         if (err != 0) {
             ALOGE("failed to set DPMS mode:%d", mPowerMode);
         }
@@ -571,8 +504,7 @@ int KmsDisplay::setPowerMode(int mode)
     return err;
 }
 
-void KmsDisplay::enableVsync()
-{
+void KmsDisplay::enableVsync() {
     Mutex::Autolock _l(mLock);
     if (mDrmFd < 0) {
         return;
@@ -581,8 +513,7 @@ void KmsDisplay::enableVsync()
     mVsyncThread = new VSyncThread(this);
 }
 
-void KmsDisplay::setVsyncEnabled(bool enabled)
-{
+void KmsDisplay::setVsyncEnabled(bool enabled) {
     sp<VSyncThread> vsync = NULL;
     {
         Mutex::Autolock _l(mLock);
@@ -594,8 +525,7 @@ void KmsDisplay::setVsyncEnabled(bool enabled)
     }
 }
 
-void KmsDisplay::setFakeVSync(bool enable)
-{
+void KmsDisplay::setFakeVSync(bool enable) {
     sp<VSyncThread> vsync = NULL;
     {
         Mutex::Autolock _l(mLock);
@@ -607,8 +537,7 @@ void KmsDisplay::setFakeVSync(bool enable)
     }
 }
 
-bool KmsDisplay::checkOverlay(Layer* layer)
-{
+bool KmsDisplay::checkOverlay(Layer *layer) {
     if (mUseOverlayAndroidUI) {
         if (mSecureDisplay) {
             return false;
@@ -632,22 +561,18 @@ bool KmsDisplay::checkOverlay(Layer* layer)
         return false;
     }
 
-    Memory* memory = layer->handle;
-    if ((memory->fslFormat >= FORMAT_RGBA8888) &&
-        (memory->fslFormat <= FORMAT_BGRA8888)) {
+    Memory *memory = layer->handle;
+    if ((memory->fslFormat >= FORMAT_RGBA8888) && (memory->fslFormat <= FORMAT_BGRA8888)) {
         ALOGV("updateOverlay: invalid format");
         return false;
     }
 
     // overlay only needs on imx8mq and supertiled format.
-    if (!((memory->usage & USAGE_PADDING_BUFFER) &&
-        (memory->fslFormat == FORMAT_NV12)) &&
-        !(memory->flags & FLAGS_SECURE) &&
-        memory->fslFormat != FORMAT_NV12_G1_TILED &&
+    if (!((memory->usage & USAGE_PADDING_BUFFER) && (memory->fslFormat == FORMAT_NV12)) &&
+        !(memory->flags & FLAGS_SECURE) && memory->fslFormat != FORMAT_NV12_G1_TILED &&
         memory->fslFormat != FORMAT_NV12_G2_TILED &&
         memory->fslFormat != FORMAT_NV12_G2_TILED_COMPRESSED &&
-        memory->fslFormat != FORMAT_YCBCR_P010 &&
-        memory->fslFormat != FORMAT_P010 &&
+        memory->fslFormat != FORMAT_YCBCR_P010 && memory->fslFormat != FORMAT_P010 &&
         memory->fslFormat != FORMAT_P010_TILED &&
         memory->fslFormat != FORMAT_P010_TILED_COMPRESSED) {
         return false;
@@ -656,12 +581,11 @@ bool KmsDisplay::checkOverlay(Layer* layer)
     // scaling limitation on imx8mq.
     if (memory->usage & USAGE_PADDING_BUFFER) {
         Rect *rect = &layer->displayFrame;
-        const DisplayConfig& config = mConfigs[mActiveConfig];
+        const DisplayConfig &config = mConfigs[mActiveConfig];
         int w = (rect->right - rect->left) * mMode.hdisplay / config.mXres;
         int h = (rect->bottom - rect->top) * mMode.vdisplay / config.mYres;
         Rect *srect = &layer->sourceCrop;
-        if (w > (srect->right - srect->left) * 7 ||
-            h > (srect->bottom - srect->top) * 7) {
+        if (w > (srect->right - srect->left) * 7 || h > (srect->bottom - srect->top) * 7) {
             ALOGV("work around to GPU composite");
             // fall back to GPU.
             return false;
@@ -671,8 +595,7 @@ bool KmsDisplay::checkOverlay(Layer* layer)
     return true;
 }
 
-bool KmsDisplay::veritySourceSize(Layer* layer)
-{
+bool KmsDisplay::veritySourceSize(Layer *layer) {
     if (layer == NULL || layer->handle == NULL) {
         return false;
     }
@@ -681,22 +604,21 @@ bool KmsDisplay::veritySourceSize(Layer* layer)
     int srcW = rect->right - rect->left;
     int srcH = rect->bottom - rect->top;
     int format = convertFormatToDrm(layer->handle->fslFormat);
-    if (srcW < 64 && ((format == DRM_FORMAT_NV12) ||
-            (format == DRM_FORMAT_NV21) || (format == DRM_FORMAT_P010))) {
+    if (srcW < 64 &&
+        ((format == DRM_FORMAT_NV12) || (format == DRM_FORMAT_NV21) ||
+         (format == DRM_FORMAT_P010))) {
         return false;
-    }
-    else if (srcW < 32 && ((format == DRM_FORMAT_UYVY) ||
-            (format == DRM_FORMAT_VYUY) || (format == DRM_FORMAT_YUYV) ||
-            (format == DRM_FORMAT_YVYU))) {
+    } else if (srcW < 32 &&
+               ((format == DRM_FORMAT_UYVY) || (format == DRM_FORMAT_VYUY) ||
+                (format == DRM_FORMAT_YUYV) || (format == DRM_FORMAT_YVYU))) {
         return false;
     }
 
     return srcW >= 16 && srcH >= 8;
 }
 
-int KmsDisplay::performOverlay()
-{
-    Layer* layer = NULL;
+int KmsDisplay::performOverlay() {
+    Layer *layer = NULL;
     uint8_t gloable_stride = 1;
     int overlay_plane_index = mKmsPlaneNum - 1;
     if (mUseOverlayAndroidUI && mSecureDisplay) {
@@ -713,7 +635,7 @@ int KmsDisplay::performOverlay()
             if (mHDCPDisableCnt > 10) { // no overlay for more than 10 frames, disable HDCP
                 ALOGI("Disable HDCP");
                 int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
-                      mConnector.protection_id, 0);
+                                                      mConnector.protection_id, 0);
                 if (err != 0) {
                     ALOGE("failed to set HDCP property:0");
                 }
@@ -753,9 +675,9 @@ int KmsDisplay::performOverlay()
         }
         if (mHDCPMode != enable) {
             ALOGI("%s HDCP feature", enable ? "Enable" : "Disable");
-            int val = enable? 1 : 0;
-            int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID,
-                          mConnector.protection_id, val);
+            int val = enable ? 1 : 0;
+            int err = drmModeConnectorSetProperty(mDrmFd, mConnectorID, mConnector.protection_id,
+                                                  val);
             if (err != 0) {
                 ALOGE("failed to set HDCP property:%d", val);
             }
@@ -764,8 +686,8 @@ int KmsDisplay::performOverlay()
         }
     }
 #endif
-    Memory* buffer = layer->handle;
-    const DisplayConfig& config = mConfigs[mActiveConfig];
+    Memory *buffer = layer->handle;
+    const DisplayConfig &config = mConfigs[mActiveConfig];
     if (buffer->fbId == 0) {
         int format = convertFormatToDrm(buffer->fslFormat);
         int stride = buffer->stride * gloable_stride;
@@ -777,27 +699,24 @@ int KmsDisplay::performOverlay()
         if (buffer->fslFormat == FORMAT_NV12_TILED) {
             modifiers[0] = DRM_FORMAT_MOD_AMPHION_TILED;
             modifiers[1] = DRM_FORMAT_MOD_AMPHION_TILED;
-        }
-        else if (buffer->fslFormat == FORMAT_NV12_G1_TILED ||
-                buffer->fslFormat == FORMAT_P010_TILED) {
+        } else if (buffer->fslFormat == FORMAT_NV12_G1_TILED ||
+                   buffer->fslFormat == FORMAT_P010_TILED) {
             modifiers[0] = DRM_FORMAT_MOD_VSI_G1_TILED;
             modifiers[1] = DRM_FORMAT_MOD_VSI_G1_TILED;
-        }
-        else if (buffer->fslFormat == FORMAT_NV12_G2_TILED) {
+        } else if (buffer->fslFormat == FORMAT_NV12_G2_TILED) {
             modifiers[0] = DRM_FORMAT_MOD_VSI_G2_TILED;
             modifiers[1] = DRM_FORMAT_MOD_VSI_G2_TILED;
-        }
-        else if (buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
-                buffer->fslFormat == FORMAT_P010_TILED_COMPRESSED) {
+        } else if (buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
+                   buffer->fslFormat == FORMAT_P010_TILED_COMPRESSED) {
             modifiers[0] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
             modifiers[1] = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
         }
-        drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
+        drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t *)&buffer->fbHandle);
         if (mSecureDisplay) {
             pitches[0] = stride;
             bo_handles[0] = buffer->fbHandle;
             offsets[0] = 0;
-        } else if(!mSecureDisplay) {
+        } else if (!mSecureDisplay) {
             pitches[0] = stride;
             pitches[1] = stride;
             offsets[0] = 0;
@@ -805,19 +724,17 @@ int KmsDisplay::performOverlay()
             bo_handles[0] = buffer->fbHandle;
             bo_handles[1] = buffer->fbHandle;
         }
-        if (buffer->fslFormat == FORMAT_NV12_TILED ||
-            buffer->fslFormat == FORMAT_NV12_G1_TILED ||
+        if (buffer->fslFormat == FORMAT_NV12_TILED || buffer->fslFormat == FORMAT_NV12_G1_TILED ||
             buffer->fslFormat == FORMAT_NV12_G2_TILED ||
             buffer->fslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
             buffer->fslFormat == FORMAT_P010_TILED ||
             buffer->fslFormat == FORMAT_P010_TILED_COMPRESSED) {
-            drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height,
-                format, bo_handles, pitches, offsets, modifiers,
-                (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
-        }
-        else {
-            drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format,
-                    bo_handles, pitches, offsets, (uint32_t*)&buffer->fbId, 0);
+            drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height, format, bo_handles,
+                                       pitches, offsets, modifiers, (uint32_t *)&buffer->fbId,
+                                       DRM_MODE_FB_MODIFIERS);
+        } else {
+            drmModeAddFB2(mDrmFd, buffer->width, buffer->height, format, bo_handles, pitches,
+                          offsets, (uint32_t *)&buffer->fbId, 0);
         }
         buffer->kmsFd = mDrmFd;
     }
@@ -830,15 +747,15 @@ int KmsDisplay::performOverlay()
     }
     if (!mSecureDisplay) {
         bindOutFence(mPset);
-        if (memcmp(&mLastHdrMetaData,&layer->hdrMetadata,sizeof(hdr_output_metadata))) {
+        if (memcmp(&mLastHdrMetaData, &layer->hdrMetadata, sizeof(hdr_output_metadata))) {
             // Only pass HDR metadata and flag on HDR supported display.
             if (mEdid != NULL && mEdid->isHdrSupported()) {
-                setHdrMetaData(mPset,layer->hdrMetadata);
+                setHdrMetaData(mPset, layer->hdrMetadata);
                 layer->isHdrMode = true;
                 mLastHdrMetaData = layer->hdrMetadata;
             }
         }
-        MetaData * meta = MemoryManager::getInstance()->getMetaData(buffer);
+        MetaData *meta = MemoryManager::getInstance()->getMetaData(buffer);
         if (meta != NULL && meta->mFlags & FLAGS_COMPRESSED_OFFSET) {
             mKmsPlanes[overlay_plane_index].setTableOffset(mPset, meta);
             meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
@@ -855,12 +772,15 @@ int KmsDisplay::performOverlay()
     int h = (rect->bottom - rect->top) * mMode.vdisplay / config.mYres;
     if (!mSecureDisplay && (mCustomizeUI == UI_SCALE_NONE)) {
 #if defined(WORKAROUND_DOWNSCALE_LIMITATION) || defined(WORKAROUND_DOWNSCALE_LIMITATION_DCSS)
-        mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
+        mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, x, y, ALIGN_PIXEL_2(w - 1),
+                                                        ALIGN_PIXEL_2(h - 1));
 #else
         mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, x, y, w, h);
 #endif
     } else {
-        mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top);
+        mKmsPlanes[overlay_plane_index].setDisplayFrame(mPset, rect->left, rect->top,
+                                                        rect->right - rect->left,
+                                                        rect->bottom - rect->top);
     }
     rect = &layer->sourceCrop;
     if (!mSecureDisplay) {
@@ -869,21 +789,28 @@ int KmsDisplay::performOverlay()
         int srcH = rect->bottom - rect->top;
         if (srcW < w) w = srcW;
         if (srcH < h) h = srcH;
-        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, 0, 0, ALIGN_PIXEL_2(w-1), ALIGN_PIXEL_2(h-1));
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, 0, 0, ALIGN_PIXEL_2(w - 1),
+                                                         ALIGN_PIXEL_2(h - 1));
 #elif defined(WORKAROUND_DOWNSCALE_LIMITATION_DCSS)
-        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top, ALIGN_PIXEL_2(rect->right - rect->left -1), ALIGN_PIXEL_2(rect->bottom - rect->top -1));
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top,
+                                                         ALIGN_PIXEL_2(rect->right - rect->left -
+                                                                       1),
+                                                         ALIGN_PIXEL_2(rect->bottom - rect->top -
+                                                                       1));
 #else
-        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top);
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top,
+                                                         rect->right - rect->left,
+                                                         rect->bottom - rect->top);
 #endif
     } else {
-        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top);
+        mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, rect->left, rect->top,
+                                                         rect->right - rect->left,
+                                                         rect->bottom - rect->top);
     }
     return true;
 }
 
-
-int KmsDisplay::updateScreen()
-{
+int KmsDisplay::updateScreen() {
     sp<ConfigThread> cfgThread = mConfigThread;
     if (cfgThread != NULL && mRefreshRequired) {
         const nsecs_t refreshTime = systemTime(CLOCK_MONOTONIC);
@@ -893,7 +820,7 @@ int KmsDisplay::updateScreen()
     int drmfd = -1;
     int primary_plane_index = 0;
 
-    Memory* buffer = NULL;
+    Memory *buffer = NULL;
     {
         Mutex::Autolock _l(mLock);
 
@@ -907,11 +834,11 @@ int KmsDisplay::updateScreen()
                 primary_plane_index = mKmsPlaneNum - 1;
             }
             if (mForceModeSet) {
-                 mForceModeSet  = false;
-                 bool var = true;
-                 drmModeObjectSetProperty(mDrmFd, mCrtcID, DRM_MODE_OBJECT_CRTC,
-                                  mCrtc.force_modeset_id, var);
-                 mModeset = true;
+                mForceModeSet = false;
+                bool var = true;
+                drmModeObjectSetProperty(mDrmFd, mCrtcID, DRM_MODE_OBJECT_CRTC,
+                                         mCrtc.force_modeset_id, var);
+                mModeset = true;
             }
             buffer = mRenderTarget;
         } else {
@@ -943,7 +870,7 @@ int KmsDisplay::updateScreen()
         return -EINVAL;
     }
 
-    const DisplayConfig& config = mConfigs[mActiveConfig];
+    const DisplayConfig &config = mConfigs[mActiveConfig];
     if (buffer->fbId == 0) {
         int format = convertFormatToDrm(config.mFormat);
         int stride = buffer->stride * config.mBytespixel;
@@ -953,10 +880,9 @@ int KmsDisplay::updateScreen()
         uint64_t modifiers[4] = {0};
 
         if (!mUseOverlayAndroidUI) {
-            mNoResolve = mAllowModifier && (buffer->usage &
-                (USAGE_GPU_TILED_VIV | USAGE_GPU_TS_VIV));
+            mNoResolve =
+                    mAllowModifier && (buffer->usage & (USAGE_GPU_TILED_VIV | USAGE_GPU_TS_VIV));
             if (mNoResolve) {
-
 #ifdef FRAMEBUFFER_COMPRESSION
                 if (buffer->usage & USAGE_GPU_TS_VIV)
                     modifiers[0] = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED_FC;
@@ -971,8 +897,7 @@ int KmsDisplay::updateScreen()
                 }
             }
         } else {
-            mNoResolve = mAllowModifier && (buffer->usage &
-                USAGE_GPU_TILED_VIV);
+            mNoResolve = mAllowModifier && (buffer->usage & USAGE_GPU_TILED_VIV);
             if (mNoResolve) {
 #ifdef WORKAROUND_DISPLAY_UNDERRUN
                 modifiers[0] = DRM_FORMAT_MOD_VIVANTE_TILED;
@@ -983,7 +908,7 @@ int KmsDisplay::updateScreen()
         }
 
         pitches[0] = stride;
-        drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t*)&buffer->fbHandle);
+        drmPrimeFDToHandle(mDrmFd, buffer->fd, (uint32_t *)&buffer->fbHandle);
         bo_handles[0] = buffer->fbHandle;
         if (mNoResolve) {
             /* workaround GPU SUPER_TILED R/B swap issue, for no-resolve and tiled output
@@ -992,18 +917,17 @@ int KmsDisplay::updateScreen()
             if (format == DRM_FORMAT_XBGR8888) format = DRM_FORMAT_XRGB8888;
             if (format == DRM_FORMAT_ABGR8888) format = DRM_FORMAT_ARGB8888;
 
-            drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height,
-                format, bo_handles, pitches, offsets, modifiers,
-                (uint32_t*)&buffer->fbId, DRM_MODE_FB_MODIFIERS);
-        }
-        else {
+            drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height, format, bo_handles,
+                                       pitches, offsets, modifiers, (uint32_t *)&buffer->fbId,
+                                       DRM_MODE_FB_MODIFIERS);
+        } else {
 #ifdef WORKAROUND_DCNANO_BGRX
             if (format == DRM_FORMAT_ARGB8888) format = DRM_FORMAT_XRGB8888;
 #endif
             /* IMX8MQ mxsfb driver require buffer pitches == width * format_cpp,
                so here buffer width use stride directly. */
-            drmModeAddFB2(mDrmFd, buffer->stride, buffer->height, format,
-                    bo_handles, pitches, offsets, (uint32_t*)&buffer->fbId, 0);
+            drmModeAddFB2(mDrmFd, buffer->stride, buffer->height, format, bo_handles, pitches,
+                          offsets, (uint32_t *)&buffer->fbId, 0);
         }
         buffer->kmsFd = mDrmFd;
     }
@@ -1026,7 +950,7 @@ int KmsDisplay::updateScreen()
         hdr_output_metadata hdrMetaData;
         memset(&hdrMetaData, 0, sizeof(hdrMetaData));
         mLastHdrMetaData = hdrMetaData;
-        drmModeAtomicAddProperty(mPset, mConnectorID,mConnector.hdr_meta_id, 0);
+        drmModeAtomicAddProperty(mPset, mConnectorID, mConnector.hdr_meta_id, 0);
         mModeset = true;
     }
 
@@ -1043,22 +967,19 @@ int KmsDisplay::updateScreen()
     // all layer is in overlay state.
 
     if (((mComposeFlag & CLIENT_COMPOSE_MASK) ^ CLIENT_COMPOSE_MASK) &&
-             ( ((mComposeFlag >> 1) ^ (mComposeFlag & OVERLAY_COMPOSE_MASK)) ||
-             ( (mComposeFlag & ONLY_OVERLAY_MASK) ))) {
+        (((mComposeFlag >> 1) ^ (mComposeFlag & OVERLAY_COMPOSE_MASK)) ||
+         ((mComposeFlag & ONLY_OVERLAY_MASK)))) {
         if (buffer->base == 0) {
             void *vaddr = NULL;
-            int usage = buffer->usage | USAGE_SW_READ_OFTEN
-                    | USAGE_SW_WRITE_OFTEN;
-            mMemoryManager->lock(buffer, usage,
-                    0, 0, buffer->width, buffer->height, &vaddr);
+            int usage = buffer->usage | USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN;
+            mMemoryManager->lock(buffer, usage, 0, 0, buffer->width, buffer->height, &vaddr);
             mMemoryManager->unlock(buffer);
             buffer->base = (uintptr_t)vaddr;
         }
 
         if (buffer->base != 0) {
-            memset((void*)buffer->base, 0, buffer->size);
-        }
-        else {
+            memset((void *)buffer->base, 0, buffer->size);
+        } else {
             ALOGE("%s can't get virtual address to clear screen!", __func__);
         }
     }
@@ -1073,14 +994,13 @@ int KmsDisplay::updateScreen()
 #else
     Memory *hnd = buffer;
 #endif
-    if(hnd->base == 0) {
+    if (hnd->base == 0) {
         void *vaddr = NULL;
         int usage = hnd->usage | USAGE_SW_READ_OFTEN;
         mMemoryManager->lock(hnd, usage, 0, 0, hnd->width, hnd->height, &vaddr);
         dump_frame((char *)vaddr, hnd->width, hnd->height, hnd->size);
         mMemoryManager->unlock(hnd);
-    }
-    else
+    } else
         dump_frame((char *)hnd->base, hnd->width, hnd->height, hnd->size);
 #endif
 
@@ -1119,7 +1039,7 @@ int KmsDisplay::updateScreen()
 #endif
     // DRM driver will hold two frames in async mode.
     // So user space should wait two vsync interval when it is busy.
-    for (uint32_t i=0; i<32; i++) {
+    for (uint32_t i = 0; i < 32; i++) {
         int ret = drmModeAtomicCommit(drmfd, mPset, flags, NULL);
         if (ret == -EBUSY) {
             ALOGV("commit pset busy and try again");
@@ -1128,8 +1048,7 @@ int KmsDisplay::updateScreen()
                 ALOGE("%s atomic commit failed", __func__);
             }
             continue;
-        }
-        else if (ret != 0) {
+        } else if (ret != 0) {
             ALOGI("Failed to commit pset to display %d, ret=%d", mIndex, ret);
         }
 
@@ -1138,19 +1057,20 @@ int KmsDisplay::updateScreen()
         char value[PROPERTY_VALUE_MAX];
         property_get("vendor.hwc.debug.dump_refresh_rate", value, "0");
         m_request_refresh_cnt = atoi(value);
-        if (m_request_refresh_cnt <= 0)
-            break;
+        if (m_request_refresh_cnt <= 0) break;
 
         if (m_pre_commit_time > 0) {
             m_total_commit_time += commit_time - m_pre_commit_time;
             m_total_commit_cost += commit_time - commit_start;
-            m_total_sf_delay += (int64_t)commit_start - m_pre_commit_start - mConfigs[mActiveConfig].mVsyncPeriod;
+            m_total_sf_delay += (int64_t)commit_start - m_pre_commit_start -
+                    mConfigs[mActiveConfig].mVsyncPeriod;
             m_commit_cnt++;
             if (m_commit_cnt >= m_request_refresh_cnt) {
                 refresh_rate = 1000000000.0 * m_commit_cnt / m_total_commit_time;
-                ALOGI("id= %d, refresh rate= %3.2f fps, commit wait=%1.4fms/frame, surfaceflinger delay=%1.4fms/frame",
-                       mIndex, refresh_rate, m_total_commit_cost/(m_commit_cnt * 1000000.0),
-                       m_total_sf_delay/(m_commit_cnt * 1000000.0));
+                ALOGI("id= %d, refresh rate= %3.2f fps, commit wait=%1.4fms/frame, surfaceflinger "
+                      "delay=%1.4fms/frame",
+                      mIndex, refresh_rate, m_total_commit_cost / (m_commit_cnt * 1000000.0),
+                      m_total_sf_delay / (m_commit_cnt * 1000000.0));
                 m_total_sf_delay = 0;
                 m_total_commit_time = 0;
                 m_total_commit_cost = 0;
@@ -1195,8 +1115,7 @@ int KmsDisplay::updateScreen()
     return 0;
 }
 
-bool KmsDisplay::getGUIResolution(int &width, int &height)
-{
+bool KmsDisplay::getGUIResolution(int &width, int &height) {
     bool ret = true;
     int w = 0, h = 0, temp = 0;
 
@@ -1209,7 +1128,8 @@ bool KmsDisplay::getGUIResolution(int &width, int &height)
         w = atoi(w_buf);
         h = atoi(h_buf);
         mCustomizeUI = UI_SCALE_HARDWARE;
-    } else if (!strncmp(value, "ssw", 3) && (sscanf(value, "ssw%[0-9]x%[0-9]", w_buf, h_buf) == 2)) {
+    } else if (!strncmp(value, "ssw", 3) &&
+               (sscanf(value, "ssw%[0-9]x%[0-9]", w_buf, h_buf) == 2)) {
         w = atoi(w_buf);
         h = atoi(h_buf);
         mCustomizeUI = UI_SCALE_SOFTWARE;
@@ -1217,16 +1137,13 @@ bool KmsDisplay::getGUIResolution(int &width, int &height)
         if (!strncmp(value, "4k", 2)) {
             w = 3840;
             h = 2160;
-        }
-        else if (!strncmp(value, "1080p", 5)) {
+        } else if (!strncmp(value, "1080p", 5)) {
             w = 1920;
             h = 1080;
-        }
-        else if (!strncmp(value, "720p", 4)) {
+        } else if (!strncmp(value, "720p", 4)) {
             w = 1280;
             h = 720;
-        }
-        else if (!strncmp(value, "480p", 4)) {
+        } else if (!strncmp(value, "480p", 4)) {
             w = 640;
             h = 480;
         } else {
@@ -1239,17 +1156,14 @@ bool KmsDisplay::getGUIResolution(int &width, int &height)
         }
     }
     if (w > 0 && h > 0) {
-        if (w < width)
-            width = w;
-        if (h < height)
-            height = h;
+        if (w < width) width = w;
+        if (h < height) height = h;
     }
 
     return ret;
 }
 
-int KmsDisplay::openKms()
-{
+int KmsDisplay::openKms() {
     Mutex::Autolock _l(mLock);
 
     if (mDrmFd < 0 || mConnectorID == 0) {
@@ -1282,16 +1196,17 @@ int KmsDisplay::openKms()
     drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
     if (pConnector == NULL) {
         ALOGE("%s drmModeGetConnector failed for "
-              "connector index %d", __func__, mConnectorID);
+              "connector index %d",
+              __func__, mConnectorID);
         return -ENODEV;
     }
 
-    drmModeEncoderPtr pEncoder =
-        drmModeGetEncoder(mDrmFd, pConnector->encoders[0]);
+    drmModeEncoderPtr pEncoder = drmModeGetEncoder(mDrmFd, pConnector->encoders[0]);
 
     if (pEncoder == NULL) {
         ALOGE("drmModeGetEncoder failed for"
-              "encoder 0x%08x", pConnector->encoders[0]);
+              "encoder 0x%08x",
+              pConnector->encoders[0]);
         return -ENODEV;
     }
 
@@ -1320,10 +1235,9 @@ int KmsDisplay::openKms()
     int format = FORMAT_RGBX8888;
     drmModePlanePtr planePtr = drmModeGetPlane(mDrmFd, mKmsPlanes[0].mPlaneID);
     for (uint32_t i = 0; i < planePtr->count_formats; i++) {
-        ALOGV("enum format:%c%c%c%c", planePtr->formats[i]&0xFF,
-                (planePtr->formats[i]>>8)&0xFF,
-                (planePtr->formats[i]>>16)&0xFF,
-                (planePtr->formats[i]>>24)&0xFF);
+        ALOGV("enum format:%c%c%c%c", planePtr->formats[i] & 0xFF,
+              (planePtr->formats[i] >> 8) & 0xFF, (planePtr->formats[i] >> 16) & 0xFF,
+              (planePtr->formats[i] >> 24) & 0xFF);
         if (planePtr->formats[i] == DRM_FORMAT_ABGR8888) {
             format = FORMAT_RGBA8888;
             break;
@@ -1352,7 +1266,7 @@ int KmsDisplay::openKms()
         }
     }
 
-    DisplayConfig& config = mConfigs[configId];
+    DisplayConfig &config = mConfigs[configId];
     ALOGW("Display index= %d \n"
           "configId     = %d \n"
           "xres         = %d px\n"
@@ -1363,8 +1277,7 @@ int KmsDisplay::openKms()
           "fps          = %.2f Hz\n"
           "mode.width   = %d px\n"
           "mode.height  = %d px\n",
-          mIndex, configId,
-          config.mXres, config.mYres, format, config.mXdpi / 1000.0f,
+          mIndex, configId, config.mXres, config.mYres, format, config.mXdpi / 1000.0f,
           config.mYdpi / 1000.0f, config.mFps, mMode.hdisplay, mMode.vdisplay);
 
     if (pConnector != NULL) {
@@ -1375,20 +1288,18 @@ int KmsDisplay::openKms()
     mActiveConfig = configId;
 
     prepareTargetsLocked();
-    if (mConfigThread == NULL)
-        mConfigThread = new ConfigThread(this);
+    if (mConfigThread == NULL) mConfigThread = new ConfigThread(this);
 
     if (mEdid != NULL) {
         delete mEdid;
     }
-    mEdid = new Edid(mDrmFd,mConnectorID);
+    mEdid = new Edid(mDrmFd, mConnectorID);
     return 0;
 }
 
-int KmsDisplay::openFakeKms()
-{
+int KmsDisplay::openFakeKms() {
     mType = DISPLAY_HDMI;
-    int width = 1920,height = 1080,vrefresh = 60,prefermode = 0;
+    int width = 1920, height = 1080, vrefresh = 60, prefermode = 0;
     parseDisplayMode(&width, &height, &vrefresh, &prefermode);
 
     if ((mBackupConfig.mXres > 0) && (mBackupConfig.mYres > 0)) {
@@ -1401,12 +1312,12 @@ int KmsDisplay::openFakeKms()
         return -1;
     }
 
-    DisplayConfig& config = mConfigs[configId];
+    DisplayConfig &config = mConfigs[configId];
     config.mXdpi = 160000;
     config.mYdpi = 160000;
 
-    config.mFps  = 60.0f;
-    config.mVsyncPeriod  = 1000000000 / config.mFps;
+    config.mFps = 60.0f;
+    config.mVsyncPeriod = 1000000000 / config.mFps;
     config.mFormat = FORMAT_RGBA8888;
     config.mBytespixel = 4;
     ALOGW("Placeholder of primary display, config:\n"
@@ -1417,8 +1328,7 @@ int KmsDisplay::openFakeKms()
           "xdpi         = %.2f ppi\n"
           "ydpi         = %.2f ppi\n"
           "fps          = %.2f Hz\n",
-          configId,
-          config.mXres, config.mYres, config.mFormat, config.mXdpi / 1000.0f,
+          configId, config.mXres, config.mYres, config.mFormat, config.mXdpi / 1000.0f,
           config.mYdpi / 1000.0f, config.mFps);
 
     mActiveConfig = configId;
@@ -1435,34 +1345,25 @@ struct DisplayMode {
 };
 
 DisplayMode gDisplayModes[16] = {
- {"4kp60", 3840, 2160, 60},
- {"4kp50", 3840, 2160, 50},
- {"4kp30", 3840, 2160, 30},
- {"1080p60", 1920, 1080, 60},
- {"1080p50", 1920, 1080, 50},
- {"1080p30", 1920, 1080, 30},
- {"720p60", 1280, 720, 60},
- {"720p50", 1280, 720, 50},
- {"720p30", 1280, 720, 30},
- {"480p60", 640, 480, 60},
- {"480p50", 640, 480, 50},
- {"480p30", 640, 480, 30},
- {"4k", 3840, 2160, 60}, // default as 60fps
- {"1080p", 1920, 1080, 60}, // default as 60fps
- {"720p", 1280, 720, 60}, // default as 60fps
- {"480p", 640, 480, 60}, // default as 60fps
+        {"4kp60", 3840, 2160, 60},   {"4kp50", 3840, 2160, 50},   {"4kp30", 3840, 2160, 30},
+        {"1080p60", 1920, 1080, 60}, {"1080p50", 1920, 1080, 50}, {"1080p30", 1920, 1080, 30},
+        {"720p60", 1280, 720, 60},   {"720p50", 1280, 720, 50},   {"720p30", 1280, 720, 30},
+        {"480p60", 640, 480, 60},    {"480p50", 640, 480, 50},    {"480p30", 640, 480, 30},
+        {"4k", 3840, 2160, 60},    // default as 60fps
+        {"1080p", 1920, 1080, 60}, // default as 60fps
+        {"720p", 1280, 720, 60},   // default as 60fps
+        {"480p", 640, 480, 60},    // default as 60fps
 };
 
-void KmsDisplay::parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode)
-{
+void KmsDisplay::parseDisplayMode(int *width, int *height, int *vrefresh, int *prefermode) {
     char value[PROPERTY_VALUE_MAX];
     memset(value, 0, sizeof(value));
     property_get("ro.boot.displaymode", value, "p");
 
     int i = 0;
-    int modeCount = sizeof(gDisplayModes)/sizeof(DisplayMode);
+    int modeCount = sizeof(gDisplayModes) / sizeof(DisplayMode);
     *prefermode = 0;
-    for (i=0; i < modeCount; i++) {
+    for (i = 0; i < modeCount; i++) {
         if (!strncmp(value, gDisplayModes[i].modestr, strlen(gDisplayModes[i].modestr))) {
             *width = gDisplayModes[i].width;
             *height = gDisplayModes[i].height;
@@ -1474,21 +1375,21 @@ void KmsDisplay::parseDisplayMode(int *width, int *height, int *vrefresh, int *p
     if (i == modeCount) {
         bool isValid = true;
         char delim[] = "xp";
-        int modeResult[3]={0};
-        //displaymode format should be 1920x1080p60
-        if(strstr(value,"x") && strstr(value,"p")) {
+        int modeResult[3] = {0};
+        // displaymode format should be 1920x1080p60
+        if (strstr(value, "x") && strstr(value, "p")) {
             char *s = strdup(value);
             char *token;
-            for (i = 0,token = strsep(&s,delim); i < 3 && token != NULL; token = strsep(&s,delim),i++) {
-                modeResult[i]= atoi(token);
+            for (i = 0, token = strsep(&s, delim); i < 3 && token != NULL;
+                 token = strsep(&s, delim), i++) {
+                modeResult[i] = atoi(token);
                 if (modeResult[i] <= 0) {
                     isValid = false;
                     break;
                 }
             }
-        }
-        else {
-           isValid = false;
+        } else {
+            isValid = false;
         }
 
         if (isValid) {
@@ -1496,9 +1397,8 @@ void KmsDisplay::parseDisplayMode(int *width, int *height, int *vrefresh, int *p
             *height = modeResult[1];
             *vrefresh = modeResult[2];
             *prefermode = 0;
-        }
-        else {
-            //Set default mode as 1080p60
+        } else {
+            // Set default mode as 1080p60
             *width = 1920;
             *height = 1080;
             *vrefresh = 60;
@@ -1507,8 +1407,7 @@ void KmsDisplay::parseDisplayMode(int *width, int *height, int *vrefresh, int *p
     }
 }
 
-int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
-{
+int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector) {
     int i, index = 0, prefer_index = -1;
     unsigned int delta = -1, rdelta = -1;
     int width = 0, height = 0, vrefresh = 60;
@@ -1519,44 +1418,45 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
     mMode.vrefresh = vrefresh;
     mMode.hdisplay = width;
     mMode.vdisplay = height;
-    ALOGI("Require mode:width:%d, height:%d, vrefresh %d, prefermode %d", width, height, vrefresh, prefermode);
+    ALOGI("Require mode:width:%d, height:%d, vrefresh %d, prefermode %d", width, height, vrefresh,
+          prefermode);
     if (pConnector->count_modes > 0) {
         index = pConnector->count_modes;
         prefer_index = pConnector->count_modes;
         // find the best display mode.
         mDrmModes.clear();
         mModePrefered = -1;
-        for (i=0; i<pConnector->count_modes; i++) {
+        for (i = 0; i < pConnector->count_modes; i++) {
             drmModeModeInfo mode = pConnector->modes[i];
             mDrmModes.add(mode);
 
-            ALOGV("Display mode[%d]: w:%d, h:%d, vrefresh %d", i, mode.hdisplay, mode.vdisplay, mode.vrefresh);
+            ALOGV("Display mode[%d]: w:%d, h:%d, vrefresh %d", i, mode.hdisplay, mode.vdisplay,
+                  mode.vrefresh);
             if (mode.type & DRM_MODE_TYPE_PREFERRED) {
                 prefer_index = i;
             }
 
-            rdelta = abs((mMode.vdisplay - mode.vdisplay)) + \
-                         abs((mMode.hdisplay - mode.hdisplay));
-            //Match the resolution fristly
-            //Choose the modes based on vrefresh if have two same resolutions
+            rdelta = abs((mMode.vdisplay - mode.vdisplay)) + abs((mMode.hdisplay - mode.hdisplay));
+            // Match the resolution fristly
+            // Choose the modes based on vrefresh if have two same resolutions
             if (rdelta < delta) {
                 delta = rdelta;
                 index = i;
-            }
-            else if (rdelta == delta) {
-                //Make prefer_index has the priority. Once prefer_index is choosed, only update the index
-                //if new mode has vrefresh same as required.
-                if ( (prefer_index < pConnector->count_modes)&& (index == prefer_index)) {
+            } else if (rdelta == delta) {
+                // Make prefer_index has the priority. Once prefer_index is choosed, only update the
+                // index if new mode has vrefresh same as required.
+                if ((prefer_index < pConnector->count_modes) && (index == prefer_index)) {
                     drmModeModeInfo prefer_mode = pConnector->modes[prefer_index];
-                    if (( mMode.vrefresh != prefer_mode.vrefresh)&& ( mMode.vrefresh == mode.vrefresh))
+                    if ((mMode.vrefresh != prefer_mode.vrefresh) &&
+                        (mMode.vrefresh == mode.vrefresh))
                         index = i;
-                }
-                else {
-                    //Make first matched fps/w/h has the priority.
-                    //Only update the index if the new mode has more precise vrefresh than previous
-                    //choosed mode
+                } else {
+                    // Make first matched fps/w/h has the priority.
+                    // Only update the index if the new mode has more precise vrefresh than previous
+                    // choosed mode
                     drmModeModeInfo index_mode = pConnector->modes[index];
-                    if (( mMode.vrefresh != index_mode.vrefresh)&& ( mMode.vrefresh == mode.vrefresh))
+                    if ((mMode.vrefresh != index_mode.vrefresh) &&
+                        (mMode.vrefresh == mode.vrefresh))
                         index = i;
                 }
             }
@@ -1575,14 +1475,14 @@ int KmsDisplay::getDisplayMode(drmModeConnectorPtr pConnector)
         // display mode found in connector.
         mMode = pConnector->modes[index];
         mModePrefered = index;
-        ALOGI("Find best mode w:%d, h:%d, vrefresh:%d at mode index %d", mMode.hdisplay, mMode.vdisplay, mMode.vrefresh, index);
+        ALOGI("Find best mode w:%d, h:%d, vrefresh:%d at mode index %d", mMode.hdisplay,
+              mMode.vdisplay, mMode.vrefresh, index);
     }
 
     return 0;
 }
 
-int KmsDisplay::getPrimaryPlane()
-{
+int KmsDisplay::getPrimaryPlane() {
     drmModePlaneResPtr pPlaneRes = drmModeGetPlaneResources(mDrmFd);
     if (pPlaneRes == NULL) {
         ALOGE("drmModeGetPlaneResources failed");
@@ -1601,10 +1501,10 @@ int KmsDisplay::getPrimaryPlane()
 
         crtcs = pPlane->possible_crtcs;
 
-        for (size_t k=0; k<pPlane->count_formats; k++) {
+        for (size_t k = 0; k < pPlane->count_formats; k++) {
             uint32_t nFormat = pPlane->formats[k];
-            ALOGV("available format: %c%c%c%c", nFormat&0xFF, (nFormat>>8)&0xFF,
-                            (nFormat>>16)&0xFF, (nFormat>>24)&0xFF);
+            ALOGV("available format: %c%c%c%c", nFormat & 0xFF, (nFormat >> 8) & 0xFF,
+                  (nFormat >> 16) & 0xFF, (nFormat >> 24) & 0xFF);
         }
 
         drmModeFreePlane(pPlane);
@@ -1613,9 +1513,7 @@ int KmsDisplay::getPrimaryPlane()
             continue;
         }
 
-        getPropertyValue(pPlaneRes->planes[i],
-                         DRM_MODE_OBJECT_PLANE,
-                        "type", NULL, &type, mDrmFd);
+        getPropertyValue(pPlaneRes->planes[i], DRM_MODE_OBJECT_PLANE, "type", NULL, &type, mDrmFd);
 
         if (type == DRM_PLANE_TYPE_PRIMARY) {
             mKmsPlanes[0].mPlaneID = pPlaneRes->planes[i];
@@ -1638,8 +1536,7 @@ int KmsDisplay::getPrimaryPlane()
     return 0;
 }
 
-bool KmsDisplay::isHdrSupported()
-{
+bool KmsDisplay::isHdrSupported() {
 #ifdef ENABLE_HDR_CHECK
     // Android framework will check whether display support HDR10 or not.
     // And force ClientComposition without passing layer to HWC if not support.
@@ -1651,8 +1548,7 @@ bool KmsDisplay::isHdrSupported()
 #endif
 }
 
-int KmsDisplay::closeKms()
-{
+int KmsDisplay::closeKms() {
     ALOGV("close kms");
 
     Mutex::Autolock _l(mLock);
@@ -1666,8 +1562,7 @@ int KmsDisplay::closeKms()
     mModePrefered = -1;
     mDrmModes.clear();
     mFirstConfigId = mFirstConfigId + mConfigs.size();
-    if (mActiveConfig >= 0)
-        mBackupConfig = mConfigs[mActiveConfig];
+    if (mActiveConfig >= 0) mBackupConfig = mConfigs[mActiveConfig];
     mActiveConfig = -1;
     mConfigs.clear();
     mKmsPlaneNum = 1;
@@ -1682,8 +1577,7 @@ int KmsDisplay::closeKms()
     return 0;
 }
 
-uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
-{
+uint32_t KmsDisplay::convertFormatToDrm(uint32_t format) {
     switch (format) {
         case FORMAT_RGB888:
             return DRM_FORMAT_BGR888;
@@ -1726,15 +1620,14 @@ uint32_t KmsDisplay::convertFormatToDrm(uint32_t format)
     return -EINVAL;
 }
 
-void KmsDisplay::prepareTargetsLocked()
-{
+void KmsDisplay::prepareTargetsLocked() {
     if (!mComposer.isValid()) {
         ALOGI("no need to alloc memory");
         return;
     }
 
     MemoryDesc desc;
-    const DisplayConfig& config = mConfigs[mActiveConfig];
+    const DisplayConfig &config = mConfigs[mActiveConfig];
     if (mCustomizeUI == UI_SCALE_SOFTWARE) {
         // the resoluton of framebuffer should be the same as actual display mode
         // and GUI is only composed in part of framebuffer in display HAL.
@@ -1746,12 +1639,11 @@ void KmsDisplay::prepareTargetsLocked()
     }
     desc.mFormat = config.mFormat;
     desc.mFslFormat = config.mFormat;
-    desc.mProduceUsage |= USAGE_HW_COMPOSER |
-                          USAGE_HW_2D | USAGE_HW_RENDER;
+    desc.mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER;
     desc.mFlag = FLAGS_FRAMEBUFFER;
     desc.checkFormat();
 
-    for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
+    for (int i = 0; i < MAX_FRAMEBUFFERS; i++) {
         mMemoryManager->allocMemory(desc, &mTargets[i]);
     }
     mTargetIndex = 0;
@@ -1760,18 +1652,17 @@ void KmsDisplay::prepareTargetsLocked()
 #ifndef ENABLE_8QM_WIDEVINE
     desc.mProduceUsage |= USAGE_PROTECTED;
 #else
-    desc.mProduceUsage |= USAGE_PROTECTED | GRALLOC_USAGE_HW_VIDEO_ENCODER ;
+    desc.mProduceUsage |= USAGE_PROTECTED | GRALLOC_USAGE_HW_VIDEO_ENCODER;
 #endif
-    for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
+    for (int i = 0; i < MAX_FRAMEBUFFERS; i++) {
         mMemoryManager->allocMemory(desc, &mSecTargets[i]);
     }
     mSecTargetIndex = 0;
 #endif
 }
 
-void KmsDisplay::releaseTargetsLocked()
-{
-    for (int i=0; i<MAX_FRAMEBUFFERS; i++) {
+void KmsDisplay::releaseTargetsLocked() {
+    for (int i = 0; i < MAX_FRAMEBUFFERS; i++) {
         if (mTargets[i] != NULL) {
             mMemoryManager->releaseMemory(mTargets[i]);
             mTargets[i] = NULL;
@@ -1790,17 +1681,15 @@ void KmsDisplay::releaseTargetsLocked()
 #endif
 }
 
-void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format)
-{
+void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format) {
     DisplayConfig config;
     drmModeModeInfo mode;
-    if (format == -1)
-        format = FORMAT_RGBA8888;
+    if (format == -1) format = FORMAT_RGBA8888;
 
     mConfigs.clear();
     memset(&config, 0, sizeof(config));
     int configId = mFirstConfigId;
-    for (int i=0; i<mDrmModes.size(); i++) {
+    for (int i = 0; i < mDrmModes.size(); i++) {
         mode = mDrmModes.itemAt(i);
         config.mXres = mode.hdisplay;
         config.mYres = mode.vdisplay;
@@ -1811,20 +1700,18 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
         // set the default dpi to 160.
         if (mmWidth != 0) {
             config.mXdpi = mode.hdisplay * 25400 / mmWidth;
-        }
-        else {
+        } else {
             config.mXdpi = 160000;
         }
         if (mmHeight != 0) {
             config.mYdpi = mode.vdisplay * 25400 / mmHeight;
-        }
-        else {
+        } else {
             config.mYdpi = 160000;
         }
         if (mode.vrefresh > 0)
-            config.mVsyncPeriod  = 1000000000 / mode.vrefresh;
+            config.mVsyncPeriod = 1000000000 / mode.vrefresh;
         else
-            config.mVsyncPeriod  = 1000000000 / DEFAULT_REFRESH_RATE;
+            config.mVsyncPeriod = 1000000000 / DEFAULT_REFRESH_RATE;
 
         config.mFormat = format;
         config.mBytespixel = getFormatSize(format);
@@ -1836,27 +1723,24 @@ void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int fo
     }
 }
 
-int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format)
-{
+int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format) {
     int id;
     id = findDisplayConfig(width, height, fps, format);
-    if (id >= mFirstConfigId && id < mFirstConfigId + mConfigs.size()
-        && (mConfigs[id].modeIdx == mModePrefered)) {
+    if (id >= mFirstConfigId && id < mFirstConfigId + mConfigs.size() &&
+        (mConfigs[id].modeIdx == mModePrefered)) {
         return id;
     }
 
     DisplayConfig config;
-    if (format == -1)
-        format = FORMAT_RGBA8888; // set to default value
+    if (format == -1) format = FORMAT_RGBA8888; // set to default value
 
-    if (fabs(fps) < FLOAT_TOLERANCE)
-        fps = DEFAULT_REFRESH_RATE; // set to default value
+    if (fabs(fps) < FLOAT_TOLERANCE) fps = DEFAULT_REFRESH_RATE; // set to default value
 
     memset(&config, 0, sizeof(config));
     config.modeIdx = mModePrefered;
     config.mXdpi = 160000;
     config.mYdpi = 160000;
-    config.mVsyncPeriod  = 1000000000 / fps;
+    config.mVsyncPeriod = 1000000000 / fps;
     config.mBytespixel = getFormatSize(format);
     config.cfgGroupId = RESERVED_DISPLAY_GROUP_ID;
     config.mXres = width;
@@ -1870,8 +1754,7 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
     return id;
 }
 
-int KmsDisplay::setNewDrmMode(int index)
-{
+int KmsDisplay::setNewDrmMode(int index) {
     if ((index >= 0) && (index < mDrmModes.size())) {
         mMode = mDrmModes[index];
         mModeset = true;
@@ -1880,8 +1763,7 @@ int KmsDisplay::setNewDrmMode(int index)
     return 0;
 }
 
-int KmsDisplay::setActiveConfigLocked(int configId)
-{
+int KmsDisplay::setActiveConfigLocked(int configId) {
     if (mActiveConfig == configId) {
         ALOGI("the same config, no need to change");
         return 0;
@@ -1898,22 +1780,20 @@ int KmsDisplay::setActiveConfigLocked(int configId)
 
     return 0;
 }
-int KmsDisplay::setActiveConfig(int configId)
-{
+int KmsDisplay::setActiveConfig(int configId) {
     Mutex::Autolock _l(mLock);
     setActiveConfigLocked(configId);
     return 0;
 }
 
 int KmsDisplay::changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool seamlessRequired,
-                        nsecs_t *outAppliedTime, bool *outRefresh, nsecs_t *outRefreshTime)
-{
+                                    nsecs_t *outAppliedTime, bool *outRefresh,
+                                    nsecs_t *outRefreshTime) {
     Mutex::Autolock _l(mLock);
-    if (seamlessRequired)
-        return -1; // change config seamlessly is not support yet
+    if (seamlessRequired) return -1; // change config seamlessly is not support yet
 
     ALOGI("Display %d switch to new configuration mode id=%d, res=%dx%dp%f", mIndex, config,
-               mConfigs[config].mXres, mConfigs[config].mYres, mConfigs[config].mFps);
+          mConfigs[config].mXres, mConfigs[config].mYres, mConfigs[config].mFps);
 
     const nsecs_t now = systemTime(CLOCK_MONOTONIC);
     *outAppliedTime = desiredTimeNanos + 2 * mConfigs[mActiveConfig].mVsyncPeriod;
@@ -1932,31 +1812,27 @@ int KmsDisplay::changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool s
     return 0;
 }
 
-int KmsDisplay::stopRefreshEvent()
-{
+int KmsDisplay::stopRefreshEvent() {
     mRefreshRequired = false;
 
     return 0;
 }
 
 #ifdef HAVE_UNMAPPED_HEAP
-int KmsDisplay::checkSecureLayers()
-{
+int KmsDisplay::checkSecureLayers() {
     int cnt = 0;
     size_t count = mLayerVector.size();
-    for (size_t i=0; i<count; i++) {
-        Layer* layer = mLayerVector[i];
+    for (size_t i = 0; i < count; i++) {
+        Layer *layer = mLayerVector[i];
         Memory *mem = layer->handle;
 
-        if (mem != NULL && (mem->usage & USAGE_PROTECTED))
-            cnt++;
+        if (mem != NULL && (mem->usage & USAGE_PROTECTED)) cnt++;
     }
     return cnt;
 }
 #endif
 
-int KmsDisplay::composeLayers()
-{
+int KmsDisplay::composeLayers() {
     Mutex::Autolock _l(mLock);
 
     // mLayerVector's size > 0 means 2D composite.
@@ -1987,16 +1863,14 @@ int KmsDisplay::composeLayers()
 #endif
         }
 
-        if (mRenderTarget == NULL)
-            return 0;
+        if (mRenderTarget == NULL) return 0;
     }
 
     return composeLayersLocked();
 }
 
-void KmsDisplay::handleVsyncEvent(nsecs_t timestamp)
-{
-    EventListener* callback = NULL;
+void KmsDisplay::handleVsyncEvent(nsecs_t timestamp) {
+    EventListener *callback = NULL;
     {
         Mutex::Autolock _l(mLock);
         callback = mListener;
@@ -2009,9 +1883,9 @@ void KmsDisplay::handleVsyncEvent(nsecs_t timestamp)
     callback->onVSync(DISPLAY_PRIMARY, timestamp, mConfigs[mActiveConfig].mVsyncPeriod);
 }
 
-void KmsDisplay::handleRefreshFrameMissed(nsecs_t newAppliedTime, bool refresh, nsecs_t newRefreshTime)
-{
-    EventListener* callback = NULL;
+void KmsDisplay::handleRefreshFrameMissed(nsecs_t newAppliedTime, bool refresh,
+                                          nsecs_t newRefreshTime) {
+    EventListener *callback = NULL;
     {
         Mutex::Autolock _l(mLock);
         callback = mListener;
@@ -2023,8 +1897,7 @@ void KmsDisplay::handleRefreshFrameMissed(nsecs_t newAppliedTime, bool refresh, 
     callback->onVSyncPeriodTimingChanged(mIndex, newAppliedTime, refresh, newRefreshTime);
 }
 
-int KmsDisplay::setDrm(int drmfd, size_t connectorId)
-{
+int KmsDisplay::setDrm(int drmfd, size_t connectorId) {
     if (drmfd < 0 || connectorId == 0) {
         ALOGE("%s invalid drmfd or connector id", __func__);
         return -ENODEV;
@@ -2039,14 +1912,12 @@ int KmsDisplay::setDrm(int drmfd, size_t connectorId)
     return 0;
 }
 
-int KmsDisplay::powerMode()
-{
+int KmsDisplay::powerMode() {
     Mutex::Autolock _l(mLock);
     return mPowerMode;
 }
 
-int KmsDisplay::readType()
-{
+int KmsDisplay::readType() {
     if (mDrmFd < 0 || mConnectorID == 0) {
         ALOGE("%s invalid drmfd or connector id", __func__);
         return -ENODEV;
@@ -2055,7 +1926,8 @@ int KmsDisplay::readType()
     drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
     if (pConnector == NULL) {
         ALOGE("%s drmModeGetConnector failed for "
-              "connector index %d", __func__, mConnectorID);
+              "connector index %d",
+              __func__, mConnectorID);
         return -ENODEV;
     }
 
@@ -2086,8 +1958,7 @@ int KmsDisplay::readType()
     return 0;
 }
 
-int KmsDisplay::readConnection()
-{
+int KmsDisplay::readConnection() {
     Mutex::Autolock _l(mLock);
     if (mDrmFd < 0 || mConnectorID == 0) {
         ALOGE("%s id:%d, invalid drmfd or connector id", __func__, mIndex);
@@ -2098,19 +1969,18 @@ int KmsDisplay::readConnection()
     drmModeConnectorPtr pConnector = drmModeGetConnector(mDrmFd, mConnectorID);
     if (pConnector == NULL) {
         ALOGE("%s drmModeGetConnector failed for "
-              "connector index %d", __func__, mConnectorID);
+              "connector index %d",
+              __func__, mConnectorID);
         return -ENODEV;
     }
 
-    ALOGI("%s: id:%d, connection: %s, count_modes:%d, count_encoders:%d",
-           __func__, mIndex, pConnector->connection == 1 ? "connected" : "disconnected",
-           pConnector->count_modes, pConnector->count_encoders);
-    if ((pConnector->connection == DRM_MODE_CONNECTED) &&
-        (pConnector->count_modes > 0) &&
+    ALOGI("%s: id:%d, connection: %s, count_modes:%d, count_encoders:%d", __func__, mIndex,
+          pConnector->connection == 1 ? "connected" : "disconnected", pConnector->count_modes,
+          pConnector->count_encoders);
+    if ((pConnector->connection == DRM_MODE_CONNECTED) && (pConnector->count_modes > 0) &&
         (pConnector->count_encoders > 0)) {
         mConnected = true;
-    }
-    else {
+    } else {
         mConnected = false;
     }
 
@@ -2126,24 +1996,24 @@ int KmsDisplay::readConnection()
 }
 
 //----------------------------------------------------------
-extern "C" int clock_nanosleep(clockid_t clock_id, int flags,
-                           const struct timespec *request,
-                           struct timespec *remain);
+extern "C" int clock_nanosleep(clockid_t clock_id, int flags, const struct timespec *request,
+                               struct timespec *remain);
 
 KmsDisplay::VSyncThread::VSyncThread(KmsDisplay *ctx)
-    : Thread(false), mCtx(ctx), mEnabled(false), mSendVsync(true),
-      mFakeVSync(false), mNextFakeVSync(0)
-{
+      : Thread(false),
+        mCtx(ctx),
+        mEnabled(false),
+        mSendVsync(true),
+        mFakeVSync(false),
+        mNextFakeVSync(0) {
     mRefreshPeriod = 0;
 }
 
-void KmsDisplay::VSyncThread::onFirstRef()
-{
+void KmsDisplay::VSyncThread::onFirstRef() {
     run("HWC-VSYNC-Thread", android::PRIORITY_URGENT_DISPLAY);
 }
 
-int32_t KmsDisplay::VSyncThread::readyToRun()
-{
+int32_t KmsDisplay::VSyncThread::readyToRun() {
     return 0;
 }
 
@@ -2154,14 +2024,12 @@ void KmsDisplay::VSyncThread::setEnabled(bool enabled) {
     mCondition.signal();
 }
 
-void KmsDisplay::VSyncThread::setFakeVSync(bool enable)
-{
+void KmsDisplay::VSyncThread::setFakeVSync(bool enable) {
     Mutex::Autolock _l(mLock);
     mFakeVSync = enable;
 }
 
-bool KmsDisplay::VSyncThread::threadLoop()
-{
+bool KmsDisplay::VSyncThread::threadLoop() {
     { // scope for lock
         Mutex::Autolock _l(mLock);
         while (!mEnabled && !mCtx->forceVync()) {
@@ -2169,23 +2037,21 @@ bool KmsDisplay::VSyncThread::threadLoop()
         }
     }
     if (mCtx->forceVync()) // For EVS case, always send vsync
-         mSendVsync = true;
+        mSendVsync = true;
 
     if (mFakeVSync || mCtx->mModeset) {
         performFakeVSync();
-    }
-    else {
+    } else {
         performVSync();
     }
 
     return true;
 }
 
-void KmsDisplay::VSyncThread::performFakeVSync()
-{
+void KmsDisplay::VSyncThread::performFakeVSync() {
     int id = mCtx->getActiveId();
     if (id >= 0) {
-        const DisplayConfig& config = mCtx->getActiveConfig();
+        const DisplayConfig &config = mCtx->getActiveConfig();
         mRefreshPeriod = config.mVsyncPeriod;
     } else {
         mRefreshPeriod = 1000000000 / DEFAULT_REFRESH_RATE;
@@ -2202,13 +2068,13 @@ void KmsDisplay::VSyncThread::performFakeVSync()
     mNextFakeVSync = next_vsync + period;
 
     struct timespec spec;
-    spec.tv_sec  = next_vsync / 1000000000;
+    spec.tv_sec = next_vsync / 1000000000;
     spec.tv_nsec = next_vsync % 1000000000;
 
     int err;
     do {
         err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
-    } while (err<0 && errno == EINTR);
+    } while (err < 0 && errno == EINTR);
 
     if (err == 0 && mCtx != NULL && mSendVsync) {
         mCtx->handleVsyncEvent(next_vsync);
@@ -2216,8 +2082,7 @@ void KmsDisplay::VSyncThread::performFakeVSync()
 }
 
 static const int64_t kOneSecondNs = 1 * 1000 * 1000 * 1000;
-void KmsDisplay::VSyncThread::performVSync()
-{
+void KmsDisplay::VSyncThread::performVSync() {
     uint64_t timestamp = 0;
     static uint64_t lasttime = 0;
 
@@ -2225,20 +2090,18 @@ void KmsDisplay::VSyncThread::performVSync()
     uint32_t high_crtc = (mCtx->crtcpipe() << DRM_VBLANK_HIGH_CRTC_SHIFT);
     drmVBlank vblank;
     memset(&vblank, 0, sizeof(vblank));
-    vblank.request.type = (drmVBlankSeqType)(
-            DRM_VBLANK_RELATIVE | (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
+    vblank.request.type =
+            (drmVBlankSeqType)(DRM_VBLANK_RELATIVE | (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
     vblank.request.sequence = 1;
     int ret = drmWaitVBlank(drmfd, &vblank);
     if (ret == -EINTR) {
         ALOGE("drmWaitVBlank failed");
         return;
-    }
-    else if (ret) {
+    } else if (ret) {
         ALOGI("switch to fake vsync");
         performFakeVSync();
         return;
-    }
-    else {
+    } else {
         timestamp = (uint64_t)vblank.reply.tval_sec * kOneSecondNs +
                 (uint64_t)vblank.reply.tval_usec * 1000;
     }
@@ -2259,23 +2122,23 @@ void KmsDisplay::VSyncThread::performVSync()
 }
 
 KmsDisplay::ConfigThread::ConfigThread(KmsDisplay *ctx)
-    : Thread(false), mCtx(ctx), mNewChange(false),
-      mNewConfig(-1), mDesiredTime(0), mRefreshTime(0)
-{
-}
+      : Thread(false),
+        mCtx(ctx),
+        mNewChange(false),
+        mNewConfig(-1),
+        mDesiredTime(0),
+        mRefreshTime(0) {}
 
-void KmsDisplay::ConfigThread::onFirstRef()
-{
+void KmsDisplay::ConfigThread::onFirstRef() {
     run("HWC-Config-Thread", android::PRIORITY_URGENT_DISPLAY);
 }
 
-int32_t KmsDisplay::ConfigThread::readyToRun()
-{
+int32_t KmsDisplay::ConfigThread::readyToRun() {
     return 0;
 }
 
-void KmsDisplay::ConfigThread::setDisplayConfig(int configId, nsecs_t desiredTime, nsecs_t refreshTime)
-{
+void KmsDisplay::ConfigThread::setDisplayConfig(int configId, nsecs_t desiredTime,
+                                                nsecs_t refreshTime) {
     Mutex::Autolock _l(mLock);
     mNewChange = true;
     mDesiredTime = desiredTime;
@@ -2284,8 +2147,7 @@ void KmsDisplay::ConfigThread::setDisplayConfig(int configId, nsecs_t desiredTim
     mCondition.signal();
 }
 
-void KmsDisplay::ConfigThread::notifyNewFrame(nsecs_t timestamp)
-{
+void KmsDisplay::ConfigThread::notifyNewFrame(nsecs_t timestamp) {
     Mutex::Autolock _l(mLock);
     mCondv.notify_one();
 }
@@ -2293,8 +2155,7 @@ void KmsDisplay::ConfigThread::notifyNewFrame(nsecs_t timestamp)
 // This ConfigThread is used to make sure the timing of display mode switching
 // meet the HWC2.4 requirement. The API need to make sure the new mode take
 // effect at specific time.
-bool KmsDisplay::ConfigThread::threadLoop()
-{
+bool KmsDisplay::ConfigThread::threadLoop() {
     { // scope for lock
         Mutex::Autolock _l(mLock);
         while (!mNewChange) {
@@ -2306,13 +2167,13 @@ bool KmsDisplay::ConfigThread::threadLoop()
     const nsecs_t now = systemTime(CLOCK_MONOTONIC);
     if (now < mDesiredTime) {
         struct timespec spec;
-        spec.tv_sec  = mDesiredTime / 1000000000;
+        spec.tv_sec = mDesiredTime / 1000000000;
         spec.tv_nsec = mDesiredTime % 1000000000;
 
         int err;
         do {
             err = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &spec, NULL);
-        } while (err<0 && errno == EINTR);
+        } while (err < 0 && errno == EINTR);
     }
     mCtx->setNewDrmMode(config.modeIdx);
     mCtx->setActiveConfig(mNewConfig);
@@ -2329,11 +2190,11 @@ bool KmsDisplay::ConfigThread::threadLoop()
         while (mCondv.wait_for(g, std::chrono::nanoseconds(to)) == std::cv_status::timeout) {
             nsecs_t t = systemTime(CLOCK_MONOTONIC);
             mCtx->handleRefreshFrameMissed(t + config.mVsyncPeriod, true, t);
-            to = config.mVsyncPeriod;// wait vsync period and check again
+            to = config.mVsyncPeriod; // wait vsync period and check again
         }
     }
 
     mCtx->stopRefreshEvent();
     return true;
 }
-}
+} // namespace fsl

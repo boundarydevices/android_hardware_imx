@@ -16,23 +16,23 @@
 
 #define LOG_TAG "VideoStream"
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "VideoStream.h"
+
 #include <fcntl.h>
 #include <linux/videodev2.h>
+#include <log/log.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <log/log.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-#include "CameraUtils.h"
 #include "CameraDeviceSessionHWLImpl.h"
-#include "VideoStream.h"
+#include "CameraUtils.h"
 #include "ISPCameraDeviceHWLImpl.h"
 
 namespace android {
 
-VideoStream::VideoStream(CameraDeviceSessionHwlImpl *pSession)
-{
+VideoStream::VideoStream(CameraDeviceSessionHwlImpl *pSession) {
     mNumBuffers = 0;
     mOmitFrmCount = 0;
     mOmitFrames = 0;
@@ -47,12 +47,9 @@ VideoStream::VideoStream(CameraDeviceSessionHwlImpl *pSession)
     property_get("ro.boot.soc_type", soc_type, "");
 }
 
-VideoStream::~VideoStream()
-{
-}
+VideoStream::~VideoStream() {}
 
-int32_t VideoStream::openDev(const char* name)
-{
+int32_t VideoStream::openDev(const char *name) {
     ALOGI("%s", __func__);
 
     if (name == NULL) {
@@ -70,10 +67,9 @@ int32_t VideoStream::openDev(const char* name)
 }
 
 #define CLOSE_WAIT_ITVL_MS 5
-#define CLOSE_WAIT_ITVL_US (uint32_t)(CLOSE_WAIT_ITVL_MS*1000)
+#define CLOSE_WAIT_ITVL_US (uint32_t)(CLOSE_WAIT_ITVL_MS * 1000)
 
-int32_t VideoStream::closeDev()
-{
+int32_t VideoStream::closeDev() {
     ALOGI("%s", __func__);
 
     if (mDev > 0) {
@@ -101,7 +97,7 @@ int32_t VideoStream::onFlush() {
         cfilledbuffer.memory = mV4l2MemType;
         cfilledbuffer.type = mV4l2BufType;
 
-        if(mV4l2BufType == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+        if (mV4l2BufType == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
             cfilledbuffer.m.planes = &planes;
             cfilledbuffer.length = 1;
         }
@@ -116,21 +112,21 @@ int32_t VideoStream::onFlush() {
             ALOGE("%s: VIDIOC_QBUF Failed: %s (%d)", __func__, strerror(errno), errno);
             return BAD_VALUE;
         }
-      }
+    }
 
     return 0;
 }
 
 #define ISP_CONTROL "vendor.rw.camera.isp.control"
-int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, uint8_t intent, uint8_t sceneMode, bool recover)
-{
+int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t height, uint32_t fps,
+                                    uint8_t intent, uint8_t sceneMode, bool recover) {
     int ret = 0;
 
-    ALOGI("%s: current format 0x%x, res %dx%d, fps %d, sceneMode %d",
-        __func__, mFormat, mWidth, mHeight, mFps, mSceneMode);
+    ALOGI("%s: current format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, mFormat, mWidth,
+          mHeight, mFps, mSceneMode);
 
     ALOGI("%s: to set format 0x%x, res %dx%d, fps %d, intent %d, sceneMode %d, recover %d",
-        __func__, format, width, height, fps, intent, sceneMode, recover);
+          __func__, format, width, height, fps, intent, sceneMode, recover);
 
     if (strstr(soc_type, "imx8mq") && (width == 320) && (height == 240)) {
         width = 640;
@@ -138,12 +134,15 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
         ALOGI("%s, imx8mq, change 240p to 480p", __func__);
     }
 
-    if ( ((mFormat ==  HAL_PIXEL_FORMAT_YCbCr_420_SP) || (mFormat ==  HAL_PIXEL_FORMAT_YCbCr_420_888)) &&
-          ((format ==  HAL_PIXEL_FORMAT_YCbCr_420_SP) || (format ==  HAL_PIXEL_FORMAT_YCbCr_420_888)) )
+    if (((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
+         (mFormat == HAL_PIXEL_FORMAT_YCbCr_420_888)) &&
+        ((format == HAL_PIXEL_FORMAT_YCbCr_420_SP) || (format == HAL_PIXEL_FORMAT_YCbCr_420_888)))
         format = mFormat;
 
-    if(((uint32_t)mFormat == format) && (mWidth == width) && (mHeight == height) && (mFps == fps) && (mSceneMode == sceneMode) && (recover == false)) {
-        ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, format, width, height, fps, sceneMode);
+    if (((uint32_t)mFormat == format) && (mWidth == width) && (mHeight == height) &&
+        (mFps == fps) && (mSceneMode == sceneMode) && (recover == false)) {
+        ALOGI("%s, same config, format 0x%x, res %dx%d, fps %d, sceneMode %d", __func__, format,
+              width, height, fps, sceneMode);
         return 0;
     }
 
@@ -154,20 +153,20 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
 
     mCaptureIntent = intent;
 
-    if(mbStart) {
+    if (mbStart) {
         ret = onDeviceStopLocked();
-        if(ret) {
+        if (ret) {
             ALOGE("%s, onDeviceStopLocked failed, ret %d", __func__, ret);
             return ret;
         }
 
         ret = freeBuffersLocked();
-        if(ret) {
+        if (ret) {
             ALOGE("%s, freeBuffersLocked failed, ret %d", __func__, ret);
             return ret;
         }
 
-        if(recover && (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME))) {
+        if (recover && (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME))) {
             if (property_set(ISP_CONTROL, "0") < 0)
                 ALOGW("%s: property_set %s 0 failed", __func__, ISP_CONTROL);
 
@@ -175,10 +174,10 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
                 ALOGW("%s: property_set %s 1 failed", __func__, ISP_CONTROL);
         }
 
-        if(recover || (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME))) {
+        if (recover || (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME))) {
             closeDev();
             ret = openDev(mSession->getDevPath(0));
-            if(ret) {
+            if (ret) {
                 ALOGE("%s, openDev %s failed, ret %d", __func__, mSession->getDevPath(0), ret);
                 return ret;
             }
@@ -192,7 +191,7 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     }
 
     ret = onDeviceConfigureLocked(format, width, height, fps);
-    if(ret) {
+    if (ret) {
         ALOGE("%s, onDeviceConfigureLocked failed, ret %d", __func__, ret);
         return ret;
     }
@@ -206,7 +205,9 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     if (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME)) {
         // get the default dwe para.
         Json::Value jRequest, jResponse;
-        ret = ((ISPCameraMMAPStream *)this)->getIspWrapper()->viv_private_ioctl(IF_DWE_G_PARAMS, jRequest, jResponse);
+        ret = ((ISPCameraMMAPStream *)this)
+                      ->getIspWrapper()
+                      ->viv_private_ioctl(IF_DWE_G_PARAMS, jRequest, jResponse);
         if (ret == 0) {
             ((ISPCameraMMAPStream *)this)->getIspWrapper()->parseDewarpParams(jResponse["dwe"]);
             ((ISPCameraMMAPStream *)this)->getIspWrapper()->getExpGainBoundary();
@@ -224,27 +225,24 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     // save mode
     mSceneMode = sceneMode;
 
-
     return 0;
 }
 
-int32_t VideoStream::Stop()
-{
+int32_t VideoStream::Stop() {
     int ret;
 
     Mutex::Autolock _l(mV4l2Lock);
 
-    if(mbStart == false)
-        return 0;
+    if (mbStart == false) return 0;
 
     ret = onDeviceStopLocked();
-    if(ret) {
+    if (ret) {
         ALOGE("%s, onDeviceStopLocked failed, ret %d", __func__, ret);
         return ret;
     }
 
     ret = freeBuffersLocked();
-    if(ret) {
+    if (ret) {
         ALOGE("%s, freeBuffersLocked failed, ret %d", __func__, ret);
         return ret;
     }
@@ -256,8 +254,8 @@ int32_t VideoStream::Stop()
     return 0;
 }
 
-int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps, int32_t v4l2Format)
-{
+int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32_t height,
+                                         uint32_t fps, int32_t v4l2Format) {
     mWidth = width;
     mHeight = height;
     mFps = fps;
@@ -270,7 +268,7 @@ int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32
     struct OmitFrame *item;
     CameraSensorMetadata *pSensorData = mSession->getSensorData();
     struct OmitFrame *mOmitFrame = pSensorData->omit_frame;
-    for(item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
+    for (item = mOmitFrame; item < mOmitFrame + OMIT_RESOLUTION_NUM; item++) {
         if ((mWidth == (uint32_t)item->width) && (mHeight == (uint32_t)item->height)) {
             setOmitFrameCount(item->omitnum);
             ALOGI("%s, set omit frames %d for %dx%d", __func__, item->omitnum, mWidth, mHeight);
@@ -283,8 +281,7 @@ int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32
 
 #define MAX_RECOVER_COUNT 1
 #define SELECT_TIMEOUT_SECONDS 3
-ImxStreamBuffer* VideoStream::onFrameAcquire()
-{
+ImxStreamBuffer *VideoStream::onFrameAcquire() {
     ALOGV("%s", __func__);
 
     int32_t ret = 0;
@@ -320,11 +317,13 @@ capture_data:
             return NULL;
         }
 
-        ALOGW("%s: select fd %d blocked %d s at frame %d, on %dx%d, %d fps, camera recover count %d",
-            __func__, mDev, SELECT_TIMEOUT_SECONDS, mFrames, mWidth, mHeight, mFps, mRecoverCount);
+        ALOGW("%s: select fd %d blocked %d s at frame %d, on %dx%d, %d fps, camera recover count "
+              "%d",
+              __func__, mDev, SELECT_TIMEOUT_SECONDS, mFrames, mWidth, mHeight, mFps,
+              mRecoverCount);
 
         ret = ConfigAndStart(mFormat, mWidth, mHeight, mFps, mCaptureIntent, mSceneMode, true);
-        if(ret) {
+        if (ret) {
             ALOGE("%s,  ConfigAndStar failed, ret %d", __func__, ret);
             return NULL;
         }

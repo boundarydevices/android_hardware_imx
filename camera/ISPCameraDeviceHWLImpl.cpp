@@ -15,23 +15,24 @@
  * limitations under the License.
  */
 
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 #define LOG_TAG "ISPCameraDeviceHwlImpl"
 
-#include <string.h>
+#include "ISPCameraDeviceHWLImpl.h"
+
+#include <hardware/camera_common.h>
 #include <linux/videodev2.h>
 #include <log/log.h>
-#include <hardware/camera_common.h>
-#include "ISPCameraDeviceHWLImpl.h"
+#include <string.h>
+
 #include "CameraDeviceSessionHWLImpl.h"
 
 namespace android {
 
-static int32_t GetRawFormat(int fd, int32_t& raw_v4l2_format, int8_t& color_arrange);
+static int32_t GetRawFormat(int fd, int32_t &raw_v4l2_format, int8_t &color_arrange);
 
 #define PROP_CAMERA_LAYOUT "ro.boot.camera.layout"
-status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
-{
+status_t ISPCameraDeviceHwlImpl::initSensorStaticData() {
     int32_t fd = open(*mDevPath[0], O_RDWR);
     if (fd < 0) {
         ALOGE("ImxCameraCameraDevice: initParameters sensor has not been opened");
@@ -48,8 +49,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     // Don't support enum format, now hard code here.
     sensorFormats[index] = v4l2_fourcc('Y', 'U', 'Y', 'V');
     availFormats[index++] = v4l2_fourcc('Y', 'U', 'Y', 'V');
-    mSensorFormatCount =
-        changeSensorFormats(sensorFormats, mSensorFormats, index);
+    mSensorFormatCount = changeSensorFormats(sensorFormats, mSensorFormats, index);
     if (mSensorFormatCount == 0) {
         ALOGE("%s no sensor format enum", __func__);
         close(fd);
@@ -57,8 +57,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     }
 
     availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
-    mAvailableFormatCount =
-        changeSensorFormats(availFormats, mAvailableFormats, index);
+    mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
     ret = 0;
     index = 0;
@@ -69,8 +68,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     memset(TmpStr, 0, 20);
     memset(&cam_frmsize, 0, sizeof(struct v4l2_frmsizeenum));
     cam_frmsize.index = index++;
-    cam_frmsize.pixel_format =
-        convertPixelFormatToV4L2Format(mSensorFormats[0]);
+    cam_frmsize.pixel_format = convertPixelFormatToV4L2Format(mSensorFormats[0]);
     cam_frmsize.type = V4L2_FRMSIZE_TYPE_STEPWISE;
     ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
     if (ret != 0) {
@@ -86,42 +84,42 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     int h_max = cam_frmsize.stepwise.max_height;
     int h_step = cam_frmsize.stepwise.step_height;
 
-    ALOGI("enum frame size, width: min %d, max %d, step %d, height: min %d, max %d, step %d",
-        w_min, w_max, w_step, h_min, h_max, h_step);
+    ALOGI("enum frame size, width: min %d, max %d, step %d, height: min %d, max %d, step %d", w_min,
+          w_max, w_step, h_min, h_max, h_step);
 
     // Support resolutions requeted by CCD
     uint32_t ispResCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1920, 1080, 3840, 2160};
-    uint32_t ispResCandidateNum = ARRAY_SIZE(ispResCandidate)/2;
+    uint32_t ispResCandidateNum = ARRAY_SIZE(ispResCandidate) / 2;
     uint32_t ispRes[MAX_RESOLUTION_SIZE];
     uint32_t ispResNum = 0;
 
     // filt out candidate
-    for(uint32_t i = 0; i < ispResCandidateNum; i++) {
-        int width = ispResCandidate[i*2];
-        int height = ispResCandidate[i*2 + 1];
-        if ( (width < w_min) || (width > w_max) || ((width - w_min) % w_step != 0) ||
-             (height < h_min) || (height > h_max) || ((height - h_min) % h_step != 0) ) {
+    for (uint32_t i = 0; i < ispResCandidateNum; i++) {
+        int width = ispResCandidate[i * 2];
+        int height = ispResCandidate[i * 2 + 1];
+        if ((width < w_min) || (width > w_max) || ((width - w_min) % w_step != 0) ||
+            (height < h_min) || (height > h_max) || ((height - h_min) % h_step != 0)) {
             ALOGW("%s, filt out %dx%d", __func__, width, height);
             continue;
         }
 
         bool bPicked = PickResByMetaData(width, height);
         if (!bPicked) {
-            ALOGI("%s: res %dx%d is not picked due to settings in config json", __func__, width, height);
+            ALOGI("%s: res %dx%d is not picked due to settings in config json", __func__, width,
+                  height);
             continue;
         }
 
-        if(ispResNum * 2 >= MAX_RESOLUTION_SIZE)
-            break;
+        if (ispResNum * 2 >= MAX_RESOLUTION_SIZE) break;
 
-        ispRes[ispResNum*2] = width;
-        ispRes[ispResNum*2 + 1] = height;
+        ispRes[ispResNum * 2] = width;
+        ispRes[ispResNum * 2 + 1] = height;
         ispResNum++;
     }
 
-    for(uint32_t i = 0; i < ispResNum; i++) {
-        int w = ispRes[i*2];
-        int h = ispRes[i*2 + 1];
+    for (uint32_t i = 0; i < ispResNum; i++) {
+        int w = ispRes[i * 2];
+        int h = ispRes[i * 2 + 1];
 
         if ((w != 176) || (h != 144)) {
             mPictureResolutions[pictureCnt++] = w;
@@ -154,11 +152,11 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     if (strstr(layout, "os08a20")) {
         int rangeCount = ARRAY_SIZE(fpsRangeOs08a20);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
-        memcpy(mTargetFpsRange, fpsRangeOs08a20, mFpsRangeCount*sizeof(int));
+        memcpy(mTargetFpsRange, fpsRangeOs08a20, mFpsRangeCount * sizeof(int));
     } else {
         int rangeCount = ARRAY_SIZE(fpsRangeBasler);
         mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
-        memcpy(mTargetFpsRange, fpsRangeBasler, mFpsRangeCount*sizeof(int));
+        memcpy(mTargetFpsRange, fpsRangeBasler, mFpsRangeCount * sizeof(int));
     }
 
     setMaxPictureResolutions();
@@ -173,8 +171,8 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     }
 
     ALOGI("%s: caps supports:{", __func__);
-    ALOGI("\tcount = %d",caps_supports.count);
-    for(unsigned int i = 0; i < caps_supports.count; i++) {
+    ALOGI("\tcount = %d", caps_supports.count);
+    for (unsigned int i = 0; i < caps_supports.count; i++) {
         ALOGI("\t{");
         ALOGI("\tindex            = %d", caps_supports.mode[i].index);
         ALOGI("\tbounds_width     = %d", caps_supports.mode[i].bounds_width);
@@ -192,8 +190,7 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     }
     ALOGI("}");
 
-    if ( strstr(layout, "basler") &&
-         (caps_supports.count >= 4) ) {
+    if (strstr(layout, "basler") && (caps_supports.count >= 4)) {
         ALOGI("%s: hard code basler mode 2, 3 to hdr mode", __func__);
         caps_supports.mode[2].hdr_mode = 1;
         caps_supports.mode[3].hdr_mode = 1;
@@ -213,28 +210,20 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData()
     return NO_ERROR;
 }
 
-static int32_t GetRawFormat(int fd, int32_t& raw_v4l2_format, int8_t& color_arrange)
-{
-    if (fd < 0)
-      return BAD_VALUE;
+static int32_t GetRawFormat(int fd, int32_t &raw_v4l2_format, int8_t &color_arrange) {
+    if (fd < 0) return BAD_VALUE;
 
     v4l2_fmtdesc formatDescriptions;
     formatDescriptions.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    for (int i=0; true; i++) {
+    for (int i = 0; true; i++) {
         formatDescriptions.index = i;
-        if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescriptions) != 0)
-            break;
+        if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescriptions) != 0) break;
 
-        ALOGI("format %2d: %s 0x%08X 0x%X",
-              i,
-              formatDescriptions.description,
-              formatDescriptions.pixelformat,
-              formatDescriptions.flags
-        );
+        ALOGI("format %2d: %s 0x%08X 0x%X", i, formatDescriptions.description,
+              formatDescriptions.pixelformat, formatDescriptions.flags);
 
         /* bits */
-        switch(formatDescriptions.pixelformat)
-        {
+        switch (formatDescriptions.pixelformat) {
             case V4L2_PIX_FMT_SBGGR10:
             case V4L2_PIX_FMT_SGBRG10:
             case V4L2_PIX_FMT_SGRBG10:
@@ -254,8 +243,7 @@ static int32_t GetRawFormat(int fd, int32_t& raw_v4l2_format, int8_t& color_arra
         }
 
         /* color arrange */
-        switch(formatDescriptions.pixelformat)
-        {
+        switch (formatDescriptions.pixelformat) {
             case V4L2_PIX_FMT_SBGGR10:
             case V4L2_PIX_FMT_SBGGR12:
             case V4L2_PIX_FMT_SBGGR16:
@@ -290,14 +278,12 @@ static int32_t GetRawFormat(int fd, int32_t& raw_v4l2_format, int8_t& color_arra
     return 0;
 }
 
-
-int32_t ISPCameraMMAPStream::onPrepareLocked(uint32_t format, uint8_t sceneMode)
-{
+int32_t ISPCameraMMAPStream::onPrepareLocked(uint32_t format, uint8_t sceneMode) {
     int ret = 0;
     int sensorMode = mSession->getCapsMode(sceneMode);
 
     struct viv_caps_mode_s caps_mode;
-    memset(&caps_mode,0,sizeof(caps_mode));
+    memset(&caps_mode, 0, sizeof(caps_mode));
     caps_mode.mode = sensorMode;
 
     ret = ioctl(mDev, VIV_VIDIOC_S_CAPS_MODE, &caps_mode);
@@ -306,7 +292,7 @@ int32_t ISPCameraMMAPStream::onPrepareLocked(uint32_t format, uint8_t sceneMode)
         return BAD_VALUE;
     }
 
-    // Since raw format may change with mode, need update after set mode. 
+    // Since raw format may change with mode, need update after set mode.
     ret = GetRawFormat(mDev, mSession->m_raw_v4l2_format, mSession->m_color_arrange);
     if (ret) {
         ALOGE("%s: GetRawFormat Failed, ret %d", __func__, ret);
@@ -316,15 +302,13 @@ int32_t ISPCameraMMAPStream::onPrepareLocked(uint32_t format, uint8_t sceneMode)
     m_IspWrapper->init(mDev);
 
     // Before capture raw data, need first disable DWE.
-    if (format == HAL_PIXEL_FORMAT_RAW16)
-        ISPProcess(NULL, format);
+    if (format == HAL_PIXEL_FORMAT_RAW16) ISPProcess(NULL, format);
 
     return 0;
 }
 
-
-int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uint32_t height, uint32_t fps)
-{
+int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width,
+                                                     uint32_t height, uint32_t fps) {
     ALOGI("%s", __func__);
     int32_t ret = 0;
     if (mDev <= 0) {
@@ -339,7 +323,8 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
         vformat = convertPixelFormatToV4L2Format(format);
 
     ALOGI("%s, Width * Height %d x %d format %c%c%c%c, fps: %d", __func__, width, height,
-        vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF, fps);
+          vformat & 0xFF, (vformat >> 8) & 0xFF, (vformat >> 16) & 0xFF, (vformat >> 24) & 0xFF,
+          fps);
 
     struct v4l2_streamparm param;
     memset(&param, 0, sizeof(param));
@@ -355,10 +340,10 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
 
-    fmt.type                 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width        = width & 0xFFFFFFF8;
-    fmt.fmt.pix.height       = height & 0xFFFFFFF8;
-    fmt.fmt.pix.pixelformat  = vformat;
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width = width & 0xFFFFFFF8;
+    fmt.fmt.pix.height = height & 0xFFFFFFF8;
+    fmt.fmt.pix.pixelformat = vformat;
 
     ret = ioctl(mDev, VIDIOC_S_FMT, &fmt);
     if (ret < 0) {
@@ -371,8 +356,7 @@ int32_t ISPCameraMMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t w
     return ret;
 }
 
-int32_t ISPCameraMMAPStream::onDeviceStartLocked()
-{
+int32_t ISPCameraMMAPStream::onDeviceStartLocked() {
     int ret = 0;
 
     // Get the default dwe para.
@@ -387,9 +371,9 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
     // Get exposure gain boundary.
     m_IspWrapper->getExpGainBoundary();
 
-    // When restart stream (shift between picture and record mode, or shift between APK), need recover to awb,
-    // or the image will blurry if previous mode is mwb.
-    // awb/aec need to be set after stream on.
+    // When restart stream (shift between picture and record mode, or shift between APK), need
+    // recover to awb, or the image will blurry if previous mode is mwb. awb/aec need to be set
+    // after stream on.
     if (isPictureIntent()) {
         m_IspWrapper->recoverExpWB();
         m_IspWrapper->recoverFeatures();
@@ -408,8 +392,7 @@ int32_t ISPCameraMMAPStream::onDeviceStartLocked()
     return ret;
 }
 
-int32_t ISPCameraMMAPStream::onDeviceStopLocked()
-{
+int32_t ISPCameraMMAPStream::onDeviceStopLocked() {
     m_IspWrapper->getLatestExpWB();
     m_IspWrapper->getLatestFeatures();
 
@@ -417,8 +400,8 @@ int32_t ISPCameraMMAPStream::onDeviceStopLocked()
     return ret;
 }
 
-int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath __unused, CameraSensorMetadata *pSensorData)
-{
+int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath __unused,
+                                              CameraSensorMetadata *pSensorData) {
     int ret = 0;
 
     m_IspWrapper = std::make_unique<ISPWrapper>(pSensorData, (void *)this);
@@ -426,9 +409,8 @@ int32_t ISPCameraMMAPStream::createISPWrapper(char *pDevPath __unused, CameraSen
     return ret;
 }
 
-int32_t ISPCameraMMAPStream::ISPProcess(void *pMeta, uint32_t format)
-{
+int32_t ISPCameraMMAPStream::ISPProcess(void *pMeta, uint32_t format) {
     return m_IspWrapper->process((HalCameraMetadata *)pMeta, format);
 }
 
-}  // namespace android
+} // namespace android

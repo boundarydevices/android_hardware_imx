@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+#include "Dumpstate.h"
+
 #include <android-base/properties.h>
 #include <log/log.h>
-#include "DumpstateUtil.h"
 
-#include "Dumpstate.h"
+#include "DumpstateUtil.h"
 
 using android::os::dumpstate::DumpFileToFd;
 using android::os::dumpstate::RunCommandToFd;
@@ -96,17 +97,37 @@ ndk::ScopedAStatus Dumpstate::dumpstateBoardImpl(const int fd, const bool full) 
 
     DumpFileToFd(fd, "INTERRUPTS", "/proc/interrupts");
     DumpFileToFd(fd, "dmabuf info", "/d/dma_buf/bufinfo");
-    RunCommandToFd(fd, "Temperatures", {"/vendor/bin/sh", "-c", "for f in /sys/class/thermal/thermal* ; do type=`cat $f/type` ; temp=`cat $f/temp` ; echo \"$type: $temp\" ; done"});
-    RunCommandToFd(fd, "Cooling Device Current State", {"/vendor/bin/sh", "-c", "for f in /sys/class/thermal/cooling* ; do type=`cat $f/type` ; temp=`cat $f/cur_state` ; echo \"$type: $temp\" ; done"});
-    RunCommandToFd(fd, "CPU time-in-state", {"/vendor/bin/sh", "-c", "for cpu in /sys/devices/system/cpu/cpu*; do f=$cpu/cpufreq/stats/time_in_state; if [ ! -f $f ]; then continue; fi; echo $f:; cat $f; done"});
-    RunCommandToFd(fd, "CPU cpuidle", {"/vendor/bin/sh", "-c", "for cpu in /sys/devices/system/cpu/cpu*; do for d in $cpu/cpuidle/state*; do if [ ! -d $d ]; then continue; fi; echo \"$d: `cat $d/name` `cat $d/desc` `cat $d/time` `cat $d/usage`\"; done; done"});
-    RunCommandToFd(fd, "USB Device Descriptors", {"/vendor/bin/sh", "-c", "cd /sys/bus/usb/devices/1-1 && cat product && cat bcdDevice; cat descriptors | od -t x1 -w16 -N96"});
-    RunCommandToFd(fd, "Power supply properties", {"/vendor/bin/sh", "-c", "for f in `ls /sys/class/power_supply/*/uevent` ; do echo \"------ $f\\n`cat $f`\\n\" ; done"});
+    RunCommandToFd(fd, "Temperatures",
+                   {"/vendor/bin/sh", "-c",
+                    "for f in /sys/class/thermal/thermal* ; do type=`cat $f/type` ; temp=`cat "
+                    "$f/temp` ; echo \"$type: $temp\" ; done"});
+    RunCommandToFd(fd, "Cooling Device Current State",
+                   {"/vendor/bin/sh", "-c",
+                    "for f in /sys/class/thermal/cooling* ; do type=`cat $f/type` ; temp=`cat "
+                    "$f/cur_state` ; echo \"$type: $temp\" ; done"});
+    RunCommandToFd(fd, "CPU time-in-state",
+                   {"/vendor/bin/sh", "-c",
+                    "for cpu in /sys/devices/system/cpu/cpu*; do "
+                    "f=$cpu/cpufreq/stats/time_in_state; if [ ! -f $f ]; then continue; fi; echo "
+                    "$f:; cat $f; done"});
+    RunCommandToFd(fd, "CPU cpuidle",
+                   {"/vendor/bin/sh", "-c",
+                    "for cpu in /sys/devices/system/cpu/cpu*; do for d in $cpu/cpuidle/state*; do "
+                    "if [ ! -d $d ]; then continue; fi; echo \"$d: `cat $d/name` `cat $d/desc` "
+                    "`cat $d/time` `cat $d/usage`\"; done; done"});
+    RunCommandToFd(fd, "USB Device Descriptors",
+                   {"/vendor/bin/sh", "-c",
+                    "cd /sys/bus/usb/devices/1-1 && cat product && cat bcdDevice; cat descriptors "
+                    "| od -t x1 -w16 -N96"});
+    RunCommandToFd(fd, "Power supply properties",
+                   {"/vendor/bin/sh", "-c",
+                    "for f in `ls /sys/class/power_supply/*/uevent` ; do echo \"------ $f\\n`cat "
+                    "$f`\\n\" ; done"});
 
     return ndk::ScopedAStatus::ok();
 }
 
-}  // namespace dumpstate
-}  // namespace hardware
-}  // namespace android
-}  // namespace aidl
+} // namespace dumpstate
+} // namespace hardware
+} // namespace android
+} // namespace aidl

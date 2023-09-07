@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "config_parser.h"
+
 #include <android-base/file.h>
 #include <android-base/logging.h>
 #include <android-base/strings.h>
-#include <cmath>
-#include <set>
-#include <vector>
-
 #include <json/reader.h>
 #include <json/value.h>
 
-#include "config_parser.h"
+#include <cmath>
+#include <set>
+#include <vector>
 
 namespace android {
 namespace hardware {
@@ -58,7 +58,7 @@ float getFloatFromValue(const Json::Value &value) {
     }
 }
 
-}  // namespace
+} // namespace
 
 std::vector<std::string> ParseHotplugCPUInfo(std::string_view config_path) {
     std::string json_doc;
@@ -73,7 +73,8 @@ std::vector<std::string> ParseHotplugCPUInfo(std::string_view config_path) {
     std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     std::string errorMessage;
 
-    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.length(), &root, &errorMessage)) {
+    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.length(), &root,
+                       &errorMessage)) {
         LOG(ERROR) << "Failed to parse JSON config";
         return HotplugCPU_parsed;
     }
@@ -109,7 +110,8 @@ std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) 
     std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     std::string errorMessage;
 
-    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.length(), &root, &errorMessage)) {
+    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.length(), &root,
+                       &errorMessage)) {
         LOG(ERROR) << "Failed to parse JSON config";
         return sensors_parsed;
     }
@@ -230,8 +232,7 @@ std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) 
                 cold_hysteresis[j] = getFloatFromValue(values[j]);
                 if (std::isnan(cold_hysteresis[j])) {
                     LOG(ERROR) << "Invalid "
-                               << "Sensor[" << name
-                               << "]'s ColdHysteresis: " << cold_hysteresis[j];
+                               << "Sensor[" << name << "]'s ColdHysteresis: " << cold_hysteresis[j];
                     sensors_parsed.clear();
                     return sensors_parsed;
                 }
@@ -286,7 +287,8 @@ std::map<std::string, CoolingType> ParseCoolingDevice(std::string_view config_pa
     std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     std::string errorMessage;
 
-    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.length(), &root, &errorMessage)) {
+    if (!reader->parse(json_doc.data(), json_doc.data() + json_doc.length(), &root,
+                       &errorMessage)) {
         LOG(ERROR) << "Failed to parse JSON config";
         return cooling_devices_parsed;
     }
@@ -332,8 +334,8 @@ std::map<std::string, CoolingType> ParseCoolingDevice(std::string_view config_pa
     return cooling_devices_parsed;
 }
 
-}  // namespace implementation
-}  // namespace V2_0
-}  // namespace thermal
-}  // namespace hardware
-}  // namespace android
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android

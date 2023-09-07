@@ -16,26 +16,27 @@
 
 #define LOG_TAG "CameraUtils"
 
+#include "CameraUtils.h"
+
+#include <linux/videodev2.h>
 #include <log/log.h>
 #include <sys/ioctl.h>
-#include <linux/videodev2.h>
+
 #include "Allocator.h"
-#include "CameraUtils.h"
-#include "NV12_resize.h"
 #include "Memory.h"
 #include "MemoryDesc.h"
+#include "NV12_resize.h"
 
 namespace android {
 
-int32_t changeSensorFormats(int *src, int *dst, int len)
-{
+int32_t changeSensorFormats(int *src, int *dst, int len) {
     if (src == NULL || dst == NULL || len == 0) {
         ALOGE("%s invalid parameters", __func__);
         return 0;
     }
 
     int32_t k = 0;
-    for (int32_t i=0; i<len && i<MAX_SENSOR_FORMAT; i++) {
+    for (int32_t i = 0; i < len && i < MAX_SENSOR_FORMAT; i++) {
         switch (src[i]) {
             case v4l2_fourcc('N', 'V', '1', '2'):
                 dst[k++] = HAL_PIXEL_FORMAT_YCbCr_420_SP;
@@ -45,7 +46,7 @@ int32_t changeSensorFormats(int *src, int *dst, int len)
                 dst[k++] = HAL_PIXEL_FORMAT_YCrCb_420_SP;
                 break;
 
-            //camera service will use HAL_PIXEL_FORMAT_YV12 to match YV12 format.
+            // camera service will use HAL_PIXEL_FORMAT_YV12 to match YV12 format.
             case v4l2_fourcc('Y', 'V', '1', '2'):
                 dst[k++] = HAL_PIXEL_FORMAT_YV12;
                 break;
@@ -66,8 +67,8 @@ int32_t changeSensorFormats(int *src, int *dst, int len)
                 break;
 
             default:
-                ALOGE("Error: format:%c%c%c%c not supported!", src[i]&0xFF,
-                      (src[i]>>8)&0xFF, (src[i]>>16)&0xFF, (src[i]>>24)&0xFF);
+                ALOGE("Error: format:%c%c%c%c not supported!", src[i] & 0xFF, (src[i] >> 8) & 0xFF,
+                      (src[i] >> 16) & 0xFF, (src[i] >> 24) & 0xFF);
                 break;
         }
     }
@@ -75,10 +76,7 @@ int32_t changeSensorFormats(int *src, int *dst, int len)
     return k;
 }
 
-
-
-int getCaptureMode(int fd, int width, int height)
-{
+int getCaptureMode(int fd, int width, int height) {
     int index = 0;
     int ret = 0;
     int capturemode = 0;
@@ -93,7 +91,8 @@ int getCaptureMode(int fd, int width, int height)
         cam_frmsize.index = index++;
         cam_frmsize.pixel_format = v4l2_fourcc('Y', 'U', 'Y', 'V');
         ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &cam_frmsize);
-        if ((cam_frmsize.discrete.width == (uint32_t)width) && (cam_frmsize.discrete.height == (uint32_t)height) && (ret == 0)) {
+        if ((cam_frmsize.discrete.width == (uint32_t)width) &&
+            (cam_frmsize.discrete.height == (uint32_t)height) && (ret == 0)) {
             capturemode = cam_frmsize.index;
             break;
         }
@@ -102,8 +101,7 @@ int getCaptureMode(int fd, int width, int height)
     return capturemode;
 }
 
-int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
-{
+int convertPixelFormatToV4L2Format(PixelFormat format, bool invert) {
     int nFormat = 0;
 
     switch (format) {
@@ -145,19 +143,19 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert)
             break;
     }
 
-    ALOGV("v4l2 format: %c%c%c%c", nFormat & 0xFF, (nFormat >> 8) & 0xFF, (nFormat >> 16) & 0xFF, (nFormat >> 24) & 0xFF);
+    ALOGV("v4l2 format: %c%c%c%c", nFormat & 0xFF, (nFormat >> 8) & 0xFF, (nFormat >> 16) & 0xFF,
+          (nFormat >> 24) & 0xFF);
     return nFormat;
 }
 
-int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align)
-{
+int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align) {
     int32_t size = 0;
     int alignedw, alignedh, c_stride;
 
     if (align && (format == HAL_PIXEL_FORMAT_YCbCr_420_P)) {
         alignedw = ALIGN_PIXEL_32(width);
         alignedh = ALIGN_PIXEL_4(height);
-        c_stride = (alignedw/2+15)/16*16;
+        c_stride = (alignedw / 2 + 15) / 16 * 16;
         size = (alignedw + c_stride) * alignedh;
         return size;
     }
@@ -187,22 +185,17 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
     return size;
 }
 
-cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(const cameraconfigparser::PhysicalMetaMapPtr& src) {
+cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
+        const cameraconfigparser::PhysicalMetaMapPtr &src) {
     auto ret = std::make_unique<cameraconfigparser::PhysicalMetaMap>();
-    for (const auto& it : *src) {
+    for (const auto &it : *src) {
         ret->emplace(it.first, HalCameraMetadata::Clone(it.second.get()));
     }
     return ret;
 }
 
-
-int yuv422iResize(uint8_t *srcBuf,
-                                    int      srcWidth,
-                                    int      srcHeight,
-                                    uint8_t *dstBuf,
-                                    int      dstWidth,
-                                    int      dstHeight)
-{
+int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                  int dstHeight) {
     int i, j;
     int h_offset;
     int v_offset;
@@ -218,13 +211,13 @@ int yuv422iResize(uint8_t *srcBuf,
     h_scale_ratio = srcWidth / dstWidth;
     v_scale_ratio = srcHeight / dstHeight;
 
-    if((h_scale_ratio > 0) && (v_scale_ratio > 0))
+    if ((h_scale_ratio > 0) && (v_scale_ratio > 0))
         goto reduce;
-    else if(h_scale_ratio + v_scale_ratio <= 1)
+    else if (h_scale_ratio + v_scale_ratio <= 1)
         goto enlarge;
 
-    ALOGE("%s, not support resize %dx%d to %dx%d",
-        __func__, srcWidth, srcHeight, dstWidth, dstHeight);
+    ALOGE("%s, not support resize %dx%d to %dx%d", __func__, srcWidth, srcHeight, dstWidth,
+          dstHeight);
 
     return -1;
 
@@ -235,41 +228,35 @@ reduce:
     srcStride = srcWidth * 2;
     dstStride = dstWidth * 2;
 
-    //for Y
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 2 * h_scale_ratio)
-        {
+    // for Y
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 2 * h_scale_ratio) {
             ptr = srcBuf + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc  = ptr[0];
+            cc = ptr[0];
 
-            ptr    = dstBuf + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr = dstBuf + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
             ptr[0] = cc;
         }
     }
 
-    //for U
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
-        {
+    // for U
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio) {
             ptr = srcBuf + 1 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc  = ptr[0];
+            cc = ptr[0];
 
-            ptr    = dstBuf + 1 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr = dstBuf + 1 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
             ptr[0] = cc;
         }
     }
 
-    //for V
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio)
-        {
+    // for V
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio) {
             ptr = srcBuf + 3 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc  = ptr[0];
+            cc = ptr[0];
 
-            ptr    = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
             ptr[0] = cc;
         }
     }
@@ -300,72 +287,61 @@ enlarge:
     srcStride = srcWidth * 2;
     dstStride = dstWidth * 2;
 
-    ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d, h_offset_end %d, v_offset_end %d",
-            h_scale_ratio, v_scale_ratio, h_offset, v_offset, h_offset_end, v_offset_end);
+    ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d, h_offset_end %d, "
+          "v_offset_end %d",
+          h_scale_ratio, v_scale_ratio, h_offset, v_offset, h_offset_end, v_offset_end);
 
     // for Y
-    for (i = 0; i < dstHeight; i++)
-    {
+    for (i = 0; i < dstHeight; i++) {
         // top, bottom black margin
-        if((i < v_offset) || (i >= v_offset_end)) {
-            for (j = 0; j < dstWidth; j++)
-            {
-                dstBuf[dstStride*i + j*2] = 0;
+        if ((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++) {
+                dstBuf[dstStride * i + j * 2] = 0;
             }
             continue;
         }
 
-        for (j = 0; j < dstWidth; j++)
-        {
+        for (j = 0; j < dstWidth; j++) {
             // left, right black margin
-            if((j < h_offset) || (j >= h_offset_end)) {
-                dstBuf[dstStride*i + j*2] = 0;
+            if ((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride * i + j * 2] = 0;
                 continue;
             }
 
-            srcRow = (i - v_offset)/v_scale_ratio;
-            srcCol = (j - h_offset)/h_scale_ratio;
-            dstBuf[dstStride*i + j*2] = srcBuf[srcStride * srcRow + srcCol*2];
+            srcRow = (i - v_offset) / v_scale_ratio;
+            srcCol = (j - h_offset) / h_scale_ratio;
+            dstBuf[dstStride * i + j * 2] = srcBuf[srcStride * srcRow + srcCol * 2];
         }
     }
 
     // for UV
-    for (i = 0; i < dstHeight; i++)
-    {
+    for (i = 0; i < dstHeight; i++) {
         // top, bottom black margin
-        if((i < v_offset) || (i >= v_offset_end)) {
-            for (j = 0; j < dstWidth; j++)
-            {
-                dstBuf[dstStride*i + j*2+1] = 128;
+        if ((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++) {
+                dstBuf[dstStride * i + j * 2 + 1] = 128;
             }
             continue;
         }
 
-        for (j = 0; j < dstWidth; j++)
-        {
+        for (j = 0; j < dstWidth; j++) {
             // left, right black margin
-            if((j < h_offset) || (j >= h_offset_end)) {
-                dstBuf[dstStride*i + j*2+1] = 128;
+            if ((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride * i + j * 2 + 1] = 128;
                 continue;
             }
 
-            srcRow = (i - v_offset)/v_scale_ratio;
-            srcCol = (j - h_offset)/h_scale_ratio;
-            dstBuf[dstStride*i + j*2+1] = srcBuf[srcStride * srcRow + srcCol*2+1];
+            srcRow = (i - v_offset) / v_scale_ratio;
+            srcCol = (j - h_offset) / h_scale_ratio;
+            dstBuf[dstStride * i + j * 2 + 1] = srcBuf[srcStride * srcRow + srcCol * 2 + 1];
         }
     }
-
 
     return 0;
 }
 
-int yuv422spResize(uint8_t *srcBuf,
-        int      srcWidth,
-        int      srcHeight,
-        uint8_t *dstBuf,
-        int      dstWidth,
-        int      dstHeight)
-{
+int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                   int dstHeight) {
     int i, j, s;
     int h_offset;
     int v_offset;
@@ -390,14 +366,12 @@ _resize_begin:
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
     v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
 
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio)
-    {
-        for (j = 0; j < dstWidth * h_scale_ratio; j += h_scale_ratio)
-        {
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
+        for (j = 0; j < dstWidth * h_scale_ratio; j += h_scale_ratio) {
             ptr = srcBuf + i * srcWidth + j + v_offset * srcWidth + h_offset;
-            cc  = ptr[0];
+            cc = ptr[0];
 
-            ptr    = dstBuf + (i / v_scale_ratio) * dstWidth + (j / h_scale_ratio);
+            ptr = dstBuf + (i / v_scale_ratio) * dstWidth + (j / h_scale_ratio);
             ptr[0] = cc;
         }
     }
@@ -405,14 +379,12 @@ _resize_begin:
     srcBuf += srcWidth * srcHeight;
     dstBuf += dstWidth * dstHeight;
 
-    if (s < 2)
-    {
-        if (!s++)
-        {
-            srcWidth  >>= 1;
+    if (s < 2) {
+        if (!s++) {
+            srcWidth >>= 1;
             srcHeight >>= 1;
 
-            dstWidth  >>= 1;
+            dstWidth >>= 1;
             dstHeight >>= 1;
         }
 
@@ -422,13 +394,8 @@ _resize_begin:
     return 0;
 }
 
-void decreaseNV12WithCut(uint8_t *srcBuf,
-                                     int      srcWidth,
-                                     int      srcHeight,
-                                     uint8_t *dstBuf,
-                                     int      dstWidth,
-                                     int      dstHeight)
-{
+void decreaseNV12WithCut(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
+                         int dstWidth, int dstHeight) {
     if (!srcBuf || !dstBuf) {
         return;
     }
@@ -439,44 +406,39 @@ void decreaseNV12WithCut(uint8_t *srcBuf,
 
     int YSrcStrideBytes = srcWidth;
     int YDstStrideBytes = dstWidth;
-    int UVSrcStrideBytes = srcWidth/2;
-    int UVDstStrideBytes = dstWidth/2;
+    int UVSrcStrideBytes = srcWidth / 2;
+    int UVDstStrideBytes = dstWidth / 2;
 
-    int WidthMargin = (srcWidth - dstWidth)/2;
+    int WidthMargin = (srcWidth - dstWidth) / 2;
     int leftOffset = WidthMargin;
 
-    int HeightMargin = (srcHeight - dstHeight)/2;
+    int HeightMargin = (srcHeight - dstHeight) / 2;
     int topOffset = HeightMargin;
 
     /*======== process Y ======== */
     for (int dstRow = 0; dstRow < dstHeight; dstRow++) {
-        uint8_t *dstYLine = dstBuf + dstRow*YDstStrideBytes;
+        uint8_t *dstYLine = dstBuf + dstRow * YDstStrideBytes;
         int srcRow = dstRow + topOffset;
-        uint8_t *srcYLine = srcBuf + srcRow*YSrcStrideBytes;
+        uint8_t *srcYLine = srcBuf + srcRow * YSrcStrideBytes;
         memcpy(dstYLine, srcYLine + leftOffset, YDstStrideBytes);
     }
 
     /*======== process UV ======== */
-    uint8_t *dstUVBuf = dstBuf + dstWidth*dstHeight;
-    uint8_t *srcUVBuf = srcBuf + srcWidth*srcHeight;
+    uint8_t *dstUVBuf = dstBuf + dstWidth * dstHeight;
+    uint8_t *srcUVBuf = srcBuf + srcWidth * srcHeight;
 
-    for (int dstRow = 0; dstRow < dstHeight/2; dstRow++) {
-        uint8_t *dstUVLine = dstUVBuf + dstRow*UVDstStrideBytes*2;
-        int srcRow = dstRow + topOffset/2;
-        uint8_t *srcUVLine = srcUVBuf + srcRow*UVSrcStrideBytes*2;
-        memcpy(dstUVLine, srcUVLine + leftOffset, UVDstStrideBytes*2);
+    for (int dstRow = 0; dstRow < dstHeight / 2; dstRow++) {
+        uint8_t *dstUVLine = dstUVBuf + dstRow * UVDstStrideBytes * 2;
+        int srcRow = dstRow + topOffset / 2;
+        uint8_t *srcUVLine = srcUVBuf + srcRow * UVSrcStrideBytes * 2;
+        memcpy(dstUVLine, srcUVLine + leftOffset, UVDstStrideBytes * 2);
     }
 
     return;
 }
 
-void enlargeNV12WithBlackMargin(uint8_t *srcBuf,
-                                     int      srcWidth,
-                                     int      srcHeight,
-                                     uint8_t *dstBuf,
-                                     int      dstWidth,
-                                     int      dstHeight)
-{
+void enlargeNV12WithBlackMargin(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
+                                int dstWidth, int dstHeight) {
     if (!srcBuf || !dstBuf) {
         return;
     }
@@ -489,13 +451,13 @@ void enlargeNV12WithBlackMargin(uint8_t *srcBuf,
 
     int YSrcStrideBytes = srcWidth;
     int YDstStrideBytes = dstWidth;
-    int UVDstStrideBytes = dstWidth/2;
+    int UVDstStrideBytes = dstWidth / 2;
 
-    int WidthMargin = (dstWidth - srcWidth)/2;
+    int WidthMargin = (dstWidth - srcWidth) / 2;
     int leftOffset = WidthMargin;
     int rightOffset = dstWidth - WidthMargin;
 
-    int HeightMargin = (dstHeight - srcHeight)/2;
+    int HeightMargin = (dstHeight - srcHeight) / 2;
     int topOffset = HeightMargin;
     int bottomOffset = dstHeight - HeightMargin;
 
@@ -511,7 +473,7 @@ void enlargeNV12WithBlackMargin(uint8_t *srcBuf,
 
         memset(YDst, 0, WidthMargin);
         memset(YDst + rightOffset, 0, WidthMargin);
-        memcpy(YDst + leftOffset, YSrc,  YSrcStrideBytes);
+        memcpy(YDst + leftOffset, YSrc, YSrcStrideBytes);
     }
 
     /*======== process UV ======== */
@@ -523,9 +485,9 @@ void enlargeNV12WithBlackMargin(uint8_t *srcBuf,
     memset(dstUVBuf + bottomOffset * UVDstStrideBytes, 128, HeightMargin * UVDstStrideBytes);
 
     // Fill the middle rows
-    for (row = topOffset/2; row < bottomOffset/2; row++) {
+    for (row = topOffset / 2; row < bottomOffset / 2; row++) {
         uint8_t *UVDstLine = dstUVBuf + row * dstWidth;
-        uint8_t *UVSrcLine = srcUVBuf + (row - topOffset/2) * srcWidth;
+        uint8_t *UVSrcLine = srcUVBuf + (row - topOffset / 2) * srcWidth;
 
         memset(UVDstLine, 128, WidthMargin);
         memset(UVDstLine + rightOffset, 128, WidthMargin);
@@ -539,20 +501,16 @@ void enlargeNV12WithBlackMargin(uint8_t *srcBuf,
 // Or will failed due to timeout on below tests:
 // testMandatoryConcurrentStreamCombination
 // testMandatoryOutputCombinations
-int yuv420spResize(uint8_t *srcBuf,
-                                     int      srcWidth,
-                                     int      srcHeight,
-                                     uint8_t *dstBuf,
-                                     int      dstWidth,
-                                     int      dstHeight)
-{
+int yuv420spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                   int dstHeight) {
     if (!srcBuf || !dstBuf) {
         return -1;
     }
 
     ALOGV("%s: src %dx%d, dst %dx%d", __func__, srcWidth, srcHeight, dstWidth, dstHeight);
 
-    // If jsut cut, testAllOutputYUVResolutions will fail due to diff too much. So scale by calculation.
+    // If jsut cut, testAllOutputYUVResolutions will fail due to diff too much. So scale by
+    // calculation.
     if (srcWidth == 2592 && srcHeight == 1944 && dstWidth == 176 && dstHeight == 144)
         goto resizeByCalc;
 
@@ -572,28 +530,27 @@ resizeByCalc:
     memset(&i_img_ptr, 0, sizeof(i_img_ptr));
 
     // input
-    i_img_ptr.uWidth  =  srcWidth;
-    i_img_ptr.uStride =  i_img_ptr.uWidth;
-    i_img_ptr.uHeight =  srcHeight;
+    i_img_ptr.uWidth = srcWidth;
+    i_img_ptr.uStride = i_img_ptr.uWidth;
+    i_img_ptr.uHeight = srcHeight;
     i_img_ptr.eFormat = IC_FORMAT_YCbCr420_lp;
-    i_img_ptr.imgPtr  = srcBuf;
-    i_img_ptr.clrPtr  = i_img_ptr.imgPtr + (i_img_ptr.uWidth * i_img_ptr.uHeight);
+    i_img_ptr.imgPtr = srcBuf;
+    i_img_ptr.clrPtr = i_img_ptr.imgPtr + (i_img_ptr.uWidth * i_img_ptr.uHeight);
 
     // ouput
-    o_img_ptr.uWidth  = dstWidth;
+    o_img_ptr.uWidth = dstWidth;
     o_img_ptr.uStride = o_img_ptr.uWidth;
     o_img_ptr.uHeight = dstHeight;
     o_img_ptr.eFormat = IC_FORMAT_YCbCr420_lp;
-    o_img_ptr.imgPtr  = dstBuf;
-    o_img_ptr.clrPtr  = o_img_ptr.imgPtr + (o_img_ptr.uWidth * o_img_ptr.uHeight);
+    o_img_ptr.imgPtr = dstBuf;
+    o_img_ptr.clrPtr = o_img_ptr.imgPtr + (o_img_ptr.uWidth * o_img_ptr.uHeight);
 
     VT_resizeFrame_Video_opt2_lp(&i_img_ptr, &o_img_ptr, NULL, 0);
 
     return 0;
 }
 
-int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
-{
+int AllocPhyBuffer(ImxStreamBuffer &imxBuf) {
     int sharedFd;
     uint64_t phyAddr;
     uint64_t outPtr;
@@ -605,8 +562,7 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
         return -1;
     }
 
-    sharedFd = allocator->allocMemory(ionSize,
-                    MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
+    sharedFd = allocator->allocMemory(ionSize, MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
     if (sharedFd < 0) {
         ALOGE("%s: allocMemory failed.", __func__);
         return -1;
@@ -622,12 +578,13 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
     err = allocator->getPhys(sharedFd, ionSize, phyAddr);
     if (err != 0) {
         ALOGE("%s: getPhys failed.", __func__);
-        munmap((void*)(uintptr_t)outPtr, ionSize);
+        munmap((void *)(uintptr_t)outPtr, ionSize);
         close(sharedFd);
         return -1;
     }
 
-    ALOGV("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%zu\n", __func__, (void *)outPtr, (void *)phyAddr, ionSize, imxBuf.mFormatSize);
+    ALOGV("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%zu\n", __func__, (void *)outPtr,
+          (void *)phyAddr, ionSize, imxBuf.mFormatSize);
 
     imxBuf.mVirtAddr = (void *)outPtr;
     imxBuf.mPhyAddr = phyAddr;
@@ -638,15 +595,12 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf)
 }
 
 int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
-    if (imxBuf.mVirtAddr)
-        munmap(imxBuf.mVirtAddr, imxBuf.mSize);
+    if (imxBuf.mVirtAddr) munmap(imxBuf.mVirtAddr, imxBuf.mSize);
 
-    if (imxBuf.mFd > 0)
-        close(imxBuf.mFd);
+    if (imxBuf.mFd > 0) close(imxBuf.mFd);
 
     fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
-    if (handle)
-      delete handle;
+    if (handle) delete handle;
 
     return 0;
 }
@@ -667,8 +621,7 @@ void SetBufferHandle(ImxStreamBuffer &imxBuf) {
     imxBuf.buffer = (buffer_handle_t)handle;
 }
 
-void SwitchImxBuf(ImxStreamBuffer& imxBufA, ImxStreamBuffer& imxBufB)
-{
+void SwitchImxBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB) {
     ImxStreamBuffer tmpBuf = imxBufA;
     imxBufA = imxBufB;
     imxBufB = tmpBuf;

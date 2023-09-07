@@ -18,68 +18,63 @@
 #ifndef YuvToJpegEncoder_DEFINED
 #define YuvToJpegEncoder_DEFINED
 
-#include <string.h>
-#include <unistd.h>
-#include <time.h>
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <linux/time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <linux/time.h>
-#include <fcntl.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
+
 #include "CameraUtils.h"
 
 extern "C" {
-    #include "jpeglib.h"
-    #include "jerror.h"
+#include "jerror.h"
+#include "jpeglib.h"
 }
 #include <setjmp.h>
 
-#define DEINTERLEAVE_LINES_ONE_TIME  16
+#define DEINTERLEAVE_LINES_ONE_TIME 16
 
 class YuvToJpegEncoder {
 public:
     /** Create an encoder based on the YUV format.
      */
-    static YuvToJpegEncoder* create(int pixelFormat);
+    static YuvToJpegEncoder *create(int pixelFormat);
 
     YuvToJpegEncoder();
 
     /** Encode YUV data to jpeg,  which is output to a stream.
      */
-    virtual int encode(void *inYuv,
-               void* inYuvPhy,
-               int   inWidth,
-               int   inHeight,
-               int   quality,
-               void *outBuf,
-               int   outSize,
-               int   outWidth,
-               int   outHeight);
+    virtual int encode(void *inYuv, void *inYuvPhy, int inWidth, int inHeight, int quality,
+                       void *outBuf, int outSize, int outWidth, int outHeight);
 
     virtual ~YuvToJpegEncoder() {}
-    int getColorFormat() {return mColorFormat;}
+    int getColorFormat() { return mColorFormat; }
 
 protected:
     int fNumPlanes;
     int color;
     int mColorFormat;
 
-    void setJpegCompressStruct(jpeg_compress_struct *cinfo,
-                               int                   width,
-                               int                   height,
-                               int                   quality);
-    virtual void configSamplingFactors(__attribute__((unused))jpeg_compress_struct *cinfo) {return;};
-    virtual void compress(__attribute__((unused))jpeg_compress_struct *cinfo,
-                          __attribute__((unused))uint8_t *yuv) {return;};
-    virtual int  yuvResize(__attribute__((unused))uint8_t *srcBuf,
-                           __attribute__((unused))int      srcWidth,
-                           __attribute__((unused))int      srcHeight,
-                           __attribute__((unused))uint8_t *dstBuf,
-                           __attribute__((unused))int      dstWidth,
-                           __attribute__((unused))int      dstHeight);
+    void setJpegCompressStruct(jpeg_compress_struct *cinfo, int width, int height, int quality);
+    virtual void configSamplingFactors(__attribute__((unused)) jpeg_compress_struct *cinfo) {
+        return;
+    };
+    virtual void compress(__attribute__((unused)) jpeg_compress_struct *cinfo,
+                          __attribute__((unused)) uint8_t *yuv) {
+        return;
+    };
+    virtual int yuvResize(__attribute__((unused)) uint8_t *srcBuf,
+                          __attribute__((unused)) int srcWidth,
+                          __attribute__((unused)) int srcHeight,
+                          __attribute__((unused)) uint8_t *dstBuf,
+                          __attribute__((unused)) int dstWidth,
+                          __attribute__((unused)) int dstHeight);
     bool supportVpu;
 };
 
@@ -90,27 +85,13 @@ public:
 
 private:
     void configSamplingFactors(jpeg_compress_struct *cinfo);
-    void deinterleaveYuv(uint8_t   *yuv,
-                         int        width,
-                         int        height,
-                         uint8_t *& yPlanar,
-                         uint8_t *& uPlanar,
-                         uint8_t *& vPlanar);
-    void deinterleave(uint8_t *vuPlanar,
-                      uint8_t *uRows,
-                      uint8_t *vRows,
-                      int      rowIndex,
-                      int      width,
-                      int      height,
-                      int      processLines);
-    void        compress(jpeg_compress_struct *cinfo,
-                         uint8_t              *yuv);
-    int yuvResize(uint8_t *srcBuf,
-                          int      srcWidth,
-                          int      srcHeight,
-                          uint8_t *dstBuf,
-                          int      dstWidth,
-                          int      dstHeight);
+    void deinterleaveYuv(uint8_t *yuv, int width, int height, uint8_t *&yPlanar, uint8_t *&uPlanar,
+                         uint8_t *&vPlanar);
+    void deinterleave(uint8_t *vuPlanar, uint8_t *uRows, uint8_t *vRows, int rowIndex, int width,
+                      int height, int processLines);
+    void compress(jpeg_compress_struct *cinfo, uint8_t *yuv);
+    int yuvResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                  int dstHeight);
 };
 
 class Yuv422IToJpegEncoder : public YuvToJpegEncoder {
@@ -120,52 +101,32 @@ public:
 
 private:
     void configSamplingFactors(jpeg_compress_struct *cinfo);
-    void compress(jpeg_compress_struct *cinfo,
-                  uint8_t              *yuv);
-    void deinterleave(uint8_t *yuv,
-                      uint8_t *yRows,
-                      uint8_t *uRows,
-                      uint8_t *vRows,
-                      int      rowIndex,
-                      int      width,
-                      int      height,
-                      int      processLines);
+    void compress(jpeg_compress_struct *cinfo, uint8_t *yuv);
+    void deinterleave(uint8_t *yuv, uint8_t *yRows, uint8_t *uRows, uint8_t *vRows, int rowIndex,
+                      int width, int height, int processLines);
 };
 
 class Yuv422SpToJpegEncoder : public YuvToJpegEncoder {
-    public:
-        Yuv422SpToJpegEncoder();
-        virtual ~Yuv422SpToJpegEncoder() {}
+public:
+    Yuv422SpToJpegEncoder();
+    virtual ~Yuv422SpToJpegEncoder() {}
 
-    private:
-        void configSamplingFactors(jpeg_compress_struct *cinfo);
-        void compress(jpeg_compress_struct *cinfo,
-                uint8_t              *yuv);
-        void deinterleave(uint8_t *yuv,
-                uint8_t *yRows,
-                uint8_t *uRows,
-                uint8_t *vRows,
-                int      rowIndex,
-                int      width,
-                int      height,
-                int      processLines);
-        int yuvResize(uint8_t *srcBuf,
-                int      srcWidth,
-                int      srcHeight,
-                uint8_t *dstBuf,
-                int      dstWidth,
-                int      dstHeight);
+private:
+    void configSamplingFactors(jpeg_compress_struct *cinfo);
+    void compress(jpeg_compress_struct *cinfo, uint8_t *yuv);
+    void deinterleave(uint8_t *yuv, uint8_t *yRows, uint8_t *uRows, uint8_t *vRows, int rowIndex,
+                      int width, int height, int processLines);
+    int yuvResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                  int dstHeight);
 };
 
 struct jpegBuilder_destination_mgr : jpeg_destination_mgr {
-    jpegBuilder_destination_mgr(uint8_t *input,
-                                int size);
+    jpegBuilder_destination_mgr(uint8_t *input, int size);
 
     uint8_t *buf;
-    int      bufsize;
-    size_t   jpegsize;
+    int bufsize;
+    size_t jpegsize;
 };
-
 
 struct jpegBuilder_error_mgr : jpeg_error_mgr {
     jmp_buf fJmpBuf;
