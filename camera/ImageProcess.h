@@ -21,6 +21,7 @@
 #include <utils/Mutex.h>
 // #include "ImxStream.h"
 #include "CameraConfigurationParser.h"
+#include "CameraUtils.h"
 
 namespace fsl {
 
