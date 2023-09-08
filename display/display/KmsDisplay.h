@@ -17,7 +17,7 @@
 #ifndef _KMS_DISPLAY_H_
 #define _KMS_DISPLAY_H_
 
-#include <drm/drm_fourcc.h>
+#include <drm_fourcc.h>
 #include <hwsecure_client.h>
 #include <utils/threads.h>
 #include <xf86drm.h>
