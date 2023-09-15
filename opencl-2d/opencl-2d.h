@@ -25,10 +25,10 @@ extern "C" {
 #define CL_G2D_VERSION_PATCH 0
 
 enum cl_buffer_usage {
-    /*cached and non-continuous buffer*/
-    CL_G2D_CPU_MEMORY = 0,
-    /* Uncached physical continuous buffer*/
-    CL_G2D_DEVICE_MEMORY = 1,
+    /*cached buffer*/
+    CL_G2D_CACHED_MEMORY = 0,
+    /* uncached buffer*/
+    CL_G2D_UNCACHED_MEMORY = 1,
 };
 
 // rgb formats
@@ -66,6 +66,8 @@ struct cl_g2d_buf {
     void *buf_vaddr;
     enum cl_buffer_usage usage;
     unsigned int buf_size;
+    uint64_t buf_paddr;
+    bool use_phy;
 };
 
 struct cl_g2d_surface {
@@ -95,6 +97,7 @@ struct cl_g2d_surface {
 
     int width;  // surface width
     int height; // surface height
+    bool usePhyAddr; // planes[] use physical address
 };
 
 int cl_g2d_open(void **handle);

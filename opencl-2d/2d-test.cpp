@@ -88,6 +88,7 @@ static int gOutputMemory_type = 0;
 static bool gMemTest = false;
 static bool gCLBuildTest = false;
 static int gCopyLen = 0;
+static bool g_usePhyAddr = false;
 
 static int get_buf_size(enum cl_g2d_format format, int width, int height, bool copyTest,
                         int copyLen) {
@@ -405,7 +406,8 @@ void usage(char *app) {
     printf("\t-z\t  output stride\n");
     printf("\t-m\t  InputMemory_type\n");
     printf("\t-n\t  Outputmemory_type\n");
-    printf("\t\t\t  0:Cached memory,1:Non-cached memory\n");
+    printf("\t\t\t  0:un-cached memory,1:cached memory\n");
+    printf("\t-p\t  use physical address, 0:use virt addr(default), 1: use phy addr\n");
     printf("\t-v\t  v4l2 device(such as /dev/video0, /dev/video1, ...)\n");
     printf("\tex\t  copy: 2d-test_64 -i 1080p.yuyv -o 1080p_cp.yuyv -c\n");
     printf("\t  \t  csc:  2d-test_64 -i 1080p.yuyv -s 24 -d 20 -o 1080p-out.nv12 -w 1920 -g 1080 "
@@ -413,11 +415,12 @@ void usage(char *app) {
 }
 
 static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf,
-                                     struct cl_g2d_surface *dst, char *output_buf) {
-    if (gInputMemory_type == 1)
-        src->usage = CL_G2D_DEVICE_MEMORY;
+                                     struct cl_g2d_surface *dst, char *output_buf,
+                                     bool bUsePhyAddr) {
+    if (gInputMemory_type == 0)
+        src->usage = CL_G2D_UNCACHED_MEMORY;
     else
-        src->usage = CL_G2D_CPU_MEMORY;
+        src->usage = CL_G2D_CACHED_MEMORY;
 
     src->format = gInput_format;
     switch (src->format) {
@@ -445,11 +448,12 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
     src->stride = gStride;
     src->width = gWidth;
     src->height = gHeight;
+    src->usePhyAddr = bUsePhyAddr;
 
-    if (gOutputMemory_type == 1)
-        dst->usage = CL_G2D_DEVICE_MEMORY;
+    if (gOutputMemory_type == 0)
+        dst->usage = CL_G2D_UNCACHED_MEMORY;
     else
-        dst->usage = CL_G2D_CPU_MEMORY;
+        dst->usage = CL_G2D_CACHED_MEMORY;
 
     dst->format = gOutput_format;
     switch (dst->format) {
@@ -478,6 +482,7 @@ static int update_surface_parameters(struct cl_g2d_surface *src, char *input_buf
     dst->stride = gOutStride;
     dst->width = gOutWidth;
     dst->height = gOutHeight;
+    dst->usePhyAddr = bUsePhyAddr;
     return 0;
 }
 
@@ -1177,7 +1182,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:t:m:n:x:y:z:v:")) >= 0) {
+    while ((rt = getopt(argc, argv, "hbcl:i:s:o:d:w:g:t:m:n:x:y:z:v:p:")) >= 0) {
         switch (rt) {
             case 'h':
                 usage(argv[0]);
@@ -1187,6 +1192,9 @@ int main(int argc, char **argv) {
                 break;
             case 'c':
                 gMemTest = true;
+                break;
+            case 'p':
+                g_usePhyAddr = atoi(optarg);
                 break;
             case 'l':
                 gCopyLen = atoi(optarg);
@@ -1247,7 +1255,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("g_v4l_device %s\n", g_v4l_device);
+    if (g_use_v4l2_buffer) printf("g_v4l_device %s, gMemTest %d\n", g_v4l_device, gMemTest);
+
+    printf("g_usePhyAddr %d\n", g_usePhyAddr);
 
     if (gOutWidth == 0) gOutWidth = gWidth;
     if (gOutHeight == 0) gOutHeight = gHeight;
@@ -1310,8 +1320,8 @@ int main(int argc, char **argv) {
     memset(&OutPhyBuffer, 0, sizeof(OutPhyBuffer));
     memset(&OutBenchMarkPhyBuffer, 0, sizeof(OutBenchMarkPhyBuffer));
 
-    bInputMemCached = gInputMemory_type ? false : true;
-    bOutputMemCached = gOutputMemory_type ? false : true;
+    bInputMemCached = gInputMemory_type ? true : false;
+    bOutputMemCached = gOutputMemory_type ? true : false;
 
     OutBenchMarkPhyBuffer.mSize = outputlen;
     AllocPhyBuffer(&OutBenchMarkPhyBuffer, bOutputMemCached);
@@ -1409,40 +1419,58 @@ int main(int argc, char **argv) {
     // cl engine
     if (CLHandle != NULL) {
         ALOGI("Start CL engine blit, in size %d, out size %d", inputlen, outputlen);
+        memset(&src, 0, sizeof(src));
+        memset(&dst, 0, sizeof(dst));
+
         t1 = systemTime();
         for (int loop = 0; loop < G2D_TEST_LOOP; loop++) {
             int test_buffer_index = loop % TEST_BUFFER_NUM;
-            ALOGV("loop %d, test_buffer_index %d", loop, test_buffer_index);
             input_buf = InPhyBuffer[test_buffer_index].mVirtAddr;
             inputPhy_buf = InPhyBuffer[test_buffer_index].mPhyAddr;
-            ;
+
             output_buf = OutPhyBuffer[test_buffer_index].mVirtAddr;
             outputPhy_buf = OutPhyBuffer[test_buffer_index].mPhyAddr;
+
+            ALOGV("loop %d, test_buffer_index %d, inVirt %p, inPhy 0x%llx, outVirt %p, outPhy 0x%llx, inputlen %d",
+                  loop, test_buffer_index, input_buf, inputPhy_buf, output_buf, outputPhy_buf,
+                  inputlen);
 
             read_len = read_from_file((char *)input_buf, inputlen, input_file);
 
             if (!gMemTest) {
-                update_surface_parameters(&src, (char *)input_buf, &dst, (char *)output_buf);
+                if (g_usePhyAddr)
+                    update_surface_parameters(&src, (char *)inputPhy_buf, &dst,
+                                              (char *)outputPhy_buf, true);
+                else
+                    update_surface_parameters(&src, (char *)input_buf, &dst, (char *)output_buf,
+                                              false);
+
                 ALOGV("call cl_g2d_blit");
                 mCLBlit(CLHandle, &src, &dst);
 
             } else {
                 struct cl_g2d_buf cl_output_buf;
                 struct cl_g2d_buf cl_input_buf;
-                cl_output_buf.buf_vaddr = output_buf;
-                cl_output_buf.buf_size = gCopyLen;
-                cl_input_buf.buf_vaddr = input_buf;
-                cl_input_buf.buf_size = gCopyLen;
 
-                if (gInputMemory_type == 1) {
-                    cl_input_buf.usage = CL_G2D_DEVICE_MEMORY;
+                cl_output_buf.buf_vaddr = output_buf;
+                cl_output_buf.buf_paddr = outputPhy_buf;
+                cl_output_buf.buf_size = gCopyLen;
+                cl_output_buf.use_phy = g_usePhyAddr;
+
+                cl_input_buf.buf_vaddr = input_buf;
+                cl_input_buf.buf_paddr = inputPhy_buf;
+                cl_input_buf.buf_size = gCopyLen;
+                cl_input_buf.use_phy = g_usePhyAddr;
+
+                if (gInputMemory_type == 0) {
+                    cl_input_buf.usage = CL_G2D_UNCACHED_MEMORY;
                 } else {
-                    cl_input_buf.usage = CL_G2D_CPU_MEMORY;
+                    cl_input_buf.usage = CL_G2D_CACHED_MEMORY;
                 }
-                if (gOutputMemory_type == 1) {
-                    cl_output_buf.usage = CL_G2D_DEVICE_MEMORY;
+                if (gOutputMemory_type == 0) {
+                    cl_output_buf.usage = CL_G2D_UNCACHED_MEMORY;
                 } else {
-                    cl_output_buf.usage = CL_G2D_CPU_MEMORY;
+                    cl_output_buf.usage = CL_G2D_CACHED_MEMORY;
                 }
                 ALOGV("call cl_g2d_copy");
                 mCLCopy(CLHandle, &cl_output_buf, &cl_input_buf, (void *)(intptr_t)gCopyLen);
@@ -1451,8 +1479,10 @@ int main(int argc, char **argv) {
             mCLFinish(CLHandle);
         }
         t2 = systemTime();
-        ALOGI("End CL engine blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP,
-              t2 - t1, (t2 - t1) / G2D_TEST_LOOP);
+        ALOGI("End CL engine blit, %d loops use %lld ns, average %lld ns per loop, g_usePhyAddr "
+              "%d, input cached %d, output cached %d",
+              G2D_TEST_LOOP, t2 - t1, (t2 - t1) / G2D_TEST_LOOP, g_usePhyAddr, gInputMemory_type,
+              gOutputMemory_type);
 
         dump_buffer((char *)input_buf, gCopyLen > 256 ? 256 : gCopyLen, "cl_input");
         dumpOutPutBuffer((char *)output_buf, "cl");

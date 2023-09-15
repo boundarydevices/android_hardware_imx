@@ -225,7 +225,12 @@ static bool CreateMemObjects(struct g2dContext *gcontext, struct cl_g2d_surface 
     else
         d_flags = CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR;
 
-    if (surface->usage == CL_G2D_DEVICE_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
+    if (surface->usage == CL_G2D_UNCACHED_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
+
+    if (surface->usePhyAddr) {
+        d_flags |= CL_MEM_USE_HOST_PHYSICAL_ADDR_VIV;
+        d_flags &= ~CL_MEM_USE_HOST_PTR;
+    }
 
     for (int i = 0; i < plane; i++) {
         int len = g2d_get_planesize(surface, i);
@@ -260,7 +265,7 @@ static bool ReadOutMemObjects(struct g2dContext *gContext) {
         // Read the output buffer back to the Host
         // Since the memobj is created as CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV
         // No need to read output buffer
-        if ((gContext->dst[i] == NULL) || (gContext->dst[i]->usage == CL_G2D_DEVICE_MEMORY))
+        if ((gContext->dst[i] == NULL) || (gContext->dst[i]->usage == CL_G2D_UNCACHED_MEMORY))
             continue;
 
         int plane = g2d_get_planecount(gContext->dst[i]->format);
@@ -613,6 +618,8 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf, struct cl_g2d_buf *
     unsigned int remain_size = 0;
     size_t globalWorkSize = 0;
     struct g2dContext *gcontext = (struct g2dContext *)handle;
+    void *inAddr = NULL;
+    void *outAddr = NULL;
 
     if ((gcontext == NULL) || (input_buf == NULL) || (output_buf == NULL) ||
         (size > input_buf->buf_size) || (size > output_buf->buf_size)) {
@@ -631,9 +638,16 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf, struct cl_g2d_buf *
     cl_mem_flags d_flags;
 
     d_flags = CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR;
-    if (input_buf->usage == CL_G2D_DEVICE_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
-    memObject = clCreateBuffer(gcontext->context, d_flags, input_buf->buf_size,
-                               input_buf->buf_vaddr, NULL);
+    if (input_buf->usage == CL_G2D_UNCACHED_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
+
+    inAddr = input_buf->buf_vaddr;
+    if (input_buf->use_phy) {
+        d_flags |= CL_MEM_USE_HOST_PHYSICAL_ADDR_VIV;
+        d_flags &= ~CL_MEM_USE_HOST_PTR;
+        inAddr = (void *)input_buf->buf_paddr;
+    }
+
+    memObject = clCreateBuffer(gcontext->context, d_flags, input_buf->buf_size, inAddr, NULL);
     if (memObject == NULL) {
         g2d_printf("%s: Error creating input memory objects.\n", __func__);
         goto error;
@@ -641,9 +655,16 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf, struct cl_g2d_buf *
     gcontext->memInObjects[kernel_index][0] = memObject;
 
     d_flags = CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR;
-    if (output_buf->usage == CL_G2D_DEVICE_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
-    memObject = clCreateBuffer(gcontext->context, d_flags, output_buf->buf_size,
-                               output_buf->buf_vaddr, NULL);
+    if (output_buf->usage == CL_G2D_UNCACHED_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
+
+    outAddr = output_buf->buf_vaddr;
+    if (output_buf->use_phy) {
+        d_flags |= CL_MEM_USE_HOST_PHYSICAL_ADDR_VIV;
+        d_flags &= ~CL_MEM_USE_HOST_PTR;
+        outAddr = (void *)output_buf->buf_paddr;
+    }
+
+    memObject = clCreateBuffer(gcontext->context, d_flags, output_buf->buf_size, outAddr, NULL);
     if (memObject == NULL) {
         g2d_printf("%s: Error creating output memory objects.\n", __func__);
         goto error;
