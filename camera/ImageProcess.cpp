@@ -812,6 +812,11 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer &dstBuf, ImxStreamBuffer &
           bOutputCached, dst->usage(), src->width(), src->height(), dst->width(), dst->height(),
           src->format(), dst->format(), (int)srcBuf.mFormatSize);
 
+    // Fix me! Currently, the GPU only support using physical address for uncached memory.
+    // Otherwise the physical address will be taken as virtual one, leading crash.
+    // Will remove the hard code after GPU fix the issue.
+    bOutputCached = false;
+
     // case 1: same format, same resolution, copy
     if ((src->format() == dst->format()) && (src->width() == dst->width()) &&
         (src->height() == dst->height())) {
@@ -823,11 +828,11 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer &dstBuf, ImxStreamBuffer &
 
             if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
                 (src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
-                cl_Copy(mCLHandle, (uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr,
+                cl_Copy(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, (uint8_t *)srcBuf.mPhyAddr,
                         srcBuf.mFormatSize, false, bOutputCached);
             } else
-                cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mVirtAddr, dst->width(),
-                                  dst->height(), (uint8_t *)srcBuf.mVirtAddr, src->width(),
+                cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, dst->width(),
+                                  dst->height(), (uint8_t *)srcBuf.mPhyAddr, src->width(),
                                   src->height(), false, bOutputCached);
 
             (*mCLFlush)(mCLHandle);
@@ -872,7 +877,7 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer &dstBuf, ImxStreamBuffer &
     // case 4: diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
-        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
+        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mPhyAddr, (uint8_t *)dstBuf.mPhyAddr,
                         dst->width(), dst->height(), false, bOutputCached);
 
         (*mCLFlush)(mCLHandle);
@@ -977,13 +982,15 @@ void ImageProcess::cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uin
     struct cl_g2d_buf g2d_output_buf;
     struct cl_g2d_buf g2d_input_buf;
 
-    g2d_output_buf.buf_vaddr = output;
+    g2d_output_buf.buf_paddr = (uint64_t)output;
     g2d_output_buf.buf_size = size;
-    g2d_output_buf.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    g2d_output_buf.use_phy = true;
+    g2d_output_buf.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
 
-    g2d_input_buf.buf_vaddr = input;
+    g2d_input_buf.buf_paddr = (uint64_t)input;
     g2d_input_buf.buf_size = size;
-    g2d_input_buf.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    g2d_input_buf.use_phy = true;
+    g2d_input_buf.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
 
     (*mCLCopy)(g2dHandle, &g2d_output_buf, &g2d_input_buf, (void *)(intptr_t)size);
 }
@@ -993,7 +1000,7 @@ void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle, uint8_t *output, uint32_t 
                                      uint32_t srcHeight, bool bInputCached, bool bOutputCached) {
     struct cl_g2d_surface src, dst;
     src.format = CL_G2D_YUYV;
-    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     src.planes[0] = (long)input;
     src.left = 0;
     src.top = 0;
@@ -1002,9 +1009,10 @@ void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle, uint8_t *output, uint32_t 
     src.stride = srcWidth;
     src.width = srcWidth;
     src.height = srcHeight;
+    src.usePhyAddr = true;
 
     dst.format = CL_G2D_YUYV;
-    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     dst.planes[0] = (long)output;
     dst.left = 0;
     dst.top = 0;
@@ -1013,6 +1021,7 @@ void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle, uint8_t *output, uint32_t 
     dst.stride = dstWidth;
     dst.width = dstWidth;
     dst.height = dstHeight;
+    dst.usePhyAddr = true;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
@@ -1020,7 +1029,7 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_
                                    int width, int height, bool bInputCached, bool bOutputCached) {
     struct cl_g2d_surface src, dst;
     src.format = CL_G2D_YUYV;
-    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     src.planes[0] = (long)inputBuffer;
     src.left = 0;
     src.top = 0;
@@ -1029,9 +1038,10 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_
     src.stride = width;
     src.width = width;
     src.height = height;
+    src.usePhyAddr = true;
 
     dst.format = CL_G2D_NV12;
-    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
+    dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     dst.planes[0] = (long)outputBuffer;
     dst.planes[1] = (long)outputBuffer + width * height;
     dst.left = 0;
@@ -1041,6 +1051,7 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_
     dst.stride = width;
     dst.width = width;
     dst.height = height;
+    dst.usePhyAddr = true;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
