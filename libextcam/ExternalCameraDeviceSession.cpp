@@ -3115,7 +3115,7 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
     ((AllocatedFramePhyMem*)mYu12Frame.get())->getPhyAddr(dstPhyAddr);
 
     if (mDebug) t1 = systemTime();
-    imageProcess->handleFrame(outData, (uint8_t*)vaddr, mDecodedData.width, mDecodedData.height,
+    imageProcess->handleFrame(mDecodedData.width, mDecodedData.height,
                               dst_fmt, src_fmt, dstPhyAddr, srcPhyAddr);
     if (mDebug) {
         t2 = systemTime();

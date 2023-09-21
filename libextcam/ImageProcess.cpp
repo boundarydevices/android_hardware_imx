@@ -89,6 +89,7 @@ ImageProcess::ImageProcess() : mCLModule(NULL) {
         mCLFlush = NULL;
         mCLFinish = NULL;
         mCLBlit = NULL;
+        mCLCopy = NULL;
         mCLHandle = NULL;
     } else {
         mCLOpen = (hwc_func1)dlsym(mCLModule, "cl_g2d_open");
@@ -96,6 +97,7 @@ ImageProcess::ImageProcess() : mCLModule(NULL) {
         mCLFlush = (hwc_func1)dlsym(mCLModule, "cl_g2d_flush");
         mCLFinish = (hwc_func1)dlsym(mCLModule, "cl_g2d_finish");
         mCLBlit = (hwc_func3)dlsym(mCLModule, "cl_g2d_blit");
+        mCLCopy = (hwc_func4)dlsym(mCLModule, "cl_g2d_copy");
         ret = (*mCLOpen)((void *)&mCLHandle);
         if (ret != 0) {
             mCLHandle = NULL;
@@ -164,7 +166,7 @@ void ImageProcess::getModule(char *path, const char *name) {
     return;
 }
 
-int ImageProcess::handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+int ImageProcess::handleFrame(uint32_t width, uint32_t height,
                               ImgFormat dst_fmt, ImgFormat src_fmt, uint64_t dstPhyAddr,
                               uint64_t srcPhyAddr) {
     int ret = 0;
@@ -179,15 +181,15 @@ int ImageProcess::handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, 
     switch (src_fmt) {
         case NV12:
             ALOGV("%s: handle NV12 Frame\n", __func__);
-            ret = handleNV12Frame(dstBuf, srcBuf, width, height, dst_fmt);
+            ret = handleNV12Frame(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
             break;
         case NV16:
             ALOGV("%s: handle NV16 Frame!\n", __func__);
-            ret = handleNV16Frame(dstBuf, srcBuf, width, height, dst_fmt);
+            ret = handleNV16Frame(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
             break;
         case YUYV:
             ALOGV("%s: handle YUYV Frame!\n", __func__);
-            ret = handleYUYVFrame(dstBuf, srcBuf, width, height, dstPhyAddr, srcPhyAddr, dst_fmt);
+            ret = handleYUYVFrame(width, height, dstPhyAddr, srcPhyAddr, dst_fmt);
             break;
         default:
             ALOGE("%s: src_fmt cannot be handled!\n", __func__);
@@ -197,23 +199,30 @@ int ImageProcess::handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, 
     return ret;
 }
 
-int ImageProcess::handleNV12Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
-                                  ImgFormat dst_fmt) {
+int ImageProcess::handleNV12Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
+                                  uint32_t height, ImgFormat dst_fmt) {
     if (mCLHandle == NULL) {
         ALOGE("%s: mCLHandle is NULL!\n", __func__);
         return -EINVAL;
     }
 
+    // Fix me! The g3d input buffer is HWDecoder output buffer, it's uncached, ref
+    // HwDecoder::allocateOutputBuffer().
+    // The g3d output buffer is mYu12Frame, it's cached, ref AllocatedFramePhyMem::allocate().
+    // Currently, the GPU only support using physical address for uncached memory.
+    // Otherwise the physical address will be taken as virtual one, leading crash.
+    // After GPU fix the issue, will set cacheable to false for g3d output buffer.
+    // The trick applies in other places useing opencl code.
+
     if (dst_fmt == NV12) {
-        memcpy(dstBuf, srcBuf, width * height * 3 / 2);
+        cl_Copy(mCLHandle, srcPhyAddr, dstPhyAddr, width * height * 3 / 2, false, false);
         return 0;
     }
 
-    bool bOutputCached = true;
     // diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
-        cl_NV12toI420(mCLHandle, srcBuf, dstBuf, width, height, false, bOutputCached);
+        cl_NV12toI420(mCLHandle, srcPhyAddr, dstPhyAddr, width, height, false, false);
         (*mCLFlush)(mCLHandle);
         (*mCLFinish)(mCLHandle);
     }
@@ -221,14 +230,32 @@ int ImageProcess::handleNV12Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t wid
     return 0;
 }
 
-void ImageProcess::cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
+void ImageProcess::cl_Copy(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, uint32_t size,
+                           bool bInputCached, bool bOutputCached) {
+    struct cl_g2d_buf g2d_output_buf;
+    struct cl_g2d_buf g2d_input_buf;
+
+    g2d_output_buf.buf_paddr = dstPhyAddr;
+    g2d_output_buf.buf_size = size;
+    g2d_output_buf.use_phy = true;
+    g2d_output_buf.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+
+    g2d_input_buf.buf_paddr = srcPhyAddr;
+    g2d_input_buf.buf_size = size;
+    g2d_input_buf.use_phy = true;
+    g2d_input_buf.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+
+    (*mCLCopy)(g2dHandle, &g2d_output_buf, &g2d_input_buf, (void *)(intptr_t)size);
+}
+
+void ImageProcess::cl_NV12toI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr,
                                  int width, int height, bool bInputCached, bool bOutputCached) {
     struct cl_g2d_surface src, dst;
 
     src.format = CL_G2D_NV12;
-    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
-    src.planes[0] = (long)inputBuffer;
-    src.planes[1] = (long)inputBuffer + width * height;
+    src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+    src.planes[0] = (long)srcPhyAddr;
+    src.planes[1] = (long)srcPhyAddr + width * height;
     src.left = 0;
     src.top = 0;
     src.right = width;
@@ -236,12 +263,13 @@ void ImageProcess::cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t 
     src.stride = width;
     src.width = width;
     src.height = height;
+    src.usePhyAddr = true;
 
     dst.format = CL_G2D_I420;
-    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
-    dst.planes[0] = (long)outputBuffer;
-    dst.planes[1] = (long)outputBuffer + width * height;
-    dst.planes[2] = (long)outputBuffer + width * height * 5 / 4;
+    dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+    dst.planes[0] = (long)dstPhyAddr;
+    dst.planes[1] = (long)dstPhyAddr + width * height;
+    dst.planes[2] = (long)dstPhyAddr + width * height * 5 / 4;
     dst.left = 0;
     dst.top = 0;
     dst.right = width;
@@ -249,21 +277,21 @@ void ImageProcess::cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t 
     dst.stride = width;
     dst.width = width;
     dst.height = height;
+    dst.usePhyAddr = true;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
 
-int ImageProcess::handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
-                                  ImgFormat dst_fmt) {
+int ImageProcess::handleNV16Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
+                                  uint32_t height, ImgFormat dst_fmt) {
     if (mCLHandle == NULL) {
         ALOGE("%s: mCLHandle is NULL!\n", __func__);
         return -EINVAL;
     }
-    bool bOutputCached = true;
 
     Mutex::Autolock _l(mCLLock);
 
-    int ret = cl_NV16Src(mCLHandle, srcBuf, dstBuf, width, height, false, bOutputCached, dst_fmt);
+    int ret = cl_NV16Src(mCLHandle, srcPhyAddr, dstPhyAddr, width, height, false, false, dst_fmt);
 
     (*mCLFlush)(mCLHandle);
     (*mCLFinish)(mCLHandle);
@@ -271,9 +299,8 @@ int ImageProcess::handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t wid
     return ret;
 }
 
-int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
-                             int width, int height, bool bInputCached, bool bOutputCached,
-                             ImgFormat dst_fmt) {
+int ImageProcess::cl_NV16Src(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width,
+                             int height, bool bInputCached, bool bOutputCached, ImgFormat dst_fmt) {
     if (!((dst_fmt == NV12) || (dst_fmt == I420))) {
         ALOGE("%s: unsupported dst_fmt %d", __func__, dst_fmt);
         return -1;
@@ -282,9 +309,9 @@ int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer, uint8_t *out
     struct cl_g2d_surface src, dst;
 
     src.format = CL_G2D_NV16;
-    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
-    src.planes[0] = (long)inputBuffer;
-    src.planes[1] = (long)inputBuffer + width * height;
+    src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+    src.planes[0] = (long)srcPhyAddr;
+    src.planes[1] = (long)srcPhyAddr + width * height;
     src.left = 0;
     src.top = 0;
     src.right = width;
@@ -292,12 +319,13 @@ int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer, uint8_t *out
     src.stride = width;
     src.width = width;
     src.height = height;
+    src.usePhyAddr = true;
 
     dst.format = (dst_fmt == I420) ? CL_G2D_I420 : CL_G2D_NV12;
-    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
-    dst.planes[0] = (long)outputBuffer;
-    dst.planes[1] = (long)outputBuffer + width * height;
-    dst.planes[2] = (long)outputBuffer + width * height * 5 / 4;
+    dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+    dst.planes[0] = (long)dstPhyAddr;
+    dst.planes[1] = (long)dstPhyAddr + width * height;
+    dst.planes[2] = (long)dstPhyAddr + width * height * 5 / 4;
     dst.left = 0;
     dst.top = 0;
     dst.right = width;
@@ -305,24 +333,24 @@ int ImageProcess::cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer, uint8_t *out
     dst.stride = width;
     dst.width = width;
     dst.height = height;
+    dst.usePhyAddr = true;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 
     return 0;
 }
 
-int ImageProcess::handleYUYVFrameByG3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width,
+int ImageProcess::handleYUYVFrameByG3D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
                                        uint32_t height, ImgFormat dst_fmt) {
     if (mCLHandle == NULL) {
         ALOGE("%s: mCLHandle is NULL!\n", __func__);
         return -EINVAL;
     }
 
-    bool bOutputCached = true;
     // diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
-        cl_YUYVtoI420(mCLHandle, srcBuf, dstBuf, width, height, false, bOutputCached);
+        cl_YUYVtoI420(mCLHandle, srcPhyAddr, dstPhyAddr, width, height, false, false);
         (*mCLFlush)(mCLHandle);
         (*mCLFinish)(mCLHandle);
     }
@@ -330,21 +358,21 @@ int ImageProcess::handleYUYVFrameByG3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_
     return 0;
 }
 
-int ImageProcess::handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+int ImageProcess::handleYUYVFrame(uint32_t width, uint32_t height,
                                   uint64_t dstPhyAddr, uint64_t srcPhyAddr, ImgFormat dst_fmt) {
     if (mG2dHandle)
         return handleYUYVFrameByG2D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
     else
-        return handleYUYVFrameByG3D(dstBuf, srcBuf, width, height, dst_fmt);
+        return handleYUYVFrameByG3D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
 }
 
-void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
+void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr,
                                  int width, int height, bool bInputCached, bool bOutputCached) {
     struct cl_g2d_surface src, dst;
 
     src.format = CL_G2D_YUYV;
-    src.usage = bInputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
-    src.planes[0] = (long)inputBuffer;
+    src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+    src.planes[0] = (long)srcPhyAddr;
     src.left = 0;
     src.top = 0;
     src.right = width;
@@ -352,12 +380,13 @@ void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t 
     src.stride = width;
     src.width = width;
     src.height = height;
+    src.usePhyAddr = true;
 
     dst.format = CL_G2D_I420;
-    dst.usage = bOutputCached ? CL_G2D_CPU_MEMORY : CL_G2D_DEVICE_MEMORY;
-    dst.planes[0] = (long)outputBuffer;
-    dst.planes[1] = (long)outputBuffer + width * height;
-    dst.planes[2] = (long)outputBuffer + width * height * 5 / 4;
+    dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
+    dst.planes[0] = (long)dstPhyAddr;
+    dst.planes[1] = (long)dstPhyAddr + width * height;
+    dst.planes[2] = (long)dstPhyAddr + width * height * 5 / 4;
     dst.left = 0;
     dst.top = 0;
     dst.right = width;
@@ -365,6 +394,7 @@ void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t 
     dst.stride = width;
     dst.width = width;
     dst.height = height;
+    dst.usePhyAddr = true;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }

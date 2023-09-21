@@ -36,7 +36,7 @@ public:
     static ImageProcess *getInstance();
     ~ImageProcess();
 
-    int handleFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+    int handleFrame(uint32_t width, uint32_t height,
                     ImgFormat dst_fmt, ImgFormat src_fmt, uint64_t dstPhyAddr = 0,
                     uint64_t srcPhyAddr = 0);
 
@@ -45,23 +45,25 @@ private:
     void *getHandle();
     void getModule(char *path, const char *name);
 
-    int handleNV12Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+    int handleNV12Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width, uint32_t height,
                         ImgFormat dst_fmt);
-    void cl_NV12toI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer, int width,
+    void cl_NV12toI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width,
                        int height, bool bInputCached, bool bOutputCached);
+    void cl_Copy(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, uint32_t size,
+                 bool bInputCached, bool bOutputCached);
 
-    int handleNV16Frame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+    int handleNV16Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width, uint32_t height,
                         ImgFormat dst_fmt);
-    int cl_NV16Src(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer, int width,
-                   int height, bool bInputCached, bool bOutputCached, ImgFormat dst_fmt);
+    int cl_NV16Src(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width, int height,
+                   bool bInputCached, bool bOutputCached, ImgFormat dst_fmt);
 
     int handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
                              uint32_t height, ImgFormat dst_fmt);
-    int handleYUYVFrameByG3D(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
-                             ImgFormat dst_fmt);
-    int handleYUYVFrame(uint8_t *dstBuf, uint8_t *srcBuf, uint32_t width, uint32_t height,
+    int handleYUYVFrameByG3D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
+                             uint32_t height, ImgFormat dst_fmt);
+    int handleYUYVFrame(uint32_t width, uint32_t height,
                         uint64_t dstPhyAddr, uint64_t srcPhyAddr, ImgFormat dst_fmt);
-    void cl_YUYVtoI420(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer, int width,
+    void cl_YUYVtoI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width,
                        int height, bool bInputCached, bool bOutputCached);
 
 private:
@@ -73,6 +75,7 @@ private:
     hwc_func1 mCLOpen;
     hwc_func1 mCLClose;
     hwc_func3 mCLBlit;
+    hwc_func4 mCLCopy;
     hwc_func1 mCLFlush;
     hwc_func1 mCLFinish;
     Mutex mCLLock;
