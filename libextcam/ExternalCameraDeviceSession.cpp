@@ -3419,12 +3419,13 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                       (outputFourcc >> 8) & 0xFF, (outputFourcc >> 16) & 0xFF,
                       (outputFourcc >> 24) & 0xFF);
 
-                // For 1080p mjpg hardware decode to 1088p, no need crop, the layout is already
-                // calculated by 1088. Just get layout, no need scale.
+                // Hardware decoder is 16 pixels aligned (1920x1080 -> 1920x1088, 800x600 ->
+                // 800x608). For those height not aligned, no need crop. The layout is already
+                // calculated by 16 pixels aligned height (1088/608/...).
                 int ret = 0;
                 if (mHardwareDecoder && parent->getHardwareDecFlag() &&
-                    mYu12Frame->mWidth == 1920 && mYu12Frame->mHeight == 1088 &&
-                    halBuf.width == 1920 && halBuf.height == 1080) {
+                    (mYu12Frame->mWidth == halBuf.width) && (mYu12Frame->mHeight > halBuf.height) &&
+                    (mYu12Frame->mHeight - halBuf.height < 16)) {
                     mYu12Frame->getLayout(&cropAndScaled);
                     goto format_convert;
                 }
