@@ -826,14 +826,8 @@ int ImageProcess::handleFrameByGPU_3D(ImxStreamBuffer &dstBuf, ImxStreamBuffer &
         else {
             Mutex::Autolock _l(mCLLock);
 
-            if ((src->format() == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
-                (src->format() == HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
-                cl_Copy(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, (uint8_t *)srcBuf.mPhyAddr,
-                        srcBuf.mFormatSize, false, bOutputCached);
-            } else
-                cl_YUYVCopyByLine(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, dst->width(),
-                                  dst->height(), (uint8_t *)srcBuf.mPhyAddr, src->width(),
-                                  src->height(), false, bOutputCached);
+            cl_Copy(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, (uint8_t *)srcBuf.mPhyAddr,
+                    srcBuf.mFormatSize, false, bOutputCached);
 
             (*mCLFlush)(mCLHandle);
             (*mCLFinish)(mCLHandle);
@@ -908,12 +902,7 @@ int ImageProcess::handleFrameByCPU(ImxStreamBuffer &dstBuf, ImxStreamBuffer &src
             Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
                               src->width() * src->height(), ((VideoStream *)src)->mV4l2Format);
         else {
-            if (src->format() == HAL_PIXEL_FORMAT_YCBCR_420_888)
-                memcpy((uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr,
-                       dstBuf.mFormatSize);
-            else
-                YUYVCopyByLine((uint8_t *)dstBuf.mVirtAddr, dst->width(), dst->height(),
-                               (uint8_t *)srcBuf.mVirtAddr, src->width(), src->height());
+            memcpy((uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr, dstBuf.mFormatSize);
         }
 
         return 0;
@@ -995,36 +984,6 @@ void ImageProcess::cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uin
     (*mCLCopy)(g2dHandle, &g2d_output_buf, &g2d_input_buf, (void *)(intptr_t)size);
 }
 
-void ImageProcess::cl_YUYVCopyByLine(void *g2dHandle, uint8_t *output, uint32_t dstWidth,
-                                     uint32_t dstHeight, uint8_t *input, uint32_t srcWidth,
-                                     uint32_t srcHeight, bool bInputCached, bool bOutputCached) {
-    struct cl_g2d_surface src, dst;
-    src.format = CL_G2D_YUYV;
-    src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
-    src.planes[0] = (long)input;
-    src.left = 0;
-    src.top = 0;
-    src.right = srcWidth;
-    src.bottom = srcHeight;
-    src.stride = srcWidth;
-    src.width = srcWidth;
-    src.height = srcHeight;
-    src.usePhyAddr = true;
-
-    dst.format = CL_G2D_YUYV;
-    dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
-    dst.planes[0] = (long)output;
-    dst.left = 0;
-    dst.top = 0;
-    dst.right = dstWidth;
-    dst.bottom = dstHeight;
-    dst.stride = dstWidth;
-    dst.width = dstWidth;
-    dst.height = dstHeight;
-    dst.usePhyAddr = true;
-
-    (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
-}
 void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
                                    int width, int height, bool bInputCached, bool bOutputCached) {
     struct cl_g2d_surface src, dst;
@@ -1054,38 +1013,6 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_
     dst.usePhyAddr = true;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
-}
-
-void ImageProcess::YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight, uint8_t *src,
-                                  uint32_t srcWidth, uint32_t srcHeight) {
-    uint32_t i;
-    int BytesPerPixel = 2;
-    uint8_t *pDstLine = dst;
-    uint8_t *pSrcLine = src;
-    uint32_t bytesPerSrcLine = BytesPerPixel * srcWidth;
-    uint32_t bytesPerDstLine = BytesPerPixel * dstWidth;
-    uint32_t marginWidh = dstWidth - srcWidth;
-    uint16_t *pYUV;
-
-    if ((srcWidth > dstWidth) || (srcHeight > dstHeight)) {
-        ALOGW("%s, para error", __func__);
-        return;
-    }
-
-    for (i = 0; i < srcHeight; i++) {
-        memcpy(pDstLine, pSrcLine, bytesPerSrcLine);
-
-        // black margin, Y:0, U:128, V:128
-        for (uint32_t j = 0; j < marginWidh; j++) {
-            pYUV = (uint16_t *)(pDstLine + bytesPerSrcLine + j * BytesPerPixel);
-            *pYUV = 0x8000;
-        }
-
-        pSrcLine += bytesPerSrcLine;
-        pDstLine += bytesPerDstLine;
-    }
-
-    return;
 }
 
 void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width,
