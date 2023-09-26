@@ -23,6 +23,7 @@
 
 #include "CameraMetadata.h"
 #include "CameraUtils.h"
+#include "ExifUtils.h"
 #include "HwJpegEncoder.h"
 #include "YuvToJpegEncoder.h"
 
@@ -157,6 +158,7 @@ private:
 
     bool mCancelEncoding;
     EXIFData mEXIFData;
+    ExifUtils *mExifUtils;
 
 private:
     bool has_datetime_tag;

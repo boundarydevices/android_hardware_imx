@@ -31,7 +31,6 @@
 #include "CameraConfigurationParser.h"
 #include "CameraMetadata.h"
 #include "CameraUtils.h"
-#include "ExifUtils.h"
 #include "ISPWrapper.h"
 #include "log/log.h"
 
@@ -223,45 +222,59 @@ status_t JpegBuilder::encodeImage(JpegParams *mainJpeg, JpegParams *thumbNail, c
     mThumbnailInput = thumbNail;
 
     /* Generate EXIF object */
-    std::unique_ptr<ExifUtils> utils(ExifUtils::Create());
-    utils->Initialize();
+    mExifUtils = ExifUtils::Create();
+    if (mExifUtils == NULL) {
+        ALOGE("%s: ExifUtils::Create() failed", __func__);
+        return BAD_VALUE;
+    }
 
-    utils->SetFromMetadata(meta, mainJpeg->out_width, mainJpeg->out_height);
+    mExifUtils->Initialize();
+
+    mExifUtils->SetFromMetadata(meta, mainJpeg->out_width, mainJpeg->out_height);
 
     char value[PROPERTY_VALUE_MAX];
     property_get("ro.product.manufacturer", value, "");
-    utils->SetMake(value);
+    mExifUtils->SetMake(value);
 
     property_get("ro.product.model", value, "");
-    utils->SetModel(value);
+    mExifUtils->SetModel(value);
 
-    utils->SetExposureTime(EXP_TIME_DFT);
+    mExifUtils->SetExposureTime(EXP_TIME_DFT);
 
     // When flash is not available, the last 2 parameters are not cared
-    utils->SetFlash(ANDROID_FLASH_INFO_AVAILABLE_FALSE, ANDROID_FLASH_STATE_UNAVAILABLE,
-                    ANDROID_CONTROL_AE_MODE_ON);
+    mExifUtils->SetFlash(ANDROID_FLASH_INFO_AVAILABLE_FALSE, ANDROID_FLASH_STATE_UNAVAILABLE,
+                         ANDROID_CONTROL_AE_MODE_ON);
 
     size_t thumbCodeSize = 0;
     if (thumbNail) {
         ret = encodeJpeg(thumbNail, hw_jpeg_enc, 0, 0);
         if (ret != NO_ERROR) {
             ALOGE("%s encodeJpeg failed", __func__);
-            return ret;
+            goto error;
         }
         thumbCodeSize = mThumbnailInput->jpeg_size;
     }
 
-    ret = utils->GenerateApp1(thumbNail ? mThumbnailInput->dst : 0, thumbCodeSize);
+    ret = mExifUtils->GenerateApp1(thumbNail ? mThumbnailInput->dst : 0, thumbCodeSize);
     if (!ret) {
         ALOGE("%s: generating APP1 failed.", __FUNCTION__);
-        return BAD_VALUE;
+        ret = BAD_VALUE;
+        goto error;
     }
 
     /* Get internal buffer */
-    exifDataSize = utils->GetApp1Length();
-    exifData = utils->GetApp1Buffer();
+    exifDataSize = mExifUtils->GetApp1Length();
+    exifData = mExifUtils->GetApp1Buffer();
 
-    return encodeJpeg(mainJpeg, hw_jpeg_enc, exifData, exifDataSize);
+    ret = encodeJpeg(mainJpeg, hw_jpeg_enc, exifData, exifDataSize);
+    if (ret) goto error;
+
+    return 0;
+
+error:
+    delete mExifUtils;
+    mExifUtils = NULL;
+    return ret;
 }
 
 status_t JpegBuilder::encodeJpeg(JpegParams *input, char *hw_jpeg_enc, const void *app1Buffer,
@@ -300,7 +313,8 @@ status_t JpegBuilder::buildImage(ImxStreamBuffer *streamBuf, char *hw_jpeg_enc) 
 
     if (!streamBuf || !mMainInput) {
         ALOGE("%s invalid param", __func__);
-        return BAD_VALUE;
+        ret = BAD_VALUE;
+        goto finish;
     }
 
     if (strstr(hw_jpeg_enc, IMX_JPEG_ENC)) {
@@ -310,6 +324,12 @@ status_t JpegBuilder::buildImage(ImxStreamBuffer *streamBuf, char *hw_jpeg_enc) 
         uint8_t *pDst = (uint8_t *)streamBuf->mVirtAddr;
         mRequestSize = mMainInput->jpeg_size;
         memcpy(pDst, mMainInput->dst, mRequestSize);
+    }
+
+finish:
+    if (mExifUtils) {
+        delete mExifUtils;
+        mExifUtils = NULL;
     }
 
     return ret;
