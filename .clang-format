@@ -3,7 +3,9 @@ BasedOnStyle: Google
 AccessModifierOffset: -4
 AlignOperands: false
 AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
+BreakStringLiterals: false
 ColumnLimit: 100
 CommentPragmas: NOLINT:.*
 ConstructorInitializerIndentWidth: 6
