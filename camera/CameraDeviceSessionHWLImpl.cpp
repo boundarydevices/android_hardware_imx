@@ -796,11 +796,6 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
                                   frameRequest->outBufferFences, requestMeta);
     }
 
-    mImgProcThread->mImageListLock.lock();
-    mImgProcThread->mProcdImageIdx++;
-    mImgProcThread->mProcdFrame = frame;
-    mImgProcThread->mImageListLock.unlock();
-
     // return v4l2 buffer
     if (is_logical_request_) {
         for (int i = 0; i < (int)imgFeed->v4l2BufferList.size(); i++) {
@@ -891,6 +886,11 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
     if (pInfo->pipeline_callback.process_pipeline_result) {
         pInfo->pipeline_callback.process_pipeline_result(std::move(result));
     }
+
+    mImgProcThread->mImageListLock.lock();
+    mImgProcThread->mProcdImageIdx++;
+    mImgProcThread->mProcdFrame = frame;
+    mImgProcThread->mImageListLock.unlock();
 
     if (mDebug) ItvlStat(mPreHandleImageTime, (char *)"HandleImage(), process_pipeline_result");
 
