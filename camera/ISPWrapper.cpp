@@ -83,7 +83,8 @@ int ISPWrapper::init(int fd) {
     m_fd = fd;
 
     // already inited
-    if (m_ctrl_id > 0) return 0;
+    if (m_ctrl_id > 0)
+        return 0;
 
     // get viv ctrl id by it's name "viv_ext_ctrl"
     struct v4l2_queryctrl queryctrl;
@@ -91,7 +92,8 @@ int ISPWrapper::init(int fd) {
 
     queryctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
     while (0 == ioctl(m_fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-        if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED) continue;
+        if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
+            continue;
 
         ALOGI("%s Control %s", __func__, queryctrl.name);
         if (strcmp((char *)queryctrl.name, VIV_CTRL_NAME) == 0) {
@@ -111,9 +113,11 @@ int ISPWrapper::setFeature(const char *value) {
     struct v4l2_ext_controls ctrls;
     struct v4l2_ext_control ctrl;
 
-    if (value == NULL) return BAD_VALUE;
+    if (value == NULL)
+        return BAD_VALUE;
 
-    if ((m_fd <= 0) || (m_ctrl_id == 0)) return NO_INIT;
+    if ((m_fd <= 0) || (m_ctrl_id == 0))
+        return NO_INIT;
 
     memset(&ctrl, 0, sizeof(ctrl));
     ctrl.id = m_ctrl_id;
@@ -184,14 +188,16 @@ int ISPWrapper::processAWB(uint8_t mode, bool force) {
         return 0;
     }
 
-    if ((mode == m_awb_mode) && (force == false)) return 0;
+    if ((mode == m_awb_mode) && (force == false))
+        return 0;
 
     ALOGI("%s, change WB mode from %d to %d, force %d", __func__, m_awb_mode, mode, force);
 
     if ((mode == ANDROID_CONTROL_AWB_MODE_AUTO) || (mode == ANDROID_CONTROL_AWB_MODE_OFF)) {
         bool bEnable = (mode == ANDROID_CONTROL_AWB_MODE_AUTO) ? true : false;
         ret = enableAWB(bEnable);
-        if (ret == 0) m_awb_mode = mode;
+        if (ret == 0)
+            m_awb_mode = mode;
 
         return ret;
     }
@@ -199,7 +205,8 @@ int ISPWrapper::processAWB(uint8_t mode, bool force) {
     // If shift from AWB to MWB, first disable AWB.
     if (m_awb_mode == ANDROID_CONTROL_AWB_MODE_AUTO) {
         ret = enableAWB(false);
-        if (ret) return ret;
+        if (ret)
+            return ret;
     }
 
     WbGains gains = wb_gains_list[mode];
@@ -225,11 +232,13 @@ int ISPWrapper::processAWB(uint8_t mode, bool force) {
 #define DWE_OFF (char *)"{<id>:<pipeline.s.dwe.onoff>;<enable>: false}"
 
 int ISPWrapper::EnableDWE(bool on) {
-    if (on == m_dwe_on) return 0;
+    if (on == m_dwe_on)
+        return 0;
 
     char *str = on ? DWE_ON : DWE_OFF;
     int ret = setFeature(str);
-    if (ret == 0) m_dwe_on = on;
+    if (ret == 0)
+        m_dwe_on = on;
 
     return ret;
 }
@@ -242,7 +251,8 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format) {
         return EnableDWE(false);
     }
 
-    if (pMeta == NULL) return BAD_VALUE;
+    if (pMeta == NULL)
+        return BAD_VALUE;
 
     // If not raw data, recover to the init state, dew on.
     EnableDWE(true);
@@ -251,7 +261,8 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format) {
     camera_metadata_ro_entry entry;
 
     ret = pMeta->Get(ANDROID_CONTROL_AWB_MODE, &entry);
-    if (ret == 0) processAWB(entry.data.u8[0]);
+    if (ret == 0)
+        processAWB(entry.data.u8[0]);
 
 // ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION is a para related to AEC.
 // Not the exposure gain of VSI ISP lib, it needs disable AEC.
@@ -262,43 +273,56 @@ int ISPWrapper::process(HalCameraMetadata *pMeta, uint32_t format) {
 #endif
 
     ret = pMeta->Get(ANDROID_CONTROL_AE_MODE, &entry);
-    if (ret == 0) processAeMode(entry.data.u8[0]);
+    if (ret == 0)
+        processAeMode(entry.data.u8[0]);
 
     ret = pMeta->Get(VSI_EXPOSURE_GAIN, &entry);
-    if (ret == 0) processExposureGain(entry.data.i32[0]);
+    if (ret == 0)
+        processExposureGain(entry.data.i32[0]);
 
     ret = pMeta->Get(ANDROID_SENSOR_EXPOSURE_TIME, &entry);
-    if (ret == 0) processExposureTime(entry.data.i64[0]);
+    if (ret == 0)
+        processExposureTime(entry.data.i64[0]);
 
     ret = pMeta->Get(VSI_DEWARP, &entry);
-    if (ret == 0) processDewarp(entry.data.i32[0]);
+    if (ret == 0)
+        processDewarp(entry.data.i32[0]);
 
     ret = pMeta->Get(VSI_HFLIP, &entry);
-    if (ret == 0) processHFlip(entry.data.i32[0]);
+    if (ret == 0)
+        processHFlip(entry.data.i32[0]);
 
     ret = pMeta->Get(VSI_VFLIP, &entry);
-    if (ret == 0) processVFlip(entry.data.i32[0]);
+    if (ret == 0)
+        processVFlip(entry.data.i32[0]);
 
     ret = pMeta->Get(VSI_LSC, &entry);
-    if (ret == 0) processLSC(entry.data.i32[0]);
+    if (ret == 0)
+        processLSC(entry.data.i32[0]);
 
     ret = pMeta->Get(ANDROID_TONEMAP_GAMMA, &entry);
-    if (ret == 0) processGamma(entry.data.f[0]);
+    if (ret == 0)
+        processGamma(entry.data.f[0]);
 
     ret = pMeta->Get(VSI_BRIGHTNESS, &entry);
-    if (ret == 0) processBrightness(entry.data.i32[0]);
+    if (ret == 0)
+        processBrightness(entry.data.i32[0]);
 
     ret = pMeta->Get(VSI_CONTRAST, &entry);
-    if (ret == 0) processContrast(entry.data.f[0]);
+    if (ret == 0)
+        processContrast(entry.data.f[0]);
 
     ret = pMeta->Get(VSI_SATURATION, &entry);
-    if (ret == 0) processSaturation(entry.data.f[0]);
+    if (ret == 0)
+        processSaturation(entry.data.f[0]);
 
     ret = pMeta->Get(VSI_HUE, &entry);
-    if (ret == 0) processHue(entry.data.i32[0]);
+    if (ret == 0)
+        processHue(entry.data.i32[0]);
 
     ret = pMeta->Get(VSI_SHARP_LEVEL, &entry);
-    if (ret == 0) processSharpLevel(entry.data.u8[0]);
+    if (ret == 0)
+        processSharpLevel(entry.data.u8[0]);
 
     return 0;
 }
@@ -398,10 +422,13 @@ int ISPWrapper::processExposureGain(int32_t gain, bool force) {
     int ret;
     Json::Value jRequest, jResponse;
 
-    if ((m_exposure_gain == gain) && (force == false)) return 0;
+    if ((m_exposure_gain == gain) && (force == false))
+        return 0;
 
-    if (gain > GAIN_LEVEL_MAX) gain = GAIN_LEVEL_MAX;
-    if (gain < GAIN_LEVEL_MIN) gain = GAIN_LEVEL_MIN;
+    if (gain > GAIN_LEVEL_MAX)
+        gain = GAIN_LEVEL_MAX;
+    if (gain < GAIN_LEVEL_MIN)
+        gain = GAIN_LEVEL_MIN;
 
     // first disable aec
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
@@ -443,10 +470,13 @@ int ISPWrapper::processExposureTime(int64_t exposureNs, bool force) {
     int ret;
     Json::Value jRequest, jResponse;
 
-    if ((m_exposure_time == exposureNs) && (force == false)) return 0;
+    if ((m_exposure_time == exposureNs) && (force == false))
+        return 0;
 
-    if (exposureNs > m_SensorData->mExposureNsMax) exposureNs = m_SensorData->mExposureNsMax;
-    if (exposureNs < m_SensorData->mExposureNsMin) exposureNs = m_SensorData->mExposureNsMin;
+    if (exposureNs > m_SensorData->mExposureNsMax)
+        exposureNs = m_SensorData->mExposureNsMax;
+    if (exposureNs < m_SensorData->mExposureNsMin)
+        exposureNs = m_SensorData->mExposureNsMin;
 
     // first disable aec
     processAeMode(ANDROID_CONTROL_AE_MODE_OFF);
@@ -494,7 +524,8 @@ int ISPWrapper::processAeMode(uint8_t mode, bool force) {
         return 0;
     }
 
-    if ((mode == m_ae_mode) && (force == false)) return 0;
+    if ((mode == m_ae_mode) && (force == false))
+        return 0;
 
     ALOGI("%s: set ae mode to %d, force %d", __func__, mode, force);
 
@@ -527,27 +558,33 @@ void ISPWrapper::parseDewarpParams(Json::Value &node) {
 
     // parse mode
     item = node["mode"];
-    if (!item.isNull()) m_dwePara.mode = item.asInt();
+    if (!item.isNull())
+        m_dwePara.mode = item.asInt();
 
     // parse hflip
     item = node["hflip"];
-    if (!item.isNull()) m_dwePara.hflip = item.asBool();
+    if (!item.isNull())
+        m_dwePara.hflip = item.asBool();
 
     // parse vflip
     item = node["vflip"];
-    if (!item.isNull()) m_dwePara.vflip = item.asBool();
+    if (!item.isNull())
+        m_dwePara.vflip = item.asBool();
 
     // parse bypass
     item = node["bypass"];
-    if (!item.isNull()) m_dwePara.bypass = item.asBool();
+    if (!item.isNull())
+        m_dwePara.bypass = item.asBool();
 
     // parse mat
     Json::Value cameraMat = node["mat"];
-    if (!cameraMat.isArray()) return;
+    if (!cameraMat.isArray())
+        return;
 
     int i = 0;
     for (auto &item : cameraMat) {
-        if (i >= MAT_SIZE) break;
+        if (i >= MAT_SIZE)
+            break;
         m_dwePara.mat[i++] = item.asDouble();
     }
 
@@ -578,7 +615,8 @@ int ISPWrapper::processDewarp(bool bEnable) {
     int orgMode = m_dwePara.mode;
 
     if (bEnable == true) {
-        if (orgMode == DEWARP_MODEL_FISHEYE_DEWARP) return 0;
+        if (orgMode == DEWARP_MODEL_FISHEYE_DEWARP)
+            return 0;
 
         m_dwePara.mode = DEWARP_MODEL_FISHEYE_DEWARP;
         ret = setDewarpParams();
@@ -588,7 +626,8 @@ int ISPWrapper::processDewarp(bool bEnable) {
             return BAD_VALUE;
         }
     } else {
-        if (orgMode == DEWARP_MODEL_LENS_DISTORTION_CORRECTION) return 0;
+        if (orgMode == DEWARP_MODEL_LENS_DISTORTION_CORRECTION)
+            return 0;
 
         m_dwePara.mode = DEWARP_MODEL_LENS_DISTORTION_CORRECTION;
         ret = setDewarpParams();
@@ -606,7 +645,8 @@ int ISPWrapper::processHFlip(bool bEnable) {
     int ret = 0;
     bool orgHFlip = m_dwePara.hflip;
 
-    if (bEnable == orgHFlip) return 0;
+    if (bEnable == orgHFlip)
+        return 0;
 
     m_dwePara.hflip = bEnable;
     ret = setDewarpParams();
@@ -622,7 +662,8 @@ int ISPWrapper::processVFlip(bool bEnable) {
     int ret = 0;
     bool orgVFlip = m_dwePara.vflip;
 
-    if (bEnable == orgVFlip) return 0;
+    if (bEnable == orgVFlip)
+        return 0;
 
     m_dwePara.vflip = bEnable;
     ret = setDewarpParams();
@@ -637,7 +678,8 @@ int ISPWrapper::processVFlip(bool bEnable) {
 int ISPWrapper::processLSC(bool bEnable, bool force) {
     int ret = 0;
 
-    if ((force == false) && (bEnable == mLSCEnable)) return 0;
+    if ((force == false) && (bEnable == mLSCEnable))
+        return 0;
 
     Json::Value jRequest, jResponse;
     jRequest[LSC_ENABLE_PARAMS] = bEnable;
@@ -672,7 +714,8 @@ int ISPWrapper::processGamma(float gamma, bool force) {
         return BAD_VALUE;
     }
 
-    if ((force == false) && (gamma == m_gamma)) return 0;
+    if ((force == false) && (gamma == m_gamma))
+        return 0;
 
     uint16_t curve[17] = {0};
     uint16_t gamma_x_equ[16] = {256, 256, 256, 256, 256, 256, 256, 256,
@@ -690,7 +733,8 @@ int ISPWrapper::processGamma(float gamma, bool force) {
 
     int mode = 0;
     Json::Value item = jResponse[GC_MODE_PARAMS];
-    if (!item.isNull()) mode = item.asInt();
+    if (!item.isNull())
+        mode = item.asInt();
 
     jRequest = jResponse;
     float dinvgamma = 1.0f / gamma;
@@ -723,7 +767,8 @@ int ISPWrapper::processBrightness(int brightness, bool force) {
         return BAD_VALUE;
     }
 
-    if ((force == false) && (brightness == m_brightness)) return 0;
+    if ((force == false) && (brightness == m_brightness))
+        return 0;
 
     Json::Value jRequest, jResponse;
     ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
@@ -753,7 +798,8 @@ int ISPWrapper::processContrast(float contrast, bool force) {
         return BAD_VALUE;
     }
 
-    if ((force == false) && (contrast == m_contrast)) return 0;
+    if ((force == false) && (contrast == m_contrast))
+        return 0;
 
     Json::Value jRequest, jResponse;
     ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
@@ -783,7 +829,8 @@ int ISPWrapper::processSaturation(float saturation, bool force) {
         return BAD_VALUE;
     }
 
-    if ((force == false) && (saturation == m_saturation)) return 0;
+    if ((force == false) && (saturation == m_saturation))
+        return 0;
 
     Json::Value jRequest, jResponse;
     ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
@@ -813,7 +860,8 @@ int ISPWrapper::processHue(int hue, bool force) {
         return BAD_VALUE;
     }
 
-    if ((force == false) && (hue == m_hue)) return 0;
+    if ((force == false) && (hue == m_hue))
+        return 0;
 
     Json::Value jRequest, jResponse;
     ret = viv_private_ioctl(IF_CPROC_G_CFG, jRequest, jResponse);
@@ -843,7 +891,8 @@ int ISPWrapper::processSharpLevel(uint8_t level, bool force) {
         return BAD_VALUE;
     }
 
-    if ((force == false) && (level == m_sharp_level)) return 0;
+    if ((force == false) && (level == m_sharp_level))
+        return 0;
 
     // disable filter
     Json::Value jRequest, jResponse;
@@ -997,19 +1046,26 @@ int ISPWrapper::recoverFeatures() {
         }
     }
 
-    if (mLSCEnable) processLSC(true, true);
+    if (mLSCEnable)
+        processLSC(true, true);
 
-    if (m_gamma > 0.0) processGamma(m_gamma, true);
+    if (m_gamma > 0.0)
+        processGamma(m_gamma, true);
 
-    if (m_brightness != BRIGHTNESS_MAX + 1) processBrightness(m_brightness, true);
+    if (m_brightness != BRIGHTNESS_MAX + 1)
+        processBrightness(m_brightness, true);
 
-    if (m_contrast != CONTRAST_MAX + 1) processContrast(m_contrast, true);
+    if (m_contrast != CONTRAST_MAX + 1)
+        processContrast(m_contrast, true);
 
-    if (m_saturation != SATURATION_MAX + 1) processSaturation(m_saturation, true);
+    if (m_saturation != SATURATION_MAX + 1)
+        processSaturation(m_saturation, true);
 
-    if (m_hue != HUE_MAX + 1) processHue(m_hue, true);
+    if (m_hue != HUE_MAX + 1)
+        processHue(m_hue, true);
 
-    if (m_sharp_level != SHARP_LEVEL_MAX + 1) processSharpLevel(m_sharp_level, true);
+    if (m_sharp_level != SHARP_LEVEL_MAX + 1)
+        processSharpLevel(m_sharp_level, true);
 
     ALOGI("leave recoverFeatures");
     return 0;

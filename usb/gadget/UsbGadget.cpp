@@ -79,28 +79,46 @@ using android::base::WriteStringToFile;
 // Used for debug.
 static void displayInotifyEvent(struct inotify_event *i) {
     ALOGE("    wd =%2d; ", i->wd);
-    if (i->cookie > 0) ALOGE("cookie =%4d; ", i->cookie);
+    if (i->cookie > 0)
+        ALOGE("cookie =%4d; ", i->cookie);
 
     ALOGE("mask = ");
-    if (i->mask & IN_ACCESS) ALOGE("IN_ACCESS ");
-    if (i->mask & IN_ATTRIB) ALOGE("IN_ATTRIB ");
-    if (i->mask & IN_CLOSE_NOWRITE) ALOGE("IN_CLOSE_NOWRITE ");
-    if (i->mask & IN_CLOSE_WRITE) ALOGE("IN_CLOSE_WRITE ");
-    if (i->mask & IN_CREATE) ALOGE("IN_CREATE ");
-    if (i->mask & IN_DELETE) ALOGE("IN_DELETE ");
-    if (i->mask & IN_DELETE_SELF) ALOGE("IN_DELETE_SELF ");
-    if (i->mask & IN_IGNORED) ALOGE("IN_IGNORED ");
-    if (i->mask & IN_ISDIR) ALOGE("IN_ISDIR ");
-    if (i->mask & IN_MODIFY) ALOGE("IN_MODIFY ");
-    if (i->mask & IN_MOVE_SELF) ALOGE("IN_MOVE_SELF ");
-    if (i->mask & IN_MOVED_FROM) ALOGE("IN_MOVED_FROM ");
-    if (i->mask & IN_MOVED_TO) ALOGE("IN_MOVED_TO ");
-    if (i->mask & IN_OPEN) ALOGE("IN_OPEN ");
-    if (i->mask & IN_Q_OVERFLOW) ALOGE("IN_Q_OVERFLOW ");
-    if (i->mask & IN_UNMOUNT) ALOGE("IN_UNMOUNT ");
+    if (i->mask & IN_ACCESS)
+        ALOGE("IN_ACCESS ");
+    if (i->mask & IN_ATTRIB)
+        ALOGE("IN_ATTRIB ");
+    if (i->mask & IN_CLOSE_NOWRITE)
+        ALOGE("IN_CLOSE_NOWRITE ");
+    if (i->mask & IN_CLOSE_WRITE)
+        ALOGE("IN_CLOSE_WRITE ");
+    if (i->mask & IN_CREATE)
+        ALOGE("IN_CREATE ");
+    if (i->mask & IN_DELETE)
+        ALOGE("IN_DELETE ");
+    if (i->mask & IN_DELETE_SELF)
+        ALOGE("IN_DELETE_SELF ");
+    if (i->mask & IN_IGNORED)
+        ALOGE("IN_IGNORED ");
+    if (i->mask & IN_ISDIR)
+        ALOGE("IN_ISDIR ");
+    if (i->mask & IN_MODIFY)
+        ALOGE("IN_MODIFY ");
+    if (i->mask & IN_MOVE_SELF)
+        ALOGE("IN_MOVE_SELF ");
+    if (i->mask & IN_MOVED_FROM)
+        ALOGE("IN_MOVED_FROM ");
+    if (i->mask & IN_MOVED_TO)
+        ALOGE("IN_MOVED_TO ");
+    if (i->mask & IN_OPEN)
+        ALOGE("IN_OPEN ");
+    if (i->mask & IN_Q_OVERFLOW)
+        ALOGE("IN_Q_OVERFLOW ");
+    if (i->mask & IN_UNMOUNT)
+        ALOGE("IN_UNMOUNT ");
     ALOGE("\n");
 
-    if (i->len > 0) ALOGE("        name = %s\n", i->name);
+    if (i->len > 0)
+        ALOGE("        name = %s\n", i->name);
 }
 
 static void *monitorFfs(void *param) {
@@ -147,21 +165,24 @@ static void *monitorFfs(void *param) {
                 int numRead = read(usbGadget->mInotifyFd, buf, BUFFER_SIZE);
                 for (char *p = buf; p < buf + numRead;) {
                     struct inotify_event *event = (struct inotify_event *)p;
-                    if (DEBUG) displayInotifyEvent(event);
+                    if (DEBUG)
+                        displayInotifyEvent(event);
 
                     p += sizeof(struct inotify_event) + event->len;
 
                     bool descriptorPresent = true;
                     for (int j = 0; j < static_cast<int>(usbGadget->mEndpointList.size()); j++) {
                         if (access(usbGadget->mEndpointList.at(j).c_str(), R_OK)) {
-                            if (DEBUG) ALOGI("%s absent", usbGadget->mEndpointList.at(j).c_str());
+                            if (DEBUG)
+                                ALOGI("%s absent", usbGadget->mEndpointList.at(j).c_str());
                             descriptorPresent = false;
                             break;
                         }
                     }
 
                     if (!descriptorPresent && !writeUdc) {
-                        if (DEBUG) ALOGI("endpoints not up");
+                        if (DEBUG)
+                            ALOGI("endpoints not up");
                         writeUdc = true;
                         disconnect = std::chrono::steady_clock::now();
                     } else if (descriptorPresent && writeUdc) {
@@ -218,7 +239,8 @@ static void *monitorUsbSysfsPath() {
 
 UsbGadget::UsbGadget() : mMonitorCreated(false), mCurrentUsbFunctionsApplied(false) {
     mCurrentUsbFunctions = static_cast<uint64_t>(V1_2::GadgetFunction::NONE);
-    if (access(OS_DESC_PATH, R_OK) != 0) ALOGE("configfs setup not done yet");
+    if (access(OS_DESC_PATH, R_OK) != 0)
+        ALOGE("configfs setup not done yet");
     std::thread(monitorUsbSysfsPath).detach();
 }
 
@@ -228,12 +250,14 @@ static int unlinkFunctions(const char *path) {
     char filepath[MAX_FILE_PATH_LENGTH];
     int ret = 0;
 
-    if (config == NULL) return -1;
+    if (config == NULL)
+        return -1;
 
     // d_type does not seems to be supported in /config
     // so filtering by name.
     while (((function = readdir(config)) != NULL)) {
-        if ((strstr(function->d_name, FUNCTION_NAME) == NULL)) continue;
+        if ((strstr(function->d_name, FUNCTION_NAME) == NULL))
+            continue;
         // build the path for each file in the folder.
         sprintf(filepath, "%s/%s", path, function->d_name);
         ret = remove(filepath);
@@ -255,7 +279,8 @@ static int addEpollFd(const unique_fd &epfd, const unique_fd &fd) {
     event.events = EPOLLIN;
 
     ret = epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &event);
-    if (ret) ALOGE("epoll_ctl error %d", errno);
+    if (ret)
+        ALOGE("epoll_ctl error %d", errno);
 
     return ret;
 }
@@ -265,7 +290,8 @@ Return<void> UsbGadget::getCurrentUsbFunctions(const sp<V1_0::IUsbGadgetCallback
                                                           mCurrentUsbFunctionsApplied
                                                                   ? Status::FUNCTIONS_APPLIED
                                                                   : Status::FUNCTIONS_NOT_APPLIED);
-    if (!ret.isOk()) ALOGE("Call to getCurrentUsbFunctionsCb failed %s", ret.description().c_str());
+    if (!ret.isOk())
+        ALOGE("Call to getCurrentUsbFunctionsCb failed %s", ret.description().c_str());
 
     return Void();
 }
@@ -309,7 +335,8 @@ Return<void> UsbGadget::getUsbSpeed(const sp<V1_2::IUsbGadgetCallback> &callback
     if (callback) {
         Return<void> ret = callback->getUsbSpeedCb(mUsbSpeed);
 
-        if (!ret.isOk()) ALOGE("Call to getUsbSpeedCb failed %s", ret.description().c_str());
+        if (!ret.isOk())
+            ALOGE("Call to getUsbSpeedCb failed %s", ret.description().c_str());
     }
 
     return Void();
@@ -318,15 +345,20 @@ Return<void> UsbGadget::getUsbSpeed(const sp<V1_2::IUsbGadgetCallback> &callback
 V1_0::Status UsbGadget::tearDownGadget() {
     ALOGI("setCurrentUsbFunctions None");
 
-    if (!WriteStringToFile("none", PULLUP_PATH)) ALOGI("Gadget cannot be pulled down");
+    if (!WriteStringToFile("none", PULLUP_PATH))
+        ALOGI("Gadget cannot be pulled down");
 
-    if (!WriteStringToFile("0", DEVICE_CLASS_PATH)) return V1_0::Status::ERROR;
+    if (!WriteStringToFile("0", DEVICE_CLASS_PATH))
+        return V1_0::Status::ERROR;
 
-    if (!WriteStringToFile("0", DEVICE_SUB_CLASS_PATH)) return V1_0::Status::ERROR;
+    if (!WriteStringToFile("0", DEVICE_SUB_CLASS_PATH))
+        return V1_0::Status::ERROR;
 
-    if (!WriteStringToFile("0", DEVICE_PROTOCOL_PATH)) return V1_0::Status::ERROR;
+    if (!WriteStringToFile("0", DEVICE_PROTOCOL_PATH))
+        return V1_0::Status::ERROR;
 
-    if (!WriteStringToFile("0", DESC_USE_PATH)) return V1_0::Status::ERROR;
+    if (!WriteStringToFile("0", DESC_USE_PATH))
+        return V1_0::Status::ERROR;
 
     if (mMonitorCreated) {
         uint64_t flag = 100;
@@ -348,7 +380,8 @@ V1_0::Status UsbGadget::tearDownGadget() {
         ALOGI("mMonitor not running");
     }
 
-    if (unlinkFunctions(CONFIG_PATH)) return V1_0::Status::ERROR;
+    if (unlinkFunctions(CONFIG_PATH))
+        return V1_0::Status::ERROR;
 
     mInotifyFd.reset(-1);
     mEventFd.reset(-1);
@@ -386,9 +419,11 @@ static int linkFunction(const char *function, int index) {
 }
 
 static V1_0::Status setVidPid(const char *vid, const char *pid) {
-    if (!WriteStringToFile(vid, VENDOR_ID_PATH)) return V1_0::Status::ERROR;
+    if (!WriteStringToFile(vid, VENDOR_ID_PATH))
+        return V1_0::Status::ERROR;
 
-    if (!WriteStringToFile(pid, PRODUCT_ID_PATH)) return V1_0::Status::ERROR;
+    if (!WriteStringToFile(pid, PRODUCT_ID_PATH))
+        return V1_0::Status::ERROR;
 
     return V1_0::Status::SUCCESS;
 }
@@ -491,12 +526,14 @@ V1_0::Status UsbGadget::setupFunctions(uint64_t functions,
     if (((functions & V1_2::GadgetFunction::MTP) != 0)) {
         ffsEnabled = true;
         ALOGI("setCurrentUsbFunctions mtp");
-        if (!WriteStringToFile("1", DESC_USE_PATH)) return V1_0::Status::ERROR;
+        if (!WriteStringToFile("1", DESC_USE_PATH))
+            return V1_0::Status::ERROR;
 
         if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/mtp/", IN_ALL_EVENTS) == -1)
             return V1_0::Status::ERROR;
 
-        if (linkFunction("ffs.mtp", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("ffs.mtp", i++))
+            return V1_0::Status::ERROR;
 
         // Add endpoints to be monitored.
         mEndpointList.push_back("/dev/usb-ffs/mtp/ep1");
@@ -505,12 +542,14 @@ V1_0::Status UsbGadget::setupFunctions(uint64_t functions,
     } else if (((functions & V1_2::GadgetFunction::PTP) != 0)) {
         ffsEnabled = true;
         ALOGI("setCurrentUsbFunctions ptp");
-        if (!WriteStringToFile("1", DESC_USE_PATH)) return V1_0::Status::ERROR;
+        if (!WriteStringToFile("1", DESC_USE_PATH))
+            return V1_0::Status::ERROR;
 
         if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/ptp/", IN_ALL_EVENTS) == -1)
             return V1_0::Status::ERROR;
 
-        if (linkFunction("ffs.ptp", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("ffs.ptp", i++))
+            return V1_0::Status::ERROR;
 
         // Add endpoints to be monitored.
         mEndpointList.push_back("/dev/usb-ffs/ptp/ep1");
@@ -520,37 +559,44 @@ V1_0::Status UsbGadget::setupFunctions(uint64_t functions,
 
     if ((functions & V1_2::GadgetFunction::MIDI) != 0) {
         ALOGI("setCurrentUsbFunctions MIDI");
-        if (linkFunction("midi.gs5", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("midi.gs5", i++))
+            return V1_0::Status::ERROR;
     }
 
     if ((functions & V1_2::GadgetFunction::ACCESSORY) != 0) {
         ALOGI("setCurrentUsbFunctions Accessory");
-        if (linkFunction("accessory.gs2", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("accessory.gs2", i++))
+            return V1_0::Status::ERROR;
     }
 
     if ((functions & V1_2::GadgetFunction::AUDIO_SOURCE) != 0) {
         ALOGI("setCurrentUsbFunctions Audio Source");
-        if (linkFunction("audio_source.gs3", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("audio_source.gs3", i++))
+            return V1_0::Status::ERROR;
     }
 
     if ((functions & V1_2::GadgetFunction::RNDIS) != 0) {
         ALOGI("setCurrentUsbFunctions rndis");
-        if (linkFunction("rndis.gs4", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("rndis.gs4", i++))
+            return V1_0::Status::ERROR;
     }
 
     if ((functions & V1_2::GadgetFunction::NCM) != 0) {
         ALOGE("setCurrentUsbFunctions ncm");
-        if (linkFunction("ncm.gs6", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("ncm.gs6", i++))
+            return V1_0::Status::ERROR;
     }
 
     if ((functions & V1_2::GadgetFunction::ADB) != 0) {
         ffsEnabled = true;
         ALOGI("setCurrentUsbFunctions Adb");
-        if (!WriteStringToFile("1", DESC_USE_PATH)) return V1_0::Status::ERROR;
+        if (!WriteStringToFile("1", DESC_USE_PATH))
+            return V1_0::Status::ERROR;
         if (inotify_add_watch(inotifyFd, "/dev/usb-ffs/adb/", IN_ALL_EVENTS) == -1)
             return V1_0::Status::ERROR;
 
-        if (linkFunction("ffs.adb", i++)) return V1_0::Status::ERROR;
+        if (linkFunction("ffs.adb", i++))
+            return V1_0::Status::ERROR;
         mEndpointList.push_back("/dev/usb-ffs/adb/ep1");
         mEndpointList.push_back("/dev/usb-ffs/adb/ep2");
         ALOGI("Service started");
@@ -558,9 +604,11 @@ V1_0::Status UsbGadget::setupFunctions(uint64_t functions,
 
     // Pull up the gadget right away when there are no ffs functions.
     if (!ffsEnabled) {
-        if (!WriteStringToFile(GADGET_NAME, PULLUP_PATH)) return V1_0::Status::ERROR;
+        if (!WriteStringToFile(GADGET_NAME, PULLUP_PATH))
+            return V1_0::Status::ERROR;
         mCurrentUsbFunctionsApplied = true;
-        if (callback) callback->setCurrentUsbFunctionsCb(functions, V1_0::Status::SUCCESS);
+        if (callback)
+            callback->setCurrentUsbFunctionsCb(functions, V1_0::Status::SUCCESS);
         return V1_0::Status::SUCCESS;
     }
 
@@ -576,9 +624,11 @@ V1_0::Status UsbGadget::setupFunctions(uint64_t functions,
         return V1_0::Status::ERROR;
     }
 
-    if (addEpollFd(epollFd, inotifyFd) == -1) return V1_0::Status::ERROR;
+    if (addEpollFd(epollFd, inotifyFd) == -1)
+        return V1_0::Status::ERROR;
 
-    if (addEpollFd(epollFd, eventFd) == -1) return V1_0::Status::ERROR;
+    if (addEpollFd(epollFd, eventFd) == -1)
+        return V1_0::Status::ERROR;
 
     mEpollFd = move(epollFd);
     mInotifyFd = move(inotifyFd);
@@ -590,7 +640,8 @@ V1_0::Status UsbGadget::setupFunctions(uint64_t functions,
     // dies and restarts.
     mMonitor = unique_ptr<thread>(new thread(monitorFfs, this));
     mMonitorCreated = true;
-    if (DEBUG) ALOGI("Mainthread in Cv");
+    if (DEBUG)
+        ALOGI("Mainthread in Cv");
 
     if (callback) {
         if (mCv.wait_for(lk, timeout * 1ms, [] { return gadgetPullup; })) {
@@ -603,7 +654,8 @@ V1_0::Status UsbGadget::setupFunctions(uint64_t functions,
         Return<void> ret = callback->setCurrentUsbFunctionsCb(functions,
                                                               gadgetPullup ? V1_0::Status::SUCCESS
                                                                            : V1_0::Status::ERROR);
-        if (!ret.isOk()) ALOGE("setCurrentUsbFunctionsCb error %s", ret.description().c_str());
+        if (!ret.isOk())
+            ALOGE("setCurrentUsbFunctionsCb error %s", ret.description().c_str());
     }
 
     return V1_0::Status::SUCCESS;
@@ -624,16 +676,19 @@ Return<void> UsbGadget::setCurrentUsbFunctions(uint64_t functions,
     }
 
     if ((functions & V1_2::GadgetFunction::RNDIS) == 0) {
-        if (rmdir(RNDIS_PATH) && errno != ENOENT) ALOGE("Error remove %s", RNDIS_PATH);
+        if (rmdir(RNDIS_PATH) && errno != ENOENT)
+            ALOGE("Error remove %s", RNDIS_PATH);
     } else if ((functions & V1_2::GadgetFunction::RNDIS)) {
-        if (mkdir(RNDIS_PATH, 644) && errno != EEXIST) goto error;
+        if (mkdir(RNDIS_PATH, 644) && errno != EEXIST)
+            goto error;
     }
 
     // Leave the gadget pulled down to give time for the host to sense disconnect.
     usleep(DISCONNECT_WAIT_US);
 
     if (functions == static_cast<uint64_t>(V1_2::GadgetFunction::NONE)) {
-        if (callback == NULL) return Void();
+        if (callback == NULL)
+            return Void();
         Return<void> ret = callback->setCurrentUsbFunctionsCb(functions, V1_0::Status::SUCCESS);
         if (!ret.isOk())
             ALOGE("Error while calling setCurrentUsbFunctionsCb %s", ret.description().c_str());
@@ -656,7 +711,8 @@ Return<void> UsbGadget::setCurrentUsbFunctions(uint64_t functions,
 
 error:
     ALOGI("Usb Gadget setcurrent functions failed");
-    if (callback == NULL) return Void();
+    if (callback == NULL)
+        return Void();
     Return<void> ret = callback->setCurrentUsbFunctionsCb(functions, status);
     if (!ret.isOk())
         ALOGE("Error while calling setCurrentUsbFunctionsCb %s", ret.description().c_str());

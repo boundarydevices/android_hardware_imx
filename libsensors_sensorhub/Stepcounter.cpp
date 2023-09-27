@@ -59,7 +59,8 @@ int Stepcounter::setEnable(int32_t handle, int en) {
 }
 
 int Stepcounter::setDelay(int32_t handle, int64_t ns) {
-    if (ns < 0) return -EINVAL;
+    if (ns < 0)
+        return -EINVAL;
 
     mDelay = ns;
     return update_delay();
@@ -76,10 +77,12 @@ void Stepcounter::processEvent(int code, int value) {}
 
 int Stepcounter::readEvents(sensors_event_t* data, int count) {
     int i;
-    if (count < 1) return -EINVAL;
+    if (count < 1)
+        return -EINVAL;
 
     ssize_t n = mInputReader.fill(data_fd);
-    if (n < 0) return n;
+    if (n < 0)
+        return n;
 
     int numEventReceived = 0;
     input_event const* event;
@@ -102,7 +105,8 @@ int Stepcounter::readEvents(sensors_event_t* data, int count) {
 
 int Stepcounter::writeEnable(int isEnable) {
     char attr[PATH_MAX] = {'\0'};
-    if (mClassPath[0] == '\0') return -1;
+    if (mClassPath[0] == '\0')
+        return -1;
 
     strcpy(attr, mClassPath);
     strcat(attr, "/");
@@ -140,7 +144,8 @@ int Stepcounter::writeEnable(int isEnable) {
 
 int Stepcounter::writeDelay(int64_t ns) {
     char attr[PATH_MAX] = {'\0'};
-    if (mClassPath[0] == '\0') return -1;
+    if (mClassPath[0] == '\0')
+        return -1;
 
     strcpy(attr, mClassPath);
     strcat(attr, "/");

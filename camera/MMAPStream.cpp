@@ -209,7 +209,8 @@ int32_t MMAPStream::onDeviceStartLocked() {
         }
 
         mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
-        if (mBuffers[i]->mFormatSize == 0) mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+        if (mBuffers[i]->mFormatSize == 0)
+            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
 
         mBuffers[i]->mVirtAddr = (void *)mmap(NULL, mBuffers[i]->mSize, PROT_READ | PROT_WRITE,
                                               MAP_SHARED, mDev, mBuffers[i]->mPhyAddr);
@@ -288,10 +289,12 @@ err:
     for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
         if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL && mBuffers[i]->mSize > 0) {
             munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
-            if (mBuffers[i]->mFd > 0) close(mBuffers[i]->mFd);
+            if (mBuffers[i]->mFd > 0)
+                close(mBuffers[i]->mFd);
 
             fsl::Memory *handle = (fsl::Memory *)mBuffers[i]->buffer;
-            if (handle) delete handle;
+            if (handle)
+                delete handle;
 
             delete mBuffers[i];
             mBuffers[i] = NULL;
@@ -324,10 +327,12 @@ int32_t MMAPStream::onDeviceStopLocked() {
     for (uint32_t i = 0; i < MAX_STREAM_BUFFERS; i++) {
         if (mBuffers[i] != NULL && mBuffers[i]->mVirtAddr != NULL && mBuffers[i]->mSize > 0) {
             munmap(mBuffers[i]->mVirtAddr, mBuffers[i]->mSize);
-            if (mBuffers[i]->mFd > 0) close(mBuffers[i]->mFd);
+            if (mBuffers[i]->mFd > 0)
+                close(mBuffers[i]->mFd);
 
             fsl::Memory *handle = (fsl::Memory *)mBuffers[i]->buffer;
-            if (handle) delete handle;
+            if (handle)
+                delete handle;
 
             delete mBuffers[i];
             mBuffers[i] = NULL;

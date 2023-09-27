@@ -421,7 +421,8 @@ int MemoryManager::flush(Memory* handle) {
         // TODO: add flush operation for the buffer allocated in DRM
         return 0; // mGPUModule->unlock(mGPUModule, handle);
     } else {
-        if (handle->flags & FLAGS_CPU) mIonManager->flushCache(handle);
+        if (handle->flags & FLAGS_CPU)
+            mIonManager->flushCache(handle);
         return 0;
     }
 }

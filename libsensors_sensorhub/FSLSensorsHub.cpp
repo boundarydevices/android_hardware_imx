@@ -176,7 +176,8 @@ int FSLSensorsHub::setEnable(int32_t handle, int en) {
     else
         mEnabled[what]--;
 
-    if (mEnabled[what] < 0) mEnabled[what] = 0;
+    if (mEnabled[what] < 0)
+        mEnabled[what] = 0;
 
     for (int i = 0; i < sensors; i++) {
         if (mEnabled[i] > 0) {
@@ -208,7 +209,8 @@ int FSLSensorsHub::setEnable(int32_t handle, int en) {
 }
 
 int FSLSensorsHub::setDelay(int32_t handle, int64_t ns) {
-    if (ns < 0) return -EINVAL;
+    if (ns < 0)
+        return -EINVAL;
     int what = accel;
     switch (handle) {
         case ID_A:
@@ -255,10 +257,12 @@ int FSLSensorsHub::update_delay(int sensor_type, int64_t ns) {
 
 int FSLSensorsHub::readEvents(sensors_event_t* data, int count) {
     int i;
-    if (count < 1) return -EINVAL;
+    if (count < 1)
+        return -EINVAL;
 
     ssize_t n = mInputReader.fill(data_fd);
-    if (n < 0) return n;
+    if (n < 0)
+        return n;
 
     int numEventReceived = 0;
     input_event const* event;
@@ -402,7 +406,8 @@ void FSLSensorsHub::processEvent(int type, int code, int value) {
 int FSLSensorsHub::writeEnable(int what, int isEnable) {
     char attr[PATH_MAX] = {'\0'};
     int err = 0;
-    if (mClassPath[what][0] == '\0') return -1;
+    if (mClassPath[what][0] == '\0')
+        return -1;
 
     strcpy(attr, mClassPath[what]);
     strcat(attr, "/");
@@ -431,7 +436,8 @@ int FSLSensorsHub::writeEnable(int what, int isEnable) {
 int FSLSensorsHub::writeDelay(int what, int64_t ns) {
     char attr[PATH_MAX] = {'\0'};
     int delay;
-    if (mClassPath[what][0] == '\0') return -1;
+    if (mClassPath[what][0] == '\0')
+        return -1;
 
     strcpy(attr, mClassPath[what]);
     strcat(attr, "/");

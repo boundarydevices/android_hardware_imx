@@ -62,7 +62,8 @@ ExternalCameraDevice::ExternalCameraDevice(const std::string& devicePath,
         ALOGE("%s: device path match failed for %s", __FUNCTION__, mDevicePath.c_str());
     }
 
-    if (strstr(mCfg.interBufFormat, "i420")) mInterBufFormat = V4L2_PIX_FMT_YUV420;
+    if (strstr(mCfg.interBufFormat, "i420"))
+        mInterBufFormat = V4L2_PIX_FMT_YUV420;
 }
 
 ExternalCameraDevice::~ExternalCameraDevice() {}

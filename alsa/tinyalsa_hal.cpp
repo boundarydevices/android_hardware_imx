@@ -357,8 +357,10 @@ static int set_route_by_array(struct mixer *mixer, struct route_setting *route, 
     struct mixer_ctl *ctl = NULL;
     unsigned int i, j;
 
-    if (!mixer) return 0;
-    if (!route) return 0;
+    if (!mixer)
+        return 0;
+    if (!route)
+        return 0;
     /* Go through the route array and set each value */
     i = 0;
     while (route[i].ctl_name) {
@@ -450,7 +452,8 @@ static void select_input_device(struct imx_audio_device *adev) {
     int sub_mic_on = 0;
     int bt_on = adev->in_device & AUDIO_DEVICE_IN_ALL_SCO;
 
-    if (bt_on) return;
+    if (bt_on)
+        return;
 
     if ((adev->mode != AUDIO_MODE_IN_CALL) && (adev->active_input != 0)) {
         /* sub mic is used for camcorder or VoIP on speaker phone */
@@ -490,7 +493,8 @@ static int get_card_for_dsd(struct imx_audio_device *adev, int *card_index) {
         }
     }
 
-    if (card_index && (i != adev->audio_card_num)) *card_index = i;
+    if (card_index && (i != adev->audio_card_num))
+        *card_index = i;
 
     ALOGD("%s: card: %d", __func__, card);
     return card;
@@ -512,7 +516,8 @@ static int get_card_for_compress(struct imx_audio_device *adev, int *card_index)
         }
     }
 
-    if (card_index && (i != adev->audio_card_num)) *card_index = i;
+    if (card_index && (i != adev->audio_card_num))
+        *card_index = i;
 
     ALOGD("%s: card: %d", __func__, card);
     return card;
@@ -534,7 +539,8 @@ static int get_card_for_hfp(struct imx_audio_device *adev, int *card_index) {
         }
     }
 
-    if (card_index && (i != adev->audio_card_num)) *card_index = i;
+    if (card_index && (i != adev->audio_card_num))
+        *card_index = i;
 
     ALOGD("%s: card: %d", __func__, card);
     return card;
@@ -570,7 +576,8 @@ static int get_card_for_bus(struct imx_audio_device *adev, const char *bus, int 
         ALOGE("Failed to find card from bus '%s'", bus);
     }
 
-    if (p_array_index && (i != adev->audio_card_num)) *p_array_index = i;
+    if (p_array_index && (i != adev->audio_card_num))
+        *p_array_index = i;
 
     return card;
 }
@@ -580,7 +587,8 @@ static int get_card_for_device(struct imx_audio_device *adev, int device, unsign
     int i;
     int card = -1;
 
-    if (device == AUDIO_DEVICE_NONE) device = AUDIO_DEVICE_OUT_SPEAKER;
+    if (device == AUDIO_DEVICE_NONE)
+        device = AUDIO_DEVICE_OUT_SPEAKER;
 
     if (flag == PCM_OUT) {
         for (i = 0; i < adev->audio_card_num; i++) {
@@ -597,7 +605,8 @@ static int get_card_for_device(struct imx_audio_device *adev, int device, unsign
             }
         }
     }
-    if (card_index && (i != adev->audio_card_num)) *card_index = i;
+    if (card_index && (i != adev->audio_card_num))
+        *card_index = i;
     return card;
 }
 static int refine_input_parameters(uint32_t *sample_rate, audio_format_t *format,
@@ -683,7 +692,8 @@ static bool is_compress_offload_supported(struct imx_audio_device *adev,
     struct snd_codec codec;
     int card = get_card_for_compress(adev, NULL);
 
-    if (card == -1) return false;
+    if (card == -1)
+        return false;
 
     codec.id = get_snd_codec_id(config->offload_info.format);
     if (is_codec_supported(card, 0, COMPRESS_IN, &codec) != true) {
@@ -776,8 +786,10 @@ static int start_output_stream(struct imx_stream_out *out) {
         select_output_device(adev);
     }
 
-    if (lpa_enable) flags |= PCM_LPA;
-    if (out->format == AUDIO_FORMAT_DSD) flags |= PCM_FLAG_DSD;
+    if (lpa_enable)
+        flags |= PCM_LPA;
+    if (out->format == AUDIO_FORMAT_DSD)
+        flags |= PCM_FLAG_DSD;
     if ((out->flags & AUDIO_OUTPUT_FLAG_PRIMARY) &&
         ((out->device & AUDIO_DEVICE_OUT_AUX_DIGITAL) == 0))
         flags |= PCM_MMAP;
@@ -833,9 +845,11 @@ static int start_output_stream(struct imx_stream_out *out) {
                         audio_stream_out_frame_size(
                                 (const struct audio_stream_out *)&out->stream.common));
 
-            if (adev->echo_reference != NULL) out->echo_reference = adev->echo_reference;
+            if (adev->echo_reference != NULL)
+                out->echo_reference = adev->echo_reference;
 
-            if (out->resampler) out->resampler->reset(out->resampler);
+            if (out->resampler)
+                out->resampler->reset(out->resampler);
         }
 
         if (passthrough_for_s24) {
@@ -860,7 +874,8 @@ static size_t get_input_buffer_size(uint32_t sample_rate, audio_format_t format,
                                     audio_channel_mask_t channel_mask) {
     size_t size;
     int channel_count = popcount(channel_mask);
-    if (check_input_parameters(sample_rate, format, channel_mask) != 0) return 0;
+    if (check_input_parameters(sample_rate, format, channel_mask) != 0)
+        return 0;
 
     /* take resampling into account and return the closest majoring
     multiple of 16 frames, as audioflinger expects audio buffers to
@@ -913,7 +928,8 @@ static struct echo_reference_itfe *get_echo_reference(struct imx_audio_device *a
         int status = create_echo_reference(AUDIO_FORMAT_PCM_16_BIT, channel_count, sampling_rate,
                                            AUDIO_FORMAT_PCM_16_BIT, wr_channel_count,
                                            wr_sampling_rate, &adev->echo_reference);
-        if (status == 0) add_echo_reference(adev->primary_output, adev->echo_reference);
+        if (status == 0)
+            add_echo_reference(adev->primary_output, adev->echo_reference);
     }
 
     return adev->echo_reference;
@@ -1029,7 +1045,8 @@ static int do_output_standby(struct imx_stream_out *out, int force_standby) {
         }
 
         /* Clear written for passthrough only */
-        if (passthrough_enabled) out->written = 0;
+        if (passthrough_enabled)
+            out->written = 0;
     }
     return 0;
 }
@@ -1047,7 +1064,8 @@ static int out_standby(struct audio_stream *stream) {
 }
 
 static int out_dump(const struct audio_stream *stream, int fd) {
-    if ((stream == NULL) || (fd < 0)) return 0;
+    if ((stream == NULL) || (fd < 0))
+        return 0;
 
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
 
@@ -1061,7 +1079,8 @@ static int out_dump(const struct audio_stream *stream, int fd) {
             out->device, out->card_index, out->frames_round, (long long)out->written,
             out->first_frame_written, out->writeContiFailCount);
 
-    if (out->pcm) dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(out->pcm));
+    if (out->pcm)
+        dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(out->pcm));
 
     return 0;
 }
@@ -1099,12 +1118,14 @@ static int out_pause(struct audio_stream_out *stream) {
 
     pthread_mutex_lock(&out->lock);
     if ((out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) && (out->format != AUDIO_FORMAT_DSD)) {
-        if (out->compr != NULL && out->paused == false) status = compress_pause(out->compr);
+        if (out->compr != NULL && out->paused == false)
+            status = compress_pause(out->compr);
     } else {
         if (out->pcm != NULL && out->paused == false)
             status = pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_PAUSE);
     }
-    if (!status) out->paused = true;
+    if (!status)
+        out->paused = true;
     pthread_mutex_unlock(&out->lock);
 
     ALOGI("%s: status: %d", __func__, status);
@@ -1117,12 +1138,14 @@ static int out_resume(struct audio_stream_out *stream) {
 
     pthread_mutex_lock(&out->lock);
     if ((out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) && (out->format != AUDIO_FORMAT_DSD)) {
-        if (out->compr != NULL && out->paused == true) status = compress_resume(out->compr);
+        if (out->compr != NULL && out->paused == true)
+            status = compress_resume(out->compr);
     } else {
         if (out->pcm != NULL && out->paused == true)
             status = pcm_ioctl(out->pcm, SNDRV_PCM_IOCTL_PAUSE, PCM_IOCTL_RESUME);
     }
-    if (!status) out->paused = false;
+    if (!status)
+        out->paused = false;
     pthread_mutex_unlock(&out->lock);
 
     ALOGI("%s: status: %d", __func__, status);
@@ -1154,9 +1177,11 @@ static int out_flush(struct audio_stream_out *stream) {
         goto exit;
     }
 
-    if (out->format == AUDIO_FORMAT_DSD) pcm_flags |= PCM_FLAG_DSD;
+    if (out->format == AUDIO_FORMAT_DSD)
+        pcm_flags |= PCM_FLAG_DSD;
     out->pcm = pcm_open(adev->card_list[out->card_index]->card, 0, pcm_flags, &out->config);
-    if (out->pcm) out->standby = 0;
+    if (out->pcm)
+        out->standby = 0;
 
 exit:
     out->paused = false;
@@ -1314,7 +1339,8 @@ static int out_set_control_volume(struct mixer *mixer, struct route_setting *rou
 
     while (route[i].ctl_name) {
         ctl = mixer_get_ctl_by_name(mixer, route[i].ctl_name);
-        if (!ctl) return -ENOSYS;
+        if (!ctl)
+            return -ENOSYS;
         mixer_ctl_set_value(ctl, 0, left);
         mixer_ctl_set_value(ctl, 1, right);
         i++;
@@ -1383,8 +1409,10 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
         bit_24b_2_16b = true;
     if (in->config.format == PCM_FORMAT_S32_LE && in->requested_format == AUDIO_FORMAT_PCM_16_BIT)
         bit_32b_2_16b = true;
-    if (in->config.channels == 2 && in->requested_channel == 1) stereo2mono = true;
-    if (in->config.channels == 1 && in->requested_channel == 2) mono2stereo = true;
+    if (in->config.channels == 2 && in->requested_channel == 1)
+        stereo2mono = true;
+    if (in->config.channels == 1 && in->requested_channel == 2)
+        mono2stereo = true;
 
     if (bit_24b_2_16b || bit_32b_2_16b || mono2stereo || stereo2mono) {
         size_t size_in_bytes_tmp = pcm_frames_to_bytes(in->pcm, frames_rq);
@@ -1425,7 +1453,8 @@ static int pcm_read_convert(struct imx_stream_in *in, struct pcm *pcm, void *dat
 #define OUT_DST_FILE "/data/out_dst.pcm"
 
 static void audio_dump(const void *buffer, size_t bytes, const char *name) {
-    if ((buffer == NULL) || (bytes == 0) || (name == NULL)) return;
+    if ((buffer == NULL) || (bytes == 0) || (name == NULL))
+        return;
 
     int fdDump = open(name, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU | S_IRWXG);
     if (fdDump < 0) {
@@ -1450,7 +1479,8 @@ static int pcm_read_wrapper(struct pcm *pcm, const void *buffer, size_t bytes, b
             case PCM_STATE_SETUP:
             case PCM_STATE_XRUN:
                 ret = pcm_prepare(pcm);
-                if (ret != 0) return ret;
+                if (ret != 0)
+                    return ret;
                 break;
             default:
                 return ret;
@@ -1459,7 +1489,8 @@ static int pcm_read_wrapper(struct pcm *pcm, const void *buffer, size_t bytes, b
         ret = pcm_read(pcm, (void *)buffer, bytes);
     }
 
-    if (dump) audio_dump(buffer, bytes, IN_SRC_FILE);
+    if (dump)
+        audio_dump(buffer, bytes, IN_SRC_FILE);
 
     return ret;
 }
@@ -1475,13 +1506,15 @@ static int pcm_write_wrapper(struct pcm *pcm, const void *buffer, size_t bytes, 
 
     if (ret != 0) {
         ALOGW("ret %d, pcm write %zu error %s", ret, bytes, pcm_get_error(pcm));
-        if (lpa_enable == 1) return ret;
+        if (lpa_enable == 1)
+            return ret;
 
         switch (pcm_state(pcm)) {
             case PCM_STATE_SETUP:
             case PCM_STATE_XRUN:
                 ret = pcm_prepare(pcm);
-                if (ret != 0) return ret;
+                if (ret != 0)
+                    return ret;
                 break;
             default:
                 return ret;
@@ -1493,7 +1526,8 @@ static int pcm_write_wrapper(struct pcm *pcm, const void *buffer, size_t bytes, 
             ret = pcm_write(pcm, (void *)buffer, bytes);
     }
 
-    if (dump) audio_dump(buffer, bytes, OUT_DST_FILE);
+    if (dump)
+        audio_dump(buffer, bytes, OUT_DST_FILE);
 
     return ret;
 }
@@ -1508,11 +1542,13 @@ static ssize_t out_write(struct audio_stream_out *stream, const void *buffer, si
     bool force_input_standby = false;
     struct imx_stream_in *in;
 
-    if (out->dump) audio_dump(buffer, bytes, OUT_SRC_FILE);
+    if (out->dump)
+        audio_dump(buffer, bytes, OUT_SRC_FILE);
 
     // In HAL, AUDIO_FORMAT_DSD doesn't have proportional frames, audio_stream_out_frame_size will
     // return 1 But in driver, frame_size is 8 byte (DSD_FRAMESIZE_BYTES: 2 channel && 32 bit)
-    if (out->format == AUDIO_FORMAT_DSD) frame_size *= DSD_FRAMESIZE_BYTES;
+    if (out->format == AUDIO_FORMAT_DSD)
+        frame_size *= DSD_FRAMESIZE_BYTES;
 
     /* acquiring hw device mutex systematically is useful if a low priority thread is waiting
      * on the output stream mutex - e.g. executing select_mode() while holding the hw device
@@ -1556,7 +1592,8 @@ static ssize_t out_write(struct audio_stream_out *stream, const void *buffer, si
         out->echo_reference->write(out->echo_reference, &b);
     }
 
-    if (out->config.channels > 2) convert_output_for_esai(buffer, bytes, out->config.channels);
+    if (out->config.channels > 2)
+        convert_output_for_esai(buffer, bytes, out->config.channels);
 
     if (passthrough_for_s24) {
         convert_passthrough_data_for_s24((void *)buffer, (void *)(out->buffer), out_frames);
@@ -1740,7 +1777,8 @@ static int out_get_presentation_position(const struct audio_stream_out *stream, 
     if ((out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) && (out->format != AUDIO_FORMAT_DSD)) {
         if (out->compr != NULL) {
             ret = compress_get_tstamp(out->compr, &dsp_frames, &out->sample_rate);
-            if (ret) ALOGE("%s: error to get tstamp: %d", __func__, ret);
+            if (ret)
+                ALOGE("%s: error to get tstamp: %d", __func__, ret);
             ALOGV("%s rendered frames %ld sample_rate %d", __func__, dsp_frames, out->sample_rate);
             *frames = dsp_frames;
             ret = 0;
@@ -2019,7 +2057,8 @@ static int in_standby(struct audio_stream *stream) {
 }
 
 static int in_dump(const struct audio_stream *stream, int fd) {
-    if ((stream == NULL) || (fd < 0)) return 0;
+    if ((stream == NULL) || (fd < 0))
+        return 0;
 
     struct imx_stream_in *in = (struct imx_stream_in *)stream;
 
@@ -2031,7 +2070,8 @@ static int in_dump(const struct audio_stream *stream, int fd) {
             "device 0x%x, card index %d, frames round %d, first_frame_read %d, read_status %d\n",
             in->device, in->card_index, in->frames_round, in->first_frame_read, in->read_status);
 
-    if (in->pcm) dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(in->pcm));
+    if (in->pcm)
+        dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(in->pcm));
 
     return 0;
 }
@@ -2066,7 +2106,8 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs) {
         ALOGE("%s: Must not use set parameters API to set audio devices", __func__);
     }
 
-    if (do_standby) do_input_standby(in);
+    if (do_standby)
+        do_input_standby(in);
 
     pthread_mutex_unlock(&in->lock);
     pthread_mutex_unlock(&adev->lock);
@@ -2188,7 +2229,8 @@ static int set_preprocessor_param(effect_handle_t handle, effect_param_t *param)
 
     int status = (*handle)->command(handle, EFFECT_CMD_SET_PARAM, sizeof(effect_param_t) + psize,
                                     param, &size, &param->status);
-    if (status == 0) status = param->status;
+    if (status == 0)
+        status = param->status;
 
     return status;
 }
@@ -2212,13 +2254,15 @@ static void push_echo_reference(struct imx_stream_in *in, size_t frames) {
     int i;
     audio_buffer_t buf;
 
-    if (in->ref_frames_in < frames) frames = in->ref_frames_in;
+    if (in->ref_frames_in < frames)
+        frames = in->ref_frames_in;
 
     buf.frameCount = frames;
     buf.raw = in->ref_buf;
 
     for (i = 0; i < in->num_preprocessors; i++) {
-        if ((*in->preprocessors[i].effect_itfe)->process_reverse == NULL) continue;
+        if ((*in->preprocessors[i].effect_itfe)->process_reverse == NULL)
+            continue;
 
         (*in->preprocessors[i].effect_itfe)
                 ->process_reverse(in->preprocessors[i].effect_itfe, &buf, NULL);
@@ -2236,7 +2280,8 @@ static int get_next_buffer(struct resampler_buffer_provider *buffer_provider,
                            struct resampler_buffer *buffer) {
     struct imx_stream_in *in;
 
-    if (buffer_provider == NULL || buffer == NULL) return -EINVAL;
+    if (buffer_provider == NULL || buffer == NULL)
+        return -EINVAL;
 
     in = (struct imx_stream_in *)((char *)buffer_provider -
                                   offsetof(struct imx_stream_in, buf_provider));
@@ -2282,7 +2327,8 @@ static void release_buffer(struct resampler_buffer_provider *buffer_provider,
                            struct resampler_buffer *buffer) {
     struct imx_stream_in *in;
 
-    if (buffer_provider == NULL || buffer == NULL) return;
+    if (buffer_provider == NULL || buffer == NULL)
+        return;
 
     in = (struct imx_stream_in *)((char *)buffer_provider -
                                   offsetof(struct imx_stream_in, buf_provider));
@@ -2330,7 +2376,8 @@ static ssize_t read_frames(struct imx_stream_in *in, void *buffer, ssize_t frame
         }
         /* in->read_status is updated by getNextBuffer() also called by
          * in->resampler->resample_from_provider() */
-        if (in->read_status != 0) return in->read_status;
+        if (in->read_status != 0)
+            return in->read_status;
 
         frames_wr += frames_rd;
     }
@@ -2390,7 +2437,8 @@ static ssize_t process_frames(struct imx_stream_in *in, void *buffer, ssize_t fr
             in->proc_buf_frames += frames_rd;
         }
 
-        if (in->echo_reference != NULL) push_echo_reference(in, in->proc_buf_frames);
+        if (in->echo_reference != NULL)
+            push_echo_reference(in, in->proc_buf_frames);
 
         /* in_buf.frameCount and out_buf.frameCount indicate respectively
          * the maximum number of frames to be consumed and produced by process() */
@@ -2482,7 +2530,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void *buffer, size_t byte
     }
     pthread_mutex_unlock(&adev->lock);
 
-    if (ret < 0) goto exit;
+    if (ret < 0)
+        goto exit;
 
     spdif_in_rate_check(in);
 
@@ -2493,11 +2542,14 @@ static ssize_t in_read(struct audio_stream_in *stream, void *buffer, size_t byte
     else
         ret = pcm_read_convert(in, in->pcm, buffer, bytes);
 
-    if (ret < 0) ALOGW("ret %d, pcm read error %s.", ret, pcm_get_error(in->pcm));
+    if (ret < 0)
+        ALOGW("ret %d, pcm read error %s.", ret, pcm_get_error(in->pcm));
 
-    if (ret > 0) ret = 0;
+    if (ret > 0)
+        ret = 0;
 
-    if (ret == 0 && adev->mic_mute) memset(buffer, 0, bytes);
+    if (ret == 0 && adev->mic_mute)
+        memset(buffer, 0, bytes);
 
     if (in->mute_500ms > 0) {
         if (bytes <= in->mute_500ms) {
@@ -2521,7 +2573,8 @@ exit:
         in->frames_read += frames_rq;
     }
 
-    if (in->dump) audio_dump(buffer, bytes, IN_DST_FILE);
+    if (in->dump)
+        audio_dump(buffer, bytes, IN_DST_FILE);
 
     in->frames_round += frames_rq;
     if (in->frames_round >= in->requested_rate) {
@@ -2617,7 +2670,8 @@ static int in_configure_reverse(struct imx_stream_in *in) {
                 (EFFECT_CONFIG_SMP_RATE | EFFECT_CONFIG_CHANNELS | EFFECT_CONFIG_FORMAT);
 
         for (i = 0; i < in->num_preprocessors; i++) {
-            if ((*in->preprocessors[i].effect_itfe)->process_reverse == NULL) continue;
+            if ((*in->preprocessors[i].effect_itfe)->process_reverse == NULL)
+                continue;
             fct_status = (*(in->preprocessors[i].effect_itfe))
                                  ->command(in->preprocessors[i].effect_itfe,
                                            EFFECT_CMD_SET_CONFIG_REVERSE, sizeof(effect_config_t),
@@ -2681,7 +2735,8 @@ static audio_channel_mask_t in_get_aux_channels(struct imx_stream_in *in) {
     int i;
     channel_config_t new_chcfg = {AUDIO_CHANNEL_NONE, AUDIO_CHANNEL_NONE};
 
-    if (in->num_preprocessors == 0) return AUDIO_CHANNEL_NONE;
+    if (in->num_preprocessors == 0)
+        return AUDIO_CHANNEL_NONE;
 
     /* do not enable dual mic configurations when capturing from other microphones than
      * main or sub */
@@ -2835,11 +2890,13 @@ static int in_add_audio_effect(const struct audio_stream *stream, effect_handle_
     }
 
     status = (*effect)->get_descriptor(effect, &desc);
-    if (status != 0) goto exit;
+    if (status != 0)
+        goto exit;
 
     /* check compatibility between the effect and the stream */
     status = in_configure_effect(in, effect);
-    if (status != 0) goto exit;
+    if (status != 0)
+        goto exit;
 
     in->preprocessors[in->num_preprocessors].effect_itfe = effect;
     /* add the supported channel of the effect in the channel_configs */
@@ -2894,7 +2951,8 @@ static int in_remove_audio_effect(const struct audio_stream *stream, effect_hand
         }
     }
 
-    if (status != 0) goto exit;
+    if (status != 0)
+        goto exit;
 
     in->num_preprocessors--;
     /* if we remove one effect, at least the last preproc should be reset */
@@ -2906,7 +2964,8 @@ static int in_remove_audio_effect(const struct audio_stream *stream, effect_hand
     in_update_aux_channels(in, NULL);
 
     status = (*effect)->get_descriptor(effect, &desc);
-    if (status != 0) goto exit;
+    if (status != 0)
+        goto exit;
 
     ALOGV("in_remove_audio_effect(), effect type: %08x", desc.type.timeLow);
 
@@ -3087,7 +3146,8 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
         // curve: 10^((minDb + (maxDb - minDb) * gainIndex / totalSteps) / 20)
         float amplitude_ratio =
                 pow(10, (minDb + (maxDb - minDb) * (gainIndex / (float)totalSteps)) / 20);
-        if (gainIndex == 0) amplitude_ratio = 0;
+        if (gainIndex == 0)
+            amplitude_ratio = 0;
         volume = max_volume * amplitude_ratio;
         out_set_control_volume(mixer, route, volume, volume);
         pthread_mutex_unlock(&out->lock);
@@ -3315,7 +3375,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev, audio_io_handle_
           __func__, config->sample_rate, config->channel_mask, config->format, devices, flags,
           address);
     out = (struct imx_stream_out *)calloc(1, sizeof(struct imx_stream_out));
-    if (!out) return -ENOMEM;
+    if (!out)
+        return -ENOMEM;
 
     out->flags = flags;
     out->device = devices;
@@ -3373,16 +3434,19 @@ static int adev_open_output_stream(struct audio_hw_device *dev, audio_io_handle_
     } else if (flags & AUDIO_OUTPUT_FLAG_DIRECT && devices == AUDIO_DEVICE_OUT_AUX_DIGITAL) {
         ALOGW("adev_open_output_stream() HDMI multichannel");
         ret = out_read_hdmi_channel_masks(ladev, out);
-        if (ret != 0) goto err_open;
+        if (ret != 0)
+            goto err_open;
 
         ret = out_read_hdmi_rates(ladev, out);
-        if (ret != 0) goto err_open;
+        if (ret != 0)
+            goto err_open;
 
         if (config->sample_rate == 0) {
             config->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
             out->sample_rate = config->sample_rate;
         }
-        if (config->channel_mask == 0) config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
+        if (config->channel_mask == 0)
+            config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
         if (config->format == AUDIO_FORMAT_DEFAULT) {
             config->format = AUDIO_FORMAT_PCM_16_BIT;
             out->format = config->format;
@@ -3428,7 +3492,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev, audio_io_handle_
             config->sample_rate = DEFAULT_OUTPUT_SAMPLE_RATE;
             out->sample_rate = config->sample_rate;
         }
-        if (config->channel_mask == 0) config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
+        if (config->channel_mask == 0)
+            config->channel_mask = AUDIO_CHANNEL_OUT_5POINT1;
         if (config->format != AUDIO_FORMAT_PCM_FLOAT)
             pcm_config_esai_multi.format = PCM_FORMAT_S16_LE;
         out->channel_mask = config->channel_mask;
@@ -3589,10 +3654,12 @@ static void adev_close_output_stream(struct audio_hw_device *dev, struct audio_s
     pthread_mutex_unlock(&out->dev->lock);
 
     if ((out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) && (out->format != AUDIO_FORMAT_DSD)) {
-        if (out->compr_config.codec != NULL) free(out->compr_config.codec);
+        if (out->compr_config.codec != NULL)
+            free(out->compr_config.codec);
     }
 
-    if (out->buffer) free(out->buffer);
+    if (out->buffer)
+        free(out->buffer);
 
     if (out->address) {
         hashmapRemove(adev->out_bus_stream_map, out->address);
@@ -3624,7 +3691,8 @@ static void *sco_rx_task(void *arg) {
     uint32_t sco_rx_out_buffer_size = 0;
     char *sco_rx_out_buffer = NULL;
 
-    if (adev == NULL) return NULL;
+    if (adev == NULL)
+        return NULL;
 
     frames = pcm_config_sco_in.period_size;
     size = pcm_frames_to_bytes(adev->pcm_sco_rx, frames);
@@ -3722,7 +3790,8 @@ static void *sco_tx_task(void *arg) {
     int16_t *p_mono_buffer = NULL;
 
     struct imx_audio_device *adev = (struct imx_audio_device *)arg;
-    if (adev == NULL) return NULL;
+    if (adev == NULL)
+        return NULL;
 
     frames = adev->cap_config.period_size;
     size = pcm_frames_to_bytes(adev->pcm_cap, frames);
@@ -3803,7 +3872,8 @@ static void *sco_tx_task(void *arg) {
 }
 
 static int sco_release_resource(struct imx_audio_device *adev) {
-    if (NULL == adev) return -1;
+    if (NULL == adev)
+        return -1;
 
     // release rx resource
     if (adev->tid_sco_rx) {
@@ -3857,7 +3927,8 @@ static int sco_task_create(struct imx_audio_device *adev) {
     pthread_attr_t attr;
     struct sched_param schParam;
 
-    if (NULL == adev) return -1;
+    if (NULL == adev)
+        return -1;
 
     /*=============== create rx task ===============*/
     ALOGI("prepare bt rx task");
@@ -4035,7 +4106,8 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         pthread_mutex_lock(&adev->lock);
         if (tty_mode != adev->tty_mode) {
             adev->tty_mode = tty_mode;
-            if (adev->mode == AUDIO_MODE_IN_CALL) select_output_device(adev);
+            if (adev->mode == AUDIO_MODE_IN_CALL)
+                select_output_device(adev);
         }
         pthread_mutex_unlock(&adev->lock);
     }
@@ -4155,7 +4227,8 @@ static int adev_open_input_stream(struct audio_hw_device *dev, audio_io_handle_t
     ALOGI("%s: enter: devices(%#x) flags(%#x), address(%s)", __func__, devices, flags, address);
 
     in = (struct imx_stream_in *)calloc(1, sizeof(struct imx_stream_in));
-    if (!in) return -ENOMEM;
+    if (!in)
+        return -ENOMEM;
 
     in->stream.common.get_sample_rate = in_get_sample_rate;
     in->stream.common.set_sample_rate = in_set_sample_rate;
@@ -4214,16 +4287,21 @@ static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_st
 
     in_standby(&stream->common);
 
-    if (in->read_buf) free(in->read_buf);
+    if (in->read_buf)
+        free(in->read_buf);
 
     if (in->resampler) {
         release_resampler(in->resampler);
         in->resampler = NULL;
     }
-    if (in->proc_buf_in) free(in->proc_buf_in);
-    if (in->proc_buf_out) free(in->proc_buf_out);
-    if (in->ref_buf) free(in->ref_buf);
-    if (in->address) free(in->address);
+    if (in->proc_buf_in)
+        free(in->proc_buf_in);
+    if (in->proc_buf_out)
+        free(in->proc_buf_out);
+    if (in->ref_buf)
+        free(in->ref_buf);
+    if (in->address)
+        free(in->address);
 
     pthread_mutex_lock(&adev->lock);
     list_remove(&in->stream_node);
@@ -4233,7 +4311,8 @@ static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_st
 }
 
 static int adev_dump(const audio_hw_device_t *device, int fd) {
-    if ((device == NULL) || (fd < 0)) return 0;
+    if ((device == NULL) || (fd < 0))
+        return 0;
 
     struct imx_audio_device *adev = (struct imx_audio_device *)device;
 
@@ -4252,11 +4331,13 @@ static int adev_close(hw_device_t *device) {
     int i;
 
     pthread_mutex_lock(&adev_init_lock);
-    if (!device || ((struct imx_audio_device *)device != adev)) goto done;
+    if (!device || ((struct imx_audio_device *)device != adev))
+        goto done;
 
     if ((--audio_device_ref_count) == 0) {
         for (i = 0; i < adev->audio_card_num; i++)
-            if (adev->mixer[i]) mixer_close(adev->mixer[i]);
+            if (adev->mixer[i])
+                mixer_close(adev->mixer[i]);
 
         if (adev->out_bus_stream_map) {
             hashmapFree(adev->out_bus_stream_map);
@@ -4298,7 +4379,8 @@ static void adjust_card_sequence(struct imx_audio_device *adev) {
     int idx_wm8960 = -1;
     int idx_cs42888 = -1;
 
-    if ((adev == NULL) || (adev->audio_card_num == 0)) return;
+    if ((adev == NULL) || (adev->audio_card_num == 0))
+        return;
 
     for (cardIdx = 0; cardIdx < adev->audio_card_num; cardIdx++) {
         if (strstr(adev->card_list[cardIdx]->driver_name, "wm8960")) {
@@ -4312,9 +4394,11 @@ static void adjust_card_sequence(struct imx_audio_device *adev) {
         }
     }
 
-    if ((pcard_wm8960 == NULL) || (pcard_cs42888 == NULL)) return;
+    if ((pcard_wm8960 == NULL) || (pcard_cs42888 == NULL))
+        return;
 
-    if (idx_cs42888 < idx_wm8960) return;
+    if (idx_cs42888 < idx_wm8960)
+        return;
 
     adev->card_list[idx_wm8960] = pcard_cs42888;
     adev->card_list[idx_cs42888] = pcard_wm8960;
@@ -4325,11 +4409,13 @@ static void adjust_card_sequence(struct imx_audio_device *adev) {
 }
 
 static void audio_card_refine_config(struct audio_card *audio_card, struct imx_audio_device *adev) {
-    if (!audio_card || !adev) return;
+    if (!audio_card || !adev)
+        return;
 
     int card = audio_card->card;
 
-    if (strstr(audio_card->driver_name, "sco-audio")) g_hsp_chns = 1;
+    if (strstr(audio_card->driver_name, "sco-audio"))
+        g_hsp_chns = 1;
 
     if (audio_card->support_multi_chn) {
         ALOGI("%s support multichannel", audio_card->driver_name);
@@ -4461,7 +4547,8 @@ static int adev_open(const hw_module_t *module, const char *name, hw_device_t **
     int ret = 0;
     int i;
 
-    if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0) return -EINVAL;
+    if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
+        return -EINVAL;
 
     pthread_mutex_lock(&adev_init_lock);
     if (audio_device_ref_count != 0) {

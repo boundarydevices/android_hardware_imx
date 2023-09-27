@@ -58,7 +58,8 @@ ImageProcess *ImageProcess::getInstance() {
 static bool getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so"))) return false;
+    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so")))
+        return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
@@ -160,15 +161,16 @@ ImageProcess::~ImageProcess() {
 
 void ImageProcess::getModule(char *path, const char *name) {
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     return;
 }
 
-int ImageProcess::handleFrame(uint32_t width, uint32_t height,
-                              ImgFormat dst_fmt, ImgFormat src_fmt, uint64_t dstPhyAddr,
-                              uint64_t srcPhyAddr) {
+int ImageProcess::handleFrame(uint32_t width, uint32_t height, ImgFormat dst_fmt, ImgFormat src_fmt,
+                              uint64_t dstPhyAddr, uint64_t srcPhyAddr) {
     int ret = 0;
 
     ALOGV("%s: src_fmt %d, dst_fmt %d, size %dx%d", __func__, src_fmt, dst_fmt, width, height);
@@ -358,8 +360,8 @@ int ImageProcess::handleYUYVFrameByG3D(uint64_t dstPhyAddr, uint64_t srcPhyAddr,
     return 0;
 }
 
-int ImageProcess::handleYUYVFrame(uint32_t width, uint32_t height,
-                                  uint64_t dstPhyAddr, uint64_t srcPhyAddr, ImgFormat dst_fmt) {
+int ImageProcess::handleYUYVFrame(uint32_t width, uint32_t height, uint64_t dstPhyAddr,
+                                  uint64_t srcPhyAddr, ImgFormat dst_fmt) {
     if (mG2dHandle)
         return handleYUYVFrameByG2D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
     else
@@ -435,7 +437,8 @@ int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr,
 
     Mutex::Autolock _l(mG2dLock);
     ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&d_surface);
-    if (ret) goto finish_blit;
+    if (ret)
+        goto finish_blit;
 
     mFinishEngine(g2dHandle);
 

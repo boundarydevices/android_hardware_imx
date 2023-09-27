@@ -86,7 +86,8 @@ static bool IsCscSupportByG3D(int srcFomat, int dstFormat) {
 static bool getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so"))) return false;
+    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so")))
+        return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
@@ -243,9 +244,11 @@ int ImageProcess::closeEngine(void *handle) {
 
 void ImageProcess::getModule(char *path, const char *name) {
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     return;
 }
 
@@ -585,7 +588,8 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer &dstBuf, ImxStreamBuffer 
 
         Mutex::Autolock _l(mG2dLock);
         ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&d_surface);
-        if (ret) goto finish_blit;
+        if (ret)
+            goto finish_blit;
 
         mFinishEngine(g2dHandle);
     } else {
@@ -617,7 +621,8 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer &dstBuf, ImxStreamBuffer 
 
         Mutex::Autolock _l(mG2dLock);
         ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&tmp_surface);
-        if (ret) goto finish_blit;
+        if (ret)
+            goto finish_blit;
 
         mFinishEngine(g2dHandle);
 
@@ -635,7 +640,8 @@ int ImageProcess::handleFrameByG2DBlit(ImxStreamBuffer &dstBuf, ImxStreamBuffer 
         d_surface.rot = G2D_ROTATION_0;
 
         ret = mBlitEngine(g2dHandle, (void *)&tmp_surface, (void *)&d_surface);
-        if (ret) goto finish_blit;
+        if (ret)
+            goto finish_blit;
 
         mFinishEngine(g2dHandle);
     }
@@ -665,7 +671,8 @@ static void LockG2dAddr(ImxStreamBuffer &imxBuf) {
 static void UnLockG2dAddr(ImxStreamBuffer &imxBuf) {
     fsl::Composer *mComposer = fsl::Composer::getInstance();
     fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
-    if (handle) mComposer->unlockSurface(handle);
+    if (handle)
+        mComposer->unlockSurface(handle);
 
     return;
 }

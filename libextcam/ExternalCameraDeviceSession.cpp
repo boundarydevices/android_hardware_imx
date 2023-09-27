@@ -62,10 +62,12 @@ public:
     ~SingletonWrap() {
         ALOGI("%s", __func__);
         fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
-        if (imageProcess) delete imageProcess;
+        if (imageProcess)
+            delete imageProcess;
 
         fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-        if (allocator) delete allocator;
+        if (allocator)
+            delete allocator;
     }
 };
 
@@ -1132,7 +1134,8 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
 
     // VIDIOC_S_FMT w/h/fmt
     v4l2_format fmt;
-    if (mPlane) fmt.fmt.pix_mp.num_planes = 1;
+    if (mPlane)
+        fmt.fmt.pix_mp.num_planes = 1;
     fmt.type = mCaptureType;
     fmt.fmt.pix.width = v4l2Fmt.width;
     fmt.fmt.pix.height = v4l2Fmt.height;
@@ -2791,10 +2794,12 @@ static void dumpStream(uint8_t* src, size_t srcSize, int32_t id) {
     char value[PROPERTY_VALUE_MAX];
     int fdSrc = -1;
 
-    if ((src == NULL) || (srcSize == 0)) return;
+    if ((src == NULL) || (srcSize == 0))
+        return;
 
     property_get("vendor.rw.camera.ext.test", value, "false");
-    if (strcmp(value, "true")) return;
+    if (strcmp(value, "true"))
+        return;
 
     ALOGI("%s: src size %zu, id %d", __func__, srcSize, id);
 
@@ -3045,7 +3050,8 @@ int pixel_format_nv16_to_nv12(uint8_t* nv16_buff, uint8_t* nv12_buff, int w, int
 }
 
 int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, size_t inDataSize) {
-    if ((inData == NULL) || (inDataSize == 0)) return BAD_VALUE;
+    if ((inData == NULL) || (inDataSize == 0))
+        return BAD_VALUE;
 
     std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
     inputbuf->pInBuffer = inData;
@@ -3061,7 +3067,8 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
 
     nsecs_t t1, t2;
 
-    if (mDebug) t1 = systemTime();
+    if (mDebug)
+        t1 = systemTime();
     // mjpeg decoded to nv12/nv16 raw data
     ret = mDecoder->exportDecodedBuf(mDecodedData, kDecWaitTimeoutMs);
     if (mDebug) {
@@ -3070,7 +3077,8 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
               (long long)(t2 - t1) / 1000000, mDecodedData.width, mDecodedData.height);
     }
 
-    if (ret) return ret;
+    if (ret)
+        return ret;
 
     mDecedFrames++;
     if (mDecedFrames == 1)
@@ -3096,7 +3104,8 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
     }
 
     fsl::ImgFormat dst_fmt = fsl::NV12;
-    if (mInterBufFormat == V4L2_PIX_FMT_YUV420) dst_fmt = fsl::I420;
+    if (mInterBufFormat == V4L2_PIX_FMT_YUV420)
+        dst_fmt = fsl::I420;
 
     fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
     int fd = mDecodedData.fd;
@@ -3114,9 +3123,10 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
     uint64_t dstPhyAddr = 0;
     ((AllocatedFramePhyMem*)mYu12Frame.get())->getPhyAddr(dstPhyAddr);
 
-    if (mDebug) t1 = systemTime();
-    imageProcess->handleFrame(mDecodedData.width, mDecodedData.height,
-                              dst_fmt, src_fmt, dstPhyAddr, srcPhyAddr);
+    if (mDebug)
+        t1 = systemTime();
+    imageProcess->handleFrame(mDecodedData.width, mDecodedData.height, dst_fmt, src_fmt, dstPhyAddr,
+                              srcPhyAddr);
     if (mDebug) {
         t2 = systemTime();
         ALOGI("handleFrame use %lld ns, %lld ms, src_fmt %d, dst_fmt %d, decoded size %dx%d",
@@ -3148,7 +3158,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     mDebug = false;
     char value[PROPERTY_VALUE_MAX];
     property_get("vendor.rw.camera.ext.test", value, "");
-    if (!strcmp(value, "debug")) mDebug = true;
+    if (!strcmp(value, "debug"))
+        mDebug = true;
 
     // TODO: maybe we need to setup a sensor thread to dq/enq v4l frames
     //       regularly to prevent v4l buffer queue filled with stale buffers
@@ -3239,7 +3250,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             if (mHardwareDecoder && parent->getHardwareDecFlag()) {
                 res = VpuDecAndCsc(inData, inDataSize);
             } else {
-                if (mDebug) t1 = systemTime();
+                if (mDebug)
+                    t1 = systemTime();
                 if (mInterBufFormat == V4L2_PIX_FMT_YUV420)
                     res = libyuv::MJPGToI420(inData, inDataSize,
                                              static_cast<uint8_t*>(mYu12FrameLayout.y),
@@ -3283,7 +3295,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_YUYV) {
         ATRACE_BEGIN("YUYVtoI420");
-        if (mDebug) t1 = systemTime();
+        if (mDebug)
+            t1 = systemTime();
         if (mInterBufFormat == V4L2_PIX_FMT_YUV420)
             res = libyuv::YUY2ToI420(inData, req->frameIn->mWidth * 2,
                                      static_cast<uint8_t*>(mYu12FrameLayout.y),
@@ -3431,7 +3444,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 }
 
                 ATRACE_BEGIN("cropAndScaleLocked");
-                if (mDebug) t1 = systemTime();
+                if (mDebug)
+                    t1 = systemTime();
                 ret = cropAndScaleLocked(mYu12Frame, Size{halBuf.width, halBuf.height},
                                          &cropAndScaled);
                 if (mDebug) {
@@ -3450,7 +3464,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
             format_convert:
                 Size sz{halBuf.width, halBuf.height};
                 ATRACE_BEGIN("formatConvert");
-                if (mDebug) t1 = systemTime();
+                if (mDebug)
+                    t1 = systemTime();
                 int fcret =
                         formatConvert(cropAndScaled, outLayout, sz, outputFourcc, mInterBufFormat);
                 if (mDebug) {

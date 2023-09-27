@@ -179,7 +179,8 @@ static int gralloc_alloc_buffer(alloc_device_t* dev, size_t size, int /*usage*/,
 
 static int gralloc_alloc(alloc_device_t* dev, int w, int h, int format, int usage,
                          buffer_handle_t* pHandle, int* pStride) {
-    if (!pHandle || !pStride) return -EINVAL;
+    if (!pHandle || !pStride)
+        return -EINVAL;
 
     size_t size, stride;
 
@@ -221,7 +222,8 @@ static int gralloc_alloc(alloc_device_t* dev, int w, int h, int format, int usag
 }
 
 static int gralloc_free(alloc_device_t* dev, buffer_handle_t handle) {
-    if (private_handle_t::validate(handle) < 0) return -EINVAL;
+    if (private_handle_t::validate(handle) < 0)
+        return -EINVAL;
 
     private_handle_t const* hnd = reinterpret_cast<private_handle_t const*>(handle);
     if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {

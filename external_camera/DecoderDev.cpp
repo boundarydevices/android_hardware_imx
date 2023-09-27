@@ -55,7 +55,8 @@ DecoderDev::DecoderDev() {
 int32_t DecoderDev::Open() {
     ALOGV("%s: DecoderDev Open BEGIN", __func__);
 
-    if (OK != GetNode()) return -1;
+    if (OK != GetNode())
+        return -1;
 
     ALOGD("%s: open dev name %s", __func__, (char *)mDevName);
 
@@ -158,7 +159,8 @@ bool DecoderDev::isDecoderDevice(const char *devName) {
         isDecNode = (!strcmp((char *)vidCap.card, "vsi_v4l2dec") ||
                      !strcmp((char *)vidCap.card, "vpu B0"));
     }
-    if (isDecNode) return true;
+    if (isDecNode)
+        return true;
 
     return false;
 }
@@ -222,7 +224,8 @@ status_t DecoderDev::QueryFormats(uint32_t format_type) {
         while (true) {
             fmt.type = format_type;
             fmt.index = i;
-            if (ioctl(mFd, VIDIOC_ENUM_FMT, &fmt) < 0) break;
+            if (ioctl(mFd, VIDIOC_ENUM_FMT, &fmt) < 0)
+                break;
 
             capture_formats.push_back(fmt.pixelformat);
             ALOGI("%s: add capture format %x,  %s\n", __func__, fmt.pixelformat, fmt.description);
@@ -241,7 +244,8 @@ bool DecoderDev::IsOutputFormatSupported(uint32_t format) {
     ALOGV("%s: format=%x", __func__, format);
     if (output_formats.empty()) {
         status_t ret = QueryFormats(mOutBufType);
-        if (ret != OK) return false;
+        if (ret != OK)
+            return false;
     }
 
     for (uint32_t i = 0; i < output_formats.size(); i++) {
@@ -257,7 +261,8 @@ bool DecoderDev::IsCaptureFormatSupported(uint32_t format) {
     ALOGV("%s: format=%x", __func__, format);
     if (capture_formats.empty()) {
         status_t ret = QueryFormats(mCapBufType);
-        if (ret != OK) return false;
+        if (ret != OK)
+            return false;
     }
 
     for (uint32_t i = 0; i < capture_formats.size(); i++) {
@@ -293,7 +298,8 @@ status_t DecoderDev::GetContiguousV4l2Format(uint32_t format, uint32_t *contiguo
         }
     }
 
-    if (ret) ALOGE("unknown contiguous v4l2 format 0x%x", format);
+    if (ret)
+        ALOGE("unknown contiguous v4l2 format 0x%x", format);
 
     return ret;
 }
@@ -303,10 +309,12 @@ status_t DecoderDev::GetCaptureFormat(uint32_t *format, uint32_t i) {
 
     if (capture_formats.empty()) {
         ret = QueryFormats(mCapBufType);
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
     }
 
-    if (i >= capture_formats.size()) return BAD_VALUE;
+    if (i >= capture_formats.size())
+        return BAD_VALUE;
 
     *format = capture_formats.at(i);
 
@@ -340,7 +348,8 @@ status_t DecoderDev::GetV4l2FormatByColor(uint32_t color_format, uint32_t *v4l2_
 }
 
 status_t DecoderDev::GetFormatFrameInfo(uint32_t format, struct v4l2_frmsizeenum *info) {
-    if (info == NULL) return BAD_TYPE;
+    if (info == NULL)
+        return BAD_TYPE;
 
     info->index = 0;
     info->type = V4L2_FRMSIZE_TYPE_STEPWISE;

@@ -244,7 +244,8 @@ int32_t DMAStream::allocateBuffersLocked() {
         mBuffers[i]->mStream = this;
         mBuffers[i]->index = i;
         mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
-        if (mBuffers[i]->mFormatSize == 0) mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
+        if (mBuffers[i]->mFormatSize == 0)
+            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
 
         int ret = AllocPhyBuffer(*mBuffers[i]);
         if (ret) {
@@ -263,7 +264,8 @@ err:
     ALOGI("%s: clean up before return error", __func__);
 
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
-        if (mBuffers[i] == NULL) continue;
+        if (mBuffers[i] == NULL)
+            continue;
 
         FreePhyBuffer(*mBuffers[i]);
         delete mBuffers[i];
@@ -282,7 +284,8 @@ int32_t DMAStream::freeBuffersLocked() {
 
     ALOGI("freeBufferToIon buffer num:%d", mAllocatedBuffers);
     for (uint32_t i = 0; i < mAllocatedBuffers; i++) {
-        if (mBuffers[i] == NULL) continue;
+        if (mBuffers[i] == NULL)
+            continue;
 
         FreePhyBuffer(*mBuffers[i]);
         delete mBuffers[i];

@@ -110,7 +110,8 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData() {
             continue;
         }
 
-        if (ispResNum * 2 >= MAX_RESOLUTION_SIZE) break;
+        if (ispResNum * 2 >= MAX_RESOLUTION_SIZE)
+            break;
 
         ispRes[ispResNum * 2] = width;
         ispRes[ispResNum * 2 + 1] = height;
@@ -211,13 +212,15 @@ status_t ISPCameraDeviceHwlImpl::initSensorStaticData() {
 }
 
 static int32_t GetRawFormat(int fd, int32_t &raw_v4l2_format, int8_t &color_arrange) {
-    if (fd < 0) return BAD_VALUE;
+    if (fd < 0)
+        return BAD_VALUE;
 
     v4l2_fmtdesc formatDescriptions;
     formatDescriptions.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     for (int i = 0; true; i++) {
         formatDescriptions.index = i;
-        if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescriptions) != 0) break;
+        if (ioctl(fd, VIDIOC_ENUM_FMT, &formatDescriptions) != 0)
+            break;
 
         ALOGI("format %2d: %s 0x%08X 0x%X", i, formatDescriptions.description,
               formatDescriptions.pixelformat, formatDescriptions.flags);
@@ -302,7 +305,8 @@ int32_t ISPCameraMMAPStream::onPrepareLocked(uint32_t format, uint8_t sceneMode)
     m_IspWrapper->init(mDev);
 
     // Before capture raw data, need first disable DWE.
-    if (format == HAL_PIXEL_FORMAT_RAW16) ISPProcess(NULL, format);
+    if (format == HAL_PIXEL_FORMAT_RAW16)
+        ISPProcess(NULL, format);
 
     return 0;
 }

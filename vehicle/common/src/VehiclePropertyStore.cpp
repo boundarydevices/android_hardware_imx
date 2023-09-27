@@ -42,7 +42,8 @@ void VehiclePropertyStore::registerProperty(const VehiclePropConfig& config,
 
 bool VehiclePropertyStore::writeValue(const VehiclePropValue& propValue, bool updateStatus) {
     MuxGuard g(mLock);
-    if (!mConfigs.count(propValue.prop)) return false;
+    if (!mConfigs.count(propValue.prop))
+        return false;
 
     RecordId recId = getRecordIdLocked(propValue);
     VehiclePropValue* valueToUpdate = const_cast<VehiclePropValue*>(getValueOrNullLocked(recId));
@@ -150,7 +151,8 @@ VehiclePropertyStore::RecordId VehiclePropertyStore::getRecordIdLocked(
                       .token = 0};
 
     auto it = mConfigs.find(recId.prop);
-    if (it == mConfigs.end()) return {};
+    if (it == mConfigs.end())
+        return {};
 
     if (it->second.tokenFunction != nullptr) {
         recId.token = it->second.tokenFunction(valuePrototype);

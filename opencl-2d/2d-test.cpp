@@ -155,7 +155,8 @@ static void dump_buffer(char *pbuf, int count, const char *title) {
     char printbuf[256];
     memset(printbuf, 0, 256);
 
-    if ((pbuf == NULL) || (title == NULL)) return;
+    if ((pbuf == NULL) || (title == NULL))
+        return;
 
     ALOGI("Dump buffer %s, count 0x%x\n", title, count);
     for (i = 0; i < count; i += 16) {
@@ -216,7 +217,8 @@ static int g2d_get_planecount(unsigned int format) {
 }
 
 static int g2d_get_planebpp(unsigned int format, int plane) {
-    if (plane >= g2d_get_planecount(format)) return 0;
+    if (plane >= g2d_get_planecount(format))
+        return 0;
     switch (format) {
         case CL_G2D_RGB565:
             return 16;
@@ -265,7 +267,8 @@ static int g2d_get_planebpp(unsigned int format, int plane) {
 }
 
 static int g2d_get_planesize(enum cl_g2d_format format, int w_stride, int h_stride, int plane) {
-    if (plane >= g2d_get_planecount(format)) return 0;
+    if (plane >= g2d_get_planecount(format))
+        return 0;
 
     int bpp = g2d_get_planebpp(format, plane);
 
@@ -525,7 +528,8 @@ static int update_surface_parameters_2d(struct g2d_buf *s_buf, struct g2d_surfac
 static bool getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so"))) return false;
+    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so")))
+        return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
@@ -544,9 +548,11 @@ static bool getDefaultG2DLib(char *libName, int size) {
 
 static void getModule(char *path, const char *name) {
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     return;
 }
 
@@ -791,17 +797,25 @@ int createCLProgram(const char *fileSrcName, const char *fileBinName) {
     }
 
 binary_out:
-    if (devices != NULL) delete[] devices;
-    if (program_devices != NULL) delete[] program_devices;
-    if (programBinarySizes != NULL) delete[] programBinarySizes;
+    if (devices != NULL)
+        delete[] devices;
+    if (program_devices != NULL)
+        delete[] program_devices;
+    if (programBinarySizes != NULL)
+        delete[] programBinarySizes;
     for (cl_uint i = 0; i < numDevices; i++) {
-        if (programBinaries != NULL) delete[] programBinaries[i];
+        if (programBinaries != NULL)
+            delete[] programBinaries[i];
     }
-    if (programBinaries != NULL) delete[] programBinaries;
+    if (programBinaries != NULL)
+        delete[] programBinaries;
 
-    if (pSrcFileStream == 0) fclose(pSrcFileStream);
-    if (program != NULL) clReleaseProgram(program);
-    if (context != NULL) clReleaseContext(context);
+    if (pSrcFileStream == 0)
+        fclose(pSrcFileStream);
+    if (program != NULL)
+        clReleaseProgram(program);
+    if (context != NULL)
+        clReleaseContext(context);
     return ret;
 }
 
@@ -817,7 +831,8 @@ int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
     int srcStride;
     int dstStride;
 
-    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight) return -1;
+    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight)
+        return -1;
 
     h_scale_ratio = srcWidth / dstWidth;
     v_scale_ratio = srcHeight / dstHeight;
@@ -965,7 +980,8 @@ int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached) {
     uint32_t ionSize;
     uint32_t flag;
 
-    if (phyBufs == NULL) return -1;
+    if (phyBufs == NULL)
+        return -1;
 
     ionSize = phyBufs->mSize;
     fsl::Allocator *allocator = fsl::Allocator::getInstance();
@@ -1010,14 +1026,17 @@ int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached) {
 }
 
 int FreePhyBuffer(struct testPhyBuffer *phyBufs) {
-    if (phyBufs == NULL) return -1;
+    if (phyBufs == NULL)
+        return -1;
 
     /* If already freed or never allocated, just return */
-    if (phyBufs->mVirtAddr == NULL) return 0;
+    if (phyBufs->mVirtAddr == NULL)
+        return 0;
 
     munmap(phyBufs->mVirtAddr, phyBufs->mSize);
 
-    if (phyBufs->mFd > 0) close(phyBufs->mFd);
+    if (phyBufs->mFd > 0)
+        close(phyBufs->mFd);
 
     memset(phyBufs, 0, sizeof(struct testPhyBuffer));
 
@@ -1079,13 +1098,15 @@ static int InitV4l2() {
     return 0;
 
 fail:
-    if (g_fd_v4l > 0) close(g_fd_v4l);
+    if (g_fd_v4l > 0)
+        close(g_fd_v4l);
 
     return -1;
 }
 
 static int ExitV4l2() {
-    if (g_fd_v4l > 0) close(g_fd_v4l);
+    if (g_fd_v4l > 0)
+        close(g_fd_v4l);
 
     return 0;
 }
@@ -1132,7 +1153,8 @@ static int FreeV4l2Buffers() {
     struct v4l2_requestbuffers req;
     int ret;
 
-    if (g_fd_v4l < 0) return -1;
+    if (g_fd_v4l < 0)
+        return -1;
 
     /* unmap memory */
     printf("unmap memory, g_mem_type %d, V4L2_MEMORY_MMAP %d, TEST_BUFFER_NUM %d\n", g_mem_type,
@@ -1255,14 +1277,19 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (g_use_v4l2_buffer) printf("g_v4l_device %s, gMemTest %d\n", g_v4l_device, gMemTest);
+    if (g_use_v4l2_buffer)
+        printf("g_v4l_device %s, gMemTest %d\n", g_v4l_device, gMemTest);
 
     printf("g_usePhyAddr %d\n", g_usePhyAddr);
 
-    if (gOutWidth == 0) gOutWidth = gWidth;
-    if (gOutHeight == 0) gOutHeight = gHeight;
-    if (gStride == 0) gStride = gWidth;
-    if (gOutStride == 0) gOutStride = gOutWidth;
+    if (gOutWidth == 0)
+        gOutWidth = gWidth;
+    if (gOutHeight == 0)
+        gOutHeight = gHeight;
+    if (gStride == 0)
+        gStride = gWidth;
+    if (gOutStride == 0)
+        gOutStride = gOutWidth;
 
     if (gCLBuildTest) {
         ALOGI("Start opencl 2d binary build:");

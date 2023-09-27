@@ -106,7 +106,8 @@ status_t HwDecoder::Init(const char *socType) {
     if (pDev == NULL) {
         pDev = new DecoderDev();
     }
-    if (pDev == NULL) return ret;
+    if (pDev == NULL)
+        return ret;
 
     if ((strcmp(socType, "imx8qm") == 0) || (strcmp(socType, "imx8qxp") == 0)) {
         pDev->mSocType = IMX8QM;
@@ -122,11 +123,13 @@ status_t HwDecoder::Init(const char *socType) {
     }
 
     mFd = pDev->Open();
-    if (mFd < 0) return ret;
+    if (mFd < 0)
+        return ret;
     ALOGV("%s: Decoder Opened fd=%d", __FUNCTION__, mFd);
 
     ret = pDev->GetVideoBufferType(&mOutBufType, &mCapBufType);
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
 
     return OK;
 }
@@ -193,7 +196,8 @@ status_t HwDecoder::Start() {
 
     if (mInputBufferMap.empty() || (mInputFormat.bufferSize != mInputBufferMap[0].plane.size)) {
         ret = allocateInputBuffers();
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
     }
 
     {
@@ -243,7 +247,8 @@ status_t HwDecoder::Start() {
     }
 
     ret = createPollThread();
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
 
     mDecState = RUNNING;
     mDecReady = false;
@@ -364,7 +369,8 @@ status_t HwDecoder::SetOutputFormats() {
     format.type = mCapBufType;
 
     result = ioctl(mFd, VIDIOC_G_FMT, &format);
-    if (result < 0) return UNKNOWN_ERROR;
+    if (result < 0)
+        return UNKNOWN_ERROR;
 
     if (V4L2_TYPE_IS_MULTIPLANAR(mCapBufType)) {
         retFormat = format.fmt.pix_mp.pixelformat;
@@ -426,7 +432,8 @@ status_t HwDecoder::allocateInputBuffers() {
     void *ptr = NULL;
     uint64_t tmp = 0;
 
-    if (mInMemType != V4L2_MEMORY_MMAP) return UNKNOWN_ERROR;
+    if (mInMemType != V4L2_MEMORY_MMAP)
+        return UNKNOWN_ERROR;
 
     memset(&stV4lBuf, 0, sizeof(stV4lBuf));
     memset(&planes, 0, sizeof(planes));
@@ -441,7 +448,8 @@ status_t HwDecoder::allocateInputBuffers() {
             stV4lBuf.m.planes = &planes;
         }
         result = ioctl(mFd, VIDIOC_QUERYBUF, &stV4lBuf);
-        if (result < 0) return UNKNOWN_ERROR;
+        if (result < 0)
+            return UNKNOWN_ERROR;
 
         planes.length = mInputFormat.bufferSize;
 
@@ -467,7 +475,8 @@ status_t HwDecoder::allocateInputBuffers() {
 
 status_t HwDecoder::destroyInputBuffers() {
     Mutex::Autolock autoLock(mLock);
-    if (mInputBufferMap.empty()) return OK;
+    if (mInputBufferMap.empty())
+        return OK;
 
     for (size_t i = 0; i < mInputBufferMap.size(); i++) {
         mInputBufferMap[i].used = false;
@@ -501,10 +510,12 @@ status_t HwDecoder::destroyInputBuffers() {
 }
 
 status_t HwDecoder::destroyOutputBuffers() {
-    if (bOutputStreamOn) stopOutputStream();
+    if (bOutputStreamOn)
+        stopOutputStream();
 
     Mutex::Autolock autoLock(mLock);
-    if (mOutputBufferMap.empty()) return OK;
+    if (mOutputBufferMap.empty())
+        return OK;
 
     int result = 0;
     struct v4l2_requestbuffers reqbufs;
@@ -653,10 +664,12 @@ status_t HwDecoder::queueInputBuffer(std::unique_ptr<DecoderInputBuffer> input) 
     int32_t index = 0;
     uint32_t buf_length = 0;
 
-    if (input == nullptr) return BAD_VALUE;
+    if (input == nullptr)
+        return BAD_VALUE;
 
     if (STOPPED == mDecState || UNINITIALIZED == mDecState) {
-        if (OK != Start()) return BAD_VALUE;
+        if (OK != Start())
+            return BAD_VALUE;
     }
 
     if (input->size > mInputFormat.bufferSize) {
@@ -735,11 +748,13 @@ status_t HwDecoder::dequeueInputBuffer() {
     int input_id = -1;
     struct v4l2_buffer stV4lBuf;
 
-    if (!bInputStreamOn || mDecState != RUNNING) return OK;
+    if (!bInputStreamOn || mDecState != RUNNING)
+        return OK;
     {
         Mutex::Autolock autoLock(mLock);
 
-        if (!bInputStreamOn || mDecState != RUNNING) return OK;
+        if (!bInputStreamOn || mDecState != RUNNING)
+            return OK;
 
         memset(&stV4lBuf, 0, sizeof(stV4lBuf));
         stV4lBuf.type = mOutBufType;
@@ -754,9 +769,11 @@ status_t HwDecoder::dequeueInputBuffer() {
 
         ALOGV("%s VIDIOC_DQBUF OUTPUT BEGIN", __FUNCTION__);
         result = ioctl(mFd, VIDIOC_DQBUF, &stV4lBuf);
-        if (result < 0) return UNKNOWN_ERROR;
+        if (result < 0)
+            return UNKNOWN_ERROR;
 
-        if (stV4lBuf.index >= mInputFormat.bufferNum) return BAD_INDEX;
+        if (stV4lBuf.index >= mInputFormat.bufferNum)
+            return BAD_INDEX;
 
         ALOGV("%s VIDIOC_DQBUF OUTPUT END index=%d", __FUNCTION__, stV4lBuf.index);
         if (!mInputBufferMap[stV4lBuf.index].used) {
@@ -960,11 +977,13 @@ status_t HwDecoder::dequeueOutputBuffer() {
     struct v4l2_buffer stV4lBuf;
     struct v4l2_plane planes[DEFAULT_OUTPUT_BUFFER_PLANE];
 
-    if (!bOutputStreamOn || mDecState != RUNNING) return OK;
+    if (!bOutputStreamOn || mDecState != RUNNING)
+        return OK;
 
     Mutex::Autolock autoLock(mLock);
 
-    if (!bOutputStreamOn || mDecState != RUNNING) return OK;
+    if (!bOutputStreamOn || mDecState != RUNNING)
+        return OK;
 
     memset(&stV4lBuf, 0, sizeof(stV4lBuf));
     memset(planes, 0, sizeof(planes));
@@ -1020,7 +1039,8 @@ status_t HwDecoder::handleDequeueEvent() {
         switch (event.type) {
             case V4L2_EVENT_SOURCE_CHANGE:
                 if (event.u.src_change.changes & V4L2_EVENT_SRC_CH_RESOLUTION) {
-                    if (STOPPING != mDecState) handleFormatChanged();
+                    if (STOPPING != mDecState)
+                        handleFormatChanged();
                 }
                 break;
             case V4L2_EVENT_CODEC_ERROR:
@@ -1038,11 +1058,13 @@ status_t HwDecoder::handleDequeueEvent() {
 status_t HwDecoder::allocateOutputBuffers() {
     int ret;
 
-    if (mDecState == STOPPING) return OK;
+    if (mDecState == STOPPING)
+        return OK;
 
     Mutex::Autolock autoLock(mLock);
 
-    if (mDecState == STOPPING) return OK;
+    if (mDecState == STOPPING)
+        return OK;
 
     ALOGD("%s: mOutputFormat.bufferNum=%d", __FUNCTION__, mOutputFormat.bufferNum);
 
@@ -1067,14 +1089,16 @@ status_t HwDecoder::allocateOutputBuffers() {
 status_t HwDecoder::freeOutputBuffers() {
     Mutex::Autolock autoLock(mLock);
 
-    if (mDecoderBuffers.empty()) return OK;
+    if (mDecoderBuffers.empty())
+        return OK;
 
     for (auto &info : mDecoderBuffers) {
         if (info.mVirtAddr > 0 && info.mCapacity > 0) {
             munmap((void *)info.mVirtAddr, info.mCapacity);
         }
 
-        if (info.mDMABufFd > 0) close(info.mDMABufFd);
+        if (info.mDMABufFd > 0)
+            close(info.mDMABufFd);
     }
 
     mDecoderBuffers.clear();
@@ -1099,7 +1123,8 @@ status_t HwDecoder::handleFormatChanged() {
 
         format.type = mCapBufType;
         result = ioctl(mFd, VIDIOC_G_FMT, &format);
-        if (result < 0) return UNKNOWN_ERROR;
+        if (result < 0)
+            return UNKNOWN_ERROR;
 
         if (V4L2_TYPE_IS_MULTIPLANAR(mCapBufType)) {
             if (format.fmt.pix_mp.num_planes > 1) {
@@ -1222,15 +1247,18 @@ status_t HwDecoder::Flush() {
     {
         Mutex::Autolock autoLock(mLock);
         pre_state = mDecState;
-        if (mDecState != STOPPING) mDecState = FLUSHING;
+        if (mDecState != STOPPING)
+            mDecState = FLUSHING;
     }
 
     status_t ret = UNKNOWN_ERROR;
     ret = stopInputStream();
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
 
     ret = stopOutputStream();
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
 
     Mutex::Autolock autoLock(mLock);
     mDecState = pre_state;
@@ -1258,9 +1286,11 @@ status_t HwDecoder::Stop() {
     ret |= destroyOutputBuffers();
 
     Mutex::Autolock autoLock(mLock);
-    if (OK == ret) mDecState = STOPPED;
+    if (OK == ret)
+        mDecState = STOPPED;
 
-    if (pDev != NULL) pDev->ResetDecoder();
+    if (pDev != NULL)
+        pDev->ResetDecoder();
 
     return OK;
 }
@@ -1281,7 +1311,8 @@ status_t HwDecoder::Destroy() {
         mFd = 0;
     }
 
-    if (pDev != NULL) delete pDev;
+    if (pDev != NULL)
+        delete pDev;
     pDev = NULL;
 
     return OK;
@@ -1291,10 +1322,12 @@ void HwDecoder::dumpStream(void *src, size_t srcSize, int32_t id) {
     char value[PROPERTY_VALUE_MAX];
     int fdSrc = -1;
 
-    if ((src == NULL) || (srcSize == 0)) return;
+    if ((src == NULL) || (srcSize == 0))
+        return;
 
     property_get("vendor.rw.camera.ext.hwdecoder", value, "false");
-    if (!strcmp(value, "false")) return;
+    if (!strcmp(value, "false"))
+        return;
 
     ALOGI("%s: src size %zu, id %d", __FUNCTION__, srcSize, id);
 
@@ -1325,7 +1358,8 @@ status_t HwDecoder::onOutputFormatChanged() {
 
     status_t err;
     for (auto &info : mDecoderBuffers) {
-        if (info.bInUse) info.bInUse = false;
+        if (info.bInUse)
+            info.bInUse = false;
     }
 
     err = freeOutputBuffers();
@@ -1340,7 +1374,8 @@ status_t HwDecoder::onOutputFormatChanged() {
 
     {
         Mutex::Autolock autoLock(mLock);
-        if (mDecState == STOPPING) return OK;
+        if (mDecState == STOPPING)
+            return OK;
 
         mDecState = RUNNING;
 
@@ -1355,7 +1390,8 @@ status_t HwDecoder::onOutputFormatChanged() {
         if (result != 0) {
             return UNKNOWN_ERROR;
         }
-        if (!bNeedPostProcess) mOutputBufferMap.resize(32);
+        if (!bNeedPostProcess)
+            mOutputBufferMap.resize(32);
     }
 
     createFetchThread();
@@ -1379,14 +1415,16 @@ status_t HwDecoder::allocateOutputBuffer(int bufId) {
     int ret = IMXGetBufferAddr(fd, mbufferSize, phys_addr, false);
     if (ret != 0) {
         ALOGE("%s: DmaBuffer getPhys failed", __FUNCTION__);
-        if (fd > 0) close(fd);
+        if (fd > 0)
+            close(fd);
         return BAD_VALUE;
     }
 
     ret = IMXGetBufferAddr(fd, mbufferSize, virt_addr, true);
     if (ret != 0) {
         ALOGE("%s: DmaBuffer getVaddrs failed", __FUNCTION__);
-        if (fd > 0) close(fd);
+        if (fd > 0)
+            close(fd);
         return BAD_VALUE;
     }
 

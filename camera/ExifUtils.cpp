@@ -239,29 +239,34 @@ protected:
     const static int kRationalPrecision = 10000;
 };
 
-#define SET_SHORT(ifd, tag, value)                                  \
-    do {                                                            \
-        if (SetShort(ifd, tag, value, #tag) == false) return false; \
+#define SET_SHORT(ifd, tag, value)                    \
+    do {                                              \
+        if (SetShort(ifd, tag, value, #tag) == false) \
+            return false;                             \
     } while (0);
 
-#define SET_LONG(ifd, tag, value)                                  \
-    do {                                                           \
-        if (SetLong(ifd, tag, value, #tag) == false) return false; \
+#define SET_LONG(ifd, tag, value)                    \
+    do {                                             \
+        if (SetLong(ifd, tag, value, #tag) == false) \
+            return false;                            \
     } while (0);
 
-#define SET_RATIONAL(ifd, tag, numerator, denominator)                                  \
-    do {                                                                                \
-        if (SetRational(ifd, tag, numerator, denominator, #tag) == false) return false; \
+#define SET_RATIONAL(ifd, tag, numerator, denominator)                    \
+    do {                                                                  \
+        if (SetRational(ifd, tag, numerator, denominator, #tag) == false) \
+            return false;                                                 \
     } while (0);
 
-#define SET_SRATIONAL(ifd, tag, numerator, denominator)                                  \
-    do {                                                                                 \
-        if (SetSRational(ifd, tag, numerator, denominator, #tag) == false) return false; \
+#define SET_SRATIONAL(ifd, tag, numerator, denominator)                    \
+    do {                                                                   \
+        if (SetSRational(ifd, tag, numerator, denominator, #tag) == false) \
+            return false;                                                  \
     } while (0);
 
-#define SET_STRING(ifd, tag, format, buffer)                                  \
-    do {                                                                      \
-        if (SetString(ifd, tag, format, buffer, #tag) == false) return false; \
+#define SET_STRING(ifd, tag, format, buffer)                    \
+    do {                                                        \
+        if (SetString(ifd, tag, format, buffer, #tag) == false) \
+            return false;                                       \
     } while (0);
 
 // This comes from the Exif Version 2.2 standard table 6.
@@ -673,7 +678,8 @@ bool ExifUtilsImpl::SetWhiteBalance(uint8_t white_balance) {
     uint16_t whiteBalance = (white_balance == ANDROID_CONTROL_AWB_MODE_AUTO) ? 0 : 1;
     SET_SHORT(EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, whiteBalance);
 
-    if (white_balance == ANDROID_CONTROL_AWB_MODE_AUTO) return true;
+    if (white_balance == ANDROID_CONTROL_AWB_MODE_AUTO)
+        return true;
 
     // Ref https://exiftool.org/TagNames/EXIF.html#LightSource
     uint16_t lightSource = 0;

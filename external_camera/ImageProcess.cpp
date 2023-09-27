@@ -58,7 +58,8 @@ ImageProcess *ImageProcess::getInstance() {
 static bool getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so"))) return false;
+    if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so")))
+        return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
@@ -158,9 +159,11 @@ ImageProcess::~ImageProcess() {
 
 void ImageProcess::getModule(char *path, const char *name) {
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     return;
 }
 
@@ -385,7 +388,8 @@ int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr,
 
     Mutex::Autolock _l(mG2dLock);
     ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&d_surface);
-    if (ret) goto finish_blit;
+    if (ret)
+        goto finish_blit;
 
     mFinishEngine(g2dHandle);
 

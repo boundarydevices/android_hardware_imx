@@ -184,7 +184,8 @@ int32_t gralloc_driver::lock(buffer_handle_t handle, int32_t acquire_fence,
                              bool close_acquire_fence, const struct rectangle *rect,
                              uint32_t map_flags, uint8_t *addr[DRV_MAX_PLANES]) {
     int32_t ret = gralloc_sync_wait(acquire_fence, close_acquire_fence);
-    if (ret) return ret;
+    if (ret)
+        return ret;
 
     std::lock_guard<std::mutex> lock(mutex_);
     auto hnd = gralloc_convert_handle(handle);

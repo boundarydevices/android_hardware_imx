@@ -41,7 +41,8 @@ static uint32_t freeCount;
 // hardware/interfaces/camera/common/1.0/default/HandleImporter.cpp. If use functions from
 // HandleImporter.cpp, will lead to add a series of libs.
 static int importFence(const native_handle_t *handle, bool debug) {
-    if (handle == nullptr || handle->numFds == 0) return -1;
+    if (handle == nullptr || handle->numFds == 0)
+        return -1;
 
     if (handle->numFds != 1) {
         ALOGE("invalid fence handle with %d file descriptors", handle->numFds);
@@ -49,7 +50,8 @@ static int importFence(const native_handle_t *handle, bool debug) {
     }
 
     int fd = dup(handle->data[0]);
-    if (fd < 0) ALOGE("failed to dup fence fd %d, %s", handle->data[0], strerror(errno));
+    if (fd < 0)
+        ALOGE("failed to dup fence fd %d, %s", handle->data[0], strerror(errno));
 
     importCount++;
     if (debug)
@@ -71,7 +73,8 @@ static void closeFence(int fd, bool debug) {
 static void ItvlStat(uint64_t &preTime, char *name) {
     uint64_t curTime = systemTime();
 
-    if (preTime > 0) ALOGI("%s itvl is %ld ms", name, (curTime - preTime) / 1000000);
+    if (preTime > 0)
+        ALOGI("%s itvl is %ld ms", name, (curTime - preTime) / 1000000);
 
     preTime = curTime;
 
@@ -109,7 +112,8 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
 
     static_metadata_ = std::move(pMeta);
 
-    if (pDev == NULL) return BAD_VALUE;
+    if (pDev == NULL)
+        return BAD_VALUE;
 
     m_meta = pDev->m_meta->Clone();
 
@@ -144,7 +148,8 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
         ALOGI("%s: VideoStream[%d] %p created, device path %s", __func__, i, pVideoStreams[i],
               *mDevPath[i]);
 
-        if (pVideoStreams[i] == NULL) return BAD_VALUE;
+        if (pVideoStreams[i] == NULL)
+            return BAD_VALUE;
 
         ret = pVideoStreams[i]->openDev(*mDevPath[i]);
         if (ret) {
@@ -275,9 +280,11 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl() {
         }
     }
 
-    if (mJpegBuilder != NULL) mJpegBuilder.clear();
+    if (mJpegBuilder != NULL)
+        mJpegBuilder.clear();
 
-    if (mSettings != NULL) mSettings.reset();
+    if (mSettings != NULL)
+        mSettings.reset();
 
     if (m_meta) {
         delete m_meta;
@@ -288,7 +295,8 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl() {
 
 PipelineInfo *CameraDeviceSessionHwlImpl::GetPipelineInfo(uint32_t id) {
     auto it = map_pipeline_info.find(id);
-    if (it != map_pipeline_info.end()) return it->second;
+    if (it != map_pipeline_info.end())
+        return it->second;
 
     return NULL;
 }
@@ -301,21 +309,26 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq) {
     uint8_t sceneMode = pVideoStreams[0]->mSceneMode;
     uint8_t captureIntent = pVideoStreams[0]->mCaptureIntent;
 
-    if ((hwReq == NULL) || (hwReq->settings.get() == NULL)) return 0;
+    if ((hwReq == NULL) || (hwReq->settings.get() == NULL))
+        return 0;
 
     retSceneMode = hwReq->settings->Get(ANDROID_CONTROL_SCENE_MODE, &entry);
-    if (retSceneMode == 0) sceneMode = entry.data.u8[0];
+    if (retSceneMode == 0)
+        sceneMode = entry.data.u8[0];
 
     retIntent = hwReq->settings->Get(ANDROID_CONTROL_CAPTURE_INTENT, &entry);
-    if (retIntent == 0) captureIntent = entry.data.u8[0];
+    if (retIntent == 0)
+        captureIntent = entry.data.u8[0];
 
     // Neither scene mode, nor capture intent in the meta, no need to handle, return.
-    if (retSceneMode && retIntent) return 0;
+    if (retSceneMode && retIntent)
+        return 0;
 
     int configIdx = -1;
     uint32_t pipeline_id = hwReq->pipeline_id;
     configIdx = PickConfigStream(pipeline_id, captureIntent);
-    if ((configIdx < 0) && retSceneMode) return 0;
+    if ((configIdx < 0) && retSceneMode)
+        return 0;
 
     uint32_t fps = 30;
     ret = hwReq->settings->Get(ANDROID_CONTROL_AE_TARGET_FPS_RANGE, &entry);
@@ -328,7 +341,8 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq) {
     }
 
     // In HDR mode, max fps is 30
-    if ((sceneMode == ANDROID_CONTROL_SCENE_MODE_HDR) && (fps > 30)) fps = 30;
+    if ((sceneMode == ANDROID_CONTROL_SCENE_MODE_HDR) && (fps > 30))
+        fps = 30;
 
     PipelineInfo *pipeline_info = GetPipelineInfo(pipeline_id);
     if (pipeline_info == NULL) {
@@ -363,7 +377,8 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq) {
                                           1);
 
         uint32_t format = HAL_PIXEL_FORMAT_YCbCr_422_I;
-        if (strcmp(mSensorData.v4l2_format, "nv12") == 0) format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+        if (strcmp(mSensorData.v4l2_format, "nv12") == 0)
+            format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
 
         if (pipeline_info->hal_streams->at(configIdx).override_format == HAL_PIXEL_FORMAT_RAW16) {
             format = HAL_PIXEL_FORMAT_RAW16;
@@ -374,7 +389,8 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq) {
         ret = pVideoStreams[0]->ConfigAndStart(format, pipeline_info->streams->at(configIdx).width,
                                                pipeline_info->streams->at(configIdx).height, fps,
                                                captureIntent, sceneMode);
-        if (ret) ALOGE("%s: pVideoStreams[0]->ConfigAndStart failed, ret %d", __func__, ret);
+        if (ret)
+            ALOGE("%s: pVideoStreams[0]->ConfigAndStart failed, ret %d", __func__, ret);
     }
 
     return ret;
@@ -404,7 +420,8 @@ void CameraDeviceSessionHwlImpl::ReleaseFrameRequest(FrameRequest &frameRequest)
     int size = frameRequest.outBufferFences.size();
     for (int i = 0; i < size; i++) {
         int acquire_fence_fd = frameRequest.outBufferFences[i].acquire_fence_fd;
-        if (acquire_fence_fd > -1) closeFence(acquire_fence_fd, mDebug);
+        if (acquire_fence_fd > -1)
+            closeFence(acquire_fence_fd, mDebug);
 
         frameRequest.outBufferFences[i].acquire_fence_fd = -1;
     }
@@ -416,7 +433,8 @@ void CameraDeviceSessionHwlImpl::ReleaseFrameRequest(FrameRequest &frameRequest)
 int CameraDeviceSessionHwlImpl::HandleRequest() {
     mLock.lock();
 
-    if (mDebug) DumpRequest();
+    if (mDebug)
+        DumpRequest();
 
     if (map_frame_request.empty()) {
         ALOGV("map_frame_request empty, wait");
@@ -467,14 +485,16 @@ int CameraDeviceSessionHwlImpl::HandleRequest() {
 
         // capture v4l2 buffer and feed to mImageList
         status_t ret = CapAndFeed(frame, frameRequest);
-        if (ret) ReleaseFrameRequest(*frameRequest);
+        if (ret)
+            ReleaseFrameRequest(*frameRequest);
     }
 
     mLock.lock();
     mDeQueRequestIdx++;
     mLock.unlock();
 
-    if (mDebug) ALOGI("%s: mDeQueRequestIdx %lu", __func__, mDeQueRequestIdx);
+    if (mDebug)
+        ALOGI("%s: mDeQueRequestIdx %lu", __func__, mDeQueRequestIdx);
 
     return OK;
 }
@@ -499,7 +519,8 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
     uint64_t readTime = 0;
     uint32_t clock = mUseCpuEncoder ? SYSTEM_TIME_MONOTONIC : SYSTEM_TIME_BOOTTIME;
 
-    if (frameRequest == NULL) return BAD_VALUE;
+    if (frameRequest == NULL)
+        return BAD_VALUE;
 
     if (is_logical_request_) {
         std::vector<StreamBuffer> &output_buffers = frameRequest->hwlReq.output_buffers;
@@ -541,7 +562,8 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
             }
 
             // For logical camera, use first physical camera's timestamp.
-            if (timestamp_ns == 0) timestamp_ns = systemTime(clock);
+            if (timestamp_ns == 0)
+                timestamp_ns = systemTime(clock);
 
             pImxStreamBuffer = pVideoStream->onFrameAcquire();
             if (pImxStreamBuffer == NULL) {
@@ -550,7 +572,8 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
                 goto fail;
             }
 
-            if (readout_timestamp_ns == 0) readout_timestamp_ns = systemTime(clock);
+            if (readout_timestamp_ns == 0)
+                readout_timestamp_ns = systemTime(clock);
 
             v4l2BufferList.push_back(pImxStreamBuffer);
         }
@@ -630,10 +653,12 @@ int CameraDeviceSessionHwlImpl::ImgProcThread::feed(ImageFeed *imgFeed) {
 }
 
 void CameraDeviceSessionHwlImpl::ImgProcThread::releaseImgFeed(ImageFeed *imgFeed) {
-    if (imgFeed == NULL) return;
+    if (imgFeed == NULL)
+        return;
 
     FrameRequest *frameRequest = imgFeed->frameRequest;
-    if (frameRequest == NULL) return;
+    if (frameRequest == NULL)
+        return;
 
     mSession->ReleaseFrameRequest(*frameRequest);
 
@@ -657,7 +682,8 @@ void CameraDeviceSessionHwlImpl::ImgProcThread::DumpImage() {
 
     for (auto it = mImageList.begin(); it != mImageList.end(); it++) {
         ImageFeed *imgFeed = *it;
-        if (imgFeed == NULL) continue;
+        if (imgFeed == NULL)
+            continue;
 
         // If driver has issue, v4l2Buffer can be NULL, ref CapAndFeed().
         if (imgFeed->v4l2Buffer)
@@ -679,7 +705,8 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
 
     mImgProcThread->mImageListLock.lock();
 
-    if (mDebug) mImgProcThread->DumpImage();
+    if (mDebug)
+        mImgProcThread->DumpImage();
 
     if (mImgProcThread->mImageList.empty()) {
         ALOGV("mImageList empty, wait");
@@ -747,7 +774,8 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
 
     // save the latest meta
     if (hwReq.settings != NULL) {
-        if (mSettings != NULL) mSettings.reset();
+        if (mSettings != NULL)
+            mSettings.reset();
 
         mSettings = HalCameraMetadata::Clone(hwReq.settings.get());
     }
@@ -892,7 +920,8 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
     mImgProcThread->mProcdFrame = frame;
     mImgProcThread->mImageListLock.unlock();
 
-    if (mDebug) ItvlStat(mPreHandleImageTime, (char *)"HandleImage(), process_pipeline_result");
+    if (mDebug)
+        ItvlStat(mPreHandleImageTime, (char *)"HandleImage(), process_pipeline_result");
 
     // release imgFeed and it's request
     mImgProcThread->releaseImgFeed(imgFeed);
@@ -905,10 +934,12 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
     void *pBuf = NULL;
     fsl::Memory *handle = NULL;
 
-    if ((buf == NULL) || (buf->buffer == NULL) || (stream == NULL)) return NULL;
+    if ((buf == NULL) || (buf->buffer == NULL) || (stream == NULL))
+        return NULL;
 
     ImxStreamBuffer *imxBuf = new ImxStreamBuffer();
-    if (imxBuf == NULL) return NULL;
+    if (imxBuf == NULL)
+        return NULL;
 
     handle = (fsl::Memory *)(buf->buffer);
     pMemManager->lock(handle, handle->usage, 0, 0, handle->width, handle->height, &pBuf);
@@ -918,7 +949,8 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
     imxBuf->mSize = handle->size;
     imxBuf->buffer = buf->buffer;
     imxBuf->mFormatSize = getSizeByForamtRes(handle->format, stream->width, stream->height, false);
-    if (imxBuf->mFormatSize == 0) imxBuf->mFormatSize = imxBuf->mSize;
+    if (imxBuf->mFormatSize == 0)
+        imxBuf->mFormatSize = imxBuf->mSize;
 
     ALOGV("%s, buffer: virt %p, phy 0x%lx, size %zu, format 0x%x, acquire_fence %p, release_fence "
           "%p, stream: res %dx%d, format 0x%x, size %d",
@@ -934,14 +966,17 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
     imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format, stream->usage,
                                     stream->id, bPreview);
 
-    if (imxBuf->mStream == NULL) goto error;
+    if (imxBuf->mStream == NULL)
+        goto error;
 
     goto finish;
 
 error:
-    if (imxBuf) free(imxBuf);
+    if (imxBuf)
+        free(imxBuf);
 
-    if (pBuf) pMemManager->unlock(handle);
+    if (pBuf)
+        pMemManager->unlock(handle);
 
     return NULL;
 
@@ -950,9 +985,11 @@ finish:
 }
 
 void CameraDeviceSessionHwlImpl::ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf) {
-    if (imxBuf == NULL) return;
+    if (imxBuf == NULL)
+        return;
 
-    if (imxBuf->mStream) delete (imxBuf->mStream);
+    if (imxBuf->mStream)
+        delete (imxBuf->mStream);
 
     fsl::Memory *handle = (fsl::Memory *)(imxBuf->buffer);
     pMemManager->unlock(handle);
@@ -961,19 +998,22 @@ void CameraDeviceSessionHwlImpl::ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf)
 }
 
 Stream *CameraDeviceSessionHwlImpl::GetStreamFromStreamBuffer(StreamBuffer *buf) {
-    if (buf == NULL) return NULL;
+    if (buf == NULL)
+        return NULL;
 
     ALOGV("%s: buf->stream_id %d", __func__, buf->stream_id);
 
     for (auto it = map_pipeline_info.begin(); it != map_pipeline_info.end(); it++) {
         PipelineInfo *pInfo = it->second;
-        if (pInfo == NULL) return NULL;
+        if (pInfo == NULL)
+            return NULL;
 
         std::vector<Stream> *streams = pInfo->streams;
         int size = (int)streams->size();
         for (int i = 0; i < size; i++) {
             ALOGV("pInfo %p, streams[%d].id %d", pInfo, i, streams->at(i).id);
-            if (streams->at(i).id == buf->stream_id) return &(streams->at(i));
+            if (streams->at(i).id == buf->stream_id)
+                return &(streams->at(i));
         }
     }
 
@@ -986,13 +1026,16 @@ static void DumpStream(void *src, uint32_t srcSize, void *dst, uint32_t dstSize,
     int fdDst = -1;
     int32_t streamIdBitVal = 0;
 
-    if ((src == NULL) || (srcSize == 0) || (dst == NULL) || (dstSize == 0)) return;
+    if ((src == NULL) || (srcSize == 0) || (dst == NULL) || (dstSize == 0))
+        return;
 
     property_get("vendor.rw.camera.test", value, "");
-    if (strcmp(value, "") == 0) return;
+    if (strcmp(value, "") == 0)
+        return;
 
     streamIdBitVal = atoi(value);
-    if ((streamIdBitVal & (1 << id)) == 0) return;
+    if ((streamIdBitVal & (1 << id)) == 0)
+        return;
 
     ALOGI("%s: src size %d, dst size %d, stream id %d", __func__, srcSize, dstSize, id);
 
@@ -1028,7 +1071,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
                                                           CameraMetadata &requestMeta) {
     int ret = 0;
     bool isSkipHandle = false;
-    if (srcBuf == NULL) return BAD_VALUE;
+    if (srcBuf == NULL)
+        return BAD_VALUE;
 
     StreamBuffer *it = &output_buffers;
 
@@ -1054,7 +1098,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
     }
 
     ImxStreamBuffer *dstBuf = CreateImxStreamBufferFromStreamBuffer(it, pStream);
-    if (dstBuf == NULL) return BAD_VALUE;
+    if (dstBuf == NULL)
+        return BAD_VALUE;
 
     // limit the container size
     ImxStream *src = srcBuf->mStream;
@@ -1089,7 +1134,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
         mJpegBuilder->setMetadata(&requestMeta);
         processJpegBuffer(srcBuf, dstBuf, &requestMeta);
     } else {
-        if (!isSkipHandle) processFrameBuffer(srcBuf, dstBuf, &requestMeta);
+        if (!isSkipHandle)
+            processFrameBuffer(srcBuf, dstBuf, &requestMeta);
     }
 
     uint64_t t2 = systemTime();
@@ -1115,7 +1161,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2MultiOutbuf(
         std::vector<FenceFdInfo> &outFences, CameraMetadata &requestMeta) {
     int ret = 0;
 
-    if (srcBuf == NULL) return BAD_VALUE;
+    if (srcBuf == NULL)
+        return BAD_VALUE;
 
     int outBufSize = output_buffers.size();
     int outFencesSize = outFences.size();
@@ -1127,7 +1174,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2MultiOutbuf(
 
     for (int i = 0; i < outBufSize; i++) {
         int status = ProcessCapbuf2Outbuf(srcBuf, output_buffers[i], outFences[i], requestMeta);
-        if (status) ret = BAD_VALUE;
+        if (status)
+            ret = BAD_VALUE;
     }
 
     return ret;
@@ -1314,9 +1362,11 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
           captureSize, jpegBlob->jpeg_size, maxJpegSize);
 
 err_out:
-    if (mainJpeg != NULL) delete mainJpeg;
+    if (mainJpeg != NULL)
+        delete mainJpeg;
 
-    if (thumbJpeg != NULL) delete thumbJpeg;
+    if (thumbJpeg != NULL)
+        delete thumbJpeg;
 
     if (resizeBuf.mPhyAddr > 0) {
         SwitchImxBuf(*srcBuf, resizeBuf);
@@ -1642,7 +1692,8 @@ int CameraDeviceSessionHwlImpl::PickConfigStream(uint32_t pipeline_id, uint8_t i
           __func__, previewIdx, callbackIdx, stillcapIdx, recordIdx, cameraRWIdx, intent);
 
     int configIdx = -1;
-    if (intent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE) configIdx = stillcapIdx;
+    if (intent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE)
+        configIdx = stillcapIdx;
 
     // In this case, pick max size from callback and stillcap.
     // Or testAllOutputYUVResolutions will failed due to diff too much
@@ -1707,7 +1758,8 @@ status_t CameraDeviceSessionHwlImpl::GetConfiguredHalStream(
 
     bool found = false;
     for (auto it = map_pipeline_info.begin(); it != map_pipeline_info.end(); it++) {
-        if (pipeline_id != it->first) continue;
+        if (pipeline_id != it->first)
+            continue;
 
         found = true;
         std::vector<HalStream> *streams = it->second->hal_streams;
@@ -1874,7 +1926,8 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
 }
 
 int CameraDeviceSessionHwlImpl::CleanRequestsLocked() {
-    if (map_frame_request.empty()) return 0;
+    if (map_frame_request.empty())
+        return 0;
 
     for (auto it = map_frame_request.begin(); it != map_frame_request.end(); it++) {
         uint32_t frame = it->first;

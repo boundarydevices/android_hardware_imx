@@ -233,7 +233,8 @@ int32_t VideoStream::Stop() {
 
     Mutex::Autolock _l(mV4l2Lock);
 
-    if (mbStart == false) return 0;
+    if (mbStart == false)
+        return 0;
 
     ret = onDeviceStopLocked();
     if (ret) {

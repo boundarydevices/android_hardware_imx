@@ -60,7 +60,8 @@ avbError avbOemUnlockIpc::avbCall(int handler, avbCommand cmd, void* in, uint32_
         LOG(ERROR) << "failed to retrieve response for cmd:" << cmd << "to:" << AVB_PORT;
         return avbError::AVB_ERROR_INTERNAL;
     }
-    if (out_size != NULL) *out_size = ((int)rc - sizeof(struct avbMessage));
+    if (out_size != NULL)
+        *out_size = ((int)rc - sizeof(struct avbMessage));
 
     /* everything goes well, return OK. */
     return avbError::AVB_ERROR_NONE;

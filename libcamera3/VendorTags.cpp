@@ -84,7 +84,8 @@ const Entry* getEntry(uint32_t tag) {
     const Section* section = getSection(tag);
     int index;
 
-    if (section == NULL) return NULL;
+    if (section == NULL)
+        return NULL;
 
     if (tag >= section->end) {
         ALOGE("%s: Tag 0x%x outside section", __func__, tag);
@@ -124,7 +125,8 @@ void VendorTags::getAllTags(const vendor_tag_ops_t* ops __unused, uint32_t* tag_
 const char* VendorTags::getSectionName(const vendor_tag_ops_t* ops __unused, uint32_t tag) {
     const Section* section = getSection(tag);
 
-    if (section == NULL) return NULL;
+    if (section == NULL)
+        return NULL;
 
     return section->name;
 }
@@ -132,7 +134,8 @@ const char* VendorTags::getSectionName(const vendor_tag_ops_t* ops __unused, uin
 const char* VendorTags::getTagName(const vendor_tag_ops_t* ops __unused, uint32_t tag) {
     const Entry* entry = getEntry(tag);
 
-    if (entry == NULL) return NULL;
+    if (entry == NULL)
+        return NULL;
 
     return entry->name;
 }
@@ -140,7 +143,8 @@ const char* VendorTags::getTagName(const vendor_tag_ops_t* ops __unused, uint32_
 int VendorTags::getTagType(const vendor_tag_ops_t* ops __unused, uint32_t tag) {
     const Entry* entry = getEntry(tag);
 
-    if (entry == NULL) return -1;
+    if (entry == NULL)
+        return -1;
 
     return entry->type;
 }

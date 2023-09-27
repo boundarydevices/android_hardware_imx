@@ -153,7 +153,8 @@ void Display::clearConfigs() {
 int Display::findDisplayConfig(int width, int height, float fps, int format) {
     int i;
     for (i = 0; i < mConfigs.size(); i++) {
-        if (mConfigs.count(mFirstConfigId + i) == 0) continue;
+        if (mConfigs.count(mFirstConfigId + i) == 0)
+            continue;
 
         const DisplayConfig& cfg = mConfigs[mFirstConfigId + i];
         // if not specify the format(0), only compare the resolution
@@ -213,19 +214,22 @@ bool Display::isOverlayEnabled() {
 
 bool Display::isHdrSupported() {
     Mutex::Autolock _l(mLock);
-    if (mEdid == NULL) return false;
+    if (mEdid == NULL)
+        return false;
     return mEdid->isHdrSupported();
 }
 
 int Display::getHdrMetaData(HdrMetaData* hdrMetaData) {
     Mutex::Autolock _l(mLock);
-    if (mEdid == NULL) return -EINVAL;
+    if (mEdid == NULL)
+        return -EINVAL;
     return mEdid->getHdrMetaData(hdrMetaData);
 }
 
 int Display::getHdrSupportTypes(uint32_t* numTypes, int32_t* hdrTypes) {
     Mutex::Autolock _l(mLock);
-    if (mEdid == NULL) return -EINVAL;
+    if (mEdid == NULL)
+        return -EINVAL;
     return mEdid->getHdrSupportTypes(numTypes, hdrTypes);
 }
 
@@ -427,7 +431,8 @@ int Display::getReleaseFences(uint32_t* outNumElements, uint64_t* outLayers, int
             int ret = -1;
             if (!fcntl(fd, F_GETFL))
                 if (!fstat(fd, &_stat))
-                    if (_stat.st_nlink >= 1) ret = 0;
+                    if (_stat.st_nlink >= 1)
+                        ret = 0;
 
             if (ret == -1) { // mark invalid release fence as -1
                 mLayers[i]->releaseFence = -1;
@@ -521,7 +526,7 @@ bool Display::check2DComposition() {
 
         // video nv12 full range should be handled by client
         if (memory != nullptr && memory->fslFormat == FORMAT_NV12 &&
-                (mLayers[i]->dataspace & HAL_DATASPACE_RANGE_MASK) == HAL_DATASPACE_RANGE_FULL) {
+            (mLayers[i]->dataspace & HAL_DATASPACE_RANGE_MASK) == HAL_DATASPACE_RANGE_FULL) {
             use2DComposition = false;
         }
 
@@ -763,7 +768,8 @@ bool Display::verifyLayers() {
             if (!mLayers[i]->busy) {
                 continue;
             }
-            if (mLayers[i]->isOverlay) continue;
+            if (mLayers[i]->isOverlay)
+                continue;
             if (mLayers[i]->type == LAYER_TYPE_CLIENT) {
                 mLayers[i]->type = LAYER_TYPE_DEVICE;
             }
@@ -1100,7 +1106,8 @@ int Display::getDisplayIdentificationData(uint8_t* displayPort, uint8_t* data, u
     else
         *displayPort = (uint8_t)mIndex;
 
-    if (size < EDID_LENGTH) return -1;
+    if (size < EDID_LENGTH)
+        return -1;
 
     if ((mEdid == NULL) || ((len = mEdid->getEdidRawData(data, size)) <= 0)) {
         // Use NXP default EDID data if no data get from driver

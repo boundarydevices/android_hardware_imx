@@ -56,7 +56,8 @@ static int fb_idle_open(void) {
     int fd;
     for (auto &path : fb_idle_patch) {
         fd = open(path.c_str(), O_RDONLY);
-        if (fd >= 0) return fd;
+        if (fd >= 0)
+            return fd;
     }
     ALOGE("Unable to open fb idle state path (%d)", errno);
     return -1;
@@ -65,10 +66,12 @@ static int fb_idle_open(void) {
 bool InteractionHandler::Init() {
     std::lock_guard<std::mutex> lk(mLock);
 
-    if (mState != INTERACTION_STATE_UNINITIALIZED) return true;
+    if (mState != INTERACTION_STATE_UNINITIALIZED)
+        return true;
 
     int fd = fb_idle_open();
-    if (fd < 0) return false;
+    if (fd < 0)
+        return false;
     mIdleFd = fd;
 
     mEventFd = eventfd(0, EFD_NONBLOCK);
@@ -86,7 +89,8 @@ bool InteractionHandler::Init() {
 
 void InteractionHandler::Exit() {
     std::unique_lock<std::mutex> lk(mLock);
-    if (mState == INTERACTION_STATE_UNINITIALIZED) return;
+    if (mState == INTERACTION_STATE_UNINITIALIZED)
+        return;
 
     AbortWaitLocked();
     mState = INTERACTION_STATE_UNINITIALIZED;
@@ -185,7 +189,8 @@ void InteractionHandler::Release() {
 void InteractionHandler::AbortWaitLocked() {
     uint64_t val = 1;
     ssize_t ret = write(mEventFd, &val, sizeof(val));
-    if (ret != sizeof(val)) ALOGW("Unable to write to event fd (%zd)", ret);
+    if (ret != sizeof(val))
+        ALOGW("Unable to write to event fd (%zd)", ret);
 }
 
 void InteractionHandler::WaitForIdle(int32_t wait_ms, int32_t timeout_ms) {
@@ -239,7 +244,8 @@ void InteractionHandler::Routine() {
     while (true) {
         lk.lock();
         mCond.wait(lk, [&] { return mState != INTERACTION_STATE_IDLE; });
-        if (mState == INTERACTION_STATE_UNINITIALIZED) return;
+        if (mState == INTERACTION_STATE_UNINITIALIZED)
+            return;
         mState = INTERACTION_STATE_WAITING;
         lk.unlock();
 

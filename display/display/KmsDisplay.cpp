@@ -58,7 +58,8 @@ static void dump_frame(char *pbuf, int width, int height, int size) {
         property_get("vendor.hwc.enable.dump_frame", value, "0");
         request_frame_count = atoi(value);
         // Previous dump request finished, no more request catched
-        if (prev_request_frame_count == request_frame_count) return;
+        if (prev_request_frame_count == request_frame_count)
+            return;
 
         prev_request_frame_count = request_frame_count;
         if (request_frame_count >= 1)
@@ -404,7 +405,8 @@ void KmsPlane::setAlpha(drmModeAtomicReqPtr pset, uint32_t alpha) {
 }
 
 void KmsPlane::setClientFence(drmModeAtomicReqPtr pset, int fd) {
-    if (fence_id > 0) drmModeAtomicAddProperty(pset, mPlaneID, fence_id, fd);
+    if (fence_id > 0)
+        drmModeAtomicAddProperty(pset, mPlaneID, fence_id, fd);
 }
 
 void KmsPlane::setTableOffset(drmModeAtomicReqPtr pset, MetaData *meta) {
@@ -787,8 +789,10 @@ int KmsDisplay::performOverlay() {
 #ifdef WORKAROUND_DOWNSCALE_LIMITATION
         int srcW = rect->right - rect->left;
         int srcH = rect->bottom - rect->top;
-        if (srcW < w) w = srcW;
-        if (srcH < h) h = srcH;
+        if (srcW < w)
+            w = srcW;
+        if (srcH < h)
+            h = srcH;
         mKmsPlanes[overlay_plane_index].setSourceSurface(mPset, 0, 0, ALIGN_PIXEL_2(w - 1),
                                                          ALIGN_PIXEL_2(h - 1));
 #elif defined(WORKAROUND_DOWNSCALE_LIMITATION_DCSS)
@@ -914,15 +918,18 @@ int KmsDisplay::updateScreen() {
             /* workaround GPU SUPER_TILED R/B swap issue, for no-resolve and tiled output
               GPU not distinguish A8B8G8R8 and A8R8G8B8, all regard as A8R8G8B8, need do
               R/B swap here for no-resolve and tiled buffer */
-            if (format == DRM_FORMAT_XBGR8888) format = DRM_FORMAT_XRGB8888;
-            if (format == DRM_FORMAT_ABGR8888) format = DRM_FORMAT_ARGB8888;
+            if (format == DRM_FORMAT_XBGR8888)
+                format = DRM_FORMAT_XRGB8888;
+            if (format == DRM_FORMAT_ABGR8888)
+                format = DRM_FORMAT_ARGB8888;
 
             drmModeAddFB2WithModifiers(mDrmFd, buffer->width, buffer->height, format, bo_handles,
                                        pitches, offsets, modifiers, (uint32_t *)&buffer->fbId,
                                        DRM_MODE_FB_MODIFIERS);
         } else {
 #ifdef WORKAROUND_DCNANO_BGRX
-            if (format == DRM_FORMAT_ARGB8888) format = DRM_FORMAT_XRGB8888;
+            if (format == DRM_FORMAT_ARGB8888)
+                format = DRM_FORMAT_XRGB8888;
 #endif
             /* IMX8MQ mxsfb driver require buffer pitches == width * format_cpp,
                so here buffer width use stride directly. */
@@ -1057,7 +1064,8 @@ int KmsDisplay::updateScreen() {
         char value[PROPERTY_VALUE_MAX];
         property_get("vendor.hwc.debug.dump_refresh_rate", value, "0");
         m_request_refresh_cnt = atoi(value);
-        if (m_request_refresh_cnt <= 0) break;
+        if (m_request_refresh_cnt <= 0)
+            break;
 
         if (m_pre_commit_time > 0) {
             m_total_commit_time += commit_time - m_pre_commit_time;
@@ -1156,8 +1164,10 @@ bool KmsDisplay::getGUIResolution(int &width, int &height) {
         }
     }
     if (w > 0 && h > 0) {
-        if (w < width) width = w;
-        if (h < height) height = h;
+        if (w < width)
+            width = w;
+        if (h < height)
+            height = h;
     }
 
     return ret;
@@ -1288,7 +1298,8 @@ int KmsDisplay::openKms() {
     mActiveConfig = configId;
 
     prepareTargetsLocked();
-    if (mConfigThread == NULL) mConfigThread = new ConfigThread(this);
+    if (mConfigThread == NULL)
+        mConfigThread = new ConfigThread(this);
 
     if (mEdid != NULL) {
         delete mEdid;
@@ -1562,7 +1573,8 @@ int KmsDisplay::closeKms() {
     mModePrefered = -1;
     mDrmModes.clear();
     mFirstConfigId = mFirstConfigId + mConfigs.size();
-    if (mActiveConfig >= 0) mBackupConfig = mConfigs[mActiveConfig];
+    if (mActiveConfig >= 0)
+        mBackupConfig = mConfigs[mActiveConfig];
     mActiveConfig = -1;
     mConfigs.clear();
     mKmsPlaneNum = 1;
@@ -1684,7 +1696,8 @@ void KmsDisplay::releaseTargetsLocked() {
 void KmsDisplay::buildDisplayConfigs(uint32_t mmWidth, uint32_t mmHeight, int format) {
     DisplayConfig config;
     drmModeModeInfo mode;
-    if (format == -1) format = FORMAT_RGBA8888;
+    if (format == -1)
+        format = FORMAT_RGBA8888;
 
     mConfigs.clear();
     memset(&config, 0, sizeof(config));
@@ -1732,9 +1745,11 @@ int KmsDisplay::createDisplayConfig(int width, int height, float fps, int format
     }
 
     DisplayConfig config;
-    if (format == -1) format = FORMAT_RGBA8888; // set to default value
+    if (format == -1)
+        format = FORMAT_RGBA8888; // set to default value
 
-    if (fabs(fps) < FLOAT_TOLERANCE) fps = DEFAULT_REFRESH_RATE; // set to default value
+    if (fabs(fps) < FLOAT_TOLERANCE)
+        fps = DEFAULT_REFRESH_RATE; // set to default value
 
     memset(&config, 0, sizeof(config));
     config.modeIdx = mModePrefered;
@@ -1790,7 +1805,8 @@ int KmsDisplay::changeDisplayConfig(int config, nsecs_t desiredTimeNanos, bool s
                                     nsecs_t *outAppliedTime, bool *outRefresh,
                                     nsecs_t *outRefreshTime) {
     Mutex::Autolock _l(mLock);
-    if (seamlessRequired) return -1; // change config seamlessly is not support yet
+    if (seamlessRequired)
+        return -1; // change config seamlessly is not support yet
 
     ALOGI("Display %d switch to new configuration mode id=%d, res=%dx%dp%f", mIndex, config,
           mConfigs[config].mXres, mConfigs[config].mYres, mConfigs[config].mFps);
@@ -1826,7 +1842,8 @@ int KmsDisplay::checkSecureLayers() {
         Layer *layer = mLayerVector[i];
         Memory *mem = layer->handle;
 
-        if (mem != NULL && (mem->usage & USAGE_PROTECTED)) cnt++;
+        if (mem != NULL && (mem->usage & USAGE_PROTECTED))
+            cnt++;
     }
     return cnt;
 }
@@ -1863,7 +1880,8 @@ int KmsDisplay::composeLayers() {
 #endif
         }
 
-        if (mRenderTarget == NULL) return 0;
+        if (mRenderTarget == NULL)
+            return 0;
     }
 
     return composeLayersLocked();

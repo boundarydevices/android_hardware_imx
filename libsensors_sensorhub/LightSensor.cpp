@@ -97,7 +97,8 @@ int LightSensor::enable(__attribute__((unused)) int32_t handle, int en) {
             n = fwrite(buf, 1, 1, fd);
             fclose(fd);
             mEnabled = flags;
-            if (flags) setIntLux();
+            if (flags)
+                setIntLux();
             return 0;
         }
         return -1;
@@ -128,7 +129,8 @@ int LightSensor::setIntLux() {
     int_ht_lux = lux + mThresholdLux;
     int_lt_lux = lux - mThresholdLux;
 
-    if (int_lt_lux < 0) int_lt_lux = 0;
+    if (int_lt_lux < 0)
+        int_lt_lux = 0;
 
     DEBUG("Current light is %d lux\n", lux);
 
@@ -160,7 +162,8 @@ bool LightSensor::hasPendingEvents() const {
 }
 
 int LightSensor::readEvents(sensors_event_t* data, int count) {
-    if (count < 1) return -EINVAL;
+    if (count < 1)
+        return -EINVAL;
 
     if (mHasPendingEvent) {
         mHasPendingEvent = false;
@@ -170,7 +173,8 @@ int LightSensor::readEvents(sensors_event_t* data, int count) {
     }
 
     ssize_t n = mInputReader.fill(data_fd);
-    if (n < 0) return n;
+    if (n < 0)
+        return n;
 
     int numEventReceived = 0;
     input_event const* event;

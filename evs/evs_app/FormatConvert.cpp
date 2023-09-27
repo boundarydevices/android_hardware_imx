@@ -27,8 +27,10 @@ int align(int value) {
 
 // Limit the given value to the provided range.  :)
 static inline float clamp(float v, float min, float max) {
-    if (v < min) return min;
-    if (v > max) return max;
+    if (v < min)
+        return min;
+    if (v > max)
+        return max;
     return v;
 }
 

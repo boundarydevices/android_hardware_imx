@@ -54,7 +54,8 @@ public:
     /* Camera device's capabilities and metadata */
     class CameraInfo {
     public:
-        CameraInfo() : characteristics(nullptr) { /* Nothing to do */ }
+        CameraInfo() : characteristics(nullptr) { /* Nothing to do */
+        }
 
         virtual ~CameraInfo();
 
@@ -197,7 +198,8 @@ public:
         unique_lock<mutex> lock(mConfigLock);
         mConfigCond.wait(lock, [this] { return mIsReady; });
 
-        if (mCameraInfo[cameraId] == nullptr) LOG(ERROR) << "getCameraInfo null for " << cameraId;
+        if (mCameraInfo[cameraId] == nullptr)
+            LOG(ERROR) << "getCameraInfo null for " << cameraId;
         return mCameraInfo[cameraId];
     }
 

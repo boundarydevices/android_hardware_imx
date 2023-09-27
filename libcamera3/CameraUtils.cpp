@@ -120,7 +120,8 @@ void StreamBuffer::UnMapVirtAddr() {
     }
 
     struct fsl::Memory *handle = (struct fsl::Memory *)(*mBufHandle);
-    if (handle == NULL) return;
+    if (handle == NULL)
+        return;
 
     if (mVirtAddr) {
         munmap(mVirtAddr, handle->size);
@@ -139,7 +140,8 @@ CaptureRequest::CaptureRequest() : mOutBuffersNumber(0) {
 
 CaptureRequest::~CaptureRequest() {
     for (uint32_t i = 0; i < mOutBuffersNumber; i++) {
-        if (mOutBuffers[i] != NULL) delete mOutBuffers[i];
+        if (mOutBuffers[i] != NULL)
+            delete mOutBuffers[i];
     }
 }
 

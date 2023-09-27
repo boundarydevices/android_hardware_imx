@@ -407,7 +407,8 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
         mBufferSize = dataSize;
     }
 
-    if (out == NULL) return 0;
+    if (out == NULL)
+        return 0;
 
     if (mFourcc == V4L2_PIX_FMT_YUV420) {
         out->y = mData.data();
@@ -547,9 +548,11 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
                     dstBuffer->width, dstBuffer->height, (void**)(&dstBuf));
 
     ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
-    if (ret) mPhyAddr = 0;
+    if (ret)
+        mPhyAddr = 0;
 
-    if (out == nullptr) return 0;
+    if (out == nullptr)
+        return 0;
 
     if (mFourcc == V4L2_PIX_FMT_YUV420) {
         out->y = dstBuf;

@@ -95,7 +95,8 @@ bool FakeCapture::onStart() {
     onIncreaseMemoryBuffer(3);
 
     for (const auto &physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
         {
             std::unique_lock<std::mutex> lock(mLock);
             fd = mDeviceFd[physical_cam];
@@ -125,7 +126,8 @@ void FakeCapture::onStop() {
     fsl::Memory *buffer = nullptr;
     int fd = -1;
     for (const auto &physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
         {
             std::unique_lock<std::mutex> lock(mLock);
             fd = mDeviceFd[physical_cam];
@@ -188,7 +190,8 @@ void FakeCapture::onFrameCollect(std::vector<struct forwardframe> &frames) {
 #endif
 
     for (const auto &physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
         {
             std::unique_lock<std::mutex> lock(mLock);
             buffer = mCamBuffers[mDeviceFd[physical_cam]].at(0);
@@ -263,7 +266,8 @@ void FakeCapture::onIncreaseMemoryBuffer(unsigned number) {
     // allocate CAMERA_BUFFER_NUM buffer for every physical camera
     int cam_nu = 0;
     for (const auto &physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) return;
+        if (mDeviceFd[physical_cam] < 0)
+            return;
         fsl_mem.clear();
         for (int i = 0; i < CAMERA_BUFFER_NUM; i++) {
             buffer = nullptr;
@@ -342,7 +346,8 @@ void FakeCapture::readFromPng(const char *filename, void *buf) {
 
     png_get_IHDR(pngControl, pngInfo, &width, &height, &bitDepth, &colorFormat, NULL, NULL, NULL);
 
-    if (colorFormat == PNG_COLOR_TYPE_RGB_ALPHA) png_set_swap_alpha(pngControl);
+    if (colorFormat == PNG_COLOR_TYPE_RGB_ALPHA)
+        png_set_swap_alpha(pngControl);
     if (colorFormat == PNG_COLOR_TYPE_PALETTE) {
         png_set_packing(pngControl);
         png_set_palette_to_rgb(
@@ -352,9 +357,11 @@ void FakeCapture::readFromPng(const char *filename, void *buf) {
     if (colorFormat == PNG_COLOR_TYPE_GRAY && bitDepth < 8)
         png_set_expand_gray_1_2_4_to_8(pngControl);
 
-    if (colorFormat == PNG_COLOR_TYPE_GRAY_ALPHA) png_set_gray_to_rgb(pngControl);
+    if (colorFormat == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_gray_to_rgb(pngControl);
 
-    if (bitDepth == 16) png_set_strip_16(pngControl);
+    if (bitDepth == 16)
+        png_set_strip_16(pngControl);
 
     if ((colorFormat & PNG_COLOR_MASK_ALPHA) == 0)
         png_set_add_alpha(pngControl, 0xFF, PNG_FILLER_AFTER);
@@ -362,7 +369,8 @@ void FakeCapture::readFromPng(const char *filename, void *buf) {
     if (colorFormat == PNG_COLOR_TYPE_GRAY || colorFormat == PNG_COLOR_TYPE_GRAY_ALPHA)
         png_set_gray_to_rgb(pngControl);
 
-    if (png_get_valid(pngControl, pngInfo, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(pngControl);
+    if (png_get_valid(pngControl, pngInfo, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(pngControl);
 
     number_of_passes = png_set_interlace_handling(pngControl);
     // Refresh the values in the png info struct in case any transformation shave been applied.
@@ -414,7 +422,8 @@ void FakeCapture::onMemoryDestroy() {
     fsl::Memory *buffer = nullptr;
     fsl::MemoryManager *allocator = fsl::MemoryManager::getInstance();
     for (const auto &physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
 
         std::vector<fsl::Memory *> fsl_mem;
         fsl_mem = mCamBuffers[mDeviceFd[physical_cam]];

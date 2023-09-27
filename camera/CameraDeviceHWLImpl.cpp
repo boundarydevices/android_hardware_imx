@@ -244,7 +244,8 @@ bool CameraDeviceHwlImpl::PickResByMetaData(int width, int height) {
         }
     }
 
-    if (!bPicked) return false;
+    if (!bPicked)
+        return false;
 
     if ((width >= mSensorData.mMinWidth) && (height >= mSensorData.mMinHeight) &&
         (width <= mSensorData.mMaxWidth) && (height <= mSensorData.mMaxHeight))
@@ -327,18 +328,21 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
 
         maxFrmfps = 0;
         while (ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &vid_frmval) == 0) {
-            if (vid_frmval.discrete.numerator == 0) break;
+            if (vid_frmval.discrete.numerator == 0)
+                break;
 
             frmfps = vid_frmval.discrete.denominator / vid_frmval.discrete.numerator;
             ALOGI("fps %d", frmfps);
-            if (frmfps > maxFrmfps) maxFrmfps = frmfps;
+            if (frmfps > maxFrmfps)
+                maxFrmfps = frmfps;
 
             vid_frmval.index++;
         }
         ALOGI("maxFrmfps %d", maxFrmfps);
 
         // some camera did not support the VIDIOC_ENUM_FRAMEINTERVALS, such as ap1302
-        if (maxFrmfps == 0) maxFrmfps = 30;
+        if (maxFrmfps == 0)
+            maxFrmfps = 30;
 
         // If w/h ratio is not same with senserW/sensorH, framework assume that
         // first crop little width or little height, then scale.
@@ -411,9 +415,11 @@ status_t CameraDeviceHwlImpl::adjustPreviewResolutions() {
     int idx_768p = -1;
 
     for (int i = 0; i < MAX_RESOLUTION_SIZE; i += 2) {
-        if ((mPreviewResolutions[i] == 1280) && (mPreviewResolutions[i + 1] == 720)) idx_720p = i;
+        if ((mPreviewResolutions[i] == 1280) && (mPreviewResolutions[i + 1] == 720))
+            idx_720p = i;
 
-        if ((mPreviewResolutions[i] == 1024) && (mPreviewResolutions[i + 1] == 768)) idx_768p = i;
+        if ((mPreviewResolutions[i] == 1024) && (mPreviewResolutions[i + 1] == 768))
+            idx_768p = i;
     }
 
     if ((idx_720p > 0) && (idx_768p > 0) && (idx_720p > idx_768p)) {
@@ -470,7 +476,8 @@ status_t CameraDeviceHwlImpl::GetCameraCharacteristics(
 
     HalCameraMetadata *cammeta = m_meta->GetStaticMeta();
     bool ret = HasCapability(cammeta, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA);
-    if (ret == true) ALOGV("%s: This is a logical camera", __func__);
+    if (ret == true)
+        ALOGV("%s: This is a logical camera", __func__);
 
     *characteristics = HalCameraMetadata::Clone(m_meta->GetStaticMeta());
 
@@ -531,10 +538,12 @@ status_t CameraDeviceHwlImpl::CreateCameraDeviceSessionHwl(
 }
 
 bool CameraDeviceHwlImpl::FoundResoulution(int width, int height, int *resArray, int size) {
-    if (resArray == NULL) return false;
+    if (resArray == NULL)
+        return false;
 
     for (int i = 0; i < size; i += 2) {
-        if ((width == resArray[i]) && (height == resArray[i + 1])) return true;
+        if ((width == resArray[i]) && (height == resArray[i + 1]))
+            return true;
     }
 
     return false;

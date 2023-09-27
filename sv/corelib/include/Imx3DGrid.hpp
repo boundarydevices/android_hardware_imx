@@ -69,8 +69,9 @@ public:
      *
      * @brief  			CurvilinearGrid class constructor.
      *
-     * @param  in 		uint angles 	  -	every quadrant of circle will be divided into this number
-     *of arcs. The start_angle sets a circular sector for which the grid will be generated. uint
+     * @param  in 		uint angles 	  -	every quadrant of circle will be divided into this
+     *number of arcs. The start_angle sets a circular sector for which the grid will be generated.
+     *uint
      *nop_z 		  -	number of points in z axis. double step_x	  -	grid step in
      *polar coordinate system. The value is also used to define grid points in z axis. Step in z
      *axis: step_z[i] = (i * step_x)^2, i = 1, 2, ... - number of point.
@@ -89,13 +90,13 @@ public:
      * @brief  			Generate 3D grid of texels/vertices for the input Camera object.
      *
      * @param  in		Camera* camera - pointer to the Camera object
-     * 		   in		double radius - radius of base circle. The radius must be defined relative to
-     *template width. The template width (in pixels) is considered as 1.0.
+     * 		   in		double radius - radius of base circle. The radius must be defined relative
+     *to template width. The template width (in pixels) is considered as 1.0.
      *
      * @return 			-
      *
-     * @remarks 		The function defines 3D grid, generates triangles from it and saves the
-     *triangles into file.
+     * @remarks 		The function defines 3D grid, generates triangles from it and saves
+     *the triangles into file.
      *
      **************************************************************************************************************/
     bool createGrid(float radius);

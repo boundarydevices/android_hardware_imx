@@ -82,7 +82,8 @@ int PressSensor::setEnable(int32_t handle, int en) {
     else
         mEnabled[what]--;
 
-    if (mEnabled[what] < 0) mEnabled[what] = 0;
+    if (mEnabled[what] < 0)
+        mEnabled[what] = 0;
 
     if (mEnabled[press] > 0 || mEnabled[temperature] > 0)
         err = enable_sensor();
@@ -98,7 +99,8 @@ int PressSensor::setEnable(int32_t handle, int en) {
 }
 
 int PressSensor::setDelay(int32_t handle, int64_t ns) {
-    if (ns < 0) return -EINVAL;
+    if (ns < 0)
+        return -EINVAL;
     int what = press;
     switch (handle) {
         case ID_P:
@@ -122,10 +124,12 @@ int PressSensor::update_delay(int sensor_type) {
 
 int PressSensor::readEvents(sensors_event_t *data, int count) {
     int i;
-    if (count < 1) return -EINVAL;
+    if (count < 1)
+        return -EINVAL;
 
     ssize_t n = mInputReader.fill(data_fd);
-    if (n < 0) return n;
+    if (n < 0)
+        return n;
 
     int numEventReceived = 0;
     input_event const *event;
@@ -174,7 +178,8 @@ void PressSensor::processEvent(int code, int value) {
 
 int PressSensor::writeEnable(int isEnable) {
     char attr[PATH_MAX] = {'\0'};
-    if (mClassPath[0] == '\0') return -1;
+    if (mClassPath[0] == '\0')
+        return -1;
 
     strcpy(attr, mClassPath);
     strcat(attr, "/");
@@ -212,7 +217,8 @@ int PressSensor::writeEnable(int isEnable) {
 
 int PressSensor::writeDelay(int64_t ns) {
     char attr[PATH_MAX] = {'\0'};
-    if (mClassPath[0] == '\0') return -1;
+    if (mClassPath[0] == '\0')
+        return -1;
 
     strcpy(attr, mClassPath);
     strcat(attr, "/");
@@ -268,7 +274,8 @@ int PressSensor::sensor_get_class_path(char *class_path) {
     int found = 0;
 
     dir = opendir(dirname);
-    if (dir == NULL) return -1;
+    if (dir == NULL)
+        return -1;
 
     while ((de = readdir(dir))) {
         if (strncmp(de->d_name, "input", strlen("input")) != 0) {

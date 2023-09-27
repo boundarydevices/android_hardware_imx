@@ -565,7 +565,8 @@ static int hwc2_register_callback(hwc2_device_t* device, int32_t descriptor,
                 ALOGE("%s invalid display id:%" PRId64, __func__, i);
                 return HWC2_ERROR_BAD_PARAMETER;
             }
-            if (pDisplay->connected()) ctx->mListener->onHotplug(i, true);
+            if (pDisplay->connected())
+                ctx->mListener->onHotplug(i, true);
         }
     }
 
@@ -650,15 +651,22 @@ static int hwc2_get_hdr_capabilities(hwc2_device_t* device, hwc2_display_t displ
             }
         } else {
             pDisplay->getHdrSupportTypes(outNumTypes, outTypes);
-            if (outMaxLuminance != NULL) *outMaxLuminance = hdrMetaData.max_cll;
-            if (outMaxAverageLuminance != NULL) *outMaxAverageLuminance = hdrMetaData.max_fall;
-            if (outMinLuminance != NULL) *outMinLuminance = hdrMetaData.min_cll;
+            if (outMaxLuminance != NULL)
+                *outMaxLuminance = hdrMetaData.max_cll;
+            if (outMaxAverageLuminance != NULL)
+                *outMaxAverageLuminance = hdrMetaData.max_fall;
+            if (outMinLuminance != NULL)
+                *outMinLuminance = hdrMetaData.min_cll;
         }
     } else {
-        if (outNumTypes != NULL) *outNumTypes = 0;
-        if (outMaxLuminance != NULL) *outMaxLuminance = 0.0f;
-        if (outMaxAverageLuminance != NULL) *outMaxAverageLuminance = 0.0f;
-        if (outMinLuminance != NULL) *outMinLuminance = 0.0f;
+        if (outNumTypes != NULL)
+            *outNumTypes = 0;
+        if (outMaxLuminance != NULL)
+            *outMaxLuminance = 0.0f;
+        if (outMaxAverageLuminance != NULL)
+            *outMaxAverageLuminance = 0.0f;
+        if (outMinLuminance != NULL)
+            *outMinLuminance = 0.0f;
     }
 
     return HWC2_ERROR_NONE;

@@ -123,9 +123,11 @@ bool CurvilinearGrid::createGrid(float radius) {
         PixelMap *pMap = LUT + pointIndex;
 
         int iNoP = pointIndex % mNoP;
-        if (iNoP == 0) iMaxNoP = 0;
+        if (iNoP == 0)
+            iMaxNoP = 0;
         if (iNoP == mNoP - 1)
-            if (iMaxNoP < iMinNoP) iMinNoP = iMaxNoP;
+            if (iMaxNoP < iMinNoP)
+                iMinNoP = iMaxNoP;
 
         for (int index = 0; index < mEvsRotations.size(); index++) {
             auto &R = mEvsRotations[index];
@@ -157,7 +159,8 @@ bool CurvilinearGrid::createGrid(float radius) {
             if (dot / cameraPoint.norm() < cos(threshhold)) {
                 continue;
             }
-            if (cameraPoint[2] < 0) ALOGI("******Error with camera z %f", cameraPoint[2]);
+            if (cameraPoint[2] < 0)
+                ALOGI("******Error with camera z %f", cameraPoint[2]);
 
             Vector3d undistortPoint = K * normalizedCamera;
             auto xc = (undistortPoint[0] / undistortPoint[2] - cx) / fx;
@@ -177,7 +180,8 @@ bool CurvilinearGrid::createGrid(float radius) {
             double v_distorted = fy * y_distorted + cy;
             if (u_distorted >= 0 && v_distorted >= 0 && u_distorted < mWidth &&
                 v_distorted < mHeight) {
-                if (iMaxNoP < iNoP) iMaxNoP = iNoP;
+                if (iMaxNoP < iNoP)
+                    iMaxNoP = iNoP;
                 // Get fisyeye image 2d pixel based on p3d point
                 if (pMap->index0 == -1) {
                     pMap->index0 = index;
@@ -220,7 +224,8 @@ bool CurvilinearGrid::valid3DPoint(uint32_t index) {
 int CurvilinearGrid::getGrids(float **points) {
     int size = 0;
 
-    if (mGlobalP3d.size() == 0) return (0);
+    if (mGlobalP3d.size() == 0)
+        return (0);
 
     (*points) = (float *)malloc(8 * SV_VERTEX_NUM * mGlobalP3d.size() * sizeof(float));
     if ((*points) == NULL) {
@@ -286,10 +291,14 @@ static int findCommonIndex(PixelMap *LUT0, PixelMap *LUT1, PixelMap *LUT2, Pixel
     int index0 = SV_INVALID_INDEX;
     int index1 = SV_INVALID_INDEX;
     for (int i = 0; i < 4; i++) {
-        if ((i != LUT0->index0) && (i != LUT0->index1)) continue;
-        if ((i != LUT1->index0) && (i != LUT1->index1)) continue;
-        if ((i != LUT2->index0) && (i != LUT2->index1)) continue;
-        if ((i != LUT3->index0) && (i != LUT3->index1)) continue;
+        if ((i != LUT0->index0) && (i != LUT0->index1))
+            continue;
+        if ((i != LUT1->index0) && (i != LUT1->index1))
+            continue;
+        if ((i != LUT2->index0) && (i != LUT2->index1))
+            continue;
+        if ((i != LUT3->index0) && (i != LUT3->index1))
+            continue;
         if (index0 == SV_INVALID_INDEX)
             index0 = i;
         else if (index1 == SV_INVALID_INDEX) {
@@ -304,10 +313,14 @@ static bool IsCommonIndex(int camera, PixelMap *LUT0, PixelMap *LUT1, PixelMap *
     int index0 = SV_INVALID_INDEX;
     int index1 = SV_INVALID_INDEX;
     for (int i = 0; i < 4; i++) {
-        if ((i != LUT0->index0) && (i != LUT0->index1)) continue;
-        if ((i != LUT1->index0) && (i != LUT1->index1)) continue;
-        if ((i != LUT2->index0) && (i != LUT2->index1)) continue;
-        if ((i != LUT3->index0) && (i != LUT3->index1)) continue;
+        if ((i != LUT0->index0) && (i != LUT0->index1))
+            continue;
+        if ((i != LUT1->index0) && (i != LUT1->index1))
+            continue;
+        if ((i != LUT2->index0) && (i != LUT2->index1))
+            continue;
+        if ((i != LUT3->index0) && (i != LUT3->index1))
+            continue;
         if (index0 == SV_INVALID_INDEX)
             index0 = i;
         else if (index1 == SV_INVALID_INDEX) {
@@ -328,7 +341,8 @@ int CurvilinearGrid::getMashes(float **points, int camera) {
         return 0;
     }
 
-    if (mGlobalP3d.size() == 0) return (0);
+    if (mGlobalP3d.size() == 0)
+        return (0);
     float x_norm = 1.0 / mWidth;
     float y_norm = 1.0 / mHeight;
 
@@ -343,8 +357,8 @@ int CurvilinearGrid::getMashes(float **points, int camera) {
     /**************************** Get triangles for I quadrant of template
      *********************************** p  _  p+2 Triangles orientation: 		| /|
      *1st triangle (p - p+1 - p+2)
-     *   								|/_|		2nd triangle (p+1 - p+2 -
-     *p+3) p+1    p+3
+     *   								|/_|		2nd triangle (p+1 - p+2
+     *- p+3) p+1    p+3
      *******************************************************************************************************/
     auto total = mParameters.angles * 2 * mNoP;
     auto norXY = mRadius + mParameters.nop_z * mParameters.step_x;
@@ -359,7 +373,8 @@ int CurvilinearGrid::getMashes(float **points, int camera) {
 
             bool validGrid =
                     IsCommonIndex(camera, LUT + i, LUT + i + 1, LUT + inext, LUT + inext + 1);
-            if (!validGrid) continue;
+            if (!validGrid)
+                continue;
 
             auto fn = [&](unsigned int point) {
                 (*points)[size++] = mGlobalP3d[point][0] / norXY;

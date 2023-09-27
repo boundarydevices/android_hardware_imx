@@ -272,7 +272,8 @@ static bool IsGpsTags(uint16_t tag) {
 }
 
 static int InsertThumb(uint8_t* pThumb, uint32_t thumbSize, uint8_t* pDst, uint32_t /*dstSize*/) {
-    if (pThumb == NULL) return 0;
+    if (pThumb == NULL)
+        return 0;
 
     memcpy(pDst + g_thumbNailOffset, pThumb, thumbSize);
 
@@ -314,9 +315,11 @@ static uint32_t CalcGroupSize(IFDGroup* pIFDGrp) {
     IFDEle* pIFDEle = NULL;
     uint16_t type;
 
-    if (pIFDGrp == NULL) return -1;
+    if (pIFDGrp == NULL)
+        return -1;
 
-    if (pIFDGrp->eleNum == 0) goto finished;
+    if (pIFDGrp->eleNum == 0)
+        goto finished;
 
     // 2 bytes of ele number
     // 4 bytes of next IFD offset
@@ -441,7 +444,8 @@ static int ScanIFD(IFDEle* pIFDEle, uint32_t eleNum, uint32_t thumbSize, uint32_
     g_mainJpgOffset = g_thumbNailOffset + thumbSize;
     requestSize = g_mainJpgOffset + mainSize + totalEndSize;
 
-    if (pRequestSize) *pRequestSize = requestSize;
+    if (pRequestSize)
+        *pRequestSize = requestSize;
 
     // calulate fixed (IFDs, each 12 bytes) and varied (such as string, ratio data) area offset for
     // each group
@@ -488,9 +492,11 @@ static int InsertGrp(IFDGroup* pGrp, uint8_t* pDst) {
     uint32_t i;
     int ret;
 
-    if ((pGrp == NULL) || (pDst == NULL)) return -1;
+    if ((pGrp == NULL) || (pDst == NULL))
+        return -1;
 
-    if ((pGrp->eleNum) == 0) return 0;
+    if ((pGrp->eleNum) == 0)
+        return 0;
 
     // write IFD element number
     *(uint16_t*)(pDst + pGrp->fixedLenIdx) = (uint16_t)pGrp->eleNum;
@@ -536,7 +542,8 @@ int InsertEXIFAndThumbnail(IFDEle* pIFDEle, uint32_t eleNum, uint8_t* pThumb, ui
         return ret;
     }
 
-    if (pRequestSize) *pRequestSize = requestSize;
+    if (pRequestSize)
+        *pRequestSize = requestSize;
 
     if (dstSize < requestSize) {
         ALOGE("%s, dstSize(%d) < requestSize(%d)", __func__, dstSize, requestSize);

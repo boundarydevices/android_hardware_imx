@@ -88,7 +88,8 @@ static const struct audio_devcie_map g_in_device_map[] = {
 unsigned int map_audio_name_to_device(const struct audio_devcie_map* map, unsigned int size,
                                       const char* name) {
     for (int i = 0; i < size; i++) {
-        if (!strcmp(name, map[i].name)) return map[i].device;
+        if (!strcmp(name, map[i].name))
+            return map[i].device;
     }
 
     return 0;
@@ -169,7 +170,8 @@ static bool parse_one_card(char* config_file, struct audio_card** pp_audio_card)
     std::string config;
     struct audio_card* p_audio_card = NULL;
 
-    if ((config_file == NULL) || (pp_audio_card == NULL)) return false;
+    if ((config_file == NULL) || (pp_audio_card == NULL))
+        return false;
 
     ALOGI("%s: parse %s\n", __func__, config_file);
 
@@ -200,7 +202,8 @@ static bool parse_one_card(char* config_file, struct audio_card** pp_audio_card)
         return false;
     }
 
-    if (!root.isMember(g_key_driver_name)) goto parse_error;
+    if (!root.isMember(g_key_driver_name))
+        goto parse_error;
     p_audio_card->driver_name = strdup(root[g_key_driver_name].asCString());
 
     if (root.isMember(g_key_bus_name))
@@ -221,7 +224,8 @@ static bool parse_one_card(char* config_file, struct audio_card** pp_audio_card)
         goto parse_error;
     }
 
-    if (root.isMember(g_key_init_ctl)) parse_control(&p_audio_card->init_ctl, root[g_key_init_ctl]);
+    if (root.isMember(g_key_init_ctl))
+        parse_control(&p_audio_card->init_ctl, root[g_key_init_ctl]);
 
     if (root.isMember(g_key_speaker_ctl))
         parse_control(&p_audio_card->speaker_ctl, root[g_key_speaker_ctl]);
@@ -295,11 +299,14 @@ static bool parse_one_card(char* config_file, struct audio_card** pp_audio_card)
     return true;
 
 parse_error:
-    if (p_audio_card && p_audio_card->driver_name) free(p_audio_card->driver_name);
+    if (p_audio_card && p_audio_card->driver_name)
+        free(p_audio_card->driver_name);
 
-    if (p_audio_card && p_audio_card->bus_name) free(p_audio_card->bus_name);
+    if (p_audio_card && p_audio_card->bus_name)
+        free(p_audio_card->bus_name);
 
-    if (p_audio_card) free(p_audio_card);
+    if (p_audio_card)
+        free(p_audio_card);
 
     return false;
 }
@@ -321,7 +328,8 @@ bool parse_all_cards(void) {
 
     while ((dirEntry = readdir(vidDir)) != NULL) {
         char config_file[PATH_MAX] = {0};
-        if (!strstr(dirEntry->d_name, ".json")) continue;
+        if (!strstr(dirEntry->d_name, ".json"))
+            continue;
 
         snprintf(config_file, PATH_MAX, "%s/%s", g_kAudioConfigPath, dirEntry->d_name);
         parse_ok = parse_one_card(config_file, &s_audio_card_list[card_idx]);
@@ -331,7 +339,8 @@ bool parse_all_cards(void) {
         }
 
         card_idx++;
-        if (card_idx >= MAX_SUPPORT_CARD_NUM) break;
+        if (card_idx >= MAX_SUPPORT_CARD_NUM)
+            break;
     }
 
     closedir(vidDir);
@@ -343,11 +352,13 @@ bool parse_all_cards(void) {
 bool release_route(struct route_setting* route) {
     int i = 0;
 
-    if (route == NULL) return false;
+    if (route == NULL)
+        return false;
 
     while (route[i].ctl_name) {
         free(route[i].ctl_name);
-        if (route[i].strval) free(route[i].strval);
+        if (route[i].strval)
+            free(route[i].strval);
         i++;
     }
 
@@ -357,23 +368,32 @@ bool release_route(struct route_setting* route) {
 }
 
 bool release_one_card(struct audio_card* audio_card) {
-    if (audio_card == NULL) return false;
+    if (audio_card == NULL)
+        return false;
 
-    if (audio_card->driver_name) free(audio_card->driver_name);
+    if (audio_card->driver_name)
+        free(audio_card->driver_name);
 
-    if (audio_card->bus_name) free(audio_card->bus_name);
+    if (audio_card->bus_name)
+        free(audio_card->bus_name);
 
-    if (audio_card->init_ctl) release_route(audio_card->init_ctl);
+    if (audio_card->init_ctl)
+        release_route(audio_card->init_ctl);
 
-    if (audio_card->speaker_ctl) release_route(audio_card->speaker_ctl);
+    if (audio_card->speaker_ctl)
+        release_route(audio_card->speaker_ctl);
 
-    if (audio_card->headphone_ctl) release_route(audio_card->headphone_ctl);
+    if (audio_card->headphone_ctl)
+        release_route(audio_card->headphone_ctl);
 
-    if (audio_card->builtin_mic_ctl) release_route(audio_card->builtin_mic_ctl);
+    if (audio_card->builtin_mic_ctl)
+        release_route(audio_card->builtin_mic_ctl);
 
-    if (audio_card->headset_mic_ctl) release_route(audio_card->headset_mic_ctl);
+    if (audio_card->headset_mic_ctl)
+        release_route(audio_card->headset_mic_ctl);
 
-    if (audio_card->out_volume_ctl) release_route(audio_card->out_volume_ctl);
+    if (audio_card->out_volume_ctl)
+        release_route(audio_card->out_volume_ctl);
 
     free(audio_card);
 
@@ -395,7 +415,8 @@ bool release_all_cards(void) {
 struct audio_card* audio_card_get_by_name(const char* name) {
     struct audio_card* audio_card;
 
-    if (!name) return NULL;
+    if (!name)
+        return NULL;
 
     for (int i = 0; i < MAX_SUPPORT_CARD_NUM; i++) {
         audio_card = s_audio_card_list[i];

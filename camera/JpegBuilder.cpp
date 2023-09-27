@@ -86,9 +86,11 @@ void JpegBuilder::stringToRational(const char *str, unsigned int *num, unsigned 
         strncpy(tempVal, str, len);
         temp = strtok_r(tempVal, ".", &ctx);
 
-        if (temp != NULL) numerator = atoi(temp);
+        if (temp != NULL)
+            numerator = atoi(temp);
 
-        if (!numerator) numerator = 1;
+        if (!numerator)
+            numerator = 1;
 
         temp = strtok_r(NULL, ".", &ctx);
         if (temp != NULL) {
@@ -267,7 +269,8 @@ status_t JpegBuilder::encodeImage(JpegParams *mainJpeg, JpegParams *thumbNail, c
     exifData = mExifUtils->GetApp1Buffer();
 
     ret = encodeJpeg(mainJpeg, hw_jpeg_enc, exifData, exifDataSize);
-    if (ret) goto error;
+    if (ret)
+        goto error;
 
     return 0;
 

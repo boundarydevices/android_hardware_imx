@@ -117,7 +117,8 @@ static cl_command_queue CreateCommandQueue(cl_context context, cl_device_id *dev
 static cl_context CreateContext();
 
 static int g2d_get_planebpp(unsigned int format, int plane) {
-    if (plane >= g2d_get_planecount(format)) return 0;
+    if (plane >= g2d_get_planecount(format))
+        return 0;
     switch (format) {
         case CL_G2D_RGB565:
             return 16;
@@ -204,7 +205,8 @@ static int g2d_get_planecount(unsigned int format) {
 
 static int g2d_get_planesize(struct cl_g2d_surface *surface, int plane) {
     int bpp = g2d_get_planebpp(surface->format, plane);
-    if (plane >= g2d_get_planecount(surface->format)) return 0;
+    if (plane >= g2d_get_planecount(surface->format))
+        return 0;
 
     if (surface->format == CL_G2D_NV12_10BIT_TILED) {
         return (plane == 0) ? surface->stride * surface->height
@@ -225,7 +227,8 @@ static bool CreateMemObjects(struct g2dContext *gcontext, struct cl_g2d_surface 
     else
         d_flags = CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR;
 
-    if (surface->usage == CL_G2D_UNCACHED_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
+    if (surface->usage == CL_G2D_UNCACHED_MEMORY)
+        d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
 
     if (surface->usePhyAddr) {
         d_flags |= CL_MEM_USE_HOST_PHYSICAL_ADDR_VIV;
@@ -474,7 +477,8 @@ static void ReleaseKernel(struct g2dContext *gContext) {
 
         // Step 12: Clean the resources
         for (int i = 0; i < MAX_CL_KERNEL_COUNT; i++) {
-            if (gContext->kernel[i] != 0) errNum = clReleaseKernel(gContext->kernel[i]);
+            if (gContext->kernel[i] != 0)
+                errNum = clReleaseKernel(gContext->kernel[i]);
             gContext->kernel[i] = 0;
         }
     }
@@ -517,9 +521,12 @@ static void Cleanup(struct g2dContext *gContext) {
                 }
 
             ReleaseKernel(gContext);
-            if (gContext->context != 0) errNum = clReleaseContext(gContext->context);
-            if (gContext->program != 0) errNum = clReleaseProgram(gContext->program);
-            if (gContext->commandQueue != 0) errNum = clReleaseCommandQueue(gContext->commandQueue);
+            if (gContext->context != 0)
+                errNum = clReleaseContext(gContext->context);
+            if (gContext->program != 0)
+                errNum = clReleaseProgram(gContext->program);
+            if (gContext->commandQueue != 0)
+                errNum = clReleaseCommandQueue(gContext->commandQueue);
         }
 
         free(gContext);
@@ -638,7 +645,8 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf, struct cl_g2d_buf *
     cl_mem_flags d_flags;
 
     d_flags = CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR;
-    if (input_buf->usage == CL_G2D_UNCACHED_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
+    if (input_buf->usage == CL_G2D_UNCACHED_MEMORY)
+        d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
 
     inAddr = input_buf->buf_vaddr;
     if (input_buf->use_phy) {
@@ -655,7 +663,8 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf, struct cl_g2d_buf *
     gcontext->memInObjects[kernel_index][0] = memObject;
 
     d_flags = CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR;
-    if (output_buf->usage == CL_G2D_UNCACHED_MEMORY) d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
+    if (output_buf->usage == CL_G2D_UNCACHED_MEMORY)
+        d_flags |= CL_MEM_USE_UNCACHED_HOST_MEMORY_VIV;
 
     outAddr = output_buf->buf_vaddr;
     if (output_buf->use_phy) {
@@ -699,7 +708,7 @@ int cl_g2d_copy(void *handle, struct cl_g2d_buf *output_buf, struct cl_g2d_buf *
     }
     // use cpu to handle the last 63 bytes, if the size is not n x 64 byptes
     remain_size = size & CL_ATOMIC_COPY_MASK;
-    if(remain_size > 0)
+    if (remain_size > 0)
         memcpy((char *)output_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE,
                (char *)input_buf->buf_vaddr + globalWorkSize * CL_ATOMIC_COPY_SIZE, remain_size);
 

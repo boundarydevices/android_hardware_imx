@@ -75,7 +75,8 @@ static int gralloc_unmap(gralloc_module_t const* /*module*/, buffer_handle_t han
 /*****************************************************************************/
 
 int gralloc_register_buffer(gralloc_module_t const* module, buffer_handle_t handle) {
-    if (private_handle_t::validate(handle) < 0) return -EINVAL;
+    if (private_handle_t::validate(handle) < 0)
+        return -EINVAL;
 
     // *** WARNING WARNING WARNING ***
     //
@@ -122,10 +123,12 @@ int gralloc_register_buffer(gralloc_module_t const* module, buffer_handle_t hand
 }
 
 int gralloc_unregister_buffer(gralloc_module_t const* module, buffer_handle_t handle) {
-    if (private_handle_t::validate(handle) < 0) return -EINVAL;
+    if (private_handle_t::validate(handle) < 0)
+        return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    if (hnd->base) gralloc_unmap(module, handle);
+    if (hnd->base)
+        gralloc_unmap(module, handle);
 
     return 0;
 }
@@ -154,7 +157,8 @@ int gralloc_lock(gralloc_module_t const* /*module*/, buffer_handle_t handle, int
     // flushed or invalidated depending on the usage bits and the
     // hardware.
 
-    if (private_handle_t::validate(handle) < 0) return -EINVAL;
+    if (private_handle_t::validate(handle) < 0)
+        return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
     *vaddr = (void*)hnd->base;
@@ -165,6 +169,7 @@ int gralloc_unlock(gralloc_module_t const* /*module*/, buffer_handle_t handle) {
     // we're done with a software buffer. nothing to do in this
     // implementation. typically this is used to flush the data cache.
 
-    if (private_handle_t::validate(handle) < 0) return -EINVAL;
+    if (private_handle_t::validate(handle) < 0)
+        return -EINVAL;
     return 0;
 }

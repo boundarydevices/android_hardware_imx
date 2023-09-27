@@ -522,7 +522,8 @@ int YuvToJpegEncoder::yuvResize(uint8_t *srcBuf, int srcWidth, int srcHeight, ui
     int srcStride;
     int dstStride;
 
-    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight) return -1;
+    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight)
+        return -1;
 
     h_scale_ratio = srcWidth / dstWidth;
     v_scale_ratio = srcHeight / dstHeight;
@@ -938,15 +939,19 @@ int Yuv422SpToJpegEncoder::yuvResize(uint8_t *srcBuf, int srcWidth, int srcHeigh
 
 _resize_begin:
 
-    if (!dstWidth) return -1;
+    if (!dstWidth)
+        return -1;
 
-    if (!dstHeight) return -1;
+    if (!dstHeight)
+        return -1;
 
     h_scale_ratio = srcWidth / dstWidth;
-    if (!h_scale_ratio) return -1;
+    if (!h_scale_ratio)
+        return -1;
 
     v_scale_ratio = srcHeight / dstHeight;
-    if (!v_scale_ratio) return -1;
+    if (!v_scale_ratio)
+        return -1;
 
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
     v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;

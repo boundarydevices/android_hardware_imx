@@ -308,10 +308,12 @@ err_out:
 }
 
 void Camera::destroyStreams(sp<Stream> *streams, int32_t count) {
-    if (streams == NULL) return;
+    if (streams == NULL)
+        return;
     for (int32_t i = 0; i < count; i++) {
         // Only destroy streams that weren't reused
-        if (streams[i] != NULL) streams[i].clear();
+        if (streams[i] != NULL)
+            streams[i].clear();
     }
     delete[] streams;
 }
@@ -343,8 +345,10 @@ bool Camera::isValidStreamSet(sp<Stream> *streams, int32_t count) {
     // Validate there is at most one input stream and at least one output stream
     for (int32_t i = 0; i < count; i++) {
         // A stream may be both input and output (bidirectional)
-        if (streams[i]->isInputType()) inputs++;
-        if (streams[i]->isOutputType()) outputs++;
+        if (streams[i]->isInputType())
+            inputs++;
+        if (streams[i]->isOutputType())
+            outputs++;
     }
     ALOGV("%s:%d: Configuring %d output streams and %d input streams", __func__, mId, outputs,
           inputs);
@@ -601,7 +605,8 @@ void Camera::dumpDev(int32_t fd) {
 
     dprintf(fd, "Number of streams: %d\n", mNumStreams);
     for (int32_t i = 0; i < mNumStreams; i++) {
-        if (mStreams[i] == NULL) continue;
+        if (mStreams[i] == NULL)
+            continue;
 
         dprintf(fd, "Stream %d/%d:\n", i, mNumStreams);
         mStreams[i]->dump(fd);
@@ -656,17 +661,23 @@ int32_t Camera::initDevice() {
 
     // Use base settings to create all other templates and set them
     res = setPreviewTemplate();
-    if (res) return res;
+    if (res)
+        return res;
     res = setStillTemplate();
-    if (res) return res;
+    if (res)
+        return res;
     res = setRecordTemplate();
-    if (res) return res;
+    if (res)
+        return res;
     res = setSnapshotTemplate();
-    if (res) return res;
+    if (res)
+        return res;
     res = setZslTemplate();
-    if (res) return res;
+    if (res)
+        return res;
     res = setManualTemplate();
-    if (res) return res;
+    if (res)
+        return res;
 
     return 0;
 }
@@ -681,7 +692,8 @@ int32_t Camera::setPreviewTemplate() {
     int32_t res =
             base.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT, ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW);
 
-    if (res) return res;
+    if (res)
+        return res;
     // TODO: set fast auto-focus, auto-whitebalance, auto-exposure, auto flash
     return setTemplate(CAMERA3_TEMPLATE_PREVIEW, base.get());
 }
@@ -695,7 +707,8 @@ int32_t Camera::setStillTemplate() {
     int32_t res = base.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
                                  ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE);
     // Setup default still capture controls
-    if (res) return res;
+    if (res)
+        return res;
     // TODO: set fast auto-focus, auto-whitebalance, auto-exposure, auto flash
     return setTemplate(CAMERA3_TEMPLATE_STILL_CAPTURE, base.get());
 }
@@ -709,7 +722,8 @@ int32_t Camera::setRecordTemplate() {
     int32_t res = base.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
                                  ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD);
     // Setup default video record controls
-    if (res) return res;
+    if (res)
+        return res;
     // TODO: set slow auto-focus, auto-whitebalance, auto-exposure, flash off
     return setTemplate(CAMERA3_TEMPLATE_VIDEO_RECORD, base.get());
 }
@@ -723,7 +737,8 @@ int32_t Camera::setSnapshotTemplate() {
     int32_t res = base.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
                                  ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_SNAPSHOT);
     // Setup default video snapshot controls
-    if (res) return res;
+    if (res)
+        return res;
     // TODO: set slow auto-focus, auto-whitebalance, auto-exposure, flash off
     return setTemplate(CAMERA3_TEMPLATE_VIDEO_SNAPSHOT, base.get());
 }
@@ -737,7 +752,8 @@ int32_t Camera::setZslTemplate() {
     int32_t res = base.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
                                  ANDROID_CONTROL_CAPTURE_INTENT_ZERO_SHUTTER_LAG);
     // Setup default zero shutter lag controls
-    if (res) return res;
+    if (res)
+        return res;
     // TODO: set reprocessing parameters for zsl input queue
     return setTemplate(CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG, base.get());
 }
@@ -751,7 +767,8 @@ int32_t Camera::setManualTemplate() {
     int32_t res =
             base.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT, ANDROID_CONTROL_CAPTURE_INTENT_MANUAL);
     // Setup default manual controls
-    if (res) return res;
+    if (res)
+        return res;
     // TODO: set reprocessing parameters for manual input queue
     return setTemplate(CAMERA3_TEMPLATE_MANUAL, base.get());
 }

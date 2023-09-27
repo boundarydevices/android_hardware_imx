@@ -206,7 +206,8 @@ int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
     int srcStride;
     int dstStride;
 
-    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight) return -1;
+    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight)
+        return -1;
 
     h_scale_ratio = srcWidth / dstWidth;
     v_scale_ratio = srcHeight / dstHeight;
@@ -353,15 +354,19 @@ int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf
 
 _resize_begin:
 
-    if (!dstWidth) return -1;
+    if (!dstWidth)
+        return -1;
 
-    if (!dstHeight) return -1;
+    if (!dstHeight)
+        return -1;
 
     h_scale_ratio = srcWidth / dstWidth;
-    if (!h_scale_ratio) return -1;
+    if (!h_scale_ratio)
+        return -1;
 
     v_scale_ratio = srcHeight / dstHeight;
-    if (!v_scale_ratio) return -1;
+    if (!v_scale_ratio)
+        return -1;
 
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
     v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
@@ -595,12 +600,15 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf) {
 }
 
 int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
-    if (imxBuf.mVirtAddr) munmap(imxBuf.mVirtAddr, imxBuf.mSize);
+    if (imxBuf.mVirtAddr)
+        munmap(imxBuf.mVirtAddr, imxBuf.mSize);
 
-    if (imxBuf.mFd > 0) close(imxBuf.mFd);
+    if (imxBuf.mFd > 0)
+        close(imxBuf.mFd);
 
     fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
-    if (handle) delete handle;
+    if (handle)
+        delete handle;
 
     return 0;
 }

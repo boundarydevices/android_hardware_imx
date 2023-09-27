@@ -281,7 +281,8 @@ static void bufferDump(StreamBuffer *frame, bool in) {
     bool vflg = false;
     static int dump_num = 1;
     property_get("vendor.rw.camera.test", value, "");
-    if (strcmp(value, "true") == 0) vflg = true;
+    if (strcmp(value, "true") == 0)
+        vflg = true;
 
     if (vflg) {
         FILE *pf = NULL;
@@ -417,7 +418,8 @@ void Stream::dump(int fd) {
     dprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
     dprintf(fd, "Number of Buffers: %d\n", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        if (mBuffers[i] == NULL) continue;
+        if (mBuffers[i] == NULL)
+            continue;
         dprintf(fd, "Buffer %d %d : %p\n", i, mNumBuffers, mBuffers[i]->mBufHandle);
     }
 }

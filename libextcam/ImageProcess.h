@@ -36,9 +36,8 @@ public:
     static ImageProcess *getInstance();
     ~ImageProcess();
 
-    int handleFrame(uint32_t width, uint32_t height,
-                    ImgFormat dst_fmt, ImgFormat src_fmt, uint64_t dstPhyAddr = 0,
-                    uint64_t srcPhyAddr = 0);
+    int handleFrame(uint32_t width, uint32_t height, ImgFormat dst_fmt, ImgFormat src_fmt,
+                    uint64_t dstPhyAddr = 0, uint64_t srcPhyAddr = 0);
 
 private:
     ImageProcess();
@@ -61,8 +60,8 @@ private:
                              uint32_t height, ImgFormat dst_fmt);
     int handleYUYVFrameByG3D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
                              uint32_t height, ImgFormat dst_fmt);
-    int handleYUYVFrame(uint32_t width, uint32_t height,
-                        uint64_t dstPhyAddr, uint64_t srcPhyAddr, ImgFormat dst_fmt);
+    int handleYUYVFrame(uint32_t width, uint32_t height, uint64_t dstPhyAddr, uint64_t srcPhyAddr,
+                        ImgFormat dst_fmt);
     void cl_YUYVtoI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width,
                        int height, bool bInputCached, bool bOutputCached);
 

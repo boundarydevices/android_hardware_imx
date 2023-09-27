@@ -130,7 +130,8 @@ static int32_t readFile(const std::string &filename, std::string *contents) {
     if (fp != NULL) {
         if ((read = getline(&line, &len, fp)) != -1) {
             char *pos;
-            if ((pos = strchr(line, '\n')) != NULL) *pos = '\0';
+            if ((pos = strchr(line, '\n')) != NULL)
+                *pos = '\0';
             *contents = line;
         }
         free(line);
@@ -152,7 +153,8 @@ static int32_t writeFile(const std::string &filename, const std::string &content
         // FAILURE RETRY
         int ret = fputs(contents.c_str(), fp);
         fclose(fp);
-        if ((ret != EOF) && !readFile(filename, &written) && written == contents) return 0;
+        if ((ret != EOF) && !readFile(filename, &written) && written == contents)
+            return 0;
     }
     return -1;
 }
@@ -207,7 +209,8 @@ Return<void> Usb::enableContaminantPresenceDetection(const hidl_string & /*portN
     std::string status = GetProperty(kConsole, "");
     std::string disable = GetProperty(kDisableContatminantDetection, "");
 
-    if (status != "running" && disable != "true") writeFile(kEnabledPath, enable ? "1" : "0");
+    if (status != "running" && disable != "true")
+        writeFile(kEnabledPath, enable ? "1" : "0");
 
     hidl_vec<PortStatus> currentPortStatus_1_2;
 
@@ -245,11 +248,15 @@ std::string convertRoletoString(PortRole role) {
         else if (role.role == static_cast<uint32_t>(PortPowerRole::SINK))
             return "sink";
     } else if (role.type == PortRoleType::DATA_ROLE) {
-        if (role.role == static_cast<uint32_t>(PortDataRole::HOST)) return "host";
-        if (role.role == static_cast<uint32_t>(PortDataRole::DEVICE)) return "device";
+        if (role.role == static_cast<uint32_t>(PortDataRole::HOST))
+            return "host";
+        if (role.role == static_cast<uint32_t>(PortDataRole::DEVICE))
+            return "device";
     } else if (role.type == PortRoleType::MODE) {
-        if (role.role == static_cast<uint32_t>(PortMode_1_1::UFP)) return "sink";
-        if (role.role == static_cast<uint32_t>(PortMode_1_1::DFP)) return "source";
+        if (role.role == static_cast<uint32_t>(PortMode_1_1::UFP))
+            return "sink";
+        if (role.role == static_cast<uint32_t>(PortMode_1_1::DFP))
+            return "source";
     }
     return "none";
 }
@@ -274,7 +281,8 @@ void switchToDrp(const std::string &portName) {
         if (fp != NULL) {
             int ret = fputs("dual", fp);
             fclose(fp);
-            if (ret == EOF) ALOGE("Fatal: Error while switching back to drp");
+            if (ret == EOF)
+                ALOGE("Fatal: Error while switching back to drp");
         } else {
             ALOGE("Fatal: Cannot open file to switch back to drp");
         }
@@ -330,7 +338,8 @@ bool switchMode(const hidl_string &portName, const PortRole &newRole, struct Usb
         pthread_mutex_unlock(&usb->mPartnerLock);
     }
 
-    if (!roleSwitch) switchToDrp(std::string(portName.c_str()));
+    if (!roleSwitch)
+        switchToDrp(std::string(portName.c_str()));
 
     return roleSwitch;
 }
@@ -403,7 +412,8 @@ Return<void> Usb::switchRole(const hidl_string &portName, const V1_0::PortRole &
         Return<void> ret =
                 mCallback_1_0->notifyRoleSwitchStatus(portName, newRole,
                                                       roleSwitch ? Status::SUCCESS : Status::ERROR);
-        if (!ret.isOk()) ALOGE("RoleSwitchStatus error %s", ret.description().c_str());
+        if (!ret.isOk())
+            ALOGE("RoleSwitchStatus error %s", ret.description().c_str());
     } else {
         ALOGE("Not notifying the userspace. Callback is not set");
     }
@@ -445,7 +455,8 @@ Status getCurrentRoleHelper(const std::string &portName, bool connected, PortRol
         return Status::ERROR;
     }
 
-    if (!connected) return Status::SUCCESS;
+    if (!connected)
+        return Status::SUCCESS;
 
     if (type == PortRoleType::MODE) {
         if (getAccessoryConnected(portName, &accessory) != Status::SUCCESS) {
@@ -514,7 +525,8 @@ Status getTypeCPortNamesHelper(std::unordered_map<std::string, bool> *names) {
             }
         }
         closedir(dp);
-        if (has_typec_port) return Status::SUCCESS;
+        if (has_typec_port)
+            return Status::SUCCESS;
     }
 
     ALOGE("Failed to open /sys/class/typec or there is no typec port");
@@ -646,7 +658,8 @@ void queryVersionHelper(implementation::Usb *usb, hidl_vec<PortStatus> *currentP
     if (usb->mCallback_1_0 != NULL) {
         if (callback_V1_2 != NULL) {
             status = getPortStatusHelper(currentPortStatus_1_2, HALVersion::V1_2);
-            if (status == Status::SUCCESS) queryMoistureDetectionStatus(currentPortStatus_1_2);
+            if (status == Status::SUCCESS)
+                queryMoistureDetectionStatus(currentPortStatus_1_2);
         } else if (callback_V1_1 != NULL) {
             status = getPortStatusHelper(currentPortStatus_1_2, HALVersion::V1_1);
             currentPortStatus_1_1.resize(currentPortStatus_1_2->size());
@@ -668,7 +681,8 @@ void queryVersionHelper(implementation::Usb *usb, hidl_vec<PortStatus> *currentP
         else
             ret = usb->mCallback_1_0->notifyPortStatusChange(currentPortStatus, status);
 
-        if (!ret.isOk()) ALOGE("queryPortStatus_1_2 error %s", ret.description().c_str());
+        if (!ret.isOk())
+            ALOGE("queryPortStatus_1_2 error %s", ret.description().c_str());
     } else {
         ALOGI("Notifying userspace skipped. Callback is NULL");
     }
@@ -695,7 +709,8 @@ static void uevent_event(uint32_t /*epevents*/, struct data *payload) {
     std::string udc_device = GetProperty(USB_CONTROLLER, "");
 
     n = uevent_kernel_multicast_recv(payload->uevent_fd, msg, UEVENT_MSG_LEN);
-    if (n <= 0) return;
+    if (n <= 0)
+        return;
     if (n >= UEVENT_MSG_LEN) /* overflow -- discard */
         return;
 
@@ -806,7 +821,8 @@ void *work(void *param) {
 
         nevents = epoll_wait(epoll_fd, events, 64, -1);
         if (nevents == -1) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR)
+                continue;
             ALOGE("usb epoll_wait failed; errno=%d", errno);
             break;
         }
@@ -822,7 +838,8 @@ void *work(void *param) {
 error:
     close(uevent_fd);
 
-    if (epoll_fd >= 0) close(epoll_fd);
+    if (epoll_fd >= 0)
+        close(epoll_fd);
 
     return NULL;
 }

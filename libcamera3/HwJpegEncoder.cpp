@@ -68,9 +68,11 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inWidth, int inHeight
     onEncoderStop(&bufferin, &bufferout);
 
 failed:
-    if (resize_src != NULL) free(resize_src);
+    if (resize_src != NULL)
+        free(resize_src);
 
-    if (mJpegFd > 0) close(mJpegFd);
+    if (mJpegFd > 0)
+        close(mJpegFd);
 
     return jpeg_size;
 }
@@ -98,7 +100,8 @@ void HwJpegEncoder::v4l2_munmap(struct v4l2_buffer *buf, void *buf_start[]) {
     unsigned int i;
 
     for (i = 0; i < buf->length; i++) {
-        if (buf_start[i] != NULL) munmap(buf_start[i], buf->m.planes[i].length);
+        if (buf_start[i] != NULL)
+            munmap(buf_start[i], buf->m.planes[i].length);
     }
 }
 
@@ -246,10 +249,12 @@ int HwJpegEncoder::onEncoderConfig(struct encoder_args *ea, char *srcbuf,
           bufferout->m.planes[0].length, bufferout->m.planes[0].data_offset);
 
     ret = v4l2_mmap(mJpegFd, bufferout, mBufferOutStart);
-    if (ret < 0) goto failed;
+    if (ret < 0)
+        goto failed;
 
     ret = v4l2_mmap(mJpegFd, bufferin, mBufferInStart);
-    if (ret < 0) goto failed;
+    if (ret < 0)
+        goto failed;
 
     /*
      * fill output buffer with the contents of the input raw file
@@ -316,7 +321,8 @@ int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer
     // dump the jpeg data into /data/dump.jpeg when set vendor.rw.camera.test
     // it need disable selinux when open dump option.
     property_get("vendor.rw.camera.test", value, "");
-    if (strcmp(value, "true") == 0) vflg = true;
+    if (strcmp(value, "true") == 0)
+        vflg = true;
 
     if (vflg) {
         fout = fopen("/data/dump.jpeg", "wb");
@@ -337,7 +343,8 @@ int HwJpegEncoder::onEncoderStart(struct v4l2_buffer *buf_in, struct v4l2_buffer
                    buf_out->m.planes[plane].bytesused);
         return_bytes += buf_out->m.planes[plane].bytesused;
     }
-    if (vflg) fclose(fout);
+    if (vflg)
+        fclose(fout);
 
     return return_bytes;
 }

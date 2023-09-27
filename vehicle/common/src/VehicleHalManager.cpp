@@ -303,14 +303,16 @@ void VehicleHalManager::cmdDumpOneProperty(int fd, int rowNumber, const VehicleP
 }
 
 void VehicleHalManager::cmdDumpSpecificProperties(int fd, const hidl_vec<hidl_string>& options) {
-    if (!checkArgumentsSize(fd, options, 2)) return;
+    if (!checkArgumentsSize(fd, options, 2))
+        return;
 
     // options[0] is the command itself...
     int rowNumber = 0;
     size_t size = options.size();
     for (size_t i = 1; i < size; ++i) {
         int prop;
-        if (!safelyParseInt(fd, i, options[i], &prop)) return;
+        if (!safelyParseInt(fd, i, options[i], &prop))
+            return;
         const auto* config = getPropConfigOrNull(prop);
         if (config == nullptr) {
             dprintf(fd, "No property %d\n", prop);
@@ -339,7 +341,8 @@ void VehicleHalManager::cmdDumpOneProperty(int fd, int32_t prop, int32_t areaId)
 }
 
 void VehicleHalManager::cmdSetOneProperty(int fd, const hidl_vec<hidl_string>& options) {
-    if (!checkCallerHasWritePermissions(fd) || !checkArgumentsSize(fd, options, 3)) return;
+    if (!checkCallerHasWritePermissions(fd) || !checkArgumentsSize(fd, options, 3))
+        return;
 
     size_t size = options.size();
 
@@ -351,7 +354,8 @@ void VehicleHalManager::cmdSetOneProperty(int fd, const hidl_vec<hidl_string>& o
     int numberValues = (size - 2) / 2;
 
     VehiclePropValue prop;
-    if (!safelyParseInt(fd, 1, options[1], &prop.prop)) return;
+    if (!safelyParseInt(fd, 1, options[1], &prop.prop))
+        return;
     prop.timestamp = elapsedRealtimeNano();
     prop.status = VehiclePropertyStatus::AVAILABLE;
 
@@ -400,12 +404,14 @@ void VehicleHalManager::cmdSetOneProperty(int fd, const hidl_vec<hidl_string>& o
         std::string value = options[valueIndex];
         if (EqualsIgnoreCase(type, "i")) {
             int safeInt;
-            if (!safelyParseInt(fd, valueIndex, value, &safeInt)) return;
+            if (!safelyParseInt(fd, valueIndex, value, &safeInt))
+                return;
             prop.value.int32Values[indexInt32++] = safeInt;
         } else if (EqualsIgnoreCase(type, "s")) {
             prop.value.stringValue = value;
         } else if (EqualsIgnoreCase(type, "a")) {
-            if (!safelyParseInt(fd, valueIndex, value, &prop.areaId)) return;
+            if (!safelyParseInt(fd, valueIndex, value, &prop.areaId))
+                return;
         }
         i += 2;
     }

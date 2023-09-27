@@ -655,7 +655,8 @@ void CameraMetadata::swap(CameraMetadata &other) {
 
 status_t CameraMetadata::getTagFromName(const char *name, const VendorTagDescriptor *vTags,
                                         uint32_t *tag) {
-    if (name == nullptr || tag == nullptr) return BAD_VALUE;
+    if (name == nullptr || tag == nullptr)
+        return BAD_VALUE;
 
     size_t nameLength = strlen(name);
 

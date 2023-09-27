@@ -220,7 +220,8 @@ bool ConfigureCameras(const Json::Value& value, CameraDefinition* camera) {
         return false;
     }
 
-    if (!value.isMember(kCameraDefinitionHalVersionKey)) return true;
+    if (!value.isMember(kCameraDefinitionHalVersionKey))
+        return true;
     camera->hal_version = ValueToCameraHalVersion(value[kCameraDefinitionHalVersionKey].asString());
 
     if (camera->hal_version != kHalV3) {
@@ -229,10 +230,12 @@ bool ConfigureCameras(const Json::Value& value, CameraDefinition* camera) {
         return false;
     }
 
-    if (!value.isMember(kCameraBlitCopyKey)) return true;
+    if (!value.isMember(kCameraBlitCopyKey))
+        return true;
     camera->cam_blit_copy_hw = ValueToCameraCscHw(value[kCameraBlitCopyKey].asString());
 
-    if (!value.isMember(kCameraBlitCscKey)) return true;
+    if (!value.isMember(kCameraBlitCscKey))
+        return true;
     camera->cam_blit_csc_hw = ValueToCameraCscHw(value[kCameraBlitCscKey].asString());
 
     if (value.isMember(kCameraHwJpeg)) {
@@ -544,7 +547,8 @@ bool ParseCharacteristics(CameraDefinition* camera, const Json::Value& root,
               static_meta[cam_index].mGivenRes[given_res_index].height);
 
         given_res_index++;
-        if (given_res_index >= GIVEN_RESOLUTION_NUM) break;
+        if (given_res_index >= GIVEN_RESOLUTION_NUM)
+            break;
     }
     static_meta[cam_index].mGivenResNum = given_res_index;
 
@@ -576,7 +580,8 @@ bool ParseCharacteristics(CameraDefinition* camera, const Json::Value& root,
         }
         omit_index++;
 
-        if (omit_index >= OMIT_RESOLUTION_NUM) break;
+        if (omit_index >= OMIT_RESOLUTION_NUM)
+            break;
     }
 
     // store parsed camera metadata

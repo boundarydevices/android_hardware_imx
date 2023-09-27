@@ -214,7 +214,8 @@ public:
     virtual int setActiveConfig(int configId);
     virtual int createDisplayConfig(int width, int height, float fps, int format);
     virtual int getPresentFence(int32_t* outPresentFence) {
-        if (outPresentFence != NULL) *outPresentFence = -1;
+        if (outPresentFence != NULL)
+            *outPresentFence = -1;
         return 0;
     }
     // get display mode format size

@@ -51,7 +51,8 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev,
      * device.
      */
 
-    if (pDev == NULL) return BAD_VALUE;
+    if (pDev == NULL)
+        return BAD_VALUE;
 
     m_static_meta = HalCameraMetadata::Create(1, 10);
 
@@ -360,7 +361,8 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev,
     }
 
     uint8_t lensFacing = ANDROID_LENS_FACING_BACK;
-    if (strstr(mSensorData.camera_type, "front")) lensFacing = ANDROID_LENS_FACING_FRONT;
+    if (strstr(mSensorData.camera_type, "front"))
+        lensFacing = ANDROID_LENS_FACING_FRONT;
 
     m_static_meta->Set(ANDROID_LENS_FACING, &lensFacing, 1);
 

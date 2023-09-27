@@ -41,7 +41,8 @@ thread_local void* Composer::sHandle(0);
 static bool getDefaultG2DLib(char* libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if ((libName == NULL) || (size < strlen(G2DENGINE) + strlen(".so"))) return false;
+    if ((libName == NULL) || (size < strlen(G2DENGINE) + strlen(".so")))
+        return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
@@ -204,9 +205,11 @@ void Composer::setSecureMode(bool secure) {
 
 void Composer::getModule(char* path, const char* name) {
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     return;
 }
 
@@ -237,7 +240,8 @@ int Composer::checkDimBuffer() {
     desc.mProduceUsage |= USAGE_HW_COMPOSER | USAGE_HW_2D | USAGE_HW_RENDER | USAGE_SW_WRITE_OFTEN |
             USAGE_SW_READ_OFTEN;
 #ifdef HAVE_UNMAPPED_HEAP
-    if (mSecureMode) desc.mProduceUsage |= USAGE_PROTECTED;
+    if (mSecureMode)
+        desc.mProduceUsage |= USAGE_PROTECTED;
 #endif
     desc.mFlag = FLAGS_DIMBUFFER;
     desc.checkFormat();
@@ -416,11 +420,13 @@ int Composer::composeLayer(Layer* layer, bool bypass) {
             enableFunction(getHandle(), G2D_BLEND, true);
         }
 
-        if (needDither) enableFunction(getHandle(), G2D_DITHER, true);
+        if (needDither)
+            enableFunction(getHandle(), G2D_DITHER, true);
 
         blitSurface(&sSurfaceX, &dSurfaceX);
 
-        if (needDither) enableFunction(getHandle(), G2D_DITHER, false);
+        if (needDither)
+            enableFunction(getHandle(), G2D_DITHER, false);
 
         if (layer->blendMode != BLENDING_NONE && !bypass) {
             enableFunction(getHandle(), G2D_BLEND, false);

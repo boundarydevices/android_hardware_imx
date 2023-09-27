@@ -60,8 +60,8 @@ public:
      *
      * @return 			-
      *
-     * @remarks 		The function frees the memory and invalidates the name associated with the
-     *shader object specified by shader.
+     * @remarks 		The function frees the memory and invalidates the name associated with
+     *the shader object specified by shader.
      *
      **************************************************************************************************************/
     void destroyShaders();
@@ -72,11 +72,11 @@ public:
      * @param   		const char* v_shader - vertex shader name
      *					const char* p_shader - pixel shader name
      *
-     * @return 			The function returns 0 if shaders were loaded successfully. Otherwise -1 has
-     *been returned.
+     * @return 			The function returns 0 if shaders were loaded successfully. Otherwise -1
+     *has been returned.
      *
-     * @remarks 		The function loads and compiles vertex/pixel shaders and links the program
-     *object specified by program.
+     * @remarks 		The function loads and compiles vertex/pixel shaders and links the
+     *program object specified by program.
      *
      **************************************************************************************************************/
     int loadShaders(const char* v_shader, const char* p_shader);
@@ -91,8 +91,8 @@ private:
      * @param   		const char* source - vertix or pixel shader name
      *					GLuint num - vertix or pixel shader number
      *
-     * @return 			The function returns 0 if shaders were compilled successfully. Otherwise -1 has
-     *been returned.
+     * @return 			The function returns 0 if shaders were compilled successfully. Otherwise -1
+     *has been returned.
      *
      * @remarks 		The function compiles vertex or pixel shader.
      *

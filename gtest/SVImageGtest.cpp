@@ -355,7 +355,8 @@ static void generateBirdView(int width, int height, int stride, int bwidth, int 
                         B += (color & 0xff);
                         count++;
                     }
-                    if (count != 0) break;
+                    if (count != 0)
+                        break;
                 }
 
                 if (count != 0) {
@@ -463,7 +464,8 @@ static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
         getImageInfo(input, &width, &height, &stride);
         auto size = height * stride;
         shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-        if (pixels_outbuf == nullptr) return false;
+        if (pixels_outbuf == nullptr)
+            return false;
         auto pixels = pixels_outbuf.get();
         ALOGI("Image: %d x %d, stride %u, format %d", width, height, stride, format);
         decodeImage(pixels, size, input);
@@ -493,7 +495,8 @@ protected:
         memset(input, 0, sizeof(input));
         sprintf(input, "/sdcard/%d.png", 0);
         auto retValue = getImageInfo(input, &mWidth, &mHeight, &mStride);
-        if (!retValue) return;
+        if (!retValue)
+            return;
 
         cout << "Get Image: width=" << mWidth << ", height=" << mHeight << ", stride=" << mStride
              << endl;
@@ -593,12 +596,14 @@ protected:
             sprintf(input, "/sdcard/%d.png", index);
 
             shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-            if (pixels_outbuf == nullptr) return false;
+            if (pixels_outbuf == nullptr)
+                return false;
             auto pixels = pixels_outbuf.get();
             decodeImage(pixels, size, input);
 
             shared_ptr<char> undistort_outbuf(new char[size], std::default_delete<char[]>());
-            if (undistort_outbuf == nullptr) return false;
+            if (undistort_outbuf == nullptr)
+                return false;
 
             retValue = calibrationImage(scaler, K, D, pixels, nullptr, mWidth, mHeight, mStride,
                                         undistort_outbuf.get(), size);
@@ -731,7 +736,8 @@ protected:
             }
         }
 
-        if (prepareFisheyeImages(distorts) == false) return false;
+        if (prepareFisheyeImages(distorts) == false)
+            return false;
 
         for (uint32_t v = 0; v < flath; v++) {
             for (uint32_t u = 0; u < flatw; u++) {
@@ -846,7 +852,8 @@ TEST_F(ImxSV2DTest, FlatSurroundW16H12) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/flat-surround-w%f-h%f.jpg", pw, ph);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(flatw, flath, fstride, format, flat_outbuf, output) == false) return;
+    if (encoderImage(flatw, flath, fstride, format, flat_outbuf, output) == false)
+        return;
     ShowImage(flatw, flath, flat_outbuf);
 }
 
@@ -872,7 +879,8 @@ TEST_F(ImxSV2DTest, BEyeSurroundS2H4LUT) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/birdeye-surround-s%f-h%f.jpg", bscaler, bird_height);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false) return;
+    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false)
+        return;
     ShowImage(bwidth, bheight, birdeye_outbuf);
 }
 
@@ -898,7 +906,8 @@ TEST_F(ImxSV2DTest, BEyeSurroundS2H4) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/birdeye-surround-none-lut-s%f-h%f.jpg", bscaler, bird_height);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false) return;
+    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false)
+        return;
     ShowImage(bwidth, bheight, birdeye_outbuf);
 }
 
@@ -924,7 +933,8 @@ TEST_F(ImxSV2DTest, BEyeSurroundS1H4LUT) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/birdeye-surround-s%f-h%f.jpg", bscaler, bird_height);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false) return;
+    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false)
+        return;
     ShowImage(bwidth, bheight, birdeye_outbuf);
 }
 
@@ -951,7 +961,8 @@ TEST_F(ImxSV2DTest, BEyeSurroundS1H4) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/birdeye-surround-s%f-h%f.jpg", bscaler, bird_height);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false) return;
+    if (encoderImage(bwidth, bheight, bstride, format, birdeye_outbuf, output) == false)
+        return;
     ShowImage(bwidth, bheight, birdeye_outbuf);
 }
 
@@ -988,7 +999,8 @@ TEST_F(ImxSV2DTest, RotationVector) {
              << (q * Quaterniond(0, 1, 0, 0) * q.inverse()).coeffs().transpose() << endl;
 
         int index_next = index + 1;
-        if (index == (evsRotations.size() - 1)) index_next = 0;
+        if (index == (evsRotations.size() - 1))
+            index_next = 0;
 
         auto &rnext = evsRotations[index_next];
         auto &tnext = evsTransforms[index_next];
@@ -1058,7 +1070,8 @@ protected:
         memset(input, 0, sizeof(input));
         sprintf(input, "/sdcard/%d.png", 0);
         auto retValue = getImageInfo(input, &mWidth, &mHeight, &mStride);
-        if (!retValue) return;
+        if (!retValue)
+            return;
 
         cout << "Get Image: width=" << mWidth << ", height=" << mHeight << ", stride=" << mStride
              << endl;
@@ -1123,17 +1136,20 @@ TEST_F(ImxSVCali1Test, Image_1dot0) {
     size_t out_size = out_stride * out_height;
 
     shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-    if (pixels_outbuf == nullptr) return;
+    if (pixels_outbuf == nullptr)
+        return;
     auto pixels = pixels_outbuf.get();
     decodeImage(pixels, size, "/sdcard/0.png");
     ShowImage(mWidth, mHeight, pixels);
 
     shared_ptr<char> undistort_outbuf(new char[size], std::default_delete<char[]>());
-    if (undistort_outbuf == nullptr) return;
+    if (undistort_outbuf == nullptr)
+        return;
     auto undistort = undistort_outbuf.get();
 
     shared_ptr<char> dot_outbuf(new char[size], std::default_delete<char[]>());
-    if (dot_outbuf == nullptr) return;
+    if (dot_outbuf == nullptr)
+        return;
     auto dot = dot_outbuf.get();
 
     ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot, mWidth, mHeight, mStride, undistort,
@@ -1143,13 +1159,15 @@ TEST_F(ImxSVCali1Test, Image_1dot0) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/1-undistorted-%f.jpg", scaler);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false) return;
+    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false)
+        return;
     ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
     sprintf(dotfile, "/sdcard/1-distort-map-%f.jpg", scaler);
-    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false) return;
+    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false)
+        return;
     ShowImage(mWidth, mHeight, dot);
 }
 
@@ -1163,17 +1181,20 @@ TEST_F(ImxSVCali1Test, Image_1dot2) {
     size_t out_size = out_stride * out_height;
 
     shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-    if (pixels_outbuf == nullptr) return;
+    if (pixels_outbuf == nullptr)
+        return;
     auto pixels = pixels_outbuf.get();
     decodeImage(pixels, size, "/sdcard/0.png");
     ShowImage(mWidth, mHeight, pixels);
 
     shared_ptr<char> undistort_outbuf(new char[out_size], std::default_delete<char[]>());
-    if (undistort_outbuf == nullptr) return;
+    if (undistort_outbuf == nullptr)
+        return;
     auto undistort = undistort_outbuf.get();
 
     shared_ptr<char> dot_outbuf(new char[size], std::default_delete<char[]>());
-    if (dot_outbuf == nullptr) return;
+    if (dot_outbuf == nullptr)
+        return;
     auto dot = dot_outbuf.get();
 
     ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot, mWidth, mHeight, mStride, undistort,
@@ -1183,13 +1204,15 @@ TEST_F(ImxSVCali1Test, Image_1dot2) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/1-undistorted-%f.jpg", scaler);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false) return;
+    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false)
+        return;
     ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
     sprintf(dotfile, "/sdcard/1-distort-map-%f.jpg", scaler);
-    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false) return;
+    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false)
+        return;
     ShowImage(mWidth, mHeight, dot);
 }
 
@@ -1203,17 +1226,20 @@ TEST_F(ImxSVCali1Test, Image_2dot0) {
     size_t out_size = out_stride * out_height;
 
     shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-    if (pixels_outbuf == nullptr) return;
+    if (pixels_outbuf == nullptr)
+        return;
     auto pixels = pixels_outbuf.get();
     decodeImage(pixels, size, "/sdcard/0.png");
     ShowImage(mWidth, mHeight, pixels);
 
     shared_ptr<char> undistort_outbuf(new char[out_size], std::default_delete<char[]>());
-    if (undistort_outbuf == nullptr) return;
+    if (undistort_outbuf == nullptr)
+        return;
     auto undistort = undistort_outbuf.get();
 
     shared_ptr<char> dot_outbuf(new char[size], std::default_delete<char[]>());
-    if (dot_outbuf == nullptr) return;
+    if (dot_outbuf == nullptr)
+        return;
     auto dot = dot_outbuf.get();
 
     ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot, mWidth, mHeight, mStride, undistort,
@@ -1223,13 +1249,15 @@ TEST_F(ImxSVCali1Test, Image_2dot0) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/1-undistorted-%f.jpg", scaler);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false) return;
+    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false)
+        return;
     ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
     sprintf(dotfile, "/sdcard/1-distort-map-%f.jpg", scaler);
-    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false) return;
+    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false)
+        return;
     ShowImage(mWidth, mHeight, dot);
 }
 
@@ -1247,7 +1275,8 @@ protected:
 #endif
 
         auto retValue = getImageInfo("/sdcard/distort.jpg", &mWidth, &mHeight, &mStride);
-        if (!retValue) return;
+        if (!retValue)
+            return;
 
         cout << "Get Image: width=" << mWidth << ", height=" << mHeight << ", stride=" << mStride
              << endl;
@@ -1312,17 +1341,20 @@ TEST_F(ImxSVCali2Test, Image_1dot0) {
     size_t out_size = out_stride * out_height;
 
     shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-    if (pixels_outbuf == nullptr) return;
+    if (pixels_outbuf == nullptr)
+        return;
     auto pixels = pixels_outbuf.get();
     decodeImage(pixels, size, "/sdcard/distort.jpg");
     ShowImage(mWidth, mHeight, pixels);
 
     shared_ptr<char> undistort_outbuf(new char[out_size], std::default_delete<char[]>());
-    if (undistort_outbuf == nullptr) return;
+    if (undistort_outbuf == nullptr)
+        return;
     auto undistort = undistort_outbuf.get();
 
     shared_ptr<char> dot_outbuf(new char[size], std::default_delete<char[]>());
-    if (dot_outbuf == nullptr) return;
+    if (dot_outbuf == nullptr)
+        return;
     auto dot = dot_outbuf.get();
 
     ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot, mWidth, mHeight, mStride, undistort,
@@ -1332,13 +1364,15 @@ TEST_F(ImxSVCali2Test, Image_1dot0) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/2-undistorted-%f.jpg", scaler);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false) return;
+    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false)
+        return;
     ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
     sprintf(dotfile, "/sdcard/2-distort-map-%f.jpg", scaler);
-    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false) return;
+    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false)
+        return;
     ShowImage(mWidth, mHeight, dot);
 }
 
@@ -1352,17 +1386,20 @@ TEST_F(ImxSVCali2Test, Image_1dot2) {
     size_t out_size = out_stride * out_height;
 
     shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-    if (pixels_outbuf == nullptr) return;
+    if (pixels_outbuf == nullptr)
+        return;
     auto pixels = pixels_outbuf.get();
     decodeImage(pixels, size, "/sdcard/distort.jpg");
     ShowImage(mWidth, mHeight, pixels);
 
     shared_ptr<char> undistort_outbuf(new char[out_size], std::default_delete<char[]>());
-    if (undistort_outbuf == nullptr) return;
+    if (undistort_outbuf == nullptr)
+        return;
     auto undistort = undistort_outbuf.get();
 
     shared_ptr<char> dot_outbuf(new char[size], std::default_delete<char[]>());
-    if (dot_outbuf == nullptr) return;
+    if (dot_outbuf == nullptr)
+        return;
     auto dot = dot_outbuf.get();
 
     ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot, mWidth, mHeight, mStride, undistort,
@@ -1372,13 +1409,15 @@ TEST_F(ImxSVCali2Test, Image_1dot2) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/2-undistorted-%f.jpg", scaler);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false) return;
+    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false)
+        return;
     ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
     sprintf(dotfile, "/sdcard/2-distort-map-%f.jpg", scaler);
-    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false) return;
+    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false)
+        return;
     ShowImage(mWidth, mHeight, dot);
 }
 
@@ -1392,17 +1431,20 @@ TEST_F(ImxSVCali2Test, Image_2dot0) {
     size_t out_size = out_stride * out_height;
 
     shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-    if (pixels_outbuf == nullptr) return;
+    if (pixels_outbuf == nullptr)
+        return;
     auto pixels = pixels_outbuf.get();
     decodeImage(pixels, size, "/sdcard/distort.jpg");
     ShowImage(mWidth, mHeight, pixels);
 
     shared_ptr<char> undistort_outbuf(new char[out_size], std::default_delete<char[]>());
-    if (undistort_outbuf == nullptr) return;
+    if (undistort_outbuf == nullptr)
+        return;
     auto undistort = undistort_outbuf.get();
 
     shared_ptr<char> dot_outbuf(new char[size], std::default_delete<char[]>());
-    if (dot_outbuf == nullptr) return;
+    if (dot_outbuf == nullptr)
+        return;
     auto dot = dot_outbuf.get();
 
     ASSERT_TRUE(calibrationImage(scaler, K, D, pixels, dot, mWidth, mHeight, mStride, undistort,
@@ -1412,12 +1454,14 @@ TEST_F(ImxSVCali2Test, Image_2dot0) {
     memset(output, 0, sizeof(output));
     sprintf(output, "/sdcard/2-undistorted-%f.jpg", scaler);
     AndroidBitmapFormat format = ANDROID_BITMAP_FORMAT_RGBA_8888;
-    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false) return;
+    if (encoderImage(out_width, out_height, out_stride, format, undistort, output) == false)
+        return;
     ShowImage(out_width, out_height, undistort);
 
     char dotfile[128];
     memset(dotfile, 0, sizeof(dotfile));
     sprintf(dotfile, "/sdcard/2-distort-map-%f.jpg", scaler);
-    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false) return;
+    if (encoderImage(mWidth, mHeight, mStride, format, dot, dotfile) == false)
+        return;
     ShowImage(mWidth, mHeight, dot);
 }

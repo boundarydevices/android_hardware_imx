@@ -260,7 +260,8 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
                     dstBuffer->width, dstBuffer->height, (void**)(&dstBuf));
 
     ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
-    if (ret) mPhyAddr = 0;
+    if (ret)
+        mPhyAddr = 0;
 
     if (out != nullptr) {
         out->y = dstBuf;

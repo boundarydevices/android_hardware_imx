@@ -134,7 +134,8 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
     evt->u.scalar = scale * evt->u.scalar;
 
     // To meet CTS required range, multiply pressure scale with 10.
-    if (mChannelIndex == 0) evt->u.scalar *= 10;
+    if (mChannelIndex == 0)
+        evt->u.scalar *= 10;
 
     int timestamp_offset = 0;
     for (auto i = 0u; i < mIioData.channelInfo.size(); i++) {

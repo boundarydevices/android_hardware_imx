@@ -87,7 +87,8 @@ static bool prepareFisheyeImages(vector<shared_ptr<char>> &distorts) {
         getImageInfo(input, &width, &height, &stride);
         auto size = height * stride;
         shared_ptr<char> pixels_outbuf(new char[size], std::default_delete<char[]>());
-        if (pixels_outbuf == nullptr) return false;
+        if (pixels_outbuf == nullptr)
+            return false;
         auto pixels = pixels_outbuf.get();
         decodeImage(pixels, size, input);
         ALOGI("Image %s: %d x %d, stride %u, format %d, pixels %p", input, width, height, stride,
@@ -285,10 +286,14 @@ TEST(ImxSV, 3DSurroundViewGrids) {
     eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
 
     Imx3DView *view = new Imx3DView();
-    if (view->addProgram(s_v_shader, s_f_shader) == -1) return;
-    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1) return;
-    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1) return;
-    if (view->setProgram(0) == -1) return;
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
 
     float *data = nullptr;
     int data_num;
@@ -298,7 +303,8 @@ TEST(ImxSV, 3DSurroundViewGrids) {
     sprintf(input, "/sdcard/%d.png", 0);
     uint32_t width = 0, height = 0, stride = 0;
     bool retValue = getImageInfo(input, &width, &height, &stride);
-    if (!retValue) return;
+    if (!retValue)
+        return;
 
     data_num = getGrids(&data, width, height);
     ALOGI("Draw point %d", data_num / SV_VERTEX_NUM);
@@ -396,7 +402,8 @@ TEST(ImxSV, 3DSurroundViewGrids) {
     sleep(2);
     ALOGI("End of the 3D Grids test");
     glFinish();
-    if (data != nullptr) free(data);
+    if (data != nullptr)
+        free(data);
 }
 
 TEST(ImxSV, 3DSurroundViewTextures) {
@@ -460,17 +467,22 @@ TEST(ImxSV, 3DSurroundViewTextures) {
     eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
 
     Imx3DView *view = new Imx3DView();
-    if (view->addProgram(s_v_shader, s_f_shader) == -1) return;
-    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1) return;
-    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1) return;
-    if (view->setProgram(0) == -1) return;
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
 
     char input[128];
     memset(input, 0, sizeof(input));
     sprintf(input, "/sdcard/%d.png", 0);
     uint32_t width = 0, height = 0, stride = 0;
     bool retValue = getImageInfo(input, &width, &height, &stride);
-    if (!retValue) return;
+    if (!retValue)
+        return;
 
     vector<Vector3d> evsRotations;
     vector<Vector3d> evsTransforms;
@@ -495,7 +507,8 @@ TEST(ImxSV, 3DSurroundViewTextures) {
         for (uint32_t index = 0; index < 4; index++) {
             shared_ptr<unsigned char> image_outbuf(new unsigned char[height * width * 3],
                                                    std::default_delete<unsigned char[]>());
-            if (image_outbuf == nullptr) return;
+            if (image_outbuf == nullptr)
+                return;
             unsigned char *image = image_outbuf.get();
             auto pixels = distorts[index].get();
             for (int i = 0; i < height; i++)
@@ -706,17 +719,22 @@ TEST(ImxSV, 3DSurroundViewMashes) {
     eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
 
     Imx3DView *view = new Imx3DView();
-    if (view->addProgram(s_v_shader, s_f_shader) == -1) return;
-    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1) return;
-    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1) return;
-    if (view->setProgram(0) == -1) return;
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
 
     char input[128];
     memset(input, 0, sizeof(input));
     sprintf(input, "/sdcard/%d.png", 0);
     uint32_t width = 0, height = 0, stride = 0;
     bool retValue = getImageInfo(input, &width, &height, &stride);
-    if (!retValue) return;
+    if (!retValue)
+        return;
 
     vector<Vector3d> evsRotations;
     vector<Vector3d> evsTransforms;
@@ -739,7 +757,8 @@ TEST(ImxSV, 3DSurroundViewMashes) {
         for (uint32_t index = 0; index < 4; index++) {
             shared_ptr<unsigned char> image_outbuf(new unsigned char[height * width * 3],
                                                    std::default_delete<unsigned char[]>());
-            if (image_outbuf == nullptr) return;
+            if (image_outbuf == nullptr)
+                return;
             unsigned char *image = image_outbuf.get();
             for (int i = 0; i < height; i++)
                 for (int j = 0; j < width; j++) {
@@ -992,17 +1011,22 @@ TEST(ImxSV, 3DSurroundViewMashesCar) {
     eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
 
     Imx3DView *view = new Imx3DView();
-    if (view->addProgram(s_v_shader, s_f_shader) == -1) return;
-    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1) return;
-    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1) return;
-    if (view->setProgram(0) == -1) return;
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
 
     char input[128];
     memset(input, 0, sizeof(input));
     sprintf(input, "/sdcard/%d.png", 0);
     uint32_t width = 0, height = 0, stride = 0;
     bool retValue = getImageInfo(input, &width, &height, &stride);
-    if (!retValue) return;
+    if (!retValue)
+        return;
 
     vector<Vector3d> evsRotations;
     vector<Vector3d> evsTransforms;
@@ -1044,7 +1068,8 @@ TEST(ImxSV, 3DSurroundViewMashesCar) {
     for (uint32_t index = 0; index < 4; index++) {
         shared_ptr<unsigned char> image_outbuf(new unsigned char[height * width * 3],
                                                std::default_delete<unsigned char[]>());
-        if (image_outbuf == nullptr) return;
+        if (image_outbuf == nullptr)
+            return;
         unsigned char *image = image_outbuf.get();
         for (int i = 0; i < height; i++)
             for (int j = 0; j < width; j++) {
@@ -1250,17 +1275,22 @@ TEST(ImxSV, 3DSurroundViewTexturesCar) {
     eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
 
     Imx3DView *view = new Imx3DView();
-    if (view->addProgram(s_v_shader, s_f_shader) == -1) return;
-    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1) return;
-    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1) return;
-    if (view->setProgram(0) == -1) return;
+    if (view->addProgram(s_v_shader, s_f_shader) == -1)
+        return;
+    if (view->addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return;
+    if (view->addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return;
+    if (view->setProgram(0) == -1)
+        return;
 
     char input[128];
     memset(input, 0, sizeof(input));
     sprintf(input, "/sdcard/%d.png", 0);
     uint32_t width = 0, height = 0, stride = 0;
     bool retValue = getImageInfo(input, &width, &height, &stride);
-    if (!retValue) return;
+    if (!retValue)
+        return;
 
     vector<Vector3d> evsRotations;
     vector<Vector3d> evsTransforms;
@@ -1304,7 +1334,8 @@ TEST(ImxSV, 3DSurroundViewTexturesCar) {
     for (uint32_t index = 0; index < 4; index++) {
         shared_ptr<unsigned char> image_outbuf(new unsigned char[height * width * 3],
                                                std::default_delete<unsigned char[]>());
-        if (image_outbuf == nullptr) return;
+        if (image_outbuf == nullptr)
+            return;
         unsigned char *image = image_outbuf.get();
         auto pixels = distorts[index].get();
         for (int i = 0; i < height; i++)

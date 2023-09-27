@@ -39,14 +39,16 @@ bool Edid::isHdrSupported() {
 }
 
 int Edid::getHdrMetaData(HdrMetaData *hdrMetaData) {
-    if (hdrMetaData == NULL) return -EINVAL;
+    if (hdrMetaData == NULL)
+        return -EINVAL;
     *hdrMetaData = mHdrMetaData;
     return 0;
 }
 
 int Edid::getEdidRawData(uint8_t *buf, int size) {
     int i;
-    if ((buf == NULL) || (size < EDID_LENGTH) || (!mIsValid)) return -1;
+    if ((buf == NULL) || (size < EDID_LENGTH) || (!mIsValid))
+        return -1;
 
     memcpy(buf, mRawData, EDID_LENGTH);
 
@@ -54,7 +56,8 @@ int Edid::getEdidRawData(uint8_t *buf, int size) {
 }
 
 int Edid::getHdrSupportTypes(uint32_t *numTypes, int32_t *hdrTypes) {
-    if (!numTypes) return -1;
+    if (!numTypes)
+        return -1;
 
     int i;
 
@@ -126,7 +129,8 @@ void Edid::getEdidDataFromDrm(int fd, uint32_t connectorID) {
 }
 
 bool Edid::isEdidValid(unsigned char *edid) {
-    if (edid == NULL) return false;
+    if (edid == NULL)
+        return false;
     unsigned char check = edid[EDID_LENGTH - 1];
     unsigned char sum = 0;
 
@@ -142,7 +146,8 @@ unsigned char *Edid::getCeaExtensionData(unsigned char *edid) {
     int extension_num = edid[EXTENSION_NUM];
     for (int i = 1; i <= extension_num; i++) {
         unsigned char *edidExt = edid + EDID_LENGTH * i;
-        if (!isEdidValid(edidExt)) return NULL;
+        if (!isEdidValid(edidExt))
+            return NULL;
 
         if (edidExt[0] != CEA_EXTENSION) // CEA extension block
             continue;
@@ -157,8 +162,10 @@ int Edid::getDataBlockLen(unsigned char *db) {
 }
 
 bool Edid::isHdrMetadataBlock(unsigned char *db) {
-    if (db[0] >> TAG_SHIFT != DATA_BLOCK_EXTENDED_TAG) return false;
-    if (db[1] != HDR_STATIC_METADATA_BLOCK) return false;
+    if (db[0] >> TAG_SHIFT != DATA_BLOCK_EXTENDED_TAG)
+        return false;
+    if (db[1] != HDR_STATIC_METADATA_BLOCK)
+        return false;
     return true;
 }
 
@@ -184,7 +191,8 @@ void Edid::parseHdrMetadataBlock(unsigned char *db) {
 }
 
 void Edid::parseCeaExtData(unsigned char *edidExt) {
-    if (!isEdidValid(edidExt)) return;
+    if (!isEdidValid(edidExt))
+        return;
 
     int ceaDbStart = 4;
     int ceaDbLen = edidExt[2];

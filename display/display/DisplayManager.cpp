@@ -386,7 +386,8 @@ void DisplayManager::setPrimaryDisplay(int index) // only used to replace fake d
 
 int DisplayManager::enumFakeKmsDisplay() {
     KmsDisplay* display = mKmsDisplays[DISPLAY_PRIMARY];
-    if (display->openFakeKms() != 0) display->closeKms();
+    if (display->openFakeKms() != 0)
+        display->closeKms();
 
     mPrimaryIsFake = true;
 
@@ -622,7 +623,8 @@ bool DisplayManager::HotplugThread::stringInString(char* uevent_desc, const char
     char* cp;
     cp = uevent_desc;
     while (*cp) {
-        if (!strncmp(cp, sub_string, strlen(sub_string))) return true;
+        if (!strncmp(cp, sub_string, strlen(sub_string)))
+            return true;
         if (*cp) {
             cp += strlen(cp) + 1;
         }
@@ -636,7 +638,8 @@ bool DisplayManager::HotplugThread::threadLoop() {
     bool kms;
     memset(uevent_desc, 0, sizeof(uevent_desc));
     int len = uevent_next_event(uevent_desc, sizeof(uevent_desc) - 2);
-    if (len <= 0 || len >= EVENT_MSG_LEN) return true;
+    if (len <= 0 || len >= EVENT_MSG_LEN)
+        return true;
     uevent_desc[len] = '\0';
     uevent_desc[len + 1] = '\0';
 
@@ -744,7 +747,8 @@ bool DisplayManager::PollFileThread::threadLoop() {
                         callback->onRefresh(0);
                         for (int i = 1; i < MAX_PHYSICAL_DISPLAY; i++) {
                             pDisplay = mCtx->getPhysicalDisplay(i);
-                            if (pDisplay->connected()) callback->onHotplug(i, true);
+                            if (pDisplay->connected())
+                                callback->onHotplug(i, true);
                         }
                     }
                     inotify_rm_watch(mINotifyFd, mINotifyWd);

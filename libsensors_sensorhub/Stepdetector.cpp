@@ -61,10 +61,12 @@ void Stepdetector::processEvent(int code, int value) {}
 
 int Stepdetector::readEvents(sensors_event_t* data, int count) {
     int i;
-    if (count < 1) return -EINVAL;
+    if (count < 1)
+        return -EINVAL;
 
     ssize_t n = mInputReader.fill(data_fd);
-    if (n < 0) return n;
+    if (n < 0)
+        return n;
 
     int numEventReceived = 0;
     input_event const* event;
@@ -90,7 +92,8 @@ int Stepdetector::readEvents(sensors_event_t* data, int count) {
 
 int Stepdetector::writeEnable(int isEnable) {
     char attr[PATH_MAX] = {'\0'};
-    if (mClassPath[0] == '\0') return -1;
+    if (mClassPath[0] == '\0')
+        return -1;
 
     strcpy(attr, mClassPath);
     strcat(attr, "/");

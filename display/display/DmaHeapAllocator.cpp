@@ -50,7 +50,8 @@ DmaHeapAllocator::DmaHeapAllocator() {
 }
 
 DmaHeapAllocator::~DmaHeapAllocator() {
-    if (mBufferAllocator) FreeDmabufHeapBufferAllocator(mBufferAllocator);
+    if (mBufferAllocator)
+        FreeDmabufHeapBufferAllocator(mBufferAllocator);
 }
 
 int DmaHeapAllocator::allocSystemMemeory(uint64_t size) {
@@ -71,20 +72,23 @@ int DmaHeapAllocator::allocMemory(int size, int align, int flags) {
     // contiguous memory includes cacheable/non-cacheable.
     if (flags & MFLAGS_SECURE) {
         fd = DmabufHeapAlloc(mBufferAllocator, "secure", size, 0, 0);
-        if (fd < 0) ALOGE("%s DmabufHeapAlloc MFLAGS_SECURE failed ", __func__);
+        if (fd < 0)
+            ALOGE("%s DmabufHeapAlloc MFLAGS_SECURE failed ", __func__);
     } else if (flags & MFLAGS_CONTIGUOUS) {
         if (flags & MFLAGS_CACHEABLE)
             fd = DmabufHeapAlloc(mBufferAllocator, "reserved", size, 0, 0);
         else
             fd = DmabufHeapAlloc(mBufferAllocator, "reserved-uncached", size, 0, 0);
 
-        if (fd < 0) ALOGE("%s DmabufHeapAlloc MFLAGS_CONTIGUOUS failed ", __func__);
+        if (fd < 0)
+            ALOGE("%s DmabufHeapAlloc MFLAGS_CONTIGUOUS failed ", __func__);
     }
     // cacheable memory includes non-contiguous.
     // it will not go into this logic currently, it always allocate continue memory
     else if (flags & MFLAGS_CACHEABLE) {
         fd = DmabufHeapAlloc(mBufferAllocator, "system", size, 0, 0);
-        if (fd < 0) ALOGE("%s DmabufHeapAlloc MFLAGS_CACHEABLE failed ", __func__);
+        if (fd < 0)
+            ALOGE("%s DmabufHeapAlloc MFLAGS_CACHEABLE failed ", __func__);
     } else {
         ALOGE("%s invalid flags:0x%x", __func__, flags);
         return fd;

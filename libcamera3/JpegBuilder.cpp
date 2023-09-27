@@ -83,9 +83,11 @@ void JpegBuilder::stringToRational(const char *str, unsigned int *num, unsigned 
         strncpy(tempVal, str, len);
         temp = strtok_r(tempVal, ".", &ctx);
 
-        if (temp != NULL) numerator = atoi(temp);
+        if (temp != NULL)
+            numerator = atoi(temp);
 
-        if (!numerator) numerator = 1;
+        if (!numerator)
+            numerator = 1;
 
         temp = strtok_r(NULL, ".", &ctx);
         if (temp != NULL) {

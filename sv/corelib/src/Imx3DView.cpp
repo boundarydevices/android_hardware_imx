@@ -168,7 +168,8 @@ int Imx3DView::addMesh(string filename) {
 
     v_obj.push_back(vo_tmp);
 
-    if (vert) free(vert);
+    if (vert)
+        free(vert);
 
     return (v_obj.size() - 1);
 }
@@ -262,7 +263,8 @@ void Imx3DView::reloadMesh(int index, string filename) {
     glBindBuffer(GL_ARRAY_BUFFER, v_obj[index].vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 5 * v_obj[index].num, &vert[0],
                  GL_DYNAMIC_DRAW);
-    if (vert) free(vert);
+    if (vert)
+        free(vert);
 }
 
 /***************************************************************************************
@@ -301,7 +303,8 @@ int Imx3DView::setBufferAsAttr(int buf_num, int prog_num, char* atr_name) {
 /***************************************************************************************
 ***************************************************************************************/
 int Imx3DView::setMVPMatrix(int prog_num, float* mvpMatrix) {
-    if ((prog_num < 0) || (prog_num >= (int)render_prog.size())) return (-1);
+    if ((prog_num < 0) || (prog_num >= (int)render_prog.size()))
+        return (-1);
     GLint mvpLocation = glGetUniformLocation(render_prog[prog_num].getHandle(), "mvpMatrix");
     glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, (GLfloat*)mvpMatrix);
     return (0);
@@ -421,10 +424,14 @@ bool Imx3DView::prepareGL(uint32_t output_w, uint32_t output_h) {
         ALOGI("We made our context current!  :)");
     }
 
-    if (addProgram(s_v_shader, s_f_shader) == -1) return false;
-    if (addProgram(s_v_shader_line, s_f_shader_line) == -1) return false;
-    if (addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1) return false;
-    if (setProgram(0) == -1) return false;
+    if (addProgram(s_v_shader, s_f_shader) == -1)
+        return false;
+    if (addProgram(s_v_shader_line, s_f_shader_line) == -1)
+        return false;
+    if (addProgram(s_v_shader_bowl, s_f_shader_bowl) == -1)
+        return false;
+    if (setProgram(0) == -1)
+        return false;
 
     mGrid = new CurvilinearGrid(SV_ANGLES_IN_PI, SV_Z_NOP, SV_X_STEP, output_w, output_h,
                                 mEvsRotations, mEvsTransforms, mKs, mDs);

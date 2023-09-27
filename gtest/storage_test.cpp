@@ -46,7 +46,8 @@ void entry_exist_or_not(std::string dir, std::string entry_pattern,
     struct dirent *dir_entry;
     std::string next_entry_pattern;
     while ((dir_entry = readdir(dir_instance))) {
-        if (!strncmp(dir_entry->d_name, ".", 1) || !strncmp(dir_entry->d_name, "..", 2)) continue;
+        if (!strncmp(dir_entry->d_name, ".", 1) || !strncmp(dir_entry->d_name, "..", 2))
+            continue;
 
         if (!fnmatch(entry_pattern.c_str(), dir_entry->d_name, 0)) {
             next_entry_pattern =

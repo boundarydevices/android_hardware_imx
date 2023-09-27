@@ -16,13 +16,15 @@ using namespace fsl;
 
 gralloc_handle_t gralloc_convert_handle(buffer_handle_t handle) {
     auto hnd = reinterpret_cast<const gralloc_handle_t>(handle);
-    if (!hnd || hnd->magic != fsl::Memory::sMagic) return nullptr;
+    if (!hnd || hnd->magic != fsl::Memory::sMagic)
+        return nullptr;
 
     return hnd;
 }
 
 int32_t gralloc_sync_wait(int32_t fence, bool close_fence) {
-    if (fence < 0) return 0;
+    if (fence < 0)
+        return 0;
 
     /*
      * Wait initially for 1000 ms, and then wait indefinitely. The SYNC_IOC_WAIT

@@ -69,7 +69,8 @@ unsigned EvsEnumerator::mCameranum;
 ;
 
 bool EvsEnumerator::filterVideoFromConfigure(char *deviceName) {
-    if (sConfigManager == nullptr) return true;
+    if (sConfigManager == nullptr)
+        return true;
 
     vector<string>::iterator index;
     vector<string> cameraList = sConfigManager->getCameraIdList();
@@ -216,8 +217,10 @@ found:
 EvsEnumerator::EvsEnumerator(sp<IAutomotiveDisplayProxyService> proxyService) {
     ALOGD("EvsEnumerator created");
 
-    if (proxyService == nullptr) ALOGD("proxy server is null");
-    if (!EnumAvailableVideo()) mPollVideoFileThread = new PollVideoFileThread();
+    if (proxyService == nullptr)
+        ALOGD("proxy server is null");
+    if (!EnumAvailableVideo())
+        mPollVideoFileThread = new PollVideoFileThread();
     vector<string> camList = sConfigManager->getCameraIdList();
     mCameranum = camList.size();
 }
@@ -382,10 +385,12 @@ Return<void> EvsEnumerator::getCameraList_1_1(getCameraList_1_1_cb _hidl_cb) {
             hidlCameras[i++] = aCamera;
             bool included_group_camera = false;
             for (auto &&cam : sCameraList) {
-                if (cam.desc.v1.cameraId == id) included_group_camera = true;
+                if (cam.desc.v1.cameraId == id)
+                    included_group_camera = true;
             }
 
-            if (!included_group_camera) sCameraList.push_back(camrec);
+            if (!included_group_camera)
+                sCameraList.push_back(camrec);
             ;
         }
     }
@@ -643,7 +648,8 @@ bool EvsEnumerator::qualifyCaptureDevice(const char *deviceName) {
     public:
         FileHandleWrapper(int fd) { mFd = fd; }
         ~FileHandleWrapper() {
-            if (mFd > 0) close(mFd);
+            if (mFd > 0)
+                close(mFd);
         }
         operator int() const { return mFd; }
 

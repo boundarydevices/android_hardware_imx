@@ -95,8 +95,8 @@ struct cl_g2d_surface {
 
     int stride; // surface buffer stride
 
-    int width;  // surface width
-    int height; // surface height
+    int width;       // surface width
+    int height;      // surface height
     bool usePhyAddr; // planes[] use physical address
 };
 

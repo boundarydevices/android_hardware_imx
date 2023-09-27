@@ -246,7 +246,8 @@ Return<EvsResult> EvsCamera::setMaxFramesInFlight(uint32_t bufferCount) {
         return EvsResult::INVALID_ARG;
     }
 
-    if (bufferCount > MAX_BUFFERS_IN_FLIGHT) return EvsResult::BUFFER_NOT_AVAILABLE;
+    if (bufferCount > MAX_BUFFERS_IN_FLIGHT)
+        return EvsResult::BUFFER_NOT_AVAILABLE;
 
     onIncreaseMemoryBuffer(bufferCount);
     // Update our internal state
@@ -375,7 +376,8 @@ Return<void> EvsCamera::stopVideoStream() {
 
         // Drop our reference to the client's stream receiver
         mEvsAppRecipient = nullptr;
-        if (appRecipient != nullptr) mStream->unlinkToDeath(appRecipient);
+        if (appRecipient != nullptr)
+            mStream->unlinkToDeath(appRecipient);
     }
 
     if (mStream_1_1 != nullptr) {

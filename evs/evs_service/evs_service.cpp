@@ -32,7 +32,8 @@ static void handle_events(int uevent_fd) {
     int i;
     char *cp;
     n = uevent_kernel_multicast_recv(uevent_fd, msg, UEVENT_MSG_LEN);
-    if (n <= 0 || n >= UEVENT_MSG_LEN) return;
+    if (n <= 0 || n >= UEVENT_MSG_LEN)
+        return;
 
     // add two '\0' which means this is the end of msg
     msg[n] = '\0';

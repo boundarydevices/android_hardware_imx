@@ -49,10 +49,12 @@ public:
     ~SingletonWrap() {
         ALOGI("%s", __func__);
         fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
-        if (imageProcess) delete imageProcess;
+        if (imageProcess)
+            delete imageProcess;
 
         fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-        if (allocator) delete allocator;
+        if (allocator)
+            delete allocator;
     }
 };
 
@@ -275,7 +277,8 @@ void ExternalCameraDeviceSession::dumpState(const native_handle_t* handle) {
 
     if (isClosed()) {
         dprintf(fd, "External camera %s is closed\n", mCameraId.c_str());
-        if (intfLocked) mInterfaceLock.unlock();
+        if (intfLocked)
+            mInterfaceLock.unlock();
 
         return;
     }
@@ -1273,10 +1276,12 @@ static void dumpStream(uint8_t* src, size_t srcSize, int32_t id) {
     char value[PROPERTY_VALUE_MAX];
     int fdSrc = -1;
 
-    if ((src == NULL) || (srcSize == 0)) return;
+    if ((src == NULL) || (srcSize == 0))
+        return;
 
     property_get("vendor.rw.camera.ext.test", value, "false");
-    if (!strcmp(value, "false")) return;
+    if (!strcmp(value, "false"))
+        return;
 
     ALOGI("%s: src size %zu, id %d", __func__, srcSize, id);
 
@@ -1497,7 +1502,8 @@ int pixel_format_nv16_to_nv12(uint8_t* nv16_buff, uint8_t* nv12_buff, int w, int
 
 int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, size_t inDataSize,
                                                             YCbCrLayout& cropAndScaled) {
-    if ((inData == NULL) || (inDataSize == 0)) return BAD_VALUE;
+    if ((inData == NULL) || (inDataSize == 0))
+        return BAD_VALUE;
 
     std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
     inputbuf->pInBuffer = inData;
@@ -1513,7 +1519,8 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecAndCsc(uint8_t* inData, siz
 
     // mjpeg decoded to nv12/nv16 raw data
     ret = mDecoder->exportDecodedBuf(mDecodedData, kDecWaitTimeoutMs);
-    if (ret) return ret;
+    if (ret)
+        return ret;
 
     ALOGV("%s: mDecodedData.width:%d, mDecodedData.height:%d", __func__, mDecodedData.width,
           mDecodedData.height);

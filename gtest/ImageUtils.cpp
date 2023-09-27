@@ -30,7 +30,8 @@ bool getImageInfo(const char *input, uint32_t *width, uint32_t *height, uint32_t
 
     AImageDecoder_delete(decoder);
 
-    if (fd >= 0) close(fd);
+    if (fd >= 0)
+        close(fd);
     return true;
 }
 
@@ -69,7 +70,8 @@ bool encoderImage(uint32_t width, uint32_t height, uint32_t stride, AndroidBitma
         ALOGE("Error on encoder return %d!", result);
         return false;
     }
-    if (outfd >= 0) close(outfd);
+    if (outfd >= 0)
+        close(outfd);
     return true;
 }
 

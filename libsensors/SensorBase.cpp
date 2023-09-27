@@ -137,7 +137,8 @@ int SensorBase::openInput(const char* inputName) {
     struct dirent* de;
 
     dir = opendir(dirname);
-    if (dir == NULL) return -1;
+    if (dir == NULL)
+        return -1;
     strcpy(devname, dirname);
     filename = devname + strlen(devname);
     *filename++ = '/';
@@ -172,7 +173,8 @@ int SensorBase::readEvents(sensors_event_t* data, int count) {
 }
 int SensorBase::batch(int handle, int flags, int64_t period_ns, int64_t timeout) {
     /*default , not support batch mode or SENSORS_BATCH_WAKE_UPON_FIFO_FULL */
-    if (timeout > 0 || flags & SENSORS_BATCH_WAKE_UPON_FIFO_FULL) return -EINVAL;
+    if (timeout > 0 || flags & SENSORS_BATCH_WAKE_UPON_FIFO_FULL)
+        return -EINVAL;
     if (!(flags & SENSORS_BATCH_DRY_RUN)) {
         setDelay(handle, period_ns);
     }

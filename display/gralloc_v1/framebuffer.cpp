@@ -136,13 +136,15 @@ static __u32 update_to_display(private_module_t* m, int left, int top, int width
 
 static int fb_setSwapInterval(struct framebuffer_device_t* dev, int interval) {
     fb_context_t* ctx = (fb_context_t*)dev;
-    if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval) return -EINVAL;
+    if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval)
+        return -EINVAL;
     // FIXME: implement fb_setSwapInterval
     return 0;
 }
 
 static int fb_setUpdateRect(struct framebuffer_device_t* dev, int l, int t, int w, int h) {
-    if (((w | h) <= 0) || ((l | t) < 0)) return -EINVAL;
+    if (((w | h) <= 0) || ((l | t) < 0))
+        return -EINVAL;
 
     fb_context_t* ctx = (fb_context_t*)dev;
     private_module_t* m = reinterpret_cast<private_module_t*>(dev->common.module);
@@ -153,7 +155,8 @@ static int fb_setUpdateRect(struct framebuffer_device_t* dev, int l, int t, int 
 }
 
 static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer) {
-    if (private_handle_t::validate(buffer) < 0) return -EINVAL;
+    if (private_handle_t::validate(buffer) < 0)
+        return -EINVAL;
 
     fb_context_t* ctx = (fb_context_t*)dev;
 
@@ -217,13 +220,16 @@ int mapFrameBufferLocked(struct private_module_t* module) {
         fd = open(name, O_RDWR, 0);
         i++;
     }
-    if (fd < 0) return -errno;
+    if (fd < 0)
+        return -errno;
 
     struct fb_fix_screeninfo finfo;
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) return -errno;
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
+        return -errno;
 
     struct fb_var_screeninfo info;
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) return -errno;
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
+        return -errno;
 
     info.reserved[0] = 0;
     info.reserved[1] = 0;
@@ -257,7 +263,8 @@ int mapFrameBufferLocked(struct private_module_t* module) {
               info.yres * 2);
     }
 
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) return -errno;
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
+        return -errno;
 
     uint64_t refreshQuotient =
             (uint64_t(info.upper_margin + info.lower_margin + info.yres + info.vsync_len) *
@@ -273,7 +280,8 @@ int mapFrameBufferLocked(struct private_module_t* module) {
     }
 
     // epdc panel have a variable refresh rate from 2~30HZ
-    if (isEPDCDisplay()) refreshRate = 30 * 1000;
+    if (isEPDCDisplay())
+        refreshRate = 30 * 1000;
 
     if (int(info.width) <= 0 || int(info.height) <= 0) {
         // the driver doesn't return that information
@@ -305,9 +313,11 @@ int mapFrameBufferLocked(struct private_module_t* module) {
           "refresh rate = %.2f Hz\n",
           info.width, xdpi, info.height, ydpi, fps);
 
-    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) return -errno;
+    if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
+        return -errno;
 
-    if (finfo.smem_len <= 0) return -errno;
+    if (finfo.smem_len <= 0)
+        return -errno;
 
     module->flags = flags;
     module->info = info;
@@ -370,7 +380,8 @@ int fb_device_open(hw_module_t const* module, const char* name, hw_device_t** de
         dev->device.post = fb_post;
         dev->device.setUpdateRect = 0;
 
-        if (isEPDCDisplay()) dev->epdc_display = true;
+        if (isEPDCDisplay())
+            dev->epdc_display = true;
 
         private_module_t* m = (private_module_t*)module;
         status = mapFrameBuffer(m);

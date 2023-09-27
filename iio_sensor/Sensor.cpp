@@ -111,7 +111,8 @@ void HWSensorBase::sendAdditionalInfoReport() {
         });
     }
 
-    if (!events.empty()) mCallback->postEvents(events, isWakeUpSensor());
+    if (!events.empty())
+        mCallback->postEvents(events, isWakeUpSensor());
 }
 
 void HWSensorBase::activate(bool enable) {
@@ -219,16 +220,20 @@ static status_t checkAxis(int64_t map) {
 
 static std::optional<std::vector<Orientation>> getOrientation(
         std::optional<std::vector<Configuration>> config) {
-    if (!config) return std::nullopt;
-    if (config->empty()) return std::nullopt;
+    if (!config)
+        return std::nullopt;
+    if (config->empty())
+        return std::nullopt;
     Configuration& sensorCfg = (*config)[0];
     return sensorCfg.getOrientation();
 }
 
 static std::optional<std::vector<Location>> getLocation(
         std::optional<std::vector<Configuration>> config) {
-    if (!config) return std::nullopt;
-    if (config->empty()) return std::nullopt;
+    if (!config)
+        return std::nullopt;
+    if (config->empty())
+        return std::nullopt;
     Configuration& sensorCfg = (*config)[0];
     return sensorCfg.getLocation();
 }
@@ -236,8 +241,10 @@ static std::optional<std::vector<Location>> getLocation(
 static status_t checkOrientation(std::optional<std::vector<Configuration>> config) {
     status_t ret = OK;
     std::optional<std::vector<Orientation>> sensorOrientationList = getOrientation(config);
-    if (!sensorOrientationList) return OK;
-    if (sensorOrientationList->empty()) return OK;
+    if (!sensorOrientationList)
+        return OK;
+    if (sensorOrientationList->empty())
+        return OK;
     Orientation& sensorOrientation = (*sensorOrientationList)[0];
     if (!sensorOrientation.getFirstX() || !sensorOrientation.getFirstY() ||
         !sensorOrientation.getFirstZ())
@@ -245,14 +252,18 @@ static status_t checkOrientation(std::optional<std::vector<Configuration>> confi
 
     int64_t xMap = sensorOrientation.getFirstX()->getMap();
     ret = checkAxis(xMap);
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
     int64_t yMap = sensorOrientation.getFirstY()->getMap();
     ret = checkAxis(yMap);
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
     int64_t zMap = sensorOrientation.getFirstZ()->getMap();
     ret = checkAxis(zMap);
-    if (ret != OK) return ret;
-    if (xMap == yMap || yMap == zMap || zMap == xMap) return BAD_VALUE;
+    if (ret != OK)
+        return ret;
+    if (xMap == yMap || yMap == zMap || zMap == xMap)
+        return BAD_VALUE;
     return ret;
 }
 
@@ -287,17 +298,20 @@ void HWSensorBase::setOrientation(std::optional<std::vector<Configuration>> conf
 static status_t checkIIOData(const struct iio_device_data& iio_data) {
     status_t ret = OK;
     for (auto i = 0u; i < iio_data.channelInfo.size(); i++) {
-        if (iio_data.channelInfo[i].index > NUM_OF_DATA_CHANNELS) return BAD_VALUE;
+        if (iio_data.channelInfo[i].index > NUM_OF_DATA_CHANNELS)
+            return BAD_VALUE;
     }
     return ret;
 }
 
 static status_t setSensorPlacementData(AdditionalInfo* sensorPlacement, int index, float value) {
-    if (!sensorPlacement) return BAD_VALUE;
+    if (!sensorPlacement)
+        return BAD_VALUE;
 
     int arraySize =
             sizeof(sensorPlacement->u.data_float) / sizeof(sensorPlacement->u.data_float[0]);
-    if (index < 0 || index >= arraySize) return BAD_VALUE;
+    if (index < 0 || index >= arraySize)
+        return BAD_VALUE;
 
     sensorPlacement->u.data_float[index] = value;
     return OK;
@@ -305,15 +319,20 @@ static status_t setSensorPlacementData(AdditionalInfo* sensorPlacement, int inde
 
 status_t HWSensorBase::getSensorPlacement(AdditionalInfo* sensorPlacement,
                                           const std::optional<std::vector<Configuration>>& config) {
-    if (!sensorPlacement) return BAD_VALUE;
+    if (!sensorPlacement)
+        return BAD_VALUE;
 
     auto sensorLocationList = getLocation(config);
-    if (!sensorLocationList) return BAD_VALUE;
-    if (sensorLocationList->empty()) return BAD_VALUE;
+    if (!sensorLocationList)
+        return BAD_VALUE;
+    if (sensorLocationList->empty())
+        return BAD_VALUE;
 
     auto sensorOrientationList = getOrientation(config);
-    if (!sensorOrientationList) return BAD_VALUE;
-    if (sensorOrientationList->empty()) return BAD_VALUE;
+    if (!sensorOrientationList)
+        return BAD_VALUE;
+    if (sensorOrientationList->empty())
+        return BAD_VALUE;
 
     sensorPlacement->type = AdditionalInfoType::AINFO_SENSOR_PLACEMENT;
     sensorPlacement->serial = 0;
@@ -330,13 +349,16 @@ status_t HWSensorBase::getSensorPlacement(AdditionalInfo* sensorPlacement,
     // vector (l1,l2,l3) in the raw buffer.
     status_t ret = setSensorPlacementData(sensorPlacement, HWSensorBase::LOCATION_X_IDX,
                                           sensorLocation.getX());
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
     ret = setSensorPlacementData(sensorPlacement, HWSensorBase::LOCATION_Y_IDX,
                                  sensorLocation.getY());
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
     ret = setSensorPlacementData(sensorPlacement, HWSensorBase::LOCATION_Z_IDX,
                                  sensorLocation.getZ());
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
 
     Orientation& sensorOrientation = (*sensorOrientationList)[0];
     if (sensorOrientation.getRotate()) {
@@ -345,27 +367,33 @@ status_t HWSensorBase::getSensorPlacement(AdditionalInfo* sensorPlacement,
         // ROTATION_X_IDX, ROTATION_Y_IDX, ROTATION_Z_IDX corresponds to indexes of the
         // (x1,y1,z1) in the raw buffer.
         ret = setSensorPlacementData(sensorPlacement, HWSensorBase::ROTATION_X_IDX + 0, 1);
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
         ret = setSensorPlacementData(sensorPlacement, HWSensorBase::ROTATION_Y_IDX + 4, 1);
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
         ret = setSensorPlacementData(sensorPlacement, HWSensorBase::ROTATION_Z_IDX + 8, 1);
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
     } else {
         ret = setSensorPlacementData(sensorPlacement,
                                      HWSensorBase::ROTATION_X_IDX +
                                              4 * sensorOrientation.getFirstX()->getMap(),
                                      sensorOrientation.getFirstX()->getNegate() ? -1 : 1);
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
         ret = setSensorPlacementData(sensorPlacement,
                                      HWSensorBase::ROTATION_Y_IDX +
                                              4 * sensorOrientation.getFirstY()->getMap(),
                                      sensorOrientation.getFirstY()->getNegate() ? -1 : 1);
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
         ret = setSensorPlacementData(sensorPlacement,
                                      HWSensorBase::ROTATION_Z_IDX +
                                              4 * sensorOrientation.getFirstZ()->getMap(),
                                      sensorOrientation.getFirstZ()->getNegate() ? -1 : 1);
-        if (ret != OK) return ret;
+        if (ret != OK)
+            return ret;
     }
     return OK;
 }
@@ -374,7 +402,8 @@ status_t HWSensorBase::setAdditionalInfoFrames(
         const std::optional<std::vector<Configuration>>& config) {
     AdditionalInfo additionalInfoSensorPlacement;
     status_t ret = getSensorPlacement(&additionalInfoSensorPlacement, config);
-    if (ret != OK) return ret;
+    if (ret != OK)
+        return ret;
 
     const AdditionalInfo additionalInfoBegin = {
             .type = AdditionalInfoType::AINFO_BEGIN,
@@ -437,7 +466,8 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     mIioData = data;
     setOrientation(config);
     status_t ret = setAdditionalInfoFrames(config);
-    if (ret == OK) mSensorInfo.flags |= SensorFlagBits::ADDITIONAL_INFO;
+    if (ret == OK)
+        mSensorInfo.flags |= SensorFlagBits::ADDITIONAL_INFO;
     unsigned int max_sampling_frequency = 0;
     unsigned int min_sampling_frequency = UINT_MAX;
     for (auto i = 0u; i < data.sampling_freq_avl.size(); i++) {

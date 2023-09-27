@@ -83,7 +83,8 @@ private:
             // We want to move time to next event by adding some number of intervals (usually 1)
             // to previous absoluteTime.
             int intervalMultiplier = (now - absoluteTime) / interval;
-            if (intervalMultiplier <= 0) intervalMultiplier = 1;
+            if (intervalMultiplier <= 0)
+                intervalMultiplier = 1;
             absoluteTime += intervalMultiplier * interval;
         }
     };

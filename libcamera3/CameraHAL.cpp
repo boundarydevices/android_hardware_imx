@@ -350,10 +350,12 @@ int32_t CameraHAL::matchPropertyName(nodeSet* nodes, int32_t index) {
 }
 
 static bool IsVideoCaptureDevice(const char* devNode) {
-    if (devNode == NULL) return false;
+    if (devNode == NULL)
+        return false;
 
     int fd = open(devNode, O_RDONLY);
-    if (fd < 0) return false;
+    if (fd < 0)
+        return false;
 
     struct v4l2_fmtdesc vid_fmtdesc;
     vid_fmtdesc.index = 0;

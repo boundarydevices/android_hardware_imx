@@ -194,7 +194,8 @@ bool ConfigureCameras(const Json::Value& value, CameraDefinition* camera) {
         return false;
     }
 
-    if (!value.isMember(kCameraDefinitionHalVersionKey)) return true;
+    if (!value.isMember(kCameraDefinitionHalVersionKey))
+        return true;
     camera->hal_version = ValueToCameraHalVersion(value[kCameraDefinitionHalVersionKey].asString());
 
     if (camera->hal_version != kHalV3) {
@@ -203,10 +204,12 @@ bool ConfigureCameras(const Json::Value& value, CameraDefinition* camera) {
         return false;
     }
 
-    if (!value.isMember(kCameraBlitCopyKey)) return true;
+    if (!value.isMember(kCameraBlitCopyKey))
+        return true;
     camera->cam_blit_copy_hw = ValueToCameraCscHw(value[kCameraBlitCopyKey].asString());
 
-    if (!value.isMember(kCameraBlitCscKey)) return true;
+    if (!value.isMember(kCameraBlitCscKey))
+        return true;
     camera->cam_blit_csc_hw = ValueToCameraCscHw(value[kCameraBlitCscKey].asString());
 
     if (value.isMember(kCameraHwJpeg)) {
@@ -363,7 +366,8 @@ bool ConfigureCameras(const Json::Value& value, CameraDefinition* camera) {
             }
             omit_index++;
 
-            if (omit_index >= OMIT_RESOLUTION_NUM) break;
+            if (omit_index >= OMIT_RESOLUTION_NUM)
+                break;
         }
     }
 

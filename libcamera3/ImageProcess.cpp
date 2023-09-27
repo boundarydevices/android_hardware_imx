@@ -50,7 +50,8 @@ thread_local void *ImageProcess::sHandle(0);
 static bool getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
-    if ((libName == NULL) || (size < strlen(G2DENGINE) + strlen(".so"))) return false;
+    if ((libName == NULL) || (size < strlen(G2DENGINE) + strlen(".so")))
+        return false;
 
     memset(libName, 0, size);
     property_get("vendor.imx.default-g2d", value, "");
@@ -210,9 +211,11 @@ int ImageProcess::closeEngine(void *handle) {
 
 void ImageProcess::getModule(char *path, const char *name) {
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH1, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     snprintf(path, PATH_MAX, "%s/%s", LIB_PATH2, name);
-    if (access(path, R_OK) == 0) return;
+    if (access(path, R_OK) == 0)
+        return;
     return;
 }
 

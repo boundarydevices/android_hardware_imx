@@ -324,7 +324,8 @@ private:
 int sensors_poll_context_t::fillPollFd() {
     int i = 0;
     for (i = 0; i < numSensorDrivers; i++) {
-        if (mSensors[i] != NULL) mPollFds[i].fd = mSensors[i]->getFd();
+        if (mSensors[i] != NULL)
+            mPollFds[i].fd = mSensors[i]->getFd();
         mPollFds[i].events = POLLIN;
         mPollFds[i].revents = 0;
     }
@@ -373,7 +374,8 @@ sensors_poll_context_t::~sensors_poll_context_t() {
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
     int index = handleToDriver(handle);
-    if (index < 0) return index;
+    if (index < 0)
+        return index;
     int err = 0;
     err = mSensors[index]->setEnable(handle, enabled);
     if (enabled && !err) {
@@ -386,7 +388,8 @@ int sensors_poll_context_t::activate(int handle, int enabled) {
 
 int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
     int index = handleToDriver(handle);
-    if (index < 0) return index;
+    if (index < 0)
+        return index;
     return mSensors[index]->setDelay(handle, ns);
 }
 
@@ -441,7 +444,8 @@ int sensors_poll_context_t::pollEvents(sensors_event_t *data, int count) {
 int sensors_poll_context_t::batch(int handle, int flags, int64_t period_ns, int64_t timeout) {
     int ret;
     int index = handleToDriver(handle);
-    if (index < 0) return index;
+    if (index < 0)
+        return index;
     ret = mSensors[index]->batch(handle, flags, period_ns, timeout);
     const char wakeMessage(WAKE_MESSAGE);
     int result = write(mWritePipeFd, &wakeMessage, 1);
@@ -451,7 +455,8 @@ int sensors_poll_context_t::batch(int handle, int flags, int64_t period_ns, int6
 
 int sensors_poll_context_t::flush(int handle) {
     int index = handleToDriver(handle);
-    if (index < 0) return index;
+    if (index < 0)
+        return index;
     return mSensors[index]->flush(handle);
 }
 

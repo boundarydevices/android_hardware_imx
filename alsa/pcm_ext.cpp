@@ -65,7 +65,8 @@ static inline struct snd_mask *param_to_mask(struct snd_pcm_hw_params *p, int n)
 }
 
 static void param_set_mask(struct snd_pcm_hw_params *p, int n, unsigned int bit) {
-    if (bit >= SNDRV_MASK_MAX) return;
+    if (bit >= SNDRV_MASK_MAX)
+        return;
     if (param_is_mask(n)) {
         struct snd_mask *m = param_to_mask(p, n);
         m->bits[0] = 0;
@@ -132,7 +133,8 @@ static int oops(struct pcm *pcm, int e, const char *fmt, ...) {
     va_end(ap);
     sz = strlen(pcm->error);
 
-    if (errno) snprintf(pcm->error + sz, PCM_ERROR_MAX - sz, ": %s", strerror(e));
+    if (errno)
+        snprintf(pcm->error + sz, PCM_ERROR_MAX - sz, ": %s", strerror(e));
     return -1;
 }
 
@@ -166,10 +168,12 @@ int pcm_get_near_param(unsigned int card, unsigned int device, unsigned int flag
     int request_data = *data;
     *data = 0;
 
-    if (param_is_mask(type)) return -1;
+    if (param_is_mask(type))
+        return -1;
 
     pcm = (struct pcm *)calloc(1, sizeof(struct pcm));
-    if (!pcm) return -1;
+    if (!pcm)
+        return -1;
 
     snprintf(fn, sizeof(fn), "/dev/snd/pcmC%uD%u%c", card, device, flags & PCM_IN ? 'c' : 'p');
 
@@ -221,10 +225,12 @@ int pcm_check_param_mask(unsigned int card, unsigned int device, unsigned int fl
     int ret = 0;
     int request_data = data;
 
-    if (param_is_interval(type)) return 0;
+    if (param_is_interval(type))
+        return 0;
 
     pcm = (struct pcm *)calloc(1, sizeof(struct pcm));
-    if (!pcm) return 0;
+    if (!pcm)
+        return 0;
 
     snprintf(fn, sizeof(fn), "/dev/snd/pcmC%uD%u%c", card, device, flags & PCM_IN ? 'c' : 'p');
 

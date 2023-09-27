@@ -53,8 +53,8 @@ void Programs::destroyShaders() {
  * @param   		const char* v_shader - vertex shader name
  *					const char* p_shader - pixel shader name
  *
- * @return 			The function returns 0 if shaders were loaded successfully. Otherwise
- *-1 has been returned.
+ * @return 			The function returns 0 if shaders were loaded successfully.
+ *Otherwise -1 has been returned.
  *
  * @remarks 		The function loads and compiles vertex/pixel shaders and links the program
  *object specified by program.
@@ -95,7 +95,8 @@ int Programs::loadShaders(const char* v_shader, const char* p_shader) {
                 // Retrieve error.
                 glGetProgramInfoLog(program.programHandle, errorBufSize, &errorLength, infoLog);
                 cout << infoLog << endl;
-                if (infoLog) free(infoLog);
+                if (infoLog)
+                    free(infoLog);
             }
         }
         return (-1);
@@ -132,7 +133,8 @@ int Programs::compileShader(const char* source, GLuint num) {
             // Retrieve error.
             glGetShaderInfoLog(num, errorBufSize, &errorLength, infoLog);
             cout << infoLog << endl;
-            if (infoLog) free(infoLog);
+            if (infoLog)
+                free(infoLog);
         }
         return (-1);
     }

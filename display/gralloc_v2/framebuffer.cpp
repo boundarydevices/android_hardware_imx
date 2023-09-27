@@ -41,13 +41,15 @@ struct fb_context_t {
 
 int fb_setSwapInterval(struct framebuffer_device_t* dev, int interval) {
     fb_context_t* ctx = (fb_context_t*)dev;
-    if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval) return -EINVAL;
+    if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval)
+        return -EINVAL;
     // FIXME: implement fb_setSwapInterval
     return 0;
 }
 
 int fb_setUpdateRect(struct framebuffer_device_t* dev, int l, int t, int w, int h) {
-    if (!dev || ((w | h) <= 0) || ((l | t) < 0)) return -EINVAL;
+    if (!dev || ((w | h) <= 0) || ((l | t) < 0))
+        return -EINVAL;
 
     fb_context_t* ctx = (fb_context_t*)dev;
 

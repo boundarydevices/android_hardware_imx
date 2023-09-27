@@ -40,13 +40,15 @@ ModelLoader::ModelLoader() : isInitialized(false) {}
 ModelLoader::~ModelLoader(void) {
     for (MaterialListIter iterator = materials.begin(); iterator != materials.end(); iterator++) {
         Material *mat = *iterator;
-        if (mat) delete mat;
+        if (mat)
+            delete mat;
     }
     materials.clear();
 
     for (VBOListIter iterator = objects.begin(); iterator != objects.end(); iterator++) {
         VBO *object = *iterator;
-        if (object) delete object;
+        if (object)
+            delete object;
     }
     materials.clear();
 }
@@ -131,7 +133,8 @@ bool ModelLoader::Initialize() {
 
             // Get ambient textures
             texFound = m->GetTexture(aiTextureType_DIFFUSE, j, &pth);
-            if (texFound == AI_FAILURE) break;
+            if (texFound == AI_FAILURE)
+                break;
 
             path += pth.C_Str();
 
@@ -152,7 +155,8 @@ bool ModelLoader::Initialize() {
     for (unsigned int i = 0; i < scene->mNumMeshes; ++i) {
         mesh = scene->mMeshes[i];
 
-        if (mesh->mNumFaces == 0) continue;
+        if (mesh->mNumFaces == 0)
+            continue;
 
         polygons += mesh->mNumFaces;
 
@@ -218,7 +222,8 @@ bool ModelLoader::Initialize() {
 }
 
 void ModelLoader::Draw(GLuint shader) {
-    if (!isInitialized) return;
+    if (!isInitialized)
+        return;
 
     GLuint ambientLoc = glGetUniformLocation(shader, "ambient");
     GLuint diffuseLoc = glGetUniformLocation(shader, "diffuse");

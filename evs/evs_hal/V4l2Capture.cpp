@@ -256,7 +256,8 @@ std::set<uint32_t> V4l2Capture::enumerateCameraControls() {
 
     // enum the last camera control info, need refine this part later
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
         while (0 == ioctl(mDeviceFd[physical_cam], VIDIOC_QUERYCTRL, &ctrl)) {
             if (!(ctrl.flags & V4L2_CTRL_FLAG_DISABLED)) {
                 ctrlIDs.emplace(ctrl.id);
@@ -276,7 +277,8 @@ int V4l2Capture::setParameter(v4l2_control& control) {
     int status = 0;
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
 
         int status = ioctl(mDeviceFd[physical_cam], VIDIOC_S_CTRL, &control);
         if (status < 0) {
@@ -290,7 +292,8 @@ int V4l2Capture::getParameter(v4l2_control& control) {
     int status = 0;
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
 
         // TODO: just get the last camera control info, currently getIntParameter do not support
         // multi-camera.
@@ -307,7 +310,8 @@ bool V4l2Capture::isOpen() {
     std::unique_lock<std::mutex> lock(mLock);
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) return false;
+        if (mDeviceFd[physical_cam] < 0)
+            return false;
     }
 
     return true;
@@ -338,11 +342,13 @@ bool V4l2Capture::onStart() {
     // allocate 3 buffer for every camera
     // evs_app allocate buffer through setMaxFramesInFlight in app,
     // while sv_app do not allocate by default. So set one default value here
-    if (mFramesAllowed == 0) setMaxFramesInFlight(3);
+    if (mFramesAllowed == 0)
+        setMaxFramesInFlight(3);
 
     int fd = -1;
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
         {
             std::unique_lock<std::mutex> lock(mLock);
             fd = mDeviceFd[physical_cam];
@@ -370,7 +376,8 @@ void V4l2Capture::onStop() {
     int fd = -1;
 
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) return;
+        if (mDeviceFd[physical_cam] < 0)
+            return;
 
         {
             std::unique_lock<std::mutex> lock(mLock);
@@ -408,7 +415,8 @@ Return<EvsResult> V4l2Capture::setMaxFramesInFlight(uint32_t bufferCount) {
         return EvsResult::INVALID_ARG;
     }
 
-    if (bufferCount > MAX_BUFFERS_IN_FLIGHT) return EvsResult::BUFFER_NOT_AVAILABLE;
+    if (bufferCount > MAX_BUFFERS_IN_FLIGHT)
+        return EvsResult::BUFFER_NOT_AVAILABLE;
 
     if (mFramesAllowed < bufferCount) {
         unsigned needed = bufferCount - mFramesAllowed;
@@ -424,7 +432,8 @@ Return<EvsResult> V4l2Capture::setMaxFramesInFlight(uint32_t bufferCount) {
         {
             std::unique_lock<std::mutex> lock(mLock);
             mFramesSignal.wait(lock);
-            if (mDecreasenum > 0) ALOGE("mDecreasenum should been 0 ! ");
+            if (mDecreasenum > 0)
+                ALOGE("mDecreasenum should been 0 ! ");
         }
     }
 
@@ -453,7 +462,8 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number) {
     while (added < number) {
         // allocate mFramesAllowed buffer for every physical camera
         for (const auto& physical_cam : mPhysicalCamera) {
-            if (mDeviceFd[physical_cam] < 0) return;
+            if (mDeviceFd[physical_cam] < 0)
+                return;
 
             buffer = nullptr;
             allocator->allocMemory(desc, &buffer);
@@ -488,7 +498,8 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number) {
 
             // find the first unmap buffer in v4l2 buffer
             for (v4l2_index = 0; v4l2_index < V4L2_BUFFER_NUM; v4l2_index++) {
-                if (mBufferMap[physical_cam].at(v4l2_index) == -1) break;
+                if (mBufferMap[physical_cam].at(v4l2_index) == -1)
+                    break;
             }
 
             // map the v4l2 buffer and gralloc buffer
@@ -501,7 +512,8 @@ void V4l2Capture::onIncreaseMemoryBuffer(unsigned number) {
                 // mBufferMap[physical_cam].at(v4l2_index) = i;
                 for (i = 0; i < (mFramesAllowed + 1); i++) {
                     for (j = 0; j < V4L2_BUFFER_NUM; j++) {
-                        if (mBufferMap[physical_cam].at(j) == i) break;
+                        if (mBufferMap[physical_cam].at(j) == i)
+                            break;
                     }
                     if (j == V4L2_BUFFER_NUM) {
                         mBufferMap[physical_cam].at(v4l2_index) = i;
@@ -543,7 +555,8 @@ void V4l2Capture::onDecreaseMemoryBuffer(unsigned index) {
 
     // destroy CAMERA_BUFFER_NUM buffer for every physical camera
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
 
         std::vector<fsl::Memory*> fsl_mem;
 
@@ -562,7 +575,8 @@ void V4l2Capture::onMemoryDestroy() {
     fsl::Memory* buffer = nullptr;
     fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) continue;
+        if (mDeviceFd[physical_cam] < 0)
+            continue;
 
         std::vector<fsl::Memory*> fsl_mem;
         fsl_mem = mCamBuffers[mDeviceFd[physical_cam]];
@@ -604,7 +618,8 @@ bool V4l2Capture::onFrameReturn(int index, std::string deviceid) {
         onDecreaseMemoryBuffer(index);
         mDecreasenum--;
 
-        if (mDecreasenum == 0) mFramesSignal.notify_all();
+        if (mDecreasenum == 0)
+            mFramesSignal.notify_all();
 
         ALOGI("onFrameReturn drop one frame");
         return true;
@@ -655,7 +670,8 @@ void V4l2Capture::onFrameCollect(std::vector<struct forwardframe>& frames) {
     int index = 0;
 #endif
     for (const auto& physical_cam : mPhysicalCamera) {
-        if (mDeviceFd[physical_cam] < 0) return;
+        if (mDeviceFd[physical_cam] < 0)
+            return;
 
         {
             std::unique_lock<std::mutex> lock(mLock);

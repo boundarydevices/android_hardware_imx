@@ -124,10 +124,12 @@ private:
         if (mState.exchange(State::RUNNING) == State::INIT) {
             while (State::RUNNING == mState) {
                 mQueue->waitForItems();
-                if (State::STOP_REQUESTED == mState) break;
+                if (State::STOP_REQUESTED == mState)
+                    break;
 
                 std::this_thread::sleep_for(mBatchInterval);
-                if (State::STOP_REQUESTED == mState) break;
+                if (State::STOP_REQUESTED == mState)
+                    break;
 
                 std::vector<T> items = mQueue->flush();
 

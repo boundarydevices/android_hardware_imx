@@ -930,7 +930,8 @@ int MJPGStream::FreeMemBlock(DecMemInfo* pDecMem) {
 
     // free virtual mem
     for (i = 0; i < pDecMem->nVirtNum; i++) {
-        if ((void*)(uintptr_t)pDecMem->virtMem[i]) free((void*)(uintptr_t)pDecMem->virtMem[i]);
+        if ((void*)(uintptr_t)pDecMem->virtMem[i])
+            free((void*)(uintptr_t)pDecMem->virtMem[i]);
     }
     pDecMem->nVirtNum = 0;
 
