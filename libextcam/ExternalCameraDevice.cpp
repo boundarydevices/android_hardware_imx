@@ -21,6 +21,7 @@
 
 #include <aidl/android/hardware/camera/common/Status.h>
 #include <convert.h>
+#include <cutils/properties.h>
 #include <linux/videodev2.h>
 #include <log/log.h>
 
@@ -426,7 +427,11 @@ status_t ExternalCameraDevice::initDefaultCharsKeys(
     const uint8_t opticalStabilizationMode = ANDROID_LENS_OPTICAL_STABILIZATION_MODE_OFF;
     UPDATE(ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION, &opticalStabilizationMode, 1);
 
-    const uint8_t facing = ANDROID_LENS_FACING_EXTERNAL;
+    int32_t facing_prop = property_get_int32("persist.vendor.cam.ext.facing",
+                                             ANDROID_LENS_FACING_EXTERNAL);
+    if ((facing_prop < 0) || (facing_prop > ANDROID_LENS_FACING_EXTERNAL))
+        facing_prop = ANDROID_LENS_FACING_EXTERNAL;
+    const uint8_t facing = (facing_prop & 0xFF);
     UPDATE(ANDROID_LENS_FACING, &facing, 1);
 
     // android.noiseReduction
