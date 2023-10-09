@@ -1,0 +1,3 @@
+service vendor.dek_extractor /vendor/bin/imx_dek_extractor
+    user system
+    group system
