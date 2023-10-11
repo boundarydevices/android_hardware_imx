@@ -466,9 +466,8 @@ int AllocatedFrame::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayout* out
         out->y = mData.data() + mWidth * rect.top + rect.left;
         out->yStride = mWidth;
         uint8_t* cbStart = mData.data() + mWidth * mHeight;
-        uint8_t* crStart = cbStart + 1;
         out->cb = cbStart + mWidth * rect.top / 2 + rect.left;
-        out->cr = crStart + 1;
+        out->cr = (void *)((uint8_t *)out->cb + 1);
         out->cStride = mWidth;
         out->chromaStep = 2;
     }
@@ -633,9 +632,8 @@ int AllocatedFramePhyMem::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayou
         out->y = dstBuf + mWidth * rect.top + rect.left;
         out->yStride = mWidth;
         uint8_t* cbStart = dstBuf + mWidth * mHeight;
-        uint8_t* crStart = cbStart + 1;
         out->cb = cbStart + mWidth * rect.top / 2 + rect.left;
-        out->cr = crStart + 1;
+        out->cr = (void *)((uint8_t *)out->cb + 1);
         out->cStride = mWidth;
         out->chromaStep = 2;
     }
