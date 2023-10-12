@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2018 The Android Open Source Project
- * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include "config_parser.h"
 
-namespace aidl::android::hardware::thermal::impl::imx {
+#include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/strings.h>
+#include <json/reader.h>
+#include <json/value.h>
+
+#include <cmath>
+#include <set>
+#include <vector>
+
+namespace android {
+namespace hardware {
+namespace thermal {
+namespace V2_0 {
+namespace implementation {
+
+using ::android::hardware::hidl_enum_range;
+using ::android::hardware::thermal::V2_0::toString;
+using TemperatureType_2_0 = ::android::hardware::thermal::V2_0::TemperatureType;
 
 namespace {
 
 template <typename T>
 // Return false when failed parsing
 bool getTypeFromString(std::string_view str, T *out) {
-    auto types = ndk::enum_range<T>();
+    auto types = hidl_enum_range<T>();
     for (const auto &type : types) {
         if (toString(type) == str) {
             *out = type;
@@ -47,7 +63,7 @@ float getFloatFromValue(const Json::Value &value) {
 std::vector<std::string> ParseHotplugCPUInfo(std::string_view config_path) {
     std::string json_doc;
     std::vector<std::string> HotplugCPU_parsed;
-    if (!::android::base::ReadFileToString(config_path.data(), &json_doc)) {
+    if (!android::base::ReadFileToString(config_path.data(), &json_doc)) {
         LOG(ERROR) << "Failed to read JSON config from " << config_path;
         return HotplugCPU_parsed;
     }
@@ -84,7 +100,7 @@ std::vector<std::string> ParseHotplugCPUInfo(std::string_view config_path) {
 std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) {
     std::string json_doc;
     std::map<std::string, SensorInfo> sensors_parsed;
-    if (!::android::base::ReadFileToString(config_path.data(), &json_doc)) {
+    if (!android::base::ReadFileToString(config_path.data(), &json_doc)) {
         LOG(ERROR) << "Failed to read JSON config from " << config_path;
         return sensors_parsed;
     }
@@ -123,7 +139,7 @@ std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) 
 
         std::string sensor_type_str = sensors[i]["Type"].asString();
         LOG(INFO) << "Sensor[" << name << "]'s Type: " << sensor_type_str;
-        TemperatureType sensor_type;
+        TemperatureType_2_0 sensor_type;
 
         if (!getTypeFromString(sensor_type_str, &sensor_type)) {
             LOG(ERROR) << "Invalid "
@@ -225,6 +241,10 @@ std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) 
             }
         }
 
+        float vr_threshold = NAN;
+        vr_threshold = getFloatFromValue(sensors[i]["VrThreshold"]);
+        LOG(INFO) << "Sensor[" << name << "]'s VrThreshold: " << vr_threshold;
+
         float multiplier = sensors[i]["Multiplier"].asFloat();
         LOG(INFO) << "Sensor[" << name << "]'s Multiplier: " << multiplier;
 
@@ -243,6 +263,7 @@ std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) 
                 .cold_thresholds = cold_thresholds,
                 .hot_hysteresis = hot_hysteresis,
                 .cold_hysteresis = cold_hysteresis,
+                .vr_threshold = vr_threshold,
                 .multiplier = multiplier,
                 .is_monitor = is_monitor,
         };
@@ -256,7 +277,7 @@ std::map<std::string, SensorInfo> ParseSensorInfo(std::string_view config_path) 
 std::map<std::string, CoolingType> ParseCoolingDevice(std::string_view config_path) {
     std::string json_doc;
     std::map<std::string, CoolingType> cooling_devices_parsed;
-    if (!::android::base::ReadFileToString(config_path.data(), &json_doc)) {
+    if (!android::base::ReadFileToString(config_path.data(), &json_doc)) {
         LOG(ERROR) << "Failed to read JSON config from " << config_path;
         return cooling_devices_parsed;
     }
@@ -313,4 +334,8 @@ std::map<std::string, CoolingType> ParseCoolingDevice(std::string_view config_pa
     return cooling_devices_parsed;
 }
 
-} // namespace aidl::android::hardware::thermal::impl::imx
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android

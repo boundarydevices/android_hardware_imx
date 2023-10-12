@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2018 The Android Open Source Project
- * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include "thermal_watcher.h"
 
-namespace aidl::android::hardware::thermal::impl::imx {
+#include <android-base/file.h>
+#include <android-base/logging.h>
+#include <android-base/strings.h>
+#include <cutils/uevent.h>
+#include <dirent.h>
+#include <sys/inotify.h>
+#include <sys/resource.h>
+#include <sys/types.h>
+
+#include <chrono>
+#include <fstream>
+
+namespace android {
+namespace hardware {
+namespace thermal {
+namespace V2_0 {
+namespace implementation {
 
 using std::chrono_literals::operator""ms;
 
@@ -41,15 +55,15 @@ void ThermalWatcher::registerFilesToWatch(const std::set<std::string> &sensors_t
         return;
     }
 
-    looper_->addFd(uevent_fd_.get(), 0, ::android::Looper::EVENT_INPUT, nullptr, nullptr);
+    looper_->addFd(uevent_fd_.get(), 0, Looper::EVENT_INPUT, nullptr, nullptr);
     is_polling_ = false;
     thermal_triggered_ = true;
 }
 
 bool ThermalWatcher::startWatchingDeviceFiles() {
     if (cb_) {
-        auto ret = this->run("FileWatcherThread", ::android::PRIORITY_HIGHEST);
-        if (ret != ::android::NO_ERROR) {
+        auto ret = this->run("FileWatcherThread", PRIORITY_HIGHEST);
+        if (ret != NO_ERROR) {
             LOG(ERROR) << "ThermalWatcherThread start fail";
             return false;
         } else {
@@ -139,4 +153,8 @@ bool ThermalWatcher::threadLoop() {
     return true;
 }
 
-} // namespace aidl::android::hardware::thermal::impl::imx
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android

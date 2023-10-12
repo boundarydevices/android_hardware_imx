@@ -1,48 +1,41 @@
 cc_binary {
-  name: "android.hardware.thermal@2.0-service.imx",
-  defaults: [
-    "hidl_defaults",
-  ],
-  vendor: true,
-  relative_install_path: "hw",
-  vintf_fragments: ["android.hardware.thermal@2.0-service.imx.xml"],
-  init_rc: [
-    "android.hardware.thermal@2.0-service.imx.rc",
-  ],
-  srcs: [
-    "service.cpp",
-    "Thermal.cpp",
-    "thermal-helper.cpp",
-    "utils/config_parser.cpp",
-    "utils/thermal_files.cpp",
-    "utils/thermal_watcher.cpp",
-  ],
-  static_libs: [
-    "libjsoncpp",
-  ],
-  shared_libs: [
-    "libbase",
-    "libcutils",
-    "libhidlbase",
-    "libutils",
-    "android.hardware.thermal@1.0",
-    "android.hardware.thermal@2.0",
-  ],
-  cflags: [
-    "-Wall",
-    "-Werror",
-    "-Wextra",
-    "-Wunused",
-  ],
-  tidy: true,
-  tidy_checks: [
-    "android-*",
-    "cert-*",
-    "clang-analyzer-security*",
-  ],
-  tidy_checks_as_errors: [
-      "cert-*",
-      "clang-analyzer-security*",
-      "android-*",
-  ],
+    name: "android.hardware.thermal-service.imx",
+    relative_install_path: "hw",
+    init_rc: [":android.hardware.thermal.imx.rc"],
+    vintf_fragments: [":android.hardware.thermal.imx.xml"],
+    vendor: true,
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "libcutils",
+        "libutils",
+        "android.hardware.thermal-V1-ndk",
+    ],
+    static_libs: [
+        "libjsoncpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+        "-Wunused",
+    ],
+    srcs: [
+        "main.cpp",
+        "Thermal.cpp",
+        "thermal-helper.cpp",
+        "utils/config_parser.cpp",
+        "utils/thermal_files.cpp",
+        "utils/thermal_watcher.cpp",
+    ],
+}
+
+filegroup {
+    name: "android.hardware.thermal.imx.xml",
+    srcs: ["thermal-imx.xml"],
+}
+
+filegroup {
+    name: "android.hardware.thermal.imx.rc",
+    srcs: ["thermal-imx.rc"],
 }

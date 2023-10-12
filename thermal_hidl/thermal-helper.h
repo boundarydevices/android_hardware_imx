@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright 2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,45 +27,46 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#ifndef THERMAL_THERMAL_HELPER_H__
+#define THERMAL_THERMAL_HELPER_H__
+
+#include <android/hardware/thermal/2.0/IThermal.h>
 
 #include <array>
 #include <chrono>
-#include <iterator>
 #include <mutex>
-#include <set>
 #include <shared_mutex>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
 
-#include <android/binder_manager.h>
-#include <android/binder_process.h>
-#include <android-base/properties.h>
-#include <android-base/stringprintf.h>
-
 #include "utils/config_parser.h"
 #include "utils/thermal_files.h"
 #include "utils/thermal_watcher.h"
 
-#include <aidl/android/hardware/thermal/BnThermal.h>
+namespace android {
+namespace hardware {
+namespace thermal {
+namespace V2_0 {
+namespace implementation {
 
-namespace aidl::android::hardware::thermal::impl::imx {
+using ::android::hardware::hidl_vec;
+using ::android::hardware::thermal::V1_0::CpuUsage;
+using ::android::hardware::thermal::V2_0::CoolingType;
+using ::android::hardware::thermal::V2_0::IThermal;
+using CoolingDevice_1_0 = ::android::hardware::thermal::V1_0::CoolingDevice;
+using CoolingDevice_2_0 = ::android::hardware::thermal::V2_0::CoolingDevice;
+using Temperature_1_0 = ::android::hardware::thermal::V1_0::Temperature;
+using Temperature_2_0 = ::android::hardware::thermal::V2_0::Temperature;
+using TemperatureType_1_0 = ::android::hardware::thermal::V1_0::TemperatureType;
+using TemperatureType_2_0 = ::android::hardware::thermal::V2_0::TemperatureType;
+using ::android::hardware::thermal::V2_0::TemperatureThreshold;
+using ::android::hardware::thermal::V2_0::ThrottlingSeverity;
 
-using NotificationCallback = std::function<void(const std::vector<Temperature> &temps)>;
+using NotificationCallback = std::function<void(const std::vector<Temperature_2_0> &temps)>;
 using NotificationTime = std::chrono::time_point<std::chrono::steady_clock>;
-
-using ::android::base::ReadFileToString;
-using ::android::base::Split;
-using ::android::base::StringPrintf;
-using ::android::base::Trim;
-using std::string;
-
-constexpr char kConfigProperty[] = "vendor.thermal.config";
-constexpr char kSocType[] = "ro.boot.soc_type";
 
 struct SensorStatus {
     ThrottlingSeverity severity;
@@ -74,24 +74,20 @@ struct SensorStatus {
     ThrottlingSeverity prev_cold_severity;
 };
 
-struct CpuUsage {
-    string name;
-    uint64_t active;
-    uint64_t total;
-    bool isOnline;
-};
-
 class ThermalHelper {
-  public:
+public:
     ThermalHelper(const NotificationCallback &cb);
     ~ThermalHelper() = default;
-    bool fillCurrentTemperatures(bool filterType, bool filterCallback, TemperatureType type,
-                                 std::vector<Temperature> *temperatures);
-    bool fillTemperatureThresholds(bool filterType, TemperatureType type,
-                                   std::vector<TemperatureThreshold> *thresholds) const;
+
+    bool fillTemperatures(hidl_vec<Temperature_1_0> *temperatures) const;
+    bool fillCurrentTemperatures(bool filterType, TemperatureType_2_0 type,
+                                 hidl_vec<Temperature_2_0> *temperatures) const;
+    bool fillTemperatureThresholds(bool filterType, TemperatureType_2_0 type,
+                                   hidl_vec<TemperatureThreshold> *thresholds) const;
     bool fillCurrentCoolingDevices(bool filterType, CoolingType type,
-                                   std::vector<CoolingDevice> *coolingdevices) const;
-    bool fillCpuUsages(std::vector<CpuUsage> *cpu_usages) const;
+                                   hidl_vec<CoolingDevice_2_0> *coolingdevices) const;
+    bool fillCpuUsages(hidl_vec<CpuUsage> *cpu_usages) const;
+
     // Dissallow copy and assign.
     ThermalHelper(const ThermalHelper &) = delete;
     void operator=(const ThermalHelper &) = delete;
@@ -99,19 +95,18 @@ class ThermalHelper {
     bool isInitializedOk() const { return is_initialized_; }
 
     // Read the temperature of a single sensor.
-    bool readTemperature(std::string_view sensor_name, Temperature *out);
+    bool readTemperature(std::string_view sensor_name, Temperature_1_0 *out) const;
     bool readTemperature(
-            std::string_view sensor_name, Temperature *out,
-            std::pair<ThrottlingSeverity, ThrottlingSeverity> *throttling_status = nullptr) const;
-
+            std::string_view sensor_name, Temperature_2_0 *out,
+            std::pair<ThrottlingSeverity, ThrottlingSeverity> *throtting_status = nullptr) const;
     bool readTemperatureThreshold(std::string_view sensor_name, TemperatureThreshold *out) const;
     // Read the value of a single cooling device.
-    bool readCoolingDevice(std::string_view cooling_device, CoolingDevice *out) const;
+    bool readCoolingDevice(std::string_view cooling_device, CoolingDevice_2_0 *out) const;
     // Get SensorInfo Map
     const std::map<std::string, SensorInfo> &GetSensorInfoMap() const { return sensor_info_map_; }
     void enableCPU(std::string cpu, bool enable);
 
-  private:
+private:
     bool initializeSensorMap(const std::map<std::string, std::string> &path_map);
     bool initializeCoolingDevices(const std::map<std::string, std::string> &path_map);
     bool initializeTrip(const std::map<std::string, std::string> &path_map);
@@ -120,12 +115,12 @@ class ThermalHelper {
     bool thermalWatcherCallbackFunc(const std::set<std::string> &uevent_sensors);
     // Return hot and cold severity status as std::pair
     std::pair<ThrottlingSeverity, ThrottlingSeverity> getSeverityFromThresholds(
-        const ThrottlingArray &hot_thresholds, const ThrottlingArray &cold_thresholds,
-        const ThrottlingArray &hot_hysteresis, const ThrottlingArray &cold_hysteresis,
-        ThrottlingSeverity prev_hot_severity, ThrottlingSeverity prev_cold_severity,
-        float value) const;
+            const ThrottlingArray &hot_thresholds, const ThrottlingArray &cold_thresholds,
+            const ThrottlingArray &hot_hysteresis, const ThrottlingArray &cold_hysteresis,
+            ThrottlingSeverity prev_hot_severity, ThrottlingSeverity prev_cold_severity,
+            float value) const;
 
-    ::android::sp<ThermalWatcher> thermal_watcher_;
+    sp<ThermalWatcher> thermal_watcher_;
     ThermalFiles thermal_sensors_;
     ThermalFiles cooling_devices_;
     bool is_initialized_;
@@ -137,4 +132,10 @@ class ThermalHelper {
     std::map<std::string, SensorStatus> sensor_status_map_;
 };
 
-}  // namespace aidl::android::hardware::thermal::impl::imx
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android
+
+#endif // THERMAL_THERMAL_HELPER_H__

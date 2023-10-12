@@ -1,0 +1,4 @@
+service vendor.thermal-hal /vendor/bin/hw/android.hardware.thermal-service.imx
+    class hal
+    user nobody
+    group system

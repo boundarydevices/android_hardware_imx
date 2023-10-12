@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2018 The Android Open Source Project
- * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,48 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef THERMAL_UTILS_THERMAL_WATCHER_H_
+#define THERMAL_UTILS_THERMAL_WATCHER_H_
 
-#pragma once
+#include <android-base/unique_fd.h>
+#include <utils/Looper.h>
+#include <utils/Thread.h>
 
 #include <chrono>
 #include <condition_variable>
-#include <cutils/uevent.h>
-#include <dirent.h>
-#include <fstream>
 #include <future>
 #include <list>
 #include <mutex>
 #include <set>
-#include <sys/inotify.h>
-#include <sys/resource.h>
-#include <sys/types.h>
 #include <string>
 #include <thread>
 #include <unordered_map>
-#include <utils/Looper.h>
-#include <utils/Thread.h>
 #include <vector>
 
-#include <android-base/file.h>
-#include <android-base/logging.h>
-#include <android-base/strings.h>
-#include <android-base/unique_fd.h>
+namespace android {
+namespace hardware {
+namespace thermal {
+namespace V2_0 {
+namespace implementation {
 
-namespace aidl::android::hardware::thermal::impl::imx {
-
-using ::android::base::unique_fd;
+using android::base::unique_fd;
 using WatcherCallback = std::function<bool(const std::set<std::string> &name)>;
 
 // A helper class for monitoring thermal files changes.
 class ThermalWatcher : public ::android::Thread {
-  public:
+public:
     ThermalWatcher(const WatcherCallback &cb)
           : Thread(false),
             cb_(cb),
-            looper_(new ::android::Looper(true)),
+            looper_(new Looper(true)),
             thermal_triggered_(false),
             is_polling_(true) {}
-
     ~ThermalWatcher() = default;
 
     // Disallow copy and assign.
@@ -72,7 +65,7 @@ class ThermalWatcher : public ::android::Thread {
     // in any thread.
     void wake();
 
-  private:
+private:
     // The work done by the watcher thread. This will use inotify to check for
     // modifications to the files to watch. If any modification is seen this
     // will callback the registered function with the new data read from the
@@ -91,10 +84,10 @@ class ThermalWatcher : public ::android::Thread {
     // Callback will return thermal trigger status for next polling decision.
     const WatcherCallback cb_;
 
-    ::android::sp<::android::Looper> looper_;
+    sp<Looper> looper_;
 
     // For uevent socket registration.
-    unique_fd uevent_fd_;
+    android::base::unique_fd uevent_fd_;
     // Sensor list which monitor flag is enabled.
     std::set<std::string> monitored_sensors_;
     // Flag to point out if any sensor across the first threshold.
@@ -103,4 +96,10 @@ class ThermalWatcher : public ::android::Thread {
     bool is_polling_;
 };
 
-} // namespace aidl::android::hardware::thermal::impl::imx
+} // namespace implementation
+} // namespace V2_0
+} // namespace thermal
+} // namespace hardware
+} // namespace android
+
+#endif // THERMAL_UTILS_THERMAL_WATCHER_H_
