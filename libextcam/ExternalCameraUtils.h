@@ -158,9 +158,11 @@ public:
     const int32_t mWidth;
     const int32_t mHeight;
     const uint32_t mFourcc;
+    uint32_t mFormatSize;
 
     // getData might involve map/allocation
     virtual int getData(uint8_t** outData, size_t* dataSize) = 0;
+    uint32_t getFormatSize();
 };
 
 // A class provide access to a dequeued V4L2 frame buffer (mostly in MJPG format)
@@ -202,6 +204,8 @@ public:
     virtual int getCroppedLayout(const IMapper::Rect&,
                                  YCbCrLayout* out); // return non-zero for bad input
     virtual void flush() {}
+    virtual void getPhyAddr(uint64_t& phyAddr) {}
+    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size) {}
 
 protected:
     std::mutex mLock;
@@ -231,12 +235,14 @@ public:
 
     virtual void flush();
 
-    void getPhyAddr(uint64_t& phyAddr);
+    virtual void getPhyAddr(uint64_t& phyAddr);
+    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size);
 
 private:
     fsl::Memory* dstBuffer;
     uint8_t* dstBuf;
     uint64_t mPhyAddr;
+    uint32_t mBufSize;
 };
 
 enum CroppingType { HORIZONTAL = 0, VERTICAL = 1 };

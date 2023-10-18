@@ -300,8 +300,30 @@ double SupportedV4L2Format::FrameRate::getFramesPerSecond() const {
 }
 
 Frame::Frame(uint32_t width, uint32_t height, uint32_t fourcc)
-      : mWidth(width), mHeight(height), mFourcc(fourcc) {}
+      : mWidth(width), mHeight(height), mFourcc(fourcc), mFormatSize(0) {}
 Frame::~Frame() {}
+
+uint32_t Frame::getFormatSize() {
+    if (mFormatSize > 0)
+      return mFormatSize;
+
+    switch (mFourcc) {
+        case V4L2_PIX_FMT_YUV420:
+        case V4L2_PIX_FMT_NV12:
+            mFormatSize = mWidth * mHeight * 3 / 2;
+          break;
+        case V4L2_PIX_FMT_YUYV:
+        case V4L2_PIX_FMT_NV16:
+            mFormatSize = mWidth * mHeight * 2;
+          break;
+
+        default:
+            ALOGE("%s: unsupported format 0x%x", __func__, mFourcc);
+          break;
+    }
+
+    return mFormatSize;
+}
 
 V4L2Frame::V4L2Frame(uint32_t w, uint32_t h, uint32_t fourcc, int bufIdx, int fd, uint32_t dataSize,
                      uint64_t offset)
@@ -395,7 +417,7 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
     // reading the last row. Effectively, we only need to ensure that the last row of Cr component
     // has width that is an integral multiple of DCTSIZE.
 
-    size_t dataSize = mWidth * mHeight * 3 / 2; // YUV420
+    size_t dataSize = getFormatSize();
 
     size_t cbWidth = mWidth / 2;
     size_t requiredCbWidth = DCTSIZE * ((cbWidth + DCTSIZE - 1) / DCTSIZE);
@@ -428,7 +450,26 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
         out->cr = crStart;
         out->cStride = mWidth;
         out->chromaStep = 2;
+    } else if (mFourcc == V4L2_PIX_FMT_NV16) { // For nv16/yuyv, since used by ImageProcess, only care about start address.
+        out->y = mData.data();
+        out->yStride = mWidth;
+        uint8_t* cbStart = mData.data() + mWidth * mHeight;
+        uint8_t* crStart = cbStart + 1;
+        out->cb = cbStart;
+        out->cr = crStart;
+        out->cStride = mWidth;
+        out->chromaStep = 4;
+    }  else if (V4L2_PIX_FMT_YUYV) {
+        out->y = mData.data();
+        out->yStride = mWidth * 2;
+        uint8_t* cbStart =  mData.data()+ 1;
+        uint8_t* crStart = cbStart + 3;
+        out->cb = cbStart;
+        out->cr = crStart;
+        out->cStride = mWidth;
+        out->chromaStep = 4;
     }
+
 
     return 0;
 }
@@ -470,16 +511,36 @@ int AllocatedFrame::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayout* out
         out->cr = (void *)((uint8_t *)out->cb + 1);
         out->cStride = mWidth;
         out->chromaStep = 2;
+    } else if (mFourcc == V4L2_PIX_FMT_NV16) {
+        out->y = mData.data() + mWidth * rect.top + rect.left;
+        out->yStride = mWidth;
+        uint8_t* cbStart = mData.data() + mWidth * mHeight;
+        out->cb = cbStart + mWidth * rect.top + rect.left;
+        out->cr = (void *)((uint8_t*)out->cb + 1);
+        out->cStride = mWidth;
+        out->chromaStep = 2;
+    }  else if (V4L2_PIX_FMT_YUYV) {
+        out->y = mData.data() + mWidth * 2 * rect.top + rect.left;
+        out->yStride = mWidth * 2;
+        uint8_t* cbStart = mData.data() + 1;
+        out->cb = cbStart + mWidth * 2 * rect.top + rect.left;
+        out->cr = (void *)((uint8_t*)out->cb + 2);
+        out->cStride = mWidth * 2;
+        out->chromaStep = 4;
     }
+
+
 
     return 0;
 }
+
 
 // AllocatedFramePhyMem class
 AllocatedFramePhyMem::AllocatedFramePhyMem(uint32_t w, uint32_t h, uint32_t format)
       : AllocatedFrame(w, h, format) {
     dstBuffer = NULL;
     dstBuf = NULL;
+    mBufSize = 0;
 }
 
 AllocatedFramePhyMem::~AllocatedFramePhyMem() {
@@ -489,6 +550,19 @@ AllocatedFramePhyMem::~AllocatedFramePhyMem() {
         dstBuffer = NULL;
         dstBuf = NULL;
     }
+}
+
+void AllocatedFramePhyMem::assign(void* virtAddr, uint64_t phyAddr, uint32_t size) {
+    if (dstBuffer) {
+        ALOGE("%s: memroy already allocated", __func__);
+        return;
+    }
+
+    dstBuf = (uint8_t *)virtAddr;
+    mPhyAddr = phyAddr;
+    mBufSize = size;
+
+    return;
 }
 
 int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
@@ -501,12 +575,17 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     ALOGV("%s: resolution %dx%d, dstBuffer %p, dstBuf %p", __func__, mWidth, mHeight, dstBuffer,
           dstBuf);
 
-    uint32_t dataSize = mWidth * mHeight * 3 / 2; // YUV420
-    if ((dstBuffer) && (dstBuffer->size >= dataSize) && dstBuf) {
-        return 0;
+    fsl::MemoryDesc desc;
+    int ret = 0;
+    fsl::MemoryManager* allocator = NULL;
+
+    uint32_t formatSize = getFormatSize();
+    if ((dstBuffer && dstBuf && (dstBuffer->size >= formatSize)) ||
+        (dstBuf && (mBufSize >= formatSize))) {
+        goto set_layout;
     }
 
-    fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
+    allocator = fsl::MemoryManager::getInstance();
     if (dstBuffer) {
         allocator->releaseMemory(dstBuffer);
         dstBuf = NULL;
@@ -516,10 +595,9 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     // VPU decoder output is 16 pixels aligned, so v4l2 res such as 1920x1080 is decoded to
     // 1920x1088. Need allocate I420 with aligned size, to avoid out memory boundary when csc from
     // decoded buffer to mYu12Frame.
-    fsl::MemoryDesc desc;
     desc.mWidth = ALIGN_PIXEL_16(mWidth);
     desc.mHeight = ALIGN_PIXEL_16(mHeight);
-    desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
+   // desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
     desc.mFlag = 0;
 
     if (mFourcc == V4L2_PIX_FMT_YUV420) {
@@ -528,9 +606,19 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     } else if (mFourcc == V4L2_PIX_FMT_NV12) {
         desc.mFormat = fsl::FORMAT_NV12;
         desc.mFslFormat = fsl::FORMAT_NV12;
+    } else if (mFourcc == V4L2_PIX_FMT_NV16) {
+        desc.mFormat = fsl::FORMAT_NV16;
+        desc.mFslFormat = fsl::FORMAT_NV16;
+    } else if (mFourcc == V4L2_PIX_FMT_YUYV) {
+        desc.mFormat = fsl::FORMAT_YUYV;
+        desc.mFslFormat = fsl::FORMAT_YUYV;
+    } else {
+        ALOGE("%s: unsupported fourcc 0x%x", __func__, mFourcc);
+        return -EINVAL;
     }
 
-    int ret = desc.checkFormat();
+
+    ret = desc.checkFormat();
     if (ret != 0) {
         ALOGE("%s: checkFormat failed, ret %d", __FUNCTION__, ret);
         return -EINVAL;
@@ -543,7 +631,7 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     }
 
     allocator->lock(dstBuffer,
-                    dstBuffer->usage | fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN, 0, 0,
+                    dstBuffer->usage, 0, 0,
                     dstBuffer->width, dstBuffer->height, (void**)(&dstBuf));
 
     ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
@@ -553,6 +641,7 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     if (out == nullptr)
         return 0;
 
+set_layout:
     if (mFourcc == V4L2_PIX_FMT_YUV420) {
         out->y = dstBuf;
         out->yStride = mWidth;
@@ -571,6 +660,24 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
         out->cr = crStart;
         out->cStride = mWidth;
         out->chromaStep = 2;
+    } else if (mFourcc == V4L2_PIX_FMT_NV16) {
+        out->y = dstBuf;
+        out->yStride = mWidth;
+        uint8_t* cbStart = dstBuf + mWidth * mHeight;
+        uint8_t* crStart = cbStart + 1;
+        out->cb = cbStart;
+        out->cr = crStart;
+        out->cStride = mWidth;
+        out->chromaStep = 4;
+    }  else if (V4L2_PIX_FMT_YUYV) {
+        out->y = dstBuf;
+        out->yStride = mWidth * 2;
+        uint8_t* cbStart = dstBuf + 1;
+        uint8_t* crStart = cbStart + 3;
+        out->cb = cbStart;
+        out->cr = crStart;
+        out->cStride = mWidth;
+        out->chromaStep = 4;
     }
 
     return 0;
@@ -594,7 +701,12 @@ int AllocatedFramePhyMem::getData(uint8_t** outData, size_t* dataSize) {
         return ret;
     }
     *outData = dstBuf;
-    *dataSize = dstBuffer->size;
+
+    // the buffer is assigned, not allocated.
+    if (mBufSize)
+      *dataSize = mBufSize;
+    else
+      *dataSize = dstBuffer->size;
 
     return 0;
 }
@@ -633,9 +745,25 @@ int AllocatedFramePhyMem::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayou
         out->yStride = mWidth;
         uint8_t* cbStart = dstBuf + mWidth * mHeight;
         out->cb = cbStart + mWidth * rect.top / 2 + rect.left;
-        out->cr = (void *)((uint8_t *)out->cb + 1);
+        out->cr = (void *)((uint8_t*)out->cb + 1);
         out->cStride = mWidth;
         out->chromaStep = 2;
+    } else if (mFourcc == V4L2_PIX_FMT_NV16) {
+        out->y = dstBuf + mWidth * rect.top + rect.left;
+        out->yStride = mWidth;
+        uint8_t* cbStart = dstBuf + mWidth * mHeight;
+        out->cb = cbStart + mWidth * rect.top + rect.left;
+        out->cr = (void *)((uint8_t*)out->cb + 1);
+        out->cStride = mWidth;
+        out->chromaStep = 2;
+    }  else if (V4L2_PIX_FMT_YUYV) {
+        out->y = dstBuf + mWidth * 2 * rect.top + rect.left;
+        out->yStride = mWidth * 2;
+        uint8_t* cbStart = dstBuf + 1;
+        out->cb = cbStart + mWidth * 2 * rect.top + rect.left;
+        out->cr = (void *)((uint8_t*)out->cb + 2);
+        out->cStride = mWidth * 2;
+        out->chromaStep = 4;
     }
 
     return 0;
@@ -858,8 +986,12 @@ int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32
 
     if (srcFmt == V4L2_PIX_FMT_NV12)
         ret = formatConvertSrcNV12(in, out, sz, format);
-    else
+    else if (srcFmt == V4L2_PIX_FMT_YUV420)
         ret = formatConvertSrcI420(in, out, sz, format);
+    else {
+        ALOGE("%s: unsupported src format 0x%x", __func__, srcFmt);
+        ret = -1;
+    }
 
     return ret;
 }
@@ -1152,6 +1284,7 @@ int AllocatedV4L2Frame::getData(uint8_t** outData, size_t* dataSize) {
     *dataSize = mData.size();
     return 0;
 }
+
 
 } // namespace implementation
 } // namespace device

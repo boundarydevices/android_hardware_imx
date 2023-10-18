@@ -42,6 +42,12 @@
 
 namespace fsl {
 
+static int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                   int dstHeight, bool srcFromHwDec = false);
+
+static int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                   int dstHeight, bool srcFromHwDec = false);
+
 ImageProcess *ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
 
@@ -170,10 +176,17 @@ void ImageProcess::getModule(char *path, const char *name) {
 }
 
 int ImageProcess::handleFrame(uint32_t width, uint32_t height, ImgFormat dst_fmt, ImgFormat src_fmt,
-                              uint64_t dstPhyAddr, uint64_t srcPhyAddr) {
+                              uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t srcWidth, uint32_t srcHeight,
+                              void *srcVirtAddr, void *dstVirtAddr) {
     int ret = 0;
 
-    ALOGV("%s: src_fmt %d, dst_fmt %d, size %dx%d", __func__, src_fmt, dst_fmt, width, height);
+    ALOGV("%s: src_fmt %d, dst_fmt %d, src size %dx%d, dst size %dx%d, srcvirt %p, srcPhy %p, dstvirt %p, dstPhy %p",
+        __func__, src_fmt, dst_fmt, srcWidth, srcHeight, width, height, srcVirtAddr, (void *)srcPhyAddr, dstVirtAddr, (void *)dstPhyAddr);
+
+    if ((src_fmt == dst_fmt) && ((srcWidth != width) || (srcHeight != height))) {
+        ret = resize(src_fmt, srcWidth, srcHeight, width, height, srcVirtAddr, srcPhyAddr, dstVirtAddr, dstPhyAddr);
+        return ret;
+    }
 
     if (!((dst_fmt == NV12) || (dst_fmt == I420))) {
         ALOGI("%s: unsupported dst_fmt %d", __func__, dst_fmt);
@@ -187,7 +200,7 @@ int ImageProcess::handleFrame(uint32_t width, uint32_t height, ImgFormat dst_fmt
             break;
         case NV16:
             ALOGV("%s: handle NV16 Frame!\n", __func__);
-            ret = handleNV16Frame(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
+            ret = handleNV16Frame(dstPhyAddr, srcPhyAddr, width, height, dst_fmt, srcWidth, srcHeight);
             break;
         case YUYV:
             ALOGV("%s: handle YUYV Frame!\n", __func__);
@@ -200,6 +213,35 @@ int ImageProcess::handleFrame(uint32_t width, uint32_t height, ImgFormat dst_fmt
 
     return ret;
 }
+
+int ImageProcess::CPUResize(ImgFormat fmt, void *dstVirtAddr, void *srcVirtAddr,
+    uint32_t dstWidth, uint32_t dstHeight, uint32_t srcWidth, uint32_t srcHeight) {
+    int ret = 0;
+
+    if (fmt == NV16)
+        ret = yuv422spResize((uint8_t *)srcVirtAddr, srcWidth, srcHeight, (uint8_t *)dstVirtAddr, dstWidth, dstHeight, true);
+    else if (fmt == YUYV)
+        ret = yuv422iResize((uint8_t *)srcVirtAddr, srcWidth, srcHeight, (uint8_t *)dstVirtAddr, dstWidth, dstHeight, true);
+    else {
+        ret = -EINVAL;
+        ALOGE("%s: unsupported format %d", __func__, fmt);
+    }
+
+    return ret;
+}
+
+int ImageProcess::resize(ImgFormat fmt, uint32_t srcWidth, uint32_t srcHeight, uint32_t dstWidth, uint32_t dstHeight,
+  void *srcVirtAddr, uint64_t srcPhyAddr, void *dstVirtAddr, uint64_t dstPhyAddr) {
+    int ret = 0;
+
+    if (mG2dHandle)
+        ret = handleYUYVFrameByG2D(dstPhyAddr, srcPhyAddr, dstWidth, dstHeight, fmt, fmt, srcWidth, srcHeight, true);
+    else
+       ret = CPUResize(fmt, dstVirtAddr, srcVirtAddr, dstWidth, dstHeight, srcWidth, srcHeight);
+
+    return ret;
+}
+
 
 int ImageProcess::handleNV12Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
                                   uint32_t height, ImgFormat dst_fmt) {
@@ -285,7 +327,7 @@ void ImageProcess::cl_NV12toI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t 
 }
 
 int ImageProcess::handleNV16Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
-                                  uint32_t height, ImgFormat dst_fmt) {
+                                  uint32_t height, ImgFormat dst_fmt, uint32_t srcWidth, uint32_t srcHeight) {
     if (mCLHandle == NULL) {
         ALOGE("%s: mCLHandle is NULL!\n", __func__);
         return -EINVAL;
@@ -293,7 +335,7 @@ int ImageProcess::handleNV16Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint
 
     Mutex::Autolock _l(mCLLock);
 
-    int ret = cl_NV16Src(mCLHandle, srcPhyAddr, dstPhyAddr, width, height, false, false, dst_fmt);
+    int ret = cl_NV16Src(mCLHandle, srcPhyAddr, dstPhyAddr, width, height, false, false, dst_fmt, srcWidth, srcHeight);
 
     (*mCLFlush)(mCLHandle);
     (*mCLFinish)(mCLHandle);
@@ -302,7 +344,7 @@ int ImageProcess::handleNV16Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint
 }
 
 int ImageProcess::cl_NV16Src(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width,
-                             int height, bool bInputCached, bool bOutputCached, ImgFormat dst_fmt) {
+                             int height, bool bInputCached, bool bOutputCached, ImgFormat dst_fmt, int srcWidth, int srcHeight) {
     if (!((dst_fmt == NV12) || (dst_fmt == I420))) {
         ALOGE("%s: unsupported dst_fmt %d", __func__, dst_fmt);
         return -1;
@@ -313,7 +355,7 @@ int ImageProcess::cl_NV16Src(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstP
     src.format = CL_G2D_NV16;
     src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     src.planes[0] = (long)srcPhyAddr;
-    src.planes[1] = (long)srcPhyAddr + width * height;
+    src.planes[1] = (long)srcPhyAddr + srcWidth * srcHeight;
     src.left = 0;
     src.top = 0;
     src.right = width;
@@ -363,7 +405,7 @@ int ImageProcess::handleYUYVFrameByG3D(uint64_t dstPhyAddr, uint64_t srcPhyAddr,
 int ImageProcess::handleYUYVFrame(uint32_t width, uint32_t height, uint64_t dstPhyAddr,
                                   uint64_t srcPhyAddr, ImgFormat dst_fmt) {
     if (mG2dHandle)
-        return handleYUYVFrameByG2D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
+        return handleYUYVFrameByG2D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt, YUYV, width, height, true);
     else
         return handleYUYVFrameByG3D(dstPhyAddr, srcPhyAddr, width, height, dst_fmt);
 }
@@ -401,28 +443,69 @@ void ImageProcess::cl_YUYVtoI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
 
+int ImageProcess::G2DFmtFromFslFmt(ImgFormat fslFmt) {
+    enum g2d_format g2dFmt = G2D_NV12;
+
+    switch (fslFmt) {
+        case I420:
+          g2dFmt = G2D_I420;
+          break;
+        case NV12:
+          g2dFmt = G2D_NV12;
+          break;
+        case NV16:
+          g2dFmt = G2D_NV16;
+          break;
+        case YUYV:
+          g2dFmt = G2D_YUYV;
+          break;
+        default:
+          ALOGW("%s: unsupported fsl format %d, use default g2d format %d", __func__, fslFmt, g2dFmt);
+          break;
+    }
+
+    return g2dFmt;
+}
+
 int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
-                                       uint32_t height, ImgFormat dst_fmt) {
+                                       uint32_t height, ImgFormat dst_fmt, ImgFormat src_fmt, uint32_t srcWidth, uint32_t srcHeight, bool srcFromHwDec) {
     if (mBlitEngine == NULL) {
         return -EINVAL;
+    }
+
+    ALOGV("%s: src: fmt 0x%x, size %dx%d, dst: fmt 0x%x, size %dx%d",
+        __func__, src_fmt, srcWidth, srcHeight, dst_fmt, width, height);
+
+    uint32_t orgSrcHeight = srcHeight;
+    if (srcFromHwDec) {
+        if (srcHeight == 1088)
+            srcHeight = 1080;
+        else if (srcHeight == 608)
+            srcHeight = 600;
     }
 
     int ret;
     void *g2dHandle = mG2dHandle;
     struct g2d_surface s_surface, d_surface;
 
-    s_surface.format = G2D_YUYV;
+    enum g2d_format g2dFmtSrc = (enum g2d_format)G2DFmtFromFslFmt(src_fmt);
+    enum g2d_format g2dFmtDst = (enum g2d_format)G2DFmtFromFslFmt(dst_fmt);
+
+    s_surface.format = g2dFmtSrc;
+    // set 3 planes to cover YUYV/NV16/NV12/I420
     s_surface.planes[0] = (long)srcPhyAddr;
+    s_surface.planes[1] = s_surface.planes[0] + srcWidth * orgSrcHeight;
+    s_surface.planes[2] = s_surface.planes[1] + srcWidth * orgSrcHeight / 4;
     s_surface.left = 0;
     s_surface.top = 0;
-    s_surface.right = width;
-    s_surface.bottom = height;
-    s_surface.stride = width;
-    s_surface.width = width;
-    s_surface.height = height;
+    s_surface.right = srcWidth;
+    s_surface.bottom = srcHeight;
+    s_surface.stride = srcWidth;
+    s_surface.width = srcWidth;
+    s_surface.height = srcHeight;
     s_surface.rot = G2D_ROTATION_0;
 
-    d_surface.format = (dst_fmt == I420) ? G2D_I420 : G2D_NV12;
+    d_surface.format = g2dFmtDst;
     d_surface.planes[0] = (long)dstPhyAddr;
     d_surface.planes[1] = d_surface.planes[0] + width * height;
     d_surface.planes[2] = d_surface.planes[1] + width * height / 4;
@@ -444,6 +527,255 @@ int ImageProcess::handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr,
 
 finish_blit:
     return ret;
+}
+
+fsl::ImgFormat ImageProcess::FslFmtFromFourcc(uint32_t fourcc) {
+    fsl::ImgFormat format = NV12;
+
+    if (fourcc == V4L2_PIX_FMT_NV12)
+        format = NV12;
+    else if (fourcc == V4L2_PIX_FMT_NV16)
+        format = NV16;
+    else if (fourcc == V4L2_PIX_FMT_YUV420)
+        format = I420;
+    else if (fourcc == V4L2_PIX_FMT_YUYV)
+        format = YUYV;
+
+    return format;
+}
+
+static int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                  int dstHeight, bool srcFromHwDec) {
+    int i, j;
+    int h_offset;
+    int v_offset;
+    unsigned char *ptr, cc;
+    int h_scale_ratio;
+    int v_scale_ratio;
+
+    int srcStride;
+    int dstStride;
+
+    if (srcFromHwDec) {
+        if (srcHeight == 1088)
+            srcHeight = 1080;
+        else if (srcHeight == 608)
+            srcHeight = 600;
+    }
+
+    if (!srcWidth || !srcHeight || !dstWidth || !dstHeight)
+        return -1;
+
+    h_scale_ratio = srcWidth / dstWidth;
+    v_scale_ratio = srcHeight / dstHeight;
+
+    if ((h_scale_ratio > 0) && (v_scale_ratio > 0))
+        goto reduce;
+    else if (h_scale_ratio + v_scale_ratio <= 1)
+        goto enlarge;
+
+    ALOGE("%s, not support resize %dx%d to %dx%d", __func__, srcWidth, srcHeight, dstWidth,
+          dstHeight);
+
+    return -1;
+
+reduce:
+    h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
+    v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
+
+    srcStride = srcWidth * 2;
+    dstStride = dstWidth * 2;
+
+    // for Y
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 2 * h_scale_ratio) {
+            ptr = srcBuf + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc = ptr[0];
+
+            ptr = dstBuf + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
+    }
+
+    // for U
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio) {
+            ptr = srcBuf + 1 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc = ptr[0];
+
+            ptr = dstBuf + 1 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
+    }
+
+    // for V
+    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
+        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio) {
+            ptr = srcBuf + 3 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
+            cc = ptr[0];
+
+            ptr = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
+            ptr[0] = cc;
+        }
+    }
+
+    return 0;
+
+enlarge:
+    int h_offset_end;
+    int v_offset_end;
+    int srcRow;
+    int srcCol;
+
+    h_scale_ratio = dstWidth / srcWidth;
+    v_scale_ratio = dstHeight / srcHeight;
+
+    h_offset = (dstWidth - srcWidth * h_scale_ratio) / 2;
+    v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
+
+    h_offset_end = h_offset + srcWidth * h_scale_ratio;
+    v_offset_end = v_offset + srcHeight * v_scale_ratio;
+
+    srcStride = srcWidth * 2;
+    v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
+
+    h_offset_end = h_offset + srcWidth * h_scale_ratio;
+    v_offset_end = v_offset + srcHeight * v_scale_ratio;
+
+    srcStride = srcWidth * 2;
+    dstStride = dstWidth * 2;
+
+    ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d, h_offset_end %d, "
+          "v_offset_end %d",
+          h_scale_ratio, v_scale_ratio, h_offset, v_offset, h_offset_end, v_offset_end);
+
+    // for Y
+    for (i = 0; i < dstHeight; i++) {
+        // top, bottom black margin
+        if ((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++) {
+                dstBuf[dstStride * i + j * 2] = 0;
+            }
+            continue;
+        }
+
+        for (j = 0; j < dstWidth; j++) {
+            // left, right black margin
+            if ((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride * i + j * 2] = 0;
+                continue;
+            }
+
+            srcRow = (i - v_offset) / v_scale_ratio;
+            srcCol = (j - h_offset) / h_scale_ratio;
+            dstBuf[dstStride * i + j * 2] = srcBuf[srcStride * srcRow + srcCol * 2];
+        }
+    }
+
+    // for UV
+    for (i = 0; i < dstHeight; i++) {
+        // top, bottom black margin
+        if ((i < v_offset) || (i >= v_offset_end)) {
+            for (j = 0; j < dstWidth; j++) {
+                dstBuf[dstStride * i + j * 2 + 1] = 128;
+            }
+            continue;
+        }
+
+        for (j = 0; j < dstWidth; j++) {
+            // left, right black margin
+            if ((j < h_offset) || (j >= h_offset_end)) {
+                dstBuf[dstStride * i + j * 2 + 1] = 128;
+                continue;
+            }
+
+            srcRow = (i - v_offset) / v_scale_ratio;
+            srcCol = (j - h_offset) / h_scale_ratio;
+            dstBuf[dstStride * i + j * 2 + 1] = srcBuf[srcStride * srcRow + srcCol * 2 + 1];
+        }
+    }
+
+    return 0;
+}
+
+
+static int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                   int dstHeight, bool srcFromHwDec) {
+    int i, j, s;
+    int h_offset;
+    int v_offset;
+    unsigned char *ptr, cc;
+    int h_scale_ratio;
+    int v_scale_ratio;
+    int OrgSrcHeight = srcHeight;
+
+    s = 0;
+
+    if (srcFromHwDec) {
+        if (srcHeight == 1088)
+            srcHeight = 1080;
+        else if (srcHeight == 608)
+            srcHeight = 600;
+    }
+
+    if (!dstWidth)
+        return -1;
+
+    if (!dstHeight)
+        return -1;
+
+    h_scale_ratio = srcWidth / dstWidth;
+    if (!h_scale_ratio)
+        return -1;
+
+    v_scale_ratio = srcHeight / dstHeight;
+    if (!v_scale_ratio)
+        return -1;
+
+    h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
+    v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
+
+
+    // y
+    int srcRow = 0;
+    int srcCol = 0;
+    int rowOffsetBytes = 0;
+
+    for (i = 0; i < dstHeight; i += 1) {
+        srcRow = v_offset + i * v_scale_ratio;
+        rowOffsetBytes = srcRow * srcWidth;
+
+        for (j = 0; j < dstWidth; j += 1) {
+            srcCol = h_offset + j * h_scale_ratio;
+            ptr = srcBuf + rowOffsetBytes + srcCol;
+            cc = ptr[0];
+
+            ptr = dstBuf + i * dstWidth + j;
+            ptr[0] = cc;
+        }
+    }
+
+    // uv
+    srcRow = 0;
+    srcCol = 0;
+    uint8_t *pUVSrcStart = srcBuf + srcWidth * OrgSrcHeight; // use OrgSrcHeight (as 1088) to omit invalid 8 lines
+    uint8_t *pUVDstStart = dstBuf + dstWidth * dstHeight;
+
+    for (i = 0; i < dstHeight; i += 1) {
+        srcRow = v_offset + i * v_scale_ratio;
+        rowOffsetBytes = srcRow * srcWidth;
+
+        for (j = 0; j < dstWidth; j += 1) {
+            srcCol = h_offset + j * h_scale_ratio;
+            ptr = pUVSrcStart + rowOffsetBytes + srcCol;
+            cc = ptr[0];
+
+            ptr = pUVDstStart + i * dstWidth + j;
+            ptr[0] = cc;
+        }
+    }
+
+    return 0;
 }
 
 } // namespace fsl

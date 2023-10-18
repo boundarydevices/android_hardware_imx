@@ -212,7 +212,7 @@ public:
         void signalRequestDone();
 
         int cropAndScaleLocked(std::shared_ptr<AllocatedFrame>& in, const Size& outSize,
-                               YCbCrLayout* out);
+                               YCbCrLayout* out, uint64_t *outPhyAddr = NULL);
 
         int cropAndScaleThumbLocked(std::shared_ptr<AllocatedFrame>& in, const Size& outSize,
                                     YCbCrLayout* out);
@@ -266,7 +266,10 @@ public:
         const std::shared_ptr<BufferRequestThread> mBufferRequestThread;
 
     private:
-        int VpuDecAndCsc(uint8_t* inData, size_t inDataSize);
+        int VpuDecGetBuffer(uint8_t* inData, size_t inDataSize);
+        void VpuDecReturnBuffer();
+        int CopyFromPrcdBuf(HalStreamBuffer &halBuf, std::vector<HalStreamBuffer *> &prcdBufs);
+
         bool mUseHalBufManager = false;
     };
 

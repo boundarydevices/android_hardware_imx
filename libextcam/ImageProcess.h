@@ -37,7 +37,11 @@ public:
     ~ImageProcess();
 
     int handleFrame(uint32_t width, uint32_t height, ImgFormat dst_fmt, ImgFormat src_fmt,
-                    uint64_t dstPhyAddr = 0, uint64_t srcPhyAddr = 0);
+                    uint64_t dstPhyAddr, uint64_t srcPhyAddr,
+                    uint32_t srcWidth = 0, uint32_t srcHeight = 0,
+                    void *srcVirtAddr = NULL, void *dstVirtAddr = NULL);
+
+    fsl::ImgFormat FslFmtFromFourcc(uint32_t fourcc);
 
 private:
     ImageProcess();
@@ -52,18 +56,24 @@ private:
                  bool bInputCached, bool bOutputCached);
 
     int handleNV16Frame(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width, uint32_t height,
-                        ImgFormat dst_fmt);
+                        ImgFormat dst_fmt, uint32_t srcWidth, uint32_t srcHeight);
     int cl_NV16Src(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width, int height,
-                   bool bInputCached, bool bOutputCached, ImgFormat dst_fmt);
+                   bool bInputCached, bool bOutputCached, ImgFormat dst_fmt, int srcWidth, int srcHeight);
 
     int handleYUYVFrameByG2D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
-                             uint32_t height, ImgFormat dst_fmt);
+                             uint32_t height, ImgFormat dst_fmt, ImgFormat src_fmt, uint32_t srcWidth, uint32_t srcHeight, bool srcFromHwDec = false);
     int handleYUYVFrameByG3D(uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t width,
                              uint32_t height, ImgFormat dst_fmt);
     int handleYUYVFrame(uint32_t width, uint32_t height, uint64_t dstPhyAddr, uint64_t srcPhyAddr,
                         ImgFormat dst_fmt);
     void cl_YUYVtoI420(void *g2dHandle, uint64_t srcPhyAddr, uint64_t dstPhyAddr, int width,
                        int height, bool bInputCached, bool bOutputCached);
+
+    int G2DFmtFromFslFmt(ImgFormat fslFmt);
+    int resize(ImgFormat fmt, uint32_t srcWidth, uint32_t srcHeight, uint32_t dstWidth, uint32_t dstHeight,
+        void *srcVirtAddr, uint64_t srcPhyAddr, void *dstVirtAddr, uint64_t dstPhyAddr);
+    int CPUResize(ImgFormat fmt, void *dstVirtAddr, void *srcVirtAddr,
+        uint32_t dstWidth, uint32_t dstHeight, uint32_t srcWidth, uint32_t srcHeight);
 
 private:
     static Mutex sLock;
