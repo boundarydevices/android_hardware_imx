@@ -352,8 +352,6 @@ int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf
 
     s = 0;
 
-_resize_begin:
-
     if (!dstWidth)
         return -1;
 
@@ -371,33 +369,49 @@ _resize_begin:
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
     v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
 
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
-        for (j = 0; j < dstWidth * h_scale_ratio; j += h_scale_ratio) {
-            ptr = srcBuf + i * srcWidth + j + v_offset * srcWidth + h_offset;
+
+    // y
+    int srcRow = 0;
+    int srcCol = 0;
+    int rowOffsetBytes = 0;
+
+    for (i = 0; i < dstHeight; i += 1) {
+        srcRow = v_offset + i * v_scale_ratio;
+        rowOffsetBytes = srcRow * srcWidth;
+
+        for (j = 0; j < dstWidth; j += 1) {
+            srcCol = h_offset + j * h_scale_ratio;
+            ptr = srcBuf + rowOffsetBytes + srcCol;
             cc = ptr[0];
 
-            ptr = dstBuf + (i / v_scale_ratio) * dstWidth + (j / h_scale_ratio);
+            ptr = dstBuf + i * dstWidth + j;
             ptr[0] = cc;
         }
     }
 
-    srcBuf += srcWidth * srcHeight;
-    dstBuf += dstWidth * dstHeight;
+    // uv
+    srcRow = 0;
+    srcCol = 0;
+    uint8_t *pUVSrcStart = srcBuf + srcWidth * dstHeight;
+    uint8_t *pUVDstStart = dstBuf + dstWidth * dstHeight;
 
-    if (s < 2) {
-        if (!s++) {
-            srcWidth >>= 1;
-            srcHeight >>= 1;
+    for (i = 0; i < dstHeight; i += 1) {
+        srcRow = v_offset + i * v_scale_ratio;
+        rowOffsetBytes = srcRow * srcWidth;
 
-            dstWidth >>= 1;
-            dstHeight >>= 1;
+        for (j = 0; j < dstWidth; j += 1) {
+            srcCol = h_offset + j * h_scale_ratio;
+            ptr = pUVSrcStart + rowOffsetBytes + srcCol;
+            cc = ptr[0];
+
+            ptr = pUVDstStart + i * dstWidth + j;
+            ptr[0] = cc;
         }
-
-        goto _resize_begin;
     }
 
     return 0;
 }
+
 
 void decreaseNV12WithCut(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
                          int dstWidth, int dstHeight) {
