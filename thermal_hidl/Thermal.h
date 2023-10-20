@@ -40,7 +40,7 @@ using ::android::hardware::thermal::V2_0::IThermalChangedCallback;
 struct CallbackSetting {
     CallbackSetting(sp<IThermalChangedCallback> callback, bool is_filter_type,
                     TemperatureType_2_0 type)
-          : callback(callback), is_filter_type(is_filter_type), type(type) {}
+          : callback(std::move(callback)), is_filter_type(is_filter_type), type(type) {}
     sp<IThermalChangedCallback> callback;
     bool is_filter_type;
     TemperatureType_2_0 type;

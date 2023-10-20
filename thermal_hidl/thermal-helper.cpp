@@ -474,7 +474,7 @@ bool ThermalHelper::fillTemperatures(hidl_vec<Temperature_1_0> *temperatures) co
         Temperature_1_0 temp;
 
         if (readTemperature(name_info_pair.first, &temp)) {
-            (*temperatures)[current_index] = temp;
+            (*temperatures)[current_index] = std::move(temp);
         } else {
             LOG(ERROR) << __func__
                        << ": error reading temperature for sensor: " << name_info_pair.first;

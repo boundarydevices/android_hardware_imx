@@ -57,7 +57,8 @@ Return<void> setFailureAndCallback(T _hidl_cb, hidl_vec<U> data, std::string_vie
 
 template <typename T, typename U>
 Return<void> setInitFailureAndCallback(T _hidl_cb, hidl_vec<U> data) {
-    return setFailureAndCallback(_hidl_cb, data, "Failure initializing thermal HAL");
+    return setFailureAndCallback(std::move(_hidl_cb), std::move(data),
+                                 "Failure initializing thermal HAL");
 }
 
 } // namespace
