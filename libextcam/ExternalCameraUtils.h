@@ -204,8 +204,8 @@ public:
     virtual int getCroppedLayout(const IMapper::Rect&,
                                  YCbCrLayout* out); // return non-zero for bad input
     virtual void flush() {}
-    virtual void getPhyAddr(uint64_t& phyAddr) {}
-    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size) {}
+    virtual void getPhyAddr(uint64_t& phyAddr) {phyAddr = 0;}
+    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size) {ALOGV("%s: virtAddr %p, phyAddr %p, size %u", __func__, virtAddr, (void *)phyAddr, size);}
 
 protected:
     std::mutex mLock;
