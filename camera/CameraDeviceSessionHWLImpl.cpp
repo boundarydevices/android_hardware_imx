@@ -1560,7 +1560,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
     pipeline_info->pipeline_id = pipeline_id_;
     pipeline_info->physical_camera_id = std::move(physical_camera_id);
-    pipeline_info->pipeline_callback = hwl_pipeline_callback;
+    pipeline_info->pipeline_callback = std::move(hwl_pipeline_callback);
 
     int stream_num = request_config.streams.size();
     if (stream_num == 0) {
