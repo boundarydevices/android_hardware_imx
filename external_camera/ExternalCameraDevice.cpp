@@ -844,7 +844,7 @@ void ExternalCameraDevice::trimSupportedFormats(CroppingType cropType,
         trimFmts.push_back(fmt);
     }
 
-    sortedFmts = trimFmts;
+    sortedFmts = std::move(trimFmts);
 }
 
 std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedFormatsLocked(
@@ -915,9 +915,10 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
                                                    .fourcc = fmtdesc.pixelformat};
 
                         if (format.fourcc == V4L2_PIX_FMT_Z16 && depthEnabled) {
-                            updateFpsBounds(fd, cropType, depthFpsLimits, format, outFmts);
+                            updateFpsBounds(fd, cropType, depthFpsLimits, std::move(format),
+                                            outFmts);
                         } else {
-                            updateFpsBounds(fd, cropType, fpsLimits, format, outFmts);
+                            updateFpsBounds(fd, cropType, fpsLimits, std::move(format), outFmts);
                         }
                     }
                 }
@@ -990,24 +991,24 @@ void ExternalCameraDevice::initSupportedFormatsLocked(int fd) {
     // When they are the same or ambiguous, pick the one support more sizes
     if (maxHoriSize.width == maxVertSize.width && maxHoriSize.height == maxVertSize.height) {
         if (horiSize > vertSize) {
-            mSupportedFormats = horizontalFmts;
+            mSupportedFormats = std::move(horizontalFmts);
             mCroppingType = HORIZONTAL;
         } else {
-            mSupportedFormats = verticalFmts;
+            mSupportedFormats = std::move(verticalFmts);
             mCroppingType = VERTICAL;
         }
     } else if (maxHoriSize.width >= maxVertSize.width && maxHoriSize.height >= maxVertSize.height) {
-        mSupportedFormats = horizontalFmts;
+        mSupportedFormats = std::move(horizontalFmts);
         mCroppingType = HORIZONTAL;
     } else if (maxHoriSize.width <= maxVertSize.width && maxHoriSize.height <= maxVertSize.height) {
-        mSupportedFormats = verticalFmts;
+        mSupportedFormats = std::move(verticalFmts);
         mCroppingType = VERTICAL;
     } else {
         if (horiSize > vertSize) {
-            mSupportedFormats = horizontalFmts;
+            mSupportedFormats = std::move(horizontalFmts);
             mCroppingType = HORIZONTAL;
         } else {
-            mSupportedFormats = verticalFmts;
+            mSupportedFormats = std::move(verticalFmts);
             mCroppingType = VERTICAL;
         }
     }

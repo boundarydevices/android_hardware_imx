@@ -400,35 +400,36 @@ protected:
 
 private:
     struct TrampolineSessionInterface_3_4 : public ICameraDeviceSession {
-        TrampolineSessionInterface_3_4(sp<ExternalCameraDeviceSession> parent) : mParent(parent) {}
+        TrampolineSessionInterface_3_4(sp<ExternalCameraDeviceSession> parent)
+              : mParent(std::move(parent)) {}
 
         virtual Return<void> constructDefaultRequestSettings(
                 RequestTemplate type,
                 V3_3::ICameraDeviceSession::constructDefaultRequestSettings_cb _hidl_cb) override {
-            return mParent->constructDefaultRequestSettings(type, _hidl_cb);
+            return mParent->constructDefaultRequestSettings(type, std::move(_hidl_cb));
         }
 
         virtual Return<void> configureStreams(
                 const V3_2::StreamConfiguration& requestedConfiguration,
                 V3_3::ICameraDeviceSession::configureStreams_cb _hidl_cb) override {
-            return mParent->configureStreams(requestedConfiguration, _hidl_cb);
+            return mParent->configureStreams(requestedConfiguration, std::move(_hidl_cb));
         }
 
         virtual Return<void> processCaptureRequest(
                 const hidl_vec<V3_2::CaptureRequest>& requests,
                 const hidl_vec<V3_2::BufferCache>& cachesToRemove,
                 V3_3::ICameraDeviceSession::processCaptureRequest_cb _hidl_cb) override {
-            return mParent->processCaptureRequest(requests, cachesToRemove, _hidl_cb);
+            return mParent->processCaptureRequest(requests, cachesToRemove, std::move(_hidl_cb));
         }
 
         virtual Return<void> getCaptureRequestMetadataQueue(
                 V3_3::ICameraDeviceSession::getCaptureRequestMetadataQueue_cb _hidl_cb) override {
-            return mParent->getCaptureRequestMetadataQueue(_hidl_cb);
+            return mParent->getCaptureRequestMetadataQueue(std::move(_hidl_cb));
         }
 
         virtual Return<void> getCaptureResultMetadataQueue(
                 V3_3::ICameraDeviceSession::getCaptureResultMetadataQueue_cb _hidl_cb) override {
-            return mParent->getCaptureResultMetadataQueue(_hidl_cb);
+            return mParent->getCaptureResultMetadataQueue(std::move(_hidl_cb));
         }
 
         virtual Return<Status> flush() override { return mParent->flush(); }
@@ -438,20 +439,21 @@ private:
         virtual Return<void> configureStreams_3_3(
                 const V3_2::StreamConfiguration& requestedConfiguration,
                 configureStreams_3_3_cb _hidl_cb) override {
-            return mParent->configureStreams_3_3(requestedConfiguration, _hidl_cb);
+            return mParent->configureStreams_3_3(requestedConfiguration, std::move(_hidl_cb));
         }
 
         virtual Return<void> configureStreams_3_4(
                 const V3_4::StreamConfiguration& requestedConfiguration,
                 configureStreams_3_4_cb _hidl_cb) override {
-            return mParent->configureStreams_3_4(requestedConfiguration, _hidl_cb);
+            return mParent->configureStreams_3_4(requestedConfiguration, std::move(_hidl_cb));
         }
 
         virtual Return<void> processCaptureRequest_3_4(
                 const hidl_vec<V3_4::CaptureRequest>& requests,
                 const hidl_vec<V3_2::BufferCache>& cachesToRemove,
                 ICameraDeviceSession::processCaptureRequest_3_4_cb _hidl_cb) override {
-            return mParent->processCaptureRequest_3_4(requests, cachesToRemove, _hidl_cb);
+            return mParent->processCaptureRequest_3_4(requests, cachesToRemove,
+                                                      std::move(_hidl_cb));
         }
 
     private:

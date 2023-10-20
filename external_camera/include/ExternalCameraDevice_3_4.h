@@ -196,16 +196,17 @@ protected:
 
 private:
     struct TrampolineDeviceInterface_3_4 : public ICameraDevice {
-        TrampolineDeviceInterface_3_4(sp<ExternalCameraDevice> parent) : mParent(parent) {}
+        TrampolineDeviceInterface_3_4(sp<ExternalCameraDevice> parent)
+              : mParent(std::move(parent)) {}
 
         virtual Return<void> getResourceCost(
                 V3_2::ICameraDevice::getResourceCost_cb _hidl_cb) override {
-            return mParent->getResourceCost(_hidl_cb);
+            return mParent->getResourceCost(std::move(_hidl_cb));
         }
 
         virtual Return<void> getCameraCharacteristics(
                 V3_2::ICameraDevice::getCameraCharacteristics_cb _hidl_cb) override {
-            return mParent->getCameraCharacteristics(_hidl_cb);
+            return mParent->getCameraCharacteristics(std::move(_hidl_cb));
         }
 
         virtual Return<Status> setTorchMode(TorchMode mode) override {
@@ -214,7 +215,7 @@ private:
 
         virtual Return<void> open(const sp<V3_2::ICameraDeviceCallback>& callback,
                                   V3_2::ICameraDevice::open_cb _hidl_cb) override {
-            return mParent->open(callback, _hidl_cb);
+            return mParent->open(callback, std::move(_hidl_cb));
         }
 
         virtual Return<void> dumpState(const hidl_handle& fd) override {

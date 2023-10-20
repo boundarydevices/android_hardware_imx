@@ -1879,7 +1879,7 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
                       stream.width, stream.height);
                 return Status::INTERNAL_ERROR;
             }
-            mIntermediateBuffers[sz] = buf;
+            mIntermediateBuffers[sz] = std::move(buf);
         }
     }
 
@@ -2865,7 +2865,7 @@ status_t ExternalCameraDeviceSession::initDefaultRequests() {
         camera_metadata_t* rawMd = mdCopy.release();
         CameraMetadata hidlMd;
         hidlMd.setToExternal((uint8_t*)rawMd, get_camera_metadata_size(rawMd));
-        mDefaultRequests[type] = hidlMd;
+        mDefaultRequests[type] = std::move(hidlMd);
         free_camera_metadata(rawMd);
     }
 
