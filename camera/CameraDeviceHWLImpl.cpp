@@ -40,13 +40,13 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
     CameraDeviceHwlImpl *device = NULL;
 
     if (strstr(cam_metadata->camera_name, ISP_SENSOR_NAME))
-        device = new ISPCameraDeviceHwlImpl(camera_id, devPaths, physicalIds, cam_copy_hw,
-                                            cam_csc_hw, hw_jpeg, use_cpu_encoder, cam_metadata,
-                                            std::move(physical_devices), callback);
+        device = new ISPCameraDeviceHwlImpl(camera_id, std::move(devPaths), std::move(physicalIds),
+                                            cam_copy_hw, cam_csc_hw, hw_jpeg, use_cpu_encoder,
+                                            cam_metadata, std::move(physical_devices), callback);
     else
-        device = new CameraDeviceHwlImpl(camera_id, devPaths, physicalIds, cam_copy_hw, cam_csc_hw,
-                                         hw_jpeg, use_cpu_encoder, cam_metadata,
-                                         std::move(physical_devices), callback);
+        device = new CameraDeviceHwlImpl(camera_id, std::move(devPaths), std::move(physicalIds),
+                                         cam_copy_hw, cam_csc_hw, hw_jpeg, use_cpu_encoder,
+                                         cam_metadata, std::move(physical_devices), callback);
 
     if (device == nullptr) {
         ALOGE("%s: Creating CameraDeviceHwlImpl failed.", __func__);
@@ -79,12 +79,12 @@ CameraDeviceHwlImpl::CameraDeviceHwlImpl(uint32_t camera_id,
         mCamBlitCscType(cam_csc_hw),
         mUseCpuEncoder(use_cpu_encoder),
         physical_device_map_(std::move(physical_devices)) {
-    mDevPath = devPaths;
+    mDevPath = std::move(devPaths);
     for (int i = 0; i < (int)mDevPath.size(); ++i) {
         ALOGI("%s, mDevPath[%d] %s", __func__, i, *mDevPath[i]);
     }
 
-    mPhysicalIds = physicalIds;
+    mPhysicalIds = std::move(physicalIds);
     for (int i = 0; i < (int)mPhysicalIds.size(); ++i) {
         ALOGI("%s, mPhysicalIds %u", __func__, mPhysicalIds[i]);
     }

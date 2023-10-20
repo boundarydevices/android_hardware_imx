@@ -31,9 +31,9 @@ public:
             std::vector<uint32_t> physicalIds, CscHw cam_copy_hw, CscHw cam_csc_hw,
             const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
             PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
-          : CameraDeviceHwlImpl(camera_id, devPaths, physicalIds, cam_copy_hw, cam_csc_hw, hw_jpeg,
-                                use_cpu_encoder, cam_metadata, std::move(physical_devices),
-                                callback) {}
+          : CameraDeviceHwlImpl(camera_id, std::move(devPaths), std::move(physicalIds), cam_copy_hw,
+                                cam_csc_hw, hw_jpeg, use_cpu_encoder, cam_metadata,
+                                std::move(physical_devices), callback) {}
 
 private:
     virtual status_t initSensorStaticData();
