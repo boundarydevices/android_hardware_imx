@@ -1,3 +1,10 @@
+/*
+ * Copyright 2023 NXP
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <dirent.h>
