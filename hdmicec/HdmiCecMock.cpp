@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +33,8 @@ namespace hdmi {
 namespace cec {
 namespace implementation {
 
+std::shared_ptr<IHdmiCecCallback> HdmiCecMock::mCallback = nullptr;
+
 void HdmiCecMock::serviceDied(void* cookie) {
     ALOGE("HdmiCecMock died");
     auto hdmiCecMock = static_cast<HdmiCecMock*>(cookie);
@@ -41,13 +44,27 @@ void HdmiCecMock::serviceDied(void* cookie) {
 ScopedAStatus HdmiCecMock::addLogicalAddress(CecLogicalAddress addr, Result* _aidl_return) {
     // Have a list to maintain logical addresses
     mLogicalAddresses.push_back(addr);
-    *_aidl_return = Result::SUCCESS;
+    int ret = mDevice->add_logical_address(mDevice, static_cast<cec_logical_address_t>(addr));
+    switch (ret) {
+        case 0:
+            *_aidl_return = Result::SUCCESS;
+        case -EINVAL:
+            *_aidl_return = Result::FAILURE_INVALID_ARGS;
+        case -ENOTSUP:
+            *_aidl_return = Result::FAILURE_NOT_SUPPORTED;
+        case -EBUSY:
+            *_aidl_return = Result::FAILURE_BUSY;
+        default:
+            *_aidl_return = Result::FAILURE_UNKNOWN;
+    }
+
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::clearLogicalAddress() {
     // Remove logical address from the list
     mLogicalAddresses = {};
+    mDevice->clear_logical_address(mDevice);
     return ScopedAStatus::ok();
 }
 
@@ -58,6 +75,7 @@ ScopedAStatus HdmiCecMock::enableAudioReturnChannel(int32_t portId __unused, boo
 
 ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
     // Maintain a cec version and return it
+    mDevice->get_version(mDevice, &mCecVersion);
     *_aidl_return = mCecVersion;
     return ScopedAStatus::ok();
 }
@@ -65,11 +83,13 @@ ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
 ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
     // Maintain a physical address and return it
     // Default 0xFFFF, update on hotplug event
+    mDevice->get_physical_address(mDevice, &mPhysicalAddress);
     *_aidl_return = mPhysicalAddress;
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::getVendorId(int32_t* _aidl_return) {
+    mDevice->get_vendor_id(mDevice, &mCecVendorId);
     *_aidl_return = mCecVendorId;
     return ScopedAStatus::ok();
 }
@@ -78,8 +98,15 @@ ScopedAStatus HdmiCecMock::sendMessage(const CecMessage& message, SendMessageRes
     if (message.body.size() == 0) {
         *_aidl_return = SendMessageResult::NACK;
     } else {
-        sendMessageToFifo(message);
-        *_aidl_return = SendMessageResult::SUCCESS;
+        cec_message_t legacyMessage {
+            .initiator = static_cast<cec_logical_address_t>(message.initiator),
+            .destination = static_cast<cec_logical_address_t>(message.destination),
+            .length = message.body.size(),
+        };
+        for (size_t i = 0; i < message.body.size(); ++i) {
+            legacyMessage.body[i] = static_cast<unsigned char>(message.body[i]);
+        }
+        *_aidl_return = static_cast<SendMessageResult>(mDevice->send_message(mDevice, &legacyMessage));
     }
     return ScopedAStatus::ok();
 }
@@ -90,11 +117,7 @@ ScopedAStatus HdmiCecMock::setCallback(const std::shared_ptr<IHdmiCecCallback>& 
 
     if (callback != nullptr) {
         AIBinder_linkToDeath(this->asBinder().get(), mDeathRecipient.get(), 0 /* cookie */);
-
-        mInputFile = open(CEC_MSG_IN_FIFO, O_RDWR | O_CLOEXEC);
-        mOutputFile = open(CEC_MSG_OUT_FIFO, O_RDWR | O_CLOEXEC);
-        pthread_create(&mThreadId, NULL, __threadLoop, this);
-        pthread_setname_np(mThreadId, "hdmi_cec_loop");
+        mDevice->register_event_callback(mDevice, eventCallback, nullptr);
     }
     return ScopedAStatus::ok();
 }
@@ -109,21 +132,25 @@ ScopedAStatus HdmiCecMock::setLanguage(const std::string& language) {
     const char* languageStr = language.c_str();
     int convertedLanguage = ((languageStr[0] & 0xFF) << 16) | ((languageStr[1] & 0xFF) << 8) |
                             (languageStr[2] & 0xFF);
+    mDevice->set_option(mDevice, HDMI_OPTION_SET_LANG, convertedLanguage);
     mOptionLanguage = convertedLanguage;
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::enableWakeupByOtp(bool value) {
+    mDevice->set_option(mDevice, HDMI_OPTION_WAKEUP, value ? 1 : 0);
     mOptionWakeUp = value;
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::enableCec(bool value) {
+    mDevice->set_option(mDevice, HDMI_OPTION_ENABLE_CEC, value ? 1 : 0);
     mOptionEnableCec = value;
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::enableSystemCecControl(bool value) {
+    mDevice->set_option(mDevice, HDMI_OPTION_SYSTEM_CEC_CONTROL, value ? 1 : 0);
     mOptionSystemCecControl = value;
     return ScopedAStatus::ok();
 }
@@ -255,8 +282,16 @@ void HdmiCecMock::threadLoop() {
 }
 
 HdmiCecMock::HdmiCecMock() {
-    ALOGE("[halimp_aidl] Opening a virtual CEC HAL for testing and virtual machine.");
+    ALOGI("[halimp_aidl] init the HDMI CEC HAL.");
     mCallback = nullptr;
+
+    hdmi_cec_device_t* hdmi_cec_device;
+    int ret = open_hdmi_cec(HDMI_CEC_HARDWARE_INTERFACE, TO_HW_DEVICE_T_OPEN(&hdmi_cec_device));
+    if (ret < 0) {
+        ALOGE("[halimp_aidl] failed to init the HDMI CEC HAL.");
+    }
+    mDevice = hdmi_cec_device;
+
     mDeathRecipient = ndk::ScopedAIBinder_DeathRecipient(AIBinder_DeathRecipient_new(serviceDied));
 }
 

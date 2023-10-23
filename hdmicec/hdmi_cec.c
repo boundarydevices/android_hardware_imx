@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2019 BayLibre, SAS.
+ *  Copyright 2023 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +16,8 @@
  */
 
 #define LOG_TAG "hdmi_cec"
+
+#include "hdmi_cec.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -159,6 +162,7 @@ static int hdmicec_get_physical_address(const struct hdmi_cec_device *dev, uint1
     int ret = ioctl(ctx->cec_fd, CEC_ADAP_G_PHYS_ADDR, addr);
     if (ret)
         ALOGD("%s: %m\n", __func__);
+    ALOGD("get phyaddr=0x%x\n", *addr);
 
     return ret;
 }
@@ -479,6 +483,8 @@ static int cec_init(struct hdmicec_context *ctx)
     struct cec_caps caps = {};
     uint32_t mode;
     int ret;
+    short phyaddr;
+    uint8_t hdmi_port = 1;  // Fix tv input to hdmi1
 
     // Ensure the CEC device supports required capabilities
     ret = ioctl(ctx->cec_fd, CEC_ADAP_G_CAPS, &caps);
@@ -493,6 +499,23 @@ static int cec_init(struct hdmicec_context *ctx)
         return -1;
     }
 
+    if (caps.capabilities & CEC_CAP_PHYS_ADDR) {
+        ret = ioctl(ctx->cec_fd, CEC_ADAP_G_PHYS_ADDR, &phyaddr);
+        if (ret)
+            ALOGE("get the initial phyaddr failed\n");
+
+        ALOGD("get the initial phyaddr=0x%x\n", phyaddr);
+
+        phyaddr = hdmi_port << 12;
+        ret = ioctl(ctx->cec_fd, CEC_ADAP_S_PHYS_ADDR, &phyaddr);
+        if (ret < 0) {
+            ALOGE("set cec phyaddr failed, %d\n", ret);
+            return -1;
+        }
+        ALOGD("set cec phyaddr success, phyaddr=0x%x\n", phyaddr);
+    } else {
+        ALOGD("no capability for CEC_CAP_PHYS_ADDR\n");
+    }
     // This is an exclusive follower, in addition put the CEC device into passthrough mode
     mode = CEC_MODE_INITIATOR | CEC_MODE_EXCL_FOLLOWER_PASSTHRU;
     ret = ioctl(ctx->cec_fd, CEC_S_MODE, &mode);
@@ -528,8 +551,7 @@ static int cec_init(struct hdmicec_context *ctx)
     return ret;
 }
 
-static int open_hdmi_cec(const struct hw_module_t *module, const char *id,
-        struct hw_device_t **device)
+extern int open_hdmi_cec(const char *id, struct hw_device_t **device)
 {
     char *path = "/dev/cec0";
     hdmicec_context_t *ctx;
@@ -557,7 +579,7 @@ static int open_hdmi_cec(const struct hw_module_t *module, const char *id,
 
     ctx->device.common.tag = HARDWARE_DEVICE_TAG;
     ctx->device.common.version = HDMI_CEC_DEVICE_API_VERSION_1_0;
-    ctx->device.common.module = (struct hw_module_t *)module;
+    // ctx->device.common.module = (struct hw_module_t *)module;
     ctx->device.common.close = (int (*)(struct hw_device_t* device))hdmicec_close;
 
     ctx->device.add_logical_address = hdmicec_add_logical_address;
@@ -593,19 +615,3 @@ fail:
     hdmicec_close((struct hdmi_cec_device *)ctx);
     return -errno;
 }
-
-/* module method */
-static struct hw_module_methods_t hdmi_cec_module_methods = {
-    .open =  open_hdmi_cec,
-};
-
-/* hdmi_cec module */
-struct hw_module_t HAL_MODULE_INFO_SYM = {
-    .tag = HARDWARE_MODULE_TAG,
-    .version_major = 1,
-    .version_minor = 0,
-    .id = HDMI_CEC_HARDWARE_MODULE_ID,
-    .name = "YUKAWA HDMI CEC module",
-    .author = "The Android Open Source Project",
-    .methods = &hdmi_cec_module_methods,
-};

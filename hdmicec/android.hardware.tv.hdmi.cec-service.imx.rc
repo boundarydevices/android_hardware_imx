@@ -1,4 +1,4 @@
-service vendor.cec-default /vendor/bin/hw/android.hardware.tv.hdmi.cec-service
+service vendor.cec-default /vendor/bin/hw/android.hardware.tv.hdmi.cec-service.imx
     interface aidl android.hardware.tv.hdmi.cec.IHdmiCec/default
     class hal
     user system

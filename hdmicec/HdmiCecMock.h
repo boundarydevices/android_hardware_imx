@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +18,10 @@
 #include <aidl/android/hardware/tv/hdmi/cec/BnHdmiCec.h>
 #include <algorithm>
 #include <vector>
+
+extern "C" {
+#include "hdmi_cec.h"
+}
 
 using namespace std;
 
@@ -54,6 +59,23 @@ struct HdmiCecMock : public BnHdmiCec {
     ::ndk::ScopedAStatus enableCec(bool value) override;
     ::ndk::ScopedAStatus enableSystemCecControl(bool value) override;
     void printCecMsgBuf(const char* msg_buf, int len);
+    static void eventCallback(const hdmi_event_t* event, void* /* arg */) {
+        if (mCallback != nullptr && event != nullptr) {
+            if (event->type == HDMI_EVENT_CEC_MESSAGE) {
+                size_t length = std::min(event->cec.length,
+                        static_cast<size_t>(MaxLength::MESSAGE_BODY));
+                CecMessage cecMessage {
+                    .initiator = static_cast<CecLogicalAddress>(event->cec.initiator),
+                    .destination = static_cast<CecLogicalAddress>(event->cec.destination),
+                };
+                cecMessage.body.resize(length);
+                for (size_t i = 0; i < length; ++i) {
+                    cecMessage.body[i] = static_cast<uint8_t>(event->cec.body[i]);
+                }
+                mCallback->onCecMessage(cecMessage);
+            }
+        }
+    }
 
   private:
     static void* __threadLoop(void* data);
@@ -64,7 +86,7 @@ struct HdmiCecMock : public BnHdmiCec {
 
   private:
     static void serviceDied(void* cookie);
-    std::shared_ptr<IHdmiCecCallback> mCallback;
+    static std::shared_ptr<IHdmiCecCallback> mCallback;
 
     // Variables for the virtual cec hal impl
     uint16_t mPhysicalAddress = 0xFFFF;
@@ -85,6 +107,7 @@ struct HdmiCecMock : public BnHdmiCec {
     int mOutputFile;
     bool mCecThreadRun = true;
     pthread_t mThreadId = 0;
+    const hdmi_cec_device_t* mDevice;
 
     ::ndk::ScopedAIBinder_DeathRecipient mDeathRecipient;
 };

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
+ * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +38,15 @@ void HdmiConnectionMock::serviceDied(void* cookie) {
 }
 
 ScopedAStatus HdmiConnectionMock::getPortInfo(std::vector<HdmiPortInfo>* _aidl_return) {
+    uint8_t hdmi_port = 1;  // Fix tv input to hdmi1
+    mPhysicalAddress = hdmi_port << 12;;
+    mPortInfos[0].type = HdmiPortType::OUTPUT;
+    mPortInfos[0].portId = static_cast<uint32_t>(1);
+    mPortInfos[0].cecSupported = true;
+    mPortInfos[0].arcSupported = false;
+    mPortInfos[0].eArcSupported = false;
+    mPortInfos[0].physicalAddress = mPhysicalAddress;
+    mPortConnectionStatus[0] = true;
     *_aidl_return = mPortInfos;
     return ScopedAStatus::ok();
 }
@@ -61,10 +71,6 @@ ScopedAStatus HdmiConnectionMock::setCallback(
     if (callback != nullptr) {
         mCallback = callback;
         AIBinder_linkToDeath(this->asBinder().get(), mDeathRecipient.get(), 0 /* cookie */);
-
-        mInputFile = open(HDMI_MSG_IN_FIFO, O_RDWR | O_CLOEXEC);
-        pthread_create(&mThreadId, NULL, __threadLoop, this);
-        pthread_setname_np(mThreadId, "hdmi_loop");
     }
     return ScopedAStatus::ok();
 }

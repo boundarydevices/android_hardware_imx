@@ -1,4 +1,5 @@
 // Copyright (C) 2022 The Android Open Source Project
+// Copyright 2023 NXP
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,19 +14,32 @@
 // limitations under the License.
 
 package {
-    default_applicable_licenses: ["hardware_interfaces_license"],
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+cc_library_shared {
+    name: "hdmi_cec_nxp",
+    proprietary: true,
+    srcs: ["hdmi_cec.c"],
+    cflags: ["-Werror"],
+    relative_install_path: "hw",
+    shared_libs: [
+        "liblog",
+        "libcutils",
+        "libhardware",
+    ],
 }
 
 cc_binary {
-    name: "android.hardware.tv.hdmi.cec-service",
-    vintf_fragments: ["android.hardware.tv.hdmi.cec-service.xml"],
+    name: "android.hardware.tv.hdmi.cec-service.imx",
+    vintf_fragments: ["android.hardware.tv.hdmi.cec-service.imx.xml"],
     relative_install_path: "hw",
     vendor: true,
     cflags: [
         "-Wall",
         "-Wextra",
     ],
-    init_rc: ["android.hardware.tv.hdmi.cec-service.rc"],
+    init_rc: ["android.hardware.tv.hdmi.cec-service.imx.rc"],
     srcs: [
         "serviceMock.cpp",
         "HdmiCecMock.cpp",
@@ -38,11 +52,12 @@ cc_binary {
         "libhardware",
         "libhidlbase",
         "android.hardware.tv.hdmi.cec-V1-ndk",
+        "hdmi_cec_nxp"
     ],
 }
 
 cc_fuzz {
-    name: "android.hardware.tv.hdmi.cec-service_fuzzer",
+    name: "android.hardware.tv.hdmi.cec-service_fuzzer.imx",
     defaults: ["service_fuzzer_defaults"],
     static_libs: [
         "android.hardware.tv.hdmi.cec-V1-ndk",
