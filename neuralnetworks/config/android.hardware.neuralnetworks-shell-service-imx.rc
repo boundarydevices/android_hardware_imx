@@ -1,0 +1,5 @@
+service neuralnetworks_hal_service_shell_imx /vendor/bin/hw/android.hardware.neuralnetworks-shell-service-imx
+    interface aidl android.hardware.neuralnetworks.IDevice/nnapi-imx_sl
+    class hal
+    user system
+    group system

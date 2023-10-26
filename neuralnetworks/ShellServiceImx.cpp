@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2021 The Android Open Source Project
+ * Copyright 2023 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +15,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "ShellServiceSample"
+#define LOG_TAG "ShellServiceImx"
 
 #include <NeuralNetworksShim.h>
 #include <aidl/android/hardware/neuralnetworks/BnDevice.h>
@@ -95,7 +96,7 @@ int registerDevices(const std::string& driverPath, const std::vector<Names>& dev
 
     // The default is 15, use more only if there's more devices exposed.
     ANeuralNetworksShimRegistrationParams_setNumberOfListenerThreads(params, 15);
-    ANeuralNetworksShimRegistrationParams_registerAsLazyService(params, /*asLazy=*/true);
+    ANeuralNetworksShimRegistrationParams_registerAsLazyService(params, /*asLazy=*/false);
     ANeuralNetworksShimRegistrationParams_fallbackToMinimumSupportDevice(params, /*fallback=*/true);
 
     for (const auto& device : devices) {
@@ -123,10 +124,10 @@ using aidl::android::hardware::neuralnetworks::Names;
 using aidl::android::hardware::neuralnetworks::registerDevices;
 
 int main() {
-    const std::string driverPath = "/vendor/lib64/neuralnetworks_sample_sl_driver_prebuilt.so";
+    const std::string driverPath = "/vendor/lib64/libVsiSupportLibrary.so";
 
     const std::vector<Names> devicesToRegister = {
-            {.driverName = "nnapi-sample_sl", .serviceName = "nnapi-sample_sl_updatable"},
+            {.driverName = "vsi-device-0", .serviceName = "nnapi-imx_sl"},
     };
 
     return registerDevices(driverPath, devicesToRegister);
