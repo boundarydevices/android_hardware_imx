@@ -31,7 +31,7 @@
 #include <cutils/log.h>
 
 namespace aidl {
-namespace android {
+namespace nxp {
 namespace hardware {
 namespace imx_dek_extractor {
 
@@ -159,5 +159,5 @@ err_tipc_connect:
 
 }  // namespace imx_dek_extractor
 }  // namespace hardware
-}  // namespace android
+}  // namespace nxp
 }  // namespace aidl

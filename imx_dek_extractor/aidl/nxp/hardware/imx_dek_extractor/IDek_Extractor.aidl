@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package android.hardware.imx_dek_extractor;
+package nxp.hardware.imx_dek_extractor;
 
 /**
  */

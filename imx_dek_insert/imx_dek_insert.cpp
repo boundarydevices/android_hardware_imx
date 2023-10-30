@@ -26,14 +26,14 @@
 #include <android/log.h>
 #include <android-base/logging.h>
 
-#include <aidl/android/hardware/imx_dek_extractor/IDek_Extractor.h>
+#include <aidl/nxp/hardware/imx_dek_extractor/IDek_Extractor.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
 
 #include "imx_dek_insert.h"
 
 using namespace android;
-using aidl::android::hardware::imx_dek_extractor::IDek_Extractor;
+using aidl::nxp::hardware::imx_dek_extractor::IDek_Extractor;
 
 #define SECO_PADING 	(0x400)
 #define CONTAINER_TAG 	0x87

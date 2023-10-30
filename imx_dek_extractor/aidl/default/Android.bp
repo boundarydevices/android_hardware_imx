@@ -40,6 +40,6 @@ cc_binary {
         "libdmabufheap",
         "libbinder",
         "libbinder_ndk",
-        "android.hardware.imx_dek_extractor-V1-ndk",
+        "nxp.hardware.imx_dek_extractor-V1-ndk",
     ],
 }

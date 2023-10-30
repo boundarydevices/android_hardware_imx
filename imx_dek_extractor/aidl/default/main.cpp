@@ -23,7 +23,7 @@
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
 
-using aidl::android::hardware::imx_dek_extractor::Dek_Extractor;
+using aidl::nxp::hardware::imx_dek_extractor::Dek_Extractor;
 
 int main() {
     ABinderProcess_setThreadPoolMaxThreadCount(0);

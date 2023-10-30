@@ -17,12 +17,12 @@
 
 #pragma once
 
-#include <aidl/android/hardware/imx_dek_extractor/BnDek_Extractor.h>
+#include <aidl/nxp/hardware/imx_dek_extractor/BnDek_Extractor.h>
 #include <stdint.h>
 #include <trusty/tipc.h>
 
 namespace aidl {
-namespace android {
+namespace nxp {
 namespace hardware {
 namespace imx_dek_extractor {
 
@@ -107,5 +107,5 @@ private:
 
 }  // namespace imx_dek_extractor
 }  // namespace hardware
-}  // namespace android
+}  // namespace nxp
 }  // namespace aidl

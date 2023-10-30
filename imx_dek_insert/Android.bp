@@ -34,7 +34,7 @@ cc_binary {
     ],
 
     static_libs: [
-        "android.hardware.imx_dek_extractor-V1-ndk",
+        "nxp.hardware.imx_dek_extractor-V1-ndk",
     ],
 
     cflags: [
