@@ -1,0 +1,77 @@
+// Copyright 2023 NXP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// This is the NXP image process module
+
+imx_image_process_defaults {
+    name: "imx_image_process_defaults",
+}
+
+bootstrap_go_package {
+    name: "soong-image_process",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/image_process",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "image_process.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+
+cc_library_shared {
+    name: "libimageprocess",
+    defaults: ["imx_image_process_defaults"],
+    owner: "nxp",
+    proprietary: true,
+
+    srcs: [
+        "NV12_resize.cpp",
+        "ImageUtils.cpp",
+        "ImageProcess.cpp"
+    ],
+
+    cflags: [
+        "-Wextra",
+        "-Wall",
+    ],
+
+    shared_libs: [
+        "libbase",
+        "libcutils",
+        "liblog",
+        "libutils",
+        "libfsldisplay",
+    ],
+
+    include_dirs: [
+        "frameworks/native/include",
+        "frameworks/native/libs/math/include",
+        "frameworks/native/libs/arect/include",
+        "hardware/libhardware/include",
+        "vendor/nxp/fsl-proprietary/include",
+        "vendor/nxp-opensource/imx/include",
+        "vendor/nxp-opensource/imx/opencl-2d",
+        "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp-opensource/libdrm-imx",
+        "vendor/nxp-opensource/libdrm-imx/include/drm",
+        "device/nxp/common/kernel-headers",
+    ],
+}
