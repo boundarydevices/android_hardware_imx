@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020 NXP.
+ *  Copyright 2020-2023 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@
 #include "CameraConfigurationParser.h"
 #include "Memory.h"
 #include "hal_camera_metadata.h"
+#include "ImageProcess.h"
 
 #define UVC_NAME "uvc"
 #define ISP_SENSOR_NAME "viv_v4l2"
@@ -103,6 +104,8 @@
 namespace android {
 using google_camera_hal::CameraDeviceStatus;
 using google_camera_hal::HalCameraMetadata;
+using namespace cameraconfigparser;
+using namespace fsl;
 
 class ImxStream {
 public:
@@ -178,9 +181,7 @@ typedef struct tag_nxp_srream_buffer {
 } ImxStreamBuffer;
 
 int getCaptureMode(int fd, int width, int height);
-int convertPixelFormatToV4L2Format(PixelFormat format, bool invert = false);
 int32_t changeSensorFormats(int *src, int *dst, int len);
-int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
 cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
         const cameraconfigparser::PhysicalMetaMapPtr &src);
 
@@ -188,15 +189,7 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf);
 int FreePhyBuffer(ImxStreamBuffer &imxBuf);
 void SetBufferHandle(ImxStreamBuffer &imxBuf);
 void SwitchImxBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB);
-
-int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
-                  int dstHeight);
-
-int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
-                   int dstHeight);
-
-int yuv420spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
-                   int dstHeight);
+int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine);
 
 } // namespace android
 

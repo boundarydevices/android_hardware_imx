@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020 NXP.
+ *  Copyright 2020-2023 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
 
         fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-        imageProcess->resizeWrapper(srcBuf, resizeBuf, DPU);
+        handleFrame(resizeBuf, srcBuf, ENG_DPU);
 
         inYuv = (void *)resizeBuf.mVirtAddr;
     }

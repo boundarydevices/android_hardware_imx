@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020 NXP.
+ *  Copyright 2020-2023 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -790,7 +790,7 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
     // Set zoom ratio for ISP camera
     CameraMetadata requestMeta(result->result_metadata.get());
 
-    if (mCamBlitCscType == GPU_2D) {
+    if (mCamBlitCscType == ENG_G2D) {
         camera_metadata_ro_entry entry;
         ret = requestMeta.Get(ANDROID_CONTROL_ZOOM_RATIO, &entry);
         if ((ret == 0) && imgFeed->v4l2Buffer && imgFeed->v4l2Buffer->mStream)
@@ -1189,19 +1189,18 @@ int32_t CameraDeviceSessionHwlImpl::processFrameBuffer(ImxStreamBuffer *srcBuf,
         return BAD_VALUE;
     }
 
-    fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-    CscHw csc_hw;
+    ImxEngine engine;
 
     ImxStream *srcStream = srcBuf->mStream;
     ImxStream *dstStream = dstBuf->mStream;
 
     if (srcStream->mWidth == dstStream->mWidth && srcStream->mHeight == dstStream->mHeight &&
         srcStream->format() == dstStream->format() && srcStream->mZoomRatio <= 1.0)
-        csc_hw = mCamBlitCopyType;
+        engine = mCamBlitCopyType;
     else
-        csc_hw = mCamBlitCscType;
+        engine = mCamBlitCscType;
 
-    return imageProcess->handleFrame(*dstBuf, *srcBuf, csc_hw);
+    return handleFrame(*dstBuf, *srcBuf, engine);
 }
 
 int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
@@ -1313,8 +1312,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
         }
 
         resizeBuf.mStream = srcBuf->mStream;
-        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
-        imageProcess->handleFrame(resizeBuf, *srcBuf, mCamBlitCscType);
+        handleFrame(resizeBuf, *srcBuf, mCamBlitCscType);
 
         SwitchImxBuf(*srcBuf, resizeBuf);
     }

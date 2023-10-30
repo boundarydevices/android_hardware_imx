@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -138,12 +138,12 @@ const char* const kGivenResKey = "GivenRes";
 const char* const kGivenResWidthKey = "width";
 const char* const kGivenResHeightKey = "height";
 
-#define CSC_HW_GPU_2D "GPU_2D"
-#define CSC_HW_GPU_3D "GPU_3D"
-#define CSC_HW_IPU "IPU"
-#define CSC_HW_PXP "PXP"
-#define CSC_HW_DPU "DPU"
-#define CSC_HW_CPU "CPU"
+#define ENGINE_GPU_2D "GPU_2D"
+#define ENGINE_GPU_3D "GPU_3D"
+#define ENGINE_IPU "IPU"
+#define ENGINE_PXP "PXP"
+#define ENGINE_DPU "DPU"
+#define ENGINE_CPU "CPU"
 
 #define MAX_SENSOR_WIDTH INT_MAX
 #define MAX_SENSOR_HEIGHT INT_MAX
@@ -179,22 +179,24 @@ HalVersion ValueToCameraHalVersion(const std::string& value) {
     return hal_version;
 }
 
-CscHw ValueToCameraCscHw(const std::string& value) {
-    CscHw csc_hw = GPU_2D;
-    if (value == CSC_HW_DPU) {
-        csc_hw = DPU;
-    } else if (value == CSC_HW_GPU_2D) {
-        csc_hw = GPU_2D;
-    } else if (value == CSC_HW_GPU_3D) {
-        csc_hw = GPU_3D;
-    } else if (value == CSC_HW_PXP) {
-        csc_hw = PXP;
-    } else if (value == CSC_HW_IPU) {
-        csc_hw = IPU;
-    } else if (value == CSC_HW_CPU) {
-        csc_hw = CPU;
+ImxEngine ValueToImxEngine(const std::string& value) {
+    ImxEngine engine = ENG_G2D;
+
+    if (value == ENGINE_DPU) {
+        engine = ENG_DPU;
+    } else if (value == ENGINE_GPU_2D) {
+        engine = ENG_G2D;
+    } else if (value == ENGINE_GPU_3D) {
+        engine = ENG_G3D;
+    } else if (value == ENGINE_PXP) {
+        engine = ENG_PXP;
+    } else if (value == ENGINE_IPU) {
+        engine = ENG_IPU;
+    } else if (value == ENGINE_CPU) {
+        engine = ENG_CPU;
     }
-    return csc_hw;
+
+    return engine;
 }
 
 // Convert string value to buffer map type
@@ -232,11 +234,11 @@ bool ConfigureCameras(const Json::Value& value, CameraDefinition* camera) {
 
     if (!value.isMember(kCameraBlitCopyKey))
         return true;
-    camera->cam_blit_copy_hw = ValueToCameraCscHw(value[kCameraBlitCopyKey].asString());
+    camera->cam_blit_copy_hw = ValueToImxEngine(value[kCameraBlitCopyKey].asString());
 
     if (!value.isMember(kCameraBlitCscKey))
         return true;
-    camera->cam_blit_csc_hw = ValueToCameraCscHw(value[kCameraBlitCscKey].asString());
+    camera->cam_blit_csc_hw = ValueToImxEngine(value[kCameraBlitCscKey].asString());
 
     if (value.isMember(kCameraHwJpeg)) {
         camera->jpeg_hw = value[kCameraHwJpeg].asString();

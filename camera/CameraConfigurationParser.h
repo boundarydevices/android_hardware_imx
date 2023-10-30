@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,10 @@
 #include <vector>
 
 #include "hal_types.h"
+#include "ImageProcess.h"
+
+using namespace fsl;
+
 namespace cameraconfigparser {
 using android::google_camera_hal::CameraDeviceStatus;
 using android::google_camera_hal::HalCameraMetadata;
@@ -28,15 +32,6 @@ enum CameraId {
     BACK_CAM_ID = 0,
     FRONT_CAM_ID,
     NUM_CAM_ID,
-};
-
-enum CscHw {
-    GPU_2D,
-    GPU_3D,
-    DPU,
-    PXP,
-    IPU,
-    CPU,
 };
 
 struct OmitFrame {
@@ -143,8 +138,8 @@ typedef std::unique_ptr<PhysicalMetaMap> PhysicalMetaMapPtr;
 
 struct CameraDefinition {
     HalVersion hal_version;
-    CscHw cam_blit_copy_hw;
-    CscHw cam_blit_csc_hw;
+    ImxEngine cam_blit_copy_hw;
+    ImxEngine cam_blit_csc_hw;
     std::string jpeg_hw;
     int mUseCpuEncoder;
     std::vector<CameraSensorMetadata> camera_metadata_vec;

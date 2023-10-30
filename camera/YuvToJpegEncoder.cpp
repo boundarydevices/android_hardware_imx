@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008 The Android Open Source Project
  * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -505,8 +505,8 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
         // The 3rd para is pass to handleFrameByG2D to judge whether need lock g2d address.
         // Pass G2D is ok. For CPU, handleFrameByG2D will just return and use soft resize.
-        // BTW: DPU is used in resizeWrapper in HwJpegEncoder for 8q.
-        imageProcess->resizeWrapper(srcBuf, resizeBuf, GPU_2D);
+        // BTW: DPU is used HwJpegEncoder for 8q.
+        handleFrame(resizeBuf, srcBuf, ENG_NOTCARE);
 
         inYuv = (void *)resizeBuf.mVirtAddr;
     }

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020 NXP.
+ *  Copyright 2020-2023 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ public:
     ISPCameraDeviceHwlImpl(
             uint32_t camera_id,
             /*std::vector<char*> devPath,*/ std::vector<std::shared_ptr<char *>> devPaths,
-            std::vector<uint32_t> physicalIds, CscHw cam_copy_hw, CscHw cam_csc_hw,
+            std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw, ImxEngine cam_csc_hw,
             const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
             PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback)
           : CameraDeviceHwlImpl(camera_id, std::move(devPaths), std::move(physicalIds), cam_copy_hw,

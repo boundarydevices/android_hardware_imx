@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020 NXP.
+ *  Copyright 2020-2023 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -355,8 +355,8 @@ private:
 
     std::unique_ptr<HalCameraMetadata> mSettings;
 
-    CscHw mCamBlitCopyType;
-    CscHw mCamBlitCscType;
+    ImxEngine mCamBlitCopyType;
+    ImxEngine mCamBlitCscType;
     char mJpegHw[JPEG_HW_NAME_LEN] = {0};
     CameraSensorMetadata mSensorData;
 
