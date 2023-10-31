@@ -43,7 +43,7 @@ using aidl::android::hardware::imx_dek_extractor::IDek_Extractor;
 static std::shared_ptr<IDek_Extractor> dek_extractor_(nullptr);
 
 static error_t insert_dek_blob_to_fit(image_type_t image_t, char *target_device,
-		std::vector<uint8_t> dek_blob) {
+		std::vector<uint8_t> dek_blob, off_t fit_length) {
 	int file_fd = -1;
 	error_t ret = NO_ERROR;
 
@@ -55,9 +55,11 @@ static error_t insert_dek_blob_to_fit(image_type_t image_t, char *target_device,
 	}
 
 	if (image_t == SPL) {
-		lseek(file_fd, 0, SEEK_END);
+		lseek(file_fd, fit_length, SEEK_SET);
+		LOG(INFO) << "The dek blob offset is: " << fit_length;
 	} else if (image_t == BOOTLOADER) {
-		lseek(file_fd, 0 - IMX_BL_PAYLOAD_SIZE, SEEK_END);
+		lseek(file_fd, fit_length - IMX_BL_PAYLOAD_SIZE, SEEK_SET);
+		LOG(INFO) << "The dek blob offset is: " << fit_length - IMX_BL_PAYLOAD_SIZE;
 	} else {
 		printf("Wrong parameter: image type error!\r\n");
 		ret = PARAMETER_ERROR;
@@ -188,7 +190,7 @@ static error_t read_dek_blob(std::vector<uint8_t>* dek_blob, image_type_t image_
 }
 
 static error_t insert_dek_blob(soc_type_t soc, std::vector<uint8_t> dek_blob, image_type_t image_t,
-		char *target_device, int bootloader0_offset_byte) {
+		char *target_device, int bootloader0_offset_byte, off_t file_length) {
 	int ret = NO_ERROR;
 
 	switch(soc)
@@ -197,7 +199,7 @@ static error_t insert_dek_blob(soc_type_t soc, std::vector<uint8_t> dek_blob, im
 		case MN:
 		case MP:
 		case MQ:
- 			ret = insert_dek_blob_to_fit(image_t, target_device, dek_blob);
+			ret = insert_dek_blob_to_fit(image_t, target_device, dek_blob, file_length);
 			if (ret) {
 				printf("Failed to insert dek_blob to fit, exit! %d\r\n", ret);
 				return OTHER_ERROR;
@@ -230,10 +232,11 @@ int main(int argc, char** argv) {
 		{"target", required_argument, NULL, 't'},
 		{"bootloader", no_argument, NULL, 'B'},
 		{"spl", required_argument, NULL, 'S'},
+		{"length", required_argument, NULL, 'l'},
 		{NULL, 0, NULL, 0}
 	};
 
-	const char *optstring = "s:t:BS:";
+	const char *optstring = "s:t:BS:l:";
 	int option_index = 0;
 	int bootloader0_offset_k = 0, bootloader0_offset_b = 0;
 	soc_type_t soc = SOC_NONE;
@@ -241,6 +244,7 @@ int main(int argc, char** argv) {
 	int c;
 	int ret = NO_ERROR;
 	char target_device[50] = {'\0'};
+	off_t file_length = 0;
 
 	while ((c = getopt_long(argc, argv, optstring, long_options, &option_index)) != -1) {
 		if (c == -1)
@@ -279,6 +283,9 @@ int main(int argc, char** argv) {
 			case 'B':
 				image_t = BOOTLOADER;
 				break;
+			case 'l':
+				file_length = (off_t)atoi(optarg);
+				break;
 		}
 	}
 
@@ -286,7 +293,7 @@ int main(int argc, char** argv) {
 	if (ret != NO_ERROR)
 		return EXIT_FAILURE;
 
-	ret = insert_dek_blob(soc, dek_blob, image_t, target_device, bootloader0_offset_b);
+	ret = insert_dek_blob(soc, dek_blob, image_t, target_device, bootloader0_offset_b, file_length);
 	if (ret != NO_ERROR)
 		return EXIT_FAILURE;
 

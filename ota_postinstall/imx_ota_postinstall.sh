@@ -121,7 +121,7 @@ done
 
 if [ $encryted_boot = "true" ]; then
 	if [ -f "/postinstall/bin/imx_dek_inserter" ]; then
-		/postinstall/bin/imx_dek_inserter -s $soc_type -S $target_device_offset -t $target_device
+		/postinstall/bin/imx_dek_inserter -s $soc_type -S $target_device_offset -t $target_device -l $bootloader0_img_size
 	else
 		log -p e -t imx_ota_postinstall "/postinstall/bin/imx_dek_inserter not exist, exit!"
 		exit 1
@@ -178,7 +178,10 @@ if [ $encryted_boot = "true" ]; then
 	fi
 
 	if [ -f "/postinstall/bin/imx_dek_inserter" ]; then
-		/postinstall/bin/imx_dek_inserter -s $soc_type -B -t $bootloader_ab_device
+		/postinstall/bin/imx_dek_inserter -s $soc_type -B -t $bootloader_ab_device -l $bootloader_ab_img_size
+		sync
+		echo 3 > /proc/sys/vm/drop_caches
+		sync
 	else
 		log -p e -t imx_ota_postinstall "/postinstall/bin/imx_dek_inserter not exist, exit!"
 		exit 1
