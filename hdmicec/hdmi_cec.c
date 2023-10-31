@@ -162,7 +162,7 @@ static int hdmicec_get_physical_address(const struct hdmi_cec_device *dev, uint1
     int ret = ioctl(ctx->cec_fd, CEC_ADAP_G_PHYS_ADDR, addr);
     if (ret)
         ALOGD("%s: %m\n", __func__);
-    ALOGD("get phyaddr=0x%x\n", *addr);
+    ALOGV("get phyaddr=0x%x\n", *addr);
 
     return ret;
 }
@@ -180,7 +180,7 @@ static int hdmicec_send_message(const struct hdmi_cec_device *dev, const cec_mes
         return HDMI_RESULT_FAIL;
     }
 
-    ALOGD("%s: len=%u\n", __func__, (unsigned int)msg->length);
+    ALOGV("%s: len=%u\n", __func__, (unsigned int)msg->length);
 
     memset(&cec_msg, 0, sizeof(cec_msg));
     cec_msg.msg[0] = (msg->initiator << 4) | msg->destination;

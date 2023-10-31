@@ -42,6 +42,10 @@ void HdmiCecMock::serviceDied(void* cookie) {
 }
 
 ScopedAStatus HdmiCecMock::addLogicalAddress(CecLogicalAddress addr, Result* _aidl_return) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     // Have a list to maintain logical addresses
     mLogicalAddresses.push_back(addr);
     int ret = mDevice->add_logical_address(mDevice, static_cast<cec_logical_address_t>(addr));
@@ -62,6 +66,10 @@ ScopedAStatus HdmiCecMock::addLogicalAddress(CecLogicalAddress addr, Result* _ai
 }
 
 ScopedAStatus HdmiCecMock::clearLogicalAddress() {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     // Remove logical address from the list
     mLogicalAddresses = {};
     mDevice->clear_logical_address(mDevice);
@@ -74,6 +82,10 @@ ScopedAStatus HdmiCecMock::enableAudioReturnChannel(int32_t portId __unused, boo
 }
 
 ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     // Maintain a cec version and return it
     mDevice->get_version(mDevice, &mCecVersion);
     *_aidl_return = mCecVersion;
@@ -81,6 +93,10 @@ ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
 }
 
 ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     // Maintain a physical address and return it
     // Default 0xFFFF, update on hotplug event
     mDevice->get_physical_address(mDevice, &mPhysicalAddress);
@@ -89,12 +105,20 @@ ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
 }
 
 ScopedAStatus HdmiCecMock::getVendorId(int32_t* _aidl_return) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     mDevice->get_vendor_id(mDevice, &mCecVendorId);
     *_aidl_return = mCecVendorId;
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::sendMessage(const CecMessage& message, SendMessageResult* _aidl_return) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     if (message.body.size() == 0) {
         *_aidl_return = SendMessageResult::NACK;
     } else {
@@ -112,6 +136,10 @@ ScopedAStatus HdmiCecMock::sendMessage(const CecMessage& message, SendMessageRes
 }
 
 ScopedAStatus HdmiCecMock::setCallback(const std::shared_ptr<IHdmiCecCallback>& callback) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     // If callback is null, mCallback is also set to null so we do not call the old callback.
     mCallback = callback;
 
@@ -123,6 +151,10 @@ ScopedAStatus HdmiCecMock::setCallback(const std::shared_ptr<IHdmiCecCallback>& 
 }
 
 ScopedAStatus HdmiCecMock::setLanguage(const std::string& language) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     if (language.size() != 3) {
         LOG(ERROR) << "Wrong language code: expected 3 letters, but it was " << language.size()
                    << ".";
@@ -138,18 +170,30 @@ ScopedAStatus HdmiCecMock::setLanguage(const std::string& language) {
 }
 
 ScopedAStatus HdmiCecMock::enableWakeupByOtp(bool value) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     mDevice->set_option(mDevice, HDMI_OPTION_WAKEUP, value ? 1 : 0);
     mOptionWakeUp = value;
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::enableCec(bool value) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     mDevice->set_option(mDevice, HDMI_OPTION_ENABLE_CEC, value ? 1 : 0);
     mOptionEnableCec = value;
     return ScopedAStatus::ok();
 }
 
 ScopedAStatus HdmiCecMock::enableSystemCecControl(bool value) {
+    if (!mDevice) {
+        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        return ScopedAStatus::ok();
+    }
     mDevice->set_option(mDevice, HDMI_OPTION_SYSTEM_CEC_CONTROL, value ? 1 : 0);
     mOptionSystemCecControl = value;
     return ScopedAStatus::ok();
