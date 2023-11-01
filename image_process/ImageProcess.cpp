@@ -25,7 +25,6 @@
 #include <system/graphics.h>
 #include <cutils/properties.h>
 
-#include "opencl-2d.h"
 #include "Composer.h"
 
 extern "C" {
@@ -71,10 +70,11 @@ static bool IsCscSupportByCPU(int srcFormat, int dstFormat) {
 }
 
 static bool IsCscSupportByG3D(int srcFomat, int dstFormat) {
-    // yuyv -> nv12
+    // yuyv -> nv12, nv16 -> nv12
     if (((dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
          (dstFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
-        (srcFomat == HAL_PIXEL_FORMAT_YCbCr_422_I))
+        ((srcFomat == HAL_PIXEL_FORMAT_YCbCr_422_I) ||
+         (srcFomat == HAL_PIXEL_FORMAT_YCbCr_422_SP)))
         return true;
 
     return false;
@@ -287,7 +287,7 @@ int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, I
     return ret;
 }
 
-int convertPixelFormatToG2DFormat(PixelFormat format) {
+int convertPixelFormatToG2DFormat(int format) {
     int nFormat = 0;
 
     switch (format) {
@@ -843,8 +843,8 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     // case 4: diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
-        cl_YUYVtoNV12SP(mCLHandle, (uint8_t *)srcBuf.mPhyAddr, (uint8_t *)dstBuf.mPhyAddr,
-                        dstBuf.mWidth, dstBuf.mHeight, false, bOutputCached);
+        cl_csc(mCLHandle, (uint8_t *)srcBuf.mPhyAddr, (uint8_t *)dstBuf.mPhyAddr,
+                        dstBuf.mWidth, dstBuf.mHeight, srcBuf.mHeightSpan, false, bOutputCached, srcBuf.mFormat, dstBuf.mFormat);
 
         (*mCLFlush)(mCLHandle);
         (*mCLFinish)(mCLHandle);
@@ -951,12 +951,15 @@ void ImageProcess::cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uin
     (*mCLCopy)(g2dHandle, &g2d_output_buf, &g2d_input_buf, (void *)(intptr_t)size);
 }
 
-void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
-                                   int width, int height, bool bInputCached, bool bOutputCached) {
+void ImageProcess::cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
+                                   int width, int height, int srcHeightSpan, bool bInputCached, bool bOutputCached, uint32_t inFmt, uint32_t outFmt) {
+
     struct cl_g2d_surface src, dst;
-    src.format = CL_G2D_YUYV;
+
+    src.format = (cl_g2d_format)convertPixelFormatToCLFormat(inFmt);
     src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     src.planes[0] = (long)inputBuffer;
+    src.planes[1] = (long)inputBuffer + width * srcHeightSpan;
     src.left = 0;
     src.top = 0;
     src.right = width;
@@ -966,7 +969,7 @@ void ImageProcess::cl_YUYVtoNV12SP(void *g2dHandle, uint8_t *inputBuffer, uint8_
     src.height = height;
     src.usePhyAddr = true;
 
-    dst.format = CL_G2D_NV12;
+    dst.format = (cl_g2d_format)convertPixelFormatToCLFormat(outFmt);
     dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     dst.planes[0] = (long)outputBuffer;
     dst.planes[1] = (long)outputBuffer + width * height;
@@ -1063,7 +1066,7 @@ cpu_resize:
                             (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth, dstBuf.mHeight);
     else if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_422_SP)
         ret = yuv422spResize((uint8_t *)srcBuf.mVirtAddr, srcBuf.mWidth, srcBuf.mHeight,
-                             (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth, dstBuf.mHeight);
+                             (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth, dstBuf.mHeight, srcBuf.mHeightSpan);
     else if ((srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_420_888) ||
              (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
         ret = yuv420spResize((uint8_t *)srcBuf.mVirtAddr, srcBuf.mWidth, srcBuf.mHeight,

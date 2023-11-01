@@ -18,10 +18,10 @@
 #define IMAGE_UTILS_H
 
 #include <linux/videodev2.h>
-#include <ui/PixelFormat.h>
 #include <graphics_ext.h>
 #include "Memory.h"
 #include "MemoryDesc.h"
+#include "opencl-2d.h"
 
 namespace android {
 
@@ -43,9 +43,12 @@ typedef struct tag_imx_image_buffer {
 } ImxImageBuffer;
 
 int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth, int dstHeight);
-int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth, int dstHeight);
+// If srcHeightSpan is not given, will set to srcHeight in the func.
+int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth, int dstHeight, int srcHeightSpan = 0);
 int yuv420spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth, int dstHeight);
-int convertPixelFormatToV4L2Format(PixelFormat format, bool invert = false);
+int convertPixelFormatToCLFormat(int format);
+int convertPixelFormatToV4L2Format(int format, bool invert = false);
+int convertV4L2FormatToPixelFormat(uint32_t fourcc);
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
 int AllocPhyBuffer(ImxImageBuffer &imxBuf);
 int FreePhyBuffer(ImxImageBuffer &imxBuf);

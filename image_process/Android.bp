@@ -66,6 +66,7 @@ cc_library_shared {
         "frameworks/native/libs/math/include",
         "frameworks/native/libs/arect/include",
         "hardware/libhardware/include",
+        "system/core/libsystem/include/system",
         "vendor/nxp/fsl-proprietary/include",
         "vendor/nxp-opensource/imx/include",
         "vendor/nxp-opensource/imx/opencl-2d",

@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <log/log.h>
+#include <graphics.h>
 #include "Allocator.h"
 #include "NV12_resize.h"
 #include "ImageUtils.h"
@@ -177,13 +178,16 @@ enlarge:
 }
 
 int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
-                   int dstHeight) {
+                   int dstHeight, int srcHeightSpan) {
     int i, j, s;
     int h_offset;
     int v_offset;
     unsigned char *ptr, cc;
     int h_scale_ratio;
     int v_scale_ratio;
+
+    if (srcHeightSpan == 0)
+        srcHeightSpan = srcHeight;
 
     s = 0;
 
@@ -227,7 +231,7 @@ int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf
     // uv
     srcRow = 0;
     srcCol = 0;
-    uint8_t *pUVSrcStart = srcBuf + srcWidth * dstHeight;
+    uint8_t *pUVSrcStart = srcBuf + srcWidth * srcHeightSpan;
     uint8_t *pUVDstStart = dstBuf + dstWidth * dstHeight;
 
     for (i = 0; i < dstHeight; i += 1) {
@@ -404,7 +408,32 @@ resizeByCalc:
     return 0;
 }
 
-int convertPixelFormatToV4L2Format(PixelFormat format, bool invert) {
+int convertPixelFormatToCLFormat(int format) {
+    int clFormat = CL_G2D_NV12;
+
+    switch (format) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+            clFormat = CL_G2D_NV12;
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+            clFormat = CL_G2D_NV16;
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+            clFormat = CL_G2D_YUYV;
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_420_P:
+            clFormat = CL_G2D_I420;
+            break;
+        default:
+            ALOGE("%s: Error! format:0x%x not supported!", __func__, format);
+            break;
+    }
+
+    return clFormat;
+}
+
+int convertPixelFormatToV4L2Format(int format, bool invert) {
     int nFormat = 0;
 
     switch (format) {
@@ -442,13 +471,40 @@ int convertPixelFormatToV4L2Format(PixelFormat format, bool invert) {
             break;
 
         default:
-            ALOGE("Error: format:0x%x not supported!", format);
+            ALOGE("%s: Error! format:0x%x not supported!", __func__, format);
             break;
     }
 
     ALOGV("v4l2 format: %c%c%c%c", nFormat & 0xFF, (nFormat >> 8) & 0xFF, (nFormat >> 16) & 0xFF,
           (nFormat >> 24) & 0xFF);
     return nFormat;
+}
+
+int convertV4L2FormatToPixelFormat(uint32_t fourcc) {
+    int format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+
+    switch (fourcc) {
+        case v4l2_fourcc('N', 'V', '1', '2'):
+            format = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+            break;
+        case v4l2_fourcc('N', 'V', '1', '6'):
+            format = HAL_PIXEL_FORMAT_YCbCr_422_SP;
+            break;
+        case v4l2_fourcc('Y', 'U', 'Y', 'V'):
+            format = HAL_PIXEL_FORMAT_YCbCr_422_I;
+            break;
+        case v4l2_fourcc('Y', 'U', '1', '2'):
+            format = HAL_PIXEL_FORMAT_YCbCr_420_P;
+            break;
+        case v4l2_fourcc('Y', 'U', 'V', '4'):
+            format = HAL_PIXEL_FORMAT_YCbCr_444_888;
+            break;
+        default:
+            ALOGE("%s: Error! fourcc:0x%x not supported!", __func__, fourcc);
+            break;
+    }
+
+    return format;
 }
 
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align) {
