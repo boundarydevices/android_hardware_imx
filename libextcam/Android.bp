@@ -48,7 +48,6 @@ cc_library_shared {
         "convert.cpp",
         "DecoderDev.cpp",
         "HwDecoder.cpp",
-        "ImageProcess.cpp",
     ],
 
     cflags: [
@@ -84,6 +83,7 @@ cc_library_shared {
         "libstagefright_foundation",
         "libfsldisplay",
         "libbase",
+        "libimageprocess",
     ],
     static_libs: [
         "android.hardware.camera.common@1.0-helper",
@@ -97,6 +97,7 @@ cc_library_shared {
     include_dirs: [
         "vendor/nxp-opensource/imx/include",
         "vendor/nxp-opensource/imx/opencl-2d",
+        "vendor/nxp-opensource/imx/image_process",
         "vendor/nxp-opensource/imx/display/display",
         "vendor/nxp-opensource/libdrm-imx",
         "vendor/nxp-opensource/libdrm-imx/include/drm",

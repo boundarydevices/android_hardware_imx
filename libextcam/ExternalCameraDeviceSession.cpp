@@ -49,8 +49,6 @@
 #include <libyuv.h>
 #include <libyuv/convert.h>
 
-#include "ImageProcess.h"
-
 class SingletonWrap {
 public:
     SingletonWrap() {
@@ -2498,6 +2496,14 @@ int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
     }
 
     mDecedFrames = 0;
+
+    if ((strcmp(socType, "imx8qm") == 0) || (strcmp(socType, "imx8qxp") == 0))
+        mEngine = ENG_DPU;
+    else if (strcmp(socType, "imx8mq") == 0)
+        mEngine = ENG_G3D;
+    else
+        mEngine = ENG_NOTCARE;
+
     return OK;
 }
 
@@ -2664,9 +2670,7 @@ scale:
         in->getPhyAddr(srcPhyAddr);
         scaledYu12Buf->getPhyAddr(dstPhyAddr);
 
-        fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
-        fsl::ImgFormat fslFmt = imageProcess->FslFmtFromFourcc(in->mFourcc);
-        ret = imageProcess->handleFrame(outSz.width, outSz.height, fslFmt, fslFmt, dstPhyAddr, srcPhyAddr,
+        ret = handleFrame(outSz.width, outSz.height, in->mFourcc, in->mFourcc, dstPhyAddr, srcPhyAddr,
             in->mWidth, in->mHeight, croppedLayout.y, outLayout.y);
 
         if (outPhyAddr) {
@@ -3203,6 +3207,65 @@ int ExternalCameraDeviceSession::OutputThread::CopyFromPrcdBuf(HalStreamBuffer &
     return ret;
 }
 
+int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, uint32_t dstHeight, uint32_t dst_fourcc, uint32_t src_fourcc,
+    uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t srcWidth, uint32_t srcHeight, void *srcVirtAddr, void *dstVirtAddr) {
+    fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
+
+    ImxImageBuffer srcBuf;
+    ImxImageBuffer dstBuf;
+
+    uint32_t srcFmt = convertV4L2FormatToPixelFormat(src_fourcc);
+    uint32_t dstFmt = convertV4L2FormatToPixelFormat(dst_fourcc);
+
+    uint32_t srcValidHeight = srcHeight;
+
+    // mjpg hareware decoder is 16 aligned.
+    // srcValidHeight is used to process pixels.
+    // srcHeight is used to jump planes.
+    if (srcHeight == 1088)
+        srcValidHeight = 1080;
+    else if (srcHeight == 608)
+        srcValidHeight = 600;
+    else if (srcHeight == 128)
+        srcValidHeight = 120;
+    else if (srcHeight == 192)
+        srcValidHeight = 180;
+    else if (srcHeight == 368)
+        srcValidHeight = 360;
+
+    srcBuf.mFormat = srcFmt;
+    srcBuf.mWidth = srcWidth;
+    srcBuf.mHeight = srcValidHeight;
+    srcBuf.mStride = srcWidth;
+    srcBuf.mHeightSpan = srcHeight;
+    srcBuf.mVirtAddr = srcVirtAddr;
+    srcBuf.mPhyAddr = srcPhyAddr;
+    srcBuf.mFd = -1; // DPU/G3D not use;
+    srcBuf.mFormatSize =  getSizeByForamtRes(srcFmt, srcWidth, srcHeight, false);
+    srcBuf.mSize = srcBuf.mFormatSize;
+    srcBuf.buffer = NULL; // DPU/G3D not use;
+    srcBuf.mZoomRatio = 1.0;
+    srcBuf.mUsage = 0;
+    srcBuf.mPrivate = NULL;
+
+    dstBuf.mFormat = dstFmt;
+    dstBuf.mWidth = dstWidth;
+    dstBuf.mHeight = dstHeight;
+    dstBuf.mStride = dstWidth;
+    dstBuf.mHeightSpan = dstHeight;
+    dstBuf.mVirtAddr = dstVirtAddr;
+    dstBuf.mPhyAddr = dstPhyAddr;
+    dstBuf.mFd = -1;
+    dstBuf.mFormatSize =  getSizeByForamtRes(dstFmt, dstWidth, dstHeight, false);
+    dstBuf.mSize = dstBuf.mFormatSize;
+    dstBuf.buffer = NULL;
+    dstBuf.mZoomRatio = 1.0;
+    dstBuf.mUsage = 0;
+    dstBuf.mPrivate = NULL;
+
+    return imageProcess->ConvertImage(dstBuf, srcBuf, mEngine);
+}
+
 bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     nsecs_t t1, t2;
     std::shared_ptr<HalRequest> req;
@@ -3551,16 +3614,12 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 if (mDebug)
                     t1 = systemTime();
                 if (mHardwareDecoder && parent->getHardwareDecFlag()) {
-                    fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
-                    fsl::ImgFormat dst_fmt = imageProcess->FslFmtFromFourcc(outputFourcc);
-                    fsl::ImgFormat src_fmt = imageProcess->FslFmtFromFourcc(mYu12Frame->mFourcc);
-
                     uint64_t dstPhyAddr = 0;
                     fsl::Memory *fslMem = (fsl::Memory *)(*halBuf.bufPtr);
                     IMXGetBufferAddr(fslMem->fd, fslMem->size, dstPhyAddr, false);
                     ALOGV("%s: fslMem, fd %d, size %d, width %d, height %d, format 0x%x", __func__, fslMem->fd, fslMem->size, fslMem->width, fslMem->height, fslMem->format);
 
-                    fcret = imageProcess->handleFrame(halBuf.width, halBuf.height, dst_fmt, src_fmt, dstPhyAddr,
+                    fcret = handleFrame(halBuf.width, halBuf.height, outputFourcc, mYu12Frame->mFourcc, dstPhyAddr,
                                scaledPhyAddr, scaledWidth, scaledHeight);
                 } else {
                     fcret =
