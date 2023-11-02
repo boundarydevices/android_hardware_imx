@@ -490,6 +490,27 @@ int ImageProcess::ConvertImageByG2DCopy(ImxImageBuffer &dstBuf, ImxImageBuffer &
     return ret;
 }
 
+static int AllocPhyBufferByFmtRes(ImxImageBuffer &imgBuf, uint32_t format, uint32_t width,
+                                  uint32_t height) {
+    imgBuf.mFormatSize = getSizeByForamtRes(format, width, height, false);
+    imgBuf.mSize = (imgBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+
+    int ret = AllocPhyBuffer(imgBuf);
+    if (ret) {
+        ALOGE("%s: AllocPhyBuffer failed, formatSize %d, allocSize %d", __func__,
+              imgBuf.mFormatSize, imgBuf.mSize);
+        return ret;
+    }
+
+    imgBuf.mFormat = format;
+    imgBuf.mWidth = width;
+    imgBuf.mHeight = height;
+    imgBuf.mStride = width;
+    imgBuf.mHeightSpan = height;
+
+    return 0;
+}
+
 int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf) {
     if (mBlitEngine == NULL) {
         return -EINVAL;
@@ -571,12 +592,9 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
     } else {
         struct g2d_surface tmp_surface;
 
-        resizeBuf.mFormatSize =
-                getSizeByForamtRes(srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight, false);
-        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-        ret = AllocPhyBuffer(resizeBuf);
+        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight);
         if (ret) {
-            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+            ALOGE("%s:%d AllocPhyBufferByFmtRes failed", __func__, __LINE__);
             return BAD_VALUE;
         }
         ALOGV("%s: resizeBuf.mFormatSize %d, resizeBuf.mSize %d", __func__,
@@ -825,12 +843,9 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     // case 3: diffrent format, different resolution
     // first resize, then go through case 4.
     if ((srcBuf.mWidth != dstBuf.mWidth) || (srcBuf.mHeight != dstBuf.mHeight)) {
-        resizeBuf.mFormatSize =
-                getSizeByForamtRes(srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight, false);
-        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-        ret = AllocPhyBuffer(resizeBuf);
+        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight);
         if (ret) {
-            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+            ALOGE("%s:%d AllocPhyBufferByFmtRes failed", __func__, __LINE__);
             return -EINVAL;
         }
 
@@ -893,12 +908,9 @@ int ImageProcess::ConvertImageByCPU(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
     // case 3: diffrent format, different resolution
     // first resize, then go through case 4.
     if ((srcBuf.mWidth != dstBuf.mWidth) || (srcBuf.mHeight != dstBuf.mHeight)) {
-        resizeBuf.mFormatSize =
-                getSizeByForamtRes(srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight, false);
-        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-        ret = AllocPhyBuffer(resizeBuf);
+        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight);
         if (ret) {
-            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+            ALOGE("%s:%d AllocPhyBufferByFmtRes failed", __func__, __LINE__);
             return -EINVAL;
         }
 
