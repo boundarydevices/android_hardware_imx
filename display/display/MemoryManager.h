@@ -66,6 +66,7 @@ public:
     int flush(Memory* handle);
 
     MetaData* getMetaData(Memory* handle);
+    uint64_t getDrmModifier(Memory* buffer);
 
 protected:
     MemoryManager();

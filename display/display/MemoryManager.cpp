@@ -20,6 +20,7 @@
 #include <cutils/ashmem.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
+#include <drm_fourcc.h>
 #include <sys/mman.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -126,6 +127,28 @@ int MemoryManager::allocSystemMemeory(uint64_t size) {
     return ret;
 }
 
+uint64_t MemoryManager::getDrmModifier(Memory* buffer) {
+    bool noResolve;
+    uint64_t modifiers = 0;
+    noResolve = buffer->usage & (USAGE_GPU_TILED_VIV | USAGE_GPU_TS_VIV);
+    if (noResolve) {
+#ifdef FRAMEBUFFER_COMPRESSION
+        if (buffer->usage & USAGE_GPU_TS_VIV)
+            modifiers = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED_FC;
+        else
+#endif
+        {
+#ifdef WORKAROUND_DISPLAY_UNDERRUN
+            modifiers = DRM_FORMAT_MOD_VIVANTE_TILED;
+#else
+            modifiers = DRM_FORMAT_MOD_VIVANTE_SUPER_TILED;
+#endif
+        }
+    }
+
+    return modifiers;
+}
+
 int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out) {
     Memory* handle = NULL;
     int ret = 0;
@@ -144,6 +167,7 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out) {
                 mIonManager->getPhys(handle);
                 handle->flags = desc.mFlag;
             }
+            handle->format_modifier = getDrmModifier(handle);
         }
         allocMetaData(handle);
         *out = handle;
@@ -161,6 +185,7 @@ int MemoryManager::allocMemory(MemoryDesc& desc, Memory** out) {
         handle->fsl_reserved[0] = DRM_VIV_GEM_TILING_TILED;
     }
 #endif
+    handle->format_modifier = getDrmModifier(handle);
     allocMetaData(handle);
     retainMemory(handle);
     *out = handle;
