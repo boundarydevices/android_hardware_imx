@@ -285,6 +285,12 @@ int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32
 ImxStreamBuffer *VideoStream::onFrameAcquire() {
     ALOGV("%s", __func__);
 
+    if (mDev < 0) {
+        ALOGE("%s: invalid fd %d", __func__, mDev);
+        usleep(5000);
+        return NULL;
+    }
+
     int32_t ret = 0;
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes;
