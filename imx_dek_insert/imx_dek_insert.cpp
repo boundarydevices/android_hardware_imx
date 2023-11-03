@@ -43,7 +43,7 @@ using aidl::nxp::hardware::imx_dek_extractor::IDek_Extractor;
 static std::shared_ptr<IDek_Extractor> dek_extractor_(nullptr);
 
 static error_t insert_dek_blob_to_fit(image_type_t image_t, char *target_device,
-		std::vector<uint8_t> dek_blob, off_t fit_length) {
+		std::vector<uint8_t> dek_blob, off_t fit_length, int bootloader0_offset_byte) {
 	int file_fd = -1;
 	error_t ret = NO_ERROR;
 
@@ -55,8 +55,8 @@ static error_t insert_dek_blob_to_fit(image_type_t image_t, char *target_device,
 	}
 
 	if (image_t == SPL) {
-		lseek(file_fd, fit_length, SEEK_SET);
-		LOG(INFO) << "The dek blob offset is: " << fit_length;
+		lseek(file_fd, fit_length + bootloader0_offset_byte, SEEK_SET);
+		LOG(INFO) << "The dek blob offset is: " << fit_length + bootloader0_offset_byte;
 	} else if (image_t == BOOTLOADER) {
 		lseek(file_fd, fit_length - IMX_BL_PAYLOAD_SIZE, SEEK_SET);
 		LOG(INFO) << "The dek blob offset is: " << fit_length - IMX_BL_PAYLOAD_SIZE;
@@ -199,7 +199,7 @@ static error_t insert_dek_blob(soc_type_t soc, std::vector<uint8_t> dek_blob, im
 		case MN:
 		case MP:
 		case MQ:
-			ret = insert_dek_blob_to_fit(image_t, target_device, dek_blob, file_length);
+			ret = insert_dek_blob_to_fit(image_t, target_device, dek_blob, file_length, bootloader0_offset_byte);
 			if (ret) {
 				printf("Failed to insert dek_blob to fit, exit! %d\r\n", ret);
 				return OTHER_ERROR;
