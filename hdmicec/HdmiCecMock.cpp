@@ -52,12 +52,16 @@ ScopedAStatus HdmiCecMock::addLogicalAddress(CecLogicalAddress addr, Result* _ai
     switch (ret) {
         case 0:
             *_aidl_return = Result::SUCCESS;
+            break;
         case -EINVAL:
             *_aidl_return = Result::FAILURE_INVALID_ARGS;
+            break;
         case -ENOTSUP:
             *_aidl_return = Result::FAILURE_NOT_SUPPORTED;
+            break;
         case -EBUSY:
             *_aidl_return = Result::FAILURE_BUSY;
+            break;
         default:
             *_aidl_return = Result::FAILURE_UNKNOWN;
     }
