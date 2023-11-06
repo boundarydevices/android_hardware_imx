@@ -74,7 +74,7 @@ public:
         return hnd->sizes[plane];
     }
 
-    int32_t get_android_format(gralloc_handle_t hnd) const { return hnd->format; }
+    int32_t get_android_format(gralloc_handle_t hnd) const { return hnd->fslFormat; }
 
     uint64_t get_android_usage(gralloc_handle_t hnd) const {
         return static_cast<uint64_t>(hnd->usage);
