@@ -44,11 +44,13 @@ void HdmiCecMock::serviceDied(void* cookie) {
 ScopedAStatus HdmiCecMock::addLogicalAddress(CecLogicalAddress addr, Result* _aidl_return) {
     if (!mDevice) {
         ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        *_aidl_return = Result::SUCCESS;
         return ScopedAStatus::ok();
     }
     // Have a list to maintain logical addresses
     mLogicalAddresses.push_back(addr);
     int ret = mDevice->add_logical_address(mDevice, static_cast<cec_logical_address_t>(addr));
+
     switch (ret) {
         case 0:
             *_aidl_return = Result::SUCCESS;
@@ -88,10 +90,10 @@ ScopedAStatus HdmiCecMock::enableAudioReturnChannel(int32_t portId __unused, boo
 ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
     if (!mDevice) {
         ALOGE("[halimp_aidl] mDevice is null, cec not support");
-        return ScopedAStatus::ok();
+    } else {
+        // Maintain a cec version and return it
+        mDevice->get_version(mDevice, &mCecVersion);
     }
-    // Maintain a cec version and return it
-    mDevice->get_version(mDevice, &mCecVersion);
     *_aidl_return = mCecVersion;
     return ScopedAStatus::ok();
 }
@@ -99,11 +101,11 @@ ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
 ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
     if (!mDevice) {
         ALOGE("[halimp_aidl] mDevice is null, cec not support");
-        return ScopedAStatus::ok();
+    } else {
+        // Maintain a physical address and return it
+        // Default 0xFFFF, update on hotplug event
+        mDevice->get_physical_address(mDevice, &mPhysicalAddress);
     }
-    // Maintain a physical address and return it
-    // Default 0xFFFF, update on hotplug event
-    mDevice->get_physical_address(mDevice, &mPhysicalAddress);
     *_aidl_return = mPhysicalAddress;
     return ScopedAStatus::ok();
 }
@@ -111,9 +113,9 @@ ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
 ScopedAStatus HdmiCecMock::getVendorId(int32_t* _aidl_return) {
     if (!mDevice) {
         ALOGE("[halimp_aidl] mDevice is null, cec not support");
-        return ScopedAStatus::ok();
+    } else {
+        mDevice->get_vendor_id(mDevice, &mCecVendorId);
     }
-    mDevice->get_vendor_id(mDevice, &mCecVendorId);
     *_aidl_return = mCecVendorId;
     return ScopedAStatus::ok();
 }
@@ -121,6 +123,7 @@ ScopedAStatus HdmiCecMock::getVendorId(int32_t* _aidl_return) {
 ScopedAStatus HdmiCecMock::sendMessage(const CecMessage& message, SendMessageResult* _aidl_return) {
     if (!mDevice) {
         ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        *_aidl_return = SendMessageResult::SUCCESS;
         return ScopedAStatus::ok();
     }
     if (message.body.size() == 0) {
