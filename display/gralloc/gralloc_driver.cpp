@@ -87,13 +87,6 @@ int32_t gralloc_driver::allocate(const struct gralloc_buffer_descriptor *descrip
     desc.mHeight = descriptor->height;
     desc.mFormat = convert_pixel_format_to_gralloc_format(descriptor->droid_format);
     desc.mFslFormat = convert_gralloc_format_to_nxp_format(desc.mFormat);
-    if (desc.mFslFormat == FORMAT_NV12_TILED || desc.mFslFormat == FORMAT_NV12_G1_TILED ||
-        desc.mFslFormat == FORMAT_NV12_G2_TILED ||
-        desc.mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
-        desc.mFslFormat == FORMAT_YCBCR_P010 || desc.mFslFormat == FORMAT_P010 ||
-        desc.mFslFormat == FORMAT_P010_TILED || desc.mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
-        desc.mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
-    }
 
     usage = static_cast<uint64_t>(descriptor->droid_usage);
     if (descriptor->use_flags & BO_USE_FRAMEBUFFER) {
@@ -326,13 +319,6 @@ int32_t gralloc_driver::validate_buffer(const struct gralloc_buffer_descriptor *
     desc.mHeight = descriptor->height;
     desc.mFormat = convert_pixel_format_to_gralloc_format(descriptor->droid_format);
     desc.mFslFormat = convert_gralloc_format_to_nxp_format(desc.mFormat);
-    if (desc.mFslFormat == FORMAT_NV12_TILED || desc.mFslFormat == FORMAT_NV12_G1_TILED ||
-        desc.mFslFormat == FORMAT_NV12_G2_TILED ||
-        desc.mFslFormat == FORMAT_NV12_G2_TILED_COMPRESSED ||
-        desc.mFslFormat == FORMAT_YCBCR_P010 || desc.mFslFormat == FORMAT_P010 ||
-        desc.mFslFormat == FORMAT_P010_TILED || desc.mFslFormat == FORMAT_P010_TILED_COMPRESSED) {
-        desc.mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
-    }
 
     desc.mProduceUsage = usage;
     if (hnd->usage & USAGE_HW_VIDEO_ENCODER) {
