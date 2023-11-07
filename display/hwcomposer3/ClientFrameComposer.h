@@ -82,7 +82,7 @@ private:
     std::vector<Layer*> mLayersForComposition;
 
     std::map<uint32_t, std::unique_ptr<DrmClient>> mDrmClients;
-    std::unique_ptr<DeviceComposer> mG2dComposer;
+    std::shared_ptr<DeviceComposer> mG2dComposer;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

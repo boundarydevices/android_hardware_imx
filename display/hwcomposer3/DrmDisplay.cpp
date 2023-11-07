@@ -502,16 +502,29 @@ void DrmDisplay::placeholderDisplayConfigs() {
     mActiveConfig = (*mConfigs)[mActiveConfigId];
 }
 
-int DrmDisplay::createDeviceFramebuffer(DeviceComposer* composer, gralloc_handle_t* buffers,
-                                        int count) {
+int DrmDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    auto ret =
-            composer->prepareDeviceFrameBuffer(mActiveConfig, mUiScaleType, buffers, count, false);
-    if (ret)
-        ALOGE("%s: failed to allocate composition buffer for display:%" PRIu32, __FUNCTION__, mId);
+    if (mUiScaleType == UI_SCALE_SOFTWARE) {
+        *width = mActiveConfig.modeWidth;
+        *height = mActiveConfig.modeHeight;
+    } else {
+        *width = mActiveConfig.width;
+        *height = mActiveConfig.height;
+    }
 
-    return ret;
+    *format = static_cast<int>(common::PixelFormat::RGBA_8888);
+
+    return 0;
+}
+
+bool DrmDisplay::setSecureMode(::android::base::borrowed_fd drmFd, bool secure) {
+    DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
+
+    int val = secure ? 1 : 0;
+    mConnector->setHDCPMode(drmFd, val);
+
+    return true;
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

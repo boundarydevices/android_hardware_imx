@@ -160,21 +160,11 @@ bool DeviceComposer::isValid() {
     return (getHandle() != NULL && mBlitFunction != NULL);
 }
 
-int DeviceComposer::prepareDeviceFrameBuffer(HalDisplayConfig& config, uint32_t uiType,
+int DeviceComposer::prepareDeviceFrameBuffer(uint32_t width, uint32_t height, uint32_t format,
                                              gralloc_handle_t* buffers, int count, bool secure) {
-    uint32_t width, height;
-    uint32_t bufferStride;
     uint64_t usage;
+    uint32_t bufferStride;
     buffer_handle_t bufferHandle;
-    int format = static_cast<int>(common::PixelFormat::RGBA_8888);
-
-    if (uiType == UI_SCALE_SOFTWARE) {
-        width = config.modeWidth;
-        height = config.modeHeight;
-    } else {
-        width = config.width;
-        height = config.height;
-    }
 
     usage = GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER |
             GRALLOC_USAGE_HW_2D;
@@ -198,9 +188,9 @@ int DeviceComposer::prepareDeviceFrameBuffer(HalDisplayConfig& config, uint32_t 
     return 0;
 }
 
-int DeviceComposer::freeDeviceFrameBuffer(gralloc_handle_t buffers[], int count) {
-    for (int i = 0; i < count; i++) {
-        ::android::GraphicBufferAllocator::get().free(buffers[i]);
+int DeviceComposer::freeDeviceFrameBuffer(std::vector<gralloc_handle_t>& buffers) {
+    for (auto buf : buffers) {
+        ::android::GraphicBufferAllocator::get().free(buf);
     }
 
     return 0;
@@ -242,6 +232,16 @@ int DeviceComposer::prepareSolidColorBuffer() {
     }
 
     mSolidColorBuffer = (gralloc_handle_t)bufferHandle;
+
+    return 0;
+}
+
+int DeviceComposer::freeSolidColorBuffer() {
+    if (mSolidColorBuffer != NULL) {
+        unlockSurface(mSolidColorBuffer);
+        ::android::GraphicBufferAllocator::get().free(mSolidColorBuffer);
+        mSolidColorBuffer = NULL;
+    }
 
     return 0;
 }

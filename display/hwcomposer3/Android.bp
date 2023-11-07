@@ -59,6 +59,8 @@ cc_binary {
         "libmath",
         "libnxp_gralloc_driver",
         "libnxp_gralloc_utils",
+        "libhwsecureclient",
+        "libtrusty",
     ],
     srcs: [
         "ClientFrameComposer.cpp",

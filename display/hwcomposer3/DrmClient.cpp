@@ -20,6 +20,7 @@
 #include <RWLock.h>
 #include <drm_fourcc.h>
 #include <gralloc_handle.h>
+#include <hwsecure_client.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -373,13 +374,21 @@ bool DrmClient::handleHotplug() {
                 continue;
             }
 
-            if ((change == DrmHotplugChange::kDisconnected) && display->isPrimary()) {
-                // primary display cannot be disconnected when report
-                // power off when disconnected (for dcss of imx8mq)
-                change = DrmHotplugChange::kConnected;
-                display->setPowerMode(mFd, DrmPower::kPowerOff);
-                display->placeholderDisplayConfigs();
-                ALOGW("primary display cannot hotplug");
+            if (change == DrmHotplugChange::kDisconnected) {
+                if (display->isPrimary()) {
+                    // primary display cannot be disconnected when report
+                    // power off when disconnected (for dcss of imx8mq)
+                    change = DrmHotplugChange::kConnected;
+                    display->setPowerMode(mFd, DrmPower::kPowerOff);
+                    display->placeholderDisplayConfigs();
+                    ALOGW("primary display cannot hotplug");
+                }
+                uint32_t id = display->getId();
+                if (mComposerTargets.find(id) != mComposerTargets.end()) {
+                    // free device composer target buffers when disconnected
+                    mG2dComposer->freeDeviceFrameBuffer(mComposerTargets[id]);
+                    mComposerTargets.erase(id);
+                }
             }
             std::unique_ptr<HalMultiConfigs> cfg(new HalMultiConfigs{
                     .displayId = display->getId(),
@@ -530,38 +539,80 @@ HWC3::Error DrmClient::fakeDisplayConfig(int displayId) {
     return HWC3::Error::None;
 }
 
-std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(DeviceComposer* composer,
-                                                                      int displayId) {
+std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
+        std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, nullptr);
     }
 
-    if (mComposerTargets.find(displayId) != mComposerTargets.end()) {
+    if (mComposerTargets.find(displayId) != mComposerTargets.end() &&
+        mTargetSecurity[displayId] == secure) {
         int32_t index = mTargetIndex[displayId];
         if (++index >= MAX_COMPOSER_TARGETS_PER_DISPLAY) {
             index = 0;
         }
         mTargetIndex[displayId] = index;
-        DEBUG_LOG("%s: get pre-allocated buffer:%d", __FUNCTION__, index);
+        DEBUG_LOG("%s: get pre-allocated %s buffer:%d", __FUNCTION__,
+                  secure ? "secure" : "nonsecure", index);
         return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][index]);
     }
+    // security change, free pervious buffers
+    if (mComposerTargets.find(displayId) != mComposerTargets.end()) {
+        composer->freeDeviceFrameBuffer(mComposerTargets[displayId]);
+        mComposerTargets.erase(displayId);
+    }
 
+    uint32_t width, height, format;
     gralloc_handle_t bufferHandles[MAX_COMPOSER_TARGETS_PER_DISPLAY];
-    auto ret = mDisplays[displayId]->createDeviceFramebuffer(composer, bufferHandles,
-                                                             MAX_COMPOSER_TARGETS_PER_DISPLAY);
+    mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
+    auto ret = composer->prepareDeviceFrameBuffer(width, height, format, bufferHandles,
+                                                  MAX_COMPOSER_TARGETS_PER_DISPLAY, secure);
     if (ret) {
         ALOGE("%s: create framebuffer failed", __FUNCTION__);
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
     }
 
     std::vector<gralloc_handle_t> buffers;
-    for (int i = 0; i < MAX_COMPOSER_TARGETS_PER_DISPLAY; i++) buffers.push_back(bufferHandles[i]);
+    for (int i = 0; i < MAX_COMPOSER_TARGETS_PER_DISPLAY; i++) {
+        buffers.push_back(bufferHandles[i]);
+    }
 
     mComposerTargets.emplace(displayId, buffers);
     mTargetIndex.emplace(displayId, 0);
+    mTargetSecurity[displayId] = secure;
+
+    set_g2d_secure_pipe(secure);
+    composer->freeSolidColorBuffer();
+
+    mG2dComposer = composer; // hotplug callback function need device composer to free buffers
 
     return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][0]);
+}
+
+HWC3::Error DrmClient::setSecureMode(int displayId, uint32_t planeId, bool secure) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    int value = secure ? 1 : 0;
+    if (mSecureMode.find(displayId) == mSecureMode.end()) {
+        if (!mDisplays[displayId]->isSecureDisplay())
+            mSecureMode[displayId] = -1;
+        else if (mDisplays[displayId]->isSecureEnabled())
+            mSecureMode[displayId] = 1;
+        else
+            mSecureMode[displayId] = 0;
+    }
+    if ((mSecureMode[displayId] == -1) || (mSecureMode[displayId] == value))
+        return HWC3::Error::None;
+
+    mDisplays[displayId]->setSecureMode(mFd, secure);
+    mSecureMode[displayId] = value;
+    ALOGI("%s: set display %d %s mode", __FUNCTION__, displayId, secure ? "secure" : "nonsecure");
+
+    return HWC3::Error::None;
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

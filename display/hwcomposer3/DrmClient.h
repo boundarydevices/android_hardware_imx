@@ -93,8 +93,9 @@ public:
     HWC3::Error setPrimaryDisplay(int displayId);
     HWC3::Error fakeDisplayConfig(int displayId);
 
-    std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(DeviceComposer* composer,
-                                                               int displayId);
+    std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
+            std::shared_ptr<DeviceComposer> composer, int displayId, bool secure);
+    HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure);
 
 private:
     using DrmPrimeBufferHandle = uint32_t;
@@ -118,6 +119,11 @@ private:
     uint32_t mDisplayBaseId;
     std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mComposerTargets;
     std::unordered_map<uint32_t, int32_t> mTargetIndex; //<displayId, index>
+    std::unordered_map<uint32_t, bool> mTargetSecurity; //<displayId, secure>
+
+    std::unordered_map<uint32_t, int> mSecureMode;
+
+    std::shared_ptr<DeviceComposer> mG2dComposer = nullptr;
 
     std::optional<HotplugCallback> mHotplugCallback;
 

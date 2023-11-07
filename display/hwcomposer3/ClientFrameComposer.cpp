@@ -74,7 +74,7 @@ HWC3::Error ClientFrameComposer::init() {
         free(dirEntry[i]);
     }
 
-    mG2dComposer = std::make_unique<DeviceComposer>();
+    mG2dComposer = std::make_shared<DeviceComposer>();
     if (mG2dComposer->isValid()) {
     }
     return ret;
@@ -214,6 +214,13 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
                     }
                     displayBuffer.planeDrmBuffer[planeId] = std::move(drmBuffer);
                     mLayersForOverlay.push_back(layerId);
+
+                    gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
+                    if (buff && (buff->usage & USAGE_PROTECTED)) {
+                        client->setSecureMode(displayId, planeId, true);
+                    } else {
+                        client->setSecureMode(displayId, planeId, false);
+                    }
                     continue;
                 } else {
                     mergeRect(uiMaskedRect, rectFrame);
@@ -234,7 +241,22 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
     }
 
     if (mG2dComposer->isValid() && (mustDeviceComposition || deviceComposition)) {
-        auto [error, renderTarget] = client->getComposerTarget(mG2dComposer.get(), displayId);
+        bool secure = false;
+        auto it = std::find_if(mLayersForComposition.begin(), mLayersForComposition.end(),
+                               [&](Layer* layer) {
+                                   gralloc_handle_t buff =
+                                           (gralloc_handle_t)layer->getBuffer().getBuffer();
+                                   if (buff && (buff->usage & USAGE_PROTECTED))
+                                       return true;
+                                   else
+                                       return false;
+                               });
+        if (it != mLayersForComposition.end()) { // found secure layer
+            DEBUG_LOG("%s: found secure layer", __FUNCTION__);
+            secure = true;
+        }
+
+        auto [error, renderTarget] = client->getComposerTarget(mG2dComposer, displayId, secure);
         if (error != HWC3::Error::None) {
             ALOGE("%s: display:%" PRIu64 " failed to get composer target", __FUNCTION__, displayId);
             return error;

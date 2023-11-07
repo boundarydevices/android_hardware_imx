@@ -93,11 +93,14 @@ public:
     bool updateDisplayConfigs();
     void placeholderDisplayConfigs();
     void buildPlaneIdPool();
+    int getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format);
 
     void setAsPrimary(bool enable) { mIsPrimary = enable; }
     bool isPrimary() { return mIsPrimary; }
 
-    int createDeviceFramebuffer(DeviceComposer* composer, gralloc_handle_t* buffers, int count);
+    bool isSecureDisplay() const { return mConnector->getHDCPSupported(); }
+    bool isSecureEnabled() const { return mConnector->isHDCPEnabled(); }
+    bool setSecureMode(::android::base::borrowed_fd drmFd, bool secure);
 
 private:
     DrmDisplay(uint32_t id, std::unique_ptr<DrmConnector> connector, std::unique_ptr<DrmCrtc> crtc,

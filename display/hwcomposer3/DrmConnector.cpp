@@ -174,19 +174,6 @@ bool DrmConnector::buildConfigs(std::shared_ptr<HalConfig> configs, uint32_t sta
     }
 
     uint32_t configId = startConfigId;
-    //    std::shared_ptr<HalConfig> cfgs = std::make_shared<HalConfig>();
-    //    HalConfig cfg;
-    //    configs->emplace(configId++, HalDisplayConfig{
-    //    (*cfgs)[configId++] = HalDisplayConfig{
-    /*            .width = 1920,
-                .height = 1080,
-                .dpiX = 160,
-                .dpiY = 160,
-                .refreshRateHz = 60, // mode.vrefresh
-                .blobId = 100,
-                .modeType = 0,
-                .modeWidth = 1920,
-                .modeHeight = 1080,});*/
     for (const auto& mode : mModes) {
         configs->emplace(configId++,
                          HalDisplayConfig{
@@ -304,6 +291,23 @@ bool DrmConnector::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower pow
     err = drmModeConnectorSetProperty(drmFd.get(), mId, mDpms.getId(), mode);
     if (err != 0) {
         ALOGE("failed to set DPMS mode:%d", mode);
+    }
+
+    return err == 0 ? true : false;
+}
+
+bool DrmConnector::setHDCPMode(::android::base::borrowed_fd drmFd, int val) const {
+    DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
+
+    const uint64_t protectionId = mProtection.getId();
+    if (protectionId == (uint64_t)-1) {
+        ALOGW("%s: connector:%" PRIu32 " does not support HDCP.", __FUNCTION__, mId);
+        return true;
+    }
+
+    int err = drmModeConnectorSetProperty(drmFd.get(), mId, mProtection.getId(), val);
+    if (err != 0) {
+        ALOGE("%s: failed to %s HDCP function", __FUNCTION__, val ? "enable" : "disable");
     }
 
     return err == 0 ? true : false;
