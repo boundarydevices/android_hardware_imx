@@ -17,6 +17,7 @@
 
 #include "DrmDisplay.h"
 
+#include <drm_fourcc.h>
 #include <gralloc_handle.h>
 #include <stdlib.h>
 #include <xf86drm.h>
@@ -513,7 +514,16 @@ int DrmDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* 
         *height = mActiveConfig.height;
     }
 
-    *format = static_cast<int>(common::PixelFormat::RGBA_8888);
+    uint32_t id = getPrimaryPlaneId();
+    DrmPlane* plane = mPlanes[id].get();
+    if (plane->checkFormatSupported(DRM_FORMAT_ABGR8888)) {
+        *format = static_cast<int>(common::PixelFormat::RGBA_8888);
+    } else if (plane->checkFormatSupported(DRM_FORMAT_XRGB8888)) {
+        // primary plane of imx8ulp use such format
+        *format = static_cast<int>(common::PixelFormat::BGRA_8888);
+    } else if (plane->checkFormatSupported(DRM_FORMAT_RGB565)) {
+        *format = static_cast<int>(common::PixelFormat::RGB_565);
+    }
 
     return 0;
 }

@@ -39,6 +39,9 @@ std::unique_ptr<DrmPlane> DrmPlane::create(::android::base::borrowed_fd drmFd, u
 
     drmModePlanePtr drmPlane = drmModeGetPlane(drmFd.get(), planeId);
     plane->mPossibleCrtcsMask = drmPlane->possible_crtcs;
+    for (uint32_t i = 0; i < drmPlane->count_formats; i++) {
+        plane->mDrmFormats.push_back(drmPlane->formats[i]);
+    }
     drmModeFreePlane(drmPlane);
 
     const uint64_t inFormatsBlobId = plane->mInFormats.getValue();
@@ -108,6 +111,13 @@ bool DrmPlane::checkFormat(uint32_t format, uint64_t modifier) {
         }
     }
     return false;
+}
+
+bool DrmPlane::checkFormatSupported(uint32_t format) {
+    bool supported = std::any_of(mDrmFormats.begin(), mDrmFormats.end(),
+                                 [&](uint32_t fmt) { return fmt == format; });
+
+    return supported;
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

@@ -47,6 +47,7 @@ public:
     bool checkFormat(uint32_t format, uint64_t modifier);
     bool checkActive() const { return mActive; }
     void setActive(bool state) { mActive = state; }
+    bool checkFormatSupported(uint32_t format);
 
     const DrmProperty& getCrtcProperty() const { return mCrtc; }
     const DrmProperty& getInFenceProperty() const { return mInFenceFd; }
@@ -67,6 +68,7 @@ private:
     const uint32_t mId;
 
     uint32_t mPossibleCrtcsMask = 0;
+    std::vector<uint32_t> mDrmFormats;
     std::unordered_map<uint32_t, std::vector<uint64_t>> mFormatModifiers;
     bool mActive = false;
 
