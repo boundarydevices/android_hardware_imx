@@ -181,7 +181,7 @@ ndk::ScopedAStatus Thermal::registerThermalChangedCallback(
     LOG(INFO) << "a callback has been registered to ThermalHAL, isFilter: " << c.is_filter_type
               << " Type: " << toString(c.type);
     // Send notification right away after successful thermal callback registration
-    std::function<void()> handler = [this, c, filterType, type]() {
+    std::function<void()> handler = [this, c(std::move(c)), filterType, type]() {
         std::vector<Temperature> temperatures;
         if (thermal_helper_.fillCurrentTemperatures(filterType, true, type, &temperatures)) {
             for (const auto &t : temperatures) {
@@ -195,7 +195,7 @@ ndk::ScopedAStatus Thermal::registerThermalChangedCallback(
             }
         }
     };
-    looper_.addEvent(Looper::Event{handler});
+    looper_.addEvent(Looper::Event{std::move(handler)});
     return ndk::ScopedAStatus::ok();
 }
 
