@@ -790,6 +790,11 @@ int createCLProgram(const char *fileSrcName, const char *fileBinName) {
         // you would save all of the binaries out here.
         if (program_devices[i] == device) {
             FILE *fp = fopen(fileBinName, "wb");
+            if (fp == NULL) {
+                ALOGE("%s: open %s fialed", __func__, fileBinName);
+                ret = -1;
+                goto binary_out;
+            }
             fwrite(programBinaries[i], 1, programBinarySizes[i], fp);
             fclose(fp);
             break;
