@@ -27,11 +27,11 @@
 #include <unordered_map>
 
 #include "Common.h"
-// #include "MemoryManager.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
-class DrmClient;
+class DeviceClient;
+class DrmBuffer;
 
 // A RAII object that will clear a drm framebuffer upon destruction.
 class DrmBuffer {
@@ -46,10 +46,11 @@ public:
 
 private:
     friend class DrmClient;
+    friend class FbdevClient;
     friend class DrmDisplay;
-    DrmBuffer(DrmClient& drmClient);
+    DrmBuffer(DeviceClient& client);
 
-    DrmClient& mDrmClient;
+    DeviceClient& mDeviceClient;
 
     uint32_t mWidth = 0;
     uint32_t mHeight = 0;
@@ -61,8 +62,9 @@ private:
     uint64_t mPlaneModifiers[4] = {0, 0, 0, 0};
     common::Rect mDisplayFrame;
     common::Rect mSourceCrop;
-    //    fsl::MetaData *mMeta = NULL;
+    // fsl::MetaData *mMeta = NULL;
     std::optional<uint32_t> mDrmFramebuffer;
+    std::optional<unsigned long> mBufferAddress;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

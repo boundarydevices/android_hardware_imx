@@ -28,60 +28,26 @@
 namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
 
-static int getVsyncHzFromProperty() {
-    static constexpr const auto kVsyncProp = "ro.boot.qemu.vsync";
+HWC3::Error findClientDisplays(DeviceClient* device,
+                               std::vector<DisplayMultiConfigs>* outDisplays) {
+    std::vector<HalMultiConfigs> deviceConfigs;
 
-    const auto vsyncProp = ::android::base::GetProperty(kVsyncProp, "");
-    DEBUG_LOG("%s: prop value is: %s", __FUNCTION__, vsyncProp.c_str());
-
-    uint64_t vsyncPeriod;
-    if (!::android::base::ParseUint(vsyncProp, &vsyncPeriod)) {
-        ALOGE("%s: failed to parse vsync period '%s', returning default 60", __FUNCTION__,
-              vsyncProp.c_str());
-        return 60;
-    }
-
-    return static_cast<int>(vsyncPeriod);
-}
-
-// This is currently only used for Gem5 bring-up where virtio-gpu and drm
-// are not currently available. For now, just return a placeholder display.
-HWC3::Error findNoOpDisplays(std::vector<DisplayMultiConfigs>* outDisplays) {
-    outDisplays->push_back(DisplayMultiConfigs{
-            .displayId = 0,
-            .activeConfigId = 0,
-            .configs = {DisplayConfig(0,
-                                      /*width=*/720,                         //
-                                      /*heighth=*/1280,                      //
-                                      /*dpiXh=*/320,                         //
-                                      /*dpiYh=*/320,                         //
-                                      /*vsyncPeriod=*/HertzToPeriodNanos(30) //
-                                      )},
-    });
-
-    return HWC3::Error::None;
-}
-
-HWC3::Error findDrmDisplays(const DrmClient* drm, std::vector<DisplayMultiConfigs>* outDisplays) {
-    std::vector<HalMultiConfigs> drmDisplayConfigs;
-
-    HWC3::Error error = drm->getDisplayConfigs(&drmDisplayConfigs);
+    HWC3::Error error = device->getDisplayConfigs(&deviceConfigs);
     if (error != HWC3::Error::None) {
         ALOGE("%s: failed to get displays configs.", __FUNCTION__);
         return error;
     }
 
-    for (const HalMultiConfigs drmDisplayConfig : drmDisplayConfigs) {
+    for (const HalMultiConfigs deviceConfig : deviceConfigs) {
         std::vector<DisplayConfig> hwcConfigs;
-        for (const auto& pair : *(drmDisplayConfig.configs)) {
-            auto cfg = pair.second;
-            hwcConfigs.push_back(DisplayConfig(static_cast<int32_t>(pair.first), cfg.width,
+        for (const auto& [configId, cfg] : *(deviceConfig.configs)) {
+            hwcConfigs.push_back(DisplayConfig(static_cast<int32_t>(configId), cfg.width,
                                                cfg.height, cfg.dpiX, cfg.dpiY,
                                                HertzToPeriodNanos(cfg.refreshRateHz)));
         }
         outDisplays->push_back(DisplayMultiConfigs{
-                .displayId = drmDisplayConfig.displayId,
-                .activeConfigId = static_cast<int32_t>(drmDisplayConfig.activeConfigId),
+                .displayId = deviceConfig.displayId,
+                .activeConfigId = static_cast<int32_t>(deviceConfig.activeConfigId),
                 .configs = hwcConfigs,
         });
     }
@@ -93,21 +59,15 @@ HWC3::Error findDrmDisplays(const DrmClient* drm, std::vector<DisplayMultiConfig
 
 HWC3::Error findDisplays(FrameComposer* composer, std::vector<DisplayMultiConfigs>* outDisplays) {
     HWC3::Error error = HWC3::Error::NoResources;
-    std::map<uint32_t, DrmClient*> clients;
+    std::map<uint32_t, DeviceClient*> clients;
 
     outDisplays->clear();
-    composer->getAllDrmClients(clients);
+    composer->getAllDeviceClients(clients);
 
-    if (IsInGem5DisplayFinderMode() || IsInNoOpCompositionMode()) {
-        error = findNoOpDisplays(outDisplays);
-    } else if (IsInDrmDisplayFinderMode()) {
-        //    error = findDrmDisplays(*drm, outDisplays);
-    } else {
-        for (const auto& pair : clients) {
-            HWC3::Error err = findDrmDisplays(pair.second, outDisplays);
-            if (err == HWC3::Error::None) {
-                error = HWC3::Error::None;
-            }
+    for (auto& pair : clients) {
+        HWC3::Error err = findClientDisplays(pair.second, outDisplays);
+        if (err == HWC3::Error::None) {
+            error = HWC3::Error::None;
         }
     }
 
@@ -115,8 +75,8 @@ HWC3::Error findDisplays(FrameComposer* composer, std::vector<DisplayMultiConfig
         // assert(clients.size() > 0)
         ALOGW("%s: No display connected, use placeholder for primary display", __FUNCTION__);
         uint32_t minId = INT_MAX;
-        for (const auto& [baseId, _] :
-             clients) { // imx8mq has two DRM clients, imx-dcss and mxsfb-drm
+        for (const auto& [baseId, _] : clients) {
+            // imx8mq has two DRM clients, imx-dcss and mxsfb-drm
             if (baseId < minId)
                 minId = baseId;
         }
@@ -124,9 +84,10 @@ HWC3::Error findDisplays(FrameComposer* composer, std::vector<DisplayMultiConfig
         clients[minId]->setPrimaryDisplay(id); // select minimum display id as primary
         clients[minId]->fakeDisplayConfig(id); // generate a fake display config
 
-        HWC3::Error err = findDrmDisplays(clients[minId], outDisplays); // try again
+        HWC3::Error err = findClientDisplays(clients[minId], outDisplays); // try again
         if (err != HWC3::Error::None) {
-            return err; // Should not happen!
+            ALOGE("%s: Cannot find any display configs, should not happen!!", __FUNCTION__);
+            return err;
         }
     } else {
         uint32_t minDisplayId = INT_MAX;

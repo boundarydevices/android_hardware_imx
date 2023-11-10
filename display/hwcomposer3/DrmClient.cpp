@@ -105,7 +105,7 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs) const {
+HWC3::Error DrmClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     ::android::RWLock::AutoRLock lock(mDisplaysMutex);

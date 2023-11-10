@@ -29,10 +29,6 @@ ANDROID_SINGLETON_STATIC_INSTANCE(aidl::android::hardware::graphics::composer3::
 namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
 
-bool shouldUseGuestComposer() {
-    return ::android::base::GetProperty("ro.hardware.vulkan", "") == "pastel";
-}
-
 std::string getPmemPath() {
     return ::android::base::GetProperty("ro.vendor.hwcomposer.pmem", "");
 }
@@ -89,15 +85,8 @@ HWC3::Error Device::getComposer(FrameComposer** outComposer) {
     std::unique_lock<std::mutex> lock(mMutex);
 
     if (mComposer == nullptr) {
-        if (IsInNoOpCompositionMode()) {
-            DEBUG_LOG("%s: using NoOpFrameComposer", __FUNCTION__);
-            //      mComposer = std::make_unique<NoOpFrameComposer>();
-        } else if (IsInClientCompositionMode()) {
-            DEBUG_LOG("%s: using ClientFrameComposer", __FUNCTION__);
-            mComposer = std::make_unique<ClientFrameComposer>();
-        } else {
-            mComposer = std::make_unique<ClientFrameComposer>();
-        }
+        mComposer = std::make_unique<ClientFrameComposer>();
+
         if (!mComposer) {
             ALOGE("%s failed to allocate FrameComposer", __FUNCTION__);
             return HWC3::Error::NoResources;

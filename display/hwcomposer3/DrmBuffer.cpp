@@ -16,14 +16,14 @@
 
 #include "DrmBuffer.h"
 
-#include "DrmClient.h"
+#include "DeviceClient.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
-DrmBuffer::DrmBuffer(DrmClient& DrmClient) : mDrmClient(DrmClient) {}
+DrmBuffer::DrmBuffer(DeviceClient& client) : mDeviceClient(client) {}
 
 DrmBuffer::~DrmBuffer() {
-    mDrmClient.destroyDrmFramebuffer(this);
+    mDeviceClient.destroyDrmFramebuffer(this);
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

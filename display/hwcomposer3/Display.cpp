@@ -267,7 +267,7 @@ HWC3::Error Display::getDisplayConfigs(std::vector<int32_t>* outConfigIds) {
 }
 
 HWC3::Error Display::getDisplayConnectionType(DisplayConnectionType* outType) {
-    if (IsCuttlefishFoldable() || IsAutoDevice()) {
+    if (IsAutoDevice()) {
         // Android Auto OS needs to set all displays to INTERNAL since they're used
         // for the passenger displays.
         // Workaround to force all displays to INTERNAL for cf_x86_64_foldable.

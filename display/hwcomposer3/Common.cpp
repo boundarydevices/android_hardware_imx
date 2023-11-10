@@ -28,52 +28,6 @@ bool IsAutoDevice() {
     return product_name.find("car_") || product_name.find("_auto");
 }
 
-bool IsCuttlefish() {
-    return ::android::base::GetProperty("ro.product.board", "") == "cutf";
-}
-
-bool IsCuttlefishFoldable() {
-    return IsCuttlefish() &&
-            ::android::base::GetProperty("ro.product.name", "").find("foldable") !=
-            std::string::npos;
-}
-
-bool IsInNoOpCompositionMode() {
-    const std::string mode = ::android::base::GetProperty("ro.vendor.hwcomposer.mode", "");
-    DEBUG_LOG("%s: sysprop ro.vendor.hwcomposer.mode is %s", __FUNCTION__, mode.c_str());
-    return mode == "noop";
-}
-
-bool IsInClientCompositionMode() {
-    const std::string mode = ::android::base::GetProperty("ro.vendor.hwcomposer.mode", "");
-    DEBUG_LOG("%s: sysprop ro.vendor.hwcomposer.mode is %s", __FUNCTION__, mode.c_str());
-    return mode == "client";
-}
-
-bool IsInGem5DisplayFinderMode() {
-    const std::string mode =
-            ::android::base::GetProperty("ro.vendor.hwcomposer.display_finder_mode", "");
-    DEBUG_LOG("%s: sysprop ro.vendor.hwcomposer.display_finder_mode is %s", __FUNCTION__,
-              mode.c_str());
-    return mode == "gem5";
-}
-
-bool IsInNoOpDisplayFinderMode() {
-    const std::string mode =
-            ::android::base::GetProperty("ro.vendor.hwcomposer.display_finder_mode", "");
-    DEBUG_LOG("%s: sysprop ro.vendor.hwcomposer.display_finder_mode is %s", __FUNCTION__,
-              mode.c_str());
-    return mode == "noop";
-}
-
-bool IsInDrmDisplayFinderMode() {
-    const std::string mode =
-            ::android::base::GetProperty("ro.vendor.hwcomposer.display_finder_mode", "");
-    DEBUG_LOG("%s: sysprop ro.vendor.hwcomposer.display_finder_mode is %s", __FUNCTION__,
-              mode.c_str());
-    return mode == "drm";
-}
-
 bool IsOverlayUserDisabled() {
     const std::string overlay = ::android::base::GetProperty("vendor.hwc.disable.overlay", "0");
     DEBUG_LOG("%s: sysprop vendor.hwc.disable.overlay is %s", __FUNCTION__, overlay.c_str());

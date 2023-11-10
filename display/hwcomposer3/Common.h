@@ -83,15 +83,6 @@ struct HalMultiConfigs {
 };
 
 bool IsAutoDevice();
-bool IsCuttlefish();
-bool IsCuttlefishFoldable();
-
-bool IsInNoOpCompositionMode();
-bool IsInClientCompositionMode();
-
-bool IsInGem5DisplayFinderMode();
-bool IsInNoOpDisplayFinderMode();
-bool IsInDrmDisplayFinderMode();
 
 bool IsOverlayUserDisabled();
 bool Is2DCompositionUserPrefered();
