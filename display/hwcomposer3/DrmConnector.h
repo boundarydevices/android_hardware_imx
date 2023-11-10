@@ -61,7 +61,7 @@ public:
     bool isCompatibleWith(const DrmCrtc& crtc) {
         return ((0x1 << crtc.mIndexInResourcesArray) & mPossibleCrtcsMask);
     }
-    bool getHDCPSupported() const { return mProtection.getId() != (uint64_t)-1; }
+    bool getHDCPSupported() const { return mProtection.getId() != (uint32_t)-1; }
     bool isHDCPEnabled() const { return mProtection.getValue() == 1; }
     bool setHDCPMode(::android::base::borrowed_fd drmFd, int val) const;
 

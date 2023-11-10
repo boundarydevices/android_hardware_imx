@@ -33,7 +33,7 @@ class DrmProperty {
 public:
     DrmProperty() {}
     DrmProperty(uint32_t id, uint64_t value, std::string name)
-          : mId(id), mValue(value), mName(name) {}
+          : mId(id), mValue(value), mName(std::move(name)) {}
 
     ~DrmProperty() {}
 

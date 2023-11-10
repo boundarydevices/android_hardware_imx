@@ -130,7 +130,7 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> FbdevClient::create(
     buffer->mBufferAddress = memHandle->phys;
     DEBUG_LOG("%s: get framebuffer address 0x%" PRIx64, __FUNCTION__, *buffer->mBufferAddress);
 
-    return std::make_tuple(HWC3::Error::None, std::shared_ptr<DrmBuffer>(buffer));
+    return std::make_tuple(HWC3::Error::None, std::move(buffer));
 }
 
 HWC3::Error FbdevClient::destroyDrmFramebuffer(DrmBuffer* buffer) {

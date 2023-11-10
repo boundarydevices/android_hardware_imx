@@ -37,7 +37,7 @@ public:
     HWC3::Error init();
 
     void setOnClientDestroyed(std::function<void()> onClientDestroyed) {
-        mOnClientDestroyed = onClientDestroyed;
+        mOnClientDestroyed = std::move(onClientDestroyed);
     }
 
     // HWC3 interface:

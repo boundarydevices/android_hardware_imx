@@ -73,6 +73,8 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
             displayBaseId = 0x40;
         else
             displayBaseId = 0;
+
+        drmFreeVersion(version);
     }
 
     {
@@ -157,6 +159,7 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
         auto plane = DrmPlane::create(mFd, planeId);
         if (!plane) {
             ALOGE("%s: Failed to create DRM CRTC.", __FUNCTION__);
+            drmModeFreePlaneResources(drmPlaneResources);
             return false;
         }
 
@@ -326,7 +329,7 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
 
     mBufferCache->set(primeHandle, std::shared_ptr<DrmBuffer>(buffer));
 
-    return std::make_tuple(HWC3::Error::None, std::shared_ptr<DrmBuffer>(buffer));
+    return std::make_tuple(HWC3::Error::None, std::move(buffer));
 }
 
 HWC3::Error DrmClient::destroyDrmFramebuffer(DrmBuffer* buffer) {
@@ -584,8 +587,8 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
 
     set_g2d_secure_pipe(secure);
     composer->freeSolidColorBuffer();
-
-    mG2dComposer = composer; // hotplug callback function need device composer to free buffers
+    // hotplug callback function need device composer to free buffers
+    mG2dComposer = std::move(composer);
 
     return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][0]);
 }

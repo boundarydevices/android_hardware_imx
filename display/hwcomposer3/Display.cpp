@@ -573,7 +573,7 @@ HWC3::Error Display::getPreferredBootConfig(int32_t* outConfigId) {
     std::unique_lock<std::recursive_mutex> lock(mStateMutex);
 
     std::vector<int32_t> configIds;
-    for (const auto [configId, _] : mConfigs) {
+    for (const auto& [configId, _] : mConfigs) {
         configIds.push_back(configId);
     }
     *outConfigId = *std::min_element(configIds.begin(), configIds.end());
@@ -891,7 +891,7 @@ DisplayConfig* Display::getConfig(int32_t configId) {
 HWC3::Error Display::setEdid(std::vector<uint8_t> edid) {
     DEBUG_LOG("%s: display:%" PRId64, __FUNCTION__, mId);
 
-    mEdid = edid;
+    mEdid = std::move(edid);
     return HWC3::Error::None;
 }
 

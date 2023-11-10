@@ -68,7 +68,7 @@ HWC3::Error ComposerResources::init() {
 void ComposerResources::clear(
         ::android::hardware::graphics::composer::V2_2::hal::ComposerResources::RemoveDisplay
                 removeDisplay) {
-    mImpl->clear(removeDisplay);
+    mImpl->clear(std::move(removeDisplay));
 }
 
 bool ComposerResources::hasDisplay(int64_t displayId) {

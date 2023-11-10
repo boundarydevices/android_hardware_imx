@@ -375,14 +375,17 @@ uint32_t DrmDisplay::findDrmPlane(const native_handle_t* handle) {
     if (it != mPlaneIdPool.end()) {
         mPlaneIdPool.erase(it);
     }
+#ifdef DEBUG_NXP_HWC
     if (planeId > 0) {
         char fmt[6];
         char* name = drmGetFormatName(format, fmt);
         char* modifier_name = drmGetFormatModifierName(modifier);
         DEBUG_LOG("%s: find suitable Drm Plane:%d for buffer:%s :%s %s", __FUNCTION__, planeId,
                   memHandle->name, name, modifier_name);
+        free(name);
+        free(modifier_name);
     }
-
+#endif
     return planeId;
 }
 

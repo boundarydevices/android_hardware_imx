@@ -40,9 +40,7 @@ TimePoint GetNextVsyncInPhase(Nanoseconds vsyncPeriod, TimePoint previousVsync, 
 
 } // namespace
 
-VsyncThread::VsyncThread(int64_t displayId) : mDisplayId(displayId) {
-    mPreviousVsync = std::chrono::steady_clock::now() - mVsyncPeriod;
-}
+VsyncThread::VsyncThread(int64_t displayId) : mDisplayId(displayId) {}
 
 VsyncThread::~VsyncThread() {
     stop();
@@ -52,6 +50,7 @@ HWC3::Error VsyncThread::start(int32_t vsyncPeriodNanos) {
     DEBUG_LOG("%s for display:%" PRIu64, __FUNCTION__, mDisplayId);
 
     mVsyncPeriod = Nanoseconds(vsyncPeriodNanos);
+    mPreviousVsync = std::chrono::steady_clock::now() - mVsyncPeriod;
 
     mThread = std::thread([this]() { threadLoop(); });
 
@@ -109,10 +108,10 @@ HWC3::Error VsyncThread::scheduleVsyncUpdate(int32_t newVsyncPeriod,
     update.period = Nanoseconds(newVsyncPeriod);
     update.updateAfter = asTimePoint(constraints.desiredTimeNanos);
 
+    TimePoint nextVsync = GetNextVsyncInPhase(mVsyncPeriod, mPreviousVsync, update.updateAfter);
+
     std::unique_lock<std::mutex> lock(mStateMutex);
     mPendingUpdate.emplace(std::move(update));
-
-    TimePoint nextVsync = GetNextVsyncInPhase(mVsyncPeriod, mPreviousVsync, update.updateAfter);
 
     outTimeline->newVsyncAppliedTimeNanos = asNanosTimePoint(nextVsync);
     outTimeline->refreshRequired = false;
