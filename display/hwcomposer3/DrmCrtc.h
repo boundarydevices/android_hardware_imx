@@ -43,6 +43,9 @@ public:
     const DrmProperty& getActiveProperty() const { return mActive; }
     const DrmProperty& getModeProperty() const { return mMode; }
     const DrmProperty& getOutFenceProperty() const { return mOutFence; }
+    const DrmProperty& getDisplayXferProperty() const { return mDisplayXfer; }
+
+    bool setLowPowerDisplay(::android::base::borrowed_fd drmFd, DrmPower power) const;
 
 private:
     DrmCrtc(uint32_t id, uint32_t index) : mId(id), mIndexInResourcesArray(index) {}
@@ -56,6 +59,7 @@ private:
     DrmProperty mActive;
     DrmProperty mMode;
     DrmProperty mOutFence;
+    DrmProperty mDisplayXfer;
 
     static const auto& GetPropertiesMap() {
         static const auto* sMap = []() {
@@ -63,6 +67,7 @@ private:
                     {"ACTIVE", &DrmCrtc::mActive},
                     {"MODE_ID", &DrmCrtc::mMode},
                     {"OUT_FENCE_PTR", &DrmCrtc::mOutFence},
+                    {"DISPLAY_TRANSFER", &DrmCrtc::mDisplayXfer},
             };
         }();
         return *sMap;

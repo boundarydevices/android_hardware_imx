@@ -57,6 +57,11 @@
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
+enum class DrmPower {
+    kPowerOff,
+    kPowerOn,
+};
+
 enum {
     UI_SCALE_NONE = 0,
     UI_SCALE_SOFTWARE = 1,

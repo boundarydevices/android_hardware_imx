@@ -31,4 +31,29 @@ std::unique_ptr<DrmCrtc> DrmCrtc::create(::android::base::borrowed_fd drmFd, uin
     return crtc;
 }
 
+bool DrmCrtc::setLowPowerDisplay(::android::base::borrowed_fd drmFd, DrmPower power) const {
+    DEBUG_LOG("%s: crtc:%" PRIu32, __FUNCTION__, mId);
+
+    int mode, err;
+    switch (power) {
+        case DrmPower::kPowerOff:
+            mode = 2; // TODO: need more accurate definition
+            break;
+        case DrmPower::kPowerOn:
+            mode = 1; // TODO: need more accurate definition
+            break;
+        default:
+            mode = 1;
+            break;
+    }
+
+    err = drmModeObjectSetProperty(drmFd.get(), mId, DRM_MODE_OBJECT_CRTC, mDisplayXfer.getId(),
+                                   mode);
+    if (err != 0) {
+        ALOGE("failed to set low power display mode:%d", mode);
+    }
+
+    return err == 0 ? true : false;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

@@ -315,7 +315,11 @@ DrmHotplugChange DrmDisplay::checkAndHandleHotplug(::android::base::borrowed_fd 
 bool DrmDisplay::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower power) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    mConnector->setPowerMode(drmFd, power);
+    if (mCrtc->getDisplayXferProperty().getId() != (uint64_t)-1) {
+        mCrtc->setLowPowerDisplay(drmFd, power);
+    } else {
+        mConnector->setPowerMode(drmFd, power);
+    }
 
     return true;
 }
