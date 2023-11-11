@@ -70,7 +70,9 @@ public:
 
     bool isConnected() const { return mConnector->isConnected(); }
 
-    std::optional<std::vector<uint8_t>> getEdid() const { return mConnector->getEdid(); }
+    std::optional<std::vector<uint8_t>> getEdid(::android::base::borrowed_fd drmFd) const {
+        return mConnector->getEdid(drmFd);
+    }
 
     std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> flushOverlay(
             uint32_t planeId, std::unique_ptr<DrmAtomicRequest> request,

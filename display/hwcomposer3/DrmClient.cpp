@@ -465,7 +465,7 @@ std::optional<std::vector<uint8_t>> DrmClient::getEdid(uint32_t displayId) {
         return std::nullopt;
     }
 
-    return mDisplays[displayId]->getEdid();
+    return mDisplays[displayId]->getEdid(mFd);
 }
 
 HWC3::Error DrmClient::setPowerMode(int displayId, DrmPower power) {

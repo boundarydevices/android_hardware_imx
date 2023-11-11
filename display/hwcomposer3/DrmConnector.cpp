@@ -89,7 +89,8 @@ bool DrmConnector::update(::android::base::borrowed_fd drmFd) {
 
     if (mStatus == DRM_MODE_CONNECTED) {
         if (!loadEdid(drmFd)) {
-            return false;
+            mEdidReload = true;
+            ALOGE("%s: Failed to load EDID from connector:%" PRIu32, __FUNCTION__, mId);
         }
     }
 
@@ -102,38 +103,35 @@ bool DrmConnector::update(::android::base::borrowed_fd drmFd) {
 bool DrmConnector::loadEdid(::android::base::borrowed_fd drmFd) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-#define EDID_LENGTH 128
-    uint8_t default_edid[EDID_LENGTH] = {
-            // Basic info of the default edid:
-            // Vendor ID: NXP, Product ID: 0, Serial Number: 0, Mfg Week: 1, Mfg Year: 2019
-            // EDID Structure Version: 1.3, Monitor Name: NXP Android
-            0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x3B, 0x10, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x01, 0x1D, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-            0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-            0x01, 0x01, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x4E,
-            0x58, 0x50, 0x20, 0x41, 0x6E, 0x64, 0x72, 0x6F, 0x69, 0x64, 0x0A, 0x0A, 0x00,
-            0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E,
-    };
-
-    mWidthMillimeters = 0;
-    mHeightMillimeters = 0;
-
-    const uint64_t edidBlobId = mEdidProp.getValue();
+    uint64_t edidBlobId = mEdidProp.getValue();
     if (edidBlobId == (uint64_t)-1) {
         ALOGW("%s: connector:%" PRIu32 " does not have EDID.", __FUNCTION__, mId);
         return true;
     }
+    if (edidBlobId == 0) {
+        drmModeObjectPropertiesPtr props;
+        props = drmModeObjectGetProperties(drmFd.get(), mId, DRM_MODE_OBJECT_CONNECTOR);
+        if (!props) {
+            ALOGE("%s No properties: %s", __FUNCTION__, strerror(errno));
+            return false;
+        }
+        for (uint32_t i = 0; i < props->count_props; i++) {
+            drmModePropertyPtr prop;
+            prop = drmModeGetProperty(drmFd.get(), props->props[i]);
+            if (strcmp(prop->name, "EDID") == 0) {
+                edidBlobId = props->prop_values[i]; // find EDID blob
+            }
+            drmModeFreeProperty(prop);
+        }
+        drmModeFreeObjectProperties(props);
+    }
 
+    ALOGI("%s: try to get EDID blob Id=%" PRIu64, __FUNCTION__, edidBlobId);
     auto blob = drmModeGetPropertyBlob(drmFd.get(), edidBlobId);
     if (!blob) {
         ALOGE("%s: connector:%" PRIu32 " failed to read EDID blob (%" PRIu64 "): %s", __FUNCTION__,
               mId, edidBlobId, strerror(errno));
-        //        return false;
-        mEdid = std::vector<uint8_t>(default_edid, default_edid + EDID_LENGTH);
+        return false;
     } else {
         const uint8_t* blobStart = static_cast<uint8_t*>(blob->data);
         mEdid = std::vector<uint8_t>(blobStart, blobStart + blob->length);
@@ -153,7 +151,7 @@ bool DrmConnector::loadEdid(::android::base::borrowed_fd drmFd) {
     if (descriptor[0] == 0 && descriptor[1] == 0) {
         ALOGE("%s: connector:%" PRIu32 " is missing preferred detailed timing descriptor.",
               __FUNCTION__, mId);
-        return -1;
+        return false;
     }
 
     const uint8_t w_mm_lsb = descriptor[12];
@@ -311,6 +309,18 @@ bool DrmConnector::setHDCPMode(::android::base::borrowed_fd drmFd, int val) cons
     }
 
     return err == 0 ? true : false;
+}
+
+std::optional<std::vector<uint8_t>> DrmConnector::getEdid(::android::base::borrowed_fd drmFd) {
+    if (isConnected() && mEdidReload) {
+        if (!loadEdid(drmFd)) {
+            ALOGE("%s: Failed to load EDID from connector:%" PRIu32, __FUNCTION__, mId);
+            return std::nullopt;
+        }
+        mEdidReload = false;
+    }
+
+    return mEdid;
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

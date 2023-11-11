@@ -126,6 +126,11 @@ HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
         display->setCapability(caps);
     }
 
+    std::optional<std::vector<uint8_t>> edid = client->getEdid(displayId);
+    if (edid) {
+        display->setEdid(*edid);
+    }
+
     return HWC3::Error::None;
 }
 

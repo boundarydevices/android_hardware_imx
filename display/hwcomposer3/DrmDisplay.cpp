@@ -340,7 +340,7 @@ DrmHotplugChange DrmDisplay::checkAndHandleHotplug(::android::base::borrowed_fd 
 bool DrmDisplay::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower power) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    if (mCrtc->getDisplayXferProperty().getId() != (uint64_t)-1) {
+    if (mCrtc->getDisplayXferProperty().getId() != (uint32_t)-1) {
         mCrtc->setLowPowerDisplay(drmFd, power);
     } else {
         mConnector->setPowerMode(drmFd, power);
@@ -403,11 +403,10 @@ uint32_t DrmDisplay::findDrmPlane(const native_handle_t* handle) {
 #ifdef DEBUG_NXP_HWC
     if (planeId > 0) {
         char fmt[6];
-        char* name = drmGetFormatName(format, fmt);
+        char* name = drmGetFormatName(format, fmt); // defined in HWC, no malloc memory
         char* modifier_name = drmGetFormatModifierName(modifier);
         DEBUG_LOG("%s: find suitable Drm Plane:%d for buffer:%s :%s %s", __FUNCTION__, planeId,
                   memHandle->name, name, modifier_name);
-        free(name);
         free(modifier_name);
     }
 #endif

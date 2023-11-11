@@ -54,7 +54,7 @@ public:
 
     bool isConnected() const { return mStatus == DRM_MODE_CONNECTED; }
 
-    std::optional<std::vector<uint8_t>> getEdid() const { return mEdid; }
+    std::optional<std::vector<uint8_t>> getEdid(::android::base::borrowed_fd drmFd);
 
     const DrmProperty& getCrtcProperty() const { return mCrtc; }
     const DrmMode* getDefaultMode() const { return mModes[0].get(); }
@@ -80,6 +80,7 @@ private:
     uint32_t mPossibleCrtcsMask = 0; // get from encoder
 
     drmModeConnection mStatus = DRM_MODE_UNKNOWNCONNECTION;
+    bool mEdidReload = false;
     uint32_t mWidthMillimeters = 0;
     uint32_t mHeightMillimeters = 0;
     std::vector<std::unique_ptr<DrmMode>> mModes;
