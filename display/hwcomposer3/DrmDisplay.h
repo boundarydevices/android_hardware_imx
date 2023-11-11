@@ -36,6 +36,8 @@
 #include "DrmCrtc.h"
 #include "DrmPlane.h"
 
+#define MAX_COMMIT_RETRY_COUNT 32
+
 namespace aidl::android::hardware::graphics::composer3::impl {
 
 enum class DrmHotplugChange {

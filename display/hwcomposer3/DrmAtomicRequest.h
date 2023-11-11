@@ -39,7 +39,7 @@ public:
 
     bool Set(uint32_t objectId, const DrmProperty& prop, uint64_t value);
 
-    bool Commit(::android::base::borrowed_fd drmFd);
+    int Commit(::android::base::borrowed_fd drmFd);
 
 private:
     DrmAtomicRequest(drmModeAtomicReqPtr request) : mRequest(request) {}

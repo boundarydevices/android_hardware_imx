@@ -43,16 +43,15 @@ bool DrmAtomicRequest::Set(uint32_t objectId, const DrmProperty& prop, uint64_t 
     return true;
 }
 
-bool DrmAtomicRequest::Commit(::android::base::borrowed_fd drmFd) {
+int DrmAtomicRequest::Commit(::android::base::borrowed_fd drmFd) {
     constexpr const uint32_t kCommitFlags = DRM_MODE_ATOMIC_ALLOW_MODESET;
 
     int ret = drmModeAtomicCommit(drmFd.get(), mRequest, kCommitFlags, 0);
     if (ret) {
         ALOGE("%s:%d: atomic commit failed: %s\n", __FUNCTION__, __LINE__, strerror(errno));
-        return false;
     }
 
-    return true;
+    return ret;
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl
