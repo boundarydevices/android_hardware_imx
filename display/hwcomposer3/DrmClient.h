@@ -48,6 +48,12 @@ using android::RWLock;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
+typedef struct __backlight {
+    std::string path;
+    int maxBrightness;
+    int brightness;
+} Backlight;
+
 class DrmClient : public DeviceClient {
 public:
     DrmClient() = default;
@@ -100,6 +106,9 @@ public:
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;
     HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) override;
 
+    HWC3::Error setBacklightBrightness(int displayId, float brightness) override;
+    HWC3::Error getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) override;
+
 private:
     using DrmPrimeBufferHandle = uint32_t;
     using DrmBufferCache = LruCache<DrmPrimeBufferHandle, std::shared_ptr<DrmBuffer>>;
@@ -110,6 +119,8 @@ private:
 
     bool loadDrmDisplays(uint32_t displayBaseId);
 
+    int loadBacklightDevices();
+
     // Drm device.
     ::android::base::unique_fd mFd;
 
@@ -119,8 +130,11 @@ private:
     std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mComposerTargets;
     std::unordered_map<uint32_t, int32_t> mTargetIndex; //<displayId, index>
     std::unordered_map<uint32_t, bool> mTargetSecurity; //<displayId, secure>
-
     std::unordered_map<uint32_t, int> mSecureMode;
+
+    std::unordered_map<uint32_t, std::vector<DisplayCapability>> mDisplayCapabilitys;
+
+    Backlight mBacklight; // TODO: only primary display support backlight adjusting now
 
     std::shared_ptr<DeviceComposer> mG2dComposer = nullptr;
 

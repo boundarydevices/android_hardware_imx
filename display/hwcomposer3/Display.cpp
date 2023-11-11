@@ -247,7 +247,7 @@ HWC3::Error Display::getDisplayCapabilities(std::vector<DisplayCapability>* outC
     DEBUG_LOG("%s: display:%" PRId64, __FUNCTION__, mId);
 
     outCapabilities->clear();
-    outCapabilities->push_back(DisplayCapability::SKIP_CLIENT_COLOR_TRANSFORM);
+    for (auto& cap : mCapability) outCapabilities->push_back(cap);
 
     return HWC3::Error::None;
 }
@@ -715,7 +715,9 @@ HWC3::Error Display::setBrightness(float brightness) {
         return HWC3::Error::BadParameter;
     }
 
-    return HWC3::Error::Unsupported;
+    mComposer->setDisplayBrightness(this, brightness);
+
+    return HWC3::Error::None;
 }
 
 HWC3::Error Display::setClientTarget(buffer_handle_t buffer, const ndk::ScopedFileDescriptor& fence,

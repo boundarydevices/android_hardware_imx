@@ -77,6 +77,13 @@ public:
     virtual std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) = 0;
     virtual HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) = 0;
+
+    virtual HWC3::Error setBacklightBrightness(int displayId, float brightness) {
+        return HWC3::Error::None;
+    };
+    virtual HWC3::Error getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) {
+        return HWC3::Error::None;
+    };
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

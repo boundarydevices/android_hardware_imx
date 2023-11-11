@@ -68,6 +68,7 @@ public:
             std::unordered_map<int64_t, ::android::base::unique_fd>* outLayerFences) override;
 
     HWC3::Error setPowerMode(Display* display, PowerMode mode) override;
+    HWC3::Error setDisplayBrightness(Display* display, float brightness) override;
 
     HWC3::Error getAllDeviceClients(std::map<uint32_t, DeviceClient*>& clients) override {
         for (auto& [baseId, client] : mDeviceClients) {

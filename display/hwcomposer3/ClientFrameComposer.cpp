@@ -17,17 +17,8 @@
 
 #include "ClientFrameComposer.h"
 
-#include <android-base/parseint.h>
-#include <android-base/properties.h>
-#include <android-base/strings.h>
-#include <android/hardware/graphics/common/1.0/types.h>
 #include <cutils/properties.h>
 #include <drm_fourcc.h>
-#include <libyuv.h>
-#include <sync/sync.h>
-#include <ui/GraphicBuffer.h>
-#include <ui/GraphicBufferAllocator.h>
-#include <ui/GraphicBufferMapper.h>
 
 #include "Common.h"
 #include "Display.h"
@@ -121,8 +112,19 @@ HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
     const auto displayId = display->getId();
     DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
 
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
     // Ensure created.
     mDisplayBuffers.emplace(displayId, DisplayBuffer{});
+
+    std::vector<DisplayCapability> caps;
+    if (client->getDisplayCapability(displayId, caps) == HWC3::Error::None) {
+        display->setCapability(caps);
+    }
 
     return HWC3::Error::None;
 }
@@ -398,6 +400,21 @@ std::tuple<HWC3::Error, DeviceClient*> ClientFrameComposer::getDeviceClient(uint
     DeviceClient* client = mDeviceClients[candidate].get();
 
     return std::make_tuple(HWC3::Error::None, client);
+}
+
+HWC3::Error ClientFrameComposer::setDisplayBrightness(Display* display, float brightness) {
+    const auto displayId = display->getId();
+    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
+    client->setBacklightBrightness(displayId, brightness);
+
+    return HWC3::Error::None;
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

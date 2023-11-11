@@ -18,6 +18,7 @@
 #include "DrmClient.h"
 
 #include <RWLock.h>
+#include <cutils/properties.h>
 #include <drm_fourcc.h>
 #include <gralloc_handle.h>
 #include <hwsecure_client.h>
@@ -40,7 +41,7 @@ DrmClient::~DrmClient() {
 HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    mFd = ::android::base::unique_fd(open(path /*"/dev/dri/card0"*/, O_RDWR | O_CLOEXEC));
+    mFd = ::android::base::unique_fd(open(path, O_RDWR | O_CLOEXEC));
     if (mFd < 0) {
         ALOGE("%s: failed to open drm device: %s", __FUNCTION__, strerror(errno));
         return HWC3::Error::NoResources;
@@ -103,6 +104,10 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
 
     *baseId = displayBaseId;
     mDisplayBaseId = displayBaseId;
+
+    int cnt = loadBacklightDevices();
+    ALOGI("%s: There are %d backlight devices", __FUNCTION__, cnt);
+
     DEBUG_LOG("%s: Successfully initialized.", __FUNCTION__);
     return HWC3::Error::None;
 }
@@ -230,7 +235,6 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
         };
         auto it = std::find_if(planes.begin(), planes.end(), check_fun);
         while (it != planes.end()) {
-            // it = std::find_if(it + 1, planes.end(), check_fun);
             planes.erase(it);
             it = std::find_if(planes.begin(), planes.end(), check_fun);
         }
@@ -614,6 +618,86 @@ HWC3::Error DrmClient::setSecureMode(int displayId, uint32_t planeId, bool secur
     mDisplays[displayId]->setSecureMode(mFd, secure);
     mSecureMode[displayId] = value;
     ALOGI("%s: set display %d %s mode", __FUNCTION__, displayId, secure ? "secure" : "nonsecure");
+
+    return HWC3::Error::None;
+}
+
+int DrmClient::loadBacklightDevices() {
+    char dev[PROPERTY_VALUE_MAX];
+    std::string filePath;
+    std::string path("/sys/class/backlight/");
+
+    property_get("vendor.hw.backlight.dev", dev, "pwm-backlight");
+    filePath = path + dev + "/max_brightness";
+
+    FILE* file = fopen(filePath.c_str(), "r");
+    if (!file) {
+        property_get("vendor.hw.backlight_backup.dev", dev, "pwm-backlight");
+        filePath = path + dev + "/max_brightness";
+        file = fopen(filePath.c_str(), "r");
+    }
+    if (!file) {
+        mBacklight.maxBrightness = -1;
+        ALOGE("%s: Cannot get backlight device or incorrect setting", __FUNCTION__);
+    } else {
+        char value[5];
+        if (fread(value, 1, 4, file) > 0) {
+            value[4] = '\0';
+            mBacklight.maxBrightness = atoi(value);
+            ALOGI("%s: get max brightness=%d from %s", __FUNCTION__, mBacklight.maxBrightness,
+                  filePath.c_str());
+        }
+        mBacklight.path = path + dev;
+        fclose(file);
+    }
+
+    if (mBacklight.maxBrightness > 0) {
+        // TODO: Here use mDisplayBaseId as primary display Id, and backlight only support primary
+        // display
+        std::vector<DisplayCapability> caps;
+        if (mDisplayCapabilitys.find(mDisplayBaseId) != mDisplayCapabilitys.end())
+            caps = mDisplayCapabilitys[mDisplayBaseId];
+
+        caps.push_back(DisplayCapability::BRIGHTNESS);
+        mDisplayCapabilitys.emplace(mDisplayBaseId, caps);
+
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+HWC3::Error DrmClient::setBacklightBrightness(int displayId, float brightness) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    int value = (int)(mBacklight.maxBrightness * brightness);
+    std::string bl = mBacklight.path + "/brightness";
+    FILE* file = fopen(bl.c_str(), "w");
+    if (!file) {
+        ALOGE("%s can not open file %s\n", __FUNCTION__, bl.c_str());
+        return HWC3::Error::NoResources;
+    }
+    fprintf(file, "%d", value);
+    fclose(file);
+
+    return HWC3::Error::None;
+}
+
+HWC3::Error DrmClient::getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    if (mDisplayCapabilitys.find(displayId) == mDisplayCapabilitys.end()) {
+        ALOGW("%s: No display capabilitis in display %" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::NoResources;
+    }
+    caps.insert(caps.end(), mDisplayCapabilitys[displayId].begin(),
+                mDisplayCapabilitys[displayId].end());
 
     return HWC3::Error::None;
 }
