@@ -246,6 +246,9 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
         return std::make_tuple(HWC3::Error::NoResources, ::android::base::unique_fd());
     }
 
+#ifdef DEBUG_DUMP_REFRESH_RATE
+    nsecs_t now = dumpRefreshRateStart();
+#endif
     int ret;
     uint32_t i;
     for (i = 0; i < MAX_COMMIT_RETRY_COUNT; i++) {
@@ -264,6 +267,10 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
         ALOGE("%s: atomic commit failed after retry", __FUNCTION__);
         return std::make_tuple(HWC3::Error::NoResources, ::android::base::unique_fd());
     }
+#ifdef DEBUG_DUMP_REFRESH_RATE
+    int vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz; // convert to nanosecond
+    dumpRefreshRateEnd(mId, vsyncPeriod, now);
+#endif
 
     if (mModeSet)
         mModeSet = false;

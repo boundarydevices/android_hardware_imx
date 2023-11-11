@@ -202,4 +202,54 @@ void mergeRect(common::Rect &masked, common::Rect &src) {
     masked.bottom = masked.bottom >= src.bottom ? masked.bottom : src.bottom;
 }
 
+#ifdef DEBUG_DUMP_REFRESH_RATE
+nsecs_t dumpRefreshRateStart() {
+    nsecs_t commit_start;
+    commit_start = systemTime(CLOCK_MONOTONIC);
+
+    return commit_start;
+}
+
+void dumpRefreshRateEnd(uint32_t displayId, int vsyncPeriod, nsecs_t commit_start) {
+    static nsecs_t m_pre_commit_start = 0;
+    static nsecs_t m_pre_commit_time = 0;
+    // surfaceflinger updatescreen delay(compare with vsync period)
+    static nsecs_t m_total_sf_delay = 0;
+    static nsecs_t m_total_commit_time = 0;
+    static nsecs_t m_total_commit_cost = 0;
+    static int m_request_refresh_cnt = 0;
+    static int m_commit_cnt = 0;
+
+    nsecs_t commit_time;
+    float refresh_rate = 0;
+
+    commit_time = systemTime(CLOCK_MONOTONIC);
+    char value[PROPERTY_VALUE_MAX];
+    property_get("vendor.hwc.debug.dump_refresh_rate", value, "0");
+    m_request_refresh_cnt = atoi(value);
+    if (m_request_refresh_cnt <= 0)
+        return;
+
+    if (m_pre_commit_time > 0) {
+        m_total_commit_time += commit_time - m_pre_commit_time;
+        m_total_commit_cost += commit_time - commit_start;
+        m_total_sf_delay += (int64_t)commit_start - m_pre_commit_start - vsyncPeriod;
+        m_commit_cnt++;
+        if (m_commit_cnt >= m_request_refresh_cnt) {
+            refresh_rate = 1000000000.0 * m_commit_cnt / m_total_commit_time;
+            ALOGI("id= %d, refresh rate= %3.2f fps, commit wait=%1.4fms/frame, update "
+                  "delay=%1.4fms/frame",
+                  displayId, refresh_rate, m_total_commit_cost / (m_commit_cnt * 1000000.0),
+                  m_total_sf_delay / (m_commit_cnt * 1000000.0));
+            m_total_sf_delay = 0;
+            m_total_commit_time = 0;
+            m_total_commit_cost = 0;
+            m_commit_cnt = 0;
+        }
+    }
+    m_pre_commit_start = commit_start;
+    m_pre_commit_time = commit_time;
+}
+
+#endif
 } // namespace aidl::android::hardware::graphics::composer3::impl
