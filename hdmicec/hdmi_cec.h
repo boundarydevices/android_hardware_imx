@@ -27,6 +27,21 @@ enum MaxLength : int32_t {
     MESSAGE_BODY = 15,
 };
 
+#define CEC_MSG_USER_CONTROL_PRESSED    0x44
+#define CEC_MSG_USER_CONTROL_RELEASED   0x45
+
+#define CEC_KEYCODE_SELECT      0x00
+#define CEC_KEYCODE_UP          0x01
+#define CEC_KEYCODE_DOWN        0x02
+#define CEC_KEYCODE_LEFT        0x03
+#define CEC_KEYCODE_RIGHT       0x04
+#define CEC_KEYCODE_CENTER      0x01
+#define CEC_KEYCODE_EXIT        0x0d
+#define CEC_KEYCODE_PLAY        0x44
+#define CEC_KEYCODE_PAUSE       0x46
+#define CEC_KEYCODE_ROOT_MENU       0x09
+#define CEC_KEYCODE_CONTENTS_MENU   0x0b
+
 extern int open_hdmi_cec(const char *id, struct hw_device_t **device);
 
 #ifdef _cplusplus

@@ -340,6 +340,31 @@ static bool is_transferable_in_sleep(struct cec_msg* message) {
     }
 }
 
+static bool filterKeyCode(uint8_t *cecBody)
+{
+    static bool mFilterKeyCode = false;
+
+    if (cecBody[0] == CEC_MSG_USER_CONTROL_PRESSED) {
+        switch (cecBody[1]) {
+            case CEC_KEYCODE_UP:
+            case CEC_KEYCODE_DOWN:
+            case CEC_KEYCODE_LEFT:
+            case CEC_KEYCODE_RIGHT:
+            case CEC_KEYCODE_PLAY:
+            case CEC_KEYCODE_PAUSE:
+                mFilterKeyCode = true;
+                return true;
+            default:
+                mFilterKeyCode = false;
+        }
+    } else if (cecBody[0] == CEC_MSG_USER_CONTROL_RELEASED && mFilterKeyCode){
+        mFilterKeyCode =  false;
+        return true;
+    }
+
+    return false;
+}
+
 static void *event_thread(void *arg)
 {
     struct hdmicec_context *ctx = (struct hdmicec_context *)arg;
@@ -435,7 +460,9 @@ static void *event_thread(void *arg)
                 event.cec.length = msg.len - 1;
                 memcpy(event.cec.body, &msg.msg[1], msg.len - 1);
 
-                ctx->p_event_cb(&event, ctx->cb_arg);
+                // Filter some ui commands already handled by the cec driver
+                if (!filterKeyCode(event.cec.body))
+                    ctx->p_event_cb(&event, ctx->cb_arg);
             } else {
                 ALOGE("no event callback for msg\n");
             }
