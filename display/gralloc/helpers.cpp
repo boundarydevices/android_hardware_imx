@@ -259,7 +259,8 @@ uint32_t drv_bytes_per_pixel_from_format(uint32_t format, size_t plane) {
 uint32_t drv_stride_from_format(uint32_t format, uint32_t width, size_t plane) {
     if (format == FORMAT_NV12_TILED || format == FORMAT_NV12_G1_TILED ||
         format == FORMAT_NV12_G2_TILED || format == FORMAT_NV12_G2_TILED_COMPRESSED ||
-        format == FORMAT_P010_TILED || format == FORMAT_P010_TILED_COMPRESSED) {
+        format == FORMAT_P010 || format == FORMAT_YCBCR_P010 || format == FORMAT_P010_TILED ||
+        format == FORMAT_P010_TILED_COMPRESSED) {
         return width; // TODO: workaround for these formats that no layout
     }
 
