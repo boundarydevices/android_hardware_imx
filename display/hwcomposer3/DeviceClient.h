@@ -87,6 +87,10 @@ public:
     virtual HWC3::Error setHdrMetadata(int displayId, hdr_output_metadata* metadata) {
         return HWC3::Error::None;
     }
+    virtual HWC3::Error getDisplayConnectionType(int displayId, DisplayConnectionType* outType) {
+        *outType = DisplayConnectionType::INTERNAL;
+        return HWC3::Error::None;
+    }
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

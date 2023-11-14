@@ -447,4 +447,20 @@ HWC3::Error ClientFrameComposer::setDisplayBrightness(Display* display, float br
     return HWC3::Error::None;
 }
 
+HWC3::Error ClientFrameComposer::getDisplayConnectionType(Display* display,
+                                                          DisplayConnectionType* outType) {
+    const auto displayId = display->getId();
+    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
+    client->getDisplayConnectionType(displayId, outType);
+
+    return HWC3::Error::None;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

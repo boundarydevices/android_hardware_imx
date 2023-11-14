@@ -297,8 +297,7 @@ bool DrmConnector::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower pow
 bool DrmConnector::setHDCPMode(::android::base::borrowed_fd drmFd, int val) const {
     DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
 
-    const uint64_t protectionId = mProtection.getId();
-    if (protectionId == (uint64_t)-1) {
+    if (!getHDCPSupported()) {
         ALOGW("%s: connector:%" PRIu32 " does not support HDCP.", __FUNCTION__, mId);
         return true;
     }

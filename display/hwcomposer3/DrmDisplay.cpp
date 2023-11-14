@@ -235,8 +235,9 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
             modeBlobId = mConnector->getDefaultMode()->getBlobId();
         }
         okay &= request->Set(mConnector->getId(), mConnector->getCrtcProperty(), mCrtc->getId());
-        okay &= request->Set(mConnector->getId(), mConnector->getHdrMetadataProperty(),
-                             mHdrMetadataBlobId);
+        if (mConnector->getHdrMetadataProperty().getId() != (uint32_t)-1)
+            okay &= request->Set(mConnector->getId(), mConnector->getHdrMetadataProperty(),
+                                 mHdrMetadataBlobId);
         okay &= request->Set(mCrtc->getId(), mCrtc->getActiveProperty(), 1);
         okay &= request->Set(mCrtc->getId(), mCrtc->getModeProperty(), modeBlobId);
         ALOGI("%s: Do mode set for display:%d", __FUNCTION__, mId);
@@ -489,7 +490,7 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
     mActiveConfig = (*configs)[mActiveConfigId];
 
     uint32_t format = FORMAT_RGBA8888;
-    ALOGI("Display index= %d \n"
+    ALOGI("Display Id   = %d \n"
           "configId     = %d \n"
           "xres         = %d px\n"
           "yres         = %d px\n"

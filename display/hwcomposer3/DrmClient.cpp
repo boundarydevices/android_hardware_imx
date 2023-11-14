@@ -747,4 +747,17 @@ HWC3::Error DrmClient::setHdrMetadata(int displayId, hdr_output_metadata* metada
     return HWC3::Error::None;
 }
 
+HWC3::Error DrmClient::getDisplayConnectionType(int displayId, DisplayConnectionType* outType) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+    if (mDisplays[displayId]->isPrimary())
+        *outType = DisplayConnectionType::INTERNAL;
+    else
+        *outType = DisplayConnectionType::EXTERNAL; // TODO: need to set according to actual type
+
+    return HWC3::Error::None;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

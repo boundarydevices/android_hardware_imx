@@ -68,6 +68,8 @@ public:
     virtual HWC3::Error onActiveConfigChange(Display* display) = 0;
     virtual HWC3::Error setPowerMode(Display* display, PowerMode mode) = 0;
     virtual HWC3::Error setDisplayBrightness(Display* display, float brightness) = 0;
+    virtual HWC3::Error getDisplayConnectionType(Display* display,
+                                                 DisplayConnectionType* outType) = 0;
 
     /*  virtual const DrmClient* getDrmPresenter() const {
         return nullptr;

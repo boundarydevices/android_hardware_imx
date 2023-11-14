@@ -278,7 +278,8 @@ HWC3::Error Display::getDisplayConnectionType(DisplayConnectionType* outType) {
         *outType = DisplayConnectionType::INTERNAL;
     } else {
         // Other devices default to the first display INTERNAL, others EXTERNAL.
-        *outType = mId == 0 ? DisplayConnectionType::INTERNAL : DisplayConnectionType::EXTERNAL;
+        if (mComposer->getDisplayConnectionType(this, outType) != HWC3::Error::None)
+            *outType = DisplayConnectionType::INTERNAL;
     }
     return HWC3::Error::None;
 }

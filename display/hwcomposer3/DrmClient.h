@@ -110,6 +110,7 @@ public:
     HWC3::Error getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) override;
 
     HWC3::Error setHdrMetadata(int displayId, hdr_output_metadata* metadata) override;
+    HWC3::Error getDisplayConnectionType(int displayId, DisplayConnectionType* outType) override;
 
 private:
     using DrmPrimeBufferHandle = uint32_t;
