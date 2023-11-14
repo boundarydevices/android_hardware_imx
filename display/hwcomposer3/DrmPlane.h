@@ -33,6 +33,12 @@
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
+enum {
+    PLANE_STATE_NONE,
+    PLANE_STATE_ACTIVE,
+    PLANE_STATE_DISABLED,
+};
+
 class DrmPlane {
 public:
     static std::unique_ptr<DrmPlane> create(::android::base::borrowed_fd drmFd, uint32_t planeId);
@@ -45,8 +51,8 @@ public:
 
     bool isCompatibleWith(const DrmCrtc& crtc);
     bool checkFormat(uint32_t format, uint64_t modifier);
-    bool checkActive() const { return mActive; }
-    void setActive(bool state) { mActive = state; }
+    bool checkState() const { return mState; }
+    void setState(bool state) { mState = state; }
     bool checkFormatSupported(uint32_t format);
 
     const DrmProperty& getCrtcProperty() const { return mCrtc; }
@@ -70,7 +76,7 @@ private:
     uint32_t mPossibleCrtcsMask = 0;
     std::vector<uint32_t> mDrmFormats;
     std::unordered_map<uint32_t, std::vector<uint64_t>> mFormatModifiers;
-    bool mActive = false;
+    int mState = PLANE_STATE_NONE;
 
     DrmProperty mCrtc;
     DrmProperty mInFenceFd;

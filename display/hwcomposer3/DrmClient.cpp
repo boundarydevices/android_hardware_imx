@@ -302,6 +302,7 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
 
     uint32_t framebuffer = 0;
     uint32_t format = buffer->mDrmFormat;
+    uint32_t width = buffer->mWidth;
     if (memHandle->format_modifier > 0) { // TODO: some workaround for framebuffer
         /* workaround GPU SUPER_TILED R/B swap issue, for no-resolve and tiled output
            GPU not distinguish A8B8G8R8 and A8R8G8B8, all regard as A8R8G8B8, need do
@@ -311,6 +312,11 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
         if (format == DRM_FORMAT_ABGR8888)
             format = DRM_FORMAT_ARGB8888;
     }
+    if (memHandle->flags & FLAGS_FRAMEBUFFER) { // TODO: need ro refine for framebuffer
+        /* IMX8MQ mxsfb driver require buffer pitches == width * format_cpp,
+           so here buffer width use stride directly. */
+        width = memHandle->stride;
+    }
 
     if (buffer->mPlaneModifiers[0] > 0) {
         ret = drmModeAddFB2WithModifiers(mFd.get(), buffer->mWidth, buffer->mHeight, format,
@@ -318,14 +324,15 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
                                          buffer->mPlaneOffsets, buffer->mPlaneModifiers,
                                          &framebuffer, DRM_MODE_FB_MODIFIERS);
     } else {
-        /* IMX8MQ mxsfb driver require buffer pitches == width * format_cpp,
-           so here buffer width use stride directly. */
-        ret = drmModeAddFB2(mFd.get(), memHandle->stride, buffer->mHeight, buffer->mDrmFormat,
+        ret = drmModeAddFB2(mFd.get(), width, buffer->mHeight, buffer->mDrmFormat,
                             buffer->mPlaneHandles, buffer->mPlanePitches, buffer->mPlaneOffsets,
                             &framebuffer, 0);
     }
     if (ret) {
-        ALOGE("%s: drmModeAddFB2 failed: %s (errno %d)", __FUNCTION__, strerror(errno), errno);
+        ALOGE("%s: drmModeAddFB2 failed(buffer:size=%d, %d x %d, stride=%d, format=0x%x, modifier=0x%" PRIx64
+              "): %s (errno %d)",
+              __FUNCTION__, memHandle->size, memHandle->width, memHandle->height, memHandle->stride,
+              memHandle->fslFormat, buffer->mPlaneModifiers[0], strerror(errno), errno);
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
     }
     DEBUG_LOG("%s: created framebuffer:%" PRIu32, __FUNCTION__, framebuffer);
@@ -509,17 +516,19 @@ std::tuple<HWC3::Error, uint32_t> DrmClient::getPlaneForLayerBuffer(int displayI
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, 0);
     }
+    if (handle == NULL) {
+        DEBUG_LOG("%s: empty buffer handle, not check plane", __FUNCTION__);
+        return std::make_tuple(HWC3::Error::BadParameter, 0);
+    }
 
     uint32_t planeId = mDisplays[displayId]->findDrmPlane(handle);
     if (planeId > 0) {
-        gralloc_handle_t memHandle = (gralloc_handle_t)handle;
-        DEBUG_LOG("%s: display:%" PRIu32 " find plane=%d for buffer:%s", __FUNCTION__, displayId,
-                  planeId, memHandle->name);
+        DEBUG_LOG("%s: display:%" PRIu32 " Found plane=%d for buffer:%s", __FUNCTION__, displayId,
+                  planeId, gralloc_handle_t(handle)->name);
         return std::make_tuple(HWC3::Error::None, planeId);
     } else {
-        gralloc_handle_t memHandle = (gralloc_handle_t)handle;
         DEBUG_LOG("%s: display:%" PRIu32 " NOT find plane for buffer:%s", __FUNCTION__, displayId,
-                  memHandle->name);
+                  gralloc_handle_t(handle)->name);
         return std::make_tuple(HWC3::Error::NoResources, 0);
     }
 }
@@ -698,6 +707,42 @@ HWC3::Error DrmClient::getDisplayCapability(int displayId, std::vector<DisplayCa
     }
     caps.insert(caps.end(), mDisplayCapabilitys[displayId].begin(),
                 mDisplayCapabilitys[displayId].end());
+
+    return HWC3::Error::None;
+}
+
+HWC3::Error DrmClient::setHdrMetadata(int displayId, hdr_output_metadata* metadata) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    if (mPreviousMetadata.find(displayId) != mPreviousMetadata.end()) {
+        if (metadata == NULL) {
+            mPreviousMetadata.erase(displayId);
+            drmModeDestroyPropertyBlob(mFd.get(), mPreviousMetadataBlobId[displayId]);
+        } else if (!memcmp(&mPreviousMetadata[displayId], metadata, sizeof(hdr_output_metadata))) {
+            DEBUG_LOG("%s: HDR metadata already set, don't need to set again", __FUNCTION__);
+            return HWC3::Error::None;
+        }
+    } else if (metadata == NULL) {
+        DEBUG_LOG("%s: No HDR metadata before, don't need to clear again", __FUNCTION__);
+        return HWC3::Error::None;
+    }
+
+    uint32_t blobId = 0;
+    if (metadata != NULL) {
+        int ret = drmModeCreatePropertyBlob(mFd.get(), metadata, sizeof(hdr_output_metadata),
+                                            &blobId);
+        if (ret != 0) {
+            ALOGE("%s: Failed to create Metadata blob: %s.", __FUNCTION__, strerror(errno));
+            return HWC3::Error::NoResources;
+        }
+        mPreviousMetadata[displayId] = *metadata;
+        mPreviousMetadataBlobId[displayId] = blobId;
+    }
+
+    mDisplays[displayId]->setHdrMetadataBlobId(blobId);
 
     return HWC3::Error::None;
 }

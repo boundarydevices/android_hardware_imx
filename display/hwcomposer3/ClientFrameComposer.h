@@ -53,6 +53,8 @@ public:
 
     HWC3::Error onDisplayDestroy(Display* display) override;
 
+    HWC3::Error onDisplayLayerDestroy(Display* display, Layer* layer) override;
+
     HWC3::Error onDisplayClientTargetSet(Display* display) override;
 
     HWC3::Error onActiveConfigChange(Display* display) override;

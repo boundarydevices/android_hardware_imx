@@ -68,13 +68,14 @@ bool customizeGUIResolution(uint32_t &width, uint32_t &height, uint32_t *uiType)
     bool ret = true;
     uint32_t w = 0, h = 0, temp = 0;
 
+    char value[PROPERTY_VALUE_MAX];
     char w_buf[PROPERTY_VALUE_MAX];
     char h_buf[PROPERTY_VALUE_MAX];
 
-    const std::string res = ::android::base::GetProperty("ro.boot.gui_resolution", "p");
-    DEBUG_LOG("%s: sysprop ro.boot.gui_resolution is %s", __FUNCTION__, res.c_str());
+    memset(value, 0, sizeof(value));
+    property_get("ro.boot.gui_resolution", value, "p");
+    DEBUG_LOG("%s: sysprop ro.boot.gui_resolution is %s", __FUNCTION__, value);
 
-    const char *value = res.c_str();
     if (!strncmp(value, "shw", 3) && (sscanf(value, "shw%[0-9]x%[0-9]", w_buf, h_buf) == 2)) {
         w = atoi(w_buf);
         h = atoi(h_buf);
@@ -116,6 +117,7 @@ bool customizeGUIResolution(uint32_t &width, uint32_t &height, uint32_t *uiType)
                 height = h;
         }
     }
+    DEBUG_LOG("%s: get gui resolution: %d x %d, uiType=%d", __FUNCTION__, width, height, *uiType);
 
     return ret;
 }

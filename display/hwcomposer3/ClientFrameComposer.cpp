@@ -149,6 +149,23 @@ HWC3::Error ClientFrameComposer::onDisplayDestroy(Display* display) {
     return HWC3::Error::None;
 }
 
+HWC3::Error ClientFrameComposer::onDisplayLayerDestroy(Display* display, Layer* layer) {
+    const auto displayId = display->getId();
+    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
+    if (layer->getHdrMetadataState() == LAYER_HDR_METADATA_STATE_PROCESSED) {
+        client->setHdrMetadata(displayId, NULL); // reset the HDR metadata state
+    }
+
+    return HWC3::Error::None;
+}
+
 HWC3::Error ClientFrameComposer::onDisplayClientTargetSet(Display* display) {
     const auto displayId = display->getId();
     DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
@@ -221,9 +238,10 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
     common::Rect uiMaskedRect = {width, height, 0, 0};
     for (Layer* layer : layers) {
         const auto layerId = layer->getId();
-        const auto layerCompositionType = layer->getCompositionType();
+        const auto composeType = layer->getCompositionType();
 
-        if (overlaySupported && !layerSkiped && (layerCompositionType == Composition::DEVICE)) {
+        if (overlaySupported && !layerSkiped &&
+            (composeType == Composition::DEVICE || composeType == Composition::CLIENT)) {
             common::Rect rectFrame = layer->getDisplayFrame();
             DEBUG_LOG("UI masked rect:left=%d, top=%d, right=%d, bottom=%d", uiMaskedRect.left,
                       uiMaskedRect.top, uiMaskedRect.right, uiMaskedRect.bottom);
@@ -243,12 +261,19 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
                     displayBuffer.planeDrmBuffer[planeId] = std::move(drmBuffer);
                     mLayersForOverlay.push_back(layerId);
 
+                    if (layer->getHdrMetadataState() == LAYER_HDR_METADATA_STATE_ADDED) {
+                        client->setHdrMetadata(displayId, layer->getHdrMetadata());
+                        layer->setHdrMetadataState(LAYER_HDR_METADATA_STATE_PROCESSED);
+                    }
                     gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
                     if (buff && (buff->usage & USAGE_PROTECTED)) {
                         client->setSecureMode(displayId, planeId, true);
                     } else {
                         client->setSecureMode(displayId, planeId, false);
                     }
+                    if (composeType != Composition::DEVICE)
+                        outChanges->addLayerCompositionChange(displayId, layerId,
+                                                              Composition::DEVICE);
                     continue;
                 } else {
                     mergeRect(uiMaskedRect, rectFrame);

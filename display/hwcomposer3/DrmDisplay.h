@@ -106,6 +106,8 @@ public:
     bool isSecureEnabled() const { return mConnector->isHDCPEnabled(); }
     bool setSecureMode(::android::base::borrowed_fd drmFd, bool secure);
 
+    bool setHdrMetadataBlobId(uint32_t bolbId);
+
 private:
     DrmDisplay(uint32_t id, std::unique_ptr<DrmConnector> connector, std::unique_ptr<DrmCrtc> crtc,
                std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> planes)
@@ -138,6 +140,8 @@ private:
     uint32_t mUiScaleType = UI_SCALE_NONE;
     std::vector<uint32_t> mPlaneIdPool;
     bool mModeSet = true;
+
+    uint32_t mHdrMetadataBlobId = 0;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

@@ -109,6 +109,8 @@ public:
     HWC3::Error setBacklightBrightness(int displayId, float brightness) override;
     HWC3::Error getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) override;
 
+    HWC3::Error setHdrMetadata(int displayId, hdr_output_metadata* metadata) override;
+
 private:
     using DrmPrimeBufferHandle = uint32_t;
     using DrmBufferCache = LruCache<DrmPrimeBufferHandle, std::shared_ptr<DrmBuffer>>;
@@ -133,6 +135,8 @@ private:
     std::unordered_map<uint32_t, int> mSecureMode;
 
     std::unordered_map<uint32_t, std::vector<DisplayCapability>> mDisplayCapabilitys;
+    std::unordered_map<uint32_t, hdr_output_metadata> mPreviousMetadata;
+    std::unordered_map<uint32_t, uint32_t> mPreviousMetadataBlobId;
 
     Backlight mBacklight; // TODO: only primary display support backlight adjusting now
 

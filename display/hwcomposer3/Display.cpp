@@ -111,6 +111,7 @@ HWC3::Error Display::init(const std::vector<DisplayConfig>& configs, int32_t act
 
     if (edid.has_value()) {
         mEdid = *edid;
+        mEdidParser = std::make_unique<Edid>(mEdid);
     }
 
     auto it = mConfigs.find(*mActiveConfigId);
@@ -162,7 +163,7 @@ HWC3::Error Display::createLayer(int64_t* outLayerId) {
 
     std::unique_lock<std::recursive_mutex> lock(mStateMutex);
 
-    auto layer = std::make_unique<Layer>();
+    auto layer = std::make_unique<Layer>(mEdidParser.get());
 
     const int64_t layerId = layer->getId();
     DEBUG_LOG("%s: created layer:%" PRId64, __FUNCTION__, layerId);
@@ -184,6 +185,8 @@ HWC3::Error Display::destroyLayer(int64_t layerId) {
         ALOGE("%s display:%" PRId64 " has no such layer:%." PRId64, __FUNCTION__, mId, layerId);
         return HWC3::Error::BadLayer;
     }
+
+    mComposer->onDisplayLayerDestroy(this, mLayers[layerId].get());
 
     mOrderedLayers.erase(std::remove_if(mOrderedLayers.begin(), //
                                         mOrderedLayers.end(),   //
@@ -349,8 +352,9 @@ HWC3::Error Display::getDisplayPhysicalOrientation(common::Transform* outOrienta
 HWC3::Error Display::getHdrCapabilities(HdrCapabilities* outCapabilities) {
     DEBUG_LOG("%s: display:%" PRId64, __FUNCTION__, mId);
 
-    // No supported types.
     outCapabilities->types.clear();
+    if (mEdidParser->isHdrSupported())
+        mEdidParser->getHdrCapabilities(outCapabilities);
 
     return HWC3::Error::None;
 }
@@ -359,8 +363,12 @@ HWC3::Error Display::getPerFrameMetadataKeys(std::vector<PerFrameMetadataKey>* o
     DEBUG_LOG("%s: display:%" PRId64, __FUNCTION__, mId);
 
     outKeys->clear();
-
-    return HWC3::Error::Unsupported;
+    if (mEdidParser->getHdrTypeCount() > 0) {
+        mEdidParser->getPerFrameMetadataKeys(outKeys);
+        return HWC3::Error::None;
+    } else {
+        return HWC3::Error::Unsupported;
+    }
 }
 
 HWC3::Error Display::getReadbackBufferAttributes(ReadbackBufferAttributes* outAttributes) {
@@ -894,6 +902,8 @@ HWC3::Error Display::setEdid(std::vector<uint8_t> edid) {
     DEBUG_LOG("%s: display:%" PRId64, __FUNCTION__, mId);
 
     mEdid = std::move(edid);
+    mEdidParser = std::make_unique<Edid>(mEdid);
+
     return HWC3::Error::None;
 }
 

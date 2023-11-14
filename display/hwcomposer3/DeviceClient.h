@@ -80,10 +80,13 @@ public:
 
     virtual HWC3::Error setBacklightBrightness(int displayId, float brightness) {
         return HWC3::Error::None;
-    };
+    }
     virtual HWC3::Error getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) {
         return HWC3::Error::None;
-    };
+    }
+    virtual HWC3::Error setHdrMetadata(int displayId, hdr_output_metadata* metadata) {
+        return HWC3::Error::None;
+    }
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

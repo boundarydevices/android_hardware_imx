@@ -31,7 +31,7 @@ std::atomic<int64_t> sNextId{1};
 
 } // namespace
 
-Layer::Layer() : mId(sNextId++) {}
+Layer::Layer(Edid* edidParser) : mId(sNextId++), mEdidParser(edidParser) {}
 
 HWC3::Error Layer::setCursorPosition(const common::Point& position) {
     DEBUG_LOG("%s: layer:%" PRId64, __FUNCTION__, mId);
@@ -197,7 +197,7 @@ HWC3::Error Layer::setSidebandStream(buffer_handle_t /*stream*/) {
 }
 
 HWC3::Error Layer::setSourceCrop(common::FRect crop) {
-    DEBUG_LOG("%s: layer:%" PRId64 "crop rect-left:%f rect-top:%f rect-right:%f rect-bot:%f",
+    DEBUG_LOG("%s: layer:%" PRId64 " crop rect-left:%f rect-top:%f rect-right:%f rect-bot:%f",
               __FUNCTION__, mId, crop.left, crop.top, crop.right, crop.bottom);
 
     mSourceCrop = crop;
@@ -206,7 +206,7 @@ HWC3::Error Layer::setSourceCrop(common::FRect crop) {
 
 common::FRect Layer::getSourceCrop() const {
     common::FRect crop = mSourceCrop;
-    DEBUG_LOG("%s: layer:%" PRId64 "crop rect-left:%f rect-top:%f rect-right:%f rect-bot:%f",
+    DEBUG_LOG("%s: layer:%" PRId64 " crop rect-left:%f rect-top:%f rect-right:%f rect-bot:%f",
               __FUNCTION__, mId, crop.left, crop.top, crop.right, crop.bottom);
 
     return crop;
@@ -218,7 +218,7 @@ common::Rect Layer::getSourceCropInt() const {
     crop.top = static_cast<int>(mSourceCrop.top);
     crop.right = static_cast<int>(mSourceCrop.right);
     crop.bottom = static_cast<int>(mSourceCrop.bottom);
-    DEBUG_LOG("%s: layer:%" PRId64 "crop rect-left:%d rect-top:%d rect-right:%d rect-bot:%d",
+    DEBUG_LOG("%s: layer:%" PRId64 " crop rect-left:%d rect-top:%d rect-right:%d rect-bot:%d",
               __FUNCTION__, mId, crop.left, crop.top, crop.right, crop.bottom);
 
     return crop;
@@ -274,8 +274,13 @@ int32_t Layer::getZOrder() const {
 }
 
 HWC3::Error Layer::setPerFrameMetadata(
-        const std::vector<std::optional<PerFrameMetadata>>& /*perFrameMetadata*/) {
+        const std::vector<std::optional<PerFrameMetadata>>& perFrameMetadata) {
     DEBUG_LOG("%s: layer:%" PRId64, __FUNCTION__, mId);
+
+    if (mEdidParser->getHdrTypeCount() > 0) {
+        mEdidParser->setPerFrameMetadata(perFrameMetadata, mDataspace, mHdrMetadata);
+        mHdrMetadataState = LAYER_HDR_METADATA_STATE_ADDED;
+    }
 
     return HWC3::Error::None;
 }

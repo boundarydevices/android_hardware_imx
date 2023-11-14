@@ -51,6 +51,8 @@ public:
 
     virtual HWC3::Error onDisplayDestroy(Display* display) = 0;
 
+    virtual HWC3::Error onDisplayLayerDestroy(Display* display, Layer* layer) = 0;
+
     virtual HWC3::Error onDisplayClientTargetSet(Display* display) = 0;
 
     // Determines if this composer can compose the given layers and requests

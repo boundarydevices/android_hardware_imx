@@ -46,6 +46,7 @@
 #include "DisplayChanges.h"
 #include "DisplayConfig.h"
 #include "DisplayFinder.h"
+#include "Edid.h"
 #include "FencedBuffer.h"
 #include "FrameComposer.h"
 #include "Layer.h"
@@ -191,6 +192,7 @@ private:
     ColorMode mActiveColorMode = ColorMode::NATIVE;
     std::optional<std::array<float, 16>> mColorTransform;
     std::vector<uint8_t> mEdid;
+    std::unique_ptr<Edid> mEdidParser;
     std::vector<DisplayCapability> mCapability;
 };
 

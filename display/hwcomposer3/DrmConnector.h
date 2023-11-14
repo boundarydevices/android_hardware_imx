@@ -57,6 +57,7 @@ public:
     std::optional<std::vector<uint8_t>> getEdid(::android::base::borrowed_fd drmFd);
 
     const DrmProperty& getCrtcProperty() const { return mCrtc; }
+    const DrmProperty& getHdrMetadataProperty() const { return mHdrMetadata; }
     const DrmMode* getDefaultMode() const { return mModes[0].get(); }
     bool isCompatibleWith(const DrmCrtc& crtc) {
         return ((0x1 << crtc.mIndexInResourcesArray) & mPossibleCrtcsMask);

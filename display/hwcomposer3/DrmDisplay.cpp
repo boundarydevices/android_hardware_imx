@@ -128,7 +128,7 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
 
     mTempBuffers.planeDrmBuffer[planeId] = buffer;
 
-    plane->setActive(true);
+    plane->setState(PLANE_STATE_ACTIVE);
     DEBUG_LOG("%s: flush overlay plane:%d, fbId=%d", __FUNCTION__, planeId,
               *buffer->mDrmFramebuffer);
     return std::make_tuple(HWC3::Error::None, std::move(request));
@@ -190,7 +190,7 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
 
     mTempBuffers.clientTargetDrmBuffer = buffer;
 
-    plane->setActive(true);
+    plane->setState(PLANE_STATE_ACTIVE);
     DEBUG_LOG("%s: flush primary plane:%d, fbId=%d", __FUNCTION__, planeId,
               *buffer->mDrmFramebuffer);
     return std::make_tuple(HWC3::Error::None, std::move(request));
@@ -212,16 +212,17 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     bool okay = true;
     for (const auto& pair : mPlanes) {
         DrmPlane* plane = pair.second.get();
-        if (plane->checkActive()) {
+        if (plane->checkState() == PLANE_STATE_ACTIVE) {
             sprintf(tempStr, "%d ", pair.first);
             strcat(activeStr, tempStr);
             continue;
+        } else if (plane->checkState() == PLANE_STATE_DISABLED) {
+            okay &= request->Set(plane->getId(), plane->getCrtcProperty(), 0);
+            okay &= request->Set(plane->getId(), plane->getFbProperty(), 0);
+            plane->setState(PLANE_STATE_NONE);
         }
         sprintf(tempStr, "%d ", pair.first);
         strcat(disableStr, tempStr);
-
-        okay &= request->Set(plane->getId(), plane->getCrtcProperty(), 0);
-        okay &= request->Set(plane->getId(), plane->getFbProperty(), 0);
     }
 
     int flushFenceFd = -1;
@@ -234,9 +235,11 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
             modeBlobId = mConnector->getDefaultMode()->getBlobId();
         }
         okay &= request->Set(mConnector->getId(), mConnector->getCrtcProperty(), mCrtc->getId());
+        okay &= request->Set(mConnector->getId(), mConnector->getHdrMetadataProperty(),
+                             mHdrMetadataBlobId);
         okay &= request->Set(mCrtc->getId(), mCrtc->getActiveProperty(), 1);
         okay &= request->Set(mCrtc->getId(), mCrtc->getModeProperty(), modeBlobId);
-        ALOGI("%s: do mode set for display:%d", __FUNCTION__, mId);
+        ALOGI("%s: Do mode set for display:%d", __FUNCTION__, mId);
     }
     okay &= request->Set(mCrtc->getId(), mCrtc->getOutFenceProperty(),
                          addressAsUint(&flushFenceFd));
@@ -275,9 +278,9 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     if (mModeSet)
         mModeSet = false;
 
-    for (auto& pair : mPlanes) {
-        DrmPlane* plane = pair.second.get();
-        plane->setActive(false);
+    for (auto& [_, plane] : mPlanes) {
+        if (plane->checkState() == PLANE_STATE_ACTIVE)
+            plane->setState(PLANE_STATE_DISABLED);
     }
     mPreviousBuffers.clientTargetDrmBuffer = mTempBuffers.clientTargetDrmBuffer;
     mPreviousBuffers.planeDrmBuffer = mTempBuffers.planeDrmBuffer;
@@ -389,6 +392,16 @@ uint32_t DrmDisplay::findDrmPlane(const native_handle_t* handle) {
     if (memHandle->format_modifier > 0)
         modifier = memHandle->format_modifier;
 
+#ifdef DEBUG_NXP_HWC
+    {
+        char fmt[6];
+        char* name = drmGetFormatName(format, fmt); // defined in HWC, no malloc memory
+        char* modifier_name = drmGetFormatModifierName(modifier);
+        DEBUG_LOG("%s: Checking buffer:%s :%s %s", __FUNCTION__, memHandle->name, name,
+                  modifier_name);
+        free(modifier_name);
+    }
+#endif
     uint32_t planeId = 0;
     auto it = std::find_if(mPlaneIdPool.begin(), mPlaneIdPool.end(), [&](uint32_t id) {
         if (mPlanes[id]->checkFormat(format, modifier)) {
@@ -400,16 +413,6 @@ uint32_t DrmDisplay::findDrmPlane(const native_handle_t* handle) {
     if (it != mPlaneIdPool.end()) {
         mPlaneIdPool.erase(it);
     }
-#ifdef DEBUG_NXP_HWC
-    if (planeId > 0) {
-        char fmt[6];
-        char* name = drmGetFormatName(format, fmt); // defined in HWC, no malloc memory
-        char* modifier_name = drmGetFormatModifierName(modifier);
-        DEBUG_LOG("%s: find suitable Drm Plane:%d for buffer:%s :%s %s", __FUNCTION__, planeId,
-                  memHandle->name, name, modifier_name);
-        free(modifier_name);
-    }
-#endif
     return planeId;
 }
 
@@ -465,7 +468,8 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
     uint32_t width = activeConfig.width;
     uint32_t height = activeConfig.height;
     if (customizeGUIResolution(width, height, &mUiScaleType)) {
-        HalDisplayConfig newConfig{0};
+        HalDisplayConfig newConfig;
+        memset(&newConfig, 0, sizeof(newConfig));
         newConfig.width = width;
         newConfig.height = height;
         newConfig.dpiX = 160;
@@ -475,8 +479,12 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
         newConfig.modeWidth = activeConfig.width;
         newConfig.modeHeight = activeConfig.height;
 
-        configs->emplace(mStartConfigId + configs->size(), newConfig);
+        // previous maximum config Id = mStartConfigId + configs->size() - 1
         mActiveConfigId = mStartConfigId + configs->size();
+        configs->emplace(mStartConfigId + configs->size(), newConfig);
+        DEBUG_LOG("%s: Add new config:%d x %d, fps=%d, mode=%d x %d", __FUNCTION__, newConfig.width,
+                  newConfig.height, newConfig.refreshRateHz, newConfig.modeWidth,
+                  newConfig.modeHeight);
     }
     mActiveConfig = (*configs)[mActiveConfigId];
 
@@ -514,7 +522,8 @@ void DrmDisplay::placeholderDisplayConfigs() {
     mStartConfigId = mStartConfigId + mConfigs->size();
     mConfigs->clear();
 
-    HalDisplayConfig newConfig{0};
+    HalDisplayConfig newConfig;
+    memset(&newConfig, 0, sizeof(newConfig));
     if (mActiveConfigId >= 0) {
         memcpy(&newConfig, &mActiveConfig, sizeof(HalDisplayConfig));
         newConfig.blobId = 0;
@@ -564,6 +573,15 @@ bool DrmDisplay::setSecureMode(::android::base::borrowed_fd drmFd, bool secure) 
 
     int val = secure ? 1 : 0;
     mConnector->setHDCPMode(drmFd, val);
+
+    return true;
+}
+
+bool DrmDisplay::setHdrMetadataBlobId(uint32_t bolbId) {
+    DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
+
+    mHdrMetadataBlobId = bolbId;
+    mModeSet = true;
 
     return true;
 }

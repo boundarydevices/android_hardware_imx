@@ -46,46 +46,50 @@ std::unique_ptr<DrmPlane> DrmPlane::create(::android::base::borrowed_fd drmFd, u
 
     const uint64_t inFormatsBlobId = plane->mInFormats.getValue();
     if (inFormatsBlobId == (uint64_t)-1) {
-        ALOGW("%s: plane:%" PRIu32 " does not have IN_FORMATS property.", __FUNCTION__, plane->mId);
+        DEBUG_LOG("%s: plane:%" PRIu32 " does not have IN_FORMATS property.", __FUNCTION__,
+                  plane->mId);
         return plane;
     }
 
     uint32_t fmt = 0;
     std::vector<uint64_t> mods;
     drmModePropertyBlobPtr blob;
-    drmModeFormatModifierIterator iter = {0};
+    drmModeFormatModifierIterator iter = {0, 0, 0, 0};
     blob = drmModeGetPropertyBlob(drmFd.get(), inFormatsBlobId);
     if (!blob) {
-        ALOGW("%s: plane:%" PRIu32 " cannot get blob of IN_FORMATS property.", __FUNCTION__,
-              plane->mId);
+        DEBUG_LOG("%s: plane:%" PRIu32 " cannot get blob of IN_FORMATS property.", __FUNCTION__,
+                  plane->mId);
         return plane;
     }
     while (drmModeFormatModifierBlobIterNext(blob, &iter)) {
-        if (!fmt || fmt != iter.fmt) {
-            plane->mFormatModifiers.emplace(fmt, std::move(mods));
+        if (fmt != iter.fmt) {
+            if (fmt)
+                plane->mFormatModifiers.emplace(fmt, std::move(mods));
             fmt = iter.fmt;
         }
         mods.push_back(iter.mod);
     }
+    if (fmt)
+        plane->mFormatModifiers.emplace(fmt, std::move(mods)); // add the last format
     drmModeFreePropertyBlob(blob);
-#if 0
-    char formats_str[2048] = {0};
-    char temp[6];
-    memset(formats_str, 0, sizeof(formats_str));
-    sprintf(formats_str, "in_formats for plane:%d\n", planeId);
+#ifdef DEBUG_NXP_HWC
+    char plane_str[64];
+    char temp[8];
+    sprintf(plane_str, "in_formats for plane:%d\n", planeId);
+    std::string formats_str(plane_str);
     for (auto& pair : plane->mFormatModifiers) {
         char *name = drmGetFormatName(pair.first, temp);
-        strcat(formats_str, name);
-        strcat(formats_str, ":   ");
+        formats_str = formats_str + name + ":    ";
         for (auto& mod : pair.second) {
             char *modifier_name = drmGetFormatModifierName(mod);
-            strcat(formats_str, modifier_name);
-            strcat(formats_str, " ");
-            free(modifier_name);
+            if (modifier_name) {
+                formats_str = formats_str + modifier_name + " ";
+                free(modifier_name);
+            }
         }
-        strcat(formats_str, "\n");
+        formats_str = formats_str + "\n";
     }
-    DEBUG_LOG("%s", formats_str);
+    DEBUG_LOG("%s", formats_str.c_str());
 #endif
     return plane;
 }

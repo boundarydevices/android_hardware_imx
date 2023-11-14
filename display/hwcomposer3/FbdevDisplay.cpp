@@ -101,7 +101,7 @@ bool FbdevDisplay::onDisconnect(::android::base::borrowed_fd devFd) {
         mConfigs->clear();
     }
 
-    return true; // okay;
+    return true;
 }
 
 DrmHotplugChange FbdevDisplay::checkAndHandleHotplug(::android::base::borrowed_fd devFd) {
@@ -220,7 +220,8 @@ void FbdevDisplay::placeholderDisplayConfigs() {
     mStartConfigId = mStartConfigId + mConfigs->size();
     mConfigs->clear();
 
-    HalDisplayConfig newConfig{0};
+    HalDisplayConfig newConfig;
+    memset(&newConfig, 0, sizeof(newConfig));
     if (mActiveConfigId >= 0) {
         memcpy(&newConfig, &mActiveConfig, sizeof(HalDisplayConfig));
         newConfig.blobId = 0;

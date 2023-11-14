@@ -18,16 +18,25 @@
 #ifndef ANDROID_HWC_LAYER_H
 #define ANDROID_HWC_LAYER_H
 
+#include <drm_mode.h>
+
 #include <vector>
 
 #include "Common.h"
+#include "Edid.h"
 #include "FencedBuffer.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
+enum {
+    LAYER_HDR_METADATA_STATE_NONE,
+    LAYER_HDR_METADATA_STATE_ADDED,
+    LAYER_HDR_METADATA_STATE_PROCESSED,
+};
+
 class Layer {
 public:
-    explicit Layer();
+    explicit Layer(Edid* edidParser);
 
     Layer(const Layer&) = delete;
     Layer& operator=(const Layer&) = delete;
@@ -92,6 +101,10 @@ public:
     HWC3::Error setPerFrameMetadataBlobs(
             const std::vector<std::optional<PerFrameMetadataBlob>>& perFrameMetadata);
 
+    int getHdrMetadataState() { return mHdrMetadataState; }
+    void setHdrMetadataState(int state) { mHdrMetadataState = state; }
+    hdr_output_metadata* getHdrMetadata() { return &mHdrMetadata; }
+
 private:
     const int64_t mId;
     common::Point mCursorPosition;
@@ -108,6 +121,10 @@ private:
     int32_t mZOrder = 0;
     std::optional<std::array<float, 16>> mColorTransform;
     float mBrightness = 1.0f;
+
+    Edid* mEdidParser = NULL; /* just a pointer here, owned by Display */
+    int mHdrMetadataState = LAYER_HDR_METADATA_STATE_NONE;
+    hdr_output_metadata mHdrMetadata; /* struct defined in drm_mode.h */
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl
