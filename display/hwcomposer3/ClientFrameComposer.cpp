@@ -89,6 +89,9 @@ HWC3::Error ClientFrameComposer::init() {
     mG2dComposer = std::make_shared<DeviceComposer>();
     if (mG2dComposer->isValid()) {
     }
+
+    mHdcpEnabled = IsHdcpUserEnabled();
+
     return HWC3::Error::None;
 }
 
@@ -265,12 +268,16 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
                         client->setHdrMetadata(displayId, layer->getHdrMetadata());
                         layer->setHdrMetadataState(LAYER_HDR_METADATA_STATE_PROCESSED);
                     }
-                    gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
-                    if (buff && (buff->usage & USAGE_PROTECTED)) {
-                        client->setSecureMode(displayId, planeId, true);
-                    } else {
-                        client->setSecureMode(displayId, planeId, false);
+
+                    if (mHdcpEnabled) {
+                        gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
+                        if (buff && (buff->usage & USAGE_PROTECTED)) {
+                            client->setSecureMode(displayId, planeId, true);
+                        } else {
+                            client->setSecureMode(displayId, planeId, false);
+                        }
                     }
+
                     if (composeType != Composition::DEVICE)
                         outChanges->addLayerCompositionChange(displayId, layerId,
                                                               Composition::DEVICE);

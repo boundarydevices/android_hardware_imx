@@ -44,7 +44,8 @@ bool DrmAtomicRequest::Set(uint32_t objectId, const DrmProperty& prop, uint64_t 
 }
 
 int DrmAtomicRequest::Commit(::android::base::borrowed_fd drmFd) {
-    constexpr const uint32_t kCommitFlags = DRM_MODE_ATOMIC_ALLOW_MODESET;
+    constexpr const uint32_t kCommitFlags =
+            DRM_MODE_ATOMIC_ALLOW_MODESET | DRM_MODE_ATOMIC_NONBLOCK;
 
     int ret = drmModeAtomicCommit(drmFd.get(), mRequest, kCommitFlags, 0);
     if (ret) {

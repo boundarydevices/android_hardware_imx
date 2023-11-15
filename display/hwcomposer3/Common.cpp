@@ -37,8 +37,14 @@ bool IsOverlayUserDisabled() {
 
 bool Is2DCompositionUserPrefered() {
     const std::string g2d = ::android::base::GetProperty("vendor.hwc.prefer.2d-composition", "1");
-    DEBUG_LOG("%s: sysprop vendor.hwc.disable.2d-composition is %s", __FUNCTION__, g2d.c_str());
+    DEBUG_LOG("%s: sysprop vendor.hwc.prefer.2d-composition is %s", __FUNCTION__, g2d.c_str());
     return g2d == "1";
+}
+
+bool IsHdcpUserEnabled() {
+    const std::string hdcp = ::android::base::GetProperty("ro.boot.support_hdcp", "");
+    DEBUG_LOG("%s: sysprop ro.boot.support_hdcp is %s", __FUNCTION__, g2d.c_str());
+    return hdcp == "enable";
 }
 
 std::string toString(HWC3::Error error) {

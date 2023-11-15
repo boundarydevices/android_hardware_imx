@@ -89,6 +89,8 @@ private:
 
     std::map<uint32_t, std::unique_ptr<DeviceClient>> mDeviceClients;
     std::shared_ptr<DeviceComposer> mG2dComposer;
+
+    bool mHdcpEnabled = false;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

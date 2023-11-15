@@ -113,8 +113,8 @@ bool Edid::isEdidValid(unsigned char *edid) {
 }
 
 unsigned char *Edid::getCeaExtensionData(unsigned char *edid, uint32_t size) {
-    int extension_num = edid[EXTENSION_NUM];
-    for (int i = 1; i <= extension_num; i++) {
+    uint32_t extension_num = edid[EXTENSION_NUM];
+    for (uint32_t i = 1; i <= extension_num; i++) {
         if (EDID_LENGTH * (i + 1) >= size)
             break;
         unsigned char *edidExt = edid + EDID_LENGTH * i;

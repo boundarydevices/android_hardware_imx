@@ -312,11 +312,6 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
         if (format == DRM_FORMAT_ABGR8888)
             format = DRM_FORMAT_ARGB8888;
     }
-    if (memHandle->flags & FLAGS_FRAMEBUFFER) { // TODO: need ro refine for framebuffer
-        /* IMX8MQ mxsfb driver require buffer pitches == width * format_cpp,
-           so here buffer width use stride directly. */
-        width = memHandle->stride;
-    }
 
     if (buffer->mPlaneModifiers[0] > 0) {
         ret = drmModeAddFB2WithModifiers(mFd.get(), buffer->mWidth, buffer->mHeight, format,
