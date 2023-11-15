@@ -81,13 +81,9 @@ Composer::Composer() {
     char g2dlibName[PATH_MAX] = {0};
     char value[PROPERTY_VALUE_MAX];
 
-    property_get("vendor.sys.hwc.disable", value, "0");
-    mDisableHWC = atoi(value);
-    if (mDisableHWC) {
-        ALOGI("HWC disabled!");
-    }
+    mDisableHWC = 0;
 
-    property_get("vendor.2d.composition", value, "1");
+    property_get("vendor.hwc.prefer.2d-composition", value, "1");
     m2DComposition = atoi(value);
     if (m2DComposition && !mDisableHWC) {
         ALOGI("g2d 2D composition enabled!");
