@@ -43,7 +43,7 @@ bool Is2DCompositionUserPrefered() {
 
 bool IsHdcpUserEnabled() {
     const std::string hdcp = ::android::base::GetProperty("ro.boot.support_hdcp", "");
-    DEBUG_LOG("%s: sysprop ro.boot.support_hdcp is %s", __FUNCTION__, g2d.c_str());
+    DEBUG_LOG("%s: sysprop ro.boot.support_hdcp is %s", __FUNCTION__, hdcp.c_str());
     return hdcp == "enable";
 }
 

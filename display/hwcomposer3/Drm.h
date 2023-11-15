@@ -19,6 +19,8 @@
 
 #include <cstdlib>
 
+#include "Layer.h"
+
 namespace aidl::android::hardware::graphics::composer3::impl {
 
 /* This is our extension to <drm_fourcc.h>.  We need to make sure we don't step
@@ -95,6 +97,7 @@ uint32_t ConvertNxpFormatToDrmFormat(int format, uint64_t* outModifier);
 
 char* drmGetFormatName(uint32_t format, char* outStr);
 
+bool checkOverlayWorkaround(Layer* layer);
 } // namespace aidl::android::hardware::graphics::composer3::impl
 
 #endif

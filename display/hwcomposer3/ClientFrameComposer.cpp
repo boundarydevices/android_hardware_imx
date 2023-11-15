@@ -246,16 +246,16 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
         if (overlaySupported && !layerSkiped &&
             (composeType == Composition::DEVICE || composeType == Composition::CLIENT)) {
             common::Rect rectFrame = layer->getDisplayFrame();
+            common::Rect rectSource = layer->getSourceCropInt();
             DEBUG_LOG("UI masked rect:left=%d, top=%d, right=%d, bottom=%d", uiMaskedRect.left,
                       uiMaskedRect.top, uiMaskedRect.right, uiMaskedRect.bottom);
-            if (checkRectOverlap(uiMaskedRect, rectFrame)) {
+            if (checkRectOverlap(uiMaskedRect, rectFrame) || !checkOverlayWorkaround(layer)) {
                 mergeRect(uiMaskedRect, rectFrame);
             } else {
                 auto handle = layer->waitAndGetBuffer();
                 auto [error, planeId] = client->getPlaneForLayerBuffer(displayId, handle);
                 if (error == HWC3::Error::None) {
-                    auto [createError, drmBuffer] =
-                            client->create(handle, rectFrame, layer->getSourceCropInt());
+                    auto [createError, drmBuffer] = client->create(handle, rectFrame, rectSource);
                     if (createError != HWC3::Error::None) {
                         ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer",
                               __FUNCTION__, displayId);
