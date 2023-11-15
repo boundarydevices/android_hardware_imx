@@ -37,8 +37,9 @@ Edid::Edid(std::vector<uint8_t> &edid) {
     uint8_t *data = edid.data();
 
     if (isEdidValid(data)) {
-        unsigned char *edidExt = getCeaExtensionData(data);
-        parseCeaExtData(edidExt);
+        unsigned char *edidExt = getCeaExtensionData(data, uint32_t(edid.size()));
+        if (edidExt)
+            parseCeaExtData(edidExt);
         memcpy(mRawData, data, EDID_LENGTH);
         mIsValid = true;
     }
@@ -111,9 +112,11 @@ bool Edid::isEdidValid(unsigned char *edid) {
     return true;
 }
 
-unsigned char *Edid::getCeaExtensionData(unsigned char *edid) {
+unsigned char *Edid::getCeaExtensionData(unsigned char *edid, uint32_t size) {
     int extension_num = edid[EXTENSION_NUM];
     for (int i = 1; i <= extension_num; i++) {
+        if (EDID_LENGTH * (i + 1) >= size)
+            break;
         unsigned char *edidExt = edid + EDID_LENGTH * i;
         if (!isEdidValid(edidExt))
             return NULL;

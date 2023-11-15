@@ -111,8 +111,8 @@ HWC3::Error Display::init(const std::vector<DisplayConfig>& configs, int32_t act
 
     if (edid.has_value()) {
         mEdid = *edid;
-        mEdidParser = std::make_unique<Edid>(mEdid);
     }
+    mEdidParser = std::make_unique<Edid>(mEdid);
 
     auto it = mConfigs.find(*mActiveConfigId);
     if (it == mConfigs.end()) {

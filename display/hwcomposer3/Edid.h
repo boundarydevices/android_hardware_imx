@@ -87,7 +87,7 @@ private:
     bool isEdidValid(unsigned char *edid);
 
     // get cea extension edid raw data
-    unsigned char *getCeaExtensionData(unsigned char *edid);
+    unsigned char *getCeaExtensionData(unsigned char *edid, uint32_t size);
 
     // return cea data block length
     int getDataBlockLen(unsigned char *db);
