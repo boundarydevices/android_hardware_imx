@@ -196,6 +196,8 @@ void parseDisplayMode(uint32_t *width, uint32_t *height, uint32_t *vrefresh, uin
             *prefermode = 1;
         }
     }
+    ALOGI("%s: displaymode: %d x %d, %d fps, prefered=%d", __FUNCTION__, *width, *height, *vrefresh,
+          *prefermode);
 }
 
 bool checkRectOverlap(common::Rect &masked, common::Rect &src) { // check if there is overlap or not

@@ -41,10 +41,13 @@ public:
 
     int Commit(::android::base::borrowed_fd drmFd);
 
+    void setAllowModesetFlag(bool allow) { mAllowModeset = allow; }
+
 private:
     DrmAtomicRequest(drmModeAtomicReqPtr request) : mRequest(request) {}
 
     drmModeAtomicReqPtr mRequest;
+    bool mAllowModeset = false;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

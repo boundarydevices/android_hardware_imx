@@ -240,6 +240,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
                                  mHdrMetadataBlobId);
         okay &= request->Set(mCrtc->getId(), mCrtc->getActiveProperty(), 1);
         okay &= request->Set(mCrtc->getId(), mCrtc->getModeProperty(), modeBlobId);
+        request->setAllowModesetFlag(true);
         ALOGI("%s: Do mode set for display:%d", __FUNCTION__, mId);
     }
     okay &= request->Set(mCrtc->getId(), mCrtc->getOutFenceProperty(),
@@ -437,10 +438,10 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
     uint32_t index = 0;
-    uint32_t delta = -1, rdelta = -1;
+    uint32_t delta = UINT_MAX, rdelta = UINT_MAX;
     uint32_t dst_width = 0, dst_height = 0, dst_vrefresh = 60, prefered_mode = 0;
-    parseDisplayMode(&dst_width, &dst_height, &dst_vrefresh,
-                     &prefered_mode); // display mode set by bootargs.
+    // get display mode from bootargs.
+    parseDisplayMode(&dst_width, &dst_height, &dst_vrefresh, &prefered_mode);
 
     for (uint32_t i = 0; i < configs->size(); i++) {
         auto& cfg = (*configs)[mStartConfigId + i];
@@ -449,14 +450,14 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
             break;
         }
 
-        rdelta = labs((int)dst_width - (int)cfg.width) + labs((int)dst_height - (int)cfg.height);
+        rdelta = abs((int)dst_width - (int)cfg.width) + abs((int)dst_height - (int)cfg.height);
         if (rdelta < delta) {
             delta = rdelta;
             index = i;
         } else if (rdelta == delta) {
-            auto& prev = (*configs)[index];
-            if (labs((int)dst_vrefresh - (int)cfg.refreshRateHz) <
-                labs((int)dst_vrefresh - (int)prev.refreshRateHz))
+            auto& prev = (*configs)[mStartConfigId + index];
+            if (abs((int)dst_vrefresh - (int)cfg.refreshRateHz) <
+                abs((int)dst_vrefresh - (int)prev.refreshRateHz))
                 index = i;
         }
     }
@@ -531,10 +532,10 @@ void DrmDisplay::placeholderDisplayConfigs() {
         newConfig.modeWidth = 0;
         newConfig.modeHeight = 0;
     } else {
-        newConfig.width = 1080;
-        newConfig.height = 1920;
-        newConfig.dpiX = 320;
-        newConfig.dpiY = 320;
+        newConfig.width = 720;   // display driver of 8ulp only support max 720x1280.
+        newConfig.height = 1280; // such limitation will affect DRM checking when create DRM buffer
+        newConfig.dpiX = 160;
+        newConfig.dpiY = 160;
         newConfig.refreshRateHz = 60;
     }
 

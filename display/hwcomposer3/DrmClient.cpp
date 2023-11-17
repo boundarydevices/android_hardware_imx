@@ -383,6 +383,14 @@ bool DrmClient::handleHotplug() {
                 continue;
             }
 
+            if (display->isPrimary() || (change == DrmHotplugChange::kDisconnected)) {
+                uint32_t id = display->getId();
+                if (mComposerTargets.find(id) != mComposerTargets.end()) {
+                    // free device composer target buffers when disconnected
+                    mG2dComposer->freeDeviceFrameBuffer(mComposerTargets[id]);
+                    mComposerTargets.erase(id);
+                }
+            }
             if (change == DrmHotplugChange::kDisconnected) {
                 if (display->isPrimary()) {
                     // primary display cannot be disconnected when report
@@ -392,13 +400,8 @@ bool DrmClient::handleHotplug() {
                     display->placeholderDisplayConfigs();
                     ALOGW("primary display cannot hotplug");
                 }
-                uint32_t id = display->getId();
-                if (mComposerTargets.find(id) != mComposerTargets.end()) {
-                    // free device composer target buffers when disconnected
-                    mG2dComposer->freeDeviceFrameBuffer(mComposerTargets[id]);
-                    mComposerTargets.erase(id);
-                }
             }
+
             std::unique_ptr<HalMultiConfigs> cfg(new HalMultiConfigs{
                     .displayId = display->getId(),
                     .activeConfigId = display->getActiveConfigId(),
