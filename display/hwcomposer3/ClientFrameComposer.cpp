@@ -123,6 +123,7 @@ HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
 
     // Ensure created.
     mDisplayBuffers.emplace(displayId, DisplayBuffer{});
+    mDisplayLayers.emplace(displayId, ValidatedLayers{});
 
     std::vector<DisplayCapability> caps;
     if (client->getDisplayCapability(displayId, caps) == HWC3::Error::None) {
@@ -221,15 +222,15 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
     }
     client->prepareDrmPlanesForValidate(displayId);
 
-    DisplayBuffer& displayBuffer = it->second;
+    auto& layersForOverlay = mDisplayLayers[displayId].layersForOverlayPlane;
+    auto& layersForComposition = mDisplayLayers[displayId].layersForComposition;
+
     const std::vector<Layer*>& layers = display->getOrderedLayers();
 
     auto [_, overlaySupported] = client->isOverlaySupport(displayId);
     bool deviceComposition = true;
     bool mustDeviceComposition = false;
 
-    mLayersForOverlay.clear();
-    mLayersForComposition.clear();
     bool layerSkiped = false; // check if need overlay checking for layer or not
     int32_t activeConfigId;
     int32_t width = INT_MAX, height = INT_MAX;
@@ -252,31 +253,10 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
             if (checkRectOverlap(uiMaskedRect, rectFrame) || !checkOverlayWorkaround(layer)) {
                 mergeRect(uiMaskedRect, rectFrame);
             } else {
-                auto handle = layer->waitAndGetBuffer();
+                auto handle = (gralloc_handle_t)layer->getBuffer().getBuffer();
                 auto [error, planeId] = client->getPlaneForLayerBuffer(displayId, handle);
                 if (error == HWC3::Error::None) {
-                    auto [createError, drmBuffer] = client->create(handle, rectFrame, rectSource);
-                    if (createError != HWC3::Error::None) {
-                        ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer",
-                              __FUNCTION__, displayId);
-                        return HWC3::Error::NoResources;
-                    }
-                    displayBuffer.planeDrmBuffer[planeId] = std::move(drmBuffer);
-                    mLayersForOverlay.push_back(layerId);
-
-                    if (layer->getHdrMetadataState() == LAYER_HDR_METADATA_STATE_ADDED) {
-                        client->setHdrMetadata(displayId, layer->getHdrMetadata());
-                        layer->setHdrMetadataState(LAYER_HDR_METADATA_STATE_PROCESSED);
-                    }
-
-                    if (mHdcpEnabled) {
-                        gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
-                        if (buff && (buff->usage & USAGE_PROTECTED)) {
-                            client->setSecureMode(displayId, planeId, true);
-                        } else {
-                            client->setSecureMode(displayId, planeId, false);
-                        }
-                    }
+                    layersForOverlay.emplace(planeId, layer);
 
                     if (composeType != Composition::DEVICE)
                         outChanges->addLayerCompositionChange(displayId, layerId,
@@ -291,7 +271,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
             }
         }
 
-        mLayersForComposition.push_back(layer);
+        layersForComposition.push_back(layer);
         if (mG2dComposer->isValid()) {
             // if some layer cannot support, not use device composition
             deviceComposition = deviceComposition && mG2dComposer->checkDeviceComposition(layer);
@@ -300,40 +280,8 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
         }
     }
 
-    if (mG2dComposer->isValid() && (mustDeviceComposition || deviceComposition)) {
-        bool secure = false;
-        auto it = std::find_if(mLayersForComposition.begin(), mLayersForComposition.end(),
-                               [&](Layer* layer) {
-                                   gralloc_handle_t buff =
-                                           (gralloc_handle_t)layer->getBuffer().getBuffer();
-                                   if (buff && (buff->usage & USAGE_PROTECTED))
-                                       return true;
-                                   else
-                                       return false;
-                               });
-        if (it != mLayersForComposition.end()) { // found secure layer
-            DEBUG_LOG("%s: found secure layer", __FUNCTION__);
-            secure = true;
-        }
-
-        auto [error, renderTarget] = client->getComposerTarget(mG2dComposer, displayId, secure);
-        if (error != HWC3::Error::None) {
-            ALOGE("%s: display:%" PRIu64 " failed to get composer target", __FUNCTION__, displayId);
-            return error;
-        }
-        mG2dComposer->composeLayers(mLayersForComposition, renderTarget);
-
-        common::Rect displayFrame = {0}; // don't care it for framebuffer
-        common::Rect sourceCrop = {0};   // don't care it for framebuffer
-        auto [createError, drmBuffer] = client->create(renderTarget, displayFrame, sourceCrop);
-        if (createError != HWC3::Error::None) {
-            ALOGE("%s: display:%" PRIu64 " failed to create composer target drm buffer",
-                  __FUNCTION__, displayId);
-            return HWC3::Error::NoResources;
-        }
-        displayBuffer.clientTargetDrmBuffer = std::move(drmBuffer);
-    } else {
-        for (Layer* layer : mLayersForComposition) {
+    if (!mG2dComposer->isValid() || (!mustDeviceComposition && !deviceComposition)) {
+        for (auto& layer : layersForComposition) {
             const auto layerId = layer->getId();
             const auto layerCompositionType = layer->getCompositionType();
 
@@ -342,6 +290,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
                 continue;
             }
         }
+        layersForComposition.clear();
     }
 
     return HWC3::Error::None;
@@ -358,6 +307,9 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         ALOGE("%s: failed to find display buffers for display:%" PRIu64, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
     }
+    DisplayBuffer& displayBuffer = displayBufferIt->second;
+    auto& layersForOverlay = mDisplayLayers[displayId].layersForOverlayPlane;
+    auto& layersForComposition = mDisplayLayers[displayId].layersForComposition;
 
     auto [error, client] = getDeviceClient(displayId);
     if (error != HWC3::Error::None) {
@@ -365,7 +317,61 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         return error;
     }
 
-    DisplayBuffer& displayBuffer = displayBufferIt->second;
+    for (auto& [planeId, layer] : layersForOverlay) {
+        auto handle = layer->waitAndGetBuffer(); // wait for layer buffer ready
+        common::Rect rectFrame = layer->getDisplayFrame();
+        common::Rect rectSource = layer->getSourceCropInt();
+
+        auto [createError, drmBuffer] = client->create(handle, rectFrame, rectSource);
+        if (createError != HWC3::Error::None) {
+            ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer", __FUNCTION__,
+                  displayId);
+            return HWC3::Error::NoResources;
+        }
+        displayBuffer.planeDrmBuffer[planeId] = std::move(drmBuffer);
+
+        if (layer->getHdrMetadataState() == LAYER_HDR_METADATA_STATE_ADDED) {
+            client->setHdrMetadata(displayId, layer->getHdrMetadata());
+            layer->setHdrMetadataState(LAYER_HDR_METADATA_STATE_PROCESSED);
+        }
+
+        if (mHdcpEnabled) {
+            gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
+            if (buff && (buff->usage & USAGE_PROTECTED)) {
+                client->setSecureMode(displayId, planeId, true);
+            } else {
+                client->setSecureMode(displayId, planeId, false);
+            }
+        }
+    }
+
+    if (layersForComposition.size() > 0) {
+        bool secure = false;
+        for (auto& layer : layersForComposition) {
+            auto buff = (gralloc_handle_t)layer->waitAndGetBuffer();
+            // wait for all layer buffer ready, and check if there secure layer
+            if (buff && (buff->usage & USAGE_PROTECTED))
+                secure = true;
+        }
+
+        auto [error, renderTarget] = client->getComposerTarget(mG2dComposer, displayId, secure);
+        if (error != HWC3::Error::None) {
+            ALOGE("%s: display:%" PRIu64 " failed to get composer target", __FUNCTION__, displayId);
+            return error;
+        }
+        mG2dComposer->composeLayers(layersForComposition, renderTarget);
+
+        common::Rect displayFrame = {0}; // don't care it for framebuffer
+        common::Rect sourceCrop = {0};   // don't care it for framebuffer
+        auto [createError, drmBuffer] = client->create(renderTarget, displayFrame, sourceCrop);
+        if (createError != HWC3::Error::None) {
+            ALOGE("%s: display:%" PRIu64 " failed to create composer target drm buffer",
+                  __FUNCTION__, displayId);
+            return HWC3::Error::NoResources;
+        }
+        displayBuffer.clientTargetDrmBuffer = std::move(drmBuffer);
+    }
+
     ::android::base::unique_fd fence = display->getClientTarget().getFence();
 
     auto [flushError, flushCompleteFence] = client->flushToDisplay(displayId, displayBuffer, fence);
@@ -373,14 +379,17 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         ALOGE("%s: display:%" PRIu64 " failed to flush drm buffer" PRIu64, __FUNCTION__, displayId);
     }
 
-    for (auto& id : mLayersForOverlay) {
-        outLayerFences->emplace(id, ::android::base::unique_fd(dup(flushCompleteFence.get())));
+    for (auto& [_, layer] : layersForOverlay) {
+        outLayerFences->emplace(layer->getId(),
+                                ::android::base::unique_fd(dup(flushCompleteFence.get())));
     }
     *outDisplayFence = std::move(flushCompleteFence);
 
     displayBuffer.clientTargetDrmBuffer = nullptr;
     displayBuffer.planeDrmBuffer.clear();
-    mLayersForOverlay.clear();
+
+    layersForOverlay.clear();
+    layersForComposition.clear();
 
     return flushError;
 }

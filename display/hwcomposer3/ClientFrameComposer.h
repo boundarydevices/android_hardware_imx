@@ -83,9 +83,12 @@ public:
 private:
     std::tuple<HWC3::Error, DeviceClient*> getDeviceClient(uint32_t displayId);
 
+    struct ValidatedLayers {
+        std::unordered_map<uint32_t, Layer*> layersForOverlayPlane; // <planeId, layer>
+        std::vector<Layer*> layersForComposition;
+    };
     std::unordered_map<int64_t, DisplayBuffer> mDisplayBuffers;
-    std::vector<int64_t> mLayersForOverlay; // <layerId>
-    std::vector<Layer*> mLayersForComposition;
+    std::unordered_map<int64_t, ValidatedLayers> mDisplayLayers;
 
     std::map<uint32_t, std::unique_ptr<DeviceClient>> mDeviceClients;
     std::shared_ptr<DeviceComposer> mG2dComposer;
