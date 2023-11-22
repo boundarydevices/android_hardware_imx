@@ -233,6 +233,13 @@ int DeviceComposer::prepareSolidColorBuffer() {
 
     mSolidColorBuffer = (gralloc_handle_t)bufferHandle;
 
+    common::Rect rect;
+    rect.left = rect.top = 0;
+    rect.right = mTarget->width;
+    rect.bottom = mTarget->height;
+    lockSurface(mSolidColorBuffer);
+    clearRect(mSolidColorBuffer, rect);
+
     return 0;
 }
 
@@ -269,11 +276,12 @@ int DeviceComposer::clearRect(gralloc_handle_t target, common::Rect& rect) {
     surface.clrcolor = 0xff << 24;
     clearFunction(getHandle(), &surface);
 
-    ALOGV("clearRect: rect(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right, rect.bottom);
+    DEBUG_LOG("clearRect: rect(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right, rect.bottom);
     return 0;
 }
 
 int DeviceComposer::clearWormHole(std::vector<Layer*>& layers) {
+    DEBUG_LOG("%s: clear worm hole", __FUNCTION__);
     if (mTarget == NULL) {
         ALOGE("%s: no effective render buffer", __FUNCTION__);
         return -EINVAL;
@@ -327,6 +335,7 @@ int DeviceComposer::clearWormHole(std::vector<Layer*>& layers) {
 }
 
 int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
+    DEBUG_LOG("%s: compose layer %ld", __FUNCTION__, layer->getId());
     if (layer == NULL || mTarget == NULL) {
         ALOGE("%s: invalid layer or target", __FUNCTION__);
         return -EINVAL;
@@ -337,11 +346,6 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
     auto transform = layer->getTransform();
     auto alpha = (uint8_t)(layer->getPlaneAlpha() * 255);
     gralloc_handle_t layerBuffer = (gralloc_handle_t)(layer->getBuffer().getBuffer());
-
-    if (bypass && (type == Composition::SOLID_COLOR)) {
-        ALOGV("%s: solid color layer bypassed", __FUNCTION__);
-        return 0;
-    }
 
     common::Rect srect = layer->getSourceCropInt();
     common::Rect drect = layer->getDisplayFrame();
