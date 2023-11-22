@@ -708,10 +708,23 @@ HWC3::Error Display::setColorTransform(const std::vector<float>& transformMatrix
         return HWC3::Error::BadParameter;
     }
 
+    // clang-format off
+    constexpr std::array<float, 16> kIdentity = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f,
+    };
+    // clang-format on
+    const bool isIdentity =
+            (std::equal(transformMatrix.begin(), transformMatrix.end(), kIdentity.begin()));
+
     std::unique_lock<std::recursive_mutex> lock(mStateMutex);
 
     auto& colorTransform = mColorTransform.emplace();
     std::copy_n(transformMatrix.data(), colorTransform.size(), colorTransform.begin());
+    mColorTransformHint = isIdentity ? common::ColorTransform::IDENTITY
+                                     : common::ColorTransform::ARBITRARY_MATRIX;
 
     return HWC3::Error::None;
 }

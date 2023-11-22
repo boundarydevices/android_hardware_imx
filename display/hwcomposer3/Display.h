@@ -17,6 +17,7 @@
 #ifndef ANDROID_HWC_DISPLAY_H
 #define ANDROID_HWC_DISPLAY_H
 
+#include <aidl/android/hardware/graphics/common/ColorTransform.h>
 #include <aidl/android/hardware/graphics/common/DisplayDecorationSupport.h>
 #include <aidl/android/hardware/graphics/composer3/ColorMode.h>
 #include <aidl/android/hardware/graphics/composer3/ContentType.h>
@@ -140,6 +141,7 @@ public:
 
     bool hasColorTransform() const { return mColorTransform.has_value(); }
     std::array<float, 16> getColorTransform() const { return *mColorTransform; }
+    common::ColorTransform getColorTransformHint() { return mColorTransformHint; }
 
     FencedBuffer& getClientTarget() { return mClientTarget; }
     buffer_handle_t waitAndGetClientTargetBuffer();
@@ -194,6 +196,7 @@ private:
     std::vector<uint8_t> mEdid;
     std::unique_ptr<Edid> mEdidParser;
     std::vector<DisplayCapability> mCapability;
+    common::ColorTransform mColorTransformHint = common::ColorTransform::IDENTITY;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl
