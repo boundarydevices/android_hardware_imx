@@ -215,17 +215,16 @@ int DeviceComposer::prepareSolidColorBuffer() {
 
     uint32_t bufferStride;
     buffer_handle_t bufferHandle;
+    uint64_t usage = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_2D |
+            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
+    if (mTarget->usage & GRALLOC_USAGE_PROTECTED)
+        usage |= GRALLOC_USAGE_PROTECTED;
 
     auto status =
             ::android::GraphicBufferAllocator::get().allocate(mTarget->width, mTarget->height,
                                                               mTarget->format, /*layerCount=*/1,
-                                                              GRALLOC_USAGE_HW_RENDER |
-                                                                      GRALLOC_USAGE_HW_COMPOSER |
-                                                                      GRALLOC_USAGE_HW_2D |
-                                                                      GRALLOC_USAGE_SW_READ_OFTEN |
-                                                                      GRALLOC_USAGE_SW_WRITE_OFTEN,
-                                                              &bufferHandle, &bufferStride,
-                                                              "NxpHwc");
+                                                              usage, &bufferHandle, &bufferStride,
+                                                              "HwcSolidColor");
     if (status != ::android::OK) {
         ALOGE("%s: failed to allocate solid color buffer", __FUNCTION__);
         return -1;
