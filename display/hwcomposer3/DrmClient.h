@@ -91,6 +91,7 @@ public:
     HWC3::Error setPowerMode(int displayId, DrmPower power) override;
 
     std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) override;
+    HWC3::Error checkOverlayLimitation(int displayId, Layer* layer) override;
 
     HWC3::Error prepareDrmPlanesForValidate(int displayId) override;
 

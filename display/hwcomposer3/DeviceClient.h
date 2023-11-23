@@ -63,6 +63,9 @@ public:
     virtual HWC3::Error setPowerMode(int displayId, DrmPower power) = 0;
 
     virtual std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) = 0;
+    virtual HWC3::Error checkOverlayLimitation(int displayId, Layer* layer) {
+        return HWC3::Error::None;
+    }
 
     virtual HWC3::Error prepareDrmPlanesForValidate(int displayId) = 0;
 

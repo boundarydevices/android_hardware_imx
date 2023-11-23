@@ -250,7 +250,8 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
             common::Rect rectSource = layer->getSourceCropInt();
             DEBUG_LOG("UI masked rect:left=%d, top=%d, right=%d, bottom=%d", uiMaskedRect.left,
                       uiMaskedRect.top, uiMaskedRect.right, uiMaskedRect.bottom);
-            if (checkRectOverlap(uiMaskedRect, rectFrame) || !checkOverlayWorkaround(layer)) {
+            if (checkRectOverlap(uiMaskedRect, rectFrame) ||
+                client->checkOverlayLimitation(displayId, layer) != HWC3::Error::None) {
                 mergeRect(uiMaskedRect, rectFrame);
             } else {
                 auto handle = (gralloc_handle_t)layer->getBuffer().getBuffer();

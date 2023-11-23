@@ -97,7 +97,6 @@ uint32_t ConvertNxpFormatToDrmFormat(int format, uint64_t* outModifier);
 
 char* drmGetFormatName(uint32_t format, char* outStr);
 
-bool checkOverlayWorkaround(Layer* layer);
 } // namespace aidl::android::hardware::graphics::composer3::impl
 
 #endif

@@ -273,12 +273,4 @@ char *drmGetFormatName(uint32_t format, char *outStr) {
     return outStr;
 }
 
-bool checkOverlayWorkaround(Layer *layer) {
-    gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
-    if ((buff->fslFormat >= FORMAT_RGBA8888) && (buff->fslFormat <= FORMAT_BGRA8888))
-        return false;
-    else
-        return true;
-}
-
 } // namespace aidl::android::hardware::graphics::composer3::impl

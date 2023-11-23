@@ -497,6 +497,40 @@ std::tuple<HWC3::Error, bool> DrmClient::isOverlaySupport(int displayId) {
     return std::make_tuple(HWC3::Error::None, supported);
 }
 
+HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    // rotation limitation
+    if (layer->getTransform() != common::Transform::NONE)
+        return HWC3::Error::Unsupported;
+
+    // format limitation
+    gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
+    if (buff == NULL)
+        return HWC3::Error::Unsupported;
+
+    if ((buff->fslFormat >= FORMAT_RGBA8888) && (buff->fslFormat <= FORMAT_BGRA8888))
+        return HWC3::Error::Unsupported;
+
+    // scaling limitation
+    if (buff->usage & USAGE_PADDING_BUFFER) {
+        common::Rect rect = layer->getDisplayFrame();
+        auto& config = mDisplays[displayId]->getActiveConfig();
+        int w = (rect.right - rect.left) * config.modeWidth / config.width;
+        int h = (rect.bottom - rect.top) * config.modeHeight / config.height;
+        common::Rect srect = layer->getSourceCropInt();
+        if (w > (srect.right - srect.left) * 7 || h > (srect.bottom - srect.top) * 7) {
+            // fall back to GPU.
+            return HWC3::Error::Unsupported;
+        }
+    }
+
+    return HWC3::Error::None;
+}
+
 HWC3::Error DrmClient::prepareDrmPlanesForValidate(int displayId) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
