@@ -973,4 +973,19 @@ buffer_handle_t Display::waitAndGetClientTargetBuffer() {
     return mClientTarget.getBuffer();
 }
 
+ClientTargetProperty& Display::getClientTargetProperty() {
+    DEBUG_LOG("%s: display:%" PRId64, __FUNCTION__, mId);
+
+    if (mComposer == nullptr) {
+        ALOGE("%s: display:%" PRId64 " missing composer", __FUNCTION__, mId);
+        return mClientTargetProperty;
+    }
+
+    if (mComposer->getClientTargetProperty(this, &mClientTargetProperty) != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRId64 " get client target property failed", __FUNCTION__, mId);
+    }
+
+    return mClientTargetProperty;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

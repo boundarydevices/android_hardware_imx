@@ -91,6 +91,17 @@ public:
         mResults->emplace_back(std::move(result));
     }
 
+    void addClientTargetProperty(int64_t displayId,
+                                 const ClientTargetProperty& clientTargetProperty, float brightness,
+                                 const DimmingStage& dimmingStage) {
+        ClientTargetPropertyWithBrightness clientTargetPropertyWithBrightness;
+        clientTargetPropertyWithBrightness.display = displayId;
+        clientTargetPropertyWithBrightness.clientTargetProperty = clientTargetProperty;
+        clientTargetPropertyWithBrightness.brightness = brightness;
+        clientTargetPropertyWithBrightness.dimmingStage = dimmingStage;
+        mResults->emplace_back(std::move(clientTargetPropertyWithBrightness));
+    }
+
 private:
     int32_t mIndex = 0;
     std::vector<CommandResultPayload>* mResults = nullptr;
@@ -939,6 +950,10 @@ void ComposerClient::executeDisplayCommandPresentOrValidateDisplay(
     } else {
         const int64_t displayId = display->getId();
         mCommandResults->addChanges(changes);
+        static constexpr float kBrightness = 1.f;
+        DimmingStage dimmingStage{DimmingStage::NONE};
+        mCommandResults->addClientTargetProperty(displayId, display->getClientTargetProperty(),
+                                                 kBrightness, dimmingStage);
         mCommandResults->addPresentOrValidateResult(displayId,
                                                     PresentOrValidate::Result::Validated);
     }

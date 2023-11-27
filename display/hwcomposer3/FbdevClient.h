@@ -89,6 +89,8 @@ public:
     std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;
     HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) override;
+    HWC3::Error getDisplayClientTargetProperty(int displayId,
+                                               ClientTargetProperty* outProperty) override;
 
 private:
     // Grant visibility for handleHotplug to DrmEventListener.

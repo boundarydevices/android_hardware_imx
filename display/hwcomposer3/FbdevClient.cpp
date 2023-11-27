@@ -278,4 +278,20 @@ HWC3::Error FbdevClient::setSecureMode(int displayId, uint32_t planeId, bool sec
     return HWC3::Error::None;
 }
 
+HWC3::Error FbdevClient::getDisplayClientTargetProperty(int displayId,
+                                                        ClientTargetProperty* outProperty) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    uint32_t width, height, format;
+    mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
+
+    outProperty->pixelFormat = (common::PixelFormat)format;
+    outProperty->dataspace = common::Dataspace::SRGB_LINEAR;
+
+    return HWC3::Error::None;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

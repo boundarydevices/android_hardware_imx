@@ -145,6 +145,7 @@ public:
 
     FencedBuffer& getClientTarget() { return mClientTarget; }
     buffer_handle_t waitAndGetClientTargetBuffer();
+    ClientTargetProperty& getClientTargetProperty();
 
     const std::vector<Layer*>& getOrderedLayers() { return mOrderedLayers; }
 
@@ -197,6 +198,8 @@ private:
     std::unique_ptr<Edid> mEdidParser;
     std::vector<DisplayCapability> mCapability;
     common::ColorTransform mColorTransformHint = common::ColorTransform::IDENTITY;
+    ClientTargetProperty mClientTargetProperty{common::PixelFormat::RGBA_8888,
+                                               common::Dataspace::SRGB_LINEAR};
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

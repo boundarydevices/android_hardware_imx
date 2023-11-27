@@ -94,6 +94,8 @@ public:
         *outType = DisplayConnectionType::INTERNAL;
         return HWC3::Error::None;
     }
+    virtual HWC3::Error getDisplayClientTargetProperty(int displayId,
+                                                       ClientTargetProperty* outProperty) = 0;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

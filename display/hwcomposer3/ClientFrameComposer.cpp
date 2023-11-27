@@ -482,4 +482,18 @@ HWC3::Error ClientFrameComposer::getDisplayConnectionType(Display* display,
     return HWC3::Error::None;
 }
 
+HWC3::Error ClientFrameComposer::getClientTargetProperty(Display* display,
+                                                         ClientTargetProperty* outProperty) {
+    const auto displayId = display->getId();
+    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
+    return client->getDisplayClientTargetProperty(displayId, outProperty);
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

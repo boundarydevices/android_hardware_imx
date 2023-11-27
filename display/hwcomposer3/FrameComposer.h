@@ -70,10 +70,9 @@ public:
     virtual HWC3::Error setDisplayBrightness(Display* display, float brightness) = 0;
     virtual HWC3::Error getDisplayConnectionType(Display* display,
                                                  DisplayConnectionType* outType) = 0;
+    virtual HWC3::Error getClientTargetProperty(Display* display,
+                                                ClientTargetProperty* outProperty) = 0;
 
-    /*  virtual const DrmClient* getDrmPresenter() const {
-        return nullptr;
-      }*/
     virtual HWC3::Error getAllDeviceClients(std::map<uint32_t, DeviceClient*>& clients) = 0;
 };
 

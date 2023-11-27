@@ -72,6 +72,8 @@ public:
     HWC3::Error setPowerMode(Display* display, PowerMode mode) override;
     HWC3::Error setDisplayBrightness(Display* display, float brightness) override;
     HWC3::Error getDisplayConnectionType(Display* display, DisplayConnectionType* outType) override;
+    HWC3::Error getClientTargetProperty(Display* display,
+                                        ClientTargetProperty* outProperty) override;
 
     HWC3::Error getAllDeviceClients(std::map<uint32_t, DeviceClient*>& clients) override {
         for (auto& [baseId, client] : mDeviceClients) {
