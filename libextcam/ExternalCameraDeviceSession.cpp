@@ -3226,12 +3226,14 @@ int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, ui
         srcValidHeight = 1080;
     else if (srcHeight == 608)
         srcValidHeight = 600;
-    else if (srcHeight == 128)
-        srcValidHeight = 120;
-    else if (srcHeight == 192)
-        srcValidHeight = 180;
+    else if (srcHeight == 544)
+        srcValidHeight = 540;
     else if (srcHeight == 368)
         srcValidHeight = 360;
+    else if (srcHeight == 192)
+        srcValidHeight = 180;
+    else if (srcHeight == 128)
+        srcValidHeight = 120;
 
     srcBuf.mFormat = srcFmt;
     srcBuf.mWidth = srcWidth;
