@@ -497,10 +497,10 @@ static int hdmicec_close(struct hdmi_cec_device *dev)
         close(ctx->cec_fd);
     if (ctx->exit_fd > 0)
         close(ctx->exit_fd);
-    free(ctx);
-
     ctx->cec_enabled = false;
     ctx->cec_control_enabled = false;
+
+    free(ctx);
     return 0;
 }
 
