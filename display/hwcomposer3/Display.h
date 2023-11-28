@@ -169,6 +169,7 @@ private:
     mutable std::recursive_mutex mStateMutex;
 
     FrameComposer* mComposer = nullptr;
+    std::shared_ptr<IComposerCallback> mCallbacks;
     const int64_t mId;
     std::string mName;
     PowerMode mPowerMode = PowerMode::OFF;

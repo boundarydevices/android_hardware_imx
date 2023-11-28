@@ -151,22 +151,45 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
     }
 
     HalDisplayConfig config = (*mConfigs)[mActiveConfigId];
+    common::Rect& rectF = buffer->mDisplayFrame;
+    common::Rect& rectS = buffer->mSourceCrop;
+    int frameX = rectF.left * config.modeWidth / config.width;
+    int frameY = rectF.top * config.modeHeight / config.height;
+    int frameWidth = (rectF.right - rectF.left) * config.modeWidth / config.width;
+    int frameHeight = (rectF.bottom - rectF.top) * config.modeHeight / config.height;
+    int sourceX = rectS.left;
+    int sourceY = rectS.top;
+    int sourceWidth = rectS.right - rectS.left;
+    int sourceHeight = rectS.bottom - rectS.top;
+
+    /*
+     * Display controller plane(hardware) support: DCSS(imx8mq), DPU(imx8q)
+     * bootargs set like: setenv append_bootargs androidboot.gui_resolution=shw1280x720
+     * Composer(g2d) in display HAL support: DCNANO(imx8ulp), LCDIF(imx8mm, imx8mp)
+     * bootargs set like: setenv append_bootargs androidboot.gui_resolution=ssw1280x720
+     */
     int sh, sw, dh, dw;
-    if (mUiScaleType == UI_SCALE_SOFTWARE) {
-        sw = config.modeWidth;
-        sh = config.modeHeight;
+    if (mUiScaleType == UI_SCALE_SOFTWARE) { // UI is only a part of framebuffer
+        sourceX = 0;
+        sourceY = 0;
+        sw = config.modeWidth;  // set actual framebuffer width
+        sh = config.modeHeight; // set actual framebuffer height
+        frameX = 0;
+        frameY = 0;
         dw = config.modeWidth;
         dh = config.modeHeight;
     } else if (mUiScaleType == UI_SCALE_HARDWARE) {
-        sw = config.width;
-        sh = config.height;
-        dw = config.width;
-        dh = config.height;
+        sw = sourceWidth;
+        sh = sourceHeight;
+        frameX = 0;
+        frameY = 0;
+        dw = config.width;  // avoid scale up
+        dh = config.height; // avoid scale up
     } else {
-        sw = config.width;
-        sh = config.height;
-        dw = config.modeWidth;
-        dh = config.modeHeight;
+        sw = sourceWidth;
+        sh = sourceHeight;
+        dw = frameWidth;
+        dh = frameHeight;
     }
 
     DrmPlane* plane = mPlanes[planeId].get();
@@ -174,12 +197,12 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
     okay &= request->Set(planeId, plane->getCrtcProperty(), mCrtc->getId());
     okay &= request->Set(planeId, plane->getInFenceProperty(), inSyncFd.get());
     okay &= request->Set(planeId, plane->getFbProperty(), *buffer->mDrmFramebuffer);
-    okay &= request->Set(planeId, plane->getCrtcXProperty(), 0);
-    okay &= request->Set(planeId, plane->getCrtcYProperty(), 0);
+    okay &= request->Set(planeId, plane->getCrtcXProperty(), frameX);
+    okay &= request->Set(planeId, plane->getCrtcYProperty(), frameY);
     okay &= request->Set(planeId, plane->getCrtcWProperty(), dw);
     okay &= request->Set(planeId, plane->getCrtcHProperty(), dh);
-    okay &= request->Set(planeId, plane->getSrcXProperty(), 0);
-    okay &= request->Set(planeId, plane->getSrcYProperty(), 0);
+    okay &= request->Set(planeId, plane->getSrcXProperty(), sourceX);
+    okay &= request->Set(planeId, plane->getSrcYProperty(), sourceY);
     okay &= request->Set(planeId, plane->getSrcWProperty(), sw << 16);
     okay &= request->Set(planeId, plane->getSrcHProperty(), sh << 16);
 
@@ -212,11 +235,11 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     bool okay = true;
     for (const auto& pair : mPlanes) {
         DrmPlane* plane = pair.second.get();
-        if (plane->checkState() == PLANE_STATE_ACTIVE) {
+        if (plane->getState() == PLANE_STATE_ACTIVE) {
             sprintf(tempStr, "%d ", pair.first);
             strcat(activeStr, tempStr);
             continue;
-        } else if (plane->checkState() == PLANE_STATE_DISABLED) {
+        } else if (plane->getState() == PLANE_STATE_DISABLED) {
             okay &= request->Set(plane->getId(), plane->getCrtcProperty(), 0);
             okay &= request->Set(plane->getId(), plane->getFbProperty(), 0);
             plane->setState(PLANE_STATE_NONE);
@@ -281,8 +304,9 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
         mModeSet = false;
 
     for (auto& [_, plane] : mPlanes) {
-        if (plane->checkState() == PLANE_STATE_ACTIVE)
+        if (plane->getState() == PLANE_STATE_ACTIVE) {
             plane->setState(PLANE_STATE_DISABLED);
+        }
     }
     mPreviousBuffers.clientTargetDrmBuffer = mTempBuffers.clientTargetDrmBuffer;
     mPreviousBuffers.planeDrmBuffer = mTempBuffers.planeDrmBuffer;
@@ -354,19 +378,33 @@ bool DrmDisplay::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower power
     return true;
 }
 
-void DrmDisplay::buildPlaneIdPool() {
+void DrmDisplay::buildPlaneIdPool(uint32_t* outTopOverlayId) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
+    uint32_t maxZpos = 0;
+    uint32_t maxZposOverlayId = uint32_t(-1);
     mPlaneIdPool.clear();
-    for (const auto& pair : mPlanes) {
-        DEBUG_LOG("check plane %d type: %d", pair.second->getId(),
-                  pair.second->isOverlay() ? 0 : 1);
-        if (pair.second->isOverlay())
-            mPlaneIdPool.push_back(pair.first);
+    for (const auto& [planeId, plane] : mPlanes) {
+        DEBUG_LOG("check plane %d type: %s", planeId, plane->isOverlay() ? "overlay" : "primary");
+        if (plane->isOverlay()) {
+            mPlaneIdPool.push_back(planeId);
+            auto& prop = plane->getZposProperty();
+            if ((prop.getId() != uint32_t(-1)) && prop.getValue() >= maxZpos) {
+                maxZpos = prop.getValue();
+                maxZposOverlayId = planeId;
+            }
+        }
     }
+    *outTopOverlayId = maxZposOverlayId;
 
     DEBUG_LOG("%s: display:%" PRIu32 " there are %zu overlay plane", __FUNCTION__, mId,
               mPlaneIdPool.size());
+}
+
+void DrmDisplay::reservePlaneId(uint32_t planeId) {
+    auto it = std::find(mPlaneIdPool.begin(), mPlaneIdPool.end(), planeId);
+    if (it != mPlaneIdPool.end())
+        mPlaneIdPool.erase(it);
 }
 
 uint32_t DrmDisplay::findDrmPlane(const native_handle_t* handle) {

@@ -526,13 +526,18 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::prepareDrmPlanesForValidate(int displayId) {
+HWC3::Error DrmClient::prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
     }
 
-    mDisplays[displayId]->buildPlaneIdPool();
+    uint32_t topOverlayId = uint32_t(-1);
+    mDisplays[displayId]->buildPlaneIdPool(&topOverlayId);
+    if ((uiPlaneBackup != nullptr) && (topOverlayId != uint32_t(-1))) {
+        mDisplays[displayId]->reservePlaneId(topOverlayId);
+        *uiPlaneBackup = topOverlayId;
+    }
 
     return HWC3::Error::None;
 }

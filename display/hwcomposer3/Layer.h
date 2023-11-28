@@ -34,6 +34,10 @@ enum {
     LAYER_HDR_METADATA_STATE_PROCESSED,
 };
 
+enum {
+    Composition_NXP_PRIVATE = 0xff,
+};
+
 class Layer {
 public:
     explicit Layer(Edid* edidParser);

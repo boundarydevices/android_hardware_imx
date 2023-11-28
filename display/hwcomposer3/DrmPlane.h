@@ -51,8 +51,8 @@ public:
 
     bool isCompatibleWith(const DrmCrtc& crtc);
     bool checkFormat(uint32_t format, uint64_t modifier);
-    bool checkState() const { return mState; }
-    void setState(bool state) { mState = state; }
+    int getState() const { return mState; }
+    void setState(int state) { mState = state; }
     bool checkFormatSupported(uint32_t format);
 
     const DrmProperty& getCrtcProperty() const { return mCrtc; }
@@ -66,6 +66,7 @@ public:
     const DrmProperty& getSrcYProperty() const { return mSrcY; }
     const DrmProperty& getSrcWProperty() const { return mSrcW; }
     const DrmProperty& getSrcHProperty() const { return mSrcH; }
+    const DrmProperty& getZposProperty() const { return mZpos; }
     const DrmProperty& getDtrcTableOffestProperty() const { return mDtrcTableOffest; }
 
 private:

@@ -190,20 +190,6 @@ HWC3::Error FbdevClient::setPowerMode(int displayId, DrmPower power) {
     return HWC3::Error::None;
 }
 
-std::tuple<HWC3::Error, bool> FbdevClient::isOverlaySupport(int displayId) {
-    bool supported = false;
-    return std::make_tuple(HWC3::Error::None, supported);
-}
-
-HWC3::Error FbdevClient::prepareDrmPlanesForValidate(int displayId) {
-    return HWC3::Error::None;
-}
-
-std::tuple<HWC3::Error, uint32_t> FbdevClient::getPlaneForLayerBuffer(
-        int displayId, const native_handle_t* handle) {
-    return std::make_tuple(HWC3::Error::NoResources, 0);
-}
-
 HWC3::Error FbdevClient::setPrimaryDisplay(int displayId) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);

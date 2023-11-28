@@ -67,7 +67,7 @@ public:
         return HWC3::Error::None;
     }
 
-    virtual HWC3::Error prepareDrmPlanesForValidate(int displayId) = 0;
+    virtual HWC3::Error prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) = 0;
 
     virtual std::tuple<HWC3::Error, uint32_t> getPlaneForLayerBuffer(
             int displayId, const native_handle_t* handle) = 0;

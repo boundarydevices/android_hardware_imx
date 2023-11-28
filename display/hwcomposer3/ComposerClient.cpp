@@ -1060,6 +1060,9 @@ void ComposerClient::executeLayerCommandSetLayerComposition(
         LOG_LAYER_COMMAND_ERROR(display, layer, error);
         mCommandResults->addError(error);
     }
+
+    if (mCallbacks && (int(composition.composition) == Composition_NXP_PRIVATE))
+        mCallbacks->onRefresh(display->getId());
 }
 
 void ComposerClient::executeLayerCommandSetLayerDataspace(Display* display, Layer* layer,

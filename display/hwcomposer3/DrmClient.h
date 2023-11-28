@@ -93,7 +93,7 @@ public:
     std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) override;
     HWC3::Error checkOverlayLimitation(int displayId, Layer* layer) override;
 
-    HWC3::Error prepareDrmPlanesForValidate(int displayId) override;
+    HWC3::Error prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) override;
 
     std::tuple<HWC3::Error, uint32_t> getPlaneForLayerBuffer(
             int displayId, const native_handle_t* handle) override;

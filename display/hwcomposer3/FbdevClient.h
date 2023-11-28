@@ -74,12 +74,18 @@ public:
 
     HWC3::Error setPowerMode(int displayId, DrmPower power) override;
 
-    std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) override;
+    std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) override {
+        return std::make_tuple(HWC3::Error::None, false);
+    }
 
-    HWC3::Error prepareDrmPlanesForValidate(int displayId) override;
+    HWC3::Error prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) override {
+        return HWC3::Error::None;
+    }
 
     std::tuple<HWC3::Error, uint32_t> getPlaneForLayerBuffer(
-            int displayId, const native_handle_t* handle) override;
+            int displayId, const native_handle_t* handle) override {
+        return std::make_tuple(HWC3::Error::NoResources, 0);
+    }
 
     uint32_t getDisplayBaseId() override { return mDisplayBaseId; }
 

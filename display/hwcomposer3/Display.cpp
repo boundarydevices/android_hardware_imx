@@ -186,6 +186,10 @@ HWC3::Error Display::destroyLayer(int64_t layerId) {
         return HWC3::Error::BadLayer;
     }
 
+    bool refresh = false;
+    if (int(mLayers[layerId]->getCompositionType()) == Composition_NXP_PRIVATE)
+        refresh = true;
+
     mComposer->onDisplayLayerDestroy(this, mLayers[layerId].get());
 
     mOrderedLayers.erase(std::remove_if(mOrderedLayers.begin(), //
@@ -196,6 +200,9 @@ HWC3::Error Display::destroyLayer(int64_t layerId) {
                          mOrderedLayers.end());
 
     mLayers.erase(it);
+
+    if (mCallbacks && refresh)
+        mCallbacks->onRefresh(mId);
 
     DEBUG_LOG("%s: destroyed layer:%" PRId64, __FUNCTION__, layerId);
     return HWC3::Error::None;
@@ -424,6 +431,7 @@ HWC3::Error Display::registerCallback(const std::shared_ptr<IComposerCallback>& 
     DEBUG_LOG("%s: display:%" PRId64, __FUNCTION__, mId);
 
     mVsyncThread.setCallbacks(callback);
+    mCallbacks = callback;
 
     return HWC3::Error::Unsupported;
 }

@@ -88,6 +88,11 @@ private:
     struct ValidatedLayers {
         std::unordered_map<uint32_t, Layer*> layersForOverlayPlane; // <planeId, layer>
         std::vector<Layer*> layersForComposition;
+        /* When the primary plane is occupied for sepecial case(Confirmation UI), the composition
+         * result(Android UI) should be placed in the Overlay plane that just below primary plane.
+         */
+        std::optional<uint32_t> compositionPlaneId;
+        std::vector<Layer*> layersForNxpPrivate;
     };
     std::unordered_map<int64_t, DisplayBuffer> mDisplayBuffers;
     std::unordered_map<int64_t, ValidatedLayers> mDisplayLayers;

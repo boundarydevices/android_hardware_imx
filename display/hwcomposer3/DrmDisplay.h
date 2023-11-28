@@ -49,6 +49,7 @@ enum class DrmHotplugChange {
 struct DisplayBuffer {
     std::shared_ptr<DrmBuffer> clientTargetDrmBuffer;
     std::unordered_map<uint32_t, std::shared_ptr<DrmBuffer>> planeDrmBuffer;
+    std::unordered_map<gralloc_handle_t, std::shared_ptr<DrmBuffer>> dummyDrmBuffer;
 };
 
 class DrmDisplay {
@@ -89,14 +90,17 @@ public:
 
     bool setPowerMode(::android::base::borrowed_fd drmFd, DrmPower power);
     uint32_t getPlaneNum() const { return mPlanes.size(); }
+    void buildPlaneIdPool(uint32_t* outTopOverlayId);
+    void reservePlaneId(uint32_t planeId);
+    uint32_t getPrimaryPlaneId();
     uint32_t findDrmPlane(const native_handle_t* handle);
+
     int32_t getActiveConfigId() { return mActiveConfigId; }
     HalDisplayConfig& getActiveConfig() { return mActiveConfig; }
     std::shared_ptr<HalConfig> getDisplayConfigs();
-    uint32_t getPrimaryPlaneId();
     bool updateDisplayConfigs();
     void placeholderDisplayConfigs();
-    void buildPlaneIdPool();
+
     int getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format);
 
     void setAsPrimary(bool enable) { mIsPrimary = enable; }

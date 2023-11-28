@@ -29,6 +29,11 @@ ndk::ScopedAStatus Composer::createClient(std::shared_ptr<IComposerClient>* outC
 
     std::unique_lock<std::mutex> lock(mClientMutex);
 
+    if (!mClient.expired()) {
+        ALOGW("%s: composer client already exists, return it directly", __FUNCTION__);
+        *outClient = mClient.lock();
+        return ndk::ScopedAStatus::ok();
+    }
     const bool previousClientDestroyed = waitForClientDestroyedLocked(lock);
     if (!previousClientDestroyed) {
         ALOGE("%s: failed as composer client already exists", __FUNCTION__);

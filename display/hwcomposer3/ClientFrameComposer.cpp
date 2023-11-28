@@ -187,8 +187,14 @@ HWC3::Error ClientFrameComposer::onDisplayClientTargetSet(Display* display) {
     }
     DisplayBuffer& displayBuffer = it->second;
 
-    common::Rect displayFrame = {0};
-    common::Rect sourceCrop = {0};
+    int32_t activeConfigId;
+    int32_t width = INT_MAX, height = INT_MAX;
+    if (display->getActiveConfig(&activeConfigId) == HWC3::Error::None) {
+        display->getDisplayAttribute(activeConfigId, DisplayAttribute::WIDTH, &width);
+        display->getDisplayAttribute(activeConfigId, DisplayAttribute::HEIGHT, &height);
+    }
+    common::Rect displayFrame = {0, 0, width, height};
+    common::Rect sourceCrop = {0, 0, width, height};
     auto [createError, drmBuffer] =
             client->create(display->getClientTarget().getBuffer(), displayFrame, sourceCrop);
     if (createError != HWC3::Error::None) {
@@ -220,10 +226,10 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
         ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
         return error;
     }
-    client->prepareDrmPlanesForValidate(displayId);
 
     auto& layersForOverlay = mDisplayLayers[displayId].layersForOverlayPlane;
     auto& layersForComposition = mDisplayLayers[displayId].layersForComposition;
+    auto& layersForPrivate = mDisplayLayers[displayId].layersForNxpPrivate;
 
     const std::vector<Layer*>& layers = display->getOrderedLayers();
 
@@ -239,10 +245,37 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
         display->getDisplayAttribute(activeConfigId, DisplayAttribute::HEIGHT, &height);
     }
 
+    for (Layer* layer : layers) {
+        const auto composeType = layer->getCompositionType();
+        if ((int)composeType == Composition_NXP_PRIVATE) {
+            DEBUG_LOG("%s: find nxp private layer:%" PRId64, __FUNCTION__, layer->getId());
+            layersForPrivate.push_back(layer);
+        }
+    }
+    if (overlaySupported && layersForPrivate.size() == 1) {
+        auto layer = layersForPrivate.front();
+        common::Rect rectFrame = layer->getDisplayFrame();
+        // When the confirmation UI cannot cover all the screen, Android UI should be placed in
+        // Overlay plane
+        if ((rectFrame.right - rectFrame.left < width) ||
+            (rectFrame.bottom - rectFrame.top < height)) {
+            uint32_t planeIdForUI;
+            // when the planeId(Overlay) for UI is reserved, it will be erased from the pool
+            client->prepareDrmPlanesForValidate(displayId, &planeIdForUI);
+            mDisplayLayers[displayId].compositionPlaneId = planeIdForUI;
+        } else {
+            client->prepareDrmPlanesForValidate(displayId, nullptr);
+        }
+    } else {
+        client->prepareDrmPlanesForValidate(displayId, nullptr);
+    }
+
     common::Rect uiMaskedRect = {width, height, 0, 0};
     for (Layer* layer : layers) {
         const auto layerId = layer->getId();
         const auto composeType = layer->getCompositionType();
+        if ((int)composeType == Composition_NXP_PRIVATE)
+            continue;
 
         if (overlaySupported && !layerSkiped &&
             (composeType == Composition::DEVICE || composeType == Composition::CLIENT)) {
@@ -313,6 +346,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     DisplayBuffer& displayBuffer = displayBufferIt->second;
     auto& layersForOverlay = mDisplayLayers[displayId].layersForOverlayPlane;
     auto& layersForComposition = mDisplayLayers[displayId].layersForComposition;
+    auto& layersForPrivate = mDisplayLayers[displayId].layersForNxpPrivate;
+    auto& compositionResultPlaneId = mDisplayLayers[displayId].compositionPlaneId;
 
     auto [error, client] = getDeviceClient(displayId);
     if (error != HWC3::Error::None) {
@@ -364,8 +399,14 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         }
         mG2dComposer->composeLayers(layersForComposition, renderTarget);
 
-        common::Rect displayFrame = {0}; // don't care it for framebuffer
-        common::Rect sourceCrop = {0};   // don't care it for framebuffer
+        int32_t activeConfigId;
+        int32_t width = INT_MAX, height = INT_MAX;
+        if (display->getActiveConfig(&activeConfigId) == HWC3::Error::None) {
+            display->getDisplayAttribute(activeConfigId, DisplayAttribute::WIDTH, &width);
+            display->getDisplayAttribute(activeConfigId, DisplayAttribute::HEIGHT, &height);
+        }
+        common::Rect displayFrame = {0, 0, width, height};
+        common::Rect sourceCrop = {0, 0, width, height};
         auto [createError, drmBuffer] = client->create(renderTarget, displayFrame, sourceCrop);
         if (createError != HWC3::Error::None) {
             ALOGE("%s: display:%" PRIu64 " failed to create composer target drm buffer",
@@ -373,6 +414,41 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             return HWC3::Error::NoResources;
         }
         displayBuffer.clientTargetDrmBuffer = std::move(drmBuffer);
+    }
+
+    if (layersForPrivate.size() == 1) {
+        if (compositionResultPlaneId) {
+            // the clientTargetDrmBuffer should move to overlay plane(compositionResultPlaneId)
+            // The primary plane will be used by Confirmation UI
+            displayBuffer.planeDrmBuffer[*compositionResultPlaneId] =
+                    std::move(displayBuffer.clientTargetDrmBuffer);
+        }
+
+        if (displayBuffer.dummyDrmBuffer.size() > 0) {
+            displayBuffer.clientTargetDrmBuffer = displayBuffer.dummyDrmBuffer.begin()->second;
+        } else {
+            auto layer = layersForPrivate.front();
+            common::Rect rectFrame = layer->getDisplayFrame();
+            common::Rect rectSource = layer->getSourceCropInt();
+            gralloc_handle_t buffer;
+            mG2dComposer->prepareDeviceFrameBuffer(rectFrame.right - rectFrame.left,
+                                                   rectFrame.bottom - rectFrame.top,
+                                                   static_cast<int>(common::PixelFormat::RGBA_8888),
+                                                   &buffer, 1, false);
+            auto [createError, drmBuffer] = client->create(buffer, rectFrame, rectSource);
+            if (createError != HWC3::Error::None) {
+                ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer",
+                      __FUNCTION__, displayId);
+                return HWC3::Error::NoResources;
+            }
+            displayBuffer.clientTargetDrmBuffer = drmBuffer;
+            displayBuffer.dummyDrmBuffer.emplace(buffer, std::move(drmBuffer));
+        }
+    } else if (displayBuffer.dummyDrmBuffer.size() > 0) {
+        std::vector<gralloc_handle_t> handles;
+        handles.push_back(displayBuffer.dummyDrmBuffer.begin()->first);
+        mG2dComposer->freeDeviceFrameBuffer(handles);
+        displayBuffer.dummyDrmBuffer.clear();
     }
 
     ::android::base::unique_fd fence = display->getClientTarget().getFence();
@@ -393,6 +469,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
 
     layersForOverlay.clear();
     layersForComposition.clear();
+    layersForPrivate.clear();
+    compositionResultPlaneId = std::nullopt;
 
     return flushError;
 }
