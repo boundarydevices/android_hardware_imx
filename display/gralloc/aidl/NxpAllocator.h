@@ -28,14 +28,6 @@ public:
     ndk::ScopedAStatus allocate(const std::vector<uint8_t>& descriptor, int32_t count,
                                 allocator::AllocationResult* outResult) override;
 
-    ndk::ScopedAStatus allocate2(const BufferDescriptorInfo& descriptor, int32_t count,
-                                 allocator::AllocationResult* outResult) override;
-
-    ndk::ScopedAStatus isSupported(const BufferDescriptorInfo& descriptor,
-                                   bool* outResult) override;
-
-    ndk::ScopedAStatus getIMapperLibrarySuffix(std::string* outResult) override;
-
 protected:
     ndk::SpAIBinder createBinder() override;
 
