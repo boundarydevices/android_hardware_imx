@@ -36,6 +36,7 @@ Edid::Edid(std::vector<uint8_t> &edid) {
 
     uint8_t *data = edid.data();
 
+    ALOGI("%s: Edid data size=%d", __FUNCTION__, uint32_t(edid.size()));
     if (isEdidValid(data)) {
         unsigned char *edidExt = getCeaExtensionData(data, uint32_t(edid.size()));
         if (edidExt)
@@ -115,7 +116,7 @@ bool Edid::isEdidValid(unsigned char *edid) {
 unsigned char *Edid::getCeaExtensionData(unsigned char *edid, uint32_t size) {
     uint32_t extension_num = edid[EXTENSION_NUM];
     for (uint32_t i = 1; i <= extension_num; i++) {
-        if (EDID_LENGTH * (i + 1) >= size)
+        if (EDID_LENGTH * (i + 1) > size)
             break;
         unsigned char *edidExt = edid + EDID_LENGTH * i;
         if (!isEdidValid(edidExt))
@@ -186,6 +187,8 @@ void Edid::getHdrCapabilities(HdrCapabilities *outCapabilities) {
 
     std::vector<int32_t> hwcHdrTypes(count);
     getHdrSupportTypes(&count, hwcHdrTypes.data());
+
+    dumpHdrMetaData();
 
     outCapabilities->maxLuminance = mHdrMetaData.max_cll;
     outCapabilities->maxAverageLuminance = mHdrMetaData.max_fall;
@@ -277,8 +280,9 @@ void Edid::setPerFrameMetadata(const std::vector<std::optional<PerFrameMetadata>
 }
 
 void Edid::dumpHdrMetaData() {
-    ALOGI("hdrMetaData：isHdrSupported:%d maxcll:%f,max_fall:%f,min_cll:%f", mIsHdrSupported,
-          mHdrMetaData.max_cll, mHdrMetaData.max_fall, mHdrMetaData.min_cll);
+    ALOGI("%s：isHdrSupported: %s, maxcll:%f,max_fall:%f,min_cll:%f", __FUNCTION__,
+          mIsHdrSupported ? "true" : "false", mHdrMetaData.max_cll, mHdrMetaData.max_fall,
+          mHdrMetaData.min_cll);
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl
