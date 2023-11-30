@@ -140,7 +140,7 @@ cc_binary {
 }
 
 cc_library_shared {
-    name: "android.hardware.graphics.mapper@4.0-impl.imx",
+    name: "android.hardware.graphics.mapper@4.0-impl-backup.imx",
     defaults: ["libnxp_gralloc_default"],
     relative_install_path: "hw",
     vendor: true,
