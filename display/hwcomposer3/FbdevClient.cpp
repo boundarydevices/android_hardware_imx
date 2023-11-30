@@ -250,7 +250,7 @@ std::tuple<HWC3::Error, buffer_handle_t> FbdevClient::getComposerTarget(
 
     composer->freeSolidColorBuffer();
 
-    mG2dComposer = composer; // hotplug callback function need device composer to free buffers
+    mG2dComposer = std::move(composer); // hotplug callback function need device composer to free buffers
 
     return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][0]);
 }

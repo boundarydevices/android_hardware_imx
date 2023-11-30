@@ -31,7 +31,9 @@ std::atomic<int64_t> sNextId{1};
 
 } // namespace
 
-Layer::Layer(Edid* edidParser) : mId(sNextId++), mEdidParser(edidParser) {}
+Layer::Layer(Edid* edidParser) : mId(sNextId++), mEdidParser(edidParser) {
+    mHdrMetadata.metadata_type = 0;
+}
 
 HWC3::Error Layer::setCursorPosition(const common::Point& position) {
     DEBUG_LOG("%s: layer:%" PRId64, __FUNCTION__, mId);

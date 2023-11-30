@@ -109,7 +109,7 @@ private:
 
     mutable RWLock mDisplaysMutex;
     std::unordered_map<uint32_t, std::unique_ptr<FbdevDisplay>> mDisplays; //<displayId, ptr>
-    uint32_t mDisplayBaseId;
+    uint32_t mDisplayBaseId = 0;
     std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mComposerTargets;
     std::unordered_map<uint32_t, int32_t> mTargetIndex; //<displayId, index>
 

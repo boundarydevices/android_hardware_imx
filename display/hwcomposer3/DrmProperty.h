@@ -37,6 +37,15 @@ public:
 
     ~DrmProperty() {}
 
+    DrmProperty& operator=(DrmProperty&& other) noexcept {
+        if (this != &other) {
+            mId = other.mId;
+            mValue = other.mValue;
+            mName = std::move(other.mName);
+        }
+        return *this;
+    }
+
     uint32_t getId() const { return mId; }
 
     uint64_t getValue() const { return mValue; }

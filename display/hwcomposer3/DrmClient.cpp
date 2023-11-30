@@ -682,7 +682,11 @@ int DrmClient::loadBacklightDevices() {
         ALOGE("%s: Cannot get backlight device or incorrect setting", __FUNCTION__);
     } else {
         char value[5];
-        if (fread(value, 1, 4, file) > 0) {
+        size_t bytesRead = fread(value, 1, 4, file);
+        if (bytesRead == 0) {
+            ALOGE("%s: Error reading max brightness from %s", __FUNCTION__, filePath.c_str());
+            mBacklight.maxBrightness = -1;
+        } else {
             value[4] = '\0';
             mBacklight.maxBrightness = atoi(value);
             ALOGI("%s: get max brightness=%d from %s", __FUNCTION__, mBacklight.maxBrightness,
