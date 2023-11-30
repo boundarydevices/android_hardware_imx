@@ -46,9 +46,7 @@ gralloc_driver::gralloc_driver() : pManager(nullptr) {
     }
 }
 
-gralloc_driver::~gralloc_driver() {
-    handles_.clear();
-}
+gralloc_driver::~gralloc_driver() {}
 
 bool gralloc_driver::is_initialized() {
     return pManager != nullptr;
@@ -140,10 +138,6 @@ int32_t gralloc_driver::allocate(const struct gralloc_buffer_descriptor *descrip
     /* Calculate size and assign stride, size, offset to each plane based on format */
     drv_bo_from_format(hnd, stride, hnd->height, hnd->fslFormat);
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        handles_.emplace(hnd);
-    }
     *out_handle = hnd;
     return 0;
 }
@@ -157,21 +151,14 @@ int32_t gralloc_driver::retain(buffer_handle_t handle) {
         ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
-
-    auto hnd_it = handles_.find(hnd);
-    if (hnd_it != handles_.end()) {
-        return 0;
-    }
-
-    const_cast<gralloc_handle *>(hnd)->base =
-            0; // virtual address should be cleared when import buffer handle
+    // virtual address should be cleared when import buffer handle
+    const_cast<gralloc_handle *>(hnd)->base = 0;
 
     ret = pManager->retainMemory(const_cast<gralloc_handle *>(hnd));
     if (ret != 0) {
         ALOGE("%s retain memory failed", __func__);
         return -EINVAL;
     }
-    handles_.emplace(hnd);
 
     return 0;
 }
@@ -179,14 +166,9 @@ int32_t gralloc_driver::retain(buffer_handle_t handle) {
 int32_t gralloc_driver::release(buffer_handle_t handle) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    auto bufhandle = gralloc_convert_handle(handle);
-    if (!bufhandle) {
-        ALOGE("%s Invalid handle.", __func__);
-        return -EINVAL;
-    }
-    auto hnd = get_imported_handle(bufhandle);
+    auto hnd = gralloc_convert_handle(handle);
     if (!hnd) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
+        ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
 
@@ -199,7 +181,6 @@ int32_t gralloc_driver::release(buffer_handle_t handle) {
 
     pManager->releaseMemory(const_cast<gralloc_handle *>(hnd));
 
-    handles_.erase(hnd);
     return 0;
 }
 
@@ -207,18 +188,15 @@ int32_t gralloc_driver::lock(buffer_handle_t handle, int32_t acquire_fence,
                              bool close_acquire_fence, const struct rectangle *rect,
                              uint32_t map_flags, uint8_t *addr[DRV_MAX_PLANES]) {
     int32_t ret = gralloc_sync_wait(acquire_fence, close_acquire_fence);
-    if (ret)
+    if (ret) {
+        ALOGE("%s gralloc sync wait failed", __func__);
         return ret;
+    }
 
     std::lock_guard<std::mutex> lock(mutex_);
-    auto bufhandle = gralloc_convert_handle(handle);
-    if (!bufhandle) {
-        ALOGE("%s Invalid handle.", __func__);
-        return -EINVAL;
-    }
-    auto hnd = get_imported_handle(bufhandle);
+    auto hnd = gralloc_convert_handle(handle);
     if (!hnd) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
+        ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
 
@@ -236,14 +214,9 @@ int32_t gralloc_driver::lock(buffer_handle_t handle, int32_t acquire_fence,
 int32_t gralloc_driver::unlock(buffer_handle_t handle, int32_t *release_fence) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    auto bufhandle = gralloc_convert_handle(handle);
-    if (!bufhandle) {
-        ALOGE("%s Invalid handle.", __func__);
-        return -EINVAL;
-    }
-    auto hnd = get_imported_handle(bufhandle);
+    auto hnd = gralloc_convert_handle(handle);
     if (!hnd) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
+        ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
 
@@ -260,14 +233,9 @@ int32_t gralloc_driver::unlock(buffer_handle_t handle, int32_t *release_fence) {
 int32_t gralloc_driver::invalidate(buffer_handle_t handle) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    auto bufhandle = gralloc_convert_handle(handle);
-    if (!bufhandle) {
-        ALOGE("%s Invalid handle.", __func__);
-        return -EINVAL;
-    }
-    auto hnd = get_imported_handle(bufhandle);
+    auto hnd = gralloc_convert_handle(handle);
     if (!hnd) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
+        ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
 
@@ -277,14 +245,9 @@ int32_t gralloc_driver::invalidate(buffer_handle_t handle) {
 int32_t gralloc_driver::flush(buffer_handle_t handle) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    auto bufhandle = gralloc_convert_handle(handle);
-    if (!bufhandle) {
-        ALOGE("%s Invalid handle.", __func__);
-        return -EINVAL;
-    }
-    auto hnd = get_imported_handle(bufhandle);
+    auto hnd = gralloc_convert_handle(handle);
     if (!hnd) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
+        ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
 
@@ -301,14 +264,9 @@ int32_t gralloc_driver::validate_buffer(const struct gralloc_buffer_descriptor *
                                         buffer_handle_t handle) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    auto bufhandle = gralloc_convert_handle(handle);
-    if (!bufhandle) {
-        ALOGE("%s Invalid handle.", __func__);
-        return -EINVAL;
-    }
-    auto hnd = get_imported_handle(bufhandle);
+    auto hnd = gralloc_convert_handle(handle);
     if (!hnd) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
+        ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
 
@@ -340,14 +298,9 @@ int32_t gralloc_driver::get_reserved_region(buffer_handle_t handle, void **reser
     std::lock_guard<std::mutex> lock(mutex_);
     void *reserved_region_addr_;
 
-    auto bufhandle = gralloc_convert_handle(handle);
-    if (!bufhandle) {
-        ALOGE("%s Invalid handle.", __func__);
-        return -EINVAL;
-    }
-    auto hnd = get_imported_handle(bufhandle);
+    auto hnd = gralloc_convert_handle(handle);
     if (!hnd) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
+        ALOGE("%s Invalid handle.", __func__);
         return -EINVAL;
     }
 
@@ -377,28 +330,4 @@ int32_t gralloc_driver::get_reserved_region(buffer_handle_t handle, void **reser
 
 uint32_t gralloc_driver::get_resolved_drm_format(uint32_t drm_format, uint64_t usage) {
     return drv_resolve_format(drm_format, usage);
-}
-
-gralloc_handle_t gralloc_driver::get_imported_handle(gralloc_handle_t hnd) {
-    if (handles_.count(hnd))
-        return hnd;
-    else
-        return nullptr;
-}
-
-void gralloc_driver::with_handle(gralloc_handle_t hnd,
-                                 const std::function<void(gralloc_handle_t)> &function) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto importedHandle = get_imported_handle(hnd);
-    if (!importedHandle) {
-        ALOGE("Invalid reference (%s() called on unregistered handle).", __func__);
-        return;
-    }
-
-    function(importedHandle);
-}
-
-void gralloc_driver::with_each_handle(const std::function<void(gralloc_handle_t)> &function) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (const auto &element : handles_) function(element);
 }

@@ -43,9 +43,6 @@ public:
 
     uint32_t get_resolved_drm_format(uint32_t drm_format, uint64_t usage);
 
-    void with_handle(gralloc_handle_t hnd, const std::function<void(gralloc_handle_t)> &function);
-    void with_each_handle(const std::function<void(gralloc_handle_t)> &function);
-
     uint32_t get_id(gralloc_handle_t hnd) const { return hnd->id; }
 
     uint32_t get_width(gralloc_handle_t hnd) const { return hnd->width; }
@@ -85,13 +82,11 @@ private:
     ~gralloc_driver();
 
     bool is_initialized();
-    gralloc_handle_t get_imported_handle(gralloc_handle_t hnd);
     gralloc_driver(gralloc_driver const &);
     gralloc_driver operator=(gralloc_driver const &);
 
     fsl::MemoryManager *pManager;
     std::mutex mutex_;
-    std::unordered_set<gralloc_handle_t> handles_;
 };
 
 #endif
