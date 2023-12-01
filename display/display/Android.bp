@@ -43,7 +43,6 @@ cc_library_shared {
     defaults: ["libfsldisplay_default"],
     srcs: [
         "Display.cpp",
-        "DisplayHal.cpp",
         "DisplayManager.cpp",
         "FbDisplay.cpp",
         "KmsDisplay.cpp",
@@ -82,7 +81,6 @@ cc_library_shared {
         "libsync",
         "libion",
         "libedid",
-        "nxp.hardware.display@1.0",
         "libhidlbase",
         "libdrm_android",
         "libbase",

@@ -22,13 +22,11 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 
-#include "DisplayHal.h"
 #include "FbDisplay.h"
 #include "KmsDisplay.h"
 
 namespace fsl {
 
-using nxp::hardware::display::V1_0::implementation::DisplayHal;
 #define HDMI_PLUG_EVENT "hdmi_video"
 #define HDMI_PLUG_CHANGE "change@"
 #define HDMI_SII902_PLUG_EVENT "change@/devices/platform/sii902x.0"
@@ -39,7 +37,6 @@ using nxp::hardware::display::V1_0::implementation::DisplayHal;
 constexpr char kPrimaryDispReady[] = "vendor.display.state";
 constexpr char DISP_STATE_READY[] = "1";
 
-static sp<DisplayHal> mDisplayHal;
 DisplayManager* DisplayManager::sInstance(0);
 Mutex DisplayManager::sLock(Mutex::PRIVATE);
 
@@ -100,10 +97,6 @@ DisplayManager::DisplayManager() {
     display->initBrightness();
 
     mHotplugThread = new HotplugThread(this);
-    mDisplayHal = new DisplayHal();
-    if (mDisplayHal->registerAsService() != 0) {
-        ALOGE("failed to register IDisplay service");
-    }
 }
 
 DisplayManager::~DisplayManager() {
