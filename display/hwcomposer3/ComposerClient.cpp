@@ -164,6 +164,8 @@ HWC3::Error ComposerClient::init() {
         return error;
     }
 
+    mCapabilities.clear(); // not support any capabilities now
+
     DEBUG_LOG("%s initialized!", __FUNCTION__);
     return HWC3::Error::None;
 }
@@ -552,6 +554,12 @@ ndk::ScopedAStatus ComposerClient::setBootDisplayConfig(int64_t displayId, int32
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
+    bool supported = std::any_of(mCapabilities.begin(), mCapabilities.end(), [&](Capability cap) {
+        return cap == Capability::BOOT_DISPLAY_CONFIG;
+    });
+    if (!supported)
+        return ToBinderStatus(HWC3::Error::Unsupported);
+
     return ToBinderStatus(display->setBootConfig(configId));
 }
 
@@ -561,6 +569,12 @@ ndk::ScopedAStatus ComposerClient::clearBootDisplayConfig(int64_t displayId) {
     std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
+
+    bool supported = std::any_of(mCapabilities.begin(), mCapabilities.end(), [&](Capability cap) {
+        return cap == Capability::BOOT_DISPLAY_CONFIG;
+    });
+    if (!supported)
+        return ToBinderStatus(HWC3::Error::Unsupported);
 
     return ToBinderStatus(display->clearBootConfig());
 }
@@ -572,6 +586,12 @@ ndk::ScopedAStatus ComposerClient::getPreferredBootDisplayConfig(int64_t display
     std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
+
+    bool supported = std::any_of(mCapabilities.begin(), mCapabilities.end(), [&](Capability cap) {
+        return cap == Capability::BOOT_DISPLAY_CONFIG;
+    });
+    if (!supported)
+        return ToBinderStatus(HWC3::Error::Unsupported);
 
     return ToBinderStatus(display->getPreferredBootConfig(outConfigId));
 }

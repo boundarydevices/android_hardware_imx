@@ -119,6 +119,8 @@ enum class Error : int32_t {
     Unsupported = aidl::android::hardware::graphics::composer3::IComposerClient::EX_UNSUPPORTED,
     SeamlessNotAllowed =
             aidl::android::hardware::graphics::composer3::IComposerClient::EX_SEAMLESS_NOT_ALLOWED,
+    SeamlessNotPossible =
+            aidl::android::hardware::graphics::composer3::IComposerClient::EX_SEAMLESS_NOT_POSSIBLE,
 };
 } // namespace HWC3
 

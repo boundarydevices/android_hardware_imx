@@ -100,6 +100,7 @@ public:
     std::shared_ptr<HalConfig> getDisplayConfigs();
     bool updateDisplayConfigs();
     void placeholderDisplayConfigs();
+    bool setActiveConfigId(int32_t configId);
 
     int getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format);
 

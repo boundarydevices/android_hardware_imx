@@ -65,7 +65,7 @@ public:
             Display* display, ::android::base::unique_fd* outDisplayFence,
             std::unordered_map<int64_t, ::android::base::unique_fd>* outLayerFences) = 0;
 
-    virtual HWC3::Error onActiveConfigChange(Display* display) = 0;
+    virtual HWC3::Error onActiveConfigChange(Display* display, int32_t configId) = 0;
     virtual HWC3::Error setPowerMode(Display* display, PowerMode mode) = 0;
     virtual HWC3::Error setDisplayBrightness(Display* display, float brightness) = 0;
     virtual HWC3::Error getDisplayConnectionType(Display* display,

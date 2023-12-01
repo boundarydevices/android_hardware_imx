@@ -153,6 +153,8 @@ public:
         mCapability.insert(mCapability.end(), caps.begin(), caps.end());
         return HWC3::Error::None;
     }
+    HWC3::Error takeEffectConfig(int32_t configId);
+    std::optional<TimePoint>& getExpectedPresentTime() { return mExpectedPresentTime; }
 
 private:
     bool hasConfig(int32_t configId) const;
@@ -161,6 +163,7 @@ private:
     std::optional<int32_t> getBootConfigId();
 
     void setLegacyEdid();
+    bool mIsLegacyEdid = false;
 
     // The state of this display should only be modified from
     // SurfaceFlinger's main loop, with the exception of when dump is

@@ -108,6 +108,11 @@ ndk::ScopedAStatus Composer::getCapabilities(std::vector<Capability>* caps) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     caps->clear();
+    auto client = mClient.lock();
+    if (client) {
+        auto capabilities = client->getCapabilities();
+        for (auto& cap : capabilities) caps->push_back(cap);
+    }
 
     return ndk::ScopedAStatus::ok();
 }

@@ -67,6 +67,8 @@ std::string toString(HWC3::Error error) {
             return "Unsupported";
         case HWC3::Error::SeamlessNotAllowed:
             return "SeamlessNotAllowed";
+        case HWC3::Error::SeamlessNotPossible:
+            return "SeamlessNotPossible";
     }
 }
 

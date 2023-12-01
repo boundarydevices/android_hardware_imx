@@ -20,6 +20,7 @@
 
 #include <thread>
 
+#include "Display.h"
 #include "Time.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
@@ -40,7 +41,7 @@ TimePoint GetNextVsyncInPhase(Nanoseconds vsyncPeriod, TimePoint previousVsync, 
 
 } // namespace
 
-VsyncThread::VsyncThread(int64_t displayId) : mDisplayId(displayId) {}
+VsyncThread::VsyncThread(Display* display) : mDisplayId(display->getId()), mDisplay(display) {}
 
 VsyncThread::~VsyncThread() {
     stop();
@@ -99,20 +100,28 @@ HWC3::Error VsyncThread::setVsyncEnabled(bool enabled) {
     return HWC3::Error::None;
 }
 
-HWC3::Error VsyncThread::scheduleVsyncUpdate(int32_t newVsyncPeriod,
+HWC3::Error VsyncThread::scheduleVsyncUpdate(int32_t configId, int32_t newVsyncPeriod,
                                              const VsyncPeriodChangeConstraints& constraints,
                                              VsyncPeriodChangeTimeline* outTimeline) {
     DEBUG_LOG("%s for display:%" PRIu64, __FUNCTION__, mDisplayId);
 
-    PendingUpdate update;
-    update.period = Nanoseconds(newVsyncPeriod);
-    update.updateAfter = asTimePoint(constraints.desiredTimeNanos);
+    std::chrono::time_point<std::chrono::steady_clock> updateTime;
+    if (constraints.desiredTimeNanos == 0) { // take effect immediately
+        mVsyncPeriod = Nanoseconds(newVsyncPeriod);
+        mDisplay->takeEffectConfig(configId);
+        updateTime = mPreviousVsync;
+    } else {
+        PendingUpdate update;
+        update.period = Nanoseconds(newVsyncPeriod);
+        update.updateAfter = asTimePoint(constraints.desiredTimeNanos);
+        update.configId = configId;
+        updateTime = update.updateAfter;
 
-    TimePoint nextVsync = GetNextVsyncInPhase(mVsyncPeriod, mPreviousVsync, update.updateAfter);
+        std::unique_lock<std::mutex> lock(mStateMutex);
+        mPendingUpdate.emplace(std::move(update));
+    }
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-    mPendingUpdate.emplace(std::move(update));
-
+    TimePoint nextVsync = GetNextVsyncInPhase(mVsyncPeriod, mPreviousVsync, updateTime);
     outTimeline->newVsyncAppliedTimeNanos = asNanosTimePoint(nextVsync);
     outTimeline->refreshRequired = false;
     outTimeline->refreshTimeNanos = 0;
@@ -123,6 +132,7 @@ HWC3::Error VsyncThread::scheduleVsyncUpdate(int32_t newVsyncPeriod,
 Nanoseconds VsyncThread::updateVsyncPeriodLocked(TimePoint now) {
     if (mPendingUpdate && now > mPendingUpdate->updateAfter) {
         mVsyncPeriod = mPendingUpdate->period;
+        mDisplay->takeEffectConfig(mPendingUpdate->configId);
         mPendingUpdate.reset();
     }
 

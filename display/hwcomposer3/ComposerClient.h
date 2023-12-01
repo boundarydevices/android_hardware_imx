@@ -18,6 +18,7 @@
 #ifndef ANDROID_HWC_COMPOSERCLIENT_H
 #define ANDROID_HWC_COMPOSERCLIENT_H
 
+#include <aidl/android/hardware/graphics/composer3/BnComposer.h>
 #include <aidl/android/hardware/graphics/composer3/BnComposerClient.h>
 #include <utils/Mutex.h>
 
@@ -39,6 +40,8 @@ public:
     void setOnClientDestroyed(std::function<void()> onClientDestroyed) {
         mOnClientDestroyed = std::move(onClientDestroyed);
     }
+
+    std::vector<Capability>& getCapabilities() { return mCapabilities; }
 
     // HWC3 interface:
     ndk::ScopedAStatus createLayer(int64_t displayId, int32_t bufferSlotCount,
@@ -216,6 +219,8 @@ private:
 
     // Manages importing and caching gralloc buffers for displays and layers.
     std::unique_ptr<ComposerResources> mResources;
+
+    std::vector<Capability> mCapabilities;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

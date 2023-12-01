@@ -102,6 +102,7 @@ public:
 
     HWC3::Error setPrimaryDisplay(int displayId) override;
     HWC3::Error fakeDisplayConfig(int displayId) override;
+    HWC3::Error setActiveConfigId(int displayId, int32_t configId) override;
 
     std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;

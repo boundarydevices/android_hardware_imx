@@ -30,10 +30,11 @@
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
+class Display;
 // Generates Vsync signals in software.
 class VsyncThread {
 public:
-    VsyncThread(int64_t id);
+    VsyncThread(Display* display);
     virtual ~VsyncThread();
 
     VsyncThread(const VsyncThread&) = delete;
@@ -49,7 +50,7 @@ public:
     HWC3::Error setVsyncEnabled(bool enabled);
 
     HWC3::Error scheduleVsyncUpdate(
-            int32_t newVsyncPeriod,
+            int32_t configId, int32_t newVsyncPeriod,
             const VsyncPeriodChangeConstraints& newVsyncPeriodChangeConstraints,
             VsyncPeriodChangeTimeline* timeline);
 
@@ -62,6 +63,7 @@ private:
             std::chrono::time_point<std::chrono::steady_clock> now);
 
     const int64_t mDisplayId;
+    Display* mDisplay = nullptr;
 
     std::thread mThread;
 
@@ -78,6 +80,7 @@ private:
     struct PendingUpdate {
         std::chrono::nanoseconds period;
         std::chrono::time_point<std::chrono::steady_clock> updateAfter;
+        int32_t configId;
     };
     std::optional<PendingUpdate> mPendingUpdate;
 };

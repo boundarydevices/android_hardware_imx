@@ -207,7 +207,18 @@ HWC3::Error ClientFrameComposer::onDisplayClientTargetSet(Display* display) {
     return HWC3::Error::None;
 }
 
-HWC3::Error ClientFrameComposer::onActiveConfigChange(Display* /*display*/) {
+HWC3::Error ClientFrameComposer::onActiveConfigChange(Display* display, int32_t configId) {
+    const auto displayId = display->getId();
+    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
+    client->setActiveConfigId(displayId, configId);
+
     return HWC3::Error::None;
 };
 
@@ -250,6 +261,12 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
         if ((int)composeType == Composition_NXP_PRIVATE) {
             DEBUG_LOG("%s: find nxp private layer:%" PRId64, __FUNCTION__, layer->getId());
             layersForPrivate.push_back(layer);
+        }
+        // According to VTS requirement, when DISPLAY_DECORATION is not supported, need to return
+        // error with Unsupported directly.
+        if (composeType == Composition::DISPLAY_DECORATION) {
+            layersForPrivate.clear();
+            return HWC3::Error::Unsupported;
         }
     }
     if (overlaySupported && layersForPrivate.size() == 1) {
@@ -449,6 +466,18 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         handles.push_back(displayBuffer.dummyDrmBuffer.begin()->first);
         mG2dComposer->freeDeviceFrameBuffer(handles);
         displayBuffer.dummyDrmBuffer.clear();
+    }
+
+    if (!displayBuffer.clientTargetDrmBuffer && (displayBuffer.planeDrmBuffer.size() == 0) &&
+        (displayBuffer.dummyDrmBuffer.size() == 0)) {
+        return HWC3::Error::None; // No buffer need to commit
+    }
+
+    auto& presentTime = display->getExpectedPresentTime();
+    if (presentTime.has_value()) {
+        TimePoint now = std::chrono::steady_clock::now();
+        if (now < *presentTime)
+            std::this_thread::sleep_until(*presentTime);
     }
 
     ::android::base::unique_fd fence = display->getClientTarget().getFence();

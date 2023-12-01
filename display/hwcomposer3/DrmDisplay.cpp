@@ -583,6 +583,21 @@ void DrmDisplay::placeholderDisplayConfigs() {
     mActiveConfig = (*mConfigs)[mActiveConfigId];
 }
 
+bool DrmDisplay::setActiveConfigId(int32_t configId) {
+    DEBUG_LOG("%s: display:%" PRIu32 " configId=%d", __FUNCTION__, mId, configId);
+
+    if (mConfigs->find(configId) == mConfigs->end()) {
+        ALOGE("%s: the config Id=%d is invalid", __FUNCTION__, configId);
+        return false;
+    }
+
+    mActiveConfigId = configId;
+    mActiveConfig = (*mConfigs)[mActiveConfigId];
+    mModeSet = true; // make this config effect when commit next framebuffer
+
+    return true;
+}
+
 int DrmDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 

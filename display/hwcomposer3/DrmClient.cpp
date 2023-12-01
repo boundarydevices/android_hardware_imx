@@ -587,6 +587,18 @@ HWC3::Error DrmClient::fakeDisplayConfig(int displayId) {
     return HWC3::Error::None;
 }
 
+HWC3::Error DrmClient::setActiveConfigId(int displayId, int32_t configId) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    if (mDisplays[displayId]->setActiveConfigId(configId))
+        return HWC3::Error::None;
+    else
+        return HWC3::Error::BadParameter;
+}
+
 std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
         std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
@@ -670,6 +682,7 @@ int DrmClient::loadBacklightDevices() {
 
     property_get("vendor.hw.backlight.dev", dev, "pwm-backlight");
     filePath = path + dev + "/max_brightness";
+    mBacklight.path = "";
 
     FILE* file = fopen(filePath.c_str(), "r");
     if (!file) {

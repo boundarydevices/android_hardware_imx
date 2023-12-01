@@ -57,7 +57,7 @@ public:
 
     HWC3::Error onDisplayClientTargetSet(Display* display) override;
 
-    HWC3::Error onActiveConfigChange(Display* display) override;
+    HWC3::Error onActiveConfigChange(Display* display, int32_t configId) override;
 
     // Determines if this composer can compose the given layers on the given
     // display and requests changes for layers that can't not be composed.
