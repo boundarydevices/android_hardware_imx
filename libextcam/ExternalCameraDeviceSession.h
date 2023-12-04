@@ -275,6 +275,7 @@ public:
         int handleFrame(uint32_t width, uint32_t height, uint32_t dst_fmt, uint32_t src_fmt,
                         uint64_t dstPhyAddr, uint64_t srcPhyAddr,
                         uint32_t srcWidth = 0, uint32_t srcHeight = 0,
+                        uint32_t srcStride = 0, uint32_t dstStride = 0,
                         void *srcVirtAddr = NULL, void *dstVirtAddr = NULL);
 
         bool mUseHalBufManager = false;

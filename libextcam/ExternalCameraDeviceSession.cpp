@@ -2671,7 +2671,7 @@ scale:
         scaledYu12Buf->getPhyAddr(dstPhyAddr);
 
         ret = handleFrame(outSz.width, outSz.height, in->mFourcc, in->mFourcc, dstPhyAddr, srcPhyAddr,
-            in->mWidth, in->mHeight, croppedLayout.y, outLayout.y);
+            in->mWidth, in->mHeight, croppedLayout.yStride, outLayout.yStride, croppedLayout.y, outLayout.y);
 
         if (outPhyAddr) {
             *outPhyAddr = dstPhyAddr;
@@ -3207,8 +3207,9 @@ int ExternalCameraDeviceSession::OutputThread::CopyFromPrcdBuf(HalStreamBuffer &
     return ret;
 }
 
-int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, uint32_t dstHeight, uint32_t dst_fourcc, uint32_t src_fourcc,
-    uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t srcWidth, uint32_t srcHeight, void *srcVirtAddr, void *dstVirtAddr) {
+int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, uint32_t dstHeight,
+    uint32_t dst_fourcc, uint32_t src_fourcc, uint64_t dstPhyAddr, uint64_t srcPhyAddr, uint32_t srcWidth, uint32_t srcHeight,
+    uint32_t srcStride, uint32_t dstStride, void *srcVirtAddr, void *dstVirtAddr) {
     fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
 
     ImxImageBuffer srcBuf;
@@ -3217,6 +3218,7 @@ int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, ui
     uint32_t srcFmt = convertV4L2FormatToPixelFormat(src_fourcc);
     uint32_t dstFmt = convertV4L2FormatToPixelFormat(dst_fourcc);
 
+    uint32_t srcValidWidth = srcWidth;
     uint32_t srcValidHeight = srcHeight;
 
     // mjpg hareware decoder is 16 aligned.
@@ -3235,10 +3237,14 @@ int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, ui
     else if (srcHeight == 128)
         srcValidHeight = 120;
 
+    if (srcWidth == 432) {
+        srcValidWidth = 424;
+    }
+
     srcBuf.mFormat = srcFmt;
-    srcBuf.mWidth = srcWidth;
+    srcBuf.mWidth = srcValidWidth;
     srcBuf.mHeight = srcValidHeight;
-    srcBuf.mStride = srcWidth;
+    srcBuf.mStride = srcStride;
     srcBuf.mHeightSpan = srcHeight;
     srcBuf.mVirtAddr = srcVirtAddr;
     srcBuf.mPhyAddr = srcPhyAddr;
@@ -3253,7 +3259,7 @@ int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, ui
     dstBuf.mFormat = dstFmt;
     dstBuf.mWidth = dstWidth;
     dstBuf.mHeight = dstHeight;
-    dstBuf.mStride = dstWidth;
+    dstBuf.mStride = dstStride;
     dstBuf.mHeightSpan = dstHeight;
     dstBuf.mVirtAddr = dstVirtAddr;
     dstBuf.mPhyAddr = dstPhyAddr;
@@ -3573,16 +3579,18 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 uint64_t scaledPhyAddr = 0;
                 uint32_t scaledWidth = 0;
                 uint32_t scaledHeight = 0;
-
-                if (mHardwareDecoder && parent->getHardwareDecFlag() &&
-                    (mYu12Frame->mWidth == halBuf.width) &&
-                    ((mYu12Frame->mHeight == halBuf.height) ||
-                     ((mYu12Frame->mHeight > halBuf.height) && (mYu12Frame->mHeight - halBuf.height < 16)))) {
+                if (mHardwareDecoder && parent->getHardwareDecFlag()) {
                     mYu12Frame->getLayout(&cropAndScaled);
                     mYu12Frame->getPhyAddr(scaledPhyAddr);
-                    scaledWidth = mYu12Frame->mWidth;
-                    scaledHeight = mYu12Frame->mHeight;
-                    goto format_convert;
+
+                    if (((mYu12Frame->mWidth - halBuf.width) >= 16) || ((mYu12Frame->mHeight - halBuf.height) >= 16)) {
+                        // will resize
+                        break;
+                    } else {
+                        scaledWidth = mYu12Frame->mWidth;
+                        scaledHeight = mYu12Frame->mHeight;
+                        goto format_convert;
+                    }
                 }
 
                 ATRACE_BEGIN("cropAndScaleLocked");
@@ -3622,7 +3630,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     ALOGV("%s: fslMem, fd %d, size %d, width %d, height %d, format 0x%x", __func__, fslMem->fd, fslMem->size, fslMem->width, fslMem->height, fslMem->format);
 
                     fcret = handleFrame(halBuf.width, halBuf.height, outputFourcc, mYu12Frame->mFourcc, dstPhyAddr,
-                               scaledPhyAddr, scaledWidth, scaledHeight);
+                               scaledPhyAddr, scaledWidth, scaledHeight, scaledWidth, outLayout.yStride);
                 } else {
                     fcret =
                         formatConvert(cropAndScaled, outLayout, sz, outputFourcc, mInterBufFormat);
@@ -3643,7 +3651,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     return onDeviceError("%s: format coversion failed!", __FUNCTION__);
                 }
 
-                dumpStream((uint8_t*)outLayout.y, halBuf.width * halBuf.height * 3 / 2, 3);
+                dumpStream((uint8_t*)outLayout.y, outLayout.yStride * halBuf.height * 3 / 2, 3);
 
                 int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
                 if (relFence >= 0) {

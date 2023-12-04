@@ -859,7 +859,8 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     {
         Mutex::Autolock _l(mCLLock);
         cl_csc(mCLHandle, (uint8_t *)srcBuf.mPhyAddr, (uint8_t *)dstBuf.mPhyAddr,
-                        dstBuf.mWidth, dstBuf.mHeight, srcBuf.mHeightSpan, false, bOutputCached, srcBuf.mFormat, dstBuf.mFormat);
+                        dstBuf.mWidth, dstBuf.mHeight, srcBuf.mStride, dstBuf.mStride, srcBuf.mHeightSpan,
+                        false, bOutputCached, srcBuf.mFormat, dstBuf.mFormat);
 
         (*mCLFlush)(mCLHandle);
         (*mCLFinish)(mCLHandle);
@@ -964,19 +965,21 @@ void ImageProcess::cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uin
 }
 
 void ImageProcess::cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
-                                   int width, int height, int srcHeightSpan, bool bInputCached, bool bOutputCached, uint32_t inFmt, uint32_t outFmt) {
+                          int width, int height, int srcStride, int dstStride,
+                          int srcHeightSpan, bool bInputCached, bool bOutputCached,
+                          uint32_t inFmt, uint32_t outFmt) {
 
     struct cl_g2d_surface src, dst;
 
     src.format = (cl_g2d_format)convertPixelFormatToCLFormat(inFmt);
     src.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     src.planes[0] = (long)inputBuffer;
-    src.planes[1] = (long)inputBuffer + width * srcHeightSpan;
+    src.planes[1] = (long)inputBuffer + srcStride * srcHeightSpan;
     src.left = 0;
     src.top = 0;
     src.right = width;
     src.bottom = height;
-    src.stride = width;
+    src.stride = srcStride;
     src.width = width;
     src.height = height;
     src.usePhyAddr = true;
@@ -984,12 +987,12 @@ void ImageProcess::cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *output
     dst.format = (cl_g2d_format)convertPixelFormatToCLFormat(outFmt);
     dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
     dst.planes[0] = (long)outputBuffer;
-    dst.planes[1] = (long)outputBuffer + width * height;
+    dst.planes[1] = (long)outputBuffer + dstStride * height;
     dst.left = 0;
     dst.top = 0;
     dst.right = width;
     dst.bottom = height;
-    dst.stride = width;
+    dst.stride = dstStride;
     dst.width = width;
     dst.height = height;
     dst.usePhyAddr = true;

@@ -889,7 +889,7 @@ int cl_g2d_blit(void *handle, struct cl_g2d_surface *src, struct cl_g2d_surface 
             int src_stride = src->stride;
             int dst_stride = dst->stride;
 
-            kernel_width = width / PLAT_VLOAD_BYTES;
+            kernel_width = src_stride / PLAT_VLOAD_BYTES;
             kernel_height = src->height / 2;
 
             errNum |= clSetKernelArg(kernel, arg_index++, sizeof(cl_int), &(width));

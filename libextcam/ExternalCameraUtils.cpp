@@ -893,27 +893,15 @@ static int formatConvertSrcNV12(const YCbCrLayout& in, const YCbCrLayout& out, S
         return -1;
     }
 
-    uint32_t ySize = sz.width * sz.height;
-    uint32_t cSize = ySize / 2;
-
-    // Ref
-    // http://lsv11326.swis.cn-sha01.nxp.com:8084/source/xref/external/libyuv/files/source/row_neon64.cc?r=211e09de#683
-    // CopyRow_NEON will copy multiple of 32.
-    int copyYSizeNeon = ySize / 32 * 32;
-    int copyYSizeCpu = ySize - copyYSizeNeon;
-
-    int copyCSizeNeon = cSize / 32 * 32;
-    int copyCSizeCpu = cSize - copyCSizeNeon;
-
-    libyuv::CopyRow_NEON((const uint8_t*)in.y, (uint8_t*)out.y, copyYSizeNeon);
-    if (copyYSizeCpu)
-        memcpy((void*)((uint8_t*)out.y + copyYSizeNeon), (void*)((uint8_t*)in.y + copyYSizeNeon),
-               copyYSizeCpu);
-
-    libyuv::CopyRow_NEON((const uint8_t*)in.cb, (uint8_t*)out.cb, copyCSizeNeon);
-    if (copyCSizeCpu)
-        memcpy((void*)((uint8_t*)out.cb + copyCSizeNeon), (void*)((uint8_t*)in.cb + copyCSizeNeon),
-               copyCSizeCpu);
+    int ret = libyuv::NV12Copy(static_cast<uint8_t*>(in.y), static_cast<int32_t>(in.yStride),
+                            static_cast<uint8_t*>(in.cb), static_cast<int32_t>(in.cStride),
+                            static_cast<uint8_t*>(out.y), static_cast<int32_t>(out.yStride),
+                            static_cast<uint8_t*>(out.cb), static_cast<int32_t>(out.cStride),
+                            static_cast<int32_t>(sz.width), static_cast<int32_t>(sz.height));
+    if (ret != 0) {
+        ALOGE("%s: copy to NV12 or NV12 buffer failed! ret %d", __FUNCTION__, ret);
+        return ret;
+    }
 
     return 0;
 }

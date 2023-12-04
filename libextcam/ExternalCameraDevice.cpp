@@ -957,7 +957,7 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
         for (; TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frameSize)) == 0;
              ++frameSize.index) {
             if (frameSize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
-                ALOGV("index:%d, format:%c%c%c%c, w %d, h %d", frameSize.index,
+                ALOGI("index:%d, format:%c%c%c%c, w %d, h %d", frameSize.index,
                       fmtdesc.pixelformat & 0xFF, (fmtdesc.pixelformat >> 8) & 0xFF,
                       (fmtdesc.pixelformat >> 16) & 0xFF, (fmtdesc.pixelformat >> 24) & 0xFF,
                       frameSize.discrete.width, frameSize.discrete.height);

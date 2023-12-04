@@ -69,8 +69,9 @@ private:
 
     void cl_Copy(void* g2dHandle, uint8_t* output, uint8_t* input, uint32_t size, bool bInputCached,
                  bool bOutputCached);
-    void cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height, int srcHeightSpan,
-           bool bInputCached, bool bOutputCached, uint32_t inFmt, uint32_t outFmt);
+    void cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer, int width, int height,
+                int srcStride, int dstStride, int srcHeightSpan, bool bInputCached, bool bOutputCached,
+                uint32_t inFmt, uint32_t outFmt);
 
     void* getHandle();
     int openEngine(void** handle);
