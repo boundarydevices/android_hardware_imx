@@ -159,7 +159,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> FbdevClient::flushToDisplay(
     }
 
     ::android::RWLock::AutoRLock lock(mDisplaysMutex);
-    if (!buffer.clientTargetDrmBuffer->mBufferAddress) {
+    if (!buffer.clientTargetDrmBuffer || !buffer.clientTargetDrmBuffer->mBufferAddress) {
         return std::make_tuple(HWC3::Error::NoResources, ::android::base::unique_fd());
     }
 

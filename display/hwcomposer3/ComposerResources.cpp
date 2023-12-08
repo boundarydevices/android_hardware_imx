@@ -195,8 +195,10 @@ HWC3::Error ComposerResources::getLayerBuffer(int64_t displayId, int64_t layerId
     }
 
     DEBUG_LOG("%s fromCache:%s", __FUNCTION__, (useCache ? "yes" : "no"));
-    return toHwc3Error(mImpl->getLayerBuffer(display, layer, buffer.slot, useCache, bufferHandle,
-                                             outHandle, releaser->getReplacedHandle()));
+    auto error = mImpl->getLayerBuffer(display, layer, buffer.slot, useCache, bufferHandle,
+                                       outHandle, releaser->getReplacedHandle());
+    native_handle_delete(const_cast<native_handle_t*>(bufferHandle));
+    return toHwc3Error(error);
 }
 
 HWC3::Error ComposerResources::getLayerSidebandStream(
