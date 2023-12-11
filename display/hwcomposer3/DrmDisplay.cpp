@@ -505,6 +505,21 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
     ALOGI("Find best mode w:%d, h:%d, refreshrate:%d at mode index %d", activeConfig.width,
           activeConfig.height, activeConfig.refreshRateHz, index);
 
+    // Because Chrome will switch different display config according to content refresh rate
+    // requirement, it cause screen blank and unblank again when change display config.
+    // TODO: our platform cannot change display config seamlessly, so remove the display config
+    //       with other refresh rate.
+    auto check_fun = [&](const auto& pair) -> bool {
+        if (pair.second.refreshRateHz != activeConfig.refreshRateHz)
+            return true;
+        return false;
+    };
+    auto it = std::find_if(configs->begin(), configs->end(), check_fun);
+    while (it != configs->end()) {
+        configs->erase(it->first);
+        it = std::find_if(configs->begin(), configs->end(), check_fun);
+    }
+
     uint32_t width = activeConfig.width;
     uint32_t height = activeConfig.height;
     if (customizeGUIResolution(width, height, &mUiScaleType)) {
@@ -547,7 +562,12 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
 bool DrmDisplay::updateDisplayConfigs() {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    mStartConfigId = mStartConfigId + mConfigs->size();
+    uint32_t id_max = 0;
+    for (auto& [id, cfg] : *mConfigs) {
+        if (id > id_max)
+            id_max = id;
+    }
+    mStartConfigId = mStartConfigId + id_max + 1;
     mConfigs->clear();
     if (mConnector->buildConfigs(mConfigs, mStartConfigId)) {
         updateActiveConfig(mConfigs);
