@@ -172,6 +172,7 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
 
             if (property_set(ISP_CONTROL, "1") < 0)
                 ALOGW("%s: property_set %s 1 failed", __func__, ISP_CONTROL);
+            usleep(1000000);
         }
 
         if (recover || (strstr(mSession->getSensorData()->camera_name, ISP_SENSOR_NAME))) {
