@@ -50,7 +50,7 @@ int DrmAtomicRequest::Commit(::android::base::borrowed_fd drmFd) {
 
     int ret = drmModeAtomicCommit(drmFd.get(), mRequest, kCommitFlags, 0);
     if (ret) {
-        ALOGE("%s:%d: atomic commit failed: %s\n", __FUNCTION__, __LINE__, strerror(errno));
+        ALOGV("%s:%d: atomic commit failed: %s\n", __FUNCTION__, __LINE__, strerror(errno));
     }
 
     return ret;

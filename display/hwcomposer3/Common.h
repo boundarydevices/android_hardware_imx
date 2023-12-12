@@ -30,6 +30,7 @@
 
 #include <aidl/android/hardware/graphics/composer3/IComposerClient.h>
 #include <android-base/logging.h>
+#include <gralloc_handle.h>
 #include <log/log.h>
 #include <utils/Trace.h>
 
@@ -45,6 +46,9 @@
 #endif
 
 #define DEBUG_DUMP_REFRESH_RATE
+
+// uncomment below to enable frame dump feature
+// #define DEBUG_DUMP_FRAME
 
 #if 0 // Below already defined in Memory.h
 #define ALIGN_PIXEL_2(x) ((x + 1) & ~1)
@@ -105,6 +109,10 @@ void mergeRect(common::Rect& masked, common::Rect& src);
 #ifdef DEBUG_DUMP_REFRESH_RATE
 nsecs_t dumpRefreshRateStart();
 void dumpRefreshRateEnd(uint32_t displayId, int vsyncPeriod, nsecs_t start_time);
+#endif
+
+#ifdef DEBUG_DUMP_FRAME
+void debug_dump_frame(buffer_handle_t handle);
 #endif
 
 namespace HWC3 {

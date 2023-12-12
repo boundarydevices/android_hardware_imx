@@ -19,6 +19,7 @@
 
 #include <android-base/properties.h>
 #include <cutils/properties.h>
+#include <ui/GraphicBufferMapper.h>
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -264,4 +265,83 @@ void dumpRefreshRateEnd(uint32_t displayId, int vsyncPeriod, nsecs_t commit_star
 }
 
 #endif
+
+#ifdef DEBUG_DUMP_FRAME
+static void dump_frame_to_file(char *pbuf, int size, char *filename) {
+    int fd = 0;
+    int len = 0;
+    fd = open(filename, O_CREAT | O_RDWR, 0666);
+    if (fd < 0) {
+        ALOGE("Unable to open file [%s]\n", filename);
+    }
+    len = write(fd, pbuf, size);
+    close(fd);
+}
+
+static void dump_frame(char *pbuf, int width, int height, int size) {
+    static bool start_dump = false;
+    static int prev_request_frame_count = 0;
+    static int request_frame_count = 0;
+    static int dumpped_count = 0;
+
+    if (!start_dump) {
+        char value[PROPERTY_VALUE_MAX];
+        property_get("vendor.hwc.enable.dump_frame", value, "0");
+        request_frame_count = atoi(value);
+        // Previous dump request finished, no more request catched
+        if (prev_request_frame_count == request_frame_count)
+            return;
+
+        prev_request_frame_count = request_frame_count;
+        if (request_frame_count >= 1)
+            start_dump = true;
+        else
+            start_dump = false;
+    }
+
+    if ((start_dump) && (request_frame_count >= 1)) {
+        ALOGI("Dump %d frame buffer %p, %d x %d, size %d", dumpped_count, pbuf, width, height,
+              size);
+        if (pbuf != 0) {
+            char filename[128];
+            memset(filename, 0, 128);
+            sprintf(filename, "/data/%s-frame-%d.rgba", "drm-display", dumpped_count);
+            dump_frame_to_file(pbuf, size, filename);
+            dumpped_count++;
+        }
+        request_frame_count--;
+        if (request_frame_count == 0) {
+            start_dump = false;
+            property_set("vendor.hwc.enable.dump_frame", "0"); // disable dump when completed
+        }
+    }
+}
+
+void debug_dump_frame(buffer_handle_t handle) {
+    gralloc_handle_t buffer = (gralloc_handle_t)handle;
+    if (buffer->base == 0) {
+        void *vaddr = NULL;
+        int usage = buffer->usage | USAGE_SW_READ_OFTEN;
+        const ::android::Rect rect{0, 0, buffer->width, buffer->height};
+        ::android::status_t err =
+                ::android::GraphicBufferMapper::get().lock(const_cast<native_handle_t *>(handle),
+                                                           usage, rect, &vaddr);
+        if (err) {
+            ALOGE("%s: GraphicBufferMapper lock failed!", __FUNCTION__);
+            return;
+        }
+
+        dump_frame((char *)vaddr, buffer->width, buffer->height, buffer->size);
+
+        err = ::android::GraphicBufferMapper::get().unlock(buffer);
+        if (err) {
+            ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
+            return;
+        }
+    } else {
+        dump_frame((char *)buffer->base, buffer->width, buffer->height, buffer->size);
+    }
+}
+#endif
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

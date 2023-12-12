@@ -296,7 +296,6 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
 
         if (overlaySupported && !layerSkiped) {
             common::Rect rectFrame = layer->getDisplayFrame();
-            common::Rect rectSource = layer->getSourceCropInt();
             DEBUG_LOG("UI masked rect:left=%d, top=%d, right=%d, bottom=%d", uiMaskedRect.left,
                       uiMaskedRect.top, uiMaskedRect.right, uiMaskedRect.bottom);
             if (checkRectOverlap(uiMaskedRect, rectFrame) ||
@@ -372,6 +371,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         return error;
     }
 
+    int acquireFenceFd = -1; // it will be assigned when do GPU composition
+
     for (auto& [planeId, layer] : layersForOverlay) {
         auto handle = layer->waitAndGetBuffer(); // wait for layer buffer ready
         common::Rect rectFrame = layer->getDisplayFrame();
@@ -431,6 +432,14 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             return HWC3::Error::NoResources;
         }
         displayBuffer.clientTargetDrmBuffer = std::move(drmBuffer);
+#ifdef DEBUG_DUMP_FRAME
+        debug_dump_frame(renderTarget);
+#endif
+    } else if (displayBuffer.clientTargetDrmBuffer) {
+        acquireFenceFd = dup(display->getClientTarget().getFence().get());
+#ifdef DEBUG_DUMP_FRAME
+        debug_dump_frame(display->getClientTarget().getBuffer());
+#endif
     }
 
     if (layersForPrivate.size() == 1) {
@@ -480,7 +489,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             std::this_thread::sleep_until(*presentTime);
     }
 
-    ::android::base::unique_fd fence = display->getClientTarget().getFence();
+    ::android::base::unique_fd fence(acquireFenceFd);
 
     auto [flushError, flushCompleteFence] = client->flushToDisplay(displayId, displayBuffer, fence);
     if (flushError != HWC3::Error::None) {

@@ -282,7 +282,6 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     for (i = 0; i < MAX_COMMIT_RETRY_COUNT; i++) {
         ret = request->Commit(drmFd);
         if (ret == -EBUSY) {
-            ALOGV("%s: commit busy, try again", __FUNCTION__);
             usleep(1000);
             continue;
         } else if (ret != 0) {
