@@ -99,6 +99,9 @@ public:
     }
     virtual HWC3::Error getDisplayClientTargetProperty(int displayId,
                                                        ClientTargetProperty* outProperty) = 0;
+    virtual HWC3::Error waitVBlank(int displayId, int64_t* timestamp) {
+        return HWC3::Error::Unsupported;
+    }
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

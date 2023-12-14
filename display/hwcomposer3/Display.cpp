@@ -1015,4 +1015,17 @@ ClientTargetProperty& Display::getClientTargetProperty() {
     return mClientTargetProperty;
 }
 
+HWC3::Error Display::checkAndWaitNextVsync(int64_t* timestamp) {
+    if (mComposer == nullptr) {
+        ALOGE("%s: display:%" PRId64 " missing composer", __FUNCTION__, mId);
+        return HWC3::Error::NoResources;
+    }
+
+    auto ret = mComposer->waitHardwareVsyncTimestamp(this, timestamp);
+    if (ret != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRId64 " cannot get Vsync timestamp", __FUNCTION__, mId);
+    }
+    return ret;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

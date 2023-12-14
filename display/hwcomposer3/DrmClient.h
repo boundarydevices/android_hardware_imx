@@ -115,6 +115,7 @@ public:
     HWC3::Error getDisplayConnectionType(int displayId, DisplayConnectionType* outType) override;
     HWC3::Error getDisplayClientTargetProperty(int displayId,
                                                ClientTargetProperty* outProperty) override;
+    HWC3::Error waitVBlank(int displayId, int64_t* timestamp) override;
 
 private:
     using DrmPrimeBufferHandle = uint32_t;

@@ -825,4 +825,29 @@ HWC3::Error DrmClient::getDisplayClientTargetProperty(int displayId,
     return HWC3::Error::None;
 }
 
+using namespace std::chrono_literals;
+constexpr auto nsecsPerSec = std::chrono::nanoseconds(1s).count();
+HWC3::Error DrmClient::waitVBlank(int displayId, int64_t* timestamp) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    uint32_t high_crtc = (mDisplays[displayId]->getCrtcIndex() << DRM_VBLANK_HIGH_CRTC_SHIFT);
+    drmVBlank vblank;
+    memset(&vblank, 0, sizeof(vblank));
+    vblank.request.type =
+            (drmVBlankSeqType)(DRM_VBLANK_RELATIVE | (high_crtc & DRM_VBLANK_HIGH_CRTC_MASK));
+    vblank.request.sequence = 1;
+    int ret = drmWaitVBlank(mFd, &vblank);
+    if (ret) {
+        ALOGE("%s wait drm vblank failed", __FUNCTION__);
+        return HWC3::Error::NoResources;
+    }
+
+    *timestamp =
+            (int64_t)vblank.reply.tval_sec * nsecsPerSec + (int64_t)vblank.reply.tval_usec * 1000;
+
+    return HWC3::Error::None;
+}
 } // namespace aidl::android::hardware::graphics::composer3::impl

@@ -1,5 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
+ * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@
 #include <aidl/android/hardware/graphics/composer3/VsyncPeriodChangeConstraints.h>
 #include <aidl/android/hardware/graphics/composer3/VsyncPeriodChangeTimeline.h>
 #include <android/hardware/graphics/common/1.0/types.h>
+#include <utils/Condition.h>
 
 #include <chrono>
 #include <mutex>
@@ -29,6 +31,9 @@
 #include "Common.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
+
+using ::android::Condition;
+using ::android::Mutex;
 
 class Display;
 // Generates Vsync signals in software.
@@ -67,7 +72,8 @@ private:
 
     std::thread mThread;
 
-    std::mutex mStateMutex;
+    mutable Mutex mLock;
+    Condition mCondition;
 
     std::atomic<bool> mShuttingDown{false};
 

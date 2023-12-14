@@ -39,6 +39,7 @@ public:
     ~DrmCrtc() {}
 
     uint32_t getId() const { return mId; }
+    uint32_t getIndex() const { return mIndexInResourcesArray; }
 
     const DrmProperty& getActiveProperty() const { return mActive; }
     const DrmProperty& getModeProperty() const { return mMode; }

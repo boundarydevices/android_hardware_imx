@@ -74,6 +74,7 @@ public:
     HWC3::Error getDisplayConnectionType(Display* display, DisplayConnectionType* outType) override;
     HWC3::Error getClientTargetProperty(Display* display,
                                         ClientTargetProperty* outProperty) override;
+    HWC3::Error waitHardwareVsyncTimestamp(Display* display, int64_t* timestamp) override;
 
     HWC3::Error getAllDeviceClients(std::map<uint32_t, DeviceClient*>& clients) override {
         for (auto& [baseId, client] : mDeviceClients) {

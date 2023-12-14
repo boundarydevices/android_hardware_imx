@@ -371,7 +371,11 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         return error;
     }
 
-    int acquireFenceFd = -1; // it will be assigned when do GPU composition
+    bool needFence = false; // Check if need pass in_fence of framebuffer to DRM or not
+    int32_t activeConfigId = -1;
+    if (display->getActiveConfig(&activeConfigId) != HWC3::Error::None) {
+        DEBUG_LOG("%s: fail to get active config id", __FUNCTION__);
+    }
 
     for (auto& [planeId, layer] : layersForOverlay) {
         auto handle = layer->waitAndGetBuffer(); // wait for layer buffer ready
@@ -417,9 +421,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         }
         mG2dComposer->composeLayers(layersForComposition, renderTarget);
 
-        int32_t activeConfigId;
         int32_t width = INT_MAX, height = INT_MAX;
-        if (display->getActiveConfig(&activeConfigId) == HWC3::Error::None) {
+        if (activeConfigId >= 0) {
             display->getDisplayAttribute(activeConfigId, DisplayAttribute::WIDTH, &width);
             display->getDisplayAttribute(activeConfigId, DisplayAttribute::HEIGHT, &height);
         }
@@ -436,7 +439,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         debug_dump_frame(renderTarget);
 #endif
     } else if (displayBuffer.clientTargetDrmBuffer) {
-        acquireFenceFd = dup(display->getClientTarget().getFence().get());
+        needFence = true;
 #ifdef DEBUG_DUMP_FRAME
         debug_dump_frame(display->getClientTarget().getBuffer());
 #endif
@@ -484,14 +487,19 @@ HWC3::Error ClientFrameComposer::presentDisplay(
 
     auto& presentTime = display->getExpectedPresentTime();
     if (presentTime.has_value()) {
+        int32_t period = 0;
+        if (activeConfigId >= 0)
+            display->getDisplayAttribute(activeConfigId, DisplayAttribute::VSYNC_PERIOD, &period);
+
         TimePoint now = std::chrono::steady_clock::now();
-        if (now < *presentTime)
-            std::this_thread::sleep_until(*presentTime);
+        if (now < *presentTime - Nanoseconds(period))
+            std::this_thread::sleep_until(*presentTime - Nanoseconds(period));
     }
 
-    ::android::base::unique_fd fence(acquireFenceFd);
-
-    auto [flushError, flushCompleteFence] = client->flushToDisplay(displayId, displayBuffer, fence);
+    auto [flushError, flushCompleteFence] =
+            client->flushToDisplay(displayId, displayBuffer,
+                                   needFence ? display->getClientTarget().getFence()
+                                             : ::android::base::unique_fd());
     if (flushError != HWC3::Error::None) {
         ALOGE("%s: display:%" PRIu64 " failed to flush drm buffer" PRIu64, __FUNCTION__, displayId);
     }
@@ -612,4 +620,19 @@ HWC3::Error ClientFrameComposer::getClientTargetProperty(Display* display,
     return client->getDisplayClientTargetProperty(displayId, outProperty);
 }
 
+HWC3::Error ClientFrameComposer::waitHardwareVsyncTimestamp(Display* display, int64_t* timestamp) {
+    const auto displayId = display->getId();
+    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
+    // TODO: some Drm driver cannot process get vblank request, need to fix it
+    return HWC3::Error::NoResources;
+
+    // return client->waitVBlank(displayId, timestamp);
+}
 } // namespace aidl::android::hardware::graphics::composer3::impl

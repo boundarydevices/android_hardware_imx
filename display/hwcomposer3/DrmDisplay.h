@@ -60,6 +60,7 @@ public:
             ::android::base::borrowed_fd drmFd);
 
     uint32_t getId() const { return mId; }
+    uint32_t getCrtcIndex() const { return mCrtc->getIndex(); }
 
     uint32_t getWidth() const { return mConnector->getWidth(); }
     uint32_t getHeight() const { return mConnector->getHeight(); }

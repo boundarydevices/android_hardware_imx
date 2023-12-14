@@ -155,6 +155,7 @@ public:
     }
     HWC3::Error takeEffectConfig(int32_t configId);
     std::optional<TimePoint>& getExpectedPresentTime() { return mExpectedPresentTime; }
+    HWC3::Error checkAndWaitNextVsync(int64_t* timestamp);
 
 private:
     bool hasConfig(int32_t configId) const;
