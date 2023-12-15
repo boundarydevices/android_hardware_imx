@@ -630,9 +630,6 @@ HWC3::Error ClientFrameComposer::waitHardwareVsyncTimestamp(Display* display, in
         return error;
     }
 
-    // TODO: some Drm driver cannot process get vblank request, need to fix it
-    return HWC3::Error::NoResources;
-
-    // return client->waitVBlank(displayId, timestamp);
+    return client->waitVBlank(displayId, timestamp);
 }
 } // namespace aidl::android::hardware::graphics::composer3::impl

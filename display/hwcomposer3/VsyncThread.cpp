@@ -56,7 +56,7 @@ HWC3::Error VsyncThread::start(int32_t vsyncPeriodNanos) {
 
     mThread = std::thread([this]() { threadLoop(); });
 
-    const std::string name = "display_" + std::to_string(mDisplayId) + "_vsync_thread";
+    const std::string name = "display_" + std::to_string(mDisplayId) + "_vsync";
 
     int ret = pthread_setname_np(mThread.native_handle(), name.c_str());
     if (ret != 0) {
@@ -64,7 +64,7 @@ HWC3::Error VsyncThread::start(int32_t vsyncPeriodNanos) {
     }
 
     struct sched_param param = {
-            .sched_priority = ANDROID_PRIORITY_DISPLAY,
+            .sched_priority = 2,
     };
     ret = pthread_setschedparam(mThread.native_handle(), SCHED_FIFO, &param);
     if (ret != 0) {
@@ -84,8 +84,7 @@ HWC3::Error VsyncThread::stop() {
 HWC3::Error VsyncThread::setCallbacks(const std::shared_ptr<IComposerCallback>& callback) {
     DEBUG_LOG("%s for display:%" PRIu64, __FUNCTION__, mDisplayId);
 
-    Mutex::Autolock _l(mLock);
-
+    std::unique_lock<std::mutex> lock(mStateMutex);
     mCallbacks = callback;
 
     return HWC3::Error::None;
@@ -94,10 +93,8 @@ HWC3::Error VsyncThread::setCallbacks(const std::shared_ptr<IComposerCallback>& 
 HWC3::Error VsyncThread::setVsyncEnabled(bool enabled) {
     DEBUG_LOG("%s for display:%" PRIu64 " enabled:%d", __FUNCTION__, mDisplayId, enabled);
 
-    Mutex::Autolock _l(mLock);
-
+    std::lock_guard<std::mutex> lock(mStateMutex);
     mVsyncEnabled = enabled;
-    mCondition.signal();
 
     return HWC3::Error::None;
 }
@@ -119,7 +116,7 @@ HWC3::Error VsyncThread::scheduleVsyncUpdate(int32_t configId, int32_t newVsyncP
         update.configId = configId;
         updateTime = update.updateAfter;
 
-        Mutex::Autolock _l(mLock);
+        std::unique_lock<std::mutex> lock(mStateMutex);
         mPendingUpdate.emplace(std::move(update));
     }
 
@@ -148,19 +145,13 @@ void VsyncThread::threadLoop() {
 
     int vsyncs = 0;
     TimePoint previousLog = std::chrono::steady_clock::now();
-    static int64_t lasttime = 0;
+    int64_t lasttime = 0;
 
     while (!mShuttingDown.load()) {
-        {
-            Mutex::Autolock _l(mLock);
-            while (!mVsyncEnabled) {
-                mCondition.wait(mLock);
-            }
-        }
         int64_t timestamp = 0;
         TimePoint vsyncTime;
         TimePoint now = std::chrono::steady_clock::now();
-        if (mDisplay->checkAndWaitNextVsync(&timestamp) == HWC3::Error::None) {
+        if (mVsyncEnabled && (mDisplay->checkAndWaitNextVsync(&timestamp) == HWC3::Error::None)) {
             if (timestamp == 0)
                 vsyncTime = now;
             else
@@ -176,7 +167,7 @@ void VsyncThread::threadLoop() {
             vsyncTime = nextVsync;
         }
         {
-            Mutex::Autolock _l(mLock);
+            std::unique_lock<std::mutex> lock(mStateMutex);
             mPreviousVsync = vsyncTime;
 
             // Display has finished refreshing at previous vsync period. Update the

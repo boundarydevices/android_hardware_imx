@@ -833,6 +833,9 @@ HWC3::Error DrmClient::waitVBlank(int displayId, int64_t* timestamp) {
         return HWC3::Error::BadDisplay;
     }
 
+    if (!mDisplays[displayId]->isDisplayActive())
+        return HWC3::Error::BadDisplay;
+
     uint32_t high_crtc = (mDisplays[displayId]->getCrtcIndex() << DRM_VBLANK_HIGH_CRTC_SHIFT);
     drmVBlank vblank;
     memset(&vblank, 0, sizeof(vblank));

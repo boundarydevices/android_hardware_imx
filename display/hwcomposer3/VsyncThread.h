@@ -21,7 +21,6 @@
 #include <aidl/android/hardware/graphics/composer3/VsyncPeriodChangeConstraints.h>
 #include <aidl/android/hardware/graphics/composer3/VsyncPeriodChangeTimeline.h>
 #include <android/hardware/graphics/common/1.0/types.h>
-#include <utils/Condition.h>
 
 #include <chrono>
 #include <mutex>
@@ -31,9 +30,6 @@
 #include "Common.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
-
-using ::android::Condition;
-using ::android::Mutex;
 
 class Display;
 // Generates Vsync signals in software.
@@ -72,8 +68,7 @@ private:
 
     std::thread mThread;
 
-    mutable Mutex mLock;
-    Condition mCondition;
+    std::mutex mStateMutex;
 
     std::atomic<bool> mShuttingDown{false};
 
