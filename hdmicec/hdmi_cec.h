@@ -42,7 +42,7 @@ enum MaxLength : int32_t {
 #define CEC_KEYCODE_ROOT_MENU       0x09
 #define CEC_KEYCODE_CONTENTS_MENU   0x0b
 
-extern int open_hdmi_cec(const char *id, struct hw_device_t **device);
+extern int open_hdmi_cec(const char *id, struct hw_device_t **device, uint16_t phyaddr);
 
 #ifdef _cplusplus
 }

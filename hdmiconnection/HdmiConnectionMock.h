@@ -15,8 +15,12 @@
  * limitations under the License.
  */
 
+#include <aidl/android/hardware/graphics/composer3/DisplayIdentification.h>
+#include <aidl/android/hardware/graphics/composer3/IComposer.h>
+#include <aidl/android/hardware/graphics/composer3/IComposerClient.h>
 #include <aidl/android/hardware/tv/hdmi/connection/BnHdmiConnection.h>
 #include <aidl/android/hardware/tv/hdmi/connection/Result.h>
+
 #include <algorithm>
 #include <vector>
 
@@ -57,6 +61,7 @@ struct HdmiConnectionMock : public BnHdmiConnection {
     void threadLoop();
     int readMessageFromFifo(unsigned char* buf, int msgCount);
     void handleHotplugMessage(unsigned char* msgBuf);
+    bool getPhysicalAddrFromEdid(uint16_t* phyaddr);
 
   private:
     static void serviceDied(void* cookie);
@@ -68,6 +73,7 @@ struct HdmiConnectionMock : public BnHdmiConnection {
 
     // Port configuration
     uint16_t mPhysicalAddress = 0xFFFF;
+    int32_t mPortId = 1;
     int mTotalPorts = 1;
 
     // HPD Signal being used

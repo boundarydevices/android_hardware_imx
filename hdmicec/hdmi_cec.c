@@ -47,6 +47,7 @@ typedef struct hdmicec_context
     unsigned int vendor_id;
     unsigned int type;
     unsigned int version;
+    uint16_t phyaddr;
     struct hdmi_port_info port_info;
     event_callback_t p_event_cb;
     void *cb_arg;
@@ -55,6 +56,7 @@ typedef struct hdmicec_context
     pthread_mutex_t options_lock;
     bool cec_enabled;
     bool cec_control_enabled;
+    bool cec_cap_phys_addr;
 } hdmicec_context_t;
 
 static int hdmicec_add_logical_address(const struct hdmi_cec_device *dev, cec_logical_address_t addr)
@@ -75,6 +77,8 @@ static int hdmicec_add_logical_address(const struct hdmi_cec_device *dev, cec_lo
     if (ret)
         return ret;
     memset(&laddrs, 0, sizeof(laddrs));
+    ioctl(ctx->cec_fd, CEC_ADAP_S_LOG_ADDRS, &laddrs);
+    usleep(20000);
 
     laddrs.cec_version = ctx->version;
     laddrs.vendor_id = ctx->vendor_id;
@@ -510,8 +514,7 @@ static int cec_init(struct hdmicec_context *ctx)
     struct cec_caps caps = {};
     uint32_t mode;
     int ret;
-    short phyaddr;
-    uint8_t hdmi_port = 1;  // Fix tv input to hdmi1
+    uint16_t phyaddr = CEC_PHYS_ADDR_INVALID;
 
     // Ensure the CEC device supports required capabilities
     ret = ioctl(ctx->cec_fd, CEC_ADAP_G_CAPS, &caps);
@@ -533,14 +536,15 @@ static int cec_init(struct hdmicec_context *ctx)
 
         ALOGD("get the initial phyaddr=0x%x\n", phyaddr);
 
-        phyaddr = hdmi_port << 12;
-        ret = ioctl(ctx->cec_fd, CEC_ADAP_S_PHYS_ADDR, &phyaddr);
+        ret = ioctl(ctx->cec_fd, CEC_ADAP_S_PHYS_ADDR, &ctx->phyaddr);
         if (ret < 0) {
             ALOGE("set cec phyaddr failed, %d\n", ret);
             return -1;
         }
-        ALOGD("set cec phyaddr success, phyaddr=0x%x\n", phyaddr);
+        ctx->cec_cap_phys_addr = true;
+        ALOGD("set cec phyaddr success, phyaddr=0x%x\n", ctx->phyaddr);
     } else {
+        ctx->cec_cap_phys_addr = false;
         ALOGD("no capability for CEC_CAP_PHYS_ADDR\n");
     }
     // This is an exclusive follower, in addition put the CEC device into passthrough mode
@@ -578,8 +582,7 @@ static int cec_init(struct hdmicec_context *ctx)
     return ret;
 }
 
-extern int open_hdmi_cec(const char *id, struct hw_device_t **device)
-{
+extern int open_hdmi_cec(const char *id, struct hw_device_t **device, uint16_t phyaddr) {
     char *path = "/dev/cec0";
     hdmicec_context_t *ctx;
     int ret;
@@ -604,6 +607,7 @@ extern int open_hdmi_cec(const char *id, struct hw_device_t **device)
         goto fail;
     }
 
+    ctx->phyaddr = phyaddr;
     ctx->device.common.tag = HARDWARE_DEVICE_TAG;
     ctx->device.common.version = HDMI_CEC_DEVICE_API_VERSION_1_0;
     // ctx->device.common.module = (struct hw_module_t *)module;

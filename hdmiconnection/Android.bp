@@ -31,6 +31,9 @@ cc_binary {
         "serviceMock.cpp",
         "HdmiConnectionMock.cpp",
     ],
+    static_libs: [
+        "libaidlcommonsupport",
+    ],
     shared_libs: [
         "libbinder_ndk",
         "liblog",
@@ -39,21 +42,6 @@ cc_binary {
         "libhardware",
         "libhidlbase",
         "android.hardware.tv.hdmi.connection-V1-ndk",
+        "android.hardware.graphics.composer3-V2-ndk",
     ],
-}
-
-cc_fuzz {
-    name: "android.hardware.tv.hdmi.connection-service_fuzzer.imx",
-    defaults: ["service_fuzzer_defaults"],
-    static_libs: [
-        "android.hardware.tv.hdmi.connection-V1-ndk",
-        "liblog",
-    ],
-    srcs: [
-        "fuzzer.cpp",
-        "HdmiConnectionMock.cpp",
-    ],
-    fuzz_config: {
-        componentid: 826094,
-    },
 }

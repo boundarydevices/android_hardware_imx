@@ -15,7 +15,11 @@
  * limitations under the License.
  */
 
+#include <aidl/android/hardware/graphics/composer3/DisplayIdentification.h>
+#include <aidl/android/hardware/graphics/composer3/IComposer.h>
+#include <aidl/android/hardware/graphics/composer3/IComposerClient.h>
 #include <aidl/android/hardware/tv/hdmi/cec/BnHdmiCec.h>
+
 #include <algorithm>
 #include <vector>
 
@@ -83,6 +87,7 @@ struct HdmiCecMock : public BnHdmiCec {
     int readMessageFromFifo(unsigned char* buf, int msgCount);
     int sendMessageToFifo(const CecMessage& message);
     void handleCecMessage(unsigned char* msgBuf, int length);
+    bool getPhysicalAddrFromEdid(uint16_t* phyaddr);
 
   private:
     static void serviceDied(void* cookie);

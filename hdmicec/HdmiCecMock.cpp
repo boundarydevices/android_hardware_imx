@@ -16,13 +16,17 @@
  */
 
 #define LOG_TAG "android.hardware.tv.hdmi.cec"
-#include <android-base/logging.h>
-#include <fcntl.h>
-#include <utils/Log.h>
+#include "HdmiCecMock.h"
 
+#include <android-base/logging.h>
+#include <android-base/properties.h>
+#include <android/binder_manager.h>
+#include <android/binder_process.h>
+#include <fcntl.h>
 #include <hardware/hardware.h>
 #include <hardware/hdmi_cec.h>
-#include "HdmiCecMock.h"
+#include <linux/cec.h>
+#include <utils/Log.h>
 
 using ndk::ScopedAStatus;
 
@@ -43,7 +47,7 @@ void HdmiCecMock::serviceDied(void* cookie) {
 
 ScopedAStatus HdmiCecMock::addLogicalAddress(CecLogicalAddress addr, Result* _aidl_return) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         *_aidl_return = Result::SUCCESS;
         return ScopedAStatus::ok();
     }
@@ -73,7 +77,7 @@ ScopedAStatus HdmiCecMock::addLogicalAddress(CecLogicalAddress addr, Result* _ai
 
 ScopedAStatus HdmiCecMock::clearLogicalAddress() {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         return ScopedAStatus::ok();
     }
     // Remove logical address from the list
@@ -89,7 +93,7 @@ ScopedAStatus HdmiCecMock::enableAudioReturnChannel(int32_t portId __unused, boo
 
 ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
     } else {
         // Maintain a cec version and return it
         mDevice->get_version(mDevice, &mCecVersion);
@@ -100,7 +104,7 @@ ScopedAStatus HdmiCecMock::getCecVersion(int32_t* _aidl_return) {
 
 ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
     } else {
         // Maintain a physical address and return it
         // Default 0xFFFF, update on hotplug event
@@ -112,7 +116,7 @@ ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
 
 ScopedAStatus HdmiCecMock::getVendorId(int32_t* _aidl_return) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
     } else {
         mDevice->get_vendor_id(mDevice, &mCecVendorId);
     }
@@ -122,7 +126,7 @@ ScopedAStatus HdmiCecMock::getVendorId(int32_t* _aidl_return) {
 
 ScopedAStatus HdmiCecMock::sendMessage(const CecMessage& message, SendMessageResult* _aidl_return) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         *_aidl_return = SendMessageResult::SUCCESS;
         return ScopedAStatus::ok();
     }
@@ -144,7 +148,7 @@ ScopedAStatus HdmiCecMock::sendMessage(const CecMessage& message, SendMessageRes
 
 ScopedAStatus HdmiCecMock::setCallback(const std::shared_ptr<IHdmiCecCallback>& callback) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         return ScopedAStatus::ok();
     }
     // If callback is null, mCallback is also set to null so we do not call the old callback.
@@ -159,7 +163,7 @@ ScopedAStatus HdmiCecMock::setCallback(const std::shared_ptr<IHdmiCecCallback>& 
 
 ScopedAStatus HdmiCecMock::setLanguage(const std::string& language) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         return ScopedAStatus::ok();
     }
     if (language.size() != 3) {
@@ -178,7 +182,7 @@ ScopedAStatus HdmiCecMock::setLanguage(const std::string& language) {
 
 ScopedAStatus HdmiCecMock::enableWakeupByOtp(bool value) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         return ScopedAStatus::ok();
     }
     mDevice->set_option(mDevice, HDMI_OPTION_WAKEUP, value ? 1 : 0);
@@ -188,7 +192,7 @@ ScopedAStatus HdmiCecMock::enableWakeupByOtp(bool value) {
 
 ScopedAStatus HdmiCecMock::enableCec(bool value) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         return ScopedAStatus::ok();
     }
     mDevice->set_option(mDevice, HDMI_OPTION_ENABLE_CEC, value ? 1 : 0);
@@ -198,7 +202,7 @@ ScopedAStatus HdmiCecMock::enableCec(bool value) {
 
 ScopedAStatus HdmiCecMock::enableSystemCecControl(bool value) {
     if (!mDevice) {
-        ALOGE("[halimp_aidl] mDevice is null, cec not support");
+        ALOGE("mDevice is null, cec not support");
         return ScopedAStatus::ok();
     }
     mDevice->set_option(mDevice, HDMI_OPTION_SYSTEM_CEC_CONTROL, value ? 1 : 0);
@@ -221,7 +225,7 @@ int HdmiCecMock::readMessageFromFifo(unsigned char* buf, int msgCount) {
     // Maybe blocked at driver
     ret = read(mInputFile, buf, msgCount);
     if (ret < 0) {
-        ALOGE("[halimp_aidl] read :%s failed, ret:%d\n", CEC_MSG_IN_FIFO, ret);
+        ALOGE("read :%s failed, ret:%d\n", CEC_MSG_IN_FIFO, ret);
         return -1;
     }
 
@@ -244,7 +248,7 @@ int HdmiCecMock::sendMessageToFifo(const CecMessage& message) {
     // Open the output pipe for writing outgoing cec message
     mOutputFile = open(CEC_MSG_OUT_FIFO, O_WRONLY | O_CLOEXEC);
     if (mOutputFile < 0) {
-        ALOGD("[halimp_aidl] file open failed for writing");
+        ALOGD("file open failed for writing");
         return -1;
     }
 
@@ -252,7 +256,7 @@ int HdmiCecMock::sendMessageToFifo(const CecMessage& message) {
     ret = write(mOutputFile, msgBuf, length + 1);
     close(mOutputFile);
     if (ret < 0) {
-        ALOGE("[halimp_aidl] write :%s failed, ret:%d\n", CEC_MSG_OUT_FIFO, ret);
+        ALOGE("write :%s failed, ret:%d\n", CEC_MSG_OUT_FIFO, ret);
         return -1;
     }
     return ret;
@@ -268,7 +272,7 @@ void HdmiCecMock::printCecMsgBuf(const char* msg_buf, int len) {
     for (i = 0; i < len && size < bufSize; i++) {
         size += sprintf(buf + size, " %02x", msg_buf[i]);
     }
-    ALOGD("[halimp_aidl] %s, msg:%.*s", __FUNCTION__, size, buf);
+    ALOGD("%s, msg:%.*s", __FUNCTION__, size, buf);
 }
 
 void HdmiCecMock::handleCecMessage(unsigned char* msgBuf, int msgSize) {
@@ -279,13 +283,13 @@ void HdmiCecMock::handleCecMessage(unsigned char* msgBuf, int msgSize) {
 
     for (size_t i = 0; i < length; ++i) {
         message.body[i] = static_cast<uint8_t>(msgBuf[i + 1]);
-        ALOGD("[halimp_aidl] msg body %x", message.body[i]);
+        ALOGD("msg body %x", message.body[i]);
     }
 
     message.initiator = static_cast<CecLogicalAddress>((msgBuf[0] >> 4) & 0xf);
-    ALOGD("[halimp_aidl] msg init %hhd", message.initiator);
+    ALOGD("msg init %hhd", message.initiator);
     message.destination = static_cast<CecLogicalAddress>((msgBuf[0] >> 0) & 0xf);
-    ALOGD("[halimp_aidl] msg dest %hhd", message.destination);
+    ALOGD("msg dest %hhd", message.destination);
 
     if (mCallback != nullptr) {
         mCallback->onCecMessage(message);
@@ -293,7 +297,7 @@ void HdmiCecMock::handleCecMessage(unsigned char* msgBuf, int msgSize) {
 }
 
 void HdmiCecMock::threadLoop() {
-    ALOGD("[halimp_aidl] threadLoop start.");
+    ALOGD("threadLoop start.");
     unsigned char msgBuf[CEC_MESSAGE_BODY_MAX_LENGTH];
     int r = -1;
 
@@ -302,7 +306,7 @@ void HdmiCecMock::threadLoop() {
         usleep(1000 * 1000);
         mInputFile = open(CEC_MSG_IN_FIFO, O_RDONLY | O_CLOEXEC);
     }
-    ALOGD("[halimp_aidl] file open ok, fd = %d.", mInputFile);
+    ALOGD("file open ok, fd = %d.", mInputFile);
 
     while (mCecThreadRun) {
         if (!mOptionSystemCecControl) {
@@ -329,17 +333,118 @@ void HdmiCecMock::threadLoop() {
         handleCecMessage(msgBuf, r);
     }
 
-    ALOGD("[halimp_aidl] thread end.");
+    ALOGD("thread end.");
+}
+
+bool HdmiCecMock::getPhysicalAddrFromEdid(uint16_t* phyaddr) {
+    using AidlIComposer = aidl::android::hardware::graphics::composer3::IComposer;
+    using AidlIComposerClient = aidl::android::hardware::graphics::composer3::IComposerClient;
+    using aidl::android::hardware::graphics::composer3::DisplayIdentification;
+    std::shared_ptr<AidlIComposer> mAidlComposer;
+    std::shared_ptr<AidlIComposerClient> mAidlComposerClient;
+    bool ret = false;
+    DisplayIdentification id = {0};
+
+    std::string instance_name =
+            ::android::base::GetProperty(std::string("debug.sf.hwc_service_name"),
+                                         std::string("default"));
+    const std::string ComposerServiceName =
+            std::string(AidlIComposer::descriptor) + "/" + instance_name;
+    mAidlComposer = AidlIComposer::fromBinder(
+            ndk::SpAIBinder(AServiceManager_waitForService(ComposerServiceName.c_str())));
+
+    // set androidui overlay property
+    if (!::android::base::SetProperty("vendor.androidui.overlay", "enable")) {
+        ALOGE("HdmiCec set androidui overlay property enable failed.");
+        goto finish;
+    }
+
+    // get edid from hwc composer
+    if (mAidlComposer->createClient(&mAidlComposerClient).isOk()) {
+        if (mAidlComposerClient->getDisplayIdentificationData(0, &id).isOk()) {
+            uint8_t* outData = &(id.data)[0];
+            ALOGV("id.port:%d,  id.data.size():%d", id.port, id.data.size());
+            for (int i = 0; i < id.data.size(); i = i + 16) {
+                ALOGV("edid 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
+                      outData[i], outData[i + 1], outData[i + 2], outData[i + 3], outData[i + 4],
+                      outData[i + 5], outData[i + 6], outData[i + 7], outData[i + 8],
+                      outData[i + 9], outData[i + 10], outData[i + 11], outData[i + 12],
+                      outData[i + 13], outData[i + 14], outData[i + 15]);
+            }
+            if (outData[0x7e] != 1) {
+                ALOGE("No Externsion blocks");
+                goto finish;
+            }
+            // get physical address from edid Extension blocks
+            uint8_t idxVideoBlock = 0x84;
+            uint8_t videoDataLen = outData[0x84] & 0x1f;
+            uint8_t idxAudioBlock = idxVideoBlock + videoDataLen + 1;
+            uint8_t audioDataLen = outData[idxAudioBlock] & 0x1f;
+            uint8_t idxSpeakerAllocBlock = idxAudioBlock + audioDataLen + 1;
+            uint8_t speakerAllocDataLen = outData[idxSpeakerAllocBlock] & 0x1f;
+            uint32_t HdmiIdentifier = 0x000C03;
+
+            uint8_t idxVSDB = idxSpeakerAllocBlock + speakerAllocDataLen + 1;
+            // Check the Tag of the Vendor-Specific DataBlock
+            if (((outData[idxVSDB] >> 5) & 0x7) != 3) {
+                // a workaround for the samsung TV. after the Speaker Allocation Block, still 3
+                // unknown extra bytes
+                idxVSDB = idxVSDB + 3;
+                ALOGV("here just a workaround for the samsung TV, Add 3 bytes for idxVSDB");
+            }
+            if ((HdmiIdentifier & 0x00ffffffff) !=
+                (outData[idxVSDB + 3] << 16 | outData[idxVSDB + 2] << 8 | outData[idxVSDB + 1])) {
+                ALOGE("HdmiIdentifier check failed:0x%x %x %x", outData[idxVSDB + 3],
+                      outData[idxVSDB + 2], outData[idxVSDB + 1]);
+                goto finish;
+            }
+            ALOGV("idxVideoBlock:0x%x,  outData[0x84]:0x%x,  videoDataLen:0x%x", idxVideoBlock,
+                  outData[0x84], videoDataLen);
+            ALOGV("idxAudioBlock:0x%x,  outData[idxAudioBlock]:0x%x, audioDataLen:0x%x",
+                  idxAudioBlock, outData[idxAudioBlock], audioDataLen);
+            ALOGV("idxSpeakerAllocBlock:0x%x, outData[idxSpeakerAllocBlock]:0x%x, speaker AllocDataLen:0x%x",
+                  idxSpeakerAllocBlock, outData[idxSpeakerAllocBlock], speakerAllocDataLen);
+
+            uint8_t idxPhysicalMSB = idxVSDB + 4;
+            uint8_t idxPhysicalLSB = idxVSDB + 5;
+            ALOGV("idxVSDB:0x%x  outData[idxVSDB]:0x%x,", idxVSDB, outData[idxVSDB]);
+            ALOGV("PhysicalMSB:0x%x,  PhysicalLSB:0x%x", outData[idxPhysicalMSB],
+                  outData[idxPhysicalLSB]);
+
+            *phyaddr = (unsigned short)(outData[idxPhysicalMSB] << 8 | outData[idxPhysicalLSB]);
+            ret = true;
+        } else {
+            ALOGE("getDisplayIdentificationData failed.");
+            goto finish;
+        }
+
+    } else {
+        ALOGE("Can't create AidlComposerClient");
+        goto finish;
+    }
+
+finish:
+    // set androidui overlay property
+    if (!::android::base::SetProperty("vendor.androidui.overlay", "disable")) {
+        ALOGE("HdmiCec set androidui overlay property disable failed.");
+        return ret;
+    }
+
+    return ret;
 }
 
 HdmiCecMock::HdmiCecMock() {
-    ALOGI("[halimp_aidl] init the HDMI CEC HAL.");
+    ALOGI("init the HDMI CEC HAL.");
     mCallback = nullptr;
+    if (!getPhysicalAddrFromEdid(&mPhysicalAddress)) {
+        ALOGE("getPhysicalAddrFromEdid failed.");
+    }
 
     hdmi_cec_device_t* hdmi_cec_device;
-    int ret = open_hdmi_cec(HDMI_CEC_HARDWARE_INTERFACE, TO_HW_DEVICE_T_OPEN(&hdmi_cec_device));
+    int ret = open_hdmi_cec(HDMI_CEC_HARDWARE_INTERFACE, TO_HW_DEVICE_T_OPEN(&hdmi_cec_device),
+                            mPhysicalAddress);
     if (ret < 0) {
-        ALOGE("[halimp_aidl] failed to init the HDMI CEC HAL.");
+        ALOGE("failed to init the HDMI CEC HAL.");
     }
     mDevice = hdmi_cec_device;
 
