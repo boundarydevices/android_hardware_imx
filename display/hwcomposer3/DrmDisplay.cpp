@@ -64,6 +64,11 @@ std::unique_ptr<DrmDisplay> DrmDisplay::create(
     std::unique_ptr<DrmDisplay> display(
             new DrmDisplay(id, std::move(connector), std::move(crtc), std::move(planes)));
 
+#ifdef DEBUG_DUMP_REFRESH_RATE
+    memset(&(display->mDumpActualFps), 0, sizeof(DumpRefreshRate));
+    display->mDumpActualFps.displayId = id;
+#endif
+
     return std::move(display);
 }
 
@@ -296,7 +301,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     }
 #ifdef DEBUG_DUMP_REFRESH_RATE
     int vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz; // convert to nanosecond
-    dumpRefreshRateEnd(mId, vsyncPeriod, now);
+    dumpRefreshRateEnd(mDumpActualFps, vsyncPeriod, now);
 #endif
 
     if (mModeSet)

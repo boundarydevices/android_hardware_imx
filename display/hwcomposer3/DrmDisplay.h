@@ -153,6 +153,9 @@ private:
     bool mModeSet = true;
 
     uint32_t mHdrMetadataBlobId = 0;
+#ifdef DEBUG_DUMP_REFRESH_RATE
+    DumpRefreshRate mDumpActualFps;
+#endif
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

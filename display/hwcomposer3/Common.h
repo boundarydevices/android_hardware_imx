@@ -95,6 +95,20 @@ struct HalMultiConfigs {
     std::shared_ptr<HalConfig> configs;
 };
 
+#ifdef DEBUG_DUMP_REFRESH_RATE
+struct DumpRefreshRate {
+    uint32_t displayId;
+    nsecs_t pre_commit_start;
+    nsecs_t pre_commit_time;
+    // surfaceflinger updatescreen delay(compare with vsync period)
+    nsecs_t total_sf_delay;
+    nsecs_t total_commit_time;
+    nsecs_t total_commit_cost;
+    int request_refresh_cnt;
+    int commit_cnt;
+};
+#endif
+
 bool IsAutoDevice();
 
 bool IsOverlayUserDisabled();
@@ -109,7 +123,7 @@ void mergeRect(common::Rect& masked, common::Rect& src);
 
 #ifdef DEBUG_DUMP_REFRESH_RATE
 nsecs_t dumpRefreshRateStart();
-void dumpRefreshRateEnd(uint32_t displayId, int vsyncPeriod, nsecs_t start_time);
+void dumpRefreshRateEnd(DumpRefreshRate& dump, int vsyncPeriod, nsecs_t start_time);
 #endif
 
 #ifdef DEBUG_DUMP_FRAME
