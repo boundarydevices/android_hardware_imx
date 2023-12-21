@@ -98,6 +98,7 @@ struct HalMultiConfigs {
 bool IsAutoDevice();
 
 bool IsOverlayUserDisabled();
+bool Is2DCompositionUserDisabled();
 bool Is2DCompositionUserPrefered();
 bool IsHdcpUserEnabled();
 

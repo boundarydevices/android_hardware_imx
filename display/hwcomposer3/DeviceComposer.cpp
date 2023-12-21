@@ -95,12 +95,12 @@ DeviceComposer::DeviceComposer() {
         mResolveTileStatus = (hwc_func1)dlsym(mHelperHandle, "hwc_resolve_tileStatus");
     }
 
-    if (getDefaultG2DLib(g2dlibName, PATH_MAX)) {
+    if (!Is2DCompositionUserDisabled() && getDefaultG2DLib(g2dlibName, PATH_MAX)) {
         mG2dHandle = android_load_sphal_library(g2dlibName, RTLD_LOCAL | RTLD_NOW);
     }
 
     if (mG2dHandle == NULL) {
-        ALOGI("can't find %s, 2D is invalid", g2dlibName);
+        ALOGI("can't find %s or user disabled, 2D composition is invalid", g2dlibName);
         mSetClipping = NULL;
         mBlitFunction = NULL;
         mOpenEngine = NULL;

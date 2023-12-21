@@ -36,6 +36,12 @@ bool IsOverlayUserDisabled() {
     return overlay == "1";
 }
 
+bool Is2DCompositionUserDisabled() {
+    const std::string g2d = ::android::base::GetProperty("vendor.sys.hwc.disable", "0");
+    DEBUG_LOG("%s: sysprop vendor.sys.hwc.disable is %s", __FUNCTION__, g2d.c_str());
+    return g2d == "1";
+}
+
 bool Is2DCompositionUserPrefered() {
     const std::string g2d = ::android::base::GetProperty("vendor.hwc.prefer.2d-composition", "1");
     DEBUG_LOG("%s: sysprop vendor.hwc.prefer.2d-composition is %s", __FUNCTION__, g2d.c_str());
