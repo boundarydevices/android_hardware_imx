@@ -102,6 +102,7 @@ public:
     bool updateDisplayConfigs();
     void placeholderDisplayConfigs();
     bool setActiveConfigId(int32_t configId);
+    bool resetDisplayConfig();
 
     int getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format);
 
@@ -142,6 +143,8 @@ private:
     DisplayBuffer mTempBuffers;
 
     int32_t mActiveConfigId = -1;
+    // The display config when boot up or hotplug in, not be changed by SurfaceFlinger
+    int32_t mInitActiveConfigId = -1;
     int32_t mStartConfigId = 0;
     HalDisplayConfig mActiveConfig;
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();

@@ -599,6 +599,16 @@ HWC3::Error DrmClient::setActiveConfigId(int displayId, int32_t configId) {
         return HWC3::Error::BadParameter;
 }
 
+HWC3::Error DrmClient::resetDisplayConfig(int displayId) {
+    if (mDisplays.find(displayId) == mDisplays.end()) {
+        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
+        return HWC3::Error::BadDisplay;
+    }
+
+    mDisplays[displayId]->resetDisplayConfig();
+    return HWC3::Error::None;
+}
+
 std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
         std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) {
     if (mDisplays.find(displayId) == mDisplays.end()) {

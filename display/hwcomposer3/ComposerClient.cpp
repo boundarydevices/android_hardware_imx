@@ -118,6 +118,7 @@ ComposerClient::~ComposerClient() {
 
     destroyDisplaysLocked();
 
+    Device::getInstance().releaseComposer();
     if (mOnClientDestroyed) {
         mOnClientDestroyed();
     }

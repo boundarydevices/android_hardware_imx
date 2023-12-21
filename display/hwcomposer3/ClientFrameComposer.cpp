@@ -147,6 +147,13 @@ HWC3::Error ClientFrameComposer::onDisplayDestroy(Display* display) {
         ALOGE("%s: display:%" PRIu64 " missing display buffers?", __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
     }
+    auto [error, client] = getDeviceClient(displayId);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, displayId);
+        return error;
+    }
+
+    client->resetDisplayConfig(displayId);
 
     mDisplayBuffers.erase(it);
 

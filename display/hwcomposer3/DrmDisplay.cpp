@@ -500,6 +500,7 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
     }
 
     mActiveConfigId = mStartConfigId + index;
+    mInitActiveConfigId = mActiveConfigId;
     auto activeConfig = (*configs)[mActiveConfigId];
     ALOGI("Find best mode w:%d, h:%d, refreshrate:%d at mode index %d", activeConfig.width,
           activeConfig.height, activeConfig.refreshRateHz, index);
@@ -535,6 +536,7 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
 
         // previous maximum config Id = mStartConfigId + configs->size() - 1
         mActiveConfigId = mStartConfigId + configs->size();
+        mInitActiveConfigId = mActiveConfigId;
         configs->emplace(mStartConfigId + configs->size(), newConfig);
         DEBUG_LOG("%s: Add new config:%d x %d, fps=%d, mode=%d x %d", __FUNCTION__, newConfig.width,
                   newConfig.height, newConfig.refreshRateHz, newConfig.modeWidth,
@@ -598,6 +600,7 @@ void DrmDisplay::placeholderDisplayConfigs() {
 
     mConfigs->emplace(mStartConfigId, newConfig);
     mActiveConfigId = mStartConfigId;
+    mInitActiveConfigId = mActiveConfigId;
 
     mActiveConfig = (*mConfigs)[mActiveConfigId];
 }
@@ -615,6 +618,12 @@ bool DrmDisplay::setActiveConfigId(int32_t configId) {
     mModeSet = true; // make this config effect when commit next framebuffer
 
     return true;
+}
+
+bool DrmDisplay::resetDisplayConfig() {
+    DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
+
+    return setActiveConfigId(mInitActiveConfigId);
 }
 
 int DrmDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format) {

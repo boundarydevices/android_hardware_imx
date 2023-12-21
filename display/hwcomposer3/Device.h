@@ -35,6 +35,7 @@ public:
     virtual ~Device() = default;
 
     HWC3::Error getComposer(FrameComposer** outComposer);
+    void releaseComposer();
 
     HWC3::Error getPersistentKeyValue(const std::string& key, const std::string& defaultVal,
                                       std::string* outValue);
@@ -46,6 +47,7 @@ private:
     Device() = default;
 
     std::mutex mMutex;
+    std::mutex mComposerMutex;
     std::unique_ptr<FrameComposer> mComposer;
 };
 

@@ -79,6 +79,7 @@ public:
     virtual HWC3::Error setActiveConfigId(int displayId, int32_t configId) {
         return HWC3::Error::None;
     }
+    virtual HWC3::Error resetDisplayConfig(int displayId) { return HWC3::Error::None; }
 
     virtual std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) = 0;
