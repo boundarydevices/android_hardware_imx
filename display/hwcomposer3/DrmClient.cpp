@@ -89,7 +89,7 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
         }
     }
 
-    constexpr const std::size_t kCachedBuffersPerDisplay = 10;
+    constexpr const std::size_t kCachedBuffersPerDisplay = 20;
     std::size_t numDisplays = mDisplays.size();
     const std::size_t bufferCacheSize = kCachedBuffersPerDisplay * numDisplays;
     DEBUG_LOG("%s: initializing DRM buffer cache to size %zu", __FUNCTION__, bufferCacheSize);
@@ -273,6 +273,8 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
 
     auto drmBufferPtr = mBufferCache->get(primeHandle);
     if (drmBufferPtr != nullptr) {
+        (*drmBufferPtr)->mDisplayFrame = displayFrame;
+        (*drmBufferPtr)->mSourceCrop = sourceCrop;
         DEBUG_LOG("%s: found framebuffer:%" PRIu32, __FUNCTION__,
                   *(*drmBufferPtr)->mDrmFramebuffer);
         return std::make_tuple(HWC3::Error::None, std::shared_ptr<DrmBuffer>(*drmBufferPtr));
@@ -518,8 +520,24 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
     int w = (rect.right - rect.left) * config.modeWidth / config.width;
     int h = (rect.bottom - rect.top) * config.modeHeight / config.height;
     common::Rect srect = layer->getSourceCropInt();
-    if (w > (srect.right - srect.left) * 7 || h > (srect.bottom - srect.top) * 7) {
+    int srcW = srect.right - srect.left;
+    int srcH = srect.bottom - srect.top;
+    if (w > srcW * 7 || h > srcH * 7) {
         // fall back to GPU.
+        return HWC3::Error::Unsupported;
+    }
+
+    uint64_t modifier;
+    uint32_t format = ConvertNxpFormatToDrmFormat(buff->fslFormat, &modifier);
+    if (srcW < 64 &&
+        ((format == DRM_FORMAT_NV12) || (format == DRM_FORMAT_NV21) ||
+         (format == DRM_FORMAT_P010))) {
+        return HWC3::Error::Unsupported;
+    } else if (srcW < 32 &&
+               ((format == DRM_FORMAT_UYVY) || (format == DRM_FORMAT_VYUY) ||
+                (format == DRM_FORMAT_YUYV) || (format == DRM_FORMAT_YVYU))) {
+        return HWC3::Error::Unsupported;
+    } else if (srcW < 16 || srcH < 8) {
         return HWC3::Error::Unsupported;
     }
 

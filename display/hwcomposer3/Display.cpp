@@ -117,7 +117,7 @@ HWC3::Error Display::init(const std::vector<DisplayConfig>& configs, int32_t act
 
     auto it = mConfigs.find(*mActiveConfigId);
     if (it == mConfigs.end()) {
-        ALOGE("%s: display:%" PRId64 "missing config:%" PRId32, __FUNCTION__, mId, activeConfigId);
+        ALOGE("%s: display:%" PRId64 " missing config:%" PRId32, __FUNCTION__, mId, activeConfigId);
         return HWC3::Error::NoResources;
     }
 

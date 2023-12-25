@@ -94,6 +94,9 @@ bool DrmConnector::update(::android::base::borrowed_fd drmFd) {
         }
     }
 
+    if (mModes.size() == 0) // For some connector, the status is connected but no display mode
+        mStatus = DRM_MODE_DISCONNECTED;
+
     DEBUG_LOG("%s: connector:%" PRIu32 " widthMillimeters:%" PRIu32 " heightMillimeters:%" PRIu32,
               __FUNCTION__, mId, mWidthMillimeters, mHeightMillimeters);
 

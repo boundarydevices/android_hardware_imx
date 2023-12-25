@@ -391,7 +391,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
 
         auto [createError, drmBuffer] = client->create(handle, rectFrame, rectSource);
         if (createError != HWC3::Error::None) {
-            ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer", __FUNCTION__,
+            ALOGE("%s: display:%" PRIu64 " failed to create overlay drm buffer", __FUNCTION__,
                   displayId);
             return HWC3::Error::NoResources;
         }
@@ -508,7 +508,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
                                    needFence ? display->getClientTarget().getFence()
                                              : ::android::base::unique_fd());
     if (flushError != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRIu64 " failed to flush drm buffer" PRIu64, __FUNCTION__, displayId);
+        ALOGE("%s: display:%" PRIu64 " failed to flush drm buffer", __FUNCTION__, displayId);
     }
 
     for (auto& [_, layer] : layersForOverlay) {
