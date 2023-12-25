@@ -123,8 +123,16 @@ int registerDevices(const std::string& driverPath, const std::vector<Names>& dev
 using aidl::android::hardware::neuralnetworks::Names;
 using aidl::android::hardware::neuralnetworks::registerDevices;
 
+#ifndef SL_WRAPPER_DIR
+#if defined(__LP64__)
+#define SL_WRAPPER_DIR "/vendor/lib64"
+#else
+#define SL_WRAPPER_DIR "/vendor/lib"
+#endif
+#endif
+
 int main() {
-    const std::string driverPath = "/vendor/lib64/libVsiSupportLibrary.so";
+    const std::string driverPath = SL_WRAPPER_DIR "/libVsiSupportLibrary.so";
 
     const std::vector<Names> devicesToRegister = {
             {.driverName = "vsi-device-0", .serviceName = "nnapi-imx_sl"},
