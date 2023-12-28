@@ -94,6 +94,9 @@ private:
          */
         std::optional<uint32_t> compositionPlaneId;
         std::vector<Layer*> layersForNxpPrivate;
+        // will try to present this lucky layer when no client target set in 3D composition
+        // VTS case use such method to present, add it to avoid VTS case fail.
+        Layer* luckyLayer;
     };
     std::unordered_map<int64_t, DisplayBuffer> mDisplayBuffers;
     std::unordered_map<int64_t, ValidatedLayers> mDisplayLayers;

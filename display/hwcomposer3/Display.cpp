@@ -907,8 +907,8 @@ HWC3::Error Display::present(
             return HWC3::Error::NotValidated;
         }
         case PresentFlowState::WAITING_FOR_ACCEPT: {
-            ALOGE("%s: display %" PRId64 " failed, changes not accepted", __FUNCTION__, mId);
-            return HWC3::Error::NotValidated;
+            ALOGW("%s: display %" PRId64 ", changes not accepted", __FUNCTION__, mId);
+            break;
         }
         case PresentFlowState::WAITING_FOR_PRESENT: {
             break;

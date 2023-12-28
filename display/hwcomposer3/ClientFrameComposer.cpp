@@ -248,6 +248,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
     auto& layersForOverlay = mDisplayLayers[displayId].layersForOverlayPlane;
     auto& layersForComposition = mDisplayLayers[displayId].layersForComposition;
     auto& layersForPrivate = mDisplayLayers[displayId].layersForNxpPrivate;
+    auto& luckyLayer = mDisplayLayers[displayId].luckyLayer;
 
     const std::vector<Layer*>& layers = display->getOrderedLayers();
 
@@ -349,6 +350,12 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
                 continue;
             }
         }
+        if (layersForComposition.size() == 1) {
+            auto layer = layersForComposition.front();
+            if ((layer->getCompositionType() == Composition::DEVICE) &&
+                (layer->getBuffer().getBuffer() != nullptr))
+                luckyLayer = layersForComposition.front();
+        }
         layersForComposition.clear();
     }
 
@@ -371,6 +378,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     auto& layersForComposition = mDisplayLayers[displayId].layersForComposition;
     auto& layersForPrivate = mDisplayLayers[displayId].layersForNxpPrivate;
     auto& compositionResultPlaneId = mDisplayLayers[displayId].compositionPlaneId;
+    auto& luckyLayer = mDisplayLayers[displayId].luckyLayer;
 
     auto [error, client] = getDeviceClient(displayId);
     if (error != HWC3::Error::None) {
@@ -450,6 +458,20 @@ HWC3::Error ClientFrameComposer::presentDisplay(
 #ifdef DEBUG_DUMP_FRAME
         debug_dump_frame(display->getClientTarget().getBuffer());
 #endif
+    } else if (luckyLayer != nullptr) {
+        common::Rect rectFrame = luckyLayer->getDisplayFrame();
+        common::Rect rectSource = luckyLayer->getSourceCropInt();
+        auto buffer = (gralloc_handle_t)luckyLayer->waitAndGetBuffer();
+        auto [createError, drmBuffer] = client->create(buffer, rectFrame, rectSource);
+        if (createError != HWC3::Error::None) {
+            ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer", __FUNCTION__,
+                  displayId);
+            return HWC3::Error::NoResources;
+        }
+        displayBuffer.clientTargetDrmBuffer = drmBuffer;
+#ifdef DEBUG_DUMP_FRAME
+        debug_dump_frame(buffer);
+#endif
     }
 
     if (layersForPrivate.size() == 1) {
@@ -524,6 +546,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     layersForComposition.clear();
     layersForPrivate.clear();
     compositionResultPlaneId = std::nullopt;
+    luckyLayer = nullptr;
 
     return flushError;
 }
