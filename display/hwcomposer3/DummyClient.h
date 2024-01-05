@@ -1,5 +1,4 @@
 /*
- * Copyright 2022 The Android Open Source Project
  * Copyright 2023 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +16,6 @@
 
 #pragma once
 
-#include <RWLock.h>
 #include <android-base/unique_fd.h>
 #include <cutils/native_handle.h>
 
@@ -32,31 +30,27 @@
 #include "DrmBuffer.h"
 #include "DrmConnector.h"
 #include "DrmDisplay.h"
-#include "FbdevDisplay.h"
 
-#define MAX_COMPOSER_TARGETS_PER_DISPLAY 3
-
-using android::RWLock;
+#define DUMMY_DISPLAY_WIDTH 720
+#define DUMMY_DISPLAY_HEIGHT 480
+#define DUMMY_DISPLAY_ACTIVE_CONFIG_ID 0
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
-class FbdevClient : public DeviceClient {
+class DummyClient : public DeviceClient {
 public:
-    FbdevClient() = default;
-    ~FbdevClient();
+    DummyClient() = default;
+    ~DummyClient();
 
-    FbdevClient(const FbdevClient&) = delete;
-    FbdevClient& operator=(const FbdevClient&) = delete;
+    DummyClient(const DummyClient&) = delete;
+    DummyClient& operator=(const DummyClient&) = delete;
 
-    FbdevClient(FbdevClient&&) = delete;
-    FbdevClient& operator=(FbdevClient&&) = delete;
+    DummyClient(DummyClient&&) = delete;
+    DummyClient& operator=(DummyClient&&) = delete;
 
     HWC3::Error init(char* path, uint32_t* baseId) override;
 
     HWC3::Error getDisplayConfigs(std::vector<HalMultiConfigs>* configs) override;
-
-    using HotplugCallback =
-            std::function<void(bool /*connected*/, std::unique_ptr<HalMultiConfigs> /*configs*/)>;
 
     std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> create(const native_handle_t* handle,
                                                                common::Rect displayFrame,
@@ -67,30 +61,24 @@ public:
             int display, const DisplayBuffer& buffer,
             ::android::base::borrowed_fd inWaitSyncFd) override;
 
-    HWC3::Error setPowerMode(int displayId, DrmPower power) override;
+    HWC3::Error setPowerMode(int displayId, DrmPower power) override { return HWC3::Error::None; }
+    HWC3::Error setPrimaryDisplay(int displayId) override { return HWC3::Error::None; }
+    HWC3::Error fakeDisplayConfig(int displayId) override { return HWC3::Error::None; }
 
-    uint32_t getDisplayBaseId() override { return mDisplayBaseId; }
-
-    HWC3::Error setPrimaryDisplay(int displayId) override;
-    HWC3::Error fakeDisplayConfig(int displayId) override;
+    uint32_t getDisplayBaseId() override { return mDisplayId; }
 
     std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;
-    HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) override;
     HWC3::Error getDisplayClientTargetProperty(int displayId,
                                                ClientTargetProperty* outProperty) override;
 
 private:
-    bool loadFbdevDisplays(uint32_t displayBaseId);
+    uint32_t mDisplayId = 0;
+    int32_t mActiveConfigId = -1;
+    std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
 
-    // Drm device.
-    ::android::base::unique_fd mFd;
-
-    mutable RWLock mDisplaysMutex;
-    std::unordered_map<uint32_t, std::unique_ptr<FbdevDisplay>> mDisplays; //<displayId, ptr>
-    uint32_t mDisplayBaseId = 0;
-    std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mComposerTargets;
-    std::unordered_map<uint32_t, int32_t> mTargetIndex; //<displayId, index>
+    std::vector<gralloc_handle_t> mComposerTargets;
+    int32_t mTargetIndex;
 
     std::shared_ptr<DeviceComposer> mG2dComposer = nullptr;
 };

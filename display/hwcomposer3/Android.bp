@@ -83,6 +83,7 @@ cc_binary {
         "DrmEventListener.cpp",
         "DrmMode.cpp",
         "DrmPlane.cpp",
+        "DummyClient.cpp",
         "Edid.cpp",
         "FbdevClient.cpp",
         "FbdevDisplay.cpp",

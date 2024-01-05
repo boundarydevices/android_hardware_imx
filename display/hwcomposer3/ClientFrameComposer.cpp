@@ -82,8 +82,11 @@ HWC3::Error ClientFrameComposer::init() {
     }
 
     if (mDeviceClients.size() < 1) {
-        ALOGE("%s: cannot find any display client", __FUNCTION__);
-        return HWC3::Error::NoResources;
+        ALOGE("%s: Cannot find any display client, dummy client used!", __FUNCTION__);
+        std::unique_ptr<DummyClient> client = std::make_unique<DummyClient>();
+        HWC3::Error error = client->init(NULL, &baseId);
+        if (error == HWC3::Error::None)
+            mDeviceClients.emplace(baseId, std::move(client));
     }
 
     mG2dComposer = std::make_shared<DeviceComposer>();

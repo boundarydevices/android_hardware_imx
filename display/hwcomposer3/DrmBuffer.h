@@ -47,6 +47,7 @@ public:
 private:
     friend class DrmClient;
     friend class FbdevClient;
+    friend class DummyClient;
     friend class DrmDisplay;
     DrmBuffer(DeviceClient& client);
 

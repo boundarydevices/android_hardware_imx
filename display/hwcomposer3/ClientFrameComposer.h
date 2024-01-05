@@ -25,6 +25,7 @@
 #include "DeviceComposer.h"
 #include "Display.h"
 #include "DrmClient.h"
+#include "DummyClient.h"
 #include "FbdevClient.h"
 #include "FrameComposer.h"
 #include "Layer.h"

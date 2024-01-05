@@ -47,8 +47,10 @@ public:
     using HotplugCallback =
             std::function<void(bool /*connected*/, std::unique_ptr<HalMultiConfigs> /*configs*/)>;
 
-    virtual HWC3::Error registerOnHotplugCallback(const HotplugCallback& cb) = 0;
-    virtual HWC3::Error unregisterOnHotplugCallback() = 0;
+    virtual HWC3::Error registerOnHotplugCallback(const HotplugCallback& cb) {
+        return HWC3::Error::None;
+    }
+    virtual HWC3::Error unregisterOnHotplugCallback() { return HWC3::Error::None; }
 
     virtual std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> create(
             const native_handle_t* handle, common::Rect displayFrame, common::Rect sourceCrop) = 0;
@@ -58,19 +60,23 @@ public:
             int display, const DisplayBuffer& buffer,
             ::android::base::borrowed_fd inWaitSyncFd) = 0;
 
-    virtual std::optional<std::vector<uint8_t>> getEdid(uint32_t id) = 0;
+    virtual std::optional<std::vector<uint8_t>> getEdid(uint32_t id) { return std::nullopt; }
 
     virtual HWC3::Error setPowerMode(int displayId, DrmPower power) = 0;
 
-    virtual std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) = 0;
+    virtual std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) {
+        return std::make_tuple(HWC3::Error::None, false);
+    }
     virtual HWC3::Error checkOverlayLimitation(int displayId, Layer* layer) {
         return HWC3::Error::None;
     }
-
-    virtual HWC3::Error prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) = 0;
-
+    virtual HWC3::Error prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) {
+        return HWC3::Error::None;
+    }
     virtual std::tuple<HWC3::Error, uint32_t> getPlaneForLayerBuffer(
-            int displayId, const native_handle_t* handle) = 0;
+            int displayId, const native_handle_t* handle) {
+        return std::make_tuple(HWC3::Error::NoResources, 0);
+    }
 
     virtual uint32_t getDisplayBaseId() = 0;
 
@@ -83,7 +89,9 @@ public:
 
     virtual std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) = 0;
-    virtual HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) = 0;
+    virtual HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) {
+        return HWC3::Error::None;
+    }
 
     virtual HWC3::Error setBacklightBrightness(int displayId, float brightness) {
         return HWC3::Error::None;

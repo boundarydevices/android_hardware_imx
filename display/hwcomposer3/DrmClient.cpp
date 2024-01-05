@@ -252,7 +252,10 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
         mDisplays.emplace(display->getId(), std::move(display));
     }
 
-    return true;
+    if (mDisplays.size() > 0)
+        return true;
+    else
+        return false;
 }
 
 std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const native_handle_t* handle,

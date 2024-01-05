@@ -97,14 +97,6 @@ HWC3::Error FbdevClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs
         return HWC3::Error::NoResources;
 }
 
-HWC3::Error FbdevClient::registerOnHotplugCallback(const HotplugCallback& cb) {
-    return HWC3::Error::None;
-}
-
-HWC3::Error FbdevClient::unregisterOnHotplugCallback() {
-    return HWC3::Error::None;
-}
-
 bool FbdevClient::loadFbdevDisplays(uint32_t displayBaseId) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -139,12 +131,6 @@ HWC3::Error FbdevClient::destroyDrmFramebuffer(DrmBuffer* buffer) {
     return HWC3::Error::None;
 }
 
-bool FbdevClient::handleHotplug() {
-    DEBUG_LOG("%s", __FUNCTION__);
-
-    return true;
-}
-
 std::tuple<HWC3::Error, ::android::base::unique_fd> FbdevClient::flushToDisplay(
         int displayId, const DisplayBuffer& buffer, ::android::base::borrowed_fd inSyncFd) {
     ATRACE_CALL();
@@ -165,15 +151,6 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> FbdevClient::flushToDisplay(
 
     return mDisplays[displayId]->present(mFd, inSyncFd,
                                          *buffer.clientTargetDrmBuffer->mBufferAddress);
-}
-
-std::optional<std::vector<uint8_t>> FbdevClient::getEdid(uint32_t displayId) {
-    if (mDisplays.find(displayId) == mDisplays.end()) {
-        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
-        return std::nullopt;
-    }
-
-    return std::nullopt;
 }
 
 HWC3::Error FbdevClient::setPowerMode(int displayId, DrmPower power) {

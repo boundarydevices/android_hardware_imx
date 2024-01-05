@@ -1023,7 +1023,7 @@ HWC3::Error Display::checkAndWaitNextVsync(int64_t* timestamp) {
 
     auto ret = mComposer->waitHardwareVsyncTimestamp(this, timestamp);
     if (ret != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRId64 " cannot get Vsync timestamp", __FUNCTION__, mId);
+        DEBUG_LOG("%s: display:%" PRId64 " cannot get Vsync timestamp", __FUNCTION__, mId);
     }
     return ret;
 }
