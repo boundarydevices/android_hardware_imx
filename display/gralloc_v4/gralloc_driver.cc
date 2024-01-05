@@ -277,6 +277,15 @@ int32_t gralloc_driver::validate_buffer(const struct gralloc_buffer_descriptor *
         desc.mFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
     }
 
+    desc.mFlag = 0;
+    if (descriptor->use_flags & BO_USE_FRAMEBUFFER) {
+        desc.mFlag |= FLAGS_FRAMEBUFFER;
+    }
+    if ((descriptor->use_flags & BO_USE_SW_READ_OFTEN) != 0 ||
+        (descriptor->use_flags & BO_USE_SW_WRITE_OFTEN) != 0) {
+        desc.mFlag |= FLAGS_CPU;
+    }
+
     desc.mProduceUsage = usage;
     if (hnd->usage & USAGE_HW_VIDEO_ENCODER) {
         desc.mProduceUsage |= USAGE_HW_VIDEO_ENCODER;

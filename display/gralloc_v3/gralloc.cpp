@@ -631,6 +631,16 @@ static int gralloc_validate_buffer_size(gralloc1_device_t* device, buffer_handle
     desc->mWidth = descriptorInfo->width;
     desc->mHeight = descriptorInfo->height;
     desc->mFormat = descriptorInfo->format;
+
+    desc->mFlag = 0;
+    if (descriptorInfo->use_flags & BO_USE_FRAMEBUFFER) {
+        desc->mFlag |= FLAGS_FRAMEBUFFER;
+    }
+    if ((descriptorInfo->use_flags & BO_USE_SW_READ_OFTEN) != 0 ||
+        (descriptorInfo->use_flags & BO_USE_SW_WRITE_OFTEN) != 0) {
+        desc->mFlag |= FLAGS_CPU;
+    }
+
     desc->mProduceUsage = descriptorInfo->producerUsage;
     desc->mConsumeUsage = descriptorInfo->consumerUsage;
     if (memory->usage & USAGE_HW_VIDEO_ENCODER) {

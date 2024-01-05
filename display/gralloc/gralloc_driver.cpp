@@ -278,6 +278,15 @@ int32_t gralloc_driver::validate_buffer(const struct gralloc_buffer_descriptor *
     desc.mFormat = convert_pixel_format_to_gralloc_format(descriptor->droid_format);
     desc.mFslFormat = convert_gralloc_format_to_nxp_format(desc.mFormat);
 
+    desc.mFlag = 0;
+    if (descriptor->use_flags & BO_USE_FRAMEBUFFER) {
+        desc.mFlag |= FLAGS_FRAMEBUFFER;
+    }
+    if ((descriptor->use_flags & BO_USE_SW_READ_OFTEN) != 0 ||
+        (descriptor->use_flags & BO_USE_SW_WRITE_OFTEN) != 0) {
+        desc.mFlag |= FLAGS_CPU;
+    }
+
     desc.mProduceUsage = usage;
     if (hnd->usage & USAGE_HW_VIDEO_ENCODER) {
         desc.mProduceUsage |= USAGE_HW_VIDEO_ENCODER;
