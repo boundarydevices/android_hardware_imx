@@ -70,6 +70,8 @@ ScopedAStatus HdmiConnectionMock::setCallback(
     if (callback != nullptr) {
         mCallback = callback;
         AIBinder_linkToDeath(this->asBinder().get(), mDeathRecipient.get(), 0 /* cookie */);
+        pthread_create(&mThreadId, NULL, __threadLoop, this);
+        pthread_setname_np(mThreadId, "hdmi_connection_loop");
     }
     return ScopedAStatus::ok();
 }
@@ -152,35 +154,51 @@ void HdmiConnectionMock::handleHotplugMessage(unsigned char* msgBuf) {
 }
 
 void HdmiConnectionMock::threadLoop() {
-    ALOGD("[halimp_aidl] threadLoop start.");
-    unsigned char msgBuf[MESSAGE_BODY_MAX_LENGTH];
-    int r = -1;
-
-    // Open the input pipe
-    while (mInputFile < 0) {
-        usleep(1000 * 1000);
-        mInputFile = open(HDMI_MSG_IN_FIFO, O_RDONLY | O_CLOEXEC);
+    ALOGD("threadLoop start.");
+    // Open the cec node
+    char* path = "/dev/cec0";
+    base::unique_fd cecFd(::open(path, O_RDWR | O_NONBLOCK));
+    if (cecFd.get() < 0) {
+        ALOGE("faild to open %s, ret=%s\n", path, strerror(errno));
+        return;
     }
-    ALOGD("[halimp_aidl] file open ok, fd = %d.", mInputFile);
+    ALOGD("file open ok, fd = %d. path=%s", cecFd.get(), path);
 
     while (mHdmiThreadRun) {
-        memset(msgBuf, 0, sizeof(msgBuf));
-        // Try to get a message from dev.
-        // echo -n -e '\x04\x83' >> /dev/cec
-        r = readMessageFromFifo(msgBuf, MESSAGE_BODY_MAX_LENGTH);
-        if (r <= 1) {
-            // Ignore received ping messages
-            continue;
-        }
+        struct timeval tv = {1, 0};
+        fd_set exFds;
+        FD_ZERO(&exFds);
+        FD_SET(cecFd.get(), &exFds);
+        int res = select(cecFd.get() + 1, nullptr, nullptr, &exFds, &tv);
+        if (res < 0)
+            break;
+        // CEC event
+        if (FD_ISSET(cecFd.get(), &exFds)) {
+            struct cec_event ev;
+            if (ioctl(cecFd.get(), CEC_DQEVENT, &ev))
+                continue;
 
-        printEventBuf((const char*)msgBuf, r);
+            uint16_t phyaddr = ev.state_change.phys_addr;
+            ALOGD("ev.event:%d,  phyaddr:0x%x", ev.event, phyaddr);
+            if (phyaddr == mPhysicalAddress) {
+                ALOGE("the same with before, drop this phyaddr:0x%x", phyaddr);
+                continue;
+            }
+            // update the plug info
+            bool connected = (phyaddr == CEC_PHYS_ADDR_INVALID) ? false : true;
+            mPortConnectionStatus.at(mPortId - 1) = connected;
+            if (mPortInfos.at(mPortId - 1).type == HdmiPortType::OUTPUT) {
+                mPhysicalAddress = connected ? phyaddr : CEC_PHYS_ADDR_INVALID;
+                mPortInfos.at(mPortId - 1).physicalAddress = mPhysicalAddress;
+                ALOGD("hot plug physical address %x", mPhysicalAddress);
+            }
 
-        if (((msgBuf[0] >> 4) & 0xf) == 0xf) {
-            handleHotplugMessage(msgBuf);
+            if (mCallback != nullptr) {
+                mCallback->onHotplugEvent(connected, mPortId);
+            }
         }
     }
-
-    ALOGD("[halimp_aidl] thread end.");
+    ALOGD("thread end.");
 }
 
 bool HdmiConnectionMock::getPhysicalAddrFromEdid(uint16_t* phyaddr) {
