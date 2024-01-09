@@ -119,17 +119,22 @@ int IonManager::getVaddrs(Memory* memory) {
     return 0;
 }
 
-int IonManager::flushCache(Memory* memory) {
+int IonManager::flushCache(Memory* memory, bool start) {
     if (mAllocator == NULL || memory == NULL || memory->fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
 
-    return mAllocator->flushCache(memory->fd);
+    return mAllocator->flushCache(memory->fd, start);
 }
 
 int IonManager::lock(Memory* handle, int /*usage*/, int /*l*/, int /*t*/, int /*w*/, int /*h*/,
                      void** vaddr) {
+
+    if (handle->flags & FLAGS_CPU) {
+        flushCache(handle, true);
+    }
+
     if (handle->base == 0) {
         getVaddrs(handle);
     }
@@ -140,6 +145,11 @@ int IonManager::lock(Memory* handle, int /*usage*/, int /*l*/, int /*t*/, int /*
 
 int IonManager::lockYCbCr(Memory* handle, int /*usage*/, int /*l*/, int /*t*/, int /*w*/, int /*h*/,
                           android_ycbcr* /*ycbcr*/) {
+
+    if (handle->flags & FLAGS_CPU) {
+        flushCache(handle, true);
+    }
+
     if (handle->base == 0) {
         getVaddrs(handle);
     }
@@ -149,7 +159,7 @@ int IonManager::lockYCbCr(Memory* handle, int /*usage*/, int /*l*/, int /*t*/, i
 
 int IonManager::unlock(Memory* handle) {
     if (handle->flags & FLAGS_CPU) {
-        flushCache(handle);
+        flushCache(handle, false);
     }
 
     return 0;

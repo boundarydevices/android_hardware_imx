@@ -142,14 +142,16 @@ int DmaHeapAllocator::getVaddrs(int fd, int size, uint64_t& addr) {
     return 0;
 }
 
-int DmaHeapAllocator::flushCache(int fd) {
+int DmaHeapAllocator::flushCache(int fd, bool start) {
     if (fd < 0) {
         ALOGE("%s invalid parameters", __func__);
         return -EINVAL;
     }
 
     struct dma_buf_sync dma_sync;
-    dma_sync.flags = DMA_BUF_SYNC_RW | DMA_BUF_SYNC_END;
+    dma_sync.flags = start ? DMA_BUF_SYNC_START : DMA_BUF_SYNC_END;
+    dma_sync.flags |= DMA_BUF_SYNC_RW;
+
     if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &dma_sync) < 0) {
         ALOGE("%s DMA_BUF_IOCTL_SYNC failed", __func__);
         return -EINVAL;

@@ -447,7 +447,7 @@ int MemoryManager::flush(Memory* handle) {
         return 0; // mGPUModule->unlock(mGPUModule, handle);
     } else {
         if (handle->flags & FLAGS_CPU)
-            mIonManager->flushCache(handle);
+            mIonManager->flushCache(handle, false);
         return 0;
     }
 }

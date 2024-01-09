@@ -37,7 +37,7 @@ public:
     // alloc memory and return fd which represents this memory.
     int allocMemory(int size, int align, int flags);
     // flush cacheable memory cache.
-    int flushCache(int fd);
+    int flushCache(int fd, bool start);
     // get contiguous memory physical address.
     int getPhys(int fd, int size, uint64_t& addr);
     // get memory virtual address.

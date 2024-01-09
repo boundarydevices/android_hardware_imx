@@ -34,7 +34,7 @@ public:
     int allocSystemMemeory(uint64_t size);
     int allocMemory(MemoryDesc& desc, Memory** out);
 
-    int flushCache(Memory* memory);
+    int flushCache(Memory* memory, bool start);
     int getPhys(Memory* memory);
     int getVaddrs(Memory* memory);
 

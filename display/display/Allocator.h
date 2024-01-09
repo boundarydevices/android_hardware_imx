@@ -46,7 +46,7 @@ public:
     // alloc memory and return fd which represents this memory.
     virtual int allocMemory(int size, int align, int flags) = 0;
     // flush cacheable memory cache.
-    virtual int flushCache(int fd) = 0;
+    virtual int flushCache(int fd, bool start) = 0;
     // get contiguous memory physical address.
     virtual int getPhys(int fd, int size, uint64_t& addr) = 0;
     // get memory virtual address.
