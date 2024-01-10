@@ -50,6 +50,7 @@ HWC3::Error checkClientFromSystem(std::string path, std::string filePrefix,
         }
         memset(filePath, 0, sizeof(filePath));
         snprintf(filePath, HWC_PATH_LENGTH, "%s/%s", path.c_str(), dirEntry[i]->d_name);
+        ALOGI("%s: Check Client from file:%s", __FUNCTION__, filePath);
 
         std::unique_ptr<T> client = std::make_unique<T>();
         HWC3::Error error = client->init(filePath, baseId);
@@ -57,6 +58,7 @@ HWC3::Error checkClientFromSystem(std::string path, std::string filePrefix,
             ALOGE("%s: failed to initialize %s:%s", __FUNCTION__, filePrefix.c_str(), filePath);
         } else {
             ret = error;
+            clients.erase(*baseId);
             clients.emplace(*baseId, std::move(client));
             *baseId += idIncrement;
         }
@@ -65,6 +67,50 @@ HWC3::Error checkClientFromSystem(std::string path, std::string filePrefix,
     }
 
     return ret;
+}
+
+HWC3::Error ClientFrameComposer::pollDrmThreadCallback(char* file) {
+    if (strstr(file, "card")) {
+        // detect /dev/dri/card%d has been created
+        HWC3::Error ret;
+        uint32_t baseId = mDummyBaseId;
+        ret = checkClientFromSystem<DrmClient>("/dev/dri", "card", mDeviceClients, &baseId, 0);
+        if (ret == HWC3::Error::None) {
+            ALOGI("%s: Detect new DRM client, baseId=%d", __FUNCTION__, baseId);
+            if (baseId == mDummyBaseId) {
+                ALOGI("%s: The DummyClient was replaced by actual DRM Client", __FUNCTION__);
+            }
+
+            auto [error, client] = getDeviceClient(mDummyBaseId);
+            if (error == HWC3::Error::None) {
+                client->setPrimaryDisplay(mDummyBaseId);
+            } else {
+                ALOGW("%s: display id:%d cannot find in Drm Client", __FUNCTION__, mDummyBaseId);
+            }
+
+            for (auto& [_, client] : mDeviceClients) {
+                std::vector<HalMultiConfigs> deviceConfigs;
+                HWC3::Error error = client->getDisplayConfigs(&deviceConfigs);
+                if (error != HWC3::Error::None) {
+                    ALOGE("%s: connector exist, but not connect display.", __FUNCTION__);
+                    continue;
+                }
+                for (const HalMultiConfigs deviceConfig : deviceConfigs) {
+                    auto cfg = std::make_unique<HalMultiConfigs>(std::move(deviceConfig));
+                    if (mHotplugCallback) {
+                        (*mHotplugCallback)(true, std::move(cfg));
+                    }
+                }
+            }
+            if (mHotplugCallback) {
+                for (const auto& [_, client] : mDeviceClients) {
+                    client->registerOnHotplugCallback(*mHotplugCallback);
+                }
+            }
+        }
+        return ret;
+    }
+    return HWC3::Error::NoResources;
 }
 
 HWC3::Error ClientFrameComposer::init() {
@@ -84,9 +130,16 @@ HWC3::Error ClientFrameComposer::init() {
     if (mDeviceClients.size() < 1) {
         ALOGE("%s: Cannot find any display client, dummy client used!", __FUNCTION__);
         std::unique_ptr<DummyClient> client = std::make_unique<DummyClient>();
-        HWC3::Error error = client->init(NULL, &baseId);
+        HWC3::Error error = client->init(NULL, &mDummyBaseId);
         if (error == HWC3::Error::None)
-            mDeviceClients.emplace(baseId, std::move(client));
+            mDeviceClients.emplace(mDummyBaseId, std::move(client));
+
+        mDrmThread = std::make_unique<PollThread>();
+        const auto PollDrmCallback = [this](char* file) -> HWC3::Error {
+            return pollDrmThreadCallback(file);
+        };
+        mDrmThread->setCallback(PollDrmCallback);
+        mDrmThread->start("/dev/dri");
     }
 
     mG2dComposer = std::make_shared<DeviceComposer>();
@@ -102,6 +155,7 @@ HWC3::Error ClientFrameComposer::registerOnHotplugCallback(const HotplugCallback
     for (const auto& pair : mDeviceClients) {
         pair.second->registerOnHotplugCallback(cb);
     }
+    mHotplugCallback = cb;
 
     return HWC3::Error::None;
 }
@@ -110,6 +164,7 @@ HWC3::Error ClientFrameComposer::unregisterOnHotplugCallback() {
     for (const auto& pair : mDeviceClients) {
         pair.second->unregisterOnHotplugCallback();
     }
+    mHotplugCallback.reset();
 
     return HWC3::Error::None;
 }

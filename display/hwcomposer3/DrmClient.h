@@ -101,7 +101,6 @@ public:
     uint32_t getDisplayBaseId() override { return mDisplayBaseId; }
 
     HWC3::Error setPrimaryDisplay(int displayId) override;
-    HWC3::Error fakeDisplayConfig(int displayId) override;
     HWC3::Error setActiveConfigId(int displayId, int32_t configId) override;
     HWC3::Error resetDisplayConfig(int displayId) override;
 

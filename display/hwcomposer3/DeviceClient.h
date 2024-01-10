@@ -81,7 +81,6 @@ public:
     virtual uint32_t getDisplayBaseId() = 0;
 
     virtual HWC3::Error setPrimaryDisplay(int displayId) = 0;
-    virtual HWC3::Error fakeDisplayConfig(int displayId) = 0;
     virtual HWC3::Error setActiveConfigId(int displayId, int32_t configId) {
         return HWC3::Error::None;
     }

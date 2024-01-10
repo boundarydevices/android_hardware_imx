@@ -63,7 +63,6 @@ public:
 
     HWC3::Error setPowerMode(int displayId, DrmPower power) override { return HWC3::Error::None; }
     HWC3::Error setPrimaryDisplay(int displayId) override { return HWC3::Error::None; }
-    HWC3::Error fakeDisplayConfig(int displayId) override { return HWC3::Error::None; }
 
     uint32_t getDisplayBaseId() override { return mDisplayId; }
 

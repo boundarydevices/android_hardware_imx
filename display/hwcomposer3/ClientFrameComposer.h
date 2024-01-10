@@ -29,6 +29,7 @@
 #include "FbdevClient.h"
 #include "FrameComposer.h"
 #include "Layer.h"
+#include "PollThread.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -86,6 +87,7 @@ public:
 
 private:
     std::tuple<HWC3::Error, DeviceClient*> getDeviceClient(uint32_t displayId);
+    HWC3::Error pollDrmThreadCallback(char* file);
 
     struct ValidatedLayers {
         std::unordered_map<uint32_t, Layer*> layersForOverlayPlane; // <planeId, layer>
@@ -101,6 +103,10 @@ private:
     };
     std::unordered_map<int64_t, DisplayBuffer> mDisplayBuffers;
     std::unordered_map<int64_t, ValidatedLayers> mDisplayLayers;
+
+    uint32_t mDummyBaseId = 0;
+    std::optional<HotplugCallback> mHotplugCallback;
+    std::unique_ptr<PollThread> mDrmThread;
 
     std::map<uint32_t, std::unique_ptr<DeviceClient>> mDeviceClients;
     std::shared_ptr<DeviceComposer> mG2dComposer;

@@ -33,7 +33,7 @@ using android::RWLock;
 namespace aidl::android::hardware::graphics::composer3::impl {
 
 DrmClient::~DrmClient() {
-    if (mFd > 0) {
+    if (mFd.ok() && drmIsMaster(mFd.get())) {
         drmDropMaster(mFd.get());
     }
 }
@@ -42,7 +42,7 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     mFd = ::android::base::unique_fd(open(path, O_RDWR | O_CLOEXEC));
-    if (mFd < 0) {
+    if (!mFd.ok()) {
         ALOGE("%s: failed to open drm device: %s", __FUNCTION__, strerror(errno));
         return HWC3::Error::NoResources;
     }
@@ -592,18 +592,11 @@ HWC3::Error DrmClient::setPrimaryDisplay(int displayId) {
         return HWC3::Error::BadDisplay;
     }
 
-    mDisplays[displayId]->setAsPrimary(true);
+    DrmDisplay* display = mDisplays[displayId].get();
+    display->setAsPrimary(true);
 
-    return HWC3::Error::None;
-}
-
-HWC3::Error DrmClient::fakeDisplayConfig(int displayId) {
-    if (mDisplays.find(displayId) == mDisplays.end()) {
-        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
-        return HWC3::Error::BadDisplay;
-    }
-
-    mDisplays[displayId]->placeholderDisplayConfigs();
+    if (!display->isConnected())
+        display->placeholderDisplayConfigs();
 
     return HWC3::Error::None;
 }
@@ -864,7 +857,7 @@ HWC3::Error DrmClient::waitVBlank(int displayId, int64_t* timestamp) {
         return HWC3::Error::BadDisplay;
     }
 
-    if (!mDisplays[displayId]->isDisplayActive())
+    if (!mDisplays[displayId]->isDisplayActive() || !mDisplays[displayId]->isConnected())
         return HWC3::Error::BadDisplay;
 
     uint32_t high_crtc = (mDisplays[displayId]->getCrtcIndex() << DRM_VBLANK_HIGH_CRTC_SHIFT);

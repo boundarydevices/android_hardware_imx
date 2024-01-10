@@ -173,18 +173,11 @@ HWC3::Error FbdevClient::setPrimaryDisplay(int displayId) {
         return HWC3::Error::BadDisplay;
     }
 
-    mDisplays[displayId]->setAsPrimary(true);
+    FbdevDisplay* display = mDisplays[displayId].get();
+    display->setAsPrimary(true);
 
-    return HWC3::Error::None;
-}
-
-HWC3::Error FbdevClient::fakeDisplayConfig(int displayId) {
-    if (mDisplays.find(displayId) == mDisplays.end()) {
-        DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
-        return HWC3::Error::BadDisplay;
-    }
-
-    mDisplays[displayId]->placeholderDisplayConfigs();
+    if (!display->isConnected())
+        display->placeholderDisplayConfigs();
 
     return HWC3::Error::None;
 }

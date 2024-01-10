@@ -72,7 +72,6 @@ public:
     uint32_t getDisplayBaseId() override { return mDisplayBaseId; }
 
     HWC3::Error setPrimaryDisplay(int displayId) override;
-    HWC3::Error fakeDisplayConfig(int displayId) override;
 
     std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
             std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;
