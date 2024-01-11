@@ -36,7 +36,7 @@
 #include "DrmCrtc.h"
 #include "DrmPlane.h"
 
-#define MAX_COMMIT_RETRY_COUNT 32
+#define MAX_COMMIT_RETRY_COUNT 8
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
