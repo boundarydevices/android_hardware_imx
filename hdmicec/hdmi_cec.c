@@ -170,7 +170,7 @@ static int hdmicec_get_physical_address(const struct hdmi_cec_device *dev, uint1
     ALOGV("get phyaddr=0x%x\n", *addr);
 
     // for some cec adapters, the physical address needs to be re-set after hot-plug
-    if (ctx->cec_cap_phys_addr && edid_addr != *addr) {
+    if (ctx->cec_cap_phys_addr && edid_addr != *addr && edid_addr != CEC_PHYS_ADDR_INVALID) {
         hdmicec_clear_logical_address(dev);
         usleep(20000);
         ret = ioctl(ctx->cec_fd, CEC_ADAP_S_PHYS_ADDR, &edid_addr);

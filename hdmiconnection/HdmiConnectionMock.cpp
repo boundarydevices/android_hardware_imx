@@ -180,8 +180,8 @@ void HdmiConnectionMock::threadLoop() {
 
             uint16_t phyaddr = ev.state_change.phys_addr;
             ALOGD("ev.event:%d,  phyaddr:0x%x", ev.event, phyaddr);
-            if (phyaddr == mPhysicalAddress) {
-                ALOGE("the same with before, drop this phyaddr:0x%x", phyaddr);
+            if (phyaddr == mPhysicalAddress || phyaddr == CEC_PHYS_ADDR_INVALID) {
+                ALOGE("the same with before or invalid, drop this phyaddr:0x%x", phyaddr);
                 continue;
             }
             // update the plug info
@@ -273,7 +273,7 @@ bool HdmiConnectionMock::getPhysicalAddrFromEdid(uint16_t* phyaddr) {
             uint8_t idxPhysicalMSB = idxVSDB + 4;
             uint8_t idxPhysicalLSB = idxVSDB + 5;
             ALOGV("idxVSDB:0x%x  outData[idxVSDB]:0x%x,", idxVSDB, outData[idxVSDB]);
-            ALOGV("PhysicalMSB:0x%x,  PhysicalLSB:0x%x", outData[idxPhysicalMSB],
+            ALOGI("PhysicalMSB:0x%x,  PhysicalLSB:0x%x", outData[idxPhysicalMSB],
                   outData[idxPhysicalLSB]);
 
             *phyaddr = (unsigned short)(outData[idxPhysicalMSB] << 8 | outData[idxPhysicalLSB]);
@@ -302,7 +302,8 @@ HdmiConnectionMock::HdmiConnectionMock() {
     ALOGI("init the HDMI Connection HAL.");
     mCallback = nullptr;
     if (!getPhysicalAddrFromEdid(&mPhysicalAddress)) {
-        ALOGE("getPhysicalAddrFromEdid failed.");
+        mPhysicalAddress = 0x1000;
+        ALOGE("getPhysicalAddrFromEdid failed. Fix the default input to hdmi1");
     }
 
     mPortInfos.resize(mTotalPorts);

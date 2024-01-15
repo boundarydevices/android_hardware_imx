@@ -113,7 +113,7 @@ ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
               mPhysicalAddress);
 
         mDevice->get_physical_address(mDevice, &mPhysicalAddress);
-        if (mPhysicalAddress != edidPhyaddr) {
+        if (mPhysicalAddress != edidPhyaddr && edidPhyaddr != CEC_PHYS_ADDR_INVALID) {
             mPhysicalAddress = edidPhyaddr;
         }
     }
@@ -415,7 +415,7 @@ bool HdmiCecMock::getPhysicalAddrFromEdid(uint16_t* phyaddr) {
             uint8_t idxPhysicalMSB = idxVSDB + 4;
             uint8_t idxPhysicalLSB = idxVSDB + 5;
             ALOGV("idxVSDB:0x%x  outData[idxVSDB]:0x%x,", idxVSDB, outData[idxVSDB]);
-            ALOGV("PhysicalMSB:0x%x,  PhysicalLSB:0x%x", outData[idxPhysicalMSB],
+            ALOGI("PhysicalMSB:0x%x,  PhysicalLSB:0x%x", outData[idxPhysicalMSB],
                   outData[idxPhysicalLSB]);
 
             *phyaddr = (unsigned short)(outData[idxPhysicalMSB] << 8 | outData[idxPhysicalLSB]);
@@ -444,7 +444,8 @@ HdmiCecMock::HdmiCecMock() {
     ALOGI("init the HDMI CEC HAL.");
     mCallback = nullptr;
     if (!getPhysicalAddrFromEdid(&mPhysicalAddress)) {
-        ALOGE("getPhysicalAddrFromEdid failed.");
+        mPhysicalAddress = 0x1000;
+        ALOGE("getPhysicalAddrFromEdid failed. Fix the default input to hdmi1");
     }
 
     hdmi_cec_device_t* hdmi_cec_device;
