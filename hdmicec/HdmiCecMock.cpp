@@ -383,39 +383,50 @@ bool HdmiCecMock::getPhysicalAddrFromEdid(uint16_t* phyaddr) {
                 goto finish;
             }
             // get physical address from edid Extension blocks
-            uint8_t idxVideoBlock = 0x84;
-            uint8_t videoDataLen = outData[0x84] & 0x1f;
-            uint8_t idxAudioBlock = idxVideoBlock + videoDataLen + 1;
-            uint8_t audioDataLen = outData[idxAudioBlock] & 0x1f;
-            uint8_t idxSpeakerAllocBlock = idxAudioBlock + audioDataLen + 1;
-            uint8_t speakerAllocDataLen = outData[idxSpeakerAllocBlock] & 0x1f;
-            uint32_t HdmiIdentifier = 0x000C03;
-
-            uint8_t idxVSDB = idxSpeakerAllocBlock + speakerAllocDataLen + 1;
-            // Check the Tag of the Vendor-Specific DataBlock
-            if (((outData[idxVSDB] >> 5) & 0x7) != 3) {
-                // a workaround for the samsung TV. after the Speaker Allocation Block, still 3
-                // unknown extra bytes
-                idxVSDB = idxVSDB + 3;
-                ALOGV("here just a workaround for the samsung TV, Add 3 bytes for idxVSDB");
+            // Check the Tag of each Data Block, start from Video Data
+            // Video Data -> Audio Data -> Speaker Allocation -> Vendor-Specific
+            uint8_t idx = 0x84;
+            uint8_t idxDataLen = outData[idx] & 0x1f;
+            if (((outData[idx] >> 5) & 0x7) == 2) {
+                ALOGV("Video Data idx:0x%x,  value:0x%x,  dataLen:0x%x", idx, outData[idx],
+                      idxDataLen);
+                idx = idx + idxDataLen + 1;
+                idxDataLen = outData[idx] & 0x1f;
             }
+            if (((outData[idx] >> 5) & 0x7) == 1) {
+                ALOGV("Audio Data idx:0x%x,  value:0x%x,  dataLen:0x%x", idx, outData[idx],
+                      idxDataLen);
+                idx = idx + idxDataLen + 1;
+                idxDataLen = outData[idx] & 0x1f;
+            }
+            if (((outData[idx] >> 5) & 0x7) == 4) {
+                ALOGV("Speaker Allocation idx:0x%x,  value:0x%x,  dataLen:0x%x", idx, outData[idx],
+                      idxDataLen);
+                idx = idx + idxDataLen + 1;
+                idxDataLen = outData[idx] & 0x1f;
+            }
+            if (((outData[idx] >> 5) & 0x7) == 3) {
+                ALOGV("Vendor-Specific idx:0x%x,  value:0x%x,  dataLen:0x%x", idx, outData[idx],
+                      idxDataLen);
+            } else {
+                ALOGI("here just a workaround for the samsung TV, Add 3 bytes for idxVSDB");
+                idx = idx + 3;
+                idxDataLen = outData[idx] & 0x1f;
+                ALOGV("Vendor-Specific idx:0x%x,  value:0x%x,  dataLen:0x%x", idx, outData[idx],
+                      idxDataLen);
+            }
+
+            uint32_t HdmiIdentifier = 0x000C03;
             if ((HdmiIdentifier & 0x00ffffffff) !=
-                (outData[idxVSDB + 3] << 16 | outData[idxVSDB + 2] << 8 | outData[idxVSDB + 1])) {
-                ALOGE("HdmiIdentifier check failed:0x%x %x %x", outData[idxVSDB + 3],
-                      outData[idxVSDB + 2], outData[idxVSDB + 1]);
+                (outData[idx + 3] << 16 | outData[idx + 2] << 8 | outData[idx + 1])) {
+                ALOGE("HdmiIdentifier check failed:0x%x %x %x", outData[idx + 3], outData[idx + 2],
+                      outData[idx + 1]);
                 goto finish;
             }
-            ALOGV("idxVideoBlock:0x%x,  outData[0x84]:0x%x,  videoDataLen:0x%x", idxVideoBlock,
-                  outData[0x84], videoDataLen);
-            ALOGV("idxAudioBlock:0x%x,  outData[idxAudioBlock]:0x%x, audioDataLen:0x%x",
-                  idxAudioBlock, outData[idxAudioBlock], audioDataLen);
-            ALOGV("idxSpeakerAllocBlock:0x%x, outData[idxSpeakerAllocBlock]:0x%x, speaker AllocDataLen:0x%x",
-                  idxSpeakerAllocBlock, outData[idxSpeakerAllocBlock], speakerAllocDataLen);
 
-            uint8_t idxPhysicalMSB = idxVSDB + 4;
-            uint8_t idxPhysicalLSB = idxVSDB + 5;
-            ALOGV("idxVSDB:0x%x  outData[idxVSDB]:0x%x,", idxVSDB, outData[idxVSDB]);
-            ALOGI("PhysicalMSB:0x%x,  PhysicalLSB:0x%x", outData[idxPhysicalMSB],
+            uint8_t idxPhysicalMSB = idx + 4;
+            uint8_t idxPhysicalLSB = idx + 5;
+            ALOGV("PhysicalMSB:0x%x,  PhysicalLSB:0x%x", outData[idxPhysicalMSB],
                   outData[idxPhysicalLSB]);
 
             *phyaddr = (unsigned short)(outData[idxPhysicalMSB] << 8 | outData[idxPhysicalLSB]);
