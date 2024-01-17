@@ -118,7 +118,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DummyClient::getComposerTarget(
             mTargetIndex = 0;
         }
         DEBUG_LOG("%s: get pre-allocated %s buffer:%d", __FUNCTION__,
-                  secure ? "secure" : "nonsecure", index);
+                  secure ? "secure" : "nonsecure", mTargetIndex);
         return std::make_tuple(HWC3::Error::None, mComposerTargets[mTargetIndex]);
     }
 

@@ -29,7 +29,7 @@ PollThread::~PollThread() {
 }
 
 HWC3::Error PollThread::start(std::string path) {
-    DEBUG_LOG("%s: check if DRM driver(%s) ready!", __FUNCTION__, path);
+    DEBUG_LOG("%s: check if DRM driver(%s) ready!", __FUNCTION__, path.c_str());
 
     mPollPath = path;
 

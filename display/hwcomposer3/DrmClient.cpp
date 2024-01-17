@@ -89,9 +89,13 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
         }
     }
 
-    constexpr const std::size_t kCachedBuffersPerDisplay = 20;
-    std::size_t numDisplays = mDisplays.size();
-    const std::size_t bufferCacheSize = kCachedBuffersPerDisplay * numDisplays;
+    uint32_t overlayTotalNum = 0;
+    for (auto& [_, display] : mDisplays) {
+        overlayTotalNum += display->getPlaneNum() - 1; // At least one primary plane for each
+    }
+    constexpr const std::size_t kCachedFrameBuffersPerDisplay = MAX_COMPOSER_TARGETS_PER_DISPLAY;
+    std::size_t bufferCacheSize = kCachedFrameBuffersPerDisplay * mDisplays.size();
+    bufferCacheSize += IsOverlayUserDisabled() ? 0 : (overlayTotalNum * 8);
     DEBUG_LOG("%s: initializing DRM buffer cache to size %zu", __FUNCTION__, bufferCacheSize);
     mBufferCache = std::make_unique<DrmBufferCache>(bufferCacheSize);
 

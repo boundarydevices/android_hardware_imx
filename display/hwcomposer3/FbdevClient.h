@@ -34,8 +34,6 @@
 #include "DrmDisplay.h"
 #include "FbdevDisplay.h"
 
-#define MAX_COMPOSER_TARGETS_PER_DISPLAY 3
-
 using android::RWLock;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
