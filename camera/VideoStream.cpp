@@ -149,9 +149,9 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
     // Drain images in mImageList, or the returned v4l2 buffers may not math the latest config.
     getSession()->getImgProcThread()->drainImages(WAIT_ITVL_US);
 
-    Mutex::Autolock _l(mV4l2Lock);
-
     mCaptureIntent = intent;
+
+    Mutex::Autolock _l(mV4l2Lock);
 
     if (mbStart) {
         ret = onDeviceStopLocked();

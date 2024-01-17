@@ -436,16 +436,16 @@ int CameraDeviceSessionHwlImpl::HandleRequest() {
     if (mDebug)
         DumpRequest();
 
-    if (map_frame_request.empty()) {
+    while (map_frame_request.empty()) {
         ALOGV("map_frame_request empty, wait");
         mCondition.waitRelative(mLock, WAIT_TIME_OUT);
+        if (map_frame_request.empty()) {
+            ALOGW("map_frame_request still empty after %lld ns", WAIT_TIME_OUT);
+            mLock.unlock();
+            return OK;
+        }
     }
 
-    if (map_frame_request.empty()) {
-        ALOGW("map_frame_request still empty after %lld ns", WAIT_TIME_OUT);
-        mLock.unlock();
-        return OK;
-    }
 
     auto it = map_frame_request.begin();
     uint32_t frame = it->first;
@@ -491,10 +491,10 @@ int CameraDeviceSessionHwlImpl::HandleRequest() {
 
     mLock.lock();
     mDeQueRequestIdx++;
-    mLock.unlock();
 
     if (mDebug)
         ALOGI("%s: mDeQueRequestIdx %lu", __func__, mDeQueRequestIdx);
+    mLock.unlock();
 
     return OK;
 }
@@ -708,15 +708,14 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
     if (mDebug)
         mImgProcThread->DumpImage();
 
-    if (mImgProcThread->mImageList.empty()) {
+    while (mImgProcThread->mImageList.empty()) {
         ALOGV("mImageList empty, wait");
         mImgProcThread->mImageListCond.waitRelative(mImgProcThread->mImageListLock, WAIT_TIME_OUT);
-    }
-
-    if (mImgProcThread->mImageList.empty()) {
-        ALOGW("%s: mImageList still empty after %lld ns", __func__, WAIT_TIME_OUT);
-        mImgProcThread->mImageListLock.unlock();
-        return 0;
+        if (mImgProcThread->mImageList.empty()) {
+            ALOGW("%s: mImageList still empty after %lld ns", __func__, WAIT_TIME_OUT);
+            mImgProcThread->mImageListLock.unlock();
+            return 0;
+        }
     }
 
     ImageFeed *imgFeed = mImgProcThread->mImageList.front();
