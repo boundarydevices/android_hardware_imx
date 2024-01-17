@@ -1069,6 +1069,7 @@ static int out_dump(const struct audio_stream *stream, int fd) {
 
     struct imx_stream_out *out = (struct imx_stream_out *)stream;
 
+    pthread_mutex_lock(&out->lock);
     dprintf(fd, "audio write to HAL: rate %d, chns %d, audio format 0x%x\n", out->sample_rate,
             popcount(out->channel_mask), out->format);
     dprintf(fd, "audio write to ALSA: rate %d, chns %d, alsa format 0x%x\n", out->config.rate,
@@ -1081,6 +1082,7 @@ static int out_dump(const struct audio_stream *stream, int fd) {
 
     if (out->pcm)
         dprintf(fd, "pcm fd %d\n", pcm_get_poll_fd(out->pcm));
+    pthread_mutex_unlock(&out->lock);
 
     return 0;
 }
