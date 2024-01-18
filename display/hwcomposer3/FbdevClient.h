@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <RWLock.h>
 #include <android-base/unique_fd.h>
 #include <cutils/native_handle.h>
 
@@ -33,8 +32,6 @@
 #include "DrmConnector.h"
 #include "DrmDisplay.h"
 #include "FbdevDisplay.h"
-
-using android::RWLock;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -83,7 +80,7 @@ private:
     // Drm device.
     ::android::base::unique_fd mFd;
 
-    mutable RWLock mDisplaysMutex;
+    mutable std::recursive_mutex mDisplaysMutex;
     std::unordered_map<uint32_t, std::unique_ptr<FbdevDisplay>> mDisplays; //<displayId, ptr>
     uint32_t mDisplayBaseId = 0;
     std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mComposerTargets;

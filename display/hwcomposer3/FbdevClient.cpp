@@ -17,15 +17,12 @@
 
 #include "FbdevClient.h"
 
-#include <RWLock.h>
 #include <gralloc_handle.h>
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
 
 #include "Common.h"
 #include "Drm.h"
-
-using android::RWLock;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -51,7 +48,7 @@ HWC3::Error FbdevClient::init(char* path, uint32_t* baseId) {
     }
 
     {
-        ::android::RWLock::AutoWLock lock(mDisplaysMutex);
+        std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
         bool success = loadFbdevDisplays(displayBaseId);
         if (success) {
             DEBUG_LOG("%s: Successfully initialized FBDEV backend", __FUNCTION__);
@@ -72,7 +69,7 @@ HWC3::Error FbdevClient::init(char* path, uint32_t* baseId) {
 HWC3::Error FbdevClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    ::android::RWLock::AutoRLock lock(mDisplaysMutex);
+    std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
 
     configs->clear();
 
@@ -144,7 +141,6 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> FbdevClient::flushToDisplay(
         return std::make_tuple(HWC3::Error::None, ::android::base::unique_fd());
     }
 
-    ::android::RWLock::AutoRLock lock(mDisplaysMutex);
     if (!buffer.clientTargetDrmBuffer || !buffer.clientTargetDrmBuffer->mBufferAddress) {
         return std::make_tuple(HWC3::Error::NoResources, ::android::base::unique_fd());
     }

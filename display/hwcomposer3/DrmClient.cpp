@@ -17,7 +17,6 @@
 
 #include "DrmClient.h"
 
-#include <RWLock.h>
 #include <cutils/properties.h>
 #include <drm_fourcc.h>
 #include <gralloc_handle.h>
@@ -27,8 +26,6 @@
 
 #include "Common.h"
 #include "Drm.h"
-
-using android::RWLock;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -79,7 +76,7 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
     }
 
     {
-        ::android::RWLock::AutoWLock lock(mDisplaysMutex);
+        std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
         bool success = loadDrmDisplays(displayBaseId);
         if (success) {
             DEBUG_LOG("%s: Successfully initialized DRM backend", __FUNCTION__);
@@ -119,7 +116,7 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
 HWC3::Error DrmClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    ::android::RWLock::AutoRLock lock(mDisplaysMutex);
+    std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
 
     configs->clear();
 
@@ -383,7 +380,7 @@ bool DrmClient::handleHotplug() {
     std::vector<HotplugToReport> hotplugs;
 
     {
-        ::android::RWLock::AutoWLock lock(mDisplaysMutex);
+        std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
 
         for (auto& pair : mDisplays) {
             DrmDisplay* display = pair.second.get();
@@ -396,7 +393,7 @@ bool DrmClient::handleHotplug() {
                 uint32_t id = display->getId();
                 if (mComposerTargets.find(id) != mComposerTargets.end()) {
                     // free device composer target buffers when disconnected
-                    mG2dComposer->freeDeviceFrameBuffer(mComposerTargets[id]);
+                    mG2dComposer->freeDeviceFrameBuffer(mComposerTargets[id].handles);
                     mComposerTargets.erase(id);
                 }
             }
@@ -445,7 +442,6 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
         return std::make_tuple(HWC3::Error::None, ::android::base::unique_fd());
     }
 
-    ::android::RWLock::AutoRLock lock(mDisplaysMutex);
     std::unique_ptr<DrmAtomicRequest> request;
     for (auto& pair : buffer.planeDrmBuffer) {
         auto [err, req] =
@@ -472,8 +468,6 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
 }
 
 std::optional<std::vector<uint8_t>> DrmClient::getEdid(uint32_t displayId) {
-    ::android::RWLock::AutoRLock lock(mDisplaysMutex);
-
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::nullopt;
@@ -634,20 +628,22 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
         return std::make_tuple(HWC3::Error::BadDisplay, nullptr);
     }
 
+    std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
+
     if (mComposerTargets.find(displayId) != mComposerTargets.end() &&
-        mTargetSecurity[displayId] == secure) {
-        int32_t index = mTargetIndex[displayId];
+        mComposerTargets[displayId].security == secure) {
+        int32_t index = mComposerTargets[displayId].index;
         if (++index >= MAX_COMPOSER_TARGETS_PER_DISPLAY) {
             index = 0;
         }
-        mTargetIndex[displayId] = index;
+        mComposerTargets[displayId].index = index;
         DEBUG_LOG("%s: get pre-allocated %s buffer:%d", __FUNCTION__,
                   secure ? "secure" : "nonsecure", index);
-        return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][index]);
+        return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId].handles[index]);
     }
     // security change, free pervious buffers
     if (mComposerTargets.find(displayId) != mComposerTargets.end()) {
-        composer->freeDeviceFrameBuffer(mComposerTargets[displayId]);
+        composer->freeDeviceFrameBuffer(mComposerTargets[displayId].handles);
         mComposerTargets.erase(displayId);
     }
 
@@ -661,21 +657,20 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
     }
 
-    std::vector<gralloc_handle_t> buffers;
+    G2dComposerTargets targets;
     for (int i = 0; i < MAX_COMPOSER_TARGETS_PER_DISPLAY; i++) {
-        buffers.push_back(bufferHandles[i]);
+        targets.handles.push_back(bufferHandles[i]);
     }
-
-    mComposerTargets.emplace(displayId, buffers);
-    mTargetIndex.emplace(displayId, 0);
-    mTargetSecurity[displayId] = secure;
+    targets.index = 0;
+    targets.security = secure;
+    mComposerTargets.emplace(displayId, targets);
 
     set_g2d_secure_pipe(secure);
     composer->freeSolidColorBuffer();
     // hotplug callback function need device composer to free buffers
     mG2dComposer = std::move(composer);
 
-    return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][0]);
+    return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId].handles[0]);
 }
 
 HWC3::Error DrmClient::setSecureMode(int displayId, uint32_t planeId, bool secure) {
@@ -794,11 +789,11 @@ HWC3::Error DrmClient::setHdrMetadata(int displayId, hdr_output_metadata* metada
         return HWC3::Error::BadDisplay;
     }
 
-    if (mPreviousMetadata.find(displayId) != mPreviousMetadata.end()) {
+    if (mHdrMetadatas.find(displayId) != mHdrMetadatas.end()) {
         if (metadata == NULL) {
-            mPreviousMetadata.erase(displayId);
-            drmModeDestroyPropertyBlob(mFd.get(), mPreviousMetadataBlobId[displayId]);
-        } else if (!memcmp(&mPreviousMetadata[displayId], metadata, sizeof(hdr_output_metadata))) {
+            mHdrMetadatas.erase(displayId);
+            drmModeDestroyPropertyBlob(mFd.get(), mHdrMetadatas[displayId].blobId);
+        } else if (!memcmp(&mHdrMetadatas[displayId].prev, metadata, sizeof(hdr_output_metadata))) {
             DEBUG_LOG("%s: HDR metadata already set, don't need to set again", __FUNCTION__);
             return HWC3::Error::None;
         }
@@ -815,8 +810,8 @@ HWC3::Error DrmClient::setHdrMetadata(int displayId, hdr_output_metadata* metada
             ALOGE("%s: Failed to create Metadata blob: %s.", __FUNCTION__, strerror(errno));
             return HWC3::Error::NoResources;
         }
-        mPreviousMetadata[displayId] = *metadata;
-        mPreviousMetadataBlobId[displayId] = blobId;
+        mHdrMetadatas[displayId].prev = *metadata;
+        mHdrMetadatas[displayId].blobId = blobId;
     }
 
     mDisplays[displayId]->setHdrMetadataBlobId(blobId);

@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <RWLock.h>
 #include <android-base/unique_fd.h>
 #include <cutils/native_handle.h>
 #include <xf86drm.h>
@@ -41,8 +40,6 @@
 #include "DrmPlane.h"
 #include "DrmProperty.h"
 #include "LruCache.h"
-
-using android::RWLock;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -130,17 +127,22 @@ private:
     // Drm device.
     ::android::base::unique_fd mFd;
 
-    mutable RWLock mDisplaysMutex;
+    mutable std::recursive_mutex mDisplaysMutex;
     std::unordered_map<uint32_t, std::unique_ptr<DrmDisplay>> mDisplays; //<displayId, ptr>
     uint32_t mDisplayBaseId = 0;
-    std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mComposerTargets;
-    std::unordered_map<uint32_t, int32_t> mTargetIndex; //<displayId, index>
-    std::unordered_map<uint32_t, bool> mTargetSecurity; //<displayId, secure>
-    std::unordered_map<uint32_t, int> mSecureMode;
-
+    struct G2dComposerTargets {
+        std::vector<gralloc_handle_t> handles;
+        int32_t index;
+        bool security;
+    };
+    std::unordered_map<uint32_t, G2dComposerTargets> mComposerTargets;
+    struct HdrMetadata {
+        hdr_output_metadata prev;
+        uint32_t blobId;
+    };
+    std::unordered_map<uint32_t, HdrMetadata> mHdrMetadatas;
+    std::unordered_map<uint32_t, int> mSecureMode; // HDCP state
     std::unordered_map<uint32_t, std::vector<DisplayCapability>> mDisplayCapabilitys;
-    std::unordered_map<uint32_t, hdr_output_metadata> mPreviousMetadata;
-    std::unordered_map<uint32_t, uint32_t> mPreviousMetadataBlobId;
 
     Backlight mBacklight; // TODO: only primary display support backlight adjusting now
 

@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <RWLock.h>
 #include <android-base/unique_fd.h>
 #include <cutils/native_handle.h>
 
