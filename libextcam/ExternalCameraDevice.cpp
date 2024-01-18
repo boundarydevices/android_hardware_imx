@@ -974,8 +974,9 @@ std::vector<SupportedV4L2Format> ExternalCameraDevice::getCandidateSupportedForm
                     continue;
                 }
 
-                // Discard all formats which is not aligned in height
-                if (frameSize.discrete.height % 4 != 0) {
+                // Discard all formats which is not 16 bytes aligned in width
+                // and not 4 bytes aligned in height
+                if (frameSize.discrete.width % 16 != 0 || frameSize.discrete.height % 4 != 0) {
                     continue;
                 }
 
