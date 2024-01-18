@@ -31,7 +31,7 @@ PollThread::~PollThread() {
 HWC3::Error PollThread::start(std::string path) {
     DEBUG_LOG("%s: check if DRM driver(%s) ready!", __FUNCTION__, path.c_str());
 
-    mPollPath = path;
+    mPollPath = std::move(path);
 
     mINotifyFd = inotify_init();
     if (mINotifyFd < 0) {
@@ -134,9 +134,6 @@ void PollThread::threadLoop() {
                             reinterpret_cast<struct inotify_event*>(itemBuf);
                     if (mPollCallbacks &&
                         (*mPollCallbacks)(inotifyItem->name) == HWC3::Error::None) {
-                        inotify_rm_watch(mINotifyFd, mINotifyWd);
-                        close(mEpollFd);
-                        close(mINotifyFd);
                         mShuttingDown.store(true);
                         break;
                     }
@@ -145,6 +142,10 @@ void PollThread::threadLoop() {
             }
         }
     }
+
+    inotify_rm_watch(mINotifyFd, mINotifyWd);
+    close(mEpollFd);
+    close(mINotifyFd);
 
     ALOGI("%s: Poll thread for path:%s finished", __FUNCTION__, mPollPath.c_str());
 }

@@ -612,7 +612,8 @@ ndk::ScopedAStatus ComposerClient::setHdrConversionStrategy(
     using HdrConversionStrategyTag =
             aidl::android::hardware::graphics::common::HdrConversionStrategy::Tag;
     if (conversionStrategy.getTag() == HdrConversionStrategyTag::autoAllowedHdrTypes) {
-        auto autoHdrTypes = conversionStrategy.get<HdrConversionStrategyTag::autoAllowedHdrTypes>();
+        auto& autoHdrTypes =
+                conversionStrategy.get<HdrConversionStrategyTag::autoAllowedHdrTypes>();
         if (autoHdrTypes.size() != 0) {
             return ToBinderStatus(HWC3::Error::Unsupported);
         }
@@ -1389,7 +1390,7 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
             createDisplayLocked(displayId, configId, configs);
         }
 
-        auto cfg = (*(halConfigs->configs))[configId];
+        auto& cfg = (*(halConfigs->configs))[configId];
         ALOGI("Connecting display:%ld w:%d, h:%d, dpiX:%d, dpiY:%d, fps:%d", displayId, cfg.width,
               cfg.height, cfg.dpiX, cfg.dpiY, cfg.refreshRateHz);
         mCallbacks->onHotplug(displayId, /*connected=*/true);
