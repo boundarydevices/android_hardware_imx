@@ -605,10 +605,21 @@ HWC3::Error DrmClient::setActiveConfigId(int displayId, int32_t configId) {
         return HWC3::Error::BadDisplay;
     }
 
-    if (mDisplays[displayId]->setActiveConfigId(configId))
-        return HWC3::Error::None;
-    else
+    uint32_t width, height, pre_width, pre_height, format;
+    mDisplays[displayId]->getFramebufferInfo(&pre_width, &pre_height, &format);
+
+    if (!mDisplays[displayId]->setActiveConfigId(configId))
         return HWC3::Error::BadParameter;
+
+    mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
+    if (((pre_width != width) || (pre_height != height)) &&
+        mComposerTargets.find(displayId) != mComposerTargets.end()) {
+        // free device composer target buffers when resolution changed
+        mG2dComposer->freeDeviceFrameBuffer(mComposerTargets[displayId].handles);
+        mComposerTargets.erase(displayId);
+    }
+
+    return HWC3::Error::None;
 }
 
 HWC3::Error DrmClient::resetDisplayConfig(int displayId) {
