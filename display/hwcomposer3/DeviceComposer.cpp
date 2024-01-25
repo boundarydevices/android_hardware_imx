@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 NXP.
+ * Copyright 2017-2024 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -161,7 +161,7 @@ bool DeviceComposer::isValid() {
 }
 
 int DeviceComposer::prepareDeviceFrameBuffer(uint32_t width, uint32_t height, uint32_t format,
-                                             std::vector<gralloc_handle_t>& buffers, int count,
+                                             std::vector<buffer_handle_t>& buffers, int count,
                                              bool secure) {
     uint64_t usage;
     uint32_t bufferStride;
@@ -183,13 +183,13 @@ int DeviceComposer::prepareDeviceFrameBuffer(uint32_t width, uint32_t height, ui
             return status;
         }
 
-        buffers.push_back((gralloc_handle_t)bufferHandle);
+        buffers.push_back(bufferHandle);
     }
 
     return 0;
 }
 
-int DeviceComposer::freeDeviceFrameBuffer(std::vector<gralloc_handle_t>& buffers) {
+int DeviceComposer::freeDeviceFrameBuffer(std::vector<buffer_handle_t>& buffers) {
     for (auto buf : buffers) {
         ::android::GraphicBufferAllocator::get().free(buf);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 #include "DummyClient.h"
 
-#include <gralloc_handle.h>
-
+#include "BufferInfo.h"
 #include "Common.h"
 #include "DeviceComposer.h"
 #include "Drm.h"
@@ -88,14 +87,14 @@ HWC3::Error DummyClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs
 std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DummyClient::create(
         const native_handle_t* handle, common::Rect displayFrame, common::Rect sourceCrop,
         BufferType type) {
-    gralloc_handle_t memHandle = (gralloc_handle_t)handle;
-    if (memHandle == nullptr) {
-        ALOGE("%s: invalid gralloc_handle", __FUNCTION__);
-        return std::make_tuple(HWC3::Error::NoResources, nullptr);
+    HandleInfo info;
+    if (handle == nullptr || (getInfoFromHandle(handle, &info) != 0)) {
+        ALOGE("%s: invalid native handle", __FUNCTION__);
+        return std::make_tuple(HWC3::Error::BadParameter, nullptr);
     }
 
     auto buffer = std::shared_ptr<DrmBuffer>(new DrmBuffer(*this));
-    buffer->mBufferAddress = memHandle->phys;
+    buffer->mBufferAddress = info.phys;
     DEBUG_LOG("%s: get framebuffer address 0x%" PRIx64, __FUNCTION__, *buffer->mBufferAddress);
 
     return std::make_tuple(HWC3::Error::None, std::move(buffer));

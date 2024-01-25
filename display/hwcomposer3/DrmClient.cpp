@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@
 
 #include <cutils/properties.h>
 #include <drm_fourcc.h>
-#include <gralloc_handle.h>
 #include <hwsecure_client.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
+#include "BufferInfo.h"
 #include "Common.h"
 #include "Drm.h"
 
@@ -266,14 +266,14 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
                                                                       common::Rect displayFrame,
                                                                       common::Rect sourceCrop,
                                                                       BufferType type) {
-    gralloc_handle_t memHandle = (gralloc_handle_t)handle;
-    if (memHandle == nullptr) {
-        ALOGE("%s: invalid gralloc_handle", __FUNCTION__);
-        return std::make_tuple(HWC3::Error::NoResources, nullptr);
+    HandleInfo info;
+    if (handle == nullptr || (getInfoFromHandle(handle, &info) != 0)) {
+        ALOGE("%s: invalid native handle", __FUNCTION__);
+        return std::make_tuple(HWC3::Error::BadParameter, nullptr);
     }
 
     DrmPrimeBufferHandle primeHandle = 0;
-    int ret = drmPrimeFDToHandle(mFd.get(), memHandle->fd, &primeHandle);
+    int ret = drmPrimeFDToHandle(mFd.get(), info.fd, &primeHandle);
     if (ret) {
         ALOGE("%s: drmPrimeFDToHandle failed: %s (errno %d)", __FUNCTION__, strerror(errno), errno);
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
@@ -296,30 +296,27 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
 
     uint64_t modifier;
     auto buffer = std::shared_ptr<DrmBuffer>(new DrmBuffer(*this));
-    buffer->mWidth = memHandle->width;
-    buffer->mHeight = memHandle->height;
+    buffer->mWidth = info.width;
+    buffer->mHeight = info.height;
     buffer->mDisplayFrame = displayFrame;
     buffer->mSourceCrop = sourceCrop;
-    buffer->mDrmFormat = ConvertNxpFormatToDrmFormat(memHandle->fslFormat, &modifier);
-    buffer->mPlaneFds[0] = memHandle->fd;
-    for (uint32_t i = 0; i < memHandle->num_planes; i++) {
+    buffer->mDrmFormat = ConvertNxpFormatToDrmFormat(info.format, &modifier);
+    buffer->mPlaneFds[0] = info.fd;
+    for (uint32_t i = 0; i < info.num_planes; i++) {
         buffer->mPlaneHandles[i] = primeHandle;
-        buffer->mPlanePitches[i] = memHandle->strides[i];
-        buffer->mPlaneOffsets[i] = memHandle->offsets[i];
-        if (memHandle->format_modifier > 0)
-            buffer->mPlaneModifiers[i] =
-                    memHandle->format_modifier; // modifier of framebuffer is setted when allocate.
+        buffer->mPlanePitches[i] = info.strides[i];
+        buffer->mPlaneOffsets[i] = info.offsets[i];
+        if (info.modifier > 0)
+            // modifier of framebuffer is setted when allocate.
+            buffer->mPlaneModifiers[i] = info.modifier;
         else if (modifier > 0)
             buffer->mPlaneModifiers[i] = modifier;
     }
 
-    // buffer->mMeta =
-    // MemoryManager::getInstance()->getMetaData(const_cast<gralloc_handle_t>(memHandle));
-
     uint32_t framebuffer = 0;
     uint32_t format = buffer->mDrmFormat;
     uint32_t width = buffer->mWidth;
-    if (memHandle->format_modifier > 0) { // TODO: some workaround for framebuffer
+    if (info.modifier > 0) { // TODO: some workaround for framebuffer
         /* workaround GPU SUPER_TILED R/B swap issue, for no-resolve and tiled output
            GPU not distinguish A8B8G8R8 and A8R8G8B8, all regard as A8R8G8B8, need do
            R/B swap here for no-resolve and tiled buffer */
@@ -342,8 +339,8 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
     if (ret) {
         ALOGE("%s: drmModeAddFB2 failed(buffer:size=%d, %d x %d, stride=%d, format=0x%x, modifier=0x%" PRIx64
               "): %s (errno %d)",
-              __FUNCTION__, memHandle->size, memHandle->width, memHandle->height, memHandle->stride,
-              memHandle->fslFormat, buffer->mPlaneModifiers[0], strerror(errno), errno);
+              __FUNCTION__, info.size, info.width, info.height, info.stride, info.format,
+              buffer->mPlaneModifiers[0], strerror(errno), errno);
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
     }
     DEBUG_LOG("%s: created framebuffer:%" PRIu32, __FUNCTION__, framebuffer);
@@ -540,8 +537,13 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
         return HWC3::Error::Unsupported;
 
     // format limitation
-    gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
-    if (!buff || ((buff->fslFormat >= FORMAT_RGBA8888) && (buff->fslFormat <= FORMAT_BGRA8888)))
+    HandleInfo info;
+    auto buff = layer->getBuffer().getBuffer();
+    if (!buff || (getInfoFromHandle(buff, &info) != 0)) {
+        return HWC3::Error::BadParameter;
+    }
+
+    if ((info.format >= FORMAT_RGBA8888) && (info.format <= FORMAT_BGRA8888))
         return HWC3::Error::Unsupported;
 
     // scaling limitation
@@ -558,7 +560,7 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
     }
 
     uint64_t modifier;
-    uint32_t format = ConvertNxpFormatToDrmFormat(buff->fslFormat, &modifier);
+    uint32_t format = ConvertNxpFormatToDrmFormat(info.format, &modifier);
     if (srcW < 64 &&
         ((format == DRM_FORMAT_NV12) || (format == DRM_FORMAT_NV21) ||
          (format == DRM_FORMAT_P010))) {
@@ -591,7 +593,7 @@ HWC3::Error DrmClient::prepareDrmPlanesForValidate(int displayId, uint32_t* uiPl
 }
 
 std::tuple<HWC3::Error, uint32_t> DrmClient::getPlaneForLayerBuffer(int displayId,
-                                                                    const native_handle_t* handle) {
+                                                                    buffer_handle_t handle) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, 0);
@@ -601,14 +603,18 @@ std::tuple<HWC3::Error, uint32_t> DrmClient::getPlaneForLayerBuffer(int displayI
         return std::make_tuple(HWC3::Error::BadParameter, 0);
     }
 
+#ifdef DEBUG_NXP_HWC
+    char* name = nullptr;
+    HandleInfo info;
+    if (handle && (getInfoFromHandle(handle, &info) == 0))
+        name = info.name;
+#endif
     uint32_t planeId = mDisplays[displayId]->findDrmPlane(handle);
     if (planeId > 0) {
         DEBUG_LOG("%s: display:%" PRIu32 " Found plane=%d for buffer:%s", __FUNCTION__, displayId,
-                  planeId, gralloc_handle_t(handle)->name);
+                  planeId, name);
         return std::make_tuple(HWC3::Error::None, planeId);
     } else {
-        DEBUG_LOG("%s: display:%" PRIu32 " NOT find plane for buffer:%s", __FUNCTION__, displayId,
-                  gralloc_handle_t(handle)->name);
         return std::make_tuple(HWC3::Error::NoResources, 0);
     }
 }
@@ -685,7 +691,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
     // they will be freed after next framebuffer commited
     if (mComposerTargets.find(displayId) != mComposerTargets.end()) {
         auto& origin = mComposerTargets[displayId].handles;
-        std::vector<gralloc_handle_t> expired;
+        std::vector<buffer_handle_t> expired;
         expired.insert(expired.end(), origin.begin(), origin.end());
         mExpiredTargets.emplace(displayId, std::move(expired));
         mComposerTargets.erase(displayId);

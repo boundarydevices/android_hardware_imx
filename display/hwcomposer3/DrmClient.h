@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,13 +135,13 @@ private:
     std::unordered_map<uint32_t, std::unique_ptr<DrmDisplay>> mDisplays; //<displayId, ptr>
     uint32_t mDisplayBaseId = 0;
     struct G2dComposerTargets {
-        std::vector<gralloc_handle_t> handles;
+        std::vector<buffer_handle_t> handles;
         int32_t index;
         bool security;
         bool valid = true;
     };
     std::unordered_map<uint32_t, G2dComposerTargets> mComposerTargets;
-    std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mExpiredTargets;
+    std::unordered_map<uint32_t, std::vector<buffer_handle_t>> mExpiredTargets;
     struct HdrMetadata {
         hdr_output_metadata prev;
         uint32_t blobId;

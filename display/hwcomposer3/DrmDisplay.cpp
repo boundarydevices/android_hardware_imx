@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 #include "DrmDisplay.h"
 
 #include <drm_fourcc.h>
-#include <gralloc_handle.h>
 #include <stdlib.h>
 #include <xf86drm.h>
 
+#include "BufferInfo.h"
 #include "Common.h"
 #include "Drm.h"
 #include "DrmAtomicRequest.h"
@@ -419,30 +419,28 @@ uint32_t DrmDisplay::findDrmPlane(const native_handle_t* handle) {
         return 0;
     }
 
-    gralloc_handle_t memHandle = (gralloc_handle_t)handle;
-    if (memHandle == nullptr) {
-        ALOGE("%s: display:%" PRIu32 " invalid gralloc_handle", __FUNCTION__, mId);
+    HandleInfo info;
+    if (!handle || (getInfoFromHandle(handle, &info) != 0)) {
+        ALOGE("%s: display:%" PRIu32 " invalid native_handle", __FUNCTION__, mId);
         return 0;
     }
 
     uint64_t modifier;
-    uint32_t format = ConvertNxpFormatToDrmFormat(memHandle->fslFormat, &modifier);
+    uint32_t format = ConvertNxpFormatToDrmFormat(info.format, &modifier);
     if (format == 0) {
-        ALOGE("%s: display:%" PRIu32 " unknown format:0x%x", __FUNCTION__, mId,
-              memHandle->fslFormat);
+        ALOGE("%s: display:%" PRIu32 " unknown format:0x%x", __FUNCTION__, mId, info.format);
         return 0;
     }
 
-    if (memHandle->format_modifier > 0)
-        modifier = memHandle->format_modifier;
+    if (info.modifier > 0)
+        modifier = info.modifier;
 
 #ifdef DEBUG_NXP_HWC
     {
         char fmt[6];
         char* name = drmGetFormatName(format, fmt); // defined in HWC, no malloc memory
         char* modifier_name = drmGetFormatModifierName(modifier);
-        DEBUG_LOG("%s: Checking buffer:%s :%s %s", __FUNCTION__, memHandle->name, name,
-                  modifier_name);
+        DEBUG_LOG("%s: Checking buffer:%s :%s %s", __FUNCTION__, info.name, name, modifier_name);
         free(modifier_name);
     }
 #endif

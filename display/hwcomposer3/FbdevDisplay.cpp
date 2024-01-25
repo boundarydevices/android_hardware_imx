@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@
 #include "FbdevDisplay.h"
 
 #include <fcntl.h>
-#include <gralloc_handle.h>
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
 #include <linux/videodev2.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 
+#include "BufferInfo.h"
 #include "Common.h"
 #include "Drm.h" // some pixel format support
 

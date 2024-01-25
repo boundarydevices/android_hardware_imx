@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 
 #include "FbdevClient.h"
 
-#include <gralloc_handle.h>
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
 
+#include "BufferInfo.h"
 #include "Common.h"
 #include "Drm.h"
 
@@ -110,14 +110,14 @@ bool FbdevClient::loadFbdevDisplays(uint32_t displayBaseId) {
 std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> FbdevClient::create(
         const native_handle_t* handle, common::Rect displayFrame, common::Rect sourceCrop,
         BufferType type) {
-    gralloc_handle_t memHandle = (gralloc_handle_t)handle;
-    if (memHandle == nullptr) {
-        ALOGE("%s: invalid gralloc_handle", __FUNCTION__);
-        return std::make_tuple(HWC3::Error::NoResources, nullptr);
+    HandleInfo info;
+    if (handle == nullptr || (getInfoFromHandle(handle, &info) != 0)) {
+        ALOGE("%s: invalid native handle", __FUNCTION__);
+        return std::make_tuple(HWC3::Error::BadParameter, nullptr);
     }
 
     auto buffer = std::shared_ptr<DrmBuffer>(new DrmBuffer(*this));
-    buffer->mBufferAddress = memHandle->phys;
+    buffer->mBufferAddress = info.phys;
     DEBUG_LOG("%s: get framebuffer address 0x%" PRIx64, __FUNCTION__, *buffer->mBufferAddress);
 
     return std::make_tuple(HWC3::Error::None, std::move(buffer));
@@ -197,7 +197,7 @@ std::tuple<HWC3::Error, buffer_handle_t> FbdevClient::getComposerTarget(
         return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][index]);
     }
 
-    std::vector<gralloc_handle_t> buffers(mMaxComposerTargetsPerDisplay);
+    std::vector<buffer_handle_t> buffers(mMaxComposerTargetsPerDisplay);
     uint32_t width, height, format;
     mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
     auto ret = composer->prepareDeviceFrameBuffer(width, height, format, buffers,

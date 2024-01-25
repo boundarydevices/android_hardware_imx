@@ -51,8 +51,6 @@ cc_binary {
         "libui",
         "libvndksupport",
         "libdrm_android",
-        "libdisplayutils",
-        "libfsldisplay",
     ],
     static_libs: [
         "libaidlcommonsupport",
@@ -64,6 +62,7 @@ cc_binary {
         "libtrusty",
     ],
     srcs: [
+        "BufferInfo.cpp",
         "ClientFrameComposer.cpp",
         "Common.cpp",
         "Composer.cpp",

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,12 @@
 #include "Drm.h"
 
 #include <drm_fourcc.h>
-#include <gralloc_handle.h>
 #include <log/log.h>
 #include <system/graphics.h>
 
 #include <string>
+
+#include "BufferInfo.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 

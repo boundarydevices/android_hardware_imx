@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2023 NXP.
+ * Copyright 2017-2024 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,8 +44,8 @@ public:
     bool checkMustDeviceComposition(Layer* layer);
     bool checkDeviceComposition(Layer* layer);
     int prepareDeviceFrameBuffer(uint32_t width, uint32_t height, uint32_t format,
-                                 std::vector<gralloc_handle_t>& buffers, int count, bool secure);
-    int freeDeviceFrameBuffer(std::vector<gralloc_handle_t>& buffers);
+                                 std::vector<buffer_handle_t>& buffers, int count, bool secure);
+    int freeDeviceFrameBuffer(std::vector<buffer_handle_t>& buffers);
     int freeSolidColorBuffer();
 
     bool composeLayers(std::vector<Layer*> layers, buffer_handle_t target);

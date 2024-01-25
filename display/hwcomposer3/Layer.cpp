@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,12 @@
 #include "Layer.h"
 
 #include <android-base/unique_fd.h>
-#include <gralloc_handle.h>
 #include <sync/sync.h>
 
 #include <atomic>
 #include <cmath>
+
+#include "BufferInfo.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
@@ -133,15 +134,17 @@ HWC3::Error Layer::setCompositionType(Composition compositionType) {
 }
 
 Composition Layer::getCompositionType() const {
+#ifdef DEBUG_NXP_HWC
     const auto compositionTypeString = toString(mCompositionType);
     const char* name = "";
-    gralloc_handle_t memHandle = (gralloc_handle_t)(mBuffer.getBuffer());
-    if (memHandle != nullptr)
-        name = memHandle->name;
+    auto handle = mBuffer.getBuffer();
+    HandleInfo info;
+    if (handle && (getInfoFromHandle(handle, &info) == 0))
+        name = info.name;
 
     DEBUG_LOG("%s: layer:%" PRId64 " composition type:%s, zorder=%d, buffer-name:%s", __FUNCTION__,
               mId, compositionTypeString.c_str(), mZOrder, name);
-
+#endif
     return mCompositionType;
 }
 

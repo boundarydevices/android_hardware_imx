@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ enum class DrmHotplugChange {
 struct DisplayBuffer {
     std::shared_ptr<DrmBuffer> clientTargetDrmBuffer;
     std::unordered_map<uint32_t, std::shared_ptr<DrmBuffer>> planeDrmBuffer;
-    std::unordered_map<gralloc_handle_t, std::shared_ptr<DrmBuffer>> dummyDrmBuffer;
+    std::unordered_map<buffer_handle_t, std::shared_ptr<DrmBuffer>> dummyDrmBuffer;
 };
 
 class DrmDisplay {

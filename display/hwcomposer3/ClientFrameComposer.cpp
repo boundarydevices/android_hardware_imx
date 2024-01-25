@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Android Open Source Project
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <cutils/properties.h>
 #include <drm_fourcc.h>
 
+#include "BufferInfo.h"
 #include "Common.h"
 #include "Display.h"
 #include "Drm.h"
@@ -369,7 +370,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
                 (composeType != Composition::DEVICE && composeType != Composition::CLIENT)) {
                 mergeRect(uiMaskedRect, rectFrame);
             } else {
-                auto handle = (gralloc_handle_t)layer->getBuffer().getBuffer();
+                auto handle = layer->getBuffer().getBuffer();
                 auto [error, planeId] = client->getPlaneForLayerBuffer(displayId, handle);
                 if (error == HWC3::Error::None) {
                     layersForOverlay.emplace(planeId, layer);
@@ -470,8 +471,9 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         }
 
         if (mHdcpEnabled) {
-            gralloc_handle_t buff = (gralloc_handle_t)layer->getBuffer().getBuffer();
-            if (buff && (buff->usage & USAGE_PROTECTED)) {
+            HandleInfo info;
+            auto buff = layer->getBuffer().getBuffer();
+            if (buff && (getInfoFromHandle(buff, &info) == 0) && (info.usage & USAGE_PROTECTED)) {
                 client->setSecureMode(displayId, planeId, true);
             } else {
                 client->setSecureMode(displayId, planeId, false);
@@ -482,9 +484,10 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     if (layersForComposition.size() > 0) {
         bool secure = false;
         for (auto& layer : layersForComposition) {
-            auto buff = (gralloc_handle_t)layer->waitAndGetBuffer();
+            HandleInfo info;
+            auto buff = layer->waitAndGetBuffer();
             // wait for all layer buffer ready, and check if there secure layer
-            if (buff && (buff->usage & USAGE_PROTECTED))
+            if (buff && (getInfoFromHandle(buff, &info) == 0) && (info.usage & USAGE_PROTECTED))
                 secure = true;
         }
 
@@ -521,7 +524,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     } else if (luckyLayer != nullptr) {
         common::Rect rectFrame = luckyLayer->getDisplayFrame();
         common::Rect rectSource = luckyLayer->getSourceCropInt();
-        auto buffer = (gralloc_handle_t)luckyLayer->waitAndGetBuffer();
+        auto buffer = luckyLayer->waitAndGetBuffer();
         auto [createError, drmBuffer] =
                 client->create(buffer, rectFrame, rectSource, DRM_BUFFER_NONE);
         if (createError != HWC3::Error::None) {
@@ -549,7 +552,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             auto layer = layersForPrivate.front();
             common::Rect rectFrame = layer->getDisplayFrame();
             common::Rect rectSource = layer->getSourceCropInt();
-            std::vector<gralloc_handle_t> buffers;
+            std::vector<buffer_handle_t> buffers;
             mG2dComposer->prepareDeviceFrameBuffer(rectFrame.right - rectFrame.left,
                                                    rectFrame.bottom - rectFrame.top,
                                                    static_cast<int>(common::PixelFormat::RGBA_8888),
@@ -565,7 +568,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             displayBuffer.dummyDrmBuffer.emplace(buffers[0], std::move(drmBuffer));
         }
     } else if (displayBuffer.dummyDrmBuffer.size() > 0) {
-        std::vector<gralloc_handle_t> handles;
+        std::vector<buffer_handle_t> handles;
         handles.push_back(displayBuffer.dummyDrmBuffer.begin()->first);
         mG2dComposer->freeDeviceFrameBuffer(handles);
         displayBuffer.dummyDrmBuffer.clear();
