@@ -122,10 +122,10 @@ HWC3::Error ClientFrameComposer::init() {
     ret = checkClientFromSystem<DrmClient>("/dev/dri", "card", mDeviceClients, &baseId, 0);
     if (ret != HWC3::Error::None) {
         ALOGE("%s: Cannot find any DRM client", __FUNCTION__);
-    }
-    ret = checkClientFromSystem<FbdevClient>("/dev/graphics", "fb", mDeviceClients, &baseId, 1);
-    if (ret != HWC3::Error::None) {
-        ALOGE("%s: Cannot find any FBDEV client", __FUNCTION__);
+        ret = checkClientFromSystem<FbdevClient>("/dev/graphics", "fb", mDeviceClients, &baseId, 1);
+        if (ret != HWC3::Error::None) {
+            ALOGE("%s: Cannot find any FBDEV client", __FUNCTION__);
+        }
     }
 
     if (mDeviceClients.size() < 1) {
