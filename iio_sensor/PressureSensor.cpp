@@ -229,7 +229,7 @@ void PressureSensor::run() {
         } else {
             if (GetProperty(kTriggerType, "") == "sysfs_trigger")
                 trigger_data(mIioData.iio_dev_num);
-            err = poll(&mPollFdIio, 1, 50);
+            err = poll(&mPollFdIio, 1, -1);
             if (err <= 0) {
                 ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
                 continue;

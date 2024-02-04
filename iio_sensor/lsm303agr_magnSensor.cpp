@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 NXP.
+ * Copyright 2024 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include "AnglvelSensor.h"
+#include "lsm303agr_magnSensor.h"
 
 namespace nxp_sensors_subhal {
 
-AnglvelSensor::AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
+lsm303agr_magnSensor::lsm303agr_magnSensor(int32_t sensorHandle, ISensorsEventCallback* callback,
                              struct iio_device_data& iio_data,
                              const std::optional<std::vector<Configuration>>& config)
       : HWSensorBase(sensorHandle, callback, iio_data, config) {
@@ -42,10 +42,10 @@ AnglvelSensor::AnglvelSensor(int32_t sensorHandle, ISensorsEventCallback* callba
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
     mSysfspath = iio_data.sysfspath;
     mIioData = iio_data;
-    mRunThread = std::thread(std::bind(&AnglvelSensor::run, this));
+    mRunThread = std::thread(std::bind(&lsm303agr_magnSensor::run, this));
 }
 
-AnglvelSensor::~AnglvelSensor() {
+lsm303agr_magnSensor::~lsm303agr_magnSensor() {
     // Ensure that lock is unlocked before calling mRunThread.join() or a
     // deadlock will occur.
     {
@@ -57,7 +57,7 @@ AnglvelSensor::~AnglvelSensor() {
     mRunThread.join();
 }
 
-void AnglvelSensor::batch(int32_t samplingPeriodNs) {
+void lsm303agr_magnSensor::batch(int32_t samplingPeriodNs) {
     samplingPeriodNs =
             std::clamp(samplingPeriodNs, mSensorInfo.minDelay * 1000, mSensorInfo.maxDelay * 1000);
     if (mSamplingPeriodNs != samplingPeriodNs) {
@@ -74,11 +74,11 @@ void AnglvelSensor::batch(int32_t samplingPeriodNs) {
     }
 }
 
-bool AnglvelSensor::supportsDataInjection() const {
+bool lsm303agr_magnSensor::supportsDataInjection() const {
     return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::DATA_INJECTION);
 }
 
-Result AnglvelSensor::injectEvent(const Event& event) {
+Result lsm303agr_magnSensor::injectEvent(const Event& event) {
     Result result = Result::OK;
     if (event.sensorType == SensorType::ADDITIONAL_INFO) {
         // When in OperationMode::NORMAL, SensorType::ADDITIONAL_INFO is used to push operation
@@ -93,7 +93,7 @@ Result AnglvelSensor::injectEvent(const Event& event) {
     return result;
 }
 
-void AnglvelSensor::setOperationMode(OperationMode mode) {
+void lsm303agr_magnSensor::setOperationMode(OperationMode mode) {
     std::unique_lock<std::mutex> lock(mRunMutex);
     if (mMode != mode) {
         mMode = mode;
@@ -101,11 +101,11 @@ void AnglvelSensor::setOperationMode(OperationMode mode) {
     }
 }
 
-bool AnglvelSensor::isWakeUpSensor() {
+bool lsm303agr_magnSensor::isWakeUpSensor() {
     return mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::WAKE_UP);
 }
 
-Result AnglvelSensor::flush() {
+Result lsm303agr_magnSensor::flush() {
     // Only generate a flush complete event if the sensor is enabled and if the sensor is not a
     // one-shot sensor.
     if (!mIsEnabled || (mSensorInfo.flags & static_cast<uint32_t>(SensorFlagBits::ONE_SHOT_MODE))) {
@@ -129,7 +129,7 @@ static float getChannelData(const std::array<float, N>& channelData, int64_t map
     return negate ? -channelData[map] : channelData[map];
 }
 
-void AnglvelSensor::processScanData(char* data, Event* evt) {
+void lsm303agr_magnSensor::processScanData(char* data, Event* evt) {
     unsigned int i, j, k;
     evt->sensorHandle = mSensorInfo.sensorHandle;
     evt->sensorType = mSensorInfo.type;
@@ -191,23 +191,23 @@ void AnglvelSensor::processScanData(char* data, Event* evt) {
         }
     }
 
-    // in_anglvel_scale value is 62.5, but to meet xTS required range, multiply data with 1/625.
+    // lsm303agr_magnSensor value is 62.5, but to meet xTS required range, multiply data with 1/625.
     evt->u.vec3.x = getChannelData(channelData, mXMap, true) * 0.00125;
     evt->u.vec3.y = getChannelData(channelData, mYMap, true) * 0.00125;
     evt->u.vec3.z = getChannelData(channelData, mZMap, true) * 0.00125;
     evt->timestamp = get_timestamp();
 }
 
-void AnglvelSensor::setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable) {
+void lsm303agr_magnSensor::setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable) {
     add_trigger(device_dir, dev_num, enable);
 }
 
-void AnglvelSensor::setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num,
+void lsm303agr_magnSensor::setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num,
                                         bool enable) {
     add_hrtimer_trigger(device_dir, dev_num, enable);
 }
 
-void AnglvelSensor::activate(bool enable) {
+void lsm303agr_magnSensor::activate(bool enable) {
     std::unique_lock<std::mutex> lock(mRunMutex);
     std::string buffer_path;
     if (mIsEnabled != enable) {
@@ -234,7 +234,7 @@ void AnglvelSensor::activate(bool enable) {
     }
 }
 
-void AnglvelSensor::run() {
+void lsm303agr_magnSensor::run() {
     int read_size;
     int err;
     Event event;

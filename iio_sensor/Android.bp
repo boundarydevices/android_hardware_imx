@@ -21,9 +21,7 @@ iio_sensor_defaults {
         "android.hardware.sensors@2.X-multihal.header",
     ],
     srcs: [
-        "iio_utils.cpp",
-        "Sensor.cpp",
-        "SensorsSubHal.cpp",
+        "*.cpp",
     ],
     shared_libs: [
         "android.hardware.sensors@1.0",

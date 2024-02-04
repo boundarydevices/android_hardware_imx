@@ -46,20 +46,18 @@ static const int gSensorConfigLocationListSize =
 
 #define MODULE_NAME "android.hardware.sensors@2.1-nxp-IIO-Subhal"
 
-#ifdef CONFIG_LEGACY_SENSOR
 static const std::vector<sensors_supported_hal> sensors_supported = {
+        SENSOR_SUPPORTED("fxos8700", SensorType::ACCELEROMETER),
+        SENSOR_SUPPORTED("lsm303agr_accel", SensorType::ACCELEROMETER),
+        SENSOR_SUPPORTED("fxos8700", SensorType::MAGNETIC_FIELD),
+        SENSOR_SUPPORTED("lsm303agr_magn", SensorType::MAGNETIC_FIELD),
         SENSOR_SUPPORTED("fxas21002c", SensorType::GYROSCOPE),
-        SENSOR_SUPPORTED("isl29023", SensorType::LIGHT),
+        SENSOR_SUPPORTED("l3g4200d", SensorType::GYROSCOPE),
         SENSOR_SUPPORTED("mpl3115", SensorType::PRESSURE),
         SENSOR_SUPPORTED("mpl3115", SensorType::AMBIENT_TEMPERATURE),
-        SENSOR_SUPPORTED("fxos8700", SensorType::ACCELEROMETER),
-        SENSOR_SUPPORTED("fxos8700", SensorType::MAGNETIC_FIELD),
-};
-#else
-static const std::vector<sensors_supported_hal> sensors_supported = {
+        SENSOR_SUPPORTED("isl29023", SensorType::LIGHT),
         SENSOR_SUPPORTED("rpmsg-iio-pedometer", SensorType::STEP_COUNTER),
 };
-#endif
 
 static std::optional<std::vector<Sensor>> readSensorsConfigFromXml() {
     for (int i = 0; i < gSensorConfigLocationListSize; i++) {

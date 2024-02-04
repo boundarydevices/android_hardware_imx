@@ -18,14 +18,14 @@
 #define LOG_TAG "android.hardware.sensors@2.1-nxp-IIO-Subhal"
 
 #include "Sensor.h"
-#ifdef CONFIG_LEGACY_SENSOR
 #include "AccMagSensor.h"
+#include "lsm303agr_accelSensor.h"
+#include "lsm303agr_magnSensor.h"
 #include "AnglvelSensor.h"
+#include "l3g4200dSensor.h"
 #include "LightSensor.h"
 #include "PressureSensor.h"
-#else
 #include "StepCounterSensor.h"
-#endif
 
 namespace nxp_sensors_subhal {
 
@@ -49,17 +49,17 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
         case SensorType::ACCELEROMETER:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_ACCELEROMETER;
             break;
-        case SensorType::AMBIENT_TEMPERATURE:
-            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE;
-            break;
         case SensorType::MAGNETIC_FIELD:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_MAGNETIC_FIELD;
+            break;
+        case SensorType::GYROSCOPE:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_GYROSCOPE;
             break;
         case SensorType::PRESSURE:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_PRESSURE;
             break;
-        case SensorType::GYROSCOPE:
-            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_GYROSCOPE;
+        case SensorType::AMBIENT_TEMPERATURE:
+            mSensorInfo.typeAsString = SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE;
             break;
         case SensorType::LIGHT:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_LIGHT;
@@ -433,24 +433,30 @@ HWSensorBase* HWSensorBase::buildSensor(int32_t sensorHandle, ISensorsEventCallb
         return nullptr;
     }
 
-#ifdef CONFIG_LEGACY_SENSOR
-    if (iio_data.type == SensorType::LIGHT)
-        return new LightSensor(sensorHandle, callback, iio_data, config);
+    if (iio_data.type == SensorType::ACCELEROMETER) {
+        if (iio_data.name == "lsm303agr_accel")
+            return new lsm303agr_accelSensor(sensorHandle, callback, iio_data, config);
+        if (iio_data.name == "fxos8700")
+            return new AccMagSensor(sensorHandle, callback, iio_data, config);}
+    else if (iio_data.type == SensorType::MAGNETIC_FIELD) {
+        if (iio_data.name == "fxos8700")
+            return new AccMagSensor(sensorHandle, callback, iio_data, config);
+        if (iio_data.name == "lsm303agr_magn")
+            return new lsm303agr_magnSensor(sensorHandle, callback, iio_data, config);}
+    else if (iio_data.type == SensorType::GYROSCOPE) {
+        if (iio_data.name == "fxas21002c")
+            return new AnglvelSensor(sensorHandle, callback, iio_data, config);
+        if (iio_data.name == "l3g4200d")
+            return new l3g4200dSensor(sensorHandle, callback, iio_data, config);}
     else if (iio_data.type == SensorType::PRESSURE)
         return new PressureSensor(sensorHandle, callback, iio_data, config);
     else if (iio_data.type == SensorType::AMBIENT_TEMPERATURE)
         return new PressureSensor(sensorHandle, callback, iio_data, config);
-    else if (iio_data.type == SensorType::ACCELEROMETER)
-        return new AccMagSensor(sensorHandle, callback, iio_data, config);
-    else if (iio_data.type == SensorType::MAGNETIC_FIELD)
-        return new AccMagSensor(sensorHandle, callback, iio_data, config);
-    else if (iio_data.type == SensorType::GYROSCOPE)
-        return new AnglvelSensor(sensorHandle, callback, iio_data, config);
-#endif
-#ifdef CONFIG_SENSOR_PEDOMETER
-    if (iio_data.type == SensorType::STEP_COUNTER)
+    else if (iio_data.type == SensorType::LIGHT)
+        return new LightSensor(sensorHandle, callback, iio_data, config);
+    else if (iio_data.type == SensorType::STEP_COUNTER)
         return new StepCounterSensor(sensorHandle, callback, iio_data, config);
-#endif
+
     return nullptr;
 }
 

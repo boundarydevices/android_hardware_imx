@@ -37,18 +37,5 @@ func iio_sensorDefaults(ctx android.LoadHookContext) {
 		p.Target.Android.Enabled = proptools.BoolPtr(false)
 	}
 
-	if ctx.Config().VendorConfig("IMXPLUGIN").Bool("BOARD_USE_LEGACY_SENSOR") {
-		p.Target.Android.Enabled = proptools.BoolPtr(true)
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "AccMagSensor.cpp")
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "AnglvelSensor.cpp")
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "LightSensor.cpp")
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "PressureSensor.cpp")
-		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCONFIG_LEGACY_SENSOR")
-	} else if ctx.Config().VendorConfig("IMXPLUGIN").Bool("BOARD_USE_SENSOR_PEDOMETER") {
-		p.Target.Android.Enabled = proptools.BoolPtr(true)
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "StepCounterSensor.cpp")
-		p.Target.Android.Cppflags = append(p.Target.Android.Cppflags, "-DCONFIG_SENSOR_PEDOMETER")
-	}
-
 	ctx.AppendProperties(p)
 }

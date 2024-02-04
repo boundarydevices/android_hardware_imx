@@ -116,7 +116,7 @@ void LightSensor::run() {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
         } else {
-            err = poll(&mPollFdIio, 1, 50);
+            err = poll(&mPollFdIio, 1, -1);
             if (err <= 0) {
                 ALOGI("Sensor %s poll returned %d", mIioData.name.c_str(), err);
             }
