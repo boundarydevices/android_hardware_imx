@@ -16,12 +16,31 @@
 
 #include "BufferInfo.h"
 
+#include <core/buffer.h>    /* arm gralloc handle for imx9x*/
 #include <gralloc_handle.h> /* gralloc handle for legacy imx */
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
 int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
-    if (gralloc_handle_t(handle)->magic == Memory::sMagic) {
+    if ((static_cast<const private_handle_t *>(handle))->magic == private_handle_t::sMagic) {
+        const private_handle_t *memHandle = static_cast<const private_handle_t *>(handle);
+        info->fd = memHandle->share_fd;
+        info->width = memHandle->width;
+        info->height = memHandle->height;
+        info->format = memHandle->alloc_format.get_base();
+        info->stride = memHandle->stride;
+        info->modifier = 0;
+        info->size = memHandle->size;
+        info->usage = memHandle->producer_usage;
+        info->num_planes = memHandle->get_num_planes();
+        for (uint32_t i = 0; i < info->num_planes; i++) {
+            info->strides[i] = memHandle->plane_info[i].byte_stride;
+            info->offsets[i] = memHandle->plane_info[i].offset;
+        }
+        info->name = nullptr;
+        info->phys = 0;
+        info->base = 0;
+    } else if (gralloc_handle_t(handle)->magic == Memory::sMagic) {
         gralloc_handle_t memHandle = (gralloc_handle_t)handle;
         info->fd = memHandle->fd;
         info->width = memHandle->width;

@@ -30,6 +30,8 @@ cc_binary {
         "system/core/include/utils",
         "frameworks/native/include",
         "device/nxp/common/kernel-headers",
+        "vendor/nxp/wsialloc/android/src",
+        "vendor/nxp/wsialloc/android/src/include",
     ],
 
     shared_libs: [
@@ -60,6 +62,7 @@ cc_binary {
         "libnxp_gralloc_utils",
         "libhwsecureclient",
         "libtrusty",
+        "libgralloc_internal_format",
     ],
     srcs: [
         "BufferInfo.cpp",
