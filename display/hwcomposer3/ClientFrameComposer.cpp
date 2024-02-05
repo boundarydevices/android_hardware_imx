@@ -579,8 +579,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             display->getDisplayAttribute(activeConfigId, DisplayAttribute::VSYNC_PERIOD, &period);
 
         TimePoint now = std::chrono::steady_clock::now();
-        if (now < *presentTime - Nanoseconds(period))
-            std::this_thread::sleep_until(*presentTime - Nanoseconds(period));
+        if (now < *presentTime - Nanoseconds(period / 2))
+            std::this_thread::sleep_until(*presentTime - Nanoseconds(period / 2));
     }
 
     auto [flushError, flushCompleteFence] =

@@ -464,7 +464,13 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
         request = std::move(req);
     }
 
-    return mDisplays[displayId]->commit(std::move(request), mFd);
+    auto [error, outFence] = mDisplays[displayId]->commit(std::move(request), mFd);
+    if (mExpiredTargets.find(displayId) != mExpiredTargets.end()) {
+        mG2dComposer->freeDeviceFrameBuffer(mExpiredTargets[displayId]);
+        mExpiredTargets.erase(displayId);
+    }
+
+    return std::make_tuple(error, std::move(outFence));
 }
 
 std::optional<std::vector<uint8_t>> DrmClient::getEdid(uint32_t displayId) {
@@ -605,10 +611,20 @@ HWC3::Error DrmClient::setActiveConfigId(int displayId, int32_t configId) {
         return HWC3::Error::BadDisplay;
     }
 
-    if (mDisplays[displayId]->setActiveConfigId(configId))
-        return HWC3::Error::None;
-    else
+    uint32_t width, height, pre_width, pre_height, format;
+    mDisplays[displayId]->getFramebufferInfo(&pre_width, &pre_height, &format);
+
+    if (!mDisplays[displayId]->setActiveConfigId(configId))
         return HWC3::Error::BadParameter;
+
+    mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
+    if (((pre_width != width) || (pre_height != height)) &&
+        mComposerTargets.find(displayId) != mComposerTargets.end()) {
+        // need to free device composer target buffers when resolution changed
+        mComposerTargets[displayId].valid = false;
+    }
+
+    return HWC3::Error::None;
 }
 
 HWC3::Error DrmClient::resetDisplayConfig(int displayId) {
@@ -631,6 +647,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
     std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
 
     if (mComposerTargets.find(displayId) != mComposerTargets.end() &&
+        mComposerTargets[displayId].valid &&
         mComposerTargets[displayId].security == secure) {
         int32_t index = mComposerTargets[displayId].index;
         if (++index >= MAX_COMPOSER_TARGETS_PER_DISPLAY) {
@@ -641,9 +658,13 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
                   secure ? "secure" : "nonsecure", index);
         return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId].handles[index]);
     }
-    // security change, free pervious buffers
+    // security change or display config change, move pervious buffers to mExpiredTargets
+    // they will be freed after next framebuffer commited
     if (mComposerTargets.find(displayId) != mComposerTargets.end()) {
-        composer->freeDeviceFrameBuffer(mComposerTargets[displayId].handles);
+        auto& origin = mComposerTargets[displayId].handles;
+        std::vector<gralloc_handle_t> expired;
+        expired.insert(expired.end(), origin.begin(), origin.end());
+        mExpiredTargets.emplace(displayId, std::move(expired));
         mComposerTargets.erase(displayId);
     }
 
@@ -663,7 +684,8 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
     }
     targets.index = 0;
     targets.security = secure;
-    mComposerTargets.emplace(displayId, targets);
+    targets.valid = true;
+    mComposerTargets.emplace(displayId, std::move(targets));
 
     set_g2d_secure_pipe(secure);
     composer->freeSolidColorBuffer();

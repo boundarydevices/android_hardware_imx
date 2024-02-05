@@ -134,8 +134,10 @@ private:
         std::vector<gralloc_handle_t> handles;
         int32_t index;
         bool security;
+        bool valid = true;
     };
     std::unordered_map<uint32_t, G2dComposerTargets> mComposerTargets;
+    std::unordered_map<uint32_t, std::vector<gralloc_handle_t>> mExpiredTargets;
     struct HdrMetadata {
         hdr_output_metadata prev;
         uint32_t blobId;
