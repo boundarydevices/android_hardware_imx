@@ -591,13 +591,11 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         ALOGE("%s: display:%" PRIu64 " failed to flush drm buffer", __FUNCTION__, displayId);
     }
 
-    if (needFence) {
-        for (auto& [_, layer] : layersForOverlay) {
-            outLayerFences->emplace(layer->getId(),
-                                    ::android::base::unique_fd(dup(flushCompleteFence.get())));
-        }
-        *outDisplayFence = std::move(flushCompleteFence);
+    for (auto& [_, layer] : layersForOverlay) {
+        outLayerFences->emplace(layer->getId(),
+                                ::android::base::unique_fd(dup(flushCompleteFence.get())));
     }
+    *outDisplayFence = std::move(flushCompleteFence);
 
     displayBuffer.clientTargetDrmBuffer = nullptr;
     displayBuffer.planeDrmBuffer.clear();
