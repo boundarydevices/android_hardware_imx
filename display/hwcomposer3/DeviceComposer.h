@@ -44,7 +44,7 @@ public:
     bool checkMustDeviceComposition(Layer* layer);
     bool checkDeviceComposition(Layer* layer);
     int prepareDeviceFrameBuffer(uint32_t width, uint32_t height, uint32_t format,
-                                 gralloc_handle_t* buffers, int count, bool secure);
+                                 std::vector<gralloc_handle_t>& buffers, int count, bool secure);
     int freeDeviceFrameBuffer(std::vector<gralloc_handle_t>& buffers);
     int freeSolidColorBuffer();
 

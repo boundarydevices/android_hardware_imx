@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <android-base/properties.h>
 #include <android-base/unique_fd.h>
 #include <cutils/native_handle.h>
 
@@ -31,12 +32,17 @@
 #include "DrmConnector.h"
 #include "DrmDisplay.h"
 
-#define MAX_COMPOSER_TARGETS_PER_DISPLAY 3
-
 namespace aidl::android::hardware::graphics::composer3::impl {
+
+typedef enum __BufferType {
+    DRM_BUFFER_NONE,
+    DRM_BUFFER_FB,
+    DRM_BUFFER_PLANE,
+} BufferType;
 
 class DeviceClient {
 public:
+    DeviceClient() { getTargetsNumFromProp(); }
     virtual ~DeviceClient() {}
 
     virtual HWC3::Error init(char* path, uint32_t* baseId) = 0;
@@ -52,7 +58,8 @@ public:
     virtual HWC3::Error unregisterOnHotplugCallback() { return HWC3::Error::None; }
 
     virtual std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> create(
-            const native_handle_t* handle, common::Rect displayFrame, common::Rect sourceCrop) = 0;
+            const native_handle_t* handle, common::Rect displayFrame, common::Rect sourceCrop,
+            BufferType type) = 0;
     virtual HWC3::Error destroyDrmFramebuffer(DrmBuffer* buffer) = 0;
 
     virtual std::tuple<HWC3::Error, ::android::base::unique_fd> flushToDisplay(
@@ -108,6 +115,15 @@ public:
                                                        ClientTargetProperty* outProperty) = 0;
     virtual HWC3::Error waitVBlank(int displayId, int64_t* timestamp) {
         return HWC3::Error::Unsupported;
+    }
+
+protected:
+    int32_t mMaxComposerTargetsPerDisplay = 3;
+    void getTargetsNumFromProp() {
+        const std::string num =
+                ::android::base::GetProperty("ro.surface_flinger.max_frame_buffer_acquired_buffers",
+                                             "3");
+        mMaxComposerTargetsPerDisplay = std::stoi(num);
     }
 };
 

@@ -90,11 +90,14 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
     for (auto& [_, display] : mDisplays) {
         overlayTotalNum += display->getPlaneNum() - 1; // At least one primary plane for each
     }
-    constexpr const std::size_t kCachedFrameBuffersPerDisplay = MAX_COMPOSER_TARGETS_PER_DISPLAY;
-    std::size_t bufferCacheSize = kCachedFrameBuffersPerDisplay * mDisplays.size();
-    bufferCacheSize += IsOverlayUserDisabled() ? 0 : (overlayTotalNum * 8);
-    DEBUG_LOG("%s: initializing DRM buffer cache to size %zu", __FUNCTION__, bufferCacheSize);
-    mBufferCache = std::make_unique<DrmBufferCache>(bufferCacheSize);
+    std::size_t framebufferCacheSize = mMaxComposerTargetsPerDisplay * mDisplays.size();
+    mPlaneBufferCacheSize = IsOverlayUserDisabled() ? 0 : (overlayTotalNum * 8);
+
+    DEBUG_LOG("%s: initializing DRM Buffer cache size for framebuffer=%zu, for plane buffer=%zu",
+              __FUNCTION__, framebufferCacheSize, mPlaneBufferCacheSize);
+    mFramebufferCache = std::make_unique<DrmBufferCache>(framebufferCacheSize);
+    if (mPlaneBufferCacheSize > 0)
+        mPlaneBufferCache = std::make_unique<DrmBufferCache>(mPlaneBufferCacheSize);
 
     mDrmEventListener = DrmEventListener::create(mFd, [this]() { handleHotplug(); });
     if (!mDrmEventListener) {
@@ -261,7 +264,8 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
 
 std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const native_handle_t* handle,
                                                                       common::Rect displayFrame,
-                                                                      common::Rect sourceCrop) {
+                                                                      common::Rect sourceCrop,
+                                                                      BufferType type) {
     gralloc_handle_t memHandle = (gralloc_handle_t)handle;
     if (memHandle == nullptr) {
         ALOGE("%s: invalid gralloc_handle", __FUNCTION__);
@@ -275,7 +279,13 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
     }
 
-    auto drmBufferPtr = mBufferCache->get(primeHandle);
+    std::shared_ptr<DrmBuffer>* drmBufferPtr = nullptr;
+    if (type == DRM_BUFFER_FB)
+        drmBufferPtr = mFramebufferCache->get(primeHandle);
+    else if ((type == DRM_BUFFER_PLANE) && (mPlaneBufferCacheSize > 0)) {
+        drmBufferPtr = mPlaneBufferCache->get(primeHandle);
+    }
+
     if (drmBufferPtr != nullptr) {
         (*drmBufferPtr)->mDisplayFrame = displayFrame;
         (*drmBufferPtr)->mSourceCrop = sourceCrop;
@@ -339,7 +349,13 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
     DEBUG_LOG("%s: created framebuffer:%" PRIu32, __FUNCTION__, framebuffer);
     buffer->mDrmFramebuffer = framebuffer;
 
-    mBufferCache->set(primeHandle, std::shared_ptr<DrmBuffer>(buffer));
+    if (type == DRM_BUFFER_FB)
+        mFramebufferCache->set(primeHandle, std::shared_ptr<DrmBuffer>(buffer));
+    else if ((type == DRM_BUFFER_PLANE) && (mPlaneBufferCacheSize > 0))
+        mPlaneBufferCache->set(primeHandle, std::shared_ptr<DrmBuffer>(buffer));
+    else
+        ALOGW("%s: Drm Buffer(type=%d, fbId=%" PRIu32 ") is not cached", __FUNCTION__, type,
+              framebuffer);
 
     return std::make_tuple(HWC3::Error::None, std::move(buffer));
 }
@@ -363,7 +379,11 @@ HWC3::Error DrmClient::destroyDrmFramebuffer(DrmBuffer* buffer) {
             return HWC3::Error::NoResources;
         }
 
-        mBufferCache->remove(buffer->mPlaneHandles[0]);
+        uint32_t handle = buffer->mPlaneHandles[0];
+        if (mFramebufferCache->get(handle) != nullptr)
+            mFramebufferCache->remove(handle);
+        else if ((mPlaneBufferCacheSize > 0) && (mPlaneBufferCache->get(handle) != nullptr))
+            mPlaneBufferCache->remove(handle);
     }
 
     return HWC3::Error::None;
@@ -650,7 +670,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
         mComposerTargets[displayId].valid &&
         mComposerTargets[displayId].security == secure) {
         int32_t index = mComposerTargets[displayId].index;
-        if (++index >= MAX_COMPOSER_TARGETS_PER_DISPLAY) {
+        if (++index >= mMaxComposerTargetsPerDisplay) {
             index = 0;
         }
         mComposerTargets[displayId].index = index;
@@ -668,20 +688,17 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
         mComposerTargets.erase(displayId);
     }
 
+    G2dComposerTargets targets;
     uint32_t width, height, format;
-    gralloc_handle_t bufferHandles[MAX_COMPOSER_TARGETS_PER_DISPLAY];
+    targets.handles.reserve(mMaxComposerTargetsPerDisplay);
     mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
-    auto ret = composer->prepareDeviceFrameBuffer(width, height, format, bufferHandles,
-                                                  MAX_COMPOSER_TARGETS_PER_DISPLAY, secure);
+    auto ret = composer->prepareDeviceFrameBuffer(width, height, format, targets.handles,
+                                                  mMaxComposerTargetsPerDisplay, secure);
     if (ret) {
         ALOGE("%s: create framebuffer failed", __FUNCTION__);
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
     }
 
-    G2dComposerTargets targets;
-    for (int i = 0; i < MAX_COMPOSER_TARGETS_PER_DISPLAY; i++) {
-        targets.handles.push_back(bufferHandles[i]);
-    }
     targets.index = 0;
     targets.security = secure;
     targets.valid = true;

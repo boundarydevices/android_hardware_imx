@@ -55,7 +55,8 @@ public:
 
     std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> create(const native_handle_t* handle,
                                                                common::Rect displayFrame,
-                                                               common::Rect sourceCrop) override;
+                                                               common::Rect sourceCrop,
+                                                               BufferType type) override;
     HWC3::Error destroyDrmFramebuffer(DrmBuffer* buffer) override;
 
     std::tuple<HWC3::Error, ::android::base::unique_fd> flushToDisplay(

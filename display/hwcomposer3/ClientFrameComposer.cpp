@@ -260,8 +260,8 @@ HWC3::Error ClientFrameComposer::onDisplayClientTargetSet(Display* display) {
     }
     common::Rect displayFrame = {0, 0, width, height};
     common::Rect sourceCrop = {0, 0, width, height};
-    auto [createError, drmBuffer] =
-            client->create(display->getClientTarget().getBuffer(), displayFrame, sourceCrop);
+    auto [createError, drmBuffer] = client->create(display->getClientTarget().getBuffer(),
+                                                   displayFrame, sourceCrop, DRM_BUFFER_FB);
     if (createError != HWC3::Error::None) {
         ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer", __FUNCTION__,
               displayId);
@@ -455,7 +455,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         common::Rect rectFrame = layer->getDisplayFrame();
         common::Rect rectSource = layer->getSourceCropInt();
 
-        auto [createError, drmBuffer] = client->create(handle, rectFrame, rectSource);
+        auto [createError, drmBuffer] =
+                client->create(handle, rectFrame, rectSource, DRM_BUFFER_PLANE);
         if (createError != HWC3::Error::None) {
             ALOGE("%s: display:%" PRIu64 " failed to create overlay drm buffer", __FUNCTION__,
                   displayId);
@@ -501,7 +502,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         }
         common::Rect displayFrame = {0, 0, width, height};
         common::Rect sourceCrop = {0, 0, width, height};
-        auto [createError, drmBuffer] = client->create(renderTarget, displayFrame, sourceCrop);
+        auto [createError, drmBuffer] =
+                client->create(renderTarget, displayFrame, sourceCrop, DRM_BUFFER_FB);
         if (createError != HWC3::Error::None) {
             ALOGE("%s: display:%" PRIu64 " failed to create composer target drm buffer",
                   __FUNCTION__, displayId);
@@ -520,7 +522,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         common::Rect rectFrame = luckyLayer->getDisplayFrame();
         common::Rect rectSource = luckyLayer->getSourceCropInt();
         auto buffer = (gralloc_handle_t)luckyLayer->waitAndGetBuffer();
-        auto [createError, drmBuffer] = client->create(buffer, rectFrame, rectSource);
+        auto [createError, drmBuffer] =
+                client->create(buffer, rectFrame, rectSource, DRM_BUFFER_NONE);
         if (createError != HWC3::Error::None) {
             ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer", __FUNCTION__,
                   displayId);
@@ -546,19 +549,20 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             auto layer = layersForPrivate.front();
             common::Rect rectFrame = layer->getDisplayFrame();
             common::Rect rectSource = layer->getSourceCropInt();
-            gralloc_handle_t buffer;
+            std::vector<gralloc_handle_t> buffers;
             mG2dComposer->prepareDeviceFrameBuffer(rectFrame.right - rectFrame.left,
                                                    rectFrame.bottom - rectFrame.top,
                                                    static_cast<int>(common::PixelFormat::RGBA_8888),
-                                                   &buffer, 1, false);
-            auto [createError, drmBuffer] = client->create(buffer, rectFrame, rectSource);
+                                                   buffers, 1, false);
+            auto [createError, drmBuffer] =
+                    client->create(buffers[0], rectFrame, rectSource, DRM_BUFFER_NONE);
             if (createError != HWC3::Error::None) {
                 ALOGE("%s: display:%" PRIu64 " failed to create client target drm buffer",
                       __FUNCTION__, displayId);
                 return HWC3::Error::NoResources;
             }
             displayBuffer.clientTargetDrmBuffer = drmBuffer;
-            displayBuffer.dummyDrmBuffer.emplace(buffer, std::move(drmBuffer));
+            displayBuffer.dummyDrmBuffer.emplace(buffers[0], std::move(drmBuffer));
         }
     } else if (displayBuffer.dummyDrmBuffer.size() > 0) {
         std::vector<gralloc_handle_t> handles;

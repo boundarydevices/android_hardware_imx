@@ -161,7 +161,8 @@ bool DeviceComposer::isValid() {
 }
 
 int DeviceComposer::prepareDeviceFrameBuffer(uint32_t width, uint32_t height, uint32_t format,
-                                             gralloc_handle_t* buffers, int count, bool secure) {
+                                             std::vector<gralloc_handle_t>& buffers, int count,
+                                             bool secure) {
     uint64_t usage;
     uint32_t bufferStride;
     buffer_handle_t bufferHandle;
@@ -182,7 +183,7 @@ int DeviceComposer::prepareDeviceFrameBuffer(uint32_t width, uint32_t height, ui
             return status;
         }
 
-        buffers[i] = (gralloc_handle_t)bufferHandle;
+        buffers.push_back((gralloc_handle_t)bufferHandle);
     }
 
     return 0;
