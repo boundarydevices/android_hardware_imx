@@ -35,11 +35,15 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <utils/Mutex.h>
 
 #define TRUSTY_DEVICE_NAME "/dev/trusty-ipc-dev0"
 
 constexpr const char kTrustyDefaultDeviceName[] = "/dev/trusty-ipc-dev0";
 static const char* dev_name = kTrustyDefaultDeviceName;
+
+using android::Mutex;
+static Mutex mLoadLock;
 
 static const char* _sopts = "hD:";
 static const struct option _lopts[] = {
@@ -185,6 +189,8 @@ static ssize_t read_response(int tipc_fd) {
 }
 
 ssize_t load_firmware_package(const char* firmware_file_name) {
+
+    Mutex::Autolock autoLock(mLoadLock);
     ssize_t rc = 0;
     int tipc_fd = -1;
     off64_t firmware_size;

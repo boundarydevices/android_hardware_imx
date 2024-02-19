@@ -49,11 +49,15 @@ cc_binary {
     static_libs: [
         "libtrusty",
     ],
+    include_dirs: [
+        "system/core/include",
+    ],
     shared_libs: [
         "liblog",
         "libbase",
         "libdmabufheap",
         "libc",
+        "libutils",
     ],
 
     cflags: [
@@ -86,6 +90,9 @@ cc_library_static {
     srcs: ["firmware_loader_client.cpp"],
 
     export_include_dirs: ["include"],
+    include_dirs: [
+        "system/core/include",
+    ],
 
     static_libs: [
         "libtrusty",
@@ -95,6 +102,7 @@ cc_library_static {
         "libbase",
         "libdmabufheap",
         "libc",
+        "libutils",
     ],
 
     cflags: [
