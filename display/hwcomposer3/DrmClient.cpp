@@ -91,7 +91,7 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
         overlayTotalNum += display->getPlaneNum() - 1; // At least one primary plane for each
     }
     std::size_t framebufferCacheSize = mMaxComposerTargetsPerDisplay * mDisplays.size();
-    mPlaneBufferCacheSize = IsOverlayUserDisabled() ? 0 : (overlayTotalNum * 8);
+    mPlaneBufferCacheSize = IsOverlayUserDisabled() ? 0 : (overlayTotalNum * 18);
 
     DEBUG_LOG("%s: initializing DRM Buffer cache size for framebuffer=%zu, for plane buffer=%zu",
               __FUNCTION__, framebufferCacheSize, mPlaneBufferCacheSize);
@@ -378,12 +378,6 @@ HWC3::Error DrmClient::destroyDrmFramebuffer(DrmBuffer* buffer) {
                   errno);
             return HWC3::Error::NoResources;
         }
-
-        uint32_t handle = buffer->mPlaneHandles[0];
-        if (mFramebufferCache->get(handle) != nullptr)
-            mFramebufferCache->remove(handle);
-        else if ((mPlaneBufferCacheSize > 0) && (mPlaneBufferCache->get(handle) != nullptr))
-            mPlaneBufferCache->remove(handle);
     }
 
     return HWC3::Error::None;
@@ -456,6 +450,15 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, ::android::base::unique_fd());
+    }
+    if (mPlaneBufferCache->getSize() > 0) {
+        TimePoint now = std::chrono::steady_clock::now();
+        if (buffer.planeDrmBuffer.size() > 0) {
+            mLastPlaneBufferPresentTime = now;
+        } else if (now > mLastPlaneBufferPresentTime + Nanoseconds(2000000000)) {
+            mPlaneBufferCache->clear();
+            ALOGI("%s: DrmBuffer cache for plane is cleared!", __FUNCTION__);
+        }
     }
     if (!mDisplays[displayId]->isConnected()) {
         ALOGI("%s: %d display is disconnected, avoid DRM committing", __FUNCTION__, displayId);

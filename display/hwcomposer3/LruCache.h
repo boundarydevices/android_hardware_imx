@@ -68,6 +68,8 @@ public:
         m_table.clear();
     }
 
+    std::size_t getSize() { return m_table.size(); }
+
 private:
     struct KeyValue {
         Key key;

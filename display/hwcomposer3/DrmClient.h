@@ -119,6 +119,7 @@ private:
     std::unique_ptr<DrmBufferCache> mFramebufferCache;
     std::unique_ptr<DrmBufferCache> mPlaneBufferCache;
     std::size_t mPlaneBufferCacheSize = 0;
+    TimePoint mLastPlaneBufferPresentTime;
 
     // Grant visibility for handleHotplug to DrmEventListener.
     bool handleHotplug();
