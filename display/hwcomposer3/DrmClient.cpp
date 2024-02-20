@@ -451,7 +451,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, ::android::base::unique_fd());
     }
-    if (mPlaneBufferCache->getSize() > 0) {
+    if (mPlaneBufferCache && mPlaneBufferCache->getSize() > 0) {
         TimePoint now = std::chrono::steady_clock::now();
         if (buffer.planeDrmBuffer.size() > 0) {
             mLastPlaneBufferPresentTime = now;
