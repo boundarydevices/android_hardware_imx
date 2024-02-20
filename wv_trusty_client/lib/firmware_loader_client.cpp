@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <utils/Mutex.h>
+#include <android-base/file.h>
 
 #define TRUSTY_DEVICE_NAME "/dev/trusty-ipc-dev0"
 
@@ -230,8 +231,7 @@ static void parse_options(int argc, char** argv) {
     while (1) {
         c = getopt_long(argc, argv, _sopts, _lopts, nullptr);
         if (c == -1) {
-            fprintf(stderr, "please input correct option parameters\n");
-            print_usage_and_exit(argv[0], EXIT_SUCCESS);
+            ALOGD("directly get firmware path");
             break; /* done */
         }
 
@@ -250,11 +250,69 @@ static void parse_options(int argc, char** argv) {
     }
 }
 
+static int32_t openVideoDecoderDevices(const char* devNode) {
+
+    ALOGI("getNodeName: dev path:%s", devNode);
+    int fd = -1;
+    fd = open(devNode, O_RDWR);
+    if (fd < 0) {
+        ALOGE("%s open dev path:%s failed:%s", __func__, devNode, strerror(errno));
+        return -1;
+    } else {
+        ALOGD("open decoder device successfully");
+        close(fd);
+    }
+    return 0;
+}
+
+static int32_t findVideoDecoderNodes() {
+    DIR* vidDir = NULL;
+    struct dirent* dirEntry;
+    std::string buffer;
+    char videoDevice[64];
+    char nodeName[64];
+    std::string video_decoder_name = "amphion-vpu-decoder";
+
+    vidDir = opendir("/sys/class/video4linux");
+    if (vidDir == NULL) {
+        return -1;
+    }
+    while ((dirEntry = readdir(vidDir)) != NULL) {
+        if (strncmp(dirEntry->d_name, "video", 5)) {
+            continue;
+        }
+        memset(nodeName, 0, 64);
+        sprintf(videoDevice, "/sys/class/video4linux/%s/name", dirEntry->d_name);
+        if (!android::base::ReadFileToString(std::string(videoDevice), &buffer)) {
+            continue;
+        }
+        // found the video decoder device
+        if (video_decoder_name.compare(0, video_decoder_name.length(), buffer, 0, video_decoder_name.length()) == 0) {
+            //open video decoder device
+            sprintf(nodeName, "/dev/%s", dirEntry->d_name);
+            int32_t ret = openVideoDecoderDevices(nodeName);
+            if (ret < 0) {
+                closedir(vidDir);
+                return ret;
+            }
+            break;
+        }
+    }
+    closedir(vidDir);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     parse_options(argc, argv);
     if (optind + 1 != argc) {
         print_usage_and_exit(argv[0], EXIT_FAILURE);
     }
     int rc = load_firmware_package(argv[optind]);
+    if (rc == 0) {
+       rc = findVideoDecoderNodes();
+       if (rc < 0)
+           ALOGE("find VideoDecoderNodes failed");
+    }
+
     return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
