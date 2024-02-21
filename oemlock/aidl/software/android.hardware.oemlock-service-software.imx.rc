@@ -1,0 +1,3 @@
+service vendor.oemlock-1-0-software /vendor/bin/hw/android.hardware.oemlock-service-software.imx
+    user system
+    group system

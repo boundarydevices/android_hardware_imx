@@ -1,3 +1,0 @@
-service vendor.oemlock-1-0 /vendor/bin/hw/android.hardware.oemlock-service.imx
-    user system
-    group system
