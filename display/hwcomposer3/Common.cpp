@@ -37,9 +37,11 @@ bool IsOverlayUserDisabled() {
 }
 
 bool Is2DCompositionUserDisabled() {
-    const std::string g2d = ::android::base::GetProperty("vendor.sys.hwc.disable", "0");
-    DEBUG_LOG("%s: sysprop vendor.sys.hwc.disable is %s", __FUNCTION__, g2d.c_str());
-    return g2d == "1";
+    const std::string disable = ::android::base::GetProperty("vendor.sys.hwc.disable", "0");
+    DEBUG_LOG("%s: sysprop vendor.sys.hwc.disable is %s", __FUNCTION__, disable.c_str());
+    const std::string dpu = ::android::base::GetProperty("ro.boot.dpu_composition", "");
+    DEBUG_LOG("%s: sysprop ro.boot.dpu_composition is %s", __FUNCTION__, dpu.c_str());
+    return (disable == "1") || (dpu == "0");
 }
 
 bool Is2DCompositionUserPrefered() {

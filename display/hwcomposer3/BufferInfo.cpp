@@ -28,7 +28,7 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
         info->width = memHandle->width;
         info->height = memHandle->height;
         info->format = memHandle->alloc_format.get_base();
-        info->stride = memHandle->stride;
+        info->stride = memHandle->plane_info[0].alloc_width;
         info->modifier = 0;
         info->size = memHandle->size;
         info->usage = memHandle->producer_usage;

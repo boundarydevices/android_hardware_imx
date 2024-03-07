@@ -21,6 +21,7 @@
 #include <utils/threads.h>
 
 #include "Layer.h"
+#include "BufferInfo.h"
 #include "gralloc_handle.h"
 
 namespace aidl::android::hardware::graphics::composer3::impl {
@@ -30,6 +31,7 @@ typedef int (*hwc_func2)(void* handle, void* arg1);
 typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 typedef int (*hwc_func5)(void* handle, void* arg1, void* arg2, void* arg3, void* arg4);
+typedef void* (*hwc_buf_func)(void* arg1);
 
 using ::android::Mutex;
 
@@ -54,7 +56,7 @@ private:
     void* getHandle();
 
     // set composite target buffer.
-    int setRenderTarget(gralloc_handle_t memory);
+    int setRenderTarget(buffer_handle_t memory);
     // clear worm hole introduced by layers not cover whole screen.
     int clearWormHole(std::vector<Layer*>& layers);
     // compose display layer.
@@ -62,26 +64,26 @@ private:
     // sync 2D blit engine.
     int finishComposite();
     // lock surface to get GPU specific resource.
-    int lockSurface(gralloc_handle_t handle);
+    int lockSurface(buffer_handle_t handle);
     // unlock surface to release resource.
-    int unlockSurface(gralloc_handle_t handle);
+    int unlockSurface(buffer_handle_t handle);
     bool isFeatureSupported(g2d_feature feature);
 
-    int setG2dSurface(struct g2d_surfaceEx& surfaceX, gralloc_handle_t handle, common::Rect& rect);
-    enum g2d_format convertFormat(int format, gralloc_handle_t handle);
+    int setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_t handle, common::Rect& rect);
+    enum g2d_format convertFormat(int format, buffer_handle_t handle);
     int convertRotation(common::Transform transform, struct g2d_surface& src,
                         struct g2d_surface& dst);
     int convertBlending(common::BlendMode blending, struct g2d_surface& src,
                         struct g2d_surface& dst);
     int prepareSolidColorBuffer();
-    int clearRect(gralloc_handle_t target, common::Rect& rect);
+    int clearRect(buffer_handle_t target, common::Rect& rect);
 
-    int getAlignedSize(gralloc_handle_t handle, int* width, int* height);
-    int getFlipOffset(gralloc_handle_t handle, int* offset);
-    int getTiling(gralloc_handle_t handle, enum g2d_tiling* tile);
-    int getTileStatus(gralloc_handle_t handle, struct g2d_surfaceEx* surfaceX);
-    int resolveTileStatus(gralloc_handle_t handle);
-    enum g2d_format alterFormat(gralloc_handle_t handle, enum g2d_format format);
+    int getAlignedSize(buffer_handle_t handle, int* width, int* height);
+    int getFlipOffset(buffer_handle_t handle, int* offset);
+    int getTiling(buffer_handle_t handle, enum g2d_tiling* tile);
+    int getTileStatus(buffer_handle_t handle, struct g2d_surfaceEx* surfaceX);
+    int resolveTileStatus(buffer_handle_t handle);
+    enum g2d_format alterFormat(buffer_handle_t handle, enum g2d_format format);
 
     int setClipping(common::Rect& src, common::Rect& dst, common::Rect& clip,
                     common::Transform rotation);
@@ -91,6 +93,7 @@ private:
     int clearFunction(void* handle, struct g2d_surface* area);
     int enableFunction(void* handle, enum g2d_cap_mode cap, bool enable);
     int finishEngine(void* handle);
+    int getBuffPhys(buffer_handle_t handle, int *phys);
 
 private:
     static Mutex sLock;
@@ -99,8 +102,9 @@ private:
     bool mG2dPrefered;
     ;
 
-    gralloc_handle_t mTarget = NULL;
-    gralloc_handle_t mSolidColorBuffer = NULL;
+    buffer_handle_t mTarget = NULL;
+    buffer_handle_t mSolidColorBuffer = NULL;
+    HandleInfo mSolidColorBuffInfo;
 
     hwc_func3 mGetAlignedSize;
     hwc_func2 mGetFlipOffset;
@@ -108,6 +112,9 @@ private:
     hwc_func2 mAlterFormat;
     hwc_func1 mLockSurface;
     hwc_func1 mUnlockSurface;
+    hwc_func4 mAlignTile;
+    hwc_func2 mGetTileStatus;
+    hwc_func1 mResolveTileStatus;
 
     hwc_func5 mSetClipping;
     hwc_func3 mBlitFunction;
@@ -118,9 +125,7 @@ private:
     hwc_func2 mDisableFunction;
     hwc_func1 mFinishEngine;
     hwc_func3 mQueryFeature;
-    hwc_func4 mAlignTile;
-    hwc_func2 mGetTileStatus;
-    hwc_func1 mResolveTileStatus;
+    hwc_buf_func mBuffInfoFromFd;
 
     void* mHelperHandle = NULL;
     void* mG2dHandle = NULL;
