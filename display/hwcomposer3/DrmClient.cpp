@@ -294,53 +294,37 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
         return std::make_tuple(HWC3::Error::None, std::shared_ptr<DrmBuffer>(*drmBufferPtr));
     }
 
-    uint64_t modifier;
     auto buffer = std::shared_ptr<DrmBuffer>(new DrmBuffer(*this));
     buffer->mWidth = info.width;
     buffer->mHeight = info.height;
     buffer->mDisplayFrame = displayFrame;
     buffer->mSourceCrop = sourceCrop;
-    buffer->mDrmFormat = ConvertNxpFormatToDrmFormat(info.format, &modifier);
+    buffer->mDrmFormat = info.drm_format;
     buffer->mPlaneFds[0] = info.fd;
     for (uint32_t i = 0; i < info.num_planes; i++) {
         buffer->mPlaneHandles[i] = primeHandle;
         buffer->mPlanePitches[i] = info.strides[i];
         buffer->mPlaneOffsets[i] = info.offsets[i];
-        if (info.modifier > 0)
-            // modifier of framebuffer is setted when allocate.
-            buffer->mPlaneModifiers[i] = info.modifier;
-        else if (modifier > 0)
-            buffer->mPlaneModifiers[i] = modifier;
+        buffer->mPlaneModifiers[i] = info.modifier;
     }
 
     uint32_t framebuffer = 0;
-    uint32_t format = buffer->mDrmFormat;
-    uint32_t width = buffer->mWidth;
-    if (info.modifier > 0) { // TODO: some workaround for framebuffer
-        /* workaround GPU SUPER_TILED R/B swap issue, for no-resolve and tiled output
-           GPU not distinguish A8B8G8R8 and A8R8G8B8, all regard as A8R8G8B8, need do
-           R/B swap here for no-resolve and tiled buffer */
-        if (format == DRM_FORMAT_XBGR8888)
-            format = DRM_FORMAT_XRGB8888;
-        if (format == DRM_FORMAT_ABGR8888)
-            format = DRM_FORMAT_ARGB8888;
-    }
-
     if (buffer->mPlaneModifiers[0] > 0) {
-        ret = drmModeAddFB2WithModifiers(mFd.get(), buffer->mWidth, buffer->mHeight, format,
-                                         buffer->mPlaneHandles, buffer->mPlanePitches,
-                                         buffer->mPlaneOffsets, buffer->mPlaneModifiers,
-                                         &framebuffer, DRM_MODE_FB_MODIFIERS);
+        ret = drmModeAddFB2WithModifiers(mFd.get(), buffer->mWidth, buffer->mHeight,
+                                         buffer->mDrmFormat, buffer->mPlaneHandles,
+                                         buffer->mPlanePitches, buffer->mPlaneOffsets,
+                                         buffer->mPlaneModifiers, &framebuffer,
+                                         DRM_MODE_FB_MODIFIERS);
     } else {
-        ret = drmModeAddFB2(mFd.get(), width, buffer->mHeight, buffer->mDrmFormat,
+        ret = drmModeAddFB2(mFd.get(), buffer->mWidth, buffer->mHeight, buffer->mDrmFormat,
                             buffer->mPlaneHandles, buffer->mPlanePitches, buffer->mPlaneOffsets,
                             &framebuffer, 0);
     }
     if (ret) {
-        ALOGE("%s: drmModeAddFB2 failed(buffer:size=%d, %d x %d, stride=%d, format=0x%x, modifier=0x%" PRIx64
-              "): %s (errno %d)",
+        ALOGE("%s: drmModeAddFB2 failed(buffer:size=%d, %d x %d, stride=%d, format=0x%x,"
+              "drm_format=0x%x, modifier=0x%" PRIx64 "): %s (errno %d)",
               __FUNCTION__, info.size, info.width, info.height, info.stride, info.format,
-              buffer->mPlaneModifiers[0], strerror(errno), errno);
+              info.drm_format, buffer->mPlaneModifiers[0], strerror(errno), errno);
         return std::make_tuple(HWC3::Error::NoResources, nullptr);
     }
     DEBUG_LOG("%s: created framebuffer:%" PRIu32, __FUNCTION__, framebuffer);
@@ -543,7 +527,8 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
         return HWC3::Error::BadParameter;
     }
 
-    if ((info.format >= FORMAT_RGBA8888) && (info.format <= FORMAT_BGRA8888))
+    if ((info.format >= static_cast<uint32_t>(common::PixelFormat::RGBA_8888)) &&
+        (info.format <= static_cast<uint32_t>(common::PixelFormat::BGRA_8888)))
         return HWC3::Error::Unsupported;
 
     // scaling limitation
@@ -559,15 +544,13 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
         return HWC3::Error::Unsupported;
     }
 
-    uint64_t modifier;
-    uint32_t format = ConvertNxpFormatToDrmFormat(info.format, &modifier);
     if (srcW < 64 &&
-        ((format == DRM_FORMAT_NV12) || (format == DRM_FORMAT_NV21) ||
-         (format == DRM_FORMAT_P010))) {
+        ((info.drm_format == DRM_FORMAT_NV12) || (info.drm_format == DRM_FORMAT_NV21) ||
+         (info.drm_format == DRM_FORMAT_P010))) {
         return HWC3::Error::Unsupported;
     } else if (srcW < 32 &&
-               ((format == DRM_FORMAT_UYVY) || (format == DRM_FORMAT_VYUY) ||
-                (format == DRM_FORMAT_YUYV) || (format == DRM_FORMAT_YVYU))) {
+               ((info.drm_format == DRM_FORMAT_UYVY) || (info.drm_format == DRM_FORMAT_VYUY) ||
+                (info.drm_format == DRM_FORMAT_YUYV) || (info.drm_format == DRM_FORMAT_YVYU))) {
         return HWC3::Error::Unsupported;
     } else if (srcW < 16 || srcH < 8) {
         return HWC3::Error::Unsupported;

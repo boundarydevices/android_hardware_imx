@@ -50,7 +50,7 @@ HWC3::Error DummyClient::init(char* path, uint32_t* baseId) {
 
     mConfigs->emplace(mActiveConfigId, newConfig);
 
-    uint32_t format = FORMAT_RGBA8888;
+    uint32_t format = static_cast<uint32_t>(common::PixelFormat::RGBA_8888);
     ALOGI("Dummy Client used, only support one display\n"
           "Display Id   = %d \n"
           "configId     = %d \n"

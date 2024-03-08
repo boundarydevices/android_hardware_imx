@@ -17,6 +17,7 @@
 
 #include <cutils/properties.h>
 #include <dlfcn.h>
+#include <drm_fourcc.h>
 #include <hardware/gralloc.h>
 #include <inttypes.h>
 #include <ui/GraphicBufferAllocator.h>
@@ -410,10 +411,10 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
 
         if (!(type == Composition::SOLID_COLOR) && layerBuffer) {
             setG2dSurface(sSurfaceX, layerBuffer, srect);
-            if ((info.format == FORMAT_RGB565) &&
-                (layerInfo.format == FORMAT_RGBA8888 ||
-                 layerInfo.format == FORMAT_RGBX8888 ||
-                 layerInfo.format == FORMAT_BGRA8888)) {
+            if ((info.format == static_cast<uint32_t>(common::PixelFormat::RGB_565)) &&
+                (layerInfo.format == static_cast<uint32_t>(common::PixelFormat::RGBA_8888) ||
+                 layerInfo.format == static_cast<uint32_t>(common::PixelFormat::RGBX_8888) ||
+                 layerInfo.format == static_cast<uint32_t>(common::PixelFormat::BGRA_8888))) {
                 needDither = true;
             }
 
@@ -467,11 +468,11 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
     }
 
     alignWidth = info.stride;
-    surface.format = convertFormat(info.format, handle);
+    surface.format = convertFormat(info.drm_format, handle);
     surface.stride = alignWidth;
     enum g2d_tiling tile = G2D_LINEAR;
     getTiling(handle, &tile);
-    if (info.format == FORMAT_NV12_TILED) {
+    if (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
         surfaceX.tiling = G2D_AMPHION_TILED;
     } else {
         surfaceX.tiling = tile;
@@ -537,38 +538,34 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
 enum g2d_format DeviceComposer::convertFormat(int format, buffer_handle_t handle) {
     enum g2d_format halFormat;
     switch (format) {
-        case FORMAT_RGBA8888:
+        case DRM_FORMAT_ABGR8888:
             halFormat = G2D_RGBA8888;
             break;
-        case FORMAT_RGBX8888:
+        case DRM_FORMAT_XBGR8888:
             halFormat = G2D_RGBX8888;
             break;
-        case FORMAT_RGB565:
+        case DRM_FORMAT_RGB565:
             halFormat = G2D_RGB565;
             break;
-        case FORMAT_BGRA8888:
+        case DRM_FORMAT_ARGB8888:
             halFormat = G2D_BGRA8888;
             break;
-
-        case FORMAT_NV21:
+        case DRM_FORMAT_NV21:
             halFormat = G2D_NV21;
             break;
-        case FORMAT_NV12:
-        case FORMAT_NV12_TILED:
+        case DRM_FORMAT_NV12:
             halFormat = G2D_NV12;
             break;
-
-        case FORMAT_I420:
+        case DRM_FORMAT_YUV420:
             halFormat = G2D_I420;
             break;
-        case FORMAT_YV12:
+        case DRM_FORMAT_YVU420_ANDROID:
             halFormat = G2D_YV12;
             break;
-
-        case FORMAT_NV16:
+        case DRM_FORMAT_NV16:
             halFormat = G2D_NV16;
             break;
-        case FORMAT_YUYV:
+        case DRM_FORMAT_YUYV:
             halFormat = G2D_YUYV;
             break;
 
@@ -818,13 +815,12 @@ bool DeviceComposer::checkMustDeviceComposition(Layer* layer) {
     auto layerBuffer = layer->getBuffer().getBuffer();
     HandleInfo info;
     if (layerBuffer == NULL || (getInfoFromHandle(layerBuffer, &info) != 0)) {
-        ALOGE("%s: handle is invalid!", __FUNCTION__);
         return false;
     }
 
     // vpu tile format must be handled by device.
     if (layerBuffer != nullptr &&
-        (info.format == FORMAT_NV12_TILED || info.usage & USAGE_PROTECTED)) {
+        (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED || info.usage & GRALLOC_USAGE_PROTECTED)) {
         return true;
     }
 
@@ -842,7 +838,6 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
     auto layerBuffer = layer->getBuffer().getBuffer();
     HandleInfo info;
     if (layerBuffer == NULL || (getInfoFromHandle(layerBuffer, &info) != 0)) {
-        ALOGE("%s: handle is invalid!", __FUNCTION__);
         return false;
     }
 
@@ -866,7 +861,7 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
     }
 
     // video nv12 full range should be handled by client
-    if (layerBuffer != nullptr && info.format == FORMAT_NV12 &&
+    if (layerBuffer != nullptr && info.drm_format == DRM_FORMAT_NV12 &&
         ((common::Dataspace)((int)dataspace & (int)common::Dataspace::RANGE_MASK) ==
          common::Dataspace::RANGE_FULL)) {
         DEBUG_LOG("%s: g2d can't support video nv12 full range", __FUNCTION__);
@@ -878,8 +873,10 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
     // pixel alpha + blending + global alpha case skip device composition.
     if (layerBuffer != nullptr && alpha != 0xff &&
         layer->getBlendMode() == common::BlendMode::PREMULTIPLIED &&
-        (info.format == FORMAT_RGBA8888 || info.format == FORMAT_BGRA8888 ||
-         info.format == FORMAT_RGBA1010102 || info.format == FORMAT_RGBAFP16)) {
+        (info.format == static_cast<uint32_t>(common::PixelFormat::RGBA_8888) ||
+         info.format == static_cast<uint32_t>(common::PixelFormat::BGRA_8888) ||
+         info.format == static_cast<uint32_t>(common::PixelFormat::RGBA_1010102) ||
+         info.format == static_cast<uint32_t>(common::PixelFormat::RGBA_FP16))) {
         DEBUG_LOG("%s: format=%x, alpha=%x, blend=%x cannot process in DPU of imx8q", __func__,
                   info.format, alpha, layer->getBlendMode());
         return false;

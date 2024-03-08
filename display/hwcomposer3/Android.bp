@@ -63,6 +63,7 @@ cc_binary {
         "libhwsecureclient",
         "libtrusty",
         "libgralloc_internal_format",
+        "libgralloc_core",
     ],
     srcs: [
         "BufferInfo.cpp",

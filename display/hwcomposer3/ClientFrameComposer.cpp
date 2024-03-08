@@ -19,6 +19,7 @@
 
 #include <cutils/properties.h>
 #include <drm_fourcc.h>
+#include <hardware/gralloc.h>
 
 #include "BufferInfo.h"
 #include "Common.h"
@@ -473,7 +474,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         if (mHdcpEnabled) {
             HandleInfo info;
             auto buff = layer->getBuffer().getBuffer();
-            if (buff && (getInfoFromHandle(buff, &info) == 0) && (info.usage & USAGE_PROTECTED)) {
+            if (buff && (getInfoFromHandle(buff, &info) == 0) &&
+                (info.usage & GRALLOC_USAGE_PROTECTED)) {
                 client->setSecureMode(displayId, planeId, true);
             } else {
                 client->setSecureMode(displayId, planeId, false);
@@ -487,7 +489,8 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             HandleInfo info;
             auto buff = layer->waitAndGetBuffer();
             // wait for all layer buffer ready, and check if there secure layer
-            if (buff && (getInfoFromHandle(buff, &info) == 0) && (info.usage & USAGE_PROTECTED))
+            if (buff && (getInfoFromHandle(buff, &info) == 0) &&
+                (info.usage & GRALLOC_USAGE_PROTECTED))
                 secure = true;
         }
 

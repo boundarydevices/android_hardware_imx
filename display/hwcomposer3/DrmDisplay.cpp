@@ -425,16 +425,8 @@ uint32_t DrmDisplay::findDrmPlane(const native_handle_t* handle) {
         return 0;
     }
 
-    uint64_t modifier;
-    uint32_t format = ConvertNxpFormatToDrmFormat(info.format, &modifier);
-    if (format == 0) {
-        ALOGE("%s: display:%" PRIu32 " unknown format:0x%x", __FUNCTION__, mId, info.format);
-        return 0;
-    }
-
-    if (info.modifier > 0)
-        modifier = info.modifier;
-
+    uint32_t format = info.drm_format;
+    uint64_t modifier = info.modifier;
 #ifdef DEBUG_NXP_HWC
     {
         char fmt[6];
@@ -547,7 +539,8 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
     }
     mActiveConfig = (*configs)[mActiveConfigId];
 
-    uint32_t format = FORMAT_RGBA8888;
+    uint32_t format;
+    getFramebufferInfo(&width, &height, &format);
     ALOGI("Display Id   = %d \n"
           "configId     = %d \n"
           "xres         = %d px\n"
@@ -643,12 +636,12 @@ int DrmDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* 
     uint32_t id = getPrimaryPlaneId();
     DrmPlane* plane = mPlanes[id].get();
     if (plane->checkFormatSupported(DRM_FORMAT_ABGR8888)) {
-        *format = static_cast<int>(common::PixelFormat::RGBA_8888);
+        *format = static_cast<uint32_t>(common::PixelFormat::RGBA_8888);
     } else if (plane->checkFormatSupported(DRM_FORMAT_XRGB8888)) {
         // primary plane of imx8ulp use such format
-        *format = static_cast<int>(common::PixelFormat::BGRA_8888);
+        *format = static_cast<uint32_t>(common::PixelFormat::BGRA_8888);
     } else if (plane->checkFormatSupported(DRM_FORMAT_RGB565)) {
-        *format = static_cast<int>(common::PixelFormat::RGB_565);
+        *format = static_cast<uint32_t>(common::PixelFormat::RGB_565);
     }
 
     return 0;

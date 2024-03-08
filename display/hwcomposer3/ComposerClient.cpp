@@ -35,8 +35,6 @@ namespace {
 
 } // namespace
 
-using ::aidl::android::hardware::graphics::common::PixelFormat;
-
 class ComposerClient::CommandResultWriter {
 public:
     CommandResultWriter(std::vector<CommandResultPayload>* results)
@@ -195,7 +193,7 @@ ndk::ScopedAStatus ComposerClient::createLayer(int64_t displayId, int32_t buffer
 }
 
 ndk::ScopedAStatus ComposerClient::createVirtualDisplay(int32_t /*width*/, int32_t /*height*/,
-                                                        PixelFormat /*formatHint*/,
+                                                        common::PixelFormat /*formatHint*/,
                                                         int32_t /*outputBufferSlotCount*/,
                                                         VirtualDisplay* /*display*/) {
     DEBUG_LOG("%s", __FUNCTION__);
