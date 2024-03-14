@@ -312,9 +312,6 @@ private:
 
     std::map<int32_t, unique_private_handle> mStreamMidBufMap; // used for jpeg stream
 
-    std::map<int32_t, Stream *> mMyMap;
-
-
 public:
     int32_t m_raw_v4l2_format = -1;
     int8_t m_color_arrange = -1;

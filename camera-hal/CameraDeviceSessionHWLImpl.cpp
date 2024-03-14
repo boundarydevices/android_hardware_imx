@@ -1045,11 +1045,11 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
             FenceFdInfo fenceInfo = {-1, -1};
             fenceInfo.acquire_fence_fd =
                     importFence(requests[i].output_buffers[j].acquire_fence, mDebug);
-            ALOGV("%s, acquire_fence_fd %d", __func__, fenceInfo.acquire_fence_fd);
             frame_request->at(i).outBufferFences[j] = fenceInfo;
 
             int32_t stream_id = requests[i].output_buffers[j].stream_id;
-            ALOGI("%s: stream_id %d for buf %d", __func__, stream_id, j);
+            if (mDebug)
+                ALOGI("%s, acquire_fence_fd %d, stream_id %d for buf %d", __func__, fenceInfo.acquire_fence_fd, stream_id, j);
 
             auto iter = mLibCameraStreamMap.find(stream_id);
             if (iter == mLibCameraStreamMap.end()) {
@@ -1222,8 +1222,6 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
         return;
     }
 
-    ALOGI("%s: buffers %d", __func__, request->buffers().size());
-
     FrameRequest *frameRequest = reinterpret_cast<FrameRequest *>(request->cookie());
     if (frameRequest == NULL) {
         ALOGE("%s: frameRequest NULL", __func__);
@@ -1245,9 +1243,6 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
     }
 
     uint32_t pipeline_id = hwReq->pipeline_id;
-
-    ALOGI("%s: pipeline_id %d", __func__, pipeline_id);
-
     PipelineInfo *pInfo = GetPipelineInfo(pipeline_id);
     if (pInfo == NULL) {
         ALOGE("%s: Unexpected, pipeline %d is invalid", __func__, pipeline_id);
@@ -1288,8 +1283,9 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
     result->physical_camera_results.reserve(0);
 
     if (mDebug) {
-      ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d",
-        __func__, frame, result->output_buffers.size(), result->result_metadata.get(), (int)result->result_metadata->GetEntryCount()); 
+      ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d",
+        __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
+       (int)result->result_metadata->GetEntryCount(), request->buffers().size());
     }
 
     std::vector<StreamBuffer> &output_buffers = hwReq->output_buffers;
@@ -1338,6 +1334,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
         ReleaseImxStreamBuffer(srcBuf);
     }
 
+#if 0 // will refine to DumpStreamWrapper()
     void *data = NULL;
     uint32_t size = 0;
     int32_t id = 0;
@@ -1354,12 +1351,13 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
 
         int ret = GetDMAAddr(fd, size, offset, addr, &virt);
 
-        ALOGI("%s: plane num %d, plane 0: fd %d, offset %u, length %u, addr 0x%lu, virt %p, ret %d",
+        ALOGV("%s: plane num %d, plane 0: fd %d, offset %u, length %u, addr 0x%lu, virt %p, ret %d",
             __func__, planes.size(), planes[0].fd.get(), planes[0].offset, planes[0].length, addr, virt, ret);
 
         DumpStream(virt, size, 0);
         if (virt) munmap(virt, size);
     }
+#endif
 
     HandleMetaLocked(result->result_metadata, timestamp_ns);
 
@@ -1372,7 +1370,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
         ItvlStat(mPreHandleImageTime, (char *)"requestComplete(), process_pipeline_result");
 
     Mutex::Autolock _l(mLock);
-    // libcamera::Request::BufferMap bufMap = request->buffers();
+    libcamera::Request::BufferMap bufMap = request->buffers();
     for(auto &t : bufMap) {
         libcamera::FrameBuffer *frameBuffer = t.second;
         ALOGV("%s: bufMap frameBuffer %p", __func__, frameBuffer);
