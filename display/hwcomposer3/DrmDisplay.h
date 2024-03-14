@@ -116,6 +116,7 @@ public:
     bool setHdrMetadataBlobId(uint32_t bolbId);
 
     bool isDisplayActive() { return !mModeSet; }
+    bool isLowPowerDisplay() { return mCrtc->getDisplayXferProperty().getId() != (uint32_t)-1; }
 
 private:
     DrmDisplay(uint32_t id, std::unique_ptr<DrmConnector> connector, std::unique_ptr<DrmCrtc> crtc,
