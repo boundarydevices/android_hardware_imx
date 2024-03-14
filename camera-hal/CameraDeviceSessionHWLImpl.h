@@ -226,6 +226,9 @@ private:
     std::unique_ptr<libcamera::FrameBuffer> CreateFrameBuffer(const buffer_handle_t hnd, const libcamera::StreamConfiguration &streamConfig);
 
     Stream* GetStreamById(int32_t stream_id, PipelineInfo *pInfo);
+    int32_t GetStreamIdFromLibcameraStream(const libcamera::Stream *libCameraStream);
+    void DumpStreamWrapper(libcamera::Request *request);
+
 
 public:
     CameraSensorMetadata *getSensorData() { return &mSensorData; }

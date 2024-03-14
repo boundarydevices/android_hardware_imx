@@ -289,25 +289,14 @@ Stream *CameraDeviceSessionHwlImpl::GetStreamFromStreamBuffer(StreamBuffer *buf)
 }
 
 static void DumpStream(void *data, uint32_t size, int32_t id) {
-    char value[PROPERTY_VALUE_MAX];
     int fd = -1;
-    int32_t streamIdBitVal = 0;
 
     if ((data == NULL) || (size == 0))
-        return;
-
-    property_get("vendor.rw.camera.test", value, "");
-    if (strcmp(value, "") == 0)
-        return;
-
-    streamIdBitVal = atoi(value);
-    if ((streamIdBitVal & (1 << id)) == 0)
         return;
 
     ALOGI("%s: data size %d, stream id %d", __func__, size, id);
 
     char file[32];
-
     snprintf(file, 32, "/data/stream-%d.data", id);
     file[31] = 0;
 
@@ -321,6 +310,65 @@ static void DumpStream(void *data, uint32_t size, int32_t id) {
     write(fd, data, size);
 
     close(fd);
+
+    return;
+}
+
+int32_t CameraDeviceSessionHwlImpl::GetStreamIdFromLibcameraStream(const libcamera::Stream *libCameraStream) {
+    for(auto &it : mLibCameraStreamMap)
+    {
+        if(it.second == libCameraStream)
+            return it.first;
+    }
+
+    return -1;
+}
+
+void CameraDeviceSessionHwlImpl::DumpStreamWrapper(libcamera::Request *request) {
+    if (request == NULL)
+        return;
+
+    char value[PROPERTY_VALUE_MAX];
+    property_get("vendor.rw.camera.test", value, "");
+    if ((strcmp(value, "") == 0) || (strcmp(value, "debug") == 0))
+        return;
+
+    int32_t streamIdBitVal = atoi(value);
+
+    libcamera::Request::BufferMap bufMap = request->buffers();
+    for(auto &t : bufMap) {
+        const libcamera::Stream *libCameraStream = t.first;
+        int32_t stream_id = GetStreamIdFromLibcameraStream(libCameraStream);
+        if (stream_id < 0)
+            continue;
+
+        if ((streamIdBitVal & (1 << stream_id)) == 0)
+            continue;
+
+        libcamera::FrameBuffer *frameBuffer = t.second;
+        const std::vector<libcamera::FrameBuffer::Plane> &planes = frameBuffer->planes();
+        uint64_t addr = 0;
+        int fd = planes[0].fd.get();
+        uint32_t size = 0;
+        uint32_t offset = planes[0].offset;
+        void *virt = NULL;
+        size_t plan_num = planes.size();
+
+        for (int i = 0; i < plan_num; i++) {
+            size += planes[i].length;
+        }
+
+        int ret = GetDMAAddr(fd, size, offset, addr, &virt);
+        ALOGI("%s: stream_id %d, plane num %d, plane 0: fd %d, offset %u, plane[0] length %u, total length %d, addr 0x%lu, virt %p, ret %d",
+            __func__, stream_id, plan_num, fd, offset, planes[0].length, size, addr, virt, ret);
+
+        if (ret)
+            return;
+
+
+        DumpStream(virt, size, stream_id);
+        if (virt) munmap(virt, size);
+    }
 
     return;
 }
@@ -628,7 +676,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
     std::unique_ptr<libcamera::CameraConfiguration> camCfg = camera_->generateConfiguration();
     if (!camCfg) {
-		    ALOGE("%s: Failed to generate camera camCfguration", __func__);
+        ALOGE("%s: Failed to generate camera camCfguration", __func__);
         return BAD_VALUE;
     }
     ALOGI("%s: generate camera camCfguration, size %zu", __func__, camCfg->size());
@@ -1083,7 +1131,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
             }
 
             libcamera::UniqueFD fd(fenceInfo.acquire_fence_fd);
-            std::unique_ptr<libcamera::Fence> fence = std::make_unique<libcamera::Fence>(std::move(fd)); 
+            std::unique_ptr<libcamera::Fence> fence = std::make_unique<libcamera::Fence>(std::move(fd));
             frame_request->at(i).request->addBuffer(libCameraStream, frameBuffer.get(), std::move(fence));
             frameBuffers.push_back(std::move(frameBuffer));
 
@@ -1334,31 +1382,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
         ReleaseImxStreamBuffer(srcBuf);
     }
 
-#if 0 // will refine to DumpStreamWrapper()
-    void *data = NULL;
-    uint32_t size = 0;
-    int32_t id = 0;
-    libcamera::Request::BufferMap bufMap = request->buffers();
-    for(auto &t : bufMap) {
-        const libcamera::Stream *libCameraStream = t.first;
-        libcamera::FrameBuffer *frameBuffer = t.second;
-        const std::vector<libcamera::FrameBuffer::Plane> &planes = frameBuffer->planes();
-        uint64_t addr = 0;
-        int fd = planes[0].fd.get();
-        uint32_t size = planes[0].length;
-        uint32_t offset = planes[0].offset;
-        void *virt = NULL;
-
-        int ret = GetDMAAddr(fd, size, offset, addr, &virt);
-
-        ALOGV("%s: plane num %d, plane 0: fd %d, offset %u, length %u, addr 0x%lu, virt %p, ret %d",
-            __func__, planes.size(), planes[0].fd.get(), planes[0].offset, planes[0].length, addr, virt, ret);
-
-        DumpStream(virt, size, 0);
-        if (virt) munmap(virt, size);
-    }
-#endif
-
+    DumpStreamWrapper(request);
     HandleMetaLocked(result->result_metadata, timestamp_ns);
 
     // call back to process result
