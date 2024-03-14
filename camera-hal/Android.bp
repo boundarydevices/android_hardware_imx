@@ -42,7 +42,6 @@ imx_camera_hal_defaults {
         "-Wall"
     ],
     shared_libs: [
-        "android.hardware.camera.provider@2.6",
         "libbase",
         "libcamera_metadata",
         "libcutils",
