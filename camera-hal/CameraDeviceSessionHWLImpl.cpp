@@ -809,7 +809,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     for (const auto& libcameraStream : libCameraStreamSet) {
         Stream stream = request_config.streams[i];
         mLibCameraStreamMap[stream.id] = libcameraStream;
-        ALOGI("%s: set mLibCameraStreamMap i %d, id %d, libcamera::Stream %p", __func__, i, stream.id, libcameraStream);
+        ALOGI("%s: set mLibCameraStreamMap i %d, id %d, libcamera::Stream %p, mLibCameraStreamMap size %d", __func__, i, stream.id, libcameraStream, mLibCameraStreamMap.size());
         i++;
 
         if (i >= stream_num)
@@ -895,9 +895,9 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
         state_ = CameraState::Stopped;
     }
 
-		// camera_->stop() (in command thead) will call d->pipe_->invokeMethod(&PipelineHandler::stop, ConnectionTypeBlocking, this);
-		// PipelineHandler::stop() and requestComplete() is in same thread(say v4l2 thread).
-		// To avoid dead lock, hold locks with same sequence: Lock for ConnectionTypeBlocking, mLock.
+    // camera_->stop() (in command thead) will call d->pipe_->invokeMethod(&PipelineHandler::stop, ConnectionTypeBlocking, this);
+    // PipelineHandler::stop() and requestComplete() is in same thread(say v4l2 thread).
+    // To avoid dead lock, hold locks with same sequence: Lock for ConnectionTypeBlocking, mLock.
 
     Mutex::Autolock _l(mLock);
     /* If still has on-fly requests from map_frame_request, wait to finish */
@@ -951,6 +951,8 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
         MaliFreeBuffer(std::move(t.second));
     }
     mStreamMidBufMap.clear();
+
+    mLibCameraStreamMap.clear();
 
     pipelines_built_ = false;
 }
