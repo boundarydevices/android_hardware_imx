@@ -197,8 +197,9 @@ std::tuple<HWC3::Error, buffer_handle_t> FbdevClient::getComposerTarget(
         return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][index]);
     }
 
-    std::vector<gralloc_handle_t> buffers(mMaxComposerTargetsPerDisplay);
+    std::vector<gralloc_handle_t> buffers;
     uint32_t width, height, format;
+    buffers.reserve(mMaxComposerTargetsPerDisplay);
     mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
     auto ret = composer->prepareDeviceFrameBuffer(width, height, format, buffers,
                                                   mMaxComposerTargetsPerDisplay, false);
