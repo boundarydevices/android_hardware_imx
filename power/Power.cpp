@@ -29,6 +29,8 @@
 
 #include <mutex>
 
+#define BOOSTWIDEVINE 0xff
+
 namespace aidl {
 namespace android {
 namespace hardware {
@@ -160,7 +162,6 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
     LOG(DEBUG) << "Power setBoost: " << toString(type) << " duration: " << durationMs;
     ATRACE_INT(toString(type).c_str(), durationMs);
     switch (type) {
-        case Boost::DISPLAY_UPDATE_IMMINENT:
         case Boost::INTERACTION:
             if (mSustainedPerfModeOn) {
                 break;
@@ -185,10 +186,7 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
                 s_previous_boost_timespec = cur_boost_timespec;
                 s_previous_duration = duration;
 
-                if (type == Boost::INTERACTION)
-                    mHintManager->DoHint("INTERACTION", std::chrono::seconds(1));
-                else
-                    mHintManager->DoHint("DISPLAY_UPDATE_IMMINENT", std::chrono::seconds(1));
+                mHintManager->DoHint("INTERACTION", std::chrono::seconds(1));
             }
             break;
         case Boost::ML_ACC:
@@ -199,8 +197,34 @@ ndk::ScopedAStatus Power::setBoost(Boost type, int32_t durationMs) {
             [[fallthrough]];
         case Boost::CAMERA_SHOT:
             [[fallthrough]];
+        case Boost::DISPLAY_UPDATE_IMMINENT:
+            [[fallthrough]];
         default:
             if (mSustainedPerfModeOn) {
+                break;
+            }
+            if (static_cast<int>(type) == BOOSTWIDEVINE) {
+                int duration = 1500; // 1.5s by default
+                if (durationMs) {
+                    int input_duration = durationMs + 750;
+                    if (input_duration > duration) {
+                        duration = (input_duration > 5750) ? 5750 : input_duration;
+                    }
+                }
+                struct timespec cur_boost_timespec;
+                clock_gettime(CLOCK_MONOTONIC, &cur_boost_timespec);
+
+                long long elapsed_time =
+                        calc_timespan_us(s_previous_boost_timespec, cur_boost_timespec);
+                // don't hint if previous hint's duration covers this hint's duration
+                if (((long long)s_previous_duration * 1000) > (elapsed_time + duration * 1000)) {
+                    break;
+                }
+
+                s_previous_boost_timespec = cur_boost_timespec;
+                s_previous_duration = duration;
+
+                mHintManager->DoHint("BOOSTWIDEVINE", std::chrono::seconds(1));
                 break;
             }
             if (durationMs > 0) {
