@@ -1112,8 +1112,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
     // If resize for preview stream, there will be obvious changes in the preview when taking
     // picture. And if there is a new dst addr, the process will not be skipped, otherwise it will
     // flash green.
-    if ((src->width() != dst->width()) ||
-        (src->height() != dst->height()) && dst->isPreview() && src->isPictureIntent()) {
+    if (((src->width() != dst->width()) || (src->height() != dst->height())) &&
+        dst->isPreview() && src->isPictureIntent()) {
         if (!setDstPhyAddr.empty() &&
             (setDstPhyAddr.find(dstBuf->mPhyAddr) != setDstPhyAddr.end())) {
             isSkipHandle = true;
