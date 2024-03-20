@@ -49,6 +49,7 @@ typedef struct {
 enum socType {
     IMX8MQ = 0,
     IMX8QM = 1,
+    IMX95 = 2,
 };
 
 class DecoderDev {

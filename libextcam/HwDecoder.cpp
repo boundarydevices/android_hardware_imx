@@ -40,7 +40,7 @@ namespace android {
 #define HANTRO_FRAME_ALIGN_WIDTH (HANTRO_FRAME_ALIGN * 2)
 #define HANTRO_FRAME_ALIGN_HEIGHT (HANTRO_FRAME_ALIGN_WIDTH)
 
-HwDecoder::HwDecoder(const char *mime)
+HwDecoder::HwDecoder()
       : mPollThread(0),
         mFetchThread(0),
         pDev(NULL),
@@ -116,15 +116,23 @@ status_t HwDecoder::Init(const char *socType) {
         color_format_table = color_format_table_8qm;
 
     } else {
-        pDev->mSocType = IMX8MQ;
-        mOutFormat = V4L2_PIX_FMT_NV12;
+        if (strcmp(socType, "imx8mq") == 0) {
+            pDev->mSocType = IMX8MQ;
+            mOutFormat = V4L2_PIX_FMT_NV12;
+        } else if (strcmp(socType, "imx95") == 0) {
+            pDev->mSocType = IMX95;
+            mOutFormat = V4L2_PIX_FMT_YUYV;
+        }
+
         mTableSize = sizeof(color_format_table_8mq) / sizeof(color_format_table_8mq[0]);
         color_format_table = color_format_table_8mq;
     }
 
     mFd = pDev->Open();
-    if (mFd < 0)
+    if (mFd < 0) {
+        ALOGE("%s: Decoder Opened failed", __FUNCTION__);
         return ret;
+    }
     ALOGV("%s: Decoder Opened fd=%d", __FUNCTION__, mFd);
 
     ret = pDev->GetVideoBufferType(&mOutBufType, &mCapBufType);
@@ -1189,7 +1197,7 @@ status_t HwDecoder::handleFormatChanged() {
         else
             ctl.id = V4L2_CID_MIN_BUFFERS_FOR_CAPTURE;
 
-        if (pDev->mSocType == IMX8QM) {
+        if (pDev->mSocType == IMX8QM || pDev->mSocType == IMX95) {
             ctl.value = 4; // default value;
         } else {
             result = ioctl(mFd, VIDIOC_G_CTRL, &ctl);

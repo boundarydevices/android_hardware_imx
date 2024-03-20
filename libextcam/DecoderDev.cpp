@@ -73,8 +73,8 @@ int32_t DecoderDev::Open() {
             return ret;
         }
 
-        if (mSocType == IMX8QM) {
-            // 8qm not support CODEC_ERROR SKIP
+        if (mSocType == IMX8QM || mSocType == IMX95) {
+            // imx8qm not support CODEC_ERROR SKIP, imx95 not support V4L2_EVENT_CODEC_ERROR
             return mFd;
         }
 
@@ -152,7 +152,7 @@ bool DecoderDev::isDecoderDevice(const char *devName) {
     }
     ALOGI("%s: name=%s, card name=%s, bus info %s\n", __func__, (char *)vidCap.driver,
           (char *)vidCap.card, (char *)vidCap.bus_info);
-    if (mSocType == IMX8QM) {
+    if (mSocType == IMX8QM || mSocType == IMX95) {
         isDecNode = (!strcmp((char *)vidCap.card, "mxc-jpeg codec") &&
                      (strstr((char *)vidCap.bus_info, "jpegdec") != NULL));
     } else {

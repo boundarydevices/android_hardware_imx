@@ -280,8 +280,10 @@ int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, I
     // If ENG_NOTCARE, go through all engines until convert ok.
     for (int i = ENG_MIN; i < ENG_NUM; i++) {
         ret = (this->*g_EngFuncList[i])(dstBuf, srcBuf);
-        if (ret == 0)
+        if (ret == 0) {
+            ALOGV("%s:  engine %d, ret:%d", __func__, i, ret);
             return 0;
+        }
     }
 
     return ret;
@@ -491,8 +493,8 @@ int ImageProcess::ConvertImageByG2DCopy(ImxImageBuffer &dstBuf, ImxImageBuffer &
 }
 
 static int AllocPhyBufferByFmtRes(ImxImageBuffer &imgBuf, uint32_t format, uint32_t width,
-                                  uint32_t height) {
-    imgBuf.mFormatSize = getSizeByForamtRes(format, width, height, false);
+                                  uint32_t height, uint32_t stride) {
+    imgBuf.mFormatSize = getSizeByForamtRes(format, stride, height, false);
     imgBuf.mSize = (imgBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
 
     int ret = AllocPhyBuffer(imgBuf);
@@ -505,7 +507,7 @@ static int AllocPhyBufferByFmtRes(ImxImageBuffer &imgBuf, uint32_t format, uint3
     imgBuf.mFormat = format;
     imgBuf.mWidth = width;
     imgBuf.mHeight = height;
-    imgBuf.mStride = width;
+    imgBuf.mStride = stride;
     imgBuf.mHeightSpan = height;
 
     return 0;
@@ -559,7 +561,7 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
     s_surface.top = crop_top;
     s_surface.right = crop_left + crop_width;
     s_surface.bottom = crop_top + crop_height;
-    s_surface.stride = srcBuf.mWidth;
+    s_surface.stride = srcBuf.mStride;
     s_surface.width = srcBuf.mWidth;
     s_surface.height = srcBuf.mHeight;
     s_surface.rot = G2D_ROTATION_0;
@@ -573,12 +575,12 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
           srcBuf.mHeight == dstBuf.mHeight))) { // just scale or just csc
         d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dstBuf.mFormat);
         d_surface.planes[0] = (long)d_buf.buf_paddr;
-        d_surface.planes[1] = (long)d_buf.buf_paddr + dstBuf.mWidth * dstBuf.mHeight;
+        d_surface.planes[1] = (long)d_buf.buf_paddr + dstBuf.mStride * dstBuf.mHeight;
         d_surface.left = 0;
         d_surface.top = 0;
         d_surface.right = dstBuf.mWidth;
         d_surface.bottom = dstBuf.mHeight;
-        d_surface.stride = dstBuf.mWidth;
+        d_surface.stride = dstBuf.mStride;
         d_surface.width = dstBuf.mWidth;
         d_surface.height = dstBuf.mHeight;
         d_surface.rot = G2D_ROTATION_0;
@@ -592,7 +594,8 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
     } else {
         struct g2d_surface tmp_surface;
 
-        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight);
+        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight,
+                                     dstBuf.mStride);
         if (ret) {
             ALOGE("%s:%d AllocPhyBufferByFmtRes failed", __func__, __LINE__);
             return BAD_VALUE;
@@ -603,12 +606,12 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
         // first scale on same format as source
         tmp_surface.format = (g2d_format)convertPixelFormatToG2DFormat(srcBuf.mFormat);
         tmp_surface.planes[0] = (long)resizeBuf.mPhyAddr;
-        tmp_surface.planes[1] = (long)resizeBuf.mPhyAddr + dstBuf.mWidth * dstBuf.mHeight;
+        tmp_surface.planes[1] = (long)resizeBuf.mPhyAddr + dstBuf.mStride * dstBuf.mHeight;
         tmp_surface.left = 0;
         tmp_surface.top = 0;
         tmp_surface.right = dstBuf.mWidth;
         tmp_surface.bottom = dstBuf.mHeight;
-        tmp_surface.stride = dstBuf.mWidth;
+        tmp_surface.stride = dstBuf.mStride;
         tmp_surface.width = dstBuf.mWidth;
         tmp_surface.height = dstBuf.mHeight;
         tmp_surface.rot = G2D_ROTATION_0;
@@ -623,12 +626,12 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
         // then csc to dst format
         d_surface.format = (g2d_format)convertPixelFormatToG2DFormat(dstBuf.mFormat);
         d_surface.planes[0] = (long)d_buf.buf_paddr;
-        d_surface.planes[1] = (long)d_buf.buf_paddr + dstBuf.mWidth * dstBuf.mHeight;
+        d_surface.planes[1] = (long)d_buf.buf_paddr + dstBuf.mStride * dstBuf.mHeight;
         d_surface.left = 0;
         d_surface.top = 0;
         d_surface.right = dstBuf.mWidth;
         d_surface.bottom = dstBuf.mHeight;
-        d_surface.stride = dstBuf.mWidth;
+        d_surface.stride = dstBuf.mStride;
         d_surface.width = dstBuf.mWidth;
         d_surface.height = dstBuf.mHeight;
         d_surface.rot = G2D_ROTATION_0;
@@ -798,10 +801,10 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     //    GPU3D uses physical address, no need to flush the input buffer.
     bool bOutputCached = dstBuf.mUsage & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
 
-    ALOGV("ConvertImageByGPU_3D, bOutputCached %d, usage 0x%lx, res src %ux%u, dst %ux%u, format "
+    ALOGI("ConvertImageByGPU_3D, bOutputCached %d, usage 0x%lx, res src %ux%u, dst %ux%u, format "
           "src 0x%x, dst 0x%x, size %d",
-          bOutputCached, dstBuf.mUsage, srcBuf.mWidth, srcBuf.mHeight, dstBuf.mWidth, dstBuf.mHeight,
-          srcBuf.mFormat, dstBuf.mFormat, (int)srcBuf.mFormatSize);
+          bOutputCached, dstBuf.mUsage, srcBuf.mWidth, srcBuf.mHeight, dstBuf.mWidth,
+          dstBuf.mHeight, srcBuf.mFormat, dstBuf.mFormat, (int)srcBuf.mFormatSize);
 
     // Fix me! Currently, the GPU only support using physical address for uncached memory.
     // Otherwise the physical address will be taken as virtual one, leading crash.
@@ -843,7 +846,8 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     // case 3: diffrent format, different resolution
     // first resize, then go through case 4.
     if ((srcBuf.mWidth != dstBuf.mWidth) || (srcBuf.mHeight != dstBuf.mHeight)) {
-        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight);
+        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight,
+                                     dstBuf.mStride);
         if (ret) {
             ALOGE("%s:%d AllocPhyBufferByFmtRes failed", __func__, __LINE__);
             return -EINVAL;
@@ -909,7 +913,8 @@ int ImageProcess::ConvertImageByCPU(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
     // case 3: diffrent format, different resolution
     // first resize, then go through case 4.
     if ((srcBuf.mWidth != dstBuf.mWidth) || (srcBuf.mHeight != dstBuf.mHeight)) {
-        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight);
+        ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight,
+                                     dstBuf.mStride);
         if (ret) {
             ALOGE("%s:%d AllocPhyBufferByFmtRes failed", __func__, __LINE__);
             return -EINVAL;
@@ -925,7 +930,7 @@ int ImageProcess::ConvertImageByCPU(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
          (dstBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) &&
         (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_422_I)) {
         convertYUYVtoNV12SP((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth,
-                            dstBuf.mHeight);
+                            dstBuf.mHeight, srcBuf.mStride, dstBuf.mStride);
     } else if ((srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) &&
                (dstBuf.mFormat == HAL_PIXEL_FORMAT_YCrCb_420_SP)) {
         convertNV12toNV21(dstBuf, srcBuf);
@@ -1001,20 +1006,20 @@ void ImageProcess::cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *output
 }
 
 void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width,
-                                       int height) {
+                                       int height, int srcStride, int dstStride) {
 #define u32 unsigned int
 #define u8 unsigned char
 
     u32 h, w;
     u32 nHeight = height;
-    u32 nWidthDiv4 = width / 4;
+    u32 nWidthDiv4 = srcStride / 4;
 
     u32 *pYSrcOffset = (u32 *)inputBuffer;
     u32 value = 0;
     u32 value2 = 0;
 
     u32 *pYDstOffset = (u32 *)outputBuffer;
-    u32 *pUVDstOffset = (u32 *)(((u8 *)(outputBuffer)) + width * height);
+    u32 *pUVDstOffset = (u32 *)(((u8 *)(outputBuffer)) + dstStride * height);
 
     for (h = 0; h < nHeight; h++) {
         if (!(h & 0x1)) {
@@ -1046,6 +1051,8 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuff
                 pYDstOffset += 1;
             }
         }
+        pYDstOffset += ((dstStride - width) / 4);
+        pUVDstOffset += ((dstStride - width) / 4 / 2);
     }
 }
 

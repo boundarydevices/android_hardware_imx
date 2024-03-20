@@ -493,16 +493,23 @@ ScopedAStatus ExternalCameraDeviceSession::configureStreams(
         return fromStatus(status);
     }
 
+    char socType[128] = {0};
+    property_get("ro.boot.soc_type", socType, "");
+    int64_t flagBufferUsage = 0;
     std::vector<HalStream>& out = *_aidl_return;
     out.resize(in_requestedConfiguration.streams.size());
     for (size_t i = 0; i < in_requestedConfiguration.streams.size(); i++) {
         out[i].overrideDataSpace = in_requestedConfiguration.streams[i].dataSpace;
         out[i].id = in_requestedConfiguration.streams[i].id;
         // TODO: double check should we add those CAMERA flags
+        flagBufferUsage = ((int64_t)in_requestedConfiguration.streams[i].usage) |
+                ((int64_t)BufferUsage::CPU_WRITE_OFTEN) | ((int64_t)BufferUsage::CAMERA_OUTPUT);
+
+        if (strcmp(socType, "imx95") == 0) {
+            flagBufferUsage |= GRALLOC_USAGE_PRIVATE_3;
+        }
         mStreamMap[in_requestedConfiguration.streams[i].id].usage = out[i].producerUsage =
-                static_cast<BufferUsage>(((int64_t)in_requestedConfiguration.streams[i].usage) |
-                                         ((int64_t)BufferUsage::CPU_WRITE_OFTEN) |
-                                         ((int64_t)BufferUsage::CAMERA_OUTPUT));
+                static_cast<BufferUsage>(flagBufferUsage);
         out[i].consumerUsage = static_cast<BufferUsage>(0);
         out[i].maxBuffers = static_cast<int32_t>(mV4L2BufferCount);
 
@@ -2466,8 +2473,7 @@ void ExternalCameraDeviceSession::OutputThread::setMjpegDecoderType(bool type) {
 }
 
 int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
-    const char* mime = "video/x-motion-jpeg";
-    mDecoder = new HwDecoder(mime);
+    mDecoder = new HwDecoder();
     if (!mDecoder) {
         ALOGE("%s: Create HwDecoder Instance for MJPEG failed \n", __FUNCTION__);
         return -errno;
@@ -2501,6 +2507,8 @@ int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
         mEngine = ENG_DPU;
     else if (strcmp(socType, "imx8mq") == 0)
         mEngine = ENG_G3D;
+    else if (strcmp(socType, "imx95") == 0)
+        mEngine = ENG_CPU;
     else
         mEngine = ENG_NOTCARE;
 
@@ -3629,8 +3637,13 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     IMXGetBufferAddr(fslMem->fd, fslMem->size, dstPhyAddr, false);
                     ALOGV("%s: fslMem, fd %d, size %d, width %d, height %d, format 0x%x", __func__, fslMem->fd, fslMem->size, fslMem->width, fslMem->height, fslMem->format);
 
-                    fcret = handleFrame(halBuf.width, halBuf.height, outputFourcc, mYu12Frame->mFourcc, dstPhyAddr,
-                               scaledPhyAddr, scaledWidth, scaledHeight, scaledWidth, outLayout.yStride);
+                    uint8_t* outData;
+                    size_t dataSize;
+                    mYu12Frame->getData(&outData, &dataSize);
+                    fcret = handleFrame(halBuf.width, halBuf.height, outputFourcc,
+                                        mYu12Frame->mFourcc, dstPhyAddr, scaledPhyAddr, scaledWidth,
+                                        scaledHeight, scaledWidth, outLayout.yStride, outData,
+                                        (uint8_t*)outLayout.y);
                 } else {
                     fcret =
                         formatConvert(cropAndScaled, outLayout, sz, outputFourcc, mInterBufFormat);

@@ -108,7 +108,7 @@ struct DecoderInputBuffer {
 
 class HwDecoder {
 public:
-    HwDecoder(const char* mime);
+    HwDecoder();
     virtual ~HwDecoder();
 
     status_t Init(const char* socType);
