@@ -517,21 +517,26 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
     }
 
     // rotation limitation
-    if (layer->getTransform() != common::Transform::NONE)
+    if (layer->getTransform() != common::Transform::NONE) {
+        DEBUG_LOG("%s: layer %" PRId64 " transform(%d) check failed", __FUNCTION__, layer->getId(),
+                  layer->getTransform());
         return HWC3::Error::Unsupported;
+    }
 
-    // format limitation
     HandleInfo info;
     auto buff = layer->getBuffer().getBuffer();
     if (!buff || (getInfoFromHandle(buff, &info) != 0)) {
         return HWC3::Error::BadParameter;
     }
 
+    // format limitation
     if ((info.format >= static_cast<uint32_t>(common::PixelFormat::RGBA_8888)) &&
-        (info.format <= static_cast<uint32_t>(common::PixelFormat::BGRA_8888)))
+        (info.format <= static_cast<uint32_t>(common::PixelFormat::BGRA_8888))) {
+        DEBUG_LOG("%s: layer %" PRId64 " buffer format(0x%x) check failed", __FUNCTION__,
+                  layer->getId(), info.format);
         return HWC3::Error::Unsupported;
+    }
 
-    // scaling limitation
     common::Rect rect = layer->getDisplayFrame();
     auto& config = mDisplays[displayId]->getActiveConfig();
     int w = (rect.right - rect.left) * config.modeWidth / config.width;
@@ -539,22 +544,50 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
     common::Rect srect = layer->getSourceCropInt();
     int srcW = srect.right - srect.left;
     int srcH = srect.bottom - srect.top;
+
+#ifdef OVERLAY_LIMITATION_DCSS
+    // scaling limitation
     if (w > srcW * 7 || h > srcH * 7) {
-        // fall back to GPU.
+        DEBUG_LOG(
+                "%s: layer %ld scaling(src: %d x %d, dst: %d x %d, upscale more than 7 times) check failed",
+                __FUNCTION__, layer->getId(), srcW, srcH, w, h);
         return HWC3::Error::Unsupported;
     }
 
     if (srcW < 64 &&
         ((info.drm_format == DRM_FORMAT_NV12) || (info.drm_format == DRM_FORMAT_NV21) ||
          (info.drm_format == DRM_FORMAT_P010))) {
+        DEBUG_LOG("%s: layer %" PRId64 " small resolution(src width=%d, format=0x%x) check failed",
+                  __FUNCTION__, layer->getId(), srcW, info.drm_format);
         return HWC3::Error::Unsupported;
     } else if (srcW < 32 &&
                ((info.drm_format == DRM_FORMAT_UYVY) || (info.drm_format == DRM_FORMAT_VYUY) ||
                 (info.drm_format == DRM_FORMAT_YUYV) || (info.drm_format == DRM_FORMAT_YVYU))) {
+        DEBUG_LOG("%s: layer %" PRId64 " small resolution(src width=%d, format=0x%x) check failed",
+                  __FUNCTION__, layer->getId(), srcW, info.drm_format);
         return HWC3::Error::Unsupported;
     } else if (srcW < 16 || srcH < 8) {
+        DEBUG_LOG("%s: layer %" PRId64 " small resolution(src width=%d, height=%d) check failed",
+                  __FUNCTION__, layer->getId(), srcW, srcH);
         return HWC3::Error::Unsupported;
     }
+#endif
+#ifdef OVERLAY_LIMITATION_DPU
+    if ((srcW != w) || (srcH != h)) {
+        // DPU of imx95 don't support scaling(TODO: support down-scaling in later B0 chip)
+        DEBUG_LOG("%s: layer %" PRId64 " scaling(src: %d x %d, dst: %d x %d) check failed",
+                  __FUNCTION__, layer->getId(), srcW, srcH, w, h);
+        return HWC3::Error::Unsupported;
+    }
+
+    // check buffer resolution
+    if (info.width > 8192 || info.height > 8192 || info.width < 60 || info.height < 60) {
+        DEBUG_LOG("%s: layer %" PRId64 " no-scaling resolution(src: %d x %d) check failed",
+                  __FUNCTION__, layer->getId(), srcW, srcH);
+        return HWC3::Error::Unsupported;
+    }
+#endif
+    DEBUG_LOG("%s: Overlay check pass for layer=%" PRId64, __FUNCTION__, layer->getId());
 
     return HWC3::Error::None;
 }

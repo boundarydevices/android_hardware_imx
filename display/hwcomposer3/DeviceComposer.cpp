@@ -273,6 +273,12 @@ int DeviceComposer::finishComposite() {
 
 int DeviceComposer::setRenderTarget(buffer_handle_t memory) {
     mTarget = memory;
+    HandleInfo info;
+    if (mTarget == NULL || (getInfoFromHandle(mTarget, &info) != 0)) {
+        return -EINVAL;
+    }
+    DEBUG_LOG_G2D("%s: --------target(fd=%d, %d x %d)--------", __FUNCTION__, info.fd, info.width,
+                  info.height);
     return 0;
 }
 
@@ -289,7 +295,8 @@ int DeviceComposer::clearRect(buffer_handle_t target, common::Rect& rect) {
     surface.clrcolor = 0xff << 24;
     clearFunction(getHandle(), &surface);
 
-    DEBUG_LOG_G2D("clearRect: rect(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right, rect.bottom);
+    DEBUG_LOG_G2D("clearRect: rect(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right,
+                  rect.bottom);
     return 0;
 }
 
@@ -329,6 +336,8 @@ int DeviceComposer::clearWormHole(std::vector<Layer*>& layers) {
     struct g2d_surfaceEx surfaceX;
     memset(&surfaceX, 0, sizeof(surfaceX));
     struct g2d_surface& surface = surfaceX.base;
+    DEBUG_LOG_G2D("%s: clear %zu worm holes", __FUNCTION__, numRect);
+    int clrcolor = 0x00 << 24; // make alpha be 0(transparent) for DRM_FORMAT_ABGR8888 like format.
     for (size_t i = 0; i < numRect; i++) {
         if (holes[i].isEmpty()) {
             continue;
@@ -339,9 +348,10 @@ int DeviceComposer::clearWormHole(std::vector<Layer*>& layers) {
         rect.top = holes[i].top;
         rect.right = holes[i].right;
         rect.bottom = holes[i].bottom;
-        DEBUG_LOG_G2D("clearhole: hole(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right, rect.bottom);
+        DEBUG_LOG_G2D("clearhole: hole(l:%d,t:%d,r:%d,b:%d)", rect.left, rect.top, rect.right,
+                      rect.bottom);
         setG2dSurface(surfaceX, mTarget, rect);
-        surface.clrcolor = 0xff << 24;
+        surface.clrcolor = clrcolor;
         clearFunction(getHandle(), &surface);
     }
 
@@ -391,10 +401,11 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
         }
 
         setClipping(srect, drect, clip, transform);
-        DEBUG_LOG_G2D("index:%ld, sourceCrop(l:%d,t:%d,r:%d,b:%d), visible(l:%d,t:%d,r:%d,b:%d), "
-              "display(l:%d,t:%d,r:%d,b:%d)",
-              layer->getId(), srect.left, srect.top, srect.right, srect.bottom, clip.left, clip.top,
-              clip.right, clip.bottom, drect.left, drect.top, drect.right, drect.bottom);
+        DEBUG_LOG_G2D("layer:%ld, sourceCrop(l:%d,t:%d,r:%d,b:%d), visible(l:%d,t:%d,r:%d,b:%d), "
+                      "display(l:%d,t:%d,r:%d,b:%d)",
+                      layer->getId(), srect.left, srect.top, srect.right, srect.bottom, clip.left,
+                      clip.top, clip.right, clip.bottom, drect.left, drect.top, drect.right,
+                      drect.bottom);
 
         HandleInfo layerInfo;
         if (layerBuffer != nullptr && (getInfoFromHandle(layerBuffer, &layerInfo) == 0)) {
@@ -530,7 +541,11 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
     surface.width = info.width;
     surface.height = info.height;
 
-    DEBUG_LOG_G2D("%s: dimension(%d,%d,%d,%d, %d x %d), format=%d, stride=%d, tiling=%d, plane0=0x%x, plane1=0x%x, plane2=0x%x", __FUNCTION__, surface.left, surface.top, surface.right, surface.bottom, surface.width, surface.height, surface.format, surface.stride, surfaceX.tiling, surface.planes[0], surface.planes[1], surface.planes[2]);
+    DEBUG_LOG_G2D("%s: dimension(%d,%d,%d,%d, %d x %d), format=%d, stride=%d, tiling=%d, "
+                  "plane0=0x%x, plane1=0x%x, plane2=0x%x",
+                  __FUNCTION__, surface.left, surface.top, surface.right, surface.bottom,
+                  surface.width, surface.height, surface.format, surface.stride, surfaceX.tiling,
+                  surface.planes[0], surface.planes[1], surface.planes[2]);
 
     return 0;
 }
@@ -841,8 +856,6 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
         return false;
     }
 
-    common::Dataspace dataspace = layer->getDataspace();
-
     if (layer->getCompositionType() == Composition::CLIENT) {
         DEBUG_LOG("%s: Not process type=CLIENT layer", __FUNCTION__);
         return false;
@@ -860,25 +873,13 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
         return false;
     }
 
+#ifdef G2D_LIMITATION_VIV
+    common::Dataspace dataspace = layer->getDataspace();
     // video nv12 full range should be handled by client
     if (layerBuffer != nullptr && info.drm_format == DRM_FORMAT_NV12 &&
         ((common::Dataspace)((int)dataspace & (int)common::Dataspace::RANGE_MASK) ==
          common::Dataspace::RANGE_FULL)) {
         DEBUG_LOG("%s: g2d can't support video nv12 full range", __FUNCTION__);
-        return false;
-    }
-
-#ifdef WORKAROUND_DPU_ALPHA_BLENDING
-    auto alpha = (uint8_t)(layer->getPlaneAlpha() * 255);
-    // pixel alpha + blending + global alpha case skip device composition.
-    if (layerBuffer != nullptr && alpha != 0xff &&
-        layer->getBlendMode() == common::BlendMode::PREMULTIPLIED &&
-        (info.format == static_cast<uint32_t>(common::PixelFormat::RGBA_8888) ||
-         info.format == static_cast<uint32_t>(common::PixelFormat::BGRA_8888) ||
-         info.format == static_cast<uint32_t>(common::PixelFormat::RGBA_1010102) ||
-         info.format == static_cast<uint32_t>(common::PixelFormat::RGBA_FP16))) {
-        DEBUG_LOG("%s: format=%x, alpha=%x, blend=%x cannot process in DPU of imx8q", __func__,
-                  info.format, alpha, layer->getBlendMode());
         return false;
     }
 #endif
@@ -887,7 +888,7 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
 }
 
 bool DeviceComposer::composeLayers(std::vector<Layer*> layers, buffer_handle_t target) {
-    DEBUG_LOG("%s: %zu layers compose to target", __FUNCTION__, layers.size());
+    DEBUG_LOG("%s: ------%zu layers compose to target-------", __FUNCTION__, layers.size());
 
     if (!target) {
         ALOGE("%s: composer target buffer is invalid", __FUNCTION__);

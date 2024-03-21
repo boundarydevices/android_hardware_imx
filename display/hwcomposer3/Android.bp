@@ -18,9 +18,54 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+soong_config_module_type {
+    name: "hwc_config_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "nxp_hwc",
+    variables: [
+        "overlay_ip",
+        "g2d_ip",
+    ],
+    properties: [
+        "cflags",
+    ],
+}
+
+soong_config_string_variable {
+    name: "overlay_ip",
+    values: ["DCSS", "DPU"],
+}
+
+soong_config_string_variable {
+    name: "g2d_ip",
+    values: ["DPU", "VIV"],
+}
+
+hwc_config_cc_defaults {
+    name: "hwc_config_defaults",
+    soong_config_variables: {
+        overlay_ip: {
+            DCSS: {
+                cflags: ["-DOVERLAY_LIMITATION_DCSS"],
+            },
+            DPU: {
+                cflags: ["-DOVERLAY_LIMITATION_DPU"],
+            },
+        },
+        g2d_ip: {
+            DPU: {
+                cflags: ["-DG2D_LIMITATION_DPU"],
+            },
+            VIV: {
+                cflags: ["-DG2D_LIMITATION_VIV"],
+            },
+        },
+    },
+}
+
 cc_binary {
     name: "android.hardware.graphics.composer3-service.imx",
-    defaults: ["libnxp_gralloc_v5_default"],
+    defaults: ["libnxp_gralloc_v5_default", "hwc_config_defaults"],
     relative_install_path: "hw",
     init_rc: ["hwc3.rc"],
     vintf_fragments: ["hwc3.xml"],
