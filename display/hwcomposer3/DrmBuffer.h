@@ -49,6 +49,7 @@ private:
     friend class FbdevClient;
     friend class DummyClient;
     friend class DrmDisplay;
+    friend class ClientFrameComposer;
     DrmBuffer(DeviceClient& client);
 
     DeviceClient& mDeviceClient;
@@ -63,6 +64,7 @@ private:
     uint64_t mPlaneModifiers[4] = {0, 0, 0, 0};
     common::Rect mDisplayFrame;
     common::Rect mSourceCrop;
+    int32_t mZpos = 0;
     // fsl::MetaData *mMeta = NULL;
     std::optional<uint32_t> mDrmFramebuffer;
     std::optional<unsigned long> mBufferAddress;

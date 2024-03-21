@@ -464,6 +464,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
                   displayId);
             return HWC3::Error::NoResources;
         }
+        drmBuffer->mZpos = layer->getZOrder();
         displayBuffer.planeDrmBuffer[planeId] = std::move(drmBuffer);
 
         if (layer->getHdrMetadataState() == LAYER_HDR_METADATA_STATE_ADDED) {

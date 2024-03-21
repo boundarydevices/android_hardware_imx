@@ -211,6 +211,7 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
         return false;
     }
 
+    uint32_t numPlaneInCrtc = (planes.size() + connectors.size() - 1) / connectors.size();
     std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> crtc_planes;
     for (uint32_t i = 0; i < connectors.size(); i++) {
         std::unique_ptr<DrmConnector> connector = std::move(connectors[i]);
@@ -226,12 +227,14 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
         std::unique_ptr<DrmCrtc> crtc = std::move(*crtcIt);
         crtcs.erase(crtcIt);
 
+        uint32_t cnt = 0;
         auto check_fun = [&](std::unique_ptr<DrmPlane>& plane) -> bool {
             if (!plane->isOverlay() && !plane->isPrimary()) {
                 return false;
             }
-            if (plane->isCompatibleWith(*crtc)) {
+            if (plane->isCompatibleWith(*crtc) && cnt < numPlaneInCrtc) {
                 crtc_planes.insert({plane->getId(), std::move(plane)});
+                cnt++;
                 return true;
             } else {
                 return false;

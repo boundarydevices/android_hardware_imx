@@ -152,6 +152,7 @@ private:
     uint32_t mUiScaleType = UI_SCALE_NONE;
     std::vector<uint32_t> mPlaneIdPool;
     bool mModeSet = true;
+    int32_t mOverlayMaxZpos = 0;
 
     uint32_t mHdrMetadataBlobId = 0;
 #ifdef DEBUG_DUMP_REFRESH_RATE

@@ -115,6 +115,7 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
     okay &= request->Set(planeId, plane->getSrcYProperty(), rectS.top);
     okay &= request->Set(planeId, plane->getSrcWProperty(), wS << 16);
     okay &= request->Set(planeId, plane->getSrcHProperty(), hS << 16);
+    okay &= request->Set(planeId, plane->getZposProperty(), buffer->mZpos);
 
     //    auto prop = mPlanes[planeId]->getDtrcTableOffestProperty();
     //    auto meta = buffer->mMeta;
@@ -134,6 +135,9 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
     mTempBuffers.planeDrmBuffer[planeId] = buffer;
 
     plane->setState(PLANE_STATE_ACTIVE);
+    if (buffer->mZpos > mOverlayMaxZpos)
+        mOverlayMaxZpos = buffer->mZpos;
+
     DEBUG_LOG("%s: flush overlay plane:%d, fbId=%d", __FUNCTION__, planeId,
               *buffer->mDrmFramebuffer);
     return std::make_tuple(HWC3::Error::None, std::move(request));
@@ -210,6 +214,7 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
     okay &= request->Set(planeId, plane->getSrcYProperty(), sourceY);
     okay &= request->Set(planeId, plane->getSrcWProperty(), sw << 16);
     okay &= request->Set(planeId, plane->getSrcHProperty(), sh << 16);
+    okay &= request->Set(planeId, plane->getZposProperty(), mOverlayMaxZpos + 1);
 
     if (!okay) {
         ALOGE("%s: failed to flush Primary plane:%d.", __FUNCTION__, planeId);
@@ -312,6 +317,8 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
             plane->setState(PLANE_STATE_DISABLED);
         }
     }
+    mOverlayMaxZpos = 0;
+
     mPreviousBuffers.clientTargetDrmBuffer = mTempBuffers.clientTargetDrmBuffer;
     mPreviousBuffers.planeDrmBuffer = mTempBuffers.planeDrmBuffer;
 
