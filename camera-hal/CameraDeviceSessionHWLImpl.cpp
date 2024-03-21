@@ -1333,9 +1333,9 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
     result->physical_camera_results.reserve(0);
 
     if (mDebug) {
-      ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d",
+      ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d, sequence %u",
         __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
-       (int)result->result_metadata->GetEntryCount(), request->buffers().size());
+       (int)result->result_metadata->GetEntryCount(), request->buffers().size(), request->sequence());
     }
 
     std::vector<StreamBuffer> &output_buffers = hwReq->output_buffers;
