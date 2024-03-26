@@ -32,8 +32,8 @@ namespace aidl::android::hardware::graphics::composer3::impl {
 class DrmProperty {
 public:
     DrmProperty() {}
-    DrmProperty(uint32_t id, uint64_t value, std::string name)
-          : mId(id), mValue(value), mName(std::move(name)) {}
+    DrmProperty(uint32_t id, uint64_t value, uint32_t flags, std::string name)
+          : mId(id), mValue(value), mFlags(flags), mName(std::move(name)) {}
 
     ~DrmProperty() {}
 
@@ -41,6 +41,7 @@ public:
         if (this != &other) {
             mId = other.mId;
             mValue = other.mValue;
+            mFlags = other.mFlags;
             mName = std::move(other.mName);
         }
         return *this;
@@ -50,11 +51,14 @@ public:
 
     uint64_t getValue() const { return mValue; }
 
+    uint32_t getFlags() const { return mFlags; }
+
     const std::string& getName() const { return mName; }
 
 private:
     uint32_t mId = -1;
     uint64_t mValue = -1;
+    uint32_t mFlags = 0;
     std::string mName;
 };
 
@@ -85,6 +89,7 @@ bool LoadDrmProperties(::android::base::borrowed_fd drmFd, uint32_t objectId, ui
 
         const auto propertyName = drmProperty->name;
         const auto propertyValue = drmProperties->prop_values[i];
+        const auto propertyFlags = drmProperty->flags;
 
         auto it = objectPropertyMap.find(propertyName);
         if (it != objectPropertyMap.end()) {
@@ -92,7 +97,8 @@ bool LoadDrmProperties(::android::base::borrowed_fd drmFd, uint32_t objectId, ui
                       propertyName, propertyValue);
 
             auto& objectPointerToMember = it->second;
-            object->*objectPointerToMember = DrmProperty(propertyId, propertyValue, propertyName);
+            object->*objectPointerToMember =
+                    DrmProperty(propertyId, propertyValue, propertyFlags, propertyName);
         }
 
         drmModeFreeProperty(drmProperty);

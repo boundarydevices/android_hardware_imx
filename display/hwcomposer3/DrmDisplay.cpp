@@ -115,7 +115,10 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
     okay &= request->Set(planeId, plane->getSrcYProperty(), rectS.top);
     okay &= request->Set(planeId, plane->getSrcWProperty(), wS << 16);
     okay &= request->Set(planeId, plane->getSrcHProperty(), hS << 16);
-    okay &= request->Set(planeId, plane->getZposProperty(), buffer->mZpos);
+
+    auto& prop = plane->getZposProperty();
+    if ((prop.getId() != (uint32_t)-1) && !(prop.getFlags() & DRM_MODE_PROP_IMMUTABLE))
+        okay &= request->Set(planeId, prop, buffer->mZpos);
 
     //    auto prop = mPlanes[planeId]->getDtrcTableOffestProperty();
     //    auto meta = buffer->mMeta;
@@ -214,7 +217,10 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
     okay &= request->Set(planeId, plane->getSrcYProperty(), sourceY);
     okay &= request->Set(planeId, plane->getSrcWProperty(), sw << 16);
     okay &= request->Set(planeId, plane->getSrcHProperty(), sh << 16);
-    okay &= request->Set(planeId, plane->getZposProperty(), mOverlayMaxZpos + 1);
+
+    auto& prop = plane->getZposProperty();
+    if ((prop.getId() != (uint32_t)-1) && !(prop.getFlags() & DRM_MODE_PROP_IMMUTABLE))
+        okay &= request->Set(planeId, prop, mOverlayMaxZpos + 1);
 
     if (!okay) {
         ALOGE("%s: failed to flush Primary plane:%d.", __FUNCTION__, planeId);
