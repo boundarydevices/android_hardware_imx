@@ -23,8 +23,6 @@
 #include <sys/ioctl.h>
 
 #include "Allocator.h"
-#include "Memory.h"
-#include "MemoryDesc.h"
 #include "NV12_resize.h"
 
 namespace android {
@@ -93,22 +91,6 @@ int AllocPhyBuffer(ImxStreamBuffer &imxBuf) {
 int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
     ALOGE("%s: not supported on evk_95");
     return -1;
-}
-
-void SetBufferHandle(ImxStreamBuffer &imxBuf) {
-    fsl::MemoryDesc desc;
-    fsl::Memory *handle = NULL;
-
-    desc.mFlag = 0;
-    desc.mWidth = desc.mStride = imxBuf.mSize / 4;
-    desc.mHeight = 1;
-    desc.mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
-    desc.mFslFormat = fsl::FORMAT_RGBA8888;
-    desc.mSize = imxBuf.mSize;
-    desc.mProduceUsage = 0;
-
-    handle = new fsl::Memory(&desc, imxBuf.mFd, -1);
-    imxBuf.buffer = (buffer_handle_t)handle;
 }
 
 void SwitchImxBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB) {

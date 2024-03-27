@@ -155,12 +155,6 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
         ALOGI("%s: current_focal_length_ set: %5.2f\n", __FUNCTION__, logical_entry.data.f[0]);
     }
 
-    pMemManager = fsl::MemoryManager::getInstance();
-    if (pMemManager == NULL) {
-        ALOGE("%s, unexpected, pMemManager is null !!!", __func__);
-        return BAD_VALUE;
-    }
-
     // create jpeg builder
     mJpegBuilder = new JpegBuilder();
 
@@ -191,7 +185,6 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physic
 
     memset(&m3aState, 0, sizeof(m3aState));
 
-    pMemManager = NULL;
     m_meta = NULL;
     mSettings = NULL;
     mDebug = false;

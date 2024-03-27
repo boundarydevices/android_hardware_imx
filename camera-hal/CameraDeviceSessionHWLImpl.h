@@ -31,7 +31,6 @@
 #include "CameraDeviceHWLImpl.h"
 #include "CameraMetadata.h"
 #include "JpegBuilder.h"
-#include "MemoryManager.h"
 
 using namespace fsl;
 
@@ -257,7 +256,6 @@ private:
     std::vector<uint32_t> camera_ids;
 
     autoState m3aState;
-    fsl::MemoryManager *pMemManager;
 
     sp<JpegBuilder> mJpegBuilder;
 

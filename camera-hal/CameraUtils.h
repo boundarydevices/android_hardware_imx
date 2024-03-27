@@ -46,7 +46,6 @@
 #include <utils/threads.h>
 
 #include "CameraConfigurationParser.h"
-#include "Memory.h"
 #include "hal_camera_metadata.h"
 #include "ImageProcess.h"
 
@@ -196,7 +195,6 @@ cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
 
 int AllocPhyBuffer(ImxStreamBuffer &imxBuf);
 int FreePhyBuffer(ImxStreamBuffer &imxBuf);
-void SetBufferHandle(ImxStreamBuffer &imxBuf);
 void SwitchImxBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB);
 int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine);
 int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer);

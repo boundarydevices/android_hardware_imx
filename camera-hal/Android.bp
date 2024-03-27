@@ -54,7 +54,6 @@ imx_camera_hal_defaults {
         "liblog",
         "libutils",
         "libbinder",
-        "libfsldisplay",
         "libui",
         "libsync",
         "libimageprocess",
