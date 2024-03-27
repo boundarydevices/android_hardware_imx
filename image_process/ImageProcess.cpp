@@ -80,7 +80,7 @@ static bool IsCscSupportByG3D(int srcFomat, int dstFormat) {
     return false;
 }
 
-static bool getDefaultG2DLib(char *libName, int size) {
+bool ImageProcess::getDefaultG2DLib(char *libName, int size) {
     char value[PROPERTY_VALUE_MAX];
 
     if ((libName == NULL) || (size < (int)strlen(G2DENGINE) + (int)strlen(".so")))
@@ -97,7 +97,11 @@ static bool getDefaultG2DLib(char *libName, int size) {
         strcat(libName, value);
         strcat(libName, ".so");
     }
-    ALOGI("Default g2d lib: %s", libName);
+
+    if (strcmp(value, "viv") == 0)
+        mbVIVG2D = true;
+
+    ALOGI("Default g2d lib: %s, mbVIVG2D %d", libName, mbVIVG2D);
     return true;
 }
 
@@ -112,7 +116,7 @@ ImageProcess *ImageProcess::getInstance() {
 }
 
 ImageProcess::ImageProcess()
-      : mIpuFd(-1), mPxpFd(-1), mChannel(-1), mG2dModule(NULL), mCLModule(NULL) {
+      : mIpuFd(-1), mPxpFd(-1), mChannel(-1), mG2dModule(NULL), mCLModule(NULL), mbVIVG2D(false) {
     /*
      * imx6dl support ENG_IPU device and ENG_PXP device.
      * imx6q and imx6qp support ENG_IPU device.
@@ -685,7 +689,7 @@ int ImageProcess::ConvertImageByG2D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
         return ret;
     }
 
-    if (mBlitEngine && (engine == ENG_G2D)) {
+    if (mBlitEngine && (engine == ENG_G2D) && mbVIVG2D) {
         LockG2dAddr(srcBuf);
         LockG2dAddr(dstBuf);
     }
@@ -697,7 +701,7 @@ int ImageProcess::ConvertImageByG2D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
         ret = ConvertImageByG2DBlit(dstBuf, srcBuf);
     }
 
-    if (mBlitEngine && (engine == ENG_G2D)) {
+    if (mBlitEngine && (engine == ENG_G2D) && mbVIVG2D) {
         UnLockG2dAddr(srcBuf);
         UnLockG2dAddr(dstBuf);
     }

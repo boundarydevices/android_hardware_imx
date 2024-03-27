@@ -78,6 +78,7 @@ private:
     int openEngine(void** handle);
     int closeEngine(void* handle);
     void getModule(char* path, const char* name);
+    bool getDefaultG2DLib(char *libName, int size);
 
 private:
     ImageProcess();
@@ -116,6 +117,8 @@ private:
     hwc_func1 mCLFlush;
     hwc_func1 mCLFinish;
     Mutex mCLLock;
+
+    bool mbVIVG2D;
 };
 
 } // namespace fsl
