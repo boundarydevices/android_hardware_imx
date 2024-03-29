@@ -1370,7 +1370,6 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
             continue;
         }
 
-        // Fix me, mStreamMidBufMap[stream_id] is allocated by fsl::memory
         processJpegBuffer(srcBuf, dstBuf, &requestMeta);
 
         ReleaseImxStreamBuffer(dstBuf);
