@@ -17,6 +17,8 @@
 
 #include "DrmConnector.h"
 
+#include <span>
+
 namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
 
@@ -142,13 +144,13 @@ bool DrmConnector::loadEdid(::android::base::borrowed_fd drmFd) {
         drmModeFreePropertyBlob(blob);
     }
 
-    using byte_view = std::basic_string_view<uint8_t>;
+    using byte_view = std::span<const uint8_t>;
 
     constexpr size_t kEdidDescriptorOffset = 54;
     constexpr size_t kEdidDescriptorLength = 18;
 
-    byte_view edid(mEdid->data(), mEdid->size());
-    edid.remove_prefix(kEdidDescriptorOffset);
+    byte_view edid(*mEdid);
+    edid = edid.subspan(kEdidDescriptorOffset);
 
     byte_view descriptor(edid.data(), kEdidDescriptorLength);
     if (descriptor[0] == 0 && descriptor[1] == 0) {
