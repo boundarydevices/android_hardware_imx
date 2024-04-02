@@ -67,6 +67,7 @@ using ::android::hardware::camera::external::common::SizeHasher;
 using ::ndk::ScopedAStatus;
 
 constexpr char kCameraMjpegDecoderType[] = "vendor.camera.mjpg.decoder";
+constexpr char kCameraMjpegCopy[] = "vendor.camera.mjpg.copy";
 
 class ExternalCameraDeviceSession : public BnCameraDeviceSession, public OutputThreadInterface {
 public:
@@ -195,6 +196,7 @@ public:
         std::list<std::shared_ptr<HalRequest>> switchToOffline();
 
         void setMjpegDecoderType(bool type);
+        void setMjpegCopy(bool bCopy);
 
         HwDecoder* mDecoder;
         uint64_t mDecedFrames = 0;
@@ -263,6 +265,7 @@ public:
         std::string mExifModel;
 
         bool mHardwareDecoder;
+        bool mMjpgCopy;
         bool mDebug;
         uint32_t mInterBufFormat = V4L2_PIX_FMT_NV12;
 
@@ -435,6 +438,7 @@ private:
     std::string mExifMake;
     std::string mExifModel;
     bool mHardwareDecoder;
+    bool mMjpgCopy;
     bool mUseHalBufManager = false;
 
     /* End of members not changed after initialize() */

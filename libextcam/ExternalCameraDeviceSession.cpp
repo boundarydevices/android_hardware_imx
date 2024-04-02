@@ -186,6 +186,12 @@ bool ExternalCameraDeviceSession::initialize() {
         mHardwareDecoder = false;
     }
 
+    if (GetProperty(kCameraMjpegCopy, "true") == "true") {
+        mMjpgCopy = true;
+    } else {
+        mMjpgCopy = false;
+    }
+
     struct v4l2_capability capability;
     int ret = ioctl(mV4l2Fd.get(), VIDIOC_QUERYCAP, &capability);
     std::string make, model;
@@ -225,6 +231,7 @@ bool ExternalCameraDeviceSession::initialize() {
     }
 
     mOutputThread->setMjpegDecoderType(mHardwareDecoder);
+    mOutputThread->setMjpegCopy(mMjpgCopy);
     mOutputThread->setExifMakeModel(mExifMake, mExifModel);
 
     status_t status = initDefaultRequests();
@@ -2472,6 +2479,10 @@ void ExternalCameraDeviceSession::OutputThread::setMjpegDecoderType(bool type) {
     mHardwareDecoder = type;
 }
 
+void ExternalCameraDeviceSession::OutputThread::setMjpegCopy(bool bCopy) {
+    mMjpgCopy = bCopy;
+}
+
 int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
     mDecoder = new HwDecoder();
     if (!mDecoder) {
@@ -3524,7 +3535,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         // Gralloc lockYCbCr the buffer
         switch (halBuf.format) {
             case PixelFormat::BLOB: {
-                if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
+                if ((req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) && mMjpgCopy) {
+                    ALOGI("take photo, directly copy MJPEG");
                     void* outLayout = sHandleImporter.lock(*(halBuf.bufPtr), (uint64_t)halBuf.usage,
                                                            inDataSize);
                     std::memcpy(outLayout, inData, inDataSize);
@@ -3535,6 +3547,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     }
                 } else {
                     // TODO: add nv12 as jpeg source
+                    ALOGI("take photo, call createJpegLocked");
                     int ret = createJpegLocked(halBuf, req->setting);
                     if (ret != 0) {
                         if (mHardwareDecoder && parent->getHardwareDecFlag())
