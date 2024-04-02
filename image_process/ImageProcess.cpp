@@ -805,7 +805,7 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     //    GPU3D uses physical address, no need to flush the input buffer.
     bool bOutputCached = dstBuf.mUsage & (USAGE_SW_READ_OFTEN | USAGE_SW_WRITE_OFTEN);
 
-    ALOGI("ConvertImageByGPU_3D, bOutputCached %d, usage 0x%lx, res src %ux%u, dst %ux%u, format "
+    ALOGV("ConvertImageByGPU_3D, bOutputCached %d, usage 0x%lx, res src %ux%u, dst %ux%u, format "
           "src 0x%x, dst 0x%x, size %d",
           bOutputCached, dstBuf.mUsage, srcBuf.mWidth, srcBuf.mHeight, dstBuf.mWidth,
           dstBuf.mHeight, srcBuf.mFormat, dstBuf.mFormat, (int)srcBuf.mFormatSize);
