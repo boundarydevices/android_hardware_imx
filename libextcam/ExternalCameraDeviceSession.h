@@ -255,9 +255,6 @@ public:
         std::unordered_map<Size, std::shared_ptr<AllocatedFrame>, SizeHasher> mScaledYu12Frames;
         YCbCrLayout mYu12FrameLayout;
         YCbCrLayout mYu12ThumbFrameLayout;
-        std::shared_ptr<AllocatedFrame> mI420Frame; // If media buffer format (mYu12Frame) is NV12,
-                                                    // convert to I420, then encode jpeg.
-        YCbCrLayout mI420FrameLayout;
         std::vector<uint8_t> mMuteTestPatternFrame;
         uint32_t mTestPatternData[4] = {0, 0, 0, 0};
         bool mCameraMuted = false;
