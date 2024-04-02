@@ -2331,12 +2331,19 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
     if (mYu12ThumbFrame == nullptr || mYu12ThumbFrame->mWidth != thumbSize.width ||
         mYu12ThumbFrame->mHeight != thumbSize.height) {
         mYu12ThumbFrame.reset();
-        mYu12ThumbFrame =
-                std::make_shared<AllocatedFrame>(thumbSize.width, thumbSize.height, format);
-        int ret = mYu12ThumbFrame->allocate(&mYu12ThumbFrameLayout);
-        if (ret != 0) {
-            ALOGE("%s: allocating YU12 thumb frame failed!", __FUNCTION__);
-            return Status::INTERNAL_ERROR;
+
+        if (mHardwareDecoder && parent->getHardwareDecFlag())
+            ALOGI("%s: mYu12ThumbFrame will allocate after haredware decode", __func__);
+        else
+            mYu12ThumbFrame =
+                    std::make_shared<AllocatedFrame>(thumbSize.width, thumbSize.height, format);
+
+        if (mYu12ThumbFrame) {
+            int ret = mYu12ThumbFrame->allocate(&mYu12ThumbFrameLayout);
+            if (ret != 0) {
+               ALOGE("%s: allocating YU12 thumb frame failed!", __FUNCTION__);
+               return Status::INTERNAL_ERROR;
+            }
         }
     }
 
@@ -2810,14 +2817,46 @@ int ExternalCameraDeviceSession::OutputThread::cropAndScaleThumbLocked(
         return ret;
     }
 
-    ret = libyuv::I420Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
-                            static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
-                            static_cast<uint8_t*>(inputLayout.cr), inputLayout.cStride,
-                            inputCrop.width, inputCrop.height,
-                            static_cast<uint8_t*>(outFullLayout.y), outFullLayout.yStride,
-                            static_cast<uint8_t*>(outFullLayout.cb), outFullLayout.cStride,
-                            static_cast<uint8_t*>(outFullLayout.cr), outFullLayout.cStride,
-                            outSz.width, outSz.height, libyuv::FilterMode::kFilterNone);
+    if (in->mFourcc == V4L2_PIX_FMT_YUV420)
+        ret = libyuv::I420Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
+                                static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
+                                static_cast<uint8_t*>(inputLayout.cr), inputLayout.cStride,
+                                inputCrop.width, inputCrop.height,
+                                static_cast<uint8_t*>(outFullLayout.y), outFullLayout.yStride,
+                                static_cast<uint8_t*>(outFullLayout.cb), outFullLayout.cStride,
+                                static_cast<uint8_t*>(outFullLayout.cr), outFullLayout.cStride,
+                                outSz.width, outSz.height, libyuv::FilterMode::kFilterNone);
+    else if (in->mFourcc == V4L2_PIX_FMT_NV12)
+        ret = libyuv::NV12Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
+                                static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
+                                inputCrop.width, inputCrop.height,
+                                static_cast<uint8_t*>(outFullLayout.y), outFullLayout.yStride,
+                                static_cast<uint8_t*>(outFullLayout.cb), outFullLayout.cStride,
+                                outSz.width, outSz.height, libyuv::FilterMode::kFilterNone);
+    else if ((in->mFourcc == V4L2_PIX_FMT_NV16) || (in->mFourcc == V4L2_PIX_FMT_YUYV)) {
+        uint64_t outPhy = 0;
+        uint8_t* outVirt = NULL;
+        size_t outSize = 0;
+        uint64_t inPhy = 0;
+        uint8_t* inVirt = NULL;
+        size_t inSize = 0;
+
+        mYu12ThumbFrame->getPhyAddr(outPhy);
+        mYu12ThumbFrame->getData(&outVirt, &outSize);
+        in->getPhyAddr(inPhy);
+        in->getData(&inVirt, &inSize);
+
+        ALOGI("%s: fmt 0x%x, outPhy 0x%llx, outVirt %p, outSize %d, inPhy 0x%llx, inVirt %p, inSize %d",
+              __func__, in->mFourcc, (unsigned long long)outPhy, outVirt, (int)outSize,
+              (unsigned long long)inPhy, inVirt, (int)inSize);
+
+        ret = handleFrame(outSz.width, outSz.height, in->mFourcc, mYu12ThumbFrame->mFourcc, outPhy,
+                          inPhy, in->mWidth, in->mHeight, in->mWidth, outSz.width, (void*)inVirt,
+                          (void*)outVirt);
+    } else {
+        ALOGW("%s: unsupported v4l2 format 0x%x", __func__, in->mFourcc);
+        return -1;
+    }
 
     if (ret != 0) {
         ALOGE("%s: failed to scale buffer from %dx%d to %dx%d. Ret %d", __FUNCTION__,
@@ -2950,11 +2989,11 @@ int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
 
     /* Encode the thumbnail image */
     if (outputThumbnail) {
-        ret = encodeJpegYU12(thumbSize, yu12Thumb, thumbQuality, 0, 0, &thumbCode[0],
-                             maxThumbCodeSize, thumbCodeSize);
+        ret = encodeJpeg(mYu12Frame->mFourcc, thumbSize, yu12Thumb, thumbQuality, 0, 0,
+                         &thumbCode[0], maxThumbCodeSize, thumbCodeSize);
 
         if (ret != 0) {
-            return lfail("%s: thumbnail encodeJpegYU12 failed with %d", __FUNCTION__, ret);
+            return lfail("%s: thumbnail encodeJpeg failed with %d", __FUNCTION__, ret);
         }
     }
 
@@ -2991,8 +3030,8 @@ int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
     }
 
     /* Encode the main jpeg image */
-    ret = encodeJpegYU12(jpegSize, yu12Main, jpegQuality, exifData, exifDataSize, bufPtr,
-                         maxJpegCodeSize, jpegCodeSize);
+    ret = encodeJpeg(mYu12Frame->mFourcc, jpegSize, yu12Main, jpegQuality, exifData, exifDataSize,
+                     bufPtr, maxJpegCodeSize, jpegCodeSize);
 
     /* TODO: Not sure this belongs here, maybe better to pass jpegCodeSize out
      * and do this when returning buffer to parent */
@@ -3009,7 +3048,7 @@ int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
 
     /* Check if our JPEG actually succeeded */
     if (ret != 0) {
-        return lfail("%s: encodeJpegYU12 failed with %d", __FUNCTION__, ret);
+        return lfail("%s: encodeJpeg failed with %d", __FUNCTION__, ret);
     }
 
     ALOGV("%s: encoded JPEG (ret:%d) with Q:%d max size: %zu", __FUNCTION__, ret, jpegQuality,
@@ -3069,6 +3108,14 @@ int pixel_format_nv16_to_nv12(uint8_t* nv16_buff, uint8_t* nv12_buff, int w, int
 int ExternalCameraDeviceSession::OutputThread::VpuDecGetBuffer(uint8_t* inData, size_t inDataSize) {
     if ((inData == NULL) || (inDataSize == 0))
         return BAD_VALUE;
+
+    auto parent = mParent.lock();
+    if (parent == nullptr) {
+        ALOGE("%s: session has been disconnected!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    Size thumbSize = parent->getMaxThumbSize();
 
     std::unique_ptr<DecoderInputBuffer> inputbuf = std::make_unique<DecoderInputBuffer>();
     inputbuf->pInBuffer = inData;
@@ -3131,6 +3178,21 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecGetBuffer(uint8_t* inData, 
         __func__, mYu12Frame->getFormatSize(), fourcc, mDecodedData.width, mDecodedData.height, vaddr, (void *)phyAddr);
 
     dumpStream((uint8_t*)vaddr, size, 1);
+
+    // Allocating intermediate YU12 thumbnail frame
+    if (mYu12ThumbFrame == nullptr || mYu12ThumbFrame->mWidth != thumbSize.width ||
+        mYu12ThumbFrame->mHeight != thumbSize.height) {
+        mYu12ThumbFrame.reset();
+
+        mYu12ThumbFrame =
+                std::make_shared<AllocatedFramePhyMem>(thumbSize.width, thumbSize.height, fourcc);
+
+        int ret = mYu12ThumbFrame->allocate(&mYu12ThumbFrameLayout);
+        if (ret != 0) {
+            ALOGE("%s: allocating YU12 thumb frame failed!", __FUNCTION__);
+            return BAD_VALUE;
+        }
+    }
 
     return 0;
 }

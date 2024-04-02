@@ -314,6 +314,22 @@ int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQualit
                    const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
                    size_t& actualCodeSize);
 
+int encodeJpegNV12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
+                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
+                   size_t& actualCodeSize);
+
+int encodeJpegNV16(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
+                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
+                   size_t& actualCodeSize);
+
+int encodeJpegYUYV(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
+                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
+                   size_t& actualCodeSize);
+
+int encodeJpeg(uint32_t fourcc, const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
+               const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
+               size_t& actualCodeSize);
+
 Size getMaxThumbnailResolution(const common::V1_0::helper::CameraMetadata&);
 
 void freeReleaseFences(std::vector<CaptureResult>&);
@@ -349,6 +365,8 @@ struct OutputThreadInterface {
     virtual ssize_t getJpegBufferSize(int32_t width, int32_t height) const = 0;
 
     virtual bool getHardwareDecFlag() const { return false; }
+    // virtual Size getMaxThumbSize() { Size zeroSize = {0, 0}; return zeroSize; }
+    virtual Size getMaxThumbSize() { return {0, 0}; }
 };
 
 // A CPU copy of a mapped V4L2Frame. Will map the input V4L2 frame.

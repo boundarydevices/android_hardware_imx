@@ -129,6 +129,8 @@ public:
     // Get the hardwareDec flag according to the usb camera
     virtual bool getHardwareDecFlag() const override;
 
+    virtual Size getMaxThumbSize() { return mMaxThumbResolution; }
+
     // Called by CameraDevice to dump active device states
     binder_status_t dump(int fd, const char** args, uint32_t numArgs) override;
 
