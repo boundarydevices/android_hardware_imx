@@ -1055,8 +1055,8 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuff
                 pYDstOffset += 1;
             }
         }
-        pYDstOffset += ((dstStride - width) / 4);
-        pUVDstOffset += ((dstStride - width) / 4 / 2);
+        pYDstOffset += ((dstStride - srcStride) / 4);
+        pUVDstOffset += ((dstStride - srcStride) / 4 / 2);
     }
 }
 
