@@ -29,43 +29,14 @@
 #include <cinttypes>
 #include <cmath>
 
-#include "Allocator.h"
+#include "ImageUtils.h"
 
 #define HAVE_JPEG // required for libyuv.h to export MJPEG decode APIs
 #include <libyuv.h>
 
 namespace android {
-
-int IMXAllocMem(int size) {
-    int flags = fsl::MFLAGS_CONTIGUOUS;
-    int align;
-    align = MEM_ALIGN;
-    fsl::Allocator* pAllocator = fsl::Allocator::getInstance();
-
-    return pAllocator->allocMemory(size, align, flags);
-}
-
-int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual) {
-    fsl::Allocator* pAllocator = fsl::Allocator::getInstance();
-    int ret = 0;
-
-    if (isVirtual)
-        ret = pAllocator->getVaddrs(fd, size, addr);
-    else
-        ret = pAllocator->getPhys(fd, size, addr);
-
-    if (ret != 0) {
-        addr = 0;
-        ALOGE("get %s address failed, fd %d, size %d, ret %d", isVirtual ? "virtual" : "physical",
-              fd, size, ret);
-    }
-
-    return ret;
-}
-
 namespace hardware {
 namespace camera {
-
 namespace external {
 namespace common {
 
@@ -545,8 +516,7 @@ AllocatedFramePhyMem::AllocatedFramePhyMem(uint32_t w, uint32_t h, uint32_t form
 
 AllocatedFramePhyMem::~AllocatedFramePhyMem() {
     if (dstBuffer) {
-        fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-        allocator->releaseMemory(dstBuffer);
+        FreePhyBuffer(dstBuffer);
         dstBuffer = NULL;
         dstBuf = NULL;
     }
@@ -575,68 +545,50 @@ int AllocatedFramePhyMem::allocate(YCbCrLayout* out) {
     ALOGV("%s: resolution %dx%d, dstBuffer %p, dstBuf %p", __func__, mWidth, mHeight, dstBuffer,
           dstBuf);
 
-    fsl::MemoryDesc desc;
     int ret = 0;
-    fsl::MemoryManager* allocator = NULL;
+    // VPU decoder output is 16 pixels aligned, so v4l2 res such as 1920x1080 is decoded to
+    // 1920x1088. Need allocate I420 with aligned size, to avoid out memory boundary when csc from
+    // decoded buffer to mYu12Frame.
+    uint32_t width = ALIGN_PIXEL_16(mWidth);
+    uint32_t height = ALIGN_PIXEL_16(mHeight);
+    uint32_t format = 0;
 
     uint32_t formatSize = getFormatSize();
-    if ((dstBuffer && dstBuf && (dstBuffer->size >= formatSize)) ||
+    if ((dstBuffer && dstBuf && (dstBufferSize >= formatSize)) ||
         (dstBuf && (mBufSize >= formatSize))) {
         goto set_layout;
     }
 
-    allocator = fsl::MemoryManager::getInstance();
     if (dstBuffer) {
-        allocator->releaseMemory(dstBuffer);
+        FreePhyBuffer(dstBuffer);
         dstBuf = NULL;
         dstBuffer = NULL;
     }
 
-    // VPU decoder output is 16 pixels aligned, so v4l2 res such as 1920x1080 is decoded to
-    // 1920x1088. Need allocate I420 with aligned size, to avoid out memory boundary when csc from
-    // decoded buffer to mYu12Frame.
-    desc.mWidth = ALIGN_PIXEL_16(mWidth);
-    desc.mHeight = ALIGN_PIXEL_16(mHeight);
-   // desc.mProduceUsage |= fsl::USAGE_SW_READ_OFTEN | fsl::USAGE_SW_WRITE_OFTEN;
-    desc.mFlag = 0;
-
     if (mFourcc == V4L2_PIX_FMT_YUV420) {
-        desc.mFormat = fsl::FORMAT_I420;
-        desc.mFslFormat = fsl::FORMAT_I420;
+        format = FORMAT_I420;
     } else if (mFourcc == V4L2_PIX_FMT_NV12) {
-        desc.mFormat = fsl::FORMAT_NV12;
-        desc.mFslFormat = fsl::FORMAT_NV12;
+        format = FORMAT_NV12;
     } else if (mFourcc == V4L2_PIX_FMT_NV16) {
-        desc.mFormat = fsl::FORMAT_NV16;
-        desc.mFslFormat = fsl::FORMAT_NV16;
+        format = FORMAT_NV16;
     } else if (mFourcc == V4L2_PIX_FMT_YUYV) {
-        desc.mFormat = fsl::FORMAT_YUYV;
-        desc.mFslFormat = fsl::FORMAT_YUYV;
+        format = FORMAT_YUYV;
     } else {
         ALOGE("%s: unsupported fourcc 0x%x", __func__, mFourcc);
         return -EINVAL;
     }
 
-
-    ret = desc.checkFormat();
-    if (ret != 0) {
-        ALOGE("%s: checkFormat failed, ret %d", __FUNCTION__, ret);
-        return -EINVAL;
+    ImxImageBuffer imgBuf;
+    ret = AllocPhyBuffer(width, height, format, imgBuf);
+    if (ret) {
+        ALOGE("%s: AllocPhyBuffer failed, %d x %d, format=0x%x", __func__, width, height, format);
+        return ret;
     }
 
-    ret = allocator->allocMemory(desc, &dstBuffer);
-    if (ret != 0) {
-        ALOGE("%s: allocMemory failed, ret %d", __FUNCTION__, ret);
-        return -EINVAL;
-    }
-
-    allocator->lock(dstBuffer,
-                    dstBuffer->usage, 0, 0,
-                    dstBuffer->width, dstBuffer->height, (void**)(&dstBuf));
-
-    ret = IMXGetBufferAddr(dstBuffer->fd, dstBuffer->size, mPhyAddr, false);
-    if (ret)
-        mPhyAddr = 0;
+    dstBuffer = imgBuf.buffer;
+    dstBuf = (uint8_t*)imgBuf.mVirtAddr;
+    mPhyAddr = imgBuf.mPhyAddr;
+    dstBufferSize = imgBuf.mSize;
 
     if (out == nullptr)
         return 0;
@@ -689,8 +641,7 @@ void AllocatedFramePhyMem::getPhyAddr(uint64_t& phyAddr) {
 
 void AllocatedFramePhyMem::flush() {
     if (dstBuffer) {
-        fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-        allocator->flush(dstBuffer);
+        UnlockPhyBuffer(dstBuffer);
     }
 }
 
@@ -706,7 +657,7 @@ int AllocatedFramePhyMem::getData(uint8_t** outData, size_t* dataSize) {
     if (mBufSize)
       *dataSize = mBufSize;
     else
-      *dataSize = dstBuffer->size;
+      *dataSize = dstBufferSize;
 
     return 0;
 }

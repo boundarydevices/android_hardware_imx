@@ -185,12 +185,6 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
         ALOGI("%s: current_focal_length_ set: %5.2f\n", __FUNCTION__, logical_entry.data.f[0]);
     }
 
-    pMemManager = fsl::MemoryManager::getInstance();
-    if (pMemManager == NULL) {
-        ALOGE("%s, unexpected, pMemManager is null !!!", __func__);
-        return BAD_VALUE;
-    }
-
     // create jpeg builder
     mJpegBuilder = new JpegBuilder();
 
@@ -243,7 +237,6 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physic
     memset(&m3aState, 0, sizeof(m3aState));
     memset(&caps_supports, 0, sizeof(caps_supports));
 
-    pMemManager = NULL;
     m_meta = NULL;
     mSettings = NULL;
     mDebug = false;
@@ -930,8 +923,7 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
 
 ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuffer(
         StreamBuffer *buf, Stream *stream) {
-    void *pBuf = NULL;
-    fsl::Memory *handle = NULL;
+    buffer_handle_t handle = NULL;
 
     if ((buf == NULL) || (buf->buffer == NULL) || (stream == NULL))
         return NULL;
@@ -940,20 +932,16 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
     if (imxBuf == NULL)
         return NULL;
 
-    handle = (fsl::Memory *)(buf->buffer);
-    pMemManager->lock(handle, handle->usage, 0, 0, handle->width, handle->height, &pBuf);
+    handle = buf->buffer;
+    GetBufferInfoFromHandle(handle, *imxBuf);
 
-    imxBuf->mVirtAddr = pBuf;
-    imxBuf->mPhyAddr = handle->phys;
-    imxBuf->mSize = handle->size;
-    imxBuf->buffer = buf->buffer;
-    imxBuf->mFormatSize = getSizeByForamtRes(handle->format, stream->width, stream->height, false);
+    imxBuf->mFormatSize = getSizeByForamtRes(imxBuf->mFormat, stream->width, stream->height, false);
     if (imxBuf->mFormatSize == 0)
         imxBuf->mFormatSize = imxBuf->mSize;
 
     ALOGV("%s, buffer: virt %p, phy 0x%lx, size %zu, format 0x%x, acquire_fence %p, release_fence "
           "%p, stream: res %dx%d, format 0x%x, size %d",
-          __func__, imxBuf->mVirtAddr, imxBuf->mPhyAddr, imxBuf->mSize, handle->format,
+          __func__, imxBuf->mVirtAddr, imxBuf->mPhyAddr, imxBuf->mSize, imxBuf->mFormat,
           buf->acquire_fence, buf->release_fence, stream->width, stream->height, stream->format,
           stream->buffer_size);
 
@@ -962,7 +950,7 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
         ((stream->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) == 0))
         bPreview = true;
 
-    imxBuf->mStream = new ImxStream(stream->width, stream->height, handle->format, stream->usage,
+    imxBuf->mStream = new ImxStream(stream->width, stream->height, imxBuf->mFormat, stream->usage,
                                     stream->id, bPreview);
 
     if (imxBuf->mStream == NULL)
@@ -974,8 +962,8 @@ error:
     if (imxBuf)
         free(imxBuf);
 
-    if (pBuf)
-        pMemManager->unlock(handle);
+    if (imxBuf->mVirtAddr)
+        UnlockPhyBuffer(handle);
 
     return NULL;
 
@@ -990,8 +978,8 @@ void CameraDeviceSessionHwlImpl::ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf)
     if (imxBuf->mStream)
         delete (imxBuf->mStream);
 
-    fsl::Memory *handle = (fsl::Memory *)(imxBuf->buffer);
-    pMemManager->unlock(handle);
+    buffer_handle_t handle = imxBuf->buffer;
+    UnlockPhyBuffer(handle);
 
     delete imxBuf;
 }
@@ -1303,8 +1291,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
     // Handle zoom in
     if (srcStream->mZoomRatio > 1.0) {
         resizeBuf.mFormatSize = srcBuf->mFormatSize;
-        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-        ret = AllocPhyBuffer(resizeBuf);
+        ret = AllocPhyBuffer(srcBuf->mWidth, srcBuf->mHeight, srcBuf->mFormat, resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return BAD_VALUE;
@@ -1367,7 +1354,7 @@ err_out:
 
     if (resizeBuf.mPhyAddr > 0) {
         SwitchImxBuf(*srcBuf, resizeBuf);
-        FreePhyBuffer(resizeBuf);
+        FreePhyBuffer(resizeBuf.buffer);
     }
 
     return ret;

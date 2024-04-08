@@ -62,8 +62,7 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         bResize = true;
 
         resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
-        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-        ret = AllocPhyBuffer(resizeBuf);
+        ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return 0;
@@ -77,7 +76,6 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         srcBuf.buffer = inHandle;
         srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
 
-        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
         handleFrame(resizeBuf, srcBuf, ENG_DPU);
 
         inYuv = (void *)resizeBuf.mVirtAddr;
@@ -99,7 +97,7 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
 
 failed:
     if (bResize) {
-        FreePhyBuffer(resizeBuf);
+        FreePhyBuffer(resizeBuf.buffer);
         delete (resizeBuf.mStream);
         delete (srcBuf.mStream);
     }

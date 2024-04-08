@@ -24,6 +24,7 @@
 #include <inttypes.h>
 #include <log/log.h>
 #include <sync/sync.h>
+#include <ui/GraphicBufferAllocator.h>
 #include <utils/Trace.h>
 
 #include "CameraMetadata.h"
@@ -467,8 +468,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
     // Handle zoom in
     if (srcStream->mZoomRatio > 1.0) {
         resizeBuf.mFormatSize = srcBuf->mFormatSize;
-        resizeBuf.mSize = (resizeBuf.mFormatSize + PAGE_SIZE) & (~(PAGE_SIZE - 1));
-        ret = AllocPhyBuffer(resizeBuf);
+        ret = AllocPhyBuffer(srcBuf->mWidth, srcBuf->mHeight, srcBuf->mFormat, resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             return BAD_VALUE;
@@ -531,7 +531,7 @@ err_out:
 
     if (resizeBuf.mPhyAddr > 0) {
         SwitchImxBuf(*srcBuf, resizeBuf);
-        FreePhyBuffer(resizeBuf);
+        FreePhyBuffer(resizeBuf.buffer);
     }
 
     return ret;
@@ -704,13 +704,25 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
                 if (stream.format == HAL_PIXEL_FORMAT_BLOB) {
                     // fix me, mv GRALLOC_USAGE_SW_READ_OFTEN if hardware encode jpeg.
-                    unique_private_handle midBuf = MaliAllocBuffer(stream.width, stream.height, HAL_PIXEL_FORMAT_YCBCR_422_I, stream.usage|GRALLOC_USAGE_HW_CAMERA_WRITE|GRALLOC_USAGE_SW_READ_OFTEN);
-                    if (midBuf == NULL) {
-                        ALOGE("%s: MaliAllocBuffer failed", __func__);
+                    uint32_t bufferStride;
+                    buffer_handle_t bufferHandle;
+                    uint32_t format = HAL_PIXEL_FORMAT_YCBCR_422_I;
+                    uint64_t usage = stream.usage | GRALLOC_USAGE_HW_CAMERA_WRITE |
+                            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_PRIVATE_3;
+                    auto status =
+                            GraphicBufferAllocator::get().allocate(stream.width, stream.height,
+                                                                   format,
+                                                                   /*layerCount=*/1, usage,
+                                                                   &bufferHandle, &bufferStride,
+                                                                   "NxpCamera");
+                    if (status != ::android::OK) {
+                        ALOGE("%s: failed to allocate buffer:%d x %d, format=%x, usage=%lx, ret=%d",
+                              __func__, stream.width, stream.height, format, usage, status);
                         return BAD_VALUE;
                     }
-                    ALOGI("%s: mStreamMidBufMap[%d] %p, this %p", __func__, stream.id, midBuf.get(), this);
-                    mStreamMidBufMap[stream.id] = std::move(midBuf);
+                    ALOGI("%s: mStreamMidBufMap[%d] %p, this %p", __func__, stream.id, bufferHandle,
+                          this);
+                    mStreamMidBufMap[stream.id] = bufferHandle;
                 }
 
                 break;
@@ -940,8 +952,8 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
     /* clear mStreamMidBufMap */
     for (auto &t : mStreamMidBufMap) {
         int32_t id = t.first;
-        ALOGI("%s: free MidBuf %p for stream %d, this %p", __func__, t.second.get(), id, this);
-        MaliFreeBuffer(std::move(t.second));
+        ALOGI("%s: free MidBuf %p for stream %d, this %p", __func__, t.second, id, this);
+        GraphicBufferAllocator::get().free(t.second);
     }
     mStreamMidBufMap.clear();
 
@@ -1116,7 +1128,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
                     ALOGE("%s: no stream id %d in mStreamMidBufMap", __func__, stream_id);
                     return BAD_VALUE;
                 }
-                hnd = mStreamMidBufMap[stream_id].get();
+                hnd = mStreamMidBufMap[stream_id];
             }
 
             std::unique_ptr<libcamera::FrameBuffer> frameBuffer = CreateFrameBuffer(hnd, libCameraStream->configuration());
@@ -1361,7 +1373,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
             continue;
         }
 
-        buffer_handle_t hnd = mStreamMidBufMap[stream_id].get();
+        buffer_handle_t hnd = mStreamMidBufMap[stream_id];
         uint32_t size = getSizeByForamtRes(HAL_PIXEL_FORMAT_YCbCr_422_I, stream->width, stream->height, false);
         ImxStreamBuffer *srcBuf = CreateImxStreamBufferFromStreamBuffer(hnd, size, stream->width, stream->height, HAL_PIXEL_FORMAT_YCbCr_422_I, stream->usage);
         if (srcBuf == NULL) {

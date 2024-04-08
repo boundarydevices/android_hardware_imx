@@ -16,13 +16,19 @@
 
 #define LOG_TAG "ImageUtils"
 
+#include "ImageUtils.h"
+
+#include <graphics.h>
+#include <hardware/gralloc.h>
+#include <linux/dma-buf-imx.h>
+#include <log/log.h>
 #include <stdint.h>
 #include <string.h>
-#include <log/log.h>
-#include <graphics.h>
-#include "Allocator.h"
+#include <ui/GraphicBufferAllocator.h>
+#include <ui/GraphicBufferMapper.h>
+#include <ui/Rect.h>
+
 #include "NV12_resize.h"
-#include "ImageUtils.h"
 
 #define ALIGN_PIXEL_4(x) ((x + 3) & ~3)
 #define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
@@ -545,76 +551,157 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
     return size;
 }
 
-void SetBufferHandle(ImxImageBuffer &imxBuf) {
-    fsl::MemoryDesc desc;
-    fsl::Memory *handle = NULL;
-
-    desc.mFlag = 0;
-    desc.mWidth = desc.mStride = imxBuf.mSize / 4;
-    desc.mHeight = 1;
-    desc.mFormat = HAL_PIXEL_FORMAT_RGBA_8888;
-    desc.mFslFormat = fsl::FORMAT_RGBA8888;
-    desc.mSize = imxBuf.mSize;
-    desc.mProduceUsage = 0;
-
-    handle = new fsl::Memory(&desc, imxBuf.mFd, -1);
-    imxBuf.buffer = (buffer_handle_t)handle;
-}
-
-int AllocPhyBuffer(ImxImageBuffer &imxBuf) {
-    int sharedFd;
-    uint64_t phyAddr;
-    uint64_t outPtr;
-    uint32_t ionSize = imxBuf.mSize;
-
-    fsl::Allocator *allocator = fsl::Allocator::getInstance();
-    if (allocator == NULL) {
-        ALOGE("%s ion allocator invalid", __func__);
-        return -1;
+int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuffer &outBufInfo) {
+    buffer_handle_t bufferHandle;
+    uint32_t bufferStride;
+    uint64_t usage = GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_SW_READ_OFTEN |
+            GRALLOC_USAGE_PRIVATE_3; // need to make sure physical contiguous memory
+    auto status = GraphicBufferAllocator::get().allocate(width, height, format,
+                                                         /*layerCount=*/1, usage, &bufferHandle,
+                                                         &bufferStride, "NxpCamera");
+    if (status != ::android::OK) {
+        ALOGE("%s: failed to allocate buffer:%d x %d, format=%x, usage=%lx, ret=%d", __func__,
+              width, height, format, usage, status);
+        ;
+        return BAD_VALUE;
     }
 
-    sharedFd = allocator->allocMemory(ionSize, MEM_ALIGN, fsl::MFLAGS_CONTIGUOUS);
-    if (sharedFd < 0) {
-        ALOGE("%s: allocMemory failed.", __func__);
-        return -1;
+    void *vaddr = NULL;
+    const ::android::Rect rect{0, 0, static_cast<int32_t>(width), static_cast<int32_t>(height)};
+    auto err = GraphicBufferMapper::get().lock(const_cast<native_handle_t *>(bufferHandle), usage,
+                                               rect, &vaddr);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper lock failed!", __FUNCTION__);
+        ::android::GraphicBufferMapper::get().unlock(bufferHandle);
+        GraphicBufferAllocator::get().free(bufferHandle);
+        return BAD_VALUE;
     }
 
-    int err = allocator->getVaddrs(sharedFd, ionSize, outPtr);
-    if (err != 0) {
-        ALOGE("%s: getVaddrs failed.", __func__);
-        close(sharedFd);
-        return -1;
+    uint64_t allocatedSize;
+    err = GraphicBufferMapper::get().getAllocationSize(const_cast<native_handle_t *>(bufferHandle),
+                                                       &allocatedSize);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getAllocationSize failed!", __FUNCTION__);
+        GraphicBufferAllocator::get().free(bufferHandle);
+        return BAD_VALUE;
     }
 
-    err = allocator->getPhys(sharedFd, ionSize, phyAddr);
-    if (err != 0) {
-        ALOGE("%s: getPhys failed.", __func__);
-        munmap((void *)(uintptr_t)outPtr, ionSize);
-        close(sharedFd);
-        return -1;
-    }
+    int sharedFd = bufferHandle->data[0];
+    uint64_t phyAddr = GetPhyAddrFromBuffer(sharedFd);
+    ALOGV("%s, vaddr:%p,  phy:%p, size:%d\n", __func__, vaddr, (void *)phyAddr, allocatedSize);
 
-    ALOGV("%s, outPtr:%p,  phy:%p, ionSize:%d, req:%zu\n", __func__, (void *)outPtr,
-          (void *)phyAddr, ionSize, imxBuf.mFormatSize);
-
-    imxBuf.mVirtAddr = (void *)outPtr;
-    imxBuf.mPhyAddr = phyAddr;
-    imxBuf.mFd = sharedFd;
-    SetBufferHandle(imxBuf);
+    outBufInfo.mFormat = format;
+    outBufInfo.mWidth = width;
+    outBufInfo.mHeight = height;
+    outBufInfo.mVirtAddr = vaddr;
+    outBufInfo.mPhyAddr = phyAddr;
+    outBufInfo.mFd = sharedFd;
+    outBufInfo.buffer = bufferHandle;
+    outBufInfo.mSize = allocatedSize;
+    outBufInfo.mStride = bufferStride;
 
     return 0;
 }
 
-int FreePhyBuffer(ImxImageBuffer &imxBuf) {
-    if (imxBuf.mVirtAddr)
-        munmap(imxBuf.mVirtAddr, imxBuf.mSize);
+int FreePhyBuffer(buffer_handle_t buffer) {
+    auto err = ::android::GraphicBufferMapper::get().unlock(buffer);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
+    }
 
-    if (imxBuf.mFd > 0)
-        close(imxBuf.mFd);
+    GraphicBufferAllocator::get().free(buffer);
 
-    fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
-    if (handle)
-        delete handle;
+    return 0;
+}
+
+uint64_t GetPhyAddrFromBuffer(int bufFd) {
+    uint64_t phyAddr = 0;
+    struct dmabuf_imx_phys_data data;
+    int fd_;
+    fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
+    if (fd_ < 0) {
+        ALOGE("open /dev/dmabuf_imx failed: %s", strerror(errno));
+        return 0;
+    }
+    data.dmafd = bufFd;
+    if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
+        ALOGE("%s DMABUF_GET_PHYS  failed", __func__);
+        close(fd_);
+        return 0;
+    } else {
+        phyAddr = data.phys;
+    }
+    close(fd_);
+
+    return phyAddr;
+}
+
+int UnlockPhyBuffer(buffer_handle_t buffer) {
+    auto err = ::android::GraphicBufferMapper::get().unlock(buffer);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
+        return -1;
+    }
+
+    return 0;
+}
+
+int GetBufferInfoFromHandle(buffer_handle_t bufferHandle, ImxImageBuffer &outBufInfo) {
+    GraphicBufferMapper &mapper = GraphicBufferMapper::getInstance();
+
+    uint64_t width, height, usage;
+    auto err = mapper.getWidth(const_cast<native_handle_t *>(bufferHandle), &width);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getWidth failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+    err = mapper.getHeight(const_cast<native_handle_t *>(bufferHandle), &height);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getHeight failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+    err = mapper.getUsage(const_cast<native_handle_t *>(bufferHandle), &usage);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getUsage failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    uint32_t format;
+    err = mapper.getPixelFormatRequested(const_cast<native_handle_t *>(bufferHandle),
+                                         reinterpret_cast<ui::PixelFormat *>(&format));
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getPixelFormatRequested failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    void *vaddr = NULL;
+    const ::android::Rect rect{0, 0, static_cast<int32_t>(width), static_cast<int32_t>(height)};
+    err = mapper.lock(const_cast<native_handle_t *>(bufferHandle), usage, rect, &vaddr);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper lock failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    uint64_t allocatedSize;
+    err = mapper.getAllocationSize(const_cast<native_handle_t *>(bufferHandle), &allocatedSize);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getAllocationSize failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    int sharedFd = bufferHandle->data[0];
+    uint64_t phyAddr = GetPhyAddrFromBuffer(sharedFd);
+    ALOGV("%s: %d x %d, format=0x%x, vaddr:%p,  phy:%p, size:%d\n", __func__, vaddr,
+          (void *)phyAddr, allocatedSize);
+
+    outBufInfo.mFormat = format;
+    outBufInfo.mWidth = (uint32_t)width;
+    outBufInfo.mHeight = (uint32_t)height;
+    outBufInfo.mVirtAddr = vaddr;
+    outBufInfo.mPhyAddr = phyAddr;
+    outBufInfo.mFd = sharedFd;
+    outBufInfo.buffer = bufferHandle;
+    outBufInfo.mSize = allocatedSize;
 
     return 0;
 }

@@ -17,13 +17,22 @@
 #ifndef IMAGE_UTILS_H
 #define IMAGE_UTILS_H
 
-#include <linux/videodev2.h>
 #include <graphics_ext.h>
-#include "Memory.h"
-#include "MemoryDesc.h"
+#include <linux/videodev2.h>
+#include <cutils/native_handle.h>
+
 #include "opencl-2d.h"
 
 namespace android {
+
+enum {
+    FORMAT_NV16 = 0x10,
+    FORMAT_YUYV = 0x14, // YUY2
+    FORMAT_I420 = 0x101,
+    FORMAT_NV12 = 0x103,
+    FORMAT_P010 = 0x108,
+    FORMAT_RAW16 = 0x203,
+};
 
 typedef struct tag_imx_image_buffer {
     uint32_t mFormat;
@@ -35,7 +44,8 @@ typedef struct tag_imx_image_buffer {
     uint64_t mPhyAddr;
     int32_t mFd;
     size_t mSize; // great than mFormatSize due to alignment.
-    size_t mFormatSize; // the actual sthe allocated buffer size, usually size caculated by format and resolution.
+    size_t mFormatSize; // the actual the allocated buffer size, usually size caculated by format
+                        // and resolution.
     buffer_handle_t buffer; // G2D need in lockSurface()
     float mZoomRatio; // just g2d/dpu support, set in source ImxImageBuffer
     uint32_t mUsage;  // currently used to decide cache/un-cache.
@@ -50,8 +60,12 @@ int convertPixelFormatToCLFormat(int format);
 int convertPixelFormatToV4L2Format(int format, bool invert = false);
 int convertV4L2FormatToPixelFormat(uint32_t fourcc);
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
-int AllocPhyBuffer(ImxImageBuffer &imxBuf);
-int FreePhyBuffer(ImxImageBuffer &imxBuf);
+
+int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuffer &outBufInfo);
+int FreePhyBuffer(buffer_handle_t buffer);
+uint64_t GetPhyAddrFromBuffer(int fd);
+int UnlockPhyBuffer(buffer_handle_t buffer);
+int GetBufferInfoFromHandle(buffer_handle_t buffer, ImxImageBuffer &outBufInfo);
 void SwitchImxBuf(ImxImageBuffer &imxBufA, ImxImageBuffer &imxBufB);
 
 } // namespace android

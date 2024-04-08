@@ -19,7 +19,7 @@
 
 #include "DMAStream.h"
 
-#include <Allocator.h>
+#include "ImageUtils.h"
 
 namespace android {
 
@@ -217,11 +217,6 @@ int32_t DMAStream::allocateBuffersLocked() {
     ALOGI("%s", __func__);
 
     mStreamSize = getDeviceBufferSize();
-    fsl::Allocator *allocator = fsl::Allocator::getInstance();
-    if (allocator == NULL) {
-        ALOGE("%s allocator invalid", __func__);
-        return BAD_VALUE;
-    }
 
     if (mRegistered) {
         ALOGI("%s but buffer is already registered", __func__);
@@ -247,7 +242,7 @@ int32_t DMAStream::allocateBuffersLocked() {
         if (mBuffers[i]->mFormatSize == 0)
             mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
 
-        int ret = AllocPhyBuffer(*mBuffers[i]);
+        int ret = AllocPhyBuffer(mWidth, mHeight, mFormat, *mBuffers[i]);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             ret = -EINVAL;
@@ -267,7 +262,7 @@ err:
         if (mBuffers[i] == NULL)
             continue;
 
-        FreePhyBuffer(*mBuffers[i]);
+        FreePhyBuffer((*mBuffers[i]).buffer);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }
@@ -287,7 +282,7 @@ int32_t DMAStream::freeBuffersLocked() {
         if (mBuffers[i] == NULL)
             continue;
 
-        FreePhyBuffer(*mBuffers[i]);
+        FreePhyBuffer((*mBuffers[i]).buffer);
         delete mBuffers[i];
         mBuffers[i] = NULL;
     }

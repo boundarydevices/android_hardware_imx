@@ -311,7 +311,7 @@ private:
     std::map<int32_t,  libcamera::Stream *> mLibCameraStreamMap;
     std::list<std::unique_ptr<libcamera::FrameBuffer>> mFrameBuffers;
 
-    std::map<int32_t, unique_private_handle> mStreamMidBufMap; // used for jpeg stream
+    std::map<int32_t, buffer_handle_t> mStreamMidBufMap; // used for jpeg stream
 
 public:
     int32_t m_raw_v4l2_format = -1;

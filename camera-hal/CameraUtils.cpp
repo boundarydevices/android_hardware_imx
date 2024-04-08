@@ -22,7 +22,6 @@
 #include <log/log.h>
 #include <sys/ioctl.h>
 
-#include "Allocator.h"
 #include "NV12_resize.h"
 
 namespace android {
@@ -83,24 +82,6 @@ cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
     return ret;
 }
 
-int AllocPhyBuffer(ImxStreamBuffer &imxBuf) {
-    ALOGE("%s: not supported on evk_95");
-    return -1;
-}
-
-int FreePhyBuffer(ImxStreamBuffer &imxBuf) {
-    ALOGE("%s: not supported on evk_95");
-    return -1;
-}
-
-void SwitchImxBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB) {
-    ImxStreamBuffer tmpBuf = imxBufA;
-    imxBufA = imxBufB;
-    imxBufB = tmpBuf;
-
-    return;
-}
-
 int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer) {
     ImxStream *stream = streamBuffer.mStream;
     if (stream == NULL) {
@@ -158,40 +139,6 @@ int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine 
     StreamBufferToImageBuffer(dstBuf, imageBufferDst);
 
     return imageProcess->ConvertImage(imageBufferDst, imageBufferSrc, engine);
-}
-
-unique_private_handle MaliAllocBuffer(uint32_t width, uint32_t height, uint64_t format, uint64_t usage) {
-    buffer_descriptor_t descriptor = {0};
-    descriptor.width = width;
-    descriptor.height = height;
-    descriptor.producer_usage = usage |  GRALLOC_USAGE_PRIVATE_3;
-    descriptor.consumer_usage = descriptor.producer_usage;
-    descriptor.hal_format = format;
-    descriptor.layer_count = 1;
-
-    unique_private_handle uniq_hnd = mali_gralloc_buffer_allocate(&descriptor);
-    if (uniq_hnd == nullptr) {
-      ALOGE("%s: mali_gralloc_buffer_allocate failed, width %d, height %d, format 0x%lx, usage 0x%lx", __func__, width, height, format, usage);
-      return nullptr;
-    }
-
-    ALOGI("%s: width %d, height %d, format 0x%lx, usage 0x%lx", __func__, width, height, format, usage); 
-
-    return std::move(uniq_hnd);
-}
-
-void MaliFreeBuffer(unique_private_handle uniq_hnd) {
-    if (uniq_hnd == NULL)
-        return;
-
-    buffer_handle_t handle = uniq_hnd.get();
-    int numFds = handle->numFds;
-    for (int i = 0; i < numFds; i++) {
-        close(handle->data[i]);
-    }
-
-    uniq_hnd.reset();
-    return;
 }
 
 int GetDMAAddr(int fd, uint32_t size, uint32_t offset, uint64_t& addr, void **virt)

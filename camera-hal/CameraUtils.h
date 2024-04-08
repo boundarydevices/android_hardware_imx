@@ -38,6 +38,7 @@
 #include <sys/stat.h>
 #include <time.h>
 //#include <ui/PixelFormat.h>
+#include <hardware/gralloc.h>
 #include <unistd.h>
 #include <utils/KeyedVector.h>
 #include <utils/Log.h>
@@ -46,14 +47,9 @@
 #include <utils/threads.h>
 
 #include "CameraConfigurationParser.h"
-#include "hal_camera_metadata.h"
 #include "ImageProcess.h"
-
-#include <hardware/gralloc.h>
+#include "hal_camera_metadata.h"
 #include "linux/dma-buf-imx.h"
-#include "android/src/include/log.h"
-#include "android/src/core/buffer_descriptor.h"
-#include "android/src/core/buffer_allocation.h"
 
 #define UVC_NAME "uvc"
 #define ISP_SENSOR_NAME "viv_v4l2"
@@ -177,29 +173,18 @@ struct SensorSet {
     bool mExisting;
 };
 
-typedef struct tag_nxp_srream_buffer {
-    void *mVirtAddr;
-    uint64_t mPhyAddr;
-    size_t mSize; // the allocated buffer size, usually great than mFormatSize due to alignment.
-    size_t mFormatSize; // the actual size caculated by format and resolution.
+struct ImxStreamBuffer : ImxImageBuffer {
     int32_t index;
-    buffer_handle_t buffer;
-    int32_t mFd;
     ImxStream *mStream;
-} ImxStreamBuffer;
+};
 
 int getCaptureMode(int fd, int width, int height);
 int32_t changeSensorFormats(int *src, int *dst, int len);
 cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
         const cameraconfigparser::PhysicalMetaMapPtr &src);
 
-int AllocPhyBuffer(ImxStreamBuffer &imxBuf);
-int FreePhyBuffer(ImxStreamBuffer &imxBuf);
-void SwitchImxBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB);
 int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine);
 int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer);
-unique_private_handle MaliAllocBuffer(uint32_t width, uint32_t height, uint64_t format, uint64_t usage);
-void MaliFreeBuffer(unique_private_handle handle);
 int GetDMAAddr(int fd, uint32_t size, uint32_t offset, uint64_t& addr, void **virt);
 ImxStreamBuffer *CreateImxStreamBufferFromStreamBuffer(buffer_handle_t buffer, uint32_t size,
     uint32_t width, uint32_t height, int32_t format, uint32_t usage);

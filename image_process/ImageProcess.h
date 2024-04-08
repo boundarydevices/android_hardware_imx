@@ -51,6 +51,8 @@ public:
     int ConvertImage(ImxImageBuffer& dst, ImxImageBuffer& src, ImxEngine engine);
     void SetMiddleBuffers(std::vector<ImxImageBuffer *> &MiddleBuffers);
 
+    buffer_handle_t createBufferHandle(ImxImageBuffer& imxBuf);
+    void destroyBufferHandle(buffer_handle_t buffer);
 
 private:
     int convertNV12toNV21(ImxImageBuffer& dst, ImxImageBuffer& src);
@@ -79,6 +81,8 @@ private:
     int closeEngine(void* handle);
     void getModule(char* path, const char* name);
     bool getDefaultG2DLib(char *libName, int size);
+    void LockG2dAddr(ImxImageBuffer& imxBuf);
+    void UnLockG2dAddr(ImxImageBuffer& imxBuf);
 
 private:
     ImageProcess();
@@ -107,6 +111,10 @@ private:
     hwc_func4 mCopyEngine;
     hwc_func3 mBlitEngine;
     Mutex mG2dLock;
+
+    void* mHelperHandle;
+    hwc_func1 mLockSurface;
+    hwc_func1 mUnlockSurface;
 
     void* mCLModule;
     void* mCLHandle;

@@ -25,8 +25,8 @@
 #include <sys/mman.h>
 #include <utils/Log.h>
 
+#include "ImageUtils.h"
 #include "Imx_ext.h"
-#include "Memory.h"
 #include "graphics_ext.h"
 
 namespace android {
@@ -1101,12 +1101,7 @@ status_t HwDecoder::freeOutputBuffers() {
         return OK;
 
     for (auto &info : mDecoderBuffers) {
-        if (info.mVirtAddr > 0 && info.mCapacity > 0) {
-            munmap((void *)info.mVirtAddr, info.mCapacity);
-        }
-
-        if (info.mDMABufFd > 0)
-            close(info.mDMABufFd);
+        FreePhyBuffer(info.mBuffHandle);
     }
 
     mDecoderBuffers.clear();
@@ -1408,44 +1403,26 @@ status_t HwDecoder::onOutputFormatChanged() {
 }
 
 status_t HwDecoder::allocateOutputBuffer(int bufId) {
-    int fd = 0;
-    uint64_t phys_addr = 0;
-    uint64_t virt_addr = 0;
-    int32_t mbufferSize =
-            mOutputFormat.width * mOutputFormat.height * pxlfmt2bpp(mOutputFormat.pixelFormat) / 8;
-
-    fd = IMXAllocMem(mbufferSize);
-    if (fd <= 0) {
-        ALOGE("%s: Ion allocate failed bufId=%d,size=%d", __FUNCTION__, bufId, mbufferSize);
-        return BAD_VALUE;
-    }
-
-    int ret = IMXGetBufferAddr(fd, mbufferSize, phys_addr, false);
-    if (ret != 0) {
-        ALOGE("%s: DmaBuffer getPhys failed", __FUNCTION__);
-        if (fd > 0)
-            close(fd);
-        return BAD_VALUE;
-    }
-
-    ret = IMXGetBufferAddr(fd, mbufferSize, virt_addr, true);
-    if (ret != 0) {
-        ALOGE("%s: DmaBuffer getVaddrs failed", __FUNCTION__);
-        if (fd > 0)
-            close(fd);
-        return BAD_VALUE;
+    ImxImageBuffer imgBuf;
+    int ret = AllocPhyBuffer(mOutputFormat.width, mOutputFormat.height, mOutputFormat.pixelFormat,
+                             imgBuf);
+    if (ret) {
+        ALOGE("%s: AllocPhyBuffer failed, %d x %d, format=0x%x", __func__, mOutputFormat.width,
+              mOutputFormat.height, mOutputFormat.pixelFormat);
+        return ret;
     }
 
     DecoderBufferInfo mInfo;
     memset(&mInfo, 0, sizeof(DecoderBufferInfo));
     mInfo.mDBInfoId = bufId;
-    mInfo.mDMABufFd = fd;
-    mInfo.mPhysAddr = phys_addr;
-    mInfo.mVirtAddr = virt_addr;
-    mInfo.mCapacity = mbufferSize;
+    mInfo.mDMABufFd = imgBuf.mFd;
+    mInfo.mPhysAddr = imgBuf.mPhyAddr;
+    mInfo.mVirtAddr = (unsigned long)imgBuf.mVirtAddr;
+    mInfo.mCapacity = imgBuf.mSize;
+    mInfo.mBuffHandle = imgBuf.buffer;
     mInfo.bInUse = false;
-    ALOGI("%s: Allocated fd=%d phys_addr=%p vaddr=%p mInfo.mCapacity:%d", __FUNCTION__, fd,
-          (void *)phys_addr, (void *)virt_addr, mInfo.mCapacity);
+    ALOGI("%s: Allocated fd=%d phys_addr=%p vaddr=%p mInfo.mCapacity:%d", __FUNCTION__,
+          mInfo.mDMABufFd, (void *)mInfo.mPhysAddr, (void *)mInfo.mVirtAddr, mInfo.mCapacity);
     mDecoderBuffers.push_back(std::move(mInfo));
 
     return OK;

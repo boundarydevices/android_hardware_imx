@@ -27,7 +27,7 @@
 #include <log/log.h>
 
 #include "CameraUtils.h"
-//#include "ImageProcess.h"
+#include "ImageUtils.h"
 
 #define NUM_BUFS 1
 #define JPEG_ENC_NAME "mxc-jpeg-enc"
@@ -49,32 +49,20 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
     struct v4l2_buffer bufferout;
     int jpeg_size = 0;
     int err;
-    int ret = 0;
     bool bResize = false;
     ImxStreamBuffer srcBuf;
     memset(&srcBuf, 0, sizeof(srcBuf));
     ImxStreamBuffer *resizeBuf = NULL;
-    unique_private_handle midBuf = NULL;
 
     // need resize the width&height before do hw jpeg encoder.
     // the resolution for input and out need to been align when do jpeg encode.
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         bResize = true;
 
-        midBuf = MaliAllocBuffer(outWidth, outHeight, mPixelFormat,
-                                 GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_SW_READ_OFTEN);
-        if (midBuf == NULL) {
-            ALOGE("%s: MaliAllocBuffer failed", __func__);
-            return BAD_VALUE;
-        }
-
-        uint32_t size = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
-        ImxStreamBuffer *resizeBuf =
-                CreateImxStreamBufferFromStreamBuffer(midBuf.get(), size, outWidth, outHeight,
-                                                      mPixelFormat, 0);
-        if (resizeBuf == NULL) {
-            MaliFreeBuffer(std::move(midBuf));
-            ALOGE("%s: resizeBuf NULL", __func__);
+        ImxStreamBuffer *resizeBuf = new ImxStreamBuffer();
+        int ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, *resizeBuf);
+        if (ret != 0) {
+            ALOGE("%s: allocate resizeBuf failed", __func__);
             return BAD_VALUE;
         }
 
@@ -85,9 +73,7 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         srcBuf.buffer = inHandle;
         srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
 
-        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
         handleFrame(*resizeBuf, srcBuf, ENG_NOTCARE);
-
         inYuv = (void *)resizeBuf->mVirtAddr;
     }
 
@@ -108,7 +94,7 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
 failed:
     if (bResize) {
         ReleaseImxStreamBuffer(resizeBuf);
-        MaliFreeBuffer(std::move(midBuf));
+        FreePhyBuffer(resizeBuf->buffer);
         delete (srcBuf.mStream);
     }
 

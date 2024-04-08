@@ -41,10 +41,6 @@
 
 #include <deque>
 
-#include "Memory.h"
-#include "MemoryDesc.h"
-#include "MemoryManager.h"
-
 #define HAVE_JPEG // required for libyuv.h to export MJPEG decode APIs
 #include <libyuv.h>
 #include <libyuv/convert.h>
@@ -54,7 +50,6 @@ public:
     SingletonWrap() {
         ALOGI("%s", __func__);
         fsl::ImageProcess::getInstance();
-        fsl::MemoryManager::getInstance();
     }
 
     ~SingletonWrap() {
@@ -62,10 +57,6 @@ public:
         fsl::ImageProcess* imageProcess = fsl::ImageProcess::getInstance();
         if (imageProcess)
             delete imageProcess;
-
-        fsl::MemoryManager* allocator = fsl::MemoryManager::getInstance();
-        if (allocator)
-            delete allocator;
     }
 };
 
@@ -3139,8 +3130,7 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecGetBuffer(uint8_t* inData, 
 
     int fd = mDecodedData.fd;
     void* vaddr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    uint64_t phyAddr = 0;
-    IMXGetBufferAddr(fd, size, phyAddr, false);
+    uint64_t phyAddr = GetPhyAddrFromBuffer(fd);
 
     // assign decoded data to mYu12Frame
     mYu12Frame = std::make_shared<AllocatedFramePhyMem>(mDecodedData.width, mDecodedData.height, fourcc);
@@ -3665,11 +3655,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 if (mDebug)
                     t1 = systemTime();
                 if (mHardwareDecoder && parent->getHardwareDecFlag()) {
-                    uint64_t dstPhyAddr = 0;
-                    fsl::Memory *fslMem = (fsl::Memory *)(*halBuf.bufPtr);
-                    IMXGetBufferAddr(fslMem->fd, fslMem->size, dstPhyAddr, false);
-                    ALOGV("%s: fslMem, fd %d, size %d, width %d, height %d, format 0x%x", __func__, fslMem->fd, fslMem->size, fslMem->width, fslMem->height, fslMem->format);
-
+                    uint64_t dstPhyAddr = GetPhyAddrFromBuffer((*halBuf.bufPtr)->data[0]);
                     uint8_t* outData;
                     size_t dataSize;
                     mYu12Frame->getData(&outData, &dataSize);

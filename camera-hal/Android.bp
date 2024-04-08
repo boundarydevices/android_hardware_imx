@@ -59,7 +59,6 @@ imx_camera_hal_defaults {
         "libimageprocess",
         "libcamera",
         "libcamera-base",
-        "android.hardware.graphics.allocator-V2-arm"
     ],
     static_libs: [
         "android.hardware.camera.common@1.0-helper",
@@ -72,7 +71,6 @@ imx_camera_hal_defaults {
         "frameworks/native/libs/arect/include",
         "vendor/nxp-opensource/imx/include",
         "vendor/nxp-opensource/imx/opencl-2d",
-        "vendor/nxp-opensource/imx/display/display",
         "vendor/nxp-opensource/imx/image_process",
         "vendor/nxp/fsl-proprietary/include",
         "device/nxp/common/kernel-headers",
@@ -82,9 +80,6 @@ imx_camera_hal_defaults {
         "external/libcamera/build/include",
         "system/logging/liblog/include",
         "system/logging/liblog/include/log",
-        "vendor/nxp/wsialloc",
-        "vendor/nxp/wsialloc/android/src",
-        "vendor/nxp/wsialloc/android/src/include"
     ],
     header_libs: [
         "libgooglecamerahal_headers",

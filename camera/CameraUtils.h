@@ -46,9 +46,8 @@
 #include <utils/threads.h>
 
 #include "CameraConfigurationParser.h"
-#include "Memory.h"
-#include "hal_camera_metadata.h"
 #include "ImageProcess.h"
+#include "hal_camera_metadata.h"
 
 #define UVC_NAME "uvc"
 #define ISP_SENSOR_NAME "viv_v4l2"
@@ -169,26 +168,16 @@ struct SensorSet {
     bool mExisting;
 };
 
-typedef struct tag_nxp_srream_buffer {
-    void *mVirtAddr;
-    uint64_t mPhyAddr;
-    size_t mSize; // the allocated buffer size, usually great than mFormatSize due to alignment.
-    size_t mFormatSize; // the actual size caculated by format and resolution.
+struct ImxStreamBuffer : ImxImageBuffer {
     int32_t index;
-    buffer_handle_t buffer;
-    int32_t mFd;
     ImxStream *mStream;
-} ImxStreamBuffer;
+};
 
 int getCaptureMode(int fd, int width, int height);
 int32_t changeSensorFormats(int *src, int *dst, int len);
 cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
         const cameraconfigparser::PhysicalMetaMapPtr &src);
 
-int AllocPhyBuffer(ImxStreamBuffer &imxBuf);
-int FreePhyBuffer(ImxStreamBuffer &imxBuf);
-void SetBufferHandle(ImxStreamBuffer &imxBuf);
-void SwitchImxBuf(ImxStreamBuffer &imxBufA, ImxStreamBuffer &imxBufB);
 int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine);
 
 } // namespace android

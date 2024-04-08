@@ -58,7 +58,8 @@ cc_library_shared {
         "libcutils",
         "liblog",
         "libutils",
-        "libfsldisplay",
+        "libui",
+        "libvndksupport",
     ],
 
     include_dirs: [
@@ -69,8 +70,8 @@ cc_library_shared {
         "system/core/libsystem/include/system",
         "vendor/nxp/fsl-proprietary/include",
         "vendor/nxp-opensource/imx/include",
-        "vendor/nxp-opensource/imx/opencl-2d",
         "vendor/nxp-opensource/imx/display/display",
+        "vendor/nxp-opensource/imx/opencl-2d",
         "vendor/nxp-opensource/libdrm-imx",
         "vendor/nxp-opensource/libdrm-imx/include/drm",
         "device/nxp/common/kernel-headers",

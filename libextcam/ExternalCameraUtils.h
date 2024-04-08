@@ -37,10 +37,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "Memory.h"
-#include "MemoryDesc.h"
-#include "MemoryManager.h"
-
 using ::aidl::android::hardware::camera::common::Status;
 using ::aidl::android::hardware::camera::device::CaptureResult;
 using ::aidl::android::hardware::camera::device::ErrorCode;
@@ -52,16 +48,11 @@ using ::android::hardware::camera::common::V1_0::helper::HandleImporter;
 using ::android::hardware::graphics::mapper::V2_0::IMapper;
 using ::android::hardware::graphics::mapper::V2_0::YCbCrLayout;
 
-namespace android {
-
 #define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
 
-int IMXAllocMem(int size);
-int IMXGetBufferAddr(int fd, int size, uint64_t& addr, bool isVirtual);
-
+namespace android {
 namespace hardware {
 namespace camera {
-
 namespace external {
 namespace common {
 
@@ -245,7 +236,8 @@ public:
     virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size);
 
 private:
-    fsl::Memory* dstBuffer;
+    buffer_handle_t dstBuffer;
+    uint32_t dstBufferSize;
     uint8_t* dstBuf;
     uint64_t mPhyAddr;
     uint32_t mBufSize;

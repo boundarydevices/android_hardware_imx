@@ -17,6 +17,7 @@
 #ifndef V4L2_DECODER_H
 #define V4L2_DECODER_H
 
+#include <cutils/native_handle.h>
 #include <cutils/properties.h>
 #include <utils/Mutex.h>
 
@@ -51,6 +52,7 @@ struct DecoderBufferInfo {
     unsigned long mPhysAddr;
     unsigned long mVirtAddr;
     uint32_t mCapacity;
+    buffer_handle_t mBuffHandle; // used when free buffer
 };
 
 struct VideoRect {

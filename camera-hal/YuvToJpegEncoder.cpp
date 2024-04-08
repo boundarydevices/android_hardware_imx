@@ -21,7 +21,7 @@
 #include <hardware/hardware.h>
 #include <log/log.h>
 //#include <ui/PixelFormat.h>
-#include "ImageProcess.h"
+#include "ImageUtils.h"
 #include "NV12_resize.h"
 
 #ifdef BOARD_HAVE_VPU
@@ -480,22 +480,14 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
     ImxStreamBuffer srcBuf;
     memset(&srcBuf, 0, sizeof(srcBuf));
     ImxStreamBuffer *resizeBuf = NULL;
-    unique_private_handle midBuf = NULL;
 
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         bResize = true;
 
-        midBuf = MaliAllocBuffer(outWidth, outHeight, mPixelFormat, GRALLOC_USAGE_HW_CAMERA_WRITE|GRALLOC_USAGE_SW_READ_OFTEN);
-        if (midBuf == NULL) {
-            ALOGE("%s: MaliAllocBuffer failed", __func__);
-            return BAD_VALUE;
-        }
-
-        uint32_t size = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
-        ImxStreamBuffer *resizeBuf = CreateImxStreamBufferFromStreamBuffer(midBuf.get(), size, outWidth, outHeight, mPixelFormat, 0);
-        if (resizeBuf == NULL) {
-            MaliFreeBuffer(std::move(midBuf));
-            ALOGE("%s: resizeBuf NULL", __func__);
+        ImxStreamBuffer *resizeBuf = new ImxStreamBuffer();
+        ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, *resizeBuf);
+        if (ret != 0) {
+            ALOGE("%s: allocate resizeBuf failed", __func__);
             return BAD_VALUE;
         }
 
@@ -506,7 +498,6 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         srcBuf.buffer = inHandle;
         srcBuf.mStream = new ImxStream(inWidth, inHeight, mPixelFormat, 0, 0);
 
-        fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
         // The 3rd para is pass to handleFrameByG2D to judge whether need lock g2d address.
         // Pass G2D is ok. For CPU, handleFrameByG2D will just return and use soft resize.
         // BTW: DPU is used HwJpegEncoder for 8q.
@@ -535,7 +526,7 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
 
     if (bResize) {
         ReleaseImxStreamBuffer(resizeBuf);
-        MaliFreeBuffer(std::move(midBuf));
+        FreePhyBuffer(resizeBuf->buffer);
         delete (srcBuf.mStream);
     }
 
