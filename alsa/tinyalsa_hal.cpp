@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
-/* Copyright 2017-2022 NXP */
+/* Copyright 2017-2024 NXP */
 
 #define LOG_TAG "audio_hw_primary"
 // #define LOG_NDEBUG 0
@@ -4385,7 +4385,7 @@ static void adjust_card_sequence(struct imx_audio_device *adev) {
         return;
 
     for (cardIdx = 0; cardIdx < adev->audio_card_num; cardIdx++) {
-        if (strstr(adev->card_list[cardIdx]->driver_name, "wm8960")) {
+        if (strstr(adev->card_list[cardIdx]->driver_name, "wm896")) {
             pcard_wm8960 = adev->card_list[cardIdx];
             pmixer_wm8960 = adev->mixer[cardIdx];
             idx_wm8960 = cardIdx;
