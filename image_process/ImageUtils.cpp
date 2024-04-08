@@ -231,8 +231,9 @@ int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf
     // uv
     srcRow = 0;
     srcCol = 0;
-    uint8_t *pUVSrcStart = srcBuf + srcWidth * srcHeightSpan;
-    uint8_t *pUVDstStart = dstBuf + dstWidth * dstHeight;
+    uint16_t *pUVSrcStart = (uint16_t *)(srcBuf + srcWidth * srcHeightSpan);
+    uint16_t *pUVDstStart = (uint16_t *)(dstBuf + dstWidth * dstHeight);
+    uint16_t *pUV, uvVal;
 
     for (i = 0; i < dstHeight; i += 1) {
         srcRow = v_offset + i * v_scale_ratio;
@@ -240,11 +241,11 @@ int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf
 
         for (j = 0; j < dstWidth; j += 1) {
             srcCol = h_offset + j * h_scale_ratio;
-            ptr = pUVSrcStart + rowOffsetBytes + srcCol;
-            cc = ptr[0];
+            pUV = pUVSrcStart + rowOffsetBytes/2 + srcCol/2;
+            uvVal = pUV[0];
 
-            ptr = pUVDstStart + i * dstWidth + j;
-            ptr[0] = cc;
+            pUV = pUVDstStart + i * dstWidth/2 + j/2;
+            pUV[0] = uvVal;
         }
     }
 
