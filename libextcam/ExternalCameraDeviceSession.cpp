@@ -3207,9 +3207,33 @@ int ExternalCameraDeviceSession::OutputThread::CopyFromPrcdBuf(HalStreamBuffer &
 
         Size sz{halBuf.width, halBuf.height};
 
-        IMapper::Rect outRect{0, 0, static_cast<int32_t>(halBuf.width), static_cast<int32_t>(halBuf.height)};
-        YCbCrLayout outLayout = sHandleImporter.lockYCbCr(*(halBuf.bufPtr), static_cast<uint64_t>(halBuf.usage), outRect);
-        YCbCrLayout prcdOutLayout = sHandleImporter.lockYCbCr(*(prcdBuf->bufPtr), static_cast<uint64_t>(prcdBuf->usage), outRect);
+        android::Rect outRect{0, 0, static_cast<int32_t>(halBuf.width), static_cast<int32_t>(halBuf.height)};
+        android_ycbcr result = sHandleImporter.lockYCbCr(*(halBuf.bufPtr), static_cast<uint64_t>(halBuf.usage), outRect);
+        if (result.ystride > UINT32_MAX || result.cstride > UINT32_MAX ||
+            result.chroma_step > UINT32_MAX) {
+            ALOGE("%s: lockYCbCr failed. Unexpected values!", __FUNCTION__);
+            return ret;
+        }
+        YCbCrLayout outLayout = {.y = result.y,
+                                 .cb = result.cb,
+                                 .cr = result.cr,
+                                 .yStride = static_cast<uint32_t>(result.ystride),
+                                 .cStride = static_cast<uint32_t>(result.cstride),
+                                 .chromaStep = static_cast<uint32_t>(result.chroma_step)};
+
+        result = sHandleImporter.lockYCbCr(*(prcdBuf->bufPtr), static_cast<uint64_t>(prcdBuf->usage), outRect);
+        if (result.ystride > UINT32_MAX || result.cstride > UINT32_MAX ||
+            result.chroma_step > UINT32_MAX) {
+            ALOGE("%s: lockYCbCr failed. Unexpected values!", __FUNCTION__);
+            return ret;
+        }
+        YCbCrLayout prcdOutLayout = {.y = result.y,
+                                 .cb = result.cb,
+                                 .cr = result.cr,
+                                 .yStride = static_cast<uint32_t>(result.ystride),
+                                 .cStride = static_cast<uint32_t>(result.cstride),
+                                 .chromaStep = static_cast<uint32_t>(result.chroma_step)};
+
         uint32_t outputFourcc = getFourCcFromLayout(outLayout);
 
         formatConvert(prcdOutLayout, outLayout, sz, outputFourcc, outputFourcc);
@@ -3579,14 +3603,24 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 if (ret == 0)
                     continue;
 
-                IMapper::Rect outRect{0, 0, static_cast<int32_t>(halBuf.width),
+                android::Rect outRect{0, 0, static_cast<int32_t>(halBuf.width),
                                       static_cast<int32_t>(halBuf.height)};
-                YCbCrLayout outLayout =
+                android_ycbcr result =
                         sHandleImporter.lockYCbCr(*(halBuf.bufPtr),
                                                   static_cast<uint64_t>(halBuf.usage), outRect);
-                ALOGV("%s: outLayout y %p cb %p cr %p y_str %d c_str %d c_step %d", __FUNCTION__,
-                      outLayout.y, outLayout.cb, outLayout.cr, outLayout.yStride, outLayout.cStride,
-                      outLayout.chromaStep);
+                ALOGV("%s: outLayout y %p cb %p cr %p y_str %zu c_str %zu c_step %zu", __FUNCTION__,
+                      result.y, result.cb, result.cr, result.ystride, result.cstride,
+                      result.chroma_step);
+                if (result.ystride > UINT32_MAX || result.cstride > UINT32_MAX ||
+                    result.chroma_step > UINT32_MAX) {
+                    return onDeviceError("%s: lockYCbCr failed. Unexpected values!", __FUNCTION__);
+                }
+                YCbCrLayout outLayout = {.y = result.y,
+                                         .cb = result.cb,
+                                         .cr = result.cr,
+                                         .yStride = static_cast<uint32_t>(result.ystride),
+                                         .cStride = static_cast<uint32_t>(result.cstride),
+                                         .chromaStep = static_cast<uint32_t>(result.chroma_step)};
 
                 // Convert to output buffer size/format
                 uint32_t outputFourcc = getFourCcFromLayout(outLayout);

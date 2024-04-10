@@ -62,7 +62,7 @@ cc_library_shared {
     shared_libs: [
         "android.hardware.camera.common-V1-ndk",
         "android.hardware.camera.device-V1-ndk",
-        "android.hardware.graphics.allocator-V1-ndk",
+        "android.hardware.graphics.allocator-V2-ndk",
         "android.hardware.graphics.mapper@2.0",
         "android.hardware.graphics.mapper@3.0",
         "android.hardware.graphics.mapper@4.0",
@@ -82,6 +82,7 @@ cc_library_shared {
         "libsync",
         "libtinyxml2",
         "libutils",
+        "libui",
         "libyuv",
         "libstagefright_foundation",
         "libfsldisplay",

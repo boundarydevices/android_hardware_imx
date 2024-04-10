@@ -26,9 +26,13 @@
 #include <aidl/android/hardware/camera/device/NotifyMsg.h>
 #include <aidl/android/hardware/graphics/common/BufferUsage.h>
 #include <aidl/android/hardware/graphics/common/PixelFormat.h>
+#include <android/hardware/graphics/mapper/2.0/IMapper.h>
+#include <android/hardware/graphics/mapper/3.0/IMapper.h>
+#include <android/hardware/graphics/mapper/4.0/IMapper.h>
 #include <cutils/properties.h>
 #include <linux/videodev2.h>
 #include <tinyxml2.h>
+#include <map>
 
 #include <unordered_map>
 #include <unordered_set>
@@ -45,6 +49,8 @@ using ::aidl::android::hardware::graphics::common::BufferUsage;
 using ::aidl::android::hardware::graphics::common::PixelFormat;
 using ::android::hardware::camera::common::V1_0::helper::CameraMetadata;
 using ::android::hardware::camera::common::V1_0::helper::HandleImporter;
+using ::android::hardware::graphics::mapper::V2_0::IMapper;
+using ::android::hardware::graphics::mapper::V2_0::YCbCrLayout;
 
 namespace android {
 
