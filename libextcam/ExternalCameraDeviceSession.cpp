@@ -288,15 +288,6 @@ void ExternalCameraDeviceSession::initOutputThread() {
 }
 
 void ExternalCameraDeviceSession::closeOutputThread() {
-    closeOutputThreadImpl();
-}
-
-void ExternalCameraDeviceSession::closeOutputThreadImpl() {
-    if (mBufferRequestThread != nullptr) {
-        mBufferRequestThread->requestExitAndWait();
-        mBufferRequestThread.reset();
-    }
-
     if (mOutputThread != nullptr) {
         mOutputThread->flush();
         mOutputThread->requestExitAndWait();
@@ -308,6 +299,13 @@ void ExternalCameraDeviceSession::closeOutputThreadImpl() {
         }
 
         mOutputThread.reset();
+    }
+}
+
+void ExternalCameraDeviceSession::closeBufferRequestThread() {
+    if (mBufferRequestThread != nullptr) {
+        mBufferRequestThread->requestExitAndWait();
+        mBufferRequestThread.reset();
     }
 }
 
@@ -324,7 +322,7 @@ Status ExternalCameraDeviceSession::initStatus() const {
 ExternalCameraDeviceSession::~ExternalCameraDeviceSession() {
     if (!isClosed()) {
         ALOGE("ExternalCameraDeviceSession deleted before close!");
-        close(/*callerIsDtor*/ true);
+        closeImpl();
     }
 }
 
@@ -1563,19 +1561,16 @@ Status ExternalCameraDeviceSession::importBufferLocked(int32_t streamId, uint64_
 }
 
 ScopedAStatus ExternalCameraDeviceSession::close() {
-    close(false);
+    closeImpl();
     return fromStatus(Status::OK);
 }
 
-void ExternalCameraDeviceSession::close(bool callerIsDtor) {
+void ExternalCameraDeviceSession::closeImpl() {
     Mutex::Autolock _il(mInterfaceLock);
     bool closed = isClosed();
     if (!closed) {
-        if (callerIsDtor) {
-            closeOutputThreadImpl();
-        } else {
-            closeOutputThread();
-        }
+        closeOutputThread();
+        closeBufferRequestThread();
 
         Mutex::Autolock _l(mLock);
         // free all buffers
