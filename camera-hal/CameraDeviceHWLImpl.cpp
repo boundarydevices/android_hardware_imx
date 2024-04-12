@@ -169,7 +169,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
 
 
     //int resCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1280, 800};
-    int resCandidate[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
+    int resCandidate[] = {320, 240, 640, 480, 1280, 720, 1280, 800, 1920, 1080};
 
     mPreviewResolutionCount = ARRAY_SIZE(resCandidate);
     memcpy(mPreviewResolutions, resCandidate, mPreviewResolutionCount*sizeof(int));
