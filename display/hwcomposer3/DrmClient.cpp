@@ -377,6 +377,9 @@ bool DrmClient::handleHotplug() {
 
     std::vector<HotplugToReport> hotplugs;
 
+    TimePoint now = std::chrono::steady_clock::now();
+    std::this_thread::sleep_until(now + std::chrono::milliseconds(32));
+
     {
         std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
 
