@@ -2593,15 +2593,71 @@ void ExternalCameraDeviceSession::OutputThread::signalRequestDone() {
     mRequestDoneCond.notify_one();
 }
 
-int ExternalCameraDeviceSession::OutputThread::cropAndScaleLocked(
-        std::shared_ptr<AllocatedFrame>& in, const Size& outSz, YCbCrLayout* out, uint64_t *outPhyAddr) {
+int ExternalCameraDeviceSession::OutputThread::scaleData(std::shared_ptr<AllocatedFrame>& in,
+                                                         YCbCrLayout& inputLayout,
+                                                         const IMapper::Rect& inputCrop,
+                                                         std::shared_ptr<AllocatedFrame>& out,
+                                                         YCbCrLayout& outLayout,
+                                                         const Size& outSz) {
+    int ret;
+    if (in->mFourcc == V4L2_PIX_FMT_YUV420)
+        ret = libyuv::I420Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
+                                static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
+                                static_cast<uint8_t*>(inputLayout.cr), inputLayout.cStride,
+                                inputCrop.width, inputCrop.height,
+                                static_cast<uint8_t*>(outLayout.y), outLayout.yStride,
+                                static_cast<uint8_t*>(outLayout.cb), outLayout.cStride,
+                                static_cast<uint8_t*>(outLayout.cr), outLayout.cStride, outSz.width,
+                                outSz.height,
+                                // TODO: b/72261744 see if we can use better filter without losing
+                                // too much perf
+                                libyuv::FilterMode::kFilterNone);
+    else if (in->mFourcc == V4L2_PIX_FMT_NV12)
+        ret = libyuv::NV12Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
+                                static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
+                                inputCrop.width, inputCrop.height,
+                                static_cast<uint8_t*>(outLayout.y), outLayout.yStride,
+                                static_cast<uint8_t*>(outLayout.cb), outLayout.cStride, outSz.width,
+                                outSz.height,
+                                // TODO: b/72261744 see if we can use better filter without losing
+                                // too much perf
+                                libyuv::FilterMode::kFilterNone);
+    else if ((in->mFourcc == V4L2_PIX_FMT_NV16) || (in->mFourcc == V4L2_PIX_FMT_YUYV)) {
+        uint64_t outPhy = 0;
+        uint8_t* outVirt = NULL;
+        size_t outSize = 0;
+        uint64_t inPhy = 0;
+        uint8_t* inVirt = NULL;
+        size_t inSize = 0;
+        out->getPhyAddr(outPhy);
+        out->getData(&outVirt, &outSize);
+        in->getPhyAddr(inPhy);
+        in->getData(&inVirt, &inSize);
 
-    auto parent = mParent.lock();
-    if (parent == nullptr) {
-        ALOGE("%s: session has been disconnected!", __FUNCTION__);
+        ALOGI("%s: fmt 0x%x, outPhy 0x%llx, outVirt %p, outSize %d, inPhy 0x%llx, inVirt %p, inSize %d",
+              __func__, in->mFourcc, (unsigned long long)outPhy, outVirt, (int)outSize,
+              (unsigned long long)inPhy, inVirt, (int)inSize);
+
+        ret = handleFrame(outSz.width, outSz.height, in->mFourcc, in->mFourcc, outPhy, inPhy,
+                          in->mWidth, in->mHeight, in->mWidth, outSz.width, (void*)inVirt,
+                          (void*)outVirt);
+    } else {
+        ALOGW("%s: unsupported v4l2 format 0x%x", __func__, in->mFourcc);
         return -1;
     }
 
+    if (ret != 0) {
+        ALOGE("%s: failed to scale buffer from %dx%d to %dx%d. Ret %d", __FUNCTION__,
+              inputCrop.width, inputCrop.height, outSz.width, outSz.height, ret);
+        return ret;
+    }
+
+    return 0;
+}
+
+int ExternalCameraDeviceSession::OutputThread::cropAndScaleLocked(
+        std::shared_ptr<AllocatedFrame>& in, const Size& outSz, YCbCrLayout* out,
+        uint64_t* outPhyAddr) {
     Size inSz = {in->mWidth, in->mHeight};
 
     int ret;
@@ -2614,12 +2670,6 @@ int ExternalCameraDeviceSession::OutputThread::cropAndScaleLocked(
         return ret;
     }
 
-    YCbCrLayout croppedLayout;
-    if (mHardwareDecoder && parent->getHardwareDecFlag()) {
-        in->getLayout(&croppedLayout);
-        goto scale;
-    }
-
     // Cropping to output aspect ratio
     IMapper::Rect inputCrop;
     ret = getCropRect(mCroppingType, inSz, outSz, &inputCrop);
@@ -2629,6 +2679,7 @@ int ExternalCameraDeviceSession::OutputThread::cropAndScaleLocked(
         return ret;
     }
 
+    YCbCrLayout croppedLayout;
     ret = in->getCroppedLayout(inputCrop, &croppedLayout);
     if (ret != 0) {
         ALOGE("%s: failed to crop input image %dx%d to output size %dx%d", __FUNCTION__, inSz.width,
@@ -2643,7 +2694,6 @@ int ExternalCameraDeviceSession::OutputThread::cropAndScaleLocked(
         return 0;
     }
 
-scale:
     auto it = mScaledYu12Frames.find(outSz);
     std::shared_ptr<AllocatedFrame> scaledYu12Buf;
     if (it != mScaledYu12Frames.end()) {
@@ -2657,6 +2707,7 @@ scale:
         }
         scaledYu12Buf = it->second;
     }
+
     // Scale
     YCbCrLayout outLayout;
     ret = scaledYu12Buf->getLayout(&outLayout);
@@ -2664,47 +2715,9 @@ scale:
         ALOGE("%s: failed to get output buffer layout", __FUNCTION__);
         return ret;
     }
-
-    if (mHardwareDecoder && parent->getHardwareDecFlag()) {
-        uint64_t srcPhyAddr = 0;
-        uint64_t dstPhyAddr = 0;
-        in->getPhyAddr(srcPhyAddr);
-        scaledYu12Buf->getPhyAddr(dstPhyAddr);
-
-        ret = handleFrame(outSz.width, outSz.height, in->mFourcc, in->mFourcc, dstPhyAddr, srcPhyAddr,
-            in->mWidth, in->mHeight, croppedLayout.yStride, outLayout.yStride, croppedLayout.y, outLayout.y);
-
-        if (outPhyAddr) {
-            *outPhyAddr = dstPhyAddr;
-        }
-    } else {
-        if (mInterBufFormat == V4L2_PIX_FMT_YUV420)
-            ret = libyuv::I420Scale(static_cast<uint8_t*>(croppedLayout.y), croppedLayout.yStride,
-                                    static_cast<uint8_t*>(croppedLayout.cb), croppedLayout.cStride,
-                                    static_cast<uint8_t*>(croppedLayout.cr), croppedLayout.cStride,
-                                    inputCrop.width, inputCrop.height,
-                                    static_cast<uint8_t*>(outLayout.y), outLayout.yStride,
-                                    static_cast<uint8_t*>(outLayout.cb), outLayout.cStride,
-                                    static_cast<uint8_t*>(outLayout.cr), outLayout.cStride, outSz.width,
-                                    outSz.height,
-                                    // TODO: b/72261744 see if we can use better filter without losing
-                                    // too much perf
-                                    libyuv::FilterMode::kFilterNone);
-        else
-            ret = libyuv::NV12Scale(static_cast<uint8_t*>(croppedLayout.y), croppedLayout.yStride,
-                                    static_cast<uint8_t*>(croppedLayout.cb), croppedLayout.cStride,
-                                    inputCrop.width, inputCrop.height,
-                                    static_cast<uint8_t*>(outLayout.y), outLayout.yStride,
-                                    static_cast<uint8_t*>(outLayout.cb), outLayout.cStride, outSz.width,
-                                    outSz.height,
-                                    // TODO: b/72261744 see if we can use better filter without losing
-                                    // too much perf
-                                    libyuv::FilterMode::kFilterNone);
-    }
-
+    ret = scaleData(in, croppedLayout, inputCrop, scaledYu12Buf, outLayout, outSz);
     if (ret != 0) {
-        ALOGE("%s: failed to scale buffer from %dx%d to %dx%d. Ret %d", __FUNCTION__,
-              inputCrop.width, inputCrop.height, outSz.width, outSz.height, ret);
+        ALOGE("%s: failed to scaleData", __FUNCTION__);
         return ret;
     }
 
@@ -2816,51 +2829,9 @@ int ExternalCameraDeviceSession::OutputThread::cropAndScaleThumbLocked(
         ALOGE("%s: failed to get output buffer layout", __FUNCTION__);
         return ret;
     }
-
-    if (in->mFourcc == V4L2_PIX_FMT_YUV420)
-        ret = libyuv::I420Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
-                                static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
-                                static_cast<uint8_t*>(inputLayout.cr), inputLayout.cStride,
-                                inputCrop.width, inputCrop.height,
-                                static_cast<uint8_t*>(outFullLayout.y), outFullLayout.yStride,
-                                static_cast<uint8_t*>(outFullLayout.cb), outFullLayout.cStride,
-                                static_cast<uint8_t*>(outFullLayout.cr), outFullLayout.cStride,
-                                outSz.width, outSz.height, libyuv::FilterMode::kFilterNone);
-    else if (in->mFourcc == V4L2_PIX_FMT_NV12)
-        ret = libyuv::NV12Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
-                                static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
-                                inputCrop.width, inputCrop.height,
-                                static_cast<uint8_t*>(outFullLayout.y), outFullLayout.yStride,
-                                static_cast<uint8_t*>(outFullLayout.cb), outFullLayout.cStride,
-                                outSz.width, outSz.height, libyuv::FilterMode::kFilterNone);
-    else if ((in->mFourcc == V4L2_PIX_FMT_NV16) || (in->mFourcc == V4L2_PIX_FMT_YUYV)) {
-        uint64_t outPhy = 0;
-        uint8_t* outVirt = NULL;
-        size_t outSize = 0;
-        uint64_t inPhy = 0;
-        uint8_t* inVirt = NULL;
-        size_t inSize = 0;
-
-        mYu12ThumbFrame->getPhyAddr(outPhy);
-        mYu12ThumbFrame->getData(&outVirt, &outSize);
-        in->getPhyAddr(inPhy);
-        in->getData(&inVirt, &inSize);
-
-        ALOGI("%s: fmt 0x%x, outPhy 0x%llx, outVirt %p, outSize %d, inPhy 0x%llx, inVirt %p, inSize %d",
-              __func__, in->mFourcc, (unsigned long long)outPhy, outVirt, (int)outSize,
-              (unsigned long long)inPhy, inVirt, (int)inSize);
-
-        ret = handleFrame(outSz.width, outSz.height, in->mFourcc, mYu12ThumbFrame->mFourcc, outPhy,
-                          inPhy, in->mWidth, in->mHeight, in->mWidth, outSz.width, (void*)inVirt,
-                          (void*)outVirt);
-    } else {
-        ALOGW("%s: unsupported v4l2 format 0x%x", __func__, in->mFourcc);
-        return -1;
-    }
-
+    ret = scaleData(in, inputLayout, inputCrop, mYu12ThumbFrame, outFullLayout, outSz);
     if (ret != 0) {
-        ALOGE("%s: failed to scale buffer from %dx%d to %dx%d. Ret %d", __FUNCTION__,
-              inputCrop.width, inputCrop.height, outSz.width, outSz.height, ret);
+        ALOGE("%s: failed to scaleData", __FUNCTION__);
         return ret;
     }
 

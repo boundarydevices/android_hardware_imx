@@ -283,6 +283,9 @@ public:
                         uint32_t srcWidth = 0, uint32_t srcHeight = 0,
                         uint32_t srcStride = 0, uint32_t dstStride = 0,
                         void *srcVirtAddr = NULL, void *dstVirtAddr = NULL);
+        int scaleData(std::shared_ptr<AllocatedFrame>& in, YCbCrLayout& inputLayout,
+                      const IMapper::Rect& inputCrop, std::shared_ptr<AllocatedFrame>& out,
+                      YCbCrLayout& outLayout, const Size& outSz);
 
         bool mUseHalBufManager = false;
         ImxEngine mEngine = ENG_NOTCARE;
