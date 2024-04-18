@@ -604,9 +604,15 @@ int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuf
 }
 
 int FreePhyBuffer(buffer_handle_t buffer) {
+    if (buffer == NULL) {
+        ALOGE("%s: buffer NULL", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
     auto err = ::android::GraphicBufferMapper::get().unlock(buffer);
     if (err) {
         ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
+        return BAD_VALUE;
     }
 
     GraphicBufferAllocator::get().free(buffer);

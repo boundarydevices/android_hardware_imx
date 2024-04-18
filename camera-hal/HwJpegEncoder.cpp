@@ -59,12 +59,13 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         bResize = true;
 
-        ImxStreamBuffer *resizeBuf = new ImxStreamBuffer();
+        resizeBuf = new ImxStreamBuffer();
         int ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, *resizeBuf);
         if (ret != 0) {
             ALOGE("%s: allocate resizeBuf failed", __func__);
             return BAD_VALUE;
         }
+        resizeBuf->mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
 
         srcBuf.mVirtAddr = inYuv;
         srcBuf.mPhyAddr = (uint64_t)inYuvPhy;
@@ -93,8 +94,9 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
 
 failed:
     if (bResize) {
-        ReleaseImxStreamBuffer(resizeBuf);
+        delete (resizeBuf->mStream);
         FreePhyBuffer(resizeBuf->buffer);
+        delete (resizeBuf);
         delete (srcBuf.mStream);
     }
 

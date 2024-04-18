@@ -484,12 +484,13 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         bResize = true;
 
-        ImxStreamBuffer *resizeBuf = new ImxStreamBuffer();
+        resizeBuf = new ImxStreamBuffer();
         ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, *resizeBuf);
         if (ret != 0) {
             ALOGE("%s: allocate resizeBuf failed", __func__);
             return BAD_VALUE;
         }
+        resizeBuf->mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
 
         srcBuf.mPhyAddr = (uint64_t)inYuvPhy;
         srcBuf.mVirtAddr = inYuv;
@@ -525,8 +526,9 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
     jpeg_destroy_compress(&cinfo);
 
     if (bResize) {
-        ReleaseImxStreamBuffer(resizeBuf);
+        delete (resizeBuf->mStream);
         FreePhyBuffer(resizeBuf->buffer);
+        delete (resizeBuf);
         delete (srcBuf.mStream);
     }
 
