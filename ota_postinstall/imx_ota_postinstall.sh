@@ -28,6 +28,9 @@ imx8qxp_revb_sd_bootloader0_offset=32
 imx8qxp_revc_emmc_bootloader0_offset=0
 imx8qxp_revc_sd_bootloader0_offset=32
 
+imx95_emmc_bootloader0_offset=0
+imx95_sd_bootloader0_offset=32
+
 bootloader0_img=/postinstall/etc/bootloader0.img
 bootloader0_img_size=`wc -c $bootloader0_img | cut -d ' ' -f1`
 bootloader0_img_md5sum=`md5sum $bootloader0_img | cut -d ' ' -f1`
@@ -119,7 +122,7 @@ while [ loop_index -lt 2 ]; do
 	fi
 done
 
-if [ $encryted_boot = "true" ]; then
+if [ "$encryted_boot" = "true" ]; then
 	if [ -f "/postinstall/bin/imx_dek_inserter" ]; then
 		/postinstall/bin/imx_dek_inserter -s $soc_type -S $target_device_offset -t $target_device -l $bootloader0_img_size
 	else
@@ -143,7 +146,7 @@ else
 	log -p i -t imx_ota_postinstall "finished to update bootloader0 partition"
 fi
 
-if [ $encryted_boot = "true" ]; then
+if [ "$encryted_boot" = "true" ]; then
 	bootloader_slot=`getprop ro.boot.slot_suffix`
 	if [ ${bootloader_slot} != "_a" && ${bootloader_slot} != "_b" ]; then
 		log -p e -t imx_ota_postinstall "fail to get boot slot"
