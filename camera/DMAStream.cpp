@@ -208,7 +208,7 @@ int32_t DMAStream::onFrameReturn(ImxStreamBuffer &buf) {
 }
 
 int32_t DMAStream::getDeviceBufferSize() {
-    return getSizeByForamtRes(mFormat, mWidth, mHeight, true);
+    return getSizeByForamtRes(mFormat, mWidth, mHeight, false);
 }
 
 int32_t DMAStream::allocateBuffersLocked() {
