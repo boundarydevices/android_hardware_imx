@@ -45,6 +45,7 @@ cc_library_shared {
     ],
     srcs: [
         "Mapper.cpp",
+        "registered_handle_pool.cpp",
     ],
     cpp_std: "c++20",
     cflags: [

@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Chromium OS Authors. All rights reserved.
- * Copyright 2023 NXP
+ * Copyright 2024 NXP
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
@@ -21,22 +21,23 @@
 #include "gralloc_handle.h"
 #include "gralloc_metadata.h"
 #include "helpers.h"
+#include "registered_handle_pool.h"
 
 using namespace ::aidl::android::hardware::graphics::common;
 using namespace ::android::hardware::graphics::mapper;
 using ::aidl::android::hardware::graphics::allocator::BufferDescriptorInfo;
 using ::android::base::unique_fd;
 
-#define REQUIRE_DRIVER()                                           \
-    if (!mDriver) {                                                \
-        ALOGE("Failed to %s. Driver is uninitialized.", __func__); \
-        return AIMAPPER_ERROR_NO_RESOURCES;                        \
+#define REQUIRE_DRIVER()                                 \
+    if (!mDriver) {                                      \
+        ALOGE("%s: Driver is uninitialized.", __func__); \
+        return AIMAPPER_ERROR_NO_RESOURCES;              \
     }
 
-#define VALIDATE_BUFFER_HANDLE(bufferHandle)                    \
-    if (!(bufferHandle)) {                                      \
-        ALOGE("Failed to %s. Null buffer_handle_t.", __func__); \
-        return AIMAPPER_ERROR_BAD_BUFFER;                       \
+#define VALIDATE_BUFFER_HANDLE(bufferHandle)          \
+    if (!(bufferHandle)) {                            \
+        ALOGE("%s: Null buffer_handle_t.", __func__); \
+        return AIMAPPER_ERROR_BAD_BUFFER;             \
     }
 
 #define VALIDATE_DRIVER_AND_BUFFER_HANDLE(bufferHandle) \
@@ -141,13 +142,13 @@ AIMapper_Error GrallocMapperV5::importBuffer(const native_handle_t* _Nonnull buf
     REQUIRE_DRIVER()
 
     if (!bufferHandle || bufferHandle->numFds == 0) {
-        ALOGE("Failed to importBuffer. Bad handle.");
+        ALOGE("%s: Failed to importBuffer. Bad handle.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
     native_handle_t* importedBufferHandle = native_handle_clone(bufferHandle);
     if (!importedBufferHandle) {
-        ALOGE("Failed to importBuffer. Handle clone failed: %s.", strerror(errno));
+        ALOGE("%s: Failed to importBuffer. Handle clone failed: %s.", __func__, strerror(errno));
         return AIMAPPER_ERROR_NO_RESOURCES;
     }
 
@@ -158,12 +159,21 @@ AIMapper_Error GrallocMapperV5::importBuffer(const native_handle_t* _Nonnull buf
         return AIMAPPER_ERROR_NO_RESOURCES;
     }
 
+    if (!RegisteredHandlePool::get_instance().add(importedBufferHandle)) {
+        ALOGW("%s: Handle %p already present in pool of registered handles.", __func__,
+              importedBufferHandle);
+    }
+
     *outBufferHandle = importedBufferHandle;
     return AIMAPPER_ERROR_NONE;
 }
 
 AIMapper_Error GrallocMapperV5::freeBuffer(buffer_handle_t _Nonnull buffer) {
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(buffer)
+
+    if (!RegisteredHandlePool::get_instance().remove(const_cast<native_handle_t*>(buffer))) {
+        ALOGW("%s: Handle %p not found in pool of registered handles.", __func__, buffer);
+    }
 
     int ret = mDriver->release(buffer);
     if (ret) {
@@ -193,20 +203,20 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
     unique_fd acquireFence(acquireFenceRawFd);
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(bufferHandle)
     if (cpuUsage == 0) {
-        ALOGE("Failed to lock. Bad cpu usage: %" PRIu64 ".", cpuUsage);
+        ALOGE("%s: Bad cpu usage: %" PRIu64 ".", __func__, cpuUsage);
         return AIMAPPER_ERROR_BAD_VALUE;
     }
 
     uint32_t mapUsage;
     int ret = convertToMapUsage(cpuUsage, &mapUsage);
     if (ret) {
-        ALOGE("%s Convert usage failed.", __func__);
+        ALOGE("%s: Convert usage failed.", __func__);
         return AIMAPPER_ERROR_BAD_VALUE;
     }
 
     gralloc_handle_t memHandle = gralloc_convert_handle(bufferHandle);
     if (memHandle == nullptr) {
-        ALOGE("Failed to lock. Invalid handle.");
+        ALOGE("%s: Invalid handle.", __func__);
         return AIMAPPER_ERROR_BAD_VALUE;
     }
 
@@ -219,20 +229,19 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
     } else {
         if (region.left < 0 || region.top < 0 || region.right <= region.left ||
             region.bottom <= region.top) {
-            ALOGE("Failed to lock. Invalid accessRegion: [%d, %d, %d, %d]", region.left, region.top,
+            ALOGE("%s: Invalid accessRegion: [%d, %d, %d, %d]", __func__, region.left, region.top,
                   region.right, region.bottom);
             return AIMAPPER_ERROR_BAD_VALUE;
         }
 
         if (region.right > memHandle->width) {
-            ALOGE("Failed to lock. Invalid region: width greater than buffer width (%d vs %d).",
+            ALOGE("%s: Invalid region: width greater than buffer width (%d vs %d).", __func__,
                   region.right, memHandle->width);
             return AIMAPPER_ERROR_BAD_VALUE;
         }
 
         if (region.bottom > memHandle->height) {
-            ALOGE("Failed to lock. Invalid region: height greater than buffer height (%d vs "
-                  "%d).",
+            ALOGE("%s: Invalid region: height greater than buffer height (%d vs %d).", __func__,
                   region.bottom, memHandle->height);
             return AIMAPPER_ERROR_BAD_VALUE;
         }
@@ -258,7 +267,7 @@ AIMapper_Error GrallocMapperV5::unlock(buffer_handle_t _Nonnull buffer,
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(buffer)
     int ret = mDriver->unlock(buffer, releaseFence);
     if (ret) {
-        ALOGE("Failed to unlock.");
+        ALOGE("%s: driver fail to unlock.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
     return AIMAPPER_ERROR_NONE;
@@ -268,7 +277,7 @@ AIMapper_Error GrallocMapperV5::flushLockedBuffer(buffer_handle_t _Nonnull buffe
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(buffer)
     int ret = mDriver->flush(buffer);
     if (ret) {
-        ALOGE("Failed to flushLockedBuffer. Flush failed.");
+        ALOGE("%s: driver fail to flush.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
     return AIMAPPER_ERROR_NONE;
@@ -278,7 +287,7 @@ AIMapper_Error GrallocMapperV5::rereadLockedBuffer(buffer_handle_t _Nonnull buff
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(buffer)
     int ret = mDriver->invalidate(buffer);
     if (ret) {
-        ALOGE("Failed to rereadLockedBuffer. Failed to invalidate.");
+        ALOGE("%s: driver fail to invalidate.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
@@ -302,28 +311,26 @@ int32_t GrallocMapperV5::getStandardMetadata(buffer_handle_t _Nonnull bufferHand
     // Can't use VALIDATE_DRIVER_AND_BUFFER_HANDLE because we need to negate the error
     // for this call
     if (!mDriver) {
-        ALOGE("Failed to %s. Driver is uninitialized.", __func__);
+        ALOGE("%s: Driver is uninitialized.", __func__);
         return -AIMAPPER_ERROR_NO_RESOURCES;
     }
     if (!(bufferHandle)) {
-        ALOGE("Failed to %s. Null buffer_handle_t.", __func__);
+        ALOGE("%s: Null buffer_handle_t.", __func__);
         return -AIMAPPER_ERROR_BAD_BUFFER;
     }
 
     gralloc_handle_t memHandle = gralloc_convert_handle(bufferHandle);
     if (!memHandle) {
-        ALOGE("Failed to get. Invalid handle.");
+        ALOGE("%s: fail to covert gralloc handle.", __func__);
         return -AIMAPPER_ERROR_BAD_BUFFER;
     }
 
     int32_t retValue = -AIMAPPER_ERROR_UNSUPPORTED;
-    mDriver->with_handle(memHandle, [&](gralloc_handle_t handle) {
-        auto provider = [&]<StandardMetadataType T>(auto&& provide) -> int32_t {
-            return getStandardMetadata(handle, provide, StandardMetadata<T>{});
-        };
-        retValue = provideStandardMetadata(static_cast<StandardMetadataType>(standardType), outData,
-                                           outDataSize, provider);
-    });
+    auto provider = [&]<StandardMetadataType T>(auto&& provide) -> int32_t {
+        return getStandardMetadata(memHandle, provide, StandardMetadata<T>{});
+    };
+    retValue = provideStandardMetadata(static_cast<StandardMetadataType>(standardType), outData,
+                                       outDataSize, provider);
     return retValue;
 }
 
@@ -338,7 +345,7 @@ int32_t GrallocMapperV5::getStandardMetadata(gralloc_handle_t memHandle, F&& pro
                   metadataType == StandardMetadataType::SMPTE2086) {
         AIMapper_Error error = getMetadata(memHandle, &memMetadata);
         if (error != AIMAPPER_ERROR_NONE) {
-            ALOGE("Failed to get. Failed to get buffer metadata.");
+            ALOGE("%s: Failed to get buffer metadata.", __func__);
             return -AIMAPPER_ERROR_NO_RESOURCES;
         }
     }
@@ -459,7 +466,7 @@ AIMapper_Error GrallocMapperV5::setStandardMetadata(buffer_handle_t _Nonnull buf
 
     gralloc_handle_t memHandle = gralloc_convert_handle(bufferHandle);
     if (!memHandle) {
-        ALOGE("Failed to get. Invalid handle.");
+        ALOGE("%s: fail to cover to gralloc handle.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
@@ -489,19 +496,17 @@ AIMapper_Error GrallocMapperV5::setStandardMetadata(buffer_handle_t _Nonnull buf
     }
 
     AIMapper_Error status = AIMAPPER_ERROR_UNSUPPORTED;
-    mDriver->with_handle(memHandle, [&](gralloc_handle_t memHandle) {
-        gralloc_metadata* memMetadata = nullptr;
-        status = getMutableMetadata(memHandle, &memMetadata);
-        if (status != AIMAPPER_ERROR_NONE) {
-            return;
-        }
+    gralloc_metadata* memMetadata = nullptr;
+    status = getMutableMetadata(memHandle, &memMetadata);
+    if (status != AIMAPPER_ERROR_NONE) {
+        return status;
+    }
 
-        auto applier = [&]<StandardMetadataType T>(auto&& value) -> AIMapper_Error {
-            return setStandardMetadata<T>(memMetadata, std::forward<decltype(value)>(value));
-        };
+    auto applier = [&]<StandardMetadataType T>(auto&& value) -> AIMapper_Error {
+        return setStandardMetadata<T>(memMetadata, std::forward<decltype(value)>(value));
+    };
 
-        status = applyStandardMetadata(standardType, metadata, metadataSize, applier);
-    });
+    status = applyStandardMetadata(standardType, metadata, metadataSize, applier);
     return status;
 }
 
@@ -630,14 +635,14 @@ AIMapper_Error GrallocMapperV5::dumpBuffer(buffer_handle_t _Nonnull bufferHandle
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(bufferHandle)
     gralloc_handle_t memHandle = gralloc_convert_handle(bufferHandle);
     if (!memHandle) {
-        ALOGE("Failed to get. Invalid handle.");
+        ALOGE("%s: fail to covert to gralloc handle.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
     auto callback = [&](AIMapper_MetadataType type, const std::vector<uint8_t>& buffer) {
         dumpBufferCallback(context, type, buffer.data(), buffer.size());
     };
-    mDriver->with_handle(memHandle,
-                         [&](gralloc_handle_t memHandle) { dumpBuffer(memHandle, callback); });
+    dumpBuffer(memHandle, callback);
+
     return AIMAPPER_ERROR_NONE;
 }
 
@@ -648,7 +653,13 @@ AIMapper_Error GrallocMapperV5::dumpAllBuffers(
     auto callback = [&](AIMapper_MetadataType type, const std::vector<uint8_t>& buffer) {
         dumpBufferCallback(context, type, buffer.data(), buffer.size());
     };
-    mDriver->with_each_handle([&](gralloc_handle_t memHandle) {
+    RegisteredHandlePool::get_instance().for_each([&](buffer_handle_t buffer) {
+        gralloc_handle_t memHandle = gralloc_convert_handle(buffer);
+        if (!memHandle) {
+            ALOGE("%s: fail to covert to gralloc handle.", __func__);
+            return;
+        }
+
         beginDumpBufferCallback(context);
         dumpBuffer(memHandle, callback);
     });
@@ -661,7 +672,7 @@ AIMapper_Error GrallocMapperV5::getReservedRegion(buffer_handle_t _Nonnull buffe
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(buffer)
     gralloc_handle_t memHandle = gralloc_convert_handle(buffer);
     if (!memHandle) {
-        ALOGE("Failed to getReservedRegion. Invalid handle.");
+        ALOGE("%s: fail to covert to gralloc handle.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
@@ -669,13 +680,11 @@ AIMapper_Error GrallocMapperV5::getReservedRegion(buffer_handle_t _Nonnull buffe
     uint64_t reservedRegionSize = 0;
 
     AIMapper_Error error = AIMAPPER_ERROR_NONE;
-    mDriver->with_handle(memHandle, [&, this](gralloc_handle_t memHandle) {
-        error = getReservedRegionArea(memHandle, ReservedRegionArea::USER_METADATA,
-                                      &reservedRegionAddr, &reservedRegionSize);
-    });
+    error = getReservedRegionArea(memHandle, ReservedRegionArea::USER_METADATA, &reservedRegionAddr,
+                                  &reservedRegionSize);
 
     if (error != AIMAPPER_ERROR_NONE) {
-        ALOGE("Failed to getReservedRegion. Failed to getReservedRegionArea.");
+        ALOGE("%s: Failed to getReservedRegionArea.", __func__);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
@@ -687,7 +696,7 @@ AIMapper_Error GrallocMapperV5::getReservedRegionArea(gralloc_handle_t memHandle
                                                       uint64_t* outSize) {
     int ret = mDriver->get_reserved_region(memHandle, outAddr, outSize);
     if (ret) {
-        ALOGE("Failed to getReservedRegionArea.");
+        ALOGE("%s: driver fail to getReservedRegionArea.", __func__);
         *outAddr = nullptr;
         *outSize = 0;
         return AIMAPPER_ERROR_NO_RESOURCES;
