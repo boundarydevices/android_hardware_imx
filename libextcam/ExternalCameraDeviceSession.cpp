@@ -2340,11 +2340,17 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
 
     // Allocating scaled buffers
     uint32_t scaledFormat = format;
+    char socType[128] = {0};
+    property_get("ro.boot.soc_type", socType, "");
 
-    // 8qm/8qxp decoded to yuyv, 8mq decoded to nv16, since yuv422iResize/yuv422spResize just pass
-    // start address(y), so use V4L2_PIX_FMT_YUYV is ok, just allocate w*h*2 size buffer.
-    if (mHardwareDecoder && parent->getHardwareDecFlag())
-        scaledFormat = V4L2_PIX_FMT_YUYV;
+    // 8qm/8qxp decoded to yuyv, 8mq decoded to nv16, set the correct scaledFormat, or will meet
+    // data error when get croplayout if need scale(e.g. 960x720-->640x480).
+    if (mHardwareDecoder && parent->getHardwareDecFlag()) {
+        if (strcmp(socType, "imx8mq") == 0)
+            scaledFormat = V4L2_PIX_FMT_NV16;
+        else
+            scaledFormat = V4L2_PIX_FMT_YUYV;
+    }
 
     for (const auto& stream : streams) {
         Size sz = {stream.width, stream.height};
@@ -2591,6 +2597,8 @@ int ExternalCameraDeviceSession::OutputThread::scaleData(std::shared_ptr<Allocat
                                                          YCbCrLayout& outLayout,
                                                          const Size& outSz) {
     int ret;
+    ALOGV("%s: inputCrop.width %d, inputCrop.height:%d  --> outSz.width:%d, outSz.height:%d",
+          __func__, inputCrop.width, inputCrop.height, outSz.width, outSz.height);
     if (in->mFourcc == V4L2_PIX_FMT_YUV420)
         ret = libyuv::I420Scale(static_cast<uint8_t*>(inputLayout.y), inputLayout.yStride,
                                 static_cast<uint8_t*>(inputLayout.cb), inputLayout.cStride,
@@ -3240,6 +3248,9 @@ int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, ui
     uint32_t srcValidWidth = srcWidth;
     uint32_t srcValidHeight = srcHeight;
 
+    ALOGV("%s: srcWidth %d, srcHeight %d, srcStride:%d src_fourcc:0x%x, srcVirtAddr:%p  --->  dstWidth:%d, dstHeight:%d, dstStride:%d, dst_fourcc:0x%x, dstVirtAddr:%p",
+          __func__, srcWidth, srcHeight, srcStride, src_fourcc, srcVirtAddr, dstWidth, dstHeight,
+          dstStride, dst_fourcc, dstVirtAddr);
     // mjpg hareware decoder is 16 aligned.
     // srcValidHeight is used to process pixels.
     // srcHeight is used to jump planes.

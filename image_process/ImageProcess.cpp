@@ -848,7 +848,7 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
 
     // case 1: same format, same resolution, copy
     if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
-        (srcBuf.mHeight == dstBuf.mHeight)) {
+        (srcBuf.mHeightSpan == dstBuf.mHeightSpan)) {
         if (HAL_PIXEL_FORMAT_RAW16 == srcBuf.mFormat)
             Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
                               srcBuf.mWidth * srcBuf.mHeight);
@@ -1101,7 +1101,7 @@ int ImageProcess::resizeWrapper(ImxImageBuffer &srcBuf, ImxImageBuffer &dstBuf, 
         return BAD_VALUE;
     }
 
-    if ((srcBuf.mWidth == dstBuf.mWidth) && (srcBuf.mHeight == dstBuf.mHeight)) {
+    if ((srcBuf.mWidth == dstBuf.mWidth) && (srcBuf.mHeightSpan == dstBuf.mHeightSpan)) {
         ALOGE("%s: resolution are same, %dx%d", __func__, srcBuf.mWidth, srcBuf.mHeight);
         return BAD_VALUE;
     }

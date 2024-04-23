@@ -207,13 +207,12 @@ int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf
     if (!h_scale_ratio)
         return -1;
 
-    v_scale_ratio = srcHeight / dstHeight;
+    v_scale_ratio = srcHeightSpan / dstHeight;
     if (!v_scale_ratio)
         return -1;
 
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
-    v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
-
+    v_offset = (srcHeightSpan - dstHeight * v_scale_ratio) / 2;
 
     // y
     int srcRow = 0;

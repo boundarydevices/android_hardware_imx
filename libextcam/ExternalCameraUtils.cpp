@@ -429,7 +429,7 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
         out->cb = cbStart;
         out->cr = crStart;
         out->cStride = mWidth;
-        out->chromaStep = 4;
+        out->chromaStep = 2;
     }  else if (V4L2_PIX_FMT_YUYV) {
         out->y = mData.data();
         out->yStride = mWidth * 2;
@@ -437,10 +437,9 @@ int AllocatedFrame::allocate(YCbCrLayout* out) {
         uint8_t* crStart = cbStart + 3;
         out->cb = cbStart;
         out->cr = crStart;
-        out->cStride = mWidth;
+        out->cStride = mWidth * 2;
         out->chromaStep = 4;
     }
-
 
     return 0;
 }
@@ -620,7 +619,7 @@ set_layout:
         out->cb = cbStart;
         out->cr = crStart;
         out->cStride = mWidth;
-        out->chromaStep = 4;
+        out->chromaStep = 2;
     }  else if (V4L2_PIX_FMT_YUYV) {
         out->y = dstBuf;
         out->yStride = mWidth * 2;
@@ -628,7 +627,7 @@ set_layout:
         uint8_t* crStart = cbStart + 3;
         out->cb = cbStart;
         out->cr = crStart;
-        out->cStride = mWidth;
+        out->cStride = mWidth * 2;
         out->chromaStep = 4;
     }
 
@@ -938,9 +937,9 @@ int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32
     return ret;
 }
 
-int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize) {
+int encodeJpeg(uint32_t fourcc, const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
+               const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
+               size_t& actualCodeSize) {
     /* libjpeg is a C library so we use C-style "inheritance" by
      * putting libjpeg's jpeg_destination_mgr first in our custom
      * struct. This allows us to cast jpeg_destination_mgr* to
@@ -1024,10 +1023,10 @@ int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQualit
     cinfo.raw_data_in = 1;
     cinfo.dct_method = JDCT_IFAST;
 
-    /* Configure sampling factors. The sampling factor is JPEG subsampling 420
-     * because the source format is YUV420. Note that libjpeg sampling factors
-     * are... a little weird. Sampling of Y=2,U=1,V=1 means there is 1 U and
-     * 1 V value for each 2 Y values */
+    /* Configure sampling factors.
+       For YU12 and NV12, the sampling factor is JPEG subsampling 420;
+       For NV16 and YUYV, the sampling factor is JPEG subsampling 422;
+    */
     cinfo.comp_info[0].h_samp_factor = 2;
     cinfo.comp_info[0].v_samp_factor = 2;
     cinfo.comp_info[1].h_samp_factor = 1;
@@ -1035,57 +1034,61 @@ int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQualit
     cinfo.comp_info[2].h_samp_factor = 1;
     cinfo.comp_info[2].v_samp_factor = 1;
 
+    uint8_t y_step = 1;
+    if (fourcc == V4L2_PIX_FMT_NV16 || fourcc == V4L2_PIX_FMT_YUYV) {
+        if (fourcc == V4L2_PIX_FMT_YUYV)
+            y_step = 2;
+        cinfo.comp_info[0].v_samp_factor = 1;
+    }
+
     /* Start the compressor */
     jpeg_start_compress(&cinfo, TRUE);
-
-    /* Let's not hardcode YUV420 in 6 places... 5 was enough */
-    int maxVSampFactor = cinfo.max_v_samp_factor;
-    int cVSubSampling = cinfo.comp_info[0].v_samp_factor / cinfo.comp_info[1].v_samp_factor;
-
-    /* Compute our macroblock height, so we can pad our input to be vertically
-     * macroblock aligned. No need to for horizontal alignment since AllocatedFrame already
-     * pads horizontally */
-
-    size_t mcuV = DCTSIZE * maxVSampFactor;
-    size_t paddedHeight = mcuV * ((inSz.height + mcuV - 1) / mcuV);
-
-    /* libjpeg uses arrays of row pointers, which makes it really easy to pad
-     * data vertically (unfortunately doesn't help horizontally) */
-    std::vector<JSAMPROW> yLines(paddedHeight);
-    std::vector<JSAMPROW> cbLines(paddedHeight / cVSubSampling);
-    std::vector<JSAMPROW> crLines(paddedHeight / cVSubSampling);
-
-    uint8_t* py = static_cast<uint8_t*>(inLayout.y);
-    uint8_t* pcb = static_cast<uint8_t*>(inLayout.cb);
-    uint8_t* pcr = static_cast<uint8_t*>(inLayout.cr);
-
-    for (int32_t i = 0; i < paddedHeight; i++) {
-        /* Once we are in the padding territory we still point to the last line
-         * effectively replicating it several times ~ CLAMP_TO_EDGE */
-        int li = std::min(i, inSz.height - 1);
-        yLines[i] = static_cast<JSAMPROW>(py + li * inLayout.yStride);
-        if (i < paddedHeight / cVSubSampling) {
-            li = std::min(i, (inSz.height - 1) / cVSubSampling);
-            cbLines[i] = static_cast<JSAMPROW>(pcb + li * inLayout.cStride);
-            crLines[i] = static_cast<JSAMPROW>(pcr + li * inLayout.cStride);
-        }
-    }
 
     /* If APP1 data was passed in, use it */
     if (app1Buffer && app1Size) {
         jpeg_write_marker(&cinfo, JPEG_APP0 + 1, static_cast<const JOCTET*>(app1Buffer), app1Size);
     }
 
-    /* While we still have padded height left to go, keep giving it one
-     * macroblock at a time. */
+    int maxVSampFactor = cinfo.max_v_samp_factor;
+    int cVSubSampling = cinfo.comp_info[0].v_samp_factor / cinfo.comp_info[1].v_samp_factor;
+    const uint32_t batchSize = DCTSIZE * maxVSampFactor;
+
+    uint8_t* py = static_cast<uint8_t*>(inLayout.y);
+    uint8_t* pcb = static_cast<uint8_t*>(inLayout.cb);
+    uint8_t* pcr = static_cast<uint8_t*>(inLayout.cr);
+
+    /* libjpeg uses arrays of row pointers, which makes it really easy to pad
+     * data vertically (unfortunately doesn't help horizontally) */
+    JSAMPLE y_plane[batchSize][cinfo.image_width];
+    JSAMPLE u_plane[batchSize][cinfo.image_width / 2];
+    JSAMPLE v_plane[batchSize][cinfo.image_width / 2];
+    JSAMPROW y_rows[batchSize];
+    JSAMPROW u_rows[batchSize];
+    JSAMPROW v_rows[batchSize];
+
+    for (int i = 0; i < batchSize; ++i) {
+        y_rows[i] = &y_plane[i][0];
+        u_rows[i] = &u_plane[i][0];
+        v_rows[i] = &v_plane[i][0];
+    }
+    JSAMPARRAY rows[]{y_rows, u_rows, v_rows};
+
     while (cinfo.next_scanline < cinfo.image_height) {
-        const uint32_t batchSize = DCTSIZE * maxVSampFactor;
-        const uint32_t nl = cinfo.next_scanline;
-        JSAMPARRAY planes[3]{&yLines[nl], &cbLines[nl / cVSubSampling],
-                             &crLines[nl / cVSubSampling]};
+        for (JDIMENSION i = 0; i < batchSize; ++i) {
+            if ((cinfo.next_scanline + i) >= cinfo.image_height)
+                break;
+            auto offset = (cinfo.next_scanline + i) * inLayout.yStride;
+            auto offsetcb = (cinfo.next_scanline + i) / cVSubSampling * inLayout.cStride;
+            for (JDIMENSION j = 0; j < cinfo.image_width; j += 2) {
+                y_plane[i][j] = py[offset + j * y_step];
+                y_plane[i][j + 1] = py[offset + j * y_step + y_step];
 
-        uint32_t done = jpeg_write_raw_data(&cinfo, planes, batchSize);
+                u_plane[i][(j / 2)] = pcb[(offsetcb + (j / 2) * inLayout.chromaStep)];
+                v_plane[i][(j / 2)] = pcr[(offsetcb + (j / 2) * inLayout.chromaStep)];
+            }
+        }
 
+        uint32_t done = jpeg_write_raw_data(&cinfo, rows, batchSize);
         if (done != batchSize) {
             ALOGE("%s: compressed %u lines, expected %u (total %u/%u)", __FUNCTION__, done,
                   batchSize, cinfo.next_scanline, cinfo.image_height);
@@ -1102,472 +1105,6 @@ int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQualit
     actualCodeSize = dmgr.mEncodedSize;
 
     return 0;
-}
-
-int encodeJpegNV12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize) {
-    /* libjpeg is a C library so we use C-style "inheritance" by
-     * putting libjpeg's jpeg_destination_mgr first in our custom
-     * struct. This allows us to cast jpeg_destination_mgr* to
-     * CustomJpegDestMgr* when we get it passed to us in a callback */
-    struct CustomJpegDestMgr {
-        struct jpeg_destination_mgr mgr;
-        JOCTET* mBuffer;
-        size_t mBufferSize;
-        size_t mEncodedSize;
-        bool mSuccess;
-    } dmgr;
-
-    jpeg_compress_struct cinfo = {};
-    jpeg_error_mgr jerr;
-    int ret = 0;
-
-    /* Initialize error handling with standard callbacks, but
-     * then override output_message (to print to ALOG) and
-     * error_exit to set a flag and print a message instead
-     * of killing the whole process */
-    cinfo.err = jpeg_std_error(&jerr);
-
-    cinfo.err->output_message = [](j_common_ptr cinfo) {
-        char buffer[JMSG_LENGTH_MAX];
-
-        /* Create the message */
-        (*cinfo->err->format_message)(cinfo, buffer);
-        ALOGE("libjpeg error: %s", buffer);
-    };
-    cinfo.err->error_exit = [](j_common_ptr cinfo) {
-        (*cinfo->err->output_message)(cinfo);
-        if (cinfo->client_data) {
-            auto& dmgr = *reinterpret_cast<CustomJpegDestMgr*>(cinfo->client_data);
-            dmgr.mSuccess = false;
-        }
-    };
-
-    /* Now that we initialized some callbacks, let's create our compressor */
-    jpeg_create_compress(&cinfo);
-
-    /* Initialize our destination manager */
-    dmgr.mBuffer = static_cast<JOCTET*>(out);
-    dmgr.mBufferSize = maxOutSize;
-    dmgr.mEncodedSize = 0;
-    dmgr.mSuccess = true;
-    cinfo.client_data = static_cast<void*>(&dmgr);
-
-    /* These lambdas become C-style function pointers and as per C++11 spec
-     * may not capture anything */
-    dmgr.mgr.init_destination = [](j_compress_ptr cinfo) {
-        auto& dmgr = reinterpret_cast<CustomJpegDestMgr&>(*cinfo->dest);
-        dmgr.mgr.next_output_byte = dmgr.mBuffer;
-        dmgr.mgr.free_in_buffer = dmgr.mBufferSize;
-    };
-
-    dmgr.mgr.empty_output_buffer = [](j_compress_ptr cinfo __unused) { return 0; };
-
-    dmgr.mgr.term_destination = [](j_compress_ptr cinfo) {
-        auto& dmgr = reinterpret_cast<CustomJpegDestMgr&>(*cinfo->dest);
-        dmgr.mEncodedSize = dmgr.mBufferSize - dmgr.mgr.free_in_buffer;
-    };
-    cinfo.dest = reinterpret_cast<struct jpeg_destination_mgr*>(&dmgr);
-
-    /* We are going to be using JPEG in raw data mode, so we are passing
-     * straight subsampled planar YCbCr and it will not touch our pixel
-     * data or do any scaling or anything */
-    cinfo.image_width = inSz.width;
-    cinfo.image_height = inSz.height;
-    cinfo.input_components = 3;
-    cinfo.in_color_space = JCS_YCbCr;
-
-    /* Initialize defaults and then override what we want */
-    jpeg_set_defaults(&cinfo);
-
-    jpeg_set_quality(&cinfo, jpegQuality, 1);
-    jpeg_set_colorspace(&cinfo, JCS_YCbCr);
-    cinfo.dct_method = JDCT_IFAST;
-
-    ALOGI("%s: raw_data_in %d, comp info 0: %d, %d, 1: %d, %d, 2: %d, %d", __func__,
-          cinfo.raw_data_in, cinfo.comp_info[0].h_samp_factor, cinfo.comp_info[0].v_samp_factor,
-          cinfo.comp_info[1].h_samp_factor, cinfo.comp_info[1].v_samp_factor,
-          cinfo.comp_info[2].h_samp_factor, cinfo.comp_info[2].v_samp_factor);
-
-    cinfo.comp_info[0].h_samp_factor = 2;
-    cinfo.comp_info[0].v_samp_factor = 2;
-    cinfo.comp_info[1].h_samp_factor = 1;
-    cinfo.comp_info[1].v_samp_factor = 1;
-    cinfo.comp_info[2].h_samp_factor = 1;
-    cinfo.comp_info[2].v_samp_factor = 1;
-
-    /* Start the compressor */
-    jpeg_start_compress(&cinfo, TRUE);
-
-    /* If APP1 data was passed in, use it */
-    if (app1Buffer && app1Size) {
-        jpeg_write_marker(&cinfo, JPEG_APP0 + 1, static_cast<const JOCTET*>(app1Buffer), app1Size);
-    }
-
-    uint8_t* ybase = static_cast<uint8_t*>(inLayout.y);
-    uint8_t* ubase = static_cast<uint8_t*>(inLayout.cb);
-    uint8_t* vbase = static_cast<uint8_t*>(inLayout.cr);
-
-    int row = 0;
-    JSAMPROW row_pointer[1];
-    unsigned char* yuvbuf = NULL;
-
-    yuvbuf = (unsigned char*)malloc(cinfo.image_width * 3);
-    if (yuvbuf == NULL) {
-        ALOGE("%s: yuvbuf NULL, width %d", __func__, cinfo.image_width);
-        return -1;
-    }
-
-    ALOGI("%s: start encode %dx%d, ybase %p, ubase %p, vbase %p", __func__, cinfo.image_width,
-          cinfo.image_height, ybase, ubase, vbase);
-
-    while (cinfo.next_scanline < cinfo.image_height) {
-        int idx = 0;
-        for (int col = 0; col < cinfo.image_width; col++) {
-            yuvbuf[idx++] = ybase[row * cinfo.image_width + col];
-            yuvbuf[idx++] = ubase[row / 2 * cinfo.image_width + (col / 2) * 2];
-            yuvbuf[idx++] = vbase[row / 2 * cinfo.image_width + (col / 2) * 2];
-        }
-        row_pointer[0] = yuvbuf;
-        uint32_t done = jpeg_write_scanlines(&cinfo, row_pointer, 1);
-        if (done != 1) {
-            ALOGE("%s: jpeg_write_scanlines, done %d", __func__, done);
-            ret = -1;
-            goto error;
-        }
-        row++;
-    }
-
-    /* This will flush everything */
-    jpeg_finish_compress(&cinfo);
-
-    jpeg_destroy_compress(&cinfo);
-
-    /* Grab the actual code size and set it */
-    actualCodeSize = dmgr.mEncodedSize;
-
-error:
-    if (yuvbuf)
-        free(yuvbuf);
-
-    return ret;
-}
-
-int encodeJpegNV16(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize) {
-    /* libjpeg is a C library so we use C-style "inheritance" by
-     * putting libjpeg's jpeg_destination_mgr first in our custom
-     * struct. This allows us to cast jpeg_destination_mgr* to
-     * CustomJpegDestMgr* when we get it passed to us in a callback */
-    struct CustomJpegDestMgr {
-        struct jpeg_destination_mgr mgr;
-        JOCTET* mBuffer;
-        size_t mBufferSize;
-        size_t mEncodedSize;
-        bool mSuccess;
-    } dmgr;
-
-    jpeg_compress_struct cinfo = {};
-    jpeg_error_mgr jerr;
-    int ret = 0;
-
-    /* Initialize error handling with standard callbacks, but
-     * then override output_message (to print to ALOG) and
-     * error_exit to set a flag and print a message instead
-     * of killing the whole process */
-    cinfo.err = jpeg_std_error(&jerr);
-
-    cinfo.err->output_message = [](j_common_ptr cinfo) {
-        char buffer[JMSG_LENGTH_MAX];
-
-        /* Create the message */
-        (*cinfo->err->format_message)(cinfo, buffer);
-        ALOGE("libjpeg error: %s", buffer);
-    };
-    cinfo.err->error_exit = [](j_common_ptr cinfo) {
-        (*cinfo->err->output_message)(cinfo);
-        if (cinfo->client_data) {
-            auto& dmgr = *reinterpret_cast<CustomJpegDestMgr*>(cinfo->client_data);
-            dmgr.mSuccess = false;
-        }
-    };
-
-    /* Now that we initialized some callbacks, let's create our compressor */
-    jpeg_create_compress(&cinfo);
-
-    /* Initialize our destination manager */
-    dmgr.mBuffer = static_cast<JOCTET*>(out);
-    dmgr.mBufferSize = maxOutSize;
-    dmgr.mEncodedSize = 0;
-    dmgr.mSuccess = true;
-    cinfo.client_data = static_cast<void*>(&dmgr);
-
-    /* These lambdas become C-style function pointers and as per C++11 spec
-     * may not capture anything */
-    dmgr.mgr.init_destination = [](j_compress_ptr cinfo) {
-        auto& dmgr = reinterpret_cast<CustomJpegDestMgr&>(*cinfo->dest);
-        dmgr.mgr.next_output_byte = dmgr.mBuffer;
-        dmgr.mgr.free_in_buffer = dmgr.mBufferSize;
-    };
-
-    dmgr.mgr.empty_output_buffer = [](j_compress_ptr cinfo __unused) { return 0; };
-
-    dmgr.mgr.term_destination = [](j_compress_ptr cinfo) {
-        auto& dmgr = reinterpret_cast<CustomJpegDestMgr&>(*cinfo->dest);
-        dmgr.mEncodedSize = dmgr.mBufferSize - dmgr.mgr.free_in_buffer;
-    };
-    cinfo.dest = reinterpret_cast<struct jpeg_destination_mgr*>(&dmgr);
-
-    /* We are going to be using JPEG in raw data mode, so we are passing
-     * straight subsampled planar YCbCr and it will not touch our pixel
-     * data or do any scaling or anything */
-    cinfo.image_width = inSz.width;
-    cinfo.image_height = inSz.height;
-    cinfo.input_components = 3;
-    cinfo.in_color_space = JCS_YCbCr;
-
-    /* Initialize defaults and then override what we want */
-    jpeg_set_defaults(&cinfo);
-
-    jpeg_set_quality(&cinfo, jpegQuality, 1);
-    jpeg_set_colorspace(&cinfo, JCS_YCbCr);
-    cinfo.dct_method = JDCT_IFAST;
-
-    cinfo.comp_info[0].h_samp_factor = 2;
-    cinfo.comp_info[0].v_samp_factor = 1;
-    cinfo.comp_info[1].h_samp_factor = 1;
-    cinfo.comp_info[1].v_samp_factor = 1;
-    cinfo.comp_info[2].h_samp_factor = 1;
-    cinfo.comp_info[2].v_samp_factor = 1;
-
-    /* Start the compressor */
-    jpeg_start_compress(&cinfo, TRUE);
-
-    /* If APP1 data was passed in, use it */
-    if (app1Buffer && app1Size) {
-        jpeg_write_marker(&cinfo, JPEG_APP0 + 1, static_cast<const JOCTET*>(app1Buffer), app1Size);
-    }
-
-    uint8_t* ybase = static_cast<uint8_t*>(inLayout.y);
-    uint8_t* ubase = static_cast<uint8_t*>(inLayout.cb);
-    uint8_t* vbase = static_cast<uint8_t*>(inLayout.cr);
-
-    int row = 0;
-    JSAMPROW row_pointer[1];
-    unsigned char* yuvbuf = NULL;
-
-    yuvbuf = (unsigned char*)malloc(cinfo.image_width * 3);
-    if (yuvbuf == NULL) {
-        ALOGE("%s: yuvbuf NULL, width %d", __func__, cinfo.image_width);
-        return -1;
-    }
-
-    ALOGI("%s: start encode %dx%d, ybase %p, ubase %p, vbase %p", __func__, cinfo.image_width,
-          cinfo.image_height, ybase, ubase, vbase);
-
-    while (cinfo.next_scanline < cinfo.image_height) {
-        int idx = 0;
-        for (int col = 0; col < cinfo.image_width; col++) {
-            yuvbuf[idx++] = ybase[row * cinfo.image_width + col];
-            yuvbuf[idx++] = ubase[row * cinfo.image_width + (col / 2) * 2];
-            yuvbuf[idx++] = vbase[row * cinfo.image_width + (col / 2) * 2];
-        }
-        row_pointer[0] = yuvbuf;
-        uint32_t done = jpeg_write_scanlines(&cinfo, row_pointer, 1);
-        if (done != 1) {
-            ALOGE("%s: jpeg_write_scanlines, done %d", __func__, done);
-            ret = -1;
-            goto error;
-        }
-        row++;
-    }
-
-    /* This will flush everything */
-    jpeg_finish_compress(&cinfo);
-
-    jpeg_destroy_compress(&cinfo);
-
-    /* Grab the actual code size and set it */
-    actualCodeSize = dmgr.mEncodedSize;
-
-error:
-    if (yuvbuf)
-        free(yuvbuf);
-
-    return ret;
-}
-
-int encodeJpegYUYV(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize) {
-    /* libjpeg is a C library so we use C-style "inheritance" by
-     * putting libjpeg's jpeg_destination_mgr first in our custom
-     * struct. This allows us to cast jpeg_destination_mgr* to
-     * CustomJpegDestMgr* when we get it passed to us in a callback */
-    struct CustomJpegDestMgr {
-        struct jpeg_destination_mgr mgr;
-        JOCTET* mBuffer;
-        size_t mBufferSize;
-        size_t mEncodedSize;
-        bool mSuccess;
-    } dmgr;
-
-    jpeg_compress_struct cinfo = {};
-    jpeg_error_mgr jerr;
-    int ret = 0;
-
-    /* Initialize error handling with standard callbacks, but
-     * then override output_message (to print to ALOG) and
-     * error_exit to set a flag and print a message instead
-     * of killing the whole process */
-    cinfo.err = jpeg_std_error(&jerr);
-
-    cinfo.err->output_message = [](j_common_ptr cinfo) {
-        char buffer[JMSG_LENGTH_MAX];
-
-        /* Create the message */
-        (*cinfo->err->format_message)(cinfo, buffer);
-        ALOGE("libjpeg error: %s", buffer);
-    };
-    cinfo.err->error_exit = [](j_common_ptr cinfo) {
-        (*cinfo->err->output_message)(cinfo);
-        if (cinfo->client_data) {
-            auto& dmgr = *reinterpret_cast<CustomJpegDestMgr*>(cinfo->client_data);
-            dmgr.mSuccess = false;
-        }
-    };
-
-    /* Now that we initialized some callbacks, let's create our compressor */
-    jpeg_create_compress(&cinfo);
-
-    /* Initialize our destination manager */
-    dmgr.mBuffer = static_cast<JOCTET*>(out);
-    dmgr.mBufferSize = maxOutSize;
-    dmgr.mEncodedSize = 0;
-    dmgr.mSuccess = true;
-    cinfo.client_data = static_cast<void*>(&dmgr);
-
-    /* These lambdas become C-style function pointers and as per C++11 spec
-     * may not capture anything */
-    dmgr.mgr.init_destination = [](j_compress_ptr cinfo) {
-        auto& dmgr = reinterpret_cast<CustomJpegDestMgr&>(*cinfo->dest);
-        dmgr.mgr.next_output_byte = dmgr.mBuffer;
-        dmgr.mgr.free_in_buffer = dmgr.mBufferSize;
-    };
-
-    dmgr.mgr.empty_output_buffer = [](j_compress_ptr cinfo __unused) { return 0; };
-
-    dmgr.mgr.term_destination = [](j_compress_ptr cinfo) {
-        auto& dmgr = reinterpret_cast<CustomJpegDestMgr&>(*cinfo->dest);
-        dmgr.mEncodedSize = dmgr.mBufferSize - dmgr.mgr.free_in_buffer;
-    };
-    cinfo.dest = reinterpret_cast<struct jpeg_destination_mgr*>(&dmgr);
-
-    /* We are going to be using JPEG in raw data mode, so we are passing
-     * straight subsampled planar YCbCr and it will not touch our pixel
-     * data or do any scaling or anything */
-    cinfo.image_width = inSz.width;
-    cinfo.image_height = inSz.height;
-    cinfo.input_components = 3;
-    cinfo.in_color_space = JCS_YCbCr;
-
-    /* Initialize defaults and then override what we want */
-    jpeg_set_defaults(&cinfo);
-
-    jpeg_set_quality(&cinfo, jpegQuality, 1);
-    jpeg_set_colorspace(&cinfo, JCS_YCbCr);
-    cinfo.dct_method = JDCT_IFAST;
-
-    cinfo.comp_info[0].h_samp_factor = 2;
-    cinfo.comp_info[0].v_samp_factor = 1;
-    cinfo.comp_info[1].h_samp_factor = 1;
-    cinfo.comp_info[1].v_samp_factor = 1;
-    cinfo.comp_info[2].h_samp_factor = 1;
-    cinfo.comp_info[2].v_samp_factor = 1;
-
-    /* Start the compressor */
-    jpeg_start_compress(&cinfo, TRUE);
-
-    /* If APP1 data was passed in, use it */
-    if (app1Buffer && app1Size) {
-        jpeg_write_marker(&cinfo, JPEG_APP0 + 1, static_cast<const JOCTET*>(app1Buffer), app1Size);
-    }
-
-    uint8_t* ybase = static_cast<uint8_t*>(inLayout.y);
-    JSAMPROW row_pointer[1];
-    unsigned char* yuvbuf = NULL;
-
-    yuvbuf = (unsigned char*)malloc(cinfo.image_width * 3);
-    if (yuvbuf == NULL) {
-        ALOGE("%s: yuvbuf NULL, width %d", __func__, cinfo.image_width);
-        return -1;
-    }
-
-    ALOGI("%s: start encode %dx%d, ybase %p", __func__, cinfo.image_width, cinfo.image_height,
-          ybase);
-
-    row_pointer[0] = yuvbuf;
-    while (cinfo.next_scanline < cinfo.image_height) {
-        unsigned i, j;
-        unsigned offset = cinfo.next_scanline * cinfo.image_width * 2; // offset to the correct row
-        for (i = 0, j = 0; i < cinfo.image_width * 2;
-             i += 4, j += 6) { // input strides by 4 bytes, output strides by 6 (2 pixels)
-            yuvbuf[j + 0] = ybase[offset + i + 0]; // Y (unique to this pixel)
-            yuvbuf[j + 1] = ybase[offset + i + 1]; // U (shared between pixels)
-            yuvbuf[j + 2] = ybase[offset + i + 3]; // V (shared between pixels)
-            yuvbuf[j + 3] = ybase[offset + i + 2]; // Y (unique to this pixel)
-            yuvbuf[j + 4] = ybase[offset + i + 1]; // U (shared between pixels)
-            yuvbuf[j + 5] = ybase[offset + i + 3]; // V (shared between pixels)
-        }
-
-        uint32_t done = jpeg_write_scanlines(&cinfo, row_pointer, 1);
-        if (done != 1) {
-            ALOGE("%s: jpeg_write_scanlines, done %d", __func__, done);
-            ret = -1;
-            goto error;
-        }
-    }
-
-    /* This will flush everything */
-    jpeg_finish_compress(&cinfo);
-
-    jpeg_destroy_compress(&cinfo);
-
-    /* Grab the actual code size and set it */
-    actualCodeSize = dmgr.mEncodedSize;
-
-error:
-    if (yuvbuf)
-        free(yuvbuf);
-
-    return ret;
-}
-
-int encodeJpeg(uint32_t fourcc, const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-               const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-               size_t& actualCodeSize) {
-    int ret = 0;
-
-    if (fourcc == V4L2_PIX_FMT_YUV420)
-        ret = encodeJpegYU12(inSz, inLayout, jpegQuality, app1Buffer, app1Size, out, maxOutSize,
-                             actualCodeSize);
-    else if (fourcc == V4L2_PIX_FMT_NV12)
-        ret = encodeJpegNV12(inSz, inLayout, jpegQuality, app1Buffer, app1Size, out, maxOutSize,
-                             actualCodeSize);
-    else if (fourcc == V4L2_PIX_FMT_NV16)
-        ret = encodeJpegNV16(inSz, inLayout, jpegQuality, app1Buffer, app1Size, out, maxOutSize,
-                             actualCodeSize);
-    else if (fourcc == V4L2_PIX_FMT_YUYV)
-        ret = encodeJpegYUYV(inSz, inLayout, jpegQuality, app1Buffer, app1Size, out, maxOutSize,
-                             actualCodeSize);
-    else {
-        ALOGE("%s: unsupported fourcc 0x%x", __func__, fourcc);
-        ret = -1;
-    }
-
-    return ret;
 }
 
 Size getMaxThumbnailResolution(const common::V1_0::helper::CameraMetadata& chars) {
