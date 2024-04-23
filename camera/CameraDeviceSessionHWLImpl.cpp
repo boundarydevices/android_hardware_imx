@@ -979,7 +979,8 @@ void CameraDeviceSessionHwlImpl::ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf)
         delete (imxBuf->mStream);
 
     buffer_handle_t handle = imxBuf->buffer;
-    UnlockPhyBuffer(handle);
+    if (handle)
+        UnlockPhyBuffer(handle);
 
     delete imxBuf;
 }

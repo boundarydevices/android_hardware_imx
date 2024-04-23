@@ -1359,7 +1359,10 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
         mJpegBuilder->reset();
         mJpegBuilder->setMetadata(&requestMeta);
 
-        ImxStreamBuffer *dstBuf = CreateImxStreamBufferFromStreamBuffer(streamBuffer->buffer, stream->buffer_size, stream->width, stream->height, HAL_PIXEL_FORMAT_BLOB, stream->usage);
+        ImxStreamBuffer *dstBuf =
+                CreateImxStreamBufferFromBufferHandle(streamBuffer->buffer, stream->buffer_size,
+                                                      stream->width, stream->height,
+                                                      HAL_PIXEL_FORMAT_BLOB, stream->usage);
         if (dstBuf == NULL) {
             ALOGE("%s: dstBuf NULL", __func__);
             continue;
@@ -1375,7 +1378,9 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
 
         buffer_handle_t hnd = mStreamMidBufMap[stream_id];
         uint32_t size = getSizeByForamtRes(HAL_PIXEL_FORMAT_YCbCr_422_I, stream->width, stream->height, false);
-        ImxStreamBuffer *srcBuf = CreateImxStreamBufferFromStreamBuffer(hnd, size, stream->width, stream->height, HAL_PIXEL_FORMAT_YCbCr_422_I, stream->usage);
+        ImxStreamBuffer *srcBuf =
+                CreateImxStreamBufferFromBufferHandle(hnd, size, stream->width, stream->height,
+                                                      HAL_PIXEL_FORMAT_YCbCr_422_I, stream->usage);
         if (srcBuf == NULL) {
             ReleaseImxStreamBuffer(dstBuf);
             ALOGE("%s: srcBuf NULL", __func__);

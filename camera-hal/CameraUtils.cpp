@@ -177,8 +177,9 @@ int GetDMAAddr(int fd, uint32_t size, uint32_t offset, uint64_t& addr, void **vi
     return 0;
 }
 
-ImxStreamBuffer *CreateImxStreamBufferFromStreamBuffer(
-        buffer_handle_t buffer, uint32_t size, uint32_t width, uint32_t height, int32_t format, uint32_t usage) {
+ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, uint32_t size,
+                                                       uint32_t width, uint32_t height,
+                                                       int32_t format, uint32_t usage) {
     bool bPreview = false;
 
     if (buffer == NULL)
@@ -230,6 +231,10 @@ void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf) {
 
     if (imxBuf->mStream)
         delete (imxBuf->mStream);
+
+    buffer_handle_t handle = imxBuf->buffer;
+    if (handle)
+        UnlockPhyBuffer(handle);
 
     delete imxBuf;
 }
