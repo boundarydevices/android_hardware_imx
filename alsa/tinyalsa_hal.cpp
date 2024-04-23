@@ -3143,14 +3143,14 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev,
                 out->gain_stage.step_value;
         int minDb = out->gain_stage.min_value / 100;
         int maxDb = out->gain_stage.max_value / 100;
-        int max_volume = 255;
+        int max_volume = adev->card_list[card_index]->out_volume_max - adev->card_list[card_index]->out_volume_min;
         int volume;
         // curve: 10^((minDb + (maxDb - minDb) * gainIndex / totalSteps) / 20)
         float amplitude_ratio =
                 pow(10, (minDb + (maxDb - minDb) * (gainIndex / (float)totalSteps)) / 20);
         if (gainIndex == 0)
             amplitude_ratio = 0;
-        volume = max_volume * amplitude_ratio;
+        volume = max_volume * amplitude_ratio + adev->card_list[card_index]->out_volume_min;
         out_set_control_volume(mixer, route, volume, volume);
         pthread_mutex_unlock(&out->lock);
         ALOGD("%s: set audio gain: card: %d, address: %s, amplitude_ratio: %f, volume: %d",
