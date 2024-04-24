@@ -29,12 +29,16 @@
 #include <utils/Timers.h>
 #ifdef BUILD_FOR_ANDROID
 #include <cutils/log.h>
+#include <ui/GraphicBufferAllocator.h>
+#include <ui/GraphicBufferMapper.h>
+#include <ui/Rect.h>
+#include <hardware/gralloc.h>
+#include <linux/dma-buf-imx.h>
 #endif
 
 #include <g2d.h>
 #include <linux/videodev2.h>
 
-#include "Allocator.h"
 #include "opencl-2d.h"
 
 typedef int (*hwc_func1)(void *handle);
@@ -976,56 +980,83 @@ struct testPhyBuffer {
     uint64_t mPhyAddr;
     size_t mSize;
     int32_t mFd;
+    buffer_handle_t buffer;
 };
 
-int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached) {
-    int sharedFd;
-    uint64_t phyAddr;
-    uint64_t outPtr;
-    uint32_t ionSize;
-    uint32_t flag;
+uint64_t GetPhyAddrFromBuffer(int bufFd) {
+    uint64_t phyAddr = 0;
+    struct dmabuf_imx_phys_data data;
+    int fd_;
+    fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
+    if (fd_ < 0) {
+        ALOGE("open /dev/dmabuf_imx failed: %s", strerror(errno));
+        return 0;
+    }
+    data.dmafd = bufFd;
+    if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
+        ALOGE("%s DMABUF_GET_PHYS  failed", __func__);
+        close(fd_);
+        return 0;
+    } else {
+        phyAddr = data.phys;
+    }
+    close(fd_);
 
+    return phyAddr;
+}
+
+int AllocPhyBuffer(struct testPhyBuffer *phyBufs, bool bCached) {
     if (phyBufs == NULL)
         return -1;
 
-    ionSize = phyBufs->mSize;
-    fsl::Allocator *allocator = fsl::Allocator::getInstance();
-    if (allocator == NULL) {
-        printf("%s ion allocator invalid\n", __func__);
-        return -1;
+    uint32_t width = phyBufs->mSize;
+    uint32_t height = 1;
+    uint32_t format = HAL_PIXEL_FORMAT_BLOB;
+    buffer_handle_t bufferHandle;
+    uint32_t bufferStride;
+     // need to make sure physical contiguous memory
+    uint64_t usage = GRALLOC_USAGE_HW_2D | GRALLOC_USAGE_PRIVATE_3;
+    if (bCached)
+        usage |=  GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
+
+    auto status = ::android::GraphicBufferAllocator::get().allocate(width, height, format,
+                                                         /*layerCount=*/1, usage, &bufferHandle,
+                                                         &bufferStride, "Nxp2d-test");
+    if (status != ::android::OK) {
+        ALOGE("%s: failed to allocate buffer:%d x %d, format=%x, usage=%lx, ret=%d", __func__,
+              width, height, format, usage, status);
+        ;
+        return android::BAD_VALUE;
     }
 
-    flag = fsl::MFLAGS_CONTIGUOUS;
-    if (bCached) {
-        flag |= fsl::MFLAGS_CACHEABLE;
-    }
-    sharedFd = allocator->allocMemory(ionSize, MEM_ALIGN, flag);
-    if (sharedFd < 0) {
-        printf("%s: allocMemory failed.\n", __func__);
-        return -1;
-    }
-
-    int err = allocator->getVaddrs(sharedFd, ionSize, outPtr);
-    if (err != 0) {
-        printf("%s: getVaddrs failed.\n", __func__);
-        close(sharedFd);
-        return -1;
+    void *vaddr = NULL;
+    const ::android::Rect rect{0, 0, static_cast<int32_t>(width), static_cast<int32_t>(height)};
+    auto err = ::android::GraphicBufferMapper::get().lock(const_cast<native_handle_t *>(bufferHandle), usage,
+                                               rect, &vaddr);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper lock failed!", __FUNCTION__);
+        ::android::GraphicBufferMapper::get().unlock(bufferHandle);
+        ::android::GraphicBufferAllocator::get().free(bufferHandle);
+        return android::BAD_VALUE;
     }
 
-    err = allocator->getPhys(sharedFd, ionSize, phyAddr);
-    if (err != 0) {
-        printf("%s: getPhys failed.\n", __func__);
-        munmap((void *)(uintptr_t)outPtr, ionSize);
-        close(sharedFd);
-        return -1;
+    uint64_t allocatedSize;
+    err = ::android::GraphicBufferMapper::get().getAllocationSize(const_cast<native_handle_t *>(bufferHandle),
+                                                       &allocatedSize);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getAllocationSize failed!", __FUNCTION__);
+        ::android::GraphicBufferAllocator::get().free(bufferHandle);
+        return android::BAD_VALUE;
     }
 
-    printf("%s, outPtr:%p,  phy:%p, virt: %p, ionSize:%d\n", __func__, (void *)outPtr,
-           (void *)phyAddr, (void *)outPtr, ionSize);
+    int sharedFd = bufferHandle->data[0];
+    uint64_t phyAddr = GetPhyAddrFromBuffer(sharedFd);
+    ALOGV("%s, vaddr:%p,  phy:%p, size:%lu\n", __func__, vaddr, (void *)phyAddr, allocatedSize);
 
-    phyBufs->mVirtAddr = (void *)outPtr;
+    phyBufs->mVirtAddr = (void *)vaddr;
     phyBufs->mPhyAddr = phyAddr;
     phyBufs->mFd = sharedFd;
+    phyBufs->buffer = bufferHandle;
 
     return 0;
 }
@@ -1035,13 +1066,16 @@ int FreePhyBuffer(struct testPhyBuffer *phyBufs) {
         return -1;
 
     /* If already freed or never allocated, just return */
-    if (phyBufs->mVirtAddr == NULL)
+    if (phyBufs->mVirtAddr == NULL || phyBufs->buffer == NULL)
         return 0;
 
-    munmap(phyBufs->mVirtAddr, phyBufs->mSize);
+    auto err = ::android::GraphicBufferMapper::get().unlock(phyBufs->buffer);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
+        return -1;
+    }
 
-    if (phyBufs->mFd > 0)
-        close(phyBufs->mFd);
+    ::android::GraphicBufferAllocator::get().free(phyBufs->buffer);
 
     memset(phyBufs, 0, sizeof(struct testPhyBuffer));
 

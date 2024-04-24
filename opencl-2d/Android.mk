@@ -47,14 +47,13 @@ LOCAL_SRC_FILES := 2d-test.cpp
 LOCAL_VENDOR_MODULE := true
 LOCAL_C_INCLUDES += \
                     $(FSL_PROPRIETARY_PATH)/fsl-proprietary/include \
-                    vendor/nxp-opensource/imx/display/display \
                     external/libyuv/files/include
 
 LOCAL_SHARED_LIBRARIES := liblog \
                           libcutils \
                           libOpenCL \
                           libutils \
-                          libfsldisplay \
+                          libui \
                           libyuv
 
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID
