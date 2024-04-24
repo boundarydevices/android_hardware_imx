@@ -1059,7 +1059,7 @@ void ExternalCameraDevice::trimSupportedFormats(CroppingType cropType,
         trimFmts.push_back(fmt);
     }
 
-    sortedFmts = trimFmts;
+    sortedFmts = std::move(trimFmts);
 }
 
 binder_status_t ExternalCameraDevice::dump(int fd, const char** args, uint32_t numArgs) {

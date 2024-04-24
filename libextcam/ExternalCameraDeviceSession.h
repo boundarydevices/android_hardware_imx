@@ -267,9 +267,9 @@ public:
         std::string mExifMake;
         std::string mExifModel;
 
-        bool mHardwareDecoder;
-        bool mMjpgCopy;
-        bool mDebug;
+        bool mHardwareDecoder = false;
+        bool mMjpgCopy = true;
+        bool mDebug = false;
         uint32_t mInterBufFormat = V4L2_PIX_FMT_NV12;
 
         const std::shared_ptr<BufferRequestThread> mBufferRequestThread;

@@ -509,7 +509,9 @@ int AllocatedFrame::getCroppedLayout(const IMapper::Rect& rect, YCbCrLayout* out
 AllocatedFramePhyMem::AllocatedFramePhyMem(uint32_t w, uint32_t h, uint32_t format)
       : AllocatedFrame(w, h, format) {
     dstBuffer = NULL;
+    dstBufferSize = 0;
     dstBuf = NULL;
+    mPhyAddr = 0;
     mBufSize = 0;
 }
 

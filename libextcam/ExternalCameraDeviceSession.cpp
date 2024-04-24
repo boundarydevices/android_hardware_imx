@@ -3222,8 +3222,13 @@ int ExternalCameraDeviceSession::OutputThread::CopyFromPrcdBuf(HalStreamBuffer &
 
         formatConvert(prcdOutLayout, outLayout, sz, outputFourcc, outputFourcc);
 
-        sHandleImporter.unlock(*(prcdBuf->bufPtr));
-        int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
+        // Actually no need to set acquireFence again, which has been set in previous cycles as "halBuf"
+        // Here to fix the coverity issue: 34567666 Unchecked return value.
+        int relFence = sHandleImporter.unlock(*(prcdBuf->bufPtr));
+        if (relFence >= 0) {
+            prcdBuf->acquireFence = relFence;
+        }
+        relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
         if (relFence >= 0) {
             halBuf.acquireFence = relFence;
         }

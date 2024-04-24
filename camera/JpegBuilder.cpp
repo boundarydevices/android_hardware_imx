@@ -220,6 +220,9 @@ status_t JpegBuilder::encodeImage(JpegParams *mainJpeg, JpegParams *thumbNail, c
                                   CameraMetadata &meta) {
     status_t ret = NO_ERROR;
 
+    if (mainJpeg == NULL)
+        return BAD_VALUE;
+
     mMainInput = mainJpeg;
     mThumbnailInput = thumbNail;
 
