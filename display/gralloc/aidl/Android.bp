@@ -36,12 +36,12 @@ cc_binary {
         "libhidlbase",
         "liblog",
         "libutils",
+        "libdrm_android",
         "libdisplayutils",
         "libfsldisplay",
     ],
     static_libs: [
         "libaidlcommonsupport",
-        "libdrm",
         "libnxp_gralloc_driver",
         "libnxp_gralloc_utils",
     ],

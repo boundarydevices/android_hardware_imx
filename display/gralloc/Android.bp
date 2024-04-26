@@ -65,9 +65,8 @@ libnxp_gralloc_v5_defaults {
     ],
 
     static_libs: [
-       "libaidlcommonsupport",
-       "libarect",
-       "libdrm",
+        "libaidlcommonsupport",
+        "libarect",
     ],
 
     include_dirs: [
@@ -98,6 +97,7 @@ libnxp_gralloc_v5_defaults {
         "libnativewindow",
         "libsync",
         "liblog",
+        "libdrm_android",
     ],
 }
 
