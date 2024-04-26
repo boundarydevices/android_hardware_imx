@@ -120,6 +120,7 @@ DeviceComposer::DeviceComposer() {
         mDisableFunction = NULL;
         mFinishEngine = NULL;
         mQueryFeature = NULL;
+        mBuffInfoFromFd = NULL;
     } else {
         ALOGI("load %s library successfully!", g2dlibName);
         mSetClipping = (hwc_func5)dlsym(mG2dHandle, "g2d_set_clipping");
@@ -136,6 +137,8 @@ DeviceComposer::DeviceComposer() {
         mQueryFeature = (hwc_func3)dlsym(mG2dHandle, "g2d_query_feature");
         mBuffInfoFromFd = (hwc_buf_func)dlsym(mG2dHandle, "g2d_buf_from_fd");
     }
+
+    memset(&mSolidColorBuffInfo, 0, sizeof(mSolidColorBuffInfo));
 }
 
 DeviceComposer::~DeviceComposer() {
@@ -244,7 +247,10 @@ int DeviceComposer::prepareSolidColorBuffer() {
     }
 
     mSolidColorBuffer = bufferHandle;
-    getInfoFromHandle(mSolidColorBuffer, &mSolidColorBuffInfo);
+    if (getInfoFromHandle(mSolidColorBuffer, &mSolidColorBuffInfo) != 0) {
+        ALOGE("%s: failed to get buffer info of solidcolor buffer", __FUNCTION__);
+        return -1;
+    }
 
     common::Rect rect;
     rect.left = rect.top = 0;
