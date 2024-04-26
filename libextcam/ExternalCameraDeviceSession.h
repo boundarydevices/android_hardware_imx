@@ -86,7 +86,7 @@ public:
     // Caller must use this method to check if CameraDeviceSession ctor failed
     bool isInitFailed();
     bool isClosed();
-    bool mSessionNeedHardwareDec;
+    bool mSessionNeedHardwareDec = false;
     uint32_t mInterBufFormat = V4L2_PIX_FMT_NV12;
 
     ScopedAStatus close() override;
@@ -443,8 +443,8 @@ private:
 
     std::string mExifMake;
     std::string mExifModel;
-    bool mHardwareDecoder;
-    bool mMjpgCopy;
+    bool mHardwareDecoder = false;
+    bool mMjpgCopy = true;
     bool mUseHalBufManager = false;
 
     /* End of members not changed after initialize() */
