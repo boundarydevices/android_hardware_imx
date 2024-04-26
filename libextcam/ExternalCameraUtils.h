@@ -302,22 +302,6 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
 int formatConvert(const YCbCrLayout& in, const YCbCrLayout& out, Size sz, uint32_t format,
                   uint32_t srcFmt = V4L2_PIX_FMT_NV12);
 
-int encodeJpegYU12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize);
-
-int encodeJpegNV12(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize);
-
-int encodeJpegNV16(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize);
-
-int encodeJpegYUYV(const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
-                   const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
-                   size_t& actualCodeSize);
-
 int encodeJpeg(uint32_t fourcc, const Size& inSz, const YCbCrLayout& inLayout, int jpegQuality,
                const void* app1Buffer, size_t app1Size, void* out, size_t maxOutSize,
                size_t& actualCodeSize);
