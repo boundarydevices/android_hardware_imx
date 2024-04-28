@@ -921,31 +921,26 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
     return 0;
 }
 
-ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuffer(
-        StreamBuffer *buf, Stream *stream) {
-    buffer_handle_t handle = NULL;
-
-    if ((buf == NULL) || (buf->buffer == NULL) || (stream == NULL))
+ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromBufferHandle(
+        buffer_handle_t buffer, Stream *stream) {
+    bool bPreview = false;
+    if (buffer == NULL || stream == NULL)
         return NULL;
 
     ImxStreamBuffer *imxBuf = new ImxStreamBuffer();
     if (imxBuf == NULL)
         return NULL;
 
-    handle = buf->buffer;
-    GetBufferInfoFromHandle(handle, *imxBuf);
+    int ret = GetBufferInfoFromHandle(buffer, *imxBuf);
+    if (ret) {
+        ALOGE("%s, GetBufferInfoFromHandle failed, ret %d", __func__, ret);
+        goto error;
+    }
 
     imxBuf->mFormatSize = getSizeByForamtRes(imxBuf->mFormat, stream->width, stream->height, false);
     if (imxBuf->mFormatSize == 0)
         imxBuf->mFormatSize = imxBuf->mSize;
 
-    ALOGV("%s, buffer: virt %p, phy 0x%lx, size %zu, format 0x%x, acquire_fence %p, release_fence "
-          "%p, stream: res %dx%d, format 0x%x, size %d",
-          __func__, imxBuf->mVirtAddr, imxBuf->mPhyAddr, imxBuf->mSize, imxBuf->mFormat,
-          buf->acquire_fence, buf->release_fence, stream->width, stream->height, stream->format,
-          stream->buffer_size);
-
-    bool bPreview = false;
     if ((stream->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) &&
         ((stream->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) == 0))
         bPreview = true;
@@ -959,11 +954,10 @@ ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromStreamBuff
     goto finish;
 
 error:
+    if (imxBuf && imxBuf->mVirtAddr)
+        UnlockPhyBuffer(buffer);
     if (imxBuf)
-        free(imxBuf);
-
-    if (imxBuf->mVirtAddr)
-        UnlockPhyBuffer(handle);
+        delete (imxBuf);
 
     return NULL;
 
@@ -1085,7 +1079,7 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
         return BAD_VALUE;
     }
 
-    ImxStreamBuffer *dstBuf = CreateImxStreamBufferFromStreamBuffer(it, pStream);
+    ImxStreamBuffer *dstBuf = CreateImxStreamBufferFromBufferHandle(it->buffer, pStream);
     if (dstBuf == NULL)
         return BAD_VALUE;
 

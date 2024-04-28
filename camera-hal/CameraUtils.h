@@ -108,6 +108,7 @@
 namespace android {
 using google_camera_hal::CameraDeviceStatus;
 using google_camera_hal::HalCameraMetadata;
+using google_camera_hal::Stream;
 using namespace cameraconfigparser;
 using namespace fsl;
 
@@ -185,10 +186,7 @@ cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
 
 int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine);
 int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer);
-int GetDMAAddr(int fd, uint32_t size, uint32_t offset, uint64_t& addr, void **virt);
-ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, uint32_t size,
-                                                       uint32_t width, uint32_t height,
-                                                       int32_t format, uint32_t usage);
+ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream);
 void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf);
 
 } // namespace android

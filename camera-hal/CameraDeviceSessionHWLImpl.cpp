@@ -352,15 +352,11 @@ void CameraDeviceSessionHwlImpl::DumpStreamWrapper(libcamera::Request *request) 
             size += planes[i].length;
         }
 
-        int ret = GetDMAAddr(fd, size, offset, addr, &virt);
-        ALOGI("%s: stream_id %d, plane num %d, plane 0: fd %d, offset %u, plane[0] length %u, total length %d, addr 0x%lu, virt %p, ret %d",
-            __func__, stream_id, plan_num, fd, offset, planes[0].length, size, addr, virt, ret);
-
-        if (ret)
+        virt = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+        if (virt == NULL)
             return;
 
-
-        DumpStream(virt, size, stream_id);
+        DumpStream((uint8_t *)virt, size, stream_id);
         if (virt) munmap(virt, size);
     }
 
@@ -1360,9 +1356,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
         mJpegBuilder->setMetadata(&requestMeta);
 
         ImxStreamBuffer *dstBuf =
-                CreateImxStreamBufferFromBufferHandle(streamBuffer->buffer, stream->buffer_size,
-                                                      stream->width, stream->height,
-                                                      HAL_PIXEL_FORMAT_BLOB, stream->usage);
+                CreateImxStreamBufferFromBufferHandle(streamBuffer->buffer, stream);
         if (dstBuf == NULL) {
             ALOGE("%s: dstBuf NULL", __func__);
             continue;
@@ -1378,9 +1372,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
 
         buffer_handle_t hnd = mStreamMidBufMap[stream_id];
         uint32_t size = getSizeByForamtRes(HAL_PIXEL_FORMAT_YCbCr_422_I, stream->width, stream->height, false);
-        ImxStreamBuffer *srcBuf =
-                CreateImxStreamBufferFromBufferHandle(hnd, size, stream->width, stream->height,
-                                                      HAL_PIXEL_FORMAT_YCbCr_422_I, stream->usage);
+        ImxStreamBuffer *srcBuf = CreateImxStreamBufferFromBufferHandle(hnd, stream);
         if (srcBuf == NULL) {
             ReleaseImxStreamBuffer(dstBuf);
             ALOGE("%s: srcBuf NULL", __func__);

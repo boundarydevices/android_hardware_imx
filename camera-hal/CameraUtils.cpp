@@ -141,74 +141,26 @@ int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine 
     return imageProcess->ConvertImage(imageBufferDst, imageBufferSrc, engine);
 }
 
-int GetDMAAddr(int fd, uint32_t size, uint32_t offset, uint64_t& addr, void **virt)
-{
-    uint64_t phyAddr = -1;
-
-    if (fd < 0) {
-        ALOGE("%s invalid parameters", __func__);
-        return -EINVAL;
-    }
-
-    struct dmabuf_imx_phys_data data;
-    int fd_;
-
-    fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
-    if (fd_ < 0) {
-        ALOGE("open /dev/dmabuf_imx failed: %s", strerror(errno));
-        return -EINVAL;
-    }
-
-    data.dmafd = fd;
-    if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
-        ALOGE("%s DMABUF_GET_PHYS  failed",__func__);
-        close(fd_);
-        return -EINVAL;
-    } else
-        phyAddr = data.phys;
-
-    if (virt)
-        *virt = (void *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
-
-    close(fd_);
-
-    addr = phyAddr;
-
-    return 0;
-}
-
-ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, uint32_t size,
-                                                       uint32_t width, uint32_t height,
-                                                       int32_t format, uint32_t usage) {
-    bool bPreview = false;
-
-    if (buffer == NULL)
+ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream) {
+    if (buffer == NULL || stream == NULL)
         return NULL;
 
     ImxStreamBuffer *imxBuf = new ImxStreamBuffer();
     if (imxBuf == NULL)
         return NULL;
 
-    uint64_t addr = 0;
-    void *virt = NULL;
-    int fd = buffer->data[0];
-
-    /* only for YUYV, just 1 fd */
-    int ret = GetDMAAddr(fd, size, 0, addr, &virt);
+    int ret = GetBufferInfoFromHandle(buffer, *imxBuf);
     if (ret) {
-        ALOGE("%s: GetDMAAddr failed, ret %d, fd %d, size %d", __func__, ret, fd, size);
+        ALOGE("%s, GetBufferInfoFromHandle failed, ret %d", __func__, ret);
         goto error;
     }
 
-    ALOGI("%s: GetDMAAddr ret %d, fd %d, size %d", __func__, ret, fd, size);
+    imxBuf->mFormatSize = getSizeByForamtRes(imxBuf->mFormat, stream->width, stream->height, false);
+    if (imxBuf->mFormatSize == 0)
+        imxBuf->mFormatSize = imxBuf->mSize;
 
-    imxBuf->buffer = buffer;
-    imxBuf->mVirtAddr = virt;
-    imxBuf->mPhyAddr = addr;
-    imxBuf->mSize = size;
-    imxBuf->mFormatSize = imxBuf->mSize;
-
-    imxBuf->mStream = new ImxStream(width, height, format, usage, 0, false);
+    imxBuf->mStream = new ImxStream(stream->width, stream->height, imxBuf->mFormat, stream->usage,
+                                    stream->id, false);
 
     if (imxBuf->mStream == NULL)
         goto error;
@@ -216,8 +168,10 @@ ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, u
     goto finish;
 
 error:
+    if (imxBuf && imxBuf->mVirtAddr)
+        UnlockPhyBuffer(buffer);
     if (imxBuf)
-        free(imxBuf);
+        delete (imxBuf);
 
     return NULL;
 
