@@ -37,7 +37,10 @@ fbmiscError fbmiscDataBlockLock::readDeviceUnlockPermission(uint8_t* status) {
         return fbmiscError::FBMISC_ERROR_INTERNAL;
     }
 
-    lseek(file_fd, -1, SEEK_END);
+    if (lseek(file_fd, -1, SEEK_END) == -1) {
+        LOG(INFO) << "OemLock: lseek error: " << mDataBlockFile;
+        return fbmiscError::FBMISC_ERROR_INTERNAL;
+    }
 
     ret = read(file_fd, status, 1);
 
@@ -62,7 +65,10 @@ fbmiscError fbmiscDataBlockLock::writeDeviceUnlockPermission(uint8_t status) {
         return fbmiscError::FBMISC_ERROR_INTERNAL;
     }
 
-    lseek(file_fd, -1, SEEK_END);
+    if (lseek(file_fd, -1, SEEK_END) == -1) {
+        LOG(INFO) << "OemLock: lseek error: " << mDataBlockFile;
+        return fbmiscError::FBMISC_ERROR_INTERNAL;
+    }
 
     ret = write(file_fd, &status, 1);
 
