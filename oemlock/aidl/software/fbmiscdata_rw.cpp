@@ -27,7 +27,7 @@
 fbmiscError fbmiscDataBlockLock::readDeviceUnlockPermission(uint8_t* status) {
     int file_fd = -1;
     std::string mDataBlockFile;
-    ssize_t ret = -1;
+    ssize_t ret = 0;
 
     mDataBlockFile = FASTBOOT_PARTITION_FBMISC;
 
@@ -39,14 +39,20 @@ fbmiscError fbmiscDataBlockLock::readDeviceUnlockPermission(uint8_t* status) {
 
     if (lseek(file_fd, -1, SEEK_END) == -1) {
         LOG(INFO) << "OemLock: lseek error: " << mDataBlockFile;
-        return fbmiscError::FBMISC_ERROR_INTERNAL;
+        ret = -1;
+        goto exit;
     }
 
-    ret = read(file_fd, status, 1);
+    if (read(file_fd, status, 1) != 1) {
+        LOG(INFO) << "OemLock: read error: " << mDataBlockFile;
+        ret = -1;
+        goto exit;
+    }
 
+exit:
     close(file_fd);
 
-    if (ret == 1)
+    if (!ret)
         return fbmiscError::FBMISC_ERROR_NONE;
     else
         return fbmiscError::FBMISC_ERROR_INTERNAL;
@@ -55,7 +61,7 @@ fbmiscError fbmiscDataBlockLock::readDeviceUnlockPermission(uint8_t* status) {
 fbmiscError fbmiscDataBlockLock::writeDeviceUnlockPermission(uint8_t status) {
     int file_fd = -1;
     std::string mDataBlockFile;
-    ssize_t ret = -1;
+    ssize_t ret = 0;
 
     mDataBlockFile = FASTBOOT_PARTITION_FBMISC;
 
@@ -67,14 +73,20 @@ fbmiscError fbmiscDataBlockLock::writeDeviceUnlockPermission(uint8_t status) {
 
     if (lseek(file_fd, -1, SEEK_END) == -1) {
         LOG(INFO) << "OemLock: lseek error: " << mDataBlockFile;
-        return fbmiscError::FBMISC_ERROR_INTERNAL;
+        ret = -1;
+        goto exit;
     }
 
-    ret = write(file_fd, &status, 1);
+    if (write(file_fd, &status, 1) != 1) {
+        LOG(INFO) << "OemLock: write error: " << mDataBlockFile;
+        ret = -1;
+        goto exit;
+    }
 
+exit:
     close(file_fd);
 
-    if (ret == 1)
+    if (!ret)
         return fbmiscError::FBMISC_ERROR_NONE;
     else
         return fbmiscError::FBMISC_ERROR_INTERNAL;
