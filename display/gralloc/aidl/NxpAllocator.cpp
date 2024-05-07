@@ -20,6 +20,8 @@ using aidl::android::hardware::common::NativeHandle;
 using BufferDescriptorInfoV4 =
         android::hardware::graphics::mapper::V4_0::IMapper::BufferDescriptorInfo;
 
+static const std::string STANDARD_METADATA_DATASPACE = "android.hardware.graphics.common.Dataspace";
+
 namespace aidl::android::hardware::graphics::allocator::impl {
 namespace {
 
@@ -35,7 +37,8 @@ bool NxpAllocator::init() {
 }
 
 ndk::ScopedAStatus NxpAllocator::initializeMetadata(
-        gralloc_handle_t memHandle, const struct gralloc_buffer_descriptor& memDescriptor) {
+        gralloc_handle_t memHandle, const struct gralloc_buffer_descriptor& memDescriptor,
+        Dataspace initialDataspace) {
     if (!mDriver) {
         ALOGE("Failed to initializeMetadata. Driver is uninitialized.\n");
         return ToBinderStatus(AllocationError::NO_RESOURCES);
@@ -57,7 +60,7 @@ ndk::ScopedAStatus NxpAllocator::initializeMetadata(
     gralloc_metadata* memMetadata = reinterpret_cast<gralloc_metadata*>(addr);
 
     snprintf(memMetadata->name, GRALLOC_METADATA_MAX_NAME_SIZE, "%s", memDescriptor.name.c_str());
-    memMetadata->dataspace = common::Dataspace::UNKNOWN;
+    memMetadata->dataspace = initialDataspace;
     memMetadata->blendMode = common::BlendMode::INVALID;
 
     return ndk::ScopedAStatus::ok();
@@ -108,7 +111,8 @@ ndk::ScopedAStatus NxpAllocator::allocate(const std::vector<uint8_t>& descriptor
 }
 
 ndk::ScopedAStatus NxpAllocator::allocate(const BufferDescriptorInfoV4& descriptor,
-                                          int32_t* outStride, native_handle_t** outHandle) {
+                                          int32_t* outStride, native_handle_t** outHandle,
+                                          Dataspace initialDataspace) {
     if (!mDriver) {
         ALOGE("Failed to allocate. Driver is uninitialized.\n");
         return ToBinderStatus(AllocationError::NO_RESOURCES);
@@ -139,7 +143,7 @@ ndk::ScopedAStatus NxpAllocator::allocate(const BufferDescriptorInfoV4& descript
 
     gralloc_handle_t memHandle = gralloc_convert_handle(handle);
 
-    auto status = initializeMetadata(memHandle, memDescriptor);
+    auto status = initializeMetadata(memHandle, memDescriptor, initialDataspace);
     if (!status.isOk()) {
         ALOGE("Failed to allocate. Failed to initialize gralloc buffer metadata.");
         releaseBufferAndHandle(handle);
@@ -172,8 +176,12 @@ ndk::ScopedAStatus NxpAllocator::allocate2(const BufferDescriptorInfo& descripto
         return ToBinderStatus(AllocationError::NO_RESOURCES);
     }
 
-    if (!descriptor.additionalOptions.empty()) {
-        return ToBinderStatus(AllocationError::UNSUPPORTED);
+    Dataspace initialDataspace = Dataspace::UNKNOWN;
+    for (const auto& option : descriptor.additionalOptions) {
+        if (option.name != STANDARD_METADATA_DATASPACE) {
+            return ToBinderStatus(AllocationError::UNSUPPORTED);
+        }
+        initialDataspace = static_cast<Dataspace>(option.value);
     }
 
     BufferDescriptorInfoV4 descriptionV4 = convertAidlToIMapperV4Descriptor(descriptor);
@@ -182,7 +190,8 @@ ndk::ScopedAStatus NxpAllocator::allocate2(const BufferDescriptorInfo& descripto
     handles.resize(count, nullptr);
 
     for (int32_t i = 0; i < count; i++) {
-        ndk::ScopedAStatus status = allocate(descriptionV4, &outResult->stride, &handles[i]);
+        ndk::ScopedAStatus status =
+                allocate(descriptionV4, &outResult->stride, &handles[i], initialDataspace);
         if (!status.isOk()) {
             for (int32_t j = 0; j < i; j++) {
                 releaseBufferAndHandle(handles[j]);
@@ -208,9 +217,11 @@ ndk::ScopedAStatus NxpAllocator::isSupported(const BufferDescriptorInfo& descrip
         return ToBinderStatus(AllocationError::NO_RESOURCES);
     }
 
-    if (!descriptor.additionalOptions.empty()) {
-        *outResult = false;
-        return ndk::ScopedAStatus::ok();
+    for (const auto& option : descriptor.additionalOptions) {
+        if (option.name != STANDARD_METADATA_DATASPACE) {
+            *outResult = false;
+            return ndk::ScopedAStatus::ok();
+        }
     }
 
     struct gralloc_buffer_descriptor memDescriptor;

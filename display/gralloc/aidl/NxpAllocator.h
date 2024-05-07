@@ -40,13 +40,16 @@ protected:
     ndk::SpAIBinder createBinder() override;
 
 private:
+    using Dataspace = aidl::android::hardware::graphics::common::Dataspace;
     ndk::ScopedAStatus allocate(
             const ::android::hardware::graphics::mapper::V4_0::IMapper::BufferDescriptorInfo&
                     descriptor,
-            int32_t* outStride, native_handle_t** outHandle);
+            int32_t* outStride, native_handle_t** outHandle,
+            Dataspace initialDataspace = Dataspace::UNKNOWN);
 
     ndk::ScopedAStatus initializeMetadata(gralloc_handle_t memHandle,
-                                          const struct gralloc_buffer_descriptor& memDescriptor);
+                                          const struct gralloc_buffer_descriptor& memDescriptor,
+                                          Dataspace initialDataspace);
 
     void releaseBufferAndHandle(native_handle_t* handle);
 
