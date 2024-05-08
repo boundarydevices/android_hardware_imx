@@ -20,9 +20,8 @@
 
 #include <hardware/hardware.h>
 #include <log/log.h>
-#include <ui/PixelFormat.h>
 
-#include "ImageProcess.h"
+#include "ImageUtils.h"
 #include "NV12_resize.h"
 
 #ifdef BOARD_HAVE_VPU
@@ -480,19 +479,18 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
     bool bResize = false;
     ImxStreamBuffer srcBuf;
     memset(&srcBuf, 0, sizeof(srcBuf));
-    ImxStreamBuffer resizeBuf;
-    memset(&resizeBuf, 0, sizeof(resizeBuf));
+    ImxStreamBuffer *resizeBuf = NULL;
 
     if ((inWidth != outWidth) || (inHeight != outHeight)) {
         bResize = true;
 
-        resizeBuf.mFormatSize = getSizeByForamtRes(mPixelFormat, outWidth, outHeight, false);
-        ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, resizeBuf);
-        if (ret) {
-            ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
-            return 0;
+        resizeBuf = new ImxStreamBuffer();
+        ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, *resizeBuf);
+        if (ret != 0) {
+            ALOGE("%s: allocate resizeBuf failed", __func__);
+            return BAD_VALUE;
         }
-        resizeBuf.mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
+        resizeBuf->mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
 
         srcBuf.mPhyAddr = (uint64_t)inYuvPhy;
         srcBuf.mVirtAddr = inYuv;
@@ -504,9 +502,9 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         // The 3rd para is pass to handleFrameByG2D to judge whether need lock g2d address.
         // Pass G2D is ok. For CPU, handleFrameByG2D will just return and use soft resize.
         // BTW: DPU is used HwJpegEncoder for 8q.
-        handleFrame(resizeBuf, srcBuf, ENG_NOTCARE);
+        handleFrame(*resizeBuf, srcBuf, ENG_NOTCARE);
 
-        inYuv = (void *)resizeBuf.mVirtAddr;
+        inYuv = (void *)resizeBuf->mVirtAddr;
     }
 
     cinfo.err = jpeg_std_error(&sk_err);
@@ -528,8 +526,9 @@ int YuvToJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
     jpeg_destroy_compress(&cinfo);
 
     if (bResize) {
-        FreePhyBuffer(resizeBuf.buffer);
-        delete (resizeBuf.mStream);
+        delete (resizeBuf->mStream);
+        FreePhyBuffer(resizeBuf->buffer);
+        delete (resizeBuf);
         delete (srcBuf.mStream);
     }
 

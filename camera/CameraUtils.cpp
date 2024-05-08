@@ -107,6 +107,28 @@ cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
     return ret;
 }
 
+int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer) {
+    ImxStream *stream = streamBuffer.mStream;
+    if (stream == NULL) {
+        ALOGE("%s: stream is NULL", __func__);
+        return -EINVAL;
+    }
+
+    stream->mFormat = imageBuffer.mFormat;
+    stream->mWidth = imageBuffer.mWidth;
+    stream->mHeight = imageBuffer.mHeight;
+    stream->mUsage = imageBuffer.mUsage;
+    streamBuffer.mVirtAddr = imageBuffer.mVirtAddr;
+    streamBuffer.mPhyAddr = imageBuffer.mPhyAddr;
+    streamBuffer.mFd = imageBuffer.mFd;
+    streamBuffer.mSize = imageBuffer.mSize;
+    streamBuffer.mFormatSize = imageBuffer.mFormatSize;
+    streamBuffer.buffer = imageBuffer.buffer;
+    stream->mZoomRatio = imageBuffer.mZoomRatio;
+
+    return 0;
+}
+
 static int32_t StreamBufferToImageBuffer(ImxStreamBuffer &streamBuffer, ImxImageBuffer &imageBuffer) {
     ImxStream *stream = streamBuffer.mStream;
     if (stream == NULL) {
@@ -142,6 +164,58 @@ int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine 
     StreamBufferToImageBuffer(dstBuf, imageBufferDst);
 
     return imageProcess->ConvertImage(imageBufferDst, imageBufferSrc, engine);
+}
+
+ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream) {
+    if (buffer == NULL || stream == NULL)
+        return NULL;
+
+    ImxStreamBuffer *imxBuf = new ImxStreamBuffer();
+    if (imxBuf == NULL)
+        return NULL;
+
+    int ret = GetBufferInfoFromHandle(buffer, *imxBuf);
+    if (ret) {
+        ALOGE("%s, GetBufferInfoFromHandle failed, ret %d", __func__, ret);
+        goto error;
+    }
+
+    imxBuf->mFormatSize = getSizeByForamtRes(imxBuf->mFormat, stream->width, stream->height, false);
+    if (imxBuf->mFormatSize == 0)
+        imxBuf->mFormatSize = imxBuf->mSize;
+
+    imxBuf->mStream = new ImxStream(stream->width, stream->height, imxBuf->mFormat, stream->usage,
+                                    stream->id, false);
+
+    if (imxBuf->mStream == NULL)
+        goto error;
+
+    goto finish;
+
+error:
+    if (imxBuf && imxBuf->mVirtAddr)
+        UnlockPhyBuffer(buffer);
+    if (imxBuf)
+        delete (imxBuf);
+
+    return NULL;
+
+finish:
+    return imxBuf;
+}
+
+void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf) {
+    if (imxBuf == NULL)
+        return;
+
+    if (imxBuf->mStream)
+        delete (imxBuf->mStream);
+
+    buffer_handle_t handle = imxBuf->buffer;
+    if (handle)
+        UnlockPhyBuffer(handle);
+
+    delete imxBuf;
 }
 
 } // namespace android

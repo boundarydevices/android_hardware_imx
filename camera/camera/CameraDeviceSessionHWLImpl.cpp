@@ -439,7 +439,6 @@ int CameraDeviceSessionHwlImpl::HandleRequest() {
         }
     }
 
-
     auto it = map_frame_request.begin();
     uint32_t frame = it->first;
     std::vector<FrameRequest> *request = it->second;
@@ -921,64 +920,6 @@ int CameraDeviceSessionHwlImpl::HandleImage() {
     return 0;
 }
 
-ImxStreamBuffer *CameraDeviceSessionHwlImpl::CreateImxStreamBufferFromBufferHandle(
-        buffer_handle_t buffer, Stream *stream) {
-    bool bPreview = false;
-    if (buffer == NULL || stream == NULL)
-        return NULL;
-
-    ImxStreamBuffer *imxBuf = new ImxStreamBuffer();
-    if (imxBuf == NULL)
-        return NULL;
-
-    int ret = GetBufferInfoFromHandle(buffer, *imxBuf);
-    if (ret) {
-        ALOGE("%s, GetBufferInfoFromHandle failed, ret %d", __func__, ret);
-        goto error;
-    }
-
-    imxBuf->mFormatSize = getSizeByForamtRes(imxBuf->mFormat, stream->width, stream->height, false);
-    if (imxBuf->mFormatSize == 0)
-        imxBuf->mFormatSize = imxBuf->mSize;
-
-    if ((stream->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) &&
-        ((stream->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) == 0))
-        bPreview = true;
-
-    imxBuf->mStream = new ImxStream(stream->width, stream->height, imxBuf->mFormat, stream->usage,
-                                    stream->id, bPreview);
-
-    if (imxBuf->mStream == NULL)
-        goto error;
-
-    goto finish;
-
-error:
-    if (imxBuf && imxBuf->mVirtAddr)
-        UnlockPhyBuffer(buffer);
-    if (imxBuf)
-        delete (imxBuf);
-
-    return NULL;
-
-finish:
-    return imxBuf;
-}
-
-void CameraDeviceSessionHwlImpl::ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf) {
-    if (imxBuf == NULL)
-        return;
-
-    if (imxBuf->mStream)
-        delete (imxBuf->mStream);
-
-    buffer_handle_t handle = imxBuf->buffer;
-    if (handle)
-        UnlockPhyBuffer(handle);
-
-    delete imxBuf;
-}
-
 Stream *CameraDeviceSessionHwlImpl::GetStreamFromStreamBuffer(StreamBuffer *buf) {
     if (buf == NULL)
         return NULL;
@@ -1095,8 +1036,8 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
     // If resize for preview stream, there will be obvious changes in the preview when taking
     // picture. And if there is a new dst addr, the process will not be skipped, otherwise it will
     // flash green.
-    if (((src->width() != dst->width()) || (src->height() != dst->height())) &&
-        dst->isPreview() && src->isPictureIntent()) {
+    if (((src->width() != dst->width()) || (src->height() != dst->height())) && dst->isPreview() &&
+        src->isPictureIntent()) {
         if (!setDstPhyAddr.empty() &&
             (setDstPhyAddr.find(dstBuf->mPhyAddr) != setDstPhyAddr.end())) {
             isSkipHandle = true;

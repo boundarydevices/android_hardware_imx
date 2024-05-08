@@ -29,19 +29,16 @@
 namespace android {
 
 std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
-        std::shared_ptr<libcamera::Camera> &camera,
-        uint32_t camera_id,
-        const char *hw_jpeg,
-        int use_cpu_encoder,
-        CameraSensorMetadata *cam_metadata,
-        PhysicalDeviceMapPtr physical_devices,
-        HwlCameraProviderCallback &callback) {
-    ALOGI("%s: id %d, hw_jpeg %s, camera %p, %s", __func__, camera_id, hw_jpeg, camera.get(), camera->id().c_str());
+        std::shared_ptr<libcamera::Camera> &camera, uint32_t camera_id, const char *hw_jpeg,
+        int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
+        PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback) {
+    ALOGI("%s: id %d, hw_jpeg %s, camera %p, %s", __func__, camera_id, hw_jpeg, camera.get(),
+          camera->id().c_str());
 
     CameraDeviceHwlImpl *device = NULL;
 
-    device = new CameraDeviceHwlImpl(camera_id, hw_jpeg, use_cpu_encoder,
-                                         cam_metadata, std::move(physical_devices), callback);
+    device = new CameraDeviceHwlImpl(camera_id, hw_jpeg, use_cpu_encoder, cam_metadata,
+                                     std::move(physical_devices), callback);
 
     if (device == nullptr) {
         ALOGE("%s: Creating CameraDeviceHwlImpl failed.", __func__);
@@ -62,10 +59,8 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
 }
 
 #define AP1302_95_NAME "/base/soc/bus@42000000/i2c@42530000/ap1302_mipi@3c"
-CameraDeviceHwlImpl::CameraDeviceHwlImpl(uint32_t camera_id,
-                                         const char *hw_jpeg,
-                                         int use_cpu_encoder,
-                                         CameraSensorMetadata *cam_metadata,
+CameraDeviceHwlImpl::CameraDeviceHwlImpl(uint32_t camera_id, const char *hw_jpeg,
+                                         int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
                                          PhysicalDeviceMapPtr physical_devices,
                                          HwlCameraProviderCallback &callback)
       : camera_id_(camera_id),
@@ -167,15 +162,14 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
     mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
-
-    //int resCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1280, 800};
+    // int resCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1280, 800};
     int resCandidate[] = {320, 240, 640, 480, 1280, 720, 1280, 800, 1920, 1080};
 
     mPreviewResolutionCount = ARRAY_SIZE(resCandidate);
-    memcpy(mPreviewResolutions, resCandidate, mPreviewResolutionCount*sizeof(int));
+    memcpy(mPreviewResolutions, resCandidate, mPreviewResolutionCount * sizeof(int));
 
     mPictureResolutionCount = ARRAY_SIZE(resCandidate);
-    memcpy(mPictureResolutions, resCandidate, mPictureResolutionCount*sizeof(int));
+    memcpy(mPictureResolutions, resCandidate, mPictureResolutionCount * sizeof(int));
 
     int i;
     for (i = 0; i < MAX_RESOLUTION_SIZE && i < mPictureResolutionCount; i += 2) {

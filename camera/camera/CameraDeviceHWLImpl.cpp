@@ -31,8 +31,8 @@ namespace android {
 
 std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
         uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
-        std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw, ImxEngine cam_csc_hw, const char *hw_jpeg,
-        int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
+        std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw, ImxEngine cam_csc_hw,
+        const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
         PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback) {
     ALOGI("%s: id %d, copy hw %d, csc hw %d, hw_jpeg %s", __func__, camera_id, cam_copy_hw,
           cam_csc_hw, hw_jpeg);
@@ -69,8 +69,8 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
 CameraDeviceHwlImpl::CameraDeviceHwlImpl(uint32_t camera_id,
                                          std::vector<std::shared_ptr<char *>> devPaths,
                                          std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw,
-                                         ImxEngine cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder,
-                                         CameraSensorMetadata *cam_metadata,
+                                         ImxEngine cam_csc_hw, const char *hw_jpeg,
+                                         int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
                                          PhysicalDeviceMapPtr physical_devices,
                                          HwlCameraProviderCallback &callback)
       : camera_id_(camera_id),

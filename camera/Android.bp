@@ -30,22 +30,13 @@ imx_camera_defaults {
     //},
 
     srcs: [
-        "CameraProviderHWLImpl.cpp",
-        "CameraDeviceHWLImpl.cpp",
-        "CameraDeviceSessionHWLImpl.cpp",
         "CameraMetadata.cpp",
-        "VideoStream.cpp",
-        "MMAPStream.cpp",
-        "DMAStream.cpp",
-        "UvcStream.cpp",
         "CameraUtils.cpp",
         "JpegBuilder.cpp",
         "HwJpegEncoder.cpp",
         "YuvToJpegEncoder.cpp",
         "ExifUtils.cpp",
         "CameraConfigurationParser.cpp",
-        "ISPCameraDeviceHWLImpl.cpp",
-        "ISPWrapper.cpp"
     ],
     cflags: [
         "-Wextra",

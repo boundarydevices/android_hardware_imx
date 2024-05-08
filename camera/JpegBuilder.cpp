@@ -31,7 +31,6 @@
 #include "CameraConfigurationParser.h"
 #include "CameraMetadata.h"
 #include "CameraUtils.h"
-#include "ISPWrapper.h"
 #include "log/log.h"
 
 extern "C" {

@@ -208,9 +208,6 @@ private:
     int32_t processFrameBuffer(ImxStreamBuffer *srcBuf, ImxStreamBuffer *dstBuf,
                                CameraMetadata *meta);
 
-    ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream);
-    void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf);
-
     Stream *GetStreamFromStreamBuffer(StreamBuffer *buf);
 
     int CleanRequestsLocked();

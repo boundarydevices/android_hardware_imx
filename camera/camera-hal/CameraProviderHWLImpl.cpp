@@ -63,9 +63,9 @@ status_t CameraProviderHwlImpl::Initialize() {
 
     int ret = cameraManager_->start();
     if (ret) {
-      ALOGE("%s: Failed to start camera manager, ret %d", __func__, ret);
-      cameraManager_.reset();
-      return ret;
+        ALOGE("%s: Failed to start camera manager, ret %d", __func__, ret);
+        cameraManager_.reset();
+        return ret;
     }
     // check if camera exists.
     for (auto iter = mCameraDef.camera_id_map_.begin(); iter != mCameraDef.camera_id_map_.end();
@@ -188,9 +188,9 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
         return BAD_VALUE;
     }
 
-    for (auto &t : cameraIdMap_) {
-        ALOGI("%s: camera_id %d, check camera %p, %s, id %d",
-            __func__, camera_id, t.first.get(), t.first->id().c_str(), t.second);
+    for (auto& t : cameraIdMap_) {
+        ALOGI("%s: camera_id %d, check camera %p, %s, id %d", __func__, camera_id, t.first.get(),
+              t.first->id().c_str(), t.second);
         if (t.second == camera_id) {
             camera = t.first;
             break;
@@ -233,10 +233,9 @@ status_t CameraProviderHwlImpl::CreateCameraDeviceHwl(
         physicalIds.push_back(0);
     }
 
-    *camera_device_hwl =
-            CameraDeviceHwlImpl::Create(camera, camera_id,
-                                        mCameraDef.jpeg_hw.c_str(), mCameraDef.mUseCpuEncoder,
-                                        &cam_metadata, std::move(target_physical_devices), mCallback);
+    *camera_device_hwl = CameraDeviceHwlImpl::Create(camera, camera_id, mCameraDef.jpeg_hw.c_str(),
+                                                     mCameraDef.mUseCpuEncoder, &cam_metadata,
+                                                     std::move(target_physical_devices), mCallback);
 
     if (*camera_device_hwl == nullptr) {
         ALOGE("%s: Cannot create CameraDeviceHWlImpl.", __func__);
@@ -308,37 +307,36 @@ status_t CameraProviderHwlImpl::IsConcurrentStreamCombinationSupported(
     return OK;
 }
 
-void CameraProviderHwlImpl::cameraAdded(std::shared_ptr<libcamera::Camera> camera)
-{
-  auto iter = cameraIdMap_.find(camera);
-  if (iter != cameraIdMap_.end()) {
-    ALOGW("%s: camera %p, %s already found, id %d", __func__, camera.get(), camera->id().c_str(), iter->second);
+void CameraProviderHwlImpl::cameraAdded(std::shared_ptr<libcamera::Camera> camera) {
+    auto iter = cameraIdMap_.find(camera);
+    if (iter != cameraIdMap_.end()) {
+        ALOGW("%s: camera %p, %s already found, id %d", __func__, camera.get(),
+              camera->id().c_str(), iter->second);
+        return;
+    }
+
+    cameraIdMap_[camera] = cameraId_++;
+
+    ALOGI("%s: camera num %d", __func__, cameraIdMap_.size());
+
     return;
-  }
-
-  cameraIdMap_[camera] = cameraId_++;
-
-  ALOGI("%s: camera num %d", __func__, cameraIdMap_.size());
-
-  return;
 }
 
-void CameraProviderHwlImpl::cameraRemoved(std::shared_ptr<libcamera::Camera> camera)
-{
-  unsigned int id;
-  bool isCameraNew = false;
+void CameraProviderHwlImpl::cameraRemoved(std::shared_ptr<libcamera::Camera> camera) {
+    unsigned int id;
+    bool isCameraNew = false;
 
-  auto iter = cameraIdMap_.find(camera);
-  if (iter == cameraIdMap_.end()) {
-    ALOGW("%s: camera %p, %s not found", __func__, camera.get(), camera->id().c_str());
+    auto iter = cameraIdMap_.find(camera);
+    if (iter == cameraIdMap_.end()) {
+        ALOGW("%s: camera %p, %s not found", __func__, camera.get(), camera->id().c_str());
+        return;
+    }
+
+    cameraIdMap_.erase(camera);
+
+    ALOGI("%s: camera num %d", __func__, cameraIdMap_.size());
+
     return;
-  }
-
-  cameraIdMap_.erase(camera);
-
-  ALOGI("%s: camera num %d", __func__, cameraIdMap_.size());
-
-  return;
 }
 
 } // namespace android

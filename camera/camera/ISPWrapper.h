@@ -76,9 +76,6 @@ typedef struct DWEPara {
     double mat[MAT_SIZE];
 } DWEPara;
 
-#define EXP_TIME_DFT 0.006535   // unit: seconds
-#define EXP_TIME_DFT_NS 6535000 // ns
-
 #define EXP_GAIN_MIN_DFT 1.0
 #define EXP_GAIN_MAX_DFT 6.879883
 

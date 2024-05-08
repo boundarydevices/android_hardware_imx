@@ -39,8 +39,11 @@ func cameraDefaults(ctx android.LoadHookContext) {
 	type props struct {
 		Target struct {
 			Android struct {
-				Enabled  *bool
-				Cppflags []string
+				Enabled      *bool
+				Cppflags     []string
+				Srcs         []string
+				Shared_libs  []string
+				Include_dirs []string
 			}
 		}
 	}
@@ -56,6 +59,30 @@ func cameraDefaults(ctx android.LoadHookContext) {
 	if ctx.Config().VendorConfig("IMXPLUGIN").String("TARGET_GRALLOC_VERSION") == "v4" {
 		cppflags = append(cppflags, "-DGRALLOC_VERSION=4")
 	}
+
+	if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX95" {
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraProviderHWLImpl.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraDeviceHWLImpl.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraDeviceSessionHWLImpl.cpp")
+		p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libcamera")
+		p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libcamera-base")
+		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "external/libcamera/include")
+		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "external/libcamera/build/include")
+		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/imx/camera/camera-hal")
+	} else {
+		cppflags = append(cppflags, "-DISIMX8=1")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/CameraProviderHWLImpl.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/CameraDeviceHWLImpl.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/CameraDeviceSessionHWLImpl.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/VideoStream.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/MMAPStream.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/DMAStream.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/UvcStream.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/ISPCameraDeviceHWLImpl.cpp")
+		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/ISPWrapper.cpp")
+		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/imx/camera/camera")
+	}
+
 	p.Target.Android.Cppflags = cppflags
 	ctx.AppendProperties(p)
 }

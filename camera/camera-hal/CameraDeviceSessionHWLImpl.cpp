@@ -101,7 +101,6 @@ std::unique_ptr<CameraDeviceSessionHwlImpl> CameraDeviceSessionHwlImpl::Create(
         return nullptr;
     }
 
-
     return session;
 }
 
@@ -211,10 +210,9 @@ CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl() {
     }
 
     if (camera_) {
-      camera_->requestCompleted.disconnect();
-      camera_->release();
+        camera_->requestCompleted.disconnect();
+        camera_->release();
     }
-
 }
 
 PipelineInfo *CameraDeviceSessionHwlImpl::GetPipelineInfo(uint32_t id) {
@@ -308,10 +306,10 @@ static void DumpStream(void *data, uint32_t size, int32_t id) {
     return;
 }
 
-int32_t CameraDeviceSessionHwlImpl::GetStreamIdFromLibcameraStream(const libcamera::Stream *libCameraStream) {
-    for(auto &it : mLibCameraStreamMap)
-    {
-        if(it.second == libCameraStream)
+int32_t CameraDeviceSessionHwlImpl::GetStreamIdFromLibcameraStream(
+        const libcamera::Stream *libCameraStream) {
+    for (auto &it : mLibCameraStreamMap) {
+        if (it.second == libCameraStream)
             return it.first;
     }
 
@@ -330,7 +328,7 @@ void CameraDeviceSessionHwlImpl::DumpStreamWrapper(libcamera::Request *request) 
     int32_t streamIdBitVal = atoi(value);
 
     libcamera::Request::BufferMap bufMap = request->buffers();
-    for(auto &t : bufMap) {
+    for (auto &t : bufMap) {
         const libcamera::Stream *libCameraStream = t.first;
         int32_t stream_id = GetStreamIdFromLibcameraStream(libCameraStream);
         if (stream_id < 0)
@@ -357,7 +355,8 @@ void CameraDeviceSessionHwlImpl::DumpStreamWrapper(libcamera::Request *request) 
             return;
 
         DumpStream((uint8_t *)virt, size, stream_id);
-        if (virt) munmap(virt, size);
+        if (virt)
+            munmap(virt, size);
     }
 
     return;
@@ -578,18 +577,18 @@ status_t CameraDeviceSessionHwlImpl::HandleMetaLocked(
 static libcamera::PixelFormat HalFromat2PixelFormat(int halFmt) {
     libcamera::PixelFormat pixelFmt = libcamera::formats::YUYV;
 
-    switch(halFmt) {
-    case HAL_PIXEL_FORMAT_YCBCR_420_888:
-    case HAL_PIXEL_FORMAT_YV12:
-      pixelFmt = libcamera::formats::NV12;
-      break;
-    case HAL_PIXEL_FORMAT_YCBCR_422_I:
-    case HAL_PIXEL_FORMAT_BLOB:
-      pixelFmt = libcamera::formats::YUYV;
-      break;
-    default:
-      ALOGW("%s: unsupported HalFromat 0x%x", __func__, halFmt);
-      break;
+    switch (halFmt) {
+        case HAL_PIXEL_FORMAT_YCBCR_420_888:
+        case HAL_PIXEL_FORMAT_YV12:
+            pixelFmt = libcamera::formats::NV12;
+            break;
+        case HAL_PIXEL_FORMAT_YCBCR_422_I:
+        case HAL_PIXEL_FORMAT_BLOB:
+            pixelFmt = libcamera::formats::YUYV;
+            break;
+        default:
+            ALOGW("%s: unsupported HalFromat 0x%x", __func__, halFmt);
+            break;
     }
 
     return pixelFmt;
@@ -759,7 +758,6 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                 break;
         }
 
-
         // May remove after refine mali gralloc
         stream.usage |= GRALLOC_USAGE_PRIVATE_3;
 
@@ -799,25 +797,29 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     }
 
     std::set<libcamera::Stream *> libCameraStreamSet = camera_->streams();
-    ALOGI("%s: libCameraStreamSet size %d, stream_num %d", __func__, libCameraStreamSet.size(), stream_num);
+    ALOGI("%s: libCameraStreamSet size %d, stream_num %d", __func__, libCameraStreamSet.size(),
+          stream_num);
     if (libCameraStreamSet.size() < stream_num) {
-        ALOGE("%s: beyond capbility, libCameraStreamSet size %d < stream_num %d", __func__, libCameraStreamSet.size(), stream_num);
+        ALOGE("%s: beyond capbility, libCameraStreamSet size %d < stream_num %d", __func__,
+              libCameraStreamSet.size(), stream_num);
         return BAD_VALUE;
     }
 
     int i = 0;
     // Fix me if libCameraStreamSet is not sequenced by config sequence.
-    for (const auto& libcameraStream : libCameraStreamSet) {
+    for (const auto &libcameraStream : libCameraStreamSet) {
         Stream stream = request_config.streams[i];
         mLibCameraStreamMap[stream.id] = libcameraStream;
-        ALOGI("%s: set mLibCameraStreamMap i %d, id %d, libcamera::Stream %p, mLibCameraStreamMap size %d", __func__, i, stream.id, libcameraStream, mLibCameraStreamMap.size());
+        ALOGI("%s: set mLibCameraStreamMap i %d, id %d, libcamera::Stream %p, mLibCameraStreamMap size %d",
+              __func__, i, stream.id, libcameraStream, mLibCameraStreamMap.size());
         i++;
 
         if (i >= stream_num)
-          break;
+            break;
     }
 
-    ALOGI("%s: pipeline_id_ %d, info %p, map_pipeline_info %p, this %p", __func__, pipeline_id_, pipeline_info, &map_pipeline_info, this);
+    ALOGI("%s: pipeline_id_ %d, info %p, map_pipeline_info %p, this %p", __func__, pipeline_id_,
+          pipeline_info, &map_pipeline_info, this);
     map_pipeline_info[pipeline_id_] = pipeline_info;
     pipeline_id_++;
 
@@ -896,9 +898,10 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
         state_ = CameraState::Stopped;
     }
 
-    // camera_->stop() (in command thead) will call d->pipe_->invokeMethod(&PipelineHandler::stop, ConnectionTypeBlocking, this);
-    // PipelineHandler::stop() and requestComplete() is in same thread(say v4l2 thread).
-    // To avoid dead lock, hold locks with same sequence: Lock for ConnectionTypeBlocking, mLock.
+    // camera_->stop() (in command thead) will call d->pipe_->invokeMethod(&PipelineHandler::stop,
+    // ConnectionTypeBlocking, this); PipelineHandler::stop() and requestComplete() is in same
+    // thread(say v4l2 thread). To avoid dead lock, hold locks with same sequence: Lock for
+    // ConnectionTypeBlocking, mLock.
 
     Mutex::Autolock _l(mLock);
     /* If still has on-fly requests from map_frame_request, wait to finish */
@@ -910,11 +913,11 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
         mLock.lock();
     }
 
-    ALOGI("%s: requests, mDeQueRequestIdx %lu, mInQueRequestIdx %lu", __func__,
-          mDeQueRequestIdx, mInQueRequestIdx);
+    ALOGI("%s: requests, mDeQueRequestIdx %lu, mInQueRequestIdx %lu", __func__, mDeQueRequestIdx,
+          mInQueRequestIdx);
 
     /* clear mFrameBuffers */
-    for(auto it = mFrameBuffers.begin(); it != mFrameBuffers.end(); it++) {
+    for (auto it = mFrameBuffers.begin(); it != mFrameBuffers.end(); it++) {
         ALOGW("%s: still has FrameBuffer %p", __func__, (*it).get());
         (*it).reset();
         mFrameBuffers.erase(it);
@@ -962,70 +965,72 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
 typedef struct tagPlanInfo {
     uint32_t size;
     uint32_t offset;
-}PlanInfo;
+} PlanInfo;
 
 typedef struct tagPlansInfo {
     uint32_t num;
     PlanInfo plans[MAX_PLAN];
-}PlansInfo;
+} PlansInfo;
 
-static uint32_t GetPlansInfo(const libcamera::StreamConfiguration &streamConfig, PlansInfo &plansInfo) {
-  uint32_t width = streamConfig.size.width;
-  uint32_t height = streamConfig.size.height;
+static uint32_t GetPlansInfo(const libcamera::StreamConfiguration &streamConfig,
+                             PlansInfo &plansInfo) {
+    uint32_t width = streamConfig.size.width;
+    uint32_t height = streamConfig.size.height;
 
-  switch(streamConfig.pixelFormat) {
-  case libcamera::formats::NV12:
-    plansInfo.num = 2;
-    plansInfo.plans[0].offset = 0;
-    plansInfo.plans[0].size = width * height;
-    plansInfo.plans[1].offset = plansInfo.plans[0].size;
-    plansInfo.plans[1].size = width * height / 2;
-    break;
-  case libcamera::formats::YUYV:
-    plansInfo.num = 1;
-    plansInfo.plans[0].offset = 0;
-    plansInfo.plans[0].size = width * height * 2;
-    break;
-  default:
-    ALOGE("%s: unsupported pixelFormat %s", __func__, streamConfig.pixelFormat.toString().c_str());
-    return BAD_VALUE;
-  }
-
-  return 0;
-}
-
-
-std::unique_ptr<libcamera::FrameBuffer> CameraDeviceSessionHwlImpl::CreateFrameBuffer(const buffer_handle_t hnd, const libcamera::StreamConfiguration &streamConfig)
-{
-  int ret = 0;
-  PlansInfo plansInfo;
-
-  ret = GetPlansInfo(streamConfig, plansInfo);
-  if (ret) {
-      ALOGE("%s: GetPlansInfo failed", __func__);
-      return nullptr;
-  }
-
-  uint32_t planNum = plansInfo.num;
-  std::vector<libcamera::FrameBuffer::Plane> planes(planNum);
-  for (size_t i = 0; i < planNum; ++i) {
-    libcamera::SharedFD fd{ hnd->data[i] };
-    if (!fd.isValid()) {
-      ALOGE("%s: No valid fd %d", __func__, hnd->data[i]);
-      return nullptr;
+    switch (streamConfig.pixelFormat) {
+        case libcamera::formats::NV12:
+            plansInfo.num = 2;
+            plansInfo.plans[0].offset = 0;
+            plansInfo.plans[0].size = width * height;
+            plansInfo.plans[1].offset = plansInfo.plans[0].size;
+            plansInfo.plans[1].size = width * height / 2;
+            break;
+        case libcamera::formats::YUYV:
+            plansInfo.num = 1;
+            plansInfo.plans[0].offset = 0;
+            plansInfo.plans[0].size = width * height * 2;
+            break;
+        default:
+            ALOGE("%s: unsupported pixelFormat %s", __func__,
+                  streamConfig.pixelFormat.toString().c_str());
+            return BAD_VALUE;
     }
 
-    planes[i].fd = fd;
-    planes[i].offset = plansInfo.plans[i].offset;
-    planes[i].length = plansInfo.plans[i].size;
-
-    ALOGV("%s:, plan %d, fd %d, offset %d, length %d", __func__, i, fd.get(), planes[i].offset, planes[i].length);
-  }
-
-  return std::make_unique<libcamera::FrameBuffer>(std::move(planes));
+    return 0;
 }
 
-Stream* CameraDeviceSessionHwlImpl::GetStreamById(int32_t stream_id, PipelineInfo *pInfo) {
+std::unique_ptr<libcamera::FrameBuffer> CameraDeviceSessionHwlImpl::CreateFrameBuffer(
+        const buffer_handle_t hnd, const libcamera::StreamConfiguration &streamConfig) {
+    int ret = 0;
+    PlansInfo plansInfo;
+
+    ret = GetPlansInfo(streamConfig, plansInfo);
+    if (ret) {
+        ALOGE("%s: GetPlansInfo failed", __func__);
+        return nullptr;
+    }
+
+    uint32_t planNum = plansInfo.num;
+    std::vector<libcamera::FrameBuffer::Plane> planes(planNum);
+    for (size_t i = 0; i < planNum; ++i) {
+        libcamera::SharedFD fd{hnd->data[i]};
+        if (!fd.isValid()) {
+            ALOGE("%s: No valid fd %d", __func__, hnd->data[i]);
+            return nullptr;
+        }
+
+        planes[i].fd = fd;
+        planes[i].offset = plansInfo.plans[i].offset;
+        planes[i].length = plansInfo.plans[i].size;
+
+        ALOGV("%s:, plan %d, fd %d, offset %d, length %d", __func__, i, fd.get(), planes[i].offset,
+              planes[i].length);
+    }
+
+    return std::make_unique<libcamera::FrameBuffer>(std::move(planes));
+}
+
+Stream *CameraDeviceSessionHwlImpl::GetStreamById(int32_t stream_id, PipelineInfo *pInfo) {
     if (pInfo == NULL)
         return NULL;
 
@@ -1058,8 +1063,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
 
         if (mDebug)
             ALOGI("%s, frame_number %d, pipeline_id %d, outbuffer num %d", __func__, frame_number,
-                (int)pipeline_id, (int)requests[i].output_buffers.size());
-
+                  (int)pipeline_id, (int)requests[i].output_buffers.size());
 
         PipelineInfo *pInfo = GetPipelineInfo(pipeline_id);
         if (pInfo == NULL) {
@@ -1087,7 +1091,8 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
         frame_request->at(i).camera_ids.reserve(camera_ids.size());
         frame_request->at(i).camera_ids.assign(camera_ids.begin(), camera_ids.end());
 
-        frame_request->at(i).request = camera_->createRequest(reinterpret_cast<uint64_t>(&frame_request->at(i)));
+        frame_request->at(i).request =
+                camera_->createRequest(reinterpret_cast<uint64_t>(&frame_request->at(i)));
 
         // Record fence fd, add buffer to request
         uint32_t outBufNum = requests[i].output_buffers.size();
@@ -1100,7 +1105,8 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
 
             int32_t stream_id = requests[i].output_buffers[j].stream_id;
             if (mDebug)
-                ALOGI("%s, acquire_fence_fd %d, stream_id %d for buf %d", __func__, fenceInfo.acquire_fence_fd, stream_id, j);
+                ALOGI("%s, acquire_fence_fd %d, stream_id %d for buf %d", __func__,
+                      fenceInfo.acquire_fence_fd, stream_id, j);
 
             auto iter = mLibCameraStreamMap.find(stream_id);
             if (iter == mLibCameraStreamMap.end()) {
@@ -1127,20 +1133,24 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
                 hnd = mStreamMidBufMap[stream_id];
             }
 
-            std::unique_ptr<libcamera::FrameBuffer> frameBuffer = CreateFrameBuffer(hnd, libCameraStream->configuration());
-            if (frameBuffer == nullptr ) {
-                ALOGE("%s, CreateFrameBuffer faliled for frame %d, request %d, outbuffer %d", __func__, frame_number, i, j);
+            std::unique_ptr<libcamera::FrameBuffer> frameBuffer =
+                    CreateFrameBuffer(hnd, libCameraStream->configuration());
+            if (frameBuffer == nullptr) {
+                ALOGE("%s, CreateFrameBuffer faliled for frame %d, request %d, outbuffer %d",
+                      __func__, frame_number, i, j);
                 return BAD_VALUE;
             }
 
             libcamera::UniqueFD fd(fenceInfo.acquire_fence_fd);
-            std::unique_ptr<libcamera::Fence> fence = std::make_unique<libcamera::Fence>(std::move(fd));
-            frame_request->at(i).request->addBuffer(libCameraStream, frameBuffer.get(), std::move(fence));
+            std::unique_ptr<libcamera::Fence> fence =
+                    std::make_unique<libcamera::Fence>(std::move(fd));
+            frame_request->at(i).request->addBuffer(libCameraStream, frameBuffer.get(),
+                                                    std::move(fence));
             frameBuffers.push_back(std::move(frameBuffer));
 
             if (mDebug)
-                ALOGI("%s: outbuf %d, frameBuffer %p, acquire_fence_fd %d, hnd %p",
-                     __func__, j, frameBuffer.get(), fenceInfo.acquire_fence_fd, hnd);
+                ALOGI("%s: outbuf %d, frameBuffer %p, acquire_fence_fd %d, hnd %p", __func__, j,
+                      frameBuffer.get(), fenceInfo.acquire_fence_fd, hnd);
         }
 
         int ret = camera_->queueRequest(frame_request->at(i).request.get());
@@ -1161,10 +1171,10 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
     mDebug = (strcmp(value, "debug") == 0) ? true : false;
 
     if (mDebug) {
-        ALOGI("%s: mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, mInQueRequestIdx, mDeQueRequestIdx);
+        ALOGI("%s: mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, mInQueRequestIdx,
+              mDeQueRequestIdx);
         ItvlStat(mPreSubmitRequestTime, (char *)"SubmitRequests");
     }
-
 
     return OK;
 }
@@ -1266,8 +1276,7 @@ status_t CameraDeviceSessionHwlImpl::ConstructDefaultRequestSettings(
     return m_meta->getRequestSettings(type, default_settings);
 }
 
-void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
-{
+void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     if (request == NULL) {
         ALOGE("%s: request NULL", __func__);
         return;
@@ -1334,9 +1343,10 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
     result->physical_camera_results.reserve(0);
 
     if (mDebug) {
-      ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d, sequence %u",
-        __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
-       (int)result->result_metadata->GetEntryCount(), request->buffers().size(), request->sequence());
+        ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d, sequence %u",
+              __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
+              (int)result->result_metadata->GetEntryCount(), request->buffers().size(),
+              request->sequence());
     }
 
     std::vector<StreamBuffer> &output_buffers = hwReq->output_buffers;
@@ -1362,7 +1372,6 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
             continue;
         }
 
-
         auto iter = mStreamMidBufMap.find(stream_id);
         if (iter == mStreamMidBufMap.end()) {
             ReleaseImxStreamBuffer(dstBuf);
@@ -1371,7 +1380,8 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
         }
 
         buffer_handle_t hnd = mStreamMidBufMap[stream_id];
-        uint32_t size = getSizeByForamtRes(HAL_PIXEL_FORMAT_YCbCr_422_I, stream->width, stream->height, false);
+        uint32_t size = getSizeByForamtRes(HAL_PIXEL_FORMAT_YCbCr_422_I, stream->width,
+                                           stream->height, false);
         ImxStreamBuffer *srcBuf = CreateImxStreamBufferFromBufferHandle(hnd, stream);
         if (srcBuf == NULL) {
             ReleaseImxStreamBuffer(dstBuf);
@@ -1398,10 +1408,10 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
 
     Mutex::Autolock _l(mLock);
     libcamera::Request::BufferMap bufMap = request->buffers();
-    for(auto &t : bufMap) {
+    for (auto &t : bufMap) {
         libcamera::FrameBuffer *frameBuffer = t.second;
         ALOGV("%s: bufMap frameBuffer %p", __func__, frameBuffer);
-        for(auto it = mFrameBuffers.begin(); it!=mFrameBuffers.end(); it++) {
+        for (auto it = mFrameBuffers.begin(); it != mFrameBuffers.end(); it++) {
             ALOGV("%s: mFrameBuffers frameBuffer %p", __func__, (*it).get());
             if (frameBuffer != (*it).get())
                 continue;
@@ -1427,7 +1437,8 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request)
 
     mDeQueRequestIdx++;
     if (mDebug)
-        ALOGI("%s: mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, mInQueRequestIdx, mDeQueRequestIdx);
+        ALOGI("%s: mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, mInQueRequestIdx,
+              mDeQueRequestIdx);
 
     return;
 }

@@ -19,18 +19,12 @@
 
 #include <camera_device_hwl.h>
 #include <hal_types.h>
-//#include <ui/PixelFormat.h>
+#include <ui/PixelFormat.h>
 
 #include "CameraConfigurationParser.h"
 #include "CameraMetadata.h"
 #include "CameraUtils.h"
-
-#include "libcamera/camera_manager.h"
-#include "libcamera/camera.h"
-#include "libcamera/request.h"
-#include "libcamera/framebuffer.h"
-#include "libcamera/pixel_format.h"
-#include "libcamera/formats.h"
+#include "ISPWrapper.h"
 
 namespace android {
 
@@ -51,11 +45,10 @@ using namespace cameraconfigparser;
 class CameraDeviceHwlImpl : public CameraDeviceHwl {
 public:
     static std::unique_ptr<CameraDeviceHwl> Create(
-            std::shared_ptr<libcamera::Camera> &camera,
-            uint32_t camera_id,
+            uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
+            std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw, ImxEngine cam_csc_hw,
             const char *hw_jpeg, int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
-            PhysicalDeviceMapPtr physical_devices,
-            HwlCameraProviderCallback &callback);
+            PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback);
 
     virtual ~CameraDeviceHwlImpl();
 
@@ -82,8 +75,6 @@ public:
             CameraBufferAllocatorHwl *camera_allocator_hwl,
             std::unique_ptr<CameraDeviceSessionHwl> *session) override;
 
-    std::shared_ptr<libcamera::Camera>& GetCamera() { return camera_; };
-
     bool IsStreamCombinationSupported(const StreamConfiguration &stream_config) override;
 
     // End of override functions in CameraDeviceHwl.
@@ -97,16 +88,15 @@ public:
                                 int nPictureResolutionCount);
 
 protected:
-    CameraDeviceHwlImpl(uint32_t camera_id,
-                        const char *hw_jpeg,
-                        int use_cpu_encoder,
-                        CameraSensorMetadata *cam_metadata,
-                        PhysicalDeviceMapPtr physical_devices,
+    CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
+                        std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw,
+                        ImxEngine cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder,
+                        CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices,
                         HwlCameraProviderCallback &callback);
     bool PickResByMetaData(int width, int height);
 
 private:
-    virtual status_t Initialize(std::shared_ptr<libcamera::Camera> &camera);
+    virtual status_t Initialize();
     virtual status_t initSensorStaticData();
     static bool FoundResoulution(int width, int height, int *resArray, int size);
 
@@ -118,9 +108,6 @@ private:
     uint32_t camera_id_ = 0;
 
     HwlCameraProviderCallback mCallback;
-
-    //libcamera::Mutex stateMutex_;
-    std::shared_ptr<libcamera::Camera> camera_;
 
 public:
     CameraMetadata *m_meta = nullptr;
@@ -137,6 +124,10 @@ public:
     int mMaxWidth = 0;
     int mMaxHeight = 0;
 
+    // preview and picture format.
+    PixelFormat mPicturePixelFormat = 0;
+    PixelFormat mPreviewPixelFormat = 0;
+
     // vpu and capture limitation.
     int mVpuSupportFmt[MAX_VPU_SUPPORT_FORMAT];
     int mPictureSupportFmt[MAX_PICTURE_SUPPORT_FORMAT];
@@ -145,13 +136,22 @@ public:
     int mSensorFormatCount = 0;
 
     std::vector<std::shared_ptr<char *>> mDevPath;
+    std::vector<uint32_t> mPhysicalIds;
 
+    ImxEngine mCamBlitCopyType;
+    ImxEngine mCamBlitCscType;
     char mJpegHw[JPEG_HW_NAME_LEN] = {0};
     int mUseCpuEncoder;
     CameraSensorMetadata mSensorData;
 
     PhysicalMetaMap physical_meta_map_;
+
     PhysicalDeviceMapPtr physical_device_map_;
+
+    // used for isp camera
+    struct viv_caps_supports caps_supports;
+    int32_t m_raw_v4l2_format;
+    int8_t m_color_arrange;
 };
 
 } // namespace android

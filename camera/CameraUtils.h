@@ -46,7 +46,7 @@
 #include <utils/threads.h>
 
 #include "CameraConfigurationParser.h"
-#include "ImageProcess.h"
+#include "ImageUtils.h"
 #include "hal_camera_metadata.h"
 
 #define UVC_NAME "uvc"
@@ -100,9 +100,13 @@
 #define WAIT_ITVL_MS 5
 #define WAIT_ITVL_US (uint32_t)(WAIT_ITVL_MS * 1000)
 
+#define EXP_TIME_DFT 0.006535   // unit: seconds
+#define EXP_TIME_DFT_NS 6535000 // ns
+
 namespace android {
 using google_camera_hal::CameraDeviceStatus;
 using google_camera_hal::HalCameraMetadata;
+using google_camera_hal::Stream;
 using namespace cameraconfigparser;
 using namespace fsl;
 
@@ -179,7 +183,9 @@ cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
         const cameraconfigparser::PhysicalMetaMapPtr &src);
 
 int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine);
-
+int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer);
+ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream);
+void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf);
 } // namespace android
 
 #endif // CAMERA_UTILS_H

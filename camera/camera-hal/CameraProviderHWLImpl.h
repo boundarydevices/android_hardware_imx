@@ -27,12 +27,11 @@
 #include "CameraConfigurationParser.h"
 #include "CameraMetadata.h"
 #include "CameraUtils.h"
-
-#include "libcamera/camera_manager.h"
 #include "libcamera/camera.h"
-#include "libcamera/request.h"
+#include "libcamera/camera_manager.h"
 #include "libcamera/framebuffer.h"
 #include "libcamera/pixel_format.h"
+#include "libcamera/request.h"
 
 namespace android {
 
