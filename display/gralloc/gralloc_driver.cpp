@@ -29,14 +29,17 @@ using namespace fsl;
 std::unordered_map<gralloc_handle_t, void *> reserved_region_addrs;
 pthread_mutex_t reserved_region_addrs_lock = PTHREAD_MUTEX_INITIALIZER;
 
-gralloc_driver *gralloc_driver::get_instance() {
-    static gralloc_driver s_instance;
-    if (!s_instance.is_initialized()) {
+std::shared_ptr<gralloc_driver> gralloc_driver::get_instance() {
+    static std::shared_ptr<gralloc_driver> s_instance = []() {
+        return std::shared_ptr<gralloc_driver>(new gralloc_driver());
+    }();
+
+    if (!s_instance->is_initialized()) {
         ALOGE("Failed to initialize driver.");
         return nullptr;
     }
 
-    return &s_instance;
+    return s_instance;
 }
 
 gralloc_driver::gralloc_driver() : pManager(nullptr) {

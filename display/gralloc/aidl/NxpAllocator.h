@@ -53,7 +53,7 @@ private:
 
     void releaseBufferAndHandle(native_handle_t* handle);
 
-    gralloc_driver* mDriver = nullptr;
+    std::shared_ptr<gralloc_driver> mDriver;
 };
 
 } // namespace aidl::android::hardware::graphics::allocator::impl

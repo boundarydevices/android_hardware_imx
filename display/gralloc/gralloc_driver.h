@@ -19,7 +19,7 @@
 
 class gralloc_driver {
 public:
-    static gralloc_driver *get_instance();
+    static std::shared_ptr<gralloc_driver> get_instance();
     bool is_supported(const struct gralloc_buffer_descriptor *descriptor);
     int32_t allocate(const struct gralloc_buffer_descriptor *descriptor,
                      native_handle_t **out_handle);

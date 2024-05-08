@@ -148,7 +148,7 @@ private:
     int getResolvedDrmFormat(android::hardware::graphics::common::V1_2::PixelFormat pixelFormat,
                              uint64_t bufferUsage, uint32_t* outDrmFormat);
 
-    gralloc_driver* mDriver = gralloc_driver::get_instance();
+    std::shared_ptr<gralloc_driver> mDriver = gralloc_driver::get_instance();
 
     enum class ReservedRegionArea {
         /* gralloc_metadata */

@@ -57,7 +57,7 @@ static bool isStandardMetadata(AIMapper_MetadataType metadataType) {
 
 class GrallocMapperV5 final : public vendor::mapper::IMapperV5Impl {
 private:
-    gralloc_driver* mDriver = gralloc_driver::get_instance();
+    std::shared_ptr<gralloc_driver> mDriver = gralloc_driver::get_instance();
 
 public:
     explicit GrallocMapperV5() = default;
