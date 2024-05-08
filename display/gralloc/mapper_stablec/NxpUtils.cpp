@@ -411,6 +411,10 @@ int convertToMemDescriptor(const BufferDescriptorInfo& descriptor,
     outMemDescriptor->droid_usage = descriptor.usage;
     outMemDescriptor->reserved_region_size = descriptor.reservedSize;
 
+    if (descriptor.layerCount > 1) {
+        ALOGE("%s layerCount=%d > 1 is unsupported", __func__, descriptor.layerCount);
+        return -1;
+    }
     if (convertToDrmFormat(descriptor.format, &outMemDescriptor->drm_format)) {
         std::string pixelFormatString = getPixelFormatString(descriptor.format);
         ALOGE("%s Unsupported fomat %s", __func__, pixelFormatString.c_str());

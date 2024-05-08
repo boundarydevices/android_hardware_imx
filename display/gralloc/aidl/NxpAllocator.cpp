@@ -67,6 +67,9 @@ ndk::ScopedAStatus NxpAllocator::initializeMetadata(
 }
 
 void NxpAllocator::releaseBufferAndHandle(native_handle_t* handle) {
+    if (handle == nullptr)
+        return;
+
     mDriver->release(handle);
     //    native_handle_close(handle);
     //    native_handle_delete(handle);
