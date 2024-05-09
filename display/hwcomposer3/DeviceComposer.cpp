@@ -581,6 +581,7 @@ enum g2d_format DeviceComposer::convertFormat(int format, buffer_handle_t handle
             halFormat = G2D_I420;
             break;
         case DRM_FORMAT_YVU420_ANDROID:
+        case DRM_FORMAT_YVU420:
             halFormat = G2D_YV12;
             break;
         case DRM_FORMAT_NV16:
