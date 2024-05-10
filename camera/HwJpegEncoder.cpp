@@ -63,6 +63,7 @@ int HwJpegEncoder::encode(void *inYuv, void *inYuvPhy, int inSize, int inFd,
         int ret = AllocPhyBuffer(outWidth, outHeight, mPixelFormat, *resizeBuf);
         if (ret != 0) {
             ALOGE("%s: allocate resizeBuf failed", __func__);
+            delete (resizeBuf);
             return BAD_VALUE;
         }
         resizeBuf->mStream = new ImxStream(outWidth, outHeight, mPixelFormat, 0, 0);
