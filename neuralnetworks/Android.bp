@@ -21,6 +21,10 @@ package {
     ],
 }
 
+neuralnetworks_imx_defaults {
+    name: "neuralnetworks_imx_default"
+}
+
 cc_defaults {
     name: "neuralnetworks_imx_sl_aidl_defaults",
     host_supported: false,
@@ -72,8 +76,26 @@ cc_defaults {
 cc_binary {
     name: "android.hardware.neuralnetworks-shell-service-imx",
     srcs: ["ShellServiceImx.cpp"],
-    defaults: ["neuralnetworks_imx_sl_aidl_server_defaults"],
+    defaults: ["neuralnetworks_imx_default",
+               "neuralnetworks_imx_sl_aidl_server_defaults"],
     stl: "libc++_static",
     init_rc: ["config/android.hardware.neuralnetworks-shell-service-imx.rc"],
     vintf_fragments: ["config/android.hardware.neuralnetworks-shell-service-imx.xml"],
+}
+
+bootstrap_go_package {
+    name: "soong-neuralnetworks",
+    pkgPath: "android/soong/vendor/nxp-opensource/imx/neuralnetworks",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "neuralnetworks.go",
+    ],
+    pluginFor: ["soong_build"],
 }

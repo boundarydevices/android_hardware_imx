@@ -132,11 +132,19 @@ using aidl::android::hardware::neuralnetworks::registerDevices;
 #endif
 
 int main() {
+#if defined(IMX8)
     const std::string driverPath = SL_WRAPPER_DIR "/libVsiSupportLibrary.so";
 
     const std::vector<Names> devicesToRegister = {
             {.driverName = "vsi-device-0", .serviceName = "nnapi-imx_sl"},
     };
+#else
+    const std::string driverPath = SL_WRAPPER_DIR "/neuralnetworks_sample_sl_driver_prebuilt.so";
+
+    const std::vector<Names> devicesToRegister = {
+            {.driverName = "nnapi-sample_sl", .serviceName = "nnapi-imx_sl"},
+    };
+#endif
 
     return registerDevices(driverPath, devicesToRegister);
 }
