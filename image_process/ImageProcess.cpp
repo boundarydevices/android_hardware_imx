@@ -528,9 +528,6 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
         return -EINVAL;
     }
 
-    ImxImageBuffer resizeBuf;
-    memset(&resizeBuf, 0, sizeof(resizeBuf));
-
     // can't do csc for some formats.
     if (!(((dstBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) ||
            (dstBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
@@ -598,10 +595,12 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
         Mutex::Autolock _l(mG2dLock);
         ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&d_surface);
         if (ret)
-            goto finish_blit;
+            return ret;
 
         mFinishEngine(g2dHandle);
     } else {
+        ImxImageBuffer resizeBuf;
+        memset(&resizeBuf, 0, sizeof(resizeBuf));
         struct g2d_surface tmp_surface;
 
         ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight,
@@ -628,8 +627,10 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
 
         Mutex::Autolock _l(mG2dLock);
         ret = mBlitEngine(g2dHandle, (void *)&s_surface, (void *)&tmp_surface);
-        if (ret)
-            goto finish_blit;
+        if (ret) {
+            FreePhyBuffer(resizeBuf.buffer);
+            return ret;
+        }
 
         mFinishEngine(g2dHandle);
 
@@ -647,14 +648,14 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
         d_surface.rot = G2D_ROTATION_0;
 
         ret = mBlitEngine(g2dHandle, (void *)&tmp_surface, (void *)&d_surface);
-        if (ret)
-            goto finish_blit;
+        if (ret) {
+            FreePhyBuffer(resizeBuf.buffer);
+            return ret;
+        }
 
         mFinishEngine(g2dHandle);
     }
 
-finish_blit:
-    FreePhyBuffer(resizeBuf.buffer);
     return ret;
 }
 
