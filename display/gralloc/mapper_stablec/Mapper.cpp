@@ -173,6 +173,7 @@ AIMapper_Error GrallocMapperV5::freeBuffer(buffer_handle_t _Nonnull buffer) {
 
     if (!RegisteredHandlePool::get_instance().remove(const_cast<native_handle_t*>(buffer))) {
         ALOGW("%s: Handle %p not found in pool of registered handles.", __func__, buffer);
+        return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
     int ret = mDriver->release(buffer);
@@ -265,6 +266,11 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
 AIMapper_Error GrallocMapperV5::unlock(buffer_handle_t _Nonnull buffer,
                                        int* _Nonnull releaseFence) {
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(buffer)
+    if (!RegisteredHandlePool::get_instance().get(const_cast<native_handle_t*>(buffer))) {
+        ALOGW("%s: Handle %p not found in pool of registered handles.", __func__, buffer);
+        return AIMAPPER_ERROR_BAD_BUFFER;
+    }
+
     int ret = mDriver->unlock(buffer, releaseFence);
     if (ret) {
         ALOGE("%s: driver fail to unlock.", __func__);
