@@ -199,6 +199,9 @@ int32_t MMAPStream::onDeviceStartLocked() {
         mBuffers[i]->mFd = expbuf.fd;
         mBuffers[i]->index = i;
         mBuffers[i]->mStream = this;
+        mBuffers[i]->mWidth = mWidth;
+        mBuffers[i]->mHeight = mHeight;
+        mBuffers[i]->mFormat = mFormat;
 
         if (mPlane) {
             mBuffers[i]->mPhyAddr = (size_t)buf.m.planes->m.mem_offset;
