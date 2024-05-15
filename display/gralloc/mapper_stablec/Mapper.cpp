@@ -15,6 +15,7 @@
 #include <android/hardware/graphics/mapper/utils/IMapperProvider.h>
 #include <cutils/native_handle.h>
 #include <gralloctypes/Gralloc4.h>
+#include <unordered_map>
 
 #include "NxpUtils.h"
 #include "gralloc_driver.h"
@@ -58,6 +59,7 @@ static bool isStandardMetadata(AIMapper_MetadataType metadataType) {
 class GrallocMapperV5 final : public vendor::mapper::IMapperV5Impl {
 private:
     std::shared_ptr<gralloc_driver> mDriver = gralloc_driver::get_instance();
+    std::unordered_map<buffer_handle_t, int> lockedbufPool;
 
 public:
     explicit GrallocMapperV5() = default;
@@ -260,6 +262,8 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
     }
 
     *outData = addr[0];
+    ++lockedbufPool[bufferHandle];
+
     return AIMAPPER_ERROR_NONE;
 }
 
@@ -271,6 +275,15 @@ AIMapper_Error GrallocMapperV5::unlock(buffer_handle_t _Nonnull buffer,
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
+    if (!(lockedbufPool.find(buffer) != lockedbufPool.end())) {
+        ALOGW("%s: Handle %p not found in pool of locked handles.", __func__, buffer);
+        return AIMAPPER_ERROR_BAD_BUFFER;
+    }
+
+    --lockedbufPool[buffer];
+    if (lockedbufPool[buffer] == 0) {
+        lockedbufPool.erase(buffer);
+    }
     int ret = mDriver->unlock(buffer, releaseFence);
     if (ret) {
         ALOGE("%s: driver fail to unlock.", __func__);
