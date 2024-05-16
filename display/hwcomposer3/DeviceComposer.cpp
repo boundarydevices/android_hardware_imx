@@ -523,17 +523,14 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
         case G2D_NV16:
         case G2D_NV12:
         case G2D_NV21:
-            surface.planes[1] = surface.planes[0] + surface.stride * alignHeight;
+            surface.planes[1] = surface.planes[0] + info.offsets[1];
             break;
 
         case G2D_I420:
         case G2D_YV12: {
-            int c_stride = (alignWidth / 2 + 15) / 16 * 16;
-            int stride = alignWidth;
-
-            surface.stride = alignWidth;
-            surface.planes[1] = surface.planes[0] + stride * alignHeight;
-            surface.planes[2] = surface.planes[1] + c_stride * alignHeight / 2;
+            surface.stride = info.strides[0];
+            surface.planes[1] = surface.planes[0] + info.offsets[1];
+            surface.planes[2] = surface.planes[0] + info.offsets[2];
         } break;
 
         default:
