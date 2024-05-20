@@ -1383,8 +1383,6 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
                                                config.height, config.dpiX, config.dpiY,
                                                HertzToPeriodNanos(config.refreshRateHz)));
         }
-        DisplayConfig::addConfigGroups(&configs);
-
         {
             std::unique_lock<std::mutex> lock(mStateMutex);
             createDisplayLocked(displayId, configId, configs);

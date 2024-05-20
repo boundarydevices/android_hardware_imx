@@ -70,7 +70,6 @@ cc_binary {
         "ComposerClient.cpp",
         "ComposerResources.cpp",
         "Device.cpp",
-        "DeviceComposer.cpp",
         "Display.cpp",
         "DisplayConfig.cpp",
         "DisplayFinder.cpp",
@@ -90,8 +89,8 @@ cc_binary {
         "FbdevDisplay.cpp",
         "Layer.cpp",
         "Main.cpp",
-        "PollThread.cpp",
         "VsyncThread.cpp",
+        "DeviceComposer.cpp"
     ],
     cflags: [
         "-DLOG_TAG=\"NxpHWC3\"",

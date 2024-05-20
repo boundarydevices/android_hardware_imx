@@ -81,9 +81,8 @@ HWC3::Error findDisplays(FrameComposer* composer, std::vector<DisplayMultiConfig
                 minId = baseId;
         }
         auto id = clients[minId]->getDisplayBaseId();
-        // select minimum display id as primary, fake display config is generated because primary
-        // display is disconnected
-        clients[minId]->setPrimaryDisplay(id);
+        clients[minId]->setPrimaryDisplay(id); // select minimum display id as primary
+        clients[minId]->fakeDisplayConfig(id); // generate a fake display config
 
         HWC3::Error err = findClientDisplays(clients[minId], outDisplays); // try again
         if (err != HWC3::Error::None) {
@@ -97,7 +96,6 @@ HWC3::Error findDisplays(FrameComposer* composer, std::vector<DisplayMultiConfig
             if (disp.displayId < minDisplayId)
                 minDisplayId = disp.displayId;
         }
-        // find the baseId of the client that include minDisplayId
         for (const auto& [baseId, _] : clients) {
             if (baseId <= minDisplayId)
                 minBaseId = baseId;
