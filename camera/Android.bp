@@ -79,6 +79,9 @@ imx_camera_defaults {
     header_libs: [
         "libgooglecamerahal_headers",
     ],
+    lto: {
+        thin: true,
+    },
 }
 
 bootstrap_go_package {
