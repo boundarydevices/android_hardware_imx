@@ -1559,9 +1559,17 @@ static ssize_t out_write(struct audio_stream_out *stream, const void *buffer, si
      */
     pthread_mutex_lock(&adev->lock);
     pthread_mutex_lock(&out->lock);
-
-    if ((adev->b_sco_rx_running) && (out == adev->primary_output))
-        ALOGW("out_write, bt receive task is running");
+    /* Check active HFP call. If active, mute the call to be able to write to primary output device here.
+       It means that out_write() has higher priority than BT sco_rx_task which is writing to primary output device.
+       This expectation is based on fact that various notification sounds or alerts can come from AAOS.
+       There is caveat - because AAOS adds aditional zero samples to end of every pcm stream, this mutes BT HFP call
+       (if active) for too long time. We need to tweak AAOS or implement SW mixer to avoid it. */
+    if ((adev->b_sco_rx_running) && (adev->in_call) && (out == adev->primary_output)) {
+       /* Mutes BT sco_rx_task for 100 ms */
+       out->mute_in_call_timer = 50; // 100 ms
+    } else {
+       out->mute_in_call_timer = 0; // 0 ms
+    }
 
     if (out->standby) {
         ret = start_output_stream(out);
@@ -3693,6 +3701,7 @@ static void *sco_rx_task(void *arg) {
     int flag = 0;
     uint32_t sco_rx_out_buffer_size = 0;
     char *sco_rx_out_buffer = NULL;
+    bool pcm_out_active = true;
 
     if (adev == NULL)
         return NULL;
@@ -3746,29 +3755,46 @@ static void *sco_rx_task(void *arg) {
             usleep(2000);
             continue;
         }
+        /* Write to pcm_out device only when in_call state is active */
+        if (adev->in_call) {
+            // 16k to 48k convert, 1chn
+            frames = pcm_config_sco_in.period_size;
+            out_frames = stream_out->buffer_frames;
+            adev->rsmpl_sco_rx->resample_from_input(adev->rsmpl_sco_rx, (int16_t *)buffer,
+                                                    (size_t *)&frames, (int16_t *)stream_out->buffer,
+                                                    (size_t *)&out_frames);
 
-        // 16k to 48k convert, 1chn
-        frames = pcm_config_sco_in.period_size;
-        out_frames = stream_out->buffer_frames;
-        adev->rsmpl_sco_rx->resample_from_input(adev->rsmpl_sco_rx, (int16_t *)buffer,
-                                                (size_t *)&frames, (int16_t *)stream_out->buffer,
-                                                (size_t *)&out_frames);
+            ALOGV("sco_rx_task, resample_from_input, in frames %d, %d, out_frames %zu, %d",
+                pcm_config_sco_in.period_size, frames, stream_out->buffer_frames, out_frames);
 
-        ALOGV("sco_rx_task, resample_from_input, in frames %d, %d, out_frames %zu, %d",
-              pcm_config_sco_in.period_size, frames, stream_out->buffer_frames, out_frames);
+            // mono to stereo
+            convert_record_data(stream_out->buffer, sco_rx_out_buffer, out_frames, false, false, true,
+                                false);
+            out_size = pcm_frames_to_bytes(out_pcm, out_frames);
 
-        // mono to stereo
-        convert_record_data(stream_out->buffer, sco_rx_out_buffer, out_frames, false, false, true,
-                            false);
-        out_size = pcm_frames_to_bytes(out_pcm, out_frames);
-
-        pthread_mutex_lock(&stream_out->lock);
-        ret = pcm_write_wrapper(out_pcm, sco_rx_out_buffer, out_size, flag, stream_out->dump);
-        pthread_mutex_unlock(&stream_out->lock);
-        if (ret) {
-            ALOGE("sco_rx_task, pcm_write ret %d, size %d, %s", ret, out_size,
-                  pcm_get_error(out_pcm));
-            usleep(2000);
+            pthread_mutex_lock(&stream_out->lock);
+            /* Write to primary output only when out_write() is not active. */
+            if (stream_out->mute_in_call_timer == 0) {
+                ret = pcm_write_wrapper(out_pcm, sco_rx_out_buffer, out_size, flag, stream_out->dump);
+                pthread_mutex_unlock(&stream_out->lock);
+                if (!pcm_out_active) {
+                    ALOGW("sco_rx_task, pcm_write to primary out resumed");
+                    pcm_out_active = true;
+                }
+            } else {
+                stream_out->mute_in_call_timer--;
+                pthread_mutex_unlock(&stream_out->lock);
+                if (pcm_out_active) {
+                    ALOGW("sco_rx_task, pcm_write to primary out suspended");
+                    pcm_out_active = false;
+                }
+                usleep(2000);
+            }
+            if (ret) {
+                ALOGE("sco_rx_task, pcm_write ret %d, size %d, %s", ret, out_size,
+                    pcm_get_error(out_pcm));
+                usleep(2000);
+            }
         }
     }
 

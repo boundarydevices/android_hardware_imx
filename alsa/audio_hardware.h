@@ -129,6 +129,7 @@ struct imx_stream_out {
     bool dump;
     bool first_frame_written;
     bool playback_started;
+    int mute_in_call_timer;
 };
 
 #define MAX_PREPROCESSORS 3 /* maximum one AGC + one NS + one AEC per input stream */
