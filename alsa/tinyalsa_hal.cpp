@@ -404,11 +404,12 @@ static void select_mode(struct imx_audio_device *adev) {
             a call. This works because we're sure that the audio policy
             manager will update the output device after the audio mode
             change, even if the device selection did not change. */
-            if (adev->out_device == AUDIO_DEVICE_OUT_SPEAKER) {
+            if (adev->out_device == AUDIO_DEVICE_OUT_SPEAKER)
                 adev->out_device = AUDIO_DEVICE_OUT_EARPIECE;
-                adev->in_device = AUDIO_DEVICE_IN_BUILTIN_MIC & ~AUDIO_DEVICE_BIT_IN;
-            } else
+            else
                 adev->out_device &= ~AUDIO_DEVICE_OUT_SPEAKER;
+            /* Select in_device because it can be disabled. */
+            adev->in_device = AUDIO_DEVICE_IN_BUILTIN_MIC & ~AUDIO_DEVICE_BIT_IN;
             select_output_device(adev);
             select_input_device(adev);
 
