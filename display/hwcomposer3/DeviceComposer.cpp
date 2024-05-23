@@ -888,6 +888,13 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
     }
 #endif
 
+    if (!(info.usage &
+          (GRALLOC_USAGE_PROTECTED | GRALLOC_USAGE_PRIVATE_3 | GRALLOC_USAGE_HW_COMPOSER |
+           GRALLOC_USAGE_HW_FB))) {
+        ALOGI("%s: g2d can't support the buffer from system/system-uncached heap", __FUNCTION__);
+        return false;
+    }
+
     return true;
 }
 
