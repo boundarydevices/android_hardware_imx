@@ -390,7 +390,8 @@ int32_t GrallocMapperV5::getStandardMetadata(gralloc_handle_t memHandle, F&& pro
         return provide(static_cast<PixelFormat>(mDriver->get_android_format(memHandle)));
     }
     if constexpr (metadataType == StandardMetadataType::PIXEL_FORMAT_FOURCC) {
-        return provide(drv_get_standard_fourcc(mDriver->get_format(memHandle)));
+        uint32_t drm_format = drv_convert_nxp_format_to_drm_format(mDriver->get_format(memHandle));
+        return provide(drv_get_standard_fourcc(drm_format));
     }
     if constexpr (metadataType == StandardMetadataType::PIXEL_FORMAT_MODIFIER) {
         return provide(mDriver->get_format_modifier(memHandle));
