@@ -4051,7 +4051,10 @@ static int sco_task_create(struct imx_audio_device *adev) {
 
     // Standby active input stream in HFP case
     if (adev->active_input) {
-        do_input_standby(adev->active_input);
+        struct imx_stream_in * in = adev->active_input;
+        pthread_mutex_lock(&in->lock);
+        do_input_standby(in);
+        pthread_mutex_unlock(&in->lock);
         usleep(2000);
     }
 
