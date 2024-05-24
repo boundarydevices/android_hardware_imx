@@ -32,6 +32,7 @@ cc_binary {
         "android.hardware.graphics.mapper@4.0",
         "libbase",
         "libbinder_ndk",
+        "libdmabufheap",
         "libgralloctypes",
         "libhidlbase",
         "liblog",

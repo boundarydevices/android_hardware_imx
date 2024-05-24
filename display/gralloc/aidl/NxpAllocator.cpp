@@ -7,6 +7,7 @@
 
 #include "NxpAllocator.h"
 
+#include <BufferAllocator/BufferAllocator.h>
 #include <aidl/android/hardware/graphics/allocator/AllocationError.h>
 #include <aidlcommonsupport/NativeHandle.h>
 #include <android-base/logging.h>
@@ -233,6 +234,14 @@ ndk::ScopedAStatus NxpAllocator::isSupported(const BufferDescriptorInfo& descrip
         // unsupported, thus isSupported() = false
         *outResult = false;
         return ndk::ScopedAStatus::ok();
+    }
+
+    if (memDescriptor.droid_usage & GRALLOC_USAGE_PROTECTED) {
+        auto heap_list = BufferAllocator::GetDmabufHeapList();
+        *outResult = std::find(heap_list.begin(), heap_list.end(), std::string("secure")) !=
+                heap_list.end();
+        if (!*outResult)
+            return ndk::ScopedAStatus::ok();
     }
 
     memDescriptor.reserved_region_size += sizeof(gralloc_metadata);
