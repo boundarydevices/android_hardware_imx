@@ -56,10 +56,12 @@ static bool isStandardMetadata(AIMapper_MetadataType metadataType) {
     return strcmp(STANDARD_METADATA_NAME, metadataType.name) == 0;
 }
 
+std::unordered_map<buffer_handle_t, int> gLockedbufPool;
+pthread_mutex_t gLockedPoolMutex = PTHREAD_MUTEX_INITIALIZER;
+
 class GrallocMapperV5 final : public vendor::mapper::IMapperV5Impl {
 private:
     std::shared_ptr<gralloc_driver> mDriver = gralloc_driver::get_instance();
-    std::unordered_map<buffer_handle_t, int> lockedbufPool;
 
 public:
     explicit GrallocMapperV5() = default;
@@ -262,7 +264,14 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
     }
 
     *outData = addr[0];
-    ++lockedbufPool[bufferHandle];
+
+    pthread_mutex_lock(&gLockedPoolMutex);
+    if (gLockedbufPool.count(bufferHandle)) {
+        ++gLockedbufPool[bufferHandle];
+    } else {
+        gLockedbufPool.emplace(bufferHandle, 1);
+    }
+    pthread_mutex_unlock(&gLockedPoolMutex);
 
     return AIMAPPER_ERROR_NONE;
 }
@@ -275,15 +284,18 @@ AIMapper_Error GrallocMapperV5::unlock(buffer_handle_t _Nonnull buffer,
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
-    if (!(lockedbufPool.find(buffer) != lockedbufPool.end())) {
+    if (gLockedbufPool.count(buffer) == 0) {
         ALOGW("%s: Handle %p not found in pool of locked handles.", __func__, buffer);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
-    --lockedbufPool[buffer];
-    if (lockedbufPool[buffer] == 0) {
-        lockedbufPool.erase(buffer);
+    pthread_mutex_lock(&gLockedPoolMutex);
+    --gLockedbufPool[buffer];
+    if (gLockedbufPool[buffer] == 0) {
+        gLockedbufPool.erase(buffer);
     }
+    pthread_mutex_unlock(&gLockedPoolMutex);
+
     int ret = mDriver->unlock(buffer, releaseFence);
     if (ret) {
         ALOGE("%s: driver fail to unlock.", __func__);
