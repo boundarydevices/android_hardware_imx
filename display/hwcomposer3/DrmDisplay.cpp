@@ -315,7 +315,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     dumpRefreshRateEnd(mDumpActualFps, vsyncPeriod, now);
 #endif
 
-    if (mModeSet)
+    if (mModeSet && ret == 0)
         mModeSet = false;
 
     for (auto& [_, plane] : mPlanes) {
