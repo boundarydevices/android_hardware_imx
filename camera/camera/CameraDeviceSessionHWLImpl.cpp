@@ -591,15 +591,16 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
         uint64_t exposure_time = ispWrapper->getExposureTime();
 
         if (readTime < exposure_time) {
-            ALOGW("%s: frame %d readTime %lu is less than exposure_time %lu, adjust", __func__,
-                  frame, readTime, exposure_time);
+            if (mDebug)
+                ALOGW("%s: frame %d readTime %lu is less than exposure_time %lu, adjust", __func__,
+                      frame, readTime, exposure_time);
             readout_timestamp_ns = timestamp_ns + exposure_time;
         }
 
         if (readTime >= exposure_time + mSensorData.minframeduration / 2) {
-            ALOGW("%s: frame %d readTime %lu is great than exposure_time %lu + "
-                  "(mSensorData.minframeduration/2) %lu, adjust",
-                  __func__, frame, readTime, exposure_time, mSensorData.minframeduration / 2);
+            if (mDebug)
+                ALOGW("%s: frame %d readTime %lu is great than exposure_time %lu + (mSensorData.minframeduration/2) %lu, adjust",
+                      __func__, frame, readTime, exposure_time, mSensorData.minframeduration / 2);
             readout_timestamp_ns =
                     timestamp_ns + exposure_time + mSensorData.minframeduration / 2 - 1;
         }
