@@ -284,12 +284,13 @@ AIMapper_Error GrallocMapperV5::unlock(buffer_handle_t _Nonnull buffer,
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
+    pthread_mutex_lock(&gLockedPoolMutex);
     if (gLockedbufPool.count(buffer) == 0) {
         ALOGW("%s: Handle %p not found in pool of locked handles.", __func__, buffer);
+        pthread_mutex_unlock(&gLockedPoolMutex);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
 
-    pthread_mutex_lock(&gLockedPoolMutex);
     --gLockedbufPool[buffer];
     if (gLockedbufPool[buffer] == 0) {
         gLockedbufPool.erase(buffer);
