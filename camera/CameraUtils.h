@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <graphics_ext.h>
 #include <hal_types.h>
+#include <hardware/gralloc.h>
 #include <inttypes.h>
 #include <linux/time.h>
 #include <stdio.h>

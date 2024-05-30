@@ -167,6 +167,7 @@ int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine 
 }
 
 ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream) {
+    bool bPreview = false;
     if (buffer == NULL || stream == NULL)
         return NULL;
 
@@ -184,8 +185,12 @@ ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, S
     if (imxBuf->mFormatSize == 0)
         imxBuf->mFormatSize = imxBuf->mSize;
 
+    if ((stream->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) &&
+        ((stream->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) == 0))
+        bPreview = true;
+
     imxBuf->mStream = new ImxStream(stream->width, stream->height, imxBuf->mFormat, stream->usage,
-                                    stream->id, false);
+                                    stream->id, bPreview);
 
     if (imxBuf->mStream == NULL)
         goto error;
