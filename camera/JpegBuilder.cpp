@@ -289,10 +289,10 @@ status_t JpegBuilder::encodeJpeg(JpegParams *input, char *hw_jpeg_enc, const voi
     YuvToJpegEncoder *encoder;
     if (strstr(hw_jpeg_enc, IMX_JPEG_ENC)) {
         encoder = new HwJpegEncoder(format);
-        ALOGI("%s YuvToJpegEncoder create HwJpegEncoder", __func__);
+        ALOGI("%s YuvToJpegEncoder create HwJpegEncoder, format 0x%x", __func__, format);
     } else {
         encoder = YuvToJpegEncoder::create(format);
-        ALOGI("%s YuvToJpegEncoder create SoftJpegEncoder", __func__);
+        ALOGI("%s YuvToJpegEncoder create SoftJpegEncoder, format 0x%x", __func__, format);
     }
 
     if (encoder == NULL) {
