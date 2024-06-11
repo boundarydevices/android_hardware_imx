@@ -877,6 +877,11 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
         return false;
     }
 
+    if (info.drm_format == DRM_FORMAT_ABGR2101010) {
+        DEBUG_LOG("%s: g2d can't support ABGR2101010 format", __FUNCTION__);
+        return false;
+    }
+
 #ifdef G2D_LIMITATION_VIV
     common::Dataspace dataspace = layer->getDataspace();
     // video nv12 full range should be handled by client
