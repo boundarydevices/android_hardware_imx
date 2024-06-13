@@ -979,11 +979,9 @@ static uint32_t GetPlansInfo(const libcamera::StreamConfiguration &streamConfig,
 
     switch (streamConfig.pixelFormat) {
         case libcamera::formats::NV12:
-            plansInfo.num = 2;
+            plansInfo.num = 1;
             plansInfo.plans[0].offset = 0;
-            plansInfo.plans[0].size = width * height;
-            plansInfo.plans[1].offset = plansInfo.plans[0].size;
-            plansInfo.plans[1].size = width * height / 2;
+            plansInfo.plans[0].size = width * height * 3 / 2;
             break;
         case libcamera::formats::YUYV:
             plansInfo.num = 1;
