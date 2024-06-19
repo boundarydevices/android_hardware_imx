@@ -28,7 +28,7 @@ namespace aidl::android::hardware::graphics::composer3::impl {
 
 int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
     if ((static_cast<const private_handle_t *>(handle))->magic == private_handle_t::sMagic) {
-        const private_handle_t *memHandle = static_cast<const private_handle_t *>(handle);
+        const imported_handle *memHandle = static_cast<const imported_handle *>(handle);
         info->fd = memHandle->share_fd;
         info->width = memHandle->width;
         info->height = memHandle->height;
@@ -44,7 +44,7 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
             info->offsets[i] = memHandle->plane_info[i].offset;
         }
         info->name = nullptr;
-        info->phys = 0;
+        info->phys = memHandle->phys;
         info->base = 0;
     } else if (gralloc_handle_t(handle)->magic == Memory::sMagic) {
         gralloc_handle_t memHandle = (gralloc_handle_t)handle;
