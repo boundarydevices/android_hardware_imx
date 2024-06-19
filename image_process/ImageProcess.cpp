@@ -303,14 +303,19 @@ int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, I
 
     if (engine != ENG_NOTCARE) {
         ret = (this->*g_EngFuncList[engine])(dstBuf, srcBuf);
+        if (ret != 0) {
+            ALOGE("%s:  ConvertImage failed, engine %d, ret:%d", __func__, engine, ret);
+        }
         return ret;
     }
 
     // If ENG_NOTCARE, go through all engines until convert ok.
     for (int i = ENG_MIN; i < ENG_NUM; i++) {
         ret = (this->*g_EngFuncList[i])(dstBuf, srcBuf);
-        if (ret == 0) {
-            ALOGV("%s:  engine %d, ret:%d", __func__, i, ret);
+        if (ret != 0) {
+            ALOGE("%s:  ConvertImage failed, engine %d, ret:%d", __func__, i, ret);
+        } else {
+            ALOGV("%s:  ConvertImage success, engine %d, ret:%d", __func__, i, ret);
             return 0;
         }
     }
