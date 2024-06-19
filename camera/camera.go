@@ -66,8 +66,8 @@ func cameraDefaults(ctx android.LoadHookContext) {
 		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraDeviceSessionHWLImpl.cpp")
 		p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libcamera")
 		p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libcamera-base")
-		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "external/libcamera/include")
-		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "external/libcamera/build/include")
+		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/libcamera/include")
+		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/libcamera/build/include")
 		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/imx/camera/camera-hal")
 	} else {
 		cppflags = append(cppflags, "-DISIMX8=1")
