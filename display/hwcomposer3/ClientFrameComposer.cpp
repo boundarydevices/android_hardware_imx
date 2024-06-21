@@ -446,7 +446,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         return error;
     }
 
-    bool needFence = false; // Check if need pass in_fence of framebuffer to DRM or not
+    ::android::base::unique_fd fbInFence; // in fence of framebuffer that pass to DRM
     int32_t activeConfigId = -1;
     if (display->getActiveConfig(&activeConfigId) != HWC3::Error::None) {
         DEBUG_LOG("%s: fail to get active config id", __FUNCTION__);
@@ -500,7 +500,10 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             ALOGE("%s: display:%" PRIu64 " failed to get composer target", __FUNCTION__, displayId);
             return error;
         }
-        mG2dComposer->composeLayers(layersForComposition, renderTarget);
+        auto [ret, composeFence] = mG2dComposer->composeLayers(layersForComposition, renderTarget);
+        if (ret) {
+            fbInFence = std::move(composeFence);
+        }
 
         int32_t width = INT_MAX, height = INT_MAX;
         if (activeConfigId >= 0) {
@@ -521,7 +524,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         debug_dump_frame(renderTarget);
 #endif
     } else if (displayBuffer.clientTargetDrmBuffer) {
-        needFence = true;
+        fbInFence = std::move(display->getClientTarget().getFence());
 #ifdef DEBUG_DUMP_FRAME
         debug_dump_frame(display->getClientTarget().getBuffer());
 #endif
@@ -537,9 +540,12 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             return HWC3::Error::NoResources;
         }
         displayBuffer.clientTargetDrmBuffer = drmBuffer;
+        fbInFence = ::android::base::unique_fd(); // not need in fence
 #ifdef DEBUG_DUMP_FRAME
         debug_dump_frame(buffer);
 #endif
+    } else {
+        fbInFence = ::android::base::unique_fd(); // not need in fence
     }
 
     if (layersForPrivate.size() == 1) {
@@ -595,9 +601,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     }
 
     auto [flushError, flushCompleteFence] =
-            client->flushToDisplay(displayId, displayBuffer,
-                                   needFence ? display->getClientTarget().getFence()
-                                             : ::android::base::unique_fd());
+            client->flushToDisplay(displayId, displayBuffer, fbInFence);
     if (flushError != HWC3::Error::None) {
         ALOGE("%s: display:%" PRIu64 " failed to flush drm buffer", __FUNCTION__, displayId);
     }

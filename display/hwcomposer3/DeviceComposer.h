@@ -50,7 +50,8 @@ public:
     int freeDeviceFrameBuffer(std::vector<buffer_handle_t>& buffers);
     int freeSolidColorBuffer();
 
-    bool composeLayers(std::vector<Layer*> layers, buffer_handle_t target);
+    std::tuple<bool, ::android::base::unique_fd> composeLayers(std::vector<Layer*> layers,
+                                                               buffer_handle_t target);
 
 private:
     void* getHandle();
@@ -94,6 +95,7 @@ private:
     int enableFunction(void* handle, enum g2d_cap_mode cap, bool enable);
     int finishEngine(void* handle);
     int getBuffPhys(buffer_handle_t handle, int *phys);
+    int createFenceFd(void* handle);
 
 private:
     static Mutex sLock;
@@ -126,6 +128,7 @@ private:
     hwc_func1 mFinishEngine;
     hwc_func3 mQueryFeature;
     hwc_buf_func mBuffInfoFromFd;
+    hwc_func1 mCreateFenceFd;
 
     void* mHelperHandle = NULL;
     void* mG2dHandle = NULL;

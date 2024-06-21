@@ -121,6 +121,7 @@ DeviceComposer::DeviceComposer() {
         mFinishEngine = NULL;
         mQueryFeature = NULL;
         mBuffInfoFromFd = NULL;
+        mCreateFenceFd = NULL;
     } else {
         ALOGI("load %s library successfully!", g2dlibName);
         mSetClipping = (hwc_func5)dlsym(mG2dHandle, "g2d_set_clipping");
@@ -136,6 +137,7 @@ DeviceComposer::DeviceComposer() {
         mFinishEngine = (hwc_func1)dlsym(mG2dHandle, "g2d_finish");
         mQueryFeature = (hwc_func3)dlsym(mG2dHandle, "g2d_query_feature");
         mBuffInfoFromFd = (hwc_buf_func)dlsym(mG2dHandle, "g2d_buf_from_fd");
+        mCreateFenceFd = (hwc_func1)dlsym(mG2dHandle, "g2d_create_fence_fd");
     }
 
     memset(&mSolidColorBuffInfo, 0, sizeof(mSolidColorBuffInfo));
@@ -805,6 +807,14 @@ int DeviceComposer::getBuffPhys(buffer_handle_t handle, int *phys) {
     return 0;
 }
 
+int DeviceComposer::createFenceFd(void* handle) {
+    if (mCreateFenceFd == NULL) {
+        return -1;
+    }
+
+    return (*mCreateFenceFd)((void*)handle);
+}
+
 int DeviceComposer::alignTile(int* width, int* height, int format, int usage) {
     if (mAlignTile == NULL) {
         return -EINVAL;
@@ -903,12 +913,14 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
     return true;
 }
 
-bool DeviceComposer::composeLayers(std::vector<Layer*> layers, buffer_handle_t target) {
+std::tuple<bool, ::android::base::unique_fd> DeviceComposer::composeLayers(
+        std::vector<Layer*> layers, buffer_handle_t target) {
     DEBUG_LOG("%s: ------%zu layers compose to target-------", __FUNCTION__, layers.size());
+    ATRACE_CALL();
 
     if (!target) {
         ALOGE("%s: composer target buffer is invalid", __FUNCTION__);
-        return false;
+        return std::make_tuple(false, ::android::base::unique_fd());
     }
 
     Mutex::Autolock _l(sLock);
@@ -938,11 +950,14 @@ bool DeviceComposer::composeLayers(std::vector<Layer*> layers, buffer_handle_t t
         }
         i++;
     }
+    ::android::base::unique_fd composeFence(createFenceFd(getHandle()));
 
     unlockSurface(target);
-    finishComposite();
 
-    return 0;
+    if (!composeFence.ok())
+        finishComposite();
+
+    return std::make_tuple(true, std::move(composeFence));
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl
