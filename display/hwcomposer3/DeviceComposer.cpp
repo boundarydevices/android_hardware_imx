@@ -558,6 +558,9 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
 enum g2d_format DeviceComposer::convertFormat(int format, buffer_handle_t handle) {
     enum g2d_format halFormat;
     switch (format) {
+        case DRM_FORMAT_ABGR2101010:
+            halFormat = G2D_RGBA1010102;
+            break;
         case DRM_FORMAT_ABGR8888:
             halFormat = G2D_RGBA8888;
             break;
@@ -887,12 +890,12 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
         return false;
     }
 
+#ifdef G2D_LIMITATION_VIV
     if (info.drm_format == DRM_FORMAT_ABGR2101010) {
         DEBUG_LOG("%s: g2d can't support ABGR2101010 format", __FUNCTION__);
         return false;
     }
 
-#ifdef G2D_LIMITATION_VIV
     common::Dataspace dataspace = layer->getDataspace();
     // video nv12 full range should be handled by client
     if (layerBuffer != nullptr && info.drm_format == DRM_FORMAT_NV12 &&
