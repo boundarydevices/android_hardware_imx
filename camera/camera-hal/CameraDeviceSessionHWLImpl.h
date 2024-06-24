@@ -228,6 +228,7 @@ private:
     Stream *GetStreamById(int32_t stream_id, PipelineInfo *pInfo);
     int32_t GetStreamIdFromLibcameraStream(const libcamera::Stream *libCameraStream);
     void DumpStreamWrapper(libcamera::Request *request);
+    uint64_t GetTimestamp(libcamera::Request *request);
 
 public:
     CameraSensorMetadata *getSensorData() { return &mSensorData; }

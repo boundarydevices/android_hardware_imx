@@ -101,8 +101,14 @@
 #define WAIT_ITVL_MS 5
 #define WAIT_ITVL_US (uint32_t)(WAIT_ITVL_MS * 1000)
 
-#define EXP_TIME_DFT 0.006535   // unit: seconds
-#define EXP_TIME_DFT_NS 6535000 // ns
+#define EXP_TIME_DFT 0.009988   // unit: seconds
+#define EXP_TIME_DFT_NS 9988000 // ns
+
+#ifndef NS_PER_SEC
+#define NS_PER_SEC 1000000000
+#endif
+
+#define NS_PER_US 1000
 
 namespace android {
 using google_camera_hal::CameraDeviceStatus;
@@ -175,6 +181,7 @@ struct SensorSet {
 
 struct ImxStreamBuffer : ImxImageBuffer {
     int32_t index;
+    uint64_t timestamp_ns;
     ImxStream *mStream;
 };
 

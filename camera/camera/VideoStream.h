@@ -89,6 +89,7 @@ public:
     uint32_t mNumBuffers = 0;
     bool mPlane;
     int32_t mV4l2Format;
+    uint64_t mDurationNS = 0;
 
 protected:
     //    bool mPlane;

@@ -392,10 +392,6 @@ failed:
 #define AE_ENABLE_PARAMS "enable"
 #define IF_AE_S_EN "ae.s.en"
 
-#ifndef NS_PER_SEC
-#define NS_PER_SEC 1000000000
-#endif
-
 void ISPWrapper::getExpGainBoundary() {
     Json::Value jRequest, jResponse;
     int ret = viv_private_ioctl(IF_EC_G_CFG, jRequest, jResponse);
@@ -939,6 +935,7 @@ void ISPWrapper::getLatestExpWB() {
     if (ret == 0) {
         m_last_exposure_gain = jResponse[EC_GAIN_PARAMS].asDouble();
         m_last_exposure_time = jResponse[EC_TIME_PARAMS].asDouble();
+        m_exposure_time = m_last_exposure_time;
         ALOGI("%s: exposure -- gain %f, time %f", __func__, m_last_exposure_gain,
               m_last_exposure_time);
     } else {

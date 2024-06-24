@@ -375,6 +375,8 @@ capture_data:
 
     mV4l2Lock.unlock();
 
+    mBuffers[cfilledbuffer.index]->timestamp_ns = cfilledbuffer.timestamp.tv_sec * NS_PER_SEC +
+            cfilledbuffer.timestamp.tv_usec * NS_PER_US;
     return mBuffers[cfilledbuffer.index];
 }
 

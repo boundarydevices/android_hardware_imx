@@ -508,8 +508,7 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
     ImageFeed *imgFeed = NULL;
     uint64_t timestamp_ns = 0;
     uint64_t readout_timestamp_ns = 0;
-    uint64_t readTime = 0;
-    uint32_t clock = mUseCpuEncoder ? SYSTEM_TIME_MONOTONIC : SYSTEM_TIME_BOOTTIME;
+    uint64_t exposure_time = 0;
 
     if (frameRequest == NULL)
         return BAD_VALUE;
@@ -553,10 +552,6 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
                 goto fail;
             }
 
-            // For logical camera, use first physical camera's timestamp.
-            if (timestamp_ns == 0)
-                timestamp_ns = systemTime(clock);
-
             pImxStreamBuffer = pVideoStream->onFrameAcquire();
             if (pImxStreamBuffer == NULL) {
                 ALOGW("%s: onFrameAcquire failed, physical_camera_id %u, outBufIdx %d", __func__,
@@ -564,8 +559,9 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
                 goto fail;
             }
 
+            // For logical camera, use first physical camera's timestamp.
             if (readout_timestamp_ns == 0)
-                readout_timestamp_ns = systemTime(clock);
+                readout_timestamp_ns = pImxStreamBuffer->timestamp_ns;
 
             v4l2BufferList.push_back(pImxStreamBuffer);
         }
@@ -573,41 +569,30 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
         ALOGV("%s: v4l2BufferList.size %zu", __func__, v4l2BufferList.size());
 
     } else {
-        timestamp_ns = systemTime(clock);
         pImxStreamBuffer = pVideoStreams[0]->onFrameAcquire();
         // Fix me. Since onFrameAcquire will select by 3s timeout, and has recover
         // tactic, should not return NULL. If so, need handle the request properly.
         // Same for the logical request, may also return valid v4l2Buffer。
         if (pImxStreamBuffer == NULL) {
             ALOGE("%s: onFrameAcquire failed", __func__);
+        } else {
+            readout_timestamp_ns = pImxStreamBuffer->timestamp_ns;
         }
-        readout_timestamp_ns = systemTime(clock);
     }
 
-    readTime = readout_timestamp_ns - timestamp_ns;
     if (strstr(mSensorData.camera_name, ISP_SENSOR_NAME)) {
         std::unique_ptr<ISPWrapper> &ispWrapper =
                 ((ISPCameraMMAPStream *)pVideoStreams[0])->getIspWrapper();
-        uint64_t exposure_time = ispWrapper->getExposureTime();
-
-        if (readTime < exposure_time) {
-            if (mDebug)
-                ALOGW("%s: frame %d readTime %lu is less than exposure_time %lu, adjust", __func__,
-                      frame, readTime, exposure_time);
-            readout_timestamp_ns = timestamp_ns + exposure_time;
-        }
-
-        if (readTime >= exposure_time + mSensorData.minframeduration / 2) {
-            if (mDebug)
-                ALOGW("%s: frame %d readTime %lu is great than exposure_time %lu + (mSensorData.minframeduration/2) %lu, adjust",
-                      __func__, frame, readTime, exposure_time, mSensorData.minframeduration / 2);
-            readout_timestamp_ns =
-                    timestamp_ns + exposure_time + mSensorData.minframeduration / 2 - 1;
-        }
+        exposure_time = ispWrapper->getExposureTime();
+    } else {
+        exposure_time = pVideoStreams[0]->mDurationNS;
     }
 
+    timestamp_ns = readout_timestamp_ns - exposure_time;
+
     if (mDebug) {
-        ALOGI("%s: frame %d readTime %lu", __func__, frame, readTime);
+        ALOGI("%s: frame %d, readout_timestamp_ns %lu, exposure_time %lu", __func__, frame,
+              readout_timestamp_ns, exposure_time);
         ItvlStat(mPreCapAndFeedTime, (char *)"CapAndFeed(), v4l2 capture");
     }
 

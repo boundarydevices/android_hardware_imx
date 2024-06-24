@@ -489,7 +489,24 @@ status_t CameraMetadata::createMetadata(CameraDeviceHwlImpl *pDev,
     static const int32_t partialResultCount = 1;
     m_static_meta->Set(ANDROID_REQUEST_PARTIAL_RESULT_COUNT, &partialResultCount, 1);
 
-    static const uint8_t timestampSource = ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME;
+    /* ref
+       https://developer.android.com/reference/android/hardware/camera2/CameraMetadata#SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME,
+       it is in the same timebase as SystemClock.elapsedRealtimeNanos().
+       ref https://developer.android.com/reference/android/os/SystemClock#elapsedRealtimeNanos().
+       Returns nanoseconds since boot, including time spent in sleep.
+
+       ref
+       https://developer.android.com/reference/android/hardware/camera2/CameraMetadata#SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN,
+       the timestamps are roughly in the same timebase as SystemClock.uptimeMillis().
+       ref https://developer.android.com/reference/android/os/SystemClock#uptimeMillis(),
+       Returns milliseconds since boot, not counting time spent in deep sleep.
+
+       Since we use "timestamp" in "struct v4l2_buffer", in imx8/imx9 camera driver, it's get from
+       ktime_get_ns(), it's monotonic time. So here set to
+       ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN.
+    */
+
+    static const uint8_t timestampSource = ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN;
     m_static_meta->Set(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE, &timestampSource, 1);
 
     static const int32_t maxFaceCount = 0;

@@ -1274,6 +1274,20 @@ status_t CameraDeviceSessionHwlImpl::ConstructDefaultRequestSettings(
     return m_meta->getRequestSettings(type, default_settings);
 }
 
+uint64_t CameraDeviceSessionHwlImpl::GetTimestamp(libcamera::Request *request) {
+    Mutex::Autolock _l(mLock);
+    libcamera::Request::BufferMap bufMap = request->buffers();
+    for (auto &t : bufMap) {
+        libcamera::FrameBuffer *frameBuffer = t.second;
+        if (frameBuffer)
+            return frameBuffer->metadata().timestamp;
+    }
+
+    ALOGW("!!! %s: unexpected, no valid frameBuffer in bufMap, size %d", __func__, bufMap.size());
+
+    return systemTime(SYSTEM_TIME_MONOTONIC);
+}
+
 void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     if (request == NULL) {
         ALOGE("%s: request NULL", __func__);
@@ -1310,13 +1324,13 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     uint32_t frame = frameRequest->frame_number;
 
     // notify shutter
-    uint32_t clock = mUseCpuEncoder ? SYSTEM_TIME_MONOTONIC : SYSTEM_TIME_BOOTTIME;
-    uint64_t timestamp_ns = systemTime(clock);
+    uint64_t readout_timestamp_ns = GetTimestamp(request);
+    uint64_t timestamp_ns = readout_timestamp_ns - 16666666;
     if (pInfo->pipeline_callback.notify) {
         NotifyMessage msg{.type = MessageType::kShutter,
                           .message.shutter = {.frame_number = frame,
                                               .timestamp_ns = timestamp_ns,
-                                              .readout_timestamp_ns = timestamp_ns + 16666666}};
+                                              .readout_timestamp_ns = readout_timestamp_ns}};
 
         pInfo->pipeline_callback.notify(pipeline_id, msg);
     }

@@ -113,6 +113,8 @@ int32_t MMAPStream::onDeviceConfigureLocked(uint32_t format, uint32_t width, uin
         return ret;
     }
 
+    mDurationNS = NS_PER_SEC / vfps;
+
     struct v4l2_format fmt;
     memset(&fmt, 0, sizeof(fmt));
     fmt.type = buf_type;
