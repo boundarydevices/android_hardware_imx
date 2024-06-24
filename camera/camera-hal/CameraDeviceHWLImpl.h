@@ -95,6 +95,10 @@ public:
                                 int nPreviewResolutionCount, int *pPictureResolutions,
                                 int nPictureResolutionCount);
 
+    // Override functions in CameraDeviceHwl
+    status_t ConstructDefaultRequestSettings(
+            RequestTemplate type, std::unique_ptr<HalCameraMetadata> *default_settings) override;
+
 protected:
     CameraDeviceHwlImpl(uint32_t camera_id, const char *hw_jpeg, int use_cpu_encoder,
                         CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices,

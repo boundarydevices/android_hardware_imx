@@ -87,6 +87,10 @@ public:
                                 int nPreviewResolutionCount, int *pPictureResolutions,
                                 int nPictureResolutionCount);
 
+    // Override functions in CameraDeviceHwl
+    status_t ConstructDefaultRequestSettings(
+            RequestTemplate type, std::unique_ptr<HalCameraMetadata> *default_settings) override;
+
 protected:
     CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
                         std::vector<uint32_t> physicalIds, ImxEngine cam_copy_hw,

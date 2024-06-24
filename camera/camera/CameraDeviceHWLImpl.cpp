@@ -590,4 +590,9 @@ status_t CameraDeviceHwlImpl::SetTorchMode(TorchMode mode __unused) {
     return INVALID_OPERATION;
 }
 
+status_t CameraDeviceHwlImpl::ConstructDefaultRequestSettings(
+        RequestTemplate type, std::unique_ptr<HalCameraMetadata> *default_settings) {
+
+    return m_meta->getRequestSettings(type, default_settings);
+}
 } // namespace android
