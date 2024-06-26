@@ -41,7 +41,7 @@ using namespace std::chrono_literals;
 
 class Power : public ::aidl::android::hardware::power::BnPower {
 public:
-    Power(std::shared_ptr<HintManager> hm);
+    Power(HintManager *hm);
     ndk::ScopedAStatus setMode(Mode type, bool enabled) override;
     ndk::ScopedAStatus isModeSupported(Mode type, bool* _aidl_return) override;
     ndk::ScopedAStatus setBoost(Boost type, int32_t durationMs) override;
@@ -54,7 +54,7 @@ public:
     ndk::ScopedAStatus getHintSessionPreferredRate(int64_t* outNanoseconds) override;
 
 private:
-    std::shared_ptr<HintManager> mHintManager;
+    HintManager *mHintManager;
     std::unique_ptr<InteractionHandler> mInteractionHandler;
     std::atomic<bool> mSustainedPerfModeOn;
     std::vector<std::shared_ptr<IPowerHintSession>> mPowerHintSessions;

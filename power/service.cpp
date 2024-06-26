@@ -41,7 +41,7 @@ int main() {
              android::base::GetProperty(kSocType, "").c_str(), ".json");
 
     // Parse config but do not start the looper
-    std::shared_ptr<HintManager> hm = HintManager::GetFromJSON(name, true);
+    HintManager *hm = HintManager::GetFromJSON(name, true);
     if (!hm) {
         LOG(FATAL) << "Invalid config: " << name;
     }

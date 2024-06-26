@@ -46,7 +46,7 @@ static int s_previous_duration;
 #define USINSEC 1000000L
 #define NSINUS 1000L
 
-Power::Power(std::shared_ptr<HintManager> hm)
+Power::Power(HintManager *hm)
       : mHintManager(hm), mInteractionHandler(nullptr), mSustainedPerfModeOn(false) {
     mInteractionHandler = std::make_unique<InteractionHandler>(mHintManager);
     mInteractionHandler->Init();

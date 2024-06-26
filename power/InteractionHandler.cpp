@@ -37,7 +37,7 @@
 static const std::vector<std::string> fb_idle_patch = {"/sys/class/drm/card0/device/idle_state",
                                                        "/sys/class/graphics/fb0/idle_state"};
 
-InteractionHandler::InteractionHandler(std::shared_ptr<HintManager> const &hint_manager)
+InteractionHandler::InteractionHandler(HintManager *hint_manager)
       : mState(INTERACTION_STATE_UNINITIALIZED),
         mIdleFd(0),
         mEventFd(0),
