@@ -75,7 +75,7 @@ public:
             CameraBufferAllocatorHwl *camera_allocator_hwl,
             std::unique_ptr<CameraDeviceSessionHwl> *session) override;
 
-    bool IsStreamCombinationSupported(const StreamConfiguration &stream_config) override;
+    bool IsStreamCombinationSupported(const StreamConfiguration &stream_config, const bool check_settings) const override;
 
     // End of override functions in CameraDeviceHwl.
 
@@ -90,6 +90,10 @@ public:
     // Override functions in CameraDeviceHwl
     status_t ConstructDefaultRequestSettings(
             RequestTemplate type, std::unique_ptr<HalCameraMetadata> *default_settings) override;
+
+    status_t GetSessionCharacteristics(
+      const StreamConfiguration& session_config,
+      std::unique_ptr<HalCameraMetadata>& characteristics) const override;
 
 protected:
     CameraDeviceHwlImpl(uint32_t camera_id, std::vector<std::shared_ptr<char *>> devPaths,
