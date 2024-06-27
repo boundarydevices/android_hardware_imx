@@ -33,6 +33,7 @@
 #include <sys/uio.h>
 #include <trusty/tipc.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include <algorithm>
 #include <utils/Mutex.h>
