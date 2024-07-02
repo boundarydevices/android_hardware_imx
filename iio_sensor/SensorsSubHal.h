@@ -90,7 +90,7 @@ protected:
      * disconnected, sensor events need to be sent to the framework, and when a wakelock should be
      * acquired.
      */
-    sp<IHalProxyCallback> mCallback;
+    sp<IHalProxyCallback> mHalProxyCallback;
 
 private:
     /**

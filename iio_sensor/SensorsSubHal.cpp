@@ -87,7 +87,7 @@ static std::optional<std::vector<Configuration>> getSensorConfiguration(
     return std::nullopt;
 }
 
-SensorsSubHal::SensorsSubHal() : mCallback(nullptr), mNextHandle(1) {
+SensorsSubHal::SensorsSubHal() : mHalProxyCallback(nullptr), mNextHandle(1) {
     int err;
     std::vector<iio_device_data> iio_devices;
     const auto sensors_config_list = readSensorsConfigFromXml();
@@ -236,14 +236,14 @@ Return<void> SensorsSubHal::debug(const hidl_handle& fd, const hidl_vec<hidl_str
 }
 
 Return<Result> SensorsSubHal::initialize(const sp<IHalProxyCallback>& halProxyCallback) {
-    mCallback = halProxyCallback;
+    mHalProxyCallback = halProxyCallback;
     setOperationMode(OperationMode::NORMAL);
     return Result::OK;
 }
 
 void SensorsSubHal::postEvents(const std::vector<Event>& events, bool wakeup) {
-    ScopedWakelock wakelock = mCallback->createScopedWakelock(wakeup);
-    mCallback->postEvents(events, std::move(wakelock));
+    ScopedWakelock wakelock = mHalProxyCallback->createScopedWakelock(wakeup);
+    mHalProxyCallback->postEvents(events, std::move(wakelock));
 }
 void SensorsSubHal::AddSensor(struct iio_device_data& iio_data,
                               const std::optional<std::vector<Configuration>>& config) {

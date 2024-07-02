@@ -34,6 +34,8 @@ PressureSensor::PressureSensor(int32_t sensorHandle, ISensorsEventCallback* call
     if (iio_data.type == SensorType::PRESSURE)
         mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::CONTINUOUS_MODE;
 
+    mSensorHandle = sensorHandle;
+    mSensorInfo.type = iio_data.type;
     mSysfspath = iio_data.sysfspath;
     mRunThread = std::thread(std::bind(&PressureSensor::run, this));
 }
@@ -48,27 +50,22 @@ PressureSensor::~PressureSensor() {
     mRunThread.join();
 }
 
-void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) {
+void PressureSensor::processScanData(char* data, Event* evt) {
     unsigned int i, index = 0;
-    if (mChannelIndex == 0) {
-        evt->sensorHandle = 3;
-        evt->sensorType = SensorType::PRESSURE;
-    }
-    if (mChannelIndex == 1) {
-        evt->sensorHandle = 4;
-        evt->sensorType = SensorType::AMBIENT_TEMPERATURE;
-    }
-
+    evt->sensorHandle = mSensorHandle;
+    evt->sensorType = mSensorInfo.type;
     char* channel_data = data;
     uint64_t sign_mask;
     uint64_t value_mask;
 
     int64_t val = 0;
     for (i = 0; i < mIioData.channelInfo.size(); i++) {
-        if (strstr(mIioData.channelInfo[i].name.c_str(), "pressure") && mChannelIndex == 0) {
+        if (strstr(mIioData.channelInfo[i].name.c_str(), "pressure") &&
+            mSensorInfo.type == SensorType::PRESSURE) {
             index = i;
             break;
-        } else if (strstr(mIioData.channelInfo[i].name.c_str(), "temp") && mChannelIndex == 1) {
+        } else if (strstr(mIioData.channelInfo[i].name.c_str(), "temp") &&
+                   mSensorInfo.type == SensorType::AMBIENT_TEMPERATURE) {
             index = i;
             break;
         }
@@ -123,9 +120,9 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
 
     float scale;
     std::string scale_file;
-    if (mChannelIndex == 0) {
+    if (mSensorInfo.type == SensorType::PRESSURE) {
         scale_file = mSysfspath + "/in_pressure_scale";
-    } else if (mChannelIndex == 1) {
+    } else if (mSensorInfo.type == SensorType::AMBIENT_TEMPERATURE) {
         scale_file = mSysfspath + "/in_temp_scale";
     }
 
@@ -134,7 +131,7 @@ void PressureSensor::processScanData(char* data, Event* evt, int mChannelIndex) 
     evt->u.scalar = scale * evt->u.scalar;
 
     // To meet CTS required range, multiply pressure scale with 10.
-    if (mChannelIndex == 0)
+    if (mSensorInfo.type == SensorType::PRESSURE)
         evt->u.scalar *= 10;
 
     int timestamp_offset = 0;
@@ -243,11 +240,8 @@ void PressureSensor::run() {
                     continue;
                 }
                 events.clear();
-                processScanData(readbuf, &event, 0);
+                processScanData(readbuf, &event);
                 events.push_back(event);
-                processScanData(readbuf, &event, 1);
-                events.push_back(event);
-
                 mCallback->postEvents(events, isWakeUpSensor());
             }
         }
