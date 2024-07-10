@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020-2023 NXP.
+ *  Copyright 2020-2024 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -347,6 +347,7 @@ private:
     int recordIdx;
     int callbackIdx;
     int cameraRWIdx;
+    int rawIdx;
 
     std::unique_ptr<HalCameraMetadata> mSettings;
 

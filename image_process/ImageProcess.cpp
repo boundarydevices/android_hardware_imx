@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 NXP.
+ * Copyright 2023-2024 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,8 +49,6 @@ namespace fsl {
 
 ImageProcess *ImageProcess::sInstance(0);
 Mutex ImageProcess::sLock(Mutex::PRIVATE);
-
-static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels);
 
 static bool IsCscSupportByCPU(int srcFormat, int dstFormat) {
     // yuyv -> nv12
@@ -821,18 +819,6 @@ void ImageProcess::convertNV12toYV12(uint8_t *inputBuffer, uint8_t *outputBuffer
         ptrU2 = ptrU2 + 2;
         n++;
     }
-}
-
-static void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels) {
-    ALOGI("enter Revert16BitEndian, src %p, dst %p, pixels %d", pSrc, pDst, pixels);
-
-    for (uint32_t i = 0; i < pixels; i++) {
-        uint32_t offset = i * 2;
-        pDst[offset] = pSrc[offset + 1];
-        pDst[offset + 1] = pSrc[offset];
-    }
-
-    return;
 }
 
 int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf) {

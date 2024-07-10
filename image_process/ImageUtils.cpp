@@ -1,5 +1,5 @@
 /*
- *  Copyright 2023 NXP.
+ *  Copyright 2023-2024 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -412,6 +412,167 @@ resizeByCalc:
     VT_resizeFrame_Video_opt2_lp(&i_img_ptr, &o_img_ptr, NULL, 0);
 
     return 0;
+}
+
+void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels) {
+    ALOGI("enter Revert16BitEndian, src %p, dst %p, pixels %d", pSrc, pDst, pixels);
+    for (uint32_t i = 0; i < pixels; i++) {
+        uint32_t offset = i * 2;
+        uint8_t temp = pSrc[offset];
+        pDst[offset] = pSrc[offset + 1];
+        pDst[offset + 1] = temp;
+    }
+
+    return;
+}
+
+// 8mp support 10-bit Bayer BGBG/GRGR 0x30314742, takes up 16 bit of storage
+void SbggrToRgb888(const uint16_t *src, uint8_t *rgb, int width, int height) {
+    if (src == NULL) {
+        ALOGE("%s: Error! rgb == NULL", __func__);
+        return;
+    }
+    if (rgb == NULL) {
+        ALOGE("%s: Error! yuv422i == NULL", __func__);
+        return;
+    }
+
+    int src_width = width + 2;
+    int src_height = height + 2;
+
+    uint16_t *src_data = (uint16_t *)malloc(src_width * src_height * 2);
+    if (src_data == NULL) {
+        ALOGE("%s: src_data is null, memory allocation failed!", __func__);
+        return;
+    }
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            src_data[src_width * (i + 1) + 1 + j] = src[width * i + j];
+        }
+    }
+
+    // fill 2 rows, the first and the last
+    for (int i = 0; i < width; i++) {
+        src_data[1 + i] = src_data[src_width * 2 + 1 + i];
+        src_data[src_width * (src_height - 1) + 1 + i] =
+                src_data[src_width * (src_height - 3) + 1 + i];
+    }
+
+    // fill 2 columns, the first and the last
+    for (int i = 0; i < src_height; i++) {
+        src_data[i * src_width + 0] = src_data[i * src_width + 2];
+        src_data[i * src_width + src_width - 1] = src_data[i * src_width + src_width - 3];
+    }
+
+    int dataIndex = 0;
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            // 10bit value -> 8bit value, otherwise rgb888 would be much brighter than bg10
+            uint16_t index_1 = src_data[i * src_width + j] >> 2;
+            uint16_t index_2 = src_data[i * src_width + j + 1] >> 2;
+            uint16_t index_3 = src_data[i * src_width + j + 2] >> 2;
+            uint16_t index_4 = src_data[(i + 1) * src_width + j] >> 2;
+            uint16_t index_5 = src_data[(i + 1) * src_width + j + 1] >> 2;
+            uint16_t index_6 = src_data[(i + 1) * src_width + j + 2] >> 2;
+            uint16_t index_7 = src_data[(i + 2) * src_width + j] >> 2;
+            uint16_t index_8 = src_data[(i + 2) * src_width + j + 1] >> 2;
+            uint16_t index_9 = src_data[(i + 2) * src_width + j + 2] >> 2;
+
+            uint8_t index_r = 0;
+            uint8_t index_g = 0;
+            uint8_t index_b = 0;
+            /* bggr */
+            if ((i % 2 == 0) && (j % 2 == 0)) { // B
+                // r
+                index_r = (index_1 + index_3 + index_7 + index_9) / 4;
+                // g
+                index_g = (index_2 + index_4 + index_6 + index_8) / 4;
+                // b
+                index_b = index_5;
+            }
+            if ((i % 2 == 0) && (j % 2 != 0)) { // g
+                // r
+                index_r = (index_2 + index_8) / 2;
+                // g
+                index_g = index_5;
+                // b
+                index_b = (index_4 + index_6) / 2;
+            }
+            if ((i % 2 != 0) && (j % 2 == 0)) { // g
+                // r
+                index_r = (index_4 + index_6) / 2;
+                // g
+                index_g = index_5;
+                // b
+                index_b = (index_2 + index_8) / 2;
+            }
+            if ((i % 2 != 0) && (j % 2 != 0)) { // r
+                // r
+                index_r = index_5;
+                // g
+                index_g = (index_2 + index_4 + index_6 + index_8) / 4;
+                // b
+                index_b = (index_1 + index_3 + index_7 + index_9) / 4;
+            }
+
+            rgb[dataIndex] = index_r;
+            rgb[dataIndex + 1] = index_g;
+            rgb[dataIndex + 2] = index_b;
+            dataIndex += 3;
+        }
+    }
+
+    free(src_data);
+}
+
+#define RGB2YUV(r, g, b, y, u, v)                  \
+    y = (77 * r + 150 * g + 29 * b) >> 8;          \
+    u = ((128 * b - 43 * r - 85 * g) >> 8) + 128;  \
+    v = ((128 * r - 107 * g - 21 * b) >> 8) + 128; \
+    y = y < 0 ? 0 : y;                             \
+    u = u < 0 ? 0 : u;                             \
+    v = v < 0 ? 0 : v;                             \
+    y = y > 255 ? 255 : y;                         \
+    u = u > 255 ? 255 : u;                         \
+    v = v > 255 ? 255 : v
+
+void Rgb888ToYuv422i(const uint8_t *rgb, uint8_t *yuv422i, int width, int height) {
+    if (rgb == NULL) {
+        ALOGE("%s: Error! rgb == NULL", __func__);
+        return;
+    }
+    if (yuv422i == NULL) {
+        ALOGE("%s: Error! yuv422i == NULL", __func__);
+        return;
+    }
+
+    if (((width & 0x1) != 0) || ((height & 0x1) != 0)) {
+        ALOGE("%s: width and height must be multiple of 2", __func__);
+        return;
+    }
+
+    uint16_t i, j;
+    uint8_t r, g, b;
+    uint8_t y, u, v;
+
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++) {
+            r = *rgb++;
+            g = *rgb++;
+            b = *rgb++;
+            RGB2YUV(b, g, r, y, u, v);
+            if (j & 0x1) {
+                *yuv422i++ = y;
+                *yuv422i++ = u;
+            } else {
+                *yuv422i++ = y;
+                *yuv422i++ = v;
+            }
+        }
+    }
+
+    return;
 }
 
 int convertPixelFormatToCLFormat(int format) {

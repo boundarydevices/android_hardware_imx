@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020-2023 NXP.
+ *  Copyright 2020-2024 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -1162,7 +1162,40 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
 
     int captureSize = 0;
     int alignedw, alignedh, c_stride;
+    uint8_t *srcData = NULL;
+    uint8_t *rgb = NULL;
+    int32_t encodFormat = srcStream->format();
+    uint8_t *srcVirtual = (uint8_t *)srcBuf->mVirtAddr;
+
     switch (srcStream->format()) {
+        case HAL_PIXEL_FORMAT_RAW16:
+            srcData = (uint8_t *)malloc(srcBuf->mWidth * srcBuf->mHeight * 2);
+            if (srcData == NULL) {
+                ALOGE("%s: srcData is null, memory allocation failed!", __func__);
+                return BAD_VALUE;
+            }
+            memset(srcData, 0, srcBuf->mWidth * srcBuf->mHeight * 2);
+            rgb = (uint8_t *)malloc(srcBuf->mWidth * srcBuf->mHeight * 3);
+            if (rgb == NULL) {
+                ALOGE("%s: rgb is null, memory allocation failed!", __func__);
+                free(srcData);
+                return BAD_VALUE;
+            }
+            memset(rgb, 0, srcBuf->mWidth * srcBuf->mHeight * 3);
+
+            // bggr -> rgb888 -> yuv422i
+            Revert16BitEndian((uint8_t *)(srcBuf->mVirtAddr), srcData,
+                              srcBuf->mWidth * srcBuf->mHeight);
+            SbggrToRgb888((uint16_t *)srcData, rgb, srcBuf->mWidth, srcBuf->mHeight);
+            Rgb888ToYuv422i(rgb, (uint8_t *)srcData, srcBuf->mWidth, srcBuf->mHeight);
+            free(rgb);
+
+            srcVirtual = srcData;
+            encodFormat = HAL_PIXEL_FORMAT_YCbCr_422_I;
+            alignedw = ALIGN_PIXEL_16(capture->mWidth);
+            alignedh = ALIGN_PIXEL_16(capture->mHeight);
+            captureSize = alignedw * alignedh * 2;
+            break;
         case HAL_PIXEL_FORMAT_YCbCr_420_P:
             alignedw = ALIGN_PIXEL_32(capture->mWidth);
             alignedh = ALIGN_PIXEL_4(capture->mHeight);
@@ -1200,6 +1233,9 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
     rawBuf = rawFrame->getBase();
     if (rawBuf == MAP_FAILED) {
         ALOGE("%s new MemoryHeapBase failed", __func__);
+        if (srcData != NULL) {
+            free(srcData);
+        }
         return BAD_VALUE;
     }
 
@@ -1207,6 +1243,9 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
     thumbBuf = thumbFrame->getBase();
     if (thumbBuf == MAP_FAILED) {
         ALOGE("%s new MemoryHeapBase failed", __func__);
+        if (srcData != NULL) {
+            free(srcData);
+        }
         return BAD_VALUE;
     }
 
@@ -1216,6 +1255,9 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
         ret = AllocPhyBuffer(srcBuf->mWidth, srcBuf->mHeight, srcBuf->mFormat, resizeBuf);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+            if (srcData != NULL) {
+                free(srcData);
+            }
             return BAD_VALUE;
         }
 
@@ -1225,10 +1267,10 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
         SwitchImxBuf(*srcBuf, resizeBuf);
     }
 
-    mainJpeg = new JpegParams((uint8_t *)srcBuf->mVirtAddr, (uint8_t *)(uintptr_t)srcBuf->mPhyAddr,
-                              srcBuf->mSize, srcBuf->mFd, srcBuf->buffer, (uint8_t *)rawBuf,
-                              captureSize, encodeQuality, srcStream->mWidth, srcStream->mHeight,
-                              capture->mWidth, capture->mHeight, srcStream->format());
+    mainJpeg = new JpegParams(srcVirtual, (uint8_t *)(uintptr_t)srcBuf->mPhyAddr, srcBuf->mSize,
+                              srcBuf->mFd, srcBuf->buffer, (uint8_t *)rawBuf, captureSize,
+                              encodeQuality, srcStream->mWidth, srcStream->mHeight, capture->mWidth,
+                              capture->mHeight, encodFormat);
 
     ret = meta->getJpegThumbSize(thumbWidth, thumbHeight);
     if (ret != NO_ERROR) {
@@ -1237,11 +1279,10 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
 
     if ((thumbWidth > 0) && (thumbHeight > 0)) {
         int thumbSize = captureSize;
-        thumbJpeg =
-                new JpegParams((uint8_t *)srcBuf->mVirtAddr, (uint8_t *)(uintptr_t)srcBuf->mPhyAddr,
-                               srcBuf->mSize, srcBuf->mFd, srcBuf->buffer, (uint8_t *)thumbBuf,
-                               thumbSize, thumbQuality, srcStream->mWidth, srcStream->mHeight,
-                               thumbWidth, thumbHeight, srcStream->format());
+        thumbJpeg = new JpegParams(srcVirtual, (uint8_t *)(uintptr_t)srcBuf->mPhyAddr,
+                                   srcBuf->mSize, srcBuf->mFd, srcBuf->buffer, (uint8_t *)thumbBuf,
+                                   thumbSize, thumbQuality, srcStream->mWidth, srcStream->mHeight,
+                                   thumbWidth, thumbHeight, encodFormat);
     }
 
     ret = mJpegBuilder->encodeImage(mainJpeg, thumbJpeg, mJpegHw, (*meta));
@@ -1277,6 +1318,10 @@ err_out:
     if (resizeBuf.mPhyAddr > 0) {
         SwitchImxBuf(*srcBuf, resizeBuf);
         FreePhyBuffer(resizeBuf.buffer);
+    }
+
+    if (srcData != NULL) {
+        free(srcData);
     }
 
     return ret;
@@ -1491,6 +1536,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     recordIdx = -1;
     callbackIdx = -1;
     cameraRWIdx = -1;
+    rawIdx = -1;
     is_logical_request_ = false;
 
     for (int i = 0; i < stream_num; i++) {
@@ -1514,6 +1560,12 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
         switch (stream.format) {
             case HAL_PIXEL_FORMAT_RAW16:
+                ALOGI("%s create raw stream", __func__);
+                hal_stream.override_format = stream.format;
+                hal_stream.max_buffers = NUM_CAPTURE_BUFFER;
+                usage = CAMERA_GRALLOC_USAGE_JPEG;
+                rawIdx = i;
+                break;
             case HAL_PIXEL_FORMAT_BLOB:
                 ALOGI("%s create capture stream", __func__);
                 hal_stream.override_format = stream.format;
@@ -1593,19 +1645,25 @@ int CameraDeviceSessionHwlImpl::PickConfigStream(uint32_t pipeline_id, uint8_t i
         return -1;
     }
 
-    ALOGI("%s: previewIdx %d, callbackIdx %d, stillcapIdx %d, recordIdx %d, cameraRWIdx %d, intent "
-          "%d",
-          __func__, previewIdx, callbackIdx, stillcapIdx, recordIdx, cameraRWIdx, intent);
+    ALOGI("%s: previewIdx %d, callbackIdx %d, stillcapIdx %d, recordIdx %d, cameraRWIdx %d, rawIdx %d, intent %d",
+          __func__, previewIdx, callbackIdx, stillcapIdx, recordIdx, cameraRWIdx, rawIdx, intent);
 
     int configIdx = -1;
-    if (intent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE)
-        configIdx = stillcapIdx;
+    if (intent == ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE) {
+        if (rawIdx >= 0) {
+            configIdx = rawIdx;
+        } else {
+            configIdx = stillcapIdx;
+        }
+    }
 
     if (configIdx == -1) {
         if (previewIdx >= 0)
             configIdx = previewIdx;
         else if (callbackIdx >= 0)
             configIdx = callbackIdx;
+        else if (rawIdx >= 0)
+            configIdx = rawIdx;
         else if (stillcapIdx >= 0)
             configIdx = stillcapIdx;
         else if (recordIdx >= 0)
