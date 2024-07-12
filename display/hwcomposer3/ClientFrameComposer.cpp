@@ -18,15 +18,20 @@
 #include "ClientFrameComposer.h"
 
 #include <cutils/properties.h>
+#include <gui/TraceUtils.h>
 #include <drm_fourcc.h>
 #include <hardware/gralloc.h>
+#include <ui/Fence.h>
 
 #include "BufferInfo.h"
 #include "Common.h"
 #include "Display.h"
 #include "Drm.h"
 #include "DrmConnector.h"
+#include "FenceMonitor.h"
 #include "Layer.h"
+
+using namespace android;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -503,6 +508,11 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         auto [ret, composeFence] = mG2dComposer->composeLayers(layersForComposition, renderTarget);
         if (ret) {
             fbInFence = std::move(composeFence);
+            if (CC_UNLIKELY(atrace_is_tag_enabled(ATRACE_TAG_GRAPHICS) && fbInFence.ok())) {
+                static gui::FenceMonitor g2dCompletionThread("G2D completion");
+                sp<Fence> fence(new Fence(dup(fbInFence.get())));
+                g2dCompletionThread.queueFence(fence);
+            }
         }
 
         int32_t width = INT_MAX, height = INT_MAX;
@@ -596,8 +606,10 @@ HWC3::Error ClientFrameComposer::presentDisplay(
             display->getDisplayAttribute(activeConfigId, DisplayAttribute::VSYNC_PERIOD, &period);
 
         TimePoint now = std::chrono::steady_clock::now();
-        if (now < *presentTime - Nanoseconds(period / 2))
+        if (now < *presentTime - Nanoseconds(period / 2)) {
             std::this_thread::sleep_until(*presentTime - Nanoseconds(period / 2));
+            ATRACE_FORMAT_INSTANT("ExpectedPresentTime");
+        }
     }
 
     auto [flushError, flushCompleteFence] =

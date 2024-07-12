@@ -269,6 +269,8 @@ std::tuple<HWC3::Error, std::shared_ptr<DrmBuffer>> DrmClient::create(const nati
                                                                       common::Rect displayFrame,
                                                                       common::Rect sourceCrop,
                                                                       BufferType type) {
+    ATRACE_CALL();
+
     HandleInfo info;
     if (handle == nullptr || (getInfoFromHandle(handle, &info) != 0)) {
         ALOGE("%s: invalid native handle", __FUNCTION__);
