@@ -554,7 +554,7 @@ void Rgb888ToYuv422i(const uint8_t *rgb, uint8_t *yuv422i, int width, int height
 
     uint16_t i, j;
     uint8_t r, g, b;
-    uint8_t y, u, v;
+    int y, u, v;
 
     for (i = 0; i < height; i++) {
         for (j = 0; j < width; j++) {

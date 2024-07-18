@@ -1097,7 +1097,7 @@ void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuff
 }
 
 int ImageProcess::resizeWrapper(ImxImageBuffer &srcBuf, ImxImageBuffer &dstBuf, ImxEngine engine) {
-    int ret;
+    int ret = 0;
     ALOGV("enter resizeWrapper");
 
     if (srcBuf.mFormat != dstBuf.mFormat) {
