@@ -9,7 +9,7 @@ cc_binary {
         "libbinder_ndk",
         "libcutils",
         "libutils",
-        "android.hardware.thermal-V1-ndk",
+        "android.hardware.thermal-V2-ndk",
     ],
     static_libs: [
         "libjsoncpp",
