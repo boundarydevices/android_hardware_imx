@@ -65,7 +65,11 @@ hwc_config_cc_defaults {
 
 cc_binary {
     name: "android.hardware.graphics.composer3-service.imx",
-    defaults: ["libnxp_gralloc_v5_default", "hwc_config_defaults"],
+    defaults: [
+        "arm_gralloc_uses_libformat_defaults",
+        "libnxp_gralloc_v5_default",
+        "hwc_config_defaults",
+    ],
     relative_install_path: "hw",
     init_rc: ["hwc3.rc"],
     vintf_fragments: ["hwc3.xml"],
