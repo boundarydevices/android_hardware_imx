@@ -601,6 +601,13 @@ status_t CameraDeviceHwlImpl::ConstructDefaultRequestSettings(
 status_t CameraDeviceHwlImpl::GetSessionCharacteristics(
       const StreamConfiguration& session_config,
       std::unique_ptr<HalCameraMetadata>& characteristics) const {
+    HalCameraMetadata *cammeta = m_meta->GetStaticMeta();
+    bool ret = HasCapability(cammeta, ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA);
+    if (ret == true)
+        ALOGV("%s: This is a logical camera", __func__);
+
+    characteristics = HalCameraMetadata::Clone(m_meta->GetStaticMeta());
+
     return OK;
 }
 } // namespace android
