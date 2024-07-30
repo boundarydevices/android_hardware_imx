@@ -63,8 +63,8 @@ static bool IsCscSupportByCPU(int srcFormat, int dstFormat) {
         return true;
 
     // nv12 -> yv12
-    if ((srcFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
-        (srcFormat == HAL_PIXEL_FORMAT_YCbCr_420_888) && (dstFormat == HAL_PIXEL_FORMAT_YV12))
+    if (((srcFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
+        (srcFormat == HAL_PIXEL_FORMAT_YCbCr_420_888)) && (dstFormat == HAL_PIXEL_FORMAT_YV12))
         return true;
 
     return false;
@@ -529,7 +529,7 @@ static int AllocPhyBufferByFmtRes(ImxImageBuffer &imgBuf, uint32_t format, uint3
     int ret = AllocPhyBuffer(stride, height, format, imgBuf);
     if (ret) {
         ALOGE("%s: AllocPhyBuffer failed, formatSize %d, allocSize %d", __func__,
-              imgBuf.mFormatSize, imgBuf.mSize);
+              (int)imgBuf.mFormatSize, (int)imgBuf.mSize);
         return ret;
     }
 
@@ -790,7 +790,7 @@ int ImageProcess::convertNV12toNV21(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
     }
 
     for (int k = 0; k < UVsize / 2; k++) {
-        __asm volatile("rev16 %0, %0" : "+r"(*UVout));
+        __asm volatile("rev16 %w0, %w0" : "+r"(*UVout));
         UVout += 1;
     }
 

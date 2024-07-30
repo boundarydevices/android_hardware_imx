@@ -529,12 +529,12 @@ ScopedAStatus ExternalCameraDeviceSession::configureStreams(
                 break;
             default:
                 ALOGE("%s: unsupported format 0x%x", __FUNCTION__,
-                      in_requestedConfiguration.streams[i].format);
+                      (unsigned int)in_requestedConfiguration.streams[i].format);
                 return fromStatus(Status::ILLEGAL_ARGUMENT);
         }
 
         ALOGI("%s: stream %zu, format 0x%x, override 0x%x, size %dx%d, usage 0x%llx", __func__, i,
-              in_requestedConfiguration.streams[i].format, out[i].overrideFormat,
+              (unsigned int)in_requestedConfiguration.streams[i].format, (unsigned int)out[i].overrideFormat,
               in_requestedConfiguration.streams[i].width,
               in_requestedConfiguration.streams[i].height,
               (long long)in_requestedConfiguration.streams[i].usage);
@@ -1077,7 +1077,7 @@ status_t ExternalCameraDeviceSession::initDefaultRequests() {
                 intent = ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_SNAPSHOT;
                 break;
             default:
-                ALOGV("%s: unsupported RequestTemplate type %d", __FUNCTION__, type);
+                ALOGV("%s: unsupported RequestTemplate type %d", __FUNCTION__, (int)type);
                 continue;
         }
         UPDATE(mdCopy, ANDROID_CONTROL_CAPTURE_INTENT, &intent, 1);
@@ -1450,7 +1450,7 @@ bool ExternalCameraDeviceSession::isSupported(
     switch (fmt) {
         case PixelFormat::BLOB:
             if (ds != Dataspace::JFIF) {
-                ALOGI("%s: BLOB format does not support dataSpace %x", __FUNCTION__, ds);
+                ALOGI("%s: BLOB format does not support dataSpace %x", __FUNCTION__, (unsigned int)ds);
                 return false;
             }
             break;
@@ -1471,7 +1471,7 @@ bool ExternalCameraDeviceSession::isSupported(
             }
             break;
         default:
-            ALOGI("%s: does not support format %x", __FUNCTION__, fmt);
+            ALOGI("%s: does not support format %x", __FUNCTION__, (unsigned int)fmt);
             return false;
     }
 
@@ -1816,7 +1816,7 @@ Status ExternalCameraDeviceSession::isStreamCombinationSupported(
         const StreamConfiguration& config, const std::vector<SupportedV4L2Format>& supportedFormats,
         const ExternalCameraConfig& devCfg) {
     if (config.operationMode != StreamConfigurationMode::NORMAL_MODE) {
-        ALOGE("%s: unsupported operation mode: %d", __FUNCTION__, config.operationMode);
+        ALOGE("%s: unsupported operation mode: %d", __FUNCTION__, (int)config.operationMode);
         return Status::ILLEGAL_ARGUMENT;
     }
 
@@ -2894,7 +2894,7 @@ int ExternalCameraDeviceSession::OutputThread::createJpegLocked(
 
     ALOGV("%s: HAL buffer sid: %d bid: %" PRIu64 " w: %u h: %u", __FUNCTION__, halBuf.streamId,
           static_cast<uint64_t>(halBuf.bufferId), halBuf.width, halBuf.height);
-    ALOGV("%s: HAL buffer fmt: %x usage: %" PRIx64 " ptr: %p", __FUNCTION__, halBuf.format,
+    ALOGV("%s: HAL buffer fmt: %x usage: %" PRIx64 " ptr: %p", __FUNCTION__, (unsigned int)halBuf.format,
           static_cast<uint64_t>(halBuf.usage), halBuf.bufPtr);
     ALOGV("%s: YV12 buffer %d x %d", __FUNCTION__, mYu12Frame->mWidth, mYu12Frame->mHeight);
 

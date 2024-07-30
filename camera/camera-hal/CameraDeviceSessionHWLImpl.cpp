@@ -344,7 +344,7 @@ void CameraDeviceSessionHwlImpl::DumpStreamWrapper(libcamera::Request *request) 
         uint32_t size = 0;
         uint32_t offset = planes[0].offset;
         void *virt = NULL;
-        size_t plan_num = planes.size();
+        int plan_num = planes.size();
 
         for (int i = 0; i < plan_num; i++) {
             size += planes[i].length;
@@ -673,8 +673,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         Stream stream = request_config.streams[i];
         ALOGI("%s, stream %d: id %d, type %d, res %dx%d, format 0x%x, usage 0x%llx, space 0x%x, "
               "rot %d, is_phy %d, phy_id %d, size %d",
-              __func__, i, stream.id, stream.stream_type, stream.width, stream.height,
-              stream.format, (unsigned long long)stream.usage, stream.data_space, stream.rotation,
+              __func__, i, stream.id, (int)stream.stream_type, stream.width, stream.height,
+              stream.format, (unsigned long long)stream.usage, stream.data_space, (int)stream.rotation,
               stream.is_physical_camera_stream, stream.physical_camera_id, stream.buffer_size);
 
         uint32_t camera_id = camera_id_;
@@ -787,7 +787,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         cfg.pixelFormat = HalFromat2PixelFormat(hal_stream.override_format);
         camCfg->addConfiguration(cfg);
 
-        ALOGI("%s: after adjust, usage 0x%llx", __func__, stream.usage);
+        ALOGI("%s: after adjust, usage 0x%lx", __func__, stream.usage);
     }
 
     int ret = camera_->configure(camCfg.get());
@@ -797,10 +797,10 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     }
 
     std::set<libcamera::Stream *> libCameraStreamSet = camera_->streams();
-    ALOGI("%s: libCameraStreamSet size %d, stream_num %d", __func__, libCameraStreamSet.size(),
+    ALOGI("%s: libCameraStreamSet size %lu, stream_num %d", __func__, libCameraStreamSet.size(),
           stream_num);
-    if (libCameraStreamSet.size() < stream_num) {
-        ALOGE("%s: beyond capbility, libCameraStreamSet size %d < stream_num %d", __func__,
+    if (libCameraStreamSet.size() < (unsigned long)stream_num) {
+        ALOGE("%s: beyond capbility, libCameraStreamSet size %lu < stream_num %d", __func__,
               libCameraStreamSet.size(), stream_num);
         return BAD_VALUE;
     }
@@ -810,7 +810,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     for (const auto &libcameraStream : libCameraStreamSet) {
         Stream stream = request_config.streams[i];
         mLibCameraStreamMap[stream.id] = libcameraStream;
-        ALOGI("%s: set mLibCameraStreamMap i %d, id %d, libcamera::Stream %p, mLibCameraStreamMap size %d",
+        ALOGI("%s: set mLibCameraStreamMap i %d, id %d, libcamera::Stream %p, mLibCameraStreamMap size %lu",
               __func__, i, stream.id, libcameraStream, mLibCameraStreamMap.size());
         i++;
 
@@ -1010,7 +1010,7 @@ std::unique_ptr<libcamera::FrameBuffer> CameraDeviceSessionHwlImpl::CreateFrameB
 
     uint32_t planNum = plansInfo.num;
     std::vector<libcamera::FrameBuffer::Plane> planes(planNum);
-    for (size_t i = 0; i < planNum; ++i) {
+    for (uint32_t i = 0; i < planNum; ++i) {
         libcamera::SharedFD fd{hnd->data[i]};
         if (!fd.isValid()) {
             ALOGE("%s: No valid fd %d", __func__, hnd->data[i]);
@@ -1021,7 +1021,7 @@ std::unique_ptr<libcamera::FrameBuffer> CameraDeviceSessionHwlImpl::CreateFrameB
         planes[i].offset = plansInfo.plans[i].offset;
         planes[i].length = plansInfo.plans[i].size;
 
-        ALOGV("%s:, plan %d, fd %d, offset %d, length %d", __func__, i, fd.get(), planes[i].offset,
+        ALOGV("%s:, plan %u, fd %d, offset %d, length %d", __func__, i, fd.get(), planes[i].offset,
               planes[i].length);
     }
 
@@ -1033,7 +1033,7 @@ Stream *CameraDeviceSessionHwlImpl::GetStreamById(int32_t stream_id, PipelineInf
         return NULL;
 
     uint32_t stream_num = pInfo->streams->size();
-    for (int i = 0; i < stream_num; i++) {
+    for (uint32_t i = 0; i < stream_num; i++) {
         if (pInfo->streams->at(i).id == stream_id)
             return &pInfo->streams->at(i);
     }
@@ -1283,7 +1283,7 @@ uint64_t CameraDeviceSessionHwlImpl::GetTimestamp(libcamera::Request *request) {
             return frameBuffer->metadata().timestamp;
     }
 
-    ALOGW("!!! %s: unexpected, no valid frameBuffer in bufMap, size %d", __func__, bufMap.size());
+    ALOGW("!!! %s: unexpected, no valid frameBuffer in bufMap, size %lu", __func__, bufMap.size());
 
     return systemTime(SYSTEM_TIME_MONOTONIC);
 }
@@ -1355,18 +1355,18 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     result->physical_camera_results.reserve(0);
 
     if (mDebug) {
-        ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d, sequence %u",
+        ALOGI("%s: frame %d, output_buffers %lu, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %lu, sequence %u",
               __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
               (int)result->result_metadata->GetEntryCount(), request->buffers().size(),
               request->sequence());
     }
 
     std::vector<StreamBuffer> &output_buffers = hwReq->output_buffers;
-    for (int i = 0; i < hwReq->output_buffers.size(); i++) {
+    for (unsigned long i = 0; i < hwReq->output_buffers.size(); i++) {
         StreamBuffer *streamBuffer = &output_buffers[i];
         Stream *stream = GetStreamFromStreamBuffer(streamBuffer);
         if (stream == NULL) {
-            ALOGE("%s: unexptect!!! no stream found for outBuf %d", __func__, i);
+            ALOGE("%s: unexptect!!! no stream found for outBuf %lu", __func__, i);
             continue;
         }
 
@@ -1433,7 +1433,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
         }
     }
 
-    ALOGV("%s: mFrameBuffers size %d", __func__, mFrameBuffers.size());
+    ALOGV("%s: mFrameBuffers size %lu", __func__, mFrameBuffers.size());
 
     // Till now, always 1 frame, 1 request. But consider GCH interface
     // SubmitRequests(uint32_t frame_number, std::vector<HwlPipelineRequest> &requests),

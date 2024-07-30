@@ -1543,8 +1543,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         Stream stream = request_config.streams[i];
         ALOGI("%s, stream %d: id %d, type %d, res %dx%d, format 0x%x, usage 0x%llx, space 0x%x, "
               "rot %d, is_phy %d, phy_id %d, size %d",
-              __func__, i, stream.id, stream.stream_type, stream.width, stream.height,
-              stream.format, (unsigned long long)stream.usage, stream.data_space, stream.rotation,
+              __func__, i, stream.id, (int)stream.stream_type, stream.width, stream.height,
+              stream.format, (unsigned long long)stream.usage, stream.data_space, (int)stream.rotation,
               stream.is_physical_camera_stream, stream.physical_camera_id, stream.buffer_size);
 
         uint32_t mcamera_id =

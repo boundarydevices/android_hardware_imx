@@ -840,7 +840,7 @@ int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuf
 
     int sharedFd = bufferHandle->data[0];
     uint64_t phyAddr = GetPhyAddrFromBuffer(sharedFd);
-    ALOGV("%s, vaddr:%p,  phy:%p, size:%d\n", __func__, vaddr, (void *)phyAddr, allocatedSize);
+    ALOGV("%s, vaddr:%p,  phy:%p, size:%lu\n", __func__, vaddr, (void *)phyAddr, allocatedSize);
 
     outBufInfo.mFormat = format;
     outBufInfo.mWidth = width;
@@ -949,8 +949,7 @@ int GetBufferInfoFromHandle(buffer_handle_t bufferHandle, ImxImageBuffer &outBuf
 
     int sharedFd = bufferHandle->data[0];
     uint64_t phyAddr = GetPhyAddrFromBuffer(sharedFd);
-    ALOGV("%s: %d x %d, format=0x%x, vaddr:%p,  phy:%p, size:%d\n", __func__, vaddr,
-          (void *)phyAddr, allocatedSize);
+    ALOGV("%s: vaddr:%p,  phy:%p, size:%lu\n", __func__, vaddr, (void *)phyAddr, allocatedSize);
 
     outBufInfo.mFormat = format;
     outBufInfo.mWidth = (uint32_t)width;

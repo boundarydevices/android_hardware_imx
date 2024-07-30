@@ -317,7 +317,7 @@ void CameraProviderHwlImpl::cameraAdded(std::shared_ptr<libcamera::Camera> camer
 
     cameraIdMap_[camera] = cameraId_++;
 
-    ALOGI("%s: camera num %d", __func__, cameraIdMap_.size());
+    ALOGI("%s: camera num %lu", __func__, cameraIdMap_.size());
 
     return;
 }
@@ -334,7 +334,7 @@ void CameraProviderHwlImpl::cameraRemoved(std::shared_ptr<libcamera::Camera> cam
 
     cameraIdMap_.erase(camera);
 
-    ALOGI("%s: camera num %d", __func__, cameraIdMap_.size());
+    ALOGI("%s: camera num %lu", __func__, cameraIdMap_.size());
 
     return;
 }

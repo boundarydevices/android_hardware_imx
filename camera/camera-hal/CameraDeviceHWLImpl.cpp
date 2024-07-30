@@ -362,7 +362,7 @@ bool CameraDeviceHwlImpl::StreamCombJudge(const StreamConfiguration &stream_conf
                                           int *pPictureResolutions, int nPictureResolutionCount) {
     for (const auto &stream : stream_config.streams) {
         if (stream.stream_type != google_camera_hal::StreamType::kOutput) {
-            ALOGE("%s: only support stream type output, but it's %d", __func__, stream.stream_type);
+            ALOGE("%s: only support stream type output, but it's %d", __func__, (int)stream.stream_type);
             return false;
         }
 

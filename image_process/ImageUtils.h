@@ -48,7 +48,7 @@ typedef struct tag_imx_image_buffer {
                         // and resolution.
     buffer_handle_t buffer; // G2D need in lockSurface()
     float mZoomRatio; // just g2d/dpu support, set in source ImxImageBuffer
-    uint32_t mUsage;  // currently used to decide cache/un-cache.
+    uint64_t mUsage;  // currently used to decide cache/un-cache.
     void *mPrivate; // user context
 } ImxImageBuffer;
 
