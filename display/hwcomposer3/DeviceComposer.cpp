@@ -473,7 +473,6 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
 
 int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_t handle,
                                   common::Rect& rect) {
-    int alignWidth = 0, alignHeight = 0;
     struct g2d_surface& surface = surfaceX.base;
     HandleInfo info;
     if (handle == NULL || (getInfoFromHandle(handle, &info) != 0)) {
@@ -481,14 +480,7 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
         return -1;
     }
 
-    int ret = getAlignedSize(handle, NULL, &alignHeight);
-    if (ret != 0) {
-        alignHeight = info.height;
-    }
-
-    alignWidth = info.stride;
     surface.format = convertFormat(info.drm_format, handle);
-    surface.stride = alignWidth;
     enum g2d_tiling tile = G2D_LINEAR;
     getTiling(handle, &tile);
     if (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
@@ -516,15 +508,20 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
     switch (surface.format) {
         case G2D_RGB565:
         case G2D_YUYV:
+            surface.stride = info.strides[0] / 2; // convert to pixel stride
+            break;
         case G2D_RGBA8888:
         case G2D_BGRA8888:
         case G2D_RGBX8888:
         case G2D_BGRX8888:
+        case G2D_RGBA1010102:
+            surface.stride = info.strides[0] / 4; // convert to pixel stride
             break;
 
         case G2D_NV16:
         case G2D_NV12:
         case G2D_NV21:
+            surface.stride = info.strides[0];
             surface.planes[1] = surface.planes[0] + info.offsets[1];
             break;
 
