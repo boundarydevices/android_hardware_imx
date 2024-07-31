@@ -668,8 +668,8 @@ int ImageProcess::ConvertImageByG2DBlit(ImxImageBuffer &dstBuf, ImxImageBuffer &
             return ret;
         }
 
-        FreePhyBuffer(resizeBuf.buffer);
         mFinishEngine(g2dHandle);
+        FreePhyBuffer(resizeBuf.buffer);
     }
 
     return ret;
