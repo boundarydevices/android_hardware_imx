@@ -1,5 +1,5 @@
 /*
- *  Copyright 2023 NXP.
+ *  Copyright 2023-2024 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -61,14 +61,22 @@ func cameraDefaults(ctx android.LoadHookContext) {
 	}
 
 	if ctx.Config().VendorConfig("IMXPLUGIN").String("BOARD_SOC_TYPE") == "IMX95" {
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraProviderHWLImpl.cpp")
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraDeviceHWLImpl.cpp")
-		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraDeviceSessionHWLImpl.cpp")
+		if ctx.Config().VendorConfig("IMXPLUGIN").String("MEDIA_PIPELINE") == "NEOISP" {
+			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal-v2/CameraProviderHWLImpl.cpp")
+			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal-v2/CameraDeviceHWLImpl.cpp")
+			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal-v2/CameraDeviceSessionHWLImpl.cpp")
+			p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/imx/camera/camera-hal-v2")
+			p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/libcamera/prebuilt-android/include")
+		} else {
+			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraProviderHWLImpl.cpp")
+			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraDeviceHWLImpl.cpp")
+			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal/CameraDeviceSessionHWLImpl.cpp")
+			p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/imx/camera/camera-hal")
+			p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/libcamera/build/include")
+		}
 		p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libcamera")
 		p.Target.Android.Shared_libs = append(p.Target.Android.Shared_libs, "libcamera-base")
 		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/libcamera/include")
-		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/libcamera/build/include")
-		p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/imx/camera/camera-hal")
 	} else {
 		cppflags = append(cppflags, "-DISIMX8=1")
 		p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera/CameraProviderHWLImpl.cpp")
