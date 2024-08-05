@@ -831,7 +831,11 @@ HWC3::Error DrmClient::setBacklightBrightness(int displayId, float brightness) {
         ALOGI("%s: Avoid turning off backlight of low power display in APD side", __FUNCTION__);
         return HWC3::Error::None;
     }
+    if (brightness > 1e-5 && value == 0)
+        value = 1; // minimum value but not turn off
 
+    DEBUG_LOG("%s: display:%" PRIu32 " adjust brightness=%d(%f)", __FUNCTION__, displayId, value,
+              brightness);
     std::string bl = mBacklight.path + "/brightness";
     FILE* file = fopen(bl.c_str(), "w");
     if (!file) {
