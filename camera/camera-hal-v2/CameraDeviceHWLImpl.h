@@ -50,7 +50,8 @@ using namespace cameraconfigparser;
 class CameraDeviceHwlImpl : public CameraDeviceHwl {
 public:
     static std::unique_ptr<CameraDeviceHwl> Create(std::shared_ptr<libcamera::Camera> &camera,
-                                                   uint32_t camera_id, const char *hw_jpeg,
+                                                   uint32_t camera_id, ImxEngine cam_copy_hw,
+                                                   ImxEngine cam_csc_hw, const char *hw_jpeg,
                                                    int use_cpu_encoder,
                                                    CameraSensorMetadata *cam_metadata,
                                                    PhysicalDeviceMapPtr physical_devices,
@@ -100,7 +101,8 @@ public:
             RequestTemplate type, std::unique_ptr<HalCameraMetadata> *default_settings) override;
 
 protected:
-    CameraDeviceHwlImpl(uint32_t camera_id, const char *hw_jpeg, int use_cpu_encoder,
+    CameraDeviceHwlImpl(uint32_t camera_id, ImxEngine cam_copy_hw, ImxEngine cam_csc_hw,
+                        const char *hw_jpeg, int use_cpu_encoder,
                         CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices,
                         HwlCameraProviderCallback &callback);
     bool PickResByMetaData(int width, int height);
@@ -146,6 +148,8 @@ public:
 
     std::vector<std::shared_ptr<char *>> mDevPath;
 
+    ImxEngine mCamBlitCopyType;
+    ImxEngine mCamBlitCscType;
     char mJpegHw[JPEG_HW_NAME_LEN] = {0};
     int mUseCpuEncoder;
     CameraSensorMetadata mSensorData;

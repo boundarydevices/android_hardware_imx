@@ -29,16 +29,17 @@
 namespace android {
 
 std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
-        std::shared_ptr<libcamera::Camera> &camera, uint32_t camera_id, const char *hw_jpeg,
-        int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
-        PhysicalDeviceMapPtr physical_devices, HwlCameraProviderCallback &callback) {
+        std::shared_ptr<libcamera::Camera> &camera, uint32_t camera_id, ImxEngine cam_copy_hw,
+        ImxEngine cam_csc_hw, const char *hw_jpeg, int use_cpu_encoder,
+        CameraSensorMetadata *cam_metadata, PhysicalDeviceMapPtr physical_devices,
+        HwlCameraProviderCallback &callback) {
     ALOGI("%s: id %d, hw_jpeg %s, camera %p, %s", __func__, camera_id, hw_jpeg, camera.get(),
           camera->id().c_str());
 
     CameraDeviceHwlImpl *device = NULL;
 
-    device = new CameraDeviceHwlImpl(camera_id, hw_jpeg, use_cpu_encoder, cam_metadata,
-                                     std::move(physical_devices), callback);
+    device = new CameraDeviceHwlImpl(camera_id, cam_copy_hw, cam_csc_hw, hw_jpeg, use_cpu_encoder,
+                                     cam_metadata, std::move(physical_devices), callback);
 
     if (device == nullptr) {
         ALOGE("%s: Creating CameraDeviceHwlImpl failed.", __func__);
@@ -59,12 +60,15 @@ std::unique_ptr<CameraDeviceHwl> CameraDeviceHwlImpl::Create(
 }
 
 #define AP1302_95_NAME "/base/soc/bus@42000000/i2c@42530000/ap1302_mipi@3c"
-CameraDeviceHwlImpl::CameraDeviceHwlImpl(uint32_t camera_id, const char *hw_jpeg,
+CameraDeviceHwlImpl::CameraDeviceHwlImpl(uint32_t camera_id, ImxEngine cam_copy_hw,
+                                         ImxEngine cam_csc_hw, const char *hw_jpeg,
                                          int use_cpu_encoder, CameraSensorMetadata *cam_metadata,
                                          PhysicalDeviceMapPtr physical_devices,
                                          HwlCameraProviderCallback &callback)
       : camera_id_(camera_id),
         mCallback(callback),
+        mCamBlitCopyType(cam_copy_hw),
+        mCamBlitCscType(cam_csc_hw),
         mUseCpuEncoder(use_cpu_encoder),
         physical_device_map_(std::move(physical_devices)) {
     strncpy(mJpegHw, hw_jpeg, JPEG_HW_NAME_LEN);

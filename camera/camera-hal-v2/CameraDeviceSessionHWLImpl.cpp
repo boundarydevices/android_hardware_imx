@@ -161,6 +161,8 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
     mDeQueRequestIdx = 0;
 
     // Device may be destroyed after create session, need copy some members from device.
+    mCamBlitCopyType = pDev->mCamBlitCopyType;
+    mCamBlitCscType = pDev->mCamBlitCscType;
     memcpy(mJpegHw, pDev->mJpegHw, JPEG_HW_NAME_LEN);
     mUseCpuEncoder = pDev->mUseCpuEncoder;
     mSensorData = pDev->mSensorData;
@@ -1308,11 +1310,12 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2Outbuf(ImxStreamBuffer *srcBu
 
     if (mDebug) {
         ALOGI("%s: use %lu ms, src: virt %p, phy 0x%lx, size %dx%d, format 0x%x, dst: virt %p, phy "
-              "0x%lx, size %dx%d, format 0x%x",
+              "0x%lx, size %dx%d, format 0x%x, mCamBlitCopyType %d, mCamBlitCscType %d",
               __func__, (t2 - t1) / 1000000, srcBuf->mVirtAddr, srcBuf->mPhyAddr,
               srcBuf->mStream->width(), srcBuf->mStream->height(), srcBuf->mStream->format(),
               dstBuf->mVirtAddr, dstBuf->mPhyAddr, dstBuf->mStream->width(),
-              dstBuf->mStream->height(), dstBuf->mStream->format());
+              dstBuf->mStream->height(), dstBuf->mStream->format(), mCamBlitCopyType,
+              mCamBlitCscType);
     }
 
     DumpStream(srcBuf->mVirtAddr, srcBuf->mFormatSize, dstBuf->mVirtAddr, dstBuf->mFormatSize,
