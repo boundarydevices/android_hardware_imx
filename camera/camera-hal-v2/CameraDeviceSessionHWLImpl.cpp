@@ -1339,9 +1339,55 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2MultiOutbuf(
     }
 
     for (int i = 0; i < outBufSize; i++) {
-        int status = ProcessCapbuf2Outbuf(srcBuf, output_buffers[i], outFences[i], requestMeta);
+        ImxStreamBuffer *srcBufTmp = srcBuf;
+        int sameResIdx = -1;
+        int sameResFmtIdx = -1;
+        Stream *pStreamSameRes = NULL;
+        Stream *pStreamSameResFmt = NULL;
+
+        // found if there's same res/fmt or same res processed output buffer.
+        if (i > 0) {
+            Stream *pCurStream = GetStreamFromStreamBuffer(&output_buffers[i]);
+            for (int j = 0; j < i; j++) {
+                Stream *pPreStream = GetStreamFromStreamBuffer(&output_buffers[j]);
+                if ((pCurStream == NULL) || (pPreStream == NULL)) {
+                    ALOGE("%s: unexpected, pCurStream %p, idx %d,  pPreStream %p, idx %d", __func__,
+                          pCurStream, pPreStream, i, j);
+                    return BAD_VALUE;
+                }
+
+                if ((pCurStream->width == pPreStream->width) &&
+                    (pCurStream->height == pPreStream->height)) {
+                    sameResIdx = j;
+                    pStreamSameRes = pPreStream;
+                    if (pCurStream->format == pPreStream->format) {
+                        sameResFmtIdx = j;
+                        pStreamSameResFmt = pPreStream;
+                    }
+                }
+            }
+
+            if (mDebug)
+                ALOGI("%s: current output buffer idx %d, sameResIdx %d, sameResFmtIdx %d", __func__, i,
+                      sameResIdx, sameResFmtIdx);
+
+            if (sameResFmtIdx >= 0)
+                srcBufTmp =
+                        CreateImxStreamBufferFromBufferHandle(output_buffers[sameResFmtIdx].buffer,
+                                                              pStreamSameResFmt);
+            else if (sameResIdx >= 0)
+                srcBufTmp = CreateImxStreamBufferFromBufferHandle(output_buffers[sameResIdx].buffer,
+                                                                  pStreamSameRes);
+            else
+                srcBufTmp = srcBuf;
+        }
+
+        int status = ProcessCapbuf2Outbuf(srcBufTmp, output_buffers[i], outFences[i], requestMeta);
         if (status)
             ret = BAD_VALUE;
+
+        if (srcBufTmp != srcBuf)
+            ReleaseImxStreamBuffer(srcBufTmp);
     }
 
     return ret;
