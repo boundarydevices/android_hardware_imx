@@ -771,37 +771,41 @@ HWC3::Error DrmClient::setSecureMode(int displayId, uint32_t planeId, bool secur
 }
 
 int DrmClient::loadBacklightDevices() {
-    char dev[PROPERTY_VALUE_MAX];
-    std::string filePath;
+    struct dirent** dirEntry;
     std::string path("/sys/class/backlight/");
-
-    property_get("vendor.hw.backlight.dev", dev, "pwm-backlight");
-    filePath = path + dev + "/max_brightness";
+    int count = -1;
     mBacklight.path = "";
+    mBacklight.maxBrightness = -1;
 
-    FILE* file = fopen(filePath.c_str(), "r");
-    if (!file) {
-        property_get("vendor.hw.backlight_backup.dev", dev, "pwm-backlight");
-        filePath = path + dev + "/max_brightness";
-        file = fopen(filePath.c_str(), "r");
+    count = scandir(path.c_str(), &dirEntry, 0, alphasort);
+    if (count < 0) {
+        ALOGE("%s: Cannot find any backlight device in '%s'", __FUNCTION__, path.c_str());
     }
-    if (!file) {
-        mBacklight.maxBrightness = -1;
-        ALOGE("%s: Cannot get backlight device or incorrect setting", __FUNCTION__);
-    } else {
+    for (int i = 0; i < count; i++) {
+        std::string filePath = path + dirEntry[i]->d_name + "/max_brightness";
+        FILE* file = fopen(filePath.c_str(), "r");
+        if (!file) {
+            free(dirEntry[i]);
+            continue;
+        }
+
         char value[5];
         size_t bytesRead = fread(value, 1, 4, file);
         if (bytesRead == 0) {
             ALOGE("%s: Error reading max brightness from %s", __FUNCTION__, filePath.c_str());
-            mBacklight.maxBrightness = -1;
+            fclose(file);
+            free(dirEntry[i]);
+            continue;
         } else {
             value[4] = '\0';
             mBacklight.maxBrightness = atoi(value);
             ALOGI("%s: get max brightness=%d from %s", __FUNCTION__, mBacklight.maxBrightness,
                   filePath.c_str());
         }
-        mBacklight.path = path + dev;
+        mBacklight.path = path + dirEntry[i]->d_name;
         fclose(file);
+        for (; i < count; i++) free(dirEntry[i]); // free other dirEntrys
+        break;
     }
 
     if (mBacklight.maxBrightness > 0) {
