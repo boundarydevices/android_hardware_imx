@@ -171,6 +171,14 @@ status_t CameraDeviceSessionHwlImpl::Initialize(uint32_t camera_id,
     else
         m_libcamera_stream_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
+    if (strstr(mSensorData.camera_name, "os08a20")) {
+        m_libcamera_stream_width = OS08A20_SENSOR_WIDTH;
+        m_libcamera_stream_height = OS08A20_SENSOR_HEIGHT;
+    } else {
+        m_libcamera_stream_width = AP1302_SENSOR_WIDTH;
+        m_libcamera_stream_height = AP1302_SENSOR_HEIGHT;
+    }
+
     mPreviewResolutionCount = pDev->mPreviewResolutionCount;
     memcpy(mPreviewResolutions, pDev->mPreviewResolutions, MAX_RESOLUTION_SIZE * sizeof(int));
     mPictureResolutionCount = pDev->mPictureResolutionCount;
@@ -707,8 +715,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     // config libcamera with 1 stream
     libcamera::StreamConfiguration cfg;
     cfg.bufferCount = LIBCAM_STREAM_BUFNUM;
-    cfg.size.width = LIBCAM_STREAM_WIDTH;
-    cfg.size.height = LIBCAM_STREAM_HEIGHT;
+    cfg.size.width = m_libcamera_stream_width;
+    cfg.size.height = m_libcamera_stream_height;
     cfg.pixelFormat = HalFromat2PixelFormat(m_libcamera_stream_format);
     camCfg->addConfiguration(cfg);
 
@@ -738,15 +746,15 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         // ??? fix me
         uint64_t usage = GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_SW_READ_OFTEN |
                 GRALLOC_USAGE_PRIVATE_3;
-        auto status =
-                GraphicBufferAllocator::get().allocate(LIBCAM_STREAM_WIDTH, LIBCAM_STREAM_HEIGHT,
-                                                       m_libcamera_stream_format,
-                                                       /*layerCount=*/1, usage, &hnd, &bufferStride,
-                                                       "NxpCamera");
+        auto status = GraphicBufferAllocator::get().allocate(m_libcamera_stream_width,
+                                                             m_libcamera_stream_height,
+                                                             m_libcamera_stream_format,
+                                                             /*layerCount=*/1, usage, &hnd,
+                                                             &bufferStride, "NxpCamera");
         if (status != ::android::OK) {
             ALOGE("%s: failed to allocate buffer:%d x %d, format=%x, usage=%lx, ret=%d", __func__,
-                  LIBCAM_STREAM_WIDTH, LIBCAM_STREAM_HEIGHT, m_libcamera_stream_format, usage,
-                  status);
+                  m_libcamera_stream_width, m_libcamera_stream_height, m_libcamera_stream_format,
+                  usage, status);
             return BAD_VALUE;
         }
 
@@ -1488,8 +1496,8 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     uint64_t usage = GRALLOC_USAGE_PRIVATE_3 | GRALLOC_USAGE_HW_CAMERA_WRITE;
     Stream stream;
     memset(&stream, 0, sizeof(stream));
-    stream.width = LIBCAM_STREAM_WIDTH;
-    stream.height = LIBCAM_STREAM_HEIGHT;
+    stream.width = m_libcamera_stream_width;
+    stream.height = m_libcamera_stream_height;
     stream.format = m_libcamera_stream_format;
     stream.usage = usage;
     stream.id = 0;

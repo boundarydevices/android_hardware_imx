@@ -166,14 +166,37 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     availFormats[index++] = v4l2_fourcc('N', 'V', '2', '1');
     mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
-    // int resCandidate[] = {176, 144, 320, 240, 640, 480, 1280, 720, 1280, 800};
-    int resCandidate[] = {320, 240, 640, 480, 1280, 720, 1280, 800, 1920, 1080};
+    int resCandidatePreview_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080};
+    int resCandidatePicture_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080};
 
-    mPreviewResolutionCount = ARRAY_SIZE(resCandidate);
-    memcpy(mPreviewResolutions, resCandidate, mPreviewResolutionCount * sizeof(int));
+    int resCandidatePreview_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
+    int resCandidatePicture_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
 
-    mPictureResolutionCount = ARRAY_SIZE(resCandidate);
-    memcpy(mPictureResolutions, resCandidate, mPictureResolutionCount * sizeof(int));
+    if (strstr(mSensorData.camera_name, "os08a20")) {
+        mPreviewResolutionCount = ARRAY_SIZE(resCandidatePreview_os08a20) < MAX_RESOLUTION_SIZE
+                ? ARRAY_SIZE(resCandidatePreview_os08a20)
+                : MAX_RESOLUTION_SIZE;
+        memcpy(mPreviewResolutions, resCandidatePreview_os08a20,
+               mPreviewResolutionCount * sizeof(int));
+
+        mPictureResolutionCount = ARRAY_SIZE(resCandidatePicture_os08a20) < MAX_RESOLUTION_SIZE
+                ? ARRAY_SIZE(resCandidatePicture_os08a20)
+                : MAX_RESOLUTION_SIZE;
+        memcpy(mPictureResolutions, resCandidatePicture_os08a20,
+               mPictureResolutionCount * sizeof(int));
+    } else {
+        mPreviewResolutionCount = ARRAY_SIZE(resCandidatePreview_ap1302) < MAX_RESOLUTION_SIZE
+                ? ARRAY_SIZE(resCandidatePreview_ap1302)
+                : MAX_RESOLUTION_SIZE;
+        memcpy(mPreviewResolutions, resCandidatePreview_ap1302,
+               mPreviewResolutionCount * sizeof(int));
+
+        mPictureResolutionCount = ARRAY_SIZE(resCandidatePicture_ap1302) < MAX_RESOLUTION_SIZE
+                ? ARRAY_SIZE(resCandidatePicture_ap1302)
+                : MAX_RESOLUTION_SIZE;
+        memcpy(mPictureResolutions, resCandidatePicture_ap1302,
+               mPictureResolutionCount * sizeof(int));
+    }
 
     int i;
     for (i = 0; i < MAX_RESOLUTION_SIZE && i < mPictureResolutionCount; i += 2) {
@@ -185,10 +208,18 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
         ALOGI("SupportedPreviewSizes: %d x %d", mPreviewResolutions[i], mPreviewResolutions[i + 1]);
     }
 
-    int fpsRange[] = {10, 30, 15, 30, 30, 30};
-    int rangeCount = ARRAY_SIZE(fpsRange);
-    mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
-    memcpy(mTargetFpsRange, fpsRange, mFpsRangeCount * sizeof(int));
+    int fpsRange_os08a20[] = {10, 30, 15, 30, 30, 30};
+    int fpsRange_ap1302[] = {10, 30, 15, 30, 30, 30, 15, 60, 60, 60};
+
+    if (strstr(mSensorData.camera_name, "os08a20")) {
+        int rangeCount = ARRAY_SIZE(fpsRange_os08a20);
+        mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+        memcpy(mTargetFpsRange, fpsRange_os08a20, mFpsRangeCount * sizeof(int));
+    } else {
+        int rangeCount = ARRAY_SIZE(fpsRange_ap1302);
+        mFpsRangeCount = rangeCount <= MAX_FPS_RANGE ? rangeCount : MAX_FPS_RANGE;
+        memcpy(mTargetFpsRange, fpsRange_ap1302, mFpsRangeCount * sizeof(int));
+    }
 
     setMaxPictureResolutions();
     ALOGI("mMaxWidth:%d, mMaxHeight:%d", mMaxWidth, mMaxHeight);
@@ -365,7 +396,8 @@ bool CameraDeviceHwlImpl::StreamCombJudge(const StreamConfiguration &stream_conf
                                           int *pPictureResolutions, int nPictureResolutionCount) {
     for (const auto &stream : stream_config.streams) {
         if (stream.stream_type != google_camera_hal::StreamType::kOutput) {
-            ALOGE("%s: only support stream type output, but it's %d", __func__, stream.stream_type);
+            ALOGE("%s: only support stream type output, but it's %d", __func__,
+                  (int)stream.stream_type);
             return false;
         }
 
