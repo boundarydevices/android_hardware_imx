@@ -144,6 +144,7 @@ const char* const kGivenResHeightKey = "height";
 #define ENGINE_PXP "PXP"
 #define ENGINE_DPU "DPU"
 #define ENGINE_CPU "CPU"
+#define ENGINE_BYPASS "BYPASS"
 
 #define MAX_SENSOR_WIDTH INT_MAX
 #define MAX_SENSOR_HEIGHT INT_MAX
@@ -194,6 +195,8 @@ ImxEngine ValueToImxEngine(const std::string& value) {
         engine = ENG_IPU;
     } else if (value == ENGINE_CPU) {
         engine = ENG_CPU;
+    } else if (value == ENGINE_BYPASS) {
+        engine = ENG_BYPASS;
     }
 
     return engine;

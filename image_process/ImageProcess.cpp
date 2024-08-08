@@ -267,6 +267,9 @@ void ImageProcess::getModule(char *path, const char *name) {
 int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, ImxEngine engine) {
     int ret = 0;
 
+    if (engine == ENG_BYPASS)
+        return 0;
+
     if (!((engine == ENG_NOTCARE) || (engine >= ENG_MIN && engine < ENG_NUM))) {
         ALOGE("%s: invalid engine %d", __func__, engine);
         return -EINVAL;

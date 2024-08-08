@@ -40,6 +40,7 @@ enum ImxEngine {
     ENG_IPU,
     ENG_PXP,
     ENG_CPU,
+    ENG_BYPASS,
     ENG_NUM
 };
 
