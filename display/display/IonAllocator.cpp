@@ -32,6 +32,8 @@
 
 namespace fsl {
 
+static const size_t kPageSize = getpagesize();
+
 IonAllocator* IonAllocator::sInstance(0);
 Mutex IonAllocator::sLock(Mutex::PRIVATE);
 
@@ -154,7 +156,7 @@ int IonAllocator::allocMemory(int size, int align, int flags) {
     // VPU decoder needs 32k physical address alignment.
     // But align parameter can't take effect to ensure alignment.
     // And ION driver also can't ensure physical address alignment.
-    size = (size + (PAGE_SIZE << 3)) & (~((PAGE_SIZE << 3) - 1));
+    size = (size + (kPageSize << 3)) & (~((kPageSize << 3) - 1));
     ret = ion_alloc_fd(mIonFd, size, align, heapIds, ion_flags, &fd);
     if (ret != 0) {
         ALOGE("ion_alloc failed 0x%08X", ret);

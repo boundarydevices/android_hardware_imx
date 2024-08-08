@@ -23,6 +23,8 @@
 
 namespace android {
 
+static const size_t kPageSize = getpagesize();
+
 DMAStream::DMAStream(CameraDeviceSessionHwlImpl *pSession) : MMAPStream(pSession), mStreamSize(0) {
     mV4l2MemType = V4L2_MEMORY_DMABUF;
     mPlane = false;
@@ -229,7 +231,7 @@ int32_t DMAStream::allocateBuffersLocked() {
         return BAD_VALUE;
     }
 
-    int32_t memSize = (size + PAGE_SIZE) & (~(PAGE_SIZE - 1));
+    int32_t memSize = (size + kPageSize) & (~(kPageSize - 1));
 
     ALOGI("allocate buffer num:%d", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {

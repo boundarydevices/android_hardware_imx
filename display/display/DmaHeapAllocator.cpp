@@ -28,6 +28,8 @@
 
 namespace fsl {
 
+static const size_t kPageSize = getpagesize();
+
 DmaHeapAllocator* DmaHeapAllocator::sInstance(0);
 Mutex DmaHeapAllocator::sLock(Mutex::PRIVATE);
 
@@ -68,7 +70,7 @@ int DmaHeapAllocator::allocMemory(int size, int align, int flags) {
 
     // VPU decoder needs 32k physical address alignment.
     // But align parameter can't take effect to ensure alignment.
-    size = (size + (PAGE_SIZE << 3)) & (~((PAGE_SIZE << 3) - 1));
+    size = (size + (kPageSize << 3)) & (~((kPageSize << 3) - 1));
     // contiguous memory includes cacheable/non-cacheable.
     if (flags & MFLAGS_SECURE) {
         fd = DmabufHeapAlloc(mBufferAllocator, "secure", size, 0, 0);
