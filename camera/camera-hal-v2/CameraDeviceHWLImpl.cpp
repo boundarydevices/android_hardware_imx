@@ -386,9 +386,10 @@ bool CameraDeviceHwlImpl::FoundResoulution(int width, int height, int *resArray,
     return false;
 }
 
-bool CameraDeviceHwlImpl::IsStreamCombinationSupported(const StreamConfiguration &stream_config) {
-    return StreamCombJudge(stream_config, mPreviewResolutions, mPreviewResolutionCount,
-                           mPictureResolutions, mPictureResolutionCount);
+// fix me, check_settings not used
+bool CameraDeviceHwlImpl::IsStreamCombinationSupported(const StreamConfiguration &stream_config, const bool check_settings) const {
+    return StreamCombJudge(stream_config, (int *)mPreviewResolutions, mPreviewResolutionCount,
+                           (int *)mPictureResolutions, mPictureResolutionCount);
 }
 
 bool CameraDeviceHwlImpl::StreamCombJudge(const StreamConfiguration &stream_config,
@@ -433,4 +434,10 @@ status_t CameraDeviceHwlImpl::ConstructDefaultRequestSettings(
     return m_meta->getRequestSettings(type, default_settings);
 }
 
+// fix me. just return ok to pass build.
+status_t CameraDeviceHwlImpl::GetSessionCharacteristics(
+      const StreamConfiguration& session_config,
+      std::unique_ptr<HalCameraMetadata>& characteristics) const {
+    return OK;
+}
 } // namespace android

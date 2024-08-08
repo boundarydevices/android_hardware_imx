@@ -297,7 +297,7 @@ status_t CameraProviderHwlImpl::IsConcurrentStreamCombinationSupported(
         }
 
         bool bSupport;
-        bSupport = pCamera->IsStreamCombinationSupported(config.stream_configuration);
+        bSupport = pCamera->IsStreamCombinationSupported(config.stream_configuration, true);
         if (bSupport == false) {
             ALOGE("%s: stream config not supported by camera %d", __func__, config.camera_id);
             return BAD_VALUE;

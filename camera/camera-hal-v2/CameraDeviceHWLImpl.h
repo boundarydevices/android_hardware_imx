@@ -84,7 +84,7 @@ public:
 
     std::shared_ptr<libcamera::Camera> &GetCamera() { return camera_; };
 
-    bool IsStreamCombinationSupported(const StreamConfiguration &stream_config) override;
+    bool IsStreamCombinationSupported(const StreamConfiguration &stream_config, const bool check_settings) const override;
 
     // End of override functions in CameraDeviceHwl.
 
@@ -99,6 +99,10 @@ public:
     // Override functions in CameraDeviceHwl
     status_t ConstructDefaultRequestSettings(
             RequestTemplate type, std::unique_ptr<HalCameraMetadata> *default_settings) override;
+
+    status_t GetSessionCharacteristics(
+      const StreamConfiguration& session_config,
+      std::unique_ptr<HalCameraMetadata>& characteristics) const override;
 
 protected:
     CameraDeviceHwlImpl(uint32_t camera_id, ImxEngine cam_copy_hw, ImxEngine cam_csc_hw,
