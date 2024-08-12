@@ -527,7 +527,7 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
     // rotation limitation
     if (layer->getTransform() != common::Transform::NONE) {
         DEBUG_LOG("%s: layer %" PRId64 " transform(%d) check failed", __FUNCTION__, layer->getId(),
-                  layer->getTransform());
+                  static_cast<int>(layer->getTransform()));
         return HWC3::Error::Unsupported;
     }
 

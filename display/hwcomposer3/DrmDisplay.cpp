@@ -543,10 +543,15 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
         newConfig.modeWidth = activeConfig.width;
         newConfig.modeHeight = activeConfig.height;
 
-        // previous maximum config Id = mStartConfigId + configs->size() - 1
-        mActiveConfigId = mStartConfigId + configs->size();
+        uint32_t id_max = 0;
+        for (auto& [id, cfg] : *configs) {
+            if (id > id_max)
+                id_max = id;
+        }
+
+        mActiveConfigId = mStartConfigId + id_max + 1;
         mInitActiveConfigId = mActiveConfigId;
-        configs->emplace(mStartConfigId + configs->size(), newConfig);
+        configs->emplace(mActiveConfigId, newConfig);
         DEBUG_LOG("%s: Add new config:%d x %d, fps=%d, mode=%d x %d", __FUNCTION__, newConfig.width,
                   newConfig.height, newConfig.refreshRateHz, newConfig.modeWidth,
                   newConfig.modeHeight);

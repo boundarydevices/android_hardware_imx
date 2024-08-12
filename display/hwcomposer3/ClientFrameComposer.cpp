@@ -664,7 +664,7 @@ HWC3::Error ClientFrameComposer::setPowerMode(Display* display, PowerMode mode) 
     auto err = client->setPowerMode(displayId, power);
     if (err != HWC3::Error::None) {
         ALOGE("%s: display:%" PRIu64 " failed to set power mode:%d" PRIu64, __FUNCTION__, displayId,
-              mode);
+              static_cast<int>(mode));
     }
 
     return HWC3::Error::None;

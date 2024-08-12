@@ -420,7 +420,8 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
             DEBUG_LOG_G2D("zorder:0x%x, phys:0x%" PRIx64, layer->getZOrder(), layerInfo.phys);
         }
 
-        DEBUG_LOG_G2D("transform:0x%x, blend:0x%x, alpha:0x%x", transform, mode, alpha);
+        DEBUG_LOG_G2D("transform:0x%x, blend:0x%x, alpha:0x%x",
+                      static_cast<unsigned int>(transform), static_cast<unsigned int>(mode), alpha);
 
         setG2dSurface(dSurfaceX, mTarget, drect);
 
@@ -866,7 +867,10 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
 
     auto layerBuffer = layer->getBuffer().getBuffer();
     HandleInfo info;
-    if (layerBuffer == NULL || (getInfoFromHandle(layerBuffer, &info) != 0)) {
+    if (layerBuffer == NULL) { // support device composition for SOLID_COLOR layer
+        return true;
+    } else if (getInfoFromHandle(layerBuffer, &info) != 0) {
+        ALOGE("%s: fail to get buffer infomation", __FUNCTION__);
         return false;
     }
 
