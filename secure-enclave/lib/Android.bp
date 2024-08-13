@@ -1,0 +1,19 @@
+// Copyright 2024 NXP
+//
+
+// Add shared library
+cc_library_static {
+    name: "libsecureenlave",
+    vendor_available: true,
+    srcs: [
+        "EleOperation.cpp",
+    ],
+    shared_libs: [
+        "liblog",
+    ],
+    export_include_dirs: ["include"],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}

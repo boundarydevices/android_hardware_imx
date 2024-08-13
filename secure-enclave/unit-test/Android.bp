@@ -1,0 +1,22 @@
+// Copyright 2024 NXP
+//
+
+cc_binary {
+    name: "secure-enclave-unittest",
+    relative_install_path: "hw",
+    vendor: true,
+    shared_libs: [
+        "liblog",
+    ],
+    static_libs: [
+        "libsecureenlave",
+    ],
+    srcs: [
+        "Test.cpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}
+
