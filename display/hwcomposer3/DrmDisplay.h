@@ -153,6 +153,7 @@ private:
     std::vector<uint32_t> mPlaneIdPool;
     bool mModeSet = true;
     int32_t mOverlayMaxZpos = 0;
+    uint32_t mCommitRetryCnt = MAX_COMMIT_RETRY_COUNT;
 
     uint32_t mHdrMetadataBlobId = 0;
 #ifdef DEBUG_DUMP_REFRESH_RATE

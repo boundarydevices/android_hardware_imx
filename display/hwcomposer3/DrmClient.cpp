@@ -686,7 +686,18 @@ HWC3::Error DrmClient::resetDisplayConfig(int displayId) {
         return HWC3::Error::BadDisplay;
     }
 
+    uint32_t width, height, pre_width, pre_height, format;
+    mDisplays[displayId]->getFramebufferInfo(&pre_width, &pre_height, &format);
+
     mDisplays[displayId]->resetDisplayConfig();
+
+    mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
+    if (((pre_width != width) || (pre_height != height)) &&
+        mComposerTargets.find(displayId) != mComposerTargets.end()) {
+        // need to free device composer target buffers when resolution changed
+        mComposerTargets[displayId].valid = false;
+    }
+
     return HWC3::Error::None;
 }
 
