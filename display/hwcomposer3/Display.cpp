@@ -904,7 +904,7 @@ HWC3::Error Display::present(
     switch (mPresentFlowState) {
         case PresentFlowState::WAITING_FOR_VALIDATE: {
             ALOGE("%s: display %" PRId64 " failed, not validated", __FUNCTION__, mId);
-            return HWC3::Error::NotValidated;
+            break;
         }
         case PresentFlowState::WAITING_FOR_ACCEPT: {
             ALOGW("%s: display %" PRId64 ", changes not accepted", __FUNCTION__, mId);
