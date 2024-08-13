@@ -1,0 +1,22 @@
+// Copyright 2024 NXP
+//
+
+cc_binary {
+    name: "nvmd",
+    vendor: true,
+    relative_install_path: "hw",
+    init_rc: ["nvmd.imx.rc"],
+    srcs: [
+        "nvmd.cpp",
+    ],
+    shared_libs: [
+        "liblog",
+    ],
+    static_libs: [
+        "libsecureenlave",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}

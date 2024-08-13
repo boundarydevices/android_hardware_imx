@@ -1,0 +1,5 @@
+service nvmd /vendor/bin/hw/nvmd
+    user system
+    group system
+    disabled
+    oneshot
