@@ -789,10 +789,7 @@ int ImageProcess::convertNV12toNV21(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
         memcpy(dstOut, srcIn, size);
     }
 
-    for (int k = 0; k < UVsize / 2; k++) {
-        __asm volatile("rev16 %w0, %w0" : "+r"(*UVout));
-        UVout += 1;
-    }
+    Revert16BitEndian((uint8_t *)UVout, (uint8_t *)UVout, UVsize / 2);
 
     return 0;
 }
