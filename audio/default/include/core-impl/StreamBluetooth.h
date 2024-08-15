@@ -41,6 +41,8 @@ class StreamBluetooth : public StreamCommonImpl {
             const std::shared_ptr<::android::bluetooth::audio::aidl::BluetoothAudioPortAidl>&
                     btDeviceProxy,
             const ::aidl::android::hardware::bluetooth::audio::PcmConfiguration& pcmConfig);
+    ~StreamBluetooth();
+
     // Methods of 'DriverInterface'.
     ::android::status_t init() override;
     ::android::status_t drain(StreamDescriptor::DrainMode) override;

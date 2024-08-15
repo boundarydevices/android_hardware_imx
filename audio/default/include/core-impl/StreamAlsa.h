@@ -32,6 +32,8 @@ namespace aidl::android::hardware::audio::core {
 class StreamAlsa : public StreamCommonImpl {
   public:
     StreamAlsa(StreamContext* context, const Metadata& metadata, int readWriteRetries);
+    ~StreamAlsa();
+
     // Methods of 'DriverInterface'.
     ::android::status_t init() override;
     ::android::status_t drain(StreamDescriptor::DrainMode) override;

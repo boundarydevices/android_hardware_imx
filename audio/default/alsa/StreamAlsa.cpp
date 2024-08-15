@@ -37,6 +37,10 @@ StreamAlsa::StreamAlsa(StreamContext* context, const Metadata& metadata, int rea
       mConfig(alsa::getPcmConfig(getContext(), mIsInput)),
       mReadWriteRetries(readWriteRetries) {}
 
+StreamAlsa::~StreamAlsa() {
+    cleanupWorker();
+}
+
 ::android::status_t StreamAlsa::init() {
     return mConfig.has_value() ? ::android::OK : ::android::NO_INIT;
 }

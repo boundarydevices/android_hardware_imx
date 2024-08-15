@@ -43,6 +43,10 @@ StreamRemoteSubmix::StreamRemoteSubmix(StreamContext* context, const Metadata& m
     mStreamConfig.sampleRate = context->getSampleRate();
 }
 
+StreamRemoteSubmix::~StreamRemoteSubmix() {
+    cleanupWorker();
+}
+
 ::android::status_t StreamRemoteSubmix::init() {
     mCurrentRoute = SubmixRoute::findOrCreateRoute(mDeviceAddress, mStreamConfig);
     if (mCurrentRoute == nullptr) {

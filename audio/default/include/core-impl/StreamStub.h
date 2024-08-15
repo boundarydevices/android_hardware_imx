@@ -23,6 +23,8 @@ namespace aidl::android::hardware::audio::core {
 class StreamStub : public StreamCommonImpl {
   public:
     StreamStub(StreamContext* context, const Metadata& metadata);
+    ~StreamStub();
+
     // Methods of 'DriverInterface'.
     ::android::status_t init() override;
     ::android::status_t drain(StreamDescriptor::DrainMode) override;

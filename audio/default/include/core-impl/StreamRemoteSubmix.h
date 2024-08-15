@@ -29,7 +29,9 @@ class StreamRemoteSubmix : public StreamCommonImpl {
     StreamRemoteSubmix(
             StreamContext* context, const Metadata& metadata,
             const ::aidl::android::media::audio::common::AudioDeviceAddress& deviceAddress);
+    ~StreamRemoteSubmix();
 
+    // Methods of 'DriverInterface'.
     ::android::status_t init() override;
     ::android::status_t drain(StreamDescriptor::DrainMode) override;
     ::android::status_t flush() override;

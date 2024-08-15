@@ -39,6 +39,10 @@ StreamStub::StreamStub(StreamContext* context, const Metadata& metadata)
       mIsAsynchronous(!!getContext().getAsyncCallback()),
       mIsInput(isInput(metadata)) {}
 
+StreamStub::~StreamStub() {
+    cleanupWorker();
+}
+
 ::android::status_t StreamStub::init() {
     mIsInitialized = true;
     return ::android::OK;

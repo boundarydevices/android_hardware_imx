@@ -29,6 +29,7 @@ namespace aidl::android::hardware::audio::core {
 class StreamUsb : public StreamAlsa {
   public:
     StreamUsb(StreamContext* context, const Metadata& metadata);
+
     // Methods of 'DriverInterface'.
     ::android::status_t transfer(void* buffer, size_t frameCount, size_t* actualFrameCount,
                                  int32_t* latencyMs) override;

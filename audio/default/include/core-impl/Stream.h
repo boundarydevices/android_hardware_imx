@@ -450,6 +450,11 @@ class StreamCommonImpl : virtual public StreamCommonInterface, virtual public Dr
     }
 
     virtual void onClose(StreamDescriptor::State statePriorToClosing) = 0;
+    // Any stream class implementing 'DriverInterface::shutdown' must call 'cleanupWorker' in
+    // the destructor in order to stop and join the worker thread in the case when the client
+    // has not called 'IStreamCommon::close' method.
+    void cleanupWorker();
+    void stopAndJoinWorker();
     void stopWorker();
 
     const StreamContext& mContext;
@@ -457,6 +462,9 @@ class StreamCommonImpl : virtual public StreamCommonInterface, virtual public Dr
     std::unique_ptr<StreamWorkerInterface> mWorker;
     ChildInterface<StreamCommonDelegator> mCommon;
     ConnectedDevices mConnectedDevices;
+
+  private:
+    std::atomic<bool> mWorkerStopIssued = false;
 };
 
 // Note: 'StreamIn/Out' can not be used on their own. Instead, they must be used for defining

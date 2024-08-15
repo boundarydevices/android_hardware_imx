@@ -66,6 +66,10 @@ StreamBluetooth::StreamBluetooth(StreamContext* context, const Metadata& metadat
                                                  1000),
       mBtDeviceProxy(btDeviceProxy) {}
 
+StreamBluetooth::~StreamBluetooth() {
+    cleanupWorker();
+}
+
 ::android::status_t StreamBluetooth::init() {
     std::lock_guard guard(mLock);
     if (mBtDeviceProxy == nullptr) {
