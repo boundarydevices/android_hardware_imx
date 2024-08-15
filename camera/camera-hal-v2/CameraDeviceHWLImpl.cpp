@@ -167,7 +167,7 @@ status_t CameraDeviceHwlImpl::initSensorStaticData() {
     mAvailableFormatCount = changeSensorFormats(availFormats, mAvailableFormats, index);
 
     int resCandidatePreview_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080};
-    int resCandidatePicture_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080};
+    int resCandidatePicture_os08a20[] = {320, 240, 640, 480, 1280, 720, 1920, 1080, 3840, 2160};
 
     int resCandidatePreview_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
     int resCandidatePicture_ap1302[] = {320, 240, 640, 480, 1280, 720, 1280, 800};
