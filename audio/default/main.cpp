@@ -71,6 +71,7 @@ int main() {
     // For more logs, use VERBOSE, however this may hinder performance.
     // android::base::SetMinimumLogSeverity(::android::base::VERBOSE);
     ABinderProcess_setThreadPoolMaxThreadCount(16);
+    ABinderProcess_startThreadPool();
 
     // Guaranteed log for b/210919187 and logd_integration_test
     LOG(INFO) << "Init for Audio AIDL HAL";
