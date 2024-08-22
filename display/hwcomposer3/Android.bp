@@ -38,7 +38,7 @@ soong_config_string_variable {
 
 soong_config_string_variable {
     name: "g2d_ip",
-    values: ["DPU", "VIV"],
+    values: ["DPU", "VIV", "PXP"],
 }
 
 hwc_config_cc_defaults {
@@ -58,6 +58,9 @@ hwc_config_cc_defaults {
             },
             VIV: {
                 cflags: ["-DG2D_LIMITATION_VIV"],
+            },
+            PXP: {
+                cflags: ["-DG2D_LIMITATION_PXP"],
             },
         },
     },

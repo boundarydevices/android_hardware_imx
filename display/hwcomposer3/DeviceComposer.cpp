@@ -874,6 +874,7 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
         return false;
     }
 
+#ifndef G2D_LIMITATION_PXP
     if (layer->getCompositionType() == Composition::CLIENT) {
         DEBUG_LOG("%s: Not process type=CLIENT layer", __FUNCTION__);
         return false;
@@ -890,6 +891,7 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
         DEBUG_LOG("%s: g2d can't support rotation", __FUNCTION__);
         return false;
     }
+#endif
 
 #ifdef G2D_LIMITATION_VIV
     if (info.drm_format == DRM_FORMAT_ABGR2101010) {
