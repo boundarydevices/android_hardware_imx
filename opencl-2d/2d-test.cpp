@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 NXP.
+ * Copyright 2018-2024 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1441,17 +1441,17 @@ int main(int argc, char **argv) {
     // g2d engine
     if (G2dHandle != NULL) {
         ALOGI("Start g2d engine blit, in size %d, out size %d", inputlen, outputlen);
+        input_buf = InPhyBuffer[0].mVirtAddr;
+        inputPhy_buf = InPhyBuffer[0].mPhyAddr;
+        read_len = read_from_file((char *)input_buf, inputlen, input_file);
         t1 = systemTime();
+
         for (int loop = 0; loop < G2D_TEST_LOOP; loop++) {
             int test_buffer_index = loop % TEST_BUFFER_NUM;
             ALOGV("loop %d, test_buffer_index %d", loop, test_buffer_index);
-            input_buf = InPhyBuffer[test_buffer_index].mVirtAddr;
-            inputPhy_buf = InPhyBuffer[test_buffer_index].mPhyAddr;
-            ;
+
             output_buf = OutPhyBuffer[test_buffer_index].mVirtAddr;
             outputPhy_buf = OutPhyBuffer[test_buffer_index].mPhyAddr;
-
-            read_len = read_from_file((char *)input_buf, inputlen, input_file);
 
             if (!gMemTest) {
                 update_surface_parameters_2d(&s_buf, &s_surface, (char *)input_buf, inputPhy_buf,
@@ -1487,12 +1487,13 @@ int main(int argc, char **argv) {
         ALOGI("Start CL engine blit, in size %d, out size %d", inputlen, outputlen);
         memset(&src, 0, sizeof(src));
         memset(&dst, 0, sizeof(dst));
+        input_buf = InPhyBuffer[0].mVirtAddr;
+        inputPhy_buf = InPhyBuffer[0].mPhyAddr;
+        read_len = read_from_file((char *)input_buf, inputlen, input_file);
 
         t1 = systemTime();
         for (int loop = 0; loop < G2D_TEST_LOOP; loop++) {
             int test_buffer_index = loop % TEST_BUFFER_NUM;
-            input_buf = InPhyBuffer[test_buffer_index].mVirtAddr;
-            inputPhy_buf = InPhyBuffer[test_buffer_index].mPhyAddr;
 
             output_buf = OutPhyBuffer[test_buffer_index].mVirtAddr;
             outputPhy_buf = OutPhyBuffer[test_buffer_index].mPhyAddr;
@@ -1500,8 +1501,6 @@ int main(int argc, char **argv) {
             ALOGV("loop %d, test_buffer_index %d, inVirt %p, inPhy 0x%llx, outVirt %p, outPhy 0x%llx, inputlen %d",
                   loop, test_buffer_index, input_buf, inputPhy_buf, output_buf, outputPhy_buf,
                   inputlen);
-
-            read_len = read_from_file((char *)input_buf, inputlen, input_file);
 
             if (!gMemTest) {
                 if (g_usePhyAddr)
@@ -1561,6 +1560,9 @@ int main(int argc, char **argv) {
 
     // cpu engine
     ALOGI("Start CPU 2d blit, in size %d, out size %d", inputlen, outputlen);
+    input_buf = InPhyBuffer[0].mVirtAddr;
+    inputPhy_buf = InPhyBuffer[0].mPhyAddr;
+    read_len = read_from_file((char *)input_buf, inputlen, input_file);
     t1 = systemTime();
     for (int loop = 0; loop < G2D_TEST_LOOP; loop++) {
         if (!gMemTest) {
