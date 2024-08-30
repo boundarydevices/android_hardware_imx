@@ -315,28 +315,27 @@ static void YUYVCopyByLine(uint8_t *dst, uint32_t dstWidth, uint32_t dstHeight, 
     return;
 }
 
-static void convertNV12toNV21(uint8_t *dst, uint32_t width, uint32_t height, uint8_t *src) {
-    uint32_t i;
-    uint8_t *pDstLine = dst;
-    uint8_t *pUVDstLine = dst + width * height;
-    uint8_t *pSrcLine = src;
-    uint8_t *pUVSrcLine = src + width * height;
-    uint32_t ystride = width;
-    uint32_t uvstride = width / 2;
-
-    for (i = 0; i < height; i++) {
-        memcpy(pDstLine, pSrcLine, ystride);
-
-        for (uint32_t j = 0; j < uvstride / 2; j++) {
-            *(pUVDstLine + 0) = *(pUVSrcLine + 1);
-            *(pUVDstLine + 1) = *(pUVSrcLine + 0);
-            pUVDstLine += 2;
-            pUVSrcLine += 2;
-        }
-
-        pSrcLine += ystride;
-        pDstLine += ystride;
+void Revert16BitEndian(uint8_t *pSrc, uint8_t *pDst, uint32_t pixels) {
+    ALOGI("enter Revert16BitEndian, src %p, dst %p, pixels %d", pSrc, pDst, pixels);
+    for (uint32_t i = 0; i < pixels; i++) {
+        uint32_t offset = i * 2;
+        uint8_t temp = pSrc[offset];
+        pDst[offset] = pSrc[offset + 1];
+        pDst[offset + 1] = temp;
     }
+
+    return;
+}
+
+static void convertNV12toNV21(uint8_t *dst, uint32_t width, uint32_t height, uint8_t *src) {
+    uint32_t size = width * height * 3 / 2;
+    memcpy(dst, src, size);
+
+    int Ysize = width * height;
+    int UVsize = Ysize >> 2;
+    uint8_t *UVout = dst + width * height;
+
+    Revert16BitEndian(UVout, UVout, UVsize / 2);
 
     return;
 }
@@ -833,13 +832,14 @@ int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
     int i, j;
     int h_offset;
     int v_offset;
-    unsigned char *ptr, cc;
     int h_scale_ratio;
     int v_scale_ratio;
-
-    int srcStride;
-    int dstStride;
-
+    int srcStride = srcWidth * 2;
+    int dstStride = dstWidth * 2;
+    int srcRow = 0;
+    int srcCol = 0;
+    uint32_t *pYUYVSrcStart = NULL;
+    uint32_t *pYUYVDstStart = NULL;
     if (!srcWidth || !srcHeight || !dstWidth || !dstHeight)
         return -1;
 
@@ -859,79 +859,47 @@ int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
 reduce:
     h_offset = (srcWidth - dstWidth * h_scale_ratio) / 2;
     v_offset = (srcHeight - dstHeight * v_scale_ratio) / 2;
+    ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d", h_scale_ratio,
+          v_scale_ratio, h_offset, v_offset);
 
-    srcStride = srcWidth * 2;
-    dstStride = dstWidth * 2;
-
-    // for Y
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 2 * h_scale_ratio) {
-            ptr = srcBuf + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc = ptr[0];
-
-            ptr = dstBuf + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
-            ptr[0] = cc;
-        }
-    }
-
-    // for U
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio) {
-            ptr = srcBuf + 1 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc = ptr[0];
-
-            ptr = dstBuf + 1 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
-            ptr[0] = cc;
-        }
-    }
-
-    // for V
-    for (i = 0; i < dstHeight * v_scale_ratio; i += v_scale_ratio) {
-        for (j = 0; j < dstStride * h_scale_ratio; j += 4 * h_scale_ratio) {
-            ptr = srcBuf + 3 + i * srcStride + j + v_offset * srcStride + h_offset * 2;
-            cc = ptr[0];
-
-            ptr = dstBuf + 3 + (i / v_scale_ratio) * dstStride + (j / h_scale_ratio);
-            ptr[0] = cc;
+    // handle 4 bytes each time
+    pYUYVSrcStart = (uint32_t *)srcBuf;
+    pYUYVDstStart = (uint32_t *)dstBuf;
+    // 2 pixels, fill the buff
+    for (i = 0; i < dstHeight; i += 1) {
+        for (j = 0; j < dstWidth; j += 2) {
+            srcRow = v_offset + i * v_scale_ratio;
+            srcCol = h_offset + j * h_scale_ratio;
+            pYUYVDstStart[dstStride * i / 4 + j / 2] =
+                    pYUYVSrcStart[srcStride * srcRow / 4 + srcCol / 2];
         }
     }
 
     return 0;
 
 enlarge:
-    int h_offset_end;
-    int v_offset_end;
-    int srcRow;
-    int srcCol;
-
     h_scale_ratio = dstWidth / srcWidth;
     v_scale_ratio = dstHeight / srcHeight;
 
     h_offset = (dstWidth - srcWidth * h_scale_ratio) / 2;
     v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
 
-    h_offset_end = h_offset + srcWidth * h_scale_ratio;
-    v_offset_end = v_offset + srcHeight * v_scale_ratio;
-
-    srcStride = srcWidth * 2;
-    v_offset = (dstHeight - srcHeight * v_scale_ratio) / 2;
-
-    h_offset_end = h_offset + srcWidth * h_scale_ratio;
-    v_offset_end = v_offset + srcHeight * v_scale_ratio;
-
-    srcStride = srcWidth * 2;
-    dstStride = dstWidth * 2;
+    int h_offset_end = h_offset + srcWidth * h_scale_ratio;
+    int v_offset_end = v_offset + srcHeight * v_scale_ratio;
 
     ALOGV("h_scale_ratio %d, v_scale_ratio %d, h_offset %d, v_offset %d, h_offset_end %d, "
           "v_offset_end %d",
           h_scale_ratio, v_scale_ratio, h_offset, v_offset, h_offset_end, v_offset_end);
 
-    // for Y
+    // handle 4 bytes each time
+    pYUYVSrcStart = (uint32_t *)srcBuf;
+    pYUYVDstStart = (uint32_t *)dstBuf;
     for (i = 0; i < dstHeight; i++) {
         // top, bottom black margin
         if ((i < v_offset) || (i >= v_offset_end)) {
             for (j = 0; j < dstWidth; j++) {
-                dstBuf[dstStride * i + j * 2] = 0;
+                dstBuf[dstStride * i + j * 2] = 0;       // y
+                dstBuf[dstStride * i + j * 2 + 1] = 128; // uv
             }
             continue;
         }
@@ -939,42 +907,22 @@ enlarge:
         for (j = 0; j < dstWidth; j++) {
             // left, right black margin
             if ((j < h_offset) || (j >= h_offset_end)) {
-                dstBuf[dstStride * i + j * 2] = 0;
+                dstBuf[dstStride * i + j * 2] = 0;       // y
+                dstBuf[dstStride * i + j * 2 + 1] = 128; // uv
                 continue;
             }
-
-            srcRow = (i - v_offset) / v_scale_ratio;
-            srcCol = (j - h_offset) / h_scale_ratio;
-            dstBuf[dstStride * i + j * 2] = srcBuf[srcStride * srcRow + srcCol * 2];
-        }
-    }
-
-    // for UV
-    for (i = 0; i < dstHeight; i++) {
-        // top, bottom black margin
-        if ((i < v_offset) || (i >= v_offset_end)) {
-            for (j = 0; j < dstWidth; j++) {
-                dstBuf[dstStride * i + j * 2 + 1] = 128;
+            // 2 pixels, fill the buff
+            if (j % 2 == 0) {
+                srcRow = (i - v_offset) / v_scale_ratio;
+                srcCol = (j - h_offset) / h_scale_ratio;
+                pYUYVDstStart[dstStride * i / 4 + j / 2] =
+                        pYUYVSrcStart[srcStride * srcRow / 4 + srcCol / 2];
             }
-            continue;
-        }
-
-        for (j = 0; j < dstWidth; j++) {
-            // left, right black margin
-            if ((j < h_offset) || (j >= h_offset_end)) {
-                dstBuf[dstStride * i + j * 2 + 1] = 128;
-                continue;
-            }
-
-            srcRow = (i - v_offset) / v_scale_ratio;
-            srcCol = (j - h_offset) / h_scale_ratio;
-            dstBuf[dstStride * i + j * 2 + 1] = srcBuf[srcStride * srcRow + srcCol * 2 + 1];
         }
     }
 
     return 0;
 }
-
 struct testPhyBuffer {
     void *mVirtAddr;
     uint64_t mPhyAddr;
