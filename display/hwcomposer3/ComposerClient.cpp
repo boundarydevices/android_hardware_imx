@@ -27,9 +27,9 @@ namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
 
 #define GET_DISPLAY_OR_RETURN_ERROR()                                        \
-    Display* display = getDisplay(displayId);                                \
+    Display* display = getDisplay(hwcId);                                    \
     if (display == nullptr) {                                                \
-        ALOGE("%s failed to get display:%" PRIu64, __FUNCTION__, displayId); \
+        ALOGE("%s failed to get hwc display:%" PRIu64, __FUNCTION__, hwcId); \
         return ToBinderStatus(HWC3::Error::BadDisplay);                      \
     }
 
@@ -49,19 +49,19 @@ public:
         mResults->emplace_back(std::move(commandErrorResult));
     }
 
-    void addPresentFence(int64_t displayId, ::android::base::unique_fd fence) {
+    void addPresentFence(int64_t hwcId, ::android::base::unique_fd fence) {
         if (fence >= 0) {
             PresentFence presentFenceResult;
-            presentFenceResult.display = displayId;
+            presentFenceResult.display = hwcId;
             presentFenceResult.fence = ndk::ScopedFileDescriptor(fence.release());
             mResults->emplace_back(std::move(presentFenceResult));
         }
     }
 
-    void addReleaseFences(int64_t displayId,
+    void addReleaseFences(int64_t hwcId,
                           std::unordered_map<int64_t, ::android::base::unique_fd> layerFences) {
         ReleaseFences releaseFencesResult;
-        releaseFencesResult.display = displayId;
+        releaseFencesResult.display = hwcId;
         for (auto& [layer, layerFence] : layerFences) {
             if (layerFence >= 0) {
                 ReleaseFences::Layer releaseFencesLayerResult;
@@ -82,18 +82,17 @@ public:
         }
     }
 
-    void addPresentOrValidateResult(int64_t displayId, PresentOrValidate::Result pov) {
+    void addPresentOrValidateResult(int64_t hwcId, PresentOrValidate::Result pov) {
         PresentOrValidate result;
-        result.display = displayId;
+        result.display = hwcId;
         result.result = pov;
         mResults->emplace_back(std::move(result));
     }
 
-    void addClientTargetProperty(int64_t displayId,
-                                 const ClientTargetProperty& clientTargetProperty, float brightness,
-                                 const DimmingStage& dimmingStage) {
+    void addClientTargetProperty(int64_t hwcId, const ClientTargetProperty& clientTargetProperty,
+                                 float brightness, const DimmingStage& dimmingStage) {
         ClientTargetPropertyWithBrightness clientTargetPropertyWithBrightness;
-        clientTargetPropertyWithBrightness.display = displayId;
+        clientTargetPropertyWithBrightness.display = hwcId;
         clientTargetPropertyWithBrightness.clientTargetProperty = clientTargetProperty;
         clientTargetPropertyWithBrightness.brightness = brightness;
         clientTargetPropertyWithBrightness.dimmingStage = dimmingStage;
@@ -169,9 +168,9 @@ HWC3::Error ComposerClient::init() {
     return HWC3::Error::None;
 }
 
-ndk::ScopedAStatus ComposerClient::createLayer(int64_t displayId, int32_t bufferSlotCount,
+ndk::ScopedAStatus ComposerClient::createLayer(int64_t hwcId, int32_t bufferSlotCount,
                                                int64_t* layerId) {
-    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+    DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
@@ -179,13 +178,13 @@ ndk::ScopedAStatus ComposerClient::createLayer(int64_t displayId, int32_t buffer
 
     HWC3::Error error = display->createLayer(layerId);
     if (error != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRIu64 " failed to create layer", __FUNCTION__, displayId);
+        ALOGE("%s: hwc display:%" PRIu64 " failed to create layer", __FUNCTION__, hwcId);
         return ToBinderStatus(error);
     }
 
-    error = mResources->addLayer(displayId, *layerId, bufferSlotCount);
+    error = mResources->addLayer(hwcId, *layerId, bufferSlotCount);
     if (error != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRIu64 " resources failed to create layer", __FUNCTION__, displayId);
+        ALOGE("%s: hwc display:%" PRIu64 " resources failed to create layer", __FUNCTION__, hwcId);
         return ToBinderStatus(error);
     }
 
@@ -201,8 +200,8 @@ ndk::ScopedAStatus ComposerClient::createVirtualDisplay(int32_t /*width*/, int32
     return ToBinderStatus(HWC3::Error::Unsupported);
 }
 
-ndk::ScopedAStatus ComposerClient::destroyLayer(int64_t displayId, int64_t layerId) {
-    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+ndk::ScopedAStatus ComposerClient::destroyLayer(int64_t hwcId, int64_t layerId) {
+    DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
@@ -210,22 +209,22 @@ ndk::ScopedAStatus ComposerClient::destroyLayer(int64_t displayId, int64_t layer
 
     HWC3::Error error = display->destroyLayer(layerId);
     if (error != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRIu64 " failed to destroy layer:%" PRIu64, __FUNCTION__, displayId,
+        ALOGE("%s: hwc display:%" PRIu64 " failed to destroy layer:%" PRIu64, __FUNCTION__, hwcId,
               layerId);
         return ToBinderStatus(error);
     }
 
-    error = mResources->removeLayer(displayId, layerId);
+    error = mResources->removeLayer(hwcId, layerId);
     if (error != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRIu64 " resources failed to destroy layer:%" PRIu64, __FUNCTION__,
-              displayId, layerId);
+        ALOGE("%s: hwc display:%" PRIu64 " resources failed to destroy layer:%" PRIu64,
+              __FUNCTION__, hwcId, layerId);
         return ToBinderStatus(error);
     }
 
     return ToBinderStatus(HWC3::Error::None);
 }
 
-ndk::ScopedAStatus ComposerClient::destroyVirtualDisplay(int64_t /*displayId*/) {
+ndk::ScopedAStatus ComposerClient::destroyVirtualDisplay(int64_t /*hwcId*/) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     return ToBinderStatus(HWC3::Error::Unsupported);
@@ -250,7 +249,7 @@ ndk::ScopedAStatus ComposerClient::executeCommands(
     return ToBinderStatus(HWC3::Error::None);
 }
 
-ndk::ScopedAStatus ComposerClient::getActiveConfig(int64_t displayId, int32_t* config) {
+ndk::ScopedAStatus ComposerClient::getActiveConfig(int64_t hwcId, int32_t* config) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -260,7 +259,7 @@ ndk::ScopedAStatus ComposerClient::getActiveConfig(int64_t displayId, int32_t* c
     return ToBinderStatus(display->getActiveConfig(config));
 }
 
-ndk::ScopedAStatus ComposerClient::getColorModes(int64_t displayId,
+ndk::ScopedAStatus ComposerClient::getColorModes(int64_t hwcId,
                                                  std::vector<ColorMode>* colorModes) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -293,7 +292,7 @@ ndk::ScopedAStatus ComposerClient::getDataspaceSaturationMatrix(common::Dataspac
     return ToBinderStatus(HWC3::Error::None);
 }
 
-ndk::ScopedAStatus ComposerClient::getDisplayAttribute(int64_t displayId, int32_t config,
+ndk::ScopedAStatus ComposerClient::getDisplayAttribute(int64_t hwcId, int32_t config,
                                                        DisplayAttribute attribute, int32_t* value) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -304,7 +303,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayAttribute(int64_t displayId, int32_
     return ToBinderStatus(display->getDisplayAttribute(config, attribute, value));
 }
 
-ndk::ScopedAStatus ComposerClient::getDisplayCapabilities(int64_t displayId,
+ndk::ScopedAStatus ComposerClient::getDisplayCapabilities(int64_t hwcId,
                                                           std::vector<DisplayCapability>* outCaps) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -315,7 +314,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayCapabilities(int64_t displayId,
     return ToBinderStatus(display->getDisplayCapabilities(outCaps));
 }
 
-ndk::ScopedAStatus ComposerClient::getDisplayConfigs(int64_t displayId,
+ndk::ScopedAStatus ComposerClient::getDisplayConfigs(int64_t hwcId,
                                                      std::vector<int32_t>* outConfigs) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -326,7 +325,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayConfigs(int64_t displayId,
     return ToBinderStatus(display->getDisplayConfigs(outConfigs));
 }
 
-ndk::ScopedAStatus ComposerClient::getDisplayConnectionType(int64_t displayId,
+ndk::ScopedAStatus ComposerClient::getDisplayConnectionType(int64_t hwcId,
                                                             DisplayConnectionType* outType) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -338,7 +337,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayConnectionType(int64_t displayId,
 }
 
 ndk::ScopedAStatus ComposerClient::getDisplayIdentificationData(
-        int64_t displayId, DisplayIdentification* outIdentification) {
+        int64_t hwcId, DisplayIdentification* outIdentification) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -348,7 +347,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayIdentificationData(
     return ToBinderStatus(display->getDisplayIdentificationData(outIdentification));
 }
 
-ndk::ScopedAStatus ComposerClient::getDisplayName(int64_t displayId, std::string* outName) {
+ndk::ScopedAStatus ComposerClient::getDisplayName(int64_t hwcId, std::string* outName) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -358,8 +357,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayName(int64_t displayId, std::string
     return ToBinderStatus(display->getDisplayName(outName));
 }
 
-ndk::ScopedAStatus ComposerClient::getDisplayVsyncPeriod(int64_t displayId,
-                                                         int32_t* outVsyncPeriod) {
+ndk::ScopedAStatus ComposerClient::getDisplayVsyncPeriod(int64_t hwcId, int32_t* outVsyncPeriod) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -369,7 +367,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayVsyncPeriod(int64_t displayId,
     return ToBinderStatus(display->getDisplayVsyncPeriod(outVsyncPeriod));
 }
 
-ndk::ScopedAStatus ComposerClient::getDisplayedContentSample(int64_t displayId, int64_t maxFrames,
+ndk::ScopedAStatus ComposerClient::getDisplayedContentSample(int64_t hwcId, int64_t maxFrames,
                                                              int64_t timestamp,
                                                              DisplayContentSample* outSamples) {
     DEBUG_LOG("%s", __FUNCTION__);
@@ -382,7 +380,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayedContentSample(int64_t displayId, 
 }
 
 ndk::ScopedAStatus ComposerClient::getDisplayedContentSamplingAttributes(
-        int64_t displayId, DisplayContentSamplingAttributes* outAttributes) {
+        int64_t hwcId, DisplayContentSamplingAttributes* outAttributes) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -393,7 +391,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayedContentSamplingAttributes(
 }
 
 ndk::ScopedAStatus ComposerClient::getDisplayPhysicalOrientation(
-        int64_t displayId, common::Transform* outOrientation) {
+        int64_t hwcId, common::Transform* outOrientation) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -403,7 +401,7 @@ ndk::ScopedAStatus ComposerClient::getDisplayPhysicalOrientation(
     return ToBinderStatus(display->getDisplayPhysicalOrientation(outOrientation));
 }
 
-ndk::ScopedAStatus ComposerClient::getHdrCapabilities(int64_t displayId,
+ndk::ScopedAStatus ComposerClient::getHdrCapabilities(int64_t hwcId,
                                                       HdrCapabilities* outCapabilities) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -433,7 +431,7 @@ ndk::ScopedAStatus ComposerClient::getMaxVirtualDisplayCount(int32_t* outCount) 
 }
 
 ndk::ScopedAStatus ComposerClient::getPerFrameMetadataKeys(
-        int64_t displayId, std::vector<PerFrameMetadataKey>* outKeys) {
+        int64_t hwcId, std::vector<PerFrameMetadataKey>* outKeys) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -444,7 +442,7 @@ ndk::ScopedAStatus ComposerClient::getPerFrameMetadataKeys(
 }
 
 ndk::ScopedAStatus ComposerClient::getReadbackBufferAttributes(
-        int64_t displayId, ReadbackBufferAttributes* outAttributes) {
+        int64_t hwcId, ReadbackBufferAttributes* outAttributes) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -455,7 +453,7 @@ ndk::ScopedAStatus ComposerClient::getReadbackBufferAttributes(
 }
 
 ndk::ScopedAStatus ComposerClient::getReadbackBufferFence(
-        int64_t displayId, ndk::ScopedFileDescriptor* outAcquireFence) {
+        int64_t hwcId, ndk::ScopedFileDescriptor* outAcquireFence) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -465,7 +463,7 @@ ndk::ScopedAStatus ComposerClient::getReadbackBufferFence(
     return ToBinderStatus(display->getReadbackBufferFence(outAcquireFence));
 }
 
-ndk::ScopedAStatus ComposerClient::getRenderIntents(int64_t displayId, ColorMode mode,
+ndk::ScopedAStatus ComposerClient::getRenderIntents(int64_t hwcId, ColorMode mode,
                                                     std::vector<RenderIntent>* outIntents) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -476,7 +474,7 @@ ndk::ScopedAStatus ComposerClient::getRenderIntents(int64_t displayId, ColorMode
     return ToBinderStatus(display->getRenderIntents(mode, outIntents));
 }
 
-ndk::ScopedAStatus ComposerClient::getSupportedContentTypes(int64_t displayId,
+ndk::ScopedAStatus ComposerClient::getSupportedContentTypes(int64_t hwcId,
                                                             std::vector<ContentType>* outTypes) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -488,7 +486,7 @@ ndk::ScopedAStatus ComposerClient::getSupportedContentTypes(int64_t displayId,
 }
 
 ndk::ScopedAStatus ComposerClient::getDisplayDecorationSupport(
-        int64_t displayId, std::optional<common::DisplayDecorationSupport>* outSupport) {
+        int64_t hwcId, std::optional<common::DisplayDecorationSupport>* outSupport) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -515,16 +513,16 @@ ndk::ScopedAStatus ComposerClient::registerCallback(
     if (isFirstRegisterCallback) {
         lock.unlock();
         DEBUG_LOG("%s there are %zu displays when boot up", __FUNCTION__, mDisplays.size());
-        for (auto& [displayId, _] : mDisplays) {
-            mCallbacks->onHotplug(displayId, /*connected=*/true);
+        for (auto& [hwcId, _] : mDisplays) {
+            mCallbacks->onHotplug(hwcId, /*connected=*/true);
         }
     }
 
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus ComposerClient::setActiveConfig(int64_t displayId, int32_t configId) {
-    DEBUG_LOG("%s display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, displayId, configId);
+ndk::ScopedAStatus ComposerClient::setActiveConfig(int64_t hwcId, int32_t configId) {
+    DEBUG_LOG("%s hwc display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, hwcId, configId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
@@ -534,9 +532,9 @@ ndk::ScopedAStatus ComposerClient::setActiveConfig(int64_t displayId, int32_t co
 }
 
 ndk::ScopedAStatus ComposerClient::setActiveConfigWithConstraints(
-        int64_t displayId, int32_t configId, const VsyncPeriodChangeConstraints& constraints,
+        int64_t hwcId, int32_t configId, const VsyncPeriodChangeConstraints& constraints,
         VsyncPeriodChangeTimeline* outTimeline) {
-    DEBUG_LOG("%s display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, displayId, configId);
+    DEBUG_LOG("%s hwc display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, hwcId, configId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
@@ -546,8 +544,8 @@ ndk::ScopedAStatus ComposerClient::setActiveConfigWithConstraints(
             display->setActiveConfigWithConstraints(configId, constraints, outTimeline));
 }
 
-ndk::ScopedAStatus ComposerClient::setBootDisplayConfig(int64_t displayId, int32_t configId) {
-    DEBUG_LOG("%s display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, displayId, configId);
+ndk::ScopedAStatus ComposerClient::setBootDisplayConfig(int64_t hwcId, int32_t configId) {
+    DEBUG_LOG("%s hwc display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, hwcId, configId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
@@ -562,8 +560,8 @@ ndk::ScopedAStatus ComposerClient::setBootDisplayConfig(int64_t displayId, int32
     return ToBinderStatus(display->setBootConfig(configId));
 }
 
-ndk::ScopedAStatus ComposerClient::clearBootDisplayConfig(int64_t displayId) {
-    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+ndk::ScopedAStatus ComposerClient::clearBootDisplayConfig(int64_t hwcId) {
+    DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
@@ -578,9 +576,9 @@ ndk::ScopedAStatus ComposerClient::clearBootDisplayConfig(int64_t displayId) {
     return ToBinderStatus(display->clearBootConfig());
 }
 
-ndk::ScopedAStatus ComposerClient::getPreferredBootDisplayConfig(int64_t displayId,
+ndk::ScopedAStatus ComposerClient::getPreferredBootDisplayConfig(int64_t hwcId,
                                                                  int32_t* outConfigId) {
-    DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
+    DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
@@ -620,7 +618,7 @@ ndk::ScopedAStatus ComposerClient::setHdrConversionStrategy(
     return ToBinderStatus(HWC3::Error::None);
 }
 
-ndk::ScopedAStatus ComposerClient::setAutoLowLatencyMode(int64_t displayId, bool on) {
+ndk::ScopedAStatus ComposerClient::setAutoLowLatencyMode(int64_t hwcId, bool on) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -630,17 +628,17 @@ ndk::ScopedAStatus ComposerClient::setAutoLowLatencyMode(int64_t displayId, bool
     return ToBinderStatus(display->setAutoLowLatencyMode(on));
 }
 
-ndk::ScopedAStatus ComposerClient::setClientTargetSlotCount(int64_t displayId, int32_t count) {
+ndk::ScopedAStatus ComposerClient::setClientTargetSlotCount(int64_t hwcId, int32_t count) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
-    return ToBinderStatus(mResources->setDisplayClientTargetCacheSize(displayId, count));
+    return ToBinderStatus(mResources->setDisplayClientTargetCacheSize(hwcId, count));
 }
 
-ndk::ScopedAStatus ComposerClient::setColorMode(int64_t displayId, ColorMode mode,
+ndk::ScopedAStatus ComposerClient::setColorMode(int64_t hwcId, ColorMode mode,
                                                 RenderIntent intent) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -651,7 +649,7 @@ ndk::ScopedAStatus ComposerClient::setColorMode(int64_t displayId, ColorMode mod
     return ToBinderStatus(display->setColorMode(mode, intent));
 }
 
-ndk::ScopedAStatus ComposerClient::setContentType(int64_t displayId, ContentType type) {
+ndk::ScopedAStatus ComposerClient::setContentType(int64_t hwcId, ContentType type) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -662,7 +660,7 @@ ndk::ScopedAStatus ComposerClient::setContentType(int64_t displayId, ContentType
 }
 
 ndk::ScopedAStatus ComposerClient::setDisplayedContentSamplingEnabled(
-        int64_t displayId, bool enable, FormatColorComponent componentMask, int64_t maxFrames) {
+        int64_t hwcId, bool enable, FormatColorComponent componentMask, int64_t maxFrames) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -673,7 +671,7 @@ ndk::ScopedAStatus ComposerClient::setDisplayedContentSamplingEnabled(
             display->setDisplayedContentSamplingEnabled(enable, componentMask, maxFrames));
 }
 
-ndk::ScopedAStatus ComposerClient::setPowerMode(int64_t displayId, PowerMode mode) {
+ndk::ScopedAStatus ComposerClient::setPowerMode(int64_t hwcId, PowerMode mode) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -684,7 +682,7 @@ ndk::ScopedAStatus ComposerClient::setPowerMode(int64_t displayId, PowerMode mod
 }
 
 ndk::ScopedAStatus ComposerClient::setReadbackBuffer(
-        int64_t displayId, const aidl::android::hardware::common::NativeHandle& buffer,
+        int64_t hwcId, const aidl::android::hardware::common::NativeHandle& buffer,
         const ndk::ScopedFileDescriptor& releaseFence) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -696,8 +694,8 @@ ndk::ScopedAStatus ComposerClient::setReadbackBuffer(
     buffer_handle_t importedBuffer = nullptr;
 
     auto releaser = mResources->createReleaser(true /* isBuffer */);
-    auto error = mResources->getDisplayReadbackBuffer(displayId, buffer, &importedBuffer,
-                                                      releaser.get());
+    auto error =
+            mResources->getDisplayReadbackBuffer(hwcId, buffer, &importedBuffer, releaser.get());
     if (error != HWC3::Error::None) {
         ALOGE("%s: failed to get readback buffer from resources.", __FUNCTION__);
         return ToBinderStatus(error);
@@ -712,7 +710,7 @@ ndk::ScopedAStatus ComposerClient::setReadbackBuffer(
     return ToBinderStatus(HWC3::Error::None);
 }
 
-ndk::ScopedAStatus ComposerClient::setVsyncEnabled(int64_t displayId, bool enabled) {
+ndk::ScopedAStatus ComposerClient::setVsyncEnabled(int64_t hwcId, bool enabled) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -722,7 +720,7 @@ ndk::ScopedAStatus ComposerClient::setVsyncEnabled(int64_t displayId, bool enabl
     return ToBinderStatus(display->setVsyncEnabled(enabled));
 }
 
-ndk::ScopedAStatus ComposerClient::setIdleTimerEnabled(int64_t displayId, int32_t timeoutMs) {
+ndk::ScopedAStatus ComposerClient::setIdleTimerEnabled(int64_t hwcId, int32_t timeoutMs) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
@@ -732,8 +730,7 @@ ndk::ScopedAStatus ComposerClient::setIdleTimerEnabled(int64_t displayId, int32_
     return ToBinderStatus(display->setIdleTimerEnabled(timeoutMs));
 }
 
-ndk::ScopedAStatus ComposerClient::setRefreshRateChangedCallbackDebugEnabled(int64_t displayId,
-                                                                             bool) {
+ndk::ScopedAStatus ComposerClient::setRefreshRateChangedCallbackDebugEnabled(int64_t hwcId, bool) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     GET_DISPLAY_OR_RETURN_ERROR();
@@ -778,18 +775,18 @@ namespace {
         }                                                                                  \
     } while (0)
 
-#define LOG_DISPLAY_COMMAND_ERROR(display, error)                                       \
-    do {                                                                                \
-        const std::string errorString = toString(error);                                \
-        ALOGE("%s: display:%" PRId64 " failed with:%s", __FUNCTION__, display->getId(), \
-              errorString.c_str());                                                     \
+#define LOG_DISPLAY_COMMAND_ERROR(display, error)                                              \
+    do {                                                                                       \
+        const std::string errorString = toString(error);                                       \
+        ALOGE("%s: hwc display:%" PRId64 " failed with:%s", __FUNCTION__, display->getHwcId(), \
+              errorString.c_str());                                                            \
     } while (0)
 
-#define LOG_LAYER_COMMAND_ERROR(display, layer, error)                                  \
-    do {                                                                                \
-        const std::string errorString = toString(error);                                \
-        ALOGE("%s: display:%" PRId64 " layer:%" PRId64 " failed with:%s", __FUNCTION__, \
-              display->getId(), layer->getId(), errorString.c_str());                   \
+#define LOG_LAYER_COMMAND_ERROR(display, layer, error)                                      \
+    do {                                                                                    \
+        const std::string errorString = toString(error);                                    \
+        ALOGE("%s: hwc display:%" PRId64 " layer:%" PRId64 " failed with:%s", __FUNCTION__, \
+              display->getHwcId(), layer->getId(), errorString.c_str());                    \
     } while (0)
 
 } // namespace
@@ -876,7 +873,7 @@ void ComposerClient::executeDisplayCommandSetClientTarget(Display* display,
     buffer_handle_t importedBuffer = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/true);
-    auto error = mResources->getDisplayClientTarget(display->getId(), clientTarget.buffer,
+    auto error = mResources->getDisplayClientTarget(display->getHwcId(), clientTarget.buffer,
                                                     &importedBuffer, releaser.get());
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
@@ -900,7 +897,7 @@ void ComposerClient::executeDisplayCommandSetOutputBuffer(Display* display, cons
     buffer_handle_t importedBuffer = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/true);
-    auto error = mResources->getDisplayOutputBuffer(display->getId(), buffer, &importedBuffer,
+    auto error = mResources->getDisplayOutputBuffer(display->getHwcId(), buffer, &importedBuffer,
                                                     releaser.get());
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
@@ -936,7 +933,7 @@ void ComposerClient::executeDisplayCommandValidateDisplay(
         mCommandResults->addChanges(changes);
     }
 
-    mResources->setDisplayMustValidateState(display->getId(), false);
+    mResources->setDisplayMustValidateState(display->getHwcId(), false);
 }
 
 void ComposerClient::executeDisplayCommandAcceptDisplayChanges(Display* display) {
@@ -968,24 +965,23 @@ void ComposerClient::executeDisplayCommandPresentOrValidateDisplay(
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         mCommandResults->addError(error);
     } else {
-        const int64_t displayId = display->getId();
+        const int64_t hwcId = display->getHwcId();
         mCommandResults->addChanges(changes);
         static constexpr float kBrightness = 1.f;
         DimmingStage dimmingStage{DimmingStage::NONE};
-        mCommandResults->addClientTargetProperty(displayId, display->getClientTargetProperty(),
+        mCommandResults->addClientTargetProperty(hwcId, display->getClientTargetProperty(),
                                                  kBrightness, dimmingStage);
-        mCommandResults->addPresentOrValidateResult(displayId,
-                                                    PresentOrValidate::Result::Validated);
+        mCommandResults->addPresentOrValidateResult(hwcId, PresentOrValidate::Result::Validated);
     }
 
-    mResources->setDisplayMustValidateState(display->getId(), false);
+    mResources->setDisplayMustValidateState(display->getHwcId(), false);
 }
 
 void ComposerClient::executeDisplayCommandPresentDisplay(Display* display) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    if (mResources->mustValidateDisplay(display->getId())) {
-        ALOGE("%s: display:%" PRIu64 " not validated", __FUNCTION__, display->getId());
+    if (mResources->mustValidateDisplay(display->getHwcId())) {
+        ALOGE("%s: hwc display:%" PRIu64 " not validated", __FUNCTION__, display->getHwcId());
         mCommandResults->addError(HWC3::Error::NotValidated);
         return;
     }
@@ -998,9 +994,9 @@ void ComposerClient::executeDisplayCommandPresentDisplay(Display* display) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         mCommandResults->addError(error);
     } else {
-        const int64_t displayId = display->getId();
-        mCommandResults->addPresentFence(displayId, std::move(displayFence));
-        mCommandResults->addReleaseFences(displayId, std::move(layerFences));
+        const int64_t hwcId = display->getHwcId();
+        mCommandResults->addPresentFence(hwcId, std::move(displayFence));
+        mCommandResults->addReleaseFences(hwcId, std::move(layerFences));
     }
 }
 
@@ -1023,7 +1019,7 @@ void ComposerClient::executeLayerCommandSetLayerBuffer(Display* display, Layer* 
     buffer_handle_t importedBuffer = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/true);
-    auto error = mResources->getLayerBuffer(display->getId(), layer->getId(), buffer,
+    auto error = mResources->getLayerBuffer(display->getHwcId(), layer->getId(), buffer,
                                             &importedBuffer, releaser.get());
     if (error != HWC3::Error::None) {
         LOG_LAYER_COMMAND_ERROR(display, layer, error);
@@ -1082,7 +1078,7 @@ void ComposerClient::executeLayerCommandSetLayerComposition(
     }
 
     if (mCallbacks && (int(composition.composition) == Composition_NXP_PRIVATE))
-        mCallbacks->onRefresh(display->getId());
+        mCallbacks->onRefresh(display->getHwcId());
 }
 
 void ComposerClient::executeLayerCommandSetLayerDataspace(Display* display, Layer* layer,
@@ -1127,7 +1123,7 @@ void ComposerClient::executeLayerCommandSetLayerSidebandStream(
     buffer_handle_t importedStream = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/false);
-    auto error = mResources->getLayerSidebandStream(display->getId(), layer->getId(), handle,
+    auto error = mResources->getLayerSidebandStream(display->getHwcId(), layer->getId(), handle,
                                                     &importedStream, releaser.get());
     if (error != HWC3::Error::None) {
         LOG_LAYER_COMMAND_ERROR(display, layer, error);
@@ -1233,10 +1229,10 @@ void ComposerClient::executeLayerCommandSetLayerPerFrameMetadataBlobs(
     }
 }
 
-Display* ComposerClient::getDisplay(int64_t displayId) {
-    auto it = mDisplays.find(displayId);
+Display* ComposerClient::getDisplay(int64_t hwcId) {
+    auto it = mDisplays.find(hwcId);
     if (it == mDisplays.end()) {
-        ALOGE("%s: no display:%" PRIu64, __FUNCTION__, displayId);
+        ALOGE("%s: no hwc display:%" PRIu64, __FUNCTION__, hwcId);
         return nullptr;
     }
     return it->second.get();
@@ -1259,7 +1255,7 @@ HWC3::Error ComposerClient::createDisplaysLocked() {
     }
 
     for (const auto& iter : displays) {
-        error = createDisplayLocked(iter.displayId, iter.activeConfigId, iter.configs);
+        error = createDisplayLocked(iter.hwcId, iter.displayId, iter.activeConfigId, iter.configs);
         if (error != HWC3::Error::None) {
             ALOGE("%s failed to create display from config", __FUNCTION__);
             return error;
@@ -1269,7 +1265,8 @@ HWC3::Error ComposerClient::createDisplaysLocked() {
     return HWC3::Error::None;
 }
 
-HWC3::Error ComposerClient::createDisplayLocked(int64_t displayId, int32_t activeConfigId,
+HWC3::Error ComposerClient::createDisplayLocked(int64_t hwcId, uint32_t displayId,
+                                                int32_t activeConfigId,
                                                 const std::vector<DisplayConfig>& configs) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1281,39 +1278,39 @@ HWC3::Error ComposerClient::createDisplayLocked(int64_t displayId, int32_t activ
     bool created = false;
     Display* display;
     std::unique_ptr<Display> hwcDisplay;
-    if (mDisplays.find(displayId) == mDisplays.end()) {
-        hwcDisplay = std::make_unique<Display>(mComposer, displayId);
+    if (mDisplays.find(hwcId) == mDisplays.end()) {
+        hwcDisplay = std::make_unique<Display>(mComposer, hwcId, displayId);
         display = hwcDisplay.get();
         if (display == nullptr) {
-            ALOGE("%s failed to allocate display", __FUNCTION__);
+            ALOGE("%s failed to allocate hwc display", __FUNCTION__);
             return HWC3::Error::NoResources;
         }
         created = true;
     } else {
-        display = mDisplays[displayId].get();
+        display = mDisplays[hwcId].get();
     }
 
     HWC3::Error error = display->init(configs, activeConfigId);
     if (error != HWC3::Error::None) {
-        ALOGE("%s failed to initialize display:%" PRIu64, __FUNCTION__, displayId);
+        ALOGE("%s failed to initialize hwc display:%" PRIu64, __FUNCTION__, hwcId);
         return error;
     }
 
     error = mComposer->onDisplayCreate(display);
     if (error != HWC3::Error::None) {
-        ALOGE("%s failed to register display:%" PRIu64 " with composer", __FUNCTION__, displayId);
+        ALOGE("%s failed to register hwc display:%" PRIu64 " with composer", __FUNCTION__, hwcId);
         return error;
     }
 
     display->setPowerMode(PowerMode::ON);
 
     if (created) {
-        DEBUG_LOG("%s: adding display:%" PRIu64, __FUNCTION__, displayId);
-        mDisplays.emplace(displayId, std::move(hwcDisplay));
+        DEBUG_LOG("%s: adding hwc display:%" PRIu64, __FUNCTION__, hwcId);
+        mDisplays.emplace(hwcId, std::move(hwcDisplay));
 
-        error = mResources->addPhysicalDisplay(displayId);
+        error = mResources->addPhysicalDisplay(hwcId);
         if (error != HWC3::Error::None) {
-            ALOGE("%s failed to initialize display:%" PRIu64 " resources", __FUNCTION__, displayId);
+            ALOGE("%s failed to initialize hwc display:%" PRIu64 " resources", __FUNCTION__, hwcId);
             return error;
         }
     }
@@ -1325,22 +1322,22 @@ HWC3::Error ComposerClient::destroyDisplaysLocked() {
     DEBUG_LOG("%s", __FUNCTION__);
 
     std::vector<int64_t> displayIds;
-    for (const auto& [displayId, _] : mDisplays) {
-        displayIds.push_back(displayId);
+    for (const auto& [hwcId, _] : mDisplays) {
+        displayIds.push_back(hwcId);
     }
-    for (const int64_t displayId : displayIds) {
-        destroyDisplayLocked(displayId);
+    for (const int64_t hwcId : displayIds) {
+        destroyDisplayLocked(hwcId);
     }
 
     return HWC3::Error::None;
 }
 
-HWC3::Error ComposerClient::destroyDisplayLocked(int64_t displayId) {
-    DEBUG_LOG("%s display:%" PRId64, __FUNCTION__, displayId);
+HWC3::Error ComposerClient::destroyDisplayLocked(int64_t hwcId) {
+    DEBUG_LOG("%s hwc display:%" PRId64, __FUNCTION__, hwcId);
 
-    auto it = mDisplays.find(displayId);
+    auto it = mDisplays.find(hwcId);
     if (it == mDisplays.end()) {
-        ALOGE("%s: display:%" PRId64 " no such display?", __FUNCTION__, displayId);
+        ALOGE("%s: hwc display:%" PRId64 " no such display?", __FUNCTION__, hwcId);
         return HWC3::Error::BadDisplay;
     }
 
@@ -1350,13 +1347,13 @@ HWC3::Error ComposerClient::destroyDisplayLocked(int64_t displayId) {
 
     HWC3::Error error = mComposer->onDisplayDestroy(it->second.get());
     if (error != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRId64 " failed to destroy with frame composer", __FUNCTION__,
-              displayId);
+        ALOGE("%s: hwc display:%" PRId64 " failed to destroy with frame composer", __FUNCTION__,
+              hwcId);
     }
 
-    error = mResources->removeDisplay(displayId);
+    error = mResources->removeDisplay(hwcId);
     if (error != HWC3::Error::None) {
-        ALOGE("%s: display:%" PRId64 " failed to destroy with resources", __FUNCTION__, displayId);
+        ALOGE("%s: hwc display:%" PRId64 " failed to destroy with resources", __FUNCTION__, hwcId);
     }
 
     mDisplays.erase(it);
@@ -1370,7 +1367,8 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
         return HWC3::Error::None;
     }
 
-    const int64_t displayId = static_cast<int64_t>(halConfigs->displayId);
+    const int64_t hwcId = static_cast<int64_t>(halConfigs->hwcId);
+    const uint32_t displayId = halConfigs->displayId;
 
     if (connected) {
         const int32_t configId = halConfigs->activeConfigId;
@@ -1385,21 +1383,21 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
 
         {
             std::unique_lock<std::mutex> lock(mStateMutex);
-            createDisplayLocked(displayId, configId, configs);
+            createDisplayLocked(hwcId, displayId, configId, configs);
         }
 
         auto& cfg = (*(halConfigs->configs))[configId];
-        ALOGI("Connecting display:%ld w:%d, h:%d, dpiX:%d, dpiY:%d, fps:%d", displayId, cfg.width,
-              cfg.height, cfg.dpiX, cfg.dpiY, cfg.refreshRateHz);
-        mCallbacks->onHotplug(displayId, /*connected=*/true);
+        ALOGI("Connecting display:%d hwcId:%ld, w:%d, h:%d, dpiX:%d, dpiY:%d, fps:%d", displayId,
+              hwcId, cfg.width, cfg.height, cfg.dpiX, cfg.dpiY, cfg.refreshRateHz);
+        mCallbacks->onHotplug(hwcId, /*connected=*/true);
     } else {
-        ALOGI("Disconnecting display:%" PRIu64, displayId);
-        mCallbacks->onHotplug(displayId, /*connected=*/false);
+        ALOGI("Disconnecting display:%d", displayId);
+        mCallbacks->onHotplug(hwcId, /*connected=*/false);
 
-        Display* display = getDisplay(displayId);
+        Display* display = getDisplay(hwcId);
         if (display != nullptr) {
             std::unique_lock<std::mutex> lock(mStateMutex);
-            destroyDisplayLocked(displayId);
+            destroyDisplayLocked(hwcId);
         }
     }
 

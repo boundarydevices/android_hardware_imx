@@ -63,7 +63,7 @@ private:
     std::chrono::nanoseconds updateVsyncPeriodLocked(
             std::chrono::time_point<std::chrono::steady_clock> now);
 
-    const int64_t mDisplayId;
+    const int64_t mHwcId;
     Display* mDisplay = nullptr;
 
     std::thread mThread;

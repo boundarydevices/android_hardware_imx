@@ -70,7 +70,7 @@ HWC3::Error DrmClient::init(char* path, uint32_t* baseId) {
             // display port, used to identify framebuffer usage in framework(FramebufferSurface.cpp)
             displayBaseId = 0x40;
         else
-            displayBaseId = 0;
+            displayBaseId = *baseId;
 
         drmFreeVersion(version);
     }
@@ -130,6 +130,7 @@ HWC3::Error DrmClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs) 
         }
 
         configs->emplace_back(HalMultiConfigs{
+                .hwcId = display->getHwcId(),
                 .displayId = display->getId(),
                 .activeConfigId = display->getActiveConfigId(),
                 .configs = display->getDisplayConfigs(),
@@ -412,6 +413,7 @@ bool DrmClient::handleHotplug() {
             }
 
             std::unique_ptr<HalMultiConfigs> cfg(new HalMultiConfigs{
+                    .hwcId = display->getHwcId(),
                     .displayId = display->getId(),
                     .activeConfigId = display->getActiveConfigId(),
                     .configs = display->getDisplayConfigs(),
@@ -643,15 +645,15 @@ std::tuple<HWC3::Error, uint32_t> DrmClient::getPlaneForLayerBuffer(int displayI
     }
 }
 
-HWC3::Error DrmClient::setPrimaryDisplay(int displayId) {
+HWC3::Error DrmClient::setHwcPrimaryDisplay(int displayId, bool primary) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
     }
 
+    std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
     DrmDisplay* display = mDisplays[displayId].get();
-    display->setAsPrimary(true);
-
+    display->setDisplayAsPrimary(primary);
     if (!display->isConnected())
         display->placeholderDisplayConfigs();
 

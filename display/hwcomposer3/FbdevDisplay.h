@@ -39,6 +39,7 @@ public:
     static std::unique_ptr<FbdevDisplay> create(uint32_t id, ::android::base::borrowed_fd devFd);
 
     uint32_t getId() const { return mId; }
+    uint32_t getHwcId() const { return mHwcId; }
     bool isConnected() const { return true; }
 
     std::tuple<HWC3::Error, ::android::base::unique_fd> present(
@@ -57,11 +58,20 @@ public:
     void placeholderDisplayConfigs();
     int getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format);
 
-    void setAsPrimary(bool enable) { mIsPrimary = enable; }
+    void setDisplayAsPrimary(bool enable) {
+        if (enable) {
+            mOriginalHwcId = mHwcId;
+            mIsPrimary = true;
+            mHwcId = DEFAULT_HWC_PRIMARY_DISPLAY_ID;
+        } else {
+            mHwcId = mOriginalHwcId;
+            mIsPrimary = false;
+        }
+    }
     bool isPrimary() { return mIsPrimary; }
 
 private:
-    FbdevDisplay(uint32_t id, int devFd) : mId(id), mFbdevFd(devFd) {}
+    FbdevDisplay(uint32_t id, int devFd) : mHwcId(id), mId(id), mFbdevFd(devFd) {}
 
     bool onConnect(::android::base::borrowed_fd devFd);
     bool onDisconnect(::android::base::borrowed_fd devFd);
@@ -70,6 +80,8 @@ private:
     void updateActiveConfig(std::shared_ptr<HalConfig> configs);
 
     bool mIsPrimary = false;
+    uint32_t mHwcId; // logic display Id, may be changed when needed
+    uint32_t mOriginalHwcId;
     const uint32_t mId;
     const int mFbdevFd; // just a copy here, owned by FbdevClient
 

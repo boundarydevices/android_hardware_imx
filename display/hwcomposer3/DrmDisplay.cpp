@@ -330,7 +330,8 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     mPreviousBuffers.planeDrmBuffer = mTempBuffers.planeDrmBuffer;
 
     DEBUG_LOG("%s: atomic commit display:%d, plane:active=%s,disabled=%s; present fence:%d, retry"
-              "%d times", __FUNCTION__, mId, activeStr, disableStr, flushFenceFd, i);
+              " %d times",
+              __FUNCTION__, mId, activeStr, disableStr, flushFenceFd, i);
     return std::make_tuple(HWC3::Error::None, ::android::base::unique_fd(flushFenceFd));
 }
 

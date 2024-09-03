@@ -42,21 +42,21 @@ TimePoint GetNextVsyncInPhase(Nanoseconds vsyncPeriod, TimePoint previousVsync, 
 
 } // namespace
 
-VsyncThread::VsyncThread(Display* display) : mDisplayId(display->getId()), mDisplay(display) {}
+VsyncThread::VsyncThread(Display* display) : mHwcId(display->getHwcId()), mDisplay(display) {}
 
 VsyncThread::~VsyncThread() {
     stop();
 }
 
 HWC3::Error VsyncThread::start(int32_t vsyncPeriodNanos) {
-    DEBUG_LOG("%s for display:%" PRIu64, __FUNCTION__, mDisplayId);
+    DEBUG_LOG("%s for hwc display:%" PRIu64, __FUNCTION__, mHwcId);
 
     mVsyncPeriod = Nanoseconds(vsyncPeriodNanos);
     mPreviousVsync = std::chrono::steady_clock::now() - mVsyncPeriod;
 
     mThread = std::thread([this]() { threadLoop(); });
 
-    const std::string name = "display_" + std::to_string(mDisplayId) + "_vsync";
+    const std::string name = "display_" + std::to_string(mHwcId) + "_vsync";
 
     int ret = pthread_setname_np(mThread.native_handle(), name.c_str());
     if (ret != 0) {
@@ -82,7 +82,7 @@ HWC3::Error VsyncThread::stop() {
 }
 
 HWC3::Error VsyncThread::setCallbacks(const std::shared_ptr<IComposerCallback>& callback) {
-    DEBUG_LOG("%s for display:%" PRIu64, __FUNCTION__, mDisplayId);
+    DEBUG_LOG("%s for hwc display:%" PRIu64, __FUNCTION__, mHwcId);
 
     std::unique_lock<std::mutex> lock(mStateMutex);
     mCallbacks = callback;
@@ -91,7 +91,7 @@ HWC3::Error VsyncThread::setCallbacks(const std::shared_ptr<IComposerCallback>& 
 }
 
 HWC3::Error VsyncThread::setVsyncEnabled(bool enabled) {
-    DEBUG_LOG("%s for display:%" PRIu64 " enabled:%d", __FUNCTION__, mDisplayId, enabled);
+    DEBUG_LOG("%s for hwc display:%" PRIu64 " enabled:%d", __FUNCTION__, mHwcId, enabled);
 
     std::lock_guard<std::mutex> lock(mStateMutex);
     mVsyncEnabled = enabled;
@@ -102,7 +102,7 @@ HWC3::Error VsyncThread::setVsyncEnabled(bool enabled) {
 HWC3::Error VsyncThread::scheduleVsyncUpdate(int32_t configId, int32_t newVsyncPeriod,
                                              const VsyncPeriodChangeConstraints& constraints,
                                              VsyncPeriodChangeTimeline* outTimeline) {
-    DEBUG_LOG("%s for display:%" PRIu64, __FUNCTION__, mDisplayId);
+    DEBUG_LOG("%s for hwc display:%" PRIu64, __FUNCTION__, mHwcId);
 
     std::chrono::time_point<std::chrono::steady_clock> updateTime;
     if (constraints.desiredTimeNanos == 0) { // take effect immediately
@@ -139,7 +139,7 @@ Nanoseconds VsyncThread::updateVsyncPeriodLocked(TimePoint now) {
 }
 
 void VsyncThread::threadLoop() {
-    ALOGI("Vsync thread for display:%" PRId64 " starting", mDisplayId);
+    ALOGI("Vsync thread for hwc display:%" PRId64 " starting", mHwcId);
 
     Nanoseconds vsyncPeriod = mVsyncPeriod;
 
@@ -177,23 +177,23 @@ void VsyncThread::threadLoop() {
 
         if (mVsyncEnabled) {
             if (mCallbacks) {
-                ALOGV("%s: for display:%" PRIu64 " calling vsync", __FUNCTION__, mDisplayId);
-                mCallbacks->onVsync(mDisplayId, asNanosTimePoint(mPreviousVsync),
+                ALOGV("%s: for hwc display:%" PRIu64 " calling vsync", __FUNCTION__, mHwcId);
+                mCallbacks->onVsync(mHwcId, asNanosTimePoint(mPreviousVsync),
                                     asNanosDuration(vsyncPeriod));
             }
         }
 
         static constexpr const int kLogIntervalSeconds = 60;
         if (now > (previousLog + std::chrono::seconds(kLogIntervalSeconds))) {
-            DEBUG_LOG("%s: for display:%" PRIu64 " send %" PRIu32 " in last %d seconds",
-                      __FUNCTION__, mDisplayId, vsyncs, kLogIntervalSeconds);
+            DEBUG_LOG("%s: for hwc display:%" PRIu64 " send %" PRIu32 " in last %d seconds",
+                      __FUNCTION__, mHwcId, vsyncs, kLogIntervalSeconds);
             previousLog = now;
             vsyncs = 0;
         }
         ++vsyncs;
     }
 
-    ALOGI("Vsync thread for display:%" PRId64 " finished", mDisplayId);
+    ALOGI("Vsync thread for hwc display:%" PRId64 " finished", mHwcId);
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

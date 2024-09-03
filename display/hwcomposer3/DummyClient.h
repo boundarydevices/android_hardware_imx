@@ -63,7 +63,9 @@ public:
             ::android::base::borrowed_fd inWaitSyncFd) override;
 
     HWC3::Error setPowerMode(int displayId, DrmPower power) override { return HWC3::Error::None; }
-    HWC3::Error setPrimaryDisplay(int displayId) override { return HWC3::Error::None; }
+    HWC3::Error setHwcPrimaryDisplay(int displayId, bool primary) override {
+        return HWC3::Error::None;
+    }
 
     uint32_t getDisplayBaseId() override { return mDisplayId; }
 
@@ -74,6 +76,7 @@ public:
 
 private:
     uint32_t mDisplayId = 0;
+    uint32_t mHwcId = 0;
     int32_t mActiveConfigId = -1;
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
 

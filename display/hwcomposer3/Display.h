@@ -61,7 +61,7 @@ class FrameComposer;
 
 class Display {
 public:
-    Display(FrameComposer* composer, int64_t id);
+    Display(FrameComposer* composer, int64_t id, uint32_t displayId);
     ~Display();
 
     Display(const Display& display) = delete;
@@ -134,7 +134,8 @@ public:
                         std::unordered_map<int64_t, ::android::base::unique_fd>* outLayerFences);
 
     // Non HWCComposer3 interface.
-    int64_t getId() const { return mId; }
+    int64_t getHwcId() const { return mId; }
+    uint64_t getId() const { return mDisplayId; }
 
     Layer* getLayer(int64_t layerHandle);
 
@@ -176,6 +177,7 @@ private:
     FrameComposer* mComposer = nullptr;
     std::shared_ptr<IComposerCallback> mCallbacks;
     const int64_t mId;
+    const uint32_t mDisplayId;
     std::string mName;
     PowerMode mPowerMode = PowerMode::OFF;
     bool mVsyncStarted = false;

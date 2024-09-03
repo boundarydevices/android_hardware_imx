@@ -46,6 +46,7 @@ HWC3::Error findClientDisplays(DeviceClient* device,
                                                HertzToPeriodNanos(cfg.refreshRateHz)));
         }
         outDisplays->push_back(DisplayMultiConfigs{
+                .hwcId = deviceConfig.hwcId,
                 .displayId = deviceConfig.displayId,
                 .activeConfigId = static_cast<int32_t>(deviceConfig.activeConfigId),
                 .configs = hwcConfigs,
@@ -83,7 +84,7 @@ HWC3::Error findDisplays(FrameComposer* composer, std::vector<DisplayMultiConfig
         auto id = clients[minId]->getDisplayBaseId();
         // select minimum display id as primary, fake display config is generated because primary
         // display is disconnected
-        clients[minId]->setPrimaryDisplay(id);
+        clients[minId]->setHwcPrimaryDisplay(id, true);
 
         HWC3::Error err = findClientDisplays(clients[minId], outDisplays); // try again
         if (err != HWC3::Error::None) {
@@ -105,9 +106,16 @@ HWC3::Error findDisplays(FrameComposer* composer, std::vector<DisplayMultiConfig
                 break;
         }
 
-        clients[minBaseId]->setPrimaryDisplay(minDisplayId);
-        ALOGI("%s: %zu displays connected, select id=%d as primary display", __FUNCTION__,
+        clients[minBaseId]->setHwcPrimaryDisplay(minDisplayId, true);
+        ALOGI("%s: %zu displays connected, select port id=%d as primary display", __FUNCTION__,
               outDisplays->size(), minDisplayId);
+
+        for (auto& disp : *outDisplays) {
+            if (disp.displayId == minDisplayId) {
+                disp.hwcId = DEFAULT_HWC_PRIMARY_DISPLAY_ID;
+                break;
+            }
+        }
     }
 
     for (auto& display : *outDisplays) {

@@ -61,6 +61,7 @@
 
 // Below already defined in system/core/include/cutils/properties.h
 // #define PROPERTY_VALUE_MAX 92
+#define DEFAULT_HWC_PRIMARY_DISPLAY_ID 0
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -89,6 +90,7 @@ struct HalDisplayConfig {
 
 using HalConfig = std::unordered_map<uint32_t, HalDisplayConfig>;
 struct HalMultiConfigs {
+    uint32_t hwcId;
     uint32_t displayId;
     int32_t activeConfigId;
     std::shared_ptr<HalConfig> configs;

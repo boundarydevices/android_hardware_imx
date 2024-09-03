@@ -80,19 +80,26 @@ HWC3::Error ClientFrameComposer::pollDrmThreadCallback(char* file) {
     if (strstr(file, "card")) {
         // detect /dev/dri/card%d has been created
         HWC3::Error ret;
-        uint32_t baseId = mDummyBaseId;
+        // baseId: 0 is reserved for primary display, display id start from 1 when enumerate
+        uint32_t baseId = 1;
         ret = checkClientFromSystem<DrmClient>("/dev/dri", "card", mDeviceClients, &baseId, 0);
         if (ret == HWC3::Error::None) {
             ALOGI("%s: Detect new DRM client, baseId=%d", __FUNCTION__, baseId);
-            if (baseId == mDummyBaseId) {
-                ALOGI("%s: The DummyClient was replaced by actual DRM Client", __FUNCTION__);
-            }
 
-            auto [error, client] = getDeviceClient(mDummyBaseId);
-            if (error == HWC3::Error::None) {
-                client->setPrimaryDisplay(mDummyBaseId);
+            if (mDeviceClients.size() >= 2) {
+                mDeviceClients.erase(mDummyBaseId); // remove unused dummy client
+                uint32_t minBaseId = INT_MAX;
+                for (const auto& [id, _] : mDeviceClients) {
+                    if (id < minBaseId)
+                        minBaseId = id;
+                }
+                auto client = mDeviceClients[minBaseId].get();
+                // select the minimum base id as primary display, not care connected or not for
+                // simplification
+                client->setHwcPrimaryDisplay(minBaseId, true);
             } else {
-                ALOGW("%s: display id:%d cannot find in Drm Client", __FUNCTION__, mDummyBaseId);
+                ALOGW("%s: Cannot find any Drm Client, should not happen!", __FUNCTION__);
+                return HWC3::Error::NoResources;
             }
 
             for (auto& [_, client] : mDeviceClients) {
@@ -124,7 +131,8 @@ HWC3::Error ClientFrameComposer::init() {
     DEBUG_LOG("%s", __FUNCTION__);
 
     HWC3::Error ret;
-    uint32_t baseId = 0;
+    uint32_t baseId = 1;
+    mDummyBaseId = DEFAULT_HWC_PRIMARY_DISPLAY_ID; // hwcId and displayId of DummyClient
     ret = checkClientFromSystem<DrmClient>("/dev/dri", "card", mDeviceClients, &baseId, 0);
     if (ret != HWC3::Error::None) {
         ALOGE("%s: Cannot find any DRM client", __FUNCTION__);
@@ -382,7 +390,7 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
                     layersForOverlay.emplace(planeId, layer);
 
                     if (composeType != Composition::DEVICE)
-                        outChanges->addLayerCompositionChange(displayId, layerId,
+                        outChanges->addLayerCompositionChange(display->getHwcId(), layerId,
                                                               Composition::DEVICE);
                     continue;
                 } else {
@@ -411,15 +419,19 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
             const auto layerCompositionType = layer->getCompositionType();
 
             if (layerCompositionType != Composition::CLIENT) {
-                outChanges->addLayerCompositionChange(displayId, layerId, Composition::CLIENT);
+                outChanges->addLayerCompositionChange(display->getHwcId(), layerId,
+                                                      Composition::CLIENT);
                 continue;
             }
         }
         if (layersForComposition.size() == 1) {
             auto layer = layersForComposition.front();
             if ((layer->getCompositionType() == Composition::DEVICE) &&
-                (layer->getBuffer().getBuffer() != nullptr))
+                (layer->getBuffer().getBuffer() != nullptr)) {
                 luckyLayer = layersForComposition.front();
+                DEBUG_LOG("%s: display:%" PRIu64 " there is a lucky layer can be presented",
+                          __FUNCTION__, displayId);
+            }
         }
         layersForComposition.clear();
     }
@@ -596,6 +608,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
 
     if (!displayBuffer.clientTargetDrmBuffer && (displayBuffer.planeDrmBuffer.size() == 0) &&
         (displayBuffer.dummyDrmBuffer.size() == 0)) {
+        ALOGE("%s: No buffer need to commit", __FUNCTION__);
         return HWC3::Error::None; // No buffer need to commit
     }
 

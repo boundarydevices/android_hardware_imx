@@ -46,6 +46,7 @@ HWC3::Error DummyClient::init(char* path, uint32_t* baseId) {
     newConfig.modeHeight = DUMMY_DISPLAY_HEIGHT;
 
     mDisplayId = *baseId;
+    mHwcId = *baseId;
     mActiveConfigId = DUMMY_DISPLAY_ACTIVE_CONFIG_ID;
 
     mConfigs->emplace(mActiveConfigId, newConfig);
@@ -74,6 +75,7 @@ HWC3::Error DummyClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs
 
     configs->clear();
     configs->emplace_back(HalMultiConfigs{
+            .hwcId = mHwcId,
             .displayId = mDisplayId,
             .activeConfigId = mActiveConfigId,
             .configs = mConfigs,

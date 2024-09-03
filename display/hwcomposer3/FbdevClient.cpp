@@ -80,6 +80,7 @@ HWC3::Error FbdevClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs
         }
 
         configs->emplace_back(HalMultiConfigs{
+                .hwcId = display->getHwcId(),
                 .displayId = display->getId(),
                 .activeConfigId = display->getActiveConfigId(),
                 .configs = display->getDisplayConfigs(),
@@ -164,14 +165,16 @@ HWC3::Error FbdevClient::setPowerMode(int displayId, DrmPower power) {
     return HWC3::Error::None;
 }
 
-HWC3::Error FbdevClient::setPrimaryDisplay(int displayId) {
+HWC3::Error FbdevClient::setHwcPrimaryDisplay(int displayId, bool primary) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
     }
 
+    std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
+
     FbdevDisplay* display = mDisplays[displayId].get();
-    display->setAsPrimary(true);
+    display->setDisplayAsPrimary(primary);
 
     if (!display->isConnected())
         display->placeholderDisplayConfigs();
