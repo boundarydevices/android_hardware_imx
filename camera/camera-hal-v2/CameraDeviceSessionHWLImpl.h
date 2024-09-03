@@ -30,6 +30,7 @@
 #include "CameraConfigurationParser.h"
 #include "CameraDeviceHWLImpl.h"
 #include "CameraMetadata.h"
+#include "ISPWrapper.h"
 #include "JpegBuilder.h"
 
 using namespace fsl;
@@ -305,6 +306,7 @@ private:
 
     uint64_t mInQueRequestIdx = 0;
     uint64_t mDeQueRequestIdx = 0;
+    std::unique_ptr<ISPWrapper> m_IspWrapper;
 
     enum CameraState {
         Stopped,

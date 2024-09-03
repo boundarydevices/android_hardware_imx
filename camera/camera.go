@@ -65,6 +65,7 @@ func cameraDefaults(ctx android.LoadHookContext) {
 			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal-v2/CameraProviderHWLImpl.cpp")
 			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal-v2/CameraDeviceHWLImpl.cpp")
 			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal-v2/CameraDeviceSessionHWLImpl.cpp")
+			p.Target.Android.Srcs = append(p.Target.Android.Srcs, "./camera-hal-v2/ISPWrapper.cpp")
 			p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/imx/camera/camera-hal-v2")
 			p.Target.Android.Include_dirs = append(p.Target.Android.Include_dirs, "vendor/nxp-opensource/libcamera/prebuilt-android/include")
 		} else {

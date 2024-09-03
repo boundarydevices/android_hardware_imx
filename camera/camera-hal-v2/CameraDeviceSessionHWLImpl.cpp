@@ -206,6 +206,7 @@ CameraDeviceSessionHwlImpl::CameraDeviceSessionHwlImpl(PhysicalMetaMapPtr physic
     camera_ = nullptr;
 
     physical_meta_map_ = std::move(physical_devices);
+    m_IspWrapper = std::make_unique<ISPWrapper>();
 }
 
 CameraDeviceSessionHwlImpl::~CameraDeviceSessionHwlImpl() {
@@ -1102,6 +1103,16 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
             return ret;
         }
 
+        // ISPProcess
+        libcamera::Request *request = frame_request->at(i).request.get();
+        libcamera::ControlList &controls = request->controls();
+        // sequence and controls.size are always 0, that is, the control commands received from
+        // HwlPipelineRequest
+        if (mDebug)
+            ALOGI("==== %s: sequence %d, controls size %zu", __func__, request->sequence(),
+                  controls.size());
+        m_IspWrapper->process((HalCameraMetadata *)(requests[i].settings.get()), controls);
+
         ret = camera_->queueRequest(frame_request->at(i).request.get());
         if (ret) {
             ALOGE("%s, camera_->queueRequest failed, ret %d", __func__, ret);
@@ -1485,10 +1496,17 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     result->physical_camera_results.reserve(0);
 
     if (mDebug) {
-        ALOGI("%s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d, sequence %u",
+        libcamera::ControlList &metadata = request->metadata();
+        ALOGI("==== %s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d, sequence %u, metadata size %d",
               __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
               (int)result->result_metadata->GetEntryCount(), request->buffers().size(),
-              request->sequence());
+              request->sequence(), metadata.size());
+        for (libcamera::ControlList::iterator it = metadata.begin(); it != metadata.end(); it++) {
+            int i = it->first;
+            libcamera::ControlValue ctlVal = it->second;
+            ALOGI("==== meta id: %d, val: %s, type %d, numElements %zu", i,
+                  ctlVal.toString().c_str(), ctlVal.type(), ctlVal.numElements());
+        }
     }
 
     libcamera::FrameBuffer *frameBuffer = request->findBuffer(mLibCameraStream);
