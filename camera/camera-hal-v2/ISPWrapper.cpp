@@ -166,7 +166,6 @@ int ISPWrapper::processExposureGain(int32_t gain, libcamera::ControlList &contro
 
 #define EXPOSURE_TIME_NS_MIN 116000
 #define EXPOSURE_TIME_NS_MAX 33216000
-#define NS_PER_US 1000ULL
 int ISPWrapper::processExposureTime(int64_t exposureNs, libcamera::ControlList &controls,
                                     bool force) {
     if ((m_exposure_time == exposureNs) && (force == false))

@@ -628,8 +628,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
         Stream stream = request_config.streams[i];
         ALOGI("%s, stream %d: id %d, type %d, res %dx%d, format 0x%x, usage 0x%llx, space 0x%x, "
               "rot %d, is_phy %d, phy_id %d, size %d",
-              __func__, i, stream.id, stream.stream_type, stream.width, stream.height,
-              stream.format, (unsigned long long)stream.usage, stream.data_space, stream.rotation,
+              __func__, i, stream.id, (int)stream.stream_type, stream.width, stream.height,
+              stream.format, (unsigned long long)stream.usage, stream.data_space, (int)stream.rotation,
               stream.is_physical_camera_stream, stream.physical_camera_id, stream.buffer_size);
 
         uint32_t camera_id = camera_id_;
@@ -728,7 +728,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     }
 
     std::set<libcamera::Stream *> libCameraStreamSet = camera_->streams();
-    ALOGI("%s: libCameraStreamSet size %d, stream_num %d", __func__, libCameraStreamSet.size(),
+    ALOGI("%s: libCameraStreamSet size %lu, stream_num %d", __func__, libCameraStreamSet.size(),
           stream_num);
 #if 0
     if (libCameraStreamSet.size() != 1) {
@@ -770,7 +770,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
         mFrameBufferHandleMap[pfb] = hnd;
         mFrameBuffersFree.push_back(std::move(frameBuffer));
-        ALOGV("%s: mFrameBufferHandleMap[%p] %p, mFrameBuffersFree size %d, this %p", __func__, pfb,
+        ALOGV("%s: mFrameBufferHandleMap[%p] %p, mFrameBuffersFree size %lu, this %p", __func__, pfb,
               hnd, mFrameBuffersFree.size(), this);
     }
 
@@ -874,7 +874,7 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
 
     /* free buffers in mFrameBuffersFree */
     if (mFrameBuffersFree.size() != LIBCAM_STREAM_BUFNUM)
-        ALOGW("%s: !!! unexpected, mFrameBuffersFree size %d != %d", mFrameBuffersFree.size(),
+        ALOGW("%s: !!! unexpected, mFrameBuffersFree size %lu != %d", __func__, mFrameBuffersFree.size(),
               LIBCAM_STREAM_BUFNUM);
 
     for (auto &it : mFrameBuffersFree) {
@@ -895,7 +895,7 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
     // Should no buffers in mFrameBuffersBusy. Even so, don't free them since may cause exception.
     // It's the unexpected case, give warning and should refine code.
     if (!mFrameBuffersBusy.empty())
-        ALOGW("%s: !!! unexpected, mFrameBuffersBusy size %d != 0", mFrameBuffersBusy.size());
+        ALOGW("%s: !!! unexpected, mFrameBuffersBusy size %lu != 0", __func__, mFrameBuffersBusy.size());
 
     mFrameBuffersFree.clear();
     mFrameBuffersBusy.clear();
@@ -991,7 +991,7 @@ std::unique_ptr<libcamera::FrameBuffer> CameraDeviceSessionHwlImpl::CreateFrameB
         planes[i].offset = plansInfo.plans[i].offset;
         planes[i].length = plansInfo.plans[i].size;
 
-        ALOGI("%s:, plan %d, fd %d, offset %d, length %d", __func__, i, fd.get(), planes[i].offset,
+        ALOGI("%s:, plan %lu, fd %d, offset %d, length %d", __func__, i, fd.get(), planes[i].offset,
               planes[i].length);
     }
 
@@ -1003,7 +1003,7 @@ Stream *CameraDeviceSessionHwlImpl::GetStreamById(int32_t stream_id, PipelineInf
         return NULL;
 
     uint32_t stream_num = pInfo->streams->size();
-    for (int i = 0; i < stream_num; i++) {
+    for (uint32_t i = 0; i < stream_num; i++) {
         if (pInfo->streams->at(i).id == stream_id)
             return &pInfo->streams->at(i);
     }
@@ -1092,7 +1092,7 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
         mFrameBuffersFree.pop_front();
         mFrameBuffersBusy.push_back(std::move(uptrFrameBuffer));
         if (mDebug)
-            ALOGI("%s: mFrameBuffersFree size %d, mFrameBuffersBusy size %d", __func__,
+            ALOGI("%s: mFrameBuffersFree size %lu, mFrameBuffersBusy size %lu", __func__,
                   mFrameBuffersFree.size(), mFrameBuffersBusy.size());
 
         frame_request->at(i).request =
@@ -1374,7 +1374,7 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2MultiOutbuf(
                 Stream *pPreStream = GetStreamFromStreamBuffer(&output_buffers[j]);
                 if ((pCurStream == NULL) || (pPreStream == NULL)) {
                     ALOGE("%s: unexpected, pCurStream %p, idx %d,  pPreStream %p, idx %d", __func__,
-                          pCurStream, pPreStream, i, j);
+                          pCurStream, i, pPreStream, j);
                     return BAD_VALUE;
                 }
 
@@ -1424,7 +1424,7 @@ uint64_t CameraDeviceSessionHwlImpl::GetTimestamp(libcamera::Request *request) {
             return frameBuffer->metadata().timestamp;
     }
 
-    ALOGW("!!! %s: unexpected, no valid frameBuffer in bufMap, size %d", __func__, bufMap.size());
+    ALOGW("!!! %s: unexpected, no valid frameBuffer in bufMap, size %lu", __func__, bufMap.size());
 
     return systemTime(SYSTEM_TIME_MONOTONIC);
 }
@@ -1497,7 +1497,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
 
     if (mDebug) {
         libcamera::ControlList &metadata = request->metadata();
-        ALOGI("==== %s: frame %d, output_buffers %d, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %d, sequence %u, metadata size %d",
+        ALOGI("==== %s: frame %d, output_buffers %lu, result->regsult_metadata %p, entry count %d, libcamera::Request buffers %lu, sequence %u, metadata size %lu",
               __func__, frame, result->output_buffers.size(), result->result_metadata.get(),
               (int)result->result_metadata->GetEntryCount(), request->buffers().size(),
               request->sequence(), metadata.size());
@@ -1548,7 +1548,7 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     mFrameBuffersFree.push_back(std::move(uptrFrameBuffer));
 
     if (mDebug)
-        ALOGI("%s: mFrameBuffersFree size %d, mFrameBuffersBusy size %d", __func__,
+        ALOGI("%s: mFrameBuffersFree size %lu, mFrameBuffersBusy size %lu", __func__,
               mFrameBuffersFree.size(), mFrameBuffersBusy.size());
 
     if (frameBuffer != frameBufferFront)
