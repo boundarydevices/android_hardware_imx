@@ -296,6 +296,9 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
         return std::make_tuple(HWC3::Error::NoResources, ::android::base::unique_fd());
     }
 
+
+    int vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz; // convert to nanosecond
+    uint32_t interval = vsyncPeriod * 2 / mCommitRetryCnt / 1000; // try 2 Vsync period
 #ifdef DEBUG_DUMP_REFRESH_RATE
     nsecs_t now = dumpRefreshRateStart();
 #endif
@@ -303,7 +306,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     uint32_t i = 0;
     ret = request->Commit(drmFd);
     while ((ret == -EBUSY) && (i < mCommitRetryCnt)) {
-        usleep(1000);
+        usleep(interval);
         ret = request->Commit(drmFd);
         i++;
     }
@@ -313,7 +316,6 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
         return std::make_tuple(HWC3::Error::NoResources, ::android::base::unique_fd());
     }
 #ifdef DEBUG_DUMP_REFRESH_RATE
-    int vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz; // convert to nanosecond
     dumpRefreshRateEnd(mDumpActualFps, vsyncPeriod, now);
 #endif
 
