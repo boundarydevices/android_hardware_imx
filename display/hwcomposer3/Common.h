@@ -121,6 +121,7 @@ bool customizeGUIResolution(uint32_t& width, uint32_t& height, uint32_t* uiType)
 void parseDisplayMode(uint32_t* width, uint32_t* height, uint32_t* vrefresh, uint32_t* prefermode);
 bool checkRectOverlap(common::Rect& masked, common::Rect& src);
 void mergeRect(common::Rect& masked, common::Rect& src);
+bool getDisplayPortFromProperty(const std::string& connector_name, uint32_t* outPort);
 
 #ifdef DEBUG_DUMP_REFRESH_RATE
 nsecs_t dumpRefreshRateStart();

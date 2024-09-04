@@ -349,4 +349,26 @@ void debug_dump_frame(buffer_handle_t handle) {
 }
 #endif
 
+bool getDisplayPortFromProperty(const std::string &connector_name, uint32_t *outPort) {
+    const std::string ports = ::android::base::GetProperty("ro.boot.display_port", "");
+    DEBUG_LOG("%s: sysprop ro.boot.display_port is %s", __FUNCTION__, ports.c_str());
+
+    uint32_t port;
+    if (ports.size() > 0) {
+        std::string conn = connector_name + ":";
+        auto pos = ports.find(conn);
+        if (pos != std::string::npos) {
+            auto colon = ports.find(':', pos);
+            auto comma = ports.find(',', pos);
+            auto count = (comma == std::string::npos) ? comma : (comma - colon);
+            auto port_str = ports.substr(colon + 1, count);
+            port = std::stoi(port_str);
+
+            *outPort = port;
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

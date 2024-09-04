@@ -608,7 +608,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
 
     if (!displayBuffer.clientTargetDrmBuffer && (displayBuffer.planeDrmBuffer.size() == 0) &&
         (displayBuffer.dummyDrmBuffer.size() == 0)) {
-        ALOGE("%s: No buffer need to commit", __FUNCTION__);
+        DEBUG_LOG("%s: display:%" PRIu64 " No buffer need to commit", __FUNCTION__, displayId);
         return HWC3::Error::None; // No buffer need to commit
     }
 

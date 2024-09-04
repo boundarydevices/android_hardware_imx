@@ -42,6 +42,7 @@ public:
     ~DrmConnector(){};
 
     uint32_t getId() const { return mId; }
+    std::string& getName() { return name; }
 
     uint32_t getWidth() const;
     uint32_t getHeight() const;
@@ -79,6 +80,7 @@ private:
 
     const uint32_t mId;
     uint32_t mPossibleCrtcsMask = 0; // get from encoder
+    std::string name;
 
     drmModeConnection mStatus = DRM_MODE_UNKNOWNCONNECTION;
     bool mEdidReload = false;

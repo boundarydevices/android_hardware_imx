@@ -52,14 +52,20 @@ std::unique_ptr<DrmDisplay> DrmDisplay::create(
         ALOGE("%s: invalid plane.", __FUNCTION__);
         return nullptr;
     }
+
+    uint32_t port = 0;
+    if (getDisplayPortFromProperty(connector->getName(), &port)) {
+        id = port;
+    }
+
     char planeStr[100] = {0}, tempStr[100];
     for (const auto& [planeId, _] : planes) {
         sprintf(tempStr, "%d ", planeId);
         strcat(planeStr, tempStr);
     }
 
-    ALOGI("%s: display %d created: crtc=%d, connector=%d, plane=%s", __FUNCTION__, id,
-          crtc->getId(), connector->getId(), planeStr);
+    ALOGI("%s: display %d created: crtc=%d, connector=%d(%s), plane=%s", __FUNCTION__, id,
+          crtc->getId(), connector->getId(), connector->getName().c_str(), planeStr);
 
     std::unique_ptr<DrmDisplay> display(
             new DrmDisplay(id, std::move(connector), std::move(crtc), std::move(planes)));

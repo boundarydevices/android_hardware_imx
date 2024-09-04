@@ -41,6 +41,11 @@ std::unique_ptr<DrmConnector> DrmConnector::create(::android::base::borrowed_fd 
         ALOGE("%s: Failed to load connector.", __FUNCTION__);
         return nullptr;
     }
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%s-%u", drmModeGetConnectorTypeName(drmConnector->connector_type),
+             drmConnector->connector_type_id);
+    connector->name = buf;
+
     drmModeEncoder* drmEncoder = drmModeGetEncoder(drmFd.get(), drmConnector->encoders[0]);
     if (!drmEncoder) {
         ALOGE("%s: drmModeGetEncoder failed for encoder 0x%08x", __FUNCTION__,
