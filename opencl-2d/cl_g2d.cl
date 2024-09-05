@@ -4,8 +4,8 @@ typedef struct _pix5
 } pix5;
 
 __kernel void nv12_10bit_tiled_to_linear(__global const uchar *input_y,
-        __global const uchar *input_uv, __global const uchar *output_y,
-        __global const uchar *output_uv, int src_stride, int width, int height)
+        __global const uchar *input_uv, __global uchar *output_y,
+        __global uchar *output_uv, int src_stride, int width, int height)
 {
     short x1 = get_global_id(0);
     short y = get_global_id(1);
@@ -115,8 +115,8 @@ __kernel void g2d_yuyv_to_nv12(__global const uchar8 *input,
     int x = get_global_id(0);
     int y = get_global_id(1);
     int index = y*src_width + x;
-    uchar4 *uv_buf = output_uv + index/2;
-    uchar4 *y_buf = output_y + index;
+    __global uchar4 *uv_buf = output_uv + index/2;
+    __global uchar4 *y_buf = output_y + index;
     uchar8 p_yuyv = *(input + index);
     /*
      *y_buf = p_yuyv.even;
@@ -130,7 +130,7 @@ __kernel void g2d_yuyv_to_nv12(__global const uchar8 *input,
         *uv_buf = p_yuyv.odd;
        */
         int uv_index = y/2*src_width + x;
-        uchar4 *uv_buf = output_uv + uv_index;
+        __global uchar4 *uv_buf = output_uv + uv_index;
         (*uv_buf).x = p_yuyv.s1;
         (*uv_buf).y = p_yuyv.s3;
         (*uv_buf).z = p_yuyv.s5;
@@ -151,9 +151,9 @@ __kernel void g2d_yuyv_to_i420(__global const uchar8 *input,
     int y = get_global_id(1);
     int index = y*src_width + x;
 
-    uchar2 *u_buf = output_u + index/4;
-    uchar2 *v_buf = output_v + index/4;
-    uchar4 *y_buf = output_y + index;
+    __global uchar2 *u_buf = output_u + index/4;
+    __global uchar2 *v_buf = output_v + index/4;
+    __global uchar4 *y_buf = output_y + index;
 
     uchar8 p_yuyv = *(input + index);
 
@@ -170,8 +170,8 @@ __kernel void g2d_yuyv_to_i420(__global const uchar8 *input,
         *uv_buf = p_yuyv.odd;
        */
         int uv_index = y/2*src_width + x;
-        uchar2 *u_buf = output_u + uv_index;
-        uchar2 *v_buf = output_v + uv_index;
+        __global uchar2 *u_buf = output_u + uv_index;
+        __global uchar2 *v_buf = output_v + uv_index;
         (*u_buf).s0 = p_yuyv.s1;
         (*u_buf).s1 = p_yuyv.s5;
         (*v_buf).s0 = p_yuyv.s3;
@@ -193,10 +193,10 @@ __kernel void g2d_nv12_to_nv21(__global const uchar8 *input_y,
     if((x+1)*8 <= width) {
         int src_index = y*src_stride + x*8;
         int dst_index = y*dst_stride + x*8;
-        uchar4 *dst_uv_buf = output_uv + dst_index/8;
-        uchar8 *dst_y_buf = output_y + dst_index/8;
-        uchar4 *src_uv_buf = input_uv + src_index/8;
-        uchar8 *src_y_buf = input_y + src_index/8;
+        __global uchar4 *dst_uv_buf = output_uv + dst_index/8;
+        __global uchar8 *dst_y_buf = output_y + dst_index/8;
+        __global const uchar4 *src_uv_buf = input_uv + src_index/8;
+        __global const uchar8 *src_y_buf = input_y + src_index/8;
 
         (*dst_y_buf) = (*src_y_buf);
         (*dst_uv_buf).x = (*src_uv_buf).y;
@@ -284,13 +284,13 @@ __kernel void g2d_yuyv_to_yuyv(__global const uint4 *input,
     int x = get_global_id(0);
     int y = get_global_id(1);
     int output_index = y*dst_width + x;
-    uint4 *output_buf = output + output_index;
+    __global uint4 *output_buf = output + output_index;
     if (x >= src_width){
         *output_buf = (uint4)(0x80008000, 0x80008000, 0x80008000, 0x80008000);
     }
     else {
         int input_index = y*src_width + x;
-        uint4 *input_buf = input + input_index;
+        __global const uint4 *input_buf = input + input_index;
         *output_buf = *input_buf;
     }
 }
