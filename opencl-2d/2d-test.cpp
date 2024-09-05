@@ -139,10 +139,10 @@ static int read_from_file(char *buf, int count, const char *filename) {
     return len;
 }
 
-static int write_from_file(char *buf, int count, const char *filename) {
+static int write_to_file(char *buf, int count, const char *filename) {
     int fd = 0;
     int len = 0;
-    fd = open(filename, O_CREAT | O_RDWR, 0666);
+    fd = open(filename, O_CREAT | O_RDWR | O_TRUNC, 0666);
     if (fd < 0) {
         ALOGE("Unable to open file [%s]\n", filename);
         return -1;
@@ -1385,6 +1385,23 @@ int main(int argc, char **argv) {
         goto clean;
     }
 
+    // Delete output files. So if test fail, related files will not exist.
+    memset(output_2d_file, 0, MAX_FILE_LEN);
+    strncpy(output_2d_file, output_file, strlen(output_file));
+    strcat(output_2d_file, "_2d");
+
+    memset(output_cl_file, 0, MAX_FILE_LEN);
+    strncpy(output_cl_file, output_file, strlen(output_file));
+    strcat(output_cl_file, "_cl");
+
+    memset(output_benchmark_file, 0, MAX_FILE_LEN);
+    strncpy(output_benchmark_file, output_file, strlen(output_file));
+    strcat(output_benchmark_file, "_benchmark");
+
+    remove(output_2d_file);
+    remove(output_cl_file);
+    remove(output_benchmark_file);
+
     uint64_t t1, t2;
     // g2d engine
     if (G2dHandle != NULL) {
@@ -1424,10 +1441,7 @@ int main(int argc, char **argv) {
         dump_buffer((char *)input_buf, gCopyLen > 256 ? 256 : gCopyLen, "g2d_input");
         dumpOutPutBuffer((char *)output_buf, "g2d");
 
-        memset(output_2d_file, 0, MAX_FILE_LEN);
-        strncpy(output_2d_file, output_file, strlen(output_file));
-        strcat(output_2d_file, "_2d");
-        write_from_file((char *)output_buf, outputlen, output_2d_file);
+        write_to_file((char *)output_buf, outputlen, output_2d_file);
     }
 
     // cl engine
@@ -1500,10 +1514,7 @@ int main(int argc, char **argv) {
         dump_buffer((char *)input_buf, gCopyLen > 256 ? 256 : gCopyLen, "cl_input");
         dumpOutPutBuffer((char *)output_buf, "cl");
 
-        memset(output_cl_file, 0, MAX_FILE_LEN);
-        strncpy(output_cl_file, output_file, strlen(output_file));
-        strcat(output_cl_file, "_cl");
-        write_from_file((char *)output_buf, outputlen, output_cl_file);
+        write_to_file((char *)output_buf, outputlen, output_cl_file);
     }
 
     // cpu engine
@@ -1552,10 +1563,7 @@ int main(int argc, char **argv) {
           (t2 - t1) / G2D_TEST_LOOP);
     dumpOutPutBuffer((char *)output_benchmark_buf, "benchmark");
 
-    memset(output_benchmark_file, 0, MAX_FILE_LEN);
-    strncpy(output_benchmark_file, output_file, strlen(output_file));
-    strcat(output_benchmark_file, "_benchmark");
-    write_from_file((char *)output_benchmark_buf, outputlen, output_benchmark_file);
+    write_to_file((char *)output_benchmark_buf, outputlen, output_benchmark_file);
 
 clean:
     if (g_use_v4l2_buffer) {
