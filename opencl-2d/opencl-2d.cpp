@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 NXP.
+ * Copyright 2018-2024 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 
 #ifdef BUILD_FOR_ANDROID
 #include <cutils/log.h>
-#define g2d_printf ALOGI
+#define g2d_printf ALOGE
 #else
 #define g2d_printf printf
 #endif
