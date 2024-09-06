@@ -1362,46 +1362,32 @@ status_t CameraDeviceSessionHwlImpl::ProcessCapbuf2MultiOutbuf(
 
     for (int i = 0; i < outBufSize; i++) {
         ImxStreamBuffer *srcBufTmp = srcBuf;
-        int sameResIdx = -1;
-        int sameResFmtIdx = -1;
-        Stream *pStreamSameRes = NULL;
-        Stream *pStreamSameResFmt = NULL;
-
-        // found if there's same res/fmt or same res processed output buffer.
-        if (i > 0) {
-            Stream *pCurStream = GetStreamFromStreamBuffer(&output_buffers[i]);
-            for (int j = 0; j < i; j++) {
-                Stream *pPreStream = GetStreamFromStreamBuffer(&output_buffers[j]);
-                if ((pCurStream == NULL) || (pPreStream == NULL)) {
-                    ALOGE("%s: unexpected, pCurStream %p, idx %d,  pPreStream %p, idx %d", __func__,
-                          pCurStream, i, pPreStream, j);
-                    return BAD_VALUE;
-                }
-
-                if ((pCurStream->width == pPreStream->width) &&
-                    (pCurStream->height == pPreStream->height)) {
-                    sameResIdx = j;
-                    pStreamSameRes = pPreStream;
-                    if (pCurStream->format == pPreStream->format) {
-                        sameResFmtIdx = j;
-                        pStreamSameResFmt = pPreStream;
-                    }
-                }
+        // If there are requirements for two streams at the same time, and one is for record
+        // use preview buffer as srcBuf to save processing. stream as follows:
+        // preview stream: 2160p/yuyv(vl42 buffer)    -> 1080p/yuyv(preview buffer)
+        // record stream:  1080p/yuyv(preview buffer) -> 1080p/nv12(record buffer)
+        if (outBufSize == 2) {
+            Stream *pFirstStream = GetStreamFromStreamBuffer(&output_buffers[0]);
+            Stream *pSecondStream = GetStreamFromStreamBuffer(&output_buffers[1]);
+            // found if there's same res/fmt processed output buffer.
+            if ((pFirstStream == NULL) || (pSecondStream == NULL)) {
+                ALOGE("%s: unexpected, pFirstStream %p, pSecondStream %p", __func__, pFirstStream, pSecondStream);
+                return BAD_VALUE;
             }
+            if ((pSecondStream->width == pFirstStream->width) &&
+                (pSecondStream->height == pFirstStream->height) &&
+                (pSecondStream->format == pFirstStream->format)) {
+                if(pFirstStream->usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) {
+                    if (mDebug)
+                        ALOGI("%s: 1th stream required for record, swap 2 output_buffers, handle the preview stream first", __func__);
+                    std::swap(output_buffers[0], output_buffers[1]);
+                }
 
-            if (mDebug)
-                ALOGI("%s: current output buffer idx %d, sameResIdx %d, sameResFmtIdx %d", __func__, i,
-                      sameResIdx, sameResFmtIdx);
+                if (i == 1) {
+                    srcBufTmp = CreateImxStreamBufferFromBufferHandle(output_buffers[0].buffer, pFirstStream);
+                }
 
-            if (sameResFmtIdx >= 0)
-                srcBufTmp =
-                        CreateImxStreamBufferFromBufferHandle(output_buffers[sameResFmtIdx].buffer,
-                                                              pStreamSameResFmt);
-            else if (sameResIdx >= 0)
-                srcBufTmp = CreateImxStreamBufferFromBufferHandle(output_buffers[sameResIdx].buffer,
-                                                                  pStreamSameRes);
-            else
-                srcBufTmp = srcBuf;
+            }
         }
 
         int status = ProcessCapbuf2Outbuf(srcBufTmp, output_buffers[i], outFences[i], requestMeta);
