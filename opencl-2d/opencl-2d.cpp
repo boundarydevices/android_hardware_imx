@@ -719,6 +719,9 @@ error:
 }
 
 static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *dst) {
+    if ((src->format == CL_G2D_YUYV) && (dst->format == CL_G2D_YUYV))
+        return YUYV_TO_YUYV_INDEX;
+
     int kernel_index = -1;
     if ((src->width != dst->width) || (src->height != dst->height) || (src->width > src->stride) ||
         (dst->width > dst->stride)) {
@@ -728,8 +731,6 @@ static int get_kernel_index(struct cl_g2d_surface *src, struct cl_g2d_surface *d
 
     if ((src->format == CL_G2D_YUYV) && (dst->format == CL_G2D_NV12))
         kernel_index = YUYV_TO_NV12_INDEX;
-    else if ((src->format == CL_G2D_YUYV) && (dst->format == CL_G2D_YUYV))
-        kernel_index = YUYV_TO_YUYV_INDEX;
     else if ((src->format == CL_G2D_NV12) && (dst->format == CL_G2D_NV21))
         kernel_index = NV12_TO_NV21_INDEX;
     else if ((src->format == CL_G2D_NV12_TILED) && (dst->format == CL_G2D_NV12))
