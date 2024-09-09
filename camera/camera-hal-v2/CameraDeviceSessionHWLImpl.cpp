@@ -1113,6 +1113,15 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
                   controls.size());
         m_IspWrapper->process((HalCameraMetadata *)(requests[i].settings.get()), controls);
 
+        if ( mDeQueRequestIdx == 1) {
+            // Manual exposure mode, for ExposureGain, process after stream on
+            if (m_IspWrapper->m_ae_mode == ANDROID_CONTROL_AE_MODE_ON) {
+                m_IspWrapper->processAeMode(ANDROID_CONTROL_AE_MODE_ON, controls, true);
+            } else {
+                m_IspWrapper->processExposureGain(m_IspWrapper->m_exposure_gain, controls, true);
+            }
+        }
+
         ret = camera_->queueRequest(frame_request->at(i).request.get());
         if (ret) {
             ALOGE("%s, camera_->queueRequest failed, ret %d", __func__, ret);

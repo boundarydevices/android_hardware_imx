@@ -44,8 +44,6 @@ ISPWrapper::ISPWrapper() {
 
     m_ec_gain_min = 1.0;
     m_ec_gain_max = 15.5;
-    m_brightness_min = -1.0;
-    m_brightness_max = 1.0;
 }
 
 ISPWrapper::~ISPWrapper() {}
@@ -127,7 +125,7 @@ int ISPWrapper::processAeMode(uint8_t mode, libcamera::ControlList &controls, bo
 
     if (m_ae_mode == ANDROID_CONTROL_AE_MODE_ON) {
         m_exposure_time = 0;
-        m_exposure_gain = 0;
+        m_exposure_gain = -1;
     }
 
     return 0;
@@ -141,13 +139,21 @@ int ISPWrapper::processExposureGain(int32_t gain, libcamera::ControlList &contro
     if ((m_exposure_gain == gain) && (force == false))
         return 0;
 
+    if (m_exposure_gain == 0 && m_ae_mode == ANDROID_CONTROL_AE_MODE_OFF) {
+        // Manual exposure mode, need recover, will process after stream on
+        ALOGI("%s: Delayed processing, change gain from %d to %d after stream on.", __func__, m_exposure_gain, gain);
+        m_exposure_gain = gain;
+
+        return 0;
+    }
+
     if (gain > GAIN_LEVEL_MAX)
         gain = GAIN_LEVEL_MAX;
     if (gain < GAIN_LEVEL_MIN)
         gain = GAIN_LEVEL_MIN;
 
     // first disable aec
-    processAeMode(ANDROID_CONTROL_AE_MODE_OFF, controls);
+    processAeMode(ANDROID_CONTROL_AE_MODE_OFF, controls, force);
 
     // calc the value to set
     float exposure_gain = m_ec_gain_min +

@@ -51,20 +51,18 @@ public:
     int processExposureTime(int64_t exposureNs, libcamera::ControlList &controls,
                             bool force = false);
 
+    uint8_t m_ae_mode;
+    int32_t m_exposure_gain;
 private:
     int enableAWB(bool enable, libcamera::ControlList &controls);
 
 private:
     uint8_t m_awb_mode;
-    uint8_t m_ae_mode;
-    int32_t m_exposure_gain;
+
     int64_t m_exposure_time;
 
     float m_ec_gain_min;
     float m_ec_gain_max;
-    float m_brightness_min = -1.0;
-    float m_brightness_max = 1.0;
-
     float m_last_exposure_gain;
     int64_t m_last_exposure_time;
 };
