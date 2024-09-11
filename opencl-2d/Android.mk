@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ifeq ($(findstring imx, $(TARGET_BOARD_PLATFORM)), imx)
+ifeq ($(HAVE_FSL_IMX_GPU3D),true)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -59,4 +60,5 @@ LOCAL_SHARED_LIBRARIES := liblog \
 LOCAL_CFLAGS += -DBUILD_FOR_ANDROID
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)
+endif
 endif
