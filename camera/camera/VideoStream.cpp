@@ -43,8 +43,6 @@ VideoStream::VideoStream(CameraDeviceSessionHwlImpl *pSession) {
     mRecoverCount = 0;
     memset(mBuffers, 0, sizeof(mBuffers));
     mV4l2Format = -1;
-
-    property_get("ro.boot.soc_type", soc_type, "");
 }
 
 VideoStream::~VideoStream() {}
@@ -127,12 +125,6 @@ int32_t VideoStream::ConfigAndStart(uint32_t format, uint32_t width, uint32_t he
 
     ALOGI("%s: to set format 0x%x, res %dx%d, fps %d, intent %d, sceneMode %d, recover %d",
           __func__, format, width, height, fps, intent, sceneMode, recover);
-
-    if (strstr(soc_type, "imx8mq") && (width == 320) && (height == 240)) {
-        width = 640;
-        height = 480;
-        ALOGI("%s, imx8mq, change 240p to 480p", __func__);
-    }
 
     if (((mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) ||
          (mFormat == HAL_PIXEL_FORMAT_YCbCr_420_888)) &&
