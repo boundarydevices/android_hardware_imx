@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2023 The Android Open Source Project
+ * Copyright 2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@
 #include <Utils.h>
 #include <android-base/logging.h>
 
+#include "core-impl/AudioCardManager.h"
 #include "core-impl/ModulePrimary.h"
 #include "core-impl/StreamPrimary.h"
 #include "core-impl/Telephony.h"
@@ -32,6 +34,15 @@ using aidl::android::media::audio::common::AudioPortConfig;
 using aidl::android::media::audio::common::MicrophoneInfo;
 
 namespace aidl::android::hardware::audio::core {
+
+ModulePrimary::ModulePrimary(std::unique_ptr<Configuration>&& config)
+    : Module(Type::DEFAULT, std::move(config)) {
+    AudioCardManager::init();
+}
+
+ModulePrimary::~ModulePrimary() {
+    AudioCardManager::release();
+}
 
 ndk::ScopedAStatus ModulePrimary::getTelephony(std::shared_ptr<ITelephony>* _aidl_return) {
     if (!mTelephony) {
