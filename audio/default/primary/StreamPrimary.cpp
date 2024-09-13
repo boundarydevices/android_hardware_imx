@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2023 The Android Open Source Project
+ * Copyright 2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +23,13 @@
 #include <error/expected_utils.h>
 
 #include "PrimaryMixer.h"
+#include "core-impl/AudioCardManager.h"
 #include "core-impl/StreamPrimary.h"
 #include "core-impl/StreamStub.h"
+
+extern "C" {
+#include "alsa_device_profile.h"
+}
 
 using aidl::android::hardware::audio::common::SinkMetadata;
 using aidl::android::hardware::audio::common::SourceMetadata;
@@ -92,17 +98,21 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
 }
 
 std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
-    static const std::vector<alsa::DeviceProfile> kBuiltInSource{
-            alsa::DeviceProfile{.card = primary::PrimaryMixer::kAlsaCard,
-                                .device = primary::PrimaryMixer::kAlsaDevice,
-                                .direction = PCM_IN,
-                                .isExternal = false}};
-    static const std::vector<alsa::DeviceProfile> kBuiltInSink{
-            alsa::DeviceProfile{.card = primary::PrimaryMixer::kAlsaCard,
-                                .device = primary::PrimaryMixer::kAlsaDevice,
-                                .direction = PCM_OUT,
-                                .isExternal = false}};
-    return mIsInput ? kBuiltInSource : kBuiltInSink;
+    std::vector<alsa::DeviceProfile> deviceProfile{
+        alsa::DeviceProfile{.card = 0,
+            .device = 0,
+            .direction = mIsInput ? PCM_IN : PCM_OUT,
+            .isExternal = false}};
+    const ConnectedDevices& connectedDevices = getConnectedDevices();
+    if (connectedDevices.size() > 1)
+        LOG(WARNING) << __func__ << ": size of ConnectedDevices is larger than 1";
+
+    struct audio_card *card = AudioCardManager::getCardForDevice(connectedDevices[0]);
+    if (card) {
+        deviceProfile[0].card = card->card;
+    }
+
+    return deviceProfile;
 }
 
 StreamInPrimary::StreamInPrimary(StreamContext&& context, const SinkMetadata& sinkMetadata,
