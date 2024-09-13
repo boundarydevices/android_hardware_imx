@@ -42,6 +42,8 @@ class ModulePrimary final : public Module {
             std::shared_ptr<StreamOut>* result) override;
     int32_t getNominalLatencyMs(
             const ::aidl::android::media::audio::common::AudioPortConfig& portConfig) override;
+    ndk::ScopedAStatus populateConnectedDevicePort(
+            ::aidl::android::media::audio::common::AudioPort* audioPort, int32_t nextPortId) override;
 
   private:
     ChildInterface<ITelephony> mTelephony;

@@ -77,4 +77,10 @@ int32_t ModulePrimary::getNominalLatencyMs(const AudioPortConfig&) {
     return kLatencyMs;
 }
 
+ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(
+        ::aidl::android::media::audio::common::AudioPort* audioPort, int32_t nextPortId) {
+    LOG(INFO) << __func__ << ": " << audioPort->name << ", id: " << nextPortId;
+    return ndk::ScopedAStatus::ok();
+}
+
 }  // namespace aidl::android::hardware::audio::core
