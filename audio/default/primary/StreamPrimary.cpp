@@ -58,36 +58,8 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
 
 ::android::status_t StreamPrimary::transfer(void* buffer, size_t frameCount,
                                             size_t* actualFrameCount, int32_t* latencyMs) {
-    // This is a workaround for the emulator implementation which has a host-side buffer
-    // and is not being able to achieve real-time behavior similar to ADSPs (b/302587331).
-    if (!mSkipNextTransfer) {
-        RETURN_STATUS_IF_ERROR(
-                StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
-    } else {
-        LOG(DEBUG) << __func__ << ": skipping transfer (" << frameCount << " frames)";
-        *actualFrameCount = frameCount;
-        if (mIsInput) memset(buffer, 0, frameCount * mFrameSizeBytes);
-        mSkipNextTransfer = false;
-    }
-    if (!mIsAsynchronous) {
-        const long bufferDurationUs =
-                (*actualFrameCount) * MICROS_PER_SECOND / mContext.getSampleRate();
-        const auto totalDurationUs =
-                (::android::uptimeNanos() - mStartTimeNs) / NANOS_PER_MICROSECOND;
-        mFramesSinceStart += *actualFrameCount;
-        const long totalOffsetUs =
-                mFramesSinceStart * MICROS_PER_SECOND / mContext.getSampleRate() - totalDurationUs;
-        LOG(VERBOSE) << __func__ << ": totalOffsetUs " << totalOffsetUs;
-        if (totalOffsetUs > 0) {
-            const long sleepTimeUs = std::min(totalOffsetUs, bufferDurationUs);
-            LOG(VERBOSE) << __func__ << ": sleeping for " << sleepTimeUs << " us";
-            usleep(sleepTimeUs);
-        } else {
-            mSkipNextTransfer = true;
-        }
-    } else {
-        LOG(VERBOSE) << __func__ << ": asynchronous transfer";
-    }
+    RETURN_STATUS_IF_ERROR(
+            StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
     return ::android::OK;
 }
 
