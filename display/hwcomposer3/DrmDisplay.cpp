@@ -298,7 +298,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
 
 
     int vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz; // convert to nanosecond
-    uint32_t interval = vsyncPeriod * 2 / mCommitRetryCnt / 1000; // try 2 Vsync period
+    uint32_t interval = vsyncPeriod * 2 / MAX_COMMIT_RETRY_COUNT / 1000; // try 2 Vsync period
 #ifdef DEBUG_DUMP_REFRESH_RATE
     nsecs_t now = dumpRefreshRateStart();
 #endif
