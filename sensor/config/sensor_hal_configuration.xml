@@ -16,9 +16,9 @@
 
 <sensorHalConfiguration version="1.0" xmlns:xi="http://www.w3.org/2001/XInclude">
     <modules>
-        <module halName="android.hardware.sensors@2.1-Google-IIO-Subhal" halVersion="2.1">
+        <module halName="android.hardware.sensors@2.1-nxp-IIO-Subhal" halVersion="2.1">
             <sensors>
-                <sensor name="scmi.iio.accel" type="1">
+                <sensor name="lsm303agr_accel" type="1">
                     <configuration>
                         <orientation rotate="true">
                             <x map="0" negate="false"/>
@@ -32,7 +32,49 @@
                         </location>
                     </configuration>
                 </sensor>
-                <sensor name="scmi.iio.gyro" type="4">
+                <sensor name="lsm303agr_magn" type="2">
+                    <configuration>
+                        <orientation rotate="true">
+                            <x map="0" negate="false"/>
+                            <y map="1" negate="true"/>
+                            <z map="2" negate="true"/>
+                        </orientation>
+                        <location>
+                            <x>0</x>
+                            <y>0</y>
+                            <z>0</z>
+                        </location>
+                    </configuration>
+                </sensor>
+                <sensor name="l3g4200d" type="4">
+                    <configuration>
+                        <orientation rotate="true">
+                            <x map="0" negate="false"/>
+                            <y map="1" negate="true"/>
+                            <z map="2" negate="true"/>
+                        </orientation>
+                        <location>
+                            <x>0</x>
+                            <y>0</y>
+                            <z>0</z>
+                        </location>
+                    </configuration>
+                </sensor>
+                <sensor name="fxos8700" type="1">
+                    <configuration>
+                        <orientation rotate="true">
+                            <x map="0" negate="false"/>
+                            <y map="1" negate="true"/>
+                            <z map="2" negate="true"/>
+                        </orientation>
+                        <location>
+                            <x>0</x>
+                            <y>0</y>
+                            <z>0</z>
+                        </location>
+                    </configuration>
+                </sensor>
+                <sensor name="fxas21002c" type="4">
                     <configuration>
                         <orientation rotate="true">
                             <x map="0" negate="false"/>

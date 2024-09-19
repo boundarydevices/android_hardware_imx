@@ -17,6 +17,7 @@
 #define ANDROID_HARDWARE_SENSORS_V2_1_SENSORS_SUBHAL_H
 
 #include <vector>
+#include <string.h>
 #include "Sensor.h"
 #include "SubHal.h"
 
@@ -76,7 +77,7 @@ class SensorsSubHal : public ISensorsSubHal, public ISensorsEventCallback {
     Return<void> debug(const hidl_handle& fd, const hidl_vec<hidl_string>& args) override;
 
     // Methods from ::android::hardware::sensors::V2_0::implementation::ISensorsSubHal follow.
-    const std::string getName() override { return "Google-IIO-SensorsSubhal"; }
+    const std::string getName() override { return "NXP-IIO-SensorsSubhal"; }
 
     Return<Result> initialize(const sp<IHalProxyCallback>& halProxyCallback) override;
 

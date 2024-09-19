@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "GoogleIIOSensorSubHal"
+#define LOG_TAG "NXPIIOSensorSubHal"
 
 #include "SensorsSubHal.h"
 #include <android/hardware/sensors/2.1/types.h>
@@ -49,7 +49,7 @@ static const char* gSensorConfigLocationList[] = {"/odm/etc/sensors/", "/vendor/
 static const int gSensorConfigLocationListSize =
         (sizeof(gSensorConfigLocationList) / sizeof(gSensorConfigLocationList[0]));
 
-#define MODULE_NAME "android.hardware.sensors@2.1-Google-IIO-Subhal"
+#define MODULE_NAME "android.hardware.sensors@2.1-nxp-IIO-Subhal"
 
 static std::optional<std::vector<Sensor>> readSensorsConfigFromXml() {
     for (int i = 0; i < gSensorConfigLocationListSize; i++) {
@@ -81,14 +81,6 @@ static std::optional<std::vector<Configuration>> getSensorConfiguration(
 }
 
 static bool isSensorSupported(iio_device_data* sensor) {
-#define SENSOR_SUPPORTED(SENSOR_NAME, SENSOR_TYPE) \
-    { .name = SENSOR_NAME, .type = SENSOR_TYPE, }
-    static const std::vector<sensors_supported_hal> supported_sensors = {
-            SENSOR_SUPPORTED("scmi.iio.accel", SensorType::ACCELEROMETER),
-            SENSOR_SUPPORTED("scmi.iio.gyro", SensorType::GYROSCOPE),
-    };
-#undef SENSOR_SUPPORTED
-
     if (!sensor) return false;
 
     auto iter = std::find_if(
@@ -103,7 +95,9 @@ static bool isSensorSupported(iio_device_data* sensor) {
 SensorsSubHal::SensorsSubHal() : mCallback(nullptr), mNextHandle(1) {
     int err;
     std::vector<iio_device_data> iio_devices;
+    std::optional<std::vector<Configuration>> sensor_configuration = std::nullopt;
     const auto sensors_config_list = readSensorsConfigFromXml();
+
     err = load_iio_devices(DEFAULT_IIO_DIR, &iio_devices, isSensorSupported);
     if (err == 0) {
         for (auto& iio_device : iio_devices) {
@@ -111,17 +105,9 @@ SensorsSubHal::SensorsSubHal() : mCallback(nullptr), mNextHandle(1) {
             if (err == 0) {
                 err = enable_sensor(iio_device.sysfspath, false);
                 if (err == 0) {
-                    std::optional<std::vector<Configuration>> sensor_configuration = std::nullopt;
                     if (sensors_config_list)
                         sensor_configuration = getSensorConfiguration(
                                 *sensors_config_list, iio_device.name, iio_device.type);
-
-                    if (iio_device.channelInfo.size() == NUM_OF_CHANNEL_SUPPORTED) {
-                        AddSensor(iio_device, sensor_configuration);
-                    } else {
-                        ALOGE("SensorsSubHal(): Unexpected number of channels for sensor %s",
-                              iio_device.sysfspath.c_str());
-                    }
                 } else {
                     ALOGE("SensorsSubHal(): Error in enabling_sensor %s to %d error code %d",
                           iio_device.sysfspath.c_str(), false, err);
@@ -130,6 +116,7 @@ SensorsSubHal::SensorsSubHal() : mCallback(nullptr), mNextHandle(1) {
                 ALOGE("SensorsSubHal(): Error in scanning channels for IIO device %s error code %d",
                       iio_device.sysfspath.c_str(), err);
             }
+            AddSensor(iio_device, sensor_configuration);
         }
     } else {
         ALOGE("SensorsSubHal: load_iio_devices returned error %d", err);

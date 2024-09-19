@@ -18,7 +18,7 @@ package {
 }
 
 cc_library {
-    name: "android.hardware.sensors@2.1-Google-IIO-Subhal",
+    name: "android.hardware.sensors@2.1-nxp-IIO-Subhal",
     vendor: true,
     srcs: [
         "iio_utils.cpp",
@@ -53,12 +53,12 @@ cc_library {
         "-Wextra",
         "-Werror",
     ],
-    generated_sources: ["sensor_hal_configuration_V1_0"],
-    generated_headers: ["sensor_hal_configuration_V1_0"],
+    generated_sources: ["sensor_hal_configuration_V1_0_nxp"],
+    generated_headers: ["sensor_hal_configuration_V1_0_nxp"],
 }
 
 cc_test_host {
-    name: "android.hardware.sensors@2.1-Google-IIO-Subhal_test",
+    name: "android.hardware.sensors@2.1-nxp-IIO-Subhal_test",
     srcs: [
         "iio_utils.cpp",
         "tests/IioUtilsTest.cpp",
@@ -76,7 +76,7 @@ cc_test_host {
 }
 
 cc_test_host {
-    name: "android.hardware.sensors@2.1-Google-IIO-Subhal_test-MultiPoll",
+    name: "android.hardware.sensors@2.1-nxp-IIO-Subhal_test-MultiPoll",
     srcs: [
         "MultiPoll.cpp",
         "tests/MultiPoll.cpp"

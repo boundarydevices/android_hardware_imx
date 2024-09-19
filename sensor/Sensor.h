@@ -16,6 +16,7 @@
 #ifndef ANDROID_HARDWARE_SENSORS_V2_1_SENSOR_H
 #define ANDROID_HARDWARE_SENSORS_V2_1_SENSOR_H
 
+#include <android-base/unique_fd.h>
 #include <android/hardware/sensors/2.1/types.h>
 #include <poll.h>
 #include <condition_variable>
@@ -33,6 +34,7 @@
 // Subtract the timestamp channel to get the number of data channels
 #define NUM_OF_DATA_CHANNELS NUM_OF_CHANNEL_SUPPORTED - 1
 
+using android::base::unique_fd;
 using ::android::hardware::sensors::V1_0::AdditionalInfo;
 using ::android::hardware::sensors::V1_0::OperationMode;
 using ::android::hardware::sensors::V1_0::Result;
@@ -110,6 +112,7 @@ class HWSensorBase : public SensorBase {
     ~HWSensorBase();
     void batch(int32_t samplingPeriodNs);
     void activate(bool enable);
+    void setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
     Result flush();
     struct iio_device_data mIioData;
 
@@ -127,9 +130,17 @@ class HWSensorBase : public SensorBase {
     static constexpr uint8_t ROTATION_Y_IDX = 1;
     static constexpr uint8_t ROTATION_Z_IDX = 2;
 
+    std::string freq_file_name;
+    unique_fd fd_acc_x;
+    unique_fd fd_acc_y;
+    unique_fd fd_acc_z;
+    unique_fd fd_mag_x;
+    unique_fd fd_mag_y;
+    unique_fd fd_mag_z;
+
     ssize_t mScanSize;
     struct pollfd mPollFdIio;
-    std::vector<uint8_t> mSensorRawData;
+    std::vector<char> mSensorRawData;
     int64_t mXMap, mYMap, mZMap;
     bool mXNegate, mYNegate, mZNegate;
     std::vector<AdditionalInfo> mAdditionalInfoFrames;
@@ -141,7 +152,8 @@ class HWSensorBase : public SensorBase {
     ssize_t calculateScanSize();
     void run();
     void setOrientation(std::optional<std::vector<Configuration>> config);
-    void processScanData(uint8_t* data, Event* evt);
+    void readSysfsRawData(Event* evt);
+    void processScanData(char* data, Event* evt);
     void setAxisDefaultValues();
     status_t setAdditionalInfoFrames(const std::optional<std::vector<Configuration>>& config);
     void sendAdditionalInfoReport();

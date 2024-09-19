@@ -18,7 +18,7 @@ package {
 }
 
 xsd_config {
-    name: "sensor_hal_configuration_V1_0",
+    name: "sensor_hal_configuration_V1_0_nxp",
     srcs: ["sensor_hal_configuration.xsd"],
     package_name: "sensor.hal.configuration.V1_0",
 }

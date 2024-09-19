@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "GoogleIIOSensorSubHal"
+#define LOG_TAG "NXPIIOSensorSubHal"
 
 #include "iio_utils.h"
 #include <errno.h>
@@ -30,12 +30,19 @@
 
 static const char* IIO_DEVICE_BASE = "iio:device";
 static const char* IIO_SCAN_ELEMENTS_EN = "_en";
+static const char* IIO_STEP_BUFFER_ENABLE = "in_steps_en";
 static const char* IIO_SFA_FILENAME = "sampling_frequency_available";
 static const char* IIO_SCALE_FILENAME = "_scale";
 static const char* IIO_SAMPLING_FREQUENCY = "_sampling_frequency";
 static const char* IIO_BUFFER_ENABLE = "buffer/enable";
 static const char* IIO_NAME_FILENAME = "name";
 static const char* IIO_RANGE_AVAIL_FILENAME = "raw_available";
+static const char* IIO_LIGHT_INPUT = "in_illuminance0_input";
+static const char* IIO_STEPCOUNTER_INPUT = "events/in_steps_change_value";
+static const char* IIO_TRIGGER = "/sys/devices/iio_sysfs_trigger/";
+static const char* IIO_HRTIMER_TRIGGER = "/config/iio/triggers/hrtimer/";
+static const char* IIO_CURRENT_TRIGGER = "/trigger/current_trigger";
+static const char* IIO_DATA_TRIGGER = "/sys/bus/iio/devices/iio_sysfs_trigger/";
 
 namespace android {
 namespace hardware {
@@ -111,6 +118,16 @@ static int sysfs_write_double(const std::string& file, const double val) {
     return sysfs_write_val(file, "%f", val);
 }
 
+static int sysfs_write_str(const std::string& f, const std::string& fmt) {
+    FilePtr fp = {fopen(f.c_str(), "r+"), fclose};
+    if (nullptr == fp)
+        return -errno;
+
+    fprintf(fp.get(), "%s\n", fmt.c_str());
+
+    return 0;
+}
+
 template <typename T>
 static int sysfs_read_val(const std::string& f, const std::string& fmt, const T* value) {
     if (!value) return -EINVAL;
@@ -124,6 +141,10 @@ static int sysfs_read_val(const std::string& f, const std::string& fmt, const T*
 
 static int sysfs_read_uint8(const std::string& file, uint8_t* val) {
     return sysfs_read_val(file, "%hhu\n", val);
+}
+
+static int sysfs_read_uint(const std::string& file, unsigned int* val) {
+    return sysfs_read_val(file, "%u\n", val);
 }
 
 static int sysfs_read_float(const std::string& file, float* val) {
@@ -154,6 +175,45 @@ int enable_sensor(const std::string& device_dir, const bool enable) {
         err = sysfs_write_uint(enable_file, enable);
     }
 
+    return err;
+}
+
+int enable_step_sensor(const std::string& device_dir, const bool enable) {
+    int err = check_file(device_dir);
+    if (!err) {
+        std::string enable_file = device_dir;
+        enable_file += "/";
+        enable_file += IIO_STEP_BUFFER_ENABLE;
+        err = sysfs_write_uint(enable_file, enable);
+    }
+    return err;
+}
+
+int add_hrtimer_trigger(const std::string& device_dir, uint8_t dev_num, const bool enable) {
+    int err = -1;
+
+    std::string hrtimer_dir = IIO_HRTIMER_TRIGGER;
+    std::string tri_value = "hrtimer_trigger";
+    tri_value += std::to_string(dev_num);
+    hrtimer_dir += tri_value;
+
+    std::string current_trigger = device_dir;
+    current_trigger += IIO_CURRENT_TRIGGER;
+
+    if (enable) {
+        if (access(hrtimer_dir.c_str(), 0) == -1 && mkdir(hrtimer_dir.c_str(), 644) == -1) {
+            ALOGI("mkdir error for %s\n", hrtimer_dir.c_str());
+            goto failed;
+        } else
+            err = sysfs_write_str(current_trigger, tri_value);
+    } else {
+        err = sysfs_write_str(current_trigger, "");
+    }
+
+    if (err != 0)
+        ALOGE("write current_trigger failed \n");
+
+failed:
     return err;
 }
 
@@ -260,6 +320,39 @@ static int get_sensor_scale(const std::string& device_dir, float* scale) {
     return err;
 }
 
+int get_light_value(const std::string& device_dir, unsigned int* light) {
+    const std::string filename = device_dir + "/" + IIO_LIGHT_INPUT;
+    return sysfs_read_uint(filename, light);
+}
+
+int get_stepcounter_value(const std::string& device_dir, unsigned int* stepcounter) {
+    const std::string filename = device_dir + "/" + IIO_STEPCOUNTER_INPUT;
+    return sysfs_read_uint(filename, stepcounter);
+}
+
+int64_t get_timestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto now_us = std::chrono::time_point_cast<std::chrono::microseconds>(now);
+    return now_us.time_since_epoch().count();
+}
+
+static bool iterateSensorsInPath(const std::string& path,
+                               const std::vector<sensors_supported_hal>& supported_sensors,
+                                std::string* name, std::vector<sensors_supported_hal>* sensor) {
+    std::string name_file = path + "/name";
+    std::ifstream iio_file(name_file.c_str());
+    if (!iio_file)
+        return false;
+    std::string iio_name;
+    std::getline(iio_file, iio_name);
+    for (auto& supported_sensor : supported_sensors) {
+        if (supported_sensor.name == iio_name)
+            sensor->push_back(supported_sensor);
+    }
+    *name = iio_name;
+    return true;
+}
+
 int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data,
                      DeviceFilterFunction filter) {
     DirPtr dp(nullptr, closedir);
@@ -277,44 +370,48 @@ int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data
 
         std::string path_device = iio_dir;
         path_device += ent->d_name;
+        std::vector<sensors_supported_hal> sensor_matches;
+        std::string iio_name;
+        if (!iterateSensorsInPath(path_device, supported_sensors, &iio_name, &sensor_matches)) continue;
 
-        iio_device_data iio_dev_data;
-        iio_dev_data.sysfspath.append(path_device, 0, iio_dir.size() + strlen(ent->d_name));
-        err = get_sensor_name(iio_dev_data.sysfspath, &iio_dev_data.name);
-        if (err) {
-            ALOGE("get_sensor_name for %s returned error %d", path_device.c_str(), err);
-            continue;
+        for (auto& sensor_match : sensor_matches) {
+            iio_device_data iio_dev_data;
+            iio_dev_data.sysfspath.append(path_device, 0, iio_dir.size() + strlen(ent->d_name));
+            iio_dev_data.type = sensor_match.type;
+            err = get_sensor_name(iio_dev_data.sysfspath, &iio_dev_data.name);
+            if (err) {
+                ALOGE("get_sensor_name for %s returned error %d", path_device.c_str(), err);
+                continue;
+            }
+
+            ALOGI("found sensor %s at path %s", iio_dev_data.name.c_str(), path_device.c_str());
+            err = get_sampling_frequency_available(iio_dev_data.sysfspath,
+                                                &iio_dev_data.sampling_freq_avl);
+            if (err) {
+                ALOGE("get_sampling_frequency_available for %s returned error %d", path_device.c_str(),
+                    err);
+                iio_dev_data.sampling_freq_avl[0] = 100;
+            }
+
+            std::sort(iio_dev_data.sampling_freq_avl.begin(), iio_dev_data.sampling_freq_avl.end());
+            err = get_sensor_scale(iio_dev_data.sysfspath, &iio_dev_data.scale);
+            if (err) {
+                ALOGE("get_sensor_scale for %s returned error %d", path_device.c_str(), err);
+                iio_dev_data.scale = 0.015258f;
+            }
+            err = get_sensor_range(iio_dev_data.sysfspath, &iio_dev_data.resolution,
+                                &iio_dev_data.max_range);
+            if (err) {
+                ALOGE("get_sensor_range for %s returned error %d", path_device.c_str(), err);
+                iio_dev_data.max_range = 16000.0f;
+            }
+
+            sscanf(ent->d_name + iio_base_len, "%hhu", &iio_dev_data.iio_dev_num);
+
+            iio_data->push_back(iio_dev_data);
         }
-
-        if (!filter(&iio_dev_data)) continue;
-
-        ALOGI("found sensor %s at path %s", iio_dev_data.name.c_str(), path_device.c_str());
-        err = get_sampling_frequency_available(iio_dev_data.sysfspath,
-                                               &iio_dev_data.sampling_freq_avl);
-        if (err) {
-            ALOGE("get_sampling_frequency_available for %s returned error %d", path_device.c_str(),
-                  err);
-            continue;
-        }
-
-        std::sort(iio_dev_data.sampling_freq_avl.begin(), iio_dev_data.sampling_freq_avl.end());
-        err = get_sensor_scale(iio_dev_data.sysfspath, &iio_dev_data.scale);
-        if (err) {
-            ALOGE("get_sensor_scale for %s returned error %d", path_device.c_str(), err);
-            continue;
-        }
-        err = get_sensor_range(iio_dev_data.sysfspath, &iio_dev_data.resolution,
-                               &iio_dev_data.max_range);
-        if (err) {
-            ALOGE("get_sensor_range for %s returned error %d", path_device.c_str(), err);
-            continue;
-        }
-
-        sscanf(ent->d_name + iio_base_len, "%hhu", &iio_dev_data.iio_dev_num);
-
-        iio_data->push_back(iio_dev_data);
     }
-    return err;
+    return 0;
 }
 
 static int get_scan_type(const std::string& device_dir, struct iio_info_channel* chanInfo) {

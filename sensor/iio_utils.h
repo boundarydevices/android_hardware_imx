@@ -66,13 +66,34 @@ struct iio_device_data {
     int64_t max_range;
 };
 
+#define SENSOR_SUPPORTED(SENSOR_NAME, SENSOR_TYPE) \
+    { .name = SENSOR_NAME, .type = SENSOR_TYPE, }
+    static const std::vector<sensors_supported_hal> supported_sensors = {
+            SENSOR_SUPPORTED("fxos8700", SensorType::ACCELEROMETER),
+            SENSOR_SUPPORTED("lsm303agr_accel", SensorType::ACCELEROMETER),
+            SENSOR_SUPPORTED("fxos8700", SensorType::MAGNETIC_FIELD),
+            SENSOR_SUPPORTED("lsm303agr_magn", SensorType::MAGNETIC_FIELD),
+            SENSOR_SUPPORTED("fxas21002c", SensorType::GYROSCOPE),
+            SENSOR_SUPPORTED("l3g4200d", SensorType::GYROSCOPE),
+            SENSOR_SUPPORTED("mpl3115", SensorType::PRESSURE),
+            SENSOR_SUPPORTED("mpl3115", SensorType::AMBIENT_TEMPERATURE),
+            SENSOR_SUPPORTED("isl29023", SensorType::LIGHT),
+            SENSOR_SUPPORTED("rpmsg-iio-pedometer", SensorType::STEP_COUNTER),
+    };
+#undef SENSOR_SUPPORTED
+
 using DeviceFilterFunction = std::function<bool(iio_device_data*)>;
 
 int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data,
                      DeviceFilterFunction filter);
 int scan_elements(const std::string& device_dir, struct iio_device_data* iio_data);
 int enable_sensor(const std::string& name, const bool flag);
+int enable_step_sensor(const std::string& name, const bool flag);
 int set_sampling_frequency(const std::string& name, const double frequency);
+int get_light_value(const std::string& device_dir, unsigned int* light);
+int get_stepcounter_value(const std::string& device_dir, unsigned int* stepcounter);
+int add_hrtimer_trigger(const std::string& device_dir, uint8_t dev_num, const bool enable);
+int64_t get_timestamp();
 }  // namespace implementation
 }  // namespace subhal
 }  // namespace V2_1
