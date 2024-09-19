@@ -75,3 +75,49 @@ cc_library {
         "-DBACKEND_NDK",
     ],
 }
+
+cc_binary {
+    name: "android.hardware.audio.service-aidl.imx",
+    relative_install_path: "hw",
+    defaults: [
+        "aidlaudioservice_defaults",
+        "latest_android_hardware_audio_core_sounddose_ndk_shared",
+        "latest_android_hardware_audio_core_ndk_shared",
+        "latest_android_hardware_bluetooth_audio_ndk_shared",
+        "latest_android_media_audio_common_types_ndk_shared",
+    ],
+    static_libs: [
+        "libaudioserviceimximpl",
+    ],
+    shared_libs: [
+        "android.hardware.bluetooth.audio-impl",
+        "libaudio_aidl_conversion_common_ndk",
+        "libbluetooth_audio_session_aidl",
+        "libjsoncpp",
+        "liblog",
+        "libmedia_helper",
+        "libstagefright_foundation",
+    ],
+    srcs: ["main.cpp"],
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wthread-safety",
+        "-DBACKEND_NDK",
+    ],
+    installable: false, //installed in apex com.android.hardware.audio
+}
+
+prebuilt_etc {
+    name: "android.hardware.audio.service-aidl.imx.rc",
+    src: "android.hardware.audio.service-aidl.imx.rc",
+    installable: false,
+}
+
+prebuilt_etc {
+    name: "android.hardware.audio.service-aidl.imx.xml",
+    src: "android.hardware.audio.service-aidl.imx.xml",
+    sub_dir: "vintf",
+    installable: false,
+}
