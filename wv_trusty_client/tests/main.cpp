@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wv_client.h>
+#include <hwsecure_client.h>
 
 namespace android {
 
@@ -14,8 +14,15 @@ TEST(WvClientTest, HelloWorld) {
 }
 
 TEST(WvClientTest, WvSetSecureModeTest) {
-    set_secure_pipe(0);
-    set_secure_pipe(1);
+    set_g2d_secure_pipe(0);
+
+    enum g2d_secure_mode mode;
+    mode = get_g2d_secure_pipe();
+    EXPECT_EQ(mode, NON_SECURE);
+
+    set_g2d_secure_pipe(1);
+    mode = get_g2d_secure_pipe();
+    EXPECT_EQ(mode, SECURE);
 }
 
 } // namespace android
