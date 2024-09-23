@@ -1,6 +1,6 @@
 //
 // Copyright (C) 2022 The Android Open Source Project
-// Copyright 2023 NXP
+// Copyright 2024 NXP
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package {
 
 cc_library_shared {
     name: "mapper.imx",
-    defaults: ["libnxp_gralloc_v5_default"],
+    defaults: ["libnxp_gralloc_v5_defaults"],
     vintf_fragments: ["mapper.imx.xml"],
 
     relative_install_path: "hw",
@@ -31,8 +31,6 @@ cc_library_shared {
         "libbase",
         "libutils",
         "libdrm_android",
-        "libdisplayutils",
-        "libfsldisplay",
     ],
     header_libs: [
         "libbase_headers",
@@ -41,7 +39,6 @@ cc_library_shared {
     ],
     static_libs: [
         "libnxp_gralloc_driver",
-        "libnxp_gralloc_utils",
     ],
     srcs: [
         "Mapper.cpp",
@@ -50,19 +47,6 @@ cc_library_shared {
     cpp_std: "c++20",
     cflags: [
         "-Wno-sign-compare",
-        "-DLOG_TAG=\"NxpMapperV5\""
-    ],
-}
-
-cc_library_static {
-    name: "libnxp_gralloc_utils",
-    defaults: ["libnxp_gralloc_v5_default"],
-    srcs: [
-        "NxpUtils.cpp",
-    ],
-    shared_libs: [
-        "android.hardware.graphics.mapper@4.0",
-        "libgralloctypes",
-        "libhidlbase",
+        "-DLOG_TAG=\"NxpMapper\""
     ],
 }

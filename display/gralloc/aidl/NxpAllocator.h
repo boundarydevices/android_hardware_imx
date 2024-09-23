@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Chromium OS Authors. All rights reserved.
- * Copyright 2023 NXP
+ * Copyright 2024 NXP
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
@@ -8,7 +8,6 @@
 #ifndef NXP_GRALLOC_AIDL_ALLOCATOR_H_
 #define NXP_GRALLOC_AIDL_ALLOCATOR_H_
 
-#include <DisplayUtil.h>
 #include <aidl/android/hardware/graphics/allocator/AllocationResult.h>
 #include <aidl/android/hardware/graphics/allocator/BnAllocator.h>
 #include <android/hardware/graphics/mapper/4.0/IMapper.h>

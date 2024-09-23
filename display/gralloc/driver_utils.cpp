@@ -1,13 +1,12 @@
 /*
  * Copyright 2020 The Chromium OS Authors. All rights reserved.
- * Copyright 2023 NXP
+ * Copyright 2024 NXP
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
 
-#include "NxpUtils.h"
+#include "driver_utils.h"
 
-#include <DisplayUtil.h>
 #include <aidl/android/hardware/graphics/common/PlaneLayoutComponent.h>
 #include <aidl/android/hardware/graphics/common/PlaneLayoutComponentType.h>
 #include <android-base/stringprintf.h>
@@ -20,455 +19,410 @@
 
 #include <array>
 #include <unordered_map>
+#include <vector>
 
 #include "../../include/graphics_ext.h"
-#include "drv.h"
 #include "gralloc_helpers.h"
 
 using aidl::android::hardware::graphics::common::PlaneLayout;
 using aidl::android::hardware::graphics::common::PlaneLayoutComponent;
 using aidl::android::hardware::graphics::common::PlaneLayoutComponentType;
-using android::hardware::hidl_bitfield;
-using android::hardware::hidl_handle;
-using android::hardware::graphics::common::V1_2::BufferUsage;
-using android::hardware::graphics::common::V1_2::PixelFormat;
 
-using BufferDescriptorInfo =
-        android::hardware::graphics::mapper::V4_0::IMapper::BufferDescriptorInfo;
+const format_info_t formats[] = {
+        {
+                .id = static_cast<int32_t>(PixelFormat::RGBA_8888),
+                .fourcc = DRM_FORMAT_ABGR8888,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::RGBX_8888),
+                .fourcc = DRM_FORMAT_XBGR8888,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::RGB_888),
+                .fourcc = DRM_FORMAT_BGR888,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::RGB_565),
+                .fourcc = DRM_FORMAT_RGB565,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::BGRA_8888),
+                .fourcc = DRM_FORMAT_ARGB8888,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::RGBA_FP16),
+                .fourcc = DRM_FORMAT_ABGR16161616F,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::RGBA_1010102),
+                .fourcc = DRM_FORMAT_ABGR2101010,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = true,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::YCBCR_422_SP), // NV16
+                .fourcc = DRM_FORMAT_NV16,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::YCRCB_420_SP), // NV21
+                .fourcc = DRM_FORMAT_NV21,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::YCBCR_422_I), // YUY2
+                .fourcc = DRM_FORMAT_YUYV,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::YCBCR_420_888),
+                .fourcc = DRM_FORMAT_NV12, // TODO: need check drm format
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::YV12),
+                .fourcc = static_cast<int32_t>(DRM_FORMAT_YVU420),
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::YCBCR_P010),
+                .fourcc = DRM_FORMAT_P010,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::BLOB),
+                .fourcc = DRM_FORMAT_R8,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::RAW16),
+                .fourcc = DRM_FORMAT_R16,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::Y16),
+                .fourcc = DRM_FORMAT_R16,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::Y8),
+                .fourcc = DRM_FORMAT_R8,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = false,
+        },
+        {
+                .id = static_cast<int32_t>(PixelFormat::IMPLEMENTATION_DEFINED),
+                .fourcc = DRM_FORMAT_NV12,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+
+        /* Following are NXP i.MX defined sepcific foramt in include/graphics_ext.h */
+        {
+                .id = HAL_PIXEL_FORMAT_YCbCr_422_P, // 0x100
+                .fourcc = DRM_FORMAT_YUV422,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_YCbCr_420_P, // I420: 0x101
+                .fourcc = DRM_FORMAT_YUV420,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_CbYCrY_422_I, // 0x102
+                .fourcc = DRM_FORMAT_UYVY,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_YCbCr_420_SP, // NV12: 0x103
+                .fourcc = DRM_FORMAT_NV12,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_NV12_TILED, // 0x104
+                .fourcc = DRM_FORMAT_NV12,
+                .modifier = DRM_FORMAT_MOD_AMPHION_TILED,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_NV12_G1_TILED, // 0x105
+                .fourcc = DRM_FORMAT_NV12,
+                .modifier = DRM_FORMAT_MOD_VSI_G1_TILED,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_NV12_G2_TILED, // 0x106
+                .fourcc = DRM_FORMAT_NV12,
+                .modifier = DRM_FORMAT_MOD_VSI_G2_TILED,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_NV12_G2_TILED_COMPRESSED, // 0x107
+                .fourcc = DRM_FORMAT_NV12,
+                .modifier = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_P010, // 0x108
+                .fourcc = DRM_FORMAT_NV15,
+                .modifier = DRM_FORMAT_MOD_LINEAR,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_P010_TILED, // 0x109
+                .fourcc = DRM_FORMAT_NV15,
+                .modifier = DRM_FORMAT_MOD_VSI_G1_TILED,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+        {
+                .id = HAL_PIXEL_FORMAT_P010_TILED_COMPRESSED, // 0x110
+                .fourcc = DRM_FORMAT_NV15,
+                .modifier = DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED,
+                .is_rgb = false,
+                .is_yuv = true,
+        },
+};
 
 std::string getDrmFormatString(uint32_t drmFormat) {
-    switch (drmFormat) {
-        case DRM_FORMAT_ABGR1555:
-            return "DRM_FORMAT_ABGR1555";
-        case DRM_FORMAT_ABGR2101010:
-            return "DRM_FORMAT_ABGR2101010";
-        case DRM_FORMAT_ABGR4444:
-            return "DRM_FORMAT_ABGR4444";
-        case DRM_FORMAT_ABGR8888:
-            return "DRM_FORMAT_ABGR8888";
-        case DRM_FORMAT_ARGB1555:
-            return "DRM_FORMAT_ARGB1555";
-        case DRM_FORMAT_ARGB2101010:
-            return "DRM_FORMAT_ARGB2101010";
-        case DRM_FORMAT_ARGB4444:
-            return "DRM_FORMAT_ARGB4444";
-        case DRM_FORMAT_ARGB8888:
-            return "DRM_FORMAT_ARGB8888";
-        case DRM_FORMAT_AYUV:
-            return "DRM_FORMAT_AYUV";
-        case DRM_FORMAT_BGR233:
-            return "DRM_FORMAT_BGR233";
-        case DRM_FORMAT_BGR565:
-            return "DRM_FORMAT_BGR565";
-        case DRM_FORMAT_BGR888:
-            return "DRM_FORMAT_BGR888";
-        case DRM_FORMAT_BGRA1010102:
-            return "DRM_FORMAT_BGRA1010102";
-        case DRM_FORMAT_BGRA4444:
-            return "DRM_FORMAT_BGRA4444";
-        case DRM_FORMAT_BGRA5551:
-            return "DRM_FORMAT_BGRA5551";
-        case DRM_FORMAT_BGRA8888:
-            return "DRM_FORMAT_BGRA8888";
-        case DRM_FORMAT_BGRX1010102:
-            return "DRM_FORMAT_BGRX1010102";
-        case DRM_FORMAT_BGRX4444:
-            return "DRM_FORMAT_BGRX4444";
-        case DRM_FORMAT_BGRX5551:
-            return "DRM_FORMAT_BGRX5551";
-        case DRM_FORMAT_BGRX8888:
-            return "DRM_FORMAT_BGRX8888";
-        case DRM_FORMAT_C8:
-            return "DRM_FORMAT_C8";
-        case DRM_FORMAT_GR88:
-            return "DRM_FORMAT_GR88";
-        case DRM_FORMAT_NV12:
-            return "DRM_FORMAT_NV12";
-        case DRM_FORMAT_NV21:
-            return "DRM_FORMAT_NV21";
-        case DRM_FORMAT_R8:
-            return "DRM_FORMAT_R8";
-        case DRM_FORMAT_RG88:
-            return "DRM_FORMAT_RG88";
-        case DRM_FORMAT_RGB332:
-            return "DRM_FORMAT_RGB332";
-        case DRM_FORMAT_RGB565:
-            return "DRM_FORMAT_RGB565";
-        case DRM_FORMAT_RGB888:
-            return "DRM_FORMAT_RGB888";
-        case DRM_FORMAT_RGBA1010102:
-            return "DRM_FORMAT_RGBA1010102";
-        case DRM_FORMAT_RGBA4444:
-            return "DRM_FORMAT_RGBA4444";
-        case DRM_FORMAT_RGBA5551:
-            return "DRM_FORMAT_RGBA5551";
-        case DRM_FORMAT_RGBA8888:
-            return "DRM_FORMAT_RGBA8888";
-        case DRM_FORMAT_RGBX1010102:
-            return "DRM_FORMAT_RGBX1010102";
-        case DRM_FORMAT_RGBX4444:
-            return "DRM_FORMAT_RGBX4444";
-        case DRM_FORMAT_RGBX5551:
-            return "DRM_FORMAT_RGBX5551";
-        case DRM_FORMAT_RGBX8888:
-            return "DRM_FORMAT_RGBX8888";
-        case DRM_FORMAT_UYVY:
-            return "DRM_FORMAT_UYVY";
-        case DRM_FORMAT_VYUY:
-            return "DRM_FORMAT_VYUY";
-        case DRM_FORMAT_XBGR1555:
-            return "DRM_FORMAT_XBGR1555";
-        case DRM_FORMAT_XBGR2101010:
-            return "DRM_FORMAT_XBGR2101010";
-        case DRM_FORMAT_XBGR4444:
-            return "DRM_FORMAT_XBGR4444";
-        case DRM_FORMAT_XBGR8888:
-            return "DRM_FORMAT_XBGR8888";
-        case DRM_FORMAT_XRGB1555:
-            return "DRM_FORMAT_XRGB1555";
-        case DRM_FORMAT_XRGB2101010:
-            return "DRM_FORMAT_XRGB2101010";
-        case DRM_FORMAT_XRGB4444:
-            return "DRM_FORMAT_XRGB4444";
-        case DRM_FORMAT_XRGB8888:
-            return "DRM_FORMAT_XRGB8888";
-        case DRM_FORMAT_YUYV:
-            return "DRM_FORMAT_YUYV";
-        case DRM_FORMAT_YVU420:
-            return "DRM_FORMAT_YVU420";
-        case DRM_FORMAT_YVYU:
-            return "DRM_FORMAT_YVYU";
-        case DRM_FORMAT_RAW16:
-            return "DRM_FORMAT_RAW16";
-    }
-    return android::base::StringPrintf("Unknown(%d)", drmFormat);
+    char* sequence = (char*)&drmFormat;
+    std::string s(sequence, 4);
+    return "DRM_FOURCC_" + s;
 }
 
-std::string getPixelFormatString(PixelFormat format) {
-    switch (format) {
-        case PixelFormat::BGRA_8888:
-            return "PixelFormat::BGRA_8888";
-        case PixelFormat::BLOB:
-            return "PixelFormat::BLOB";
-        case PixelFormat::DEPTH_16:
-            return "PixelFormat::DEPTH_16";
-        case PixelFormat::DEPTH_24:
-            return "PixelFormat::DEPTH_24";
-        case PixelFormat::DEPTH_24_STENCIL_8:
-            return "PixelFormat::DEPTH_24_STENCIL_8";
-        case PixelFormat::DEPTH_32F:
-            return "PixelFormat::DEPTH_24";
-        case PixelFormat::DEPTH_32F_STENCIL_8:
-            return "PixelFormat::DEPTH_24_STENCIL_8";
-        case PixelFormat::HSV_888:
-            return "PixelFormat::HSV_888";
-        case PixelFormat::IMPLEMENTATION_DEFINED:
-            return "PixelFormat::IMPLEMENTATION_DEFINED";
-        case PixelFormat::RAW10:
-            return "PixelFormat::RAW10";
-        case PixelFormat::RAW12:
-            return "PixelFormat::RAW12";
-        case PixelFormat::RAW16:
-            return "PixelFormat::RAW16";
-        case PixelFormat::RAW_OPAQUE:
-            return "PixelFormat::RAW_OPAQUE";
-        case PixelFormat::RGBA_1010102:
-            return "PixelFormat::RGBA_1010102";
-        case PixelFormat::RGBA_8888:
-            return "PixelFormat::RGBA_8888";
-        case PixelFormat::RGBA_FP16:
-            return "PixelFormat::RGBA_FP16";
-        case PixelFormat::RGBX_8888:
-            return "PixelFormat::RGBX_8888";
-        case PixelFormat::RGB_565:
-            return "PixelFormat::RGB_565";
-        case PixelFormat::RGB_888:
-            return "PixelFormat::RGB_888";
-        case PixelFormat::STENCIL_8:
-            return "PixelFormat::STENCIL_8";
-        case PixelFormat::Y16:
-            return "PixelFormat::Y16";
-        case PixelFormat::Y8:
-            return "PixelFormat::Y8";
-        case PixelFormat::YCBCR_420_888:
-            return "PixelFormat::YCBCR_420_888";
-        case PixelFormat::YCBCR_422_I:
-            return "PixelFormat::YCBCR_422_I";
-        case PixelFormat::YCBCR_422_SP:
-            return "PixelFormat::YCBCR_422_SP";
-        case PixelFormat::YCBCR_P010:
-            return "PixelFormat::YCBCR_P010";
-        case PixelFormat::YCRCB_420_SP:
-            return "PixelFormat::YCRCB_420_SP";
-        case PixelFormat::YV12:
-            return "PixelFormat::YV12";
-    }
-    return android::base::StringPrintf("PixelFormat::Unknown(0x%x)", static_cast<uint32_t>(format));
+std::string getPixelFormatString(int32_t format) {
+    return aidl::android::hardware::graphics::common::toString(static_cast<PixelFormat>(format));
 }
 
-int convertToDrmFormat(PixelFormat format, uint32_t* outDrmFormat) {
-    switch (format) {
-        case PixelFormat::BGRA_8888:
-            *outDrmFormat = DRM_FORMAT_ARGB8888;
-            return 0;
-        /**
-         * Choose DRM_FORMAT_R8 because <system/graphics.h> requires the buffers
-         * with a format HAL_PIXEL_FORMAT_BLOB have a height of 1, and width
-         * equal to their size in bytes.
-         */
-        case PixelFormat::BLOB:
-            *outDrmFormat = DRM_FORMAT_R8;
-            return 0;
-        case PixelFormat::DEPTH_16:
-            return -EINVAL;
-        case PixelFormat::DEPTH_24:
-            return -EINVAL;
-        case PixelFormat::DEPTH_24_STENCIL_8:
-            return -EINVAL;
-        case PixelFormat::DEPTH_32F:
-            return -EINVAL;
-        case PixelFormat::DEPTH_32F_STENCIL_8:
-            return -EINVAL;
-        case PixelFormat::HSV_888:
-            return -EINVAL;
-        case PixelFormat::IMPLEMENTATION_DEFINED:
-            *outDrmFormat = DRM_FORMAT_FLEX_IMPLEMENTATION_DEFINED;
-            return 0;
-        case PixelFormat::RAW10:
-            return -EINVAL;
-        case PixelFormat::RAW12:
-            return -EINVAL;
-        case PixelFormat::RAW16:
-            *outDrmFormat = DRM_FORMAT_RAW16;
-            return 0;
-        /* TODO use blob */
-        case PixelFormat::RAW_OPAQUE:
-            return -EINVAL;
-        case PixelFormat::RGBA_1010102:
-            *outDrmFormat = DRM_FORMAT_ABGR2101010;
-            return 0;
-        case PixelFormat::RGBA_8888:
-            *outDrmFormat = DRM_FORMAT_ABGR8888;
-            return 0;
-        case PixelFormat::RGBA_FP16:
-            *outDrmFormat = DRM_FORMAT_ABGR16161616F;
-            return 0;
-        case PixelFormat::RGBX_8888:
-            *outDrmFormat = DRM_FORMAT_XBGR8888;
-            return 0;
-        case PixelFormat::RGB_565:
-            *outDrmFormat = DRM_FORMAT_RGB565;
-            return 0;
-        case PixelFormat::RGB_888:
-            *outDrmFormat = DRM_FORMAT_BGR888;
-            return 0;
-        case PixelFormat::STENCIL_8:
-            return -EINVAL;
-        case PixelFormat::Y16:
-            *outDrmFormat = DRM_FORMAT_R16;
-            return 0;
-        case PixelFormat::Y8:
-            *outDrmFormat = DRM_FORMAT_R8;
-            return 0;
-        case PixelFormat::YCBCR_420_888:
-            *outDrmFormat = DRM_FORMAT_FLEX_YCbCr_420_888;
-            return 0;
-        case PixelFormat::YCBCR_422_SP:
-            *outDrmFormat = DRM_FORMAT_NV16;
-            return 0;
-        case PixelFormat::YCBCR_422_I:
-            *outDrmFormat = DRM_FORMAT_YUYV;
-            return 0;
-        case PixelFormat::YCBCR_P010:
-            *outDrmFormat = DRM_FORMAT_P010;
-            return 0;
-        case PixelFormat::YCRCB_420_SP:
-            *outDrmFormat = DRM_FORMAT_NV21;
-            return 0;
-        case PixelFormat::YV12:
-            *outDrmFormat = DRM_FORMAT_YVU420_ANDROID;
-            return 0;
-    };
+std::string getUsageString(uint64_t usage) {
+    std::vector<std::string> usages;
+    if (usage & static_cast<uint64_t>(BufferUsage::CPU_READ_OFTEN)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_READ_OFTEN);
+        usages.push_back("CPU_READ_OFTEN");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::CPU_READ_NEVER)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_READ_NEVER);
+        usages.push_back("CPU_READ_NEVER");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::CPU_READ_RARELY)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_READ_RARELY);
+        usages.push_back("CPU_READ_RARELY");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::CPU_WRITE_NEVER)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_WRITE_NEVER);
+        usages.push_back("CPU_WRITE_NEVER");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::CPU_WRITE_OFTEN)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_WRITE_OFTEN);
+        usages.push_back("CPU_WRITE_OFTEN");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::CPU_WRITE_RARELY)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_WRITE_RARELY);
+        usages.push_back("CPU_WRITE_RARELY");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::GPU_TEXTURE)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::GPU_TEXTURE);
+        usages.push_back("GPU_TEXTURE");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::GPU_RENDER_TARGET)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::GPU_RENDER_TARGET);
+        usages.push_back("GPU_RENDER_TARGET");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::COMPOSER_OVERLAY)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::COMPOSER_OVERLAY);
+        usages.push_back("COMPOSER_OVERLAY");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::COMPOSER_CLIENT_TARGET)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::COMPOSER_CLIENT_TARGET);
+        usages.push_back("COMPOSER_CLIENT_TARGET");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::PROTECTED)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::PROTECTED);
+        usages.push_back("PROTECTED");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::COMPOSER_CURSOR)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::COMPOSER_CURSOR);
+        usages.push_back("COMPOSER_CURSOR");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::VIDEO_ENCODER);
+        usages.push_back("VIDEO_ENCODER");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::CAMERA_OUTPUT)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CAMERA_OUTPUT);
+        usages.push_back("CAMERA_OUTPUT");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::CAMERA_INPUT)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::CAMERA_INPUT);
+        usages.push_back("CAMERA_INPUT");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::RENDERSCRIPT)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::RENDERSCRIPT);
+        usages.push_back("RENDERSCRIPT");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::VIDEO_DECODER)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::VIDEO_DECODER);
+        usages.push_back("VIDEO_DECODER");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::SENSOR_DIRECT_DATA)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::SENSOR_DIRECT_DATA);
+        usages.push_back("SENSOR_DIRECT_DATA");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::GPU_DATA_BUFFER)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::GPU_DATA_BUFFER);
+        usages.push_back("GPU_DATA_BUFFER");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::GPU_CUBE_MAP)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::GPU_CUBE_MAP);
+        usages.push_back("GPU_CUBE_MAP");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::GPU_MIPMAP_COMPLETE)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::GPU_MIPMAP_COMPLETE);
+        usages.push_back("GPU_MIPMAP_COMPLETE");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::HW_IMAGE_ENCODER)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::HW_IMAGE_ENCODER);
+        usages.push_back("HW_IMAGE_ENCODER");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::FRONT_BUFFER)) {
+        usage &= ~static_cast<uint64_t>(BufferUsage::FRONT_BUFFER);
+        usages.push_back("FRONT_BUFFER");
+    }
 
-    uint32_t gralloc_format = static_cast<uint32_t>(format);
-    switch (gralloc_format) {
-        /* Below are NXP i.MX specified format*/
-        case HAL_PIXEL_FORMAT_YCbCr_422_P:
-            *outDrmFormat = DRM_FORMAT_YUV422;
-            return 0;
-        case HAL_PIXEL_FORMAT_YCbCr_420_P:
-            *outDrmFormat = DRM_FORMAT_YUV420; // same as FORMAT_I420  ?
-            return 0;
-        case HAL_PIXEL_FORMAT_CbYCrY_422_I:
-            *outDrmFormat = DRM_FORMAT_UYVY;
-            return 0;
-        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-            *outDrmFormat = DRM_FORMAT_NV12;
-            return 0;
-        case HAL_PIXEL_FORMAT_NV12_TILED:
-            *outDrmFormat = DRM_FORMAT_NV12_TILED;
-            return 0;
-        case HAL_PIXEL_FORMAT_NV12_G1_TILED:
-            *outDrmFormat = DRM_FORMAT_NV12_G1_TILED;
-            return 0;
-        case HAL_PIXEL_FORMAT_NV12_G2_TILED:
-            *outDrmFormat = DRM_FORMAT_NV12_G2_TILED;
-            return 0;
-        case HAL_PIXEL_FORMAT_NV12_G2_TILED_COMPRESSED:
-            *outDrmFormat = DRM_FORMAT_NV12_G2_TILED_COMPRESSED;
-            return 0;
-        case HAL_PIXEL_FORMAT_P010:
-            *outDrmFormat = DRM_FORMAT_P010;
-            return 0;
-        case HAL_PIXEL_FORMAT_P010_TILED:
-            *outDrmFormat = DRM_FORMAT_P010_TILED;
-            return 0;
-        case HAL_PIXEL_FORMAT_P010_TILED_COMPRESSED:
-            *outDrmFormat = DRM_FORMAT_P010_TILED_COMPRESSED;
-            return 0;
-    };
+    if (usage & GRALLOC_USAGE_PRIVATE_0) {
+        usage &= ~static_cast<uint64_t>(GRALLOC_USAGE_PRIVATE_0);
+        usages.push_back("PRIVATE_0");
+    }
+    if (usage & GRALLOC_USAGE_PRIVATE_1) {
+        usage &= ~static_cast<uint64_t>(GRALLOC_USAGE_PRIVATE_1);
+        usages.push_back("PRIVATE_1");
+    }
+    if (usage & GRALLOC_USAGE_PRIVATE_2) {
+        usage &= ~static_cast<uint64_t>(GRALLOC_USAGE_PRIVATE_2);
+        usages.push_back("PRIVATE_2");
+    }
+    if (usage & GRALLOC_USAGE_PRIVATE_3) {
+        usage &= ~static_cast<uint64_t>(GRALLOC_USAGE_PRIVATE_3);
+        usages.push_back("PRIVATE_3");
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::VENDOR_MASK)) {
+        usages.push_back(android::base::StringPrintf("UnknownUsageBits-%" PRIu64, usage));
+    }
+    if (usage & static_cast<uint64_t>(BufferUsage::VENDOR_MASK_HI)) {
+        usages.push_back(android::base::StringPrintf("UnknownUsageHiBits-%" PRIu64, usage));
+    }
 
-    return -EINVAL;
+    return android::base::Join(usages, '|');
 }
 
-int convertToBufferUsage(uint64_t grallocUsage, uint64_t* outBufferUsage) {
-    uint64_t bufferUsage = BO_USE_NONE;
-
-    if ((grallocUsage & BufferUsage::CPU_READ_MASK) ==
-        static_cast<uint64_t>(BufferUsage::CPU_READ_RARELY)) {
-        bufferUsage |= BO_USE_SW_READ_RARELY;
-    }
-    if ((grallocUsage & BufferUsage::CPU_READ_MASK) ==
-        static_cast<uint64_t>(BufferUsage::CPU_READ_OFTEN)) {
-        bufferUsage |= BO_USE_SW_READ_OFTEN;
-    }
-    if ((grallocUsage & BufferUsage::CPU_WRITE_MASK) ==
-        static_cast<uint64_t>(BufferUsage::CPU_WRITE_RARELY)) {
-        bufferUsage |= BO_USE_SW_WRITE_RARELY;
-    }
-    if ((grallocUsage & BufferUsage::CPU_WRITE_MASK) ==
-        static_cast<uint64_t>(BufferUsage::CPU_WRITE_OFTEN)) {
-        bufferUsage |= BO_USE_SW_WRITE_OFTEN;
-    }
-    if (grallocUsage & BufferUsage::GPU_TEXTURE) {
-        bufferUsage |= BO_USE_TEXTURE;
-    }
-    if (grallocUsage & BufferUsage::GPU_RENDER_TARGET) {
-        bufferUsage |= BO_USE_RENDERING;
-    }
-    if (grallocUsage & BufferUsage::COMPOSER_OVERLAY) {
-        /* HWC wants to use display hardware, but can defer to OpenGL. */
-        bufferUsage |= BO_USE_SCANOUT | BO_USE_TEXTURE;
-    }
-    if (grallocUsage & BufferUsage::PROTECTED) {
-        bufferUsage |= BO_USE_PROTECTED;
-    }
-    if (grallocUsage & BufferUsage::COMPOSER_CURSOR) {
-        bufferUsage |= BO_USE_NONE;
-    }
-    if (grallocUsage & BufferUsage::VIDEO_ENCODER) {
-        /*HACK: See b/30054495 */
-        bufferUsage |= BO_USE_SW_READ_OFTEN;
-        bufferUsage |= BO_USE_HW_VIDEO_ENCODER;
-    }
-    if (grallocUsage & BufferUsage::CAMERA_OUTPUT) {
-        bufferUsage |= BO_USE_CAMERA_WRITE;
-    }
-    if (grallocUsage & BufferUsage::CAMERA_INPUT) {
-        bufferUsage |= BO_USE_CAMERA_READ;
-    }
-    if (grallocUsage & BufferUsage::RENDERSCRIPT) {
-        bufferUsage |= BO_USE_RENDERSCRIPT;
-    }
-    if (grallocUsage & BufferUsage::VIDEO_DECODER) {
-        bufferUsage |= BO_USE_HW_VIDEO_DECODER;
+const struct format_info_t* getPixleFormatInfo(int32_t pixel_format) {
+    for (const auto& format : formats) {
+        if (format.id == pixel_format)
+            return &format;
     }
 
-    if (grallocUsage & BufferUsage::COMPOSER_CLIENT_TARGET) {
-        bufferUsage |= BO_USE_FRAMEBUFFER;
-    }
-    /* Below is NXP private usage bit*/
-    if (grallocUsage & GRALLOC_USAGE_PRIVATE_0) {
-        bufferUsage |= BO_USE_GPU_TILED_VIV;
-    }
-    if (grallocUsage & GRALLOC_USAGE_PRIVATE_1) {
-        bufferUsage |= BO_USE_GPU_TS_VIV;
-    }
-    if (grallocUsage & GRALLOC_USAGE_PRIVATE_2) {
-        bufferUsage |= BO_USE_PADDING_BUFFER;
+    ALOGE("%s: Cannot support pixel format:%" PRIx32, __func__, pixel_format);
+    return nullptr;
+}
+
+int convertToBufferFlags(uint64_t grallocUsage, uint32_t* outBufferFlags) {
+    uint32_t bufferFlags = 0;
+
+    if (grallocUsage & GRALLOC_USAGE_HW_FB) {
+        bufferFlags |= NXP_GRALLOC_FLAGS_FRAMEBUFFER;
     }
 
-    *outBufferUsage = bufferUsage;
+    *outBufferFlags |= bufferFlags;
     return 0;
 }
 
-int convertToMemDescriptor(const BufferDescriptorInfo& descriptor,
-                           struct gralloc_buffer_descriptor* outMemDescriptor) {
-    outMemDescriptor->name = descriptor.name;
-    outMemDescriptor->width = descriptor.width;
-    outMemDescriptor->height = descriptor.height;
-    outMemDescriptor->droid_format = static_cast<int32_t>(descriptor.format);
-    outMemDescriptor->droid_usage = descriptor.usage;
-    outMemDescriptor->reserved_region_size = descriptor.reservedSize;
+int convertToHalDescriptor(const BufferDescriptorInfoV4& descriptor,
+                           struct gralloc_buffer_descriptor* outDescriptor) {
+    outDescriptor->name = descriptor.name;
+    outDescriptor->width = descriptor.width;
+    outDescriptor->height = descriptor.height;
+    outDescriptor->layer_count = descriptor.layerCount;
+    outDescriptor->pixel_format = static_cast<int32_t>(descriptor.format);
+    outDescriptor->usage = descriptor.usage;
+    outDescriptor->reserved_region_size = descriptor.reservedSize;
 
+#ifdef FRAMEBUFFER_WITH_TILED_COMPRESSION
+    outDescriptor->flags |= NXP_GRALLOC_FLAGS_TILED_FRAMEBUFFER;
+#endif
+#ifdef WORKAROUND_DISPLAY_UNDERRUN
+    outDescriptor->flags |= NXP_GRALLOC_FLAGS_DISPLAY_UNDERRUN;
+#endif
     if (descriptor.layerCount > 1) {
         ALOGE("%s layerCount=%d > 1 is unsupported", __func__, descriptor.layerCount);
         return -1;
     }
-    if (convertToDrmFormat(descriptor.format, &outMemDescriptor->drm_format)) {
-        std::string pixelFormatString = getPixelFormatString(descriptor.format);
-        ALOGE("%s Unsupported fomat %s", __func__, pixelFormatString.c_str());
+    auto info = getPixleFormatInfo(outDescriptor->pixel_format);
+    if (!info) {
+        std::string pixelFormatString = getPixelFormatString(outDescriptor->pixel_format);
+        ALOGE("%s Unsupported format %s", __func__, pixelFormatString.c_str());
         return -1;
+    } else {
+        outDescriptor->drm_format = info->fourcc;
+        outDescriptor->modifier = info->modifier;
     }
-    if (convertToBufferUsage(descriptor.usage, &outMemDescriptor->use_flags)) {
+
+    if (convertToBufferFlags(descriptor.usage, &outDescriptor->flags)) {
         std::string usageString = getUsageString(descriptor.usage);
         ALOGE("%s Unsupported usage flags %s", __func__, usageString.c_str());
         return -1;
     }
-    return 0;
-}
-
-int convertToMapUsage(uint64_t grallocUsage, uint32_t* outMapUsage) {
-    uint32_t mapUsage = BO_MAP_NONE;
-
-    if (grallocUsage & BufferUsage::CPU_READ_MASK) {
-        mapUsage |= BO_MAP_READ;
-    }
-    if (grallocUsage & BufferUsage::CPU_WRITE_MASK) {
-        mapUsage |= BO_MAP_WRITE;
-    }
-
-    *outMapUsage = mapUsage;
-    return 0;
-}
-
-int convertToFenceFd(const hidl_handle& fenceHandle, int* outFenceFd) {
-    if (!outFenceFd) {
-        return -EINVAL;
-    }
-
-    const native_handle_t* nativeHandle = fenceHandle.getNativeHandle();
-    if (nativeHandle && nativeHandle->numFds > 1) {
-        return -EINVAL;
-    }
-
-    *outFenceFd = (nativeHandle && nativeHandle->numFds == 1) ? nativeHandle->data[0] : -1;
-    return 0;
-}
-
-int convertToFenceHandle(int fenceFd, hidl_handle* outFenceHandle) {
-    if (!outFenceHandle) {
-        return -EINVAL;
-    }
-    if (fenceFd < 0) {
-        return 0;
-    }
-
-    NATIVE_HANDLE_DECLARE_STORAGE(handleStorage, 1, 0);
-    auto fenceHandle = native_handle_init(handleStorage, 1, 0);
-    fenceHandle->data[0] = fenceFd;
-
-    *outFenceHandle = fenceHandle;
     return 0;
 }
 
@@ -717,7 +671,7 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                              },
                      }},
 
-                    {DRM_FORMAT_YVU420_ANDROID, // YV12
+                    {DRM_FORMAT_YVU420, // YV12
                      {
                              {
                                      .components = {{.type = android::gralloc4::
@@ -791,7 +745,7 @@ const std::unordered_map<uint32_t, std::vector<PlaneLayout>>& GetPlaneLayoutsMap
                               .verticalSubsampling = 1,
                       }}},
 
-                    {DRM_FORMAT_RAW16,
+                    {DRM_FORMAT_R16,
                      {
                              {
                                      .components = {{.type = android::gralloc4::

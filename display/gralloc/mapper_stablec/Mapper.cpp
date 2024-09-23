@@ -15,13 +15,14 @@
 #include <android/hardware/graphics/mapper/utils/IMapperProvider.h>
 #include <cutils/native_handle.h>
 #include <gralloctypes/Gralloc4.h>
+
 #include <unordered_map>
 
-#include "NxpUtils.h"
+#include "driver_helpers.h"
+#include "driver_utils.h"
 #include "gralloc_driver.h"
 #include "gralloc_handle.h"
 #include "gralloc_metadata.h"
-#include "helpers.h"
 #include "registered_handle_pool.h"
 
 using namespace ::aidl::android::hardware::graphics::common;
@@ -55,9 +56,6 @@ constexpr const char* STANDARD_METADATA_NAME =
 static bool isStandardMetadata(AIMapper_MetadataType metadataType) {
     return strcmp(STANDARD_METADATA_NAME, metadataType.name) == 0;
 }
-
-std::unordered_map<buffer_handle_t, int> gLockedbufPool;
-pthread_mutex_t gLockedPoolMutex = PTHREAD_MUTEX_INITIALIZER;
 
 class GrallocMapperV5 final : public vendor::mapper::IMapperV5Impl {
 private:
@@ -158,6 +156,7 @@ AIMapper_Error GrallocMapperV5::importBuffer(const native_handle_t* _Nonnull buf
 
     int ret = mDriver->retain(importedBufferHandle);
     if (ret) {
+        ALOGE("%s: Failed to importBuffer. fail to retain buffer in driver.", __func__);
         native_handle_close(importedBufferHandle);
         native_handle_delete(importedBufferHandle);
         return AIMAPPER_ERROR_NO_RESOURCES;
@@ -212,13 +211,6 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
         return AIMAPPER_ERROR_BAD_VALUE;
     }
 
-    uint32_t mapUsage;
-    int ret = convertToMapUsage(cpuUsage, &mapUsage);
-    if (ret) {
-        ALOGE("%s: Convert usage failed.", __func__);
-        return AIMAPPER_ERROR_BAD_VALUE;
-    }
-
     gralloc_handle_t memHandle = gralloc_convert_handle(bufferHandle);
     if (memHandle == nullptr) {
         ALOGE("%s: Invalid handle.", __func__);
@@ -226,7 +218,6 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
     }
 
     struct rectangle rect;
-
     // An access region of all zeros means the entire buffer.
     if (region.left == 0 && region.top == 0 && region.right == 0 && region.bottom == 0) {
         rect = {0, 0, static_cast<uint32_t>(memHandle->width),
@@ -257,22 +248,12 @@ AIMapper_Error GrallocMapperV5::lock(buffer_handle_t _Nonnull bufferHandle, uint
     }
 
     uint8_t* addr[DRV_MAX_PLANES];
-    int32_t status = mDriver->lock(bufferHandle, acquireFence.get(),
-                                   /*close_acquire_fence=*/false, &rect, mapUsage, addr);
+    int32_t status = mDriver->lock(bufferHandle, acquireFence.get(), false, &rect, cpuUsage, addr);
     if (status) {
         return AIMAPPER_ERROR_BAD_VALUE;
     }
 
     *outData = addr[0];
-
-    pthread_mutex_lock(&gLockedPoolMutex);
-    if (gLockedbufPool.count(bufferHandle)) {
-        ++gLockedbufPool[bufferHandle];
-    } else {
-        gLockedbufPool.emplace(bufferHandle, 1);
-    }
-    pthread_mutex_unlock(&gLockedPoolMutex);
-
     return AIMAPPER_ERROR_NONE;
 }
 
@@ -283,19 +264,6 @@ AIMapper_Error GrallocMapperV5::unlock(buffer_handle_t _Nonnull buffer,
         ALOGW("%s: Handle %p not found in pool of registered handles.", __func__, buffer);
         return AIMAPPER_ERROR_BAD_BUFFER;
     }
-
-    pthread_mutex_lock(&gLockedPoolMutex);
-    if (gLockedbufPool.count(buffer) == 0) {
-        ALOGW("%s: Handle %p not found in pool of locked handles.", __func__, buffer);
-        pthread_mutex_unlock(&gLockedPoolMutex);
-        return AIMAPPER_ERROR_BAD_BUFFER;
-    }
-
-    --gLockedbufPool[buffer];
-    if (gLockedbufPool[buffer] == 0) {
-        gLockedbufPool.erase(buffer);
-    }
-    pthread_mutex_unlock(&gLockedPoolMutex);
 
     int ret = mDriver->unlock(buffer, releaseFence);
     if (ret) {
@@ -397,14 +365,13 @@ int32_t GrallocMapperV5::getStandardMetadata(gralloc_handle_t memHandle, F&& pro
         return provide(mDriver->get_height(memHandle));
     }
     if constexpr (metadataType == StandardMetadataType::LAYER_COUNT) {
-        return provide(1);
+        return provide(mDriver->get_layer_count(memHandle));
     }
     if constexpr (metadataType == StandardMetadataType::PIXEL_FORMAT_REQUESTED) {
         return provide(static_cast<PixelFormat>(mDriver->get_android_format(memHandle)));
     }
     if constexpr (metadataType == StandardMetadataType::PIXEL_FORMAT_FOURCC) {
-        uint32_t drm_format = drv_convert_nxp_format_to_drm_format(mDriver->get_format(memHandle));
-        return provide(drv_get_standard_fourcc(drm_format));
+        return provide(mDriver->get_drm_format(memHandle));
     }
     if constexpr (metadataType == StandardMetadataType::PIXEL_FORMAT_MODIFIER) {
         return provide(mDriver->get_format_modifier(memHandle));
@@ -433,8 +400,12 @@ int32_t GrallocMapperV5::getStandardMetadata(gralloc_handle_t memHandle, F&& pro
     }
     if constexpr (metadataType == StandardMetadataType::PLANE_LAYOUTS) {
         std::vector<PlaneLayout> planeLayouts;
-        uint32_t drm_format = drv_convert_nxp_format_to_drm_format(mDriver->get_format(memHandle));
-        getPlaneLayouts(drm_format, &planeLayouts);
+        uint32_t drm_format = mDriver->get_drm_format(memHandle);
+        if (getPlaneLayouts(drm_format, &planeLayouts) != 0) {
+            ALOGE("%s: Failed to get buffer planeLayouts(drm_format=%s).", __func__,
+                  getDrmFormatString(drm_format).c_str());
+            return -AIMAPPER_ERROR_NO_RESOURCES;
+        }
 
         for (size_t plane = 0; plane < planeLayouts.size(); plane++) {
             PlaneLayout& planeLayout = planeLayouts[plane];

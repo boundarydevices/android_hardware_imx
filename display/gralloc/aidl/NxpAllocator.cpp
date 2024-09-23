@@ -1,6 +1,6 @@
 /*
  * Copyright 2022 The Chromium OS Authors. All rights reserved.
- * Copyright 2023 NXP
+ * Copyright 2024 NXP
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
@@ -15,11 +15,10 @@
 #include <gralloctypes/Gralloc4.h>
 #include <log/log.h>
 
-#include "NxpUtils.h"
+#include "dma_buf_heaps.h"
+#include "driver_utils.h"
 
 using aidl::android::hardware::common::NativeHandle;
-using BufferDescriptorInfoV4 =
-        android::hardware::graphics::mapper::V4_0::IMapper::BufferDescriptorInfo;
 
 static const std::string STANDARD_METADATA_DATASPACE = "android.hardware.graphics.common.Dataspace";
 
@@ -38,7 +37,7 @@ bool NxpAllocator::init() {
 }
 
 ndk::ScopedAStatus NxpAllocator::initializeMetadata(
-        gralloc_handle_t memHandle, const struct gralloc_buffer_descriptor& memDescriptor,
+        gralloc_handle_t memHandle, const struct gralloc_buffer_descriptor& halDescriptor,
         Dataspace initialDataspace) {
     if (!mDriver) {
         ALOGE("Failed to initializeMetadata. Driver is uninitialized.\n");
@@ -60,7 +59,7 @@ ndk::ScopedAStatus NxpAllocator::initializeMetadata(
 
     gralloc_metadata* memMetadata = reinterpret_cast<gralloc_metadata*>(addr);
 
-    snprintf(memMetadata->name, GRALLOC_METADATA_MAX_NAME_SIZE, "%s", memDescriptor.name.c_str());
+    snprintf(memMetadata->name, GRALLOC_METADATA_MAX_NAME_SIZE, "%s", halDescriptor.name.c_str());
     memMetadata->dataspace = initialDataspace;
     memMetadata->blendMode = common::BlendMode::INVALID;
 
@@ -122,17 +121,17 @@ ndk::ScopedAStatus NxpAllocator::allocate(const BufferDescriptorInfoV4& descript
         return ToBinderStatus(AllocationError::NO_RESOURCES);
     }
 
-    struct gralloc_buffer_descriptor memDescriptor;
-    if (convertToMemDescriptor(descriptor, &memDescriptor)) {
+    struct gralloc_buffer_descriptor halDescriptor;
+    if (convertToHalDescriptor(descriptor, &halDescriptor)) {
         return ToBinderStatus(AllocationError::UNSUPPORTED);
     }
 
-    memDescriptor.reserved_region_size += sizeof(gralloc_metadata);
+    halDescriptor.reserved_region_size += sizeof(gralloc_metadata);
 
-    if (!mDriver->is_supported(&memDescriptor)) {
-        const std::string drmFormatString = getDrmFormatString(memDescriptor.drm_format);
-        const std::string pixelFormatString = getPixelFormatString(descriptor.format);
-        const std::string usageString = getUsageString(descriptor.usage);
+    const std::string pixelFormatString = getPixelFormatString(halDescriptor.pixel_format);
+    const std::string usageString = getUsageString(halDescriptor.usage);
+    if (!mDriver->is_supported(&halDescriptor)) {
+        const std::string drmFormatString = getDrmFormatString(halDescriptor.drm_format);
         ALOGE("Failed to allocate. Unsupported combination: pixel format:%s, drm format:%s, "
               "usage:%s\n",
               pixelFormatString.c_str(), drmFormatString.c_str(), usageString.c_str());
@@ -140,21 +139,24 @@ ndk::ScopedAStatus NxpAllocator::allocate(const BufferDescriptorInfoV4& descript
     }
 
     native_handle_t* handle;
-    int ret = mDriver->allocate(&memDescriptor, &handle);
+    int ret = mDriver->allocate(&halDescriptor, &handle);
     if (ret) {
+        ALOGE("%s: allocate buffer(%d x %d, format=%s, usage=%s) failed!", __func__,
+              halDescriptor.width, halDescriptor.height, pixelFormatString.c_str(),
+              usageString.c_str());
         return ToBinderStatus(AllocationError::NO_RESOURCES);
     }
 
     gralloc_handle_t memHandle = gralloc_convert_handle(handle);
 
-    auto status = initializeMetadata(memHandle, memDescriptor, initialDataspace);
+    auto status = initializeMetadata(memHandle, halDescriptor, initialDataspace);
     if (!status.isOk()) {
         ALOGE("Failed to allocate. Failed to initialize gralloc buffer metadata.");
         releaseBufferAndHandle(handle);
         return status;
     }
 
-    *outStride = static_cast<int32_t>(memHandle->stride);
+    *outStride = static_cast<int32_t>(memHandle->pixel_stride);
     *outHandle = handle;
 
     return ndk::ScopedAStatus::ok();
@@ -228,25 +230,24 @@ ndk::ScopedAStatus NxpAllocator::isSupported(const BufferDescriptorInfo& descrip
         }
     }
 
-    struct gralloc_buffer_descriptor memDescriptor;
-    if (convertToMemDescriptor(convertAidlToIMapperV4Descriptor(descriptor), &memDescriptor)) {
+    struct gralloc_buffer_descriptor halDescriptor;
+    if (convertToHalDescriptor(convertAidlToIMapperV4Descriptor(descriptor), &halDescriptor)) {
         // Failing to convert the descriptor means the layer count, pixel format, or usage is
         // unsupported, thus isSupported() = false
         *outResult = false;
         return ndk::ScopedAStatus::ok();
     }
 
-    if (memDescriptor.droid_usage & GRALLOC_USAGE_PROTECTED) {
-        auto heap_list = BufferAllocator::GetDmabufHeapList();
-        *outResult = std::find(heap_list.begin(), heap_list.end(), std::string("secure")) !=
-                heap_list.end();
-        if (!*outResult)
+    if (halDescriptor.usage & GRALLOC_USAGE_PROTECTED) {
+        if (!allocator_supports_protected_memory(halDescriptor.usage)) {
+            *outResult = false;
             return ndk::ScopedAStatus::ok();
+        }
     }
 
-    memDescriptor.reserved_region_size += sizeof(gralloc_metadata);
+    halDescriptor.reserved_region_size += sizeof(gralloc_metadata);
 
-    *outResult = mDriver->is_supported(&memDescriptor);
+    *outResult = mDriver->is_supported(&halDescriptor);
     return ndk::ScopedAStatus::ok();
 }
 
