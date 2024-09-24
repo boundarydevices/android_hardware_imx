@@ -63,12 +63,6 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     return ::android::OK;
 }
 
-::android::status_t StreamPrimary::refinePosition(StreamDescriptor::Position*) {
-    // Since not all data is actually sent to the HAL, use the position maintained by Stream class
-    // which accounts for all frames passed from / to the client.
-    return ::android::OK;
-}
-
 std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
     std::vector<alsa::DeviceProfile> deviceProfile{
         alsa::DeviceProfile{.card = 0,
