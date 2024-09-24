@@ -721,6 +721,21 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     cfg.pixelFormat = HalFromat2PixelFormat(m_libcamera_stream_format);
     camCfg->addConfiguration(cfg);
 
+    switch (camCfg->validate()) {
+        case libcamera::CameraConfiguration::Valid:
+            break;
+        case libcamera::CameraConfiguration::Adjusted:
+            ALOGI("%s: Camera configuration adjusted", __func__);
+
+            for (const libcamera::StreamConfiguration &config : *camCfg)
+                ALOGI("%s: - %s", __func__, config.toString().c_str());
+
+            return -EINVAL;
+        default:
+            ALOGE("%s: Camera configuration invalid", __func__);
+            return -EINVAL;
+    }
+
     int ret = camera_->configure(camCfg.get());
     if (ret) {
         ALOGE("%s: Failed to configure camera %s", __func__, camera_->id().c_str());
