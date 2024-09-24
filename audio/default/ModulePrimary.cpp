@@ -70,10 +70,7 @@ ndk::ScopedAStatus ModulePrimary::createOutputStream(
 }
 
 int32_t ModulePrimary::getNominalLatencyMs(const AudioPortConfig&) {
-    // 85 ms is chosen considering 4096 frames @ 48 kHz. This is the value which allows
-    // the virtual Android device implementation to pass CTS. Hardware implementations
-    // should have significantly lower latency.
-    static constexpr int32_t kLatencyMs = 85;
+    static constexpr int32_t kLatencyMs = 16;
     return kLatencyMs;
 }
 
