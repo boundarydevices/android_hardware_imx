@@ -292,6 +292,12 @@ DeviceProxy openProxyForAttachedDevice(const DeviceProfile& deviceProfile,
                    << " error=" << err;
         return DeviceProxy();
     }
+    const struct pcm_config config = proxy.get()->alsa_config;
+    LOG(INFO) << "  channels: " << config.channels;
+    LOG(INFO) << "  rate: " << config.rate;
+    LOG(INFO) << "  period_size: " << config.period_size;
+    LOG(INFO) << "  period_count: " << config.period_count;
+    LOG(INFO) << "  format: " << config.format;
     if (int err = proxy_open(proxy.get()); err != 0) {
         LOG(ERROR) << __func__ << ": failed to open device, address=" << deviceProfile
                    << " error=" << err;
