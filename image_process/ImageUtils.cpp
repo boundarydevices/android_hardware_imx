@@ -282,14 +282,23 @@ void decreaseNV12WithCut(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *
 
     int YSrcStrideBytes = srcWidth;
     int YDstStrideBytes = dstWidth;
-    int UVSrcStrideBytes = srcWidth / 2;
-    int UVDstStrideBytes = dstWidth / 2;
+    int UVSrcStrideBytes = srcWidth;
+    int UVDstStrideBytes = dstWidth;
 
     int WidthMargin = (srcWidth - dstWidth) / 2;
     int leftOffset = WidthMargin;
 
     int HeightMargin = (srcHeight - dstHeight) / 2;
     int topOffset = HeightMargin;
+
+    // For NV12 format data, 4 Y corresponds to 1 set of UV components.
+    // When the Cut image starts from an odd lines in width,
+    // little difference in Y components between adjacent pixels,
+    // but for UV, value will start from the V component, which will cause color inversion.
+    // To workaround, always cut from even lines.
+    if (leftOffset % 2 != 0) {
+        leftOffset = leftOffset - 1;
+    }
 
     /*======== process Y ======== */
     for (int dstRow = 0; dstRow < dstHeight; dstRow++) {
@@ -303,11 +312,11 @@ void decreaseNV12WithCut(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *
     uint8_t *dstUVBuf = dstBuf + dstWidth * dstHeight;
     uint8_t *srcUVBuf = srcBuf + srcWidth * srcHeight;
 
-    for (int dstRow = 0; dstRow < dstHeight / 2; dstRow++) {
-        uint8_t *dstUVLine = dstUVBuf + dstRow * UVDstStrideBytes * 2;
-        int srcRow = dstRow + topOffset / 2;
-        uint8_t *srcUVLine = srcUVBuf + srcRow * UVSrcStrideBytes * 2;
-        memcpy(dstUVLine, srcUVLine + leftOffset, UVDstStrideBytes * 2);
+    for (int dstRow = 0; dstRow < dstHeight; dstRow += 2) {
+        uint8_t *dstUVLine = dstUVBuf + dstRow / 2 * UVDstStrideBytes;
+        int srcRow = (dstRow + topOffset) / 2;
+        uint8_t *srcUVLine = srcUVBuf + srcRow * UVSrcStrideBytes;
+        memcpy(dstUVLine, srcUVLine + leftOffset, UVDstStrideBytes);
     }
 
     return;
@@ -327,7 +336,8 @@ void enlargeNV12WithBlackMargin(uint8_t *srcBuf, int srcWidth, int srcHeight, ui
 
     int YSrcStrideBytes = srcWidth;
     int YDstStrideBytes = dstWidth;
-    int UVDstStrideBytes = dstWidth / 2;
+    int UVSrcStrideBytes = srcWidth;
+    int UVDstStrideBytes = dstWidth;
 
     int WidthMargin = (dstWidth - srcWidth) / 2;
     int leftOffset = WidthMargin;
@@ -357,17 +367,18 @@ void enlargeNV12WithBlackMargin(uint8_t *srcBuf, int srcWidth, int srcHeight, ui
     uint8_t *srcUVBuf = srcBuf + srcWidth * srcHeight;
 
     // Fill black in top/bottom blocks.
-    memset(dstUVBuf, 128, HeightMargin * UVDstStrideBytes);
-    memset(dstUVBuf + bottomOffset * UVDstStrideBytes, 128, HeightMargin * UVDstStrideBytes);
+    memset(dstUVBuf, 128, HeightMargin / 2 * UVDstStrideBytes);
+    memset(dstUVBuf + bottomOffset / 2 * UVDstStrideBytes, 128,
+           HeightMargin / 2 * UVDstStrideBytes);
 
     // Fill the middle rows
-    for (row = topOffset / 2; row < bottomOffset / 2; row++) {
-        uint8_t *UVDstLine = dstUVBuf + row * dstWidth;
-        uint8_t *UVSrcLine = srcUVBuf + (row - topOffset / 2) * srcWidth;
+    for (row = topOffset; row < bottomOffset; row += 2) {
+        uint8_t *UVDstLine = dstUVBuf + row / 2 * UVDstStrideBytes;
+        uint8_t *UVSrcLine = srcUVBuf + (row - topOffset) / 2 * UVSrcStrideBytes;
 
         memset(UVDstLine, 128, WidthMargin);
         memset(UVDstLine + rightOffset, 128, WidthMargin);
-        memcpy(UVDstLine + WidthMargin, UVSrcLine, srcWidth);
+        memcpy(UVDstLine + WidthMargin, UVSrcLine, UVSrcStrideBytes);
     }
 
     return;

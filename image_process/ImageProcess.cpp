@@ -22,6 +22,8 @@
 #include <dlfcn.h>
 #include <g2d.h>
 #include <hardware/gralloc.h>
+#include <libyuv.h>
+#include <libyuv/convert.h>
 #include <linux/ipu.h>
 #include <stdio.h>
 #include <system/graphics.h>
@@ -292,13 +294,15 @@ int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, I
 
     // for 8mp, g2d not support nv12 scale, use software to scale, or will cause
     // testAllOutputYUVResolutions failed.
-    if (((srcBuf.mFormat == dstBuf.mFormat) && (dstBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_420_888) &&
-         (srcBuf.mZoomRatio <= 1.0)) &&
-        ((srcBuf.mWidth != dstBuf.mWidth) || (srcBuf.mHeight != dstBuf.mHeight))) {
-        char socType[128] = {0};
-        property_get("ro.boot.soc_type", socType, "");
-        if (strstr(socType, "imx8mp")) {
-            engine = ENG_CPU;
+    // zoom in also need handled by cpu
+    if (srcBuf.mFormat == dstBuf.mFormat && dstBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_420_888) {
+        if ((srcBuf.mZoomRatio <= 1.0 && (srcBuf.mWidth != dstBuf.mWidth || srcBuf.mHeight != dstBuf.mHeight)) ||
+            (srcBuf.mZoomRatio > 1.0 && srcBuf.mWidth == dstBuf.mWidth && srcBuf.mHeight == dstBuf.mHeight)) {
+            char socType[128] = {0};
+            property_get("ro.boot.soc_type", socType, "");
+            if (strstr(socType, "imx8mp")) {
+                engine = ENG_CPU;
+            }
         }
     }
 
@@ -927,11 +931,49 @@ int ImageProcess::ConvertImageByCPU(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
     // case 1: same format, same resolution, copy
     if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
         (srcBuf.mHeight == dstBuf.mHeight)) {
-        if (HAL_PIXEL_FORMAT_RAW16 == srcBuf.mFormat)
-            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
-                              srcBuf.mWidth * srcBuf.mHeight);
-        else {
-            memcpy((uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr, dstBuf.mFormatSize);
+        if (srcBuf.mZoomRatio <= 1.0) {
+            if (HAL_PIXEL_FORMAT_RAW16 == srcBuf.mFormat)
+                Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
+                                  srcBuf.mWidth * srcBuf.mHeight);
+            else {
+                memcpy((uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr,
+                       dstBuf.mFormatSize);
+            }
+        } else if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_420_888) {
+            // Handle zoom in for nv12
+            int crop_width = srcBuf.mWidth / srcBuf.mZoomRatio;
+            int crop_height = srcBuf.mHeight / srcBuf.mZoomRatio;
+
+            resizeBuf.mFormatSize = srcBuf.mFormatSize;
+            ret = AllocPhyBuffer(crop_width, crop_height, srcBuf.mFormat, resizeBuf);
+            if (ret) {
+                ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
+                return BAD_VALUE;
+            }
+
+            // First Cut, then Scale
+            decreaseNV12WithCut((uint8_t *)srcBuf.mVirtAddr, srcBuf.mWidth, srcBuf.mHeight,
+                                (uint8_t *)resizeBuf.mVirtAddr, resizeBuf.mWidth,
+                                resizeBuf.mHeight);
+
+            uint8_t *pUVSrcStart =
+                    (uint8_t *)resizeBuf.mVirtAddr + resizeBuf.mWidth * resizeBuf.mHeight;
+            uint8_t *pUVDstStart = (uint8_t *)dstBuf.mVirtAddr + dstBuf.mWidth * dstBuf.mHeight;
+
+            ret = libyuv::NV12Scale(static_cast<uint8_t *>(resizeBuf.mVirtAddr), resizeBuf.mWidth,
+                                    static_cast<uint8_t *>(pUVSrcStart), resizeBuf.mWidth,
+                                    resizeBuf.mWidth, resizeBuf.mHeight,
+                                    static_cast<uint8_t *>(dstBuf.mVirtAddr), dstBuf.mWidth,
+                                    static_cast<uint8_t *>(pUVDstStart), dstBuf.mWidth,
+                                    dstBuf.mWidth, dstBuf.mHeight, libyuv::FilterMode::kFilterNone);
+
+            FreePhyBuffer(resizeBuf.buffer);
+
+            if (ret != 0) {
+                ALOGE("%s: failed to scale buffer from %dx%d to %dx%d. Ret %d", __FUNCTION__,
+                      resizeBuf.mWidth, resizeBuf.mHeight, dstBuf.mWidth, dstBuf.mHeight, ret);
+                return ret;
+            }
         }
 
         return 0;
