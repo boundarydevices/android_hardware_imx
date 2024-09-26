@@ -640,6 +640,9 @@ static void dumpOutPutBuffer(char *output_buf, const char *title) {
 }
 
 int createCLProgram(const char *fileSrcName, const char *fileBinName) {
+
+    int ret = 0;
+#ifdef SUPPORT_CL
     cl_int errNum;
     cl_uint numPlatforms;
     cl_platform_id firstPlatformId;
@@ -655,7 +658,6 @@ int createCLProgram(const char *fileSrcName, const char *fileBinName) {
     size_t program_length;
     FILE *pSrcFileStream = NULL;
     char *source = NULL;
-    int ret = 0;
     long int res;
 
     errNum = clGetPlatformIDs(1, &firstPlatformId, &numPlatforms);
@@ -824,6 +826,8 @@ binary_out:
         clReleaseProgram(program);
     if (context != NULL)
         clReleaseContext(context);
+
+#endif
     return ret;
 }
 
