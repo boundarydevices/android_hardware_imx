@@ -18,6 +18,7 @@
 
 #include <aidl/android/hardware/power/BnPower.h>
 #include <perfmgr/HintManager.h>
+#include <fmq/AidlMessageQueue.h>
 
 #include <atomic>
 #include <memory>
@@ -36,7 +37,9 @@ using ::InteractionHandler;
 using ::aidl::android::hardware::power::Boost;
 using ::aidl::android::hardware::power::IPowerHintSession;
 using ::aidl::android::hardware::power::Mode;
+using ::aidl::android::hardware::common::fmq::SynchronizedReadWrite;
 using ::android::perfmgr::HintManager;
+using ::android::AidlMessageQueue;
 using namespace std::chrono_literals;
 
 class Power : public ::aidl::android::hardware::power::BnPower {
@@ -51,7 +54,14 @@ public:
                                          const std::vector<int32_t>& threadIds,
                                          int64_t durationNanos,
                                          std::shared_ptr<IPowerHintSession>* _aidl_return) override;
+    ndk::ScopedAStatus createHintSessionWithConfig(
+            int32_t tgid, int32_t uid, const std::vector<int32_t>& threadIds, int64_t durationNanos,
+            SessionTag tag, SessionConfig* config,
+            std::shared_ptr<IPowerHintSession>* _aidl_return) override;
     ndk::ScopedAStatus getHintSessionPreferredRate(int64_t* outNanoseconds) override;
+    ndk::ScopedAStatus getSessionChannel(int32_t tgid, int32_t uid,
+                                         ChannelConfig* _aidl_return) override;
+    ndk::ScopedAStatus closeSessionChannel(int32_t tgid, int32_t uid) override;
 
 private:
     HintManager *mHintManager;
