@@ -117,6 +117,10 @@ public:
         return HWC3::Error::Unsupported;
     }
 
+    virtual void partialCleanCacheBuffer(size_t overlayNum) {
+        return;
+    }
+
 protected:
     int32_t mMaxComposerTargetsPerDisplay = 3;
     void getTargetsNumFromProp() {

@@ -113,6 +113,7 @@ public:
                                                ClientTargetProperty* outProperty) override;
     HWC3::Error waitVBlank(int displayId, int64_t* timestamp) override;
 
+    void partialCleanCacheBuffer(size_t overlayNum) override;
 private:
     using DrmPrimeBufferHandle = uint32_t;
     using DrmBufferCache = LruCache<DrmPrimeBufferHandle, std::shared_ptr<DrmBuffer>>;
@@ -157,6 +158,9 @@ private:
     std::optional<HotplugCallback> mHotplugCallback;
 
     std::unique_ptr<DrmEventListener> mDrmEventListener;
+
+    uint32_t mLastOverlayCount = 0;
+    TimePoint mCheckOverlayTime;
 };
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

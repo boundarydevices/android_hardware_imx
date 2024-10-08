@@ -469,6 +469,9 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         DEBUG_LOG("%s: fail to get active config id", __FUNCTION__);
     }
 
+    if (layersForOverlay.size() > 0) {
+        client->partialCleanCacheBuffer(layersForOverlay.size());
+    }
     for (auto& [planeId, layer] : layersForOverlay) {
         auto handle = layer->waitAndGetBuffer(); // wait for layer buffer ready
         common::Rect rectFrame = layer->getDisplayFrame();

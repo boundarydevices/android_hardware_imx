@@ -457,6 +457,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
     }
 
     std::unique_ptr<DrmAtomicRequest> request;
+    mDisplays[displayId]->clearTempBuffer(buffer.planeDrmBuffer.size());
     for (auto& pair : buffer.planeDrmBuffer) {
         auto [err, req] =
                 mDisplays[displayId]->flushOverlay(pair.first, std::move(request), pair.second);
@@ -485,6 +486,24 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
     }
 
     return std::make_tuple(error, std::move(outFence));
+}
+
+void DrmClient::partialCleanCacheBuffer(size_t overlayNum) {
+    if (mPlaneBufferCache && mPlaneBufferCache->getSize() > 0) {
+        uint32_t reservedBufferCount = 0;
+
+        TimePoint now = std::chrono::steady_clock::now();
+        if (mLastOverlayCount > overlayNum) {
+            if (now > mCheckOverlayTime  + Nanoseconds(500000000)) {
+                reservedBufferCount = overlayNum * 6;
+                mLastOverlayCount = overlayNum;
+                mPlaneBufferCache->partialClearCache(reservedBufferCount);
+            }
+        } else {
+            mCheckOverlayTime = now;
+            mLastOverlayCount = overlayNum;
+        }
+    }
 }
 
 std::optional<std::vector<uint8_t>> DrmClient::getEdid(uint32_t displayId) {

@@ -31,8 +31,9 @@ public:
 
         // Move to front.
         auto elementsIt = tableIt->second;
-        m_elements.splice(elementsIt, m_elements, m_elements.begin());
-        return &elementsIt->value;
+        Value value = elementsIt->value;
+        m_elements.splice(m_elements.begin(), m_elements, elementsIt);
+        return &value;
     }
 
     void set(const Key& key, Value&& value) {
@@ -67,6 +68,21 @@ public:
     void clear() {
         m_elements.clear();
         m_table.clear();
+    }
+
+    void partialClearCache(uint32_t reserved_buffer_count) {
+        std::list<KeyValue> clean_bufs;
+        auto it = std::next(m_elements.begin(), reserved_buffer_count);
+        clean_bufs.splice(clean_bufs.end(), m_elements, it, m_elements.end());
+        // elements has been updated, table need update
+        for (auto it = clean_bufs.begin(); it != clean_bufs.end(); it++) {
+            Key key = it->key;
+            auto tableIt = m_table.find(key);
+            if (tableIt == m_table.end()) {
+                continue;
+            }
+            m_table.erase(tableIt);
+        }
     }
 
     std::size_t getSize() { return m_table.size(); }

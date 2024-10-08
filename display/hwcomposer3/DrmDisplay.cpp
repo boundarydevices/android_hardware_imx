@@ -152,6 +152,12 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
     return std::make_tuple(HWC3::Error::None, std::move(request));
 }
 
+void DrmDisplay::clearTempBuffer(int overlaynum) {
+    if (overlaynum < mTempBuffers.planeDrmBuffer.size()) {
+        mTempBuffers.planeDrmBuffer.clear();
+    }
+}
+
 std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrimary(
         uint32_t planeId, std::unique_ptr<DrmAtomicRequest> request,
         ::android::base::borrowed_fd inSyncFd, const std::shared_ptr<DrmBuffer>& buffer) {
