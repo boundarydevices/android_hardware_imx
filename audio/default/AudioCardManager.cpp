@@ -114,8 +114,13 @@ void AudioCardManager::scanAvailableCard()
         audio_card->card = card;
         audio_card->card_name = strdup(card_name);
         audio_card->locked = false;
-        mCards.push_back(audio_card);
-        mMixers.push_back(mixer);
+        if (strstr(card_name, "cs42888")) {
+            mCards.insert(mCards.begin(), audio_card);
+            mMixers.insert(mMixers.begin(), mixer);
+        } else {
+            mCards.push_back(audio_card);
+            mMixers.push_back(mixer);
+        }
     }
 
     ALOGI("Total %zu cards match", mCards.size());
