@@ -30,9 +30,11 @@
 
 #include <aidl/android/hardware/graphics/composer3/IComposerClient.h>
 #include <android-base/logging.h>
+#include <cutils/native_handle.h>
 #include <log/log.h>
 #include <utils/Trace.h>
 
+#include "BufferInfo.h"
 #include "Time.h"
 
 // Uncomment to enable additional debug logging.

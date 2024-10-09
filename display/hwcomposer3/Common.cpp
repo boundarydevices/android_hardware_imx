@@ -326,8 +326,8 @@ void debug_dump_frame(buffer_handle_t handle) {
 
     if (info.base == 0) {
         void *vaddr = NULL;
-        int usage = info.usage | USAGE_SW_READ_OFTEN;
-        const ::android::Rect rect{0, 0, info.width, info.height};
+        int usage = info.usage | GRALLOC_USAGE_SW_READ_OFTEN;
+        const ::android::Rect rect{0, 0, static_cast<int32_t>(info.width), static_cast<int32_t>(info.height)};
         ::android::status_t err =
                 ::android::GraphicBufferMapper::get().lock(const_cast<native_handle_t *>(handle),
                                                            usage, rect, &vaddr);
@@ -338,7 +338,7 @@ void debug_dump_frame(buffer_handle_t handle) {
 
         dump_frame((char *)vaddr, info.width, info.height, info.size);
 
-        err = ::android::GraphicBufferMapper::get().unlock(buffer);
+        err = ::android::GraphicBufferMapper::get().unlock(handle);
         if (err) {
             ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
             return;
