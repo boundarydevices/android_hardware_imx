@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2022 The Android Open Source Project
- * Copyright 2023 NXP.
+ * Copyright 2023-2024 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -448,6 +448,9 @@ private:
     bool mUseHalBufManager = false;
 
     /* End of members not changed after initialize() */
+
+    // The max tolerant lag between the dequeued v4l2 buffer and current capture request.
+    uint64_t mMaxLagNs;
 };
 
 } // namespace implementation
