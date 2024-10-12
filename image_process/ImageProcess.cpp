@@ -29,7 +29,7 @@
 #include <system/graphics.h>
 #include <vndksupport/linker.h>
 
-#include "Memory.h"
+#include "gralloc_handle.h"
 
 extern "C" {
 #include <linux/pxp_device.h>
@@ -688,11 +688,11 @@ void ImageProcess::LockG2dAddr(ImxImageBuffer &imxBuf) {
         return;
     }
 
-    fsl::Memory *handle = (fsl::Memory *)imxBuf.buffer;
+    auto handle = imxBuf.buffer;
     if (mLockSurface)
-        (*mLockSurface)(handle);
+        (*mLockSurface)(const_cast<native_handle_t *>(handle));
 
-    imxBuf.mPhyAddr = handle->phys;
+    imxBuf.mPhyAddr = gralloc_handle_phys(handle);
 
     return;
 }
@@ -705,24 +705,17 @@ void ImageProcess::UnLockG2dAddr(ImxImageBuffer &imxBuf) {
 }
 
 buffer_handle_t ImageProcess::createBufferHandle(ImxImageBuffer &imxBuf) {
-    fsl::Memory *handle = (fsl::Memory *)malloc(sizeof(fsl::Memory));
+    void *mem = native_handle_create(GRALLOC_HANDLE_NUM_FDS, GRALLOC_HANDLE_NUM_INTS);
+    if (mem == nullptr) {
+        ALOGE("%s: gralloc_handle allocation failed", __func__);
+        return nullptr;
+    }
 
-    handle->version = sizeof(native_handle);
-    handle->magic = fsl::Memory::sMagic;
-    handle->numInts = fsl::Memory::sNumInts();
-    handle->numFds = 1;
-    handle->fd = imxBuf.mFd;
-    handle->fd_meta = -1;
-    handle->fd_region = -1;
-    handle->size = imxBuf.mSize;
-    handle->flags = 0;
-    handle->width = imxBuf.mSize / 4;
-    handle->height = 1;
-    handle->stride = handle->width;
-    handle->format = HAL_PIXEL_FORMAT_RGBA_8888;
-    handle->usage = 0;
-    handle->phys = imxBuf.mPhyAddr;
-    handle->base = (uint64_t)imxBuf.mVirtAddr;
+    buffer_handle_t handle =
+            new (mem) gralloc_handle(imxBuf.mFd, imxBuf.mSize, 0, HAL_PIXEL_FORMAT_RGBA_8888,
+                                     imxBuf.mSize / 4, 1, 1, imxBuf.mSize / 4);
+    gralloc_handle_set_phys(handle, imxBuf.mPhyAddr);
+    gralloc_handle_set_base(handle, (uint64_t)imxBuf.mVirtAddr);
 
     return handle;
 }
