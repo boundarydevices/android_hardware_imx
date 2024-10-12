@@ -25,9 +25,6 @@
 
 #define ATRACE_TAG (ATRACE_TAG_GRAPHICS | ATRACE_TAG_HAL)
 
-#undef LOG_TAG
-#define LOG_TAG "NXPHWC"
-
 #include <aidl/android/hardware/graphics/composer3/IComposerClient.h>
 #include <android-base/logging.h>
 #include <cutils/native_handle.h>

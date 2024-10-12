@@ -46,17 +46,18 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
         info->name = nullptr;
         info->phys = memHandle->phys;
         info->base = 0;
-    } else if (gralloc_handle_t(handle)->magic == Memory::sMagic) {
+    } else if (gralloc_handle_t(handle)->magic == gralloc_handle::sMagic) {
         gralloc_handle_t memHandle = (gralloc_handle_t)handle;
         uint64_t modifier = 0;
-        info->fd = memHandle->fd;
+        info->fd = memHandle->fds[0];
         info->width = memHandle->width;
         info->height = memHandle->height;
-        info->format = memHandle->fslFormat;
-        info->stride = memHandle->stride;
-        info->drm_format = ConvertNxpFormatToDrmFormat(info->format, &modifier);
+        info->format = memHandle->format;
+        info->stride = memHandle->pixel_stride;
+        info->drm_format = memHandle->drm_format;
         // TODO: some workaround for framebuffer of legacy imx
-        if ((memHandle->format_modifier > 0) && (memHandle->usage & GRALLOC_USAGE_HW_FB)) {
+        if ((memHandle->format_modifier != DRM_FORMAT_MOD_LINEAR) &&
+            (memHandle->usage & GRALLOC_USAGE_HW_FB)) {
             /* workaround GPU SUPER_TILED R/B swap issue, for no-resolve and tiled output
                GPU not distinguish A8B8G8R8 and A8R8G8B8, all regard as A8R8G8B8, need do
                R/B swap here for no-resolve and tiled buffer */
@@ -65,12 +66,8 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
             if (info->drm_format == DRM_FORMAT_ABGR8888)
                 info->drm_format = DRM_FORMAT_ARGB8888;
         }
-        if (memHandle->format_modifier > 0)
-            // modifier of framebuffer is setted when allocate.
-            info->modifier = memHandle->format_modifier;
-        else
-            info->modifier = modifier;
-        info->size = memHandle->size;
+        info->modifier = memHandle->format_modifier;
+        info->size = memHandle->total_size;
         info->usage = memHandle->usage;
         info->num_planes = memHandle->num_planes;
         for (int i = 0; i < kBufferMaxPlanes; i++) {

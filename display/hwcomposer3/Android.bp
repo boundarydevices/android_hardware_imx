@@ -70,7 +70,7 @@ cc_binary {
     name: "android.hardware.graphics.composer3-service.imx",
     defaults: [
         "arm_gralloc_uses_libformat_defaults",
-        "libnxp_gralloc_v5_default",
+        "libnxp_gralloc_v5_defaults",
         "hwc_config_defaults",
     ],
     relative_install_path: "hw",
@@ -111,7 +111,6 @@ cc_binary {
         "libyuv_static",
         "libmath",
         "libnxp_gralloc_driver",
-        "libnxp_gralloc_utils",
         "libhwsecureclient",
         "libtrusty",
         "libgralloc_internal_format",
@@ -150,7 +149,7 @@ cc_binary {
         "VsyncThread.cpp",
     ],
     cflags: [
-        "-DLOG_TAG=\"NxpHWC3\"",
+        "-DLOG_TAG=\"NxpHWC\"",
     ],
 }
 
