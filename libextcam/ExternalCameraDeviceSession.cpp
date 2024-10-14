@@ -3201,6 +3201,9 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecGetBuffer(uint8_t* inData, 
         int ret = mYu12ThumbFrame->allocate(&mYu12ThumbFrameLayout);
         if (ret != 0) {
             ALOGE("%s: allocating YU12 thumb frame failed!", __FUNCTION__);
+            if (vaddr)
+                munmap(vaddr, size);
+
             return BAD_VALUE;
         }
     }

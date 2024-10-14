@@ -450,7 +450,7 @@ private:
     /* End of members not changed after initialize() */
 
     // The max tolerant lag between the dequeued v4l2 buffer and current capture request.
-    uint64_t mMaxLagNs;
+    uint64_t mMaxLagNs = 0;
 };
 
 } // namespace implementation
