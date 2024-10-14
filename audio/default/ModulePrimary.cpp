@@ -77,6 +77,11 @@ int32_t ModulePrimary::getNominalLatencyMs(const AudioPortConfig&) {
 ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(
         ::aidl::android::media::audio::common::AudioPort* audioPort, int32_t nextPortId) {
     LOG(INFO) << __func__ << ": " << audioPort->name << ", id: " << nextPortId;
+    auto& audioDevice = audioPort->ext.get<aidl::android::media::audio::common::AudioPortExt::Tag::device>().device;
+    const auto& c = AudioCardManager::getCardForDevice(audioDevice);
+    if (!c)
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+
     return ndk::ScopedAStatus::ok();
 }
 
