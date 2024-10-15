@@ -71,7 +71,8 @@ public:
     bool isPrimary() { return mIsPrimary; }
 
 private:
-    FbdevDisplay(uint32_t id, int devFd) : mHwcId(id), mId(id), mFbdevFd(devFd) {}
+    FbdevDisplay(uint32_t id, int devFd)
+          : mHwcId(id), mOriginalHwcId(mHwcId), mId(id), mFbdevFd(devFd) {}
 
     bool onConnect(::android::base::borrowed_fd devFd);
     bool onDisconnect(::android::base::borrowed_fd devFd);
@@ -90,12 +91,12 @@ private:
     DisplayBuffer mPreviousBuffers;
     DisplayBuffer mTempBuffers;
 
-    uint32_t mBufferFormat;
-    uint32_t mBytesPerPixel;
-    uint32_t mStrideInBytes;
+    uint32_t mBufferFormat = 0;
+    uint32_t mBytesPerPixel = 0;
+    uint32_t mStrideInBytes = 0;
     int32_t mActiveConfigId = -1;
     int32_t mStartConfigId = 0;
-    HalDisplayConfig mActiveConfig;
+    HalDisplayConfig mActiveConfig{};
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
 };
 

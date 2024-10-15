@@ -31,9 +31,8 @@ public:
 
         // Move to front.
         auto elementsIt = tableIt->second;
-        Value value = elementsIt->value;
         m_elements.splice(m_elements.begin(), m_elements, elementsIt);
-        return &value;
+        return &elementsIt->value;
     }
 
     void set(const Key& key, Value&& value) {

@@ -152,7 +152,7 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
     return std::make_tuple(HWC3::Error::None, std::move(request));
 }
 
-void DrmDisplay::clearTempBuffer(int overlaynum) {
+void DrmDisplay::clearTempBuffer(uint32_t overlaynum) {
     if (overlaynum < mTempBuffers.planeDrmBuffer.size()) {
         mTempBuffers.planeDrmBuffer.clear();
     }

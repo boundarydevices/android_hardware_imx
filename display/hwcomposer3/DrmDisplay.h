@@ -128,12 +128,13 @@ public:
     bool isDisplayActive() { return !mModeSet; }
     bool isLowPowerDisplay() { return mCrtc->getDisplayXferProperty().getId() != (uint32_t)-1; }
 
-    void clearTempBuffer(int overlaynum);
+    void clearTempBuffer(uint32_t overlaynum);
 
 private:
     DrmDisplay(uint32_t id, std::unique_ptr<DrmConnector> connector, std::unique_ptr<DrmCrtc> crtc,
                std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> planes)
           : mHwcId(id),
+            mOriginalHwcId(mHwcId),
             mId(id),
             mConnector(std::move(connector)),
             mCrtc(std::move(crtc)),
@@ -162,7 +163,7 @@ private:
     // The display config when boot up or hotplug in, not be changed by SurfaceFlinger
     int32_t mInitActiveConfigId = -1;
     int32_t mStartConfigId = 0;
-    HalDisplayConfig mActiveConfig;
+    HalDisplayConfig mActiveConfig{};
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
     uint32_t mUiScaleType = UI_SCALE_NONE;
     std::vector<uint32_t> mPlaneIdPool;
@@ -172,7 +173,7 @@ private:
 
     uint32_t mHdrMetadataBlobId = 0;
 #ifdef DEBUG_DUMP_REFRESH_RATE
-    DumpRefreshRate mDumpActualFps;
+    DumpRefreshRate mDumpActualFps{};
 #endif
 };
 

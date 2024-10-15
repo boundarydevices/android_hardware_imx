@@ -81,7 +81,7 @@ private:
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
 
     std::vector<buffer_handle_t> mComposerTargets;
-    int32_t mTargetIndex;
+    int32_t mTargetIndex = 0;
 
     std::shared_ptr<DeviceComposer> mG2dComposer = nullptr;
 };

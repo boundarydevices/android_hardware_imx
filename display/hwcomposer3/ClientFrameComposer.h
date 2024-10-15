@@ -104,7 +104,7 @@ private:
     std::unordered_map<int64_t, DisplayBuffer> mDisplayBuffers;
     std::unordered_map<int64_t, ValidatedLayers> mDisplayLayers;
 
-    uint32_t mDummyBaseId;
+    uint32_t mDummyBaseId = 0;
     std::optional<HotplugCallback> mHotplugCallback;
     std::unique_ptr<PollThread> mDrmThread;
 
