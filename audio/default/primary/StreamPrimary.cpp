@@ -19,6 +19,7 @@
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <audio_utils/clock.h>
+#include <audio_utils/primitives.h>
 #include <error/Result.h>
 #include <error/expected_utils.h>
 
@@ -46,6 +47,7 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     : StreamAlsa(context, metadata, 3 /*readWriteRetries*/),
       mIsAsynchronous(!!getContext().getAsyncCallback()) {
     context->startStreamDataProcessor();
+    mSavedConfig = mConfig;
 }
 
 ::android::status_t StreamPrimary::start() {
@@ -58,6 +60,27 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
 
 ::android::status_t StreamPrimary::transfer(void* buffer, size_t frameCount,
                                             size_t* actualFrameCount, int32_t* latencyMs) {
+    if (mIsStereoToMono) {
+        if (mIsInput) {
+            auto dst = static_cast<int16_t*>(buffer);
+            std::unique_ptr<int16_t[]> src{new int16_t[frameCount]};
+
+            RETURN_STATUS_IF_ERROR(
+                    StreamAlsa::transfer(src.get(), frameCount / 2, actualFrameCount, latencyMs));
+            upmix_to_stereo_i16_from_mono_i16(dst, src.get(), frameCount);
+        } else {
+            auto src = static_cast<const int16_t*>(buffer);
+            std::unique_ptr<int16_t[]> dst{new int16_t[frameCount]};
+
+            downmix_to_mono_i16_from_stereo_i16(dst.get(), src, frameCount);
+            RETURN_STATUS_IF_ERROR(
+                    StreamAlsa::transfer(dst.get(), frameCount / 2, actualFrameCount, latencyMs));
+        }
+        *actualFrameCount *= 2;
+
+        return ::android::OK;
+    }
+
     RETURN_STATUS_IF_ERROR(
             StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
     return ::android::OK;
@@ -76,6 +99,17 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
     struct audio_card *card = AudioCardManager::getCardForDevice(connectedDevices[0]);
     if (card) {
         deviceProfile[0].card = card->card;
+
+        if (strstr(card->driver_name, "sco-audio")) {
+            if (mSavedConfig.has_value() && mSavedConfig->channels == 2) {
+                mConfig->channels = 1;
+                mIsStereoToMono = true;
+                LOG(INFO) << __func__ << ": Force set mono channel for bt_sco";
+            }
+        } else {
+            mIsStereoToMono = false;
+            mConfig = mSavedConfig;
+        }
     }
 
     return deviceProfile;

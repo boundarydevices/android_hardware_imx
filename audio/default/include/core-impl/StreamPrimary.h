@@ -38,6 +38,8 @@ class StreamPrimary : public StreamAlsa {
     int64_t mStartTimeNs = 0;
     long mFramesSinceStart = 0;
     bool mSkipNextTransfer = false;
+    bool mIsStereoToMono = false;
+    std::optional<struct pcm_config> mSavedConfig;
 };
 
 class StreamInPrimary final : public StreamIn, public StreamSwitcher, public StreamInHwGainHelper {
