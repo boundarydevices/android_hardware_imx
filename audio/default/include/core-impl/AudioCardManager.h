@@ -83,6 +83,7 @@ struct audio_card {
     bool is_hdmi_card;
     bool support_multi_chn;
     bool support_lpa;
+    bool support_s16;
     unsigned int out_period_size;
     unsigned int out_period_count;
     unsigned int in_period_size;

@@ -81,6 +81,19 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
         return ::android::OK;
     }
 
+    if (mIsS32ToS16) {
+        auto dst = static_cast<int16_t*>(buffer);
+        std::unique_ptr<int32_t[]> src{new int32_t[frameCount]};
+
+        RETURN_STATUS_IF_ERROR(
+                StreamAlsa::transfer(src.get(), frameCount * 2, actualFrameCount, latencyMs));
+        memcpy_to_i16_from_i32(dst, src.get(), frameCount);
+
+        *actualFrameCount /= 2;
+
+        return ::android::OK;
+    }
+
     RETURN_STATUS_IF_ERROR(
             StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
     return ::android::OK;
@@ -106,8 +119,13 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
                 mIsStereoToMono = true;
                 LOG(INFO) << __func__ << ": Force set mono channel for bt_sco";
             }
+        } else if (strstr(card->driver_name, "micfil") && !card->support_s16) {
+            mConfig->format = PCM_FORMAT_S32_LE;
+            mIsS32ToS16 = true;
+            LOG(INFO) << __func__ << ": Force set S32 format for micfil";
         } else {
             mIsStereoToMono = false;
+            mIsS32ToS16 = false;
             mConfig = mSavedConfig;
         }
     }

@@ -188,6 +188,7 @@ static const char* const g_key_out_period_count = "out_period_count";
 static const char* const g_key_in_period_size = "in_period_size";
 static const char* const g_key_in_period_count = "in_period_count";
 static const char* const g_key_secondary_bus_name = "secondary_bus_name";
+static const char* const g_key_support_s16 = "support_s16";
 
 struct audio_devcie_map {
     char const* name;
@@ -400,6 +401,11 @@ static bool parse_one_card(char* config_file, struct audio_card** pp_audio_card)
 
     if (root.isMember(g_key_support_lpa))
         p_audio_card->support_lpa = root[g_key_support_lpa].asBool();
+
+    /* It is assumed that all cards support s16 format */
+    p_audio_card->support_s16 = true;
+    if (root.isMember(g_key_support_s16))
+        p_audio_card->support_s16 = root[g_key_support_s16].asBool();
 
     if (root.isMember(g_key_out_period_size))
         p_audio_card->out_period_size = root[g_key_out_period_size].asUInt();
