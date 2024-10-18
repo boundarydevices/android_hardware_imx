@@ -142,6 +142,10 @@ StreamInPrimary::StreamInPrimary(StreamContext&& context, const SinkMetadata& si
 bool StreamInPrimary::useStubStream(const AudioDevice& device) {
     static const bool kSimulateInput =
             GetBoolProperty("ro.boot.audio.tinyalsa.simulate_input", false);
+    if (device.type.type == AudioDeviceType::IN_HEADSET &&
+            device.type.connection == AudioDeviceDescription::CONNECTION_BT_SCO)
+        return false;
+
     return kSimulateInput || device.type.type == AudioDeviceType::IN_TELEPHONY_RX ||
            device.type.type == AudioDeviceType::IN_FM_TUNER ||
            device.type.connection == AudioDeviceDescription::CONNECTION_BUS /*deprecated */ ||
