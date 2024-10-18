@@ -20,6 +20,7 @@
 #include <android-base/properties.h>
 #include <audio_utils/clock.h>
 #include <audio_utils/primitives.h>
+#include <cutils/properties.h>
 #include <error/Result.h>
 #include <error/expected_utils.h>
 
@@ -31,6 +32,9 @@
 extern "C" {
 #include "alsa_device_profile.h"
 }
+
+#define LPA_PERIOD_MS 500
+#define LPA_BUFFER_SECOND 20
 
 using aidl::android::hardware::audio::common::SinkMetadata;
 using aidl::android::hardware::audio::common::SourceMetadata;
@@ -128,6 +132,11 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mIsStereoToMono = false;
             mIsS32ToS16 = false;
             mConfig = mSavedConfig;
+        }
+
+        if (property_get_int32("vendor.audio.lpa.enable", 0)) {
+            mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
+            mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
         }
     }
 
