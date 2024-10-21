@@ -1184,8 +1184,6 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
             memset(rgb, 0, srcBuf->mWidth * srcBuf->mHeight * 3);
 
             // bggr -> rgb888 -> yuv422i
-            Revert16BitEndian((uint8_t *)(srcBuf->mVirtAddr), srcData,
-                              srcBuf->mWidth * srcBuf->mHeight);
             SbggrToRgb888((uint16_t *)srcData, rgb, srcBuf->mWidth, srcBuf->mHeight);
             Rgb888ToYuv422i(rgb, (uint8_t *)srcData, srcBuf->mWidth, srcBuf->mHeight);
             free(rgb);

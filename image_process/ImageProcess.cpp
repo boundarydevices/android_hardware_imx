@@ -736,13 +736,6 @@ int ImageProcess::ConvertImageByG2D(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
                                    ImxEngine engine) {
     int ret = 0;
 
-    if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
-        (srcBuf.mHeight == dstBuf.mHeight) && (HAL_PIXEL_FORMAT_RAW16 == srcBuf.mFormat)) {
-        Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
-                          srcBuf.mWidth * srcBuf.mHeight);
-        return ret;
-    }
-
     if (mBlitEngine && (engine == ENG_G2D) && mbVIVG2D) {
         LockG2dAddr(srcBuf);
         LockG2dAddr(dstBuf);
@@ -858,18 +851,13 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     // case 1: same format, same resolution, copy
     if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
         (srcBuf.mHeightSpan == dstBuf.mHeightSpan)) {
-        if (HAL_PIXEL_FORMAT_RAW16 == srcBuf.mFormat)
-            Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
-                              srcBuf.mWidth * srcBuf.mHeight);
-        else {
-            Mutex::Autolock _l(mCLLock);
+        Mutex::Autolock _l(mCLLock);
 
-            cl_Copy(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, (uint8_t *)srcBuf.mPhyAddr,
-                    srcBuf.mFormatSize, false, bOutputCached);
+        cl_Copy(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, (uint8_t *)srcBuf.mPhyAddr,
+                srcBuf.mFormatSize, false, bOutputCached);
 
-            (*mCLFlush)(mCLHandle);
-            (*mCLFinish)(mCLHandle);
-        }
+        (*mCLFlush)(mCLHandle);
+        (*mCLFinish)(mCLHandle);
 
         return 0;
     }
@@ -932,13 +920,8 @@ int ImageProcess::ConvertImageByCPU(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
     if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
         (srcBuf.mHeight == dstBuf.mHeight)) {
         if (srcBuf.mZoomRatio <= 1.0) {
-            if (HAL_PIXEL_FORMAT_RAW16 == srcBuf.mFormat)
-                Revert16BitEndian((uint8_t *)srcBuf.mVirtAddr, (uint8_t *)dstBuf.mVirtAddr,
-                                  srcBuf.mWidth * srcBuf.mHeight);
-            else {
-                memcpy((uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr,
-                       dstBuf.mFormatSize);
-            }
+            memcpy((uint8_t *)dstBuf.mVirtAddr, (uint8_t *)srcBuf.mVirtAddr,
+                    dstBuf.mFormatSize);
         } else if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_420_888) {
             // Handle zoom in for nv12
             int crop_width = srcBuf.mWidth / srcBuf.mZoomRatio;
