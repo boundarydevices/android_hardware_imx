@@ -185,11 +185,12 @@ ndk::ScopedAStatus StreamInPrimary::getHwGain(std::vector<float>* _aidl_return) 
     if (isStubStream()) {
         return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
     }
-    float gain;
-    RETURN_STATUS_IF_ERROR(primary::PrimaryMixer::getInstance().getMicGain(&gain));
-    _aidl_return->resize(0);
-    _aidl_return->resize(mChannelCount, gain);
-    RETURN_STATUS_IF_ERROR(setHwGainImpl(*_aidl_return));
+    if (mHwGains.empty()) {
+        float gain;
+        RETURN_STATUS_IF_ERROR(primary::PrimaryMixer::getInstance().getMicGain(&gain));
+        _aidl_return->resize(mChannelCount, gain);
+        RETURN_STATUS_IF_ERROR(setHwGainImpl(*_aidl_return));
+    }
     return getHwGainImpl(_aidl_return);
 }
 
@@ -257,9 +258,11 @@ ndk::ScopedAStatus StreamOutPrimary::getHwVolume(std::vector<float>* _aidl_retur
     if (isStubStream()) {
         return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
     }
-    RETURN_STATUS_IF_ERROR(primary::PrimaryMixer::getInstance().getVolumes(_aidl_return));
-    _aidl_return->resize(mChannelCount);
-    RETURN_STATUS_IF_ERROR(setHwVolumeImpl(*_aidl_return));
+    if (mHwVolumes.empty()) {
+        RETURN_STATUS_IF_ERROR(primary::PrimaryMixer::getInstance().getVolumes(_aidl_return));
+        _aidl_return->resize(mChannelCount);
+        RETURN_STATUS_IF_ERROR(setHwVolumeImpl(*_aidl_return));
+    }
     return getHwVolumeImpl(_aidl_return);
 }
 
