@@ -664,7 +664,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
                 } else
                     hal_stream.override_format = HAL_PIXEL_FORMAT_YCBCR_422_I;
 
-                hal_stream.max_buffers = NUM_PREVIEW_BUFFER;
+                hal_stream.max_buffers = mSensorData.mPreviewBuffers;
                 usage = CAMERA_GRALLOC_USAGE;
 
                 if (stream.usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) {
@@ -684,7 +684,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
             default:
                 ALOGI("%s create callback stream", __func__);
                 hal_stream.override_format = stream.format;
-                hal_stream.max_buffers = NUM_PREVIEW_BUFFER;
+                hal_stream.max_buffers = mSensorData.mPreviewBuffers;
                 usage = CAMERA_GRALLOC_USAGE;
                 callbackIdx = i;
                 break;
@@ -715,7 +715,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
 
     // config libcamera with 1 stream
     libcamera::StreamConfiguration cfg;
-    cfg.bufferCount = LIBCAM_STREAM_BUFNUM;
+    cfg.bufferCount = mSensorData.mLibcameraBuffers;
     cfg.size.width = m_libcamera_stream_width;
     cfg.size.height = m_libcamera_stream_height;
     cfg.pixelFormat = HalFromat2PixelFormat(m_libcamera_stream_format);
@@ -743,8 +743,8 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     }
 
     std::set<libcamera::Stream *> libCameraStreamSet = camera_->streams();
-    ALOGI("%s: libCameraStreamSet size %lu, stream_num %d", __func__, libCameraStreamSet.size(),
-          stream_num);
+    ALOGI("%s: libCameraStreamSet size %lu, stream_num %d, libcameraBuffers %u, previewBuffers %u", __func__, libCameraStreamSet.size(),
+          stream_num, mSensorData.mLibcameraBuffers, mSensorData.mPreviewBuffers);
 #if 0
     if (libCameraStreamSet.size() != 1) {
         ALOGE("%s: libCameraStreamSet size %d, should be 1", __func__, libCameraStreamSet.size());
@@ -756,7 +756,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     ALOGI("%s: mLibCameraStream %p", __func__, mLibCameraStream);
 
     // allocate libcamera frame buffers
-    for (int i = 0; i < LIBCAM_STREAM_BUFNUM; i++) {
+    for (int i = 0; i < mSensorData.mLibcameraBuffers; i++) {
         uint32_t bufferStride;
         buffer_handle_t hnd;
         // ??? fix me
@@ -888,9 +888,9 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
           mInQueRequestIdx);
 
     /* free buffers in mFrameBuffersFree */
-    if (mFrameBuffersFree.size() != LIBCAM_STREAM_BUFNUM)
+    if (mFrameBuffersFree.size() != mSensorData.mLibcameraBuffers)
         ALOGW("%s: !!! unexpected, mFrameBuffersFree size %lu != %d", __func__, mFrameBuffersFree.size(),
-              LIBCAM_STREAM_BUFNUM);
+              mSensorData.mLibcameraBuffers);
 
     for (auto &it : mFrameBuffersFree) {
         libcamera::FrameBuffer *frameBuffer = it.get();

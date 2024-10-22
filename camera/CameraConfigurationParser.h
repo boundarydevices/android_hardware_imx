@@ -126,6 +126,10 @@ struct CameraSensorMetadata {
     // use can set given resoluitons.
     struct Resolution mGivenRes[GIVEN_RESOLUTION_NUM];
     int mGivenResNum;
+
+    // only used for evk_95
+    uint32_t mPreviewBuffers;
+    uint32_t mLibcameraBuffers;
 };
 
 typedef std::unordered_map<uint32_t,

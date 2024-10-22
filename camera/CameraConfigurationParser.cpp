@@ -137,6 +137,8 @@ const char* const kMinHeight = "MinHeight";
 const char* const kGivenResKey = "GivenRes";
 const char* const kGivenResWidthKey = "width";
 const char* const kGivenResHeightKey = "height";
+const char* const kPreviewBuffersKey = "PreviewBuffers";
+const char* const kLibcameraBuffersKey = "LibcameraBuffers";
 
 #define ENGINE_GPU_2D "GPU_2D"
 #define ENGINE_GPU_3D "GPU_3D"
@@ -588,6 +590,18 @@ bool ParseCharacteristics(CameraDefinition* camera, const Json::Value& root,
         if (omit_index >= OMIT_RESOLUTION_NUM)
             break;
     }
+
+    if (root.isMember(kPreviewBuffersKey))
+        static_meta[cam_index].mPreviewBuffers =
+                strtol(root[kPreviewBuffersKey].asString().c_str(), NULL, 10);
+    else
+        static_meta[cam_index].mPreviewBuffers = 3;
+
+    if (root.isMember(kLibcameraBuffersKey))
+        static_meta[cam_index].mLibcameraBuffers =
+                strtol(root[kLibcameraBuffersKey].asString().c_str(), NULL, 10);
+    else
+        static_meta[cam_index].mLibcameraBuffers = 3;
 
     // store parsed camera metadata
     camera->camera_metadata_vec[camera_id] = (static_meta[cam_index]);
