@@ -82,8 +82,9 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     }
 
     if (mIsS32ToS16) {
+        auto channels = aidl::android::hardware::audio::common::getChannelCount(getContext().getChannelLayout());
         auto dst = static_cast<int16_t*>(buffer);
-        std::unique_ptr<int32_t[]> src{new int32_t[frameCount]};
+        std::unique_ptr<int32_t[]> src{new int32_t[frameCount * channels]};
 
         RETURN_STATUS_IF_ERROR(
                 StreamAlsa::transfer(src.get(), frameCount * 2, actualFrameCount, latencyMs));
