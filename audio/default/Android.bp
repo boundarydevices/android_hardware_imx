@@ -30,6 +30,7 @@ cc_library {
         "bluetooth/DevicePortProxy.cpp",
         "bluetooth/ModuleBluetooth.cpp",
         "bluetooth/StreamBluetooth.cpp",
+        "compress/StreamCompress.cpp",
         "primary/PrimaryMixer.cpp",
         "primary/StreamPrimary.cpp",
         "r_submix/ModuleRemoteSubmix.cpp",
@@ -63,6 +64,7 @@ cc_library {
         "libmedia_helper",
         "libmediautils_vendor",
         "libstagefright_foundation",
+        "libtinycompress",
     ],
     export_shared_lib_headers: [
         "libaudio_aidl_conversion_common_ndk",
@@ -97,6 +99,7 @@ cc_binary {
         "liblog",
         "libmedia_helper",
         "libstagefright_foundation",
+        "libtinycompress",
     ],
     srcs: ["main.cpp"],
     cflags: [

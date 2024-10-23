@@ -20,9 +20,11 @@
 #define LOG_TAG "AHAL_ModulePrimary"
 #include <Utils.h>
 #include <android-base/logging.h>
+#include <media/stagefright/foundation/MediaDefs.h>
 
 #include "core-impl/AudioCardManager.h"
 #include "core-impl/ModulePrimary.h"
+#include "core-impl/StreamCompress.h"
 #include "core-impl/StreamPrimary.h"
 #include "core-impl/Telephony.h"
 
@@ -65,6 +67,9 @@ ndk::ScopedAStatus ModulePrimary::createInputStream(StreamContext&& context,
 ndk::ScopedAStatus ModulePrimary::createOutputStream(
         StreamContext&& context, const SourceMetadata& sourceMetadata,
         const std::optional<AudioOffloadInfo>& offloadInfo, std::shared_ptr<StreamOut>* result) {
+    if (context.getFormat().encoding == ::android::MEDIA_MIMETYPE_AUDIO_MPEG)
+        return createStreamInstance<StreamOutCompress>(result, std::move(context), sourceMetadata, offloadInfo);
+
     return createStreamInstance<StreamOutPrimary>(result, std::move(context), sourceMetadata,
                                                   offloadInfo);
 }
