@@ -1813,6 +1813,10 @@ void CameraDeviceSessionHwlImpl::DestroyPipelines() {
 
 status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
                                                     std::vector<HwlPipelineRequest> &requests) {
+    char value[PROPERTY_VALUE_MAX];
+    property_get("vendor.rw.camera.test", value, "");
+    mDebug = (strcmp(value, "debug") == 0) ? true : false;
+
     int size = requests.size();
     std::vector<FrameRequest> *frame_request = new std::vector<FrameRequest>(size);
 
@@ -1858,10 +1862,6 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
     map_frame_request[frame_number] = frame_request;
     mInQueRequestIdx++;
     mCondition.signal();
-
-    char value[PROPERTY_VALUE_MAX];
-    property_get("vendor.rw.camera.test", value, "");
-    mDebug = (strcmp(value, "debug") == 0) ? true : false;
 
     if (mDebug) {
         ALOGI("%s: mInQueRequestIdx %lu", __func__, mInQueRequestIdx);

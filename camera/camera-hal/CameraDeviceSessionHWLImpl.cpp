@@ -1043,6 +1043,10 @@ Stream *CameraDeviceSessionHwlImpl::GetStreamById(int32_t stream_id, PipelineInf
 
 status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
                                                     std::vector<HwlPipelineRequest> &requests) {
+    char value[PROPERTY_VALUE_MAX];
+    property_get("vendor.rw.camera.test", value, "");
+    mDebug = (strcmp(value, "debug") == 0) ? true : false;
+
     if (state_ == CameraState::Stopped) {
         int ret = camera_->start();
         if (ret) {
@@ -1163,10 +1167,6 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
     mInQueRequestIdx++;
 
     mFrameBuffers.splice(mFrameBuffers.end(), frameBuffers);
-
-    char value[PROPERTY_VALUE_MAX];
-    property_get("vendor.rw.camera.test", value, "");
-    mDebug = (strcmp(value, "debug") == 0) ? true : false;
 
     if (mDebug) {
         ALOGI("%s: mInQueRequestIdx %lu, mDeQueRequestIdx %lu", __func__, mInQueRequestIdx,
