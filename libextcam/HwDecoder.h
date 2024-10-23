@@ -205,6 +205,7 @@ private:
 
     status_t handleDequeueEvent();
     status_t handleFormatChanged();
+    status_t getOutputParams();
     status_t onOutputFormatChanged();
 
     void SetDecoderBufferState(int32_t bufId, bool state);
