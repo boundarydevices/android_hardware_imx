@@ -270,6 +270,11 @@ int32_t VideoStream::postConfigureLocked(uint32_t format, uint32_t width, uint32
         }
     }
 
+    // Tripple the max lag time in theory.
+    mMaxLagNs = mNumBuffers * 1000000000LL * 3 / mFps;
+    ALOGI("%s: set mMaxLagNs to %" PRIu64 " ns, mNumBuffers %u, mFps %u", __FUNCTION__, mMaxLagNs,
+          mNumBuffers, mFps);
+
     return 0;
 }
 
@@ -288,6 +293,7 @@ ImxStreamBuffer *VideoStream::onFrameAcquire() {
     struct v4l2_buffer cfilledbuffer;
     struct v4l2_plane planes;
     memset(&planes, 0, sizeof(struct v4l2_plane));
+    uint64_t lagNs = 0;
 
 capture_data:
     memset(&cfilledbuffer, 0, sizeof(cfilledbuffer));
@@ -361,6 +367,49 @@ capture_data:
             return NULL;
         }
         mOmitFrames--;
+        mV4l2Lock.unlock();
+        goto capture_data;
+    }
+
+    // Drop too old buffers.
+    // The tactic only takes effect on v4l2 buffers with flag V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC.
+    // Mostly, camera driver should have the feature.
+    nsecs_t curTimeNs = systemTime(SYSTEM_TIME_MONOTONIC);
+    nsecs_t v4l2BufTime = 0;
+
+    if (cfilledbuffer.flags & V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC) {
+        v4l2BufTime = static_cast<nsecs_t>(cfilledbuffer.timestamp.tv_sec) * 1000000000LL +
+                cfilledbuffer.timestamp.tv_usec * 1000LL;
+    } else {
+        v4l2BufTime = curTimeNs;
+    }
+
+    if (curTimeNs < v4l2BufTime) {
+        lagNs = 0;
+        ALOGW("%s: should not happen, the monotonic clock has issue,  v4l2BufTimeis in the "
+              "future, curTimeNs %" PRId64 "  < "
+              "v4l2BufTime %" PRId64 "",
+              __func__, curTimeNs, v4l2BufTime);
+    } else {
+        lagNs = curTimeNs - v4l2BufTime;
+    }
+
+    if (mSession->mDebug)
+        ALOGD("%s: cfilledbuffer.flags 0x%x, V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC 0x%x, curTime %" PRId64
+              ", v4l2BufTime %" PRId64 ", lagNs %" PRIu64 ", mMaxLagNs %" PRIu64 "",
+              __func__, cfilledbuffer.flags, V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC, curTimeNs,
+              v4l2BufTime, lagNs, mMaxLagNs);
+
+    if (lagNs > mMaxLagNs) {
+        ALOGI("%s: drop too old cfilledbuffer, index %d, lag %" PRIu64 " ns > max %" PRIu64 " ns",
+              __FUNCTION__, cfilledbuffer.index, lagNs, mMaxLagNs);
+        int ret = ioctl(mDev, VIDIOC_QBUF, &cfilledbuffer);
+        if (ret) {
+            ALOGE("%s: unexpected VIDIOC_QBUF failed, ret %d", __FUNCTION__, ret);
+            mV4l2Lock.unlock();
+            return NULL;
+        }
+
         mV4l2Lock.unlock();
         goto capture_data;
     }

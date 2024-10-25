@@ -112,6 +112,9 @@ protected:
     uint32_t mRecoverCount;
 
     Mutex mV4l2Lock;
+
+    // The max tolerant lag between the dequeued v4l2 buffer and current capture request.
+    uint64_t mMaxLagNs;
 };
 
 } // namespace android
