@@ -121,7 +121,7 @@ ndk::ScopedAStatus NxpAllocator::allocate(const BufferDescriptorInfoV4& descript
         return ToBinderStatus(AllocationError::NO_RESOURCES);
     }
 
-    struct gralloc_buffer_descriptor halDescriptor;
+    struct gralloc_buffer_descriptor halDescriptor{};
     if (convertToHalDescriptor(descriptor, &halDescriptor)) {
         return ToBinderStatus(AllocationError::UNSUPPORTED);
     }
@@ -230,7 +230,7 @@ ndk::ScopedAStatus NxpAllocator::isSupported(const BufferDescriptorInfo& descrip
         }
     }
 
-    struct gralloc_buffer_descriptor halDescriptor;
+    struct gralloc_buffer_descriptor halDescriptor{};
     if (convertToHalDescriptor(convertAidlToIMapperV4Descriptor(descriptor), &halDescriptor)) {
         // Failing to convert the descriptor means the layer count, pixel format, or usage is
         // unsupported, thus isSupported() = false

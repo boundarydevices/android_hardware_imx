@@ -151,7 +151,7 @@ int32_t gralloc_driver::allocate(gralloc_buffer_descriptor *desc, native_handle_
             *out_handle = handle;
         }
     }
-    if (ret != 0) {
+    if (ret != 0 || handle == nullptr) {
         ALOGE("%s alloc memory failed", __func__);
         return ret;
     }

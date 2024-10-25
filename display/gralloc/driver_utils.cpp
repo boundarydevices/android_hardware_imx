@@ -252,17 +252,9 @@ std::string getUsageString(uint64_t usage) {
         usage &= ~static_cast<uint64_t>(BufferUsage::CPU_READ_OFTEN);
         usages.push_back("CPU_READ_OFTEN");
     }
-    if (usage & static_cast<uint64_t>(BufferUsage::CPU_READ_NEVER)) {
-        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_READ_NEVER);
-        usages.push_back("CPU_READ_NEVER");
-    }
     if (usage & static_cast<uint64_t>(BufferUsage::CPU_READ_RARELY)) {
         usage &= ~static_cast<uint64_t>(BufferUsage::CPU_READ_RARELY);
         usages.push_back("CPU_READ_RARELY");
-    }
-    if (usage & static_cast<uint64_t>(BufferUsage::CPU_WRITE_NEVER)) {
-        usage &= ~static_cast<uint64_t>(BufferUsage::CPU_WRITE_NEVER);
-        usages.push_back("CPU_WRITE_NEVER");
     }
     if (usage & static_cast<uint64_t>(BufferUsage::CPU_WRITE_OFTEN)) {
         usage &= ~static_cast<uint64_t>(BufferUsage::CPU_WRITE_OFTEN);

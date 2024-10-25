@@ -55,30 +55,30 @@ struct gralloc_handle : public native_handle {
     uint32_t width;
     uint32_t height;
     int32_t format; /* Android request format, pixel format */
-    uint32_t drm_format;
-    uint64_t format_modifier;
+    uint32_t drm_format{};
+    uint64_t format_modifier{};
     uint64_t usage;
-    uint32_t num_planes;
+    uint32_t num_planes{};
     uint32_t strides[DRV_MAX_PLANES]; /* stride in bytes */
     uint32_t offsets[DRV_MAX_PLANES];
     uint32_t sizes[DRV_MAX_PLANES];
     uint32_t pixel_stride; /* stride in pixels. used for validation */
     uint32_t layer_count;
-    uint64_t reserved_region_size;
+    uint64_t reserved_region_size{};
     uint64_t total_size; /* total allocation size, not include reserved region */
-    uint64_t backing_store_id;
+    uint64_t backing_store_id{};
     uint64_t nxp_reserved[6];
     char name[BUFFER_NAME_MAX_SIZE];
-    int32_t pid;    /* owner of data (for validation) */
-    uint32_t flags; /* 0x0001:PRIV_FLAGS_FRAMEBUFFER */
-    uint32_t lock_count;
-    uint32_t cpu_write;
-    uint64_t base;
-    uint64_t attr_base;
-    uint64_t phys;
-    uint64_t surface; /* gpu-viv use only */
-    uint64_t tiling;
-    uint64_t data; /* gpu-viv use only */
+    int32_t pid{};    /* owner of data (for validation) */
+    uint32_t flags{}; /* 0x0001:PRIV_FLAGS_FRAMEBUFFER */
+    uint32_t lock_count{};
+    uint32_t cpu_write{};
+    uint64_t base{};
+    uint64_t attr_base{};
+    uint64_t phys{};
+    uint64_t surface{}; /* gpu-viv use only */
+    uint64_t tiling{};
+    uint64_t data{}; /* gpu-viv use only */
     uint64_t viv_reserved[5];
 
     gralloc_handle(int in_shared_fd, uint64_t in_size, uint64_t in_usage, int32_t in_pixel_format,
