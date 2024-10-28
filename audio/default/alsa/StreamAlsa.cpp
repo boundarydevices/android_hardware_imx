@@ -60,7 +60,6 @@ StreamAlsa::~StreamAlsa() {
 }
 
 ::android::status_t StreamAlsa::pause() {
-    proxy_pause(mAlsaDeviceProxies[0].get());
     return ::android::OK;
 }
 
@@ -72,7 +71,6 @@ StreamAlsa::~StreamAlsa() {
 ::android::status_t StreamAlsa::start() {
     if (!mAlsaDeviceProxies.empty()) {
         // This is a resume after a pause.
-        proxy_resume(mAlsaDeviceProxies[0].get());
         return ::android::OK;
     }
     decltype(mAlsaDeviceProxies) alsaDeviceProxies;

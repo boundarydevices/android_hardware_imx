@@ -54,7 +54,19 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     mSavedConfig = mConfig;
 }
 
+::android::status_t StreamPrimary::pause() {
+    if (mHardwarePause) {
+        proxy_pause(mAlsaDeviceProxies[0].get());
+    }
+    return ::android::OK;
+}
+
 ::android::status_t StreamPrimary::start() {
+    if (!mAlsaDeviceProxies.empty() && mHardwarePause) {
+        // This is a resume after a pause.
+        proxy_resume(mAlsaDeviceProxies[0].get());
+        return ::android::OK;
+    }
     RETURN_STATUS_IF_ERROR(StreamAlsa::start());
     mStartTimeNs = ::android::uptimeNanos();
     mFramesSinceStart = 0;
@@ -137,6 +149,7 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
         if (property_get_int32("vendor.audio.lpa.enable", 0)) {
             mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
             mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
+            mHardwarePause = true;
         }
     }
 

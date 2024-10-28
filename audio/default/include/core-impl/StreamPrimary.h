@@ -27,6 +27,7 @@ class StreamPrimary : public StreamAlsa {
   public:
     StreamPrimary(StreamContext* context, const Metadata& metadata);
 
+    ::android::status_t pause() override;
     ::android::status_t start() override;
     ::android::status_t transfer(void* buffer, size_t frameCount, size_t* actualFrameCount,
                                  int32_t* latencyMs) override;
@@ -40,6 +41,7 @@ class StreamPrimary : public StreamAlsa {
     bool mSkipNextTransfer = false;
     bool mIsStereoToMono = false;
     bool mIsS32ToS16 = false;
+    bool mHardwarePause = false;
     std::optional<struct pcm_config> mSavedConfig;
 };
 
