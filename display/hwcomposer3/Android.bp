@@ -69,6 +69,7 @@ hwc_config_cc_defaults {
 cc_binary {
     name: "android.hardware.graphics.composer3-service.imx",
     defaults: [
+        "android.hardware.graphics.composer3-ndk_shared",
         "arm_gralloc_uses_libformat_defaults",
         "libnxp_gralloc_v5_defaults",
         "hwc_config_defaults",
@@ -89,9 +90,6 @@ cc_binary {
     shared_libs: [
         "android.hardware.graphics.composer@2.1-resources",
         "android.hardware.graphics.composer@2.2-resources",
-        "android.hardware.graphics.composer3-V2-ndk",
-        "android.hardware.graphics.mapper@2.0",
-        "android.hardware.graphics.mapper@4.0",
         "libbase",
         "libbinder_ndk",
         "libgralloctypes",

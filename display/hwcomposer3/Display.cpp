@@ -1035,4 +1035,34 @@ HWC3::Error Display::checkAndWaitNextVsync(int64_t* timestamp) {
     return ret;
 }
 
+HWC3::Error Display::getDisplayConfigurations(int32_t /*maxFrameIntervalNs*/,
+                                              std::vector<DisplayConfiguration>* outConfigs) {
+    DEBUG_LOG("%s: hwc display:%" PRId64, __FUNCTION__, mId);
+
+    std::unique_lock<std::recursive_mutex> lock(mStateMutex);
+
+    outConfigs->clear();
+    outConfigs->reserve(mConfigs.size());
+    for (const auto& [cfgId, cfg] : mConfigs) {
+        DisplayConfiguration config;
+        config.configId = cfgId;
+        config.width = cfg.getWidth();
+        config.height = cfg.getHeight();
+        config.dpi = {static_cast<float>(cfg.getDpiX()), static_cast<float>(cfg.getDpiY())};
+        config.configGroup = cfg.getConfigGroup();
+        config.vsyncPeriod = cfg.getVsyncPeriod();
+
+        outConfigs->push_back(config);
+    }
+
+    return HWC3::Error::None;
+}
+
+HWC3::Error Display::notifyExpectedPresent(const ClockMonotonicTimestamp& expectedPresentTime,
+                                           int32_t frameIntervalNs) {
+    DEBUG_LOG("%s: hwc display:%" PRId64, __FUNCTION__, mId);
+    /* Not support VRR yet */
+    return HWC3::Error::None;
+}
+
 } // namespace aidl::android::hardware::graphics::composer3::impl

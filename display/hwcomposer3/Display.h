@@ -158,6 +158,10 @@ public:
     HWC3::Error takeEffectConfig(int32_t configId);
     std::optional<TimePoint>& getExpectedPresentTime() { return mExpectedPresentTime; }
     HWC3::Error checkAndWaitNextVsync(int64_t* timestamp);
+    HWC3::Error getDisplayConfigurations(int32_t /*maxFrameIntervalNs*/,
+                                         std::vector<DisplayConfiguration>* outConfigs);
+    HWC3::Error notifyExpectedPresent(const ClockMonotonicTimestamp& expectedPresentTime,
+                                      int32_t frameIntervalNs);
 
 private:
     bool hasConfig(int32_t configId) const;
