@@ -151,6 +151,13 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
             mHardwarePause = true;
         }
+
+        if (card->out_period_size) {
+            mConfig->period_size = card->out_period_size;
+        }
+        if (card->out_period_count) {
+            mConfig->period_count = card->out_period_count;
+        }
     }
 
     return deviceProfile;

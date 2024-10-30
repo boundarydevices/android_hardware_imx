@@ -144,6 +144,9 @@ StreamAlsa::~StreamAlsa() {
             if (hwFrames > std::numeric_limits<int64_t>::max()) {
                 hwFrames -= std::numeric_limits<int64_t>::max();
             }
+            if (getContext().getFormat().encoding == "audio/vnd.sony.dsd") {
+                hwFrames = hwFrames * 4;
+            }
             position->frames = static_cast<int64_t>(hwFrames);
             position->timeNs = audio_utils_ns_from_timespec(&timestamp);
         } else {

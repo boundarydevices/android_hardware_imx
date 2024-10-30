@@ -257,10 +257,19 @@ std::optional<struct pcm_config> getPcmConfig(const StreamContext& context, bool
     }
     config.format = alsa::aidl2c_AudioFormatDescription_pcm_format(context.getFormat());
     if (config.format == PCM_FORMAT_INVALID) {
-        LOG(ERROR) << __func__ << ": invalid format=" << context.getFormat().toString();
-        return std::nullopt;
+        if (context.getFormat().encoding == "audio/vnd.sony.dsd") {
+            LOG(INFO) << __func__ << ": update to dsd format";
+            config.format = PCM_FORMAT_DSD_U32_LE;
+        } else {
+            LOG(ERROR) << __func__ << ": invalid format=" << context.getFormat().toString();
+            return std::nullopt;
+        }
     }
     config.rate = context.getSampleRate();
+    if (context.getFormat().encoding == "audio/vnd.sony.dsd") {
+        config.rate /= 32;
+        LOG(ERROR) << __func__ << ": update to dsd rate: " << config.rate;
+    }
     if (config.rate == 0) {
         LOG(ERROR) << __func__ << ": invalid sample rate=" << config.rate;
         return std::nullopt;
