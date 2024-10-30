@@ -1310,6 +1310,7 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
     ALOGI("%s: start V4L2 streaming %dx%d@%ffps", __FUNCTION__, v4l2Fmt.width, v4l2Fmt.height, fps);
     mV4l2StreamingFmt = v4l2Fmt;
     mV4l2Streaming = true;
+    mOutputThread->mDecedFrames = 0; // new streaming start, source changed
     return OK;
 }
 
@@ -3141,12 +3142,22 @@ int ExternalCameraDeviceSession::OutputThread::VpuDecGetBuffer(uint8_t* inData, 
         return ret;
     }
 
+    // Increase waiting time when decoding first frame, otherwise case
+    // android.hardware.camera2.cts.SurfaceViewPreviewTest#testCameraPreview[1]
+    // will fail when source changes.
+    int mDecWaitTimeoutMs;
+    if (mDecedFrames == 0) {
+        mDecWaitTimeoutMs = 200;
+    } else {
+        mDecWaitTimeoutMs = kDecWaitTimeoutMs;
+    }
+
     nsecs_t t1, t2;
 
     if (mDebug)
         t1 = systemTime();
     // mjpeg decoded to nv12/nv16/yuyv raw data
-    ret = mDecoder->exportDecodedBuf(mDecodedData, kDecWaitTimeoutMs);
+    ret = mDecoder->exportDecodedBuf(mDecodedData, mDecWaitTimeoutMs);
     if (mDebug) {
         t2 = systemTime();
         ALOGI("exportDecodedBuf use %lld ns, %lld ms, decoded size %dx%d", (long long)t2 - t1,
