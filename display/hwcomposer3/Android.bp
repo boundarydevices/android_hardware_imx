@@ -141,6 +141,7 @@ cc_binary {
         "FbdevClient.cpp",
         "FbdevDisplay.cpp",
         "FenceMonitor.cpp",
+        "HDCPThread.cpp",
         "Layer.cpp",
         "Main.cpp",
         "PollThread.cpp",

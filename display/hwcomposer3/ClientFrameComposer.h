@@ -88,6 +88,7 @@ public:
 private:
     std::tuple<HWC3::Error, DeviceClient*> getDeviceClient(uint32_t displayId);
     HWC3::Error pollDrmThreadCallback(char* file);
+    void HDCPThreadCallback(Display* display);
 
     struct ValidatedLayers {
         std::unordered_map<uint32_t, Layer*> layersForOverlayPlane; // <planeId, layer>

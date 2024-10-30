@@ -54,6 +54,8 @@
 #include "Layer.h"
 #include "Time.h"
 #include "VsyncThread.h"
+#include "HDCPThread.h"
+
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
@@ -163,6 +165,9 @@ public:
     HWC3::Error notifyExpectedPresent(const ClockMonotonicTimestamp& expectedPresentTime,
                                       int32_t frameIntervalNs);
 
+    using HDCPThreadCallback = std::function<void (Display*)>;
+    void setHDCPCallback(const HDCPThreadCallback& callback);
+    void setHDCPThreadEnable(bool enable);
 private:
     bool hasConfig(int32_t configId) const;
     DisplayConfig* getConfig(int32_t configId);
@@ -185,7 +190,9 @@ private:
     std::string mName;
     PowerMode mPowerMode = PowerMode::OFF;
     bool mVsyncStarted = false;
+    bool mHDCPStarted = false;
     VsyncThread mVsyncThread;
+    HDCPThread mHDCPThread;
     FencedBuffer mClientTarget;
     FencedBuffer mReadbackBuffer;
     // Will only be non-null after the Display has been validated and

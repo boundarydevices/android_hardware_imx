@@ -32,6 +32,8 @@
 
 #include "Common.h"
 #include "Device.h"
+using android::base::ReadFileToString;
+using android::base::WriteStringToFd;
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
@@ -86,8 +88,9 @@ bool isValidPowerMode(PowerMode mode) {
 } // namespace
 
 Display::Display(FrameComposer* composer, int64_t id, uint32_t displayId)
-      : mComposer(composer), mId(id), mDisplayId(displayId), mVsyncThread(this) {
+      : mComposer(composer), mId(id), mDisplayId(displayId), mVsyncThread(this), mHDCPThread(this) {
     mVsyncStarted = false;
+    mHDCPStarted = false;
     setLegacyEdid();
 }
 
@@ -130,6 +133,13 @@ HWC3::Error Display::init(const std::vector<DisplayConfig>& configs, int32_t act
     if (!mVsyncStarted) {
         mVsyncThread.start(activeConfig.getVsyncPeriod());
         mVsyncStarted = true;
+    }
+
+    if (IsHdcpUserEnabled()) {
+        if (!mHDCPStarted) {
+            mHDCPThread.start();
+            mHDCPStarted = true;
+        }
     }
     return HWC3::Error::None;
 }
@@ -1063,6 +1073,14 @@ HWC3::Error Display::notifyExpectedPresent(const ClockMonotonicTimestamp& expect
     DEBUG_LOG("%s: hwc display:%" PRId64, __FUNCTION__, mId);
     /* Not support VRR yet */
     return HWC3::Error::None;
+}
+
+void Display::setHDCPCallback(const HDCPThreadCallback& callback) {
+    mHDCPThread.setCallbacks(callback);
+}
+
+void Display::setHDCPThreadEnable(bool enable) {
+    mHDCPThread.setHDCPThreadEnabled(enable);
 }
 
 } // namespace aidl::android::hardware::graphics::composer3::impl

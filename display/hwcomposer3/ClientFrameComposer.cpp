@@ -184,6 +184,16 @@ HWC3::Error ClientFrameComposer::unregisterOnHotplugCallback() {
     return HWC3::Error::None;
 }
 
+void ClientFrameComposer::HDCPThreadCallback(Display* display) {
+    auto [error, client] = getDeviceClient(display->getId());
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: display:%" PRIu64 " cannot find Drm Client", __FUNCTION__, display->getId());
+        return;
+    }
+    client->setSecureMode(display->getId(), 0, false);
+    display->setHDCPThreadEnable(false);
+}
+
 HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
     const auto displayId = display->getId();
     DEBUG_LOG("%s display:%" PRIu64, __FUNCTION__, displayId);
@@ -206,6 +216,16 @@ HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
     std::optional<std::vector<uint8_t>> edid = client->getEdid(displayId);
     if (edid) {
         display->setEdid(*edid);
+    }
+
+    // set hdcp thread callback
+    if (mHdcpEnabled) {
+        auto Callback = [this](Display* display) {
+            return HDCPThreadCallback(display);
+        };
+        display->setHDCPCallback(Callback);
+        display->setHDCPThreadEnable(true);
+        client->setSecureMode(displayId, 0, true);
     }
 
     return HWC3::Error::None;

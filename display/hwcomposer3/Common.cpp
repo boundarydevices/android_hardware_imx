@@ -56,6 +56,12 @@ bool IsHdcpUserEnabled() {
     return hdcp == "enable";
 }
 
+std::string getHdcpStatusPath() {
+    std::string status_path = ::android::base::GetProperty("vendor.hdcp_status_path", "");
+    DEBUG_LOG("%s: property hdcp_status_path is %s", __FUNCTION__, status_path.c_str());
+    return status_path;
+}
+
 std::string toString(HWC3::Error error) {
     switch (error) {
         case HWC3::Error::None:
