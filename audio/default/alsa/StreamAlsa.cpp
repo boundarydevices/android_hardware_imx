@@ -123,8 +123,7 @@ StreamAlsa::~StreamAlsa() {
 
 ::android::status_t StreamAlsa::refinePosition(StreamDescriptor::Position* position) {
     if (mAlsaDeviceProxies.empty()) {
-        LOG(WARNING) << __func__ << ": no opened devices";
-        return ::android::NO_INIT;
+        return ::android::OK;
     }
     // Since the proxy can only count transferred frames since its creation,
     // we override its counter value with ours and let it to correct for buffered frames.
