@@ -108,7 +108,7 @@ const format_info_t formats[] = {
         },
         {
                 .id = static_cast<int32_t>(PixelFormat::YV12),
-                .fourcc = static_cast<int32_t>(DRM_FORMAT_YVU420),
+                .fourcc = DRM_FORMAT_YVU420,
                 .modifier = DRM_FORMAT_MOD_LINEAR,
                 .is_rgb = false,
                 .is_yuv = true,
