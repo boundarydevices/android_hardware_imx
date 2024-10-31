@@ -130,6 +130,7 @@ public:
     virtual bool getHardwareDecFlag() const override;
 
     virtual Size getMaxThumbSize() { return mMaxThumbResolution; }
+    virtual Size getMaxJpegSize() { return mMaxJpegResolution; }
 
     // Called by CameraDevice to dump active device states
     binder_status_t dump(int fd, const char** args, uint32_t numArgs) override;

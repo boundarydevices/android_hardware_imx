@@ -2506,7 +2506,14 @@ void ExternalCameraDeviceSession::OutputThread::setMjpegCopy(bool bCopy) {
 }
 
 int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
-    mDecoder = new HwDecoder();
+    auto parent = mParent.lock();
+    if (parent == nullptr) {
+        ALOGE("%s: session has been disconnected!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    Size maxJpegSize = parent->getMaxJpegSize();
+    mDecoder = new HwDecoder(maxJpegSize.width, maxJpegSize.height);
     if (!mDecoder) {
         ALOGE("%s: Create HwDecoder Instance for MJPEG failed \n", __FUNCTION__);
         return -errno;

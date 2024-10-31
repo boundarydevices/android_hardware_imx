@@ -110,7 +110,7 @@ struct DecoderInputBuffer {
 
 class HwDecoder {
 public:
-    HwDecoder();
+    HwDecoder(uint32_t maxJpegWidth, uint32_t maxJpegHeight);
     virtual ~HwDecoder();
 
     status_t Init(const char* socType);
@@ -176,6 +176,8 @@ private:
     bool bNeedPostProcess;
     uint8_t mTableSize;
     COLOR_FORMAT_TABLE* color_format_table;
+    uint32_t mMaxJpegWidth;
+    uint32_t mMaxJpegHeight;
 
     status_t SetInputFormats();
     status_t allocateInputBuffers();

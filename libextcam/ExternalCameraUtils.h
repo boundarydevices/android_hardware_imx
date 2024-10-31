@@ -343,6 +343,7 @@ struct OutputThreadInterface {
     virtual bool getHardwareDecFlag() const { return false; }
     // virtual Size getMaxThumbSize() { Size zeroSize = {0, 0}; return zeroSize; }
     virtual Size getMaxThumbSize() { return {0, 0}; }
+    virtual Size getMaxJpegSize() { return {0, 0}; }
 };
 
 // A CPU copy of a mapped V4L2Frame. Will map the input V4L2 frame.

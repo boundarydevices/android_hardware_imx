@@ -40,7 +40,7 @@ namespace android {
 #define HANTRO_FRAME_ALIGN_WIDTH (HANTRO_FRAME_ALIGN * 2)
 #define HANTRO_FRAME_ALIGN_HEIGHT (HANTRO_FRAME_ALIGN_WIDTH)
 
-HwDecoder::HwDecoder()
+HwDecoder::HwDecoder(uint32_t maxJpegWidth, uint32_t maxJpegHeight)
       : mPollThread(0),
         mFetchThread(0),
         pDev(NULL),
@@ -83,6 +83,10 @@ HwDecoder::HwDecoder()
     mTableSize = 0;
     color_format_table = NULL;
     mDecReady = false;
+    mMaxJpegWidth = Align(maxJpegWidth, HANTRO_FRAME_ALIGN_WIDTH);
+    mMaxJpegHeight = Align(maxJpegHeight, HANTRO_FRAME_ALIGN_WIDTH);
+
+    ALOGI("%s: max jpeg resolution %ux%u", __func__, mMaxJpegWidth, mMaxJpegHeight);
 }
 
 HwDecoder::~HwDecoder() {}
@@ -1418,8 +1422,13 @@ status_t HwDecoder::onOutputFormatChanged() {
 
 status_t HwDecoder::allocateOutputBuffer(int bufId) {
     ImxImageBuffer imgBuf;
-    int ret = AllocPhyBuffer(mOutputFormat.width, mOutputFormat.height, mOutputFormat.pixelFormat,
-                             imgBuf);
+
+    ALOGI("%s: enter AllocPhyBuffer, res=%d x %d, format=0x%x", __func__, mOutputFormat.width,
+              mOutputFormat.height, mOutputFormat.pixelFormat);
+
+    // Since decoder may still hold previous streams after handleFormatChanged(),
+    // always allocate max size.
+    int ret = AllocPhyBuffer(mMaxJpegWidth, mMaxJpegHeight, mOutputFormat.pixelFormat, imgBuf);
     if (ret) {
         ALOGE("%s: AllocPhyBuffer failed, %d x %d, format=0x%x", __func__, mOutputFormat.width,
               mOutputFormat.height, mOutputFormat.pixelFormat);
