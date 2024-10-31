@@ -3,7 +3,7 @@
 
 // Add shared library
 cc_library_static {
-    name: "libsecureenlave",
+    name: "libsecureenclave",
     vendor_available: true,
     srcs: [
         "EleOperation.cpp",

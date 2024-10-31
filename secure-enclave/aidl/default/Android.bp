@@ -33,7 +33,7 @@ cc_binary {
     ],
     static_libs: [
         "libtrusty",
-        "libsecureenlave",
+        "libsecureenclave",
     ],
     srcs: [
         "main.cpp",
