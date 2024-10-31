@@ -3372,6 +3372,37 @@ int ExternalCameraDeviceSession::OutputThread::handleFrame(uint32_t dstWidth, ui
     return imageProcess->ConvertImage(dstBuf, srcBuf, mEngine);
 }
 
+int ExternalCameraDeviceSession::OutputThread::directCopy(struct HalStreamBuffer& halBuf, uint8_t* inData, size_t inDataSize) {
+    uint64_t allocatedSize;
+    int err = GetAllocationSize(*halBuf.bufPtr, allocatedSize);
+    if (err) {
+        ALOGE("%s: GetAllocationSize failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    uint32_t copySize = inDataSize;
+    if (allocatedSize < inDataSize) {
+        ALOGW("%s: allocatedSize %lu < inDataSize %zu", __func__,
+              allocatedSize, inDataSize);
+        copySize = allocatedSize;
+    }
+
+    ALOGI("%s: halBuf %dx%d, inDataSize %zu, allocatedSize %lu",
+        __func__, halBuf.width, halBuf.height, inDataSize, allocatedSize);
+
+    void* outLayout = sHandleImporter.lock(*(halBuf.bufPtr), (uint64_t)halBuf.usage,
+                                           allocatedSize);
+    if (outLayout)
+        std::memcpy(outLayout, inData, copySize);
+
+    int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
+    if (relFence >= 0) {
+        halBuf.acquireFence = relFence;
+    }
+
+    return 0;
+}
+
 bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     nsecs_t t1, t2;
     std::shared_ptr<HalRequest> req;
@@ -3615,15 +3646,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         switch (halBuf.format) {
             case PixelFormat::BLOB: {
                 if ((req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) && mMjpgCopy) {
-                    ALOGI("take photo, directly copy MJPEG");
-                    void* outLayout = sHandleImporter.lock(*(halBuf.bufPtr), (uint64_t)halBuf.usage,
-                                                           inDataSize);
-                    std::memcpy(outLayout, inData, inDataSize);
-
-                    int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
-                    if (relFence >= 0) {
-                        halBuf.acquireFence = relFence;
-                    }
+                    directCopy(halBuf, inData, inDataSize);
                 } else {
                     // TODO: add nv12 as jpeg source
                     ALOGI("take photo, call createJpegLocked");
@@ -3639,16 +3662,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 }
             } break;
             case PixelFormat::Y16: {
-                void* outLayout =
-                        sHandleImporter.lock(*(halBuf.bufPtr), static_cast<uint64_t>(halBuf.usage),
-                                             inDataSize);
-
-                std::memcpy(outLayout, inData, inDataSize);
-
-                int relFence = sHandleImporter.unlock(*(halBuf.bufPtr));
-                if (relFence >= 0) {
-                    halBuf.acquireFence = relFence;
-                }
+                directCopy(halBuf, inData, inDataSize);
             } break;
             case PixelFormat::YCBCR_420_888:
             case PixelFormat::YV12: {

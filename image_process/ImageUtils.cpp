@@ -982,4 +982,15 @@ void SwitchImxBuf(ImxImageBuffer &imxBufA, ImxImageBuffer &imxBufB) {
     return;
 }
 
+int GetAllocationSize(buffer_handle_t handle, uint64_t &allocatedSize) {
+    GraphicBufferMapper &mapper = GraphicBufferMapper::getInstance();
+    int err = mapper.getAllocationSize(handle, &allocatedSize);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getAllocationSize failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    return 0;
+}
+
 } // namespace android

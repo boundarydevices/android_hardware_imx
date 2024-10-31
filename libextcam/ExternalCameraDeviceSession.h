@@ -288,6 +288,8 @@ public:
                       const IMapper::Rect& inputCrop, std::shared_ptr<AllocatedFrame>& out,
                       YCbCrLayout& outLayout, const Size& outSz);
 
+        int directCopy(struct HalStreamBuffer& halBuf, uint8_t* inData, size_t inDataSize);
+
         bool mUseHalBufManager = false;
         ImxEngine mEngine = ENG_NOTCARE;
     };
