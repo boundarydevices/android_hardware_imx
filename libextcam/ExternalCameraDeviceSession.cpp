@@ -177,7 +177,7 @@ bool ExternalCameraDeviceSession::initialize() {
         mHardwareDecoder = false;
     }
 
-    if (GetProperty(kCameraMjpegCopy, "true") == "true") {
+    if (GetProperty(kCameraMjpegCopy, "false") == "true") {
         mMjpgCopy = true;
     } else {
         mMjpgCopy = false;
