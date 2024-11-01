@@ -185,6 +185,12 @@ private:
     void executeLayerCommandSetLayerPerFrameMetadataBlobs(
             Display* display, Layer* layer,
             const std::vector<std::optional<PerFrameMetadataBlob>>& perFrameMetadataBlob);
+    void executeLayerCommandSetLayerBlockingRegion(
+            Display* display, Layer* layer,
+            const std::vector<std::optional<common::Rect>>& blockingRegion);
+    void executeLayerCommandSetLayerBufferSlotsToClear(
+            Display* display, Layer* layer, const std::vector<int32_t>& bufferSlotsToClear);
+    void dispatchBatchCreateDestroyLayerCommand(Display* display, const LayerCommand& layerCmd);
 
     // Returns the display with the given id or nullptr if not found.
     Display* getDisplay(int64_t hwcId);

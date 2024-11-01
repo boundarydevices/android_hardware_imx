@@ -210,7 +210,7 @@ HWC3::Error ClientFrameComposer::onDisplayCreate(Display* display) {
 
     std::vector<DisplayCapability> caps;
     if (client->getDisplayCapability(displayId, caps) == HWC3::Error::None) {
-        display->setCapability(caps);
+        display->setDisplayCapabilities(caps);
     }
 
     std::optional<std::vector<uint8_t>> edid = client->getEdid(displayId);

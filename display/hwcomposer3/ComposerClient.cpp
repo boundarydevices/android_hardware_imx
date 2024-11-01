@@ -162,7 +162,7 @@ HWC3::Error ComposerClient::init() {
         return error;
     }
 
-    mCapabilities.clear(); // not support any capabilities now
+    mCapabilities.push_back(Capability::LAYER_LIFECYCLE_BATCH_COMMAND);
 
     DEBUG_LOG("%s initialized!", __FUNCTION__);
     return HWC3::Error::None;
@@ -176,11 +176,13 @@ ndk::ScopedAStatus ComposerClient::createLayer(int64_t hwcId, int32_t bufferSlot
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
-    HWC3::Error error = display->createLayer(layerId);
+    int64_t getLayerId = 0; // 0 means not preset layer Id
+    HWC3::Error error = display->createLayer(&getLayerId);
     if (error != HWC3::Error::None) {
         ALOGE("%s: hwc display:%" PRIu64 " failed to create layer", __FUNCTION__, hwcId);
         return ToBinderStatus(error);
     }
+    *layerId = getLayerId;
 
     error = mResources->addLayer(hwcId, *layerId, bufferSlotCount);
     if (error != HWC3::Error::None) {
@@ -810,6 +812,54 @@ namespace {
 
 } // namespace
 
+void ComposerClient::dispatchBatchCreateDestroyLayerCommand(Display* display,
+                                                            const LayerCommand& layerCmd) {
+    auto cmdType = layerCmd.layerLifecycleBatchCommandType;
+    auto hwcId = display->getHwcId();
+    auto layerId = layerCmd.layer;
+    HWC3::Error error = HWC3::Error::None;
+
+    if (cmdType == LayerLifecycleBatchCommandType::CREATE) {
+        error = display->createLayer(&layerId); // preset layer Id as layerCmd.layer
+        if (error != HWC3::Error::None) {
+            ALOGE("%s: hwc display:%" PRIu64 " failed to create layer:%" PRIu64, __FUNCTION__,
+                  hwcId, layerId);
+            mCommandResults->addError(error);
+            return;
+        }
+
+        error = mResources->addLayer(hwcId, layerId, layerCmd.newBufferSlotCount);
+        if (error != HWC3::Error::None) {
+            ALOGE("%s: hwc display:%" PRIu64 " resources failed to create layer%" PRIu64,
+                  __FUNCTION__, hwcId, layerId);
+            mCommandResults->addError(error);
+            return;
+        }
+    } else if (cmdType == LayerLifecycleBatchCommandType::DESTROY) {
+        Layer* layer = display->getLayer(layerId);
+        if (layer == nullptr) {
+            mCommandResults->addError(HWC3::Error::BadLayer);
+            return;
+        }
+
+        error = display->destroyLayer(layerId);
+        if (error != HWC3::Error::None) {
+            ALOGE("%s: hwc display:%" PRIu64 " failed to destroy layer:%" PRIu64, __FUNCTION__,
+                  hwcId, layerId);
+            mCommandResults->addError(error);
+            return;
+        }
+
+        error = mResources->removeLayer(hwcId, layerId);
+        if (error != HWC3::Error::None) {
+            ALOGE("%s: hwc display:%" PRIu64 " resources failed to destroy layer:%" PRIu64,
+                  __FUNCTION__, hwcId, layerId);
+            mCommandResults->addError(error);
+            return;
+        }
+    }
+}
+
 void ComposerClient::executeDisplayCommand(const DisplayCommand& displayCommand) {
     Display* display = getDisplay(displayCommand.display);
     if (display == nullptr) {
@@ -817,12 +867,21 @@ void ComposerClient::executeDisplayCommand(const DisplayCommand& displayCommand)
         return;
     }
 
+    for (const auto& layerCmd : displayCommand.layers) {
+        if (layerCmd.layerLifecycleBatchCommandType == LayerLifecycleBatchCommandType::CREATE ||
+            layerCmd.layerLifecycleBatchCommandType == LayerLifecycleBatchCommandType::DESTROY) {
+            dispatchBatchCreateDestroyLayerCommand(display, layerCmd);
+        }
+    }
+    DISPATCH_DISPLAY_COMMAND(displayCommand, display, brightness, SetBrightness);
     for (const LayerCommand& layerCmd : displayCommand.layers) {
-        executeLayerCommand(display, layerCmd);
+        // ignore layer data update if command is DESTROY
+        if (layerCmd.layerLifecycleBatchCommandType != LayerLifecycleBatchCommandType::DESTROY) {
+            executeLayerCommand(display, layerCmd);
+        }
     }
 
     DISPATCH_DISPLAY_COMMAND(displayCommand, display, colorTransformMatrix, SetColorTransform);
-    DISPATCH_DISPLAY_COMMAND(displayCommand, display, brightness, SetBrightness);
     DISPATCH_DISPLAY_COMMAND(displayCommand, display, clientTarget, SetClientTarget);
     DISPATCH_DISPLAY_COMMAND(displayCommand, display, virtualDisplayOutputBuffer, SetOutputBuffer);
     DISPATCH_DISPLAY_BOOL_COMMAND_AND_DATA(displayCommand, display, validateDisplay,
@@ -837,6 +896,7 @@ void ComposerClient::executeDisplayCommand(const DisplayCommand& displayCommand)
 void ComposerClient::executeLayerCommand(Display* display, const LayerCommand& layerCommand) {
     Layer* layer = display->getLayer(layerCommand.layer);
     if (layer == nullptr) {
+        ALOGW("%s:get layer failed, %s", __FUNCTION__, layerCommand.toString().c_str());
         mCommandResults->addError(HWC3::Error::BadLayer);
         return;
     }
@@ -860,6 +920,8 @@ void ComposerClient::executeLayerCommand(Display* display, const LayerCommand& l
     DISPATCH_LAYER_COMMAND(layerCommand, display, layer, perFrameMetadata, PerFrameMetadata);
     DISPATCH_LAYER_COMMAND(layerCommand, display, layer, perFrameMetadataBlob,
                            PerFrameMetadataBlobs);
+    DISPATCH_LAYER_COMMAND(layerCommand, display, layer, blockingRegion, BlockingRegion);
+    DISPATCH_LAYER_COMMAND(layerCommand, display, layer, bufferSlotsToClear, BufferSlotsToClear);
 }
 
 void ComposerClient::executeDisplayCommandSetColorTransform(Display* display,
@@ -1248,10 +1310,77 @@ void ComposerClient::executeLayerCommandSetLayerPerFrameMetadataBlobs(
     }
 }
 
+void ComposerClient::executeLayerCommandSetLayerBlockingRegion(
+        Display* display, Layer* layer,
+        const std::vector<std::optional<common::Rect>>& blockingRegion) {
+    DEBUG_LOG("%s", __FUNCTION__);
+
+    auto error = layer->setBlockingRegion(blockingRegion);
+    if (error != HWC3::Error::None) {
+        LOG_LAYER_COMMAND_ERROR(display, layer, error);
+        mCommandResults->addError(error);
+    }
+}
+
+void ComposerClient::executeLayerCommandSetLayerBufferSlotsToClear(
+        Display* display, Layer* layer, const std::vector<int32_t>& bufferSlotsToClear) {
+    DEBUG_LOG("%s", __FUNCTION__);
+
+    auto powerMode = display->getPowerMode();
+    if (powerMode != PowerMode::OFF)
+        return;
+
+    buffer_handle_t cachedBuffer = nullptr;
+    auto bufferReleaser = mResources->createReleaser(true);
+
+    // get all cached buffers
+    std::vector<buffer_handle_t> cachedBuffers;
+    std::map<buffer_handle_t, int32_t> handle2Slots;
+    for (int32_t slot : bufferSlotsToClear) {
+        auto error = mResources->getLayerInternalBuffer(display->getHwcId(), layer->getId(), slot,
+                                                        /*fromCache=*/true, nullptr, cachedBuffer,
+                                                        bufferReleaser.get());
+        if (cachedBuffer) {
+            cachedBuffers.push_back(cachedBuffer);
+            handle2Slots[cachedBuffer] = slot;
+        } else {
+            ALOGE("%s: Buffer slot %d is null", __FUNCTION__, slot);
+        }
+        if (error != HWC3::Error::None) {
+            ALOGE("%s: failed to getLayerBuffer err:%d", __FUNCTION__, error);
+            mCommandResults->addError(error);
+            return;
+        }
+    }
+
+    // clear any other cache in composer
+    std::vector<buffer_handle_t> clearableBuffers;
+    auto error = layer->uncacheLayerBuffers(cachedBuffers, clearableBuffers);
+    if (error != HWC3::Error::None) {
+        ALOGE("%s: layer %" PRIu64 " uncacheLayerBuffers fail with err:%d", __FUNCTION__,
+              layer->getId(), error);
+        mCommandResults->addError(error);
+        return;
+    }
+
+    for (auto buffer : clearableBuffers) {
+        auto slot = handle2Slots[buffer];
+        // replace the slot with nullptr and release the buffer by bufferReleaser
+        auto error = mResources->getLayerInternalBuffer(display->getHwcId(), layer->getId(), slot,
+                                                        /*fromCache=*/false, nullptr, cachedBuffer,
+                                                        bufferReleaser.get());
+        if (error != HWC3::Error::None) {
+            ALOGE("%s: failed to clear buffer cache err:%d", __FUNCTION__, error);
+            mCommandResults->addError(error);
+            return;
+        }
+    }
+}
+
 Display* ComposerClient::getDisplay(int64_t hwcId) {
     auto it = mDisplays.find(hwcId);
     if (it == mDisplays.end()) {
-        ALOGE("%s: no hwc display:%" PRIu64, __FUNCTION__, hwcId);
+        ALOGE("%s: no hwc display:%" PRIi64, __FUNCTION__, hwcId);
         return nullptr;
     }
     return it->second.get();

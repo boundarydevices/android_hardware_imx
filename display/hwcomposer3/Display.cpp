@@ -177,7 +177,16 @@ HWC3::Error Display::createLayer(int64_t* outLayerId) {
 
     std::unique_lock<std::recursive_mutex> lock(mStateMutex);
 
-    auto layer = std::make_unique<Layer>(mEdidParser.get());
+    if (*outLayerId > 0) {
+        auto it = mLayers.find(*outLayerId);
+        if (it != mLayers.end()) {
+            ALOGE("%s: hwc display:%" PRId64 " layer:%" PRId64 " already exist", __FUNCTION__, mId,
+                  *outLayerId);
+            return HWC3::Error::BadLayer;
+        }
+    }
+
+    auto layer = std::make_unique<Layer>(mEdidParser.get(), *outLayerId);
 
     const int64_t layerId = layer->getId();
     DEBUG_LOG("%s: created layer:%" PRId64, __FUNCTION__, layerId);
@@ -272,7 +281,7 @@ HWC3::Error Display::getDisplayCapabilities(std::vector<DisplayCapability>* outC
     DEBUG_LOG("%s: hwc display:%" PRId64, __FUNCTION__, mId);
 
     outCapabilities->clear();
-    for (auto& cap : mCapability) outCapabilities->push_back(cap);
+    for (auto& cap : mDisplayCapabilities) outCapabilities->push_back(cap);
 
     return HWC3::Error::None;
 }
@@ -763,10 +772,10 @@ HWC3::Error Display::setColorTransform(const std::vector<float>& transformMatrix
 HWC3::Error Display::setBrightness(float brightness) {
     DEBUG_LOG("%s: hwc display:%" PRId64 " brightness:%f", __FUNCTION__, mId, brightness);
 
-    bool supported =
-            std::any_of(mCapability.begin(), mCapability.end(), [&](DisplayCapability cap) {
-                return cap == DisplayCapability::BRIGHTNESS;
-            });
+    bool supported = std::any_of(mDisplayCapabilities.begin(), mDisplayCapabilities.end(),
+                                 [&](DisplayCapability cap) {
+                                     return cap == DisplayCapability::BRIGHTNESS;
+                                 });
     if (!supported)
         return HWC3::Error::Unsupported;
 

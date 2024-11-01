@@ -100,6 +100,11 @@ public:
             const aidl::android::hardware::common::NativeHandle& rawHandle,
             buffer_handle_t* outStreamHandle, ComposerResourceReleaser* bufReleaser);
 
+    HWC3::Error getLayerInternalBuffer(int64_t displayId, int64_t layerId, uint32_t slot,
+                                       bool fromCache, const buffer_handle_t rawHandle,
+                                       buffer_handle_t& outBufferHandle,
+                                       ComposerResourceReleaser* releaser);
+
 private:
     std::unique_ptr< ::android::hardware::graphics::composer::V2_2::hal::ComposerResources> mImpl;
 };

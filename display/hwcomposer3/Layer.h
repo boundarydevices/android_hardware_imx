@@ -40,7 +40,7 @@ enum {
 
 class Layer {
 public:
-    explicit Layer(Edid* edidParser);
+    explicit Layer(Edid* edidParser, int64_t inLayerId);
 
     Layer(const Layer&) = delete;
     Layer& operator=(const Layer&) = delete;
@@ -104,13 +104,16 @@ public:
 
     HWC3::Error setPerFrameMetadataBlobs(
             const std::vector<std::optional<PerFrameMetadataBlob>>& perFrameMetadata);
+    HWC3::Error setBlockingRegion(const std::vector<std::optional<common::Rect>>& blockingRegion);
+    HWC3::Error uncacheLayerBuffers(const std::vector<buffer_handle_t>& buffers,
+                                    std::vector<buffer_handle_t>& outClearableBuffers);
 
     int getHdrMetadataState() { return mHdrMetadataState; }
     void setHdrMetadataState(int state) { mHdrMetadataState = state; }
     hdr_output_metadata* getHdrMetadata() { return &mHdrMetadata; }
 
 private:
-    const int64_t mId;
+    int64_t mId;
     common::Point mCursorPosition;
     FencedBuffer mBuffer;
     common::BlendMode mBlendMode = common::BlendMode::NONE;

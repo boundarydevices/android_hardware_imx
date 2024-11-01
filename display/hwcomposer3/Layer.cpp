@@ -32,7 +32,12 @@ std::atomic<int64_t> sNextId{1};
 
 } // namespace
 
-Layer::Layer(Edid* edidParser) : mId(sNextId++), mEdidParser(edidParser) {
+Layer::Layer(Edid* edidParser, int64_t inLayerId) : mEdidParser(edidParser) {
+    if (inLayerId > 0)
+        mId = inLayerId;
+    else
+        mId = sNextId++;
+
     mHdrMetadata.metadata_type = 0;
 }
 
@@ -330,6 +335,25 @@ HWC3::Error Layer::setPerFrameMetadataBlobs(
         const std::vector<std::optional<PerFrameMetadataBlob>>& /*perFrameMetadata*/) {
     DEBUG_LOG("%s: layer:%" PRId64, __FUNCTION__, mId);
 
+    return HWC3::Error::None;
+}
+
+HWC3::Error Layer::setBlockingRegion(
+        const std::vector<std::optional<common::Rect>>& /*blockingRegion*/) {
+    DEBUG_LOG("%s: layer:%" PRId64, __FUNCTION__, mId);
+
+    return HWC3::Error::None;
+}
+
+HWC3::Error Layer::uncacheLayerBuffers(const std::vector<buffer_handle_t>& buffers,
+                                       std::vector<buffer_handle_t>& outClearableBuffers) {
+    DEBUG_LOG("%s: layer:%" PRId64, __FUNCTION__, mId);
+
+    //    for (auto buffer : buffers) {
+    //        if (buffer == mBuffer.getBuffer())
+    //    }
+
+    outClearableBuffers = buffers;
     return HWC3::Error::None;
 }
 

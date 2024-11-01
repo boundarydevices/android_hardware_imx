@@ -201,6 +201,22 @@ HWC3::Error ComposerResources::getLayerBuffer(int64_t displayId, int64_t layerId
     return toHwc3Error(error);
 }
 
+HWC3::Error ComposerResources::getLayerInternalBuffer(int64_t displayId, int64_t layerId,
+                                                      uint32_t slot, bool fromCache,
+                                                      const buffer_handle_t rawHandle,
+                                                      buffer_handle_t& outBufferHandle,
+                                                      ComposerResourceReleaser* releaser) {
+    DEBUG_LOG("%s: display:%" PRId64 " layer:%" PRId64, __FUNCTION__, displayId, layerId);
+
+    ::android::hardware::graphics::composer::V2_1::Display display = toHwc2Display(displayId);
+    ::android::hardware::graphics::composer::V2_1::Layer layer = toHwc2Layer(layerId);
+
+    auto error = mImpl->getLayerBuffer(display, layer, slot, fromCache, rawHandle, &outBufferHandle,
+                                       releaser->getReplacedHandle());
+
+    return toHwc3Error(error);
+}
+
 HWC3::Error ComposerResources::getLayerSidebandStream(
         int64_t displayId, int64_t layerId,
         const aidl::android::hardware::common::NativeHandle& handle, buffer_handle_t* outHandle,
