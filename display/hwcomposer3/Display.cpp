@@ -1071,7 +1071,7 @@ HWC3::Error Display::getDisplayConfigurations(int32_t /*maxFrameIntervalNs*/,
         config.configGroup = cfg.getConfigGroup();
         config.vsyncPeriod = cfg.getVsyncPeriod();
 
-        outConfigs->push_back(config);
+        outConfigs->emplace_back(config);
     }
 
     return HWC3::Error::None;
@@ -1081,7 +1081,7 @@ HWC3::Error Display::notifyExpectedPresent(const ClockMonotonicTimestamp& expect
                                            int32_t frameIntervalNs) {
     DEBUG_LOG("%s: hwc display:%" PRId64, __FUNCTION__, mId);
     /* Not support VRR yet */
-    return HWC3::Error::None;
+    return HWC3::Error::Unsupported;
 }
 
 void Display::setHDCPCallback(const HDCPThreadCallback& callback) {
