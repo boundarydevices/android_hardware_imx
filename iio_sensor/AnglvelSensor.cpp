@@ -130,13 +130,13 @@ static float getChannelData(const std::array<float, N>& channelData, int64_t map
 }
 
 void AnglvelSensor::processScanData(char* data, Event* evt) {
-    unsigned int i, j, k;
+    unsigned int i, j;
     evt->sensorHandle = mSensorInfo.sensorHandle;
     evt->sensorType = mSensorInfo.type;
     char* channel_data;
     unsigned int chanIdx;
-    uint64_t sign_mask;
-    uint64_t value_mask;
+    int64_t sign_mask;
+    int64_t value_mask;
     std::array<float, NUM_OF_DATA_CHANNELS> channelData;
     int64_t val;
 
@@ -153,10 +153,10 @@ void AnglvelSensor::processScanData(char* data, Event* evt) {
             }
         }
         if (mIioData.channelInfo[i].big_endian)
-            for (k = 0; k < mIioData.channelInfo[i].storage_bytes; k++)
+            for (int k = 0; k < mIioData.channelInfo[i].storage_bytes; k++)
                 val = (val << 8) | channel_data[k];
         else
-            for (k = mIioData.channelInfo[i].storage_bytes - 1; k >= 0; k--)
+            for (int k = mIioData.channelInfo[i].storage_bytes - 1; k >= 0; k--)
                 val = (val << 8) | channel_data[k];
 
         val = (val >> mIioData.channelInfo[i].shift) & (~0ULL >> mIioData.channelInfo[i].shift);
@@ -191,7 +191,7 @@ void AnglvelSensor::processScanData(char* data, Event* evt) {
         }
     }
 
-    // in_anglvel_scale value is 62.5, but to meet xTS required range, multiply data with 1/625.
+    // in_anglvel_scale value is 0.00125.
     evt->u.vec3.x = getChannelData(channelData, mXMap, true) * 0.00125;
     evt->u.vec3.y = getChannelData(channelData, mYMap, true) * 0.00125;
     evt->u.vec3.z = getChannelData(channelData, mZMap, true) * 0.00125;

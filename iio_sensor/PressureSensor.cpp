@@ -55,8 +55,8 @@ void PressureSensor::processScanData(char* data, Event* evt) {
     evt->sensorHandle = mSensorHandle;
     evt->sensorType = mSensorInfo.type;
     char* channel_data = data;
-    uint64_t sign_mask;
-    uint64_t value_mask;
+    int64_t sign_mask;
+    int64_t value_mask;
 
     int64_t val = 0;
     for (i = 0; i < mIioData.channelInfo.size(); i++) {
@@ -80,10 +80,10 @@ void PressureSensor::processScanData(char* data, Event* evt) {
     }
 
     if (mIioData.channelInfo[index].big_endian)
-        for (i = 0; i < mIioData.channelInfo[index].storage_bytes; i++)
+        for (int i = 0; i < mIioData.channelInfo[index].storage_bytes; i++)
             val = (val << 8) | channel_data[i];
     else
-        for (i = mIioData.channelInfo[index].storage_bytes - 1; i >= 0; i--)
+        for (int i = mIioData.channelInfo[index].storage_bytes - 1; i >= 0; i--)
             val = (val << 8) | channel_data[i];
 
     val = (val >> mIioData.channelInfo[index].shift) & (~0ULL >> mIioData.channelInfo[index].shift);
