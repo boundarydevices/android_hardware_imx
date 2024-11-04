@@ -27,7 +27,7 @@ namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
 
 #define GET_DISPLAY_OR_RETURN_ERROR()                                        \
-    Display* display = getDisplay(hwcId);                                    \
+    std::shared_ptr<Display> display = getDisplay(hwcId);                    \
     if (display == nullptr) {                                                \
         ALOGE("%s failed to get hwc display:%" PRIu64, __FUNCTION__, hwcId); \
         return ToBinderStatus(HWC3::Error::BadDisplay);                      \
@@ -111,7 +111,7 @@ ComposerClient::ComposerClient() {
 ComposerClient::~ComposerClient() {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
+    std::lock_guard<std::mutex> lock(mDisplaysMutex);
 
     destroyDisplaysLocked();
 
@@ -126,7 +126,7 @@ HWC3::Error ComposerClient::init() {
 
     HWC3::Error error = HWC3::Error::None;
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
+    std::lock_guard<std::mutex> lock(mDisplaysMutex);
 
     mResources = std::make_unique<ComposerResources>();
     if (!mResources) {
@@ -172,8 +172,6 @@ ndk::ScopedAStatus ComposerClient::createLayer(int64_t hwcId, int32_t bufferSlot
                                                int64_t* layerId) {
     DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     int64_t getLayerId = 0; // 0 means not preset layer Id
@@ -205,8 +203,6 @@ ndk::ScopedAStatus ComposerClient::createVirtualDisplay(int32_t /*width*/, int32
 ndk::ScopedAStatus ComposerClient::destroyLayer(int64_t hwcId, int64_t layerId) {
     DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     HWC3::Error error = display->destroyLayer(layerId);
@@ -237,8 +233,6 @@ ndk::ScopedAStatus ComposerClient::executeCommands(
         std::vector<CommandResultPayload>* commandResultPayloads) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     CommandResultWriter commandResults(commandResultPayloads);
 
     for (const DisplayCommand& command : commands) {
@@ -252,8 +246,6 @@ ndk::ScopedAStatus ComposerClient::executeCommands(
 ndk::ScopedAStatus ComposerClient::getActiveConfig(int64_t hwcId, int32_t* config) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getActiveConfig(config));
@@ -262,8 +254,6 @@ ndk::ScopedAStatus ComposerClient::getActiveConfig(int64_t hwcId, int32_t* confi
 ndk::ScopedAStatus ComposerClient::getColorModes(int64_t hwcId,
                                                  std::vector<ColorMode>* colorModes) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -296,8 +286,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayAttribute(int64_t hwcId, int32_t co
                                                        DisplayAttribute attribute, int32_t* value) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getDisplayAttribute(config, attribute, value));
@@ -306,8 +294,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayAttribute(int64_t hwcId, int32_t co
 ndk::ScopedAStatus ComposerClient::getDisplayCapabilities(int64_t hwcId,
                                                           std::vector<DisplayCapability>* outCaps) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -318,8 +304,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayConfigs(int64_t hwcId,
                                                      std::vector<int32_t>* outConfigs) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getDisplayConfigs(outConfigs));
@@ -328,8 +312,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayConfigs(int64_t hwcId,
 ndk::ScopedAStatus ComposerClient::getDisplayConnectionType(int64_t hwcId,
                                                             DisplayConnectionType* outType) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -340,8 +322,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayIdentificationData(
         int64_t hwcId, DisplayIdentification* outIdentification) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getDisplayIdentificationData(outIdentification));
@@ -350,8 +330,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayIdentificationData(
 ndk::ScopedAStatus ComposerClient::getDisplayName(int64_t hwcId, std::string* outName) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getDisplayName(outName));
@@ -359,8 +337,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayName(int64_t hwcId, std::string* ou
 
 ndk::ScopedAStatus ComposerClient::getDisplayVsyncPeriod(int64_t hwcId, int32_t* outVsyncPeriod) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -372,8 +348,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayedContentSample(int64_t hwcId, int6
                                                              DisplayContentSample* outSamples) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getDisplayedContentSample(maxFrames, timestamp, outSamples));
@@ -382,8 +356,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayedContentSample(int64_t hwcId, int6
 ndk::ScopedAStatus ComposerClient::getDisplayedContentSamplingAttributes(
         int64_t hwcId, DisplayContentSamplingAttributes* outAttributes) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -394,8 +366,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayPhysicalOrientation(
         int64_t hwcId, common::Transform* outOrientation) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getDisplayPhysicalOrientation(outOrientation));
@@ -404,8 +374,6 @@ ndk::ScopedAStatus ComposerClient::getDisplayPhysicalOrientation(
 ndk::ScopedAStatus ComposerClient::getHdrCapabilities(int64_t hwcId,
                                                       HdrCapabilities* outCapabilities) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -431,8 +399,6 @@ ndk::ScopedAStatus ComposerClient::getPerFrameMetadataKeys(
         int64_t hwcId, std::vector<PerFrameMetadataKey>* outKeys) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getPerFrameMetadataKeys(outKeys));
@@ -441,8 +407,6 @@ ndk::ScopedAStatus ComposerClient::getPerFrameMetadataKeys(
 ndk::ScopedAStatus ComposerClient::getReadbackBufferAttributes(
         int64_t hwcId, ReadbackBufferAttributes* outAttributes) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -453,8 +417,6 @@ ndk::ScopedAStatus ComposerClient::getReadbackBufferFence(
         int64_t hwcId, ndk::ScopedFileDescriptor* outAcquireFence) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getReadbackBufferFence(outAcquireFence));
@@ -463,8 +425,6 @@ ndk::ScopedAStatus ComposerClient::getReadbackBufferFence(
 ndk::ScopedAStatus ComposerClient::getRenderIntents(int64_t hwcId, ColorMode mode,
                                                     std::vector<RenderIntent>* outIntents) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -475,8 +435,6 @@ ndk::ScopedAStatus ComposerClient::getSupportedContentTypes(int64_t hwcId,
                                                             std::vector<ContentType>* outTypes) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->getSupportedContentTypes(outTypes));
@@ -485,8 +443,6 @@ ndk::ScopedAStatus ComposerClient::getSupportedContentTypes(int64_t hwcId,
 ndk::ScopedAStatus ComposerClient::getDisplayDecorationSupport(
         int64_t hwcId, std::optional<common::DisplayDecorationSupport>* outSupport) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -497,20 +453,28 @@ ndk::ScopedAStatus ComposerClient::registerCallback(
         const std::shared_ptr<IComposerCallback>& callback) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     const bool isFirstRegisterCallback = mCallbacks == nullptr;
 
     mCallbacks = callback;
 
+    {
+    std::lock_guard<std::mutex> lock(mDisplaysMutex);
     for (auto& [_, display] : mDisplays) {
         display->registerCallback(callback);
     }
+    }
 
     if (isFirstRegisterCallback) {
-        lock.unlock();
-        DEBUG_LOG("%s there are %zu displays when boot up", __FUNCTION__, mDisplays.size());
-        for (auto& [hwcId, _] : mDisplays) {
+        std::vector<int64_t> hwcIds;
+        {
+          std::lock_guard<std::mutex> lock(mDisplaysMutex);
+          for (auto& [hwcId, _] : mDisplays) {
+            hwcIds.push_back(hwcId);
+          }
+        }
+
+        DEBUG_LOG("%s there are %zu displays when boot up", __FUNCTION__, hwcIds.size());
+        for (auto& hwcId : hwcIds) {
             mCallbacks->onHotplug(hwcId, /*connected=*/true);
         }
     }
@@ -520,8 +484,6 @@ ndk::ScopedAStatus ComposerClient::registerCallback(
 
 ndk::ScopedAStatus ComposerClient::setActiveConfig(int64_t hwcId, int32_t configId) {
     DEBUG_LOG("%s hwc display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, hwcId, configId);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -533,8 +495,6 @@ ndk::ScopedAStatus ComposerClient::setActiveConfigWithConstraints(
         VsyncPeriodChangeTimeline* outTimeline) {
     DEBUG_LOG("%s hwc display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, hwcId, configId);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(
@@ -543,8 +503,6 @@ ndk::ScopedAStatus ComposerClient::setActiveConfigWithConstraints(
 
 ndk::ScopedAStatus ComposerClient::setBootDisplayConfig(int64_t hwcId, int32_t configId) {
     DEBUG_LOG("%s hwc display:%" PRIu64 " config:%" PRIu32, __FUNCTION__, hwcId, configId);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -560,8 +518,6 @@ ndk::ScopedAStatus ComposerClient::setBootDisplayConfig(int64_t hwcId, int32_t c
 ndk::ScopedAStatus ComposerClient::clearBootDisplayConfig(int64_t hwcId) {
     DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     bool supported = std::any_of(mCapabilities.begin(), mCapabilities.end(), [&](Capability cap) {
@@ -576,8 +532,6 @@ ndk::ScopedAStatus ComposerClient::clearBootDisplayConfig(int64_t hwcId) {
 ndk::ScopedAStatus ComposerClient::getPreferredBootDisplayConfig(int64_t hwcId,
                                                                  int32_t* outConfigId) {
     DEBUG_LOG("%s hwc display:%" PRIu64, __FUNCTION__, hwcId);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -625,8 +579,6 @@ ndk::ScopedAStatus ComposerClient::setHdrConversionStrategy(
 ndk::ScopedAStatus ComposerClient::setAutoLowLatencyMode(int64_t hwcId, bool on) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->setAutoLowLatencyMode(on));
@@ -634,8 +586,6 @@ ndk::ScopedAStatus ComposerClient::setAutoLowLatencyMode(int64_t hwcId, bool on)
 
 ndk::ScopedAStatus ComposerClient::setClientTargetSlotCount(int64_t hwcId, int32_t count) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -646,8 +596,6 @@ ndk::ScopedAStatus ComposerClient::setColorMode(int64_t hwcId, ColorMode mode,
                                                 RenderIntent intent) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->setColorMode(mode, intent));
@@ -655,8 +603,6 @@ ndk::ScopedAStatus ComposerClient::setColorMode(int64_t hwcId, ColorMode mode,
 
 ndk::ScopedAStatus ComposerClient::setContentType(int64_t hwcId, ContentType type) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -667,8 +613,6 @@ ndk::ScopedAStatus ComposerClient::setDisplayedContentSamplingEnabled(
         int64_t hwcId, bool enable, FormatColorComponent componentMask, int64_t maxFrames) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(
@@ -677,8 +621,6 @@ ndk::ScopedAStatus ComposerClient::setDisplayedContentSamplingEnabled(
 
 ndk::ScopedAStatus ComposerClient::setPowerMode(int64_t hwcId, PowerMode mode) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -689,8 +631,6 @@ ndk::ScopedAStatus ComposerClient::setReadbackBuffer(
         int64_t hwcId, const aidl::android::hardware::common::NativeHandle& buffer,
         const ndk::ScopedFileDescriptor& releaseFence) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -717,8 +657,6 @@ ndk::ScopedAStatus ComposerClient::setReadbackBuffer(
 ndk::ScopedAStatus ComposerClient::setVsyncEnabled(int64_t hwcId, bool enabled) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    std::unique_lock<std::mutex> lock(mStateMutex);
-
     GET_DISPLAY_OR_RETURN_ERROR();
 
     return ToBinderStatus(display->setVsyncEnabled(enabled));
@@ -726,8 +664,6 @@ ndk::ScopedAStatus ComposerClient::setVsyncEnabled(int64_t hwcId, bool enabled) 
 
 ndk::ScopedAStatus ComposerClient::setIdleTimerEnabled(int64_t hwcId, int32_t timeoutMs) {
     DEBUG_LOG("%s", __FUNCTION__);
-
-    std::unique_lock<std::mutex> lock(mStateMutex);
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
@@ -802,7 +738,7 @@ namespace {
 #define LOG_DISPLAY_COMMAND_ERROR(display, error)                                              \
     do {                                                                                       \
         const std::string errorString = toString(error);                                       \
-        ALOGE("%s: hwc display:%" PRId64 " failed with:%s", __FUNCTION__, display->getHwcId(), \
+        ALOGE("%s: hwc display:%" PRId64 " failed with:%s", __FUNCTION__, display.getHwcId(), \
               errorString.c_str());                                                            \
     } while (0)
 
@@ -810,21 +746,21 @@ namespace {
     do {                                                                                    \
         const std::string errorString = toString(error);                                    \
         ALOGE("%s: hwc display:%" PRId64 " layer:%" PRId64 " failed with:%s", __FUNCTION__, \
-              display->getHwcId(), layer->getId(), errorString.c_str());                    \
+              display.getHwcId(), layer->getId(), errorString.c_str());                    \
     } while (0)
 
 } // namespace
 
 void ComposerClient::dispatchBatchCreateDestroyLayerCommand(CommandResultWriter& commandResults,
-                                                            Display* display,
+                                                            Display& display,
                                                             const LayerCommand& layerCmd) {
     auto cmdType = layerCmd.layerLifecycleBatchCommandType;
-    auto hwcId = display->getHwcId();
+    auto hwcId = display.getHwcId();
     auto layerId = layerCmd.layer;
     HWC3::Error error = HWC3::Error::None;
 
     if (cmdType == LayerLifecycleBatchCommandType::CREATE) {
-        error = display->createLayer(&layerId); // preset layer Id as layerCmd.layer
+        error = display.createLayer(&layerId); // preset layer Id as layerCmd.layer
         if (error != HWC3::Error::None) {
             ALOGE("%s: hwc display:%" PRIu64 " failed to create layer:%" PRIu64, __FUNCTION__,
                   hwcId, layerId);
@@ -840,13 +776,13 @@ void ComposerClient::dispatchBatchCreateDestroyLayerCommand(CommandResultWriter&
             return;
         }
     } else if (cmdType == LayerLifecycleBatchCommandType::DESTROY) {
-        Layer* layer = display->getLayer(layerId);
+        Layer* layer = display.getLayer(layerId);
         if (layer == nullptr) {
             commandResults.addError(HWC3::Error::BadLayer);
             return;
         }
 
-        error = display->destroyLayer(layerId);
+        error = display.destroyLayer(layerId);
         if (error != HWC3::Error::None) {
             ALOGE("%s: hwc display:%" PRIu64 " failed to destroy layer:%" PRIu64, __FUNCTION__,
                   hwcId, layerId);
@@ -866,7 +802,7 @@ void ComposerClient::dispatchBatchCreateDestroyLayerCommand(CommandResultWriter&
 
 void ComposerClient::executeDisplayCommand(CommandResultWriter& commandResults,
                                            const DisplayCommand& displayCommand) {
-    Display* display = getDisplay(displayCommand.display);
+    std::shared_ptr<Display> display = getDisplay(displayCommand.display);
     if (display == nullptr) {
         commandResults.addError(HWC3::Error::BadDisplay);
         return;
@@ -875,37 +811,37 @@ void ComposerClient::executeDisplayCommand(CommandResultWriter& commandResults,
     for (const auto& layerCmd : displayCommand.layers) {
         if (layerCmd.layerLifecycleBatchCommandType == LayerLifecycleBatchCommandType::CREATE ||
             layerCmd.layerLifecycleBatchCommandType == LayerLifecycleBatchCommandType::DESTROY) {
-            dispatchBatchCreateDestroyLayerCommand(commandResults, display, layerCmd);
+            dispatchBatchCreateDestroyLayerCommand(commandResults, *display, layerCmd);
         }
     }
-    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, display, brightness, SetBrightness);
+    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, *display, brightness, SetBrightness);
     for (const LayerCommand& layerCmd : displayCommand.layers) {
         // ignore layer data update if command is DESTROY
         if (layerCmd.layerLifecycleBatchCommandType != LayerLifecycleBatchCommandType::DESTROY) {
-            executeLayerCommand(commandResults, display, layerCmd);
+            executeLayerCommand(commandResults, *display, layerCmd);
         }
     }
 
-    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, display, colorTransformMatrix,
+    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, *display, colorTransformMatrix,
                              SetColorTransform);
-    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, display, clientTarget,
+    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, *display, clientTarget,
                              SetClientTarget);
-    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, display, virtualDisplayOutputBuffer,
+    DISPATCH_DISPLAY_COMMAND(displayCommand, commandResults, *display, virtualDisplayOutputBuffer,
                              SetOutputBuffer);
-    DISPATCH_DISPLAY_BOOL_COMMAND_AND_DATA(displayCommand, commandResults, display, validateDisplay,
+    DISPATCH_DISPLAY_BOOL_COMMAND_AND_DATA(displayCommand, commandResults, *display, validateDisplay,
                                            expectedPresentTime, ValidateDisplay);
-    DISPATCH_DISPLAY_BOOL_COMMAND(displayCommand, commandResults, display, acceptDisplayChanges,
+    DISPATCH_DISPLAY_BOOL_COMMAND(displayCommand, commandResults, *display, acceptDisplayChanges,
                                   AcceptDisplayChanges);
-    DISPATCH_DISPLAY_BOOL_COMMAND(displayCommand, commandResults, display, presentDisplay,
+    DISPATCH_DISPLAY_BOOL_COMMAND(displayCommand, commandResults, *display, presentDisplay,
                                   PresentDisplay);
-    DISPATCH_DISPLAY_BOOL_COMMAND_AND_DATA(displayCommand, commandResults, display,
+    DISPATCH_DISPLAY_BOOL_COMMAND_AND_DATA(displayCommand, commandResults, *display,
                                            presentOrValidateDisplay, expectedPresentTime,
                                            PresentOrValidateDisplay);
 }
 
-void ComposerClient::executeLayerCommand(CommandResultWriter& commandResults, Display* display,
+void ComposerClient::executeLayerCommand(CommandResultWriter& commandResults, Display& display,
                                          const LayerCommand& layerCommand) {
-    Layer* layer = display->getLayer(layerCommand.layer);
+    Layer* layer = display.getLayer(layerCommand.layer);
     if (layer == nullptr) {
         ALOGW("%s:get layer failed, %s", __FUNCTION__, layerCommand.toString().c_str());
         commandResults.addError(HWC3::Error::BadLayer);
@@ -944,11 +880,11 @@ void ComposerClient::executeLayerCommand(CommandResultWriter& commandResults, Di
 }
 
 void ComposerClient::executeDisplayCommandSetColorTransform(CommandResultWriter& commandResults,
-                                                            Display* display,
+                                                            Display& display,
                                                             const std::vector<float>& matrix) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    auto error = display->setColorTransform(matrix);
+    auto error = display.setColorTransform(matrix);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
@@ -956,11 +892,11 @@ void ComposerClient::executeDisplayCommandSetColorTransform(CommandResultWriter&
 }
 
 void ComposerClient::executeDisplayCommandSetBrightness(CommandResultWriter& commandResults,
-                                                        Display* display,
+                                                        Display& display,
                                                         const DisplayBrightness& brightness) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    auto error = display->setBrightness(brightness.brightness);
+    auto error = display.setBrightness(brightness.brightness);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
@@ -968,7 +904,7 @@ void ComposerClient::executeDisplayCommandSetBrightness(CommandResultWriter& com
 }
 
 void ComposerClient::executeDisplayCommandSetClientTarget(CommandResultWriter& commandResults,
-                                                          Display* display,
+                                                          Display& display,
                                                           const ClientTarget& clientTarget) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -976,7 +912,7 @@ void ComposerClient::executeDisplayCommandSetClientTarget(CommandResultWriter& c
     buffer_handle_t importedBuffer = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/true);
-    auto error = mResources->getDisplayClientTarget(display->getHwcId(), clientTarget.buffer,
+    auto error = mResources->getDisplayClientTarget(display.getHwcId(), clientTarget.buffer,
                                                     &importedBuffer, releaser.get());
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
@@ -984,7 +920,7 @@ void ComposerClient::executeDisplayCommandSetClientTarget(CommandResultWriter& c
         return;
     }
 
-    error = display->setClientTarget(importedBuffer, clientTarget.buffer.fence,
+    error = display.setClientTarget(importedBuffer, clientTarget.buffer.fence,
                                      clientTarget.dataspace, clientTarget.damage);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
@@ -994,14 +930,14 @@ void ComposerClient::executeDisplayCommandSetClientTarget(CommandResultWriter& c
 }
 
 void ComposerClient::executeDisplayCommandSetOutputBuffer(CommandResultWriter& commandResults,
-                                                          Display* display, const Buffer& buffer) {
+                                                          Display& display, const Buffer& buffer) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     // Owned by mResources.
     buffer_handle_t importedBuffer = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/true);
-    auto error = mResources->getDisplayOutputBuffer(display->getHwcId(), buffer, &importedBuffer,
+    auto error = mResources->getDisplayOutputBuffer(display.getHwcId(), buffer, &importedBuffer,
                                                     releaser.get());
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
@@ -1009,7 +945,7 @@ void ComposerClient::executeDisplayCommandSetOutputBuffer(CommandResultWriter& c
         return;
     }
 
-    error = display->setOutputBuffer(importedBuffer, buffer.fence);
+    error = display.setOutputBuffer(importedBuffer, buffer.fence);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
@@ -1018,11 +954,11 @@ void ComposerClient::executeDisplayCommandSetOutputBuffer(CommandResultWriter& c
 }
 
 void ComposerClient::executeDisplayCommandValidateDisplay(
-        CommandResultWriter& commandResults, Display* display,
+        CommandResultWriter& commandResults, Display& display,
         const std::optional<ClockMonotonicTimestamp> expectedPresentTime) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    auto error = display->setExpectedPresentTime(expectedPresentTime);
+    auto error = display.setExpectedPresentTime(expectedPresentTime);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
@@ -1030,7 +966,7 @@ void ComposerClient::executeDisplayCommandValidateDisplay(
 
     DisplayChanges changes;
 
-    error = display->validate(&changes);
+    error = display.validate(&changes);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
@@ -1038,14 +974,14 @@ void ComposerClient::executeDisplayCommandValidateDisplay(
         commandResults.addChanges(changes);
     }
 
-    mResources->setDisplayMustValidateState(display->getHwcId(), false);
+    mResources->setDisplayMustValidateState(display.getHwcId(), false);
 }
 
 void ComposerClient::executeDisplayCommandAcceptDisplayChanges(CommandResultWriter& commandResults,
-                                                               Display* display) {
+                                                               Display& display) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    auto error = display->acceptChanges();
+    auto error = display.acceptChanges();
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
@@ -1053,13 +989,13 @@ void ComposerClient::executeDisplayCommandAcceptDisplayChanges(CommandResultWrit
 }
 
 void ComposerClient::executeDisplayCommandPresentOrValidateDisplay(
-        CommandResultWriter& commandResults, Display* display,
+        CommandResultWriter& commandResults, Display& display,
         const std::optional<ClockMonotonicTimestamp> expectedPresentTime) {
     DEBUG_LOG("%s", __FUNCTION__);
 
     // TODO: Support SKIP_VALIDATE.
 
-    auto error = display->setExpectedPresentTime(expectedPresentTime);
+    auto error = display.setExpectedPresentTime(expectedPresentTime);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
@@ -1067,29 +1003,29 @@ void ComposerClient::executeDisplayCommandPresentOrValidateDisplay(
 
     DisplayChanges changes;
 
-    error = display->validate(&changes);
+    error = display.validate(&changes);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
     } else {
-        const int64_t hwcId = display->getHwcId();
+        const int64_t hwcId = display.getHwcId();
         commandResults.addChanges(changes);
         static constexpr float kBrightness = 1.f;
         DimmingStage dimmingStage{DimmingStage::NONE};
-        commandResults.addClientTargetProperty(hwcId, display->getClientTargetProperty(),
+        commandResults.addClientTargetProperty(hwcId, display.getClientTargetProperty(),
                                                kBrightness, dimmingStage);
         commandResults.addPresentOrValidateResult(hwcId, PresentOrValidate::Result::Validated);
     }
 
-    mResources->setDisplayMustValidateState(display->getHwcId(), false);
+    mResources->setDisplayMustValidateState(display.getHwcId(), false);
 }
 
 void ComposerClient::executeDisplayCommandPresentDisplay(CommandResultWriter& commandResults,
-                                                         Display* display) {
+                                                         Display& display) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    if (mResources->mustValidateDisplay(display->getHwcId())) {
-        ALOGE("%s: hwc display:%" PRIu64 " not validated", __FUNCTION__, display->getHwcId());
+    if (mResources->mustValidateDisplay(display.getHwcId())) {
+        ALOGE("%s: hwc display:%" PRIu64 " not validated", __FUNCTION__, display.getHwcId());
         commandResults.addError(HWC3::Error::NotValidated);
         return;
     }
@@ -1097,19 +1033,19 @@ void ComposerClient::executeDisplayCommandPresentDisplay(CommandResultWriter& co
     ::android::base::unique_fd displayFence;
     std::unordered_map<int64_t, ::android::base::unique_fd> layerFences;
 
-    auto error = display->present(&displayFence, &layerFences);
+    auto error = display.present(&displayFence, &layerFences);
     if (error != HWC3::Error::None) {
         LOG_DISPLAY_COMMAND_ERROR(display, error);
         commandResults.addError(error);
     } else {
-        const int64_t hwcId = display->getHwcId();
+        const int64_t hwcId = display.getHwcId();
         commandResults.addPresentFence(hwcId, std::move(displayFence));
         commandResults.addReleaseFences(hwcId, std::move(layerFences));
     }
 }
 
 void ComposerClient::executeLayerCommandSetLayerCursorPosition(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const common::Point& cursorPosition) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1121,7 +1057,7 @@ void ComposerClient::executeLayerCommandSetLayerCursorPosition(
 }
 
 void ComposerClient::executeLayerCommandSetLayerBuffer(CommandResultWriter& commandResults,
-                                                       Display* display, Layer* layer,
+                                                       Display& display, Layer* layer,
                                                        const Buffer& buffer) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1129,7 +1065,7 @@ void ComposerClient::executeLayerCommandSetLayerBuffer(CommandResultWriter& comm
     buffer_handle_t importedBuffer = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/true);
-    auto error = mResources->getLayerBuffer(display->getHwcId(), layer->getId(), buffer,
+    auto error = mResources->getLayerBuffer(display.getHwcId(), layer->getId(), buffer,
                                             &importedBuffer, releaser.get());
     if (error != HWC3::Error::None) {
         LOG_LAYER_COMMAND_ERROR(display, layer, error);
@@ -1145,7 +1081,7 @@ void ComposerClient::executeLayerCommandSetLayerBuffer(CommandResultWriter& comm
 }
 
 void ComposerClient::executeLayerCommandSetLayerSurfaceDamage(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const std::vector<std::optional<common::Rect>>& damage) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1157,7 +1093,7 @@ void ComposerClient::executeLayerCommandSetLayerSurfaceDamage(
 }
 
 void ComposerClient::executeLayerCommandSetLayerBlendMode(CommandResultWriter& commandResults,
-                                                          Display* display, Layer* layer,
+                                                          Display& display, Layer* layer,
                                                           const ParcelableBlendMode& blendMode) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1169,7 +1105,7 @@ void ComposerClient::executeLayerCommandSetLayerBlendMode(CommandResultWriter& c
 }
 
 void ComposerClient::executeLayerCommandSetLayerColor(CommandResultWriter& commandResults,
-                                                      Display* display, Layer* layer,
+                                                      Display& display, Layer* layer,
                                                       const Color& color) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1181,7 +1117,7 @@ void ComposerClient::executeLayerCommandSetLayerColor(CommandResultWriter& comma
 }
 
 void ComposerClient::executeLayerCommandSetLayerComposition(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const ParcelableComposition& composition) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1192,11 +1128,11 @@ void ComposerClient::executeLayerCommandSetLayerComposition(
     }
 
     if (mCallbacks && (int(composition.composition) == Composition_NXP_PRIVATE))
-        mCallbacks->onRefresh(display->getHwcId());
+        mCallbacks->onRefresh(display.getHwcId());
 }
 
 void ComposerClient::executeLayerCommandSetLayerDataspace(CommandResultWriter& commandResults,
-                                                          Display* display, Layer* layer,
+                                                          Display& display, Layer* layer,
                                                           const ParcelableDataspace& dataspace) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1208,7 +1144,7 @@ void ComposerClient::executeLayerCommandSetLayerDataspace(CommandResultWriter& c
 }
 
 void ComposerClient::executeLayerCommandSetLayerDisplayFrame(CommandResultWriter& commandResults,
-                                                             Display* display, Layer* layer,
+                                                             Display& display, Layer* layer,
                                                              const common::Rect& rect) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1220,7 +1156,7 @@ void ComposerClient::executeLayerCommandSetLayerDisplayFrame(CommandResultWriter
 }
 
 void ComposerClient::executeLayerCommandSetLayerPlaneAlpha(CommandResultWriter& commandResults,
-                                                           Display* display, Layer* layer,
+                                                           Display& display, Layer* layer,
                                                            const PlaneAlpha& planeAlpha) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1232,7 +1168,7 @@ void ComposerClient::executeLayerCommandSetLayerPlaneAlpha(CommandResultWriter& 
 }
 
 void ComposerClient::executeLayerCommandSetLayerSidebandStream(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const aidl::android::hardware::common::NativeHandle& handle) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1240,7 +1176,7 @@ void ComposerClient::executeLayerCommandSetLayerSidebandStream(
     buffer_handle_t importedStream = nullptr;
 
     auto releaser = mResources->createReleaser(/*isBuffer=*/false);
-    auto error = mResources->getLayerSidebandStream(display->getHwcId(), layer->getId(), handle,
+    auto error = mResources->getLayerSidebandStream(display.getHwcId(), layer->getId(), handle,
                                                     &importedStream, releaser.get());
     if (error != HWC3::Error::None) {
         LOG_LAYER_COMMAND_ERROR(display, layer, error);
@@ -1256,7 +1192,7 @@ void ComposerClient::executeLayerCommandSetLayerSidebandStream(
 }
 
 void ComposerClient::executeLayerCommandSetLayerSourceCrop(CommandResultWriter& commandResults,
-                                                           Display* display, Layer* layer,
+                                                           Display& display, Layer* layer,
                                                            const common::FRect& sourceCrop) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1268,7 +1204,7 @@ void ComposerClient::executeLayerCommandSetLayerSourceCrop(CommandResultWriter& 
 }
 
 void ComposerClient::executeLayerCommandSetLayerTransform(CommandResultWriter& commandResults,
-                                                          Display* display, Layer* layer,
+                                                          Display& display, Layer* layer,
                                                           const ParcelableTransform& transform) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1280,7 +1216,7 @@ void ComposerClient::executeLayerCommandSetLayerTransform(CommandResultWriter& c
 }
 
 void ComposerClient::executeLayerCommandSetLayerVisibleRegion(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const std::vector<std::optional<common::Rect>>& visibleRegion) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1292,7 +1228,7 @@ void ComposerClient::executeLayerCommandSetLayerVisibleRegion(
 }
 
 void ComposerClient::executeLayerCommandSetLayerZOrder(CommandResultWriter& commandResults,
-                                                       Display* display, Layer* layer,
+                                                       Display& display, Layer* layer,
                                                        const ZOrder& zOrder) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1304,7 +1240,7 @@ void ComposerClient::executeLayerCommandSetLayerZOrder(CommandResultWriter& comm
 }
 
 void ComposerClient::executeLayerCommandSetLayerPerFrameMetadata(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const std::vector<std::optional<PerFrameMetadata>>& perFrameMetadata) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1316,7 +1252,7 @@ void ComposerClient::executeLayerCommandSetLayerPerFrameMetadata(
 }
 
 void ComposerClient::executeLayerCommandSetLayerColorTransform(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const std::vector<float>& colorTransform) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1328,7 +1264,7 @@ void ComposerClient::executeLayerCommandSetLayerColorTransform(
 }
 
 void ComposerClient::executeLayerCommandSetLayerBrightness(CommandResultWriter& commandResults,
-                                                           Display* display, Layer* layer,
+                                                           Display& display, Layer* layer,
                                                            const LayerBrightness& brightness) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1340,7 +1276,7 @@ void ComposerClient::executeLayerCommandSetLayerBrightness(CommandResultWriter& 
 }
 
 void ComposerClient::executeLayerCommandSetLayerPerFrameMetadataBlobs(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const std::vector<std::optional<PerFrameMetadataBlob>>& perFrameMetadataBlob) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1352,7 +1288,7 @@ void ComposerClient::executeLayerCommandSetLayerPerFrameMetadataBlobs(
 }
 
 void ComposerClient::executeLayerCommandSetLayerBlockingRegion(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const std::vector<std::optional<common::Rect>>& blockingRegion) {
     DEBUG_LOG("%s", __FUNCTION__);
 
@@ -1364,11 +1300,11 @@ void ComposerClient::executeLayerCommandSetLayerBlockingRegion(
 }
 
 void ComposerClient::executeLayerCommandSetLayerBufferSlotsToClear(
-        CommandResultWriter& commandResults, Display* display, Layer* layer,
+        CommandResultWriter& commandResults, Display& display, Layer* layer,
         const std::vector<int32_t>& bufferSlotsToClear) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    auto powerMode = display->getPowerMode();
+    auto powerMode = display.getPowerMode();
     if (powerMode != PowerMode::OFF)
         return;
 
@@ -1379,7 +1315,7 @@ void ComposerClient::executeLayerCommandSetLayerBufferSlotsToClear(
     std::vector<buffer_handle_t> cachedBuffers;
     std::map<buffer_handle_t, int32_t> handle2Slots;
     for (int32_t slot : bufferSlotsToClear) {
-        auto error = mResources->getLayerInternalBuffer(display->getHwcId(), layer->getId(), slot,
+        auto error = mResources->getLayerInternalBuffer(display.getHwcId(), layer->getId(), slot,
                                                         /*fromCache=*/true, nullptr, cachedBuffer,
                                                         bufferReleaser.get());
         if (cachedBuffer) {
@@ -1408,7 +1344,7 @@ void ComposerClient::executeLayerCommandSetLayerBufferSlotsToClear(
     for (auto buffer : clearableBuffers) {
         auto slot = handle2Slots[buffer];
         // replace the slot with nullptr and release the buffer by bufferReleaser
-        auto error = mResources->getLayerInternalBuffer(display->getHwcId(), layer->getId(), slot,
+        auto error = mResources->getLayerInternalBuffer(display.getHwcId(), layer->getId(), slot,
                                                         /*fromCache=*/false, nullptr, cachedBuffer,
                                                         bufferReleaser.get());
         if (error != HWC3::Error::None) {
@@ -1419,13 +1355,15 @@ void ComposerClient::executeLayerCommandSetLayerBufferSlotsToClear(
     }
 }
 
-Display* ComposerClient::getDisplay(int64_t hwcId) {
+std::shared_ptr<Display> ComposerClient::getDisplay(int64_t hwcId) {
+    std::lock_guard<std::mutex> lock(mDisplaysMutex);
+
     auto it = mDisplays.find(hwcId);
     if (it == mDisplays.end()) {
         ALOGE("%s: no hwc display:%" PRIi64, __FUNCTION__, hwcId);
         return nullptr;
     }
-    return it->second.get();
+    return it->second;
 }
 
 HWC3::Error ComposerClient::createDisplaysLocked() {
@@ -1467,9 +1405,9 @@ HWC3::Error ComposerClient::createDisplayLocked(int64_t hwcId, uint32_t displayI
 
     bool created = false;
     Display* display;
-    std::unique_ptr<Display> hwcDisplay;
+    std::shared_ptr<Display> hwcDisplay;
     if (mDisplays.find(hwcId) == mDisplays.end()) {
-        hwcDisplay = std::make_unique<Display>(mComposer, hwcId, displayId);
+        hwcDisplay = std::make_shared<Display>(mComposer, hwcId, displayId);
         display = hwcDisplay.get();
         if (display == nullptr) {
             ALOGE("%s failed to allocate hwc display", __FUNCTION__);
@@ -1572,7 +1510,7 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
         DisplayConfig::addConfigGroups(&configs);
 
         {
-            std::unique_lock<std::mutex> lock(mStateMutex);
+            std::lock_guard<std::mutex> lock(mDisplaysMutex);
             createDisplayLocked(hwcId, displayId, configId, configs);
         }
 
@@ -1584,9 +1522,8 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
         ALOGI("Disconnecting display:%d", displayId);
         mCallbacks->onHotplug(hwcId, /*connected=*/false);
 
-        Display* display = getDisplay(hwcId);
-        if (display != nullptr) {
-            std::unique_lock<std::mutex> lock(mStateMutex);
+        {
+            std::lock_guard<std::mutex> lock(mDisplaysMutex);
             destroyDisplayLocked(hwcId);
         }
     }
