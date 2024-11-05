@@ -23,6 +23,7 @@
 #include <cutils/properties.h>
 #include <error/Result.h>
 #include <error/expected_utils.h>
+#include <fstream>
 
 #include "PrimaryMixer.h"
 #include "core-impl/AudioCardManager.h"
@@ -52,6 +53,11 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
       mIsAsynchronous(!!getContext().getAsyncCallback()) {
     context->startStreamDataProcessor();
     mSavedConfig = mConfig;
+    mDump = property_get_bool("persist.vendor.audio.dump", false);
+    if (mDump) {
+        std::ofstream ifile(kDumpInputFile, std::ios::trunc);
+        std::ofstream ofile(kDumpOutputFile, std::ios::trunc);
+    }
 }
 
 ::android::status_t StreamPrimary::pause() {
@@ -74,8 +80,29 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     return ::android::OK;
 }
 
+void StreamPrimary::dump(const void *buffer, size_t bytes, const char *name) {
+    if ((buffer == NULL) || (bytes == 0) || (name == NULL))
+        return;
+
+    int fdDump = open(name, O_CREAT | O_APPEND | O_WRONLY, S_IRWXU | S_IRWXG);
+    if (fdDump < 0) {
+        ALOGW("%s: file open error, srcFile: %s, fd %d", __func__, name, fdDump);
+        return;
+    }
+
+    write(fdDump, buffer, bytes);
+    ::close(fdDump);
+
+    return;
+}
+
 ::android::status_t StreamPrimary::transfer(void* buffer, size_t frameCount,
                                             size_t* actualFrameCount, int32_t* latencyMs) {
+    if (mDump && mIsInput)
+        dump(buffer, frameCount * mFrameSizeBytes, kDumpInputFile);
+    else if (mDump && !mIsInput)
+        dump(buffer, frameCount * mFrameSizeBytes, kDumpOutputFile);
+
     if (mIsStereoToMono) {
         if (mIsInput) {
             auto dst = static_cast<int16_t*>(buffer);

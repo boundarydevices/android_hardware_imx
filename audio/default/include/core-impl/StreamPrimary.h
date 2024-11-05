@@ -43,6 +43,23 @@ class StreamPrimary : public StreamAlsa {
     bool mIsS32ToS16 = false;
     bool mHardwarePause = false;
     std::optional<struct pcm_config> mSavedConfig;
+
+  private:
+    /*
+      Enable audio dump feature:
+        setprop persist.vendor.audio.dump 1
+        touch /data/out.pcm
+        touch /data/in.pcm
+        chmod 777 /data/out.pcm
+        chmod 777 /data/in.pcm
+      Each boot:
+        setenforce 0
+        pkill audioserver
+    */
+    bool mDump = false;
+    const char* kDumpOutputFile = "/data/out.pcm";
+    const char* kDumpInputFile = "/data/in.pcm";
+    void dump(const void *buffer, size_t size, const char* name);
 };
 
 class StreamInPrimary final : public StreamIn, public StreamSwitcher, public StreamInHwGainHelper {
