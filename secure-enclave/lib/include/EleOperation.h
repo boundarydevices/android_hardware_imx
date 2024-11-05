@@ -52,6 +52,9 @@ public:
     ErrorType eleSignVerifyOpen(uint32_t *signVerifyHandle);
     ErrorType eleSignVerifyClose(uint32_t signVerifyHandle);
     ErrorType eleSignVerify(uint32_t signVerifyHandle, verify_sign_attr *verifySignAttr);
+    ErrorType eleMacOpen(uint32_t keyStoreHandler, uint32_t *macHandle);
+    ErrorType eleMacClose(uint32_t macHandle);
+    ErrorType eleMacOperation(uint32_t macHandle, mac_operation_attr *macOperationAttr);
 
     /* NVM operations*/
     ErrorType eleOpenStorage(uint32_t *nvmStorageHandle);

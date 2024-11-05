@@ -71,6 +71,10 @@ public:
                                        int32_t in_keySecuritySize, int32_t in_keyType,
                                        int32_t in_flags, int32_t in_signScheme,
                                        int32_t in_saltLength) override;
+    ::ndk::ScopedAStatus eleMacOperation(int32_t in_keyId, const std::vector<uint8_t>& in_payload,
+                                         std::vector<uint8_t>* in_mac, int32_t in_macSize,
+                                         int32_t in_flag, int32_t in_algorithm,
+                                         int32_t* _aidl_return) override;
 
 private:
     void shutDownDevice(void);

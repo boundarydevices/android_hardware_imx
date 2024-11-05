@@ -558,6 +558,75 @@ ErrorType SecureEnclave::eleCloseSessionKeystore(uint32_t keyStoreHandler) {
     }
 }
 
+::ndk::ScopedAStatus SecureEnclave::eleMacOperation(int32_t in_keyId,
+                                                    const std::vector<uint8_t>& in_payload,
+                                                    std::vector<uint8_t>* in_mac,
+                                                    int32_t in_macSize, int32_t in_flag,
+                                                    int32_t in_algorithm, int32_t* _aidl_return) {
+    ErrorType error = ELE_NO_ERROR;
+    uint32_t keyStoreHandler = 0;
+    uint32_t macHandle = 0;
+    mac_operation_attr macOperationAttr;
+
+    *_aidl_return = 0;
+
+    error = checkDevice();
+    if (error != ELE_NO_ERROR) {
+        return ndk::ScopedAStatus::fromServiceSpecificError(error);
+    }
+
+    do {
+        if (in_macSize > in_mac->size()) {
+            ALOGE("mac buffer is too small!");
+            error = ELE_INVALID_ARGS;
+            break;
+        }
+
+        /* Open session and keystore */
+        error = eleOpenSessionKeystore(&keyStoreHandler);
+        if (error != ELE_NO_ERROR) {
+            ALOGE("ELE session/keystore open failed!");
+            break;
+        }
+
+        /* Open mac session */
+        error = eleOps->eleMacOpen(keyStoreHandler, &macHandle);
+        if (error != ELE_NO_ERROR) {
+            ALOGE("MAC session failed!");
+            break;
+        }
+
+        /* Perform mac operation */
+        memset(&macOperationAttr, 0, sizeof(mac_operation_attr));
+        macOperationAttr.key_id = in_keyId;
+        macOperationAttr.payload_addr = (uint8_t*)(in_payload.data());
+        macOperationAttr.payload_size = in_payload.size();
+        macOperationAttr.mac_addr = in_mac->data();
+        macOperationAttr.mac_size = in_macSize;
+        macOperationAttr.flags = in_flag;
+        macOperationAttr.algo = in_algorithm;
+        error = eleOps->eleMacOperation(macHandle, &macOperationAttr);
+        if (error != ELE_NO_ERROR) {
+            ALOGE("MAC operation failed!");
+            break;
+        }
+    } while (false);
+
+    /* Close mac session */
+    if (macHandle != 0)
+        eleOps->eleMacClose(macHandle);
+    /* Close session and keystore */
+    eleCloseSessionKeystore(keyStoreHandler);
+
+    if (error != ELE_NO_ERROR) {
+        return ndk::ScopedAStatus::fromServiceSpecificError(error);
+    } else {
+        ALOGI("MAC operation succeed!");
+        *_aidl_return = macOperationAttr.mac_size;
+        return ndk::ScopedAStatus::ok();
+    }
+}
+
 } // namespace ele
 } // namespace hardware
 } // namespace nxp

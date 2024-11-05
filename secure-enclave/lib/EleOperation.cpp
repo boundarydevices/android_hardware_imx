@@ -1252,8 +1252,140 @@ ErrorType EleOperation::eleSignVerify(uint32_t signVerifyHandle, verify_sign_att
 
     verify_sign_msg_resp = (struct verify_sign_msg_rsp *)(msg.data.u8);
     if (verify_sign_msg_resp->verify_status != ELE_SIGNATURE_VERIFY_SUCCESS) {
-        ALOGE("Invalid verification status!");
+        ALOGE("Invalid signature verification status!");
+        return ELE_VERIFICATION_FAILURE;
+    }
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleMacOpen(uint32_t keyStoreHandler, uint32_t *macHandle) {
+    struct mac_open_msg_cmd *open_mac_args;
+    struct mac_open_msg_rsp *open_mac_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the key store handle before opening mac session */
+    if (keyStoreHandler == 0) {
+        ALOGE("Invalid keystore handle");
         return ELE_GENERAL_ERROR;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct mac_open_msg_cmd);
+    open_mac_args = (struct mac_open_msg_cmd *)(msg.data.u8);
+    open_mac_args->key_store_handle = keyStoreHandler;
+
+    buildMsgHeader(&msg, KEY_MAC_OPEN_REQ, req_len, mu_info.cmd_tag);
+
+    /* add the CRC */
+    addCRC(&msg);
+
+    resp_len = SIZE_MSG(struct mac_open_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to open mac session!");
+        return error;
+    }
+
+    open_mac_resp = (struct mac_open_msg_rsp *)(msg.data.u8);
+    if (open_mac_resp->mac_hdl == 0) {
+        ALOGE("Invalid mac session handle!");
+        return ELE_INVALID_MESSAGE;
+    }
+    *macHandle = open_mac_resp->mac_hdl;
+    ALOGI("ELE mac session opened, handle: 0x%x", *macHandle);
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleMacClose(uint32_t macHandle) {
+    struct mac_close_msg_cmd *close_mac_args;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the mac handle before closing */
+    if (macHandle == 0) {
+        ALOGE("Invalid mac session handler!");
+        return ELE_GENERAL_ERROR;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct mac_close_msg_cmd);
+    close_mac_args = (struct mac_close_msg_cmd *)(msg.data.u8);
+    close_mac_args->mac_hdl = macHandle;
+
+    buildMsgHeader(&msg, KEY_MAC_CLOSE_REQ, req_len, mu_info.cmd_tag);
+
+    resp_len = SIZE_MSG(struct mac_close_msg_cmd);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to close ELE mac session!");
+        return error;
+    }
+
+    return ELE_NO_ERROR;
+}
+
+ErrorType EleOperation::eleMacOperation(uint32_t macHandle, mac_operation_attr *macOperationAttr) {
+    struct mac_operation_msg_cmd *mac_operation_args;
+    struct mac_operation_msg_rsp *mac_operation_resp;
+    struct mu_msg msg;
+    ErrorType error;
+    uint32_t req_len, resp_len;
+
+    /* check the input parameters */
+    if (!macHandle || !macOperationAttr) {
+        ALOGE("Invalid mac operation handler or attributes!");
+        return ELE_INVALID_MESSAGE;
+    }
+    if (!macOperationAttr->payload_addr || !macOperationAttr->payload_size ||
+        !macOperationAttr->mac_addr || !macOperationAttr->mac_size) {
+        ALOGE("Invalid mac operation input/output parameters!");
+        return ELE_INVALID_MESSAGE;
+    }
+
+    /* construct the message command */
+    memset(&msg, 0, sizeof(msg));
+    req_len = SIZE_MSG(struct mac_operation_msg_cmd);
+    mac_operation_args = (struct mac_operation_msg_cmd *)(msg.data.u8);
+    mac_operation_args->mac_hdl = macHandle;
+    mac_operation_args->key_id = macOperationAttr->key_id;
+    mac_operation_args->payload_addr =
+            retrivePhyAddress(macOperationAttr->payload_addr, macOperationAttr->payload_size,
+                              ELE_MU_IO_FLAGS_IS_INPUT);
+    mac_operation_args->mac_addr =
+            retrivePhyAddress(macOperationAttr->mac_addr, macOperationAttr->mac_size,
+                              ELE_MU_IO_FLAGS_IS_IN_OUT);
+    mac_operation_args->payload_size = macOperationAttr->payload_size;
+    mac_operation_args->mac_size = macOperationAttr->mac_size;
+    mac_operation_args->flags = macOperationAttr->flags;
+    mac_operation_args->algo = macOperationAttr->algo;
+
+    buildMsgHeader(&msg, KEY_MAC_OPERATION_REQ, req_len, mu_info.cmd_tag);
+    addCRC(&msg);
+
+    resp_len = SIZE_MSG(struct mac_operation_msg_rsp);
+    error = eleSendAndReciveMsg(&msg, req_len, &resp_len);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Failed to do mac operation!");
+        return error;
+    }
+
+    mac_operation_resp = (struct mac_operation_msg_rsp *)(msg.data.u8);
+    if (macOperationAttr->flags & MAC_ONE_GO_GENERATION) {
+        /* return the actual mac size for mac generation */
+        macOperationAttr->mac_size = mac_operation_resp->out_mac_size;
+    } else {
+        /* check the verification status for mac verification */
+        if (mac_operation_resp->verify_status != ELE_MAC_VERIFY_SUCCESS) {
+            ALOGE("Invalid mac verification status!");
+            return ELE_VERIFICATION_FAILURE;
+        }
     }
 
     return ELE_NO_ERROR;
@@ -1321,7 +1453,7 @@ ErrorType EleOperation::eleNvmMasterImport(struct nvm_context *nvmCtx) {
         master_import_args->nvm_storage_handle = nvmCtx->nvm_handle;
         master_import_args->master_data_lsb_addr = data_phy;
         master_import_args->master_data_size = blob_hdr.size;
-        buildMsgHeader(&msg, STORAGE_MASTER_IMPORT, req_len, mu_info.cmd_tag);
+        buildMsgHeader(&msg, STORAGE_MASTER_IMPORT_REQ, req_len, mu_info.cmd_tag);
 
         resp_len = SIZE_MSG(struct storage_master_import_msg_rsp);
         if (eleSendAndReciveMsg(&msg, req_len, &resp_len) != ELE_NO_ERROR) {

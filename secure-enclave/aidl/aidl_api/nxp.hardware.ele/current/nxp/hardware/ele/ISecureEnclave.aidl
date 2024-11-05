@@ -41,6 +41,7 @@ interface ISecureEnclave {
   int eleCipherAEOperation(in int keyId, in byte[] iv, in int flags, in int algo, in byte[] aad, in byte[] input, out byte[] output);
   int eleSignGenerate(in int keyId, in byte[] message, out byte[] signature, in int flags, in int signScheme, in int saltLen);
   void eleSignVerify(in byte[] key, in byte[] message, in byte[] signature, in int keySecuritySize, in int keyType, in int flags, in int signScheme, in int saltLength);
+  int eleMacOperation(in int keyId, in byte[] payload, inout byte[] mac, in int macSize, in int flag, in int algorithm);
   @Backing(type="int") @VintfStability
   enum KeyType {
     KEY_TYPE_HMAC = 0x1100,
@@ -181,6 +182,16 @@ interface ISecureEnclave {
   enum SignatureMessageFlags {
     ELE_SIGN_FLAGS_DIGEST = 0,
     ELE_SIGN_FLAGS_MESSAGE = 1,
+  }
+  @Backing(type="int") @VintfStability
+  enum MacOperation {
+    MAC_ONE_GO_GENERATION = (1 << 0) /* 1 */,
+    MAC_ONE_GO_VERIFICATION = (0 << 0) /* 0 */,
+  }
+  enum MacSizeBytes {
+    MAC_LENGTH_SHA256 = 32,
+    MAC_LENGTH_SHA384 = 48,
+    MAC_LENGTH_CMAC = 16,
   }
   @VintfStability
   parcelable KeyAttribute {

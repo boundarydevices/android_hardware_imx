@@ -253,6 +253,36 @@ interface ISecureEnclave {
 	}
 
 	/**
+	 * Supported MAC operation type:
+	 * MAC_ONE_GO_GENERATION: MAC generation.
+	 * MAC_ONE_GO_VERIFICATION: MAC verification.
+	 *
+	 * Refer to the EdgeLock Secure Enclave documentation
+	 * for more details.
+	 */
+	@VintfStability
+	@Backing(type="int")
+	enum MacOperation {
+		MAC_ONE_GO_GENERATION = (1 << 0),
+		MAC_ONE_GO_VERIFICATION = (0 << 0)
+	}
+
+	/**
+	 * Supported MAC size in bytes.
+	 * MAC_LENGTH_SHA256: MAC size for default HMAC SHA256 algorithm.
+	 * MAC_LENGTH_SHA384: MAC size for default HMAC SHA384 algorithm.
+	 * MAC_LENGTH_CMAC: MAC size for default AES CMAC algorithm.
+	 *
+	 * ELE also supports truncated length MAC algorithms, refer to the
+	 * EdgeLock Secure Enclave documentation for more details.
+	 */
+	enum MacSizeBytes {
+		MAC_LENGTH_SHA256 = 32,
+		MAC_LENGTH_SHA384 = 48,
+		MAC_LENGTH_CMAC = 16,
+	}
+
+	/**
 	 * Key attribute type which caller can extract from ELE:
 	 * type: The key type.
 	 * sizeBit: Key size in bits.
@@ -489,4 +519,35 @@ interface ISecureEnclave {
 				in int flags,
 				in int signScheme,
 				in int saltLength);
+
+	/**
+	 * Generate or verify MAC (Message authentication Code).
+	 *
+	 * @param keyId Identifier of the key to be used to generate or verify the MAC.
+	 *
+	 * @param payload The payload used to generate or verify the mac. The length of the
+	 *                payload must match exactly with the actual size.
+	 *
+	 * @param mac The buffer to contain the MAC for generation or verification process.
+	 *            The length of the buffer must be larger than or equal to the actual MAC.
+	 *
+	 * @param macSize The size in bytes of the expected MAC. Refer to the EdgeLock Secure
+	 *                Enclave documentation for the possible size for different MAC algorithms.
+	 *
+	 * @param flag Bit field indicating the requested operations (MAC generation or verification).
+	 *
+	 * @param algorithm Algorithms to use. Refer to the EdgeLock Secure Enclave documentation for
+	 *                  more details.
+	 *
+	 * @return
+	 * On success, it returns the actual data length of the MAC. On failure, 0 would be returned.
+	 * Exception or error status will be returned for errors, so caller will have to catch
+	 * the exception or handle the error status correctly.
+	 */
+	int eleMacOperation(in int keyId,
+				in byte[] payload,
+				inout byte[] mac,
+				in int macSize,
+				in int flag,
+				in int algorithm);
 }

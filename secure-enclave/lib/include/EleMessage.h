@@ -38,6 +38,7 @@ typedef enum ErrorType {
     ELE_INVALID_ARGS = 6,
     ELE_ERROR_RETRY = 7,
     ELE_MEMORY_FAILURE = 8,
+    ELE_VERIFICATION_FAILURE = 9,
 
     /* HSM error code */
     ELE_COMMAND_SUCCEED = (0x00d6),
@@ -220,6 +221,17 @@ typedef enum ele_signature_message_flags {
     ELE_SIGN_FLAGS_DIGEST = (0),
     ELE_SIGN_FLAGS_MESSAGE = (1),
 } ele_gen_sign_flags;
+
+typedef enum mac_operation {
+    MAC_ONE_GO_GENERATION = (1u << 0),
+    MAC_ONE_GO_VERIFICATION = (0u << 0),
+} mac_operation;
+
+typedef enum mac_length {
+    MAC_LENGTH_SHA256 = 32,
+    MAC_LENGTH_SHA384 = 48,
+    MAC_LENGTH_CMAC = 16,
+} mac_length;
 
 typedef struct ele_mu_info {
     uint8_t ele_mu_id;
@@ -720,5 +732,57 @@ typedef struct verify_sign_attr {
     uint32_t sign_scheme;
     uint16_t salt_len;
 } verify_sign_attr;
+
+typedef struct mac_open_msg_cmd {
+    uint32_t key_store_handle;
+    uint32_t msbi;
+    uint32_t msbo;
+    uint8_t flags;
+    uint8_t rsv[3];
+    uint32_t crc;
+} mac_open_msg_cmd;
+
+typedef struct mac_open_msg_rsp {
+    uint32_t rsp_code;
+    uint32_t mac_hdl;
+} mac_open_msg_rsp;
+
+typedef struct mac_close_msg_cmd {
+    uint32_t mac_hdl;
+} mac_close_msg_cmd;
+
+typedef struct mac_close_msg_rsp {
+    uint32_t rsp_code;
+} mac_close_msg_rsp;
+
+typedef struct mac_operation_msg_cmd {
+    uint32_t mac_hdl;
+    uint32_t key_id;
+    uint32_t payload_addr;
+    uint32_t mac_addr;
+    uint32_t payload_size;
+    uint16_t mac_size;
+    uint8_t flags;
+    uint8_t rsv;
+    uint32_t algo;
+    uint32_t crc;
+} mac_operation_msg_cmd;
+
+typedef struct mac_operation_msg_rsp {
+    uint32_t rsp_code;
+    uint32_t verify_status;
+    uint16_t out_mac_size;
+    uint16_t rsv;
+} mac_operation_msg_rsp;
+
+typedef struct mac_operation_attr {
+    uint32_t key_id;
+    uint8_t *payload_addr;
+    uint8_t *mac_addr;
+    uint32_t payload_size;
+    uint16_t mac_size;
+    uint8_t flags;
+    uint32_t algo;
+} mac_operation_attr;
 
 #endif //__ELE_MESSAGE_H__

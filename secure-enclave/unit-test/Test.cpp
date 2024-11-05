@@ -449,7 +449,7 @@ exit:
     error = ops->eleDeleteKey(keyMgtHandle, keyID, OPERATION_SYNC);
     if (error != ELE_NO_ERROR) {
         ALOGE("Test: delete key failed!");
-        goto exit;
+        ret = -1;
     } else {
         ALOGE("Test: delete key successfully!");
     }
@@ -457,9 +457,107 @@ exit:
     /* close cipher */
     error = ops->eleCloseCipher(cipherHandle);
     if (error != ELE_NO_ERROR) {
+        ret = -1;
         ALOGE("Test: key cipher close failed!");
     } else {
         ALOGE("Test: key cipher close successfully!");
+    }
+
+    return ret;
+}
+
+int test_mac_operation(EleOperation *ops, uint32_t keyStoreHandler, uint32_t keyMgtHandle) {
+    mac_operation_attr mac_op_args;
+    gen_key_attribute keyAttribute;
+    uint8_t payload[32];
+    uint8_t mac[32];
+    uint32_t keyID = 0;
+    uint32_t macHandle = 0;
+    ErrorType error;
+    int ret = 0;
+
+    /* open mac session */
+    error = ops->eleMacOpen(keyStoreHandler, &macHandle);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Test: open mac session failed!");
+        return -1;
+    } else {
+        ALOGE("Test: mac session open succeed with handle: 0x%x!", macHandle);
+    }
+
+    /* generate cmac key */
+    memset(&keyAttribute, 0, sizeof(gen_key_attribute));
+    keyID = KEY_ID;
+    keyAttribute.key_group = KEY_GROUP;
+    keyAttribute.type = KEY_TYPE_AES;
+    keyAttribute.size_bits = KEY_SIZE_AES_256;
+    keyAttribute.lifetime = STD_PERSISTENT;
+    keyAttribute.usage = KEY_USAGE_SIGN_MSG | KEY_USAGE_VERIFY_MSG;
+    keyAttribute.permit_algo = PERMITTED_ALGO_CMAC;
+    keyAttribute.lifecycle = LIFE_CYCLE_CURRENT;
+    keyAttribute.flags = OPERATION_SYNC;
+    error = ops->eleGenerateKey(keyMgtHandle, &keyID, &keyAttribute);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Test: generate cmac key failed!");
+        ret = -1;
+        goto exit;
+    } else {
+        ALOGE("Test: cmac key generate successfully with ID: 0x%x!", keyID);
+    }
+
+    /* do mac test - mac generation */
+    mac_op_args.key_id = keyID;
+    mac_op_args.payload_addr = payload;
+    mac_op_args.mac_addr = mac;
+    mac_op_args.payload_size = sizeof(payload);
+    mac_op_args.mac_size = MAC_LENGTH_CMAC;
+    mac_op_args.flags = MAC_ONE_GO_GENERATION;
+    mac_op_args.algo = PERMITTED_ALGO_CMAC;
+    error = ops->eleMacOperation(macHandle, &mac_op_args);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Test: cmac generation failed!");
+        ret = -1;
+        goto exit;
+    } else {
+        ALOGE("Test: cmac generation succeed!");
+        ALOGE("======== dump cmac ========");
+        for (int i = 0; i < sizeof(mac); i++) ALOGE("%02x", mac[i]);
+        ALOGE("=================================");
+    }
+
+    /* do mac test - mac verification */
+    mac_op_args.key_id = keyID;
+    mac_op_args.payload_addr = payload;
+    mac_op_args.mac_addr = mac;
+    mac_op_args.payload_size = sizeof(payload);
+    mac_op_args.mac_size = MAC_LENGTH_CMAC;
+    mac_op_args.flags = MAC_ONE_GO_VERIFICATION;
+    mac_op_args.algo = PERMITTED_ALGO_CMAC;
+    error = ops->eleMacOperation(macHandle, &mac_op_args);
+    if (error != ELE_NO_ERROR || mac_op_args.mac_size != MAC_LENGTH_CMAC) {
+        ALOGE("Test: cmac verification failed!");
+        ret = -1;
+        goto exit;
+    } else {
+        ALOGE("Test: cmac verification succeed!");
+    }
+
+exit:
+    /* delete the key */
+    error = ops->eleDeleteKey(keyMgtHandle, keyID, OPERATION_SYNC);
+    if (error != ELE_NO_ERROR) {
+        ALOGE("Test: delete cmac key failed!");
+        ret = -1;
+    } else {
+        ALOGE("Test: delete cmac key successfully!");
+    }
+
+    error = ops->eleMacClose(macHandle);
+    if (error != ELE_NO_ERROR) {
+        ret = -1;
+        ALOGE("Test: close mac operation failed!");
+    } else {
+        ALOGE("Test: close mac operation successfully!");
     }
 
     return ret;
@@ -532,6 +630,11 @@ int main() {
 
     /* symmetric cipher authenticated encryption operation test */
     ret = test_cipher_ae_operation(&ops, keyStoreHandler, keyMgtHandle);
+    if (ret)
+        goto exit;
+
+    /* mac generation/verification test */
+    ret = test_mac_operation(&ops, keyStoreHandler, keyMgtHandle);
     if (ret)
         goto exit;
 
