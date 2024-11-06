@@ -54,7 +54,8 @@ typedef struct tag_imx_image_buffer {
 
 int yuv422iResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth, int dstHeight);
 // If srcHeightSpan is not given, will set to srcHeight in the func.
-int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth, int dstHeight, int srcHeightSpan = 0);
+int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
+                   int dstHeight, int dstStride, int srcHeightSpan = 0);
 int yuv420spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth, int dstHeight);
 int convertPixelFormatToCLFormat(int format);
 int convertPixelFormatToV4L2Format(int format, bool invert = false);

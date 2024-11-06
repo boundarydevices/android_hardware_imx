@@ -3487,8 +3487,6 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 
     dumpStream(inData, inDataSize, 0); // mjpeg from camera sensor
 
-    YCbCrLayout cropAndScaled;
-
     // TODO: in some special case maybe we can decode jpg directly to gralloc output?
     res = 0;
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
@@ -3697,83 +3695,76 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                       (outputFourcc >> 8) & 0xFF, (outputFourcc >> 16) & 0xFF,
                       (outputFourcc >> 24) & 0xFF);
 
-                // Hardware decoder is 16 pixels aligned (1920x1080 -> 1920x1088, 800x600 ->
-                // 800x608). For those height not aligned, no need crop. The layout is already
-                // calculated by 16 pixels aligned height (1088/608/...).
-                uint64_t scaledPhyAddr = 0;
-                uint32_t scaledWidth = 0;
-                uint32_t scaledHeight = 0;
+                uint64_t srcPhyAddr = 0;
+                mYu12Frame->getPhyAddr(srcPhyAddr);
+
                 if (mHardwareDecoder && parent->getHardwareDecFlag()) {
-                    mYu12Frame->getLayout(&cropAndScaled);
-                    mYu12Frame->getPhyAddr(scaledPhyAddr);
-
-                    if (((mYu12Frame->mWidth - halBuf.width) >= 16) || ((mYu12Frame->mHeight - halBuf.height) >= 16)) {
-                        // will resize
-                        break;
-                    } else {
-                        scaledWidth = mYu12Frame->mWidth;
-                        scaledHeight = mYu12Frame->mHeight;
-                        goto format_convert;
-                    }
-                }
-
-                ATRACE_BEGIN("cropAndScaleLocked");
-                if (mDebug)
-                    t1 = systemTime();
-                ret = cropAndScaleLocked(mYu12Frame, Size{halBuf.width, halBuf.height},
-                                         &cropAndScaled, &scaledPhyAddr);
-                if (mDebug) {
-                    t2 = systemTime();
-                    ALOGI("cropAndScaleLocked use %lld ns, %lld ms, fmt 0x%x, src size %dx%d, dst "
-                          "size %dx%d",
-                          (long long)t2 - t1, (long long)(t2 - t1) / 1000000, mYu12Frame->mFourcc,
-                          mYu12Frame->mWidth, mYu12Frame->mHeight, halBuf.width, halBuf.height);
-                }
-                ATRACE_END();
-                scaledWidth = halBuf.width;
-                scaledHeight = halBuf.height;
-
-                if (ret != 0) {
-                    if (mHardwareDecoder && parent->getHardwareDecFlag())
-                        VpuDecReturnBuffer();
-
-                    lk.unlock();
-                    return onDeviceError("%s: crop and scale failed!", __FUNCTION__);
-                }
-
-            format_convert:
-                Size sz{halBuf.width, halBuf.height};
-                int fcret = 0;
-                ATRACE_BEGIN("formatConvert");
-                if (mDebug)
-                    t1 = systemTime();
-                if (mHardwareDecoder && parent->getHardwareDecFlag()) {
-                    uint64_t dstPhyAddr = GetPhyAddrFromBuffer((*halBuf.bufPtr)->data[0]);
+                    // Hardware decode
+                    // HW decoder is 16 pixels aligned (1920x1080 -> 1920x1088, 800x600 -> 800x608).
                     uint8_t* outData;
                     size_t dataSize;
-                    mYu12Frame->getData(&outData, &dataSize);
-                    fcret = handleFrame(halBuf.width, halBuf.height, outputFourcc,
-                                        mYu12Frame->mFourcc, dstPhyAddr, scaledPhyAddr, scaledWidth,
-                                        scaledHeight, scaledWidth, outLayout.yStride, outData,
-                                        (uint8_t*)outLayout.y);
-                } else {
-                    fcret =
-                        formatConvert(cropAndScaled, outLayout, sz, outputFourcc, mInterBufFormat);
-                }
-                if (mDebug) {
-                    nsecs_t t2 = systemTime();
-                    ALOGI("formatConvert use %lld ns, %lld ms, src fmt 0x%x, dst fmt 0x%x size "
-                          "%dx%d",
-                          (long long)t2 - t1, (long long)(t2 - t1) / 1000000, mInterBufFormat,
-                          outputFourcc, sz.width, sz.height);
-                }
-                ATRACE_END();
-                if (fcret != 0) {
-                    if (mHardwareDecoder && parent->getHardwareDecFlag())
-                        VpuDecReturnBuffer();
 
-                    lk.unlock();
-                    return onDeviceError("%s: format coversion failed!", __FUNCTION__);
+                    uint64_t dstPhyAddr = GetPhyAddrFromBuffer((*halBuf.bufPtr)->data[0]);
+                    mYu12Frame->getData(&outData, &dataSize);
+
+                    if (mDebug)
+                        t1 = systemTime();
+                    ret = handleFrame(halBuf.width, halBuf.height, outputFourcc,
+                                      mYu12Frame->mFourcc, dstPhyAddr, srcPhyAddr,
+                                      mYu12Frame->mWidth, mYu12Frame->mHeight, mYu12Frame->mWidth,
+                                      outLayout.yStride, outData, (uint8_t*)outLayout.y);
+                    if (mDebug) {
+                        t2 = systemTime();
+                        ALOGI("handleFrame use %lld ns, %lld ms, src size %dx%d fmt 0x%x, dst size %dx%d fmt 0x%x",
+                              (long long)t2 - t1, (long long)(t2 - t1) / 1000000,
+                              mYu12Frame->mWidth, mYu12Frame->mHeight, mYu12Frame->mFourcc,
+                              halBuf.width, halBuf.height, outputFourcc);
+                    }
+                    if (ret != 0) {
+                        VpuDecReturnBuffer();
+                        lk.unlock();
+                        return onDeviceError("%s: handleFrame failed!", __FUNCTION__);
+                    }
+                } else {
+                    // Software decode
+                    ATRACE_BEGIN("cropAndScaleLocked");
+                    YCbCrLayout cropAndScaled;
+                    mYu12Frame->getLayout(&cropAndScaled);
+                    if (mDebug)
+                        t1 = systemTime();
+                    ret = cropAndScaleLocked(mYu12Frame, Size{halBuf.width, halBuf.height},
+                                             &cropAndScaled, &srcPhyAddr);
+                    if (mDebug) {
+                        t2 = systemTime();
+                        ALOGI("cropAndScaleLocked use %lld ns, %lld ms, fmt 0x%x, src size %dx%d, dst size %dx%d",
+                              (long long)t2 - t1, (long long)(t2 - t1) / 1000000,
+                              mYu12Frame->mFourcc, mYu12Frame->mWidth, mYu12Frame->mHeight,
+                              halBuf.width, halBuf.height);
+                    }
+                    ATRACE_END();
+
+                    if (ret != 0) {
+                        lk.unlock();
+                        return onDeviceError("%s: crop and scale failed!", __FUNCTION__);
+                    }
+
+                    ATRACE_BEGIN("formatConvert");
+                    if (mDebug)
+                        t1 = systemTime();
+                    Size sz{halBuf.width, halBuf.height};
+                    ret = formatConvert(cropAndScaled, outLayout, sz, mYu12Frame->mFourcc,
+                                        mYu12Frame->mFourcc);
+                    if (mDebug) {
+                        t2 = systemTime();
+                        ALOGI("formatConvert use %lld ns, %lld ms, src fmt 0x%x, dst fmt 0x%x size %dx%d",
+                              (long long)t2 - t1, (long long)(t2 - t1) / 1000000,
+                              mYu12Frame->mFourcc, outputFourcc, sz.width, sz.height);
+                    }
+                    ATRACE_END();
+                    if (ret != 0) {
+                        lk.unlock();
+                        return onDeviceError("%s: format coversion failed!", __FUNCTION__);
+                    }
                 }
 
                 dumpStream((uint8_t*)outLayout.y, outLayout.yStride * halBuf.height * 3 / 2, 3);

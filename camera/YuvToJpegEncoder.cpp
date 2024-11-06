@@ -806,7 +806,7 @@ void Yuv422SpToJpegEncoder::configSamplingFactors(jpeg_compress_struct *cinfo) {
 
 int Yuv422SpToJpegEncoder::yuvResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
                                      int dstWidth, int dstHeight) {
-    return yuv422spResize(srcBuf, srcWidth, srcHeight, dstBuf, dstWidth, dstHeight);
+    return yuv422spResize(srcBuf, srcWidth, srcHeight, dstBuf, dstWidth, dstHeight, dstWidth);
 }
 
 void jpegBuilder_error_exit(j_common_ptr cinfo) {

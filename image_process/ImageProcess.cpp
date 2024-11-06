@@ -1146,7 +1146,8 @@ cpu_resize:
                             (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth, dstBuf.mHeight);
     else if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_422_SP)
         ret = yuv422spResize((uint8_t *)srcBuf.mVirtAddr, srcBuf.mWidth, srcBuf.mHeight,
-                             (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth, dstBuf.mHeight, srcBuf.mHeightSpan);
+                             (uint8_t *)dstBuf.mVirtAddr, dstBuf.mWidth, dstBuf.mHeight,
+                             dstBuf.mStride, srcBuf.mHeightSpan);
     else if ((srcBuf.mFormat == HAL_PIXEL_FORMAT_YCBCR_420_888) ||
              (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP)) {
         ret = yuv420spResize((uint8_t *)srcBuf.mVirtAddr, srcBuf.mWidth, srcBuf.mHeight,

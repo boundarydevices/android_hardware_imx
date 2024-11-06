@@ -132,7 +132,7 @@ enlarge:
 }
 
 int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf, int dstWidth,
-                   int dstHeight, int srcHeightSpan) {
+                   int dstHeight, int dstStride, int srcHeightSpan) {
     int i, j, s;
     int h_offset;
     int v_offset;
@@ -140,7 +140,6 @@ int yuv422spResize(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf
     int h_scale_ratio;
     int v_scale_ratio;
     int srcStride = srcWidth;
-    int dstStride = dstWidth;
     int srcRow = 0;
     int srcCol = 0;
     uint16_t *pUVSrcStart = NULL;
@@ -266,7 +265,6 @@ enlarge:
 
     return 0;
 }
-
 
 void decreaseNV12WithCut(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *dstBuf,
                          int dstWidth, int dstHeight) {
