@@ -257,6 +257,11 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
             return false;
         }
         display->updateDisplayConfigs();
+
+        std::vector<DisplayCapability> caps;
+        caps.push_back(DisplayCapability::MULTI_THREADED_PRESENT);
+        mDisplayCapabilitys.emplace(display->getId(), caps);
+
         mDisplays.emplace(display->getId(), std::move(display));
     }
 
