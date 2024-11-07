@@ -271,6 +271,7 @@ void HWSensorBase::setAxisDefaultValues() {
     mXMap = 0;
     mYMap = 1;
     mZMap = 2;
+    mTMap = 3;
     mXNegate = mYNegate = mZNegate = false;
 }
 

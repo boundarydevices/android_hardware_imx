@@ -411,13 +411,9 @@ int get_sensor_stepcounter(const std::string& device_dir, unsigned int* stepcoun
 }
 
 int64_t get_timestamp() {
-    struct timespec ts;
-
-    ts.tv_sec = ts.tv_nsec = 0;
-    if (!clock_gettime(CLOCK_MONOTONIC, &ts))
-        return 1000000000LL * ts.tv_sec + ts.tv_nsec;
-    else /* in this case errno is set appropriately */
-        return -1;
+    auto now = std::chrono::system_clock::now();
+    auto now_us = std::chrono::time_point_cast<std::chrono::microseconds>(now);
+    return now_us.time_since_epoch().count();
 }
 
 static bool is_supported_sensor(const std::string& path,

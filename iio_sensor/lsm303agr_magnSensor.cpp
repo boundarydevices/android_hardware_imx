@@ -139,6 +139,7 @@ void lsm303agr_magnSensor::processScanData(char* data, Event* evt) {
     int64_t value_mask;
     std::array<float, NUM_OF_DATA_CHANNELS> channelData;
     int64_t val;
+    int shift_timestamp;
 
     for (i = 0; i < mIioData.channelInfo.size(); i++) {
         chanIdx = mIioData.channelInfo[i].index;
@@ -152,11 +153,18 @@ void lsm303agr_magnSensor::processScanData(char* data, Event* evt) {
                 channel_data += mIioData.channelInfo[j].storage_bytes;
             }
         }
+
+        // there is 2 bytes offset bewteen z and timestamp data.
+        if (strstr(mIioData.channelInfo[i].name.c_str(), "timestamp"))
+            shift_timestamp = 2;
+        else
+            shift_timestamp = 0;
+
         if (mIioData.channelInfo[i].big_endian)
-            for (int k = 0; k < mIioData.channelInfo[i].storage_bytes; k++)
+            for (int k = shift_timestamp; k < mIioData.channelInfo[i].storage_bytes; k++)
                 val = (val << 8) | channel_data[k];
         else
-            for (int k = mIioData.channelInfo[i].storage_bytes - 1; k >= 0; k--)
+            for (int k = mIioData.channelInfo[i].storage_bytes + shift_timestamp - 1; k >= shift_timestamp; k--)
                 val = (val << 8) | channel_data[k];
 
         val = (val >> mIioData.channelInfo[i].shift) & (~0ULL >> mIioData.channelInfo[i].shift);
@@ -195,6 +203,10 @@ void lsm303agr_magnSensor::processScanData(char* data, Event* evt) {
     evt->u.vec3.x = getChannelData(channelData, mXMap, false) * 0.001500;
     evt->u.vec3.y = getChannelData(channelData, mYMap, false) * 0.001500;
     evt->u.vec3.z = getChannelData(channelData, mZMap, false) * 0.001500;
+    // TODO:
+    // when sensor driver fix sampling frequency/timestamp mismatch issue,
+    // plan to switch to get timestamp from channel data.
+    // evt->timestamp = getChannelData(channelData, mTMap, false) * 0.001;
     evt->timestamp = get_timestamp();
 }
 

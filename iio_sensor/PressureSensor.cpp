@@ -50,71 +50,78 @@ PressureSensor::~PressureSensor() {
     mRunThread.join();
 }
 
+template <size_t N>
+static float getChannelData(const std::array<float, N>& channelData, int64_t map, bool negate) {
+    return negate ? -channelData[map] : channelData[map];
+}
+
 void PressureSensor::processScanData(char* data, Event* evt) {
-    unsigned int i, index = 0;
-    evt->sensorHandle = mSensorHandle;
+    unsigned int i, j;
+    evt->sensorHandle = mSensorInfo.sensorHandle;
     evt->sensorType = mSensorInfo.type;
-    char* channel_data = data;
+    char* channel_data;
+    unsigned int chanIdx;
     int64_t sign_mask;
     int64_t value_mask;
+    std::array<float, NUM_OF_DATA_CHANNELS> channelData;
+    int64_t val;
+    int shift_timestamp;
 
-    int64_t val = 0;
     for (i = 0; i < mIioData.channelInfo.size(); i++) {
-        if (strstr(mIioData.channelInfo[i].name.c_str(), "pressure") &&
-            mSensorInfo.type == SensorType::PRESSURE) {
-            index = i;
-            break;
-        } else if (strstr(mIioData.channelInfo[i].name.c_str(), "temp") &&
-                   mSensorInfo.type == SensorType::AMBIENT_TEMPERATURE) {
-            index = i;
-            break;
+        chanIdx = mIioData.channelInfo[i].index;
+        channel_data = data;
+        val = 0;
+
+        for (j = 0; j < mIioData.channelInfo.size(); j++) {
+            if (chanIdx <= mIioData.channelInfo[j].index)
+                continue;
+            else {
+                channel_data += mIioData.channelInfo[j].storage_bytes;
+            }
         }
-    }
 
-    for (i = 0; i < mIioData.channelInfo.size(); i++) {
-        if (mIioData.channelInfo[index].index <= mIioData.channelInfo[i].index)
-            continue;
+        // there is 2 bytes offset bewteen z and timestamp data.
+        if (strstr(mIioData.channelInfo[i].name.c_str(), "timestamp"))
+            shift_timestamp = 2;
+        else
+            shift_timestamp = 0;
+
+        if (mIioData.channelInfo[i].big_endian)
+            for (int k = shift_timestamp; k < mIioData.channelInfo[i].storage_bytes; k++)
+                val = (val << 8) | channel_data[k];
+        else
+            for (int k = mIioData.channelInfo[i].storage_bytes + shift_timestamp - 1; k >= shift_timestamp; k--)
+                val = (val << 8) | channel_data[k];
+
+        val = (val >> mIioData.channelInfo[i].shift) & (~0ULL >> mIioData.channelInfo[i].shift);
+        if (!mIioData.channelInfo[i].sign)
+            channelData[chanIdx] = (int64_t)val;
         else {
-            channel_data += mIioData.channelInfo[i].storage_bytes;
-        }
-    }
-
-    if (mIioData.channelInfo[index].big_endian)
-        for (int i = 0; i < mIioData.channelInfo[index].storage_bytes; i++)
-            val = (val << 8) | channel_data[i];
-    else
-        for (int i = mIioData.channelInfo[index].storage_bytes - 1; i >= 0; i--)
-            val = (val << 8) | channel_data[i];
-
-    val = (val >> mIioData.channelInfo[index].shift) & (~0ULL >> mIioData.channelInfo[index].shift);
-
-    if (!mIioData.channelInfo[index].sign)
-        evt->u.scalar = (int64_t)val;
-    else {
-        switch (mIioData.channelInfo[index].bits_used) {
-            case 0 ... 1:
-                evt->u.scalar = 0;
-                break;
-            case 8:
-                evt->u.scalar = (int64_t)(int8_t)val;
-                break;
-            case 16:
-                evt->u.scalar = (int64_t)(int16_t)val;
-                break;
-            case 32:
-                evt->u.scalar = (int64_t)(int32_t)val;
-                break;
-            case 64:
-                evt->u.scalar = (int64_t)val;
-                break;
-            default:
-                sign_mask = 1 << (mIioData.channelInfo[i].bits_used - 1);
-                value_mask = sign_mask - 1;
-                if (val & sign_mask)
-                    evt->u.scalar =
-                            -((~val & value_mask) + 1); /* Negative value: return 2-complement */
-                else
-                    evt->u.scalar = (int64_t)val; /* Positive value */
+            switch (mIioData.channelInfo[i].bits_used) {
+                case 0 ... 1:
+                    channelData[chanIdx] = 0;
+                    break;
+                case 8:
+                    channelData[chanIdx] = (int64_t)(int8_t)val;
+                    break;
+                case 16:
+                    channelData[chanIdx] = (int64_t)(int16_t)val;
+                    break;
+                case 32:
+                    channelData[chanIdx] = (int64_t)(int32_t)val;
+                    break;
+                case 64:
+                    channelData[chanIdx] = (int64_t)val;
+                    break;
+                default:
+                    sign_mask = 1 << (mIioData.channelInfo[i].bits_used - 1);
+                    value_mask = sign_mask - 1;
+                    if (val & sign_mask)
+                        channelData[chanIdx] = -((~val & value_mask) +
+                                                 1); /* Negative value: return 2-complement */
+                    else
+                        channelData[chanIdx] = (int64_t)val; /* Positive value */
+            }
         }
     }
 
@@ -128,24 +135,18 @@ void PressureSensor::processScanData(char* data, Event* evt) {
 
     get_pressure_scale(scale_file, &scale);
 
-    evt->u.scalar = scale * evt->u.scalar;
-
-    // To meet CTS required range, multiply pressure scale with 10.
-    if (mSensorInfo.type == SensorType::PRESSURE)
-        evt->u.scalar *= 10;
-
-    int timestamp_offset = 0;
-    for (auto i = 0u; i < mIioData.channelInfo.size(); i++) {
-        if ((mIioData.channelInfo.size() - 1) > mIioData.channelInfo[i].index)
-            timestamp_offset += mIioData.channelInfo[i].storage_bytes;
+    if (mSensorInfo.type == SensorType::PRESSURE) {
+        // To meet CTS required range, multiply pressure scale with 10.
+        evt->u.scalar = getChannelData(channelData, 0, false) * scale * 10;
     }
+    if (mSensorInfo.type == SensorType::AMBIENT_TEMPERATURE)
+        evt->u.scalar = getChannelData(channelData, 1, false) * scale;
 
-    const int64_t timestamp = *reinterpret_cast<int64_t*>(data + timestamp_offset * 8);
-
-    if (timestamp == 0)
-        evt->timestamp = get_timestamp();
-    else
-        evt->timestamp = timestamp;
+    // TODO:
+    // when sensor driver fix sampling frequency/timestamp mismatch issue,
+    // plan to switch to get timestamp from channel data.
+    // evt->timestamp = getChannelData(channelData, 2, false) * 0.001;
+    evt->timestamp = get_timestamp();
 }
 
 void PressureSensor::setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num,

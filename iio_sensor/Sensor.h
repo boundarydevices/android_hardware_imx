@@ -121,7 +121,7 @@ public:
 
     std::vector<uint8_t> mSensorRawData;
     ssize_t mScanSize;
-    int64_t mXMap, mYMap, mZMap;
+    int64_t mXMap, mYMap, mZMap, mTMap;
 
 private:
     static constexpr uint8_t LOCATION_X_IDX = 3;
