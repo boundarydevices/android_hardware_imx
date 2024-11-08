@@ -22,8 +22,6 @@
 #include <log/log.h>
 #include <sys/ioctl.h>
 
-#include "NV12_resize.h"
-
 namespace android {
 
 int32_t changeSensorFormats(int *src, int *dst, int len) {

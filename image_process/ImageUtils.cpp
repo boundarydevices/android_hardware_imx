@@ -28,8 +28,6 @@
 #include <ui/GraphicBufferMapper.h>
 #include <ui/Rect.h>
 
-#include "NV12_resize.h"
-
 #define ALIGN_PIXEL_4(x) ((x + 3) & ~3)
 #define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
 #define ALIGN_PIXEL_32(x) ((x + 31) & ~31)

@@ -22,7 +22,6 @@
 #include <log/log.h>
 
 #include "ImageUtils.h"
-#include "NV12_resize.h"
 
 #ifdef BOARD_HAVE_VPU
 #include "vpu_wrapper.h"

@@ -43,7 +43,6 @@ cc_library_shared {
     proprietary: true,
 
     srcs: [
-        "NV12_resize.cpp",
         "ImageUtils.cpp",
         "ImageProcess.cpp"
     ],
