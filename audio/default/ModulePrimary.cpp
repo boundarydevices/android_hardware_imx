@@ -87,6 +87,10 @@ ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(
     if (!c)
         return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
 
+    if (audioDevice.type.type == ::aidl::android::media::audio::common::AudioDeviceType::OUT_DEVICE &&
+            audioDevice.type.connection == "hdmi")
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+
     return ndk::ScopedAStatus::ok();
 }
 
