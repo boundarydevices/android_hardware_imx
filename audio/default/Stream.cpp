@@ -293,8 +293,13 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
         case Tag::flush:
             if (mState == StreamDescriptor::State::PAUSED) {
                 if (::android::status_t status = mDriver->flush(); status == ::android::OK) {
-                    populateReply(&reply, mIsConnected);
-                    mState = StreamDescriptor::State::STANDBY;
+                    if (::android::status_t status = mDriver->standby(); status == ::android::OK) {
+                        populateReply(&reply, mIsConnected);
+                        mState = StreamDescriptor::State::STANDBY;
+                    } else {
+                        LOG(ERROR) << __func__ << ": standby failed: " << status;
+                        mState = StreamDescriptor::State::ERROR;
+                    }
                 } else {
                     LOG(ERROR) << __func__ << ": flush failed: " << status;
                     mState = StreamDescriptor::State::ERROR;
