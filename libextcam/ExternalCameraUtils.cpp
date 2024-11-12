@@ -804,6 +804,15 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
         out->width = static_cast<int32_t>(inW);
         out->height = static_cast<int32_t>(inH);
         return 0;
+    } else if (((inW - outW) < 16) || ((inH - outH) < 16)) {
+        // HW decoder is 16 pixels aligned(160x128 --> 160x120, 432x240 --> 424x240)
+        // for some small resolutions after HW decoder, correct output cropping parameters.
+        out->left = (inW - outW) / 2;
+        out->top = (inH - outH) / 2;
+        out->width = static_cast<int32_t>(outW);
+        out->height = static_cast<int32_t>(outH);
+
+        return 0;
     }
 
     if (ct == VERTICAL) {
