@@ -41,6 +41,7 @@ class StreamPrimary : public StreamAlsa {
     bool mSkipNextTransfer = false;
     bool mIsStereoToMono = false;
     bool mIsS32ToS16 = false;
+    bool mIsS16ToS24 = false;
     bool mHardwarePause = false;
     std::optional<struct pcm_config> mSavedConfig;
 

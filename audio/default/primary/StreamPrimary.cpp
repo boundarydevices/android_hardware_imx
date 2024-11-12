@@ -138,6 +138,20 @@ void StreamPrimary::dump(const void *buffer, size_t bytes, const char *name) {
         return ::android::OK;
     }
 
+    if (mIsS16ToS24) {
+        auto channels = aidl::android::hardware::audio::common::getChannelCount(getContext().getChannelLayout());
+        auto src = static_cast<int16_t*>(buffer);
+        std::unique_ptr<int32_t[]> dst{new int32_t[frameCount * channels]};
+
+        memcpy_to_q8_23_from_i16(dst.get(), src, frameCount * channels);
+        RETURN_STATUS_IF_ERROR(
+                StreamAlsa::transfer(dst.get(), frameCount * channels, actualFrameCount, latencyMs));
+
+        *actualFrameCount /= 2;
+
+        return ::android::OK;
+    }
+
     RETURN_STATUS_IF_ERROR(
             StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
     return ::android::OK;
@@ -177,6 +191,18 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
             mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
             mHardwarePause = true;
+        }
+
+        char soc_name[PROPERTY_VALUE_MAX];
+        property_get("ro.boot.soc_type", soc_name, NULL);
+        if ((property_get_int32("vendor.persist.audio.pass.through", 0) == 2000) &&
+                ((0 == strcmp(soc_name, "imx8mp")) || (0 == strcmp(soc_name, "imx8ulp")))) {
+            mIsS16ToS24 = true;
+            LOG(INFO) << __func__ << ": Force set S24 format for passthrough on imx8mp/imx8ulp";
+            mConfig->format = PCM_FORMAT_S24_LE;
+        } else {
+            mIsS16ToS24 = false;
+            mConfig = mSavedConfig;
         }
 
         if (card->out_period_size) {
