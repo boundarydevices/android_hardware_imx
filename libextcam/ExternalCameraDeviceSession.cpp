@@ -1407,6 +1407,11 @@ std::unique_ptr<V4L2Frame> ExternalCameraDeviceSession::dequeueV4l2FrameLocked(n
             lagNs = curTimeNs - *shutterTs;
         }
 
+        ALOGV("%s: buffer.flags 0x%x, V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC 0x%x, curTime %" PRId64
+              ", *shutterTs %" PRId64 ", lagNs %" PRIu64 ", mMaxLagNs %" PRIu64 "",
+              __func__, buffer.flags, V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC, curTimeNs, *shutterTs,
+              lagNs, mMaxLagNs);
+
         if (lagNs > mMaxLagNs) {
             ALOGI("%s: drop too old buffer, index %d, lag %" PRIu64 " ns > max %" PRIu64 " ns", __FUNCTION__,
                   buffer.index, lagNs, mMaxLagNs);
@@ -1718,6 +1723,7 @@ void ExternalCameraDeviceSession::notifyShutter(int32_t frameNumber, nsecs_t shu
     msg.set<NotifyMsg::Tag::shutter>(ShutterMsg{
             .frameNumber = frameNumber,
             .timestamp = shutterTs,
+            .readoutTimestamp = static_cast<int64_t>(shutterTs + NS_PER_SEC / 30),
     });
     mCallback->notify({msg});
 }
