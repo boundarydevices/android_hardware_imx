@@ -118,7 +118,8 @@ static dma_buf_heap pick_dma_buf_heap(uint64_t usage) {
         return dma_buf_heap::protected_memory;
     } else if ((usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) || (usage & GRALLOC_USAGE_HW_FB) ||
                (usage & GRALLOC_USAGE_HW_COMPOSER) || (usage & GRALLOC_USAGE_PRIVATE_3) ||
-               (usage & GRALLOC_USAGE_HW_CAMERA_WRITE)) {
+               (usage & GRALLOC_USAGE_HW_CAMERA_WRITE) || (usage & GRALLOC_USAGE_HW_TEXTURE) ||
+               (usage & GRALLOC_USAGE_HW_RENDER)) {
         if (usage & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN))
             return dma_buf_heap::physically_contiguous;
         else
@@ -250,15 +251,15 @@ void allocator_close() {
     /* nop */
 }
 
-int allocator_get_physical_address(int fd, uint64_t usage, uint64_t *addr) {
-    if (fd < 0) {
-        ALOGE("%s: invalid parameters", __func__);
+int allocator_get_physical_address(gralloc_handle_t handle, uint64_t *addr) {
+    if (!(handle->flags & NXP_GRALLOC_FLAGS_CONTIGIOUS)) {
+        ALOGW("%s: cannot get physical address for non-contigious memory", __func__);
         return -EINVAL;
     }
 
-    auto heap = pick_dma_buf_heap(usage);
-    if ((heap == dma_buf_heap::system) || (heap == dma_buf_heap::system_uncached)) {
-        ALOGW("%s: no physical address for system heap", __func__);
+    int fd = handle->fds[0];
+    if (fd < 0) {
+        ALOGE("%s: invalid fd", __func__);
         return -EINVAL;
     }
 

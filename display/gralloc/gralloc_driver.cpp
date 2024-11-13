@@ -159,7 +159,7 @@ int32_t gralloc_driver::allocate(gralloc_buffer_descriptor *desc, native_handle_
     if (handle->flags & NXP_GRALLOC_FLAGS_CONTIGIOUS) {
         // Get physical address for the buffer with contigious memory
         uint64_t phys = 0;
-        if (allocator_get_physical_address(handle->fds[0], handle->usage, &phys) == 0)
+        if (allocator_get_physical_address(handle, &phys) == 0)
             handle->phys = phys;
         else
             ALOGE("%s: get physical address for contigious memory buffer failed!");
