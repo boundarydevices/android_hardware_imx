@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "secure-enclave"
+
 #include "SecureEnclave.h"
 
 #include <binder/IPCThreadState.h>

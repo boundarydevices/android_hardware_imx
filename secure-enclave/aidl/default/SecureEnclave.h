@@ -16,8 +16,6 @@
 
 #pragma once
 
-#define LOG_TAG "secure-enclave"
-
 #include <EleMessage.h>
 #include <EleOperation.h>
 #include <aidl/nxp/hardware/ele/BnSecureEnclave.h>
