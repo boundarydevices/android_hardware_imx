@@ -370,8 +370,8 @@ bool HdmiCecMock::getPhysicalAddrFromEdid(uint16_t* phyaddr) {
     if (mAidlComposer->createClient(&mAidlComposerClient).isOk()) {
         if (mAidlComposerClient->getDisplayIdentificationData(0, &id).isOk()) {
             uint8_t* outData = &(id.data)[0];
-            ALOGV("id.port:%d,  id.data.size():%d", id.port, id.data.size());
-            for (int i = 0; i < id.data.size(); i = i + 16) {
+            ALOGV("id.port:%d,  id.data.size():%zu", id.port, id.data.size());
+            for (unsigned long i = 0; i < id.data.size(); i = i + 16) {
                 ALOGV("edid 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x",
                       outData[i], outData[i + 1], outData[i + 2], outData[i + 3], outData[i + 4],
                       outData[i + 5], outData[i + 6], outData[i + 7], outData[i + 8],
@@ -418,7 +418,7 @@ bool HdmiCecMock::getPhysicalAddrFromEdid(uint16_t* phyaddr) {
 
             uint32_t HdmiIdentifier = 0x000C03;
             if ((HdmiIdentifier & 0x00ffffffff) !=
-                (outData[idx + 3] << 16 | outData[idx + 2] << 8 | outData[idx + 1])) {
+                (uint32_t)(outData[idx + 3] << 16 | outData[idx + 2] << 8 | outData[idx + 1])) {
                 ALOGE("HdmiIdentifier check failed:0x%x %x %x", outData[idx + 3], outData[idx + 2],
                       outData[idx + 1]);
                 goto finish;
