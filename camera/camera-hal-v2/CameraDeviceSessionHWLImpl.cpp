@@ -756,7 +756,7 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     ALOGI("%s: mLibCameraStream %p", __func__, mLibCameraStream);
 
     // allocate libcamera frame buffers
-    for (int i = 0; i < mSensorData.mLibcameraBuffers; i++) {
+    for (uint32_t i = 0; i < mSensorData.mLibcameraBuffers; i++) {
         uint32_t bufferStride;
         buffer_handle_t hnd;
         // ??? fix me
