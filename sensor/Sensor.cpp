@@ -122,9 +122,9 @@ void HWSensorBase::sendAdditionalInfoReport() {
 
     for (const auto& frame : mAdditionalInfoFrames) {
         events.emplace_back(Event{
+                .timestamp = android::elapsedRealtimeNano(),
                 .sensorHandle = mSensorInfo.sensorHandle,
                 .sensorType = SensorType::ADDITIONAL_INFO,
-                .timestamp = android::elapsedRealtimeNano(),
                 .u.additional = frame,
         });
     }
