@@ -622,16 +622,6 @@ int DeviceComposer::convertRotation(common::Transform transform, struct g2d_surf
         case common::Transform::FLIP_V:
             dst.rot = G2D_FLIP_V;
             break;
-        case (common::Transform)(static_cast<int>(common::Transform::FLIP_H) |
-                                 static_cast<int>(common::Transform::ROT_90)):
-            dst.rot = G2D_ROTATION_90;
-            src.rot = G2D_FLIP_H;
-            break;
-        case (common::Transform)(static_cast<int>(common::Transform::FLIP_V) |
-                                 static_cast<int>(common::Transform::ROT_90)):
-            dst.rot = G2D_ROTATION_90;
-            src.rot = G2D_FLIP_V;
-            break;
         default:
             dst.rot = G2D_ROTATION_0;
             break;
