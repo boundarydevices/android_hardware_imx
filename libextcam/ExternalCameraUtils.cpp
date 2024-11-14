@@ -807,12 +807,8 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
     } else if (((inW - outW) < 16) || ((inH - outH) < 16)) {
         // HW decoder is 16 pixels aligned(160x128 --> 160x120, 432x240 --> 424x240)
         // for some small resolutions after HW decoder, correct output cropping parameters.
-        out->left = (inW - outW) / 2;
-        out->top = (inH - outH) / 2;
-        out->width = static_cast<int32_t>(outW);
-        out->height = static_cast<int32_t>(outH);
 
-        return 0;
+        goto crop_from_center;
     }
 
     if (ct == VERTICAL) {
@@ -820,7 +816,7 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
         if (scaledOutH > inH) {
             ALOGE("%s: Output size %dx%d cannot be vertically cropped from input size %dx%d",
                   __FUNCTION__, outW, outH, inW, inH);
-            return -1;
+            goto crop_from_center;
         }
         scaledOutH = scaledOutH & ~0x1; // make it multiple of 2
 
@@ -830,12 +826,13 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
         out->height = static_cast<int32_t>(scaledOutH);
         ALOGV("%s: crop %dx%d to %dx%d: top %d, scaledH %d", __FUNCTION__, inW, inH, outW, outH,
               out->top, static_cast<int32_t>(scaledOutH));
+        return 0;
     } else {
         uint64_t scaledOutW = static_cast<uint64_t>(outW) * inH / outH;
         if (scaledOutW > inW) {
             ALOGE("%s: Output size %dx%d cannot be horizontally cropped from input size %dx%d",
                   __FUNCTION__, outW, outH, inW, inH);
-            return -1;
+            goto crop_from_center;
         }
         scaledOutW = scaledOutW & ~0x1; // make it multiple of 2
 
@@ -845,7 +842,17 @@ int getCropRect(CroppingType ct, const Size& inSize, const Size& outSize, IMappe
         out->height = static_cast<int32_t>(inH);
         ALOGV("%s: crop %dx%d to %dx%d: top %d, scaledW %d", __FUNCTION__, inW, inH, outW, outH,
               out->top, static_cast<int32_t>(scaledOutW));
+        return 0;
     }
+
+crop_from_center:
+    // For some situations where the aspect ratio is not expected, try to crop from center.
+    out->left = (inW - outW) / 2;
+    out->top = (inH - outH) / 2;
+    out->width = static_cast<int32_t>(outW);
+    out->height = static_cast<int32_t>(outH);
+    ALOGV("%s: crop %dx%d to %dx%d: left %d, top %d", __FUNCTION__, inW, inH, outW, outH, out->left,
+          out->top);
 
     return 0;
 }
