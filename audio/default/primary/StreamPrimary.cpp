@@ -331,7 +331,6 @@ StreamSwitcher::DeviceSwitchBehavior StreamOutPrimary::switchCurrentStream(
     if (devices.size() > 1) {
         LOG(ERROR) << __func__ << ": primary stream can only be connected to one device, got: "
                    << devices.size();
-        return DeviceSwitchBehavior::UNSUPPORTED_DEVICES;
     }
     if (devices.empty() || useStubStream(devices[0]) == isStubStream()) {
         return DeviceSwitchBehavior::USE_CURRENT_STREAM;
