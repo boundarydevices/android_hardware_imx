@@ -31,6 +31,7 @@ class StreamPrimary : public StreamAlsa {
     ::android::status_t start() override;
     ::android::status_t transfer(void* buffer, size_t frameCount, size_t* actualFrameCount,
                                  int32_t* latencyMs) override;
+    ::android::status_t refinePosition(StreamDescriptor::Position* position) override;
 
   protected:
     std::vector<alsa::DeviceProfile> getDeviceProfiles() override;

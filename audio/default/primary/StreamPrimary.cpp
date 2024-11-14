@@ -157,6 +157,15 @@ void StreamPrimary::dump(const void *buffer, size_t bytes, const char *name) {
     return ::android::OK;
 }
 
+::android::status_t StreamPrimary::refinePosition(StreamDescriptor::Position* position) {
+    if (property_get_int32("vendor.audio.lpa.enable", 0)) {
+        return StreamAlsa::refinePosition(position);
+    }
+    // Since not all data is actually sent to the HAL, use the position maintained by Stream class
+    // which accounts for all frames passed from / to the client.
+    return ::android::OK;
+}
+
 std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
     std::vector<alsa::DeviceProfile> deviceProfile{
         alsa::DeviceProfile{.card = 0,
