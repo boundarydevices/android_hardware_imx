@@ -190,7 +190,7 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mConfig->format = PCM_FORMAT_S32_LE;
             mIsS32ToS16 = true;
             LOG(INFO) << __func__ << ": Force set S32 format for micfil";
-        } else {
+        } else if (mIsStereoToMono || mIsS32ToS16) {
             mIsStereoToMono = false;
             mIsS32ToS16 = false;
             mConfig = mSavedConfig;
@@ -209,7 +209,7 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mIsS16ToS24 = true;
             LOG(INFO) << __func__ << ": Force set S24 format for passthrough on imx8mp/imx8ulp";
             mConfig->format = PCM_FORMAT_S24_LE;
-        } else {
+        } else if (mIsS16ToS24) {
             mIsS16ToS24 = false;
             mConfig = mSavedConfig;
         }
