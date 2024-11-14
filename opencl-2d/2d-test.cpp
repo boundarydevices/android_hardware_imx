@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#define LOG_TAG "2d-test"
+
 #include <CL/opencl.h>
 #include <cutils/properties.h>
 #include <dlfcn.h>
@@ -68,7 +71,6 @@ hwc_func1 mCLFinish;
 #define CLENGINE "libg2d-opencl.so"
 #define G2DENGINE "libg2d"
 
-#define LOG_TAG "2d-test"
 #define DEBUG 1
 #define MAX_FILE_LEN 128
 #define G2D_TEST_LOOP 10
@@ -116,7 +118,7 @@ static int get_buf_size(enum cl_g2d_format format, int width, int height, bool c
 static int get_file_len(const char *filename) {
     int fd = 0;
     int filesize = 0;
-    fd = open(filename, O_RDWR, 0666);
+    fd = open(filename, O_RDWR| O_CREAT, 0666);
     if (fd < 0) {
         ALOGE("Unable to open file [%s]\n", filename);
         return -1;
@@ -1037,7 +1039,7 @@ int FreePhyBuffer(struct testPhyBuffer *phyBufs) {
 static struct testPhyBuffer InPhyBuffer[TEST_BUFFER_NUM];
 static bool g_use_v4l2_buffer = false;
 static int g_fd_v4l = -1;
-static char *g_v4l_device = "/dev/video1";
+static char *g_v4l_device = (char *)"/dev/video1";
 int g_out_width = 1920;
 int g_out_height = 1080;
 int g_cap_fmt = V4L2_PIX_FMT_YUYV;
@@ -1439,7 +1441,7 @@ int main(int argc, char **argv) {
             mFinishEngine(G2dHandle);
         }
         t2 = systemTime();
-        ALOGI("End g2d engine blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP,
+        ALOGI("End g2d engine blit, %d loops use %lu ns, average %lu ns per loop", G2D_TEST_LOOP,
               t2 - t1, (t2 - t1) / G2D_TEST_LOOP);
 
         dump_buffer((char *)input_buf, gCopyLen > 256 ? 256 : gCopyLen, "g2d_input");
@@ -1464,7 +1466,7 @@ int main(int argc, char **argv) {
             output_buf = OutPhyBuffer[test_buffer_index].mVirtAddr;
             outputPhy_buf = OutPhyBuffer[test_buffer_index].mPhyAddr;
 
-            ALOGV("loop %d, test_buffer_index %d, inVirt %p, inPhy 0x%llx, outVirt %p, outPhy 0x%llx, inputlen %d",
+            ALOGV("loop %d, test_buffer_index %d, inVirt %p, inPhy 0x%lx, outVirt %p, outPhy 0x%lx, inputlen %d",
                   loop, test_buffer_index, input_buf, inputPhy_buf, output_buf, outputPhy_buf,
                   inputlen);
 
@@ -1510,7 +1512,7 @@ int main(int argc, char **argv) {
             mCLFinish(CLHandle);
         }
         t2 = systemTime();
-        ALOGI("End CL engine blit, %d loops use %lld ns, average %lld ns per loop, g_usePhyAddr "
+        ALOGI("End CL engine blit, %d loops use %lu ns, average %lu ns per loop, g_usePhyAddr "
               "%d, input cached %d, output cached %d",
               G2D_TEST_LOOP, t2 - t1, (t2 - t1) / G2D_TEST_LOOP, g_usePhyAddr, gInputMemory_type,
               gOutputMemory_type);
@@ -1563,7 +1565,7 @@ int main(int argc, char **argv) {
         }
     }
     t2 = systemTime();
-    ALOGI("End CPU 2d blit, %d loops use %lld ns, average %lld ns per loop", G2D_TEST_LOOP, t2 - t1,
+    ALOGI("End CPU 2d blit, %d loops use %lu ns, average %lu ns per loop", G2D_TEST_LOOP, t2 - t1,
           (t2 - t1) / G2D_TEST_LOOP);
     dumpOutPutBuffer((char *)output_benchmark_buf, "benchmark");
 

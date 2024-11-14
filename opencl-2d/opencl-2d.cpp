@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#define LOG_TAG "opencl-2d"
+
 #include <CL/opencl.h>
 #include <math.h>
 #include <stdio.h>
@@ -25,8 +28,6 @@
 #include <utils/threads.h>
 
 #include "opencl-2d.h"
-
-#define LOG_TAG "opencl-2d"
 
 #ifdef BUILD_FOR_ANDROID
 #include <cutils/log.h>
@@ -418,7 +419,7 @@ static cl_command_queue CreateCommandQueue(cl_context context, cl_device_id *dev
     // Allocate memory for the devices buffer
     devices = (cl_device_id *)malloc(deviceBufferSize);
     if (devices == NULL) {
-        g2d_printf("%s: Failed to malloc %d bytes for devices\n", __func__, deviceBufferSize);
+        g2d_printf("%s: Failed to malloc %zu bytes for devices\n", __func__, deviceBufferSize);
         return NULL;
     }
 
@@ -430,7 +431,7 @@ static cl_command_queue CreateCommandQueue(cl_context context, cl_device_id *dev
     }
 
     // step 4: Create a command-queue
-    commandQueue = clCreateCommandQueue(context, devices[0], 0, NULL);
+    commandQueue = clCreateCommandQueueWithProperties(context, devices[0], 0, NULL);
     if (commandQueue == NULL) {
         free(devices);
         g2d_printf("%s: Failed to create commandQueue for device 0\n", __func__);
