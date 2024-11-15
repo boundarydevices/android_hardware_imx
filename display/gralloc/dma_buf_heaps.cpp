@@ -159,6 +159,9 @@ gralloc_handle *allocator_allocate(const gralloc_buffer_descriptor *descriptor) 
     auto allocator = get_global_buffer_allocator();
 
     auto heap = pick_dma_buf_heap(descriptor->usage);
+    if (descriptor->name == "MediaCodec.release") // Just a workaround here
+        heap = dma_buf_heap::physically_contiguous;
+
     auto heap_name = get_dma_buf_heap_name(heap);
     int fd = allocator->Alloc(heap_name, descriptor->total_size);
     if (fd < 0) {
