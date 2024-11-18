@@ -46,31 +46,37 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
     mSensorInfo.vendor = "nxp";
     mSensorInfo.version = 1;
     mSensorInfo.fifoReservedEventCount = 0;
-    mSensorInfo.fifoMaxEventCount = 0;
+    mSensorInfo.fifoMaxEventCount = 100;
     mSensorInfo.requiredPermission = "";
-    mSensorInfo.flags = 0;
 
     switch (type) {
         case SensorType::ACCELEROMETER:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_ACCELEROMETER;
+            mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::CONTINUOUS_MODE;
             break;
         case SensorType::MAGNETIC_FIELD:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_MAGNETIC_FIELD;
+            mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::CONTINUOUS_MODE;
             break;
         case SensorType::GYROSCOPE:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_GYROSCOPE;
+            mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::CONTINUOUS_MODE;
             break;
         case SensorType::PRESSURE:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_PRESSURE;
+            mSensorInfo.flags |= SensorFlagBits::CONTINUOUS_MODE;
             break;
         case SensorType::AMBIENT_TEMPERATURE:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE;
+            mSensorInfo.flags |= SensorFlagBits::ON_CHANGE_MODE;
             break;
         case SensorType::LIGHT:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_LIGHT;
+            mSensorInfo.flags |= SensorFlagBits::ON_CHANGE_MODE;
             break;
         case SensorType::STEP_COUNTER:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_STEP_COUNTER;
+            mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
             break;
         default:
             ALOGE("unsupported sensor type %d", type);
@@ -628,7 +634,8 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     buffer_path = "/dev/iio:device";
     buffer_path.append(std::to_string(mIioData.iio_dev_num));
     mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
-    if (mPollFdIio.fd < 0) {
+    if (mPollFdIio.fd < 0 || mIioData.name == "mpl3115" ||
+        mIioData.type == SensorType::STEP_COUNTER) {
         if (mIioData.type == SensorType::ACCELEROMETER) {
             static const char* IIO_ACC_X_RAW = "in_accel_x_raw";
             static const char* IIO_ACC_Y_RAW = "in_accel_y_raw";
@@ -654,6 +661,8 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
             fd_mag_y = unique_fd(open(y_filename.c_str(), O_RDONLY));
             fd_mag_z = unique_fd(open(z_filename.c_str(), O_RDONLY));
         }
+        mSensorInfo.minDelay = 2500;
+        mSensorInfo.maxDelay = 500000;
     }
     mPollFdIio.events = POLLIN;
     mSensorRawData.resize(mScanSize);

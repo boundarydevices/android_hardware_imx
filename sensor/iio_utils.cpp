@@ -36,7 +36,8 @@ static const char* IIO_SCALE_FILENAME = "_scale";
 static const char* IIO_SAMPLING_FREQUENCY = "_sampling_frequency";
 static const char* IIO_BUFFER_ENABLE = "buffer/enable";
 static const char* IIO_NAME_FILENAME = "name";
-static const char* IIO_RANGE_AVAIL_FILENAME = "raw_available";
+static const char* IIO_MAX_RANGE_FILENAME = "sensor_max_range";
+static const char* IIO_RESOLUTION_FILENAME = "sensor_resolution";
 static const char* IIO_LIGHT_INPUT = "in_illuminance0_input";
 static const char* IIO_STEPCOUNTER_INPUT = "events/in_steps_change_value";
 static const char* IIO_TRIGGER = "/sys/devices/iio_sysfs_trigger/";
@@ -151,6 +152,10 @@ static int sysfs_read_float(const std::string& file, float* val) {
     return sysfs_read_val(file, "%f\n", val);
 }
 
+static int sysfs_read_int64(const std::string& file, int64_t* val) {
+    return sysfs_read_val(file, "%lld\n", val);
+}
+
 static int sysfs_read_str(const std::string& file, std::string* str) {
     std::ifstream infile(file);
     if (!infile.is_open()) return -EINVAL;
@@ -245,37 +250,6 @@ static int get_sampling_frequency_available(const std::string& device_dir,
     return ret < 0 ? ret : 0;
 }
 
-static int get_sensor_range(const std::string& device_dir, float* resolution, int64_t* max_range) {
-    int ret = 0;
-    char* rest;
-    std::string line;
-    DirPtr dp(nullptr, closedir);
-    const struct dirent* ent;
-
-    ret = sysfs_opendir(device_dir, &dp);
-    if (ret) return ret;
-    while (ent = readdir(dp.get()), ent != nullptr) {
-        if (str_has_suffix(ent->d_name, IIO_RANGE_AVAIL_FILENAME)) {
-            std::string filename = device_dir;
-            filename += "/";
-            filename += ent->d_name;
-
-            ret = sysfs_read_str(filename, &line);
-            if (ret < 0) return ret;
-            char* pch = strtok_r(const_cast<char*>(line.c_str()), " ", &rest);
-            std::vector<std::string> range_avail;
-            while (pch != nullptr) {
-                range_avail.push_back(pch);
-                pch = strtok_r(nullptr, " ", &rest);
-            }
-            *resolution = atof(range_avail[1].c_str());
-            *max_range = atoll(range_avail[2].c_str());
-        }
-    }
-
-    return ret < 0 ? ret : 0;
-}
-
 static int get_sensor_name(const std::string& device_dir, std::string* name) {
     const std::string filename = device_dir + "/" + IIO_NAME_FILENAME;
 
@@ -318,6 +292,18 @@ static int get_sensor_scale(const std::string& device_dir, float* scale) {
         }
     }
     return err;
+}
+
+static int get_sensor_max_range(const std::string& device_dir, int64_t* max_range) {
+    const std::string filename = device_dir + "/" + IIO_MAX_RANGE_FILENAME;
+
+    return sysfs_read_int64(filename, max_range);
+}
+
+static int get_sensor_resolution(const std::string& device_dir, float* resolution) {
+    const std::string filename = device_dir + "/" + IIO_RESOLUTION_FILENAME;
+
+    return sysfs_read_float(filename, resolution);
 }
 
 int get_light_value(const std::string& device_dir, unsigned int* light) {
@@ -387,7 +373,7 @@ int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data
             ALOGI("found sensor %s at path %s", iio_dev_data.name.c_str(), path_device.c_str());
             err = get_sampling_frequency_available(iio_dev_data.sysfspath,
                                                 &iio_dev_data.sampling_freq_avl);
-            if (err) {
+            if (err < 0) {
                 ALOGE("get_sampling_frequency_available for %s returned error %d", path_device.c_str(),
                     err);
                 iio_dev_data.sampling_freq_avl[0] = 100;
@@ -395,15 +381,19 @@ int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data
 
             std::sort(iio_dev_data.sampling_freq_avl.begin(), iio_dev_data.sampling_freq_avl.end());
             err = get_sensor_scale(iio_dev_data.sysfspath, &iio_dev_data.scale);
-            if (err) {
-                ALOGE("get_sensor_scale for %s returned error %d", path_device.c_str(), err);
+            if (err < 0) {
                 iio_dev_data.scale = 0.015258f;
+                ALOGI("get_sensor_scale for %s returned error %d", path_device.c_str(), err);
             }
-            err = get_sensor_range(iio_dev_data.sysfspath, &iio_dev_data.resolution,
-                                &iio_dev_data.max_range);
-            if (err) {
-                ALOGE("get_sensor_range for %s returned error %d", path_device.c_str(), err);
-                iio_dev_data.max_range = 16000.0f;
+            err = get_sensor_max_range(iio_dev_data.sysfspath, &iio_dev_data.max_range);
+            if (err < 0) {
+                iio_dev_data.max_range = 16000;
+                ALOGI("get_sensor_max_range for %s returned error %d", path_device.c_str(), err);
+            }
+            err = get_sensor_resolution(iio_dev_data.sysfspath, &iio_dev_data.resolution);
+            if (err < 0) {
+                iio_dev_data.resolution = 1.0f;
+                ALOGI("get_sensor_resolution for %s returned error %d", path_device.c_str(), err);
             }
 
             sscanf(ent->d_name + iio_base_len, "%hhu", &iio_dev_data.iio_dev_num);
