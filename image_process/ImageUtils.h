@@ -62,7 +62,8 @@ int convertPixelFormatToV4L2Format(int format, bool invert = false);
 int convertV4L2FormatToPixelFormat(uint32_t fourcc);
 int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool align);
 
-int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuffer &outBufInfo);
+int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuffer &outBufInfo,
+                   bool bCached = true);
 int FreePhyBuffer(buffer_handle_t buffer);
 uint64_t GetPhyAddrFromBuffer(int fd);
 int UnlockPhyBuffer(buffer_handle_t buffer);

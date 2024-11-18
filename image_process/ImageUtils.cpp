@@ -27,7 +27,6 @@
 #include <ui/GraphicBufferAllocator.h>
 #include <ui/GraphicBufferMapper.h>
 #include <ui/Rect.h>
-#include <cutils/properties.h>
 
 #define ALIGN_PIXEL_4(x) ((x + 3) & ~3)
 #define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
@@ -811,18 +810,14 @@ int32_t getSizeByForamtRes(int32_t format, uint32_t width, uint32_t height, bool
     return size;
 }
 
-int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuffer &outBufInfo) {
+int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuffer &outBufInfo,
+                   bool bCached) {
     buffer_handle_t bufferHandle;
     uint32_t bufferStride;
     uint64_t usage = GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_PRIVATE_3; // need to make sure physical contiguous memory
 
-    // workaround for android.hardware.camera2.cts.ImageReaderTest#testAllOutputYUVResolutions[1]
-    // on 8mq(G3D), need uncached buffer for resize->csc, Otherwise the image will have green lines
-    char socType[128] = {0};
-    property_get("ro.boot.soc_type", socType, "");
-    if (!strstr(socType, "imx8mq")) {
+    if (bCached)
         usage |= GRALLOC_USAGE_SW_READ_OFTEN;
-    }
 
     auto status = GraphicBufferAllocator::get().allocate(width, height, format,
                                                          /*layerCount=*/1, usage, &bufferHandle,

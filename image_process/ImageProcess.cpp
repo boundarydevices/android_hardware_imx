@@ -532,8 +532,8 @@ int ImageProcess::ConvertImageByG2DCopy(ImxImageBuffer &dstBuf, ImxImageBuffer &
 }
 
 static int AllocPhyBufferByFmtRes(ImxImageBuffer &imgBuf, uint32_t format, uint32_t width,
-                                  uint32_t height, uint32_t stride) {
-    int ret = AllocPhyBuffer(stride, height, format, imgBuf);
+                                  uint32_t height, uint32_t stride, bool bCached = true) {
+    int ret = AllocPhyBuffer(stride, height, format, imgBuf, bCached);
     if (ret) {
         ALOGE("%s: AllocPhyBuffer failed, formatSize %d, allocSize %d", __func__,
               (int)imgBuf.mFormatSize, (int)imgBuf.mSize);
@@ -871,8 +871,17 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     // case 3: diffrent format, different resolution
     // first resize, then go through case 4.
     if ((srcBuf.mWidth != dstBuf.mWidth) || (srcBuf.mHeight != dstBuf.mHeight)) {
+        // for android.hardware.camera2.cts.ImageReaderTest#testAllOutputYUVResolutions[1] on 8mq,
+        // need uncached buffer for resize->csc, Otherwise the image will have green lines.
+        char socType[128] = {0};
+        bool bCached = true;
+        property_get("ro.boot.soc_type", socType, "");
+        if (strstr(socType, "imx8mq")) {
+            bCached = false;
+        }
+
         ret = AllocPhyBufferByFmtRes(resizeBuf, srcBuf.mFormat, dstBuf.mWidth, dstBuf.mHeight,
-                                     dstBuf.mStride);
+                                     dstBuf.mStride, bCached);
         if (ret) {
             ALOGE("%s:%d AllocPhyBufferByFmtRes failed", __func__, __LINE__);
             return -EINVAL;
