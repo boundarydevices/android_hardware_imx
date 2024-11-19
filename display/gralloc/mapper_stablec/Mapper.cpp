@@ -195,8 +195,8 @@ AIMapper_Error GrallocMapperV5::getTransportSize(buffer_handle_t _Nonnull buffer
     VALIDATE_DRIVER_AND_BUFFER_HANDLE(bufferHandle)
 
     // No local process data is currently stored on the native handle.
-    *outNumFds = bufferHandle->numFds;
-    *outNumInts = bufferHandle->numInts;
+    *outNumFds = static_cast<uint32_t>(bufferHandle->numFds);
+    *outNumInts = static_cast<uint32_t>(bufferHandle->numInts);
     return AIMAPPER_ERROR_NONE;
 }
 
@@ -407,8 +407,8 @@ int32_t GrallocMapperV5::getStandardMetadata(gralloc_handle_t memHandle, F&& pro
             return -AIMAPPER_ERROR_NO_RESOURCES;
         }
 
-        for (size_t plane = 0; plane < planeLayouts.size(); plane++) {
-            PlaneLayout& planeLayout = planeLayouts[plane];
+        for (uint32_t plane = 0; plane < planeLayouts.size(); plane++) {
+            PlaneLayout& planeLayout = planeLayouts[static_cast<size_t>(plane)];
             planeLayout.offsetInBytes = mDriver->get_plane_offset(memHandle, plane);
             planeLayout.strideInBytes = mDriver->get_plane_stride(memHandle, plane);
             planeLayout.totalSizeInBytes = mDriver->get_plane_size(memHandle, plane);
@@ -429,8 +429,8 @@ int32_t GrallocMapperV5::getStandardMetadata(gralloc_handle_t memHandle, F&& pro
             aidl::android::hardware::graphics::common::Rect crop;
             crop.left = 0;
             crop.top = 0;
-            crop.right = w;
-            crop.bottom = h;
+            crop.right = static_cast<int32_t>(w);
+            crop.bottom = static_cast<int32_t>(h);
             crops.push_back(crop);
         }
 
@@ -596,7 +596,7 @@ void GrallocMapperV5::dumpBuffer(
                     StandardMetadata<T>::value::encode(value, tempBuffer.data(), tempBuffer.size());
             // The initial size should always be large enough, but just in case...
             if (size > tempBuffer.size()) {
-                tempBuffer.resize(size * 2);
+                tempBuffer.resize(static_cast<size_t>(size * 2));
                 size = StandardMetadata<T>::value::encode(value, tempBuffer.data(),
                                                           tempBuffer.size());
             }

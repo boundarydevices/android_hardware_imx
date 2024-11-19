@@ -44,7 +44,7 @@ public:
 
     uint32_t get_resolved_drm_format(uint32_t drm_format, uint64_t usage);
 
-    uint32_t get_id(gralloc_handle_t hnd) const { return hnd->backing_store_id; }
+    uint64_t get_id(gralloc_handle_t hnd) const { return hnd->backing_store_id; }
     uint32_t get_width(gralloc_handle_t hnd) const { return hnd->width; }
     uint32_t get_height(gralloc_handle_t hnd) const { return hnd->height; }
     uint32_t get_pixel_stride(gralloc_handle_t hnd) const { return hnd->pixel_stride; }

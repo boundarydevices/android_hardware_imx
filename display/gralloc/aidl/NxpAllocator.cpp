@@ -91,20 +91,20 @@ ndk::ScopedAStatus NxpAllocator::allocate(const std::vector<uint8_t>& descriptor
     }
 
     std::vector<native_handle_t*> handles;
-    handles.resize(count, nullptr);
+    handles.resize(static_cast<size_t>(count), nullptr);
 
-    for (int32_t i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(count); i++) {
         ndk::ScopedAStatus status = allocate(description, &outResult->stride, &handles[i]);
         if (!status.isOk()) {
-            for (int32_t j = 0; j < i; j++) {
+            for (uint32_t j = 0; j < i; j++) {
                 releaseBufferAndHandle(handles[j]);
             }
             return status;
         }
     }
 
-    outResult->buffers.resize(count);
-    for (int32_t i = 0; i < count; i++) {
+    outResult->buffers.resize(static_cast<size_t>(count));
+    for (uint32_t i = 0; i < static_cast<uint32_t>(count); i++) {
         auto handle = handles[i];
         outResult->buffers[i] = ::android::dupToAidl(handle);
         releaseBufferAndHandle(handle);
@@ -193,21 +193,21 @@ ndk::ScopedAStatus NxpAllocator::allocate2(const BufferDescriptorInfo& descripto
     BufferDescriptorInfoV4 descriptionV4 = convertAidlToIMapperV4Descriptor(descriptor);
 
     std::vector<native_handle_t*> handles;
-    handles.resize(count, nullptr);
+    handles.resize(static_cast<size_t>(count), nullptr);
 
-    for (int32_t i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(count); i++) {
         ndk::ScopedAStatus status =
                 allocate(descriptionV4, &outResult->stride, &handles[i], initialDataspace);
         if (!status.isOk()) {
-            for (int32_t j = 0; j < i; j++) {
+            for (uint32_t j = 0; j < i; j++) {
                 releaseBufferAndHandle(handles[j]);
             }
             return status;
         }
     }
 
-    outResult->buffers.resize(count);
-    for (int32_t i = 0; i < count; i++) {
+    outResult->buffers.resize(static_cast<size_t>(count));
+    for (uint32_t i = 0; i < static_cast<uint32_t>(count); i++) {
         auto handle = handles[i];
         outResult->buffers[i] = ::android::dupToAidl(handle);
         releaseBufferAndHandle(handle);

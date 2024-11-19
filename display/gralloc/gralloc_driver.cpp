@@ -127,8 +127,9 @@ int32_t gralloc_driver::allocate(gralloc_buffer_descriptor *desc, native_handle_
     gralloc_handle *handle = nullptr;
     if (allocate_from_gpu_gralloc(desc->pixel_format, desc->usage, desc->flags)) {
         native_handle **phnd = reinterpret_cast<native_handle **>(&handle);
-        ret = mGPUAlloc->alloc(mGPUAlloc, desc->width, desc->height, desc->pixel_format,
-                               (int)desc->usage, const_cast<buffer_handle_t *>(phnd),
+        ret = mGPUAlloc->alloc(mGPUAlloc, static_cast<int>(desc->width),
+                               static_cast<int>(desc->height), desc->pixel_format,
+                               static_cast<int>(desc->usage), const_cast<buffer_handle_t *>(phnd),
                                reinterpret_cast<int *>(&desc->pixel_stride));
         if (ret == 0 && handle != nullptr) {
             handle->usage |= (desc->usage & 0x100000000); // FRONT_BUFFER = 1L << 32
@@ -137,7 +138,7 @@ int32_t gralloc_driver::allocate(gralloc_buffer_descriptor *desc, native_handle_
             if ((handle->usage & GRALLOC_USAGE_HW_FB) ||
                 (handle->usage & GRALLOC_USAGE_HW_COMPOSER)) {
                 handle->flags |=
-                        NXP_GRALLOC_FLAGS_CONTIGIOUS; // TODO: need to check with GPU galloc side
+                        NXP_GRALLOC_FLAGS_CONTIGUOUS; // TODO: need to check with GPU galloc side
             }
             *out_handle = handle;
             dmabuf_allocate(desc, nullptr); // calculate buffer infomation, but not allocate memory
@@ -156,8 +157,8 @@ int32_t gralloc_driver::allocate(gralloc_buffer_descriptor *desc, native_handle_
         return ret;
     }
 
-    if (handle->flags & NXP_GRALLOC_FLAGS_CONTIGIOUS) {
-        // Get physical address for the buffer with contigious memory
+    if (handle->flags & NXP_GRALLOC_FLAGS_CONTIGUOUS) {
+        // Get physical address for the buffer with contiguous memory
         uint64_t phys = 0;
         if (allocator_get_physical_address(handle, &phys) == 0)
             handle->phys = phys;
@@ -186,8 +187,8 @@ int32_t gralloc_driver::allocate(gralloc_buffer_descriptor *desc, native_handle_
     handle->backing_store_id = next_buffer_id++;
 
     int32_t reserved_region_fd;
-    int name_size;
-    int num_fds = GRALLOC_HANDLE_NUM_FDS; // TODO: the default fds includes all fds of buffer
+    uint32_t name_size;
+    uint32_t num_fds = GRALLOC_HANDLE_NUM_FDS; // TODO: the default fds includes all fds of buffer
     handle->reserved_region_size = desc->reserved_region_size;
     if (desc->reserved_region_size > 0) {
         reserved_region_fd = create_reserved_region(desc->reserved_region_size);
@@ -206,14 +207,15 @@ int32_t gralloc_driver::allocate(gralloc_buffer_descriptor *desc, native_handle_
     } else {
         reserved_region_fd = -1;
     }
-    handle->numFds = num_fds;
-    handle->numInts = ((sizeof(gralloc_handle) - sizeof(native_handle_t)) / sizeof(int)) - num_fds;
+    handle->numFds = static_cast<int>(num_fds);
+    handle->numInts = static_cast<int>(
+            ((sizeof(gralloc_handle) - sizeof(native_handle_t)) / sizeof(int)) - num_fds);
     handle->fds[num_fds - 1] = reserved_region_fd;
 
     if (desc->name.size() > BUFFER_NAME_MAX_SIZE - 1)
         name_size = BUFFER_NAME_MAX_SIZE;
     else
-        name_size = desc->name.size() + 1;
+        name_size = static_cast<uint32_t>(desc->name.size()) + 1;
     snprintf(handle->name, name_size, "%s", desc->name.c_str());
 
     ALOGI("allocated %s buffer info: %d x %d, pixel_format=0x%" PRIx32 "(%s), drm_format=%s, "
@@ -319,8 +321,10 @@ int32_t gralloc_driver::lock(buffer_handle_t handle, int32_t acquire_fence,
 
     void *vaddr = nullptr;
     if (hnd->flags & NXP_GRALLOC_FLAGS_FROM_GPU) {
-        ret = mGPUModule->lock(mGPUModule, handle, usage, rect->x, rect->y, rect->width,
-                               rect->height, &vaddr);
+        ret = mGPUModule->lock(mGPUModule, handle, static_cast<int>(usage),
+                               static_cast<int>(rect->x), static_cast<int>(rect->y),
+                               static_cast<int>(rect->width), static_cast<int>(rect->height),
+                               &vaddr);
     } else if (hnd->fds[0] >= 0) { // TODO: Need check if includes CPU R/W usage
         if (!hnd->base && (allocator_map(hnd) != 0)) {
             ALOGE("%s: buffer:%s cannot mmap %s", __func__, hnd->name, strerror(errno));

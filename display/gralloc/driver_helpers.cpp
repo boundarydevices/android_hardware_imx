@@ -24,9 +24,9 @@
 
 struct planar_layout {
     size_t num_planes;
-    int horizontal_subsampling[DRV_MAX_PLANES];
-    int vertical_subsampling[DRV_MAX_PLANES];
-    int bits_per_pixel[DRV_MAX_PLANES];
+    uint32_t horizontal_subsampling[DRV_MAX_PLANES];
+    uint32_t vertical_subsampling[DRV_MAX_PLANES];
+    uint32_t bits_per_pixel[DRV_MAX_PLANES];
 };
 
 // clang-format off
@@ -232,9 +232,9 @@ bool drv_pixel_width_height_alignment(gralloc_buffer_descriptor *desc, uint32_t 
      */
     if (desc->pixel_format == HAL_PIXEL_FORMAT_P010 ||
         desc->pixel_format == HAL_PIXEL_FORMAT_P010_TILED_COMPRESSED) {
-        *aligned_width = ALIGN(desc->width * 5 / 4, 16);
+        *aligned_width = ALIGN(desc->width * 5 / 4, 16U);
     } else if (desc->pixel_format == HAL_PIXEL_FORMAT_P010_TILED) {
-        *aligned_width = ALIGN(desc->width * 5 / 4, 256);
+        *aligned_width = ALIGN(desc->width * 5 / 4, 256U);
     }
 
     return true;
@@ -283,7 +283,7 @@ uint32_t drv_stride_from_format(uint32_t fourcc, uint64_t modifier, uint32_t wid
 
         uint32_t plane_bpp = layout->bits_per_pixel[plane];
         uint32_t plane_width = DIV_ROUND_UP(width, layout->horizontal_subsampling[plane]);
-        stride_in_bytes = ALIGN(plane_width * plane_bpp, 8) / 8;
+        stride_in_bytes = ALIGN(plane_width * plane_bpp, 8U) / 8;
 
         /*
          * The stride of Android YV12 buffers is required to be aligned to 16 bytes
@@ -291,7 +291,7 @@ uint32_t drv_stride_from_format(uint32_t fourcc, uint64_t modifier, uint32_t wid
          */
         if (fourcc == DRM_FORMAT_YVU420)
             stride_in_bytes =
-                    (plane == 0) ? ALIGN(stride_in_bytes, 32) : ALIGN(stride_in_bytes, 16);
+                    (plane == 0) ? ALIGN(stride_in_bytes, 32U) : ALIGN(stride_in_bytes, 16U);
     }
 
     return stride_in_bytes;
@@ -311,7 +311,7 @@ int drv_buffer_info_calculation_and_padding(struct gralloc_buffer_descriptor *de
 
     num_planes = drv_num_planes_from_format(fourcc);
     assert(num_planes);
-    desc->num_planes = num_planes;
+    desc->num_planes = static_cast<uint32_t>(num_planes);
 
     for (p = 0; p < num_planes; p++) {
         desc->strides[p] = drv_stride_from_format(fourcc, modifier, aligned_width, p);

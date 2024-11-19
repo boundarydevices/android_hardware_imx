@@ -50,7 +50,7 @@ struct custom_heap {
     const char *name;
     struct {
         const char *name;
-        int flags;
+        uint32_t flags;
     } ion_fallback;
 };
 
@@ -176,7 +176,7 @@ gralloc_handle *allocator_allocate(const gralloc_buffer_descriptor *descriptor) 
 
     hnd->flags = descriptor->flags;
     if (heap != dma_buf_heap::system && heap != dma_buf_heap::system_uncached)
-        hnd->flags |= NXP_GRALLOC_FLAGS_CONTIGIOUS;
+        hnd->flags |= NXP_GRALLOC_FLAGS_CONTIGUOUS;
     if (heap != dma_buf_heap::system_uncached &&
         heap != dma_buf_heap::physically_contiguous_uncached)
         hnd->flags |= NXP_GRALLOC_FLAGS_CACHED;
@@ -255,8 +255,8 @@ void allocator_close() {
 }
 
 int allocator_get_physical_address(gralloc_handle_t handle, uint64_t *addr) {
-    if (!(handle->flags & NXP_GRALLOC_FLAGS_CONTIGIOUS)) {
-        ALOGW("%s: cannot get physical address for non-contigious memory", __func__);
+    if (!(handle->flags & NXP_GRALLOC_FLAGS_CONTIGUOUS)) {
+        ALOGW("%s: cannot get physical address for non-contiguous memory", __func__);
         return -EINVAL;
     }
 
@@ -266,7 +266,7 @@ int allocator_get_physical_address(gralloc_handle_t handle, uint64_t *addr) {
         return -EINVAL;
     }
 
-    uint64_t phy_addr = -1;
+    uint64_t phy_addr = std::numeric_limits<uint64_t>::max();
     struct dmabuf_imx_phys_data data;
     int fd_;
     fd_ = open("/dev/dmabuf_imx", O_RDONLY | O_CLOEXEC);
@@ -274,7 +274,7 @@ int allocator_get_physical_address(gralloc_handle_t handle, uint64_t *addr) {
         ALOGE("%s: open /dev/dmabuf_imx failed: %s", __func__, strerror(errno));
         return -EINVAL;
     }
-    data.dmafd = fd;
+    data.dmafd = static_cast<uint32_t>(fd);
     if (ioctl(fd_, DMABUF_GET_PHYS, &data) < 0) {
         ALOGE("%s ioctl DMABUF_GET_PHYS failed", __func__);
         close(fd_);

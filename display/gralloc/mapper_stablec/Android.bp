@@ -47,6 +47,6 @@ cc_library_shared {
     cpp_std: "c++20",
     cflags: [
         "-Wno-sign-compare",
-        "-DLOG_TAG=\"NxpMapper\""
+        "-DLOG_TAG=\"NxpMapper\"",
     ],
 }

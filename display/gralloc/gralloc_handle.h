@@ -23,17 +23,17 @@
 #define GRALLOC_HANDLE_NUM_INTS \
     ((sizeof(gralloc_handle) - sizeof(native_handle_t)) / sizeof(int) - GRALLOC_HANDLE_NUM_FDS)
 
-#define ALIGN_PIXEL_2(x) ((x + 1) & ~1)
-#define ALIGN_PIXEL_4(x) ((x + 3) & ~3)
-#define ALIGN_PIXEL_8(x) ((x + 7) & ~7)
-#define ALIGN_PIXEL_16(x) ((x + 15) & ~15)
-#define ALIGN_PIXEL_32(x) ((x + 31) & ~31)
-#define ALIGN_PIXEL_64(x) ((x + 63) & ~63)
-#define ALIGN_PIXEL_256(x) ((x + 255) & ~255)
+#define ALIGN_PIXEL_2(x) ((x + 1) & ~1U)
+#define ALIGN_PIXEL_4(x) ((x + 3) & ~3U)
+#define ALIGN_PIXEL_8(x) ((x + 7) & ~7U)
+#define ALIGN_PIXEL_16(x) ((x + 15) & ~15U)
+#define ALIGN_PIXEL_32(x) ((x + 31) & ~31U)
+#define ALIGN_PIXEL_64(x) ((x + 63) & ~63U)
+#define ALIGN_PIXEL_256(x) ((x + 255) & ~255U)
 
 #define NXP_GRALLOC_FLAGS_FRAMEBUFFER (1 << 0)
 #define NXP_GRALLOC_FLAGS_FROM_GPU (1 << 1)
-#define NXP_GRALLOC_FLAGS_CONTIGIOUS (1 << 2)
+#define NXP_GRALLOC_FLAGS_CONTIGUOUS (1 << 2)
 #define NXP_GRALLOC_FLAGS_CACHED (1 << 3)
 
 #define NXP_GRALLOC_FLAGS_TILED_FRAMEBUFFER (1 << 16)
@@ -157,7 +157,7 @@ inline void gralloc_handle_set_height(buffer_handle_t handle, uint32_t height) {
 inline void gralloc_handle_set_size(buffer_handle_t handle, uint64_t size) {
     static_cast<gralloc_handle *>(const_cast<native_handle_t *>(handle))->total_size = size;
 }
-inline void gralloc_handle_set_pixel_stride(buffer_handle_t handle, uint64_t stride) {
+inline void gralloc_handle_set_pixel_stride(buffer_handle_t handle, uint32_t stride) {
     static_cast<gralloc_handle *>(const_cast<native_handle_t *>(handle))->pixel_stride = stride;
 }
 inline void gralloc_handle_set_phys(buffer_handle_t handle, uint64_t phys) {
