@@ -94,15 +94,16 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
         }
     }
 
-    HalDisplayConfig config = (*mConfigs)[mActiveConfigId];
+    HalDisplayConfig config = (*mConfigs)[static_cast<uint32_t>(mActiveConfigId)];
     common::Rect& rectF = buffer->mDisplayFrame;
     common::Rect& rectS = buffer->mSourceCrop;
-    int x0 = rectF.left * config.modeWidth / config.width;
-    int y0 = rectF.top * config.modeHeight / config.height;
-    int wF = (rectF.right - rectF.left) * config.modeWidth / config.width;
-    int hF = (rectF.bottom - rectF.top) * config.modeHeight / config.height;
-    int wS = rectS.right - rectS.left;
-    int hS = rectS.bottom - rectS.top;
+    uint32_t x0 = static_cast<uint32_t>(rectF.left) * config.modeWidth / config.width;
+    uint32_t y0 = static_cast<uint32_t>(rectF.top) * config.modeHeight / config.height;
+    uint32_t wF = static_cast<uint32_t>(rectF.right - rectF.left) * config.modeWidth / config.width;
+    uint32_t hF =
+            static_cast<uint32_t>(rectF.bottom - rectF.top) * config.modeHeight / config.height;
+    uint32_t wS = static_cast<uint32_t>(rectS.right - rectS.left);
+    uint32_t hS = static_cast<uint32_t>(rectS.bottom - rectS.top);
     // alignment is needed for imx8mq
     wF = ALIGN_PIXEL_2(wF - 1);
     hF = ALIGN_PIXEL_2(hF - 1);
@@ -113,26 +114,18 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
     bool okay = true;
     okay &= request->Set(planeId, plane->getCrtcProperty(), mCrtc->getId());
     okay &= request->Set(planeId, plane->getFbProperty(), *buffer->mDrmFramebuffer);
-    okay &= request->Set(planeId, plane->getCrtcXProperty(), x0);
-    okay &= request->Set(planeId, plane->getCrtcYProperty(), y0);
-    okay &= request->Set(planeId, plane->getCrtcWProperty(), wF);
-    okay &= request->Set(planeId, plane->getCrtcHProperty(), hF);
-    okay &= request->Set(planeId, plane->getSrcXProperty(), rectS.left);
-    okay &= request->Set(planeId, plane->getSrcYProperty(), rectS.top);
-    okay &= request->Set(planeId, plane->getSrcWProperty(), wS << 16);
-    okay &= request->Set(planeId, plane->getSrcHProperty(), hS << 16);
+    okay &= request->Set(planeId, plane->getCrtcXProperty(), static_cast<uint64_t>(x0));
+    okay &= request->Set(planeId, plane->getCrtcYProperty(), static_cast<uint64_t>(y0));
+    okay &= request->Set(planeId, plane->getCrtcWProperty(), static_cast<uint64_t>(wF));
+    okay &= request->Set(planeId, plane->getCrtcHProperty(), static_cast<uint64_t>(hF));
+    okay &= request->Set(planeId, plane->getSrcXProperty(), static_cast<uint64_t>(rectS.left));
+    okay &= request->Set(planeId, plane->getSrcYProperty(), static_cast<uint64_t>(rectS.top));
+    okay &= request->Set(planeId, plane->getSrcWProperty(), static_cast<uint64_t>(wS << 16));
+    okay &= request->Set(planeId, plane->getSrcHProperty(), static_cast<uint64_t>(hS << 16));
 
     auto& prop = plane->getZposProperty();
     if ((prop.getId() != (uint32_t)-1) && !(prop.getFlags() & DRM_MODE_PROP_IMMUTABLE))
-        okay &= request->Set(planeId, prop, buffer->mZpos);
-
-    //    auto prop = mPlanes[planeId]->getDtrcTableOffestProperty();
-    //    auto meta = buffer->mMeta;
-    //    if ((prop.getValue() != -1) && (meta != NULL) && (meta->mFlags & FLAGS_COMPRESSED_OFFSET))
-    //    {
-    //        okay &= request->Set(planeId, prop, meta->mYOffset | uint64_t(meta->mUVOffset) << 32);
-    //        meta->mFlags &= ~FLAGS_COMPRESSED_OFFSET;
-    //    }
+        okay &= request->Set(planeId, prop, static_cast<uint64_t>(buffer->mZpos));
 
     DEBUG_LOG("%s: crtc:x0=%d, y0=%d, wd=%d, hd=%d, src:x0=%d, y0=%d, ws=%d, hs=%d", __func__, x0,
               y0, wF, hF, rectS.left, rectS.top, wS, hS);
@@ -174,17 +167,19 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
         }
     }
 
-    HalDisplayConfig config = (*mConfigs)[mActiveConfigId];
+    HalDisplayConfig config = (*mConfigs)[static_cast<uint32_t>(mActiveConfigId)];
     common::Rect& rectF = buffer->mDisplayFrame;
     common::Rect& rectS = buffer->mSourceCrop;
-    int frameX = rectF.left * config.modeWidth / config.width;
-    int frameY = rectF.top * config.modeHeight / config.height;
-    int frameWidth = (rectF.right - rectF.left) * config.modeWidth / config.width;
-    int frameHeight = (rectF.bottom - rectF.top) * config.modeHeight / config.height;
-    int sourceX = rectS.left;
-    int sourceY = rectS.top;
-    int sourceWidth = rectS.right - rectS.left;
-    int sourceHeight = rectS.bottom - rectS.top;
+    uint32_t frameX = static_cast<uint32_t>(rectF.left) * config.modeWidth / config.width;
+    uint32_t frameY = static_cast<uint32_t>(rectF.top) * config.modeHeight / config.height;
+    uint32_t frameWidth =
+            static_cast<uint32_t>(rectF.right - rectF.left) * config.modeWidth / config.width;
+    uint32_t frameHeight =
+            static_cast<uint32_t>(rectF.bottom - rectF.top) * config.modeHeight / config.height;
+    uint32_t sourceX = static_cast<uint32_t>(rectS.left);
+    uint32_t sourceY = static_cast<uint32_t>(rectS.top);
+    uint32_t sourceWidth = static_cast<uint32_t>(rectS.right - rectS.left);
+    uint32_t sourceHeight = static_cast<uint32_t>(rectS.bottom - rectS.top);
 
     /*
      * Display controller plane(hardware) support: DCSS(imx8mq), DPU(imx8q)
@@ -192,7 +187,7 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
      * Composer(g2d) in display HAL support: DCNANO(imx8ulp), LCDIF(imx8mm, imx8mp)
      * bootargs set like: setenv append_bootargs androidboot.gui_resolution=ssw1280x720
      */
-    int sh, sw, dh, dw;
+    uint32_t sh, sw, dh, dw;
     if (mUiScaleType == UI_SCALE_SOFTWARE) { // UI is only a part of framebuffer
         sourceX = 0;
         sourceY = 0;
@@ -219,20 +214,21 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
     DrmPlane* plane = mPlanes[planeId].get();
     bool okay = true;
     okay &= request->Set(planeId, plane->getCrtcProperty(), mCrtc->getId());
-    okay &= request->Set(planeId, plane->getInFenceProperty(), inSyncFd.get());
+    okay &= request->Set(planeId, plane->getInFenceProperty(),
+                         static_cast<uint64_t>(inSyncFd.get()));
     okay &= request->Set(planeId, plane->getFbProperty(), *buffer->mDrmFramebuffer);
-    okay &= request->Set(planeId, plane->getCrtcXProperty(), frameX);
-    okay &= request->Set(planeId, plane->getCrtcYProperty(), frameY);
-    okay &= request->Set(planeId, plane->getCrtcWProperty(), dw);
-    okay &= request->Set(planeId, plane->getCrtcHProperty(), dh);
-    okay &= request->Set(planeId, plane->getSrcXProperty(), sourceX);
-    okay &= request->Set(planeId, plane->getSrcYProperty(), sourceY);
-    okay &= request->Set(planeId, plane->getSrcWProperty(), sw << 16);
-    okay &= request->Set(planeId, plane->getSrcHProperty(), sh << 16);
+    okay &= request->Set(planeId, plane->getCrtcXProperty(), static_cast<uint64_t>(frameX));
+    okay &= request->Set(planeId, plane->getCrtcYProperty(), static_cast<uint64_t>(frameY));
+    okay &= request->Set(planeId, plane->getCrtcWProperty(), static_cast<uint64_t>(dw));
+    okay &= request->Set(planeId, plane->getCrtcHProperty(), static_cast<uint64_t>(dh));
+    okay &= request->Set(planeId, plane->getSrcXProperty(), static_cast<uint64_t>(sourceX));
+    okay &= request->Set(planeId, plane->getSrcYProperty(), static_cast<uint64_t>(sourceY));
+    okay &= request->Set(planeId, plane->getSrcWProperty(), static_cast<uint64_t>(sw << 16));
+    okay &= request->Set(planeId, plane->getSrcHProperty(), static_cast<uint64_t>(sh << 16));
 
     auto& prop = plane->getZposProperty();
     if ((prop.getId() != (uint32_t)-1) && !(prop.getFlags() & DRM_MODE_PROP_IMMUTABLE))
-        okay &= request->Set(planeId, prop, mOverlayMaxZpos + 1);
+        okay &= request->Set(planeId, prop, static_cast<uint64_t>(mOverlayMaxZpos + 1));
 
     if (!okay) {
         ALOGE("%s: failed to flush Primary plane:%d.", __FUNCTION__, planeId);
@@ -286,7 +282,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
             modeBlobId = mConnector->getDefaultMode()->getBlobId();
         }
         okay &= request->Set(mConnector->getId(), mConnector->getCrtcProperty(), mCrtc->getId());
-        if (mConnector->getHdrMetadataProperty().getId() != (uint32_t)-1)
+        if (mConnector->getHdrMetadataProperty().isValid())
             okay &= request->Set(mConnector->getId(), mConnector->getHdrMetadataProperty(),
                                  mHdrMetadataBlobId);
         okay &= request->Set(mCrtc->getId(), mCrtc->getActiveProperty(), 1);
@@ -302,8 +298,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
         return std::make_tuple(HWC3::Error::NoResources, ::android::base::unique_fd());
     }
 
-
-    int vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz; // convert to nanosecond
+    uint32_t vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz;   // convert to nanosecond
     uint32_t interval = vsyncPeriod * 2 / MAX_COMMIT_RETRY_COUNT / 1000; // try 2 Vsync period
 #ifdef DEBUG_DUMP_REFRESH_RATE
     nsecs_t now = dumpRefreshRateStart();
@@ -402,7 +397,7 @@ DrmHotplugChange DrmDisplay::checkAndHandleHotplug(::android::base::borrowed_fd 
 bool DrmDisplay::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower power) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    if (mCrtc->getDisplayXferProperty().getId() != (uint32_t)-1) {
+    if (mCrtc->getDisplayXferProperty().isValid()) {
         mCrtc->setLowPowerDisplay(drmFd, power);
     } else {
         mConnector->setPowerMode(drmFd, power);
@@ -415,15 +410,15 @@ void DrmDisplay::buildPlaneIdPool(uint32_t* outTopOverlayId) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
     uint32_t maxZpos = 0;
-    uint32_t maxZposOverlayId = uint32_t(-1);
+    uint32_t maxZposOverlayId = std::numeric_limits<uint32_t>::max();
     mPlaneIdPool.clear();
     for (const auto& [planeId, plane] : mPlanes) {
         DEBUG_LOG("check plane %d type: %s", planeId, plane->isOverlay() ? "overlay" : "primary");
         if (plane->isOverlay()) {
             mPlaneIdPool.push_back(planeId);
             auto& prop = plane->getZposProperty();
-            if ((prop.getId() != uint32_t(-1)) && prop.getValue() >= maxZpos) {
-                maxZpos = prop.getValue();
+            if (prop.isValid() && prop.getValue() >= maxZpos) {
+                maxZpos = static_cast<uint32_t>(prop.getValue());
                 maxZposOverlayId = planeId;
             }
         }
@@ -505,27 +500,28 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
     parseDisplayMode(&dst_width, &dst_height, &dst_vrefresh, &prefered_mode);
 
     for (uint32_t i = 0; i < configs->size(); i++) {
-        auto& cfg = (*configs)[mStartConfigId + i];
+        auto& cfg = (*configs)[static_cast<uint32_t>(mStartConfigId) + i];
         if ((prefered_mode == 1) && (cfg.modeType & DRM_MODE_TYPE_PREFERRED)) {
             index = i;
             break;
         }
 
-        rdelta = abs((int)dst_width - (int)cfg.width) + abs((int)dst_height - (int)cfg.height);
+        rdelta = static_cast<uint32_t>(abs((int)dst_width - (int)cfg.width) +
+                                       abs((int)dst_height - (int)cfg.height));
         if (rdelta < delta) {
             delta = rdelta;
             index = i;
         } else if (rdelta == delta) {
-            auto& prev = (*configs)[mStartConfigId + index];
+            auto& prev = (*configs)[static_cast<uint32_t>(mStartConfigId) + index];
             if (abs((int)dst_vrefresh - (int)cfg.refreshRateHz) <
                 abs((int)dst_vrefresh - (int)prev.refreshRateHz))
                 index = i;
         }
     }
 
-    mActiveConfigId = mStartConfigId + index;
+    mActiveConfigId = mStartConfigId + static_cast<int32_t>(index);
     mInitActiveConfigId = mActiveConfigId;
-    auto activeConfig = (*configs)[mActiveConfigId];
+    auto activeConfig = (*configs)[static_cast<uint32_t>(mActiveConfigId)];
     ALOGI("Find best mode w:%d, h:%d, refreshrate:%d at mode index %d", activeConfig.width,
           activeConfig.height, activeConfig.refreshRateHz, index);
 
@@ -564,14 +560,14 @@ void DrmDisplay::updateActiveConfig(std::shared_ptr<HalConfig> configs) {
                 id_max = id;
         }
 
-        mActiveConfigId = mStartConfigId + id_max + 1;
+        mActiveConfigId = mStartConfigId + static_cast<int32_t>(id_max) + 1;
         mInitActiveConfigId = mActiveConfigId;
         configs->emplace(mActiveConfigId, newConfig);
         DEBUG_LOG("%s: Add new config:%d x %d, fps=%d, mode=%d x %d", __FUNCTION__, newConfig.width,
                   newConfig.height, newConfig.refreshRateHz, newConfig.modeWidth,
                   newConfig.modeHeight);
     }
-    mActiveConfig = (*configs)[mActiveConfigId];
+    mActiveConfig = (*configs)[static_cast<uint32_t>(mActiveConfigId)];
 
     uint32_t format;
     getFramebufferInfo(&width, &height, &format);
@@ -598,9 +594,9 @@ bool DrmDisplay::updateDisplayConfigs() {
         if (id > id_max)
             id_max = id;
     }
-    mStartConfigId = mStartConfigId + id_max + 1;
+    mStartConfigId = mStartConfigId + static_cast<int32_t>(id_max) + 1;
     mConfigs->clear();
-    if (mConnector->buildConfigs(mConfigs, mStartConfigId)) {
+    if (mConnector->buildConfigs(mConfigs, static_cast<uint32_t>(mStartConfigId))) {
         updateActiveConfig(mConfigs);
     }
 
@@ -610,7 +606,7 @@ bool DrmDisplay::updateDisplayConfigs() {
 void DrmDisplay::placeholderDisplayConfigs() {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    mStartConfigId = mStartConfigId + mConfigs->size();
+    mStartConfigId = mStartConfigId + static_cast<int32_t>(mConfigs->size());
     mConfigs->clear();
 
     HalDisplayConfig newConfig;
@@ -632,19 +628,19 @@ void DrmDisplay::placeholderDisplayConfigs() {
     mActiveConfigId = mStartConfigId;
     mInitActiveConfigId = mActiveConfigId;
 
-    mActiveConfig = (*mConfigs)[mActiveConfigId];
+    mActiveConfig = (*mConfigs)[static_cast<uint32_t>(mActiveConfigId)];
 }
 
 bool DrmDisplay::setActiveConfigId(int32_t configId) {
     DEBUG_LOG("%s: display:%" PRIu32 " configId=%d", __FUNCTION__, mId, configId);
 
-    if (mConfigs->find(configId) == mConfigs->end()) {
+    if (mConfigs->find(static_cast<uint32_t>(configId)) == mConfigs->end()) {
         ALOGE("%s: the config Id=%d is invalid", __FUNCTION__, configId);
         return false;
     }
 
     mActiveConfigId = configId;
-    mActiveConfig = (*mConfigs)[mActiveConfigId];
+    mActiveConfig = (*mConfigs)[static_cast<uint32_t>(mActiveConfigId)];
     mModeSet = true; // make this config effect when commit next framebuffer
 
     return true;

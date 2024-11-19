@@ -125,7 +125,7 @@ bool getDisplayPortFromProperty(const std::string& connector_name, uint32_t* out
 
 #ifdef DEBUG_DUMP_REFRESH_RATE
 nsecs_t dumpRefreshRateStart();
-void dumpRefreshRateEnd(DumpRefreshRate& dump, int vsyncPeriod, nsecs_t start_time);
+void dumpRefreshRateEnd(DumpRefreshRate& dump, uint32_t vsyncPeriod, nsecs_t start_time);
 #endif
 
 #ifdef DEBUG_DUMP_FRAME

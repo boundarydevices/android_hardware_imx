@@ -151,6 +151,7 @@ cc_binary {
     ],
     cflags: [
         "-DLOG_TAG=\"NxpHWC\"",
+        "-Wall",
         "-Wthread-safety",
     ],
 }

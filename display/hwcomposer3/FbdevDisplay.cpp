@@ -138,7 +138,7 @@ bool FbdevDisplay::setPowerMode(::android::base::borrowed_fd devFd, DrmPower pow
 bool FbdevDisplay::updateDisplayConfigs() {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    mStartConfigId = mStartConfigId + mConfigs->size();
+    mStartConfigId = mStartConfigId + static_cast<int32_t>(mConfigs->size());
     mConfigs->clear();
 
     struct fb_var_screeninfo info;
@@ -153,9 +153,10 @@ bool FbdevDisplay::updateDisplayConfigs() {
         return -errno;
     }
 
-    int refreshRate = 1000000000000LLU /
+    uint32_t refreshRate = static_cast<uint32_t>(
+            1000000000000LLU /
             (uint64_t(info.upper_margin + info.lower_margin + info.yres + info.vsync_len) *
-             (info.left_margin + info.right_margin + info.xres + info.hsync_len) * info.pixclock);
+             (info.left_margin + info.right_margin + info.xres + info.hsync_len) * info.pixclock));
 
     if (refreshRate == 0) {
         // bad info from the driver
@@ -164,8 +165,8 @@ bool FbdevDisplay::updateDisplayConfigs() {
 
     if (int(info.width) <= 0 || int(info.height) <= 0) {
         // the driver doesn't return that information default to 160 dpi
-        info.width = ((info.xres * 25.4f) / 160.0f + 0.5f);
-        info.height = ((info.yres * 25.4f) / 160.0f + 0.5f);
+        info.width = static_cast<uint32_t>((info.xres * 25.4f) / 160.0f + 0.5f);
+        info.height = static_cast<uint32_t>((info.yres * 25.4f) / 160.0f + 0.5f);
     }
 
     mConfigs->emplace(mStartConfigId,
@@ -176,7 +177,7 @@ bool FbdevDisplay::updateDisplayConfigs() {
                                                             info.width),
                               .dpiY = static_cast<uint32_t>(1000 * (info.yres * 25.4f) /
                                                             info.height),
-                              .refreshRateHz = static_cast<uint32_t>(refreshRate),
+                              .refreshRateHz = refreshRate,
                               .blobId = 0,
                               .modeType = 0,
                               .modeWidth = 0,
@@ -184,7 +185,7 @@ bool FbdevDisplay::updateDisplayConfigs() {
                       });
 
     mActiveConfigId = mStartConfigId;
-    mActiveConfig = (*mConfigs)[mActiveConfigId];
+    mActiveConfig = (*mConfigs)[static_cast<uint32_t>(mActiveConfigId)];
 
     if (info.grayscale == 0) {
         mBufferFormat = static_cast<uint32_t>((info.bits_per_pixel == 32)
@@ -221,7 +222,7 @@ bool FbdevDisplay::updateDisplayConfigs() {
 void FbdevDisplay::placeholderDisplayConfigs() {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
-    mStartConfigId = mStartConfigId + mConfigs->size();
+    mStartConfigId = mStartConfigId + static_cast<int32_t>(mConfigs->size());
     mConfigs->clear();
 
     HalDisplayConfig newConfig;
@@ -242,7 +243,7 @@ void FbdevDisplay::placeholderDisplayConfigs() {
     mConfigs->emplace(mStartConfigId, newConfig);
     mActiveConfigId = mStartConfigId;
 
-    mActiveConfig = (*mConfigs)[mActiveConfigId];
+    mActiveConfig = (*mConfigs)[static_cast<uint32_t>(mActiveConfigId)];
 }
 
 int FbdevDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format) {

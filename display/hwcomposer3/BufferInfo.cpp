@@ -30,15 +30,15 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
     if ((static_cast<const private_handle_t *>(handle))->magic == private_handle_t::sMagic) {
         const imported_handle *memHandle = static_cast<const imported_handle *>(handle);
         info->fd = memHandle->share_fd;
-        info->width = memHandle->width;
-        info->height = memHandle->height;
-        info->format = memHandle->alloc_format.get_base();
+        info->width = static_cast<uint32_t>(memHandle->width);
+        info->height = static_cast<uint32_t>(memHandle->height);
+        info->format = static_cast<uint32_t>(memHandle->alloc_format.get_base());
         info->stride = memHandle->plane_info[0].alloc_width;
         info->drm_format = drm_fourcc_from_handle(memHandle);
         info->modifier = drm_modifier_from_handle(memHandle);
-        info->size = memHandle->size;
+        info->size = static_cast<uint32_t>(memHandle->size);
         info->usage = memHandle->producer_usage;
-        info->num_planes = memHandle->get_num_planes();
+        info->num_planes = static_cast<uint32_t>(memHandle->get_num_planes());
         for (uint32_t i = 0; i < info->num_planes; i++) {
             info->strides[i] = memHandle->plane_info[i].byte_stride;
             info->offsets[i] = memHandle->plane_info[i].offset;
@@ -52,7 +52,7 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
         info->fd = memHandle->fds[0];
         info->width = memHandle->width;
         info->height = memHandle->height;
-        info->format = memHandle->format;
+        info->format = static_cast<uint32_t>(memHandle->format);
         info->stride = memHandle->pixel_stride;
         info->drm_format = memHandle->drm_format;
         // TODO: some workaround for framebuffer of legacy imx
@@ -67,7 +67,7 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
                 info->drm_format = DRM_FORMAT_ARGB8888;
         }
         info->modifier = memHandle->format_modifier;
-        info->size = memHandle->total_size;
+        info->size = static_cast<uint32_t>(memHandle->total_size);
         info->usage = memHandle->usage;
         info->num_planes = memHandle->num_planes;
         for (int i = 0; i < kBufferMaxPlanes; i++) {

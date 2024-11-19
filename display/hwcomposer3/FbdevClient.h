@@ -60,19 +60,19 @@ public:
     HWC3::Error destroyDrmFramebuffer(DrmBuffer* buffer) override;
 
     std::tuple<HWC3::Error, ::android::base::unique_fd> flushToDisplay(
-            int display, const DisplayBuffer& buffer,
+            uint32_t display, const DisplayBuffer& buffer,
             ::android::base::borrowed_fd inWaitSyncFd) override;
 
-    HWC3::Error setPowerMode(int displayId, DrmPower power) override;
+    HWC3::Error setPowerMode(uint32_t displayId, DrmPower power) override;
 
     uint32_t getDisplayBaseId() override { return mDisplayBaseId; }
 
-    HWC3::Error setHwcPrimaryDisplay(int displayId, bool primary) override;
+    HWC3::Error setHwcPrimaryDisplay(uint32_t displayId, bool primary) override;
 
     std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
-            std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;
-    HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) override;
-    HWC3::Error getDisplayClientTargetProperty(int displayId,
+            std::shared_ptr<DeviceComposer> composer, uint32_t displayId, bool secure) override;
+    HWC3::Error setSecureMode(uint32_t displayId, uint32_t planeId, bool secure) override;
+    HWC3::Error getDisplayClientTargetProperty(uint32_t displayId,
                                                ClientTargetProperty* outProperty) override;
 
 private:
@@ -85,7 +85,7 @@ private:
     std::unordered_map<uint32_t, std::unique_ptr<FbdevDisplay>> mDisplays; //<displayId, ptr>
     uint32_t mDisplayBaseId = 0;
     std::unordered_map<uint32_t, std::vector<buffer_handle_t>> mComposerTargets;
-    std::unordered_map<uint32_t, int32_t> mTargetIndex; //<displayId, index>
+    std::unordered_map<uint32_t, uint32_t> mTargetIndex; //<displayId, index>
 
     std::shared_ptr<DeviceComposer> mG2dComposer = nullptr;
 };

@@ -159,10 +159,10 @@ HWC3::Error Display::updateParameters(uint32_t width, uint32_t height, uint32_t 
         return HWC3::Error::NoResources;
     }
     it->second.setAttribute(DisplayAttribute::VSYNC_PERIOD, 1000 * 1000 * 1000 / refreshRateHz);
-    it->second.setAttribute(DisplayAttribute::WIDTH, width);
-    it->second.setAttribute(DisplayAttribute::HEIGHT, height);
-    it->second.setAttribute(DisplayAttribute::DPI_X, dpiX);
-    it->second.setAttribute(DisplayAttribute::DPI_Y, dpiY);
+    it->second.setAttribute(DisplayAttribute::WIDTH, static_cast<int32_t>(width));
+    it->second.setAttribute(DisplayAttribute::HEIGHT, static_cast<int32_t>(height));
+    it->second.setAttribute(DisplayAttribute::DPI_X, static_cast<int32_t>(dpiX));
+    it->second.setAttribute(DisplayAttribute::DPI_Y, static_cast<int32_t>(dpiY));
 
     if (edid.has_value()) {
         mEdid = *edid;

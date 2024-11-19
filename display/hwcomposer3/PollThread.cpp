@@ -50,7 +50,7 @@ HWC3::Error PollThread::start(std::string path) {
     mEpollFd = epoll_create(1);
     if (mEpollFd < 0) {
         ALOGE("%s: Fail to create epoll instance, error:%s", __FUNCTION__, strerror(errno));
-        inotify_rm_watch(mINotifyFd, mINotifyWd);
+        inotify_rm_watch(mINotifyFd, static_cast<uint32_t>(mINotifyWd));
         close(mINotifyFd);
         return HWC3::Error::BadParameter;
     }
@@ -61,7 +61,7 @@ HWC3::Error PollThread::start(std::string path) {
     int result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mINotifyFd, &eventItem);
     if (result < 0) {
         ALOGE("%s: Fail to add inotify to epoll instance, error:%s", __FUNCTION__, strerror(errno));
-        inotify_rm_watch(mINotifyFd, mINotifyWd);
+        inotify_rm_watch(mINotifyFd, static_cast<uint32_t>(mINotifyWd));
         close(mINotifyFd);
         close(mEpollFd);
         return HWC3::Error::BadParameter;
@@ -120,7 +120,7 @@ void PollThread::threadLoop() {
             }
             if (epollItems[i].events & EPOLLIN) {
                 char buf[EPOLL_BUFFER_SIZE];
-                int numItem = read(mINotifyFd, buf, EPOLL_BUFFER_SIZE);
+                auto numItem = read(mINotifyFd, buf, EPOLL_BUFFER_SIZE);
                 if (numItem < 0) {
                     ALOGE("%s: Fail to read buffer from INotifyFd, error:%s", strerror(errno));
                     continue;
@@ -143,7 +143,7 @@ void PollThread::threadLoop() {
         }
     }
 
-    inotify_rm_watch(mINotifyFd, mINotifyWd);
+    inotify_rm_watch(mINotifyFd, static_cast<uint32_t>(mINotifyWd));
     close(mEpollFd);
     close(mINotifyFd);
 

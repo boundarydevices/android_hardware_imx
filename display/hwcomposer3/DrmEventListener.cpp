@@ -61,10 +61,10 @@ bool DrmEventListener::init(::android::base::borrowed_fd drmFd) {
 }
 
 void DrmEventListener::threadLoop() {
-    int ret;
+    int err;
     do {
-        ret = select(mMaxMonitoredFd + 1, &mMonitoredFds, NULL, NULL, NULL);
-    } while (ret == -1 && errno == EINTR);
+        err = select(mMaxMonitoredFd + 1, &mMonitoredFds, NULL, NULL, NULL);
+    } while (err == -1 && errno == EINTR);
 
     if (!FD_ISSET(mEventFd.get(), &mMonitoredFds)) {
         ALOGE("%s: DrmEventListevener event fd unset?", __FUNCTION__);
@@ -73,11 +73,11 @@ void DrmEventListener::threadLoop() {
 
     char buffer[1024];
     while (true) {
-        ret = read(mEventFd.get(), &buffer, sizeof(buffer));
+        auto ret = read(mEventFd.get(), &buffer, sizeof(buffer));
         if (ret == 0) {
             return;
         } else if (ret < 0) {
-            ALOGE("Got error reading uevent %d", ret);
+            ALOGE("Got error reading uevent ret=%zd", ret);
             return;
         }
 

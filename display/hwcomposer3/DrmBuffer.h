@@ -57,7 +57,7 @@ private:
     uint32_t mWidth = 0;
     uint32_t mHeight = 0;
     uint32_t mDrmFormat = 0;
-    uint32_t mPlaneFds[4] = {0, 0, 0, 0};
+    int32_t mPlaneFds[4] = {0, 0, 0, 0};
     uint32_t mPlaneHandles[4] = {0, 0, 0, 0};
     uint32_t mPlanePitches[4] = {0, 0, 0, 0};
     uint32_t mPlaneOffsets[4] = {0, 0, 0, 0};

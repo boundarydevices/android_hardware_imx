@@ -63,14 +63,6 @@ public:
     uint32_t getHwcId() const { return mHwcId; }
     uint32_t getCrtcIndex() const { return mCrtc->getIndex(); }
 
-    uint32_t getWidth() const { return mConnector->getWidth(); }
-    uint32_t getHeight() const { return mConnector->getHeight(); }
-
-    uint32_t getDpiX() const { return mConnector->getDpiX(); }
-    uint32_t getDpiY() const { return mConnector->getDpiY(); }
-
-    uint32_t getRefreshRateUint() const { return mConnector->getRefreshRateUint(); }
-
     bool isConnected() const { return mConnector->isConnected(); }
 
     std::optional<std::vector<uint8_t>> getEdid(::android::base::borrowed_fd drmFd) const {
@@ -91,7 +83,7 @@ public:
     DrmHotplugChange checkAndHandleHotplug(::android::base::borrowed_fd drmFd);
 
     bool setPowerMode(::android::base::borrowed_fd drmFd, DrmPower power);
-    uint32_t getPlaneNum() const { return mPlanes.size(); }
+    uint32_t getPlaneNum() const { return static_cast<uint32_t>(mPlanes.size()); }
     void buildPlaneIdPool(uint32_t* outTopOverlayId);
     void reservePlaneId(uint32_t planeId);
     uint32_t getPrimaryPlaneId();
@@ -126,7 +118,7 @@ public:
     bool setHdrMetadataBlobId(uint32_t bolbId);
 
     bool isDisplayActive() { return !mModeSet; }
-    bool isLowPowerDisplay() { return mCrtc->getDisplayXferProperty().getId() != (uint32_t)-1; }
+    bool isLowPowerDisplay() { return mCrtc->getDisplayXferProperty().isValid(); }
 
     void clearTempBuffer(uint32_t overlaynum);
 

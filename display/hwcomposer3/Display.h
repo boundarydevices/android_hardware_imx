@@ -141,7 +141,7 @@ public:
 
     // Non HWCComposer3 interface.
     int64_t getHwcId() const { return mId; }
-    uint64_t getId() const { return mDisplayId; }
+    uint32_t getId() const { return mDisplayId; }
 
     Layer* getLayer(int64_t layerHandle);
 

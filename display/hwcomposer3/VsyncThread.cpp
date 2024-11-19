@@ -179,7 +179,7 @@ void VsyncThread::threadLoop() {
             if (mCallbacks) {
                 ALOGV("%s: for hwc display:%" PRIu64 " calling vsync", __FUNCTION__, mHwcId);
                 mCallbacks->onVsync(mHwcId, asNanosTimePoint(mPreviousVsync),
-                                    asNanosDuration(vsyncPeriod));
+                                    static_cast<int32_t>(asNanosDuration(vsyncPeriod)));
             }
         }
 

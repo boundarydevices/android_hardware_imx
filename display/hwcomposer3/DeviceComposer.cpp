@@ -177,7 +177,7 @@ bool DeviceComposer::isValid() {
 }
 
 int DeviceComposer::prepareDeviceFrameBuffer(uint32_t width, uint32_t height, uint32_t format,
-                                             std::vector<buffer_handle_t>& buffers, int count,
+                                             std::vector<buffer_handle_t>& buffers, uint32_t count,
                                              bool secure) {
     uint64_t usage;
     uint32_t bufferStride;
@@ -188,8 +188,9 @@ int DeviceComposer::prepareDeviceFrameBuffer(uint32_t width, uint32_t height, ui
     if (secure)
         usage |= GRALLOC_USAGE_PROTECTED;
 
-    for (int i = 0; i < count; i++) {
-        auto status = ::android::GraphicBufferAllocator::get().allocate(width, height, format,
+    for (uint32_t i = 0; i < count; i++) {
+        auto status = ::android::GraphicBufferAllocator::get().allocate(width, height,
+                                                                        static_cast<int>(format),
                                                                         /*layerCount=*/1, usage,
                                                                         &bufferHandle,
                                                                         &bufferStride, "NxpHwc");
@@ -238,11 +239,11 @@ int DeviceComposer::prepareSolidColorBuffer() {
     if (info.usage & GRALLOC_USAGE_PROTECTED)
         usage |= GRALLOC_USAGE_PROTECTED;
 
-    auto status =
-            ::android::GraphicBufferAllocator::get().allocate(info.width, info.height,
-                                                              info.format, /*layerCount=*/1,
-                                                              usage, &bufferHandle, &bufferStride,
-                                                              "HwcSolidColor");
+    auto status = ::android::GraphicBufferAllocator::get().allocate(info.width, info.height,
+                                                                    static_cast<int>(info.format),
+                                                                    /*layerCount=*/1, usage,
+                                                                    &bufferHandle, &bufferStride,
+                                                                    "HwcSolidColor");
     if (status != ::android::OK) {
         ALOGE("%s: failed to allocate solid color buffer", __FUNCTION__);
         return -1;
@@ -256,8 +257,8 @@ int DeviceComposer::prepareSolidColorBuffer() {
 
     common::Rect rect;
     rect.left = rect.top = 0;
-    rect.right = info.width;
-    rect.bottom = info.height;
+    rect.right = static_cast<int>(info.width);
+    rect.bottom = static_cast<int>(info.height);
     lockSurface(mSolidColorBuffer);
     clearRect(mSolidColorBuffer, rect);
 
@@ -496,39 +497,39 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
         resolveTileStatus(handle);
     }
 
-    int phys = 0;
-    int offset = 0;
+    uint64_t phys = 0;
+    uint32_t offset = 0;
     if (info.phys)
         phys = info.phys;
     else
         getBuffPhys(handle, &phys);
 
     getFlipOffset(handle, &offset);
-    surface.planes[0] = phys + offset;
+    surface.planes[0] = static_cast<g2d_phys_addr_t>(phys + offset);
 
     switch (surface.format) {
         case G2D_RGB565:
         case G2D_YUYV:
-            surface.stride = info.strides[0] / 2; // convert to pixel stride
+            surface.stride = static_cast<int>(info.strides[0] / 2); // convert to pixel stride
             break;
         case G2D_RGBA8888:
         case G2D_BGRA8888:
         case G2D_RGBX8888:
         case G2D_BGRX8888:
         case G2D_RGBA1010102:
-            surface.stride = info.strides[0] / 4; // convert to pixel stride
+            surface.stride = static_cast<int>(info.strides[0] / 4); // convert to pixel stride
             break;
 
         case G2D_NV16:
         case G2D_NV12:
         case G2D_NV21:
-            surface.stride = info.strides[0];
+            surface.stride = static_cast<int>(info.strides[0]);
             surface.planes[1] = surface.planes[0] + info.offsets[1];
             break;
 
         case G2D_I420:
         case G2D_YV12: {
-            surface.stride = info.strides[0];
+            surface.stride = static_cast<int>(info.strides[0]);
             surface.planes[1] = surface.planes[0] + info.offsets[1];
             surface.planes[2] = surface.planes[0] + info.offsets[2];
         } break;
@@ -541,8 +542,8 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
     surface.top = rect.top;
     surface.right = rect.right;
     surface.bottom = rect.bottom;
-    surface.width = info.width;
-    surface.height = info.height;
+    surface.width = static_cast<int>(info.width);
+    surface.height = static_cast<int>(info.height);
 
     DEBUG_LOG_G2D("%s: dimension(%d,%d,%d,%d, %d x %d), format=%d, stride=%d, tiling=%d, "
                   "plane0=0x%x, plane1=0x%x, plane2=0x%x",
@@ -553,7 +554,7 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
     return 0;
 }
 
-enum g2d_format DeviceComposer::convertFormat(int format, buffer_handle_t handle) {
+enum g2d_format DeviceComposer::convertFormat(uint32_t format, buffer_handle_t handle) {
     enum g2d_format halFormat;
     switch (format) {
         case DRM_FORMAT_ABGR2101010:
@@ -660,7 +661,7 @@ int DeviceComposer::getAlignedSize(buffer_handle_t handle, int* width, int* heig
     return (*mGetAlignedSize)((void*)handle, (void*)width, (void*)height);
 }
 
-int DeviceComposer::getFlipOffset(buffer_handle_t handle, int* offset) {
+int DeviceComposer::getFlipOffset(buffer_handle_t handle, uint32_t* offset) {
     if (mGetFlipOffset == NULL) {
         return -EINVAL;
     }
@@ -775,7 +776,7 @@ bool DeviceComposer::isFeatureSupported(g2d_feature feature) {
     return (enable != 0);
 }
 
-int DeviceComposer::getBuffPhys(buffer_handle_t handle, int *phys) {
+int DeviceComposer::getBuffPhys(buffer_handle_t handle, uint64_t* phys) {
     if (mBuffInfoFromFd == NULL) {
         return -EINVAL;
     }
@@ -788,7 +789,7 @@ int DeviceComposer::getBuffPhys(buffer_handle_t handle, int *phys) {
 
     struct g2d_buf* buf = (struct g2d_buf*)(*mBuffInfoFromFd)((void*)(intptr_t)info.fd);
     if (buf && buf->buf_paddr)
-        *phys = buf->buf_paddr;
+        *phys = static_cast<uint64_t>(buf->buf_paddr);
 
     if (buf) {
         free(buf->buf_handle);

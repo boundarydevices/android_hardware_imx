@@ -100,13 +100,13 @@ bool customizeGUIResolution(uint32_t &width, uint32_t &height, uint32_t *uiType)
     DEBUG_LOG("%s: sysprop ro.boot.gui_resolution is %s", __FUNCTION__, value);
 
     if (!strncmp(value, "shw", 3) && (sscanf(value, "shw%[0-9]x%[0-9]", w_buf, h_buf) == 2)) {
-        w = atoi(w_buf);
-        h = atoi(h_buf);
+        w = static_cast<uint32_t>(std::stoul(w_buf));
+        h = static_cast<uint32_t>(std::stoul(h_buf));
         *uiType = UI_SCALE_HARDWARE;
     } else if (!strncmp(value, "ssw", 3) &&
                (sscanf(value, "ssw%[0-9]x%[0-9]", w_buf, h_buf) == 2)) {
-        w = atoi(w_buf);
-        h = atoi(h_buf);
+        w = static_cast<uint32_t>(std::stoul(w_buf));
+        h = static_cast<uint32_t>(std::stoul(h_buf));
         *uiType = UI_SCALE_SOFTWARE;
     } else {
         if (!strncmp(value, "4k", 2)) {
@@ -147,9 +147,9 @@ bool customizeGUIResolution(uint32_t &width, uint32_t &height, uint32_t *uiType)
 
 struct DisplayMode {
     char modestr[16];
-    int width;
-    int height;
-    int vrefresh;
+    uint32_t width;
+    uint32_t height;
+    uint32_t vrefresh;
 };
 
 DisplayMode gDisplayModes[16] = {
@@ -183,14 +183,14 @@ void parseDisplayMode(uint32_t *width, uint32_t *height, uint32_t *vrefresh, uin
     if (i == modeCount) {
         bool isValid = true;
         char delim[] = "xp";
-        int modeResult[3] = {0};
+        uint32_t modeResult[3] = {0};
         // displaymode format should be 1920x1080p60
         if (strstr(value, "x") && strstr(value, "p")) {
             char *s = strdup(value);
             char *token;
             for (i = 0, token = strsep(&s, delim); i < 3 && token != NULL;
                  token = strsep(&s, delim), i++) {
-                modeResult[i] = atoi(token);
+                modeResult[i] = static_cast<uint32_t>(std::stoul(token));
                 if (modeResult[i] <= 0) {
                     isValid = false;
                     break;
@@ -237,9 +237,9 @@ nsecs_t dumpRefreshRateStart() {
     return commit_start;
 }
 
-void dumpRefreshRateEnd(DumpRefreshRate &dump, int vsyncPeriod, nsecs_t commit_start) {
+void dumpRefreshRateEnd(DumpRefreshRate &dump, uint32_t vsyncPeriod, nsecs_t commit_start) {
     nsecs_t commit_time;
-    float refresh_rate = 0;
+    double refresh_rate = 0;
 
     commit_time = systemTime(CLOCK_MONOTONIC);
     char value[PROPERTY_VALUE_MAX];
@@ -368,7 +368,7 @@ bool getDisplayPortFromProperty(const std::string &connector_name, uint32_t *out
             auto comma = ports.find(',', pos);
             auto count = (comma == std::string::npos) ? comma : (comma - colon);
             auto port_str = ports.substr(colon + 1, count);
-            port = std::stoi(port_str);
+            port = static_cast<uint32_t>(std::stoul(port_str));
 
             *outPort = port;
             return true;

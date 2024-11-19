@@ -59,19 +59,21 @@ public:
     HWC3::Error destroyDrmFramebuffer(DrmBuffer* buffer) override;
 
     std::tuple<HWC3::Error, ::android::base::unique_fd> flushToDisplay(
-            int display, const DisplayBuffer& buffer,
+            uint32_t display, const DisplayBuffer& buffer,
             ::android::base::borrowed_fd inWaitSyncFd) override;
 
-    HWC3::Error setPowerMode(int displayId, DrmPower power) override { return HWC3::Error::None; }
-    HWC3::Error setHwcPrimaryDisplay(int displayId, bool primary) override {
+    HWC3::Error setPowerMode(uint32_t displayId, DrmPower power) override {
+        return HWC3::Error::None;
+    }
+    HWC3::Error setHwcPrimaryDisplay(uint32_t displayId, bool primary) override {
         return HWC3::Error::None;
     }
 
     uint32_t getDisplayBaseId() override { return mDisplayId; }
 
     std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
-            std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;
-    HWC3::Error getDisplayClientTargetProperty(int displayId,
+            std::shared_ptr<DeviceComposer> composer, uint32_t displayId, bool secure) override;
+    HWC3::Error getDisplayClientTargetProperty(uint32_t displayId,
                                                ClientTargetProperty* outProperty) override;
 
 private:
@@ -81,7 +83,7 @@ private:
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
 
     std::vector<buffer_handle_t> mComposerTargets;
-    int32_t mTargetIndex = 0;
+    uint32_t mTargetIndex = 0;
 
     std::shared_ptr<DeviceComposer> mG2dComposer = nullptr;
 };

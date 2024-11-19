@@ -131,7 +131,7 @@ HWC3::Error FbdevClient::destroyDrmFramebuffer(DrmBuffer* buffer) {
 }
 
 std::tuple<HWC3::Error, ::android::base::unique_fd> FbdevClient::flushToDisplay(
-        int displayId, const DisplayBuffer& buffer, ::android::base::borrowed_fd inSyncFd) {
+        uint32_t displayId, const DisplayBuffer& buffer, ::android::base::borrowed_fd inSyncFd) {
     ATRACE_CALL();
 
     if (mDisplays.find(displayId) == mDisplays.end()) {
@@ -151,7 +151,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> FbdevClient::flushToDisplay(
                                          *buffer.clientTargetDrmBuffer->mBufferAddress);
 }
 
-HWC3::Error FbdevClient::setPowerMode(int displayId, DrmPower power) {
+HWC3::Error FbdevClient::setPowerMode(uint32_t displayId, DrmPower power) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -165,7 +165,7 @@ HWC3::Error FbdevClient::setPowerMode(int displayId, DrmPower power) {
     return HWC3::Error::None;
 }
 
-HWC3::Error FbdevClient::setHwcPrimaryDisplay(int displayId, bool primary) {
+HWC3::Error FbdevClient::setHwcPrimaryDisplay(uint32_t displayId, bool primary) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -183,14 +183,14 @@ HWC3::Error FbdevClient::setHwcPrimaryDisplay(int displayId, bool primary) {
 }
 
 std::tuple<HWC3::Error, buffer_handle_t> FbdevClient::getComposerTarget(
-        std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) {
+        std::shared_ptr<DeviceComposer> composer, uint32_t displayId, bool secure) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, nullptr);
     }
 
     if (mComposerTargets.find(displayId) != mComposerTargets.end()) {
-        int32_t index = mTargetIndex[displayId];
+        auto index = mTargetIndex[displayId];
         if (++index >= mMaxComposerTargetsPerDisplay) {
             index = 0;
         }
@@ -202,7 +202,7 @@ std::tuple<HWC3::Error, buffer_handle_t> FbdevClient::getComposerTarget(
 
     std::vector<buffer_handle_t> buffers;
     uint32_t width, height, format;
-    buffers.reserve(mMaxComposerTargetsPerDisplay);
+    buffers.reserve(static_cast<size_t>(mMaxComposerTargetsPerDisplay));
     mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
     auto ret = composer->prepareDeviceFrameBuffer(width, height, format, buffers,
                                                   mMaxComposerTargetsPerDisplay, false);
@@ -221,7 +221,7 @@ std::tuple<HWC3::Error, buffer_handle_t> FbdevClient::getComposerTarget(
     return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId][0]);
 }
 
-HWC3::Error FbdevClient::setSecureMode(int displayId, uint32_t planeId, bool secure) {
+HWC3::Error FbdevClient::setSecureMode(uint32_t displayId, uint32_t planeId, bool secure) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -230,7 +230,7 @@ HWC3::Error FbdevClient::setSecureMode(int displayId, uint32_t planeId, bool sec
     return HWC3::Error::None;
 }
 
-HWC3::Error FbdevClient::getDisplayClientTargetProperty(int displayId,
+HWC3::Error FbdevClient::getDisplayClientTargetProperty(uint32_t displayId,
                                                         ClientTargetProperty* outProperty) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);

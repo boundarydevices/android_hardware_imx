@@ -63,71 +63,71 @@ public:
     virtual HWC3::Error destroyDrmFramebuffer(DrmBuffer* buffer) = 0;
 
     virtual std::tuple<HWC3::Error, ::android::base::unique_fd> flushToDisplay(
-            int display, const DisplayBuffer& buffer,
+            uint32_t display, const DisplayBuffer& buffer,
             ::android::base::borrowed_fd inWaitSyncFd) = 0;
 
     virtual std::optional<std::vector<uint8_t>> getEdid(uint32_t id) { return std::nullopt; }
 
-    virtual HWC3::Error setPowerMode(int displayId, DrmPower power) = 0;
+    virtual HWC3::Error setPowerMode(uint32_t displayId, DrmPower power) = 0;
 
-    virtual std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) {
+    virtual std::tuple<HWC3::Error, bool> isOverlaySupport(uint32_t displayId) {
         return std::make_tuple(HWC3::Error::None, false);
     }
-    virtual HWC3::Error checkOverlayLimitation(int displayId, Layer* layer) {
+    virtual HWC3::Error checkOverlayLimitation(uint32_t displayId, Layer* layer) {
         return HWC3::Error::None;
     }
-    virtual HWC3::Error prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) {
+    virtual HWC3::Error prepareDrmPlanesForValidate(uint32_t displayId, uint32_t* uiPlaneBackup) {
         return HWC3::Error::None;
     }
     virtual std::tuple<HWC3::Error, uint32_t> getPlaneForLayerBuffer(
-            int displayId, const native_handle_t* handle) {
+            uint32_t displayId, const native_handle_t* handle) {
         return std::make_tuple(HWC3::Error::NoResources, 0);
     }
 
     virtual uint32_t getDisplayBaseId() = 0;
 
-    virtual HWC3::Error setHwcPrimaryDisplay(int displayId, bool primary) = 0;
-    virtual HWC3::Error setActiveConfigId(int displayId, int32_t configId) {
+    virtual HWC3::Error setHwcPrimaryDisplay(uint32_t displayId, bool primary) = 0;
+    virtual HWC3::Error setActiveConfigId(uint32_t displayId, int32_t configId) {
         return HWC3::Error::None;
     }
-    virtual HWC3::Error resetDisplayConfig(int displayId) { return HWC3::Error::None; }
+    virtual HWC3::Error resetDisplayConfig(uint32_t displayId) { return HWC3::Error::None; }
 
     virtual std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
-            std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) = 0;
-    virtual HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) {
+            std::shared_ptr<DeviceComposer> composer, uint32_t displayId, bool secure) = 0;
+    virtual HWC3::Error setSecureMode(uint32_t displayId, uint32_t planeId, bool secure) {
         return HWC3::Error::None;
     }
 
-    virtual HWC3::Error setBacklightBrightness(int displayId, float brightness) {
+    virtual HWC3::Error setBacklightBrightness(uint32_t displayId, float brightness) {
         return HWC3::Error::None;
     }
-    virtual HWC3::Error getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) {
+    virtual HWC3::Error getDisplayCapability(uint32_t displayId,
+                                             std::vector<DisplayCapability>& caps) {
         return HWC3::Error::None;
     }
-    virtual HWC3::Error setHdrMetadata(int displayId, hdr_output_metadata* metadata) {
+    virtual HWC3::Error setHdrMetadata(uint32_t displayId, hdr_output_metadata* metadata) {
         return HWC3::Error::None;
     }
-    virtual HWC3::Error getDisplayConnectionType(int displayId, DisplayConnectionType* outType) {
+    virtual HWC3::Error getDisplayConnectionType(uint32_t displayId,
+                                                 DisplayConnectionType* outType) {
         *outType = DisplayConnectionType::INTERNAL;
         return HWC3::Error::None;
     }
-    virtual HWC3::Error getDisplayClientTargetProperty(int displayId,
+    virtual HWC3::Error getDisplayClientTargetProperty(uint32_t displayId,
                                                        ClientTargetProperty* outProperty) = 0;
-    virtual HWC3::Error waitVBlank(int displayId, int64_t* timestamp) {
+    virtual HWC3::Error waitVBlank(uint32_t displayId, int64_t* timestamp) {
         return HWC3::Error::Unsupported;
     }
 
-    virtual void partialCleanCacheBuffer(size_t overlayNum) {
-        return;
-    }
+    virtual void partialCleanCacheBuffer(uint32_t overlayNum) { return; }
 
 protected:
-    int32_t mMaxComposerTargetsPerDisplay = 3;
+    uint32_t mMaxComposerTargetsPerDisplay = 3;
     void getTargetsNumFromProp() {
         const std::string num =
                 ::android::base::GetProperty("ro.surface_flinger.max_frame_buffer_acquired_buffers",
                                              "3");
-        mMaxComposerTargetsPerDisplay = std::stoi(num);
+        mMaxComposerTargetsPerDisplay = static_cast<uint32_t>(std::stoul(num));
     }
 };
 

@@ -48,16 +48,15 @@ public:
     }
 
     uint32_t getId() const { return mId; }
-
     uint64_t getValue() const { return mValue; }
-
     uint32_t getFlags() const { return mFlags; }
-
     const std::string& getName() const { return mName; }
 
+    bool isValid() const { return mId != std::numeric_limits<uint32_t>::max(); }
+
 private:
-    uint32_t mId = -1;
-    uint64_t mValue = -1;
+    uint32_t mId = std::numeric_limits<uint32_t>::max();
+    uint64_t mValue = std::numeric_limits<uint64_t>::max();
     uint32_t mFlags = 0;
     std::string mName;
 };

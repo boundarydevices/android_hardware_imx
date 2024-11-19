@@ -159,8 +159,9 @@ HWC3::Error ComposerResources::getDisplayClientTarget(int64_t displayId, const B
         bufferHandle = ::android::makeFromAidl(*buffer.handle);
     }
 
-    return toHwc3Error(mImpl->getDisplayClientTarget(display, buffer.slot, useCache, bufferHandle,
-                                                     outHandle, releaser->getReplacedHandle()));
+    return toHwc3Error(mImpl->getDisplayClientTarget(display, static_cast<uint32_t>(buffer.slot),
+                                                     useCache, bufferHandle, outHandle,
+                                                     releaser->getReplacedHandle()));
 }
 
 HWC3::Error ComposerResources::getDisplayOutputBuffer(int64_t displayId, const Buffer& buffer,
@@ -175,8 +176,9 @@ HWC3::Error ComposerResources::getDisplayOutputBuffer(int64_t displayId, const B
         bufferHandle = ::android::makeFromAidl(*buffer.handle);
     }
 
-    return toHwc3Error(mImpl->getDisplayOutputBuffer(display, buffer.slot, useCache, bufferHandle,
-                                                     outHandle, releaser->getReplacedHandle()));
+    return toHwc3Error(mImpl->getDisplayOutputBuffer(display, static_cast<uint32_t>(buffer.slot),
+                                                     useCache, bufferHandle, outHandle,
+                                                     releaser->getReplacedHandle()));
 }
 
 HWC3::Error ComposerResources::getLayerBuffer(int64_t displayId, int64_t layerId,
@@ -195,8 +197,8 @@ HWC3::Error ComposerResources::getLayerBuffer(int64_t displayId, int64_t layerId
     }
 
     DEBUG_LOG("%s fromCache:%s", __FUNCTION__, (useCache ? "yes" : "no"));
-    auto error = mImpl->getLayerBuffer(display, layer, buffer.slot, useCache, bufferHandle,
-                                       outHandle, releaser->getReplacedHandle());
+    auto error = mImpl->getLayerBuffer(display, layer, static_cast<uint32_t>(buffer.slot), useCache,
+                                       bufferHandle, outHandle, releaser->getReplacedHandle());
     native_handle_delete(const_cast<native_handle_t*>(bufferHandle));
     return toHwc3Error(error);
 }

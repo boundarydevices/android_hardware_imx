@@ -79,41 +79,44 @@ public:
     HWC3::Error destroyDrmFramebuffer(DrmBuffer* buffer) override;
 
     std::tuple<HWC3::Error, ::android::base::unique_fd> flushToDisplay(
-            int display, const DisplayBuffer& buffer,
+            uint32_t display, const DisplayBuffer& buffer,
             ::android::base::borrowed_fd inWaitSyncFd) override;
 
     std::optional<std::vector<uint8_t>> getEdid(uint32_t id) override;
 
-    HWC3::Error setPowerMode(int displayId, DrmPower power) override;
+    HWC3::Error setPowerMode(uint32_t displayId, DrmPower power) override;
 
-    std::tuple<HWC3::Error, bool> isOverlaySupport(int displayId) override;
-    HWC3::Error checkOverlayLimitation(int displayId, Layer* layer) override;
+    std::tuple<HWC3::Error, bool> isOverlaySupport(uint32_t displayId) override;
+    HWC3::Error checkOverlayLimitation(uint32_t displayId, Layer* layer) override;
 
-    HWC3::Error prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) override;
+    HWC3::Error prepareDrmPlanesForValidate(uint32_t displayId, uint32_t* uiPlaneBackup) override;
 
     std::tuple<HWC3::Error, uint32_t> getPlaneForLayerBuffer(
-            int displayId, const native_handle_t* handle) override;
+            uint32_t displayId, const native_handle_t* handle) override;
 
     uint32_t getDisplayBaseId() override { return mDisplayBaseId; }
 
-    HWC3::Error setHwcPrimaryDisplay(int displayId, bool primary) override;
-    HWC3::Error setActiveConfigId(int displayId, int32_t configId) override;
-    HWC3::Error resetDisplayConfig(int displayId) override;
+    HWC3::Error setHwcPrimaryDisplay(uint32_t displayId, bool primary) override;
+    HWC3::Error setActiveConfigId(uint32_t displayId, int32_t configId) override;
+    HWC3::Error resetDisplayConfig(uint32_t displayId) override;
 
     std::tuple<HWC3::Error, buffer_handle_t> getComposerTarget(
-            std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) override;
-    HWC3::Error setSecureMode(int displayId, uint32_t planeId, bool secure) override;
+            std::shared_ptr<DeviceComposer> composer, uint32_t displayId, bool secure) override;
+    HWC3::Error setSecureMode(uint32_t displayId, uint32_t planeId, bool secure) override;
 
-    HWC3::Error setBacklightBrightness(int displayId, float brightness) override;
-    HWC3::Error getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) override;
+    HWC3::Error setBacklightBrightness(uint32_t displayId, float brightness) override;
+    HWC3::Error getDisplayCapability(uint32_t displayId,
+                                     std::vector<DisplayCapability>& caps) override;
 
-    HWC3::Error setHdrMetadata(int displayId, hdr_output_metadata* metadata) override;
-    HWC3::Error getDisplayConnectionType(int displayId, DisplayConnectionType* outType) override;
-    HWC3::Error getDisplayClientTargetProperty(int displayId,
+    HWC3::Error setHdrMetadata(uint32_t displayId, hdr_output_metadata* metadata) override;
+    HWC3::Error getDisplayConnectionType(uint32_t displayId,
+                                         DisplayConnectionType* outType) override;
+    HWC3::Error getDisplayClientTargetProperty(uint32_t displayId,
                                                ClientTargetProperty* outProperty) override;
-    HWC3::Error waitVBlank(int displayId, int64_t* timestamp) override;
+    HWC3::Error waitVBlank(uint32_t displayId, int64_t* timestamp) override;
 
-    void partialCleanCacheBuffer(size_t overlayNum) override;
+    void partialCleanCacheBuffer(uint32_t overlayNum) override;
+
 private:
     using DrmPrimeBufferHandle = uint32_t;
     using DrmBufferCache = LruCache<DrmPrimeBufferHandle, std::shared_ptr<DrmBuffer>>;
@@ -137,7 +140,7 @@ private:
     uint32_t mDisplayBaseId = 0;
     struct G2dComposerTargets {
         std::vector<buffer_handle_t> handles;
-        int32_t index;
+        uint32_t index;
         bool security;
         bool valid = true;
     };

@@ -54,8 +54,8 @@ private:
     friend class DrmPlane;
     friend class DrmConnector;
 
-    const uint32_t mId = -1;
-    const uint32_t mIndexInResourcesArray = -1;
+    const uint32_t mId;
+    const uint32_t mIndexInResourcesArray;
 
     DrmProperty mActive;
     DrmProperty mMode;

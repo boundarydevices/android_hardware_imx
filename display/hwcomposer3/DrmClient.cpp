@@ -179,9 +179,9 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
 
     drmModeRes* drmResources = drmModeGetResources(mFd.get());
     for (int crtcIndex = 0; crtcIndex < drmResources->count_crtcs; crtcIndex++) {
-        const uint32_t crtcId = drmResources->crtcs[crtcIndex];
+        const uint32_t crtcId = drmResources->crtcs[static_cast<uint32_t>(crtcIndex)];
 
-        auto crtc = DrmCrtc::create(mFd, crtcId, crtcIndex);
+        auto crtc = DrmCrtc::create(mFd, crtcId, static_cast<uint32_t>(crtcIndex));
         if (!crtc) {
             ALOGE("%s: Failed to create DRM CRTC.", __FUNCTION__);
             return false;
@@ -212,7 +212,8 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
         return false;
     }
 
-    uint32_t numPlaneInCrtc = (planes.size() + connectors.size() - 1) / connectors.size();
+    uint32_t numPlaneInCrtc =
+            static_cast<uint32_t>((planes.size() + connectors.size() - 1) / connectors.size());
     std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> crtc_planes;
     for (uint32_t i = 0; i < connectors.size(); i++) {
         std::unique_ptr<DrmConnector> connector = std::move(connectors[i]);
@@ -440,7 +441,7 @@ bool DrmClient::handleHotplug() {
 }
 
 std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
-        int displayId, const DisplayBuffer& buffer, ::android::base::borrowed_fd inSyncFd) {
+        uint32_t displayId, const DisplayBuffer& buffer, ::android::base::borrowed_fd inSyncFd) {
     ATRACE_CALL();
 
     if (mDisplays.find(displayId) == mDisplays.end()) {
@@ -462,7 +463,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
     }
 
     std::unique_ptr<DrmAtomicRequest> request;
-    mDisplays[displayId]->clearTempBuffer(buffer.planeDrmBuffer.size());
+    mDisplays[displayId]->clearTempBuffer(static_cast<uint32_t>(buffer.planeDrmBuffer.size()));
     for (auto& pair : buffer.planeDrmBuffer) {
         auto [err, req] =
                 mDisplays[displayId]->flushOverlay(pair.first, std::move(request), pair.second);
@@ -493,7 +494,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
     return std::make_tuple(error, std::move(outFence));
 }
 
-void DrmClient::partialCleanCacheBuffer(size_t overlayNum) {
+void DrmClient::partialCleanCacheBuffer(uint32_t overlayNum) {
     if (mPlaneBufferCache && mPlaneBufferCache->getSize() > 0) {
         uint32_t reservedBufferCount = 0;
 
@@ -520,7 +521,7 @@ std::optional<std::vector<uint8_t>> DrmClient::getEdid(uint32_t displayId) {
     return mDisplays[displayId]->getEdid(mFd);
 }
 
-HWC3::Error DrmClient::setPowerMode(int displayId, DrmPower power) {
+HWC3::Error DrmClient::setPowerMode(uint32_t displayId, DrmPower power) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -534,7 +535,7 @@ HWC3::Error DrmClient::setPowerMode(int displayId, DrmPower power) {
     return HWC3::Error::None;
 }
 
-std::tuple<HWC3::Error, bool> DrmClient::isOverlaySupport(int displayId) {
+std::tuple<HWC3::Error, bool> DrmClient::isOverlaySupport(uint32_t displayId) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, false);
@@ -544,7 +545,7 @@ std::tuple<HWC3::Error, bool> DrmClient::isOverlaySupport(int displayId) {
     return std::make_tuple(HWC3::Error::None, supported);
 }
 
-HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
+HWC3::Error DrmClient::checkOverlayLimitation(uint32_t displayId, Layer* layer) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -573,8 +574,10 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
 
     common::Rect rect = layer->getDisplayFrame();
     auto& config = mDisplays[displayId]->getActiveConfig();
-    int w = (rect.right - rect.left) * config.modeWidth / config.width;
-    int h = (rect.bottom - rect.top) * config.modeHeight / config.height;
+    int w = (rect.right - rect.left) * static_cast<int>(config.modeWidth) /
+            static_cast<int>(config.width);
+    int h = (rect.bottom - rect.top) * static_cast<int>(config.modeHeight) /
+            static_cast<int>(config.height);
     common::Rect srect = layer->getSourceCropInt();
     int srcW = srect.right - srect.left;
     int srcH = srect.bottom - srect.top;
@@ -626,7 +629,7 @@ HWC3::Error DrmClient::checkOverlayLimitation(int displayId, Layer* layer) {
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::prepareDrmPlanesForValidate(int displayId, uint32_t* uiPlaneBackup) {
+HWC3::Error DrmClient::prepareDrmPlanesForValidate(uint32_t displayId, uint32_t* uiPlaneBackup) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -642,7 +645,7 @@ HWC3::Error DrmClient::prepareDrmPlanesForValidate(int displayId, uint32_t* uiPl
     return HWC3::Error::None;
 }
 
-std::tuple<HWC3::Error, uint32_t> DrmClient::getPlaneForLayerBuffer(int displayId,
+std::tuple<HWC3::Error, uint32_t> DrmClient::getPlaneForLayerBuffer(uint32_t displayId,
                                                                     buffer_handle_t handle) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
@@ -669,7 +672,7 @@ std::tuple<HWC3::Error, uint32_t> DrmClient::getPlaneForLayerBuffer(int displayI
     }
 }
 
-HWC3::Error DrmClient::setHwcPrimaryDisplay(int displayId, bool primary) {
+HWC3::Error DrmClient::setHwcPrimaryDisplay(uint32_t displayId, bool primary) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -684,7 +687,7 @@ HWC3::Error DrmClient::setHwcPrimaryDisplay(int displayId, bool primary) {
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::setActiveConfigId(int displayId, int32_t configId) {
+HWC3::Error DrmClient::setActiveConfigId(uint32_t displayId, int32_t configId) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -706,7 +709,7 @@ HWC3::Error DrmClient::setActiveConfigId(int displayId, int32_t configId) {
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::resetDisplayConfig(int displayId) {
+HWC3::Error DrmClient::resetDisplayConfig(uint32_t displayId) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -728,7 +731,7 @@ HWC3::Error DrmClient::resetDisplayConfig(int displayId) {
 }
 
 std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
-        std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) {
+        std::shared_ptr<DeviceComposer> composer, uint32_t displayId, bool secure) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::BadDisplay, nullptr);
@@ -739,7 +742,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
     if (mComposerTargets.find(displayId) != mComposerTargets.end() &&
         mComposerTargets[displayId].valid &&
         mComposerTargets[displayId].security == secure) {
-        int32_t index = mComposerTargets[displayId].index;
+        auto index = mComposerTargets[displayId].index;
         if (++index >= mMaxComposerTargetsPerDisplay) {
             index = 0;
         }
@@ -760,7 +763,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
 
     G2dComposerTargets targets;
     uint32_t width, height, format;
-    targets.handles.reserve(mMaxComposerTargetsPerDisplay);
+    targets.handles.reserve(static_cast<size_t>(mMaxComposerTargetsPerDisplay));
     mDisplays[displayId]->getFramebufferInfo(&width, &height, &format);
     auto ret = composer->prepareDeviceFrameBuffer(width, height, format, targets.handles,
                                                   mMaxComposerTargetsPerDisplay, secure);
@@ -782,7 +785,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DrmClient::getComposerTarget(
     return std::make_tuple(HWC3::Error::None, mComposerTargets[displayId].handles[0]);
 }
 
-HWC3::Error DrmClient::setSecureMode(int displayId, uint32_t planeId, bool secure) {
+HWC3::Error DrmClient::setSecureMode(uint32_t displayId, uint32_t planeId, bool secure) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -861,7 +864,7 @@ int DrmClient::loadBacklightDevices() {
     }
 }
 
-HWC3::Error DrmClient::setBacklightBrightness(int displayId, float brightness) {
+HWC3::Error DrmClient::setBacklightBrightness(uint32_t displayId, float brightness) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -889,7 +892,8 @@ HWC3::Error DrmClient::setBacklightBrightness(int displayId, float brightness) {
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::getDisplayCapability(int displayId, std::vector<DisplayCapability>& caps) {
+HWC3::Error DrmClient::getDisplayCapability(uint32_t displayId,
+                                            std::vector<DisplayCapability>& caps) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -905,7 +909,7 @@ HWC3::Error DrmClient::getDisplayCapability(int displayId, std::vector<DisplayCa
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::setHdrMetadata(int displayId, hdr_output_metadata* metadata) {
+HWC3::Error DrmClient::setHdrMetadata(uint32_t displayId, hdr_output_metadata* metadata) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -941,7 +945,8 @@ HWC3::Error DrmClient::setHdrMetadata(int displayId, hdr_output_metadata* metada
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::getDisplayConnectionType(int displayId, DisplayConnectionType* outType) {
+HWC3::Error DrmClient::getDisplayConnectionType(uint32_t displayId,
+                                                DisplayConnectionType* outType) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;
@@ -954,7 +959,7 @@ HWC3::Error DrmClient::getDisplayConnectionType(int displayId, DisplayConnection
     return HWC3::Error::None;
 }
 
-HWC3::Error DrmClient::getDisplayClientTargetProperty(int displayId,
+HWC3::Error DrmClient::getDisplayClientTargetProperty(uint32_t displayId,
                                                       ClientTargetProperty* outProperty) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
@@ -972,7 +977,7 @@ HWC3::Error DrmClient::getDisplayClientTargetProperty(int displayId,
 
 using namespace std::chrono_literals;
 constexpr auto nsecsPerSec = std::chrono::nanoseconds(1s).count();
-HWC3::Error DrmClient::waitVBlank(int displayId, int64_t* timestamp) {
+HWC3::Error DrmClient::waitVBlank(uint32_t displayId, int64_t* timestamp) {
     if (mDisplays.find(displayId) == mDisplays.end()) {
         DEBUG_LOG("%s: invalid display:%" PRIu32, __FUNCTION__, displayId);
         return HWC3::Error::BadDisplay;

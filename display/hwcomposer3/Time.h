@@ -37,7 +37,7 @@ inline TimePoint now() {
     return asTimePoint(systemTime(SYSTEM_TIME_MONOTONIC));
 }
 
-inline int32_t asNanosDuration(Nanoseconds duration) {
+inline int64_t asNanosDuration(Nanoseconds duration) {
     return duration.count();
 }
 

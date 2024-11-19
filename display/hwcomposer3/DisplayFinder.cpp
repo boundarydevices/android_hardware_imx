@@ -41,9 +41,11 @@ HWC3::Error findClientDisplays(DeviceClient* device,
     for (const HalMultiConfigs deviceConfig : deviceConfigs) {
         std::vector<DisplayConfig> hwcConfigs;
         for (const auto& [configId, cfg] : *(deviceConfig.configs)) {
-            hwcConfigs.push_back(DisplayConfig(static_cast<int32_t>(configId), cfg.width,
-                                               cfg.height, cfg.dpiX, cfg.dpiY,
-                                               HertzToPeriodNanos(cfg.refreshRateHz)));
+            hwcConfigs.push_back(
+                    DisplayConfig(static_cast<int32_t>(configId), static_cast<int32_t>(cfg.width),
+                                  static_cast<int32_t>(cfg.height), static_cast<int32_t>(cfg.dpiX),
+                                  static_cast<int32_t>(cfg.dpiY),
+                                  HertzToPeriodNanos(cfg.refreshRateHz)));
         }
         outDisplays->push_back(DisplayMultiConfigs{
                 .hwcId = deviceConfig.hwcId,

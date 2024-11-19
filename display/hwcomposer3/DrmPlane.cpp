@@ -55,7 +55,7 @@ std::unique_ptr<DrmPlane> DrmPlane::create(::android::base::borrowed_fd drmFd, u
     std::vector<uint64_t> mods;
     drmModePropertyBlobPtr blob;
     drmModeFormatModifierIterator iter = {0, 0, 0, 0};
-    blob = drmModeGetPropertyBlob(drmFd.get(), inFormatsBlobId);
+    blob = drmModeGetPropertyBlob(drmFd.get(), static_cast<uint32_t>(inFormatsBlobId));
     if (!blob) {
         DEBUG_LOG("%s: plane:%" PRIu32 " cannot get blob of IN_FORMATS property.", __FUNCTION__,
                   plane->mId);

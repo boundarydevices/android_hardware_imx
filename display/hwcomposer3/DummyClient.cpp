@@ -109,12 +109,12 @@ HWC3::Error DummyClient::destroyDrmFramebuffer(DrmBuffer* buffer) {
 }
 
 std::tuple<HWC3::Error, ::android::base::unique_fd> DummyClient::flushToDisplay(
-        int displayId, const DisplayBuffer& buffer, ::android::base::borrowed_fd inSyncFd) {
+        uint32_t displayId, const DisplayBuffer& buffer, ::android::base::borrowed_fd inSyncFd) {
     return std::make_tuple(HWC3::Error::None, ::android::base::unique_fd());
 }
 
 std::tuple<HWC3::Error, buffer_handle_t> DummyClient::getComposerTarget(
-        std::shared_ptr<DeviceComposer> composer, int displayId, bool secure) {
+        std::shared_ptr<DeviceComposer> composer, uint32_t displayId, bool secure) {
     if (mComposerTargets.size() > 0) {
         if (++mTargetIndex >= mMaxComposerTargetsPerDisplay) {
             mTargetIndex = 0;
@@ -127,7 +127,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DummyClient::getComposerTarget(
     uint32_t width = DUMMY_DISPLAY_WIDTH;
     uint32_t height = DUMMY_DISPLAY_HEIGHT;
     uint32_t format = static_cast<int>(common::PixelFormat::RGBA_8888);
-    mComposerTargets.reserve(mMaxComposerTargetsPerDisplay);
+    mComposerTargets.reserve(static_cast<size_t>(mMaxComposerTargetsPerDisplay));
     auto ret = composer->prepareDeviceFrameBuffer(width, height, format, mComposerTargets,
                                                   mMaxComposerTargetsPerDisplay, false);
     if (ret) {
@@ -142,7 +142,7 @@ std::tuple<HWC3::Error, buffer_handle_t> DummyClient::getComposerTarget(
     return std::make_tuple(HWC3::Error::None, mComposerTargets[mTargetIndex]);
 }
 
-HWC3::Error DummyClient::getDisplayClientTargetProperty(int displayId,
+HWC3::Error DummyClient::getDisplayClientTargetProperty(uint32_t displayId,
                                                         ClientTargetProperty* outProperty) {
     outProperty->pixelFormat = common::PixelFormat::RGBA_8888;
     outProperty->dataspace = common::Dataspace::SRGB_LINEAR;

@@ -22,7 +22,7 @@
 namespace aidl::android::hardware::graphics::composer3::impl {
 namespace {
 
-static constexpr const float kMillimetersPerInch = 25.4;
+static constexpr const float kMillimetersPerInch = 25.4f;
 
 } // namespace
 
@@ -137,7 +137,7 @@ bool DrmConnector::loadEdid(::android::base::borrowed_fd drmFd) {
     }
 
     ALOGI("%s: try to get EDID blob Id=%" PRIu64, __FUNCTION__, edidBlobId);
-    auto blob = drmModeGetPropertyBlob(drmFd.get(), edidBlobId);
+    auto blob = drmModeGetPropertyBlob(drmFd.get(), static_cast<uint32_t>(edidBlobId));
     if (!blob) {
         ALOGE("%s: connector:%" PRIu32 " failed to read EDID blob (%" PRIu64 "): %s", __FUNCTION__,
               mId, edidBlobId, strerror(errno));
@@ -168,8 +168,8 @@ bool DrmConnector::loadEdid(::android::base::borrowed_fd drmFd) {
     const uint8_t h_mm_lsb = descriptor[13];
     const uint8_t w_and_h_mm_msb = descriptor[14];
 
-    mWidthMillimeters = w_mm_lsb | (w_and_h_mm_msb & 0xf0) << 4;
-    mHeightMillimeters = h_mm_lsb | (w_and_h_mm_msb & 0xf) << 8;
+    mWidthMillimeters = static_cast<uint32_t>(w_mm_lsb | (w_and_h_mm_msb & 0xf0) << 4);
+    mHeightMillimeters = static_cast<uint32_t>(h_mm_lsb | (w_and_h_mm_msb & 0xf) << 8);
 
     return true;
 }
@@ -221,73 +221,6 @@ bool DrmConnector::buildConfigs(std::shared_ptr<HalConfig> configs, uint32_t sta
     return true;
 }
 
-uint32_t DrmConnector::getWidth() const {
-    DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
-
-    if (mModes.empty()) {
-        return 0;
-    }
-    return mModes[0]->hdisplay;
-}
-
-uint32_t DrmConnector::getHeight() const {
-    DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
-
-    if (mModes.empty()) {
-        return 0;
-    }
-    return mModes[0]->vdisplay;
-}
-
-int32_t DrmConnector::getDpiX() const {
-    DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
-
-    if (mModes.empty()) {
-        return -1;
-    }
-
-    const auto& mode = mModes[0];
-    if (mWidthMillimeters) {
-        const int32_t dpi = static_cast<int32_t>(
-                (static_cast<float>(mode->hdisplay) / static_cast<float>(mWidthMillimeters)) *
-                kMillimetersPerInch);
-        DEBUG_LOG("%s: connector:%" PRIu32 " has dpi-x:%" PRId32, __FUNCTION__, mId, dpi);
-        return dpi;
-    }
-
-    return -1;
-}
-
-int32_t DrmConnector::getDpiY() const {
-    DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
-
-    if (mModes.empty()) {
-        return -1;
-    }
-
-    const auto& mode = mModes[0];
-    if (mHeightMillimeters) {
-        const int32_t dpi = static_cast<int32_t>(
-                (static_cast<float>(mode->vdisplay) / static_cast<float>(mHeightMillimeters)) *
-                kMillimetersPerInch);
-        DEBUG_LOG("%s: connector:%" PRIu32 " has dpi-x:%" PRId32, __FUNCTION__, mId, dpi);
-        return dpi;
-    }
-
-    return -1;
-}
-
-float DrmConnector::getRefreshRate() const {
-    DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
-
-    if (!mModes.empty()) {
-        const auto& mode = mModes[0];
-        return 1000.0f * mode->clock / ((float)mode->vtotal * (float)mode->htotal);
-    }
-
-    return -1.0f;
-}
-
 bool DrmConnector::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower power) const {
     DEBUG_LOG("%s: connector:%" PRIu32, __FUNCTION__, mId);
 
@@ -304,7 +237,7 @@ bool DrmConnector::setPowerMode(::android::base::borrowed_fd drmFd, DrmPower pow
             break;
     }
 
-    err = drmModeConnectorSetProperty(drmFd.get(), mId, mDpms.getId(), mode);
+    err = drmModeConnectorSetProperty(drmFd.get(), mId, mDpms.getId(), static_cast<uint64_t>(mode));
     if (err != 0) {
         ALOGE("failed to set DPMS mode:%d", mode);
     }
@@ -320,7 +253,8 @@ bool DrmConnector::setHDCPMode(::android::base::borrowed_fd drmFd, int val) cons
         return true;
     }
 
-    int err = drmModeConnectorSetProperty(drmFd.get(), mId, mProtection.getId(), val);
+    int err = drmModeConnectorSetProperty(drmFd.get(), mId, mProtection.getId(),
+                                          static_cast<uint64_t>(val));
     if (err != 0) {
         ALOGE("%s: failed to %s HDCP function", __FUNCTION__, val ? "enable" : "disable");
     }

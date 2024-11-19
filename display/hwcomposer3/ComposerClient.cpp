@@ -182,7 +182,7 @@ ndk::ScopedAStatus ComposerClient::createLayer(int64_t hwcId, int32_t bufferSlot
     }
     *layerId = getLayerId;
 
-    error = mResources->addLayer(hwcId, *layerId, bufferSlotCount);
+    error = mResources->addLayer(hwcId, *layerId, static_cast<uint32_t>(bufferSlotCount));
     if (error != HWC3::Error::None) {
         ALOGE("%s: hwc display:%" PRIu64 " resources failed to create layer", __FUNCTION__, hwcId);
         return ToBinderStatus(error);
@@ -589,7 +589,8 @@ ndk::ScopedAStatus ComposerClient::setClientTargetSlotCount(int64_t hwcId, int32
 
     GET_DISPLAY_OR_RETURN_ERROR();
 
-    return ToBinderStatus(mResources->setDisplayClientTargetCacheSize(hwcId, count));
+    return ToBinderStatus(
+            mResources->setDisplayClientTargetCacheSize(hwcId, static_cast<uint32_t>(count)));
 }
 
 ndk::ScopedAStatus ComposerClient::setColorMode(int64_t hwcId, ColorMode mode,
@@ -768,7 +769,8 @@ void ComposerClient::dispatchBatchCreateDestroyLayerCommand(CommandResultWriter&
             return;
         }
 
-        error = mResources->addLayer(hwcId, layerId, layerCmd.newBufferSlotCount);
+        error = mResources->addLayer(hwcId, layerId,
+                                     static_cast<uint32_t>(layerCmd.newBufferSlotCount));
         if (error != HWC3::Error::None) {
             ALOGE("%s: hwc display:%" PRIu64 " resources failed to create layer%" PRIu64,
                   __FUNCTION__, hwcId, layerId);
@@ -1315,7 +1317,8 @@ void ComposerClient::executeLayerCommandSetLayerBufferSlotsToClear(
     std::vector<buffer_handle_t> cachedBuffers;
     std::map<buffer_handle_t, int32_t> handle2Slots;
     for (int32_t slot : bufferSlotsToClear) {
-        auto error = mResources->getLayerInternalBuffer(display.getHwcId(), layer->getId(), slot,
+        auto error = mResources->getLayerInternalBuffer(display.getHwcId(), layer->getId(),
+                                                        static_cast<uint32_t>(slot),
                                                         /*fromCache=*/true, nullptr, cachedBuffer,
                                                         bufferReleaser.get());
         if (cachedBuffer) {
@@ -1344,7 +1347,8 @@ void ComposerClient::executeLayerCommandSetLayerBufferSlotsToClear(
     for (auto buffer : clearableBuffers) {
         auto slot = handle2Slots[buffer];
         // replace the slot with nullptr and release the buffer by bufferReleaser
-        auto error = mResources->getLayerInternalBuffer(display.getHwcId(), layer->getId(), slot,
+        auto error = mResources->getLayerInternalBuffer(display.getHwcId(), layer->getId(),
+                                                        static_cast<uint32_t>(slot),
                                                         /*fromCache=*/false, nullptr, cachedBuffer,
                                                         bufferReleaser.get());
         if (error != HWC3::Error::None) {
@@ -1503,8 +1507,11 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
         std::vector<DisplayConfig> configs;
         for (const auto& pair : *(halConfigs->configs)) {
             HalDisplayConfig config = pair.second;
-            configs.emplace_back(DisplayConfig(static_cast<int32_t>(pair.first), config.width,
-                                               config.height, config.dpiX, config.dpiY,
+            configs.emplace_back(DisplayConfig(static_cast<int32_t>(pair.first),
+                                               static_cast<int32_t>(config.width),
+                                               static_cast<int32_t>(config.height),
+                                               static_cast<int32_t>(config.dpiX),
+                                               static_cast<int32_t>(config.dpiY),
                                                HertzToPeriodNanos(config.refreshRateHz)));
         }
         DisplayConfig::addConfigGroups(&configs);
@@ -1514,7 +1521,7 @@ HWC3::Error ComposerClient::handleHotplug(bool connected,
             createDisplayLocked(hwcId, displayId, configId, configs);
         }
 
-        auto& cfg = (*(halConfigs->configs))[configId];
+        auto& cfg = (*(halConfigs->configs))[static_cast<uint32_t>(configId)];
         ALOGI("Connecting display:%d hwcId:%ld, w:%d, h:%d, dpiX:%d, dpiY:%d, fps:%d", displayId,
               hwcId, cfg.width, cfg.height, cfg.dpiX, cfg.dpiY, cfg.refreshRateHz);
         mCallbacks->onHotplug(hwcId, /*connected=*/true);

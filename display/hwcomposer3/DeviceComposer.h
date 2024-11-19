@@ -46,7 +46,8 @@ public:
     bool checkMustDeviceComposition(Layer* layer);
     bool checkDeviceComposition(Layer* layer);
     int prepareDeviceFrameBuffer(uint32_t width, uint32_t height, uint32_t format,
-                                 std::vector<buffer_handle_t>& buffers, int count, bool secure);
+                                 std::vector<buffer_handle_t>& buffers, uint32_t count,
+                                 bool secure);
     int freeDeviceFrameBuffer(std::vector<buffer_handle_t>& buffers);
     int freeSolidColorBuffer();
 
@@ -71,7 +72,7 @@ private:
     bool isFeatureSupported(g2d_feature feature);
 
     int setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_t handle, common::Rect& rect);
-    enum g2d_format convertFormat(int format, buffer_handle_t handle);
+    enum g2d_format convertFormat(uint32_t format, buffer_handle_t handle);
     int convertRotation(common::Transform transform, struct g2d_surface& src,
                         struct g2d_surface& dst);
     int convertBlending(common::BlendMode blending, struct g2d_surface& src,
@@ -80,7 +81,7 @@ private:
     int clearRect(buffer_handle_t target, common::Rect& rect);
 
     int getAlignedSize(buffer_handle_t handle, int* width, int* height);
-    int getFlipOffset(buffer_handle_t handle, int* offset);
+    int getFlipOffset(buffer_handle_t handle, uint32_t* offset);
     int getTiling(buffer_handle_t handle, enum g2d_tiling* tile);
     int getTileStatus(buffer_handle_t handle, struct g2d_surfaceEx* surfaceX);
     int resolveTileStatus(buffer_handle_t handle);
@@ -94,7 +95,7 @@ private:
     int clearFunction(void* handle, struct g2d_surface* area);
     int enableFunction(void* handle, enum g2d_cap_mode cap, bool enable);
     int finishEngine(void* handle);
-    int getBuffPhys(buffer_handle_t handle, int *phys);
+    int getBuffPhys(buffer_handle_t handle, uint64_t* phys);
     int createFenceFd(void* handle);
 
 private:
@@ -102,7 +103,6 @@ private:
     static thread_local void* sHandle;
 
     bool mG2dPrefered;
-    ;
 
     buffer_handle_t mTarget = NULL;
     buffer_handle_t mSolidColorBuffer = NULL;

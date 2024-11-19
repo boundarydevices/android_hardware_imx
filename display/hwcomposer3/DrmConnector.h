@@ -44,15 +44,6 @@ public:
     uint32_t getId() const { return mId; }
     std::string& getName() { return name; }
 
-    uint32_t getWidth() const;
-    uint32_t getHeight() const;
-
-    int32_t getDpiX() const;
-    int32_t getDpiY() const;
-
-    float getRefreshRate() const;
-    uint32_t getRefreshRateUint() const { return (uint32_t)(getRefreshRate() + 0.5f); }
-
     bool isConnected() const { return mStatus == DRM_MODE_CONNECTED; }
 
     std::optional<std::vector<uint8_t>> getEdid(::android::base::borrowed_fd drmFd);
@@ -63,7 +54,7 @@ public:
     bool isCompatibleWith(const DrmCrtc& crtc) {
         return ((0x1 << crtc.mIndexInResourcesArray) & mPossibleCrtcsMask);
     }
-    bool getHDCPSupported() const { return mProtection.getId() != (uint32_t)-1; }
+    bool getHDCPSupported() const { return mProtection.isValid(); }
     bool isHDCPEnabled() const { return mProtection.getValue() == 1; }
     bool setHDCPMode(::android::base::borrowed_fd drmFd, int val) const;
 
