@@ -107,6 +107,8 @@ const SensorInfo& SensorBase::getSensorInfo() const {
 }
 
 void HWSensorBase::batch(int32_t samplingPeriodNs) {
+     if (mPollFdIio.fd < 0 || mSensorInfo.name == "mpl3115" || mSensorInfo.type == SensorType::STEP_COUNTER)
+        return;
     samplingPeriodNs =
             std::clamp(samplingPeriodNs, mSensorInfo.minDelay * 1000, mSensorInfo.maxDelay * 1000);
     if (mSamplingPeriodNs != samplingPeriodNs) {
@@ -149,7 +151,8 @@ void HWSensorBase::activate(bool enable) {
     std::unique_lock<std::mutex> lock(mSensorThread.lock());
     if (mIsEnabled != enable) {
         mIsEnabled = enable;
-        setupHrtimerTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
+        if (mPollFdIio.fd >= 0 && mIioData.type != SensorType::STEP_COUNTER)
+            setupHrtimerTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
         enable_sensor(mIioData.sysfspath, enable);
         if (mIioData.type == SensorType::STEP_COUNTER)
             enable_step_sensor(mIioData.sysfspath, enable);
@@ -177,6 +180,8 @@ Result SensorBase::flush() {
 }
 
 Result HWSensorBase::flush() {
+    if (mPollFdIio.fd < 0 || mSensorInfo.name == "mpl3115" || mSensorInfo.type == SensorType::STEP_COUNTER)
+        return Result::INVALID_OPERATION;
     Result result = Result::OK;
     result = SensorBase::flush();
     if (result == Result::OK) sendAdditionalInfoReport();
