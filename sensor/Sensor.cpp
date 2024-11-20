@@ -147,12 +147,16 @@ void HWSensorBase::setupHrtimerTrigger(const std::string& device_dir, uint8_t de
     add_hrtimer_trigger(device_dir, dev_num, enable);
 }
 
+void HWSensorBase::setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable) {
+    add_trigger(device_dir, dev_num, enable);
+}
+
 void HWSensorBase::activate(bool enable) {
     std::unique_lock<std::mutex> lock(mSensorThread.lock());
     if (mIsEnabled != enable) {
         mIsEnabled = enable;
         if (mPollFdIio.fd >= 0 && mIioData.type != SensorType::STEP_COUNTER)
-            setupHrtimerTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
+            setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
         enable_sensor(mIioData.sysfspath, enable);
         if (mIioData.type == SensorType::STEP_COUNTER)
             enable_step_sensor(mIioData.sysfspath, enable);
@@ -352,7 +356,8 @@ void HWSensorBase::pollForEvents() {
         readSysfsRawData(&evt);
         mCallback->postEvents({evt}, mCallback->createScopedWakelock(isWakeUpSensor()));
     } else {
-        int err = poll(&mPollFdIio, 1, mSamplingPeriodNs * 1000);
+        trigger_data(mIioData.iio_dev_num, mSamplingPeriodNs * 10);
+        int err = poll(&mPollFdIio, 1, -1);
         if (err <= 0) {
             ALOGE("Sensor %s poll returned %d", mIioData.name.c_str(), err);
             return;

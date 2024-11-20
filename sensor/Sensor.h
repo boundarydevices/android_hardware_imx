@@ -113,6 +113,7 @@ class HWSensorBase : public SensorBase {
     void batch(int32_t samplingPeriodNs);
     void activate(bool enable);
     void setupHrtimerTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
+    void setupSysfsTrigger(const std::string& device_dir, uint8_t dev_num, bool enable);
     Result flush();
     struct iio_device_data mIioData;
 

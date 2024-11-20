@@ -222,6 +222,73 @@ failed:
     return err;
 }
 
+int add_trigger(const std::string& device_dir, uint8_t dev_num, const bool enable) {
+    int err;
+    std::string enable_file = IIO_TRIGGER;
+    std::string current_trigger = device_dir;
+    std::string tri_value = "sysfstrig";
+    if (enable)
+        enable_file += "add_trigger";
+    else
+        enable_file += "remove_trigger";
+
+    err = sysfs_write_uint(enable_file, dev_num);
+    if (err != 0) {
+        ALOGE("write enable_file failed \n");
+        goto failed;
+    }
+    tri_value += std::to_string(dev_num);
+    current_trigger += IIO_CURRENT_TRIGGER;
+
+    err = sysfs_write_str(current_trigger, tri_value);
+    if (err != 0)
+        ALOGE("write current_trigger failed \n");
+
+failed:
+    return err;
+}
+
+int trigger_data(int dev_num, int64_t trigger_period_ns) {
+    std::string scan_dir;
+    std::string filename;
+    DirPtr dp(nullptr, closedir);
+    const struct dirent* ent;
+
+    scan_dir = IIO_DATA_TRIGGER;
+    int err = sysfs_opendir(scan_dir, &dp);
+    if (err)
+        return err;
+
+    while (ent = readdir(dp.get()), ent != nullptr) {
+        if (!str_has_prefix(ent->d_name, "trigger"))
+            continue;
+
+        std::string trigger_name = scan_dir;
+        trigger_name += ent->d_name;
+        trigger_name += "/name";
+
+        FilePtr fp = {fopen(trigger_name.c_str(), "r"), fclose};
+        if (fp == nullptr)
+            continue;
+
+        int index;
+        const int ret = fscanf(fp.get(), "sysfstrig%d", &index);
+        if (ret < 0)
+            continue;
+
+        if (index != dev_num)
+            continue;
+
+        std::string trigger_now = scan_dir;
+        trigger_now += ent->d_name;
+        trigger_now += "/trigger_now";
+        usleep(trigger_period_ns / 1000);
+        err = sysfs_write_uint(trigger_now, 1);
+    }
+
+    return 0;
+}
+
 static int get_sampling_frequency_available(const std::string& device_dir,
                                             std::vector<double>* sfa) {
     int ret = 0;

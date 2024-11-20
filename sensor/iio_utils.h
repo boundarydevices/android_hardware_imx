@@ -93,6 +93,8 @@ int set_sampling_frequency(const std::string& name, const double frequency);
 int get_light_value(const std::string& device_dir, unsigned int* light);
 int get_stepcounter_value(const std::string& device_dir, unsigned int* stepcounter);
 int add_hrtimer_trigger(const std::string& device_dir, uint8_t dev_num, const bool enable);
+int add_trigger(const std::string& device_dir, uint8_t dev_num, const bool enable);
+int trigger_data(int dev_num, int64_t trigger_period_ns);
 int64_t get_timestamp();
 }  // namespace implementation
 }  // namespace subhal
