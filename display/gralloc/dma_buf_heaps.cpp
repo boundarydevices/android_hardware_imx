@@ -119,7 +119,8 @@ static dma_buf_heap pick_dma_buf_heap(uint64_t usage) {
     } else if ((usage & GRALLOC_USAGE_HW_VIDEO_ENCODER) || (usage & GRALLOC_USAGE_HW_FB) ||
                (usage & GRALLOC_USAGE_HW_COMPOSER) || (usage & GRALLOC_USAGE_PRIVATE_3) ||
                (usage & GRALLOC_USAGE_HW_CAMERA_WRITE) || (usage & GRALLOC_USAGE_HW_TEXTURE) ||
-               (usage & GRALLOC_USAGE_HW_RENDER)) {
+               (usage & GRALLOC_USAGE_HW_RENDER) ||
+               (usage & static_cast<uint64_t>(BufferUsage::GPU_DATA_BUFFER))) {
         if (usage & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN))
             return dma_buf_heap::physically_contiguous;
         else
