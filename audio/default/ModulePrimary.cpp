@@ -67,8 +67,15 @@ ndk::ScopedAStatus ModulePrimary::createInputStream(StreamContext&& context,
 ndk::ScopedAStatus ModulePrimary::createOutputStream(
         StreamContext&& context, const SourceMetadata& sourceMetadata,
         const std::optional<AudioOffloadInfo>& offloadInfo, std::shared_ptr<StreamOut>* result) {
-    if (context.getFormat().encoding == ::android::MEDIA_MIMETYPE_AUDIO_MPEG)
-        return createStreamInstance<StreamOutCompress>(result, std::move(context), sourceMetadata, offloadInfo);
+    if (context.getFormat().encoding == ::android::MEDIA_MIMETYPE_AUDIO_MPEG) {
+        const auto& c = AudioCardManager::getCardForDevice(AUDIO_DEVICE_OUT_LINE);
+        if (c && strstr(c->card_name, "sof")) {
+            return createStreamInstance<StreamOutCompress>(result, std::move(context), sourceMetadata, offloadInfo);
+        } else {
+            LOG(INFO) << "reject creating compress offload stream.";
+            return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+        }
+    }
 
     return createStreamInstance<StreamOutPrimary>(result, std::move(context), sourceMetadata,
                                                   offloadInfo);
