@@ -856,6 +856,8 @@ int DrmClient::loadBacklightDevices() {
             caps = mDisplayCapabilitys[mDisplayBaseId];
 
         caps.push_back(DisplayCapability::BRIGHTNESS);
+
+        mDisplayCapabilitys.clear();
         mDisplayCapabilitys.emplace(mDisplayBaseId, caps);
 
         return 1;
