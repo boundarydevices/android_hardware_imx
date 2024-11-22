@@ -3472,6 +3472,13 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     if (testPatternMode.count == 1) {
         if (mCameraMuted != (testPatternMode.data.u8[0] != ANDROID_SENSOR_TEST_PATTERN_MODE_OFF)) {
             mCameraMuted = !mCameraMuted;
+
+            // Allocate mute test pattern frame when mMuteTestPatternFrame is empty or source changed,
+            // just for HW decoder
+            if ((mHardwareDecoder && parent->getHardwareDecFlag()) &&
+                ((mYu12Frame && mMuteTestPatternFrame.size() == 0) || mDecedFrames == 0)) {
+                mMuteTestPatternFrame.resize(mYu12Frame->mWidth * mYu12Frame->mHeight * 3);
+            }
             // Get solid color for test pattern, if any was set
             if (testPatternMode.data.u8[0] == ANDROID_SENSOR_TEST_PATTERN_MODE_SOLID_COLOR) {
                 auto entry = req->setting.find(ANDROID_SENSOR_TEST_PATTERN_DATA);
@@ -3498,6 +3505,15 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
         ATRACE_BEGIN("MJPGtoI420");
         if (mCameraMuted) {
+            if (mHardwareDecoder && parent->getHardwareDecFlag()) {
+                // for HardwareDecoder, mYu12Frame directly get buffer from mDecodedData,
+                // make the buffer circular, the output buffer will be overwritten after ConvertToI420.
+                res = VpuDecGetBuffer(inData, inDataSize);
+                mYu12Frame->getLayout(&mYu12FrameLayout);
+            }
+
+            if (mDebug)
+                t1 = systemTime();
             res = libyuv::ConvertToI420(mMuteTestPatternFrame.data(), mMuteTestPatternFrame.size(),
                                         static_cast<uint8_t*>(mYu12FrameLayout.y),
                                         mYu12FrameLayout.yStride,
@@ -3507,6 +3523,11 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                                         mYu12FrameLayout.cStride, 0, 0, mYu12Frame->mWidth,
                                         mYu12Frame->mHeight, mYu12Frame->mWidth,
                                         mYu12Frame->mHeight, libyuv::kRotate0, libyuv::FOURCC_RAW);
+            if (mDebug) {
+                t2 = systemTime();
+                ALOGI("camera mute state, ConvertToI420: use %lld ns, %lld ms",
+                      (long long)(t2 - t1), (long long)(t2 - t1) / 1000000);
+            }
         } else {
             if (mHardwareDecoder && parent->getHardwareDecFlag()) {
                 res = VpuDecGetBuffer(inData, inDataSize);
@@ -3538,10 +3559,6 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                           (mInterBufFormat == V4L2_PIX_FMT_YUV420) ? "MJPGToI420" : "MJPGToNV12",
                           (long long)(t2 - t1), (long long)(t2 - t1) / 1000000);
                 }
-
-                ALOGV("MJPGToNV12, y %p, yStride %u, cb %p, cStride %u, size %ux%u",
-                      mYu12FrameLayout.y, mYu12FrameLayout.yStride, mYu12FrameLayout.cb,
-                      mYu12FrameLayout.cStride, mYu12Frame->mWidth, mYu12Frame->mHeight);
 
                 uint8_t* outData;
                 size_t dataSize;
@@ -3586,7 +3603,13 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         ATRACE_END();
     }
 
+    ALOGV("mYu12FrameLayout, y %p, yStride %u, cb %p, cr %p, cStride %u, size %ux%u",
+          mYu12FrameLayout.y, mYu12FrameLayout.yStride, mYu12FrameLayout.cb, mYu12FrameLayout.cr,
+          mYu12FrameLayout.cStride, mYu12Frame->mWidth, mYu12Frame->mHeight);
+
     if (res != 0) {
+        // For some webcam, the first few V4L2 frames might be malformed...
+        ALOGE("%s: Convert V4L2 frame to YU12 failed! res %d", __FUNCTION__, res);
         res = waitForBufferRequestDone(&req->buffers);
         if (res != 0) {
             ALOGE("%s: wait for BufferRequest done failed! res %d, line %d", __FUNCTION__, res,
@@ -3596,8 +3619,6 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                                  __FUNCTION__, __LINE__);
         }
 
-        // For some webcam, the first few V4L2 frames might be malformed...
-        ALOGE("%s: Convert V4L2 frame to YU12 failed! res %d", __FUNCTION__, res);
         lk.unlock();
         Status st = parent->processCaptureRequestError(req);
         if (st != Status::OK) {
