@@ -37,6 +37,9 @@
 // Uncomment to enable additional debug logging.
 // #define DEBUG_NXP_HWC
 
+// Uncomment to enable additional debug logging for g2d only.
+// #define DEBUG_NXP_HWC_G2D
+
 #if defined(DEBUG_NXP_HWC)
 #define DEBUG_LOG ALOGI
 #else

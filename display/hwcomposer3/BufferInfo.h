@@ -40,6 +40,7 @@ struct HandleInfo {
     char* name;    /* only for debug log, pointer to handle->name */
     uint64_t phys; /* only for legacy imx */
     uint64_t base; /* only for legacy imx */
+    std::string sname;
 };
 
 int getInfoFromHandle(buffer_handle_t handle, HandleInfo* info);

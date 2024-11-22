@@ -33,9 +33,6 @@
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
-// Uncomment to enable additional debug logging for g2d only.
-// #define DEBUG_NXP_HWC_G2D
-
 #if defined(DEBUG_NXP_HWC_G2D)
 #define DEBUG_LOG_G2D ALOGI
 #else
@@ -386,6 +383,16 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
     struct g2d_surfaceEx dSurfaceX;
     struct g2d_surface& dSurface = dSurfaceX.base;
 
+    HandleInfo layerInfo;
+    if (layerBuffer != nullptr && (getInfoFromHandle(layerBuffer, &layerInfo) == 0)) {
+        DEBUG_LOG_G2D("%s: compose layer id=%ld, zorder:0x%x, phys:0x%" PRIx64 ", name=%s",
+                      __FUNCTION__, layer->getId(), layer->getZOrder(), layerInfo.phys,
+                      layerInfo.name);
+    } else {
+        DEBUG_LOG_G2D("%s: compose layer id=%ld, zorder:0x%x, solid color layer", __FUNCTION__,
+                      layer->getId(), layer->getZOrder());
+    }
+
     if ((isRectEmpty(srect) && !(type == Composition::SOLID_COLOR)) || isRectEmpty(drect)) {
         ALOGE("%s: invalid srect or drect", __FUNCTION__);
         return 0;
@@ -394,6 +401,8 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
     if (type == Composition::SOLID_COLOR) {
         prepareSolidColorBuffer();
     }
+    DEBUG_LOG_G2D("transform:0x%x, blend:0x%x, alpha:0x%x", static_cast<unsigned int>(transform),
+                  static_cast<unsigned int>(mode), alpha);
 
     memset(&dSurfaceX, 0, sizeof(dSurfaceX));
     bool needDither = false;
@@ -408,21 +417,12 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
             DEBUG_LOG_G2D("%s: invalid clip rect", __FUNCTION__);
             continue;
         }
-
         setClipping(srect, drect, clip, transform);
         DEBUG_LOG_G2D("layer:%ld, sourceCrop(l:%d,t:%d,r:%d,b:%d), visible(l:%d,t:%d,r:%d,b:%d), "
                       "display(l:%d,t:%d,r:%d,b:%d)",
                       layer->getId(), srect.left, srect.top, srect.right, srect.bottom, clip.left,
                       clip.top, clip.right, clip.bottom, drect.left, drect.top, drect.right,
                       drect.bottom);
-
-        HandleInfo layerInfo;
-        if (layerBuffer != nullptr && (getInfoFromHandle(layerBuffer, &layerInfo) == 0)) {
-            DEBUG_LOG_G2D("zorder:0x%x, phys:0x%" PRIx64, layer->getZOrder(), layerInfo.phys);
-        }
-
-        DEBUG_LOG_G2D("transform:0x%x, blend:0x%x, alpha:0x%x",
-                      static_cast<unsigned int>(transform), static_cast<unsigned int>(mode), alpha);
 
         setG2dSurface(dSurfaceX, mTarget, drect);
 

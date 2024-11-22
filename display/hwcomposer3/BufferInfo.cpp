@@ -20,6 +20,7 @@
 #include <core/drm_utils.h>
 #include <gralloc_handle.h> /* gralloc handle for legacy imx */
 #include <hardware/gralloc.h>
+#include <ui/GraphicBufferMapper.h>
 
 #include "Common.h"
 #include "Drm.h"
@@ -46,6 +47,12 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
         info->name = nullptr;
         info->phys = memHandle->phys;
         info->base = 0;
+#if defined(DEBUG_NXP_HWC) || defined(DEBUG_NXP_HWC_G2D)
+        if (memHandle->attr_base != MAP_FAILED) {
+            ::android::GraphicBufferMapper::get().getName(handle, &info->sname);
+            info->name = const_cast<char *>(info->sname.c_str());
+        }
+#endif
     } else if (gralloc_handle_t(handle)->magic == gralloc_handle::sMagic) {
         gralloc_handle_t memHandle = (gralloc_handle_t)handle;
         uint64_t modifier = 0;
