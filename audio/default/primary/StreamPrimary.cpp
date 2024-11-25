@@ -196,12 +196,6 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
             mConfig = mSavedConfig;
         }
 
-        if (property_get_int32("vendor.audio.lpa.enable", 0)) {
-            mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
-            mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
-            mHardwarePause = true;
-        }
-
         char soc_name[PROPERTY_VALUE_MAX];
         property_get("ro.boot.soc_type", soc_name, NULL);
         if ((property_get_int32("vendor.persist.audio.pass.through", 0) == 2000) &&
@@ -219,6 +213,12 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
         }
         if (card->out_period_count) {
             mConfig->period_count = card->out_period_count;
+        }
+
+        if (property_get_int32("vendor.audio.lpa.enable", 0)) {
+            mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
+            mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
+            mHardwarePause = true;
         }
     }
 
