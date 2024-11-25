@@ -37,12 +37,15 @@ extern "C" {
 #define LPA_PERIOD_MS 500
 #define LPA_BUFFER_SECOND 20
 
+using aidl::android::hardware::audio::common::isBitPositionFlagSet;
 using aidl::android::hardware::audio::common::SinkMetadata;
 using aidl::android::hardware::audio::common::SourceMetadata;
 using aidl::android::media::audio::common::AudioDevice;
 using aidl::android::media::audio::common::AudioDeviceDescription;
 using aidl::android::media::audio::common::AudioDeviceType;
+using aidl::android::media::audio::common::AudioIoFlags;
 using aidl::android::media::audio::common::AudioOffloadInfo;
+using aidl::android::media::audio::common::AudioOutputFlags;
 using aidl::android::media::audio::common::MicrophoneInfo;
 using android::base::GetBoolProperty;
 
@@ -53,6 +56,13 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
       mIsAsynchronous(!!getContext().getAsyncCallback()) {
     context->startStreamDataProcessor();
     mSavedConfig = mConfig;
+    if (auto flags = getContext().getFlags();
+        (flags.getTag() == AudioIoFlags::Tag::output &&
+         (isBitPositionFlagSet(flags.template get<AudioIoFlags::Tag::output>(),
+                               AudioOutputFlags::PRIMARY)))) {
+        mPrimary = true;
+    }
+    ALOGD("%s: primary: %d", __func__, mPrimary);
     mDump = property_get_bool("persist.vendor.audio.dump", false);
     if (mDump) {
         std::ofstream ifile(kDumpInputFile, std::ios::trunc);
@@ -64,19 +74,6 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
     if (mHardwarePause) {
         proxy_pause(mAlsaDeviceProxies[0].get());
     }
-    return ::android::OK;
-}
-
-::android::status_t StreamPrimary::start() {
-    if (!mAlsaDeviceProxies.empty() && mHardwarePause) {
-        // This is a resume after a pause.
-        proxy_resume(mAlsaDeviceProxies[0].get());
-        return ::android::OK;
-    }
-    RETURN_STATUS_IF_ERROR(StreamAlsa::start());
-    mStartTimeNs = ::android::uptimeNanos();
-    mFramesSinceStart = 0;
-    mSkipNextTransfer = false;
     return ::android::OK;
 }
 
@@ -96,8 +93,87 @@ void StreamPrimary::dump(const void *buffer, size_t bytes, const char *name) {
     return;
 }
 
+void StreamPrimary::tryStart(){
+    auto status = StreamAlsa::start();
+    if (status != ::android::OK) {
+        mStarted = false;
+    } else {
+        mStarted = true;
+    }
+}
+
+::android::status_t StreamPrimary::start() {
+    if (!mAlsaDeviceProxies.empty()) {
+        // This is a resume after a pause.
+        if (mHardwarePause) {
+            proxy_resume(mAlsaDeviceProxies[0].get());
+        }
+        return ::android::OK;
+    }
+    mCard = AudioCardManager::getCardForDevice(getConnectedDevices().at(0));
+    if (!mCard) {
+        return ::android::NO_INIT;
+    }
+    if (mPrimary) {
+        if (!mCard->locked) {
+            tryStart();
+        }
+    } else {
+        mCard->locked = true;
+        LOG(DEBUG) << __func__ << ": lock the card";
+        tryStart();
+    }
+    mStartTimeNs = ::android::uptimeNanos();
+    mFramesSinceStart = 0;
+    mSkipNextTransfer = false;
+    return ::android::OK;
+}
+
 ::android::status_t StreamPrimary::transfer(void* buffer, size_t frameCount,
                                             size_t* actualFrameCount, int32_t* latencyMs) {
+
+    if (mPrimary) {
+        if (mStarted && mCard->locked) {
+            LOG(DEBUG) << __func__ << ": standby the primary stream to release the card.";
+            standby();
+        } else if (!mStarted && !mCard->locked) {
+            tryStart();
+        }
+    } else /* direct stream */{
+        if (!mStarted) {
+            tryStart();
+        }
+        if (!mCard->locked) {
+            LOG(WARNING) << __func__ << ": error state, direct transfer without lock.";
+            mCard->locked = true;
+        }
+    }
+
+    mFramesSinceStart += frameCount;
+    if (!mStarted) {
+        *actualFrameCount = frameCount;
+        const long bufferDurationUs =
+                (*actualFrameCount) * MICROS_PER_SECOND / mContext.getSampleRate();
+        const auto totalDurationUs =
+                (::android::uptimeNanos() - mStartTimeNs) / NANOS_PER_MICROSECOND;
+        const long totalOffsetUs =
+                mFramesSinceStart * MICROS_PER_SECOND / mContext.getSampleRate() - totalDurationUs;
+        if (totalOffsetUs > 0) {
+            const long sleepTimeUs = std::min(totalOffsetUs, bufferDurationUs);
+            if (sleepTimeUs > 500000) {
+                LOG(WARNING) << __func__ << ": sleeping for " << sleepTimeUs << " us";
+            }
+            usleep(sleepTimeUs);
+        } else {
+            LOG(WARNING) << __func__ << ": Wrong sleep time: totalOffsetUs " << totalOffsetUs
+                << ", bufferDurationUs " << bufferDurationUs
+                << ", totalDurationUs " << totalDurationUs
+                << ", mFramesSinceStart " << mFramesSinceStart
+                << ", actualFrameCount " << *actualFrameCount;
+        }
+        return ::android::OK;
+    }
+
     if (mDump && mIsInput)
         dump(buffer, frameCount * mFrameSizeBytes, kDumpInputFile);
     else if (mDump && !mIsInput)
@@ -155,6 +231,25 @@ void StreamPrimary::dump(const void *buffer, size_t bytes, const char *name) {
     RETURN_STATUS_IF_ERROR(
             StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
     return ::android::OK;
+}
+
+void StreamPrimary::stop() {
+    if (!mPrimary && mCard) {
+        mCard->locked = false;
+        LOG(DEBUG) << __func__ << ": unlock the card.";
+    }
+    mStarted = false;
+}
+
+::android::status_t StreamPrimary::standby() {
+    StreamAlsa::standby();
+    stop();
+    return ::android::OK;
+}
+
+void StreamPrimary::shutdown() {
+    StreamAlsa::shutdown();
+    stop();
 }
 
 ::android::status_t StreamPrimary::refinePosition(StreamDescriptor::Position* position) {

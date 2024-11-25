@@ -113,6 +113,7 @@ void AudioCardManager::scanAvailableCard()
         }
         audio_card->card = card;
         audio_card->card_name = strdup(card_name);
+        audio_card->locked = false;
         mCards.push_back(audio_card);
         mMixers.push_back(mixer);
     }

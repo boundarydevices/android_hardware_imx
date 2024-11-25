@@ -89,6 +89,7 @@ struct audio_card {
     unsigned int out_period_count;
     unsigned int in_period_size;
     unsigned int in_period_count;
+    bool locked;
 };
 
 }  // namespace aidl::android::hardware::audio::core
