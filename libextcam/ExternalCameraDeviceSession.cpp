@@ -3473,10 +3473,10 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         if (mCameraMuted != (testPatternMode.data.u8[0] != ANDROID_SENSOR_TEST_PATTERN_MODE_OFF)) {
             mCameraMuted = !mCameraMuted;
 
-            // Allocate mute test pattern frame when mMuteTestPatternFrame is empty or source changed,
-            // just for HW decoder
+            // for HW decoder, Allocate mute test pattern frame when source change.
             if ((mHardwareDecoder && parent->getHardwareDecFlag()) &&
-                ((mYu12Frame && mMuteTestPatternFrame.size() == 0) || mDecedFrames == 0)) {
+                (mYu12Frame &&
+                 (mMuteTestPatternFrame.size() != mYu12Frame->mWidth * mYu12Frame->mHeight * 3))) {
                 mMuteTestPatternFrame.resize(mYu12Frame->mWidth * mYu12Frame->mHeight * 3);
             }
             // Get solid color for test pattern, if any was set
@@ -3512,21 +3512,25 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 mYu12Frame->getLayout(&mYu12FrameLayout);
             }
 
-            if (mDebug)
-                t1 = systemTime();
-            res = libyuv::ConvertToI420(mMuteTestPatternFrame.data(), mMuteTestPatternFrame.size(),
-                                        static_cast<uint8_t*>(mYu12FrameLayout.y),
-                                        mYu12FrameLayout.yStride,
-                                        static_cast<uint8_t*>(mYu12FrameLayout.cb),
-                                        mYu12FrameLayout.cStride,
-                                        static_cast<uint8_t*>(mYu12FrameLayout.cr),
-                                        mYu12FrameLayout.cStride, 0, 0, mYu12Frame->mWidth,
-                                        mYu12Frame->mHeight, mYu12Frame->mWidth,
-                                        mYu12Frame->mHeight, libyuv::kRotate0, libyuv::FOURCC_RAW);
-            if (mDebug) {
-                t2 = systemTime();
-                ALOGI("camera mute state, ConvertToI420: use %lld ns, %lld ms",
-                      (long long)(t2 - t1), (long long)(t2 - t1) / 1000000);
+            if (res == 0) {
+                if (mDebug)
+                    t1 = systemTime();
+                res = libyuv::ConvertToI420(mMuteTestPatternFrame.data(),
+                                            mMuteTestPatternFrame.size(),
+                                            static_cast<uint8_t*>(mYu12FrameLayout.y),
+                                            mYu12FrameLayout.yStride,
+                                            static_cast<uint8_t*>(mYu12FrameLayout.cb),
+                                            mYu12FrameLayout.cStride,
+                                            static_cast<uint8_t*>(mYu12FrameLayout.cr),
+                                            mYu12FrameLayout.cStride, 0, 0, mYu12Frame->mWidth,
+                                            mYu12Frame->mHeight, mYu12Frame->mWidth,
+                                            mYu12Frame->mHeight, libyuv::kRotate0,
+                                            libyuv::FOURCC_RAW);
+                if (mDebug) {
+                    t2 = systemTime();
+                    ALOGI("camera mute state, ConvertToI420: use %lld ns, %lld ms",
+                          (long long)(t2 - t1), (long long)(t2 - t1) / 1000000);
+                }
             }
         } else {
             if (mHardwareDecoder && parent->getHardwareDecFlag()) {
