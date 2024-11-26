@@ -154,7 +154,7 @@ public:
     virtual ~Frame();
     const int32_t mWidth;
     const int32_t mHeight;
-    const uint32_t mFourcc;
+    uint32_t mFourcc;
     uint32_t mFormatSize;
 
     // getData might involve map/allocation

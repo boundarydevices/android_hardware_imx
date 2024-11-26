@@ -3509,8 +3509,10 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 // for HardwareDecoder, mYu12Frame directly get buffer from mDecodedData,
                 // make the buffer circular, the output buffer will be overwritten after ConvertToI420.
                 res = VpuDecGetBuffer(inData, inDataSize);
-                mYu12Frame->getLayout(&mYu12FrameLayout);
             }
+            // Update fourcc to get the correct layout, in this case the width and height do not change.
+            mYu12Frame->mFourcc = V4L2_PIX_FMT_YUV420;
+            mYu12Frame->getLayout(&mYu12FrameLayout);
 
             if (res == 0) {
                 if (mDebug)
@@ -3729,7 +3731,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 uint64_t srcPhyAddr = 0;
                 mYu12Frame->getPhyAddr(srcPhyAddr);
 
-                if (mHardwareDecoder && parent->getHardwareDecFlag()) {
+                if (mHardwareDecoder && parent->getHardwareDecFlag() && !mCameraMuted) {
                     // Hardware decode
                     // HW decoder is 16 pixels aligned (1920x1080 -> 1920x1088, 800x600 -> 800x608).
                     uint8_t* outData;
@@ -3757,7 +3759,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                         return onDeviceError("%s: handleFrame failed!", __FUNCTION__);
                     }
                 } else {
-                    // Software decode
+                    // Software decode or mute state
                     ATRACE_BEGIN("cropAndScaleLocked");
                     YCbCrLayout cropAndScaled;
                     mYu12Frame->getLayout(&cropAndScaled);
@@ -3783,7 +3785,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     if (mDebug)
                         t1 = systemTime();
                     Size sz{halBuf.width, halBuf.height};
-                    ret = formatConvert(cropAndScaled, outLayout, sz, mYu12Frame->mFourcc,
+                    ret = formatConvert(cropAndScaled, outLayout, sz, outputFourcc,
                                         mYu12Frame->mFourcc);
                     if (mDebug) {
                         t2 = systemTime();
