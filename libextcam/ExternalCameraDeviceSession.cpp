@@ -1215,8 +1215,8 @@ int ExternalCameraDeviceSession::configureV4l2StreamLocked(const SupportedV4L2Fo
 
     uint32_t v4lBufferCount = (fps >= kDefaultFps) ? mCfg.numVideoBuffers : mCfg.numStillBuffers;
 
-    // Double the max lag in theory.
-    mMaxLagNs = v4lBufferCount * 1000000000LL * 2 / fps;
+    // Tripple the max lag in theory.
+    mMaxLagNs = v4lBufferCount * 1000000000LL * 3 / fps;
     ALOGI("%s: set mMaxLagNs to %" PRIu64 " ns, v4lBufferCount %u", __FUNCTION__, mMaxLagNs,
           v4lBufferCount);
 
