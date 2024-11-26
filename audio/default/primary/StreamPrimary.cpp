@@ -71,7 +71,7 @@ StreamPrimary::StreamPrimary(StreamContext* context, const Metadata& metadata)
 }
 
 ::android::status_t StreamPrimary::pause() {
-    if (mHardwarePause) {
+    if (mHardwarePause && mStarted) {
         proxy_pause(mAlsaDeviceProxies[0].get());
     }
     return ::android::OK;
@@ -105,7 +105,7 @@ void StreamPrimary::tryStart(){
 ::android::status_t StreamPrimary::start() {
     if (!mAlsaDeviceProxies.empty()) {
         // This is a resume after a pause.
-        if (mHardwarePause) {
+        if (mHardwarePause && mStarted) {
             proxy_resume(mAlsaDeviceProxies[0].get());
         }
         return ::android::OK;
@@ -313,7 +313,8 @@ std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
         if (property_get_int32("vendor.audio.lpa.enable", 0)) {
             mConfig->period_size = mConfig->rate * LPA_PERIOD_MS / 1000;
             mConfig->period_count = LPA_BUFFER_SECOND * 1000 / LPA_PERIOD_MS;
-            mHardwarePause = true;
+            if (!mPrimary)
+                mHardwarePause = true;
         }
     }
 
