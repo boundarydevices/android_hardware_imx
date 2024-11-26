@@ -46,7 +46,7 @@ int getInfoFromHandle(buffer_handle_t handle, HandleInfo *info) {
         }
         info->name = nullptr;
         info->phys = memHandle->phys;
-        info->base = 0;
+        info->base = reinterpret_cast<uint64_t>(memHandle->base);
 #if defined(DEBUG_NXP_HWC) || defined(DEBUG_NXP_HWC_G2D)
         if (memHandle->attr_base != MAP_FAILED) {
             ::android::GraphicBufferMapper::get().getName(handle, &info->sname);

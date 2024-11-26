@@ -273,26 +273,69 @@ void dumpRefreshRateEnd(DumpRefreshRate &dump, uint32_t vsyncPeriod, nsecs_t com
 #endif
 
 #ifdef DEBUG_DUMP_FRAME
-static void dump_frame_to_file(char *pbuf, int size, char *filename) {
-    int fd = 0;
-    int len = 0;
-    fd = open(filename, O_CREAT | O_RDWR, 0666);
-    if (fd < 0) {
+static void dump_frame_to_file(void *pbuf, int size, char *filename) {
+    FILE *fp = fopen(filename, "wb");
+    if (fp) {
+        size_t result = fwrite(pbuf, size, 1, fp);
+        ALOGI("Success to write %zu data, size(%d) to %s", result, size, filename);
+        fclose(fp);
+    } else {
         ALOGE("Unable to open file [%s]\n", filename);
     }
-    len = write(fd, pbuf, size);
-    close(fd);
 }
 
-static void dump_frame(char *pbuf, int width, int height, int size) {
-    static bool start_dump = false;
+static void dump_frame(buffer_handle_t handle, std::string prefix, uint32_t count, uint32_t index) {
+    HandleInfo info;
+    if (handle == nullptr || (getInfoFromHandle(handle, &info) != 0)) {
+        ALOGE("%s: invalid native handle", __FUNCTION__);
+        return;
+    }
+
+    char filename[128];
+    memset(filename, 0, 128);
+    char *sequence = (char *)&(info.drm_format);
+    std::string s(sequence, 4);
+    sprintf(filename, "/data/vendor/hwc/%s-%d-%s-%dx%d-%d.dat", prefix.c_str(), count, s.c_str(),
+            info.stride, info.height, index);
+
+    if (info.base == 0) {
+        void *vaddr = nullptr;
+        int usage = info.usage | GRALLOC_USAGE_SW_READ_OFTEN;
+        const ::android::Rect rect{0, 0, static_cast<int32_t>(info.width),
+                                   static_cast<int32_t>(info.height)};
+        ::android::status_t err =
+                ::android::GraphicBufferMapper::get().lock(const_cast<native_handle_t *>(handle),
+                                                           usage, rect, &vaddr);
+        if (err || vaddr == nullptr) {
+            ALOGE("%s: GraphicBufferMapper lock failed!", __FUNCTION__);
+            return;
+        }
+
+        dump_frame_to_file((char *)vaddr, info.size, filename);
+
+        err = ::android::GraphicBufferMapper::get().unlock(handle);
+        if (err) {
+            ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
+            return;
+        }
+    } else {
+        dump_frame_to_file((char *)info.base, info.size, filename);
+    }
+}
+
+static bool start_dump = false;
+static bool dump_frame_last = false;
+static int dumpped_count = 0;
+void debug_dump_framebuffer(buffer_handle_t handle) {
     static int prev_request_frame_count = 0;
     static int request_frame_count = 0;
-    static int dumpped_count = 0;
 
     if (!start_dump) {
+#ifdef DEBUG_DUMP_LAYER_BUFFER
+        dump_frame_last = false;
+#endif
         char value[PROPERTY_VALUE_MAX];
-        property_get("vendor.hwc.enable.dump_frame", value, "0");
+        property_get("vendor.hwc.debug.dump_frame", value, "0");
         request_frame_count = atoi(value);
         // Previous dump request finished, no more request catched
         if (prev_request_frame_count == request_frame_count)
@@ -306,53 +349,25 @@ static void dump_frame(char *pbuf, int width, int height, int size) {
     }
 
     if ((start_dump) && (request_frame_count >= 1)) {
-        ALOGI("Dump %d frame buffer %p, %d x %d, size %d", dumpped_count, pbuf, width, height,
-              size);
-        if (pbuf != 0) {
-            char filename[128];
-            memset(filename, 0, 128);
-            sprintf(filename, "/data/%s-frame-%d.rgba", "drm-display", dumpped_count);
-            dump_frame_to_file(pbuf, size, filename);
-            dumpped_count++;
-        }
+        dump_frame(handle, "fb", ++dumpped_count, 0);
+
         request_frame_count--;
         if (request_frame_count == 0) {
             start_dump = false;
-            property_set("vendor.hwc.enable.dump_frame", "0"); // disable dump when completed
+#ifdef DEBUG_DUMP_LAYER_BUFFER
+            dump_frame_last = true;
+#endif
+            property_set("vendor.hwc.debug.dump_frame", "0"); // disable dump when completed
         }
     }
 }
-
-void debug_dump_frame(buffer_handle_t handle) {
-    HandleInfo info;
-    if (handle == nullptr || (getInfoFromHandle(handle, &info) != 0)) {
-        ALOGE("%s: invalid native handle", __FUNCTION__);
-        return;
-    }
-
-    if (info.base == 0) {
-        void *vaddr = NULL;
-        int usage = info.usage | GRALLOC_USAGE_SW_READ_OFTEN;
-        const ::android::Rect rect{0, 0, static_cast<int32_t>(info.width), static_cast<int32_t>(info.height)};
-        ::android::status_t err =
-                ::android::GraphicBufferMapper::get().lock(const_cast<native_handle_t *>(handle),
-                                                           usage, rect, &vaddr);
-        if (err) {
-            ALOGE("%s: GraphicBufferMapper lock failed!", __FUNCTION__);
-            return;
-        }
-
-        dump_frame((char *)vaddr, info.width, info.height, info.size);
-
-        err = ::android::GraphicBufferMapper::get().unlock(handle);
-        if (err) {
-            ALOGE("%s: GraphicBufferMapper unlock failed!", __FUNCTION__);
-            return;
-        }
-    } else {
-        dump_frame((char *)info.base, info.width, info.height, info.size);
+#ifdef DEBUG_DUMP_LAYER_BUFFER
+void debug_dump_layerbuffer(buffer_handle_t handle, uint32_t index) {
+    if (start_dump || dump_frame_last) {
+        dump_frame(handle, "layer", dumpped_count, index);
     }
 }
+#endif
 #endif
 
 bool getDisplayPortFromProperty(const std::string &connector_name, uint32_t *outPort) {

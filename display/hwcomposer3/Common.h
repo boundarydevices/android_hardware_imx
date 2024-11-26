@@ -51,6 +51,9 @@
 // uncomment below to enable frame dump feature
 // #define DEBUG_DUMP_FRAME
 
+// uncomment below to enable frame dump feature
+// #define DEBUG_DUMP_LAYER_BUFFER
+
 #if 0 // Below already defined in Memory.h
 #define ALIGN_PIXEL_2(x) ((x + 1) & ~1)
 #define ALIGN_PIXEL_4(x) ((x + 3) & ~3)
@@ -132,7 +135,10 @@ void dumpRefreshRateEnd(DumpRefreshRate& dump, uint32_t vsyncPeriod, nsecs_t sta
 #endif
 
 #ifdef DEBUG_DUMP_FRAME
-void debug_dump_frame(buffer_handle_t handle);
+void debug_dump_framebuffer(buffer_handle_t handle);
+#ifdef DEBUG_DUMP_LAYER_BUFFER
+void debug_dump_layerbuffer(buffer_handle_t handle, uint32_t index);
+#endif
 #endif
 
 namespace HWC3 {

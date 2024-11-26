@@ -18,9 +18,10 @@
 #include "ClientFrameComposer.h"
 
 #include <cutils/properties.h>
-#include <gui/TraceUtils.h>
 #include <drm_fourcc.h>
+#include <gui/TraceUtils.h>
 #include <hardware/gralloc.h>
+#include <sync/sync.h>
 #include <ui/Fence.h>
 
 #include "BufferInfo.h"
@@ -564,12 +565,26 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         }
         displayBuffer.clientTargetDrmBuffer = std::move(drmBuffer);
 #ifdef DEBUG_DUMP_FRAME
-        debug_dump_frame(renderTarget);
+        if (fbInFence.ok()) {
+            int err = sync_wait(fbInFence.get(), 3000);
+            if (err < 0 && errno == ETIME) {
+                ALOGE("%s waited on g2d fence %" PRId32 " for 3000 ms", __FUNCTION__,
+                      fbInFence.get());
+            }
+        }
+        debug_dump_framebuffer(renderTarget);
 #endif
     } else if (displayBuffer.clientTargetDrmBuffer) {
         fbInFence = std::move(display->getClientTarget().getFence());
 #ifdef DEBUG_DUMP_FRAME
-        debug_dump_frame(display->getClientTarget().getBuffer());
+        if (fbInFence.ok()) {
+            int err = sync_wait(fbInFence.get(), 3000);
+            if (err < 0 && errno == ETIME) {
+                ALOGE("%s waited on gpu fence %" PRId32 " for 3000 ms", __FUNCTION__,
+                      fbInFence.get());
+            }
+        }
+        debug_dump_framebuffer(display->getClientTarget().getBuffer());
 #endif
     } else if (luckyLayer != nullptr) {
         common::Rect rectFrame = luckyLayer->getDisplayFrame();
@@ -585,7 +600,7 @@ HWC3::Error ClientFrameComposer::presentDisplay(
         displayBuffer.clientTargetDrmBuffer = drmBuffer;
         fbInFence = ::android::base::unique_fd(); // not need in fence
 #ifdef DEBUG_DUMP_FRAME
-        debug_dump_frame(buffer);
+        debug_dump_framebuffer(buffer);
 #endif
     } else {
         fbInFence = ::android::base::unique_fd(); // not need in fence
@@ -660,6 +675,14 @@ HWC3::Error ClientFrameComposer::presentDisplay(
     }
     *outDisplayFence = std::move(flushCompleteFence);
 
+#ifdef DEBUG_DUMP_LAYER_BUFFER
+    const std::vector<Layer*>& layers = display->getOrderedLayers();
+    for (Layer* layer : layers) {
+        auto buff = layer->waitAndGetBuffer();
+        if (buff)
+            debug_dump_layerbuffer(buff, layer->getId());
+    }
+#endif
     displayBuffer.clientTargetDrmBuffer = nullptr;
     displayBuffer.planeDrmBuffer.clear();
 
