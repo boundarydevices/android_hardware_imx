@@ -48,6 +48,7 @@ private:
     Device() = default;
 
     std::mutex mMutex;
+    std::mutex mComposerMutex;
     std::unique_ptr<FrameComposer> mComposer;
 };
 
