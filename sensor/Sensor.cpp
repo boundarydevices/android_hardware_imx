@@ -76,7 +76,7 @@ SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, Se
             break;
         case SensorType::STEP_COUNTER:
             mSensorInfo.typeAsString = SENSOR_STRING_TYPE_STEP_COUNTER;
-            mSensorInfo.flags = SensorFlagBits::DATA_INJECTION | SensorFlagBits::ON_CHANGE_MODE;
+            mSensorInfo.flags |= SensorFlagBits::ON_CHANGE_MODE;
             break;
         default:
             ALOGE("unsupported sensor type %d", type);

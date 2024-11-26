@@ -448,7 +448,7 @@ int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data
 
             std::sort(iio_dev_data.sampling_freq_avl.begin(), iio_dev_data.sampling_freq_avl.end());
             err = get_sensor_scale(iio_dev_data.sysfspath, &iio_dev_data.scale);
-            if (err < 0) {
+            if (err <= 0) {
                 iio_dev_data.scale = 0.015258f;
                 ALOGI("get_sensor_scale for %s returned error %d", path_device.c_str(), err);
             }
