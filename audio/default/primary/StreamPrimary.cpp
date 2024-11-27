@@ -253,7 +253,8 @@ void StreamPrimary::shutdown() {
 }
 
 ::android::status_t StreamPrimary::refinePosition(StreamDescriptor::Position* position) {
-    if (property_get_int32("vendor.audio.lpa.enable", 0)) {
+    if (property_get_int32("vendor.audio.lpa.enable", 0) ||
+            (getContext().getFormat().encoding == "audio/vnd.sony.dsd")) {
         return StreamAlsa::refinePosition(position);
     }
     // Since not all data is actually sent to the HAL, use the position maintained by Stream class
