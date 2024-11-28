@@ -128,7 +128,7 @@ private:
 
     std::unique_ptr<libcamera::CameraManager> cameraManager_;
     std::map<std::shared_ptr<libcamera::Camera>, unsigned int> cameraIdMap_;
-    unsigned int cameraId_;
+    unsigned int cameraId_ = 0;
 };
 
 extern "C" CameraProviderHwl* CreateCameraProviderHwl() {
