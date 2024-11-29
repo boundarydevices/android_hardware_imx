@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <core-impl/AudioCardManager.h>
+#include <audio_utils/resampler.h>
 
 #include "StreamAlsa.h"
 #include "StreamSwitcher.h"
@@ -54,6 +55,8 @@ class StreamPrimary : public StreamAlsa {
     bool mPrimaryOutput = false;
     bool mDirectOutput = false;
     struct audio_card *mCard = NULL;
+    struct resampler_itfe *mResampler;
+    int16_t *mResamplerBuffer;
     std::optional<struct pcm_config> mSavedConfig;
 
     void tryStart();

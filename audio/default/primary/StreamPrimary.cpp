@@ -40,6 +40,7 @@ extern "C" {
 }
 
 #define DEFAULT_PERIOD_COUNT 4
+#define DEFAULT_INPUT_RATE 48000
 #define LPA_PERIOD_MS 500
 #define LPA_BUFFER_SECOND 20
 
@@ -127,6 +128,40 @@ void StreamPrimary::tryStart(){
             LOG(DEBUG) << __func__ << ": lock the card";
         }
         tryStart();
+    }
+
+    if (mIsInput && !mStarted && mConfig->rate != DEFAULT_INPUT_RATE) {
+        auto requested_rate = mConfig->rate;
+        mConfig->rate = DEFAULT_INPUT_RATE;
+        tryStart();
+        if (mStarted) {
+            int ret = create_resampler(
+                    DEFAULT_INPUT_RATE, requested_rate, mConfig->channels,
+                    RESAMPLER_QUALITY_MAX - 1, /* MAX - 1 is the real max */
+                    NULL,                      /* resampler_buffer_provider */
+                    &mResampler);
+            if (ret) {
+                LOG(ERROR) << "Resampler initialization failed! Error code " << ret;
+                return ::android::NO_INIT;
+            }
+            mResamplerBuffer = (int16_t *)malloc(mBufferSizeFrames * mFrameSizeBytes);
+            if (!mResamplerBuffer) {
+                LOG(ERROR) << "Resampler buffer initialization failed!";
+                if (mResampler) {
+                    release_resampler(mResampler);
+                    mResampler = NULL;
+                }
+                return ::android::NO_INIT;
+            }
+            LOG(DEBUG) << __func__ << ": Create resampler from "
+                << DEFAULT_INPUT_RATE << " to " << requested_rate
+                << ", buffer frames " << mBufferSizeFrames
+                << ", frame size " << mFrameSizeBytes;
+        } else {
+            mConfig->rate = requested_rate;
+            LOG(DEBUG) << __func__ << ": The default input rate " << DEFAULT_INPUT_RATE << " is not supported.";
+            return ::android::NO_INIT;
+        }
     }
     mStartTimeNs = ::android::uptimeNanos();
     mStartRetryCount = 0;
@@ -240,6 +275,17 @@ void StreamPrimary::tryStart(){
         goto done;
     }
 
+    if (mResampler) {
+        StreamAlsa::transfer(mResamplerBuffer, frameCount, actualFrameCount, latencyMs);
+        size_t in_frame_count = *actualFrameCount;
+        size_t out_frame_count = *actualFrameCount;
+        mResampler->resample_from_input(mResampler,
+                (int16_t *)mResamplerBuffer, &in_frame_count,
+                (int16_t *)buffer, &out_frame_count);
+        *actualFrameCount = out_frame_count;
+        return ::android::OK;
+    }
+
     RETURN_STATUS_IF_ERROR(
             StreamAlsa::transfer(buffer, frameCount, actualFrameCount, latencyMs));
 
@@ -255,6 +301,15 @@ void StreamPrimary::stop() {
         LOG(DEBUG) << __func__ << ": unlock the card.";
     }
     mStarted = false;
+    if (mResampler) {
+        release_resampler(mResampler);
+        mResampler = NULL;
+        if (mResamplerBuffer) {
+            free(mResamplerBuffer);
+            mResamplerBuffer = NULL;
+        }
+        LOG(DEBUG) << __func__ << ": Release resampler.";
+    }
 }
 
 ::android::status_t StreamPrimary::standby() {
