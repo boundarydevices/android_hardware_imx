@@ -191,7 +191,8 @@ public:
         Status allocateIntermediateBuffers(const Size& v4lSize, const Size& thumbSize,
                                            const std::vector<Stream>& streams,
                                            uint32_t blobBufferSize,
-                                           uint32_t format = V4L2_PIX_FMT_NV12);
+                                           uint32_t format = V4L2_PIX_FMT_NV12,
+                                           uint32_t v4l2Fmt = V4L2_PIX_FMT_MJPEG);
         Status submitRequest(const std::shared_ptr<HalRequest>&);
         void flush();
         void dump(int fd);
@@ -268,7 +269,8 @@ public:
         std::string mExifMake;
         std::string mExifModel;
 
-        bool mHardwareDecoder = false;
+        bool mHasHardwareDecoder = false;
+        bool mUseHardwareDecoder = false;
         bool mMjpgCopy = true;
         bool mDebug = false;
         uint32_t mInterBufFormat = V4L2_PIX_FMT_NV12;
@@ -446,7 +448,7 @@ private:
 
     std::string mExifMake;
     std::string mExifModel;
-    bool mHardwareDecoder = false;
+    bool mHasHardwareDecoder = false;
     bool mMjpgCopy = true;
     bool mUseHalBufManager = false;
 

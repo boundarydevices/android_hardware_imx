@@ -172,9 +172,9 @@ bool ExternalCameraDeviceSession::initialize() {
     }
 
     if (GetProperty(kCameraMjpegDecoderType, "software") == "hardware") {
-        mHardwareDecoder = true;
+        mHasHardwareDecoder = true;
     } else {
-        mHardwareDecoder = false;
+        mHasHardwareDecoder = false;
     }
 
     if (GetProperty(kCameraMjpegCopy, "false") == "true") {
@@ -221,7 +221,7 @@ bool ExternalCameraDeviceSession::initialize() {
         return true;
     }
 
-    mOutputThread->setMjpegDecoderType(mHardwareDecoder);
+    mOutputThread->setMjpegDecoderType(mHasHardwareDecoder);
     mOutputThread->setMjpegCopy(mMjpgCopy);
     mOutputThread->setExifMakeModel(mExifMake, mExifModel);
 
@@ -231,7 +231,7 @@ bool ExternalCameraDeviceSession::initialize() {
         return true;
     }
 
-    if (mHardwareDecoder && mSessionNeedHardwareDec) {
+    if (mHasHardwareDecoder && mSessionNeedHardwareDec) {
         status = mOutputThread->initVpuThread();
         if (status != OK) {
             ALOGE("%s: init VPU decoder thread failed!", __FUNCTION__);
@@ -483,7 +483,8 @@ ScopedAStatus ExternalCameraDeviceSession::configureStreams(
     mBlobBufferSize = blobBufferSize;
     status = mOutputThread->allocateIntermediateBuffers(v4lSize, mMaxThumbResolution,
                                                         in_requestedConfiguration.streams,
-                                                        blobBufferSize, mInterBufFormat);
+                                                        blobBufferSize, mInterBufFormat,
+                                                        v4l2Fmt.fourcc);
     if (status != Status::OK) {
         ALOGE("%s: allocating intermediate buffers failed!", __FUNCTION__);
         return fromStatus(status);
@@ -2333,7 +2334,7 @@ ExternalCameraDeviceSession::OutputThread::~OutputThread() {}
 
 Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
         const Size& v4lSize, const Size& thumbSize, const std::vector<Stream>& streams,
-        uint32_t blobBufferSize, uint32_t format) {
+        uint32_t blobBufferSize, uint32_t format, uint32_t v4l2Fmt) {
     std::lock_guard<std::mutex> lk(mBufferLock);
     auto parent = mParent.lock();
     if (parent == nullptr) {
@@ -2351,8 +2352,14 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
     if (mYu12Frame == nullptr || mYu12Frame->mWidth != v4lSize.width ||
         mYu12Frame->mHeight != v4lSize.height) {
         mYu12Frame.reset();
-        if (mHardwareDecoder && parent->getHardwareDecFlag())
-           ALOGI("%s: mYu12Frame will directly get buffer from mDecodedData", __func__);
+
+        // Conditions for using hardwaredecoder and buffers
+        // support HW decoder(8qm/8qxp/8mq); Specified USB camera(C920/C93); v4l2 capture mjpg
+        if (mHasHardwareDecoder && parent->getHardwareDecFlag() && v4l2Fmt == V4L2_PIX_FMT_MJPEG)
+            mUseHardwareDecoder = true;
+
+        if (mUseHardwareDecoder)
+            ALOGI("%s: mYu12Frame will directly get buffer from mDecodedData", __func__);
         else
             mYu12Frame = std::make_shared<AllocatedFrame>(v4lSize.width, v4lSize.height, format);
 
@@ -2372,7 +2379,7 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
         mYu12ThumbFrame->mHeight != thumbSize.height) {
         mYu12ThumbFrame.reset();
 
-        if (mHardwareDecoder && parent->getHardwareDecFlag())
+        if (mUseHardwareDecoder)
             ALOGI("%s: mYu12ThumbFrame will allocate after haredware decode", __func__);
         else
             mYu12ThumbFrame =
@@ -2394,11 +2401,14 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
 
     // 8qm/8qxp decoded to yuyv, 8mq decoded to nv16, set the correct scaledFormat, or will meet
     // data error when get croplayout if need scale(e.g. 960x720-->640x480).
-    if (mHardwareDecoder && parent->getHardwareDecFlag()) {
+
+    if (mUseHardwareDecoder) {
         if (strcmp(socType, "imx8mq") == 0)
             scaledFormat = V4L2_PIX_FMT_NV16;
         else
             scaledFormat = V4L2_PIX_FMT_YUYV;
+    } else if (v4l2Fmt == V4L2_PIX_FMT_YUYV) {
+        scaledFormat = V4L2_PIX_FMT_YUYV;
     }
 
     for (const auto& stream : streams) {
@@ -2411,7 +2421,7 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
         if (mIntermediateBuffers.count(sz) == 0) {
             // Create new intermediate buffer
             std::shared_ptr<AllocatedFrame> buf;
-            if (mHardwareDecoder && parent->getHardwareDecFlag())
+            if (mUseHardwareDecoder)
                 buf = std::make_shared<AllocatedFramePhyMem>(stream.width, stream.height, scaledFormat);
             else
                 buf = std::make_shared<AllocatedFrame>(stream.width, stream.height, scaledFormat);
@@ -2422,7 +2432,7 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
                       stream.width, stream.height);
                 return Status::INTERNAL_ERROR;
             }
-            mIntermediateBuffers[sz] = buf;
+            mIntermediateBuffers[sz] = std::move(buf);
         }
     }
 
@@ -2445,8 +2455,8 @@ Status ExternalCameraDeviceSession::OutputThread::allocateIntermediateBuffers(
     }
 
     // Allocate mute test pattern frame
-    if (mYu12Frame)
-        mMuteTestPatternFrame.resize(mYu12Frame->mWidth * mYu12Frame->mHeight * 3);
+    Size alignedFrameSize = {ALIGN_PIXEL_16(v4lSize.width), ALIGN_PIXEL_16(v4lSize.height)};
+    mMuteTestPatternFrame.resize(alignedFrameSize.width * alignedFrameSize.height * 3);
 
     mBlobBufferSize = blobBufferSize;
     mInterBufFormat = format;
@@ -2504,7 +2514,7 @@ void ExternalCameraDeviceSession::OutputThread::dump(int fd) {
 }
 
 void ExternalCameraDeviceSession::OutputThread::setMjpegDecoderType(bool type) {
-    mHardwareDecoder = type;
+    mHasHardwareDecoder = type;
 }
 
 void ExternalCameraDeviceSession::OutputThread::setMjpegCopy(bool bCopy) {
@@ -3472,13 +3482,6 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     if (testPatternMode.count == 1) {
         if (mCameraMuted != (testPatternMode.data.u8[0] != ANDROID_SENSOR_TEST_PATTERN_MODE_OFF)) {
             mCameraMuted = !mCameraMuted;
-
-            // for HW decoder, Allocate mute test pattern frame when source change.
-            if ((mHardwareDecoder && parent->getHardwareDecFlag()) &&
-                (mYu12Frame &&
-                 (mMuteTestPatternFrame.size() != mYu12Frame->mWidth * mYu12Frame->mHeight * 3))) {
-                mMuteTestPatternFrame.resize(mYu12Frame->mWidth * mYu12Frame->mHeight * 3);
-            }
             // Get solid color for test pattern, if any was set
             if (testPatternMode.data.u8[0] == ANDROID_SENSOR_TEST_PATTERN_MODE_SOLID_COLOR) {
                 auto entry = req->setting.find(ANDROID_SENSOR_TEST_PATTERN_DATA);
@@ -3505,7 +3508,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     if (req->frameIn->mFourcc == V4L2_PIX_FMT_MJPEG) {
         ATRACE_BEGIN("MJPGtoI420");
         if (mCameraMuted) {
-            if (mHardwareDecoder && parent->getHardwareDecFlag()) {
+            if (mUseHardwareDecoder) {
                 // for HardwareDecoder, mYu12Frame directly get buffer from mDecodedData,
                 // make the buffer circular, the output buffer will be overwritten after ConvertToI420.
                 res = VpuDecGetBuffer(inData, inDataSize);
@@ -3535,7 +3538,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 }
             }
         } else {
-            if (mHardwareDecoder && parent->getHardwareDecFlag()) {
+            if (mUseHardwareDecoder) {
                 res = VpuDecGetBuffer(inData, inDataSize);
             } else {
                 if (mDebug)
@@ -3575,9 +3578,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
         }
 
         ATRACE_END();
-    }
-
-    if (req->frameIn->mFourcc == V4L2_PIX_FMT_YUYV) {
+    } else if (req->frameIn->mFourcc == V4L2_PIX_FMT_YUYV) {
         ATRACE_BEGIN("YUYVtoI420");
         if (mDebug)
             t1 = systemTime();
@@ -3641,7 +3642,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
     }
 
     if (res != 0) {
-        if (mHardwareDecoder && parent->getHardwareDecFlag())
+        if (mUseHardwareDecoder)
             VpuDecReturnBuffer();
 
         ALOGE("%s: wait for BufferRequest done failed! res %d", __FUNCTION__, res);
@@ -3683,7 +3684,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                     ALOGI("take photo, call createJpegLocked");
                     int ret = createJpegLocked(halBuf, req->setting);
                     if (ret != 0) {
-                        if (mHardwareDecoder && parent->getHardwareDecFlag())
+                        if (mUseHardwareDecoder)
                             VpuDecReturnBuffer();
 
                         lk.unlock();
@@ -3731,7 +3732,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 uint64_t srcPhyAddr = 0;
                 mYu12Frame->getPhyAddr(srcPhyAddr);
 
-                if (mHardwareDecoder && parent->getHardwareDecFlag() && !mCameraMuted) {
+                if (mUseHardwareDecoder && !mCameraMuted) {
                     // Hardware decode
                     // HW decoder is 16 pixels aligned (1920x1080 -> 1920x1088, 800x600 -> 800x608).
                     uint8_t* outData;
@@ -3810,7 +3811,7 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
                 prcdBufs.push_back(&halBuf);
             } break;
             default:
-                if (mHardwareDecoder && parent->getHardwareDecFlag())
+                if (mUseHardwareDecoder)
                     VpuDecReturnBuffer();
                 lk.unlock();
                 return onDeviceError("%s: unknown output format %x", __FUNCTION__, halBuf.format);
@@ -3819,8 +3820,8 @@ bool ExternalCameraDeviceSession::OutputThread::threadLoop() {
 
     mScaledYu12Frames.clear();
 
-   if (mHardwareDecoder && parent->getHardwareDecFlag())
-       VpuDecReturnBuffer();
+    if (mUseHardwareDecoder)
+        VpuDecReturnBuffer();
 
     // Don't hold the lock while calling back to parent
     lk.unlock();
