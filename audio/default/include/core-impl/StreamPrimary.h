@@ -49,7 +49,7 @@ class StreamPrimary : public StreamAlsa {
     bool mHardwarePause = false;
     bool mStarted = false;
     bool mPrimary = false;
-    struct audio_card *mCard;
+    struct audio_card *mCard = NULL;
     std::optional<struct pcm_config> mSavedConfig;
 
   private:
