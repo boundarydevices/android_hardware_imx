@@ -862,6 +862,7 @@ int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuf
     outBufInfo.buffer = bufferHandle;
     outBufInfo.mSize = allocatedSize;
     outBufInfo.mStride = bufferStride;
+    outBufInfo.mUsage = usage;
 
     return 0;
 }
@@ -987,6 +988,17 @@ int GetAllocationSize(buffer_handle_t handle, uint64_t &allocatedSize) {
     int err = mapper.getAllocationSize(handle, &allocatedSize);
     if (err) {
         ALOGE("%s: GraphicBufferMapper getAllocationSize failed!", __FUNCTION__);
+        return BAD_VALUE;
+    }
+
+    return 0;
+}
+
+int GetUsage(buffer_handle_t handle, uint64_t &usage) {
+    GraphicBufferMapper &mapper = GraphicBufferMapper::getInstance();
+    int err = mapper.getUsage(handle, &usage);
+    if (err) {
+        ALOGE("%s: GraphicBufferMapper getUsage failed!", __FUNCTION__);
         return BAD_VALUE;
     }
 

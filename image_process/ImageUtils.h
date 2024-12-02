@@ -77,6 +77,7 @@ void decreaseNV12WithCut(uint8_t *srcBuf, int srcWidth, int srcHeight, uint8_t *
                          int dstWidth, int dstHeight);
 
 int GetAllocationSize(buffer_handle_t buffer, uint64_t &allocatedSize);
+int GetUsage(buffer_handle_t handle, uint64_t &usage);
 } // namespace android
 
 #endif // IMAGE_UTILS_H

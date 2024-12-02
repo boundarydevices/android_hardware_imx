@@ -822,24 +822,17 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
     memset(&resizeBuf, 0, sizeof(resizeBuf));
     bool bResize = false;
 
-    // Set output cache attrib based on usage.
-    // For input cache attrib, hard code to false, reason as below.
-    // 1) For DMA buffer type, the v4l2 buffer is allocated by ion in HAL, and it's un-cacheable.
-    // 2) For MMAP buffer type, the v4l2 buffer is allocated by driver and should be cacheable.
-    //    The v4l2 buffer will only be read by ENG_CPU.
-    //    GPU3D uses physical address, no need to flush the input buffer.
+    // Set input/output cache attrib based on usage.
+    bool bInputCached =
+            srcBuf.mUsage & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
     bool bOutputCached =
             dstBuf.mUsage & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
 
-    ALOGV("ConvertImageByGPU_3D, bOutputCached %d, usage 0x%lx, res src %ux%u, dst %ux%u, format "
-          "src 0x%x, dst 0x%x, size %d",
-          bOutputCached, dstBuf.mUsage, srcBuf.mWidth, srcBuf.mHeight, dstBuf.mWidth,
-          dstBuf.mHeight, srcBuf.mFormat, dstBuf.mFormat, (int)srcBuf.mFormatSize);
-
-    // Fix me! Currently, the GPU only support using physical address for uncached memory.
-    // Otherwise the physical address will be taken as virtual one, leading crash.
-    // Will remove the hard code after GPU fix the issue.
-    bOutputCached = false;
+    ALOGV("%s:%d, bInputCached %d, srcUsage 0x%lx, bOutputCached %d, dstUsage 0x%lx, "
+          "res src %ux%u, dst %ux%u, format src 0x%x, dst 0x%x, size %d",
+          __FUNCTION__, __LINE__, bInputCached, srcBuf.mUsage, bOutputCached, dstBuf.mUsage,
+          srcBuf.mWidth, srcBuf.mHeight, dstBuf.mWidth, dstBuf.mHeight, srcBuf.mFormat,
+          dstBuf.mFormat, (int)srcBuf.mFormatSize);
 
     // case 1: same format, same resolution, copy
     if ((srcBuf.mFormat == dstBuf.mFormat) && (srcBuf.mWidth == dstBuf.mWidth) &&
@@ -847,7 +840,7 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
         Mutex::Autolock _l(mCLLock);
 
         cl_Copy(mCLHandle, (uint8_t *)dstBuf.mPhyAddr, (uint8_t *)srcBuf.mPhyAddr,
-                srcBuf.mFormatSize, false, bOutputCached);
+                srcBuf.mFormatSize, bInputCached, bOutputCached, true);
 
         (*mCLFlush)(mCLHandle);
         (*mCLFinish)(mCLHandle);
@@ -891,14 +884,18 @@ int ImageProcess::ConvertImageByGPU_3D(ImxImageBuffer &dstBuf, ImxImageBuffer &s
         SwitchImxBuf(srcBuf, resizeBuf);
 
         bResize = true;
+        // if resized, input cache attrib may change, update the cache state
+        bInputCached = srcBuf.mUsage & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN);
     }
 
     // case 4: diffrent format, same resolution
     {
         Mutex::Autolock _l(mCLLock);
-        cl_csc(mCLHandle, (uint8_t *)srcBuf.mPhyAddr, (uint8_t *)dstBuf.mPhyAddr,
-                        dstBuf.mWidth, dstBuf.mHeight, srcBuf.mStride, dstBuf.mStride, srcBuf.mHeightSpan,
-                        false, bOutputCached, srcBuf.mFormat, dstBuf.mFormat);
+
+        // on 8mq, if use virtual address, preview will freeze or black, use physical address here.
+        cl_Csc(mCLHandle, (uint8_t *)srcBuf.mPhyAddr, (uint8_t *)dstBuf.mPhyAddr, dstBuf.mWidth,
+               dstBuf.mHeight, srcBuf.mStride, dstBuf.mStride, srcBuf.mHeightSpan, bInputCached,
+               bOutputCached, srcBuf.mFormat, dstBuf.mFormat, true);
 
         (*mCLFlush)(mCLHandle);
         (*mCLFinish)(mCLHandle);
@@ -1019,28 +1016,27 @@ int ImageProcess::ConvertImageByCPU(ImxImageBuffer &dstBuf, ImxImageBuffer &srcB
 }
 
 void ImageProcess::cl_Copy(void *g2dHandle, uint8_t *output, uint8_t *input, uint32_t size,
-                           bool bInputCached, bool bOutputCached) {
+                           bool bInputCached, bool bOutputCached, bool bUsePhyAddr) {
     struct cl_g2d_buf g2d_output_buf;
     struct cl_g2d_buf g2d_input_buf;
 
     g2d_output_buf.buf_paddr = (uint64_t)output;
     g2d_output_buf.buf_size = size;
-    g2d_output_buf.use_phy = true;
+    g2d_output_buf.use_phy = bUsePhyAddr;
     g2d_output_buf.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
 
     g2d_input_buf.buf_paddr = (uint64_t)input;
     g2d_input_buf.buf_size = size;
-    g2d_input_buf.use_phy = true;
+    g2d_input_buf.use_phy = bUsePhyAddr;
     g2d_input_buf.usage = bInputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
 
     (*mCLCopy)(g2dHandle, &g2d_output_buf, &g2d_input_buf, (void *)(intptr_t)size);
 }
 
-void ImageProcess::cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer,
-                          int width, int height, int srcStride, int dstStride,
-                          int srcHeightSpan, bool bInputCached, bool bOutputCached,
-                          uint32_t inFmt, uint32_t outFmt) {
-
+void ImageProcess::cl_Csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *outputBuffer, int width,
+                          int height, int srcStride, int dstStride, int srcHeightSpan,
+                          bool bInputCached, bool bOutputCached, uint32_t inFmt, uint32_t outFmt,
+                          bool bUsePhyAddr) {
     struct cl_g2d_surface src, dst;
 
     src.format = (cl_g2d_format)convertPixelFormatToCLFormat(inFmt);
@@ -1054,7 +1050,7 @@ void ImageProcess::cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *output
     src.stride = srcStride;
     src.width = width;
     src.height = height;
-    src.usePhyAddr = true;
+    src.usePhyAddr = bUsePhyAddr;
 
     dst.format = (cl_g2d_format)convertPixelFormatToCLFormat(outFmt);
     dst.usage = bOutputCached ? CL_G2D_CACHED_MEMORY : CL_G2D_UNCACHED_MEMORY;
@@ -1067,7 +1063,7 @@ void ImageProcess::cl_csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *output
     dst.stride = dstStride;
     dst.width = width;
     dst.height = height;
-    dst.usePhyAddr = true;
+    dst.usePhyAddr = bUsePhyAddr;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
 }
