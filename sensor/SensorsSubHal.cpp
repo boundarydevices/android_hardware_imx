@@ -206,7 +206,13 @@ Return<void> SensorsSubHal::debug(const hidl_handle& fd, const hidl_vec<hidl_str
         ALOGE("%s: missing fd for writing", __FUNCTION__);
         return Void();
     }
-    FILE* out = fdopen(dup(fd->data[0]), "w");
+
+    int dupResult = dup(fd->data[0]);
+    if (dupResult < 0) {
+        ALOGE("%s: Error occurred while dup file descriptor: %s", __FUNCTION__, strerror(errno));
+        return Void();
+    }
+    FILE* out = fdopen(dupResult, "w");
 
     if (args.size() != 0) {
         fprintf(out,

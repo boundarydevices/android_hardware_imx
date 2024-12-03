@@ -306,7 +306,7 @@ void HWSensorBase::processScanData(char* data, Event* evt) {
                     channelData[chanIdx] = (int64_t)val;
                     break;
                 default:
-                    sign_mask = 1 << (mIioData.channelInfo[i].bits_used - 1);
+                    sign_mask = static_cast<int64_t>(1) << (mIioData.channelInfo[i].bits_used - 1);
                     value_mask = sign_mask - 1;
                     if (val & sign_mask)
                         channelData[chanIdx] = -((~val & value_mask) +
@@ -640,7 +640,11 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
         if (min_sampling_frequency > data.sampling_freq_avl[i])
             min_sampling_frequency = data.sampling_freq_avl[i];
     }
-    mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
+    if (max_sampling_frequency == 0)
+        mSensorInfo.minDelay = 2500;
+    else
+        mSensorInfo.minDelay = frequency_to_us(max_sampling_frequency);
+
     mSensorInfo.maxDelay = frequency_to_us(min_sampling_frequency);
     mScanSize = 16;
     buffer_path = "/dev/iio:device";

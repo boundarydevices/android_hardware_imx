@@ -314,7 +314,7 @@ static int get_sampling_frequency_available(const std::string& device_dir,
         }
     }
 
-    return ret < 0 ? ret : 0;
+    return ret;
 }
 
 static int get_sensor_name(const std::string& device_dir, std::string* name) {
@@ -463,9 +463,9 @@ int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data
                 ALOGI("get_sensor_resolution for %s returned error %d", path_device.c_str(), err);
             }
 
-            sscanf(ent->d_name + iio_base_len, "%hhu", &iio_dev_data.iio_dev_num);
-
-            iio_data->push_back(iio_dev_data);
+            int n = sscanf(ent->d_name + iio_base_len, "%hhu", &iio_dev_data.iio_dev_num);
+            if (n > 0)
+                iio_data->push_back(iio_dev_data);
         }
     }
     return 0;
