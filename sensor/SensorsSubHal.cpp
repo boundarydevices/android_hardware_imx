@@ -58,7 +58,7 @@ static std::optional<std::vector<Sensor>> readSensorsConfigFromXml() {
         auto sensorConfig = ::sensor::hal::configuration::V1_0::read(sensor_config_file.c_str());
         if (sensorConfig) {
             auto modulesList = sensorConfig->getFirstModules()->get_module();
-            for (auto module : modulesList) {
+            for (auto &module : modulesList) {
                 if (module.getHalName().compare(MODULE_NAME) == 0) {
                     return module.getFirstSensors()->getSensor();
                 }
@@ -71,7 +71,7 @@ static std::optional<std::vector<Sensor>> readSensorsConfigFromXml() {
 
 static std::optional<std::vector<Configuration>> getSensorConfiguration(
         const std::vector<Sensor>& sensor_list, const std::string& name, SensorType type) {
-    for (auto sensor : sensor_list) {
+    for (auto &sensor : sensor_list) {
         if ((name.compare(sensor.getName()) == 0) && (type == (SensorType)sensor.getType())) {
             return sensor.getConfiguration();
         }

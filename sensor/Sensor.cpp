@@ -447,7 +447,7 @@ static std::optional<std::vector<Location>> getLocation(
 
 static status_t checkOrientation(std::optional<std::vector<Configuration>> config) {
     status_t ret = OK;
-    std::optional<std::vector<Orientation>> sensorOrientationList = getOrientation(config);
+    std::optional<std::vector<Orientation>> sensorOrientationList = getOrientation(std::move(config));
     if (!sensorOrientationList) return OK;
     if (sensorOrientationList->empty()) return OK;
     Orientation& sensorOrientation = (*sensorOrientationList)[0];
@@ -475,7 +475,7 @@ void HWSensorBase::setAxisDefaultValues() {
     mXNegate = mYNegate = mZNegate = false;
 }
 void HWSensorBase::setOrientation(std::optional<std::vector<Configuration>> config) {
-    std::optional<std::vector<Orientation>> sensorOrientationList = getOrientation(config);
+    std::optional<std::vector<Orientation>> sensorOrientationList = getOrientation(std::move(config));
 
     if (sensorOrientationList && !sensorOrientationList->empty()) {
         Orientation& sensorOrientation = (*sensorOrientationList)[0];

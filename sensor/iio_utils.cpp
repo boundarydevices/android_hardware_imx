@@ -402,7 +402,7 @@ static bool iterateSensorsInPath(const std::string& path,
         if (supported_sensor.name == iio_name)
             sensor->push_back(supported_sensor);
     }
-    *name = iio_name;
+    *name = std::move(iio_name);
     return true;
 }
 
