@@ -53,6 +53,7 @@ struct DecoderBufferInfo {
     unsigned long mVirtAddr;
     uint32_t mCapacity;
     buffer_handle_t mBuffHandle; // used when free buffer
+    uint64_t mUsage = 0;
 };
 
 struct VideoRect {
@@ -100,6 +101,7 @@ typedef struct {
     int height = 0;
     uint32_t format = 0x103; // HAL_PIXEL_FORMAT_YCbCr_420_SP
     int32_t bufId;
+    uint64_t mUsage = 0;
 } DecodedData;
 
 struct DecoderInputBuffer {

@@ -202,7 +202,11 @@ public:
                                  YCbCrLayout* out); // return non-zero for bad input
     virtual void flush() {}
     virtual void getPhyAddr(uint64_t& phyAddr) {phyAddr = 0;}
-    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size) {ALOGV("%s: virtAddr %p, phyAddr %p, size %u", __func__, virtAddr, (void *)phyAddr, size);}
+    virtual void getUsage(uint64_t& usage) { usage = 0; }
+    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size, uint64_t usage) {
+        ALOGV("%s: virtAddr %p, phyAddr %p, size %u, usage 0x%lx", __func__, virtAddr,
+              (void*)phyAddr, size, usage);
+    }
 
 protected:
     std::mutex mLock;
@@ -233,7 +237,8 @@ public:
     virtual void flush();
 
     virtual void getPhyAddr(uint64_t& phyAddr);
-    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size);
+    virtual void getUsage(uint64_t& usage);
+    virtual void assign(void* virtAddr, uint64_t phyAddr, uint32_t size, uint64_t usage);
 
 private:
     buffer_handle_t dstBuffer;
@@ -241,6 +246,7 @@ private:
     uint8_t* dstBuf;
     uint64_t mPhyAddr;
     uint32_t mBufSize;
+    uint64_t mUsage;
 };
 
 enum CroppingType { HORIZONTAL = 0, VERTICAL = 1 };

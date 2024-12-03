@@ -513,6 +513,7 @@ AllocatedFramePhyMem::AllocatedFramePhyMem(uint32_t w, uint32_t h, uint32_t form
     dstBuf = NULL;
     mPhyAddr = 0;
     mBufSize = 0;
+    mUsage = 0;
 }
 
 AllocatedFramePhyMem::~AllocatedFramePhyMem() {
@@ -523,7 +524,7 @@ AllocatedFramePhyMem::~AllocatedFramePhyMem() {
     }
 }
 
-void AllocatedFramePhyMem::assign(void* virtAddr, uint64_t phyAddr, uint32_t size) {
+void AllocatedFramePhyMem::assign(void* virtAddr, uint64_t phyAddr, uint32_t size, uint64_t usage) {
     if (dstBuffer) {
         ALOGE("%s: memroy already allocated", __func__);
         return;
@@ -532,6 +533,7 @@ void AllocatedFramePhyMem::assign(void* virtAddr, uint64_t phyAddr, uint32_t siz
     dstBuf = (uint8_t *)virtAddr;
     mPhyAddr = phyAddr;
     mBufSize = size;
+    mUsage = usage;
 
     return;
 }
@@ -638,6 +640,10 @@ set_layout:
 
 void AllocatedFramePhyMem::getPhyAddr(uint64_t& phyAddr) {
     phyAddr = mPhyAddr;
+}
+
+void AllocatedFramePhyMem::getUsage(uint64_t& usage) {
+    usage = mUsage;
 }
 
 void AllocatedFramePhyMem::flush() {

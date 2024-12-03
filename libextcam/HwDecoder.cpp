@@ -1443,6 +1443,7 @@ status_t HwDecoder::allocateOutputBuffer(int bufId) {
     mInfo.mVirtAddr = (unsigned long)imgBuf.mVirtAddr;
     mInfo.mCapacity = imgBuf.mSize;
     mInfo.mBuffHandle = imgBuf.buffer;
+    mInfo.mUsage = imgBuf.mUsage;
     mInfo.bInUse = false;
     ALOGI("%s: Allocated fd=%d phys_addr=%p vaddr=%p mInfo.mCapacity:%d", __FUNCTION__,
           mInfo.mDMABufFd, (void *)mInfo.mPhysAddr, (void *)mInfo.mVirtAddr, mInfo.mCapacity);
@@ -1514,6 +1515,7 @@ void HwDecoder::notifyDecodeReady(int32_t mOutbufId) {
     std::unique_lock<std::mutex> mlk(mFramesSignalLock);
 
     mData.fd = info->mDMABufFd;
+    mData.mUsage = info->mUsage;
     mData.data = (uint8_t *)info->mVirtAddr;
     mData.width = mOutputFormat.width;
     mData.height = mOutputFormat.height;
