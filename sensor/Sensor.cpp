@@ -175,6 +175,7 @@ Result SensorBase::flush() {
     // Note: If a sensor supports batching, write all of the currently batched events for the sensor
     // to the Event FMQ prior to writing the flush complete event.
     Event ev;
+    ev.timestamp = elapsedRealtimeNano(),
     ev.sensorHandle = mSensorInfo.sensorHandle;
     ev.sensorType = SensorType::META_DATA;
     ev.u.meta.what = MetaDataEventType::META_DATA_FLUSH_COMPLETE;
@@ -627,6 +628,7 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     mSensorInfo.maxRange = data.max_range * data.scale;
     mSensorInfo.power = 0;
     mIioData = data;
+    mPollFdIio.events = 0;
     setOrientation(config);
     status_t ret = setAdditionalInfoFrames(config);
     if (ret == OK) mSensorInfo.flags |= SensorFlagBits::ADDITIONAL_INFO;
