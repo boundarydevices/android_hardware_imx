@@ -16,13 +16,16 @@
 #define LOG_TAG "NXPIIOSensorSubHal"
 
 #include "iio_utils.h"
+
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <log/log.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -80,19 +83,16 @@ static int sysfs_opendir(const std::string& name, DirPtr* dp) {
         return -EINVAL;
     }
 
-    /*
-     * Check if path exists, if a component of path does not exist,
-     * or path is an empty string return ENOENT
-     * If path is not accessible return EACCES
-     */
-    struct stat sb;
-    if (stat(name.c_str(), &sb) == -1) {
+    int dir_fd = openat(AT_FDCWD, name.c_str(), O_RDONLY | O_DIRECTORY);
+    if (dir_fd == -1) {
         return -errno;
     }
 
-    /* Open sysfs directory */
-    DIR* tmp = opendir(name.c_str());
-    if (tmp == nullptr) return -errno;
+    DIR* tmp = fdopendir(dir_fd);
+    if (tmp == nullptr) {
+        close(dir_fd);
+        return -errno;
+    }
 
     dp->reset(tmp);
 
@@ -206,11 +206,10 @@ int add_hrtimer_trigger(const std::string& device_dir, uint8_t dev_num, const bo
     current_trigger += IIO_CURRENT_TRIGGER;
 
     if (enable) {
-        if (access(hrtimer_dir.c_str(), 0) == -1 && mkdir(hrtimer_dir.c_str(), 644) == -1) {
-            ALOGI("mkdir error for %s\n", hrtimer_dir.c_str());
+        int result = mkdir(hrtimer_dir.c_str(), 644);
+        if (result == -1 && errno != EEXIST)
             goto failed;
-        } else
-            err = sysfs_write_str(current_trigger, tri_value);
+        err = sysfs_write_str(current_trigger, tri_value);
     } else {
         err = sysfs_write_str(current_trigger, "");
     }
@@ -344,6 +343,7 @@ static int get_sensor_scale(const std::string& device_dir, float* scale) {
     DirPtr dp(nullptr, closedir);
     const struct dirent* ent;
     int err;
+    bool support_scale = false;
     std::string filename;
     if (scale == nullptr) {
         return -EINVAL;
@@ -356,8 +356,12 @@ static int get_sensor_scale(const std::string& device_dir, float* scale) {
             filename += "/";
             filename += ent->d_name;
             err = sysfs_read_float(filename, scale);
+            support_scale = true;
         }
     }
+    if (!support_scale)
+        return -EINVAL;
+
     return err;
 }
 
@@ -448,7 +452,7 @@ int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data
 
             std::sort(iio_dev_data.sampling_freq_avl.begin(), iio_dev_data.sampling_freq_avl.end());
             err = get_sensor_scale(iio_dev_data.sysfspath, &iio_dev_data.scale);
-            if (err <= 0) {
+            if (err < 0) {
                 iio_dev_data.scale = 0.015258f;
                 ALOGI("get_sensor_scale for %s returned error %d", path_device.c_str(), err);
             }

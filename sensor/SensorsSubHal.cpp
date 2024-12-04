@@ -139,8 +139,8 @@ Return<void> SensorsSubHal::getSensorsList_2_1(getSensorsList_2_1_cb _hidl_cb) {
 
 Return<Result> SensorsSubHal::setOperationMode(OperationMode mode) {
     for (auto& sensor : mSensors) {
-        if (sensor.second->getSensorInfo().type == SensorType::STEP_COUNTER &&
-            mode == OperationMode::DATA_INJECTION && !sensor.second->supportsDataInjection())
+        if ((sensor.second->getSensorInfo().type == SensorType::STEP_COUNTER) &&
+            (mode == OperationMode::DATA_INJECTION) && !sensor.second->supportsDataInjection())
             return Result::INVALID_OPERATION;
         sensor.second->setOperationMode(mode);
     }

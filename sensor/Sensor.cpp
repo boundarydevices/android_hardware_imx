@@ -202,34 +202,42 @@ void HWSensorBase::readSysfsRawData(Event* evt) {
     evt->sensorHandle = mSensorInfo.sensorHandle;
     evt->sensorType = mSensorInfo.type;
     switch (mSensorInfo.type) {
-        case SensorType::ACCELEROMETER:
+        case SensorType::ACCELEROMETER: {
             char buf_acc_x[64], buf_acc_y[64], buf_acc_z[64];
-
-            read(fd_acc_x, buf_acc_x, sizeof(buf_acc_x));
+            ssize_t bytes_acc = 1;
+            bytes_acc *= read(fd_acc_x, buf_acc_x, sizeof(buf_acc_x));
             lseek(fd_acc_x, 0L, SEEK_SET);
-            read(fd_acc_y, buf_acc_y, sizeof(buf_acc_y));
+            bytes_acc *= read(fd_acc_y, buf_acc_y, sizeof(buf_acc_y));
             lseek(fd_acc_y, 0L, SEEK_SET);
-            read(fd_acc_z, buf_acc_z, sizeof(buf_acc_z));
+            bytes_acc *= read(fd_acc_z, buf_acc_z, sizeof(buf_acc_z));
             lseek(fd_acc_z, 0L, SEEK_SET);
 
-            evt->u.vec3.x = atoi(buf_acc_x) * 0.00976;
-            evt->u.vec3.y = atoi(buf_acc_y) * 0.00976;
-            evt->u.vec3.z = atoi(buf_acc_z) * 0.00976;
-            break;
-        case SensorType::MAGNETIC_FIELD:
+            if (bytes_acc <= 0)
+                ALOGI("Error reading accelerometer x-axis data");
+            else {
+                evt->u.vec3.x = atoi(buf_acc_x) * 0.00976;
+                evt->u.vec3.y = atoi(buf_acc_y) * 0.00976;
+                evt->u.vec3.z = atoi(buf_acc_z) * 0.00976;
+            }
+        } break;
+        case SensorType::MAGNETIC_FIELD: {
             char buf_mag_x[64], buf_mag_y[64], buf_mag_z[64];
-
-            read(fd_mag_x, buf_mag_x, sizeof(buf_mag_x));
+            ssize_t bytes_mag = 1;
+            bytes_mag *= read(fd_mag_x, buf_mag_x, sizeof(buf_mag_x));
             lseek(fd_mag_x, 0L, SEEK_SET);
-            read(fd_mag_y, buf_mag_y, sizeof(buf_mag_y));
+            bytes_mag *= read(fd_mag_y, buf_mag_y, sizeof(buf_mag_y));
             lseek(fd_mag_y, 0L, SEEK_SET);
-            read(fd_mag_z, buf_mag_z, sizeof(buf_mag_z));
+            bytes_mag *= read(fd_mag_z, buf_mag_z, sizeof(buf_mag_z));
             lseek(fd_mag_z, 0L, SEEK_SET);
 
-            evt->u.vec3.x = atoi(buf_mag_x) * 0.001;
-            evt->u.vec3.y = atoi(buf_mag_y) * 0.001;
-            evt->u.vec3.z = atoi(buf_mag_z) * 0.001;
-            break;
+            if (bytes_mag <= 0)
+                ALOGI("Error reading magnetic x-axis data");
+            else {
+                evt->u.vec3.x = atoi(buf_mag_x) * 0.001;
+                evt->u.vec3.y = atoi(buf_mag_y) * 0.001;
+                evt->u.vec3.z = atoi(buf_mag_z) * 0.001;
+            }
+        } break;
         case SensorType::LIGHT:
             unsigned int light;
             get_light_value(mIioData.sysfspath, &light);
@@ -628,7 +636,6 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     mSensorInfo.maxRange = data.max_range * data.scale;
     mSensorInfo.power = 0;
     mIioData = data;
-    mPollFdIio.events = 0;
     setOrientation(config);
     status_t ret = setAdditionalInfoFrames(config);
     if (ret == OK) mSensorInfo.flags |= SensorFlagBits::ADDITIONAL_INFO;
@@ -681,6 +688,7 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
         mSensorInfo.maxDelay = 500000;
     }
     mPollFdIio.events = POLLIN;
+    mPollFdIio.revents = 0;
     mSensorRawData.resize(mScanSize);
 }
 
