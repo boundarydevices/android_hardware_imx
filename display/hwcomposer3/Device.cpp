@@ -152,4 +152,7 @@ HWC3::Error Device::setPersistentKeyValue(const std::string& key, const std::str
     return HWC3::Error::None;
 }
 
+bool Device::persistentKeyValueEnabled() const {
+    return !getPmemPath().empty();
+}
 } // namespace aidl::android::hardware::graphics::composer3::impl

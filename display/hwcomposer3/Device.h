@@ -39,6 +39,7 @@ public:
     HWC3::Error getComposer(FrameComposer** outComposer);
     void releaseComposer();
 
+    bool persistentKeyValueEnabled() const;
     HWC3::Error getPersistentKeyValue(const std::string& key, const std::string& defaultVal,
                                       std::string* outValue);
 

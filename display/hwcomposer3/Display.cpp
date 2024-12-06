@@ -545,6 +545,11 @@ HWC3::Error Display::setActiveConfigWithConstraints(int32_t configId,
 std::optional<int32_t> Display::getBootConfigId() {
     DEBUG_LOG("%s: hwc display:%" PRId64, __FUNCTION__, mId);
 
+    if (!Device::getInstance().persistentKeyValueEnabled()) {
+        DEBUG_LOG("%s: persistent boot config is not enabled.", __FUNCTION__);
+        return std::nullopt;
+    }
+
     std::unique_lock<std::recursive_mutex> lock(mStateMutex);
 
     std::string val;
