@@ -99,13 +99,13 @@ HWC3::Error Device::getComposer(FrameComposer** outComposer) {
         }
     }
 
-    mComposerMutex.lock();
+    mSemaphore.acquire();
     *outComposer = mComposer.get();
     return HWC3::Error::None;
 }
 
 void Device::releaseComposer() {
-    mComposerMutex.unlock();
+    mSemaphore.release();
 }
 
 HWC3::Error Device::getPersistentKeyValue(const std::string& key, const std::string& defaultValue,

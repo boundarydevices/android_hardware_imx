@@ -21,6 +21,7 @@
 #include <utils/Singleton.h>
 
 #include <memory>
+#include <semaphore>
 #include <thread>
 
 #include "Common.h"
@@ -48,7 +49,7 @@ private:
     Device() = default;
 
     std::mutex mMutex;
-    std::mutex mComposerMutex;
+    std::binary_semaphore mSemaphore{1};
     std::unique_ptr<FrameComposer> mComposer;
 };
 
