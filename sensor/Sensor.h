@@ -141,6 +141,7 @@ class HWSensorBase : public SensorBase {
 
     ssize_t mScanSize;
     struct pollfd mPollFdIio;
+    static int sharedFd;
     std::vector<char> mSensorRawData;
     int64_t mXMap, mYMap, mZMap;
     bool mXNegate, mYNegate, mZNegate;

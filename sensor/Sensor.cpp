@@ -35,6 +35,8 @@ using ::android::hardware::sensors::V1_0::SensorStatus;
 using ::sensor::hal::configuration::V1_0::Location;
 using ::sensor::hal::configuration::V1_0::Orientation;
 
+int HWSensorBase::sharedFd = -1;
+
 SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, SensorType type)
     : mIsEnabled(false),
       mSamplingPeriodNs(0),
@@ -431,6 +433,13 @@ Result SensorBase::injectEvent(const Event& event) {
     return result;
 }
 
+int openDeviceFile(std::string buffer_path) {
+    int fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
+    if (fd == -1)
+        ALOGE("Failed to open iio char device (%s).", buffer_path.c_str());
+    return fd;
+}
+
 static status_t checkAxis(int64_t map) {
     if (map < 0 || map >= NUM_OF_DATA_CHANNELS)
         return BAD_VALUE;
@@ -656,7 +665,16 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     mScanSize = 16;
     buffer_path = "/dev/iio:device";
     buffer_path.append(std::to_string(mIioData.iio_dev_num));
-    mPollFdIio.fd = open(buffer_path.c_str(), O_RDONLY | O_NONBLOCK);
+    if (mSensorInfo.name == "mpl3115") {
+        if (sharedFd == -1) {
+            mPollFdIio.fd = openDeviceFile(buffer_path);
+            if (mPollFdIio.fd != -1)
+                sharedFd = mPollFdIio.fd;
+        } else
+            mPollFdIio.fd = sharedFd;
+    } else
+        mPollFdIio.fd = openDeviceFile(buffer_path);
+
     if (mPollFdIio.fd < 0 || mIioData.name == "mpl3115" ||
         mIioData.type == SensorType::STEP_COUNTER) {
         if (mIioData.type == SensorType::ACCELEROMETER) {
