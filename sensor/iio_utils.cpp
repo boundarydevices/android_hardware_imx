@@ -339,7 +339,7 @@ int set_sampling_frequency(const std::string& device_dir, const double frequency
     return ret;
 }
 
-static int get_sensor_scale(const std::string& device_dir, float* scale) {
+static int get_sensor_scale(const std::string& device_dir, float* scale, SensorType type) {
     DirPtr dp(nullptr, closedir);
     const struct dirent* ent;
     int err;
@@ -355,8 +355,13 @@ static int get_sensor_scale(const std::string& device_dir, float* scale) {
             filename = device_dir;
             filename += "/";
             filename += ent->d_name;
-            err = sysfs_read_float(filename, scale);
-            support_scale = true;
+            if (((type != SensorType::AMBIENT_TEMPERATURE) && (type != SensorType::PRESSURE)) ||
+                ((type == SensorType::AMBIENT_TEMPERATURE) && strstr(filename.c_str(), "temp")) ||
+                ((type == SensorType::PRESSURE) && strstr(filename.c_str(), "pressure"))) {
+                    err = sysfs_read_float(filename, scale);
+                    support_scale = true;
+                    break;
+                }
         }
     }
     if (!support_scale)
@@ -451,7 +456,7 @@ int load_iio_devices(std::string iio_dir, std::vector<iio_device_data>* iio_data
             }
 
             std::sort(iio_dev_data.sampling_freq_avl.begin(), iio_dev_data.sampling_freq_avl.end());
-            err = get_sensor_scale(iio_dev_data.sysfspath, &iio_dev_data.scale);
+            err = get_sensor_scale(iio_dev_data.sysfspath, &iio_dev_data.scale, iio_dev_data.type);
             if (err < 0) {
                 iio_dev_data.scale = 0.015258f;
                 ALOGI("get_sensor_scale for %s returned error %d", path_device.c_str(), err);
