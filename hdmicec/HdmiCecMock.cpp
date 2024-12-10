@@ -106,16 +106,7 @@ ScopedAStatus HdmiCecMock::getPhysicalAddress(int32_t* _aidl_return) {
     if (!mDevice) {
         ALOGE("mDevice is null, cec not support");
     } else {
-        // Compare physical address with the value in edid, update the address if different
-        uint16_t edidPhyaddr = CEC_PHYS_ADDR_INVALID;
-        getPhysicalAddrFromEdid(&edidPhyaddr);
-        ALOGV("getPhysicalAddrFromEdid  edidPhyaddr:0x%x,  mPhysicalAddress:0x%x", edidPhyaddr,
-              mPhysicalAddress);
-
         mDevice->get_physical_address(mDevice, &mPhysicalAddress);
-        if (mPhysicalAddress != edidPhyaddr && edidPhyaddr != CEC_PHYS_ADDR_INVALID) {
-            mPhysicalAddress = edidPhyaddr;
-        }
     }
     *_aidl_return = mPhysicalAddress;
     return ScopedAStatus::ok();

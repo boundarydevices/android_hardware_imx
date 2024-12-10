@@ -156,7 +156,7 @@ void HdmiConnectionMock::handleHotplugMessage(unsigned char* msgBuf) {
 void HdmiConnectionMock::threadLoop() {
     ALOGD("threadLoop start.");
     // Open the cec node
-    char *path = (char *)"/dev/cec0 ";
+    char* path = (char*)"/dev/cec0";
     base::unique_fd cecFd(::open(path, O_RDWR | O_NONBLOCK));
     if (cecFd.get() < 0) {
         ALOGE("faild to open %s, ret=%s\n", path, strerror(errno));
@@ -179,7 +179,8 @@ void HdmiConnectionMock::threadLoop() {
                 continue;
 
             uint16_t phyaddr = ev.state_change.phys_addr;
-            ALOGD("ev.event:%d,  phyaddr:0x%x", ev.event, phyaddr);
+            ALOGD("ev.event:%d,  phyaddr:0x%x, origin mPhysicalAddress:0x%x", ev.event, phyaddr,
+                  mPhysicalAddress);
             if (phyaddr == mPhysicalAddress || phyaddr == CEC_PHYS_ADDR_INVALID) {
                 ALOGE("the same with before or invalid, drop this phyaddr:0x%x", phyaddr);
                 continue;
@@ -190,7 +191,7 @@ void HdmiConnectionMock::threadLoop() {
             if (mPortInfos.at(mPortId - 1).type == HdmiPortType::OUTPUT) {
                 mPhysicalAddress = connected ? phyaddr : CEC_PHYS_ADDR_INVALID;
                 mPortInfos.at(mPortId - 1).physicalAddress = mPhysicalAddress;
-                ALOGD("hot plug physical address %x", mPhysicalAddress);
+                ALOGD("hot plug physical address: 0x%x", mPhysicalAddress);
             }
 
             if (mCallback != nullptr) {

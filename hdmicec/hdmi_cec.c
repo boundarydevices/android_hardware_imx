@@ -162,36 +162,11 @@ static void hdmicec_clear_logical_address(const struct hdmi_cec_device *dev)
 
 static int hdmicec_get_physical_address(const struct hdmi_cec_device *dev, uint16_t *addr)
 {
-    uint16_t edid_addr = *addr;
     struct hdmicec_context *ctx = (struct hdmicec_context *)dev;
     int ret = ioctl(ctx->cec_fd, CEC_ADAP_G_PHYS_ADDR, addr);
     if (ret)
         ALOGD("%s: %m\n", __func__);
-    ALOGV("get phyaddr=0x%x\n", *addr);
-
-    // for some cec adapters, the physical address needs to be re-set after hot-plug
-    if (ctx->cec_cap_phys_addr && edid_addr != *addr && edid_addr != CEC_PHYS_ADDR_INVALID) {
-        hdmicec_clear_logical_address(dev);
-        usleep(20000);
-        ret = ioctl(ctx->cec_fd, CEC_ADAP_S_PHYS_ADDR, &edid_addr);
-        if (ret < 0) {
-            ALOGE("set cec phyaddr failed, %d\n", ret);
-            return ret;
-        }
-        ALOGD("set cec phyaddr success, phyaddr=0x%x\n", edid_addr);
-    }
-    if (*addr != CEC_PHYS_ADDR_INVALID) {
-        struct cec_log_addrs laddrs;
-        memset(&laddrs, 0, sizeof(laddrs));
-        ret = ioctl(ctx->cec_fd, CEC_ADAP_G_LOG_ADDRS, &laddrs);
-        if (laddrs.log_addr[0] == CEC_ADDR_PLAYBACK_1 ||
-            laddrs.log_addr[0] == CEC_LOG_ADDR_INVALID) {
-            return ret;
-        }
-        ALOGD("get logical addr:%d.  logical addr != CEC_ADDR_PLAYBACK_1, add it\n",
-              laddrs.log_addr[0]);
-        hdmicec_add_logical_address(dev, CEC_ADDR_PLAYBACK_1);
-    }
+    ALOGD("get phyaddr=0x%x\n", *addr);
 
     return ret;
 }
