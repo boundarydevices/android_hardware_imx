@@ -30,20 +30,6 @@ typedef int (*hwc_func1)(void* handle);
 typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 
-// sort by priority
-enum ImxEngine {
-    ENG_NOTCARE = -1,
-    ENG_MIN = 0,
-    ENG_G2D = ENG_MIN,
-    ENG_DPU,
-    ENG_G3D,
-    ENG_IPU,
-    ENG_PXP,
-    ENG_CPU,
-    ENG_BYPASS,
-    ENG_NUM
-};
-
 class ImageProcess {
 public:
     static ImageProcess* getInstance();

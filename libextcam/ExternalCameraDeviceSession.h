@@ -205,6 +205,7 @@ public:
 
         void setMjpegDecoderType(bool type);
         void setMjpegCopy(bool bCopy);
+        void setBlitEngine(ImxEngine engine);
 
         HwDecoder* mDecoder;
         uint64_t mDecedFrames = 0;
@@ -293,7 +294,7 @@ public:
         int directCopy(struct HalStreamBuffer& halBuf, uint8_t* inData, size_t inDataSize);
 
         bool mUseHalBufManager = false;
-        ImxEngine mEngine = ENG_NOTCARE;
+        ImxEngine mEngine = ENG_CPU;
     };
 
 private:

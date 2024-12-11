@@ -224,6 +224,7 @@ bool ExternalCameraDeviceSession::initialize() {
     mOutputThread->setMjpegDecoderType(mHasHardwareDecoder);
     mOutputThread->setMjpegCopy(mMjpgCopy);
     mOutputThread->setExifMakeModel(mExifMake, mExifModel);
+    mOutputThread->setBlitEngine(mCfg.blitEngine);
 
     status_t status = initDefaultRequests();
     if (status != OK) {
@@ -2520,6 +2521,9 @@ void ExternalCameraDeviceSession::OutputThread::setMjpegDecoderType(bool type) {
 void ExternalCameraDeviceSession::OutputThread::setMjpegCopy(bool bCopy) {
     mMjpgCopy = bCopy;
 }
+void ExternalCameraDeviceSession::OutputThread::setBlitEngine(ImxEngine engine) {
+    mEngine = engine;
+}
 
 int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
     auto parent = mParent.lock();
@@ -2558,15 +2562,6 @@ int ExternalCameraDeviceSession::OutputThread::initVpuThread() {
     }
 
     mDecedFrames = 0;
-
-    if ((strcmp(socType, "imx8qm") == 0) || (strcmp(socType, "imx8qxp") == 0))
-        mEngine = ENG_DPU;
-    else if (strcmp(socType, "imx8mq") == 0)
-        mEngine = ENG_G3D;
-    else if (strcmp(socType, "imx95") == 0)
-        mEngine = ENG_CPU;
-    else
-        mEngine = ENG_NOTCARE;
 
     return OK;
 }

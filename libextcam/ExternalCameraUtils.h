@@ -37,6 +37,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "ImageUtils.h"
+
 using ::aidl::android::hardware::camera::common::Status;
 using ::aidl::android::hardware::camera::device::CaptureResult;
 using ::aidl::android::hardware::camera::device::ErrorCode;
@@ -119,6 +121,9 @@ struct ExternalCameraConfig {
 
     // Intermediate Buffers format, nv12(default) or i420.
     char interBufFormat[INTERBUF_FORMAT_SIZE];
+
+    // The blit engine used, default ENG_CPU.
+    ImxEngine blitEngine = ENG_CPU;
 
 private:
     ExternalCameraConfig();

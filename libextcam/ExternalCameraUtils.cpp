@@ -29,8 +29,6 @@
 #include <cinttypes>
 #include <cmath>
 
-#include "ImageUtils.h"
-
 #define HAVE_JPEG // required for libyuv.h to export MJPEG decode APIs
 #include <libyuv.h>
 
@@ -195,6 +193,18 @@ ExternalCameraConfig ExternalCameraConfig::loadFromCfg(const char* cfgPath) {
             strncpy(ret.interBufFormat, format, INTERBUF_FORMAT_SIZE);
             ret.interBufFormat[INTERBUF_FORMAT_SIZE - 1] = 0;
             ALOGI("%s: InterBufFormat %s", __func__, ret.interBufFormat);
+        }
+    }
+
+    XMLElement* blitEngine = deviceCfg->FirstChildElement("BlitEngine");
+    if (blitEngine == nullptr) {
+        ALOGI("%s: no blitEngine specified, will use default engine CPU", __FUNCTION__);
+    } else {
+        const char* engine = NULL;
+        err = blitEngine->QueryAttribute("engine", &engine);
+        if (err == XML_SUCCESS) {
+            ret.blitEngine = ValueToImxEngine(engine);
+            ALOGI("%s: blitEngine %s, index %d", __func__, engine, ret.blitEngine);
         }
     }
 

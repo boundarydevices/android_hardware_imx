@@ -140,14 +140,6 @@ const char* const kGivenResHeightKey = "height";
 const char* const kPreviewBuffersKey = "PreviewBuffers";
 const char* const kLibcameraBuffersKey = "LibcameraBuffers";
 
-#define ENGINE_GPU_2D "GPU_2D"
-#define ENGINE_GPU_3D "GPU_3D"
-#define ENGINE_IPU "IPU"
-#define ENGINE_PXP "PXP"
-#define ENGINE_DPU "DPU"
-#define ENGINE_CPU "CPU"
-#define ENGINE_BYPASS "BYPASS"
-
 #define MAX_SENSOR_WIDTH INT_MAX
 #define MAX_SENSOR_HEIGHT INT_MAX
 
@@ -180,28 +172,6 @@ HalVersion ValueToCameraHalVersion(const std::string& value) {
     }
 
     return hal_version;
-}
-
-ImxEngine ValueToImxEngine(const std::string& value) {
-    ImxEngine engine = ENG_G2D;
-
-    if (value == ENGINE_DPU) {
-        engine = ENG_DPU;
-    } else if (value == ENGINE_GPU_2D) {
-        engine = ENG_G2D;
-    } else if (value == ENGINE_GPU_3D) {
-        engine = ENG_G3D;
-    } else if (value == ENGINE_PXP) {
-        engine = ENG_PXP;
-    } else if (value == ENGINE_IPU) {
-        engine = ENG_IPU;
-    } else if (value == ENGINE_CPU) {
-        engine = ENG_CPU;
-    } else if (value == ENGINE_BYPASS) {
-        engine = ENG_BYPASS;
-    }
-
-    return engine;
 }
 
 // Convert string value to buffer map type
