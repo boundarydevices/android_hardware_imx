@@ -36,6 +36,7 @@ using ::sensor::hal::configuration::V1_0::Location;
 using ::sensor::hal::configuration::V1_0::Orientation;
 
 int HWSensorBase::sharedFd = -1;
+std::unordered_map<int, int> HWSensorBase::iioDevNumCountMap;
 
 SensorBase::SensorBase(int32_t sensorHandle, ISensorsEventCallback* callback, SensorType type)
     : mIsEnabled(false),
@@ -101,6 +102,9 @@ OperationMode SensorBase::getOperationMode() const {
 }
 
 HWSensorBase::~HWSensorBase() {
+    if (iioDevNumCountMap.find(mIioData.iio_dev_num) != iioDevNumCountMap.end()) {
+        iioDevNumCountMap.erase(mIioData.iio_dev_num);
+    }
     close(mPollFdIio.fd);
 }
 
@@ -156,13 +160,26 @@ void HWSensorBase::setupSysfsTrigger(const std::string& device_dir, uint8_t dev_
 void HWSensorBase::activate(bool enable) {
     std::unique_lock<std::mutex> lock(mSensorThread.lock());
     if (mIsEnabled != enable) {
-        mIsEnabled = enable;
-        if (mPollFdIio.fd >= 0 && mIioData.type != SensorType::STEP_COUNTER)
-            setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
-        enable_sensor(mIioData.sysfspath, enable);
+        if (mPollFdIio.fd >= 0 && mIioData.type != SensorType::STEP_COUNTER) {
+            if (enable) {
+                iioDevNumCountMap[mIioData.iio_dev_num]++;
+                if (iioDevNumCountMap[mIioData.iio_dev_num] == 1) {
+                    setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
+                    enable_sensor(mIioData.sysfspath, enable);
+                    trigger_data(mIioData.iio_dev_num, mSamplingPeriodNs * 10);
+                }
+            } else {
+                iioDevNumCountMap[mIioData.iio_dev_num]--;
+                if (iioDevNumCountMap[mIioData.iio_dev_num] == 0) {
+                    setupSysfsTrigger(mIioData.sysfspath, mIioData.iio_dev_num, enable);
+                    enable_sensor(mIioData.sysfspath, enable);
+                }
+            }
+        }
         if (mIioData.type == SensorType::STEP_COUNTER)
             enable_step_sensor(mIioData.sysfspath, enable);
         if (enable) sendAdditionalInfoReport();
+        mIsEnabled = enable;
         mSensorThread.notifyAll();
     }
 }
@@ -645,6 +662,9 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     mSensorInfo.maxRange = data.max_range * data.scale;
     mSensorInfo.power = 0;
     mIioData = data;
+    if (iioDevNumCountMap.find(mIioData.iio_dev_num) == iioDevNumCountMap.end()) {
+        iioDevNumCountMap[mIioData.iio_dev_num] = 0;
+    }
     setOrientation(config);
     status_t ret = setAdditionalInfoFrames(config);
     if (ret == OK) mSensorInfo.flags |= SensorFlagBits::ADDITIONAL_INFO;

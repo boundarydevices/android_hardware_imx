@@ -19,10 +19,12 @@
 #include <android-base/unique_fd.h>
 #include <android/hardware/sensors/2.1/types.h>
 #include <poll.h>
+
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "SensorThread.h"
@@ -146,6 +148,7 @@ class HWSensorBase : public SensorBase {
     int64_t mXMap, mYMap, mZMap;
     bool mXNegate, mYNegate, mZNegate;
     std::vector<AdditionalInfo> mAdditionalInfoFrames;
+    static std::unordered_map<int, int> iioDevNumCountMap;
 
     HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback,
                  const struct iio_device_data& iio_data,
