@@ -185,6 +185,9 @@ public:
         return nullptr;
     }
 
+    void RepeatingRequestEnd(int32_t frame_number,
+                         const std::vector<int32_t>& stream_ids) override;
+
     // End override functions in CameraDeviceSessionHwl
 
 private:

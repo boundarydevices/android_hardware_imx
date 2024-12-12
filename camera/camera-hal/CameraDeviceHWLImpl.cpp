@@ -412,4 +412,9 @@ status_t CameraDeviceHwlImpl::GetSessionCharacteristics(
 
     return OK;
 }
+
+HwlMemoryConfig CameraDeviceHwlImpl::GetMemoryConfig() const {
+    return HwlMemoryConfig();
+}
+
 } // namespace android

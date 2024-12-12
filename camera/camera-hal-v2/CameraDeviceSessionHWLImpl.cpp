@@ -1606,4 +1606,8 @@ void CameraDeviceSessionHwlImpl::requestComplete(libcamera::Request *request) {
     return;
 }
 
+void CameraDeviceSessionHwlImpl::RepeatingRequestEnd(
+    int32_t /*frame_number*/, const std::vector<int32_t>& /*stream_ids*/) {
+}
+
 } // namespace android

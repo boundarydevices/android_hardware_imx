@@ -42,6 +42,7 @@ using google_camera_hal::HwlCameraProviderCallback;
 using google_camera_hal::StreamConfiguration;
 using google_camera_hal::TorchMode;
 using google_camera_hal::TorchModeStatus;
+using google_camera_hal::HwlMemoryConfig;
 
 using namespace cameraconfigparser;
 
@@ -102,6 +103,8 @@ public:
     status_t GetSessionCharacteristics(
         const StreamConfiguration& session_config,
         std::unique_ptr<HalCameraMetadata>& characteristics) const override;
+
+    HwlMemoryConfig GetMemoryConfig() const override;
 
 protected:
     CameraDeviceHwlImpl(uint32_t camera_id, const char *hw_jpeg, int use_cpu_encoder,

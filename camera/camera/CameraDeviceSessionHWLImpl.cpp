@@ -1990,4 +1990,8 @@ int CameraDeviceSessionHwlImpl::getCapsMode(uint8_t sceneMode) {
     return 0;
 }
 
+void CameraDeviceSessionHwlImpl::RepeatingRequestEnd(
+    int32_t /*frame_number*/, const std::vector<int32_t>& /*stream_ids*/) {
+}
+
 } // namespace android
