@@ -159,6 +159,7 @@ private:
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
     uint32_t mUiScaleType = UI_SCALE_NONE;
     std::vector<uint32_t> mPlaneIdPool;
+    uint32_t mOverlayPlaneNum = 0;
     bool mModeSet = true;
     int32_t mOverlayMaxZpos = 0;
     uint32_t mCommitRetryCnt = MAX_COMMIT_RETRY_COUNT;
