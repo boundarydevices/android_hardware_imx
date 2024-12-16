@@ -118,8 +118,9 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushOver
     okay &= request->Set(planeId, plane->getCrtcYProperty(), static_cast<uint64_t>(y0));
     okay &= request->Set(planeId, plane->getCrtcWProperty(), static_cast<uint64_t>(wF));
     okay &= request->Set(planeId, plane->getCrtcHProperty(), static_cast<uint64_t>(hF));
-    okay &= request->Set(planeId, plane->getSrcXProperty(), static_cast<uint64_t>(rectS.left));
-    okay &= request->Set(planeId, plane->getSrcYProperty(), static_cast<uint64_t>(rectS.top));
+    okay &= request->Set(planeId, plane->getSrcXProperty(),
+                         static_cast<uint64_t>(rectS.left << 16));
+    okay &= request->Set(planeId, plane->getSrcYProperty(), static_cast<uint64_t>(rectS.top << 16));
     okay &= request->Set(planeId, plane->getSrcWProperty(), static_cast<uint64_t>(wS << 16));
     okay &= request->Set(planeId, plane->getSrcHProperty(), static_cast<uint64_t>(hS << 16));
 
@@ -221,8 +222,8 @@ std::tuple<HWC3::Error, std::unique_ptr<DrmAtomicRequest>> DrmDisplay::flushPrim
     okay &= request->Set(planeId, plane->getCrtcYProperty(), static_cast<uint64_t>(frameY));
     okay &= request->Set(planeId, plane->getCrtcWProperty(), static_cast<uint64_t>(dw));
     okay &= request->Set(planeId, plane->getCrtcHProperty(), static_cast<uint64_t>(dh));
-    okay &= request->Set(planeId, plane->getSrcXProperty(), static_cast<uint64_t>(sourceX));
-    okay &= request->Set(planeId, plane->getSrcYProperty(), static_cast<uint64_t>(sourceY));
+    okay &= request->Set(planeId, plane->getSrcXProperty(), static_cast<uint64_t>(sourceX << 16));
+    okay &= request->Set(planeId, plane->getSrcYProperty(), static_cast<uint64_t>(sourceY << 16));
     okay &= request->Set(planeId, plane->getSrcWProperty(), static_cast<uint64_t>(sw << 16));
     okay &= request->Set(planeId, plane->getSrcHProperty(), static_cast<uint64_t>(sh << 16));
 
