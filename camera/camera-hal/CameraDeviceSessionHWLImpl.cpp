@@ -1104,6 +1104,8 @@ status_t CameraDeviceSessionHwlImpl::SubmitRequests(uint32_t frame_number,
             fenceInfo.acquire_fence_fd =
                     importFence(requests[i].output_buffers[j].acquire_fence, mDebug);
             frame_request->at(i).outBufferFences[j] = fenceInfo;
+            frame_request->at(i).hwlReq.output_buffers[j].acquire_fence = NULL;
+            frame_request->at(i).hwlReq.output_buffers[j].release_fence = NULL;
 
             int32_t stream_id = requests[i].output_buffers[j].stream_id;
             if (mDebug)
