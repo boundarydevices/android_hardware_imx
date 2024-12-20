@@ -454,6 +454,16 @@ HWC3::Error ClientFrameComposer::validateDisplay(Display* display, DisplayChange
             }
         }
         layersForComposition.clear();
+    } else {
+        for (auto& layer : layersForComposition) {
+            const auto layerId = layer->getId();
+            const auto layerCompositionType = layer->getCompositionType();
+
+            if (layerCompositionType == Composition::CLIENT) {
+                outChanges->addLayerCompositionChange(display->getHwcId(), layerId,
+                                                      Composition::DEVICE);
+            }
+        }
     }
 
     return HWC3::Error::None;
