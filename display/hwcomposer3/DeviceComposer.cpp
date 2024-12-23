@@ -142,9 +142,13 @@ DeviceComposer::DeviceComposer() {
 
 DeviceComposer::~DeviceComposer() {
     if (mSolidColorBuffer != NULL) {
-        unlockSurface(mSolidColorBuffer);
         ::android::GraphicBufferAllocator::get().free(mSolidColorBuffer);
     }
+#ifdef G2D_FORMAT_CONVERSION
+    if (mG2dConvertBuffer == NULL) {
+        ::android::GraphicBufferAllocator::get().free(mG2dConvertBuffer);
+    }
+#endif
     if (mG2dHandle != NULL) {
         dlclose(mG2dHandle);
     }
@@ -211,60 +215,73 @@ int DeviceComposer::freeDeviceFrameBuffer(std::vector<buffer_handle_t>& buffers)
     return 0;
 }
 
-int DeviceComposer::prepareSolidColorBuffer() {
+int DeviceComposer::prepareG2dTempBuffer(buffer_handle_t srcBuffer, uint32_t newFormat,
+                                         buffer_handle_t* tempBuffer, HandleInfo* tempBufInfo) {
     HandleInfo info;
-    if (mTarget == NULL || (getInfoFromHandle(mTarget, &info) != 0)) {
+    if ((srcBuffer == NULL) || (getInfoFromHandle(srcBuffer, &info) != 0) || (tempBuffer == NULL) ||
+        (tempBufInfo == NULL)) {
+        return -1;
+    }
+    if (newFormat == static_cast<uint32_t>(common::PixelFormat::UNSPECIFIED))
+        newFormat = info.format;
+
+    if ((*tempBuffer != NULL) &&
+        (info.width == tempBufInfo->width && info.height == tempBufInfo->height &&
+         newFormat == tempBufInfo->format)) {
         return 0;
     }
 
-    if ((mSolidColorBuffer != NULL) &&
-        (info.width == mSolidColorBuffInfo.width &&
-         info.height == mSolidColorBuffInfo.height &&
-         info.format == mSolidColorBuffInfo.format)) {
-        return 0;
-    }
-
-    if (mSolidColorBuffer != NULL) {
-        unlockSurface(mSolidColorBuffer);
-        ::android::GraphicBufferAllocator::get().free(mSolidColorBuffer);
+    if (*tempBuffer != NULL) {
+        ::android::GraphicBufferAllocator::get().free(*tempBuffer);
+        *tempBuffer = NULL;
     }
 
     uint32_t bufferStride;
     buffer_handle_t bufferHandle;
-    uint64_t usage = GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_2D |
-            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
-    if (info.usage & GRALLOC_USAGE_PROTECTED)
-        usage |= GRALLOC_USAGE_PROTECTED;
-
-    auto status = ::android::GraphicBufferAllocator::get().allocate(info.width, info.height,
-                                                                    static_cast<int>(info.format),
-                                                                    /*layerCount=*/1, usage,
-                                                                    &bufferHandle, &bufferStride,
-                                                                    "HwcSolidColor");
+    auto status =
+            ::android::GraphicBufferAllocator::get().allocate(info.width, info.height, newFormat, 1,
+                                                              info.usage, &bufferHandle,
+                                                              &bufferStride, "HwcG2dTempBuffer");
     if (status != ::android::OK) {
-        ALOGE("%s: failed to allocate solid color buffer", __FUNCTION__);
+        ALOGE("%s: failed to allocate g2d temporary buffer", __FUNCTION__);
         return -1;
     }
 
-    mSolidColorBuffer = bufferHandle;
-    if (getInfoFromHandle(mSolidColorBuffer, &mSolidColorBuffInfo) != 0) {
-        ALOGE("%s: failed to get buffer info of solidcolor buffer", __FUNCTION__);
+    if (getInfoFromHandle(bufferHandle, tempBufInfo) != 0) {
+        ALOGE("%s: failed to get buffer info of g2d temporary buffer", __FUNCTION__);
         return -1;
     }
+    *tempBuffer = bufferHandle;
 
-    common::Rect rect;
-    rect.left = rect.top = 0;
-    rect.right = static_cast<int>(info.width);
-    rect.bottom = static_cast<int>(info.height);
-    lockSurface(mSolidColorBuffer);
-    clearRect(mSolidColorBuffer, rect);
+    return 1;
+}
+
+int DeviceComposer::prepareSolidColorBuffer() {
+    auto ret =
+            prepareG2dTempBuffer(mTarget, static_cast<uint32_t>(common::PixelFormat::UNSPECIFIED),
+                                 &mSolidColorBuffer, &mSolidColorBuffInfo);
+    if (ret == -1) {
+        ALOGE("%s: fail to prepare g2d solidcolor buffer", __FUNCTION__);
+        return ret;
+    } else if (ret == 1) { // new allocated buffer
+        HandleInfo info;
+        if (mSolidColorBuffer == NULL || (getInfoFromHandle(mSolidColorBuffer, &info) != 0)) {
+            return 0;
+        }
+        common::Rect rect;
+        rect.left = rect.top = 0;
+        rect.right = static_cast<int>(info.width);
+        rect.bottom = static_cast<int>(info.height);
+        lockSurface(mSolidColorBuffer);
+        clearRect(mSolidColorBuffer, rect);
+        unlockSurface(mSolidColorBuffer);
+    }
 
     return 0;
 }
 
 int DeviceComposer::freeSolidColorBuffer() {
     if (mSolidColorBuffer != NULL) {
-        unlockSurface(mSolidColorBuffer);
         ::android::GraphicBufferAllocator::get().free(mSolidColorBuffer);
         mSolidColorBuffer = NULL;
     }
@@ -392,6 +409,8 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
         DEBUG_LOG_G2D("%s: compose layer id=%ld, zorder:0x%x, solid color layer", __FUNCTION__,
                       layer->getId(), layer->getZOrder());
     }
+    DEBUG_LOG_G2D("transform:0x%x, blend:0x%x, alpha:0x%x", static_cast<unsigned int>(transform),
+                  static_cast<unsigned int>(mode), alpha);
 
     if ((isRectEmpty(srect) && !(type == Composition::SOLID_COLOR)) || isRectEmpty(drect)) {
         ALOGE("%s: invalid srect or drect", __FUNCTION__);
@@ -401,8 +420,25 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
     if (type == Composition::SOLID_COLOR) {
         prepareSolidColorBuffer();
     }
-    DEBUG_LOG_G2D("transform:0x%x, blend:0x%x, alpha:0x%x", static_cast<unsigned int>(transform),
-                  static_cast<unsigned int>(mode), alpha);
+#ifdef G2D_FORMAT_CONVERSION
+    if (layerInfo.format == HAL_PIXEL_FORMAT_P010_TILED) {
+        /* HAL_PIXEL_FORMAT_P010_TILED is packed 10bit NV12(NV15) with DRM_FORMAT_MOD_AMPHION_TILED
+         * modifier, need to convert to linear 8bit NV12 format. So DPU can process it.
+         */
+        if (prepareG2dTempBuffer(layerBuffer, HAL_PIXEL_FORMAT_YCbCr_420_SP, &mG2dConvertBuffer,
+                                 &mG2dConvertBuffInfo) == -1) {
+            ALOGE("%s: fail to prepare g2d temporary buffer", __FUNCTION__);
+            return -EINVAL;
+        }
+        struct g2d_surfaceEx sSurfaceX;
+        memset(&sSurfaceX, 0, sizeof(sSurfaceX));
+        memset(&dSurfaceX, 0, sizeof(dSurfaceX));
+        setG2dSurface(sSurfaceX, layerBuffer, srect);
+        setG2dSurface(dSurfaceX, mG2dConvertBuffer, srect);
+        blitSurface(&sSurfaceX, &dSurfaceX);
+        layerBuffer = mG2dConvertBuffer;
+    }
+#endif
 
     memset(&dSurfaceX, 0, sizeof(dSurfaceX));
     bool needDither = false;
@@ -485,7 +521,12 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
     surface.format = convertFormat(info.drm_format, handle);
     enum g2d_tiling tile = G2D_LINEAR;
     getTiling(handle, &tile);
-    if (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
+#ifdef G2D_FORMAT_CONVERSION
+    if (info.drm_format == DRM_FORMAT_NV15 && info.modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
+        surfaceX.tiling = G2D_AMPHION_TILED_10BIT;
+    } else
+#endif
+            if (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
         surfaceX.tiling = G2D_AMPHION_TILED;
     } else {
         surfaceX.tiling = tile;
@@ -591,7 +632,11 @@ enum g2d_format DeviceComposer::convertFormat(uint32_t format, buffer_handle_t h
         case DRM_FORMAT_YUYV:
             halFormat = G2D_YUYV;
             break;
-
+#ifdef G2D_FORMAT_CONVERSION
+        case DRM_FORMAT_NV15:
+            halFormat = G2D_NV12;
+            break;
+#endif
         default:
             ALOGE("%s: unsupported format:0x%x", __FUNCTION__, format);
             halFormat = G2D_RGBA8888;
@@ -842,6 +887,7 @@ bool DeviceComposer::checkMustDeviceComposition(Layer* layer) {
     // vpu tile format must be handled by device.
     if (layerBuffer != nullptr &&
         (info.modifier == DRM_FORMAT_MOD_AMPHION_TILED || info.usage & GRALLOC_USAGE_PROTECTED)) {
+        DEBUG_LOG("%s: 2d composition is must", __FUNCTION__);
         return true;
     }
 
@@ -852,7 +898,7 @@ bool DeviceComposer::checkDeviceComposition(Layer* layer) {
     DEBUG_LOG("%s: check layer %ld", __FUNCTION__, layer->getId());
 
     if (!mG2dPrefered) {
-        DEBUG_LOG("%s: 2d composition is not prefered, use 3D composition", __FUNCTION__);
+        DEBUG_LOG("%s: 2d composition is not prefered", __FUNCTION__);
         return false;
     }
 

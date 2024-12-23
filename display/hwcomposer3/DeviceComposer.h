@@ -78,6 +78,8 @@ private:
     int convertBlending(common::BlendMode blending, struct g2d_surface& src,
                         struct g2d_surface& dst);
     int prepareSolidColorBuffer();
+    int prepareG2dTempBuffer(buffer_handle_t srcBuffer, uint32_t newFormat,
+                             buffer_handle_t* tempBuffer, HandleInfo* tempBufInfo);
     int clearRect(buffer_handle_t target, common::Rect& rect);
 
     int getAlignedSize(buffer_handle_t handle, int* width, int* height);
@@ -107,6 +109,10 @@ private:
     buffer_handle_t mTarget = NULL;
     buffer_handle_t mSolidColorBuffer = NULL;
     HandleInfo mSolidColorBuffInfo;
+#ifdef G2D_FORMAT_CONVERSION
+    buffer_handle_t mG2dConvertBuffer = NULL;
+    HandleInfo mG2dConvertBuffInfo;
+#endif
 
     hwc_func3 mGetAlignedSize;
     hwc_func2 mGetFlipOffset;

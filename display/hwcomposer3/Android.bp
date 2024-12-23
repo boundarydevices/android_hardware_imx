@@ -35,12 +35,12 @@ soong_config_module_type {
 
 soong_config_string_variable {
     name: "overlay_ip",
-    values: ["DCSS", "DPU"],
+    values: ["DCSS", "DPU95"],
 }
 
 soong_config_string_variable {
     name: "g2d_ip",
-    values: ["DPU", "VIV", "PXP"],
+    values: ["DPU", "DPU95", "VIV", "PXP"],
 }
 
 hwc_config_cc_defaults {
@@ -50,12 +50,17 @@ hwc_config_cc_defaults {
             DCSS: {
                 cflags: ["-DOVERLAY_LIMITATION_DCSS"],
             },
-            DPU: {
+            DPU95: {
                 cflags: ["-DOVERLAY_LIMITATION_DPU"],
             },
         },
         g2d_ip: {
             DPU: {
+                cflags: ["-DG2D_LIMITATION_DPU",
+                         "-DG2D_FORMAT_CONVERSION",
+                        ],
+            },
+            DPU95: {
                 cflags: ["-DG2D_LIMITATION_DPU"],
             },
             VIV: {
