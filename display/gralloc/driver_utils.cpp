@@ -223,7 +223,11 @@ const format_info_t formats[] = {
         {
                 .id = HAL_PIXEL_FORMAT_P010_TILED, // 0x109
                 .fourcc = DRM_FORMAT_NV15,
+#ifdef VPU_P010_AMPHION_TILED
+                .modifier = DRM_FORMAT_MOD_AMPHION_TILED,
+#else
                 .modifier = DRM_FORMAT_MOD_VSI_G1_TILED,
+#endif
                 .is_rgb = false,
                 .is_yuv = true,
         },

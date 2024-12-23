@@ -58,7 +58,9 @@ gralloc_config_cc_defaults {
     soong_config_variables: {
         BOARD_SOC_TYPE: {
             IMX8Q: {
-                cflags: ["-DWORKAROUND_DISPLAY_UNDERRUN"],
+                cflags: ["-DWORKAROUND_DISPLAY_UNDERRUN",
+                         "-DVPU_P010_AMPHION_TILED",
+                        ],
             },
             IMX8MM: {
                 cflags: ["-DWORKAROUND_VIRTUAL_DISPLAY_FLICKER"],
