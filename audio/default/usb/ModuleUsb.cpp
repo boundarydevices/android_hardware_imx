@@ -105,6 +105,7 @@ ndk::ScopedAStatus ModuleUsb::checkAudioPatchEndpointsMatch(
                 LOG(ERROR) << __func__
                            << ": mismatch port configuration, source=" << source->toString()
                            << ", sink=" << sink->toString();
+                return ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
             }
         }
     }

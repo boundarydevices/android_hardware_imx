@@ -106,6 +106,19 @@ static ConversionResult<std::vector<A>> convertWrappedCollectionToAidl(
 }
 
 template <typename X, typename A>
+static ConversionResult<std::vector<std::optional<A>>> convertCollectionToAidlOptionalValues(
+        const std::vector<X>& xsdcTypeVec,
+        std::function<ConversionResult<A>(const X&)> convertToAidl) {
+    std::vector<std::optional<A>> resultAidlTypeVec;
+    resultAidlTypeVec.reserve(xsdcTypeVec.size());
+    for (const X& xsdcType : xsdcTypeVec) {
+        resultAidlTypeVec.push_back(
+                std::optional<A>(std::move(VALUE_OR_FATAL(convertToAidl(xsdcType)))));
+    }
+    return resultAidlTypeVec;
+}
+
+template <typename X, typename A>
 static ConversionResult<std::vector<A>> convertCollectionToAidl(
         const std::vector<X>& xsdcTypeVec,
         std::function<ConversionResult<A>(const X&)> convertToAidl) {

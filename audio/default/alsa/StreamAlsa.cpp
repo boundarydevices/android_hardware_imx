@@ -75,6 +75,10 @@ StreamAlsa::~StreamAlsa() {
     }
     decltype(mAlsaDeviceProxies) alsaDeviceProxies;
     for (const auto& device : getDeviceProfiles()) {
+        if ((device.direction == PCM_OUT && mIsInput) ||
+            (device.direction == PCM_IN && !mIsInput)) {
+            continue;
+        }
         alsa::DeviceProxy proxy;
         if (device.isExternal) {
             // Always ask alsa configure as required since the configuration should be supported
@@ -91,6 +95,9 @@ StreamAlsa::~StreamAlsa() {
             return ::android::NO_INIT;
         }
         alsaDeviceProxies.push_back(std::move(proxy));
+    }
+    if (alsaDeviceProxies.empty()) {
+        return ::android::NO_INIT;
     }
     mAlsaDeviceProxies = std::move(alsaDeviceProxies);
     return ::android::OK;
@@ -123,7 +130,8 @@ StreamAlsa::~StreamAlsa() {
 
 ::android::status_t StreamAlsa::refinePosition(StreamDescriptor::Position* position) {
     if (mAlsaDeviceProxies.empty()) {
-        return ::android::OK;
+        LOG(WARNING) << __func__ << ": no opened devices";
+        return ::android::NO_INIT;
     }
     // Since the proxy can only count transferred frames since its creation,
     // we override its counter value with ours and let it to correct for buffered frames.
@@ -143,9 +151,6 @@ StreamAlsa::~StreamAlsa() {
             ret == 0) {
             if (hwFrames > std::numeric_limits<int64_t>::max()) {
                 hwFrames -= std::numeric_limits<int64_t>::max();
-            }
-            if (getContext().getFormat().encoding == "audio/vnd.sony.dsd") {
-                hwFrames = hwFrames * 4;
             }
             position->frames = static_cast<int64_t>(hwFrames);
             position->timeNs = audio_utils_ns_from_timespec(&timestamp);

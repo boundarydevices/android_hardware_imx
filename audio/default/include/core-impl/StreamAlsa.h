@@ -54,7 +54,7 @@ class StreamAlsa : public StreamCommonImpl {
     const size_t mFrameSizeBytes;
     const int mSampleRate;
     const bool mIsInput;
-    std::optional<struct pcm_config> mConfig;
+    const std::optional<struct pcm_config> mConfig;
     const int mReadWriteRetries;
     // All fields below are only used on the worker thread.
     std::vector<alsa::DeviceProxy> mAlsaDeviceProxies;

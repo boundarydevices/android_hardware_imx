@@ -59,6 +59,7 @@ class EngineConfigXmlConverter {
     ConversionResult<::aidl::android::media::audio::common::AudioHalProductStrategy>
     convertProductStrategyToAidl(const ::android::audio::policy::engine::configuration::
                                          ProductStrategies::ProductStrategy& xsdcProductStrategy);
+    ConversionResult<int> convertProductStrategyIdToAidl(int xsdcId);
     ConversionResult<int> convertProductStrategyNameToAidl(
             const std::string& xsdcProductStrategyName);
     ConversionResult<::aidl::android::media::audio::common::AudioHalVolumeCurve>

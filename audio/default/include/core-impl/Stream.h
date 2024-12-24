@@ -177,6 +177,11 @@ struct DriverInterface {
     virtual ::android::status_t refinePosition(StreamDescriptor::Position* /*position*/) {
         return ::android::OK;
     }
+    // Implement 'getMmapPositionAndLatency' is necessary if driver can support mmap stream.
+    virtual ::android::status_t getMmapPositionAndLatency(StreamDescriptor::Position* /*position*/,
+                                                          int32_t* /*latency*/) {
+        return ::android::OK;
+    }
     virtual void shutdown() = 0;  // This function is only called once.
 };
 
@@ -241,6 +246,7 @@ struct StreamWorkerInterface {
     virtual bool start() = 0;
     virtual pid_t getTid() = 0;
     virtual void join() = 0;
+    virtual std::string getError() = 0;
 };
 
 template <class WorkerLogic>
@@ -260,6 +266,7 @@ class StreamWorkerImpl : public StreamWorkerInterface,
     }
     pid_t getTid() override { return WorkerImpl::getTid(); }
     void join() override { return WorkerImpl::join(); }
+    std::string getError() override { return WorkerImpl::getError(); }
 };
 
 class StreamInWorkerLogic : public StreamWorkerCommonLogic {

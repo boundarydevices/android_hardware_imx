@@ -83,7 +83,6 @@ StreamStub::~StreamStub() {
     if (!mIsInitialized) {
         LOG(FATAL) << __func__ << ": must not happen for an uninitialized driver";
     }
-    usleep(500);
     mIsStandby = true;
     return ::android::OK;
 }
@@ -92,8 +91,9 @@ StreamStub::~StreamStub() {
     if (!mIsInitialized) {
         LOG(FATAL) << __func__ << ": must not happen for an uninitialized driver";
     }
-    usleep(500);
     mIsStandby = false;
+    mStartTimeNs = ::android::uptimeNanos();
+    mFramesSinceStart = 0;
     return ::android::OK;
 }
 
@@ -105,14 +105,23 @@ StreamStub::~StreamStub() {
     if (mIsStandby) {
         LOG(FATAL) << __func__ << ": must not happen while in standby";
     }
-    static constexpr float kMicrosPerSecond = MICROS_PER_SECOND;
-    static constexpr float kScaleFactor = .8f;
+    *actualFrameCount = frameCount;
     if (mIsAsynchronous) {
         usleep(500);
     } else {
-        const size_t delayUs = static_cast<size_t>(
-                std::roundf(kScaleFactor * frameCount * kMicrosPerSecond / mSampleRate));
-        usleep(delayUs);
+        mFramesSinceStart += *actualFrameCount;
+        const long bufferDurationUs =
+                (*actualFrameCount) * MICROS_PER_SECOND / mContext.getSampleRate();
+        const auto totalDurationUs =
+                (::android::uptimeNanos() - mStartTimeNs) / NANOS_PER_MICROSECOND;
+        const long totalOffsetUs =
+                mFramesSinceStart * MICROS_PER_SECOND / mContext.getSampleRate() - totalDurationUs;
+        LOG(VERBOSE) << __func__ << ": totalOffsetUs " << totalOffsetUs;
+        if (totalOffsetUs > 0) {
+            const long sleepTimeUs = std::min(totalOffsetUs, bufferDurationUs);
+            LOG(VERBOSE) << __func__ << ": sleeping for " << sleepTimeUs << " us";
+            usleep(sleepTimeUs);
+        }
     }
     if (mIsInput) {
         uint8_t* byteBuffer = static_cast<uint8_t*>(buffer);
@@ -120,7 +129,6 @@ StreamStub::~StreamStub() {
             byteBuffer[i] = std::rand() % 255;
         }
     }
-    *actualFrameCount = frameCount;
     return ::android::OK;
 }
 

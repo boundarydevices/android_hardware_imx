@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2023 The Android Open Source Project
- * Copyright 2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +19,8 @@
 #define LOG_TAG "AHAL_ModulePrimary"
 #include <Utils.h>
 #include <android-base/logging.h>
-#include <media/stagefright/foundation/MediaDefs.h>
 
-#include "core-impl/AudioCardManager.h"
 #include "core-impl/ModulePrimary.h"
-#include "core-impl/StreamCompress.h"
 #include "core-impl/StreamPrimary.h"
 #include "core-impl/Telephony.h"
 
@@ -36,15 +32,6 @@ using aidl::android::media::audio::common::AudioPortConfig;
 using aidl::android::media::audio::common::MicrophoneInfo;
 
 namespace aidl::android::hardware::audio::core {
-
-ModulePrimary::ModulePrimary(std::unique_ptr<Configuration>&& config)
-    : Module(Type::DEFAULT, std::move(config)) {
-    AudioCardManager::init();
-}
-
-ModulePrimary::~ModulePrimary() {
-    AudioCardManager::release();
-}
 
 ndk::ScopedAStatus ModulePrimary::getTelephony(std::shared_ptr<ITelephony>* _aidl_return) {
     if (!mTelephony) {
@@ -67,38 +54,16 @@ ndk::ScopedAStatus ModulePrimary::createInputStream(StreamContext&& context,
 ndk::ScopedAStatus ModulePrimary::createOutputStream(
         StreamContext&& context, const SourceMetadata& sourceMetadata,
         const std::optional<AudioOffloadInfo>& offloadInfo, std::shared_ptr<StreamOut>* result) {
-    if (context.getFormat().encoding == ::android::MEDIA_MIMETYPE_AUDIO_MPEG) {
-        const auto& c = AudioCardManager::getCardForDevice(AUDIO_DEVICE_OUT_LINE);
-        if (c && strstr(c->card_name, "sof")) {
-            return createStreamInstance<StreamOutCompress>(result, std::move(context), sourceMetadata, offloadInfo);
-        } else {
-            LOG(INFO) << "reject creating compress offload stream.";
-            return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
-        }
-    }
-
     return createStreamInstance<StreamOutPrimary>(result, std::move(context), sourceMetadata,
                                                   offloadInfo);
 }
 
 int32_t ModulePrimary::getNominalLatencyMs(const AudioPortConfig&) {
-    static constexpr int32_t kLatencyMs = 16;
+    // 85 ms is chosen considering 4096 frames @ 48 kHz. This is the value which allows
+    // the virtual Android device implementation to pass CTS. Hardware implementations
+    // should have significantly lower latency.
+    static constexpr int32_t kLatencyMs = 85;
     return kLatencyMs;
-}
-
-ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(
-        ::aidl::android::media::audio::common::AudioPort* audioPort, int32_t nextPortId) {
-    LOG(INFO) << __func__ << ": " << audioPort->name << ", id: " << nextPortId;
-    auto& audioDevice = audioPort->ext.get<aidl::android::media::audio::common::AudioPortExt::Tag::device>().device;
-    const auto& c = AudioCardManager::getCardForDevice(audioDevice);
-    if (!c)
-        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
-
-    if (audioDevice.type.type == ::aidl::android::media::audio::common::AudioDeviceType::OUT_DEVICE &&
-            audioDevice.type.connection == "hdmi")
-        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
-
-    return ndk::ScopedAStatus::ok();
 }
 
 }  // namespace aidl::android::hardware::audio::core

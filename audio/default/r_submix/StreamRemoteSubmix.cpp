@@ -289,9 +289,12 @@ size_t StreamRemoteSubmix::getStreamPipeSizeInFrames() {
     char* buff = (char*)buffer;
     size_t actuallyRead = 0;
     long remainingFrames = frameCount;
-    const int64_t deadlineTimeNs =
-            ::android::uptimeNanos() +
-            getDelayInUsForFrameCount(frameCount) * NANOS_PER_MICROSECOND / 2;
+    // Try to wait as long as possible for the audio duration, but leave some time for the call to
+    // 'transfer' to complete. 'kReadAttemptSleepUs' is a good constant for this purpose because it
+    // is by definition "strictly inferior" to the typical buffer duration.
+    const long durationUs =
+            std::max(0L, getDelayInUsForFrameCount(frameCount) - kReadAttemptSleepUs);
+    const int64_t deadlineTimeNs = ::android::uptimeNanos() + durationUs * NANOS_PER_MICROSECOND;
     while (remainingFrames > 0) {
         ssize_t framesRead = source->read(buff, remainingFrames);
         LOG(VERBOSE) << __func__ << ": frames read " << framesRead;

@@ -10,11 +10,21 @@
 #include <aidl/android/media/audio/common/AudioPortConfig.h>
 #include <media/AidlConversionCppNdk.h>
 #include <media/TypeConverter.h>
+#include <media/convert.h>
+#include <utils/FastStrcmp.h>
+
+#include <Utils.h>
 
 #include "core-impl/XmlConverter.h"
 #include "core-impl/XsdcConversion.h"
 
+using aidl::android::hardware::audio::common::iequals;
+using aidl::android::hardware::audio::common::isValidAudioMode;
+using aidl::android::hardware::audio::common::isValidAudioPolicyForcedConfig;
+using aidl::android::hardware::audio::common::kValidAudioModes;
+using aidl::android::hardware::audio::common::kValidAudioPolicyForcedConfig;
 using aidl::android::media::audio::common::AudioChannelLayout;
+using aidl::android::media::audio::common::AudioContentType;
 using aidl::android::media::audio::common::AudioDevice;
 using aidl::android::media::audio::common::AudioDeviceAddress;
 using aidl::android::media::audio::common::AudioDeviceDescription;
@@ -24,21 +34,38 @@ using aidl::android::media::audio::common::AudioFormatType;
 using aidl::android::media::audio::common::AudioGain;
 using aidl::android::media::audio::common::AudioHalCapCriterion;
 using aidl::android::media::audio::common::AudioHalCapCriterionType;
+using aidl::android::media::audio::common::AudioHalCapCriterionV2;
 using aidl::android::media::audio::common::AudioHalVolumeCurve;
 using aidl::android::media::audio::common::AudioIoFlags;
+using aidl::android::media::audio::common::AudioMode;
+using aidl::android::media::audio::common::AudioPolicyForcedConfig;
+using aidl::android::media::audio::common::AudioPolicyForceUse;
 using aidl::android::media::audio::common::AudioPort;
 using aidl::android::media::audio::common::AudioPortConfig;
 using aidl::android::media::audio::common::AudioPortDeviceExt;
 using aidl::android::media::audio::common::AudioPortExt;
 using aidl::android::media::audio::common::AudioPortMixExt;
 using aidl::android::media::audio::common::AudioProfile;
+using aidl::android::media::audio::common::AudioSource;
+using aidl::android::media::audio::common::AudioStreamType;
+using aidl::android::media::audio::common::AudioUsage;
 using ::android::BAD_VALUE;
 using ::android::base::unexpected;
+using ::android::utilities::convertTo;
 
 namespace ap_xsd = android::audio::policy::configuration;
 namespace eng_xsd = android::audio::policy::engine::configuration;
 
 namespace aidl::android::hardware::audio::core::internal {
+
+static constexpr const char kXsdcForceConfigForCommunication[] = "ForceUseForCommunication";
+static constexpr const char kXsdcForceConfigForMedia[] = "ForceUseForMedia";
+static constexpr const char kXsdcForceConfigForRecord[] = "ForceUseForRecord";
+static constexpr const char kXsdcForceConfigForDock[] = "ForceUseForDock";
+static constexpr const char kXsdcForceConfigForSystem[] = "ForceUseForSystem";
+static constexpr const char kXsdcForceConfigForHdmiSystemAudio[] = "ForceUseForHdmiSystemAudio";
+static constexpr const char kXsdcForceConfigForEncodedSurround[] = "ForceUseForEncodedSurround";
+static constexpr const char kXsdcForceConfigForVibrateRinging[] = "ForceUseForVibrateRinging";
 
 inline ConversionResult<std::string> assertNonEmpty(const std::string& s) {
     if (s.empty()) {
@@ -50,6 +77,100 @@ inline ConversionResult<std::string> assertNonEmpty(const std::string& s) {
 }
 
 #define NON_EMPTY_STRING_OR_FATAL(s) VALUE_OR_FATAL(assertNonEmpty(s))
+
+ConversionResult<int32_t> convertAudioFlagsToAidl(
+        const std::vector<eng_xsd::FlagType>& xsdcFlagTypeVec) {
+    int legacyFlagMask = 0;
+    for (const eng_xsd::FlagType& xsdcFlagType : xsdcFlagTypeVec) {
+        if (xsdcFlagType != eng_xsd::FlagType::AUDIO_FLAG_NONE) {
+            audio_flags_mask_t legacyFlag = AUDIO_FLAG_NONE;
+            if (!::android::AudioFlagConverter::fromString(eng_xsd::toString(xsdcFlagType),
+                                                           legacyFlag)) {
+                LOG(ERROR) << __func__ << " Review Audio Policy config, "
+                           << eng_xsd::toString(xsdcFlagType) << " is not a valid flag.";
+                return unexpected(BAD_VALUE);
+            }
+            legacyFlagMask |= static_cast<int>(legacyFlag);
+        }
+    }
+    ConversionResult<int32_t> result = legacy2aidl_audio_flags_mask_t_int32_t_mask(
+            static_cast<audio_flags_mask_t>(legacyFlagMask));
+    if (!result.ok()) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, " << legacyFlagMask
+                   << " has invalid flag(s).";
+        return unexpected(BAD_VALUE);
+    }
+    return result;
+}
+
+ConversionResult<AudioStreamType> convertAudioStreamTypeToAidl(const eng_xsd::Stream& xsdcStream) {
+    audio_stream_type_t legacyStreamType;
+    if (!::android::StreamTypeConverter::fromString(eng_xsd::toString(xsdcStream),
+                                                    legacyStreamType)) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, " << eng_xsd::toString(xsdcStream)
+                   << " is not a valid audio stream type.";
+        return unexpected(BAD_VALUE);
+    }
+    ConversionResult<AudioStreamType> result =
+            legacy2aidl_audio_stream_type_t_AudioStreamType(legacyStreamType);
+    if (!result.ok()) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, " << legacyStreamType
+                   << " is not a valid audio stream type.";
+        return unexpected(BAD_VALUE);
+    }
+    return result;
+}
+
+ConversionResult<AudioSource> convertAudioSourceToAidl(
+        const eng_xsd::SourceEnumType& xsdcSourceType) {
+    audio_source_t legacySourceType;
+    if (!::android::SourceTypeConverter::fromString(eng_xsd::toString(xsdcSourceType),
+                                                    legacySourceType)) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, "
+                   << eng_xsd::toString(xsdcSourceType) << " is not a valid audio source.";
+        return unexpected(BAD_VALUE);
+    }
+    ConversionResult<AudioSource> result = legacy2aidl_audio_source_t_AudioSource(legacySourceType);
+    if (!result.ok()) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, " << legacySourceType
+                   << " is not a valid audio source.";
+        return unexpected(BAD_VALUE);
+    }
+    return result;
+}
+
+ConversionResult<AudioContentType> convertAudioContentTypeToAidl(
+        const eng_xsd::ContentType& xsdcContentType) {
+    audio_content_type_t legacyContentType;
+    if (!::android::AudioContentTypeConverter::fromString(eng_xsd::toString(xsdcContentType),
+                                                          legacyContentType)) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, "
+                   << eng_xsd::toString(xsdcContentType) << " is not a valid audio content type.";
+        return unexpected(BAD_VALUE);
+    }
+    ConversionResult<AudioContentType> result =
+            legacy2aidl_audio_content_type_t_AudioContentType(legacyContentType);
+    if (!result.ok()) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, " << legacyContentType
+                   << " is not a valid audio content type.";
+        return unexpected(BAD_VALUE);
+    }
+    return result;
+}
+
+ConversionResult<AudioUsage> convertAudioUsageToAidl(const eng_xsd::UsageEnumType& xsdcUsage) {
+    audio_usage_t legacyUsage;
+    if (!::android::UsageTypeConverter::fromString(eng_xsd::toString(xsdcUsage), legacyUsage)) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, not a valid audio usage.";
+        return unexpected(BAD_VALUE);
+    }
+    ConversionResult<AudioUsage> result = legacy2aidl_audio_usage_t_AudioUsage(legacyUsage);
+    if (!result.ok()) {
+        LOG(ERROR) << __func__ << " Review Audio Policy config, not a valid audio usage.";
+        return unexpected(BAD_VALUE);
+    }
+    return result;
+}
 
 ConversionResult<AudioFormatDescription> convertAudioFormatToAidl(const std::string& xsdcFormat) {
     audio_format_t legacyFormat = ::android::formatFromString(xsdcFormat, AUDIO_FORMAT_DEFAULT);
@@ -410,30 +531,238 @@ ConversionResult<std::unique_ptr<Module::Configuration>> convertModuleConfigToAi
     return result;
 }
 
+ConversionResult<AudioPolicyForcedConfig> convertForcedConfigToAidl(
+        const std::string& xsdcForcedConfigCriterionType) {
+    const auto it = std::find_if(
+            kValidAudioPolicyForcedConfig.begin(), kValidAudioPolicyForcedConfig.end(),
+            [&](const auto& config) { return toString(config) == xsdcForcedConfigCriterionType; });
+    if (it == kValidAudioPolicyForcedConfig.end()) {
+        LOG(ERROR) << __func__ << " invalid forced config " << xsdcForcedConfigCriterionType;
+        return unexpected(BAD_VALUE);
+    }
+    return *it;
+}
+
+ConversionResult<AudioMode> convertTelephonyModeToAidl(const std::string& xsdcModeCriterionType) {
+    const auto it = std::find_if(kValidAudioModes.begin(), kValidAudioModes.end(),
+                                 [&xsdcModeCriterionType](const auto& mode) {
+                                     return toString(mode) == xsdcModeCriterionType;
+                                 });
+    if (it == kValidAudioModes.end()) {
+        LOG(ERROR) << __func__ << " invalid mode " << xsdcModeCriterionType;
+        return unexpected(BAD_VALUE);
+    }
+    return *it;
+}
+
+ConversionResult<AudioDeviceAddress> convertDeviceAddressToAidl(const std::string& xsdcAddress) {
+    return AudioDeviceAddress::make<AudioDeviceAddress::Tag::id>(xsdcAddress);
+}
+
+ConversionResult<eng_xsd::CriterionTypeType> getCriterionTypeByName(
+        const std::string& name,
+        const std::vector<eng_xsd::CriterionTypesType>& xsdcCriterionTypesVec) {
+    for (const auto& xsdCriterionTypes : xsdcCriterionTypesVec) {
+        for (const auto& xsdcCriterionType : xsdCriterionTypes.getCriterion_type()) {
+            if (xsdcCriterionType.getName() == name) {
+                return xsdcCriterionType;
+            }
+        }
+    }
+    LOG(ERROR) << __func__ << " failed to find criterion type " << name;
+    return unexpected(BAD_VALUE);
+}
+
+ConversionResult<std::vector<std::optional<AudioHalCapCriterionV2>>>
+convertCapCriteriaCollectionToAidl(
+        const std::vector<eng_xsd::CriteriaType>& xsdcCriteriaVec,
+        const std::vector<eng_xsd::CriterionTypesType>& xsdcCriterionTypesVec) {
+    std::vector<std::optional<AudioHalCapCriterionV2>> resultAidlCriterionVec;
+    if (xsdcCriteriaVec.empty() || xsdcCriterionTypesVec.empty()) {
+        LOG(ERROR) << __func__ << " empty criteria/criterionTypes";
+        return unexpected(BAD_VALUE);
+    }
+    for (const auto& xsdCriteria : xsdcCriteriaVec) {
+        for (const auto& xsdcCriterion : xsdCriteria.getCriterion()) {
+            resultAidlCriterionVec.push_back(
+                    std::optional<AudioHalCapCriterionV2>(VALUE_OR_FATAL(
+                            convertCapCriterionV2ToAidl(xsdcCriterion, xsdcCriterionTypesVec))));
+        }
+    }
+    return resultAidlCriterionVec;
+}
+
+ConversionResult<std::vector<AudioDeviceDescription>> convertDevicesToAidl(
+        const eng_xsd::CriterionTypeType& xsdcDeviceCriterionType) {
+    if (xsdcDeviceCriterionType.getValues().empty()) {
+        LOG(ERROR) << __func__ << " no values provided";
+        return unexpected(BAD_VALUE);
+    }
+    std::vector<AudioDeviceDescription> aidlDevices;
+    for (eng_xsd::ValuesType xsdcValues : xsdcDeviceCriterionType.getValues()) {
+        aidlDevices.reserve(xsdcValues.getValue().size());
+        for (const eng_xsd::ValueType& xsdcValue : xsdcValues.getValue()) {
+            if (!xsdcValue.hasAndroid_type()) {
+                LOG(ERROR) << __func__ << " empty android type";
+                return unexpected(BAD_VALUE);
+            }
+            uint32_t integerValue;
+            if (!convertTo(xsdcValue.getAndroid_type(), integerValue)) {
+                LOG(ERROR) << __func__ << " failed to convert android type "
+                           << xsdcValue.getAndroid_type();
+                return unexpected(BAD_VALUE);
+            }
+            aidlDevices.push_back(
+                    VALUE_OR_RETURN(legacy2aidl_audio_devices_t_AudioDeviceDescription(
+                            static_cast<audio_devices_t>(integerValue))));
+        }
+    }
+    return aidlDevices;
+}
+
+ConversionResult<std::vector<AudioDeviceAddress>> convertDeviceAddressesToAidl(
+        const eng_xsd::CriterionTypeType& xsdcDeviceAddressesCriterionType) {
+    if (xsdcDeviceAddressesCriterionType.getValues().empty()) {
+        LOG(ERROR) << __func__ << " no values provided";
+        return unexpected(BAD_VALUE);
+    }
+    std::vector<AudioDeviceAddress> aidlDeviceAddresses;
+    for (eng_xsd::ValuesType xsdcValues : xsdcDeviceAddressesCriterionType.getValues()) {
+        aidlDeviceAddresses.reserve(xsdcValues.getValue().size());
+        for (const eng_xsd::ValueType& xsdcValue : xsdcValues.getValue()) {
+            aidlDeviceAddresses.push_back(
+                    AudioDeviceAddress::make<AudioDeviceAddress::Tag::id>(xsdcValue.getLiteral()));
+        }
+    }
+    return aidlDeviceAddresses;
+}
+
+ConversionResult<std::vector<AudioMode>> convertTelephonyModesToAidl(
+        const eng_xsd::CriterionTypeType& xsdcTelephonyModeCriterionType) {
+    if (xsdcTelephonyModeCriterionType.getValues().empty()) {
+        LOG(ERROR) << __func__ << " no values provided";
+        return unexpected(BAD_VALUE);
+    }
+    std::vector<AudioMode> aidlAudioModes;
+    for (eng_xsd::ValuesType xsdcValues : xsdcTelephonyModeCriterionType.getValues()) {
+        aidlAudioModes.reserve(xsdcValues.getValue().size());
+        for (const eng_xsd::ValueType& xsdcValue : xsdcValues.getValue()) {
+            int integerValue = xsdcValue.getNumerical();
+            if (!isValidAudioMode(AudioMode(integerValue))) {
+                LOG(ERROR) << __func__ << " invalid audio mode " << integerValue;
+                return unexpected(BAD_VALUE);
+            }
+            aidlAudioModes.push_back(AudioMode(integerValue));
+        }
+    }
+    return aidlAudioModes;
+}
+
+ConversionResult<std::vector<AudioPolicyForcedConfig>> convertForcedConfigsToAidl(
+        const eng_xsd::CriterionTypeType& xsdcForcedConfigCriterionType) {
+    if (xsdcForcedConfigCriterionType.getValues().empty()) {
+        LOG(ERROR) << __func__ << " no values provided";
+        return unexpected(BAD_VALUE);
+    }
+    std::vector<AudioPolicyForcedConfig> aidlForcedConfigs;
+    for (eng_xsd::ValuesType xsdcValues : xsdcForcedConfigCriterionType.getValues()) {
+        aidlForcedConfigs.reserve(xsdcValues.getValue().size());
+        for (const eng_xsd::ValueType& xsdcValue : xsdcValues.getValue()) {
+            int integerValue = xsdcValue.getNumerical();
+            if (!isValidAudioPolicyForcedConfig(AudioPolicyForcedConfig(integerValue))) {
+                LOG(ERROR) << __func__ << " invalid forced config mode " << integerValue;
+                return unexpected(BAD_VALUE);
+            }
+            aidlForcedConfigs.push_back(AudioPolicyForcedConfig(integerValue));
+        }
+    }
+    return aidlForcedConfigs;
+}
+
+ConversionResult<AudioPolicyForceUse> convertForceUseCriterionToAidl(
+        const std::string& xsdcCriterionName) {
+    if (!fastcmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForCommunication,
+            strlen(kXsdcForceConfigForCommunication))) {
+        return AudioPolicyForceUse::COMMUNICATION;
+    }
+    if (!fasticmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForMedia,
+            strlen(kXsdcForceConfigForMedia))) {
+        return AudioPolicyForceUse::MEDIA;
+    }
+    if (!fasticmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForRecord,
+            strlen(kXsdcForceConfigForRecord))) {
+        return AudioPolicyForceUse::RECORD;
+    }
+    if (!fasticmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForDock,
+            strlen(kXsdcForceConfigForDock))) {
+        return AudioPolicyForceUse::DOCK;
+    }
+    if (!fasticmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForSystem,
+            strlen(kXsdcForceConfigForSystem))) {
+        return AudioPolicyForceUse::SYSTEM;
+    }
+    if (!fasticmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForHdmiSystemAudio,
+            strlen(kXsdcForceConfigForHdmiSystemAudio))) {
+        return AudioPolicyForceUse::HDMI_SYSTEM_AUDIO;
+    }
+    if (!fasticmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForEncodedSurround,
+            strlen(kXsdcForceConfigForEncodedSurround))) {
+        return AudioPolicyForceUse::ENCODED_SURROUND;
+    }
+    if (!fasticmp<strncmp>(xsdcCriterionName.c_str(), kXsdcForceConfigForVibrateRinging,
+            strlen(kXsdcForceConfigForVibrateRinging))) {
+        return AudioPolicyForceUse::VIBRATE_RINGING;
+    }
+    LOG(ERROR) << __func__ << " unrecognized force use " << xsdcCriterionName;
+    return unexpected(BAD_VALUE);
+}
+
+ConversionResult<AudioHalCapCriterionV2> convertCapCriterionV2ToAidl(
+        const eng_xsd::CriterionType& xsdcCriterion,
+        const std::vector<eng_xsd::CriterionTypesType>& xsdcCriterionTypesVec) {
+    eng_xsd::CriterionTypeType xsdcCriterionType =
+            VALUE_OR_RETURN(getCriterionTypeByName(xsdcCriterion.getType(), xsdcCriterionTypesVec));
+    std::string defaultLiteralValue =
+            xsdcCriterion.has_default() ? xsdcCriterion.get_default() : "";
+    using Tag = AudioHalCapCriterionV2::Tag;
+    if (iequals(xsdcCriterion.getName(), toString(Tag::availableInputDevices))) {
+        return AudioHalCapCriterionV2::make<Tag::availableInputDevices>(
+                VALUE_OR_RETURN(convertDevicesToAidl(xsdcCriterionType)));
+    }
+    if (iequals(xsdcCriterion.getName(), toString(Tag::availableOutputDevices))) {
+        return AudioHalCapCriterionV2::make<Tag::availableOutputDevices>(
+                VALUE_OR_RETURN(convertDevicesToAidl(xsdcCriterionType)));
+    }
+    if (iequals(xsdcCriterion.getName(), toString(Tag::availableInputDevicesAddresses))) {
+        return AudioHalCapCriterionV2::make<Tag::availableInputDevicesAddresses>(
+                VALUE_OR_RETURN(convertDeviceAddressesToAidl(xsdcCriterionType)));
+    }
+    if (iequals(xsdcCriterion.getName(), toString(Tag::availableOutputDevicesAddresses))) {
+        return AudioHalCapCriterionV2::make<Tag::availableOutputDevicesAddresses>(
+                VALUE_OR_RETURN(convertDeviceAddressesToAidl(xsdcCriterionType)));
+    }
+    if (iequals(xsdcCriterion.getName(), toString(Tag::telephonyMode))) {
+        return AudioHalCapCriterionV2::make<Tag::telephonyMode>(
+                VALUE_OR_RETURN(convertTelephonyModesToAidl(xsdcCriterionType)));
+    }
+    if (!fastcmp<strncmp>(xsdcCriterion.getName().c_str(), kXsdcForceConfigForUse,
+            strlen(kXsdcForceConfigForUse))) {
+        return AudioHalCapCriterionV2::make<Tag::forceConfigForUse>(
+                VALUE_OR_RETURN(convertForceUseCriterionToAidl(xsdcCriterion.getName())),
+                VALUE_OR_RETURN(convertForcedConfigsToAidl(xsdcCriterionType)));
+    }
+    LOG(ERROR) << __func__ << " unrecognized criterion " << xsdcCriterion.getName();
+    return unexpected(BAD_VALUE);
+}
+
 ConversionResult<AudioHalCapCriterion> convertCapCriterionToAidl(
         const eng_xsd::CriterionType& xsdcCriterion) {
     AudioHalCapCriterion aidlCapCriterion;
     aidlCapCriterion.name = xsdcCriterion.getName();
     aidlCapCriterion.criterionTypeName = xsdcCriterion.getType();
-    aidlCapCriterion.defaultLiteralValue = xsdcCriterion.get_default();
+    aidlCapCriterion.defaultLiteralValue =
+            xsdcCriterion.has_default() ? xsdcCriterion.get_default() : "";
     return aidlCapCriterion;
-}
-
-ConversionResult<std::string> convertCriterionTypeValueToAidl(
-        const eng_xsd::ValueType& xsdcCriterionTypeValue) {
-    return xsdcCriterionTypeValue.getLiteral();
-}
-
-ConversionResult<AudioHalCapCriterionType> convertCapCriterionTypeToAidl(
-        const eng_xsd::CriterionTypeType& xsdcCriterionType) {
-    AudioHalCapCriterionType aidlCapCriterionType;
-    aidlCapCriterionType.name = xsdcCriterionType.getName();
-    aidlCapCriterionType.isInclusive = !(static_cast<bool>(xsdcCriterionType.getType()));
-    aidlCapCriterionType.values = VALUE_OR_RETURN(
-            (convertWrappedCollectionToAidl<eng_xsd::ValuesType, eng_xsd::ValueType, std::string>(
-                    xsdcCriterionType.getValues(), &eng_xsd::ValuesType::getValue,
-                    &convertCriterionTypeValueToAidl)));
-    return aidlCapCriterionType;
 }
 
 ConversionResult<AudioHalVolumeCurve::CurvePoint> convertCurvePointToAidl(

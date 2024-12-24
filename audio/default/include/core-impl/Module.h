@@ -205,6 +205,9 @@ class Module : public BnModule {
     virtual std::unique_ptr<Configuration> initializeConfig();
     virtual int32_t getNominalLatencyMs(
             const ::aidl::android::media::audio::common::AudioPortConfig& portConfig);
+    virtual ndk::ScopedAStatus createMmapBuffer(
+            const ::aidl::android::hardware::audio::core::StreamContext& context,
+            ::aidl::android::hardware::audio::core::StreamDescriptor* desc);
 
     // Utility and helper functions accessible to subclasses.
     static int32_t calculateBufferSizeFrames(int32_t latencyMs, int32_t sampleRateHz) {
