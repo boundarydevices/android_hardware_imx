@@ -141,7 +141,7 @@ const AudioFormatDescToPcmFormatMap& getAudioFormatDescriptorToPcmFormatMap() {
             {make_AudioFormatDescription(PcmType::UINT_8_BIT), PCM_FORMAT_S8},
             {make_AudioFormatDescription(PcmType::INT_16_BIT), PCM_FORMAT_S16_LE},
             {make_AudioFormatDescription(PcmType::FIXED_Q_8_24), PCM_FORMAT_S24_LE},
-            {make_AudioFormatDescription(PcmType::INT_24_BIT), PCM_FORMAT_S24_3LE},
+            {make_AudioFormatDescription(PcmType::INT_24_BIT), PCM_FORMAT_S24_LE},
             {make_AudioFormatDescription(PcmType::INT_32_BIT), PCM_FORMAT_S32_LE},
             {make_AudioFormatDescription(PcmType::FLOAT_32_BIT), PCM_FORMAT_FLOAT_LE},
     };
@@ -254,10 +254,19 @@ std::optional<struct pcm_config> getPcmConfig(const StreamContext& context, bool
     }
     config.format = alsa::aidl2c_AudioFormatDescription_pcm_format(context.getFormat());
     if (config.format == PCM_FORMAT_INVALID) {
-        LOG(ERROR) << __func__ << ": invalid format=" << context.getFormat().toString();
-        return std::nullopt;
+        if (context.getFormat().encoding == "audio/vnd.sony.dsd") {
+            LOG(INFO) << __func__ << ": update to dsd format";
+            config.format = PCM_FORMAT_DSD_U32_LE;
+        } else {
+            LOG(ERROR) << __func__ << ": invalid format=" << context.getFormat().toString();
+            return std::nullopt;
+        }
     }
     config.rate = context.getSampleRate();
+    if (context.getFormat().encoding == "audio/vnd.sony.dsd") {
+        config.rate /= 32;
+        LOG(ERROR) << __func__ << ": update to dsd rate: " << config.rate;
+    }
     if (config.rate == 0) {
         LOG(ERROR) << __func__ << ": invalid sample rate=" << config.rate;
         return std::nullopt;
@@ -289,6 +298,12 @@ DeviceProxy openProxyForAttachedDevice(const DeviceProfile& deviceProfile,
                    << " error=" << err;
         return DeviceProxy();
     }
+    const struct pcm_config config = proxy.get()->alsa_config;
+    LOG(INFO) << "  channels: " << config.channels;
+    LOG(INFO) << "  rate: " << config.rate;
+    LOG(INFO) << "  period_size: " << config.period_size;
+    LOG(INFO) << "  period_count: " << config.period_count;
+    LOG(INFO) << "  format: " << config.format;
     if (int err = proxy_open(proxy.get()); err != 0) {
         LOG(ERROR) << __func__ << ": failed to open device, address=" << deviceProfile
                    << " error=" << err;
@@ -312,6 +327,12 @@ DeviceProxy openProxyForExternalDevice(const DeviceProfile& deviceProfile,
                    << " error=" << err;
         return DeviceProxy();
     }
+    const struct pcm_config config = proxy.get()->alsa_config;
+    LOG(INFO) << "  channels: " << config.channels;
+    LOG(INFO) << "  rate: " << config.rate;
+    LOG(INFO) << "  period_size: " << config.period_size;
+    LOG(INFO) << "  period_count: " << config.period_count;
+    LOG(INFO) << "  format: " << config.format;
     if (int err = proxy_open(proxy.get()); err != 0) {
         LOG(ERROR) << __func__ << ": failed to open device, address=" << deviceProfile
                    << " error=" << err;

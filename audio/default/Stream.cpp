@@ -319,8 +319,13 @@ StreamInWorkerLogic::Status StreamInWorkerLogic::cycle() {
         case Tag::flush:
             if (mState == StreamDescriptor::State::PAUSED) {
                 if (::android::status_t status = mDriver->flush(); status == ::android::OK) {
-                    populateReply(&reply, mIsConnected);
-                    mState = StreamDescriptor::State::STANDBY;
+                    if (::android::status_t status = mDriver->standby(); status == ::android::OK) {
+                        populateReply(&reply, mIsConnected);
+                        mState = StreamDescriptor::State::STANDBY;
+                    } else {
+                        LOG(ERROR) << __func__ << ": standby failed: " << status;
+                        mState = StreamDescriptor::State::ERROR;
+                    }
                 } else {
                     LOG(ERROR) << __func__ << ": flush failed: " << status;
                     mState = StreamDescriptor::State::ERROR;
@@ -932,9 +937,12 @@ ndk::ScopedAStatus StreamIn::setHwGain(const std::vector<float>& in_channelGains
 }
 
 StreamInHwGainHelper::StreamInHwGainHelper(const StreamContext* context)
-    : mChannelCount(getChannelCount(context->getChannelLayout())), mHwGains(mChannelCount, 0.0f) {}
+    : mChannelCount(getChannelCount(context->getChannelLayout())) {}
 
 ndk::ScopedAStatus StreamInHwGainHelper::getHwGainImpl(std::vector<float>* _aidl_return) {
+    if (mHwGains.empty()) {
+        mHwGains.resize(mChannelCount, 0.0f);
+    }
     *_aidl_return = mHwGains;
     LOG(DEBUG) << __func__ << ": returning " << ::android::internal::ToString(*_aidl_return);
     return ndk::ScopedAStatus::ok();
@@ -1063,10 +1071,12 @@ ndk::ScopedAStatus StreamOut::selectPresentation(int32_t in_presentationId, int3
 }
 
 StreamOutHwVolumeHelper::StreamOutHwVolumeHelper(const StreamContext* context)
-    : mChannelCount(getChannelCount(context->getChannelLayout())),
-      mHwVolumes(mChannelCount, 0.0f) {}
+    : mChannelCount(getChannelCount(context->getChannelLayout())) {}
 
 ndk::ScopedAStatus StreamOutHwVolumeHelper::getHwVolumeImpl(std::vector<float>* _aidl_return) {
+    if (mHwVolumes.empty()) {
+        mHwVolumes.resize(mChannelCount, 0.0f);
+    }
     *_aidl_return = mHwVolumes;
     LOG(DEBUG) << __func__ << ": returning " << ::android::internal::ToString(*_aidl_return);
     return ndk::ScopedAStatus::ok();

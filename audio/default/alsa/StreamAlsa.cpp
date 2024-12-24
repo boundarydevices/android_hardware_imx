@@ -130,8 +130,7 @@ StreamAlsa::~StreamAlsa() {
 
 ::android::status_t StreamAlsa::refinePosition(StreamDescriptor::Position* position) {
     if (mAlsaDeviceProxies.empty()) {
-        LOG(WARNING) << __func__ << ": no opened devices";
-        return ::android::NO_INIT;
+        return ::android::OK;
     }
     // Since the proxy can only count transferred frames since its creation,
     // we override its counter value with ours and let it to correct for buffered frames.
@@ -151,6 +150,9 @@ StreamAlsa::~StreamAlsa() {
             ret == 0) {
             if (hwFrames > std::numeric_limits<int64_t>::max()) {
                 hwFrames -= std::numeric_limits<int64_t>::max();
+            }
+            if (getContext().getFormat().encoding == "audio/vnd.sony.dsd") {
+                hwFrames = hwFrames * 4;
             }
             position->frames = static_cast<int64_t>(hwFrames);
             position->timeNs = audio_utils_ns_from_timespec(&timestamp);

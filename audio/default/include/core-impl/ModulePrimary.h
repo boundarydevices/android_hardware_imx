@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2023 The Android Open Source Project
+ * Copyright 2024 NXP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +23,8 @@ namespace aidl::android::hardware::audio::core {
 
 class ModulePrimary final : public Module {
   public:
-    ModulePrimary(std::unique_ptr<Configuration>&& config)
-        : Module(Type::DEFAULT, std::move(config)) {}
+    ModulePrimary(std::unique_ptr<Configuration>&& config);
+    ~ModulePrimary();
 
   protected:
     ndk::ScopedAStatus getTelephony(std::shared_ptr<ITelephony>* _aidl_return) override;
@@ -41,6 +42,8 @@ class ModulePrimary final : public Module {
             std::shared_ptr<StreamOut>* result) override;
     int32_t getNominalLatencyMs(
             const ::aidl::android::media::audio::common::AudioPortConfig& portConfig) override;
+    ndk::ScopedAStatus populateConnectedDevicePort(
+            ::aidl::android::media::audio::common::AudioPort* audioPort, int32_t nextPortId) override;
 
   private:
     ChildInterface<ITelephony> mTelephony;
