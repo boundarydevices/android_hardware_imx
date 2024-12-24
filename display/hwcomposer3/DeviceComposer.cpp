@@ -402,9 +402,9 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
 
     HandleInfo layerInfo;
     if (layerBuffer != nullptr && (getInfoFromHandle(layerBuffer, &layerInfo) == 0)) {
-        DEBUG_LOG_G2D("%s: compose layer id=%ld, zorder:0x%x, phys:0x%" PRIx64 ", name=%s",
-                      __FUNCTION__, layer->getId(), layer->getZOrder(), layerInfo.phys,
-                      layerInfo.name);
+        DEBUG_LOG_G2D("%s: compose layer id=%ld, %d x %d, zorder:0x%x, phys:0x%" PRIx64 ", name=%s",
+                      __FUNCTION__, layer->getId(), layerInfo.width, layerInfo.height,
+                      layer->getZOrder(), layerInfo.phys, layerInfo.name);
     } else {
         DEBUG_LOG_G2D("%s: compose layer id=%ld, zorder:0x%x, solid color layer", __FUNCTION__,
                       layer->getId(), layer->getZOrder());
@@ -579,15 +579,17 @@ int DeviceComposer::setG2dSurface(struct g2d_surfaceEx& surfaceX, buffer_handle_
             ALOGE("%s: does not support format:%d", __FUNCTION__, surface.format);
             break;
     }
-    surface.left = rect.left;
-    surface.top = rect.top;
-    surface.right = rect.right;
-    surface.bottom = rect.bottom;
-    surface.width = static_cast<int>(info.width);
-    surface.height = static_cast<int>(info.height);
+    int buff_width = static_cast<int>(info.width);
+    int buff_height = static_cast<int>(info.height);
+    surface.left = rect.left < buff_width ? rect.left : buff_width;
+    surface.top = rect.top < buff_height ? rect.top : buff_height;
+    surface.right = rect.right < buff_width ? rect.right : buff_width;
+    surface.bottom = rect.bottom < buff_height ? rect.bottom : buff_height;
+    surface.width = buff_width;
+    surface.height = buff_height;
 
     DEBUG_LOG_G2D("%s: dimension(%d,%d,%d,%d, %d x %d), format=%d, stride=%d, tiling=%d, "
-                  "plane0=0x%x, plane1=0x%x, plane2=0x%x",
+                  "plane0=0x%" PRIx64 ", plane1=0x%" PRIx64 ", plane2=0x%" PRIx64,
                   __FUNCTION__, surface.left, surface.top, surface.right, surface.bottom,
                   surface.width, surface.height, surface.format, surface.stride, surfaceX.tiling,
                   surface.planes[0], surface.planes[1], surface.planes[2]);
