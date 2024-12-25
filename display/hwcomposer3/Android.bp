@@ -73,6 +73,46 @@ hwc_config_cc_defaults {
     },
 }
 
+soong_config_module_type {
+    name: "hwc_config_soc_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "IMXPLUGIN",
+    variables: [
+        "BOARD_SOC_TYPE",
+    ],
+    properties: [
+        "cflags",
+    ],
+}
+
+soong_config_string_variable {
+    name: "BOARD_SOC_TYPE",
+    values: ["IMX8Q", "IMX8MM", "IMX8MQ", "IMX8MP", "IMX8MN", "IMX8ULP", "IMX93", "IMX95"],
+}
+
+hwc_config_soc_cc_defaults {
+    name: "hwc_config_soc_defaults",
+    soong_config_variables: {
+        BOARD_SOC_TYPE: {
+            IMX8Q: {
+                cflags: ["-DMAX_DRM_CONFIG_4K",],
+            },
+            IMX8MQ: {
+                cflags: ["-DMAX_DRM_CONFIG_4K"],
+            },
+            IMX8MP: {
+                cflags: ["-DMAX_DRM_CONFIG_4K"],
+            },
+            IMX95: {
+                cflags: ["-DMAX_DRM_CONFIG_4K"],
+            },
+            IMX8ULP: {
+                cflags: ["-DMAX_DRM_CONFIG_720P"],
+            },
+        },
+    },
+}
+
 cc_binary {
     name: "android.hardware.graphics.composer3-service.imx",
     defaults: [
@@ -80,6 +120,7 @@ cc_binary {
         "arm_gralloc_uses_libformat_defaults",
         "libnxp_gralloc_v5_defaults",
         "hwc_config_defaults",
+        "hwc_config_soc_defaults",
     ],
     relative_install_path: "hw",
     init_rc: ["hwc3.rc"],

@@ -458,7 +458,7 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmClient::flushToDisplay(
         }
     }
     if (!mDisplays[displayId]->isConnected()) {
-        ALOGI("%s: %d display is disconnected, avoid DRM committing", __FUNCTION__, displayId);
+        ALOGI("%s: display %d is disconnected, avoid DRM committing", __FUNCTION__, displayId);
         return std::make_tuple(HWC3::Error::None, ::android::base::unique_fd());
     }
 

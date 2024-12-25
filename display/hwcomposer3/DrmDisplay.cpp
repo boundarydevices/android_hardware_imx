@@ -626,8 +626,16 @@ void DrmDisplay::placeholderDisplayConfigs() {
         newConfig.modeWidth = 0;
         newConfig.modeHeight = 0;
     } else {
-        newConfig.width = 720;   // display driver of 8ulp only support max 720x1280.
-        newConfig.height = 1280; // such limitation will affect DRM checking when create DRM buffer
+#ifdef MAX_DRM_CONFIG_4K
+        newConfig.width = 3840;
+        newConfig.height = 2160;
+#elif MAX_DRM_CONFIG_720P
+        newConfig.width = 1280; // display driver of 8ulp only support max 720x1280.
+        newConfig.height = 720; // such limitation will affect DRM checking when create DRM buffer
+#else
+        newConfig.width = 1920;
+        newConfig.height = 1080;
+#endif
         newConfig.dpiX = 160;
         newConfig.dpiY = 160;
         newConfig.refreshRateHz = 60;
