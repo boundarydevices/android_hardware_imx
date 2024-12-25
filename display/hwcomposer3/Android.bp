@@ -199,6 +199,7 @@ cc_binary {
         "-DLOG_TAG=\"NxpHWC\"",
         "-Wall",
         "-Wthread-safety",
+        "-Wno-invalid-offsetof",
     ],
 }
 
