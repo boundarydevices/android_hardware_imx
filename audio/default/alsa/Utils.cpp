@@ -80,8 +80,11 @@ static AudioChannelCountToMaskMap make_ChannelCountToMaskMap(
 
 const AudioChannelCountToMaskMap& getSupportedChannelOutLayoutMap() {
     static const std::set<AudioChannelLayout> supportedOutChannelLayouts = {
-            DEFINE_CHANNEL_LAYOUT_MASK(MONO),
-            DEFINE_CHANNEL_LAYOUT_MASK(STEREO),
+            DEFINE_CHANNEL_LAYOUT_MASK(MONO),          DEFINE_CHANNEL_LAYOUT_MASK(STEREO),
+            DEFINE_CHANNEL_LAYOUT_MASK(2POINT1),       DEFINE_CHANNEL_LAYOUT_MASK(QUAD),
+            DEFINE_CHANNEL_LAYOUT_MASK(PENTA),         DEFINE_CHANNEL_LAYOUT_MASK(5POINT1),
+            DEFINE_CHANNEL_LAYOUT_MASK(6POINT1),       DEFINE_CHANNEL_LAYOUT_MASK(7POINT1),
+            DEFINE_CHANNEL_LAYOUT_MASK(7POINT1POINT4), DEFINE_CHANNEL_LAYOUT_MASK(22POINT2),
     };
     static const AudioChannelCountToMaskMap outLayouts =
             make_ChannelCountToMaskMap(supportedOutChannelLayouts);
