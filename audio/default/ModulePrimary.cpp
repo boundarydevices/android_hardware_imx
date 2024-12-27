@@ -82,7 +82,7 @@ ndk::ScopedAStatus ModulePrimary::createOutputStream(
 }
 
 int32_t ModulePrimary::getNominalLatencyMs(const AudioPortConfig&) {
-    static constexpr int32_t kLatencyMs = 16;
+    static constexpr int32_t kLatencyMs = 5;
     return kLatencyMs;
 }
 
