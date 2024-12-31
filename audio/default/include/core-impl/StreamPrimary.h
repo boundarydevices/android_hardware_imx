@@ -49,7 +49,8 @@ class StreamPrimary : public StreamAlsa {
     bool mIsS16ToS24 = false;
     bool mHardwarePause = false;
     bool mStarted = false;
-    bool mPrimary = false;
+    bool mPrimaryOutput = false;
+    bool mDirectOutput = false;
     struct audio_card *mCard = NULL;
     std::optional<struct pcm_config> mSavedConfig;
 
