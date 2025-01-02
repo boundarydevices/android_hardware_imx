@@ -225,31 +225,25 @@ int32_t DMAStream::allocateBuffersLocked() {
         return 0;
     }
 
-    int32_t size = ALIGN_PIXEL_16(mWidth) * ALIGN_PIXEL_16(mHeight) * 4;
-    if ((mWidth == 0) || (mHeight == 0) || (size == 0)) {
-        ALOGE("%s: width, height or size is 0", __func__);
-        return BAD_VALUE;
-    }
-
-    int32_t memSize = (size + kPageSize) & (~(kPageSize - 1));
-
     ALOGI("allocate buffer num:%d", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
         mBuffers[i] = new ImxStreamBuffer();
         memset(mBuffers[i], 0, sizeof(ImxStreamBuffer));
-        mBuffers[i]->mSize = memSize;
         mBuffers[i]->mStream = this;
         mBuffers[i]->index = i;
-        mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
-        if (mBuffers[i]->mFormatSize == 0)
-            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
 
-        int ret = AllocPhyBuffer(mWidth, mHeight, mFormat, *mBuffers[i]);
+        // On 8mn, there's ISI overwrite issue. To workaround, double the buffer size.
+        int ret = AllocPhyBuffer(mWidth * 2, mHeight, mFormat, *mBuffers[i]);
         if (ret) {
             ALOGE("%s:%d AllocPhyBuffer failed", __func__, __LINE__);
             ret = -EINVAL;
             goto err;
         }
+
+        mBuffers[i]->mWidth = mWidth;
+        mBuffers[i]->mFormatSize = getSizeByForamtRes(mFormat, mWidth, mHeight, false);
+        if (mBuffers[i]->mFormatSize == 0)
+            mBuffers[i]->mFormatSize = mBuffers[i]->mSize;
     }
 
     mRegistered = true;
