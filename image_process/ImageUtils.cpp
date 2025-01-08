@@ -34,6 +34,7 @@
 
 #define ENGINE_GPU_2D "GPU_2D"
 #define ENGINE_GPU_3D "GPU_3D"
+#define ENGINE_OCLCVT "OCLCVT"
 #define ENGINE_IPU "IPU"
 #define ENGINE_PXP "PXP"
 #define ENGINE_DPU "DPU"
@@ -51,6 +52,8 @@ ImxEngine ValueToImxEngine(const std::string &value) {
         engine = ENG_G2D;
     } else if (value == ENGINE_GPU_3D) {
         engine = ENG_G3D;
+    } else if (value == ENGINE_OCLCVT) {
+        engine = ENG_OCLCVT;
     } else if (value == ENGINE_PXP) {
         engine = ENG_PXP;
     } else if (value == ENGINE_IPU) {

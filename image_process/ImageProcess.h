@@ -30,6 +30,12 @@ typedef int (*hwc_func1)(void* handle);
 typedef int (*hwc_func3)(void* handle, void* arg1, void* arg2);
 typedef int (*hwc_func4)(void* handle, void* arg1, void* arg2, void* arg3);
 
+typedef OCL_RESULT (*ocl_open)(OCL_OPEN_FLAG flag, OCL_HANDLE* handle);
+typedef OCL_RESULT (*ocl_setParam)(OCL_HANDLE handle, OCL_PARAM_INDEX index, void* param);
+typedef OCL_RESULT (*ocl_getParam)(OCL_HANDLE handle, OCL_PARAM_INDEX index, void* param);
+typedef OCL_RESULT (*ocl_convert)(OCL_HANDLE handle, OCL_BUFFER* in_buf, OCL_BUFFER* out_buf);
+typedef OCL_RESULT (*ocl_close)(OCL_HANDLE handle);
+
 class ImageProcess {
 public:
     static ImageProcess* getInstance();
@@ -71,20 +77,23 @@ private:
     void LockG2dAddr(ImxImageBuffer& imxBuf);
     void UnLockG2dAddr(ImxImageBuffer& imxBuf);
 
+    int ConvertImageByOclCvt(ImxImageBuffer& dst, ImxImageBuffer& src);
+    void ImxImageBufferToOclBuffer(ImxImageBuffer& imxImgBuf, OCL_BUFFER& oclBuf,
+                                   OCL_FORMAT& oclFmt);
+
 private:
     ImageProcess();
     static Mutex sLock;
     static ImageProcess* sInstance;
 
     typedef int (ImageProcess::*ConvertByEngine)(ImxImageBuffer&, ImxImageBuffer&);
-    ConvertByEngine g_EngFuncList[ENG_NUM] = {
-        &ImageProcess::ConvertImageByGPU_2D,
-        &ImageProcess::ConvertImageByDPU,
-        &ImageProcess::ConvertImageByGPU_3D,
-        &ImageProcess::ConvertImageByIPU,
-        &ImageProcess::ConvertImageByPXP,
-        &ImageProcess::ConvertImageByCPU
-    };
+    ConvertByEngine g_EngFuncList[ENG_NUM] = {&ImageProcess::ConvertImageByGPU_2D,
+                                              &ImageProcess::ConvertImageByDPU,
+                                              &ImageProcess::ConvertImageByGPU_3D,
+                                              &ImageProcess::ConvertImageByOclCvt,
+                                              &ImageProcess::ConvertImageByIPU,
+                                              &ImageProcess::ConvertImageByPXP,
+                                              &ImageProcess::ConvertImageByCPU};
 
     int mIpuFd;
     int mPxpFd;
@@ -114,6 +123,14 @@ private:
     Mutex mCLLock;
 
     bool mbVIVG2D;
+
+    void* mImxOclCvtModule;
+    OCL_HANDLE mHOcl;
+    ocl_open m_ocl_open;
+    ocl_setParam m_ocl_setParam;
+    ocl_getParam m_ocl_getParam;
+    ocl_convert m_ocl_convert;
+    ocl_close m_ocl_close;
 };
 
 } // namespace fsl

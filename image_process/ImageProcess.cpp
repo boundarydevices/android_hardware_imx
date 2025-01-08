@@ -46,6 +46,7 @@ extern "C" {
 #define GPUHELPER "libgpuhelper.so"
 #define CLENGINE "libg2d-opencl.so"
 #define G2DENGINE "libg2d"
+#define IMX_OCL_CONVERTER "lib_imx_opencl_converter.so"
 
 namespace fsl {
 
@@ -204,9 +205,43 @@ ImageProcess::ImageProcess()
     if (mCLHandle != NULL) {
         ALOGW("opencl g2d device is used!\n");
     }
+
+    memset(path, 0, sizeof(path));
+    getModule(path, IMX_OCL_CONVERTER);
+    mImxOclCvtModule = dlopen(path, RTLD_NOW);
+    if (mImxOclCvtModule == NULL) {
+        ALOGW("%s:, dlopen %s failed", __func__, path);
+        mHOcl = NULL;
+        m_ocl_open = NULL;
+        m_ocl_setParam = NULL;
+        m_ocl_getParam = NULL;
+        m_ocl_convert = NULL;
+        m_ocl_close = NULL;
+    } else {
+        m_ocl_open = (ocl_open)dlsym(mImxOclCvtModule, "OCL_Open");
+        m_ocl_setParam = (ocl_setParam)dlsym(mImxOclCvtModule, "OCL_SetParam");
+        m_ocl_getParam = (ocl_getParam)dlsym(mImxOclCvtModule, "OCL_GetParam");
+        m_ocl_convert = (ocl_convert)dlsym(mImxOclCvtModule, "OCL_Convert");
+        m_ocl_close = (ocl_close)dlsym(mImxOclCvtModule, "OCL_Close");
+
+        ret = (*m_ocl_open)(OCL_OPEN_FLAG_PROFILE, &mHOcl);
+        if (ret != 0) {
+            mHOcl = NULL;
+            ALOGW("%s: m_ocl_open failed, ret %d", __func__, ret);
+        }
+        ALOGI("%s: mHOcl %p", __func__, mHOcl);
+    }
 }
 
 ImageProcess::~ImageProcess() {
+    if (mHOcl) {
+        m_ocl_close(mHOcl);
+        mHOcl = NULL;
+    }
+
+    if (mImxOclCvtModule)
+        dlclose(mImxOclCvtModule);
+
     if (mIpuFd > 0) {
         close(mIpuFd);
         mIpuFd = -1;
@@ -1066,6 +1101,131 @@ void ImageProcess::cl_Csc(void *g2dHandle, uint8_t *inputBuffer, uint8_t *output
     dst.usePhyAddr = bUsePhyAddr;
 
     (*mCLBlit)(g2dHandle, (void *)&src, (void *)&dst);
+}
+
+void ImageProcess::ImxImageBufferToOclBuffer(ImxImageBuffer &imxImgBuf, OCL_BUFFER &oclBuf,
+                                             OCL_FORMAT &oclFmt) {
+    int ret = 0;
+    OCL_FORMAT_PLANE_INFO plane_info;
+
+    memset(&plane_info, 0, sizeof(plane_info));
+    plane_info.ocl_format = &oclFmt;
+
+    ret = m_ocl_getParam(mHOcl, OCL_PARAM_INDEX_FORMAT_PLANE_INFO, &plane_info);
+    if (ret) {
+        ALOGE("%s: m_ocl_getParam OCL_PARAM_INDEX_FORMAT_PLANE_INFO failed, ret %d", __func__, ret);
+        return;
+    }
+
+    oclBuf.mem_type = OCL_MEM_TYPE_DEVICE;
+    oclBuf.plane_num = plane_info.plane_num;
+
+    int offset = 0;
+    for (int i = 0; i < oclBuf.plane_num; i++) {
+        oclBuf.planes[i].fd = imxImgBuf.mFd;
+        oclBuf.planes[i].offset = offset;
+        oclBuf.planes[i].vaddr = (long long)imxImgBuf.mVirtAddr + (long long)offset;
+        oclBuf.planes[i].size = plane_info.plane_size[i];
+        offset += oclBuf.planes[i].size;
+    }
+
+    return;
+}
+
+static void HalPixelFormatToOclPixelFormat(uint32_t &halPixelFormat,
+                                           OCL_PIXEL_FORMAT &oclPixelFormat) {
+    switch (halPixelFormat) {
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+        case HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            oclPixelFormat = OCL_FORMAT_NV12;
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_422_I:
+            oclPixelFormat = OCL_FORMAT_YUYV;
+            break;
+        default:
+            ALOGW("==xx %s: unsupported halPixelFormat %d, set oclPixelFormat to OCL_FORMAT_YUYV",
+                  __func__, halPixelFormat);
+            oclPixelFormat = OCL_FORMAT_YUYV;
+            break;
+    }
+
+    return;
+}
+
+static void ImxImageBufferToOclFormat(ImxImageBuffer &imxImgBuf, OCL_FORMAT &oclFormat) {
+    OCL_PIXEL_FORMAT oclPixelFormat;
+
+    HalPixelFormatToOclPixelFormat(imxImgBuf.mFormat, oclPixelFormat);
+
+    oclFormat.format = oclPixelFormat;
+    oclFormat.width = imxImgBuf.mWidth;
+    oclFormat.height = imxImgBuf.mHeight;
+    oclFormat.stride = imxImgBuf.mStride;
+    oclFormat.sliceheight = imxImgBuf.mHeight;
+    oclFormat.left = 0;
+    oclFormat.top = 0;
+    oclFormat.right = imxImgBuf.mWidth;
+    oclFormat.bottom = imxImgBuf.mHeight;
+    oclFormat.colorspace = OCL_COLORSPACE_BT709;
+
+    return;
+}
+
+int ImageProcess::ConvertImageByOclCvt(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf) {
+    int ret = 0;
+
+    if (mHOcl == NULL) {
+        ALOGE("%s: mHOcl is NULL", __func__);
+        return BAD_VALUE;
+    }
+
+    /* set format */
+    OCL_FORMAT input_format;
+    OCL_FORMAT output_format;
+
+    memset(&input_format, 0, sizeof(input_format));
+    memset(&output_format, 0, sizeof(output_format));
+
+    ImxImageBufferToOclFormat(srcBuf, input_format);
+    ImxImageBufferToOclFormat(dstBuf, output_format);
+
+    ret = m_ocl_setParam(mHOcl, OCL_PARAM_INDEX_INPUT_FORMAT, &input_format);
+    if (ret) {
+        ALOGE("%s: m_ocl_setParam OCL_PARAM_INDEX_INPUT_FORMAT failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    ret = m_ocl_setParam(mHOcl, OCL_PARAM_INDEX_OUTPUT_FORMAT, &output_format);
+    if (ret) {
+        ALOGE("%s: m_ocl_setParam OCL_PARAM_INDEX_OUTPUT_FORMAT failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    /* set buffer */
+    OCL_BUFFER inBuffer;
+    OCL_BUFFER outBuffer;
+
+    memset(&inBuffer, 0, sizeof(inBuffer));
+    memset(&outBuffer, 0, sizeof(outBuffer));
+
+    ImxImageBufferToOclBuffer(srcBuf, inBuffer, input_format);
+    ImxImageBufferToOclBuffer(dstBuf, outBuffer, output_format);
+
+    ret = m_ocl_convert(mHOcl, &inBuffer, &outBuffer);
+    if (ret) {
+        ALOGE("%s: m_ocl_convert failed, ret %d", __func__, ret);
+        return ret;
+    }
+
+    OCL_RUN_TIME time;
+    ret = m_ocl_getParam(mHOcl, OCL_PARAM_INDEX_RUN_TIME, &time);
+    if (ret == 0)
+        ALOGV("%s: m_ocl_convert, src: res %dx%d, fmt %d, dst: res %dx%d, fmt %d, run_time=%d, kernel_time=%d\n",
+              __func__, input_format.width, input_format.height, input_format.format,
+              output_format.width, output_format.height, output_format.format, time.run_time,
+              time.kernel_time);
+
+    return 0;
 }
 
 void ImageProcess::convertYUYVtoNV12SP(uint8_t *inputBuffer, uint8_t *outputBuffer, int width,

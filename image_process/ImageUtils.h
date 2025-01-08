@@ -23,6 +23,7 @@
 
 #include <string>
 
+#include "imx_opencl_converter.h"
 #include "opencl-2d.h"
 
 namespace android {
@@ -43,6 +44,9 @@ enum ImxEngine {
     ENG_G2D = ENG_MIN,
     ENG_DPU,
     ENG_G3D,
+    // Compared with ENG_G3D, it extra supports scale. Also to switch between
+    // ENG_G3D(libg2d-opencl.so) and ENG_OCLCVT(lib_imx_opencl_converter.so) easily, add ENG_OCLCVT.
+    ENG_OCLCVT,
     ENG_IPU,
     ENG_PXP,
     ENG_CPU,

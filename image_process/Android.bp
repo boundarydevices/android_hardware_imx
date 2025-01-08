@@ -75,5 +75,6 @@ cc_library_shared {
         "vendor/nxp-opensource/libdrm-imx",
         "vendor/nxp-opensource/libdrm-imx/include/drm",
         "device/nxp/common/kernel-headers",
+        "vendor/nxp/imx_opencl_converter/ghdr",
     ],
 }

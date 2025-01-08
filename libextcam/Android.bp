@@ -104,6 +104,7 @@ cc_library_shared {
         "vendor/nxp-opensource/libdrm-imx/include/drm",
         "vendor/nxp/imx_android_mm/extractor",
         "vendor/nxp/fsl-proprietary/include",
+        "vendor/nxp/imx_opencl_converter/ghdr",
         "device/nxp/common/kernel-headers",
         "system/core/include/system",
         "frameworks/av/media/codec2/vndk/include",
