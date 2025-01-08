@@ -77,6 +77,14 @@ ndk::ScopedAStatus ModulePrimary::createOutputStream(
         }
     }
 
+    if (aidl::android::hardware::audio::common::getChannelCount(context.getChannelLayout()) > 2) {
+        const auto& c = AudioCardManager::getCardForDevice(AUDIO_DEVICE_OUT_SPEAKER);
+        if (c && !strstr(c->card_name, "cs42")) {
+            LOG(INFO) << "reject creating multi-channel stream.";
+            return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_ARGUMENT);
+        }
+    }
+
     return createStreamInstance<StreamOutPrimary>(result, std::move(context), sourceMetadata,
                                                   offloadInfo);
 }
