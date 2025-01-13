@@ -357,7 +357,7 @@ int CameraDeviceSessionHwlImpl::HandleIntent(HwlPipelineRequest *hwReq) {
         for (size_t index = 0; index < pVideoStreams.size(); index++) {
             pVideoStreams[index]->SetBufferNumber(pipeline_info->hal_streams->at(0).max_buffers +
                                                   1);
-            ret += pVideoStreams[index]->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
+            ret = pVideoStreams[index]->ConfigAndStart(HAL_PIXEL_FORMAT_YCbCr_422_I,
                                                         pipeline_info->streams->at(0).width,
                                                         pipeline_info->streams->at(0).height, fps,
                                                         captureIntent, sceneMode);
@@ -588,7 +588,11 @@ status_t CameraDeviceSessionHwlImpl::CapAndFeed(uint32_t frame, FrameRequest *fr
         exposure_time = pVideoStreams[0]->mDurationNS;
     }
 
-    timestamp_ns = readout_timestamp_ns - exposure_time;
+    if (readout_timestamp_ns != 0) {
+        timestamp_ns = readout_timestamp_ns - exposure_time;
+    } else {
+        ALOGE("%s: readout_timestamp_ns is 0", __func__);
+    }
 
     if (mDebug) {
         ALOGI("%s: frame %d, readout_timestamp_ns %lu, exposure_time %lu", __func__, frame,

@@ -808,8 +808,15 @@ status_t CameraDeviceSessionHwlImpl::ConfigurePipeline(
     return OK;
 
 err_out:
-    if (pipeline_info != NULL)
+    if (pipeline_info != NULL) {
+        if (pipeline_info->streams != nullptr) {
+            delete pipeline_info->streams;
+        }
+        if (pipeline_info->hal_streams != nullptr) {
+            delete pipeline_info->hal_streams;
+        }
         free(pipeline_info);
+    }
 
     return ret;
 }

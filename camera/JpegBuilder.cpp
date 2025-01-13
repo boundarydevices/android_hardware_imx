@@ -308,7 +308,7 @@ status_t JpegBuilder::encodeJpeg(JpegParams *input, char *hw_jpeg_enc, const voi
                           app1Buffer, app1Size);
 
     delete encoder;
-    if (res) {
+    if (res > 0) {
         input->jpeg_size = res;
         return NO_ERROR;
     } else {
