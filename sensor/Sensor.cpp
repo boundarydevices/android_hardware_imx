@@ -687,13 +687,13 @@ HWSensorBase::HWSensorBase(int32_t sensorHandle, ISensorsEventCallback* callback
     buffer_path.append(std::to_string(mIioData.iio_dev_num));
     if (mSensorInfo.name == "mpl3115") {
         if (sharedFd == -1) {
-            mPollFdIio.fd = openDeviceFile(buffer_path);
+            mPollFdIio.fd = openDeviceFile(std::move(buffer_path));
             if (mPollFdIio.fd != -1)
                 sharedFd = mPollFdIio.fd;
         } else
             mPollFdIio.fd = sharedFd;
     } else
-        mPollFdIio.fd = openDeviceFile(buffer_path);
+        mPollFdIio.fd = openDeviceFile(std::move(buffer_path));
 
     if (mPollFdIio.fd < 0 || mIioData.name == "mpl3115" ||
         mIioData.type == SensorType::STEP_COUNTER) {
