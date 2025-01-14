@@ -203,6 +203,7 @@ int32_t MMAPStream::onDeviceStartLocked() {
         mBuffers[i]->mStream = this;
         mBuffers[i]->mWidth = mWidth;
         mBuffers[i]->mHeight = mHeight;
+        mBuffers[i]->mStride = mWidth;
         mBuffers[i]->mFormat = mFormat;
 
         if (mPlane) {

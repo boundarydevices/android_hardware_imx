@@ -999,6 +999,9 @@ int GetBufferInfoFromHandle(buffer_handle_t bufferHandle, ImxImageBuffer &outBuf
     outBufInfo.mFormat = format;
     outBufInfo.mWidth = (uint32_t)width;
     outBufInfo.mHeight = (uint32_t)height;
+    // No mapper.getStride(), so just assign width.
+    // Some csc/scale functions need stride as para.
+    outBufInfo.mStride = (uint32_t)width;
     outBufInfo.mVirtAddr = vaddr;
     outBufInfo.mPhyAddr = phyAddr;
     outBufInfo.mFd = sharedFd;
