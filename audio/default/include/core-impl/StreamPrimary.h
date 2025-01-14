@@ -42,6 +42,8 @@ class StreamPrimary : public StreamAlsa {
 
     const bool mIsAsynchronous;
     int64_t mStartTimeNs = 0;
+    int16_t mStartRetryCount = 0;
+    const int16_t kMaxStartRetryCount = 8;
     long mFramesSinceStart = 0;
     bool mSkipNextTransfer = false;
     bool mIsStereoToMono = false;

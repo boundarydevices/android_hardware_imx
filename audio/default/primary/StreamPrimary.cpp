@@ -146,6 +146,7 @@ void StreamPrimary::tryStart(){
         tryStart();
     }
     mStartTimeNs = ::android::uptimeNanos();
+    mStartRetryCount = 0;
     mFramesSinceStart = 0;
     mSkipNextTransfer = false;
     return ::android::OK;
@@ -162,7 +163,16 @@ void StreamPrimary::tryStart(){
         }
     } else if (mDirectOutput) {
         if (!mStarted) {
-            tryStart();
+            if (mStartRetryCount < kMaxStartRetryCount) {
+                tryStart();
+                if (mStarted)
+                    mStartRetryCount = 0;
+                else {
+                    mStartRetryCount ++;
+                    if (mStartRetryCount >= kMaxStartRetryCount)
+                        LOG(DEBUG) << __func__ << ": stop trying to start after " << mStartRetryCount << " times";
+                }
+            }
         }
         if (!mCard->locked) {
             LOG(WARNING) << __func__ << ": error state, direct transfer without lock.";
