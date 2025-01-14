@@ -58,6 +58,35 @@ class StreamAlsa : public StreamCommonImpl {
     const int mReadWriteRetries;
     // All fields below are only used on the worker thread.
     std::vector<alsa::DeviceProxy> mAlsaDeviceProxies;
+
+  protected:
+    /*
+      Enable audio dump feature:
+        setprop persist.vendor.audio.dump 1
+        touch /data/out_alsa.pcm
+        touch /data/in_alsa.pcm
+        touch /data/out_primary.pcm
+        touch /data/in_primary.pcm
+        chmod 777 /data/out_alsa.pcm
+        chmod 777 /data/in_alsa.pcm
+        chmod 777 /data/out_primary.pcm
+        chmod 777 /data/in_primary.pcm
+      Each boot:
+        setenforce 0
+        pkill audioserver
+      Do audio tests...
+      Pull the data:
+        adb pull /data/out_alsa.pcm .
+        adb pull /data/in_alsa.pcm .
+        adb pull /data/out_primary.pcm .
+        adb pull /data/in_primary.pcm .
+    */
+    bool mDump = false;
+    const char* kDumpAlsaOutputFile = "/data/out_alsa.pcm";
+    const char* kDumpAlsaInputFile = "/data/in_alsa.pcm";
+    const char* kDumpPrimaryOutputFile = "/data/out_primary.pcm";
+    const char* kDumpPrimaryInputFile = "/data/in_primary.pcm";
+    void dump(const void *buffer, size_t size, const char* name);
 };
 
 }  // namespace aidl::android::hardware::audio::core
