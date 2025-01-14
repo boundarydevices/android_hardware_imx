@@ -214,9 +214,9 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
 
     uint32_t numPlaneInCrtc =
             static_cast<uint32_t>((planes.size() + connectors.size() - 1) / connectors.size());
-    std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> crtc_planes;
     for (uint32_t i = 0; i < connectors.size(); i++) {
         std::unique_ptr<DrmConnector> connector = std::move(connectors[i]);
+        std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> crtc_planes;
 
         auto crtcIt =
                 std::find_if(crtcs.begin(), crtcs.end(), [&](const std::unique_ptr<DrmCrtc>& crtc) {
@@ -253,7 +253,7 @@ bool DrmClient::loadDrmDisplays(uint32_t displayBaseId) {
         }
 
         auto display = DrmDisplay::create(displayBaseId + i, std::move(connector), std::move(crtc),
-                                          crtc_planes, mFd);
+                                          std::move(crtc_planes), mFd);
         if (!display) {
             return false;
         }
@@ -811,7 +811,7 @@ HWC3::Error DrmClient::setSecureMode(uint32_t displayId, uint32_t planeId, bool 
 }
 
 int DrmClient::loadBacklightDevices() {
-    struct dirent** dirEntry;
+    struct dirent** dirEntry = nullptr;
     std::string path("/sys/class/backlight/");
     int count = -1;
     mBacklight.path = "";
@@ -847,6 +847,7 @@ int DrmClient::loadBacklightDevices() {
         for (; i < count; i++) free(dirEntry[i]); // free other dirEntrys
         break;
     }
+    free(dirEntry);
 
     if (mBacklight.maxBrightness > 0) {
         // TODO: Here use mDisplayBaseId as primary display Id, and backlight only support primary

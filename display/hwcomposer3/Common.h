@@ -48,10 +48,10 @@
 
 #define DEBUG_DUMP_REFRESH_RATE
 
-// uncomment below to enable frame dump feature
+// uncomment below to enable framebuffer dump feature
 // #define DEBUG_DUMP_FRAME
 
-// uncomment below to enable frame dump feature
+// uncomment below to enable layer buffer dump feature
 // #define DEBUG_DUMP_LAYER_BUFFER
 
 #if 0 // Below already defined in Memory.h

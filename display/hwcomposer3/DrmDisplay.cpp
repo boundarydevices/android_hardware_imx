@@ -38,7 +38,7 @@ uint64_t addressAsUint(T* pointer) {
 
 std::unique_ptr<DrmDisplay> DrmDisplay::create(
         uint32_t id, std::unique_ptr<DrmConnector> connector, std::unique_ptr<DrmCrtc> crtc,
-        std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>>& planes,
+        std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> planes,
         ::android::base::borrowed_fd drmFd) {
     if (!crtc) {
         ALOGE("%s: invalid crtc.", __FUNCTION__);

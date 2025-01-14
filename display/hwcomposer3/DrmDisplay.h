@@ -56,7 +56,7 @@ class DrmDisplay {
 public:
     static std::unique_ptr<DrmDisplay> create(
             uint32_t id, std::unique_ptr<DrmConnector> connector, std::unique_ptr<DrmCrtc> crtc,
-            std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>>& planes,
+            std::unordered_map<uint32_t, std::unique_ptr<DrmPlane>> planes,
             ::android::base::borrowed_fd drmFd);
 
     uint32_t getId() const { return mId; }

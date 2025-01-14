@@ -41,7 +41,7 @@ HWC3::Error checkClientFromSystem(std::string path, std::string filePrefix,
                                   std::map<uint32_t, std::unique_ptr<DeviceClient>>& clients,
                                   uint32_t* baseId, uint32_t idIncrement) {
     HWC3::Error ret = HWC3::Error::NoResources;
-    struct dirent** dirEntry;
+    struct dirent** dirEntry = nullptr;
 #define HWC_PATH_LENGTH 256
     char filePath[HWC_PATH_LENGTH];
     int count = -1;
@@ -73,6 +73,7 @@ HWC3::Error checkClientFromSystem(std::string path, std::string filePrefix,
 
         free(dirEntry[i]);
     }
+    free(dirEntry);
 
     return ret;
 }

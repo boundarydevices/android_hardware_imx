@@ -380,11 +380,15 @@ bool getDisplayPortFromProperty(const std::string &connector_name, uint32_t *out
         auto pos = ports.find(conn);
         if (pos != std::string::npos) {
             auto colon = ports.find(':', pos);
-            auto comma = ports.find(',', pos);
-            auto count = (comma == std::string::npos) ? comma : (comma - colon);
+            if (colon == std::string::npos)
+                return false;
+            auto comma = ports.find(',', colon);
+            auto count = (comma == std::string::npos) ? comma : (comma - colon - 1);
             auto port_str = ports.substr(colon + 1, count);
-            port = static_cast<uint32_t>(std::stoul(port_str));
+            if (!std::all_of(port_str.begin(), port_str.end(), ::isdigit))
+                return false;
 
+            port = static_cast<uint32_t>(std::stoul(port_str));
             *outPort = port;
             return true;
         }
