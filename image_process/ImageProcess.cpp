@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 NXP.
+ * Copyright 2023-2025 NXP.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -301,7 +301,8 @@ void ImageProcess::getModule(char *path, const char *name) {
     return;
 }
 
-int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, ImxEngine engine) {
+int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, ImxEngine engine,
+                               bool debug) {
     int ret = 0;
 
     if (engine == ENG_BYPASS)
@@ -312,11 +313,13 @@ int ImageProcess::ConvertImage(ImxImageBuffer &dstBuf, ImxImageBuffer &srcBuf, I
         return -EINVAL;
     }
 
-    ALOGV("ImageProcess::ConvertImage, src: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, "
-          "dst: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, engine %d",
-          srcBuf.mVirtAddr, srcBuf.mPhyAddr, (int)srcBuf.mSize, srcBuf.mWidth,
-          srcBuf.mHeight, srcBuf.mFormat, dstBuf.mVirtAddr, dstBuf.mPhyAddr,
-          (int)dstBuf.mSize, dstBuf.mWidth, dstBuf.mHeight, dstBuf.mFormat, engine);
+    mDebug = debug;
+    if (mDebug)
+        ALOGI("%s: src: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, "
+              "dst: virt %p, phy 0x%lx, size %d, res %ux%u, format 0x%x, engine %d, ZoomRatio %f",
+              __func__, srcBuf.mVirtAddr, srcBuf.mPhyAddr, (int)srcBuf.mSize, srcBuf.mWidth,
+              srcBuf.mHeight, srcBuf.mFormat, dstBuf.mVirtAddr, dstBuf.mPhyAddr, (int)dstBuf.mSize,
+              dstBuf.mWidth, dstBuf.mHeight, dstBuf.mFormat, engine, srcBuf.mZoomRatio);
 
     // unify HAL_PIXEL_FORMAT_YCbCr_420_SP to HAL_PIXEL_FORMAT_YCBCR_420_888
     if (srcBuf.mFormat == HAL_PIXEL_FORMAT_YCbCr_420_SP) {

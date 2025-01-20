@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020-2024 NXP.
+ *  Copyright 2020-2025 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -314,7 +314,7 @@ int32_t CameraDeviceSessionHwlImpl::processFrameBuffer(ImxStreamBuffer *srcBuf,
     else
         engine = mCamBlitCscType;
 
-    return handleFrame(*dstBuf, *srcBuf, engine);
+    return handleFrame(*dstBuf, *srcBuf, engine, mDebug);
 }
 
 int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
@@ -425,7 +425,7 @@ int32_t CameraDeviceSessionHwlImpl::processJpegBuffer(ImxStreamBuffer *srcBuf,
         }
 
         resizeBuf.mStream = srcBuf->mStream;
-        handleFrame(resizeBuf, *srcBuf, mCamBlitCscType);
+        handleFrame(resizeBuf, *srcBuf, mCamBlitCscType, mDebug);
 
         SwitchImxBuf(*srcBuf, resizeBuf);
     }

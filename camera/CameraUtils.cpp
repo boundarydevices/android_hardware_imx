@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020-2023 NXP.
+ *  Copyright 2020-2025 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -152,7 +152,8 @@ static int32_t StreamBufferToImageBuffer(ImxStreamBuffer &streamBuffer, ImxImage
     return 0;
 }
 
-int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine) {
+int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine,
+                    bool debug) {
     fsl::ImageProcess *imageProcess = fsl::ImageProcess::getInstance();
 
     ImxImageBuffer imageBufferSrc;
@@ -161,7 +162,7 @@ int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine 
     StreamBufferToImageBuffer(srcBuf, imageBufferSrc);
     StreamBufferToImageBuffer(dstBuf, imageBufferDst);
 
-    return imageProcess->ConvertImage(imageBufferDst, imageBufferSrc, engine);
+    return imageProcess->ConvertImage(imageBufferDst, imageBufferSrc, engine, debug);
 }
 
 ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream) {

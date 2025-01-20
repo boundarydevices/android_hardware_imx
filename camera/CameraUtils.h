@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020-2023 NXP.
+ *  Copyright 2020-2025 NXP.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -190,7 +190,8 @@ int32_t changeSensorFormats(int *src, int *dst, int len);
 cameraconfigparser::PhysicalMetaMapPtr ClonePhysicalDeviceMap(
         const cameraconfigparser::PhysicalMetaMapPtr &src);
 
-int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine);
+int32_t handleFrame(ImxStreamBuffer &dstBuf, ImxStreamBuffer &srcBuf, ImxEngine engine,
+                    bool debug = false);
 int32_t ImageBufferToStreamBuffer(ImxImageBuffer &imageBuffer, ImxStreamBuffer &streamBuffer);
 ImxStreamBuffer *CreateImxStreamBufferFromBufferHandle(buffer_handle_t buffer, Stream *stream);
 void ReleaseImxStreamBuffer(ImxStreamBuffer *imxBuf);
