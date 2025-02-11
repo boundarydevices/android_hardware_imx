@@ -130,13 +130,15 @@ private:
             mId(id),
             mConnector(std::move(connector)),
             mCrtc(std::move(crtc)),
-            mPlanes(std::move(planes)) {}
+            mPlanes(std::move(planes)) {
+        updateFramebufferFormat();
+    }
 
     bool onConnect(::android::base::borrowed_fd drmFd);
-
     bool onDisconnect(::android::base::borrowed_fd drmFd);
 
     void updateActiveConfig(std::shared_ptr<HalConfig> configs);
+    void updateFramebufferFormat();
 
     bool mIsPrimary = false;
     uint32_t mHwcId; // logic display Id, may be changed when needed
@@ -158,6 +160,7 @@ private:
     HalDisplayConfig mActiveConfig{};
     std::shared_ptr<HalConfig> mConfigs = std::make_shared<HalConfig>();
     uint32_t mUiScaleType = UI_SCALE_NONE;
+    uint32_t mFbFormat = static_cast<uint32_t>(common::PixelFormat::RGBA_8888);
     std::vector<uint32_t> mPlaneIdPool;
     uint32_t mOverlayPlaneNum = 0;
     bool mModeSet = true;

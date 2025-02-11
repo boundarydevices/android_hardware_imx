@@ -669,6 +669,48 @@ bool DrmDisplay::resetDisplayConfig() {
     return setActiveConfigId(mInitActiveConfigId);
 }
 
+void DrmDisplay::updateFramebufferFormat() {
+    DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
+
+    uint32_t id = getPrimaryPlaneId();
+    DrmPlane* plane = mPlanes[id].get();
+    std::string cfg_format = getFramebufferFormat();
+    if (cfg_format != "") {
+        uint32_t fmt = 0, drm_fmt = 0;
+        uint64_t modifier = 0;
+        if (cfg_format == "RGBA_8888") {
+            fmt = static_cast<uint32_t>(common::PixelFormat::RGBA_8888);
+        } else if (cfg_format == "RGBX_8888") {
+            fmt = static_cast<uint32_t>(common::PixelFormat::RGBX_8888);
+        } else if (cfg_format == "RGB_888") {
+            fmt = static_cast<uint32_t>(common::PixelFormat::RGB_888);
+        } else if (cfg_format == "RGB_565") {
+            fmt = static_cast<uint32_t>(common::PixelFormat::RGB_565);
+        } else if (cfg_format == "BGRA_8888") {
+            fmt = static_cast<uint32_t>(common::PixelFormat::BGRA_8888);
+        }
+        if (fmt != 0) {
+            drm_fmt = ConvertNxpFormatToDrmFormat(fmt, &modifier);
+            if (plane->checkFormatSupported(drm_fmt)) {
+                ALOGI("%s: display:%d configure framebuffer format as %s", __FUNCTION__, mId,
+                      cfg_format.c_str());
+                mFbFormat = fmt;
+                return;
+            }
+        }
+    }
+
+    if (plane->checkFormatSupported(DRM_FORMAT_ABGR8888)) {
+        mFbFormat = static_cast<uint32_t>(common::PixelFormat::RGBA_8888);
+    } else if (plane->checkFormatSupported(DRM_FORMAT_XBGR8888)) {
+        mFbFormat = static_cast<uint32_t>(common::PixelFormat::RGBX_8888);
+    } else if (plane->checkFormatSupported(DRM_FORMAT_ARGB8888)) {
+        // primary plane of imx8ulp use such format
+        mFbFormat = static_cast<uint32_t>(common::PixelFormat::BGRA_8888);
+    } else if (plane->checkFormatSupported(DRM_FORMAT_RGB565)) {
+        mFbFormat = static_cast<uint32_t>(common::PixelFormat::RGB_565);
+    }
+}
 int DrmDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* format) {
     DEBUG_LOG("%s: display:%" PRIu32, __FUNCTION__, mId);
 
@@ -680,17 +722,7 @@ int DrmDisplay::getFramebufferInfo(uint32_t* width, uint32_t* height, uint32_t* 
         *height = mActiveConfig.height;
     }
 
-    uint32_t id = getPrimaryPlaneId();
-    DrmPlane* plane = mPlanes[id].get();
-    if (plane->checkFormatSupported(DRM_FORMAT_ABGR8888)) {
-        *format = static_cast<uint32_t>(common::PixelFormat::RGBA_8888);
-    } else if (plane->checkFormatSupported(DRM_FORMAT_XRGB8888)) {
-        // primary plane of imx8ulp use such format
-        *format = static_cast<uint32_t>(common::PixelFormat::BGRA_8888);
-    } else if (plane->checkFormatSupported(DRM_FORMAT_RGB565)) {
-        *format = static_cast<uint32_t>(common::PixelFormat::RGB_565);
-    }
-
+    *format = mFbFormat;
     return 0;
 }
 

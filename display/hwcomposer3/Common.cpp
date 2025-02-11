@@ -58,8 +58,14 @@ bool IsHdcpUserEnabled() {
 
 std::string getHdcpStatusPath() {
     std::string status_path = ::android::base::GetProperty("vendor.hdcp_status_path", "");
-    DEBUG_LOG("%s: property hdcp_status_path is %s", __FUNCTION__, status_path.c_str());
+    DEBUG_LOG("%s: property vendor.hdcp_status_path is %s", __FUNCTION__, status_path.c_str());
     return status_path;
+}
+
+std::string getFramebufferFormat() {
+    std::string format = ::android::base::GetProperty("vendor.hwc.framebuffer_format", "");
+    DEBUG_LOG("%s: property vendor.hwc.framebuffer_format is %s", __FUNCTION__, format.c_str());
+    return format;
 }
 
 std::string toString(HWC3::Error error) {
