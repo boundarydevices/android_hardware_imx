@@ -109,6 +109,9 @@ hwc_config_soc_cc_defaults {
             IMX8ULP: {
                 cflags: ["-DMAX_DRM_CONFIG_720P"],
             },
+            IMX93: {
+                cflags: ["-DFORMAT_WORKAROUND_FOR_PXP"],
+            },
         },
     },
 }

@@ -468,13 +468,14 @@ int DeviceComposer::composeLayerLocked(Layer* layer, bool bypass) {
 
         if (!(type == Composition::SOLID_COLOR) && layerBuffer) {
             setG2dSurface(sSurfaceX, layerBuffer, srect);
+#ifndef G2D_LIMITATION_PXP // PXP G2D don't support DITHER
             if ((info.format == static_cast<uint32_t>(common::PixelFormat::RGB_565)) &&
                 (layerInfo.format == static_cast<uint32_t>(common::PixelFormat::RGBA_8888) ||
                  layerInfo.format == static_cast<uint32_t>(common::PixelFormat::RGBX_8888) ||
                  layerInfo.format == static_cast<uint32_t>(common::PixelFormat::BGRA_8888))) {
                 needDither = true;
             }
-
+#endif
         } else if (mSolidColorBuffer) {
             setG2dSurface(sSurfaceX, mSolidColorBuffer, drect);
         } else {
@@ -604,10 +605,18 @@ enum g2d_format DeviceComposer::convertFormat(uint32_t format, buffer_handle_t h
             halFormat = G2D_RGBA1010102;
             break;
         case DRM_FORMAT_ABGR8888:
+#ifdef FORMAT_WORKAROUND_FOR_PXP
+            halFormat = G2D_BGRA8888;
+#else
             halFormat = G2D_RGBA8888;
+#endif
             break;
         case DRM_FORMAT_XBGR8888:
+#ifdef FORMAT_WORKAROUND_FOR_PXP
+            halFormat = G2D_BGRX8888;
+#else
             halFormat = G2D_RGBX8888;
+#endif
             break;
         case DRM_FORMAT_RGB565:
             halFormat = G2D_RGB565;
