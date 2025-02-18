@@ -885,6 +885,9 @@ int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuf
     int sharedFd = bufferHandle->data[0];
     uint64_t phyAddr = GetPhyAddrFromBuffer(sharedFd);
     ALOGV("%s, vaddr:%p,  phy:%p, size:%lu\n", __func__, vaddr, (void *)phyAddr, allocatedSize);
+    uint64_t formatSize = (uint64_t)getSizeByForamtRes(format, width, height, false);
+    if (formatSize == 0)
+        formatSize = allocatedSize;
 
     outBufInfo.mFormat = format;
     outBufInfo.mWidth = width;
@@ -894,6 +897,7 @@ int AllocPhyBuffer(uint32_t width, uint32_t height, uint32_t format, ImxImageBuf
     outBufInfo.mFd = sharedFd;
     outBufInfo.buffer = bufferHandle;
     outBufInfo.mSize = allocatedSize;
+    outBufInfo.mFormatSize = formatSize;
     outBufInfo.mStride = bufferStride;
     outBufInfo.mUsage = usage;
 
