@@ -101,7 +101,9 @@ hwc_config_soc_cc_defaults {
                 cflags: ["-DMAX_DRM_CONFIG_4K"],
             },
             IMX8MP: {
-                cflags: ["-DMAX_DRM_CONFIG_4K"],
+                cflags: ["-DMAX_DRM_CONFIG_4K",
+                         "-DFIX_HANG_WHEN_FIRST_PLUG_IN",
+                        ],
             },
             IMX95: {
                 cflags: ["-DMAX_DRM_CONFIG_4K"],

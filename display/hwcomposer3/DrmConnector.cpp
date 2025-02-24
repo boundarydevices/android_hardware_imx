@@ -53,6 +53,7 @@ std::unique_ptr<DrmConnector> DrmConnector::create(::android::base::borrowed_fd 
         return nullptr;
     }
     connector->mPossibleCrtcsMask = drmEncoder->possible_crtcs;
+    connector->mEncoderType = drmEncoder->encoder_type;
     drmModeFreeEncoder(drmEncoder);
     drmModeFreeConnector(drmConnector);
 

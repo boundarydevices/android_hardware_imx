@@ -166,6 +166,9 @@ private:
     bool mModeSet = true;
     int32_t mOverlayMaxZpos = 0;
     uint32_t mCommitRetryCnt = MAX_COMMIT_RETRY_COUNT;
+#ifdef FIX_HANG_WHEN_FIRST_PLUG_IN
+    uint32_t mPreheatFrameCnt = 0;
+#endif
 
     uint32_t mHdrMetadataBlobId = 0;
 #ifdef DEBUG_DUMP_REFRESH_RATE

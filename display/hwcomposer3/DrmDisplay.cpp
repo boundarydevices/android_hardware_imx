@@ -19,6 +19,7 @@
 
 #include <drm_fourcc.h>
 #include <stdlib.h>
+#include <thread>
 #include <xf86drm.h>
 
 #include "BufferInfo.h"
@@ -300,6 +301,12 @@ std::tuple<HWC3::Error, ::android::base::unique_fd> DrmDisplay::commit(
     }
 
     uint32_t vsyncPeriod = 1000000000UL / mActiveConfig.refreshRateHz;   // convert to nanosecond
+#ifdef FIX_HANG_WHEN_FIRST_PLUG_IN
+    if (mPreheatFrameCnt > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(vsyncPeriod / 1000000));
+        mPreheatFrameCnt--;
+    }
+#endif
     uint32_t interval = vsyncPeriod * 2 / MAX_COMMIT_RETRY_COUNT / 1000; // try 2 Vsync period
 #ifdef DEBUG_DUMP_REFRESH_RATE
     nsecs_t now = dumpRefreshRateStart();
@@ -639,6 +646,13 @@ void DrmDisplay::placeholderDisplayConfigs() {
         newConfig.dpiX = 160;
         newConfig.dpiY = 160;
         newConfig.refreshRateHz = 60;
+#ifdef FIX_HANG_WHEN_FIRST_PLUG_IN
+        mPreheatFrameCnt = 2;
+        if (mConnector->getEncoderType() == DRM_MODE_ENCODER_LVDS) {
+            newConfig.width = 1280;
+            newConfig.height = 720;
+        }
+#endif
     }
 
     mConfigs->emplace(mStartConfigId, newConfig);
