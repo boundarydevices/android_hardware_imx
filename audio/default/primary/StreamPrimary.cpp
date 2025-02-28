@@ -254,7 +254,7 @@ void StreamPrimary::tryStart(){
 
         RETURN_STATUS_IF_ERROR(
                 StreamAlsa::transfer(src.get(), frameCount * 2, actualFrameCount, latencyMs));
-        memcpy_to_i16_from_i32(dst, src.get(), frameCount);
+        memcpy_to_i16_from_i32(dst, src.get(), frameCount * channels);
 
         *actualFrameCount /= 2;
 
