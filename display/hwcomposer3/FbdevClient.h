@@ -76,7 +76,7 @@ public:
                                                ClientTargetProperty* outProperty) override;
 
 private:
-    bool loadFbdevDisplays(uint32_t displayBaseId);
+    bool loadFbdevDisplays(uint32_t displayBaseId, FbdevType type);
 
     // Drm device.
     ::android::base::unique_fd mFd;

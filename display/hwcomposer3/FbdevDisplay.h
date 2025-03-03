@@ -34,9 +34,15 @@
 
 namespace aidl::android::hardware::graphics::composer3::impl {
 
+enum class FbdevType {
+    kDefault = 0,
+    kEpdc,
+};
+
 class FbdevDisplay {
 public:
-    static std::unique_ptr<FbdevDisplay> create(uint32_t id, ::android::base::borrowed_fd devFd);
+    static std::unique_ptr<FbdevDisplay> create(uint32_t id, FbdevType type,
+                                                ::android::base::borrowed_fd devFd);
 
     uint32_t getId() const { return mId; }
     uint32_t getHwcId() const { return mHwcId; }
@@ -71,8 +77,8 @@ public:
     bool isPrimary() { return mIsPrimary; }
 
 private:
-    FbdevDisplay(uint32_t id, int devFd)
-          : mHwcId(id), mOriginalHwcId(mHwcId), mId(id), mFbdevFd(devFd) {}
+    FbdevDisplay(uint32_t id, FbdevType type, int devFd)
+          : mHwcId(id), mOriginalHwcId(mHwcId), mId(id), mFbdevFd(devFd), mDeviceType(type) {}
 
     bool onConnect(::android::base::borrowed_fd devFd);
     bool onDisconnect(::android::base::borrowed_fd devFd);
@@ -85,6 +91,7 @@ private:
     uint32_t mOriginalHwcId;
     const uint32_t mId;
     const int mFbdevFd; // just a copy here, owned by FbdevClient
+    const FbdevType mDeviceType = FbdevType::kDefault;
 
     // The last presented buffer / DRM framebuffer is cached until
     // the next present to avoid toggling the display on and off.

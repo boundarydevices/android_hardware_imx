@@ -38,18 +38,20 @@ HWC3::Error FbdevClient::init(char* path, uint32_t* baseId) {
     }
 
     uint32_t displayBaseId = *baseId;
+    FbdevType devType = FbdevType::kDefault;
     struct fb_fix_screeninfo finfo;
     if (ioctl(mFd, FBIOGET_FSCREENINFO, &finfo) == -1) {
         ALOGE("%s: FBIOGET_FSCREENINFO failed", __FUNCTION__);
         return HWC3::Error::NoResources;
     }
     if (!strcmp("mxc_epdc_fb", finfo.id)) {
+        devType = FbdevType::kEpdc;
         ALOGI("%s: Found EPDC Display panel!", __FUNCTION__);
     }
 
     {
         std::lock_guard<std::recursive_mutex> lock(mDisplaysMutex);
-        bool success = loadFbdevDisplays(displayBaseId);
+        bool success = loadFbdevDisplays(displayBaseId, devType);
         if (success) {
             DEBUG_LOG("%s: Successfully initialized FBDEV backend", __FUNCTION__);
         } else {
@@ -95,10 +97,10 @@ HWC3::Error FbdevClient::getDisplayConfigs(std::vector<HalMultiConfigs>* configs
         return HWC3::Error::NoResources;
 }
 
-bool FbdevClient::loadFbdevDisplays(uint32_t displayBaseId) {
+bool FbdevClient::loadFbdevDisplays(uint32_t displayBaseId, FbdevType type) {
     DEBUG_LOG("%s", __FUNCTION__);
 
-    auto display = FbdevDisplay::create(displayBaseId, mFd);
+    auto display = FbdevDisplay::create(displayBaseId, type, mFd);
     if (!display) {
         return false;
     }

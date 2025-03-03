@@ -38,9 +38,9 @@ uint64_t addressAsUint(T* pointer) {
 
 } // namespace
 
-std::unique_ptr<FbdevDisplay> FbdevDisplay::create(uint32_t id,
+std::unique_ptr<FbdevDisplay> FbdevDisplay::create(uint32_t id, FbdevType type,
                                                    ::android::base::borrowed_fd devFd) {
-    std::unique_ptr<FbdevDisplay> display(new FbdevDisplay(id, devFd.get()));
+    std::unique_ptr<FbdevDisplay> display(new FbdevDisplay(id, type, devFd.get()));
 
     return std::move(display);
 }
@@ -160,7 +160,10 @@ bool FbdevDisplay::updateDisplayConfigs() {
 
     if (refreshRate == 0) {
         // bad info from the driver
-        refreshRate = 60; // 60 Hz
+        if (mDeviceType == FbdevType::kEpdc)
+            refreshRate = 2; // 2 Hz for EPDC device because refresh rate of E-ink panel is too low
+        else
+            refreshRate = 60; // default 60Hz
     }
 
     if (int(info.width) <= 0 || int(info.height) <= 0) {
